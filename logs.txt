@@ -1,0 +1,40 @@
+--- Active Stress Calibration Harness ---
+BASELINE -> CO: 3.5 / 3.5, LV: 29-84
+Baseline Volumes: LV:63 LA:36 RV:54 RA:27 Ao:114 SA:271 Art:86 Cap:214 SV:3148 VC:370 PA:20 PArt:21 PCap:159 PVen:185 PVein:232 
+[lvT=4.0, rvT=4.0] CO: 3.8, LV: 14-75
+--- TRACE ---
+phi=7.25: VLV=16.9, LVP=1.64, LAP=2.01, QMV=-6.9, QAo=-1.6, AoP=75.3, aLV=0.1026
+phi=7.30: VLV=17.3, LVP=2.00, LAP=2.06, QMV=2.2, QAo=-0.0, AoP=66.8, aLV=0.0641
+phi=7.35: VLV=17.7, LVP=1.95, LAP=2.08, QMV=15.7, QAo=-0.0, AoP=60.3, aLV=0.0393
+phi=7.40: VLV=18.4, LVP=1.82, LAP=2.09, QMV=22.2, QAo=-0.0, AoP=56.3, aLV=0.0238
+phi=7.45: VLV=19.6, LVP=1.67, LAP=2.04, QMV=37.1, QAo=-0.0, AoP=54.8, aLV=0.0143
+phi=7.50: VLV=21.4, LVP=1.44, LAP=1.93, QMV=55.0, QAo=-0.0, AoP=55.6, aLV=0.0086
+phi=7.55: VLV=24.0, LVP=1.16, LAP=1.78, QMV=77.1, QAo=-0.0, AoP=58.1, aLV=0.0051
+phi=7.60: VLV=27.5, LVP=0.88, LAP=1.58, QMV=97.8, QAo=-0.0, AoP=61.6, aLV=0.0031
+phi=7.65: VLV=31.8, LVP=0.62, LAP=1.38, QMV=112.6, QAo=-0.0, AoP=65.3, aLV=0.0018
+phi=7.70: VLV=36.4, LVP=0.42, LAP=1.19, QMV=120.0, QAo=-0.0, AoP=68.4, aLV=0.0011
+phi=7.75: VLV=41.3, LVP=0.28, LAP=1.03, QMV=121.2, QAo=-0.0, AoP=70.4, aLV=0.0007
+phi=7.80: VLV=46.1, LVP=0.18, LAP=1.86, QMV=131.4, QAo=-0.0, AoP=70.8, aLV=0.0004
+phi=7.85: VLV=54.3, LVP=0.11, LAP=1.72, QMV=250.6, QAo=-0.0, AoP=69.8, aLV=0.0002
+phi=7.90: VLV=63.8, LVP=0.07, LAP=0.92, QMV=204.6, QAo=-0.0, AoP=67.7, aLV=0.0001
+phi=7.95: VLV=70.0, LVP=0.05, LAP=0.40, QMV=107.6, QAo=-0.0, AoP=65.0, aLV=0.0001
+phi=8.00: VLV=72.8, LVP=0.03, LAP=0.23, QMV=42.2, QAo=-0.0, AoP=62.2, aLV=0.0001
+phi=8.05: VLV=72.9, LVP=15.16, LAP=0.33, QMV=-188.4, QAo=-0.0, AoP=59.8, aLV=0.0300
+phi=8.10: VLV=52.6, LVP=121.22, LAP=1.01, QMV=-130.9, QAo=905.0, AoP=65.6, aLV=0.2616
+phi=8.15: VLV=14.7, LVP=0.00, LAP=1.31, QMV=11.7, QAo=273.7, AoP=93.8, aLV=0.2387
+phi=8.20: VLV=16.6, LVP=0.00, LAP=1.74, QMV=-103.3, QAo=-60.6, AoP=82.2, aLV=0.1567
+[lvT=4.0, rvT=6.0] CO: 3.8, LV: 14-76
+[lvT=4.0, rvT=8.0] CO: 3.8, LV: 14-76
+[lvT=4.0, rvT=10.0] CO: 3.8, LV: 14-76
+[lvT=5.0, rvT=4.0] CO: 3.8, LV: 11-73
+[lvT=5.0, rvT=6.0] CO: 3.8, LV: 11-73
+[lvT=5.0, rvT=8.0] CO: 3.9, LV: 11-73
+[lvT=5.0, rvT=10.0] CO: 3.9, LV: 10-74
+[lvT=6.0, rvT=4.0] CO: 3.8, LV: 8-71
+[lvT=6.0, rvT=6.0] CO: 3.8, LV: 8-71
+[lvT=6.0, rvT=8.0] CO: 3.9, LV: 8-72
+[lvT=6.0, rvT=10.0] CO: 3.9, LV: 8-72
+[lvT=8.0, rvT=4.0] CO: 3.7, LV: 5-69
+[lvT=8.0, rvT=6.0] CO: 3.7, LV: 5-70
+[lvT=8.0, rvT=8.0] CO: 3.7, LV: 6-70
+[lvT=8.0, rvT=10.0] CO: 3.8, LV: 6-70
