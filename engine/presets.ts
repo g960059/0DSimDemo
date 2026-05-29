@@ -1,4 +1,4 @@
-import type { ParameterPatch } from "./protocol";
+import type { ParameterPatch } from "@/engine/protocol";
 
 export const stableElastanceBaseline: ParameterPatch = {
   heartModel: "elastance",

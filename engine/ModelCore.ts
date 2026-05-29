@@ -1,5 +1,5 @@
-import { clamp, expClamped, frac, raisedCosinePulse, sigmoid, smoothMax, smoothMin, softplus, solveQuadraticFlow } from "./math";
-import type { HeartModelMode, ParameterPatch, SimMetrics, SimSample, SimulationHealth, SimulationHealthStatus, CoreRuntimeParams } from "./protocol";
+import { clamp, expClamped, frac, raisedCosinePulse, sigmoid, smoothMax, smoothMin, softplus, solveQuadraticFlow } from "@/engine/math";
+import type { HeartModelMode, ParameterPatch, SimMetrics, SimSample, SimulationHealth, SimulationHealthStatus, CoreRuntimeParams } from "@/engine/protocol";
 
 type NodeKind = "heartActive" | "heartElastance" | "arterial" | "linear" | "venousPressure";
 type EdgeKind = "resistive" | "dynamic" | "valve";
