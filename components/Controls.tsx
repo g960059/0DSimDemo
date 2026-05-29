@@ -74,6 +74,20 @@ export const Controls: React.FC<ControlsProps> = ({
       }
   };
 
+  const updateNode = (node: string, key: string, value: number) => {
+    const newOverrides = { ...(params.nodeOverrides || {}) };
+    if (!newOverrides[node]) newOverrides[node] = {};
+    newOverrides[node] = { ...newOverrides[node], [key]: value };
+    update('nodeOverrides', newOverrides as any);
+  };
+  
+  const updateEdge = (edge: string, key: string, value: number) => {
+    const newOverrides = { ...(params.edgeOverrides || {}) };
+    if (!newOverrides[edge]) newOverrides[edge] = {};
+    newOverrides[edge] = { ...newOverrides[edge], [key]: value };
+    update('edgeOverrides', newOverrides as any);
+  };
+
   if (!params) return null;
 
   return (
@@ -153,6 +167,15 @@ export const Controls: React.FC<ControlsProps> = ({
               <div className="mt-2 pl-2 border-l-2 border-slate-800">
                   <Slider label="Contractility" value={params.contractility} min={0.25} max={2.5} step={0.05} onChange={(v) => update('contractility', v)} unit="x" />
                   <Slider label="Relaxation" value={params.relaxation} min={0.25} max={2.5} step={0.05} onChange={(v) => update('relaxation', v)} unit="x" />
+                  <span className="text-xs font-bold text-slate-300 block mt-3 mb-1">Chamber Baseline (V0)</span>
+                  <Slider label="LV V0" value={params.nodeOverrides?.LV?.V0 ?? 10} min={0} max={100} step={1} onChange={(v) => updateNode('LV', 'V0', v)} unit="mL" />
+                  <Slider label="RV V0" value={params.nodeOverrides?.RV?.V0 ?? 15} min={0} max={100} step={1} onChange={(v) => updateNode('RV', 'V0', v)} unit="mL" />
+                  <Slider label="LA V0" value={params.nodeOverrides?.LA?.V0 ?? 5} min={0} max={50} step={1} onChange={(v) => updateNode('LA', 'V0', v)} unit="mL" />
+                  <Slider label="RA V0" value={params.nodeOverrides?.RA?.V0 ?? 5} min={0} max={50} step={1} onChange={(v) => updateNode('RA', 'V0', v)} unit="mL" />
+
+                  <span className="text-xs font-bold text-slate-300 block mt-3 mb-1">Elastance (Ees)</span>
+                  <Slider label="LV Ees" value={params.nodeOverrides?.LV?.Ees ?? 2.4} min={0.2} max={10} step={0.1} onChange={(v) => updateNode('LV', 'Ees', v)} />
+                  <Slider label="RV Ees" value={params.nodeOverrides?.RV?.Ees ?? 0.85} min={0.1} max={5} step={0.05} onChange={(v) => updateNode('RV', 'Ees', v)} />
               </div>
           )}
 
@@ -162,6 +185,21 @@ export const Controls: React.FC<ControlsProps> = ({
                   <Slider label="Systemic Resistance" value={params.systemicResistance} min={0.2} max={3.5} step={0.05} onChange={(v) => update('systemicResistance', v)} unit="x" />
                   <Slider label="Pulm Resistance" value={params.pulmonaryResistance} min={0.2} max={4.0} step={0.05} onChange={(v) => update('pulmonaryResistance', v)} unit="x" />
                   <Slider label="Arterial Stiffness" value={params.arterialStiffness} min={0.4} max={3.0} step={0.05} onChange={(v) => update('arterialStiffness', v)} unit="x" />
+
+                  <span className="text-xs font-bold text-slate-300 block mt-3 mb-1">Systemic Segment R</span>
+                  <Slider label="Ao → SA" value={params.edgeOverrides?.Ao_SA?.R ?? 0.05} min={0.01} max={0.5} step={0.01} onChange={(v) => updateEdge('Ao_SA', 'R', v)} />
+                  <Slider label="SA → Art" value={params.edgeOverrides?.SA_Art?.R ?? 0.08} min={0.01} max={0.5} step={0.01} onChange={(v) => updateEdge('SA_Art', 'R', v)} />
+                  <Slider label="Art → Cap" value={params.edgeOverrides?.Art_Cap?.R ?? 0.65} min={0.1} max={3.0} step={0.05} onChange={(v) => updateEdge('Art_Cap', 'R', v)} />
+                  <Slider label="Cap → SV" value={params.edgeOverrides?.Cap_SV?.R ?? 0.15} min={0.01} max={1.0} step={0.01} onChange={(v) => updateEdge('Cap_SV', 'R', v)} />
+                  <Slider label="SV → VC" value={params.edgeOverrides?.SV_VC?.R ?? 0.05} min={0.01} max={0.5} step={0.01} onChange={(v) => updateEdge('SV_VC', 'R', v)} />
+                  <Slider label="VC → RA" value={params.edgeOverrides?.VC_RA?.R ?? 0.04} min={0.01} max={0.3} step={0.01} onChange={(v) => updateEdge('VC_RA', 'R', v)} />
+
+                  <span className="text-xs font-bold text-slate-300 block mt-3 mb-1">Pulmonary Segment R</span>
+                  <Slider label="PA → PArt" value={params.edgeOverrides?.PA_PArt?.R ?? 0.01} min={0.001} max={0.1} step={0.001} onChange={(v) => updateEdge('PA_PArt', 'R', v)} />
+                  <Slider label="PArt → PCap" value={params.edgeOverrides?.PArt_PCap?.R ?? 0.04} min={0.01} max={0.3} step={0.01} onChange={(v) => updateEdge('PArt_PCap', 'R', v)} />
+                  <Slider label="PCap → PVen" value={params.edgeOverrides?.PCap_PVen?.R ?? 0.03} min={0.01} max={0.3} step={0.01} onChange={(v) => updateEdge('PCap_PVen', 'R', v)} />
+                  <Slider label="PVen → PVein" value={params.edgeOverrides?.PVen_PVein?.R ?? 0.01} min={0.001} max={0.1} step={0.001} onChange={(v) => updateEdge('PVen_PVein', 'R', v)} />
+                  <Slider label="PVein → LA" value={params.edgeOverrides?.PVein_LA?.R ?? 0.02} min={0.001} max={0.2} step={0.001} onChange={(v) => updateEdge('PVein_LA', 'R', v)} />
               </div>
           )}
 
@@ -206,38 +244,6 @@ export const Controls: React.FC<ControlsProps> = ({
                          <Slider label={`tauClose`} value={(params as any)[`${vName}_tauClose`]} min={0.001} max={0.1} step={0.001} onChange={(v) => update(`${vName}_tauClose` as any, v)} />
                      </div>
                  ))}
-              </div>
-          )}
-          <GroupHeader title="Advanced Overrides (JSON)" isOpen={openGroups.advanced} toggle={() => toggleGroup('advanced')} />
-          {openGroups.advanced && (
-              <div className="mt-2 pl-2 border-l-2 border-slate-800">
-                  <p className="text-xs text-slate-400 mb-2">Override specific node/edge parameters. For example: <br/><code>{"{ \"LV\": { \"V0\": 15 }, \"Ao_SA\": { \"R\": 0.1 } }"}</code></p>
-                  <label className="text-xs font-bold text-slate-300">Node Overrides</label>
-                  <textarea 
-                      className="w-full h-24 bg-slate-900 border border-slate-700 text-xs text-slate-300 p-2 rounded mb-2 font-mono"
-                      defaultValue={JSON.stringify(params.nodeOverrides || {}, null, 2)}
-                      onBlur={(e) => {
-                          try {
-                              const parsed = JSON.parse(e.target.value);
-                              update('nodeOverrides', parsed);
-                          } catch (err) {
-                              // Ignore invalid JSON
-                          }
-                      }}
-                  />
-                  <label className="text-xs font-bold text-slate-300">Edge Overrides</label>
-                  <textarea 
-                      className="w-full h-24 bg-slate-900 border border-slate-700 text-xs text-slate-300 p-2 rounded font-mono"
-                      defaultValue={JSON.stringify(params.edgeOverrides || {}, null, 2)}
-                      onBlur={(e) => {
-                          try {
-                              const parsed = JSON.parse(e.target.value);
-                              update('edgeOverrides', parsed);
-                          } catch (err) {
-                              // Ignore invalid JSON
-                          }
-                      }}
-                  />
               </div>
           )}
       </div>

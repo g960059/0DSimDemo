@@ -241,8 +241,10 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                     if (latestT > currentGlobalTime) currentGlobalTime = latestT;
                 }
             });
-            const tMin = Math.max(0, currentGlobalTime - (timeWindow / 1000));
-            const tMax = Math.max((timeWindow / 1000), currentGlobalTime);
+            const timeSec = timeWindow / 1000;
+            const gapSec = timeSec * 0.025;
+            const tMin = Math.max(0, currentGlobalTime - timeSec + gapSec);
+            const tMax = currentGlobalTime;
 
             let frameYMax = 50;
             let frameYMin = 0;
@@ -286,7 +288,7 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                 scaleRef.current.yMin = scaleRef.current.yMin * 0.95 + frameYMin * 0.05;
             }
 
-            const xScale = d3.scaleLinear().domain([tMin, tMax]).range([40, width - 10]);
+            const xScale = d3.scaleLinear().domain([0, timeSec]).range([40, width - 10]);
             const yScale = d3.scaleLinear().domain([scaleRef.current.yMin, scaleRef.current.yMax]).range([height - 20, 10]);
 
             ctx.strokeStyle = '#334155';
@@ -319,7 +321,10 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                     ctx.strokeStyle = color;
                     ctx.lineWidth = 1.5;
 
-                    let isFirst = true;
+                    let prevX = -1;
+                    let lastPx = -1;
+                    let lastPy = -1;
+
                     for (let i = 0; i < physState.buffer.length; i += drawStep) {
                         const d = physState.buffer[i];
                         if (d.t < tMin) continue;
@@ -339,13 +344,32 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                             case 'QTV': val = d.QTV; break;
                         }
 
-                        const px = xScale(d.t);
+                        const modT = d.t % timeSec;
+                        const px = xScale(modT);
                         const py = yScale(val);
 
-                        if (isFirst) { ctx.moveTo(px, py); isFirst = false; } 
-                        else { ctx.lineTo(px, py); }
+                        if (prevX === -1 || px < prevX) {
+                            ctx.stroke();
+                            ctx.beginPath();
+                            ctx.strokeStyle = color;
+                            ctx.lineWidth = 1.5;
+                            ctx.moveTo(px, py);
+                        } else {
+                            ctx.lineTo(px, py);
+                        }
+                        prevX = px;
+                        lastPx = px;
+                        lastPy = py;
                     }
                     ctx.stroke();
+
+                    if (lastPx !== -1) {
+                         ctx.beginPath();
+                         ctx.arc(lastPx, lastPy, 4, 0, Math.PI * 2);
+                         const c = d3.color(color);
+                         ctx.fillStyle = c ? c.brighter(0.5).formatHex() : color;
+                         ctx.fill();
+                    }
                 });
             });
 
