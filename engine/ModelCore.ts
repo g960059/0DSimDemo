@@ -182,9 +182,9 @@ const defaultActiveLV: ActiveChamberParams = {
   hillN: 3.0,
   kOn: 25,
   kOff: 15,
-  sigmaPas0: 500,
-  bPas: 5.0,
-  lambdaPas0: 0.95,
+  sigmaPas0: 1500,
+  bPas: 14.0,
+  lambdaPas0: 0.85,
   Tmax0: 85000,
   kOver: 35,
   lambdaFail: 1.45,
@@ -197,9 +197,9 @@ const defaultActiveRV: ActiveChamberParams = {
   V0: 15,
   Vw: 55,
   Vref: 135,
-  sigmaPas0: 300,
-  bPas: 4.5,
-  lambdaPas0: 0.95,
+  sigmaPas0: 1200,
+  bPas: 12.0,
+  lambdaPas0: 0.85,
   Tmax0: 36000,
   geomChi: 0.28
 };
@@ -227,7 +227,16 @@ export function defaultParams(): CoreRuntimeParams {
     lvGeomScale: 1,
     rvGeomScale: 1,
     caReleaseScale: 1,
-    rvCaReleaseScale: 1
+    rvCaReleaseScale: 1,
+    // Valve Defaults
+    // MV
+    MV_Amax: 1, MV_Aleak: 1e-5, MV_kOpen: 2.0, MV_tauOpen: 0.012, MV_tauClose: 0.025, MV_R: 0.002, MV_L: 0.0002,
+    // AoV
+    AoV_Amax: 1, AoV_Aleak: 1e-5, AoV_kOpen: 2.0, AoV_tauOpen: 0.010, AoV_tauClose: 0.030, AoV_R: 0.005, AoV_L: 0.002,
+    // TV
+    TV_Amax: 1, TV_Aleak: 1e-5, TV_kOpen: 2.0, TV_tauOpen: 0.012, TV_tauClose: 0.025, TV_R: 0.002, TV_L: 0.0002,
+    // PV
+    PV_Amax: 1, PV_Aleak: 1e-5, PV_kOpen: 2.0, PV_tauOpen: 0.010, PV_tauClose: 0.020, PV_R: 0.005, PV_L: 0.001
   };
 }
 
@@ -576,13 +585,15 @@ export class ModelCore {
       const PdEff = this.downstreamEffective(e, Pd);
       const q = x[qi];
       const { R, B } = this.effectiveLosses(e, Pu, Pd, x);
-      const L = Math.max(e.L ?? 0.001, 1e-6);
+      const L = e.kind === "valve" ? Math.max((this.p as any)[`${e.name}_L`] ?? e.L ?? 0.001, 1e-6) : Math.max(e.L ?? 0.001, 1e-6);
       const h = Math.max(this.rhsDt, 1e-6);
       const Reff = R + B * Math.abs(q);
       let qNext = (q + (h / L) * (Pu - PdEff)) / (1 + (h * Reff) / L);
       if (e.kind === "valve") {
+        const pName = e.name as ValveName;
+        const vAleak = (this.p as any)[`${pName}_Aleak`] ?? e.Aleak ?? 1e-5;
         if (qNext < 0) {
-           const maxLeak = -1000 * (e.Aleak ?? 1e-5); 
+           const maxLeak = -1000 * vAleak; 
            if (qNext < maxLeak) qNext = maxLeak;
         }
       }
@@ -594,8 +605,12 @@ export class ModelCore {
       const e = this.edges[this.edgeIndex(vName)];
       const xiIndex = this.idx.xi[vName];
       const dP = pack.P[this.nodeIndex.get(e.up)!] - pack.P[this.nodeIndex.get(e.down)!];
-      const xiEq = sigmoid((e.kOpen ?? 2.0) * (dP - (e.dP0 ?? 0)));
-      const tau = dP > 0 ? (e.tauOpen ?? 0.012) : (e.tauClose ?? 0.025);
+      const kOpen = (this.p as any)[`${vName}_kOpen`] ?? e.kOpen ?? 2.0;
+      const tauOpen = (this.p as any)[`${vName}_tauOpen`] ?? e.tauOpen ?? 0.012;
+      const tauClose = (this.p as any)[`${vName}_tauClose`] ?? e.tauClose ?? 0.025;
+      
+      const xiEq = sigmoid(kOpen * (dP - (e.dP0 ?? 0)));
+      const tau = dP > 0 ? tauOpen : tauClose;
       dy[xiIndex] = clamp((xiEq - x[xiIndex]) / Math.max(tau, 1e-5), -80, 80);
     }
 
@@ -792,9 +807,13 @@ export class ModelCore {
     if (e.group === "pulmonary") R *= this.p.pulmonaryResistance;
 
     if (e.kind === "valve") {
-      const xi = clamp(x[this.idx.xi[e.name as ValveName]], 0, 1);
-      const areaRatio = Math.max((e.Aleak ?? 1e-4) + xi * ((e.Amax ?? 1) - (e.Aleak ?? 1e-4)), 1e-4) / Math.max(e.Amax ?? 1, 1e-6);
-      R = R / (areaRatio * areaRatio);
+      const pName = e.name as ValveName;
+      const vAmax = (this.p as any)[`${pName}_Amax`] ?? e.Amax ?? 1;
+      const vAleak = (this.p as any)[`${pName}_Aleak`] ?? e.Aleak ?? 1e-4;
+      const vR = (this.p as any)[`${pName}_R`] ?? e.R;
+      const xi = clamp(x[this.idx.xi[pName]], 0, 1);
+      const areaRatio = Math.max(vAleak + xi * (vAmax - vAleak), 1e-4) / Math.max(vAmax, 1e-6);
+      R = vR / (areaRatio * areaRatio);
       B = B / (areaRatio * areaRatio);
     } else if ((e.useChiResistance || e.useChiQuadratic) && this.p.useChiResistance) {
       const chi = this.edgeChi(e, Pu, Pd);

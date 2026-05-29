@@ -17,7 +17,7 @@ export const experimentalActiveStressCandidate: ParameterPatch = {
   rvGeomScale: 1.0,
   systemicResistance: 1.3,
   pulmonaryResistance: 1.0,
-  venousTone: 0.1,
+  venousTone: 0.8,
   projectTBV: true,
 };
 
