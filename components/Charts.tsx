@@ -51,8 +51,8 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
     let animationFrameId: number;
 
     const render = () => {
-      const xScale = d3.scaleLinear().domain([0, 300]).range([50, width - 20]);
-      const yScale = d3.scaleLinear().domain([0, 200]).range([height - 40, 20]);
+      const xScale = d3.scaleLinear().domain([0, 300]).range([50, width - 15]);
+      const yScale = d3.scaleLinear().domain([0, 200]).range([height - 35, 25]);
 
       ctx.clearRect(0, 0, width, height);
 
@@ -92,27 +92,27 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
           scaleRef.current.maxP = scaleRef.current.maxP * 0.9 + Math.max(100, Math.ceil(currentFrameMaxP / 50) * 50) * 0.1;
       }
 
-      xScale.domain([0, scaleRef.current.maxV]).range([50, width - 20]);
-      yScale.domain([0, scaleRef.current.maxP]).range([height - 40, 20]);
+      xScale.domain([0, scaleRef.current.maxV]).range([50, width - 15]);
+      yScale.domain([0, scaleRef.current.maxP]).range([height - 35, 10]);
 
       ctx.strokeStyle = '#334155';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      xScale.ticks(6).forEach(t => { ctx.moveTo(xScale(t), height-40); ctx.lineTo(xScale(t), 20); });
-      yScale.ticks(6).forEach(t => { ctx.moveTo(50, yScale(t)); ctx.lineTo(width-20, yScale(t)); });
+      xScale.ticks(6).forEach(t => { ctx.moveTo(xScale(t), height-35); ctx.lineTo(xScale(t), 10); });
+      yScale.ticks(6).forEach(t => { ctx.moveTo(50, yScale(t)); ctx.lineTo(width-15, yScale(t)); });
       ctx.stroke();
 
       ctx.fillStyle = '#94a3b8';
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'center';
-      xScale.ticks(6).forEach(t => ctx.fillText(t.toString(), xScale(t), height - 25));
+      xScale.ticks(6).forEach(t => ctx.fillText(t.toString(), xScale(t), height - 20));
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
-      yScale.ticks(6).forEach(t => ctx.fillText(t.toString(), 45, yScale(t)));
+      yScale.ticks(6).forEach(t => ctx.fillText(t.toString(), 42, yScale(t)));
 
-      ctx.font = '12px sans-serif';
+      ctx.font = '11px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText("Volume (mL)", width / 2, height - 10);
+      ctx.fillText("Volume (mL)", width / 2, height - 4);
       ctx.save();
       ctx.translate(15, height / 2);
       ctx.rotate(-Math.PI / 2);
@@ -196,7 +196,7 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
   }, [instances, config, showGuides]);
 
   return (
-      <div ref={containerRef} className="w-full h-full relative">
+      <div ref={containerRef} className="absolute inset-0 rounded-b-xl overflow-hidden">
          <canvas ref={canvasRef} className="block" />
       </div>
   );
@@ -288,24 +288,24 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                 scaleRef.current.yMin = scaleRef.current.yMin * 0.95 + frameYMin * 0.05;
             }
 
-            const xScale = d3.scaleLinear().domain([0, timeSec]).range([40, width - 10]);
-            const yScale = d3.scaleLinear().domain([scaleRef.current.yMin, scaleRef.current.yMax]).range([height - 20, 10]);
+            const xScale = d3.scaleLinear().domain([0, timeSec]).range([30, width - 5]);
+            const yScale = d3.scaleLinear().domain([scaleRef.current.yMin, scaleRef.current.yMax]).range([height - 25, 10]);
 
             ctx.strokeStyle = '#334155';
             ctx.lineWidth = 1;
             ctx.beginPath();
-            yScale.ticks(4).forEach(t => { ctx.moveTo(40, yScale(t)); ctx.lineTo(width-10, yScale(t)); });
+            yScale.ticks(4).forEach(t => { ctx.moveTo(30, yScale(t)); ctx.lineTo(width-5, yScale(t)); });
             ctx.stroke();
 
             ctx.fillStyle = '#94a3b8';
             ctx.font = '10px sans-serif';
             ctx.textAlign = 'right';
             ctx.textBaseline = 'middle';
-            yScale.ticks(4).forEach(t => ctx.fillText(t.toString(), 35, yScale(t)));
+            yScale.ticks(4).forEach(t => ctx.fillText(t.toString(), 28, yScale(t)));
 
             ctx.textAlign = 'left';
             ctx.textBaseline = 'top';
-            xScale.ticks(5).forEach(t => ctx.fillText(t.toFixed(1) + 's', xScale(t) + 2, height - 15));
+            xScale.ticks(5).forEach(t => ctx.fillText(t.toFixed(1) + 's', xScale(t) + 2, height - 20));
 
             instances.forEach(inst => {
                 const cfg = (config as any)[inst.id];
@@ -385,7 +385,7 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
     }, [instances, timeWindow, config]);
 
     return (
-        <div ref={containerRef} className="w-full h-full relative">
+        <div ref={containerRef} className="absolute inset-0 rounded-b-xl overflow-hidden">
             <canvas ref={canvasRef} className="block" />
         </div>
     );
@@ -400,7 +400,7 @@ export const MetricsPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances
     }, []);
 
     return (
-        <div className="w-full h-full p-2 overflow-y-auto custom-scrollbar">
+        <div className="absolute inset-0 p-4 overflow-y-auto custom-scrollbar flex flex-col gap-5">
             {instances.map(inst => {
                 const cfg = (config as any)[inst.id];
                 if (!cfg || !cfg.visible || cfg.selectedSignals.length === 0) return null;
@@ -418,22 +418,37 @@ export const MetricsPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances
                     'SV': Math.round(met.SV_L),
                     'CO': met.CO_L.toFixed(1),
                     'Ea_LV': (met.AoPSys / Math.max(1, met.SV_L)).toFixed(2),
-                    'LVEF': Math.round(met.EF_LApprox * 100) + '%',
-                    'RVEF': Math.round(met.EF_RApprox * 100) + '%'
+                    'LVEF': Math.round(met.EF_LApprox * 100),
+                    'RVEF': Math.round(met.EF_RApprox * 100)
+                };
+
+                const unitsMap: Record<string, string> = {
+                    'ABP': 'mmHg',
+                    'CVP': 'mmHg',
+                    'PAP': 'mmHg',
+                    'PCWP': 'mmHg',
+                    'SV': 'mL',
+                    'CO': 'L/min',
+                    'Ea_LV': 'mmHg/mL',
+                    'LVEF': '%',
+                    'RVEF': '%'
                 };
 
                 return (
-                    <div key={inst.id} className="mb-4">
-                         <div className="flex items-center gap-2 mb-2 pb-1 border-b border-slate-800">
-                             <div className="w-2 h-2 rounded-full" style={{backgroundColor: inst.color}}></div>
-                             <span className="font-bold text-xs text-slate-300">{inst.name}</span>
+                    <div key={inst.id} className="flex flex-col gap-1 pb-2">
+                         <div className="flex items-center gap-2 pb-1 pt-1">
+                             <div className="w-2 h-2 rounded-full shadow-sm" style={{backgroundColor: inst.color, boxShadow: `0 0 6px ${inst.color}`}}></div>
+                             <span className="font-medium text-[13px] text-slate-200">{inst.name}</span>
                          </div>
-                         <div className="grid grid-cols-2 gap-2">
+                         <div className="flex flex-wrap gap-x-8 gap-y-2.5 px-2">
                              {cfg.selectedSignals.map((sig: string) => (
                                  metricsMap[sig] ? (
-                                     <div key={sig} className="flex flex-col bg-slate-950/50 p-1.5 rounded">
-                                         <span className="text-[10px] text-slate-500 uppercase font-bold">{sig}</span>
-                                         <span className="text-sm font-mono text-slate-200">{metricsMap[sig]}</span>
+                                     <div key={sig} className="flex items-baseline gap-2">
+                                         <span className="text-[11px] text-slate-400 font-medium tracking-wide uppercase">{sig}</span>
+                                         <div className="flex items-baseline gap-1">
+                                            <span className="text-sm font-mono text-slate-100 font-medium">{metricsMap[sig]}</span>
+                                            {unitsMap[sig] && <span className="text-[10px] text-slate-500">{unitsMap[sig]}</span>}
+                                         </div>
                                      </div>
                                  ) : null
                              ))}
@@ -455,7 +470,7 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ phys
         return () => clearInterval(interval);
     }, []);
     return (
-        <div className="w-full h-full p-2 overflow-y-auto flex items-center justify-center bg-slate-900 border border-slate-800 rounded">
+        <div className="absolute inset-0 p-2 overflow-y-auto flex items-center justify-center bg-[#0B1120] rounded-b-xl">
            <div className="flex flex-col text-center opacity-50">
                 <span className="text-sm font-bold text-slate-400">Guyton Plot</span>
                 <span className="text-xs text-slate-500 mt-2">Analytical intersection rendering <br/> is disabled for ModelCore v2</span> 

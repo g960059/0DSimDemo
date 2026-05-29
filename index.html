@@ -4,7 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>HemoSim 0D</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <style>
       /* Custom scrollbar for dark theme */
       ::-webkit-scrollbar {
@@ -21,19 +20,18 @@
       ::-webkit-scrollbar-thumb:hover {
         background: #64748b; 
       }
+      .blocknote-dark-theme-override .bn-editor {
+          background-color: transparent !important;
+      }
+      .blocknote-dark-theme-override .bn-side-menu[data-theme="dark"] {
+          background-color: #1e293b !important;
+          border-color: #334155 !important;
+      }
+      .blocknote-dark-theme-override .bn-menu-dropdown[data-theme="dark"] {
+          background-color: #1e293b !important;
+          border-color: #334155 !important;
+      }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "d3": "https://esm.sh/d3@^7.9.0",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "recharts": "https://esm.sh/recharts@^3.6.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body class="bg-slate-950 text-slate-100 antialiased overflow-hidden">
     <div id="root"></div>

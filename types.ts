@@ -20,7 +20,7 @@ export interface PanelInstanceConfig {
     selectedSignals: string[];
 }
 
-export type PanelType = 'PVLOOP' | 'WAVEFORM' | 'METRICS' | 'GUYTON_RIGHT' | 'GUYTON_LEFT' | 'GUYTON_3D';
+export type PanelType = 'PVLOOP' | 'WAVEFORM' | 'METRICS' | 'GUYTON_RIGHT' | 'GUYTON_LEFT' | 'GUYTON_3D' | 'CONTROLS' | 'NOTE';
 
 export interface PanelDef {
     id: string;
