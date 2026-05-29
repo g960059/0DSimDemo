@@ -26,7 +26,7 @@ function App() {
       { 
           id: '1', name: 'Heart A', color: INSTANCE_COLORS[0], 
           params: { ...DEFAULT_PARAMS }, 
-          targetVolume: 5000, 
+          targetVolume: 5600, 
           isVisible: true 
       }
   ]);
@@ -170,7 +170,7 @@ function App() {
       const color = INSTANCE_COLORS[instances.length % INSTANCE_COLORS.length];
       const sourceInstance = instances.find(i => i.id === activeInstanceId);
       const initialParams = sourceInstance ? JSON.parse(JSON.stringify(sourceInstance.params)) : { ...DEFAULT_PARAMS };
-      const initialVol = sourceInstance ? sourceInstance.targetVolume : 5000;
+      const initialVol = sourceInstance ? sourceInstance.targetVolume : 5600;
 
       setInstances(prev => [...prev, {
           id: newId, name: `Heart ${String.fromCharCode(65 + instances.length)}`,

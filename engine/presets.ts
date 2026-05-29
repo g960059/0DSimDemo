@@ -9,15 +9,15 @@ export const stableElastanceBaseline: ParameterPatch = {
 
 export const experimentalActiveStressCandidate: ParameterPatch = {
   heartModel: "activeStress",
-  lvTmaxScale: 3.5,
+  lvTmaxScale: 4.5,
   rvTmaxScale: 4.5,
   caReleaseScale: 1.0,
   rvCaReleaseScale: 1.0,
   lvGeomScale: 1.0,
   rvGeomScale: 1.0,
-  systemicResistance: 1.3,
+  systemicResistance: 1.25,
   pulmonaryResistance: 1.0,
-  venousTone: 0.8,
+  venousTone: 0.2,
   projectTBV: true,
 };
 

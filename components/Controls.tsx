@@ -62,7 +62,8 @@ export const Controls: React.FC<ControlsProps> = ({
       vascular: true,
       resp: false,
       model: false,
-      valves: false
+      valves: false,
+      advanced: false
   });
 
   const toggleGroup = (key: string) => setOpenGroups(prev => ({ ...prev, [key]: !prev[key] }));
@@ -196,7 +197,7 @@ export const Controls: React.FC<ControlsProps> = ({
                  {['MV', 'AoV', 'TV', 'PV'].map(vName => (
                      <div key={vName} className="mb-2 p-2 bg-slate-800/50 rounded">
                          <span className="text-xs font-bold text-slate-300 block mb-2">{vName} Parameters</span>
-                         <Slider label={`Amax`} value={(params as any)[`${vName}_Amax`]} min={0.1} max={5.0} step={0.1} onChange={(v) => update(`${vName}_Amax` as any, v)} unit="cm²" />
+                         <Slider label={`Amax`} value={(params as any)[`${vName}_Amax`]} min={0.1} max={10.0} step={0.1} onChange={(v) => update(`${vName}_Amax` as any, v)} unit="cm²" />
                          <Slider label={`Aleak`} value={(params as any)[`${vName}_Aleak`]} min={0.00000} max={1.0} step={0.001} onChange={(v) => update(`${vName}_Aleak` as any, v)} unit="cm²" />
                          <Slider label={`Resistance`} value={(params as any)[`${vName}_R`]} min={0.0005} max={0.05} step={0.0005} onChange={(v) => update(`${vName}_R` as any, v)} />
                          <Slider label={`Inertance`} value={(params as any)[`${vName}_L`]} min={0.0001} max={0.01} step={0.0001} onChange={(v) => update(`${vName}_L` as any, v)} />
@@ -205,6 +206,38 @@ export const Controls: React.FC<ControlsProps> = ({
                          <Slider label={`tauClose`} value={(params as any)[`${vName}_tauClose`]} min={0.001} max={0.1} step={0.001} onChange={(v) => update(`${vName}_tauClose` as any, v)} />
                      </div>
                  ))}
+              </div>
+          )}
+          <GroupHeader title="Advanced Overrides (JSON)" isOpen={openGroups.advanced} toggle={() => toggleGroup('advanced')} />
+          {openGroups.advanced && (
+              <div className="mt-2 pl-2 border-l-2 border-slate-800">
+                  <p className="text-xs text-slate-400 mb-2">Override specific node/edge parameters. For example: <br/><code>{"{ \"LV\": { \"V0\": 15 }, \"Ao_SA\": { \"R\": 0.1 } }"}</code></p>
+                  <label className="text-xs font-bold text-slate-300">Node Overrides</label>
+                  <textarea 
+                      className="w-full h-24 bg-slate-900 border border-slate-700 text-xs text-slate-300 p-2 rounded mb-2 font-mono"
+                      defaultValue={JSON.stringify(params.nodeOverrides || {}, null, 2)}
+                      onBlur={(e) => {
+                          try {
+                              const parsed = JSON.parse(e.target.value);
+                              update('nodeOverrides', parsed);
+                          } catch (err) {
+                              // Ignore invalid JSON
+                          }
+                      }}
+                  />
+                  <label className="text-xs font-bold text-slate-300">Edge Overrides</label>
+                  <textarea 
+                      className="w-full h-24 bg-slate-900 border border-slate-700 text-xs text-slate-300 p-2 rounded font-mono"
+                      defaultValue={JSON.stringify(params.edgeOverrides || {}, null, 2)}
+                      onBlur={(e) => {
+                          try {
+                              const parsed = JSON.parse(e.target.value);
+                              update('edgeOverrides', parsed);
+                          } catch (err) {
+                              // Ignore invalid JSON
+                          }
+                      }}
+                  />
               </div>
           )}
       </div>

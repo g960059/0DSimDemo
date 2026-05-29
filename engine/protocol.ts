@@ -56,6 +56,8 @@ export type CoreRuntimeParams = {
   PV_tauClose: number;
   PV_R: number;
   PV_L: number;
+  nodeOverrides?: Record<string, Record<string, number>>;
+  edgeOverrides?: Record<string, Record<string, number>>;
 };
 
 export type ParameterPatch = Partial<CoreRuntimeParams>;

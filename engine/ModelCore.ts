@@ -182,8 +182,8 @@ const defaultActiveLV: ActiveChamberParams = {
   hillN: 3.0,
   kOn: 25,
   kOff: 15,
-  sigmaPas0: 1500,
-  bPas: 14.0,
+  sigmaPas0: 2000,
+  bPas: 10.0,
   lambdaPas0: 0.85,
   Tmax0: 85000,
   kOver: 35,
@@ -197,8 +197,8 @@ const defaultActiveRV: ActiveChamberParams = {
   V0: 15,
   Vw: 55,
   Vref: 135,
-  sigmaPas0: 1200,
-  bPas: 12.0,
+  sigmaPas0: 2000,
+  bPas: 10.0,
   lambdaPas0: 0.85,
   Tmax0: 36000,
   geomChi: 0.28
@@ -230,13 +230,13 @@ export function defaultParams(): CoreRuntimeParams {
     rvCaReleaseScale: 1,
     // Valve Defaults
     // MV
-    MV_Amax: 1, MV_Aleak: 1e-5, MV_kOpen: 2.0, MV_tauOpen: 0.012, MV_tauClose: 0.025, MV_R: 0.002, MV_L: 0.0002,
+    MV_Amax: 5.0, MV_Aleak: 1e-4, MV_kOpen: 2.0, MV_tauOpen: 0.012, MV_tauClose: 0.025, MV_R: 0.002, MV_L: 0.0002,
     // AoV
-    AoV_Amax: 1, AoV_Aleak: 1e-5, AoV_kOpen: 2.0, AoV_tauOpen: 0.010, AoV_tauClose: 0.030, AoV_R: 0.005, AoV_L: 0.002,
+    AoV_Amax: 3.5, AoV_Aleak: 1e-4, AoV_kOpen: 2.0, AoV_tauOpen: 0.010, AoV_tauClose: 0.030, AoV_R: 0.005, AoV_L: 0.001,
     // TV
-    TV_Amax: 1, TV_Aleak: 1e-5, TV_kOpen: 2.0, TV_tauOpen: 0.012, TV_tauClose: 0.025, TV_R: 0.002, TV_L: 0.0002,
+    TV_Amax: 8.0, TV_Aleak: 1e-4, TV_kOpen: 2.0, TV_tauOpen: 0.012, TV_tauClose: 0.025, TV_R: 0.002, TV_L: 0.0002,
     // PV
-    PV_Amax: 1, PV_Aleak: 1e-5, PV_kOpen: 2.0, PV_tauOpen: 0.010, PV_tauClose: 0.020, PV_R: 0.005, PV_L: 0.001
+    PV_Amax: 4.0, PV_Aleak: 1e-4, PV_kOpen: 2.0, PV_tauOpen: 0.010, PV_tauClose: 0.020, PV_R: 0.005, PV_L: 0.001
   };
 }
 
@@ -287,8 +287,8 @@ function buildEdges(): EdgeSpec[] {
 
 export class ModelCore {
   private readonly idx = makeIndex();
-  private readonly nodes = buildNodes();
-  private readonly edges = buildEdges();
+  private nodes = buildNodes();
+  private edges = buildEdges();
   private readonly nodeIndex = new Map<string, number>();
   private readonly dynamicEdgeIndex = new Map<string, number>();
   private readonly valveIndex = new Map<string, number>();
@@ -305,12 +305,15 @@ export class ModelCore {
   private clampHitCount = 0;
 
   constructor(initial?: Partial<CoreRuntimeParams>) {
-    this.p = { ...defaultParams(), ...initial };
+    this.p = { ...defaultParams() };
     this.pTarget = { ...this.p };
     this.x = new Float64Array(this.idx.size);
     nodeNames.forEach((n, i) => this.nodeIndex.set(n, i));
     dynamicEdgeNames.forEach((n, i) => this.dynamicEdgeIndex.set(n, i));
     valveNames.forEach((n, i) => this.valveIndex.set(n, i));
+    if (initial) {
+        this.setImmediateParameters(initial);
+    }
     this.reset();
   }
 
@@ -341,6 +344,9 @@ export class ModelCore {
 
   setTargetParameters(patch: ParameterPatch) {
     this.pTarget = { ...this.pTarget, ...patch };
+    if (patch.nodeOverrides || patch.edgeOverrides) {
+        this.setImmediateParameters({ nodeOverrides: patch.nodeOverrides, edgeOverrides: patch.edgeOverrides });
+    }
   }
 
   get speed() {
@@ -350,6 +356,27 @@ export class ModelCore {
   setImmediateParameters(patch: ParameterPatch) {
     this.p = { ...this.p, ...patch };
     this.pTarget = { ...this.pTarget, ...patch };
+    
+    // Apply advanced overrides to nodes and edges by deep merging
+    this.nodes = buildNodes().map(n => {
+        if (this.p.nodeOverrides?.[n.name]) {
+            const overrides = this.p.nodeOverrides[n.name];
+            const updated = { ...n, ...overrides };
+            if (n.active && overrides.active) {
+                updated.active = { ...n.active, ...(overrides.active as any) };
+            }
+            return updated;
+        }
+        return n;
+    });
+
+    this.edges = buildEdges().map(e => {
+        if (this.p.edgeOverrides?.[e.name]) {
+            return { ...e, ...this.p.edgeOverrides[e.name] };
+        }
+        return e;
+    });
+
     this.smoothParams(0); // Applies clamps
   }
 
@@ -584,19 +611,14 @@ export class ModelCore {
       const Pd = pack.P[down];
       const PdEff = this.downstreamEffective(e, Pd);
       const q = x[qi];
-      const { R, B } = this.effectiveLosses(e, Pu, Pd, x);
-      const L = e.kind === "valve" ? Math.max((this.p as any)[`${e.name}_L`] ?? e.L ?? 0.001, 1e-6) : Math.max(e.L ?? 0.001, 1e-6);
+      const { R, B, areaRatio } = this.effectiveLosses(e, Pu, Pd, x);
+      let L = e.kind === "valve" ? Math.max((this.p as any)[`${e.name}_L`] ?? e.L ?? 0.001, 1e-6) : Math.max(e.L ?? 0.001, 1e-6);
+      if (e.kind === "valve" || e.useChiResistance) {
+        L = L / Math.max(areaRatio, 1e-6);
+      }
       const h = Math.max(this.rhsDt, 1e-6);
       const Reff = R + B * Math.abs(q);
       let qNext = (q + (h / L) * (Pu - PdEff)) / (1 + (h * Reff) / L);
-      if (e.kind === "valve") {
-        const pName = e.name as ValveName;
-        const vAleak = (this.p as any)[`${pName}_Aleak`] ?? e.Aleak ?? 1e-5;
-        if (qNext < 0) {
-           const maxLeak = -1000 * vAleak; 
-           if (qNext < maxLeak) qNext = maxLeak;
-        }
-      }
       
       dy[qi] = clamp((qNext - q) / h, -40000, 40000);
     }
@@ -693,7 +715,7 @@ export class ModelCore {
     const c = chamber === "LV" ? x[this.idx.cLV] : x[this.idx.cRV];
     const a = clamp(chamber === "LV" ? x[this.idx.aLV] : x[this.idx.aRV], 0, 1);
     const { lambda, h, rm } = this.activeGeometry(V, ap);
-    const stretch = Math.max(lambda - ap.lambdaPas0, 0);
+    const stretch = lambda - ap.lambdaPas0;
     const sigmaPas = ap.sigmaPas0 * (expClamped(ap.bPas * stretch) - 1);
     const gOver = 1 / (1 + expClamped(ap.kOver * (lambda - ap.lambdaFail)));
     const tmaxScale = chamber === "LV" ? this.p.lvTmaxScale : this.p.rvTmaxScale;
@@ -800,9 +822,10 @@ export class ModelCore {
     return smoothMax(Pd, Pcoll, 0.25);
   }
 
-  private effectiveLosses(e: EdgeSpec, Pu: number, Pd: number, x: Float64Array): { R: number; B: number } {
+  private effectiveLosses(e: EdgeSpec, Pu: number, Pd: number, x: Float64Array): { R: number; B: number; areaRatio: number } {
     let R = e.R;
     let B = e.B ?? 0;
+    let areaRatio = 1.0;
     if (e.group === "systemic") R *= this.p.systemicResistance;
     if (e.group === "pulmonary") R *= this.p.pulmonaryResistance;
 
@@ -812,15 +835,16 @@ export class ModelCore {
       const vAleak = (this.p as any)[`${pName}_Aleak`] ?? e.Aleak ?? 1e-4;
       const vR = (this.p as any)[`${pName}_R`] ?? e.R;
       const xi = clamp(x[this.idx.xi[pName]], 0, 1);
-      const areaRatio = Math.max(vAleak + xi * (vAmax - vAleak), 1e-4) / Math.max(vAmax, 1e-6);
+      areaRatio = Math.max(vAleak + xi * (vAmax - vAleak), 1e-4) / Math.max(vAmax, 1e-6);
       R = vR / (areaRatio * areaRatio);
-      B = B / (areaRatio * areaRatio);
+      B = (e.B ?? 0) / (areaRatio * areaRatio);
     } else if ((e.useChiResistance || e.useChiQuadratic) && this.p.useChiResistance) {
       const chi = this.edgeChi(e, Pu, Pd);
+      areaRatio = chi;
       if (e.useChiResistance) R = R * Math.pow(chi, -(e.chiRExp ?? 2));
       if (e.useChiQuadratic) B = B * Math.pow(chi, -(e.chiBExp ?? 2));
     }
-    return { R: Math.max(R, 1e-8), B: Math.max(B, 0) };
+    return { R: Math.max(R, 1e-8), B: Math.max(B, 0), areaRatio };
   }
 
   private edgeChi(e: EdgeSpec, Pu: number, Pd: number): number {
