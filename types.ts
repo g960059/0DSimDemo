@@ -18,6 +18,10 @@ export interface SimInstance {
 export interface PanelInstanceConfig {
     visible: boolean;
     selectedSignals: string[];
+    customBaseColor?: string;
+    customName?: string;
+    customSignalColors?: Record<string, string>;
+    customSignalNames?: Record<string, string>;
 }
 
 export type PanelType = 'PVLOOP' | 'WAVEFORM' | 'METRICS' | 'GUYTON_RIGHT' | 'GUYTON_LEFT' | 'GUYTON_3D' | 'CONTROLS' | 'NOTE';
@@ -32,6 +36,7 @@ export interface PanelDef {
     isSettingsOpen: boolean;
     showGuides?: boolean;
     timeWindow?: number;
+    showLegend?: boolean;
 }
 
 import { ModelCore } from './engine/ModelCore';

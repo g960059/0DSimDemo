@@ -7,22 +7,50 @@ interface ChartPanelProps {
   instances: SimInstance[];
   config: Record<string, PanelInstanceConfig>;
   showGuides?: boolean;
+  showLegend?: boolean;
 }
 
 interface WaveformProps extends ChartPanelProps {
     timeWindow: number; 
 }
 
-const getColor = (baseColor: string, signal: string, customColors?: { [key: string]: string }): string => {
-    if (customColors && customColors[signal]) return customColors[signal];
-    const c = d3.color(baseColor);
-    if (!c) return baseColor;
+const getColor = (baseColor: string, signal: string, customBaseColor?: string, customSignalColors?: Record<string, string>): string => {
+    if (customSignalColors && customSignalColors[signal]) return customSignalColors[signal];
+    const colorToUse = customBaseColor || baseColor;
+    const c = d3.color(colorToUse);
+    if (!c) return colorToUse;
     if (['AoP', 'PAP', 'ABP'].includes(signal)) return c.brighter(1.5).formatHex();
     if (['Pla', 'LAP', 'Pra', 'RAP', 'CVP', 'PCWP', 'LA', 'RA'].includes(signal)) return c.darker(1.2).formatHex();
     return c.formatHex();
 };
 
-export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances, config, showGuides }) => {
+const ChartLegend = ({ instances, config, showLegend, extraClasses = '' }: { instances: SimInstance[], config: Record<string, PanelInstanceConfig>, showLegend?: boolean, extraClasses?: string }) => {
+    if (showLegend === false) return null;
+    return (
+        <div className={`absolute top-2 right-2 flex flex-col gap-1 z-30 pointer-events-none p-1.5 bg-slate-900/80 rounded border border-slate-700/50 backdrop-blur-sm ${extraClasses}`}>
+            {instances.flatMap(inst => {
+                const cfg = config[inst.id];
+                if (!cfg || !cfg.visible || cfg.selectedSignals.length === 0) return [];
+                const activeName = cfg.customName || inst.name;
+                
+                return cfg.selectedSignals.map(sig => {
+                    const color = getColor(inst.color, sig, cfg.customBaseColor, cfg.customSignalColors);
+                    const signalName = (cfg.customSignalNames && cfg.customSignalNames[sig]) || sig;
+                    return (
+                        <div key={`${inst.id}-${sig}`} className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{backgroundColor: color, boxShadow: `0 0 4px ${color}`}}></span>
+                            <span className="text-[9px] font-medium text-slate-300 drop-shadow-md tracking-wide">
+                                {activeName} ({signalName})
+                            </span>
+                        </div>
+                    );
+                });
+            })}
+        </div>
+    );
+};
+
+export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances, config, showGuides, showLegend }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scaleRef = useRef({ maxV: 300, maxP: 200 });
@@ -133,7 +161,7 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
           const data = physState.buffer.slice(startIndex);
           
           cfg.selectedSignals.forEach((chamber: string) => {
-              const color = getColor(inst.color, chamber, cfg.customColors);
+              const color = getColor(inst.color, chamber, cfg.customBaseColor, cfg.customSignalColors);
               
               ctx.beginPath();
               ctx.strokeStyle = color;
@@ -196,13 +224,14 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
   }, [instances, config, showGuides]);
 
   return (
-      <div ref={containerRef} className="absolute inset-0 rounded-b-xl overflow-hidden">
-         <canvas ref={canvasRef} className="block" />
+      <div ref={containerRef} className="absolute inset-0 rounded-b-xl overflow-hidden pointer-events-none">
+         <ChartLegend instances={instances} config={config} showLegend={showLegend} />
+         <canvas ref={canvasRef} className="block pointer-events-auto" />
       </div>
   );
 };
 
-export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances, timeWindow, config }) => {
+export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances, timeWindow, config, showLegend }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const scaleRef = useRef({ yMin: 0, yMax: 160 });
@@ -316,7 +345,7 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                 const drawStep = Math.max(1, Math.floor(physState.buffer.length / (width * 2)));
 
                 cfg.selectedSignals.forEach((sig: string) => {
-                    const color = getColor(inst.color, sig, cfg.customColors);
+                    const color = getColor(inst.color, sig, cfg.customBaseColor, cfg.customSignalColors);
                     ctx.beginPath();
                     ctx.strokeStyle = color;
                     ctx.lineWidth = 1.5;
@@ -385,8 +414,9 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
     }, [instances, timeWindow, config]);
 
     return (
-        <div ref={containerRef} className="absolute inset-0 rounded-b-xl overflow-hidden">
-            <canvas ref={canvasRef} className="block" />
+        <div ref={containerRef} className="absolute inset-0 rounded-b-xl overflow-hidden pointer-events-none">
+            <ChartLegend instances={instances} config={config} showLegend={showLegend} />
+            <canvas ref={canvasRef} className="block pointer-events-auto" />
         </div>
     );
 };
@@ -434,24 +464,28 @@ export const MetricsPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances
                     'RVEF': '%'
                 };
 
+                const activeName = cfg.customName || inst.name;
+                const activeColor = cfg.customBaseColor || inst.color;
+
                 return (
                     <div key={inst.id} className="flex flex-col gap-1 pb-2">
                          <div className="flex items-center gap-2 pb-1 pt-1">
-                             <div className="w-2 h-2 rounded-full shadow-sm" style={{backgroundColor: inst.color, boxShadow: `0 0 6px ${inst.color}`}}></div>
-                             <span className="font-medium text-[13px] text-slate-200">{inst.name}</span>
+                             <div className="w-2 h-2 rounded-full shadow-sm" style={{backgroundColor: activeColor, boxShadow: `0 0 6px ${activeColor}`}}></div>
+                             <span className="font-medium text-[13px] text-slate-200">{activeName}</span>
                          </div>
                          <div className="flex flex-wrap gap-x-8 gap-y-2.5 px-2">
-                             {cfg.selectedSignals.map((sig: string) => (
-                                 metricsMap[sig] ? (
+                             {cfg.selectedSignals.map((sig: string) => {
+                                 const signalName = (cfg.customSignalNames && cfg.customSignalNames[sig]) || sig;
+                                 return metricsMap[sig] ? (
                                      <div key={sig} className="flex items-baseline gap-2">
-                                         <span className="text-[11px] text-slate-400 font-medium tracking-wide uppercase">{sig}</span>
+                                         <span className="text-[11px] text-slate-400 font-medium tracking-wide uppercase">{signalName}</span>
                                          <div className="flex items-baseline gap-1">
                                             <span className="text-sm font-mono text-slate-100 font-medium">{metricsMap[sig]}</span>
                                             {unitsMap[sig] && <span className="text-[10px] text-slate-500">{unitsMap[sig]}</span>}
                                          </div>
                                      </div>
-                                 ) : null
-                             ))}
+                                 ) : null;
+                             })}
                          </div>
                     </div>
                 )

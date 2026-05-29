@@ -277,6 +277,13 @@ function Workbench() {
 
   const removePanel = (id: string) => setPanels(prev => prev.filter(p => p.id !== id));
   
+  const updatePanelTitle = (id: string, newTitle: string) => setPanels(prev => prev.map(p => p.id === id ? { ...p, title: newTitle } : p));
+  const toggleShowLegend = (id: string) => setPanels(prev => prev.map(p => p.id === id ? { ...p, showLegend: p.showLegend === false ? true : false } : p));
+  const updatePanelInstanceColor = (panelId: string, instId: string, newColor: string) => setPanels(prev => prev.map(p => p.id === panelId ? { ...p, config: { ...p.config, [instId]: { ...p.config[instId], customBaseColor: newColor } } } : p));
+  const updatePanelInstanceName = (panelId: string, instId: string, newName: string) => setPanels(prev => prev.map(p => p.id === panelId ? { ...p, config: { ...p.config, [instId]: { ...p.config[instId], customName: newName } } } : p));
+  const updatePanelSignalColor = (panelId: string, instId: string, sig: string, newColor: string) => setPanels(prev => prev.map(p => p.id === panelId ? { ...p, config: { ...p.config, [instId]: { ...p.config[instId], customSignalColors: { ...(p.config[instId].customSignalColors || {}), [sig]: newColor } } } } : p));
+  const updatePanelSignalName = (panelId: string, instId: string, sig: string, newName: string) => setPanels(prev => prev.map(p => p.id === panelId ? { ...p, config: { ...p.config, [instId]: { ...p.config[instId], customSignalNames: { ...(p.config[instId].customSignalNames || {}), [sig]: newName } } } } : p));
+
   const resizeState = useRef<{ panelId: string, startX: number, startY: number, startW: number, startH: number } | null>(null);
   const startResize = (e: React.MouseEvent, panel: PanelDef) => {
       e.stopPropagation(); e.preventDefault();
@@ -383,7 +390,8 @@ function Workbench() {
                       <div className="flex-none px-3 pt-1.5 pb-0 flex justify-between items-center pointer-events-auto rounded-t-xl z-20 relative">
                             <div draggable={!isMobile} onDragStart={(e) => onDragStart(e, index)} className="flex-1 cursor-move flex items-center group/header">
                                 <span className="text-[11px] font-medium text-slate-500 select-none flex items-center gap-1.5 transition-colors group-hover/header:text-slate-400 tracking-wide drop-shadow-md">
-                                    <span className="opacity-0 group-hover/header:opacity-40 transition-opacity">⋮⋮</span> {panel.title}
+                                    <span className="opacity-0 group-hover/header:opacity-40 transition-opacity">⋮⋮</span>
+                                    {panel.title}
                                 </span>
                             </div>
                             <div className={`flex items-center gap-1.5 transition-opacity ${panel.isSettingsOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
@@ -401,6 +409,22 @@ function Workbench() {
                                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Configuration</span>
                                                 <button onClick={() => toggleSettings(panel.id)} className="text-xs text-slate-500 hover:text-white transition-colors">✕</button>
                                             </div>
+                                            <div className="mb-2 pb-2 border-b border-slate-700 flex items-center gap-2">
+                                                <span className="text-xs text-slate-400 font-medium">Title:</span>
+                                                <input 
+                                                    type="text"
+                                                    value={panel.title} 
+                                                    onChange={(e) => updatePanelTitle(panel.id, e.target.value)} 
+                                                    className="bg-slate-900 border border-slate-700 outline-none focus:border-slate-500 rounded px-1.5 py-0.5 text-xs font-medium text-slate-200 w-full"
+                                                    placeholder="Panel Title"
+                                                />
+                                            </div>
+                                            {['PVLOOP', 'WAVEFORM'].includes(panel.type) && (
+                                                <div className="mb-2 pb-2 border-b border-slate-700 flex items-center gap-2">
+                                                    <input type="checkbox" className="accent-blue-500 cursor-pointer" checked={panel.showLegend !== false} onChange={() => toggleShowLegend(panel.id)} />
+                                                    <span className="text-xs text-slate-200 font-medium">Show Legend</span>
+                                                </div>
+                                            )}
                                             {panel.type === 'PVLOOP' && (
                                                 <div className="mb-2 pb-2 border-b border-slate-700 flex items-center gap-2">
                                                     <input type="checkbox" className="accent-blue-500 cursor-pointer" checked={panel.showGuides} onChange={() => toggleGuides(panel.id)} />
@@ -417,17 +441,28 @@ function Workbench() {
                                                 {instances.map(inst => (
                                                     <div key={inst.id}>
                                                         <div className="flex items-center gap-2 mb-1">
-                                                            <input type="checkbox" className="cursor-pointer accent-blue-500" checked={panel.config[inst.id]?.visible || false} onChange={() => toggleInstanceVisibility(panel.id, inst.id)} />
-                                                            <span className="w-2 h-2 rounded-full" style={{backgroundColor: inst.color}}></span>
-                                                            <span className="text-xs font-bold text-slate-300 truncate flex-1">{inst.name}</span>
+                                                            <input type="checkbox" className="cursor-pointer accent-blue-500 flex-none" checked={panel.config[inst.id]?.visible || false} onChange={() => toggleInstanceVisibility(panel.id, inst.id)} />
+                                                            <input type="color" className="w-[14px] h-[14px] p-0 border-0 cursor-pointer flex-none rounded appearance-none block bg-transparent [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none [&::-webkit-color-swatch]:rounded" value={panel.config[inst.id]?.customBaseColor ?? inst.color} onChange={(e) => updatePanelInstanceColor(panel.id, inst.id, e.target.value)} />
+                                                            <input type="text" className="text-xs font-bold bg-transparent border-b border-transparent focus:border-slate-500 outline-none text-slate-300 w-full min-w-0" value={panel.config[inst.id]?.customName ?? inst.name} onChange={(e) => updatePanelInstanceName(panel.id, inst.id, e.target.value)} placeholder={inst.name} />
                                                         </div>
                                                         {panel.config[inst.id]?.visible && (panel.type !== 'GUYTON_RIGHT' && panel.type !== 'GUYTON_LEFT') && (
                                                             <div className="pl-5 grid grid-cols-1 gap-1">
-                                                                {((panel.type === 'PVLOOP' ? ALL_CHAMBERS : (panel.type === 'WAVEFORM' ? ALL_SIGNALS : panel.type === 'METRICS' ? ALL_METRICS : ALL_CONTROL_GROUPS))).map(sig => (
-                                                                    <div key={sig} className="flex items-center justify-between text-[10px] bg-slate-950/50 rounded px-1 py-0.5">
-                                                                        <button onClick={() => updateInstanceSignals(panel.id, inst.id, sig)} className={`flex-1 text-left ${panel.config[inst.id].selectedSignals.includes(sig) ? 'text-slate-200' : 'text-slate-600'}`}>{sig}</button>
-                                                                    </div>
-                                                                ))}
+                                                                {((panel.type === 'PVLOOP' ? ALL_CHAMBERS : (panel.type === 'WAVEFORM' ? ALL_SIGNALS : panel.type === 'METRICS' ? ALL_METRICS : ALL_CONTROL_GROUPS))).map(sig => {
+                                                                    const isSelected = panel.config[inst.id].selectedSignals.includes(sig);
+                                                                    return (
+                                                                        <div key={sig} className="flex items-center gap-1 text-[10px] bg-slate-950/50 rounded px-1 py-0.5">
+                                                                            <input type="checkbox" className="cursor-pointer accent-blue-500 flex-none w-3 h-3 m-0" checked={isSelected} onChange={() => updateInstanceSignals(panel.id, inst.id, sig)} />
+                                                                            {isSelected && (
+                                                                                <input type="color" className="w-3 h-3 p-0 border-0 cursor-pointer flex-none rounded appearance-none block bg-transparent [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none [&::-webkit-color-swatch]:rounded" value={panel.config[inst.id].customSignalColors?.[sig] || panel.config[inst.id].customBaseColor || inst.color} onChange={(e) => updatePanelSignalColor(panel.id, inst.id, sig, e.target.value)} />
+                                                                            )}
+                                                                            {isSelected ? (
+                                                                                <input type="text" className="text-[10px] font-medium bg-transparent border-b border-transparent focus:border-slate-500 outline-none text-slate-300 w-full min-w-0" value={panel.config[inst.id].customSignalNames?.[sig] || sig} onChange={(e) => updatePanelSignalName(panel.id, inst.id, sig, e.target.value)} placeholder={sig} />
+                                                                            ) : (
+                                                                                <span className="text-slate-600 flex-1 truncate select-none">{sig}</span>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })}
                                                             </div>
                                                         )}
                                                     </div>
@@ -441,8 +476,8 @@ function Workbench() {
                            </div>
                       </div>
                       <div className={`flex-1 min-h-0 w-full relative z-10 ${['WAVEFORM', 'GUYTON_RIGHT', 'GUYTON_LEFT'].includes(panel.type) ? '-mt-6' : ''} ${panel.type === 'PVLOOP' ? 'mb-4' : ''}`}>
-                          {panel.type === 'PVLOOP' && <PVLoopPanel physicsRefs={physicsRefs} instances={instances} config={panel.config} showGuides={panel.showGuides} />}
-                          {panel.type === 'WAVEFORM' && <WaveformPanel physicsRefs={physicsRefs} instances={instances} timeWindow={panel.timeWindow || 10000} config={panel.config} />}
+                          {panel.type === 'PVLOOP' && <PVLoopPanel physicsRefs={physicsRefs} instances={instances} config={panel.config} showGuides={panel.showGuides} showLegend={panel.showLegend} />}
+                          {panel.type === 'WAVEFORM' && <WaveformPanel physicsRefs={physicsRefs} instances={instances} timeWindow={panel.timeWindow || 10000} config={panel.config} showLegend={panel.showLegend} />}
                           {panel.type === 'METRICS' && <MetricsPanel physicsRefs={physicsRefs} instances={instances} config={panel.config} />}
                           {panel.type === 'CONTROLS' && <Controls isPaneMode paneConfig={panel.config} instances={instances} activeInstanceId={activeInstanceId} setActiveInstanceId={setActiveInstanceId} updateInstanceParams={updateInstanceParams} updateInstanceVolume={updateInstanceVolume} updateInstanceColor={updateInstanceColor} addInstance={addInstance} removeInstance={removeInstance} timeScale={timeScale} setTimeScale={setTimeScale} isPlaying={isPlaying} togglePlay={togglePlay} addPanel={addPanel} />}
                           {(panel.type === 'GUYTON_RIGHT' || panel.type === 'GUYTON_LEFT') && <GuytonPanel physicsRefs={physicsRefs} instances={instances} config={panel.config} type={panel.type} />}
