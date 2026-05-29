@@ -1,8 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import { Layout } from './components/Layout';
+import { LearningPath } from './components/LearningPath';
+import { OfficialCases } from './components/Cases';
+import Workbench from './Workbench';
 import './index.css';
-import App from './App';
-
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 const rootElement = document.getElementById('root');
@@ -14,7 +18,17 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <ErrorBoundary>
-      <App />
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Layout />}>
+              <Route index element={<LearningPath />} />
+              <Route path="cases" element={<OfficialCases />} />
+              <Route path="workbench" element={<Workbench />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
     </ErrorBoundary>
   </React.StrictMode>
 );

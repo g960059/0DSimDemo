@@ -5,7 +5,7 @@ import { SimInstance, PhysicsRefState, PanelInstanceConfig } from '../types';
 interface ChartPanelProps {
   physicsRefs: React.MutableRefObject<Map<string, PhysicsRefState>>;
   instances: SimInstance[];
-  config: PanelInstanceConfig;
+  config: Record<string, PanelInstanceConfig>;
   showGuides?: boolean;
 }
 

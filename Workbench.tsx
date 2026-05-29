@@ -19,7 +19,7 @@ const ALL_SIGNALS: SignalType[] = ['LVP', 'AoP', 'LAP', 'RVP', 'PAP', 'RAP', 'QA
 const ALL_METRICS: MetricType[] = ['ABP', 'CVP', 'PAP', 'PCWP', 'SV', 'CO', 'LVEF'];
 const ALL_CONTROL_GROUPS: string[] = ['Global', 'ventricles', 'atria', 'vascular', 'valves', 'resp', 'advanced'];
 
-function App() {
+function Workbench() {
   // --- State ---
   const [timeScale, setTimeScale] = useState<number>(1.0);
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
@@ -273,7 +273,6 @@ function App() {
       };
       setPanels(prev => [...prev, newPanel]);
       setAddingPanelType(null);
-      if (isMobile) setIsSidebarOpen(false);
   };
 
   const removePanel = (id: string) => setPanels(prev => prev.filter(p => p.id !== id));
@@ -322,10 +321,10 @@ function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-slate-950 text-slate-200 overflow-hidden font-sans relative">
+    <div className="flex flex-col h-full w-full bg-slate-950 text-slate-200 overflow-hidden font-sans relative">
       <header className="h-14 bg-slate-900 border-b border-slate-800 z-50 flex items-center px-4 justify-between shrink-0">
           <div className="flex items-center gap-4">
-              <h1 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">HemoSim 0D</h1>
+              <h1 className="text-sm font-bold text-slate-300">Workbench Controls</h1>
           </div>
           
           <div className="flex items-center gap-2 sm:gap-3">
@@ -531,4 +530,4 @@ function App() {
   );
 }
 
-export default App;
+export default Workbench;

@@ -1,4 +1,4 @@
-import { CoreRuntimeParams, SimHealthStatus } from './engine/protocol';
+import { CoreRuntimeParams, SimulationHealthStatus } from './engine/protocol';
 
 export type SimulationParams = CoreRuntimeParams;
 
