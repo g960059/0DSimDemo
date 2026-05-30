@@ -65,6 +65,20 @@ describe("sanitizeParams (engine contract boundary)", () => {
     expect("edgeOverrides" in bad).toBe(false);
   });
 
+  it("PRESERVES a nested active-chamber override (b_pas) — the diastolic-stiffness path", () => {
+    // ModelCore deep-merges nodeOverrides.LV.active onto the chamber model; if
+    // sanitize stripped this nested block, diastolicStiffness/chamber overrides
+    // would silently no-op (same class of bug as the valve landmine).
+    const clean = sanitizeParams({
+      ...defaultParams(),
+      nodeOverrides: { LV: { active: { bPas: 22, sigmaPas0: NaN } }, RV: { active: { bPas: 18 } } },
+    } as unknown as CoreRuntimeParams);
+    const lvActive = clean.nodeOverrides?.LV?.active as Record<string, number> | undefined;
+    expect(lvActive?.bPas).toBe(22);          // nested finite leaf preserved
+    expect(lvActive?.sigmaPas0).toBeUndefined(); // nested non-finite leaf dropped
+    expect((clean.nodeOverrides?.RV?.active as Record<string, number>)?.bPas).toBe(18);
+  });
+
   it("coerces non-boolean projectTBV/useChiResistance to neutral, not false", () => {
     const clean = sanitizeParams({ ...defaultParams(), projectTBV: 1, useChiResistance: "yes" } as unknown as CoreRuntimeParams);
     expect(clean.projectTBV).toBe(NEUTRAL_PARAMS.projectTBV); // true, NOT false

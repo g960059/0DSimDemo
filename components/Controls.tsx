@@ -110,6 +110,13 @@ export const Controls: React.FC<ControlsProps> = ({
     update('edgeOverrides', newOverrides as any);
   };
 
+  // Read a FLAT numeric node override (these sliders never edit the nested
+  // `active` chamber sub-block, which can be a Record rather than a number).
+  const nodeNum = (node: string, key: string, fallback: number): number => {
+    const v = params.nodeOverrides?.[node]?.[key];
+    return typeof v === "number" ? v : fallback;
+  };
+
   if (!params) return null;
 
   const showGroup = (key: string) => {
@@ -178,13 +185,13 @@ export const Controls: React.FC<ControlsProps> = ({
                       </div>
 
                       <span className="text-xs font-bold text-slate-300 block mb-1 mt-1">Left Ventricle (LV)</span>
-                      <Slider label="LV Baseline Volume (V0)" value={params.nodeOverrides?.LV?.V0 ?? 10} min={0} max={100} step={1} onChange={(v) => updateNode('LV', 'V0', v)} unit="mL" />
+                      <Slider label="LV Baseline Volume (V0)" value={nodeNum('LV', 'V0', 10)} min={0} max={100} step={1} onChange={(v) => updateNode('LV', 'V0', v)} unit="mL" />
                       <Slider label="LV Tmax Scale (Force)" value={params.lvTmaxScale} min={0.05} max={2.5} step={0.05} onChange={(v) => update('lvTmaxScale', v)} unit="x" />
                       <Slider label="LV Ca²⁺ Release Scale" value={params.caReleaseScale} min={0.25} max={6} step={0.1} onChange={(v) => update('caReleaseScale', v)} unit="x" />
                       <Slider label="LV Geometry Scale" value={params.lvGeomScale} min={0.5} max={2.5} step={0.1} onChange={(v) => update('lvGeomScale', v)} unit="x" />
 
                       <span className="text-xs font-bold text-slate-300 block mt-4 mb-1">Right Ventricle (RV)</span>
-                      <Slider label="RV Baseline Volume (V0)" value={params.nodeOverrides?.RV?.V0 ?? 15} min={0} max={100} step={1} onChange={(v) => updateNode('RV', 'V0', v)} unit="mL" />
+                      <Slider label="RV Baseline Volume (V0)" value={nodeNum('RV', 'V0', 15)} min={0} max={100} step={1} onChange={(v) => updateNode('RV', 'V0', v)} unit="mL" />
                       <Slider label="RV Tmax Scale (Force)" value={params.rvTmaxScale} min={0.05} max={3.0} step={0.05} onChange={(v) => update('rvTmaxScale', v)} unit="x" />
                       <Slider label="RV Ca²⁺ Release Scale" value={params.rvCaReleaseScale} min={0.25} max={8} step={0.1} onChange={(v) => update('rvCaReleaseScale', v)} unit="x" />
                       <Slider label="RV Geometry Scale" value={params.rvGeomScale} min={0.5} max={3.0} step={0.1} onChange={(v) => update('rvGeomScale', v)} unit="x" />
@@ -199,12 +206,12 @@ export const Controls: React.FC<ControlsProps> = ({
               {openGroups.atria && (
                   <div className="mt-2 pl-3 border-l-2 border-slate-700/30 ml-2 mb-4">
                       <span className="text-xs font-bold text-slate-300 block mb-1 mt-1">Left Atrium (LA)</span>
-                      <Slider label="LA Baseline Volume (V0)" value={params.nodeOverrides?.LA?.V0 ?? 5} min={0} max={50} step={1} onChange={(v) => updateNode('LA', 'V0', v)} unit="mL" />
-                      <Slider label="LA Elastance (Ees)" value={params.nodeOverrides?.LA?.Ees ?? 0.25} min={0.05} max={2.0} step={0.05} onChange={(v) => updateNode('LA', 'Ees', v)} />
+                      <Slider label="LA Baseline Volume (V0)" value={nodeNum('LA', 'V0', 5)} min={0} max={50} step={1} onChange={(v) => updateNode('LA', 'V0', v)} unit="mL" />
+                      <Slider label="LA Elastance (Ees)" value={nodeNum('LA', 'Ees', 0.25)} min={0.05} max={2.0} step={0.05} onChange={(v) => updateNode('LA', 'Ees', v)} />
 
                       <span className="text-xs font-bold text-slate-300 block mt-4 mb-1">Right Atrium (RA)</span>
-                      <Slider label="RA Baseline Volume (V0)" value={params.nodeOverrides?.RA?.V0 ?? 5} min={0} max={50} step={1} onChange={(v) => updateNode('RA', 'V0', v)} unit="mL" />
-                      <Slider label="RA Elastance (Ees)" value={params.nodeOverrides?.RA?.Ees ?? 0.22} min={0.05} max={2.0} step={0.05} onChange={(v) => updateNode('RA', 'Ees', v)} />
+                      <Slider label="RA Baseline Volume (V0)" value={nodeNum('RA', 'V0', 5)} min={0} max={50} step={1} onChange={(v) => updateNode('RA', 'V0', v)} unit="mL" />
+                      <Slider label="RA Elastance (Ees)" value={nodeNum('RA', 'Ees', 0.22)} min={0.05} max={2.0} step={0.05} onChange={(v) => updateNode('RA', 'Ees', v)} />
                   </div>
               )}
             </>

@@ -351,6 +351,16 @@ export class ModelCore {
         return e;
     });
 
+    // Active-stress chamber models are built from node.active, so they MUST be
+    // rebuilt when a nodeOverrides.active edit lands (e.g. a diastolic-stiffness
+    // b_pas change) — otherwise the override updates the NodeSpec but the model
+    // that actually computes chamber pressure keeps the old params (silent no-op).
+    for (const n of this.nodes) {
+        if (n.kind === "heartActive" && n.active && (n.chamber === "LV" || n.chamber === "RV")) {
+            this.activeModels[n.chamber] = new ActiveStressChamberModel(n.active);
+        }
+    }
+
     this.rebuildElastanceModels();
     this.smoothParams(0); // Applies clamps
     // Re-arm steady-state detection if the operating point actually changed, so

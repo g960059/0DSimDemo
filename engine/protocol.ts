@@ -60,9 +60,19 @@ export type CoreRuntimeParams = {
   PV_tauClose: number;
   PV_R: number;
   PV_L: number;
-  nodeOverrides?: Record<string, Record<string, number>>;
+  // Node overrides allow one level of nesting (the `active` chamber sub-block,
+  // e.g. { LV: { active: { bPas: 20 } } }); edges are always flat numeric.
+  nodeOverrides?: OverrideBlock;
   edgeOverrides?: Record<string, Record<string, number>>;
 };
+
+/**
+ * Researcher-tier node overrides: node -> field -> value. A field value is
+ * normally a number, but a node's `active` field is itself a record of
+ * active-chamber params (e.g. { active: { bPas: 20 } }) which ModelCore
+ * deep-merges onto the chamber model. So one level of nesting is allowed.
+ */
+export type OverrideBlock = Record<string, Record<string, number | Record<string, number>>>;
 
 export type ParameterPatch = Partial<CoreRuntimeParams>;
 
@@ -207,18 +217,28 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
 }
 
 /**
- * Validate a `Record<string, Record<string, number>>` override block: keep only
- * plain-object groups whose leaves are finite numbers. Returns undefined when
- * nothing valid remains (so the key is omitted, matching defaultParams()).
+ * Validate an OverrideBlock: keep only plain-object groups whose leaves are
+ * finite numbers, OR a one-level-nested record of finite numbers (the `active`
+ * chamber sub-block, e.g. { LV: { active: { bPas: 20 } } } — which ModelCore
+ * honors and which MUST survive sanitize or diastolic-stiffness / chamber
+ * overrides silently no-op). Returns undefined when nothing valid remains.
  */
-function sanitizeOverrides(raw: unknown): Record<string, Record<string, number>> | undefined {
+function sanitizeOverrides(raw: unknown): OverrideBlock | undefined {
   if (!isPlainObject(raw)) return undefined;
-  const out: Record<string, Record<string, number>> = {};
+  const out: OverrideBlock = {};
   for (const [group, fields] of Object.entries(raw)) {
     if (!isPlainObject(fields)) continue;
-    const clean: Record<string, number> = {};
+    const clean: Record<string, number | Record<string, number>> = {};
     for (const [k, v] of Object.entries(fields)) {
-      if (typeof v === "number" && Number.isFinite(v)) clean[k] = v;
+      if (typeof v === "number" && Number.isFinite(v)) {
+        clean[k] = v;
+      } else if (isPlainObject(v)) {
+        const nested: Record<string, number> = {};
+        for (const [k2, v2] of Object.entries(v)) {
+          if (typeof v2 === "number" && Number.isFinite(v2)) nested[k2] = v2;
+        }
+        if (Object.keys(nested).length > 0) clean[k] = nested;
+      }
     }
     if (Object.keys(clean).length > 0) out[group] = clean;
   }

@@ -1,0 +1,29 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`clinical knob layer > v0.2 resolver output is frozen (editing the mapping must bump the version) 1`] = `
+{
+  "AoV_Amax": 2.1875,
+  "AoV_R": 0.0175,
+  "HR": 75,
+  "PEEP": 0,
+  "arterialStiffness": 1,
+  "lvTmaxScale": 1.4,
+  "nodeOverrides": {
+    "LV": {
+      "active": {
+        "bPas": 18,
+      },
+    },
+    "RV": {
+      "active": {
+        "bPas": 18,
+      },
+    },
+  },
+  "pulmonaryResistance": 1,
+  "relaxation": 1,
+  "rvTmaxScale": 1,
+  "systemicResistance": 1.625,
+  "venousTone": 0.2,
+}
+`;

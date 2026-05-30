@@ -1,24 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { runScenario } from "@/engine/harness";
+import { defaultActiveLV } from "@/engine/chambers";
 import { DEFAULT_PARAMS } from "@/constants";
 
 /**
  * Guards for the S2a ChamberModel extraction. These lock in subtle behaviors
- * that the baseline snapshot alone would not catch (and document a known quirk).
+ * that the baseline snapshot alone would not catch.
  */
 describe("ChamberModel behavior parity (S2a refactor guards)", () => {
-  it("active-stress mode ignores node.active overrides (uses module defaults)", () => {
-    // KNOWN QUIRK (pre-existing, preserved by the refactor): the active-stress
-    // LV/RV models are built from the module defaultActive* params, so
-    // nodeOverrides.*.active has no effect. Documented here; a future phase may
-    // wire node.active through if per-instance active params are wanted.
+  it("active-stress mode RESPECTS node.active overrides (per-instance chamber params)", () => {
+    // The active-stress LV/RV models are rebuilt from node.active in
+    // setImmediateParameters, so a nodeOverrides.*.active edit changes the
+    // operating point instead of silently no-op'ing (the diastolic-stiffness
+    // / b_pas path the knob layer depends on). Previously this silently did
+    // nothing — that bug is now fixed.
     const base = runScenario(DEFAULT_PARAMS);
-    const overridden = runScenario({
+    const stiffer = runScenario({
       ...DEFAULT_PARAMS,
-      nodeOverrides: { LV: { active: { Tmax0: 999999 } } as unknown as Record<string, number> },
+      nodeOverrides: { LV: { active: { bPas: defaultActiveLV.bPas * 2 } } as unknown as Record<string, number> },
     });
-    expect(overridden.metrics.CO_L).toBeCloseTo(base.metrics.CO_L, 6);
-    expect(overridden.metrics.EF_LApprox).toBeCloseTo(base.metrics.EF_LApprox, 6);
+    // A stiffer passive LV (higher EDPVR beta) raises end-diastolic pressure.
+    expect(stiffer.metrics.LVEDPApprox).toBeGreaterThan(base.metrics.LVEDPApprox + 1);
   });
 
   it("elastance fallback DOES respond to LV elastance node overrides", () => {

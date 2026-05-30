@@ -14,8 +14,9 @@
 //   params  = sanitizeParams({ ...base, ...patch })    // authoritative final gate
 // =============================================================================
 
-import type { CoreRuntimeParams, ParameterPatch } from "@/engine/protocol";
+import type { CoreRuntimeParams, OverrideBlock, ParameterPatch } from "@/engine/protocol";
 import { sanitizeParams } from "@/engine/protocol";
+import { defaultActiveLV, defaultActiveRV } from "@/engine/chambers";
 
 /**
  * Semantics per field:
@@ -123,29 +124,46 @@ export function clampKnobs(k: ClinicalKnobs): ClinicalKnobs {
 
 export type KnobResolver = (k: ClinicalKnobs, base: CoreRuntimeParams) => ParameterPatch;
 
+/** EDPVR beta (b_pas) the chamber model uses, honoring a baseline override. */
+function baseBPas(base: CoreRuntimeParams, chamber: "LV" | "RV"): number {
+  const active = base.nodeOverrides?.[chamber]?.active;
+  if (active && typeof active === "object" && typeof active.bPas === "number") return active.bPas;
+  return chamber === "LV" ? defaultActiveLV.bPas : defaultActiveRV.bPas;
+}
+
 /**
- * v0.2 — active-stress default engine. LV inotropy rides the global
- * `contractility` multiplier; RV gets an additional `rvTmaxScale` trim. Valve
- * lesions emit keys ONLY when present, so a healthy valve keeps its exact
- * baseline parameters (leak area is a fraction of the valve's own max orifice).
+ * v0.2 — active-stress default engine. LV inotropy maps to `lvTmaxScale` and RV
+ * to `rvTmaxScale` — the per-chamber force scales — so LV and RV contractility
+ * are INDEPENDENT (the global `contractility` raw param hits both ventricles, so
+ * mapping a clinical "LV contractility" onto it would silently move the RV too;
+ * lvTmaxScale is the engine's designated contractility slider). diastolic
+ * stiffness scales b_pas (EDPVR beta) per ventricle via the active-chamber
+ * override. Valve lesions and the stiffness/inotropy deviations emit keys ONLY
+ * when the knob departs from neutral, so a neutral knob set reproduces the
+ * baseline byte-for-byte (leak area is a fraction of the valve's own orifice).
  */
 const resolveActiveStress_0_2: KnobResolver = (k, base) => {
   const p: ParameterPatch = {
     HR: k.HR,
-    contractility: base.contractility * k.contractility,
+    lvTmaxScale: base.lvTmaxScale * k.contractility,
+    rvTmaxScale: base.rvTmaxScale * k.contractilityRV,
     relaxation: base.relaxation * k.relaxation,
     systemicResistance: base.systemicResistance * k.afterload,
     arterialStiffness: base.arterialStiffness * k.arterialStiffness,
     pulmonaryResistance: base.pulmonaryResistance * k.pulmonaryResistance,
     venousTone: k.venousTone,
     PEEP: k.peep,
-    rvTmaxScale: base.rvTmaxScale * k.contractilityRV,
   };
 
-  // diastolicStiffness -> b_pas (EDPVR beta) and baroreflexEnabled -> M8 are
-  // intentionally UNMAPPED in v0.2 (documented model limitation): the engine has
-  // no CoreRuntimeParams field for either yet. diastolicStiffness is the next
-  // focused step (b_pas plumbing in the active-stress chamber model).
+  // diastolicStiffness -> b_pas (EDPVR beta), scaled per ventricle. Emitted only
+  // off-neutral so neutral knobs leave the baseline overrides untouched.
+  // baroreflexEnabled -> M8 remains unmapped (documented model limitation).
+  if (k.diastolicStiffness !== 1) {
+    p.nodeOverrides = {
+      LV: { active: { bPas: baseBPas(base, "LV") * k.diastolicStiffness } },
+      RV: { active: { bPas: baseBPas(base, "RV") * k.diastolicStiffness } },
+    };
+  }
 
   if (k.aorticStenosis > 0) {
     p.AoV_Amax = base.AoV_Amax * (1 - 0.75 * k.aorticStenosis);
@@ -196,24 +214,57 @@ export function resolveKnobMappingVersion(version: string): KnobResolver {
   return r;
 }
 
-/** Clamp knobs, then resolve to a raw ParameterPatch via the pinned version. */
+/**
+ * Clamp knobs, then resolve to a raw ParameterPatch via the named mapping.
+ * `version` is REQUIRED (no default): authoring passes KNOB_MAPPING_VERSION
+ * explicitly, while a case loader MUST pass the document's own
+ * knobMappingVersion — so an old/foreign case can never be silently resolved
+ * with the current coefficients.
+ */
 export function resolveKnobsToParams(
   k: ClinicalKnobs,
   base: CoreRuntimeParams,
-  version: string = KNOB_MAPPING_VERSION,
+  version: string,
 ): ParameterPatch {
   return resolveKnobMappingVersion(version)(clampKnobs(k), base);
 }
 
+/** Deep-merge two node-override blocks (one level into the `active` sub-block). */
+function mergeNodeOverrides(a: OverrideBlock | undefined, b: OverrideBlock | undefined): OverrideBlock | undefined {
+  if (!a) return b;
+  if (!b) return a;
+  const out: OverrideBlock = {};
+  for (const node of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    const fa = a[node] ?? {};
+    const fb = b[node] ?? {};
+    const fields: Record<string, number | Record<string, number>> = { ...fa };
+    for (const [key, vb] of Object.entries(fb)) {
+      const va = fields[key];
+      if (va && typeof va === "object" && vb && typeof vb === "object") {
+        fields[key] = { ...va, ...vb }; // merge nested (e.g. active) sub-blocks
+      } else {
+        fields[key] = vb;
+      }
+    }
+    out[node] = fields;
+  }
+  return out;
+}
+
 /**
- * Full resolution to integrator-ready params: base <- patch, then the
- * authoritative sanitize gate. This is what the app/case loader feeds ModelCore.
+ * Full resolution to integrator-ready params: base <- patch (node overrides
+ * deep-merged so a knob-driven b_pas does not clobber baseline chamber
+ * overrides), then the authoritative sanitize gate. This is what the app/case
+ * loader feeds ModelCore. `version` is REQUIRED — see resolveKnobsToParams.
  */
 export function applyKnobs(
   base: CoreRuntimeParams,
   k: ClinicalKnobs,
-  version: string = KNOB_MAPPING_VERSION,
+  version: string,
 ): CoreRuntimeParams {
   const patch = resolveKnobsToParams(k, base, version);
-  return sanitizeParams({ ...base, ...patch } as CoreRuntimeParams);
+  const merged = { ...base, ...patch } as CoreRuntimeParams;
+  const mergedNodes = mergeNodeOverrides(base.nodeOverrides, patch.nodeOverrides);
+  if (mergedNodes) merged.nodeOverrides = mergedNodes;
+  return sanitizeParams(merged);
 }
