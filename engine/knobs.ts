@@ -266,5 +266,13 @@ export function applyKnobs(
   const merged = { ...base, ...patch } as CoreRuntimeParams;
   const mergedNodes = mergeNodeOverrides(base.nodeOverrides, patch.nodeOverrides);
   if (mergedNodes) merged.nodeOverrides = mergedNodes;
-  return sanitizeParams(merged);
+  const result = sanitizeParams(merged);
+  // Carry the override keys EXPLICITLY (present even when undefined). The live
+  // preview applies this full param set every frame via setImmediateParameters,
+  // which MERGES — so an absent key would leave a stale override in the core
+  // (e.g. returning diastolicStiffness to neutral would not un-stiffen the
+  // chamber, because its b_pas override would never be cleared).
+  if (!("nodeOverrides" in result)) (result as { nodeOverrides?: unknown }).nodeOverrides = undefined;
+  if (!("edgeOverrides" in result)) (result as { edgeOverrides?: unknown }).edgeOverrides = undefined;
+  return result;
 }

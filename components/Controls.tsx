@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { SimulationParams, SimInstance, PanelType } from '../types';
 import type { SimulationHealth } from '../engine/protocol';
 import { type ClinicalKnobs, KNOB_RANGES, neutralKnobs } from '../engine/knobs';
+import { rawDisplayParams } from '../engine/instanceKnobs';
 import { HealthDot } from './HealthIndicators';
 
 interface ControlsProps {
@@ -78,6 +79,13 @@ export const Controls: React.FC<ControlsProps> = ({
   const currentActiveId = activeInstanceId;
   const activeInstance = instances.find(i => i.id === currentActiveId) || instances[0];
   const params = activeInstance?.params;
+  // RAW advanced sliders display/edit the authored baseline on a knob-primary
+  // instance (the clinical knobs multiply on top), so the slider value matches
+  // what an edit sets. Absolute-knob params (HR/venousTone/PEEP) show the live
+  // derived value. Identical to `params` for legacy raw-only instances.
+  const rawView = params
+    ? rawDisplayParams({ params, knobs: activeInstance?.knobs, knobBaseline: activeInstance?.knobBaseline })
+    : params;
 
   const [openGroups, setOpenGroups] = useState<{ [key: string]: boolean }>({
       clinical: true,   // beginner-facing primary surface, open by default
@@ -100,14 +108,14 @@ export const Controls: React.FC<ControlsProps> = ({
   };
 
   const updateNode = (node: string, key: string, value: number) => {
-    const newOverrides = { ...(params.nodeOverrides || {}) };
+    const newOverrides = { ...(rawView.nodeOverrides || {}) };
     if (!newOverrides[node]) newOverrides[node] = {};
     newOverrides[node] = { ...newOverrides[node], [key]: value };
     update('nodeOverrides', newOverrides as any);
   };
   
   const updateEdge = (edge: string, key: string, value: number) => {
-    const newOverrides = { ...(params.edgeOverrides || {}) };
+    const newOverrides = { ...(rawView.edgeOverrides || {}) };
     if (!newOverrides[edge]) newOverrides[edge] = {};
     newOverrides[edge] = { ...newOverrides[edge], [key]: value };
     update('edgeOverrides', newOverrides as any);
@@ -116,7 +124,7 @@ export const Controls: React.FC<ControlsProps> = ({
   // Read a FLAT numeric node override (these sliders never edit the nested
   // `active` chamber sub-block, which can be a Record rather than a number).
   const nodeNum = (node: string, key: string, fallback: number): number => {
-    const v = params.nodeOverrides?.[node]?.[key];
+    const v = rawView.nodeOverrides?.[node]?.[key];
     return typeof v === "number" ? v : fallback;
   };
 
@@ -195,11 +203,11 @@ export const Controls: React.FC<ControlsProps> = ({
               <GroupHeader title="Global Physiology" isOpen={openGroups.global} toggle={() => toggleGroup('global')} />
               {openGroups.global && (
                   <div className="mt-2 pl-3 border-l-2 border-slate-700/30 ml-2 mb-4">
-                  <Slider label="Heart Rate" value={params.HR} min={30} max={180} step={1} onChange={(v) => update('HR', v)} unit="bpm" />
+                  <Slider label="Heart Rate" value={rawView.HR} min={30} max={180} step={1} onChange={(v) => update('HR', v)} unit="bpm" />
                   <Slider label="Total Blood Volume" value={activeInstance.targetVolume} min={2000} max={8000} step={50} onChange={(v) => updateInstanceVolume(activeInstance.id, v)} unit="mL" />
-                  <Slider label="Global Venous Tone" value={params.venousTone} min={0} max={1} step={0.05} onChange={(v) => update('venousTone', v)} />
-                  <Slider label="Global Contractility" value={params.contractility} min={0.25} max={2.5} step={0.05} onChange={(v) => update('contractility', v)} unit="x" />
-                  <Slider label="Global Relaxation" value={params.relaxation} min={0.25} max={2.5} step={0.05} onChange={(v) => update('relaxation', v)} unit="x" />
+                  <Slider label="Global Venous Tone" value={rawView.venousTone} min={0} max={1} step={0.05} onChange={(v) => update('venousTone', v)} />
+                  <Slider label="Global Contractility" value={rawView.contractility} min={0.25} max={2.5} step={0.05} onChange={(v) => update('contractility', v)} unit="x" />
+                  <Slider label="Global Relaxation" value={rawView.relaxation} min={0.25} max={2.5} step={0.05} onChange={(v) => update('relaxation', v)} unit="x" />
               </div>
           )}
           </>
@@ -228,15 +236,15 @@ export const Controls: React.FC<ControlsProps> = ({
 
                       <span className="text-xs font-bold text-slate-300 block mb-1 mt-1">Left Ventricle (LV)</span>
                       <Slider label="LV Baseline Volume (V0)" value={nodeNum('LV', 'V0', 10)} min={0} max={100} step={1} onChange={(v) => updateNode('LV', 'V0', v)} unit="mL" />
-                      <Slider label="LV Tmax Scale (Force)" value={params.lvTmaxScale} min={0.05} max={2.5} step={0.05} onChange={(v) => update('lvTmaxScale', v)} unit="x" />
-                      <Slider label="LV Ca²⁺ Release Scale" value={params.caReleaseScale} min={0.25} max={6} step={0.1} onChange={(v) => update('caReleaseScale', v)} unit="x" />
-                      <Slider label="LV Geometry Scale" value={params.lvGeomScale} min={0.5} max={2.5} step={0.1} onChange={(v) => update('lvGeomScale', v)} unit="x" />
+                      <Slider label="LV Tmax Scale (Force)" value={rawView.lvTmaxScale} min={0.05} max={2.5} step={0.05} onChange={(v) => update('lvTmaxScale', v)} unit="x" />
+                      <Slider label="LV Ca²⁺ Release Scale" value={rawView.caReleaseScale} min={0.25} max={6} step={0.1} onChange={(v) => update('caReleaseScale', v)} unit="x" />
+                      <Slider label="LV Geometry Scale" value={rawView.lvGeomScale} min={0.5} max={2.5} step={0.1} onChange={(v) => update('lvGeomScale', v)} unit="x" />
 
                       <span className="text-xs font-bold text-slate-300 block mt-4 mb-1">Right Ventricle (RV)</span>
                       <Slider label="RV Baseline Volume (V0)" value={nodeNum('RV', 'V0', 15)} min={0} max={100} step={1} onChange={(v) => updateNode('RV', 'V0', v)} unit="mL" />
-                      <Slider label="RV Tmax Scale (Force)" value={params.rvTmaxScale} min={0.05} max={3.0} step={0.05} onChange={(v) => update('rvTmaxScale', v)} unit="x" />
-                      <Slider label="RV Ca²⁺ Release Scale" value={params.rvCaReleaseScale} min={0.25} max={8} step={0.1} onChange={(v) => update('rvCaReleaseScale', v)} unit="x" />
-                      <Slider label="RV Geometry Scale" value={params.rvGeomScale} min={0.5} max={3.0} step={0.1} onChange={(v) => update('rvGeomScale', v)} unit="x" />
+                      <Slider label="RV Tmax Scale (Force)" value={rawView.rvTmaxScale} min={0.05} max={3.0} step={0.05} onChange={(v) => update('rvTmaxScale', v)} unit="x" />
+                      <Slider label="RV Ca²⁺ Release Scale" value={rawView.rvCaReleaseScale} min={0.25} max={8} step={0.1} onChange={(v) => update('rvCaReleaseScale', v)} unit="x" />
+                      <Slider label="RV Geometry Scale" value={rawView.rvGeomScale} min={0.5} max={3.0} step={0.1} onChange={(v) => update('rvGeomScale', v)} unit="x" />
                   </div>
               )}
             </>
@@ -265,24 +273,24 @@ export const Controls: React.FC<ControlsProps> = ({
               {openGroups.vascular && (
                   <div className="mt-2 pl-3 border-l-2 border-slate-700/30 ml-2 mb-4">
                       <span className="text-xs font-bold text-slate-300 block mt-1 mb-1">Global Scale Multipliers</span>
-                      <Slider label="Systemic Resistance" value={params.systemicResistance} min={0.2} max={3.5} step={0.05} onChange={(v) => update('systemicResistance', v)} unit="x" />
-                      <Slider label="Pulmonary Resistance" value={params.pulmonaryResistance} min={0.2} max={4.0} step={0.05} onChange={(v) => update('pulmonaryResistance', v)} unit="x" />
-                      <Slider label="Global Arterial Stiffness" value={params.arterialStiffness} min={0.4} max={3.0} step={0.05} onChange={(v) => update('arterialStiffness', v)} unit="x" />
+                      <Slider label="Systemic Resistance" value={rawView.systemicResistance} min={0.2} max={3.5} step={0.05} onChange={(v) => update('systemicResistance', v)} unit="x" />
+                      <Slider label="Pulmonary Resistance" value={rawView.pulmonaryResistance} min={0.2} max={4.0} step={0.05} onChange={(v) => update('pulmonaryResistance', v)} unit="x" />
+                      <Slider label="Global Arterial Stiffness" value={rawView.arterialStiffness} min={0.4} max={3.0} step={0.05} onChange={(v) => update('arterialStiffness', v)} unit="x" />
 
                       <span className="text-xs font-bold text-slate-300 block mt-4 mb-1">Systemic Segment Resistance</span>
-                      <Slider label="Ao → SA" value={params.edgeOverrides?.Ao_SA?.R ?? 0.05} min={0.01} max={0.5} step={0.01} onChange={(v) => updateEdge('Ao_SA', 'R', v)} />
-                      <Slider label="SA → Art" value={params.edgeOverrides?.SA_Art?.R ?? 0.08} min={0.01} max={0.5} step={0.01} onChange={(v) => updateEdge('SA_Art', 'R', v)} />
-                      <Slider label="Art → Cap" value={params.edgeOverrides?.Art_Cap?.R ?? 0.65} min={0.1} max={3.0} step={0.05} onChange={(v) => updateEdge('Art_Cap', 'R', v)} />
-                      <Slider label="Cap → SV" value={params.edgeOverrides?.Cap_SV?.R ?? 0.15} min={0.01} max={1.0} step={0.01} onChange={(v) => updateEdge('Cap_SV', 'R', v)} />
-                      <Slider label="SV → VC" value={params.edgeOverrides?.SV_VC?.R ?? 0.05} min={0.01} max={0.5} step={0.01} onChange={(v) => updateEdge('SV_VC', 'R', v)} />
-                      <Slider label="VC → RA" value={params.edgeOverrides?.VC_RA?.R ?? 0.04} min={0.01} max={0.3} step={0.01} onChange={(v) => updateEdge('VC_RA', 'R', v)} />
+                      <Slider label="Ao → SA" value={rawView.edgeOverrides?.Ao_SA?.R ?? 0.05} min={0.01} max={0.5} step={0.01} onChange={(v) => updateEdge('Ao_SA', 'R', v)} />
+                      <Slider label="SA → Art" value={rawView.edgeOverrides?.SA_Art?.R ?? 0.08} min={0.01} max={0.5} step={0.01} onChange={(v) => updateEdge('SA_Art', 'R', v)} />
+                      <Slider label="Art → Cap" value={rawView.edgeOverrides?.Art_Cap?.R ?? 0.65} min={0.1} max={3.0} step={0.05} onChange={(v) => updateEdge('Art_Cap', 'R', v)} />
+                      <Slider label="Cap → SV" value={rawView.edgeOverrides?.Cap_SV?.R ?? 0.15} min={0.01} max={1.0} step={0.01} onChange={(v) => updateEdge('Cap_SV', 'R', v)} />
+                      <Slider label="SV → VC" value={rawView.edgeOverrides?.SV_VC?.R ?? 0.05} min={0.01} max={0.5} step={0.01} onChange={(v) => updateEdge('SV_VC', 'R', v)} />
+                      <Slider label="VC → RA" value={rawView.edgeOverrides?.VC_RA?.R ?? 0.04} min={0.01} max={0.3} step={0.01} onChange={(v) => updateEdge('VC_RA', 'R', v)} />
 
                       <span className="text-xs font-bold text-slate-300 block mt-4 mb-1">Pulmonary Segment Resistance</span>
-                      <Slider label="PA → PArt" value={params.edgeOverrides?.PA_PArt?.R ?? 0.01} min={0.001} max={0.1} step={0.001} onChange={(v) => updateEdge('PA_PArt', 'R', v)} />
-                      <Slider label="PArt → PCap" value={params.edgeOverrides?.PArt_PCap?.R ?? 0.04} min={0.01} max={0.3} step={0.01} onChange={(v) => updateEdge('PArt_PCap', 'R', v)} />
-                      <Slider label="PCap → PVen" value={params.edgeOverrides?.PCap_PVen?.R ?? 0.03} min={0.01} max={0.3} step={0.01} onChange={(v) => updateEdge('PCap_PVen', 'R', v)} />
-                      <Slider label="PVen → PVein" value={params.edgeOverrides?.PVen_PVein?.R ?? 0.01} min={0.001} max={0.1} step={0.001} onChange={(v) => updateEdge('PVen_PVein', 'R', v)} />
-                      <Slider label="PVein → LA" value={params.edgeOverrides?.PVein_LA?.R ?? 0.02} min={0.001} max={0.2} step={0.001} onChange={(v) => updateEdge('PVein_LA', 'R', v)} />
+                      <Slider label="PA → PArt" value={rawView.edgeOverrides?.PA_PArt?.R ?? 0.01} min={0.001} max={0.1} step={0.001} onChange={(v) => updateEdge('PA_PArt', 'R', v)} />
+                      <Slider label="PArt → PCap" value={rawView.edgeOverrides?.PArt_PCap?.R ?? 0.04} min={0.01} max={0.3} step={0.01} onChange={(v) => updateEdge('PArt_PCap', 'R', v)} />
+                      <Slider label="PCap → PVen" value={rawView.edgeOverrides?.PCap_PVen?.R ?? 0.03} min={0.01} max={0.3} step={0.01} onChange={(v) => updateEdge('PCap_PVen', 'R', v)} />
+                      <Slider label="PVen → PVein" value={rawView.edgeOverrides?.PVen_PVein?.R ?? 0.01} min={0.001} max={0.1} step={0.001} onChange={(v) => updateEdge('PVen_PVein', 'R', v)} />
+                      <Slider label="PVein → LA" value={rawView.edgeOverrides?.PVein_LA?.R ?? 0.02} min={0.001} max={0.2} step={0.001} onChange={(v) => updateEdge('PVein_LA', 'R', v)} />
                   </div>
               )}
             </>
@@ -293,8 +301,8 @@ export const Controls: React.FC<ControlsProps> = ({
               <GroupHeader title="Fluids & Hemorrhage" isOpen={openGroups.fluids} toggle={() => toggleGroup('fluids')} />
               {openGroups.fluids && (
                   <div className="mt-2 pl-3 border-l-2 border-slate-700/30 ml-2 mb-4">
-                      <Slider label="Hemorrhage Rate" value={params.bleedRate} min={0} max={1500} step={25} onChange={(v) => update('bleedRate', v)} unit="mL/min" />
-                      <Slider label="Fluid / Transfusion Rate" value={params.fluidRate} min={0} max={1500} step={25} onChange={(v) => update('fluidRate', v)} unit="mL/min" />
+                      <Slider label="Hemorrhage Rate" value={rawView.bleedRate} min={0} max={1500} step={25} onChange={(v) => update('bleedRate', v)} unit="mL/min" />
+                      <Slider label="Fluid / Transfusion Rate" value={rawView.fluidRate} min={0} max={1500} step={25} onChange={(v) => update('fluidRate', v)} unit="mL/min" />
                       <span className="text-[10px] text-slate-500 block mt-1">Net volume change is integrated over time; no autonomic compensation (baroreflex is a later phase).</span>
                   </div>
               )}
@@ -328,11 +336,11 @@ export const Controls: React.FC<ControlsProps> = ({
               <GroupHeader title="Respiratory & Environment" isOpen={openGroups.resp} toggle={() => toggleGroup('resp')} />
               {openGroups.resp && (
                   <div className="mt-2 pl-3 border-l-2 border-slate-700/30 ml-2 mb-4">
-                      <Slider label="PEEP" value={params.PEEP} min={0} max={25} step={1} onChange={(v) => update('PEEP', v)} unit="cmH2O" />
-                      <Slider label="Base Pleural P (Pth0)" value={params.Pth0} min={-20} max={30} step={1} onChange={(v) => update('Pth0', v)} unit="cmH2O" />
-                      <Slider label="Resp Amp (Pleural)" value={params.respAmpTh} min={-20} max={20} step={1} onChange={(v) => update('respAmpTh', v)} unit="cmH2O" />
-                      <Slider label="Resp Amp (Alveolar)" value={params.respAmpAlv} min={-20} max={20} step={1} onChange={(v) => update('respAmpAlv', v)} unit="cmH2O" />
-                      <Slider label="Respiratory Rate" value={params.respRate} min={0} max={1.0} step={0.05} onChange={(v) => update('respRate', v)} unit="Hz" />
+                      <Slider label="PEEP" value={rawView.PEEP} min={0} max={25} step={1} onChange={(v) => update('PEEP', v)} unit="cmH2O" />
+                      <Slider label="Base Pleural P (Pth0)" value={rawView.Pth0} min={-20} max={30} step={1} onChange={(v) => update('Pth0', v)} unit="cmH2O" />
+                      <Slider label="Resp Amp (Pleural)" value={rawView.respAmpTh} min={-20} max={20} step={1} onChange={(v) => update('respAmpTh', v)} unit="cmH2O" />
+                      <Slider label="Resp Amp (Alveolar)" value={rawView.respAmpAlv} min={-20} max={20} step={1} onChange={(v) => update('respAmpAlv', v)} unit="cmH2O" />
+                      <Slider label="Respiratory Rate" value={rawView.respRate} min={0} max={1.0} step={0.05} onChange={(v) => update('respRate', v)} unit="Hz" />
                   </div>
               )}
             </>

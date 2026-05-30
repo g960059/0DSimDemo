@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { DEFAULT_PARAMS } from './constants';
 import { SimulationParams, SimInstance, PanelDef, PanelType, PanelInstanceConfig, ChamberId, SignalType, MetricType } from './types';
 import { SimulationHealth } from './engine/protocol';
-import { applyKnobs, KNOB_MAPPING_VERSION, type ClinicalKnobs } from './engine/knobs';
+import { type ClinicalKnobs } from './engine/knobs';
+import { resolveRawEdit, resolveKnobEdit } from './engine/instanceKnobs';
 import { HealthBadge, HealthToasts, HealthToast } from './components/HealthIndicators';
 import { PreviewController } from './engine/previewController';
 import { Controls } from './components/Controls';
@@ -67,7 +68,7 @@ function Workbench() {
           // holds the active-stress/elastance model toggle and advanced fibre
           // params) is opt-in via the panel settings, to avoid overwhelming
           // beginners. Default model stays active-stress.
-          config: { '1': { visible: true, selectedSignals: ['clinical', 'Global'] } },
+          config: { '1': { visible: true, selectedSignals: ['clinical', 'Global', 'fluids'] } },
           isSettingsOpen: false
       },
       {
@@ -105,6 +106,7 @@ function Workbench() {
           if (p.type === 'PVLOOP') defaultSigs = ['LV'];
           else if (p.type === 'WAVEFORM') defaultSigs = ['LVP', 'AoP'];
           else if (p.type === 'METRICS') defaultSigs = ['ABP', 'CO'];
+          else if (p.type === 'CONTROLS') defaultSigs = ['clinical', 'Global', 'fluids'];
           else if (p.type === 'GUYTON_RIGHT' || p.type === 'GUYTON_LEFT' || p.type === 'GUYTON_3D') defaultSigs = ['Default'];
           newConfig[id] = { visible: true, selectedSignals: defaultSigs };
           changed = true;
@@ -122,29 +124,24 @@ function Workbench() {
   useEffect(() => { controller.setTimeScale(timeScale); }, [timeScale]);
   useEffect(() => { controller.setPlaying(isPlaying); }, [isPlaying]);
 
+  // Raw (advanced) edit. resolveRawEdit composes with the clinical knobs when the
+  // instance is knob-primary (absolute-knob keys route to the knob; the rest edit
+  // the authored baseline) and is a plain param edit otherwise. See engine/instanceKnobs.
   const updateInstanceParams = (id: string, newParams: Partial<SimulationParams>) => {
-      setInstances(prev => prev.map(inst => {
-          if (inst.id !== id) return inst;
-          // Knob-primary instance: a raw (advanced) edit changes the AUTHORED
-          // baseline, and the live params are re-derived through the clinical
-          // knobs on top, so the two control surfaces compose instead of fighting.
-          if (inst.knobs && inst.knobBaseline) {
-              const knobBaseline = { ...inst.knobBaseline, ...newParams };
-              return { ...inst, knobBaseline, params: applyKnobs(knobBaseline, inst.knobs, KNOB_MAPPING_VERSION) };
-          }
-          // Legacy raw-only instance: edit params directly (unchanged behavior).
-          return { ...inst, params: { ...inst.params, ...newParams } };
-      }));
+      setInstances(prev => prev.map(inst =>
+          inst.id === id
+            ? { ...inst, ...resolveRawEdit({ params: inst.params, knobs: inst.knobs, knobBaseline: inst.knobBaseline }, newParams) }
+            : inst
+      ));
   };
 
-  // Clinical knob edit: derive params via applyKnobs(baseline, knobs). On the
-  // first edit the current params become the authored baseline.
+  // Clinical knob edit: makes the instance knob-primary, deriving params.
   const updateInstanceKnobs = (id: string, newKnobs: ClinicalKnobs) => {
-      setInstances(prev => prev.map(inst => {
-          if (inst.id !== id) return inst;
-          const knobBaseline = inst.knobBaseline ?? inst.params;
-          return { ...inst, knobs: newKnobs, knobBaseline, params: applyKnobs(knobBaseline, newKnobs, KNOB_MAPPING_VERSION) };
-      }));
+      setInstances(prev => prev.map(inst =>
+          inst.id === id
+            ? { ...inst, ...resolveKnobEdit({ params: inst.params, knobs: inst.knobs, knobBaseline: inst.knobBaseline }, newKnobs) }
+            : inst
+      ));
   };
   
   const updateInstanceVolume = (id: string, vol: number) => {
@@ -166,17 +163,23 @@ function Workbench() {
       const sourceInstance = instances.find(i => i.id === (typeof sourceId === 'string' ? sourceId : activeInstanceId));
       const initialParams = sourceInstance ? JSON.parse(JSON.stringify(sourceInstance.params)) : { ...DEFAULT_PARAMS };
       const initialVol = sourceInstance ? sourceInstance.targetVolume : 5600;
+      // Preserve knob-primary state when duplicating, so a copied instance keeps
+      // its clinical knobs / authored baseline instead of degrading to raw-only.
+      const initialKnobs = sourceInstance?.knobs ? JSON.parse(JSON.stringify(sourceInstance.knobs)) : undefined;
+      const initialKnobBaseline = sourceInstance?.knobBaseline ? JSON.parse(JSON.stringify(sourceInstance.knobBaseline)) : undefined;
 
       const baseName = sourceInstance ? sourceInstance.name : 'New Scenario';
       const name = `${baseName} (Copy)`;
 
       setInstances(prev => [...prev, {
-          id: newId, 
+          id: newId,
           name: name,
-          color, 
-          params: initialParams, 
+          color,
+          params: initialParams,
           targetVolume: initialVol,
-          isVisible: true
+          isVisible: true,
+          knobs: initialKnobs,
+          knobBaseline: initialKnobBaseline
       }]);
       
       setPanels(prev => prev.map(p => {
@@ -184,7 +187,7 @@ function Workbench() {
           if (p.type === 'PVLOOP') defaultSigs = ['LV'];
           else if (p.type === 'WAVEFORM') defaultSigs = ['LVP', 'AoP'];
           else if (p.type === 'METRICS') defaultSigs = ['ABP', 'CO'];
-          else if (p.type === 'CONTROLS') defaultSigs = ['Global'];
+          else if (p.type === 'CONTROLS') defaultSigs = ['clinical', 'Global', 'fluids'];
           else if (p.type === 'GUYTON_RIGHT' || p.type === 'GUYTON_LEFT' || p.type === 'GUYTON_3D') defaultSigs = ['Default'];
           
           return {
@@ -220,7 +223,7 @@ function Workbench() {
           if (type === 'PVLOOP') defaultSigs = ['LV'];
           else if (type === 'WAVEFORM') defaultSigs = ['LVP', 'AoP'];
           else if (type === 'METRICS') defaultSigs = ['ABP', 'CO'];
-          else if (type === 'CONTROLS') defaultSigs = ['Global'];
+          else if (type === 'CONTROLS') defaultSigs = ['clinical', 'Global', 'fluids'];
           else if (type === 'GUYTON_RIGHT' || type === 'GUYTON_LEFT' || type === 'GUYTON_3D') defaultSigs = ['Default'];
           newConfig[i.id] = { visible: true, selectedSignals: defaultSigs };
       });
