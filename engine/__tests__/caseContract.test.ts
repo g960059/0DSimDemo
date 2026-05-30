@@ -79,6 +79,19 @@ describe("sanitizeParams (engine contract boundary)", () => {
     expect((clean.nodeOverrides?.RV?.active as Record<string, number>)?.bPas).toBe(18);
   });
 
+  it("DROPS wrong-shaped (object-where-number) overrides — nesting only under `active`", () => {
+    // A stray object where the integrator expects a number must never reach
+    // ModelCore arithmetic. Nesting is allowed ONLY under a node's `active`.
+    const clean = sanitizeParams({
+      ...defaultParams(),
+      nodeOverrides: { LV: { V0: { x: 1 } as unknown as number, active: { bPas: 15 } } },
+      edgeOverrides: { Ao_SA: { R: { x: 1 } as unknown as number } },
+    } as unknown as CoreRuntimeParams);
+    expect(clean.nodeOverrides?.LV?.V0).toBeUndefined();            // non-active nested dropped
+    expect((clean.nodeOverrides?.LV?.active as Record<string, number>)?.bPas).toBe(15); // active kept
+    expect("edgeOverrides" in clean).toBe(false);                  // edge nesting dropped -> empty -> omitted
+  });
+
   it("coerces non-boolean projectTBV/useChiResistance to neutral, not false", () => {
     const clean = sanitizeParams({ ...defaultParams(), projectTBV: 1, useChiResistance: "yes" } as unknown as CoreRuntimeParams);
     expect(clean.projectTBV).toBe(NEUTRAL_PARAMS.projectTBV); // true, NOT false

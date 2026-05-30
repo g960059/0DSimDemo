@@ -202,11 +202,12 @@ export function sanitizeParams(p: CoreRuntimeParams): CoreRuntimeParams {
   }
 
   // Node/edge overrides — researcher escape hatch, but still the final gate
-  // before the integrator: keep the two-level shape, drop any non-finite leaf
-  // (a NaN here would poison the solver), reject null/arrays/non-objects.
-  const cleanOv = sanitizeOverrides(src.nodeOverrides);
+  // before the integrator: keep the shape strict (flat finite numbers; one level
+  // of nesting ONLY under a node's `active` block), drop non-finite leaves and
+  // wrong-shaped values, reject null/arrays/non-objects.
+  const cleanOv = sanitizeOverrides(src.nodeOverrides, NODE_NESTED_KEYS);
   if (cleanOv) out.nodeOverrides = cleanOv;
-  const cleanEdge = sanitizeOverrides(src.edgeOverrides);
+  const cleanEdge = sanitizeOverrides(src.edgeOverrides, EDGE_NESTED_KEYS);
   if (cleanEdge) out.edgeOverrides = cleanEdge;
 
   return out as CoreRuntimeParams;
@@ -216,14 +217,21 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+/** Node fields allowed to be a nested numeric record (the chamber sub-block). */
+const NODE_NESTED_KEYS: ReadonlySet<string> = new Set(["active"]);
+/** Edges are always flat: no field may be a nested object. */
+const EDGE_NESTED_KEYS: ReadonlySet<string> = new Set<string>();
+
 /**
  * Validate an OverrideBlock: keep only plain-object groups whose leaves are
- * finite numbers, OR a one-level-nested record of finite numbers (the `active`
- * chamber sub-block, e.g. { LV: { active: { bPas: 20 } } } — which ModelCore
- * honors and which MUST survive sanitize or diastolic-stiffness / chamber
- * overrides silently no-op). Returns undefined when nothing valid remains.
+ * finite numbers. A field may be a one-level-nested record of finite numbers
+ * ONLY if its key is in `nestedKeys` (e.g. a node's `active` chamber sub-block,
+ * { LV: { active: { bPas: 20 } } } — which ModelCore honors and which MUST
+ * survive sanitize or chamber overrides silently no-op). Any other nested/
+ * wrong-shaped value is DROPPED, so a stray object can never reach numeric
+ * ModelCore arithmetic. Returns undefined when nothing valid remains.
  */
-function sanitizeOverrides(raw: unknown): OverrideBlock | undefined {
+function sanitizeOverrides(raw: unknown, nestedKeys: ReadonlySet<string>): OverrideBlock | undefined {
   if (!isPlainObject(raw)) return undefined;
   const out: OverrideBlock = {};
   for (const [group, fields] of Object.entries(raw)) {
@@ -232,13 +240,14 @@ function sanitizeOverrides(raw: unknown): OverrideBlock | undefined {
     for (const [k, v] of Object.entries(fields)) {
       if (typeof v === "number" && Number.isFinite(v)) {
         clean[k] = v;
-      } else if (isPlainObject(v)) {
+      } else if (nestedKeys.has(k) && isPlainObject(v)) {
         const nested: Record<string, number> = {};
         for (const [k2, v2] of Object.entries(v)) {
           if (typeof v2 === "number" && Number.isFinite(v2)) nested[k2] = v2;
         }
         if (Object.keys(nested).length > 0) clean[k] = nested;
       }
+      // else: wrong-shaped (object where a number is expected) -> dropped.
     }
     if (Object.keys(clean).length > 0) out[group] = clean;
   }
