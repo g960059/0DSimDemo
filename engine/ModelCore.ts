@@ -9,6 +9,7 @@ import {
   type ChamberCtx,
 } from "@/engine/chambers";
 import type { ParameterPatch, SimMetrics, SimObservables, SimSample, SimulationHealth, SimulationHealthStatus, CoreRuntimeParams } from "@/engine/protocol";
+import { HARD_CLAMP, RUNTIME_CLAMP_KEYS } from "@/engine/protocol";
 import {
   assessBeatRing,
   DEFAULT_SETTLE_POLICY,
@@ -267,6 +268,10 @@ export class ModelCore {
   private beatAccum: BeatAccum | null = null;
   private totalBeats = 0;
   private opSig = ""; // operating-point signature; a change re-arms beat tracking
+  // Observables snapshot taken at the last beat boundary (phi ~ integer). Used by
+  // metrics() so Pmsf/vrGradient/volumes are phi-aligned (stop-phase independent)
+  // like the rest of the metrics, rather than sampled at an arbitrary stop phase.
+  private lastBeatObs: SimObservables | null = null;
 
   constructor(initial?: Partial<CoreRuntimeParams>) {
     this.p = { ...defaultParams() };
@@ -497,6 +502,10 @@ export class ModelCore {
 
   private finalizeBeat(a: BeatAccum): BeatSummary {
     const n = Math.max(a.count, 1);
+    // Snapshot observables at the beat boundary once: reused for the fingerprint
+    // below AND by metrics() (phi-aligned, stop-phase independent).
+    const obs = this.debugObservables();
+    this.lastBeatObs = obs;
     const vals: Record<SignalKey, number> = {
       aopMean: a.sumAoP / n, aopSys: a.maxAoP, aopDia: a.minAoP,
       papMean: a.sumPAP / n, papSys: a.maxPAP, papDia: a.minPAP,
@@ -504,7 +513,7 @@ export class ModelCore {
       svL: a.svL, svR: a.svR,
       edvL: a.maxVLV, esvL: a.minVLV, edvR: a.maxVRV, esvR: a.minVRV,
       lvEdp: a.lvEdp, rvEdp: a.rvEdp,
-      pmsf: this.debugObservables().Pmsf, tbv: a.tbv,
+      pmsf: obs.Pmsf, tbv: a.tbv,
     };
     return { beat: a.beat, vals };
   }
@@ -516,6 +525,7 @@ export class ModelCore {
     this.beatRing = [];
     this.beatAccum = null;
     this.totalBeats = 0;
+    this.lastBeatObs = null;
   }
 
   /** Periodic steady-state assessment (read-only). Hemorrhage/fluid => forced-trend.
@@ -609,7 +619,10 @@ export class ModelCore {
     const ESV_R = min("VRV");
     const lvEdSample = data.reduce((best, sample) => sample.VLV > best.VLV ? sample : best, data[0]);
     const rvEdSample = data.reduce((best, sample) => sample.VRV > best.VRV ? sample : best, data[0]);
-    const obs = this.debugObservables();
+    // Observables from the last beat boundary (phi-aligned) so Pmsf/vrGradient/
+    // volumes are stop-phase independent like the rest of metrics; fall back to a
+    // live read only before the first beat closes (e.g. a bare step() loop).
+    const obs = this.lastBeatObs ?? this.debugObservables();
     return {
       HR: this.p.HR,
       AoPMean: avg("AoP"),
@@ -985,28 +998,17 @@ export class ModelCore {
     }
     this.p.heartModel = this.pTarget.heartModel;
     this.p.useChiResistance = this.pTarget.useChiResistance;
-    this.p.HR = clamp(this.p.HR, 30, 180);
-    this.p.contractility = clamp(this.p.contractility, 0.25, 2.5);
-    this.p.relaxation = clamp(this.p.relaxation, 0.25, 2.5);
-    this.p.systemicResistance = clamp(this.p.systemicResistance, 0.2, 3.5);
-    this.p.pulmonaryResistance = clamp(this.p.pulmonaryResistance, 0.2, 4.0);
-    this.p.venousTone = clamp(this.p.venousTone, 0, 1);
-    this.p.arterialStiffness = clamp(this.p.arterialStiffness, 0.4, 3.0);
-    this.p.PEEP = clamp(this.p.PEEP, 0, 25);
     // Rates are not smoothed but must be copied from the target so the
     // setTargetParameters() API path works, not just setImmediateParameters().
-    this.p.bleedRate = clamp(this.pTarget.bleedRate, 0, 2000);
-    this.p.fluidRate = clamp(this.pTarget.fluidRate, 0, 2000);
-    this.p.speed = clamp(this.p.speed, 0.1, 10);
-    // Range re-centered on the new 1.0 baseline (after folding the legacy 4.5
-    // into Tmax0). Low floor preserves/extends the depressed-contractility
-    // (cardiogenic shock) regime, which is a primary abnormal-case use.
-    this.p.lvTmaxScale = clamp(this.p.lvTmaxScale, 0.05, 2.5);
-    this.p.rvTmaxScale = clamp(this.p.rvTmaxScale, 0.05, 3.0);
-    this.p.lvGeomScale = clamp(this.p.lvGeomScale, 0.5, 2.5);
-    this.p.rvGeomScale = clamp(this.p.rvGeomScale, 0.5, 3.0);
-    this.p.caReleaseScale = clamp(this.p.caReleaseScale, 0.25, 6);
-    this.p.rvCaReleaseScale = clamp(this.p.rvCaReleaseScale, 0.25, 8);
+    this.p.bleedRate = this.pTarget.bleedRate;
+    this.p.fluidRate = this.pTarget.fluidRate;
+    // Hard clamps sourced from the SHARED protocol.HARD_CLAMP table, so the
+    // integrated parameter set is exactly what sanitizeParams() produced — no
+    // divergent re-clamp that would silently move deep-scale / rate edits.
+    for (const k of RUNTIME_CLAMP_KEYS) {
+      const r = HARD_CLAMP[k];
+      if (r && typeof this.p[k] === "number") (this.p[k] as number) = clamp(this.p[k] as number, r[0], r[1]);
+    }
   }
 
   private sanitizeState(x: Float64Array) {

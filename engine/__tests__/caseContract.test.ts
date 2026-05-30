@@ -41,17 +41,34 @@ describe("sanitizeParams (engine contract boundary)", () => {
     expect(clean.AoV_Amax).toBeLessThan(base.AoV_Amax);
   });
 
-  it("preserves node/edge overrides (researcher tier) and drops unknown junk", () => {
+  it("has exactly the CoreRuntimeParams key-set on valid defaults (none dropped/added)", () => {
+    const a = Object.keys(sanitizeParams(defaultParams())).sort();
+    const b = Object.keys(defaultParams()).sort();
+    expect(a).toEqual(b);
+  });
+
+  it("preserves valid overrides but drops non-finite leaves / null / arrays", () => {
     const withExtras = {
       ...defaultParams(),
-      nodeOverrides: { LV: { Ees: 3.1 } },
+      nodeOverrides: { LV: { Ees: 3.1, beta: NaN } }, // beta NaN must be dropped (would poison the solver)
       edgeOverrides: { AoV: { R: 0.02 } },
       bogusKey: 999,
     };
     const clean = sanitizeParams(withExtras as unknown as CoreRuntimeParams);
-    expect(clean.nodeOverrides).toEqual({ LV: { Ees: 3.1 } });
+    expect(clean.nodeOverrides).toEqual({ LV: { Ees: 3.1 } }); // beta dropped, Ees kept
     expect(clean.edgeOverrides).toEqual({ AoV: { R: 0.02 } });
     expect((clean as Record<string, unknown>).bogusKey).toBeUndefined();
+
+    // null / array override blocks are rejected entirely (key omitted).
+    const bad = sanitizeParams({ ...defaultParams(), nodeOverrides: null, edgeOverrides: [1, 2] } as unknown as CoreRuntimeParams);
+    expect("nodeOverrides" in bad).toBe(false);
+    expect("edgeOverrides" in bad).toBe(false);
+  });
+
+  it("coerces non-boolean projectTBV/useChiResistance to neutral, not false", () => {
+    const clean = sanitizeParams({ ...defaultParams(), projectTBV: 1, useChiResistance: "yes" } as unknown as CoreRuntimeParams);
+    expect(clean.projectTBV).toBe(NEUTRAL_PARAMS.projectTBV); // true, NOT false
+    expect(clean.useChiResistance).toBe(NEUTRAL_PARAMS.useChiResistance);
   });
 
   it("clamps out-of-range core knobs and coerces non-finite to neutral", () => {
@@ -83,8 +100,11 @@ describe("valvular intervention is NOT a no-op after sanitize (end-to-end)", () 
       AoV_R: base.AoV_R * (1 + 5 * sev),
     };
     const asParams = sanitizeParams(asRaw as CoreRuntimeParams);
-    // Guard: the lesion survived the final sanitize step.
-    expect(asParams.AoV_Amax).toBeLessThan(base.AoV_Amax * 0.5);
+    // Guard: BOTH lesion params survive the final sanitize step (a partial
+    // erosion — e.g. orifice survives but resistance is reset — would be a
+    // silent half-no-op).
+    expect(asParams.AoV_Amax).toBeCloseTo(base.AoV_Amax * (1 - 0.75 * sev), 9);
+    expect(asParams.AoV_R).toBeCloseTo(base.AoV_R * (1 + 5 * sev), 9);
 
     const baseRun = runScenario(base, { settleMode: "converge", measureSeconds: 4 });
     const asRun = runScenario(asParams, { settleMode: "converge", measureSeconds: 4 });
@@ -97,7 +117,7 @@ describe("valvular intervention is NOT a no-op after sanitize (end-to-end)", () 
 });
 
 describe("metrics() is stop-phase independent (deterministic fingerprints)", () => {
-  it("returns bit-identical metrics at every stop phase within one beat", () => {
+  it("returns bit-identical values for EVERY metric field across stop phases in one beat", () => {
     const dt = 0.001;
     const sampleHz = 120;
     const core = new ModelCore(defaultParams());
@@ -106,23 +126,32 @@ describe("metrics() is stop-phase independent (deterministic fingerprints)", () 
     core.runFor(0.1, dt, sampleHz); // land mid-beat
 
     const beat0 = Math.floor(core.sample().phi);
-    const sv: number[] = [];
-    const sys: number[] = [];
+    const readings: Record<string, number>[] = [];
     let guard = 0;
     // Sample metrics at successive stop phases WITHIN a single in-progress beat.
-    // The phi-aligned window points at the last *completed* beat, whose samples
-    // are frozen, so every reading must be identical. A t-anchored window would
-    // drift as the in-progress beat accumulates samples.
+    // The phi-aligned window points at the last *completed* beat (and the
+    // observables snapshot is taken at that beat boundary), so every field —
+    // including the previously stop-phase-dependent Pmsf/vrGradient/volumes —
+    // must be identical. A t-anchored window would drift as samples accumulate.
     while (Math.floor(core.sample().phi) === beat0 && guard < 100) {
-      const m = core.metrics();
-      sv.push(m.SV_L);
-      sys.push(m.AoPSys);
+      readings.push({ ...core.metrics() } as unknown as Record<string, number>);
       core.runFor(0.02, dt, sampleHz);
       guard++;
     }
 
-    expect(sv.length).toBeGreaterThan(3); // genuinely visited several stop phases
-    expect(Math.max(...sv) - Math.min(...sv)).toBeLessThan(1e-9);
-    expect(Math.max(...sys) - Math.min(...sys)).toBeLessThan(1e-9);
+    expect(readings.length).toBeGreaterThan(3); // genuinely visited several stop phases
+    for (const key of Object.keys(readings[0])) {
+      const vals = readings.map((r) => r[key]);
+      const spread = Math.max(...vals) - Math.min(...vals);
+      expect(spread, `metric "${key}" jitters across stop phases (${spread})`).toBeLessThan(1e-9);
+    }
+  });
+});
+
+describe("grounding: settleStatus is exposed and settled on a converged run", () => {
+  it("converge runs report settled===true so grounded metrics are trustworthy", () => {
+    const r = runScenario(defaultParams(), { settleMode: "converge", measureSeconds: 2 });
+    expect(r.settleStatus).toBeDefined();
+    expect(r.settleStatus?.settled).toBe(true);
   });
 });

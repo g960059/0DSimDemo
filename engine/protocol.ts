@@ -83,8 +83,17 @@ export type ParameterPatch = Partial<CoreRuntimeParams>;
 // see caseOps.ts §"Raw-patch clamp & review policy".
 // =============================================================================
 
-/** Hard, integrator-safe clamp ranges for the core physiology knobs. */
-const HARD_CLAMP: Partial<Record<keyof CoreRuntimeParams, [number, number]>> = {
+/**
+ * Hard, integrator-safe clamp ranges for the core physiology knobs. This is the
+ * SINGLE SOURCE OF TRUTH: ModelCore.smoothParams() applies the same table at
+ * runtime, so a sanitized CoreRuntimeParams is exactly what the integrator runs
+ * (no divergent downstream re-clamp that would silently move deep-scale edits).
+ * The numeric scale ranges are deliberately re-centred on the active-stress 1.0
+ * baseline (e.g. lvTmaxScale floor 0.05 keeps the cardiogenic-shock regime).
+ * The respiratory guards (Pth0, respAmpTh, respAmpAlv, respRate) are
+ * sanitize-only — smoothParams does not re-clamp them, so they cannot diverge.
+ */
+export const HARD_CLAMP: Partial<Record<keyof CoreRuntimeParams, [number, number]>> = {
   HR: [30, 180],
   contractility: [0.25, 2.5],
   relaxation: [0.25, 2.5],
@@ -98,15 +107,23 @@ const HARD_CLAMP: Partial<Record<keyof CoreRuntimeParams, [number, number]>> = {
   respAmpAlv: [-20, 20],
   respRate: [0, 1],
   speed: [0.1, 10],
-  bleedRate: [0, 5000],
-  fluidRate: [0, 5000],
-  lvTmaxScale: [0.1, 8],
-  rvTmaxScale: [0.1, 8],
-  caReleaseScale: [0.1, 4],
-  rvCaReleaseScale: [0.1, 4],
-  lvGeomScale: [0.5, 2],
-  rvGeomScale: [0.5, 2],
+  bleedRate: [0, 2000],
+  fluidRate: [0, 2000],
+  lvTmaxScale: [0.05, 2.5],
+  rvTmaxScale: [0.05, 3.0],
+  lvGeomScale: [0.5, 2.5],
+  rvGeomScale: [0.5, 3.0],
+  caReleaseScale: [0.25, 6],
+  rvCaReleaseScale: [0.25, 8],
 };
+
+/** Keys smoothParams() hard-clamps at runtime — must agree with HARD_CLAMP. */
+export const RUNTIME_CLAMP_KEYS: (keyof CoreRuntimeParams)[] = [
+  "HR", "contractility", "relaxation", "systemicResistance", "pulmonaryResistance",
+  "venousTone", "arterialStiffness", "PEEP", "speed", "bleedRate", "fluidRate",
+  "lvTmaxScale", "rvTmaxScale", "lvGeomScale", "rvGeomScale",
+  "caReleaseScale", "rvCaReleaseScale",
+];
 
 /** The numeric core knobs, rebuilt explicitly (so unknown keys are dropped). */
 const CORE_NUMERIC_KEYS: (keyof CoreRuntimeParams)[] = [
@@ -153,10 +170,12 @@ export function sanitizeParams(p: CoreRuntimeParams): CoreRuntimeParams {
 
   for (const key of CORE_NUMERIC_KEYS) out[key] = numAt(key);
 
-  // Enums / booleans.
+  // Enums / booleans. Non-boolean junk falls back to the NEUTRAL value (not to
+  // false) — symmetric with heartModel, so a corrupted `projectTBV: 1` does not
+  // silently disable the mass-conservation projector.
   out.heartModel = src.heartModel === "elastance" ? "elastance" : "activeStress";
-  out.useChiResistance = src.useChiResistance === true;
-  out.projectTBV = src.projectTBV === undefined ? NEUTRAL_PARAMS.projectTBV : src.projectTBV === true;
+  out.useChiResistance = typeof src.useChiResistance === "boolean" ? src.useChiResistance : NEUTRAL_PARAMS.useChiResistance;
+  out.projectTBV = typeof src.projectTBV === "boolean" ? src.projectTBV : NEUTRAL_PARAMS.projectTBV;
 
   // Valve params — PRESERVED. Areas/resistances/inductances >= 0; the open/close
   // time constants >= 1e-4 s (a zero tau would divide-by-zero in valve dynamics).
@@ -172,11 +191,38 @@ export function sanitizeParams(p: CoreRuntimeParams): CoreRuntimeParams {
     guard("R", 0); guard("L", 0);
   }
 
-  // Node/edge overrides — pass through plain objects untouched (researcher tier).
-  if (src.nodeOverrides && typeof src.nodeOverrides === "object") out.nodeOverrides = src.nodeOverrides;
-  if (src.edgeOverrides && typeof src.edgeOverrides === "object") out.edgeOverrides = src.edgeOverrides;
+  // Node/edge overrides — researcher escape hatch, but still the final gate
+  // before the integrator: keep the two-level shape, drop any non-finite leaf
+  // (a NaN here would poison the solver), reject null/arrays/non-objects.
+  const cleanOv = sanitizeOverrides(src.nodeOverrides);
+  if (cleanOv) out.nodeOverrides = cleanOv;
+  const cleanEdge = sanitizeOverrides(src.edgeOverrides);
+  if (cleanEdge) out.edgeOverrides = cleanEdge;
 
   return out as CoreRuntimeParams;
+}
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+/**
+ * Validate a `Record<string, Record<string, number>>` override block: keep only
+ * plain-object groups whose leaves are finite numbers. Returns undefined when
+ * nothing valid remains (so the key is omitted, matching defaultParams()).
+ */
+function sanitizeOverrides(raw: unknown): Record<string, Record<string, number>> | undefined {
+  if (!isPlainObject(raw)) return undefined;
+  const out: Record<string, Record<string, number>> = {};
+  for (const [group, fields] of Object.entries(raw)) {
+    if (!isPlainObject(fields)) continue;
+    const clean: Record<string, number> = {};
+    for (const [k, v] of Object.entries(fields)) {
+      if (typeof v === "number" && Number.isFinite(v)) clean[k] = v;
+    }
+    if (Object.keys(clean).length > 0) out[group] = clean;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 export type SimSample = {

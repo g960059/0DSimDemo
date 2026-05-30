@@ -17,8 +17,10 @@ describe("M0bs observability", () => {
     // Venous return is driven by Pmsf exceeding RA pressure.
     expect(o.Pmsf).toBeGreaterThan(o.RAP);
     expect(o.vrGradient).toBeGreaterThan(0);
-    // metrics() surfaces the same instantaneous Pmsf.
-    expect(metrics.Pmsf).toBeCloseTo(o.Pmsf, 6);
+    // metrics() surfaces Pmsf at the last beat boundary (phi-aligned, so the
+    // value is stop-phase independent); it tracks the live observable within the
+    // small intra-beat variation rather than being bit-equal to the instant read.
+    expect(metrics.Pmsf).toBeCloseTo(o.Pmsf, 0);
     // The systemic venous reservoir holds a real stressed volume.
     expect(o.venousStressedVolume).toBeGreaterThan(0);
   });
