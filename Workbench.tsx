@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { DEFAULT_PARAMS } from './constants';
 import { SimulationParams, SimInstance, PanelDef, PanelType, PanelInstanceConfig, ChamberId, SignalType, MetricType } from './types';
 import { SimulationHealth } from './engine/protocol';
+import { applyKnobs, KNOB_MAPPING_VERSION, type ClinicalKnobs } from './engine/knobs';
 import { HealthBadge, HealthToasts, HealthToast } from './components/HealthIndicators';
 import { PreviewController } from './engine/previewController';
 import { Controls } from './components/Controls';
@@ -17,7 +18,7 @@ const INSTANCE_COLORS = ['#a855f7', '#f472b6', '#22c55e', '#38bdf8', '#fbbf24'];
 const ALL_CHAMBERS: ChamberId[] = ['LV', 'LA', 'RV', 'RA'];
 const ALL_SIGNALS: SignalType[] = ['LVP', 'AoP', 'LAP', 'RVP', 'PAP', 'RAP', 'QAo', 'QMV', 'QPA', 'QTV'];
 const ALL_METRICS: MetricType[] = ['ABP', 'CVP', 'PAP', 'PCWP', 'SV', 'CO', 'LVEF'];
-const ALL_CONTROL_GROUPS: string[] = ['Global', 'ventricles', 'atria', 'vascular', 'fluids', 'valves', 'resp', 'advanced'];
+const ALL_CONTROL_GROUPS: string[] = ['clinical', 'Global', 'ventricles', 'atria', 'vascular', 'fluids', 'valves', 'resp', 'advanced'];
 
 function Workbench() {
   // --- State ---
@@ -66,7 +67,7 @@ function Workbench() {
           // holds the active-stress/elastance model toggle and advanced fibre
           // params) is opt-in via the panel settings, to avoid overwhelming
           // beginners. Default model stays active-stress.
-          config: { '1': { visible: true, selectedSignals: ['Global'] } },
+          config: { '1': { visible: true, selectedSignals: ['clinical', 'Global'] } },
           isSettingsOpen: false
       },
       {
@@ -124,7 +125,25 @@ function Workbench() {
   const updateInstanceParams = (id: string, newParams: Partial<SimulationParams>) => {
       setInstances(prev => prev.map(inst => {
           if (inst.id !== id) return inst;
+          // Knob-primary instance: a raw (advanced) edit changes the AUTHORED
+          // baseline, and the live params are re-derived through the clinical
+          // knobs on top, so the two control surfaces compose instead of fighting.
+          if (inst.knobs && inst.knobBaseline) {
+              const knobBaseline = { ...inst.knobBaseline, ...newParams };
+              return { ...inst, knobBaseline, params: applyKnobs(knobBaseline, inst.knobs, KNOB_MAPPING_VERSION) };
+          }
+          // Legacy raw-only instance: edit params directly (unchanged behavior).
           return { ...inst, params: { ...inst.params, ...newParams } };
+      }));
+  };
+
+  // Clinical knob edit: derive params via applyKnobs(baseline, knobs). On the
+  // first edit the current params become the authored baseline.
+  const updateInstanceKnobs = (id: string, newKnobs: ClinicalKnobs) => {
+      setInstances(prev => prev.map(inst => {
+          if (inst.id !== id) return inst;
+          const knobBaseline = inst.knobBaseline ?? inst.params;
+          return { ...inst, knobs: newKnobs, knobBaseline, params: applyKnobs(knobBaseline, newKnobs, KNOB_MAPPING_VERSION) };
       }));
   };
   
@@ -428,7 +447,7 @@ function Workbench() {
                           {panel.type === 'PVLOOP' && <PVLoopPanel physicsRefs={physicsRefs} instances={instances} config={panel.config} showGuides={panel.showGuides} showLegend={panel.showLegend} />}
                           {panel.type === 'WAVEFORM' && <WaveformPanel physicsRefs={physicsRefs} instances={instances} timeWindow={panel.timeWindow || 10000} config={panel.config} showLegend={panel.showLegend} />}
                           {panel.type === 'METRICS' && <MetricsPanel physicsRefs={physicsRefs} instances={instances} config={panel.config} />}
-                          {panel.type === 'CONTROLS' && <Controls isPaneMode paneConfig={panel.config} instances={instances} instanceHealth={instanceHealth} activeInstanceId={activeInstanceId} setActiveInstanceId={setActiveInstanceId} updateInstanceParams={updateInstanceParams} updateInstanceVolume={updateInstanceVolume} updateInstanceColor={updateInstanceColor} addInstance={addInstance} removeInstance={removeInstance} timeScale={timeScale} setTimeScale={setTimeScale} isPlaying={isPlaying} togglePlay={togglePlay} addPanel={addPanel} />}
+                          {panel.type === 'CONTROLS' && <Controls isPaneMode paneConfig={panel.config} instances={instances} instanceHealth={instanceHealth} activeInstanceId={activeInstanceId} setActiveInstanceId={setActiveInstanceId} updateInstanceParams={updateInstanceParams} updateInstanceKnobs={updateInstanceKnobs} updateInstanceVolume={updateInstanceVolume} updateInstanceColor={updateInstanceColor} addInstance={addInstance} removeInstance={removeInstance} timeScale={timeScale} setTimeScale={setTimeScale} isPlaying={isPlaying} togglePlay={togglePlay} addPanel={addPanel} />}
                           {(panel.type === 'GUYTON_RIGHT' || panel.type === 'GUYTON_LEFT') && <GuytonPanel physicsRefs={physicsRefs} instances={instances} config={panel.config} type={panel.type} />}
                           {panel.type === 'NOTE' && <ErrorBoundary><NotePanel /></ErrorBoundary>}
                       </div>

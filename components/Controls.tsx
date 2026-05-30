@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SimulationParams, SimInstance, PanelType } from '../types';
 import type { SimulationHealth } from '../engine/protocol';
+import { type ClinicalKnobs, KNOB_RANGES, neutralKnobs } from '../engine/knobs';
 import { HealthDot } from './HealthIndicators';
 
 interface ControlsProps {
@@ -9,6 +10,7 @@ interface ControlsProps {
   activeInstanceId: string;
   setActiveInstanceId: (id: string) => void;
   updateInstanceParams: (id: string, params: Partial<SimulationParams>) => void;
+  updateInstanceKnobs: (id: string, knobs: ClinicalKnobs) => void;
   updateInstanceVolume: (id: string, vol: number) => void;
   updateInstanceColor: (id: string, color: string) => void;
   addInstance: (sourceId?: string) => void;
@@ -63,7 +65,7 @@ const GroupHeader = ({ title, isOpen, toggle }: { title: string, isOpen: boolean
 };
 
 export const Controls: React.FC<ControlsProps> = ({
-    instances, instanceHealth, activeInstanceId, setActiveInstanceId, updateInstanceParams, updateInstanceVolume, updateInstanceColor, addInstance, removeInstance,
+    instances, instanceHealth, activeInstanceId, setActiveInstanceId, updateInstanceParams, updateInstanceKnobs, updateInstanceVolume, updateInstanceColor, addInstance, removeInstance,
     timeScale, setTimeScale, isPlaying, togglePlay,
     addPanel, isPaneMode, paneConfig
 }) => {
@@ -78,11 +80,12 @@ export const Controls: React.FC<ControlsProps> = ({
   const params = activeInstance?.params;
 
   const [openGroups, setOpenGroups] = useState<{ [key: string]: boolean }>({
-      global: true,
-      ventricles: true,
+      clinical: true,   // beginner-facing primary surface, open by default
+      global: false,    // raw groups are advanced -> collapsed so beginners aren't overwhelmed
+      ventricles: false,
       atria: false,
       vascular: false,
-      fluids: true,
+      fluids: false,
       valves: false,
       resp: false,
       advanced: false
@@ -119,6 +122,14 @@ export const Controls: React.FC<ControlsProps> = ({
 
   if (!params) return null;
 
+  // Clinical knob layer (M4-lite). Lazily neutral until the instance has its own
+  // knobs; editing a knob makes the instance knob-primary (params become derived).
+  const knobs: ClinicalKnobs = activeInstance.knobs ?? neutralKnobs(params);
+  const updateKnob = (key: keyof ClinicalKnobs, val: number) => {
+      if (activeInstance) updateInstanceKnobs(activeInstance.id, { ...knobs, [key]: val });
+  };
+  const kr = (key: keyof ClinicalKnobs): [number, number] => KNOB_RANGES[key] ?? [0, 1];
+
   const showGroup = (key: string) => {
       if (isPaneMode && paneConfig && paneConfig[currentActiveId]) {
           return paneConfig[currentActiveId].selectedSignals.includes(key);
@@ -147,6 +158,37 @@ export const Controls: React.FC<ControlsProps> = ({
 
       {/* Pane content - global instance is active instance */}
       <div className="p-3 overflow-y-auto flex-1 custom-scrollbar">
+
+          {showGroup('clinical') && (
+            <>
+              <GroupHeader title="Clinical Knobs" isOpen={openGroups.clinical} toggle={() => toggleGroup('clinical')} />
+              {openGroups.clinical && (
+                  <div className="mt-2 pl-3 border-l-2 border-blue-700/30 ml-2 mb-4">
+                      <span className="text-xs font-bold text-slate-300 block mb-1 mt-1">Inotropy & Lusitropy</span>
+                      <Slider label="LV Contractility" value={knobs.contractility} min={kr('contractility')[0]} max={kr('contractility')[1]} step={0.05} onChange={(v) => updateKnob('contractility', v)} unit="x" />
+                      <Slider label="RV Contractility" value={knobs.contractilityRV} min={kr('contractilityRV')[0]} max={kr('contractilityRV')[1]} step={0.05} onChange={(v) => updateKnob('contractilityRV', v)} unit="x" />
+                      <Slider label="Lusitropy (Relaxation)" value={knobs.relaxation} min={kr('relaxation')[0]} max={kr('relaxation')[1]} step={0.05} onChange={(v) => updateKnob('relaxation', v)} unit="x" />
+                      <Slider label="Diastolic Stiffness" value={knobs.diastolicStiffness} min={kr('diastolicStiffness')[0]} max={kr('diastolicStiffness')[1]} step={0.05} onChange={(v) => updateKnob('diastolicStiffness', v)} unit="x" />
+
+                      <span className="text-xs font-bold text-slate-300 block mt-4 mb-1">Loading & Rate</span>
+                      <Slider label="Heart Rate" value={knobs.HR} min={kr('HR')[0]} max={kr('HR')[1]} step={1} onChange={(v) => updateKnob('HR', v)} unit="bpm" />
+                      <Slider label="Afterload (SVR)" value={knobs.afterload} min={kr('afterload')[0]} max={kr('afterload')[1]} step={0.05} onChange={(v) => updateKnob('afterload', v)} unit="x" />
+                      <Slider label="Arterial Stiffness" value={knobs.arterialStiffness} min={kr('arterialStiffness')[0]} max={kr('arterialStiffness')[1]} step={0.05} onChange={(v) => updateKnob('arterialStiffness', v)} unit="x" />
+                      <Slider label="Pulmonary Resistance" value={knobs.pulmonaryResistance} min={kr('pulmonaryResistance')[0]} max={kr('pulmonaryResistance')[1]} step={0.05} onChange={(v) => updateKnob('pulmonaryResistance', v)} unit="x" />
+                      <Slider label="Venous Tone" value={knobs.venousTone} min={kr('venousTone')[0]} max={kr('venousTone')[1]} step={0.05} onChange={(v) => updateKnob('venousTone', v)} />
+                      <Slider label="PEEP" value={knobs.peep} min={kr('peep')[0]} max={kr('peep')[1]} step={1} onChange={(v) => updateKnob('peep', v)} unit="cmH₂O" />
+
+                      <span className="text-xs font-bold text-slate-300 block mt-4 mb-1">Valve Lesions (severity)</span>
+                      <Slider label="Aortic Stenosis" value={knobs.aorticStenosis} min={0} max={1} step={0.05} onChange={(v) => updateKnob('aorticStenosis', v)} />
+                      <Slider label="Aortic Regurgitation" value={knobs.aorticRegurgitation} min={0} max={1} step={0.05} onChange={(v) => updateKnob('aorticRegurgitation', v)} />
+                      <Slider label="Mitral Stenosis" value={knobs.mitralStenosis} min={0} max={1} step={0.05} onChange={(v) => updateKnob('mitralStenosis', v)} />
+                      <Slider label="Mitral Regurgitation" value={knobs.mitralRegurgitation} min={0} max={1} step={0.05} onChange={(v) => updateKnob('mitralRegurgitation', v)} />
+                      <Slider label="Tricuspid Regurgitation" value={knobs.tricuspidRegurgitation} min={0} max={1} step={0.05} onChange={(v) => updateKnob('tricuspidRegurgitation', v)} />
+                      <Slider label="Pulmonic Stenosis" value={knobs.pulmonicStenosis} min={0} max={1} step={0.05} onChange={(v) => updateKnob('pulmonicStenosis', v)} />
+                  </div>
+              )}
+            </>
+          )}
 
           {showGroup('Global') && (
             <>

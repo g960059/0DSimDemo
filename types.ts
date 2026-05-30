@@ -1,4 +1,5 @@
 import { CoreRuntimeParams, SimulationHealthStatus } from './engine/protocol';
+import { ClinicalKnobs } from './engine/knobs';
 
 export type SimulationParams = CoreRuntimeParams;
 
@@ -12,7 +13,14 @@ export interface SimInstance {
     color: string;
     params: SimulationParams;
     targetVolume: number;
-    isVisible: boolean; 
+    isVisible: boolean;
+    // Clinical knob layer (M4-lite). When present, the instance is knob-primary:
+    // `params` is DERIVED via applyKnobs(knobBaseline, knobs). `knobs` are the
+    // clinical deviations; `knobBaseline` is the authored raw start point that
+    // the advanced (raw) controls edit. Absent until the first clinical-knob
+    // edit, so legacy raw-only instances are unchanged.
+    knobs?: ClinicalKnobs;
+    knobBaseline?: SimulationParams;
 }
 
 export interface PanelInstanceConfig {
