@@ -66,6 +66,119 @@ export type CoreRuntimeParams = {
 
 export type ParameterPatch = Partial<CoreRuntimeParams>;
 
+// =============================================================================
+// sanitizeParams — the engine's authoritative parameter-sanitation boundary.
+//
+// This is the FINAL gate every resolved parameter set passes through before it
+// reaches the integrator (caseOps.resolveInstance() calls it last). Its job:
+//   1. Clamp known physiology knobs to hard, integrator-safe ranges.
+//   2. Coerce non-finite values to a neutral fallback (defends against
+//      LLM/import-authored or corrupted cases).
+//   3. Drop unknown junk keys (rebuilds the object from the known schema).
+//
+// CRITICAL — valvular interventions: the valve params (MV_*/AoV_*/TV_*/PV_*),
+// the deep scale knobs, and node/edge overrides are PRESERVED (guarded for
+// finiteness/non-negativity, never dropped). A naive whitelist that kept only
+// the "core" knobs would make every valve lesion (AS/MR/...) silently no-op —
+// see caseOps.ts §"Raw-patch clamp & review policy".
+// =============================================================================
+
+/** Hard, integrator-safe clamp ranges for the core physiology knobs. */
+const HARD_CLAMP: Partial<Record<keyof CoreRuntimeParams, [number, number]>> = {
+  HR: [30, 180],
+  contractility: [0.25, 2.5],
+  relaxation: [0.25, 2.5],
+  systemicResistance: [0.2, 3.5],
+  pulmonaryResistance: [0.2, 4.0],
+  venousTone: [0, 1],
+  arterialStiffness: [0.4, 3.0],
+  PEEP: [0, 25],
+  Pth0: [-20, 30],
+  respAmpTh: [-20, 20],
+  respAmpAlv: [-20, 20],
+  respRate: [0, 1],
+  speed: [0.1, 10],
+  bleedRate: [0, 5000],
+  fluidRate: [0, 5000],
+  lvTmaxScale: [0.1, 8],
+  rvTmaxScale: [0.1, 8],
+  caReleaseScale: [0.1, 4],
+  rvCaReleaseScale: [0.1, 4],
+  lvGeomScale: [0.5, 2],
+  rvGeomScale: [0.5, 2],
+};
+
+/** The numeric core knobs, rebuilt explicitly (so unknown keys are dropped). */
+const CORE_NUMERIC_KEYS: (keyof CoreRuntimeParams)[] = [
+  "HR", "contractility", "relaxation", "systemicResistance", "pulmonaryResistance",
+  "venousTone", "arterialStiffness", "PEEP", "Pth0", "respAmpTh", "respAmpAlv",
+  "respRate", "speed", "bleedRate", "fluidRate",
+  "lvTmaxScale", "rvTmaxScale", "lvGeomScale", "rvGeomScale",
+  "caReleaseScale", "rvCaReleaseScale",
+];
+
+const VALVE_PREFIXES = ["MV", "AoV", "TV", "PV"] as const;
+
+/**
+ * Neutral fallback for non-finite inputs. Mirrors defaultParams(); a guard test
+ * (caseContract.test.ts) asserts the two stay in lock-step so this copy cannot
+ * silently drift. Kept here so sanitizeParams has NO engine import (it is a
+ * standalone safety boundary that caseOps/MCP can call without the simulator).
+ */
+export const NEUTRAL_PARAMS: CoreRuntimeParams = {
+  HR: 75, contractility: 1.0, relaxation: 1.0,
+  systemicResistance: 1.25, pulmonaryResistance: 1.0, venousTone: 0.2,
+  arterialStiffness: 1.0, PEEP: 0, Pth0: 0, respAmpTh: 0, respAmpAlv: 0,
+  respRate: 0.25, speed: 1, bleedRate: 0, fluidRate: 0,
+  heartModel: "activeStress", useChiResistance: false, projectTBV: true,
+  lvTmaxScale: 1.0, rvTmaxScale: 1.0, lvGeomScale: 1, rvGeomScale: 1,
+  caReleaseScale: 1, rvCaReleaseScale: 1,
+  MV_Amax: 5.0, MV_Aleak: 1e-4, MV_kOpen: 2.0, MV_tauOpen: 0.012, MV_tauClose: 0.025, MV_R: 0.002, MV_L: 0.0002,
+  AoV_Amax: 3.5, AoV_Aleak: 1e-4, AoV_kOpen: 2.0, AoV_tauOpen: 0.010, AoV_tauClose: 0.030, AoV_R: 0.005, AoV_L: 0.001,
+  TV_Amax: 8.0, TV_Aleak: 1e-4, TV_kOpen: 2.0, TV_tauOpen: 0.012, TV_tauClose: 0.025, TV_R: 0.002, TV_L: 0.0002,
+  PV_Amax: 4.0, PV_Aleak: 1e-4, PV_kOpen: 2.0, PV_tauOpen: 0.010, PV_tauClose: 0.020, PV_R: 0.005, PV_L: 0.001,
+};
+
+export function sanitizeParams(p: CoreRuntimeParams): CoreRuntimeParams {
+  const src = (p ?? {}) as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+
+  const numAt = (key: keyof CoreRuntimeParams): number => {
+    const raw = src[key as string];
+    const fallback = NEUTRAL_PARAMS[key] as number;
+    const v = typeof raw === "number" && Number.isFinite(raw) ? raw : fallback;
+    const r = HARD_CLAMP[key];
+    return r ? Math.min(r[1], Math.max(r[0], v)) : v;
+  };
+
+  for (const key of CORE_NUMERIC_KEYS) out[key] = numAt(key);
+
+  // Enums / booleans.
+  out.heartModel = src.heartModel === "elastance" ? "elastance" : "activeStress";
+  out.useChiResistance = src.useChiResistance === true;
+  out.projectTBV = src.projectTBV === undefined ? NEUTRAL_PARAMS.projectTBV : src.projectTBV === true;
+
+  // Valve params — PRESERVED. Areas/resistances/inductances >= 0; the open/close
+  // time constants >= 1e-4 s (a zero tau would divide-by-zero in valve dynamics).
+  for (const v of VALVE_PREFIXES) {
+    const guard = (field: string, minVal: number) => {
+      const key = `${v}_${field}` as keyof CoreRuntimeParams;
+      const raw = src[key as string];
+      const val = typeof raw === "number" && Number.isFinite(raw) ? raw : (NEUTRAL_PARAMS[key] as number);
+      out[key as string] = Math.max(minVal, val);
+    };
+    guard("Amax", 0); guard("Aleak", 0); guard("kOpen", 0);
+    guard("tauOpen", 1e-4); guard("tauClose", 1e-4);
+    guard("R", 0); guard("L", 0);
+  }
+
+  // Node/edge overrides — pass through plain objects untouched (researcher tier).
+  if (src.nodeOverrides && typeof src.nodeOverrides === "object") out.nodeOverrides = src.nodeOverrides;
+  if (src.edgeOverrides && typeof src.edgeOverrides === "object") out.edgeOverrides = src.edgeOverrides;
+
+  return out as CoreRuntimeParams;
+}
+
 export type SimSample = {
   t: number;
 

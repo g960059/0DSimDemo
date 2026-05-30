@@ -1,5 +1,6 @@
 import { ModelCore } from "@/engine/ModelCore";
 import type { CoreRuntimeParams, SimMetrics, SimSample, SimulationHealth } from "@/engine/protocol";
+import type { SettleStatus } from "@/engine/settling";
 
 /**
  * Deterministic scenario runner used by regression tests and (later) by
@@ -38,6 +39,12 @@ export type ScenarioResult = {
   measureSeconds: number;
   /** Mass-conservation drift over the measurement window, normalized to %/60s. */
   driftPctPer60s: number;
+  /**
+   * Convergence verdict at the end of the settle phase. Present only for
+   * settleMode "converge" — grounded metrics (caseOps fingerprints, review)
+   * should require settled===true before trusting the reported values.
+   */
+  settleStatus?: SettleStatus;
 };
 
 export type ValveName = "MV" | "AoV" | "TV" | "PV";
@@ -59,8 +66,9 @@ export function runScenario(
   const opt = { ...BASELINE_OPTIONS, ...options };
   const core = new ModelCore(params);
   core.initializeVenousPressuresForTargetTBV(opt.targetTBV);
+  let settleStatus: SettleStatus | undefined;
   if (opt.settleMode === "converge") {
-    core.settleToSteady(undefined, opt.dt, opt.sampleHz);
+    settleStatus = core.settleToSteady(undefined, opt.dt, opt.sampleHz);
   } else {
     core.runFor(opt.settleSeconds, opt.dt, opt.sampleHz);
   }
@@ -82,6 +90,7 @@ export function runScenario(
     tbvEnd,
     measureSeconds: opt.measureSeconds,
     driftPctPer60s,
+    settleStatus,
   };
 }
 

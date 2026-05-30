@@ -560,10 +560,35 @@ export class ModelCore {
     return { ...this.assessSteadyState(policy), reason: "cap", settled: false, actualSeconds: this.t - startT };
   }
 
+  /**
+   * Phi-aligned measurement window: the most recent FULLY-completed cardiac beat
+   * (samples spanning phi in [b, b+1], b = floor(phi_now) - 1, closed by the
+   * first sample of the in-progress beat). This makes metrics() independent of
+   * the stop phase — a window anchored to `t` instead includes a phase-dependent
+   * slice of two beats, which jitters SV/EDP at the sample-grid level and breaks
+   * fingerprint reproducibility across save/load. Falls back to the in-progress
+   * beat, then the last sample, when <1 complete beat of history exists.
+   */
+  private lastCompleteBeatWindow(): SimSample[] {
+    const h = this.history;
+    if (h.length < 2) return this.lastSample ? [this.lastSample] : [...h];
+    const curBeat = Math.floor(h[h.length - 1].phi);
+    const target = curBeat - 1;
+    let start = -1;
+    let end = -1;
+    for (let i = 0; i < h.length; i++) {
+      const b = Math.floor(h[i].phi);
+      if (start === -1 && b === target) start = i;
+      else if (start !== -1 && b > target) { end = i; break; } // first sample of next beat = closing boundary
+    }
+    if (start !== -1 && end !== -1 && end - start >= 5) return h.slice(start, end + 1);
+    const cur = h.filter((sample) => Math.floor(sample.phi) === curBeat);
+    if (cur.length >= 5) return cur;
+    return this.lastSample ? [this.lastSample] : [h[h.length - 1]];
+  }
+
   metrics(): SimMetrics {
-    const oneBeat = 60 / Math.max(this.p.HR, 1);
-    const recent = this.history.filter((sample) => sample.t >= this.t - oneBeat);
-    const data = recent.length > 5 ? recent : (this.lastSample ? [this.lastSample] : []);
+    const data = this.lastCompleteBeatWindow();
     const avg = (key: keyof SimSample) => data.reduce((acc, sample) => acc + Number(sample[key]), 0) / Math.max(data.length, 1);
     const min = (key: keyof SimSample) => Math.min(...data.map((sample) => Number(sample[key])));
     const max = (key: keyof SimSample) => Math.max(...data.map((sample) => Number(sample[key])));
