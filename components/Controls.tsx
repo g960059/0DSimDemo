@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { SimulationParams, SimInstance, PanelType } from '../types';
+import type { SimulationHealth } from '../engine/protocol';
+import { HealthDot } from './HealthIndicators';
 
 interface ControlsProps {
   instances: SimInstance[];
+  instanceHealth?: Record<string, SimulationHealth>;
   activeInstanceId: string;
   setActiveInstanceId: (id: string) => void;
   updateInstanceParams: (id: string, params: Partial<SimulationParams>) => void;
@@ -59,8 +62,8 @@ const GroupHeader = ({ title, isOpen, toggle }: { title: string, isOpen: boolean
     );
 };
 
-export const Controls: React.FC<ControlsProps> = ({ 
-    instances, activeInstanceId, setActiveInstanceId, updateInstanceParams, updateInstanceVolume, updateInstanceColor, addInstance, removeInstance,
+export const Controls: React.FC<ControlsProps> = ({
+    instances, instanceHealth, activeInstanceId, setActiveInstanceId, updateInstanceParams, updateInstanceVolume, updateInstanceColor, addInstance, removeInstance,
     timeScale, setTimeScale, isPlaying, togglePlay,
     addPanel, isPaneMode, paneConfig
 }) => {
@@ -79,6 +82,7 @@ export const Controls: React.FC<ControlsProps> = ({
       ventricles: true,
       atria: false,
       vascular: false,
+      fluids: true,
       valves: false,
       resp: false,
       advanced: false
@@ -128,6 +132,7 @@ export const Controls: React.FC<ControlsProps> = ({
             >
                 <div className="w-2 h-2 rounded-full" style={{backgroundColor: inst.color, boxShadow: `0 0 6px ${inst.color}`}}></div>
                 {inst.name}
+                <HealthDot status={instanceHealth?.[inst.id]?.status ?? 'ok'} title={`${inst.name} health`} />
             </button>
          ))}
       </div>
@@ -156,15 +161,31 @@ export const Controls: React.FC<ControlsProps> = ({
               <GroupHeader title="Ventricular Mechanics" isOpen={openGroups.ventricles} toggle={() => toggleGroup('ventricles')} />
               {openGroups.ventricles && (
                   <div className="mt-2 pl-3 border-l-2 border-slate-700/30 ml-2 mb-4">
+                      <div className="mb-3">
+                          <span className="text-[11px] font-medium text-slate-400 block mb-1">Ventricle Model</span>
+                          <div className="flex gap-1 bg-slate-950 rounded p-0.5 border border-slate-800">
+                              {([['activeStress', 'Active-stress'], ['elastance', 'Elastance']] as const).map(([mode, label]) => (
+                                  <button
+                                      key={mode}
+                                      onClick={() => update('heartModel', mode)}
+                                      className={`flex-1 py-1 text-[11px] font-semibold rounded transition-colors ${params.heartModel === mode ? 'bg-blue-500/20 text-blue-300' : 'text-slate-500 hover:text-slate-300'}`}
+                                      title={mode === 'activeStress' ? 'Single-fibre active-stress LV/RV (default)' : 'Time-varying elastance fallback'}
+                                  >
+                                      {label}
+                                  </button>
+                              ))}
+                          </div>
+                      </div>
+
                       <span className="text-xs font-bold text-slate-300 block mb-1 mt-1">Left Ventricle (LV)</span>
                       <Slider label="LV Baseline Volume (V0)" value={params.nodeOverrides?.LV?.V0 ?? 10} min={0} max={100} step={1} onChange={(v) => updateNode('LV', 'V0', v)} unit="mL" />
-                      <Slider label="LV Tmax Scale (Force)" value={params.lvTmaxScale} min={0.25} max={8} step={0.1} onChange={(v) => update('lvTmaxScale', v)} unit="x" />
+                      <Slider label="LV Tmax Scale (Force)" value={params.lvTmaxScale} min={0.05} max={2.5} step={0.05} onChange={(v) => update('lvTmaxScale', v)} unit="x" />
                       <Slider label="LV Ca²⁺ Release Scale" value={params.caReleaseScale} min={0.25} max={6} step={0.1} onChange={(v) => update('caReleaseScale', v)} unit="x" />
                       <Slider label="LV Geometry Scale" value={params.lvGeomScale} min={0.5} max={2.5} step={0.1} onChange={(v) => update('lvGeomScale', v)} unit="x" />
 
                       <span className="text-xs font-bold text-slate-300 block mt-4 mb-1">Right Ventricle (RV)</span>
                       <Slider label="RV Baseline Volume (V0)" value={params.nodeOverrides?.RV?.V0 ?? 15} min={0} max={100} step={1} onChange={(v) => updateNode('RV', 'V0', v)} unit="mL" />
-                      <Slider label="RV Tmax Scale (Force)" value={params.rvTmaxScale} min={0.25} max={12} step={0.1} onChange={(v) => update('rvTmaxScale', v)} unit="x" />
+                      <Slider label="RV Tmax Scale (Force)" value={params.rvTmaxScale} min={0.05} max={3.0} step={0.05} onChange={(v) => update('rvTmaxScale', v)} unit="x" />
                       <Slider label="RV Ca²⁺ Release Scale" value={params.rvCaReleaseScale} min={0.25} max={8} step={0.1} onChange={(v) => update('rvCaReleaseScale', v)} unit="x" />
                       <Slider label="RV Geometry Scale" value={params.rvGeomScale} min={0.5} max={3.0} step={0.1} onChange={(v) => update('rvGeomScale', v)} unit="x" />
                   </div>
@@ -213,6 +234,19 @@ export const Controls: React.FC<ControlsProps> = ({
                       <Slider label="PCap → PVen" value={params.edgeOverrides?.PCap_PVen?.R ?? 0.03} min={0.01} max={0.3} step={0.01} onChange={(v) => updateEdge('PCap_PVen', 'R', v)} />
                       <Slider label="PVen → PVein" value={params.edgeOverrides?.PVen_PVein?.R ?? 0.01} min={0.001} max={0.1} step={0.001} onChange={(v) => updateEdge('PVen_PVein', 'R', v)} />
                       <Slider label="PVein → LA" value={params.edgeOverrides?.PVein_LA?.R ?? 0.02} min={0.001} max={0.2} step={0.001} onChange={(v) => updateEdge('PVein_LA', 'R', v)} />
+                  </div>
+              )}
+            </>
+          )}
+
+          {showGroup('fluids') && (
+            <>
+              <GroupHeader title="Fluids & Hemorrhage" isOpen={openGroups.fluids} toggle={() => toggleGroup('fluids')} />
+              {openGroups.fluids && (
+                  <div className="mt-2 pl-3 border-l-2 border-slate-700/30 ml-2 mb-4">
+                      <Slider label="Hemorrhage Rate" value={params.bleedRate} min={0} max={1500} step={25} onChange={(v) => update('bleedRate', v)} unit="mL/min" />
+                      <Slider label="Fluid / Transfusion Rate" value={params.fluidRate} min={0} max={1500} step={25} onChange={(v) => update('fluidRate', v)} unit="mL/min" />
+                      <span className="text-[10px] text-slate-500 block mt-1">Net volume change is integrated over time; no autonomic compensation (baroreflex is a later phase).</span>
                   </div>
               )}
             </>

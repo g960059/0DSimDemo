@@ -2,6 +2,7 @@ import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { BookOpen, Activity, PlaySquare, LogIn, LogOut } from 'lucide-react';
+import { ModelLimitations } from './ModelLimitations';
 
 export const Layout = () => {
   const { user, profile, signIn, signOut } = useAuth();
@@ -45,6 +46,7 @@ export const Layout = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          <ModelLimitations />
           {user ? (
             <div className="flex items-center gap-3">
               <div className="flex flex-col items-end hidden sm:flex">

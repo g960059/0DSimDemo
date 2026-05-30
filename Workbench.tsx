@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { DEFAULT_PARAMS } from './constants';
-import { SimulationParams, SimInstance, PhysicsRefState, PanelDef, PanelType, PanelInstanceConfig, ChamberId, SignalType, MetricType } from './types';
-import { ModelCore } from './engine/ModelCore';
-import { SimSample } from './engine/protocol';
-import { stableElastanceBaseline, experimentalActiveStressCandidate } from './engine/presets';
+import { SimulationParams, SimInstance, PanelDef, PanelType, PanelInstanceConfig, ChamberId, SignalType, MetricType } from './types';
+import { SimulationHealth } from './engine/protocol';
+import { HealthBadge, HealthToasts, HealthToast } from './components/HealthIndicators';
+import { PreviewController } from './engine/previewController';
 import { Controls } from './components/Controls';
 import { ScenarioManager } from './components/ScenarioManager';
 import { PVLoopPanel, WaveformPanel, MetricsPanel, GuytonPanel } from './components/Charts';
@@ -17,7 +17,7 @@ const INSTANCE_COLORS = ['#a855f7', '#f472b6', '#22c55e', '#38bdf8', '#fbbf24'];
 const ALL_CHAMBERS: ChamberId[] = ['LV', 'LA', 'RV', 'RA'];
 const ALL_SIGNALS: SignalType[] = ['LVP', 'AoP', 'LAP', 'RVP', 'PAP', 'RAP', 'QAo', 'QMV', 'QPA', 'QTV'];
 const ALL_METRICS: MetricType[] = ['ABP', 'CVP', 'PAP', 'PCWP', 'SV', 'CO', 'LVEF'];
-const ALL_CONTROL_GROUPS: string[] = ['Global', 'ventricles', 'atria', 'vascular', 'valves', 'resp', 'advanced'];
+const ALL_CONTROL_GROUPS: string[] = ['Global', 'ventricles', 'atria', 'vascular', 'fluids', 'valves', 'resp', 'advanced'];
 
 function Workbench() {
   // --- State ---
@@ -36,6 +36,12 @@ function Workbench() {
   ]);
   const [activeInstanceId, setActiveInstanceId] = useState<string>('1');
   const [isScenarioManagerOpen, setIsScenarioManagerOpen] = useState<boolean>(false);
+
+  // Health UX (ROADMAP S1): computed in the PreviewController, surfaced via callbacks.
+  const [instanceHealth, setInstanceHealth] = useState<Record<string, SimulationHealth>>({});
+  const [healthToasts, setHealthToasts] = useState<HealthToast[]>([]);
+  // Stable identity so a toast's 6s auto-dismiss timer isn't reset by re-renders.
+  const dismissToast = useCallback((id: string) => setHealthToasts((prev) => prev.filter((t) => t.id !== id)), []);
 
   // --- Panel Management State ---
   const [panels, setPanels] = useState<PanelDef[]>([
@@ -56,7 +62,11 @@ function Workbench() {
       },
       {
           id: 'p4', type: 'CONTROLS', title: 'Controls', w: 4, h: 4,
-          config: { '1': { visible: true, selectedSignals: ['Global', 'ventricles'] } },
+          // Show only Global Physiology by default. Ventricular Mechanics (which
+          // holds the active-stress/elastance model toggle and advanced fibre
+          // params) is opt-in via the panel settings, to avoid overwhelming
+          // beginners. Default model stays active-stress.
+          config: { '1': { visible: true, selectedSignals: ['Global'] } },
           isSettingsOpen: false
       },
       {
@@ -66,18 +76,11 @@ function Workbench() {
       }
   ]);
 
-  // --- Refs for Physics Loop ---
-  const timeScaleRef = useRef(timeScale);
-  const isPlayingRef = useRef(isPlaying);
-  const physicsRefs = useRef<Map<string, PhysicsRefState>>(new Map());
-  const instanceRefs = useRef<SimInstance[]>(instances);
-  
-  // Physics Timing Refs
-  const lastFrameTimeRef = useRef<number>(0);
-
-  useEffect(() => { timeScaleRef.current = timeScale; }, [timeScale]);
-  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
-  useEffect(() => { instanceRefs.current = instances; }, [instances]);
+  // --- Simulation driver (ROADMAP S3a): the loop + cores live here, not in React. ---
+  const controllerRef = useRef<PreviewController | null>(null);
+  const controller = (controllerRef.current ??= new PreviewController());
+  // Stable handle to the driver's live buffers, consumed by the chart panels.
+  const physicsRefs = useRef(controller.refs);
 
   // Window Resize Hook for Mobile Detection
   useEffect(() => {
@@ -86,91 +89,37 @@ function Workbench() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Init physics refs
+  // Wire driver callbacks and start the loop once. Declared BEFORE the
+  // setInstances effect so callbacks are live before the first reconcile.
   useEffect(() => {
-      instances.forEach(inst => {
-          if (!physicsRefs.current.has(inst.id)) {
-              
-              const core = new ModelCore(inst.params);
-              core.initializeVenousPressuresForTargetTBV(inst.targetVolume);
-              core.runFor(3.0, 0.001, 120); // pre-settle
-              
-              let maxT = 0;
-              physicsRefs.current.forEach(ref => {
-                  if (ref.core.t > maxT) maxT = ref.core.t;
-              });
-              if (maxT > 0) {
-                  core.t = maxT;
-              }
-              
-              physicsRefs.current.set(inst.id, {
-                  core,
-                  buffer: [], 
-                  lastRenderX: 0
-              });
-              
-              setPanels(prev => prev.map(p => {
-                 if (p.config[inst.id]) return p;
-                 const newConfig = { ...p.config };
-                 
-                 let defaultSigs: string[] = [];
-                 if (p.type === 'PVLOOP') defaultSigs = ['LV'];
-                 else if (p.type === 'WAVEFORM') defaultSigs = ['LVP', 'AoP'];
-                 else if (p.type === 'METRICS') defaultSigs = ['ABP', 'CO'];
-                 else if (p.type === 'GUYTON_RIGHT' || p.type === 'GUYTON_LEFT' || p.type === 'GUYTON_3D') defaultSigs = ['Default'];
-
-                 newConfig[inst.id] = { 
-                     visible: true, 
-                     selectedSignals: defaultSigs
-                 };
-                 return { ...p, config: newConfig };
-              }));
-          }
-      });
-      const currentIds = new Set(instances.map(i => i.id));
-      for (const id of physicsRefs.current.keys()) {
-          if (!currentIds.has(id)) physicsRefs.current.delete(id);
-      }
-  }, [instances]);
-
-  // --- Physics Loop (Delta-Time Based) ---
-  useEffect(() => {
-    let animationFrameId: number;
-
-    const loop = (now: number) => {
-      if (!lastFrameTimeRef.current) lastFrameTimeRef.current = now;
-      let deltaTimeMs = now - lastFrameTimeRef.current;
-      lastFrameTimeRef.current = now;
-
-      if (!isPlayingRef.current) {
-          animationFrameId = requestAnimationFrame(loop);
-          return;
-      }
-      
-      if (deltaTimeMs > 100) deltaTimeMs = 100;
-
-      const simSeconds = (deltaTimeMs / 1000) * timeScaleRef.current;
-      
-      instanceRefs.current.forEach(uiInst => {
-          const phys = physicsRefs.current.get(uiInst.id);
-          if (!phys) return;
-          
-          phys.core.setImmediateParameters(uiInst.params);
-          
-          const samples = phys.core.runFor(simSeconds, 0.001, 120);
-
-          phys.buffer.push(...samples);
-          const cutoffTime = phys.core.t - (20000 / 1000); // keep 20s
-          while (phys.buffer.length > 0 && phys.buffer[0].t < cutoffTime) {
-             phys.buffer.shift();
-          }
-      });
-      
-      animationFrameId = requestAnimationFrame(loop);
+    controller.onHealthChange = (map) => setInstanceHealth(map);
+    controller.onToasts = (toasts) => setHealthToasts((prev) => [...prev, ...toasts].slice(-3));
+    controller.onInstancesAdded = (ids) => {
+      setPanels((prev) => prev.map((p) => {
+        let changed = false;
+        const newConfig = { ...p.config };
+        for (const id of ids) {
+          if (newConfig[id]) continue;
+          let defaultSigs: string[] = [];
+          if (p.type === 'PVLOOP') defaultSigs = ['LV'];
+          else if (p.type === 'WAVEFORM') defaultSigs = ['LVP', 'AoP'];
+          else if (p.type === 'METRICS') defaultSigs = ['ABP', 'CO'];
+          else if (p.type === 'GUYTON_RIGHT' || p.type === 'GUYTON_LEFT' || p.type === 'GUYTON_3D') defaultSigs = ['Default'];
+          newConfig[id] = { visible: true, selectedSignals: defaultSigs };
+          changed = true;
+        }
+        return changed ? { ...p, config: newConfig } : p;
+      }));
     };
-    animationFrameId = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(animationFrameId);
+    controller.start();
+    return () => controller.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Push UI state into the driver.
+  useEffect(() => { controller.setInstances(instances); }, [instances]);
+  useEffect(() => { controller.setTimeScale(timeScale); }, [timeScale]);
+  useEffect(() => { controller.setPlaying(isPlaying); }, [isPlaying]);
 
   const updateInstanceParams = (id: string, newParams: Partial<SimulationParams>) => {
       setInstances(prev => prev.map(inst => {
@@ -180,11 +129,10 @@ function Workbench() {
   };
   
   const updateInstanceVolume = (id: string, vol: number) => {
-      setInstances(prev => prev.map(inst => 
+      setInstances(prev => prev.map(inst =>
           inst.id === id ? { ...inst, targetVolume: vol } : inst
       ));
-      const pRef = physicsRefs.current.get(id);
-      if (pRef) pRef.core.initializeVenousPressuresForTargetTBV(vol);
+      controller.setInstanceVolume(id, vol);
   }
 
   const updateInstanceColor = (id: string, color: string) => {
@@ -335,6 +283,7 @@ function Workbench() {
           </div>
           
           <div className="flex items-center gap-2 sm:gap-3">
+               <HealthBadge items={instances.filter(i => instanceHealth[i.id]).map(i => ({ id: i.id, name: i.name, color: i.color, health: instanceHealth[i.id] }))} getLiveHealth={(id) => controller.getLiveHealth(id)} />
                <button onClick={() => setIsScenarioManagerOpen(true)} className="px-3 sm:px-4 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded text-[10px] sm:text-xs font-bold text-slate-300 transition-colors flex items-center gap-2">
                    <span>❖</span> Scenarios ({instances.length})
                </button>
@@ -479,7 +428,7 @@ function Workbench() {
                           {panel.type === 'PVLOOP' && <PVLoopPanel physicsRefs={physicsRefs} instances={instances} config={panel.config} showGuides={panel.showGuides} showLegend={panel.showLegend} />}
                           {panel.type === 'WAVEFORM' && <WaveformPanel physicsRefs={physicsRefs} instances={instances} timeWindow={panel.timeWindow || 10000} config={panel.config} showLegend={panel.showLegend} />}
                           {panel.type === 'METRICS' && <MetricsPanel physicsRefs={physicsRefs} instances={instances} config={panel.config} />}
-                          {panel.type === 'CONTROLS' && <Controls isPaneMode paneConfig={panel.config} instances={instances} activeInstanceId={activeInstanceId} setActiveInstanceId={setActiveInstanceId} updateInstanceParams={updateInstanceParams} updateInstanceVolume={updateInstanceVolume} updateInstanceColor={updateInstanceColor} addInstance={addInstance} removeInstance={removeInstance} timeScale={timeScale} setTimeScale={setTimeScale} isPlaying={isPlaying} togglePlay={togglePlay} addPanel={addPanel} />}
+                          {panel.type === 'CONTROLS' && <Controls isPaneMode paneConfig={panel.config} instances={instances} instanceHealth={instanceHealth} activeInstanceId={activeInstanceId} setActiveInstanceId={setActiveInstanceId} updateInstanceParams={updateInstanceParams} updateInstanceVolume={updateInstanceVolume} updateInstanceColor={updateInstanceColor} addInstance={addInstance} removeInstance={removeInstance} timeScale={timeScale} setTimeScale={setTimeScale} isPlaying={isPlaying} togglePlay={togglePlay} addPanel={addPanel} />}
                           {(panel.type === 'GUYTON_RIGHT' || panel.type === 'GUYTON_LEFT') && <GuytonPanel physicsRefs={physicsRefs} instances={instances} config={panel.config} type={panel.type} />}
                           {panel.type === 'NOTE' && <ErrorBoundary><NotePanel /></ErrorBoundary>}
                       </div>
@@ -561,6 +510,7 @@ function Workbench() {
           </div>
       )}
 
+      <HealthToasts toasts={healthToasts} onDismiss={dismissToast} />
     </div>
   );
 }
