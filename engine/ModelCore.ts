@@ -1,9 +1,39 @@
-import { clamp, expClamped, frac, raisedCosinePulse, sigmoid, smoothMax, smoothMin, softplus, solveQuadraticFlow } from "@/engine/math";
-import type { HeartModelMode, ParameterPatch, SimMetrics, SimSample, SimulationHealth, SimulationHealthStatus, CoreRuntimeParams } from "@/engine/protocol";
+import { clamp, frac, sigmoid, smoothMax, smoothMin, softplus, solveQuadraticFlow } from "@/engine/math";
+import {
+  ActiveStressChamberModel,
+  ElastanceChamberModel,
+  defaultActiveLV,
+  defaultActiveRV,
+  type ActiveChamberParams,
+  type Chamber,
+  type ChamberCtx,
+} from "@/engine/chambers";
+import type { ParameterPatch, SimMetrics, SimObservables, SimSample, SimulationHealth, SimulationHealthStatus, CoreRuntimeParams } from "@/engine/protocol";
+import {
+  assessBeatRing,
+  DEFAULT_SETTLE_POLICY,
+  type BeatSummary,
+  type SettlePolicy,
+  type SettleStatus,
+  type SignalKey,
+} from "@/engine/settling";
+
+/** Mutable per-beat accumulator (reduced into a BeatSummary at the beat boundary). */
+type BeatAccum = {
+  beat: number;
+  count: number;
+  lastT: number;
+  sumAoP: number; maxAoP: number; minAoP: number;
+  sumPAP: number; maxPAP: number; minPAP: number;
+  sumRAP: number; sumLAP: number;
+  svL: number; svR: number; prevQAo: number; prevQPA: number; prevT: number; hasPrev: boolean;
+  maxVLV: number; minVLV: number; maxVRV: number; minVRV: number;
+  lvEdp: number; rvEdp: number; // LVP/RVP at end-diastole (max ventricular volume)
+  tbv: number;
+};
 
 type NodeKind = "heartActive" | "heartElastance" | "arterial" | "linear" | "venousPressure";
 type EdgeKind = "resistive" | "dynamic" | "valve";
-type Chamber = "LV" | "RV" | "LA" | "RA";
 type ExtKind = "none" | "pth" | "palv";
 
 type NodeSpec = {
@@ -65,40 +95,6 @@ type PressurePack = {
   Vphys: Float64Array;
 };
 
-type ActiveChamberParams = {
-  V0: number;
-  Vw: number;
-  Vref: number;
-  Vmin: number;
-  Trel0: number;
-  TrelMin: number;
-  TrelMax: number;
-  etaRel: number;
-  HR0: number;
-  tauCa0: number;
-  etaCa: number;
-  cDia: number;
-  Arel0: number;
-  gFFR: number;
-  gFFR2: number;
-  Kd0: number;
-  betaLambda: number;
-  betaKd: number;
-  hillN: number;
-  kOn: number;
-  kOff: number;
-  sigmaPas0: number;
-  bPas: number;
-  lambdaPas0: number;
-  Tmax0: number;
-  kOver: number;
-  lambdaFail: number;
-  geomChi: number;
-  thetaOn: number;
-};
-
-const MMHG_TO_PA = 133.322;
-const ML_TO_M3 = 1e-6;
 
 const nodeNames = [
   "LV", "LA", "RV", "RA",
@@ -146,70 +142,14 @@ function makeIndex(): StateIndex {
   };
 }
 
-function sphereRadii(VeffMl: number, VwMl: number) {
-  const Vi = Math.max(VeffMl, 1e-3) * ML_TO_M3;
-  const Vw = Math.max(VwMl, 1e-3) * ML_TO_M3;
-  const ri = Math.pow((3 * Vi) / (4 * Math.PI), 1 / 3);
-  const ro = Math.pow(ri * ri * ri + (3 * Vw) / (4 * Math.PI), 1 / 3);
-  const h = Math.max(ro - ri, 1e-5);
-  const rm = 0.5 * (ri + ro);
-  return { ri, ro, h, rm };
-}
-
-function rmRefFromParams(p: ActiveChamberParams) {
-  return sphereRadii(Math.max(p.Vref - p.V0, p.Vmin), p.Vw).rm;
-}
-
-const defaultActiveLV: ActiveChamberParams = {
-  V0: 10,
-  Vw: 150,
-  Vref: 120,
-  Vmin: 2,
-  Trel0: 0.08,
-  TrelMin: 0.045,
-  TrelMax: 0.12,
-  etaRel: 0.35,
-  HR0: 75,
-  tauCa0: 0.18,
-  etaCa: 0.40,
-  cDia: 0.0,
-  Arel0: 0.18,
-  gFFR: 0.15,
-  gFFR2: 0.06,
-  Kd0: 0.18,
-  betaLambda: 3.0,
-  betaKd: -0.2,
-  hillN: 3.0,
-  kOn: 25,
-  kOff: 15,
-  sigmaPas0: 2000,
-  bPas: 10.0,
-  lambdaPas0: 0.85,
-  Tmax0: 85000,
-  kOver: 35,
-  lambdaFail: 1.45,
-  geomChi: 0.36,
-  thetaOn: 0.0
-};
-
-const defaultActiveRV: ActiveChamberParams = {
-  ...defaultActiveLV,
-  V0: 15,
-  Vw: 55,
-  Vref: 135,
-  sigmaPas0: 2000,
-  bPas: 10.0,
-  lambdaPas0: 0.85,
-  Tmax0: 36000,
-  geomChi: 0.28
-};
 
 export function defaultParams(): CoreRuntimeParams {
   return {
     HR: 75,
     contractility: 1.0,
     relaxation: 1.0,
-    systemicResistance: 1.0,
+    // Calibrated operating point for the active-stress ventricle default.
+    systemicResistance: 1.25,
     pulmonaryResistance: 1.0,
     venousTone: 0.2,
     arterialStiffness: 1.0,
@@ -218,12 +158,17 @@ export function defaultParams(): CoreRuntimeParams {
     respAmpTh: 0,
     respAmpAlv: 0,
     respRate: 0.25,
+    bleedRate: 0,
+    fluidRate: 0,
     speed: 1,
-    heartModel: "elastance",
+    // LV/RV default to the single-fibre / active-stress model (§13).
+    // Use `stableElastanceBaseline` to opt back into time-varying elastance.
+    heartModel: "activeStress",
     useChiResistance: false,
     projectTBV: true,
-    lvTmaxScale: 1,
-    rvTmaxScale: 1,
+    // Contractility multiplier on the (now folded-in) chamber Tmax0. 1.0 = baseline.
+    lvTmaxScale: 1.0,
+    rvTmaxScale: 1.0,
     lvGeomScale: 1,
     rvGeomScale: 1,
     caReleaseScale: 1,
@@ -293,6 +238,14 @@ export class ModelCore {
   private readonly dynamicEdgeIndex = new Map<string, number>();
   private readonly valveIndex = new Map<string, number>();
 
+  // Heart chamber models (ROADMAP S2). Active LV/RV use fixed default params
+  // (matching the previous hard-coded behavior); elastance models track node params.
+  private readonly activeModels: Record<"LV" | "RV", ActiveStressChamberModel> = {
+    LV: new ActiveStressChamberModel(defaultActiveLV),
+    RV: new ActiveStressChamberModel(defaultActiveRV),
+  };
+  private elastanceModels = new Map<string, ElastanceChamberModel>();
+
   t = 0;
   x: Float64Array;
   p: CoreRuntimeParams;
@@ -302,7 +255,18 @@ export class ModelCore {
   private history: SimSample[] = [];
   private rhsDt = 0.001;
   private initialTBV = 0;
+  // Expected TBV ledger (M5a): initialTBV + integral of (fluidRate - bleedRate).
+  // The projector follows this, and health compares mass conservation against it.
+  private expectedTBV = 0;
   private clampHitCount = 0;
+
+  // Steady-state detection (engine/settling.ts). The detector keeps its OWN
+  // small ring of per-beat fingerprints, independent of the 1200-sample raw
+  // history (which only spans ~10s), so it works across a 35-60s settle.
+  private beatRing: BeatSummary[] = [];
+  private beatAccum: BeatAccum | null = null;
+  private totalBeats = 0;
+  private opSig = ""; // operating-point signature; a change re-arms beat tracking
 
   constructor(initial?: Partial<CoreRuntimeParams>) {
     this.p = { ...defaultParams() };
@@ -311,6 +275,7 @@ export class ModelCore {
     nodeNames.forEach((n, i) => this.nodeIndex.set(n, i));
     dynamicEdgeNames.forEach((n, i) => this.dynamicEdgeIndex.set(n, i));
     valveNames.forEach((n, i) => this.valveIndex.set(n, i));
+    this.rebuildElastanceModels();
     if (initial) {
         this.setImmediateParameters(initial);
     }
@@ -331,15 +296,19 @@ export class ModelCore {
       }
     }
     this.x[this.idx.phi] = 0;
-    this.x[this.idx.cLV] = defaultActiveLV.cDia;
-    this.x[this.idx.aLV] = 0;
-    this.x[this.idx.cRV] = defaultActiveRV.cDia;
-    this.x[this.idx.aRV] = 0;
+    const lv0 = this.activeModels.LV.initialInternal();
+    const rv0 = this.activeModels.RV.initialInternal();
+    this.x[this.idx.cLV] = lv0.c;
+    this.x[this.idx.aLV] = lv0.a;
+    this.x[this.idx.cRV] = rv0.c;
+    this.x[this.idx.aRV] = rv0.a;
     this.t = 0;
     this.history = [];
     this.lastSample = this.sample();
     this.initialTBV = this.lastSample.TBV;
+    this.expectedTBV = this.initialTBV;
     this.clampHitCount = 0;
+    this.clearBeatTracking();
   }
 
   setTargetParameters(patch: ParameterPatch) {
@@ -377,13 +346,25 @@ export class ModelCore {
         return e;
     });
 
+    this.rebuildElastanceModels();
     this.smoothParams(0); // Applies clamps
+    // Re-arm steady-state detection if the operating point actually changed, so
+    // isSettled() never reports settled from a previous operating point (§2.4).
+    // Unchanged params (the live loop re-applies the same patch every frame) do
+    // not clear, so the live sim can still reach "settled".
+    const sig = JSON.stringify({ ...this.p, speed: 0 });
+    if (sig !== this.opSig) {
+      this.opSig = sig;
+      this.clearBeatTracking();
+    }
   }
 
   initializeVenousPressuresForTargetTBV(targetTBV: number) {
     this.projectVenousPressuresToTargetTBV(targetTBV);
+    this.clearBeatTracking(); // volume change re-arms steady-state detection
     this.lastSample = this.sample();
     this.initialTBV = this.lastSample.TBV;
+    this.expectedTBV = this.initialTBV;
   }
 
   step(dt: number) {
@@ -396,6 +377,15 @@ export class ModelCore {
       this.dVu[i] = (vuAfter[i] - vuBefore[i]) / Math.max(dt, 1e-9);
     }
 
+    // Hemorrhage / fluid ledger (M5a): mL/min -> mL/s. Clamped to a safe range.
+    // Only advances when projectTBV is on, since the projector is the only thing
+    // that applies the ledger to the state; otherwise bleed/fluid is a no-op and
+    // we must not drift expectedTBV away from the (conserved) actual TBV.
+    if (this.p.projectTBV) {
+      const netFlowMlPerS = (this.p.fluidRate - this.p.bleedRate) / 60;
+      this.expectedTBV = clamp(this.expectedTBV + netFlowMlPerS * dt, 1000, 12000);
+    }
+
     const k1 = this.rhs(this.x);
     const pred = new Float64Array(this.x.length);
     for (let i = 0; i < this.x.length; i++) pred[i] = this.x[i] + dt * k1[i];
@@ -404,7 +394,7 @@ export class ModelCore {
     for (let i = 0; i < this.x.length; i++) this.x[i] += 0.5 * dt * (k1[i] + k2[i]);
     this.t += dt;
     this.sanitizeState(this.x);
-    if (this.p.projectTBV) this.projectVenousPressuresToTargetTBV(this.initialTBV);
+    if (this.p.projectTBV) this.projectVenousPressuresToTargetTBV(this.expectedTBV);
   }
 
   runFor(seconds: number, dt = 0.001, sampleHz = 60): SimSample[] {
@@ -449,8 +439,125 @@ export class ModelCore {
       aRV: clamp(this.x[this.idx.aRV], 0, 1),
       TBV: this.totalBloodVolume(pack)
     };
+    this.trackBeat(s);
     this.lastSample = s;
     return s;
+  }
+
+  /** Feed a sample to the per-beat fingerprint accumulator (steady-state detection). */
+  private trackBeat(s: SimSample): void {
+    // Ignore a repeated sample at the same t (e.g. a bare sample() with no step),
+    // which would otherwise double-count into the current beat.
+    if (this.beatAccum !== null && s.t === this.beatAccum.lastT) return;
+    const beat = Math.floor(s.phi);
+    if (this.beatAccum === null) {
+      this.beatAccum = this.newBeatAccum(beat, s);
+    } else if (beat > this.beatAccum.beat && this.beatAccum.count >= 8) {
+      // Close the completed beat into a fingerprint and start a fresh one.
+      if (beat - this.beatAccum.beat > 1 && this.clampHitCount < 1000) {
+        console.warn(`Settling: skipped beat(s) ${this.beatAccum.beat}->${beat}; sampleHz too low for HR?`);
+      }
+      this.beatRing.push(this.finalizeBeat(this.beatAccum));
+      if (this.beatRing.length > 8) this.beatRing.shift();
+      this.totalBeats++;
+      this.beatAccum = this.newBeatAccum(beat, s);
+    }
+    const a = this.beatAccum;
+    a.count++;
+    a.lastT = s.t;
+    a.sumAoP += s.AoP; a.maxAoP = Math.max(a.maxAoP, s.AoP); a.minAoP = Math.min(a.minAoP, s.AoP);
+    a.sumPAP += s.PAP; a.maxPAP = Math.max(a.maxPAP, s.PAP); a.minPAP = Math.min(a.minPAP, s.PAP);
+    a.sumRAP += s.RAP; a.sumLAP += s.LAP;
+    if (s.VLV > a.maxVLV) { a.maxVLV = s.VLV; a.lvEdp = s.LVP; } // EDP = pressure at end-diastole
+    a.minVLV = Math.min(a.minVLV, s.VLV);
+    if (s.VRV > a.maxVRV) { a.maxVRV = s.VRV; a.rvEdp = s.RVP; }
+    a.minVRV = Math.min(a.minVRV, s.VRV);
+    a.tbv = s.TBV;
+    // Stroke volume = trapezoidal integral of positive valve flow over the beat.
+    if (a.hasPrev) {
+      const dt = s.t - a.prevT;
+      a.svL += 0.5 * (Math.max(0, a.prevQAo) + Math.max(0, s.QAo)) * dt;
+      a.svR += 0.5 * (Math.max(0, a.prevQPA) + Math.max(0, s.QPA)) * dt;
+    }
+    a.prevQAo = s.QAo; a.prevQPA = s.QPA; a.prevT = s.t; a.hasPrev = true;
+  }
+
+  private newBeatAccum(beat: number, s: SimSample): BeatAccum {
+    return {
+      beat, count: 0, lastT: NaN,
+      sumAoP: 0, maxAoP: -Infinity, minAoP: Infinity,
+      sumPAP: 0, maxPAP: -Infinity, minPAP: Infinity,
+      sumRAP: 0, sumLAP: 0,
+      svL: 0, svR: 0, prevQAo: s.QAo, prevQPA: s.QPA, prevT: s.t, hasPrev: false,
+      maxVLV: -Infinity, minVLV: Infinity, maxVRV: -Infinity, minVRV: Infinity,
+      lvEdp: s.LVP, rvEdp: s.RVP,
+      tbv: s.TBV,
+    };
+  }
+
+  private finalizeBeat(a: BeatAccum): BeatSummary {
+    const n = Math.max(a.count, 1);
+    const vals: Record<SignalKey, number> = {
+      aopMean: a.sumAoP / n, aopSys: a.maxAoP, aopDia: a.minAoP,
+      papMean: a.sumPAP / n, papSys: a.maxPAP, papDia: a.minPAP,
+      rapMean: a.sumRAP / n, lapMean: a.sumLAP / n,
+      svL: a.svL, svR: a.svR,
+      edvL: a.maxVLV, esvL: a.minVLV, edvR: a.maxVRV, esvR: a.minVRV,
+      lvEdp: a.lvEdp, rvEdp: a.rvEdp,
+      pmsf: this.debugObservables().Pmsf, tbv: a.tbv,
+    };
+    return { beat: a.beat, vals };
+  }
+
+  /** Reset the steady-state beat tracker. Call after an external clock jump
+   *  (e.g. aligning core.t to another instance), since that breaks the in-flight
+   *  beat's trapezoidal-dt and would corrupt one fingerprint. */
+  clearBeatTracking(): void {
+    this.beatRing = [];
+    this.beatAccum = null;
+    this.totalBeats = 0;
+  }
+
+  /** Periodic steady-state assessment (read-only). Hemorrhage/fluid => forced-trend.
+   *  The 0.5 mL/min threshold matches the ledger's practical "no-op" floor: a
+   *  smaller net flow advances expectedTBV by <0.005 mL/beat, far below the TBV
+   *  convergence band, so it is intentionally allowed to settle. */
+  assessSteadyState(policy: SettlePolicy = DEFAULT_SETTLE_POLICY): SettleStatus {
+    if (this.p.projectTBV && Math.abs(this.p.fluidRate - this.p.bleedRate) > 0.5) {
+      return { settled: false, reason: "forced-trend", beats: this.totalBeats, worstSignal: null, worstDelta: NaN };
+    }
+    return assessBeatRing(this.beatRing, this.totalBeats, policy);
+  }
+
+  isSettled(policy: SettlePolicy = DEFAULT_SETTLE_POLICY): boolean {
+    return this.assessSteadyState(policy).settled;
+  }
+
+  /**
+   * Advance the model until it reaches periodic steady state, or the cap, or a
+   * forced trend. Deterministic for a given dt/platform (fixed-step integration,
+   * no Date/random); the cap bounds elapsed sim time.
+   */
+  settleToSteady(policy: SettlePolicy = DEFAULT_SETTLE_POLICY, dt = 0.001, sampleHz = 120): SettleStatus {
+    const startT = this.t;
+    const forced = this.assessSteadyState(policy);
+    if (forced.reason === "forced-trend") {
+      return { ...forced, actualSeconds: 0 };
+    }
+    // Bound on elapsed SIM time so the cap is robust for any dt (and the loop
+    // runs the same number of steps for a given dt on a given platform).
+    const sliceSeconds = 0.25;
+    while (this.t - startT < policy.capSeconds) {
+      this.runFor(sliceSeconds, dt, sampleHz);
+      const st = this.assessSteadyState(policy);
+      if (st.settled) {
+        // Run a phase-margin beat or two past convergence.
+        const beatSeconds = (60 / Math.max(this.p.HR, 1)) * policy.postSettleBeats;
+        this.runFor(beatSeconds, dt, sampleHz);
+        return { ...st, actualSeconds: this.t - startT };
+      }
+    }
+    return { ...this.assessSteadyState(policy), reason: "cap", settled: false, actualSeconds: this.t - startT };
   }
 
   metrics(): SimMetrics {
@@ -477,6 +584,7 @@ export class ModelCore {
     const ESV_R = min("VRV");
     const lvEdSample = data.reduce((best, sample) => sample.VLV > best.VLV ? sample : best, data[0]);
     const rvEdSample = data.reduce((best, sample) => sample.VRV > best.VRV ? sample : best, data[0]);
+    const obs = this.debugObservables();
     return {
       HR: this.p.HR,
       AoPMean: avg("AoP"),
@@ -493,15 +601,24 @@ export class ModelCore {
       CO_R: (SV_R * this.p.HR) / 1000,
       EF_LApprox: EDV_L > 1e-6 ? clamp((EDV_L - ESV_L) / EDV_L, 0, 1) : 0,
       EF_RApprox: EDV_R > 1e-6 ? clamp((EDV_R - ESV_R) / EDV_R, 0, 1) : 0,
-      TBV: avg("TBV")
+      TBV: avg("TBV"),
+      Pmsf: obs.Pmsf,
+      vrGradient: obs.vrGradient,
+      stressedVolumeSystemic: obs.stressedVolumeSystemic,
+      unstressedVolumeSystemic: obs.unstressedVolumeSystemic
     };
   }
 
   health(): SimulationHealth {
     const m = this.metrics();
-    const last = this.lastSample ?? this.sample();
-    const tbvDriftMl = last.TBV - this.initialTBV;
-    const tbvDriftPercent = this.initialTBV > 0 ? 100 * tbvDriftMl / this.initialTBV : 0;
+    // Use the CURRENT state TBV (not a possibly-stale lastSample), so a bare
+    // step() loop still reports mass conservation correctly. Compared against the
+    // EXPECTED TBV (ledger) so intended hemorrhage/fluid is not flagged — only
+    // true integrator drift is. (Meaningful mainly with projectTBV=false; with
+    // the projector on, actual TBV is pinned to expectedTBV by construction.)
+    const currentTBV = this.totalBloodVolume(this.computePressures(this.x));
+    const tbvDriftMl = currentTBV - this.expectedTBV;
+    const tbvDriftPercent = this.expectedTBV > 0 ? 100 * tbvDriftMl / this.expectedTBV : 0;
     const leftRightFlowMismatchLMin = Math.abs(m.CO_L - m.CO_R);
     const cycleMetricDelta = this.computeCycleMetricDelta();
     const messages: string[] = [];
@@ -534,20 +651,16 @@ export class ModelCore {
       messages.push(`Left/right CO mismatch warning ${leftRightFlowMismatchLMin.toFixed(2)} L/min.`);
     }
 
-    let physiologicalRange: SimulationHealthStatus = "ok";
-    if (m.AoPMean < 55 || m.AoPMean > 125 || m.CO_L < 2 || m.CO_L > 10 || m.PAPMean < 5 || m.PAPMean > 35) {
-      physiologicalRange = "failed";
-      messages.push("Outputs outside broad preview physiology range.");
-    } else if (m.AoPMean < 65 || m.AoPMean > 110 || m.CO_L < 3.5 || m.CO_L > 8 || m.PAPMean > 25) {
-      physiologicalRange = "warning";
-      messages.push("Outputs outside normal-adult target, but still within broad preview range.");
-    }
+    // Health means MODEL/NUMERICAL validity, NOT physiological normalcy.
+    // Simulating abnormal (e.g. shock, hypertension) states is a primary use
+    // case, so being outside the normal-adult range is never a warning.
+    const physiologicalRange: SimulationHealthStatus = "ok";
 
     if (cycleMetricDelta > 0.25) messages.push(`Cycle-to-cycle metric delta ${cycleMetricDelta.toFixed(3)}; not settled.`);
 
-    const status: SimulationHealthStatus = [numericalStability, massConservation, flowBalance, physiologicalRange].includes("failed")
+    const status: SimulationHealthStatus = [numericalStability, massConservation, flowBalance].includes("failed")
       ? "failed"
-      : ([numericalStability, massConservation, flowBalance, physiologicalRange].includes("warning") || cycleMetricDelta > 0.25 || this.clampHitCount > 0)
+      : ([numericalStability, massConservation, flowBalance].includes("warning") || cycleMetricDelta > 0.25 || this.clampHitCount > 0)
         ? "warning"
         : "ok";
 
@@ -637,8 +750,10 @@ export class ModelCore {
     }
 
     dy[this.idx.phi] = this.p.HR / 60;
-    const lv = this.activeRhs("LV", x, defaultActiveLV);
-    const rv = this.activeRhs("RV", x, defaultActiveRV);
+    const lv = this.activeModels.LV.internalDerivatives(
+      x[this.idx.node.LV], { c: x[this.idx.cLV], a: x[this.idx.aLV] }, this.chamberCtx("LV", x));
+    const rv = this.activeModels.RV.internalDerivatives(
+      x[this.idx.node.RV], { c: x[this.idx.cRV], a: x[this.idx.aRV] }, this.chamberCtx("RV", x));
     dy[this.idx.cLV] = lv.cDot;
     dy[this.idx.aLV] = lv.aDot;
     dy[this.idx.cRV] = rv.cDot;
@@ -679,11 +794,17 @@ export class ModelCore {
         Ptm[i] = ptm;
         P[i] = Pext + ptm;
       } else if (n.kind === "heartElastance" || (n.kind === "heartActive" && this.p.heartModel === "elastance")) {
-        const ptm = this.elastancePressure(n, V, x[this.idx.phi]);
+        const ctx = this.chamberCtx(n.chamber ?? "LV", x);
+        const ptm = this.elastanceModels.get(n.name)!.pressure(V, { c: 0, a: 0 }, ctx);
         Ptm[i] = ptm;
         P[i] = Pperi + ptm;
       } else if (n.kind === "heartActive") {
-        const ptm = this.activePressure(n.chamber as "LV" | "RV", V, x);
+        const ch = n.chamber as "LV" | "RV";
+        const internal = {
+          c: ch === "LV" ? x[this.idx.cLV] : x[this.idx.cRV],
+          a: ch === "LV" ? x[this.idx.aLV] : x[this.idx.aRV],
+        };
+        const ptm = this.activeModels[ch].pressure(V, internal, this.chamberCtx(ch, x));
         Ptm[i] = ptm;
         P[i] = Pperi + ptm;
       }
@@ -710,90 +831,34 @@ export class ModelCore {
     return flows;
   }
 
-  private activePressure(chamber: "LV" | "RV", V: number, x: Float64Array): number {
-    const ap = chamber === "LV" ? defaultActiveLV : defaultActiveRV;
-    const c = chamber === "LV" ? x[this.idx.cLV] : x[this.idx.cRV];
-    const a = clamp(chamber === "LV" ? x[this.idx.aLV] : x[this.idx.aRV], 0, 1);
-    const { lambda, h, rm } = this.activeGeometry(V, ap);
-    const stretch = lambda - ap.lambdaPas0;
-    const sigmaPas = ap.sigmaPas0 * (expClamped(ap.bPas * stretch) - 1);
-    const gOver = 1 / (1 + expClamped(ap.kOver * (lambda - ap.lambdaFail)));
-    const tmaxScale = chamber === "LV" ? this.p.lvTmaxScale : this.p.rvTmaxScale;
-    const geomScale = chamber === "LV" ? this.p.lvGeomScale : this.p.rvGeomScale;
-    
-    // Add realistic f_iso so tension rapidly drops as the heart empties
-    const f_iso = clamp((lambda - ap.lambdaPas0 + 0.3) / 0.35, 0, 1); 
-
-    const sigmaAct = ap.Tmax0 * tmaxScale * this.p.contractility * a * gOver * f_iso;
-    const sigma = sigmaPas + sigmaAct;
-    const PtmPa = geomScale * ap.geomChi * (2 * h / Math.max(rm, 1e-6)) * sigma;
-    return clamp(PtmPa / MMHG_TO_PA, -5, 260);
-  }
-
-  private activeRhs(chamber: "LV" | "RV", x: Float64Array, ap: ActiveChamberParams): { cDot: number; aDot: number } {
-    const V = x[this.idx.node[chamber]];
-    const cIndex = chamber === "LV" ? this.idx.cLV : this.idx.cRV;
-    const aIndex = chamber === "LV" ? this.idx.aLV : this.idx.aRV;
-    const c = Math.max(x[cIndex], 0);
-    const a = clamp(x[aIndex], 0, 1);
-    const { lambda } = this.activeGeometry(V, ap);
-
-    const HR = Math.max(this.p.HR, 20);
-    const T = 60 / HR;
-    const T0 = 60 / ap.HR0;
-    const Trel = clamp(ap.Trel0 * Math.pow(T / T0, ap.etaRel), ap.TrelMin, ap.TrelMax);
-    const durationTheta = clamp(Trel / T, 0.02, 0.3);
-    const theta = frac(x[this.idx.phi]);
-    const pulse = raisedCosinePulse(theta, ap.thetaOn, durationTheta, T);
-
-    const betaDrive = clamp((this.p.contractility - 1) / 1.5, 0, 1);
-    const tauCa = (ap.tauCa0 * Math.pow(T / T0, ap.etaCa)) / Math.max(this.p.relaxation, 0.2);
-    const ffr = Math.max(0, 1 + ap.gFFR * ((HR - ap.HR0) / ap.HR0) - ap.gFFR2 * Math.pow(Math.max(0, (HR - ap.HR0) / ap.HR0), 2));
-    const caScale = chamber === "LV" ? this.p.caReleaseScale : this.p.rvCaReleaseScale;
-    const Arel = ap.Arel0 * caScale * ffr * (1 + 0.2 * betaDrive) * this.p.contractility;
-    const cDot = clamp(-(c - ap.cDia) / Math.max(tauCa, 0.02) + Arel * pulse, -20, 20);
-
-    const Kd = ap.Kd0 * expClamped(-ap.betaLambda * (lambda - 1) + ap.betaKd * betaDrive);
-    const cn = Math.pow(Math.max(c, 0), ap.hillN);
-    const kn = Math.pow(Math.max(Kd, 1e-6), ap.hillN);
-    const aInf = cn / Math.max(cn + kn, 1e-9);
-    const tauA = 1 / Math.max(ap.kOn * cn + ap.kOff, 0.5);
-    const aDot = clamp((aInf - a) / tauA, -20, 20);
-    return { cDot, aDot };
-  }
-
-  private activeGeometry(V: number, ap: ActiveChamberParams): { lambda: number; h: number; rm: number } {
-    const VeffMl = Math.max(V - ap.V0, ap.Vmin);
-    const { h, rm } = sphereRadii(VeffMl, ap.Vw);
-    const rmRef = rmRefFromParams(ap);
-    return { lambda: rm / Math.max(rmRef, 1e-9), h, rm };
-  }
-
-  private elastancePressure(n: NodeSpec, V: number, phi: number): number {
-    const Veff = Math.max(V - (n.V0 ?? 0), 0);
-    const Ped = (n.beta ?? 0.5) * (Math.exp(clamp((n.alpha ?? 0.015) * Veff, -20, 20)) - 1);
-    const Pes = (n.Ees ?? 1.0) * Veff;
-    const e = this.activation(n.chamber ?? "LV", phi);
-    return clamp(Ped + e * (Pes - Ped), -5, 250);
-  }
-
-  private activation(chamber: Chamber, phi: number): number {
-    const theta = frac(phi);
-    const T = 60 / Math.max(this.p.HR, 1);
-    const TsV = 0.30 * Math.pow(T / 0.80, 0.35);
-    const TsA = 0.12 * Math.pow(T / 0.80, 0.25);
-    const eps = 0.02;
-    const window = (localSec: number, width: number) => {
-      const g = sigmoid(localSec / eps) * sigmoid((width - localSec) / eps);
-      const mid = 0.5 * width;
-      const gmax = sigmoid(mid / eps) * sigmoid((width - mid) / eps);
-      return g / Math.max(gmax, 1e-9);
+  /** Evaluation context handed to a ChamberModel for the given chamber. */
+  private chamberCtx(chamber: Chamber, x: Float64Array): ChamberCtx {
+    const isLV = chamber === "LV";
+    return {
+      HR: this.p.HR,
+      contractility: this.p.contractility,
+      relaxation: this.p.relaxation,
+      phi: x[this.idx.phi],
+      tmaxScale: isLV ? this.p.lvTmaxScale : this.p.rvTmaxScale,
+      geomScale: isLV ? this.p.lvGeomScale : this.p.rvGeomScale,
+      caReleaseScale: isLV ? this.p.caReleaseScale : this.p.rvCaReleaseScale,
     };
-    if (chamber === "LV" || chamber === "RV") {
-      return window(theta * T, TsV);
+  }
+
+  /** (Re)build per-node elastance models from current node params. */
+  private rebuildElastanceModels() {
+    this.elastanceModels.clear();
+    for (const n of this.nodes) {
+      if (n.kind === "heartElastance" || n.kind === "heartActive") {
+        this.elastanceModels.set(n.name, new ElastanceChamberModel({
+          V0: n.V0 ?? 0,
+          alpha: n.alpha ?? 0.015,
+          beta: n.beta ?? 0.5,
+          Ees: n.Ees ?? 1.0,
+          chamber: n.chamber ?? "LV",
+        }));
+      }
     }
-    const tauA = frac(theta + 0.16 / T) * T;
-    return 0.35 * window(tauA, TsA);
   }
 
   private venousCompliance(n: NodeSpec, Ptm: number): number {
@@ -903,9 +968,16 @@ export class ModelCore {
     this.p.venousTone = clamp(this.p.venousTone, 0, 1);
     this.p.arterialStiffness = clamp(this.p.arterialStiffness, 0.4, 3.0);
     this.p.PEEP = clamp(this.p.PEEP, 0, 25);
+    // Rates are not smoothed but must be copied from the target so the
+    // setTargetParameters() API path works, not just setImmediateParameters().
+    this.p.bleedRate = clamp(this.pTarget.bleedRate, 0, 2000);
+    this.p.fluidRate = clamp(this.pTarget.fluidRate, 0, 2000);
     this.p.speed = clamp(this.p.speed, 0.1, 10);
-    this.p.lvTmaxScale = clamp(this.p.lvTmaxScale, 0.25, 8);
-    this.p.rvTmaxScale = clamp(this.p.rvTmaxScale, 0.25, 12);
+    // Range re-centered on the new 1.0 baseline (after folding the legacy 4.5
+    // into Tmax0). Low floor preserves/extends the depressed-contractility
+    // (cardiogenic shock) regime, which is a primary abnormal-case use.
+    this.p.lvTmaxScale = clamp(this.p.lvTmaxScale, 0.05, 2.5);
+    this.p.rvTmaxScale = clamp(this.p.rvTmaxScale, 0.05, 3.0);
     this.p.lvGeomScale = clamp(this.p.lvGeomScale, 0.5, 2.5);
     this.p.rvGeomScale = clamp(this.p.rvGeomScale, 0.5, 3.0);
     this.p.caReleaseScale = clamp(this.p.caReleaseScale, 0.25, 6);
@@ -971,6 +1043,72 @@ export class ModelCore {
       const ix = this.idx.node[n.name as NodeName];
       this.x[ix] = clamp(this.x[ix] + off, -20, 45);
     }
+  }
+
+  /**
+   * Read-only snapshot of valve opening fractions (xi). Additive observability
+   * helper; does not touch dynamics, so the frozen baseline behavior is unchanged.
+   */
+  /**
+   * Instantaneous Phase A observables (read-only). Pmsf uses the textbook
+   * approximation: systemic-vascular stressed volume / total effective
+   * compliance, over the systemic vasculature only (heart and pulmonary excluded).
+   */
+  debugObservables(): SimObservables {
+    const pack = this.computePressures(this.x);
+    const flows = this.computeFlows(this.x, pack);
+    const systemic = ["Ao", "SA", "Art", "Cap", "SV", "VC"] as const;
+    let stressed = 0;
+    let compliance = 0;
+    let unstressed = 0;
+    let venStressed = 0;
+    let venUnstressed = 0;
+    for (const name of systemic) {
+      const i = this.nodeIndex.get(name)!;
+      const n = this.nodes[i];
+      const ptm = pack.Ptm[i];
+      const vu = this.effectiveVu(n);
+      unstressed += vu;
+      if (n.kind === "venousPressure") {
+        const s = this.venousStressedVolume(n, ptm);
+        stressed += s;
+        compliance += this.venousCompliance(n, ptm);
+        venStressed += s;
+        venUnstressed += vu;
+      } else if (n.kind === "arterial") {
+        const VsEff = Math.max((n.Vs ?? 100) / Math.max(this.p.arterialStiffness, 0.25), 1);
+        stressed += pack.Vphys[i] - vu;
+        compliance += VsEff / Math.max((n.P0 ?? 50) + ptm, 1e-6);
+      } else if (n.kind === "linear") {
+        stressed += pack.Vphys[i] - vu;
+        compliance += Math.max(n.C ?? 1, 1e-6);
+      }
+    }
+    const Pmsf = compliance > 1e-9 ? stressed / compliance : 0;
+    const RAP = pack.P[this.nodeIndex.get("RA")!];
+    return {
+      Pmsf,
+      vrGradient: Pmsf - RAP,
+      RAP,
+      stressedVolumeSystemic: stressed,
+      unstressedVolumeSystemic: unstressed,
+      venousStressedVolume: venStressed,
+      venousUnstressedVolume: venUnstressed,
+      Pth: this.Pth(),
+      Palv: this.Palv(),
+      Q_VC_RA: flows[this.edgeIndex("VC_RA")],
+      Q_PCap_PVen: flows[this.edgeIndex("PCap_PVen")],
+      P_SV: pack.P[this.nodeIndex.get("SV")!],
+      P_VC: pack.P[this.nodeIndex.get("VC")!],
+      P_PVen: pack.P[this.nodeIndex.get("PVen")!],
+      P_PVein: pack.P[this.nodeIndex.get("PVein")!],
+    };
+  }
+
+  debugValveOpenings(): Record<ValveName, number> {
+    const out = {} as Record<ValveName, number>;
+    for (const v of valveNames) out[v] = this.x[this.idx.xi[v]];
+    return out;
   }
 
   private edgeIndex(name: string): number {

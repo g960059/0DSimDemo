@@ -14,6 +14,10 @@ export type CoreRuntimeParams = {
   respAmpAlv: number;
   respRate: number;
   speed: number;
+  // Hemorrhage / fluid (Phase A M5a), mL/min. Drive an expected-TBV ledger that
+  // the TBV projector follows; health checks mass conservation vs the ledger.
+  bleedRate: number;
+  fluidRate: number;
   heartModel: HeartModelMode;
   useChiResistance: boolean;
   projectTBV: boolean;
@@ -112,6 +116,31 @@ export type SimMetrics = {
   EF_RApprox: number;
 
   TBV: number;
+
+  // Phase A / M0bs observability (instantaneous, at metrics() time).
+  Pmsf: number;                      // mean systemic filling pressure (mmHg), textbook (Vstressed/C)
+  vrGradient: number;                // Pmsf - RAP (mmHg), the venous-return driving gradient
+  stressedVolumeSystemic: number;    // mL, systemic vascular stressed volume
+  unstressedVolumeSystemic: number;  // mL, systemic vascular unstressed volume
+};
+
+/** Instantaneous engine observables for verification/UI (read-only). */
+export type SimObservables = {
+  Pmsf: number;
+  vrGradient: number;
+  RAP: number;
+  stressedVolumeSystemic: number;
+  unstressedVolumeSystemic: number;
+  venousStressedVolume: number;   // SV+VC stressed volume (the reservoir)
+  venousUnstressedVolume: number; // SV+VC unstressed volume
+  Pth: number;
+  Palv: number;
+  Q_VC_RA: number;
+  Q_PCap_PVen: number;
+  P_SV: number;
+  P_VC: number;
+  P_PVen: number;
+  P_PVein: number;
 };
 
 export type SimulationHealthStatus = "ok" | "warning" | "failed";

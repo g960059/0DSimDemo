@@ -1,5 +1,7 @@
 import type { ParameterPatch } from "@/engine/protocol";
 
+// Opt-out preset: revert LV/RV to time-varying elastance.
+// The engine default (defaultParams) now uses the active-stress ventricle.
 export const stableElastanceBaseline: ParameterPatch = {
   heartModel: "elastance",
   systemicResistance: 1.6,
@@ -7,10 +9,12 @@ export const stableElastanceBaseline: ParameterPatch = {
   projectTBV: true,
 };
 
-export const experimentalActiveStressCandidate: ParameterPatch = {
+// Calibrated active-stress operating point. This is now the engine default;
+// kept as a named preset for explicit re-application after an elastance swap.
+export const activeStressBaseline: ParameterPatch = {
   heartModel: "activeStress",
-  lvTmaxScale: 4.5,
-  rvTmaxScale: 4.5,
+  lvTmaxScale: 1.0,
+  rvTmaxScale: 1.0,
   caReleaseScale: 1.0,
   rvCaReleaseScale: 1.0,
   lvGeomScale: 1.0,
@@ -20,6 +24,9 @@ export const experimentalActiveStressCandidate: ParameterPatch = {
   venousTone: 0.2,
   projectTBV: true,
 };
+
+/** @deprecated Renamed to `activeStressBaseline` (now the engine default). */
+export const experimentalActiveStressCandidate = activeStressBaseline;
 
 export const anteriorAmiFromElastanceBaseline: ParameterPatch = {
   ...stableElastanceBaseline,

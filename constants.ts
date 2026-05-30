@@ -1,8 +1,7 @@
 import { defaultParams } from './engine/ModelCore';
 import { SimulationParams } from './types';
-import { experimentalActiveStressCandidate } from './engine/presets';
 
+// LV/RV active-stress is now the engine default (see defaultParams()).
 export const DEFAULT_PARAMS: SimulationParams = {
-    ...defaultParams(),
-    ...experimentalActiveStressCandidate
+    ...defaultParams()
 } as SimulationParams;
