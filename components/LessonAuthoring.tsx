@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { LessonStep } from "../lessonDoc";
-import { cloneNoteContent, EMPTY_AUTHOR_NOTE, instanceIdsKey, staleVisibleIds, syncCheckedIds } from "../lessonAuthoring";
+import { cloneNoteContent, EMPTY_AUTHOR_NOTE, instanceIdsKey, isPredictStep, moveStep, staleVisibleIds, syncCheckedIds } from "../lessonAuthoring";
 import type { NoteContent } from "../noteTypes";
 import type { SimInstance } from "../types";
 import { NotePanel } from "./NotePanel";
@@ -14,6 +14,7 @@ type LessonAuthoringProps = {
 export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, stepsDraft, setStepsDraft }) => {
   const allInstanceIds = useMemo(() => instances.map((instance) => instance.id), [instances]);
   const idsKey = instanceIdsKey(allInstanceIds);
+  const instanceNameById = useMemo(() => new Map(instances.map((instance) => [instance.id, instance.name])), [instances]);
   const [stepTitleDraft, setStepTitleDraft] = useState("");
   const [stepNoteDraft, setStepNoteDraft] = useState<NoteContent>(EMPTY_AUTHOR_NOTE);
   const [stepVisibleIdsDraft, setStepVisibleIdsDraft] = useState<string[]>(allInstanceIds);
@@ -76,6 +77,13 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
   const deleteStep = (id: string) => {
     setStepsDraft((current) => current.filter((step) => step.id !== id));
   };
+
+  const moveCapturedStep = (index: number, dir: -1 | 1) => {
+    setStepsDraft((current) => moveStep(current, index, dir));
+  };
+
+  const finalStep = stepsDraft[stepsDraft.length - 1];
+  const hasFinalPredictWarning = finalStep ? isPredictStep(finalStep) : false;
 
   return (
     <section className="mb-2 rounded border border-slate-800 bg-[#0B1120] overflow-hidden">
@@ -163,6 +171,11 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
 
         <div className="rounded border border-slate-800 bg-slate-950/60 overflow-hidden">
           <div className="px-3 py-2 border-b border-slate-800 text-xs font-bold text-slate-400">Captured steps</div>
+          {hasFinalPredictWarning && (
+            <div className="px-3 py-2 border-b border-amber-500/20 bg-amber-500/10 text-[11px] font-semibold text-amber-200">
+              Final step is predict. Add a reveal step before saving.
+            </div>
+          )}
           <div className="max-h-[280px] overflow-y-auto custom-scrollbar">
             {stepsDraft.length === 0 ? (
               <div className="p-3 text-xs text-slate-500">No steps captured.</div>
@@ -172,7 +185,10 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
                   key={step.id}
                   step={step}
                   index={index}
+                  count={stepsDraft.length}
                   allInstanceIds={allInstanceIds}
+                  instanceNameById={instanceNameById}
+                  onMove={moveCapturedStep}
                   onDelete={deleteStep}
                 />
               ))
@@ -187,25 +203,65 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
 const CapturedStepRow: React.FC<{
   step: LessonStep;
   index: number;
+  count: number;
   allInstanceIds: string[];
+  instanceNameById: Map<string, string>;
+  onMove: (index: number, dir: -1 | 1) => void;
   onDelete: (id: string) => void;
-}> = ({ step, index, allInstanceIds, onDelete }) => {
+}> = ({ step, index, count, allInstanceIds, instanceNameById, onMove, onDelete }) => {
   const staleIds = staleVisibleIds(step, allInstanceIds);
+  const visibleNames = step.stage.visibleInstances
+    .map((id) => instanceNameById.get(id))
+    .filter((name): name is string => Boolean(name));
+  const visibleSummary = visibleNames.length > 0 ? `shows: ${visibleNames.join(", ")}` : "shows: none";
+  const canMoveUp = index > 0;
+  const canMoveDown = index < count - 1;
+  const predict = isPredictStep(step);
   return (
     <div className="px-3 py-2 border-b border-slate-800 last:border-b-0 flex items-center justify-between gap-2">
       <div className="min-w-0">
         <div className="text-xs font-bold text-slate-200 truncate">{index + 1}. {step.title || step.id}</div>
-        <div className="text-[11px] text-slate-500">{step.stage.visibleInstances.length} visible{step.stage.challenge?.kind === "predict" ? " · predict" : ""}</div>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <div className="text-[11px] text-slate-500 truncate" title={visibleSummary}>{visibleSummary}</div>
+          {predict && (
+            <span className="shrink-0 rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-200">
+              predict
+            </span>
+          )}
+        </div>
         {staleIds.length > 0 && (
           <div className="text-[11px] font-semibold text-amber-300 truncate">stale: {staleIds.join(", ")}</div>
         )}
       </div>
-      <button
-        onClick={() => onDelete(step.id)}
-        className="px-2 py-1 rounded bg-slate-800 hover:bg-red-500/20 text-[11px] font-bold text-slate-400 hover:text-red-200 transition-colors"
-      >
-        Delete
-      </button>
+      <div className="shrink-0 flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => onMove(index, -1)}
+          disabled={!canMoveUp}
+          aria-label={`Move ${step.title || step.id} up`}
+          title="Move step up"
+          className="w-7 h-7 rounded bg-slate-800 text-[11px] font-bold text-slate-300 transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-slate-800"
+        >
+          ↑
+        </button>
+        <button
+          type="button"
+          onClick={() => onMove(index, 1)}
+          disabled={!canMoveDown}
+          aria-label={`Move ${step.title || step.id} down`}
+          title="Move step down"
+          className="w-7 h-7 rounded bg-slate-800 text-[11px] font-bold text-slate-300 transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-slate-800"
+        >
+          ↓
+        </button>
+        <button
+          type="button"
+          onClick={() => onDelete(step.id)}
+          className="px-2 py-1 rounded bg-slate-800 hover:bg-red-500/20 text-[11px] font-bold text-slate-400 hover:text-red-200 transition-colors"
+        >
+          Delete
+        </button>
+      </div>
     </div>
   );
 };

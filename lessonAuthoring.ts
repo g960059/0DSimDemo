@@ -26,6 +26,19 @@ export function syncCheckedIds(prevChecked: string[], prevIds: string[], nextIds
   return [...kept, ...added];
 }
 
+export function moveStep(steps: LessonStep[], index: number, dir: -1 | 1): LessonStep[] {
+  const target = index + dir;
+  if (index < 0 || index >= steps.length || target < 0 || target >= steps.length) return steps;
+
+  const next = [...steps];
+  [next[index], next[target]] = [next[target], next[index]];
+  return next;
+}
+
+export function isPredictStep(step: LessonStep): boolean {
+  return step.stage.challenge?.kind === "predict";
+}
+
 export function staleVisibleIds(step: LessonStep, validIds: Iterable<string>): string[] {
   const valid = new Set(validIds);
   return step.stage.visibleInstances.filter((id) => !valid.has(id));
@@ -33,7 +46,7 @@ export function staleVisibleIds(step: LessonStep, validIds: Iterable<string>): s
 
 export function normalizeStepsForSave(steps: LessonStep[], validIds: Iterable<string>): NormalizedStepsResult {
   if (steps.length === 0) return { ok: true };
-  if (steps[steps.length - 1].stage.challenge?.kind === "predict") {
+  if (isPredictStep(steps[steps.length - 1])) {
     return { ok: false, message: "Add a reveal step after the final predict step before saving." };
   }
 

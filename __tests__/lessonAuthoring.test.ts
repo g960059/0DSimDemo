@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { caseDocumentToSimInstances } from "@/caseDoc";
-import { cloneNoteContent, instanceIdsKey, normalizeStepsForSave, staleVisibleIds, syncCheckedIds } from "@/lessonAuthoring";
+import { cloneNoteContent, instanceIdsKey, isPredictStep, moveStep, normalizeStepsForSave, staleVisibleIds, syncCheckedIds } from "@/lessonAuthoring";
 import type { Lesson, LessonStep } from "@/lessonDoc";
 import { getUserLesson, saveLesson } from "@/lessonPersist";
 import { officialCaseById } from "@/officialCases";
@@ -97,8 +97,39 @@ describe("lesson authoring step normalization", () => {
     expect(instanceIdsKey(["1", "2"])).not.toBe(instanceIdsKey(["2", "1"]));
   });
 
+  it("moves steps without changing ids, length, or duplicating entries", () => {
+    const steps = [
+      step("step-1", ["1"]),
+      step("step-2", ["1", "2"], true),
+      step("step-3", ["2"]),
+    ];
+    const moved = moveStep(steps, 1, 1);
+    const movedIds = moved.map((item) => item.id);
+
+    expect(moved).not.toBe(steps);
+    expect(movedIds).toEqual(["step-1", "step-3", "step-2"]);
+    expect(moved).toHaveLength(steps.length);
+    expect(new Set(movedIds)).toEqual(new Set(steps.map((item) => item.id)));
+    expect(new Set(movedIds)).toHaveLength(movedIds.length);
+    expect(moved[2]).toBe(steps[1]);
+  });
+
+  it("returns the same array reference for out-of-bounds step moves", () => {
+    const steps = [step("step-1", ["1"])];
+
+    expect(moveStep(steps, 0, -1)).toBe(steps);
+    expect(moveStep(steps, 0, 1)).toBe(steps);
+    expect(moveStep(steps, -1, 1)).toBe(steps);
+    expect(moveStep(steps, 1, -1)).toBe(steps);
+  });
+
   it("reports stale visible ids for captured steps before save-time pruning", () => {
     expect(staleVisibleIds(step("step-stale", ["1", "removed"]), ["1", "2"])).toEqual(["removed"]);
+  });
+
+  it("uses the shared predict predicate for badges and save validation", () => {
+    expect(isPredictStep(step("step-predict", ["1"], true))).toBe(true);
+    expect(isPredictStep(step("step-reveal", ["1"]))).toBe(false);
   });
 
   it("blocks saving when the final step is predict", () => {
@@ -107,6 +138,20 @@ describe("lesson authoring step normalization", () => {
       step("step-2", ["1"], true),
     ], ["1"]);
 
+    expect(result.ok).toBe(false);
+    expect(result.ok === false ? result.message : "").toMatch(/reveal step/);
+  });
+
+  it("blocks saving when reorder moves a predict step to the end", () => {
+    const steps = [
+      step("step-1", ["1"]),
+      step("step-2", ["1"], true),
+      step("step-3", ["1"]),
+    ];
+    const reordered = moveStep(steps, 1, 1);
+    const result = normalizeStepsForSave(reordered, ["1"]);
+
+    expect(reordered.map((item) => item.id)).toEqual(["step-1", "step-3", "step-2"]);
     expect(result.ok).toBe(false);
     expect(result.ok === false ? result.message : "").toMatch(/reveal step/);
   });
