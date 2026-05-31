@@ -114,6 +114,23 @@ describe("lesson authoring step normalization", () => {
     expect(moved[2]).toBe(steps[1]);
   });
 
+  it("moves an interior step up without changing ids, length, or duplicating entries", () => {
+    const steps = [
+      step("step-1", ["1"]),
+      step("step-2", ["1", "2"], true),
+      step("step-3", ["2"]),
+    ];
+    const moved = moveStep(steps, 2, -1);
+    const movedIds = moved.map((item) => item.id);
+
+    expect(moved).not.toBe(steps);
+    expect(movedIds).toEqual(["step-1", "step-3", "step-2"]);
+    expect(moved).toHaveLength(steps.length);
+    expect(new Set(movedIds)).toEqual(new Set(steps.map((item) => item.id)));
+    expect(new Set(movedIds)).toHaveLength(movedIds.length);
+    expect(moved[1]).toBe(steps[2]);
+  });
+
   it("returns the same array reference for out-of-bounds step moves", () => {
     const steps = [step("step-1", ["1"])];
 
