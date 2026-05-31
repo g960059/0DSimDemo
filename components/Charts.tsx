@@ -24,6 +24,54 @@ const getColor = (baseColor: string, signal: string, customBaseColor?: string, c
     return c.formatHex();
 };
 
+// ---- Axis auto-scaling --------------------------------------------------------
+// A "nice number" rounded to {1,2,2.5,5}·10^k so the step is appropriate to the
+// data's MAGNITUDE (low-value signals like CVP ~2 mmHg get a fine 0-4 scale instead
+// of being flattened onto a fixed 0-40 grid).
+const niceNum = (range: number, round: boolean): number => {
+    if (!(range > 0)) return 1;
+    const exp = Math.floor(Math.log10(range));
+    const f = range / Math.pow(10, exp);
+    let nf: number;
+    if (round) nf = f < 1.5 ? 1 : f < 3 ? 2 : f < 4 ? 2.5 : f < 7 ? 5 : 10;
+    else nf = f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10;
+    return nf * Math.pow(10, exp);
+};
+
+/** Nice [min,max,step] bracketing [dmin,dmax] with ~`ticks` gridlines. */
+const niceAxis = (dmin: number, dmax: number, ticks = 5): { min: number; max: number; step: number } => {
+    if (!isFinite(dmin) || !isFinite(dmax)) return { min: 0, max: 1, step: 1 };
+    if (dmax - dmin < 1e-9) { dmin -= 0.5; dmax += 0.5; }
+    const step = niceNum((dmax - dmin) / Math.max(1, ticks - 1), true);
+    return { min: Math.floor(dmin / step) * step, max: Math.ceil(dmax / step) * step, step };
+};
+
+/**
+ * Hysteretic auto-scale: returns a STABLE [min,max] that only rescales when the
+ * data leaves the current window or shrinks well inside it — so the axis does not
+ * jitter every frame. `cur` holds the last committed range across frames.
+ */
+const stableRange = (
+    cur: { min: number; max: number },
+    dmin: number,
+    dmax: number,
+    opts: { ticks?: number; zeroFloor?: boolean } = {},
+): void => {
+    if (!isFinite(dmin) || !isFinite(dmax)) return;
+    const pad = (dmax - dmin) * 0.08 || 0.5;
+    let lo = opts.zeroFloor ? 0 : dmin - pad;
+    let hi = dmax + pad;
+    const curRange = cur.max - cur.min;
+    const valid = isFinite(curRange) && curRange > 1e-6;
+    const grows = !opts.zeroFloor && dmin < cur.min || dmax > cur.max;          // data clipped -> must grow
+    const shrinks = valid && (hi - lo) < curRange * 0.5;                         // data uses <50% -> zoom in
+    if (!valid || grows || shrinks) {
+        const a = niceAxis(lo, hi, opts.ticks ?? 5);
+        cur.min = a.min;
+        cur.max = a.max;
+    }
+};
+
 const ChartLegend = ({ instances, config, showLegend, extraClasses = '' }: { instances: SimInstance[], config: Record<string, PanelInstanceConfig>, showLegend?: boolean, extraClasses?: string }) => {
     if (showLegend === false) return null;
     return (
@@ -114,10 +162,15 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
       });
 
       if (hasData) {
-          currentFrameMaxV *= 1.1; 
-          currentFrameMaxP *= 1.1;
-          scaleRef.current.maxV = scaleRef.current.maxV * 0.9 + Math.max(150, Math.ceil(currentFrameMaxV / 50) * 50) * 0.1;
-          scaleRef.current.maxP = scaleRef.current.maxP * 0.9 + Math.max(100, Math.ceil(currentFrameMaxP / 50) * 50) * 0.1;
+          // Nice-number + hysteretic, 0-anchored. No forced 150mL/100mmHg minimum, so a
+          // low-pressure/low-volume chamber (LA/RA: V ~10-45 mL, P ~0.5-3 mmHg) fills the
+          // box and its figure-8 loop is visible instead of collapsing into the corner.
+          const rv = { min: 0, max: scaleRef.current.maxV };
+          stableRange(rv, 0, currentFrameMaxV, { ticks: 6, zeroFloor: true });
+          scaleRef.current.maxV = rv.max;
+          const rp = { min: 0, max: scaleRef.current.maxP };
+          stableRange(rp, 0, currentFrameMaxP, { ticks: 6, zeroFloor: true });
+          scaleRef.current.maxP = rp.max;
       }
 
       xScale.domain([0, scaleRef.current.maxV]).range([50, width - 15]);
@@ -302,6 +355,8 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                             case 'QMV': val = d.QMV; break;
                             case 'QPA': val = d.QPA; break;
                             case 'QTV': val = d.QTV; break;
+                            case 'PVF': val = d.PVF; break;
+                            case 'SVF': val = d.SVF; break;
                         }
                         if (val > frameYMax) frameYMax = val;
                         if (val < frameYMin) frameYMin = val;
@@ -311,10 +366,13 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
             });
 
             if (hasData) {
-                frameYMax = Math.ceil(frameYMax / 40) * 40;
-                frameYMin = Math.floor(frameYMin / 10) * 10;
-                scaleRef.current.yMax = scaleRef.current.yMax * 0.95 + frameYMax * 0.05;
-                scaleRef.current.yMin = scaleRef.current.yMin * 0.95 + frameYMin * 0.05;
+                // Nice-number + hysteretic scaling: stable axis that only rescales when
+                // the trace clips or shrinks well inside the window, and that resolves
+                // low-amplitude signals (CVP/LAP ~2 mmHg) instead of flattening them.
+                const r = { min: scaleRef.current.yMin, max: scaleRef.current.yMax };
+                stableRange(r, frameYMin, frameYMax, { ticks: 5 });
+                scaleRef.current.yMin = r.min;
+                scaleRef.current.yMax = r.max;
             }
 
             const xScale = d3.scaleLinear().domain([0, timeSec]).range([30, width - 5]);
@@ -371,6 +429,8 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                             case 'QMV': val = d.QMV; break;
                             case 'QPA': val = d.QPA; break;
                             case 'QTV': val = d.QTV; break;
+                            case 'PVF': val = d.PVF; break;
+                            case 'SVF': val = d.SVF; break;
                         }
 
                         const modT = d.t % timeSec;

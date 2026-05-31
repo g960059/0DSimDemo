@@ -270,6 +270,8 @@ export type SimSample = {
   QPA: number;
   QMV: number;
   QTV: number;
+  PVF: number; // pulmonary venous inflow to LA (PVein->LA edge); S/D/Ar pattern
+  SVF: number; // systemic venous return to RA (VC->RA edge)
 
   // Volumes
   VLV: number;

@@ -4,7 +4,7 @@ import { ClinicalKnobs } from './engine/knobs';
 export type SimulationParams = CoreRuntimeParams;
 
 export type ChamberId = 'LV' | 'LA' | 'RV' | 'RA';
-export type SignalType = 'LVP' | 'AoP' | 'LAP' | 'RVP' | 'PAP' | 'RAP' | 'QAo' | 'QMV' | 'QPA' | 'QTV' | 'Default';
+export type SignalType = 'LVP' | 'AoP' | 'LAP' | 'RVP' | 'PAP' | 'RAP' | 'QAo' | 'QMV' | 'QPA' | 'QTV' | 'PVF' | 'SVF' | 'Default';
 export type MetricType = 'ABP' | 'CVP' | 'PAP' | 'PCWP' | 'SV' | 'CO' | 'LVEF' | 'RVEF';
 
 export interface SimInstance {

@@ -445,6 +445,8 @@ export class ModelCore {
       QPA: flows[this.edgeIndex("PV")],
       QMV: flows[this.edgeIndex("MV")],
       QTV: flows[this.edgeIndex("TV")],
+      PVF: flows[this.edgeIndex("PVein_LA")],
+      SVF: flows[this.edgeIndex("VC_RA")],
       VLV: pack.Vphys[this.nodeIndex.get("LV")!],
       VRV: pack.Vphys[this.nodeIndex.get("RV")!],
       VLA: pack.Vphys[this.nodeIndex.get("LA")!],
