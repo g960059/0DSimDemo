@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { caseDocumentToSimInstances } from "../caseDoc";
-import { lessonById } from "../lessonDoc";
-import { officialCaseById } from "../officialCases";
+import { lessonById, resolveLessonCase } from "../lessonDoc";
 import { NotePanel } from "./NotePanel";
 import { MetricsPanel, PVLoopPanel, WaveformPanel } from "./Charts";
 import { PreviewController } from "../engine/previewController";
@@ -38,7 +37,7 @@ export const LessonPlayer = () => {
 
 const LessonPlayerBody: React.FC<{ lessonId?: string }> = ({ lessonId }) => {
   const lesson = lessonId ? lessonById(lessonId) : undefined;
-  const caseDoc = lesson ? officialCaseById(lesson.caseId) : undefined;
+  const caseDoc = lesson ? resolveLessonCase(lesson) : undefined;
   const [controller] = useState(() => new PreviewController());
   const [stepIndex, setStepIndex] = useState(0);
   const physicsRefs = useRef<Map<string, PhysicsRefState>>(controller.refs);

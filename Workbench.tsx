@@ -8,6 +8,8 @@ import { resolveRawEdit, resolveKnobEdit } from './engine/instanceKnobs';
 import { type CaseDocument, simInstancesToCaseDocument, caseDocumentToSimInstances } from './caseDoc';
 import { exportCaseFile, readCaseFile } from './casePersist';
 import { officialCaseById } from './officialCases';
+import { createUserLessonId, getUserLesson, saveLesson } from './lessonPersist';
+import type { Lesson } from './lessonDoc';
 import { remapWorkbenchLoadIds } from './workbenchLoad';
 import { HealthBadge, HealthToasts, HealthToast } from './components/HealthIndicators';
 import { PreviewController } from './engine/previewController';
@@ -26,6 +28,29 @@ const ALL_CHAMBERS: ChamberId[] = ['LV', 'LA', 'RV', 'RA'];
 const ALL_SIGNALS: SignalType[] = ['LVP', 'AoP', 'LAP', 'RVP', 'PAP', 'RAP', 'QAo', 'QMV', 'QPA', 'QTV', 'PVF', 'SVF'];
 const ALL_METRICS: MetricType[] = ['ABP', 'CVP', 'PAP', 'PCWP', 'SV', 'CO', 'LVEF'];
 const ALL_CONTROL_GROUPS: string[] = ['clinical', 'Global', 'ventricles', 'atria', 'vascular', 'fluids', 'valves', 'resp', 'advanced'];
+const DEFAULT_MODEL_LIMITATIONS = [
+  '0D lumped-parameter closed-loop model — no regional wall motion or spatial flow.',
+  'Active-stress single-fibre ventricles; parameters are not yet calibrated (M12).',
+];
+const EMPTY_NOTE_SPINE: NoteContent = [
+  { type: 'paragraph', content: [{ type: 'text', text: '', styles: {} }] },
+];
+
+function textFromNoteBlock(block: unknown): string {
+  if (!block || typeof block !== 'object') return '';
+  const content = (block as { content?: unknown }).content;
+  if (!Array.isArray(content)) return '';
+  return content
+    .map((item) => item && typeof item === 'object' ? ((item as { text?: unknown }).text ?? '') : '')
+    .filter((text): text is string => typeof text === 'string')
+    .join(' ')
+    .trim();
+}
+
+function noteExcerpt(note: NoteContent): string {
+  const text = note.map(textFromNoteBlock).find(Boolean);
+  return text ? (text.length > 96 ? `${text.slice(0, 93)}...` : text) : 'Empty note';
+}
 
 function Workbench() {
   const [searchParams] = useSearchParams();
@@ -66,6 +91,9 @@ function Workbench() {
   const [noteCaseKey, setNoteCaseKey] = useState('draft');
   const [notes, setNotes] = useState<Record<string, NoteContent>>({});
   const [noteModes, setNoteModes] = useState<Record<string, 'read' | 'edit'>>({});
+  const [isLessonDialogOpen, setIsLessonDialogOpen] = useState(false);
+  const [lessonTitle, setLessonTitle] = useState('');
+  const [savedLesson, setSavedLesson] = useState<{ id: string; title: string } | null>(null);
 
   // --- Panel Management State ---
   const [panels, setPanels] = useState<PanelDef[]>([
@@ -150,20 +178,29 @@ function Workbench() {
   // file (.hemosim.json) + a localStorage working draft. No network/Firebase. ---
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const buildCurrentDoc = (): CaseDocument => simInstancesToCaseDocument(instances, panels, {
-    id: `wb-${Date.now()}`,
-    title: instances[0] ? `${instances[0].name} scene` : 'Workbench scene',
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    spec: {
-      title: instances[0]?.name ?? 'Workbench scene',
-      modelLimitations: [
-        '0D lumped-parameter closed-loop model — no regional wall motion or spatial flow.',
-        'Active-stress single-fibre ventricles; parameters are not yet calibrated (M12).',
-      ],
-    },
-    notes,
-  });
+  const defaultSceneTitle = () => instances[0] ? `${instances[0].name} scene` : 'Workbench scene';
+
+  const buildCurrentDoc = (overrides: {
+    id?: string;
+    title?: string;
+    createdAt?: number;
+    updatedAt?: number;
+    includeNotes?: boolean;
+  } = {}): CaseDocument => {
+    const now = Date.now();
+    const title = overrides.title ?? defaultSceneTitle();
+    return simInstancesToCaseDocument(instances, panels, {
+      id: overrides.id ?? `wb-${now}`,
+      title,
+      createdAt: overrides.createdAt ?? now,
+      updatedAt: overrides.updatedAt ?? now,
+      spec: {
+        title,
+        modelLimitations: DEFAULT_MODEL_LIMITATIONS,
+      },
+      notes: overrides.includeNotes === false ? undefined : notes,
+    });
+  };
 
   const markUserEdited = () => { userEditedRef.current = true; };
 
@@ -208,6 +245,35 @@ function Workbench() {
   const handleExport = () => {
     try { exportCaseFile(buildCurrentDoc()); }
     catch (err) { window.alert(`Export failed: ${(err as Error).message}`); }
+  };
+
+  const openLessonDialog = () => {
+    setLessonTitle(defaultSceneTitle());
+    setIsLessonDialogOpen(true);
+  };
+
+  const saveCurrentLesson = () => {
+    try {
+      const title = lessonTitle.trim() || defaultSceneTitle();
+      const now = Date.now();
+      const id = createUserLessonId(now);
+      const notePanel = panels.find((panel) => panel.type === 'NOTE');
+      const noteSpine = notePanel ? (notes[notePanel.id] ?? EMPTY_NOTE_SPINE) : EMPTY_NOTE_SPINE;
+      const lesson: Lesson = {
+        meta: { id, title, createdAt: now },
+        case: buildCurrentDoc({ id, title, createdAt: now, updatedAt: now, includeNotes: false }),
+        noteSpine,
+      };
+
+      if (!saveLesson(lesson) || !getUserLesson(id)) {
+        pushWarningToast('Lesson save', 'Could not save this lesson locally.');
+        return;
+      }
+      setSavedLesson({ id, title });
+      setIsLessonDialogOpen(false);
+    } catch (err) {
+      pushWarningToast('Lesson save', (err as Error).message);
+    }
   };
 
   const handleImportFile = async (file: File) => {
@@ -435,6 +501,14 @@ function Workbench() {
                <button onClick={() => fileInputRef.current?.click()} title="Load a .hemosim.json case file" className="px-2 sm:px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded text-[10px] sm:text-xs font-bold text-slate-300 transition-colors flex items-center gap-1">
                    <span>↑</span> Load
                </button>
+               <button onClick={openLessonDialog} title="Save this scene and note as a lesson" className="px-2 sm:px-3 py-1.5 bg-blue-600 hover:bg-blue-500 border border-blue-500/50 rounded text-[10px] sm:text-xs font-bold text-white transition-colors flex items-center gap-1">
+                   <span>▣</span> Save as lesson
+               </button>
+               {savedLesson && (
+                   <a href={`/lesson/${savedLesson.id}`} className="inline-flex px-2 sm:px-3 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 rounded text-[10px] sm:text-xs font-bold text-emerald-200 transition-colors whitespace-nowrap">
+                       Open lesson
+                   </a>
+               )}
 
                <div className="hidden sm:block h-6 w-px bg-slate-700 mx-1"></div>
 
@@ -682,6 +756,36 @@ function Workbench() {
                   <div className="flex items-center justify-end gap-3 pt-2">
                       <button onClick={() => setAddingPanelType(null)} className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200 transition-colors">Cancel</button>
                       <button onClick={confirmAddPanel} className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded shadow transition-colors">Add Panel</button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {isLessonDialogOpen && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-slate-900 border border-slate-700 rounded-lg shadow-2xl p-6 w-full max-w-md">
+                  <h2 className="text-lg font-bold text-slate-200 mb-4 tracking-tight">Save as lesson</h2>
+                  <div className="space-y-4 mb-6">
+                      <label className="block">
+                          <span className="block text-xs font-bold text-slate-400 mb-2">Title</span>
+                          <input
+                              type="text"
+                              value={lessonTitle}
+                              onChange={(e) => setLessonTitle(e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-700 outline-none focus:border-blue-500 rounded px-3 py-2 text-sm font-medium text-slate-100"
+                              autoFocus
+                          />
+                      </label>
+                      <div className="rounded border border-slate-800 bg-slate-950/60 p-3">
+                          <div className="text-xs font-bold text-slate-400 mb-1">Note spine</div>
+                          <div className="text-sm text-slate-200 truncate">
+                              {noteExcerpt(notes[panels.find((panel) => panel.type === 'NOTE')?.id ?? ''] ?? EMPTY_NOTE_SPINE)}
+                          </div>
+                      </div>
+                  </div>
+                  <div className="flex items-center justify-end gap-3 pt-2">
+                      <button onClick={() => setIsLessonDialogOpen(false)} className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200 transition-colors">Cancel</button>
+                      <button onClick={saveCurrentLesson} className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded shadow transition-colors">Save</button>
                   </div>
               </div>
           </div>
