@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { DEFAULT_PARAMS } from './constants';
 import { SimulationParams, SimInstance, PanelDef, PanelType, PanelInstanceConfig, ChamberId, SignalType, MetricType } from './types';
 import { SimulationHealth } from './engine/protocol';
@@ -6,6 +7,8 @@ import { type ClinicalKnobs } from './engine/knobs';
 import { resolveRawEdit, resolveKnobEdit } from './engine/instanceKnobs';
 import { type CaseDocument, simInstancesToCaseDocument, caseDocumentToSimInstances } from './caseDoc';
 import { exportCaseFile, readCaseFile } from './casePersist';
+import { officialCaseById } from './officialCases';
+import { remapWorkbenchLoadIds } from './workbenchLoad';
 import { HealthBadge, HealthToasts, HealthToast } from './components/HealthIndicators';
 import { PreviewController } from './engine/previewController';
 import { Controls } from './components/Controls';
@@ -24,6 +27,7 @@ const ALL_METRICS: MetricType[] = ['ABP', 'CVP', 'PAP', 'PCWP', 'SV', 'CO', 'LVE
 const ALL_CONTROL_GROUPS: string[] = ['clinical', 'Global', 'ventricles', 'atria', 'vascular', 'fluids', 'valves', 'resp', 'advanced'];
 
 function Workbench() {
+  const [searchParams] = useSearchParams();
   // --- State ---
   const [timeScale, setTimeScale] = useState<number>(1.0);
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
@@ -46,6 +50,18 @@ function Workbench() {
   const [healthToasts, setHealthToasts] = useState<HealthToast[]>([]);
   // Stable identity so a toast's 6s auto-dismiss timer isn't reset by re-renders.
   const dismissToast = useCallback((id: string) => setHealthToasts((prev) => prev.filter((t) => t.id !== id)), []);
+  const pushWarningToast = useCallback((name: string, message: string) => {
+    const toast: HealthToast = {
+      id: `toast-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      name,
+      status: 'warning',
+      message,
+    };
+    setHealthToasts((prev) => [...prev, toast].slice(-3));
+  }, []);
+  const userEditedRef = useRef(false);
+  const lastLoadedCaseIdRef = useRef<string | null>(null);
+  const loadNonceRef = useRef(0);
 
   // --- Panel Management State ---
   const [panels, setPanels] = useState<PanelDef[]>([
@@ -144,12 +160,42 @@ function Workbench() {
     },
   });
 
-  const loadDocIntoWorkbench = (doc: CaseDocument) => {
-    const loaded = caseDocumentToSimInstances(doc); // throws on unknown version/schema
-    setInstances(loaded);
-    setPanels(doc.panels);
-    setActiveInstanceId(loaded[0]?.id ?? '1');
-  };
+  const markUserEdited = () => { userEditedRef.current = true; };
+
+  const replaceWorkbenchDoc = useCallback((doc: CaseDocument, opts: { confirm: boolean }) => {
+    if (opts.confirm && !window.confirm('Load this case? It will replace the current scene; unsaved changes are lost.')) return false;
+
+    try {
+      const loaded = caseDocumentToSimInstances(doc); // throws on unknown version/schema
+      const nonce = `${Date.now().toString(36)}${(loadNonceRef.current++).toString(36)}`;
+      const remapped = remapWorkbenchLoadIds(loaded, doc.panels, nonce);
+
+      setInstances(remapped.instances);
+      setPanels(remapped.panels);
+      setActiveInstanceId(remapped.activeInstanceId);
+      userEditedRef.current = false;
+      return true;
+    } catch (err) {
+      pushWarningToast('Case load', (err as Error).message);
+      return false;
+    }
+  }, [pushWarningToast]);
+
+  useEffect(() => {
+    const caseId = searchParams.get('case');
+    if (!caseId || caseId === lastLoadedCaseIdRef.current) return;
+
+    const doc = officialCaseById(caseId);
+    if (!doc) {
+      lastLoadedCaseIdRef.current = caseId;
+      pushWarningToast('Case route', `Unknown case "${caseId}" — loaded the default scene`);
+      return;
+    }
+
+    if (replaceWorkbenchDoc(doc, { confirm: userEditedRef.current })) {
+      lastLoadedCaseIdRef.current = caseId;
+    }
+  }, [searchParams, replaceWorkbenchDoc, pushWarningToast]);
 
   const handleExport = () => {
     try { exportCaseFile(buildCurrentDoc()); }
@@ -157,8 +203,7 @@ function Workbench() {
   };
 
   const handleImportFile = async (file: File) => {
-    if (!window.confirm('Load this case? It will replace the current scene; unsaved changes are lost.')) return;
-    try { loadDocIntoWorkbench(await readCaseFile(file)); }
+    try { replaceWorkbenchDoc(await readCaseFile(file), { confirm: true }); }
     catch (err) { window.alert(`Import failed: ${(err as Error).message}`); }
   };
 
@@ -166,6 +211,7 @@ function Workbench() {
   // instance is knob-primary (absolute-knob keys route to the knob; the rest edit
   // the authored baseline) and is a plain param edit otherwise. See engine/instanceKnobs.
   const updateInstanceParams = (id: string, newParams: Partial<SimulationParams>) => {
+      markUserEdited();
       setInstances(prev => prev.map(inst =>
           inst.id === id
             ? { ...inst, ...resolveRawEdit({ params: inst.params, knobs: inst.knobs, knobBaseline: inst.knobBaseline }, newParams) }
@@ -175,6 +221,7 @@ function Workbench() {
 
   // Clinical knob edit: makes the instance knob-primary, deriving params.
   const updateInstanceKnobs = (id: string, newKnobs: ClinicalKnobs) => {
+      markUserEdited();
       setInstances(prev => prev.map(inst =>
           inst.id === id
             ? { ...inst, ...resolveKnobEdit({ params: inst.params, knobs: inst.knobs, knobBaseline: inst.knobBaseline }, newKnobs) }
@@ -183,6 +230,7 @@ function Workbench() {
   };
   
   const updateInstanceVolume = (id: string, vol: number) => {
+      markUserEdited();
       setInstances(prev => prev.map(inst =>
           inst.id === id ? { ...inst, targetVolume: vol } : inst
       ));
@@ -190,12 +238,14 @@ function Workbench() {
   }
 
   const updateInstanceColor = (id: string, color: string) => {
+      markUserEdited();
       setInstances(prev => prev.map(inst => 
         inst.id === id ? { ...inst, color: color } : inst
     ));
   }
   
   const addInstance = (sourceId?: string) => {
+      markUserEdited();
       const newId = Date.now().toString();
       const color = INSTANCE_COLORS[instances.length % INSTANCE_COLORS.length];
       const sourceInstance = instances.find(i => i.id === (typeof sourceId === 'string' ? sourceId : activeInstanceId));
@@ -241,11 +291,13 @@ function Workbench() {
   };
   
   const removeInstance = (id: string) => {
+      markUserEdited();
       setInstances(prev => prev.filter(i => i.id !== id));
       if (activeInstanceId === id) setActiveInstanceId(instances[0]?.id || '');
   };
 
   const updateInstanceName = (id: string, name: string) => {
+      markUserEdited();
       setInstances(prev => prev.map(inst => inst.id === id ? { ...inst, name } : inst));
   };
 
@@ -271,6 +323,7 @@ function Workbench() {
   
   const confirmAddPanel = () => {
       if (!addingPanelType) return;
+      markUserEdited();
       const type = addingPanelType;
       const newPanel: PanelDef = {
           id: Date.now().toString(), type, 
@@ -283,14 +336,17 @@ function Workbench() {
       setAddingPanelType(null);
   };
 
-  const removePanel = (id: string) => setPanels(prev => prev.filter(p => p.id !== id));
+  const removePanel = (id: string) => {
+      markUserEdited();
+      setPanels(prev => prev.filter(p => p.id !== id));
+  };
   
-  const updatePanelTitle = (id: string, newTitle: string) => setPanels(prev => prev.map(p => p.id === id ? { ...p, title: newTitle } : p));
-  const toggleShowLegend = (id: string) => setPanels(prev => prev.map(p => p.id === id ? { ...p, showLegend: p.showLegend === false ? true : false } : p));
-  const updatePanelInstanceColor = (panelId: string, instId: string, newColor: string) => setPanels(prev => prev.map(p => p.id === panelId ? { ...p, config: { ...p.config, [instId]: { ...p.config[instId], customBaseColor: newColor } } } : p));
-  const updatePanelInstanceName = (panelId: string, instId: string, newName: string) => setPanels(prev => prev.map(p => p.id === panelId ? { ...p, config: { ...p.config, [instId]: { ...p.config[instId], customName: newName } } } : p));
-  const updatePanelSignalColor = (panelId: string, instId: string, sig: string, newColor: string) => setPanels(prev => prev.map(p => p.id === panelId ? { ...p, config: { ...p.config, [instId]: { ...p.config[instId], customSignalColors: { ...(p.config[instId].customSignalColors || {}), [sig]: newColor } } } } : p));
-  const updatePanelSignalName = (panelId: string, instId: string, sig: string, newName: string) => setPanels(prev => prev.map(p => p.id === panelId ? { ...p, config: { ...p.config, [instId]: { ...p.config[instId], customSignalNames: { ...(p.config[instId].customSignalNames || {}), [sig]: newName } } } } : p));
+  const updatePanelTitle = (id: string, newTitle: string) => { markUserEdited(); setPanels(prev => prev.map(p => p.id === id ? { ...p, title: newTitle } : p)); };
+  const toggleShowLegend = (id: string) => { markUserEdited(); setPanels(prev => prev.map(p => p.id === id ? { ...p, showLegend: p.showLegend === false ? true : false } : p)); };
+  const updatePanelInstanceColor = (panelId: string, instId: string, newColor: string) => { markUserEdited(); setPanels(prev => prev.map(p => p.id === panelId ? { ...p, config: { ...p.config, [instId]: { ...p.config[instId], customBaseColor: newColor } } } : p)); };
+  const updatePanelInstanceName = (panelId: string, instId: string, newName: string) => { markUserEdited(); setPanels(prev => prev.map(p => p.id === panelId ? { ...p, config: { ...p.config, [instId]: { ...p.config[instId], customName: newName } } } : p)); };
+  const updatePanelSignalColor = (panelId: string, instId: string, sig: string, newColor: string) => { markUserEdited(); setPanels(prev => prev.map(p => p.id === panelId ? { ...p, config: { ...p.config, [instId]: { ...p.config[instId], customSignalColors: { ...(p.config[instId].customSignalColors || {}), [sig]: newColor } } } } : p)); };
+  const updatePanelSignalName = (panelId: string, instId: string, sig: string, newName: string) => { markUserEdited(); setPanels(prev => prev.map(p => p.id === panelId ? { ...p, config: { ...p.config, [instId]: { ...p.config[instId], customSignalNames: { ...(p.config[instId].customSignalNames || {}), [sig]: newName } } } } : p)); };
 
   const resizeState = useRef<{ panelId: string, startX: number, startY: number, startW: number, startH: number } | null>(null);
   const startResize = (e: React.MouseEvent, panel: PanelDef) => {
@@ -304,6 +360,7 @@ function Workbench() {
       const { panelId, startX, startY, startW, startH } = resizeState.current;
       const newW = Math.max(2, Math.min(12, startW + Math.round((e.clientX - startX) / 50))); 
       const newH = Math.max(4, Math.min(20, startH + Math.round((e.clientY - startY) / 50))); 
+      markUserEdited();
       setPanels(prev => prev.map(p => p.id === panelId ? { ...p, w: newW, h: newH } : p));
   };
   const onResizeEnd = () => {
@@ -313,15 +370,18 @@ function Workbench() {
   };
 
   const toggleSettings = (panelId: string) => setPanels(prev => prev.map(p => p.id === panelId ? { ...p, isSettingsOpen: !p.isSettingsOpen } : { ...p, isSettingsOpen: false }));
-  const toggleInstanceVisibility = (panelId: string, instId: string) => setPanels(prev => prev.map(p => p.id === panelId ? { ...p, config: { ...p.config, [instId]: { ...p.config[instId], visible: !p.config[instId].visible } } } : p));
-  const updateInstanceSignals = (panelId: string, instId: string, signal: string) => setPanels(prev => prev.map(p => {
+  const toggleInstanceVisibility = (panelId: string, instId: string) => { markUserEdited(); setPanels(prev => prev.map(p => p.id === panelId ? { ...p, config: { ...p.config, [instId]: { ...p.config[instId], visible: !p.config[instId].visible } } } : p)); };
+  const updateInstanceSignals = (panelId: string, instId: string, signal: string) => {
+    markUserEdited();
+    setPanels(prev => prev.map(p => {
       if (p.id !== panelId) return p;
       const currentSigs = new Set(p.config[instId].selectedSignals);
       if (currentSigs.has(signal)) currentSigs.delete(signal); else currentSigs.add(signal);
       return { ...p, config: { ...p.config, [instId]: { ...p.config[instId], selectedSignals: Array.from(currentSigs) } } };
-  }));
-  const toggleGuides = (panelId: string) => setPanels(prev => prev.map(p => p.id === panelId ? { ...p, showGuides: !p.showGuides } : p));
-  const updateTimeWindow = (panelId: string, val: number) => setPanels(prev => prev.map(p => p.id === panelId ? { ...p, timeWindow: val } : p));
+    }));
+  };
+  const toggleGuides = (panelId: string) => { markUserEdited(); setPanels(prev => prev.map(p => p.id === panelId ? { ...p, showGuides: !p.showGuides } : p)); };
+  const updateTimeWindow = (panelId: string, val: number) => { markUserEdited(); setPanels(prev => prev.map(p => p.id === panelId ? { ...p, timeWindow: val } : p)); };
 
   const dragItemRef = useRef<number | null>(null);
   const dragOverItemRef = useRef<number | null>(null);
@@ -330,6 +390,7 @@ function Workbench() {
   const onDragEnd = () => {
     const srcIdx = dragItemRef.current, dstIdx = dragOverItemRef.current;
     if (srcIdx !== null && dstIdx !== null && srcIdx !== dstIdx) {
+       markUserEdited();
        setPanels(prev => { const next = [...prev]; next.splice(dstIdx, 0, next.splice(srcIdx, 1)[0]); return next; });
     }
     dragItemRef.current = dragOverItemRef.current = null;
