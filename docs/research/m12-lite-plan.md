@@ -40,6 +40,37 @@ physiological ceiling *with* higher geomChi drops CO below baseline (the product
 falls). So CO~5 with EF~55–65 needs a **coordinated co-tune of force AND diastolic/preload**, not
 one lever.
 
+### Refined force×filling sweep (read-only, lead)
+
+| Config | CO | MAP | AoP | EF | EDV | ESV | clamps |
+|---|---:|---:|---|---:|---:|---:|---|
+| baseline (chi0.36, T382k) | 3.52 | 70 | 94/64 | 0.53 | 88 | 41 | 0 |
+| **chi1.0, T180k, vt0.40** | 4.10 | 78 | 109/71 | 0.66 | 83 | 29 | 0 |
+| **chi1.0, T190k, vt0.55** | 4.30 | 80 | 114/73 | 0.69 | 83 | 26 | 0 |
+| chi1.0, T200k, vt0.45 | 4.40 | 81 | 117/74 | 0.71 | 83 | 24 | 0 |
+| chi0.6, T382k, bP5, vt0.30 | 5.08 | 91 | 135/83 | 0.78 | 87 | 20 | 0 |
+
+**Two findings that reshape the plan:**
+
+1. **The "supra-physiological Tmax0" debt IS retire-able now, cleanly.** `geomChi ≈ 1.0` (a proper
+   thick-sphere Laplace) + `Tmax0 ≈ 180–200 kPa` (physiological) gives **EF 0.66–0.71 (in/near range),
+   AoP ~115/74 (MORE physiological than baseline 94/64), no clamps** — and a physiological Tmax0. This
+   alone is a clear net win and the safe M12-lite target.
+2. **EDV is the binding constraint and does NOT respond to the easy preload levers.** EDV stays ~83–88
+   mL (vs a normal ~110–120) even as `venousTone` is pushed 0.2→0.55 and `bPas` softened — because LV
+   filling is limited by **pulmonary venous return / atrial filling**, not systemic venous tone (which
+   sets RV preload) or LV diastolic stiffness. So **CO~5 with EF~0.60 is blocked by the small EDV**,
+   not by force. Reaching it needs a deeper preload/structural calibration (pulmonary-vein compliance/
+   resistance, atrial properties, blood-volume distribution) — a larger M12 piece.
+
+### Revised M12-lite scope (what to do now vs defer)
+
+- **Now (M12-lite):** retire the Tmax0 debt — `geomChi ~1.0`, `Tmax0 ~185 kPa` (RV scaled), giving a
+  physiological ceiling, EF ~0.66, AoP ~115/74, CO ~4.2 (up from 3.5), no clamps. Re-verify shape +
+  all cases. CO ~4.2 is still below 5 but the heart is now physiologically parameterised.
+- **Defer (M12 proper):** the EDV/preload calibration to lift CO→5 at EF~0.60 (pulmonary venous
+  return / atrial / volume distribution); the AS area-aware flow law; raising PAP mean toward ~15.
+
 ## Planned approach (coordinated co-tune)
 
 1. **Force → pressure**: raise `geomChi` toward a correct thick-sphere Laplace value and lower
