@@ -25,7 +25,18 @@ export function parseCaseDocument(text: string): CaseDocument {
   if (!Array.isArray(d.instances)) throw new Error("Case file has no instances.");
   if (d.instances.length === 0) throw new Error("Case file has no instances (would wipe the scene).");
   if (!Array.isArray(d.panels)) throw new Error("Case file has no panels.");
-  return raw as CaseDocument;
+  if (d.notes !== undefined) {
+    if (!d.notes || typeof d.notes !== "object" || Array.isArray(d.notes)) {
+      delete d.notes;
+    } else {
+      const notes = Object.fromEntries(
+        Object.entries(d.notes as Record<string, unknown>).filter(([, value]) => Array.isArray(value)),
+      );
+      if (Object.keys(notes).length > 0) d.notes = notes;
+      else delete d.notes;
+    }
+  }
+  return d as unknown as CaseDocument;
 }
 
 /** Reject implausibly large files before reading them into memory (DoS guard). */

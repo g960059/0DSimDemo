@@ -15,6 +15,7 @@ import { Controls } from './components/Controls';
 import { ScenarioManager } from './components/ScenarioManager';
 import { PVLoopPanel, WaveformPanel, MetricsPanel, GuytonPanel } from './components/Charts';
 import { NotePanel } from './components/NotePanel';
+import type { NoteContent } from './noteTypes';
 
 import { ErrorBoundary } from './components/ErrorBoundary';
 
@@ -62,6 +63,9 @@ function Workbench() {
   const userEditedRef = useRef(false);
   const lastLoadedCaseIdRef = useRef<string | null>(null);
   const loadNonceRef = useRef(0);
+  const [noteCaseKey, setNoteCaseKey] = useState('draft');
+  const [notes, setNotes] = useState<Record<string, NoteContent>>({});
+  const [noteModes, setNoteModes] = useState<Record<string, 'read' | 'edit'>>({});
 
   // --- Panel Management State ---
   const [panels, setPanels] = useState<PanelDef[]>([
@@ -158,6 +162,7 @@ function Workbench() {
         'Active-stress single-fibre ventricles; parameters are not yet calibrated (M12).',
       ],
     },
+    notes,
   });
 
   const markUserEdited = () => { userEditedRef.current = true; };
@@ -172,6 +177,9 @@ function Workbench() {
 
       setInstances(remapped.instances);
       setPanels(remapped.panels);
+      setNotes(doc.notes ?? {});
+      setNoteModes({});
+      setNoteCaseKey(`${doc.meta.id}:${nonce}`);
       setActiveInstanceId(remapped.activeInstanceId);
       userEditedRef.current = false;
       return true;
@@ -339,6 +347,16 @@ function Workbench() {
   const removePanel = (id: string) => {
       markUserEdited();
       setPanels(prev => prev.filter(p => p.id !== id));
+      setNotes(prev => {
+          const next = { ...prev };
+          delete next[id];
+          return next;
+      });
+      setNoteModes(prev => {
+          const next = { ...prev };
+          delete next[id];
+          return next;
+      });
   };
   
   const updatePanelTitle = (id: string, newTitle: string) => { markUserEdited(); setPanels(prev => prev.map(p => p.id === id ? { ...p, title: newTitle } : p)); };
@@ -463,6 +481,7 @@ function Workbench() {
               {panels.map((panel, index) => {
                   const gridColStyle = isMobile ? { gridColumn: 'span 12' } : { gridColumn: `span ${panel.w}` };
                   const rowSpan = isMobile ? (panel.type === 'METRICS' ? 5 : 7) : panel.h;
+                  const noteMode = noteModes[panel.id] ?? 'read';
 
                   return (
                   <div key={panel.id} onDragEnter={(e) => onDragEnter(e, index)} onDragEnd={onDragEnd} onDragOver={(e) => e.preventDefault()} style={{ ...gridColStyle, gridRow: `span ${rowSpan}` }} className={`relative bg-[#0B1120] rounded-xl border border-slate-800 shadow-sm flex flex-col group transition-all ${panel.isSettingsOpen ? 'z-50' : 'z-10'}`}>
@@ -473,6 +492,22 @@ function Workbench() {
                                     {panel.title}
                                 </span>
                             </div>
+                            {panel.type === 'NOTE' && (
+                                <div className="mr-2 flex items-center rounded border border-slate-700 bg-slate-900 p-0.5">
+                                    <button
+                                        onClick={() => setNoteModes(prev => ({ ...prev, [panel.id]: 'read' }))}
+                                        className={`px-2 py-0.5 text-[10px] font-bold rounded transition-colors ${noteMode === 'read' ? 'bg-slate-700 text-slate-100' : 'text-slate-500 hover:text-slate-300'}`}
+                                    >
+                                        Preview
+                                    </button>
+                                    <button
+                                        onClick={() => setNoteModes(prev => ({ ...prev, [panel.id]: 'edit' }))}
+                                        className={`px-2 py-0.5 text-[10px] font-bold rounded transition-colors ${noteMode === 'edit' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                                    >
+                                        Edit
+                                    </button>
+                                </div>
+                            )}
                             <div className={`flex items-center gap-1.5 transition-opacity ${panel.isSettingsOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                                 <div className="relative">
                                     <button onClick={(e) => { e.stopPropagation(); toggleSettings(panel.id); }} className={`p-1 text-sm rounded flex items-center transition-colors relative z-50 ${panel.isSettingsOpen ? 'bg-slate-700 text-slate-200' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'}`} title="Settings">
@@ -560,7 +595,19 @@ function Workbench() {
                           {panel.type === 'METRICS' && <MetricsPanel physicsRefs={physicsRefs} instances={instances} config={panel.config} />}
                           {panel.type === 'CONTROLS' && <Controls isPaneMode paneConfig={panel.config} instances={instances} instanceHealth={instanceHealth} activeInstanceId={activeInstanceId} setActiveInstanceId={setActiveInstanceId} updateInstanceParams={updateInstanceParams} updateInstanceKnobs={updateInstanceKnobs} updateInstanceVolume={updateInstanceVolume} updateInstanceColor={updateInstanceColor} addInstance={addInstance} removeInstance={removeInstance} timeScale={timeScale} setTimeScale={setTimeScale} isPlaying={isPlaying} togglePlay={togglePlay} addPanel={addPanel} />}
                           {(panel.type === 'GUYTON_RIGHT' || panel.type === 'GUYTON_LEFT') && <GuytonPanel physicsRefs={physicsRefs} instances={instances} config={panel.config} type={panel.type} />}
-                          {panel.type === 'NOTE' && <ErrorBoundary><NotePanel /></ErrorBoundary>}
+                          {panel.type === 'NOTE' && (
+                            <ErrorBoundary>
+                              <NotePanel
+                                key={`${noteCaseKey}:${panel.id}`}
+                                mode={noteMode}
+                                content={notes[panel.id]}
+                                onChange={(blocks) => {
+                                  setNotes((prev) => ({ ...prev, [panel.id]: blocks }));
+                                  markUserEdited();
+                                }}
+                              />
+                            </ErrorBoundary>
+                          )}
                       </div>
                       {!isMobile && (
                         <div onMouseDown={(e) => startResize(e, panel)} className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize flex items-end justify-end p-0.5 z-40 group/handle">

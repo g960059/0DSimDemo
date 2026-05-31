@@ -10,6 +10,7 @@
 //                                          knobMappingVersion, no silent fallback)
 
 import type { SimInstance, PanelDef } from "@/types";
+import type { NoteContent } from "@/noteTypes";
 import type { CoreRuntimeParams, ParameterPatch } from "@/engine/protocol";
 import {
   type BaselineDef,
@@ -56,6 +57,7 @@ export interface CaseDocument {
   spec: CaseSpec;
   instances: CaseInstance[];
   panels: PanelDef[];
+  notes?: Record<string, NoteContent>;
 }
 
 /** A shareable case MUST surface model limitations. Gate before display. */
@@ -133,7 +135,7 @@ export function simInstanceToCaseInstance(
 export function simInstancesToCaseDocument(
   instances: SimInstance[],
   panels: PanelDef[],
-  opts: { id: string; title: string; author?: string; createdAt: number; updatedAt: number; spec: CaseSpec; solver?: SolverConfig },
+  opts: { id: string; title: string; author?: string; createdAt: number; updatedAt: number; spec: CaseSpec; solver?: SolverConfig; notes?: Record<string, NoteContent> },
 ): CaseDocument {
   return {
     schemaVersion: CASE_SCHEMA_VERSION,
@@ -144,6 +146,7 @@ export function simInstancesToCaseDocument(
     spec: opts.spec,
     instances: instances.map((i) => simInstanceToCaseInstance(i)),
     panels,
+    ...(opts.notes ? { notes: opts.notes } : {}),
   };
 }
 

@@ -13,6 +13,7 @@
 import type { CaseDocument, CaseInstance } from "@/caseDoc";
 import { CASE_SCHEMA_VERSION, ENGINE_VERSION, DEFAULT_SOLVER } from "@/caseDoc";
 import { KNOB_MAPPING_VERSION } from "@/engine/knobs";
+import type { NoteContent } from "@/noteTypes";
 import type { PanelDef } from "@/types";
 
 const COLORS = ["#a855f7", "#f472b6", "#22c55e", "#38bdf8", "#fbbf24"];
@@ -48,7 +49,7 @@ function instance(i: number, a: InstanceAuthor): CaseInstance {
   };
 }
 
-function makeCase(p: { id: string; title: string; description: string; modelLimitations: string[]; instances: InstanceAuthor[] }): CaseDocument {
+function makeCase(p: { id: string; title: string; description: string; modelLimitations: string[]; instances: InstanceAuthor[]; notes?: Record<string, NoteContent> }): CaseDocument {
   const instances = p.instances.map((a, i) => instance(i, a));
   return {
     schemaVersion: CASE_SCHEMA_VERSION,
@@ -59,12 +60,32 @@ function makeCase(p: { id: string; title: string; description: string; modelLimi
     spec: { title: p.title, description: p.description, modelLimitations: p.modelLimitations },
     instances,
     panels: buildPanels(instances.map((x) => x.id)),
+    ...(p.notes ? { notes: p.notes } : {}),
   };
 }
 
 const LIMIT_GENERAL = "0D lumped-parameter closed-loop model — no spatial flow, regional wall motion, or pulsatile wave reflection physics.";
 const LIMIT_CALIB = "Active-stress single-fibre ventricles; parameters are not yet calibrated (M12), so absolute metric values are indicative, not validated — read the waveform SHAPE.";
 const LIMIT_NOREFLEX = "No dynamic baroreflex / neurohormonal control — shock and hypovolemia are shown as UNCOMPENSATED states; any reflex tachycardia/vasoconstriction is only what an intervention explicitly encodes.";
+
+const NORMAL_DEMO_NOTE: NoteContent = [
+  {
+    type: "paragraph",
+    content: [{ type: "text", text: "This reference case shows the resting operating point used for comparison in the other lessons.", styles: {} }],
+  },
+  {
+    type: "quiz",
+    props: {
+      question: "Which panel is best for comparing stroke volume and cardiac output?",
+      options: "Waveforms|Metrics|Notes",
+      answerIndex: "1",
+    },
+  },
+  {
+    type: "controller_ref",
+    props: { paramKey: "contractility", label: "Contractility control" },
+  },
+];
 
 export const OFFICIAL_CASES: CaseDocument[] = [
   makeCase({
@@ -73,6 +94,7 @@ export const OFFICIAL_CASES: CaseDocument[] = [
     description: "A roughly-physiological resting adult — the reference operating point all other cases deviate from.",
     modelLimitations: [LIMIT_GENERAL, LIMIT_CALIB],
     instances: [{ name: "Normal", knobs: {}, interventions: [], targetVolume: 5600 }],
+    notes: { p_note: NORMAL_DEMO_NOTE },
   }),
   makeCase({
     id: "lv-failure-dobutamine",
