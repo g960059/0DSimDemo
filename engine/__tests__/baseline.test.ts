@@ -19,7 +19,8 @@ describe("baseline freeze (active-stress default)", () => {
     expect(health.numericalStability).toBe("ok");
     for (const s of samples) {
       for (const [k, v] of Object.entries(s)) {
-        expect(Number.isFinite(v as number), `non-finite ${k}`).toBe(true);
+        if (typeof v === "number") expect(Number.isFinite(v), `non-finite ${k}`).toBe(true);
+        else expect(typeof v, `unexpected sample field type ${k}`).toBe("string");
       }
     }
   });

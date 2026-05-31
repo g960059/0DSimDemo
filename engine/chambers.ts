@@ -75,13 +75,37 @@ export type ActiveChamberParams = {
   lambdaFail: number;
   geomChi: number;
   thetaOn: number;
+  pressureFloorMmHg?: number;
   atrialLeadSec?: number;
+  reservoirBranchGain?: number;
   reservoirStrokeMl?: number;
+  reservoirSleeveVuMl?: number;
+  reservoirSleeveCompliance?: number;
+  reservoirSleeveP0?: number;
+  reservoirSleeveMinVolumeMl?: number;
+  reservoirSleeveMaxVolumeMl?: number;
+  reservoirQPressureFloorGuard?: number;
+  reservoirSleeveMinPressureGuard?: number;
+  reservoirSleeveMinPressureGuardWidthMl?: number;
   reservoirTauFill?: number;
   reservoirTauRecoil?: number;
   reservoirTauRecoilIVR?: number;
   reservoirReleaseTheta?: number;
   reservoirValveThreshold?: number;
+};
+
+export type BranchSolveFlag = "ok" | "lowVolumeConstrained" | "unbracketedEndpoint";
+
+export type ReservoirBranchState = {
+  qMl: number;
+  vBodyMl: number;
+  vReservoirMl: number;
+  pBodyMmHg: number;
+  pReservoirMmHg: number;
+  equilibriumErrorMmHg: number;
+  solveFlag: BranchSolveFlag;
+  sleeveOverMax01: number;
+  pressureMmHg: number;
 };
 
 export function sphereRadii(VeffMl: number, VwMl: number) {
@@ -152,10 +176,20 @@ export const defaultActiveLV: ActiveChamberParams = {
   lambdaFail: 1.45,
   geomChi: 1.359637, // M12-lite: exact thick-sphere Laplace (ri+ro)^2/(4 ri^2); was 0.36
   thetaOn: 0.0,
+  pressureFloorMmHg: -5,
+  reservoirBranchGain: 0,
   reservoirStrokeMl: 0,
+  reservoirSleeveVuMl: 12,
+  reservoirSleeveCompliance: 3.0,
+  reservoirSleeveP0: 0,
+  reservoirSleeveMinVolumeMl: 1,
+  reservoirSleeveMaxVolumeMl: 35,
+  reservoirQPressureFloorGuard: 0,
+  reservoirSleeveMinPressureGuard: 0,
+  reservoirSleeveMinPressureGuardWidthMl: 4,
   reservoirTauFill: 0.10,
   reservoirTauRecoil: 0.15,
-  reservoirTauRecoilIVR: 0.03,
+  reservoirTauRecoilIVR: 0.035,
   reservoirReleaseTheta: 0.55,
   reservoirValveThreshold: 0.15,
 };
@@ -181,15 +215,29 @@ export const defaultActiveLA: ActiveChamberParams = {
   Trel0: 0.09,
   TrelMin: 0.06,
   TrelMax: 0.12,
-  tauCa0: 0.08,
-  Arel0: 0.04,
+  tauCa0: 0.04,
+  Arel0: 0.14,
   sigmaPas0: 2000,
   bPas: 14,
-  lambdaPas0: 0.90,
-  Tmax0: 3000,
+  lambdaPas0: 0.80,
+  Tmax0: 70000,
   geomChi: 1.121,
   thetaOn: 0.80,
+  pressureFloorMmHg: -4,
   atrialLeadSec: 0.16,
+  reservoirBranchGain: 1,
+  reservoirStrokeMl: 112,
+  reservoirSleeveVuMl: 8,
+  reservoirSleeveCompliance: 3.0,
+  reservoirSleeveP0: 0,
+  reservoirSleeveMinVolumeMl: 1,
+  reservoirSleeveMaxVolumeMl: 35,
+  reservoirQPressureFloorGuard: 1,
+  reservoirSleeveMinPressureGuard: 1,
+  reservoirSleeveMinPressureGuardWidthMl: 4,
+  reservoirTauFill: 0.10,
+  reservoirTauRecoilIVR: 0.035,
+  reservoirValveThreshold: 0.15,
 };
 
 export const defaultActiveRA: ActiveChamberParams = {
@@ -202,6 +250,18 @@ export const defaultActiveRA: ActiveChamberParams = {
   lambdaPas0: 0.90,
   Tmax0: 8000,
   geomChi: 1.112,
+  pressureFloorMmHg: -5,
+  atrialLeadSec: 0.16,
+  reservoirBranchGain: 0,
+  reservoirStrokeMl: 0,
+  reservoirSleeveVuMl: 12,
+  reservoirSleeveCompliance: 3.0,
+  reservoirSleeveP0: 0,
+  reservoirSleeveMinVolumeMl: 1,
+  reservoirSleeveMaxVolumeMl: 35,
+  reservoirQPressureFloorGuard: 0,
+  reservoirSleeveMinPressureGuard: 0,
+  reservoirSleeveMinPressureGuardWidthMl: 4,
 };
 
 export class ActiveStressChamberModel implements ChamberModel {
@@ -220,13 +280,15 @@ export class ActiveStressChamberModel implements ChamberModel {
     return { lambda: rm / Math.max(this.rmRef, 1e-9), h, rm };
   }
 
-  pressure(V: number, internal: ChamberInternal, ctx: ChamberCtx): number {
+  private twoBranchEnabled(): boolean {
+    const ap = this.ap;
+    return (ap.reservoirBranchGain ?? 0) > 0 && (ap.reservoirStrokeMl ?? 0) > 0;
+  }
+
+  private bodyPressure(V: number, internal: ChamberInternal, ctx: ChamberCtx): number {
     const ap = this.ap;
     const a = clamp(internal.a, 0, 1);
-    const reservoirStroke = Math.max(ap.reservoirStrokeMl ?? 0, 0);
-    const reservoirDisplacement = reservoirStroke > 0 ? clamp(internal.r, 0, reservoirStroke) : 0;
-    const effectiveV = reservoirStroke > 0 ? Math.max(V - reservoirDisplacement, ap.V0 + ap.Vmin) : V;
-    const { lambda, h, rm } = this.geometry(effectiveV);
+    const { lambda, h, rm } = this.geometry(V);
     const stretch = lambda - ap.lambdaPas0;
     const sigmaPas = ap.sigmaPas0 * (expClamped(ap.bPas * stretch) - 1);
     const gOver = 1 / (1 + expClamped(ap.kOver * (lambda - ap.lambdaFail)));
@@ -237,7 +299,96 @@ export class ActiveStressChamberModel implements ChamberModel {
     const sigmaAct = ap.Tmax0 * ctx.tmaxScale * ctx.contractility * a * gOver * f_iso;
     const sigma = sigmaPas + sigmaAct;
     const PtmPa = ctx.geomScale * ap.geomChi * (2 * h / Math.max(rm, 1e-6)) * sigma;
-    return clamp(PtmPa / MMHG_TO_PA, -5, 260);
+    return clamp(PtmPa / MMHG_TO_PA, ap.pressureFloorMmHg ?? -5, 260);
+  }
+
+  pressure(V: number, internal: ChamberInternal, ctx: ChamberCtx): number {
+    if (!this.twoBranchEnabled()) return this.bodyPressure(V, internal, ctx);
+    return this.reservoirBranchState(V, internal, ctx).pressureMmHg;
+  }
+
+  private sleevePressure(VResMl: number, qMl: number): number {
+    const ap = this.ap;
+    const vu = ap.reservoirSleeveVuMl ?? 12;
+    const compliance = Math.max(ap.reservoirSleeveCompliance ?? 3.0, 0.25);
+    const p0 = ap.reservoirSleeveP0 ?? 0;
+    const pressureFloor = ap.pressureFloorMmHg ?? -5;
+    const vEff = Math.max(VResMl - vu - qMl, -compliance * 5);
+    const pressure = clamp(p0 + vEff / compliance, pressureFloor, 80);
+    const guard = clamp(ap.reservoirSleeveMinPressureGuard ?? 0, 0, 1);
+    if (guard <= 0) return pressure;
+
+    const sleeveMin = Math.max(ap.reservoirSleeveMinVolumeMl ?? 1, 0);
+    const width = Math.max(ap.reservoirSleeveMinPressureGuardWidthMl ?? 4, 1e-6);
+    const proximity = clamp((sleeveMin + width - VResMl) / width, 0, 1);
+    if (proximity <= 0) return pressure;
+    return clamp(pressure - guard * proximity * Math.max(0, pressure - pressureFloor), pressureFloor, 80);
+  }
+
+  private effectiveReservoirQ(totalMl: number, rawQMl: number, bodyMinMl: number, internal: ChamberInternal, ctx: ChamberCtx): number {
+    const ap = this.ap;
+    const guard = clamp(ap.reservoirQPressureFloorGuard ?? 0, 0, 1);
+    if (guard <= 0 || rawQMl <= 0) return rawQMl;
+
+    const vu = ap.reservoirSleeveVuMl ?? 12;
+    const compliance = Math.max(ap.reservoirSleeveCompliance ?? 3.0, 0.25);
+    const p0 = ap.reservoirSleeveP0 ?? 0;
+    const pTarget = Math.max(ap.pressureFloorMmHg ?? -5, this.bodyPressure(bodyMinMl, internal, ctx));
+    const maxReservoirVolume = Math.max(totalMl - bodyMinMl, 0);
+    const qCap = Math.max(0, maxReservoirVolume - vu + compliance * (p0 - pTarget));
+    if (!Number.isFinite(qCap)) return rawQMl;
+    return rawQMl - guard * Math.max(0, rawQMl - qCap);
+  }
+
+  reservoirBranchState(VLA: number, internal: ChamberInternal, ctx: ChamberCtx): ReservoirBranchState {
+    const ap = this.ap;
+    const total = Math.max(VLA, 0);
+    const stroke = Math.max(ap.reservoirStrokeMl ?? 0, 0);
+    const gain = Math.max(ap.reservoirBranchGain ?? 0, 0);
+    const pressureFloor = ap.pressureFloorMmHg ?? -5;
+    const sleeveMin = Math.max(ap.reservoirSleeveMinVolumeMl ?? 1, 0);
+    const bodyMin = Math.max(ap.V0 + ap.Vmin, 0);
+    const rawQ = clamp(internal.r, 0, stroke) * gain;
+    const q = this.effectiveReservoirQ(total, rawQ, bodyMin, internal, ctx);
+    const sleeveMax = Math.max(ap.reservoirSleeveMaxVolumeMl ?? Infinity, 0);
+    const finalize = (vBodyRaw: number, solveFlag: BranchSolveFlag): ReservoirBranchState => {
+      const vBody = clamp(vBodyRaw, 0, total);
+      const vReservoir = total - vBody;
+      const pBody = this.bodyPressure(vBody, internal, ctx);
+      const pReservoir = this.sleevePressure(vReservoir, q);
+      return {
+        qMl: q,
+        vBodyMl: vBody,
+        vReservoirMl: vReservoir,
+        pBodyMmHg: pBody,
+        pReservoirMmHg: pReservoir,
+        equilibriumErrorMmHg: pBody - pReservoir,
+        solveFlag,
+        sleeveOverMax01: Number.isFinite(sleeveMax) && sleeveMax > 0 && vReservoir > sleeveMax ? 1 : 0,
+        pressureMmHg: clamp(0.5 * (pBody + pReservoir), pressureFloor, 260),
+      };
+    };
+
+    if (total < bodyMin + sleeveMin) {
+      const weight = bodyMin / Math.max(bodyMin + sleeveMin, 1e-9);
+      return finalize(total * weight, "lowVolumeConstrained");
+    }
+
+    let lo = bodyMin;
+    let hi = total - sleeveMin;
+    const f = (vBody: number) => this.bodyPressure(vBody, internal, ctx) - this.sleevePressure(total - vBody, q);
+    const fLo = f(lo);
+    const fHi = f(hi);
+    if (!Number.isFinite(fLo) || !Number.isFinite(fHi) || fLo > 0 || fHi < 0) {
+      return finalize(Math.abs(fLo) <= Math.abs(fHi) ? lo : hi, "unbracketedEndpoint");
+    }
+
+    for (let i = 0; i < 32; i++) {
+      const mid = 0.5 * (lo + hi);
+      if (f(mid) >= 0) hi = mid;
+      else lo = mid;
+    }
+    return finalize(0.5 * (lo + hi), "ok");
   }
 
   internalDerivatives(V: number, internal: ChamberInternal, ctx: ChamberCtx): { cDot: number; aDot: number; rDot: number } {
@@ -267,7 +418,7 @@ export class ActiveStressChamberModel implements ChamberModel {
     const aInf = cn / Math.max(cn + kn, 1e-9);
     const tauA = 1 / Math.max(ap.kOn * cn + ap.kOff, 0.5);
     const aDot = clamp((aInf - a) / tauA, -20, 20);
-    const rDot = reservoirRDot(ap, internal, ctx, theta);
+    const rDot = reservoirQDot(ap, internal, ctx, theta);
     return { cDot, aDot, rDot };
   }
 
@@ -276,43 +427,44 @@ export class ActiveStressChamberModel implements ChamberModel {
   }
 }
 
-function reservoirRDot(ap: ActiveChamberParams, internal: ChamberInternal, ctx: ChamberCtx, theta: number): number {
+function reservoirQDot(ap: ActiveChamberParams, internal: ChamberInternal, ctx: ChamberCtx, theta: number): number {
   const stroke = Math.max(ap.reservoirStrokeMl ?? 0, 0);
-  if (stroke <= 0) return 0;
+  const gain = Math.max(ap.reservoirBranchGain ?? 0, 0);
+  if (stroke <= 0 || gain <= 0) return 0;
 
-  const r = clamp(internal.r, 0, stroke);
+  const q = clamp(internal.r, 0, stroke);
   const th = ap.reservoirValveThreshold ?? 0.15;
   const mvOpenRaw = ctx.mvOpen01;
   const aovOpenRaw = ctx.aovOpen01;
   const descentTarget = stroke * clamp(ctx.lvShortening01 ?? 0, 0, 1);
-  let target = r;
-  let tau = ap.reservoirTauRecoil ?? 0.15;
+  let target = q;
+  let tau = ap.reservoirTauFill ?? 0.10;
 
   if (mvOpenRaw != null && aovOpenRaw != null) {
     const mvOpen = clamp(mvOpenRaw, 0, 1);
     const aovOpen = clamp(aovOpenRaw, 0, 1);
     const mvClosed = mvOpen <= th;
     const aovClosed = aovOpen <= th;
-    if (mvOpen > th) {
-      target = 0;
-      tau = ap.reservoirTauRecoilIVR ?? 0.03;
-    } else if (aovClosed && mvClosed) {
-      target = 0;
-      tau = ap.reservoirTauRecoilIVR ?? 0.03;
-    } else if (aovOpen > th && mvClosed) {
+    if (aovOpen > th && mvClosed) {
       target = descentTarget;
       tau = ap.reservoirTauFill ?? 0.10;
+    } else if (aovClosed && mvClosed) {
+      target = 0;
+      tau = ap.reservoirTauRecoilIVR ?? 0.035;
+    } else if (mvOpen > th) {
+      target = 0;
+      tau = Math.max(ap.reservoirTauRecoilIVR ?? 0.035, 0.035);
     }
   } else {
     const gate = ctx.systolicGate ?? systolicReservoirGate(theta, ap.reservoirReleaseTheta ?? 0.55);
     target = descentTarget * gate;
-    tau = target > r ? (ap.reservoirTauFill ?? 0.10) : (ap.reservoirTauRecoil ?? 0.15);
+    tau = target > q ? (ap.reservoirTauFill ?? 0.10) : Math.max(ap.reservoirTauRecoilIVR ?? 0.035, 0.035);
   }
 
   return clamp(
-    (target - r) / Math.max(tau, 1e-3),
-    -stroke / 0.01,
-    stroke / 0.02,
+    (target - q) / Math.max(tau, 1e-3),
+    -stroke / 0.025,
+    stroke / 0.04,
   );
 }
 

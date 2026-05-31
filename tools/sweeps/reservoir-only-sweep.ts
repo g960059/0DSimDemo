@@ -32,15 +32,25 @@ function paramsForStroke(stroke: number): Params {
     LA: {
       active: {
         ...(p.nodeOverrides?.LA?.active ?? {}),
+        reservoirBranchGain: Number(process.env.RES_BRANCH_GAIN ?? 1),
         reservoirStrokeMl: stroke,
+        reservoirSleeveVuMl: Number(process.env.RES_SLEEVE_VU ?? 12),
+        reservoirSleeveCompliance: Number(process.env.RES_SLEEVE_C ?? 3.0),
+        reservoirSleeveP0: Number(process.env.RES_SLEEVE_P0 ?? 0),
+        reservoirSleeveMinVolumeMl: Number(process.env.RES_SLEEVE_MIN ?? 1),
+        reservoirSleeveMaxVolumeMl: Number(process.env.RES_SLEEVE_MAX ?? 35),
+        ...(process.env.RES_Q_PRESSURE_FLOOR_GUARD ? { reservoirQPressureFloorGuard: Number(process.env.RES_Q_PRESSURE_FLOOR_GUARD) } : {}),
+        ...(process.env.RES_SLEEVE_MIN_PRESSURE_GUARD ? { reservoirSleeveMinPressureGuard: Number(process.env.RES_SLEEVE_MIN_PRESSURE_GUARD) } : {}),
+        ...(process.env.RES_SLEEVE_MIN_PRESSURE_GUARD_WIDTH ? { reservoirSleeveMinPressureGuardWidthMl: Number(process.env.RES_SLEEVE_MIN_PRESSURE_GUARD_WIDTH) } : {}),
         reservoirTauFill: Number(process.env.RES_TAU_FILL ?? 0.10),
         reservoirTauRecoil: Number(process.env.RES_TAU_RECOIL ?? 0.15),
-        ...(process.env.RES_TAU_RECOIL_IVR ? { reservoirTauRecoilIVR: Number(process.env.RES_TAU_RECOIL_IVR) } : {}),
+        reservoirTauRecoilIVR: Number(process.env.RES_TAU_RECOIL_IVR ?? 0.035),
         reservoirReleaseTheta: Number(process.env.RES_RELEASE_THETA ?? 0.55),
         ...(process.env.RES_VALVE_THRESHOLD ? { reservoirValveThreshold: Number(process.env.RES_VALVE_THRESHOLD) } : {}),
         ...(process.env.LA_SIGMA ? { sigmaPas0: Number(process.env.LA_SIGMA) } : {}),
         ...(process.env.LA_B ? { bPas: Number(process.env.LA_B) } : {}),
         ...(process.env.LA_LAMBDA0 ? { lambdaPas0: Number(process.env.LA_LAMBDA0) } : {}),
+        ...(process.env.LA_PRESSURE_FLOOR ? { pressureFloorMmHg: Number(process.env.LA_PRESSURE_FLOOR) } : {}),
         ...(process.env.LA_LEAD ? { atrialLeadSec: Number(process.env.LA_LEAD) } : {}),
         ...(process.env.LA_AREL ? { Arel0: Number(process.env.LA_AREL) } : {}),
         ...(process.env.LA_TMAX ? { Tmax0: Number(process.env.LA_TMAX) } : {}),
@@ -53,6 +63,17 @@ function paramsForStroke(stroke: number): Params {
     p.edgeOverrides = {
       ...(p.edgeOverrides ?? {}),
       PVein_LA: { R: Number(process.env.PVEIN_LA_R) },
+    };
+  }
+  if (process.env.PV_OSTIAL_L || process.env.PV_OSTIAL_R || process.env.PV_OSTIAL_B) {
+    p.edgeOverrides = {
+      ...(p.edgeOverrides ?? {}),
+      PVein_LA: {
+        ...(p.edgeOverrides?.PVein_LA ?? {}),
+        ...(process.env.PV_OSTIAL_R ? { R: Number(process.env.PV_OSTIAL_R), pvOstialResistanceR: Number(process.env.PV_OSTIAL_R) } : {}),
+        pvOstialInertanceL: Number(process.env.PV_OSTIAL_L ?? 0),
+        pvOstialQuadraticB: Number(process.env.PV_OSTIAL_B ?? 0),
+      },
     };
   }
   return p;
@@ -124,6 +145,11 @@ function mean(rows: SimSample[], key: keyof SimSample) {
   return duration > 0 ? area / duration : Number(rows.at(-1)?.[key] ?? 0);
 }
 
+function meanOptional(rows: SimSample[], key: keyof SimSample) {
+  const available = rows.filter((s) => typeof s[key] === "number" && Number.isFinite(Number(s[key])));
+  return available.length > 0 ? mean(available, key) : 0;
+}
+
 function pressureHysteresisWidth(rows: SimSample[]) {
   const fill = rows.filter((s) => inPhase(s, 0.05, 0.55));
   const empty = rows.filter((s) => inPhase(s, 0.55, 0.82));
@@ -144,6 +170,10 @@ function pressureHysteresisWidth(rows: SimSample[]) {
     best = Math.max(best, Math.abs(fp - ep));
   }
   return best;
+}
+
+function meanDrop(rows: SimSample[]) {
+  return mean(rows, "P_PVein") - mean(rows, "LAP");
 }
 
 function segmentsIntersect(
@@ -170,6 +200,65 @@ function selfIntersections(rows: SimSample[]) {
   return count;
 }
 
+function branchDiagnostics(rows: SimSample[]) {
+  const enabled = rows.some((s) => s.qLAReservoirMl != null);
+  if (!enabled) {
+    return {
+      enabled: false,
+      q: [0, 0],
+      maxPartitionError: 0,
+      maxPressureError: 0,
+      solveFlags: [],
+      overMax: 0,
+    };
+  }
+  let maxPartitionError = 0;
+  let maxPressureError = 0;
+  let overMax = 0;
+  let vBodyMin = Infinity;
+  let vBodyMax = -Infinity;
+  let vResMin = Infinity;
+  let vResMax = -Infinity;
+  let pBodyMin = Infinity;
+  let pBodyMax = -Infinity;
+  let pResMin = Infinity;
+  let pResMax = -Infinity;
+  const flags = new Set<string>();
+  for (const s of rows) {
+    if (s.VLABodyMl != null && s.VLAReservoirMl != null) {
+      maxPartitionError = Math.max(maxPartitionError, Math.abs(s.VLABodyMl + s.VLAReservoirMl - s.VLA));
+      vBodyMin = Math.min(vBodyMin, s.VLABodyMl);
+      vBodyMax = Math.max(vBodyMax, s.VLABodyMl);
+      vResMin = Math.min(vResMin, s.VLAReservoirMl);
+      vResMax = Math.max(vResMax, s.VLAReservoirMl);
+    }
+    if (s.PLABodyMmHg != null && s.PLAReservoirMmHg != null) {
+      pBodyMin = Math.min(pBodyMin, s.PLABodyMmHg);
+      pBodyMax = Math.max(pBodyMax, s.PLABodyMmHg);
+      pResMin = Math.min(pResMin, s.PLAReservoirMmHg);
+      pResMax = Math.max(pResMax, s.PLAReservoirMmHg);
+    }
+    maxPressureError = Math.max(maxPressureError, Math.abs(s.PLAEquilibriumErrorMmHg ?? 0));
+    overMax = Math.max(overMax, s.reservoirSleeveOverMax01 ?? 0);
+    if (s.twoBranchSolveFlag) flags.add(s.twoBranchSolveFlag);
+  }
+  return {
+    enabled: true,
+    q: [
+      Math.max(...rows.map((s) => s.qLAReservoirMl ?? 0)),
+      Math.min(...rows.map((s) => s.qLAReservoirMl ?? 0)),
+    ],
+    vBody: [vBodyMax, vBodyMin],
+    vRes: [vResMax, vResMin],
+    pBody: [pBodyMax, pBodyMin],
+    pRes: [pResMax, pResMin],
+    maxPartitionError,
+    maxPressureError,
+    solveFlags: [...flags].sort(),
+    overMax,
+  };
+}
+
 function summarize(tbv: number, stroke: number) {
   const m = measureConverged(paramsForStroke(stroke), {
     targetTBV: tbv,
@@ -186,9 +275,10 @@ function summarize(tbv: number, stroke: number) {
   const sPeak = maxIn(rows, "PVF", 0.05, 0.55);
   const dPeak = maxIn(rows, "PVF", 0.55, 0.80);
   const arMin = minIn(rows, "PVF", 0.75, 0.10);
-  const obs = m.core.debugObservables();
   const meanLAP = mean(rows, "LAP");
   const meanRAP = mean(rows, "RAP");
+  const branch = branchDiagnostics(rows);
+  const obs = m.core.debugObservables();
   return {
     tbv,
     stroke,
@@ -203,8 +293,14 @@ function summarize(tbv: number, stroke: number) {
     LA: [m.LA.volumeMax, m.LA.volumeMin],
     RA: [m.RA.volumeMax, m.RA.volumeMin],
     pvVol: obs.pulmonaryVenousVolume,
-    pVeinDrop: obs.P_PVein - meanLAP,
+    pVeinDrop: meanDrop(rows),
+    pvOstial: {
+      qMax: Math.max(...rows.map((s) => Math.abs(s.pvOstialQ ?? 0))),
+      inertialDropMax: Math.max(...rows.map((s) => Math.abs(s.pvOstialInertialDrop ?? 0))),
+      resistiveDropMean: meanOptional(rows, "pvOstialResistiveDrop"),
+    },
     rLA: [Math.max(...rows.map((s) => s.rLA)), Math.min(...rows.map((s) => s.rLA))],
+    branch,
     vPeak: { p: vPeak.LAP, theta: phase(vPeak) },
     aPeak: { p: aPeak.LAP, theta: phase(aPeak) },
     xTrough: { p: xTrough.LAP, theta: phase(xTrough) },
@@ -267,7 +363,9 @@ for (const tbv of tbvs) {
       pvfSIntegral: monotone(perTbv.map((r) => r.pvf.sIntegral)),
       hysteresisWidth: monotone(perTbv.map((r) => r.loop.hysteresisWidth)),
     },
-    passSafety: perTbv.every((r) => r.quiet && r.clamp === 0 && r.netCO[2] < 0.01 && r.rLA[0] <= r.stroke + 1e-6 && r.rLA[1] >= -1e-6),
+    passSafety: perTbv.every((r) => r.quiet && r.clamp === 0 && r.netCO[2] < 0.01 && r.rLA[0] <= r.stroke + 1e-6 && r.rLA[1] >= -1e-6
+      && r.branch.maxPartitionError < 1e-6 && r.branch.maxPressureError < 1e-4
+      && (!r.branch.enabled || (r.branch.solveFlags.length === 1 && r.branch.solveFlags[0] === "ok"))),
     stroke20: round(perTbv.at(-1)),
   }));
 }

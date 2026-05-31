@@ -283,6 +283,7 @@ export type SimSample = {
   VRA: number;
   VSystemicVenous: number;
   VPulmonaryVenous: number;
+  P_PVein: number;
   // Included phi/aLV for charting internal states if needed
   phi: number;
   aLV: number;
@@ -291,6 +292,18 @@ export type SimSample = {
   aRA: number;
   rLA: number;
   rRA: number;
+  qLAReservoirMl?: number;
+  VLABodyMl?: number;
+  VLAReservoirMl?: number;
+  PLABodyMmHg?: number;
+  PLAReservoirMmHg?: number;
+  PLAEquilibriumErrorMmHg?: number;
+  twoBranchSolveFlag?: "ok" | "lowVolumeConstrained" | "unbracketedEndpoint";
+  reservoirSleeveOverMax01?: number;
+  PVFOstial?: number;
+  pvOstialQ?: number;
+  pvOstialInertialDrop?: number;
+  pvOstialResistiveDrop?: number;
   TBV: number;
 };
 
@@ -348,6 +361,18 @@ export type SimObservables = {
   P_VC: number;
   P_PVen: number;
   P_PVein: number;
+  qLAReservoirMl?: number;
+  VLABodyMl?: number;
+  VLAReservoirMl?: number;
+  PLABodyMmHg?: number;
+  PLAReservoirMmHg?: number;
+  PLAEquilibriumErrorMmHg?: number;
+  twoBranchSolveFlag?: "ok" | "lowVolumeConstrained" | "unbracketedEndpoint";
+  reservoirSleeveOverMax01?: number;
+  PVFOstial?: number;
+  pvOstialQ?: number;
+  pvOstialInertialDrop?: number;
+  pvOstialResistiveDrop?: number;
 };
 
 export type VenousGroupBalance = {

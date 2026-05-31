@@ -99,11 +99,17 @@ const DEFAULT_OPTIONS: Required<MeasureOptions> = {
   requireProjectorQuiet: true,
 };
 
+function resolveMeasureOptions(options: MeasureOptions = {}): Required<MeasureOptions> {
+  const opt = { ...DEFAULT_OPTIONS, ...options };
+  opt.sampleHz = Math.max(opt.sampleHz, Math.ceil(1 / Math.max(opt.dt, 1e-6)));
+  return opt;
+}
+
 export function settleToSteadyState(
   params: Partial<CoreRuntimeParams> = defaultParams(),
   options: MeasureOptions = {},
 ): SteadySettleResult {
-  const opt = { ...DEFAULT_OPTIONS, ...options };
+  const opt = resolveMeasureOptions(options);
   const core = new ModelCore(params);
   core.initializeVenousPressuresForTargetTBV(opt.targetTBV);
   const settleStatus = core.settleToSteady(opt.settlePolicy, opt.dt, opt.sampleHz);
@@ -118,7 +124,7 @@ export function measureSteady(
   settleStatus: SettleStatus & { actualSeconds: number },
   options: MeasureOptions = {},
 ): SteadyMeasurement {
-  const opt = { ...DEFAULT_OPTIONS, ...options };
+  const opt = resolveMeasureOptions(options);
   alignToNextBeat(core, opt.dt, opt.sampleHz);
   core.resetTBVCorrectionCounters();
   core.setTBVCorrectionEnabled(false);

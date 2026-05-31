@@ -96,15 +96,9 @@ function applyFractionalTBVCorrection(core: any, targetTBV: number) {
     const node = core.nodes[ni[name]];
     const ix = core.idx.node[name];
     const curVol = v[ni[name]];
-    const targetVol = Math.max(1, curVol + err * (curVol / Math.max(venTotal, 1e-9)));
-    let lo = -20, hi = 45;
-    for (let iter = 0; iter < 32; iter++) {
-      const mid = 0.5 * (lo + hi);
-      const vol = core.effectiveVu(node) + core.venousStressedVolume(node, mid);
-      if (vol < targetVol) lo = mid;
-      else hi = mid;
-    }
-    core.x[ix] = 0.5 * (lo + hi);
+    const bounds = core.venousVolumeBounds(node);
+    const targetVol = curVol + err * (curVol / Math.max(venTotal, 1e-9));
+    core.x[ix] = Math.min(bounds.max, Math.max(bounds.min, targetVol));
   }
 }
 

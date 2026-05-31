@@ -207,11 +207,8 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
           const physState = physicsRefs.current.get(inst.id);
           if (!physState || physState.buffer.length < 2) return;
           
-          const T_s = 60 / Math.max(inst.params.HR, 1);
-          const pointsNeeded = Math.ceil((T_s * 1.5) / 0.002);
-          const startIndex = Math.max(0, physState.buffer.length - pointsNeeded);
-          
-          const data = physState.buffer.slice(startIndex);
+          const lastPhi = physState.buffer[physState.buffer.length - 1]?.phi ?? 0;
+          const data = physState.buffer.filter(d => d.phi >= lastPhi - 1);
           
           cfg.selectedSignals.forEach((chamber: string) => {
               const color = getColor(inst.color, chamber, cfg.customBaseColor, cfg.customSignalColors);

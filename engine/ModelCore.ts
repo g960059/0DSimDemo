@@ -100,6 +100,9 @@ type EdgeSpec = {
   tauClose?: number;
   q0?: number;
   xi0?: number;
+  pvOstialInertanceL?: number;
+  pvOstialResistanceR?: number;
+  pvOstialQuadraticB?: number;
 };
 
 type PressurePack = {
@@ -118,7 +121,7 @@ const tbvCorrectionNodeNames = ["SV", "VC", "PCap", "PVen", "PVein"] as const;
 const systemicVenousNodeNames = ["SV", "VC"] as const;
 const pulmonaryVenousNodeNames = ["PCap", "PVen", "PVein"] as const;
 
-const dynamicEdgeNames = ["MV", "AoV", "TV", "PV", "Ao_SA", "PA_PArt"] as const;
+const dynamicEdgeNames = ["MV", "AoV", "TV", "PV", "Ao_SA", "PA_PArt", "PVein_LA"] as const;
 const valveNames = ["MV", "AoV", "TV", "PV"] as const;
 
 type NodeName = typeof nodeNames[number];
@@ -236,9 +239,9 @@ function buildNodes(): NodeSpec[] {
 
     { name: "PA", kind: "arterial", ext: "pth", Vu: 0, P0: 20, Vs: 60, x0: 60 * Math.log1p(16 / 20) },
     { name: "PArt", kind: "arterial", ext: "pth", Vu: 0, P0: 20, Vs: 90, x0: 90 * Math.log1p(13 / 20) },
-    { name: "PCap", kind: "venousPressure", ext: "palv", Vu: 105, Ccoll: 2, Copen: 4, Cdist: 2, Popen: 0, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 8 },
-    { name: "PVen", kind: "venousPressure", ext: "pth", Vu: 160, Ccoll: 2, Copen: 4, Cdist: 2, Popen: -1, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 6 },
-    { name: "PVein", kind: "venousPressure", ext: "pth", Vu: 215, Ccoll: 2, Copen: 4, Cdist: 2, Popen: -1, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 5 }
+    { name: "PCap", kind: "venousPressure", ext: "palv", Vu: 105, Ccoll: 2.4, Copen: 4.8, Cdist: 2.4, Popen: 0, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 8 },
+    { name: "PVen", kind: "venousPressure", ext: "pth", Vu: 160, Ccoll: 2.4, Copen: 4.8, Cdist: 2.4, Popen: -1, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 6 },
+    { name: "PVein", kind: "venousPressure", ext: "pth", Vu: 215, Ccoll: 2.4, Copen: 4.8, Cdist: 2.4, Popen: -1, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 5 }
   ];
 }
 
@@ -261,7 +264,18 @@ function buildEdges(): EdgeSpec[] {
     { name: "PArt_PCap", up: "PArt", down: "PCap", kind: "resistive", R: 0.04, B: 0, group: "pulmonary" },
     { name: "PCap_PVen", up: "PCap", down: "PVen", kind: "resistive", R: 0.03, B: 0, ext: "palv", waterfall: true, Pcrit: 0, useChiResistance: true, useChiQuadratic: false },
     { name: "PVen_PVein", up: "PVen", down: "PVein", kind: "resistive", R: 0.01, B: 0 },
-    { name: "PVein_LA", up: "PVein", down: "LA", kind: "resistive", R: 0.07, B: 0 }
+    {
+      name: "PVein_LA",
+      up: "PVein",
+      down: "LA",
+      kind: "resistive",
+      R: 0.010,
+      B: 0,
+      q0,
+      pvOstialResistanceR: 0.010,
+      pvOstialInertanceL: 0,
+      pvOstialQuadraticB: 0,
+    }
   ];
 }
 
@@ -281,7 +295,6 @@ export class ModelCore {
   x: Float64Array;
   p: CoreRuntimeParams;
   pTarget: CoreRuntimeParams;
-  private dVu = new Float64Array(nodeNames.length);
   private lastSample: SimSample | null = null;
   private history: SimSample[] = [];
   private rhsDt = 0.001;
@@ -325,7 +338,9 @@ export class ModelCore {
   reset() {
     this.x.fill(0);
     for (const n of this.nodes) {
-      this.x[this.idx.node[n.name as NodeName]] = n.x0;
+      this.x[this.idx.node[n.name as NodeName]] = n.kind === "venousPressure"
+        ? this.venousVolumeFromPtm(n, n.x0)
+        : n.x0;
     }
     for (const e of this.edges) {
       if (e.kind === "dynamic" || e.kind === "valve") {
@@ -385,15 +400,14 @@ export class ModelCore {
     });
 
     this.edges = buildEdges().map(e => {
-        if (this.p.edgeOverrides?.[e.name]) {
-            return { ...e, ...this.p.edgeOverrides[e.name] };
-        }
-        return e;
+        const edge = this.p.edgeOverrides?.[e.name] ? { ...e, ...this.p.edgeOverrides[e.name] } : e;
+        return this.configurePVOstialEdge(edge);
     });
 
     this.rebuildActiveModels();
     this.rebuildElastanceModels();
     this.smoothParams(0); // Applies clamps
+    if (this.lastSample) this.sanitizeState(this.x);
     // Re-arm steady-state detection if the operating point actually changed, so
     // isSettled() never reports settled from a previous operating point (§2.4).
     // Unchanged params (the live loop re-applies the same patch every frame) do
@@ -434,13 +448,7 @@ export class ModelCore {
 
   step(dt: number) {
     this.rhsDt = Math.max(dt, 1e-6);
-    const pBefore = { ...this.p };
-    const vuBefore = this.effectiveVuAll(pBefore);
     this.smoothParams(dt);
-    const vuAfter = this.effectiveVuAll(this.p);
-    for (let i = 0; i < this.dVu.length; i++) {
-      this.dVu[i] = (vuAfter[i] - vuBefore[i]) / Math.max(dt, 1e-9);
-    }
 
     // Hemorrhage / fluid ledger (M5a): mL/min -> mL/s. Clamped to a safe range.
     // Only advances when projectTBV is on, since the projector is the only thing
@@ -483,7 +491,7 @@ export class ModelCore {
         const s = this.sample();
         samples.push(s);
         this.history.push(s);
-        if (this.history.length > 1200) this.history.shift();
+        if (this.history.length > 12000) this.history.shift();
         sampleAt += sampleInterval;
       }
     }
@@ -493,6 +501,8 @@ export class ModelCore {
   sample(): SimSample {
     const pack = this.computePressures(this.x);
     const flows = this.computeFlows(this.x, pack);
+    const laReservoir = this.laReservoirDebugFields(this.x, pack.Vphys[this.nodeIndex.get("LA")!]);
+    const pvOstial = this.pvOstialDebugFields(this.x, pack, flows);
     const s: SimSample = {
       t: this.t,
       AoP: pack.P[this.nodeIndex.get("Ao")!],
@@ -515,6 +525,7 @@ export class ModelCore {
       VRA: pack.Vphys[this.nodeIndex.get("RA")!],
       VSystemicVenous: pack.Vphys[this.nodeIndex.get("SV")!] + pack.Vphys[this.nodeIndex.get("VC")!],
       VPulmonaryVenous: pack.Vphys[this.nodeIndex.get("PCap")!] + pack.Vphys[this.nodeIndex.get("PVen")!] + pack.Vphys[this.nodeIndex.get("PVein")!],
+      P_PVein: pack.P[this.nodeIndex.get("PVein")!],
       phi: this.x[this.idx.phi],
       aLV: clamp(this.x[this.activeInternalIndex("LV").a], 0, 1),
       aRV: clamp(this.x[this.activeInternalIndex("RV").a], 0, 1),
@@ -522,6 +533,8 @@ export class ModelCore {
       aRA: clamp(this.x[this.activeInternalIndex("RA").a], 0, 1),
       rLA: clamp(this.x[this.activeInternalIndex("LA").r], 0, Math.max(this.activeModel("LA").ap.reservoirStrokeMl ?? 0, 0)),
       rRA: clamp(this.x[this.activeInternalIndex("RA").r], 0, Math.max(this.activeModel("RA").ap.reservoirStrokeMl ?? 0, 0)),
+      ...pvOstial,
+      ...laReservoir,
       TBV: this.totalBloodVolume(pack)
     };
     this.trackBeat(s);
@@ -828,8 +841,7 @@ export class ModelCore {
       const n = this.nodes[ni];
       const stateIndex = this.idx.node[n.name as NodeName];
       if (n.kind === "venousPressure") {
-        const Ceff = this.venousCompliance(n, pack.Ptm[ni]);
-        dy[stateIndex] = clamp((balance[ni] - this.dVu[ni]) / Ceff, -50, 50);
+        dy[stateIndex] = balance[ni];
       } else {
         dy[stateIndex] = clamp(balance[ni], -2500, 2500);
       }
@@ -896,9 +908,10 @@ export class ModelCore {
       const Pext = this.externalPressure(n.ext ?? "none");
 
       if (n.kind === "venousPressure") {
-        const ptm = clamp(x[xi], -30, 60);
+        const volume = x[xi];
+        const ptm = this.venousPtmFromVolume(n, volume);
         Ptm[i] = ptm;
-        Vphys[i] = this.effectiveVu(n) + this.venousStressedVolume(n, ptm);
+        Vphys[i] = volume;
         P[i] = Pext + ptm;
         continue;
       }
@@ -974,6 +987,59 @@ export class ModelCore {
     };
   }
 
+  private laReservoirDebugFields(x: Float64Array, VLA: number): Partial<SimSample> | undefined {
+    const model = this.activeModel("LA");
+    const ap = model.ap;
+    if ((ap.reservoirBranchGain ?? 0) <= 0 || (ap.reservoirStrokeMl ?? 0) <= 0) return undefined;
+    const internalIndex = this.activeInternalIndex("LA");
+    const internal = { c: x[internalIndex.c], a: x[internalIndex.a], r: x[internalIndex.r] };
+    const state = model.reservoirBranchState(VLA, internal, this.chamberCtx("LA", x));
+    return {
+      qLAReservoirMl: state.qMl,
+      VLABodyMl: state.vBodyMl,
+      VLAReservoirMl: state.vReservoirMl,
+      PLABodyMmHg: state.pBodyMmHg,
+      PLAReservoirMmHg: state.pReservoirMmHg,
+      PLAEquilibriumErrorMmHg: state.equilibriumErrorMmHg,
+      twoBranchSolveFlag: state.solveFlag,
+      reservoirSleeveOverMax01: state.sleeveOverMax01,
+    };
+  }
+
+  private configurePVOstialEdge(edge: EdgeSpec): EdgeSpec {
+    if (edge.name !== "PVein_LA") return edge;
+    const L = Math.max(edge.pvOstialInertanceL ?? 0, 0);
+    if (L <= 0) return { ...edge, kind: "resistive", L: undefined, B: edge.B ?? 0 };
+    return {
+      ...edge,
+      kind: "dynamic",
+      R: Math.max(edge.pvOstialResistanceR ?? edge.R, 1e-8),
+      L,
+      B: Math.max(edge.pvOstialQuadraticB ?? 0, 0),
+      group: "none",
+      waterfall: false,
+      useChiResistance: false,
+      useChiQuadratic: false,
+    };
+  }
+
+  private pvOstialDebugFields(x: Float64Array, pack: PressurePack, flows: Float64Array): Partial<SimSample> | undefined {
+    const edge = this.edges[this.edgeIndex("PVein_LA")];
+    const q = flows[this.edgeIndex("PVein_LA")];
+    if (edge.kind !== "dynamic" || Math.max(edge.L ?? 0, 0) <= 0) {
+      return { PVFOstial: q };
+    }
+    const pVein = pack.P[this.nodeIndex.get("PVein")!];
+    const lap = pack.P[this.nodeIndex.get("LA")!];
+    const resistiveDrop = edge.R * q + (edge.B ?? 0) * q * Math.abs(q);
+    return {
+      PVFOstial: q,
+      pvOstialQ: x[this.idx.q.PVein_LA],
+      pvOstialResistiveDrop: resistiveDrop,
+      pvOstialInertialDrop: (pVein - lap) - resistiveDrop,
+    };
+  }
+
   private activeChamberNodes(): NodeSpec[] {
     return this.nodes.filter((n) => n.kind === "heartActive" && n.chamber && n.active);
   }
@@ -993,7 +1059,8 @@ export class ModelCore {
   private rebuildActiveModels() {
     for (const ch of Object.keys(this.activeModels) as Chamber[]) delete this.activeModels[ch];
     for (const n of this.activeChamberNodes()) {
-      this.activeModels[n.chamber!] = new ActiveStressChamberModel(n.active!);
+      const active = n.chamber === "LA" ? n.active! : { ...n.active!, reservoirBranchGain: 0, reservoirStrokeMl: 0 };
+      this.activeModels[n.chamber!] = new ActiveStressChamberModel(active);
     }
   }
 
@@ -1031,6 +1098,32 @@ export class ModelCore {
     return Ccoll * Ptm
       + (Copen - Ccoll) * dOpen * (softplus((Ptm - Popen) / dOpen) - softplus((0 - Popen) / dOpen))
       - (Copen - Cdist) * dStiff * (softplus((Ptm - Pstiff) / dStiff) - softplus((0 - Pstiff) / dStiff));
+  }
+
+  private venousVolumeFromPtm(n: NodeSpec, Ptm: number, params: CoreRuntimeParams = this.p): number {
+    return this.effectiveVu(n, params) + this.venousStressedVolume(n, Ptm);
+  }
+
+  private venousVolumeBounds(n: NodeSpec): { min: number; max: number } {
+    return {
+      min: this.venousVolumeFromPtm(n, -20),
+      max: this.venousVolumeFromPtm(n, 45),
+    };
+  }
+
+  private venousPtmFromVolume(n: NodeSpec, targetVolume: number): number {
+    const targetStressed = targetVolume - this.effectiveVu(n);
+    let lo = -20;
+    let hi = 45;
+    const volumeAt = (ptm: number) => this.venousStressedVolume(n, ptm);
+    if (targetStressed <= volumeAt(lo)) return lo;
+    if (targetStressed >= volumeAt(hi)) return hi;
+    for (let iter = 0; iter < 32; iter++) {
+      const mid = 0.5 * (lo + hi);
+      if (volumeAt(mid) < targetStressed) lo = mid;
+      else hi = mid;
+    }
+    return 0.5 * (lo + hi);
   }
 
   private downstreamEffective(e: EdgeSpec, Pd: number): number {
@@ -1090,12 +1183,6 @@ export class ModelCore {
     return (n.Vu ?? 0) - (n.venousToneGain ?? 0) * params.venousTone;
   }
 
-  private effectiveVuAll(params: CoreRuntimeParams): Float64Array {
-    const out = new Float64Array(nodeNames.length);
-    for (let i = 0; i < this.nodes.length; i++) out[i] = this.effectiveVu(this.nodes[i], params);
-    return out;
-  }
-
   private smoothParams(dt: number) {
     const tau = 0.25;
     const alpha = dt === 0 ? 1 : (1 - Math.exp(-dt / tau));
@@ -1133,7 +1220,8 @@ export class ModelCore {
       const ix = this.idx.node[name];
       const before = x[ix];
       if (n.kind === "venousPressure") {
-        x[ix] = clamp(x[ix], -20, 45);
+        const bounds = this.venousVolumeBounds(n);
+        x[ix] = clamp(x[ix], bounds.min, bounds.max);
       } else if (n.kind === "heartActive" || n.kind === "heartElastance") {
         x[ix] = clamp(x[ix], 3, 450);
       } else {
@@ -1183,45 +1271,38 @@ export class ModelCore {
       const ix = this.idx.node[name];
       const volume = pack.Vphys[this.nodeIndex.get(name)!];
       const compliance = this.venousCompliance(node, pack.Ptm[this.nodeIndex.get(name)!]);
-      return { node, ix, volume, compliance };
+      const bounds = this.venousVolumeBounds(node);
+      return { node, ix, volume, compliance, bounds };
     });
-    const volumeTotal = entries.reduce((sum, e) => sum + Math.max(e.volume, 0), 0);
-    const complianceTotal = entries.reduce((sum, e) => sum + Math.max(e.compliance, 0), 0);
-    const denom = volumeTotal > 1e-9 ? volumeTotal : complianceTotal;
-    if (denom <= 1e-9) return;
-
     let applied = 0;
-    for (const e of entries) {
-      const rawWeight = volumeTotal > 1e-9 ? Math.max(e.volume, 0) : Math.max(e.compliance, 0);
-      const delta = clamp(
-        correction * (rawWeight / denom),
-        -(options.maxNodeVolumeMl ?? 0.1),
-        options.maxNodeVolumeMl ?? 0.1,
-      );
-      if (Math.abs(delta) < 1e-12) continue;
-      const targetVolume = e.volume + delta;
-      const beforeVolume = this.effectiveVu(e.node) + this.venousStressedVolume(e.node, this.x[e.ix]);
-      this.x[e.ix] = this.solveVenousPtmForVolume(e.node, targetVolume);
-      const afterVolume = this.effectiveVu(e.node) + this.venousStressedVolume(e.node, this.x[e.ix]);
-      applied += afterVolume - beforeVolume;
+    let remaining = correction;
+    const maxNode = options.maxNodeVolumeMl ?? 0.1;
+    for (let iter = 0; iter < entries.length && Math.abs(remaining) > 1e-9; iter++) {
+      const candidates = entries.filter((e) => {
+        if (remaining > 0) return this.x[e.ix] < e.bounds.max - 1e-9;
+        return this.x[e.ix] > e.bounds.min + 1e-9;
+      });
+      const volumeTotal = candidates.reduce((sum, e) => sum + Math.max(e.volume, 0), 0);
+      const complianceTotal = candidates.reduce((sum, e) => sum + Math.max(e.compliance, 0), 0);
+      const denom = volumeTotal > 1e-9 ? volumeTotal : complianceTotal;
+      if (denom <= 1e-9) break;
+
+      let iterApplied = 0;
+      for (const e of candidates) {
+        const rawWeight = volumeTotal > 1e-9 ? Math.max(e.volume, 0) : Math.max(e.compliance, 0);
+        const share = remaining * (rawWeight / denom);
+        const delta = clamp(share, -maxNode, maxNode);
+        if (Math.abs(delta) < 1e-12) continue;
+        const beforeVolume = this.x[e.ix];
+        this.x[e.ix] = clamp(beforeVolume + delta, e.bounds.min, e.bounds.max);
+        iterApplied += this.x[e.ix] - beforeVolume;
+      }
+      applied += iterApplied;
+      remaining -= iterApplied;
+      if (Math.abs(iterApplied) < 1e-12) break;
     }
     this.tbvCorrectionLastStepMl = Math.abs(applied);
     this.tbvCorrectionMagThisBeat += Math.abs(applied);
-  }
-
-  private solveVenousPtmForVolume(n: NodeSpec, targetVolume: number): number {
-    const targetStressed = targetVolume - this.effectiveVu(n);
-    let lo = -20;
-    let hi = 45;
-    const volumeAt = (ptm: number) => this.venousStressedVolume(n, ptm);
-    if (targetStressed <= volumeAt(lo)) return lo;
-    if (targetStressed >= volumeAt(hi)) return hi;
-    for (let iter = 0; iter < 32; iter++) {
-      const mid = 0.5 * (lo + hi);
-      if (volumeAt(mid) < targetStressed) lo = mid;
-      else hi = mid;
-    }
-    return 0.5 * (lo + hi);
   }
 
   /**
@@ -1252,7 +1333,7 @@ export class ModelCore {
       const vu = this.effectiveVu(n);
       unstressed += vu;
       if (n.kind === "venousPressure") {
-        const s = this.venousStressedVolume(n, ptm);
+        const s = pack.Vphys[i] - vu;
         stressed += s;
         compliance += this.venousCompliance(n, ptm);
         venStressed += s;
@@ -1271,13 +1352,15 @@ export class ModelCore {
       const n = this.nodes[i];
       const vu = this.effectiveVu(n);
       pulmonaryVenousUnstressed += vu;
-      pulmonaryVenousStressed += this.venousStressedVolume(n, pack.Ptm[i]);
+      pulmonaryVenousStressed += pack.Vphys[i] - vu;
     }
     const Pmsf = compliance > 1e-9 ? stressed / compliance : 0;
     const RAP = pack.P[this.nodeIndex.get("RA")!];
     const P_VC = pack.P[this.nodeIndex.get("VC")!];
     const P_PVein = pack.P[this.nodeIndex.get("PVein")!];
     const actualTBV = this.totalBloodVolume(pack);
+    const laReservoir = this.laReservoirDebugFields(this.x, pack.Vphys[this.nodeIndex.get("LA")!]);
+    const pvOstial = this.pvOstialDebugFields(this.x, pack, flows);
     return {
       Pmsf,
       vrGradient: Pmsf - RAP,
@@ -1302,6 +1385,8 @@ export class ModelCore {
       P_VC,
       P_PVen: pack.P[this.nodeIndex.get("PVen")!],
       P_PVein,
+      ...pvOstial,
+      ...laReservoir,
     };
   }
 
@@ -1320,7 +1405,7 @@ export class ModelCore {
         const i = this.nodeIndex.get(name)!;
         const n = this.nodes[i];
         const vu = this.effectiveVu(n);
-        const stressedNodeVolume = this.venousStressedVolume(n, pack.Ptm[i]);
+        const stressedNodeVolume = pack.Vphys[i] - vu;
         volume += pack.Vphys[i];
         stressedVolume += stressedNodeVolume;
         unstressedVolume += vu;

@@ -55,4 +55,42 @@ describe("M5a hemorrhage / fluid", () => {
     expect(Math.abs(core.metrics().TBV - tbv0)).toBeLessThan(50);
     expect(core.health().massConservation).not.toBe("failed");
   });
+
+  it("projectTBV=false still reports true state-volume drift", () => {
+    const core = new ModelCore({ ...DEFAULT_PARAMS, projectTBV: false });
+    core.initializeVenousPressuresForTargetTBV(5600);
+    const ixLV = (core as any).idx.node.LV as number;
+
+    core.x[ixLV] += 20;
+
+    const health = core.health();
+    expect(health.tbvDriftMl).toBeGreaterThan(19);
+    expect(health.massConservation).toBe("warning");
+  });
+
+  it("conserves TBV with projector off over a long high-TBV ostial-inertance run", () => {
+    const core = new ModelCore({ ...DEFAULT_PARAMS, projectTBV: false });
+    core.initializeVenousPressuresForTargetTBV(6200);
+    core.setTBVCorrectionEnabled(false);
+    const tbv0 = core.debugVenousGroupBalances().totalBloodVolume;
+    core.runFor(40 * (60 / DEFAULT_PARAMS.HR), 0.001, 1000);
+    const tbv1 = core.debugVenousGroupBalances().totalBloodVolume;
+
+    expect(Math.abs(tbv1 - tbv0)).toBeLessThan(1e-4);
+    expect(core.debugObservables().PVFOstial).toBeTypeOf("number");
+  });
+
+  it("venous tone shifts pressure without creating or destroying blood volume", () => {
+    const core = new ModelCore({ ...DEFAULT_PARAMS, projectTBV: false });
+    core.initializeVenousPressuresForTargetTBV(5600);
+    const tbv0 = core.debugVenousGroupBalances().totalBloodVolume;
+    const pmsf0 = core.debugObservables().Pmsf;
+
+    core.setImmediateParameters({ venousTone: 0.4 });
+
+    const tbv1 = core.debugVenousGroupBalances().totalBloodVolume;
+    const pmsf1 = core.debugObservables().Pmsf;
+    expect(Math.abs(tbv1 - tbv0)).toBeLessThan(1e-9);
+    expect(pmsf1).toBeGreaterThan(pmsf0);
+  });
 });
