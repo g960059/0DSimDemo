@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { caseDocumentToSimInstances } from "@/caseDoc";
-import { lessonById } from "@/lessonDoc";
-import { officialCaseById } from "@/officialCases";
+import { lessonById, resolveLessonCase } from "@/lessonDoc";
 
 describe("stepped lesson registry", () => {
   it("keeps stepped visibleInstances within the resolved case ids and eventually reveals all instances", () => {
@@ -9,7 +8,7 @@ describe("stepped lesson registry", () => {
     expect(lesson?.steps?.length).toBe(2);
     const [predictStep, revealStep] = lesson!.steps!;
 
-    const caseDoc = officialCaseById(lesson!.caseId);
+    const caseDoc = resolveLessonCase(lesson!);
     expect(caseDoc).toBeDefined();
     const resolvedIds = new Set(caseDocumentToSimInstances(caseDoc!).map((inst) => inst.id));
     const visibleUnion = new Set<string>();

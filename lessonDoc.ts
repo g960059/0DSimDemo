@@ -1,4 +1,8 @@
 import type { NoteContent } from "@/noteTypes";
+import type { CaseDocument } from "@/caseDoc";
+import { caseDocumentToSimInstances } from "@/caseDoc";
+import { officialCaseById } from "@/officialCases";
+import { listUserLessons } from "@/lessonPersist";
 
 export type LessonStep = {
   id: string;
@@ -25,8 +29,10 @@ export type Lesson = {
     title: string;
     objective?: string;
     level?: string;
+    createdAt?: number;
   };
-  caseId: string;
+  caseId?: string;
+  case?: CaseDocument;
   noteSpine: NoteContent;
   steps?: LessonStep[];
 };
@@ -134,5 +140,18 @@ export const LESSONS: Lesson[] = [
 ];
 
 export function lessonById(id: string): Lesson | undefined {
-  return LESSONS.find((lesson) => lesson.meta.id === id);
+  return LESSONS.find((lesson) => lesson.meta.id === id)
+    ?? listUserLessons().find((lesson) => lesson.meta.id === id);
+}
+
+export function resolveLessonCase(lesson: Lesson): CaseDocument | undefined {
+  if (lesson.case) {
+    try {
+      caseDocumentToSimInstances(lesson.case);
+      return lesson.case;
+    } catch {
+      return undefined;
+    }
+  }
+  return lesson.caseId ? officialCaseById(lesson.caseId) : undefined;
 }
