@@ -4,6 +4,8 @@ import { SimulationParams, SimInstance, PanelDef, PanelType, PanelInstanceConfig
 import { SimulationHealth } from './engine/protocol';
 import { type ClinicalKnobs } from './engine/knobs';
 import { resolveRawEdit, resolveKnobEdit } from './engine/instanceKnobs';
+import { type CaseDocument, simInstancesToCaseDocument, caseDocumentToSimInstances } from './caseDoc';
+import { exportCaseFile, readCaseFile } from './casePersist';
 import { HealthBadge, HealthToasts, HealthToast } from './components/HealthIndicators';
 import { PreviewController } from './engine/previewController';
 import { Controls } from './components/Controls';
@@ -123,6 +125,41 @@ function Workbench() {
   useEffect(() => { controller.setInstances(instances); }, [instances]);
   useEffect(() => { controller.setTimeScale(timeScale); }, [timeScale]);
   useEffect(() => { controller.setPlaying(isPlaying); }, [isPlaying]);
+
+  // --- Save / load (ROADMAP #3-c): canonical knob-primary CaseDocument, local
+  // file (.hemosim.json) + a localStorage working draft. No network/Firebase. ---
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const buildCurrentDoc = (): CaseDocument => simInstancesToCaseDocument(instances, panels, {
+    id: `wb-${Date.now()}`,
+    title: instances[0] ? `${instances[0].name} scene` : 'Workbench scene',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    spec: {
+      title: instances[0]?.name ?? 'Workbench scene',
+      modelLimitations: [
+        '0D lumped-parameter closed-loop model — no regional wall motion or spatial flow.',
+        'Active-stress single-fibre ventricles; parameters are not yet calibrated (M12).',
+      ],
+    },
+  });
+
+  const loadDocIntoWorkbench = (doc: CaseDocument) => {
+    const loaded = caseDocumentToSimInstances(doc); // throws on unknown version/schema
+    setInstances(loaded);
+    setPanels(doc.panels);
+    setActiveInstanceId(loaded[0]?.id ?? '1');
+  };
+
+  const handleExport = () => {
+    try { exportCaseFile(buildCurrentDoc()); }
+    catch (err) { window.alert(`Export failed: ${(err as Error).message}`); }
+  };
+
+  const handleImportFile = async (file: File) => {
+    try { loadDocIntoWorkbench(await readCaseFile(file)); }
+    catch (err) { window.alert(`Import failed: ${(err as Error).message}`); }
+  };
 
   // Raw (advanced) edit. resolveRawEdit composes with the clinical knobs when the
   // instance is knob-primary (absolute-knob keys route to the knob; the rest edit
@@ -309,7 +346,16 @@ function Workbench() {
                <button onClick={() => setIsScenarioManagerOpen(true)} className="px-3 sm:px-4 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded text-[10px] sm:text-xs font-bold text-slate-300 transition-colors flex items-center gap-2">
                    <span>❖</span> Scenarios ({instances.length})
                </button>
-               
+
+               <input ref={fileInputRef} type="file" accept=".json,.hemosim.json,application/json" className="hidden"
+                   onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportFile(f); e.target.value = ''; }} />
+               <button onClick={handleExport} title="Export this scene as a .hemosim.json file" className="px-2 sm:px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded text-[10px] sm:text-xs font-bold text-slate-300 transition-colors flex items-center gap-1">
+                   <span>↓</span> Save
+               </button>
+               <button onClick={() => fileInputRef.current?.click()} title="Load a .hemosim.json case file" className="px-2 sm:px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded text-[10px] sm:text-xs font-bold text-slate-300 transition-colors flex items-center gap-1">
+                   <span>↑</span> Load
+               </button>
+
                <div className="hidden sm:block h-6 w-px bg-slate-700 mx-1"></div>
 
                <button onClick={togglePlay} className={`px-3 sm:px-4 py-1.5 rounded text-[10px] sm:text-xs font-bold transition-colors ${isPlaying ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30' : 'bg-green-500/20 text-green-500 hover:bg-green-500/30'}`}>
