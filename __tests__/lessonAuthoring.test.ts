@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { caseDocumentToSimInstances } from "@/caseDoc";
-import { cloneNoteContent, normalizeStepsForSave } from "@/lessonAuthoring";
+import { cloneNoteContent, normalizeStepsForSave, staleVisibleIds, syncCheckedIds } from "@/lessonAuthoring";
 import type { Lesson, LessonStep } from "@/lessonDoc";
 import { getUserLesson, saveLesson } from "@/lessonPersist";
 import { officialCaseById } from "@/officialCases";
@@ -30,7 +30,7 @@ function step(id: string, visibleInstances: string[], predict = false): LessonSt
     note: cloneNoteContent(NOTE),
     stage: {
       visibleInstances,
-      ...(predict ? { challenge: { kind: "predict", revealLabel: "Reveal" } } : {}),
+      ...(predict ? { challenge: { kind: "predict", prompt: "Predict before reveal.", revealLabel: "Reveal treatment" } } : {}),
     },
   };
 }
@@ -74,7 +74,20 @@ describe("lesson authoring step normalization", () => {
     const saved = getUserLesson("user-stepped");
     expect(saved?.steps).toEqual(lesson.steps);
     expect(saved?.steps?.[0].stage.challenge?.kind).toBe("predict");
+    expect(saved?.steps?.[0].stage.challenge?.prompt).toBe("Predict before reveal.");
+    expect(saved?.steps?.[0].stage.challenge?.revealLabel).toBe("Reveal treatment");
     expect(caseDocumentToSimInstances(saved!.case!).map((instance) => instance.id)).toEqual(["1", "2"]);
+  });
+
+  it("keeps checked ids stable across instance reference churn while adding and dropping real ids", () => {
+    expect(syncCheckedIds(["1"], ["1", "2"])).toEqual(["1", "2"]);
+    expect(syncCheckedIds(["1"], ["1", "2"])).toEqual(["1", "2"]);
+    expect(syncCheckedIds(["1"], ["1"])).toEqual(["1"]);
+    expect(syncCheckedIds(["1", "2"], ["2", "3"])).toEqual(["2", "3"]);
+  });
+
+  it("reports stale visible ids for captured steps before save-time pruning", () => {
+    expect(staleVisibleIds(step("step-stale", ["1", "removed"]), ["1", "2"])).toEqual(["removed"]);
   });
 
   it("blocks saving when the final step is predict", () => {

@@ -13,6 +13,19 @@ export function cloneNoteContent(note: NoteContent): NoteContent {
   return JSON.parse(JSON.stringify(note)) as NoteContent;
 }
 
+export function syncCheckedIds(prevChecked: string[], nextIds: string[]): string[] {
+  const next = new Set(nextIds);
+  const kept = prevChecked.filter((id) => next.has(id));
+  const keptSet = new Set(kept);
+  const added = nextIds.filter((id) => !keptSet.has(id));
+  return [...kept, ...added];
+}
+
+export function staleVisibleIds(step: LessonStep, validIds: Iterable<string>): string[] {
+  const valid = new Set(validIds);
+  return step.stage.visibleInstances.filter((id) => !valid.has(id));
+}
+
 export function normalizeStepsForSave(steps: LessonStep[], validIds: Iterable<string>): NormalizedStepsResult {
   if (steps.length === 0) return { ok: true };
   if (steps[steps.length - 1].stage.challenge?.kind === "predict") {

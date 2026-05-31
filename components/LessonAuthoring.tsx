@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { LessonStep } from "../lessonDoc";
-import { cloneNoteContent, EMPTY_AUTHOR_NOTE } from "../lessonAuthoring";
+import { cloneNoteContent, EMPTY_AUTHOR_NOTE, staleVisibleIds, syncCheckedIds } from "../lessonAuthoring";
 import type { NoteContent } from "../noteTypes";
 import type { SimInstance } from "../types";
 import { NotePanel } from "./NotePanel";
@@ -13,6 +13,7 @@ type LessonAuthoringProps = {
 
 export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, stepsDraft, setStepsDraft }) => {
   const allInstanceIds = useMemo(() => instances.map((instance) => instance.id), [instances]);
+  const instanceIdsKey = allInstanceIds.join("\u001f");
   const [stepTitleDraft, setStepTitleDraft] = useState("");
   const [stepNoteDraft, setStepNoteDraft] = useState<NoteContent>(EMPTY_AUTHOR_NOTE);
   const [stepVisibleIdsDraft, setStepVisibleIdsDraft] = useState<string[]>(allInstanceIds);
@@ -20,11 +21,12 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
   const [revealLabelDraft, setRevealLabelDraft] = useState("Reveal");
   const [promptDraft, setPromptDraft] = useState("");
   const [noteEditorKey, setNoteEditorKey] = useState(0);
+  const stepCounterRef = useRef(0);
   const [warning, setWarning] = useState<string | null>(null);
 
   useEffect(() => {
-    setStepVisibleIdsDraft(allInstanceIds);
-  }, [allInstanceIds]);
+    setStepVisibleIdsDraft((current) => syncCheckedIds(current, allInstanceIds));
+  }, [instanceIdsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const resetDrafts = () => {
     setStepTitleDraft("");
@@ -48,8 +50,9 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
       setWarning("Select at least one visible instance before capturing a step.");
       return;
     }
+    stepCounterRef.current += 1;
     const step: LessonStep = {
-      id: `step-${Date.now()}-${stepsDraft.length + 1}`,
+      id: `step-${Date.now()}-${stepCounterRef.current}`,
       ...(stepTitleDraft.trim() ? { title: stepTitleDraft.trim() } : {}),
       note: cloneNoteContent(stepNoteDraft),
       stage: {
@@ -163,23 +166,44 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
               <div className="p-3 text-xs text-slate-500">No steps captured.</div>
             ) : (
               stepsDraft.map((step, index) => (
-                <div key={step.id} className="px-3 py-2 border-b border-slate-800 last:border-b-0 flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="text-xs font-bold text-slate-200 truncate">{index + 1}. {step.title || step.id}</div>
-                    <div className="text-[11px] text-slate-500">{step.stage.visibleInstances.length} visible{step.stage.challenge?.kind === "predict" ? " · predict" : ""}</div>
-                  </div>
-                  <button
-                    onClick={() => deleteStep(step.id)}
-                    className="px-2 py-1 rounded bg-slate-800 hover:bg-red-500/20 text-[11px] font-bold text-slate-400 hover:text-red-200 transition-colors"
-                  >
-                    Delete
-                  </button>
-                </div>
+                <CapturedStepRow
+                  key={step.id}
+                  step={step}
+                  index={index}
+                  allInstanceIds={allInstanceIds}
+                  onDelete={deleteStep}
+                />
               ))
             )}
           </div>
         </div>
       </div>
     </section>
+  );
+};
+
+const CapturedStepRow: React.FC<{
+  step: LessonStep;
+  index: number;
+  allInstanceIds: string[];
+  onDelete: (id: string) => void;
+}> = ({ step, index, allInstanceIds, onDelete }) => {
+  const staleIds = staleVisibleIds(step, allInstanceIds);
+  return (
+    <div className="px-3 py-2 border-b border-slate-800 last:border-b-0 flex items-center justify-between gap-2">
+      <div className="min-w-0">
+        <div className="text-xs font-bold text-slate-200 truncate">{index + 1}. {step.title || step.id}</div>
+        <div className="text-[11px] text-slate-500">{step.stage.visibleInstances.length} visible{step.stage.challenge?.kind === "predict" ? " · predict" : ""}</div>
+        {staleIds.length > 0 && (
+          <div className="text-[11px] font-semibold text-amber-300 truncate">stale: {staleIds.join(", ")}</div>
+        )}
+      </div>
+      <button
+        onClick={() => onDelete(step.id)}
+        className="px-2 py-1 rounded bg-slate-800 hover:bg-red-500/20 text-[11px] font-bold text-slate-400 hover:text-red-200 transition-colors"
+      >
+        Delete
+      </button>
+    </div>
   );
 };
