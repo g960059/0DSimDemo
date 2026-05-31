@@ -9,13 +9,15 @@ import { type CaseDocument, simInstancesToCaseDocument, caseDocumentToSimInstanc
 import { exportCaseFile, readCaseFile } from './casePersist';
 import { officialCaseById } from './officialCases';
 import { createUserLessonId, getUserLesson, saveLesson } from './lessonPersist';
-import type { Lesson } from './lessonDoc';
+import { normalizeStepsForSave } from './lessonAuthoring';
+import type { Lesson, LessonStep } from './lessonDoc';
 import { remapWorkbenchLoadIds } from './workbenchLoad';
 import { HealthBadge, HealthToasts, HealthToast } from './components/HealthIndicators';
 import { PreviewController } from './engine/previewController';
 import { Controls } from './components/Controls';
 import { ScenarioManager } from './components/ScenarioManager';
 import { PVLoopPanel, WaveformPanel, MetricsPanel, GuytonPanel } from './components/Charts';
+import { LessonAuthoring } from './components/LessonAuthoring';
 import { NotePanel } from './components/NotePanel';
 import type { NoteContent } from './noteTypes';
 
@@ -94,6 +96,7 @@ function Workbench() {
   const [isLessonDialogOpen, setIsLessonDialogOpen] = useState(false);
   const [lessonTitle, setLessonTitle] = useState('');
   const [savedLesson, setSavedLesson] = useState<{ id: string; title: string } | null>(null);
+  const [stepsDraft, setStepsDraft] = useState<LessonStep[]>([]);
 
   // --- Panel Management State ---
   const [panels, setPanels] = useState<PanelDef[]>([
@@ -259,10 +262,17 @@ function Workbench() {
       const id = createUserLessonId(now);
       const notePanel = panels.find((panel) => panel.type === 'NOTE');
       const noteSpine = notePanel ? (notes[notePanel.id] ?? EMPTY_NOTE_SPINE) : EMPTY_NOTE_SPINE;
+      const caseDoc = buildCurrentDoc({ id, title, createdAt: now, updatedAt: now, includeNotes: false });
+      const normalizedSteps = normalizeStepsForSave(stepsDraft, caseDoc.instances.map((instance) => instance.id));
+      if (normalizedSteps.ok === false) {
+        pushWarningToast('Lesson save', normalizedSteps.message);
+        return;
+      }
       const lesson: Lesson = {
         meta: { id, title, createdAt: now },
-        case: buildCurrentDoc({ id, title, createdAt: now, updatedAt: now, includeNotes: false }),
+        case: caseDoc,
         noteSpine,
+        ...(normalizedSteps.steps ? { steps: normalizedSteps.steps } : {}),
       };
 
       if (!saveLesson(lesson) || !getUserLesson(id)) {
@@ -551,6 +561,7 @@ function Workbench() {
       </header>
 
       <main className="flex-1 overflow-y-auto overflow-x-hidden bg-slate-950 p-2">
+          <LessonAuthoring instances={instances} stepsDraft={stepsDraft} setStepsDraft={setStepsDraft} />
           <div className="grid grid-cols-12 gap-2 auto-rows-[50px] grid-flow-dense pb-20 mt-2">
               {panels.map((panel, index) => {
                   const gridColStyle = isMobile ? { gridColumn: 'span 12' } : { gridColumn: `span ${panel.w}` };
@@ -781,6 +792,10 @@ function Workbench() {
                           <div className="text-sm text-slate-200 truncate">
                               {noteExcerpt(notes[panels.find((panel) => panel.type === 'NOTE')?.id ?? ''] ?? EMPTY_NOTE_SPINE)}
                           </div>
+                      </div>
+                      <div className="rounded border border-slate-800 bg-slate-950/60 p-3">
+                          <div className="text-xs font-bold text-slate-400 mb-1">Captured steps</div>
+                          <div className="text-sm text-slate-200">{stepsDraft.length} steps</div>
                       </div>
                   </div>
                   <div className="flex items-center justify-end gap-3 pt-2">
