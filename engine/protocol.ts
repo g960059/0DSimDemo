@@ -154,11 +154,12 @@ const VALVE_PREFIXES = ["MV", "AoV", "TV", "PV"] as const;
  */
 export const NEUTRAL_PARAMS: CoreRuntimeParams = {
   HR: 75, contractility: 1.0, relaxation: 1.0,
-  systemicResistance: 1.25, pulmonaryResistance: 1.0, venousTone: 0.2,
-  arterialStiffness: 1.0, PEEP: 0, Pth0: 0, respAmpTh: 0, respAmpAlv: 0,
+  // M12-proper #1 Phase-1: kept in lock-step with defaultParams() (caseContract test).
+  systemicResistance: 1.10, pulmonaryResistance: 1.0, venousTone: 0.2,
+  arterialStiffness: 0.75, PEEP: 0, Pth0: 0, respAmpTh: 0, respAmpAlv: 0,
   respRate: 0.25, speed: 1, bleedRate: 0, fluidRate: 0,
   heartModel: "activeStress", useChiResistance: false, projectTBV: true,
-  lvTmaxScale: 1.0, rvTmaxScale: 1.0, lvGeomScale: 1, rvGeomScale: 1,
+  lvTmaxScale: 0.85, rvTmaxScale: 1.0, lvGeomScale: 1, rvGeomScale: 1,
   caReleaseScale: 1, rvCaReleaseScale: 1,
   MV_Amax: 5.0, MV_Aleak: 1e-4, MV_kOpen: 2.0, MV_tauOpen: 0.012, MV_tauClose: 0.025, MV_R: 0.002, MV_L: 0.0002,
   AoV_Amax: 3.5, AoV_Aleak: 1e-4, AoV_kOpen: 2.0, AoV_tauOpen: 0.010, AoV_tauClose: 0.030, AoV_R: 0.005, AoV_L: 0.001,

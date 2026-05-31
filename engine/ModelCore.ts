@@ -150,10 +150,13 @@ export function defaultParams(): CoreRuntimeParams {
     contractility: 1.0,
     relaxation: 1.0,
     // Calibrated operating point for the active-stress ventricle default.
-    systemicResistance: 1.25,
+    // M12-proper #1 Phase-1 (LA preload, see docs/research/m12-la-preload-design.md):
+    // 5-lever circuit re-balance — SVR 1.25->1.10 + arterialStiffness 1.0->0.75
+    // keep MAP/AoP normal as central preload rises.
+    systemicResistance: 1.10,
     pulmonaryResistance: 1.0,
     venousTone: 0.2,
-    arterialStiffness: 1.0,
+    arterialStiffness: 0.75, // M12-proper #1 Phase-1: more arterial compliance to hold pulse pressure normal
     PEEP: 0,
     Pth0: 0,
     respAmpTh: 0,
@@ -168,7 +171,13 @@ export function defaultParams(): CoreRuntimeParams {
     useChiResistance: false,
     projectTBV: true,
     // Contractility multiplier on the (now folded-in) chamber Tmax0. 1.0 = baseline.
-    lvTmaxScale: 1.0,
+    // M12-proper #1 Phase-1: LV 1.0->0.85 prevents over-pumping at the raised preload
+    // (also fixes a latent dobutamine over-ceiling: 0.85x1.35=155 kPa, within the
+    // single-myofibril max ~145±35 [PMC1225421], vs M12-lite's supra-physiological 182).
+    // 0.85 (not 0.80) because 0.80 caused lvEdp alternans / non-convergence at HR 110
+    // (a real stability regression); 0.85 settles cleanly. RV stays 1.0 — cutting RV
+    // contractility raises RAP and breaks the LAP-RAP gradient.
+    lvTmaxScale: 0.85,
     rvTmaxScale: 1.0,
     lvGeomScale: 1,
     rvGeomScale: 1,
@@ -197,8 +206,8 @@ function buildNodes(): NodeSpec[] {
     { name: "SA", kind: "arterial", Vu: 0, P0: 50, Vs: 400, x0: 400 * Math.log1p(85 / 50) },
     { name: "Art", kind: "arterial", Vu: 0, P0: 45, Vs: 120, x0: 120 * Math.log1p(70 / 45) },
     { name: "Cap", kind: "linear", Vu: 0, C: 15, x0: 15 * 25 },
-    { name: "SV", kind: "venousPressure", Vu: 2500, venousToneGain: 350, Ccoll: 15, Copen: 130, Cdist: 35, Popen: -2, Pstiff: 16, dOpen: 1.5, dStiff: 4, x0: 6 },
-    { name: "VC", kind: "venousPressure", ext: "pth", Vu: 250, venousToneGain: 60, Ccoll: 5, Copen: 45, Cdist: 12, Popen: -1, Pstiff: 12, dOpen: 1, dStiff: 3, x0: 4 },
+    { name: "SV", kind: "venousPressure", Vu: 1590.909, venousToneGain: 350, Ccoll: 15, Copen: 130, Cdist: 35, Popen: -2, Pstiff: 16, dOpen: 1.5, dStiff: 4, x0: 6 },
+    { name: "VC", kind: "venousPressure", ext: "pth", Vu: 159.091, venousToneGain: 60, Ccoll: 5, Copen: 45, Cdist: 12, Popen: -1, Pstiff: 12, dOpen: 1, dStiff: 3, x0: 4 },
 
     { name: "PA", kind: "arterial", ext: "pth", Vu: 0, P0: 20, Vs: 60, x0: 60 * Math.log1p(16 / 20) },
     { name: "PArt", kind: "arterial", ext: "pth", Vu: 0, P0: 20, Vs: 90, x0: 90 * Math.log1p(13 / 20) },
@@ -227,7 +236,7 @@ function buildEdges(): EdgeSpec[] {
     { name: "PArt_PCap", up: "PArt", down: "PCap", kind: "resistive", R: 0.04, B: 0, group: "pulmonary" },
     { name: "PCap_PVen", up: "PCap", down: "PVen", kind: "resistive", R: 0.03, B: 0, ext: "palv", waterfall: true, Pcrit: 0, useChiResistance: true, useChiQuadratic: false },
     { name: "PVen_PVein", up: "PVen", down: "PVein", kind: "resistive", R: 0.01, B: 0 },
-    { name: "PVein_LA", up: "PVein", down: "LA", kind: "resistive", R: 0.02, B: 0 }
+    { name: "PVein_LA", up: "PVein", down: "LA", kind: "resistive", R: 0.012, B: 0 }
   ];
 }
 

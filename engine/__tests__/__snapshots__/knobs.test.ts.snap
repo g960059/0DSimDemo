@@ -6,8 +6,8 @@ exports[`clinical knob layer > v0.2 resolver output is frozen (editing the mappi
   "AoV_R": 0.0175,
   "HR": 75,
   "PEEP": 0,
-  "arterialStiffness": 1,
-  "lvTmaxScale": 1.4,
+  "arterialStiffness": 0.75,
+  "lvTmaxScale": 1.19,
   "nodeOverrides": {
     "LV": {
       "active": {
@@ -23,7 +23,7 @@ exports[`clinical knob layer > v0.2 resolver output is frozen (editing the mappi
   "pulmonaryResistance": 1,
   "relaxation": 1,
   "rvTmaxScale": 1,
-  "systemicResistance": 1.625,
+  "systemicResistance": 1.4300000000000002,
   "venousTone": 0.2,
 }
 `;

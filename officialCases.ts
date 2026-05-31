@@ -100,10 +100,15 @@ export const OFFICIAL_CASES: CaseDocument[] = [
     ],
     instances: [
       // Severity coefficients recalibrated (docs/research/valve-lesions.md) so the MR
-      // leak (severity 1.0 → ~0.5 cm² EROA) is clinically severe yet stays well off the
-      // LV 3 mL volume floor — so MR can be authored 'severe' (was forced to 'mild').
+      // leak (severity 1.0 → ~0.5 cm² EROA) maps to a real EROA off the LV 3 mL floor.
+      // M12-proper #1 Phase-1: at the new (lower-afterload) operating point the LV
+      // unloads harder into the LA, so 'severe' (EROA 0.5) over-empties past the EF
+      // degeneracy guard (EF>0.92). Retuned to 'moderate' (0.66 → EROA 0.33,
+      // moderate-to-severe) — non-degenerate (EF ~0.80), v-wave ~11 mmHg, forward SV
+      // reduced: still clinically-meaningful MR teaching (claude1's clinical floor;
+      // docs/research/m12-la-preload-design.md).
       { name: "Aortic stenosis", knobs: {}, interventions: [{ uid: "as", id: "aorticStenosis", args: { severity: "severe" } }], targetVolume: 5600 },
-      { name: "Mitral regurgitation", knobs: {}, interventions: [{ uid: "mr", id: "mitralRegurgitation", args: { severity: "severe" } }], targetVolume: 5600 },
+      { name: "Mitral regurgitation", knobs: {}, interventions: [{ uid: "mr", id: "mitralRegurgitation", args: { severity: "moderate" } }], targetVolume: 5600 },
     ],
   }),
   makeCase({
