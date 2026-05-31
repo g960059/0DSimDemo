@@ -5,6 +5,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { Layout } from './components/Layout';
 import { LearningPath } from './components/LearningPath';
 import { OfficialCases } from './components/Cases';
+import { LessonPlayer } from './components/LessonPlayer';
 import Workbench from './Workbench';
 import './index.css';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -24,6 +25,7 @@ root.render(
             <Route path="/" element={<Layout />}>
               <Route index element={<LearningPath />} />
               <Route path="cases" element={<OfficialCases />} />
+              <Route path="lesson/:id" element={<LessonPlayer />} />
               <Route path="workbench" element={<Workbench />} />
             </Route>
           </Routes>
