@@ -2,8 +2,21 @@ import type { NoteContent } from "@/noteTypes";
 
 export type LessonStep = {
   id: string;
-  title: string;
-  prompt?: string;
+  title?: string;
+  note: NoteContent;
+  stage: StageManifest;
+};
+
+export type PanelKey = "waveform" | "pvloop" | "metrics";
+
+export type StageManifest = {
+  visibleInstances: string[];
+  visiblePanels?: PanelKey[];
+  challenge?: {
+    kind: "predict" | "free";
+    prompt?: string;
+    revealLabel?: string;
+  };
 };
 
 export type Lesson = {
@@ -69,6 +82,51 @@ export const LESSONS: Lesson[] = [
           question: "After dobutamine, which direction should cardiac output move?",
           options: "Down|Up|No change",
           answerIndex: "1",
+        },
+      },
+    ],
+    steps: [
+      {
+        id: "predict-dobutamine",
+        title: "Predict the inotrope response",
+        note: [
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: "First inspect LV failure alone. Predict how adding dobutamine will change output and filling pressure before revealing the treated trace.", styles: {} }],
+          },
+          {
+            type: "quiz",
+            props: {
+              question: "What should dobutamine do to cardiac output in this low-contractility state?",
+              options: "Lower it|Raise it|Leave it unchanged",
+              answerIndex: "1",
+            },
+          },
+        ],
+        stage: {
+          visibleInstances: ["1"],
+          challenge: {
+            kind: "predict",
+            prompt: "Make your prediction before revealing the treated trace.",
+            revealLabel: "Reveal dobutamine",
+          },
+        },
+      },
+      {
+        id: "reveal-dobutamine",
+        title: "Reveal the dobutamine response",
+        note: [
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: "Now compare LV failure with + Dobutamine. Output and arterial pressure recover while congestion falls.", styles: {} }],
+          },
+          {
+            type: "equation",
+            props: { tex: "CO = HR \\times SV" },
+          },
+        ],
+        stage: {
+          visibleInstances: ["1", "2"],
         },
       },
     ],
