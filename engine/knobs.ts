@@ -229,8 +229,10 @@ export function resolveKnobsToParams(
   return resolveKnobMappingVersion(version)(clampKnobs(k), base);
 }
 
-/** Deep-merge two node-override blocks (one level into the `active` sub-block). */
-function mergeNodeOverrides(a: OverrideBlock | undefined, b: OverrideBlock | undefined): OverrideBlock | undefined {
+/** Deep-merge two node-override blocks (one level into the `active` sub-block);
+ *  `b` wins at the leaf. Exported so the case-resolution layer can layer a raw
+ *  patch's overrides over the knob-driven ones without clobbering them. */
+export function mergeNodeOverrides(a: OverrideBlock | undefined, b: OverrideBlock | undefined): OverrideBlock | undefined {
   if (!a) return b;
   if (!b) return a;
   const out: OverrideBlock = {};

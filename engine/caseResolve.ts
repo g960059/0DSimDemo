@@ -14,6 +14,7 @@ import {
   KNOB_MAPPING_VERSION,
   type ClinicalKnobs,
   type KnobKey,
+  mergeNodeOverrides,
   neutralKnobs,
   resolveKnobMappingVersion,
 } from "@/engine/knobs";
@@ -70,8 +71,10 @@ export interface CaseInstanceSpec {
   targetVolume?: number;
 }
 
-const N = (v: number | string | undefined, d: number): number =>
-  typeof v === "number" ? v : typeof v === "string" && v !== "" ? parseFloat(v) : d;
+const N = (v: number | string | undefined, d: number): number => {
+  const n = typeof v === "number" ? v : typeof v === "string" && v !== "" ? parseFloat(v) : d;
+  return Number.isFinite(n) ? n : d; // a malformed arg falls back to the default, never NaN
+};
 
 const SEV: Record<string, number> = { mild: 0.33, moderate: 0.66, severe: 1.0 };
 
@@ -141,13 +144,13 @@ export const INTERVENTIONS: Record<string, InterventionDef> = {
   aorticStenosis: {
     id: "aorticStenosis", label: "Aortic stenosis", category: "valve", tier: "teaching",
     args: { severity: { enum: ["mild", "moderate", "severe"] } },
-    apply: (a) => ({ knobs: { aorticStenosis: `=${SEV[(a.severity as string) || "moderate"]}` } }),
+    apply: (a) => ({ knobs: { aorticStenosis: `=${SEV[String(a.severity)] ?? SEV.moderate}` } }),
     note: "Raises ejection impedance: increased LV afterload and a systolic pressure gradient.",
   },
   mitralRegurgitation: {
     id: "mitralRegurgitation", label: "Mitral regurgitation", category: "valve", tier: "teaching",
     args: { severity: { enum: ["mild", "moderate", "severe"] } },
-    apply: (a) => ({ knobs: { mitralRegurgitation: `=${SEV[(a.severity as string) || "moderate"]}` } }),
+    apply: (a) => ({ knobs: { mitralRegurgitation: `=${SEV[String(a.severity)] ?? SEV.moderate}` } }),
     note: "Systolic regurgitation into the LA: reduced forward output, raised LAP (v-wave).",
   },
 };
@@ -170,7 +173,10 @@ export function effectiveKnobs(inst: CaseInstanceSpec, base: CoreRuntimeParams):
     for (const key of Object.keys(eff.knobs) as KnobKey[]) {
       const t = eff.knobs[key];
       if (typeof t === "string" && typeof k[key] === "number") {
-        (k as unknown as Record<KnobKey, number>)[key] = applyKnobTransform(k[key] as number, t);
+        const next = applyKnobTransform(k[key] as number, t);
+        // A malformed transform must never poison the returned knobs (which the
+        // app bridge/UI consume directly, beyond sanitizeParams' reach).
+        if (Number.isFinite(next)) (k as unknown as Record<KnobKey, number>)[key] = next;
       }
     }
   }
@@ -198,9 +204,26 @@ export function resolveInstance(
   const base = b.params;
   const knobs = effectiveKnobs(inst, base);
   let params = applyKnobs(base, knobs, version);
-  // Researcher raw override is absolute and wins over the resolved knobs.
+  // Researcher raw override is absolute and wins over the resolved knobs — but
+  // at the LEAF level. A flat key replaces; the structured override blocks are
+  // DEEP-merged (rawPatch leaves win) so a rawPatch node/edge override does not
+  // clobber a knob-driven one (e.g. diastolicStiffness's b_pas). Mirrors the
+  // care applyKnobs already takes; without this, rawPatch reintroduces the
+  // nodeOverrides-clobber bug.
   if (inst.rawPatch && Object.keys(inst.rawPatch).length > 0) {
-    params = sanitizeParams({ ...params, ...inst.rawPatch } as CoreRuntimeParams);
+    const merged = { ...params, ...inst.rawPatch } as CoreRuntimeParams;
+    if (inst.rawPatch.nodeOverrides) {
+      merged.nodeOverrides = mergeNodeOverrides(params.nodeOverrides, inst.rawPatch.nodeOverrides);
+    }
+    if (inst.rawPatch.edgeOverrides) {
+      merged.edgeOverrides = mergeNodeOverrides(params.edgeOverrides, inst.rawPatch.edgeOverrides) as CoreRuntimeParams["edgeOverrides"];
+    }
+    const result = sanitizeParams(merged);
+    // Preserve the explicit override clear-sentinels applyKnobs adds (sanitize
+    // strips undefined keys) so the live per-frame merge still clears overrides.
+    if (!("nodeOverrides" in result)) (result as { nodeOverrides?: unknown }).nodeOverrides = undefined;
+    if (!("edgeOverrides" in result)) (result as { edgeOverrides?: unknown }).edgeOverrides = undefined;
+    params = result;
   }
 
   let targetVolume = inst.targetVolume ?? b.targetVolume;
