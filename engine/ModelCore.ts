@@ -115,12 +115,20 @@ type StateIndex = {
   q: Record<DynamicEdgeName, number>;
   xi: Record<ValveName, number>;
   phi: number;
-  cLV: number;
-  aLV: number;
-  cRV: number;
-  aRV: number;
+  activeInternal: Partial<Record<Chamber, { c: number; a: number }>>;
   size: number;
 };
+
+function activeChambersFromNodes(nodes: NodeSpec[]): Chamber[] {
+  const chambers: Chamber[] = [];
+  const seen = new Set<Chamber>();
+  for (const n of nodes) {
+    if (n.kind !== "heartActive" || !n.chamber || !n.active || seen.has(n.chamber)) continue;
+    chambers.push(n.chamber);
+    seen.add(n.chamber);
+  }
+  return chambers;
+}
 
 function makeIndex(): StateIndex {
   let i = 0;
@@ -130,15 +138,17 @@ function makeIndex(): StateIndex {
   for (const e of dynamicEdgeNames) q[e] = i++;
   const xi = {} as Record<ValveName, number>;
   for (const v of valveNames) xi[v] = i++;
+  const phi = i++;
+  const activeInternal: Partial<Record<Chamber, { c: number; a: number }>> = {};
+  for (const ch of activeChambersFromNodes(buildNodes())) {
+    activeInternal[ch] = { c: i++, a: i++ };
+  }
   return {
     node,
     q,
     xi,
-    phi: i++,
-    cLV: i++,
-    aLV: i++,
-    cRV: i++,
-    aRV: i++,
+    phi,
+    activeInternal,
     size: i
   };
 }
@@ -250,7 +260,7 @@ export class ModelCore {
 
   // Heart chamber models (ROADMAP S2). Active LV/RV use fixed default params
   // (matching the previous hard-coded behavior); elastance models track node params.
-  private readonly activeModels: Record<"LV" | "RV", ActiveStressChamberModel> = {
+  private readonly activeModels: Partial<Record<Chamber, ActiveStressChamberModel>> = {
     LV: new ActiveStressChamberModel(defaultActiveLV),
     RV: new ActiveStressChamberModel(defaultActiveRV),
   };
@@ -310,12 +320,13 @@ export class ModelCore {
       }
     }
     this.x[this.idx.phi] = 0;
-    const lv0 = this.activeModels.LV.initialInternal();
-    const rv0 = this.activeModels.RV.initialInternal();
-    this.x[this.idx.cLV] = lv0.c;
-    this.x[this.idx.aLV] = lv0.a;
-    this.x[this.idx.cRV] = rv0.c;
-    this.x[this.idx.aRV] = rv0.a;
+    for (const n of this.activeChamberNodes()) {
+      const ch = n.chamber!;
+      const internalIndex = this.activeInternalIndex(ch);
+      const initial = this.activeModel(ch).initialInternal();
+      this.x[internalIndex.c] = initial.c;
+      this.x[internalIndex.a] = initial.a;
+    }
     this.t = 0;
     this.history = [];
     this.lastSample = this.sample();
@@ -365,7 +376,7 @@ export class ModelCore {
     // b_pas change) — otherwise the override updates the NodeSpec but the model
     // that actually computes chamber pressure keeps the old params (silent no-op).
     for (const n of this.nodes) {
-        if (n.kind === "heartActive" && n.active && (n.chamber === "LV" || n.chamber === "RV")) {
+        if (n.kind === "heartActive" && n.active && n.chamber) {
             this.activeModels[n.chamber] = new ActiveStressChamberModel(n.active);
         }
     }
@@ -461,8 +472,8 @@ export class ModelCore {
       VLA: pack.Vphys[this.nodeIndex.get("LA")!],
       VRA: pack.Vphys[this.nodeIndex.get("RA")!],
       phi: this.x[this.idx.phi],
-      aLV: clamp(this.x[this.idx.aLV], 0, 1),
-      aRV: clamp(this.x[this.idx.aRV], 0, 1),
+      aLV: clamp(this.x[this.activeInternalIndex("LV").a], 0, 1),
+      aRV: clamp(this.x[this.activeInternalIndex("RV").a], 0, 1),
       TBV: this.totalBloodVolume(pack)
     };
     this.trackBeat(s);
@@ -809,14 +820,15 @@ export class ModelCore {
     }
 
     dy[this.idx.phi] = this.p.HR / 60;
-    const lv = this.activeModels.LV.internalDerivatives(
-      x[this.idx.node.LV], { c: x[this.idx.cLV], a: x[this.idx.aLV] }, this.chamberCtx("LV", x));
-    const rv = this.activeModels.RV.internalDerivatives(
-      x[this.idx.node.RV], { c: x[this.idx.cRV], a: x[this.idx.aRV] }, this.chamberCtx("RV", x));
-    dy[this.idx.cLV] = lv.cDot;
-    dy[this.idx.aLV] = lv.aDot;
-    dy[this.idx.cRV] = rv.cDot;
-    dy[this.idx.aRV] = rv.aDot;
+    for (const n of this.activeChamberNodes()) {
+      const ch = n.chamber!;
+      const internalIndex = this.activeInternalIndex(ch);
+      const nodeIndex = this.idx.node[n.name as NodeName];
+      const internal = { c: x[internalIndex.c], a: x[internalIndex.a] };
+      const dInternal = this.activeModel(ch).internalDerivatives(x[nodeIndex], internal, this.chamberCtx(ch, x));
+      dy[internalIndex.c] = dInternal.cDot;
+      dy[internalIndex.a] = dInternal.aDot;
+    }
 
     return dy;
   }
@@ -858,12 +870,10 @@ export class ModelCore {
         Ptm[i] = ptm;
         P[i] = Pperi + ptm;
       } else if (n.kind === "heartActive") {
-        const ch = n.chamber as "LV" | "RV";
-        const internal = {
-          c: ch === "LV" ? x[this.idx.cLV] : x[this.idx.cRV],
-          a: ch === "LV" ? x[this.idx.aLV] : x[this.idx.aRV],
-        };
-        const ptm = this.activeModels[ch].pressure(V, internal, this.chamberCtx(ch, x));
+        const ch = n.chamber ?? "LV";
+        const internalIndex = this.activeInternalIndex(ch);
+        const internal = { c: x[internalIndex.c], a: x[internalIndex.a] };
+        const ptm = this.activeModel(ch).pressure(V, internal, this.chamberCtx(ch, x));
         Ptm[i] = ptm;
         P[i] = Pperi + ptm;
       }
@@ -902,6 +912,22 @@ export class ModelCore {
       geomScale: isLV ? this.p.lvGeomScale : this.p.rvGeomScale,
       caReleaseScale: isLV ? this.p.caReleaseScale : this.p.rvCaReleaseScale,
     };
+  }
+
+  private activeChamberNodes(): NodeSpec[] {
+    return this.nodes.filter((n) => n.kind === "heartActive" && n.chamber && n.active);
+  }
+
+  private activeInternalIndex(chamber: Chamber): { c: number; a: number } {
+    const idx = this.idx.activeInternal[chamber];
+    if (!idx) throw new Error(`Missing active internal state index for ${chamber}`);
+    return idx;
+  }
+
+  private activeModel(chamber: Chamber): ActiveStressChamberModel {
+    const model = this.activeModels[chamber];
+    if (!model) throw new Error(`Missing active chamber model for ${chamber}`);
+    return model;
   }
 
   /** (Re)build per-node elastance models from current node params. */
@@ -1052,10 +1078,11 @@ export class ModelCore {
     for (const e of dynamicEdgeNames) x[this.idx.q[e]] = clamp(x[this.idx.q[e]], -1200, 1200);
     for (const v of valveNames) x[this.idx.xi[v]] = clamp(x[this.idx.xi[v]], 0, 1);
     x[this.idx.phi] = x[this.idx.phi] > 1e6 ? frac(x[this.idx.phi]) : x[this.idx.phi];
-    x[this.idx.cLV] = clamp(x[this.idx.cLV], 0, 5);
-    x[this.idx.aLV] = clamp(x[this.idx.aLV], 0, 1);
-    x[this.idx.cRV] = clamp(x[this.idx.cRV], 0, 5);
-    x[this.idx.aRV] = clamp(x[this.idx.aRV], 0, 1);
+    for (const active of Object.values(this.idx.activeInternal)) {
+      if (!active) continue;
+      x[active.c] = clamp(x[active.c], 0, 5);
+      x[active.a] = clamp(x[active.a], 0, 1);
+    }
   }
 
   private projectVenousPressuresToTargetTBV(targetTBV: number): void {
