@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { DEFAULT_PARAMS } from './constants';
 import { SimulationParams, SimInstance, PanelDef, PanelType, PanelInstanceConfig, ChamberId, SignalType, MetricType } from './types';
 import { SimulationHealth } from './engine/protocol';
@@ -8,7 +8,7 @@ import { resolveRawEdit, resolveKnobEdit } from './engine/instanceKnobs';
 import { type CaseDocument, simInstancesToCaseDocument, caseDocumentToSimInstances } from './caseDoc';
 import { exportCaseFile, readCaseFile } from './casePersist';
 import { officialCaseById } from './officialCases';
-import { createUserLessonId, saveLesson } from './lessonPersist';
+import { createUserLessonId, getUserLesson, saveLesson } from './lessonPersist';
 import type { Lesson } from './lessonDoc';
 import { remapWorkbenchLoadIds } from './workbenchLoad';
 import { HealthBadge, HealthToasts, HealthToast } from './components/HealthIndicators';
@@ -35,6 +35,22 @@ const DEFAULT_MODEL_LIMITATIONS = [
 const EMPTY_NOTE_SPINE: NoteContent = [
   { type: 'paragraph', content: [{ type: 'text', text: '', styles: {} }] },
 ];
+
+function textFromNoteBlock(block: unknown): string {
+  if (!block || typeof block !== 'object') return '';
+  const content = (block as { content?: unknown }).content;
+  if (!Array.isArray(content)) return '';
+  return content
+    .map((item) => item && typeof item === 'object' ? ((item as { text?: unknown }).text ?? '') : '')
+    .filter((text): text is string => typeof text === 'string')
+    .join(' ')
+    .trim();
+}
+
+function noteExcerpt(note: NoteContent): string {
+  const text = note.map(textFromNoteBlock).find(Boolean);
+  return text ? (text.length > 96 ? `${text.slice(0, 93)}...` : text) : 'Empty note';
+}
 
 function Workbench() {
   const [searchParams] = useSearchParams();
@@ -237,20 +253,27 @@ function Workbench() {
   };
 
   const saveCurrentLesson = () => {
-    const title = lessonTitle.trim() || defaultSceneTitle();
-    const now = Date.now();
-    const id = createUserLessonId(now);
-    const notePanel = panels.find((panel) => panel.type === 'NOTE');
-    const noteSpine = notePanel ? (notes[notePanel.id] ?? EMPTY_NOTE_SPINE) : EMPTY_NOTE_SPINE;
-    const lesson: Lesson = {
-      meta: { id, title, createdAt: now },
-      case: buildCurrentDoc({ id, title, createdAt: now, updatedAt: now, includeNotes: false }),
-      noteSpine,
-    };
+    try {
+      const title = lessonTitle.trim() || defaultSceneTitle();
+      const now = Date.now();
+      const id = createUserLessonId(now);
+      const notePanel = panels.find((panel) => panel.type === 'NOTE');
+      const noteSpine = notePanel ? (notes[notePanel.id] ?? EMPTY_NOTE_SPINE) : EMPTY_NOTE_SPINE;
+      const lesson: Lesson = {
+        meta: { id, title, createdAt: now },
+        case: buildCurrentDoc({ id, title, createdAt: now, updatedAt: now, includeNotes: false }),
+        noteSpine,
+      };
 
-    saveLesson(lesson);
-    setSavedLesson({ id, title });
-    setIsLessonDialogOpen(false);
+      if (!saveLesson(lesson) || !getUserLesson(id)) {
+        pushWarningToast('Lesson save', 'Could not save this lesson locally.');
+        return;
+      }
+      setSavedLesson({ id, title });
+      setIsLessonDialogOpen(false);
+    } catch (err) {
+      pushWarningToast('Lesson save', (err as Error).message);
+    }
   };
 
   const handleImportFile = async (file: File) => {
@@ -482,9 +505,9 @@ function Workbench() {
                    <span>▣</span> Save as lesson
                </button>
                {savedLesson && (
-                   <Link to={`/lesson/${savedLesson.id}`} className="inline-flex px-2 sm:px-3 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 rounded text-[10px] sm:text-xs font-bold text-emerald-200 transition-colors whitespace-nowrap">
+                   <a href={`/lesson/${savedLesson.id}`} className="inline-flex px-2 sm:px-3 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 rounded text-[10px] sm:text-xs font-bold text-emerald-200 transition-colors whitespace-nowrap">
                        Open lesson
-                   </Link>
+                   </a>
                )}
 
                <div className="hidden sm:block h-6 w-px bg-slate-700 mx-1"></div>
@@ -756,7 +779,7 @@ function Workbench() {
                       <div className="rounded border border-slate-800 bg-slate-950/60 p-3">
                           <div className="text-xs font-bold text-slate-400 mb-1">Note spine</div>
                           <div className="text-sm text-slate-200 truncate">
-                              {panels.find((panel) => panel.type === 'NOTE')?.title ?? 'Empty note'}
+                              {noteExcerpt(notes[panels.find((panel) => panel.type === 'NOTE')?.id ?? ''] ?? EMPTY_NOTE_SPINE)}
                           </div>
                       </div>
                   </div>

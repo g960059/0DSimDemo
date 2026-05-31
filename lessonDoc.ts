@@ -1,6 +1,6 @@
 import type { NoteContent } from "@/noteTypes";
 import type { CaseDocument } from "@/caseDoc";
-import { caseDocumentToSimInstances } from "@/caseDoc";
+import { caseDocumentToSimInstances, isCaseDisplayable } from "@/caseDoc";
 import { officialCaseById } from "@/officialCases";
 import { listUserLessons } from "@/lessonPersist";
 
@@ -147,6 +147,7 @@ export function lessonById(id: string): Lesson | undefined {
 export function resolveLessonCase(lesson: Lesson): CaseDocument | undefined {
   if (lesson.case) {
     try {
+      if (!isCaseDisplayable(lesson.case)) return undefined;
       caseDocumentToSimInstances(lesson.case);
       return lesson.case;
     } catch {
