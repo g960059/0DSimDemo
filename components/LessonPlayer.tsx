@@ -24,14 +24,22 @@ const StagePanel: React.FC<{ title: string; children: React.ReactNode; className
 
 export const LessonPlayer = () => {
   const { id } = useParams();
-  const lesson = id ? lessonById(id) : undefined;
+  return <LessonPlayerBody key={id ?? "missing"} lessonId={id} />;
+};
+
+const LessonPlayerBody: React.FC<{ lessonId?: string }> = ({ lessonId }) => {
+  const lesson = lessonId ? lessonById(lessonId) : undefined;
   const caseDoc = lesson ? officialCaseById(lesson.caseId) : undefined;
   const [controller] = useState(() => new PreviewController());
   const physicsRefs = useRef<Map<string, PhysicsRefState>>(controller.refs);
 
   const instances = useMemo(() => {
     if (!caseDoc) return [];
-    return caseDocumentToSimInstances(caseDoc);
+    try {
+      return caseDocumentToSimInstances(caseDoc);
+    } catch {
+      return [];
+    }
   }, [caseDoc]);
 
   const ids = useMemo(() => instances.map((inst) => inst.id), [instances]);
@@ -46,7 +54,7 @@ export const LessonPlayer = () => {
     return () => controller.stop();
   }, [controller, instances]);
 
-  if (!lesson || !caseDoc) {
+  if (!lesson || !caseDoc || instances.length === 0) {
     return (
       <div className="h-full w-full bg-slate-950 text-slate-200 flex items-center justify-center p-6">
         <div className="max-w-md text-center">
