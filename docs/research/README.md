@@ -1,71 +1,71 @@
-# Parameter validity research — official lesson cases
+# Parameter-validity research — navigator
 
-Purpose: a **literature-grounded record of the physical/physiological validity** of
-every parameter used by the official lesson cases (`officialCases.ts`) and the
-`active-normal` baseline they build on. This is the evidence base that the M12
-calibration milestone will fit against.
+A **literature-grounded record of the physical/physiological validity** of the model's parameters,
+plus the calibration work built on it. This folder is the evidence base the calibration milestones
+fit against. Start here to trace any parameter's validity to its canonical doc + section.
 
-## What this IS and is NOT
+## Ground rules (all contributors)
 
-- **IS**: a referenced rationale — for each parameter, the literature target range,
-  the model's value + how it computes (knob → raw → engine math), and a verdict
-  (plausible / off / uncertain), with **real citations**.
-- **IS NOT**: M12 calibration/validation. We are not fitting parameters to data
-  here; we are documenting where the current values stand vs the literature so M12
-  can prioritise. Per project priority: **waveform SHAPE and the DIRECTION of change
-  matter more than absolute values** — but absolute values still matter for trust.
+1. **Real references only.** Cite reputable sources (Klabunde *Cardiovascular Physiology Concepts*;
+   Guyton & Hall; Suga/Sagawa elastance; Sunagawa venous return; Burkhoff PV analysis; Westerhof/
+   Stergiopulos windkessel; Garcia/Otto valve gradients; Bovendeerd/Arts CircAdapt; Klotz EDPVR;
+   Carlsson/Arheden AVPD). **Never fabricate a citation, DOI, or page number.** No source → write
+   "no source found — open question".
+2. **Numbers are code-verified or two-party cross-checked.** Unit conversions (Pa↔mmHg, mmHg·s/mL↔WU,
+   cmH₂O↔mmHg) must be derived and checked, not guessed. Flag "要確認/to verify" rather than assert.
+3. **Separate three things** per parameter: *(a) literature target*, *(b) model value + computation*,
+   *(c) verdict / open question*.
+4. **Document gaps honestly** (incl. "scaffolding being undone" — see atrial-split review).
+5. Note **units** explicitly. Priority: **waveform SHAPE & DIRECTION of change > absolute values**.
 
-## Ground rules (both team members)
+## Validity navigator — subsystem → canonical doc(§)
 
-1. **Real references only.** Cite reputable sources — textbooks (Klabunde *Cardiovascular
-   Physiology Concepts*; Guyton & Hall), classic papers (Suga & Sagawa time-varying
-   elastance; Sunagawa/Sagawa venous return & guyton; Burkhoff PV analysis; Westerhof/
-   Stergiopulos windkessel; Garcia/Otto valvular gradients). **Never fabricate a citation,
-   DOI, or page number.** If you cannot find a source, write "no source found — open question".
-3. **Separate three things explicitly** for each parameter: *(a) literature target*,
-   *(b) model value + computation*, *(c) verdict / open question*.
-4. **Document known calibration gaps honestly** (e.g. the model's normal CO ≈ 3.5 L/min is
-   LOW vs a normal adult ~5–6 L/min; this is a real gap to record, not hide).
-5. Note **dimensions/units** explicitly (Pa vs mmHg, cm² vs mm², mL/min vs mL/s).
+| Subsystem / parameter group | Canonical doc(s) + section |
+|---|---|
+| Thick-sphere geometry `geomChi` (derivation) | [derivations-geometry-and-edpvr.md](./derivations-geometry-and-edpvr.md) §A1 |
+| Active-stress `Tmax0` / `σ_act` (ceiling vs realised) | derivations §A4 · [parameter-survey.md](./parameter-survey.md) §A |
+| EDPVR / passive `sigmaPas0,bPas,lambdaPas0` (Klotz) | derivations §A2–A3 · parameter-survey §A · [m12-lite-calibration-journal.md](./m12-lite-calibration-journal.md) |
+| Arterial / venous tree nodes (P0/Vs/Vu, compliance) | parameter-survey §B,§C |
+| Edge R / L → SVR / PVR / inertance | parameter-survey §D |
+| Valves (areas; AS/MR/AR/TR EROA) | parameter-survey §E · [valve-lesions.md](./valve-lesions.md) |
+| Global scalings + TBV distribution | parameter-survey §F |
+| Respiratory + PEEP unit bug | parameter-survey §G |
+| Waveform morphology (AoP/LVP/PV-loop/E-A/PVF) | [waveform-morphology.lit.md](./waveform-morphology.lit.md) (physiology) · [waveform-morphology.codex.md](./waveform-morphology.codex.md) (measured) |
+| **M12-lite calibration (as-built)** | m12-lite-calibration-journal.md |
+| **Atrial active-stress + reservoir + pulmonary split** | [m12-la-preload-design.md](./m12-la-preload-design.md) (design) · [atrial-split-validity-review.md](./atrial-split-validity-review.md) (validity) · [m12-la-preload-impl-plan.md](./m12-la-preload-impl-plan.md) (implementation) |
+| AV-delay timing (`atrialLeadSec`) | atrial-split-validity-review.md §1.5 |
+| Case validity (baseline / AS·MR / failure·dobut / hypovolemia) | [baseline-and-normal.md](./baseline-and-normal.md) · valve-lesions.md · [lv-failure-dobutamine.md](./lv-failure-dobutamine.md) · [hypovolemia.md](./hypovolemia.md) |
+| Settle / snapshot / steady-state | [../state-snapshot-and-steady-state.md](../state-snapshot-and-steady-state.md) |
+| Roadmap (model SSOT) / Phase-A plan | [../ROADMAP.md](../ROADMAP.md) · [../PHASE_A_PLAN.md](../PHASE_A_PLAN.md) |
 
-## Division of labour (team 0dsim1)
+> **Note on case-doc operating-point numbers:** the hard numbers in baseline-and-normal / valve-lesions /
+> lv-failure-dobutamine / hypovolemia are **M12-lite/Phase-1-era and are being changed by the in-progress
+> atrial-split reparam** — they will be refreshed after the Phase-2 commit. The *literature targets* and
+> *direction* in those docs remain valid.
 
-- **lead (claude-code 4.8)** — section **A. Physiological validity vs literature**: target
-  ranges, references, the qualitative direction each lesson should show, known gaps.
-- **codex1 (codex 5.5)** — section **B. Physical & computational rationale**: the engine
-  math (how the raw param enters σ_act / σ_pas / valve flow / venous return), dimensional
-  analysis, numerical considerations, and an independent cross-check of section A's numbers.
+## Document map (chronology + status)
 
-Coordinate via `/agmsg`. Each `docs/research/<case>.md` carries both sections.
+1. **parameter-survey.md** — the broad validity survey (groups A–G) + the M12 calibration anchors. *Active reference.*
+2. **derivations-geometry-and-edpvr.md** — step-by-step math behind geomChi & the EDPVR/Klotz fix. *Active.*
+3. **m12-lite-calibration-journal.md** — the executed M12-lite calibration, trial-and-error, final landing. *As-built record.*
+4. **waveform-morphology.lit.md / .codex.md** — canonical waveform morphology (physiology / measured). *Active.*
+5. **m12-la-preload-design.md** — M12-proper #1 LA-preload + Phase-2b structural (reservoir/AV-plane, pulmonary split). *Active design (UPDATE in progress).*
+6. **atrial-split-validity-review.md** — validity review of the current atrial+split params (scaffolding vs physiology, migration targets). *Active.*
+7. **m12-la-preload-impl-plan.md** — claude2's in-code implementation plan for the atrial migration. *Active.*
+8. Case docs: **baseline-and-normal / valve-lesions / lv-failure-dobutamine / hypovolemia** — per-case validity. *Active (numbers refresh pending Phase-2).*
+
+**Archived (git history):** `m12-lite-plan.md` — the pre-execution M12-lite plan; **deleted** as
+completed/superseded by m12-lite-calibration-journal.md (the as-built record). Recover via git if needed.
 
 ## Per-doc template
 
 ```
-# <Case title>
-
-Model files: officialCases.ts (the case) · engine/caseResolve.ts (interventions) ·
-engine/knobs.ts (knob→raw) · engine/chambers.ts (active-stress) · constants.ts (defaults)
-
+# <title>
+Model files: ...
 ## Parameters in play
-| Knob / param | Model value (+ how computed) | Literature target (ref) | Verdict |
-|---|---|---|---|
-
-## A. Physiological validity vs literature   [lead]
-...
-
-## B. Physical & computational rationale      [codex1]
-...
-
+| param | model value (+computation) | literature target (ref) | verdict |
+## A. Physiological validity vs literature
+## B. Physical & computational rationale
 ## Open questions / for M12
-...
-
 ## References
-1. ...
 ```
-
-## Index
-
-- [baseline-and-normal.md](./baseline-and-normal.md) — the active-normal reference operating point.
-- [lv-failure-dobutamine.md](./lv-failure-dobutamine.md) — lvPumpFailure + dobutamine coefficients.
-- [valve-lesions.md](./valve-lesions.md) — aortic stenosis & mitral regurgitation mappings.
-- [hypovolemia.md](./hypovolemia.md) — target blood volume / preload.

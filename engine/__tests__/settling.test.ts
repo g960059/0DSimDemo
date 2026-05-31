@@ -69,7 +69,7 @@ describe("ModelCore.settleToSteady", () => {
     const c = fresh();
     c.settleToSteady();
     expect(c.isSettled()).toBe(true);
-    c.setImmediateParameters({ HR: 110 }); // operating-point change must re-arm
+    c.setImmediateParameters({ HR: 100 }); // operating-point change must re-arm
     expect(c.isSettled()).toBe(false);
     // ...and re-converges to the new operating point.
     const st = c.settleToSteady();

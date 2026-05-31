@@ -1,5 +1,10 @@
 # Valvular lesions: aortic stenosis & mitral regurgitation
 
+> **Status note:** the operating-point **numbers** below are **M12-lite/Phase-1-era** (e.g. the Phase-1
+> MR landed at EROA ~0.33) and are being changed by the in-progress atrial-split reparam — to be
+> refreshed after the Phase-2 commit. Literature targets & directions remain valid. See
+> [atrial-split-validity-review.md](./atrial-split-validity-review.md).
+
 Model files: `officialCases.ts` (case `valve-lesions`) · `engine/caseResolve.ts`
 `INTERVENTIONS.aorticStenosis` / `.mitralRegurgitation` (→ severity knob) ·
 `engine/knobs.ts` valve-lesion formulas · `engine/ModelCore.ts` valve flow.

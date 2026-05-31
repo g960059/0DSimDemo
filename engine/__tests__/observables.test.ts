@@ -9,7 +9,8 @@ describe("M0bs observability", () => {
     const o = core.debugObservables();
 
     for (const [k, v] of Object.entries(o)) {
-      expect(Number.isFinite(v), `non-finite ${k}`).toBe(true);
+      if (typeof v === "number") expect(Number.isFinite(v), `non-finite ${k}`).toBe(true);
+      else expect(typeof v, `unexpected observable field type ${k}`).toBe("string");
     }
     // Mean systemic filling pressure: positive and modest.
     expect(o.Pmsf).toBeGreaterThan(2);

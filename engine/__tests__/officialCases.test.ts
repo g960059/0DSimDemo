@@ -1,7 +1,27 @@
 import { describe, expect, it } from "vitest";
 import { OFFICIAL_CASES, officialCaseById } from "@/officialCases";
 import { caseDocumentToSimInstances, isCaseDisplayable } from "@/caseDoc";
-import { runScenario } from "@/engine/harness";
+import { measureConverged } from "@/engine/measure";
+import { DEFAULT_SETTLE_POLICY } from "@/engine/settling";
+
+const OFFICIAL_CASE_MEASURE = {
+  // Official case smokes include intentionally pathological states whose shape
+  // signals can retain small beat-scale wobble after the primary hemodynamics
+  // have converged enough for lesson-direction checks.
+  settlePolicy: { ...DEFAULT_SETTLE_POLICY, tolShape: 0.25 },
+  requireProjectorQuiet: false,
+};
+
+const officialMeasureOptions = (caseId: string) => ({
+  ...OFFICIAL_CASE_MEASURE,
+  settlePolicy: {
+    ...OFFICIAL_CASE_MEASURE.settlePolicy,
+    // Fixed-TBV volume-conservative integration exposes a small persistent
+    // stroke-volume wobble in the dobutamine teaching case; the directionality
+    // smoke only needs the coarse settled operating point.
+    ...(caseId === "lv-failure-dobutamine" ? { tolPrimary: 0.01 } : {}),
+  },
+});
 
 describe("official lesson cases (#3-d)", () => {
   it("exposes a non-empty registry, each looked up by id", () => {
@@ -23,8 +43,8 @@ describe("official lesson cases (#3-d)", () => {
           for (const v of Object.values(si.params)) {
             if (typeof v === "number") expect(Number.isFinite(v)).toBe(true);
           }
-          const r = runScenario(si.params, { settleMode: "converge", targetTBV: si.targetVolume, measureSeconds: 2 });
-          expect(r.settleStatus).toBeDefined();
+          const r = measureConverged(si.params, { ...officialMeasureOptions(c.meta.id), targetTBV: si.targetVolume, measureBeats: 2 });
+          expect(r.settleStatus.settled).toBe(true);
           expect(Number.isFinite(r.metrics.AoPMean)).toBe(true);
           expect(Number.isFinite(r.metrics.CO_L)).toBe(true);
           expect(r.metrics.AoPMean).toBeGreaterThan(0);
@@ -41,7 +61,7 @@ describe("official lesson cases (#3-d)", () => {
   describe("lesson directionality", () => {
     const metricsOf = (caseId: string, idx: number) => {
       const si = caseDocumentToSimInstances(officialCaseById(caseId)!)[idx];
-      return runScenario(si.params, { settleMode: "converge", targetTBV: si.targetVolume, measureSeconds: 3 }).metrics;
+      return measureConverged(si.params, { ...officialMeasureOptions(caseId), targetTBV: si.targetVolume, measureBeats: 3 }).metrics;
     };
     const normal = metricsOf("normal-sinus", 0);
 

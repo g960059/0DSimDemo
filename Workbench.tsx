@@ -389,6 +389,7 @@ function Workbench() {
 
   const [addingPanelType, setAddingPanelType] = useState<PanelType | null>(null);
   const [addingPanelConfig, setAddingPanelConfig] = useState<Record<string, PanelInstanceConfig>>({});
+  const [paneMenuOpen, setPaneMenuOpen] = useState<boolean>(false);
 
   const addPanel = (type: PanelType) => {
       const newConfig: Record<string, PanelInstanceConfig> = {};
@@ -541,21 +542,26 @@ function Workbench() {
 
                <div className="h-6 w-px bg-slate-700 mx-1"></div>
 
-               <div className="flex items-center gap-1 group relative">
-                   <button className="px-2 sm:px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded text-[10px] sm:text-xs font-bold text-slate-300 transition-colors flex items-center gap-1 sm:gap-2">
+               <div className="flex items-center gap-1 relative">
+                   <button onClick={(e) => { e.stopPropagation(); setPaneMenuOpen((o) => !o); }} className={`px-2 sm:px-3 py-1.5 rounded text-[10px] sm:text-xs font-bold transition-colors flex items-center gap-1 sm:gap-2 ${paneMenuOpen ? 'bg-slate-700 text-slate-200' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'}`}>
                        <span>+ Pane</span>
                        <span className="text-[8px] sm:text-[10px]">▼</span>
                    </button>
-                   <div className="hidden group-hover:block absolute top-full right-0 mt-1 w-40 sm:w-48 bg-slate-800 border border-slate-700 shadow-xl rounded py-1 z-50">
-                       <button onClick={() => addPanel('NOTE')} className="block w-full text-left px-4 py-2 text-xs hover:bg-slate-700 text-green-300">Notes (Interactive)</button>
-                       <button onClick={() => addPanel('PVLOOP')} className="block w-full text-left px-4 py-2 text-xs hover:bg-slate-700 text-slate-300">PV Loop</button>
-                       <button onClick={() => addPanel('WAVEFORM')} className="block w-full text-left px-4 py-2 text-xs hover:bg-slate-700 text-slate-300">Waveforms</button>
-                       <button onClick={() => addPanel('METRICS')} className="block w-full text-left px-4 py-2 text-xs hover:bg-slate-700 text-slate-300">Metrics</button>
-                       <button onClick={() => addPanel('CONTROLS')} className="block w-full text-left px-4 py-2 text-xs hover:bg-slate-700 text-blue-300">Controls</button>
-                       <div className="h-px bg-slate-700 my-1"></div>
-                       <button onClick={() => addPanel('GUYTON_LEFT')} className="block w-full text-left px-4 py-2 text-xs hover:bg-slate-700 text-slate-300">Guyton (L)</button>
-                       <button onClick={() => addPanel('GUYTON_RIGHT')} className="block w-full text-left px-4 py-2 text-xs hover:bg-slate-700 text-slate-300">Guyton (R)</button>
-                   </div>
+                   {paneMenuOpen && (
+                     <>
+                       <div className="fixed inset-0 z-40 cursor-default" onClick={() => setPaneMenuOpen(false)} />
+                       <div className="block absolute top-full right-0 mt-1 w-40 sm:w-48 bg-slate-800 border border-slate-700 shadow-xl rounded py-1 z-50">
+                           <button onClick={() => { addPanel('NOTE'); setPaneMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-xs hover:bg-slate-700 text-green-300">Notes (Interactive)</button>
+                           <button onClick={() => { addPanel('PVLOOP'); setPaneMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-xs hover:bg-slate-700 text-slate-300">PV Loop</button>
+                           <button onClick={() => { addPanel('WAVEFORM'); setPaneMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-xs hover:bg-slate-700 text-slate-300">Waveforms</button>
+                           <button onClick={() => { addPanel('METRICS'); setPaneMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-xs hover:bg-slate-700 text-slate-300">Metrics</button>
+                           <button onClick={() => { addPanel('CONTROLS'); setPaneMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-xs hover:bg-slate-700 text-blue-300">Controls</button>
+                           <div className="h-px bg-slate-700 my-1"></div>
+                           <button onClick={() => { addPanel('GUYTON_LEFT'); setPaneMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-xs hover:bg-slate-700 text-slate-300">Guyton (L)</button>
+                           <button onClick={() => { addPanel('GUYTON_RIGHT'); setPaneMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-xs hover:bg-slate-700 text-slate-300">Guyton (R)</button>
+                       </div>
+                     </>
+                   )}
                </div>
           </div>
       </header>

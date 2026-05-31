@@ -1,7 +1,11 @@
 # State Snapshot / Steady-State / Warm-Start 設計（チーム共有）
 
-最終更新: 2026-05-30
-ステータス: **設計合意（未実装）**。3者独立レビュー2ラウンド（本実装者 ＋ Claude Opus 4.8 ＋ Codex 5.5 xhigh）の統合。
+最終更新: 2026-05-30（実装状況注記: 2026-05-31）
+ステータス: **設計合意 → 一部実装済み**。3者独立レビュー2ラウンド（本実装者 ＋ Claude Opus 4.8 ＋ Codex 5.5 xhigh）の統合。
+> **実装状況メモ (2026-05-31):** M12-lite 較正で settle 是正が確定 —
+> frozen-snapshot 用に `BASELINE_OPTIONS.settleSeconds` 8→60、grounded 計測は `settleMode:"converge"` +
+> `settleStatus.settled` 確認（チーム標準）。`sanitizeParams` 実装済み。converge 収束判定・warm-start
+> seed は段階導入中。経緯は [research/m12-lite-calibration-journal.md](research/m12-lite-calibration-journal.md) §Snapshot/settle。
 関連: [ROADMAP.md](ROADMAP.md), [PHASE_A_PLAN.md](PHASE_A_PLAN.md), 別実装の `caseOps.ts`（op-stack / save-share）。
 
 > この文書は engine 側（`ModelCore`/`previewController`/`harness`/`protocol`）の「収束判定・状態スナップショット・warm-start」設計と、それが `caseOps.ts`（save/share/export/API/MCP）とどう噛み合うか（canonical vs cache）を定める。**別実装チーム（caseOps）向けの要対応項目は §6**。

@@ -1,5 +1,9 @@
 # Baseline (`active-normal`) and the Normal case
 
+> **Status note:** the operating-point **numbers** below are **M12-lite/Phase-1-era** and are being
+> changed by the in-progress atrial-split reparam — to be refreshed after the Phase-2 commit. The
+> literature targets & directions remain valid. See [atrial-split-validity-review.md](./atrial-split-validity-review.md).
+
 Model files: `engine/caseBaselines.ts` (active-normal = `defaultParams()`, TBV 5600) ·
 `constants.ts`/`engine/ModelCore.ts` `defaultParams()` · `engine/chambers.ts`
 (active-stress `defaultActiveLV/RV`).

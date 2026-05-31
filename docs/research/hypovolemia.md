@@ -1,5 +1,10 @@
 # Hypovolemia
 
+> **Status note:** the operating-point **numbers** below are **M12-lite/Phase-1-era** (e.g. the
+> official `targetVolume` was retuned 4600→4800) and are being changed by the in-progress atrial-split
+> reparam — to be refreshed after the Phase-2 commit. Literature targets & directions remain valid.
+> See [atrial-split-validity-review.md](./atrial-split-validity-review.md).
+
 Model files: `officialCases.ts` (case `hypovolemia`, `targetVolume: 4600`) ·
 `engine/ModelCore.ts` `initializeVenousPressuresForTargetTBV` / `projectVenousPressuresToTargetTBV`
 (the TBV → venous-pressure projector) · venous-return / Pmsf observables.
