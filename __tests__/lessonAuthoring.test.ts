@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { caseDocumentToSimInstances } from "@/caseDoc";
-import { cloneNoteContent, normalizeStepsForSave, staleVisibleIds, syncCheckedIds } from "@/lessonAuthoring";
+import { cloneNoteContent, instanceIdsKey, normalizeStepsForSave, staleVisibleIds, syncCheckedIds } from "@/lessonAuthoring";
 import type { Lesson, LessonStep } from "@/lessonDoc";
 import { getUserLesson, saveLesson } from "@/lessonPersist";
 import { officialCaseById } from "@/officialCases";
@@ -79,11 +79,22 @@ describe("lesson authoring step normalization", () => {
     expect(caseDocumentToSimInstances(saved!.case!).map((instance) => instance.id)).toEqual(["1", "2"]);
   });
 
-  it("keeps checked ids stable across instance reference churn while adding and dropping real ids", () => {
-    expect(syncCheckedIds(["1"], ["1", "2"])).toEqual(["1", "2"]);
-    expect(syncCheckedIds(["1"], ["1", "2"])).toEqual(["1", "2"]);
-    expect(syncCheckedIds(["1"], ["1"])).toEqual(["1"]);
-    expect(syncCheckedIds(["1", "2"], ["2", "3"])).toEqual(["2", "3"]);
+  it("keeps checked ids stable across same-id reference churn", () => {
+    expect(syncCheckedIds(["1"], ["1", "2"], ["1", "2"])).toEqual(["1"]);
+  });
+
+  it("default-checks only genuinely new ids after an existing id was unchecked", () => {
+    expect(syncCheckedIds(["1"], ["1", "2"], ["1", "2", "3"])).toEqual(["1", "3"]);
+  });
+
+  it("drops removed ids without re-checking previously unchecked ids", () => {
+    expect(syncCheckedIds(["1"], ["1", "2"], ["1"])).toEqual(["1"]);
+    expect(syncCheckedIds(["2"], ["1", "2"], ["2", "3"])).toEqual(["2", "3"]);
+  });
+
+  it("uses a stable value key for instance ids", () => {
+    expect(instanceIdsKey(["1", "2"])).toBe(instanceIdsKey(["1", "2"]));
+    expect(instanceIdsKey(["1", "2"])).not.toBe(instanceIdsKey(["2", "1"]));
   });
 
   it("reports stale visible ids for captured steps before save-time pruning", () => {

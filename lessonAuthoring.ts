@@ -13,11 +13,16 @@ export function cloneNoteContent(note: NoteContent): NoteContent {
   return JSON.parse(JSON.stringify(note)) as NoteContent;
 }
 
-export function syncCheckedIds(prevChecked: string[], nextIds: string[]): string[] {
+export function instanceIdsKey(ids: string[]): string {
+  return ids.join("\u001f");
+}
+
+export function syncCheckedIds(prevChecked: string[], prevIds: string[], nextIds: string[]): string[] {
   const next = new Set(nextIds);
+  const prev = new Set(prevIds);
   const kept = prevChecked.filter((id) => next.has(id));
-  const keptSet = new Set(kept);
-  const added = nextIds.filter((id) => !keptSet.has(id));
+  const checked = new Set(prevChecked);
+  const added = nextIds.filter((id) => !prev.has(id) && !checked.has(id));
   return [...kept, ...added];
 }
 

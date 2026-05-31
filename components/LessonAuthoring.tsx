@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { LessonStep } from "../lessonDoc";
-import { cloneNoteContent, EMPTY_AUTHOR_NOTE, staleVisibleIds, syncCheckedIds } from "../lessonAuthoring";
+import { cloneNoteContent, EMPTY_AUTHOR_NOTE, instanceIdsKey, staleVisibleIds, syncCheckedIds } from "../lessonAuthoring";
 import type { NoteContent } from "../noteTypes";
 import type { SimInstance } from "../types";
 import { NotePanel } from "./NotePanel";
@@ -13,7 +13,7 @@ type LessonAuthoringProps = {
 
 export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, stepsDraft, setStepsDraft }) => {
   const allInstanceIds = useMemo(() => instances.map((instance) => instance.id), [instances]);
-  const instanceIdsKey = allInstanceIds.join("\u001f");
+  const idsKey = instanceIdsKey(allInstanceIds);
   const [stepTitleDraft, setStepTitleDraft] = useState("");
   const [stepNoteDraft, setStepNoteDraft] = useState<NoteContent>(EMPTY_AUTHOR_NOTE);
   const [stepVisibleIdsDraft, setStepVisibleIdsDraft] = useState<string[]>(allInstanceIds);
@@ -22,11 +22,13 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
   const [promptDraft, setPromptDraft] = useState("");
   const [noteEditorKey, setNoteEditorKey] = useState(0);
   const stepCounterRef = useRef(0);
+  const previousInstanceIdsRef = useRef<string[]>(allInstanceIds);
   const [warning, setWarning] = useState<string | null>(null);
 
   useEffect(() => {
-    setStepVisibleIdsDraft((current) => syncCheckedIds(current, allInstanceIds));
-  }, [instanceIdsKey]); // eslint-disable-line react-hooks/exhaustive-deps
+    setStepVisibleIdsDraft((current) => syncCheckedIds(current, previousInstanceIdsRef.current, allInstanceIds));
+    previousInstanceIdsRef.current = allInstanceIds;
+  }, [idsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const resetDrafts = () => {
     setStepTitleDraft("");
