@@ -99,6 +99,12 @@ export function simInstanceToCaseInstance(
   inst: SimInstance,
   baselines: Record<string, BaselineDef> = OFFICIAL_BASELINES,
 ): CaseInstance {
+  // A knob-primary instance must carry BOTH knobs and knobBaseline (the app sets
+  // them together). knobs-without-baseline would mean serializing derived params
+  // as the baseline — reject it rather than corrupt the document.
+  if (inst.knobs && !inst.knobBaseline) {
+    throw new Error(`Instance "${inst.id}" has knobs but no knobBaseline (invalid knob-primary state); refusing to serialize.`);
+  }
   const baseParams = baselines[DEFAULT_BASELINE_ID].params;
   // The authored base the knobs multiply over. For a knob-primary instance that
   // is its knobBaseline; for a legacy raw-only instance the params ARE authored.
@@ -111,7 +117,13 @@ export function simInstanceToCaseInstance(
     isVisible: inst.isVisible,
     baseline: DEFAULT_BASELINE_ID,
     baselinePatch: diffParams(authoredBase, baseParams),
-    knobs: diffKnobs(knobs, neutralKnobs(baseParams)),
+    // Diff against neutralKnobs(authoredBase) — the SAME base the loader
+    // reconstructs (baseline + baselinePatch) — so the absolute knobs
+    // (HR/venousTone/PEEP), whose neutral value comes from the base, round-trip
+    // losslessly. Diffing against the default baseline's neutral would drop an
+    // absolute knob that equals the DEFAULT while the base carries a deviation,
+    // silently corrupting the reload.
+    knobs: diffKnobs(knobs, neutralKnobs(authoredBase)),
     interventions: [],
     rawPatch: {},
     targetVolume: inst.targetVolume,
@@ -161,8 +173,12 @@ export function caseDocumentToSimInstances(
   doc: CaseDocument,
   baselines: Record<string, BaselineDef> = OFFICIAL_BASELINES,
 ): SimInstance[] {
-  // Verify the mapping version up front (throws on unknown) — a case authored
+  // Reject an unknown schema (future docs must be migrated, not mis-loaded) and
+  // verify the mapping version up front (throws on unknown) — a case authored
   // against another engine is never silently resolved with the current map.
+  if (doc.schemaVersion !== CASE_SCHEMA_VERSION) {
+    throw new Error(`Unsupported case schemaVersion ${doc.schemaVersion} (this build supports ${CASE_SCHEMA_VERSION}).`);
+  }
   resolveKnobMappingVersion(doc.knobMappingVersion);
   return doc.instances.map((ci) => caseInstanceToSimInstance(ci, baselines, doc.knobMappingVersion));
 }

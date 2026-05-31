@@ -205,13 +205,22 @@ export function resolveInstance(
   }
   resolveKnobMappingVersion(version); // throws on unknown version — no silent fallback
 
-  // The resolution base = the named baseline + any authored baselinePatch
-  // (the knobs multiply over THIS). Shallow-merge is correct here because the
-  // named baselines carry no override blocks; applyKnobs then deep-merges the
-  // knob-driven overrides on top.
-  const base = inst.baselinePatch && Object.keys(inst.baselinePatch).length > 0
-    ? sanitizeParams({ ...b.params, ...inst.baselinePatch } as CoreRuntimeParams)
-    : b.params;
+  // The resolution base = the named baseline + any authored baselinePatch (the
+  // knobs multiply over THIS). Structured override blocks are deep-merged so a
+  // baselinePatch override can't clobber a future baseline that carries its own
+  // (today active-normal has none); applyKnobs then deep-merges the knob-driven
+  // overrides on top.
+  let base = b.params;
+  if (inst.baselinePatch && Object.keys(inst.baselinePatch).length > 0) {
+    const merged = { ...b.params, ...inst.baselinePatch } as CoreRuntimeParams;
+    if (inst.baselinePatch.nodeOverrides) {
+      merged.nodeOverrides = mergeNodeOverrides(b.params.nodeOverrides, inst.baselinePatch.nodeOverrides);
+    }
+    if (inst.baselinePatch.edgeOverrides) {
+      merged.edgeOverrides = mergeNodeOverrides(b.params.edgeOverrides, inst.baselinePatch.edgeOverrides) as CoreRuntimeParams["edgeOverrides"];
+    }
+    base = sanitizeParams(merged);
+  }
   const knobs = effectiveKnobs(inst, base);
   let params = applyKnobs(base, knobs, version);
   // Researcher raw override is absolute and wins over the resolved knobs — but

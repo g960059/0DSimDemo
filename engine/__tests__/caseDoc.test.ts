@@ -80,4 +80,37 @@ describe("CaseDocument bridge round-trip (#3-b)", () => {
     const tampered = { ...doc, knobMappingVersion: "knobmap-9.9-bogus" };
     expect(() => caseDocumentToSimInstances(tampered)).toThrow(/Unknown knobMappingVersion/);
   });
+
+  it("refuses to load an unknown schemaVersion", () => {
+    const doc = buildDoc([knobPrimary]);
+    expect(() => caseDocumentToSimInstances({ ...doc, schemaVersion: 999 })).toThrow(/schemaVersion/);
+  });
+
+  it("round-trips losslessly when an ABSOLUTE knob equals default but the base deviates (regression)", () => {
+    // App-reachable: a raw HR edit (95) is baked into knobBaseline, then the
+    // clinical HR knob is dialed back to the default 75. Saving must not drop HR.
+    const knobBaseline = { ...base, HR: 95 };
+    const knobs = { ...neutralKnobs(knobBaseline), HR: 75 };
+    const inst: SimInstance = { id: "x", name: "Tricky", color: "#38bdf8", isVisible: true, knobBaseline, knobs, params: applyKnobs(knobBaseline, knobs, V), targetVolume: 5600 };
+    expect(inst.params.HR).toBe(75);
+    const reloaded = caseDocumentToSimInstances(JSON.parse(JSON.stringify(buildDoc([inst]))));
+    expect(reloaded[0].params.HR).toBe(75);            // not re-pinned to the base's 95
+    expect(reloaded[0].params).toEqual(inst.params);
+  });
+
+  it("round-trips a knobBaseline nodeOverride together with a diastolicStiffness knob", () => {
+    const knobBaseline = { ...base, nodeOverrides: { LV: { V0: 14 } } } as SimInstance["params"];
+    const knobs = { ...neutralKnobs(knobBaseline), diastolicStiffness: 1.7 };
+    const inst: SimInstance = { id: "y", name: "Stiff", color: "#fbbf24", isVisible: true, knobBaseline, knobs, params: applyKnobs(knobBaseline, knobs, V), targetVolume: 5600 };
+    const reloaded = caseDocumentToSimInstances(JSON.parse(JSON.stringify(buildDoc([inst]))));
+    const lv = reloaded[0].params.nodeOverrides?.LV as Record<string, unknown>;
+    expect(lv?.V0).toBe(14);                                              // authored node override survives
+    expect((lv?.active as Record<string, number>)?.bPas).toBeGreaterThan(0); // knob-driven b_pas survives
+    expect(reloaded[0].params).toEqual(inst.params);
+  });
+
+  it("refuses to serialize an instance with knobs but no knobBaseline (invalid state)", () => {
+    const bad = { id: "z", name: "Bad", color: "#000", isVisible: true, params: base, targetVolume: 5600, knobs: neutralKnobs(base) } as SimInstance;
+    expect(() => buildDoc([bad])).toThrow(/knobBaseline/);
+  });
 });
