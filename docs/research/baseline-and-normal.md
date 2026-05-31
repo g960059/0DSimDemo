@@ -27,8 +27,10 @@ foundation of every lesson.
 ~5), cardiac index 2.5–4.0 L/min/m²; stroke volume 60–130 mL; RAP 2–6 mmHg; RV/PA
 systolic 15–25 mmHg; LAP / PCWP 6–12 mmHg; SVR 800–1200 dyn·s·cm⁻⁵; LVEF ~55–65 %.
 
-**What the model settles to at active-normal** (from the engine, converge-settled):
-CO ≈ 3.5 L/min, AoP ≈ 94/64 (MAP ≈ 74), LAP ≈ 3, RAP ≈ 3, PAP mean ≈ 9, EF_L ≈ 53 %.
+**What the model settles to at active-normal** (engine cross-check, converge-settled, codex1):
+CO ≈ 3.52 L/min, AoP ≈ 94.1/64.5, **AoPMean (engine time-average) = 70.1 mmHg** (note: the
+dia+⅓·PP estimate from 94/64 is ~74 — label which convention you mean), LAP ≈ 3.1, RAP ≈ 2.8,
+PAP mean ≈ 9.1, LVEDP ≈ 4.7, EF_L ≈ 0.53, Pmsf ≈ 10.5.
 
 **Honest gaps to record for M12** (priority = SHAPE > values, but these matter for trust):
 
@@ -52,12 +54,42 @@ real tracing" even if absolute numbers are low.
 
 ## B. Physical & computational rationale   [codex1]
 
-> _To be authored by codex1 in `baseline-and-normal.codex.md` and merged here: the active-stress
-> force law σ_act = Tmax0·tmaxScale·contractility·a·gOver·f_iso (what a, gOver, f_iso are and
-> their ranges, so the realised peak stress vs the 382.5 kPa ceiling is quantified), σ_pas =
-> sigmaPas0·(exp(bPas·(λ−λpas0))−1) and how fibre stress → chamber pressure via the thick-wall
-> Laplace term, the SVR mapping (1.25 × internal R → dyn·s·cm⁻⁵), and how venousTone/Pmsf set the
-> operating point. Cross-check the CO/MAP/PAP numbers above._
+**Active-stress chamber math** (`engine/chambers.ts:150-199`). Transmural pressure from
+single-fibre stress: `λ = rm/rmRef` (dimensionless mid-wall stretch, thick spherical shell);
+`σ_pas = sigmaPas0·(exp(bPas·(λ−λpas0))−1)`; `σ_act = Tmax0·tmaxScale·contractility·a·gOver·f_iso`;
+`PtmPa = geomScale·geomChi·(2h/rm)·(σ_pas+σ_act)`; `Ptm_mmHg = PtmPa/133.322`, clamped [−5, 260].
+Dimensionally coherent if Tmax0/sigmaPas0 are Pa and geomScale/geomChi/(2h/rm)/a/gOver/f_iso are
+dimensionless; bPas is per-unit-stretch (λ dimensionless). The exponential σ_pas is a reasonable
+EDPVR surrogate but its parameters are calibration values, not a chamber-level Klotz β.
+
+**Tmax0 ceiling — quantified (the key nuance):** on a settled normal run (1000 Hz, 2 s) the **peak LV
+σ_act was 46.9 kPa = 12.3 % of the 382.5 kPa Tmax0 ceiling**, at `a = 0.123`, `λ = 0.911`,
+`gOver ≈ 1.0`, `f_iso = 1.0`, VLV 80.8 mL, passive stress 1.69 kPa (across beats `a` ∈ 0.00002–0.123,
+`λ` ∈ 0.788–0.930, `f_iso` ∈ 0.679–1.0). So the **realised peak stress (46.9 kPa) IS physiological**
+(within the ~30–110 kPa range) — the heart is not generating supra-physiological force. The
+calibration debt is structural: **activation `a` only reaches ~12 %, so the inflated 4.5× Tmax0
+ceiling is what recovers the current (low) operating point.** M12 should re-derive Tmax0 from a
+physiological ceiling AND fix the activation scaling together.
+
+**Vascular / units** (`engine/ModelCore.ts:632-655, 938-960`). Flows are mL/s; SV = trapezoidal
+integral of positive valve flow per beat; CO = SV·HR/1000 L/min (unit-consistent). Raw
+`systemicResistance` is a **dimensionless multiplier** on internal systemic edge resistances (engine
+units ≈ mmHg/(mL/s) with a quadratic loss when B>0) — it is NOT clinical SVR; convert a realised
+operating point via (MAP−RAP)/CO, not the raw number.
+
+**Venous tone / Pmsf** (`engine/ModelCore.ts:985-987, 1090-1128`). `effectiveVu = Vu −
+venousToneGain·venousTone`; at venousTone 0.2 this lowers systemic venous unstressed volume → raises
+stressed volume. `Pmsf = stressedVolumeSystemic / complianceSystemic` (mmHg) — a coherent
+Guyton-style 0D approximation (heart + pulmonary excluded by design).
+
+**Independent cross-check** (converge-settled, `health: ok`, no clamps): CO_L 3.52, AoP 94.1/64.5,
+AoPMean 70.1, PAP mean 9.1, LAP/RAP 3.1/2.8, LVEDP 4.7, EF_L 0.53, Pmsf 10.5 — all consistent with
+section A. (MAP convention: time-averaged AoPMean 70.1 vs dia+⅓PP estimate ~74.)
+
+**Numerical notes:** the [−5, 260] mmHg chamber-pressure clamp is protective but can hide
+over-high-stress calibrations; clinical inotropy maps to `lvTmaxScale`, not raw `contractility`, so it
+does not drive the `betaDrive`/Ca-release branch; the low normal CO/PAP is a *calibration* issue, not
+an integrator-health one.
 
 ## Open questions / for M12
 

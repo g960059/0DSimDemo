@@ -50,12 +50,37 @@ congestion (PCWP) is milder than clinical shock — read the *direction*, not th
 
 ## B. Physical & computational rationale   [codex1]
 
-> _To be authored by codex1 in `lv-failure-dobutamine.codex.md`: how `contractility` (→ global)
-> and `lvTmaxScale` enter σ_act; whether stacking lvPumpFailure (×0.52 on lvTmaxScale via the
-> contractility knob) and dobutamine (×1.35) composes as intended through `effectiveKnobs`
-> (multiplicative in knob space, then clampKnobs); the afterload→systemicResistance→SVR mapping
-> and its effect on MAP; why LVEDP stays ~7.5 (passive σ_pas curve + the operating EDV). Cross-check
-> the CO/MAP numbers._
+**Coefficient composition** (`engine/caseResolve.ts`; `effectiveKnobs` applies ordered `*`/`+`/`=`
+transforms in knob space then clamps; `applyKnobs` maps to raw). `lvPumpFailure(0.8)`: clinical
+contractility 1·(1−0.6·0.8)=**0.52**, relaxation 0.72, afterload 1.24, HR 75+12=**87**. Clinical
+contractility maps to **`lvTmaxScale`** (not raw global `contractility`), so resolved raw =
+lvTmaxScale 0.52, rvTmaxScale 1.0, relaxation 0.72, systemicResistance 1.25·1.24=**1.55**, HR 87.
+`+Dobutamine(7)` stacks: contractility 0.52·1.35=**0.702**, relaxation 0.821, afterload 1.24·0.93=1.153,
+HR 87+10.5=**97.5** → lvTmaxScale 0.702, systemicResistance 1.442.
+
+**How knobs enter the engine:** failure scales `σ_act = Tmax0·tmaxScale·…` *LV-only* (rvTmaxScale
+untouched) — appropriate for "global LV failure", but note dobutamine's inotropy is also LV-only here
+(`contractilityRV` unchanged). `relaxation` divides the Ca-decay τ in `internalDerivatives()` (lower →
+slower Ca removal → higher filling pressure; dobutamine partly reverses). `afterload` scales systemic
+resistive/dynamic edges; the **fixed reflex `afterload ×1.24` is why the low-output state is not
+frankly hypotensive**. Because clinical contractility hits `lvTmaxScale` (a force scale), inotropy here
+is mostly a force edit, not a full Ca-transient edit.
+
+**Independent cross-check** (converge-settled, both `health: ok`, no clamps):
+
+| Metric | LV failure | + Dobutamine |
+|---|---:|---:|
+| HR | 87 | 97.5 bpm |
+| CO_L | 2.89 | 3.36 L/min |
+| AoP | 82.4/62.9 | 89.3/67.6 mmHg |
+| AoPMean | 67.4 | 72.4 mmHg |
+| LAP | 7.4 | 6.1 mmHg |
+| LVEDP | 7.5 | 5.7 mmHg |
+| EF_L | 0.34 | 0.40 |
+
+Matches section A's direction (CO up, LAP/LVEDP down). MAP wording: AoPMean 67.4 (failure) is
+"borderline", not frankly normal. Filling pressure rises directionally but stays far below
+cardiogenic-shock PCWP — consistent with the baseline low-filling-pressure gap.
 
 ## Open questions / for M12
 

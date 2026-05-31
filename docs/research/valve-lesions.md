@@ -44,11 +44,36 @@ Model files: `officialCases.ts` (case `valve-lesions`) · `engine/caseResolve.ts
 
 ## B. Physical & computational rationale   [codex1]
 
-> _To be authored by codex1 in `valve-lesions.codex.md`: the valve quadratic/Bernoulli flow model in
-> ModelCore (how Amax, Aleak, R enter forward & regurgitant flow; whether the gradient ∝ (Q/Amax)²
-> and why a 0.875 cm² AVA yields only ~19 mmHg at this CO; dimensional check of Amax [cm²] vs the flow
-> equation), and the LV 3 mL volume floor that makes a large MV_Aleak degenerate. Propose the corrected
-> MR leak coefficient and an AS-gradient calibration path. Cross-check the AVA/EROA numbers._
+**Resolution.** Severity strings → numeric (mild 0.33, moderate 0.66, severe 1.0). Severe AS:
+`AoV_Amax = 3.5·(1−0.75·1.0) = 0.875`, `AoV_R = 0.005·(1+5·1.0) = 0.030`. Mild MR:
+`MV_Aleak = 5.0·(0.3·0.33) = 0.495`, MV_Amax stays 5.0.
+
+**Valve flow model & the key computational finding** (`engine/ModelCore.ts:766-797, 938-960`). Each
+valve is a dynamic flow `q` + opening fraction `xi`:
+`qNext = (q + (dt/L)(Pu−PdEff)) / (1 + dt(R + B·|q|)/L)`, `xiEq = sigmoid(kOpen·(Pup−Pdown))`. Losses:
+`areaRatio = max(Aleak + xi·(Amax−Aleak), 1e-4)/max(Amax, 1e-6)`, then `R = valveR/areaRatio²`,
+`B = baseB/areaRatio²`, `L = valveL/areaRatio`. **Crucial: `Amax` is NORMALISED OUT of `areaRatio`
+when the valve is fully open** — so lowering AoV_Amax 3.5→0.875 does NOT by itself create the
+`1/area²` Bernoulli penalty; **the AS effect comes almost entirely from the explicit `AoV_R ×6`
+term** (and opening-fraction dynamics). That is exactly why a clinically-severe AVA number yields an
+under-scaled gradient. *Units verdict:* Amax/Aleak are documented as cm² but the engine uses them as
+relative area scalars inside a unitless ratio — absolute AVA/EROA calibration cannot rely on the raw
+area alone until the flow law uses physical area consistently.
+
+**AS cross-check** (severe, converge-settled, `health: ok`): CO_L 3.18, AoP 86.1/60.1, AoPMean 65.2,
+LVEDP 5.6; **mean LV–Ao gradient (while QAo>1 mL/s) = 14.8 mmHg, max 36.9** — well below the ≥40
+severe-AS target. (Section A's ~19 is a different systolic window; same conclusion.)
+
+**MR cross-check** (mild): CO_L 3.49, AoP 86.4/56.7, LAP mean/max 5.0/11.8, EF_L 0.86, min VLV
+**13.2 mL**, QMV min/max −431.5/362.6 mL/s. Confirms even the "mild" leak is a large regurgitant
+pathway. The **3 mL floor is real**: `sanitizeState()` clamps chamber volume to [3, 450]; a bigger MR
+leak empties the LV into it (non-physiological EF). Mild stays off the floor (13.2 mL) but the margin
+is thin — section A's caution holds.
+
+**M12 (codex):** MR — calibrate to regurgitant fraction/volume + LA v-wave, not an EROA-looking raw
+area; if keeping the relative-area law, **~0.1·MV_Amax at severity 1** (≈0.5 cm² severe endpoint)
+beats the current 0.3·MV_Amax. AS — needs absolute-area-aware gradient calibration (today `AoV_R`
+carries the stenosis; `AoV_Amax` is mostly relative opening geometry), coupled to the normal-CO fix.
 
 ## Open questions / for M12
 

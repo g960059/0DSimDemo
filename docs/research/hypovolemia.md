@@ -43,11 +43,37 @@ hypotension is exaggerated by the missing baroreflex and the low baseline CO —
 
 ## B. Physical & computational rationale   [codex1]
 
-> _To be authored by codex1 in `hypovolemia.codex.md`: how `targetVolume` is enforced — the bisection
-> in `projectVenousPressuresToTargetTBV` (offset on venous transmural pressures to hit total volume),
-> the venousPressure node stressed/unstressed volume model, and the clamp behaviour as TBV falls
-> (why <4000 mL hits the −20..45 mmHg venous-pressure clamps and degenerates). Quantify Pmsf vs TBV
-> and the venous-return floor. Cross-check the Class-II / Pmsf numbers._
+**Target-TBV enforcement** (`engine/ModelCore.ts:378-382, 1050-1082`). No knobs/interventions — only
+`targetVolume` 5600→4600 changes, applied by `initializeVenousPressuresForTargetTBV` →
+`projectVenousPressuresToTargetTBV`: a **bisection finds a uniform offset on all venous-pressure state
+variables** so total computed blood volume hits target (venous nodes contribute
+`effectiveVu + venousStressedVolume(Ptm)`; transmural pressure evaluated/clamped to [−20, 45] mmHg).
+This is a static-volume *re-initialisation*, not bleeding over time — `targetVolume` affects state
+init/projection, NOT a raw param patch.
+
+**Venous return / Pmsf math** (`engine/ModelCore.ts:912-929, 1090-1128`). Venous nodes use a nonlinear
+compliance `Ceff = Ccoll + (Copen−Ccoll)·sigmoid((Ptm−Popen)/dOpen) − (Copen−Cdist)·sigmoid((Ptm−Pstiff)/dStiff)`;
+stressed volume is its integral. As TBV falls the projector lowers venous Ptm → less stressed volume →
+lower `Pmsf = stressedVolumeSystemic/complianceSystemic` (mL ÷ mL/mmHg = mmHg) → lower vrGradient =
+Pmsf−RAP → lower preload, SV, CO. Dimensionally consistent.
+
+**Clamp floor + TBV sweep.** State sanitation clamps venous Ptm to [−20, 45] mmHg and chamber volume to
+[3, 450] mL; the projector also works within [−20, 45]. So there is a **lowest representable TBV**:
+
+| Target TBV | CO_L | AoPMean | RAP | LAP | Pmsf | Clamp hits | Health |
+|---:|---:|---:|---:|---:|---:|---:|---|
+| 5600 | 3.52 | 70.1 | 2.8 | 3.2 | 10.5 | 0 | ok |
+| **4600** | **2.64** | **51.7** | **0.8** | **0.9** | **6.7** | **0** | **ok** |
+| 4000 | 1.91 | 36.6 | 0.2 | 0.2 | 4.4 | 8132 | warning |
+| 3500 | 1.86 | 33.1 | 0.0 | 0.1 | 2.4 | 47905 | warning |
+
+This justifies the official 4600 mL choice: a stable uncompensated preload-limited state, while
+≤4000 mL is clamp-heavy and not usable as an official target without model changes. The −1000 mL is
+17.9 % of the model's 5600 (or 20 % of a 5 L reference) — ATLS Class II, matching section A.
+
+**Cross-check** (converge-settled): Normal→Hypovolemia CO 3.52→2.64, AoP 94.1/64.5→66.9/47.9,
+AoPMean 70.1→51.7, RAP 2.8→0.8, LAP 3.1→0.9, Pmsf 10.5→6.7, EF_L 0.53→0.50, no clamps. Nuance: EF is
+"preserved" in the teaching sense but drops slightly (0.53→0.50), not exactly unchanged.
 
 ## Open questions / for M12
 
