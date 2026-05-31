@@ -3,6 +3,12 @@
 // (no raw params), each carrying mandatory model limitations. These drive the
 // Official Cases / Learning Path pages offline (#3-f) and are the M12-lite
 // waveform-shape gate's subjects (#3-e).
+//
+// NOTE on round-trip: these load cleanly, but the Workbench is knob-primary, so
+// loading a case and re-Saving it FLATTENS named interventions into their
+// effective clinical knobs (CaseInstance.interventions becomes []). The resolved
+// physiology is identical; only the intervention provenance is lost. That is by
+// design for #3 — intervention-preserving editing is a later milestone.
 
 import type { CaseDocument, CaseInstance } from "@/caseDoc";
 import { CASE_SCHEMA_VERSION, ENGINE_VERSION, DEFAULT_SOLVER } from "@/caseDoc";
@@ -17,10 +23,12 @@ function buildPanels(instanceIds: string[]): PanelDef[] {
   const cfg = (signals: string[]) => Object.fromEntries(instanceIds.map((id) => [id, { visible: true, selectedSignals: signals }]));
   return [
     { id: "p_note", type: "NOTE", title: "Interactive Notes", w: 4, h: 10, config: {}, isSettingsOpen: false },
-    { id: "p1", type: "WAVEFORM", title: "Waveforms", w: 5, h: 6, config: cfg(["LVP", "AoP"]), isSettingsOpen: false, timeWindow: 5000 },
+    // Surface LAP so the filling-pressure / v-wave story each lesson tells is
+    // actually visible; metrics carry SV alongside ABP/CO/CVP.
+    { id: "p1", type: "WAVEFORM", title: "Waveforms", w: 5, h: 6, config: cfg(["LVP", "AoP", "LAP"]), isSettingsOpen: false, timeWindow: 5000 },
     { id: "p2", type: "PVLOOP", title: "PV Loop", w: 3, h: 6, config: cfg(["LV"]), isSettingsOpen: false, showGuides: true },
     { id: "p4", type: "CONTROLS", title: "Controls", w: 4, h: 4, config: cfg(["clinical", "Global", "fluids"]), isSettingsOpen: false },
-    { id: "p3", type: "METRICS", title: "Metrics", w: 4, h: 4, config: cfg(["ABP", "CO", "CVP"]), isSettingsOpen: false },
+    { id: "p3", type: "METRICS", title: "Metrics", w: 4, h: 4, config: cfg(["ABP", "CO", "SV", "CVP"]), isSettingsOpen: false },
   ];
 }
 
@@ -56,6 +64,7 @@ function makeCase(p: { id: string; title: string; description: string; modelLimi
 
 const LIMIT_GENERAL = "0D lumped-parameter closed-loop model — no spatial flow, regional wall motion, or pulsatile wave reflection physics.";
 const LIMIT_CALIB = "Active-stress single-fibre ventricles; parameters are not yet calibrated (M12), so absolute metric values are indicative, not validated — read the waveform SHAPE.";
+const LIMIT_NOREFLEX = "No dynamic baroreflex / neurohormonal control — shock and hypovolemia are shown as UNCOMPENSATED states; any reflex tachycardia/vasoconstriction is only what an intervention explicitly encodes.";
 
 export const OFFICIAL_CASES: CaseDocument[] = [
   makeCase({
@@ -72,11 +81,12 @@ export const OFFICIAL_CASES: CaseDocument[] = [
     modelLimitations: [
       LIMIT_GENERAL,
       "LV failure is modelled as GLOBAL contractility depression — the 0D model cannot represent a regional wall-motion abnormality (e.g. a territorial infarct).",
+      LIMIT_NOREFLEX,
       LIMIT_CALIB,
     ],
     instances: [
-      { name: "LV failure", knobs: {}, interventions: [{ uid: "f", id: "lvPumpFailure", args: { severity: 0.6 } }], targetVolume: 5600 },
-      { name: "+ Dobutamine", knobs: {}, interventions: [{ uid: "f", id: "lvPumpFailure", args: { severity: 0.6 } }, { uid: "d", id: "dobutamine", args: { dose: 7 } }], targetVolume: 5600 },
+      { name: "LV failure", knobs: {}, interventions: [{ uid: "f1", id: "lvPumpFailure", args: { severity: 0.8 } }], targetVolume: 5600 },
+      { name: "+ Dobutamine", knobs: {}, interventions: [{ uid: "f2", id: "lvPumpFailure", args: { severity: 0.8 } }, { uid: "d", id: "dobutamine", args: { dose: 7 } }], targetVolume: 5600 },
     ],
   }),
   makeCase({
@@ -85,12 +95,16 @@ export const OFFICIAL_CASES: CaseDocument[] = [
     description: "Two classic left-heart valve lesions. AS imposes a systolic LV–aortic pressure gradient; MR sends a regurgitant jet into the LA, raising LAP and cutting forward output.",
     modelLimitations: [
       LIMIT_GENERAL,
-      "Valve lesions are modelled by lumped orifice area / leak area / resistance changes — no real geometry, jet, or turbulence; gradients are indicative of direction, not exact severity.",
+      "Valve lesions are modelled by lumped orifice area / leak area / resistance changes — no real geometry, jet, or turbulence; gradients are indicative of direction, not exact severity. Under a large regurgitant leak the lumped LV can empty toward its minimum-volume floor and report a non-physiological EF, so lesion severities are kept where the chamber dynamics stay physiological.",
       LIMIT_CALIB,
     ],
     instances: [
+      // AS tolerates 'severe' (gradient-limited). MR is kept 'mild': a larger leak
+      // drives the lumped LV into its volume floor (degenerate EF ~97%), so the
+      // teaching point (raised LAP v-wave + reduced forward SV) is shown without
+      // that artefact.
       { name: "Aortic stenosis", knobs: {}, interventions: [{ uid: "as", id: "aorticStenosis", args: { severity: "severe" } }], targetVolume: 5600 },
-      { name: "Mitral regurgitation", knobs: {}, interventions: [{ uid: "mr", id: "mitralRegurgitation", args: { severity: "severe" } }], targetVolume: 5600 },
+      { name: "Mitral regurgitation", knobs: {}, interventions: [{ uid: "mr", id: "mitralRegurgitation", args: { severity: "mild" } }], targetVolume: 5600 },
     ],
   }),
   makeCase({
@@ -100,9 +114,10 @@ export const OFFICIAL_CASES: CaseDocument[] = [
     modelLimitations: [
       LIMIT_GENERAL,
       "Volume status is set via the target total blood volume; there is no dynamic bleeding/transfusion in this static case (see the Fluids & Hemorrhage controls for that).",
+      LIMIT_NOREFLEX,
       LIMIT_CALIB,
     ],
-    instances: [{ name: "Hypovolemia", knobs: {}, interventions: [], targetVolume: 4000 }],
+    instances: [{ name: "Hypovolemia", knobs: {}, interventions: [], targetVolume: 4600 }],
   }),
 ];
 

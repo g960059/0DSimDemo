@@ -16,7 +16,7 @@ describe("official lesson cases (#3-d)", () => {
         expect(c.knobMappingVersion).toBe("knobmap-0.2-activestress");
       });
 
-      it("resolves every instance to finite params and settles", () => {
+      it("resolves every instance to a finite, NON-DEGENERATE settled state", () => {
         const instances = caseDocumentToSimInstances(c); // throws on bad version/baseline
         expect(instances.length).toBe(c.instances.length);
         for (const si of instances) {
@@ -28,8 +28,45 @@ describe("official lesson cases (#3-d)", () => {
           expect(Number.isFinite(r.metrics.AoPMean)).toBe(true);
           expect(Number.isFinite(r.metrics.CO_L)).toBe(true);
           expect(r.metrics.AoPMean).toBeGreaterThan(0);
+          // Degeneracy guard: a chamber pinned at its volume floor reports a
+          // non-physiological EF (~97%). No official case may settle there.
+          expect(r.metrics.EF_LApprox, `${si.name} EF degenerate`).toBeLessThan(0.92);
         }
       });
     });
   }
+
+  // Basic directionality smokes — each authored case must teach the direction its
+  // text claims (detailed morphology is #3-e). All measured at the settled state.
+  describe("lesson directionality", () => {
+    const metricsOf = (caseId: string, idx: number) => {
+      const si = caseDocumentToSimInstances(officialCaseById(caseId)!)[idx];
+      return runScenario(si.params, { settleMode: "converge", targetTBV: si.targetVolume, measureSeconds: 3 }).metrics;
+    };
+    const normal = metricsOf("normal-sinus", 0);
+
+    it("dobutamine raises CO and lowers filling pressure vs the failure state", () => {
+      const failure = metricsOf("lv-failure-dobutamine", 0);
+      const dobut = metricsOf("lv-failure-dobutamine", 1);
+      expect(dobut.CO_L).toBeGreaterThan(failure.CO_L);     // inotrope restores output
+      expect(dobut.LAPMean).toBeLessThan(failure.LAPMean);  // and unloads the congested LV
+    });
+
+    it("LV failure is a genuine low-output, congested state vs normal", () => {
+      const failure = metricsOf("lv-failure-dobutamine", 0);
+      expect(failure.CO_L).toBeLessThan(normal.CO_L);
+      expect(failure.LAPMean).toBeGreaterThan(normal.LAPMean);
+    });
+
+    it("mitral regurgitation raises left atrial pressure vs normal", () => {
+      const mr = metricsOf("valve-lesions", 1);
+      expect(mr.LAPMean).toBeGreaterThan(normal.LAPMean);
+    });
+
+    it("hypovolemia is a low-preload, low-output state vs normal", () => {
+      const hypo = metricsOf("hypovolemia", 0);
+      expect(hypo.CO_L).toBeLessThan(normal.CO_L);
+      expect(hypo.RAPMean).toBeLessThan(normal.RAPMean); // reduced preload
+    });
+  });
 });
