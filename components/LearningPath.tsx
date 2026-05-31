@@ -1,17 +1,17 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { OFFICIAL_CASES } from '../officialCases';
+import { LESSONS } from '../lessonDoc';
 
 export const LearningPath = () => {
   const navigate = useNavigate();
-  const lessons = OFFICIAL_CASES.map((c, index) => ({
-    id: c.meta.id,
+  const lessons = LESSONS.map((lesson, index) => ({
+    id: lesson.meta.id,
     order: index + 1,
-    title: c.meta.title,
-    description: c.spec.description,
+    title: lesson.meta.title,
+    description: lesson.meta.objective,
   }));
   const openLesson = (id: string) => {
-    navigate(`/workbench?case=${encodeURIComponent(id)}&from=learning`);
+    navigate(`/lesson/${encodeURIComponent(id)}`);
   };
 
   return (
@@ -32,7 +32,7 @@ export const LearningPath = () => {
                   <h2 className="text-xl font-bold text-slate-200">{lesson.title}</h2>
                 </div>
                 <p className="text-sm text-slate-400 pl-11">
-                  {lesson.description}
+                  {lesson.description ?? 'Open the interactive lesson.'}
                 </p>
               </div>
               <button
