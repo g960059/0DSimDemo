@@ -7,6 +7,7 @@ describe("stepped lesson registry", () => {
   it("keeps stepped visibleInstances within the resolved case ids and eventually reveals all instances", () => {
     const lesson = lessonById("lv-failure-inotrope");
     expect(lesson?.steps?.length).toBe(2);
+    const [predictStep, revealStep] = lesson!.steps!;
 
     const caseDoc = officialCaseById(lesson!.caseId);
     expect(caseDoc).toBeDefined();
@@ -21,6 +22,12 @@ describe("stepped lesson registry", () => {
     }
 
     expect([...visibleUnion].sort()).toEqual([...resolvedIds].sort());
+    expect(predictStep.stage.visibleInstances).toEqual(["1"]);
+    expect(revealStep.stage.visibleInstances).toEqual(["1", "2"]);
+    expect(predictStep.stage.challenge?.kind).toBe("predict");
+    expect(predictStep.stage.challenge?.revealLabel).toBeTruthy();
+    expect(revealStep.stage.challenge?.kind).not.toBe("predict");
+    expect(lesson!.steps!.at(-1)?.stage.challenge?.kind).not.toBe("predict");
   });
 
   it("keeps one-page lessons on noteSpine without steps", () => {

@@ -7,6 +7,7 @@ import { NotePanel } from "./NotePanel";
 import { MetricsPanel, PVLoopPanel, WaveformPanel } from "./Charts";
 import { PreviewController } from "../engine/previewController";
 import type { PanelInstanceConfig, PhysicsRefState } from "../types";
+import type { PanelKey } from "../lessonDoc";
 
 const configFor = (ids: string[], signals: string[]): Record<string, PanelInstanceConfig> =>
   Object.fromEntries(ids.map((id) => [id, { visible: true, selectedSignals: signals }]));
@@ -66,7 +67,7 @@ const LessonPlayerBody: React.FC<{ lessonId?: string }> = ({ lessonId }) => {
   const pvConfig = useMemo(() => maskConfig(basePvConfig, visibleIds), [basePvConfig, visibleIds]);
   const metricsConfig = useMemo(() => maskConfig(baseMetricsConfig, visibleIds), [baseMetricsConfig, visibleIds]);
   const visiblePanels = currentStep?.stage.visiblePanels;
-  const showPanel = (panel: string) => !visiblePanels || visiblePanels.includes(panel);
+  const showPanel = (panel: PanelKey) => !visiblePanels || visiblePanels.includes(panel);
   const noteContent = currentStep?.note ?? lesson?.noteSpine;
   const nextLabel = currentStep?.stage.challenge?.kind === "predict"
     ? (currentStep.stage.challenge.revealLabel ?? "Reveal")

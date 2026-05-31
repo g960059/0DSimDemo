@@ -7,9 +7,11 @@ export type LessonStep = {
   stage: StageManifest;
 };
 
+export type PanelKey = "waveform" | "pvloop" | "metrics";
+
 export type StageManifest = {
   visibleInstances: string[];
-  visiblePanels?: string[];
+  visiblePanels?: PanelKey[];
   challenge?: {
     kind: "predict" | "free";
     prompt?: string;
@@ -105,7 +107,7 @@ export const LESSONS: Lesson[] = [
           visibleInstances: ["1"],
           challenge: {
             kind: "predict",
-            prompt: "Withhold the treated instance until the learner commits to a direction.",
+            prompt: "Make your prediction before revealing the treated trace.",
             revealLabel: "Reveal dobutamine",
           },
         },
