@@ -11,7 +11,7 @@ exports[`clinical knob layer > v0.2 resolver output is frozen (editing the mappi
   "nodeOverrides": {
     "LV": {
       "active": {
-        "bPas": 18,
+        "bPas": 41.76,
       },
     },
     "RV": {

@@ -5,6 +5,13 @@ physiological values **while preserving the current waveform morphology**. Drive
 by the validity findings in this folder. NOT full M12 (no UQ / multi-objective
 optimisation); the goal is to retire the headline gaps.
 
+> **→ Outcome + full trial-and-error record: [`m12-lite-calibration-journal.md`](./m12-lite-calibration-journal.md).**
+> That journal documents the executed calibration: the `geomChi×sigmaPas` diastolic-stiffening
+> artefact discovery, the two human-prompted pivots (TBV / compliance) that broke the
+> "structural" impasse, the steep-Klotz EDPVR recalibration, the final landing parameters,
+> the official-case validation, the snapshot-settle fix, and the M12-proper deferred list.
+> This plan below is the pre-execution design; the journal is the as-built result.
+
 ## Target spec (normal resting adult)
 
 | Metric | Current model | Target | Source |

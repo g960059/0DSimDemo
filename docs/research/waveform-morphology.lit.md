@@ -95,6 +95,19 @@ arguably *more* physiological than a pure time-varying-elastance chamber (which 
 cornered loop). → **YES** — a structural strength of the active-stress choice. (lead's baseline doc
 already lists a "closed, convex LV PV loop" as the expected Normal signature.)
 
+**Apex (peak-systolic-pressure) position along the ejection top.** (i) Canonical: in a normal **young**
+adult the apex sits in **early-to-mid ejection — ~25–50% of the EDV→ESV segment, displaced inward from
+the AV-open/EDV corner**, because compliant aortas show an *early* systolic peak (Murgo "type C") with
+the reflected wave returning in **diastole** (diastolic hump, low/negative augmentation). Stiff/aged
+aortas show a *late*-systolic augmented peak (Murgo "type A") → apex shifts central/left toward ESV.
+The apex position thus **encodes arterial-load / wave-reflection timing** [Murgo 1980; Kondiboyina 2022;
+Nichols & O'Rourke]. (ii) Model: a lumped R-L-C arterial load with **no transmission-line / wave
+reflection** peaks when ejection flow crosses Windkessel runoff (early) then decays monotonically →
+apex pinned **at AV-open, over-right**, with no diastolic hump — the **same single-node root as the
+absent incisura (#1)**. ⚠️ **Do not "fix" by centering/left-shifting the apex** — a central/late apex
+is the *stiff/old* pattern, wrong for a young Normal. Proper fix = a distributed/transmission-line
+arterial load (e.g. CircAdapt's large-vessel TL tree) — **M12-proper, not an R/L/C tweak**.
+
 ## 5. MV inflow — E and A waves (E > A normal)
 
 **(i) Canonical:** transmitral diastolic inflow is biphasic: **E** (early passive filling, driven by
@@ -142,12 +155,18 @@ waveform cannot be assessed against literature.
 
 ## Open questions / for M12
 
-1. **c-wave** needs AV-valve→atrium mechanical coupling the lumped model lacks — decide whether it is
-   worth a small phenomenological term, or just document as a known absent feature.
-2. **Pulmonary-vein flow not surfaced** — add a `Q_PVein_LA` observable; then confirm S/D/Ar (and
+*(Reconciled with codex1's measured pass: AoP notch, c-wave, and PVF findings all confirmed below.)*
+
+1. **AoP incisura absent (measured)** though structurally latent — the central valve-closure notch is
+   in-scope and could be surfaced with a small **aortic-root closure submodel** (distinct root
+   compliance chamber / larger closure inertance / explicit closure transient). The **peripheral
+   reflected dicrotic wave** is separate and unreachable in 0D — do NOT try to "fix" that one.
+2. **c-wave** cannot come from the elastance atrium alone (it is a ventricular-isovolumic event
+   transmitted through the closed valve, which the flow-only valve does not transmit). Needs
+   valve-plane motion or a closed-valve (P_V−P_A) coupling term — decide whether worth adding or just
+   document as a known-absent feature.
+3. **Pulmonary-vein flow not surfaced** — add a `Q_PVein_LA` observable; then confirm S/D/Ar (and
    especially the **Ar** atrial reversal) emerge from the elastance atrium.
-3. **Reflected dicrotic wave** is unreachable in a single-node aorta — out of scope for 0D; the
-   model gives the valve-closure **incisura** instead. Document the distinction so it is not "fixed."
 4. **E/A default ratio** — verify (codex1) the Normal case lands E > A.
 
 ## References

@@ -52,7 +52,7 @@ export type ValveExtremes = Record<ValveName, { min: number; max: number }>;
 
 export const BASELINE_OPTIONS: Required<ScenarioOptions> = {
   targetTBV: 5600,
-  settleSeconds: 8,
+  settleSeconds: 60, // M12-lite: was 8 = under-settled (model settles ~22.5s; 8s is transient). 60s = fixed long-run asymptote (byte-stable AND settled). See m12-lite-calibration-journal.md.
   settleMode: "fixed",
   measureSeconds: 30,
   dt: 0.001,

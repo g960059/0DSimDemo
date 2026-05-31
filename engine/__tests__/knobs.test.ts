@@ -8,7 +8,7 @@ import {
   resolveKnobsToParams,
 } from "@/engine/knobs";
 import { defaultParams } from "@/engine/ModelCore";
-import { defaultActiveLV } from "@/engine/chambers";
+import { ActiveStressChamberModel, defaultActiveLV, type ChamberCtx } from "@/engine/chambers";
 import { sanitizeParams } from "@/engine/protocol";
 import { runScenario } from "@/engine/harness";
 
@@ -104,11 +104,32 @@ describe("clinical knobs drive the expected hemodynamics end-to-end", () => {
     expect(run(mr).metrics.LAPMean - run(neutral).metrics.LAPMean).toBeGreaterThan(1);
   });
 
-  it("diastolicStiffness scales b_pas and raises LV end-diastolic pressure (stiff EDPVR)", () => {
+  it("diastolicStiffness stiffens the EDPVR (chamber law) and reduces filling/output", () => {
     const stiff = applyKnobs(base, { ...neutralKnobs(base), diastolicStiffness: 2.5 }, V);
-    // The b_pas override survived sanitize and reached the chamber model.
+    // (a) the b_pas override survived sanitize and reached the chamber model.
     const lvActive = stiff.nodeOverrides?.LV?.active as Record<string, number> | undefined;
     expect(lvActive?.bPas).toBeCloseTo(defaultActiveLV.bPas * 2.5, 9);
-    expect(run(stiff).metrics.LVEDPApprox - run(neutral).metrics.LVEDPApprox).toBeGreaterThan(1);
+
+    // (b) the stiffening reaches pressure() — assert on the CHAMBER LAW at a fixed
+    // volume (an engine invariant). NB: closed-loop LVEDP is a poor probe at the
+    // M12-lite under-filled operating point (EDV ~97 / LVEDP ~1.7): the exponential
+    // EDPVR is flat on the low-filling limb, and a stiffer chamber simply fills LESS
+    // (the operating point slides down the curve) so LVEDP barely moves (~0.15 mmHg).
+    // That is faithful physiology (diastolic dysfunction is unmasked by loading) and
+    // resolves when the M12-proper preload fix raises EDV/LAP. See
+    // docs/research/m12-lite-calibration-journal.md.
+    const ctx: ChamberCtx = {
+      HR: 75, contractility: 1, relaxation: 1, phi: 0,
+      tmaxScale: 1, geomScale: 1, caReleaseScale: 1,
+    };
+    const dia = { c: 0, a: 0 }; // a=0 -> active stress zero, so this probes σ_pas only
+    const soft = new ActiveStressChamberModel(defaultActiveLV);
+    const stiffModel = new ActiveStressChamberModel({ ...defaultActiveLV, bPas: defaultActiveLV.bPas * 2.5 });
+    const dPassive = stiffModel.pressure(100, dia, ctx) - soft.pressure(100, dia, ctx);
+    expect(dPassive).toBeGreaterThan(5); // passive pressure at fixed V=100 mL rises markedly with ×2.5 bPas
+
+    // (c) end-to-end teaching consequence at the normal operating point: a stiffer
+    // EDPVR reduces filling, so stroke volume and cardiac output fall.
+    expect(run(neutral).metrics.CO_L - run(stiff).metrics.CO_L).toBeGreaterThan(0.5);
   });
 });

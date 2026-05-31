@@ -88,12 +88,28 @@ export function rmRefFromParams(p: ActiveChamberParams) {
 
 
 // Default LV/RV active-stress parameters. These are calibration targets, not
-// fixed physiological constants. Tmax0 here folds in what used to be a separate
-// lvTmaxScale=4.5 magic multiplier (ROADMAP debt D1): the contractility slider
-// scale now defaults to a clean 1.0. Waveform morphology is unchanged.
-// NOTE: the effective Tmax0 is supra-physiological (~380 kPa), which hints the
-// stress->pressure geometry conversion (geomChi / thick-sphere Laplace) may
-// warrant review later; kept as-is since the waveform shape is the priority.
+// fixed physiological constants.
+// M12-lite calibration — full record: docs/research/m12-lite-calibration-journal.md
+// and derivations-geometry-and-edpvr.md. Two coupled fixes:
+//  (1) FORCE: the old supra-physiological Tmax0 (~382 kPa = legacy lvTmaxScale=4.5 fudge)
+//      was compensating an artificially low geomChi. The exact thick-sphere Laplace factor
+//      geomChi = (ri+ro)^2/(4 ri^2) is 1.360 (LV) / 1.139 (RV) — ~3.8x the old 0.36/0.28.
+//      Re-attributing it lets Tmax0 drop to a PHYSIOLOGICAL ceiling (135 / 57 kPa; realised
+//      peak sigma_act ~10-11 kPa, cf in-vivo ES ~16 total [Genet 2014]).
+//  (2) DIASTOLE: geomChi multiplies the PASSIVE term too (Ptm = geomChi*(2h/rm)*(sigmaPas+
+//      sigmaAct)), so raising geomChi 3.8x inadvertently stiffened the EDPVR 3.8x while
+//      sigmaPas0=2000 (tuned to the old wrong geomChi) was never recalibrated. The LV
+//      passive law is refit to a Klotz-valid EDPVR through (120 mL, 10 mmHg) AT the
+//      corrected geometry, with Vref HELD at 120 (so rmRef/ejection mechanics are preserved
+//      and EF does not collapse). bPas is STEEP (high-volume limb P140~23.5) — required so
+//      the MR/volume-overload case resists dilation instead of flooring the LV. RV passive
+//      uses the geomChi-compensation (sigmaPas0 492 = 2000*0.28/1.1385).
+// Result (settled Normal): CO 4.40, MAP 85, AoP 120/78, EF 0.604, E/A 1.90 — strictly
+// better than the prior baseline and physically honest. KNOWN residuals deferred to
+// M12-proper (see journal): EDV ~97 / LAP ~1.7 still low (LA-side filling-circuit /
+// pulmonary-venous-return structure; LAP<RAP near-inversion); over-right PV-loop apex +
+// absent AoP incisura (single-node Windkessel, no wave reflection); RV EDPVR steep refit;
+// hypovolemia RA-floor; 2-region passive law for full-range Klotz fidelity.
 export const defaultActiveLV: ActiveChamberParams = {
   V0: 10,
   Vw: 150,
@@ -116,13 +132,13 @@ export const defaultActiveLV: ActiveChamberParams = {
   hillN: 3.0,
   kOn: 25,
   kOff: 15,
-  sigmaPas0: 2000,
-  bPas: 10.0,
-  lambdaPas0: 0.85,
-  Tmax0: 382500, // = 85000 * 4.5 (folded-in legacy lvTmaxScale)
+  sigmaPas0: 200.133, // M12-lite: steep Klotz EDPVR refit at corrected geomChi; was 2000 (tuned to old geomChi 0.36)
+  bPas: 23.2,         // M12-lite: steep high-volume limb (Klotz P140~23.5) for MR dilation-resistance; was 10.0
+  lambdaPas0: 0.9025, // M12-lite: EDPVR shape fit; was 0.85
+  Tmax0: 135000, // M12-lite: physiological ceiling (~135 kPa); was 382500 (4.5x fudge)
   kOver: 35,
   lambdaFail: 1.45,
-  geomChi: 0.36,
+  geomChi: 1.359637, // M12-lite: exact thick-sphere Laplace (ri+ro)^2/(4 ri^2); was 0.36
   thetaOn: 0.0,
 };
 
@@ -131,11 +147,11 @@ export const defaultActiveRV: ActiveChamberParams = {
   V0: 15,
   Vw: 55,
   Vref: 135,
-  sigmaPas0: 2000,
+  sigmaPas0: 492, // M12-lite: geomChi-compensation 2000*0.28/1.1385 (gentle RV EDPVR; steep Klotz refit deferred to M12-proper)
   bPas: 10.0,
   lambdaPas0: 0.85,
-  Tmax0: 162000, // = 36000 * 4.5 (folded-in legacy rvTmaxScale)
-  geomChi: 0.28,
+  Tmax0: 57176, // M12-lite: physiological ceiling (RV:LV ratio preserved); was 162000
+  geomChi: 1.138505, // M12-lite: exact thick-sphere Laplace for RV ref geometry; was 0.28
 };
 
 export class ActiveStressChamberModel implements ChamberModel {

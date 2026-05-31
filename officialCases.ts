@@ -116,7 +116,11 @@ export const OFFICIAL_CASES: CaseDocument[] = [
       LIMIT_NOREFLEX,
       LIMIT_CALIB,
     ],
-    instances: [{ name: "Hypovolemia", knobs: {}, interventions: [], targetVolume: 4600 }],
+    // M12-lite: 4600 -> 4800 mL. The M12-lite Klotz EDPVR recalibration lowered baseline
+    // filling pressures, so 4600 floored the RA (1792 clamps); 4800 is the clean floor (0
+    // clamps) that still teaches low preload/output (CO 3.2<4.4, EDV 83<97, RAP lower).
+    // Representing Class III-IV hemorrhage without flooring is an M12-proper item.
+    instances: [{ name: "Hypovolemia", knobs: {}, interventions: [], targetVolume: 4800 }],
   }),
 ];
 
