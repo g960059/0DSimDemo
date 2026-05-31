@@ -65,9 +65,13 @@ export interface AppliedIntervention {
 /** The portable, version-robust physiology spec of one case instance. */
 export interface CaseInstanceSpec {
   baseline: string;
+  /** Authored deviation FROM the named baseline that forms the resolution base
+   *  the clinical knobs then multiply over (the app's raw advanced edits, which
+   *  go to the knob-baseline, serialize here). Distinct from rawPatch. */
+  baselinePatch?: ParameterPatch;
   knobs: Partial<ClinicalKnobs>;
   interventions: AppliedIntervention[];
-  rawPatch: ParameterPatch; // researcher absolute override (wins over knobs)
+  rawPatch: ParameterPatch; // researcher absolute override, post-knob (wins over knobs)
   targetVolume?: number;
 }
 
@@ -194,14 +198,20 @@ export function resolveInstance(
   inst: CaseInstanceSpec,
   baselines: Record<string, BaselineDef>,
   version: string,
-): { params: CoreRuntimeParams; targetVolume: number; knobs: ClinicalKnobs } {
+): { params: CoreRuntimeParams; targetVolume: number; knobs: ClinicalKnobs; base: CoreRuntimeParams } {
   const b = baselines[inst.baseline];
   if (!b) {
     throw new Error(`Unknown baseline "${inst.baseline}". Known: ${Object.keys(baselines).join(", ") || "(none)"}.`);
   }
   resolveKnobMappingVersion(version); // throws on unknown version — no silent fallback
 
-  const base = b.params;
+  // The resolution base = the named baseline + any authored baselinePatch
+  // (the knobs multiply over THIS). Shallow-merge is correct here because the
+  // named baselines carry no override blocks; applyKnobs then deep-merges the
+  // knob-driven overrides on top.
+  const base = inst.baselinePatch && Object.keys(inst.baselinePatch).length > 0
+    ? sanitizeParams({ ...b.params, ...inst.baselinePatch } as CoreRuntimeParams)
+    : b.params;
   const knobs = effectiveKnobs(inst, base);
   let params = applyKnobs(base, knobs, version);
   // Researcher raw override is absolute and wins over the resolved knobs — but
@@ -232,7 +242,7 @@ export function resolveInstance(
     if (eff?.volumeDelta) targetVolume += eff.volumeDelta;
   }
 
-  return { params, targetVolume, knobs };
+  return { params, targetVolume, knobs, base };
 }
 
 /** The mapping version newly-authored cases are stamped with. Re-exported so
