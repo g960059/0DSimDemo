@@ -157,6 +157,7 @@ function Workbench() {
   };
 
   const handleImportFile = async (file: File) => {
+    if (!window.confirm('Load this case? It will replace the current scene; unsaved changes are lost.')) return;
     try { loadDocIntoWorkbench(await readCaseFile(file)); }
     catch (err) { window.alert(`Import failed: ${(err as Error).message}`); }
   };

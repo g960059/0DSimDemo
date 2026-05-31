@@ -29,4 +29,8 @@ describe("casePersist parse/serialize (#3-c)", () => {
     expect(() => parseCaseDocument(JSON.stringify({ schemaVersion: 1 }))).toThrow(/knobMappingVersion/);
     expect(() => parseCaseDocument(JSON.stringify({ schemaVersion: 1, knobMappingVersion: "x" }))).toThrow(/instances/);
   });
+
+  it("rejects an empty-instances doc (would silently wipe the scene)", () => {
+    expect(() => parseCaseDocument(JSON.stringify({ schemaVersion: 1, knobMappingVersion: "x", instances: [], panels: [] }))).toThrow(/no instances/);
+  });
 });

@@ -23,9 +23,13 @@ export function parseCaseDocument(text: string): CaseDocument {
   if (typeof d.schemaVersion !== "number") throw new Error("Missing schemaVersion — not a HemoSim case file.");
   if (typeof d.knobMappingVersion !== "string") throw new Error("Missing knobMappingVersion — not a HemoSim case file.");
   if (!Array.isArray(d.instances)) throw new Error("Case file has no instances.");
+  if (d.instances.length === 0) throw new Error("Case file has no instances (would wipe the scene).");
   if (!Array.isArray(d.panels)) throw new Error("Case file has no panels.");
   return raw as CaseDocument;
 }
+
+/** Reject implausibly large files before reading them into memory (DoS guard). */
+const MAX_CASE_FILE_BYTES = 5 * 1024 * 1024;
 
 /** Serialize a CaseDocument to pretty JSON. */
 export function serializeCaseDocument(doc: CaseDocument): string {
@@ -50,6 +54,10 @@ export function exportCaseFile(doc: CaseDocument): void {
 /** Read + parse a user-selected file into a CaseDocument (rejects on bad shape). */
 export function readCaseFile(file: File): Promise<CaseDocument> {
   return new Promise((resolve, reject) => {
+    if (file.size > MAX_CASE_FILE_BYTES) {
+      reject(new Error(`File too large (${(file.size / 1024 / 1024).toFixed(1)} MB); HemoSim case files are tiny.`));
+      return;
+    }
     const reader = new FileReader();
     reader.onerror = () => reject(new Error("Could not read the file."));
     reader.onload = () => {
