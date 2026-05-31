@@ -19,6 +19,10 @@ const NOTE_FIXTURE: NoteContent = [
     },
   },
   {
+    type: "equation",
+    props: { tex: "P = E(t) \\cdot (V - V_0)" },
+  },
+  {
     type: "controller_ref",
     props: { paramKey: "contractility", label: "Contractility" },
   },
@@ -49,6 +53,20 @@ describe("case notes round-trip", () => {
 
     expect(source.notes?.p_note).toEqual(expect.any(Array));
     expect(remapped.panels.some((panel) => panel.id === "p_note")).toBe(true);
-    expect(source.notes).toHaveProperty("p_note");
+    expect(source.notes?.["p_note"]).toEqual(source.notes?.p_note);
+  });
+
+  it("drops malformed note entries on parse without making notes mandatory", () => {
+    const source = officialCaseById("normal-sinus")!;
+    const parsed = parseCaseDocument(JSON.stringify({
+      ...source,
+      notes: {
+        p_note: NOTE_FIXTURE,
+        broken: { type: "paragraph" },
+      },
+    }));
+
+    expect(parsed.notes).toEqual({ p_note: NOTE_FIXTURE });
+    expect(parseCaseDocument(JSON.stringify({ ...source, notes: "bad" })).notes).toBeUndefined();
   });
 });
