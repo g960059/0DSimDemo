@@ -273,16 +273,24 @@ export type SimSample = {
   QTV: number;
   PVF: number; // pulmonary venous inflow to LA (PVein->LA edge); S/D/Ar pattern
   SVF: number; // systemic venous return to RA (VC->RA edge)
+  QCapSV: number; // systemic venous reservoir inflow (Cap->SV)
+  QPArtPCap: number; // pulmonary venous group inflow (PArt->PCap)
 
   // Volumes
   VLV: number;
   VRV: number;
   VLA: number;
   VRA: number;
+  VSystemicVenous: number;
+  VPulmonaryVenous: number;
   // Included phi/aLV for charting internal states if needed
   phi: number;
   aLV: number;
   aRV: number;
+  aLA: number;
+  aRA: number;
+  rLA: number;
+  rRA: number;
   TBV: number;
 };
 
@@ -324,6 +332,14 @@ export type SimObservables = {
   unstressedVolumeSystemic: number;
   venousStressedVolume: number;   // SV+VC stressed volume (the reservoir)
   venousUnstressedVolume: number; // SV+VC unstressed volume
+  pulmonaryVenousVolume: number;          // PCap+PVen+PVein total realised volume
+  pulmonaryVenousStressedVolume: number;  // PCap+PVen+PVein stressed volume
+  pulmonaryVenousUnstressedVolume: number;// PCap+PVen+PVein unstressed volume
+  pVeinVcGradient: number;                // P_PVein - P_VC (mmHg)
+  tbvCorrectionMagPerBeat: number;         // mL applied by the conservative TBV ledger corrector over the last completed beat
+  tbvCorrectionLastStepMl: number;         // mL applied by the conservative TBV ledger corrector on the last integrator step
+  expectedTBV: number;                     // mL, current expected-TBV ledger value
+  tbvErrorMl: number;                      // expectedTBV - actual TBV at the instant of this read
   Pth: number;
   Palv: number;
   Q_VC_RA: number;
@@ -332,6 +348,25 @@ export type SimObservables = {
   P_VC: number;
   P_PVen: number;
   P_PVein: number;
+};
+
+export type VenousGroupBalance = {
+  volume: number;
+  stressedVolume: number;
+  unstressedVolume: number;
+  inflowMlPerS: number;
+  outflowMlPerS: number;
+  netFlowMlPerS: number;
+};
+
+export type VenousGroupBalances = {
+  systemicVenous: VenousGroupBalance;
+  pulmonaryVenous: VenousGroupBalance;
+  totalBloodVolume: number;
+  expectedTBV: number;
+  tbvErrorMl: number;
+  tbvCorrectionMagPerBeat: number;
+  tbvCorrectionLastStepMl: number;
 };
 
 export type SimulationHealthStatus = "ok" | "warning" | "failed";

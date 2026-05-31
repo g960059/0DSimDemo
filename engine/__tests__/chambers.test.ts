@@ -8,6 +8,50 @@ import { DEFAULT_PARAMS } from "@/constants";
  * that the baseline snapshot alone would not catch.
  */
 describe("ChamberModel behavior parity (S2a refactor guards)", () => {
+  it("AV-plane reservoir state is neutral at default stroke0", () => {
+    const explicitZero = runScenario({
+      ...DEFAULT_PARAMS,
+      nodeOverrides: { LA: { active: { reservoirStrokeMl: 0 } } },
+    });
+    const defaultRun = runScenario(DEFAULT_PARAMS);
+    expect(explicitZero.metrics).toEqual(defaultRun.metrics);
+    expect(explicitZero.health).toEqual(defaultRun.health);
+    expect(explicitZero.samples.at(-1)?.rLA).toBe(0);
+  });
+
+  it("LA reservoir stroke changes pressure without changing chamber blood volume", () => {
+    const base = runScenario(DEFAULT_PARAMS);
+    const reservoir = runScenario({
+      ...DEFAULT_PARAMS,
+      nodeOverrides: { LA: { active: { reservoirStrokeMl: 10 } } },
+    });
+    expect(reservoir.samples.some((s) => s.rLA > 0.1)).toBe(true);
+    expect(Math.abs(reservoir.metrics.TBV - base.metrics.TBV)).toBeLessThan(1);
+    expect(Math.abs(reservoir.metrics.LAPMean - base.metrics.LAPMean)).toBeGreaterThan(0.05);
+  });
+
+  it("LA reservoir follows valve-gated ejection rise and IVR recoil", () => {
+    const reservoir = runScenario({
+      ...DEFAULT_PARAMS,
+      nodeOverrides: { LA: { active: { reservoirStrokeMl: 10 } } },
+    });
+    expect(Math.max(...reservoir.samples.map((s) => s.rLA))).toBeLessThanOrEqual(10);
+    expect(Math.min(...reservoir.samples.map((s) => s.rLA))).toBeGreaterThanOrEqual(0);
+    expect(reservoir.samples.some((s) => s.rRA !== 0)).toBe(false);
+
+    let ejectionRise = false;
+    let ivrRecoil = false;
+    for (let i = 1; i < reservoir.samples.length; i++) {
+      const prev = reservoir.samples[i - 1];
+      const cur = reservoir.samples[i];
+      const dr = cur.rLA - prev.rLA;
+      if (cur.QAo > 1 && cur.QMV <= 0 && dr > 0.0005) ejectionRise = true;
+      if (cur.QAo <= 0 && cur.QMV <= 0 && prev.rLA > 0.1 && dr < -0.0005) ivrRecoil = true;
+    }
+    expect(ejectionRise).toBe(true);
+    expect(ivrRecoil).toBe(true);
+  });
+
   it("active-stress mode RESPECTS node.active overrides (per-instance chamber params)", () => {
     // The active-stress LV/RV models are rebuilt from node.active in
     // setImmediateParameters, so a nodeOverrides.*.active edit changes the

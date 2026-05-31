@@ -122,7 +122,7 @@ describe("clinical knobs drive the expected hemodynamics end-to-end", () => {
       HR: 75, contractility: 1, relaxation: 1, phi: 0,
       tmaxScale: 1, geomScale: 1, caReleaseScale: 1,
     };
-    const dia = { c: 0, a: 0 }; // a=0 -> active stress zero, so this probes σ_pas only
+    const dia = { c: 0, a: 0, r: 0 }; // a=0 -> active stress zero, so this probes sigma_pas only
     const soft = new ActiveStressChamberModel(defaultActiveLV);
     const stiffModel = new ActiveStressChamberModel({ ...defaultActiveLV, bPas: defaultActiveLV.bPas * 2.5 });
     const dPassive = stiffModel.pressure(100, dia, ctx) - soft.pressure(100, dia, ctx);

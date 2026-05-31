@@ -2,13 +2,25 @@ import { clamp, frac, sigmoid, smoothMax, smoothMin, softplus, solveQuadraticFlo
 import {
   ActiveStressChamberModel,
   ElastanceChamberModel,
+  defaultActiveLA,
   defaultActiveLV,
+  defaultActiveRA,
   defaultActiveRV,
   type ActiveChamberParams,
   type Chamber,
   type ChamberCtx,
 } from "@/engine/chambers";
-import type { ParameterPatch, SimMetrics, SimObservables, SimSample, SimulationHealth, SimulationHealthStatus, CoreRuntimeParams } from "@/engine/protocol";
+import type {
+  CoreRuntimeParams,
+  ParameterPatch,
+  SimMetrics,
+  SimObservables,
+  SimSample,
+  SimulationHealth,
+  SimulationHealthStatus,
+  VenousGroupBalance,
+  VenousGroupBalances,
+} from "@/engine/protocol";
 import { HARD_CLAMP, RUNTIME_CLAMP_KEYS } from "@/engine/protocol";
 import {
   assessBeatRing,
@@ -102,6 +114,9 @@ const nodeNames = [
   "Ao", "SA", "Art", "Cap", "SV", "VC",
   "PA", "PArt", "PCap", "PVen", "PVein"
 ] as const;
+const tbvCorrectionNodeNames = ["SV", "VC", "PCap", "PVen", "PVein"] as const;
+const systemicVenousNodeNames = ["SV", "VC"] as const;
+const pulmonaryVenousNodeNames = ["PCap", "PVen", "PVein"] as const;
 
 const dynamicEdgeNames = ["MV", "AoV", "TV", "PV", "Ao_SA", "PA_PArt"] as const;
 const valveNames = ["MV", "AoV", "TV", "PV"] as const;
@@ -115,7 +130,7 @@ type StateIndex = {
   q: Record<DynamicEdgeName, number>;
   xi: Record<ValveName, number>;
   phi: number;
-  activeInternal: Partial<Record<Chamber, { c: number; a: number }>>;
+  activeInternal: Partial<Record<Chamber, { c: number; a: number; r: number }>>;
   size: number;
 };
 
@@ -139,9 +154,9 @@ function makeIndex(): StateIndex {
   const xi = {} as Record<ValveName, number>;
   for (const v of valveNames) xi[v] = i++;
   const phi = i++;
-  const activeInternal: Partial<Record<Chamber, { c: number; a: number }>> = {};
+  const activeInternal: Partial<Record<Chamber, { c: number; a: number; r: number }>> = {};
   for (const ch of activeChambersFromNodes(buildNodes())) {
-    activeInternal[ch] = { c: i++, a: i++ };
+    activeInternal[ch] = { c: i++, a: i++, r: i++ };
   }
   return {
     node,
@@ -208,9 +223,9 @@ export function defaultParams(): CoreRuntimeParams {
 function buildNodes(): NodeSpec[] {
   return [
     { name: "LV", kind: "heartActive", chamber: "LV", V0: 10, alpha: 0.015, beta: 0.8, Ees: 2.4, x0: 130, active: defaultActiveLV },
-    { name: "LA", kind: "heartElastance", chamber: "LA", V0: 5, alpha: 0.05, beta: 0.4, Ees: 0.25, x0: 60 },
+    { name: "LA", kind: "heartActive", chamber: "LA", V0: 5, alpha: 0.05, beta: 0.4, Ees: 0.25, x0: 45, active: defaultActiveLA },
     { name: "RV", kind: "heartActive", chamber: "RV", V0: 15, alpha: 0.012, beta: 0.5, Ees: 0.85, x0: 140, active: defaultActiveRV },
-    { name: "RA", kind: "heartElastance", chamber: "RA", V0: 5, alpha: 0.05, beta: 0.35, Ees: 0.22, x0: 60 },
+    { name: "RA", kind: "heartActive", chamber: "RA", V0: 5, alpha: 0.05, beta: 0.35, Ees: 0.22, x0: 55, active: defaultActiveRA },
 
     { name: "Ao", kind: "arterial", Vu: 0, P0: 50, Vs: 150, x0: 150 * Math.log1p(90 / 50) },
     { name: "SA", kind: "arterial", Vu: 0, P0: 50, Vs: 400, x0: 400 * Math.log1p(85 / 50) },
@@ -221,9 +236,9 @@ function buildNodes(): NodeSpec[] {
 
     { name: "PA", kind: "arterial", ext: "pth", Vu: 0, P0: 20, Vs: 60, x0: 60 * Math.log1p(16 / 20) },
     { name: "PArt", kind: "arterial", ext: "pth", Vu: 0, P0: 20, Vs: 90, x0: 90 * Math.log1p(13 / 20) },
-    { name: "PCap", kind: "venousPressure", ext: "palv", Vu: 60, Ccoll: 3, Copen: 22, Cdist: 8, Popen: 0, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 8 },
-    { name: "PVen", kind: "venousPressure", ext: "pth", Vu: 90, Ccoll: 4, Copen: 28, Cdist: 10, Popen: -1, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 6 },
-    { name: "PVein", kind: "venousPressure", ext: "pth", Vu: 120, Ccoll: 5, Copen: 40, Cdist: 14, Popen: -1, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 5 }
+    { name: "PCap", kind: "venousPressure", ext: "palv", Vu: 105, Ccoll: 2, Copen: 4, Cdist: 2, Popen: 0, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 8 },
+    { name: "PVen", kind: "venousPressure", ext: "pth", Vu: 160, Ccoll: 2, Copen: 4, Cdist: 2, Popen: -1, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 6 },
+    { name: "PVein", kind: "venousPressure", ext: "pth", Vu: 215, Ccoll: 2, Copen: 4, Cdist: 2, Popen: -1, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 5 }
   ];
 }
 
@@ -246,7 +261,7 @@ function buildEdges(): EdgeSpec[] {
     { name: "PArt_PCap", up: "PArt", down: "PCap", kind: "resistive", R: 0.04, B: 0, group: "pulmonary" },
     { name: "PCap_PVen", up: "PCap", down: "PVen", kind: "resistive", R: 0.03, B: 0, ext: "palv", waterfall: true, Pcrit: 0, useChiResistance: true, useChiQuadratic: false },
     { name: "PVen_PVein", up: "PVen", down: "PVein", kind: "resistive", R: 0.01, B: 0 },
-    { name: "PVein_LA", up: "PVein", down: "LA", kind: "resistive", R: 0.012, B: 0 }
+    { name: "PVein_LA", up: "PVein", down: "LA", kind: "resistive", R: 0.07, B: 0 }
   ];
 }
 
@@ -258,12 +273,8 @@ export class ModelCore {
   private readonly dynamicEdgeIndex = new Map<string, number>();
   private readonly valveIndex = new Map<string, number>();
 
-  // Heart chamber models (ROADMAP S2). Active LV/RV use fixed default params
-  // (matching the previous hard-coded behavior); elastance models track node params.
-  private readonly activeModels: Partial<Record<Chamber, ActiveStressChamberModel>> = {
-    LV: new ActiveStressChamberModel(defaultActiveLV),
-    RV: new ActiveStressChamberModel(defaultActiveRV),
-  };
+  // Heart chamber models (ROADMAP S2). Active models track node.active params.
+  private readonly activeModels: Partial<Record<Chamber, ActiveStressChamberModel>> = {};
   private elastanceModels = new Map<string, ElastanceChamberModel>();
 
   t = 0;
@@ -279,6 +290,10 @@ export class ModelCore {
   // The projector follows this, and health compares mass conservation against it.
   private expectedTBV = 0;
   private clampHitCount = 0;
+  private tbvCorrectionMagThisBeat = 0;
+  private tbvCorrectionMagLastBeat = 0;
+  private tbvCorrectionLastStepMl = 0;
+  private tbvCorrectionEnabled = true;
 
   // Steady-state detection (engine/settling.ts). The detector keeps its OWN
   // small ring of per-beat fingerprints, independent of the 1200-sample raw
@@ -299,6 +314,7 @@ export class ModelCore {
     nodeNames.forEach((n, i) => this.nodeIndex.set(n, i));
     dynamicEdgeNames.forEach((n, i) => this.dynamicEdgeIndex.set(n, i));
     valveNames.forEach((n, i) => this.valveIndex.set(n, i));
+    this.rebuildActiveModels();
     this.rebuildElastanceModels();
     if (initial) {
         this.setImmediateParameters(initial);
@@ -326,6 +342,7 @@ export class ModelCore {
       const initial = this.activeModel(ch).initialInternal();
       this.x[internalIndex.c] = initial.c;
       this.x[internalIndex.a] = initial.a;
+      this.x[internalIndex.r] = initial.r;
     }
     this.t = 0;
     this.history = [];
@@ -333,6 +350,9 @@ export class ModelCore {
     this.initialTBV = this.lastSample.TBV;
     this.expectedTBV = this.initialTBV;
     this.clampHitCount = 0;
+    this.tbvCorrectionMagThisBeat = 0;
+    this.tbvCorrectionMagLastBeat = 0;
+    this.tbvCorrectionLastStepMl = 0;
     this.clearBeatTracking();
   }
 
@@ -371,16 +391,7 @@ export class ModelCore {
         return e;
     });
 
-    // Active-stress chamber models are built from node.active, so they MUST be
-    // rebuilt when a nodeOverrides.active edit lands (e.g. a diastolic-stiffness
-    // b_pas change) — otherwise the override updates the NodeSpec but the model
-    // that actually computes chamber pressure keeps the old params (silent no-op).
-    for (const n of this.nodes) {
-        if (n.kind === "heartActive" && n.active && n.chamber) {
-            this.activeModels[n.chamber] = new ActiveStressChamberModel(n.active);
-        }
-    }
-
+    this.rebuildActiveModels();
     this.rebuildElastanceModels();
     this.smoothParams(0); // Applies clamps
     // Re-arm steady-state detection if the operating point actually changed, so
@@ -395,11 +406,30 @@ export class ModelCore {
   }
 
   initializeVenousPressuresForTargetTBV(targetTBV: number) {
-    this.projectVenousPressuresToTargetTBV(targetTBV);
+    if (Number.isFinite(targetTBV) && targetTBV > 0) {
+      this.expectedTBV = targetTBV;
+      this.correctVenousPressuresToExpectedTBV({
+        gain: 1,
+        maxTotalCorrectionMl: Infinity,
+        maxNodeVolumeMl: Infinity,
+      });
+      for (let i = 0; i < 16; i++) {
+        const err = targetTBV - this.totalBloodVolume(this.computePressures(this.x));
+        if (Math.abs(err) < 1e-6) break;
+        this.correctVenousPressuresToExpectedTBV({
+          gain: 1,
+          maxTotalCorrectionMl: Infinity,
+          maxNodeVolumeMl: Infinity,
+        });
+      }
+    }
     this.clearBeatTracking(); // volume change re-arms steady-state detection
     this.lastSample = this.sample();
     this.initialTBV = this.lastSample.TBV;
     this.expectedTBV = this.initialTBV;
+    this.tbvCorrectionMagThisBeat = 0;
+    this.tbvCorrectionMagLastBeat = 0;
+    this.tbvCorrectionLastStepMl = 0;
   }
 
   step(dt: number) {
@@ -429,7 +459,17 @@ export class ModelCore {
     for (let i = 0; i < this.x.length; i++) this.x[i] += 0.5 * dt * (k1[i] + k2[i]);
     this.t += dt;
     this.sanitizeState(this.x);
-    if (this.p.projectTBV) this.projectVenousPressuresToTargetTBV(this.expectedTBV);
+    if (this.p.projectTBV && this.tbvCorrectionEnabled) this.correctVenousPressuresToExpectedTBV();
+  }
+
+  setTBVCorrectionEnabled(enabled: boolean): void {
+    this.tbvCorrectionEnabled = enabled;
+  }
+
+  resetTBVCorrectionCounters(): void {
+    this.tbvCorrectionMagThisBeat = 0;
+    this.tbvCorrectionMagLastBeat = 0;
+    this.tbvCorrectionLastStepMl = 0;
   }
 
   runFor(seconds: number, dt = 0.001, sampleHz = 60): SimSample[] {
@@ -467,13 +507,21 @@ export class ModelCore {
       QTV: flows[this.edgeIndex("TV")],
       PVF: flows[this.edgeIndex("PVein_LA")],
       SVF: flows[this.edgeIndex("VC_RA")],
+      QCapSV: flows[this.edgeIndex("Cap_SV")],
+      QPArtPCap: flows[this.edgeIndex("PArt_PCap")],
       VLV: pack.Vphys[this.nodeIndex.get("LV")!],
       VRV: pack.Vphys[this.nodeIndex.get("RV")!],
       VLA: pack.Vphys[this.nodeIndex.get("LA")!],
       VRA: pack.Vphys[this.nodeIndex.get("RA")!],
+      VSystemicVenous: pack.Vphys[this.nodeIndex.get("SV")!] + pack.Vphys[this.nodeIndex.get("VC")!],
+      VPulmonaryVenous: pack.Vphys[this.nodeIndex.get("PCap")!] + pack.Vphys[this.nodeIndex.get("PVen")!] + pack.Vphys[this.nodeIndex.get("PVein")!],
       phi: this.x[this.idx.phi],
       aLV: clamp(this.x[this.activeInternalIndex("LV").a], 0, 1),
       aRV: clamp(this.x[this.activeInternalIndex("RV").a], 0, 1),
+      aLA: clamp(this.x[this.activeInternalIndex("LA").a], 0, 1),
+      aRA: clamp(this.x[this.activeInternalIndex("RA").a], 0, 1),
+      rLA: clamp(this.x[this.activeInternalIndex("LA").r], 0, Math.max(this.activeModel("LA").ap.reservoirStrokeMl ?? 0, 0)),
+      rRA: clamp(this.x[this.activeInternalIndex("RA").r], 0, Math.max(this.activeModel("RA").ap.reservoirStrokeMl ?? 0, 0)),
       TBV: this.totalBloodVolume(pack)
     };
     this.trackBeat(s);
@@ -497,6 +545,8 @@ export class ModelCore {
       this.beatRing.push(this.finalizeBeat(this.beatAccum));
       if (this.beatRing.length > 8) this.beatRing.shift();
       this.totalBeats++;
+      this.tbvCorrectionMagLastBeat = this.tbvCorrectionMagThisBeat;
+      this.tbvCorrectionMagThisBeat = 0;
       this.beatAccum = this.newBeatAccum(beat, s);
     }
     const a = this.beatAccum;
@@ -824,10 +874,11 @@ export class ModelCore {
       const ch = n.chamber!;
       const internalIndex = this.activeInternalIndex(ch);
       const nodeIndex = this.idx.node[n.name as NodeName];
-      const internal = { c: x[internalIndex.c], a: x[internalIndex.a] };
+      const internal = { c: x[internalIndex.c], a: x[internalIndex.a], r: x[internalIndex.r] };
       const dInternal = this.activeModel(ch).internalDerivatives(x[nodeIndex], internal, this.chamberCtx(ch, x));
       dy[internalIndex.c] = dInternal.cDot;
       dy[internalIndex.a] = dInternal.aDot;
+      dy[internalIndex.r] = dInternal.rDot;
     }
 
     return dy;
@@ -865,14 +916,16 @@ export class ModelCore {
         Ptm[i] = ptm;
         P[i] = Pext + ptm;
       } else if (n.kind === "heartElastance" || (n.kind === "heartActive" && this.p.heartModel === "elastance")) {
-        const ctx = this.chamberCtx(n.chamber ?? "LV", x);
-        const ptm = this.elastanceModels.get(n.name)!.pressure(V, { c: 0, a: 0 }, ctx);
+        if (!n.chamber) throw new Error(`Missing chamber for heart node ${n.name}`);
+        const ctx = this.chamberCtx(n.chamber, x);
+        const ptm = this.elastanceModels.get(n.name)!.pressure(V, { c: 0, a: 0, r: 0 }, ctx);
         Ptm[i] = ptm;
         P[i] = Pperi + ptm;
       } else if (n.kind === "heartActive") {
-        const ch = n.chamber ?? "LV";
+        if (!n.chamber) throw new Error(`Missing chamber for active heart node ${n.name}`);
+        const ch = n.chamber;
         const internalIndex = this.activeInternalIndex(ch);
-        const internal = { c: x[internalIndex.c], a: x[internalIndex.a] };
+        const internal = { c: x[internalIndex.c], a: x[internalIndex.a], r: x[internalIndex.r] };
         const ptm = this.activeModel(ch).pressure(V, internal, this.chamberCtx(ch, x));
         Ptm[i] = ptm;
         P[i] = Pperi + ptm;
@@ -902,15 +955,22 @@ export class ModelCore {
 
   /** Evaluation context handed to a ChamberModel for the given chamber. */
   private chamberCtx(chamber: Chamber, x: Float64Array): ChamberCtx {
-    const isLV = chamber === "LV";
+    const isRV = chamber === "RV";
+    const lvVolume = x[this.idx.node.LV];
+    const lvEd = 115;
+    const lvEs = 45;
     return {
       HR: this.p.HR,
       contractility: this.p.contractility,
       relaxation: this.p.relaxation,
       phi: x[this.idx.phi],
-      tmaxScale: isLV ? this.p.lvTmaxScale : this.p.rvTmaxScale,
-      geomScale: isLV ? this.p.lvGeomScale : this.p.rvGeomScale,
-      caReleaseScale: isLV ? this.p.caReleaseScale : this.p.rvCaReleaseScale,
+      tmaxScale: chamber === "LV" ? this.p.lvTmaxScale : isRV ? this.p.rvTmaxScale : 1,
+      geomScale: chamber === "LV" ? this.p.lvGeomScale : isRV ? this.p.rvGeomScale : 1,
+      caReleaseScale: chamber === "LV" ? this.p.caReleaseScale : isRV ? this.p.rvCaReleaseScale : 1,
+      lvVolumeMl: lvVolume,
+      lvShortening01: clamp((lvEd - lvVolume) / Math.max(lvEd - lvEs, 1e-6), 0, 1),
+      mvOpen01: clamp(x[this.idx.xi.MV], 0, 1),
+      aovOpen01: clamp(x[this.idx.xi.AoV], 0, 1),
     };
   }
 
@@ -918,7 +978,7 @@ export class ModelCore {
     return this.nodes.filter((n) => n.kind === "heartActive" && n.chamber && n.active);
   }
 
-  private activeInternalIndex(chamber: Chamber): { c: number; a: number } {
+  private activeInternalIndex(chamber: Chamber): { c: number; a: number; r: number } {
     const idx = this.idx.activeInternal[chamber];
     if (!idx) throw new Error(`Missing active internal state index for ${chamber}`);
     return idx;
@@ -928,6 +988,13 @@ export class ModelCore {
     const model = this.activeModels[chamber];
     if (!model) throw new Error(`Missing active chamber model for ${chamber}`);
     return model;
+  }
+
+  private rebuildActiveModels() {
+    for (const ch of Object.keys(this.activeModels) as Chamber[]) delete this.activeModels[ch];
+    for (const n of this.activeChamberNodes()) {
+      this.activeModels[n.chamber!] = new ActiveStressChamberModel(n.active!);
+    }
   }
 
   /** (Re)build per-node elastance models from current node params. */
@@ -1034,7 +1101,9 @@ export class ModelCore {
     const alpha = dt === 0 ? 1 : (1 - Math.exp(-dt / tau));
     const nums: (keyof CoreRuntimeParams)[] = [
       "HR", "contractility", "relaxation", "systemicResistance", "pulmonaryResistance",
-      "venousTone", "arterialStiffness", "PEEP", "Pth0", "respAmpTh", "respAmpAlv", "speed", "lvTmaxScale", "rvTmaxScale", "lvGeomScale", "rvGeomScale", "caReleaseScale", "rvCaReleaseScale"
+      "venousTone", "arterialStiffness", "PEEP", "Pth0", "respAmpTh", "respAmpAlv",
+      "speed", "lvTmaxScale", "rvTmaxScale",
+      "lvGeomScale", "rvGeomScale", "caReleaseScale", "rvCaReleaseScale"
     ];
     for (const k of nums) {
       const current = this.p[k];
@@ -1082,42 +1151,77 @@ export class ModelCore {
       if (!active) continue;
       x[active.c] = clamp(x[active.c], 0, 5);
       x[active.a] = clamp(x[active.a], 0, 1);
+      x[active.r] = clamp(x[active.r], 0, this.maxReservoirStrokeForInternal(active));
     }
   }
 
-  private projectVenousPressuresToTargetTBV(targetTBV: number): void {
-    if (!Number.isFinite(targetTBV) || targetTBV <= 0) return;
-    let lo = -30;
-    let hi = 30;
-    const volumeWithOffset = (off: number) => {
-      let total = 0;
-      for (let i = 0; i < this.nodes.length; i++) {
-        const n = this.nodes[i];
-        const ix = this.idx.node[n.name as NodeName];
-        if (n.kind === "venousPressure") {
-          const ptm = clamp(this.x[ix] + off, -20, 45);
-          total += this.effectiveVu(n) + this.venousStressedVolume(n, ptm);
-        } else {
-          total += clamp(this.x[ix], 1, 1000);
-        }
-      }
-      return total;
-    };
-    for (let i = 0; i < 5 && volumeWithOffset(lo) > targetTBV; i++) lo *= 1.5;
-    for (let i = 0; i < 5 && volumeWithOffset(hi) < targetTBV; i++) hi *= 1.5;
-    if (volumeWithOffset(lo) > targetTBV || volumeWithOffset(hi) < targetTBV) return;
-    for (let iter = 0; iter < 28; iter++) {
+  private maxReservoirStrokeForInternal(active: { c: number; a: number; r: number }): number {
+    for (const [ch, idx] of Object.entries(this.idx.activeInternal) as [Chamber, { c: number; a: number; r: number }][]) {
+      if (idx?.r !== active.r) continue;
+      return Math.max(this.activeModels[ch]?.ap.reservoirStrokeMl ?? 0, 0);
+    }
+    return 0;
+  }
+
+  private correctVenousPressuresToExpectedTBV(options: {
+    gain?: number;
+    maxTotalCorrectionMl?: number;
+    maxNodeVolumeMl?: number;
+  } = {}): void {
+    if (!Number.isFinite(this.expectedTBV) || this.expectedTBV <= 0) return;
+    const pack = this.computePressures(this.x);
+    const currentTBV = this.totalBloodVolume(pack);
+    const error = this.expectedTBV - currentTBV;
+    const gain = options.gain ?? 0.35;
+    const maxTotal = options.maxTotalCorrectionMl ?? 0.25;
+    const correction = clamp(error * gain, -maxTotal, maxTotal);
+    this.tbvCorrectionLastStepMl = Math.abs(correction);
+    if (Math.abs(correction) < 1e-9) return;
+
+    const entries = tbvCorrectionNodeNames.map((name) => {
+      const node = this.nodes[this.nodeIndex.get(name)!];
+      const ix = this.idx.node[name];
+      const volume = pack.Vphys[this.nodeIndex.get(name)!];
+      const compliance = this.venousCompliance(node, pack.Ptm[this.nodeIndex.get(name)!]);
+      return { node, ix, volume, compliance };
+    });
+    const volumeTotal = entries.reduce((sum, e) => sum + Math.max(e.volume, 0), 0);
+    const complianceTotal = entries.reduce((sum, e) => sum + Math.max(e.compliance, 0), 0);
+    const denom = volumeTotal > 1e-9 ? volumeTotal : complianceTotal;
+    if (denom <= 1e-9) return;
+
+    let applied = 0;
+    for (const e of entries) {
+      const rawWeight = volumeTotal > 1e-9 ? Math.max(e.volume, 0) : Math.max(e.compliance, 0);
+      const delta = clamp(
+        correction * (rawWeight / denom),
+        -(options.maxNodeVolumeMl ?? 0.1),
+        options.maxNodeVolumeMl ?? 0.1,
+      );
+      if (Math.abs(delta) < 1e-12) continue;
+      const targetVolume = e.volume + delta;
+      const beforeVolume = this.effectiveVu(e.node) + this.venousStressedVolume(e.node, this.x[e.ix]);
+      this.x[e.ix] = this.solveVenousPtmForVolume(e.node, targetVolume);
+      const afterVolume = this.effectiveVu(e.node) + this.venousStressedVolume(e.node, this.x[e.ix]);
+      applied += afterVolume - beforeVolume;
+    }
+    this.tbvCorrectionLastStepMl = Math.abs(applied);
+    this.tbvCorrectionMagThisBeat += Math.abs(applied);
+  }
+
+  private solveVenousPtmForVolume(n: NodeSpec, targetVolume: number): number {
+    const targetStressed = targetVolume - this.effectiveVu(n);
+    let lo = -20;
+    let hi = 45;
+    const volumeAt = (ptm: number) => this.venousStressedVolume(n, ptm);
+    if (targetStressed <= volumeAt(lo)) return lo;
+    if (targetStressed >= volumeAt(hi)) return hi;
+    for (let iter = 0; iter < 32; iter++) {
       const mid = 0.5 * (lo + hi);
-      if (volumeWithOffset(mid) < targetTBV) lo = mid;
+      if (volumeAt(mid) < targetStressed) lo = mid;
       else hi = mid;
     }
-    const off = 0.5 * (lo + hi);
-    if (Math.abs(off) < 1e-7) return;
-    for (const n of this.nodes) {
-      if (n.kind !== "venousPressure") continue;
-      const ix = this.idx.node[n.name as NodeName];
-      this.x[ix] = clamp(this.x[ix] + off, -20, 45);
-    }
+    return 0.5 * (lo + hi);
   }
 
   /**
@@ -1133,11 +1237,14 @@ export class ModelCore {
     const pack = this.computePressures(this.x);
     const flows = this.computeFlows(this.x, pack);
     const systemic = ["Ao", "SA", "Art", "Cap", "SV", "VC"] as const;
+    const pulmonaryVenous = ["PCap", "PVen", "PVein"] as const;
     let stressed = 0;
     let compliance = 0;
     let unstressed = 0;
     let venStressed = 0;
     let venUnstressed = 0;
+    let pulmonaryVenousStressed = 0;
+    let pulmonaryVenousUnstressed = 0;
     for (const name of systemic) {
       const i = this.nodeIndex.get(name)!;
       const n = this.nodes[i];
@@ -1159,8 +1266,18 @@ export class ModelCore {
         compliance += Math.max(n.C ?? 1, 1e-6);
       }
     }
+    for (const name of pulmonaryVenous) {
+      const i = this.nodeIndex.get(name)!;
+      const n = this.nodes[i];
+      const vu = this.effectiveVu(n);
+      pulmonaryVenousUnstressed += vu;
+      pulmonaryVenousStressed += this.venousStressedVolume(n, pack.Ptm[i]);
+    }
     const Pmsf = compliance > 1e-9 ? stressed / compliance : 0;
     const RAP = pack.P[this.nodeIndex.get("RA")!];
+    const P_VC = pack.P[this.nodeIndex.get("VC")!];
+    const P_PVein = pack.P[this.nodeIndex.get("PVein")!];
+    const actualTBV = this.totalBloodVolume(pack);
     return {
       Pmsf,
       vrGradient: Pmsf - RAP,
@@ -1169,14 +1286,65 @@ export class ModelCore {
       unstressedVolumeSystemic: unstressed,
       venousStressedVolume: venStressed,
       venousUnstressedVolume: venUnstressed,
+      pulmonaryVenousVolume: pulmonaryVenousStressed + pulmonaryVenousUnstressed,
+      pulmonaryVenousStressedVolume: pulmonaryVenousStressed,
+      pulmonaryVenousUnstressedVolume: pulmonaryVenousUnstressed,
+      pVeinVcGradient: P_PVein - P_VC,
+      tbvCorrectionMagPerBeat: this.tbvCorrectionMagLastBeat,
+      tbvCorrectionLastStepMl: this.tbvCorrectionLastStepMl,
+      expectedTBV: this.expectedTBV,
+      tbvErrorMl: this.expectedTBV - actualTBV,
       Pth: this.Pth(),
       Palv: this.Palv(),
       Q_VC_RA: flows[this.edgeIndex("VC_RA")],
       Q_PCap_PVen: flows[this.edgeIndex("PCap_PVen")],
       P_SV: pack.P[this.nodeIndex.get("SV")!],
-      P_VC: pack.P[this.nodeIndex.get("VC")!],
+      P_VC,
       P_PVen: pack.P[this.nodeIndex.get("PVen")!],
-      P_PVein: pack.P[this.nodeIndex.get("PVein")!],
+      P_PVein,
+    };
+  }
+
+  debugVenousGroupBalances(): VenousGroupBalances {
+    const pack = this.computePressures(this.x);
+    const flows = this.computeFlows(this.x, pack);
+    const group = (
+      names: readonly NodeName[],
+      inflowEdge: string,
+      outflowEdge: string,
+    ): VenousGroupBalance => {
+      let volume = 0;
+      let stressedVolume = 0;
+      let unstressedVolume = 0;
+      for (const name of names) {
+        const i = this.nodeIndex.get(name)!;
+        const n = this.nodes[i];
+        const vu = this.effectiveVu(n);
+        const stressedNodeVolume = this.venousStressedVolume(n, pack.Ptm[i]);
+        volume += pack.Vphys[i];
+        stressedVolume += stressedNodeVolume;
+        unstressedVolume += vu;
+      }
+      const inflowMlPerS = flows[this.edgeIndex(inflowEdge)];
+      const outflowMlPerS = flows[this.edgeIndex(outflowEdge)];
+      return {
+        volume,
+        stressedVolume,
+        unstressedVolume,
+        inflowMlPerS,
+        outflowMlPerS,
+        netFlowMlPerS: inflowMlPerS - outflowMlPerS,
+      };
+    };
+    const totalBloodVolume = this.totalBloodVolume(pack);
+    return {
+      systemicVenous: group(systemicVenousNodeNames, "Cap_SV", "VC_RA"),
+      pulmonaryVenous: group(pulmonaryVenousNodeNames, "PArt_PCap", "PVein_LA"),
+      totalBloodVolume,
+      expectedTBV: this.expectedTBV,
+      tbvErrorMl: this.expectedTBV - totalBloodVolume,
+      tbvCorrectionMagPerBeat: this.tbvCorrectionMagLastBeat,
+      tbvCorrectionLastStepMl: this.tbvCorrectionLastStepMl,
     };
   }
 

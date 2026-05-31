@@ -14,8 +14,8 @@ export const ML_TO_M3 = 1e-6;
 
 export type Chamber = "LV" | "RV" | "LA" | "RA";
 
-/** Internal Ca-transient / troponin-activation state of an active chamber. */
-export type ChamberInternal = { c: number; a: number };
+/** Internal Ca-transient / troponin-activation/reservoir state of an active chamber. */
+export type ChamberInternal = { c: number; a: number; r: number };
 
 /** Inputs the chamber needs from the rest of the model at evaluation time. */
 export type ChamberCtx = {
@@ -27,13 +27,18 @@ export type ChamberCtx = {
   tmaxScale: number;
   geomScale: number;
   caReleaseScale: number;
+  lvVolumeMl?: number;
+  lvShortening01?: number;
+  mvOpen01?: number;
+  aovOpen01?: number;
+  systolicGate?: number;
 };
 
 export interface ChamberModel {
   /** Transmural pressure (mmHg) for the given volume + internal state. */
   pressure(V: number, internal: ChamberInternal, ctx: ChamberCtx): number;
   /** Derivatives of the internal Ca/activation states (zero for elastance). */
-  internalDerivatives(V: number, internal: ChamberInternal, ctx: ChamberCtx): { cDot: number; aDot: number };
+  internalDerivatives(V: number, internal: ChamberInternal, ctx: ChamberCtx): { cDot: number; aDot: number; rDot: number };
   /** Initial internal state for reset(). */
   initialInternal(): ChamberInternal;
 }
@@ -70,6 +75,13 @@ export type ActiveChamberParams = {
   lambdaFail: number;
   geomChi: number;
   thetaOn: number;
+  atrialLeadSec?: number;
+  reservoirStrokeMl?: number;
+  reservoirTauFill?: number;
+  reservoirTauRecoil?: number;
+  reservoirTauRecoilIVR?: number;
+  reservoirReleaseTheta?: number;
+  reservoirValveThreshold?: number;
 };
 
 export function sphereRadii(VeffMl: number, VwMl: number) {
@@ -140,6 +152,12 @@ export const defaultActiveLV: ActiveChamberParams = {
   lambdaFail: 1.45,
   geomChi: 1.359637, // M12-lite: exact thick-sphere Laplace (ri+ro)^2/(4 ri^2); was 0.36
   thetaOn: 0.0,
+  reservoirStrokeMl: 0,
+  reservoirTauFill: 0.10,
+  reservoirTauRecoil: 0.15,
+  reservoirTauRecoilIVR: 0.03,
+  reservoirReleaseTheta: 0.55,
+  reservoirValveThreshold: 0.15,
 };
 
 export const defaultActiveRV: ActiveChamberParams = {
@@ -152,6 +170,38 @@ export const defaultActiveRV: ActiveChamberParams = {
   lambdaPas0: 0.85,
   Tmax0: 57176, // M12-lite: physiological ceiling (RV:LV ratio preserved); was 162000
   geomChi: 1.138505, // M12-lite: exact thick-sphere Laplace for RV ref geometry; was 0.28
+};
+
+export const defaultActiveLA: ActiveChamberParams = {
+  ...defaultActiveLV,
+  V0: 5,
+  Vw: 15.9,
+  Vref: 45,
+  Vmin: 1,
+  Trel0: 0.09,
+  TrelMin: 0.06,
+  TrelMax: 0.12,
+  tauCa0: 0.08,
+  Arel0: 0.04,
+  sigmaPas0: 2000,
+  bPas: 14,
+  lambdaPas0: 0.90,
+  Tmax0: 3000,
+  geomChi: 1.121,
+  thetaOn: 0.80,
+  atrialLeadSec: 0.16,
+};
+
+export const defaultActiveRA: ActiveChamberParams = {
+  ...defaultActiveLA,
+  Vref: 35,
+  Vw: 18.2,
+  Arel0: 0.10,
+  sigmaPas0: 210,
+  bPas: 19,
+  lambdaPas0: 0.90,
+  Tmax0: 8000,
+  geomChi: 1.112,
 };
 
 export class ActiveStressChamberModel implements ChamberModel {
@@ -173,7 +223,10 @@ export class ActiveStressChamberModel implements ChamberModel {
   pressure(V: number, internal: ChamberInternal, ctx: ChamberCtx): number {
     const ap = this.ap;
     const a = clamp(internal.a, 0, 1);
-    const { lambda, h, rm } = this.geometry(V);
+    const reservoirStroke = Math.max(ap.reservoirStrokeMl ?? 0, 0);
+    const reservoirDisplacement = reservoirStroke > 0 ? clamp(internal.r, 0, reservoirStroke) : 0;
+    const effectiveV = reservoirStroke > 0 ? Math.max(V - reservoirDisplacement, ap.V0 + ap.Vmin) : V;
+    const { lambda, h, rm } = this.geometry(effectiveV);
     const stretch = lambda - ap.lambdaPas0;
     const sigmaPas = ap.sigmaPas0 * (expClamped(ap.bPas * stretch) - 1);
     const gOver = 1 / (1 + expClamped(ap.kOver * (lambda - ap.lambdaFail)));
@@ -187,7 +240,7 @@ export class ActiveStressChamberModel implements ChamberModel {
     return clamp(PtmPa / MMHG_TO_PA, -5, 260);
   }
 
-  internalDerivatives(V: number, internal: ChamberInternal, ctx: ChamberCtx): { cDot: number; aDot: number } {
+  internalDerivatives(V: number, internal: ChamberInternal, ctx: ChamberCtx): { cDot: number; aDot: number; rDot: number } {
     const ap = this.ap;
     const c = Math.max(internal.c, 0);
     const a = clamp(internal.a, 0, 1);
@@ -199,7 +252,8 @@ export class ActiveStressChamberModel implements ChamberModel {
     const Trel = clamp(ap.Trel0 * Math.pow(T / T0, ap.etaRel), ap.TrelMin, ap.TrelMax);
     const durationTheta = clamp(Trel / T, 0.02, 0.3);
     const theta = frac(ctx.phi);
-    const pulse = raisedCosinePulse(theta, ap.thetaOn, durationTheta, T);
+    const thetaOnEff = ap.atrialLeadSec != null ? frac(1 - ap.atrialLeadSec / T) : ap.thetaOn;
+    const pulse = raisedCosinePulse(theta, thetaOnEff, durationTheta, T);
 
     const betaDrive = clamp((ctx.contractility - 1) / 1.5, 0, 1);
     const tauCa = (ap.tauCa0 * Math.pow(T / T0, ap.etaCa)) / Math.max(ctx.relaxation, 0.2);
@@ -213,12 +267,60 @@ export class ActiveStressChamberModel implements ChamberModel {
     const aInf = cn / Math.max(cn + kn, 1e-9);
     const tauA = 1 / Math.max(ap.kOn * cn + ap.kOff, 0.5);
     const aDot = clamp((aInf - a) / tauA, -20, 20);
-    return { cDot, aDot };
+    const rDot = reservoirRDot(ap, internal, ctx, theta);
+    return { cDot, aDot, rDot };
   }
 
   initialInternal(): ChamberInternal {
-    return { c: this.ap.cDia, a: 0 };
+    return { c: this.ap.cDia, a: 0, r: 0 };
   }
+}
+
+function reservoirRDot(ap: ActiveChamberParams, internal: ChamberInternal, ctx: ChamberCtx, theta: number): number {
+  const stroke = Math.max(ap.reservoirStrokeMl ?? 0, 0);
+  if (stroke <= 0) return 0;
+
+  const r = clamp(internal.r, 0, stroke);
+  const th = ap.reservoirValveThreshold ?? 0.15;
+  const mvOpenRaw = ctx.mvOpen01;
+  const aovOpenRaw = ctx.aovOpen01;
+  const descentTarget = stroke * clamp(ctx.lvShortening01 ?? 0, 0, 1);
+  let target = r;
+  let tau = ap.reservoirTauRecoil ?? 0.15;
+
+  if (mvOpenRaw != null && aovOpenRaw != null) {
+    const mvOpen = clamp(mvOpenRaw, 0, 1);
+    const aovOpen = clamp(aovOpenRaw, 0, 1);
+    const mvClosed = mvOpen <= th;
+    const aovClosed = aovOpen <= th;
+    if (mvOpen > th) {
+      target = 0;
+      tau = ap.reservoirTauRecoilIVR ?? 0.03;
+    } else if (aovClosed && mvClosed) {
+      target = 0;
+      tau = ap.reservoirTauRecoilIVR ?? 0.03;
+    } else if (aovOpen > th && mvClosed) {
+      target = descentTarget;
+      tau = ap.reservoirTauFill ?? 0.10;
+    }
+  } else {
+    const gate = ctx.systolicGate ?? systolicReservoirGate(theta, ap.reservoirReleaseTheta ?? 0.55);
+    target = descentTarget * gate;
+    tau = target > r ? (ap.reservoirTauFill ?? 0.10) : (ap.reservoirTauRecoil ?? 0.15);
+  }
+
+  return clamp(
+    (target - r) / Math.max(tau, 1e-3),
+    -stroke / 0.01,
+    stroke / 0.02,
+  );
+}
+
+function systolicReservoirGate(theta: number, releaseTheta: number): number {
+  const rel = clamp(releaseTheta, 0.05, 0.95);
+  if (theta < rel) return 1;
+  const x = clamp((theta - rel) / Math.max(1 - rel, 1e-6), 0, 1);
+  return 0.5 * (1 + Math.cos(Math.PI * x));
 }
 
 // ----- Elastance chamber -----------------------------------------------------
@@ -263,11 +365,11 @@ export class ElastanceChamberModel implements ChamberModel {
     return clamp(Ped + e * (Pes - Ped), -5, 250);
   }
 
-  internalDerivatives(): { cDot: number; aDot: number } {
-    return { cDot: 0, aDot: 0 };
+  internalDerivatives(): { cDot: number; aDot: number; rDot: number } {
+    return { cDot: 0, aDot: 0, rDot: 0 };
   }
 
   initialInternal(): ChamberInternal {
-    return { c: 0, a: 0 };
+    return { c: 0, a: 0, r: 0 };
   }
 }
