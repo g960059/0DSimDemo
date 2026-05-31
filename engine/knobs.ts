@@ -169,18 +169,23 @@ const resolveActiveStress_0_2: KnobResolver = (k, base) => {
     p.AoV_Amax = base.AoV_Amax * (1 - 0.75 * k.aorticStenosis);
     p.AoV_R = base.AoV_R * (1 + 5 * k.aorticStenosis);
   }
+  // Regurgitant leak area = fraction of the valve's own max orifice. Coefficients
+  // calibrated (docs/research/valve-lesions.md) so severity 1.0 lands a clinically
+  // SEVERE effective regurgitant orifice (~0.35–0.5 cm²): MR 5·0.1=0.5, AR 3.5·0.083≈0.29,
+  // TR 8·0.06≈0.48. The previous 0.25–0.3 coefficients were ~3× too aggressive (even
+  // "mild" exceeded a severe EROA and a large leak pinned the LV at its 3 mL floor).
   if (k.aorticRegurgitation > 0) {
-    p.AoV_Aleak = base.AoV_Amax * (0.25 * k.aorticRegurgitation);
+    p.AoV_Aleak = base.AoV_Amax * (0.083 * k.aorticRegurgitation);
   }
   if (k.mitralStenosis > 0) {
     p.MV_Amax = base.MV_Amax * (1 - 0.75 * k.mitralStenosis);
     p.MV_R = base.MV_R * (1 + 5 * k.mitralStenosis);
   }
   if (k.mitralRegurgitation > 0) {
-    p.MV_Aleak = base.MV_Amax * (0.3 * k.mitralRegurgitation);
+    p.MV_Aleak = base.MV_Amax * (0.1 * k.mitralRegurgitation);
   }
   if (k.tricuspidRegurgitation > 0) {
-    p.TV_Aleak = base.TV_Amax * (0.3 * k.tricuspidRegurgitation);
+    p.TV_Aleak = base.TV_Amax * (0.06 * k.tricuspidRegurgitation);
   }
   if (k.pulmonicStenosis > 0) {
     p.PV_Amax = base.PV_Amax * (1 - 0.75 * k.pulmonicStenosis);

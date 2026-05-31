@@ -95,16 +95,15 @@ export const OFFICIAL_CASES: CaseDocument[] = [
     description: "Two classic left-heart valve lesions. AS imposes a systolic LV–aortic pressure gradient; MR sends a regurgitant jet into the LA, raising LAP and cutting forward output.",
     modelLimitations: [
       LIMIT_GENERAL,
-      "Valve lesions are modelled by lumped orifice area / leak area / resistance changes — no real geometry, jet, or turbulence; gradients are indicative of direction, not exact severity. Under a large regurgitant leak the lumped LV can empty toward its minimum-volume floor and report a non-physiological EF, so lesion severities are kept where the chamber dynamics stay physiological.",
+      "Valve lesions are modelled by lumped orifice area / leak area / resistance changes — no real geometry, jet, or turbulence. The AS systolic gradient is carried mainly by the valve resistance term and is under-scaled vs a clinically-severe gradient (the orifice-area change is largely normalised out of the flow law — an M12 calibration item); read the gradient's DIRECTION, not its magnitude.",
       LIMIT_CALIB,
     ],
     instances: [
-      // AS tolerates 'severe' (gradient-limited). MR is kept 'mild': a larger leak
-      // drives the lumped LV into its volume floor (degenerate EF ~97%), so the
-      // teaching point (raised LAP v-wave + reduced forward SV) is shown without
-      // that artefact.
+      // Severity coefficients recalibrated (docs/research/valve-lesions.md) so the MR
+      // leak (severity 1.0 → ~0.5 cm² EROA) is clinically severe yet stays well off the
+      // LV 3 mL volume floor — so MR can be authored 'severe' (was forced to 'mild').
       { name: "Aortic stenosis", knobs: {}, interventions: [{ uid: "as", id: "aorticStenosis", args: { severity: "severe" } }], targetVolume: 5600 },
-      { name: "Mitral regurgitation", knobs: {}, interventions: [{ uid: "mr", id: "mitralRegurgitation", args: { severity: "mild" } }], targetVolume: 5600 },
+      { name: "Mitral regurgitation", knobs: {}, interventions: [{ uid: "mr", id: "mitralRegurgitation", args: { severity: "severe" } }], targetVolume: 5600 },
     ],
   }),
   makeCase({

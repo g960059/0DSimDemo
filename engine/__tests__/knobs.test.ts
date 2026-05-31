@@ -99,9 +99,9 @@ describe("clinical knobs drive the expected hemodynamics end-to-end", () => {
   });
 
   it("mitral regurgitation raises left atrial pressure", () => {
-    const mr = applyKnobs(base, { ...neutralKnobs(base), mitralRegurgitation: 0.6 }, V);
+    const mr = applyKnobs(base, { ...neutralKnobs(base), mitralRegurgitation: 1.0 }, V); // severe ~0.5 cm2 EROA
     expect(mr.MV_Aleak).toBeGreaterThan(base.MV_Aleak);
-    expect(run(mr).metrics.LAPMean - run(neutral).metrics.LAPMean).toBeGreaterThan(2);
+    expect(run(mr).metrics.LAPMean - run(neutral).metrics.LAPMean).toBeGreaterThan(1);
   });
 
   it("diastolicStiffness scales b_pas and raises LV end-diastolic pressure (stiff EDPVR)", () => {

@@ -13,7 +13,7 @@ Model files: `officialCases.ts` (case `valve-lesions`) · `engine/caseResolve.ts
 | **AS severe**: `AoV_Amax ×(1−0.75·sev)` | ×0.25 → **0.875 cm²** | severe AS: AVA ≤ 1.0 cm² [ESC/AHA] | OK (in severe range) |
 | **AS severe**: `AoV_R ×(1+5·sev)` | ×6 | extra ejection impedance | OK direction |
 | realised AS gradient | ≈ **19 mmHg** | severe AS: mean gradient ≥ 40 mmHg | **OFF — gradient under-scaled** |
-| **MR**: `MV_Aleak = 0.3·MV_Amax·sev` | mild(0.33)→**0.495 cm²**; sev1→1.5 cm² | EROA: mild <0.2, mod 0.2–0.4, **severe ≥0.4 cm²** [ASE/AHA] | **OFF — coefficient ~3× too aggressive** |
+| **MR**: `MV_Aleak = 0.1·MV_Amax·sev` *(recalibrated from 0.3)* | severe(1.0)→**0.5 cm²**; mild(0.33)→0.165 | EROA: mild <0.2, mod 0.2–0.4, **severe ≥0.4 cm²** [ASE/AHA] | **FIXED** — was 0.3 (~3× too aggressive; even mild exceeded severe EROA and sev1 floored the LV) |
 
 ## A. Physiological validity vs literature   [lead]
 
@@ -28,7 +28,13 @@ Model files: `officialCases.ts` (case `valve-lesions`) · `engine/caseResolve.ts
 - **Direction**: correct — AoP_sys falls, a systolic LV–Ao gradient appears, forward SV drops.
   Good teaching case; the gradient magnitude is the calibration gap (read direction, not value).
 
-### Mitral regurgitation (authored: `mild` — was `severe`, which was degenerate)
+### Mitral regurgitation (authored: `severe` — leak coefficient recalibrated 0.3 → 0.1)
+
+> **UPDATE (implemented):** the leak coefficient is now `0.1·MV_Amax` (engine `knobs.ts`), so
+> severity 1.0 → 0.5 cm² (clinically severe EROA) and stays well off the LV 3 mL floor — the official
+> MR case is now authored **severe** (was forced to mild). The analysis below documents the original
+> finding. The AR (0.25→0.083) and TR (0.3→0.06) coefficients were scaled down the same way.
+
 - **Severity guidelines**: EROA mild <0.2, moderate 0.2–0.4, **severe ≥0.4 cm²**; regurgitant
   fraction severe ≥50 %; severe regurgitant volume ≥60 mL. Hallmark: a large LA systolic **v-wave**
   from retrograde flow, raised LAP/PCWP, reduced *forward* SV (total SV high, EF "preserved/high").
