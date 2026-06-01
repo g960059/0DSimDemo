@@ -4,7 +4,7 @@
 - Date: 2026-06-01
 
 ## Context
-The current Workbench shows **two** chrome rows (~112px before any chart): the global `Layout` nav/logo ([Layout.tsx](../../components/Layout.tsx)) + a Workbench bar with a dead `"Workbench Controls"` h1 and ~10 undifferentiated buttons (Scenarios, Save=file-export, Load, Create/Save-lesson, Publish, PAUSE text-pill, full Speed `<select>`, +Pane) ([Workbench.tsx](../../Workbench.tsx) header region). The header is not bound to the loaded `CaseDocument`, has no contextual back, and exposes authoring/file actions to beginners. Reference model: Google AI Studio's own editor chrome (Back-to-start · centered title with ✎ · Remix/Share/Publish · right slide panel).
+The current Workbench shows **two** chrome rows (~112px before any chart): the global `Layout` nav/logo ([Layout.tsx](../../components/Layout.tsx)) + a Workbench bar with a dead `"Workbench Controls"` h1 and ~10 undifferentiated buttons (Scenarios, Save=file-export, Load, Create/Save-lesson, Publish, PAUSE text-pill, full Speed `<select>`, +Pane) ([WorkbenchPage.tsx](../../WorkbenchPage.tsx) header region). The header is not bound to the loaded `CaseDocument`, has no contextual back, and exposes authoring/file actions to beginners. Reference model: Google AI Studio's own editor chrome (Back-to-start · centered title with ✎ · Remix/Share/Publish · right slide panel).
 
 ## Decision
 Collapse to a **single contextual 1-row header**, suppress the global `Layout` chrome on `/workbench` and `/lesson/*`, and drive contents from **provenance-decided modes** (the mode is internal, not a user-visible label).

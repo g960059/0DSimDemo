@@ -4,7 +4,7 @@
 - Date: 2026-06-01
 
 ## Context
-The Workbench renders panes via a dense CSS grid (`grid-cols-12 auto-rows-[50px] grid-flow-dense`) where position = array order; "move" is broken HTML5 `draggable` reorder, "resize" is a mouse-only 50px-step handle, and mobile is a forced `span 12` 1-column stack ([Workbench.tsx](../../Workbench.tsx) grid region). `PanelDef` carries only `w/h`, **no `x/y` or `role`** ([types.ts](../../types.ts)). Charts run `requestAnimationFrame` unconditionally — offscreen panes keep painting ([components/Charts.tsx](../../components/Charts.tsx)). Audience is 80% beginners / 20% power users. North star: an **op-stack** (every edit a serializable named op) to later drive the app from an LLM / MCP / API.
+The Workbench renders panes via a dense CSS grid (`grid-cols-12 auto-rows-[50px] grid-flow-dense`) where position = array order; "move" is broken HTML5 `draggable` reorder, "resize" is a mouse-only 50px-step handle, and mobile is a forced `span 12` 1-column stack ([WorkbenchPage.tsx](../../WorkbenchPage.tsx) grid region). `PanelDef` carries only `w/h`, **no `x/y` or `role`** ([types.ts](../../types.ts)). Charts run `requestAnimationFrame` unconditionally — offscreen panes keep painting ([components/Charts.tsx](../../components/Charts.tsx)). Audience is 80% beginners / 20% power users. North star: an **op-stack** (every edit a serializable named op) to later drive the app from an LLM / MCP / API.
 
 A multi-agent panel (codex 5.x high + opus ×2, beginner / power-user / feasibility lenses) **unanimously** converged on the decision below.
 
