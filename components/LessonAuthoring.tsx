@@ -1,14 +1,53 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import type { LessonStep } from "../lessonDoc";
-import { cloneNoteContent, EMPTY_AUTHOR_NOTE, instanceIdsKey, isPredictStep, moveStep, staleVisibleIds, syncCheckedIds } from "../lessonAuthoring";
+import type { LessonStep, NumericKnobKey } from "../lessonDoc";
+import {
+  buildExposedKnobStage,
+  cloneNoteContent,
+  EMPTY_AUTHOR_NOTE,
+  instanceIdsKey,
+  isPredictStep,
+  moveStep,
+  staleVisibleIds,
+  syncCheckedIds,
+} from "../lessonAuthoring";
 import type { NoteContent } from "../noteTypes";
 import type { SimInstance } from "../types";
+import { KNOB_RANGES } from "../engine/knobs";
+import { resolveKnobValue } from "../lessonKnobs";
 import { NotePanel } from "./NotePanel";
 
 type LessonAuthoringProps = {
   instances: SimInstance[];
   stepsDraft: LessonStep[];
   setStepsDraft: React.Dispatch<React.SetStateAction<LessonStep[]>>;
+};
+
+const KNOB_LABELS: Record<NumericKnobKey, string> = {
+  HR: "Heart rate",
+  contractility: "LV contractility",
+  contractilityRV: "RV contractility",
+  relaxation: "Relaxation",
+  diastolicStiffness: "Diastolic stiffness",
+  afterload: "Afterload",
+  arterialStiffness: "Arterial stiffness",
+  pulmonaryResistance: "Pulmonary resistance",
+  venousTone: "Venous tone",
+  peep: "PEEP",
+  aorticStenosis: "Aortic stenosis",
+  aorticRegurgitation: "Aortic regurgitation",
+  mitralStenosis: "Mitral stenosis",
+  mitralRegurgitation: "Mitral regurgitation",
+  tricuspidRegurgitation: "Tricuspid regurgitation",
+  pulmonicStenosis: "Pulmonic stenosis",
+};
+
+const KNOB_KEYS = Object.keys(KNOB_RANGES) as NumericKnobKey[];
+
+const formatKnobValue = (key: NumericKnobKey, value: number): string => {
+  if (key === "HR") return `${Math.round(value)} bpm`;
+  if (key === "peep") return `${Math.round(value)} cmH2O`;
+  if (key === "venousTone") return value.toFixed(2);
+  return `${value.toFixed(2)}x`;
 };
 
 export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, stepsDraft, setStepsDraft }) => {
@@ -18,9 +57,13 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
   const [stepTitleDraft, setStepTitleDraft] = useState("");
   const [stepNoteDraft, setStepNoteDraft] = useState<NoteContent>(EMPTY_AUTHOR_NOTE);
   const [stepVisibleIdsDraft, setStepVisibleIdsDraft] = useState<string[]>(allInstanceIds);
+  const stepVisibleIdsKey = instanceIdsKey(stepVisibleIdsDraft);
   const [predictDraft, setPredictDraft] = useState(false);
   const [revealLabelDraft, setRevealLabelDraft] = useState("Reveal");
   const [promptDraft, setPromptDraft] = useState("");
+  const [exposedKnobsDraft, setExposedKnobsDraft] = useState<NumericKnobKey[]>([]);
+  const [knobInstanceIdDraft, setKnobInstanceIdDraft] = useState<string | undefined>(allInstanceIds[0]);
+  const [snapshotInitialDraft, setSnapshotInitialDraft] = useState(false);
   const [noteEditorKey, setNoteEditorKey] = useState(0);
   const stepCounterRef = useRef(0);
   const previousInstanceIdsRef = useRef<string[]>(allInstanceIds);
@@ -31,6 +74,12 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
     previousInstanceIdsRef.current = allInstanceIds;
   }, [idsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    setKnobInstanceIdDraft((current) => (
+      current && stepVisibleIdsDraft.includes(current) ? current : stepVisibleIdsDraft[0]
+    ));
+  }, [stepVisibleIdsKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const resetDrafts = () => {
     setStepTitleDraft("");
     setStepNoteDraft(EMPTY_AUTHOR_NOTE);
@@ -38,6 +87,9 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
     setPredictDraft(false);
     setRevealLabelDraft("Reveal");
     setPromptDraft("");
+    setExposedKnobsDraft([]);
+    setKnobInstanceIdDraft(allInstanceIds[0]);
+    setSnapshotInitialDraft(false);
     setNoteEditorKey((key) => key + 1);
   };
 
@@ -48,18 +100,34 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
     });
   };
 
+  const toggleExposedKnob = (key: NumericKnobKey) => {
+    setExposedKnobsDraft((current) => {
+      if (current.includes(key)) return current.filter((item) => item !== key);
+      if (current.length >= 3) return current;
+      return [...current, key];
+    });
+  };
+
   const captureStep = () => {
     if (stepVisibleIdsDraft.length === 0) {
       setWarning("Select at least one visible instance before capturing a step.");
       return;
     }
     stepCounterRef.current += 1;
+    const exposedKnobStage = buildExposedKnobStage(
+      exposedKnobsDraft,
+      knobInstanceIdDraft,
+      stepVisibleIdsDraft,
+      instances,
+      snapshotInitialDraft,
+    );
     const step: LessonStep = {
       id: `step-${Date.now()}-${stepCounterRef.current}`,
       ...(stepTitleDraft.trim() ? { title: stepTitleDraft.trim() } : {}),
       note: cloneNoteContent(stepNoteDraft),
       stage: {
         visibleInstances: [...stepVisibleIdsDraft],
+        ...(exposedKnobStage ?? {}),
         ...(predictDraft ? {
           challenge: {
             kind: "predict",
@@ -84,6 +152,11 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
 
   const finalStep = stepsDraft[stepsDraft.length - 1];
   const hasFinalPredictWarning = finalStep ? isPredictStep(finalStep) : false;
+  const selectedKnobTarget = knobInstanceIdDraft
+    ? instances.find((instance) => instance.id === knobInstanceIdDraft)
+    : undefined;
+  const showExposedTargetSelect = exposedKnobsDraft.length > 0 && stepVisibleIdsDraft.length > 1;
+  const showSnapshotPreview = snapshotInitialDraft && exposedKnobsDraft.length > 0 && selectedKnobTarget;
 
   return (
     <section className="mb-2 rounded border border-slate-800 bg-[#0B1120] overflow-hidden">
@@ -157,6 +230,73 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
             </div>
           )}
 
+          <div className="rounded border border-slate-800 bg-slate-950/50 p-2">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="text-xs font-bold text-slate-400">Exposed knobs</div>
+              {exposedKnobsDraft.length >= 3 && <div className="text-[11px] font-semibold text-amber-300">max 3</div>}
+            </div>
+            <div className="space-y-1.5">
+              {KNOB_KEYS.map((key) => {
+                const checked = exposedKnobsDraft.includes(key);
+                const disabled = !checked && exposedKnobsDraft.length >= 3;
+                return (
+                  <label key={key} className={`flex items-center gap-2 rounded border border-slate-800 px-2 py-1.5 ${disabled ? "bg-slate-900/70 opacity-55" : "bg-slate-950/70"}`}>
+                    <input
+                      type="checkbox"
+                      className="accent-blue-500"
+                      checked={checked}
+                      disabled={disabled}
+                      onChange={() => toggleExposedKnob(key)}
+                    />
+                    <span className="text-xs font-bold text-slate-200 truncate">{KNOB_LABELS[key]}</span>
+                  </label>
+                );
+              })}
+            </div>
+
+            {exposedKnobsDraft.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {showExposedTargetSelect ? (
+                  <label className="block">
+                    <span className="block text-xs font-bold text-slate-400 mb-1">Target instance</span>
+                    <select
+                      value={knobInstanceIdDraft ?? stepVisibleIdsDraft[0] ?? ""}
+                      onChange={(event) => setKnobInstanceIdDraft(event.target.value || undefined)}
+                      className="w-full bg-slate-950 border border-slate-700 outline-none focus:border-blue-500 rounded px-2 py-1.5 text-xs text-slate-100"
+                    >
+                      {stepVisibleIdsDraft.map((id) => (
+                        <option key={id} value={id}>{instanceNameById.get(id) ?? id}</option>
+                      ))}
+                    </select>
+                  </label>
+                ) : (
+                  <div className="text-[11px] font-semibold text-slate-500">
+                    Target: {instanceNameById.get(stepVisibleIdsDraft[0]) ?? stepVisibleIdsDraft[0] ?? "none"}
+                  </div>
+                )}
+                <label className="flex items-center gap-2 rounded bg-slate-950/70 border border-slate-800 px-2 py-1.5">
+                  <input
+                    type="checkbox"
+                    className="accent-blue-500"
+                    checked={snapshotInitialDraft}
+                    onChange={(event) => setSnapshotInitialDraft(event.target.checked)}
+                  />
+                  <span className="text-xs font-bold text-slate-200">Start from current knob values</span>
+                </label>
+                {showSnapshotPreview && (
+                  <div className="rounded bg-slate-950/70 border border-slate-800 px-2 py-1.5 text-[11px] text-slate-400">
+                    {exposedKnobsDraft.map((key) => (
+                      <div key={key} className="flex items-center justify-between gap-2">
+                        <span className="truncate">{KNOB_LABELS[key]}</span>
+                        <span className="shrink-0 font-mono text-slate-200">{formatKnobValue(key, resolveKnobValue(selectedKnobTarget, key))}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {warning && <div className="text-xs font-semibold text-amber-300">{warning}</div>}
         </div>
 
@@ -214,6 +354,11 @@ const CapturedStepRow: React.FC<{
     .map((id) => instanceNameById.get(id))
     .filter((name): name is string => Boolean(name));
   const visibleSummary = visibleNames.length > 0 ? `shows: ${visibleNames.join(", ")}` : "shows: none";
+  const knobTargetId = step.stage.knobInstanceId ?? step.stage.visibleInstances[0];
+  const knobTargetName = knobTargetId ? (instanceNameById.get(knobTargetId) ?? knobTargetId) : "none";
+  const knobSummary = step.stage.exposedKnobs?.length
+    ? `knobs: ${step.stage.exposedKnobs.map((key) => KNOB_LABELS[key]).join(", ")} → ${knobTargetName}`
+    : undefined;
   const canMoveUp = index > 0;
   const canMoveDown = index < count - 1;
   const predict = isPredictStep(step);
@@ -229,6 +374,9 @@ const CapturedStepRow: React.FC<{
             </span>
           )}
         </div>
+        {knobSummary && (
+          <div className="text-[11px] text-blue-300 truncate" title={knobSummary}>{knobSummary}</div>
+        )}
         {staleIds.length > 0 && (
           <div className="text-[11px] font-semibold text-amber-300 truncate">stale: {staleIds.join(", ")}</div>
         )}
