@@ -18,6 +18,7 @@ import { HealthToasts, HealthToast } from './components/HealthIndicators';
 import { PreviewController } from './engine/previewController';
 import { ScenarioManager } from './components/ScenarioManager';
 import { WorkbenchHeader } from './components/workbench/WorkbenchHeader';
+import type { WorkbenchHeaderMode, WorkbenchSceneMeta } from './components/workbench/WorkbenchSidePanel';
 import { PanelGrid } from './components/workbench/PanelGrid';
 import type { NoteContent } from './noteTypes';
 
@@ -98,6 +99,11 @@ function Workbench() {
   const [noteCaseKey, setNoteCaseKey] = useState('draft');
   const [notes, setNotes] = useState<Record<string, NoteContent>>({});
   const [noteModes, setNoteModes] = useState<Record<string, 'read' | 'edit'>>({});
+  const [sceneMeta, setSceneMeta] = useState<WorkbenchSceneMeta>({
+    title: 'Untitled scene',
+    description: '',
+    modelLimitations: DEFAULT_MODEL_LIMITATIONS,
+  });
   const [isLessonDialogOpen, setIsLessonDialogOpen] = useState(false);
   const [lessonTitle, setLessonTitle] = useState('');
   const [savedLesson, setSavedLesson] = useState<{ id: string; title: string } | null>(null);
@@ -189,7 +195,7 @@ function Workbench() {
   // file (.hemosim.json) + a localStorage working draft. No network/Firebase. ---
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const defaultSceneTitle = () => instances[0] ? `${instances[0].name} scene` : 'Workbench scene';
+  const defaultSceneTitle = () => sceneMeta.title.trim() || (instances[0] ? `${instances[0].name} scene` : 'Workbench scene');
 
   const buildCurrentDoc = (overrides: {
     id?: string;
@@ -200,6 +206,7 @@ function Workbench() {
   } = {}): CaseDocument => {
     const now = Date.now();
     const title = overrides.title ?? defaultSceneTitle();
+    const modelLimitations = sceneMeta.modelLimitations.length > 0 ? sceneMeta.modelLimitations : DEFAULT_MODEL_LIMITATIONS;
     return simInstancesToCaseDocument(instances, panels, {
       id: overrides.id ?? `wb-${now}`,
       title,
@@ -207,7 +214,8 @@ function Workbench() {
       updatedAt: overrides.updatedAt ?? now,
       spec: {
         title,
-        modelLimitations: DEFAULT_MODEL_LIMITATIONS,
+        ...(sceneMeta.description.trim() ? { description: sceneMeta.description.trim() } : {}),
+        modelLimitations,
       },
       notes: overrides.includeNotes === false ? undefined : notes,
     });
@@ -225,6 +233,11 @@ function Workbench() {
 
       setInstances(remapped.instances);
       setPanels(remapped.panels);
+      setSceneMeta({
+        title: doc.spec.title || 'Untitled scene',
+        description: doc.spec.description ?? '',
+        modelLimitations: doc.spec.modelLimitations.length > 0 ? doc.spec.modelLimitations : DEFAULT_MODEL_LIMITATIONS,
+      });
       setNotes(doc.notes ?? {});
       setNoteModes({});
       setNoteCaseKey(`${doc.meta.id}:${nonce}`);
@@ -467,8 +480,6 @@ function Workbench() {
 
   const [addingPanelType, setAddingPanelType] = useState<PanelType | null>(null);
   const [addingPanelConfig, setAddingPanelConfig] = useState<Record<string, PanelInstanceConfig>>({});
-  const [paneMenuOpen, setPaneMenuOpen] = useState<boolean>(false);
-
   const addPanel = (type: PanelType) => {
       const newConfig: Record<string, PanelInstanceConfig> = {};
       instances.forEach(i => {
@@ -569,9 +580,38 @@ function Workbench() {
     dragItemRef.current = dragOverItemRef.current = null;
   };
 
+  const fromParam = searchParams.get('from');
+  const headerMode: WorkbenchHeaderMode = authoringMode ? 'author' : searchParams.get('case') ? 'learner' : 'sandbox';
+  const backTarget = fromParam === 'cases'
+    ? { href: '/cases', label: 'Cases' }
+    : fromParam === 'lesson'
+      ? { href: '/', label: 'Lesson' }
+      : { href: '/', label: 'Home' };
+
+  const updateSceneMeta = (next: WorkbenchSceneMeta) => {
+    setSceneMeta(next);
+    markUserEdited();
+  };
+
+  const runHeaderPrimaryAction = () => {
+    if (headerMode === 'learner') {
+      setAuthoringMode(true);
+      pushWarningToast('Workbench', 'コピーを編集中です');
+      markUserEdited();
+      return;
+    }
+    handleExport();
+  };
+
   return (
     <div className="flex flex-col h-full w-full bg-slate-950 text-slate-200 overflow-hidden font-sans relative">
       <WorkbenchHeader
+        mode={headerMode}
+        backHref={backTarget.href}
+        backLabel={backTarget.label}
+        sceneMeta={sceneMeta}
+        onSceneMetaChange={updateSceneMeta}
+        onPrimaryAction={runHeaderPrimaryAction}
         instances={instances}
         instanceHealth={instanceHealth}
         getLiveHealth={(id) => controller.getLiveHealth(id)}
@@ -595,8 +635,6 @@ function Workbench() {
         togglePlay={togglePlay}
         timeScale={timeScale}
         setTimeScale={setTimeScale}
-        paneMenuOpen={paneMenuOpen}
-        setPaneMenuOpen={setPaneMenuOpen}
         addPanel={addPanel}
       />
 

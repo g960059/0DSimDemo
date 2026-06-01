@@ -7,6 +7,7 @@ import { ModelLimitations } from './ModelLimitations';
 export const Layout = () => {
   const { user, profile, signIn, signOut } = useAuth();
   const location = useLocation();
+  const suppressGlobalChrome = location.pathname === '/workbench' || location.pathname.startsWith('/lesson/');
 
   const navItems = [
     { name: 'Home', path: '/', icon: <BookOpen className="w-4 h-4" /> },
@@ -16,7 +17,7 @@ export const Layout = () => {
 
   return (
     <div className="flex flex-col h-screen w-screen bg-slate-950 text-slate-200 overflow-hidden font-sans">
-      <header className="h-14 bg-slate-900 border-b border-slate-800 shrink-0 flex items-center justify-between px-4 z-50">
+      {!suppressGlobalChrome && <header className="h-14 bg-slate-900 border-b border-slate-800 shrink-0 flex items-center justify-between px-4 z-50">
         <div className="flex items-center gap-6">
           <Link to="/" className="flex items-center gap-2">
             <span className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
@@ -71,14 +72,14 @@ export const Layout = () => {
             </button>
           )}
         </div>
-      </header>
+      </header>}
       
       <main className="flex-1 overflow-hidden relative">
         <Outlet />
       </main>
 
       {/* Mobile Nav */}
-      <div className="md:hidden flex items-center justify-around pb-safe bg-slate-900 border-t border-slate-800 z-50 shrink-0">
+      {!suppressGlobalChrome && <div className="md:hidden flex items-center justify-around pb-safe bg-slate-900 border-t border-slate-800 z-50 shrink-0">
          {navItems.map((item) => {
               const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
               return (
@@ -96,7 +97,7 @@ export const Layout = () => {
                 </Link>
               );
             })}
-      </div>
+      </div>}
     </div>
   );
 };

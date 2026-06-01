@@ -27,9 +27,9 @@ function setAck() {
   }
 }
 
-const Body: React.FC = () => (
+const Body: React.FC<{ limitations?: string[] }> = ({ limitations = LIMITATIONS }) => (
   <ul className="space-y-2 text-sm text-slate-300">
-    {LIMITATIONS.map((l, i) => (
+    {limitations.map((l, i) => (
       <li key={i} className="flex gap-2">
         <span className="text-slate-500 mt-0.5">•</span>
         <span>{l}</span>
@@ -43,7 +43,7 @@ const Body: React.FC = () => (
  * acknowledgement in localStorage, plus a tiny always-reachable info button.
  * Deliberately NOT a large always-on banner.
  */
-export const ModelLimitations: React.FC = () => {
+export const ModelLimitations: React.FC<{ compact?: boolean; limitations?: string[] }> = ({ compact = false, limitations }) => {
   // First-run modal: open if not acknowledged. Manual reopen via the header icon.
   const [firstRun, setFirstRun] = useState<boolean>(() => !hasAck());
   const [reopened, setReopened] = useState(false);
@@ -72,7 +72,7 @@ export const ModelLimitations: React.FC = () => {
         aria-label="Model limitations"
       >
         <Info className="w-4 h-4" />
-        <span className="hidden lg:inline text-[10px] font-medium">Model limits</span>
+        {!compact && <span className="hidden lg:inline text-[10px] font-medium">Model limits</span>}
       </button>
 
       {open && (
@@ -90,7 +90,7 @@ export const ModelLimitations: React.FC = () => {
               )}
             </div>
             <div className="px-5 py-4">
-              <Body />
+              <Body limitations={limitations} />
             </div>
             <div className="px-5 py-3 border-t border-slate-800 flex justify-end">
               <button
