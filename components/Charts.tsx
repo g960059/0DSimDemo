@@ -252,7 +252,10 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
               }
               ctx.stroke();
 
-              const lastPoint = data[data.length - 1];
+              // Marker rides the LIVE current sample (buf end), not the end of the
+              // last-complete-beat window — otherwise the dot sits at a near-fixed
+              // phase and only jumps once per beat instead of tracking the loop.
+              const lastPoint = buf[buf.length - 1];
               if (lastPoint) {
                  let v = 0, p = 0;
                  switch (chamber) {
