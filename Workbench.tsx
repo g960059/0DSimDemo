@@ -9,9 +9,11 @@ import { type CaseDocument, simInstancesToCaseDocument, caseDocumentToSimInstanc
 import { exportCaseFile, readCaseFile } from './casePersist';
 import { officialCaseById } from './officialCases';
 import { createUserLessonId, getUserLesson, saveLesson } from './lessonPersist';
+import { publishLesson } from './lessonCloud';
 import { normalizeStepsForSave } from './lessonAuthoring';
 import type { Lesson, LessonStep } from './lessonDoc';
 import { remapWorkbenchLoadIds } from './workbenchLoad';
+import { useAuth } from './contexts/AuthContext';
 import { HealthBadge, HealthToasts, HealthToast } from './components/HealthIndicators';
 import { PreviewController } from './engine/previewController';
 import { Controls } from './components/Controls';
@@ -60,6 +62,7 @@ function noteExcerpt(note: NoteContent): string {
 
 function Workbench() {
   const [searchParams] = useSearchParams();
+  const { user, isAdmin, signIn } = useAuth();
   // --- State ---
   const [timeScale, setTimeScale] = useState<number>(1.0);
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
@@ -102,6 +105,9 @@ function Workbench() {
   const [savedLesson, setSavedLesson] = useState<{ id: string; title: string } | null>(null);
   const [stepsDraft, setStepsDraft] = useState<LessonStep[]>([]);
   const [authoringMode, setAuthoringMode] = useState(false);
+  const [lessonDraftId, setLessonDraftId] = useState<string | null>(null);
+  const [publishedLesson, setPublishedLesson] = useState<{ id: string; title: string; url: string } | null>(null);
+  const [isPublishingLesson, setIsPublishingLesson] = useState(false);
 
   // --- Panel Management State ---
   const [panels, setPanels] = useState<PanelDef[]>([
@@ -230,6 +236,8 @@ function Workbench() {
       setIsLessonDialogOpen(false);
       setAuthoringMode(false);
       setSavedLesson(null);
+      setLessonDraftId(null);
+      setPublishedLesson(null);
       userEditedRef.current = false;
       return true;
     } catch (err) {
@@ -260,38 +268,102 @@ function Workbench() {
   };
 
   const openLessonDialog = () => {
-    setLessonTitle(defaultSceneTitle());
+    setLessonTitle(savedLesson?.title ?? defaultSceneTitle());
     setIsLessonDialogOpen(true);
   };
+
+  const buildLessonDraft = (id: string, title: string, now: number): { lesson?: Lesson; message?: string } => {
+    const notePanel = panels.find((panel) => panel.type === 'NOTE');
+    const noteSpine = notePanel ? (notes[notePanel.id] ?? EMPTY_NOTE_SPINE) : EMPTY_NOTE_SPINE;
+    const caseDoc = buildCurrentDoc({ id, title, createdAt: now, updatedAt: now, includeNotes: false });
+    const normalizedSteps = normalizeStepsForSave(stepsDraft, caseDoc.instances.map((instance) => instance.id));
+    if (normalizedSteps.ok === false) return { message: normalizedSteps.message };
+
+    return {
+      lesson: {
+        meta: { id, title, createdAt: now },
+        case: caseDoc,
+        noteSpine,
+        ...(normalizedSteps.steps ? { steps: normalizedSteps.steps } : {}),
+      },
+    };
+  };
+
+  const nextLessonId = (now: number) => savedLesson?.id ?? lessonDraftId ?? createUserLessonId(now);
 
   const saveCurrentLesson = () => {
     try {
       const title = lessonTitle.trim() || defaultSceneTitle();
       const now = Date.now();
-      const id = createUserLessonId(now);
-      const notePanel = panels.find((panel) => panel.type === 'NOTE');
-      const noteSpine = notePanel ? (notes[notePanel.id] ?? EMPTY_NOTE_SPINE) : EMPTY_NOTE_SPINE;
-      const caseDoc = buildCurrentDoc({ id, title, createdAt: now, updatedAt: now, includeNotes: false });
-      const normalizedSteps = normalizeStepsForSave(stepsDraft, caseDoc.instances.map((instance) => instance.id));
-      if (normalizedSteps.ok === false) {
-        pushWarningToast('Lesson save', normalizedSteps.message);
+      const id = nextLessonId(now);
+      const draft = buildLessonDraft(id, title, now);
+      if (!draft.lesson) {
+        pushWarningToast('Lesson save', draft.message ?? 'Could not build this lesson.');
         return;
       }
-      const lesson: Lesson = {
-        meta: { id, title, createdAt: now },
-        case: caseDoc,
-        noteSpine,
-        ...(normalizedSteps.steps ? { steps: normalizedSteps.steps } : {}),
-      };
 
-      if (!saveLesson(lesson) || !getUserLesson(id)) {
+      if (!saveLesson(draft.lesson) || !getUserLesson(id)) {
         pushWarningToast('Lesson save', 'Could not save this lesson locally.');
         return;
       }
       setSavedLesson({ id, title });
+      setLessonDraftId(id);
       setIsLessonDialogOpen(false);
     } catch (err) {
       pushWarningToast('Lesson save', (err as Error).message);
+    }
+  };
+
+  const shareUrlFor = (id: string) => `${window.location.origin}/lesson/${encodeURIComponent(id)}`;
+
+  const copyShareUrl = async () => {
+    if (!publishedLesson) return;
+    try {
+      await navigator.clipboard.writeText(publishedLesson.url);
+      pushWarningToast('Lesson publish', 'Share URL copied.');
+    } catch {
+      pushWarningToast('Lesson publish', 'Could not copy the share URL.');
+    }
+  };
+
+  const publishCurrentLesson = async () => {
+    if (isPublishingLesson) return;
+    if (!user) {
+      await signIn();
+      pushWarningToast('Lesson publish', 'Signed in. If this account is admin, click Publish again.');
+      return;
+    }
+    if (!isAdmin) {
+      pushWarningToast('Lesson publish', '公開権限がない/規則未デプロイ: current user is not an admin.');
+      return;
+    }
+
+    const now = Date.now();
+    const id = nextLessonId(now);
+    const title = savedLesson?.title ?? (lessonTitle.trim() || defaultSceneTitle());
+    const draft = buildLessonDraft(id, title, now);
+    if (!draft.lesson) {
+      pushWarningToast('Lesson publish', draft.message ?? 'Could not build this lesson.');
+      return;
+    }
+
+    setIsPublishingLesson(true);
+    try {
+      const result = await publishLesson(draft.lesson, user.uid);
+      if (result.ok === false) {
+        const details = result.code === 'permission-denied'
+          ? `公開権限がない/規則未デプロイ (${result.code})`
+          : [result.code, result.message].filter(Boolean).join(': ');
+        pushWarningToast('Lesson publish', details || 'Lesson publish failed.');
+        return;
+      }
+
+      const url = shareUrlFor(id);
+      setLessonDraftId(id);
+      setPublishedLesson({ id, title, url });
+      pushWarningToast('Lesson publish', 'Published. Share URL is ready.');
+    } finally {
+      setIsPublishingLesson(false);
     }
   };
 
@@ -535,6 +607,11 @@ function Workbench() {
                        <button onClick={openLessonDialog} title="Save this scene and note as a lesson" className="px-2 sm:px-3 py-1.5 bg-blue-600 hover:bg-blue-500 border border-blue-500/50 rounded text-[10px] sm:text-xs font-bold text-white transition-colors flex items-center gap-1 whitespace-nowrap">
                            <span>▣</span> Save as lesson
                        </button>
+                       {(!user || isAdmin) && (
+                           <button onClick={publishCurrentLesson} disabled={isPublishingLesson} title="Publish this lesson for sharing across devices" className="px-2 sm:px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded text-[10px] sm:text-xs font-bold text-slate-300 transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed">
+                               {isPublishingLesson ? 'Publishing...' : 'Publish (share)'}
+                           </button>
+                       )}
                        <button onClick={() => { setIsLessonDialogOpen(false); setAuthoringMode(false); }} title="Exit lesson authoring" className="px-2 sm:px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded text-[10px] sm:text-xs font-bold text-slate-300 transition-colors whitespace-nowrap">
                            Exit authoring
                        </button>
@@ -544,6 +621,16 @@ function Workbench() {
                    <a href={`/lesson/${savedLesson.id}`} className="inline-flex px-2 sm:px-3 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 rounded text-[10px] sm:text-xs font-bold text-emerald-200 transition-colors whitespace-nowrap">
                        Open lesson
                    </a>
+               )}
+               {publishedLesson && (
+                   <div className="hidden lg:flex items-center gap-1 px-2 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded text-[10px] font-bold text-emerald-200">
+                       <a href={publishedLesson.url} className="hover:text-emerald-100 transition-colors whitespace-nowrap">
+                           Share URL
+                       </a>
+                       <button onClick={copyShareUrl} className="text-emerald-300 hover:text-emerald-100 transition-colors" title="Copy share URL">
+                           Copy
+                       </button>
+                   </div>
                )}
 
                <div className="hidden sm:block h-6 w-px bg-slate-700 mx-1"></div>
@@ -592,6 +679,17 @@ function Workbench() {
       </header>
 
       <main className="flex-1 overflow-y-auto overflow-x-hidden bg-slate-950 p-2">
+          {authoringMode && publishedLesson && (
+              <div className="mb-2 flex flex-col sm:flex-row sm:items-center gap-2 rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
+                  <span className="font-bold">Share URL</span>
+                  <a href={publishedLesson.url} className="min-w-0 flex-1 truncate hover:text-emerald-50 transition-colors">
+                      {publishedLesson.url}
+                  </a>
+                  <button onClick={copyShareUrl} className="self-start sm:self-auto rounded bg-emerald-500/15 px-2 py-1 font-bold text-emerald-100 hover:bg-emerald-500/25 transition-colors">
+                      Copy
+                  </button>
+              </div>
+          )}
           {authoringMode && <LessonAuthoring instances={instances} stepsDraft={stepsDraft} setStepsDraft={setStepsDraft} />}
           <div className="grid grid-cols-12 gap-2 auto-rows-[50px] grid-flow-dense pb-20 mt-2">
               {panels.map((panel, index) => {

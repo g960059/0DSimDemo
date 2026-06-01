@@ -84,7 +84,7 @@ function parseSteps(value: unknown): Lesson["steps"] | undefined {
   return steps.length > 0 ? steps : undefined;
 }
 
-function parseLesson(value: unknown): Lesson | null {
+export function parseLesson(value: unknown): Lesson | null {
   if (!value || typeof value !== "object") return null;
   const raw = value as Record<string, unknown>;
   const meta = raw.meta;
