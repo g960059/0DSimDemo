@@ -245,10 +245,10 @@ function Workbench() {
       return;
     }
 
-    if (replaceWorkbenchDoc(doc, { confirm: userEditedRef.current })) {
+    if (replaceWorkbenchDoc(doc, { confirm: userEditedRef.current || stepsDraft.length > 0 })) {
       lastLoadedCaseIdRef.current = caseId;
     }
-  }, [searchParams, replaceWorkbenchDoc, pushWarningToast]);
+  }, [searchParams, replaceWorkbenchDoc, pushWarningToast, stepsDraft.length]);
 
   const handleExport = () => {
     try { exportCaseFile(buildCurrentDoc()); }
@@ -292,7 +292,7 @@ function Workbench() {
   };
 
   const handleImportFile = async (file: File) => {
-    try { replaceWorkbenchDoc(await readCaseFile(file), { confirm: true }); }
+    try { replaceWorkbenchDoc(await readCaseFile(file), { confirm: userEditedRef.current || stepsDraft.length > 0 }); }
     catch (err) { window.alert(`Import failed: ${(err as Error).message}`); }
   };
 
@@ -531,7 +531,7 @@ function Workbench() {
                        <button onClick={openLessonDialog} title="Save this scene and note as a lesson" className="px-2 sm:px-3 py-1.5 bg-blue-600 hover:bg-blue-500 border border-blue-500/50 rounded text-[10px] sm:text-xs font-bold text-white transition-colors flex items-center gap-1 whitespace-nowrap">
                            <span>▣</span> Save as lesson
                        </button>
-                       <button onClick={() => setAuthoringMode(false)} title="Exit lesson authoring" className="px-2 sm:px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded text-[10px] sm:text-xs font-bold text-slate-300 transition-colors whitespace-nowrap">
+                       <button onClick={() => { setIsLessonDialogOpen(false); setAuthoringMode(false); }} title="Exit lesson authoring" className="px-2 sm:px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded text-[10px] sm:text-xs font-bold text-slate-300 transition-colors whitespace-nowrap">
                            Exit authoring
                        </button>
                    </div>
