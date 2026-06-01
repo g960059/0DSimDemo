@@ -27,6 +27,22 @@ export type CoreRuntimeParams = {
   rvGeomScale: number;
   caReleaseScale: number;
   rvCaReleaseScale: number;
+  // Pericardium and ventricular interaction. These are calibration targets, not
+  // fixed physiological constants.
+  pericardiumEnabled: boolean;
+  pericardialPressureScaleMmHg: number;
+  pericardialSlackVolumeMl: number;
+  pericardialVolumeScaleMl: number;
+  pericardialSoftnessMl: number;
+  pericardialBiasMmHg: number;
+  pericardialFluidMl: number;
+  septalCouplingEnabled: boolean;
+  septalStiffnessScale: number;
+  septalK1MmHgPerMl: number;
+  septalK3MmHgPerMl3: number;
+  septalDampingMmHgSecPerMl: number;
+  septalMaxShiftMl: number;
+  septalLvPressureWeight: number;
   // Valve Parameters
   // MV
   MV_Amax: number;
@@ -127,6 +143,18 @@ export const HARD_CLAMP: Partial<Record<keyof CoreRuntimeParams, [number, number
   rvGeomScale: [0.5, 3.0],
   caReleaseScale: [0.25, 6],
   rvCaReleaseScale: [0.25, 8],
+  pericardialPressureScaleMmHg: [0, 20],
+  pericardialSlackVolumeMl: [150, 900],
+  pericardialVolumeScaleMl: [10, 200],
+  pericardialSoftnessMl: [1, 50],
+  pericardialBiasMmHg: [-10, 20],
+  pericardialFluidMl: [0, 1000],
+  septalStiffnessScale: [0.1, 5],
+  septalK1MmHgPerMl: [0.01, 5],
+  septalK3MmHgPerMl3: [0, 0.1],
+  septalDampingMmHgSecPerMl: [0.25, 20],
+  septalMaxShiftMl: [0, 60],
+  septalLvPressureWeight: [0, 1],
 };
 
 /** Keys smoothParams() hard-clamps at runtime — must agree with HARD_CLAMP. */
@@ -135,6 +163,11 @@ export const RUNTIME_CLAMP_KEYS: (keyof CoreRuntimeParams)[] = [
   "venousTone", "arterialStiffness", "PEEP", "speed", "bleedRate", "fluidRate",
   "lvTmaxScale", "rvTmaxScale", "lvGeomScale", "rvGeomScale",
   "caReleaseScale", "rvCaReleaseScale",
+  "pericardialPressureScaleMmHg", "pericardialSlackVolumeMl",
+  "pericardialVolumeScaleMl", "pericardialSoftnessMl",
+  "pericardialBiasMmHg", "pericardialFluidMl",
+  "septalStiffnessScale", "septalK1MmHgPerMl", "septalK3MmHgPerMl3",
+  "septalDampingMmHgSecPerMl", "septalMaxShiftMl", "septalLvPressureWeight",
 ];
 
 /** The numeric core knobs, rebuilt explicitly (so unknown keys are dropped). */
@@ -144,6 +177,11 @@ const CORE_NUMERIC_KEYS: (keyof CoreRuntimeParams)[] = [
   "respRate", "speed", "bleedRate", "fluidRate",
   "lvTmaxScale", "rvTmaxScale", "lvGeomScale", "rvGeomScale",
   "caReleaseScale", "rvCaReleaseScale",
+  "pericardialPressureScaleMmHg", "pericardialSlackVolumeMl",
+  "pericardialVolumeScaleMl", "pericardialSoftnessMl",
+  "pericardialBiasMmHg", "pericardialFluidMl",
+  "septalStiffnessScale", "septalK1MmHgPerMl", "septalK3MmHgPerMl3",
+  "septalDampingMmHgSecPerMl", "septalMaxShiftMl", "septalLvPressureWeight",
 ];
 
 const VALVE_PREFIXES = ["MV", "AoV", "TV", "PV"] as const;
@@ -163,6 +201,20 @@ export const NEUTRAL_PARAMS: CoreRuntimeParams = {
   heartModel: "activeStress", useChiResistance: false, projectTBV: true,
   lvTmaxScale: 0.85, rvTmaxScale: 1.0, lvGeomScale: 1, rvGeomScale: 1,
   caReleaseScale: 1, rvCaReleaseScale: 1,
+  pericardiumEnabled: true,
+  pericardialPressureScaleMmHg: 1.0,
+  pericardialSlackVolumeMl: 340,
+  pericardialVolumeScaleMl: 45,
+  pericardialSoftnessMl: 8,
+  pericardialBiasMmHg: 0,
+  pericardialFluidMl: 0,
+  septalCouplingEnabled: true,
+  septalStiffnessScale: 1,
+  septalK1MmHgPerMl: 1.4,
+  septalK3MmHgPerMl3: 0.006,
+  septalDampingMmHgSecPerMl: 4.0,
+  septalMaxShiftMl: 25,
+  septalLvPressureWeight: 0.28,
   MV_Amax: 5.0, MV_Aleak: 1e-4, MV_kOpen: 2.0, MV_tauOpen: 0.020, MV_tauClose: 0.035, MV_R: 0.004, MV_L: 0.0008, MV_B: 1e-4,
   AoV_Amax: 3.5, AoV_Aleak: 1e-4, AoV_kOpen: 2.0, AoV_tauOpen: 0.010, AoV_tauClose: 0.030, AoV_R: 0.005, AoV_L: 0.001,
   TV_Amax: 8.0, TV_Aleak: 1e-4, TV_kOpen: 2.0, TV_tauOpen: 0.018, TV_tauClose: 0.030, TV_R: 0.0035, TV_L: 0.0008, TV_B: 1e-5,
@@ -189,6 +241,8 @@ export function sanitizeParams(p: CoreRuntimeParams): CoreRuntimeParams {
   out.heartModel = src.heartModel === "elastance" ? "elastance" : "activeStress";
   out.useChiResistance = typeof src.useChiResistance === "boolean" ? src.useChiResistance : NEUTRAL_PARAMS.useChiResistance;
   out.projectTBV = typeof src.projectTBV === "boolean" ? src.projectTBV : NEUTRAL_PARAMS.projectTBV;
+  out.pericardiumEnabled = typeof src.pericardiumEnabled === "boolean" ? src.pericardiumEnabled : NEUTRAL_PARAMS.pericardiumEnabled;
+  out.septalCouplingEnabled = typeof src.septalCouplingEnabled === "boolean" ? src.septalCouplingEnabled : NEUTRAL_PARAMS.septalCouplingEnabled;
 
   // Valve params — PRESERVED. Areas/resistances/inductances >= 0; the open/close
   // time constants >= 1e-4 s (a zero tau would divide-by-zero in valve dynamics).
@@ -313,6 +367,17 @@ export type SimSample = {
   pvOstialQ?: number;
   pvOstialInertialDrop?: number;
   pvOstialResistiveDrop?: number;
+  Pperi: number;
+  Ppc: number;
+  VHeart: number;
+  septumShiftMl: number;
+  VLVeff: number;
+  VRVeff: number;
+  PLVfw: number;
+  PRVfw: number;
+  PVI_LV: number;
+  PVI_RV: number;
+  septalForceMmHg: number;
   TBV: number;
 };
 
@@ -376,6 +441,17 @@ export type SimObservables = {
   P_VC: number;
   P_PVen: number;
   P_PVein: number;
+  Pperi: number;
+  Ppc: number;
+  VHeart: number;
+  septumShiftMl: number;
+  VLVeff: number;
+  VRVeff: number;
+  PLVfw: number;
+  PRVfw: number;
+  PVI_LV: number;
+  PVI_RV: number;
+  septalForceMmHg: number;
   qLAReservoirMl?: number;
   VLABodyMl?: number;
   VLAReservoirMl?: number;

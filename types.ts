@@ -8,6 +8,8 @@ export type SignalType =
   | 'LVP' | 'AoP' | 'LAP' | 'RVP' | 'PAP' | 'RAP'
   | 'QAo' | 'QMV' | 'QPA' | 'QPV' | 'QTV' | 'PVF' | 'SVF'
   | 'VRA' | 'aRA' | 'cRA' | 'xiTV' | 'xiPV' | 'dP_TV' | 'dP_PV'
+  | 'Pperi' | 'Ppc' | 'VHeart' | 'septumShiftMl' | 'VLVeff' | 'VRVeff'
+  | 'PLVfw' | 'PRVfw' | 'PVI_LV' | 'PVI_RV' | 'septalForceMmHg'
   | 'Default';
 export type MetricType = 'ABP' | 'CVP' | 'PAP' | 'PCWP' | 'SV' | 'CO' | 'LVEF' | 'RVEF';
 
