@@ -207,10 +207,21 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
           const physState = physicsRefs.current.get(inst.id);
           if (!physState || physState.buffer.length < 2) return;
           
-          const lastPhi = physState.buffer[physState.buffer.length - 1]?.phi ?? 0;
-          const data = physState.buffer.filter(d => d.phi >= lastPhi - 1);
-          
+          // PV loops must be drawn over the LAST COMPLETE beat (floor-aligned),
+          // not a trailing 1.0-phase window that mixes a partial current beat —
+          // otherwise the loop's crossing point shifts and stray segments appear.
+          const buf = physState.buffer;
+          const phiNow = buf[buf.length - 1]?.phi ?? 0;
+          const beatEnd = Math.floor(phiNow);
+          const beatStart = beatEnd - 1;
+          let data = beatEnd >= 1 ? buf.filter(d => d.phi >= beatStart && d.phi <= beatEnd) : buf;
+          const closing = beatEnd >= 1 ? buf.find(d => d.phi > beatEnd) : undefined;
+          if (closing) data = [...data, closing];
+
           cfg.selectedSignals.forEach((chamber: string) => {
+              // The LA figure-8 needs enough samples per beat to render its two
+              // sub-loops; skip rather than draw a degenerate/partial LA loop.
+              if (chamber === 'LA' && data.length < 80) return;
               const color = getColor(inst.color, chamber, cfg.customBaseColor, cfg.customSignalColors);
               
               ctx.beginPath();
