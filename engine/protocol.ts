@@ -43,6 +43,17 @@ export type CoreRuntimeParams = {
   septalDampingMmHgSecPerMl: number;
   septalMaxShiftMl: number;
   septalLvPressureWeight: number;
+  // Coronary circulation: 3-territory 0D bed (LAD/LCx/RCA) with
+  // intramyocardial external pressure, time-varying microvascular resistance,
+  // stenosis head loss, and optional pharmacologic hyperemia.
+  coronaryEnabled: boolean;
+  coronaryResistanceScale: number;
+  coronaryCompressionScale: number;
+  coronaryVasodilator: number;
+  coronaryReserveMax: number;
+  LADStenosis: number;
+  LCxStenosis: number;
+  RCAStenosis: number;
   // Valve Parameters
   // MV
   MV_Amax: number;
@@ -155,6 +166,13 @@ export const HARD_CLAMP: Partial<Record<keyof CoreRuntimeParams, [number, number
   septalDampingMmHgSecPerMl: [0.25, 20],
   septalMaxShiftMl: [0, 60],
   septalLvPressureWeight: [0, 1],
+  coronaryResistanceScale: [0.2, 5.0],
+  coronaryCompressionScale: [0, 2.0],
+  coronaryVasodilator: [0, 1],
+  coronaryReserveMax: [1, 5],
+  LADStenosis: [0, 0.95],
+  LCxStenosis: [0, 0.95],
+  RCAStenosis: [0, 0.95],
 };
 
 /** Keys smoothParams() hard-clamps at runtime — must agree with HARD_CLAMP. */
@@ -168,6 +186,8 @@ export const RUNTIME_CLAMP_KEYS: (keyof CoreRuntimeParams)[] = [
   "pericardialBiasMmHg", "pericardialFluidMl",
   "septalStiffnessScale", "septalK1MmHgPerMl", "septalK3MmHgPerMl3",
   "septalDampingMmHgSecPerMl", "septalMaxShiftMl", "septalLvPressureWeight",
+  "coronaryResistanceScale", "coronaryCompressionScale", "coronaryVasodilator",
+  "coronaryReserveMax", "LADStenosis", "LCxStenosis", "RCAStenosis",
 ];
 
 /** The numeric core knobs, rebuilt explicitly (so unknown keys are dropped). */
@@ -182,6 +202,8 @@ const CORE_NUMERIC_KEYS: (keyof CoreRuntimeParams)[] = [
   "pericardialBiasMmHg", "pericardialFluidMl",
   "septalStiffnessScale", "septalK1MmHgPerMl", "septalK3MmHgPerMl3",
   "septalDampingMmHgSecPerMl", "septalMaxShiftMl", "septalLvPressureWeight",
+  "coronaryResistanceScale", "coronaryCompressionScale", "coronaryVasodilator",
+  "coronaryReserveMax", "LADStenosis", "LCxStenosis", "RCAStenosis",
 ];
 
 const VALVE_PREFIXES = ["MV", "AoV", "TV", "PV"] as const;
@@ -215,6 +237,14 @@ export const NEUTRAL_PARAMS: CoreRuntimeParams = {
   septalDampingMmHgSecPerMl: 4.0,
   septalMaxShiftMl: 25,
   septalLvPressureWeight: 0.28,
+  coronaryEnabled: true,
+  coronaryResistanceScale: 1,
+  coronaryCompressionScale: 1.2,
+  coronaryVasodilator: 0,
+  coronaryReserveMax: 3.5,
+  LADStenosis: 0,
+  LCxStenosis: 0,
+  RCAStenosis: 0,
   MV_Amax: 5.0, MV_Aleak: 1e-4, MV_kOpen: 2.0, MV_tauOpen: 0.020, MV_tauClose: 0.035, MV_R: 0.004, MV_L: 0.0008, MV_B: 1e-4,
   AoV_Amax: 3.5, AoV_Aleak: 1e-4, AoV_kOpen: 2.0, AoV_tauOpen: 0.010, AoV_tauClose: 0.030, AoV_R: 0.005, AoV_L: 0.001,
   TV_Amax: 8.0, TV_Aleak: 1e-4, TV_kOpen: 2.0, TV_tauOpen: 0.018, TV_tauClose: 0.030, TV_R: 0.0035, TV_L: 0.0008, TV_B: 1e-5,
@@ -243,6 +273,7 @@ export function sanitizeParams(p: CoreRuntimeParams): CoreRuntimeParams {
   out.projectTBV = typeof src.projectTBV === "boolean" ? src.projectTBV : NEUTRAL_PARAMS.projectTBV;
   out.pericardiumEnabled = typeof src.pericardiumEnabled === "boolean" ? src.pericardiumEnabled : NEUTRAL_PARAMS.pericardiumEnabled;
   out.septalCouplingEnabled = typeof src.septalCouplingEnabled === "boolean" ? src.septalCouplingEnabled : NEUTRAL_PARAMS.septalCouplingEnabled;
+  out.coronaryEnabled = typeof src.coronaryEnabled === "boolean" ? src.coronaryEnabled : NEUTRAL_PARAMS.coronaryEnabled;
 
   // Valve params — PRESERVED. Areas/resistances/inductances >= 0; the open/close
   // time constants >= 1e-4 s (a zero tau would divide-by-zero in valve dynamics).
@@ -333,6 +364,11 @@ export type SimSample = {
   SVF: number; // systemic venous return to RA (VC->RA edge)
   QCapSV: number; // systemic venous reservoir inflow (Cap->SV)
   QPArtPCap: number; // pulmonary venous group inflow (PArt->PCap)
+  QCorLAD: number;
+  QCorLCx: number;
+  QCorRCA: number;
+  QCorTotal: number;
+  QCS: number;
 
   // Volumes
   VLV: number;
@@ -378,6 +414,13 @@ export type SimSample = {
   PVI_LV: number;
   PVI_RV: number;
   septalForceMmHg: number;
+  PLADArt: number;
+  PLCxArt: number;
+  PRCAArt: number;
+  PCS: number;
+  PimLAD: number;
+  PimLCx: number;
+  PimRCA: number;
   TBV: number;
 };
 
@@ -408,6 +451,19 @@ export type SimMetrics = {
   vrGradient: number;                // Pmsf - RAP (mmHg), the venous-return driving gradient
   stressedVolumeSystemic: number;    // mL, systemic vascular stressed volume
   unstressedVolumeSystemic: number;  // mL, systemic vascular unstressed volume
+  CorFlowLADMlMin: number;
+  CorFlowLCxMlMin: number;
+  CorFlowRCAMlMin: number;
+  CorFlowTotalMlMin: number;
+  CorPctCO: number;
+  CorDiastolicFractionLAD: number;
+  CorDiastolicFractionLCx: number;
+  CorDiastolicFractionRCA: number;
+  FFR_LAD: number;
+  FFR_LCx: number;
+  FFR_RCA: number;
+  CorSupplyDemandL: number;
+  CorSupplyDemandR: number;
 };
 
 /** Instantaneous engine observables for verification/UI (read-only). */
@@ -462,6 +518,21 @@ export type SimObservables = {
   PVI_LV: number;
   PVI_RV: number;
   septalForceMmHg: number;
+  Q_LAD: number;
+  Q_LCx: number;
+  Q_RCA: number;
+  Q_Cor_total: number;
+  Q_CS_RA: number;
+  P_LAD_Art: number;
+  P_LCx_Art: number;
+  P_RCA_Art: number;
+  P_CS: number;
+  PimLAD: number;
+  PimLCx: number;
+  PimRCA: number;
+  FFR_LAD: number;
+  FFR_LCx: number;
+  FFR_RCA: number;
   qLAReservoirMl?: number;
   VLABodyMl?: number;
   VLAReservoirMl?: number;

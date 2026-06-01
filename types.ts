@@ -7,11 +7,16 @@ export type ChamberId = 'LV' | 'LA' | 'RV' | 'RA';
 export type SignalType =
   | 'LVP' | 'AoP' | 'LAP' | 'RVP' | 'PAP' | 'RAP'
   | 'QAo' | 'QMV' | 'QPA' | 'QPV' | 'QTV' | 'PVF' | 'SVF'
+  | 'QCorLAD' | 'QCorLCx' | 'QCorRCA' | 'QCorTotal' | 'QCS'
+  | 'PimLAD' | 'PimLCx' | 'PimRCA' | 'PLADArt' | 'PLCxArt' | 'PRCAArt' | 'PCS'
   | 'VRA' | 'aRA' | 'cRA' | 'xiTV' | 'xiPV' | 'dP_TV' | 'dP_PV'
   | 'Pperi' | 'Ppc' | 'VHeart' | 'septumShiftMl' | 'VLVeff' | 'VRVeff'
   | 'PLVfw' | 'PRVfw' | 'PVI_LV' | 'PVI_RV' | 'septalForceMmHg'
   | 'Default';
-export type MetricType = 'ABP' | 'CVP' | 'PAP' | 'PCWP' | 'SV' | 'CO' | 'LVEF' | 'RVEF';
+export type MetricType =
+  | 'ABP' | 'CVP' | 'PAP' | 'PCWP' | 'SV' | 'CO' | 'LVEF' | 'RVEF'
+  | 'COR' | 'COR_PCT' | 'LAD_DF' | 'LCx_DF' | 'RCA_DF'
+  | 'FFR_LAD' | 'FFR_LCx' | 'FFR_RCA' | 'COR_SDI_L' | 'COR_SDI_R';
 
 export interface SimInstance {
     id: string;

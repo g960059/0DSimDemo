@@ -32,6 +32,7 @@ fit against. Start here to trace any parameter's validity to its canonical doc +
 | Respiratory + PEEP unit bug | parameter-survey §G |
 | Pericardial pressure + septal volume-shift coupling | [pericardium-septal-coupling.md](./pericardium-septal-coupling.md) |
 | Guyton / Starling operating-map pane | [guyton-starling-pane.md](./guyton-starling-pane.md) |
+| Coronary circulation (LAD/LCx/RCA, intramyocardial pressure, stenosis/FFR) | [coronary-circulation.md](./coronary-circulation.md) |
 | Current branch physiology audit (LA/RA AV-plane, RV/RA, valves, PEEP, numerics) | [2026-06-01-physiology-validation-audit.md](./2026-06-01-physiology-validation-audit.md) |
 | Waveform morphology (AoP/LVP/PV-loop/E-A/PVF) | [waveform-morphology.lit.md](./waveform-morphology.lit.md) (physiology) · [waveform-morphology.codex.md](./waveform-morphology.codex.md) (measured) |
 | **M12-lite calibration (as-built)** | m12-lite-calibration-journal.md |
@@ -59,6 +60,7 @@ fit against. Start here to trace any parameter's validity to its canonical doc +
 9. **2026-06-01-physiology-validation-audit.md** — current-branch multi-review audit after LA/RA AV-plane work; includes measured values, derivations, and priority fixes. *Active current audit.*
 10. **pericardium-septal-coupling.md** — nonlinear pericardial pressure plus septal volume-shift implementation; documents equations, parameters, gates, and TriSeg limitations. *Active.*
 11. **guyton-starling-pane.md** — Guyton/Starling operating-map pane; documents local venous-return estimates, pulmonary filling pressure, worker preload sweeps, and interpretation limits. *Active.*
+12. **coronary-circulation.md** — LAD/LCx/RCA coronary graph extension with intramyocardial pressure, time-varying microvascular resistance, hyperemia, and stenosis/FFR gates. *Active.*
 
 **Archived (git history):** `m12-lite-plan.md` — the pre-execution M12-lite plan; **deleted** as
 completed/superseded by m12-lite-calibration-journal.md (the as-built record). Recover via git if needed.

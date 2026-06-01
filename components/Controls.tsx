@@ -93,6 +93,7 @@ export const Controls: React.FC<ControlsProps> = ({
       ventricles: false,
       atria: false,
       vascular: false,
+      coronary: false,
       fluids: false,
       valves: false,
       resp: false,
@@ -307,6 +308,29 @@ export const Controls: React.FC<ControlsProps> = ({
                       <Slider label="PCap → PVen" value={rawView.edgeOverrides?.PCap_PVen?.R ?? 0.03} min={0.01} max={0.3} step={0.01} onChange={(v) => updateEdge('PCap_PVen', 'R', v)} />
                       <Slider label="PVen → PVein" value={rawView.edgeOverrides?.PVen_PVein?.R ?? 0.01} min={0.001} max={0.1} step={0.001} onChange={(v) => updateEdge('PVen_PVein', 'R', v)} />
                       <Slider label="PVein → LA" value={rawView.edgeOverrides?.PVein_LA?.R ?? 0.02} min={0.001} max={0.2} step={0.001} onChange={(v) => updateEdge('PVein_LA', 'R', v)} />
+                  </div>
+              )}
+            </>
+          )}
+
+          {showGroup('coronary') && (
+            <>
+              <GroupHeader title="Coronary Circulation" isOpen={openGroups.coronary} toggle={() => toggleGroup('coronary')} />
+              {openGroups.coronary && (
+                  <div className="mt-2 pl-3 border-l-2 border-slate-700/30 ml-2 mb-4">
+                      <div className="flex items-center gap-2 mt-2 mb-2 text-xs">
+                         <input type="checkbox" checked={rawView.coronaryEnabled} onChange={(e) => update('coronaryEnabled', e.target.checked)} />
+                         <span className="text-slate-300">Coronary bed enabled</span>
+                      </div>
+                      <Slider label="Coronary Resistance" value={rawView.coronaryResistanceScale} min={0.2} max={5.0} step={0.05} onChange={(v) => update('coronaryResistanceScale', v)} unit="x" />
+                      <Slider label="Myocardial Compression" value={rawView.coronaryCompressionScale} min={0} max={2.0} step={0.05} onChange={(v) => update('coronaryCompressionScale', v)} unit="x" />
+                      <Slider label="Hyperemia / Vasodilator" value={rawView.coronaryVasodilator} min={0} max={1} step={0.05} onChange={(v) => update('coronaryVasodilator', v)} />
+                      <Slider label="Reserve Max" value={rawView.coronaryReserveMax} min={1} max={5} step={0.1} onChange={(v) => update('coronaryReserveMax', v)} unit="x" />
+
+                      <span className="text-xs font-bold text-slate-300 block mt-4 mb-1">Epicardial Diameter Stenosis</span>
+                      <Slider label="LAD Stenosis" value={rawView.LADStenosis} min={0} max={0.95} step={0.01} onChange={(v) => update('LADStenosis', v)} />
+                      <Slider label="LCx Stenosis" value={rawView.LCxStenosis} min={0} max={0.95} step={0.01} onChange={(v) => update('LCxStenosis', v)} />
+                      <Slider label="RCA Stenosis" value={rawView.RCAStenosis} min={0} max={0.95} step={0.01} onChange={(v) => update('RCAStenosis', v)} />
                   </div>
               )}
             </>
