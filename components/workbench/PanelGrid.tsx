@@ -4,6 +4,7 @@ import { PVLoopPanel, WaveformPanel, MetricsPanel, GuytonPanel } from '../Charts
 import { LessonAuthoring } from '../LessonAuthoring';
 import { NotePanel } from '../NotePanel';
 import { ErrorBoundary } from '../ErrorBoundary';
+import WorkbenchMobile from './WorkbenchMobile';
 import { type ClinicalKnobs } from '../../engine/knobs';
 import { SimulationHealth } from '../../engine/protocol';
 import {
@@ -86,7 +87,6 @@ interface PanelGridProps {
 
 interface PanelCardProps {
   panel: PanelDef;
-  isMobile: boolean;
   isEditor: boolean;
   instances: SimInstance[];
   noteMode: 'read' | 'edit';
@@ -127,14 +127,7 @@ interface PanelCardProps {
   controlGroups: string[];
 }
 
-function panelGridStyle(panel: PanelDef, isMobile: boolean): React.CSSProperties {
-  if (isMobile) {
-    return {
-      gridColumn: 'span 12',
-      gridRow: `span ${panel.type === 'METRICS' ? 5 : 7}`,
-    };
-  }
-
+function panelGridStyle(panel: PanelDef): React.CSSProperties {
   return {
     gridColumn: `${(panel.x ?? 0) + 1} / span ${panel.w}`,
     gridRow: `${(panel.y ?? 0) + 1} / span ${panel.h}`,
@@ -161,7 +154,6 @@ function applyPresetGeometry(panels: PanelDef[], presetName: LayoutPresetName): 
 
 function PanelCard({
   panel,
-  isMobile,
   isEditor,
   instances,
   noteMode,
@@ -203,7 +195,7 @@ function PanelCard({
 }: PanelCardProps) {
   return (
     <div
-      style={isEditor ? undefined : panelGridStyle(panel, isMobile)}
+      style={isEditor ? undefined : panelGridStyle(panel)}
       className={`relative bg-[#0B1120] rounded-xl border border-slate-800 shadow-sm flex flex-col group transition-all h-full ${panel.isSettingsOpen ? 'z-50' : 'z-10'}`}
     >
       <div className="flex-none px-3 pt-1.5 pb-0 flex justify-between items-center pointer-events-auto rounded-t-xl z-20 relative">
@@ -383,12 +375,22 @@ export function PanelGrid({
 }: PanelGridProps) {
   const presenterPanels = useMemo(() => flowPack(panels), [panels]);
   const canEditLayout = canEditWorkbenchLayout(mode, isMobile);
+  const shareBanner = authoringMode && publishedLesson ? (
+    <div className="mb-2 flex flex-col gap-2 rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100 sm:flex-row sm:items-center">
+      <span className="font-bold">Share URL</span>
+      <a href={publishedLesson.url} className="min-w-0 flex-1 truncate transition-colors hover:text-emerald-50">
+        {publishedLesson.url}
+      </a>
+      <button onClick={copyShareUrl} className="self-start rounded bg-emerald-500/15 px-2 py-1 font-bold text-emerald-100 transition-colors hover:bg-emerald-500/25 sm:self-auto">
+        Copy
+      </button>
+    </div>
+  ) : null;
 
   const renderPanel = (panel: PanelDef, isEditor: boolean) => (
     <PanelCard
       key={panel.id}
       panel={panel}
-      isMobile={isMobile}
       isEditor={isEditor}
       instances={instances}
       noteMode={noteModes[panel.id] ?? 'read'}
@@ -430,19 +432,24 @@ export function PanelGrid({
     />
   );
 
+  if (isMobile) {
+    return (
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-950 p-2">
+        {shareBanner}
+        {authoringMode && <LessonAuthoring instances={instances} stepsDraft={stepsDraft} setStepsDraft={setStepsDraft} />}
+        <WorkbenchMobile
+          panels={presenterPanels}
+          title="Workbench"
+          className="min-h-0 flex-1"
+          renderPanel={(panel) => renderPanel(panel, false)}
+        />
+      </main>
+    );
+  }
+
   return (
     <main className="flex-1 overflow-y-auto overflow-x-hidden bg-slate-950 p-2">
-        {authoringMode && publishedLesson && (
-            <div className="mb-2 flex flex-col sm:flex-row sm:items-center gap-2 rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
-                <span className="font-bold">Share URL</span>
-                <a href={publishedLesson.url} className="min-w-0 flex-1 truncate hover:text-emerald-50 transition-colors">
-                    {publishedLesson.url}
-                </a>
-                <button onClick={copyShareUrl} className="self-start sm:self-auto rounded bg-emerald-500/15 px-2 py-1 font-bold text-emerald-100 hover:bg-emerald-500/25 transition-colors">
-                    Copy
-                </button>
-            </div>
-        )}
+        {shareBanner}
         {authoringMode && <LessonAuthoring instances={instances} stepsDraft={stepsDraft} setStepsDraft={setStepsDraft} />}
         {canEditLayout && (
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded border border-slate-800 bg-slate-900/70 px-3 py-2">
