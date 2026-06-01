@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { caseDocumentToSimInstances } from "@/caseDoc";
 import { officialCaseById } from "@/officialCases";
-import { applyExposedKnob, deriveStepInstances, resolveKnobTarget } from "@/lessonKnobs";
+import { applyExposedKnob, deriveStepInstances, resolveKnobTarget, resolveKnobValue } from "@/lessonKnobs";
 import type { LessonStep } from "@/lessonDoc";
 import type { NoteContent } from "@/noteTypes";
 
@@ -40,6 +40,14 @@ describe("lesson exposed knobs", () => {
     expect(Object.prototype.hasOwnProperty.call(neutral.params, "nodeOverrides")).toBe(true);
     expect(neutral.params.nodeOverrides).toBeUndefined();
     expect(stiffAgain.params.nodeOverrides).toEqual(stiff.params.nodeOverrides);
+  });
+
+  it("resolves displayed knob values from the same state used for edits", () => {
+    const [inst] = instances();
+    const changed = applyExposedKnob(inst, "contractility", 1.2);
+
+    expect(resolveKnobValue(inst, "contractility")).toBe(0.52);
+    expect(resolveKnobValue(changed, "contractility")).toBe(1.2);
   });
 
   it("resolves the knob target by explicit visible id, fallback, and invalid absence", () => {

@@ -6,11 +6,11 @@ import type { SimInstance } from "@/types";
 // Headless verification of the S3a driver. tick(now) is rAF-free and
 // deterministic given timestamps, which is exactly what the extraction enables.
 
-const inst = (id = "1"): SimInstance => ({
+const inst = (id = "1", params: SimInstance["params"] = { ...DEFAULT_PARAMS }): SimInstance => ({
   id,
   name: `Heart ${id}`,
   color: "#ffffff",
-  params: { ...DEFAULT_PARAMS },
+  params,
   targetVolume: 5600,
   isVisible: true,
 });
@@ -88,5 +88,45 @@ describe("PreviewController (headless driver)", () => {
     c.setInstances([inst("1")]);
     expect(c.refs.size).toBe(1);
     expect(c.refs.has("2")).toBe(false);
+  });
+
+  it("resets selected instances to clean settled cores and buffers", () => {
+    const c = new PreviewController();
+    c.setInstances([inst("1"), inst("2")]);
+
+    let now = 0;
+    for (let i = 0; i < 30; i++) {
+      now += 50;
+      c.tick(now);
+    }
+
+    const before = c.refs.get("1")!;
+    const untouched = c.refs.get("2")!;
+    const beforeCore = before.core;
+    const untouchedCore = untouched.core;
+    const resetAtT = before.core.t;
+
+    expect(before.buffer.length).toBeGreaterThan(0);
+    expect(untouched.buffer.length).toBeGreaterThan(0);
+
+    c.setInstances([
+      inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 20 }),
+      inst("2"),
+    ]);
+    c.resetInstances(["1"]);
+
+    const reset = c.refs.get("1")!;
+    const stillUntouched = c.refs.get("2")!;
+    expect(reset.core).not.toBe(beforeCore);
+    expect(reset.core.t).toBeCloseTo(resetAtT, 6);
+    expect(reset.buffer).toEqual([]);
+    expect(reset.lastRenderX).toBe(0);
+    expect(stillUntouched.core).toBe(untouchedCore);
+    expect(stillUntouched.buffer.length).toBeGreaterThan(0);
+
+    c.tick(now + 50);
+    expect(reset.buffer.length).toBe(0);
+    c.tick(now + 100);
+    expect(reset.buffer.length).toBeGreaterThan(0);
   });
 });

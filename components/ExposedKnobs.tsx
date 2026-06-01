@@ -1,5 +1,6 @@
 import React from "react";
-import { KNOB_RANGES, neutralKnobs } from "@/engine/knobs";
+import { KNOB_RANGES } from "@/engine/knobs";
+import { resolveKnobValue } from "@/lessonKnobs";
 import type { NumericKnobKey } from "@/lessonDoc";
 import type { SimInstance } from "@/types";
 
@@ -63,7 +64,7 @@ export const ExposedKnobs: React.FC<ExposedKnobsProps> = ({ instance, keys, onCh
     {keys.map((key) => {
       const range = KNOB_RANGES[key];
       if (!range) return null;
-      const value = instance.knobs?.[key] ?? neutralKnobs(instance.knobBaseline ?? instance.params)[key];
+      const value = resolveKnobValue(instance, key);
       return (
         <label key={key} className="block rounded border border-slate-800 bg-slate-950/70 px-3 py-2">
           <div className="flex items-center justify-between gap-3 mb-2">

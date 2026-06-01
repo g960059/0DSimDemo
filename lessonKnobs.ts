@@ -1,10 +1,18 @@
 import type { LessonStep, NumericKnobKey } from "@/lessonDoc";
 import type { SimInstance } from "@/types";
-import { clampKnobs, KNOB_MAPPING_VERSION, neutralKnobs } from "@/engine/knobs";
+import { clampKnobs, KNOB_MAPPING_VERSION, neutralKnobs, type ClinicalKnobs } from "@/engine/knobs";
 import { resolveKnobEdit } from "@/engine/instanceKnobs";
 
+function resolveKnobState(inst: SimInstance): ClinicalKnobs {
+  return clampKnobs(inst.knobs ?? neutralKnobs(inst.knobBaseline ?? inst.params));
+}
+
+export function resolveKnobValue(inst: SimInstance, key: NumericKnobKey): number {
+  return resolveKnobState(inst)[key];
+}
+
 export function applyExposedKnob(inst: SimInstance, key: NumericKnobKey, value: number): SimInstance {
-  const current = inst.knobs ?? neutralKnobs(inst.knobBaseline ?? inst.params);
+  const current = resolveKnobState(inst);
   const nextKnobs = clampKnobs({ ...current, [key]: value });
   const next = resolveKnobEdit(
     { params: inst.params, knobs: inst.knobs, knobBaseline: inst.knobBaseline },

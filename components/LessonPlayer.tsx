@@ -6,7 +6,7 @@ import { NotePanel } from "./NotePanel";
 import { ExposedKnobs } from "./ExposedKnobs";
 import { MetricsPanel, PVLoopPanel, WaveformPanel } from "./Charts";
 import { PreviewController } from "../engine/previewController";
-import type { PanelInstanceConfig, PhysicsRefState } from "../types";
+import type { PanelInstanceConfig, PhysicsRefState, SimInstance } from "../types";
 import type { NumericKnobKey, PanelKey } from "../lessonDoc";
 import { applyExposedKnob, deriveStepInstances, resolveKnobTarget } from "../lessonKnobs";
 
@@ -40,6 +40,11 @@ const safeConvert = (caseDoc: NonNullable<ReturnType<typeof resolveLessonCase>>)
   }
 };
 
+const runtimeSignature = (inst: SimInstance): string => JSON.stringify({
+  params: inst.params,
+  targetVolume: inst.targetVolume,
+});
+
 export const LessonPlayer = () => {
   const { id } = useParams();
   return <LessonPlayerBody key={id ?? "missing"} lessonId={id} />;
@@ -54,6 +59,8 @@ const LessonPlayerBody: React.FC<{ lessonId?: string }> = ({ lessonId }) => {
   const [liveInstances, setLiveInstances] = useState(() => deriveStepInstances(baseInstances, steps[0]));
   const [stepIndex, setStepIndex] = useState(0);
   const physicsRefs = useRef<Map<string, PhysicsRefState>>(controller.refs);
+  const liveInstancesRef = useRef(liveInstances);
+  const pendingResetIdsRef = useRef<string[]>([]);
 
   const ids = useMemo(() => baseInstances.map((inst) => inst.id), [baseInstances]);
   const baseWaveformConfig = useMemo(() => configFor(ids, ["LVP", "AoP", "LAP"]), [ids]);
@@ -88,19 +95,36 @@ const LessonPlayerBody: React.FC<{ lessonId?: string }> = ({ lessonId }) => {
   }, [controller]);
 
   useEffect(() => {
-    if (liveInstances.length) controller.setInstances(liveInstances);
+    if (!liveInstances.length) return;
+    controller.setInstances(liveInstances);
+    const resetIds = pendingResetIdsRef.current;
+    if (resetIds.length > 0) {
+      pendingResetIdsRef.current = [];
+      controller.resetInstances(resetIds);
+    }
   }, [controller, liveInstances]);
 
   useEffect(() => {
-    setLiveInstances(deriveStepInstances(baseInstances, currentStep));
+    const next = deriveStepInstances(baseInstances, currentStep);
+    const previousById = new Map(liveInstancesRef.current.map((inst) => [inst.id, inst]));
+    pendingResetIdsRef.current = next.flatMap((inst) => {
+      const previous = previousById.get(inst.id);
+      return previous && runtimeSignature(previous) !== runtimeSignature(inst) ? [inst.id] : [];
+    });
+    liveInstancesRef.current = next;
+    setLiveInstances(next);
   }, [baseInstances, currentStep?.id, stepIndex]);
 
   const setExposedKnob = (key: NumericKnobKey, value: number) => {
     const targetId = resolveKnobTarget(currentStep, ids);
     if (!targetId) return;
-    setLiveInstances((current) => current.map((inst) => (
-      inst.id === targetId ? applyExposedKnob(inst, key, value) : inst
-    )));
+    setLiveInstances((current) => {
+      const next = current.map((inst) => (
+        inst.id === targetId ? applyExposedKnob(inst, key, value) : inst
+      ));
+      liveInstancesRef.current = next;
+      return next;
+    });
   };
 
   if (!lesson || !caseDoc || baseInstances.length === 0) {
