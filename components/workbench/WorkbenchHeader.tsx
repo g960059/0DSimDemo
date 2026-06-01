@@ -1,9 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
+import {
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  Edit3,
+  LayoutGrid,
+  MoreHorizontal,
+  Pause,
+  Play,
+  Plus,
+  Save,
+  Share2,
+} from 'lucide-react';
 import { SimInstance, PanelType } from '../../types';
 import { SimulationHealth } from '../../engine/protocol';
 import { HealthBadge } from '../HealthIndicators';
+import { ModelLimitations } from '../ModelLimitations';
+import { WorkbenchHeaderMode, WorkbenchSceneMeta, WorkbenchSidePanel } from './WorkbenchSidePanel';
 
 interface WorkbenchHeaderProps {
+  mode: WorkbenchHeaderMode;
+  backHref: string;
+  backLabel: string;
+  sceneMeta: WorkbenchSceneMeta;
+  onSceneMetaChange: (meta: WorkbenchSceneMeta) => void;
+  onPrimaryAction: () => void;
   instances: SimInstance[];
   instanceHealth: Record<string, SimulationHealth>;
   getLiveHealth: (id: string) => SimulationHealth | undefined;
@@ -27,12 +48,22 @@ interface WorkbenchHeaderProps {
   togglePlay: () => void;
   timeScale: number;
   setTimeScale: React.Dispatch<React.SetStateAction<number>>;
-  paneMenuOpen: boolean;
-  setPaneMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
   addPanel: (type: PanelType) => void;
 }
 
+const SPEEDS = [0.5, 1, 2, 5];
+
+function speedLabel(value: number) {
+  return `${value}x`;
+}
+
 export function WorkbenchHeader({
+  mode,
+  backHref,
+  backLabel,
+  sceneMeta,
+  onSceneMetaChange,
+  onPrimaryAction,
   instances,
   instanceHealth,
   getLiveHealth,
@@ -56,113 +87,203 @@ export function WorkbenchHeader({
   togglePlay,
   timeScale,
   setTimeScale,
-  paneMenuOpen,
-  setPaneMenuOpen,
   addPanel,
 }: WorkbenchHeaderProps) {
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [isSpeedOpen, setIsSpeedOpen] = useState(false);
+  const [isPaneMenuOpen, setIsPaneMenuOpen] = useState(false);
+  const [isMetaOpen, setIsMetaOpen] = useState(false);
+  const [draftMeta, setDraftMeta] = useState(sceneMeta);
+
+  const isLearner = mode === 'learner';
+  const primaryLabel = mode === 'learner' ? 'Save a copy' : mode === 'author' ? 'Share' : 'Save case';
+
+  const openMetaEditor = () => {
+    setDraftMeta(sceneMeta);
+    setIsMetaOpen(true);
+  };
+
+  const saveMeta = () => {
+    onSceneMetaChange({
+      title: draftMeta.title.trim() || 'Untitled scene',
+      description: draftMeta.description.trim(),
+      modelLimitations: draftMeta.modelLimitations.map((item) => item.trim()).filter(Boolean),
+    });
+    setIsMetaOpen(false);
+  };
+
+  const runPrimaryAction = () => {
+    if (mode === 'author') publishCurrentLesson();
+    else onPrimaryAction();
+  };
+
   return (
-    <header className="h-14 bg-slate-900 border-b border-slate-800 z-50 flex items-center px-4 justify-between shrink-0">
-        <div className="flex items-center gap-4 min-w-0">
-            <h1 className="text-sm font-bold text-slate-300">Workbench Controls</h1>
-            {authoringMode && (
-                <span className="hidden sm:inline-flex px-2 py-0.5 rounded border border-amber-400/40 bg-amber-400/10 text-[10px] font-bold uppercase tracking-wide text-amber-200">
-                    Authoring
-                </span>
-            )}
+    <>
+      <header className="h-14 bg-slate-950 border-b border-slate-800 z-50 flex items-center gap-2 px-3 sm:px-4 shrink-0">
+        <a href={backHref} className="inline-flex h-9 items-center gap-1 rounded-md px-2 text-xs font-bold text-slate-400 hover:bg-slate-900 hover:text-slate-100">
+          <ChevronLeft className="h-4 w-4" />
+          <span className="hidden sm:inline">{backLabel}</span>
+        </a>
+
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          {isLearner ? (
+            <div className="flex min-w-0 items-center gap-1">
+              <h1 className="truncate text-sm font-bold text-slate-100">{sceneMeta.title}</h1>
+              <ModelLimitations compact limitations={sceneMeta.modelLimitations} />
+            </div>
+          ) : (
+            <button onClick={openMetaEditor} className="flex min-w-0 items-center gap-1 rounded-md px-2 py-1 text-left hover:bg-slate-900">
+              <Edit3 className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+              <span className="truncate text-sm font-bold text-slate-100">{sceneMeta.title || 'Untitled scene'}</span>
+              {authoringMode && stepsDraftLength > 0 && <span className="h-1.5 w-1.5 rounded-full bg-amber-300" title="Unsaved authoring changes" />}
+            </button>
+          )}
+
+          {mode === 'author' && (
+            <button
+              disabled
+              title="レイアウト編集は近日"
+              className="hidden cursor-not-allowed items-center gap-1 rounded-md px-2 py-1 text-xs font-bold text-slate-600 lg:inline-flex"
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              Edit layout
+            </button>
+          )}
+
+          {!isLearner && (
+            <div className="relative hidden sm:block">
+              <button onClick={() => setIsPaneMenuOpen((open) => !open)} className="inline-flex h-9 items-center gap-1 rounded-md px-2 text-xs font-bold text-slate-400 hover:bg-slate-900 hover:text-slate-100">
+                <Plus className="h-4 w-4" />
+                Pane
+              </button>
+              {isPaneMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsPaneMenuOpen(false)} />
+                  <div className="absolute left-0 top-full z-50 mt-1 w-44 rounded-md border border-slate-700 bg-slate-900 py-1 shadow-xl">
+                    {[
+                      ['NOTE', 'Notes'],
+                      ['PVLOOP', 'PV Loop'],
+                      ['WAVEFORM', 'Waveforms'],
+                      ['METRICS', 'Metrics'],
+                      ['CONTROLS', 'Controls'],
+                      ['GUYTON_LEFT', 'Guyton (L)'],
+                      ['GUYTON_RIGHT', 'Guyton (R)'],
+                    ].map(([type, label]) => (
+                      <button
+                        key={type}
+                        onClick={() => { addPanel(type as PanelType); setIsPaneMenuOpen(false); }}
+                        className="block w-full px-3 py-2 text-left text-xs font-medium text-slate-300 hover:bg-slate-800"
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
-        
-        <div className="flex items-center gap-2 sm:gap-3">
-             <HealthBadge items={instances.filter(i => instanceHealth[i.id]).map(i => ({ id: i.id, name: i.name, color: i.color, health: instanceHealth[i.id] }))} getLiveHealth={getLiveHealth} />
-             <button onClick={onOpenScenarioManager} className="px-3 sm:px-4 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded text-[10px] sm:text-xs font-bold text-slate-300 transition-colors flex items-center gap-2">
-                 <span>❖</span> Scenarios ({instances.length})
-             </button>
 
-             <input ref={fileInputRef} type="file" accept=".json,.hemosim.json,application/json" className="hidden"
-                 onChange={(e) => { const f = e.target.files?.[0]; if (f) onImportFile(f); e.target.value = ''; }} />
-             <button onClick={onExport} title="Export this scene as a .hemosim.json file" className="px-2 sm:px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded text-[10px] sm:text-xs font-bold text-slate-300 transition-colors flex items-center gap-1">
-                 <span>↓</span> Save
-             </button>
-             <button onClick={() => fileInputRef.current?.click()} title="Load a .hemosim.json case file" className="px-2 sm:px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded text-[10px] sm:text-xs font-bold text-slate-300 transition-colors flex items-center gap-1">
-                 <span>↑</span> Load
-             </button>
-             {!authoringMode ? (
-                 <button onClick={() => setAuthoringMode(true)} title="Create or resume a lesson from this scene" className="px-2 sm:px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded text-[10px] sm:text-xs font-bold text-slate-300 transition-colors flex items-center gap-1 whitespace-nowrap">
-                     <span>✎</span> {stepsDraftLength > 0 ? `Resume lesson (${stepsDraftLength})` : 'Create lesson'}
-                 </button>
-             ) : (
-                 <div className="flex items-center gap-1 sm:gap-2">
-                     <button onClick={openLessonDialog} title="Save this scene and note as a lesson" className="px-2 sm:px-3 py-1.5 bg-blue-600 hover:bg-blue-500 border border-blue-500/50 rounded text-[10px] sm:text-xs font-bold text-white transition-colors flex items-center gap-1 whitespace-nowrap">
-                         <span>▣</span> Save as lesson
-                     </button>
-                     {(!user || isAdmin) && (
-                         <button onClick={publishCurrentLesson} disabled={isPublishingLesson} title="Publish this lesson for sharing across devices" className="px-2 sm:px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded text-[10px] sm:text-xs font-bold text-slate-300 transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed">
-                             {isPublishingLesson ? 'Publishing...' : 'Publish (share)'}
-                         </button>
-                     )}
-                     <button onClick={onExitAuthoring} title="Exit lesson authoring" className="px-2 sm:px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded text-[10px] sm:text-xs font-bold text-slate-300 transition-colors whitespace-nowrap">
-                         Exit authoring
-                     </button>
-                 </div>
-             )}
-             {savedLesson && (
-                 <a href={`/lesson/${savedLesson.id}`} className="inline-flex px-2 sm:px-3 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 rounded text-[10px] sm:text-xs font-bold text-emerald-200 transition-colors whitespace-nowrap">
-                     Open lesson
-                 </a>
-             )}
-             {publishedLesson && (
-                 <div className="hidden lg:flex items-center gap-1 px-2 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded text-[10px] font-bold text-emerald-200">
-                     <a href={publishedLesson.url} className="hover:text-emerald-100 transition-colors whitespace-nowrap">
-                         Share URL
-                     </a>
-                     <button onClick={copyShareUrl} className="text-emerald-300 hover:text-emerald-100 transition-colors" title="Copy share URL">
-                         Copy
-                     </button>
-                 </div>
-             )}
+        <div className="flex shrink-0 items-center gap-1.5">
+          <HealthBadge items={instances.filter(i => instanceHealth[i.id]).map(i => ({ id: i.id, name: i.name, color: i.color, health: instanceHealth[i.id] }))} getLiveHealth={getLiveHealth} />
+          <div className="flex items-center rounded-md border border-slate-800 bg-slate-900">
+            <button
+              onClick={togglePlay}
+              className="inline-flex h-9 w-9 items-center justify-center text-slate-200 hover:bg-slate-800"
+              title={isPlaying ? 'Pause' : 'Play'}
+              aria-label={isPlaying ? 'Pause' : 'Play'}
+            >
+              {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+            </button>
+            <div className="relative border-l border-slate-800">
+              <button onClick={() => setIsSpeedOpen((open) => !open)} className="inline-flex h-9 items-center gap-1 px-2 text-xs font-bold text-slate-300 hover:bg-slate-800">
+                {speedLabel(timeScale)}
+                <ChevronDown className="h-3 w-3" />
+              </button>
+              {isSpeedOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsSpeedOpen(false)} />
+                  <div className="absolute right-0 top-full z-50 mt-1 w-24 rounded-md border border-slate-700 bg-slate-900 p-1 shadow-xl">
+                    {SPEEDS.map((speed) => (
+                      <button
+                        key={speed}
+                        onClick={() => { setTimeScale(speed); setIsSpeedOpen(false); }}
+                        className="flex w-full items-center justify-between rounded px-2 py-1.5 text-xs font-bold text-slate-300 hover:bg-slate-800"
+                      >
+                        {speedLabel(speed)}
+                        {timeScale === speed && <Check className="h-3 w-3" />}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
 
-             <div className="hidden sm:block h-6 w-px bg-slate-700 mx-1"></div>
+          <button
+            onClick={runPrimaryAction}
+            disabled={mode === 'author' && isPublishingLesson}
+            className="inline-flex h-9 items-center gap-1.5 rounded-md bg-blue-600 px-3 text-xs font-bold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {mode === 'author' ? <Share2 className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
+            <span className="hidden sm:inline">{mode === 'author' && isPublishingLesson ? 'Publishing...' : primaryLabel}</span>
+          </button>
 
-             <button onClick={togglePlay} className={`px-3 sm:px-4 py-1.5 rounded text-[10px] sm:text-xs font-bold transition-colors ${isPlaying ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30' : 'bg-green-500/20 text-green-500 hover:bg-green-500/30'}`}>
-                 {isPlaying ? 'PAUSE' : 'PLAY'}
-             </button>
-             
-             <div className="hidden sm:block h-6 w-px bg-slate-700 mx-1"></div>
-             
-             <div className="hidden sm:flex items-center gap-2">
-                 <span className="text-xs text-slate-400">Speed:</span>
-                 <select className="bg-slate-800 border border-slate-700 rounded text-xs px-2 py-1 outline-none text-slate-200" value={timeScale} onChange={(e) => setTimeScale(parseFloat(e.target.value))}>
-                     <option value={0.1}>0.1x</option>
-                     <option value={0.5}>0.5x</option>
-                     <option value={1.0}>1.0x</option>
-                     <option value={2.0}>2.0x</option>
-                     <option value={5.0}>5.0x</option>
-                 </select>
-             </div>
-
-             <div className="h-6 w-px bg-slate-700 mx-1"></div>
-
-             <div className="flex items-center gap-1 relative">
-                 <button onClick={(e) => { e.stopPropagation(); setPaneMenuOpen((o) => !o); }} className={`px-2 sm:px-3 py-1.5 rounded text-[10px] sm:text-xs font-bold transition-colors flex items-center gap-1 sm:gap-2 ${paneMenuOpen ? 'bg-slate-700 text-slate-200' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'}`}>
-                     <span>+ Pane</span>
-                     <span className="text-[8px] sm:text-[10px]">▼</span>
-                 </button>
-                 {paneMenuOpen && (
-                   <>
-                     <div className="fixed inset-0 z-40 cursor-default" onClick={() => setPaneMenuOpen(false)} />
-                     <div className="block absolute top-full right-0 mt-1 w-40 sm:w-48 bg-slate-800 border border-slate-700 shadow-xl rounded py-1 z-50">
-                         <button onClick={() => { addPanel('NOTE'); setPaneMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-xs hover:bg-slate-700 text-green-300">Notes (Interactive)</button>
-                         <button onClick={() => { addPanel('PVLOOP'); setPaneMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-xs hover:bg-slate-700 text-slate-300">PV Loop</button>
-                         <button onClick={() => { addPanel('WAVEFORM'); setPaneMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-xs hover:bg-slate-700 text-slate-300">Waveforms</button>
-                         <button onClick={() => { addPanel('METRICS'); setPaneMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-xs hover:bg-slate-700 text-slate-300">Metrics</button>
-                         <button onClick={() => { addPanel('CONTROLS'); setPaneMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-xs hover:bg-slate-700 text-blue-300">Controls</button>
-                         <div className="h-px bg-slate-700 my-1"></div>
-                         <button onClick={() => { addPanel('GUYTON_LEFT'); setPaneMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-xs hover:bg-slate-700 text-slate-300">Guyton (L)</button>
-                         <button onClick={() => { addPanel('GUYTON_RIGHT'); setPaneMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-xs hover:bg-slate-700 text-slate-300">Guyton (R)</button>
-                     </div>
-                   </>
-                 )}
-             </div>
+          <button onClick={() => setIsPanelOpen(true)} className="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-slate-900 hover:text-slate-100" aria-label="Open workbench panel">
+            <MoreHorizontal className="h-5 w-5" />
+          </button>
         </div>
-    </header>
+      </header>
+
+      {isMetaOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4">
+          <div role="dialog" aria-modal="true" className="w-full max-w-lg rounded-lg border border-slate-700 bg-slate-900 shadow-2xl">
+            <div className="border-b border-slate-800 px-5 py-3">
+              <h2 className="text-sm font-bold text-slate-100">Scene details</h2>
+            </div>
+            <div className="space-y-4 p-5">
+              <label className="block">
+                <span className="mb-1 block text-xs font-bold text-slate-400">Title</span>
+                <input value={draftMeta.title} onChange={(e) => setDraftMeta((prev) => ({ ...prev, title: e.target.value }))} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-blue-500" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-bold text-slate-400">Description</span>
+                <textarea value={draftMeta.description} onChange={(e) => setDraftMeta((prev) => ({ ...prev, description: e.target.value }))} className="h-24 w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-blue-500" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-bold text-slate-400">Model limitations</span>
+                <textarea
+                  value={draftMeta.modelLimitations.join('\n')}
+                  onChange={(e) => setDraftMeta((prev) => ({ ...prev, modelLimitations: e.target.value.split('\n') }))}
+                  className="h-28 w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-blue-500"
+                />
+              </label>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-slate-800 px-5 py-3">
+              <button onClick={() => setIsMetaOpen(false)} className="rounded px-3 py-1.5 text-sm font-bold text-slate-400 hover:text-slate-100">Cancel</button>
+              <button onClick={saveMeta} className="rounded bg-blue-600 px-4 py-1.5 text-sm font-bold text-white hover:bg-blue-500">Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <WorkbenchSidePanel
+        isOpen={isPanelOpen}
+        onClose={() => setIsPanelOpen(false)}
+        mode={mode}
+        sceneMeta={sceneMeta}
+        fileInputRef={fileInputRef}
+        onImportFile={onImportFile}
+        onExport={onExport}
+        onOpenScenarioManager={onOpenScenarioManager}
+        onCreateLesson={() => setAuthoringMode(true)}
+        onSaveLesson={openLessonDialog}
+        onExitAuthoring={onExitAuthoring}
+        authoringMode={authoringMode}
+        savedLesson={savedLesson}
+        publishedLesson={publishedLesson}
+        copyShareUrl={copyShareUrl}
+      />
+    </>
   );
 }

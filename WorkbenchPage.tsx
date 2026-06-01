@@ -6,7 +6,7 @@ import { SimulationHealth } from './engine/protocol';
 import { type ClinicalKnobs } from './engine/knobs';
 import { resolveRawEdit, resolveKnobEdit } from './engine/instanceKnobs';
 import { type CaseDocument, simInstancesToCaseDocument, caseDocumentToSimInstances } from './caseDoc';
-import { exportCaseFile, readCaseFile } from './casePersist';
+import { exportCaseFile, readCaseFile, saveDraft } from './casePersist';
 import { officialCaseById } from './officialCases';
 import { createUserLessonId, getUserLesson, saveLesson } from './lessonPersist';
 import { publishLesson } from './lessonCloud';
@@ -18,8 +18,10 @@ import { HealthToasts, HealthToast } from './components/HealthIndicators';
 import { PreviewController } from './engine/previewController';
 import { ScenarioManager } from './components/ScenarioManager';
 import { WorkbenchHeader } from './components/workbench/WorkbenchHeader';
+import type { WorkbenchHeaderMode, WorkbenchSceneMeta } from './components/workbench/WorkbenchSidePanel';
 import { PanelGrid } from './components/workbench/PanelGrid';
 import type { NoteContent } from './noteTypes';
+import { addPane, removePane } from './layoutOps';
 
 // Colors for instances
 const INSTANCE_COLORS = ['#a855f7', '#f472b6', '#22c55e', '#38bdf8', '#fbbf24'];
@@ -65,6 +67,7 @@ function Workbench() {
   const [timeScale, setTimeScale] = useState<number>(1.0);
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
   const [isMobile, setIsMobile] = useState<boolean>(window.innerWidth < 768);
+  const [isLayoutEditing, setIsLayoutEditing] = useState(false);
   
   // Instance Management
   const [instances, setInstances] = useState<SimInstance[]>([
@@ -98,6 +101,11 @@ function Workbench() {
   const [noteCaseKey, setNoteCaseKey] = useState('draft');
   const [notes, setNotes] = useState<Record<string, NoteContent>>({});
   const [noteModes, setNoteModes] = useState<Record<string, 'read' | 'edit'>>({});
+  const [sceneMeta, setSceneMeta] = useState<WorkbenchSceneMeta>({
+    title: 'Untitled scene',
+    description: '',
+    modelLimitations: DEFAULT_MODEL_LIMITATIONS,
+  });
   const [isLessonDialogOpen, setIsLessonDialogOpen] = useState(false);
   const [lessonTitle, setLessonTitle] = useState('');
   const [savedLesson, setSavedLesson] = useState<{ id: string; title: string } | null>(null);
@@ -106,6 +114,14 @@ function Workbench() {
   const [lessonDraftId, setLessonDraftId] = useState<string | null>(null);
   const [publishedLesson, setPublishedLesson] = useState<{ id: string; title: string; url: string } | null>(null);
   const [isPublishingLesson, setIsPublishingLesson] = useState(false);
+  const fromParam = searchParams.get('from');
+  const headerMode: WorkbenchHeaderMode = authoringMode ? 'author' : searchParams.get('case') ? 'learner' : 'sandbox';
+  const layoutEditable = !isMobile && headerMode !== 'learner' && isLayoutEditing;
+  const backTarget = fromParam === 'cases'
+    ? { href: '/cases', label: 'Cases' }
+    : fromParam === 'lesson'
+      ? { href: '/', label: 'Home' }
+      : { href: '/', label: 'Home' };
 
   // --- Panel Management State ---
   const [panels, setPanels] = useState<PanelDef[]>([
@@ -152,6 +168,10 @@ function Workbench() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  useEffect(() => {
+    if (isMobile || headerMode === 'learner') setIsLayoutEditing(false);
+  }, [headerMode, isMobile]);
+
   // Wire driver callbacks and start the loop once. Declared BEFORE the
   // setInstances effect so callbacks are live before the first reconcile.
   useEffect(() => {
@@ -189,7 +209,7 @@ function Workbench() {
   // file (.hemosim.json) + a localStorage working draft. No network/Firebase. ---
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const defaultSceneTitle = () => instances[0] ? `${instances[0].name} scene` : 'Workbench scene';
+  const defaultSceneTitle = () => sceneMeta.title.trim() || (instances[0] ? `${instances[0].name} scene` : 'Workbench scene');
 
   const buildCurrentDoc = (overrides: {
     id?: string;
@@ -200,6 +220,7 @@ function Workbench() {
   } = {}): CaseDocument => {
     const now = Date.now();
     const title = overrides.title ?? defaultSceneTitle();
+    const modelLimitations = sceneMeta.modelLimitations.length > 0 ? sceneMeta.modelLimitations : DEFAULT_MODEL_LIMITATIONS;
     return simInstancesToCaseDocument(instances, panels, {
       id: overrides.id ?? `wb-${now}`,
       title,
@@ -207,7 +228,8 @@ function Workbench() {
       updatedAt: overrides.updatedAt ?? now,
       spec: {
         title,
-        modelLimitations: DEFAULT_MODEL_LIMITATIONS,
+        ...(sceneMeta.description.trim() ? { description: sceneMeta.description.trim() } : {}),
+        modelLimitations,
       },
       notes: overrides.includeNotes === false ? undefined : notes,
     });
@@ -225,6 +247,11 @@ function Workbench() {
 
       setInstances(remapped.instances);
       setPanels(remapped.panels);
+      setSceneMeta({
+        title: doc.spec.title || 'Untitled scene',
+        description: doc.spec.description ?? '',
+        modelLimitations: doc.spec.modelLimitations.length > 0 ? doc.spec.modelLimitations : DEFAULT_MODEL_LIMITATIONS,
+      });
       setNotes(doc.notes ?? {});
       setNoteModes({});
       setNoteCaseKey(`${doc.meta.id}:${nonce}`);
@@ -262,6 +289,52 @@ function Workbench() {
   const handleExport = () => {
     try { exportCaseFile(buildCurrentDoc()); }
     catch (err) { window.alert(`Export failed: ${(err as Error).message}`); }
+  };
+
+  const saveCurrentDraft = (doc: CaseDocument = buildCurrentDoc()) => {
+    saveDraft(doc);
+    userEditedRef.current = false;
+    pushWarningToast('Workbench', 'Saved locally.');
+  };
+
+  const forkCurrentScene = () => {
+    const now = Date.now();
+    const sourceTitle = sceneMeta.title.trim() || defaultSceneTitle();
+    const forkTitle = `${sourceTitle} copy`;
+    const sourceDescription = sceneMeta.description.trim();
+    const forkDescription = [sourceDescription, `Forked from ${sourceTitle}`].filter(Boolean).join('\n\n');
+    const forkDoc = buildCurrentDoc({
+      id: `fork-${now}`,
+      title: forkTitle,
+      createdAt: now,
+      updatedAt: now,
+    });
+    const ownedCopy: CaseDocument = {
+      ...forkDoc,
+      meta: {
+        ...forkDoc.meta,
+        title: forkTitle,
+        author: 'Local copy',
+        createdAt: now,
+        updatedAt: now,
+      },
+      spec: {
+        ...forkDoc.spec,
+        title: forkTitle,
+        ...(forkDescription ? { description: forkDescription } : {}),
+      },
+    };
+
+    saveCurrentDraft(ownedCopy);
+    setSceneMeta({
+      title: forkTitle,
+      description: forkDescription,
+      modelLimitations: ownedCopy.spec.modelLimitations,
+    });
+    setAuthoringMode(true);
+    setSavedLesson(null);
+    setPublishedLesson(null);
+    pushWarningToast('Workbench', 'コピーを編集中です');
   };
 
   const openLessonDialog = () => {
@@ -467,8 +540,6 @@ function Workbench() {
 
   const [addingPanelType, setAddingPanelType] = useState<PanelType | null>(null);
   const [addingPanelConfig, setAddingPanelConfig] = useState<Record<string, PanelInstanceConfig>>({});
-  const [paneMenuOpen, setPaneMenuOpen] = useState<boolean>(false);
-
   const addPanel = (type: PanelType) => {
       const newConfig: Record<string, PanelInstanceConfig> = {};
       instances.forEach(i => {
@@ -495,13 +566,13 @@ function Workbench() {
           config: addingPanelConfig, isSettingsOpen: false,
           showGuides: type === 'PVLOOP', timeWindow: type === 'WAVEFORM' ? 5000 : undefined
       };
-      setPanels(prev => [...prev, newPanel]);
+      setPanels(prev => addPane(prev, newPanel));
       setAddingPanelType(null);
   };
 
   const removePanel = (id: string) => {
       markUserEdited();
-      setPanels(prev => prev.filter(p => p.id !== id));
+      setPanels(prev => removePane(prev, id));
       setNotes(prev => {
           const next = { ...prev };
           delete next[id];
@@ -521,27 +592,6 @@ function Workbench() {
   const updatePanelSignalColor = (panelId: string, instId: string, sig: string, newColor: string) => { markUserEdited(); setPanels(prev => prev.map(p => p.id === panelId ? { ...p, config: { ...p.config, [instId]: { ...p.config[instId], customSignalColors: { ...(p.config[instId].customSignalColors || {}), [sig]: newColor } } } } : p)); };
   const updatePanelSignalName = (panelId: string, instId: string, sig: string, newName: string) => { markUserEdited(); setPanels(prev => prev.map(p => p.id === panelId ? { ...p, config: { ...p.config, [instId]: { ...p.config[instId], customSignalNames: { ...(p.config[instId].customSignalNames || {}), [sig]: newName } } } } : p)); };
 
-  const resizeState = useRef<{ panelId: string, startX: number, startY: number, startW: number, startH: number } | null>(null);
-  const startResize = (e: React.MouseEvent, panel: PanelDef) => {
-      e.stopPropagation(); e.preventDefault();
-      resizeState.current = { panelId: panel.id, startX: e.clientX, startY: e.clientY, startW: panel.w, startH: panel.h };
-      document.addEventListener('mousemove', onResizeMove);
-      document.addEventListener('mouseup', onResizeEnd);
-  };
-  const onResizeMove = (e: MouseEvent) => {
-      if (!resizeState.current) return;
-      const { panelId, startX, startY, startW, startH } = resizeState.current;
-      const newW = Math.max(2, Math.min(12, startW + Math.round((e.clientX - startX) / 50))); 
-      const newH = Math.max(4, Math.min(20, startH + Math.round((e.clientY - startY) / 50))); 
-      markUserEdited();
-      setPanels(prev => prev.map(p => p.id === panelId ? { ...p, w: newW, h: newH } : p));
-  };
-  const onResizeEnd = () => {
-      resizeState.current = null;
-      document.removeEventListener('mousemove', onResizeMove);
-      document.removeEventListener('mouseup', onResizeEnd);
-  };
-
   const toggleSettings = (panelId: string) => setPanels(prev => prev.map(p => p.id === panelId ? { ...p, isSettingsOpen: !p.isSettingsOpen } : { ...p, isSettingsOpen: false }));
   const toggleInstanceVisibility = (panelId: string, instId: string) => { markUserEdited(); setPanels(prev => prev.map(p => p.id === panelId ? { ...p, config: { ...p.config, [instId]: { ...p.config[instId], visible: !p.config[instId].visible } } } : p)); };
   const updateInstanceSignals = (panelId: string, instId: string, signal: string) => {
@@ -556,22 +606,28 @@ function Workbench() {
   const toggleGuides = (panelId: string) => { markUserEdited(); setPanels(prev => prev.map(p => p.id === panelId ? { ...p, showGuides: !p.showGuides } : p)); };
   const updateTimeWindow = (panelId: string, val: number) => { markUserEdited(); setPanels(prev => prev.map(p => p.id === panelId ? { ...p, timeWindow: val } : p)); };
 
-  const dragItemRef = useRef<number | null>(null);
-  const dragOverItemRef = useRef<number | null>(null);
-  const onDragStart = (e: React.DragEvent, index: number) => { dragItemRef.current = index; e.dataTransfer.effectAllowed = "move"; };
-  const onDragEnter = (e: React.DragEvent, index: number) => { dragOverItemRef.current = index; };
-  const onDragEnd = () => {
-    const srcIdx = dragItemRef.current, dstIdx = dragOverItemRef.current;
-    if (srcIdx !== null && dstIdx !== null && srcIdx !== dstIdx) {
-       markUserEdited();
-       setPanels(prev => { const next = [...prev]; next.splice(dstIdx, 0, next.splice(srcIdx, 1)[0]); return next; });
+  const updateSceneMeta = (next: WorkbenchSceneMeta) => {
+    setSceneMeta(next);
+    markUserEdited();
+  };
+
+  const runHeaderPrimaryAction = () => {
+    if (headerMode === 'learner') {
+      forkCurrentScene();
+      return;
     }
-    dragItemRef.current = dragOverItemRef.current = null;
+    saveCurrentDraft();
   };
 
   return (
     <div className="flex flex-col h-full w-full bg-slate-950 text-slate-200 overflow-hidden font-sans relative">
       <WorkbenchHeader
+        mode={headerMode}
+        backHref={backTarget.href}
+        backLabel={backTarget.label}
+        sceneMeta={sceneMeta}
+        onSceneMetaChange={updateSceneMeta}
+        onPrimaryAction={runHeaderPrimaryAction}
         instances={instances}
         instanceHealth={instanceHealth}
         getLiveHealth={(id) => controller.getLiveHealth(id)}
@@ -595,8 +651,6 @@ function Workbench() {
         togglePlay={togglePlay}
         timeScale={timeScale}
         setTimeScale={setTimeScale}
-        paneMenuOpen={paneMenuOpen}
-        setPaneMenuOpen={setPaneMenuOpen}
         addPanel={addPanel}
       />
 
@@ -608,6 +662,13 @@ function Workbench() {
         stepsDraft={stepsDraft}
         setStepsDraft={setStepsDraft}
         panels={panels}
+        onPanelsChange={(nextPanels) => {
+          markUserEdited();
+          setPanels(nextPanels);
+        }}
+        mode={headerMode}
+        layoutEditable={layoutEditable}
+        setLayoutEditable={setIsLayoutEditing}
         isMobile={isMobile}
         noteModes={noteModes}
         setNoteModes={setNoteModes}
@@ -633,15 +694,11 @@ function Workbench() {
         updatePanelInstanceName={updatePanelInstanceName}
         updatePanelSignalColor={updatePanelSignalColor}
         updatePanelSignalName={updatePanelSignalName}
-        startResize={startResize}
         toggleSettings={toggleSettings}
         toggleInstanceVisibility={toggleInstanceVisibility}
         updateInstanceSignals={updateInstanceSignals}
         toggleGuides={toggleGuides}
         updateTimeWindow={updateTimeWindow}
-        onDragStart={onDragStart}
-        onDragEnter={onDragEnter}
-        onDragEnd={onDragEnd}
         noteCaseKey={noteCaseKey}
         notes={notes}
         onNoteChange={(panelId, blocks) => {
