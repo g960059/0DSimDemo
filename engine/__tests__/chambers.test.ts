@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { runScenario } from "@/engine/harness";
-import { ActiveStressChamberModel, defaultActiveLA, defaultActiveLV } from "@/engine/chambers";
+import { ActiveStressChamberModel, defaultActiveLA, defaultActiveLV, defaultActiveRA } from "@/engine/chambers";
 import { DEFAULT_PARAMS } from "@/constants";
 
 /**
@@ -126,6 +126,30 @@ describe("ChamberModel behavior parity (S2a refactor guards)", () => {
     }).reservoirBranchState(23, { c: 0, a: 0, r: 0 }, ctx);
     expect(minPressureGuarded.solveFlag).toBe("ok");
     expect(Math.abs(minPressureGuarded.equilibriumErrorMmHg)).toBeLessThan(1e-4);
+  });
+
+  it("LA AV-plane gain lowers pressure only while the mitral valve is closed", () => {
+    const model = new ActiveStressChamberModel(defaultActiveLA);
+    const internal = { c: 0, a: 0, r: 0 };
+    const baseCtx = {
+      HR: 75,
+      contractility: 1,
+      relaxation: 1,
+      phi: 0.4,
+      tmaxScale: 1,
+      geomScale: 1,
+      caReleaseScale: 1,
+      lvShortening01: 0.8,
+      aovOpen01: 0,
+    };
+    const open = model.pressure(50, internal, { ...baseCtx, mvOpen01: 1 });
+    const closed = model.pressure(50, internal, { ...baseCtx, mvOpen01: 0 });
+    expect(closed).toBeLessThan(open - 0.1);
+
+    const ra = new ActiveStressChamberModel(defaultActiveRA);
+    const raOpen = ra.pressure(50, internal, { ...baseCtx, mvOpen01: 1 });
+    const raClosed = ra.pressure(50, internal, { ...baseCtx, mvOpen01: 0 });
+    expect(raClosed).toBeCloseTo(raOpen, 9);
   });
 
   it("active-stress mode RESPECTS node.active overrides (per-instance chamber params)", () => {

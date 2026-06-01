@@ -82,7 +82,8 @@ describe("engine case resolution (#3-a)", () => {
 
   it("fluidBolus applies BOTH its volumeDelta AND its venousTone knob bump", () => {
     const inst = neutralInstance({ interventions: [{ uid: "i1", id: "fluidBolus", args: { mL: 500 } }] });
-    expect(effectiveKnobs(inst, defaultParams()).venousTone).toBeCloseTo(0.2 + 0.0001 * 500, 9); // base 0.2 + 0.05
+    const base = defaultParams();
+    expect(effectiveKnobs(inst, base).venousTone).toBeCloseTo(base.venousTone + 0.0001 * 500, 9);
     expect(resolveInstance(inst, OFFICIAL_BASELINES, V).targetVolume).toBe(5600 + 500);
   });
 

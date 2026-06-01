@@ -183,7 +183,7 @@ export function defaultParams(): CoreRuntimeParams {
     // keep MAP/AoP normal as central preload rises.
     systemicResistance: 1.10,
     pulmonaryResistance: 1.0,
-    venousTone: 0.2,
+    venousTone: 0.65,
     arterialStiffness: 0.75, // M12-proper #1 Phase-1: more arterial compliance to hold pulse pressure normal
     PEEP: 0,
     Pth0: 0,
@@ -213,7 +213,7 @@ export function defaultParams(): CoreRuntimeParams {
     rvCaReleaseScale: 1,
     // Valve Defaults
     // MV
-    MV_Amax: 5.0, MV_Aleak: 1e-4, MV_kOpen: 2.0, MV_tauOpen: 0.020, MV_tauClose: 0.035, MV_R: 0.004, MV_L: 0.0008,
+    MV_Amax: 5.0, MV_Aleak: 1e-4, MV_kOpen: 2.0, MV_tauOpen: 0.020, MV_tauClose: 0.035, MV_R: 0.004, MV_L: 0.0008, MV_B: 1e-4,
     // AoV
     AoV_Amax: 3.5, AoV_Aleak: 1e-4, AoV_kOpen: 2.0, AoV_tauOpen: 0.010, AoV_tauClose: 0.030, AoV_R: 0.005, AoV_L: 0.001,
     // TV
@@ -239,16 +239,16 @@ function buildNodes(): NodeSpec[] {
 
     { name: "PA", kind: "arterial", ext: "pth", Vu: 0, P0: 20, Vs: 60, x0: 60 * Math.log1p(16 / 20) },
     { name: "PArt", kind: "arterial", ext: "pth", Vu: 0, P0: 20, Vs: 90, x0: 90 * Math.log1p(13 / 20) },
-    { name: "PCap", kind: "venousPressure", ext: "palv", Vu: 105, Ccoll: 2.4, Copen: 4.8, Cdist: 2.4, Popen: 0, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 8 },
-    { name: "PVen", kind: "venousPressure", ext: "pth", Vu: 160, Ccoll: 2.4, Copen: 4.8, Cdist: 2.4, Popen: -1, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 6 },
-    { name: "PVein", kind: "venousPressure", ext: "pth", Vu: 215, Ccoll: 2.4, Copen: 4.8, Cdist: 2.4, Popen: -1, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 5 }
+    { name: "PCap", kind: "venousPressure", ext: "palv", Vu: 105, Ccoll: 0.75, Copen: 1.5, Cdist: 0.75, Popen: 0, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 8 },
+    { name: "PVen", kind: "venousPressure", ext: "pth", Vu: 160, Ccoll: 0.75, Copen: 1.5, Cdist: 0.75, Popen: -1, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 6 },
+    { name: "PVein", kind: "venousPressure", ext: "pth", Vu: 215, Ccoll: 0.75, Copen: 1.5, Cdist: 0.75, Popen: -1, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 5 }
   ];
 }
 
 function buildEdges(): EdgeSpec[] {
   const q0 = 80;
   return [
-    { name: "MV", up: "LA", down: "LV", kind: "valve", R: 0.002, L: 0.0002, B: 0, Amax: 1, Aleak: 1e-5, kOpen: 2.0, tauOpen: 0.012, tauClose: 0.025, q0, xi0: 0.2 },
+    { name: "MV", up: "LA", down: "LV", kind: "valve", R: 0.002, L: 0.0002, B: 1e-4, Amax: 1, Aleak: 1e-5, kOpen: 2.0, tauOpen: 0.012, tauClose: 0.025, q0, xi0: 0.2 },
     { name: "AoV", up: "LV", down: "Ao", kind: "valve", R: 0.005, L: 0.002, B: 1e-5, Amax: 1, Aleak: 1e-5, kOpen: 2.0, tauOpen: 0.010, tauClose: 0.030, q0, xi0: 0.2 },
     { name: "TV", up: "RA", down: "RV", kind: "valve", R: 0.002, L: 0.0002, B: 0, Amax: 1, Aleak: 1e-5, kOpen: 2.0, tauOpen: 0.012, tauClose: 0.025, q0, xi0: 0.2 },
     { name: "PV", up: "RV", down: "PA", kind: "valve", R: 0.005, L: 0.001, B: 1e-5, Amax: 1, Aleak: 1e-5, kOpen: 2.0, tauOpen: 0.010, tauClose: 0.020, q0, xi0: 0.2 },
@@ -1144,10 +1144,11 @@ export class ModelCore {
       const vAmax = (this.p as any)[`${pName}_Amax`] ?? e.Amax ?? 1;
       const vAleak = (this.p as any)[`${pName}_Aleak`] ?? e.Aleak ?? 1e-4;
       const vR = (this.p as any)[`${pName}_R`] ?? e.R;
+      const vB = (this.p as any)[`${pName}_B`] ?? e.B ?? 0;
       const xi = clamp(x[this.idx.xi[pName]], 0, 1);
       areaRatio = Math.max(vAleak + xi * (vAmax - vAleak), 1e-4) / Math.max(vAmax, 1e-6);
       R = vR / (areaRatio * areaRatio);
-      B = (e.B ?? 0) / (areaRatio * areaRatio);
+      B = vB / (areaRatio * areaRatio);
     } else if ((e.useChiResistance || e.useChiQuadratic) && this.p.useChiResistance) {
       const chi = this.edgeChi(e, Pu, Pd);
       areaRatio = chi;

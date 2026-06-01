@@ -12,7 +12,7 @@ import { runScenario } from "@/engine/harness";
  */
 
 const VALVE_KEYS: (keyof CoreRuntimeParams)[] = [
-  "MV_Amax", "MV_Aleak", "MV_kOpen", "MV_tauOpen", "MV_tauClose", "MV_R", "MV_L",
+  "MV_Amax", "MV_Aleak", "MV_kOpen", "MV_tauOpen", "MV_tauClose", "MV_R", "MV_L", "MV_B",
   "AoV_Amax", "AoV_Aleak", "AoV_kOpen", "AoV_tauOpen", "AoV_tauClose", "AoV_R", "AoV_L",
   "TV_Amax", "TV_Aleak", "TV_kOpen", "TV_tauOpen", "TV_tauClose", "TV_R", "TV_L",
   "PV_Amax", "PV_Aleak", "PV_kOpen", "PV_tauOpen", "PV_tauClose", "PV_R", "PV_L",
