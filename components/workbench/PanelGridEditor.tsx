@@ -3,7 +3,7 @@ import GridLayout, { noCompactor, useContainerWidth, type Layout, type LayoutIte
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import type { PanelDef } from '../../types';
-import { flowPack } from '../../layoutPresets';
+import { flowPack, GRID_COLUMNS } from '../../layoutPresets';
 import { movePane, resizePane } from '../../layoutOps';
 
 interface PanelGridEditorProps {
@@ -12,8 +12,6 @@ interface PanelGridEditorProps {
   onPanelsChange: (panels: PanelDef[]) => void;
   renderPanel: (panel: PanelDef) => React.ReactNode;
 }
-
-const GRID_COLUMNS = 12;
 
 function toLayout(panels: PanelDef[]): LayoutItem[] {
   return panels.map((panel) => ({
@@ -57,7 +55,7 @@ export default function PanelGridEditor({
   };
 
   return (
-    <div ref={containerRef}>
+    <div ref={containerRef} data-panel-grid-editor="mounted">
       {mounted && (
         <GridLayout
           className="panel-grid-editor pb-20 mt-2"
