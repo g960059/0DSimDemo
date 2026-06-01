@@ -21,6 +21,7 @@ import { WorkbenchHeader } from './components/workbench/WorkbenchHeader';
 import type { WorkbenchHeaderMode, WorkbenchSceneMeta } from './components/workbench/WorkbenchSidePanel';
 import { PanelGrid } from './components/workbench/PanelGrid';
 import type { NoteContent } from './noteTypes';
+import { addPane, removePane } from './layoutOps';
 
 // Colors for instances
 const INSTANCE_COLORS = ['#a855f7', '#f472b6', '#22c55e', '#38bdf8', '#fbbf24'];
@@ -66,6 +67,7 @@ function Workbench() {
   const [timeScale, setTimeScale] = useState<number>(1.0);
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
   const [isMobile, setIsMobile] = useState<boolean>(window.innerWidth < 768);
+  const [isLayoutEditing, setIsLayoutEditing] = useState(false);
   
   // Instance Management
   const [instances, setInstances] = useState<SimInstance[]>([
@@ -112,6 +114,14 @@ function Workbench() {
   const [lessonDraftId, setLessonDraftId] = useState<string | null>(null);
   const [publishedLesson, setPublishedLesson] = useState<{ id: string; title: string; url: string } | null>(null);
   const [isPublishingLesson, setIsPublishingLesson] = useState(false);
+  const fromParam = searchParams.get('from');
+  const headerMode: WorkbenchHeaderMode = authoringMode ? 'author' : searchParams.get('case') ? 'learner' : 'sandbox';
+  const layoutEditable = !isMobile && headerMode !== 'learner' && isLayoutEditing;
+  const backTarget = fromParam === 'cases'
+    ? { href: '/cases', label: 'Cases' }
+    : fromParam === 'lesson'
+      ? { href: '/', label: 'Home' }
+      : { href: '/', label: 'Home' };
 
   // --- Panel Management State ---
   const [panels, setPanels] = useState<PanelDef[]>([
@@ -157,6 +167,10 @@ function Workbench() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  useEffect(() => {
+    if (isMobile || headerMode === 'learner') setIsLayoutEditing(false);
+  }, [headerMode, isMobile]);
 
   // Wire driver callbacks and start the loop once. Declared BEFORE the
   // setInstances effect so callbacks are live before the first reconcile.
@@ -552,13 +566,13 @@ function Workbench() {
           config: addingPanelConfig, isSettingsOpen: false,
           showGuides: type === 'PVLOOP', timeWindow: type === 'WAVEFORM' ? 5000 : undefined
       };
-      setPanels(prev => [...prev, newPanel]);
+      setPanels(prev => addPane(prev, newPanel));
       setAddingPanelType(null);
   };
 
   const removePanel = (id: string) => {
       markUserEdited();
-      setPanels(prev => prev.filter(p => p.id !== id));
+      setPanels(prev => removePane(prev, id));
       setNotes(prev => {
           const next = { ...prev };
           delete next[id];
@@ -578,27 +592,6 @@ function Workbench() {
   const updatePanelSignalColor = (panelId: string, instId: string, sig: string, newColor: string) => { markUserEdited(); setPanels(prev => prev.map(p => p.id === panelId ? { ...p, config: { ...p.config, [instId]: { ...p.config[instId], customSignalColors: { ...(p.config[instId].customSignalColors || {}), [sig]: newColor } } } } : p)); };
   const updatePanelSignalName = (panelId: string, instId: string, sig: string, newName: string) => { markUserEdited(); setPanels(prev => prev.map(p => p.id === panelId ? { ...p, config: { ...p.config, [instId]: { ...p.config[instId], customSignalNames: { ...(p.config[instId].customSignalNames || {}), [sig]: newName } } } } : p)); };
 
-  const resizeState = useRef<{ panelId: string, startX: number, startY: number, startW: number, startH: number } | null>(null);
-  const startResize = (e: React.MouseEvent, panel: PanelDef) => {
-      e.stopPropagation(); e.preventDefault();
-      resizeState.current = { panelId: panel.id, startX: e.clientX, startY: e.clientY, startW: panel.w, startH: panel.h };
-      document.addEventListener('mousemove', onResizeMove);
-      document.addEventListener('mouseup', onResizeEnd);
-  };
-  const onResizeMove = (e: MouseEvent) => {
-      if (!resizeState.current) return;
-      const { panelId, startX, startY, startW, startH } = resizeState.current;
-      const newW = Math.max(2, Math.min(12, startW + Math.round((e.clientX - startX) / 50))); 
-      const newH = Math.max(4, Math.min(20, startH + Math.round((e.clientY - startY) / 50))); 
-      markUserEdited();
-      setPanels(prev => prev.map(p => p.id === panelId ? { ...p, w: newW, h: newH } : p));
-  };
-  const onResizeEnd = () => {
-      resizeState.current = null;
-      document.removeEventListener('mousemove', onResizeMove);
-      document.removeEventListener('mouseup', onResizeEnd);
-  };
-
   const toggleSettings = (panelId: string) => setPanels(prev => prev.map(p => p.id === panelId ? { ...p, isSettingsOpen: !p.isSettingsOpen } : { ...p, isSettingsOpen: false }));
   const toggleInstanceVisibility = (panelId: string, instId: string) => { markUserEdited(); setPanels(prev => prev.map(p => p.id === panelId ? { ...p, config: { ...p.config, [instId]: { ...p.config[instId], visible: !p.config[instId].visible } } } : p)); };
   const updateInstanceSignals = (panelId: string, instId: string, signal: string) => {
@@ -612,27 +605,6 @@ function Workbench() {
   };
   const toggleGuides = (panelId: string) => { markUserEdited(); setPanels(prev => prev.map(p => p.id === panelId ? { ...p, showGuides: !p.showGuides } : p)); };
   const updateTimeWindow = (panelId: string, val: number) => { markUserEdited(); setPanels(prev => prev.map(p => p.id === panelId ? { ...p, timeWindow: val } : p)); };
-
-  const dragItemRef = useRef<number | null>(null);
-  const dragOverItemRef = useRef<number | null>(null);
-  const onDragStart = (e: React.DragEvent, index: number) => { dragItemRef.current = index; e.dataTransfer.effectAllowed = "move"; };
-  const onDragEnter = (e: React.DragEvent, index: number) => { dragOverItemRef.current = index; };
-  const onDragEnd = () => {
-    const srcIdx = dragItemRef.current, dstIdx = dragOverItemRef.current;
-    if (srcIdx !== null && dstIdx !== null && srcIdx !== dstIdx) {
-       markUserEdited();
-       setPanels(prev => { const next = [...prev]; next.splice(dstIdx, 0, next.splice(srcIdx, 1)[0]); return next; });
-    }
-    dragItemRef.current = dragOverItemRef.current = null;
-  };
-
-  const fromParam = searchParams.get('from');
-  const headerMode: WorkbenchHeaderMode = authoringMode ? 'author' : searchParams.get('case') ? 'learner' : 'sandbox';
-  const backTarget = fromParam === 'cases'
-    ? { href: '/cases', label: 'Cases' }
-    : fromParam === 'lesson'
-      ? { href: '/', label: 'Home' }
-      : { href: '/', label: 'Home' };
 
   const updateSceneMeta = (next: WorkbenchSceneMeta) => {
     setSceneMeta(next);
@@ -690,6 +662,13 @@ function Workbench() {
         stepsDraft={stepsDraft}
         setStepsDraft={setStepsDraft}
         panels={panels}
+        onPanelsChange={(nextPanels) => {
+          markUserEdited();
+          setPanels(nextPanels);
+        }}
+        mode={headerMode}
+        layoutEditable={layoutEditable}
+        setLayoutEditable={setIsLayoutEditing}
         isMobile={isMobile}
         noteModes={noteModes}
         setNoteModes={setNoteModes}
@@ -715,15 +694,11 @@ function Workbench() {
         updatePanelInstanceName={updatePanelInstanceName}
         updatePanelSignalColor={updatePanelSignalColor}
         updatePanelSignalName={updatePanelSignalName}
-        startResize={startResize}
         toggleSettings={toggleSettings}
         toggleInstanceVisibility={toggleInstanceVisibility}
         updateInstanceSignals={updateInstanceSignals}
         toggleGuides={toggleGuides}
         updateTimeWindow={updateTimeWindow}
-        onDragStart={onDragStart}
-        onDragEnter={onDragEnter}
-        onDragEnd={onDragEnd}
         noteCaseKey={noteCaseKey}
         notes={notes}
         onNoteChange={(panelId, blocks) => {

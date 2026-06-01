@@ -20,6 +20,7 @@
     "lucide-react": "^1.17.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
+    "react-grid-layout": "^2.2.3",
     "react-katex": "^3.1.0",
     "react-router-dom": "^7.16.0",
     "recharts": "^3.6.0"
