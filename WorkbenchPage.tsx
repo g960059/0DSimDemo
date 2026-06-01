@@ -40,9 +40,19 @@ const DEFAULT_MODEL_LIMITATIONS = [
   '0D lumped-parameter closed-loop model — no regional wall motion or spatial flow.',
   'Active-stress single-fibre ventricles; parameters are not yet calibrated (M12).',
 ];
+const LOCAL_COPY_AUTHOR = 'Local copy';
+const OFFICIAL_CASE_AUTHORS = new Set(['HemoSim', 'HemoSim 0D']);
 const EMPTY_NOTE_SPINE: NoteContent = [
   { type: 'paragraph', content: [{ type: 'text', text: '', styles: {} }] },
 ];
+
+function resolveHeaderModeFromAuthor(author?: string): WorkbenchHeaderMode {
+  const normalized = author?.trim();
+  if (!normalized) return 'sandbox';
+  if (normalized === LOCAL_COPY_AUTHOR) return 'author';
+  if (OFFICIAL_CASE_AUTHORS.has(normalized)) return 'learner';
+  return 'learner';
+}
 
 function textFromNoteBlock(block: unknown): string {
   if (!block || typeof block !== 'object') return '';
@@ -114,8 +124,9 @@ function Workbench() {
   const [lessonDraftId, setLessonDraftId] = useState<string | null>(null);
   const [publishedLesson, setPublishedLesson] = useState<{ id: string; title: string; url: string } | null>(null);
   const [isPublishingLesson, setIsPublishingLesson] = useState(false);
+  const [caseAuthor, setCaseAuthor] = useState<string | undefined>(undefined);
   const fromParam = searchParams.get('from');
-  const headerMode: WorkbenchHeaderMode = authoringMode ? 'author' : searchParams.get('case') ? 'learner' : 'sandbox';
+  const headerMode = resolveHeaderModeFromAuthor(caseAuthor);
   const layoutEditable = !isMobile && headerMode !== 'learner' && isLayoutEditing;
   const backTarget = fromParam === 'cases'
     ? { href: '/cases', label: 'Cases' }
@@ -214,6 +225,7 @@ function Workbench() {
   const buildCurrentDoc = (overrides: {
     id?: string;
     title?: string;
+    author?: string;
     createdAt?: number;
     updatedAt?: number;
     includeNotes?: boolean;
@@ -224,6 +236,7 @@ function Workbench() {
     return simInstancesToCaseDocument(instances, panels, {
       id: overrides.id ?? `wb-${now}`,
       title,
+      author: overrides.author ?? caseAuthor,
       createdAt: overrides.createdAt ?? now,
       updatedAt: overrides.updatedAt ?? now,
       spec: {
@@ -252,6 +265,7 @@ function Workbench() {
         description: doc.spec.description ?? '',
         modelLimitations: doc.spec.modelLimitations.length > 0 ? doc.spec.modelLimitations : DEFAULT_MODEL_LIMITATIONS,
       });
+      setCaseAuthor(doc.meta.author);
       setNotes(doc.notes ?? {});
       setNoteModes({});
       setNoteCaseKey(`${doc.meta.id}:${nonce}`);
@@ -306,6 +320,7 @@ function Workbench() {
     const forkDoc = buildCurrentDoc({
       id: `fork-${now}`,
       title: forkTitle,
+      author: LOCAL_COPY_AUTHOR,
       createdAt: now,
       updatedAt: now,
     });
@@ -314,7 +329,7 @@ function Workbench() {
       meta: {
         ...forkDoc.meta,
         title: forkTitle,
-        author: 'Local copy',
+        author: LOCAL_COPY_AUTHOR,
         createdAt: now,
         updatedAt: now,
       },
@@ -331,6 +346,7 @@ function Workbench() {
       description: forkDescription,
       modelLimitations: ownedCopy.spec.modelLimitations,
     });
+    setCaseAuthor(LOCAL_COPY_AUTHOR);
     setAuthoringMode(true);
     setSavedLesson(null);
     setPublishedLesson(null);
@@ -619,6 +635,12 @@ function Workbench() {
     saveCurrentDraft();
   };
 
+  const setWorkbenchAuthoringMode: React.Dispatch<React.SetStateAction<boolean>> = (next) => {
+    const resolved = typeof next === 'function' ? next(authoringMode) : next;
+    if (resolved) setCaseAuthor(LOCAL_COPY_AUTHOR);
+    setAuthoringMode(resolved);
+  };
+
   return (
     <div className="flex flex-col h-full w-full bg-slate-950 text-slate-200 overflow-hidden font-sans relative">
       <WorkbenchHeader
@@ -636,7 +658,7 @@ function Workbench() {
         onImportFile={handleImportFile}
         onExport={handleExport}
         authoringMode={authoringMode}
-        setAuthoringMode={setAuthoringMode}
+        setAuthoringMode={setWorkbenchAuthoringMode}
         stepsDraftLength={stepsDraft.length}
         openLessonDialog={openLessonDialog}
         onExitAuthoring={() => { setIsLessonDialogOpen(false); setAuthoringMode(false); }}

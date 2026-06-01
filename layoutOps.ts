@@ -1,8 +1,6 @@
 import type { PanelDef, PanelInstanceConfig } from "./types";
-import { flowPack } from "./layoutPresets";
+import { flowPack, GRID_COLUMNS } from "./layoutPresets";
 import { roleOf } from "./paneRole";
-
-const GRID_COLUMNS = 12;
 
 function cloneConfig(config: Record<string, PanelInstanceConfig>): Record<string, PanelInstanceConfig> {
   return Object.fromEntries(
