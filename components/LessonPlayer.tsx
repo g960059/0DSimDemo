@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { caseDocumentToSimInstances } from "../caseDoc";
-import { lessonById, resolveLessonCase } from "../lessonDoc";
+import { lessonById, resolveLessonCase, type Lesson } from "../lessonDoc";
+import { fetchPublishedLesson } from "../lessonCloud";
 import { NotePanel } from "./NotePanel";
 import { ExposedKnobs } from "./ExposedKnobs";
 import { MetricsPanel, PVLoopPanel, WaveformPanel } from "./Charts";
@@ -40,14 +41,60 @@ const safeConvert = (caseDoc: NonNullable<ReturnType<typeof resolveLessonCase>>)
   }
 };
 
+const LessonNotFound = () => (
+  <div className="h-full w-full bg-slate-950 text-slate-200 flex items-center justify-center p-6">
+    <div className="max-w-md text-center">
+      <h1 className="text-2xl font-bold mb-3">Lesson not found</h1>
+      <p className="text-sm text-slate-400 mb-5">This lesson is not available in the current learning path.</p>
+      <Link to="/" className="inline-flex px-4 py-2 rounded bg-slate-800 hover:bg-slate-700 text-sm font-bold">
+        Back to Home
+      </Link>
+    </div>
+  </div>
+);
+
+const LessonLoading = () => (
+  <div className="h-full w-full bg-slate-950 text-slate-200 flex items-center justify-center p-6">
+    <div className="text-sm font-bold text-slate-400">Loading lesson...</div>
+  </div>
+);
+
+type CloudResolveState =
+  | { status: "idle" | "loading" | "notfound" }
+  | { status: "ready"; lesson: Lesson };
+
 export const LessonPlayer = () => {
   const { id } = useParams();
-  return <LessonPlayerBody key={id ?? "missing"} lessonId={id} />;
+  const localLesson = useMemo(() => (id ? lessonById(id) : undefined), [id]);
+  const [cloudState, setCloudState] = useState<CloudResolveState>({ status: "idle" });
+
+  useEffect(() => {
+    if (!id || localLesson) {
+      setCloudState({ status: "idle" });
+      return;
+    }
+
+    let ignore = false;
+    setCloudState({ status: "loading" });
+    fetchPublishedLesson(id).then((lesson) => {
+      if (ignore) return;
+      setCloudState(lesson ? { status: "ready", lesson } : { status: "notfound" });
+    });
+
+    return () => {
+      ignore = true;
+    };
+  }, [id, localLesson]);
+
+  if (!id) return <LessonNotFound />;
+  if (localLesson) return <LessonPlayerBody key={localLesson.meta.id} lesson={localLesson} />;
+  if (cloudState.status === "loading" || cloudState.status === "idle") return <LessonLoading />;
+  if (cloudState.status === "ready") return <LessonPlayerBody key={cloudState.lesson.meta.id} lesson={cloudState.lesson} />;
+  return <LessonNotFound />;
 };
 
-const LessonPlayerBody: React.FC<{ lessonId?: string }> = ({ lessonId }) => {
-  const lesson = lessonId ? lessonById(lessonId) : undefined;
-  const caseDoc = lesson ? resolveLessonCase(lesson) : undefined;
+const LessonPlayerBody: React.FC<{ lesson: Lesson }> = ({ lesson }) => {
+  const caseDoc = resolveLessonCase(lesson);
   const steps = lesson?.steps ?? [];
   const [controller] = useState(() => new PreviewController());
   const [baseInstances] = useState(() => caseDoc ? safeConvert(caseDoc) : []);
@@ -122,17 +169,7 @@ const LessonPlayerBody: React.FC<{ lessonId?: string }> = ({ lessonId }) => {
   };
 
   if (!lesson || !caseDoc || baseInstances.length === 0) {
-    return (
-      <div className="h-full w-full bg-slate-950 text-slate-200 flex items-center justify-center p-6">
-        <div className="max-w-md text-center">
-          <h1 className="text-2xl font-bold mb-3">Lesson not found</h1>
-          <p className="text-sm text-slate-400 mb-5">This lesson is not available in the current learning path.</p>
-          <Link to="/" className="inline-flex px-4 py-2 rounded bg-slate-800 hover:bg-slate-700 text-sm font-bold">
-            Back to learning path
-          </Link>
-        </div>
-      </div>
-    );
+    return <LessonNotFound />;
   }
 
   return (
