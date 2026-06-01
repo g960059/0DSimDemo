@@ -37,11 +37,15 @@ export interface PanelInstanceConfig {
 }
 
 export type PanelType = 'PVLOOP' | 'WAVEFORM' | 'METRICS' | 'GUYTON_RIGHT' | 'GUYTON_LEFT' | 'GUYTON_3D' | 'CONTROLS' | 'NOTE';
+export type PanelRole = 'graph' | 'output' | 'control' | 'note';
 
 export interface PanelDef {
     id: string;
     type: PanelType;
     title: string;
+    role?: PanelRole;
+    x?: number;
+    y?: number;
     w: number;
     h: number;
     config: Record<string, PanelInstanceConfig>; // keyed by instance id
