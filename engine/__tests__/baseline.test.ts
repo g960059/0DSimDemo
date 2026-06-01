@@ -73,13 +73,30 @@ describe("baseline freeze (active-stress default)", () => {
     expect(beat.length).toBeGreaterThan(80);
     expect(countSelfIntersections(beat.map((s) => ({ x: s.VLA, y: s.LAP })))).toBeGreaterThanOrEqual(1);
 
-    const peaks = positiveMvPeaks(beat);
+    const peaks = positiveValvePeaks(beat, "QMV");
     expect(peaks.length).toBeGreaterThanOrEqual(2);
     expect(peaks[0].value).toBeGreaterThan(100);
     expect(peaks[1].value).toBeGreaterThan(80);
     expect(peaks[1].value / peaks[0].value).toBeGreaterThan(0.35);
     // no gross mitral regurgitation: only the brief transient closure backflow.
     expect(Math.min(...beat.map((s) => s.QMV))).toBeGreaterThan(-60);
+  });
+
+  it("shows a figure-eight RA PV loop, biphasic TV inflow, and minimal PV regurgitation", () => {
+    const beat = lastCompleteBeat(samples);
+    expect(beat.length).toBeGreaterThan(80);
+    expect(countSelfIntersections(beat.map((s) => ({ x: s.VRA, y: s.RAP })))).toBeGreaterThanOrEqual(1);
+
+    const peaks = positiveValvePeaks(beat, "QTV");
+    expect(peaks.length).toBeGreaterThanOrEqual(2);
+    expect(peaks[0].value).toBeGreaterThan(100);
+    expect(peaks[1].value).toBeGreaterThan(80);
+    expect(peaks[1].value / peaks[0].value).toBeGreaterThan(0.35);
+
+    const pvForward = integrateFlow(beat, "QPV", (q) => Math.max(0, q));
+    const pvReverse = integrateFlow(beat, "QPV", (q) => Math.max(0, -q));
+    expect(pvForward).toBeGreaterThan(40);
+    expect(pvReverse / pvForward).toBeLessThan(0.02);
   });
 
   it("matches the frozen baseline summary", () => {
@@ -102,12 +119,12 @@ function lastCompleteBeat(samples: SimSample[]): SimSample[] {
   return samples.filter((sample) => Math.floor(sample.phi) === beat);
 }
 
-function positiveMvPeaks(samples: SimSample[]): Array<{ theta: number; value: number }> {
+function positiveValvePeaks(samples: SimSample[], key: "QMV" | "QTV"): Array<{ theta: number; value: number }> {
   const peaks: Array<{ theta: number; value: number }> = [];
   for (let i = 1; i < samples.length - 1; i++) {
-    const prev = samples[i - 1].QMV;
-    const cur = samples[i].QMV;
-    const next = samples[i + 1].QMV;
+    const prev = samples[i - 1][key];
+    const cur = samples[i][key];
+    const next = samples[i + 1][key];
     if (cur <= 5 || cur < prev || cur <= next) continue;
     const theta = phaseOf(samples[i]);
     const last = peaks.at(-1);
@@ -119,6 +136,15 @@ function positiveMvPeaks(samples: SimSample[]): Array<{ theta: number; value: nu
     }
   }
   return peaks.sort((a, b) => b.value - a.value);
+}
+
+function integrateFlow(samples: SimSample[], key: "QPV", transform: (q: number) => number): number {
+  let area = 0;
+  for (let i = 1; i < samples.length; i++) {
+    const dt = samples[i].t - samples[i - 1].t;
+    area += 0.5 * dt * (transform(samples[i - 1][key]) + transform(samples[i][key]));
+  }
+  return area;
 }
 
 function countSelfIntersections(points: Array<{ x: number; y: number }>): number {

@@ -363,9 +363,17 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                             case 'QAo': val = d.QAo; break;
                             case 'QMV': val = d.QMV; break;
                             case 'QPA': val = d.QPA; break;
+                            case 'QPV': val = d.QPV; break;
                             case 'QTV': val = d.QTV; break;
                             case 'PVF': val = d.PVF; break;
                             case 'SVF': val = d.SVF; break;
+                            case 'VRA': val = d.VRA; break;
+                            case 'aRA': val = d.aRA; break;
+                            case 'cRA': val = d.cRA; break;
+                            case 'xiTV': val = d.xiTV; break;
+                            case 'xiPV': val = d.xiPV; break;
+                            case 'dP_TV': val = d.dP_TV; break;
+                            case 'dP_PV': val = d.dP_PV; break;
                         }
                         if (val > frameYMax) frameYMax = val;
                         if (val < frameYMin) frameYMin = val;
@@ -437,9 +445,17 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                             case 'QAo': val = d.QAo; break;
                             case 'QMV': val = d.QMV; break;
                             case 'QPA': val = d.QPA; break;
+                            case 'QPV': val = d.QPV; break;
                             case 'QTV': val = d.QTV; break;
                             case 'PVF': val = d.PVF; break;
                             case 'SVF': val = d.SVF; break;
+                            case 'VRA': val = d.VRA; break;
+                            case 'aRA': val = d.aRA; break;
+                            case 'cRA': val = d.cRA; break;
+                            case 'xiTV': val = d.xiTV; break;
+                            case 'xiPV': val = d.xiPV; break;
+                            case 'dP_TV': val = d.dP_TV; break;
+                            case 'dP_PV': val = d.dP_PV; break;
                         }
 
                         const modT = d.t % timeSec;

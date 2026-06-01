@@ -217,7 +217,7 @@ export function defaultParams(): CoreRuntimeParams {
     // AoV
     AoV_Amax: 3.5, AoV_Aleak: 1e-4, AoV_kOpen: 2.0, AoV_tauOpen: 0.010, AoV_tauClose: 0.030, AoV_R: 0.005, AoV_L: 0.001,
     // TV
-    TV_Amax: 8.0, TV_Aleak: 1e-4, TV_kOpen: 2.0, TV_tauOpen: 0.012, TV_tauClose: 0.025, TV_R: 0.002, TV_L: 0.0002,
+    TV_Amax: 8.0, TV_Aleak: 1e-4, TV_kOpen: 2.0, TV_tauOpen: 0.018, TV_tauClose: 0.030, TV_R: 0.0035, TV_L: 0.0008, TV_B: 1e-5,
     // PV
     PV_Amax: 4.0, PV_Aleak: 1e-4, PV_kOpen: 2.0, PV_tauOpen: 0.010, PV_tauClose: 0.020, PV_R: 0.005, PV_L: 0.001
   };
@@ -250,7 +250,7 @@ function buildEdges(): EdgeSpec[] {
   return [
     { name: "MV", up: "LA", down: "LV", kind: "valve", R: 0.002, L: 0.0002, B: 1e-4, Amax: 1, Aleak: 1e-5, kOpen: 2.0, tauOpen: 0.012, tauClose: 0.025, q0, xi0: 0.2 },
     { name: "AoV", up: "LV", down: "Ao", kind: "valve", R: 0.005, L: 0.002, B: 1e-5, Amax: 1, Aleak: 1e-5, kOpen: 2.0, tauOpen: 0.010, tauClose: 0.030, q0, xi0: 0.2 },
-    { name: "TV", up: "RA", down: "RV", kind: "valve", R: 0.002, L: 0.0002, B: 0, Amax: 1, Aleak: 1e-5, kOpen: 2.0, tauOpen: 0.012, tauClose: 0.025, q0, xi0: 0.2 },
+    { name: "TV", up: "RA", down: "RV", kind: "valve", R: 0.0035, L: 0.0008, B: 1e-5, Amax: 1, Aleak: 1e-5, kOpen: 2.0, tauOpen: 0.018, tauClose: 0.030, q0, xi0: 0.2 },
     { name: "PV", up: "RV", down: "PA", kind: "valve", R: 0.005, L: 0.001, B: 1e-5, Amax: 1, Aleak: 1e-5, kOpen: 2.0, tauOpen: 0.010, tauClose: 0.020, q0, xi0: 0.2 },
 
     { name: "Ao_SA", up: "Ao", down: "SA", kind: "dynamic", R: 0.05, L: 0.002, B: 0, group: "systemic", q0 },
@@ -503,18 +503,26 @@ export class ModelCore {
     const flows = this.computeFlows(this.x, pack);
     const laReservoir = this.laReservoirDebugFields(this.x, pack.Vphys[this.nodeIndex.get("LA")!]);
     const pvOstial = this.pvOstialDebugFields(this.x, pack, flows);
+    const laInternal = this.activeInternalIndex("LA");
+    const raInternal = this.activeInternalIndex("RA");
+    const tvFlow = flows[this.edgeIndex("TV")];
+    const pvFlow = flows[this.edgeIndex("PV")];
+    const rap = pack.P[this.nodeIndex.get("RA")!];
+    const rvp = pack.P[this.nodeIndex.get("RV")!];
+    const pap = pack.P[this.nodeIndex.get("PA")!];
     const s: SimSample = {
       t: this.t,
       AoP: pack.P[this.nodeIndex.get("Ao")!],
-      PAP: pack.P[this.nodeIndex.get("PA")!],
+      PAP: pap,
       LAP: pack.P[this.nodeIndex.get("LA")!],
-      RAP: pack.P[this.nodeIndex.get("RA")!],
+      RAP: rap,
       LVP: pack.P[this.nodeIndex.get("LV")!],
-      RVP: pack.P[this.nodeIndex.get("RV")!],
+      RVP: rvp,
       QAo: flows[this.edgeIndex("AoV")],
-      QPA: flows[this.edgeIndex("PV")],
+      QPA: pvFlow,
+      QPV: pvFlow,
       QMV: flows[this.edgeIndex("MV")],
-      QTV: flows[this.edgeIndex("TV")],
+      QTV: tvFlow,
       PVF: flows[this.edgeIndex("PVein_LA")],
       SVF: flows[this.edgeIndex("VC_RA")],
       QCapSV: flows[this.edgeIndex("Cap_SV")],
@@ -529,10 +537,15 @@ export class ModelCore {
       phi: this.x[this.idx.phi],
       aLV: clamp(this.x[this.activeInternalIndex("LV").a], 0, 1),
       aRV: clamp(this.x[this.activeInternalIndex("RV").a], 0, 1),
-      aLA: clamp(this.x[this.activeInternalIndex("LA").a], 0, 1),
-      aRA: clamp(this.x[this.activeInternalIndex("RA").a], 0, 1),
-      rLA: clamp(this.x[this.activeInternalIndex("LA").r], 0, Math.max(this.activeModel("LA").ap.reservoirStrokeMl ?? 0, 0)),
-      rRA: clamp(this.x[this.activeInternalIndex("RA").r], 0, Math.max(this.activeModel("RA").ap.reservoirStrokeMl ?? 0, 0)),
+      aLA: clamp(this.x[laInternal.a], 0, 1),
+      aRA: clamp(this.x[raInternal.a], 0, 1),
+      cRA: Math.max(this.x[raInternal.c], 0),
+      rLA: clamp(this.x[laInternal.r], 0, Math.max(this.activeModel("LA").ap.reservoirStrokeMl ?? 0, 0)),
+      rRA: clamp(this.x[raInternal.r], 0, Math.max(this.activeModel("RA").ap.reservoirStrokeMl ?? 0, 0)),
+      xiTV: clamp(this.x[this.idx.xi.TV], 0, 1),
+      xiPV: clamp(this.x[this.idx.xi.PV], 0, 1),
+      dP_TV: rap - rvp,
+      dP_PV: rvp - pap,
       ...pvOstial,
       ...laReservoir,
       TBV: this.totalBloodVolume(pack)
@@ -969,9 +982,18 @@ export class ModelCore {
   /** Evaluation context handed to a ChamberModel for the given chamber. */
   private chamberCtx(chamber: Chamber, x: Float64Array): ChamberCtx {
     const isRV = chamber === "RV";
+    const side: "left" | "right" = chamber === "RA" || chamber === "RV" ? "right" : "left";
     const lvVolume = x[this.idx.node.LV];
     const lvEd = 115;
     const lvEs = 45;
+    const rvVolume = x[this.idx.node.RV];
+    const rvEd = 135;
+    const rvEs = 55;
+    const pairedVentricleVolume = side === "right" ? rvVolume : lvVolume;
+    const pairedEd = side === "right" ? rvEd : lvEd;
+    const pairedEs = side === "right" ? rvEs : lvEs;
+    const inletValve = side === "right" ? "TV" : "MV";
+    const outletValve = side === "right" ? "PV" : "AoV";
     return {
       HR: this.p.HR,
       contractility: this.p.contractility,
@@ -980,6 +1002,11 @@ export class ModelCore {
       tmaxScale: chamber === "LV" ? this.p.lvTmaxScale : isRV ? this.p.rvTmaxScale : 1,
       geomScale: chamber === "LV" ? this.p.lvGeomScale : isRV ? this.p.rvGeomScale : 1,
       caReleaseScale: chamber === "LV" ? this.p.caReleaseScale : isRV ? this.p.rvCaReleaseScale : 1,
+      pairedVentricleVolumeMl: pairedVentricleVolume,
+      pairedVentricleShortening01: clamp((pairedEd - pairedVentricleVolume) / Math.max(pairedEd - pairedEs, 1e-6), 0, 1),
+      inletValveOpen01: clamp(x[this.idx.xi[inletValve]], 0, 1),
+      outletValveOpen01: clamp(x[this.idx.xi[outletValve]], 0, 1),
+      side,
       lvVolumeMl: lvVolume,
       lvShortening01: clamp((lvEd - lvVolume) / Math.max(lvEd - lvEs, 1e-6), 0, 1),
       mvOpen01: clamp(x[this.idx.xi.MV], 0, 1),
@@ -1357,6 +1384,8 @@ export class ModelCore {
     }
     const Pmsf = compliance > 1e-9 ? stressed / compliance : 0;
     const RAP = pack.P[this.nodeIndex.get("RA")!];
+    const RVP = pack.P[this.nodeIndex.get("RV")!];
+    const PAP = pack.P[this.nodeIndex.get("PA")!];
     const P_VC = pack.P[this.nodeIndex.get("VC")!];
     const P_PVein = pack.P[this.nodeIndex.get("PVein")!];
     const actualTBV = this.totalBloodVolume(pack);
@@ -1381,7 +1410,13 @@ export class ModelCore {
       Pth: this.Pth(),
       Palv: this.Palv(),
       Q_VC_RA: flows[this.edgeIndex("VC_RA")],
+      Q_TV: flows[this.edgeIndex("TV")],
+      Q_PV: flows[this.edgeIndex("PV")],
       Q_PCap_PVen: flows[this.edgeIndex("PCap_PVen")],
+      xiTV: clamp(this.x[this.idx.xi.TV], 0, 1),
+      xiPV: clamp(this.x[this.idx.xi.PV], 0, 1),
+      dP_TV: RAP - RVP,
+      dP_PV: RVP - PAP,
       P_SV: pack.P[this.nodeIndex.get("SV")!],
       P_VC,
       P_PVen: pack.P[this.nodeIndex.get("PVen")!],
