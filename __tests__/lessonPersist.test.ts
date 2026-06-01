@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { caseDocumentToSimInstances, simInstancesToCaseDocument } from "@/caseDoc";
-import { LESSONS, lessonById, resolveLessonCase, type Lesson } from "@/lessonDoc";
+import { LESSONS, lessonById, resolveLessonCase, type Lesson, type StageManifest } from "@/lessonDoc";
 import { createUserLessonId, getUserLesson, listUserLessons, saveLesson, USER_LESSONS_KEY } from "@/lessonPersist";
 import { officialCaseById } from "@/officialCases";
 import type { NoteContent } from "@/noteTypes";
@@ -8,6 +8,13 @@ import type { NoteContent } from "@/noteTypes";
 const NOTE: NoteContent = [
   { type: "paragraph", content: [{ type: "text", text: "Authored lesson note.", styles: {} }] },
 ];
+
+const stageManifestRejectsBooleanKnob: StageManifest = {
+  visibleInstances: ["1"],
+  // @ts-expect-error baroreflexEnabled is boolean-only and cannot be exposed as a numeric lesson knob.
+  exposedKnobs: ["baroreflexEnabled"],
+};
+void stageManifestRejectsBooleanKnob;
 
 function installLocalStorageShim(opts: { failSetItem?: boolean } = {}) {
   const data = new Map<string, string>();
@@ -48,6 +55,64 @@ describe("lesson persistence and resolution", () => {
     expect(listUserLessons()).toHaveLength(1);
     expect(resolveLessonCase(lesson)?.meta.id).toBe("normal-sinus");
     expect(caseDocumentToSimInstances(resolveLessonCase(lesson)!).length).toBeGreaterThan(0);
+  });
+
+  it("round-trips valid exposed knob stage fields through localStorage", () => {
+    const lesson: Lesson = {
+      ...embeddedLesson("user-exposed-knobs"),
+      steps: [{
+        id: "step-knobs",
+        note: NOTE,
+        stage: {
+          visibleInstances: ["1"],
+          exposedKnobs: ["contractility", "HR", "peep"],
+          knobInstanceId: "1",
+          initialState: { contractility: 1.2, HR: 90 },
+        },
+      }],
+    };
+
+    expect(saveLesson(lesson)).toBe(true);
+    expect(getUserLesson(lesson.meta.id)?.steps?.[0].stage).toEqual(lesson.steps?.[0].stage);
+  });
+
+  it("drops only malformed exposed knob fields while preserving otherwise valid steps", () => {
+    localStorage.setItem(USER_LESSONS_KEY, `{
+      "version": 1,
+      "lessons": [{
+        "meta": { "id": "user-bad-knobs", "title": "Bad knobs" },
+        "caseId": "normal-sinus",
+        "noteSpine": ${JSON.stringify(NOTE)},
+        "steps": [
+          { "id": "too-many", "note": ${JSON.stringify(NOTE)}, "stage": { "visibleInstances": ["1"], "exposedKnobs": ["contractility", "HR", "peep", "afterload"] } },
+          { "id": "duplicate", "note": ${JSON.stringify(NOTE)}, "stage": { "visibleInstances": ["1"], "exposedKnobs": ["contractility", "contractility"] } },
+          { "id": "unknown-key", "note": ${JSON.stringify(NOTE)}, "stage": { "visibleInstances": ["1"], "exposedKnobs": ["contractility", "unknown"] } },
+          { "id": "boolean-key", "note": ${JSON.stringify(NOTE)}, "stage": { "visibleInstances": ["1"], "exposedKnobs": ["baroreflexEnabled"] } },
+          { "id": "bad-target", "note": ${JSON.stringify(NOTE)}, "stage": { "visibleInstances": ["1"], "exposedKnobs": ["contractility"], "knobInstanceId": "2" } },
+          { "id": "partial-initial", "note": ${JSON.stringify(NOTE)}, "stage": { "visibleInstances": ["1"], "initialState": { "contractility": 1e999, "HR": 88, "baroreflexEnabled": true, "unknown": 1 } } },
+          { "id": "all-bad-initial", "note": ${JSON.stringify(NOTE)}, "stage": { "visibleInstances": ["1"], "initialState": { "contractility": "high" } } }
+        ]
+      }]
+    }`);
+
+    const lesson = getUserLesson("user-bad-knobs")!;
+    expect(lesson.steps?.map((step) => step.id)).toEqual([
+      "too-many",
+      "duplicate",
+      "unknown-key",
+      "boolean-key",
+      "bad-target",
+      "partial-initial",
+      "all-bad-initial",
+    ]);
+    expect(lesson.steps?.[0].stage.exposedKnobs).toBeUndefined();
+    expect(lesson.steps?.[1].stage.exposedKnobs).toBeUndefined();
+    expect(lesson.steps?.[2].stage.exposedKnobs).toBeUndefined();
+    expect(lesson.steps?.[3].stage.exposedKnobs).toBeUndefined();
+    expect(lesson.steps?.[4].stage.exposedKnobs).toEqual(["contractility"]);
+    expect(lesson.steps?.[4].stage.knobInstanceId).toBeUndefined();
+    expect(lesson.steps?.[5].stage.initialState).toEqual({ HR: 88 });
+    expect(lesson.steps?.[6].stage.initialState).toBeUndefined();
   });
 
   it("resolves embedded and official caseId lessons, and leaves invalid or non-displayable embedded cases unresolved", () => {

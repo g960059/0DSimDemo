@@ -97,6 +97,29 @@ export class PreviewController {
     if (added.length > 0) this.onInstancesAdded?.(added);
   }
 
+  /**
+   * Reset selected existing instances to a clean, settled operating point.
+   * Used at lesson step boundaries after params change; ordinary live knob
+   * edits still merge smoothly through setImmediateParameters in tick().
+   */
+  resetInstances(ids: string[]) {
+    if (ids.length === 0) return;
+    const targets = new Set(ids);
+    for (const inst of this.instances) {
+      if (!targets.has(inst.id)) continue;
+      const current = this.refs.get(inst.id);
+      if (!current) continue;
+      const core = new ModelCore(inst.params);
+      core.initializeVenousPressuresForTargetTBV(inst.targetVolume);
+      core.settleToSteady(PREVIEW_SETTLE_POLICY, this.dt, this.sampleHz);
+      core.clearBeatTracking();
+      this.refs.set(inst.id, { core, buffer: [], lastRenderX: 0 });
+      delete this.prevStatus[inst.id];
+    }
+    this.healthSig = "";
+    this.lastFrameTime = 0;
+  }
+
   setInstanceVolume(id: string, vol: number) {
     this.refs.get(id)?.core.initializeVenousPressuresForTargetTBV(vol);
   }
