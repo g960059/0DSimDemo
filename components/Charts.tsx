@@ -391,6 +391,17 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                             case 'xiPV': val = d.xiPV; break;
                             case 'dP_TV': val = d.dP_TV; break;
                             case 'dP_PV': val = d.dP_PV; break;
+                            case 'Pperi': val = d.Pperi; break;
+                            case 'Ppc': val = d.Ppc; break;
+                            case 'VHeart': val = d.VHeart; break;
+                            case 'septumShiftMl': val = d.septumShiftMl; break;
+                            case 'VLVeff': val = d.VLVeff; break;
+                            case 'VRVeff': val = d.VRVeff; break;
+                            case 'PLVfw': val = d.PLVfw; break;
+                            case 'PRVfw': val = d.PRVfw; break;
+                            case 'PVI_LV': val = d.PVI_LV; break;
+                            case 'PVI_RV': val = d.PVI_RV; break;
+                            case 'septalForceMmHg': val = d.septalForceMmHg; break;
                         }
                         if (val > frameYMax) frameYMax = val;
                         if (val < frameYMin) frameYMin = val;
@@ -473,6 +484,17 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                             case 'xiPV': val = d.xiPV; break;
                             case 'dP_TV': val = d.dP_TV; break;
                             case 'dP_PV': val = d.dP_PV; break;
+                            case 'Pperi': val = d.Pperi; break;
+                            case 'Ppc': val = d.Ppc; break;
+                            case 'VHeart': val = d.VHeart; break;
+                            case 'septumShiftMl': val = d.septumShiftMl; break;
+                            case 'VLVeff': val = d.VLVeff; break;
+                            case 'VRVeff': val = d.VRVeff; break;
+                            case 'PLVfw': val = d.PLVfw; break;
+                            case 'PRVfw': val = d.PRVfw; break;
+                            case 'PVI_LV': val = d.PVI_LV; break;
+                            case 'PVI_RV': val = d.PVI_RV; break;
+                            case 'septalForceMmHg': val = d.septalForceMmHg; break;
                         }
 
                         const modT = d.t % timeSec;

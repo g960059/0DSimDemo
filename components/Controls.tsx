@@ -245,6 +245,22 @@ export const Controls: React.FC<ControlsProps> = ({
                       <Slider label="RV Tmax Scale (Force)" value={rawView.rvTmaxScale} min={0.05} max={3.0} step={0.05} onChange={(v) => update('rvTmaxScale', v)} unit="x" />
                       <Slider label="RV Ca²⁺ Release Scale" value={rawView.rvCaReleaseScale} min={0.25} max={8} step={0.1} onChange={(v) => update('rvCaReleaseScale', v)} unit="x" />
                       <Slider label="RV Geometry Scale" value={rawView.rvGeomScale} min={0.5} max={3.0} step={0.1} onChange={(v) => update('rvGeomScale', v)} unit="x" />
+
+                      <span className="text-xs font-bold text-slate-300 block mt-4 mb-1">Pericardium & Septum</span>
+                      <div className="flex items-center gap-2 mt-2 mb-2 text-xs">
+                         <input type="checkbox" checked={rawView.pericardiumEnabled} onChange={(e) => update('pericardiumEnabled', e.target.checked)} />
+                         <span className="text-slate-300">Pericardial constraint enabled</span>
+                      </div>
+                      <Slider label="Pericardial Constraint" value={rawView.pericardialPressureScaleMmHg} min={0} max={12} step={0.25} onChange={(v) => update('pericardialPressureScaleMmHg', v)} unit="mmHg" />
+                      <Slider label="Pericardial Effusion" value={rawView.pericardialFluidMl} min={0} max={500} step={10} onChange={(v) => update('pericardialFluidMl', v)} unit="mL" />
+                      <Slider label="Pericardial Slack Volume" value={rawView.pericardialSlackVolumeMl} min={220} max={600} step={10} onChange={(v) => update('pericardialSlackVolumeMl', v)} unit="mL" />
+                      <div className="flex items-center gap-2 mt-3 mb-2 text-xs">
+                         <input type="checkbox" checked={rawView.septalCouplingEnabled} onChange={(e) => update('septalCouplingEnabled', e.target.checked)} />
+                         <span className="text-slate-300">Septal volume-shift enabled</span>
+                      </div>
+                      <Slider label="Septal Stiffness" value={rawView.septalStiffnessScale} min={0.25} max={3.0} step={0.05} onChange={(v) => update('septalStiffnessScale', v)} unit="x" />
+                      <Slider label="Septal Max Shift" value={rawView.septalMaxShiftMl} min={0} max={50} step={1} onChange={(v) => update('septalMaxShiftMl', v)} unit="mL" />
+                      <Slider label="Septal LV Force Weight" value={rawView.septalLvPressureWeight} min={0} max={1} step={0.02} onChange={(v) => update('septalLvPressureWeight', v)} />
                   </div>
               )}
             </>

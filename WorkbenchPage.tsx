@@ -29,6 +29,8 @@ const ALL_SIGNALS: SignalType[] = [
   'LVP', 'AoP', 'LAP', 'RVP', 'PAP', 'RAP',
   'QAo', 'QMV', 'QPA', 'QPV', 'QTV', 'PVF', 'SVF',
   'VRA', 'aRA', 'cRA', 'xiTV', 'xiPV', 'dP_TV', 'dP_PV',
+  'Pperi', 'Ppc', 'VHeart', 'septumShiftMl', 'VLVeff', 'VRVeff',
+  'PLVfw', 'PRVfw', 'PVI_LV', 'PVI_RV', 'septalForceMmHg',
 ];
 const ALL_METRICS: MetricType[] = ['ABP', 'CVP', 'PAP', 'PCWP', 'SV', 'CO', 'LVEF'];
 const ALL_CONTROL_GROUPS: string[] = ['clinical', 'Global', 'ventricles', 'atria', 'vascular', 'fluids', 'valves', 'resp', 'advanced'];
@@ -124,11 +126,10 @@ function Workbench() {
       },
       {
           id: 'p4', type: 'CONTROLS', title: 'Controls', w: 4, h: 4,
-          // Show only Global Physiology by default. Ventricular Mechanics (which
-          // holds the active-stress/elastance model toggle and advanced fibre
-          // params) is opt-in via the panel settings, to avoid overwhelming
-          // beginners. Default model stays active-stress.
-          config: { '1': { visible: true, selectedSignals: ['clinical', 'Global', 'fluids'] } },
+          // Keep ventricular mechanics visible as a collapsed group so the
+          // pericardium/septum controls are discoverable without opening panel
+          // settings. Default model stays active-stress.
+          config: { '1': { visible: true, selectedSignals: ['clinical', 'Global', 'ventricles', 'fluids'] } },
           isSettingsOpen: false
       },
       {
@@ -166,7 +167,7 @@ function Workbench() {
           if (p.type === 'PVLOOP') defaultSigs = ['LV'];
           else if (p.type === 'WAVEFORM') defaultSigs = ['LVP', 'AoP'];
           else if (p.type === 'METRICS') defaultSigs = ['ABP', 'CO'];
-          else if (p.type === 'CONTROLS') defaultSigs = ['clinical', 'Global', 'fluids'];
+          else if (p.type === 'CONTROLS') defaultSigs = ['clinical', 'Global', 'ventricles', 'fluids'];
           else if (p.type === 'GUYTON_RIGHT' || p.type === 'GUYTON_LEFT' || p.type === 'GUYTON_3D') defaultSigs = ['Default'];
           newConfig[id] = { visible: true, selectedSignals: defaultSigs };
           changed = true;
@@ -436,7 +437,7 @@ function Workbench() {
           if (p.type === 'PVLOOP') defaultSigs = ['LV'];
           else if (p.type === 'WAVEFORM') defaultSigs = ['LVP', 'AoP'];
           else if (p.type === 'METRICS') defaultSigs = ['ABP', 'CO'];
-          else if (p.type === 'CONTROLS') defaultSigs = ['clinical', 'Global', 'fluids'];
+          else if (p.type === 'CONTROLS') defaultSigs = ['clinical', 'Global', 'ventricles', 'fluids'];
           else if (p.type === 'GUYTON_RIGHT' || p.type === 'GUYTON_LEFT' || p.type === 'GUYTON_3D') defaultSigs = ['Default'];
           
           return {
@@ -475,7 +476,7 @@ function Workbench() {
           if (type === 'PVLOOP') defaultSigs = ['LV'];
           else if (type === 'WAVEFORM') defaultSigs = ['LVP', 'AoP'];
           else if (type === 'METRICS') defaultSigs = ['ABP', 'CO'];
-          else if (type === 'CONTROLS') defaultSigs = ['clinical', 'Global', 'fluids'];
+          else if (type === 'CONTROLS') defaultSigs = ['clinical', 'Global', 'ventricles', 'fluids'];
           else if (type === 'GUYTON_RIGHT' || type === 'GUYTON_LEFT' || type === 'GUYTON_3D') defaultSigs = ['Default'];
           newConfig[i.id] = { visible: true, selectedSignals: defaultSigs };
       });

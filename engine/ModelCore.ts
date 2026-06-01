@@ -30,6 +30,16 @@ import {
   type SettleStatus,
   type SignalKey,
 } from "@/engine/settling";
+import {
+  pericardialPressure,
+  type PericardiumParams,
+} from "@/engine/mechanics/pericardium";
+import {
+  clampSeptalShift,
+  septalForce,
+  septalShiftDerivative,
+  type SeptumParams,
+} from "@/engine/mechanics/septum";
 
 /** Mutable per-beat accumulator (reduced into a BeatSummary at the beat boundary). */
 type BeatAccum = {
@@ -109,6 +119,19 @@ type PressurePack = {
   P: Float64Array;
   Ptm: Float64Array;
   Vphys: Float64Array;
+  Pperi: number;
+  Ppc: number;
+  VHeart: number;
+  septumShiftMl: number;
+  VLVeff: number;
+  VRVeff: number;
+  PLVfw: number;
+  PRVfw: number;
+  PLVfwRaw: number;
+  PRVfwRaw: number;
+  PVI_LV: number;
+  PVI_RV: number;
+  septalForceMmHg: number;
 };
 
 
@@ -133,6 +156,7 @@ type StateIndex = {
   q: Record<DynamicEdgeName, number>;
   xi: Record<ValveName, number>;
   phi: number;
+  septumShift: number;
   activeInternal: Partial<Record<Chamber, { c: number; a: number; r: number }>>;
   size: number;
 };
@@ -157,6 +181,7 @@ function makeIndex(): StateIndex {
   const xi = {} as Record<ValveName, number>;
   for (const v of valveNames) xi[v] = i++;
   const phi = i++;
+  const septumShift = i++;
   const activeInternal: Partial<Record<Chamber, { c: number; a: number; r: number }>> = {};
   for (const ch of activeChambersFromNodes(buildNodes())) {
     activeInternal[ch] = { c: i++, a: i++, r: i++ };
@@ -166,6 +191,7 @@ function makeIndex(): StateIndex {
     q,
     xi,
     phi,
+    septumShift,
     activeInternal,
     size: i
   };
@@ -211,6 +237,24 @@ export function defaultParams(): CoreRuntimeParams {
     rvGeomScale: 1,
     caReleaseScale: 1,
     rvCaReleaseScale: 1,
+    // Pericardial pressure and septal volume-shift coupling. The baseline is
+    // deliberately light-touch (Ppc ~0 at average resting heart volume) so the
+    // calibrated normal physiology remains stable, while effusion/constraint and
+    // RV pressure overload have a real mechanical pathway.
+    pericardiumEnabled: true,
+    pericardialPressureScaleMmHg: 1.0,
+    pericardialSlackVolumeMl: 340,
+    pericardialVolumeScaleMl: 45,
+    pericardialSoftnessMl: 8,
+    pericardialBiasMmHg: 0,
+    pericardialFluidMl: 0,
+    septalCouplingEnabled: true,
+    septalStiffnessScale: 1,
+    septalK1MmHgPerMl: 1.4,
+    septalK3MmHgPerMl3: 0.006,
+    septalDampingMmHgSecPerMl: 4.0,
+    septalMaxShiftMl: 25,
+    septalLvPressureWeight: 0.28,
     // Valve Defaults
     // MV
     MV_Amax: 5.0, MV_Aleak: 1e-4, MV_kOpen: 2.0, MV_tauOpen: 0.020, MV_tauClose: 0.035, MV_R: 0.004, MV_L: 0.0008, MV_B: 1e-4,
@@ -351,6 +395,7 @@ export class ModelCore {
       }
     }
     this.x[this.idx.phi] = 0;
+    this.x[this.idx.septumShift] = 0;
     for (const n of this.activeChamberNodes()) {
       const ch = n.chamber!;
       const internalIndex = this.activeInternalIndex(ch);
@@ -548,6 +593,17 @@ export class ModelCore {
       dP_PV: rvp - pap,
       ...pvOstial,
       ...laReservoir,
+      Pperi: pack.Pperi,
+      Ppc: pack.Ppc,
+      VHeart: pack.VHeart,
+      septumShiftMl: pack.septumShiftMl,
+      VLVeff: pack.VLVeff,
+      VRVeff: pack.VRVeff,
+      PLVfw: pack.PLVfw,
+      PRVfw: pack.PRVfw,
+      PVI_LV: pack.PVI_LV,
+      PVI_RV: pack.PVI_RV,
+      septalForceMmHg: pack.septalForceMmHg,
       TBV: this.totalBloodVolume(pack)
     };
     this.trackBeat(s);
@@ -900,11 +956,25 @@ export class ModelCore {
       const internalIndex = this.activeInternalIndex(ch);
       const nodeIndex = this.idx.node[n.name as NodeName];
       const internal = { c: x[internalIndex.c], a: x[internalIndex.a], r: x[internalIndex.r] };
-      const dInternal = this.activeModel(ch).internalDerivatives(x[nodeIndex], internal, this.chamberCtx(ch, x));
+      const chamberVolume = ch === "LV"
+        ? pack.VLVeff
+        : ch === "RV"
+          ? pack.VRVeff
+          : x[nodeIndex];
+      const dInternal = this.activeModel(ch).internalDerivatives(chamberVolume, internal, this.chamberCtx(ch, x));
       dy[internalIndex.c] = dInternal.cDot;
       dy[internalIndex.a] = dInternal.aDot;
       dy[internalIndex.r] = dInternal.rDot;
     }
+
+    const shiftState = x[this.idx.septumShift];
+    dy[this.idx.septumShift] = clamp(septalShiftDerivative({
+      VLV: pack.Vphys[this.nodeIndex.get("LV")!],
+      VRV: pack.Vphys[this.nodeIndex.get("RV")!],
+      shiftMl: this.p.septalCouplingEnabled ? pack.septumShiftMl : shiftState,
+      PLVfw: pack.PLVfw,
+      PRVfw: pack.PRVfw,
+    }, this.septumParams()), -400, 400);
 
     return dy;
   }
@@ -913,7 +983,41 @@ export class ModelCore {
     const P = new Float64Array(nodeNames.length);
     const Ptm = new Float64Array(nodeNames.length);
     const Vphys = new Float64Array(nodeNames.length);
-    const Pperi = this.Pth();
+    for (let i = 0; i < this.nodes.length; i++) {
+      const n = this.nodes[i];
+      const xi = this.idx.node[n.name as NodeName];
+      Vphys[i] = n.kind === "venousPressure" ? x[xi] : clamp(x[xi], 1, 1000);
+    }
+
+    const lvNode = this.nodes[this.nodeIndex.get("LV")!];
+    const rvNode = this.nodes[this.nodeIndex.get("RV")!];
+    const VLV = Vphys[this.nodeIndex.get("LV")!];
+    const VRV = Vphys[this.nodeIndex.get("RV")!];
+    const VLA = Vphys[this.nodeIndex.get("LA")!];
+    const VRA = Vphys[this.nodeIndex.get("RA")!];
+    const peri = pericardialPressure({
+      VLV,
+      VRV,
+      VLA,
+      VRA,
+      Pth: this.Pth(),
+    }, this.pericardiumParams());
+    const sepParams = this.septumParams();
+    const septumShiftMl = sepParams.enabled
+      ? clampSeptalShift(x[this.idx.septumShift], {
+        VLV,
+        VRV,
+        V0LV: lvNode.V0 ?? 0,
+        V0RV: rvNode.V0 ?? 0,
+      }, sepParams)
+      : 0;
+    const VLVeff = VLV + septumShiftMl;
+    const VRVeff = VRV - septumShiftMl;
+    const PLVfwRaw = this.heartTransmuralPressure(lvNode, VLV, x);
+    const PRVfwRaw = this.heartTransmuralPressure(rvNode, VRV, x);
+    const PLVfw = this.heartTransmuralPressure(lvNode, VLVeff, x);
+    const PRVfw = this.heartTransmuralPressure(rvNode, VRVeff, x);
+    const septalForceMmHg = septalForce({ VLV, VRV, shiftMl: septumShiftMl, PLVfw, PRVfw }, sepParams);
 
     for (let i = 0; i < this.nodes.length; i++) {
       const n = this.nodes[i];
@@ -929,8 +1033,7 @@ export class ModelCore {
         continue;
       }
 
-      const V = clamp(x[xi], 1, 1000);
-      Vphys[i] = V;
+      const V = Vphys[i];
       if (n.kind === "arterial") {
         const VsEff = Math.max((n.Vs ?? 100) / Math.max(this.p.arterialStiffness, 0.25), 1);
         const s = clamp((V - this.effectiveVu(n)) / VsEff, -30, 5);
@@ -941,23 +1044,65 @@ export class ModelCore {
         const ptm = (V - this.effectiveVu(n)) / Math.max(n.C ?? 1, 1e-6);
         Ptm[i] = ptm;
         P[i] = Pext + ptm;
-      } else if (n.kind === "heartElastance" || (n.kind === "heartActive" && this.p.heartModel === "elastance")) {
-        if (!n.chamber) throw new Error(`Missing chamber for heart node ${n.name}`);
-        const ctx = this.chamberCtx(n.chamber, x);
-        const ptm = this.elastanceModels.get(n.name)!.pressure(V, { c: 0, a: 0, r: 0 }, ctx);
+      } else if (n.kind === "heartElastance" || n.kind === "heartActive") {
+        const ptm = n.chamber === "LV" ? PLVfw : n.chamber === "RV" ? PRVfw : this.heartTransmuralPressure(n, V, x);
         Ptm[i] = ptm;
-        P[i] = Pperi + ptm;
-      } else if (n.kind === "heartActive") {
-        if (!n.chamber) throw new Error(`Missing chamber for active heart node ${n.name}`);
-        const ch = n.chamber;
-        const internalIndex = this.activeInternalIndex(ch);
-        const internal = { c: x[internalIndex.c], a: x[internalIndex.a], r: x[internalIndex.r] };
-        const ptm = this.activeModel(ch).pressure(V, internal, this.chamberCtx(ch, x));
-        Ptm[i] = ptm;
-        P[i] = Pperi + ptm;
+        P[i] = peri.Pperi + ptm;
       }
     }
-    return { P, Ptm, Vphys };
+    return {
+      P,
+      Ptm,
+      Vphys,
+      Pperi: peri.Pperi,
+      Ppc: peri.Ppc,
+      VHeart: peri.Vheart,
+      septumShiftMl,
+      VLVeff,
+      VRVeff,
+      PLVfw,
+      PRVfw,
+      PLVfwRaw,
+      PRVfwRaw,
+      PVI_LV: PLVfw - PLVfwRaw,
+      PVI_RV: PRVfw - PRVfwRaw,
+      septalForceMmHg,
+    };
+  }
+
+  private pericardiumParams(): PericardiumParams {
+    return {
+      enabled: this.p.pericardiumEnabled,
+      pressureScaleMmHg: this.p.pericardialPressureScaleMmHg,
+      slackVolumeMl: this.p.pericardialSlackVolumeMl,
+      volumeScaleMl: this.p.pericardialVolumeScaleMl,
+      softnessMl: this.p.pericardialSoftnessMl,
+      biasMmHg: this.p.pericardialBiasMmHg,
+      fluidMl: this.p.pericardialFluidMl,
+    };
+  }
+
+  private septumParams(): SeptumParams {
+    return {
+      enabled: this.p.septalCouplingEnabled,
+      stiffnessScale: this.p.septalStiffnessScale,
+      k1MmHgPerMl: this.p.septalK1MmHgPerMl,
+      k3MmHgPerMl3: this.p.septalK3MmHgPerMl3,
+      dampingMmHgSecPerMl: this.p.septalDampingMmHgSecPerMl,
+      maxShiftMl: this.p.septalMaxShiftMl,
+      lvPressureWeight: this.p.septalLvPressureWeight,
+    };
+  }
+
+  private heartTransmuralPressure(n: NodeSpec, volumeMl: number, x: Float64Array): number {
+    if (!n.chamber) throw new Error(`Missing chamber for heart node ${n.name}`);
+    if (n.kind === "heartElastance" || (n.kind === "heartActive" && this.p.heartModel === "elastance")) {
+      return this.elastanceModels.get(n.name)!.pressure(volumeMl, { c: 0, a: 0, r: 0 }, this.chamberCtx(n.chamber, x));
+    }
+    if (n.kind !== "heartActive") throw new Error(`Node ${n.name} is not a heart chamber`);
+    const internalIndex = this.activeInternalIndex(n.chamber);
+    const internal = { c: x[internalIndex.c], a: x[internalIndex.a], r: x[internalIndex.r] };
+    return this.activeModel(n.chamber).pressure(volumeMl, internal, this.chamberCtx(n.chamber, x));
   }
 
   private computeFlows(x: Float64Array, pack: PressurePack): Float64Array {
@@ -1218,7 +1363,12 @@ export class ModelCore {
       "HR", "contractility", "relaxation", "systemicResistance", "pulmonaryResistance",
       "venousTone", "arterialStiffness", "PEEP", "Pth0", "respAmpTh", "respAmpAlv",
       "speed", "lvTmaxScale", "rvTmaxScale",
-      "lvGeomScale", "rvGeomScale", "caReleaseScale", "rvCaReleaseScale"
+      "lvGeomScale", "rvGeomScale", "caReleaseScale", "rvCaReleaseScale",
+      "pericardialPressureScaleMmHg", "pericardialSlackVolumeMl",
+      "pericardialVolumeScaleMl", "pericardialSoftnessMl",
+      "pericardialBiasMmHg", "pericardialFluidMl",
+      "septalStiffnessScale", "septalK1MmHgPerMl", "septalK3MmHgPerMl3",
+      "septalDampingMmHgSecPerMl", "septalMaxShiftMl", "septalLvPressureWeight",
     ];
     for (const k of nums) {
       const current = this.p[k];
@@ -1229,6 +1379,8 @@ export class ModelCore {
     }
     this.p.heartModel = this.pTarget.heartModel;
     this.p.useChiResistance = this.pTarget.useChiResistance;
+    this.p.pericardiumEnabled = this.pTarget.pericardiumEnabled;
+    this.p.septalCouplingEnabled = this.pTarget.septalCouplingEnabled;
     // Rates are not smoothed but must be copied from the target so the
     // setTargetParameters() API path works, not just setImmediateParameters().
     this.p.bleedRate = this.pTarget.bleedRate;
@@ -1263,6 +1415,12 @@ export class ModelCore {
     for (const e of dynamicEdgeNames) x[this.idx.q[e]] = clamp(x[this.idx.q[e]], -1200, 1200);
     for (const v of valveNames) x[this.idx.xi[v]] = clamp(x[this.idx.xi[v]], 0, 1);
     x[this.idx.phi] = x[this.idx.phi] > 1e6 ? frac(x[this.idx.phi]) : x[this.idx.phi];
+    x[this.idx.septumShift] = clampSeptalShift(x[this.idx.septumShift], {
+      VLV: clamp(x[this.idx.node.LV], 1, 1000),
+      VRV: clamp(x[this.idx.node.RV], 1, 1000),
+      V0LV: this.nodes[this.nodeIndex.get("LV")!].V0 ?? 0,
+      V0RV: this.nodes[this.nodeIndex.get("RV")!].V0 ?? 0,
+    }, this.septumParams());
     for (const active of Object.values(this.idx.activeInternal)) {
       if (!active) continue;
       x[active.c] = clamp(x[active.c], 0, 5);
@@ -1421,6 +1579,17 @@ export class ModelCore {
       P_VC,
       P_PVen: pack.P[this.nodeIndex.get("PVen")!],
       P_PVein,
+      Pperi: pack.Pperi,
+      Ppc: pack.Ppc,
+      VHeart: pack.VHeart,
+      septumShiftMl: pack.septumShiftMl,
+      VLVeff: pack.VLVeff,
+      VRVeff: pack.VRVeff,
+      PLVfw: pack.PLVfw,
+      PRVfw: pack.PRVfw,
+      PVI_LV: pack.PVI_LV,
+      PVI_RV: pack.PVI_RV,
+      septalForceMmHg: pack.septalForceMmHg,
       ...pvOstial,
       ...laReservoir,
     };

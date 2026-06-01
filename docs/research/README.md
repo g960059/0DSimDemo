@@ -30,6 +30,7 @@ fit against. Start here to trace any parameter's validity to its canonical doc +
 | Valves (areas; AS/MR/AR/TR EROA) | parameter-survey §E · [valve-lesions.md](./valve-lesions.md) |
 | Global scalings + TBV distribution | parameter-survey §F |
 | Respiratory + PEEP unit bug | parameter-survey §G |
+| Pericardial pressure + septal volume-shift coupling | [pericardium-septal-coupling.md](./pericardium-septal-coupling.md) |
 | Current branch physiology audit (LA/RA AV-plane, RV/RA, valves, PEEP, numerics) | [2026-06-01-physiology-validation-audit.md](./2026-06-01-physiology-validation-audit.md) |
 | Waveform morphology (AoP/LVP/PV-loop/E-A/PVF) | [waveform-morphology.lit.md](./waveform-morphology.lit.md) (physiology) · [waveform-morphology.codex.md](./waveform-morphology.codex.md) (measured) |
 | **M12-lite calibration (as-built)** | m12-lite-calibration-journal.md |
@@ -55,6 +56,7 @@ fit against. Start here to trace any parameter's validity to its canonical doc +
 7. **m12-la-preload-impl-plan.md** — claude2's in-code implementation plan for the atrial migration. *Active.*
 8. Case docs: **baseline-and-normal / valve-lesions / lv-failure-dobutamine / hypovolemia** — per-case validity. *Active (numbers refresh pending Phase-2).*
 9. **2026-06-01-physiology-validation-audit.md** — current-branch multi-review audit after LA/RA AV-plane work; includes measured values, derivations, and priority fixes. *Active current audit.*
+10. **pericardium-septal-coupling.md** — nonlinear pericardial pressure plus septal volume-shift implementation; documents equations, parameters, gates, and TriSeg limitations. *Active.*
 
 **Archived (git history):** `m12-lite-plan.md` — the pre-execution M12-lite plan; **deleted** as
 completed/superseded by m12-lite-calibration-journal.md (the as-built record). Recover via git if needed.
