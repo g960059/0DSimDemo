@@ -1,10 +1,9 @@
 {
-  "projectId": "gen-lang-client-0830082865",
-  "appId": "1:667302729407:web:4f5a6da8b3921e01dad80a",
-  "apiKey": "AIzaSyDEfbroovQYWDQYkzYyWjMPPqB_7iDTrkE",
-  "authDomain": "gen-lang-client-0830082865.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-41074922-2433-4524-be1c-269f2ca3c595",
-  "storageBucket": "gen-lang-client-0830082865.firebasestorage.app",
-  "messagingSenderId": "667302729407",
-  "measurementId": ""
+  "projectId": "hemodynamics-studio",
+  "appId": "1:133725579707:web:e73b01886e263e3a497c9e",
+  "apiKey": "AIzaSyANyNqi2b3dDxa7Q_PmBNOl32E_rLdPMB0",
+  "authDomain": "hemodynamics-studio.firebaseapp.com",
+  "storageBucket": "hemodynamics-studio.firebasestorage.app",
+  "messagingSenderId": "133725579707",
+  "measurementId": "G-WE641N5HLC"
 }
