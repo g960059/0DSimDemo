@@ -12,10 +12,10 @@ import { runScenario } from "@/engine/harness";
  */
 
 const VALVE_KEYS: (keyof CoreRuntimeParams)[] = [
-  "MV_Amax", "MV_Aleak", "MV_kOpen", "MV_tauOpen", "MV_tauClose", "MV_R", "MV_L",
-  "AoV_Amax", "AoV_Aleak", "AoV_kOpen", "AoV_tauOpen", "AoV_tauClose", "AoV_R", "AoV_L",
-  "TV_Amax", "TV_Aleak", "TV_kOpen", "TV_tauOpen", "TV_tauClose", "TV_R", "TV_L",
-  "PV_Amax", "PV_Aleak", "PV_kOpen", "PV_tauOpen", "PV_tauClose", "PV_R", "PV_L",
+  "MV_Amax", "MV_Aleak", "MV_kOpen", "MV_tauOpen", "MV_tauClose", "MV_R", "MV_L", "MV_B",
+  "AoV_Amax", "AoV_Aleak", "AoV_kOpen", "AoV_tauOpen", "AoV_tauClose", "AoV_R", "AoV_L", "AoV_B",
+  "TV_Amax", "TV_Aleak", "TV_kOpen", "TV_tauOpen", "TV_tauClose", "TV_R", "TV_L", "TV_B",
+  "PV_Amax", "PV_Aleak", "PV_kOpen", "PV_tauOpen", "PV_tauClose", "PV_R", "PV_L", "PV_B",
 ];
 
 describe("sanitizeParams (engine contract boundary)", () => {
@@ -106,6 +106,7 @@ describe("sanitizeParams (engine contract boundary)", () => {
       systemicResistance: NaN,  // non-finite -> neutral 1.25
       AoV_Amax: -3,             // valve area must be >= 0
       AoV_tauClose: 0,          // tau must be >= 1e-4 (no divide-by-zero)
+      MV_B: -1,                 // quadratic loss must be >= 0
     };
     const clean = sanitizeParams(bad as CoreRuntimeParams);
     expect(clean.HR).toBe(180);
@@ -113,6 +114,7 @@ describe("sanitizeParams (engine contract boundary)", () => {
     expect(clean.systemicResistance).toBe(NEUTRAL_PARAMS.systemicResistance);
     expect(clean.AoV_Amax).toBe(0);
     expect(clean.AoV_tauClose).toBe(1e-4);
+    expect(clean.MV_B).toBe(0);
   });
 });
 
