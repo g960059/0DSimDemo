@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { recordValveExtremes, runScenario, summarize } from "@/engine/harness";
 import { DEFAULT_PARAMS } from "@/constants";
+import type { SimSample } from "@/engine/protocol";
 
 /**
  * S0 — Baseline freeze (M0).
@@ -62,6 +63,25 @@ describe("baseline freeze (active-stress default)", () => {
     expect(metrics.PAPMean).toBeLessThan(35);
   });
 
+  it("shows a figure-eight LA PV loop and biphasic MV inflow", () => {
+    // SHAPE gate (primary): the LA reservoir reconstruction must yield a
+    // clinical figure-8 PV loop (reservoir V-loop + booster A-loop, >=1 self
+    // crossing) and a biphasic mitral inflow (E and A waves, no fused single
+    // peak), matching Sci Rep 2024 (s41598-024-52327-6) Fig.11. Guards against
+    // regressing back to the artificial reservoir-branch loop / 3-peak MVF.
+    const beat = lastCompleteBeat(samples);
+    expect(beat.length).toBeGreaterThan(80);
+    expect(countSelfIntersections(beat.map((s) => ({ x: s.VLA, y: s.LAP })))).toBeGreaterThanOrEqual(1);
+
+    const peaks = positiveMvPeaks(beat);
+    expect(peaks.length).toBeGreaterThanOrEqual(2);
+    expect(peaks[0].value).toBeGreaterThan(100);
+    expect(peaks[1].value).toBeGreaterThan(80);
+    expect(peaks[1].value / peaks[0].value).toBeGreaterThan(0.35);
+    // no gross mitral regurgitation: only the brief transient closure backflow.
+    expect(Math.min(...beat.map((s) => s.QMV))).toBeGreaterThan(-60);
+  });
+
   it("matches the frozen baseline summary", () => {
     const summary = summarize(result);
     // Visible in CI logs for quick inspection of any drift.
@@ -70,3 +90,64 @@ describe("baseline freeze (active-stress default)", () => {
     expect(summary).toMatchSnapshot();
   });
 });
+
+function phaseOf(sample: SimSample): number {
+  return sample.phi - Math.floor(sample.phi);
+}
+
+function lastCompleteBeat(samples: SimSample[]): SimSample[] {
+  const last = samples.at(-1);
+  if (!last) return [];
+  const beat = Math.floor(last.phi) - 1;
+  return samples.filter((sample) => Math.floor(sample.phi) === beat);
+}
+
+function positiveMvPeaks(samples: SimSample[]): Array<{ theta: number; value: number }> {
+  const peaks: Array<{ theta: number; value: number }> = [];
+  for (let i = 1; i < samples.length - 1; i++) {
+    const prev = samples[i - 1].QMV;
+    const cur = samples[i].QMV;
+    const next = samples[i + 1].QMV;
+    if (cur <= 5 || cur < prev || cur <= next) continue;
+    const theta = phaseOf(samples[i]);
+    const last = peaks.at(-1);
+    if (!last || Math.abs(theta - last.theta) > 0.07) {
+      peaks.push({ theta, value: cur });
+    } else if (cur > last.value) {
+      last.theta = theta;
+      last.value = cur;
+    }
+  }
+  return peaks.sort((a, b) => b.value - a.value);
+}
+
+function countSelfIntersections(points: Array<{ x: number; y: number }>): number {
+  let count = 0;
+  for (let i = 0; i < points.length - 1; i++) {
+    for (let j = i + 2; j < points.length - 1; j++) {
+      if (i === 0 && j === points.length - 2) continue;
+      if (segmentsIntersect(
+        points[i].x, points[i].y,
+        points[i + 1].x, points[i + 1].y,
+        points[j].x, points[j].y,
+        points[j + 1].x, points[j + 1].y,
+      )) count++;
+    }
+  }
+  return count;
+}
+
+function segmentsIntersect(
+  ax: number, ay: number, bx: number, by: number,
+  cx: number, cy: number, dx: number, dy: number,
+): boolean {
+  const o1 = orient(ax, ay, bx, by, cx, cy);
+  const o2 = orient(ax, ay, bx, by, dx, dy);
+  const o3 = orient(cx, cy, dx, dy, ax, ay);
+  const o4 = orient(cx, cy, dx, dy, bx, by);
+  return o1 * o2 < 0 && o3 * o4 < 0;
+}
+
+function orient(ax: number, ay: number, bx: number, by: number, cx: number, cy: number): number {
+  return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+}
