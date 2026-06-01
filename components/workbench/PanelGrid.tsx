@@ -1,10 +1,11 @@
-import React, { Suspense, lazy, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Controls } from '../Controls';
 import { PVLoopPanel, WaveformPanel, MetricsPanel, GuytonPanel } from '../Charts';
 import { LessonAuthoring } from '../LessonAuthoring';
 import { NotePanel } from '../NotePanel';
 import { ErrorBoundary } from '../ErrorBoundary';
 import WorkbenchMobile from './WorkbenchMobile';
+import PanelGridEditor from './PanelGridEditor';
 import { type ClinicalKnobs } from '../../engine/knobs';
 import { SimulationHealth } from '../../engine/protocol';
 import {
@@ -23,8 +24,6 @@ import type { NoteContent } from '../../noteTypes';
 import { flowPack, LAYOUT_PRESETS, type LayoutPresetName } from '../../layoutPresets';
 import { movePane, resizePane } from '../../layoutOps';
 import { roleOf } from '../../paneRole';
-
-const PanelGridEditor = lazy(() => import('./PanelGridEditor'));
 
 const EDITOR_ROW_HEIGHT = 50;
 
@@ -502,14 +501,12 @@ export function PanelGrid({
           </div>
         )}
         {layoutEditable && canEditLayout ? (
-          <Suspense fallback={<div className="mt-2 rounded border border-slate-800 bg-slate-900 p-4 text-sm text-slate-400">Loading layout editor...</div>}>
-            <PanelGridEditor
-              panels={presenterPanels}
-              rowHeight={EDITOR_ROW_HEIGHT}
-              onPanelsChange={onPanelsChange}
-              renderPanel={(panel) => renderPanel(panel, true)}
-            />
-          </Suspense>
+          <PanelGridEditor
+            panels={presenterPanels}
+            rowHeight={EDITOR_ROW_HEIGHT}
+            onPanelsChange={onPanelsChange}
+            renderPanel={(panel) => renderPanel(panel, true)}
+          />
         ) : (
           <div
             className="grid grid-cols-12 gap-2 pb-20 mt-2"
