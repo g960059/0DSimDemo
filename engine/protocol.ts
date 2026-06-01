@@ -36,7 +36,6 @@ export type CoreRuntimeParams = {
   MV_tauClose: number;
   MV_R: number;
   MV_L: number;
-  MV_B: number;
   // AoV
   AoV_Amax: number;
   AoV_Aleak: number;
@@ -45,7 +44,6 @@ export type CoreRuntimeParams = {
   AoV_tauClose: number;
   AoV_R: number;
   AoV_L: number;
-  AoV_B: number;
   // TV
   TV_Amax: number;
   TV_Aleak: number;
@@ -54,7 +52,6 @@ export type CoreRuntimeParams = {
   TV_tauClose: number;
   TV_R: number;
   TV_L: number;
-  TV_B: number;
   // PV
   PV_Amax: number;
   PV_Aleak: number;
@@ -63,7 +60,6 @@ export type CoreRuntimeParams = {
   PV_tauClose: number;
   PV_R: number;
   PV_L: number;
-  PV_B: number;
   // Node overrides allow one level of nesting (the `active` chamber sub-block,
   // e.g. { LV: { active: { bPas: 20 } } }); edges are always flat numeric.
   nodeOverrides?: OverrideBlock;
@@ -165,10 +161,10 @@ export const NEUTRAL_PARAMS: CoreRuntimeParams = {
   heartModel: "activeStress", useChiResistance: false, projectTBV: true,
   lvTmaxScale: 0.85, rvTmaxScale: 1.0, lvGeomScale: 1, rvGeomScale: 1,
   caReleaseScale: 1, rvCaReleaseScale: 1,
-  MV_Amax: 5.0, MV_Aleak: 1e-4, MV_kOpen: 2.0, MV_tauOpen: 0.020, MV_tauClose: 0.012, MV_R: 0.006, MV_L: 0.0002, MV_B: 4e-5,
-  AoV_Amax: 3.5, AoV_Aleak: 1e-4, AoV_kOpen: 2.0, AoV_tauOpen: 0.010, AoV_tauClose: 0.030, AoV_R: 0.005, AoV_L: 0.001, AoV_B: 1e-5,
-  TV_Amax: 8.0, TV_Aleak: 1e-4, TV_kOpen: 2.0, TV_tauOpen: 0.012, TV_tauClose: 0.025, TV_R: 0.002, TV_L: 0.0002, TV_B: 0,
-  PV_Amax: 4.0, PV_Aleak: 1e-4, PV_kOpen: 2.0, PV_tauOpen: 0.010, PV_tauClose: 0.020, PV_R: 0.005, PV_L: 0.001, PV_B: 1e-5,
+  MV_Amax: 5.0, MV_Aleak: 1e-4, MV_kOpen: 2.0, MV_tauOpen: 0.012, MV_tauClose: 0.025, MV_R: 0.002, MV_L: 0.0002,
+  AoV_Amax: 3.5, AoV_Aleak: 1e-4, AoV_kOpen: 2.0, AoV_tauOpen: 0.010, AoV_tauClose: 0.030, AoV_R: 0.005, AoV_L: 0.001,
+  TV_Amax: 8.0, TV_Aleak: 1e-4, TV_kOpen: 2.0, TV_tauOpen: 0.012, TV_tauClose: 0.025, TV_R: 0.002, TV_L: 0.0002,
+  PV_Amax: 4.0, PV_Aleak: 1e-4, PV_kOpen: 2.0, PV_tauOpen: 0.010, PV_tauClose: 0.020, PV_R: 0.005, PV_L: 0.001,
 };
 
 export function sanitizeParams(p: CoreRuntimeParams): CoreRuntimeParams {
@@ -203,7 +199,7 @@ export function sanitizeParams(p: CoreRuntimeParams): CoreRuntimeParams {
     };
     guard("Amax", 0); guard("Aleak", 0); guard("kOpen", 0);
     guard("tauOpen", 1e-4); guard("tauClose", 1e-4);
-    guard("R", 0); guard("L", 0); guard("B", 0);
+    guard("R", 0); guard("L", 0);
   }
 
   // Node/edge overrides — researcher escape hatch, but still the final gate
@@ -294,17 +290,8 @@ export type SimSample = {
   aRV: number;
   aLA: number;
   aRA: number;
-  cLV: number;
-  cRV: number;
-  cLA: number;
-  cRA: number;
   rLA: number;
   rRA: number;
-  xiMV: number;
-  xiAoV: number;
-  xiTV: number;
-  xiPV: number;
-  dP_MV: number;
   qLAReservoirMl?: number;
   VLABodyMl?: number;
   VLAReservoirMl?: number;
@@ -370,11 +357,6 @@ export type SimObservables = {
   Palv: number;
   Q_VC_RA: number;
   Q_PCap_PVen: number;
-  xiMV: number;
-  xiAoV: number;
-  xiTV: number;
-  xiPV: number;
-  dP_MV: number;
   P_SV: number;
   P_VC: number;
   P_PVen: number;
