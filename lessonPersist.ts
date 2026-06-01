@@ -1,5 +1,6 @@
-import type { Lesson } from "@/lessonDoc";
+import type { Lesson, NumericKnobKey } from "@/lessonDoc";
 import { parseCaseDocument } from "@/casePersist";
+import { KNOB_RANGES } from "@/engine/knobs";
 
 export const USER_LESSONS_KEY = "hemosim:user-lessons:v1";
 
@@ -14,6 +15,10 @@ export function createUserLessonId(now = Date.now(), random = Math.random()): st
 
 function storage(): Storage | undefined {
   return typeof localStorage === "undefined" ? undefined : localStorage;
+}
+
+function isNumericKnobKey(value: unknown): value is NumericKnobKey {
+  return typeof value === "string" && Object.prototype.hasOwnProperty.call(KNOB_RANGES, value);
 }
 
 function parseSteps(value: unknown): Lesson["steps"] | undefined {
@@ -34,6 +39,29 @@ function parseSteps(value: unknown): Lesson["steps"] | undefined {
       const validPanels = ["waveform", "pvloop", "metrics"];
       if (!Array.isArray(rawStage.visiblePanels) || !rawStage.visiblePanels.every((panel) => typeof panel === "string" && validPanels.includes(panel))) return [];
       parsedStage.visiblePanels = rawStage.visiblePanels as NonNullable<Lesson["steps"]>[number]["stage"]["visiblePanels"];
+    }
+    if (rawStage.exposedKnobs !== undefined && Array.isArray(rawStage.exposedKnobs)) {
+      const unique = new Set(rawStage.exposedKnobs);
+      if (
+        rawStage.exposedKnobs.length >= 1
+        && rawStage.exposedKnobs.length <= 3
+        && unique.size === rawStage.exposedKnobs.length
+        && rawStage.exposedKnobs.every(isNumericKnobKey)
+      ) {
+        parsedStage.exposedKnobs = rawStage.exposedKnobs;
+      }
+    }
+    if (typeof rawStage.knobInstanceId === "string" && parsedStage.visibleInstances.includes(rawStage.knobInstanceId)) {
+      parsedStage.knobInstanceId = rawStage.knobInstanceId;
+    }
+    if (rawStage.initialState && typeof rawStage.initialState === "object" && !Array.isArray(rawStage.initialState)) {
+      const initialState: Partial<Record<NumericKnobKey, number>> = {};
+      for (const [key, rawValue] of Object.entries(rawStage.initialState as Record<string, unknown>)) {
+        if (isNumericKnobKey(key) && typeof rawValue === "number" && Number.isFinite(rawValue)) {
+          initialState[key] = rawValue;
+        }
+      }
+      if (Object.keys(initialState).length > 0) parsedStage.initialState = initialState;
     }
     if (rawStage.challenge !== undefined) {
       if (!rawStage.challenge || typeof rawStage.challenge !== "object") return [];

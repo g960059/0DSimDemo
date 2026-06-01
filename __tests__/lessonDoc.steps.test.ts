@@ -22,7 +22,10 @@ describe("stepped lesson registry", () => {
 
     expect([...visibleUnion].sort()).toEqual([...resolvedIds].sort());
     expect(predictStep.stage.visibleInstances).toEqual(["1"]);
+    expect(predictStep.stage.exposedKnobs).toEqual(["contractility"]);
+    expect(predictStep.stage.knobInstanceId).toBe("1");
     expect(revealStep.stage.visibleInstances).toEqual(["1", "2"]);
+    expect(revealStep.stage.exposedKnobs).toBeUndefined();
     expect(predictStep.stage.challenge?.kind).toBe("predict");
     expect(predictStep.stage.challenge?.revealLabel).toBeTruthy();
     expect(revealStep.stage.challenge?.kind).not.toBe("predict");

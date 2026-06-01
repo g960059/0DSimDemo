@@ -3,10 +3,12 @@ import { Link, useParams } from "react-router-dom";
 import { caseDocumentToSimInstances } from "../caseDoc";
 import { lessonById, resolveLessonCase } from "../lessonDoc";
 import { NotePanel } from "./NotePanel";
+import { ExposedKnobs } from "./ExposedKnobs";
 import { MetricsPanel, PVLoopPanel, WaveformPanel } from "./Charts";
 import { PreviewController } from "../engine/previewController";
 import type { PanelInstanceConfig, PhysicsRefState } from "../types";
-import type { PanelKey } from "../lessonDoc";
+import type { NumericKnobKey, PanelKey } from "../lessonDoc";
+import { applyExposedKnob, deriveStepInstances, resolveKnobTarget } from "../lessonKnobs";
 
 const configFor = (ids: string[], signals: string[]): Record<string, PanelInstanceConfig> =>
   Object.fromEntries(ids.map((id) => [id, { visible: true, selectedSignals: signals }]));
@@ -30,6 +32,14 @@ const StagePanel: React.FC<{ title: string; children: React.ReactNode; className
   </section>
 );
 
+const safeConvert = (caseDoc: NonNullable<ReturnType<typeof resolveLessonCase>>) => {
+  try {
+    return caseDocumentToSimInstances(caseDoc);
+  } catch {
+    return [];
+  }
+};
+
 export const LessonPlayer = () => {
   const { id } = useParams();
   return <LessonPlayerBody key={id ?? "missing"} lessonId={id} />;
@@ -38,24 +48,17 @@ export const LessonPlayer = () => {
 const LessonPlayerBody: React.FC<{ lessonId?: string }> = ({ lessonId }) => {
   const lesson = lessonId ? lessonById(lessonId) : undefined;
   const caseDoc = lesson ? resolveLessonCase(lesson) : undefined;
+  const steps = lesson?.steps ?? [];
   const [controller] = useState(() => new PreviewController());
+  const [baseInstances] = useState(() => caseDoc ? safeConvert(caseDoc) : []);
+  const [liveInstances, setLiveInstances] = useState(() => deriveStepInstances(baseInstances, steps[0]));
   const [stepIndex, setStepIndex] = useState(0);
   const physicsRefs = useRef<Map<string, PhysicsRefState>>(controller.refs);
 
-  const instances = useMemo(() => {
-    if (!caseDoc) return [];
-    try {
-      return caseDocumentToSimInstances(caseDoc);
-    } catch {
-      return [];
-    }
-  }, [caseDoc]);
-
-  const ids = useMemo(() => instances.map((inst) => inst.id), [instances]);
+  const ids = useMemo(() => baseInstances.map((inst) => inst.id), [baseInstances]);
   const baseWaveformConfig = useMemo(() => configFor(ids, ["LVP", "AoP", "LAP"]), [ids]);
   const basePvConfig = useMemo(() => configFor(ids, ["LV"]), [ids]);
   const baseMetricsConfig = useMemo(() => configFor(ids, ["CO", "ABP", "CVP"]), [ids]);
-  const steps = lesson?.steps ?? [];
   const isStepped = steps.length > 0;
   const currentStep = isStepped ? steps[Math.min(stepIndex, steps.length - 1)] : undefined;
   const visibleIds = useMemo(
@@ -68,18 +71,39 @@ const LessonPlayerBody: React.FC<{ lessonId?: string }> = ({ lessonId }) => {
   const visiblePanels = currentStep?.stage.visiblePanels;
   const showPanel = (panel: PanelKey) => !visiblePanels || visiblePanels.includes(panel);
   const noteContent = currentStep?.note ?? lesson?.noteSpine;
+  const exposedKnobs = currentStep?.stage.exposedKnobs ?? [];
+  const knobTargetId = resolveKnobTarget(currentStep, ids);
+  const knobTargetInstance = knobTargetId ? liveInstances.find((inst) => inst.id === knobTargetId) : undefined;
+  const showExposedControls = exposedKnobs.length > 0 && !!knobTargetInstance;
+  const stageGridRows = showExposedControls
+    ? "lg:grid-rows-[minmax(220px,1fr)_minmax(220px,1fr)_minmax(160px,0.7fr)_minmax(160px,0.65fr)]"
+    : "lg:grid-rows-[minmax(260px,1fr)_minmax(260px,1fr)_minmax(180px,0.7fr)]";
   const nextLabel = currentStep?.stage.challenge?.kind === "predict"
     ? (currentStep.stage.challenge.revealLabel ?? "Reveal")
     : "Next";
 
   useEffect(() => {
-    if (instances.length === 0) return;
-    controller.setInstances(instances);
     controller.start();
     return () => controller.stop();
-  }, [controller, instances]);
+  }, [controller]);
 
-  if (!lesson || !caseDoc || instances.length === 0) {
+  useEffect(() => {
+    if (liveInstances.length) controller.setInstances(liveInstances);
+  }, [controller, liveInstances]);
+
+  useEffect(() => {
+    setLiveInstances(deriveStepInstances(baseInstances, currentStep));
+  }, [baseInstances, currentStep?.id, stepIndex]);
+
+  const setExposedKnob = (key: NumericKnobKey, value: number) => {
+    const targetId = resolveKnobTarget(currentStep, ids);
+    if (!targetId) return;
+    setLiveInstances((current) => current.map((inst) => (
+      inst.id === targetId ? applyExposedKnob(inst, key, value) : inst
+    )));
+  };
+
+  if (!lesson || !caseDoc || baseInstances.length === 0) {
     return (
       <div className="h-full w-full bg-slate-950 text-slate-200 flex items-center justify-center p-6">
         <div className="max-w-md text-center">
@@ -139,20 +163,25 @@ const LessonPlayerBody: React.FC<{ lessonId?: string }> = ({ lessonId }) => {
           )}
         </section>
 
-        <section className="min-h-[760px] lg:min-h-0 grid grid-rows-[minmax(260px,1fr)_minmax(260px,1fr)_minmax(180px,0.7fr)] gap-3">
+        <section className={`min-h-[760px] lg:min-h-0 grid auto-rows-[minmax(180px,auto)] ${stageGridRows} gap-3`}>
           {showPanel("waveform") && (
             <StagePanel title="Waveforms">
-              <WaveformPanel physicsRefs={physicsRefs} instances={instances} timeWindow={5000} config={waveformConfig} />
+              <WaveformPanel physicsRefs={physicsRefs} instances={liveInstances} timeWindow={5000} config={waveformConfig} />
             </StagePanel>
           )}
           {showPanel("pvloop") && (
             <StagePanel title="PV Loop">
-              <PVLoopPanel physicsRefs={physicsRefs} instances={instances} config={pvConfig} showGuides />
+              <PVLoopPanel physicsRefs={physicsRefs} instances={liveInstances} config={pvConfig} showGuides />
             </StagePanel>
           )}
           {showPanel("metrics") && (
             <StagePanel title="Metrics">
-              <MetricsPanel physicsRefs={physicsRefs} instances={instances} config={metricsConfig} />
+              <MetricsPanel physicsRefs={physicsRefs} instances={liveInstances} config={metricsConfig} />
+            </StagePanel>
+          )}
+          {showExposedControls && knobTargetInstance && (
+            <StagePanel title="Controls">
+              <ExposedKnobs instance={knobTargetInstance} keys={exposedKnobs} onChange={setExposedKnob} />
             </StagePanel>
           )}
         </section>

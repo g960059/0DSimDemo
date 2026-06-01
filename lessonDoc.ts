@@ -1,6 +1,7 @@
 import type { NoteContent } from "@/noteTypes";
 import type { CaseDocument } from "@/caseDoc";
 import { caseDocumentToSimInstances, isCaseDisplayable } from "@/caseDoc";
+import type { KnobKey } from "@/engine/knobs";
 import { officialCaseById } from "@/officialCases";
 import { listUserLessons } from "@/lessonPersist";
 
@@ -12,6 +13,7 @@ export type LessonStep = {
 };
 
 export type PanelKey = "waveform" | "pvloop" | "metrics";
+export type NumericKnobKey = Exclude<KnobKey, "baroreflexEnabled">;
 
 export type StageManifest = {
   visibleInstances: string[];
@@ -21,6 +23,9 @@ export type StageManifest = {
     prompt?: string;
     revealLabel?: string;
   };
+  exposedKnobs?: NumericKnobKey[];
+  knobInstanceId?: string;
+  initialState?: Partial<Record<NumericKnobKey, number>>;
 };
 
 export type Lesson = {
@@ -111,6 +116,8 @@ export const LESSONS: Lesson[] = [
         ],
         stage: {
           visibleInstances: ["1"],
+          exposedKnobs: ["contractility"],
+          knobInstanceId: "1",
           challenge: {
             kind: "predict",
             prompt: "Make your prediction before revealing the treated trace.",
