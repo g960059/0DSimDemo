@@ -53,6 +53,7 @@ export type CoreRuntimeParams = {
   TV_tauClose: number;
   TV_R: number;
   TV_L: number;
+  TV_B: number;
   // PV
   PV_Amax: number;
   PV_Aleak: number;
@@ -155,8 +156,8 @@ const VALVE_PREFIXES = ["MV", "AoV", "TV", "PV"] as const;
  */
 export const NEUTRAL_PARAMS: CoreRuntimeParams = {
   HR: 75, contractility: 1.0, relaxation: 1.0,
-  // M12-proper #1 Phase-1: kept in lock-step with defaultParams() (caseContract test).
-  systemicResistance: 1.10, pulmonaryResistance: 1.0, venousTone: 0.65,
+  // Kept in lock-step with defaultParams() (caseContract test).
+  systemicResistance: 0.80, pulmonaryResistance: 0.65, venousTone: 0.15,
   arterialStiffness: 0.75, PEEP: 0, Pth0: 0, respAmpTh: 0, respAmpAlv: 0,
   respRate: 0.25, speed: 1, bleedRate: 0, fluidRate: 0,
   heartModel: "activeStress", useChiResistance: false, projectTBV: true,
@@ -164,7 +165,7 @@ export const NEUTRAL_PARAMS: CoreRuntimeParams = {
   caReleaseScale: 1, rvCaReleaseScale: 1,
   MV_Amax: 5.0, MV_Aleak: 1e-4, MV_kOpen: 2.0, MV_tauOpen: 0.020, MV_tauClose: 0.035, MV_R: 0.004, MV_L: 0.0008, MV_B: 1e-4,
   AoV_Amax: 3.5, AoV_Aleak: 1e-4, AoV_kOpen: 2.0, AoV_tauOpen: 0.010, AoV_tauClose: 0.030, AoV_R: 0.005, AoV_L: 0.001,
-  TV_Amax: 8.0, TV_Aleak: 1e-4, TV_kOpen: 2.0, TV_tauOpen: 0.012, TV_tauClose: 0.025, TV_R: 0.002, TV_L: 0.0002,
+  TV_Amax: 8.0, TV_Aleak: 1e-4, TV_kOpen: 2.0, TV_tauOpen: 0.018, TV_tauClose: 0.030, TV_R: 0.0035, TV_L: 0.0008, TV_B: 1e-5,
   PV_Amax: 4.0, PV_Aleak: 1e-4, PV_kOpen: 2.0, PV_tauOpen: 0.010, PV_tauClose: 0.020, PV_R: 0.005, PV_L: 0.001,
 };
 
@@ -201,7 +202,7 @@ export function sanitizeParams(p: CoreRuntimeParams): CoreRuntimeParams {
     guard("Amax", 0); guard("Aleak", 0); guard("kOpen", 0);
     guard("tauOpen", 1e-4); guard("tauClose", 1e-4);
     guard("R", 0); guard("L", 0);
-    if (v === "MV") guard("B", 0);
+    if (v === "MV" || v === "TV") guard("B", 0);
   }
 
   // Node/edge overrides — researcher escape hatch, but still the final gate
@@ -271,6 +272,7 @@ export type SimSample = {
   // Flows
   QAo: number;
   QPA: number;
+  QPV: number;
   QMV: number;
   QTV: number;
   PVF: number; // pulmonary venous inflow to LA (PVein->LA edge); S/D/Ar pattern
@@ -292,8 +294,13 @@ export type SimSample = {
   aRV: number;
   aLA: number;
   aRA: number;
+  cRA: number;
   rLA: number;
   rRA: number;
+  xiTV: number;
+  xiPV: number;
+  dP_TV: number;
+  dP_PV: number;
   qLAReservoirMl?: number;
   VLABodyMl?: number;
   VLAReservoirMl?: number;
@@ -358,7 +365,13 @@ export type SimObservables = {
   Pth: number;
   Palv: number;
   Q_VC_RA: number;
+  Q_TV: number;
+  Q_PV: number;
   Q_PCap_PVen: number;
+  xiTV: number;
+  xiPV: number;
+  dP_TV: number;
+  dP_PV: number;
   P_SV: number;
   P_VC: number;
   P_PVen: number;

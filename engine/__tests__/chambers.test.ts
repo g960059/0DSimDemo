@@ -128,8 +128,8 @@ describe("ChamberModel behavior parity (S2a refactor guards)", () => {
     expect(Math.abs(minPressureGuarded.equilibriumErrorMmHg)).toBeLessThan(1e-4);
   });
 
-  it("LA AV-plane gain lowers pressure only while the mitral valve is closed", () => {
-    const model = new ActiveStressChamberModel(defaultActiveLA);
+  it("atrial AV-plane gain uses side-specific paired ventricle and inlet valve context", () => {
+    const la = new ActiveStressChamberModel(defaultActiveLA);
     const internal = { c: 0, a: 0, r: 0 };
     const baseCtx = {
       HR: 75,
@@ -139,17 +139,41 @@ describe("ChamberModel behavior parity (S2a refactor guards)", () => {
       tmaxScale: 1,
       geomScale: 1,
       caReleaseScale: 1,
-      lvShortening01: 0.8,
-      aovOpen01: 0,
+      pairedVentricleShortening01: 0.8,
+      outletValveOpen01: 0,
     };
-    const open = model.pressure(50, internal, { ...baseCtx, mvOpen01: 1 });
-    const closed = model.pressure(50, internal, { ...baseCtx, mvOpen01: 0 });
+    const open = la.pressure(50, internal, { ...baseCtx, side: "left", inletValveOpen01: 1 });
+    const closed = la.pressure(50, internal, { ...baseCtx, side: "left", inletValveOpen01: 0 });
     expect(closed).toBeLessThan(open - 0.1);
 
+    const activeInternal = { c: 0.5, a: 0, r: 0 };
+    const openDerivatives = la.internalDerivatives(50, activeInternal, { ...baseCtx, side: "left", inletValveOpen01: 1 });
+    const closedDerivatives = la.internalDerivatives(50, activeInternal, { ...baseCtx, side: "left", inletValveOpen01: 0 });
+    expect(closedDerivatives.aDot).toBeLessThan(openDerivatives.aDot);
+
     const ra = new ActiveStressChamberModel(defaultActiveRA);
-    const raOpen = ra.pressure(50, internal, { ...baseCtx, mvOpen01: 1 });
-    const raClosed = ra.pressure(50, internal, { ...baseCtx, mvOpen01: 0 });
-    expect(raClosed).toBeCloseTo(raOpen, 9);
+    const raOpen = ra.pressure(50, internal, { ...baseCtx, side: "right", inletValveOpen01: 1 });
+    const raClosed = ra.pressure(50, internal, { ...baseCtx, side: "right", inletValveOpen01: 0 });
+    expect(raClosed).toBeLessThan(raOpen - 0.1);
+    const raOpenDerivatives = ra.internalDerivatives(50, activeInternal, { ...baseCtx, side: "right", inletValveOpen01: 1 });
+    const raClosedDerivatives = ra.internalDerivatives(50, activeInternal, { ...baseCtx, side: "right", inletValveOpen01: 0 });
+    expect(raClosedDerivatives.aDot).toBeLessThan(raOpenDerivatives.aDot);
+
+    const legacyLeftOnly = ra.pressure(50, internal, {
+      ...baseCtx,
+      side: "right",
+      lvShortening01: 0.8,
+      mvOpen01: 0,
+      pairedVentricleShortening01: undefined,
+      inletValveOpen01: undefined,
+    });
+    const noDescent = ra.pressure(50, internal, {
+      ...baseCtx,
+      side: "right",
+      pairedVentricleShortening01: 0,
+      inletValveOpen01: 0,
+    });
+    expect(legacyLeftOnly).toBeCloseTo(noDescent, 9);
   });
 
   it("active-stress mode RESPECTS node.active overrides (per-instance chamber params)", () => {

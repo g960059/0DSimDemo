@@ -6,7 +6,7 @@ import { Layout } from './components/Layout';
 import { Home } from './components/Home';
 import { OfficialCases } from './components/Cases';
 import { LessonPlayer } from './components/LessonPlayer';
-import Workbench from './Workbench';
+import Workbench from './WorkbenchPage';
 import './index.css';
 import { ErrorBoundary } from './components/ErrorBoundary';
 

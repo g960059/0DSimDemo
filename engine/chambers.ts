@@ -27,6 +27,13 @@ export type ChamberCtx = {
   tmaxScale: number;
   geomScale: number;
   caReleaseScale: number;
+  pairedVentricleVolumeMl?: number;
+  pairedVentricleShortening01?: number;
+  inletValveOpen01?: number;
+  outletValveOpen01?: number;
+  side?: "left" | "right";
+  // Legacy left-heart names retained for old probes/tests. New code should use
+  // the paired/inlet/outlet fields so RA can reference RV/TV/PV instead of LV/MV/AoV.
   lvVolumeMl?: number;
   lvShortening01?: number;
   mvOpen01?: number;
@@ -78,8 +85,9 @@ export type ActiveChamberParams = {
   pressureFloorMmHg?: number;
   atrialLeadSec?: number;
   // PR5 (human plan): AV-plane descent as an effective wall-volume correction
-  // (NOT a hidden reservoir branch). During LV ejection the AV plane descends,
-  // reducing LA wall stretch/capacity pressure and shaping the x-descent.
+  // (NOT a hidden reservoir branch). During paired ventricular ejection the AV
+  // plane descends, reducing atrial wall stretch/capacity pressure and shaping
+  // the x-descent. LA uses LV/MV/AoV; RA uses RV/TV/PV.
   // Vwall = V - avPlaneGainMl * gatedDescent01. Default undefined/0 = no shift.
   avPlaneGainMl?: number;
   reservoirBranchGain?: number;
@@ -207,7 +215,7 @@ export const defaultActiveRV: ActiveChamberParams = {
   sigmaPas0: 492, // M12-lite: geomChi-compensation 2000*0.28/1.1385 (gentle RV EDPVR; steep Klotz refit deferred to M12-proper)
   bPas: 10.0,
   lambdaPas0: 0.85,
-  Tmax0: 57176, // M12-lite: physiological ceiling (RV:LV ratio preserved); was 162000
+  Tmax0: 68600, // RV/RA refit: restores RVEF >0.5 while keeping the RV ceiling well below LV; was 57176
   geomChi: 1.138505, // M12-lite: exact thick-sphere Laplace for RV ref geometry; was 0.28
 };
 
@@ -260,17 +268,28 @@ export const defaultActiveLA: ActiveChamberParams = {
 
 export const defaultActiveRA: ActiveChamberParams = {
   ...defaultActiveLA,
-  Vref: 35,
-  Vw: 18.2,
-  Arel0: 0.10,
-  sigmaPas0: 210,
-  bPas: 19,
-  lambdaPas0: 0.90,
-  Tmax0: 8000,
-  geomChi: 1.112,
-  pressureFloorMmHg: -5,
-  atrialLeadSec: 0.16,
-  avPlaneGainMl: 0,
+  V0: 5,
+  Vw: 18,
+  Vref: 45,
+  Vmin: 1,
+  Trel0: 0.085,
+  TrelMin: 0.055,
+  TrelMax: 0.120,
+  tauCa0: 0.055,
+  Arel0: 0.16,
+  Kd0: 0.18,
+  betaLambda: 1.8,
+  hillN: 2.5,
+  kOn: 18,
+  kOff: 12,
+  sigmaPas0: 240,
+  bPas: 10,
+  lambdaPas0: 0.88,
+  Tmax0: 28000,
+  geomChi: 1.10,
+  pressureFloorMmHg: -2,
+  atrialLeadSec: 0.17,
+  avPlaneGainMl: 12,
   reservoirBranchGain: 0,
   reservoirStrokeMl: 0,
   reservoirSleeveVuMl: 12,
@@ -304,6 +323,26 @@ export class ActiveStressChamberModel implements ChamberModel {
     return (ap.reservoirBranchGain ?? 0) > 0 && (ap.reservoirStrokeMl ?? 0) > 0;
   }
 
+  private wallVolume(V: number, ctx: ChamberCtx): number {
+    const avp = this.ap.avPlaneGainMl ?? 0;
+    if (this.twoBranchEnabled() || avp <= 0) return V;
+    const descent01 = this.avPlaneDescent01(ctx);
+    return Math.max(this.ap.V0 + this.ap.Vmin, V - avp * descent01);
+  }
+
+  private pairedShortening01(ctx: ChamberCtx): number {
+    const legacyLeft = ctx.side === "right" ? 0 : (ctx.lvShortening01 ?? 0);
+    return clamp(ctx.pairedVentricleShortening01 ?? legacyLeft, 0, 1);
+  }
+
+  private inletValveOpen01(ctx: ChamberCtx): number | undefined {
+    return ctx.inletValveOpen01 ?? (ctx.side === "right" ? undefined : ctx.mvOpen01);
+  }
+
+  private outletValveOpen01(ctx: ChamberCtx): number | undefined {
+    return ctx.outletValveOpen01 ?? (ctx.side === "right" ? undefined : ctx.aovOpen01);
+  }
+
   private bodyPressure(V: number, internal: ChamberInternal, ctx: ChamberCtx): number {
     const ap = this.ap;
     const a = clamp(internal.a, 0, 1);
@@ -323,23 +362,21 @@ export class ActiveStressChamberModel implements ChamberModel {
 
   pressure(V: number, internal: ChamberInternal, ctx: ChamberCtx): number {
     if (!this.twoBranchEnabled()) {
-      // PR5: gated AV-plane descent lowers LA pressure during LV ejection and
-      // releases by IVR/MV opening. Do not use raw LV shortening through filling.
-      const avp = this.ap.avPlaneGainMl ?? 0;
-      const descent01 = avp > 0 ? this.avPlaneDescent01(ctx) : 0;
-      const wallVolume = avp > 0 ? Math.max(this.ap.V0 + this.ap.Vmin, V - avp * descent01) : V;
-      return this.bodyPressure(wallVolume, internal, ctx);
+      // PR5: gated AV-plane descent lowers atrial pressure during paired
+      // ventricular ejection and releases by IVR/inlet-valve opening.
+      return this.bodyPressure(this.wallVolume(V, ctx), internal, ctx);
     }
     return this.reservoirBranchState(V, internal, ctx).pressureMmHg;
   }
 
   private avPlaneDescent01(ctx: ChamberCtx): number {
-    const shortening = clamp(ctx.lvShortening01 ?? 0, 0, 1);
+    const shortening = this.pairedShortening01(ctx);
     if (shortening <= 0) return 0;
 
-    if (ctx.mvOpen01 != null && ctx.aovOpen01 != null) {
-      const mvClosed01 = clamp(1 - ctx.mvOpen01, 0, 1);
-      return shortening * mvClosed01;
+    const inletOpen = this.inletValveOpen01(ctx);
+    if (inletOpen != null) {
+      const inletClosed01 = clamp(1 - inletOpen, 0, 1);
+      return shortening * inletClosed01;
     }
 
     const theta = frac(ctx.phi);
@@ -434,7 +471,7 @@ export class ActiveStressChamberModel implements ChamberModel {
     const ap = this.ap;
     const c = Math.max(internal.c, 0);
     const a = clamp(internal.a, 0, 1);
-    const { lambda } = this.geometry(V);
+    const { lambda } = this.geometry(this.wallVolume(V, ctx));
 
     const HR = Math.max(ctx.HR, 20);
     const T = 60 / HR;
@@ -473,24 +510,25 @@ function reservoirQDot(ap: ActiveChamberParams, internal: ChamberInternal, ctx: 
 
   const q = clamp(internal.r, 0, stroke);
   const th = ap.reservoirValveThreshold ?? 0.15;
-  const mvOpenRaw = ctx.mvOpen01;
-  const aovOpenRaw = ctx.aovOpen01;
-  const descentTarget = stroke * clamp(ctx.lvShortening01 ?? 0, 0, 1);
+  const inletOpenRaw = ctx.inletValveOpen01 ?? (ctx.side === "right" ? undefined : ctx.mvOpen01);
+  const outletOpenRaw = ctx.outletValveOpen01 ?? (ctx.side === "right" ? undefined : ctx.aovOpen01);
+  const legacyLeftShortening = ctx.side === "right" ? 0 : (ctx.lvShortening01 ?? 0);
+  const descentTarget = stroke * clamp(ctx.pairedVentricleShortening01 ?? legacyLeftShortening, 0, 1);
   let target = q;
   let tau = ap.reservoirTauFill ?? 0.10;
 
-  if (mvOpenRaw != null && aovOpenRaw != null) {
-    const mvOpen = clamp(mvOpenRaw, 0, 1);
-    const aovOpen = clamp(aovOpenRaw, 0, 1);
-    const mvClosed = mvOpen <= th;
-    const aovClosed = aovOpen <= th;
-    if (aovOpen > th && mvClosed) {
+  if (inletOpenRaw != null && outletOpenRaw != null) {
+    const inletOpen = clamp(inletOpenRaw, 0, 1);
+    const outletOpen = clamp(outletOpenRaw, 0, 1);
+    const inletClosed = inletOpen <= th;
+    const outletClosed = outletOpen <= th;
+    if (outletOpen > th && inletClosed) {
       target = descentTarget;
       tau = ap.reservoirTauFill ?? 0.10;
-    } else if (aovClosed && mvClosed) {
+    } else if (outletClosed && inletClosed) {
       target = 0;
       tau = ap.reservoirTauRecoilIVR ?? 0.035;
-    } else if (mvOpen > th) {
+    } else if (inletOpen > th) {
       target = 0;
       tau = Math.max(ap.reservoirTauRecoilIVR ?? 0.035, 0.035);
     }
