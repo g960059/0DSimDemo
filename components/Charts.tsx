@@ -219,9 +219,10 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
           if (closing) data = [...data, closing];
 
           cfg.selectedSignals.forEach((chamber: string) => {
-              // The LA figure-8 needs enough samples per beat to render its two
-              // sub-loops; skip rather than draw a degenerate/partial LA loop.
-              if (chamber === 'LA' && data.length < 80) return;
+              // The LA figure-8 needs a full beat to render its two sub-loops;
+              // skip only a degenerate/partial window (live buffer is ~tens of
+              // samples per beat, so the old 80 threshold hid the loop entirely).
+              if (chamber === 'LA' && data.length < 16) return;
               const color = getColor(inst.color, chamber, cfg.customBaseColor, cfg.customSignalColors);
               
               ctx.beginPath();
