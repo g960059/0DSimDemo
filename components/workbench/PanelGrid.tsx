@@ -88,6 +88,7 @@ interface PanelGridProps {
 interface PanelCardProps {
   panel: PanelDef;
   isEditor: boolean;
+  chromeMode?: 'desktop' | 'mobile';
   instances: SimInstance[];
   noteMode: 'read' | 'edit';
   setNoteModes: React.Dispatch<React.SetStateAction<Record<string, 'read' | 'edit'>>>;
@@ -155,6 +156,7 @@ function applyPresetGeometry(panels: PanelDef[], presetName: LayoutPresetName): 
 function PanelCard({
   panel,
   isEditor,
+  chromeMode = 'desktop',
   instances,
   noteMode,
   setNoteModes,
@@ -193,6 +195,37 @@ function PanelCard({
   metrics,
   controlGroups,
 }: PanelCardProps) {
+  const bodyClassName = chromeMode === 'mobile'
+    ? 'relative h-full min-h-16 w-full'
+    : `flex-1 min-h-0 w-full relative z-10 ${['WAVEFORM', 'GUYTON_RIGHT', 'GUYTON_LEFT'].includes(panel.type) ? '-mt-6' : ''} ${panel.type === 'PVLOOP' ? 'mb-4' : ''}`;
+  const panelBody = (
+    <div className={bodyClassName}>
+      {panel.type === 'PVLOOP' && <PVLoopPanel physicsRefs={physicsRefs} instances={instances} config={panel.config} showGuides={panel.showGuides} showLegend={panel.showLegend} />}
+      {panel.type === 'WAVEFORM' && <WaveformPanel physicsRefs={physicsRefs} instances={instances} timeWindow={panel.timeWindow || 10000} config={panel.config} showLegend={panel.showLegend} />}
+      {panel.type === 'METRICS' && <MetricsPanel physicsRefs={physicsRefs} instances={instances} config={panel.config} />}
+      {panel.type === 'CONTROLS' && <Controls isPaneMode paneConfig={panel.config} instances={instances} instanceHealth={instanceHealth} activeInstanceId={activeInstanceId} setActiveInstanceId={setActiveInstanceId} updateInstanceParams={updateInstanceParams} updateInstanceKnobs={updateInstanceKnobs} updateInstanceVolume={updateInstanceVolume} updateInstanceColor={updateInstanceColor} addInstance={addInstance} removeInstance={removeInstance} timeScale={timeScale} setTimeScale={setTimeScale} isPlaying={isPlaying} togglePlay={togglePlay} addPanel={addPanel} />}
+      {(panel.type === 'GUYTON_RIGHT' || panel.type === 'GUYTON_LEFT') && <GuytonPanel physicsRefs={physicsRefs} instances={instances} config={panel.config} type={panel.type} />}
+      {panel.type === 'NOTE' && (
+        <ErrorBoundary>
+          <NotePanel
+            key={`${noteCaseKey}:${panel.id}`}
+            mode={noteMode}
+            content={notes[panel.id]}
+            onChange={(blocks) => onNoteChange(panel.id, blocks)}
+          />
+        </ErrorBoundary>
+      )}
+    </div>
+  );
+
+  if (chromeMode === 'mobile') {
+    return (
+      <div className="relative h-full min-h-0 w-full overflow-hidden">
+        {panelBody}
+      </div>
+    );
+  }
+
   return (
     <div
       style={isEditor ? undefined : panelGridStyle(panel)}
@@ -302,23 +335,7 @@ function PanelCard({
           )}
         </div>
       </div>
-      <div className={`flex-1 min-h-0 w-full relative z-10 ${['WAVEFORM', 'GUYTON_RIGHT', 'GUYTON_LEFT'].includes(panel.type) ? '-mt-6' : ''} ${panel.type === 'PVLOOP' ? 'mb-4' : ''}`}>
-        {panel.type === 'PVLOOP' && <PVLoopPanel physicsRefs={physicsRefs} instances={instances} config={panel.config} showGuides={panel.showGuides} showLegend={panel.showLegend} />}
-        {panel.type === 'WAVEFORM' && <WaveformPanel physicsRefs={physicsRefs} instances={instances} timeWindow={panel.timeWindow || 10000} config={panel.config} showLegend={panel.showLegend} />}
-        {panel.type === 'METRICS' && <MetricsPanel physicsRefs={physicsRefs} instances={instances} config={panel.config} />}
-        {panel.type === 'CONTROLS' && <Controls isPaneMode paneConfig={panel.config} instances={instances} instanceHealth={instanceHealth} activeInstanceId={activeInstanceId} setActiveInstanceId={setActiveInstanceId} updateInstanceParams={updateInstanceParams} updateInstanceKnobs={updateInstanceKnobs} updateInstanceVolume={updateInstanceVolume} updateInstanceColor={updateInstanceColor} addInstance={addInstance} removeInstance={removeInstance} timeScale={timeScale} setTimeScale={setTimeScale} isPlaying={isPlaying} togglePlay={togglePlay} addPanel={addPanel} />}
-        {(panel.type === 'GUYTON_RIGHT' || panel.type === 'GUYTON_LEFT') && <GuytonPanel physicsRefs={physicsRefs} instances={instances} config={panel.config} type={panel.type} />}
-        {panel.type === 'NOTE' && (
-          <ErrorBoundary>
-            <NotePanel
-              key={`${noteCaseKey}:${panel.id}`}
-              mode={noteMode}
-              content={notes[panel.id]}
-              onChange={(blocks) => onNoteChange(panel.id, blocks)}
-            />
-          </ErrorBoundary>
-        )}
-      </div>
+      {panelBody}
     </div>
   );
 }
@@ -387,11 +404,12 @@ export function PanelGrid({
     </div>
   ) : null;
 
-  const renderPanel = (panel: PanelDef, isEditor: boolean) => (
+  const renderPanel = (panel: PanelDef, isEditor: boolean, chromeMode: 'desktop' | 'mobile' = 'desktop') => (
     <PanelCard
       key={panel.id}
       panel={panel}
       isEditor={isEditor}
+      chromeMode={chromeMode}
       instances={instances}
       noteMode={noteModes[panel.id] ?? 'read'}
       setNoteModes={setNoteModes}
@@ -441,7 +459,7 @@ export function PanelGrid({
           panels={presenterPanels}
           title="Workbench"
           className="min-h-0 flex-1"
-          renderPanel={(panel) => renderPanel(panel, false)}
+          renderPanel={(panel) => renderPanel(panel, false, 'mobile')}
         />
       </main>
     );
