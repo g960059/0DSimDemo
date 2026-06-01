@@ -2,6 +2,8 @@ import type { PanelDef, PanelInstanceConfig } from "./types";
 import { flowPack } from "./layoutPresets";
 import { roleOf } from "./paneRole";
 
+const GRID_COLUMNS = 12;
+
 function cloneConfig(config: Record<string, PanelInstanceConfig>): Record<string, PanelInstanceConfig> {
   return Object.fromEntries(
     Object.entries(config).map(([id, entry]) => [
@@ -39,7 +41,11 @@ export function removePane(panels: PanelDef[], id: string): PanelDef[] {
 export function movePane(panels: PanelDef[], id: string, x: number, y: number): PanelDef[] {
   return panels.map((panel) => (
     panel.id === id
-      ? { ...clonePanel(panel), x: Math.max(0, Math.floor(x)), y: Math.max(0, Math.floor(y)) }
+      ? {
+          ...clonePanel(panel),
+          x: Math.min(Math.max(0, Math.floor(x)), GRID_COLUMNS - Math.min(Math.max(1, panel.w), GRID_COLUMNS)),
+          y: Math.max(0, Math.floor(y)),
+        }
       : clonePanel(panel)
   ));
 }
@@ -47,7 +53,11 @@ export function movePane(panels: PanelDef[], id: string, x: number, y: number): 
 export function resizePane(panels: PanelDef[], id: string, w: number, h: number): PanelDef[] {
   return panels.map((panel) => (
     panel.id === id
-      ? { ...clonePanel(panel), w: Math.max(1, Math.floor(w)), h: Math.max(1, Math.floor(h)) }
+      ? {
+          ...clonePanel(panel),
+          w: Math.min(Math.max(1, Math.floor(w)), GRID_COLUMNS - Math.min(Math.max(0, panel.x ?? 0), GRID_COLUMNS - 1)),
+          h: Math.max(1, Math.floor(h)),
+        }
       : clonePanel(panel)
   ));
 }
@@ -65,6 +75,7 @@ export function setPaneSignals(
     next.config = {
       ...next.config,
       [instanceId]: {
+        // Unknown instance ids are allowed so scripted ops can create pane content before instances are hydrated.
         ...(previous ?? { visible: true }),
         selectedSignals: [...selectedSignals],
       },

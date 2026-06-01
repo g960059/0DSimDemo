@@ -78,8 +78,16 @@ export function flowPack(panels: PanelDef[]): PanelDef[] {
   const occupied = new Set<string>();
   return panels.map((input) => {
     const panel = cloneWithRole(input);
-    const placed = isPlaced(panel)
-      ? { ...panel, x: Math.min(panel.x, GRID_COLUMNS - Math.min(Math.max(1, panel.w), GRID_COLUMNS)), y: panel.y }
+    const w = Math.min(Math.max(1, panel.w), GRID_COLUMNS);
+    const placedCandidate = isPlaced(panel)
+      ? {
+          ...panel,
+          x: Math.min(Math.max(0, panel.x), GRID_COLUMNS - w),
+          y: Math.max(0, panel.y),
+        }
+      : undefined;
+    const placed = placedCandidate && fits(occupied, placedCandidate.x, placedCandidate.y, w, Math.max(1, panel.h))
+      ? placedCandidate
       : { ...panel, ...firstOpenSlot(occupied, panel) };
     mark(occupied, placed);
     return placed;
@@ -99,7 +107,7 @@ export const COMPARE_PRESET: PanelDef[] = flowPack([
   pane("compare-pv", "PVLOOP", "PV Loop", 6, 0, 3, 7, {}, { showGuides: true }),
   pane("compare-output", "METRICS", "Metrics", 9, 0, 3, 4),
   pane("compare-note", "NOTE", "Notes", 9, 4, 3, 5),
-  pane("compare-controls", "CONTROLS", "Controls", 0, 7, 12, 4),
+  pane("compare-controls", "CONTROLS", "Controls", 0, 9, 12, 4),
 ]);
 
 export const TWEAK_PRESET: PanelDef[] = flowPack([

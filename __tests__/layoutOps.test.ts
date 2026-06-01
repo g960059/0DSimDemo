@@ -16,6 +16,25 @@ function panel(id: string, type: PanelType, w = 4, h = 2): PanelDef {
   };
 }
 
+function occupiedCells(panels: PanelDef[]): string[] {
+  return panels.flatMap((pane) => {
+    const cells: string[] = [];
+    const x = pane.x ?? 0;
+    const y = pane.y ?? 0;
+    for (let yy = y; yy < y + pane.h; yy++) {
+      for (let xx = x; xx < x + pane.w; xx++) {
+        cells.push(`${xx},${yy}`);
+      }
+    }
+    return cells;
+  });
+}
+
+function expectNoOverlap(panels: PanelDef[]) {
+  const cells = occupiedCells(panels);
+  expect(new Set(cells).size).toBe(cells.length);
+}
+
 describe("pane roles", () => {
   it("maps panel types into mobile/preset roles", () => {
     expect(roleOf("WAVEFORM")).toBe("graph");
@@ -40,6 +59,7 @@ describe("layout presets and flowPack", () => {
         expect(pane.h).toBeGreaterThan(0);
         expect((pane.x ?? 0) + pane.w).toBeLessThanOrEqual(12);
       }
+      expectNoOverlap(preset);
     }
   });
 
@@ -68,6 +88,19 @@ describe("layout presets and flowPack", () => {
       ["wrap", 0, 2],
     ]);
   });
+
+  it("relocates explicitly placed panes when their coordinates collide", () => {
+    const packed = flowPack([
+      { ...panel("fixed", "WAVEFORM", 6, 2), x: 0, y: 0 },
+      { ...panel("collision", "PVLOOP", 6, 2), x: 3, y: 1 },
+    ]);
+
+    expect(packed.map((entry) => [entry.id, entry.x, entry.y])).toEqual([
+      ["fixed", 0, 0],
+      ["collision", 6, 0],
+    ]);
+    expectNoOverlap(packed);
+  });
 });
 
 describe("layout ops", () => {
@@ -90,6 +123,16 @@ describe("layout ops", () => {
     expect(moved.find((entry) => entry.id === "c")).toMatchObject({ x: 6, y: 3 });
     expect(resized.find((entry) => entry.id === "c")).toMatchObject({ w: 5, h: 4 });
     expect(removed.map((entry) => entry.id)).toEqual(["b", "c"]);
+  });
+
+  it("movePane and resizePane clamp panes to the right grid edge", () => {
+    const start = flowPack([panel("wide", "WAVEFORM", 4, 2)]);
+    const moved = movePane(start, "wide", 99, 1);
+    const resized = resizePane(moved, "wide", 99, 3);
+
+    expect(moved[0]).toMatchObject({ x: 8, y: 1 });
+    expect(resized[0]).toMatchObject({ x: 8, w: 4, h: 3 });
+    expect((resized[0].x ?? 0) + resized[0].w).toBe(12);
   });
 
   it("setPaneSignals immutably updates pane content for one instance", () => {
