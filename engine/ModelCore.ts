@@ -1507,41 +1507,63 @@ export class ModelCore {
     const pulmonaryVenous = ["PCap", "PVen", "PVein"] as const;
     let stressed = 0;
     let compliance = 0;
+    let externalWeighted = 0;
     let unstressed = 0;
     let venStressed = 0;
     let venUnstressed = 0;
     let pulmonaryVenousStressed = 0;
     let pulmonaryVenousUnstressed = 0;
+    let pulmonaryVenousCompliance = 0;
+    let pulmonaryVenousExternalWeighted = 0;
     for (const name of systemic) {
       const i = this.nodeIndex.get(name)!;
       const n = this.nodes[i];
       const ptm = pack.Ptm[i];
       const vu = this.effectiveVu(n);
       unstressed += vu;
+      let cEff = 0;
       if (n.kind === "venousPressure") {
         const s = pack.Vphys[i] - vu;
         stressed += s;
-        compliance += this.venousCompliance(n, ptm);
+        cEff = this.venousCompliance(n, ptm);
+        compliance += cEff;
         venStressed += s;
         venUnstressed += vu;
       } else if (n.kind === "arterial") {
         const VsEff = Math.max((n.Vs ?? 100) / Math.max(this.p.arterialStiffness, 0.25), 1);
         stressed += pack.Vphys[i] - vu;
-        compliance += VsEff / Math.max((n.P0 ?? 50) + ptm, 1e-6);
+        cEff = VsEff / Math.max((n.P0 ?? 50) + ptm, 1e-6);
+        compliance += cEff;
       } else if (n.kind === "linear") {
         stressed += pack.Vphys[i] - vu;
-        compliance += Math.max(n.C ?? 1, 1e-6);
+        cEff = Math.max(n.C ?? 1, 1e-6);
+        compliance += cEff;
       }
+      externalWeighted += cEff * this.externalPressure(n.ext ?? "none");
     }
     for (const name of pulmonaryVenous) {
       const i = this.nodeIndex.get(name)!;
       const n = this.nodes[i];
+      const ptm = pack.Ptm[i];
       const vu = this.effectiveVu(n);
+      const cEff = n.kind === "venousPressure"
+        ? this.venousCompliance(n, ptm)
+        : Math.max(n.C ?? 1, 1e-6);
       pulmonaryVenousUnstressed += vu;
       pulmonaryVenousStressed += pack.Vphys[i] - vu;
+      pulmonaryVenousCompliance += cEff;
+      pulmonaryVenousExternalWeighted += cEff * this.externalPressure(n.ext ?? "none");
     }
     const Pmsf = compliance > 1e-9 ? stressed / compliance : 0;
+    const systemicExternalPressureWeighted = compliance > 1e-9 ? externalWeighted / compliance : 0;
+    const PmsfAbs = Pmsf + systemicExternalPressureWeighted;
+    const Pmpf = pulmonaryVenousCompliance > 1e-9 ? pulmonaryVenousStressed / pulmonaryVenousCompliance : 0;
+    const pulmonaryVenousExternalPressureWeighted = pulmonaryVenousCompliance > 1e-9
+      ? pulmonaryVenousExternalWeighted / pulmonaryVenousCompliance
+      : 0;
+    const PmpfAbs = Pmpf + pulmonaryVenousExternalPressureWeighted;
     const RAP = pack.P[this.nodeIndex.get("RA")!];
+    const LAP = pack.P[this.nodeIndex.get("LA")!];
     const RVP = pack.P[this.nodeIndex.get("RV")!];
     const PAP = pack.P[this.nodeIndex.get("PA")!];
     const P_VC = pack.P[this.nodeIndex.get("VC")!];
@@ -1551,15 +1573,25 @@ export class ModelCore {
     const pvOstial = this.pvOstialDebugFields(this.x, pack, flows);
     return {
       Pmsf,
+      PmsfTm: Pmsf,
+      PmsfAbs,
       vrGradient: Pmsf - RAP,
       RAP,
       stressedVolumeSystemic: stressed,
       unstressedVolumeSystemic: unstressed,
+      systemicComplianceEff: compliance,
+      systemicExternalPressureWeighted,
       venousStressedVolume: venStressed,
       venousUnstressedVolume: venUnstressed,
       pulmonaryVenousVolume: pulmonaryVenousStressed + pulmonaryVenousUnstressed,
       pulmonaryVenousStressedVolume: pulmonaryVenousStressed,
       pulmonaryVenousUnstressedVolume: pulmonaryVenousUnstressed,
+      pulmonaryVenousComplianceEff: pulmonaryVenousCompliance,
+      pulmonaryVenousExternalPressureWeighted,
+      Pmpf,
+      PmpfTm: Pmpf,
+      PmpfAbs,
+      pulmonaryVenousReturnGradient: PmpfAbs - LAP,
       pVeinVcGradient: P_PVein - P_VC,
       tbvCorrectionMagPerBeat: this.tbvCorrectionMagLastBeat,
       tbvCorrectionLastStepMl: this.tbvCorrectionLastStepMl,
