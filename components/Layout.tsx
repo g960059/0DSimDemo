@@ -9,7 +9,7 @@ export const Layout = () => {
   const location = useLocation();
 
   const navItems = [
-    { name: 'Learning Path', path: '/', icon: <BookOpen className="w-4 h-4" /> },
+    { name: 'Home', path: '/', icon: <BookOpen className="w-4 h-4" /> },
     { name: 'Official Cases', path: '/cases', icon: <Activity className="w-4 h-4" /> },
     { name: 'Workbench', path: '/workbench', icon: <PlaySquare className="w-4 h-4" /> },
   ];

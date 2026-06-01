@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { Layout } from './components/Layout';
-import { LearningPath } from './components/LearningPath';
+import { Home } from './components/Home';
 import { OfficialCases } from './components/Cases';
 import { LessonPlayer } from './components/LessonPlayer';
 import Workbench from './Workbench';
@@ -23,7 +23,7 @@ root.render(
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Layout />}>
-              <Route index element={<LearningPath />} />
+              <Route index element={<Home />} />
               <Route path="cases" element={<OfficialCases />} />
               <Route path="lesson/:id" element={<LessonPlayer />} />
               <Route path="workbench" element={<Workbench />} />
