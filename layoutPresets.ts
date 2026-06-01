@@ -1,7 +1,7 @@
 import type { PanelDef, PanelInstanceConfig, PanelType } from "./types";
 import { roleOf } from "./paneRole";
 
-const GRID_COLUMNS = 12;
+export const GRID_COLUMNS = 12;
 
 export type LayoutPresetName = "Read" | "Compare" | "Tweak" | "Focus";
 

@@ -1,5 +1,6 @@
 import React from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { Writable } from "node:stream";
+import { renderToPipeableStream, renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { PanelGrid, canEditWorkbenchLayout, type PanelGridMode } from "@/components/workbench/PanelGrid";
 import type { PanelDef } from "@/types";
@@ -8,57 +9,105 @@ const noop = () => {};
 
 function renderPanelGrid(mode: PanelGridMode, panels: PanelDef[] = [], layoutEditable = true) {
   return renderToStaticMarkup(
-    React.createElement(PanelGrid, {
-      authoringMode: false,
-      publishedLesson: null,
-      copyShareUrl: noop,
-      instances: [],
-      stepsDraft: [],
-      setStepsDraft: noop,
-      panels,
-      onPanelsChange: noop,
-      mode,
-      layoutEditable,
-      setLayoutEditable: noop,
-      isMobile: false,
-      noteModes: {},
-      setNoteModes: noop,
-      physicsRefs: { current: new Map() },
-      instanceHealth: {},
-      activeInstanceId: "",
-      setActiveInstanceId: noop,
-      updateInstanceParams: noop,
-      updateInstanceKnobs: noop,
-      updateInstanceVolume: noop,
-      updateInstanceColor: noop,
-      addInstance: noop,
-      removeInstance: noop,
-      timeScale: 1,
-      setTimeScale: noop,
-      isPlaying: true,
-      togglePlay: noop,
-      addPanel: noop,
-      removePanel: noop,
-      updatePanelTitle: noop,
-      toggleShowLegend: noop,
-      updatePanelInstanceColor: noop,
-      updatePanelInstanceName: noop,
-      updatePanelSignalColor: noop,
-      updatePanelSignalName: noop,
-      toggleSettings: noop,
-      toggleInstanceVisibility: noop,
-      updateInstanceSignals: noop,
-      toggleGuides: noop,
-      updateTimeWindow: noop,
-      noteCaseKey: "test",
-      notes: {},
-      onNoteChange: noop,
-      chambers: [],
-      signals: [],
-      metrics: [],
-      controlGroups: [],
-    }),
+    createPanelGrid(mode, panels, layoutEditable),
   );
+}
+
+function createPanelGrid(mode: PanelGridMode, panels: PanelDef[] = [], layoutEditable = true) {
+  return React.createElement(PanelGrid, {
+    authoringMode: false,
+    publishedLesson: null,
+    copyShareUrl: noop,
+    instances: [],
+    stepsDraft: [],
+    setStepsDraft: noop,
+    panels,
+    onPanelsChange: noop,
+    mode,
+    layoutEditable,
+    setLayoutEditable: noop,
+    isMobile: false,
+    noteModes: {},
+    setNoteModes: noop,
+    physicsRefs: { current: new Map() },
+    instanceHealth: {},
+    activeInstanceId: "",
+    setActiveInstanceId: noop,
+    updateInstanceParams: noop,
+    updateInstanceKnobs: noop,
+    updateInstanceVolume: noop,
+    updateInstanceColor: noop,
+    addInstance: noop,
+    removeInstance: noop,
+    timeScale: 1,
+    setTimeScale: noop,
+    isPlaying: true,
+    togglePlay: noop,
+    addPanel: noop,
+    removePanel: noop,
+    updatePanelTitle: noop,
+    toggleShowLegend: noop,
+    updatePanelInstanceColor: noop,
+    updatePanelInstanceName: noop,
+    updatePanelSignalColor: noop,
+    updatePanelSignalName: noop,
+    toggleSettings: noop,
+    toggleInstanceVisibility: noop,
+    updateInstanceSignals: noop,
+    toggleGuides: noop,
+    updateTimeWindow: noop,
+    noteCaseKey: "test",
+    notes: {},
+    onNoteChange: noop,
+    chambers: [],
+    signals: [],
+    metrics: [],
+    controlGroups: [],
+  });
+}
+
+function renderPanelGridAllReady(mode: PanelGridMode, panels: PanelDef[] = [], layoutEditable = true) {
+  return new Promise<string>((resolve, reject) => {
+    let html = "";
+    let settled = false;
+    let stream: ReturnType<typeof renderToPipeableStream> | undefined;
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      stream?.abort();
+      reject(new Error("Timed out rendering PanelGrid."));
+    }, 5000);
+
+    stream = renderToPipeableStream(
+      createPanelGrid(mode, panels, layoutEditable),
+      {
+        onAllReady() {
+          const writable = new Writable({
+            write(chunk, _encoding, callback) {
+              html += chunk.toString();
+              callback();
+            },
+            final(callback) {
+              if (!settled) {
+                settled = true;
+                clearTimeout(timeout);
+                resolve(html);
+              }
+              callback();
+            },
+          });
+          stream?.pipe(writable);
+        },
+        onError(error) {
+          if (!settled) {
+            settled = true;
+            clearTimeout(timeout);
+            reject(error);
+          }
+        },
+      },
+    );
+  });
 }
 
 describe("PanelGrid layout edit gating", () => {
@@ -82,5 +131,11 @@ describe("PanelGrid layout edit gating", () => {
     const html = renderPanelGrid("sandbox", [], false);
 
     expect(html).toContain("Edit layout");
+  });
+
+  it.each(["author", "sandbox"] as const)("mounts the layout editor for %s mode", async (mode) => {
+    const html = await renderPanelGridAllReady(mode);
+
+    expect(html).toContain('data-panel-grid-editor="mounted"');
   });
 });
