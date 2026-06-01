@@ -112,7 +112,6 @@ export class PreviewController {
       const core = new ModelCore(inst.params);
       core.initializeVenousPressuresForTargetTBV(inst.targetVolume);
       core.settleToSteady(PREVIEW_SETTLE_POLICY, this.dt, this.sampleHz);
-      core.t = current.core.t;
       core.clearBeatTracking();
       this.refs.set(inst.id, { core, buffer: [], lastRenderX: 0 });
       delete this.prevStatus[inst.id];

@@ -6,9 +6,9 @@ import { NotePanel } from "./NotePanel";
 import { ExposedKnobs } from "./ExposedKnobs";
 import { MetricsPanel, PVLoopPanel, WaveformPanel } from "./Charts";
 import { PreviewController } from "../engine/previewController";
-import type { PanelInstanceConfig, PhysicsRefState, SimInstance } from "../types";
+import type { PanelInstanceConfig, PhysicsRefState } from "../types";
 import type { NumericKnobKey, PanelKey } from "../lessonDoc";
-import { applyExposedKnob, deriveStepInstances, resolveKnobTarget } from "../lessonKnobs";
+import { applyExposedKnob, computeStepResetIds, deriveStepInstances, resolveKnobTarget } from "../lessonKnobs";
 
 const configFor = (ids: string[], signals: string[]): Record<string, PanelInstanceConfig> =>
   Object.fromEntries(ids.map((id) => [id, { visible: true, selectedSignals: signals }]));
@@ -40,11 +40,6 @@ const safeConvert = (caseDoc: NonNullable<ReturnType<typeof resolveLessonCase>>)
   }
 };
 
-const runtimeSignature = (inst: SimInstance): string => JSON.stringify({
-  params: inst.params,
-  targetVolume: inst.targetVolume,
-});
-
 export const LessonPlayer = () => {
   const { id } = useParams();
   return <LessonPlayerBody key={id ?? "missing"} lessonId={id} />;
@@ -61,6 +56,7 @@ const LessonPlayerBody: React.FC<{ lessonId?: string }> = ({ lessonId }) => {
   const physicsRefs = useRef<Map<string, PhysicsRefState>>(controller.refs);
   const liveInstancesRef = useRef(liveInstances);
   const pendingResetIdsRef = useRef<string[]>([]);
+  const dirtyIdsRef = useRef<Set<string>>(new Set());
 
   const ids = useMemo(() => baseInstances.map((inst) => inst.id), [baseInstances]);
   const baseWaveformConfig = useMemo(() => configFor(ids, ["LVP", "AoP", "LAP"]), [ids]);
@@ -106,11 +102,8 @@ const LessonPlayerBody: React.FC<{ lessonId?: string }> = ({ lessonId }) => {
 
   useEffect(() => {
     const next = deriveStepInstances(baseInstances, currentStep);
-    const previousById = new Map(liveInstancesRef.current.map((inst) => [inst.id, inst]));
-    pendingResetIdsRef.current = next.flatMap((inst) => {
-      const previous = previousById.get(inst.id);
-      return previous && runtimeSignature(previous) !== runtimeSignature(inst) ? [inst.id] : [];
-    });
+    pendingResetIdsRef.current = computeStepResetIds(liveInstancesRef.current, next, dirtyIdsRef.current);
+    dirtyIdsRef.current = new Set();
     liveInstancesRef.current = next;
     setLiveInstances(next);
   }, [baseInstances, currentStep?.id, stepIndex]);
@@ -118,6 +111,7 @@ const LessonPlayerBody: React.FC<{ lessonId?: string }> = ({ lessonId }) => {
   const setExposedKnob = (key: NumericKnobKey, value: number) => {
     const targetId = resolveKnobTarget(currentStep, ids);
     if (!targetId) return;
+    dirtyIdsRef.current.add(targetId);
     setLiveInstances((current) => {
       const next = current.map((inst) => (
         inst.id === targetId ? applyExposedKnob(inst, key, value) : inst

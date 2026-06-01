@@ -11,6 +11,26 @@ export function resolveKnobValue(inst: SimInstance, key: NumericKnobKey): number
   return resolveKnobState(inst)[key];
 }
 
+function runtimeSignature(inst: SimInstance): string {
+  return JSON.stringify(
+    { params: inst.params, targetVolume: inst.targetVolume },
+    (_key, value) => value === undefined ? "__undefined__" : value,
+  );
+}
+
+export function computeStepResetIds(
+  prevInstances: SimInstance[],
+  nextInstances: SimInstance[],
+  dirtyIds: ReadonlySet<string>,
+): string[] {
+  const previousById = new Map(prevInstances.map((inst) => [inst.id, runtimeSignature(inst)]));
+  return nextInstances.flatMap((inst) => {
+    const previous = previousById.get(inst.id);
+    if (!previous) return [];
+    return previous !== runtimeSignature(inst) || dirtyIds.has(inst.id) ? [inst.id] : [];
+  });
+}
+
 export function applyExposedKnob(inst: SimInstance, key: NumericKnobKey, value: number): SimInstance {
   const current = resolveKnobState(inst);
   const nextKnobs = clampKnobs({ ...current, [key]: value });

@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { caseDocumentToSimInstances } from "@/caseDoc";
 import { officialCaseById } from "@/officialCases";
-import { applyExposedKnob, deriveStepInstances, resolveKnobTarget, resolveKnobValue } from "@/lessonKnobs";
+import {
+  applyExposedKnob,
+  computeStepResetIds,
+  deriveStepInstances,
+  resolveKnobTarget,
+  resolveKnobValue,
+} from "@/lessonKnobs";
 import type { LessonStep } from "@/lessonDoc";
 import type { NoteContent } from "@/noteTypes";
 
@@ -76,5 +82,22 @@ describe("lesson exposed knobs", () => {
 
     expect(deriveStepInstances(base, undefined)).toBe(base);
     expect(deriveStepInstances(base, step({ visibleInstances: ["1"], exposedKnobs: ["contractility"] }))).toBe(base);
+  });
+
+  it("resets dirty same-signature instances at a step boundary", () => {
+    const base = instances();
+    const edited = applyExposedKnob(base[0], "contractility", 1);
+    const restored = applyExposedKnob(edited, "contractility", resolveKnobValue(base[0], "contractility"));
+    const next = [base[0], base[1]];
+
+    expect(computeStepResetIds([restored, base[1]], next, new Set(["1"]))).toEqual(["1"]);
+    expect(computeStepResetIds([base[0], base[1]], next, new Set())).toEqual([]);
+  });
+
+  it("resets only instances with changed signatures when no live edit is dirty", () => {
+    const base = instances();
+    const next = [applyExposedKnob(base[0], "contractility", 1.1), base[1]];
+
+    expect(computeStepResetIds(base, next, new Set())).toEqual(["1"]);
   });
 });
