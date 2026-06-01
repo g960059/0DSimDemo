@@ -77,6 +77,11 @@ export type ActiveChamberParams = {
   thetaOn: number;
   pressureFloorMmHg?: number;
   atrialLeadSec?: number;
+  // PR5 (human plan): AV-plane descent as an effective-volume correction (NOT a
+  // hidden reservoir branch). During LV systole the AV plane descends and the
+  // atrium's effective volume shifts, shaping reservoir filling / x-descent.
+  // Veff = V + avPlaneGainMl * lvShortening01. Default undefined/0 = no shift.
+  avPlaneGainMl?: number;
   reservoirBranchGain?: number;
   reservoirStrokeMl?: number;
   reservoirSleeveVuMl?: number;
@@ -208,23 +213,33 @@ export const defaultActiveRV: ActiveChamberParams = {
 
 export const defaultActiveLA: ActiveChamberParams = {
   ...defaultActiveLV,
+  // PR4 (human plan): LA recalibrated as a SINGLE thin-walled active-stress
+  // chamber. Soft passive (was sigmaPas0 2000 = volume-clamp) + physiological
+  // atrial active stress (Tmax0 25 kPa, ~1/5 of LV) so the a-wave is a real
+  // active bump, not passive end-filling. Starting point for re-calibration.
   V0: 5,
-  Vw: 15.9,
+  Vw: 16,
   Vref: 45,
   Vmin: 1,
-  Trel0: 0.09,
+  Trel0: 0.10,
   TrelMin: 0.06,
-  TrelMax: 0.12,
-  tauCa0: 0.04,
-  Arel0: 0.14,
-  sigmaPas0: 2000,
-  bPas: 14,
-  lambdaPas0: 0.80,
-  Tmax0: 70000,
-  geomChi: 1.121,
+  TrelMax: 0.13,
+  tauCa0: 0.08,
+  Arel0: 0.10,
+  Kd0: 0.18,
+  betaLambda: 2.0,
+  hillN: 2.5,
+  kOn: 15,
+  kOff: 8,
+  sigmaPas0: 300,
+  bPas: 10,
+  lambdaPas0: 0.88,
+  Tmax0: 25000,
+  geomChi: 1.1,
   thetaOn: 0.80,
-  pressureFloorMmHg: -4,
+  pressureFloorMmHg: -2,
   atrialLeadSec: 0.16,
+  avPlaneGainMl: 12, // PR5: AV-plane descent effective-volume gain (tune 8-18 mL)
   // PR2 (human plan): turn OFF the hidden LA body+sleeve reservoir branch. LA is
   // a single active-stress chamber; reservoir function should come from pulmonary
   // venous return + MV closure + AV-plane descent + LA wall relaxation, NOT an
@@ -307,7 +322,13 @@ export class ActiveStressChamberModel implements ChamberModel {
   }
 
   pressure(V: number, internal: ChamberInternal, ctx: ChamberCtx): number {
-    if (!this.twoBranchEnabled()) return this.bodyPressure(V, internal, ctx);
+    if (!this.twoBranchEnabled()) {
+      // PR5: AV-plane descent effective-volume correction (atria only, via
+      // avPlaneGainMl). lvShortening01 rises through LV systole.
+      const avp = this.ap.avPlaneGainMl ?? 0;
+      const Veff = avp > 0 ? V + avp * clamp(ctx.lvShortening01 ?? 0, 0, 1) : V;
+      return this.bodyPressure(Veff, internal, ctx);
+    }
     return this.reservoirBranchState(V, internal, ctx).pressureMmHg;
   }
 
