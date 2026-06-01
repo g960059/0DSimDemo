@@ -86,7 +86,7 @@ describe("M5a hemorrhage / fluid", () => {
     const tbv0 = core.debugVenousGroupBalances().totalBloodVolume;
     const pmsf0 = core.debugObservables().Pmsf;
 
-    core.setImmediateParameters({ venousTone: 0.4 });
+    core.setImmediateParameters({ venousTone: Math.min(1, DEFAULT_PARAMS.venousTone + 0.2) });
 
     const tbv1 = core.debugVenousGroupBalances().totalBloodVolume;
     const pmsf1 = core.debugObservables().Pmsf;

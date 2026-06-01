@@ -77,6 +77,11 @@ export type ActiveChamberParams = {
   thetaOn: number;
   pressureFloorMmHg?: number;
   atrialLeadSec?: number;
+  // PR5 (human plan): AV-plane descent as an effective wall-volume correction
+  // (NOT a hidden reservoir branch). During LV ejection the AV plane descends,
+  // reducing LA wall stretch/capacity pressure and shaping the x-descent.
+  // Vwall = V - avPlaneGainMl * gatedDescent01. Default undefined/0 = no shift.
+  avPlaneGainMl?: number;
   reservoirBranchGain?: number;
   reservoirStrokeMl?: number;
   reservoirSleeveVuMl?: number;
@@ -92,7 +97,6 @@ export type ActiveChamberParams = {
   reservoirTauRecoilIVR?: number;
   reservoirReleaseTheta?: number;
   reservoirValveThreshold?: number;
-  avPlaneCapacityShiftMl?: number;
 };
 
 export type BranchSolveFlag = "ok" | "lowVolumeConstrained" | "unbracketedEndpoint";
@@ -193,7 +197,6 @@ export const defaultActiveLV: ActiveChamberParams = {
   reservoirTauRecoilIVR: 0.035,
   reservoirReleaseTheta: 0.55,
   reservoirValveThreshold: 0.15,
-  avPlaneCapacityShiftMl: 0,
 };
 
 export const defaultActiveRV: ActiveChamberParams = {
@@ -210,6 +213,9 @@ export const defaultActiveRV: ActiveChamberParams = {
 
 export const defaultActiveLA: ActiveChamberParams = {
   ...defaultActiveLV,
+  // PR4/PR5: LA recalibrated as a SINGLE active-stress chamber. Reservoir
+  // function comes from pulmonary venous return + MV closure + AV-plane descent
+  // + LA relaxation; the hidden two-branch sleeve remains disabled.
   V0: 5,
   Vw: 16,
   Vref: 45,
@@ -218,20 +224,25 @@ export const defaultActiveLA: ActiveChamberParams = {
   TrelMin: 0.06,
   TrelMax: 0.13,
   tauCa0: 0.08,
-  Arel0: 0.14,
+  Arel0: 0.15,
   Kd0: 0.18,
   betaLambda: 2.0,
   hillN: 2.5,
   kOn: 15,
   kOff: 8,
-  sigmaPas0: 300,
+  sigmaPas0: 1900,
   bPas: 10,
   lambdaPas0: 0.88,
-  Tmax0: 55000,
+  Tmax0: 92000,
   geomChi: 1.1,
   thetaOn: 0.80,
   pressureFloorMmHg: -2,
   atrialLeadSec: 0.16,
+  avPlaneGainMl: 8,
+  // PR2 (human plan): turn OFF the hidden LA body+sleeve reservoir branch. LA is
+  // a single active-stress chamber; reservoir function should come from pulmonary
+  // venous return + MV closure + AV-plane descent + LA wall relaxation, NOT an
+  // internal sleeve. The reservoir* fields below stay as DEBUG/diagnostic only.
   reservoirBranchGain: 0,
   reservoirStrokeMl: 0,
   reservoirSleeveVuMl: 8,
@@ -245,7 +256,6 @@ export const defaultActiveLA: ActiveChamberParams = {
   reservoirTauFill: 0.10,
   reservoirTauRecoilIVR: 0.035,
   reservoirValveThreshold: 0.15,
-  avPlaneCapacityShiftMl: 12,
 };
 
 export const defaultActiveRA: ActiveChamberParams = {
@@ -260,6 +270,7 @@ export const defaultActiveRA: ActiveChamberParams = {
   geomChi: 1.112,
   pressureFloorMmHg: -5,
   atrialLeadSec: 0.16,
+  avPlaneGainMl: 0,
   reservoirBranchGain: 0,
   reservoirStrokeMl: 0,
   reservoirSleeveVuMl: 12,
@@ -270,7 +281,6 @@ export const defaultActiveRA: ActiveChamberParams = {
   reservoirQPressureFloorGuard: 0,
   reservoirSleeveMinPressureGuard: 0,
   reservoirSleeveMinPressureGuardWidthMl: 4,
-  avPlaneCapacityShiftMl: 0,
 };
 
 export class ActiveStressChamberModel implements ChamberModel {
@@ -294,16 +304,10 @@ export class ActiveStressChamberModel implements ChamberModel {
     return (ap.reservoirBranchGain ?? 0) > 0 && (ap.reservoirStrokeMl ?? 0) > 0;
   }
 
-  private effectiveWallVolume(V: number, ctx: ChamberCtx): number {
-    const shift = Math.max(this.ap.avPlaneCapacityShiftMl ?? 0, 0);
-    if (shift <= 0) return V;
-    return V + shift * clamp(ctx.lvShortening01 ?? 0, 0, 1);
-  }
-
   private bodyPressure(V: number, internal: ChamberInternal, ctx: ChamberCtx): number {
     const ap = this.ap;
     const a = clamp(internal.a, 0, 1);
-    const { lambda, h, rm } = this.geometry(this.effectiveWallVolume(V, ctx));
+    const { lambda, h, rm } = this.geometry(V);
     const stretch = lambda - ap.lambdaPas0;
     const sigmaPas = ap.sigmaPas0 * (expClamped(ap.bPas * stretch) - 1);
     const gOver = 1 / (1 + expClamped(ap.kOver * (lambda - ap.lambdaFail)));
@@ -318,8 +322,28 @@ export class ActiveStressChamberModel implements ChamberModel {
   }
 
   pressure(V: number, internal: ChamberInternal, ctx: ChamberCtx): number {
-    if (!this.twoBranchEnabled()) return this.bodyPressure(V, internal, ctx);
+    if (!this.twoBranchEnabled()) {
+      // PR5: gated AV-plane descent lowers LA pressure during LV ejection and
+      // releases by IVR/MV opening. Do not use raw LV shortening through filling.
+      const avp = this.ap.avPlaneGainMl ?? 0;
+      const descent01 = avp > 0 ? this.avPlaneDescent01(ctx) : 0;
+      const wallVolume = avp > 0 ? Math.max(this.ap.V0 + this.ap.Vmin, V - avp * descent01) : V;
+      return this.bodyPressure(wallVolume, internal, ctx);
+    }
     return this.reservoirBranchState(V, internal, ctx).pressureMmHg;
+  }
+
+  private avPlaneDescent01(ctx: ChamberCtx): number {
+    const shortening = clamp(ctx.lvShortening01 ?? 0, 0, 1);
+    if (shortening <= 0) return 0;
+
+    if (ctx.mvOpen01 != null && ctx.aovOpen01 != null) {
+      const mvClosed01 = clamp(1 - ctx.mvOpen01, 0, 1);
+      return shortening * mvClosed01;
+    }
+
+    const theta = frac(ctx.phi);
+    return shortening * (ctx.systolicGate ?? systolicReservoirGate(theta, 0.58));
   }
 
   private sleevePressure(VResMl: number, qMl: number): number {
@@ -410,7 +434,7 @@ export class ActiveStressChamberModel implements ChamberModel {
     const ap = this.ap;
     const c = Math.max(internal.c, 0);
     const a = clamp(internal.a, 0, 1);
-    const { lambda } = this.geometry(this.effectiveWallVolume(V, ctx));
+    const { lambda } = this.geometry(V);
 
     const HR = Math.max(ctx.HR, 20);
     const T = 60 / HR;

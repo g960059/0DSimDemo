@@ -27,11 +27,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 const INSTANCE_COLORS = ['#a855f7', '#f472b6', '#22c55e', '#38bdf8', '#fbbf24'];
 
 const ALL_CHAMBERS: ChamberId[] = ['LV', 'LA', 'RV', 'RA'];
-const ALL_SIGNALS: SignalType[] = [
-  'LVP', 'AoP', 'LAP', 'RVP', 'PAP', 'RAP',
-  'QAo', 'QMV', 'QPA', 'QTV', 'PVF', 'SVF',
-  'VLA', 'aLA', 'cLA', 'P_PVein', 'xiMV', 'dP_MV',
-];
+const ALL_SIGNALS: SignalType[] = ['LVP', 'AoP', 'LAP', 'RVP', 'PAP', 'RAP', 'QAo', 'QMV', 'QPA', 'QTV', 'PVF', 'SVF'];
 const ALL_METRICS: MetricType[] = ['ABP', 'CVP', 'PAP', 'PCWP', 'SV', 'CO', 'LVEF'];
 const ALL_CONTROL_GROUPS: string[] = ['clinical', 'Global', 'ventricles', 'atria', 'vascular', 'fluids', 'valves', 'resp', 'advanced'];
 const DEFAULT_MODEL_LIMITATIONS = [

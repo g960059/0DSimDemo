@@ -183,7 +183,7 @@ export function defaultParams(): CoreRuntimeParams {
     // keep MAP/AoP normal as central preload rises.
     systemicResistance: 1.10,
     pulmonaryResistance: 1.0,
-    venousTone: 0.2,
+    venousTone: 0.65,
     arterialStiffness: 0.75, // M12-proper #1 Phase-1: more arterial compliance to hold pulse pressure normal
     PEEP: 0,
     Pth0: 0,
@@ -213,13 +213,13 @@ export function defaultParams(): CoreRuntimeParams {
     rvCaReleaseScale: 1,
     // Valve Defaults
     // MV
-    MV_Amax: 5.0, MV_Aleak: 1e-4, MV_kOpen: 2.0, MV_tauOpen: 0.020, MV_tauClose: 0.012, MV_R: 0.006, MV_L: 0.0002, MV_B: 4e-5,
+    MV_Amax: 5.0, MV_Aleak: 1e-4, MV_kOpen: 2.0, MV_tauOpen: 0.020, MV_tauClose: 0.035, MV_R: 0.004, MV_L: 0.0008, MV_B: 1e-4,
     // AoV
-    AoV_Amax: 3.5, AoV_Aleak: 1e-4, AoV_kOpen: 2.0, AoV_tauOpen: 0.010, AoV_tauClose: 0.030, AoV_R: 0.005, AoV_L: 0.001, AoV_B: 1e-5,
+    AoV_Amax: 3.5, AoV_Aleak: 1e-4, AoV_kOpen: 2.0, AoV_tauOpen: 0.010, AoV_tauClose: 0.030, AoV_R: 0.005, AoV_L: 0.001,
     // TV
-    TV_Amax: 8.0, TV_Aleak: 1e-4, TV_kOpen: 2.0, TV_tauOpen: 0.012, TV_tauClose: 0.025, TV_R: 0.002, TV_L: 0.0002, TV_B: 0,
+    TV_Amax: 8.0, TV_Aleak: 1e-4, TV_kOpen: 2.0, TV_tauOpen: 0.012, TV_tauClose: 0.025, TV_R: 0.002, TV_L: 0.0002,
     // PV
-    PV_Amax: 4.0, PV_Aleak: 1e-4, PV_kOpen: 2.0, PV_tauOpen: 0.010, PV_tauClose: 0.020, PV_R: 0.005, PV_L: 0.001, PV_B: 1e-5
+    PV_Amax: 4.0, PV_Aleak: 1e-4, PV_kOpen: 2.0, PV_tauOpen: 0.010, PV_tauClose: 0.020, PV_R: 0.005, PV_L: 0.001
   };
 }
 
@@ -239,16 +239,16 @@ function buildNodes(): NodeSpec[] {
 
     { name: "PA", kind: "arterial", ext: "pth", Vu: 0, P0: 20, Vs: 60, x0: 60 * Math.log1p(16 / 20) },
     { name: "PArt", kind: "arterial", ext: "pth", Vu: 0, P0: 20, Vs: 90, x0: 90 * Math.log1p(13 / 20) },
-    { name: "PCap", kind: "venousPressure", ext: "palv", Vu: 105, Ccoll: 2.4, Copen: 4.8, Cdist: 2.4, Popen: 0, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 8 },
-    { name: "PVen", kind: "venousPressure", ext: "pth", Vu: 160, Ccoll: 2.4, Copen: 4.8, Cdist: 2.4, Popen: -1, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 6 },
-    { name: "PVein", kind: "venousPressure", ext: "pth", Vu: 215, Ccoll: 2.4, Copen: 4.8, Cdist: 2.4, Popen: -1, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 5 }
+    { name: "PCap", kind: "venousPressure", ext: "palv", Vu: 105, Ccoll: 0.75, Copen: 1.5, Cdist: 0.75, Popen: 0, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 8 },
+    { name: "PVen", kind: "venousPressure", ext: "pth", Vu: 160, Ccoll: 0.75, Copen: 1.5, Cdist: 0.75, Popen: -1, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 6 },
+    { name: "PVein", kind: "venousPressure", ext: "pth", Vu: 215, Ccoll: 0.75, Copen: 1.5, Cdist: 0.75, Popen: -1, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 5 }
   ];
 }
 
 function buildEdges(): EdgeSpec[] {
   const q0 = 80;
   return [
-    { name: "MV", up: "LA", down: "LV", kind: "valve", R: 0.006, L: 0.0002, B: 4e-5, Amax: 1, Aleak: 1e-5, kOpen: 2.0, tauOpen: 0.020, tauClose: 0.012, q0, xi0: 0.2 },
+    { name: "MV", up: "LA", down: "LV", kind: "valve", R: 0.002, L: 0.0002, B: 1e-4, Amax: 1, Aleak: 1e-5, kOpen: 2.0, tauOpen: 0.012, tauClose: 0.025, q0, xi0: 0.2 },
     { name: "AoV", up: "LV", down: "Ao", kind: "valve", R: 0.005, L: 0.002, B: 1e-5, Amax: 1, Aleak: 1e-5, kOpen: 2.0, tauOpen: 0.010, tauClose: 0.030, q0, xi0: 0.2 },
     { name: "TV", up: "RA", down: "RV", kind: "valve", R: 0.002, L: 0.0002, B: 0, Amax: 1, Aleak: 1e-5, kOpen: 2.0, tauOpen: 0.012, tauClose: 0.025, q0, xi0: 0.2 },
     { name: "PV", up: "RV", down: "PA", kind: "valve", R: 0.005, L: 0.001, B: 1e-5, Amax: 1, Aleak: 1e-5, kOpen: 2.0, tauOpen: 0.010, tauClose: 0.020, q0, xi0: 0.2 },
@@ -503,10 +503,6 @@ export class ModelCore {
     const flows = this.computeFlows(this.x, pack);
     const laReservoir = this.laReservoirDebugFields(this.x, pack.Vphys[this.nodeIndex.get("LA")!]);
     const pvOstial = this.pvOstialDebugFields(this.x, pack, flows);
-    const lvInternal = this.activeInternalIndex("LV");
-    const rvInternal = this.activeInternalIndex("RV");
-    const laInternal = this.activeInternalIndex("LA");
-    const raInternal = this.activeInternalIndex("RA");
     const s: SimSample = {
       t: this.t,
       AoP: pack.P[this.nodeIndex.get("Ao")!],
@@ -531,21 +527,12 @@ export class ModelCore {
       VPulmonaryVenous: pack.Vphys[this.nodeIndex.get("PCap")!] + pack.Vphys[this.nodeIndex.get("PVen")!] + pack.Vphys[this.nodeIndex.get("PVein")!],
       P_PVein: pack.P[this.nodeIndex.get("PVein")!],
       phi: this.x[this.idx.phi],
-      aLV: clamp(this.x[lvInternal.a], 0, 1),
-      aRV: clamp(this.x[rvInternal.a], 0, 1),
-      aLA: clamp(this.x[laInternal.a], 0, 1),
-      aRA: clamp(this.x[raInternal.a], 0, 1),
-      cLV: this.x[lvInternal.c],
-      cRV: this.x[rvInternal.c],
-      cLA: this.x[laInternal.c],
-      cRA: this.x[raInternal.c],
-      rLA: clamp(this.x[laInternal.r], 0, Math.max(this.activeModel("LA").ap.reservoirStrokeMl ?? 0, 0)),
-      rRA: clamp(this.x[raInternal.r], 0, Math.max(this.activeModel("RA").ap.reservoirStrokeMl ?? 0, 0)),
-      xiMV: clamp(this.x[this.idx.xi.MV], 0, 1),
-      xiAoV: clamp(this.x[this.idx.xi.AoV], 0, 1),
-      xiTV: clamp(this.x[this.idx.xi.TV], 0, 1),
-      xiPV: clamp(this.x[this.idx.xi.PV], 0, 1),
-      dP_MV: pack.P[this.nodeIndex.get("LA")!] - pack.P[this.nodeIndex.get("LV")!],
+      aLV: clamp(this.x[this.activeInternalIndex("LV").a], 0, 1),
+      aRV: clamp(this.x[this.activeInternalIndex("RV").a], 0, 1),
+      aLA: clamp(this.x[this.activeInternalIndex("LA").a], 0, 1),
+      aRA: clamp(this.x[this.activeInternalIndex("RA").a], 0, 1),
+      rLA: clamp(this.x[this.activeInternalIndex("LA").r], 0, Math.max(this.activeModel("LA").ap.reservoirStrokeMl ?? 0, 0)),
+      rRA: clamp(this.x[this.activeInternalIndex("RA").r], 0, Math.max(this.activeModel("RA").ap.reservoirStrokeMl ?? 0, 0)),
       ...pvOstial,
       ...laReservoir,
       TBV: this.totalBloodVolume(pack)
@@ -1372,8 +1359,6 @@ export class ModelCore {
     const RAP = pack.P[this.nodeIndex.get("RA")!];
     const P_VC = pack.P[this.nodeIndex.get("VC")!];
     const P_PVein = pack.P[this.nodeIndex.get("PVein")!];
-    const LAP = pack.P[this.nodeIndex.get("LA")!];
-    const LVP = pack.P[this.nodeIndex.get("LV")!];
     const actualTBV = this.totalBloodVolume(pack);
     const laReservoir = this.laReservoirDebugFields(this.x, pack.Vphys[this.nodeIndex.get("LA")!]);
     const pvOstial = this.pvOstialDebugFields(this.x, pack, flows);
@@ -1397,11 +1382,6 @@ export class ModelCore {
       Palv: this.Palv(),
       Q_VC_RA: flows[this.edgeIndex("VC_RA")],
       Q_PCap_PVen: flows[this.edgeIndex("PCap_PVen")],
-      xiMV: clamp(this.x[this.idx.xi.MV], 0, 1),
-      xiAoV: clamp(this.x[this.idx.xi.AoV], 0, 1),
-      xiTV: clamp(this.x[this.idx.xi.TV], 0, 1),
-      xiPV: clamp(this.x[this.idx.xi.PV], 0, 1),
-      dP_MV: LAP - LVP,
       P_SV: pack.P[this.nodeIndex.get("SV")!],
       P_VC,
       P_PVen: pack.P[this.nodeIndex.get("PVen")!],
