@@ -413,15 +413,25 @@ export type SimMetrics = {
 /** Instantaneous engine observables for verification/UI (read-only). */
 export type SimObservables = {
   Pmsf: number;
+  PmsfTm: number;
+  PmsfAbs: number;
   vrGradient: number;
   RAP: number;
   stressedVolumeSystemic: number;
   unstressedVolumeSystemic: number;
+  systemicComplianceEff: number;
+  systemicExternalPressureWeighted: number;
   venousStressedVolume: number;   // SV+VC stressed volume (the reservoir)
   venousUnstressedVolume: number; // SV+VC unstressed volume
   pulmonaryVenousVolume: number;          // PCap+PVen+PVein total realised volume
   pulmonaryVenousStressedVolume: number;  // PCap+PVen+PVein stressed volume
   pulmonaryVenousUnstressedVolume: number;// PCap+PVen+PVein unstressed volume
+  pulmonaryVenousComplianceEff: number;   // PCap+PVen+PVein effective compliance
+  pulmonaryVenousExternalPressureWeighted: number;
+  Pmpf: number;                           // pulmonary venous filling pressure, transmural convention
+  PmpfTm: number;
+  PmpfAbs: number;                        // pressure coordinate for LAP-axis Guyton view
+  pulmonaryVenousReturnGradient: number;  // PmpfAbs - LAP
   pVeinVcGradient: number;                // P_PVein - P_VC (mmHg)
   tbvCorrectionMagPerBeat: number;         // mL applied by the conservative TBV ledger corrector over the last completed beat
   tbvCorrectionLastStepMl: number;         // mL applied by the conservative TBV ledger corrector on the last integrator step

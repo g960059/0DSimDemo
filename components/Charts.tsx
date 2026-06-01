@@ -1,7 +1,15 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { SimInstance, PhysicsRefState, PanelInstanceConfig } from '../types';
 import { useDocumentVisible, useOnscreen } from '../hooks/useOnscreen';
+import {
+    buildGuytonPaneData,
+    starlingSweepSignature,
+    type GuytonCurvePoint,
+    type GuytonPaneData,
+    type GuytonSide,
+    type StarlingSweepResponse,
+} from '../engine/guytonStarling';
 
 interface ChartPanelProps {
   physicsRefs: React.MutableRefObject<Map<string, PhysicsRefState>>;
@@ -622,21 +630,378 @@ export const MetricsPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances
     );
 };
 
+type GuytonSeries = {
+    inst: SimInstance;
+    pane: GuytonPaneData;
+    sweep?: StarlingSweepResponse;
+    signature: string;
+};
+
 export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ physicsRefs, instances, config, type }) => {
-    // Guyton Plot Disabled temporarily for refactor, 
-    // rendering just the operating point for now.
+    const containerRef = useRef<HTMLDivElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const isOnscreen = useOnscreen(containerRef);
+    const isDocumentVisible = useDocumentVisible();
+    const canAnimate = isOnscreen && isDocumentVisible;
+    const side: GuytonSide = type === 'GUYTON_LEFT' ? 'left' : 'right';
     const [tick, setTick] = useState(0);
-    
+    const [sweeps, setSweeps] = useState<Record<string, StarlingSweepResponse>>({});
+    const [sweepBusy, setSweepBusy] = useState(false);
+    const [sweepError, setSweepError] = useState<string | null>(null);
+
+    const visibleInstances = useMemo(() => (
+        instances.filter((inst) => {
+            const cfg = config[inst.id];
+            return inst.isVisible !== false && cfg?.visible;
+        })
+    ), [instances, config]);
+
+    const sweepInputs = useMemo(() => visibleInstances.map((inst) => ({
+        instanceId: inst.id,
+        params: inst.params,
+        targetVolumeMl: inst.targetVolume,
+        signature: starlingSweepSignature(side, inst.id, inst.params, inst.targetVolume),
+    })), [visibleInstances, side]);
+
+    const sweepKey = useMemo(() => JSON.stringify(sweepInputs.map((input) => ({
+        id: input.instanceId,
+        signature: input.signature,
+    }))), [sweepInputs]);
+
     useEffect(() => {
-        const interval = setInterval(() => setTick(t => t + 1), 500); 
-        return () => clearInterval(interval);
+        const interval = window.setInterval(() => setTick((t) => t + 1), 500);
+        return () => window.clearInterval(interval);
     }, []);
+
+    useEffect(() => {
+        if (typeof Worker === 'undefined' || sweepInputs.length === 0) return;
+        let cancelled = false;
+        let remaining = sweepInputs.length;
+        const worker = new Worker(new URL('../engine/guytonStarlingWorker.ts', import.meta.url), { type: 'module' });
+        const timer = window.setTimeout(() => {
+            if (cancelled) return;
+            setSweepBusy(true);
+            setSweepError(null);
+            for (const input of sweepInputs) {
+                worker.postMessage({
+                    requestId: `${input.instanceId}-${Date.now()}`,
+                    signature: input.signature,
+                    instanceId: input.instanceId,
+                    params: input.params,
+                    targetVolumeMl: input.targetVolumeMl,
+                });
+            }
+        }, 450);
+
+        worker.onmessage = (event: MessageEvent<StarlingSweepResponse>) => {
+            if (cancelled) return;
+            const response = event.data;
+            if (response.error) setSweepError(response.error);
+            else setSweeps((prev) => ({ ...prev, [response.instanceId]: response }));
+            remaining -= 1;
+            if (remaining <= 0) {
+                setSweepBusy(false);
+                worker.terminate();
+            }
+        };
+        worker.onerror = (event) => {
+            if (cancelled) return;
+            setSweepError(event.message || 'Starling sweep worker failed');
+            setSweepBusy(false);
+            worker.terminate();
+        };
+
+        return () => {
+            cancelled = true;
+            window.clearTimeout(timer);
+            worker.terminate();
+        };
+    }, [sweepKey]);
+
+    const series: GuytonSeries[] = useMemo(() => {
+        void tick;
+        return visibleInstances.flatMap((inst) => {
+            const ref = physicsRefs.current.get(inst.id);
+            if (!ref) return [];
+            try {
+                const pane = buildGuytonPaneData(side, ref.core.metrics(), ref.core.debugObservables());
+                const signature = starlingSweepSignature(side, inst.id, inst.params, inst.targetVolume);
+                const sweep = sweeps[inst.id]?.signature === signature ? sweeps[inst.id] : undefined;
+                return [{ inst, pane, sweep, signature }];
+            } catch {
+                return [];
+            }
+        });
+    }, [visibleInstances, physicsRefs, side, sweeps, tick]);
+
+    useEffect(() => {
+        if (!canAnimate || !containerRef.current || !canvasRef.current) return;
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        const width = Math.max(containerRef.current.clientWidth, 1);
+        const height = Math.max(containerRef.current.clientHeight, 1);
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        drawGuytonCanvas(ctx, width, height, series, side);
+    }, [canAnimate, series, side]);
+
+    const primary = series[0]?.pane;
+    const primarySweep = series[0]?.sweep;
+    const primaryStarling = side === 'right' ? primarySweep?.right : primarySweep?.left;
+    const warnings = [
+        ...(primary?.warnings ?? []),
+        ...(primaryStarling?.warnings ?? []),
+        ...(sweepError ? [sweepError] : []),
+    ].slice(0, 2);
+
     return (
-        <div className="absolute inset-0 p-2 overflow-y-auto flex items-center justify-center bg-[#0B1120] rounded-b-xl">
-           <div className="flex flex-col text-center opacity-50">
-                <span className="text-sm font-bold text-slate-400">Guyton Plot</span>
-                <span className="text-xs text-slate-500 mt-2">Analytical intersection rendering <br/> is disabled for ModelCore v2</span> 
-           </div>
+        <div ref={containerRef} className="absolute inset-0 bg-[#0B1120] rounded-b-xl overflow-hidden">
+            <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
+            {primary && (
+                <div className="absolute left-3 right-3 bottom-2 flex flex-wrap gap-1.5 pointer-events-none">
+                    <GuytonStat label={primary.fillingPressureLabel} value={primary.fillingPressure} unit="mmHg" />
+                    <GuytonStat label={side === 'right' ? 'RAP' : 'LAP'} value={primary.operatingPoint.pressure} unit="mmHg" />
+                    <GuytonStat label="CO" value={primary.operatingPoint.flow} unit="L/min" />
+                    <GuytonStat label="Gradient" value={primary.gradient} unit="mmHg" />
+                    <GuytonStat label="Rvr" value={primary.summary.effectiveResistanceMmHgPerLMin} unit="mmHg/L/min" />
+                    <GuytonStat label="Stressed V" value={primary.summary.stressedVolumeMl} unit="mL" decimals={0} />
+                    {sweepBusy && <span className="rounded border border-slate-700/70 bg-slate-950/80 px-2 py-1 text-[10px] text-slate-400">Sweep...</span>}
+                    {warnings.map((warning) => (
+                        <span key={warning} className="rounded border border-amber-500/30 bg-amber-950/40 px-2 py-1 text-[10px] text-amber-200">{warning}</span>
+                    ))}
+                </div>
+            )}
+            {series.length === 0 && (
+                <div className="absolute inset-0 flex items-center justify-center text-center">
+                    <div className="text-xs text-slate-500">No visible instance</div>
+                </div>
+            )}
         </div>
     );
 };
+
+function GuytonStat({ label, value, unit, decimals = 1 }: { label: string; value: number; unit: string; decimals?: number }) {
+    return (
+        <span className="rounded border border-slate-700/70 bg-slate-950/80 px-2 py-1 text-[10px]">
+            <span className="text-slate-500">{label}</span>
+            <span className="ml-1 font-mono text-slate-100">{Number.isFinite(value) ? value.toFixed(decimals) : '--'}</span>
+            <span className="ml-0.5 text-slate-500">{unit}</span>
+        </span>
+    );
+}
+
+function drawGuytonCanvas(
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    series: GuytonSeries[],
+    side: GuytonSide,
+) {
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = '#0B1120';
+    ctx.fillRect(0, 0, width, height);
+
+    const plot = {
+        left: 48,
+        right: Math.max(width - 18, 60),
+        top: 34,
+        bottom: Math.max(height - 76, 80),
+    };
+    if (plot.right <= plot.left || plot.bottom <= plot.top) return;
+
+    const allPoints: GuytonCurvePoint[] = [];
+    for (const item of series) {
+        allPoints.push(...item.pane.venousReturn.points, ...item.pane.classicVenousReturn.points, ...item.pane.localStarling.points);
+        const sweep = side === 'right' ? item.sweep?.right : item.sweep?.left;
+        if (sweep) allPoints.push(...sweep.points);
+        allPoints.push({ x: item.pane.operatingPoint.pressure, y: item.pane.operatingPoint.flow });
+        allPoints.push({ x: item.pane.fillingPressure, y: 0 });
+    }
+    if (allPoints.length === 0) return;
+
+    const xExtent = d3.extent(allPoints, (p) => p.x) as [number, number];
+    const yMax = Math.max(1, d3.max(allPoints, (p) => p.y) ?? 1);
+    const xAxis = niceAxis(xExtent[0], xExtent[1], 7);
+    const yAxis = niceAxis(0, yMax * 1.05, 6);
+    const x = d3.scaleLinear().domain([xAxis.min, xAxis.max]).range([plot.left, plot.right]);
+    const y = d3.scaleLinear().domain([yAxis.min, yAxis.max]).range([plot.bottom, plot.top]);
+
+    ctx.save();
+    const first = series[0]?.pane;
+    if (first && first.collapsePressure > xAxis.min && first.collapsePressure < xAxis.max) {
+        ctx.fillStyle = 'rgba(51, 65, 85, 0.24)';
+        ctx.fillRect(plot.left, plot.top, x(first.collapsePressure) - plot.left, plot.bottom - plot.top);
+    }
+
+    ctx.strokeStyle = '#243244';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    x.ticks(7).forEach((t) => { ctx.moveTo(x(t), plot.top); ctx.lineTo(x(t), plot.bottom); });
+    y.ticks(6).forEach((t) => { ctx.moveTo(plot.left, y(t)); ctx.lineTo(plot.right, y(t)); });
+    ctx.stroke();
+
+    ctx.strokeStyle = '#475569';
+    ctx.beginPath();
+    ctx.moveTo(plot.left, plot.bottom);
+    ctx.lineTo(plot.right, plot.bottom);
+    ctx.moveTo(plot.left, plot.top);
+    ctx.lineTo(plot.left, plot.bottom);
+    ctx.stroke();
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    x.ticks(7).forEach((t) => ctx.fillText(formatTick(t), x(t), plot.bottom + 6));
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    y.ticks(6).forEach((t) => ctx.fillText(formatTick(t), plot.left - 7, y(t)));
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.font = '11px sans-serif';
+    ctx.fillText(side === 'right' ? 'RAP / CVP (mmHg)' : 'LAP / PCWP (mmHg)', (plot.left + plot.right) / 2, height - 34);
+    ctx.save();
+    ctx.translate(14, (plot.top + plot.bottom) / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('Flow (L/min)', 0, 0);
+    ctx.restore();
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.font = '12px sans-serif';
+    ctx.fillStyle = '#e2e8f0';
+    ctx.fillText(side === 'right' ? 'Systemic Guyton / RV Starling' : 'Pulmonary Guyton / LV Starling', plot.left, 10);
+
+    for (const item of series) {
+        const base = d3.color(item.inst.color) ?? d3.color('#a855f7')!;
+        const venousColor = base.brighter(1.15).formatHex();
+        const classicColor = base.brighter(0.2).formatHex();
+        const sweepColor = '#fb923c';
+        const starlingColor = '#f43f5e';
+
+        drawVertical(ctx, x(item.pane.fillingPressure), plot, classicColor, [4, 4]);
+        drawLine(ctx, item.pane.classicVenousReturn.points, x, y, classicColor, 1.2, [4, 5]);
+        drawLine(ctx, item.pane.venousReturn.points, x, y, venousColor, 2.2);
+
+        const sweep = side === 'right' ? item.sweep?.right : item.sweep?.left;
+        if (sweep && sweep.points.length >= 2) {
+            drawLine(ctx, sweep.points, x, y, sweepColor, 2);
+            for (const point of sweep.points) drawPoint(ctx, x(point.x), y(point.y), sweepColor, point.settled === false ? 2.5 : 3.5);
+        } else {
+            drawLine(ctx, item.pane.localStarling.points, x, y, starlingColor, 1.7, [6, 4]);
+        }
+
+        drawPoint(ctx, x(item.pane.operatingPoint.pressure), y(item.pane.operatingPoint.flow), item.inst.color, 5.5);
+        ctx.fillStyle = '#cbd5e1';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(item.inst.name, x(item.pane.operatingPoint.pressure) + 7, y(item.pane.operatingPoint.flow));
+    }
+
+    drawLegend(ctx, plot, Boolean(series.some((item) => {
+        const sweep = side === 'right' ? item.sweep?.right : item.sweep?.left;
+        return sweep && sweep.points.length >= 2;
+    })));
+    ctx.restore();
+}
+
+function drawLine(
+    ctx: CanvasRenderingContext2D,
+    points: GuytonCurvePoint[],
+    x: d3.ScaleLinear<number, number>,
+    y: d3.ScaleLinear<number, number>,
+    color: string,
+    width: number,
+    dash: number[] = [],
+) {
+    if (points.length < 2) return;
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.setLineDash(dash);
+    ctx.beginPath();
+    points.forEach((point, index) => {
+        const px = x(point.x);
+        const py = y(point.y);
+        if (index === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+    });
+    ctx.stroke();
+    ctx.restore();
+}
+
+function drawVertical(
+    ctx: CanvasRenderingContext2D,
+    px: number,
+    plot: { left: number; right: number; top: number; bottom: number },
+    color: string,
+    dash: number[],
+) {
+    if (px < plot.left || px > plot.right) return;
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.setLineDash(dash);
+    ctx.beginPath();
+    ctx.moveTo(px, plot.top);
+    ctx.lineTo(px, plot.bottom);
+    ctx.stroke();
+    ctx.restore();
+}
+
+function drawPoint(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, radius: number) {
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+}
+
+function drawLegend(ctx: CanvasRenderingContext2D, plot: { right: number; top: number }, hasSweep: boolean) {
+    const x0 = plot.right - 154;
+    const y0 = plot.top + 6;
+    const rows = [
+        ['#38bdf8', 'venous return'],
+        [hasSweep ? '#fb923c' : '#f43f5e', hasSweep ? 'preload sweep' : 'local Starling'],
+    ] as const;
+    ctx.save();
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+    ctx.strokeStyle = 'rgba(71, 85, 105, 0.7)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(x0 - 8, y0 - 6, 142, 42, 5);
+    ctx.fill();
+    ctx.stroke();
+    rows.forEach(([color, label], i) => {
+        const yy = y0 + i * 17;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x0, yy);
+        ctx.lineTo(x0 + 20, yy);
+        ctx.stroke();
+        ctx.fillStyle = '#cbd5e1';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, x0 + 26, yy);
+    });
+    ctx.restore();
+}
+
+function formatTick(value: number): string {
+    if (Math.abs(value) >= 10) return value.toFixed(0);
+    if (Math.abs(value) >= 1) return value.toFixed(1);
+    return value.toFixed(2);
+}
