@@ -92,6 +92,7 @@ export type ActiveChamberParams = {
   reservoirTauRecoilIVR?: number;
   reservoirReleaseTheta?: number;
   reservoirValveThreshold?: number;
+  avPlaneCapacityShiftMl?: number;
 };
 
 export type BranchSolveFlag = "ok" | "lowVolumeConstrained" | "unbracketedEndpoint";
@@ -192,6 +193,7 @@ export const defaultActiveLV: ActiveChamberParams = {
   reservoirTauRecoilIVR: 0.035,
   reservoirReleaseTheta: 0.55,
   reservoirValveThreshold: 0.15,
+  avPlaneCapacityShiftMl: 0,
 };
 
 export const defaultActiveRV: ActiveChamberParams = {
@@ -209,24 +211,29 @@ export const defaultActiveRV: ActiveChamberParams = {
 export const defaultActiveLA: ActiveChamberParams = {
   ...defaultActiveLV,
   V0: 5,
-  Vw: 15.9,
+  Vw: 16,
   Vref: 45,
   Vmin: 1,
-  Trel0: 0.09,
+  Trel0: 0.10,
   TrelMin: 0.06,
-  TrelMax: 0.12,
-  tauCa0: 0.04,
+  TrelMax: 0.13,
+  tauCa0: 0.08,
   Arel0: 0.14,
-  sigmaPas0: 2000,
-  bPas: 14,
-  lambdaPas0: 0.80,
-  Tmax0: 70000,
-  geomChi: 1.121,
+  Kd0: 0.18,
+  betaLambda: 2.0,
+  hillN: 2.5,
+  kOn: 15,
+  kOff: 8,
+  sigmaPas0: 300,
+  bPas: 10,
+  lambdaPas0: 0.88,
+  Tmax0: 55000,
+  geomChi: 1.1,
   thetaOn: 0.80,
-  pressureFloorMmHg: -4,
+  pressureFloorMmHg: -2,
   atrialLeadSec: 0.16,
-  reservoirBranchGain: 1,
-  reservoirStrokeMl: 112,
+  reservoirBranchGain: 0,
+  reservoirStrokeMl: 0,
   reservoirSleeveVuMl: 8,
   reservoirSleeveCompliance: 3.0,
   reservoirSleeveP0: 0,
@@ -238,6 +245,7 @@ export const defaultActiveLA: ActiveChamberParams = {
   reservoirTauFill: 0.10,
   reservoirTauRecoilIVR: 0.035,
   reservoirValveThreshold: 0.15,
+  avPlaneCapacityShiftMl: 12,
 };
 
 export const defaultActiveRA: ActiveChamberParams = {
@@ -262,6 +270,7 @@ export const defaultActiveRA: ActiveChamberParams = {
   reservoirQPressureFloorGuard: 0,
   reservoirSleeveMinPressureGuard: 0,
   reservoirSleeveMinPressureGuardWidthMl: 4,
+  avPlaneCapacityShiftMl: 0,
 };
 
 export class ActiveStressChamberModel implements ChamberModel {
@@ -285,10 +294,16 @@ export class ActiveStressChamberModel implements ChamberModel {
     return (ap.reservoirBranchGain ?? 0) > 0 && (ap.reservoirStrokeMl ?? 0) > 0;
   }
 
+  private effectiveWallVolume(V: number, ctx: ChamberCtx): number {
+    const shift = Math.max(this.ap.avPlaneCapacityShiftMl ?? 0, 0);
+    if (shift <= 0) return V;
+    return V + shift * clamp(ctx.lvShortening01 ?? 0, 0, 1);
+  }
+
   private bodyPressure(V: number, internal: ChamberInternal, ctx: ChamberCtx): number {
     const ap = this.ap;
     const a = clamp(internal.a, 0, 1);
-    const { lambda, h, rm } = this.geometry(V);
+    const { lambda, h, rm } = this.geometry(this.effectiveWallVolume(V, ctx));
     const stretch = lambda - ap.lambdaPas0;
     const sigmaPas = ap.sigmaPas0 * (expClamped(ap.bPas * stretch) - 1);
     const gOver = 1 / (1 + expClamped(ap.kOver * (lambda - ap.lambdaFail)));
@@ -395,7 +410,7 @@ export class ActiveStressChamberModel implements ChamberModel {
     const ap = this.ap;
     const c = Math.max(internal.c, 0);
     const a = clamp(internal.a, 0, 1);
-    const { lambda } = this.geometry(V);
+    const { lambda } = this.geometry(this.effectiveWallVolume(V, ctx));
 
     const HR = Math.max(ctx.HR, 20);
     const T = 60 / HR;

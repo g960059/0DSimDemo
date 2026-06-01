@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { SimInstance, PhysicsRefState, PanelInstanceConfig } from '../types';
+import type { SimSample } from '../engine/protocol';
 
 interface ChartPanelProps {
   physicsRefs: React.MutableRefObject<Map<string, PhysicsRefState>>;
@@ -98,6 +99,57 @@ const ChartLegend = ({ instances, config, showLegend, extraClasses = '' }: { ins
     );
 };
 
+const MIN_LA_PV_LOOP_SAMPLES = 80;
+
+export function lastCompleteBeat(samples: SimSample[]): SimSample[] {
+    if (samples.length < 3) return samples;
+    const phiNow = samples[samples.length - 1].phi;
+    const beatEnd = Math.floor(phiNow);
+    if (beatEnd < 1) return samples;
+    const beatStart = beatEnd - 1;
+    const data = samples.filter((sample) => sample.phi >= beatStart && sample.phi <= beatEnd);
+    const closing = samples.find((sample) => sample.phi > beatEnd);
+    if (data.length >= 5) return closing ? [...data, closing] : data;
+
+    const currentBeat = samples.filter((sample) => Math.floor(sample.phi) === Math.floor(phiNow));
+    if (currentBeat.length >= 5) return currentBeat;
+    return samples.slice(-Math.min(samples.length, 500));
+}
+
+const pvLoopPoint = (sample: SimSample, chamber: string): { v: number; p: number } | null => {
+    switch (chamber) {
+        case 'LV': return { v: sample.VLV, p: sample.LVP };
+        case 'LA': return { v: sample.VLA, p: sample.LAP };
+        case 'RV': return { v: sample.VRV, p: sample.RVP };
+        case 'RA': return { v: sample.VRA, p: sample.RAP };
+        default: return null;
+    }
+};
+
+const waveformValue = (sample: SimSample, signal: string): number | null => {
+    switch(signal) {
+        case 'Plv': case 'LVP': return sample.LVP;
+        case 'Pla': case 'LAP': return sample.LAP;
+        case 'Prv': case 'RVP': return sample.RVP;
+        case 'Pra': case 'RAP': return sample.RAP;
+        case 'AoP': return sample.AoP;
+        case 'PAP': return sample.PAP;
+        case 'QAo': return sample.QAo;
+        case 'QMV': return sample.QMV;
+        case 'QPA': return sample.QPA;
+        case 'QTV': return sample.QTV;
+        case 'PVF': return sample.PVF;
+        case 'SVF': return sample.SVF;
+        case 'VLA': return sample.VLA;
+        case 'aLA': return sample.aLA;
+        case 'cLA': return sample.cLA;
+        case 'P_PVein': return sample.P_PVein;
+        case 'xiMV': return sample.xiMV;
+        case 'dP_MV': return sample.dP_MV;
+        default: return null;
+    }
+};
+
 export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances, config, showGuides, showLegend }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -143,19 +195,15 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
           const physState = physicsRefs.current.get(inst.id);
           if (!physState || physState.buffer.length < 2) return;
           
-          const data = physState.buffer.slice(-500); 
+          const data = lastCompleteBeat(physState.buffer);
           for (let i = 0; i < data.length; i += 10) {
               const d = data[i];
               cfg.selectedSignals.forEach((chamber: string) => {
-                  let v = 0, p = 0;
-                  switch(chamber) {
-                      case 'LV': v = d.VLV; p = d.LVP; break;
-                      case 'LA': v = d.VLA; p = d.LAP; break;
-                      case 'RV': v = d.VRV; p = d.RVP; break;
-                      case 'RA': v = d.VRA; p = d.RAP; break;
-                  }
-                  if (v > currentFrameMaxV) currentFrameMaxV = v;
-                  if (p > currentFrameMaxP) currentFrameMaxP = p;
+                  if (chamber === 'LA' && data.length < MIN_LA_PV_LOOP_SAMPLES) return;
+                  const point = pvLoopPoint(d, chamber);
+                  if (!point) return;
+                  if (point.v > currentFrameMaxV) currentFrameMaxV = point.v;
+                  if (point.p > currentFrameMaxP) currentFrameMaxP = point.p;
                   hasData = true;
               });
           }
@@ -207,10 +255,10 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
           const physState = physicsRefs.current.get(inst.id);
           if (!physState || physState.buffer.length < 2) return;
           
-          const lastPhi = physState.buffer[physState.buffer.length - 1]?.phi ?? 0;
-          const data = physState.buffer.filter(d => d.phi >= lastPhi - 1);
+          const data = lastCompleteBeat(physState.buffer);
           
           cfg.selectedSignals.forEach((chamber: string) => {
+              if (chamber === 'LA' && data.length < MIN_LA_PV_LOOP_SAMPLES) return;
               const color = getColor(inst.color, chamber, cfg.customBaseColor, cfg.customSignalColors);
               
               ctx.beginPath();
@@ -220,16 +268,11 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
               let isFirst = true;
               for (let i = 0; i < data.length; i++) {
                   const d = data[i];
-                  let v = 0, p = 0;
-                  switch (chamber) {
-                      case 'LV': v = d.VLV; p = d.LVP; break;
-                      case 'LA': v = d.VLA; p = d.LAP; break;
-                      case 'RV': v = d.VRV; p = d.RVP; break;
-                      case 'RA': v = d.VRA; p = d.RAP; break;
-                  }
+                  const point = pvLoopPoint(d, chamber);
+                  if (!point) continue;
                   
-                  const px = xScale(v);
-                  const py = yScale(p);
+                  const px = xScale(point.v);
+                  const py = yScale(point.p);
                   
                   if (isFirst) {
                       ctx.moveTo(px, py);
@@ -242,15 +285,10 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
 
               const lastPoint = data[data.length - 1];
               if (lastPoint) {
-                 let v = 0, p = 0;
-                 switch (chamber) {
-                      case 'LV': v = lastPoint.VLV; p = lastPoint.LVP; break;
-                      case 'LA': v = lastPoint.VLA; p = lastPoint.LAP; break;
-                      case 'RV': v = lastPoint.VRV; p = lastPoint.RVP; break;
-                      case 'RA': v = lastPoint.VRA; p = lastPoint.RAP; break;
-                 }
+                 const point = pvLoopPoint(lastPoint, chamber);
+                 if (!point) return;
                  ctx.beginPath();
-                 ctx.arc(xScale(v), yScale(p), 4, 0, Math.PI * 2);
+                 ctx.arc(xScale(point.v), yScale(point.p), 4, 0, Math.PI * 2);
                  ctx.fillStyle = color;
                  ctx.fill();
               }
@@ -340,21 +378,8 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                     const d = physState.buffer[i];
                     if (d.t < tMin || d.t > tMax) continue;
                     cfg.selectedSignals.forEach((sig: string) => {
-                        let val = 0;
-                        switch(sig) {
-                            case 'Plv': case 'LVP': val = d.LVP; break;
-                            case 'Pla': case 'LAP': val = d.LAP; break;
-                            case 'Prv': case 'RVP': val = d.RVP; break;
-                            case 'Pra': case 'RAP': val = d.RAP; break;
-                            case 'AoP': val = d.AoP; break;
-                            case 'PAP': val = d.PAP; break;
-                            case 'QAo': val = d.QAo; break;
-                            case 'QMV': val = d.QMV; break;
-                            case 'QPA': val = d.QPA; break;
-                            case 'QTV': val = d.QTV; break;
-                            case 'PVF': val = d.PVF; break;
-                            case 'SVF': val = d.SVF; break;
-                        }
+                        const val = waveformValue(d, sig);
+                        if (val == null) return;
                         if (val > frameYMax) frameYMax = val;
                         if (val < frameYMin) frameYMin = val;
                         hasData = true;
@@ -414,21 +439,8 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                         if (d.t < tMin) continue;
                         if (d.t > tMax) break;
 
-                        let val = 0;
-                        switch(sig) {
-                            case 'Plv': case 'LVP': val = d.LVP; break;
-                            case 'Pla': case 'LAP': val = d.LAP; break;
-                            case 'Prv': case 'RVP': val = d.RVP; break;
-                            case 'Pra': case 'RAP': val = d.RAP; break;
-                            case 'AoP': val = d.AoP; break;
-                            case 'PAP': val = d.PAP; break;
-                            case 'QAo': val = d.QAo; break;
-                            case 'QMV': val = d.QMV; break;
-                            case 'QPA': val = d.QPA; break;
-                            case 'QTV': val = d.QTV; break;
-                            case 'PVF': val = d.PVF; break;
-                            case 'SVF': val = d.SVF; break;
-                        }
+                        const val = waveformValue(d, sig);
+                        if (val == null) continue;
 
                         const modT = d.t % timeSec;
                         const px = xScale(modT);
