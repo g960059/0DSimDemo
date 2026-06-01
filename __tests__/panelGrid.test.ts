@@ -1,9 +1,18 @@
 import React from "react";
 import { Writable } from "node:stream";
 import { renderToPipeableStream, renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { PanelGrid, canEditWorkbenchLayout, type PanelGridMode } from "@/components/workbench/PanelGrid";
 import type { PanelDef } from "@/types";
+
+// These tests cover layout gating, not BlockNote behavior. Keeping NotePanel
+// stubbed avoids cross-file BlockNote schema registration in shared workers.
+vi.mock("@/components/NotePanel", async () => {
+  const React = await import("react");
+  return {
+    NotePanel: () => React.createElement("div", { "data-note-panel-stub": "true" }),
+  };
+});
 
 const noop = () => {};
 
