@@ -68,7 +68,6 @@ function Workbench() {
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
   const [isMobile, setIsMobile] = useState<boolean>(window.innerWidth < 768);
   const [isLayoutEditing, setIsLayoutEditing] = useState(false);
-  const layoutEditable = !isMobile && isLayoutEditing;
   
   // Instance Management
   const [instances, setInstances] = useState<SimInstance[]>([
@@ -115,6 +114,14 @@ function Workbench() {
   const [lessonDraftId, setLessonDraftId] = useState<string | null>(null);
   const [publishedLesson, setPublishedLesson] = useState<{ id: string; title: string; url: string } | null>(null);
   const [isPublishingLesson, setIsPublishingLesson] = useState(false);
+  const fromParam = searchParams.get('from');
+  const headerMode: WorkbenchHeaderMode = authoringMode ? 'author' : searchParams.get('case') ? 'learner' : 'sandbox';
+  const layoutEditable = !isMobile && headerMode !== 'learner' && isLayoutEditing;
+  const backTarget = fromParam === 'cases'
+    ? { href: '/cases', label: 'Cases' }
+    : fromParam === 'lesson'
+      ? { href: '/', label: 'Home' }
+      : { href: '/', label: 'Home' };
 
   // --- Panel Management State ---
   const [panels, setPanels] = useState<PanelDef[]>([
@@ -162,8 +169,8 @@ function Workbench() {
   }, []);
 
   useEffect(() => {
-    if (isMobile) setIsLayoutEditing(false);
-  }, [isMobile]);
+    if (isMobile || headerMode === 'learner') setIsLayoutEditing(false);
+  }, [headerMode, isMobile]);
 
   // Wire driver callbacks and start the loop once. Declared BEFORE the
   // setInstances effect so callbacks are live before the first reconcile.
@@ -599,14 +606,6 @@ function Workbench() {
   const toggleGuides = (panelId: string) => { markUserEdited(); setPanels(prev => prev.map(p => p.id === panelId ? { ...p, showGuides: !p.showGuides } : p)); };
   const updateTimeWindow = (panelId: string, val: number) => { markUserEdited(); setPanels(prev => prev.map(p => p.id === panelId ? { ...p, timeWindow: val } : p)); };
 
-  const fromParam = searchParams.get('from');
-  const headerMode: WorkbenchHeaderMode = authoringMode ? 'author' : searchParams.get('case') ? 'learner' : 'sandbox';
-  const backTarget = fromParam === 'cases'
-    ? { href: '/cases', label: 'Cases' }
-    : fromParam === 'lesson'
-      ? { href: '/', label: 'Home' }
-      : { href: '/', label: 'Home' };
-
   const updateSceneMeta = (next: WorkbenchSceneMeta) => {
     setSceneMeta(next);
     markUserEdited();
@@ -667,6 +666,7 @@ function Workbench() {
           markUserEdited();
           setPanels(nextPanels);
         }}
+        mode={headerMode}
         layoutEditable={layoutEditable}
         setLayoutEditable={setIsLayoutEditing}
         isMobile={isMobile}

@@ -27,6 +27,12 @@ const PanelGridEditor = lazy(() => import('./PanelGridEditor'));
 
 const EDITOR_ROW_HEIGHT = 50;
 
+export type PanelGridMode = 'learner' | 'author' | 'sandbox';
+
+export function canEditWorkbenchLayout(mode: PanelGridMode, isMobile: boolean): boolean {
+  return mode !== 'learner' && !isMobile;
+}
+
 interface PanelGridProps {
   authoringMode: boolean;
   publishedLesson: { id: string; title: string; url: string } | null;
@@ -36,6 +42,7 @@ interface PanelGridProps {
   setStepsDraft: React.Dispatch<React.SetStateAction<LessonStep[]>>;
   panels: PanelDef[];
   onPanelsChange: (panels: PanelDef[]) => void;
+  mode: PanelGridMode;
   layoutEditable: boolean;
   setLayoutEditable: React.Dispatch<React.SetStateAction<boolean>>;
   isMobile: boolean;
@@ -333,6 +340,7 @@ export function PanelGrid({
   setStepsDraft,
   panels,
   onPanelsChange,
+  mode,
   layoutEditable,
   setLayoutEditable,
   isMobile,
@@ -374,7 +382,7 @@ export function PanelGrid({
   controlGroups,
 }: PanelGridProps) {
   const presenterPanels = useMemo(() => flowPack(panels), [panels]);
-  const canEditLayout = !isMobile;
+  const canEditLayout = canEditWorkbenchLayout(mode, isMobile);
 
   const renderPanel = (panel: PanelDef, isEditor: boolean) => (
     <PanelCard
@@ -436,37 +444,38 @@ export function PanelGrid({
             </div>
         )}
         {authoringMode && <LessonAuthoring instances={instances} stepsDraft={stepsDraft} setStepsDraft={setStepsDraft} />}
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded border border-slate-800 bg-slate-900/70 px-3 py-2">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Layout</span>
-            <button
-              type="button"
-              disabled={!canEditLayout}
-              onClick={() => setLayoutEditable((open) => !open)}
-              className={`rounded px-3 py-1.5 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                layoutEditable
-                  ? 'bg-blue-600 text-white hover:bg-blue-500'
-                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-              }`}
-            >
-              {layoutEditable ? 'Done editing' : 'Edit layout'}
-            </button>
-          </div>
-          {layoutEditable && (
-            <div className="flex flex-wrap items-center gap-1">
-              {(Object.keys(LAYOUT_PRESETS) as LayoutPresetName[]).map((name) => (
-                <button
-                  key={name}
-                  type="button"
-                  onClick={() => onPanelsChange(applyPresetGeometry(panels, name))}
-                  className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-[11px] font-semibold text-slate-300 hover:border-slate-500 hover:text-slate-100"
-                >
-                  {name}
-                </button>
-              ))}
+        {canEditLayout && (
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded border border-slate-800 bg-slate-900/70 px-3 py-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Layout</span>
+              <button
+                type="button"
+                onClick={() => setLayoutEditable((open) => !open)}
+                className={`rounded px-3 py-1.5 text-xs font-bold transition-colors ${
+                  layoutEditable
+                    ? 'bg-blue-600 text-white hover:bg-blue-500'
+                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                {layoutEditable ? 'Done editing' : 'Edit layout'}
+              </button>
             </div>
-          )}
-        </div>
+            {layoutEditable && (
+              <div className="flex flex-wrap items-center gap-1">
+                {(Object.keys(LAYOUT_PRESETS) as LayoutPresetName[]).map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => onPanelsChange(applyPresetGeometry(panels, name))}
+                    className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-[11px] font-semibold text-slate-300 hover:border-slate-500 hover:text-slate-100"
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         {layoutEditable && canEditLayout ? (
           <Suspense fallback={<div className="mt-2 rounded border border-slate-800 bg-slate-900 p-4 text-sm text-slate-400">Loading layout editor...</div>}>
             <PanelGridEditor
