@@ -6,7 +6,7 @@ import { SimulationHealth } from './engine/protocol';
 import { type ClinicalKnobs } from './engine/knobs';
 import { resolveRawEdit, resolveKnobEdit } from './engine/instanceKnobs';
 import { type CaseDocument, simInstancesToCaseDocument, caseDocumentToSimInstances } from './caseDoc';
-import { exportCaseFile, readCaseFile } from './casePersist';
+import { exportCaseFile, readCaseFile, saveDraft } from './casePersist';
 import { officialCaseById } from './officialCases';
 import { createUserLessonId, getUserLesson, saveLesson } from './lessonPersist';
 import { publishLesson } from './lessonCloud';
@@ -275,6 +275,52 @@ function Workbench() {
   const handleExport = () => {
     try { exportCaseFile(buildCurrentDoc()); }
     catch (err) { window.alert(`Export failed: ${(err as Error).message}`); }
+  };
+
+  const saveCurrentDraft = (doc: CaseDocument = buildCurrentDoc()) => {
+    saveDraft(doc);
+    userEditedRef.current = false;
+    pushWarningToast('Workbench', 'Saved locally.');
+  };
+
+  const forkCurrentScene = () => {
+    const now = Date.now();
+    const sourceTitle = sceneMeta.title.trim() || defaultSceneTitle();
+    const forkTitle = `${sourceTitle} copy`;
+    const sourceDescription = sceneMeta.description.trim();
+    const forkDescription = [sourceDescription, `Forked from ${sourceTitle}`].filter(Boolean).join('\n\n');
+    const forkDoc = buildCurrentDoc({
+      id: `fork-${now}`,
+      title: forkTitle,
+      createdAt: now,
+      updatedAt: now,
+    });
+    const ownedCopy: CaseDocument = {
+      ...forkDoc,
+      meta: {
+        ...forkDoc.meta,
+        title: forkTitle,
+        author: 'Local copy',
+        createdAt: now,
+        updatedAt: now,
+      },
+      spec: {
+        ...forkDoc.spec,
+        title: forkTitle,
+        ...(forkDescription ? { description: forkDescription } : {}),
+      },
+    };
+
+    saveCurrentDraft(ownedCopy);
+    setSceneMeta({
+      title: forkTitle,
+      description: forkDescription,
+      modelLimitations: ownedCopy.spec.modelLimitations,
+    });
+    setAuthoringMode(true);
+    setSavedLesson(null);
+    setPublishedLesson(null);
+    pushWarningToast('Workbench', 'コピーを編集中です');
   };
 
   const openLessonDialog = () => {
@@ -595,12 +641,10 @@ function Workbench() {
 
   const runHeaderPrimaryAction = () => {
     if (headerMode === 'learner') {
-      setAuthoringMode(true);
-      pushWarningToast('Workbench', 'コピーを編集中です');
-      markUserEdited();
+      forkCurrentScene();
       return;
     }
-    handleExport();
+    saveCurrentDraft();
   };
 
   return (
