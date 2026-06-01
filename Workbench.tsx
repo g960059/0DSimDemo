@@ -97,6 +97,7 @@ function Workbench() {
   const [lessonTitle, setLessonTitle] = useState('');
   const [savedLesson, setSavedLesson] = useState<{ id: string; title: string } | null>(null);
   const [stepsDraft, setStepsDraft] = useState<LessonStep[]>([]);
+  const [authoringMode, setAuthoringMode] = useState(false);
 
   // --- Panel Management State ---
   const [panels, setPanels] = useState<PanelDef[]>([
@@ -221,6 +222,10 @@ function Workbench() {
       setNoteModes({});
       setNoteCaseKey(`${doc.meta.id}:${nonce}`);
       setActiveInstanceId(remapped.activeInstanceId);
+      setStepsDraft([]);
+      setIsLessonDialogOpen(false);
+      setAuthoringMode(false);
+      setSavedLesson(null);
       userEditedRef.current = false;
       return true;
     } catch (err) {
@@ -494,8 +499,13 @@ function Workbench() {
   return (
     <div className="flex flex-col h-full w-full bg-slate-950 text-slate-200 overflow-hidden font-sans relative">
       <header className="h-14 bg-slate-900 border-b border-slate-800 z-50 flex items-center px-4 justify-between shrink-0">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 min-w-0">
               <h1 className="text-sm font-bold text-slate-300">Workbench Controls</h1>
+              {authoringMode && (
+                  <span className="hidden sm:inline-flex px-2 py-0.5 rounded border border-amber-400/40 bg-amber-400/10 text-[10px] font-bold uppercase tracking-wide text-amber-200">
+                      Authoring
+                  </span>
+              )}
           </div>
           
           <div className="flex items-center gap-2 sm:gap-3">
@@ -512,9 +522,20 @@ function Workbench() {
                <button onClick={() => fileInputRef.current?.click()} title="Load a .hemosim.json case file" className="px-2 sm:px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded text-[10px] sm:text-xs font-bold text-slate-300 transition-colors flex items-center gap-1">
                    <span>↑</span> Load
                </button>
-               <button onClick={openLessonDialog} title="Save this scene and note as a lesson" className="px-2 sm:px-3 py-1.5 bg-blue-600 hover:bg-blue-500 border border-blue-500/50 rounded text-[10px] sm:text-xs font-bold text-white transition-colors flex items-center gap-1">
-                   <span>▣</span> Save as lesson
-               </button>
+               {!authoringMode ? (
+                   <button onClick={() => setAuthoringMode(true)} title="Create or resume a lesson from this scene" className="px-2 sm:px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded text-[10px] sm:text-xs font-bold text-slate-300 transition-colors flex items-center gap-1 whitespace-nowrap">
+                       <span>✎</span> {stepsDraft.length > 0 ? `Resume lesson (${stepsDraft.length})` : 'Create lesson'}
+                   </button>
+               ) : (
+                   <div className="flex items-center gap-1 sm:gap-2">
+                       <button onClick={openLessonDialog} title="Save this scene and note as a lesson" className="px-2 sm:px-3 py-1.5 bg-blue-600 hover:bg-blue-500 border border-blue-500/50 rounded text-[10px] sm:text-xs font-bold text-white transition-colors flex items-center gap-1 whitespace-nowrap">
+                           <span>▣</span> Save as lesson
+                       </button>
+                       <button onClick={() => setAuthoringMode(false)} title="Exit lesson authoring" className="px-2 sm:px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded text-[10px] sm:text-xs font-bold text-slate-300 transition-colors whitespace-nowrap">
+                           Exit authoring
+                       </button>
+                   </div>
+               )}
                {savedLesson && (
                    <a href={`/lesson/${savedLesson.id}`} className="inline-flex px-2 sm:px-3 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 rounded text-[10px] sm:text-xs font-bold text-emerald-200 transition-colors whitespace-nowrap">
                        Open lesson
@@ -567,7 +588,7 @@ function Workbench() {
       </header>
 
       <main className="flex-1 overflow-y-auto overflow-x-hidden bg-slate-950 p-2">
-          <LessonAuthoring instances={instances} stepsDraft={stepsDraft} setStepsDraft={setStepsDraft} />
+          {authoringMode && <LessonAuthoring instances={instances} stepsDraft={stepsDraft} setStepsDraft={setStepsDraft} />}
           <div className="grid grid-cols-12 gap-2 auto-rows-[50px] grid-flow-dense pb-20 mt-2">
               {panels.map((panel, index) => {
                   const gridColStyle = isMobile ? { gridColumn: 'span 12' } : { gridColumn: `span ${panel.w}` };
