@@ -19,6 +19,7 @@ interface WorkbenchSidePanelProps {
   onExport: () => void;
   onOpenScenarioManager: () => void;
   onCreateLesson: () => void;
+  onSaveLesson: () => void;
   onExitAuthoring: () => void;
   authoringMode: boolean;
   savedLesson: { id: string; title: string } | null;
@@ -38,6 +39,7 @@ export function WorkbenchSidePanel({
   onExport,
   onOpenScenarioManager,
   onCreateLesson,
+  onSaveLesson,
   onExitAuthoring,
   authoringMode,
   savedLesson,
@@ -181,9 +183,14 @@ export function WorkbenchSidePanel({
                 Scenarios
               </button>
               {authoringMode ? (
-                <button onClick={onExitAuthoring} className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-left text-sm font-bold text-slate-200 hover:bg-slate-800">
-                  Exit authoring
-                </button>
+                <>
+                  <button onClick={onSaveLesson} className="w-full rounded-md border border-blue-500/50 bg-blue-600 px-3 py-2 text-left text-sm font-bold text-white hover:bg-blue-500">
+                    Save as lesson
+                  </button>
+                  <button onClick={onExitAuthoring} className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-left text-sm font-bold text-slate-200 hover:bg-slate-800">
+                    Exit authoring
+                  </button>
+                </>
               ) : (
                 <button onClick={onCreateLesson} className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-left text-sm font-bold text-slate-200 hover:bg-slate-800">
                   Create lesson

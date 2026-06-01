@@ -139,20 +139,12 @@ export function WorkbenchHeader({
             </button>
           )}
 
-          {isLearner && (
-            <button className="hidden items-center gap-1 rounded-md border border-slate-800 bg-slate-900 px-2 py-1 text-xs font-bold text-slate-300 hover:bg-slate-800 sm:inline-flex">
-              <span className="flex -space-x-1">
-                {instances.slice(0, 3).map((instance) => (
-                  <span key={instance.id} className="h-2.5 w-2.5 rounded-full border border-slate-900" style={{ backgroundColor: instance.color }} />
-                ))}
-              </span>
-              Compare
-              <ChevronDown className="h-3 w-3" />
-            </button>
-          )}
-
           {mode === 'author' && (
-            <button className="hidden items-center gap-1 rounded-md px-2 py-1 text-xs font-bold text-slate-400 hover:bg-slate-900 hover:text-slate-100 lg:inline-flex">
+            <button
+              disabled
+              title="レイアウト編集は近日"
+              className="hidden cursor-not-allowed items-center gap-1 rounded-md px-2 py-1 text-xs font-bold text-slate-600 lg:inline-flex"
+            >
               <LayoutGrid className="h-3.5 w-3.5" />
               Edit layout
             </button>
@@ -285,6 +277,7 @@ export function WorkbenchHeader({
         onExport={onExport}
         onOpenScenarioManager={onOpenScenarioManager}
         onCreateLesson={() => setAuthoringMode(true)}
+        onSaveLesson={openLessonDialog}
         onExitAuthoring={onExitAuthoring}
         authoringMode={authoringMode}
         savedLesson={savedLesson}

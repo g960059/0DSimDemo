@@ -585,7 +585,7 @@ function Workbench() {
   const backTarget = fromParam === 'cases'
     ? { href: '/cases', label: 'Cases' }
     : fromParam === 'lesson'
-      ? { href: '/', label: 'Lesson' }
+      ? { href: '/', label: 'Home' }
       : { href: '/', label: 'Home' };
 
   const updateSceneMeta = (next: WorkbenchSceneMeta) => {
