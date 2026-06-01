@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { SimInstance, PhysicsRefState, PanelInstanceConfig } from '../types';
+import { useDocumentVisible, useOnscreen } from '../hooks/useOnscreen';
 
 interface ChartPanelProps {
   physicsRefs: React.MutableRefObject<Map<string, PhysicsRefState>>;
@@ -102,8 +103,12 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scaleRef = useRef({ maxV: 300, maxP: 200 });
+  const isOnscreen = useOnscreen(containerRef);
+  const isDocumentVisible = useDocumentVisible();
+  const canAnimate = isOnscreen && isDocumentVisible;
 
   useEffect(() => {
+    if (!canAnimate) return;
     if (!containerRef.current || !canvasRef.current) return;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -124,9 +129,11 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
     };
     resize();
 
-    let animationFrameId: number;
+    let animationFrameId: number | null = null;
+    let stopped = false;
 
     const render = () => {
+      if (stopped) return;
       const xScale = d3.scaleLinear().domain([0, 300]).range([50, width - 15]);
       const yScale = d3.scaleLinear().domain([0, 200]).range([height - 35, 25]);
 
@@ -283,10 +290,11 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
     }
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
+      stopped = true;
+      if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
       ro.disconnect();
     };
-  }, [instances, config, showGuides]);
+  }, [instances, config, showGuides, canAnimate]);
 
   return (
       <div ref={containerRef} className="absolute inset-0 rounded-b-xl overflow-hidden pointer-events-none">
@@ -300,8 +308,12 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const scaleRef = useRef({ yMin: 0, yMax: 160 });
+    const isOnscreen = useOnscreen(containerRef);
+    const isDocumentVisible = useDocumentVisible();
+    const canAnimate = isOnscreen && isDocumentVisible;
 
     useEffect(() => {
+        if (!canAnimate) return;
         if (!containerRef.current || !canvasRef.current) return;
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
@@ -322,9 +334,11 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
         };
         resize();
 
-        let animationFrameId: number;
+        let animationFrameId: number | null = null;
+        let stopped = false;
 
         const render = () => {
+            if (stopped) return;
             ctx.clearRect(0, 0, width, height);
             
             let currentGlobalTime = 0;
@@ -498,8 +512,12 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
         if (containerRef.current) {
             ro.observe(containerRef.current);
         }
-        return () => { cancelAnimationFrame(animationFrameId); ro.disconnect(); };
-    }, [instances, timeWindow, config]);
+        return () => {
+            stopped = true;
+            if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
+            ro.disconnect();
+        };
+    }, [instances, timeWindow, config, canAnimate]);
 
     return (
         <div ref={containerRef} className="absolute inset-0 rounded-b-xl overflow-hidden pointer-events-none">
