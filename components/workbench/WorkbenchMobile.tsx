@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Activity, BarChart3, ChevronDown, ChevronUp, SlidersHorizontal, StickyNote } from 'lucide-react';
 import type { PanelDef } from '../../types';
+import { ErrorBoundary } from '../ErrorBoundary';
 
 export type WorkbenchPanelRole = 'graph' | 'output' | 'control' | 'note';
 
@@ -57,6 +58,14 @@ function pickActivePanel(
   requestedId: string | undefined,
 ): MobilePanelDef | undefined {
   return panels.find((panel) => panel.id === requestedId) ?? panels[0];
+}
+
+function MobilePaneBoundary({ children }: { children: React.ReactNode }) {
+  return (
+    <ErrorBoundary fallback={<div className="p-3 text-xs text-rose-200">This panel could not be rendered.</div>}>
+      {children}
+    </ErrorBoundary>
+  );
 }
 
 export function WorkbenchMobile({
@@ -147,7 +156,11 @@ export function WorkbenchMobile({
                 <div className="mb-1 truncate text-[11px] font-semibold uppercase tracking-normal text-slate-400">
                   {panel.title}
                 </div>
-                <div className="min-h-16">{renderPanel(panel, { role: 'output', isActive: true })}</div>
+                <div className="min-h-16">
+                  <MobilePaneBoundary>
+                    {renderPanel(panel, { role: 'output', isActive: true })}
+                  </MobilePaneBoundary>
+                </div>
               </div>
             ))
           ) : (
@@ -191,7 +204,9 @@ export function WorkbenchMobile({
 
             {activeGraph && (
               <div className="min-h-[20rem] flex-1 overflow-hidden rounded-md border border-slate-800 bg-slate-900">
-                {renderPanel(activeGraph, { role: 'graph', isActive: true })}
+                <MobilePaneBoundary>
+                  {renderPanel(activeGraph, { role: 'graph', isActive: true })}
+                </MobilePaneBoundary>
               </div>
             )}
           </section>
@@ -223,7 +238,9 @@ export function WorkbenchMobile({
 
             {activeNote && (
               <div className="min-h-56 overflow-hidden rounded-md border border-slate-800 bg-slate-900">
-                {renderPanel(activeNote, { role: 'note', isActive: true })}
+                <MobilePaneBoundary>
+                  {renderPanel(activeNote, { role: 'note', isActive: true })}
+                </MobilePaneBoundary>
               </div>
             )}
           </section>
@@ -254,7 +271,9 @@ export function WorkbenchMobile({
               <div className="max-h-[70dvh] overflow-y-auto border-t border-slate-800 p-3">
                 {groups.control.map((panel) => (
                   <div key={panel.id} className="mb-3 last:mb-0">
-                    {renderPanel(panel, { role: 'control', isActive: true })}
+                    <MobilePaneBoundary>
+                      {renderPanel(panel, { role: 'control', isActive: true })}
+                    </MobilePaneBoundary>
                   </div>
                 ))}
               </div>
