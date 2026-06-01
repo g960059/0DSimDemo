@@ -20,10 +20,10 @@ exports[`clinical knob layer > v0.2 resolver output is frozen (editing the mappi
       },
     },
   },
-  "pulmonaryResistance": 1,
+  "pulmonaryResistance": 0.65,
   "relaxation": 1,
   "rvTmaxScale": 1,
-  "systemicResistance": 1.4300000000000002,
-  "venousTone": 0.65,
+  "systemicResistance": 1.04,
+  "venousTone": 0.15,
 }
 `;

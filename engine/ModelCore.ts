@@ -179,11 +179,11 @@ export function defaultParams(): CoreRuntimeParams {
     relaxation: 1.0,
     // Calibrated operating point for the active-stress ventricle default.
     // M12-proper #1 Phase-1 (LA preload, see docs/research/m12-la-preload-design.md):
-    // 5-lever circuit re-balance — SVR 1.25->1.10 + arterialStiffness 1.0->0.75
-    // keep MAP/AoP normal as central preload rises.
-    systemicResistance: 1.10,
-    pulmonaryResistance: 1.0,
-    venousTone: 0.65,
+    // RV/RA refit: lower SVR/PVR/venous tone keep AoP/PAP/LAP normal after the
+    // stronger right-heart calibration raises effective forward flow.
+    systemicResistance: 0.80,
+    pulmonaryResistance: 0.65,
+    venousTone: 0.15,
     arterialStiffness: 0.75, // M12-proper #1 Phase-1: more arterial compliance to hold pulse pressure normal
     PEEP: 0,
     Pth0: 0,

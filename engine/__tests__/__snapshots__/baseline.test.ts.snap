@@ -2,18 +2,18 @@
 
 exports[`baseline freeze (active-stress default) > matches the frozen baseline summary 1`] = `
 {
-  "AoP_dia": 90,
-  "AoP_mean": 97.8,
-  "AoP_sys": 132.7,
-  "CO_L": 5.42,
-  "CO_R": 5.08,
-  "EF_L": 0.62,
-  "EF_R": 0.45,
+  "AoP_dia": 80,
+  "AoP_mean": 87.6,
+  "AoP_sys": 123.7,
+  "CO_L": 6.19,
+  "CO_R": 5.88,
+  "EF_L": 0.69,
+  "EF_R": 0.54,
   "HR": 75,
-  "LAP_mean": 8.6,
-  "PAP_mean": 16.9,
-  "RAP_mean": 5,
-  "SV_L": 72.3,
-  "SV_R": 67.7,
+  "LAP_mean": 10,
+  "PAP_mean": 18,
+  "RAP_mean": 3.1,
+  "SV_L": 82.5,
+  "SV_R": 78.4,
 }
 `;

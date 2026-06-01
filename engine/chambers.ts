@@ -215,7 +215,7 @@ export const defaultActiveRV: ActiveChamberParams = {
   sigmaPas0: 492, // M12-lite: geomChi-compensation 2000*0.28/1.1385 (gentle RV EDPVR; steep Klotz refit deferred to M12-proper)
   bPas: 10.0,
   lambdaPas0: 0.85,
-  Tmax0: 57176, // M12-lite: physiological ceiling (RV:LV ratio preserved); was 162000
+  Tmax0: 68600, // RV/RA refit: restores RVEF >0.5 while keeping the RV ceiling well below LV; was 57176
   geomChi: 1.138505, // M12-lite: exact thick-sphere Laplace for RV ref geometry; was 0.28
 };
 
@@ -276,16 +276,16 @@ export const defaultActiveRA: ActiveChamberParams = {
   TrelMin: 0.055,
   TrelMax: 0.120,
   tauCa0: 0.055,
-  Arel0: 0.12,
+  Arel0: 0.16,
   Kd0: 0.18,
   betaLambda: 1.8,
   hillN: 2.5,
   kOn: 18,
   kOff: 12,
-  sigmaPas0: 120,
+  sigmaPas0: 240,
   bPas: 10,
   lambdaPas0: 0.88,
-  Tmax0: 14000,
+  Tmax0: 28000,
   geomChi: 1.10,
   pressureFloorMmHg: -2,
   atrialLeadSec: 0.17,

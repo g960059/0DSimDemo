@@ -30,7 +30,7 @@
 | M0 | Baseline freeze | 完了/即時 | snapshot・Python↔TS 比較ハーネス・テスト 0 件 | ❌ |
 | M1 | Core stabilization | 最優先 | `health()`/`metrics()` 実装済（`engine/ModelCore.ts:456,500`）だが **UI 未接続**。クランプ多用で `clampHitCount` 追跡あり | 🟡 |
 | M2 | Active-stress MVP | 最優先 | 実装済・既定化済だが **未校正**（`ModelCore.ts:188,725`）。`ChamberModel` interface 不在＝switch ハードコード（`ModelCore.ts:681`） | 🟡⛔ |
-| M3 | Web preview hardening | 最優先 | 固定ステップ✅ / param 平滑化✅（`smoothParams`）/ ring buffer✅。だが **Web Worker 化されておらず** sim が React 内（`Workbench.tsx:160`）。禁止事項 #1 違反 | 🟡⛔ |
+| M3 | Web preview hardening | 最優先 | 固定ステップ✅ / param 平滑化✅（`smoothParams`）/ ring buffer✅。だが **Web Worker 化されておらず** sim が React 内（`WorkbenchPage.tsx:160`）。禁止事項 #1 違反 | 🟡⛔ |
 | M4 | Clinical knobs | 高 | contractility 等のノブはあるが `ClinicalKnobs` 写像層・raw param の advanced 隠蔽は未整備。弁 raw param が前面 | 🟡 |
 | M5 | Dynamic Vu / venous tone | 高 | Vu ODE 不在。`venousTone` をパラメータ平滑化で代用（`effectiveVu`） | ❌ |
 | M6 | Respiratory / PEEP | 高 | `Pth`/`Palv` 正弦波実装済（`ModelCore.ts:864`）。PEEP 係数 0.20 は仕様と差異 | 🟡 |
@@ -97,7 +97,7 @@
   - 受入: active/elastance を UI 切替可。3 ノブ（Contractility/Relaxation/Diastolic stiffness）が直感的に作用。魔法定数が技術的負債レジスタ（§7）から消える。
 
 - **S3a = M3 を完成（駆動ループの分離）**
-  - sim 駆動ループを `Workbench.tsx` の `useEffect` から framework 非依存の controller モジュール（例: `engine/PreviewController.ts`）へ抽出。`ModelCore` は既に分離済みなので、ループだけを移す。
+  - sim 駆動ループを `WorkbenchPage.tsx` の `useEffect` から framework 非依存の controller モジュール（例: `engine/PreviewController.ts`）へ抽出。`ModelCore` は既に分離済みなので、ループだけを移す。
   - これで禁止事項 #1（React component 内に sim core を書かない）の本質＝関心の分離を達成し、S0 のヘッドレス snapshot 生成にも再利用できる。**Worker は不要**。
   - 受入: スライダー連続操作でも UI が固まらない。speed 1x で 60fps 相当。speed 5x でも health warning 以外は安定。React 再レンダリングと sim ステップが疎結合。
 
@@ -185,11 +185,11 @@
 | ~~D1~~ ✅ | `lvTmaxScale=4.5` 魔法定数 | `engine/chambers.ts` Tmax0 | **解消（S2b）**: 4.5 を `Tmax0` に畳み込み（LV 382500 / RV 162000）、既定 scale=1.0。波形は byte-identical。スライダー/clamp も 1.0 基準へ再センタリング | done |
 | D2 | 仕様外の `f_iso` 即席項 | `engine/chambers.ts` | 力-長さ依存が ad-hoc。**ユーザー判断: 校正後に波形を見て残す/置換/除去を決定**（保留） | post-cal |
 | D3 | 導関数・状態の広範クランプが現役動力学化 | `ModelCore.ts:599,601,623,915` | クランプ発火中は方程式が歪む | S1,S3（積分法改善でクランプを安全網に戻す） |
-| D4 | sim 駆動ループがメインスレッド React 内 | `Workbench.tsx:160` | 禁止事項 #1 違反・UI ブロック懸念 | S3a（controller 抽出で解消。Worker=S3b は別） |
+| D4 | sim 駆動ループがメインスレッド React 内 | `WorkbenchPage.tsx:160` | 禁止事項 #1 違反・UI ブロック懸念 | S3a（controller 抽出で解消。Worker=S3b は別） |
 | ~~D5~~ ✅ | 心室モデルが switch ハードコード | `engine/chambers.ts` | **解消（S2a）**: `ChamberModel` interface ＋ `ActiveStressChamberModel`/`ElastanceChamberModel` に抽出。挙動ニュートラル（snapshot 不変） | done |
 | D7b | 心房 active-stress 化の足場不足 | `ModelCore.ts` 状態ベクトル | ChamberModel は導入したが内部状態 `c/a` の slot が LV/RV 固定。心房 active-stress には per-model state slot 化が必要（レビュー指摘） | M9 前提 |
 | D6 | トポロジがハードコード | `buildNodes/buildEdges` | 臓器床/VAD/ECMO の足場欠如 | M10 前提 |
-| D7 | `health()`/`metrics()` が UI 未接続 | `Workbench.tsx` | health warning が出ない（M1 未達） | S1（凡例ドット＋遷移トースト＋popover、健全時非表示） |
+| D7 | `health()`/`metrics()` が UI 未接続 | `WorkbenchPage.tsx` | health warning が出ない（M1 未達） | S1（凡例ドット＋遷移トースト＋popover、健全時非表示） |
 | D8 | `Model limitation` 表示なし | UI 全般 | 仕様 §23-5・§24-12 未達 | S1（初回モーダル＋ⓘ極小アイコン。大面積常設はしない） |
 | D9 | 回帰テスト 0 件 | — | 拡張で静かに破綻 | S0 |
 | D10 | PEEP→Pth 係数 0.20 の根拠不明 | `ModelCore.ts:865` | 呼吸応答の定量が未検証 | M6 |

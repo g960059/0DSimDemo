@@ -29,44 +29,45 @@ for this branch.
 |---|---:|---|---|
 | HR | 75 bpm | Resting adult 60-100 bpm | OK |
 | TBV | 5600 mL | Average adult near 5 L; size-dependent, `~70 mL/kg` estimate | Plausible if default body size is ~80 kg; document body size |
-| AoP | 132.7 / 90.0, mean 97.8 mmHg | Adult resting arterial pressure can plausibly sit high-normal | Plausible high-normal |
-| SV/CO left | 72.3 mL / 5.42 L/min | SV commonly ~60-100 mL, CO ~4-8 L/min | OK |
-| SV/CO right | 67.7 mL / 5.08 L/min | Should match left over steady state | OK for fixed-harness health; settled gate can be stricter |
-| LAP mean | 8.55 mmHg | PCWP/LAP normal roughly 4-12 mmHg | OK |
-| RAP mean | 4.96 mmHg | RA pressure typically low single digits | OK |
-| PAP mean | 16.95 mmHg | PVR source uses mean PAP around 15 mmHg for normal calculation | OK |
-| LVEDP approx | 11.87 mmHg | Normal/slightly high filling pressure | Slightly high but acceptable |
-| RVEDP approx | 14.55 mmHg | RV diastolic pressure should remain near RA diastolic/low single digits in normal RHC examples | **Questionable high** |
-| LVEF approx | 0.621 | ASE normal biplane LVEF roughly 52-72% male, 54-74% female | OK |
-| RVEF approx | 0.449 | ASE abnormality threshold for 3D RV EF is `<45%` | Borderline; target >50% |
-| Pmsf | 19.35 mmHg | Classic/physiologic mean systemic filling pressure is lower; ICU estimates can be higher | **Do not present as literal normal Pmsf without recalibration** |
+| AoP | 123.7 / 80.0, mean 87.6 mmHg | Adult resting arterial pressure around 120/80 | OK |
+| SV/CO left | 82.5 mL / 6.19 L/min | SV commonly ~60-100 mL, CO ~4-8 L/min | OK, high-normal CO |
+| SV/CO right | 78.4 mL / 5.88 L/min | Should match left over steady state | OK for fixed-harness health; settled gate can be stricter |
+| LAP mean | 9.99 mmHg | PCWP/LAP normal roughly 4-12 mmHg | OK |
+| RAP mean | 3.07 mmHg | RA pressure typically low single digits | OK |
+| PAP mean | 17.98 mmHg | Normal mean PAP is commonly around 14-18 mmHg | OK, upper-normal |
+| LVEDP approx | 13.09 mmHg | Normal/slightly high filling pressure | Slightly high |
+| RVEDP pre-systolic | 4.46 mmHg | RV diastolic pressure should be low single digits | OK |
+| RVEDP max-volume approx | 15.23 mmHg | Max-volume sample can land during early upstroke in this model | Use only as legacy/shape proxy |
+| LVEF approx | 0.694 | ASE normal biplane LVEF roughly 52-72% male, 54-74% female | OK, high-normal |
+| RVEF approx | 0.536 | ASE abnormality threshold for 3D RV EF is `<45%` | OK |
+| Pmsf | 17.68 mmHg | Classic/physiologic mean systemic filling pressure is lower; ICU estimates can be higher | Still high if presented as literal normal Pmsf |
 
 Measured beat ranges:
 
 | Signal | Min | Max | Notes |
 |---|---:|---:|---|
-| LVP | 1.85 | 148.75 | systolic pressure high but plausible with current AoP |
-| RVP | 2.50 | 33.38 | systolic plausible; ED pressure high |
-| LAP | 5.82 | 13.40 | v/a wave range plausible |
-| RAP | 2.93 | 7.76 | mean plausible, range plausible |
-| VLV | 45.64 | 120.32 | EF 62.1% |
-| VRV | 84.36 | 153.10 | EF 44.9% |
-| VLA | 29.50 | 55.07 | LA emptying fraction 46.4% |
-| VRA | 77.06 | 105.82 | RA emptying fraction 27.2% |
-| QMV | -45.4 | 264.9 mL/s | biphasic forward inflow with brief closure backflow |
-| QTV | -28.4 | 311.9 mL/s | biphasic forward inflow |
-| QPV | -0.57 | 782.6 mL/s | minimal pulmonary regurgitation |
+| LVP | 1.81 | 149.46 | systolic pressure high but plausible with current AoP |
+| RVP | 0.98 | 37.91 | systolic mildly high; pre-systolic RVEDP is normal |
+| LAP | 6.56 | 15.76 | v/a wave range plausible, upper tail high-normal |
+| RAP | 1.53 | 6.64 | mean plausible, range plausible |
+| VLV | 37.59 | 122.69 | EF 69.4% |
+| VRV | 68.14 | 146.85 | EF 53.6% |
+| VLA | 30.94 | 57.74 | LA emptying fraction 46.4% |
+| VRA | 40.64 | 74.40 | RA emptying fraction 45.4% |
+| QMV | -48.3 | 299.7 mL/s | biphasic forward inflow with brief closure backflow |
+| QTV | -21.6 | 284.3 mL/s | biphasic forward inflow |
+| QPV | -1.08 | 927.9 mL/s | minimal pulmonary regurgitation |
 
 Morphology gates:
 
 | Feature | Current value | Verdict |
 |---|---:|---|
 | LA PV-loop self-intersections | 3 | Figure-eight present, but count alone is too weak |
-| RA PV-loop self-intersections | 2 | Figure-eight present, but count alone is too weak |
-| QMV peaks | 264.9 at theta 0.542; 123.9 at theta 0.937 | Biphasic E/A-like inflow present |
-| QTV peaks | 311.9 at theta 0.531; 128.9 at theta 0.959 | Biphasic inflow present |
-| PV regurgitant fraction | 0.00017 | Competent default valve |
-| TV regurgitant fraction | 0.0170 | Small closure backflow; acceptable default |
+| RA PV-loop self-intersections | 3 | Figure-eight present, but count alone is too weak |
+| QMV peaks | 299.7 at theta 0.521; 122.9 at theta 0.949 | Biphasic E/A-like inflow present |
+| QTV peaks | 284.3 at theta 0.562; 256.7 at theta 0.969 | Biphasic inflow present |
+| PV regurgitant fraction | 0.00022 | Competent default valve |
+| TV regurgitant fraction | 0.0102 | Small closure backflow; acceptable default |
 
 ## Physical derivations and checks
 
@@ -81,26 +82,26 @@ body_mass ~= 5600 mL / (70 mL/kg) = 80 kg
 
 If the application presents the default as "average adult", 5.0 L is closer. If it presents the
 default as a larger adult or simulation-normal body, 5.6 L is acceptable. Indexed chamber comparisons
-below assume a BSA around 1.8-2.0 m2, so LA max 55 mL gives LAVI about 28-31 mL/m2, below the ASE/EACVI
+below assume a BSA around 1.8-2.0 m2, so LA max 58 mL gives LAVI about 29-32 mL/m2, below the ASE/EACVI
 upper normal 34 mL/m2.
 
 ### 2. Clinical SVR and PVR are derived from pressures and CO, not raw knobs
 
-The engine `systemicResistance=1.10` and `pulmonaryResistance=1.0` are dimensionless multipliers.
+The engine `systemicResistance=0.80` and `pulmonaryResistance=0.65` are dimensionless multipliers.
 Clinical resistance should be computed from the settled operating point:
 
 ```text
 SVR[dyn*s/cm5] = 80 * (MAP - RAP) / CO_L
-               = 80 * (97.81 - 4.96) / 5.42
-               = 1370 dyn*s/cm5
+               = 80 * (87.62 - 3.07) / 6.19
+               = 1093 dyn*s/cm5
 
 PVR[dyn*s/cm5] = 80 * (mPAP - LAP) / CO_R
-               = 80 * (16.95 - 8.55) / 5.08
-               = 132 dyn*s/cm5
+               = 80 * (17.98 - 9.99) / 5.88
+               = 109 dyn*s/cm5
 ```
 
-PVR is within the normal 37-250 dyn*s/cm5 range given by NCBI Bookshelf. SVR is high-normal rather
-than neutral-low; this matches the observed high-normal arterial pressure.
+PVR is within the normal 37-250 dyn*s/cm5 range given by NCBI Bookshelf. SVR now sits in a normal
+adult range, matching the normotensive arterial pressure.
 
 ### 3. Arterial compliance from pulse pressure
 
@@ -109,8 +110,8 @@ should use stroke volume and pulse pressure:
 
 ```text
 C_art ~= SV / pulse_pressure
-      = 72.27 / (132.68 - 90.02)
-      = 1.69 mL/mmHg
+      = 82.54 / (123.69 - 79.95)
+      = 1.89 mL/mmHg
 ```
 
 This is plausible for an adult systemic arterial tree. It should be documented as an output-derived
@@ -120,33 +121,33 @@ apparent compliance, not a direct one-to-one reading of node parameters.
 
 ```text
 LVEF = (LVEDV - LVESV) / LVEDV
-     = (120.32 - 45.64) / 120.32
-     = 0.621
+     = (122.69 - 37.59) / 122.69
+     = 0.694
 
 RVEF = (RVEDV - RVESV) / RVEDV
-     = (153.10 - 84.36) / 153.10
-     = 0.449
+     = (146.85 - 68.14) / 146.85
+     = 0.536
 ```
 
-The LV value is normal. The RV value sits on the ASE/EACVI abnormality threshold (`<45%`) and RVEDP is
-too high for a default normal. This is the clearest chamber-level calibration debt remaining after the
-RA shape work.
+Both EF values are in normal or high-normal range. The legacy `RVEDPApprox` remains high because it is
+max-volume anchored and can sample early RV upstroke; a pre-systolic window gives 4.46 mmHg and is the
+physiologic right-heart gate used by the strengthened baseline test.
 
 ### 5. Atrial volumes and emptying fraction
 
 ```text
 LAEF = (LAVmax - LAVmin) / LAVmax
-     = (55.07 - 29.50) / 55.07
+     = (57.74 - 30.94) / 57.74
      = 0.464
 
 RAEF = (RAVmax - RAVmin) / RAVmax
-     = (105.82 - 77.06) / 105.82
-     = 0.272
+     = (74.40 - 40.64) / 74.40
+     = 0.454
 ```
 
-LA size and total emptying fraction are plausible. RA pressure is plausible, but the RA is too large
-and empties too little. A contemporary RA imaging review summarizes 3D total RA emptying fraction near
-53% in normal cohorts; the current 27% is not acceptable as a default-normal physiology target.
+LA size and total emptying fraction are plausible. RA volume is no longer dilated at the default
+body-size assumption, and RA emptying is now near the lower end of the normal-imaging target band
+instead of the previous 27%.
 
 ### 6. AV-plane volume effect
 
@@ -217,23 +218,24 @@ The default PV regurgitation check uses:
 
 ```text
 RF = integral(max(-QPV, 0) dt) / integral(max(QPV, 0) dt)
-   = 0.00017
+   = 0.00022
 ```
 
 That is appropriate as a "competent default valve" numerical gate. It is stricter than clinical
 severity thresholds and should not be described as a clinical PR severity classifier. The same applies
-to TV closure backflow: the current 1.7% is a numerical default-valve check, not a diagnosis.
+to TV closure backflow: the current 1.0% is a numerical default-valve check, not a diagnosis.
 
 ## Subsystem verdicts
 
 ### Chambers
 
-**LV:** geometry/passive law and current output are plausible. LVEDP is slightly high but within a
-reasonable default-normal tolerance. Keep existing LV PV-loop and EDPVR checks.
+**LV:** geometry/passive law and current output are plausible. LVEF is high-normal and LVEDP is
+slightly high but within a reasonable default-normal tolerance. Keep existing LV PV-loop and EDPVR
+checks.
 
-**RV:** geometry is plausible, but operating physiology is not yet default-normal: RVEF 44.9% is on
-the abnormal threshold and RVEDP 14.6 mmHg is too high. Recalibrate RV preload/afterload/coupling with
-explicit targets: RVEF >50%, RVEDP near low single digits, while preserving PAP mean around 15-18 mmHg.
+**RV:** the RV/RA refit moved the default from borderline to acceptable: RVEF 53.6%, pre-systolic
+RVEDP 4.46 mmHg, and PAP mean 18.0 mmHg. The max-volume `RVEDPApprox` remains a legacy proxy and
+should not be used as the physiologic RVEDP gate.
 
 **LA:** output morphology is now much better: LA loop is figure-eight-like and MVF is biphasic. The
 remaining caution is parameter identifiability. LA `Tmax0=92000 Pa` is high for an atrium and actual
@@ -241,9 +243,10 @@ activation fractions suppress the realized pressure contribution. The model shou
 compliance, booster contraction, and AV-plane reservoir gain so the observed LA loop does not depend
 on a degenerate combination of high ceiling and low realized activation.
 
-**RA:** the RA loop and TVF shape now pass the same kind of morphology gate as LA, but RA volume and
-emptying remain non-physiological. RAEF 27% is far below normal 3D RA total emptying fraction near 53%.
-The next RA pass should use volume/EF gates, not just loop self-intersection and TVF two-peak gates.
+**RA:** the RA loop and TVF shape now pass the same kind of morphology gate as LA, and the refit also
+adds physiology gates: RA max 74 mL, RA min 41 mL, and RAEF 45%. This is still lower than the 3D RA
+emptying fraction near 53% reported in normal cohorts, but it is no longer the previous under-emptying
+failure mode.
 
 ### Valves and flows
 
@@ -273,8 +276,8 @@ AV-valve `B` is currently tunable.
 **TBV and vascular output:** TBV is plausible for a large adult. Apparent SVR/PVR and arterial
 compliance are plausible. Pulmonary mean pressure and LAP are in a reasonable range.
 
-**Pmsf:** `Pmsf=19.35 mmHg` and systemic stressed volume around 3109 mL are too high if presented as
-literal normal physiology. Treat current `Pmsf` as a model filling-pressure observable until venous
+**Pmsf:** `Pmsf=17.68 mmHg` remains high if presented as literal normal physiology. Treat current
+`Pmsf` as a model filling-pressure observable until venous
 unstressed/stressed partition is recalibrated.
 
 **Respiratory:** `respRate=0.25 Hz` = 15/min is normal. The PEEP unit issue is the priority. A second
@@ -298,10 +301,12 @@ E/A or E-to-A peak separation, and regurgitant fraction.
    Either use an absolute-area loss law or relabel the knob.
 3. **P0: add `respRate` target-path test/fix.** `setTargetParameters()` should update respiratory
    rate just as it updates PEEP and respiratory amplitudes.
-4. **P1: recalibrate RV/RA together.** Targets: RVEF >50%, RVEDP low single digits, RAEF >=45%, RA
-   max volume indexed near accepted normal ranges for the documented default BSA.
-5. **P1: replace atrial self-intersection-only gates.** Keep the LA/RA figure-eight smoke test, but
-   add phase, volume, pressure-wave, and area criteria.
+4. **P1: continue RV/RA refinement against phase-aware metrics.** The first refit now gates RVEF,
+   pre-systolic RVEDP, RA volume, and RAEF. Remaining work is to reduce the high-normal left filling
+   tail and decide whether the target RAEF should move closer to ~53%.
+5. **P1: keep strengthening atrial morphology gates.** The baseline now includes phase-window E/A
+   peaks, loop area, mid-volume pressure spread, RA volume, RAEF, and pre-systolic RVEDP. Remaining
+   targets are reservoir/booster signed sub-areas and v/a timing.
 6. **P1: document default body size.** TBV 5600 mL and indexed chamber gates need an explicit BSA/body
    mass assumption.
 7. **P2: make AV-plane shortening adaptive.** Derive shortening from the current beat's ED/ES rather

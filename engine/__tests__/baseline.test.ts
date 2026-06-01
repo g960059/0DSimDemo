@@ -55,12 +55,18 @@ describe("baseline freeze (active-stress default)", () => {
     // NOTE: this is a sanity bound on the *default* scenario, NOT a model
     // invariant — abnormal/pathological scenarios are a primary use case and are
     // expected (and allowed) to fall well outside these ranges.
-    expect(metrics.AoPMean).toBeGreaterThan(55);
-    expect(metrics.AoPMean).toBeLessThan(125);
-    expect(metrics.CO_L).toBeGreaterThan(2);
-    expect(metrics.CO_L).toBeLessThan(10);
-    expect(metrics.PAPMean).toBeGreaterThan(5);
-    expect(metrics.PAPMean).toBeLessThan(35);
+    expect(metrics.AoPMean).toBeGreaterThan(80);
+    expect(metrics.AoPMean).toBeLessThan(100);
+    expect(metrics.AoPSys).toBeLessThan(130);
+    expect(metrics.AoPDia).toBeLessThan(85);
+    expect(metrics.CO_L).toBeGreaterThan(4);
+    expect(metrics.CO_L).toBeLessThan(7);
+    expect(metrics.PAPMean).toBeGreaterThan(14);
+    expect(metrics.PAPMean).toBeLessThan(22);
+    expect(metrics.RAPMean).toBeGreaterThan(2);
+    expect(metrics.RAPMean).toBeLessThan(5);
+    expect(metrics.LAPMean).toBeGreaterThan(6);
+    expect(metrics.LAPMean).toBeLessThan(12);
   });
 
   it("shows a figure-eight LA PV loop and biphasic MV inflow", () => {
@@ -72,26 +78,49 @@ describe("baseline freeze (active-stress default)", () => {
     const beat = lastCompleteBeat(samples);
     expect(beat.length).toBeGreaterThan(80);
     expect(countSelfIntersections(beat.map((s) => ({ x: s.VLA, y: s.LAP })))).toBeGreaterThanOrEqual(1);
+    expect(Math.abs(loopSignedArea(beat.map((s) => ({ x: s.VLA, y: s.LAP }))))).toBeGreaterThan(20);
+    expect(midVolumePressureSpread(beat, "VLA", "LAP")).toBeGreaterThan(1.5);
 
-    const peaks = positiveValvePeaks(beat, "QMV");
-    expect(peaks.length).toBeGreaterThanOrEqual(2);
-    expect(peaks[0].value).toBeGreaterThan(100);
-    expect(peaks[1].value).toBeGreaterThan(80);
-    expect(peaks[1].value / peaks[0].value).toBeGreaterThan(0.35);
+    const ePeak = positiveValvePeakInWindow(beat, "QMV", 0.30, 0.75);
+    const aPeak = positiveValvePeakInWindow(beat, "QMV", 0.85, 0.08);
+    expect(ePeak?.value).toBeGreaterThan(100);
+    expect(aPeak?.value).toBeGreaterThan(80);
+    expect((aPeak?.value ?? 0) / (ePeak?.value ?? Infinity)).toBeGreaterThan(0.35);
     // no gross mitral regurgitation: only the brief transient closure backflow.
     expect(Math.min(...beat.map((s) => s.QMV))).toBeGreaterThan(-60);
+  });
+
+  it("keeps right-heart baseline physiology in range", () => {
+    const beat = lastCompleteBeat(samples);
+    expect(beat.length).toBeGreaterThan(80);
+    const [rvMin, rvMax] = rangeOf(beat, "VRV");
+    const [raMin, raMax] = rangeOf(beat, "VRA");
+    const [, rvpMax] = rangeOf(beat, "RVP");
+
+    // metrics.RVEDPApprox is max-volume anchored and can land during early
+    // upstroke. The physiology gate uses the pre-systolic window instead.
+    expect(preSystolicRvEdp(beat)).toBeGreaterThan(2);
+    expect(preSystolicRvEdp(beat)).toBeLessThan(8);
+    expect((rvMax - rvMin) / rvMax).toBeGreaterThan(0.52);
+    expect(rvpMax).toBeLessThan(45);
+
+    expect(raMax).toBeLessThan(85);
+    expect(raMin).toBeGreaterThan(25);
+    expect((raMax - raMin) / raMax).toBeGreaterThan(0.44);
   });
 
   it("shows a figure-eight RA PV loop, biphasic TV inflow, and minimal PV regurgitation", () => {
     const beat = lastCompleteBeat(samples);
     expect(beat.length).toBeGreaterThan(80);
     expect(countSelfIntersections(beat.map((s) => ({ x: s.VRA, y: s.RAP })))).toBeGreaterThanOrEqual(1);
+    expect(Math.abs(loopSignedArea(beat.map((s) => ({ x: s.VRA, y: s.RAP }))))).toBeGreaterThan(30);
+    expect(midVolumePressureSpread(beat, "VRA", "RAP")).toBeGreaterThan(2);
 
-    const peaks = positiveValvePeaks(beat, "QTV");
-    expect(peaks.length).toBeGreaterThanOrEqual(2);
-    expect(peaks[0].value).toBeGreaterThan(100);
-    expect(peaks[1].value).toBeGreaterThan(80);
-    expect(peaks[1].value / peaks[0].value).toBeGreaterThan(0.35);
+    const ePeak = positiveValvePeakInWindow(beat, "QTV", 0.30, 0.75);
+    const aPeak = positiveValvePeakInWindow(beat, "QTV", 0.85, 0.08);
+    expect(ePeak?.value).toBeGreaterThan(100);
+    expect(aPeak?.value).toBeGreaterThan(80);
+    expect((aPeak?.value ?? 0) / (ePeak?.value ?? Infinity)).toBeGreaterThan(0.35);
 
     const pvForward = integrateFlow(beat, "QPV", (q) => Math.max(0, q));
     const pvReverse = integrateFlow(beat, "QPV", (q) => Math.max(0, -q));
@@ -136,6 +165,57 @@ function positiveValvePeaks(samples: SimSample[], key: "QMV" | "QTV"): Array<{ t
     }
   }
   return peaks.sort((a, b) => b.value - a.value);
+}
+
+function positiveValvePeakInWindow(
+  samples: SimSample[],
+  key: "QMV" | "QTV",
+  lo: number,
+  hi: number,
+): { theta: number; value: number } | null {
+  const peaks = positiveValvePeaks(samples, key).filter((peak) => phaseInWindow(peak.theta, lo, hi));
+  return peaks.length > 0 ? peaks.reduce((best, peak) => peak.value > best.value ? peak : best, peaks[0]) : null;
+}
+
+function phaseInWindow(theta: number, lo: number, hi: number): boolean {
+  return lo <= hi ? theta >= lo && theta < hi : theta >= lo || theta < hi;
+}
+
+function rangeOf(samples: SimSample[], key: "VRV" | "VRA" | "RVP"): [number, number] {
+  const values = samples.map((s) => s[key]);
+  return [Math.min(...values), Math.max(...values)];
+}
+
+function preSystolicRvEdp(samples: SimSample[]): number {
+  const candidates = samples.filter((s) => phaseInWindow(phaseOf(s), 0.92, 0.04));
+  const source = candidates.length > 0 ? candidates : samples;
+  return source.reduce((best, s) => s.VRV > best.VRV ? s : best, source[0]).RVP;
+}
+
+function loopSignedArea(points: Array<{ x: number; y: number }>): number {
+  let area = 0;
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i];
+    const b = points[(i + 1) % points.length];
+    area += a.x * b.y - b.x * a.y;
+  }
+  return 0.5 * area;
+}
+
+function midVolumePressureSpread(
+  samples: SimSample[],
+  volumeKey: "VLA" | "VRA",
+  pressureKey: "LAP" | "RAP",
+): number {
+  const [vMin, vMax] = [
+    Math.min(...samples.map((s) => s[volumeKey])),
+    Math.max(...samples.map((s) => s[volumeKey])),
+  ];
+  const mid = 0.5 * (vMin + vMax);
+  const band = 0.12 * Math.max(vMax - vMin, 1e-6);
+  const near = samples.filter((s) => Math.abs(s[volumeKey] - mid) <= band);
+  const source = near.length >= 2 ? near : samples;
+  return Math.max(...source.map((s) => s[pressureKey])) - Math.min(...source.map((s) => s[pressureKey]));
 }
 
 function integrateFlow(samples: SimSample[], key: "QPV", transform: (q: number) => number): number {
