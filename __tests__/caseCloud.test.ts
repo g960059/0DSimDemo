@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { caseDocFields, createUserCaseId, docContentToCaseDocument, isValidCaseId, slugifyCaseTitle } from "@/caseCloud";
+import {
+  caseDocFields,
+  caseDocumentWithTrustedCloudFields,
+  createUserCaseId,
+  docContentToCaseDocument,
+  isValidCaseId,
+  slugifyCaseTitle,
+} from "@/caseCloud";
 import { simInstancesToCaseDocument } from "@/caseDoc";
 import { applyKnobs, KNOB_MAPPING_VERSION, neutralKnobs } from "@/engine/knobs";
 import { defaultParams } from "@/engine/ModelCore";
@@ -53,6 +60,28 @@ describe("caseCloud pure helpers", () => {
     expect(docContentToCaseDocument(fields.content, "case-1")?.meta.id).toBe("case-1");
     expect(docContentToCaseDocument(fields.content, "other")).toBeUndefined();
     expect(docContentToCaseDocument("{bad json", "case-1")).toBeUndefined();
+  });
+
+  it("does not trust embedded official source for non-official cloud cases", () => {
+    const spoofed = { ...doc, source: { kind: "official" as const, id: "normal-sinus" } };
+
+    const publicCase = caseDocumentWithTrustedCloudFields(spoofed, {
+      kind: "case",
+      status: "published",
+      visibility: "public",
+      ownerId: "u1",
+    });
+    const officialCase = caseDocumentWithTrustedCloudFields(spoofed, {
+      kind: "case",
+      status: "published",
+      visibility: "official",
+      ownerId: "admin",
+    });
+
+    expect(publicCase.source).toBeUndefined();
+    expect(publicCase.visibility).toBe("public");
+    expect(officialCase.source).toEqual({ kind: "official", id: "normal-sinus" });
+    expect(officialCase.visibility).toBe("official");
   });
 
   it("validates Firestore-safe case ids", () => {

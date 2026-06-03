@@ -126,6 +126,39 @@ describe("firestore.rules cases collection", () => {
     await assertFails(signedInDb("stranger").collection("cases").doc("private-case").delete());
   });
 
+  it("rejects extra top-level fields and client-chosen timestamps", async () => {
+    const owner = signedInDb("owner");
+
+    await assertFails(owner.collection("cases").doc("extra-key").set(caseData("owner", {
+      unexpected: true,
+    })));
+    await assertFails(owner.collection("cases").doc("bad-created-at").set(caseData("owner", {
+      createdAt: storedTimestamp(100),
+    })));
+    await assertFails(owner.collection("cases").doc("bad-updated-at").set(caseData("owner", {
+      updatedAt: storedTimestamp(100),
+    })));
+
+    await seedCase("timestamp-case", storedCaseData("owner"));
+    await assertFails(owner.collection("cases").doc("timestamp-case").set(storedCaseData("owner", {
+      updatedAt: storedTimestamp(100),
+    })));
+  });
+
+  it("keeps ownerId and createdAt immutable on updates", async () => {
+    const owner = signedInDb("owner");
+    await seedCase("immutable-case", storedCaseData("owner"));
+
+    await assertFails(owner.collection("cases").doc("immutable-case").set(storedCaseData("owner", {
+      createdAt: storedTimestamp(999),
+      updatedAt: serverTimestamp(),
+    })));
+    await assertFails(owner.collection("cases").doc("immutable-case").set(storedCaseData("other-owner", {
+      createdAt: storedTimestamp(1),
+      updatedAt: serverTimestamp(),
+    })));
+  });
+
   it("allows public published cases to be listed but keeps unlisted cases out of list queries", async () => {
     await seedCase("public-case", storedCaseData("owner", { status: "published", visibility: "public" }));
     await seedCase("unlisted-case", storedCaseData("owner", { status: "published", visibility: "unlisted" }));
@@ -136,16 +169,47 @@ describe("firestore.rules cases collection", () => {
     await assertFails(anonymousDb().collection("cases").where("visibility", "==", "unlisted").where("status", "==", "published").get());
   });
 
+  it("prevents non-owners from mutating public published cases", async () => {
+    await seedCase("public-case", storedCaseData("owner", { status: "published", visibility: "public" }));
+
+    await assertSucceeds(signedInDb("stranger").collection("cases").doc("public-case").get());
+    await assertFails(signedInDb("stranger").collection("cases").doc("public-case").set(storedCaseData("owner", {
+      status: "published",
+      visibility: "public",
+      createdAt: storedTimestamp(1),
+      updatedAt: serverTimestamp(),
+    })));
+    await assertFails(signedInDb("stranger").collection("cases").doc("public-case").delete());
+  });
+
   it("reserves official visibility for admins", async () => {
     await assertFails(signedInDb("owner").collection("cases").doc("official-case").set(caseData("owner", {
       status: "published",
       visibility: "official",
     })));
 
-    const superAdmin = signedInDb("admin", true, "g960059@gmail.com");
-    await assertSucceeds(superAdmin.collection("cases").doc("official-case").set(caseData("admin", {
+    await seedCase("private-case", storedCaseData("owner"));
+    await assertFails(signedInDb("owner").collection("cases").doc("private-case").set(storedCaseData("owner", {
       status: "published",
       visibility: "official",
+      createdAt: storedTimestamp(1),
+      updatedAt: serverTimestamp(),
+    })));
+
+    const superAdmin = signedInDb("admin", true, "g960059@gmail.com");
+    const officialRef = superAdmin.collection("cases").doc("official-case");
+    await assertSucceeds(officialRef.set(caseData("admin", {
+      status: "published",
+      visibility: "official",
+    })));
+
+    const officialCreatedAt = (await officialRef.get()).data()?.createdAt;
+    await assertSucceeds(officialRef.set(caseData("admin", {
+      title: "Admin updated official case",
+      status: "published",
+      visibility: "official",
+      createdAt: officialCreatedAt,
+      updatedAt: serverTimestamp(),
     })));
   });
 });

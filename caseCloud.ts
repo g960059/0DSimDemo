@@ -150,6 +150,18 @@ function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : "Case save failed.";
 }
 
+function isCaseKind(value: unknown): value is CaseKind {
+  return value === "case" || value === "lesson" || value === "promptGenerated";
+}
+
+function isCaseStatus(value: unknown): value is CaseStatus {
+  return value === "draft" || value === "published" || value === "archived";
+}
+
+function isCaseVisibility(value: unknown): value is CaseVisibility {
+  return value === "private" || value === "unlisted" || value === "public" || value === "official";
+}
+
 async function caseRef(id: string) {
   const { db } = await import("./firebaseSetup");
   return doc(db, "cases", id);
@@ -210,14 +222,49 @@ export function docContentToCaseDocument(content: unknown, expectedId: string): 
   }
 }
 
+export function caseDocumentWithTrustedCloudFields(
+  parsed: CaseDocument,
+  fields: {
+    kind: CaseKind;
+    status: CaseStatus;
+    visibility: CaseVisibility;
+    ownerId: string;
+    derivedFrom?: string;
+  },
+): CaseDocument {
+  return {
+    ...parsed,
+    kind: fields.kind,
+    status: fields.status,
+    visibility: fields.visibility,
+    ownerId: fields.ownerId,
+    ...(fields.derivedFrom ? { derivedFrom: fields.derivedFrom } : {}),
+    // The embedded content is user-controlled for non-official documents.
+    // Preserve authored/remix/prompt provenance, but never let content alone
+    // claim official chrome or permissions.
+    source: parsed.source?.kind === "official" && fields.visibility !== "official"
+      ? undefined
+      : parsed.source,
+  };
+}
+
 export async function fetchCase(id: string): Promise<CaseDocument | undefined> {
   if (!isValidCaseId(id)) return undefined;
   try {
     const snapshot = await getDoc(await caseRef(id));
     if (!snapshot.exists()) return undefined;
     const data = snapshot.data();
-    if (data.status !== "published" && data.status !== "draft") return undefined;
-    return docContentToCaseDocument(data.content, id);
+    if (!isCaseStatus(data.status) || (data.status !== "published" && data.status !== "draft")) return undefined;
+    if (!isCaseKind(data.kind) || !isCaseVisibility(data.visibility) || typeof data.ownerId !== "string") return undefined;
+    const parsed = docContentToCaseDocument(data.content, id);
+    if (!parsed) return undefined;
+    return caseDocumentWithTrustedCloudFields(parsed, {
+      kind: data.kind,
+      status: data.status,
+      visibility: data.visibility,
+      ownerId: data.ownerId,
+      ...(typeof data.derivedFrom === "string" ? { derivedFrom: data.derivedFrom } : {}),
+    });
   } catch {
     return undefined;
   }

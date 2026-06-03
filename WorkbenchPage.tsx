@@ -49,7 +49,6 @@ const WORKBENCH_THEME_STORAGE_KEY = 'hemosim.workbench.theme';
 const DEFAULT_WORKBENCH_THEME: WorkbenchThemeId = 'midnight';
 const WORKBENCH_THEMES = new Set<WorkbenchThemeId>(['midnight', 'graphite', 'clinical']);
 const LOCAL_COPY_AUTHOR = 'Local copy';
-const OFFICIAL_CASE_AUTHORS = new Set(['CircleHeart']);
 const EMPTY_NOTE_SPINE: NoteContent = [
   { type: 'paragraph', content: [{ type: 'text', text: '', styles: {} }] },
 ];
@@ -140,19 +139,18 @@ export function addHiddenInstanceConfigsToPanels(panels: PanelDef[], ids: string
   });
 }
 
-function resolveHeaderModeFromAuthor(author?: string): WorkbenchHeaderMode {
+function resolveHeaderModeFromAuthor(author?: string, source?: CaseSource): WorkbenchHeaderMode {
+  if (source?.kind === 'official') return 'learner';
   const normalized = author?.trim();
   if (!normalized) return 'sandbox';
   if (normalized === LOCAL_COPY_AUTHOR) return 'sandbox';
-  if (OFFICIAL_CASE_AUTHORS.has(normalized)) return 'learner';
   return 'learner';
 }
 
-function inferCaseSource(doc: CaseDocument): CaseSource | undefined {
-  if (doc.source) return doc.source;
-  const author = doc.meta.author?.trim();
-  if (author && OFFICIAL_CASE_AUTHORS.has(author)) return { kind: 'official', id: doc.meta.id };
-  return undefined;
+function inferCaseSource(doc: CaseDocument, opts: { trustedOfficial?: boolean } = {}): CaseSource | undefined {
+  if (opts.trustedOfficial) return { kind: 'official', id: doc.meta.id };
+  if (doc.source?.kind === 'official') return undefined;
+  return doc.source;
 }
 
 function textFromNoteBlock(block: unknown): string {
@@ -239,7 +237,7 @@ function Workbench() {
     ? 'author'
     : ownsCurrentCase || caseAuthor === LOCAL_COPY_AUTHOR
       ? 'sandbox'
-      : resolveHeaderModeFromAuthor(caseAuthor);
+      : resolveHeaderModeFromAuthor(caseAuthor, currentCaseSource);
   const backTarget = fromParam === 'cases'
     ? { href: '/cases', label: 'Cases' }
     : fromParam === 'lesson'
@@ -399,7 +397,7 @@ function Workbench() {
     if (headerMode !== 'learner') userEditedRef.current = true;
   }, [headerMode, panels]);
 
-  const replaceWorkbenchDoc = useCallback((doc: CaseDocument, opts: { confirm: boolean }) => {
+  const replaceWorkbenchDoc = useCallback((doc: CaseDocument, opts: { confirm: boolean; trustedOfficial?: boolean }) => {
     if (opts.confirm && !window.confirm('Load this case? It will replace the current scene; unsaved changes are lost.')) return false;
 
     try {
@@ -422,7 +420,7 @@ function Workbench() {
       setCurrentCaseId(doc.meta.id);
       setCurrentCaseOwnerId(doc.ownerId);
       setCurrentCaseCreatedAt(doc.meta.createdAt);
-      setCurrentCaseSource(inferCaseSource(doc));
+      setCurrentCaseSource(inferCaseSource(doc, { trustedOfficial: opts.trustedOfficial || doc.visibility === 'official' }));
       setCurrentCaseDerivedFrom(doc.derivedFrom);
       setNotes(doc.notes ?? {});
       setNoteModes({});
@@ -449,17 +447,24 @@ function Workbench() {
     let cancelled = false;
     const localDoc = officialCaseById(caseId);
     if (!localDoc && authLoading) return;
-    const loadDoc = async () => localDoc ?? await fetchCase(caseId);
+    const loadDoc = async (): Promise<{ doc: CaseDocument; trustedOfficial: boolean } | undefined> => {
+      if (localDoc) return { doc: localDoc, trustedOfficial: true };
+      const cloudDoc = await fetchCase(caseId);
+      return cloudDoc ? { doc: cloudDoc, trustedOfficial: cloudDoc.visibility === 'official' } : undefined;
+    };
 
-    loadDoc().then((doc) => {
+    loadDoc().then((loaded) => {
       if (cancelled) return;
-      if (!doc) {
+      if (!loaded) {
         lastLoadedCaseIdRef.current = caseId;
         pushWarningToast('Case route', `Unknown case "${caseId}" — loaded the default scene`);
         return;
       }
 
-      if (replaceWorkbenchDoc(doc, { confirm: userEditedRef.current || stepsDraft.length > 0 })) {
+      if (replaceWorkbenchDoc(loaded.doc, {
+        confirm: userEditedRef.current || stepsDraft.length > 0,
+        trustedOfficial: loaded.trustedOfficial,
+      })) {
         lastLoadedCaseIdRef.current = caseId;
       }
     });
