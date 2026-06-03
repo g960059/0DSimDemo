@@ -7,11 +7,14 @@ import { ModelLimitations } from './ModelLimitations';
 export const Layout = () => {
   const { user, profile, signIn, signOut } = useAuth();
   const location = useLocation();
-  const suppressGlobalChrome = location.pathname === '/workbench' || location.pathname.startsWith('/lesson/');
+  const suppressGlobalChrome =
+    location.pathname === '/workbench' ||
+    location.pathname.startsWith('/workbench/') ||
+    location.pathname.startsWith('/lesson/');
 
   const navItems = [
     { name: 'Home', path: '/', icon: <BookOpen className="w-4 h-4" /> },
-    { name: 'Official Cases', path: '/cases', icon: <Activity className="w-4 h-4" /> },
+    { name: 'Cases', path: '/cases', icon: <Activity className="w-4 h-4" /> },
     { name: 'Workbench', path: '/workbench', icon: <PlaySquare className="w-4 h-4" /> },
   ];
 

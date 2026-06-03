@@ -1,1 +1,332 @@
 @import "tailwindcss";
+
+.workbench-root,
+body[data-workbench-theme] {
+  --wb-app-bg: #08111f;
+  --wb-header-bg: #020617;
+  --wb-panel-bg: #0b1120;
+  --wb-panel-bg-soft: #0f172a;
+  --wb-zone-main-bg: #08111f;
+  --wb-zone-aux-bg: #0b1120;
+  --wb-tab-strip-bg: rgba(2, 6, 23, 0.3);
+  --wb-tab-active-bg: var(--wb-zone-aux-bg);
+  --wb-tab-inactive-bg: rgba(15, 23, 42, 0.44);
+  --wb-tab-hover-bg: rgba(30, 41, 59, 0.72);
+  --wb-border: rgba(51, 65, 85, 0.56);
+  --wb-border-strong: rgba(100, 116, 139, 0.62);
+  --wb-text: #e2e8f0;
+  --wb-text-muted: #94a3b8;
+  --wb-text-subtle: #64748b;
+  --wb-accent: #38bdf8;
+  --wb-accent-soft: rgba(56, 189, 248, 0.16);
+  --wb-sash: #08111f;
+  background: var(--wb-app-bg);
+  color: var(--wb-text);
+}
+
+.workbench-root[data-workbench-theme="graphite"],
+body[data-workbench-theme="graphite"] {
+  --wb-app-bg: #111315;
+  --wb-header-bg: #0a0c0d;
+  --wb-panel-bg: #171a1d;
+  --wb-panel-bg-soft: #20252a;
+  --wb-zone-main-bg: #14181b;
+  --wb-zone-aux-bg: #191d21;
+  --wb-tab-strip-bg: rgba(10, 12, 13, 0.54);
+  --wb-tab-active-bg: #191d21;
+  --wb-tab-inactive-bg: rgba(32, 37, 42, 0.78);
+  --wb-tab-hover-bg: #252b30;
+  --wb-border: rgba(91, 103, 112, 0.52);
+  --wb-border-strong: rgba(129, 145, 155, 0.68);
+  --wb-text: #e6edf0;
+  --wb-text-muted: #a5b1b8;
+  --wb-text-subtle: #7b878e;
+  --wb-accent: #14b8a6;
+  --wb-accent-soft: rgba(20, 184, 166, 0.16);
+  --wb-sash: #111315;
+}
+
+.workbench-root[data-workbench-theme="clinical"],
+body[data-workbench-theme="clinical"] {
+  --wb-app-bg: #071312;
+  --wb-header-bg: #03100f;
+  --wb-panel-bg: #0a1b19;
+  --wb-panel-bg-soft: #102823;
+  --wb-zone-main-bg: #081614;
+  --wb-zone-aux-bg: #0b1d1b;
+  --wb-tab-strip-bg: rgba(3, 16, 15, 0.52);
+  --wb-tab-active-bg: #0b1d1b;
+  --wb-tab-inactive-bg: rgba(16, 40, 35, 0.74);
+  --wb-tab-hover-bg: #16352f;
+  --wb-border: rgba(71, 114, 105, 0.48);
+  --wb-border-strong: rgba(110, 154, 145, 0.66);
+  --wb-text: #e4f2ef;
+  --wb-text-muted: #9fb8b2;
+  --wb-text-subtle: #6f8d86;
+  --wb-accent: #22c55e;
+  --wb-accent-soft: rgba(34, 197, 94, 0.14);
+  --wb-sash: #071312;
+}
+
+.workbench-header {
+  background: var(--wb-header-bg);
+  border-bottom: 1px solid var(--wb-border);
+  color: var(--wb-text);
+}
+
+.workbench-side-panel {
+  background: var(--wb-panel-bg);
+  border-color: var(--wb-border);
+  color: var(--wb-text);
+}
+
+.workbench-root > main {
+  background: var(--wb-app-bg);
+}
+
+.workbench-header .text-slate-100,
+.workbench-side-panel .text-slate-100,
+.workbench-side-panel .text-slate-200,
+.workbench-side-panel .text-slate-300 {
+  color: var(--wb-text);
+}
+
+.workbench-header .text-slate-400,
+.workbench-header .text-slate-500,
+.workbench-side-panel .text-slate-400,
+.workbench-side-panel .text-slate-500 {
+  color: var(--wb-text-muted);
+}
+
+.workbench-side-panel .border-slate-800,
+.workbench-side-panel .border-slate-700 {
+  border-color: var(--wb-border);
+}
+
+.workbench-side-panel .bg-slate-950,
+.workbench-side-panel .bg-slate-900 {
+  background-color: var(--wb-panel-bg-soft);
+}
+
+.workbench-zone-main {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--wb-panel-bg-soft) 34%, transparent), transparent 56%),
+    var(--wb-zone-main-bg);
+}
+
+.workbench-zone-aux {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--wb-panel-bg-soft) 60%, transparent), color-mix(in srgb, var(--wb-zone-aux-bg) 88%, transparent)),
+    var(--wb-zone-aux-bg);
+  border-color: var(--wb-border);
+}
+
+.workbench-dockview.dockview-theme-dark {
+  --workbench-surface: var(--wb-zone-aux-bg);
+  --workbench-surface-soft: var(--wb-panel-bg-soft);
+  --workbench-divider: var(--wb-border);
+  --dv-group-view-background-color: var(--workbench-surface);
+  --dv-tabs-and-actions-container-background-color: var(--wb-tab-strip-bg);
+  --dv-activegroup-visiblepanel-tab-background-color: transparent;
+  --dv-activegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-inactivegroup-visiblepanel-tab-background-color: transparent;
+  --dv-inactivegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-activegroup-visiblepanel-tab-color: var(--wb-text);
+  --dv-activegroup-hiddenpanel-tab-color: var(--wb-text-subtle);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--wb-text-muted);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--wb-text-subtle);
+  --dv-tab-divider-color: transparent;
+  --dv-separator-border: var(--workbench-divider);
+  --dv-paneview-header-border-color: transparent;
+  --dv-tabs-and-actions-container-height: 32px;
+  --dv-tabs-and-actions-container-font-size: 12px;
+  --dv-active-sash-color: var(--wb-accent-soft);
+  --dv-scrollbar-background-color: color-mix(in srgb, var(--wb-border-strong) 72%, transparent);
+}
+
+.workbench-dockview-main.dockview-theme-dark {
+  --workbench-surface: var(--wb-zone-main-bg);
+  --dv-tabs-and-actions-container-background-color: color-mix(in srgb, var(--wb-tab-strip-bg) 76%, transparent);
+}
+
+.workbench-dockview .dv-groupview,
+.workbench-dockview .dv-groupview > .dv-content-container {
+  background: var(--workbench-surface);
+}
+
+.workbench-dockview .dv-groupview > .dv-content-container {
+  border-top: 0;
+}
+
+.workbench-dockview .dv-tabs-and-actions-container {
+  border-bottom: 0;
+  padding: 0;
+  background: var(--dv-tabs-and-actions-container-background-color);
+}
+
+.workbench-dockview .dv-scrollable {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: calc(100% - 2rem);
+}
+
+.workbench-dockview .dv-tabs-container {
+  flex: 0 0 auto;
+  min-width: 0;
+  width: max-content !important;
+  max-width: none;
+}
+
+.workbench-dockview .dv-tabs-and-actions-container .dv-void-container {
+  flex: 0 0 0;
+  min-width: 0;
+}
+
+.workbench-dockview .dv-tabs-and-actions-container .dv-right-actions-container {
+  flex: 0 0 auto;
+  margin-left: 0;
+  min-width: 1.75rem;
+}
+
+.workbench-dockview .dv-right-actions-container button {
+  color: var(--wb-text-subtle);
+}
+
+.workbench-dockview .dv-right-actions-container button:hover {
+  background: var(--wb-tab-hover-bg);
+  color: var(--wb-text);
+}
+
+.workbench-dockview .dv-tab {
+  flex: 0 0 auto !important;
+  min-width: 0;
+  max-width: 12rem;
+  width: auto !important;
+  padding: 0;
+}
+
+.workbench-dockview .dv-tab .workbench-dock-tab {
+  min-width: 8.25rem;
+  max-width: 12rem;
+  background: var(--wb-tab-inactive-bg);
+  border: 1px solid var(--workbench-divider);
+  border-left-color: color-mix(in srgb, var(--workbench-divider) 76%, transparent);
+  border-bottom-color: var(--workbench-divider);
+  border-radius: 0;
+  color: var(--wb-text-muted);
+}
+
+.workbench-dockview .dv-tab.dv-active-tab .workbench-dock-tab {
+  position: relative;
+  z-index: 1;
+  background: var(--workbench-surface);
+  border: 0;
+  box-shadow: none;
+  outline: 0;
+  transform: none;
+  color: var(--wb-text);
+  font-weight: 700;
+}
+
+.workbench-dockview .dv-tab.dv-active-tab .workbench-dock-tab::after {
+  content: none;
+}
+
+.workbench-dockview .dv-tab.dv-inactive-tab .workbench-dock-tab:hover {
+  background: var(--wb-tab-hover-bg);
+  color: var(--wb-text);
+}
+
+.workbench-dockview .workbench-dock-tab-menu-button {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.workbench-dockview .dv-tab.dv-active-tab .workbench-dock-tab-menu-button,
+.workbench-dockview .workbench-dock-tab-menu-button:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.workbench-dockview .dv-tab:focus::after,
+.workbench-dockview .dv-tab:focus-within::after {
+  border-radius: 0;
+  outline-color: rgba(148, 163, 184, 0.36) !important;
+  outline-offset: -3px;
+}
+
+.workbench-dockview .dv-tab::after {
+  border: 0 !important;
+  outline: 0 !important;
+}
+
+.workbench-dockview .dv-tab.dv-active-tab:focus::after,
+.workbench-dockview .dv-tab.dv-active-tab:focus-within::after {
+  outline-color: transparent !important;
+  outline-width: 0 !important;
+}
+
+.workbench-dockview .dv-split-view-container.dv-separator-border .dv-view:not(:first-child)::before {
+  background-color: var(--workbench-divider);
+}
+
+.custom-scrollbar {
+  scrollbar-width: none;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.custom-scrollbar.is-scrolling {
+  scrollbar-width: thin;
+  scrollbar-color: var(--wb-border-strong, #475569) transparent;
+}
+
+.custom-scrollbar.is-scrolling::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar.is-scrolling::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar.is-scrolling::-webkit-scrollbar-thumb {
+  background: var(--wb-border-strong, #475569);
+  border-radius: 999px;
+}
+
+.workbench-dockview .dv-scrollable .dv-scrollbar {
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.workbench-dockview .dv-scrollable.is-scrolling .dv-scrollbar {
+  opacity: 1;
+}
+
+.workbench-popover-menu {
+  background: var(--wb-panel-bg);
+  border-color: var(--wb-border-strong);
+  color: var(--wb-text);
+}
+
+.workbench-popover-menu-item {
+  color: var(--wb-text-muted);
+}
+
+.workbench-popover-menu-item:hover {
+  background: var(--wb-tab-hover-bg);
+  color: var(--wb-text);
+}
+
+.workbench-popover-menu-item-danger {
+  color: #fca5a5;
+}
+
+.workbench-popover-menu-item-danger:hover {
+  background: rgba(127, 29, 29, 0.45);
+  color: #fecaca;
+}

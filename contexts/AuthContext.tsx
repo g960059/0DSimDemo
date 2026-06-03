@@ -13,7 +13,7 @@ interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
-  signIn: () => Promise<void>;
+  signIn: () => Promise<User | null>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
 }
@@ -22,7 +22,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   profile: null,
   loading: true,
-  signIn: async () => {},
+  signIn: async () => null,
   signOut: async () => {},
   isAdmin: false,
 });
@@ -70,12 +70,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribe();
   }, []);
 
-  const signIn = async () => {
+  const signIn = async (): Promise<User | null> => {
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      return result.user;
     } catch (error) {
       console.error("Login failed", error);
+      return null;
     }
   };
 
