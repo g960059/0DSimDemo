@@ -6,6 +6,8 @@ export function roleOf(type: PanelType): PanelRole {
       return "output";
     case "CONTROLS":
       return "control";
+    case "SCENARIOS":
+      return "scenario";
     case "NOTE":
       return "note";
     case "PVLOOP":

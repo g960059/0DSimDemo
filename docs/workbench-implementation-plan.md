@@ -35,10 +35,10 @@ Shared type contract (fix now, so all streams build to it): `PanelDef.role: 'gra
 
 ## Wave 2 — after Wave 1 merges (now file-disjoint via extraction)
 - **Header IA** (ADR-0002) on `WorkbenchHeader.tsx` + `Layout.tsx` global-chrome suppression on `/workbench`,`/lesson` + right `WorkbenchSidePanel.tsx`. (UX3)
-- **Grid freeze + CSS presenter + RGL editor** (ADR-0003) on `PanelGrid.tsx`; learner = handle-free presenter, Author "Edit layout" = lazy RGL writing the doc. (UX4 + UX1)
-- **Op-stack wiring**: route `Workbench` mutations through `layoutOps`; RGL `onLayoutChange` → debounced `move/resize` ops. (UX2)
+- **Dockview desktop shell** (ADR-0003) on `PanelGrid.tsx`/`WorkbenchDockview.tsx`; no separate layout edit mode, constrained zones with zone-local add actions, semantic `PanelDef[]` as the source of truth. (UX4 + UX1)
+- **Op-stack wiring**: route `Workbench` pane mutations through `layoutOps`; Dockview serialized state is stored only as zone-specific `workspace.viewStates`. (UX2)
 - **Mobile wiring**: mount `WorkbenchMobile` on the phone branch; delete the `span 12` stack. (UX4)
-- **Presets UI**: header preset switcher (Learner segmented / Author `Layout▾`). (UX3)
+- **Presets UI**: future compact case/workspace selector; keep pane creation zone-local rather than global header chrome. (UX3)
 
 ## Notes / risks
 - Drift guard: Author Preview renders through the learner presenter (ADR-0003).

@@ -1,37 +1,32 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Controls } from '../Controls';
 import { PVLoopPanel, WaveformPanel, MetricsPanel, GuytonPanel } from '../Charts';
 import { LessonAuthoring } from '../LessonAuthoring';
 import { NotePanel } from '../NotePanel';
 import { ErrorBoundary } from '../ErrorBoundary';
+import WorkbenchDockview from './WorkbenchDockview';
 import WorkbenchMobile from './WorkbenchMobile';
-import PanelGridEditor from './PanelGridEditor';
 import { type ClinicalKnobs } from '../../engine/knobs';
 import { SimulationHealth } from '../../engine/protocol';
 import {
   ChamberId,
+  type DockviewViewState,
   MetricType,
   PanelDef,
-  PanelInstanceConfig,
   PanelType,
   PhysicsRefState,
   SignalType,
   SimInstance,
   SimulationParams,
+  WorkbenchZoneId,
 } from '../../types';
 import type { LessonStep } from '../../lessonDoc';
 import type { NoteContent } from '../../noteTypes';
-import { flowPack, LAYOUT_PRESETS, type LayoutPresetName } from '../../layoutPresets';
-import { movePane, resizePane } from '../../layoutOps';
-import { roleOf } from '../../paneRole';
-
-const EDITOR_ROW_HEIGHT = 50;
+import { flowPack } from '../../layoutPresets';
+import { zoneOf } from '../../paneZone';
+import { ArrowLeft, Settings, X } from 'lucide-react';
 
 export type PanelGridMode = 'learner' | 'author' | 'sandbox';
-
-export function canEditWorkbenchLayout(mode: PanelGridMode, isMobile: boolean): boolean {
-  return mode !== 'learner' && !isMobile;
-}
 
 interface PanelGridProps {
   authoringMode: boolean;
@@ -41,10 +36,10 @@ interface PanelGridProps {
   stepsDraft: LessonStep[];
   setStepsDraft: React.Dispatch<React.SetStateAction<LessonStep[]>>;
   panels: PanelDef[];
-  onPanelsChange: (panels: PanelDef[]) => void;
+  dockviewLayoutKey?: string;
+  dockviewViewStates?: Partial<Record<WorkbenchZoneId, DockviewViewState>>;
+  onDockviewViewStateChange?: (zone: WorkbenchZoneId, viewState: DockviewViewState) => void;
   mode: PanelGridMode;
-  layoutEditable: boolean;
-  setLayoutEditable: React.Dispatch<React.SetStateAction<boolean>>;
   isMobile: boolean;
   noteModes: Record<string, 'read' | 'edit'>;
   setNoteModes: React.Dispatch<React.SetStateAction<Record<string, 'read' | 'edit'>>>;
@@ -62,7 +57,7 @@ interface PanelGridProps {
   setTimeScale: React.Dispatch<React.SetStateAction<number>>;
   isPlaying: boolean;
   togglePlay: () => void;
-  addPanel: (type: PanelType) => void;
+  addPanel: (type: PanelType, zone?: WorkbenchZoneId) => void;
   removePanel: (id: string) => void;
   updatePanelTitle: (id: string, newTitle: string) => void;
   toggleShowLegend: (id: string) => void;
@@ -84,10 +79,209 @@ interface PanelGridProps {
   controlGroups: string[];
 }
 
+type PanelChromeMode = 'desktop' | 'mobile' | 'dockview';
+
+export function getDockviewPaneTitle(panel: PanelDef): string {
+  return panel.title;
+}
+
+export function resolveControlsPaneTarget(
+  instances: SimInstance[],
+  config: PanelDef['config'],
+  activeInstanceId: string,
+): SimInstance | null {
+  const availableInstances = instances.filter((inst) => inst.isVisible !== false);
+  const visibleInstances = availableInstances.filter((inst) => config[inst.id]?.visible);
+  return visibleInstances.find((inst) => inst.id === activeInstanceId) ?? visibleInstances[0] ?? availableInstances[0] ?? instances[0] ?? null;
+}
+
+interface PanelSettingsButtonProps {
+  panel: PanelDef;
+  instances: SimInstance[];
+  updatePanelTitle: (id: string, newTitle: string) => void;
+  toggleShowLegend: (id: string) => void;
+  updatePanelInstanceColor: (panelId: string, instId: string, newColor: string) => void;
+  updatePanelInstanceName: (panelId: string, instId: string, newName: string) => void;
+  updatePanelSignalColor: (panelId: string, instId: string, sig: string, newColor: string) => void;
+  updatePanelSignalName: (panelId: string, instId: string, sig: string, newName: string) => void;
+  toggleSettings: (panelId: string) => void;
+  toggleInstanceVisibility: (panelId: string, instId: string) => void;
+  updateInstanceSignals: (panelId: string, instId: string, signal: string) => void;
+  toggleGuides: (panelId: string) => void;
+  updateTimeWindow: (panelId: string, val: number) => void;
+  chambers: ChamberId[];
+  signals: SignalType[];
+  metrics: MetricType[];
+  controlGroups: string[];
+}
+
+type PanelSettingsControlsProps = Omit<PanelSettingsButtonProps, 'toggleSettings'>;
+
+function PanelSettingsControls({
+  panel,
+  instances,
+  updatePanelTitle,
+  toggleShowLegend,
+  updatePanelInstanceColor,
+  updatePanelInstanceName,
+  updatePanelSignalColor,
+  updatePanelSignalName,
+  toggleInstanceVisibility,
+  updateInstanceSignals,
+  toggleGuides,
+  updateTimeWindow,
+  chambers,
+  signals,
+  metrics,
+  controlGroups,
+}: PanelSettingsControlsProps) {
+  const itemOptions = panel.type === 'PVLOOP'
+    ? chambers
+    : panel.type === 'WAVEFORM'
+      ? signals
+      : panel.type === 'METRICS'
+        ? metrics
+        : controlGroups;
+
+  return (
+    <>
+      <div className="mb-2 flex items-center gap-2 border-b border-slate-700 pb-2">
+        <span className="text-xs font-medium text-slate-400">Title:</span>
+        <input
+          type="text"
+          value={panel.title}
+          onChange={(e) => updatePanelTitle(panel.id, e.target.value)}
+          className="w-full rounded border border-slate-700 bg-slate-900 px-1.5 py-0.5 text-xs font-medium text-slate-200 outline-none focus:border-slate-500"
+          placeholder="Panel Title"
+        />
+      </div>
+      {['PVLOOP', 'WAVEFORM'].includes(panel.type) && (
+        <div className="mb-2 flex items-center gap-2 border-b border-slate-700 pb-2">
+          <input type="checkbox" className="cursor-pointer accent-blue-500" checked={panel.showLegend !== false} onChange={() => toggleShowLegend(panel.id)} />
+          <span className="text-xs font-medium text-slate-200">Show Legend</span>
+        </div>
+      )}
+      {panel.type === 'PVLOOP' && (
+        <div className="mb-2 flex items-center gap-2 border-b border-slate-700 pb-2">
+          <input type="checkbox" className="cursor-pointer accent-blue-500" checked={panel.showGuides} onChange={() => toggleGuides(panel.id)} />
+          <span className="text-xs font-medium text-slate-200">Show Guides</span>
+        </div>
+      )}
+      {panel.type === 'WAVEFORM' && (
+        <div className="mb-3 border-b border-slate-700 pb-3">
+          <div className="mb-2 flex justify-between text-[10px] font-medium text-slate-400">
+            <span>Window Size</span>
+            <span className="text-blue-400">{(panel.timeWindow || 10000) / 1000}s</span>
+          </div>
+          <input type="range" min={2000} max={20000} step={1000} value={panel.timeWindow || 10000} onChange={(e) => updateTimeWindow(panel.id, parseFloat(e.target.value))} className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-slate-900 accent-blue-500" />
+        </div>
+      )}
+      <div className="space-y-3">
+        {instances.map(inst => {
+          const cfg = panel.config[inst.id];
+          return (
+            <div key={inst.id}>
+              <div className="mb-1 flex items-center gap-2">
+                <input type="checkbox" className="flex-none cursor-pointer accent-blue-500" checked={cfg?.visible || false} onChange={() => toggleInstanceVisibility(panel.id, inst.id)} />
+                <input type="color" className="block h-[14px] w-[14px] flex-none cursor-pointer appearance-none rounded border-0 bg-transparent p-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded [&::-webkit-color-swatch]:border-none" value={cfg?.customBaseColor ?? inst.color} onChange={(e) => updatePanelInstanceColor(panel.id, inst.id, e.target.value)} />
+                <input type="text" className="w-full min-w-0 border-b border-transparent bg-transparent text-xs font-bold text-slate-300 outline-none focus:border-slate-500" value={cfg?.customName ?? inst.name} onChange={(e) => updatePanelInstanceName(panel.id, inst.id, e.target.value)} placeholder={inst.name} />
+              </div>
+              {cfg?.visible && (panel.type !== 'GUYTON_RIGHT' && panel.type !== 'GUYTON_LEFT') && (
+                <div className="grid grid-cols-1 gap-1 pl-5">
+                  {itemOptions.map(sig => {
+                    const isSelected = cfg.selectedSignals.includes(sig);
+                    return (
+                      <div key={sig} className="flex items-center gap-1 rounded bg-slate-950/50 px-1 py-0.5 text-[10px]">
+                        <input type="checkbox" className="m-0 h-3 w-3 flex-none cursor-pointer accent-blue-500" checked={isSelected} onChange={() => updateInstanceSignals(panel.id, inst.id, sig)} />
+                        {isSelected && (
+                          <input type="color" className="block h-3 w-3 flex-none cursor-pointer appearance-none rounded border-0 bg-transparent p-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded [&::-webkit-color-swatch]:border-none" value={cfg.customSignalColors?.[sig] || cfg.customBaseColor || inst.color} onChange={(e) => updatePanelSignalColor(panel.id, inst.id, sig, e.target.value)} />
+                        )}
+                        {isSelected ? (
+                          <input type="text" className="w-full min-w-0 border-b border-transparent bg-transparent text-[10px] font-medium text-slate-300 outline-none focus:border-slate-500" value={cfg.customSignalNames?.[sig] || sig} onChange={(e) => updatePanelSignalName(panel.id, inst.id, sig, e.target.value)} placeholder={sig} />
+                        ) : (
+                          <span className="flex-1 select-none truncate text-slate-600">{sig}</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+function PanelSettingsButton({ toggleSettings, ...settingsProps }: PanelSettingsButtonProps) {
+  const { panel } = settingsProps;
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); toggleSettings(panel.id); }}
+        className={`relative z-50 flex h-7 w-7 items-center justify-center rounded border border-slate-800/70 transition-colors ${panel.isSettingsOpen ? 'bg-slate-700 text-slate-200' : 'bg-slate-950/75 text-slate-500 hover:bg-slate-800 hover:text-slate-300'}`}
+        title="Pane settings"
+        aria-label={`${panel.title} pane settings`}
+      >
+        <Settings className="h-3.5 w-3.5" />
+      </button>
+      {panel.isSettingsOpen && (
+        <>
+          <div className="fixed inset-0 z-40 cursor-default" onClick={(e) => { e.stopPropagation(); toggleSettings(panel.id); }} />
+          <div className="absolute top-full right-0 mt-1 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-3 z-50 cursor-default">
+            <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-700">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Configuration</span>
+              <button
+                type="button"
+                onClick={() => toggleSettings(panel.id)}
+                className="inline-flex h-5 w-5 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-700 hover:text-white"
+                aria-label="Close pane settings"
+                title="Close settings"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <div className="max-h-64 overflow-y-auto space-y-3 custom-scrollbar">
+              <PanelSettingsControls {...settingsProps} />
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function PanelSettingsView({ toggleSettings, ...settingsProps }: PanelSettingsButtonProps) {
+  const { panel } = settingsProps;
+  return (
+    <div className="flex h-full min-h-0 w-full flex-col bg-[#0B1120]">
+      <div className="flex flex-none items-center border-b border-slate-800 px-3 py-2">
+        <button
+          type="button"
+          onClick={() => toggleSettings(panel.id)}
+          className="inline-flex min-w-0 items-center gap-1.5 rounded px-2 py-1 text-xs font-semibold text-slate-300 transition-colors hover:bg-slate-800 hover:text-slate-100"
+          aria-label={`Back to ${panel.title}`}
+        >
+          <ArrowLeft className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">Back to {panel.title}</span>
+        </button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto p-3 custom-scrollbar">
+        <div className="mb-3 border-b border-slate-700 pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          Customizations
+        </div>
+        <PanelSettingsControls {...settingsProps} />
+      </div>
+    </div>
+  );
+}
+
 interface PanelCardProps {
   panel: PanelDef;
   isEditor: boolean;
-  chromeMode?: 'desktop' | 'mobile';
+  chromeMode?: 'desktop' | 'mobile' | 'dockview';
   instances: SimInstance[];
   noteMode: 'read' | 'edit';
   setNoteModes: React.Dispatch<React.SetStateAction<Record<string, 'read' | 'edit'>>>;
@@ -105,7 +299,7 @@ interface PanelCardProps {
   setTimeScale: React.Dispatch<React.SetStateAction<number>>;
   isPlaying: boolean;
   togglePlay: () => void;
-  addPanel: (type: PanelType) => void;
+  addPanel: (type: PanelType, zone?: WorkbenchZoneId) => void;
   removePanel: (id: string) => void;
   updatePanelTitle: (id: string, newTitle: string) => void;
   toggleShowLegend: (id: string) => void;
@@ -125,31 +319,7 @@ interface PanelCardProps {
   signals: SignalType[];
   metrics: MetricType[];
   controlGroups: string[];
-}
-
-function panelGridStyle(panel: PanelDef): React.CSSProperties {
-  return {
-    gridColumn: `${(panel.x ?? 0) + 1} / span ${panel.w}`,
-    gridRow: `${(panel.y ?? 0) + 1} / span ${panel.h}`,
-  };
-}
-
-function applyPresetGeometry(panels: PanelDef[], presetName: LayoutPresetName): PanelDef[] {
-  const preset = LAYOUT_PRESETS[presetName];
-  const roleCounts: Record<string, number> = {};
-  let next = flowPack(panels);
-
-  for (const panel of next) {
-    const role = panel.role ?? roleOf(panel.type);
-    const roleIndex = roleCounts[role] ?? 0;
-    roleCounts[role] = roleIndex + 1;
-    const template = preset.filter((entry) => (entry.role ?? roleOf(entry.type)) === role)[roleIndex] ?? preset[roleIndex];
-    if (!template) continue;
-    next = movePane(next, panel.id, template.x ?? 0, template.y ?? 0);
-    next = resizePane(next, panel.id, template.w, template.h);
-  }
-
-  return next;
+  canConfigure?: boolean;
 }
 
 function PanelCard({
@@ -193,33 +363,88 @@ function PanelCard({
   signals,
   metrics,
   controlGroups,
+  canConfigure = isEditor,
 }: PanelCardProps) {
-  const bodyClassName = chromeMode === 'mobile'
+  const bodyClassName = chromeMode === 'mobile' || chromeMode === 'dockview'
     ? 'relative h-full min-h-16 w-full'
     : `flex-1 min-h-0 w-full relative z-10 ${['WAVEFORM', 'GUYTON_RIGHT', 'GUYTON_LEFT'].includes(panel.type) ? '-mt-6' : ''} ${panel.type === 'PVLOOP' ? 'mb-4' : ''}`;
+  const controlsTarget = useMemo(() => {
+    if (panel.type !== 'CONTROLS' || chromeMode !== 'dockview') return null;
+    return resolveControlsPaneTarget(instances, panel.config, activeInstanceId);
+  }, [activeInstanceId, chromeMode, instances, panel.config, panel.type]);
+  const controlsActiveInstanceId = controlsTarget?.id ?? activeInstanceId;
+  const dockviewNoteModeSwitch = chromeMode === 'dockview' && panel.type === 'NOTE' && canConfigure ? (
+    <div className="flex shrink-0 items-center justify-end border-b border-slate-800/70 bg-slate-950/35 px-2 py-1">
+      <div className="flex items-center rounded border border-slate-700 bg-slate-900 p-0.5">
+        <button
+          type="button"
+          onClick={() => setNoteModes(prev => ({ ...prev, [panel.id]: 'read' }))}
+          className={`rounded px-2 py-0.5 text-[10px] font-bold transition-colors ${noteMode === 'read' ? 'bg-slate-700 text-slate-100' : 'text-slate-500 hover:text-slate-300'}`}
+        >
+          Preview
+        </button>
+        <button
+          type="button"
+          onClick={() => setNoteModes(prev => ({ ...prev, [panel.id]: 'edit' }))}
+          className={`rounded px-2 py-0.5 text-[10px] font-bold transition-colors ${noteMode === 'edit' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+        >
+          Edit
+        </button>
+      </div>
+    </div>
+  ) : null;
   const panelBody = (
     <div className={bodyClassName}>
       {panel.type === 'PVLOOP' && <PVLoopPanel physicsRefs={physicsRefs} instances={instances} config={panel.config} showGuides={panel.showGuides} showLegend={panel.showLegend} />}
       {panel.type === 'WAVEFORM' && <WaveformPanel physicsRefs={physicsRefs} instances={instances} timeWindow={panel.timeWindow || 10000} config={panel.config} showLegend={panel.showLegend} />}
       {panel.type === 'METRICS' && <MetricsPanel physicsRefs={physicsRefs} instances={instances} config={panel.config} />}
-      {panel.type === 'CONTROLS' && <Controls isPaneMode paneConfig={panel.config} instances={instances} instanceHealth={instanceHealth} activeInstanceId={activeInstanceId} setActiveInstanceId={setActiveInstanceId} updateInstanceParams={updateInstanceParams} updateInstanceKnobs={updateInstanceKnobs} updateInstanceVolume={updateInstanceVolume} updateInstanceColor={updateInstanceColor} addInstance={addInstance} removeInstance={removeInstance} timeScale={timeScale} setTimeScale={setTimeScale} isPlaying={isPlaying} togglePlay={togglePlay} addPanel={addPanel} />}
+      {panel.type === 'CONTROLS' && <Controls isPaneMode paneConfig={panel.config} instances={instances} instanceHealth={instanceHealth} activeInstanceId={controlsActiveInstanceId} setActiveInstanceId={setActiveInstanceId} updateInstanceParams={updateInstanceParams} updateInstanceKnobs={updateInstanceKnobs} updateInstanceVolume={updateInstanceVolume} updateInstanceColor={updateInstanceColor} addInstance={addInstance} removeInstance={removeInstance} timeScale={timeScale} setTimeScale={setTimeScale} isPlaying={isPlaying} togglePlay={togglePlay} addPanel={addPanel} />}
       {(panel.type === 'GUYTON_RIGHT' || panel.type === 'GUYTON_LEFT') && <GuytonPanel physicsRefs={physicsRefs} instances={instances} config={panel.config} type={panel.type} />}
       {panel.type === 'NOTE' && (
         <ErrorBoundary>
-          <NotePanel
-            key={`${noteCaseKey}:${panel.id}`}
-            mode={noteMode}
-            content={notes[panel.id]}
-            onChange={(blocks) => onNoteChange(panel.id, blocks)}
-          />
+          <div className="flex h-full min-h-0 flex-col">
+            {dockviewNoteModeSwitch}
+            <div className="min-h-0 flex-1">
+              <NotePanel
+                key={`${noteCaseKey}:${panel.id}`}
+                mode={noteMode}
+                content={notes[panel.id]}
+                onChange={(blocks) => onNoteChange(panel.id, blocks)}
+              />
+            </div>
+          </div>
         </ErrorBoundary>
       )}
     </div>
   );
 
-  if (chromeMode === 'mobile') {
+  if (chromeMode === 'dockview' && canConfigure && panel.isSettingsOpen) {
     return (
-      <div className="relative h-full min-h-0 w-full overflow-hidden">
+      <PanelSettingsView
+        panel={panel}
+        instances={instances}
+        updatePanelTitle={updatePanelTitle}
+        toggleShowLegend={toggleShowLegend}
+        updatePanelInstanceColor={updatePanelInstanceColor}
+        updatePanelInstanceName={updatePanelInstanceName}
+        updatePanelSignalColor={updatePanelSignalColor}
+        updatePanelSignalName={updatePanelSignalName}
+        toggleSettings={toggleSettings}
+        toggleInstanceVisibility={toggleInstanceVisibility}
+        updateInstanceSignals={updateInstanceSignals}
+        toggleGuides={toggleGuides}
+        updateTimeWindow={updateTimeWindow}
+        chambers={chambers}
+        signals={signals}
+        metrics={metrics}
+        controlGroups={controlGroups}
+      />
+    );
+  }
+
+  if (chromeMode === 'mobile' || chromeMode === 'dockview') {
+    return (
+      <div className="group relative h-full min-h-0 w-full overflow-hidden bg-[#0B1120]">
         {panelBody}
       </div>
     );
@@ -227,7 +452,6 @@ function PanelCard({
 
   return (
     <div
-      style={isEditor ? undefined : panelGridStyle(panel)}
       className={`relative bg-[#0B1120] rounded-xl border border-slate-800 shadow-sm flex flex-col group transition-all h-full ${panel.isSettingsOpen ? 'z-50' : 'z-10'}`}
     >
       <div className="flex-none px-3 pt-1.5 pb-0 flex justify-between items-center pointer-events-auto rounded-t-xl z-20 relative">
@@ -254,88 +478,107 @@ function PanelCard({
           </div>
         )}
         <div className={`flex items-center gap-1.5 transition-opacity ${panel.isSettingsOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-          <div className="relative">
-            <button onClick={(e) => { e.stopPropagation(); toggleSettings(panel.id); }} className={`p-1 text-sm rounded flex items-center transition-colors relative z-50 ${panel.isSettingsOpen ? 'bg-slate-700 text-slate-200' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'}`} title="Settings">
-              ⚙
-            </button>
-            {panel.isSettingsOpen && (
-              <>
-                <div className="fixed inset-0 z-40 cursor-default" onClick={(e) => { e.stopPropagation(); toggleSettings(panel.id); }} />
-                <div className="absolute top-full right-0 mt-1 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-3 z-50 cursor-default">
-                  <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-700">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Configuration</span>
-                    <button onClick={() => toggleSettings(panel.id)} className="text-xs text-slate-500 hover:text-white transition-colors">✕</button>
-                  </div>
-                  <div className="mb-2 pb-2 border-b border-slate-700 flex items-center gap-2">
-                    <span className="text-xs text-slate-400 font-medium">Title:</span>
-                    <input
-                      type="text"
-                      value={panel.title}
-                      onChange={(e) => updatePanelTitle(panel.id, e.target.value)}
-                      className="bg-slate-900 border border-slate-700 outline-none focus:border-slate-500 rounded px-1.5 py-0.5 text-xs font-medium text-slate-200 w-full"
-                      placeholder="Panel Title"
-                    />
-                  </div>
-                  {['PVLOOP', 'WAVEFORM'].includes(panel.type) && (
-                    <div className="mb-2 pb-2 border-b border-slate-700 flex items-center gap-2">
-                      <input type="checkbox" className="accent-blue-500 cursor-pointer" checked={panel.showLegend !== false} onChange={() => toggleShowLegend(panel.id)} />
-                      <span className="text-xs text-slate-200 font-medium">Show Legend</span>
-                    </div>
-                  )}
-                  {panel.type === 'PVLOOP' && (
-                    <div className="mb-2 pb-2 border-b border-slate-700 flex items-center gap-2">
-                      <input type="checkbox" className="accent-blue-500 cursor-pointer" checked={panel.showGuides} onChange={() => toggleGuides(panel.id)} />
-                      <span className="text-xs text-slate-200 font-medium">Show Guides</span>
-                    </div>
-                  )}
-                  {panel.type === 'WAVEFORM' && (
-                    <div className="mb-3 pb-3 border-b border-slate-700">
-                      <div className="flex justify-between text-[10px] font-medium text-slate-400 mb-2"><span>Window Size</span><span className="text-blue-400">{(panel.timeWindow || 10000) / 1000}s</span></div>
-                      <input type="range" min={2000} max={20000} step={1000} value={panel.timeWindow || 10000} onChange={(e) => updateTimeWindow(panel.id, parseFloat(e.target.value))} className="w-full h-1.5 bg-slate-900 rounded-full appearance-none cursor-pointer accent-blue-500" />
-                    </div>
-                  )}
-                  <div className="max-h-64 overflow-y-auto space-y-3 custom-scrollbar">
-                    {instances.map(inst => (
-                      <div key={inst.id}>
-                        <div className="flex items-center gap-2 mb-1">
-                          <input type="checkbox" className="cursor-pointer accent-blue-500 flex-none" checked={panel.config[inst.id]?.visible || false} onChange={() => toggleInstanceVisibility(panel.id, inst.id)} />
-                          <input type="color" className="w-[14px] h-[14px] p-0 border-0 cursor-pointer flex-none rounded appearance-none block bg-transparent [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none [&::-webkit-color-swatch]:rounded" value={panel.config[inst.id]?.customBaseColor ?? inst.color} onChange={(e) => updatePanelInstanceColor(panel.id, inst.id, e.target.value)} />
-                          <input type="text" className="text-xs font-bold bg-transparent border-b border-transparent focus:border-slate-500 outline-none text-slate-300 w-full min-w-0" value={panel.config[inst.id]?.customName ?? inst.name} onChange={(e) => updatePanelInstanceName(panel.id, inst.id, e.target.value)} placeholder={inst.name} />
-                        </div>
-                        {panel.config[inst.id]?.visible && (panel.type !== 'GUYTON_RIGHT' && panel.type !== 'GUYTON_LEFT') && (
-                          <div className="pl-5 grid grid-cols-1 gap-1">
-                            {((panel.type === 'PVLOOP' ? chambers : (panel.type === 'WAVEFORM' ? signals : panel.type === 'METRICS' ? metrics : controlGroups))).map(sig => {
-                              const isSelected = panel.config[inst.id].selectedSignals.includes(sig);
-                              return (
-                                <div key={sig} className="flex items-center gap-1 text-[10px] bg-slate-950/50 rounded px-1 py-0.5">
-                                  <input type="checkbox" className="cursor-pointer accent-blue-500 flex-none w-3 h-3 m-0" checked={isSelected} onChange={() => updateInstanceSignals(panel.id, inst.id, sig)} />
-                                  {isSelected && (
-                                    <input type="color" className="w-3 h-3 p-0 border-0 cursor-pointer flex-none rounded appearance-none block bg-transparent [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none [&::-webkit-color-swatch]:rounded" value={panel.config[inst.id].customSignalColors?.[sig] || panel.config[inst.id].customBaseColor || inst.color} onChange={(e) => updatePanelSignalColor(panel.id, inst.id, sig, e.target.value)} />
-                                  )}
-                                  {isSelected ? (
-                                    <input type="text" className="text-[10px] font-medium bg-transparent border-b border-transparent focus:border-slate-500 outline-none text-slate-300 w-full min-w-0" value={panel.config[inst.id].customSignalNames?.[sig] || sig} onChange={(e) => updatePanelSignalName(panel.id, inst.id, sig, e.target.value)} placeholder={sig} />
-                                  ) : (
-                                    <span className="text-slate-600 flex-1 truncate select-none">{sig}</span>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
+          <PanelSettingsButton
+            panel={panel}
+            instances={instances}
+            updatePanelTitle={updatePanelTitle}
+            toggleShowLegend={toggleShowLegend}
+            updatePanelInstanceColor={updatePanelInstanceColor}
+            updatePanelInstanceName={updatePanelInstanceName}
+            updatePanelSignalColor={updatePanelSignalColor}
+            updatePanelSignalName={updatePanelSignalName}
+            toggleSettings={toggleSettings}
+            toggleInstanceVisibility={toggleInstanceVisibility}
+            updateInstanceSignals={updateInstanceSignals}
+            toggleGuides={toggleGuides}
+            updateTimeWindow={updateTimeWindow}
+            chambers={chambers}
+            signals={signals}
+            metrics={metrics}
+            controlGroups={controlGroups}
+          />
           {isEditor && (
-            <button onClick={() => removePanel(panel.id)} className="p-1 px-1.5 text-xs text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded transition-colors" title="Close Panel">✕</button>
+            <button onClick={() => removePanel(panel.id)} className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-red-400" title="Close Panel" aria-label={`Close ${panel.title}`}>
+              <X className="h-3.5 w-3.5" />
+            </button>
           )}
         </div>
       </div>
       {panelBody}
     </div>
+  );
+}
+
+const ZONE_LABELS: Record<WorkbenchZoneId, string> = {
+  caseRail: 'Case',
+  main: 'Main',
+  sideRail: 'Controls',
+  bottomPanel: 'Outputs',
+};
+
+function getZoneSurfaceClass(zone: WorkbenchZoneId, hasCaseRail: boolean): string {
+  const divider = 'border-slate-800/80';
+  switch (zone) {
+    case 'caseRail':
+      return `workbench-zone-aux border ${divider} rounded-l-md`;
+    case 'sideRail':
+      return `workbench-zone-aux border-t border-r border-l ${divider} rounded-tr-md`;
+    case 'bottomPanel':
+      return hasCaseRail
+        ? `workbench-zone-aux border-t border-r border-b border-l ${divider} rounded-br-md`
+        : `workbench-zone-aux border-t border-r border-b border-l ${divider} rounded-b-md`;
+    case 'main':
+    default:
+      return 'workbench-zone-main';
+  }
+}
+
+function ZoneShell({
+  zone,
+  panels,
+  mode,
+  hasCaseRail,
+  layoutKey,
+  viewState,
+  onViewStateChange,
+  addPanel,
+  removePanel,
+  toggleSettings,
+  renderPanel,
+  getPanelTitle,
+  className = '',
+}: {
+  zone: WorkbenchZoneId;
+  panels: PanelDef[];
+  mode: PanelGridMode;
+  hasCaseRail: boolean;
+  layoutKey?: string;
+  viewState?: DockviewViewState;
+  onViewStateChange?: (zone: WorkbenchZoneId, viewState: DockviewViewState) => void;
+  addPanel: (type: PanelType, zone?: WorkbenchZoneId) => void;
+  removePanel: (id: string) => void;
+  toggleSettings: (panelId: string) => void;
+  renderPanel: (panel: PanelDef) => React.ReactNode;
+  getPanelTitle: (panel: PanelDef) => string;
+  className?: string;
+}) {
+  return (
+    <section className={`flex min-h-0 flex-col overflow-hidden bg-[#0B1120] ${getZoneSurfaceClass(zone, hasCaseRail)} ${className}`} aria-label={`${ZONE_LABELS[zone]} zone`}>
+      <WorkbenchDockview
+        panels={panels}
+        zone={zone}
+        mode={mode}
+        layoutKey={`${layoutKey ?? 'default'}:${zone}`}
+        viewState={viewState}
+        onViewStateChange={(next) => onViewStateChange?.(zone, next)}
+        onRemovePanel={removePanel}
+        onToggleSettings={toggleSettings}
+        onAddPanel={addPanel}
+        getPanelTitle={getPanelTitle}
+        className={`workbench-dockview workbench-dockview-${zone} flex-1`}
+        renderPanel={renderPanel}
+      />
+    </section>
   );
 }
 
@@ -347,10 +590,10 @@ export function PanelGrid({
   stepsDraft,
   setStepsDraft,
   panels,
-  onPanelsChange,
+  dockviewLayoutKey,
+  dockviewViewStates,
+  onDockviewViewStateChange,
   mode,
-  layoutEditable,
-  setLayoutEditable,
   isMobile,
   noteModes,
   setNoteModes,
@@ -390,7 +633,13 @@ export function PanelGrid({
   controlGroups,
 }: PanelGridProps) {
   const presenterPanels = useMemo(() => flowPack(panels), [panels]);
-  const canEditLayout = canEditWorkbenchLayout(mode, isMobile);
+  const panelsByZone = useMemo<Record<WorkbenchZoneId, PanelDef[]>>(() => ({
+    caseRail: presenterPanels.filter((panel) => zoneOf(panel) === 'caseRail'),
+    main: presenterPanels.filter((panel) => zoneOf(panel) === 'main'),
+    sideRail: presenterPanels.filter((panel) => zoneOf(panel) === 'sideRail'),
+    bottomPanel: presenterPanels.filter((panel) => zoneOf(panel) === 'bottomPanel'),
+  }), [presenterPanels]);
+  const hasCaseRail = panelsByZone.caseRail.length > 0;
   const shareBanner = authoringMode && publishedLesson ? (
     <div className="mb-2 flex flex-col gap-2 rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100 sm:flex-row sm:items-center">
       <span className="font-bold">Share URL</span>
@@ -403,7 +652,9 @@ export function PanelGrid({
     </div>
   ) : null;
 
-  const renderPanel = (panel: PanelDef, isEditor: boolean, chromeMode: 'desktop' | 'mobile' = 'desktop') => (
+  const getPanelTitle = useCallback(getDockviewPaneTitle, []);
+
+  const renderPanel = (panel: PanelDef, isEditor: boolean, chromeMode: PanelChromeMode = 'desktop') => (
     <PanelCard
       key={panel.id}
       panel={panel}
@@ -446,6 +697,7 @@ export function PanelGrid({
       signals={signals}
       metrics={metrics}
       controlGroups={controlGroups}
+      canConfigure={mode !== 'learner'}
     />
   );
 
@@ -465,56 +717,77 @@ export function PanelGrid({
   }
 
   return (
-    <main className="flex-1 overflow-y-auto overflow-x-hidden bg-slate-950 p-2">
+    <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-950 p-2">
         {shareBanner}
         {authoringMode && <LessonAuthoring instances={instances} stepsDraft={stepsDraft} setStepsDraft={setStepsDraft} />}
-        {canEditLayout && (
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded border border-slate-800 bg-slate-900/70 px-3 py-2">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Layout</span>
-              <button
-                type="button"
-                onClick={() => setLayoutEditable((open) => !open)}
-                className={`rounded px-3 py-1.5 text-xs font-bold transition-colors ${
-                  layoutEditable
-                    ? 'bg-blue-600 text-white hover:bg-blue-500'
-                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                }`}
-              >
-                {layoutEditable ? 'Done editing' : 'Edit layout'}
-              </button>
-            </div>
-            {layoutEditable && (
-              <div className="flex flex-wrap items-center gap-1">
-                {(Object.keys(LAYOUT_PRESETS) as LayoutPresetName[]).map((name) => (
-                  <button
-                    key={name}
-                    type="button"
-                    onClick={() => onPanelsChange(applyPresetGeometry(panels, name))}
-                    className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-[11px] font-semibold text-slate-300 hover:border-slate-500 hover:text-slate-100"
-                  >
-                    {name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-        {layoutEditable && canEditLayout ? (
-          <PanelGridEditor
-            panels={presenterPanels}
-            rowHeight={EDITOR_ROW_HEIGHT}
-            onPanelsChange={onPanelsChange}
-            renderPanel={(panel) => renderPanel(panel, true)}
+        <div className={`mt-2 grid min-h-0 flex-1 gap-0 overflow-auto ${
+          hasCaseRail
+            ? 'grid-cols-[minmax(220px,280px)_minmax(480px,1fr)_minmax(260px,320px)] grid-rows-[minmax(0,1fr)_190px]'
+            : 'grid-cols-[minmax(480px,1fr)_minmax(260px,320px)] grid-rows-[minmax(0,1fr)_190px]'
+        }`}>
+          {hasCaseRail && (
+            <ZoneShell
+              zone="caseRail"
+              panels={panelsByZone.caseRail}
+              mode={mode}
+              hasCaseRail={hasCaseRail}
+              layoutKey={dockviewLayoutKey}
+              viewState={dockviewViewStates?.caseRail}
+              onViewStateChange={onDockviewViewStateChange}
+              addPanel={addPanel}
+              removePanel={removePanel}
+              toggleSettings={toggleSettings}
+              className="col-start-1 row-span-2"
+              getPanelTitle={getPanelTitle}
+              renderPanel={(panel) => renderPanel(panel, false, 'dockview')}
+            />
+          )}
+          <ZoneShell
+            zone="main"
+            panels={panelsByZone.main}
+            mode={mode}
+            hasCaseRail={hasCaseRail}
+            layoutKey={dockviewLayoutKey}
+            viewState={dockviewViewStates?.main}
+            onViewStateChange={onDockviewViewStateChange}
+            addPanel={addPanel}
+            removePanel={removePanel}
+            toggleSettings={toggleSettings}
+            className={hasCaseRail ? 'col-start-2 row-start-1' : 'col-start-1 row-start-1'}
+            getPanelTitle={getPanelTitle}
+            renderPanel={(panel) => renderPanel(panel, false, 'dockview')}
           />
-        ) : (
-          <div
-            className="grid grid-cols-12 gap-2 pb-20 mt-2"
-            style={{ gridAutoRows: `${EDITOR_ROW_HEIGHT}px` }}
-          >
-            {presenterPanels.map((panel) => renderPanel(panel, false))}
-          </div>
-        )}
+          <ZoneShell
+            zone="sideRail"
+            panels={panelsByZone.sideRail}
+            mode={mode}
+            hasCaseRail={hasCaseRail}
+            layoutKey={dockviewLayoutKey}
+            viewState={dockviewViewStates?.sideRail}
+            onViewStateChange={onDockviewViewStateChange}
+            addPanel={addPanel}
+            removePanel={removePanel}
+            toggleSettings={toggleSettings}
+            className={hasCaseRail ? 'col-start-3 row-start-1' : 'col-start-2 row-start-1'}
+            getPanelTitle={getPanelTitle}
+            renderPanel={(panel) => renderPanel(panel, false, 'dockview')}
+          />
+          <ZoneShell
+            zone="bottomPanel"
+            panels={panelsByZone.bottomPanel}
+            mode={mode}
+            hasCaseRail={hasCaseRail}
+            layoutKey={dockviewLayoutKey}
+            viewState={dockviewViewStates?.bottomPanel}
+            onViewStateChange={onDockviewViewStateChange}
+            addPanel={addPanel}
+            removePanel={removePanel}
+            toggleSettings={toggleSettings}
+            className={hasCaseRail ? 'col-start-2 col-span-2 row-start-2' : 'col-start-1 col-span-2 row-start-2'}
+            getPanelTitle={getPanelTitle}
+            renderPanel={(panel) => renderPanel(panel, false, 'dockview')}
+          />
+        </div>
     </main>
   );
 }

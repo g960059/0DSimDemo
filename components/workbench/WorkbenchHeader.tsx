@@ -4,15 +4,13 @@ import {
   ChevronDown,
   ChevronLeft,
   Edit3,
-  LayoutGrid,
   MoreHorizontal,
   Pause,
   Play,
-  Plus,
   Save,
   Share2,
 } from 'lucide-react';
-import { SimInstance, PanelType } from '../../types';
+import { SimInstance } from '../../types';
 import { SimulationHealth } from '../../engine/protocol';
 import { HealthBadge } from '../HealthIndicators';
 import { ModelLimitations } from '../ModelLimitations';
@@ -24,7 +22,7 @@ interface WorkbenchHeaderProps {
   backLabel: string;
   sceneMeta: WorkbenchSceneMeta;
   onSceneMetaChange: (meta: WorkbenchSceneMeta) => void;
-  onPrimaryAction: () => void;
+  onPrimaryAction: () => void | Promise<void>;
   instances: SimInstance[];
   instanceHealth: Record<string, SimulationHealth>;
   getLiveHealth: (id: string) => SimulationHealth | undefined;
@@ -41,6 +39,7 @@ interface WorkbenchHeaderProps {
   isAdmin: boolean;
   publishCurrentLesson: () => void;
   isPublishingLesson: boolean;
+  isSavingCase?: boolean;
   savedLesson: { id: string; title: string } | null;
   publishedLesson: { id: string; title: string; url: string } | null;
   copyShareUrl: () => void;
@@ -48,7 +47,6 @@ interface WorkbenchHeaderProps {
   togglePlay: () => void;
   timeScale: number;
   setTimeScale: React.Dispatch<React.SetStateAction<number>>;
-  addPanel: (type: PanelType) => void;
 }
 
 const SPEEDS = [0.5, 1, 2, 5];
@@ -80,6 +78,7 @@ export function WorkbenchHeader({
   isAdmin,
   publishCurrentLesson,
   isPublishingLesson,
+  isSavingCase = false,
   savedLesson,
   publishedLesson,
   copyShareUrl,
@@ -87,16 +86,14 @@ export function WorkbenchHeader({
   togglePlay,
   timeScale,
   setTimeScale,
-  addPanel,
 }: WorkbenchHeaderProps) {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [isSpeedOpen, setIsSpeedOpen] = useState(false);
-  const [isPaneMenuOpen, setIsPaneMenuOpen] = useState(false);
   const [isMetaOpen, setIsMetaOpen] = useState(false);
   const [draftMeta, setDraftMeta] = useState(sceneMeta);
 
   const isLearner = mode === 'learner';
-  const primaryLabel = mode === 'learner' ? 'Save a copy' : mode === 'author' ? 'Share' : 'Save case';
+  const primaryLabel = isLearner ? 'Edit a copy' : authoringMode ? 'Share' : 'Save case';
 
   const openMetaEditor = () => {
     setDraftMeta(sceneMeta);
@@ -113,7 +110,7 @@ export function WorkbenchHeader({
   };
 
   const runPrimaryAction = () => {
-    if (mode === 'author') publishCurrentLesson();
+    if (authoringMode) publishCurrentLesson();
     else onPrimaryAction();
   };
 
@@ -139,49 +136,6 @@ export function WorkbenchHeader({
             </button>
           )}
 
-          {mode === 'author' && (
-            <button
-              disabled
-              title="レイアウト編集は近日"
-              className="hidden cursor-not-allowed items-center gap-1 rounded-md px-2 py-1 text-xs font-bold text-slate-600 lg:inline-flex"
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-              Edit layout
-            </button>
-          )}
-
-          {!isLearner && (
-            <div className="relative hidden sm:block">
-              <button onClick={() => setIsPaneMenuOpen((open) => !open)} className="inline-flex h-9 items-center gap-1 rounded-md px-2 text-xs font-bold text-slate-400 hover:bg-slate-900 hover:text-slate-100">
-                <Plus className="h-4 w-4" />
-                Pane
-              </button>
-              {isPaneMenuOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setIsPaneMenuOpen(false)} />
-                  <div className="absolute left-0 top-full z-50 mt-1 w-44 rounded-md border border-slate-700 bg-slate-900 py-1 shadow-xl">
-                    {[
-                      ['NOTE', 'Notes'],
-                      ['PVLOOP', 'PV Loop'],
-                      ['WAVEFORM', 'Waveforms'],
-                      ['METRICS', 'Metrics'],
-                      ['CONTROLS', 'Controls'],
-                      ['GUYTON_LEFT', 'Guyton (L)'],
-                      ['GUYTON_RIGHT', 'Guyton (R)'],
-                    ].map(([type, label]) => (
-                      <button
-                        key={type}
-                        onClick={() => { addPanel(type as PanelType); setIsPaneMenuOpen(false); }}
-                        className="block w-full px-3 py-2 text-left text-xs font-medium text-slate-300 hover:bg-slate-800"
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5">
@@ -222,11 +176,11 @@ export function WorkbenchHeader({
 
           <button
             onClick={runPrimaryAction}
-            disabled={mode === 'author' && isPublishingLesson}
+            disabled={(authoringMode && isPublishingLesson) || isSavingCase}
             className="inline-flex h-9 items-center gap-1.5 rounded-md bg-blue-600 px-3 text-xs font-bold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {mode === 'author' ? <Share2 className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
-            <span className="hidden sm:inline">{mode === 'author' && isPublishingLesson ? 'Publishing...' : primaryLabel}</span>
+            {authoringMode ? <Share2 className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
+            <span className="hidden sm:inline">{authoringMode && isPublishingLesson ? 'Publishing...' : isSavingCase ? 'Saving...' : primaryLabel}</span>
           </button>
 
           <button onClick={() => setIsPanelOpen(true)} className="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-slate-900 hover:text-slate-100" aria-label="Open workbench panel">

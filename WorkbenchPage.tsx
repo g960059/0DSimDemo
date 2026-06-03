@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { DEFAULT_PARAMS } from './constants';
-import { SimulationParams, SimInstance, PanelDef, PanelType, PanelInstanceConfig, ChamberId, SignalType, MetricType } from './types';
+import { SimulationParams, SimInstance, PanelDef, PanelType, PanelInstanceConfig, ChamberId, SignalType, MetricType, type DockviewViewState, type WorkbenchWorkspace, type WorkbenchZoneId } from './types';
 import { SimulationHealth } from './engine/protocol';
 import { type ClinicalKnobs } from './engine/knobs';
 import { resolveRawEdit, resolveKnobEdit } from './engine/instanceKnobs';
-import { type CaseDocument, simInstancesToCaseDocument, caseDocumentToSimInstances } from './caseDoc';
+import { type CaseDocument, type CaseSource, type CaseStatus, type CaseVisibility, simInstancesToCaseDocument, caseDocumentToSimInstances, workspaceForPanels } from './caseDoc';
 import { exportCaseFile, readCaseFile, saveDraft } from './casePersist';
+import { createUserCaseId, fetchCase, isValidCaseId, saveCase } from './caseCloud';
 import { officialCaseById } from './officialCases';
 import { createUserLessonId, getUserLesson, saveLesson } from './lessonPersist';
 import { publishLesson } from './lessonCloud';
@@ -22,6 +23,7 @@ import type { WorkbenchHeaderMode, WorkbenchSceneMeta } from './components/workb
 import { PanelGrid } from './components/workbench/PanelGrid';
 import type { NoteContent } from './noteTypes';
 import { addPane, removePane } from './layoutOps';
+import { defaultZoneOf } from './paneZone';
 
 // Colors for instances
 const INSTANCE_COLORS = ['#a855f7', '#f472b6', '#22c55e', '#38bdf8', '#fbbf24'];
@@ -47,13 +49,76 @@ const OFFICIAL_CASE_AUTHORS = new Set(['CircleHeart']);
 const EMPTY_NOTE_SPINE: NoteContent = [
   { type: 'paragraph', content: [{ type: 'text', text: '', styles: {} }] },
 ];
+const INITIAL_PANELS: PanelDef[] = [
+  {
+      id: 'p1', type: 'WAVEFORM', title: 'Waveforms', w: 5, h: 6,
+      config: { '1': { visible: true, selectedSignals: ['LVP', 'AoP'] } },
+      isSettingsOpen: false, timeWindow: 5000
+  },
+  {
+      id: 'p2', type: 'PVLOOP', title: 'PV Loop', w: 3, h: 6,
+      config: { '1': { visible: true, selectedSignals: ['LV'] } },
+      isSettingsOpen: false, showGuides: true
+  },
+  {
+      id: 'p4', type: 'CONTROLS', title: 'Controls', w: 4, h: 4,
+      // Keep ventricular mechanics visible as a collapsed group so the
+      // pericardium/septum controls are discoverable without opening panel
+      // settings. Default model stays active-stress.
+      config: { '1': { visible: true, selectedSignals: ['clinical', 'Global', 'ventricles', 'fluids'] } },
+      isSettingsOpen: false
+  },
+  {
+      id: 'p3', type: 'METRICS', title: 'Metrics', w: 4, h: 4,
+      config: { '1': { visible: true, selectedSignals: ['ABP', 'CO', 'CVP'] } },
+      isSettingsOpen: false
+  }
+];
+
+function cloneInitialPanels(): PanelDef[] {
+  return INITIAL_PANELS.map((panel) => ({
+    ...panel,
+    config: Object.fromEntries(
+      Object.entries(panel.config).map(([id, config]) => [id, { ...config, selectedSignals: [...config.selectedSignals] }]),
+    ),
+  }));
+}
+
+export function defaultSignalsForPanelType(type: PanelType): string[] {
+  if (type === 'PVLOOP') return ['LV'];
+  if (type === 'WAVEFORM') return ['LVP', 'AoP'];
+  if (type === 'METRICS') return ['ABP', 'CO'];
+  if (type === 'CONTROLS') return ['clinical', 'Global', 'ventricles', 'fluids'];
+  if (type === 'GUYTON_RIGHT' || type === 'GUYTON_LEFT' || type === 'GUYTON_3D') return ['Default'];
+  return [];
+}
+
+export function addHiddenInstanceConfigsToPanels(panels: PanelDef[], ids: string[]): PanelDef[] {
+  return panels.map((panel) => {
+    let changed = false;
+    const config = { ...panel.config };
+    for (const id of ids) {
+      if (config[id]) continue;
+      config[id] = { visible: false, selectedSignals: defaultSignalsForPanelType(panel.type) };
+      changed = true;
+    }
+    return changed ? { ...panel, config } : panel;
+  });
+}
 
 function resolveHeaderModeFromAuthor(author?: string): WorkbenchHeaderMode {
   const normalized = author?.trim();
   if (!normalized) return 'sandbox';
-  if (normalized === LOCAL_COPY_AUTHOR) return 'author';
+  if (normalized === LOCAL_COPY_AUTHOR) return 'sandbox';
   if (OFFICIAL_CASE_AUTHORS.has(normalized)) return 'learner';
   return 'learner';
+}
+
+function inferCaseSource(doc: CaseDocument): CaseSource | undefined {
+  if (doc.source) return doc.source;
+  const author = doc.meta.author?.trim();
+  if (author && OFFICIAL_CASE_AUTHORS.has(author)) return { kind: 'official', id: doc.meta.id };
+  return undefined;
 }
 
 function textFromNoteBlock(block: unknown): string {
@@ -73,13 +138,14 @@ function noteExcerpt(note: NoteContent): string {
 }
 
 function Workbench() {
+  const { caseId: routeCaseId } = useParams();
   const [searchParams] = useSearchParams();
-  const { user, isAdmin, signIn } = useAuth();
+  const navigate = useNavigate();
+  const { user, isAdmin, signIn, loading: authLoading } = useAuth();
   // --- State ---
   const [timeScale, setTimeScale] = useState<number>(1.0);
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
   const [isMobile, setIsMobile] = useState<boolean>(window.innerWidth < 768);
-  const [isLayoutEditing, setIsLayoutEditing] = useState(false);
   
   // Instance Management
   const [instances, setInstances] = useState<SimInstance[]>([
@@ -127,9 +193,19 @@ function Workbench() {
   const [publishedLesson, setPublishedLesson] = useState<{ id: string; title: string; url: string } | null>(null);
   const [isPublishingLesson, setIsPublishingLesson] = useState(false);
   const [caseAuthor, setCaseAuthor] = useState<string | undefined>(undefined);
+  const [currentCaseId, setCurrentCaseId] = useState<string | null>(null);
+  const [currentCaseOwnerId, setCurrentCaseOwnerId] = useState<string | undefined>(undefined);
+  const [currentCaseCreatedAt, setCurrentCaseCreatedAt] = useState<number | undefined>(undefined);
+  const [currentCaseSource, setCurrentCaseSource] = useState<CaseSource | undefined>(undefined);
+  const [currentCaseDerivedFrom, setCurrentCaseDerivedFrom] = useState<string | undefined>(undefined);
+  const [isSavingCase, setIsSavingCase] = useState(false);
   const fromParam = searchParams.get('from');
-  const headerMode = resolveHeaderModeFromAuthor(caseAuthor);
-  const layoutEditable = !isMobile && headerMode !== 'learner' && isLayoutEditing;
+  const ownsCurrentCase = Boolean(user && currentCaseOwnerId === user.uid);
+  const headerMode: WorkbenchHeaderMode = authoringMode
+    ? 'author'
+    : ownsCurrentCase || caseAuthor === LOCAL_COPY_AUTHOR
+      ? 'sandbox'
+      : resolveHeaderModeFromAuthor(caseAuthor);
   const backTarget = fromParam === 'cases'
     ? { href: '/cases', label: 'Cases' }
     : fromParam === 'lesson'
@@ -137,36 +213,8 @@ function Workbench() {
       : { href: '/', label: 'Home' };
 
   // --- Panel Management State ---
-  const [panels, setPanels] = useState<PanelDef[]>([
-      {
-          id: 'p_note', type: 'NOTE', title: 'Interactive Notes', w: 4, h: 10,
-          config: {},
-          isSettingsOpen: false
-      },
-      {
-          id: 'p1', type: 'WAVEFORM', title: 'Waveforms', w: 5, h: 6,
-          config: { '1': { visible: true, selectedSignals: ['LVP', 'AoP'] } },
-          isSettingsOpen: false, timeWindow: 5000
-      },
-      {
-          id: 'p2', type: 'PVLOOP', title: 'PV Loop', w: 3, h: 6,
-          config: { '1': { visible: true, selectedSignals: ['LV'] } },
-          isSettingsOpen: false, showGuides: true
-      },
-      {
-          id: 'p4', type: 'CONTROLS', title: 'Controls', w: 4, h: 4,
-          // Keep ventricular mechanics visible as a collapsed group so the
-          // pericardium/septum controls are discoverable without opening panel
-          // settings. Default model stays active-stress.
-          config: { '1': { visible: true, selectedSignals: ['clinical', 'Global', 'ventricles', 'coronary', 'fluids'] } },
-          isSettingsOpen: false
-      },
-      {
-          id: 'p3', type: 'METRICS', title: 'Metrics', w: 4, h: 4,
-          config: { '1': { visible: true, selectedSignals: ['ABP', 'CO', 'CVP'] } },
-          isSettingsOpen: false
-      }
-  ]);
+  const [panels, setPanels] = useState<PanelDef[]>(cloneInitialPanels);
+  const [workspace, setWorkspace] = useState<WorkbenchWorkspace>(() => workspaceForPanels(INITIAL_PANELS));
 
   // --- Simulation driver (ROADMAP S3a): the loop + cores live here, not in React. ---
   const controllerRef = useRef<PreviewController | null>(null);
@@ -181,32 +229,13 @@ function Workbench() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  useEffect(() => {
-    if (isMobile || headerMode === 'learner') setIsLayoutEditing(false);
-  }, [headerMode, isMobile]);
-
   // Wire driver callbacks and start the loop once. Declared BEFORE the
   // setInstances effect so callbacks are live before the first reconcile.
   useEffect(() => {
     controller.onHealthChange = (map) => setInstanceHealth(map);
     controller.onToasts = (toasts) => setHealthToasts((prev) => [...prev, ...toasts].slice(-3));
     controller.onInstancesAdded = (ids) => {
-      setPanels((prev) => prev.map((p) => {
-        let changed = false;
-        const newConfig = { ...p.config };
-        for (const id of ids) {
-          if (newConfig[id]) continue;
-          let defaultSigs: string[] = [];
-          if (p.type === 'PVLOOP') defaultSigs = ['LV'];
-          else if (p.type === 'WAVEFORM') defaultSigs = ['LVP', 'AoP'];
-          else if (p.type === 'METRICS') defaultSigs = ['ABP', 'CO'];
-          else if (p.type === 'CONTROLS') defaultSigs = ['clinical', 'Global', 'ventricles', 'coronary', 'fluids'];
-          else if (p.type === 'GUYTON_RIGHT' || p.type === 'GUYTON_LEFT' || p.type === 'GUYTON_3D') defaultSigs = ['Default'];
-          newConfig[id] = { visible: true, selectedSignals: defaultSigs };
-          changed = true;
-        }
-        return changed ? { ...p, config: newConfig } : p;
-      }));
+      setPanels((prev) => addHiddenInstanceConfigsToPanels(prev, ids));
     };
     controller.start();
     return () => controller.stop();
@@ -218,8 +247,8 @@ function Workbench() {
   useEffect(() => { controller.setTimeScale(timeScale); }, [timeScale]);
   useEffect(() => { controller.setPlaying(isPlaying); }, [isPlaying]);
 
-  // --- Save / load (ROADMAP #3-c): canonical knob-primary CaseDocument, local
-  // file (.circleheart.json) + a localStorage working draft. No network/Firebase. ---
+  // --- Save / load: canonical knob-primary CaseDocument, portable local files,
+  // local draft cache, and Firestore-owned user cases. ---
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const defaultSceneTitle = () => sceneMeta.title.trim() || (instances[0] ? `${instances[0].name} scene` : 'Workbench scene');
@@ -228,6 +257,11 @@ function Workbench() {
     id?: string;
     title?: string;
     author?: string;
+    ownerId?: string;
+    status?: CaseStatus;
+    visibility?: CaseVisibility;
+    source?: CaseSource;
+    derivedFrom?: string;
     createdAt?: number;
     updatedAt?: number;
     includeNotes?: boolean;
@@ -239,6 +273,11 @@ function Workbench() {
       id: overrides.id ?? `wb-${now}`,
       title,
       author: overrides.author ?? caseAuthor,
+      ownerId: overrides.ownerId ?? currentCaseOwnerId,
+      status: overrides.status,
+      visibility: overrides.visibility,
+      source: overrides.source ?? currentCaseSource,
+      derivedFrom: overrides.derivedFrom ?? currentCaseDerivedFrom,
       createdAt: overrides.createdAt ?? now,
       updatedAt: overrides.updatedAt ?? now,
       spec: {
@@ -246,11 +285,19 @@ function Workbench() {
         ...(sceneMeta.description.trim() ? { description: sceneMeta.description.trim() } : {}),
         modelLimitations,
       },
+      workspace: workspaceForPanels(panels, workspace),
       notes: overrides.includeNotes === false ? undefined : notes,
     });
   };
 
   const markUserEdited = () => { userEditedRef.current = true; };
+  const updateDockviewViewState = useCallback((zone: WorkbenchZoneId, viewState: DockviewViewState) => {
+    setWorkspace((prev) => workspaceForPanels(panels, {
+      ...prev,
+      viewStates: { ...(prev.viewStates ?? {}), [zone]: viewState },
+    }));
+    if (headerMode !== 'learner') userEditedRef.current = true;
+  }, [headerMode, panels]);
 
   const replaceWorkbenchDoc = useCallback((doc: CaseDocument, opts: { confirm: boolean }) => {
     if (opts.confirm && !window.confirm('Load this case? It will replace the current scene; unsaved changes are lost.')) return false;
@@ -262,12 +309,18 @@ function Workbench() {
 
       setInstances(remapped.instances);
       setPanels(remapped.panels);
+      setWorkspace(workspaceForPanels(remapped.panels, doc.workspace));
       setSceneMeta({
         title: doc.spec.title || 'Untitled scene',
         description: doc.spec.description ?? '',
         modelLimitations: doc.spec.modelLimitations.length > 0 ? doc.spec.modelLimitations : DEFAULT_MODEL_LIMITATIONS,
       });
       setCaseAuthor(doc.meta.author);
+      setCurrentCaseId(doc.meta.id);
+      setCurrentCaseOwnerId(doc.ownerId);
+      setCurrentCaseCreatedAt(doc.meta.createdAt);
+      setCurrentCaseSource(inferCaseSource(doc));
+      setCurrentCaseDerivedFrom(doc.derivedFrom);
       setNotes(doc.notes ?? {});
       setNoteModes({});
       setNoteCaseKey(`${doc.meta.id}:${nonce}`);
@@ -287,72 +340,140 @@ function Workbench() {
   }, [pushWarningToast]);
 
   useEffect(() => {
-    const caseId = searchParams.get('case');
+    const caseId = routeCaseId ?? searchParams.get('case');
     if (!caseId || caseId === lastLoadedCaseIdRef.current) return;
 
-    const doc = officialCaseById(caseId);
-    if (!doc) {
-      lastLoadedCaseIdRef.current = caseId;
-      pushWarningToast('Case route', `Unknown case "${caseId}" — loaded the default scene`);
-      return;
-    }
+    let cancelled = false;
+    const localDoc = officialCaseById(caseId);
+    if (!localDoc && authLoading) return;
+    const loadDoc = async () => localDoc ?? await fetchCase(caseId);
 
-    if (replaceWorkbenchDoc(doc, { confirm: userEditedRef.current || stepsDraft.length > 0 })) {
-      lastLoadedCaseIdRef.current = caseId;
-    }
-  }, [searchParams, replaceWorkbenchDoc, pushWarningToast, stepsDraft.length]);
+    loadDoc().then((doc) => {
+      if (cancelled) return;
+      if (!doc) {
+        lastLoadedCaseIdRef.current = caseId;
+        pushWarningToast('Case route', `Unknown case "${caseId}" — loaded the default scene`);
+        return;
+      }
+
+      if (replaceWorkbenchDoc(doc, { confirm: userEditedRef.current || stepsDraft.length > 0 })) {
+        lastLoadedCaseIdRef.current = caseId;
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, routeCaseId, searchParams, replaceWorkbenchDoc, pushWarningToast, stepsDraft.length]);
 
   const handleExport = () => {
     try { exportCaseFile(buildCurrentDoc()); }
     catch (err) { window.alert(`Export failed: ${(err as Error).message}`); }
   };
 
-  const saveCurrentDraft = (doc: CaseDocument = buildCurrentDoc()) => {
+  const cacheCurrentDraft = (doc: CaseDocument) => {
     saveDraft(doc);
     userEditedRef.current = false;
-    pushWarningToast('Workbench', 'Saved locally.');
   };
 
-  const forkCurrentScene = () => {
+  const signedInUserForCaseSave = async () => {
+    if (user) return user;
+    const signedIn = await signIn();
+    if (!signedIn) {
+      pushWarningToast('Case save', 'Sign in is required to save a case.');
+      return null;
+    }
+    return signedIn;
+  };
+
+  const userDisplayName = (activeUser: NonNullable<typeof user>) => (
+    activeUser.displayName?.trim() || activeUser.email?.trim() || 'User case'
+  );
+
+  const saveCurrentCaseToCloud = async (opts: { copy: boolean }) => {
+    if (isSavingCase) return;
+
+    const activeUser = await signedInUserForCaseSave();
+    if (!activeUser) return;
+
     const now = Date.now();
+    const canUpdateCurrentCase = !opts.copy &&
+      Boolean(currentCaseId && isValidCaseId(currentCaseId) && currentCaseOwnerId === activeUser.uid);
+    const rawSourceCaseId = !canUpdateCurrentCase
+      ? (currentCaseId ?? routeCaseId)
+      : undefined;
+    const sourceCaseId = rawSourceCaseId && isValidCaseId(rawSourceCaseId) ? rawSourceCaseId : undefined;
     const sourceTitle = sceneMeta.title.trim() || defaultSceneTitle();
-    const forkTitle = `${sourceTitle} copy`;
+    const title = opts.copy ? `${sourceTitle} copy` : sourceTitle;
     const sourceDescription = sceneMeta.description.trim();
-    const forkDescription = [sourceDescription, `Forked from ${sourceTitle}`].filter(Boolean).join('\n\n');
-    const forkDoc = buildCurrentDoc({
-      id: `fork-${now}`,
-      title: forkTitle,
-      author: LOCAL_COPY_AUTHOR,
-      createdAt: now,
+    const description = opts.copy
+      ? [sourceDescription, `Forked from ${sourceTitle}`].filter(Boolean).join('\n\n')
+      : sourceDescription;
+    const caseId = canUpdateCurrentCase
+      ? currentCaseId!
+      : createUserCaseId(title, activeUser.uid, now);
+    const source: CaseSource = canUpdateCurrentCase
+      ? (currentCaseSource ?? { kind: 'authored' })
+      : sourceCaseId
+        ? { kind: 'remix', caseId: sourceCaseId }
+        : { kind: 'authored' };
+    const derivedFrom = canUpdateCurrentCase ? currentCaseDerivedFrom : sourceCaseId;
+    const caseDoc = buildCurrentDoc({
+      id: caseId,
+      title,
+      author: userDisplayName(activeUser),
+      ownerId: activeUser.uid,
+      status: 'draft',
+      visibility: 'private',
+      source,
+      derivedFrom,
+      createdAt: canUpdateCurrentCase ? (currentCaseCreatedAt ?? now) : now,
       updatedAt: now,
     });
-    const ownedCopy: CaseDocument = {
-      ...forkDoc,
+    const nextDoc: CaseDocument = {
+      ...caseDoc,
       meta: {
-        ...forkDoc.meta,
-        title: forkTitle,
-        author: LOCAL_COPY_AUTHOR,
-        createdAt: now,
+        ...caseDoc.meta,
+        title,
         updatedAt: now,
       },
       spec: {
-        ...forkDoc.spec,
-        title: forkTitle,
-        ...(forkDescription ? { description: forkDescription } : {}),
+        ...caseDoc.spec,
+        title,
+        ...(description ? { description } : {}),
       },
     };
 
-    saveCurrentDraft(ownedCopy);
-    setSceneMeta({
-      title: forkTitle,
-      description: forkDescription,
-      modelLimitations: ownedCopy.spec.modelLimitations,
-    });
-    setCaseAuthor(LOCAL_COPY_AUTHOR);
-    setAuthoringMode(true);
-    setSavedLesson(null);
-    setPublishedLesson(null);
-    pushWarningToast('Workbench', 'コピーを編集中です');
+    setIsSavingCase(true);
+    try {
+      const result = await saveCase(nextDoc, activeUser.uid, { visibility: 'private', kind: 'case' });
+      if (result.ok === false) {
+        const details = [result.code, result.message].filter(Boolean).join(': ');
+        pushWarningToast('Case save', details || 'Case save failed.');
+        return;
+      }
+
+      cacheCurrentDraft(nextDoc);
+      setSceneMeta({
+        title,
+        description,
+        modelLimitations: nextDoc.spec.modelLimitations,
+      });
+      setCaseAuthor(nextDoc.meta.author);
+      setCurrentCaseId(caseId);
+      setCurrentCaseOwnerId(activeUser.uid);
+      setCurrentCaseCreatedAt(nextDoc.meta.createdAt);
+      setCurrentCaseSource(source);
+      setCurrentCaseDerivedFrom(derivedFrom);
+      setAuthoringMode(false);
+      setSavedLesson(null);
+      setPublishedLesson(null);
+      lastLoadedCaseIdRef.current = caseId;
+      navigate(`/workbench/${encodeURIComponent(caseId)}?from=cases`, { replace: true });
+      pushWarningToast('Case save', opts.copy ? 'Created an editable copy.' : 'Saved case.');
+    } finally {
+      setIsSavingCase(false);
+    }
   };
 
   const openLessonDialog = () => {
@@ -523,24 +644,7 @@ function Workbench() {
           knobBaseline: initialKnobBaseline
       }]);
       
-      setPanels(prev => prev.map(p => {
-          let defaultSigs: string[] = [];
-          if (p.type === 'PVLOOP') defaultSigs = ['LV'];
-          else if (p.type === 'WAVEFORM') defaultSigs = ['LVP', 'AoP'];
-          else if (p.type === 'METRICS') defaultSigs = ['ABP', 'CO'];
-          else if (p.type === 'CONTROLS') defaultSigs = ['clinical', 'Global', 'ventricles', 'coronary', 'fluids'];
-          else if (p.type === 'GUYTON_RIGHT' || p.type === 'GUYTON_LEFT' || p.type === 'GUYTON_3D') defaultSigs = ['Default'];
-          
-          return {
-              ...p,
-              config: {
-                  ...p.config,
-                  [newId]: { visible: true, selectedSignals: defaultSigs }
-              }
-          };
-      }));
-      
-      setActiveInstanceId(newId);
+      setPanels(prev => addHiddenInstanceConfigsToPanels(prev, [newId]));
   };
   
   const removeInstance = (id: string) => {
@@ -557,40 +661,79 @@ function Workbench() {
   const togglePlay = () => setIsPlaying(!isPlaying);
 
   const [addingPanelType, setAddingPanelType] = useState<PanelType | null>(null);
+  const [addingPanelZone, setAddingPanelZone] = useState<WorkbenchZoneId | null>(null);
   const [addingPanelConfig, setAddingPanelConfig] = useState<Record<string, PanelInstanceConfig>>({});
-  const addPanel = (type: PanelType) => {
-      const newConfig: Record<string, PanelInstanceConfig> = {};
-      instances.forEach(i => {
-          let defaultSigs: string[] = [];
-          if (type === 'PVLOOP') defaultSigs = ['LV'];
-          else if (type === 'WAVEFORM') defaultSigs = ['LVP', 'AoP'];
-          else if (type === 'METRICS') defaultSigs = ['ABP', 'CO'];
-          else if (type === 'CONTROLS') defaultSigs = ['clinical', 'Global', 'ventricles', 'coronary', 'fluids'];
-          else if (type === 'GUYTON_RIGHT' || type === 'GUYTON_LEFT' || type === 'GUYTON_3D') defaultSigs = ['Default'];
-          newConfig[i.id] = { visible: true, selectedSignals: defaultSigs };
+
+  const createDefaultPanelConfig = (type: PanelType): Record<string, PanelInstanceConfig> => (
+      Object.fromEntries(instances.map((instance) => [
+          instance.id,
+          { visible: type !== 'NOTE', selectedSignals: defaultSignalsForPanelType(type) },
+      ]))
+  );
+
+  const titleForPanelType = (type: PanelType) => {
+      if (type === 'PVLOOP') return 'PV Loop';
+      if (type === 'WAVEFORM') return 'Waveforms';
+      if (type === 'METRICS') return 'Metrics';
+      if (type === 'CONTROLS') return 'Controls';
+      if (type === 'NOTE') return 'Notes';
+      if (type === 'GUYTON_LEFT') return 'Guyton Left';
+      if (type === 'GUYTON_RIGHT') return 'Guyton Right';
+      return 'Guyton';
+  };
+
+  const createPanelDef = (type: PanelType, config: Record<string, PanelInstanceConfig>, zone: WorkbenchZoneId = defaultZoneOf(type)): PanelDef => ({
+      id: Date.now().toString(),
+      type,
+      zone,
+      title: titleForPanelType(type),
+      w: type === 'NOTE' ? 6 : type === 'METRICS' ? 4 : type === 'CONTROLS' ? 4 : 6,
+      h: type === 'NOTE' ? 10 : type === 'METRICS' ? 6 : type === 'CONTROLS' ? 10 : 8,
+      config,
+      isSettingsOpen: false,
+      showGuides: type === 'PVLOOP',
+      timeWindow: type === 'WAVEFORM' ? 5000 : undefined,
+  });
+
+  const appendPanel = (newPanel: PanelDef) => {
+      markUserEdited();
+      setPanels(prev => {
+          const nextPanels = addPane(prev, newPanel);
+          setWorkspace((prevWorkspace) => workspaceForPanels(nextPanels, prevWorkspace));
+          return nextPanels;
       });
+      if (newPanel.type === 'NOTE') {
+          setNotes(prev => ({ ...prev, [newPanel.id]: EMPTY_NOTE_SPINE }));
+          setNoteModes(prev => ({ ...prev, [newPanel.id]: 'edit' }));
+      }
+  };
+
+  const addPanel = (type: PanelType, zone?: WorkbenchZoneId) => {
+      const newConfig = createDefaultPanelConfig(type);
+      if (type === 'NOTE') {
+          appendPanel(createPanelDef(type, newConfig, zone));
+          return;
+      }
       setAddingPanelConfig(newConfig);
       setAddingPanelType(type);
+      setAddingPanelZone(zone ?? defaultZoneOf(type));
   };
   
   const confirmAddPanel = () => {
       if (!addingPanelType) return;
-      markUserEdited();
       const type = addingPanelType;
-      const newPanel: PanelDef = {
-          id: Date.now().toString(), type, 
-          title: type === 'PVLOOP' ? 'PV Loop' : type === 'WAVEFORM' ? 'Waveforms' : type === 'METRICS' ? 'Metrics' : type === 'CONTROLS' ? 'Controls' : type === 'NOTE' ? 'Interactive Note' : 'Guyton',
-          w: type === 'NOTE' ? 6 : type === 'METRICS' ? 4 : type === 'CONTROLS' ? 4 : 6, h: type === 'NOTE' ? 10 : type === 'METRICS' ? 6 : type === 'CONTROLS' ? 10 : 8,
-          config: addingPanelConfig, isSettingsOpen: false,
-          showGuides: type === 'PVLOOP', timeWindow: type === 'WAVEFORM' ? 5000 : undefined
-      };
-      setPanels(prev => addPane(prev, newPanel));
+      appendPanel(createPanelDef(type, addingPanelConfig, addingPanelZone ?? defaultZoneOf(type)));
       setAddingPanelType(null);
+      setAddingPanelZone(null);
   };
 
   const removePanel = (id: string) => {
       markUserEdited();
-      setPanels(prev => removePane(prev, id));
+      setPanels(prev => {
+          const nextPanels = removePane(prev, id);
+          setWorkspace((prevWorkspace) => workspaceForPanels(nextPanels, prevWorkspace));
+          return nextPanels;
+      });
       setNotes(prev => {
           const next = { ...prev };
           delete next[id];
@@ -631,15 +774,15 @@ function Workbench() {
 
   const runHeaderPrimaryAction = () => {
     if (headerMode === 'learner') {
-      forkCurrentScene();
+      void saveCurrentCaseToCloud({ copy: true });
       return;
     }
-    saveCurrentDraft();
+    void saveCurrentCaseToCloud({ copy: false });
   };
 
   const setWorkbenchAuthoringMode: React.Dispatch<React.SetStateAction<boolean>> = (next) => {
     const resolved = typeof next === 'function' ? next(authoringMode) : next;
-    if (resolved) setCaseAuthor(LOCAL_COPY_AUTHOR);
+    if (resolved && !caseAuthor && !currentCaseOwnerId) setCaseAuthor(LOCAL_COPY_AUTHOR);
     setAuthoringMode(resolved);
   };
 
@@ -668,6 +811,7 @@ function Workbench() {
         isAdmin={isAdmin}
         publishCurrentLesson={publishCurrentLesson}
         isPublishingLesson={isPublishingLesson}
+        isSavingCase={isSavingCase}
         savedLesson={savedLesson}
         publishedLesson={publishedLesson}
         copyShareUrl={copyShareUrl}
@@ -675,7 +819,6 @@ function Workbench() {
         togglePlay={togglePlay}
         timeScale={timeScale}
         setTimeScale={setTimeScale}
-        addPanel={addPanel}
       />
 
       <PanelGrid
@@ -686,13 +829,10 @@ function Workbench() {
         stepsDraft={stepsDraft}
         setStepsDraft={setStepsDraft}
         panels={panels}
-        onPanelsChange={(nextPanels) => {
-          markUserEdited();
-          setPanels(nextPanels);
-        }}
+        dockviewLayoutKey={noteCaseKey}
+        dockviewViewStates={workspace.viewStates}
+        onDockviewViewStateChange={updateDockviewViewState}
         mode={headerMode}
-        layoutEditable={layoutEditable}
-        setLayoutEditable={setIsLayoutEditing}
         isMobile={isMobile}
         noteModes={noteModes}
         setNoteModes={setNoteModes}
@@ -796,7 +936,7 @@ function Workbench() {
                   </div>
 
                   <div className="flex items-center justify-end gap-3 pt-2">
-                      <button onClick={() => setAddingPanelType(null)} className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200 transition-colors">Cancel</button>
+                      <button onClick={() => { setAddingPanelType(null); setAddingPanelZone(null); }} className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200 transition-colors">Cancel</button>
                       <button onClick={confirmAddPanel} className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded shadow transition-colors">Add Panel</button>
                   </div>
               </div>

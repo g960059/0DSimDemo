@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { caseDocumentToSimInstances } from "../caseDoc";
-import { lessonById, resolveLessonCase, type Lesson } from "../lessonDoc";
+import { caseDocumentToLesson, lessonById, resolveLessonCase, type Lesson } from "../lessonDoc";
 import { fetchPublishedLesson } from "../lessonCloud";
+import { fetchCase } from "../caseCloud";
 import { NotePanel } from "./NotePanel";
 import { ExposedKnobs } from "./ExposedKnobs";
 import { MetricsPanel, PVLoopPanel, WaveformPanel } from "./Charts";
@@ -76,9 +77,11 @@ export const LessonPlayer = () => {
 
     let ignore = false;
     setCloudState({ status: "loading" });
-    fetchPublishedLesson(id).then((lesson) => {
+    Promise.all([fetchCase(id), fetchPublishedLesson(id)]).then(([caseDoc, lesson]) => {
       if (ignore) return;
-      setCloudState(lesson ? { status: "ready", lesson } : { status: "notfound" });
+      const caseLesson = caseDoc ? caseDocumentToLesson(caseDoc) : undefined;
+      const resolved = caseLesson ?? lesson;
+      setCloudState(resolved ? { status: "ready", lesson: resolved } : { status: "notfound" });
     });
 
     return () => {

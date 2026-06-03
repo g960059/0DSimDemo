@@ -78,34 +78,77 @@ service cloud.firestore {
     }
     
     function isValidCase(data) {
-      return data.keys().hasAll(['title', 'description', 'initialState', 'status', 'authorId', 'createdAt', 'updatedAt']) &&
-             data.keys().size() == 7 &&
+      return data.keys().hasAll([
+               'title', 'description', 'kind', 'content', 'status', 'visibility',
+               'ownerId', 'schemaVersion', 'engineVersion', 'knobMappingVersion',
+               'workspaceSchemaVersion', 'createdAt', 'updatedAt'
+             ]) &&
+             data.keys().hasOnly([
+               'title', 'description', 'kind', 'content', 'status', 'visibility',
+               'ownerId', 'schemaVersion', 'engineVersion', 'knobMappingVersion',
+               'workspaceSchemaVersion', 'tags', 'source', 'derivedFrom',
+               'createdAt', 'updatedAt', 'publishedAt'
+             ]) &&
              data.title is string && data.title.size() <= 200 &&
              data.description is string && data.description.size() <= 10000 &&
-             data.initialState is string && data.initialState.size() <= 500000 &&
-             data.status is string && (data.status == 'draft' || data.status == 'published') &&
-             data.authorId is string && data.authorId.size() <= 128 &&
+             data.kind is string && (data.kind == 'case' || data.kind == 'lesson' || data.kind == 'promptGenerated') &&
+             data.content is string && data.content.size() <= 500000 &&
+             data.status is string && (data.status == 'draft' || data.status == 'published' || data.status == 'archived') &&
+             data.visibility is string && (data.visibility == 'private' || data.visibility == 'unlisted' || data.visibility == 'public' || data.visibility == 'official') &&
+             data.ownerId is string && data.ownerId.size() <= 128 &&
+             data.schemaVersion is number &&
+             data.engineVersion is string && data.engineVersion.size() <= 80 &&
+             data.knobMappingVersion is string && data.knobMappingVersion.size() <= 80 &&
+             data.workspaceSchemaVersion is number &&
+             (!('tags' in data) || (data.tags is list && data.tags.size() <= 20)) &&
+             (!('source' in data) || (data.source is string && data.source.size() <= 200)) &&
+             (!('derivedFrom' in data) || (data.derivedFrom is string && data.derivedFrom.size() <= 128)) &&
+             (!('publishedAt' in data) || data.publishedAt is timestamp) &&
              data.createdAt is timestamp &&
              data.updatedAt is timestamp;
     }
+
+    function isCaseOwner() {
+      return isSignedIn() && existing().ownerId == request.auth.uid;
+    }
+
+    function canReadCase() {
+      return isAdmin() ||
+             (isSignedIn() && existing().ownerId == request.auth.uid) ||
+             (
+               existing().status == 'published' &&
+               (existing().visibility == 'public' || existing().visibility == 'unlisted' || existing().visibility == 'official')
+             );
+    }
+
+    function canListCase() {
+      return isAdmin() ||
+             (isSignedIn() && resource.data.ownerId == request.auth.uid) ||
+             (
+               resource.data.status == 'published' &&
+               (resource.data.visibility == 'public' || resource.data.visibility == 'official')
+             );
+    }
     
     match /cases/{caseId} {
-      allow get: if isValidId(caseId) && (isAdmin() || existing().status == 'published');
-      allow list: if (isAdmin() || resource.data.status == 'published');
+      allow get: if isValidId(caseId) && canReadCase();
+      allow list: if canListCase();
       
-      allow create: if isValidId(caseId) && isAdmin() &&
+      allow create: if isValidId(caseId) && isSignedIn() &&
                        isValidCase(incoming()) &&
-                       incoming().authorId == request.auth.uid &&
+                       incoming().ownerId == request.auth.uid &&
+                       (incoming().visibility != 'official' || isAdmin()) &&
                        incoming().createdAt == request.time &&
                        incoming().updatedAt == request.time;
                        
-      allow update: if isValidId(caseId) && isAdmin() &&
+      allow update: if isValidId(caseId) && (isAdmin() || isCaseOwner()) &&
                        isValidCase(incoming()) &&
                        incoming().createdAt == existing().createdAt &&
-                       incoming().authorId == existing().authorId &&
+                       incoming().ownerId == existing().ownerId &&
+                       ((incoming().visibility != 'official' && existing().visibility != 'official') || isAdmin()) &&
                        incoming().updatedAt == request.time;
                        
-      allow delete: if isValidId(caseId) && isAdmin();
+      allow delete: if isValidId(caseId) && (isAdmin() || isCaseOwner());
     }
   }
 }

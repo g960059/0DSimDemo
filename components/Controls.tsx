@@ -72,12 +72,12 @@ export const Controls: React.FC<ControlsProps> = ({
 }) => {
   
   // If in pane mode, filter visible instances based on paneConfig
-  const visibleInstances = isPaneMode && paneConfig 
-    ? instances.filter(i => paneConfig[i.id]?.visible)
+  const visibleInstances = isPaneMode && paneConfig
+    ? instances.filter(i => paneConfig[i.id]?.visible && i.isVisible !== false)
     : instances;
     
-  const currentActiveId = activeInstanceId;
-  const activeInstance = instances.find(i => i.id === currentActiveId) || instances[0];
+  const activeInstance = visibleInstances.find(i => i.id === activeInstanceId) || visibleInstances[0] || instances[0];
+  const currentActiveId = activeInstance?.id ?? activeInstanceId;
   const params = activeInstance?.params;
   // RAW advanced sliders display/edit the authored baseline on a knob-primary
   // instance (the clinical knobs multiply on top), so the slider value matches
@@ -149,9 +149,9 @@ export const Controls: React.FC<ControlsProps> = ({
   return (
     <div className="absolute inset-0 flex flex-col gap-0 h-full bg-transparent overflow-hidden">
       
-      {instances.length > 1 && (
+      {visibleInstances.length > 1 && (
       <div className="flex overflow-x-auto custom-scrollbar gap-1 items-end bg-transparent border-b border-slate-800/60 pt-2 px-2 shrink-0">
-         {instances.filter(i => i.isVisible !== false).map(inst => (
+         {visibleInstances.filter(i => i.isVisible !== false).map(inst => (
             <button
                 key={inst.id}
                 onClick={() => setActiveInstanceId(inst.id)}

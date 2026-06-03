@@ -27,6 +27,7 @@ root.render(
               <Route path="cases" element={<OfficialCases />} />
               <Route path="lesson/:id" element={<LessonPlayer />} />
               <Route path="workbench" element={<Workbench />} />
+              <Route path="workbench/:caseId" element={<Workbench />} />
             </Route>
           </Routes>
         </BrowserRouter>

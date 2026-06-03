@@ -8,8 +8,8 @@ describe('homeLinks', () => {
   });
 
   it('builds encoded case hrefs with cases source', () => {
-    expect(caseHref('normal sinus')).toBe('/workbench?case=normal%20sinus&from=cases');
-    expect(caseHref('valve/lesions')).toBe('/workbench?case=valve%2Flesions&from=cases');
+    expect(caseHref('normal sinus')).toBe('/workbench/normal%20sinus?from=cases');
+    expect(caseHref('valve/lesions')).toBe('/workbench/valve%2Flesions?from=cases');
   });
 
   it('builds static workbench and all-cases hrefs', () => {

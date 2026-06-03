@@ -1,1 +1,62 @@
 @import "tailwindcss";
+
+.workbench-zone-main {
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.18), rgba(2, 6, 23, 0) 56%),
+    #0b1120;
+}
+
+.workbench-zone-aux {
+  background: #0b1120;
+}
+
+.workbench-dockview.dockview-theme-dark {
+  --workbench-surface: #0b1120;
+  --workbench-surface-soft: #0f172a;
+  --workbench-divider: rgba(51, 65, 85, 0.72);
+  --dv-group-view-background-color: var(--workbench-surface);
+  --dv-tabs-and-actions-container-background-color: rgba(15, 23, 42, 0.56);
+  --dv-activegroup-visiblepanel-tab-background-color: rgba(15, 23, 42, 0.48);
+  --dv-activegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-inactivegroup-visiblepanel-tab-background-color: rgba(15, 23, 42, 0.34);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-activegroup-visiblepanel-tab-color: #cbd5e1;
+  --dv-activegroup-hiddenpanel-tab-color: #64748b;
+  --dv-inactivegroup-visiblepanel-tab-color: #94a3b8;
+  --dv-inactivegroup-hiddenpanel-tab-color: #475569;
+  --dv-tab-divider-color: transparent;
+  --dv-separator-border: var(--workbench-divider);
+  --dv-paneview-header-border-color: transparent;
+  --dv-tabs-and-actions-container-height: 28px;
+  --dv-tabs-and-actions-container-font-size: 12px;
+  --dv-active-sash-color: rgba(148, 163, 184, 0.18);
+  --dv-scrollbar-background-color: rgba(100, 116, 139, 0.46);
+}
+
+.workbench-dockview-main.dockview-theme-dark {
+  --dv-tabs-and-actions-container-background-color: rgba(15, 23, 42, 0.34);
+  --dv-activegroup-visiblepanel-tab-background-color: rgba(11, 17, 32, 0.8);
+  --dv-inactivegroup-visiblepanel-tab-background-color: rgba(11, 17, 32, 0.62);
+}
+
+.workbench-dockview .dv-groupview,
+.workbench-dockview .dv-groupview > .dv-content-container {
+  background: var(--workbench-surface);
+}
+
+.workbench-dockview .dv-tabs-and-actions-container {
+  border-bottom: 1px solid var(--workbench-divider);
+}
+
+.workbench-dockview .dv-tab {
+  padding: 0 8px;
+}
+
+.workbench-dockview .dv-tab:focus::after,
+.workbench-dockview .dv-tab:focus-within::after {
+  outline-color: rgba(148, 163, 184, 0.36) !important;
+}
+
+.workbench-dockview .dv-split-view-container.dv-separator-border .dv-view:not(:first-child)::before {
+  background-color: var(--workbench-divider);
+}

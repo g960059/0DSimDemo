@@ -2,10 +2,12 @@ import React from "react";
 import { Writable } from "node:stream";
 import { renderToPipeableStream, renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { PanelGrid, canEditWorkbenchLayout, type PanelGridMode } from "@/components/workbench/PanelGrid";
-import type { PanelDef } from "@/types";
+import { PanelGrid, getDockviewPaneTitle, resolveControlsPaneTarget, type PanelGridMode } from "@/components/workbench/PanelGrid";
+import { getDockviewStructureSignature } from "@/components/workbench/WorkbenchDockview";
+import { addHiddenInstanceConfigsToPanels } from "@/WorkbenchPage";
+import type { PanelDef, SimInstance } from "@/types";
 
-// These tests cover layout gating, not BlockNote behavior. Keeping NotePanel
+// These tests cover layout shell behavior, not BlockNote behavior. Keeping NotePanel
 // stubbed avoids cross-file BlockNote schema registration in shared workers.
 vi.mock("@/components/NotePanel", async () => {
   const React = await import("react");
@@ -16,25 +18,25 @@ vi.mock("@/components/NotePanel", async () => {
 
 const noop = () => {};
 
-function renderPanelGrid(mode: PanelGridMode, panels: PanelDef[] = [], layoutEditable = true) {
+function renderPanelGrid(mode: PanelGridMode, panels: PanelDef[] = [], instances: SimInstance[] = []) {
   return renderToStaticMarkup(
-    createPanelGrid(mode, panels, layoutEditable),
+    createPanelGrid(mode, panels, instances),
   );
 }
 
-function createPanelGrid(mode: PanelGridMode, panels: PanelDef[] = [], layoutEditable = true) {
+function createPanelGrid(mode: PanelGridMode, panels: PanelDef[] = [], instances: SimInstance[] = []) {
   return React.createElement(PanelGrid, {
     authoringMode: false,
     publishedLesson: null,
     copyShareUrl: noop,
-    instances: [],
+    instances,
     stepsDraft: [],
     setStepsDraft: noop,
     panels,
-    onPanelsChange: noop,
+    dockviewLayoutKey: "test",
+    dockviewViewStates: undefined,
+    onDockviewViewStateChange: noop,
     mode,
-    layoutEditable,
-    setLayoutEditable: noop,
     isMobile: false,
     noteModes: {},
     setNoteModes: noop,
@@ -75,7 +77,7 @@ function createPanelGrid(mode: PanelGridMode, panels: PanelDef[] = [], layoutEdi
   });
 }
 
-function renderPanelGridAllReady(mode: PanelGridMode, panels: PanelDef[] = [], layoutEditable = true) {
+function renderPanelGridAllReady(mode: PanelGridMode, panels: PanelDef[] = [], instances: SimInstance[] = []) {
   return new Promise<string>((resolve, reject) => {
     let html = "";
     let settled = false;
@@ -88,7 +90,7 @@ function renderPanelGridAllReady(mode: PanelGridMode, panels: PanelDef[] = [], l
     }, 5000);
 
     stream = renderToPipeableStream(
-      createPanelGrid(mode, panels, layoutEditable),
+      createPanelGrid(mode, panels, instances),
       {
         onAllReady() {
           const writable = new Writable({
@@ -119,16 +121,44 @@ function renderPanelGridAllReady(mode: PanelGridMode, panels: PanelDef[] = [], l
   });
 }
 
-describe("PanelGrid layout edit gating", () => {
-  it("allows layout editing only for non-mobile author and sandbox modes", () => {
-    expect(canEditWorkbenchLayout("sandbox", false)).toBe(true);
-    expect(canEditWorkbenchLayout("author", false)).toBe(true);
-    expect(canEditWorkbenchLayout("learner", false)).toBe(false);
-    expect(canEditWorkbenchLayout("sandbox", true)).toBe(false);
-  });
+const normalInstance: SimInstance = {
+  id: "normal",
+  name: "Normal",
+  color: "#a855f7",
+  params: {} as SimInstance["params"],
+  targetVolume: 5000,
+  isVisible: true,
+};
 
-  it("does not render the layout toolbar or editor entry point in learner mode", () => {
-    const html = renderPanelGrid("learner");
+const copiedInstance: SimInstance = {
+  ...normalInstance,
+  id: "copy",
+  name: "Heart B",
+  color: "#f472b6",
+};
+
+const hiddenInstance: SimInstance = {
+  ...normalInstance,
+  id: "hidden",
+  name: "Heart C",
+  color: "#22c55e",
+};
+
+const pvLoopPanel: PanelDef = {
+  id: "pv",
+  type: "PVLOOP",
+  title: "PV Loop",
+  zone: "main",
+  w: 6,
+  h: 8,
+  config: { normal: { visible: true, selectedSignals: ["LV"] } },
+  isSettingsOpen: false,
+  showGuides: true,
+};
+
+describe("PanelGrid Dockview layout", () => {
+  it.each(["learner", "author", "sandbox"] as const)("does not render a separate layout edit toolbar in %s mode", (mode) => {
+    const html = renderPanelGrid(mode);
 
     expect(html).not.toContain("Edit layout");
     expect(html).not.toContain("Done editing");
@@ -136,15 +166,98 @@ describe("PanelGrid layout edit gating", () => {
     expect(html).not.toContain("panel-grid-editor");
   });
 
-  it("renders the layout toolbar for sandbox mode", () => {
-    const html = renderPanelGrid("sandbox", [], false);
-
-    expect(html).toContain("Edit layout");
-  });
-
-  it.each(["author", "sandbox"] as const)("mounts the layout editor for %s mode", async (mode) => {
+  it.each(["learner", "author", "sandbox"] as const)("renders the workbench layout for %s mode", async (mode) => {
     const html = await renderPanelGridAllReady(mode);
 
-    expect(html).toContain('data-panel-grid-editor="mounted"');
+    expect(html).toContain("No panels");
+  });
+
+  it("keeps add controls available in empty editable zones", () => {
+    const html = renderPanelGrid("sandbox");
+
+    expect(html).toContain("Add Main pane");
+    expect(html).toContain("Add Controls pane");
+    expect(html).toContain("Add Outputs pane");
+  });
+
+  it("hides add and pane settings chrome for learner mode", () => {
+    const html = renderPanelGrid("learner", [pvLoopPanel], [normalInstance]);
+
+    expect(html).not.toContain("Add Main pane");
+    expect(html).not.toContain("pane settings");
+  });
+
+  it("renders pane-local settings as the pane body for editable Dockview panes", () => {
+    const html = renderPanelGrid("sandbox", [{ ...pvLoopPanel, isSettingsOpen: true }], [normalInstance]);
+
+    expect(html).toContain("Back to PV Loop");
+    expect(html).toContain("Customizations");
+    expect(html).toContain("Title:");
+  });
+
+  it("does not render pane-local settings for learner mode even if state is open", () => {
+    const html = renderPanelGrid("learner", [{ ...pvLoopPanel, isSettingsOpen: true }], [normalInstance]);
+
+    expect(html).not.toContain("Back to PV Loop");
+    expect(html).not.toContain("Customizations");
+  });
+
+  it("uses pane titles only for Dockview tab labels", () => {
+    expect(getDockviewPaneTitle({
+      ...pvLoopPanel,
+      title: "Renamed PV",
+      config: {
+        normal: { visible: true, selectedSignals: ["LV"], customName: "Heart A" },
+        copy: { visible: true, selectedSignals: ["LV"], customName: "Heart B" },
+      },
+    })).toBe("Renamed PV");
+  });
+
+  it("does not treat pane title edits as Dockview structural layout changes", () => {
+    expect(getDockviewStructureSignature([{ ...pvLoopPanel, title: "PV Loop" }]))
+      .toBe(getDockviewStructureSignature([{ ...pvLoopPanel, title: "Renamed PV" }]));
+  });
+
+  it("adds new instances to existing pane configs as hidden by default", () => {
+    const panels = addHiddenInstanceConfigsToPanels([
+      pvLoopPanel,
+      {
+        id: "controls",
+        type: "CONTROLS",
+        title: "Controls",
+        zone: "sideRail",
+        w: 4,
+        h: 8,
+        config: { normal: { visible: true, selectedSignals: ["clinical"] } },
+        isSettingsOpen: false,
+      },
+    ], ["copy"]);
+
+    expect(panels[0].config.normal.visible).toBe(true);
+    expect(panels[0].config.copy).toEqual({ visible: false, selectedSignals: ["LV"] });
+    expect(panels[1].config.normal.visible).toBe(true);
+    expect(panels[1].config.copy).toEqual({ visible: false, selectedSignals: ["clinical", "Global", "ventricles", "fluids"] });
+  });
+
+  it("keeps the current controls target when a hidden scenario is added", () => {
+    const config = {
+      normal: { visible: true, selectedSignals: ["clinical"] },
+      copy: { visible: true, selectedSignals: ["clinical"] },
+      hidden: { visible: false, selectedSignals: ["clinical"] },
+    };
+
+    expect(resolveControlsPaneTarget([normalInstance, copiedInstance, hiddenInstance], config, "copy")?.id).toBe("copy");
+  });
+
+  it("does not target globally hidden instances in Dockview controls panes", () => {
+    const config = {
+      normal: { visible: true, selectedSignals: ["clinical"] },
+      hidden: { visible: true, selectedSignals: ["clinical"] },
+    };
+
+    expect(resolveControlsPaneTarget([
+      normalInstance,
+      { ...hiddenInstance, isVisible: false },
+    ], config, "hidden")?.id).toBe("normal");
   });
 });

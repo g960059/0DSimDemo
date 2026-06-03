@@ -1,5 +1,5 @@
 import type { NoteContent } from "@/noteTypes";
-import type { CaseDocument } from "@/caseDoc";
+import type { CaseDocument, CaseLessonLayer } from "@/caseDoc";
 import { caseDocumentToSimInstances, isCaseDisplayable } from "@/caseDoc";
 import type { KnobKey } from "@/engine/knobs";
 import { officialCaseById } from "@/officialCases";
@@ -162,4 +162,73 @@ export function resolveLessonCase(lesson: Lesson): CaseDocument | undefined {
     }
   }
   return lesson.caseId ? officialCaseById(lesson.caseId) : undefined;
+}
+
+export function lessonLayerFromLesson(lesson: Lesson): CaseLessonLayer {
+  return {
+    noteSpine: lesson.noteSpine,
+    ...(lesson.meta.objective ? { objective: lesson.meta.objective } : {}),
+    ...(lesson.meta.level ? { level: lesson.meta.level } : {}),
+    ...(lesson.steps ? { steps: lesson.steps.map((step) => ({
+      id: step.id,
+      ...(step.title ? { title: step.title } : {}),
+      note: step.note,
+      stage: {
+        visibleInstances: step.stage.visibleInstances,
+        ...(step.stage.visiblePanels ? { visiblePanels: step.stage.visiblePanels } : {}),
+        ...(step.stage.challenge ? { challenge: step.stage.challenge } : {}),
+        ...(step.stage.exposedKnobs ? { exposedKnobs: step.stage.exposedKnobs } : {}),
+        ...(step.stage.knobInstanceId ? { knobInstanceId: step.stage.knobInstanceId } : {}),
+        ...(step.stage.initialState ? { initialState: step.stage.initialState } : {}),
+      },
+    })) } : {}),
+  };
+}
+
+export function caseDocumentToLesson(doc: CaseDocument): Lesson | undefined {
+  if (!doc.lesson) return undefined;
+  return {
+    meta: {
+      id: doc.meta.id,
+      title: doc.spec.title || doc.meta.title,
+      ...(doc.lesson.objective ? { objective: doc.lesson.objective } : {}),
+      ...(doc.lesson.level ? { level: doc.lesson.level } : {}),
+      createdAt: doc.meta.createdAt,
+    },
+    case: doc,
+    noteSpine: doc.lesson.noteSpine,
+    ...(doc.lesson.steps ? { steps: doc.lesson.steps.map((step) => ({
+      id: step.id,
+      ...(step.title ? { title: step.title } : {}),
+      note: step.note,
+      stage: {
+        visibleInstances: step.stage.visibleInstances,
+        ...(step.stage.visiblePanels ? { visiblePanels: step.stage.visiblePanels as PanelKey[] } : {}),
+        ...(step.stage.challenge ? { challenge: step.stage.challenge } : {}),
+        ...(step.stage.exposedKnobs ? { exposedKnobs: step.stage.exposedKnobs as NumericKnobKey[] } : {}),
+        ...(step.stage.knobInstanceId ? { knobInstanceId: step.stage.knobInstanceId } : {}),
+        ...(step.stage.initialState ? { initialState: step.stage.initialState as Partial<Record<NumericKnobKey, number>> } : {}),
+      },
+    })) } : {}),
+  };
+}
+
+export function lessonToCaseDocument(lesson: Lesson): CaseDocument | undefined {
+  const caseDoc = resolveLessonCase(lesson);
+  if (!caseDoc) return undefined;
+  return {
+    ...caseDoc,
+    kind: "lesson",
+    meta: {
+      ...caseDoc.meta,
+      id: lesson.meta.id,
+      title: lesson.meta.title,
+      createdAt: lesson.meta.createdAt ?? caseDoc.meta.createdAt,
+    },
+    spec: {
+      ...caseDoc.spec,
+      title: lesson.meta.title,
+    },
+    lesson: lessonLayerFromLesson(lesson),
+  };
 }

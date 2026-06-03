@@ -9,7 +9,7 @@
 //   load: CaseDocument -> SimInstance[]   (resolves knobs->params; verifies the
 //                                          knobMappingVersion, no silent fallback)
 
-import type { SimInstance, PanelDef } from "@/types";
+import type { SimInstance, PanelDef, PanelRole, WorkbenchRegionId, WorkbenchWorkspace } from "@/types";
 import type { NoteContent } from "@/noteTypes";
 import type { CoreRuntimeParams, ParameterPatch } from "@/engine/protocol";
 import {
@@ -20,8 +20,11 @@ import {
 } from "@/engine/caseResolve";
 import { OFFICIAL_BASELINES } from "@/engine/caseBaselines";
 import { type ClinicalKnobs, type KnobKey, neutralKnobs, resolveKnobMappingVersion } from "@/engine/knobs";
+import { roleOf } from "@/paneRole";
+import { zoneOf } from "@/paneZone";
 
 export const CASE_SCHEMA_VERSION = 1;
+export const WORKSPACE_SCHEMA_VERSION = 1;
 export const ENGINE_VERSION = "circleheart@0.0.0";
 
 /** Deterministic replay config; travels in the document. */
@@ -40,12 +43,56 @@ export interface CaseSpec {
   modelLimitations: string[];
 }
 
+export type CaseKind = "case" | "lesson" | "promptGenerated";
+export type CaseStatus = "draft" | "published" | "archived";
+export type CaseVisibility = "private" | "unlisted" | "public" | "official";
+
+export type CaseInstanceSource =
+  | { kind: "baselinePreset"; id: string }
+  | { kind: "officialCase"; caseId: string; instanceId?: string }
+  | { kind: "calibratedPreset"; calibrationId: string }
+  | { kind: "manualPatch"; requiresReview: true };
+
+export type CaseSource =
+  | { kind: "authored" }
+  | { kind: "official"; id: string }
+  | { kind: "remix"; caseId: string }
+  | { kind: "prompt"; prompt: string; model?: string };
+
+export type CaseLessonKnobKey = Exclude<KnobKey, "baroreflexEnabled">;
+
 /** Portable instance = physiology spec (engine) + UI identity (app). */
 export interface CaseInstance extends CaseInstanceSpec {
   id: string;
   name: string;
   color: string;
   isVisible: boolean;
+  source?: CaseInstanceSource;
+}
+
+export interface CaseLessonStep {
+  id: string;
+  title?: string;
+  note: NoteContent;
+  stage: {
+    visibleInstances: string[];
+    visiblePanels?: string[];
+    challenge?: {
+      kind: "predict" | "free";
+      prompt?: string;
+      revealLabel?: string;
+    };
+    exposedKnobs?: CaseLessonKnobKey[];
+    knobInstanceId?: string;
+    initialState?: Partial<Record<CaseLessonKnobKey, number>>;
+  };
+}
+
+export interface CaseLessonLayer {
+  noteSpine: NoteContent;
+  objective?: string;
+  level?: string;
+  steps?: CaseLessonStep[];
 }
 
 export interface CaseDocument {
@@ -54,10 +101,18 @@ export interface CaseDocument {
   knobMappingVersion: string;
   solver: SolverConfig;
   meta: { id: string; title: string; author?: string; createdAt: number; updatedAt: number };
+  kind?: CaseKind;
+  status?: CaseStatus;
+  visibility?: CaseVisibility;
+  ownerId?: string;
+  source?: CaseSource;
+  derivedFrom?: string;
   spec: CaseSpec;
   instances: CaseInstance[];
   panels: PanelDef[];
+  workspace?: WorkbenchWorkspace;
   notes?: Record<string, NoteContent>;
+  lesson?: CaseLessonLayer;
 }
 
 /** A shareable case MUST surface model limitations. Gate before display. */
@@ -71,6 +126,80 @@ const ALL_KNOB_KEYS: KnobKey[] = [
   "aorticStenosis", "aorticRegurgitation", "mitralStenosis", "mitralRegurgitation",
   "tricuspidRegurgitation", "pulmonicStenosis", "baroreflexEnabled",
 ];
+
+function roleForPanel(panel: PanelDef): PanelRole {
+  return panel.role ?? roleOf(panel.type);
+}
+
+function panelsForRole(panels: PanelDef[], role: PanelRole): string[] {
+  return panels.filter((panel) => roleForPanel(panel) === role).map((panel) => panel.id);
+}
+
+function mergeRegionState(
+  next: WorkbenchWorkspace["regions"][WorkbenchRegionId],
+  previous: WorkbenchWorkspace["regions"][WorkbenchRegionId],
+): WorkbenchWorkspace["regions"][WorkbenchRegionId] {
+  if (!next) return previous;
+  if (!previous) return next;
+
+  const nextPanelIds = next.panelIds;
+  const activePanelId = nextPanelIds?.includes(previous.activePanelId ?? "")
+    ? previous.activePanelId
+    : next.activePanelId;
+
+  return {
+    ...next,
+    ...previous,
+    ...(nextPanelIds ? { panelIds: nextPanelIds } : {}),
+    ...(activePanelId ? { activePanelId } : {}),
+  };
+}
+
+export function defaultWorkspaceForPanels(
+  panels: PanelDef[],
+  mode: WorkbenchWorkspace["mode"] = "learn",
+): WorkbenchWorkspace {
+  const graphPanelIds = panelsForRole(panels, "graph");
+  const notePanelIds = panelsForRole(panels, "note");
+  const outputPanelIds = panelsForRole(panels, "output");
+  const controlPanelIds = panelsForRole(panels, "control");
+  const regions: WorkbenchWorkspace["regions"] = {
+    scenarios: {
+      visible: panels.some((panel) => zoneOf(panel) === "caseRail"),
+      position: "left",
+      panelIds: panels.filter((panel) => zoneOf(panel) === "caseRail").map((panel) => panel.id),
+    },
+    graph: { visible: true, position: "center", panelIds: graphPanelIds, activePanelId: graphPanelIds[0], split: "single" },
+    note: { visible: notePanelIds.length > 0, position: "right", panelIds: notePanelIds, activePanelId: notePanelIds[0] },
+    output: { visible: outputPanelIds.length > 0 ? "compact" : false, position: "bottom", panelIds: outputPanelIds, activePanelId: outputPanelIds[0] },
+    control: { visible: controlPanelIds.length > 0, position: "left", panelIds: controlPanelIds, activePanelId: controlPanelIds[0] },
+  };
+  return { schemaVersion: WORKSPACE_SCHEMA_VERSION, mode, regions, learnerLocked: mode === "learn" };
+}
+
+export function workspaceForPanels(
+  panels: PanelDef[],
+  previous?: WorkbenchWorkspace,
+  mode: WorkbenchWorkspace["mode"] = previous?.mode ?? "learn",
+): WorkbenchWorkspace {
+  const defaults = defaultWorkspaceForPanels(panels, mode);
+  if (!previous) return defaults;
+
+  const regions: WorkbenchWorkspace["regions"] = {};
+  for (const region of ["scenarios", "control", "graph", "output", "note"] as const) {
+    const merged = mergeRegionState(defaults.regions[region], previous.regions?.[region]);
+    if (merged) regions[region] = merged;
+  }
+
+  return {
+    ...defaults,
+    mode,
+    regions,
+    learnerLocked: previous.learnerLocked ?? defaults.learnerLocked,
+    ...(previous.viewState ? { viewState: previous.viewState } : {}),
+    ...(previous.viewStates ? { viewStates: previous.viewStates } : {}),
+  };
+}
 
 /** Sparse diff of a full param set against a baseline (deep-compared per key). */
 export function diffParams(target: CoreRuntimeParams, base: CoreRuntimeParams): ParameterPatch {
@@ -129,13 +258,31 @@ export function simInstanceToCaseInstance(
     interventions: [],
     rawPatch: {},
     targetVolume: inst.targetVolume,
+    source: { kind: "baselinePreset", id: DEFAULT_BASELINE_ID },
   };
 }
 
 export function simInstancesToCaseDocument(
   instances: SimInstance[],
   panels: PanelDef[],
-  opts: { id: string; title: string; author?: string; createdAt: number; updatedAt: number; spec: CaseSpec; solver?: SolverConfig; notes?: Record<string, NoteContent> },
+  opts: {
+    id: string;
+    title: string;
+    author?: string;
+    ownerId?: string;
+    kind?: CaseKind;
+    status?: CaseStatus;
+    visibility?: CaseVisibility;
+    source?: CaseSource;
+    derivedFrom?: string;
+    createdAt: number;
+    updatedAt: number;
+    spec: CaseSpec;
+    solver?: SolverConfig;
+    workspace?: WorkbenchWorkspace;
+    notes?: Record<string, NoteContent>;
+    lesson?: CaseLessonLayer;
+  },
 ): CaseDocument {
   return {
     schemaVersion: CASE_SCHEMA_VERSION,
@@ -143,10 +290,18 @@ export function simInstancesToCaseDocument(
     knobMappingVersion: KNOB_MAPPING_VERSION,
     solver: opts.solver ?? DEFAULT_SOLVER,
     meta: { id: opts.id, title: opts.title, author: opts.author, createdAt: opts.createdAt, updatedAt: opts.updatedAt },
+    kind: opts.kind ?? "case",
+    status: opts.status ?? "draft",
+    visibility: opts.visibility ?? "private",
+    ...(opts.ownerId ? { ownerId: opts.ownerId } : {}),
+    ...(opts.source ? { source: opts.source } : {}),
+    ...(opts.derivedFrom ? { derivedFrom: opts.derivedFrom } : {}),
     spec: opts.spec,
     instances: instances.map((i) => simInstanceToCaseInstance(i)),
     panels,
+    workspace: opts.workspace ?? defaultWorkspaceForPanels(panels),
     ...(opts.notes ? { notes: opts.notes } : {}),
+    ...(opts.lesson ? { lesson: opts.lesson } : {}),
   };
 }
 
