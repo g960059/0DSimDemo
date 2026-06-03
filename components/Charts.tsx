@@ -392,6 +392,18 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                             case 'QTV': val = d.QTV; break;
                             case 'PVF': val = d.PVF; break;
                             case 'SVF': val = d.SVF; break;
+                            case 'QCorLAD': val = d.QCorLAD; break;
+                            case 'QCorLCx': val = d.QCorLCx; break;
+                            case 'QCorRCA': val = d.QCorRCA; break;
+                            case 'QCorTotal': val = d.QCorTotal; break;
+                            case 'QCS': val = d.QCS; break;
+                            case 'PimLAD': val = d.PimLAD; break;
+                            case 'PimLCx': val = d.PimLCx; break;
+                            case 'PimRCA': val = d.PimRCA; break;
+                            case 'PLADArt': val = d.PLADArt; break;
+                            case 'PLCxArt': val = d.PLCxArt; break;
+                            case 'PRCAArt': val = d.PRCAArt; break;
+                            case 'PCS': val = d.PCS; break;
                             case 'VRA': val = d.VRA; break;
                             case 'aRA': val = d.aRA; break;
                             case 'cRA': val = d.cRA; break;
@@ -485,6 +497,18 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                             case 'QTV': val = d.QTV; break;
                             case 'PVF': val = d.PVF; break;
                             case 'SVF': val = d.SVF; break;
+                            case 'QCorLAD': val = d.QCorLAD; break;
+                            case 'QCorLCx': val = d.QCorLCx; break;
+                            case 'QCorRCA': val = d.QCorRCA; break;
+                            case 'QCorTotal': val = d.QCorTotal; break;
+                            case 'QCS': val = d.QCS; break;
+                            case 'PimLAD': val = d.PimLAD; break;
+                            case 'PimLCx': val = d.PimLCx; break;
+                            case 'PimRCA': val = d.PimRCA; break;
+                            case 'PLADArt': val = d.PLADArt; break;
+                            case 'PLCxArt': val = d.PLCxArt; break;
+                            case 'PRCAArt': val = d.PRCAArt; break;
+                            case 'PCS': val = d.PCS; break;
                             case 'VRA': val = d.VRA; break;
                             case 'aRA': val = d.aRA; break;
                             case 'cRA': val = d.cRA; break;
@@ -585,7 +609,17 @@ export const MetricsPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances
                     'CO': met.CO_L.toFixed(1),
                     'Ea_LV': (met.AoPSys / Math.max(1, met.SV_L)).toFixed(2),
                     'LVEF': Math.round(met.EF_LApprox * 100),
-                    'RVEF': Math.round(met.EF_RApprox * 100)
+                    'RVEF': Math.round(met.EF_RApprox * 100),
+                    'COR': Math.round(met.CorFlowTotalMlMin),
+                    'COR_PCT': met.CorPctCO.toFixed(1),
+                    'LAD_DF': Math.round(met.CorDiastolicFractionLAD * 100),
+                    'LCx_DF': Math.round(met.CorDiastolicFractionLCx * 100),
+                    'RCA_DF': Math.round(met.CorDiastolicFractionRCA * 100),
+                    'FFR_LAD': met.FFR_LAD.toFixed(2),
+                    'FFR_LCx': met.FFR_LCx.toFixed(2),
+                    'FFR_RCA': met.FFR_RCA.toFixed(2),
+                    'COR_SDI_L': met.CorSupplyDemandL.toFixed(2),
+                    'COR_SDI_R': met.CorSupplyDemandR.toFixed(2)
                 };
 
                 const unitsMap: Record<string, string> = {
@@ -597,7 +631,17 @@ export const MetricsPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances
                     'CO': 'L/min',
                     'Ea_LV': 'mmHg/mL',
                     'LVEF': '%',
-                    'RVEF': '%'
+                    'RVEF': '%',
+                    'COR': 'mL/min',
+                    'COR_PCT': '%CO',
+                    'LAD_DF': '%',
+                    'LCx_DF': '%',
+                    'RCA_DF': '%',
+                    'FFR_LAD': '',
+                    'FFR_LCx': '',
+                    'FFR_RCA': '',
+                    'COR_SDI_L': '',
+                    'COR_SDI_R': ''
                 };
 
                 const activeName = cfg.customName || inst.name;

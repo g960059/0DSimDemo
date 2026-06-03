@@ -57,7 +57,57 @@ type BeatAccum = {
 
 type NodeKind = "heartActive" | "heartElastance" | "arterial" | "linear" | "venousPressure";
 type EdgeKind = "resistive" | "dynamic" | "valve";
-type ExtKind = "none" | "pth" | "palv";
+type CoronaryTerritory = "LAD" | "LCx" | "RCA";
+type CoronarySegment = "ostial" | "proximal" | "distal" | "venous" | "sinus";
+type ExtKind =
+  | "none"
+  | "pth"
+  | "palv"
+  | "imLAD"
+  | "imLCx"
+  | "imRCA"
+  | "imLADVen"
+  | "imLCxVen"
+  | "imRCAVen";
+
+const CORONARY_TERRITORIES: CoronaryTerritory[] = ["LAD", "LCx", "RCA"];
+const CORONARY_SPECS: Record<CoronaryTerritory, {
+  gammaLv: number;
+  gammaRv: number;
+  venousExternalFraction: number;
+  proximalCompressionK: number;
+  distalCompressionK: number;
+  restingShare: number;
+  stenosisKey: "LADStenosis" | "LCxStenosis" | "RCAStenosis";
+}> = {
+  LAD: {
+    gammaLv: 0.65,
+    gammaRv: 0.00,
+    venousExternalFraction: 0.45,
+    proximalCompressionK: 0.5,
+    distalCompressionK: 2.0,
+    restingShare: 0.42,
+    stenosisKey: "LADStenosis",
+  },
+  LCx: {
+    gammaLv: 0.55,
+    gammaRv: 0.05,
+    venousExternalFraction: 0.45,
+    proximalCompressionK: 0.5,
+    distalCompressionK: 1.8,
+    restingShare: 0.28,
+    stenosisKey: "LCxStenosis",
+  },
+  RCA: {
+    gammaLv: 0.20,
+    gammaRv: 0.45,
+    venousExternalFraction: 0.45,
+    proximalCompressionK: 0.3,
+    distalCompressionK: 1.0,
+    restingShare: 0.30,
+    stenosisKey: "RCAStenosis",
+  },
+};
 
 type NodeSpec = {
   name: string;
@@ -92,7 +142,9 @@ type EdgeSpec = {
   R: number;
   L?: number;
   B?: number;
-  group?: "systemic" | "pulmonary" | "none";
+  group?: "systemic" | "pulmonary" | "coronary" | "none";
+  coronaryTerritory?: CoronaryTerritory;
+  coronarySegment?: CoronarySegment;
   ext?: ExtKind;
   waterfall?: boolean;
   Pcrit?: number;
@@ -132,13 +184,32 @@ type PressurePack = {
   PVI_LV: number;
   PVI_RV: number;
   septalForceMmHg: number;
+  PimLAD: number;
+  PimLCx: number;
+  PimRCA: number;
+  PimLADVen: number;
+  PimLCxVen: number;
+  PimRCAVen: number;
+};
+
+type CoronaryExternalPressures = {
+  imLAD: number;
+  imLCx: number;
+  imRCA: number;
+  imLADVen: number;
+  imLCxVen: number;
+  imRCAVen: number;
 };
 
 
 const nodeNames = [
   "LV", "LA", "RV", "RA",
   "Ao", "SA", "Art", "Cap", "SV", "VC",
-  "PA", "PArt", "PCap", "PVen", "PVein"
+  "PA", "PArt", "PCap", "PVen", "PVein",
+  "LAD_Art", "LAD_IM", "LAD_Ven",
+  "LCx_Art", "LCx_IM", "LCx_Ven",
+  "RCA_Art", "RCA_IM", "RCA_Ven",
+  "CS"
 ] as const;
 const tbvCorrectionNodeNames = ["SV", "VC", "PCap", "PVen", "PVein"] as const;
 const systemicVenousNodeNames = ["SV", "VC"] as const;
@@ -255,6 +326,14 @@ export function defaultParams(): CoreRuntimeParams {
     septalDampingMmHgSecPerMl: 4.0,
     septalMaxShiftMl: 25,
     septalLvPressureWeight: 0.28,
+    coronaryEnabled: true,
+    coronaryResistanceScale: 1,
+    coronaryCompressionScale: 1.2,
+    coronaryVasodilator: 0,
+    coronaryReserveMax: 3.5,
+    LADStenosis: 0,
+    LCxStenosis: 0,
+    RCAStenosis: 0,
     // Valve Defaults
     // MV
     MV_Amax: 5.0, MV_Aleak: 1e-4, MV_kOpen: 2.0, MV_tauOpen: 0.020, MV_tauClose: 0.035, MV_R: 0.004, MV_L: 0.0008, MV_B: 1e-4,
@@ -285,7 +364,22 @@ function buildNodes(): NodeSpec[] {
     { name: "PArt", kind: "arterial", ext: "pth", Vu: 0, P0: 20, Vs: 90, x0: 90 * Math.log1p(13 / 20) },
     { name: "PCap", kind: "venousPressure", ext: "palv", Vu: 105, Ccoll: 0.75, Copen: 1.5, Cdist: 0.75, Popen: 0, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 8 },
     { name: "PVen", kind: "venousPressure", ext: "pth", Vu: 160, Ccoll: 0.75, Copen: 1.5, Cdist: 0.75, Popen: -1, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 6 },
-    { name: "PVein", kind: "venousPressure", ext: "pth", Vu: 215, Ccoll: 0.75, Copen: 1.5, Cdist: 0.75, Popen: -1, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 5 }
+    { name: "PVein", kind: "venousPressure", ext: "pth", Vu: 215, Ccoll: 0.75, Copen: 1.5, Cdist: 0.75, Popen: -1, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 5 },
+
+    // Coronary circulation: small compliant epicardial, intramyocardial, and
+    // venous compartments. Volumes are small enough not to become a systemic
+    // reservoir; intramyocardial nodes receive territory-specific external
+    // pressure from the ventricular free-wall pressures below.
+    { name: "LAD_Art", kind: "linear", ext: "pth", Vu: 3, C: 0.030, x0: 3 + 0.030 * 85 },
+    { name: "LAD_IM", kind: "linear", ext: "imLAD", Vu: 8, C: 0.090, x0: 8 + 0.090 * 15 },
+    { name: "LAD_Ven", kind: "linear", ext: "imLADVen", Vu: 6, C: 0.120, x0: 6 + 0.120 * 8 },
+    { name: "LCx_Art", kind: "linear", ext: "pth", Vu: 2, C: 0.020, x0: 2 + 0.020 * 85 },
+    { name: "LCx_IM", kind: "linear", ext: "imLCx", Vu: 5, C: 0.060, x0: 5 + 0.060 * 15 },
+    { name: "LCx_Ven", kind: "linear", ext: "imLCxVen", Vu: 4, C: 0.080, x0: 4 + 0.080 * 8 },
+    { name: "RCA_Art", kind: "linear", ext: "pth", Vu: 2, C: 0.025, x0: 2 + 0.025 * 70 },
+    { name: "RCA_IM", kind: "linear", ext: "imRCA", Vu: 6, C: 0.070, x0: 6 + 0.070 * 12 },
+    { name: "RCA_Ven", kind: "linear", ext: "imRCAVen", Vu: 5, C: 0.100, x0: 5 + 0.100 * 7 },
+    { name: "CS", kind: "linear", ext: "pth", Vu: 18, C: 1.5, x0: 18 + 1.5 * 5 }
   ];
 }
 
@@ -319,7 +413,24 @@ function buildEdges(): EdgeSpec[] {
       pvOstialResistanceR: 0.010,
       pvOstialInertanceL: 0,
       pvOstialQuadraticB: 0,
-    }
+    },
+
+    { name: "Ao_LAD", up: "Ao", down: "LAD_Art", kind: "resistive", R: 1.0, B: 0, group: "coronary", coronaryTerritory: "LAD", coronarySegment: "ostial" },
+    { name: "LAD_Art_IM", up: "LAD_Art", down: "LAD_IM", kind: "resistive", R: 12, B: 0, group: "coronary", coronaryTerritory: "LAD", coronarySegment: "proximal" },
+    { name: "LAD_IM_Ven", up: "LAD_IM", down: "LAD_Ven", kind: "resistive", R: 33, B: 0, group: "coronary", coronaryTerritory: "LAD", coronarySegment: "distal" },
+    { name: "LAD_Ven_CS", up: "LAD_Ven", down: "CS", kind: "resistive", R: 2, B: 0, group: "coronary", coronaryTerritory: "LAD", coronarySegment: "venous" },
+
+    { name: "Ao_LCx", up: "Ao", down: "LCx_Art", kind: "resistive", R: 1.5, B: 0, group: "coronary", coronaryTerritory: "LCx", coronarySegment: "ostial" },
+    { name: "LCx_Art_IM", up: "LCx_Art", down: "LCx_IM", kind: "resistive", R: 22, B: 0, group: "coronary", coronaryTerritory: "LCx", coronarySegment: "proximal" },
+    { name: "LCx_IM_Ven", up: "LCx_IM", down: "LCx_Ven", kind: "resistive", R: 56, B: 0, group: "coronary", coronaryTerritory: "LCx", coronarySegment: "distal" },
+    { name: "LCx_Ven_CS", up: "LCx_Ven", down: "CS", kind: "resistive", R: 3, B: 0, group: "coronary", coronaryTerritory: "LCx", coronarySegment: "venous" },
+
+    { name: "Ao_RCA", up: "Ao", down: "RCA_Art", kind: "resistive", R: 1.5, B: 0, group: "coronary", coronaryTerritory: "RCA", coronarySegment: "ostial" },
+    { name: "RCA_Art_IM", up: "RCA_Art", down: "RCA_IM", kind: "resistive", R: 20, B: 0, group: "coronary", coronaryTerritory: "RCA", coronarySegment: "proximal" },
+    { name: "RCA_IM_Ven", up: "RCA_IM", down: "RCA_Ven", kind: "resistive", R: 43, B: 0, group: "coronary", coronaryTerritory: "RCA", coronarySegment: "distal" },
+    { name: "RCA_Ven_CS", up: "RCA_Ven", down: "CS", kind: "resistive", R: 3, B: 0, group: "coronary", coronaryTerritory: "RCA", coronarySegment: "venous" },
+
+    { name: "CS_RA", up: "CS", down: "RA", kind: "resistive", R: 1.0, B: 0, group: "coronary", coronarySegment: "sinus" }
   ];
 }
 
@@ -552,6 +663,9 @@ export class ModelCore {
     const raInternal = this.activeInternalIndex("RA");
     const tvFlow = flows[this.edgeIndex("TV")];
     const pvFlow = flows[this.edgeIndex("PV")];
+    const qLAD = flows[this.edgeIndex("Ao_LAD")];
+    const qLCx = flows[this.edgeIndex("Ao_LCx")];
+    const qRCA = flows[this.edgeIndex("Ao_RCA")];
     const rap = pack.P[this.nodeIndex.get("RA")!];
     const rvp = pack.P[this.nodeIndex.get("RV")!];
     const pap = pack.P[this.nodeIndex.get("PA")!];
@@ -572,6 +686,11 @@ export class ModelCore {
       SVF: flows[this.edgeIndex("VC_RA")],
       QCapSV: flows[this.edgeIndex("Cap_SV")],
       QPArtPCap: flows[this.edgeIndex("PArt_PCap")],
+      QCorLAD: qLAD,
+      QCorLCx: qLCx,
+      QCorRCA: qRCA,
+      QCorTotal: qLAD + qLCx + qRCA,
+      QCS: flows[this.edgeIndex("CS_RA")],
       VLV: pack.Vphys[this.nodeIndex.get("LV")!],
       VRV: pack.Vphys[this.nodeIndex.get("RV")!],
       VLA: pack.Vphys[this.nodeIndex.get("LA")!],
@@ -604,6 +723,13 @@ export class ModelCore {
       PVI_LV: pack.PVI_LV,
       PVI_RV: pack.PVI_RV,
       septalForceMmHg: pack.septalForceMmHg,
+      PLADArt: pack.P[this.nodeIndex.get("LAD_Art")!],
+      PLCxArt: pack.P[this.nodeIndex.get("LCx_Art")!],
+      PRCAArt: pack.P[this.nodeIndex.get("RCA_Art")!],
+      PCS: pack.P[this.nodeIndex.get("CS")!],
+      PimLAD: pack.PimLAD,
+      PimLCx: pack.PimLCx,
+      PimRCA: pack.PimRCA,
       TBV: this.totalBloodVolume(pack)
     };
     this.trackBeat(s);
@@ -775,8 +901,25 @@ export class ModelCore {
       }
       return area;
     };
+    const integratePositiveWhen = (key: keyof SimSample, predicate: (sample: SimSample) => boolean) => {
+      if (data.length < 2) return 0;
+      let area = 0;
+      for (let i = 1; i < data.length; i++) {
+        if (!predicate(data[i]) || !predicate(data[i - 1])) continue;
+        const dt = data[i].t - data[i - 1].t;
+        area += 0.5 * dt * (Math.max(0, Number(data[i][key])) + Math.max(0, Number(data[i - 1][key])));
+      }
+      return area;
+    };
+    const diastolicFraction = (key: keyof SimSample) => {
+      const total = integratePositive(key);
+      if (total <= 1e-9) return 0;
+      return clamp(integratePositiveWhen(key, (sample) => sample.QAo <= 5) / total, 0, 1);
+    };
     const SV_L = integratePositive("QAo");
     const SV_R = integratePositive("QPA");
+    const CO_L = (SV_L * this.p.HR) / 1000;
+    const CO_R = (SV_R * this.p.HR) / 1000;
     const EDV_L = max("VLV");
     const ESV_L = min("VLV");
     const EDV_R = max("VRV");
@@ -787,6 +930,20 @@ export class ModelCore {
     // volumes are stop-phase independent like the rest of metrics; fall back to a
     // live read only before the first beat closes (e.g. a bare step() loop).
     const obs = this.lastBeatObs ?? this.debugObservables();
+    const corLAD = avg("QCorLAD") * 60;
+    const corLCx = avg("QCorLCx") * 60;
+    const corRCA = avg("QCorRCA") * 60;
+    const corTotal = avg("QCorTotal") * 60;
+    const corPctCO = CO_L > 1e-9 ? 100 * corTotal / (CO_L * 1000) : 0;
+    const totalCorExpected = Math.max(CO_L * 1000 * 0.05, 1);
+    const leftDemand = (this.p.HR / 75)
+      * (this.p.lvTmaxScale / 0.85)
+      * Math.pow(Math.max(avg("LVP"), 1) / 90, 0.4);
+    const rightDemand = (this.p.HR / 75)
+      * this.p.rvTmaxScale
+      * Math.pow(Math.max(avg("RVP"), 1) / 25, 0.4);
+    const leftExpected = totalCorExpected * (CORONARY_SPECS.LAD.restingShare + CORONARY_SPECS.LCx.restingShare);
+    const rightExpected = totalCorExpected * CORONARY_SPECS.RCA.restingShare;
     return {
       HR: this.p.HR,
       AoPMean: avg("AoP"),
@@ -799,15 +956,28 @@ export class ModelCore {
       RVEDPApprox: rvEdSample?.RVP ?? avg("RVP"),
       SV_L,
       SV_R,
-      CO_L: (SV_L * this.p.HR) / 1000,
-      CO_R: (SV_R * this.p.HR) / 1000,
+      CO_L,
+      CO_R,
       EF_LApprox: EDV_L > 1e-6 ? clamp((EDV_L - ESV_L) / EDV_L, 0, 1) : 0,
       EF_RApprox: EDV_R > 1e-6 ? clamp((EDV_R - ESV_R) / EDV_R, 0, 1) : 0,
       TBV: avg("TBV"),
       Pmsf: obs.Pmsf,
       vrGradient: obs.vrGradient,
       stressedVolumeSystemic: obs.stressedVolumeSystemic,
-      unstressedVolumeSystemic: obs.unstressedVolumeSystemic
+      unstressedVolumeSystemic: obs.unstressedVolumeSystemic,
+      CorFlowLADMlMin: corLAD,
+      CorFlowLCxMlMin: corLCx,
+      CorFlowRCAMlMin: corRCA,
+      CorFlowTotalMlMin: corTotal,
+      CorPctCO: corPctCO,
+      CorDiastolicFractionLAD: diastolicFraction("QCorLAD"),
+      CorDiastolicFractionLCx: diastolicFraction("QCorLCx"),
+      CorDiastolicFractionRCA: diastolicFraction("QCorRCA"),
+      FFR_LAD: avg("AoP") > 1e-9 ? avg("PLADArt") / avg("AoP") : 0,
+      FFR_LCx: avg("AoP") > 1e-9 ? avg("PLCxArt") / avg("AoP") : 0,
+      FFR_RCA: avg("AoP") > 1e-9 ? avg("PRCAArt") / avg("AoP") : 0,
+      CorSupplyDemandL: (corLAD + corLCx) / Math.max(leftExpected * leftDemand, 1),
+      CorSupplyDemandR: corRCA / Math.max(rightExpected * rightDemand, 1),
     };
   }
 
@@ -1018,11 +1188,12 @@ export class ModelCore {
     const PLVfw = this.heartTransmuralPressure(lvNode, VLVeff, x);
     const PRVfw = this.heartTransmuralPressure(rvNode, VRVeff, x);
     const septalForceMmHg = septalForce({ VLV, VRV, shiftMl: septumShiftMl, PLVfw, PRVfw }, sepParams);
+    const coronaryExt = this.coronaryExternalPressures(peri.Pperi, PLVfw, PRVfw);
 
     for (let i = 0; i < this.nodes.length; i++) {
       const n = this.nodes[i];
       const xi = this.idx.node[n.name as NodeName];
-      const Pext = this.externalPressure(n.ext ?? "none");
+      const Pext = this.externalPressure(n.ext ?? "none", coronaryExt);
 
       if (n.kind === "venousPressure") {
         const volume = x[xi];
@@ -1067,6 +1238,12 @@ export class ModelCore {
       PVI_LV: PLVfw - PLVfwRaw,
       PVI_RV: PRVfw - PRVfwRaw,
       septalForceMmHg,
+      PimLAD: coronaryExt.imLAD,
+      PimLCx: coronaryExt.imLCx,
+      PimRCA: coronaryExt.imRCA,
+      PimLADVen: coronaryExt.imLADVen,
+      PimLCxVen: coronaryExt.imLCxVen,
+      PimRCAVen: coronaryExt.imRCAVen,
     };
   }
 
@@ -1310,6 +1487,36 @@ export class ModelCore {
     let areaRatio = 1.0;
     if (e.group === "systemic") R *= this.p.systemicResistance;
     if (e.group === "pulmonary") R *= this.p.pulmonaryResistance;
+    if (e.group === "coronary") {
+      if (!this.p.coronaryEnabled) {
+        R *= 1e8;
+        B = 0;
+      } else {
+        const segment = e.coronarySegment;
+        if (segment !== "sinus") R *= this.p.coronaryResistanceScale;
+
+        if (e.coronaryTerritory && (segment === "proximal" || segment === "distal")) {
+          const spec = CORONARY_SPECS[e.coronaryTerritory];
+          const activation = this.coronaryCompressionActivation(e.coronaryTerritory, x);
+          const k = segment === "proximal" ? spec.proximalCompressionK : spec.distalCompressionK;
+          R *= 1 + this.p.coronaryCompressionScale * k * activation;
+
+          const reserve = 1 + (Math.max(this.p.coronaryReserveMax, 1) - 1) * clamp(this.p.coronaryVasodilator, 0, 1);
+          R /= Math.max(reserve, 1e-6);
+        }
+
+        if (e.coronaryTerritory && segment === "ostial") {
+          const spec = CORONARY_SPECS[e.coronaryTerritory];
+          const diameterStenosis = clamp(this.p[spec.stenosisKey], 0, 0.95);
+          const diameterRatio = Math.max(1 - diameterStenosis, 0.05);
+          const stenosisAreaRatio = Math.max(diameterRatio * diameterRatio, 0.0025);
+          const stenosisLoss = Math.min(Math.pow(stenosisAreaRatio, -2), 5000);
+          R *= stenosisLoss;
+          B += 0.06 * (stenosisLoss - 1);
+          areaRatio = Math.min(areaRatio, stenosisAreaRatio);
+        }
+      }
+    }
 
     if (e.kind === "valve") {
       const pName = e.name as ValveName;
@@ -1330,6 +1537,13 @@ export class ModelCore {
     return { R: Math.max(R, 1e-8), B: Math.max(B, 0), areaRatio };
   }
 
+  private coronaryCompressionActivation(territory: CoronaryTerritory, x: Float64Array): number {
+    const lvA = clamp(x[this.activeInternalIndex("LV").a], 0, 1);
+    const rvA = clamp(x[this.activeInternalIndex("RV").a], 0, 1);
+    if (territory === "RCA") return clamp(0.45 * lvA + 0.55 * rvA, 0, 1);
+    return lvA;
+  }
+
   private edgeChi(e: EdgeSpec, Pu: number, Pd: number): number {
     const Pext = this.externalPressure(e.ext ?? "none");
     const Ptube = smoothMin(Pu - Pext, Pd - Pext, 0.25);
@@ -1338,10 +1552,38 @@ export class ModelCore {
     return chiMin + (1 - chiMin) * sigmoid(z);
   }
 
-  private externalPressure(ext: ExtKind): number {
+  private externalPressure(ext: ExtKind, coronaryExt?: CoronaryExternalPressures): number {
     if (ext === "pth") return this.Pth();
     if (ext === "palv") return this.Palv();
+    if (ext === "imLAD") return coronaryExt?.imLAD ?? this.Pth();
+    if (ext === "imLCx") return coronaryExt?.imLCx ?? this.Pth();
+    if (ext === "imRCA") return coronaryExt?.imRCA ?? this.Pth();
+    if (ext === "imLADVen") return coronaryExt?.imLADVen ?? this.Pth();
+    if (ext === "imLCxVen") return coronaryExt?.imLCxVen ?? this.Pth();
+    if (ext === "imRCAVen") return coronaryExt?.imRCAVen ?? this.Pth();
     return 0;
+  }
+
+  private coronaryExternalPressures(Pperi: number, PLVtm: number, PRVtm: number): CoronaryExternalPressures {
+    const scale = Math.max(this.p.coronaryCompressionScale, 0);
+    const lv = Math.max(PLVtm, 0);
+    const rv = Math.max(PRVtm, 0);
+    const full = (territory: CoronaryTerritory) => {
+      const spec = CORONARY_SPECS[territory];
+      return Pperi + scale * (spec.gammaLv * lv + spec.gammaRv * rv);
+    };
+    const ven = (territory: CoronaryTerritory) => {
+      const spec = CORONARY_SPECS[territory];
+      return Pperi + scale * spec.venousExternalFraction * (spec.gammaLv * lv + spec.gammaRv * rv);
+    };
+    return {
+      imLAD: full("LAD"),
+      imLCx: full("LCx"),
+      imRCA: full("RCA"),
+      imLADVen: ven("LAD"),
+      imLCxVen: ven("LCx"),
+      imRCAVen: ven("RCA"),
+    };
   }
 
   private Pth(): number {
@@ -1369,6 +1611,8 @@ export class ModelCore {
       "pericardialBiasMmHg", "pericardialFluidMl",
       "septalStiffnessScale", "septalK1MmHgPerMl", "septalK3MmHgPerMl3",
       "septalDampingMmHgSecPerMl", "septalMaxShiftMl", "septalLvPressureWeight",
+      "coronaryResistanceScale", "coronaryCompressionScale", "coronaryVasodilator",
+      "coronaryReserveMax", "LADStenosis", "LCxStenosis", "RCAStenosis",
     ];
     for (const k of nums) {
       const current = this.p[k];
@@ -1381,6 +1625,7 @@ export class ModelCore {
     this.p.useChiResistance = this.pTarget.useChiResistance;
     this.p.pericardiumEnabled = this.pTarget.pericardiumEnabled;
     this.p.septalCouplingEnabled = this.pTarget.septalCouplingEnabled;
+    this.p.coronaryEnabled = this.pTarget.coronaryEnabled;
     // Rates are not smoothed but must be copied from the target so the
     // setTargetParameters() API path works, not just setImmediateParameters().
     this.p.bleedRate = this.pTarget.bleedRate;
@@ -1568,6 +1813,10 @@ export class ModelCore {
     const PAP = pack.P[this.nodeIndex.get("PA")!];
     const P_VC = pack.P[this.nodeIndex.get("VC")!];
     const P_PVein = pack.P[this.nodeIndex.get("PVein")!];
+    const qLAD = flows[this.edgeIndex("Ao_LAD")];
+    const qLCx = flows[this.edgeIndex("Ao_LCx")];
+    const qRCA = flows[this.edgeIndex("Ao_RCA")];
+    const AoP = pack.P[this.nodeIndex.get("Ao")!];
     const actualTBV = this.totalBloodVolume(pack);
     const laReservoir = this.laReservoirDebugFields(this.x, pack.Vphys[this.nodeIndex.get("LA")!]);
     const pvOstial = this.pvOstialDebugFields(this.x, pack, flows);
@@ -1622,6 +1871,21 @@ export class ModelCore {
       PVI_LV: pack.PVI_LV,
       PVI_RV: pack.PVI_RV,
       septalForceMmHg: pack.septalForceMmHg,
+      Q_LAD: qLAD,
+      Q_LCx: qLCx,
+      Q_RCA: qRCA,
+      Q_Cor_total: qLAD + qLCx + qRCA,
+      Q_CS_RA: flows[this.edgeIndex("CS_RA")],
+      P_LAD_Art: pack.P[this.nodeIndex.get("LAD_Art")!],
+      P_LCx_Art: pack.P[this.nodeIndex.get("LCx_Art")!],
+      P_RCA_Art: pack.P[this.nodeIndex.get("RCA_Art")!],
+      P_CS: pack.P[this.nodeIndex.get("CS")!],
+      PimLAD: pack.PimLAD,
+      PimLCx: pack.PimLCx,
+      PimRCA: pack.PimRCA,
+      FFR_LAD: AoP > 1e-9 ? pack.P[this.nodeIndex.get("LAD_Art")!] / AoP : 0,
+      FFR_LCx: AoP > 1e-9 ? pack.P[this.nodeIndex.get("LCx_Art")!] / AoP : 0,
+      FFR_RCA: AoP > 1e-9 ? pack.P[this.nodeIndex.get("RCA_Art")!] / AoP : 0,
       ...pvOstial,
       ...laReservoir,
     };

@@ -30,12 +30,14 @@ const ALL_CHAMBERS: ChamberId[] = ['LV', 'LA', 'RV', 'RA'];
 const ALL_SIGNALS: SignalType[] = [
   'LVP', 'AoP', 'LAP', 'RVP', 'PAP', 'RAP',
   'QAo', 'QMV', 'QPA', 'QPV', 'QTV', 'PVF', 'SVF',
+  'QCorLAD', 'QCorLCx', 'QCorRCA', 'QCorTotal', 'QCS',
+  'PimLAD', 'PimLCx', 'PimRCA', 'PLADArt', 'PLCxArt', 'PRCAArt', 'PCS',
   'VRA', 'aRA', 'cRA', 'xiTV', 'xiPV', 'dP_TV', 'dP_PV',
   'Pperi', 'Ppc', 'VHeart', 'septumShiftMl', 'VLVeff', 'VRVeff',
   'PLVfw', 'PRVfw', 'PVI_LV', 'PVI_RV', 'septalForceMmHg',
 ];
-const ALL_METRICS: MetricType[] = ['ABP', 'CVP', 'PAP', 'PCWP', 'SV', 'CO', 'LVEF'];
-const ALL_CONTROL_GROUPS: string[] = ['clinical', 'Global', 'ventricles', 'atria', 'vascular', 'fluids', 'valves', 'resp', 'advanced'];
+const ALL_METRICS: MetricType[] = ['ABP', 'CVP', 'PAP', 'PCWP', 'SV', 'CO', 'LVEF', 'COR', 'COR_PCT', 'LAD_DF', 'RCA_DF', 'FFR_LAD'];
+const ALL_CONTROL_GROUPS: string[] = ['clinical', 'Global', 'ventricles', 'atria', 'vascular', 'coronary', 'fluids', 'valves', 'resp', 'advanced'];
 const DEFAULT_MODEL_LIMITATIONS = [
   '0D lumped-parameter closed-loop model — no regional wall motion or spatial flow.',
   'Active-stress single-fibre ventricles; parameters are not yet calibrated (M12).',
@@ -156,7 +158,7 @@ function Workbench() {
           // Keep ventricular mechanics visible as a collapsed group so the
           // pericardium/septum controls are discoverable without opening panel
           // settings. Default model stays active-stress.
-          config: { '1': { visible: true, selectedSignals: ['clinical', 'Global', 'ventricles', 'fluids'] } },
+          config: { '1': { visible: true, selectedSignals: ['clinical', 'Global', 'ventricles', 'coronary', 'fluids'] } },
           isSettingsOpen: false
       },
       {
@@ -198,7 +200,7 @@ function Workbench() {
           if (p.type === 'PVLOOP') defaultSigs = ['LV'];
           else if (p.type === 'WAVEFORM') defaultSigs = ['LVP', 'AoP'];
           else if (p.type === 'METRICS') defaultSigs = ['ABP', 'CO'];
-          else if (p.type === 'CONTROLS') defaultSigs = ['clinical', 'Global', 'ventricles', 'fluids'];
+          else if (p.type === 'CONTROLS') defaultSigs = ['clinical', 'Global', 'ventricles', 'coronary', 'fluids'];
           else if (p.type === 'GUYTON_RIGHT' || p.type === 'GUYTON_LEFT' || p.type === 'GUYTON_3D') defaultSigs = ['Default'];
           newConfig[id] = { visible: true, selectedSignals: defaultSigs };
           changed = true;
@@ -526,7 +528,7 @@ function Workbench() {
           if (p.type === 'PVLOOP') defaultSigs = ['LV'];
           else if (p.type === 'WAVEFORM') defaultSigs = ['LVP', 'AoP'];
           else if (p.type === 'METRICS') defaultSigs = ['ABP', 'CO'];
-          else if (p.type === 'CONTROLS') defaultSigs = ['clinical', 'Global', 'ventricles', 'fluids'];
+          else if (p.type === 'CONTROLS') defaultSigs = ['clinical', 'Global', 'ventricles', 'coronary', 'fluids'];
           else if (p.type === 'GUYTON_RIGHT' || p.type === 'GUYTON_LEFT' || p.type === 'GUYTON_3D') defaultSigs = ['Default'];
           
           return {
@@ -563,7 +565,7 @@ function Workbench() {
           if (type === 'PVLOOP') defaultSigs = ['LV'];
           else if (type === 'WAVEFORM') defaultSigs = ['LVP', 'AoP'];
           else if (type === 'METRICS') defaultSigs = ['ABP', 'CO'];
-          else if (type === 'CONTROLS') defaultSigs = ['clinical', 'Global', 'ventricles', 'fluids'];
+          else if (type === 'CONTROLS') defaultSigs = ['clinical', 'Global', 'ventricles', 'coronary', 'fluids'];
           else if (type === 'GUYTON_RIGHT' || type === 'GUYTON_LEFT' || type === 'GUYTON_3D') defaultSigs = ['Default'];
           newConfig[i.id] = { visible: true, selectedSignals: defaultSigs };
       });
