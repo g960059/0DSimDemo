@@ -1,6 +1,6 @@
 [日本語](./README.md) | **English**
 
-# HemoSim 0D
+# CircleHeart
 
 > A browser-based **0D closed-loop cardiovascular hemodynamics simulator** for modeling and teaching — active-stress cardiac chambers, dynamic valves, systemic + pulmonary windkessel trees, pericardial/septal coupling, and a 3-territory coronary bed, integrated with an explicit RK solver and a mass-conservative total-blood-volume ledger.
 
@@ -8,7 +8,7 @@
 
 ## ⚠️ Disclaimer — research & education only
 
-**HemoSim 0D is not a medical device.** It is built for modeling, teaching, and exploration, and must **not** be used for diagnosis, treatment, or any patient-specific clinical decision.
+**CircleHeart is not a medical device.** It is built for modeling, teaching, and exploration, and must **not** be used for diagnosis, treatment, or any patient-specific clinical decision.
 
 - It is a **0D lumped-parameter model**: it does not resolve spatial blood flow, local wall stress, or 3D hemodynamics.
 - **Parameters are calibration targets, not fixed physiological constants.** Outputs are approximate and have **not been validated against clinical data**.
@@ -38,7 +38,7 @@ These limitations are surfaced in-app (a first-run modal, see `components/ModelL
 
 ## What it is
 
-HemoSim 0D is a real-time simulator of the closed-loop cardiovascular system, implemented as a 0D lumped-parameter network and integrated with an explicit Runge–Kutta solver. It runs entirely in the browser, with a clean separation between the **simulation engine** (`engine/`) and the **UI** (`components/`).
+CircleHeart is a real-time simulator of the closed-loop cardiovascular system, implemented as a 0D lumped-parameter network and integrated with an explicit Runge–Kutta solver. It runs entirely in the browser, with a clean separation between the **simulation engine** (`engine/`) and the **UI** (`components/`).
 
 You perturb the circulation with **physiology knobs** (contractility, afterload, heart rate, valve lesions, fluids/hemorrhage, ventilation/PEEP, …) and observe the response through several synchronized views — **waveforms**, **pressure–volume loops**, a **Guyton/Starling operating map**, and a **coronary** pane (pressures, flows, FFR). The model is the core; on top of the simulator sit an **authored interactive-lesson system** and a set of curated **official cases**, so the same engine serves both modeling/exploration and structured teaching.
 
@@ -178,7 +178,7 @@ __tests__/, *.test.ts   Vitest suites
 
 ## Calibration stance & physiology
 
-HemoSim 0D models the circulation as a closed loop of lumped compartments: active-stress cardiac chambers, dynamic valves, and systemic/pulmonary trees, with pericardial/septal coupling and a coronary bed layered on top. The design philosophy is **shape-first** — waveform morphology and the *direction* of change under a perturbation are prioritized over matching absolute numbers, because the abnormal and pathological scenarios are the point of the tool. Treat parameters as **calibration targets**, not fixed constants; the model is built to reproduce the *qualitative* hemodynamic response, and absolute values are approximate.
+CircleHeart models the circulation as a closed loop of lumped compartments: active-stress cardiac chambers, dynamic valves, and systemic/pulmonary trees, with pericardial/septal coupling and a coronary bed layered on top. The design philosophy is **shape-first** — waveform morphology and the *direction* of change under a perturbation are prioritized over matching absolute numbers, because the abnormal and pathological scenarios are the point of the tool. Treat parameters as **calibration targets**, not fixed constants; the model is built to reproduce the *qualitative* hemodynamic response, and absolute values are approximate.
 
 The **physiology validity navigator** — [`docs/research/README.md`](docs/research/README.md) — is the evidence base. It traces each parameter group (chamber geometry/EDPVR, valves, pericardium/septum, Guyton/Starling, coronary circulation, waveform morphology, atrial AV-plane reservoir, …) to its canonical literature source and records the model value, computation, and an honest verdict / open-question list.
 

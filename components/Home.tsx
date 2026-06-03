@@ -17,7 +17,7 @@ export const Home = () => {
       <div className="max-w-5xl mx-auto space-y-10">
         <section className="flex flex-col gap-5 border-b border-slate-800 pb-8">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-100">HemoSim 0D</h1>
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-100">CircleHeart</h1>
             <p className="mt-3 max-w-2xl text-sm sm:text-base text-slate-400">
               Learn cardiovascular physiology through guided lessons, disease cases, and free simulation.
             </p>

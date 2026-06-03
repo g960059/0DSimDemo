@@ -21,7 +21,7 @@ export const Layout = () => {
         <div className="flex items-center gap-6">
           <Link to="/" className="flex items-center gap-2">
             <span className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
-              HemoSim 0D
+              CircleHeart
             </span>
           </Link>
 
