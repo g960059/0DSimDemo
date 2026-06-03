@@ -277,10 +277,14 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).toContain("Items");
     expect(html).toContain("Display");
     expect(html).toContain("Clinical knobs");
-    expect(html).toContain("Controller scope");
+    expect(html).toContain("Pane title");
     expect(html).toContain("@min-[760px]:grid");
     expect(html).toContain("sticky top-0");
     expect(html).toContain("overflow-hidden px-1 pb-2");
+    // Unnecessary count-meta badges removed from controller settings.
+    expect(html).not.toContain("Controller scope");
+    expect(html).not.toContain("Target shortcut");
+    expect(html).not.toContain("item groups");
     expect(html).not.toContain("Advanced");
     expect(html).not.toContain("Target keys");
     expect(html).not.toContain("Target enabled");

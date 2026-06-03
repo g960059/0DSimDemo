@@ -906,10 +906,7 @@ function ControlPanelSettingsBoard({
   const settingsScrollRef = useRef<HTMLDivElement | null>(null);
   const groupOptions = getControlGroupOptions(panel, controlGroups);
   const configuredInstances = instances.filter((inst) => panel.config[inst.id]);
-  const enabledInstances = configuredInstances.filter((inst) => panel.config[inst.id]?.visible);
   const configuredCount = configuredInstances.length;
-  const enabledCount = enabledInstances.length;
-  const activeGroupCount = groupOptions.filter((group) => configuredInstances.some((inst) => configHasControlGroup(panel.config[inst.id], group))).length;
   const updateActiveSectionFromScroll = useCallback(() => {
     const scrollEl = settingsScrollRef.current;
     if (!scrollEl) return;
@@ -991,7 +988,6 @@ function ControlPanelSettingsBoard({
               placeholder={inst.name}
               aria-label={`${inst.name} controller display name`}
             />
-            <span className="text-[10px] font-semibold text-slate-500">{cfg?.selectedSignals.length ?? 0} items</span>
           </div>
         );
       })}
@@ -1010,7 +1006,7 @@ function ControlPanelSettingsBoard({
             key={normalizeControlGroupId(group)}
             type="button"
             onClick={() => toggleGroupForPane(group)}
-            className={`grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-2 py-1.5 text-left transition-colors ${
+            className={`grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-2 px-2 py-1.5 text-left transition-colors ${
               isSelected
                 ? 'text-sky-100'
                 : isPartial
@@ -1024,9 +1020,6 @@ function ControlPanelSettingsBoard({
             <span className="min-w-0">
               <span className="block truncate text-xs font-bold">{meta.label}</span>
               <span className="hidden truncate text-[10px] font-medium text-slate-500 sm:block">{meta.description}</span>
-            </span>
-            <span className="text-[10px] font-bold text-slate-500">
-              {selectedCount} / {configuredCount || instances.length} targets
             </span>
           </button>
         );
@@ -1046,14 +1039,6 @@ function ControlPanelSettingsBoard({
           placeholder="Controls"
         />
       </label>
-      <div className="grid gap-1 px-2 py-2 sm:grid-cols-[8rem_minmax(0,1fr)] sm:items-center">
-        <div className="text-[10px] font-bold uppercase text-slate-500">Target shortcut</div>
-        <div className="text-sm font-bold text-slate-100">{enabledCount > 1 ? `${enabledCount} compact chips` : 'Single target'}</div>
-      </div>
-      <div className="grid gap-1 px-2 py-2 sm:grid-cols-[8rem_minmax(0,1fr)] sm:items-center">
-        <div className="text-[10px] font-bold uppercase text-slate-500">Controller scope</div>
-        <div className="text-sm font-bold text-slate-100">{activeGroupCount} item groups</div>
-      </div>
     </div>
   );
 
@@ -1088,10 +1073,6 @@ function ControlPanelSettingsBoard({
         <div className="mb-3 flex flex-none items-center justify-between gap-3 px-1 pb-1">
           <div className="min-w-0">
             <div className="text-sm font-bold text-slate-100">Controller pane</div>
-          </div>
-          <div className="flex flex-none items-center gap-2 text-[10px] font-bold text-slate-500">
-            <span>{enabledCount} targets</span>
-            <span>{activeGroupCount} groups</span>
           </div>
         </div>
         {CONTROL_SETTINGS_SECTIONS.map((section) => {
@@ -1596,11 +1577,11 @@ export function PanelGrid({
       const dy = moveEvent.clientY - startY;
       onLayoutStateChange((prev) => {
         if (target === 'caseRail') {
-          return { ...prev, caseRailWidth: clamp(startLayout.caseRailWidth + dx, 200, 380) };
+          return { ...prev, caseRailWidth: clamp(startLayout.caseRailWidth + dx, 200, 560) };
         }
         if (target === 'controls') {
           const signedDelta = startLayout.controlsSide === 'left' ? dx : -dx;
-          return { ...prev, controlsWidth: clamp(startLayout.controlsWidth + signedDelta, 240, 440) };
+          return { ...prev, controlsWidth: clamp(startLayout.controlsWidth + signedDelta, 240, 620) };
         }
         return { ...prev, outputHeight: clamp(startLayout.outputHeight - dy, 140, 320) };
       });
@@ -1633,15 +1614,15 @@ export function PanelGrid({
     onLayoutStateChange((prev) => {
       if (target === 'caseRail') {
         const delta = isCoarseIncrease ? coarseStep : isCoarseDecrease ? -coarseStep : key === 'ArrowRight' ? fineStep : key === 'ArrowLeft' ? -fineStep : 0;
-        const next = isHome ? 200 : isEnd ? 380 : prev.caseRailWidth + delta;
-        return { ...prev, caseRailWidth: clamp(next, 200, 380) };
+        const next = isHome ? 200 : isEnd ? 560 : prev.caseRailWidth + delta;
+        return { ...prev, caseRailWidth: clamp(next, 200, 560) };
       }
       if (target === 'controls') {
         const expandsWithKey = prev.controlsSide === 'left' ? 'ArrowRight' : 'ArrowLeft';
         const shrinksWithKey = prev.controlsSide === 'left' ? 'ArrowLeft' : 'ArrowRight';
         const delta = isCoarseIncrease ? coarseStep : isCoarseDecrease ? -coarseStep : key === expandsWithKey ? fineStep : key === shrinksWithKey ? -fineStep : 0;
-        const next = isHome ? 240 : isEnd ? 440 : prev.controlsWidth + delta;
-        return { ...prev, controlsWidth: clamp(next, 240, 440) };
+        const next = isHome ? 240 : isEnd ? 620 : prev.controlsWidth + delta;
+        return { ...prev, controlsWidth: clamp(next, 240, 620) };
       }
       const delta = isCoarseIncrease ? coarseStep : isCoarseDecrease ? -coarseStep : key === 'ArrowUp' ? fineStep : key === 'ArrowDown' ? -fineStep : 0;
       const next = isHome ? 140 : isEnd ? 320 : prev.outputHeight + delta;
@@ -1700,11 +1681,11 @@ export function PanelGrid({
   const sashClassName = 'z-20 bg-[#08111f] transition-colors hover:bg-slate-800/45 focus-visible:bg-slate-700/70 focus-visible:outline focus-visible:outline-1 focus-visible:outline-sky-400 data-[dragging=true]:bg-slate-700/70';
   const gridTemplateColumns = hasCaseRail
     ? layoutState.controlsSide === 'left'
-      ? `${layoutState.caseRailWidth}px 3px ${layoutState.controlsWidth}px 3px minmax(0,1fr)`
-      : `${layoutState.caseRailWidth}px 3px minmax(0,1fr) 3px ${layoutState.controlsWidth}px`
+      ? `${layoutState.caseRailWidth}px 3px ${layoutState.controlsWidth}px 3px minmax(320px,1fr)`
+      : `${layoutState.caseRailWidth}px 3px minmax(320px,1fr) 3px ${layoutState.controlsWidth}px`
     : layoutState.controlsSide === 'left'
-      ? `${layoutState.controlsWidth}px 3px minmax(0,1fr)`
-      : `minmax(0,1fr) 3px ${layoutState.controlsWidth}px`;
+      ? `${layoutState.controlsWidth}px 3px minmax(320px,1fr)`
+      : `minmax(320px,1fr) 3px ${layoutState.controlsWidth}px`;
   const gridTemplateRows = `minmax(0,1fr) 3px ${layoutState.outputHeight}px`;
   const caseRailStyle = { gridColumn: '1', gridRow: '1 / 4' };
   const caseRailSashStyle = { gridColumn: '2', gridRow: '1 / 4' };
@@ -1772,7 +1753,7 @@ export function PanelGrid({
                 aria-label="Resize case area"
                 aria-orientation="vertical"
                 aria-valuemin={200}
-                aria-valuemax={380}
+                aria-valuemax={560}
                 aria-valuenow={layoutState.caseRailWidth}
                 tabIndex={0}
                 className={`${sashClassName} cursor-col-resize`}
@@ -1823,7 +1804,7 @@ export function PanelGrid({
             aria-label="Resize controls area"
             aria-orientation="vertical"
             aria-valuemin={240}
-            aria-valuemax={440}
+            aria-valuemax={620}
             aria-valuenow={layoutState.controlsWidth}
             tabIndex={0}
             className={`${sashClassName} cursor-col-resize`}

@@ -161,16 +161,16 @@ const GroupHeader = ({ title, isOpen, toggle, tone = 'raw', changedCount = 0, su
             )}
             {isOpen ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-500" />}
         </button>
-        {onReset && (
+        {onReset && changedCount > 0 && (
           <button
             type="button"
             onClick={onReset}
-            disabled={changedCount === 0}
-            className={`mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded border transition-colors ${changedCount > 0 ? 'border-blue-400/30 bg-blue-400/10 text-blue-100 hover:bg-blue-400/20' : 'border-transparent text-slate-600'}`}
-            title={changedCount > 0 ? 'Reset clinical knobs to baseline' : 'Clinical knobs are at baseline'}
-            aria-label="Reset clinical knobs"
+            className="mr-1 flex h-6 shrink-0 items-center gap-1 rounded border border-blue-400/30 bg-blue-400/10 px-1.5 text-blue-100 transition-colors hover:bg-blue-400/20"
+            title="Reset clinical knobs to baseline"
+            aria-label="Reset clinical knobs to baseline"
           >
             <RotateCcw className="h-3.5 w-3.5" />
+            <span className="text-[10px] font-semibold">Reset</span>
           </button>
         )}
     </div>
