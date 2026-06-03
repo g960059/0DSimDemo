@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { SimInstance, PhysicsRefState, PanelInstanceConfig } from '../types';
+import type { SimSample } from '../engine/protocol';
 import { useDocumentVisible, useOnscreen } from '../hooks/useOnscreen';
 import {
     buildGuytonPaneData,
@@ -81,6 +82,188 @@ const stableRange = (
     }
 };
 
+const sampleSignalValue = (d: SimSample, sig: string): number => {
+    switch(sig) {
+        case 'Plv': case 'LVP': return d.LVP;
+        case 'Pla': case 'LAP': return d.LAP;
+        case 'Prv': case 'RVP': return d.RVP;
+        case 'Pra': case 'RAP': return d.RAP;
+        case 'AoP': return d.AoP;
+        case 'PAP': return d.PAP;
+        case 'QAo': return d.QAo;
+        case 'QMV': return d.QMV;
+        case 'QPA': return d.QPA;
+        case 'QPV': return d.QPV;
+        case 'QTV': return d.QTV;
+        case 'PVF': return d.PVF;
+        case 'SVF': return d.SVF;
+        case 'QCorLAD': return d.QCorLAD;
+        case 'QCorLCx': return d.QCorLCx;
+        case 'QCorRCA': return d.QCorRCA;
+        case 'QCorTotal': return d.QCorTotal;
+        case 'QCS': return d.QCS;
+        case 'PimLAD': return d.PimLAD;
+        case 'PimLCx': return d.PimLCx;
+        case 'PimRCA': return d.PimRCA;
+        case 'PLADArt': return d.PLADArt;
+        case 'PLCxArt': return d.PLCxArt;
+        case 'PRCAArt': return d.PRCAArt;
+        case 'PCS': return d.PCS;
+        case 'VRA': return d.VRA;
+        case 'aRA': return d.aRA;
+        case 'cRA': return d.cRA;
+        case 'xiTV': return d.xiTV;
+        case 'xiPV': return d.xiPV;
+        case 'dP_TV': return d.dP_TV;
+        case 'dP_PV': return d.dP_PV;
+        case 'Pperi': return d.Pperi;
+        case 'Ppc': return d.Ppc;
+        case 'VHeart': return d.VHeart;
+        case 'septumShiftMl': return d.septumShiftMl;
+        case 'VLVeff': return d.VLVeff;
+        case 'VRVeff': return d.VRVeff;
+        case 'PLVfw': return d.PLVfw;
+        case 'PRVfw': return d.PRVfw;
+        case 'PVI_LV': return d.PVI_LV;
+        case 'PVI_RV': return d.PVI_RV;
+        case 'septalForceMmHg': return d.septalForceMmHg;
+        default: return 0;
+    }
+};
+
+const chamberPVPoint = (d: SimSample, chamber: string): { v: number; p: number } => {
+    switch (chamber) {
+        case 'LV': return { v: d.VLV, p: d.LVP };
+        case 'LA': return { v: d.VLA, p: d.LAP };
+        case 'RV': return { v: d.VRV, p: d.RVP };
+        case 'RA': return { v: d.VRA, p: d.RAP };
+        default: return { v: 0, p: 0 };
+    }
+};
+
+const lastCompleteBeatRange = (buf: SimSample[]): { start: number; end: number; closingIndex: number } => {
+    const phiNow = buf[buf.length - 1]?.phi ?? 0;
+    const beatEnd = Math.floor(phiNow);
+    if (beatEnd < 1) return { start: 0, end: buf.length, closingIndex: -1 };
+    const beatStart = beatEnd - 1;
+    let end = buf.length;
+    while (end > 0 && buf[end - 1].phi > beatEnd) end--;
+    let start = end;
+    while (start > 0 && buf[start - 1].phi >= beatStart) start--;
+    return { start, end, closingIndex: end < buf.length ? end : -1 };
+};
+
+const firstSampleIndexAtOrAfter = (buf: SimSample[], t: number): number => {
+    let lo = 0;
+    let hi = buf.length;
+    while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (buf[mid].t < t) lo = mid + 1;
+        else hi = mid;
+    }
+    return lo;
+};
+
+type CanvasPoint = { x: number; y: number };
+
+const chartInstanceKey = (instances: SimInstance[]): string => (
+    instances
+        .map((inst) => `${inst.id}:${inst.name}:${inst.color}:${inst.isVisible !== false}`)
+        .join('|')
+);
+
+const isPvLoopDebugEnabled = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    try {
+        return new URLSearchParams(window.location.search).has('pvDebug')
+            || window.localStorage.getItem('hemo:pvDebug') === '1';
+    } catch {
+        return false;
+    }
+};
+
+const drawSmoothPolyline = (ctx: CanvasRenderingContext2D, points: CanvasPoint[]): void => {
+    if (points.length < 2) return;
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    if (points.length === 2) {
+        ctx.lineTo(points[1].x, points[1].y);
+        ctx.stroke();
+        return;
+    }
+    for (let i = 1; i < points.length - 1; i++) {
+        const current = points[i];
+        const next = points[i + 1];
+        ctx.quadraticCurveTo(current.x, current.y, (current.x + next.x) * 0.5, (current.y + next.y) * 0.5);
+    }
+    const last = points[points.length - 1];
+    ctx.lineTo(last.x, last.y);
+    ctx.stroke();
+};
+
+const drawRawDots = (ctx: CanvasRenderingContext2D, points: CanvasPoint[], color: string): void => {
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.7;
+    for (const point of points) {
+        ctx.fillRect(point.x - 1, point.y - 1, 2, 2);
+    }
+    ctx.restore();
+};
+
+const phaseFraction = (phi: number): number => {
+    const frac = phi - Math.floor(phi);
+    return frac < 0 ? frac + 1 : frac;
+};
+
+const pvPointAtDisplayedPhase = (
+    buf: SimSample[],
+    beatRange: { start: number; end: number; closingIndex: number },
+    chamber: string,
+    livePhi: number,
+): { v: number; p: number } | null => {
+    const first = buf[beatRange.start];
+    if (!first) return null;
+    const beatStartPhi = Math.floor(first.phi);
+    const targetPhi = beatStartPhi + phaseFraction(livePhi);
+    const lastBeatIndex = Math.max(beatRange.start, beatRange.end - 1);
+    const lastCandidateIndex = beatRange.closingIndex >= 0 ? beatRange.closingIndex : lastBeatIndex;
+
+    for (let i = beatRange.start + 1; i <= lastCandidateIndex; i++) {
+        const prev = buf[i - 1];
+        const cur = buf[i];
+        if (!prev || !cur) continue;
+        if (prev.phi > targetPhi || cur.phi < targetPhi) continue;
+        const prevPoint = chamberPVPoint(prev, chamber);
+        const curPoint = chamberPVPoint(cur, chamber);
+        const span = cur.phi - prev.phi;
+        const alpha = span > 1e-9 ? Math.max(0, Math.min(1, (targetPhi - prev.phi) / span)) : 0;
+        return {
+            v: prevPoint.v + (curPoint.v - prevPoint.v) * alpha,
+            p: prevPoint.p + (curPoint.p - prevPoint.p) * alpha,
+        };
+    }
+
+    return chamberPVPoint(targetPhi <= first.phi ? first : (buf[lastBeatIndex] ?? first), chamber);
+};
+
+const drawPvDebugOverlay = (ctx: CanvasRenderingContext2D, lines: string[]): void => {
+    if (lines.length === 0) return;
+    ctx.save();
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    const x = 56;
+    const y = 12;
+    const lineHeight = 13;
+    const maxWidth = Math.max(...lines.map((line) => ctx.measureText(line).width));
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
+    ctx.fillRect(x - 5, y - 4, maxWidth + 10, lines.length * lineHeight + 8);
+    ctx.fillStyle = '#cbd5e1';
+    lines.forEach((line, i) => ctx.fillText(line, x, y + i * lineHeight));
+    ctx.restore();
+};
+
 const ChartLegend = ({ instances, config, showLegend, extraClasses = '' }: { instances: SimInstance[], config: Record<string, PanelInstanceConfig>, showLegend?: boolean, extraClasses?: string }) => {
     if (showLegend === false) return null;
     return (
@@ -114,6 +297,7 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
   const isOnscreen = useOnscreen(containerRef);
   const isDocumentVisible = useDocumentVisible();
   const canAnimate = isOnscreen && isDocumentVisible;
+  const instanceKey = useMemo(() => chartInstanceKey(instances), [instances]);
 
   useEffect(() => {
     if (!canAnimate) return;
@@ -131,7 +315,7 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
         height = containerRef.current!.clientHeight;
         canvas.width = width * dpr;
         canvas.height = height * dpr;
-        ctx.scale(dpr, dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         canvas.style.width = `${width}px`;
         canvas.style.height = `${height}px`;
     };
@@ -162,13 +346,7 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
           for (let i = 0; i < data.length; i += 10) {
               const d = data[i];
               cfg.selectedSignals.forEach((chamber: string) => {
-                  let v = 0, p = 0;
-                  switch(chamber) {
-                      case 'LV': v = d.VLV; p = d.LVP; break;
-                      case 'LA': v = d.VLA; p = d.LAP; break;
-                      case 'RV': v = d.VRV; p = d.RVP; break;
-                      case 'RA': v = d.VRA; p = d.RAP; break;
-                  }
+                  const { v, p } = chamberPVPoint(d, chamber);
                   if (v > currentFrameMaxV) currentFrameMaxV = v;
                   if (p > currentFrameMaxP) currentFrameMaxP = p;
                   hasData = true;
@@ -215,6 +393,9 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
       ctx.fillText("Pressure (mmHg)", 0, 0);
       ctx.restore();
 
+      const pvDebug = isPvLoopDebugEnabled();
+      const debugLines: string[] = [];
+
       instances.forEach(inst => {
           const cfg = (config as any)[inst.id];
           if (!cfg || !cfg.visible) return;
@@ -226,66 +407,58 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
           // not a trailing 1.0-phase window that mixes a partial current beat —
           // otherwise the loop's crossing point shifts and stray segments appear.
           const buf = physState.buffer;
-          const phiNow = buf[buf.length - 1]?.phi ?? 0;
-          const beatEnd = Math.floor(phiNow);
-          const beatStart = beatEnd - 1;
-          let data = beatEnd >= 1 ? buf.filter(d => d.phi >= beatStart && d.phi <= beatEnd) : buf;
-          const closing = beatEnd >= 1 ? buf.find(d => d.phi > beatEnd) : undefined;
-          if (closing) data = [...data, closing];
+          const beatRange = lastCompleteBeatRange(buf);
+          const beatSampleCount = beatRange.end - beatRange.start + (beatRange.closingIndex >= 0 ? 1 : 0);
 
           cfg.selectedSignals.forEach((chamber: string) => {
               // The LA figure-8 needs a full beat to render its two sub-loops;
               // skip only a degenerate/partial window (live buffer is ~tens of
               // samples per beat, so the old 80 threshold hid the loop entirely).
-              if (chamber === 'LA' && data.length < 16) return;
+              if (chamber === 'LA' && beatSampleCount < 16) return;
               const color = getColor(inst.color, chamber, cfg.customBaseColor, cfg.customSignalColors);
               
-              ctx.beginPath();
+              const points: CanvasPoint[] = [];
+              const addPoint = (d: SimSample) => {
+                  const { v, p } = chamberPVPoint(d, chamber);
+                  points.push({ x: xScale(v), y: yScale(p) });
+              };
+              for (let i = beatRange.start; i < beatRange.end; i++) {
+                  addPoint(buf[i]);
+              }
+              if (beatRange.closingIndex >= 0) {
+                  addPoint(buf[beatRange.closingIndex]);
+              }
+              if (points.length < 2) return;
+
+              ctx.save();
               ctx.strokeStyle = color;
               ctx.lineWidth = 2;
-              
-              let isFirst = true;
-              for (let i = 0; i < data.length; i++) {
-                  const d = data[i];
-                  let v = 0, p = 0;
-                  switch (chamber) {
-                      case 'LV': v = d.VLV; p = d.LVP; break;
-                      case 'LA': v = d.VLA; p = d.LAP; break;
-                      case 'RV': v = d.VRV; p = d.RVP; break;
-                      case 'RA': v = d.VRA; p = d.RAP; break;
-                  }
-                  
-                  const px = xScale(v);
-                  const py = yScale(p);
-                  
-                  if (isFirst) {
-                      ctx.moveTo(px, py);
-                      isFirst = false;
-                  } else {
-                      ctx.lineTo(px, py);
-                  }
-              }
-              ctx.stroke();
+              ctx.lineJoin = 'round';
+              ctx.lineCap = 'round';
+              drawSmoothPolyline(ctx, points);
+              ctx.restore();
 
-              // Marker rides the LIVE current sample (buf end), not the end of the
-              // last-complete-beat window — otherwise the dot sits at a near-fixed
-              // phase and only jumps once per beat instead of tracking the loop.
+              if (pvDebug) {
+                  drawRawDots(ctx, points, color);
+                  const activeName = cfg.customName || inst.name;
+                  debugLines.push(`${activeName} ${chamber}: ${points.length} pts`);
+              }
+
+              // Marker is a live-phase cursor on the displayed beat. The loop is
+              // intentionally last-complete-beat; using the latest transient PV
+              // coordinate would make the dot float away from that displayed curve.
               const lastPoint = buf[buf.length - 1];
               if (lastPoint) {
-                 let v = 0, p = 0;
-                 switch (chamber) {
-                      case 'LV': v = lastPoint.VLV; p = lastPoint.LVP; break;
-                      case 'LA': v = lastPoint.VLA; p = lastPoint.LAP; break;
-                      case 'RV': v = lastPoint.VRV; p = lastPoint.RVP; break;
-                      case 'RA': v = lastPoint.VRA; p = lastPoint.RAP; break;
-                 }
-                 ctx.beginPath();
-                 ctx.arc(xScale(v), yScale(p), 4, 0, Math.PI * 2);
-                 ctx.fillStyle = color;
-                 ctx.fill();
+                  const markerPv = pvPointAtDisplayedPhase(buf, beatRange, chamber, lastPoint.phi) ?? chamberPVPoint(lastPoint, chamber);
+                  ctx.beginPath();
+                  ctx.arc(xScale(markerPv.v), yScale(markerPv.p), 4, 0, Math.PI * 2);
+                  ctx.fillStyle = color;
+                  ctx.fill();
               }
           });
       });
+
+      if (pvDebug) drawPvDebugOverlay(ctx, debugLines);
 
       animationFrameId = requestAnimationFrame(render);
     };
@@ -302,7 +475,7 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
       if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
       ro.disconnect();
     };
-  }, [instances, config, showGuides, canAnimate]);
+  }, [instanceKey, config, showGuides, canAnimate]);
 
   return (
       <div ref={containerRef} className="absolute inset-0 rounded-b-xl overflow-hidden pointer-events-none">
@@ -319,6 +492,7 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
     const isOnscreen = useOnscreen(containerRef);
     const isDocumentVisible = useDocumentVisible();
     const canAnimate = isOnscreen && isDocumentVisible;
+    const instanceKey = useMemo(() => chartInstanceKey(instances), [instances]);
 
     useEffect(() => {
         if (!canAnimate) return;
@@ -336,7 +510,7 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
             height = containerRef.current!.clientHeight;
             canvas.width = width * dpr;
             canvas.height = height * dpr;
-            ctx.scale(dpr, dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             canvas.style.width = `${width}px`;
             canvas.style.height = `${height}px`;
         };
@@ -372,57 +546,13 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                 const physState = physicsRefs.current.get(inst.id);
                 if (!physState) return;
                 
+                const startIndex = firstSampleIndexAtOrAfter(physState.buffer, tMin);
                 const stepFrames = 10;
-                for (let i = 0; i < physState.buffer.length; i += stepFrames) {
+                for (let i = startIndex; i < physState.buffer.length; i += stepFrames) {
                     const d = physState.buffer[i];
-                    if (d.t < tMin || d.t > tMax) continue;
+                    if (d.t > tMax) break;
                     cfg.selectedSignals.forEach((sig: string) => {
-                        let val = 0;
-                        switch(sig) {
-                            case 'Plv': case 'LVP': val = d.LVP; break;
-                            case 'Pla': case 'LAP': val = d.LAP; break;
-                            case 'Prv': case 'RVP': val = d.RVP; break;
-                            case 'Pra': case 'RAP': val = d.RAP; break;
-                            case 'AoP': val = d.AoP; break;
-                            case 'PAP': val = d.PAP; break;
-                            case 'QAo': val = d.QAo; break;
-                            case 'QMV': val = d.QMV; break;
-                            case 'QPA': val = d.QPA; break;
-                            case 'QPV': val = d.QPV; break;
-                            case 'QTV': val = d.QTV; break;
-                            case 'PVF': val = d.PVF; break;
-                            case 'SVF': val = d.SVF; break;
-                            case 'QCorLAD': val = d.QCorLAD; break;
-                            case 'QCorLCx': val = d.QCorLCx; break;
-                            case 'QCorRCA': val = d.QCorRCA; break;
-                            case 'QCorTotal': val = d.QCorTotal; break;
-                            case 'QCS': val = d.QCS; break;
-                            case 'PimLAD': val = d.PimLAD; break;
-                            case 'PimLCx': val = d.PimLCx; break;
-                            case 'PimRCA': val = d.PimRCA; break;
-                            case 'PLADArt': val = d.PLADArt; break;
-                            case 'PLCxArt': val = d.PLCxArt; break;
-                            case 'PRCAArt': val = d.PRCAArt; break;
-                            case 'PCS': val = d.PCS; break;
-                            case 'VRA': val = d.VRA; break;
-                            case 'aRA': val = d.aRA; break;
-                            case 'cRA': val = d.cRA; break;
-                            case 'xiTV': val = d.xiTV; break;
-                            case 'xiPV': val = d.xiPV; break;
-                            case 'dP_TV': val = d.dP_TV; break;
-                            case 'dP_PV': val = d.dP_PV; break;
-                            case 'Pperi': val = d.Pperi; break;
-                            case 'Ppc': val = d.Ppc; break;
-                            case 'VHeart': val = d.VHeart; break;
-                            case 'septumShiftMl': val = d.septumShiftMl; break;
-                            case 'VLVeff': val = d.VLVeff; break;
-                            case 'VRVeff': val = d.VRVeff; break;
-                            case 'PLVfw': val = d.PLVfw; break;
-                            case 'PRVfw': val = d.PRVfw; break;
-                            case 'PVI_LV': val = d.PVI_LV; break;
-                            case 'PVI_RV': val = d.PVI_RV; break;
-                            case 'septalForceMmHg': val = d.septalForceMmHg; break;
-                        }
+                        const val = sampleSignalValue(d, sig);
                         if (val > frameYMax) frameYMax = val;
                         if (val < frameYMin) frameYMin = val;
                         hasData = true;
@@ -465,7 +595,9 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                 const physState = physicsRefs.current.get(inst.id);
                 if (!physState) return;
 
-                const drawStep = Math.max(1, Math.floor(physState.buffer.length / (width * 2)));
+                const startIndex = firstSampleIndexAtOrAfter(physState.buffer, tMin);
+                const visibleCount = physState.buffer.length - startIndex;
+                const drawStep = Math.max(1, Math.floor(visibleCount / Math.max(1, width * 2)));
 
                 cfg.selectedSignals.forEach((sig: string) => {
                     const color = getColor(inst.color, sig, cfg.customBaseColor, cfg.customSignalColors);
@@ -477,57 +609,10 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                     let lastPx = -1;
                     let lastPy = -1;
 
-                    for (let i = 0; i < physState.buffer.length; i += drawStep) {
+                    for (let i = startIndex; i < physState.buffer.length; i += drawStep) {
                         const d = physState.buffer[i];
-                        if (d.t < tMin) continue;
                         if (d.t > tMax) break;
-
-                        let val = 0;
-                        switch(sig) {
-                            case 'Plv': case 'LVP': val = d.LVP; break;
-                            case 'Pla': case 'LAP': val = d.LAP; break;
-                            case 'Prv': case 'RVP': val = d.RVP; break;
-                            case 'Pra': case 'RAP': val = d.RAP; break;
-                            case 'AoP': val = d.AoP; break;
-                            case 'PAP': val = d.PAP; break;
-                            case 'QAo': val = d.QAo; break;
-                            case 'QMV': val = d.QMV; break;
-                            case 'QPA': val = d.QPA; break;
-                            case 'QPV': val = d.QPV; break;
-                            case 'QTV': val = d.QTV; break;
-                            case 'PVF': val = d.PVF; break;
-                            case 'SVF': val = d.SVF; break;
-                            case 'QCorLAD': val = d.QCorLAD; break;
-                            case 'QCorLCx': val = d.QCorLCx; break;
-                            case 'QCorRCA': val = d.QCorRCA; break;
-                            case 'QCorTotal': val = d.QCorTotal; break;
-                            case 'QCS': val = d.QCS; break;
-                            case 'PimLAD': val = d.PimLAD; break;
-                            case 'PimLCx': val = d.PimLCx; break;
-                            case 'PimRCA': val = d.PimRCA; break;
-                            case 'PLADArt': val = d.PLADArt; break;
-                            case 'PLCxArt': val = d.PLCxArt; break;
-                            case 'PRCAArt': val = d.PRCAArt; break;
-                            case 'PCS': val = d.PCS; break;
-                            case 'VRA': val = d.VRA; break;
-                            case 'aRA': val = d.aRA; break;
-                            case 'cRA': val = d.cRA; break;
-                            case 'xiTV': val = d.xiTV; break;
-                            case 'xiPV': val = d.xiPV; break;
-                            case 'dP_TV': val = d.dP_TV; break;
-                            case 'dP_PV': val = d.dP_PV; break;
-                            case 'Pperi': val = d.Pperi; break;
-                            case 'Ppc': val = d.Ppc; break;
-                            case 'VHeart': val = d.VHeart; break;
-                            case 'septumShiftMl': val = d.septumShiftMl; break;
-                            case 'VLVeff': val = d.VLVeff; break;
-                            case 'VRVeff': val = d.VRVeff; break;
-                            case 'PLVfw': val = d.PLVfw; break;
-                            case 'PRVfw': val = d.PRVfw; break;
-                            case 'PVI_LV': val = d.PVI_LV; break;
-                            case 'PVI_RV': val = d.PVI_RV; break;
-                            case 'septalForceMmHg': val = d.septalForceMmHg; break;
-                        }
+                        const val = sampleSignalValue(d, sig);
 
                         const modT = d.t % timeSec;
                         const px = xScale(modT);
@@ -571,7 +656,7 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
             if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
             ro.disconnect();
         };
-    }, [instances, timeWindow, config, canAnimate]);
+    }, [instanceKey, timeWindow, config, canAnimate]);
 
     return (
         <div ref={containerRef} className="absolute inset-0 rounded-b-xl overflow-hidden pointer-events-none">

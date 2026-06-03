@@ -1,5 +1,12 @@
-import { CoreRuntimeParams, SimulationHealthStatus } from './engine/protocol';
-import { ClinicalKnobs } from './engine/knobs';
+import type {
+    CoreRuntimeParams,
+    SimMetrics,
+    SimObservables,
+    SimSample,
+    SimulationHealth,
+    SimulationHealthStatus,
+} from './engine/protocol';
+import type { ClinicalKnobs } from './engine/knobs';
 
 export type SimulationParams = CoreRuntimeParams;
 
@@ -62,11 +69,18 @@ export interface PanelDef {
     showLegend?: boolean;
 }
 
-import { ModelCore } from './engine/ModelCore';
-import { SimSample } from './engine/protocol';
+export interface PreviewCoreFacade {
+    t: number;
+    p: CoreRuntimeParams;
+    metrics(): SimMetrics;
+    health(): SimulationHealth;
+    debugObservables(): SimObservables;
+}
 
 export interface PhysicsRefState {
-    core: ModelCore;
+    core: PreviewCoreFacade;
     buffer: SimSample[];
     lastRenderX: number;
+    isSettling?: boolean;
+    settleProgress?: number;
 }
