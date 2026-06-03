@@ -2,7 +2,7 @@ import type { Lesson, NumericKnobKey } from "@/lessonDoc";
 import { parseCaseDocument } from "@/casePersist";
 import { KNOB_RANGES } from "@/engine/knobs";
 
-export const USER_LESSONS_KEY = "hemosim:user-lessons:v1";
+export const USER_LESSONS_KEY = "circleheart:user-lessons:v1";
 
 type PersistedLessonCollection = {
   version: 1;

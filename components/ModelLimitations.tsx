@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Info, X } from 'lucide-react';
 
-const ACK_KEY = 'hemosim.modelLimitations.ack.v1';
+const ACK_KEY = 'circleheart.modelLimitations.ack.v1';
 
 const LIMITATIONS: string[] = [
   'Research & education only — not a medical device, and not for diagnosis, treatment, or any patient-specific decision.',

@@ -22,7 +22,7 @@ import { OFFICIAL_BASELINES } from "@/engine/caseBaselines";
 import { type ClinicalKnobs, type KnobKey, neutralKnobs, resolveKnobMappingVersion } from "@/engine/knobs";
 
 export const CASE_SCHEMA_VERSION = 1;
-export const ENGINE_VERSION = "hemosim-0d@0.0.0";
+export const ENGINE_VERSION = "circleheart@0.0.0";
 
 /** Deterministic replay config; travels in the document. */
 export interface SolverConfig {
