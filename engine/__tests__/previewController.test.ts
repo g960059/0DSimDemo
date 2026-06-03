@@ -65,6 +65,30 @@ describe("PreviewController (headless driver)", () => {
     expect(span).toBeGreaterThan(15); // actually filled
   });
 
+  it("records frame performance and trims buffers in a single batch", () => {
+    const c = new PreviewController({ bufferRetentionSec: 0.2 });
+    c.setInstances([inst()]);
+    const phys = c.refs.get("1")!;
+
+    let now = 0;
+    for (let i = 0; i < 40; i++) {
+      now += 50;
+      c.tick(now);
+    }
+
+    const snapshot = c.getPerfSnapshot();
+    expect(snapshot).not.toBeNull();
+    expect(snapshot!.instanceCount).toBe(1);
+    expect(snapshot!.samples).toBeGreaterThan(0);
+    expect(snapshot!.trimmedSamples).toBeGreaterThan(0);
+    expect(snapshot!.coreWallMs).toBeGreaterThanOrEqual(0);
+    expect(snapshot!.frameWallMs).toBeGreaterThanOrEqual(snapshot!.coreWallMs);
+    expect(snapshot!.byInstance["1"].bufferLength).toBe(phys.buffer.length);
+
+    const span = phys.buffer[phys.buffer.length - 1].t - phys.buffer[0].t;
+    expect(span).toBeLessThanOrEqual(0.25);
+  });
+
   it("fires onHealthChange only on a status-signature change, not every tick", () => {
     const c = new PreviewController({ healthThrottleMs: 0 });
     c.setInstances([inst()]);
