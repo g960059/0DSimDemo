@@ -20,6 +20,7 @@ type WorkerCoreRecord = {
 
 let dt = 0.001;
 let sampleHz = 120;
+let generation = 0;
 let instances: SimInstance[] = [];
 const records = new Map<string, WorkerCoreRecord>();
 
@@ -69,7 +70,7 @@ const createRecord = (inst: SimInstance): WorkerCoreRecord => {
   };
 };
 
-const finishSettle = (id: string, record: WorkerCoreRecord, token: number, settling: boolean) => {
+const finishSettle = (id: string, record: WorkerCoreRecord, token: number, settleGeneration: number, settling: boolean) => {
   if (record.settleToken !== token) return;
   const alignT = maxSettledT(id);
   if (alignT > record.core.t) {
@@ -80,6 +81,7 @@ const finishSettle = (id: string, record: WorkerCoreRecord, token: number, settl
   record.lastSnapshotNow = nowMs();
   post({
     type: "settleProgress",
+    generation: settleGeneration,
     id,
     snapshot: snapshotCore(record.core),
     actualSeconds: record.core.t - record.settleStartT,
@@ -87,7 +89,7 @@ const finishSettle = (id: string, record: WorkerCoreRecord, token: number, settl
   });
 };
 
-const startIncrementalSettle = (id: string, record: WorkerCoreRecord) => {
+const startIncrementalSettle = (id: string, record: WorkerCoreRecord, settleGeneration: number) => {
   record.settling = true;
   record.settleStartT = record.core.t;
   const token = ++record.settleToken;
@@ -98,17 +100,17 @@ const startIncrementalSettle = (id: string, record: WorkerCoreRecord) => {
     const elapsed = record.core.t - record.settleStartT;
     const before = record.core.assessSteadyState(PREVIEW_SETTLE_POLICY);
     if (before.reason === "forced-trend") {
-      finishSettle(id, record, token, false);
+      finishSettle(id, record, token, settleGeneration, false);
       return;
     }
     if (before.settled) {
       const postBeatSeconds = (60 / Math.max(record.core.p.HR, 1)) * PREVIEW_SETTLE_POLICY.postSettleBeats;
       record.core.runFor(postBeatSeconds, dt, sampleHz);
-      finishSettle(id, record, token, false);
+      finishSettle(id, record, token, settleGeneration, false);
       return;
     }
     if (elapsed >= PREVIEW_SETTLE_POLICY.capSeconds) {
-      finishSettle(id, record, token, false);
+      finishSettle(id, record, token, settleGeneration, false);
       return;
     }
 
@@ -117,6 +119,7 @@ const startIncrementalSettle = (id: string, record: WorkerCoreRecord) => {
     record.lastSnapshotNow = nowMs();
     post({
       type: "settleProgress",
+      generation: settleGeneration,
       id,
       snapshot: snapshotCore(record.core),
       actualSeconds: record.core.t - record.settleStartT,
@@ -144,7 +147,7 @@ const reconcileInstances = (nextInstances: SimInstance[]) => {
     if (!existing) {
       const record = createRecord(inst);
       records.set(inst.id, record);
-      startIncrementalSettle(inst.id, record);
+      startIncrementalSettle(inst.id, record, generation);
       continue;
     }
 
@@ -153,7 +156,7 @@ const reconcileInstances = (nextInstances: SimInstance[]) => {
       existing.settleToken++;
       const record = createRecord(inst);
       records.set(inst.id, record);
-      startIncrementalSettle(inst.id, record);
+      startIncrementalSettle(inst.id, record, generation);
     }
   }
 };
@@ -166,7 +169,7 @@ const resetInstances = (ids: string[]) => {
     if (existing) existing.settleToken++;
     const record = createRecord(inst);
     records.set(inst.id, record);
-    startIncrementalSettle(inst.id, record);
+    startIncrementalSettle(inst.id, record, generation);
   }
 };
 
@@ -178,7 +181,7 @@ const setInstanceVolume = (id: string, volume: number) => {
   record.lastSnapshotNow = -Infinity;
 };
 
-const runTick = (requestId: number, now: number, simSeconds: number) => {
+const runTick = (requestGeneration: number, requestId: number, now: number, simSeconds: number) => {
   const started = nowMs();
   let sampleCount = 0;
   let settlingCount = 0;
@@ -215,6 +218,7 @@ const runTick = (requestId: number, now: number, simSeconds: number) => {
 
   post({
     type: "frame",
+    generation: requestGeneration,
     requestId,
     now,
     instances: out,
@@ -236,16 +240,19 @@ self.onmessage = (event: MessageEvent<PreviewWorkerRequest>) => {
         sampleHz = message.sampleHz;
         break;
       case "setInstances":
+        generation = message.generation;
         reconcileInstances(message.instances);
         break;
       case "resetInstances":
+        generation = message.generation;
         resetInstances(message.ids);
         break;
       case "setInstanceVolume":
+        generation = message.generation;
         setInstanceVolume(message.id, message.volume);
         break;
       case "tick":
-        runTick(message.requestId, message.now, message.simSeconds);
+        runTick(message.generation, message.requestId, message.now, message.simSeconds);
         break;
     }
   } catch (err) {

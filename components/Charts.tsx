@@ -166,6 +166,12 @@ const firstSampleIndexAtOrAfter = (buf: SimSample[], t: number): number => {
 
 type CanvasPoint = { x: number; y: number };
 
+const chartInstanceKey = (instances: SimInstance[]): string => (
+    instances
+        .map((inst) => `${inst.id}:${inst.name}:${inst.color}:${inst.isVisible !== false}`)
+        .join('|')
+);
+
 const isPvLoopDebugEnabled = (): boolean => {
     if (typeof window === 'undefined') return false;
     try {
@@ -203,6 +209,42 @@ const drawRawDots = (ctx: CanvasRenderingContext2D, points: CanvasPoint[], color
         ctx.fillRect(point.x - 1, point.y - 1, 2, 2);
     }
     ctx.restore();
+};
+
+const phaseFraction = (phi: number): number => {
+    const frac = phi - Math.floor(phi);
+    return frac < 0 ? frac + 1 : frac;
+};
+
+const pvPointAtDisplayedPhase = (
+    buf: SimSample[],
+    beatRange: { start: number; end: number; closingIndex: number },
+    chamber: string,
+    livePhi: number,
+): { v: number; p: number } | null => {
+    const first = buf[beatRange.start];
+    if (!first) return null;
+    const beatStartPhi = Math.floor(first.phi);
+    const targetPhi = beatStartPhi + phaseFraction(livePhi);
+    const lastBeatIndex = Math.max(beatRange.start, beatRange.end - 1);
+    const lastCandidateIndex = beatRange.closingIndex >= 0 ? beatRange.closingIndex : lastBeatIndex;
+
+    for (let i = beatRange.start + 1; i <= lastCandidateIndex; i++) {
+        const prev = buf[i - 1];
+        const cur = buf[i];
+        if (!prev || !cur) continue;
+        if (prev.phi > targetPhi || cur.phi < targetPhi) continue;
+        const prevPoint = chamberPVPoint(prev, chamber);
+        const curPoint = chamberPVPoint(cur, chamber);
+        const span = cur.phi - prev.phi;
+        const alpha = span > 1e-9 ? Math.max(0, Math.min(1, (targetPhi - prev.phi) / span)) : 0;
+        return {
+            v: prevPoint.v + (curPoint.v - prevPoint.v) * alpha,
+            p: prevPoint.p + (curPoint.p - prevPoint.p) * alpha,
+        };
+    }
+
+    return chamberPVPoint(targetPhi <= first.phi ? first : (buf[lastBeatIndex] ?? first), chamber);
 };
 
 const drawPvDebugOverlay = (ctx: CanvasRenderingContext2D, lines: string[]): void => {
@@ -255,6 +297,7 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
   const isOnscreen = useOnscreen(containerRef);
   const isDocumentVisible = useDocumentVisible();
   const canAnimate = isOnscreen && isDocumentVisible;
+  const instanceKey = useMemo(() => chartInstanceKey(instances), [instances]);
 
   useEffect(() => {
     if (!canAnimate) return;
@@ -401,16 +444,16 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
                   debugLines.push(`${activeName} ${chamber}: ${points.length} pts`);
               }
 
-              // Marker rides the LIVE current sample (buf end), not the end of the
-              // last-complete-beat window — otherwise the dot sits at a near-fixed
-              // phase and only jumps once per beat instead of tracking the loop.
+              // Marker is a live-phase cursor on the displayed beat. The loop is
+              // intentionally last-complete-beat; using the latest transient PV
+              // coordinate would make the dot float away from that displayed curve.
               const lastPoint = buf[buf.length - 1];
               if (lastPoint) {
-                 const { v, p } = chamberPVPoint(lastPoint, chamber);
-                 ctx.beginPath();
-                 ctx.arc(xScale(v), yScale(p), 4, 0, Math.PI * 2);
-                 ctx.fillStyle = color;
-                 ctx.fill();
+                  const markerPv = pvPointAtDisplayedPhase(buf, beatRange, chamber, lastPoint.phi) ?? chamberPVPoint(lastPoint, chamber);
+                  ctx.beginPath();
+                  ctx.arc(xScale(markerPv.v), yScale(markerPv.p), 4, 0, Math.PI * 2);
+                  ctx.fillStyle = color;
+                  ctx.fill();
               }
           });
       });
@@ -432,7 +475,7 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
       if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
       ro.disconnect();
     };
-  }, [instances, config, showGuides, canAnimate]);
+  }, [instanceKey, config, showGuides, canAnimate]);
 
   return (
       <div ref={containerRef} className="absolute inset-0 rounded-b-xl overflow-hidden pointer-events-none">
@@ -449,6 +492,7 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
     const isOnscreen = useOnscreen(containerRef);
     const isDocumentVisible = useDocumentVisible();
     const canAnimate = isOnscreen && isDocumentVisible;
+    const instanceKey = useMemo(() => chartInstanceKey(instances), [instances]);
 
     useEffect(() => {
         if (!canAnimate) return;
@@ -466,7 +510,7 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
             height = containerRef.current!.clientHeight;
             canvas.width = width * dpr;
             canvas.height = height * dpr;
-            ctx.scale(dpr, dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             canvas.style.width = `${width}px`;
             canvas.style.height = `${height}px`;
         };
@@ -612,7 +656,7 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
             if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
             ro.disconnect();
         };
-    }, [instances, timeWindow, config, canAnimate]);
+    }, [instanceKey, timeWindow, config, canAnimate]);
 
     return (
         <div ref={containerRef} className="absolute inset-0 rounded-b-xl overflow-hidden pointer-events-none">

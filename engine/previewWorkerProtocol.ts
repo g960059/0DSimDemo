@@ -19,10 +19,10 @@ export type PreviewCoreSnapshot = {
 
 export type PreviewWorkerRequest =
   | { type: "configure"; dt: number; sampleHz: number }
-  | { type: "setInstances"; instances: SimInstance[] }
-  | { type: "resetInstances"; ids: string[] }
-  | { type: "setInstanceVolume"; id: string; volume: number }
-  | { type: "tick"; requestId: number; now: number; simSeconds: number };
+  | { type: "setInstances"; generation: number; instances: SimInstance[] }
+  | { type: "resetInstances"; generation: number; ids: string[] }
+  | { type: "setInstanceVolume"; generation: number; id: string; volume: number }
+  | { type: "tick"; generation: number; requestId: number; now: number; simSeconds: number };
 
 export type PreviewWorkerFrameInstance = {
   id: string;
@@ -42,6 +42,7 @@ export type PreviewWorkerFramePerf = {
 export type PreviewWorkerResponse =
   | {
       type: "frame";
+      generation: number;
       requestId: number;
       now: number;
       instances: PreviewWorkerFrameInstance[];
@@ -49,6 +50,7 @@ export type PreviewWorkerResponse =
     }
   | {
       type: "settleProgress";
+      generation: number;
       id: string;
       snapshot: PreviewCoreSnapshot;
       actualSeconds: number;

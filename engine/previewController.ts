@@ -228,6 +228,8 @@ export class PreviewController {
   private worker: Worker | null = null;
   private workerTickPending = false;
   private workerRequestId = 0;
+  private workerGeneration = 0;
+  private workerPendingRequestId = 0;
 
   private readonly dt: number;
   private readonly sampleHz: number;
@@ -272,12 +274,21 @@ export class PreviewController {
     this.worker?.terminate();
     this.worker = null;
     this.workerTickPending = false;
+    this.workerPendingRequestId = 0;
+    this.workerGeneration++;
     const instances = this.instances;
     this.refs.clear();
     this.prevStatus = {};
     this.healthSig = "";
     this.instances = [];
     this.setInstances(instances);
+  }
+
+  private bumpWorkerGeneration(): number {
+    this.workerGeneration++;
+    this.workerTickPending = false;
+    this.workerPendingRequestId = 0;
+    return this.workerGeneration;
   }
 
   setTimeScale(v: number) {
@@ -351,7 +362,7 @@ export class PreviewController {
         delete this.prevStatus[id];
       }
     }
-    this.postWorker({ type: "setInstances", instances });
+    this.postWorker({ type: "setInstances", generation: this.bumpWorkerGeneration(), instances });
     if (added.length > 0) this.onInstancesAdded?.(added);
   }
 
@@ -372,7 +383,7 @@ export class PreviewController {
         current.settleProgress = 0;
         delete this.prevStatus[id];
       }
-      this.postWorker({ type: "resetInstances", ids });
+      this.postWorker({ type: "resetInstances", generation: this.bumpWorkerGeneration(), ids });
       this.healthSig = "";
       this.lastFrameTime = 0;
       return;
@@ -395,15 +406,13 @@ export class PreviewController {
 
   setInstanceVolume(id: string, vol: number) {
     if (this.worker) {
-      const current = this.refs.get(id);
-      if (current) {
-        current.buffer = [];
-        current.lastRenderX = 0;
-      }
-      this.postWorker({ type: "setInstanceVolume", id, volume: vol });
+      this.postWorker({ type: "setInstanceVolume", generation: this.bumpWorkerGeneration(), id, volume: vol });
       return;
     }
-    (this.refs.get(id)?.core as ModelCore | undefined)?.initializeVenousPressuresForTargetTBV(vol);
+    const core = this.refs.get(id)?.core as ModelCore | undefined;
+    if (!core) return;
+    core.initializeVenousPressuresForTargetTBV(vol);
+    core.clearBeatTracking();
   }
 
   getLiveHealth(id: string): SimulationHealth | undefined {
@@ -420,7 +429,7 @@ export class PreviewController {
     if (!this.worker) {
       this.initWorker();
       if (this.worker && this.instances.length > 0) {
-        this.postWorker({ type: "setInstances", instances: this.instances });
+        this.postWorker({ type: "setInstances", generation: this.bumpWorkerGeneration(), instances: this.instances });
       }
     }
     this.running = true;
@@ -443,6 +452,7 @@ export class PreviewController {
     this.worker?.terminate();
     this.worker = null;
     this.workerTickPending = false;
+    this.workerPendingRequestId = 0;
   }
 
   /** Advance one frame for a wall-clock timestamp (ms). Driver-agnostic. */
@@ -480,9 +490,12 @@ export class PreviewController {
         return;
       }
       this.workerTickPending = true;
+      const requestId = ++this.workerRequestId;
+      this.workerPendingRequestId = requestId;
       this.postWorker({
         type: "tick",
-        requestId: ++this.workerRequestId,
+        generation: this.workerGeneration,
+        requestId,
         now,
         simSeconds,
       });
@@ -553,15 +566,14 @@ export class PreviewController {
 
   private handleWorkerMessage(message: PreviewWorkerResponse): void {
     if (message.type === "error") {
-      // Drop back to the synchronous path rather than leaving the preview inert.
-      this.worker?.terminate();
-      this.worker = null;
-      this.workerTickPending = false;
-      this.lastFrameTime = 0;
+      this.fallbackToSync();
       return;
     }
 
+    if (!this.worker) return;
+
     if (message.type === "settleProgress") {
+      if (message.generation !== this.workerGeneration) return;
       const phys = this.refs.get(message.id);
       if (!phys) return;
       if (phys.core instanceof RemotePreviewCore) phys.core.update(message.snapshot);
@@ -571,7 +583,11 @@ export class PreviewController {
       return;
     }
 
+    const matchesPending = message.requestId === this.workerPendingRequestId;
+    if (!matchesPending) return;
     this.workerTickPending = false;
+    this.workerPendingRequestId = 0;
+    if (message.generation !== this.workerGeneration) return;
     let trimmedSamples = 0;
     const byInstance: Record<string, PreviewInstancePerf> = {};
 
