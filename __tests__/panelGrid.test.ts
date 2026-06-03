@@ -2,9 +2,10 @@ import React from "react";
 import { Writable } from "node:stream";
 import { renderToPipeableStream, renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { PanelGrid, getDockviewPaneTitle, resolveControlsPaneTarget, type PanelGridMode } from "@/components/workbench/PanelGrid";
-import { getDockviewStructureSignature } from "@/components/workbench/WorkbenchDockview";
+import { PanelGrid, getActiveSettingsSectionId, getDockviewPaneTitle, type PanelGridMode } from "@/components/workbench/PanelGrid";
+import { getDockviewStructureSignature, getDockviewTabMenuPosition } from "@/components/workbench/WorkbenchDockview";
 import { addHiddenInstanceConfigsToPanels } from "@/WorkbenchPage";
+import { DEFAULT_PARAMS } from "@/constants";
 import type { PanelDef, SimInstance } from "@/types";
 
 // These tests cover layout shell behavior, not BlockNote behavior. Keeping NotePanel
@@ -18,13 +19,13 @@ vi.mock("@/components/NotePanel", async () => {
 
 const noop = () => {};
 
-function renderPanelGrid(mode: PanelGridMode, panels: PanelDef[] = [], instances: SimInstance[] = []) {
+function renderPanelGrid(mode: PanelGridMode, panels: PanelDef[] = [], instances: SimInstance[] = [], controlGroups: string[] = []) {
   return renderToStaticMarkup(
-    createPanelGrid(mode, panels, instances),
+    createPanelGrid(mode, panels, instances, controlGroups),
   );
 }
 
-function createPanelGrid(mode: PanelGridMode, panels: PanelDef[] = [], instances: SimInstance[] = []) {
+function createPanelGrid(mode: PanelGridMode, panels: PanelDef[] = [], instances: SimInstance[] = [], controlGroups: string[] = []) {
   return React.createElement(PanelGrid, {
     authoringMode: false,
     publishedLesson: null,
@@ -33,6 +34,13 @@ function createPanelGrid(mode: PanelGridMode, panels: PanelDef[] = [], instances
     stepsDraft: [],
     setStepsDraft: noop,
     panels,
+    layoutState: {
+      controlsSide: "left",
+      controlsWidth: 320,
+      caseRailWidth: 260,
+      outputHeight: 190,
+    },
+    onLayoutStateChange: noop,
     dockviewLayoutKey: "test",
     dockviewViewStates: undefined,
     onDockviewViewStateChange: noop,
@@ -48,6 +56,7 @@ function createPanelGrid(mode: PanelGridMode, panels: PanelDef[] = [], instances
     updateInstanceKnobs: noop,
     updateInstanceVolume: noop,
     updateInstanceColor: noop,
+    updateInstanceName: noop,
     addInstance: noop,
     removeInstance: noop,
     timeScale: 1,
@@ -73,7 +82,7 @@ function createPanelGrid(mode: PanelGridMode, panels: PanelDef[] = [], instances
     chambers: [],
     signals: [],
     metrics: [],
-    controlGroups: [],
+    controlGroups,
   });
 }
 
@@ -191,8 +200,15 @@ describe("PanelGrid Dockview layout", () => {
     const html = renderPanelGrid("sandbox", [{ ...pvLoopPanel, isSettingsOpen: true }], [normalInstance]);
 
     expect(html).toContain("Back to PV Loop");
-    expect(html).toContain("Customizations");
-    expect(html).toContain("Title:");
+    expect(html).toContain("Pane title");
+    expect(html).toContain("Signals");
+    expect(html).toContain("Instances");
+    expect(html).toContain("Display");
+    expect(html).toContain("@min-[760px]:grid");
+    expect(html).toContain("sticky top-0");
+    expect(html).toContain("overflow-hidden px-1 pb-2");
+    expect(html).not.toContain("Advanced");
+    expect(html).not.toContain("Instance keys");
   });
 
   it("does not render pane-local settings for learner mode even if state is open", () => {
@@ -239,25 +255,130 @@ describe("PanelGrid Dockview layout", () => {
     expect(panels[1].config.copy).toEqual({ visible: false, selectedSignals: ["clinical", "Global", "ventricles", "fluids"] });
   });
 
-  it("keeps the current controls target when a hidden scenario is added", () => {
-    const config = {
-      normal: { visible: true, selectedSignals: ["clinical"] },
-      copy: { visible: true, selectedSignals: ["clinical"] },
-      hidden: { visible: false, selectedSignals: ["clinical"] },
+  it("renders controller settings as pane-local target and item bindings", () => {
+    const controlsPanel: PanelDef = {
+      id: "controls",
+      type: "CONTROLS",
+      title: "Controls",
+      zone: "sideRail",
+      w: 4,
+      h: 8,
+      config: {
+        normal: { visible: true, selectedSignals: ["clinical", "Global"] },
+        copy: { visible: false, selectedSignals: ["clinical", "Global"] },
+      },
+      isSettingsOpen: true,
     };
 
-    expect(resolveControlsPaneTarget([normalInstance, copiedInstance, hiddenInstance], config, "copy")?.id).toBe("copy");
+    const html = renderPanelGrid("sandbox", [controlsPanel], [normalInstance, copiedInstance]);
+
+    expect(html).toContain("Back to Controls");
+    expect(html).toContain("Targets");
+    expect(html).toContain("Items");
+    expect(html).toContain("Display");
+    expect(html).toContain("Clinical knobs");
+    expect(html).toContain("Controller scope");
+    expect(html).toContain("@min-[760px]:grid");
+    expect(html).toContain("sticky top-0");
+    expect(html).toContain("overflow-hidden px-1 pb-2");
+    expect(html).not.toContain("Advanced");
+    expect(html).not.toContain("Target keys");
+    expect(html).not.toContain("Target enabled");
+    expect(html).not.toContain("Target hidden");
   });
 
-  it("does not target globally hidden instances in Dockview controls panes", () => {
-    const config = {
-      normal: { visible: true, selectedSignals: ["clinical"] },
-      hidden: { visible: true, selectedSignals: ["clinical"] },
+  it("keeps advanced controller groups out of pane-local settings", () => {
+    const controlsPanel: PanelDef = {
+      id: "controls",
+      type: "CONTROLS",
+      title: "Controls",
+      zone: "sideRail",
+      w: 4,
+      h: 8,
+      config: {
+        normal: { visible: true, selectedSignals: ["clinical", "advanced"] },
+      },
+      isSettingsOpen: true,
     };
 
-    expect(resolveControlsPaneTarget([
-      normalInstance,
-      { ...hiddenInstance, isVisible: false },
-    ], config, "hidden")?.id).toBe("normal");
+    const html = renderPanelGrid("sandbox", [controlsPanel], [normalInstance], ["clinical", "advanced", "ventricles"]);
+
+    expect(html).toContain("Clinical knobs");
+    expect(html).toContain("Ventricular mechanics");
+    expect(html).not.toContain("Advanced");
+    expect(html).not.toContain("Advanced engine");
+  });
+
+  it("renders controller target shortcuts only for pane-enabled targets", () => {
+    const controlsPanel: PanelDef = {
+      id: "controls",
+      type: "CONTROLS",
+      title: "Controls",
+      zone: "sideRail",
+      w: 4,
+      h: 8,
+      config: {
+        normal: { visible: true, selectedSignals: ["clinical"] },
+        copy: { visible: true, selectedSignals: ["clinical"] },
+        hidden: { visible: false, selectedSignals: ["clinical"] },
+      },
+      isSettingsOpen: false,
+    };
+
+    const html = renderPanelGrid("sandbox", [controlsPanel], [
+      { ...normalInstance, params: { ...DEFAULT_PARAMS } },
+      { ...copiedInstance, params: { ...DEFAULT_PARAMS } },
+      { ...hiddenInstance, params: { ...DEFAULT_PARAMS } },
+    ]);
+
+    expect(html).toContain("Heart B");
+    expect(html).not.toContain("Heart C");
+    expect(html).not.toContain("Pause simulation");
+    expect(html).not.toContain("0.5x");
+  });
+});
+
+describe("PanelGrid settings scroll spy", () => {
+  it("selects the section crossing the scroll marker", () => {
+    expect(getActiveSettingsSectionId(
+      ["targets", "items", "display"],
+      {
+        targets: { top: -260, bottom: 8 },
+        items: { top: 8, bottom: 360 },
+        display: { top: 360, bottom: 620 },
+      },
+      48,
+    )).toBe("items");
+  });
+
+  it("keeps the latest preceding section active between sections", () => {
+    expect(getActiveSettingsSectionId(
+      ["signals", "instances", "display"],
+      {
+        signals: { top: -320, bottom: -20 },
+        instances: { top: 92, bottom: 360 },
+        display: { top: 360, bottom: 620 },
+      },
+      48,
+    )).toBe("signals");
+  });
+});
+
+describe("WorkbenchDockview tab menu positioning", () => {
+  it("anchors keyboard-triggered tab context menus to the tab instead of the viewport corner", () => {
+    expect(getDockviewTabMenuPosition({
+      point: { x: 0, y: 0 },
+      anchorRect: { left: 320, bottom: 91 },
+      viewportWidth: 1200,
+      viewportHeight: 800,
+    })).toEqual({ x: 320, y: 95 });
+  });
+
+  it("keeps pointer-triggered tab context menus inside the viewport", () => {
+    expect(getDockviewTabMenuPosition({
+      point: { x: 1198, y: 790 },
+      viewportWidth: 1200,
+      viewportHeight: 800,
+    })).toEqual({ x: 1048, y: 672 });
   });
 });

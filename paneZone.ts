@@ -3,9 +3,8 @@ import type { PanelDef, PanelType, WorkbenchZoneId } from "./types";
 export function defaultZoneOf(type: PanelType): WorkbenchZoneId {
   switch (type) {
     case "CONTROLS":
-      return "sideRail";
     case "SCENARIOS":
-      return "caseRail";
+      return "sideRail";
     case "METRICS":
       return "bottomPanel";
     case "NOTE":

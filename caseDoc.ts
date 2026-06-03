@@ -21,7 +21,6 @@ import {
 import { OFFICIAL_BASELINES } from "@/engine/caseBaselines";
 import { type ClinicalKnobs, type KnobKey, neutralKnobs, resolveKnobMappingVersion } from "@/engine/knobs";
 import { roleOf } from "@/paneRole";
-import { zoneOf } from "@/paneZone";
 
 export const CASE_SCHEMA_VERSION = 1;
 export const WORKSPACE_SCHEMA_VERSION = 1;
@@ -135,6 +134,10 @@ function panelsForRole(panels: PanelDef[], role: PanelRole): string[] {
   return panels.filter((panel) => roleForPanel(panel) === role).map((panel) => panel.id);
 }
 
+function scenarioPanelIds(panels: PanelDef[]): string[] {
+  return panels.filter((panel) => panel.type === "SCENARIOS").map((panel) => panel.id);
+}
+
 function mergeRegionState(
   next: WorkbenchWorkspace["regions"][WorkbenchRegionId],
   previous: WorkbenchWorkspace["regions"][WorkbenchRegionId],
@@ -143,16 +146,22 @@ function mergeRegionState(
   if (!previous) return next;
 
   const nextPanelIds = next.panelIds;
+  const hasPanels = (nextPanelIds?.length ?? 0) > 0;
   const activePanelId = nextPanelIds?.includes(previous.activePanelId ?? "")
     ? previous.activePanelId
     : next.activePanelId;
 
-  return {
+  const merged = {
     ...next,
     ...previous,
+    visible: hasPanels ? previous.visible : next.visible,
     ...(nextPanelIds ? { panelIds: nextPanelIds } : {}),
     ...(activePanelId ? { activePanelId } : {}),
   };
+
+  if (!activePanelId) delete merged.activePanelId;
+
+  return merged;
 }
 
 export function defaultWorkspaceForPanels(
@@ -162,12 +171,16 @@ export function defaultWorkspaceForPanels(
   const graphPanelIds = panelsForRole(panels, "graph");
   const notePanelIds = panelsForRole(panels, "note");
   const outputPanelIds = panelsForRole(panels, "output");
-  const controlPanelIds = panelsForRole(panels, "control");
+  const scenariosPanelIds = scenarioPanelIds(panels);
+  const controlPanelIds = panels
+    .filter((panel) => roleForPanel(panel) === "control" && panel.type !== "SCENARIOS")
+    .map((panel) => panel.id);
   const regions: WorkbenchWorkspace["regions"] = {
     scenarios: {
-      visible: panels.some((panel) => zoneOf(panel) === "caseRail"),
+      visible: scenariosPanelIds.length > 0,
       position: "left",
-      panelIds: panels.filter((panel) => zoneOf(panel) === "caseRail").map((panel) => panel.id),
+      panelIds: scenariosPanelIds,
+      activePanelId: scenariosPanelIds[0],
     },
     graph: { visible: true, position: "center", panelIds: graphPanelIds, activePanelId: graphPanelIds[0], split: "single" },
     note: { visible: notePanelIds.length > 0, position: "right", panelIds: notePanelIds, activePanelId: notePanelIds[0] },

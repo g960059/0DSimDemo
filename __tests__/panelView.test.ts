@@ -48,4 +48,29 @@ describe("panel view compatibility adapter", () => {
     expect(config.ami.customName).toBe("AMI");
     expect(config.ami.customBaseColor).toBe("#ef4444");
   });
+
+  it("derives scenario view instead of falling through to note view", () => {
+    const panel: PanelDef = {
+      id: "scenarios",
+      type: "SCENARIOS",
+      title: "Scenarios",
+      w: 4,
+      h: 4,
+      isSettingsOpen: false,
+      config: {
+        normal: {
+          visible: true,
+          selectedSignals: [],
+          customName: "Normal",
+        },
+      },
+    };
+
+    const view = toTypedPanelView(panel);
+
+    expect(view.kind).toBe("scenario");
+    if (view.kind !== "scenario") throw new Error("expected scenario view");
+    expect(view.mode).toBe("list");
+    expect(view.instances?.normal?.label).toBe("Normal");
+  });
 });

@@ -50,8 +50,8 @@ export interface PanelInstanceConfig {
     customSignalNames?: Record<string, string>;
 }
 
-export type PanelType = 'PVLOOP' | 'WAVEFORM' | 'METRICS' | 'GUYTON_RIGHT' | 'GUYTON_LEFT' | 'GUYTON_3D' | 'CONTROLS' | 'SCENARIOS' | 'NOTE';
-export type PanelRole = 'graph' | 'output' | 'control' | 'scenario' | 'note';
+export type PanelType = 'PVLOOP' | 'WAVEFORM' | 'METRICS' | 'GUYTON_RIGHT' | 'GUYTON_LEFT' | 'GUYTON_3D' | 'SCENARIOS' | 'CONTROLS' | 'NOTE';
+export type PanelRole = 'graph' | 'output' | 'control' | 'note';
 export type WorkbenchZoneId = 'caseRail' | 'main' | 'sideRail' | 'bottomPanel';
 
 export type PanelItemId = ChamberId | SignalType | MetricType | KnobKey | string;
@@ -100,13 +100,19 @@ export interface ControlPanelView {
     instances?: Record<string, PanelInstancePresentation>;
 }
 
+export interface ScenarioPanelView {
+    kind: 'scenario';
+    mode?: 'list' | 'compact';
+    instances?: Record<string, PanelInstancePresentation>;
+}
+
 export interface NotePanelView {
     kind: 'note';
     noteId?: string;
     mode?: 'lesson' | 'scratch';
 }
 
-export type PanelViewConfig = GraphPanelView | OutputPanelView | ControlPanelView | NotePanelView;
+export type PanelViewConfig = GraphPanelView | OutputPanelView | ControlPanelView | ScenarioPanelView | NotePanelView;
 
 export type WorkbenchRegionId = 'scenarios' | 'control' | 'graph' | 'output' | 'note';
 export type WorkbenchRegionPosition = 'left' | 'right' | 'top' | 'bottom' | 'center' | 'hidden';

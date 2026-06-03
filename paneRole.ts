@@ -4,10 +4,9 @@ export function roleOf(type: PanelType): PanelRole {
   switch (type) {
     case "METRICS":
       return "output";
+    case "SCENARIOS":
     case "CONTROLS":
       return "control";
-    case "SCENARIOS":
-      return "scenario";
     case "NOTE":
       return "note";
     case "PVLOOP":

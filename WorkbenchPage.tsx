@@ -5,6 +5,7 @@ import { SimulationParams, SimInstance, PanelDef, PanelType, PanelInstanceConfig
 import { SimulationHealth } from './engine/protocol';
 import { type ClinicalKnobs } from './engine/knobs';
 import { resolveRawEdit, resolveKnobEdit } from './engine/instanceKnobs';
+import { OFFICIAL_BASELINES } from './engine/caseBaselines';
 import { type CaseDocument, type CaseSource, type CaseStatus, type CaseVisibility, simInstancesToCaseDocument, caseDocumentToSimInstances, workspaceForPanels } from './caseDoc';
 import { exportCaseFile, readCaseFile, saveDraft } from './casePersist';
 import { createUserCaseId, fetchCase, isValidCaseId, saveCase } from './caseCloud';
@@ -17,10 +18,10 @@ import { remapWorkbenchLoadIds } from './workbenchLoad';
 import { useAuth } from './contexts/AuthContext';
 import { HealthToasts, HealthToast } from './components/HealthIndicators';
 import { PreviewController } from './engine/previewController';
-import { ScenarioManager } from './components/ScenarioManager';
 import { WorkbenchHeader } from './components/workbench/WorkbenchHeader';
-import type { WorkbenchHeaderMode, WorkbenchSceneMeta } from './components/workbench/WorkbenchSidePanel';
+import type { WorkbenchHeaderMode, WorkbenchSceneMeta, WorkbenchThemeId } from './components/workbench/WorkbenchSidePanel';
 import { PanelGrid } from './components/workbench/PanelGrid';
+import type { WorkbenchControlsSide, WorkbenchLayoutState } from './components/workbench/PanelGrid';
 import type { NoteContent } from './noteTypes';
 import { addPane, removePane } from './layoutOps';
 import { defaultZoneOf } from './paneZone';
@@ -44,6 +45,9 @@ const DEFAULT_MODEL_LIMITATIONS = [
   '0D lumped-parameter closed-loop model — no regional wall motion or spatial flow.',
   'Active-stress single-fibre ventricles; parameters are not yet calibrated (M12).',
 ];
+const WORKBENCH_THEME_STORAGE_KEY = 'hemosim.workbench.theme';
+const DEFAULT_WORKBENCH_THEME: WorkbenchThemeId = 'midnight';
+const WORKBENCH_THEMES = new Set<WorkbenchThemeId>(['midnight', 'graphite', 'clinical']);
 const LOCAL_COPY_AUTHOR = 'Local copy';
 const OFFICIAL_CASE_AUTHORS = new Set(['CircleHeart']);
 const EMPTY_NOTE_SPINE: NoteContent = [
@@ -61,6 +65,11 @@ const INITIAL_PANELS: PanelDef[] = [
       isSettingsOpen: false, showGuides: true
   },
   {
+      id: 'p0', type: 'SCENARIOS', title: 'Scenarios', zone: 'sideRail', w: 4, h: 4,
+      config: { '1': { visible: true, selectedSignals: [] } },
+      isSettingsOpen: false
+  },
+  {
       id: 'p4', type: 'CONTROLS', title: 'Controls', w: 4, h: 4,
       // Keep ventricular mechanics visible as a collapsed group so the
       // pericardium/septum controls are discoverable without opening panel
@@ -75,6 +84,30 @@ const INITIAL_PANELS: PanelDef[] = [
   }
 ];
 
+const DEFAULT_WORKBENCH_LAYOUT: WorkbenchLayoutState = {
+  controlsSide: 'left',
+  controlsWidth: 320,
+  caseRailWidth: 260,
+  outputHeight: 190,
+};
+
+function layoutStateFromWorkspace(workspace?: WorkbenchWorkspace): WorkbenchLayoutState {
+  const controlPosition = workspace?.regions.control?.position;
+  const controlsSide: WorkbenchControlsSide = controlPosition === 'right' ? 'right' : 'left';
+  return {
+    controlsSide,
+    controlsWidth: workspace?.regions.control?.size ?? DEFAULT_WORKBENCH_LAYOUT.controlsWidth,
+    caseRailWidth: workspace?.regions.note?.size ?? DEFAULT_WORKBENCH_LAYOUT.caseRailWidth,
+    outputHeight: workspace?.regions.output?.size ?? DEFAULT_WORKBENCH_LAYOUT.outputHeight,
+  };
+}
+
+function getStoredWorkbenchTheme(): WorkbenchThemeId {
+  if (typeof localStorage === 'undefined') return DEFAULT_WORKBENCH_THEME;
+  const stored = localStorage.getItem(WORKBENCH_THEME_STORAGE_KEY);
+  return WORKBENCH_THEMES.has(stored as WorkbenchThemeId) ? (stored as WorkbenchThemeId) : DEFAULT_WORKBENCH_THEME;
+}
+
 function cloneInitialPanels(): PanelDef[] {
   return INITIAL_PANELS.map((panel) => ({
     ...panel,
@@ -88,6 +121,7 @@ export function defaultSignalsForPanelType(type: PanelType): string[] {
   if (type === 'PVLOOP') return ['LV'];
   if (type === 'WAVEFORM') return ['LVP', 'AoP'];
   if (type === 'METRICS') return ['ABP', 'CO'];
+  if (type === 'SCENARIOS') return [];
   if (type === 'CONTROLS') return ['clinical', 'Global', 'ventricles', 'fluids'];
   if (type === 'GUYTON_RIGHT' || type === 'GUYTON_LEFT' || type === 'GUYTON_3D') return ['Default'];
   return [];
@@ -146,6 +180,7 @@ function Workbench() {
   const [timeScale, setTimeScale] = useState<number>(1.0);
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
   const [isMobile, setIsMobile] = useState<boolean>(window.innerWidth < 768);
+  const [workbenchTheme, setWorkbenchTheme] = useState<WorkbenchThemeId>(getStoredWorkbenchTheme);
   
   // Instance Management
   const [instances, setInstances] = useState<SimInstance[]>([
@@ -157,7 +192,6 @@ function Workbench() {
       }
   ]);
   const [activeInstanceId, setActiveInstanceId] = useState<string>('1');
-  const [isScenarioManagerOpen, setIsScenarioManagerOpen] = useState<boolean>(false);
 
   // Health UX (ROADMAP S1): computed in the PreviewController, surfaced via callbacks.
   const [instanceHealth, setInstanceHealth] = useState<Record<string, SimulationHealth>>({});
@@ -215,6 +249,34 @@ function Workbench() {
   // --- Panel Management State ---
   const [panels, setPanels] = useState<PanelDef[]>(cloneInitialPanels);
   const [workspace, setWorkspace] = useState<WorkbenchWorkspace>(() => workspaceForPanels(INITIAL_PANELS));
+  const [workbenchLayout, setWorkbenchLayoutState] = useState<WorkbenchLayoutState>(DEFAULT_WORKBENCH_LAYOUT);
+  const [dockviewLayoutVersion, setDockviewLayoutVersion] = useState(0);
+  const setWorkbenchLayout: React.Dispatch<React.SetStateAction<WorkbenchLayoutState>> = useCallback((next) => {
+    setWorkbenchLayoutState((prevLayout) => {
+      const resolved = typeof next === 'function' ? next(prevLayout) : next;
+      setWorkspace((prevWorkspace) => ({
+        ...prevWorkspace,
+        regions: {
+          ...prevWorkspace.regions,
+          control: {
+            ...prevWorkspace.regions.control,
+            position: resolved.controlsSide,
+            size: resolved.controlsWidth,
+          },
+          note: {
+            ...prevWorkspace.regions.note,
+            size: resolved.caseRailWidth,
+          },
+          output: {
+            ...prevWorkspace.regions.output,
+            size: resolved.outputHeight,
+          },
+        },
+      }));
+      return resolved;
+    });
+    if (headerMode !== 'learner') userEditedRef.current = true;
+  }, [headerMode]);
 
   // --- Simulation driver (ROADMAP S3a): the loop + cores live here, not in React. ---
   const controllerRef = useRef<PreviewController | null>(null);
@@ -227,6 +289,44 @@ function Workbench() {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(WORKBENCH_THEME_STORAGE_KEY, workbenchTheme);
+  }, [workbenchTheme]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.body.dataset.workbenchTheme = workbenchTheme;
+    return () => {
+      if (document.body.dataset.workbenchTheme === workbenchTheme) {
+        delete document.body.dataset.workbenchTheme;
+      }
+    };
+  }, [workbenchTheme]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const timers = new WeakMap<Element, number>();
+    const scrollableSelector = '.custom-scrollbar, .workbench-dockview .dv-scrollable';
+    const handleScroll = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const scrollable = target.closest(scrollableSelector);
+      if (!scrollable) return;
+      scrollable.classList.add('is-scrolling');
+      const previousTimer = timers.get(scrollable);
+      if (previousTimer) window.clearTimeout(previousTimer);
+      timers.set(scrollable, window.setTimeout(() => {
+        scrollable.classList.remove('is-scrolling');
+        timers.delete(scrollable);
+      }, 850));
+    };
+    document.addEventListener('scroll', handleScroll, true);
+    return () => {
+      document.removeEventListener('scroll', handleScroll, true);
+    };
   }, []);
 
   // Wire driver callbacks and start the loop once. Declared BEFORE the
@@ -309,7 +409,10 @@ function Workbench() {
 
       setInstances(remapped.instances);
       setPanels(remapped.panels);
-      setWorkspace(workspaceForPanels(remapped.panels, doc.workspace));
+      const nextWorkspace = workspaceForPanels(remapped.panels, doc.workspace);
+      setWorkspace(nextWorkspace);
+      setWorkbenchLayoutState(layoutStateFromWorkspace(nextWorkspace));
+      setDockviewLayoutVersion((value) => value + 1);
       setSceneMeta({
         title: doc.spec.title || 'Untitled scene',
         description: doc.spec.description ?? '',
@@ -618,20 +721,35 @@ function Workbench() {
     ));
   }
   
-  const addInstance = (sourceId?: string) => {
+  const addInstance = (sourceId?: string, presetId?: string) => {
       markUserEdited();
       const newId = Date.now().toString();
       const color = INSTANCE_COLORS[instances.length % INSTANCE_COLORS.length];
-      const sourceInstance = instances.find(i => i.id === (typeof sourceId === 'string' ? sourceId : activeInstanceId));
-      const initialParams = sourceInstance ? JSON.parse(JSON.stringify(sourceInstance.params)) : { ...DEFAULT_PARAMS };
-      const initialVol = sourceInstance ? sourceInstance.targetVolume : 5600;
+      const preset = presetId ? OFFICIAL_BASELINES[presetId] : undefined;
+      const sourceInstance = preset ? undefined : instances.find(i => i.id === (typeof sourceId === 'string' ? sourceId : activeInstanceId));
+      const initialParams = preset
+        ? JSON.parse(JSON.stringify(preset.params))
+        : sourceInstance
+          ? JSON.parse(JSON.stringify(sourceInstance.params))
+          : { ...DEFAULT_PARAMS };
+      const initialVol = preset ? preset.targetVolume : sourceInstance ? sourceInstance.targetVolume : 5600;
       // Preserve knob-primary state when duplicating, so a copied instance keeps
       // its clinical knobs / authored baseline instead of degrading to raw-only.
       const initialKnobs = sourceInstance?.knobs ? JSON.parse(JSON.stringify(sourceInstance.knobs)) : undefined;
       const initialKnobBaseline = sourceInstance?.knobBaseline ? JSON.parse(JSON.stringify(sourceInstance.knobBaseline)) : undefined;
 
-      const baseName = sourceInstance ? sourceInstance.name : 'New Scenario';
-      const name = `${baseName} (Copy)`;
+      const baseName = preset
+        ? preset.label.replace(/\s*\([^)]*\)\s*$/, '')
+        : sourceInstance
+          ? `${sourceInstance.name} (Copy)`
+          : 'New Scenario';
+      const existingNames = new Set(instances.map((instance) => instance.name));
+      let name = baseName;
+      let suffix = 2;
+      while (existingNames.has(name)) {
+        name = `${baseName} ${suffix}`;
+        suffix += 1;
+      }
 
       setInstances(prev => [...prev, {
           id: newId,
@@ -649,8 +767,11 @@ function Workbench() {
   
   const removeInstance = (id: string) => {
       markUserEdited();
-      setInstances(prev => prev.filter(i => i.id !== id));
-      if (activeInstanceId === id) setActiveInstanceId(instances[0]?.id || '');
+      setInstances(prev => {
+          const next = prev.filter(i => i.id !== id);
+          if (activeInstanceId === id) setActiveInstanceId(next[0]?.id || '');
+          return next;
+      });
   };
 
   const updateInstanceName = (id: string, name: string) => {
@@ -675,6 +796,7 @@ function Workbench() {
       if (type === 'PVLOOP') return 'PV Loop';
       if (type === 'WAVEFORM') return 'Waveforms';
       if (type === 'METRICS') return 'Metrics';
+      if (type === 'SCENARIOS') return 'Scenarios';
       if (type === 'CONTROLS') return 'Controls';
       if (type === 'NOTE') return 'Notes';
       if (type === 'GUYTON_LEFT') return 'Guyton Left';
@@ -687,8 +809,8 @@ function Workbench() {
       type,
       zone,
       title: titleForPanelType(type),
-      w: type === 'NOTE' ? 6 : type === 'METRICS' ? 4 : type === 'CONTROLS' ? 4 : 6,
-      h: type === 'NOTE' ? 10 : type === 'METRICS' ? 6 : type === 'CONTROLS' ? 10 : 8,
+      w: type === 'NOTE' ? 6 : type === 'METRICS' ? 4 : type === 'CONTROLS' || type === 'SCENARIOS' ? 4 : 6,
+      h: type === 'NOTE' ? 10 : type === 'METRICS' ? 6 : type === 'CONTROLS' ? 10 : type === 'SCENARIOS' ? 4 : 8,
       config,
       isSettingsOpen: false,
       showGuides: type === 'PVLOOP',
@@ -710,7 +832,7 @@ function Workbench() {
 
   const addPanel = (type: PanelType, zone?: WorkbenchZoneId) => {
       const newConfig = createDefaultPanelConfig(type);
-      if (type === 'NOTE') {
+      if (type === 'NOTE' || type === 'SCENARIOS') {
           appendPanel(createPanelDef(type, newConfig, zone));
           return;
       }
@@ -786,8 +908,30 @@ function Workbench() {
     setAuthoringMode(resolved);
   };
 
+  const resetWorkbenchLayout = () => {
+    setWorkbenchLayout(DEFAULT_WORKBENCH_LAYOUT);
+    setWorkspace((prev) => {
+      const nextWorkspace = workspaceForPanels(panels, {
+        ...prev,
+        regions: {
+          ...prev.regions,
+          control: { ...prev.regions.control, position: DEFAULT_WORKBENCH_LAYOUT.controlsSide, size: DEFAULT_WORKBENCH_LAYOUT.controlsWidth },
+          note: { ...prev.regions.note, size: DEFAULT_WORKBENCH_LAYOUT.caseRailWidth },
+          output: { ...prev.regions.output, size: DEFAULT_WORKBENCH_LAYOUT.outputHeight },
+        },
+        viewStates: undefined,
+      });
+      const { viewStates: _viewStates, ...withoutViewStates } = nextWorkspace;
+      return withoutViewStates;
+    });
+    setDockviewLayoutVersion((value) => value + 1);
+  };
+
   return (
-    <div className="flex flex-col h-full w-full bg-slate-950 text-slate-200 overflow-hidden font-sans relative">
+    <div
+      className="workbench-root flex flex-col h-full w-full bg-slate-950 text-slate-200 overflow-hidden font-sans relative"
+      data-workbench-theme={workbenchTheme}
+    >
       <WorkbenchHeader
         mode={headerMode}
         backHref={backTarget.href}
@@ -798,7 +942,6 @@ function Workbench() {
         instances={instances}
         instanceHealth={instanceHealth}
         getLiveHealth={(id) => controller.getLiveHealth(id)}
-        onOpenScenarioManager={() => setIsScenarioManagerOpen(true)}
         fileInputRef={fileInputRef}
         onImportFile={handleImportFile}
         onExport={handleExport}
@@ -819,6 +962,11 @@ function Workbench() {
         togglePlay={togglePlay}
         timeScale={timeScale}
         setTimeScale={setTimeScale}
+        controlsSide={workbenchLayout.controlsSide}
+        onControlsSideChange={(side) => setWorkbenchLayout((prev) => ({ ...prev, controlsSide: side }))}
+        onResetLayout={resetWorkbenchLayout}
+        theme={workbenchTheme}
+        onThemeChange={setWorkbenchTheme}
       />
 
       <PanelGrid
@@ -829,7 +977,9 @@ function Workbench() {
         stepsDraft={stepsDraft}
         setStepsDraft={setStepsDraft}
         panels={panels}
-        dockviewLayoutKey={noteCaseKey}
+        layoutState={workbenchLayout}
+        onLayoutStateChange={setWorkbenchLayout}
+        dockviewLayoutKey={`${noteCaseKey}:${dockviewLayoutVersion}`}
         dockviewViewStates={workspace.viewStates}
         onDockviewViewStateChange={updateDockviewViewState}
         mode={headerMode}
@@ -844,6 +994,7 @@ function Workbench() {
         updateInstanceKnobs={updateInstanceKnobs}
         updateInstanceVolume={updateInstanceVolume}
         updateInstanceColor={updateInstanceColor}
+        updateInstanceName={updateInstanceName}
         addInstance={addInstance}
         removeInstance={removeInstance}
         timeScale={timeScale}
@@ -873,16 +1024,6 @@ function Workbench() {
         signals={ALL_SIGNALS}
         metrics={ALL_METRICS}
         controlGroups={ALL_CONTROL_GROUPS}
-      />
-
-      <ScenarioManager 
-          isOpen={isScenarioManagerOpen} 
-          onClose={() => setIsScenarioManagerOpen(false)} 
-          instances={instances} 
-          addInstance={addInstance} 
-          removeInstance={removeInstance} 
-          updateInstanceName={updateInstanceName} 
-          updateInstanceColor={updateInstanceColor} 
       />
 
       {addingPanelType && (

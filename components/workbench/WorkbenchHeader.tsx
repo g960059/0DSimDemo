@@ -4,9 +4,13 @@ import {
   ChevronDown,
   ChevronLeft,
   Edit3,
+  LayoutPanelLeft,
+  PanelLeft,
+  PanelRight,
   MoreHorizontal,
   Pause,
   Play,
+  RotateCcw,
   Save,
   Share2,
 } from 'lucide-react';
@@ -14,7 +18,8 @@ import { SimInstance } from '../../types';
 import { SimulationHealth } from '../../engine/protocol';
 import { HealthBadge } from '../HealthIndicators';
 import { ModelLimitations } from '../ModelLimitations';
-import { WorkbenchHeaderMode, WorkbenchSceneMeta, WorkbenchSidePanel } from './WorkbenchSidePanel';
+import { WorkbenchHeaderMode, WorkbenchSceneMeta, WorkbenchSidePanel, type WorkbenchThemeId } from './WorkbenchSidePanel';
+import type { WorkbenchControlsSide } from './PanelGrid';
 
 interface WorkbenchHeaderProps {
   mode: WorkbenchHeaderMode;
@@ -26,7 +31,6 @@ interface WorkbenchHeaderProps {
   instances: SimInstance[];
   instanceHealth: Record<string, SimulationHealth>;
   getLiveHealth: (id: string) => SimulationHealth | undefined;
-  onOpenScenarioManager: () => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onImportFile: (file: File) => void;
   onExport: () => void;
@@ -47,6 +51,11 @@ interface WorkbenchHeaderProps {
   togglePlay: () => void;
   timeScale: number;
   setTimeScale: React.Dispatch<React.SetStateAction<number>>;
+  controlsSide: WorkbenchControlsSide;
+  onControlsSideChange: (side: WorkbenchControlsSide) => void;
+  onResetLayout: () => void;
+  theme: WorkbenchThemeId;
+  onThemeChange: (theme: WorkbenchThemeId) => void;
 }
 
 const SPEEDS = [0.5, 1, 2, 5];
@@ -65,7 +74,6 @@ export function WorkbenchHeader({
   instances,
   instanceHealth,
   getLiveHealth,
-  onOpenScenarioManager,
   fileInputRef,
   onImportFile,
   onExport,
@@ -86,9 +94,15 @@ export function WorkbenchHeader({
   togglePlay,
   timeScale,
   setTimeScale,
+  controlsSide,
+  onControlsSideChange,
+  onResetLayout,
+  theme,
+  onThemeChange,
 }: WorkbenchHeaderProps) {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [isSpeedOpen, setIsSpeedOpen] = useState(false);
+  const [isLayoutOpen, setIsLayoutOpen] = useState(false);
   const [isMetaOpen, setIsMetaOpen] = useState(false);
   const [draftMeta, setDraftMeta] = useState(sceneMeta);
 
@@ -116,7 +130,7 @@ export function WorkbenchHeader({
 
   return (
     <>
-      <header className="h-14 bg-slate-950 border-b border-slate-800 z-50 flex items-center gap-2 px-3 sm:px-4 shrink-0">
+      <header className="workbench-header h-14 bg-slate-950 z-50 flex items-center gap-2 px-3 sm:px-4 shrink-0">
         <a href={backHref} className="inline-flex h-9 items-center gap-1 rounded-md px-2 text-xs font-bold text-slate-400 hover:bg-slate-900 hover:text-slate-100">
           <ChevronLeft className="h-4 w-4" />
           <span className="hidden sm:inline">{backLabel}</span>
@@ -140,6 +154,62 @@ export function WorkbenchHeader({
 
         <div className="flex shrink-0 items-center gap-1.5">
           <HealthBadge items={instances.filter(i => instanceHealth[i.id]).map(i => ({ id: i.id, name: i.name, color: i.color, health: instanceHealth[i.id] }))} getLiveHealth={getLiveHealth} />
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsLayoutOpen((open) => !open)}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-slate-900 hover:text-slate-100"
+              title="Customize layout"
+              aria-label="Customize layout"
+            >
+              <LayoutPanelLeft className="h-4.5 w-4.5" />
+            </button>
+            {isLayoutOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsLayoutOpen(false)} />
+                <div className="absolute right-0 top-full z-50 mt-1 w-64 rounded-md border border-slate-700 bg-slate-900 p-3 shadow-xl">
+                  <div className="mb-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">Customize layout</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onControlsSideChange('left')}
+                      className={`inline-flex items-center justify-center gap-2 rounded border px-3 py-2 text-xs font-bold transition-colors ${
+                        controlsSide === 'left'
+                          ? 'border-blue-500/60 bg-blue-500/15 text-blue-100'
+                          : 'border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800'
+                      }`}
+                    >
+                      <PanelLeft className="h-4 w-4" />
+                      Left
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onControlsSideChange('right')}
+                      className={`inline-flex items-center justify-center gap-2 rounded border px-3 py-2 text-xs font-bold transition-colors ${
+                        controlsSide === 'right'
+                          ? 'border-blue-500/60 bg-blue-500/15 text-blue-100'
+                          : 'border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800'
+                      }`}
+                    >
+                      <PanelRight className="h-4 w-4" />
+                      Right
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onResetLayout();
+                      setIsLayoutOpen(false);
+                    }}
+                    className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-300 transition-colors hover:bg-slate-800"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    Reset layout
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
           <div className="flex items-center rounded-md border border-slate-800 bg-slate-900">
             <button
               onClick={togglePlay}
@@ -229,7 +299,6 @@ export function WorkbenchHeader({
         fileInputRef={fileInputRef}
         onImportFile={onImportFile}
         onExport={onExport}
-        onOpenScenarioManager={onOpenScenarioManager}
         onCreateLesson={() => setAuthoringMode(true)}
         onSaveLesson={openLessonDialog}
         onExitAuthoring={onExitAuthoring}
@@ -237,6 +306,8 @@ export function WorkbenchHeader({
         savedLesson={savedLesson}
         publishedLesson={publishedLesson}
         copyShareUrl={copyShareUrl}
+        theme={theme}
+        onThemeChange={onThemeChange}
       />
     </>
   );

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   DockviewReact,
   type DockviewApi,
@@ -8,7 +9,7 @@ import {
   type IDockviewPanelProps,
   type SerializedDockview,
 } from 'dockview';
-import { Plus, Settings, X } from 'lucide-react';
+import { MoreVertical, Plus } from 'lucide-react';
 import 'dockview/dist/styles/dockview.css';
 import type { DockviewViewState, PanelDef, PanelRole, PanelType, WorkbenchZoneId } from '../../types';
 import { roleOf } from '../../paneRole';
@@ -24,6 +25,7 @@ type WorkbenchDockviewContextValue = {
   mode: WorkbenchDockviewProps['mode'];
   onRemovePanel?: (panelId: string) => void;
   onToggleSettings?: (panelId: string) => void;
+  onRenamePanel?: (panelId: string, title: string) => void;
   zone: WorkbenchZoneId;
   getPanelTitle: (panel: PanelDef) => string;
   onAddPanel?: (type: PanelType, zone?: WorkbenchZoneId) => void;
@@ -40,6 +42,7 @@ interface WorkbenchDockviewProps {
   onViewStateChange?: (viewState: DockviewViewState) => void;
   onRemovePanel?: (panelId: string) => void;
   onToggleSettings?: (panelId: string) => void;
+  onRenamePanel?: (panelId: string, title: string) => void;
   onAddPanel?: (type: PanelType, zone?: WorkbenchZoneId) => void;
   getPanelTitle?: (panel: PanelDef) => string;
   className?: string;
@@ -78,6 +81,7 @@ const ADD_OPTIONS_BY_ZONE: Record<WorkbenchZoneId, Array<{ type: PanelType; labe
     { type: 'NOTE', label: 'Note' },
   ],
   sideRail: [
+    { type: 'SCENARIOS', label: 'Scenarios' },
     { type: 'CONTROLS', label: 'Controls' },
   ],
   bottomPanel: [
@@ -86,6 +90,29 @@ const ADD_OPTIONS_BY_ZONE: Record<WorkbenchZoneId, Array<{ type: PanelType; labe
 };
 
 const defaultPanelTitle = (panel: PanelDef) => panel.title;
+const TAB_MENU_WIDTH = 144;
+const TAB_MENU_ESTIMATED_HEIGHT = 128;
+type MenuPosition = { x: number; y: number };
+
+export function getDockviewTabMenuPosition({
+  point,
+  anchorRect,
+  viewportWidth,
+  viewportHeight,
+}: {
+  point?: MenuPosition | null;
+  anchorRect?: Pick<DOMRectReadOnly, 'left' | 'bottom'> | null;
+  viewportWidth: number;
+  viewportHeight: number;
+}): MenuPosition {
+  const useAnchor = Boolean(anchorRect) && (!point || (point.x === 0 && point.y === 0));
+  const rawX = useAnchor ? anchorRect!.left : (point?.x ?? 8);
+  const rawY = useAnchor ? anchorRect!.bottom + 4 : (point?.y ?? 8);
+  return {
+    x: Math.max(8, Math.min(rawX, viewportWidth - TAB_MENU_WIDTH - 8)),
+    y: Math.max(8, Math.min(rawY, viewportHeight - TAB_MENU_ESTIMATED_HEIGHT)),
+  };
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -104,10 +131,11 @@ function addPanelToDockview(
   api: DockviewApi,
   panel: PanelDef,
   preferredGroupId?: string | null,
+  positionOverride?: Parameters<DockviewApi['addPanel']>[0]['position'],
 ) {
   const role = panelRole(panel);
   const referenceGroup = (preferredGroupId ? api.getGroup(preferredGroupId) : undefined) ?? api.activeGroup ?? api.panels[0]?.group;
-  const position = referenceGroup ? { referenceGroup, direction: 'within' } as const : undefined;
+  const position = positionOverride ?? (referenceGroup ? { referenceGroup, direction: 'within' } as const : undefined);
 
   return api.addPanel<DockPanelParams>({
     id: panel.id,
@@ -128,14 +156,31 @@ function syncDockviewPanelMetadata(api: DockviewApi, panels: readonly PanelDef[]
   }
 }
 
-function rebuildDockview(api: DockviewApi, panels: readonly PanelDef[], preferredGroupId?: string | null) {
-  api.clear();
+function sideRailOrder(panel: PanelDef): number {
+  if (panel.type === 'SCENARIOS') return 0;
+  if (panel.type === 'CONTROLS') return 1;
+  return 2;
+}
+
+function orderedPanelsForZone(panels: readonly PanelDef[], zone?: WorkbenchZoneId): PanelDef[] {
   const sorted = [...panels].sort((a, b) => {
+    if (zone === 'sideRail') return sideRailOrder(a) - sideRailOrder(b);
     const order: Record<PanelRole, number> = { graph: 0, control: 1, note: 2, output: 3 };
     return order[panelRole(a)] - order[panelRole(b)];
   });
+  return sorted;
+}
+
+function rebuildDockview(api: DockviewApi, panels: readonly PanelDef[], preferredGroupId?: string | null, zone?: WorkbenchZoneId) {
+  api.clear();
+  const sorted = orderedPanelsForZone(panels, zone);
+  let firstGroup = undefined as ReturnType<DockviewApi['getGroup']>;
   for (const panel of sorted) {
-    addPanelToDockview(api, panel, preferredGroupId);
+    const position = zone === 'sideRail' && !preferredGroupId && firstGroup
+      ? { referenceGroup: firstGroup, direction: 'below' } as const
+      : undefined;
+    const dockPanel = addPanelToDockview(api, panel, preferredGroupId, position);
+    firstGroup ??= dockPanel.group;
   }
   syncDockviewPanelMetadata(api, panels);
 }
@@ -157,7 +202,13 @@ function restoreDockview(
     api.fromJSON(viewState.state);
     const restoredIds = new Set(api.panels.map((panel) => panel.id));
     for (const panel of panels) {
-      if (!restoredIds.has(panel.id)) addPanelToDockview(api, panel, preferredGroupId);
+      if (!restoredIds.has(panel.id)) {
+        const referenceGroup = api.panels[0]?.group;
+        const position = zone === 'sideRail' && referenceGroup
+          ? { referenceGroup, direction: panel.type === 'SCENARIOS' ? 'above' : 'below' } as const
+          : undefined;
+        addPanelToDockview(api, panel, preferredGroupId, position);
+      }
     }
     syncDockviewPanelMetadata(api, panels);
     return true;
@@ -175,7 +226,7 @@ function applyDockviewLayout(
   preferredGroupId?: string | null,
 ) {
   if (restoreDockview(api, panels, viewState, zone, preferredGroupId)) return;
-  rebuildDockview(api, panels, preferredGroupId);
+  rebuildDockview(api, panels, preferredGroupId, zone);
 }
 
 function captureDockviewViewState(api: DockviewApi, zone: WorkbenchZoneId): DockviewViewState {
@@ -200,49 +251,146 @@ function WorkbenchDockPanel(props: IDockviewPanelProps<DockPanelParams>) {
 function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
   const context = useContext(WorkbenchDockviewContext);
   const [isActive, setIsActive] = useState(props.api.isActive);
+  const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const panel = context?.panelsById.get(props.params.panelId);
   const title = panel && context ? context.getPanelTitle(panel) : (props.api.title ?? props.params.panelId);
 
   useEffect(() => {
     setIsActive(props.api.isActive);
-    const disposable = props.api.onDidActiveChange((event) => setIsActive(event.isActive));
+    const disposable = props.api.onDidActiveChange((event) => {
+      setIsActive(event.isActive);
+      if (!event.isActive) setMenuPosition(null);
+    });
     return () => disposable.dispose();
   }, [props.api]);
 
-  const canConfigure = isActive && context?.mode !== 'learner' && Boolean(panel) && Boolean(context?.onToggleSettings);
-  const canClose = isActive && context?.mode !== 'learner' && Boolean(context?.onRemovePanel);
+  const canConfigure = context?.mode !== 'learner' && Boolean(panel) && panel?.type !== 'SCENARIOS' && Boolean(context?.onToggleSettings);
+  const canRename = context?.mode !== 'learner' && Boolean(panel) && Boolean(context?.onRenamePanel);
+  const canClose = context?.mode !== 'learner' && Boolean(context?.onRemovePanel);
+  const hasMenu = canConfigure || canRename || canClose;
+
+  useEffect(() => {
+    if (!menuPosition) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      setMenuPosition(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [menuPosition]);
+
+  const getMenuPositionNearPoint = (point: MenuPosition, anchorRect?: DOMRect | null) => getDockviewTabMenuPosition({
+    point,
+    anchorRect,
+    viewportWidth: window.innerWidth,
+    viewportHeight: window.innerHeight,
+  });
+
+  const renamePanel = () => {
+    if (!context?.onRenamePanel) return;
+    const nextTitle = window.prompt('Rename pane', title);
+    if (nextTitle === null) return;
+    const trimmedTitle = nextTitle.trim();
+    if (!trimmedTitle || trimmedTitle === title) return;
+    context.onRenamePanel(props.params.panelId, trimmedTitle);
+  };
 
   return (
-    <div className="flex h-full min-w-0 items-center gap-1 px-2 text-xs font-semibold text-slate-300">
-      <span className="truncate">{title}</span>
-      {canConfigure && (
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            context?.onToggleSettings?.(props.params.panelId);
-          }}
-          className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-slate-500 hover:bg-slate-800 hover:text-slate-100"
-          aria-label={`${title} pane settings`}
-          title="Pane settings"
-        >
-          <Settings className="h-3 w-3" />
-        </button>
-      )}
-      {canClose && (
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            context?.onRemovePanel?.(props.params.panelId);
-          }}
-          className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-slate-500 hover:bg-slate-800 hover:text-slate-100"
-          aria-label={`Close ${title}`}
-          title="Close pane"
-        >
-          <X className="h-3 w-3" />
-        </button>
-      )}
+    <div
+      className={`workbench-dock-tab flex h-full min-w-0 items-center justify-between gap-2 px-2.5 text-xs font-semibold ${isActive ? 'text-slate-100' : 'text-slate-500'}`}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!hasMenu) return;
+        setMenuPosition(getMenuPositionNearPoint(
+          { x: event.clientX, y: event.clientY },
+          event.currentTarget.getBoundingClientRect(),
+        ));
+      }}
+    >
+      <span className="min-w-0 flex-1 truncate">{title}</span>
+      <div className="relative flex h-5 w-5 shrink-0 items-center justify-center">
+        {hasMenu && (
+          <>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                const rect = event.currentTarget.getBoundingClientRect();
+                setMenuPosition((value) => (
+                  value
+                    ? null
+                    : getMenuPositionNearPoint({ x: rect.right - TAB_MENU_WIDTH, y: rect.bottom + 4 })
+                ));
+              }}
+              className={`workbench-dock-tab-menu-button inline-flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-slate-700/80 hover:text-slate-100 ${
+                menuPosition ? 'opacity-100' : ''
+              }`}
+              aria-label={`${title} pane menu`}
+              aria-haspopup="menu"
+              aria-expanded={Boolean(menuPosition)}
+              title="Pane menu"
+            >
+              <MoreVertical className="h-3.5 w-3.5" />
+            </button>
+            {menuPosition && typeof document !== 'undefined' && createPortal(
+              <>
+                <div className="fixed inset-0 z-[80]" onClick={() => setMenuPosition(null)} />
+                <div
+                  role="menu"
+                  className="workbench-popover-menu fixed z-[90] w-36 rounded-md border py-1 shadow-xl"
+                  style={{ left: menuPosition.x, top: menuPosition.y }}
+                >
+                  {canRename && (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setMenuPosition(null);
+                        renamePanel();
+                      }}
+                      role="menuitem"
+                      className="workbench-popover-menu-item block w-full px-3 py-1.5 text-left text-xs font-medium"
+                    >
+                      Rename
+                    </button>
+                  )}
+                  {canConfigure && (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        context?.onToggleSettings?.(props.params.panelId);
+                        setMenuPosition(null);
+                      }}
+                      role="menuitem"
+                      className="workbench-popover-menu-item block w-full px-3 py-1.5 text-left text-xs font-medium"
+                    >
+                      Pane settings
+                    </button>
+                  )}
+                  {canClose && (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        context?.onRemovePanel?.(props.params.panelId);
+                        setMenuPosition(null);
+                      }}
+                      role="menuitem"
+                      className="workbench-popover-menu-item-danger block w-full px-3 py-1.5 text-left text-xs font-medium"
+                    >
+                      Close pane
+                    </button>
+                  )}
+                </div>
+              </>,
+              document.body,
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -254,26 +402,40 @@ function ZoneAddMenu({
   zone: WorkbenchZoneId;
   onChoose: (type: PanelType) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const options = ADD_OPTIONS_BY_ZONE[zone];
+
+  const openMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    const rect = event.currentTarget.getBoundingClientRect();
+    setMenuPosition((value) => (
+      value
+        ? null
+        : {
+            x: Math.max(8, Math.min(rect.right - 160, window.innerWidth - 168)),
+            y: Math.max(8, Math.min(rect.bottom + 4, window.innerHeight - 160)),
+          }
+    ));
+  };
+
   return (
     <div className="relative flex h-full items-center px-1">
       <button
         type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          setOpen((value) => !value);
-        }}
+        onClick={openMenu}
         className="inline-flex h-5 w-5 items-center justify-center rounded text-slate-500 hover:bg-slate-800 hover:text-slate-100"
         aria-label={`Add ${ZONE_LABELS[zone]} pane`}
         title={`Add ${ZONE_LABELS[zone]} pane`}
       >
         <Plus className="h-3.5 w-3.5" />
       </button>
-      {open && (
+      {menuPosition && typeof document !== 'undefined' && createPortal(
         <>
-          <div className="fixed inset-0 z-[80]" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-[90] mt-1 w-40 rounded-md border border-slate-700 bg-slate-900 py-1 shadow-xl">
+          <div className="fixed inset-0 z-[80]" onClick={() => setMenuPosition(null)} />
+          <div
+            className="workbench-popover-menu fixed z-[90] w-40 rounded-md border py-1 shadow-xl"
+            style={{ left: menuPosition.x, top: menuPosition.y }}
+          >
             {options.map((option) => (
               <button
                 key={option.type}
@@ -281,16 +443,16 @@ function ZoneAddMenu({
                 onClick={(event) => {
                   event.stopPropagation();
                   onChoose(option.type);
-                  setOpen(false);
+                  setMenuPosition(null);
                 }}
-                className="block w-full px-3 py-2 text-left text-xs font-medium text-slate-300 hover:bg-slate-800"
+                className="workbench-popover-menu-item block w-full px-3 py-2 text-left text-xs font-medium"
               >
                 {option.label}
               </button>
             ))}
           </div>
         </>
-      )}
+      , document.body)}
     </div>
   );
 }
@@ -354,6 +516,7 @@ export function WorkbenchDockview({
   onViewStateChange,
   onRemovePanel,
   onToggleSettings,
+  onRenamePanel,
   onAddPanel,
   getPanelTitle = defaultPanelTitle,
   className = '',
@@ -374,6 +537,7 @@ export function WorkbenchDockview({
       mode,
       onRemovePanel,
       onToggleSettings,
+      onRenamePanel,
       zone,
       getPanelTitle,
       onAddPanel,
@@ -382,7 +546,7 @@ export function WorkbenchDockview({
         onAddPanel?.(type, zone);
       },
     }),
-    [getPanelTitle, mode, onAddPanel, onRemovePanel, onToggleSettings, panelsById, renderPanel, zone],
+    [getPanelTitle, mode, onAddPanel, onRemovePanel, onRenamePanel, onToggleSettings, panelsById, renderPanel, zone],
   );
   const components = useMemo(() => ({ 'workbench-panel': WorkbenchDockPanel }), []);
   useEffect(() => {

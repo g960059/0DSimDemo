@@ -9,6 +9,7 @@ import type {
   PanelInstancePresentation,
   PanelType,
   PanelViewConfig,
+  ScenarioPanelView,
   SignalType,
 } from "./types";
 
@@ -101,6 +102,15 @@ export function toTypedPanelView(panel: PanelDef): PanelViewConfig {
     return view;
   }
 
+  if (panel.type === "SCENARIOS") {
+    const view: ScenarioPanelView = {
+      kind: "scenario",
+      mode: "list",
+      instances: instancePresentationFromLegacy(panel.config),
+    };
+    return view;
+  }
+
   return { kind: "note", noteId: panel.id, mode: "scratch" };
 }
 
@@ -114,9 +124,11 @@ export function toLegacyPanelConfig(
       ? (view.chambers ?? view.signals ?? ["Default"])
       : view.kind === "output"
         ? view.metrics
-        : view.kind === "control"
-          ? (view.groups ?? view.knobs ?? [])
-          : [];
+      : view.kind === "control"
+        ? (view.groups ?? view.knobs ?? [])
+        : view.kind === "scenario"
+          ? []
+        : [];
 
   return Object.fromEntries(
     instanceIds.map((id) => {

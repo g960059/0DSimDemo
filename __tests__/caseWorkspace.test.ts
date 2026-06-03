@@ -8,6 +8,7 @@ const panels: PanelDef[] = [
   { id: "pv", type: "PVLOOP", title: "PV", w: 6, h: 8, config: {}, isSettingsOpen: false },
   { id: "wave", type: "WAVEFORM", title: "Wave", w: 6, h: 8, config: {}, isSettingsOpen: false },
   { id: "metrics", type: "METRICS", title: "Metrics", w: 4, h: 4, config: {}, isSettingsOpen: false },
+  { id: "scenarios", type: "SCENARIOS", title: "Scenarios", w: 4, h: 4, config: {}, isSettingsOpen: false },
   { id: "controls", type: "CONTROLS", title: "Controls", w: 4, h: 4, config: {}, isSettingsOpen: false },
 ];
 
@@ -21,8 +22,12 @@ describe("semantic workspace", () => {
     expect(workspace.regions.graph?.activePanelId).toBe("pv");
     expect(workspace.regions.output?.visible).toBe("compact");
     expect(workspace.regions.control?.position).toBe("left");
+    expect(workspace.regions.control?.panelIds).toEqual(["controls"]);
+    expect(workspace.regions.control?.activePanelId).toBe("controls");
     expect(workspace.regions.note?.position).toBe("right");
     expect(workspace.regions.scenarios?.visible).toBe(true);
+    expect(workspace.regions.scenarios?.panelIds).toEqual(["scenarios"]);
+    expect(workspace.regions.scenarios?.activePanelId).toBe("scenarios");
   });
 
   it("embeds a lesson layer into a canonical case document", () => {
@@ -56,5 +61,20 @@ describe("semantic workspace", () => {
     expect(next.regions.graph?.panelIds).toEqual(["pv"]);
     expect(next.regions.graph?.activePanelId).toBe("pv");
     expect(next.mode).toBe("custom");
+  });
+
+  it("clears stale region visibility and active panel when the region has no panels", () => {
+    const previous = {
+      ...defaultWorkspaceForPanels(panels, "custom"),
+      regions: {
+        ...defaultWorkspaceForPanels(panels, "custom").regions,
+        scenarios: { visible: true, position: "left" as const, panelIds: ["scenarios"], activePanelId: "scenarios" },
+      },
+    };
+    const next = workspaceForPanels(panels.filter((panel) => panel.id !== "scenarios"), previous);
+
+    expect(next.regions.scenarios?.visible).toBe(false);
+    expect(next.regions.scenarios?.panelIds).toEqual([]);
+    expect(next.regions.scenarios?.activePanelId).toBeUndefined();
   });
 });
