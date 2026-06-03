@@ -43,7 +43,7 @@ const DEFAULT_MODEL_LIMITATIONS = [
   'Active-stress single-fibre ventricles; parameters are not yet calibrated (M12).',
 ];
 const LOCAL_COPY_AUTHOR = 'Local copy';
-const OFFICIAL_CASE_AUTHORS = new Set(['HemoSim', 'HemoSim 0D']);
+const OFFICIAL_CASE_AUTHORS = new Set(['CircleHeart']);
 const EMPTY_NOTE_SPINE: NoteContent = [
   { type: 'paragraph', content: [{ type: 'text', text: '', styles: {} }] },
 ];
@@ -219,7 +219,7 @@ function Workbench() {
   useEffect(() => { controller.setPlaying(isPlaying); }, [isPlaying]);
 
   // --- Save / load (ROADMAP #3-c): canonical knob-primary CaseDocument, local
-  // file (.hemosim.json) + a localStorage working draft. No network/Firebase. ---
+  // file (.circleheart.json) + a localStorage working draft. No network/Firebase. ---
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const defaultSceneTitle = () => sceneMeta.title.trim() || (instances[0] ? `${instances[0].name} scene` : 'Workbench scene');

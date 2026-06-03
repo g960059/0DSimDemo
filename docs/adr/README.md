@@ -1,6 +1,6 @@
 # Architecture Decision Records (ADR)
 
-Short, dated records of significant UI/UX & architecture decisions for HemoSim 0D.
+Short, dated records of significant UI/UX & architecture decisions for CircleHeart.
 Each ADR captures: Context · Decision · Consequences · Alternatives considered.
 
 | # | Title | Status | Date |

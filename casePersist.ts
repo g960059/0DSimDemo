@@ -1,12 +1,12 @@
 // Local persistence + portability for CaseDocuments (milestone #3-c). No
-// network, no Firebase: a `.hemosim.json` file export/import (the offline
+// network, no Firebase: a `.circleheart.json` file export/import (the offline
 // "share") plus a localStorage working draft. Firestore publishing is a later,
 // sensitive, admin-gated milestone.
 
 import type { CaseDocument } from "@/caseDoc";
 
-export const DRAFT_KEY = "hemosim:workbench-draft";
-const FILE_EXT = ".hemosim.json";
+export const DRAFT_KEY = "circleheart:workbench-draft";
+const FILE_EXT = ".circleheart.json";
 
 /** Validate the on-the-wire shape of a parsed JSON value as a CaseDocument.
  *  This is a structural gate (fail fast with a clear message); the deep
@@ -18,10 +18,10 @@ export function parseCaseDocument(text: string): CaseDocument {
   } catch {
     throw new Error("Not a valid JSON file.");
   }
-  if (!raw || typeof raw !== "object") throw new Error("Not a HemoSim case file.");
+  if (!raw || typeof raw !== "object") throw new Error("Not a CircleHeart case file.");
   const d = raw as Record<string, unknown>;
-  if (typeof d.schemaVersion !== "number") throw new Error("Missing schemaVersion — not a HemoSim case file.");
-  if (typeof d.knobMappingVersion !== "string") throw new Error("Missing knobMappingVersion — not a HemoSim case file.");
+  if (typeof d.schemaVersion !== "number") throw new Error("Missing schemaVersion — not a CircleHeart case file.");
+  if (typeof d.knobMappingVersion !== "string") throw new Error("Missing knobMappingVersion — not a CircleHeart case file.");
   if (!Array.isArray(d.instances)) throw new Error("Case file has no instances.");
   if (d.instances.length === 0) throw new Error("Case file has no instances (would wipe the scene).");
   if (!Array.isArray(d.panels)) throw new Error("Case file has no panels.");
@@ -47,7 +47,7 @@ export function serializeCaseDocument(doc: CaseDocument): string {
   return JSON.stringify(doc, null, 2);
 }
 
-/** Trigger a browser download of the document as `<title>.hemosim.json`. */
+/** Trigger a browser download of the document as `<title>.circleheart.json`. */
 export function exportCaseFile(doc: CaseDocument): void {
   if (typeof document === "undefined") return; // SSR / headless guard
   const safe = (doc.meta?.title || "case").replace(/[^a-z0-9-_]+/gi, "-").toLowerCase();
@@ -66,7 +66,7 @@ export function exportCaseFile(doc: CaseDocument): void {
 export function readCaseFile(file: File): Promise<CaseDocument> {
   return new Promise((resolve, reject) => {
     if (file.size > MAX_CASE_FILE_BYTES) {
-      reject(new Error(`File too large (${(file.size / 1024 / 1024).toFixed(1)} MB); HemoSim case files are tiny.`));
+      reject(new Error(`File too large (${(file.size / 1024 / 1024).toFixed(1)} MB); CircleHeart case files are tiny.`));
       return;
     }
     const reader = new FileReader();

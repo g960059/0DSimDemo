@@ -136,7 +136,7 @@ export function WorkbenchSidePanel({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".json,.hemosim.json,application/json"
+                accept=".json,.circleheart.json,application/json"
                 className="hidden"
                 onChange={(e) => { const file = e.target.files?.[0]; if (file) onImportFile(file); e.target.value = ''; }}
               />

@@ -56,7 +56,7 @@ function makeCase(p: { id: string; title: string; description: string; modelLimi
     engineVersion: ENGINE_VERSION,
     knobMappingVersion: KNOB_MAPPING_VERSION,
     solver: DEFAULT_SOLVER,
-    meta: { id: p.id, title: p.title, author: "HemoSim", createdAt: 0, updatedAt: 0 },
+    meta: { id: p.id, title: p.title, author: "CircleHeart", createdAt: 0, updatedAt: 0 },
     spec: { title: p.title, description: p.description, modelLimitations: p.modelLimitations },
     instances,
     panels: buildPanels(instances.map((x) => x.id)),
