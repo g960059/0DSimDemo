@@ -35,6 +35,14 @@ Dockview or any future layout-library state is not the canonical model. If neede
 - LLM/MCP/API callers should emit semantic operations such as add graph panel, show note, choose baseline/official instance, and set workspace mode rather than raw dock layout JSON.
 - Existing saved files remain compatible because `PanelDef.config` is preserved. Typed `PanelDef.view` is additive.
 
+## Implementation status (current scope of this branch)
+
+The Decision above is the target model. Two parts are deliberately **not fully wired yet** in this branch; they are documented so future work (and LLM/MCP/API callers) does not assume more than exists:
+
+- **`PanelDef.view` is an additive type skeleton only.** Rendering, editing, and persistence still use the legacy `PanelDef.config` as the live, canonical pane configuration. The `panelView.ts` typed-view ⇄ legacy-config converters are currently exercised **only in tests** and are **not lossless** (per-instance signal selections are unioned into one list; typed edits can be overridden by prior `config`). Do **not** treat `view` as the rendered source of truth yet. Wiring typed `view` into rendering/mutation with a lossless round-trip is future work.
+
+- **Lessons are not yet unified into `cases/{caseId}`.** Only the **read** path is bridged: `/lesson/:id` can fall back to a `CaseDocument.lesson` layer. **Lesson authoring/publish still writes to the legacy `lessons/{lessonId}` collection** (`publishLesson` / local `saveLesson`); new lessons are **not** written as `cases/{caseId}` with `kind: "lesson"`. Treat `lessons/{lessonId}` as the lesson source-of-truth for now. The unified-cases model is the target, not the current state.
+
 ## Alternatives considered
 
 - Store Dockview JSON as the canonical layout. Rejected because it is hard for LLM/API callers, mobile views, migrations, and semantic validation.
