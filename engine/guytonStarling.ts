@@ -226,8 +226,10 @@ export function starlingSweepSignature(
     "heartModel", "lvTmaxScale", "rvTmaxScale", "lvGeomScale", "rvGeomScale",
     "caReleaseScale", "rvCaReleaseScale", "pericardiumEnabled", "pericardialFluidMl",
     "pericardialPressureScaleMmHg", "septalCouplingEnabled", "septalStiffnessScale",
-    "MV_Amax", "MV_Aleak", "MV_R", "AoV_Amax", "AoV_Aleak", "AoV_R",
-    "TV_Amax", "TV_Aleak", "TV_R", "PV_Amax", "PV_Aleak", "PV_R",
+    "MV_Aref", "MV_Amax", "MV_Aleak", "MV_R", "MV_L", "MV_B",
+    "AoV_Aref", "AoV_Amax", "AoV_Aleak", "AoV_R", "AoV_L", "AoV_B",
+    "TV_Aref", "TV_Amax", "TV_Aleak", "TV_R", "TV_L", "TV_B",
+    "PV_Aref", "PV_Amax", "PV_Aleak", "PV_R", "PV_L", "PV_B",
     "nodeOverrides", "edgeOverrides",
   ];
   const picked: Record<string, unknown> = {};

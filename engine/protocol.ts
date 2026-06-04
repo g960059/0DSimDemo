@@ -14,6 +14,9 @@ export type CoreRuntimeParams = {
   respAmpAlv: number;
   respRate: number;
   speed: number;
+  avDelaySec: number;
+  atrialElectromechanicalDelaySec: number;
+  ventricularElectromechanicalDelaySec: number;
   // Hemorrhage / fluid (Phase A M5a), mL/min. Drive an expected-TBV ledger that
   // the TBV projector follows; health checks mass conservation vs the ledger.
   bleedRate: number;
@@ -56,6 +59,7 @@ export type CoreRuntimeParams = {
   RCAStenosis: number;
   // Valve Parameters
   // MV
+  MV_Aref: number;
   MV_Amax: number;
   MV_Aleak: number;
   MV_kOpen: number;
@@ -65,6 +69,7 @@ export type CoreRuntimeParams = {
   MV_L: number;
   MV_B: number;
   // AoV
+  AoV_Aref: number;
   AoV_Amax: number;
   AoV_Aleak: number;
   AoV_kOpen: number;
@@ -72,7 +77,9 @@ export type CoreRuntimeParams = {
   AoV_tauClose: number;
   AoV_R: number;
   AoV_L: number;
+  AoV_B: number;
   // TV
+  TV_Aref: number;
   TV_Amax: number;
   TV_Aleak: number;
   TV_kOpen: number;
@@ -82,6 +89,7 @@ export type CoreRuntimeParams = {
   TV_L: number;
   TV_B: number;
   // PV
+  PV_Aref: number;
   PV_Amax: number;
   PV_Aleak: number;
   PV_kOpen: number;
@@ -89,6 +97,7 @@ export type CoreRuntimeParams = {
   PV_tauClose: number;
   PV_R: number;
   PV_L: number;
+  PV_B: number;
   // Node overrides allow one level of nesting (the `active` chamber sub-block,
   // e.g. { LV: { active: { bPas: 20 } } }); edges are always flat numeric.
   nodeOverrides?: OverrideBlock;
@@ -146,6 +155,9 @@ export const HARD_CLAMP: Partial<Record<keyof CoreRuntimeParams, [number, number
   respAmpAlv: [-20, 20],
   respRate: [0, 1],
   speed: [0.1, 10],
+  avDelaySec: [0.04, 0.30],
+  atrialElectromechanicalDelaySec: [0, 0.12],
+  ventricularElectromechanicalDelaySec: [0, 0.12],
   bleedRate: [0, 2000],
   fluidRate: [0, 2000],
   lvTmaxScale: [0.05, 2.5],
@@ -178,7 +190,9 @@ export const HARD_CLAMP: Partial<Record<keyof CoreRuntimeParams, [number, number
 /** Keys smoothParams() hard-clamps at runtime — must agree with HARD_CLAMP. */
 export const RUNTIME_CLAMP_KEYS: (keyof CoreRuntimeParams)[] = [
   "HR", "contractility", "relaxation", "systemicResistance", "pulmonaryResistance",
-  "venousTone", "arterialStiffness", "PEEP", "speed", "bleedRate", "fluidRate",
+  "venousTone", "arterialStiffness", "PEEP", "speed", "avDelaySec",
+  "atrialElectromechanicalDelaySec", "ventricularElectromechanicalDelaySec",
+  "bleedRate", "fluidRate",
   "lvTmaxScale", "rvTmaxScale", "lvGeomScale", "rvGeomScale",
   "caReleaseScale", "rvCaReleaseScale",
   "pericardialPressureScaleMmHg", "pericardialSlackVolumeMl",
@@ -194,7 +208,9 @@ export const RUNTIME_CLAMP_KEYS: (keyof CoreRuntimeParams)[] = [
 const CORE_NUMERIC_KEYS: (keyof CoreRuntimeParams)[] = [
   "HR", "contractility", "relaxation", "systemicResistance", "pulmonaryResistance",
   "venousTone", "arterialStiffness", "PEEP", "Pth0", "respAmpTh", "respAmpAlv",
-  "respRate", "speed", "bleedRate", "fluidRate",
+  "respRate", "speed", "avDelaySec",
+  "atrialElectromechanicalDelaySec", "ventricularElectromechanicalDelaySec",
+  "bleedRate", "fluidRate",
   "lvTmaxScale", "rvTmaxScale", "lvGeomScale", "rvGeomScale",
   "caReleaseScale", "rvCaReleaseScale",
   "pericardialPressureScaleMmHg", "pericardialSlackVolumeMl",
@@ -219,9 +235,11 @@ export const NEUTRAL_PARAMS: CoreRuntimeParams = {
   // Kept in lock-step with defaultParams() (caseContract test).
   systemicResistance: 0.80, pulmonaryResistance: 0.65, venousTone: 0.15,
   arterialStiffness: 0.75, PEEP: 0, Pth0: 0, respAmpTh: 0, respAmpAlv: 0,
-  respRate: 0.25, speed: 1, bleedRate: 0, fluidRate: 0,
+  respRate: 0.25, speed: 1,
+  avDelaySec: 0.16, atrialElectromechanicalDelaySec: 0.00, ventricularElectromechanicalDelaySec: 0.05,
+  bleedRate: 0, fluidRate: 0,
   heartModel: "activeStress", useChiResistance: false, projectTBV: true,
-  lvTmaxScale: 0.85, rvTmaxScale: 1.0, lvGeomScale: 1, rvGeomScale: 1,
+  lvTmaxScale: 0.70, rvTmaxScale: 1.0, lvGeomScale: 1, rvGeomScale: 1,
   caReleaseScale: 1, rvCaReleaseScale: 1,
   pericardiumEnabled: true,
   pericardialPressureScaleMmHg: 1.0,
@@ -239,16 +257,16 @@ export const NEUTRAL_PARAMS: CoreRuntimeParams = {
   septalLvPressureWeight: 0.28,
   coronaryEnabled: true,
   coronaryResistanceScale: 1,
-  coronaryCompressionScale: 1.2,
+  coronaryCompressionScale: 1.5,
   coronaryVasodilator: 0,
   coronaryReserveMax: 3.5,
   LADStenosis: 0,
   LCxStenosis: 0,
   RCAStenosis: 0,
-  MV_Amax: 5.0, MV_Aleak: 1e-4, MV_kOpen: 2.0, MV_tauOpen: 0.020, MV_tauClose: 0.035, MV_R: 0.004, MV_L: 0.0008, MV_B: 1e-4,
-  AoV_Amax: 3.5, AoV_Aleak: 1e-4, AoV_kOpen: 2.0, AoV_tauOpen: 0.010, AoV_tauClose: 0.030, AoV_R: 0.005, AoV_L: 0.001,
-  TV_Amax: 8.0, TV_Aleak: 1e-4, TV_kOpen: 2.0, TV_tauOpen: 0.018, TV_tauClose: 0.030, TV_R: 0.0035, TV_L: 0.0008, TV_B: 1e-5,
-  PV_Amax: 4.0, PV_Aleak: 1e-4, PV_kOpen: 2.0, PV_tauOpen: 0.010, PV_tauClose: 0.020, PV_R: 0.005, PV_L: 0.001,
+  MV_Aref: 5.0, MV_Amax: 5.0, MV_Aleak: 0, MV_kOpen: 2.0, MV_tauOpen: 0.020, MV_tauClose: 0.012, MV_R: 0.004, MV_L: 0.0003, MV_B: 2e-5,
+  AoV_Aref: 3.5, AoV_Amax: 3.5, AoV_Aleak: 0, AoV_kOpen: 3.0, AoV_tauOpen: 0.006, AoV_tauClose: 0.005, AoV_R: 0.0015, AoV_L: 0.00025, AoV_B: 1e-6,
+  TV_Aref: 8.0, TV_Amax: 8.0, TV_Aleak: 0, TV_kOpen: 2.0, TV_tauOpen: 0.018, TV_tauClose: 0.010, TV_R: 0.0035, TV_L: 0.0008, TV_B: 1e-5,
+  PV_Aref: 4.0, PV_Amax: 4.0, PV_Aleak: 0, PV_kOpen: 2.0, PV_tauOpen: 0.010, PV_tauClose: 0.006, PV_R: 0.005, PV_L: 0.001, PV_B: 2e-6,
 };
 
 export function sanitizeParams(p: CoreRuntimeParams): CoreRuntimeParams {
@@ -284,10 +302,9 @@ export function sanitizeParams(p: CoreRuntimeParams): CoreRuntimeParams {
       const val = typeof raw === "number" && Number.isFinite(raw) ? raw : (NEUTRAL_PARAMS[key] as number);
       out[key as string] = Math.max(minVal, val);
     };
-    guard("Amax", 0); guard("Aleak", 0); guard("kOpen", 0);
+    guard("Aref", 1e-6); guard("Amax", 0); guard("Aleak", 0); guard("kOpen", 0);
     guard("tauOpen", 1e-4); guard("tauClose", 1e-4);
-    guard("R", 0); guard("L", 0);
-    if (v === "MV" || v === "TV") guard("B", 0);
+    guard("R", 0); guard("L", 0); guard("B", 0);
   }
 
   // Node/edge overrides — researcher escape hatch, but still the final gate
@@ -357,7 +374,7 @@ export type SimSample = {
   // Flows
   QAo: number;
   QPA: number;
-  QPV: number;
+  QPV: number; // pulmonic valve flow (RV->PA); systolic ejection, not venous S/D/Ar
   QMV: number;
   QTV: number;
   PVF: number; // pulmonary venous inflow to LA (PVein->LA edge); S/D/Ar pattern
@@ -387,10 +404,24 @@ export type SimSample = {
   cRA: number;
   rLA: number;
   rRA: number;
+  xiMV: number;
+  xiAoV: number;
   xiTV: number;
   xiPV: number;
+  dP_MV: number;
+  dP_AoV: number;
   dP_TV: number;
   dP_PV: number;
+  AoV_areaRatio: number;
+  AoV_loss_R: number;
+  AoV_loss_B: number;
+  AoV_loss_residual: number;
+  LVPressureFloorHit01: number;
+  RVPressureFloorHit01: number;
+  ELV_active: number;
+  ERV_active: number;
+  ELV_timeVarying: number;
+  ERV_timeVarying: number;
   qLAReservoirMl?: number;
   VLABodyMl?: number;
   VLAReservoirMl?: number;
@@ -435,6 +466,8 @@ export type SimMetrics = {
   LAPMean: number;
   LVEDPApprox: number;
   RVEDPApprox: number;
+  AoVMeanGradient: number;
+  AoVPeakGradient: number;
 
   SV_L: number;
   SV_R: number;

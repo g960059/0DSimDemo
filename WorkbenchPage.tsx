@@ -35,7 +35,11 @@ const ALL_SIGNALS: SignalType[] = [
   'QAo', 'QMV', 'QPA', 'QPV', 'QTV', 'PVF', 'SVF',
   'QCorLAD', 'QCorLCx', 'QCorRCA', 'QCorTotal', 'QCS',
   'PimLAD', 'PimLCx', 'PimRCA', 'PLADArt', 'PLCxArt', 'PRCAArt', 'PCS',
-  'VRA', 'aRA', 'cRA', 'xiTV', 'xiPV', 'dP_TV', 'dP_PV',
+  'VRA', 'aRA', 'cRA', 'xiMV', 'xiAoV', 'xiTV', 'xiPV',
+  'dP_MV', 'dP_AoV', 'dP_TV', 'dP_PV',
+  'AoV_areaRatio', 'AoV_loss_R', 'AoV_loss_B', 'AoV_loss_residual',
+  'LVPressureFloorHit01', 'RVPressureFloorHit01',
+  'ELV_active', 'ERV_active', 'ELV_timeVarying', 'ERV_timeVarying',
   'Pperi', 'Ppc', 'VHeart', 'septumShiftMl', 'VLVeff', 'VRVeff',
   'PLVfw', 'PRVfw', 'PVI_LV', 'PVI_RV', 'septalForceMmHg',
 ];

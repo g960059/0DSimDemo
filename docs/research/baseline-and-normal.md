@@ -11,13 +11,62 @@ Model files: `engine/caseBaselines.ts` (active-normal = `defaultParams()`, TBV 5
 All official cases deviate from this operating point, so its validity is the
 foundation of every lesson.
 
+## 2026-06-03 refresh: LV/AoV default and EDPVR floor
+
+This branch updates the default active-normal operating point to remove the
+AS-like LVP/AoP peak separation seen in the workbench and to keep the LV
+diastolic limb on a positive passive EDPVR instead of a pressure-floor artifact.
+
+- LV force scale: `lvTmaxScale` **0.85 -> 0.70**. This keeps the realised LV peak
+  stress within a physiological active-stress envelope while preventing the
+  normal LV from outrunning the single-node aortic root / dynamic-flow envelope.
+- Dynamic flow safety clamp: **1200 -> 1500 mL/s**. A larger test cap produced LV
+  volume-floor hits; 1500 reduces visual peak separation without degeneracy.
+- Semilunar valve parameters are now first-class runtime values:
+  `AoV_B`, `PV_B`, and each valve's `Aref`.
+- Valve loss semantics changed from `A/Amax` to **`A/Aref`**, so a stenotic
+  `Amax` remains meaningful even when the valve is fully open.
+- LV passive stress now uses a smooth positive hinge
+  `smoothHinge(lambda - lambdaPas0)` before the exponential, matching the intended
+  non-negative passive stress law and avoiding negative passive pressure followed
+  by floor clamp.
+
+Fixed-settle baseline summary after this change: AoP **119.5/75.0** mmHg, mean
+AoP **82.3** mmHg, LAP **10.3**, RAP **3.3**, LVEDP **11.6**, CO_L **6.05 L/min**,
+EF_L **0.69**. LV passive points are: 60 mL **0.02**, 100 mL **3.43**, 120 mL
+**10.01**, 140 mL **23.51** mmHg. The normal workbench waveform gate now requires
+`|max(LVP)-max(AoP)| < 8 mmHg` and zero LV floor hits over the final beat.
+
+Follow-up in the same 2026-06-03 refit tightened competent-valve closure for the
+default baseline: all four `Aleak` defaults are **0 cm²**, and `tauClose` is now
+MV **12 ms**, AoV **5 ms**, TV **10 ms**, PV **6 ms**. This targets a competent
+baseline rather than trace AR/MR/TR/PR. The resulting fixed-settle summary is
+AoP **119.9/76.5** mmHg, mean AoP **83.9**, LAP **8.8**, RAP **3.2**, LVEDP
+**9.8**, CO_L **5.81 L/min**, EF_L **0.66**. Final-beat regurgitant fractions
+are gated in tests at MV <0.5 %, AoV <0.1 %, TV <0.5 %, PV <0.1 %. These closure
+time constants are lumped first-order coaptation constants; they are not intended
+as direct leaflet-motion MRI durations.
+
+Important limitation: the total instantaneous `LVP-AoP` during the very short
+0D ejection interval still contains dynamic-flow residual and is tracked in the
+snapshot (`AoV_grad_mean` / `AoV_grad_peak`). The true valve-loss terms (`R q` and
+`B q|q|`) remain only a few mmHg in normal default; AS-like display is prevented
+without pretending the single-node root/inertance residual is a validated Doppler
+mean gradient.
+
+The workbench now exposes PV-derived elastance waveforms: `ELV_active` /
+`ERV_active` are the active-stress apparent elastance `Ptm/(Veff - V0)`, while
+`ELV_timeVarying` / `ERV_timeVarying` are the legacy time-varying elastance
+fallback evaluated at the same effective volume and phase. These are comparison
+signals, not new state variables.
+
 ## Parameters in play
 
 | Param | Model value (+ how computed) | Literature target (ref) | Verdict |
 |---|---|---|---|
 | HR | 75 bpm | resting 60–100, typ ~70 [Klabunde] | OK |
 | TBV | 5600 mL | ~70 mL/kg → ~4900 mL @70 kg; 5–5.5 L typical [Guyton&Hall] | slightly high, OK |
-| `contractility`/`lvTmaxScale` | 1.0 / 1.0 (multipliers on Tmax0) | — | OK (neutral) |
+| `contractility`/`lvTmaxScale` | 1.0 / 0.70 (multipliers on Tmax0) | realised LV pressure and CO in normal range | OK (calibrated default scale) |
 | LV `Tmax0` | **382 500 Pa = 382.5 kPa** (note: 85 kPa × 4.5 legacy fudge) | peak active myofiber stress **~30–110 kPa** [Bovendeerd 1992] | **OFF — supra-physiological ceiling (M12 debt)** |
 | RV `Tmax0` | 162 000 Pa = 162 kPa (36 kPa × 4.5) | RV peak stress lower than LV | OFF — same 4.5× fudge |
 | `bPas` (EDPVR stiffness, fibre) | 10 (in stretch λ units), `sigmaPas0` 2000 Pa, `lambdaPas0` 0.85 | exponential EDPVR P=k·e^(βV); β is chamber-level [mL⁻¹], Klotz-normalisable [Klotz 2006/2007] | uncertain — structure OK, magnitude uncalibrated |
@@ -60,7 +109,7 @@ real tracing" even if absolute numbers are low.
 
 **Active-stress chamber math** (`engine/chambers.ts:150-199`). Transmural pressure from
 single-fibre stress: `λ = rm/rmRef` (dimensionless mid-wall stretch, thick spherical shell);
-`σ_pas = sigmaPas0·(exp(bPas·(λ−λpas0))−1)`; `σ_act = Tmax0·tmaxScale·contractility·a·gOver·f_iso`;
+`σ_pas = sigmaPas0·(exp(bPas·smoothHinge(λ−λpas0))−1)`; `σ_act = Tmax0·tmaxScale·contractility·a·gOver·f_iso`;
 `PtmPa = geomScale·geomChi·(2h/rm)·(σ_pas+σ_act)`; `Ptm_mmHg = PtmPa/133.322`, clamped [−5, 260].
 Dimensionally coherent if Tmax0/sigmaPas0 are Pa and geomScale/geomChi/(2h/rm)/a/gOver/f_iso are
 dimensionless; bPas is per-unit-stretch (λ dimensionless). The exponential σ_pas is a reasonable

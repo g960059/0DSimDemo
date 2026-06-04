@@ -23,6 +23,10 @@ export type ChamberCtx = {
   contractility: number;
   relaxation: number;
   phi: number; // cumulative cardiac phase (beats); theta = frac(phi)
+  chamber?: Chamber;
+  avDelaySec?: number; // atrial activation lead before ventricular phase 0/QRS
+  atrialElectromechanicalDelaySec?: number;
+  ventricularElectromechanicalDelaySec?: number;
   // active-stress scaling knobs
   tmaxScale: number;
   geomScale: number;
@@ -77,6 +81,7 @@ export type ActiveChamberParams = {
   sigmaPas0: number;
   bPas: number;
   lambdaPas0: number;
+  passiveHingeWidth?: number;
   Tmax0: number;
   kOver: number;
   lambdaFail: number;
@@ -120,6 +125,21 @@ export type ReservoirBranchState = {
   sleeveOverMax01: number;
   pressureMmHg: number;
 };
+
+export type ChamberPressureTerms = {
+  lambda: number;
+  passiveStretch: number;
+  sigmaPas: number;
+  sigmaAct: number;
+  pressureUnclampedMmHg: number;
+  pressureMmHg: number;
+  pressureFloorHit01: number;
+};
+
+function smoothPositiveHinge(x: number, width: number): number {
+  if (width <= 0) return Math.max(x, 0);
+  return width * Math.log1p(Math.exp(clamp(x / width, -40, 40)));
+}
 
 export function sphereRadii(VeffMl: number, VwMl: number) {
   const Vi = Math.max(VeffMl, 1e-3) * ML_TO_M3;
@@ -343,11 +363,11 @@ export class ActiveStressChamberModel implements ChamberModel {
     return ctx.outletValveOpen01 ?? (ctx.side === "right" ? undefined : ctx.aovOpen01);
   }
 
-  private bodyPressure(V: number, internal: ChamberInternal, ctx: ChamberCtx): number {
+  private bodyPressureTerms(V: number, internal: ChamberInternal, ctx: ChamberCtx): ChamberPressureTerms {
     const ap = this.ap;
     const a = clamp(internal.a, 0, 1);
     const { lambda, h, rm } = this.geometry(V);
-    const stretch = lambda - ap.lambdaPas0;
+    const stretch = smoothPositiveHinge(lambda - ap.lambdaPas0, ap.passiveHingeWidth ?? 0.015);
     const sigmaPas = ap.sigmaPas0 * (expClamped(ap.bPas * stretch) - 1);
     const gOver = 1 / (1 + expClamped(ap.kOver * (lambda - ap.lambdaFail)));
 
@@ -357,7 +377,30 @@ export class ActiveStressChamberModel implements ChamberModel {
     const sigmaAct = ap.Tmax0 * ctx.tmaxScale * ctx.contractility * a * gOver * f_iso;
     const sigma = sigmaPas + sigmaAct;
     const PtmPa = ctx.geomScale * ap.geomChi * (2 * h / Math.max(rm, 1e-6)) * sigma;
-    return clamp(PtmPa / MMHG_TO_PA, ap.pressureFloorMmHg ?? -5, 260);
+    const pressureUnclampedMmHg = PtmPa / MMHG_TO_PA;
+    const pressureFloor = ap.pressureFloorMmHg ?? -5;
+    return {
+      lambda,
+      passiveStretch: stretch,
+      sigmaPas,
+      sigmaAct,
+      pressureUnclampedMmHg,
+      pressureMmHg: clamp(pressureUnclampedMmHg, pressureFloor, 260),
+      pressureFloorHit01: pressureUnclampedMmHg <= pressureFloor ? 1 : 0,
+    };
+  }
+
+  private bodyPressure(V: number, internal: ChamberInternal, ctx: ChamberCtx): number {
+    return this.bodyPressureTerms(V, internal, ctx).pressureMmHg;
+  }
+
+  debugPressureTerms(V: number, internal: ChamberInternal, ctx: ChamberCtx): ChamberPressureTerms {
+    return this.bodyPressureTerms(this.wallVolume(V, ctx), internal, ctx);
+  }
+
+  passivePressure(V: number, ctx: ChamberCtx): number {
+    const passiveCtx = { ...ctx, contractility: 0, tmaxScale: 0, caReleaseScale: 0 };
+    return this.bodyPressure(this.wallVolume(V, passiveCtx), { c: 0, a: 0, r: 0 }, passiveCtx);
   }
 
   pressure(V: number, internal: ChamberInternal, ctx: ChamberCtx): number {
@@ -479,7 +522,16 @@ export class ActiveStressChamberModel implements ChamberModel {
     const Trel = clamp(ap.Trel0 * Math.pow(T / T0, ap.etaRel), ap.TrelMin, ap.TrelMax);
     const durationTheta = clamp(Trel / T, 0.02, 0.3);
     const theta = frac(ctx.phi);
-    const thetaOnEff = ap.atrialLeadSec != null ? frac(1 - ap.atrialLeadSec / T) : ap.thetaOn;
+    const durationSec = durationTheta * T;
+    const isAtrium = ctx.chamber === "LA" || ctx.chamber === "RA" || ap.atrialLeadSec != null;
+    const atrialElectricalDelaySec = ctx.avDelaySec ?? ap.atrialLeadSec;
+    const atrialLeadSec = atrialElectricalDelaySec != null
+      ? Math.max(0, atrialElectricalDelaySec - (ctx.atrialElectromechanicalDelaySec ?? 0))
+      : undefined;
+    const ventricularDelaySec = ctx.ventricularElectromechanicalDelaySec ?? 0;
+    const thetaOnEff = isAtrium && atrialLeadSec != null
+      ? frac(1 - clamp(atrialLeadSec, 0, Math.max(0, T - durationSec)) / T)
+      : frac(clamp(ventricularDelaySec, 0, Math.max(0, T - durationSec)) / T);
     const pulse = raisedCosinePulse(theta, thetaOnEff, durationTheta, T);
 
     const betaDrive = clamp((ctx.contractility - 1) / 1.5, 0, 1);
@@ -563,7 +615,14 @@ export type ElastanceParams = {
 };
 
 /** Normalized time-varying elastance activation e(theta) for a chamber. */
-export function chamberActivation(chamber: Chamber, phi: number, HR: number): number {
+export function chamberActivation(
+  chamber: Chamber,
+  phi: number,
+  HR: number,
+  avDelaySec = 0.16,
+  atrialElectromechanicalDelaySec = 0,
+  ventricularElectromechanicalDelaySec = 0,
+): number {
   const theta = frac(phi);
   const T = 60 / Math.max(HR, 1);
   const TsV = 0.30 * Math.pow(T / 0.80, 0.35);
@@ -576,11 +635,29 @@ export function chamberActivation(chamber: Chamber, phi: number, HR: number): nu
     return g / Math.max(gmax, 1e-9);
   };
   if (chamber === "LV" || chamber === "RV") {
-    return window(theta * T, TsV);
+    const delaySec = clamp(ventricularElectromechanicalDelaySec, 0, Math.max(0, T - TsV));
+    const localSec = frac(theta - delaySec / T) * T;
+    return ventricularDoubleHillActivation(localSec, T, TsV);
   }
-  const tauA = frac(theta + 0.16 / T) * T;
+  const leadSec = clamp(Math.max(0, avDelaySec - atrialElectromechanicalDelaySec), 0, Math.max(0, T - TsA));
+  const tauA = frac(theta + leadSec / T) * T;
   return 0.35 * window(tauA, TsA);
 }
+
+function ventricularDoubleHillActivation(localSec: number, cycleSec: number, nominalPeakSec: number): number {
+  const tPeak = clamp(nominalPeakSec, 0.18 * cycleSec, 0.42 * cycleSec);
+  const x = Math.max(0, localSec) / Math.max(tPeak, 1e-6);
+  const eNorm = ventricularDoubleHillRaw(x) / VENTRICULAR_DOUBLE_HILL_PEAK_RAW;
+  return clamp(eNorm, 0, 1);
+}
+
+const ventricularDoubleHillRaw = (x: number): number => {
+  const gRise = Math.pow(x / 0.78, 2.40);
+  const gDecay = Math.pow(x / 1.23, 12.00);
+  return (gRise / (1 + gRise)) * (1 / (1 + gDecay));
+};
+
+const VENTRICULAR_DOUBLE_HILL_PEAK_RAW = ventricularDoubleHillRaw(1);
 
 export class ElastanceChamberModel implements ChamberModel {
   constructor(public readonly ep: ElastanceParams) {}
@@ -590,7 +667,14 @@ export class ElastanceChamberModel implements ChamberModel {
     const Veff = Math.max(V - ep.V0, 0);
     const Ped = ep.beta * (Math.exp(clamp(ep.alpha * Veff, -20, 20)) - 1);
     const Pes = ep.Ees * Veff;
-    const e = chamberActivation(ep.chamber, ctx.phi, ctx.HR);
+    const e = chamberActivation(
+      ep.chamber,
+      ctx.phi,
+      ctx.HR,
+      ctx.avDelaySec,
+      ctx.atrialElectromechanicalDelaySec,
+      ctx.ventricularElectromechanicalDelaySec,
+    );
     return clamp(Ped + e * (Pes - Ped), -5, 250);
   }
 

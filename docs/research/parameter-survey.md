@@ -141,7 +141,8 @@ R in mmHg·s/mL; global `systemicResistance`×1.25 multiplies **only** `group:"s
 - (a) Normal PVR **< 250 dyn·s·cm⁻⁵** (~0.08–0.12 mmHg·s/mL) [Klabunde]. (b) Model 0.11. (c) **OK**
   — and consistent with realised (mPAP 9 − LAP 3)/CO ≈ 0.10.
 
-**Inertances L** (mmHg·s²/mL): AoV 0.002, Ao_SA 0.002, PV 0.001, PA_PArt 0.004.
+**Inertances L** (mmHg·s²/mL): AoV 0.00025 after the 2026-06-03 LV/AoV refit
+(previously 0.001-0.002), Ao_SA 0.002, PV 0.001, PA_PArt 0.004.
 - (a) Total arterial inertance ~**0.005 mmHg·s²/mL** (4-element windkessel, dog: 0.0051–0.0054)
   [Stergiopulos & Westerhof 1999]. (b) Model 0.001–0.004. (c) **plausible** — same order of magnitude.
 
@@ -149,7 +150,10 @@ R in mmHg·s/mL; global `systemicResistance`×1.25 multiplies **only** `group:"s
 
 ## E. Valves (opening-fraction area dynamics)
 
-Forward/regurgitant flow via effective area ratio; R = vR/areaRatio². Areas in **cm²**.
+Forward/regurgitant flow via effective area ratio; R = vR/areaRatio² and
+B = vB/areaRatio². Since 2026-06-03, `areaRatio = A/Aref`, not `A/Amax`, so a
+reduced stenotic `Amax` remains physically effective even when the valve is fully
+open. Areas in **cm²**.
 
 | Valve | Model `Amax` (cm²) | Literature anatomic/effective area (ref) | Verdict |
 |---|---|---|---|
@@ -157,18 +161,20 @@ Forward/regurgitant flow via effective area ratio; R = vR/areaRatio². Areas in 
 | AoV | 3.5 | normal AVA ~**2.0–3.5 (–4) cm²** [Otto; Medscape] | OK (upper edge) |
 | TV | 8.0 | ~**4–9 cm²** (up to 9 anatomic) [PubMed 8021055] | OK (large end) |
 | PV | 4.0 | normal PV area **3.01 ± 0.36 cm²** (Doppler) [PubMed 1428292] | **slightly high (~+3 SD)** — consider ~3.0 |
-| `Aleak` (all) | 1e-4 cm² | near-zero competent-valve leak | OK |
+| `Aleak` (all) | 0 cm² in baseline; lesion knobs set finite EROA-like leak areas | competent baseline valves should have no intentional leak | OK |
+| `Aref` | MV 5.0, AoV 3.5, TV 8.0, PV 4.0 | healthy reference area for loss scaling | OK |
+| `B` | MV 1e-4, AoV 1e-6, TV 1e-5, PV 2e-6 | lumped quadratic loss coefficient | calibration value |
 
 | Opening dynamics | Model | Literature (ref) | Verdict |
 |---|---|---|---|
-| `kOpen` | 2.0 | opening-fraction sigmoid steepness (model) | no direct target |
-| `tauOpen` | 10–12 ms | AoV opens in **~27 ms** (MRI Tro) [PMC8440328] | plausible (τ of 1st-order ⇒ ~2–3τ full open ≈ 30 ms) |
-| `tauClose` | 20–30 ms | AoV closes in **~44 ms** (MRI Trc) | plausible |
-| valve `R` / `L` | 0.002–0.005 / 0.0002–0.002 | open-valve resistance/inertance (lumped) | plausible (small, as expected) |
+| `kOpen` | AoV 3.0, others 2.0 | opening-fraction sigmoid steepness (model) | no direct target |
+| `tauOpen` | AoV 6 ms, others 10–20 ms | AoV opens in **~27.5 ms** (MRI Tro) [PMC8440328] | plausible (first-order τ; AoV fast enough to avoid delayed-opening spike) |
+| `tauClose` | MV 12 ms, AoV 5 ms, TV 10 ms, PV 6 ms | first-order coaptation constant; direct MRI closure durations are longer because they include full leaflet/root motion | plausible for a lumped competent-valve gate |
+| valve `R` / `L` | AoV 0.0015 / 0.00025; others 0.0035–0.005 / 0.0008–0.001 | open-valve resistance/inertance (lumped) | plausible (small, as expected) |
 
-**MR/AR/TR leak recalibration sanity-check (commit `23dd74e`).** New coefficients map severity-1 to:
-MR 0.1·MV_Amax = **0.50 cm²**, AR 0.083·AoV_Amax = **0.29 cm²**, TR 0.06·TV_Amax = **0.48 cm²**.
-ASE severe thresholds (EROA): MR **≥0.40**, AR **≥0.30**, TR **≥0.40 cm²** [Zoghbi 2017]. → MR 0.50 ✓
+**MR/AR/TR leak recalibration sanity-check.** Current coefficients map severity-1 to:
+MR 0.11·MV_Amax = **0.55 cm²**, AR 0.083·AoV_Amax = **0.29 cm²**, TR 0.06·TV_Amax = **0.48 cm²**.
+ASE severe thresholds (EROA): MR **≥0.40**, AR **≥0.30**, TR **≥0.40 cm²** [Zoghbi 2017]. → MR 0.55 ✓
 (severe), TR 0.48 ✓ (severe), AR 0.29 ✓ (right at the severe knee). **Recalibration is well-aligned**;
 the only nuance is AR sits exactly on the 0.30 threshold, so severity-1 AR is "borderline severe"
 rather than comfortably severe — acceptable, but note it for M12 if a margin is wanted.

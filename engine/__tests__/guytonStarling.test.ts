@@ -81,6 +81,8 @@ function metrics(overrides: Partial<SimMetrics> = {}): SimMetrics {
     LAPMean: 9,
     LVEDPApprox: 12,
     RVEDPApprox: 8,
+    AoVMeanGradient: 2,
+    AoVPeakGradient: 6,
     SV_L: 64,
     SV_R: 66,
     CO_L: 4.8,

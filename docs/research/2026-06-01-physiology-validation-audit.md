@@ -11,6 +11,12 @@ current-branch validity ledger: literature target, model value, physical derivat
 verdict. It does **not** replace the older M12-era notes; it supersedes their operating-point numbers
 for this branch.
 
+> 2026-06-03 follow-up: later default-LV/AoV refit work changed the operating
+> point and competent-valve baseline. Current default valves use `Aleak=0` and
+> faster first-order closure constants (MV 12 ms, AoV 5 ms, TV 10 ms, PV 6 ms),
+> with tests gating final-beat MV/AoV/TV/PV regurgitant fractions to negligible
+> values. The table below remains a historical audit of the branch named above.
+
 ## Method
 
 - Code inventory: hard clamps, neutral/default parameters, UI ranges, baseline harness settings, and
@@ -259,17 +265,17 @@ Current anatomical `Amax` values are broadly plausible as nominal normal or high
 | TV | 8.0 cm2 | BSE tricuspid/pulmonary guideline: normal TV orifice 7-9 cm2 | Plausible |
 | PV | 4.0 cm2 | Normal pulmonary valve area is smaller than TV and often around 3 cm2 | Plausible high |
 
-However, because the current loss law normalizes by `Amax`, the full-open gradients are governed by
-`R/B/L`, not absolute `Amax`. This makes the anatomical-area labels misleading.
+2026-06-03 update: the loss law now normalizes by `Aref`, not current `Amax`, so full-open stenotic
+gradients can be governed by reduced area as intended. The older warning below is retained as
+historical context for pre-refit branches.
 
 Valve timing constants are reasonable first-order model values. `tauOpen` 10-20 ms and `tauClose`
 20-35 ms imply effective motion over roughly two to three time constants, which matches a rapid
 mechanical opening/closure timescale. `kOpen` remains a dimensionless numerical gain with no direct
 physiological target; document it that way.
 
-`AoV_B` and `PV_B` are not exposed in `CoreRuntimeParams`, so the semilunar valves fall back to edge
-defaults while MV/TV have runtime `B` fields. Either expose them symmetrically or document that only
-AV-valve `B` is currently tunable.
+2026-06-03 update: `AoV_B` and `PV_B` are now exposed in `CoreRuntimeParams`, defaults, sanitize, raw
+controls, and case-contract tests.
 
 ### Vascular, respiratory, and numerics
 
@@ -297,8 +303,8 @@ E/A or E-to-A peak separation, and regurgitant fraction.
 
 1. **P0: fix PEEP units.** Convert cmH2O UI inputs to mmHg in the engine or relabel the UI/knobs as
    mmHg. Include `Pth0`, `respAmpTh`, and `respAmpAlv` in the same unit decision.
-2. **P0: clarify or change valve `Amax`.** The current law makes `Amax` non-physical at full opening.
-   Either use an absolute-area loss law or relabel the knob.
+2. **P0: clarify or change valve `Amax`.** **Done 2026-06-03:** the valve law now uses `A/Aref`, so
+   `Amax` remains physical at full opening.
 3. **P0: add `respRate` target-path test/fix.** `setTargetParameters()` should update respiratory
    rate just as it updates PEEP and respiratory amplitudes.
 4. **P1: continue RV/RA refinement against phase-aware metrics.** The first refit now gates RVEF,
@@ -311,8 +317,8 @@ E/A or E-to-A peak separation, and regurgitant fraction.
    mass assumption.
 7. **P2: make AV-plane shortening adaptive.** Derive shortening from the current beat's ED/ES rather
    than fixed reference ED/ES values.
-8. **P2: expose or document semilunar `B`.** Add `AoV_B` and `PV_B` to runtime params or state that
-   semilunar quadratic loss is fixed.
+8. **P2: expose or document semilunar `B`.** **Done 2026-06-03:** `AoV_B` and `PV_B` are runtime
+   parameters.
 9. **P2: tighten settled CO-balance validation.** Keep broad UI health thresholds, add stricter
    settled-test thresholds.
 

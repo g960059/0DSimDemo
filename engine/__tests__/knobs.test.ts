@@ -69,7 +69,7 @@ describe("clinical knob layer", () => {
     expect(patch.arterialStiffness).toBeCloseTo(base.arterialStiffness * 1.5, 9);
   });
 
-  it("v0.2 resolver output is frozen (editing the mapping must bump the version)", () => {
+  it("current resolver output is frozen (editing the mapping must bump the version)", () => {
     const base = defaultParams();
     const k = { ...neutralKnobs(base), contractility: 1.4, afterload: 1.3, aorticStenosis: 0.5, diastolicStiffness: 1.8 };
     expect(resolveKnobsToParams(k, base, V)).toMatchSnapshot();

@@ -24,15 +24,69 @@ interface WaveformProps extends ChartPanelProps {
     timeWindow: number; 
 }
 
+type SignalColorVariant = {
+    hueOffset: number;
+    saturationScale?: number;
+    lightnessOffset?: number;
+};
+
+const DEFAULT_SIGNAL_COLOR_VARIANTS: Record<string, SignalColorVariant> = {
+    LVP: { hueOffset: 0, saturationScale: 1.02, lightnessOffset: 0.02 },
+    AoP: { hueOffset: 16, saturationScale: 1.04, lightnessOffset: 0.14 },
+    LAP: { hueOffset: -18, saturationScale: 0.95, lightnessOffset: -0.08 },
+    RAP: { hueOffset: 34, saturationScale: 0.95, lightnessOffset: -0.06 },
+    PAP: { hueOffset: 18, saturationScale: 1.04, lightnessOffset: 0.14 },
+    ABP: { hueOffset: 16, saturationScale: 1.04, lightnessOffset: 0.14 },
+    ELV_active: { hueOffset: 0, saturationScale: 1.05, lightnessOffset: 0.04 },
+    ELV_timeVarying: { hueOffset: 24, saturationScale: 1.02, lightnessOffset: 0.13 },
+    ERV_active: { hueOffset: 48, saturationScale: 1.05, lightnessOffset: 0.05 },
+    ERV_timeVarying: { hueOffset: 72, saturationScale: 1.02, lightnessOffset: 0.14 },
+};
+
+const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
+
+const deriveSignalColor = (baseColor: string, variant: SignalColorVariant): string => {
+    const hsl = d3.hsl(baseColor);
+    if (!Number.isFinite(hsl.h)) return baseColor;
+    return d3.hsl(
+        (hsl.h + variant.hueOffset + 360) % 360,
+        clamp01(hsl.s * (variant.saturationScale ?? 1)),
+        clamp01(hsl.l + (variant.lightnessOffset ?? 0)),
+    ).formatHex();
+};
+
 const getColor = (baseColor: string, signal: string, customBaseColor?: string, customSignalColors?: Record<string, string>): string => {
     if (customSignalColors && customSignalColors[signal]) return customSignalColors[signal];
     const colorToUse = customBaseColor || baseColor;
+    const variant = DEFAULT_SIGNAL_COLOR_VARIANTS[signal];
+    if (variant) return deriveSignalColor(colorToUse, variant);
     const c = d3.color(colorToUse);
     if (!c) return colorToUse;
-    if (['AoP', 'PAP', 'ABP'].includes(signal)) return c.brighter(1.5).formatHex();
     if (['Pla', 'LAP', 'Pra', 'RAP', 'CVP', 'PCWP', 'LA', 'RA'].includes(signal)) return c.darker(1.2).formatHex();
     return c.formatHex();
 };
+
+const POSITIVE_ZERO_FLOOR_SIGNALS = new Set([
+    'xiMV',
+    'xiAoV',
+    'xiTV',
+    'xiPV',
+    'AoV_areaRatio',
+    'LVPressureFloorHit01',
+    'RVPressureFloorHit01',
+    'ELV_active',
+    'ERV_active',
+    'ELV_timeVarying',
+    'ERV_timeVarying',
+    'VRA',
+    'VHeart',
+    'VLVeff',
+    'VRVeff',
+]);
+
+const shouldUseZeroFloorForWaveforms = (signals: Set<string>): boolean => (
+    signals.size > 0 && Array.from(signals).every(sig => POSITIVE_ZERO_FLOOR_SIGNALS.has(sig))
+);
 
 // ---- Axis auto-scaling --------------------------------------------------------
 // A "nice number" rounded to {1,2,2.5,5}·10^k so the step is appropriate to the
@@ -112,10 +166,24 @@ const sampleSignalValue = (d: SimSample, sig: string): number => {
         case 'VRA': return d.VRA;
         case 'aRA': return d.aRA;
         case 'cRA': return d.cRA;
+        case 'xiMV': return d.xiMV;
+        case 'xiAoV': return d.xiAoV;
         case 'xiTV': return d.xiTV;
         case 'xiPV': return d.xiPV;
+        case 'dP_MV': return d.dP_MV;
+        case 'dP_AoV': return d.dP_AoV;
         case 'dP_TV': return d.dP_TV;
         case 'dP_PV': return d.dP_PV;
+        case 'AoV_areaRatio': return d.AoV_areaRatio;
+        case 'AoV_loss_R': return d.AoV_loss_R;
+        case 'AoV_loss_B': return d.AoV_loss_B;
+        case 'AoV_loss_residual': return d.AoV_loss_residual;
+        case 'LVPressureFloorHit01': return d.LVPressureFloorHit01;
+        case 'RVPressureFloorHit01': return d.RVPressureFloorHit01;
+        case 'ELV_active': return d.ELV_active;
+        case 'ERV_active': return d.ERV_active;
+        case 'ELV_timeVarying': return d.ELV_timeVarying;
+        case 'ERV_timeVarying': return d.ERV_timeVarying;
         case 'Pperi': return d.Pperi;
         case 'Ppc': return d.Ppc;
         case 'VHeart': return d.VHeart;
@@ -418,8 +486,12 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
               const color = getColor(inst.color, chamber, cfg.customBaseColor, cfg.customSignalColors);
               
               const points: CanvasPoint[] = [];
+              let vMin = Infinity;
+              let vMax = -Infinity;
               const addPoint = (d: SimSample) => {
                   const { v, p } = chamberPVPoint(d, chamber);
+                  vMin = Math.min(vMin, v);
+                  vMax = Math.max(vMax, v);
                   points.push({ x: xScale(v), y: yScale(p) });
               };
               for (let i = beatRange.start; i < beatRange.end; i++) {
@@ -429,6 +501,23 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
                   addPoint(buf[beatRange.closingIndex]);
               }
               if (points.length < 2) return;
+
+              if (showGuides && (chamber === 'LV' || chamber === 'RV') && Number.isFinite(vMin) && Number.isFinite(vMax)) {
+                  const curveMin = Math.max(0, vMin - 10);
+                  const curveMax = Math.min(scaleRef.current.maxV, Math.max(vMax + 20, curveMin + 20));
+                  const passiveCurve = physState.core.passivePressureVolumeCurve(chamber, curveMin, curveMax, 72)
+                      .filter((pt) => Number.isFinite(pt.v) && Number.isFinite(pt.p) && pt.p >= -10 && pt.p <= scaleRef.current.maxP * 1.4)
+                      .map((pt) => ({ x: xScale(pt.v), y: yScale(pt.p) }));
+                  if (passiveCurve.length > 1) {
+                      ctx.save();
+                      ctx.strokeStyle = color;
+                      ctx.globalAlpha = 0.34;
+                      ctx.lineWidth = 1.2;
+                      ctx.setLineDash([5, 4]);
+                      drawSmoothPolyline(ctx, passiveCurve);
+                      ctx.restore();
+                  }
+              }
 
               ctx.save();
               ctx.strokeStyle = color;
@@ -536,9 +625,10 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
             const tMin = Math.max(0, currentGlobalTime - timeSec + gapSec);
             const tMax = currentGlobalTime;
 
-            let frameYMax = 50;
-            let frameYMin = 0;
+            let frameYMax = -Infinity;
+            let frameYMin = Infinity;
             let hasData = false;
+            const frameSignals = new Set<string>();
 
             instances.forEach(inst => {
                 const cfg = (config as any)[inst.id];
@@ -553,9 +643,11 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                     if (d.t > tMax) break;
                     cfg.selectedSignals.forEach((sig: string) => {
                         const val = sampleSignalValue(d, sig);
+                        if (!Number.isFinite(val)) return;
                         if (val > frameYMax) frameYMax = val;
                         if (val < frameYMin) frameYMin = val;
                         hasData = true;
+                        frameSignals.add(sig);
                     });
                 }
             });
@@ -565,7 +657,10 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                 // the trace clips or shrinks well inside the window, and that resolves
                 // low-amplitude signals (CVP/LAP ~2 mmHg) instead of flattening them.
                 const r = { min: scaleRef.current.yMin, max: scaleRef.current.yMax };
-                stableRange(r, frameYMin, frameYMax, { ticks: 5 });
+                stableRange(r, frameYMin, frameYMax, {
+                    ticks: 5,
+                    zeroFloor: shouldUseZeroFloorForWaveforms(frameSignals),
+                });
                 scaleRef.current.yMin = r.min;
                 scaleRef.current.yMax = r.max;
             }

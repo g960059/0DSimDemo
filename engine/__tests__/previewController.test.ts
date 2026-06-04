@@ -184,6 +184,34 @@ describe("PreviewController (headless driver)", () => {
     expect(phys.lastRenderX).toBe(beforeLastRenderX);
   });
 
+  it("rebuilds the settled core and clears live history when heartModel changes", () => {
+    const c = new PreviewController({ useWorker: false });
+    c.setInstances([inst("1")]);
+
+    let now = 0;
+    for (let i = 0; i < 30; i++) {
+      now += 50;
+      c.tick(now);
+    }
+
+    const before = c.refs.get("1")!;
+    const beforeCore = before.core;
+    expect(before.buffer.length).toBeGreaterThan(0);
+
+    c.setInstances([inst("1", { ...DEFAULT_PARAMS, heartModel: "elastance" })]);
+
+    const after = c.refs.get("1")!;
+    expect(after.core).not.toBe(beforeCore);
+    expect(after.core.p.heartModel).toBe("elastance");
+    expect(after.buffer).toEqual([]);
+    expect(after.lastRenderX).toBe(0);
+
+    c.tick(now + 50);
+    expect(after.buffer).toEqual([]);
+    c.tick(now + 100);
+    expect(after.buffer.length).toBeGreaterThan(0);
+  });
+
   it("falls back to sync cores after a typed worker error response", () => {
     const workerHarness = withFakeWorker();
     try {
@@ -205,6 +233,46 @@ describe("PreviewController (headless driver)", () => {
         c.tick(1050);
       }).not.toThrow();
       expect(phys.core.t).toBeGreaterThan(t0);
+    } finally {
+      workerHarness.restore();
+    }
+  });
+
+  it("asks the worker to reset and discard stale frames when heartModel changes", () => {
+    const workerHarness = withFakeWorker();
+    try {
+      const c = new PreviewController({ useWorker: true });
+      const worker = workerHarness.latest();
+      c.setInstances([inst("1")]);
+
+      const phys = c.refs.get("1")!;
+      phys.buffer = [{ t: 1, phi: 1 } as any];
+      phys.lastRenderX = 1;
+
+      c.tick(1000);
+      const staleTick = latestWorkerMessage(worker, "tick");
+
+      c.setInstances([inst("1", { ...DEFAULT_PARAMS, heartModel: "elastance" })]);
+      const setInstances = latestWorkerMessage(worker, "setInstances");
+      const resetInstances = latestWorkerMessage(worker, "resetInstances");
+
+      expect(resetInstances.generation).toBe(setInstances.generation);
+      expect(resetInstances.ids).toEqual(["1"]);
+      expect(phys.buffer).toEqual([]);
+      expect(phys.lastRenderX).toBe(0);
+      expect(phys.isSettling).toBe(true);
+
+      worker.emit({
+        type: "frame",
+        generation: staleTick.generation,
+        requestId: staleTick.requestId,
+        now: staleTick.now,
+        instances: [{ id: "1", t: 123, samples: [{ t: 123, phi: 123 }], settling: false }],
+        perf: { coreWallMs: 1, samples: 1, instanceCount: 1, settlingCount: 0 },
+      });
+
+      expect(phys.buffer).toEqual([]);
+      expect(phys.isSettling).toBe(true);
     } finally {
       workerHarness.restore();
     }

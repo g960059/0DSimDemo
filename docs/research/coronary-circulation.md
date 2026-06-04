@@ -13,7 +13,7 @@ Model files:
 |---|---:|---|---|
 | `coronaryEnabled` | `true` | Coronary runoff is part of the closed loop at baseline. | Implemented |
 | `coronaryResistanceScale` | `1.0` | Global multiplier on LAD/LCx/RCA resistive bed; resting flow gate is 200-350 mL/min and 3-7% of CO. | Calibration knob |
-| `coronaryCompressionScale` | `1.2` | Scales intramyocardial external pressure and time-varying microvascular resistance. Chosen to make LAD flow diastolic-dominant without destabilizing baseline. | Calibration knob |
+| `coronaryCompressionScale` | `1.5` | Scales intramyocardial external pressure and time-varying microvascular resistance. Refit after the 2026-06-03 LV force-scale update to keep LAD flow diastolic-dominant without destabilizing baseline. | Calibration knob |
 | `coronaryVasodilator` | `0` | `0..1` hyperemia control; microvascular resistance is divided by `1 + (reserveMax - 1) * vasodilator`. | FFR/CFR entry point |
 | `coronaryReserveMax` | `3.5` | Typical CFR target is order 3-4 in uncomplicated physiology; kept as tunable rather than hard physiology. | Calibration knob |
 | `LADStenosis`, `LCxStenosis`, `RCAStenosis` | `0` | Diameter stenosis, clamped to `0..0.95`, converted to area ratio. | Implemented |
@@ -145,7 +145,7 @@ Diastolic fraction integrates positive ostial flow while `QAo <= 5 mL/s`, divide
 Supply-demand indices are simple normalized teaching indicators:
 
 ```text
-D_L = HR/75 * (lvTmaxScale/0.85) * (mean(LVP)/90)^0.4
+D_L = HR/75 * (lvTmaxScale/0.70) * (mean(LVP)/90)^0.4
 D_R = HR/75 * rvTmaxScale       * (mean(RVP)/25)^0.4
 SDI_L = (Q_LAD + Q_LCx) / (0.05*CO*0.70*D_L)
 SDI_R = Q_RCA / (0.05*CO*0.30*D_R)
