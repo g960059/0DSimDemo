@@ -131,7 +131,7 @@ export function atrioventricularInflowShape(
 export function pulmonaryVenousShape(samples: SimSample[]): PulmonaryVenousShapeMetrics {
   const sSample = sampleInWindowBy(samples, "PVF", 0.05, 0.45, "max");
   const dSample = sampleInWindowBy(samples, "PVF", 0.45, 0.80, "max");
-  const arSample = sampleInWindowBy(samples, "PVF", 0.80, 0.10, "min");
+  const arSample = sampleInWindowBy(samples, "PVF", 0.84, 0.98, "min");
   const sForwardVolume = integrateFlow(
     samples.filter((s) => phaseInWindow(phaseOf(s), 0.05, 0.45)),
     "PVF",

@@ -7,9 +7,7 @@ import {
   atrioventricularInflowShape,
   elastanceShape,
   lastCompleteBeat,
-  meanOf,
   phaseInWindow,
-  phaseOf,
   preSystolicRvEdp,
   pulmonaryVenousShape,
   rangeOf,
@@ -53,6 +51,8 @@ export type BaselineShapeSummary = {
   lvActiveElastanceHalfMaxSec: number;
   rvPreSystolicEdp: number;
 };
+
+const PVF_AR_WINDOW: [number, number] = [0.84, 0.98];
 
 export function summarizeGates(gates: GateResult[]): VerificationSummary {
   const hardFailures = gates.filter((g) => g.severity === "hard" && g.status === "fail").length;
@@ -256,12 +256,13 @@ export function collectNormalBaselineGates(measurement: SteadyMeasurement): Gate
       label: "Pulmonary venous S/D/Ar morphology",
       severity: "hard",
       status: pvf.sPeak != null && pvf.dPeak != null && pvf.arTrough != null &&
-        phaseInWindow(pvf.arTrough.theta, 0.84, 0.98) &&
+        phaseInWindow(pvf.arTrough.theta, PVF_AR_WINDOW[0], PVF_AR_WINDOW[1]) &&
+        pvf.arTrough.value < 0 &&
         (pvf.sFraction ?? 0) > 0.40 &&
         (pvf.sOverD ?? 0) > 0.50 &&
         (pvf.reverseFraction ?? 1) < 0.055 ? "pass" : "fail",
-      value: `Sfrac=${format(pvf.sFraction)} S/D=${format(pvf.sOverD)} rev=${format(pvf.reverseFraction)} ArTheta=${format(pvf.arTrough?.theta)}`,
-      threshold: "S fraction > 0.40, S/D > 0.50, reverse/forward < 0.055, Ar theta 0.84-0.98",
+      value: `Sfrac=${format(pvf.sFraction)} S/D=${format(pvf.sOverD)} rev=${format(pvf.reverseFraction)} Ar=${format(pvf.arTrough?.value)} ArTheta=${format(pvf.arTrough?.theta)}`,
+      threshold: "S fraction > 0.40, S/D > 0.50, reverse/forward < 0.055, Ar < 0 in theta 0.84-0.98",
       score: pvf.sFraction == null ? 0 : scoreAbove(pvf.sFraction, 0.40, 0.55),
       message: "PVF should expose S/D/Ar without shifting into high-backflow morphology.",
     },
@@ -301,6 +302,23 @@ export function collectNormalBaselineGates(measurement: SteadyMeasurement): Gate
 
 export function baselineShapeSummary(measurement: SteadyMeasurement): BaselineShapeSummary {
   const beat = lastCompleteBeat(measurement.samples);
+  if (beat.length === 0) {
+    return {
+      lvpPeak: NaN,
+      aopPeak: NaN,
+      lvpAopPeakGap: NaN,
+      lvpMin: NaN,
+      qmvAOverE: null,
+      qtvAOverE: null,
+      pvfSFraction: null,
+      pvfSOverD: null,
+      pvfReverseFraction: null,
+      laSelfIntersections: 0,
+      raSelfIntersections: 0,
+      lvActiveElastanceHalfMaxSec: NaN,
+      rvPreSystolicEdp: NaN,
+    };
+  }
   const lvpPeak = Math.max(...beat.map((s) => s.LVP));
   const aopPeak = Math.max(...beat.map((s) => s.AoP));
   const qmv = atrioventricularInflowShape(beat, "QMV");

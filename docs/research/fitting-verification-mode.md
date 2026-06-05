@@ -22,11 +22,13 @@ Each gate returns `{ id, severity, status, value, threshold, score, message }`.
 Hard gates decide whether a candidate can be accepted. Soft gates contribute to
 ranking and review but do not alone reject a candidate.
 
-Hard gates are reserved for numerical validity and required baseline morphology:
-steady convergence, finite samples, health not failed, flow balance, quiet TBV
-projection when required, pressure-floor avoidance, competent-valve
-regurgitation limits, LA/RA figure-eight loops, biphasic MV/TV inflow, readable
-PVF S/D/Ar, and normal right-heart physiology.
+Universal hard gates are reserved for numerical validity: steady convergence,
+finite samples, health not failed, flow balance, and quiet TBV projection when
+required. Normal adult morphology gates such as pressure-floor avoidance,
+competent-valve regurgitation limits, LA/RA figure-eight loops, biphasic MV/TV
+inflow, readable PVF S/D/Ar, and normal right-heart physiology are in the
+explicit `normalBaseline` gate set. They must remain opt-in so pathologic but
+numerically valid simulations are not rejected by default.
 
 Soft gates are for closeness to clinical targets and model-comparison shape
 quality, such as apparent elastance width and exact pressure/flow target

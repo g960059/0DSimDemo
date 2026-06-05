@@ -51,7 +51,7 @@ export function runVerification(
   options: VerificationRunOptions = {},
 ): VerificationReport {
   const profile = resolveVerificationProfile(options.profile ?? "verifyAccurate");
-  const gateSet = options.gateSet ?? "normalBaseline";
+  const gateSet = options.gateSet ?? "validityOnly";
   const settled = settleToSteadyState(params, {
     targetTBV: profile.targetTBV,
     dt: profile.dt,
