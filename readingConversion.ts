@@ -5,7 +5,7 @@ import { roleOf } from "./paneRole";
 import { defaultZoneOf } from "./paneZone";
 import { type KnobKey } from "./engine/knobs";
 import type { NumericKnobKey } from "./lessonDoc";
-import { knobControllerMetadata } from "./knobMetadata";
+import { defaultControllerItemFor } from "./knobMetadata";
 
 export const READING_ROLE_ORDER: Record<PanelRole, number> = { note: 0, graph: 1, output: 2, control: 3 };
 export const READING_RENDERABLE_PANEL_TYPES = new Set<PanelType>(['PVLOOP','WAVEFORM','GUYTON_LEFT','GUYTON_RIGHT','METRICS','CONTROLS','NOTE']);
@@ -86,17 +86,7 @@ export function readingToStudioZones(panels: PanelDef[]): PanelDef[] {
 }
 
 export function knobsToControllerItems(knobs: KnobKey[]): ControllerItem[] {
-  return knobs.map((key) => {
-    const m = knobControllerMetadata(key);
-    return {
-      paramKey: key,
-      kind: "slider",
-      label: m?.label ?? key,
-      ...(m?.min != null ? { min: m.min } : {}),
-      ...(m?.max != null ? { max: m.max } : {}),
-      ...(m?.step != null ? { step: m.step } : {}),
-    };
-  });
+  return knobs.map((key) => defaultControllerItemFor(key));
 }
 
 export function exposedKnobsToControllerItems(keys: NumericKnobKey[]): ControllerItem[] {
