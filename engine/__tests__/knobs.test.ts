@@ -69,6 +69,20 @@ describe("clinical knob layer", () => {
     expect(patch.arterialStiffness).toBeCloseTo(base.arterialStiffness * 1.5, 9);
   });
 
+  it("v0.3 mitral stenosis uses A/Aref semantics with a small R supplement while v0.2 is preserved", () => {
+    const base = defaultParams();
+    const severity = 0.6;
+    const k = { ...neutralKnobs(base), mitralStenosis: severity };
+
+    const v02 = resolveKnobsToParams(k, base, "knobmap-0.2-activestress");
+    expect(v02.MV_Amax).toBeCloseTo(base.MV_Amax * (1 - 0.75 * severity), 9);
+    expect(v02.MV_R).toBeCloseTo(base.MV_R * (1 + 5 * severity), 9);
+
+    const v03 = resolveKnobsToParams(k, base, "knobmap-0.3-activestress");
+    expect(v03.MV_Amax).toBeCloseTo(base.MV_Amax * (1 - 0.75 * severity), 9);
+    expect(v03.MV_R).toBeCloseTo(base.MV_R * (1 + 2 * severity), 9);
+  });
+
   it("current resolver output is frozen (editing the mapping must bump the version)", () => {
     const base = defaultParams();
     const k = { ...neutralKnobs(base), contractility: 1.4, afterload: 1.3, aorticStenosis: 0.5, diastolicStiffness: 1.8 };

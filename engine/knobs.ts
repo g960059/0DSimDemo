@@ -206,6 +206,9 @@ const resolveActiveStress_0_3: KnobResolver = (k, base) => {
   if (k.aorticStenosis > 0) {
     p.AoV_R = base.AoV_R * (1 + 2 * k.aorticStenosis);
   }
+  if (k.mitralStenosis > 0) {
+    p.MV_R = base.MV_R * (1 + 2 * k.mitralStenosis);
+  }
   if (k.pulmonicStenosis > 0) {
     p.PV_R = base.PV_R * (1 + 2 * k.pulmonicStenosis);
   }
