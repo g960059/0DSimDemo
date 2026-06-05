@@ -10,7 +10,8 @@
     "test": "vitest run --exclude __tests__/firestoreRules.emulator.test.ts",
     "test:rules": "vitest run __tests__/firestoreRules.emulator.test.ts",
     "test:watch": "vitest",
-    "verify:baseline": "vite-node tools/verifyBaseline.ts"
+    "verify:baseline": "vite-node tools/verifyBaseline.ts",
+    "fit:left-filling": "vite-node tools/fitLeftFilling.ts"
   },
   "dependencies": {
     "@blocknote/core": "^0.51.3",

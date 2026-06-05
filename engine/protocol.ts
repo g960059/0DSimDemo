@@ -263,7 +263,7 @@ export const NEUTRAL_PARAMS: CoreRuntimeParams = {
   LADStenosis: 0,
   LCxStenosis: 0,
   RCAStenosis: 0,
-  MV_Aref: 5.0, MV_Amax: 5.0, MV_Aleak: 0, MV_kOpen: 2.0, MV_tauOpen: 0.020, MV_tauClose: 0.012, MV_R: 0.002, MV_L: 0.0003, MV_B: 5e-6,
+  MV_Aref: 5.0, MV_Amax: 5.5, MV_Aleak: 0, MV_kOpen: 2.0, MV_tauOpen: 0.024, MV_tauClose: 0.016, MV_R: 0.003, MV_L: 0.0005, MV_B: 1e-5,
   AoV_Aref: 3.5, AoV_Amax: 3.5, AoV_Aleak: 0, AoV_kOpen: 3.0, AoV_tauOpen: 0.006, AoV_tauClose: 0.008, AoV_R: 0.0015, AoV_L: 0.00025, AoV_B: 1e-6,
   TV_Aref: 8.0, TV_Amax: 8.0, TV_Aleak: 0, TV_kOpen: 2.0, TV_tauOpen: 0.018, TV_tauClose: 0.010, TV_R: 0.0035, TV_L: 0.0008, TV_B: 1e-5,
   PV_Aref: 4.0, PV_Amax: 4.0, PV_Aleak: 0, PV_kOpen: 2.0, PV_tauOpen: 0.010, PV_tauClose: 0.006, PV_R: 0.005, PV_L: 0.001, PV_B: 2e-6,

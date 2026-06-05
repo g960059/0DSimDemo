@@ -41,6 +41,9 @@ describe("fitting/verification mode foundation", () => {
       "qmv-e-peak",
       "qmv-a-peak",
       "qmv-a-over-e",
+      "qmv-extra-peaks",
+      "lap-oscillation-index",
+      "lv-filling-edge-roughness",
       "pvf-ar-present",
       "pvf-s-fraction",
       "pvf-reverse-fraction",
@@ -116,6 +119,30 @@ describe("fitting/verification mode foundation", () => {
     expect(String(pvfGate?.value)).toContain("Ar=");
   });
 
+  it("detects mitral inflow chatter as extra E/A-window peaks", () => {
+    const report = runVerification(DEFAULT_PARAMS, {
+      profile: "verifyAccurate",
+      gateSet: "normalBaseline",
+      now: new Date("2026-06-05T00:00:00.000Z"),
+    });
+    expect(report.measurement).not.toBeNull();
+    const measurement = report.measurement!;
+    const chatteringMeasurement = {
+      ...measurement,
+      samples: measurement.samples.map((sample) => {
+        const theta = sample.phi - Math.floor(sample.phi);
+        const extraE1 = 160 * Math.exp(-0.5 * ((theta - 0.48) / 0.012) ** 2);
+        const extraE2 = 160 * Math.exp(-0.5 * ((theta - 0.66) / 0.012) ** 2);
+        return { ...sample, QMV: sample.QMV + extraE1 + extraE2 };
+      }),
+    };
+
+    const chatterGate = collectNormalBaselineGates(chatteringMeasurement)
+      .find((gate) => gate.id === "qmv-extra-peaks");
+    expect(chatterGate?.status).toBe("fail");
+    expect(chatterGate?.value).toBeGreaterThan(0);
+  });
+
   it("generates structural SVG artifacts with waveform and PV-loop panels", () => {
     const report = runVerification(DEFAULT_PARAMS, {
       profile: "verifyAccurate",
@@ -127,6 +154,8 @@ describe("fitting/verification mode foundation", () => {
     expect(svgs["waveforms.svg"]).toContain("PVF model flow (mL/s, not Doppler velocity)");
     expect(svgs["waveforms.svg"]).toContain("pvf-ar-present");
     expect(svgs["waveforms.svg"]).toContain("mv-gradient-e-peak");
+    expect(svgs["waveforms.svg"]).toContain("qmv-extra-peaks");
+    expect(svgs["pv-loops.svg"]).toContain("lv-filling-edge-roughness");
     expect(svgs["pv-loops.svg"]).toContain("Verification PV Loops");
     expect(svgs["pv-loops.svg"]).toContain("LA PV loop");
     expect(svgs["pv-loops.svg"]).toContain("RA PV loop");

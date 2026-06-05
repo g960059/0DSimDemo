@@ -42,7 +42,7 @@ function waveformsSvg(report: VerificationReport, samples: SimSample[]): string 
         { label: "AoP", key: "AoP", color: "#f472b6" },
         { label: "LAP", key: "LAP", color: "#4f46e5" },
       ] satisfies Series[],
-      gates: ["lvp-aop-peak-gap", "lvp-diastolic-min", "lv-pressure-floor"],
+      gates: ["lvp-aop-peak-gap", "lvp-diastolic-min", "lv-pressure-floor", "lap-oscillation-index", "lap-prominent-extrema"],
     },
     {
       title: "QMV / QTV model flow (mL/s)",
@@ -50,7 +50,7 @@ function waveformsSvg(report: VerificationReport, samples: SimSample[]): string 
         { label: "QMV", key: "QMV", color: "#a855f7" },
         { label: "QTV", key: "QTV", color: "#22c55e" },
       ] satisfies Series[],
-      gates: ["qmv-e-peak", "qmv-a-peak", "qmv-a-over-e", "qtv-e-peak", "qtv-a-peak", "qtv-a-over-e"],
+      gates: ["qmv-e-peak", "qmv-a-peak", "qmv-a-over-e", "qmv-extra-peaks", "qtv-e-peak", "qtv-a-peak", "qtv-a-over-e"],
     },
     {
       title: "PVF model flow (mL/s, not Doppler velocity)",
@@ -111,7 +111,7 @@ function pvLoopsSvg(report: VerificationReport, samples: SimSample[]): string {
     return out.join("\n");
   }
   const panels = [
-    { title: "LV PV loop", x: "VLV", y: "LVP", color: "#a855f7", gates: ["lvp-aop-peak-gap", "lvp-diastolic-min"] },
+    { title: "LV PV loop", x: "VLV", y: "LVP", color: "#a855f7", gates: ["lvp-aop-peak-gap", "lvp-diastolic-min", "lv-filling-edge-roughness", "lv-filling-edge-reversals"] },
     { title: "RV PV loop", x: "VRV", y: "RVP", color: "#22c55e", gates: ["rv-edp-presystolic", "rv-stroke-fraction", "rvp-max"] },
     { title: "LA PV loop", x: "VLA", y: "LAP", color: "#38bdf8", gates: ["la-figure-eight"] },
     { title: "RA PV loop", x: "VRA", y: "RAP", color: "#f59e0b", gates: ["ra-figure-eight", "ra-volume-max", "ra-volume-min", "ra-emptying-fraction"] },

@@ -337,7 +337,7 @@ export function defaultParams(): CoreRuntimeParams {
     RCAStenosis: 0,
     // Valve Defaults
     // MV
-    MV_Aref: 5.0, MV_Amax: 5.0, MV_Aleak: 0, MV_kOpen: 2.0, MV_tauOpen: 0.020, MV_tauClose: 0.012, MV_R: 0.002, MV_L: 0.0003, MV_B: 5e-6,
+    MV_Aref: 5.0, MV_Amax: 5.5, MV_Aleak: 0, MV_kOpen: 2.0, MV_tauOpen: 0.024, MV_tauClose: 0.016, MV_R: 0.003, MV_L: 0.0005, MV_B: 1e-5,
     // AoV
     AoV_Aref: 3.5, AoV_Amax: 3.5, AoV_Aleak: 0, AoV_kOpen: 3.0, AoV_tauOpen: 0.006, AoV_tauClose: 0.008, AoV_R: 0.0015, AoV_L: 0.00025, AoV_B: 1e-6,
     // TV
@@ -387,7 +387,7 @@ function buildNodes(): NodeSpec[] {
 function buildEdges(): EdgeSpec[] {
   const q0 = 80;
   return [
-    { name: "MV", up: "LA", down: "LV", kind: "valve", R: 0.002, L: 0.0003, B: 5e-6, Aref: 5.0, Amax: 5.0, Aleak: 0, kOpen: 2.0, tauOpen: 0.020, tauClose: 0.012, q0, xi0: 0.2 },
+    { name: "MV", up: "LA", down: "LV", kind: "valve", R: 0.003, L: 0.0005, B: 1e-5, Aref: 5.0, Amax: 5.5, Aleak: 0, kOpen: 2.0, tauOpen: 0.024, tauClose: 0.016, q0, xi0: 0.2 },
     { name: "AoV", up: "LV", down: "Ao", kind: "valve", R: 0.0015, L: 0.00025, B: 1e-6, Aref: 3.5, Amax: 3.5, Aleak: 0, kOpen: 3.0, tauOpen: 0.006, tauClose: 0.008, q0, xi0: 0.2 },
     { name: "TV", up: "RA", down: "RV", kind: "valve", R: 0.0035, L: 0.0008, B: 1e-5, Aref: 8.0, Amax: 8.0, Aleak: 0, kOpen: 2.0, tauOpen: 0.018, tauClose: 0.010, q0, xi0: 0.2 },
     { name: "PV", up: "RV", down: "PA", kind: "valve", R: 0.005, L: 0.001, B: 2e-6, Aref: 4.0, Amax: 4.0, Aleak: 0, kOpen: 2.0, tauOpen: 0.010, tauClose: 0.006, q0, xi0: 0.2 },
@@ -408,11 +408,11 @@ function buildEdges(): EdgeSpec[] {
       up: "PVein",
       down: "LA",
       kind: "resistive",
-      R: 0.028,
+      R: 0.030,
       B: 0,
       q0,
-      pvOstialResistanceR: 0.028,
-      pvOstialInertanceL: 0.002,
+      pvOstialResistanceR: 0.030,
+      pvOstialInertanceL: 0,
       pvOstialQuadraticB: 0,
     },
 
@@ -1185,9 +1185,14 @@ export class ModelCore {
       const tauClose = (this.p as any)[`${vName}_tauClose`] ?? e.tauClose ?? 0.025;
       const q = x[this.idx.q[vName]];
       
-      const xiEq = dP > 0 ? sigmoid(kOpen * (dP - (e.dP0 ?? 0))) : 0;
+      const deadband = vName === "MV" ? 0.25 : 0;
+      const xiEq = dP > deadband
+        ? sigmoid(kOpen * (dP - deadband - (e.dP0 ?? 0)))
+        : dP < -deadband
+          ? 0
+          : x[xiIndex];
       const forwardCoast = vName === "AoV" && dP <= 0 && dP > -3 && q > 1 && this.valveLeakArea(vName, e) <= 1e-9;
-      const tau = dP > 0 ? tauOpen : forwardCoast ? Math.max(tauClose, 0.012) : tauClose;
+      const tau = xiEq > x[xiIndex] ? tauOpen : forwardCoast ? Math.max(tauClose, 0.012) : tauClose;
       dy[xiIndex] = clamp((xiEq - x[xiIndex]) / Math.max(tau, 1e-5), -80, 80);
     }
 

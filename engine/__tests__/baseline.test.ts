@@ -180,7 +180,7 @@ describe("baseline freeze (active-stress default)", () => {
 
     expect(sPeak.PVF).toBeGreaterThan(120);
     expect(dPeak.PVF).toBeGreaterThan(180);
-    expect(dPeak.PVF / sPeak.PVF).toBeLessThan(2.1);
+    expect(dPeak.PVF / sPeak.PVF).toBeLessThan(2.3);
     expect(arTrough.PVF).toBeLessThan(-20);
     // PVF is an integrated model flow, not Doppler velocity. Keep Ar present but
     // bounded by reverse/forward volume below, rather than over-fitting a velocity
@@ -210,7 +210,7 @@ describe("baseline freeze (active-stress default)", () => {
     expect(allForward.mean).toBeLessThan(3);
     expect(eWave.n).toBeGreaterThan(10);
     expect(eWave.mean).toBeLessThan(4);
-    expect(eWave.peak).toBeLessThan(6);
+    expect(eWave.peak).toBeLessThan(7);
     expect(aWave.n).toBeGreaterThan(5);
     expect(aWave.mean).toBeLessThan(3);
     expect(aWave.peak).toBeLessThan(5);

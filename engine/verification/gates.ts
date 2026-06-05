@@ -7,6 +7,7 @@ import {
   atrioventricularInflowShape,
   elastanceShape,
   lastCompleteBeat,
+  leftFillingRingingShape,
   phaseInWindow,
   preSystolicRvEdp,
   pulmonaryVenousShape,
@@ -150,6 +151,7 @@ export function collectNormalBaselineGates(measurement: SteadyMeasurement): Gate
   const lvpMin = Math.min(...beat.map((s) => s.LVP));
   const qmv = atrioventricularInflowShape(beat, "QMV");
   const qtv = atrioventricularInflowShape(beat, "QTV");
+  const leftFilling = leftFillingRingingShape(beat);
   const pvf = pulmonaryVenousShape(beat);
   const la = atrialLoopShape(beat, "LA");
   const ra = atrialLoopShape(beat, "RA");
@@ -218,6 +220,11 @@ export function collectNormalBaselineGates(measurement: SteadyMeasurement): Gate
     peakGate("qmv-e-peak", "Mitral E-wave peak", qmv.ePeak?.value ?? null, 100, "mL/s"),
     peakGate("qmv-a-peak", "Mitral A-wave peak", qmv.aPeak?.value ?? null, 80, "mL/s"),
     ratioGate("qmv-a-over-e", "Mitral A/E ratio", qmv.aOverE, 0.35, 0.70),
+    upperBoundGate("qmv-extra-peaks", "Mitral inflow extra peaks", leftFilling.qmvExtraPeakCount, 0.5, 0),
+    upperBoundGate("lap-oscillation-index", "LAP oscillation index", leftFilling.lapOscillationIndex, 4.2, 2.8),
+    upperBoundGate("lap-prominent-extrema", "LAP prominent extrema count", leftFilling.lapProminentPeakCount + leftFilling.lapProminentTroughCount, 5.5, 3),
+    upperBoundGate("lv-filling-edge-roughness", "LV filling-edge roughness", leftFilling.lvFillingEdgeRoughness, 2.6, 1.6),
+    upperBoundGate("lv-filling-edge-reversals", "LV filling-edge pressure reversals", leftFilling.lvFillingEdgeReversalCount, 3.5, 1),
     peakGate("qtv-e-peak", "Tricuspid E-wave peak", qtv.ePeak?.value ?? null, 100, "mL/s"),
     peakGate("qtv-a-peak", "Tricuspid A-wave peak", qtv.aPeak?.value ?? null, 80, "mL/s"),
     ratioGate("qtv-a-over-e", "Tricuspid A/E ratio", qtv.aOverE, 0.35, 0.70),
