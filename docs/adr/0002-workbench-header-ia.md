@@ -35,3 +35,11 @@ Other rules:
 - Keep 2 rows / show all actions always — rejected (chrome tax, beginner overload).
 - User-toggled mode — rejected (provenance is the honest signal; a label is jargon to a learner).
 - Delete the slide panel entirely (one reviewer) — rejected: it is good IA for Share/Export/Versions detail; the real rule is "no dead tabs."
+
+## Update (2026-06-05) — the slide panel is the "global settings" offload surface
+Reframing the right slide panel as the canonical **global-settings / clutter-offload** surface, consistent with the reading/studio model ([ADR-0005](0005-case-presentation-modes.md)):
+- **PC**: the right `WorkbenchSidePanel` is the global-settings drawer.
+- **Mobile**: the **left drawer is itself the global settings** — the destination where secondary information is progressively offloaded so the primary surface stays clean.
+- It houses **instance management (CRUD: add/remove/name/color)** in addition to Share / Export / Versions / Details / Settings. On the primary surface, the **graph legend** is the only instance affordance (identity + mute + edit-target) — there is no separate instance chip row.
+- **Compare is removed as a feature** (ADR-0005): multiple instances overlay on every graph automatically; nothing in the header/drawer is a "compare mode." The "no dead tabs" rule still holds.
+
