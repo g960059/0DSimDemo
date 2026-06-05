@@ -1,6 +1,6 @@
 # ADR-0006 — Controller item representation types (slider / preset button-group / custom) + shipped defaults
 
-- Status: **Proposed**
+- Status: **Accepted** (revised 2026-06-05 after a 2-reviewer gate; both reviewers APPROVE-WITH-NITS)
 - Date: 2026-06-05
 - Builds on: [ADR-0004](0004-case-workspace-canonical-schema.md) (canonical CaseDocument), [ADR-0005](0005-case-presentation-modes.md) (reading/studio)
 
@@ -33,8 +33,12 @@ type ControllerItem = {
 - **`knob`** — a rotary continuous control (continuum where a dial reads better than a track).
 - **`custom`** — the author-defined generalization (custom button group / custom slider / custom knob).
 
+### Canonical vs view (what actually belongs in the document)
+What is **canonical** (must travel with the doc, expresses authored pedagogy): the **data contract** — `discrete` (named operating points: `options[]`) vs `continuous` (`min/max/step`) — plus `label` and the operating-point labels/values. What is a **non-load-bearing presentation hint**: the *widget* for a continuous param (`slider` vs `knob`) — these carry identical data and differ only in rendering. So the schema is honest if read as: `kind` distinguishes the **contract** (discrete `buttonGroup` vs continuous `slider`/`knob` vs `custom`), and `slider`↔`knob` is a render preference, not a different contract. Renderers may fall back `knob`→`slider` without data loss.
+
 ### Shipped defaults + curation
-- **Each parameter ships with a sensible default representation** (e.g. contractility → 低/正/高 `buttonGroup`; afterload → `slider`). Authors **only override when they care** — no obligation to configure every knob (avoids configuration overload).
+- **Each parameter ships with a sensible default representation.** **Default-selection principle:** ship `buttonGroup` **only for parameters that are conceptually discrete operating points**; ship `slider`/`knob` for any parameter the curated "Clinical Knobs" group treats as a **sweep/gradient axis** (where the continuum is the teaching point). Don't default a param a lesson is likely to sweep (e.g. afterload, volume) to `buttonGroup`. Authors **only override when they care** — no obligation to configure every knob.
+- A continuum lesson can always **force `slider`** for a parameter even if it ships a `buttonGroup` default — the per-case/`ControllerItem.kind` override wins over the shipped default.
 - **Fewer controller items surfaced**: authors curate the *few* exposed controllers. This ties to the existing curated "Clinical Knobs" beginner group and the lesson `exposedKnobs` (≤3) concept — a reading section / lesson step typically exposes 1–3 controller items.
 
 ### Authoring UI (studio / settings)
@@ -44,7 +48,7 @@ type ControllerItem = {
 ## Consequences
 - Beginners get **meaningful, tappable** controls; mobile UX improves markedly (big targets, no fiddly drag).
 - Reading/lesson **exposed knobs render as button groups inline** — and the live note pane-ref (ADR-0005) can host a button-group controller in prose ("try **Low / Normal / High** contractility").
-- **Data-model change**: the controller config schema gains a typed representation. Back-compat: existing configs default to `kind: 'slider'` with their current min/max/step.
+- **Data-model change (net-new type, named migration)**: `ControllerItem[]` is a *new* array type, not an extension of an existing config object. It **replaces two existing bare key-array fields**: `ControlPanelView.knobs: KnobKey[]` (`types.ts`) and `StageManifest.exposedKnobs: NumericKnobKey[]` (`lessonDoc.ts`). Migration on read: map each `KnobKey` → `ControllerItem{ paramKey, kind: 'slider' }` using the param's existing min/max/step; lesson `exposedKnobs` → `ControllerItem[]` likewise. This is irreversible once written to published `cases/{id}`, so it must be normalized through one converter (with a round-trip test) before shipping.
 - The authoring surface grows (type picker + preset editor) — kept behind "override default" so the common path stays one click.
 - Preset values are **named operating points**, so authoring must support label+value pairs (and validation: ordered, non-empty, value within param range).
 

@@ -2,7 +2,9 @@
 
 - Status: **Accepted** (updated implementation direction)
 - Date: 2026-06-01
-- Updated: 2026-06-02
+- Updated: 2026-06-02; **2026-06-05 scoped to Studio**
+
+> **Update (2026-06-05):** "the Dockview shell is **always** the desktop renderer" below is now **scoped to the Studio presentation only**. The Reading presentation (lesson / official / community case) is a single-column article and is **not** Dockview on any form factor. See [ADR-0005](0005-case-presentation-modes.md).
 
 ## Context
 The Workbench needs to serve two audiences: roughly 80% learners who should see a predictable clinical simulator, and 20% author/research users who need comparison, rearrangement, and pane-level customization.
