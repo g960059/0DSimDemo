@@ -1,8 +1,8 @@
 # Baseline (`active-normal`) and the Normal case
 
-> **Status note:** the operating-point **numbers** below are **M12-lite/Phase-1-era** and are being
-> changed by the in-progress atrial-split reparam — to be refreshed after the Phase-2 commit. The
-> literature targets & directions remain valid. See [atrial-split-validity-review.md](./atrial-split-validity-review.md).
+> **Status note:** refreshed 2026-06-05 after the active baseline review repair.
+> Older 2026-06-03 notes are retained as change history, but the current
+> validation target is the 2026-06-05 settled baseline below.
 
 Model files: `engine/caseBaselines.ts` (active-normal = `defaultParams()`, TBV 5600) ·
 `constants.ts`/`engine/ModelCore.ts` `defaultParams()` · `engine/chambers.ts`
@@ -10,6 +10,85 @@ Model files: `engine/caseBaselines.ts` (active-normal = `defaultParams()`, TBV 5
 
 All official cases deviate from this operating point, so its validity is the
 foundation of every lesson.
+
+## 2026-06-05 review repair: settled active baseline after tension-lag regression
+
+The prior branch attempted to broaden `ELV_active` by filtering LV/RV active
+stress through a tension-development state. Review found that the 45/90-100 ms
+first-order lag created deterministic period-2 alternans in end-systolic volume,
+most visibly in hypovolemia. The default active-stress path now keeps the
+`tensionPa` state allocated for future work, but bypasses it at baseline
+(`tauTensionRiseSec = 0`, `tauTensionFallSec = 0`, `tensionInstantMix = 1`).
+This is a deliberate stability decision: Ca/activation-to-pressure filtering
+should not be re-enabled until post-settle convergence and low-preload cases are
+green without loosening the settling gates.
+
+Current fixed-settle baseline summary (`runScenario(DEFAULT_PARAMS)`, active
+normal):
+
+| Metric | Current value | Literature/physiology corridor | Verdict |
+|---|---:|---:|---|
+| HR | 75 bpm | resting 60-100 bpm | OK |
+| AoP | 118.3/78.1 mmHg, mean 85.3 | brachial/central arterial pressure roughly 90-140/60-90; mean ~70-150 in Merck table | OK |
+| PAP mean | 16.2 mmHg | Merck pulmonary artery mean 9-16; AHA normal resting pulmonary artery pressure 11-20 | Upper-normal OK |
+| LAP mean | 8.6 mmHg | Merck LA mean 2-12; PCWP 4-12 as LA/LVEDP surrogate | OK |
+| RAP mean | 3.9 mmHg | Merck RA 0-8 | OK |
+| LVEDP | 10.7 mmHg | Merck LVEDP 5-12; PCWP 4-12 | OK |
+| SV_L / CO_L | 70 mL / 5.25 L/min | CO at rest about 5-6 L/min; cardiac-index references give 4-8 L/min | OK |
+| EF_L | 0.59 | normal LVEF commonly 55-65%; ASE biplane normal ranges include 52-72% men and 54-74% women | OK |
+| EF_R | 0.48 | ASE 3D RV EF mean 58 +/- 6.5%, abnormal threshold <45% | Low-normal OK |
+
+Derived vascular checks at this operating point:
+
+- Realised systemic vascular resistance is about
+  `(AoPMean - RAPMean) / CO_L * 80 = 1240 dyn*s/cm^5`, high-normal but compatible
+  with the normal resting pressure/flow target.
+- Realised pulmonary vascular resistance is about
+  `(PAPMean - LAPMean) / CO_R * 80 = 115 dyn*s/cm^5`, comfortably below the
+  usual pulmonary-hypertension concern range.
+- The raw UI/runtime knobs `systemicResistance = 1.0` and
+  `pulmonaryResistance = 0.65` are therefore **dimensionless model multipliers**,
+  not clinical SVR/PVR values. Clinical resistance should be inferred from the
+  realised pressure-flow operating point.
+
+Waveform-shape checks after the repair:
+
+- LV PV loop remains closed and physiologic at the normal operating point; the
+  diastolic limb is supported by the active-stress passive EDPVR, not by a
+  pressure floor.
+- QMV remains biphasic with E and A components. The transmitral mean gradients
+  in the E and A windows remain low in the baseline gate, so the default does not
+  behave like mitral stenosis.
+- PVF is guarded as S/D/Ar: current S/D forward-volume ratio is about 0.55 and
+  reverse/forward volume is about 0.062. This keeps atrial reversal visible but
+  minor. Systolic PVF shoulders or two systolic peaks are not rejected because
+  pulmonary venous systolic flow can split into S1/S2; the gate checks phase,
+  forward dominance, D/S balance, and bounded Ar rather than enforcing one
+  cosmetic systolic peak.
+- RCA pressure-overload test now verifies the intended shape response: with
+  fixed PVR loading, PAPMean rises by >4 mmHg, RCA diastolic fraction increases,
+  and RCA flow falls. This keeps the coronary gate focused on the mechanical
+  heart-coronary interaction rather than a single absolute PAP delta.
+
+EDPVR/parameter interpretation after the fit:
+
+- There is no portable "normal alpha/beta" for this code without naming the
+  pressure law. The legacy TVE fallback uses `Ped = beta*(exp(alpha*(V-V0))-1)`,
+  while active-stress uses fibre stretch
+  `sigmaPas0*(exp(bPas*smoothHinge(lambda-lambdaPas0))-1)` mapped through shell
+  geometry. `alpha/beta` and `sigmaPas0/bPas/lambdaPas0` are therefore not
+  numerically comparable.
+- Klotz/Burkhoff normalisation supports validating the **resulting pressure-volume
+  curve**, not the literal parameter names. Klotz reports a normalised EDPVR of
+  the form `EDP = An * EDV^Bn` with `An` about 28 mmHg and `Bn` about 2.8 after
+  scaling. The current active LV passive curve remains close to the Klotz-style
+  120 mL / 10 mmHg anchor documented below. The legacy TVE passive `alpha/beta`
+  remains too compliant and should be treated as a teaching/reference waveform,
+  not a validated passive EDPVR.
+- `ELV_active` and `ERV_active` are **apparent elastance** signals
+  `max(Ptm,0)/(Veff-V0)`. They are useful for comparing active-stress and TVE
+  timing, but are not Ees regressions and should not be fitted as if they were
+  load-independent ESPVR slopes.
 
 ## 2026-06-03 refresh: LV/AoV default and EDPVR floor
 
@@ -60,12 +139,11 @@ The workbench now exposes PV-derived elastance waveforms: `ELV_active` /
 fallback evaluated at the same effective volume and phase. These are comparison
 signals, not new state variables. The active-stress signals are not ESPVR/Ees
 regression estimates: they are instantaneous apparent elastance traces. LV/RV
-active-stress pressure generation also has an explicit tension-development state
-between activation and stress, so Ca/activation no longer maps directly to
-pressure. The default implementation uses a small lead-lag mix from the target
-stress to preserve normal CO/AoP while the state broadens and delays the apparent
-elastance peak. That keeps the active-stress model as the default chamber
-formulation without using a pressure floor to hide diastolic behavior.
+active-stress pressure generation has a reserved `tensionPa` state, but the
+2026-06-05 default bypasses the filter because the attempted lead-lag mix caused
+post-settle alternans in low-preload cases. The active-stress model remains the
+default chamber formulation, but apparent-elastance smoothing is deferred until
+it can pass the convergence gates.
 
 The LV/RV active-stress target also includes a bounded Hill-like force-velocity
 factor derived from the chamber's normalised shortening velocity
@@ -136,9 +214,9 @@ passive-pressure gate.
 | RV `Tmax0` | 68 600 Pa = 68.6 kPa | RV peak stress lower than LV | OK/calibrated ceiling |
 | LV passive EDPVR | `sigmaPas0` 200.133 Pa, `bPas` 23.2, `lambdaPas0` 0.9025 | Klotz-normalisable LV EDPVR: V120/P10 gives P100 ~2.9, P140 ~23.5 | OK |
 | RV passive EDPVR | `sigmaPas0` 492 Pa, `bPas` 10, `lambdaPas0` 0.85 | RVEDP normal roughly 0–8 mmHg; RV is low-pressure and more compliant than LV | OK near normal, high-volume limb guarded |
-| `systemicResistance` | 1.25 (× internal SVR) | SVR 800–1200 dyn·s·cm⁻⁵ [LiDCO/Klabunde] | check vs realised MAP/CO |
-| `pulmonaryResistance` | 1.0 | PVR <250 dyn·s·cm⁻⁵ | OK |
-| `venousTone` | 0.2 (0–1) | sets stressed/unstressed split → Pmsf | uncertain |
+| `systemicResistance` | 1.0 (dimensionless multiplier; base systemic edges are slightly lower than the earlier graph) | realised SVR ≈1240 dyn·s·cm⁻⁵ from MAP/RAP/CO | high-normal OK |
+| `pulmonaryResistance` | 0.65 (dimensionless multiplier) | realised PVR ≈115 dyn·s·cm⁻⁵; mPAP normal <20 mmHg | OK |
+| `venousTone` | 0.15 (0–1) | sets stressed/unstressed split → Pmsf | calibrated; interpret via realised RAP/venous return |
 
 ## A. Physiological validity vs literature   [lead]
 
@@ -147,18 +225,22 @@ passive-pressure gate.
 systolic 15–25 mmHg; LAP / PCWP 6–12 mmHg; SVR 800–1200 dyn·s·cm⁻⁵; LVEF ~55–65 %.
 
 **What the model settles to at active-normal** (fixed-settle baseline after the
-2026-06-05 refits): CO ≈ 5.70 L/min, AoP ≈ 117.5/75.3, AoPMean
-≈ 82.6 mmHg, LAP ≈ 7.2, RAP ≈ 3.5, PAP mean ≈ 15.5, LVEDP ≈ 9.2,
-EF_L ≈ 0.65, EF_R ≈ 0.54.
+2026-06-05 review repair): CO ≈ 5.25 L/min, AoP ≈ 118.3/78.1,
+AoPMean ≈ 85.3 mmHg, LAP ≈ 8.6, RAP ≈ 3.9, PAP mean ≈ 16.2,
+LVEDP ≈ 10.7, EF_L ≈ 0.59, EF_R ≈ 0.48.
 
 **Honest gaps to record for M12** (priority = SHAPE > values, but these matter for trust):
 
-1. The baseline is now in the intended normal hemodynamic corridor, but the
-   apparent elastance traces remain comparison observables, not Ees regressions.
-2. The legacy time-varying elastance fallback remains too compliant on its
+1. The baseline is now in the intended normal hemodynamic corridor. EF_R is
+   low-normal rather than mid-normal, so RV failure/pressure-overload scenarios
+   should continue to be guarded by shape and convergence tests.
+2. The apparent elastance traces remain comparison observables, not Ees
+   regressions; the active trace can look sharper than a measured elastance curve
+   because it is computed as instantaneous pressure over distending volume.
+3. The legacy time-varying elastance fallback remains too compliant on its
    passive limb and should not be used as a validated EDPVR reference without
    refitting.
-3. The RV passive high-volume limb is intentionally gentle; TR/RV-failure
+4. The RV passive high-volume limb is intentionally gentle; TR/RV-failure
    scenarios need explicit high-volume no-floor/no-collapse guards.
 
 **Direction the Normal case should show**: a closed, convex LV PV loop (ESV<EDV, positive
@@ -189,13 +271,13 @@ units ≈ mmHg/(mL/s) with a quadratic loss when B>0) — it is NOT clinical SVR
 operating point via (MAP−RAP)/CO, not the raw number.
 
 **Venous tone / Pmsf** (`engine/ModelCore.ts:985-987, 1090-1128`). `effectiveVu = Vu −
-venousToneGain·venousTone`; at venousTone 0.2 this lowers systemic venous unstressed volume → raises
+venousToneGain·venousTone`; at venousTone 0.15 this lowers systemic venous unstressed volume → raises
 stressed volume. `Pmsf = stressedVolumeSystemic / complianceSystemic` (mmHg) — a coherent
 Guyton-style 0D approximation (heart + pulmonary excluded by design).
 
-**Independent cross-check** (fixed-settle baseline snapshot): CO_L 5.70,
-AoP 117.5/75.3, AoPMean 82.6, PAP mean 15.5, LAP/RAP 7.2/3.5,
-LVEDP 9.2, EF_L 0.65, EF_R 0.54. Passive LV points are now Klotz-like
+**Independent cross-check** (fixed-settle baseline snapshot): CO_L 5.25,
+AoP 118.3/78.1, AoPMean 85.3, PAP mean 16.2, LAP/RAP 8.6/3.9,
+LVEDP 10.7, EF_L 0.59, EF_R 0.48. Passive LV points are now Klotz-like
 around a 120 mL / 10 mmHg anchor; passive RV points stay in a normal low-pressure
 corridor.
 
@@ -224,3 +306,10 @@ CO/EF, transmitral gradients, valvular regurgitation, and PVF morphology.
 7. Maas JJ et al. "Mean systemic filling pressure… critically ill." *Am J Physiol Heart Circ Physiol* 2015. https://journals.physiology.org/doi/full/10.1152/ajpheart.00413.2015 (Pmsf 12–19 mmHg clinical; classic Guyton ~7).
 8. Merck Manual Professional Edition. "Normal Pressures in the Heart and Great Vessels." https://www.merckmanuals.com/professional/multimedia/table/normal-pressures-in-the-heart-and-great-vessels
 9. Bozkurt S. "A mathematical model of cardiac function to evaluate clinical cases in adults and children." *PLOS One* 2019. https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0224663
+10. StatPearls, "Physiology, Cardiac Output." https://www.ncbi.nlm.nih.gov/books/NBK470455/
+11. StatPearls, "Physiology, Cardiac Index." https://www.ncbi.nlm.nih.gov/books/NBK539905/
+12. StatPearls, "Pulmonary Capillary Wedge Pressure." https://www.ncbi.nlm.nih.gov/books/NBK557748/
+13. Lang RM et al. "Recommendations for Cardiac Chamber Quantification by Echocardiography in Adults." ASE/EACVI 2015. https://asecho.org/wp-content/uploads/2016/02/2015_ChamberQuantificationREV.pdf
+14. American Heart Association. "Pulmonary Hypertension." https://www.heart.org/en/health-topics/high-blood-pressure/the-facts-about-high-blood-pressure/pulmonary-hypertension-high-blood-pressure-in-the-heart-to-lung-system
+15. Luo C et al. "Modeling left ventricular diastolic dysfunction: classification and key indicators." *Theoretical Biology and Medical Modelling* 2011. https://link.springer.com/article/10.1186/1742-4682-8-14
+16. Wang VY et al. "Evaluation of a Novel Finite Element Model of Active Contraction in the Heart." *Frontiers in Physiology* 2018. https://www.frontiersin.org/journals/physiology/articles/10.3389/fphys.2018.00425/full
