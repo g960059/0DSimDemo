@@ -103,6 +103,20 @@ describe("baseline freeze (active-stress default)", () => {
     expect(beat.reduce((acc, s) => acc + s.LVPressureFloorHit01, 0)).toBe(0);
   });
 
+  it("keeps RV passive EDPVR points in a normal low-pressure corridor", () => {
+    const passive = (v: number) => result.core.passivePressureAt("RV", v);
+    expect(passive(100)).toBeGreaterThan(0.5);
+    expect(passive(100)).toBeLessThan(2.0);
+    expect(passive(120)).toBeGreaterThan(1.5);
+    expect(passive(120)).toBeLessThan(4.0);
+    expect(passive(135)).toBeGreaterThan(2.5);
+    expect(passive(135)).toBeLessThan(5.0);
+    expect(passive(150)).toBeGreaterThan(3.5);
+    expect(passive(150)).toBeLessThan(7.0);
+    expect(passive(190)).toBeGreaterThan(7.0);
+    expect(passive(190)).toBeLessThan(13.0);
+  });
+
   it("keeps baseline valvular regurgitation negligible across all four valves", () => {
     const beat = lastCompleteBeat(samples);
     expect(regurgitantFraction(beat, "QMV")).toBeLessThan(0.005);

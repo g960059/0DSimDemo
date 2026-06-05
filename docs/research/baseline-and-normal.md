@@ -90,6 +90,41 @@ overview (PMC5018161), Ca/crossbridge-dependent elastance discussion in the RV
 elastance literature (AJRCCM 207:678), and the diastolic suction caveat
 (PMC2928592).
 
+### 2026-06-05 EDPVR review
+
+The code contains two different passive-pressure conventions, so `alpha/beta`
+must not be compared across them as if they were the same quantity.
+
+- Legacy time-varying elastance fallback:
+  `Ped = beta * (exp(alpha * (V - V0)) - 1)`. Defaults are LV
+  `alpha=0.015 mL^-1`, `beta=0.8 mmHg`; RV `alpha=0.012`, `beta=0.5`.
+  These are too compliant to be treated as validated normal EDPVR references:
+  the LV fallback gives about 2.3, 3.4, 4.8, and 5.7 mmHg at 100, 120, 140,
+  and 150 mL, respectively.
+- Active-stress passive law:
+  `sigmaPas = sigmaPas0 * (exp(bPas * smoothHinge(lambda - lambdaPas0)) - 1)`,
+  then stress is converted to transmural chamber pressure by the shell geometry.
+  Here `bPas` is per stretch, not a chamber-level `mL^-1` beta.
+
+Klotz/Burkhoff single-beat EDPVR normalisation uses a power-law form
+`P = alpha * V^beta` after deriving `V0`, `V30`, and the empirical normalised
+constants (`An` about 27.8 mmHg, `Bn` about 2.76). Using a representative normal
+LV anchor of 120 mL at 10 mmHg, the current active-stress LV passive curve is
+close to that Klotz-style target:
+
+| Volume | Active-stress LV passive | Klotz-style LV target (120 mL / 10 mmHg anchor) | Legacy LV fallback |
+|---:|---:|---:|---:|
+| 100 mL | 3.43 mmHg | 2.89 mmHg | 2.29 mmHg |
+| 120 mL | 10.01 mmHg | 10.00 mmHg | 3.37 mmHg |
+| 140 mL | 23.51 mmHg | 23.48 mmHg | 4.82 mmHg |
+| 150 mL | 34.60 mmHg | 33.13 mmHg | 5.73 mmHg |
+
+RV active-stress passive points are 100 mL 1.18, 120 mL 2.50, 135 mL 3.67,
+150 mL 5.04, and 190 mL 9.90 mmHg. This fits a normal low-pressure RV operating
+range (RVEDP commonly around 0-8 mmHg), but the high-volume limb remains a
+calibration risk for TR/RV-failure scenarios and is now protected by a baseline
+passive-pressure gate.
+
 ## Parameters in play
 
 | Param | Model value (+ how computed) | Literature target (ref) | Verdict |
@@ -97,9 +132,10 @@ elastance literature (AJRCCM 207:678), and the diastolic suction caveat
 | HR | 75 bpm | resting 60–100, typ ~70 [Klabunde] | OK |
 | TBV | 5600 mL | ~70 mL/kg → ~4900 mL @70 kg; 5–5.5 L typical [Guyton&Hall] | slightly high, OK |
 | `contractility`/`lvTmaxScale` | 1.0 / 0.70 (multipliers on Tmax0) | realised LV pressure and CO in normal range | OK (calibrated default scale) |
-| LV `Tmax0` | **382 500 Pa = 382.5 kPa** (note: 85 kPa × 4.5 legacy fudge) | peak active myofiber stress **~30–110 kPa** [Bovendeerd 1992] | **OFF — supra-physiological ceiling (M12 debt)** |
-| RV `Tmax0` | 162 000 Pa = 162 kPa (36 kPa × 4.5) | RV peak stress lower than LV | OFF — same 4.5× fudge |
-| `bPas` (EDPVR stiffness, fibre) | 10 (in stretch λ units), `sigmaPas0` 2000 Pa, `lambdaPas0` 0.85 | exponential EDPVR P=k·e^(βV); β is chamber-level [mL⁻¹], Klotz-normalisable [Klotz 2006/2007] | uncertain — structure OK, magnitude uncalibrated |
+| LV `Tmax0` | 135 000 Pa = 135 kPa | peak active myofiber stress roughly 30–110 kPa, with model ceiling intentionally near the upper physiologic range [Bovendeerd 1992] | OK/calibrated ceiling |
+| RV `Tmax0` | 68 600 Pa = 68.6 kPa | RV peak stress lower than LV | OK/calibrated ceiling |
+| LV passive EDPVR | `sigmaPas0` 200.133 Pa, `bPas` 23.2, `lambdaPas0` 0.9025 | Klotz-normalisable LV EDPVR: V120/P10 gives P100 ~2.9, P140 ~23.5 | OK |
+| RV passive EDPVR | `sigmaPas0` 492 Pa, `bPas` 10, `lambdaPas0` 0.85 | RVEDP normal roughly 0–8 mmHg; RV is low-pressure and more compliant than LV | OK near normal, high-volume limb guarded |
 | `systemicResistance` | 1.25 (× internal SVR) | SVR 800–1200 dyn·s·cm⁻⁵ [LiDCO/Klabunde] | check vs realised MAP/CO |
 | `pulmonaryResistance` | 1.0 | PVR <250 dyn·s·cm⁻⁵ | OK |
 | `venousTone` | 0.2 (0–1) | sets stressed/unstressed split → Pmsf | uncertain |
@@ -110,26 +146,20 @@ elastance literature (AJRCCM 207:678), and the diastolic suction caveat
 ~5), cardiac index 2.5–4.0 L/min/m²; stroke volume 60–130 mL; RAP 2–6 mmHg; RV/PA
 systolic 15–25 mmHg; LAP / PCWP 6–12 mmHg; SVR 800–1200 dyn·s·cm⁻⁵; LVEF ~55–65 %.
 
-**What the model settles to at active-normal** (engine cross-check, converge-settled, codex1):
-CO ≈ 3.52 L/min, AoP ≈ 94.1/64.5, **AoPMean (engine time-average) = 70.1 mmHg** (note: the
-dia+⅓·PP estimate from 94/64 is ~74 — label which convention you mean), LAP ≈ 3.1, RAP ≈ 2.8,
-PAP mean ≈ 9.1, LVEDP ≈ 4.7, EF_L ≈ 0.53, Pmsf ≈ 10.5.
+**What the model settles to at active-normal** (fixed-settle baseline after the
+2026-06-05 refits): CO ≈ 5.70 L/min, AoP ≈ 117.5/75.3, AoPMean
+≈ 82.6 mmHg, LAP ≈ 7.2, RAP ≈ 3.5, PAP mean ≈ 15.5, LVEDP ≈ 9.2,
+EF_L ≈ 0.65, EF_R ≈ 0.54.
 
 **Honest gaps to record for M12** (priority = SHAPE > values, but these matter for trust):
 
-1. **CO ≈ 3.5 L/min is LOW** vs a normal adult ~5–6 L/min (≈ a cardiac index ~1.9 for a
-   1.8 m² adult — clinically that is a low-output state). SV ≈ 47 mL is below the 60–130
-   range. So the absolute operating point is hypodynamic; lessons should be read as
-   *relative* changes, which is exactly the documented priority.
-2. **Mean PAP ≈ 9 mmHg is low** vs ~14–18 mmHg normal mean PAP; the pulmonary side is
-   under-pressured.
-3. **LAP ≈ 3 mmHg is low-normal** (vs 6–12); filling pressures sit at the bottom of range.
-4. **Active-stress `Tmax0` is the single biggest calibration debt.** Peak active myofiber
-   stress in single-fibre / CircAdapt-class models is ~30–110 kPa [Bovendeerd 1992; CircAdapt].
-   The model's `Tmax0` = 382.5 kPa is ~3.5–4× that ceiling — a direct artefact of the
-   `lvTmaxScale = 4.5` fudge folded into `Tmax0` (note in `chambers.ts`). The realised
-   *peak σ_act* is below the ceiling (a/gOver/f_iso are ≤1 fractions — see section B), but
-   the inflated ceiling is non-physiological and must be re-derived in M12.
+1. The baseline is now in the intended normal hemodynamic corridor, but the
+   apparent elastance traces remain comparison observables, not Ees regressions.
+2. The legacy time-varying elastance fallback remains too compliant on its
+   passive limb and should not be used as a validated EDPVR reference without
+   refitting.
+3. The RV passive high-volume limb is intentionally gentle; TR/RV-failure
+   scenarios need explicit high-volume no-floor/no-collapse guards.
 
 **Direction the Normal case should show**: a closed, convex LV PV loop (ESV<EDV, positive
 area); a dicrotic notch on AoP; E/A pattern on MV inflow; everything within "looks like a
@@ -145,14 +175,12 @@ Dimensionally coherent if Tmax0/sigmaPas0 are Pa and geomScale/geomChi/(2h/rm)/a
 dimensionless; bPas is per-unit-stretch (λ dimensionless). The exponential σ_pas is a reasonable
 EDPVR surrogate but its parameters are calibration values, not a chamber-level Klotz β.
 
-**Tmax0 ceiling — quantified (the key nuance):** on a settled normal run (1000 Hz, 2 s) the **peak LV
-σ_act was 46.9 kPa = 12.3 % of the 382.5 kPa Tmax0 ceiling**, at `a = 0.123`, `λ = 0.911`,
-`gOver ≈ 1.0`, `f_iso = 1.0`, VLV 80.8 mL, passive stress 1.69 kPa (across beats `a` ∈ 0.00002–0.123,
-`λ` ∈ 0.788–0.930, `f_iso` ∈ 0.679–1.0). So the **realised peak stress (46.9 kPa) IS physiological**
-(within the ~30–110 kPa range) — the heart is not generating supra-physiological force. The
-calibration debt is structural: **activation `a` only reaches ~12 %, so the inflated 4.5× Tmax0
-ceiling is what recovers the current (low) operating point.** M12 should re-derive Tmax0 from a
-physiological ceiling AND fix the activation scaling together.
+**Tmax0 ceiling - quantified direction:** the old 382.5 kPa LV ceiling has been
+replaced by a 135 kPa LV ceiling and a 68.6 kPa RV ceiling. Those values should be
+read as maximum active-stress capacity before activation, length-tension,
+tension-development, and force-velocity factors. Realised beat pressure is still
+guarded by the LVP/AoP, CO, EF, and pressure-floor gates rather than by assuming
+`Tmax0` itself is a directly observed peak fibre stress.
 
 **Vascular / units** (`engine/ModelCore.ts:632-655, 938-960`). Flows are mL/s; SV = trapezoidal
 integral of positive valve flow per beat; CO = SV·HR/1000 L/min (unit-consistent). Raw
@@ -165,21 +193,25 @@ venousToneGain·venousTone`; at venousTone 0.2 this lowers systemic venous unstr
 stressed volume. `Pmsf = stressedVolumeSystemic / complianceSystemic` (mmHg) — a coherent
 Guyton-style 0D approximation (heart + pulmonary excluded by design).
 
-**Independent cross-check** (converge-settled, `health: ok`, no clamps): CO_L 3.52, AoP 94.1/64.5,
-AoPMean 70.1, PAP mean 9.1, LAP/RAP 3.1/2.8, LVEDP 4.7, EF_L 0.53, Pmsf 10.5 — all consistent with
-section A. (MAP convention: time-averaged AoPMean 70.1 vs dia+⅓PP estimate ~74.)
+**Independent cross-check** (fixed-settle baseline snapshot): CO_L 5.70,
+AoP 117.5/75.3, AoPMean 82.6, PAP mean 15.5, LAP/RAP 7.2/3.5,
+LVEDP 9.2, EF_L 0.65, EF_R 0.54. Passive LV points are now Klotz-like
+around a 120 mL / 10 mmHg anchor; passive RV points stay in a normal low-pressure
+corridor.
 
-**Numerical notes:** the [−5, 260] mmHg chamber-pressure clamp is protective but can hide
-over-high-stress calibrations; clinical inotropy maps to `lvTmaxScale`, not raw `contractility`, so it
-does not drive the `betaDrive`/Ca-release branch; the low normal CO/PAP is a *calibration* issue, not
-an integrator-health one.
+**Numerical notes:** the [−5, 260] mmHg chamber-pressure clamp is protective but
+can hide over-high-stress calibrations. The normal baseline therefore additionally
+guards LV/RV passive pressure points, pressure-floor hits, LVP/AoP peak gap,
+CO/EF, transmitral gradients, valvular regurgitation, and PVF morphology.
 
 ## Open questions / for M12
 
-- Re-derive `Tmax0` from a physiological peak fibre stress (~100 kPa) + an explicit `lvTmaxScale`
-  rather than the folded 4.5×; re-fit so normal CO lands ~5 L/min without breaking shape.
-- Calibrate `bPas`/`sigmaPas0` to a Klotz-normalised human EDPVR.
-- Raise the pulmonary operating pressure (PAP mean toward ~15).
+- Refit the legacy time-varying elastance fallback passive `alpha/beta` before
+  presenting it as a physiologic EDPVR comparator.
+- Add TR/RV-failure high-volume EDPVR gates so the deliberately gentle RV passive
+  limb does not hide dilation pathologies.
+- Keep atrial passive parameters tied to reservoir/conduit/booster behavior rather
+  than claiming validated normal atrial `alpha/beta` targets.
 
 ## References
 
@@ -187,6 +219,8 @@ an integrator-health one.
 2. Guyton AC, Hall JE. *Textbook of Medical Physiology* (blood volume, venous return, Pmsf).
 3. Bovendeerd PHM et al. "Dependence of local left ventricular wall mechanics on myocardial fiber orientation: a model study." *J Biomech* 1992. https://pubmed.ncbi.nlm.nih.gov/1400513/ (peak fiber stress ~30–110 kPa).
 4. Arts T, Delhaas T, Bovendeerd P, et al. "Adaptation to mechanical load… the CircAdapt model." *Am J Physiol Heart Circ Physiol* 2005. https://journals.physiology.org/doi/abs/10.1152/ajpheart.00444.2004 (single-fibre Tmax, CircAdapt chamber). https://framework.circadapt.org/2407/userguide/components/node/cavity/Chamber.html
-5. Klotz S et al. "Single-beat estimation of the EDPVR" and the Klotz curve normalization. *Am J Physiol* 2006/2007 (EDPVR β, normalization).
+5. Klotz S et al. "Single-beat estimation of the EDPVR" and the Klotz curve normalization. *Am J Physiol* 2006 and *Nature Protocols* 2007. https://pure.johnshopkins.edu/en/publications/single-beat-estimation-of-end-diastolic-pressure-volume-relations-5/ ; https://www.nature.com/articles/nprot.2007.270
 6. Normal hemodynamic parameter table — LiDCO. https://www.lidco.com/wp-content/uploads/2017/03/5559-NHP-one-pager-flyer-2.pdf
 7. Maas JJ et al. "Mean systemic filling pressure… critically ill." *Am J Physiol Heart Circ Physiol* 2015. https://journals.physiology.org/doi/full/10.1152/ajpheart.00413.2015 (Pmsf 12–19 mmHg clinical; classic Guyton ~7).
+8. Merck Manual Professional Edition. "Normal Pressures in the Heart and Great Vessels." https://www.merckmanuals.com/professional/multimedia/table/normal-pressures-in-the-heart-and-great-vessels
+9. Bozkurt S. "A mathematical model of cardiac function to evaluate clinical cases in adults and children." *PLOS One* 2019. https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0224663
