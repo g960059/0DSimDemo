@@ -1,12 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Controls } from '../Controls';
-import { PVLoopPanel, WaveformPanel, MetricsPanel, GuytonPanel } from '../Charts';
 import { LessonAuthoring } from '../LessonAuthoring';
-import { NotePanel } from '../NotePanel';
-import { ErrorBoundary } from '../ErrorBoundary';
 import WorkbenchDockview from './WorkbenchDockview';
 import WorkbenchMobile from './WorkbenchMobile';
-import { ScenarioPane } from './ScenarioPane';
+import { renderPaneBody } from './renderPaneBody';
 import { type ClinicalKnobs } from '../../engine/knobs';
 import { SimulationHealth } from '../../engine/protocol';
 import {
@@ -1299,27 +1295,24 @@ function PanelCard({
   ) : null;
   const panelBody = (
     <div className={bodyClassName}>
-      {panel.type === 'PVLOOP' && <PVLoopPanel physicsRefs={physicsRefs} instances={instances} config={panel.config} showGuides={panel.showGuides} showLegend={panel.showLegend} />}
-      {panel.type === 'WAVEFORM' && <WaveformPanel physicsRefs={physicsRefs} instances={instances} timeWindow={panel.timeWindow || 10000} config={panel.config} showLegend={panel.showLegend} />}
-      {panel.type === 'METRICS' && <MetricsPanel physicsRefs={physicsRefs} instances={instances} config={panel.config} />}
-      {panel.type === 'SCENARIOS' && <ScenarioPane instances={instances} addInstance={addInstance} removeInstance={removeInstance} updateInstanceName={updateInstanceName} updateInstanceColor={updateInstanceColor} />}
-      {panel.type === 'CONTROLS' && <Controls isPaneMode paneConfig={panel.config} instances={instances} instanceHealth={instanceHealth} activeInstanceId={activeInstanceId} updateInstanceParams={updateInstanceParams} updateInstanceKnobs={updateInstanceKnobs} updateInstanceVolume={updateInstanceVolume} />}
-      {(panel.type === 'GUYTON_RIGHT' || panel.type === 'GUYTON_LEFT') && <GuytonPanel physicsRefs={physicsRefs} instances={instances} config={panel.config} type={panel.type} />}
-      {panel.type === 'NOTE' && (
-        <ErrorBoundary>
-          <div className="flex h-full min-h-0 flex-col">
-            {dockviewNoteModeSwitch}
-            <div className="min-h-0 flex-1">
-              <NotePanel
-                key={`${noteCaseKey}:${panel.id}`}
-                mode={noteMode}
-                content={notes[panel.id]}
-                onChange={(blocks) => onNoteChange(panel.id, blocks)}
-              />
-            </div>
-          </div>
-        </ErrorBoundary>
-      )}
+      {renderPaneBody(panel, {
+        instances,
+        physicsRefs,
+        instanceHealth,
+        activeInstanceId,
+        updateInstanceParams,
+        updateInstanceKnobs,
+        updateInstanceVolume,
+        noteMode,
+        notes,
+        noteCaseKey,
+        onNoteChange,
+        noteHeader: dockviewNoteModeSwitch,
+        addInstance,
+        removeInstance,
+        updateInstanceName,
+        updateInstanceColor,
+      })}
     </div>
   );
 
