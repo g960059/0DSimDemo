@@ -65,6 +65,13 @@ Important interpretation limits:
 
 ## Initial Implementation Scope
 
-The first branch should implement reusable verification profiles, morphology
-metrics, a report API, and a thin candidate evaluator. It should not yet build a
-full optimizer or user-facing fitting UI.
+The first branch implements reusable verification profiles, morphology metrics,
+a report API, a thin candidate evaluator, and headless baseline artifacts. The
+artifact output is intentionally non-UI and writes `report.json`, `report.md`,
+`waveforms.svg`, and `pv-loops.svg` under `artifacts/verification/`.
+
+Gate splitting is limited to `normalBaseline` for now. Bundled morphology gates
+are decomposed so reviewers can see whether a failure is from missing E/A waves,
+PVF Ar polarity, PVF reverse fraction, transmitral gradient samples/means/peaks,
+or right-heart pressure/volume bounds. It should not yet build a full optimizer,
+case-specific profiles, or user-facing fitting UI.

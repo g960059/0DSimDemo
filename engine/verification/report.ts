@@ -109,12 +109,14 @@ export function runVerification(
 function adjustGatesForProfile(gates: GateResult[], profile: VerificationProfile): GateResult[] {
   if (profile.mode === "verifyAccurate") return gates;
   const triageSoftIds = new Set([
-    "pvf-readable",
-    "mv-gradient",
     "lv-active-elastance-shape",
   ]);
   return gates.map((gate) => {
-    if (!triageSoftIds.has(gate.id)) return gate;
+    const triageSoft =
+      triageSoftIds.has(gate.id) ||
+      gate.id.startsWith("pvf-") ||
+      gate.id.startsWith("mv-gradient-");
+    if (!triageSoft) return gate;
     return {
       ...gate,
       severity: "soft" as const,

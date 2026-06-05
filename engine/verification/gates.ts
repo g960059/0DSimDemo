@@ -161,6 +161,8 @@ export function collectNormalBaselineGates(measurement: SteadyMeasurement): Gate
   const [rvMin, rvMax] = rangeOf(beat, "VRV");
   const [raMin, raMax] = rangeOf(beat, "VRA");
   const [, rvpMax] = rangeOf(beat, "RVP");
+  const rvStrokeFraction = rvMax > 1e-9 ? (rvMax - rvMin) / rvMax : NaN;
+  const raEmptyingFraction = raMax > 1e-9 ? (raMax - raMin) / raMax : NaN;
 
   return [
     hardRange("aop-mean", "Mean aortic pressure", m.AoPMean, 80, 100, "mmHg"),
@@ -213,26 +215,12 @@ export function collectNormalBaselineGates(measurement: SteadyMeasurement): Gate
     regurgitationGate(beat, "QAo", 0.001),
     regurgitationGate(beat, "QTV", 0.005),
     regurgitationGate(beat, "QPV", 0.001),
-    {
-      id: "qmv-biphasic",
-      label: "Mitral inflow E/A biphasic",
-      severity: "hard",
-      status: qmv.ePeak && qmv.aPeak && qmv.ePeak.value > 100 && qmv.aPeak.value > 80 && (qmv.aOverE ?? 0) > 0.35 ? "pass" : "fail",
-      value: qmv.aOverE,
-      threshold: "E > 100, A > 80, A/E > 0.35",
-      score: qmv.aOverE == null ? 0 : scoreAbove(qmv.aOverE, 0.35, 0.7),
-      message: "Normal mitral inflow should show readable E and A waves.",
-    },
-    {
-      id: "qtv-biphasic",
-      label: "Tricuspid inflow E/A biphasic",
-      severity: "hard",
-      status: qtv.ePeak && qtv.aPeak && qtv.ePeak.value > 100 && qtv.aPeak.value > 80 && (qtv.aOverE ?? 0) > 0.35 ? "pass" : "fail",
-      value: qtv.aOverE,
-      threshold: "E > 100, A > 80, A/E > 0.35",
-      score: qtv.aOverE == null ? 0 : scoreAbove(qtv.aOverE, 0.35, 0.7),
-      message: "Normal tricuspid inflow should show readable E and A waves.",
-    },
+    peakGate("qmv-e-peak", "Mitral E-wave peak", qmv.ePeak?.value ?? null, 100, "mL/s"),
+    peakGate("qmv-a-peak", "Mitral A-wave peak", qmv.aPeak?.value ?? null, 80, "mL/s"),
+    ratioGate("qmv-a-over-e", "Mitral A/E ratio", qmv.aOverE, 0.35, 0.70),
+    peakGate("qtv-e-peak", "Tricuspid E-wave peak", qtv.ePeak?.value ?? null, 100, "mL/s"),
+    peakGate("qtv-a-peak", "Tricuspid A-wave peak", qtv.aPeak?.value ?? null, 80, "mL/s"),
+    ratioGate("qtv-a-over-e", "Tricuspid A/E ratio", qtv.aOverE, 0.35, 0.70),
     {
       id: "la-figure-eight",
       label: "LA figure-eight PV loop",
@@ -251,42 +239,35 @@ export function collectNormalBaselineGates(measurement: SteadyMeasurement): Gate
       threshold: "intersection >= 1, area > 30, mid spread > 2",
       message: "RA loop should preserve reservoir and booster-loop morphology.",
     },
+    peakGate("pvf-s-peak", "Pulmonary venous S wave", pvf.sPeak?.value ?? null, 120, "mL/s"),
+    peakGate("pvf-d-peak", "Pulmonary venous D wave", pvf.dPeak?.value ?? null, 180, "mL/s"),
     {
-      id: "pvf-readable",
-      label: "Pulmonary venous S/D/Ar morphology",
+      id: "pvf-ar-present",
+      label: "Pulmonary venous Ar reversal",
       severity: "hard",
-      status: pvf.sPeak != null && pvf.dPeak != null && pvf.arTrough != null &&
+      status: pvf.arTrough != null &&
         phaseInWindow(pvf.arTrough.theta, PVF_AR_WINDOW[0], PVF_AR_WINDOW[1]) &&
-        pvf.arTrough.value < 0 &&
-        (pvf.sFraction ?? 0) > 0.40 &&
-        (pvf.sOverD ?? 0) > 0.50 &&
-        (pvf.reverseFraction ?? 1) < 0.055 ? "pass" : "fail",
-      value: `Sfrac=${format(pvf.sFraction)} S/D=${format(pvf.sOverD)} rev=${format(pvf.reverseFraction)} Ar=${format(pvf.arTrough?.value)} ArTheta=${format(pvf.arTrough?.theta)}`,
-      threshold: "S fraction > 0.40, S/D > 0.50, reverse/forward < 0.055, Ar < 0 in theta 0.84-0.98",
-      score: pvf.sFraction == null ? 0 : scoreAbove(pvf.sFraction, 0.40, 0.55),
-      message: "PVF should expose S/D/Ar without shifting into high-backflow morphology.",
+        pvf.arTrough.value < 0 ? "pass" : "fail",
+      value: `Ar=${format(pvf.arTrough?.value)} theta=${format(pvf.arTrough?.theta)}`,
+      threshold: "Ar < 0 in theta 0.84-0.98",
+      score: pvf.arTrough?.value == null ? 0 : scoreBelow(pvf.arTrough.value, -20, 0),
+      message: "PVF should include true retrograde atrial reversal, not merely a low positive forward flow.",
     },
-    {
-      id: "mv-gradient",
-      label: "Normal transmitral gradients",
-      severity: "hard",
-      status: mvAll.n > 20 && mvAll.mean < 3 && mvE.mean < 4 && mvE.peak < 7 && mvA.mean < 3 && mvA.peak < 6 ? "pass" : "fail",
-      value: `allMean=${format(mvAll.mean)} eMean=${format(mvE.mean)} ePeak=${format(mvE.peak)} aMean=${format(mvA.mean)} aPeak=${format(mvA.peak)}`,
-      threshold: "all mean < 3, E mean < 4, E peak < 7, A mean < 3, A peak < 6 mmHg",
-      score: scoreBelow(mvAll.mean, 2, 3),
-      message: "Competent normal MV should not present as MS-like.",
-    },
-    {
-      id: "right-heart",
-      label: "Right-heart baseline physiology",
-      severity: "hard",
-      status: rvPreEdp > 2 && rvPreEdp < 8 && (rvMax - rvMin) / rvMax > 0.50 && rvpMax < 45 &&
-        raMax < 85 && raMin > 25 && (raMax - raMin) / raMax > 0.44 ? "pass" : "fail",
-      value: rvPreEdp,
-      threshold: "RVEDP 2-8, RV stroke fraction >0.50, RVP max <45",
-      score: scoreRange(rvPreEdp, 2, 8),
-      message: "Right-heart pressure and volume ranges should stay normal at baseline.",
-    },
+    ratioGate("pvf-s-fraction", "PVF systolic filling fraction", pvf.sFraction, 0.40, 0.55),
+    ratioGate("pvf-s-over-d", "PVF S/D forward-volume ratio", pvf.sOverD, 0.50, 0.90),
+    upperBoundGate("pvf-reverse-fraction", "PVF reverse/forward fraction", pvf.reverseFraction, 0.055, 0.03),
+    countGate("mv-gradient-forward-count", "Transmitral forward-gradient samples", mvAll.n, 20),
+    upperBoundGate("mv-gradient-all-mean", "Transmitral mean gradient", mvAll.mean, 3, 2),
+    upperBoundGate("mv-gradient-e-mean", "Transmitral E-wave mean gradient", mvE.mean, 4, 3),
+    upperBoundGate("mv-gradient-e-peak", "Transmitral E-wave peak gradient", mvE.peak, 7, 5),
+    upperBoundGate("mv-gradient-a-mean", "Transmitral A-wave mean gradient", mvA.mean, 3, 2),
+    upperBoundGate("mv-gradient-a-peak", "Transmitral A-wave peak gradient", mvA.peak, 6, 4),
+    hardRange("rv-edp-presystolic", "Pre-systolic RVEDP", rvPreEdp, 2, 8, "mmHg"),
+    ratioGate("rv-stroke-fraction", "RV stroke fraction", rvStrokeFraction, 0.50, 0.58),
+    upperBoundGate("rvp-max", "RVP maximum", rvpMax, 45, 35),
+    upperBoundGate("ra-volume-max", "RA maximum volume", raMax, 85, 70),
+    lowerBoundGate("ra-volume-min", "RA minimum volume", raMin, 25, 35),
+    ratioGate("ra-emptying-fraction", "RA emptying fraction", raEmptyingFraction, 0.44, 0.55),
     {
       id: "lv-active-elastance-shape",
       label: "LV apparent elastance shape",
@@ -389,6 +370,76 @@ function regurgitationGate(samples: SimSample[], key: "QMV" | "QAo" | "QTV" | "Q
     threshold: `< ${limit}`,
     score: scoreBelow(value, limit * 0.5, limit),
     message: "Normal baseline valves should have negligible regurgitation.",
+  };
+}
+
+function peakGate(id: string, label: string, value: number | null, min: number, unit: string): GateResult {
+  const pass = value != null && value > min;
+  return {
+    id,
+    label,
+    severity: "hard",
+    status: pass ? "pass" : "fail",
+    value,
+    threshold: `> ${min} ${unit}`,
+    score: value == null ? 0 : scoreAbove(value, min, min * 1.5),
+    message: pass ? `${label} is readable.` : `${label} is absent or too small for normal-baseline morphology.`,
+  };
+}
+
+function ratioGate(id: string, label: string, value: number | null, min: number, ideal: number): GateResult {
+  const pass = value != null && value > min;
+  return {
+    id,
+    label,
+    severity: "hard",
+    status: pass ? "pass" : "fail",
+    value,
+    threshold: `> ${min}`,
+    score: value == null ? 0 : scoreAbove(value, min, ideal),
+    message: pass ? `${label} is inside the readable morphology corridor.` : `${label} is below the morphology threshold.`,
+  };
+}
+
+function countGate(id: string, label: string, value: number, min: number): GateResult {
+  const pass = value > min;
+  return {
+    id,
+    label,
+    severity: "hard",
+    status: pass ? "pass" : "fail",
+    value,
+    threshold: `> ${min}`,
+    score: scoreAbove(value, min, min * 1.5),
+    message: pass ? `${label} is sufficient for stable gradient statistics.` : `${label} is too sparse for gradient statistics.`,
+  };
+}
+
+function upperBoundGate(id: string, label: string, value: number | null, limit: number, ideal: number): GateResult {
+  const pass = value != null && value < limit;
+  return {
+    id,
+    label,
+    severity: "hard",
+    status: pass ? "pass" : "fail",
+    value,
+    threshold: `< ${limit}`,
+    score: value == null ? 0 : scoreBelow(value, ideal, limit),
+    message: pass ? `${label} is below the normal-baseline upper bound.` : `${label} exceeds the normal-baseline upper bound.`,
+  };
+}
+
+function lowerBoundGate(id: string, label: string, value: number | null, min: number, ideal: number): GateResult {
+  const pass = value != null && value > min;
+  return {
+    id,
+    label,
+    severity: "hard",
+    status: pass ? "pass" : "fail",
+    value,
+    threshold: `> ${min}`,
+    score: value == null ? 0 : scoreAbove(value, min, ideal),
+    message: pass ? `${label} is above the normal-baseline lower bound.` : `${label} is below the normal-baseline lower bound.`,
   };
 }
 

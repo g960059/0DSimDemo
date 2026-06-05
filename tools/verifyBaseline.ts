@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { DEFAULT_PARAMS } from "@/constants";
+import { generateVerificationSvgs } from "@/engine/verification/artifacts";
 import {
   reportToMarkdown,
   runVerification,
@@ -26,6 +27,10 @@ writeFileSync(
   `${JSON.stringify(toVerificationArtifact(report), null, 2)}\n`,
 );
 writeFileSync(path.join(options.outDir, "report.md"), reportToMarkdown(report));
+const svgs = generateVerificationSvgs(report);
+for (const [filename, svg] of Object.entries(svgs)) {
+  writeFileSync(path.join(options.outDir, filename), svg);
+}
 
 // eslint-disable-next-line no-console
 console.log(

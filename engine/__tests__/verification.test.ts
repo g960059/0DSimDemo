@@ -3,6 +3,7 @@ import { DEFAULT_PARAMS } from "@/constants";
 import { evaluateCandidate, rankCandidates } from "@/engine/fitting/evaluateCandidate";
 import { makeCandidatePatch } from "@/engine/fitting/parameterSpace";
 import { collectNormalBaselineGates } from "@/engine/verification/gates";
+import { generateVerificationSvgs } from "@/engine/verification/artifacts";
 import { VERIFICATION_PROFILES } from "@/engine/verification/profiles";
 import { reportToMarkdown, runVerification } from "@/engine/verification/report";
 
@@ -35,6 +36,24 @@ describe("fitting/verification mode foundation", () => {
     expect(report.shape).not.toBeNull();
     expect(report.shape?.pvfSFraction).toBeGreaterThan(0.40);
     expect(report.shape?.laSelfIntersections).toBeGreaterThanOrEqual(1);
+    const ids = report.gates.map((gate) => gate.id);
+    for (const id of [
+      "qmv-e-peak",
+      "qmv-a-peak",
+      "qmv-a-over-e",
+      "pvf-ar-present",
+      "pvf-s-fraction",
+      "pvf-reverse-fraction",
+      "mv-gradient-e-peak",
+      "rv-stroke-fraction",
+      "ra-emptying-fraction",
+    ]) {
+      expect(ids).toContain(id);
+    }
+    expect(ids).not.toContain("qmv-biphasic");
+    expect(ids).not.toContain("pvf-readable");
+    expect(ids).not.toContain("mv-gradient");
+    expect(ids).not.toContain("right-heart");
 
     const markdown = reportToMarkdown(report);
     expect(markdown).toContain("Verification Report");
@@ -92,9 +111,25 @@ describe("fitting/verification mode foundation", () => {
     };
 
     const pvfGate = collectNormalBaselineGates(noArMeasurement)
-      .find((gate) => gate.id === "pvf-readable");
+      .find((gate) => gate.id === "pvf-ar-present");
     expect(pvfGate?.status).toBe("fail");
     expect(String(pvfGate?.value)).toContain("Ar=");
+  });
+
+  it("generates structural SVG artifacts with waveform and PV-loop panels", () => {
+    const report = runVerification(DEFAULT_PARAMS, {
+      profile: "verifyAccurate",
+      gateSet: "normalBaseline",
+      now: new Date("2026-06-05T00:00:00.000Z"),
+    });
+    const svgs = generateVerificationSvgs(report);
+    expect(svgs["waveforms.svg"]).toContain("Verification Waveforms");
+    expect(svgs["waveforms.svg"]).toContain("PVF model flow (mL/s, not Doppler velocity)");
+    expect(svgs["waveforms.svg"]).toContain("pvf-ar-present");
+    expect(svgs["waveforms.svg"]).toContain("mv-gradient-e-peak");
+    expect(svgs["pv-loops.svg"]).toContain("Verification PV Loops");
+    expect(svgs["pv-loops.svg"]).toContain("LA PV loop");
+    expect(svgs["pv-loops.svg"]).toContain("RA PV loop");
   });
 
   it("evaluates and ranks fitting candidates using hard-gate failures first", () => {
