@@ -78,8 +78,11 @@ export const ReadingPresenter: React.FC<{
     });
   };
 
+  // h-full (NOT min-h-full): this div must be the bounded scrollport under
+  // Layout's `flex-1 overflow-hidden` <main>. min-h-full grows to content
+  // height so nothing scrolls (the reading-article scroll bug).
   return (
-    <div className="min-h-full w-full overflow-y-auto bg-slate-950 text-slate-200">
+    <div className="h-full min-h-0 w-full overflow-y-auto bg-slate-950 text-slate-200">
       <div className="sticky top-0 z-20 h-12 border-b border-slate-900/80 bg-slate-950/90 backdrop-blur">
         <div className="mx-auto flex h-12 max-w-[960px] items-center gap-3 px-4">
           <Link to="/" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-100" aria-label="Back to home">
