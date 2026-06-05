@@ -22,6 +22,22 @@ The pane is deliberately labeled and implemented as a local summary of the
 current closed-loop model. It is not an open-loop causal claim that RAP alone
 sets venous return.
 
+## Snapshot Map Behavior
+
+The Guyton curves should be treated as operating-map snapshots. A sampled curve
+represents the local map implied by the model state used to build that pane
+data; it is not a continuously re-fit causal law. The current operating point is
+a separate marker and may move independently as the live simulation advances or
+as a later snapshot replaces the map.
+
+For normal right- and left-sided operating ranges, the sampled pressure domain
+should remain fixed/sticky so small live movement does not cause axis breathing.
+Only excursions outside the default teaching range should expand the domain.
+The unit tests cover this at the pure helper level by verifying that an ordinary
+right-sided live-point movement changes the operating point while preserving the
+sampled x-domain. They also cover the default axis presets and the expand-only
+axis helper used to avoid auto-shrinking.
+
 ## Equations
 
 ### Systemic Guyton Line
@@ -110,10 +126,12 @@ Right: (RAP_mean, CO_R)
 Left:  (LAP_mean, CO_L)
 ```
 
-The worker marks points whose settled state or health status is not clean. Until
-the worker returns, the pane draws a dashed local Starling surrogate anchored at
-the current operating point. That surrogate is a visual placeholder, not a
-calibration target.
+The worker marks points whose settled state or health status is not clean.
+Normal UI should prefer the preload-sweep curve and keep the local surrogate as
+a debug fallback rather than a routine learner-facing curve. The pure helper
+marks it with `source: "local-starling-surrogate"` and `dashed: true`, and
+`guytonSnapshotPoints()` omits it from normal snapshot points while including a
+real sweep when one is available.
 
 ## Parameters And Diagnostics
 
@@ -134,10 +152,30 @@ Implemented in `engine/__tests__/guytonStarling.test.ts`:
 - classic line has near-zero flow at the filling-pressure intercept;
 - waterfall-aware line plateaus at low downstream pressure;
 - left pane uses `PmpfAbs` and pulmonary venous compliance;
+- ordinary right-sided live-point movement preserves the sampled operating-map
+  x-domain;
+- default Guyton axes are preset and expand without auto-shrinking;
+- live operating points can be read independently from map-curve construction;
+- normal snapshot points omit the dashed local Starling surrogate and include a
+  real preload sweep when available;
 - higher target TBV shifts the systemic filling-pressure estimate upward.
 
 Existing observability tests continue to verify that Pmsf and stressed volume
 remain finite and ordered.
+
+## UI Review Recommendations
+
+These behaviors are owned by `components/Charts.tsx` and are not feasible to
+enforce from the current pure helper test setup:
+
+- Preserve a sticky rendered axis across redraws, including the y-axis and any
+  worker sweep points. The helper-level tests cover axis presets, expand-only
+  behavior, and sampled x-domain stability, not canvas rendering.
+- Verify visually or with a component/canvas test that the live operating point
+  renders independently from the last accepted snapshot curve.
+- Verify visually or with a component/canvas test that the local Starling
+  surrogate remains hidden/gated in normal UI and is only exposed through a
+  deliberate debug path.
 
 ## Literature Grounding
 

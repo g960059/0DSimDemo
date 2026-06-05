@@ -53,6 +53,18 @@ export type GuytonPaneData = {
   warnings: string[];
 };
 
+export type GuytonAxisDomain = {
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
+};
+
+export type GuytonLiveOperatingPoint = {
+  pressure: number;
+  flow: number;
+};
+
 export type StarlingSweepCurve = {
   side: GuytonSide;
   points: GuytonCurvePoint[];
@@ -81,6 +93,10 @@ export type StarlingSweepResponse = {
 const FLOW_FLOOR_L_MIN = 0.15;
 const RESISTANCE_MIN = 0.05;
 const RESISTANCE_MAX = 20;
+const DEFAULT_GUYTON_AXIS: Record<GuytonSide, GuytonAxisDomain> = {
+  right: { xMin: -5, xMax: 20, yMin: 0, yMax: 10 },
+  left: { xMin: 0, xMax: 30, yMin: 0, yMax: 10 },
+};
 
 export function buildGuytonPaneData(
   side: GuytonSide,
@@ -160,6 +176,54 @@ export function buildGuytonPaneData(
     },
     warnings,
   };
+}
+
+export function defaultGuytonAxis(side: GuytonSide): GuytonAxisDomain {
+  return { ...DEFAULT_GUYTON_AXIS[side] };
+}
+
+export function liveGuytonOperatingPoint(side: GuytonSide, metrics: SimMetrics): GuytonLiveOperatingPoint {
+  return {
+    pressure: side === "right" ? metrics.RAPMean : metrics.LAPMean,
+    flow: Math.max(side === "right" ? metrics.CO_R : metrics.CO_L, 0),
+  };
+}
+
+export function expandGuytonAxisToFit(
+  current: GuytonAxisDomain,
+  points: GuytonCurvePoint[],
+  options: { marginFraction?: number } = {},
+): GuytonAxisDomain {
+  if (points.length === 0) return current;
+  const marginFraction = options.marginFraction ?? 0.12;
+  const finite = points.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
+  if (finite.length === 0) return current;
+  const xMin = Math.min(...finite.map((point) => point.x));
+  const xMax = Math.max(...finite.map((point) => point.x));
+  const yMin = Math.min(...finite.map((point) => point.y));
+  const yMax = Math.max(...finite.map((point) => point.y));
+  const xPad = Math.max((xMax - xMin) * marginFraction, 0.5);
+  const yPad = Math.max((yMax - yMin) * marginFraction, 0.5);
+  return {
+    xMin: Math.min(current.xMin, xMin - xPad),
+    xMax: Math.max(current.xMax, xMax + xPad),
+    yMin: Math.min(current.yMin, yMin - yPad),
+    yMax: Math.max(current.yMax, yMax + yPad),
+  };
+}
+
+export function guytonSnapshotPoints(
+  pane: GuytonPaneData,
+  sweep: StarlingSweepResponse | undefined,
+): GuytonCurvePoint[] {
+  const activeSweep = pane.side === "right" ? sweep?.right : sweep?.left;
+  return [
+    ...pane.venousReturn.points,
+    ...pane.classicVenousReturn.points,
+    ...(activeSweep?.points ?? []),
+    { x: pane.operatingPoint.pressure, y: pane.operatingPoint.flow },
+    { x: pane.fillingPressure, y: 0 },
+  ];
 }
 
 export function sampleVenousReturnCurve(args: {
