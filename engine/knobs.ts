@@ -124,6 +124,9 @@ export function clampKnobs(k: ClinicalKnobs): ClinicalKnobs {
 
 export type KnobResolver = (k: ClinicalKnobs, base: CoreRuntimeParams) => ParameterPatch;
 
+const LEGACY_V02_MV_R = 0.004;
+const LEGACY_V02_MV_B = 2e-5;
+
 /** EDPVR beta (b_pas) the chamber model uses, honoring a baseline override. */
 function baseBPas(base: CoreRuntimeParams, chamber: "LV" | "RV"): number {
   const active = base.nodeOverrides?.[chamber]?.active;
@@ -179,7 +182,10 @@ const resolveActiveStress_0_2: KnobResolver = (k, base) => {
   }
   if (k.mitralStenosis > 0) {
     p.MV_Amax = base.MV_Amax * (1 - 0.75 * k.mitralStenosis);
-    p.MV_R = base.MV_R * (1 + 5 * k.mitralStenosis);
+    // Preserve the shipped v0.2 absolute MS response even after the normal MV
+    // baseline loss was lowered in the active default refit.
+    p.MV_R = LEGACY_V02_MV_R * (1 + 5 * k.mitralStenosis);
+    p.MV_B = LEGACY_V02_MV_B;
   }
   if (k.mitralRegurgitation > 0) {
     p.MV_Aleak = base.MV_Amax * (0.11 * k.mitralRegurgitation);
@@ -208,6 +214,7 @@ const resolveActiveStress_0_3: KnobResolver = (k, base) => {
   }
   if (k.mitralStenosis > 0) {
     p.MV_R = base.MV_R * (1 + 2 * k.mitralStenosis);
+    p.MV_B = base.MV_B;
   }
   if (k.pulmonicStenosis > 0) {
     p.PV_R = base.PV_R * (1 + 2 * k.pulmonicStenosis);

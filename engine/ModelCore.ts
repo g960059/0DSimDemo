@@ -337,7 +337,7 @@ export function defaultParams(): CoreRuntimeParams {
     RCAStenosis: 0,
     // Valve Defaults
     // MV
-    MV_Aref: 5.0, MV_Amax: 5.0, MV_Aleak: 0, MV_kOpen: 2.0, MV_tauOpen: 0.020, MV_tauClose: 0.012, MV_R: 0.004, MV_L: 0.0003, MV_B: 2e-5,
+    MV_Aref: 5.0, MV_Amax: 5.0, MV_Aleak: 0, MV_kOpen: 2.0, MV_tauOpen: 0.020, MV_tauClose: 0.012, MV_R: 0.002, MV_L: 0.0003, MV_B: 5e-6,
     // AoV
     AoV_Aref: 3.5, AoV_Amax: 3.5, AoV_Aleak: 0, AoV_kOpen: 3.0, AoV_tauOpen: 0.006, AoV_tauClose: 0.008, AoV_R: 0.0015, AoV_L: 0.00025, AoV_B: 1e-6,
     // TV
@@ -387,7 +387,7 @@ function buildNodes(): NodeSpec[] {
 function buildEdges(): EdgeSpec[] {
   const q0 = 80;
   return [
-    { name: "MV", up: "LA", down: "LV", kind: "valve", R: 0.004, L: 0.0003, B: 2e-5, Aref: 5.0, Amax: 5.0, Aleak: 0, kOpen: 2.0, tauOpen: 0.020, tauClose: 0.012, q0, xi0: 0.2 },
+    { name: "MV", up: "LA", down: "LV", kind: "valve", R: 0.002, L: 0.0003, B: 5e-6, Aref: 5.0, Amax: 5.0, Aleak: 0, kOpen: 2.0, tauOpen: 0.020, tauClose: 0.012, q0, xi0: 0.2 },
     { name: "AoV", up: "LV", down: "Ao", kind: "valve", R: 0.0015, L: 0.00025, B: 1e-6, Aref: 3.5, Amax: 3.5, Aleak: 0, kOpen: 3.0, tauOpen: 0.006, tauClose: 0.008, q0, xi0: 0.2 },
     { name: "TV", up: "RA", down: "RV", kind: "valve", R: 0.0035, L: 0.0008, B: 1e-5, Aref: 8.0, Amax: 8.0, Aleak: 0, kOpen: 2.0, tauOpen: 0.018, tauClose: 0.010, q0, xi0: 0.2 },
     { name: "PV", up: "RV", down: "PA", kind: "valve", R: 0.005, L: 0.001, B: 2e-6, Aref: 4.0, Amax: 4.0, Aleak: 0, kOpen: 2.0, tauOpen: 0.010, tauClose: 0.006, q0, xi0: 0.2 },
@@ -408,11 +408,11 @@ function buildEdges(): EdgeSpec[] {
       up: "PVein",
       down: "LA",
       kind: "resistive",
-      R: 0.015,
+      R: 0.028,
       B: 0,
       q0,
-      pvOstialResistanceR: 0.015,
-      pvOstialInertanceL: 0,
+      pvOstialResistanceR: 0.028,
+      pvOstialInertanceL: 0.002,
       pvOstialQuadraticB: 0,
     },
 
@@ -558,7 +558,7 @@ export class ModelCore {
     });
 
     this.edges = buildEdges().map(e => {
-        const edge = this.p.edgeOverrides?.[e.name] ? { ...e, ...this.p.edgeOverrides[e.name] } : e;
+        const edge = this.applyEdgeOverrides(e);
         return this.configurePVOstialEdge(edge);
     });
 
@@ -1462,6 +1462,24 @@ export class ModelCore {
       useChiResistance: false,
       useChiQuadratic: false,
     };
+  }
+
+  private applyEdgeOverrides(edge: EdgeSpec): EdgeSpec {
+    const overrides = this.p.edgeOverrides?.[edge.name];
+    if (!overrides) return edge;
+    const next: EdgeSpec = { ...edge, ...overrides };
+    if (edge.name === "PVein_LA") {
+      if ("R" in overrides && !("pvOstialResistanceR" in overrides)) {
+        next.pvOstialResistanceR = overrides.R;
+      }
+      if ("L" in overrides && !("pvOstialInertanceL" in overrides)) {
+        next.pvOstialInertanceL = overrides.L;
+      }
+      if ("B" in overrides && !("pvOstialQuadraticB" in overrides)) {
+        next.pvOstialQuadraticB = overrides.B;
+      }
+    }
+    return next;
   }
 
   private pvOstialDebugFields(x: Float64Array, pack: PressurePack, flows: Float64Array): Partial<SimSample> | undefined {

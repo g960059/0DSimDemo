@@ -125,6 +125,20 @@ describe("ChamberModel behavior parity (S2a refactor guards)", () => {
     expect(explicitZero.samples.at(-1)).toEqual(negative.samples.at(-1));
   });
 
+  it("PV ostial dynamic edge honors legacy R-only edge overrides", () => {
+    const legacyR = runScenario({
+      ...DEFAULT_PARAMS,
+      edgeOverrides: { PVein_LA: { R: 0.0075 } },
+    });
+    const explicitOstialR = runScenario({
+      ...DEFAULT_PARAMS,
+      edgeOverrides: { PVein_LA: { R: 0.0075, pvOstialResistanceR: 0.0075 } },
+    });
+    expect(legacyR.metrics).toEqual(explicitOstialR.metrics);
+    expect(legacyR.health).toEqual(explicitOstialR.health);
+    expect(legacyR.samples.at(-1)).toEqual(explicitOstialR.samples.at(-1));
+  });
+
   it("two-branch LA reservoir follows valve-gated ejection rise and IVR recoil", () => {
     const reservoir = runScenario({
       ...DEFAULT_PARAMS,

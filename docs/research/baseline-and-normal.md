@@ -1,6 +1,7 @@
 # Baseline (`active-normal`) and the Normal case
 
-> **Status note:** refreshed 2026-06-05 after the active baseline review repair.
+> **Status note:** refreshed 2026-06-05 after the active baseline review repair
+> and RVEF/PVF refit.
 > Older 2026-06-03 notes are retained as change history, but the current
 > validation target is the 2026-06-05 settled baseline below.
 
@@ -29,14 +30,14 @@ normal):
 | Metric | Current value | Literature/physiology corridor | Verdict |
 |---|---:|---:|---|
 | HR | 75 bpm | resting 60-100 bpm | OK |
-| AoP | 118.3/78.1 mmHg, mean 85.3 | brachial/central arterial pressure roughly 90-140/60-90; mean ~70-150 in Merck table | OK |
-| PAP mean | 16.2 mmHg | Merck pulmonary artery mean 9-16; AHA normal resting pulmonary artery pressure 11-20 | Upper-normal OK |
-| LAP mean | 8.6 mmHg | Merck LA mean 2-12; PCWP 4-12 as LA/LVEDP surrogate | OK |
-| RAP mean | 3.9 mmHg | Merck RA 0-8 | OK |
-| LVEDP | 10.7 mmHg | Merck LVEDP 5-12; PCWP 4-12 | OK |
-| SV_L / CO_L | 70 mL / 5.25 L/min | CO at rest about 5-6 L/min; cardiac-index references give 4-8 L/min | OK |
+| AoP | 123.5/81.0 mmHg, mean 88.6 | brachial/central arterial pressure roughly 90-140/60-90; mean ~70-150 in Merck table | OK |
+| PAP mean | 16.4 mmHg | Merck pulmonary artery mean 9-16; AHA normal resting pulmonary artery pressure 11-20 | Upper-normal OK |
+| LAP mean | 7.3 mmHg | Merck LA mean 2-12; PCWP 4-12 as LA/LVEDP surrogate | OK |
+| RAP mean | 3.5 mmHg | Merck RA 0-8 | OK |
+| LVEDP | 13.1 mmHg | Merck LVEDP 5-12; PCWP 4-12; teaching gate keeps 8-14 to avoid floor artifacts | High-normal / watch |
+| SV_L / CO_L | 73.3 mL / 5.50 L/min | CO at rest about 5-6 L/min; cardiac-index references give 4-8 L/min | OK |
 | EF_L | 0.59 | normal LVEF commonly 55-65%; ASE biplane normal ranges include 52-72% men and 54-74% women | OK |
-| EF_R | 0.48 | ASE 3D RV EF mean 58 +/- 6.5%, abnormal threshold <45% | Low-normal OK |
+| EF_R | 0.52 | ASE 3D RV EF mean 58 +/- 6.5%, abnormal threshold <45% | Low-normal OK |
 
 Derived vascular checks at this operating point:
 
@@ -44,8 +45,10 @@ Derived vascular checks at this operating point:
   `(AoPMean - RAPMean) / CO_L * 80 = 1240 dyn*s/cm^5`, high-normal but compatible
   with the normal resting pressure/flow target.
 - Realised pulmonary vascular resistance is about
-  `(PAPMean - LAPMean) / CO_R * 80 = 115 dyn*s/cm^5`, comfortably below the
-  usual pulmonary-hypertension concern range.
+  `(PAPMean - LAPMean) / CO_R * 80 = 132 dyn*s/cm^5` (about 1.65 WU), upper-normal
+  and still below the usual pulmonary-hypertension concern range. The terminal
+  PVein->LA resistance is therefore a morphology calibration term, not the whole
+  pulmonary resistance budget.
 - The raw UI/runtime knobs `systemicResistance = 1.0` and
   `pulmonaryResistance = 0.65` are therefore **dimensionless model multipliers**,
   not clinical SVR/PVR values. Clinical resistance should be inferred from the
@@ -56,15 +59,20 @@ Waveform-shape checks after the repair:
 - LV PV loop remains closed and physiologic at the normal operating point; the
   diastolic limb is supported by the active-stress passive EDPVR, not by a
   pressure floor.
-- QMV remains biphasic with E and A components. The transmitral mean gradients
-  in the E and A windows remain low in the baseline gate, so the default does not
-  behave like mitral stenosis.
-- PVF is guarded as S/D/Ar: current S/D forward-volume ratio is about 0.55 and
-  reverse/forward volume is about 0.062. This keeps atrial reversal visible but
-  minor. Systolic PVF shoulders or two systolic peaks are not rejected because
-  pulmonary venous systolic flow can split into S1/S2; the gate checks phase,
-  forward dominance, D/S balance, and bounded Ar rather than enforcing one
-  cosmetic systolic peak.
+- QMV remains biphasic with E and A components. The normal MV loss constants
+  were lowered (`MV_R = 0.002`, `MV_B = 5e-6`) so a competent baseline valve does
+  not create an MS-like LA-LV pressure gap; stenosis knobs still add lesion
+  severity through area loss and the v0.3 resistance multiplier. Legacy
+  `knobmap-0.2` mitral-stenosis cases keep the shipped absolute MV loss baseline
+  (`MV_R = 0.004`, `MV_B = 2e-5`) so old authored MS cases do not silently weaken
+  when the normal default is refit.
+- PVF is guarded as S/D/Ar: current S/D forward-volume ratio is about 0.79,
+  systolic filling fraction is about 0.44, and reverse/forward volume is about
+  0.048. This restores the systolic contribution above the 40% raised-LAP
+  screening threshold while keeping atrial reversal visible but minor. Systolic
+  PVF shoulders or two systolic peaks are not rejected because pulmonary venous
+  systolic flow can split into S1/S2; the gate checks phase, systolic fraction,
+  D/S balance, and bounded Ar rather than enforcing one cosmetic systolic peak.
 - RCA pressure-overload test now verifies the intended shape response: with
   fixed PVR loading, PAPMean rises by >4 mmHg, RCA diastolic fraction increases,
   and RCA flow falls. This keeps the coronary gate focused on the mechanical
@@ -155,13 +163,14 @@ so the baseline AoP/LVP gap, CO, EF, LVEDP, and regurgitant-fraction gates remai
 inside the normal corridor.
 
 Pulmonary venous flow (`PVF`, PVein -> LA) is now guarded as an S/D/Ar waveform.
-The terminal pulmonary venous resistance was set at the upper end of the prior
-physiologic target, `PVein_LA.R = 0.015 mmHg/(mL/s)`. This damps the exaggerated
-atrial reversal while keeping a visible systolic S component, diastolic D
-component, and atrial reversal Ar. The test intentionally does not require a
-single-peaked S wave: clinical pulmonary venous Doppler often splits systolic
-flow into S1/S2, so the guard checks phase windows, S/D balance, and reverse-flow
-fraction rather than forbidding a systolic shoulder.
+The terminal pulmonary venous resistance/inertance is `PVein_LA.R = 0.028
+mmHg/(mL/s)` and `pvOstialInertanceL = 0.002`. The resistance bounds atrial
+reversal; the small inertance restores a visible systolic contribution without
+turning the tracing into a high-reversal pattern. The test intentionally does
+not require a single-peaked S wave: clinical pulmonary venous Doppler often
+splits systolic flow into S1/S2, so the guard checks phase windows, systolic
+fraction, S/D balance, and reverse-flow fraction rather than forbidding a
+systolic shoulder.
 
 Literature anchors for this interpretation are the time-varying elastance
 overview (PMC5018161), Ca/crossbridge-dependent elastance discussion in the RV
@@ -211,11 +220,13 @@ passive-pressure gate.
 | TBV | 5600 mL | ~70 mL/kg → ~4900 mL @70 kg; 5–5.5 L typical [Guyton&Hall] | slightly high, OK |
 | `contractility`/`lvTmaxScale` | 1.0 / 0.70 (multipliers on Tmax0) | realised LV pressure and CO in normal range | OK (calibrated default scale) |
 | LV `Tmax0` | 135 000 Pa = 135 kPa | peak active myofiber stress roughly 30–110 kPa, with model ceiling intentionally near the upper physiologic range [Bovendeerd 1992] | OK/calibrated ceiling |
-| RV `Tmax0` | 68 600 Pa = 68.6 kPa | RV peak stress lower than LV | OK/calibrated ceiling |
+| RV `Tmax0` | 74 088 Pa = 74.1 kPa | RV peak stress lower than LV; realised RVEF >0.50 | OK/calibrated ceiling |
 | LV passive EDPVR | `sigmaPas0` 200.133 Pa, `bPas` 23.2, `lambdaPas0` 0.9025 | Klotz-normalisable LV EDPVR: V120/P10 gives P100 ~2.9, P140 ~23.5 | OK |
 | RV passive EDPVR | `sigmaPas0` 492 Pa, `bPas` 10, `lambdaPas0` 0.85 | RVEDP normal roughly 0–8 mmHg; RV is low-pressure and more compliant than LV | OK near normal, high-volume limb guarded |
 | `systemicResistance` | 1.0 (dimensionless multiplier; base systemic edges are slightly lower than the earlier graph) | realised SVR ≈1240 dyn·s·cm⁻⁵ from MAP/RAP/CO | high-normal OK |
-| `pulmonaryResistance` | 0.65 (dimensionless multiplier) | realised PVR ≈115 dyn·s·cm⁻⁵; mPAP normal <20 mmHg | OK |
+| `pulmonaryResistance` | 0.65 (dimensionless multiplier) | realised PVR ≈132 dyn·s·cm⁻⁵; mPAP normal <20 mmHg | upper-normal OK |
+| `PVein_LA` terminal edge | `R=0.028`, `L=0.002` | PVF S fraction >0.40, reverse fraction <0.055, visible S/D/Ar | calibrated morphology gate |
+| MV normal loss | `MV_R=0.002`, `MV_B=5e-6` | competent normal MV should keep mean/peak transmitral gradients low | OK; lesion knobs add stenosis |
 | `venousTone` | 0.15 (0–1) | sets stressed/unstressed split → Pmsf | calibrated; interpret via realised RAP/venous return |
 
 ## A. Physiological validity vs literature   [lead]
@@ -225,15 +236,16 @@ passive-pressure gate.
 systolic 15–25 mmHg; LAP / PCWP 6–12 mmHg; SVR 800–1200 dyn·s·cm⁻⁵; LVEF ~55–65 %.
 
 **What the model settles to at active-normal** (fixed-settle baseline after the
-2026-06-05 review repair): CO ≈ 5.25 L/min, AoP ≈ 118.3/78.1,
-AoPMean ≈ 85.3 mmHg, LAP ≈ 8.6, RAP ≈ 3.9, PAP mean ≈ 16.2,
-LVEDP ≈ 10.7, EF_L ≈ 0.59, EF_R ≈ 0.48.
+2026-06-05 review repair and RVEF/PVF refit): CO ≈ 5.50 L/min,
+AoP ≈ 123.5/81.0, AoPMean ≈ 88.6 mmHg, LAP ≈ 7.3, RAP ≈ 3.5,
+PAP mean ≈ 16.4, LVEDP ≈ 13.1, EF_L ≈ 0.59, EF_R ≈ 0.52.
 
 **Honest gaps to record for M12** (priority = SHAPE > values, but these matter for trust):
 
 1. The baseline is now in the intended normal hemodynamic corridor. EF_R is
-   low-normal rather than mid-normal, so RV failure/pressure-overload scenarios
-   should continue to be guarded by shape and convergence tests.
+   low-normal but above the stricter 0.50 default gate, so RV
+   failure/pressure-overload scenarios should continue to be guarded by shape
+   and convergence tests.
 2. The apparent elastance traces remain comparison observables, not Ees
    regressions; the active trace can look sharper than a measured elastance curve
    because it is computed as instantaneous pressure over distending volume.
@@ -258,7 +270,7 @@ dimensionless; bPas is per-unit-stretch (λ dimensionless). The exponential σ_p
 EDPVR surrogate but its parameters are calibration values, not a chamber-level Klotz β.
 
 **Tmax0 ceiling - quantified direction:** the old 382.5 kPa LV ceiling has been
-replaced by a 135 kPa LV ceiling and a 68.6 kPa RV ceiling. Those values should be
+replaced by a 135 kPa LV ceiling and a 74.1 kPa RV ceiling. Those values should be
 read as maximum active-stress capacity before activation, length-tension,
 tension-development, and force-velocity factors. Realised beat pressure is still
 guarded by the LVP/AoP, CO, EF, and pressure-floor gates rather than by assuming
@@ -275,9 +287,9 @@ venousToneGain·venousTone`; at venousTone 0.15 this lowers systemic venous unst
 stressed volume. `Pmsf = stressedVolumeSystemic / complianceSystemic` (mmHg) — a coherent
 Guyton-style 0D approximation (heart + pulmonary excluded by design).
 
-**Independent cross-check** (fixed-settle baseline snapshot): CO_L 5.25,
-AoP 118.3/78.1, AoPMean 85.3, PAP mean 16.2, LAP/RAP 8.6/3.9,
-LVEDP 10.7, EF_L 0.59, EF_R 0.48. Passive LV points are now Klotz-like
+**Independent cross-check** (fixed-settle baseline snapshot): CO_L 5.50,
+AoP 123.5/81.0, AoPMean 88.6, PAP mean 16.4, LAP/RAP 7.3/3.5,
+LVEDP 13.1, EF_L 0.59, EF_R 0.52. Passive LV points are now Klotz-like
 around a 120 mL / 10 mmHg anchor; passive RV points stay in a normal low-pressure
 corridor.
 

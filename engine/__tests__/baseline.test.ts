@@ -191,12 +191,13 @@ describe("baseline freeze (active-stress default)", () => {
     const dVolume = integrateFlow(beat.filter((s) => phaseInWindow(phaseOf(s), 0.45, 0.80)), "PVF", (q) => Math.max(0, q));
     const forward = integrateFlow(beat, "PVF", (q) => Math.max(0, q));
     const reverse = integrateFlow(beat, "PVF", (q) => Math.max(0, -q));
-    // Normal pulmonary venous S/D balance is condition-dependent; require an S
-    // component with a D-dominant baseline while keeping peak and reverse gates.
+    // Normal pulmonary venous S/D balance is condition-dependent, but systolic
+    // filling fraction below 40% is used clinically as a raised-LAP signal.
+    expect(sVolume / (sVolume + dVolume)).toBeGreaterThan(0.40);
     expect(sVolume / dVolume).toBeGreaterThan(0.50);
     // Keep atrial reversal visible but minor relative to forward pulmonary
     // venous return; the exact Doppler Ar cutoff is not transferable to mL/s.
-    expect(reverse / forward).toBeLessThan(0.075);
+    expect(reverse / forward).toBeLessThan(0.055);
   });
 
   it("keeps normal transmitral gradients low during E and A filling", () => {
@@ -226,7 +227,7 @@ describe("baseline freeze (active-stress default)", () => {
     // upstroke. The physiology gate uses the pre-systolic window instead.
     expect(preSystolicRvEdp(beat)).toBeGreaterThan(2);
     expect(preSystolicRvEdp(beat)).toBeLessThan(8);
-    expect((rvMax - rvMin) / rvMax).toBeGreaterThan(0.45);
+    expect((rvMax - rvMin) / rvMax).toBeGreaterThan(0.50);
     expect(rvpMax).toBeLessThan(45);
 
     expect(raMax).toBeLessThan(85);

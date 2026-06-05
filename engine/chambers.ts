@@ -251,7 +251,7 @@ export const defaultActiveRV: ActiveChamberParams = {
   sigmaPas0: 492, // M12-lite: geomChi-compensation 2000*0.28/1.1385 (gentle RV EDPVR; steep Klotz refit deferred to M12-proper)
   bPas: 10.0,
   lambdaPas0: 0.85,
-  Tmax0: 68600, // RV/RA refit: restores RVEF near the normal lower bound while keeping the RV ceiling well below LV; was 57176
+  Tmax0: 74088, // RV/PVF refit: restores normal RVEF while keeping the RV ceiling well below LV; was 57176
   kOff: 12,
   tauTensionRiseSec: 0,
   tauTensionFallSec: 0,
