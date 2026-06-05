@@ -210,7 +210,7 @@ describe("baseline freeze (active-stress default)", () => {
     expect(allForward.mean).toBeLessThan(3);
     expect(eWave.n).toBeGreaterThan(10);
     expect(eWave.mean).toBeLessThan(4);
-    expect(eWave.peak).toBeLessThan(7);
+    expect(eWave.peak).toBeLessThan(6.3);
     expect(aWave.n).toBeGreaterThan(5);
     expect(aWave.mean).toBeLessThan(3);
     expect(aWave.peak).toBeLessThan(5);

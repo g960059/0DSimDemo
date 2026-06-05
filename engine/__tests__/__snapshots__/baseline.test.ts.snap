@@ -5,7 +5,7 @@ exports[`baseline freeze (active-stress default) > matches the frozen baseline s
   "AoP_dia": 79.4,
   "AoP_mean": 86.8,
   "AoP_sys": 120.7,
-  "AoV_grad_mean": 16.91,
+  "AoV_grad_mean": 16.9,
   "AoV_grad_peak": 20.75,
   "CO_L": 5.37,
   "CO_R": 5.4,
@@ -16,7 +16,7 @@ exports[`baseline freeze (active-stress default) > matches the frozen baseline s
   "LVEDP": 11.7,
   "PAP_mean": 16,
   "RAP_mean": 3.5,
-  "SV_L": 71.7,
-  "SV_R": 72,
+  "SV_L": 71.6,
+  "SV_R": 71.9,
 }
 `;
