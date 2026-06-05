@@ -18,7 +18,7 @@ Model files: `officialCases.ts` (case `valve-lesions`) · `engine/caseResolve.ts
 | **AS severe**: `AoV_Amax ×(1−0.75·sev)` | ×0.25 → **0.875 cm²** | severe AS: AVA ≤ 1.0 cm² [ESC/AHA] | OK (in severe range) |
 | **AS severe**: `AoV_R ×(1+5·sev)` | ×6 | extra ejection impedance | OK direction |
 | realised AS gradient | ≈ **19 mmHg** | severe AS: mean gradient ≥ 40 mmHg | **OFF — gradient under-scaled** |
-| **MR**: `MV_Aleak = 0.1·MV_Amax·sev` *(recalibrated from 0.3)* | severe(1.0)→**0.5 cm²**; mild(0.33)→0.165 | EROA: mild <0.2, mod 0.2–0.4, **severe ≥0.4 cm²** [ASE/AHA] | **FIXED** — was 0.3 (~3× too aggressive; even mild exceeded severe EROA and sev1 floored the LV) |
+| **MR**: `MV_Aleak = 0.11·MV_Amax·sev` *(recalibrated from 0.3)* | severe(1.0)→**0.55 cm²**; mild(0.33)→0.18 | EROA: mild <0.2, mod 0.2–0.4, **severe ≥0.4 cm²** [ASE/AHA] | **FIXED** — was 0.3 (~3× too aggressive; even mild exceeded severe EROA and sev1 floored the LV) |
 
 ## A. Physiological validity vs literature   [lead]
 
@@ -33,10 +33,10 @@ Model files: `officialCases.ts` (case `valve-lesions`) · `engine/caseResolve.ts
 - **Direction**: correct — AoP_sys falls, a systolic LV–Ao gradient appears, forward SV drops.
   Good teaching case; the gradient magnitude is the calibration gap (read direction, not value).
 
-### Mitral regurgitation (authored: `severe` — leak coefficient recalibrated 0.3 → 0.1)
+### Mitral regurgitation (authored: `severe` — leak coefficient recalibrated 0.3 → 0.11)
 
-> **UPDATE (implemented):** the leak coefficient is now `0.1·MV_Amax` (engine `knobs.ts`), so
-> severity 1.0 → 0.5 cm² (clinically severe EROA) and stays well off the LV 3 mL floor — the official
+> **UPDATE (implemented):** the leak coefficient is now `0.11·MV_Amax` (engine `knobs.ts`), so
+> severity 1.0 → 0.55 cm² (clinically severe EROA) and stays well off the LV 3 mL floor — the official
 > MR case is now authored **severe** (was forced to mild). The analysis below documents the original
 > finding. The AR (0.25→0.083) and TR (0.3→0.06) coefficients were scaled down the same way.
 
@@ -48,7 +48,7 @@ Model files: `officialCases.ts` (case `valve-lesions`) · `engine/caseResolve.ts
   the leak is 1.5 cm² — so large that the lumped LV empties into its 3 mL minimum-volume floor every
   beat (EF ~97 %, moderate ≡ severe — the degeneracy that forced the case down to "mild" in #3-d).
 - **Finding**: the severity→leak-area coefficient is **~3× too aggressive**. To span EROA 0→~0.5 cm²
-  across severity 0→1, the leak at sev 1 should be ~0.4–0.6 cm², not 1.5 cm² (coefficient ~0.1·MV_Amax,
+  across severity 0→1, the leak at sev 1 should be ~0.4–0.6 cm², not 1.5 cm² (coefficient ~0.1–0.11·MV_Amax,
   not 0.3·MV_Amax — or cap MV_Aleak well below MV_Amax).
 - **Direction at "mild"**: correct — raised LAP/v-wave, reduced forward output, high EF. The teaching
   point holds; only the severity↔EROA scale is mis-calibrated.
@@ -59,17 +59,22 @@ Model files: `officialCases.ts` (case `valve-lesions`) · `engine/caseResolve.ts
 `AoV_Amax = 3.5·(1−0.75·1.0) = 0.875`, `AoV_R = 0.005·(1+5·1.0) = 0.030`. Mild MR:
 `MV_Aleak = 5.0·(0.3·0.33) = 0.495`, MV_Amax stays 5.0.
 
-**Valve flow model & the key computational finding** (`engine/ModelCore.ts:766-797, 938-960`). Each
-valve is a dynamic flow `q` + opening fraction `xi`:
-`qNext = (q + (dt/L)(Pu−PdEff)) / (1 + dt(R + B·|q|)/L)`, `xiEq = sigmoid(kOpen·(Pup−Pdown))`. Losses:
-`areaRatio = max(Aleak + xi·(Amax−Aleak), 1e-4)/max(Amax, 1e-6)`, then `R = valveR/areaRatio²`,
-`B = baseB/areaRatio²`, `L = valveL/areaRatio`. **Crucial: `Amax` is NORMALISED OUT of `areaRatio`
-when the valve is fully open** — so lowering AoV_Amax 3.5→0.875 does NOT by itself create the
-`1/area²` Bernoulli penalty; **the AS effect comes almost entirely from the explicit `AoV_R ×6`
-term** (and opening-fraction dynamics). That is exactly why a clinically-severe AVA number yields an
-under-scaled gradient. *Units verdict:* Amax/Aleak are documented as cm² but the engine uses them as
-relative area scalars inside a unitless ratio — absolute AVA/EROA calibration cannot rely on the raw
-area alone until the flow law uses physical area consistently.
+**Valve flow model & 2026-06-03 computational update** (`engine/ModelCore.ts`). Each valve is a
+dynamic flow `q` + opening fraction `xi`:
+`qNext = (q + (dt/L)(Pu−PdEff)) / (1 + dt(R + B·|q|)/L)`, `xiEq = sigmoid(kOpen·(Pup−Pdown))`.
+Losses now use `Aref`: `A = max(Aleak + xi·(Amax−Aleak), 1e-4)`,
+`areaRatio = A/Aref`, then `R = valveR/areaRatio²`, `B = valveB/areaRatio²`. This fixes the prior
+landmine where `Amax` was normalized out at full opening and AS depended almost entirely on explicit
+`AoV_R` inflation. Since `Amax` now directly carries stenosis, `knobmap-0.3-activestress` reduces the
+clinical stenosis R supplement from `×(1+5·severity)` to `×(1+2·severity)` for AoV/PV to avoid
+double-counting. `knobmap-0.2-activestress` remains registered for older case documents.
+
+**Competent baseline update (2026-06-03 follow-up).** Normal/default valves now set
+`Aleak = 0` for MV/AoV/TV/PV and use faster first-order closure constants (MV 12 ms,
+AoV 5 ms, TV 10 ms, PV 6 ms). This suppresses baseline AR/MR/TR/PR to negligible
+final-beat regurgitant fractions while preserving explicit lesion knobs: AR/MR/TR
+still create finite leak areas via `engine/knobs.ts`, and stenosis still acts via
+`Amax/Aref` plus the calibrated R supplement.
 
 **AS cross-check** (severe, converge-settled, `health: ok`): CO_L 3.18, AoP 86.1/60.1, AoPMean 65.2,
 LVEDP 5.6; **mean LV–Ao gradient (while QAo>1 mL/s) = 14.8 mmHg, max 36.9** — well below the ≥40
@@ -82,13 +87,15 @@ leak empties the LV into it (non-physiological EF). Mild stays off the floor (13
 is thin — section A's caution holds.
 
 **M12 (codex):** MR — calibrate to regurgitant fraction/volume + LA v-wave, not an EROA-looking raw
-area; if keeping the relative-area law, **~0.1·MV_Amax at severity 1** (≈0.5 cm² severe endpoint)
-beats the current 0.3·MV_Amax. AS — needs absolute-area-aware gradient calibration (today `AoV_R`
-carries the stenosis; `AoV_Amax` is mostly relative opening geometry), coupled to the normal-CO fix.
+area; if keeping the relative-area law, **~0.11·MV_Amax at severity 1** (≈0.55 cm² severe endpoint)
+beats the prior 0.3·MV_Amax. AS — `A/Aref` now gives the stenotic area real loss semantics, but the
+single-node aortic root and dynamic-flow residual mean instantaneous `LVP-AoP` is not yet a validated
+Doppler mean gradient. Severe-AS acceptance should be recalibrated against settled waveform metrics
+after the M12 arterial-load update.
 
 ## Open questions / for M12
 
-- **MR**: retune `MV_Aleak` coefficient (~0.1·MV_Amax) so severity maps to EROA 0→~0.5 cm²; and/or
+- **MR**: retune `MV_Aleak` coefficient (~0.1–0.11·MV_Amax) so severity maps to EROA 0→~0.5–0.55 cm²; and/or
   lower the LV minimum-volume floor / add a wall so a regurgitant LV doesn't pin. Then the official
   MR case can be "moderate/severe" honestly.
 - **AS**: calibrate the orifice/resistance split so a 0.8–1.0 cm² AVA produces a ~30–40 mmHg mean

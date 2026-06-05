@@ -62,7 +62,8 @@ describe("ModelCore.settleToSteady", () => {
 
   it("harness converge mode lands on a settled state", () => {
     const r = runScenario(DEFAULT_PARAMS, { settleMode: "converge", measureSeconds: 2 });
-    expect(r.core.isSettled()).toBe(true);
+    expect(r.settleStatus?.settled).toBe(true);
+    expect(r.settleStatus?.reason).toBe("converged");
   });
 
   it("re-arms (no longer settled) immediately after an operating-point change", () => {

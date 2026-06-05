@@ -33,7 +33,7 @@ describe("official lesson cases (#3-d)", () => {
     describe(c.meta.title, () => {
       it("is displayable (carries non-empty model limitations)", () => {
         expect(isCaseDisplayable(c)).toBe(true);
-        expect(c.knobMappingVersion).toBe("knobmap-0.2-activestress");
+        expect(c.knobMappingVersion).toBe("knobmap-0.3-activestress");
       });
 
       it("resolves every instance to a finite, NON-DEGENERATE settled state", () => {

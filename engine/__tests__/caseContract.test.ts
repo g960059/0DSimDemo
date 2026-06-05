@@ -12,10 +12,10 @@ import { runScenario } from "@/engine/harness";
  */
 
 const VALVE_KEYS: (keyof CoreRuntimeParams)[] = [
-  "MV_Amax", "MV_Aleak", "MV_kOpen", "MV_tauOpen", "MV_tauClose", "MV_R", "MV_L", "MV_B",
-  "AoV_Amax", "AoV_Aleak", "AoV_kOpen", "AoV_tauOpen", "AoV_tauClose", "AoV_R", "AoV_L",
-  "TV_Amax", "TV_Aleak", "TV_kOpen", "TV_tauOpen", "TV_tauClose", "TV_R", "TV_L", "TV_B",
-  "PV_Amax", "PV_Aleak", "PV_kOpen", "PV_tauOpen", "PV_tauClose", "PV_R", "PV_L",
+  "MV_Aref", "MV_Amax", "MV_Aleak", "MV_kOpen", "MV_tauOpen", "MV_tauClose", "MV_R", "MV_L", "MV_B",
+  "AoV_Aref", "AoV_Amax", "AoV_Aleak", "AoV_kOpen", "AoV_tauOpen", "AoV_tauClose", "AoV_R", "AoV_L", "AoV_B",
+  "TV_Aref", "TV_Amax", "TV_Aleak", "TV_kOpen", "TV_tauOpen", "TV_tauClose", "TV_R", "TV_L", "TV_B",
+  "PV_Aref", "PV_Amax", "PV_Aleak", "PV_kOpen", "PV_tauOpen", "PV_tauClose", "PV_R", "PV_L", "PV_B",
 ];
 
 describe("sanitizeParams (engine contract boundary)", () => {
@@ -32,12 +32,13 @@ describe("sanitizeParams (engine contract boundary)", () => {
   it("PRESERVES every valve key (the valvular-intervention landmine)", () => {
     const base = defaultParams();
     // A severe aortic-stenosis patch in raw space (what resolveKnobsToParams emits).
-    const patched = { ...base, AoV_Amax: base.AoV_Amax * 0.25, AoV_R: base.AoV_R * 6 };
+    const patched = { ...base, AoV_Amax: base.AoV_Amax * 0.25, AoV_R: base.AoV_R * 3, AoV_B: base.AoV_B * 4 };
     const clean = sanitizeParams(patched as CoreRuntimeParams);
     for (const k of VALVE_KEYS) expect(clean[k], `valve key ${k} dropped`).toBeTypeOf("number");
     // The intervention survives intact (not reset to the default open area).
     expect(clean.AoV_Amax).toBeCloseTo(base.AoV_Amax * 0.25, 9);
-    expect(clean.AoV_R).toBeCloseTo(base.AoV_R * 6, 9);
+    expect(clean.AoV_R).toBeCloseTo(base.AoV_R * 3, 9);
+    expect(clean.AoV_B).toBeCloseTo(base.AoV_B * 4, 9);
     expect(clean.AoV_Amax).toBeLessThan(base.AoV_Amax);
   });
 
@@ -124,14 +125,14 @@ describe("valvular intervention is NOT a no-op after sanitize (end-to-end)", () 
     const asRaw = {
       ...base,
       AoV_Amax: base.AoV_Amax * (1 - 0.75 * sev),
-      AoV_R: base.AoV_R * (1 + 5 * sev),
+      AoV_R: base.AoV_R * (1 + 2 * sev),
     };
     const asParams = sanitizeParams(asRaw as CoreRuntimeParams);
     // Guard: BOTH lesion params survive the final sanitize step (a partial
     // erosion — e.g. orifice survives but resistance is reset — would be a
     // silent half-no-op).
     expect(asParams.AoV_Amax).toBeCloseTo(base.AoV_Amax * (1 - 0.75 * sev), 9);
-    expect(asParams.AoV_R).toBeCloseTo(base.AoV_R * (1 + 5 * sev), 9);
+    expect(asParams.AoV_R).toBeCloseTo(base.AoV_R * (1 + 2 * sev), 9);
 
     const baseRun = runScenario(base, { settleMode: "converge", measureSeconds: 4 });
     const asRun = runScenario(asParams, { settleMode: "converge", measureSeconds: 4 });

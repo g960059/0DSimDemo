@@ -1,7 +1,7 @@
 # Cardiogenic shock: LV failure ± dobutamine
 
 > **Status note:** the operating-point **numbers** below are **M12-lite/Phase-1-era** (e.g. baseline
-> `lvTmaxScale` is now 0.85, dobutamine dose retained at 7) and are being changed by the in-progress
+> `lvTmaxScale` is now 0.70, dobutamine dose retained at 7) and are being changed by the in-progress
 > atrial-split reparam — to be refreshed after the Phase-2 commit. Literature targets & directions
 > remain valid. See [atrial-split-validity-review.md](./atrial-split-validity-review.md).
 

@@ -21,7 +21,7 @@ const neutralInstance = (over: Partial<CaseInstanceSpec> = {}): CaseInstanceSpec
 
 describe("engine case resolution (#3-a)", () => {
   it("stamps the current active-stress mapping version", () => {
-    expect(KNOB_MAPPING_VERSION).toBe("knobmap-0.2-activestress");
+    expect(KNOB_MAPPING_VERSION).toBe("knobmap-0.3-activestress");
   });
 
   it("a neutral instance resolves back to the baseline params + TBV", () => {

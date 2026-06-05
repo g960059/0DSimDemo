@@ -124,6 +124,9 @@ export function clampKnobs(k: ClinicalKnobs): ClinicalKnobs {
 
 export type KnobResolver = (k: ClinicalKnobs, base: CoreRuntimeParams) => ParameterPatch;
 
+const LEGACY_V02_MV_R = 0.004;
+const LEGACY_V02_MV_B = 2e-5;
+
 /** EDPVR beta (b_pas) the chamber model uses, honoring a baseline override. */
 function baseBPas(base: CoreRuntimeParams, chamber: "LV" | "RV"): number {
   const active = base.nodeOverrides?.[chamber]?.active;
@@ -171,7 +174,7 @@ const resolveActiveStress_0_2: KnobResolver = (k, base) => {
   }
   // Regurgitant leak area = fraction of the valve's own max orifice. Coefficients
   // calibrated (docs/research/valve-lesions.md) so severity 1.0 lands a clinically
-  // SEVERE effective regurgitant orifice (~0.35–0.5 cm²): MR 5·0.1=0.5, AR 3.5·0.083≈0.29,
+  // SEVERE effective regurgitant orifice (~0.35–0.6 cm²): MR 5·0.11=0.55, AR 3.5·0.083≈0.29,
   // TR 8·0.06≈0.48. The previous 0.25–0.3 coefficients were ~3× too aggressive (even
   // "mild" exceeded a severe EROA and a large leak pinned the LV at its 3 mL floor).
   if (k.aorticRegurgitation > 0) {
@@ -179,10 +182,13 @@ const resolveActiveStress_0_2: KnobResolver = (k, base) => {
   }
   if (k.mitralStenosis > 0) {
     p.MV_Amax = base.MV_Amax * (1 - 0.75 * k.mitralStenosis);
-    p.MV_R = base.MV_R * (1 + 5 * k.mitralStenosis);
+    // Preserve the shipped v0.2 absolute MS response even after the normal MV
+    // baseline loss was lowered in the active default refit.
+    p.MV_R = LEGACY_V02_MV_R * (1 + 5 * k.mitralStenosis);
+    p.MV_B = LEGACY_V02_MV_B;
   }
   if (k.mitralRegurgitation > 0) {
-    p.MV_Aleak = base.MV_Amax * (0.1 * k.mitralRegurgitation);
+    p.MV_Aleak = base.MV_Amax * (0.11 * k.mitralRegurgitation);
   }
   if (k.tricuspidRegurgitation > 0) {
     p.TV_Aleak = base.TV_Amax * (0.06 * k.tricuspidRegurgitation);
@@ -195,13 +201,35 @@ const resolveActiveStress_0_2: KnobResolver = (k, base) => {
   return p;
 };
 
+/**
+ * v0.3 — same clinical vocabulary as v0.2, but stenosis uses the new A/Aref
+ * valve-area semantics. Since Amax now directly increases R/B loss when reduced,
+ * the explicit R multiplier becomes a roughness/jet-loss supplement rather than
+ * the whole stenosis mechanism.
+ */
+const resolveActiveStress_0_3: KnobResolver = (k, base) => {
+  const p = resolveActiveStress_0_2(k, base);
+  if (k.aorticStenosis > 0) {
+    p.AoV_R = base.AoV_R * (1 + 2 * k.aorticStenosis);
+  }
+  if (k.mitralStenosis > 0) {
+    p.MV_R = base.MV_R * (1 + 2 * k.mitralStenosis);
+    p.MV_B = base.MV_B;
+  }
+  if (k.pulmonicStenosis > 0) {
+    p.PV_R = base.PV_R * (1 + 2 * k.pulmonicStenosis);
+  }
+  return p;
+};
+
 /** The versioned registry. Add new entries; never mutate a shipped one. */
 export const KNOB_RESOLVERS: Readonly<Record<string, KnobResolver>> = {
   "knobmap-0.2-activestress": resolveActiveStress_0_2,
+  "knobmap-0.3-activestress": resolveActiveStress_0_3,
 };
 
 /** Current mapping version stamped into newly-authored cases. */
-export const KNOB_MAPPING_VERSION = "knobmap-0.2-activestress";
+export const KNOB_MAPPING_VERSION = "knobmap-0.3-activestress";
 
 /**
  * Look up a resolver by version. NO SILENT FALLBACK: an unknown version throws,

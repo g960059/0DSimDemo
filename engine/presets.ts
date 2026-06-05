@@ -13,7 +13,7 @@ export const stableElastanceBaseline: ParameterPatch = {
 // kept as a named preset for explicit re-application after an elastance swap.
 export const activeStressBaseline: ParameterPatch = {
   heartModel: "activeStress",
-  lvTmaxScale: 0.85,
+  lvTmaxScale: 0.70,
   rvTmaxScale: 1.0,
   caReleaseScale: 1.0,
   rvCaReleaseScale: 1.0,

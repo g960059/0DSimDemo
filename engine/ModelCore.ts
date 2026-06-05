@@ -155,6 +155,7 @@ type EdgeSpec = {
   chiRExp?: number;
   chiBExp?: number;
   Amax?: number;
+  Aref?: number;
   Aleak?: number;
   kOpen?: number;
   dP0?: number;
@@ -217,6 +218,7 @@ const pulmonaryVenousNodeNames = ["PCap", "PVen", "PVein"] as const;
 
 const dynamicEdgeNames = ["MV", "AoV", "TV", "PV", "Ao_SA", "PA_PArt", "PVein_LA"] as const;
 const valveNames = ["MV", "AoV", "TV", "PV"] as const;
+const DYNAMIC_FLOW_CLAMP_ML_PER_S = 1500;
 
 type NodeName = typeof nodeNames[number];
 type DynamicEdgeName = typeof dynamicEdgeNames[number];
@@ -228,7 +230,7 @@ type StateIndex = {
   xi: Record<ValveName, number>;
   phi: number;
   septumShift: number;
-  activeInternal: Partial<Record<Chamber, { c: number; a: number; r: number }>>;
+  activeInternal: Partial<Record<Chamber, { c: number; a: number; r: number; tensionPa: number }>>;
   size: number;
 };
 
@@ -253,9 +255,9 @@ function makeIndex(): StateIndex {
   for (const v of valveNames) xi[v] = i++;
   const phi = i++;
   const septumShift = i++;
-  const activeInternal: Partial<Record<Chamber, { c: number; a: number; r: number }>> = {};
+  const activeInternal: Partial<Record<Chamber, { c: number; a: number; r: number; tensionPa: number }>> = {};
   for (const ch of activeChambersFromNodes(buildNodes())) {
-    activeInternal[ch] = { c: i++, a: i++, r: i++ };
+    activeInternal[ch] = { c: i++, a: i++, r: i++, tensionPa: i++ };
   }
   return {
     node,
@@ -275,10 +277,10 @@ export function defaultParams(): CoreRuntimeParams {
     contractility: 1.0,
     relaxation: 1.0,
     // Calibrated operating point for the active-stress ventricle default.
-    // M12-proper #1 Phase-1 (LA preload, see docs/research/m12-la-preload-design.md):
-    // RV/RA refit: lower SVR/PVR/venous tone keep AoP/PAP/LAP normal after the
-    // stronger right-heart calibration raises effective forward flow.
-    systemicResistance: 0.80,
+    // M12-proper #1 Phase-1 plus 2026-06-05 review repair: the public systemic
+    // multiplier is neutral, while the base systemic edge resistances are
+    // slightly lower than the earlier graph to keep realised MAP/CO normal.
+    systemicResistance: 1.0,
     pulmonaryResistance: 0.65,
     venousTone: 0.15,
     arterialStiffness: 0.75, // M12-proper #1 Phase-1: more arterial compliance to hold pulse pressure normal
@@ -290,19 +292,18 @@ export function defaultParams(): CoreRuntimeParams {
     bleedRate: 0,
     fluidRate: 0,
     speed: 1,
+    avDelaySec: 0.16,
+    atrialElectromechanicalDelaySec: 0.00,
+    ventricularElectromechanicalDelaySec: 0.05,
     // LV/RV default to the single-fibre / active-stress model (§13).
     // Use `stableElastanceBaseline` to opt back into time-varying elastance.
     heartModel: "activeStress",
     useChiResistance: false,
     projectTBV: true,
-    // Contractility multiplier on the (now folded-in) chamber Tmax0. 1.0 = baseline.
-    // M12-proper #1 Phase-1: LV 1.0->0.85 prevents over-pumping at the raised preload
-    // (also fixes a latent dobutamine over-ceiling: 0.85x1.35=155 kPa, within the
-    // single-myofibril max ~145±35 [PMC1225421], vs M12-lite's supra-physiological 182).
-    // 0.85 (not 0.80) because 0.80 caused lvEdp alternans / non-convergence at HR 110
-    // (a real stability regression); 0.85 settles cleanly. RV stays 1.0 — cutting RV
-    // contractility raises RAP and breaks the LAP-RAP gradient.
-    lvTmaxScale: 0.85,
+    // Contractility multiplier on the (now folded-in) chamber Tmax0. 1.0 = raw
+    // fibre ceiling; default is lower so the normal LV does not out-run the
+    // aortic root / dynamic-flow envelope and appear AS-like.
+    lvTmaxScale: 0.70,
     rvTmaxScale: 1.0,
     lvGeomScale: 1,
     rvGeomScale: 1,
@@ -328,7 +329,7 @@ export function defaultParams(): CoreRuntimeParams {
     septalLvPressureWeight: 0.28,
     coronaryEnabled: true,
     coronaryResistanceScale: 1,
-    coronaryCompressionScale: 1.2,
+    coronaryCompressionScale: 1.5,
     coronaryVasodilator: 0,
     coronaryReserveMax: 3.5,
     LADStenosis: 0,
@@ -336,19 +337,19 @@ export function defaultParams(): CoreRuntimeParams {
     RCAStenosis: 0,
     // Valve Defaults
     // MV
-    MV_Amax: 5.0, MV_Aleak: 1e-4, MV_kOpen: 2.0, MV_tauOpen: 0.020, MV_tauClose: 0.035, MV_R: 0.004, MV_L: 0.0008, MV_B: 1e-4,
+    MV_Aref: 5.0, MV_Amax: 5.0, MV_Aleak: 0, MV_kOpen: 2.0, MV_tauOpen: 0.020, MV_tauClose: 0.012, MV_R: 0.002, MV_L: 0.0003, MV_B: 5e-6,
     // AoV
-    AoV_Amax: 3.5, AoV_Aleak: 1e-4, AoV_kOpen: 2.0, AoV_tauOpen: 0.010, AoV_tauClose: 0.030, AoV_R: 0.005, AoV_L: 0.001,
+    AoV_Aref: 3.5, AoV_Amax: 3.5, AoV_Aleak: 0, AoV_kOpen: 3.0, AoV_tauOpen: 0.006, AoV_tauClose: 0.008, AoV_R: 0.0015, AoV_L: 0.00025, AoV_B: 1e-6,
     // TV
-    TV_Amax: 8.0, TV_Aleak: 1e-4, TV_kOpen: 2.0, TV_tauOpen: 0.018, TV_tauClose: 0.030, TV_R: 0.0035, TV_L: 0.0008, TV_B: 1e-5,
+    TV_Aref: 8.0, TV_Amax: 8.0, TV_Aleak: 0, TV_kOpen: 2.0, TV_tauOpen: 0.018, TV_tauClose: 0.010, TV_R: 0.0035, TV_L: 0.0008, TV_B: 1e-5,
     // PV
-    PV_Amax: 4.0, PV_Aleak: 1e-4, PV_kOpen: 2.0, PV_tauOpen: 0.010, PV_tauClose: 0.020, PV_R: 0.005, PV_L: 0.001
+    PV_Aref: 4.0, PV_Amax: 4.0, PV_Aleak: 0, PV_kOpen: 2.0, PV_tauOpen: 0.010, PV_tauClose: 0.006, PV_R: 0.005, PV_L: 0.001, PV_B: 2e-6
   };
 }
 
 function buildNodes(): NodeSpec[] {
   return [
-    { name: "LV", kind: "heartActive", chamber: "LV", V0: 10, alpha: 0.015, beta: 0.8, Ees: 2.4, x0: 130, active: defaultActiveLV },
+    { name: "LV", kind: "heartActive", chamber: "LV", V0: 10, alpha: 0.015, beta: 0.8, Ees: 1.6, x0: 130, active: defaultActiveLV },
     { name: "LA", kind: "heartActive", chamber: "LA", V0: 5, alpha: 0.05, beta: 0.4, Ees: 0.25, x0: 45, active: defaultActiveLA },
     { name: "RV", kind: "heartActive", chamber: "RV", V0: 15, alpha: 0.012, beta: 0.5, Ees: 0.85, x0: 140, active: defaultActiveRV },
     { name: "RA", kind: "heartActive", chamber: "RA", V0: 5, alpha: 0.05, beta: 0.35, Ees: 0.22, x0: 55, active: defaultActiveRA },
@@ -386,14 +387,14 @@ function buildNodes(): NodeSpec[] {
 function buildEdges(): EdgeSpec[] {
   const q0 = 80;
   return [
-    { name: "MV", up: "LA", down: "LV", kind: "valve", R: 0.002, L: 0.0002, B: 1e-4, Amax: 1, Aleak: 1e-5, kOpen: 2.0, tauOpen: 0.012, tauClose: 0.025, q0, xi0: 0.2 },
-    { name: "AoV", up: "LV", down: "Ao", kind: "valve", R: 0.005, L: 0.002, B: 1e-5, Amax: 1, Aleak: 1e-5, kOpen: 2.0, tauOpen: 0.010, tauClose: 0.030, q0, xi0: 0.2 },
-    { name: "TV", up: "RA", down: "RV", kind: "valve", R: 0.0035, L: 0.0008, B: 1e-5, Amax: 1, Aleak: 1e-5, kOpen: 2.0, tauOpen: 0.018, tauClose: 0.030, q0, xi0: 0.2 },
-    { name: "PV", up: "RV", down: "PA", kind: "valve", R: 0.005, L: 0.001, B: 1e-5, Amax: 1, Aleak: 1e-5, kOpen: 2.0, tauOpen: 0.010, tauClose: 0.020, q0, xi0: 0.2 },
+    { name: "MV", up: "LA", down: "LV", kind: "valve", R: 0.002, L: 0.0003, B: 5e-6, Aref: 5.0, Amax: 5.0, Aleak: 0, kOpen: 2.0, tauOpen: 0.020, tauClose: 0.012, q0, xi0: 0.2 },
+    { name: "AoV", up: "LV", down: "Ao", kind: "valve", R: 0.0015, L: 0.00025, B: 1e-6, Aref: 3.5, Amax: 3.5, Aleak: 0, kOpen: 3.0, tauOpen: 0.006, tauClose: 0.008, q0, xi0: 0.2 },
+    { name: "TV", up: "RA", down: "RV", kind: "valve", R: 0.0035, L: 0.0008, B: 1e-5, Aref: 8.0, Amax: 8.0, Aleak: 0, kOpen: 2.0, tauOpen: 0.018, tauClose: 0.010, q0, xi0: 0.2 },
+    { name: "PV", up: "RV", down: "PA", kind: "valve", R: 0.005, L: 0.001, B: 2e-6, Aref: 4.0, Amax: 4.0, Aleak: 0, kOpen: 2.0, tauOpen: 0.010, tauClose: 0.006, q0, xi0: 0.2 },
 
-    { name: "Ao_SA", up: "Ao", down: "SA", kind: "dynamic", R: 0.05, L: 0.002, B: 0, group: "systemic", q0 },
-    { name: "SA_Art", up: "SA", down: "Art", kind: "resistive", R: 0.08, B: 0, group: "systemic" },
-    { name: "Art_Cap", up: "Art", down: "Cap", kind: "resistive", R: 0.65, B: 0, group: "systemic" },
+    { name: "Ao_SA", up: "Ao", down: "SA", kind: "dynamic", R: 0.0465088, L: 0.002, B: 0, group: "systemic", q0 },
+    { name: "SA_Art", up: "SA", down: "Art", kind: "resistive", R: 0.07441408, B: 0, group: "systemic" },
+    { name: "Art_Cap", up: "Art", down: "Cap", kind: "resistive", R: 0.6046144, B: 0, group: "systemic" },
     { name: "Cap_SV", up: "Cap", down: "SV", kind: "resistive", R: 0.15, B: 0 },
     { name: "SV_VC", up: "SV", down: "VC", kind: "resistive", R: 0.05, B: 0 },
     { name: "VC_RA", up: "VC", down: "RA", kind: "resistive", R: 0.04, B: 0, ext: "pth", waterfall: true, Pcrit: 0, useChiResistance: true, useChiQuadratic: false },
@@ -407,11 +408,11 @@ function buildEdges(): EdgeSpec[] {
       up: "PVein",
       down: "LA",
       kind: "resistive",
-      R: 0.010,
+      R: 0.028,
       B: 0,
       q0,
-      pvOstialResistanceR: 0.010,
-      pvOstialInertanceL: 0,
+      pvOstialResistanceR: 0.028,
+      pvOstialInertanceL: 0.002,
       pvOstialQuadraticB: 0,
     },
 
@@ -514,6 +515,7 @@ export class ModelCore {
       this.x[internalIndex.c] = initial.c;
       this.x[internalIndex.a] = initial.a;
       this.x[internalIndex.r] = initial.r;
+      this.x[internalIndex.tensionPa] = initial.tensionPa ?? 0;
     }
     this.t = 0;
     this.history = [];
@@ -556,7 +558,7 @@ export class ModelCore {
     });
 
     this.edges = buildEdges().map(e => {
-        const edge = this.p.edgeOverrides?.[e.name] ? { ...e, ...this.p.edgeOverrides[e.name] } : e;
+        const edge = this.applyEdgeOverrides(e);
         return this.configurePVOstialEdge(edge);
     });
 
@@ -661,26 +663,42 @@ export class ModelCore {
     const pvOstial = this.pvOstialDebugFields(this.x, pack, flows);
     const laInternal = this.activeInternalIndex("LA");
     const raInternal = this.activeInternalIndex("RA");
+    const qAo = flows[this.edgeIndex("AoV")];
+    const qMV = flows[this.edgeIndex("MV")];
     const tvFlow = flows[this.edgeIndex("TV")];
     const pvFlow = flows[this.edgeIndex("PV")];
+    const pLv = pack.P[this.nodeIndex.get("LV")!];
+    const pAo = pack.P[this.nodeIndex.get("Ao")!];
+    const lap = pack.P[this.nodeIndex.get("LA")!];
     const qLAD = flows[this.edgeIndex("Ao_LAD")];
     const qLCx = flows[this.edgeIndex("Ao_LCx")];
     const qRCA = flows[this.edgeIndex("Ao_RCA")];
     const rap = pack.P[this.nodeIndex.get("RA")!];
     const rvp = pack.P[this.nodeIndex.get("RV")!];
     const pap = pack.P[this.nodeIndex.get("PA")!];
+    const aovLoss = this.effectiveLosses(this.edges[this.edgeIndex("AoV")], pLv, pAo, this.x);
+    const aovResistiveDrop = aovLoss.R * qAo;
+    const aovQuadraticDrop = aovLoss.B * qAo * Math.abs(qAo);
+    const lvPressureTerms = this.p.heartModel === "activeStress"
+      ? this.activeModel("LV").debugPressureTerms(pack.VLVeff, this.activeInternalFromState("LV", this.x), this.chamberCtx("LV", this.x))
+      : undefined;
+    const rvPressureTerms = this.p.heartModel === "activeStress"
+      ? this.activeModel("RV").debugPressureTerms(pack.VRVeff, this.activeInternalFromState("RV", this.x), this.chamberCtx("RV", this.x))
+      : undefined;
+    const lvElastance = this.ventricularElastanceSignals("LV", pack.VLVeff, pack.PLVfw, this.x);
+    const rvElastance = this.ventricularElastanceSignals("RV", pack.VRVeff, pack.PRVfw, this.x);
     const s: SimSample = {
       t: this.t,
       AoP: pack.P[this.nodeIndex.get("Ao")!],
       PAP: pap,
-      LAP: pack.P[this.nodeIndex.get("LA")!],
+      LAP: lap,
       RAP: rap,
-      LVP: pack.P[this.nodeIndex.get("LV")!],
+      LVP: pLv,
       RVP: rvp,
-      QAo: flows[this.edgeIndex("AoV")],
+      QAo: qAo,
       QPA: pvFlow,
       QPV: pvFlow,
-      QMV: flows[this.edgeIndex("MV")],
+      QMV: qMV,
       QTV: tvFlow,
       PVF: flows[this.edgeIndex("PVein_LA")],
       SVF: flows[this.edgeIndex("VC_RA")],
@@ -706,10 +724,24 @@ export class ModelCore {
       cRA: Math.max(this.x[raInternal.c], 0),
       rLA: clamp(this.x[laInternal.r], 0, Math.max(this.activeModel("LA").ap.reservoirStrokeMl ?? 0, 0)),
       rRA: clamp(this.x[raInternal.r], 0, Math.max(this.activeModel("RA").ap.reservoirStrokeMl ?? 0, 0)),
+      xiMV: clamp(this.x[this.idx.xi.MV], 0, 1),
+      xiAoV: clamp(this.x[this.idx.xi.AoV], 0, 1),
       xiTV: clamp(this.x[this.idx.xi.TV], 0, 1),
       xiPV: clamp(this.x[this.idx.xi.PV], 0, 1),
+      dP_MV: lap - pLv,
+      dP_AoV: pLv - pAo,
       dP_TV: rap - rvp,
       dP_PV: rvp - pap,
+      AoV_areaRatio: aovLoss.areaRatio,
+      AoV_loss_R: aovResistiveDrop,
+      AoV_loss_B: aovQuadraticDrop,
+      AoV_loss_residual: (pLv - pAo) - aovResistiveDrop - aovQuadraticDrop,
+      LVPressureFloorHit01: lvPressureTerms?.pressureFloorHit01 ?? 0,
+      RVPressureFloorHit01: rvPressureTerms?.pressureFloorHit01 ?? 0,
+      ELV_active: lvElastance.active,
+      ERV_active: rvElastance.active,
+      ELV_timeVarying: lvElastance.timeVarying,
+      ERV_timeVarying: rvElastance.timeVarying,
       ...pvOstial,
       ...laReservoir,
       Pperi: pack.Pperi,
@@ -926,6 +958,13 @@ export class ModelCore {
     const ESV_R = min("VRV");
     const lvEdSample = data.reduce((best, sample) => sample.VLV > best.VLV ? sample : best, data[0]);
     const rvEdSample = data.reduce((best, sample) => sample.VRV > best.VRV ? sample : best, data[0]);
+    const aovEjection = data.filter((sample) => sample.QAo > 50 && sample.xiAoV > 0.8);
+    const aovMeanGradient = aovEjection.length > 0
+      ? aovEjection.reduce((acc, sample) => acc + sample.dP_AoV, 0) / aovEjection.length
+      : 0;
+    const aovPeakGradient = aovEjection.length > 0
+      ? Math.max(...aovEjection.map((sample) => sample.dP_AoV))
+      : 0;
     // Observables from the last beat boundary (phi-aligned) so Pmsf/vrGradient/
     // volumes are stop-phase independent like the rest of metrics; fall back to a
     // live read only before the first beat closes (e.g. a bare step() loop).
@@ -937,7 +976,7 @@ export class ModelCore {
     const corPctCO = CO_L > 1e-9 ? 100 * corTotal / (CO_L * 1000) : 0;
     const totalCorExpected = Math.max(CO_L * 1000 * 0.05, 1);
     const leftDemand = (this.p.HR / 75)
-      * (this.p.lvTmaxScale / 0.85)
+      * (this.p.lvTmaxScale / 0.70)
       * Math.pow(Math.max(avg("LVP"), 1) / 90, 0.4);
     const rightDemand = (this.p.HR / 75)
       * this.p.rvTmaxScale
@@ -954,6 +993,8 @@ export class ModelCore {
       LAPMean: avg("LAP"),
       LVEDPApprox: lvEdSample?.LVP ?? avg("LVP"),
       RVEDPApprox: rvEdSample?.RVP ?? avg("RVP"),
+      AoVMeanGradient: aovMeanGradient,
+      AoVPeakGradient: aovPeakGradient,
       SV_L,
       SV_R,
       CO_L,
@@ -979,6 +1020,30 @@ export class ModelCore {
       CorSupplyDemandL: (corLAD + corLCx) / Math.max(leftExpected * leftDemand, 1),
       CorSupplyDemandR: corRCA / Math.max(rightExpected * rightDemand, 1),
     };
+  }
+
+  passivePressureAt(chamber: Chamber, volumeMl: number): number {
+    if (this.p.heartModel !== "activeStress") return 0;
+    const pack = this.computePressures(this.x);
+    return pack.Pperi + this.activeModel(chamber).passivePressure(volumeMl, this.chamberCtx(chamber, this.x));
+  }
+
+  passivePressureVolumeCurve(
+    chamber: Chamber,
+    volumeMinMl: number,
+    volumeMaxMl: number,
+    pointCount = 64,
+  ): Array<{ v: number; p: number }> {
+    const n = Math.max(2, Math.floor(pointCount));
+    const lo = Math.min(volumeMinMl, volumeMaxMl);
+    const hi = Math.max(volumeMinMl, volumeMaxMl);
+    const points: Array<{ v: number; p: number }> = [];
+    for (let i = 0; i < n; i++) {
+      const alpha = n === 1 ? 0 : i / (n - 1);
+      const v = lo + alpha * (hi - lo);
+      points.push({ v, p: this.passivePressureAt(chamber, v) });
+    }
+    return points;
   }
 
   health(): SimulationHealth {
@@ -1097,12 +1162,16 @@ export class ModelCore {
       const q = x[qi];
       const { R, B, areaRatio } = this.effectiveLosses(e, Pu, Pd, x);
       let L = e.kind === "valve" ? Math.max((this.p as any)[`${e.name}_L`] ?? e.L ?? 0.001, 1e-6) : Math.max(e.L ?? 0.001, 1e-6);
-      if (e.kind === "valve" || e.useChiResistance) {
+      if (e.kind !== "valve" && e.useChiResistance) {
         L = L / Math.max(areaRatio, 1e-6);
       }
       const h = Math.max(this.rhsDt, 1e-6);
       const Reff = R + B * Math.abs(q);
       let qNext = (q + (h / L) * (Pu - PdEff)) / (1 + (h * Reff) / L);
+      if (e.kind === "valve") {
+        const vName = e.name as ValveName;
+        if (this.valveLeakArea(vName, e) <= 1e-9 && qNext < 0) qNext = 0;
+      }
       
       dy[qi] = clamp((qNext - q) / h, -40000, 40000);
     }
@@ -1114,9 +1183,11 @@ export class ModelCore {
       const kOpen = (this.p as any)[`${vName}_kOpen`] ?? e.kOpen ?? 2.0;
       const tauOpen = (this.p as any)[`${vName}_tauOpen`] ?? e.tauOpen ?? 0.012;
       const tauClose = (this.p as any)[`${vName}_tauClose`] ?? e.tauClose ?? 0.025;
+      const q = x[this.idx.q[vName]];
       
-      const xiEq = sigmoid(kOpen * (dP - (e.dP0 ?? 0)));
-      const tau = dP > 0 ? tauOpen : tauClose;
+      const xiEq = dP > 0 ? sigmoid(kOpen * (dP - (e.dP0 ?? 0))) : 0;
+      const forwardCoast = vName === "AoV" && dP <= 0 && dP > -3 && q > 1 && this.valveLeakArea(vName, e) <= 1e-9;
+      const tau = dP > 0 ? tauOpen : forwardCoast ? Math.max(tauClose, 0.012) : tauClose;
       dy[xiIndex] = clamp((xiEq - x[xiIndex]) / Math.max(tau, 1e-5), -80, 80);
     }
 
@@ -1125,7 +1196,7 @@ export class ModelCore {
       const ch = n.chamber!;
       const internalIndex = this.activeInternalIndex(ch);
       const nodeIndex = this.idx.node[n.name as NodeName];
-      const internal = { c: x[internalIndex.c], a: x[internalIndex.a], r: x[internalIndex.r] };
+      const internal = this.activeInternalFromState(ch, x);
       const chamberVolume = ch === "LV"
         ? pack.VLVeff
         : ch === "RV"
@@ -1135,6 +1206,7 @@ export class ModelCore {
       dy[internalIndex.c] = dInternal.cDot;
       dy[internalIndex.a] = dInternal.aDot;
       dy[internalIndex.r] = dInternal.rDot;
+      dy[internalIndex.tensionPa] = dInternal.tensionPaDot ?? 0;
     }
 
     const shiftState = x[this.idx.septumShift];
@@ -1273,13 +1345,18 @@ export class ModelCore {
 
   private heartTransmuralPressure(n: NodeSpec, volumeMl: number, x: Float64Array): number {
     if (!n.chamber) throw new Error(`Missing chamber for heart node ${n.name}`);
-    if (n.kind === "heartElastance" || (n.kind === "heartActive" && this.p.heartModel === "elastance")) {
-      return this.elastanceModels.get(n.name)!.pressure(volumeMl, { c: 0, a: 0, r: 0 }, this.chamberCtx(n.chamber, x));
+    if (this.useElastancePressure(n)) {
+      return this.elastanceModels.get(n.name)!.pressure(volumeMl, { c: 0, a: 0, r: 0, tensionPa: 0 }, this.chamberCtx(n.chamber, x));
     }
     if (n.kind !== "heartActive") throw new Error(`Node ${n.name} is not a heart chamber`);
     const internalIndex = this.activeInternalIndex(n.chamber);
-    const internal = { c: x[internalIndex.c], a: x[internalIndex.a], r: x[internalIndex.r] };
+    const internal = this.activeInternalFromState(n.chamber, x);
     return this.activeModel(n.chamber).pressure(volumeMl, internal, this.chamberCtx(n.chamber, x));
+  }
+
+  private useElastancePressure(n: NodeSpec): boolean {
+    if (n.kind === "heartElastance") return true;
+    return n.kind === "heartActive" && this.p.heartModel === "elastance";
   }
 
   private computeFlows(x: Float64Array, pack: PressurePack): Float64Array {
@@ -1292,13 +1369,17 @@ export class ModelCore {
       const Pd = pack.P[down];
       const PdEff = this.downstreamEffective(e, Pd);
       if (e.kind === "dynamic" || e.kind === "valve") {
-        flows[ei] = clamp(x[this.idx.q[e.name as DynamicEdgeName]], -1200, 1200);
+        flows[ei] = clamp(x[this.idx.q[e.name as DynamicEdgeName]], -DYNAMIC_FLOW_CLAMP_ML_PER_S, DYNAMIC_FLOW_CLAMP_ML_PER_S);
       } else {
         const { R, B } = this.effectiveLosses(e, Pu, Pd, x);
         flows[ei] = solveQuadraticFlow(Pu - PdEff, R, B);
       }
     }
     return flows;
+  }
+
+  private valveLeakArea(name: ValveName, e: EdgeSpec): number {
+    return (this.p as any)[`${name}_Aleak`] ?? e.Aleak ?? 0;
   }
 
   /** Evaluation context handed to a ChamberModel for the given chamber. */
@@ -1316,16 +1397,27 @@ export class ModelCore {
     const pairedEs = side === "right" ? rvEs : lvEs;
     const inletValve = side === "right" ? "TV" : "MV";
     const outletValve = side === "right" ? "PV" : "AoV";
+    const dynamicFlow = (edge: DynamicEdgeName) =>
+      clamp(x[this.idx.q[edge]], -DYNAMIC_FLOW_CLAMP_ML_PER_S, DYNAMIC_FLOW_CLAMP_ML_PER_S);
+    const lvVolumeRateMlPerSec = dynamicFlow("MV") - dynamicFlow("AoV");
+    const rvVolumeRateMlPerSec = dynamicFlow("TV") - dynamicFlow("PV");
+    const pairedVolumeRateMlPerSec = side === "right" ? rvVolumeRateMlPerSec : lvVolumeRateMlPerSec;
+    const pairedStrokeRefMl = Math.max(pairedEd - pairedEs, 1e-6);
     return {
       HR: this.p.HR,
       contractility: this.p.contractility,
       relaxation: this.p.relaxation,
       phi: x[this.idx.phi],
+      chamber,
+      avDelaySec: this.p.avDelaySec,
+      atrialElectromechanicalDelaySec: this.p.atrialElectromechanicalDelaySec,
+      ventricularElectromechanicalDelaySec: this.p.ventricularElectromechanicalDelaySec,
       tmaxScale: chamber === "LV" ? this.p.lvTmaxScale : isRV ? this.p.rvTmaxScale : 1,
       geomScale: chamber === "LV" ? this.p.lvGeomScale : isRV ? this.p.rvGeomScale : 1,
       caReleaseScale: chamber === "LV" ? this.p.caReleaseScale : isRV ? this.p.rvCaReleaseScale : 1,
       pairedVentricleVolumeMl: pairedVentricleVolume,
-      pairedVentricleShortening01: clamp((pairedEd - pairedVentricleVolume) / Math.max(pairedEd - pairedEs, 1e-6), 0, 1),
+      pairedVentricleShortening01: clamp((pairedEd - pairedVentricleVolume) / pairedStrokeRefMl, 0, 1),
+      pairedVentricleShorteningVelocity01PerSec: clamp(-pairedVolumeRateMlPerSec / pairedStrokeRefMl, -6, 8),
       inletValveOpen01: clamp(x[this.idx.xi[inletValve]], 0, 1),
       outletValveOpen01: clamp(x[this.idx.xi[outletValve]], 0, 1),
       side,
@@ -1341,7 +1433,7 @@ export class ModelCore {
     const ap = model.ap;
     if ((ap.reservoirBranchGain ?? 0) <= 0 || (ap.reservoirStrokeMl ?? 0) <= 0) return undefined;
     const internalIndex = this.activeInternalIndex("LA");
-    const internal = { c: x[internalIndex.c], a: x[internalIndex.a], r: x[internalIndex.r] };
+    const internal = this.activeInternalFromState("LA", x);
     const state = model.reservoirBranchState(VLA, internal, this.chamberCtx("LA", x));
     return {
       qLAReservoirMl: state.qMl,
@@ -1372,6 +1464,24 @@ export class ModelCore {
     };
   }
 
+  private applyEdgeOverrides(edge: EdgeSpec): EdgeSpec {
+    const overrides = this.p.edgeOverrides?.[edge.name];
+    if (!overrides) return edge;
+    const next: EdgeSpec = { ...edge, ...overrides };
+    if (edge.name === "PVein_LA") {
+      if ("R" in overrides && !("pvOstialResistanceR" in overrides)) {
+        next.pvOstialResistanceR = overrides.R;
+      }
+      if ("L" in overrides && !("pvOstialInertanceL" in overrides)) {
+        next.pvOstialInertanceL = overrides.L;
+      }
+      if ("B" in overrides && !("pvOstialQuadraticB" in overrides)) {
+        next.pvOstialQuadraticB = overrides.B;
+      }
+    }
+    return next;
+  }
+
   private pvOstialDebugFields(x: Float64Array, pack: PressurePack, flows: Float64Array): Partial<SimSample> | undefined {
     const edge = this.edges[this.edgeIndex("PVein_LA")];
     const q = flows[this.edgeIndex("PVein_LA")];
@@ -1393,16 +1503,40 @@ export class ModelCore {
     return this.nodes.filter((n) => n.kind === "heartActive" && n.chamber && n.active);
   }
 
-  private activeInternalIndex(chamber: Chamber): { c: number; a: number; r: number } {
+  private activeInternalIndex(chamber: Chamber): { c: number; a: number; r: number; tensionPa: number } {
     const idx = this.idx.activeInternal[chamber];
     if (!idx) throw new Error(`Missing active internal state index for ${chamber}`);
     return idx;
+  }
+
+  private activeInternalFromState(chamber: Chamber, x: Float64Array) {
+    const idx = this.activeInternalIndex(chamber);
+    return { c: x[idx.c], a: x[idx.a], r: x[idx.r], tensionPa: x[idx.tensionPa] };
   }
 
   private activeModel(chamber: Chamber): ActiveStressChamberModel {
     const model = this.activeModels[chamber];
     if (!model) throw new Error(`Missing active chamber model for ${chamber}`);
     return model;
+  }
+
+  private ventricularElastanceSignals(
+    chamber: "LV" | "RV",
+    effectiveVolumeMl: number,
+    transmuralPressureMmHg: number,
+    x: Float64Array,
+  ): { active: number; timeVarying: number } {
+    const node = this.nodes[this.nodeIndex.get(chamber)!];
+    const unstressedVolume = node.V0 ?? 0;
+    const distendingVolume = Math.max(effectiveVolumeMl - unstressedVolume, 1);
+    const active = Math.max(transmuralPressureMmHg, 0) / distendingVolume;
+    const fallbackPressure = this.elastanceModels
+      .get(chamber)!
+      .pressure(effectiveVolumeMl, { c: 0, a: 0, r: 0, tensionPa: 0 }, this.chamberCtx(chamber, x));
+    return {
+      active,
+      timeVarying: Math.max(fallbackPressure, 0) / distendingVolume,
+    };
   }
 
   private rebuildActiveModels() {
@@ -1521,13 +1655,16 @@ export class ModelCore {
     if (e.kind === "valve") {
       const pName = e.name as ValveName;
       const vAmax = (this.p as any)[`${pName}_Amax`] ?? e.Amax ?? 1;
+      const vAref = (this.p as any)[`${pName}_Aref`] ?? e.Aref ?? vAmax;
       const vAleak = (this.p as any)[`${pName}_Aleak`] ?? e.Aleak ?? 1e-4;
       const vR = (this.p as any)[`${pName}_R`] ?? e.R;
       const vB = (this.p as any)[`${pName}_B`] ?? e.B ?? 0;
       const xi = clamp(x[this.idx.xi[pName]], 0, 1);
-      areaRatio = Math.max(vAleak + xi * (vAmax - vAleak), 1e-4) / Math.max(vAmax, 1e-6);
-      R = vR / (areaRatio * areaRatio);
-      B = vB / (areaRatio * areaRatio);
+      const valveArea = Math.max(vAleak + xi * (vAmax - vAleak), 1e-4);
+      areaRatio = valveArea / Math.max(vAref, 1e-6);
+      const areaLoss = Math.pow(Math.max(areaRatio, 1e-4), -2);
+      R = vR * areaLoss;
+      B = vB * areaLoss;
     } else if ((e.useChiResistance || e.useChiQuadratic) && this.p.useChiResistance) {
       const chi = this.edgeChi(e, Pu, Pd);
       areaRatio = chi;
@@ -1604,7 +1741,8 @@ export class ModelCore {
     const nums: (keyof CoreRuntimeParams)[] = [
       "HR", "contractility", "relaxation", "systemicResistance", "pulmonaryResistance",
       "venousTone", "arterialStiffness", "PEEP", "Pth0", "respAmpTh", "respAmpAlv",
-      "speed", "lvTmaxScale", "rvTmaxScale",
+      "speed", "avDelaySec", "atrialElectromechanicalDelaySec", "ventricularElectromechanicalDelaySec",
+      "lvTmaxScale", "rvTmaxScale",
       "lvGeomScale", "rvGeomScale", "caReleaseScale", "rvCaReleaseScale",
       "pericardialPressureScaleMmHg", "pericardialSlackVolumeMl",
       "pericardialVolumeScaleMl", "pericardialSoftnessMl",
@@ -1657,7 +1795,7 @@ export class ModelCore {
           this.clampHitCount++;
       }
     }
-    for (const e of dynamicEdgeNames) x[this.idx.q[e]] = clamp(x[this.idx.q[e]], -1200, 1200);
+    for (const e of dynamicEdgeNames) x[this.idx.q[e]] = clamp(x[this.idx.q[e]], -DYNAMIC_FLOW_CLAMP_ML_PER_S, DYNAMIC_FLOW_CLAMP_ML_PER_S);
     for (const v of valveNames) x[this.idx.xi[v]] = clamp(x[this.idx.xi[v]], 0, 1);
     x[this.idx.phi] = x[this.idx.phi] > 1e6 ? frac(x[this.idx.phi]) : x[this.idx.phi];
     x[this.idx.septumShift] = clampSeptalShift(x[this.idx.septumShift], {
@@ -1671,11 +1809,12 @@ export class ModelCore {
       x[active.c] = clamp(x[active.c], 0, 5);
       x[active.a] = clamp(x[active.a], 0, 1);
       x[active.r] = clamp(x[active.r], 0, this.maxReservoirStrokeForInternal(active));
+      x[active.tensionPa] = clamp(x[active.tensionPa], 0, 500000);
     }
   }
 
-  private maxReservoirStrokeForInternal(active: { c: number; a: number; r: number }): number {
-    for (const [ch, idx] of Object.entries(this.idx.activeInternal) as [Chamber, { c: number; a: number; r: number }][]) {
+  private maxReservoirStrokeForInternal(active: { c: number; a: number; r: number; tensionPa: number }): number {
+    for (const [ch, idx] of Object.entries(this.idx.activeInternal) as [Chamber, { c: number; a: number; r: number; tensionPa: number }][]) {
       if (idx?.r !== active.r) continue;
       return Math.max(this.activeModels[ch]?.ap.reservoirStrokeMl ?? 0, 0);
     }

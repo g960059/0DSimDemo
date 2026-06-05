@@ -13,7 +13,7 @@ import type {
   PreviewWorkerRequest,
   PreviewWorkerResponse,
 } from "@/engine/previewWorkerProtocol";
-import type { PhysicsRefState, PreviewCoreFacade, SimInstance } from "@/types";
+import type { ChamberId, PhysicsRefState, PreviewCoreFacade, SimInstance } from "@/types";
 
 // Framework-agnostic preview driver (ROADMAP S3a). Owns the per-instance
 // ModelCore + sample buffers, the delta-time stepping, the 20s ring buffer, and
@@ -78,6 +78,8 @@ const emptyMetrics = (hr: number): SimMetrics => ({
   LAPMean: 0,
   LVEDPApprox: 0,
   RVEDPApprox: 0,
+  AoVMeanGradient: 0,
+  AoVPeakGradient: 0,
   SV_L: 0,
   SV_R: 0,
   CO_L: 0,
@@ -178,6 +180,8 @@ class RemotePreviewCore implements PreviewCoreFacade {
   private latestMetrics: SimMetrics;
   private latestHealth: SimulationHealth = emptyHealth();
   private latestObservables: SimObservables = emptyObservables();
+  private passiveProbe: ModelCore | null = null;
+  private passiveProbeSignature = "";
 
   constructor(initialParams: CoreRuntimeParams) {
     this.p = initialParams;
@@ -208,6 +212,28 @@ class RemotePreviewCore implements PreviewCoreFacade {
   debugObservables(): SimObservables {
     return this.latestObservables;
   }
+
+  passivePressureAt(chamber: ChamberId, volumeMl: number): number {
+    return this.passiveCore().passivePressureAt(chamber, volumeMl);
+  }
+
+  passivePressureVolumeCurve(
+    chamber: ChamberId,
+    volumeMinMl: number,
+    volumeMaxMl: number,
+    pointCount?: number,
+  ): Array<{ v: number; p: number }> {
+    return this.passiveCore().passivePressureVolumeCurve(chamber, volumeMinMl, volumeMaxMl, pointCount);
+  }
+
+  private passiveCore(): ModelCore {
+    const signature = JSON.stringify(this.p);
+    if (!this.passiveProbe || this.passiveProbeSignature !== signature) {
+      this.passiveProbe = new ModelCore(this.p);
+      this.passiveProbeSignature = signature;
+    }
+    return this.passiveProbe;
+  }
 }
 
 export class PreviewController {
@@ -224,6 +250,7 @@ export class PreviewController {
   private lastHealthAt = 0;
   private healthSig = "";
   private prevStatus: Record<string, SimulationHealthStatus> = {};
+  private heartModelByInstance: Record<string, CoreRuntimeParams["heartModel"]> = {};
   private perfSnapshot: PreviewPerfSnapshot | null = null;
   private worker: Worker | null = null;
   private workerTickPending = false;
@@ -307,42 +334,72 @@ export class PreviewController {
     }
     this.instances = instances;
     const added: string[] = [];
+    let resetExisting = false;
     for (const inst of instances) {
-      if (this.refs.has(inst.id)) continue;
-      const core = new ModelCore(inst.params);
-      core.initializeVenousPressuresForTargetTBV(inst.targetVolume);
-      // Settle to the limit cycle (capped) so the UI starts on steady state, not
-      // a transient. Headless this is ~1s wall-clock; far better than the old
-      // fixed 3s pre-settle (which left ~30s of live settling visible).
-      core.settleToSteady(PREVIEW_SETTLE_POLICY, this.dt, this.sampleHz);
-      // Align a newly-added instance's clock with the others so charts stay in phase.
-      let maxT = 0;
-      this.refs.forEach((ref) => {
-        if (ref.core.t > maxT) maxT = ref.core.t;
-      });
-      if (maxT > 0) {
-        core.t = maxT;
-        core.clearBeatTracking(); // the t jump breaks the in-flight beat's dt
+      const previousHeartModel = this.heartModelByInstance[inst.id];
+      const heartModelChanged = previousHeartModel !== undefined && previousHeartModel !== inst.params.heartModel;
+      this.heartModelByInstance[inst.id] = inst.params.heartModel;
+      if (this.refs.has(inst.id) && !heartModelChanged) continue;
+      this.refs.set(inst.id, this.createSettledRef(inst));
+      if (heartModelChanged) {
+        resetExisting = true;
+        delete this.prevStatus[inst.id];
+      } else {
+        added.push(inst.id);
       }
-      this.refs.set(inst.id, { core, buffer: [], lastRenderX: 0 });
-      added.push(inst.id);
     }
     const currentIds = new Set(instances.map((i) => i.id));
     for (const id of [...this.refs.keys()]) {
       if (!currentIds.has(id)) {
         this.refs.delete(id);
         delete this.prevStatus[id];
+        delete this.heartModelByInstance[id];
       }
     }
+    if (resetExisting) {
+      this.healthSig = "";
+      this.lastFrameTime = 0;
+    }
     if (added.length > 0) this.onInstancesAdded?.(added);
+  }
+
+  private createSettledRef(inst: SimInstance): PhysicsRefState {
+    const core = new ModelCore(inst.params);
+    core.initializeVenousPressuresForTargetTBV(inst.targetVolume);
+    // Settle to the limit cycle (capped) so the UI starts on steady state, not
+    // a transient. Headless this is ~1s wall-clock; far better than the old
+    // fixed 3s pre-settle (which left ~30s of live settling visible).
+    core.settleToSteady(PREVIEW_SETTLE_POLICY, this.dt, this.sampleHz);
+    // Align a newly-added/rebuilt instance's clock with the others so charts stay in phase.
+    let maxT = 0;
+    this.refs.forEach((ref) => {
+      if (ref.core.t > maxT) maxT = ref.core.t;
+    });
+    if (maxT > 0) {
+      core.t = maxT;
+      core.clearBeatTracking(); // the t jump breaks the in-flight beat's dt
+    }
+    return { core, buffer: [], lastRenderX: 0 };
   }
 
   private setInstancesWorker(instances: SimInstance[]) {
     this.instances = instances;
     const added: string[] = [];
+    const resetIds: string[] = [];
     for (const inst of instances) {
       const current = this.refs.get(inst.id);
+      const previousHeartModel = this.heartModelByInstance[inst.id];
+      const heartModelChanged = previousHeartModel !== undefined && previousHeartModel !== inst.params.heartModel;
+      this.heartModelByInstance[inst.id] = inst.params.heartModel;
       if (current) {
+        if (heartModelChanged) {
+          current.buffer = [];
+          current.lastRenderX = 0;
+          current.isSettling = true;
+          current.settleProgress = 0;
+          delete this.prevStatus[inst.id];
+          resetIds.push(inst.id);
+        }
         if (current.core instanceof RemotePreviewCore) current.core.updateClock(current.core.t, inst.params);
         continue;
       }
@@ -360,9 +417,16 @@ export class PreviewController {
       if (!currentIds.has(id)) {
         this.refs.delete(id);
         delete this.prevStatus[id];
+        delete this.heartModelByInstance[id];
       }
     }
-    this.postWorker({ type: "setInstances", generation: this.bumpWorkerGeneration(), instances });
+    const generation = this.bumpWorkerGeneration();
+    this.postWorker({ type: "setInstances", generation, instances });
+    if (resetIds.length > 0) {
+      this.postWorker({ type: "resetInstances", generation, ids: resetIds });
+      this.healthSig = "";
+      this.lastFrameTime = 0;
+    }
     if (added.length > 0) this.onInstancesAdded?.(added);
   }
 

@@ -353,6 +353,7 @@ export const Controls: React.FC<ControlsProps> = ({
                   <div className={rawBodyClass}>
                     <ControlGrid>
                       <Slider label="Heart Rate" value={rawView.HR} min={30} max={180} step={1} onChange={(v) => update('HR', v)} unit="bpm" />
+                      <Slider label="AV Delay (P-QRS)" value={rawView.avDelaySec} min={0.04} max={0.30} step={0.005} onChange={(v) => update('avDelaySec', v)} unit="s" />
                       <Slider label="Total Blood Volume" value={activeInstance.targetVolume} min={2000} max={8000} step={50} onChange={(v) => updateInstanceVolume(activeInstance.id, v)} unit="mL" />
                       <Slider label="Global Venous Tone" value={rawView.venousTone} min={0} max={1} step={0.05} onChange={(v) => update('venousTone', v)} />
                       <Slider label="Global Contractility" value={rawView.contractility} min={0.25} max={2.5} step={0.05} onChange={(v) => update('contractility', v)} unit="x" />
@@ -387,12 +388,14 @@ export const Controls: React.FC<ControlsProps> = ({
                       <ControlGrid>
                       <Subhead>Left Ventricle (LV)</Subhead>
                       <Slider label="LV Baseline Volume (V0)" value={nodeNum('LV', 'V0', 10)} min={0} max={100} step={1} onChange={(v) => updateNode('LV', 'V0', v)} unit="mL" />
+                      <Slider label="LV TVE Ees" value={nodeNum('LV', 'Ees', 1.6)} min={0.4} max={4.0} step={0.05} onChange={(v) => updateNode('LV', 'Ees', v)} unit="mmHg/mL" />
                       <Slider label="LV Tmax Scale (Force)" value={rawView.lvTmaxScale} min={0.05} max={2.5} step={0.05} onChange={(v) => update('lvTmaxScale', v)} unit="x" />
                       <Slider label="LV Ca²⁺ Release Scale" value={rawView.caReleaseScale} min={0.25} max={6} step={0.1} onChange={(v) => update('caReleaseScale', v)} unit="x" />
                       <Slider label="LV Geometry Scale" value={rawView.lvGeomScale} min={0.5} max={2.5} step={0.1} onChange={(v) => update('lvGeomScale', v)} unit="x" />
 
                       <Subhead>Right Ventricle (RV)</Subhead>
                       <Slider label="RV Baseline Volume (V0)" value={nodeNum('RV', 'V0', 15)} min={0} max={100} step={1} onChange={(v) => updateNode('RV', 'V0', v)} unit="mL" />
+                      <Slider label="RV TVE Ees" value={nodeNum('RV', 'Ees', 0.85)} min={0.2} max={2.0} step={0.05} onChange={(v) => updateNode('RV', 'Ees', v)} unit="mmHg/mL" />
                       <Slider label="RV Tmax Scale (Force)" value={rawView.rvTmaxScale} min={0.05} max={3.0} step={0.05} onChange={(v) => update('rvTmaxScale', v)} unit="x" />
                       <Slider label="RV Ca²⁺ Release Scale" value={rawView.rvCaReleaseScale} min={0.25} max={8} step={0.1} onChange={(v) => update('rvCaReleaseScale', v)} unit="x" />
                       <Slider label="RV Geometry Scale" value={rawView.rvGeomScale} min={0.5} max={3.0} step={0.1} onChange={(v) => update('rvGeomScale', v)} unit="x" />
@@ -515,10 +518,12 @@ export const Controls: React.FC<ControlsProps> = ({
                          <div key={vName} className="mb-1.5 rounded border border-slate-800/70 bg-slate-900/35 p-1.5">
                              <span className="mb-1 block text-[10px] font-semibold uppercase text-slate-400">{vName} Parameters</span>
                              <ControlGrid>
+                             <Slider label={`Aref (Healthy Area)`} value={(params as any)[`${vName}_Aref`]} min={0.1} max={10.0} step={0.1} onChange={(v) => update(`${vName}_Aref` as any, v)} unit="cm²" />
                              <Slider label={`Amax (Max Area)`} value={(params as any)[`${vName}_Amax`]} min={0.1} max={10.0} step={0.1} onChange={(v) => update(`${vName}_Amax` as any, v)} unit="cm²" />
                              <Slider label={`Aleak (Leak Area)`} value={(params as any)[`${vName}_Aleak`]} min={0.00000} max={1.0} step={0.001} onChange={(v) => update(`${vName}_Aleak` as any, v)} unit="cm²" />
                              <Slider label={`Resistance`} value={(params as any)[`${vName}_R`]} min={0.0005} max={0.05} step={0.0005} onChange={(v) => update(`${vName}_R` as any, v)} />
                              <Slider label={`Inertance`} value={(params as any)[`${vName}_L`]} min={0.0001} max={0.01} step={0.0001} onChange={(v) => update(`${vName}_L` as any, v)} />
+                             <Slider label={`Quadratic loss`} value={(params as any)[`${vName}_B`]} min={0} max={0.001} step={0.000001} onChange={(v) => update(`${vName}_B` as any, v)} />
                              <Slider label={`kOpen`} value={(params as any)[`${vName}_kOpen`]} min={0.1} max={10.0} step={0.1} onChange={(v) => update(`${vName}_kOpen` as any, v)} />
                              <Slider label={`tauOpen`} value={(params as any)[`${vName}_tauOpen`]} min={0.001} max={0.1} step={0.001} onChange={(v) => update(`${vName}_tauOpen` as any, v)} />
                              <Slider label={`tauClose`} value={(params as any)[`${vName}_tauClose`]} min={0.001} max={0.1} step={0.001} onChange={(v) => update(`${vName}_tauClose` as any, v)} />
