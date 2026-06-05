@@ -44,6 +44,20 @@ export type ElastanceShapeMetrics = {
   timeVaryingMax: number;
 };
 
+export type LeftFillingRingingMetrics = {
+  qmvPeakCount: number;
+  qmvEPeakCount: number;
+  qmvAPeakCount: number;
+  qmvExtraPeakCount: number;
+  lapProminentPeakCount: number;
+  lapProminentTroughCount: number;
+  lapOscillationIndex: number;
+  lvFillingEdgeRoughness: number;
+  lvFillingEdgeExcess: number;
+  lvFillingEdgeCurvature: number;
+  lvFillingEdgeReversalCount: number;
+};
+
 export function phaseOf(sample: SimSample): number {
   return sample.phi - Math.floor(sample.phi);
 }
@@ -125,6 +139,27 @@ export function atrioventricularInflowShape(
     aOverE: ePeak && aPeak ? aPeak.value / ePeak.value : null,
     minFlow: Math.min(...samples.map((s) => s[key])),
     regurgitantFraction: regurgitantFraction(samples, key),
+  };
+}
+
+export function leftFillingRingingShape(samples: SimSample[]): LeftFillingRingingMetrics {
+  const qmvPeaks = positiveValvePeaksDetailed(samples, "QMV", 0.12, 20);
+  const qmvEPeakCount = qmvPeaks.filter((peak) => phaseInWindow(peak.theta, 0.30, 0.75)).length;
+  const qmvAPeakCount = qmvPeaks.filter((peak) => phaseInWindow(peak.theta, 0.85, 0.08)).length;
+  const qmvDiastolicPeakCount = qmvPeaks.filter((peak) => phaseInWindow(peak.theta, 0.25, 0.12)).length;
+  const lapRange = valueRange(samples, "LAP");
+  const lapProminence = Math.max(0.35, 0.12 * lapRange);
+  const lapProminentPeakCount = localExtrema(samples, "LAP", "max", lapProminence).length;
+  const lapProminentTroughCount = localExtrema(samples, "LAP", "min", lapProminence).length;
+  return {
+    qmvPeakCount: qmvDiastolicPeakCount,
+    qmvEPeakCount,
+    qmvAPeakCount,
+    qmvExtraPeakCount: Math.max(0, qmvDiastolicPeakCount - 2),
+    lapProminentPeakCount,
+    lapProminentTroughCount,
+    lapOscillationIndex: oscillationIndex(samples, "LAP"),
+    ...lvFillingEdgeShape(samples),
   };
 }
 
@@ -228,6 +263,152 @@ export function integrateFlow(samples: SimSample[], key: FlowKey, transform: (q:
     area += 0.5 * dt * (transform(samples[i - 1][key]) + transform(samples[i][key]));
   }
   return area;
+}
+
+function positiveValvePeaksDetailed(
+  samples: SimSample[],
+  key: AtrioventricularFlowKey,
+  relativeThreshold: number,
+  absoluteThreshold: number,
+): Peak[] {
+  const maxFlow = Math.max(0, ...samples.map((s) => s[key]));
+  const threshold = Math.max(absoluteThreshold, relativeThreshold * maxFlow);
+  const raw: Peak[] = [];
+  for (let i = 1; i < samples.length - 1; i++) {
+    const prev = samples[i - 1][key];
+    const cur = samples[i][key];
+    const next = samples[i + 1][key];
+    if (cur <= threshold || cur < prev || cur <= next) continue;
+    raw.push({ theta: phaseOf(samples[i]), value: cur });
+  }
+  return mergeNearbyPeaks(raw, 0.045);
+}
+
+function mergeNearbyPeaks(peaks: Peak[], minSeparationTheta: number): Peak[] {
+  const out: Peak[] = [];
+  for (const peak of peaks.sort((a, b) => a.theta - b.theta)) {
+    const last = out.at(-1);
+    if (!last || Math.abs(peak.theta - last.theta) > minSeparationTheta) {
+      out.push({ ...peak });
+    } else if (peak.value > last.value) {
+      last.theta = peak.theta;
+      last.value = peak.value;
+    }
+  }
+  return out;
+}
+
+function localExtrema(samples: SimSample[], key: keyof SimSample, mode: "max" | "min", prominence: number): Peak[] {
+  const values = samples.map((s) => Number(s[key]));
+  const window = 4;
+  const extrema: Peak[] = [];
+  for (let i = window; i < samples.length - window; i++) {
+    const prev = values[i - 1];
+    const cur = values[i];
+    const next = values[i + 1];
+    const isExtremum = mode === "max" ? cur > prev && cur >= next : cur < prev && cur <= next;
+    if (!isExtremum) continue;
+    const left = values.slice(i - window, i);
+    const right = values.slice(i + 1, i + 1 + window);
+    const localProminence = mode === "max"
+      ? cur - Math.max(Math.min(...left), Math.min(...right))
+      : Math.min(Math.max(...left), Math.max(...right)) - cur;
+    if (localProminence < prominence) continue;
+    extrema.push({ theta: phaseOf(samples[i]), value: cur });
+  }
+  return mergeNearbyPeaks(extrema, 0.035);
+}
+
+function oscillationIndex(samples: SimSample[], key: keyof SimSample): number {
+  if (samples.length < 3) return 0;
+  let variation = 0;
+  for (let i = 1; i < samples.length; i++) {
+    variation += Math.abs(Number(samples[i][key]) - Number(samples[i - 1][key]));
+  }
+  return variation / Math.max(valueRange(samples, key), 1e-6);
+}
+
+function lvFillingEdgeShape(samples: SimSample[]): Pick<LeftFillingRingingMetrics, "lvFillingEdgeRoughness" | "lvFillingEdgeExcess" | "lvFillingEdgeCurvature" | "lvFillingEdgeReversalCount"> {
+  const runs = contiguousFillingRuns(samples).filter((run) => run.length >= 5);
+  if (runs.length === 0) {
+    return {
+      lvFillingEdgeRoughness: 0,
+      lvFillingEdgeExcess: 0,
+      lvFillingEdgeCurvature: 0,
+      lvFillingEdgeReversalCount: 0,
+    };
+  }
+  const metrics = runs.map(fillingRunShape);
+  return {
+    lvFillingEdgeRoughness: Math.max(...metrics.map((m) => m.lvFillingEdgeRoughness)),
+    lvFillingEdgeExcess: Math.max(...metrics.map((m) => m.lvFillingEdgeExcess)),
+    lvFillingEdgeCurvature: metrics.reduce((acc, m) => acc + m.lvFillingEdgeCurvature, 0),
+    lvFillingEdgeReversalCount: metrics.reduce((acc, m) => acc + m.lvFillingEdgeReversalCount, 0),
+  };
+}
+
+function contiguousFillingRuns(samples: SimSample[]): SimSample[][] {
+  const runs: SimSample[][] = [];
+  let current: SimSample[] = [];
+  for (const sample of samples) {
+    if (sample.QMV > 10 && sample.LVP < 25) {
+      current.push(sample);
+      continue;
+    }
+    if (current.length > 0) runs.push(current);
+    current = [];
+  }
+  if (current.length > 0) runs.push(current);
+  return runs;
+}
+
+function fillingRunShape(filling: SimSample[]): Pick<LeftFillingRingingMetrics, "lvFillingEdgeRoughness" | "lvFillingEdgeExcess" | "lvFillingEdgeCurvature" | "lvFillingEdgeReversalCount"> {
+  let pressureVariation = 0;
+  let pathLength = 0;
+  let curvature = 0;
+  let reversalCount = 0;
+  let previousSign = 0;
+  for (let i = 1; i < filling.length; i++) {
+    const dV = filling[i].VLV - filling[i - 1].VLV;
+    const dP = filling[i].LVP - filling[i - 1].LVP;
+    pressureVariation += Math.abs(dP);
+    pathLength += Math.hypot(dV, dP);
+    const sign = Math.abs(dP) < 0.05 ? 0 : Math.sign(dP);
+    if (sign !== 0 && previousSign !== 0 && sign !== previousSign) reversalCount++;
+    if (sign !== 0) previousSign = sign;
+  }
+  for (let i = 1; i < filling.length - 1; i++) {
+    const ax = filling[i].VLV - filling[i - 1].VLV;
+    const ay = filling[i].LVP - filling[i - 1].LVP;
+    const bx = filling[i + 1].VLV - filling[i].VLV;
+    const by = filling[i + 1].LVP - filling[i].LVP;
+    const aLen = Math.hypot(ax, ay);
+    const bLen = Math.hypot(bx, by);
+    if (aLen < 1e-6 || bLen < 1e-6) continue;
+    const cos = clampUnit((ax * bx + ay * by) / (aLen * bLen));
+    curvature += Math.acos(cos);
+  }
+  const pressureSpan = valueRange(filling, "LVP");
+  const chordLength = Math.hypot(
+    filling.at(-1)!.VLV - filling[0].VLV,
+    filling.at(-1)!.LVP - filling[0].LVP,
+  );
+  return {
+    lvFillingEdgeRoughness: pressureVariation / Math.max(pressureSpan, 1e-6),
+    lvFillingEdgeExcess: pathLength / Math.max(chordLength, 1e-6),
+    lvFillingEdgeCurvature: curvature,
+    lvFillingEdgeReversalCount: reversalCount,
+  };
+}
+
+function clampUnit(value: number): number {
+  return Math.max(-1, Math.min(1, value));
+}
+
+function valueRange(samples: SimSample[], key: keyof SimSample): number {
+  const values = samples.map((s) => Number(s[key])).filter(Number.isFinite);
+  if (values.length === 0) return 0;
+  return Math.max(...values) - Math.min(...values);
 }
 
 export function halfMaxDuration(samples: SimSample[], key: keyof SimSample): number {

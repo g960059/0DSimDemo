@@ -31,10 +31,10 @@ export const DEFAULT_FITTING_DIMENSIONS: ParameterDimension[] = [
   directDimension("lvTmaxScale", "LV active-stress scale", 0.75, 1.25, "linear"),
   directDimension("rvTmaxScale", "RV active-stress scale", 0.75, 1.35, "linear"),
   directDimension("avDelaySec", "AV delay", 0.04, 0.20, "linear"),
-  directDimension("MV_R", "Mitral linear loss", 0.001, 0.004, "linear"),
+  directDimension("MV_R", "Mitral linear loss", 0.0015, 0.0045, "linear"),
   directDimension("MV_B", "Mitral quadratic loss", 1e-6, 2e-5, "log"),
-  edgeDimension("pvein-la-r", "PVein_LA ostial R", "PVein_LA", "R", 0.012, 0.040, "linear"),
-  edgeDimension("pvein-la-l", "PVein_LA ostial inertance", "PVein_LA", "pvOstialInertanceL", 0.0005, 0.004, "linear"),
+  edgeDimension("pvein-la-r", "PVein_LA ostial R", "PVein_LA", "R", 0.020, 0.050, "linear"),
+  edgeDimension("pvein-la-l", "PVein_LA ostial inertance", "PVein_LA", "pvOstialInertanceL", 0, 0.002, "linear"),
 ];
 
 export function makeCandidatePatch(
@@ -131,7 +131,7 @@ function edgeDimension(
     min,
     max,
     scale,
-    defaultValue: field === "R" ? 0.028 : 0.002,
+    defaultValue: field === "R" ? 0.030 : 0,
     apply: (params, value) => ({
       ...params,
       edgeOverrides: {

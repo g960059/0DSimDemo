@@ -219,6 +219,7 @@ const pulmonaryVenousNodeNames = ["PCap", "PVen", "PVein"] as const;
 const dynamicEdgeNames = ["MV", "AoV", "TV", "PV", "Ao_SA", "PA_PArt", "PVein_LA"] as const;
 const valveNames = ["MV", "AoV", "TV", "PV"] as const;
 const DYNAMIC_FLOW_CLAMP_ML_PER_S = 1500;
+const MV_PRESSURE_DEADBAND_MMHG = 0.60;
 
 type NodeName = typeof nodeNames[number];
 type DynamicEdgeName = typeof dynamicEdgeNames[number];
@@ -314,7 +315,7 @@ export function defaultParams(): CoreRuntimeParams {
     // calibrated normal physiology remains stable, while effusion/constraint and
     // RV pressure overload have a real mechanical pathway.
     pericardiumEnabled: true,
-    pericardialPressureScaleMmHg: 1.0,
+    pericardialPressureScaleMmHg: 1.2,
     pericardialSlackVolumeMl: 340,
     pericardialVolumeScaleMl: 45,
     pericardialSoftnessMl: 8,
@@ -337,7 +338,7 @@ export function defaultParams(): CoreRuntimeParams {
     RCAStenosis: 0,
     // Valve Defaults
     // MV
-    MV_Aref: 5.0, MV_Amax: 5.0, MV_Aleak: 0, MV_kOpen: 2.0, MV_tauOpen: 0.020, MV_tauClose: 0.012, MV_R: 0.002, MV_L: 0.0003, MV_B: 5e-6,
+    MV_Aref: 5.0, MV_Amax: 5.5, MV_Aleak: 0, MV_kOpen: 2.0, MV_tauOpen: 0.024, MV_tauClose: 0.016, MV_R: 0.0027, MV_L: 0.0005, MV_B: 8e-6,
     // AoV
     AoV_Aref: 3.5, AoV_Amax: 3.5, AoV_Aleak: 0, AoV_kOpen: 3.0, AoV_tauOpen: 0.006, AoV_tauClose: 0.008, AoV_R: 0.0015, AoV_L: 0.00025, AoV_B: 1e-6,
     // TV
@@ -363,9 +364,9 @@ function buildNodes(): NodeSpec[] {
 
     { name: "PA", kind: "arterial", ext: "pth", Vu: 0, P0: 20, Vs: 60, x0: 60 * Math.log1p(16 / 20) },
     { name: "PArt", kind: "arterial", ext: "pth", Vu: 0, P0: 20, Vs: 90, x0: 90 * Math.log1p(13 / 20) },
-    { name: "PCap", kind: "venousPressure", ext: "palv", Vu: 105, Ccoll: 0.75, Copen: 1.5, Cdist: 0.75, Popen: 0, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 8 },
-    { name: "PVen", kind: "venousPressure", ext: "pth", Vu: 160, Ccoll: 0.75, Copen: 1.5, Cdist: 0.75, Popen: -1, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 6 },
-    { name: "PVein", kind: "venousPressure", ext: "pth", Vu: 215, Ccoll: 0.75, Copen: 1.5, Cdist: 0.75, Popen: -1, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 5 },
+    { name: "PCap", kind: "venousPressure", ext: "palv", Vu: 105, Ccoll: 1.0, Copen: 2.0, Cdist: 1.0, Popen: 0, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 8 },
+    { name: "PVen", kind: "venousPressure", ext: "pth", Vu: 160, Ccoll: 1.2, Copen: 3.0, Cdist: 1.2, Popen: -1, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 6 },
+    { name: "PVein", kind: "venousPressure", ext: "pth", Vu: 215, Ccoll: 1.5, Copen: 4.0, Cdist: 1.5, Popen: -1, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 5 },
 
     // Coronary circulation: small compliant epicardial, intramyocardial, and
     // venous compartments. Volumes are small enough not to become a systemic
@@ -387,7 +388,7 @@ function buildNodes(): NodeSpec[] {
 function buildEdges(): EdgeSpec[] {
   const q0 = 80;
   return [
-    { name: "MV", up: "LA", down: "LV", kind: "valve", R: 0.002, L: 0.0003, B: 5e-6, Aref: 5.0, Amax: 5.0, Aleak: 0, kOpen: 2.0, tauOpen: 0.020, tauClose: 0.012, q0, xi0: 0.2 },
+    { name: "MV", up: "LA", down: "LV", kind: "valve", R: 0.0027, L: 0.0005, B: 8e-6, Aref: 5.0, Amax: 5.5, Aleak: 0, kOpen: 2.0, tauOpen: 0.024, tauClose: 0.016, q0, xi0: 0.2 },
     { name: "AoV", up: "LV", down: "Ao", kind: "valve", R: 0.0015, L: 0.00025, B: 1e-6, Aref: 3.5, Amax: 3.5, Aleak: 0, kOpen: 3.0, tauOpen: 0.006, tauClose: 0.008, q0, xi0: 0.2 },
     { name: "TV", up: "RA", down: "RV", kind: "valve", R: 0.0035, L: 0.0008, B: 1e-5, Aref: 8.0, Amax: 8.0, Aleak: 0, kOpen: 2.0, tauOpen: 0.018, tauClose: 0.010, q0, xi0: 0.2 },
     { name: "PV", up: "RV", down: "PA", kind: "valve", R: 0.005, L: 0.001, B: 2e-6, Aref: 4.0, Amax: 4.0, Aleak: 0, kOpen: 2.0, tauOpen: 0.010, tauClose: 0.006, q0, xi0: 0.2 },
@@ -408,11 +409,11 @@ function buildEdges(): EdgeSpec[] {
       up: "PVein",
       down: "LA",
       kind: "resistive",
-      R: 0.028,
+      R: 0.030,
       B: 0,
       q0,
-      pvOstialResistanceR: 0.028,
-      pvOstialInertanceL: 0.002,
+      pvOstialResistanceR: 0.030,
+      pvOstialInertanceL: 0,
       pvOstialQuadraticB: 0,
     },
 
@@ -1185,9 +1186,16 @@ export class ModelCore {
       const tauClose = (this.p as any)[`${vName}_tauClose`] ?? e.tauClose ?? 0.025;
       const q = x[this.idx.q[vName]];
       
-      const xiEq = dP > 0 ? sigmoid(kOpen * (dP - (e.dP0 ?? 0))) : 0;
+      const deadband = vName === "MV" ? MV_PRESSURE_DEADBAND_MMHG : 0;
+      const xiEq = dP > deadband
+        ? sigmoid(kOpen * (dP - deadband - (e.dP0 ?? 0)))
+        : dP < -deadband
+          ? 0
+          : x[xiIndex];
       const forwardCoast = vName === "AoV" && dP <= 0 && dP > -3 && q > 1 && this.valveLeakArea(vName, e) <= 1e-9;
-      const tau = dP > 0 ? tauOpen : forwardCoast ? Math.max(tauClose, 0.012) : tauClose;
+      const tau = vName === "MV"
+        ? xiEq > x[xiIndex] ? tauOpen : tauClose
+        : dP > 0 ? tauOpen : forwardCoast ? Math.max(tauClose, 0.012) : tauClose;
       dy[xiIndex] = clamp((xiEq - x[xiIndex]) / Math.max(tau, 1e-5), -80, 80);
     }
 

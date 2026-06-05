@@ -73,5 +73,11 @@ artifact output is intentionally non-UI and writes `report.json`, `report.md`,
 Gate splitting is limited to `normalBaseline` for now. Bundled morphology gates
 are decomposed so reviewers can see whether a failure is from missing E/A waves,
 PVF Ar polarity, PVF reverse fraction, transmitral gradient samples/means/peaks,
-or right-heart pressure/volume bounds. It should not yet build a full optimizer,
-case-specific profiles, or user-facing fitting UI.
+right-heart pressure/volume bounds. Additional left-filling ringing gates detect
+extra mitral inflow peaks, excessive LAP total variation, and LV low-pressure
+filling-edge roughness/reversals, because those are the measurable signatures of
+LA-MV-LV/PV underdamped chatter that make the PV loop lower edge jagged. The
+headless `fit:left-filling` runner compares a bounded set of PVein_LA and MV
+damping candidates and writes `left-filling-candidates.json` plus `.csv`; it is
+a triage runner, not a full optimizer. This scope should not yet build
+case-specific profiles or a user-facing fitting UI.
