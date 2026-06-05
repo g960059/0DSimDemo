@@ -142,8 +142,8 @@ describe("ChamberModel behavior parity (S2a refactor guards)", () => {
       const prev = reservoir.samples[i - 1];
       const cur = reservoir.samples[i];
       const dr = cur.rLA - prev.rLA;
-      if (cur.QAo > 1 && cur.QMV <= 0 && dr > 0.0005) ejectionRise = true;
-      if (cur.QAo <= 0 && cur.QMV <= 0 && prev.rLA > 0.1 && dr < -0.0005) ivrRecoil = true;
+      if (cur.xiAoV > 0.2 && cur.xiMV < 0.2 && dr > 0.0005) ejectionRise = true;
+      if (cur.xiAoV < 0.2 && cur.xiMV < 0.2 && prev.rLA > 0.1 && dr < -0.0005) ivrRecoil = true;
       if (cur.VLABodyMl != null && cur.VLAReservoirMl != null) {
         checkedPartition = true;
         expect(cur.twoBranchSolveFlag).toBe("ok");
