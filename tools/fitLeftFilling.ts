@@ -2,7 +2,13 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { DEFAULT_PARAMS } from "@/constants";
 import type { CoreRuntimeParams, ParameterPatch } from "@/engine/protocol";
+import {
+  buildLeftFillingReview,
+  leftFillingReviewToMarkdown,
+  type LeftFillingGateSnapshot,
+} from "@/engine/fitting/leftFillingReview";
 import { mergeParameterPatch } from "@/engine/fitting/parameterSpace";
+import { generateVerificationSvgs } from "@/engine/verification/artifacts";
 import { reportToMarkdown, runVerification, toVerificationArtifact } from "@/engine/verification/report";
 import type { VerificationMode } from "@/engine/verification/profiles";
 import { lastCompleteBeat, phaseOf, sampleInWindowBy } from "@/engine/verification/shapeMetrics";
@@ -36,20 +42,39 @@ rows.sort((a, b) => {
   if (a.hardFailures !== b.hardFailures) return a.hardFailures - b.hardFailures;
   if (a.softFailures !== b.softFailures) return a.softFailures - b.softFailures;
   if (a.ringingFailures !== b.ringingFailures) return a.ringingFailures - b.ringingFailures;
-  return b.score - a.score;
+  if (a.score !== b.score) return b.score - a.score;
+  return a.id.localeCompare(b.id);
 });
 
 mkdirSync(options.outDir, { recursive: true });
 writeFileSync(path.join(options.outDir, "left-filling-candidates.json"), `${JSON.stringify(rows, null, 2)}\n`);
 writeFileSync(path.join(options.outDir, "left-filling-candidates.csv"), csv(rows));
+const review = buildLeftFillingReview(rows, { topN: 5 });
+writeFileSync(path.join(options.outDir, "left-filling-review.json"), `${JSON.stringify(review, null, 2)}\n`);
+writeFileSync(path.join(options.outDir, "left-filling-review.md"), leftFillingReviewToMarkdown(review));
 
 if (options.writeArtifacts) {
-  for (const row of rows.slice(0, 5)) {
+  for (const [index, row] of rows.slice(0, 5).entries()) {
     const report = runVerification(row.params, { profile: options.profile, gateSet: "normalBaseline" });
-    const candidateDir = path.join(options.outDir, row.id);
+    const candidateDir = path.join(options.outDir, safePathSegment(row.id));
     mkdirSync(candidateDir, { recursive: true });
+    const svgs = generateVerificationSvgs(report);
+    writeFileSync(path.join(candidateDir, "metadata.json"), `${JSON.stringify({
+      rank: index + 1,
+      id: row.id,
+      patch: row.patch,
+      profile: options.profile,
+      gateSet: "normalBaseline",
+      summary: report.summary,
+      failedGateIds: row.failedGateIds,
+      failureLocations: report.failureLocations,
+      artifactFiles: ["metadata.json", "report.json", "report.md", ...Object.keys(svgs)],
+    }, null, 2)}\n`);
     writeFileSync(path.join(candidateDir, "report.json"), `${JSON.stringify(toVerificationArtifact(report), null, 2)}\n`);
     writeFileSync(path.join(candidateDir, "report.md"), reportToMarkdown(report));
+    for (const [filename, svg] of Object.entries(svgs)) {
+      writeFileSync(path.join(candidateDir, filename), svg);
+    }
   }
 }
 
@@ -62,13 +87,13 @@ console.table(rows.slice(0, 8).map((row) => ({
   soft: row.softFailures,
   ringing: row.ringingFailures,
   score: row.score.toFixed(3),
-  qmvExtra: row.gates["qmv-extra-peaks"],
-  lapOsc: row.gates["lap-oscillation-index"],
-  lvRough: row.gates["lv-filling-edge-roughness"],
-  pvfRev: row.gates["pvf-reverse-fraction"],
+  qmvExtra: row.gates["qmv-extra-peaks"]?.value,
+  lapOsc: row.gates["lap-oscillation-index"]?.value,
+  lvRough: row.gates["lv-filling-edge-roughness"]?.value,
+  pvfRev: row.gates["pvf-reverse-fraction"]?.value,
   pvfDOverS: row.pvfDOverSPeak?.toFixed(3),
   rvEf: row.efRight?.toFixed(3),
-  mvEGrad: row.gates["mv-gradient-e-peak"],
+  mvEGrad: row.gates["mv-gradient-e-peak"]?.value,
 })));
 
 function evaluate(candidate: Candidate, profile: VerificationMode) {
@@ -84,6 +109,7 @@ function evaluate(candidate: Candidate, profile: VerificationMode) {
   return {
     id: candidate.id,
     params,
+    patch: candidate.patch,
     pass: report.summary.pass,
     hardFailures: report.summary.hardFailures,
     softFailures: report.summary.softFailures,
@@ -93,7 +119,7 @@ function evaluate(candidate: Candidate, profile: VerificationMode) {
     pvfDOverSPeak: sPeak && dPeak && sPeak.PVF > 1e-9 ? dPeak.PVF / sPeak.PVF : null,
     pvfSPeakTheta: sPeak ? phaseOf(sPeak) : null,
     pvfDPeakTheta: dPeak ? phaseOf(dPeak) : null,
-    gates: Object.fromEntries(RINGING_GATE_IDS.map((id) => [id, gates[id]?.value ?? null])),
+    gates: Object.fromEntries(RINGING_GATE_IDS.map((id) => [id, gateSnapshot(gates[id])])),
     failedGateIds: report.gates.filter((gate) => gate.status === "fail").map((gate) => gate.id),
   };
 }
@@ -159,11 +185,26 @@ function csv(rows: ReturnType<typeof evaluate>[]): string {
   return [
     fields.join(","),
     ...rows.map((row) => fields.map((field) => csvValue(field === "failedGateIds"
-      ? row.failedGateIds.join("|")
+        ? row.failedGateIds.join("|")
       : field in row
         ? (row as any)[field]
-        : row.gates[field as keyof typeof row.gates])).join(",")),
+        : row.gates[field as keyof typeof row.gates]?.value)).join(",")),
   ].join("\n");
+}
+
+function gateSnapshot(gate: ReturnType<typeof runVerification>["gates"][number] | undefined): LeftFillingGateSnapshot | null {
+  if (!gate) return null;
+  return {
+    value: gate.value,
+    status: gate.status,
+    severity: gate.severity,
+    threshold: gate.threshold,
+    score: gate.score,
+  };
+}
+
+function safePathSegment(value: string): string {
+  return value.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 120) || "candidate";
 }
 
 function csvValue(value: unknown): string {

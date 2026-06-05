@@ -50,6 +50,15 @@ export function evaluateCandidate(
       metrics: null,
       shape: null,
       gates: [invalid],
+      failureLocations: [{
+        gateId: invalid.id,
+        severity: invalid.severity,
+        artifactFile: "report.md",
+        panelId: "gates",
+        panelTitle: "Gates",
+        value: invalid.value,
+        threshold: invalid.threshold,
+      }],
       measurement: null,
     };
     return {

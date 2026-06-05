@@ -265,7 +265,7 @@ export function integrateFlow(samples: SimSample[], key: FlowKey, transform: (q:
   return area;
 }
 
-function positiveValvePeaksDetailed(
+export function positiveValvePeaksDetailed(
   samples: SimSample[],
   key: AtrioventricularFlowKey,
   relativeThreshold: number,
@@ -298,7 +298,7 @@ function mergeNearbyPeaks(peaks: Peak[], minSeparationTheta: number): Peak[] {
   return out;
 }
 
-function localExtrema(samples: SimSample[], key: keyof SimSample, mode: "max" | "min", prominence: number): Peak[] {
+export function localExtrema(samples: SimSample[], key: keyof SimSample, mode: "max" | "min", prominence: number): Peak[] {
   const values = samples.map((s) => Number(s[key]));
   const window = 4;
   const extrema: Peak[] = [];
@@ -347,7 +347,7 @@ function lvFillingEdgeShape(samples: SimSample[]): Pick<LeftFillingRingingMetric
   };
 }
 
-function contiguousFillingRuns(samples: SimSample[]): SimSample[][] {
+export function contiguousFillingRuns(samples: SimSample[]): SimSample[][] {
   const runs: SimSample[][] = [];
   let current: SimSample[] = [];
   for (const sample of samples) {

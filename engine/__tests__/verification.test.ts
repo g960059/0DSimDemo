@@ -171,6 +171,17 @@ describe("fitting/verification mode foundation", () => {
     const failures = new Set(report.gates.filter((gate) => gate.status === "fail").map((gate) => gate.id));
     expect(failures).toContain("qmv-extra-peaks");
     expect(failures).toContain("lv-filling-edge-curvature");
+    expect(report.failureLocations.some((location) => {
+      return location.gateId === "qmv-extra-peaks"
+        && location.artifactFile === "waveforms.svg"
+        && location.panelId === "inflow";
+    })).toBe(true);
+    expect(report.failureLocations.some((location) => {
+      return location.gateId === "lv-filling-edge-curvature"
+        && location.artifactFile === "pv-loops.svg"
+        && location.panelId === "lv-pv-loop";
+    })).toBe(true);
+    expect(reportToMarkdown(report)).toContain("Failure Localization");
   });
 
   it("generates structural SVG artifacts with waveform and PV-loop panels", () => {
@@ -181,12 +192,16 @@ describe("fitting/verification mode foundation", () => {
     });
     const svgs = generateVerificationSvgs(report);
     expect(svgs["waveforms.svg"]).toContain("Verification Waveforms");
+    expect(svgs["waveforms.svg"]).toContain('id="inflow"');
+    expect(svgs["waveforms.svg"]).toContain('id="pulmonary-venous-flow"');
     expect(svgs["waveforms.svg"]).toContain("PVF model flow (mL/s, not Doppler velocity)");
     expect(svgs["waveforms.svg"]).toContain("pvf-ar-present");
     expect(svgs["waveforms.svg"]).toContain("mv-gradient-e-peak");
     expect(svgs["waveforms.svg"]).toContain("qmv-extra-peaks");
     expect(svgs["pv-loops.svg"]).toContain("lv-filling-edge-roughness");
     expect(svgs["pv-loops.svg"]).toContain("lv-filling-edge-curvature");
+    expect(svgs["pv-loops.svg"]).toContain('id="lv-pv-loop"');
+    expect(svgs["pv-loops.svg"]).toContain("LV filling edge run");
     expect(svgs["pv-loops.svg"]).toContain("Verification PV Loops");
     expect(svgs["pv-loops.svg"]).toContain("LA PV loop");
     expect(svgs["pv-loops.svg"]).toContain("RA PV loop");
