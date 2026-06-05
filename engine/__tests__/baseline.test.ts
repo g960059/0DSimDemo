@@ -148,6 +148,36 @@ describe("baseline freeze (active-stress default)", () => {
     expect(Math.min(...beat.map((s) => s.QMV))).toBeGreaterThan(-11);
   });
 
+  it("keeps pulmonary venous flow readable as S/D/Ar with limited atrial reversal", () => {
+    const beat = lastCompleteBeat(samples);
+    expect(beat.length).toBeGreaterThan(80);
+
+    const sPeak = sampleInWindowBy(beat, "PVF", 0.05, 0.45, "max");
+    const dPeak = sampleInWindowBy(beat, "PVF", 0.45, 0.80, "max");
+    const arTrough = sampleInWindowBy(beat, "PVF", 0.80, 0.10, "min");
+    const sTheta = phaseOf(sPeak);
+    const dTheta = phaseOf(dPeak);
+    const arTheta = phaseOf(arTrough);
+    expect(sTheta).toBeGreaterThan(0.15);
+    expect(sTheta).toBeLessThan(0.35);
+    expect(dTheta).toBeGreaterThan(0.55);
+    expect(dTheta).toBeLessThan(0.75);
+    expect(phaseInWindow(arTheta, 0.84, 0.96)).toBe(true);
+
+    expect(sPeak.PVF).toBeGreaterThan(120);
+    expect(dPeak.PVF).toBeGreaterThan(180);
+    expect(dPeak.PVF / sPeak.PVF).toBeLessThan(2.1);
+    expect(arTrough.PVF).toBeLessThan(-20);
+    expect(arTrough.PVF).toBeGreaterThan(-100);
+
+    const sVolume = integrateFlow(beat.filter((s) => phaseInWindow(phaseOf(s), 0.05, 0.45)), "PVF", (q) => Math.max(0, q));
+    const dVolume = integrateFlow(beat.filter((s) => phaseInWindow(phaseOf(s), 0.45, 0.80)), "PVF", (q) => Math.max(0, q));
+    const forward = integrateFlow(beat, "PVF", (q) => Math.max(0, q));
+    const reverse = integrateFlow(beat, "PVF", (q) => Math.max(0, -q));
+    expect(sVolume / dVolume).toBeGreaterThan(0.60);
+    expect(reverse / forward).toBeLessThan(0.055);
+  });
+
   it("keeps normal transmitral gradients low during E and A filling", () => {
     const beat = lastCompleteBeat(samples);
     const allForward = transmitralGradientStats(beat, 0, 1);
@@ -268,6 +298,22 @@ function maxSampleBy(samples: SimSample[], key: keyof SimSample): SimSample {
   return samples.reduce((best, sample) => Number(sample[key]) > Number(best[key]) ? sample : best, samples[0]);
 }
 
+function sampleInWindowBy(
+  samples: SimSample[],
+  key: "PVF",
+  lo: number,
+  hi: number,
+  mode: "max" | "min",
+): SimSample {
+  const selected = samples.filter((sample) => phaseInWindow(phaseOf(sample), lo, hi));
+  expect(selected.length).toBeGreaterThan(0);
+  return selected.reduce((best, sample) => {
+    return mode === "max"
+      ? sample[key] > best[key] ? sample : best
+      : sample[key] < best[key] ? sample : best;
+  }, selected[0]);
+}
+
 function halfMaxDuration(samples: SimSample[], key: keyof SimSample): number {
   const values = samples.map((s) => Number(s[key]));
   const min = Math.min(...values);
@@ -333,7 +379,7 @@ function regurgitantFraction(samples: SimSample[], key: "QMV" | "QAo" | "QTV" | 
   return reverse / Math.max(forward, 1e-9);
 }
 
-function integrateFlow(samples: SimSample[], key: "QMV" | "QAo" | "QTV" | "QPV", transform: (q: number) => number): number {
+function integrateFlow(samples: SimSample[], key: "QMV" | "QAo" | "QTV" | "QPV" | "PVF", transform: (q: number) => number): number {
   let area = 0;
   for (let i = 1; i < samples.length; i++) {
     const dt = samples[i].t - samples[i - 1].t;

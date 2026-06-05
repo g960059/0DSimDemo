@@ -76,6 +76,15 @@ a new independent state. The default coefficients are intentionally conservative
 so the baseline AoP/LVP gap, CO, EF, LVEDP, and regurgitant-fraction gates remain
 inside the normal corridor.
 
+Pulmonary venous flow (`PVF`, PVein -> LA) is now guarded as an S/D/Ar waveform.
+The terminal pulmonary venous resistance was set at the upper end of the prior
+physiologic target, `PVein_LA.R = 0.015 mmHg/(mL/s)`. This damps the exaggerated
+atrial reversal while keeping a visible systolic S component, diastolic D
+component, and atrial reversal Ar. The test intentionally does not require a
+single-peaked S wave: clinical pulmonary venous Doppler often splits systolic
+flow into S1/S2, so the guard checks phase windows, S/D balance, and reverse-flow
+fraction rather than forbidding a systolic shoulder.
+
 Literature anchors for this interpretation are the time-varying elastance
 overview (PMC5018161), Ca/crossbridge-dependent elastance discussion in the RV
 elastance literature (AJRCCM 207:678), and the diastolic suction caveat
