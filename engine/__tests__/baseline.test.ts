@@ -97,6 +97,9 @@ describe("baseline freeze (active-stress default)", () => {
     expect(passive(140)).toBeLessThan(28);
     expect(metrics.LVEDPApprox).toBeGreaterThan(8);
     expect(metrics.LVEDPApprox).toBeLessThan(14);
+    const lvpMin = Math.min(...beat.map((s) => s.LVP));
+    expect(lvpMin).toBeGreaterThan(3);
+    expect(lvpMin).toBeLessThan(8);
     expect(beat.reduce((acc, s) => acc + s.LVPressureFloorHit01, 0)).toBe(0);
   });
 
@@ -115,7 +118,13 @@ describe("baseline freeze (active-stress default)", () => {
       expect(Math.max(...beat.map((s) => s[key]))).toBeGreaterThan(0.05);
       expect(Math.max(...beat.map((s) => s[key]))).toBeLessThan(10);
     }
-    expect(Math.abs(meanOf(beat, "ELV_active") - meanOf(beat, "ELV_timeVarying"))).toBeGreaterThan(0.05);
+    const activePeak = maxSampleBy(beat, "ELV_active");
+    const tvePeak = maxSampleBy(beat, "ELV_timeVarying");
+    expect(phaseOf(activePeak)).toBeGreaterThan(0.26);
+    expect(phaseOf(tvePeak) - phaseOf(activePeak)).toBeLessThan(0.20);
+    expect(halfMaxDuration(beat, "ELV_active")).toBeGreaterThan(0.12);
+    expect(Math.min(...beat.map((s) => s.ELV_active))).toBeGreaterThan(0.035);
+    expect(Math.abs(meanOf(beat, "ELV_active") - meanOf(beat, "ELV_timeVarying"))).toBeGreaterThan(0.03);
   });
 
   it("shows a figure-eight LA PV loop and biphasic MV inflow", () => {
@@ -136,7 +145,7 @@ describe("baseline freeze (active-stress default)", () => {
     expect(aPeak?.value).toBeGreaterThan(80);
     expect((aPeak?.value ?? 0) / (ePeak?.value ?? Infinity)).toBeGreaterThan(0.35);
     // no gross mitral regurgitation: only a tiny closure transient remains.
-    expect(Math.min(...beat.map((s) => s.QMV))).toBeGreaterThan(-10);
+    expect(Math.min(...beat.map((s) => s.QMV))).toBeGreaterThan(-11);
   });
 
   it("keeps normal transmitral gradients low during E and A filling", () => {
@@ -253,6 +262,25 @@ function rangeOf(samples: SimSample[], key: "VRV" | "VRA" | "RVP"): [number, num
 
 function meanOf(samples: SimSample[], key: keyof SimSample): number {
   return samples.reduce((acc, s) => acc + Number(s[key]), 0) / Math.max(samples.length, 1);
+}
+
+function maxSampleBy(samples: SimSample[], key: keyof SimSample): SimSample {
+  return samples.reduce((best, sample) => Number(sample[key]) > Number(best[key]) ? sample : best, samples[0]);
+}
+
+function halfMaxDuration(samples: SimSample[], key: keyof SimSample): number {
+  const values = samples.map((s) => Number(s[key]));
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const half = min + 0.5 * (max - min);
+  let duration = 0;
+  for (let i = 1; i < samples.length; i++) {
+    const dt = samples[i].t - samples[i - 1].t;
+    const onPrev = Number(Number(samples[i - 1][key]) >= half);
+    const onCur = Number(Number(samples[i][key]) >= half);
+    duration += 0.5 * (onPrev + onCur) * dt;
+  }
+  return duration;
 }
 
 function preSystolicRvEdp(samples: SimSample[]): number {

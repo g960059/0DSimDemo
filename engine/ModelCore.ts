@@ -230,7 +230,7 @@ type StateIndex = {
   xi: Record<ValveName, number>;
   phi: number;
   septumShift: number;
-  activeInternal: Partial<Record<Chamber, { c: number; a: number; r: number }>>;
+  activeInternal: Partial<Record<Chamber, { c: number; a: number; r: number; tensionPa: number }>>;
   size: number;
 };
 
@@ -255,9 +255,9 @@ function makeIndex(): StateIndex {
   for (const v of valveNames) xi[v] = i++;
   const phi = i++;
   const septumShift = i++;
-  const activeInternal: Partial<Record<Chamber, { c: number; a: number; r: number }>> = {};
+  const activeInternal: Partial<Record<Chamber, { c: number; a: number; r: number; tensionPa: number }>> = {};
   for (const ch of activeChambersFromNodes(buildNodes())) {
-    activeInternal[ch] = { c: i++, a: i++, r: i++ };
+    activeInternal[ch] = { c: i++, a: i++, r: i++, tensionPa: i++ };
   }
   return {
     node,
@@ -515,6 +515,7 @@ export class ModelCore {
       this.x[internalIndex.c] = initial.c;
       this.x[internalIndex.a] = initial.a;
       this.x[internalIndex.r] = initial.r;
+      this.x[internalIndex.tensionPa] = initial.tensionPa ?? 0;
     }
     this.t = 0;
     this.history = [];
@@ -660,8 +661,6 @@ export class ModelCore {
     const flows = this.computeFlows(this.x, pack);
     const laReservoir = this.laReservoirDebugFields(this.x, pack.Vphys[this.nodeIndex.get("LA")!]);
     const pvOstial = this.pvOstialDebugFields(this.x, pack, flows);
-    const lvInternal = this.activeInternalIndex("LV");
-    const rvInternal = this.activeInternalIndex("RV");
     const laInternal = this.activeInternalIndex("LA");
     const raInternal = this.activeInternalIndex("RA");
     const qAo = flows[this.edgeIndex("AoV")];
@@ -681,10 +680,10 @@ export class ModelCore {
     const aovResistiveDrop = aovLoss.R * qAo;
     const aovQuadraticDrop = aovLoss.B * qAo * Math.abs(qAo);
     const lvPressureTerms = this.p.heartModel === "activeStress"
-      ? this.activeModel("LV").debugPressureTerms(pack.VLVeff, { c: this.x[lvInternal.c], a: this.x[lvInternal.a], r: this.x[lvInternal.r] }, this.chamberCtx("LV", this.x))
+      ? this.activeModel("LV").debugPressureTerms(pack.VLVeff, this.activeInternalFromState("LV", this.x), this.chamberCtx("LV", this.x))
       : undefined;
     const rvPressureTerms = this.p.heartModel === "activeStress"
-      ? this.activeModel("RV").debugPressureTerms(pack.VRVeff, { c: this.x[rvInternal.c], a: this.x[rvInternal.a], r: this.x[rvInternal.r] }, this.chamberCtx("RV", this.x))
+      ? this.activeModel("RV").debugPressureTerms(pack.VRVeff, this.activeInternalFromState("RV", this.x), this.chamberCtx("RV", this.x))
       : undefined;
     const lvElastance = this.ventricularElastanceSignals("LV", pack.VLVeff, pack.PLVfw, this.x);
     const rvElastance = this.ventricularElastanceSignals("RV", pack.VRVeff, pack.PRVfw, this.x);
@@ -1191,7 +1190,7 @@ export class ModelCore {
       const ch = n.chamber!;
       const internalIndex = this.activeInternalIndex(ch);
       const nodeIndex = this.idx.node[n.name as NodeName];
-      const internal = { c: x[internalIndex.c], a: x[internalIndex.a], r: x[internalIndex.r] };
+      const internal = this.activeInternalFromState(ch, x);
       const chamberVolume = ch === "LV"
         ? pack.VLVeff
         : ch === "RV"
@@ -1201,6 +1200,7 @@ export class ModelCore {
       dy[internalIndex.c] = dInternal.cDot;
       dy[internalIndex.a] = dInternal.aDot;
       dy[internalIndex.r] = dInternal.rDot;
+      dy[internalIndex.tensionPa] = dInternal.tensionPaDot ?? 0;
     }
 
     const shiftState = x[this.idx.septumShift];
@@ -1340,11 +1340,11 @@ export class ModelCore {
   private heartTransmuralPressure(n: NodeSpec, volumeMl: number, x: Float64Array): number {
     if (!n.chamber) throw new Error(`Missing chamber for heart node ${n.name}`);
     if (this.useElastancePressure(n)) {
-      return this.elastanceModels.get(n.name)!.pressure(volumeMl, { c: 0, a: 0, r: 0 }, this.chamberCtx(n.chamber, x));
+      return this.elastanceModels.get(n.name)!.pressure(volumeMl, { c: 0, a: 0, r: 0, tensionPa: 0 }, this.chamberCtx(n.chamber, x));
     }
     if (n.kind !== "heartActive") throw new Error(`Node ${n.name} is not a heart chamber`);
     const internalIndex = this.activeInternalIndex(n.chamber);
-    const internal = { c: x[internalIndex.c], a: x[internalIndex.a], r: x[internalIndex.r] };
+    const internal = this.activeInternalFromState(n.chamber, x);
     return this.activeModel(n.chamber).pressure(volumeMl, internal, this.chamberCtx(n.chamber, x));
   }
 
@@ -1416,7 +1416,7 @@ export class ModelCore {
     const ap = model.ap;
     if ((ap.reservoirBranchGain ?? 0) <= 0 || (ap.reservoirStrokeMl ?? 0) <= 0) return undefined;
     const internalIndex = this.activeInternalIndex("LA");
-    const internal = { c: x[internalIndex.c], a: x[internalIndex.a], r: x[internalIndex.r] };
+    const internal = this.activeInternalFromState("LA", x);
     const state = model.reservoirBranchState(VLA, internal, this.chamberCtx("LA", x));
     return {
       qLAReservoirMl: state.qMl,
@@ -1468,10 +1468,15 @@ export class ModelCore {
     return this.nodes.filter((n) => n.kind === "heartActive" && n.chamber && n.active);
   }
 
-  private activeInternalIndex(chamber: Chamber): { c: number; a: number; r: number } {
+  private activeInternalIndex(chamber: Chamber): { c: number; a: number; r: number; tensionPa: number } {
     const idx = this.idx.activeInternal[chamber];
     if (!idx) throw new Error(`Missing active internal state index for ${chamber}`);
     return idx;
+  }
+
+  private activeInternalFromState(chamber: Chamber, x: Float64Array) {
+    const idx = this.activeInternalIndex(chamber);
+    return { c: x[idx.c], a: x[idx.a], r: x[idx.r], tensionPa: x[idx.tensionPa] };
   }
 
   private activeModel(chamber: Chamber): ActiveStressChamberModel {
@@ -1492,7 +1497,7 @@ export class ModelCore {
     const active = Math.max(transmuralPressureMmHg, 0) / distendingVolume;
     const fallbackPressure = this.elastanceModels
       .get(chamber)!
-      .pressure(effectiveVolumeMl, { c: 0, a: 0, r: 0 }, this.chamberCtx(chamber, x));
+      .pressure(effectiveVolumeMl, { c: 0, a: 0, r: 0, tensionPa: 0 }, this.chamberCtx(chamber, x));
     return {
       active,
       timeVarying: Math.max(fallbackPressure, 0) / distendingVolume,
@@ -1769,11 +1774,12 @@ export class ModelCore {
       x[active.c] = clamp(x[active.c], 0, 5);
       x[active.a] = clamp(x[active.a], 0, 1);
       x[active.r] = clamp(x[active.r], 0, this.maxReservoirStrokeForInternal(active));
+      x[active.tensionPa] = clamp(x[active.tensionPa], 0, 500000);
     }
   }
 
-  private maxReservoirStrokeForInternal(active: { c: number; a: number; r: number }): number {
-    for (const [ch, idx] of Object.entries(this.idx.activeInternal) as [Chamber, { c: number; a: number; r: number }][]) {
+  private maxReservoirStrokeForInternal(active: { c: number; a: number; r: number; tensionPa: number }): number {
+    for (const [ch, idx] of Object.entries(this.idx.activeInternal) as [Chamber, { c: number; a: number; r: number; tensionPa: number }][]) {
       if (idx?.r !== active.r) continue;
       return Math.max(this.activeModels[ch]?.ap.reservoirStrokeMl ?? 0, 0);
     }

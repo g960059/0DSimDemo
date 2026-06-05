@@ -58,7 +58,19 @@ The workbench now exposes PV-derived elastance waveforms: `ELV_active` /
 `ERV_active` are the active-stress apparent elastance `Ptm/(Veff - V0)`, while
 `ELV_timeVarying` / `ERV_timeVarying` are the legacy time-varying elastance
 fallback evaluated at the same effective volume and phase. These are comparison
-signals, not new state variables.
+signals, not new state variables. The active-stress signals are not ESPVR/Ees
+regression estimates: they are instantaneous apparent elastance traces. LV/RV
+active-stress pressure generation also has an explicit tension-development state
+between activation and stress, so Ca/activation no longer maps directly to
+pressure. The default implementation uses a small lead-lag mix from the target
+stress to preserve normal CO/AoP while the state broadens and delays the apparent
+elastance peak. That keeps the active-stress model as the default chamber
+formulation without using a pressure floor to hide diastolic behavior.
+
+Literature anchors for this interpretation are the time-varying elastance
+overview (PMC5018161), Ca/crossbridge-dependent elastance discussion in the RV
+elastance literature (AJRCCM 207:678), and the diastolic suction caveat
+(PMC2928592).
 
 ## Parameters in play
 

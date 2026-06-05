@@ -14,8 +14,9 @@ export const ML_TO_M3 = 1e-6;
 
 export type Chamber = "LV" | "RV" | "LA" | "RA";
 
-/** Internal Ca-transient / troponin-activation/reservoir state of an active chamber. */
-export type ChamberInternal = { c: number; a: number; r: number };
+/** Internal Ca-transient / troponin-activation/reservoir/tension state of an active chamber. */
+export type ChamberInternal = { c: number; a: number; r: number; tensionPa?: number };
+export type ChamberInternalDerivatives = { cDot: number; aDot: number; rDot: number; tensionPaDot?: number };
 
 /** Inputs the chamber needs from the rest of the model at evaluation time. */
 export type ChamberCtx = {
@@ -49,7 +50,7 @@ export interface ChamberModel {
   /** Transmural pressure (mmHg) for the given volume + internal state. */
   pressure(V: number, internal: ChamberInternal, ctx: ChamberCtx): number;
   /** Derivatives of the internal Ca/activation states (zero for elastance). */
-  internalDerivatives(V: number, internal: ChamberInternal, ctx: ChamberCtx): { cDot: number; aDot: number; rDot: number };
+  internalDerivatives(V: number, internal: ChamberInternal, ctx: ChamberCtx): ChamberInternalDerivatives;
   /** Initial internal state for reset(). */
   initialInternal(): ChamberInternal;
 }
@@ -83,6 +84,9 @@ export type ActiveChamberParams = {
   lambdaPas0: number;
   passiveHingeWidth?: number;
   Tmax0: number;
+  tauTensionRiseSec?: number;
+  tauTensionFallSec?: number;
+  tensionInstantMix?: number;
   kOver: number;
   lambdaFail: number;
   geomChi: number;
@@ -205,6 +209,9 @@ export const defaultActiveLV: ActiveChamberParams = {
   bPas: 23.2,         // M12-lite: steep high-volume limb (Klotz P140~23.5) for MR dilation-resistance; was 10.0
   lambdaPas0: 0.9025, // M12-lite: EDPVR shape fit; was 0.85
   Tmax0: 135000, // M12-lite: physiological ceiling (~135 kPa); was 382500 (4.5x fudge)
+  tauTensionRiseSec: 0.045,
+  tauTensionFallSec: 0.100,
+  tensionInstantMix: 0.78,
   kOver: 35,
   lambdaFail: 1.45,
   geomChi: 1.359637, // M12-lite: exact thick-sphere Laplace (ri+ro)^2/(4 ri^2); was 0.36
@@ -236,6 +243,9 @@ export const defaultActiveRV: ActiveChamberParams = {
   bPas: 10.0,
   lambdaPas0: 0.85,
   Tmax0: 68600, // RV/RA refit: restores RVEF >0.5 while keeping the RV ceiling well below LV; was 57176
+  tauTensionRiseSec: 0.045,
+  tauTensionFallSec: 0.090,
+  tensionInstantMix: 0.78,
   geomChi: 1.138505, // M12-lite: exact thick-sphere Laplace for RV ref geometry; was 0.28
 };
 
@@ -262,6 +272,9 @@ export const defaultActiveLA: ActiveChamberParams = {
   bPas: 10,
   lambdaPas0: 0.88,
   Tmax0: 92000,
+  tauTensionRiseSec: 0,
+  tauTensionFallSec: 0,
+  tensionInstantMix: 1,
   geomChi: 1.1,
   thetaOn: 0.80,
   pressureFloorMmHg: -2,
@@ -306,6 +319,9 @@ export const defaultActiveRA: ActiveChamberParams = {
   bPas: 10,
   lambdaPas0: 0.88,
   Tmax0: 28000,
+  tauTensionRiseSec: 0,
+  tauTensionFallSec: 0,
+  tensionInstantMix: 1,
   geomChi: 1.10,
   pressureFloorMmHg: -2,
   atrialLeadSec: 0.17,
@@ -363,18 +379,35 @@ export class ActiveStressChamberModel implements ChamberModel {
     return ctx.outletValveOpen01 ?? (ctx.side === "right" ? undefined : ctx.aovOpen01);
   }
 
+  private usesTensionFilter(ctx: ChamberCtx): boolean {
+    return (ctx.chamber === "LV" || ctx.chamber === "RV")
+      && (this.ap.tauTensionRiseSec ?? 0) > 0
+      && (this.ap.tauTensionFallSec ?? 0) > 0;
+  }
+
+  private activeStressTargetPa(a: number, lambda: number, ctx: ChamberCtx): number {
+    const ap = this.ap;
+    const gOver = 1 / (1 + expClamped(ap.kOver * (lambda - ap.lambdaFail)));
+    // Realistic f_iso so tension rapidly drops as the heart empties.
+    const f_iso = clamp((lambda - ap.lambdaPas0 + 0.3) / 0.35, 0, 1);
+    return ap.Tmax0 * ctx.tmaxScale * ctx.contractility * a * gOver * f_iso;
+  }
+
   private bodyPressureTerms(V: number, internal: ChamberInternal, ctx: ChamberCtx): ChamberPressureTerms {
     const ap = this.ap;
     const a = clamp(internal.a, 0, 1);
     const { lambda, h, rm } = this.geometry(V);
     const stretch = smoothPositiveHinge(lambda - ap.lambdaPas0, ap.passiveHingeWidth ?? 0.015);
     const sigmaPas = ap.sigmaPas0 * (expClamped(ap.bPas * stretch) - 1);
-    const gOver = 1 / (1 + expClamped(ap.kOver * (lambda - ap.lambdaFail)));
-
-    // Realistic f_iso so tension rapidly drops as the heart empties.
-    const f_iso = clamp((lambda - ap.lambdaPas0 + 0.3) / 0.35, 0, 1);
-
-    const sigmaAct = ap.Tmax0 * ctx.tmaxScale * ctx.contractility * a * gOver * f_iso;
+    const sigmaActTarget = this.activeStressTargetPa(a, lambda, ctx);
+    const sigmaAct = this.usesTensionFilter(ctx)
+      ? clamp(
+        (internal.tensionPa ?? sigmaActTarget)
+          + clamp(ap.tensionInstantMix ?? 0, 0, 1) * (sigmaActTarget - (internal.tensionPa ?? sigmaActTarget)),
+        0,
+        500000,
+      )
+      : sigmaActTarget;
     const sigma = sigmaPas + sigmaAct;
     const PtmPa = ctx.geomScale * ap.geomChi * (2 * h / Math.max(rm, 1e-6)) * sigma;
     const pressureUnclampedMmHg = PtmPa / MMHG_TO_PA;
@@ -400,7 +433,7 @@ export class ActiveStressChamberModel implements ChamberModel {
 
   passivePressure(V: number, ctx: ChamberCtx): number {
     const passiveCtx = { ...ctx, contractility: 0, tmaxScale: 0, caReleaseScale: 0 };
-    return this.bodyPressure(this.wallVolume(V, passiveCtx), { c: 0, a: 0, r: 0 }, passiveCtx);
+    return this.bodyPressure(this.wallVolume(V, passiveCtx), { c: 0, a: 0, r: 0, tensionPa: 0 }, passiveCtx);
   }
 
   pressure(V: number, internal: ChamberInternal, ctx: ChamberCtx): number {
@@ -510,7 +543,7 @@ export class ActiveStressChamberModel implements ChamberModel {
     return finalize(0.5 * (lo + hi), "ok");
   }
 
-  internalDerivatives(V: number, internal: ChamberInternal, ctx: ChamberCtx): { cDot: number; aDot: number; rDot: number } {
+  internalDerivatives(V: number, internal: ChamberInternal, ctx: ChamberCtx): ChamberInternalDerivatives {
     const ap = this.ap;
     const c = Math.max(internal.c, 0);
     const a = clamp(internal.a, 0, 1);
@@ -547,11 +580,20 @@ export class ActiveStressChamberModel implements ChamberModel {
     const tauA = 1 / Math.max(ap.kOn * cn + ap.kOff, 0.5);
     const aDot = clamp((aInf - a) / tauA, -20, 20);
     const rDot = reservoirQDot(ap, internal, ctx, theta);
-    return { cDot, aDot, rDot };
+    let tensionPaDot = 0;
+    if (this.usesTensionFilter(ctx)) {
+      const target = this.activeStressTargetPa(a, lambda, ctx);
+      const current = clamp(internal.tensionPa ?? target, 0, 500000);
+      const tau = target > current
+        ? Math.max(ap.tauTensionRiseSec ?? 0.045, 1e-4)
+        : Math.max(ap.tauTensionFallSec ?? 0.100, 1e-4);
+      tensionPaDot = clamp((target - current) / tau, -5000000, 5000000);
+    }
+    return { cDot, aDot, rDot, tensionPaDot };
   }
 
   initialInternal(): ChamberInternal {
-    return { c: this.ap.cDia, a: 0, r: 0 };
+    return { c: this.ap.cDia, a: 0, r: 0, tensionPa: 0 };
   }
 }
 
@@ -678,11 +720,11 @@ export class ElastanceChamberModel implements ChamberModel {
     return clamp(Ped + e * (Pes - Ped), -5, 250);
   }
 
-  internalDerivatives(): { cDot: number; aDot: number; rDot: number } {
-    return { cDot: 0, aDot: 0, rDot: 0 };
+  internalDerivatives(): ChamberInternalDerivatives {
+    return { cDot: 0, aDot: 0, rDot: 0, tensionPaDot: 0 };
   }
 
   initialInternal(): ChamberInternal {
-    return { c: 0, a: 0, r: 0 };
+    return { c: 0, a: 0, r: 0, tensionPa: 0 };
   }
 }
