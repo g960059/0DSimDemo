@@ -1,5 +1,5 @@
 import path from "path";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 // Standalone config so engine tests don't pull in the React/Tailwind plugins
 // from vite.config.ts. Mirrors the "@" path alias used across the app.
@@ -12,6 +12,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["**/*.test.ts"],
+    exclude: [...configDefaults.exclude, ".claude/**", ".codex/**", ".firebase/**"],
     snapshotFormat: {
       printBasicPrototype: false,
     },

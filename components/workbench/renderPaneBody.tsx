@@ -26,6 +26,7 @@ export interface PaneBodyContext {
   removeInstance?: (id: string) => void;
   updateInstanceName?: (id: string, name: string) => void;
   updateInstanceColor?: (id: string, color: string) => void;
+  presentationMode?: 'studio' | 'reading';
 }
 
 export function renderPaneBody(panel: PanelDef, ctx: PaneBodyContext): React.ReactNode {
@@ -60,6 +61,7 @@ export function renderPaneBody(panel: PanelDef, ctx: PaneBodyContext): React.Rea
         updateInstanceParams={ctx.updateInstanceParams}
         updateInstanceKnobs={ctx.updateInstanceKnobs}
         updateInstanceVolume={ctx.updateInstanceVolume}
+        presentationMode={ctx.presentationMode}
       />
     );
   }

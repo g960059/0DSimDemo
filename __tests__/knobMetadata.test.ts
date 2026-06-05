@@ -1,21 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { KNOB_TEACHING_SAFE } from "@/engine/knobs";
-import { defaultControllerItemFor, KNOB_STEPS, roundToStep } from "@/knobMetadata";
+import { KNOB_RANGES } from "@/engine/knobs";
+import { defaultControllerItemFor, KNOB_STEPS, readingButtonOptionsFor, roundToStep } from "@/knobMetadata";
 import type { NumericKnobKey } from "@/lessonDoc";
 
 describe("knobMetadata controller defaults", () => {
-  it("adds exact slider preset options for teaching-safe contractility knobs", () => {
-    const expectedOptions = [
-      { label: "Low", value: 0.7 },
-      { label: "Normal", value: 1 },
-      { label: "High", value: 1.4 },
-    ];
-
+  it("returns plain slider defaults for contractility knobs", () => {
     for (const key of ["contractility", "contractilityRV"]) {
       const item = defaultControllerItemFor(key);
 
       expect(item.kind).toBe("slider");
-      expect(item.options).toEqual(expectedOptions);
+      expect(item.options).toBeUndefined();
       expect(item.min).toBeTypeOf("number");
       expect(item.max).toBeTypeOf("number");
       expect(item.step).toBeTypeOf("number");
@@ -35,10 +29,36 @@ describe("knobMetadata controller defaults", () => {
     for (const key of Object.keys(KNOB_STEPS) as NumericKnobKey[]) {
       const item = defaultControllerItemFor(key);
 
-      if (item.options != null) {
-        expect(KNOB_TEACHING_SAFE).toHaveProperty(key);
-      }
+      expect(item.options).toBeUndefined();
     }
+  });
+
+  it("derives reading buttons for teaching-safe knobs", () => {
+    expect(readingButtonOptionsFor("contractility", 1)).toEqual([
+      { label: "Low", value: 0.7 },
+      { label: "Normal", value: 1 },
+      { label: "High", value: 1.4 },
+    ]);
+  });
+
+  it("uses semantic reading buttons for valve lesion severity knobs", () => {
+    const max = KNOB_RANGES.aorticStenosis?.[1] ?? 1;
+
+    expect(readingButtonOptionsFor("aorticStenosis", 0)).toEqual([
+      { label: "None", value: 0 },
+      { label: "Moderate", value: max / 2 },
+      { label: "Severe", value: max },
+    ]);
+  });
+
+  it("omits reading buttons for knobs without safe reading presets", () => {
+    expect(readingButtonOptionsFor("relaxation", 1)).toBeNull();
+    expect(readingButtonOptionsFor("diastolicStiffness", 1)).toBeNull();
+    expect(readingButtonOptionsFor("venousTone", 0.5)).toBeNull();
+  });
+
+  it("omits reading buttons when value dedupe leaves fewer than two distinct options", () => {
+    expect(readingButtonOptionsFor("contractility", Number.POSITIVE_INFINITY)).toBeNull();
   });
 
   it("rounds to step without floating point noise", () => {

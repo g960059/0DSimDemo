@@ -113,6 +113,7 @@ export const ReadingPresenter: React.FC<{
               noteMode: "read",
               notes,
               noteCaseKey: caseDoc.meta.id,
+              presentationMode: "reading",
             }}
           />
         </div>
