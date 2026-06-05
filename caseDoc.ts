@@ -9,7 +9,7 @@
 //   load: CaseDocument -> SimInstance[]   (resolves knobs->params; verifies the
 //                                          knobMappingVersion, no silent fallback)
 
-import type { SimInstance, PanelDef, PanelRole, WorkbenchRegionId, WorkbenchWorkspace } from "@/types";
+import type { SimInstance, PanelDef, PanelRole, WorkbenchRegionId, WorkbenchWorkspace, ControllerItem } from "@/types";
 import type { NoteContent } from "@/noteTypes";
 import type { CoreRuntimeParams, ParameterPatch } from "@/engine/protocol";
 import {
@@ -94,6 +94,22 @@ export interface CaseLessonLayer {
   steps?: CaseLessonStep[];
 }
 
+export type ReadingColumnEntry =
+  | { kind: "paneRef"; panelId: string; generated?: boolean }
+  | { kind: "noteRef"; noteId: string };
+
+export interface CaseReadingManifest {
+  schemaVersion: 1;
+  column: ReadingColumnEntry[];
+}
+
+export interface CaseExposedController {
+  items: ControllerItem[];
+  targetPolicy: "fixedInstance" | "legendEditTarget";
+  instanceId?: string;
+  defaultOpen?: boolean;
+}
+
 export interface CaseDocument {
   schemaVersion: number;
   engineVersion: string;
@@ -111,6 +127,8 @@ export interface CaseDocument {
   panels: PanelDef[];
   workspace?: WorkbenchWorkspace;
   notes?: Record<string, NoteContent>;
+  reading?: CaseReadingManifest;
+  exposedControllers?: CaseExposedController[];
   lesson?: CaseLessonLayer;
 }
 

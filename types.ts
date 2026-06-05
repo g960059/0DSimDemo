@@ -95,10 +95,21 @@ export interface OutputPanelView {
     instances?: Record<string, PanelInstancePresentation>;
 }
 
+export type ControllerItem = {
+    paramKey: string;
+    kind: 'slider' | 'buttonGroup' | 'knob' | 'custom';
+    label?: string;
+    min?: number;
+    max?: number;
+    step?: number;
+    options?: { label: string; value: number }[];
+};
+
 export interface ControlPanelView {
     kind: 'control';
     groups?: string[];
     knobs?: KnobKey[];
+    controllerItems?: ControllerItem[];
     editable?: boolean;
     labels?: Partial<Record<KnobKey, string>>;
     instances?: Record<string, PanelInstancePresentation>;
