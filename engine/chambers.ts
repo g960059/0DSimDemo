@@ -209,14 +209,14 @@ export const defaultActiveLV: ActiveChamberParams = {
   betaKd: -0.2,
   hillN: 3.0,
   kOn: 25,
-  kOff: 15,
+  kOff: 12,
   sigmaPas0: 200.133, // M12-lite: steep Klotz EDPVR refit at corrected geomChi; was 2000 (tuned to old geomChi 0.36)
   bPas: 23.2,         // M12-lite: steep high-volume limb (Klotz P140~23.5) for MR dilation-resistance; was 10.0
   lambdaPas0: 0.9025, // M12-lite: EDPVR shape fit; was 0.85
   Tmax0: 135000, // M12-lite: physiological ceiling (~135 kPa); was 382500 (4.5x fudge)
-  tauTensionRiseSec: 0.045,
-  tauTensionFallSec: 0.100,
-  tensionInstantMix: 0.78,
+  tauTensionRiseSec: 0,
+  tauTensionFallSec: 0,
+  tensionInstantMix: 1,
   forceVelocityShorteningCoeff: 0.001,
   forceVelocityLengtheningCoeff: 0.0005,
   forceVelocityMin: 0.98,
@@ -251,10 +251,11 @@ export const defaultActiveRV: ActiveChamberParams = {
   sigmaPas0: 492, // M12-lite: geomChi-compensation 2000*0.28/1.1385 (gentle RV EDPVR; steep Klotz refit deferred to M12-proper)
   bPas: 10.0,
   lambdaPas0: 0.85,
-  Tmax0: 68600, // RV/RA refit: restores RVEF >0.5 while keeping the RV ceiling well below LV; was 57176
-  tauTensionRiseSec: 0.045,
-  tauTensionFallSec: 0.090,
-  tensionInstantMix: 0.78,
+  Tmax0: 68600, // RV/RA refit: restores RVEF near the normal lower bound while keeping the RV ceiling well below LV; was 57176
+  kOff: 12,
+  tauTensionRiseSec: 0,
+  tauTensionFallSec: 0,
+  tensionInstantMix: 1,
   forceVelocityShorteningCoeff: 0.0008,
   forceVelocityLengtheningCoeff: 0.0004,
   forceVelocityMin: 0.98,

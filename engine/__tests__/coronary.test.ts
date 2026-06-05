@@ -55,7 +55,9 @@ describe("coronary circulation", () => {
       pulmonaryResistance: DEFAULT_PARAMS.pulmonaryResistance * 6,
     }, FAST_OPTIONS);
 
-    expect(overload.metrics.PAPMean).toBeGreaterThan(base.metrics.PAPMean + 5);
+    // The refit lowers RV output under fixed PVR loading; keep the load clearly
+    // present while the coronary waveform gates verify the RCA response shape.
+    expect(overload.metrics.PAPMean).toBeGreaterThan(base.metrics.PAPMean + 4);
     expect(overload.metrics.CorDiastolicFractionRCA).toBeGreaterThan(base.metrics.CorDiastolicFractionRCA + 0.02);
     expect(overload.metrics.CorFlowRCAMlMin).toBeLessThan(base.metrics.CorFlowRCAMlMin);
     expect(overload.health.numericalStability).toBe("ok");

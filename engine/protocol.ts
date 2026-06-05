@@ -233,7 +233,7 @@ const VALVE_PREFIXES = ["MV", "AoV", "TV", "PV"] as const;
 export const NEUTRAL_PARAMS: CoreRuntimeParams = {
   HR: 75, contractility: 1.0, relaxation: 1.0,
   // Kept in lock-step with defaultParams() (caseContract test).
-  systemicResistance: 0.80, pulmonaryResistance: 0.65, venousTone: 0.15,
+  systemicResistance: 1.0, pulmonaryResistance: 0.65, venousTone: 0.15,
   arterialStiffness: 0.75, PEEP: 0, Pth0: 0, respAmpTh: 0, respAmpAlv: 0,
   respRate: 0.25, speed: 1,
   avDelaySec: 0.16, atrialElectromechanicalDelaySec: 0.00, ventricularElectromechanicalDelaySec: 0.05,
@@ -264,7 +264,7 @@ export const NEUTRAL_PARAMS: CoreRuntimeParams = {
   LCxStenosis: 0,
   RCAStenosis: 0,
   MV_Aref: 5.0, MV_Amax: 5.0, MV_Aleak: 0, MV_kOpen: 2.0, MV_tauOpen: 0.020, MV_tauClose: 0.012, MV_R: 0.004, MV_L: 0.0003, MV_B: 2e-5,
-  AoV_Aref: 3.5, AoV_Amax: 3.5, AoV_Aleak: 0, AoV_kOpen: 3.0, AoV_tauOpen: 0.006, AoV_tauClose: 0.005, AoV_R: 0.0015, AoV_L: 0.00025, AoV_B: 1e-6,
+  AoV_Aref: 3.5, AoV_Amax: 3.5, AoV_Aleak: 0, AoV_kOpen: 3.0, AoV_tauOpen: 0.006, AoV_tauClose: 0.008, AoV_R: 0.0015, AoV_L: 0.00025, AoV_B: 1e-6,
   TV_Aref: 8.0, TV_Amax: 8.0, TV_Aleak: 0, TV_kOpen: 2.0, TV_tauOpen: 0.018, TV_tauClose: 0.010, TV_R: 0.0035, TV_L: 0.0008, TV_B: 1e-5,
   PV_Aref: 4.0, PV_Amax: 4.0, PV_Aleak: 0, PV_kOpen: 2.0, PV_tauOpen: 0.010, PV_tauClose: 0.006, PV_R: 0.005, PV_L: 0.001, PV_B: 2e-6,
 };

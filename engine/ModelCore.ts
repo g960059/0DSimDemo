@@ -280,7 +280,7 @@ export function defaultParams(): CoreRuntimeParams {
     // M12-proper #1 Phase-1 (LA preload, see docs/research/m12-la-preload-design.md):
     // RV/RA refit: lower SVR/PVR/venous tone keep AoP/PAP/LAP normal after the
     // stronger right-heart calibration raises effective forward flow.
-    systemicResistance: 0.80,
+    systemicResistance: 1.0,
     pulmonaryResistance: 0.65,
     venousTone: 0.15,
     arterialStiffness: 0.75, // M12-proper #1 Phase-1: more arterial compliance to hold pulse pressure normal
@@ -339,7 +339,7 @@ export function defaultParams(): CoreRuntimeParams {
     // MV
     MV_Aref: 5.0, MV_Amax: 5.0, MV_Aleak: 0, MV_kOpen: 2.0, MV_tauOpen: 0.020, MV_tauClose: 0.012, MV_R: 0.004, MV_L: 0.0003, MV_B: 2e-5,
     // AoV
-    AoV_Aref: 3.5, AoV_Amax: 3.5, AoV_Aleak: 0, AoV_kOpen: 3.0, AoV_tauOpen: 0.006, AoV_tauClose: 0.005, AoV_R: 0.0015, AoV_L: 0.00025, AoV_B: 1e-6,
+    AoV_Aref: 3.5, AoV_Amax: 3.5, AoV_Aleak: 0, AoV_kOpen: 3.0, AoV_tauOpen: 0.006, AoV_tauClose: 0.008, AoV_R: 0.0015, AoV_L: 0.00025, AoV_B: 1e-6,
     // TV
     TV_Aref: 8.0, TV_Amax: 8.0, TV_Aleak: 0, TV_kOpen: 2.0, TV_tauOpen: 0.018, TV_tauClose: 0.010, TV_R: 0.0035, TV_L: 0.0008, TV_B: 1e-5,
     // PV
@@ -388,13 +388,13 @@ function buildEdges(): EdgeSpec[] {
   const q0 = 80;
   return [
     { name: "MV", up: "LA", down: "LV", kind: "valve", R: 0.004, L: 0.0003, B: 2e-5, Aref: 5.0, Amax: 5.0, Aleak: 0, kOpen: 2.0, tauOpen: 0.020, tauClose: 0.012, q0, xi0: 0.2 },
-    { name: "AoV", up: "LV", down: "Ao", kind: "valve", R: 0.0015, L: 0.00025, B: 1e-6, Aref: 3.5, Amax: 3.5, Aleak: 0, kOpen: 3.0, tauOpen: 0.006, tauClose: 0.005, q0, xi0: 0.2 },
+    { name: "AoV", up: "LV", down: "Ao", kind: "valve", R: 0.0015, L: 0.00025, B: 1e-6, Aref: 3.5, Amax: 3.5, Aleak: 0, kOpen: 3.0, tauOpen: 0.006, tauClose: 0.008, q0, xi0: 0.2 },
     { name: "TV", up: "RA", down: "RV", kind: "valve", R: 0.0035, L: 0.0008, B: 1e-5, Aref: 8.0, Amax: 8.0, Aleak: 0, kOpen: 2.0, tauOpen: 0.018, tauClose: 0.010, q0, xi0: 0.2 },
     { name: "PV", up: "RV", down: "PA", kind: "valve", R: 0.005, L: 0.001, B: 2e-6, Aref: 4.0, Amax: 4.0, Aleak: 0, kOpen: 2.0, tauOpen: 0.010, tauClose: 0.006, q0, xi0: 0.2 },
 
-    { name: "Ao_SA", up: "Ao", down: "SA", kind: "dynamic", R: 0.05, L: 0.002, B: 0, group: "systemic", q0 },
-    { name: "SA_Art", up: "SA", down: "Art", kind: "resistive", R: 0.08, B: 0, group: "systemic" },
-    { name: "Art_Cap", up: "Art", down: "Cap", kind: "resistive", R: 0.65, B: 0, group: "systemic" },
+    { name: "Ao_SA", up: "Ao", down: "SA", kind: "dynamic", R: 0.0465088, L: 0.002, B: 0, group: "systemic", q0 },
+    { name: "SA_Art", up: "SA", down: "Art", kind: "resistive", R: 0.07441408, B: 0, group: "systemic" },
+    { name: "Art_Cap", up: "Art", down: "Cap", kind: "resistive", R: 0.6046144, B: 0, group: "systemic" },
     { name: "Cap_SV", up: "Cap", down: "SV", kind: "resistive", R: 0.15, B: 0 },
     { name: "SV_VC", up: "SV", down: "VC", kind: "resistive", R: 0.05, B: 0 },
     { name: "VC_RA", up: "VC", down: "RA", kind: "resistive", R: 0.04, B: 0, ext: "pth", waterfall: true, Pcrit: 0, useChiResistance: true, useChiQuadratic: false },
@@ -1168,6 +1168,10 @@ export class ModelCore {
       const h = Math.max(this.rhsDt, 1e-6);
       const Reff = R + B * Math.abs(q);
       let qNext = (q + (h / L) * (Pu - PdEff)) / (1 + (h * Reff) / L);
+      if (e.kind === "valve") {
+        const vName = e.name as ValveName;
+        if (this.valveLeakArea(vName, e) <= 1e-9 && qNext < 0) qNext = 0;
+      }
       
       dy[qi] = clamp((qNext - q) / h, -40000, 40000);
     }
@@ -1179,9 +1183,11 @@ export class ModelCore {
       const kOpen = (this.p as any)[`${vName}_kOpen`] ?? e.kOpen ?? 2.0;
       const tauOpen = (this.p as any)[`${vName}_tauOpen`] ?? e.tauOpen ?? 0.012;
       const tauClose = (this.p as any)[`${vName}_tauClose`] ?? e.tauClose ?? 0.025;
+      const q = x[this.idx.q[vName]];
       
-      const xiEq = sigmoid(kOpen * (dP - (e.dP0 ?? 0)));
-      const tau = dP > 0 ? tauOpen : tauClose;
+      const xiEq = dP > 0 ? sigmoid(kOpen * (dP - (e.dP0 ?? 0))) : 0;
+      const forwardCoast = vName === "AoV" && dP <= 0 && dP > -3 && q > 1 && this.valveLeakArea(vName, e) <= 1e-9;
+      const tau = dP > 0 ? tauOpen : forwardCoast ? Math.max(tauClose, 0.012) : tauClose;
       dy[xiIndex] = clamp((xiEq - x[xiIndex]) / Math.max(tau, 1e-5), -80, 80);
     }
 
@@ -1370,6 +1376,10 @@ export class ModelCore {
       }
     }
     return flows;
+  }
+
+  private valveLeakArea(name: ValveName, e: EdgeSpec): number {
+    return (this.p as any)[`${name}_Aleak`] ?? e.Aleak ?? 0;
   }
 
   /** Evaluation context handed to a ChamberModel for the given chamber. */
