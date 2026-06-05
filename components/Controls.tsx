@@ -4,7 +4,7 @@ import { SimulationParams, SimInstance, type PanelInstanceConfig } from '../type
 import type { SimulationHealth } from '../engine/protocol';
 import { type ClinicalKnobs, KNOB_RANGES, neutralKnobs } from '../engine/knobs';
 import { rawDisplayParams } from '../engine/instanceKnobs';
-import { defaultControllerItemFor } from '../knobMetadata';
+import { defaultControllerItemFor, readingButtonOptionsFor } from '../knobMetadata';
 import { HealthDot } from './HealthIndicators';
 import { ControllerItemControl } from './controls/ControllerItemControl';
 import { Slider, hasChanged } from './controls/Slider';
@@ -18,6 +18,7 @@ interface ControlsProps {
   updateInstanceVolume: (id: string, vol: number) => void;
   isPaneMode?: boolean;
   paneConfig?: Record<string, PanelInstanceConfig>;
+  presentationMode?: 'studio' | 'reading';
 }
 
 type NumericKnobKey = Exclude<keyof ClinicalKnobs, 'baroreflexEnabled'>;
@@ -126,8 +127,10 @@ const GroupHeader = ({ title, isOpen, toggle, tone = 'raw', changedCount = 0, su
 
 export const Controls: React.FC<ControlsProps> = ({
     instances, instanceHealth, activeInstanceId, updateInstanceParams, updateInstanceKnobs, updateInstanceVolume,
-    isPaneMode, paneConfig
+    isPaneMode, paneConfig, presentationMode = 'studio'
 }) => {
+  const isStudioMode = presentationMode === 'studio';
+  const isReadingMode = presentationMode === 'reading';
   const targetInstances = useMemo(() => {
     const availableInstances = instances.filter(i => i.isVisible !== false);
     if (isPaneMode && paneConfig) {
@@ -208,7 +211,10 @@ export const Controls: React.FC<ControlsProps> = ({
       if (activeInstance) updateInstanceKnobs(activeInstance.id, { ...knobs, [key]: val });
   };
   const kr = (key: keyof ClinicalKnobs): [number, number] => KNOB_RANGES[key] ?? [0, 1];
-  const changedClinicalControls = allClinicalControls.filter(control =>
+  const changedCandidateClinicalControls = isReadingMode
+    ? allClinicalControls.filter(control => readingButtonOptionsFor(control.key, baselineKnobs[control.key]) != null)
+    : allClinicalControls;
+  const changedClinicalControls = changedCandidateClinicalControls.filter(control =>
     hasChanged(knobs[control.key], baselineKnobs[control.key], control.step)
   );
   const changedClinicalCount = changedClinicalControls.length;
@@ -254,25 +260,42 @@ export const Controls: React.FC<ControlsProps> = ({
       {/* Pane content - edits apply to the pane-local target in pane mode. */}
       <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
 
-          {showGroup('clinical') && (
+          {(isReadingMode || showGroup('clinical')) && (
             <>
               <GroupHeader title="Clinical Knobs" isOpen={openGroups.clinical} toggle={() => toggleGroup('clinical')} tone="clinical" changedCount={changedClinicalCount} summary={changedClinicalSummary} onReset={resetClinicalKnobs} />
               {openGroups.clinical && (
                   <div className={clinicalBodyClass}>
                       {clinicalSections.map(section => {
-                        const sectionChangedCount = section.controls.filter(control =>
+                        const visibleControls = isReadingMode
+                          ? section.controls
+                              .map(control => ({
+                                control,
+                                options: readingButtonOptionsFor(control.key, baselineKnobs[control.key]),
+                              }))
+                              .filter((entry): entry is { control: ClinicalControlConfig; options: { label: string; value: number }[] } => entry.options != null)
+                          : section.controls.map(control => ({ control, options: null }));
+                        const sectionChangedCount = visibleControls.filter(({ control }) =>
                           hasChanged(knobs[control.key], baselineKnobs[control.key], control.step)
                         ).length;
+                        if (visibleControls.length === 0) return null;
                         return (
                           <React.Fragment key={section.title}>
                             <ControlGrid tone="clinical">
                               <SectionLabel changedCount={sectionChangedCount}>{section.title}</SectionLabel>
-                              {section.controls.map(control => {
+                              {visibleControls.map(({ control, options }) => {
                                 const [min, max] = kr(control.key);
                                 return (
                                   <ControllerItemControl
                                     key={control.key}
-                                    item={{ ...defaultControllerItemFor(control.key), label: control.label, min, max, step: control.step }}
+                                    item={{
+                                      ...defaultControllerItemFor(control.key),
+                                      kind: isReadingMode ? 'buttonGroup' : 'slider',
+                                      label: control.label,
+                                      min,
+                                      max,
+                                      step: control.step,
+                                      ...(options ? { options } : {}),
+                                    }}
                                     value={knobs[control.key]}
                                     baseline={baselineKnobs[control.key]}
                                     onChange={(v) => updateKnob(control.key, v)}
@@ -290,7 +313,7 @@ export const Controls: React.FC<ControlsProps> = ({
             </>
           )}
 
-          {showGroup('global') && (
+          {isStudioMode && showGroup('global') && (
             <>
               <GroupHeader title="Global Physiology" isOpen={openGroups.global} toggle={() => toggleGroup('global')} />
               {openGroups.global && (
@@ -308,7 +331,7 @@ export const Controls: React.FC<ControlsProps> = ({
           </>
       )}
 
-          {showGroup('ventricles') && (
+          {isStudioMode && showGroup('ventricles') && (
             <>
               <GroupHeader title="Ventricular Mechanics" isOpen={openGroups.ventricles} toggle={() => toggleGroup('ventricles')} />
               {openGroups.ventricles && (
@@ -365,7 +388,7 @@ export const Controls: React.FC<ControlsProps> = ({
             </>
           )}
 
-          {showGroup('atria') && (
+          {isStudioMode && showGroup('atria') && (
             <>
               <GroupHeader title="Atrial Mechanics" isOpen={openGroups.atria} toggle={() => toggleGroup('atria')} />
               {openGroups.atria && (
@@ -384,7 +407,7 @@ export const Controls: React.FC<ControlsProps> = ({
             </>
           )}
 
-          {showGroup('vascular') && (
+          {isStudioMode && showGroup('vascular') && (
             <>
               <GroupHeader title="Vascular Resistance & Compliance" isOpen={openGroups.vascular} toggle={() => toggleGroup('vascular')} />
               {openGroups.vascular && (
@@ -415,7 +438,7 @@ export const Controls: React.FC<ControlsProps> = ({
             </>
           )}
 
-          {showGroup('coronary') && (
+          {isStudioMode && showGroup('coronary') && (
             <>
               <GroupHeader title="Coronary Circulation" isOpen={openGroups.coronary} toggle={() => toggleGroup('coronary')} />
               {openGroups.coronary && (
@@ -438,7 +461,7 @@ export const Controls: React.FC<ControlsProps> = ({
             </>
           )}
 
-          {showGroup('fluids') && (
+          {isStudioMode && showGroup('fluids') && (
             <>
               <GroupHeader title="Fluids & Hemorrhage" isOpen={openGroups.fluids} toggle={() => toggleGroup('fluids')} />
               {openGroups.fluids && (
@@ -453,7 +476,7 @@ export const Controls: React.FC<ControlsProps> = ({
             </>
           )}
 
-          {showGroup('valves') && (
+          {isStudioMode && showGroup('valves') && (
             <>
               <GroupHeader title="Valvular Mechanics" isOpen={openGroups.valves} toggle={() => toggleGroup('valves')} />
               {openGroups.valves && (
@@ -479,7 +502,7 @@ export const Controls: React.FC<ControlsProps> = ({
             </>
           )}
 
-          {showGroup('resp') && (
+          {isStudioMode && showGroup('resp') && (
             <>
               <GroupHeader title="Respiratory & Environment" isOpen={openGroups.resp} toggle={() => toggleGroup('resp')} />
               {openGroups.resp && (
@@ -496,7 +519,7 @@ export const Controls: React.FC<ControlsProps> = ({
             </>
           )}
 
-          {showGroup('advanced') && (
+          {isStudioMode && showGroup('advanced') && (
             <>
               <GroupHeader title="Advanced Engine" isOpen={openGroups.advanced} toggle={() => toggleGroup('advanced')} />
               {openGroups.advanced && (

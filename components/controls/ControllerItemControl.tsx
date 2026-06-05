@@ -46,7 +46,12 @@ export const ControllerItemControl = ({ item, value, baseline, unit, onChange, o
   const step = item.step ?? 0.01;
 
   if (item.kind === "buttonGroup" && options.length > 0) {
-    return <PresetChips item={item} value={value} unit={unit} onChange={onChange} />;
+    return (
+      <div className="space-y-1">
+        <span className="block text-[11px] font-semibold text-slate-300">{label}</span>
+        <PresetChips item={item} value={value} unit={unit} onChange={onChange} />
+      </div>
+    );
   }
 
   if (options.length > 0) {

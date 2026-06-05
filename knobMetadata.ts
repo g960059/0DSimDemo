@@ -63,13 +63,16 @@ export function knobControllerMetadata(
   };
 }
 
-const CURATED_PRESET_KEYS = new Set<string>([
-  "contractility",
-  "contractilityRV",
-]);
-
 // relaxation/diastolicStiffness will gain presets once teaching-safe bands are
 // defined in a physiology pass; do not derive presets from the hard clamp.
+const VALVE_LESION_SEVERITY_KEYS = new Set<string>([
+  "aorticStenosis",
+  "aorticRegurgitation",
+  "mitralStenosis",
+  "mitralRegurgitation",
+  "tricuspidRegurgitation",
+  "pulmonicStenosis",
+]);
 
 function decimalPlaces(value: number): number {
   const text = value.toString().toLowerCase();
@@ -88,9 +91,18 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+function dedupeReadingOptionsByValue(options: { label: string; value: number }[]): { label: string; value: number }[] | null {
+  const byValue = new Map<number, { label: string; value: number }>();
+  for (const option of options) {
+    if (!byValue.has(option.value)) byValue.set(option.value, option);
+  }
+  const distinctOptions = [...byValue.values()];
+  return distinctOptions.length >= 2 ? distinctOptions : null;
+}
+
 export function defaultControllerItemFor(paramKey: string): ControllerItem {
   const m = knobControllerMetadata(paramKey);
-  const item: ControllerItem = {
+  return {
     paramKey,
     kind: "slider",
     label: m?.label ?? paramKey,
@@ -98,31 +110,39 @@ export function defaultControllerItemFor(paramKey: string): ControllerItem {
     ...(m?.max != null ? { max: m.max } : {}),
     ...(m?.step != null ? { step: m.step } : {}),
   };
+}
 
-  if (!CURATED_PRESET_KEYS.has(paramKey)) return item;
-
+export function readingButtonOptionsFor(paramKey: string, baseline: number): { label: string; value: number }[] | null {
   const key = paramKey as KnobKey;
   const range = KNOB_RANGES[key];
-  const step = m?.step;
   const safeBand = KNOB_TEACHING_SAFE[key];
-  if (!range || !safeBand || step == null) return item;
 
-  const baseline = 1;
-  const [min, max] = range;
-  const low = clamp(roundToStep((safeBand[0] + baseline) / 2, step), min, max);
-  const normal = clamp(roundToStep(baseline, step), min, max);
-  const high = clamp(roundToStep((baseline + safeBand[1]) / 2, step), min, max);
-  const options = [
-    { label: "Low", value: low },
-    { label: "Normal", value: normal },
-    { label: "High", value: high },
-  ];
+  if (range && safeBand) {
+    const step = KNOB_STEPS[paramKey as NumericKnobKey];
+    if (step == null) return null;
 
-  // Derived shipped defaults from KNOB_TEACHING_SAFE, provisional/refineable,
-  // not hand-tuned physiology.
-  if (new Set(options.map((option) => option.value)).size === options.length) {
-    item.options = options;
+    const [min, max] = range;
+    const options = [
+      { label: "Low", value: clamp(roundToStep((safeBand[0] + baseline) / 2, step), min, max) },
+      { label: "Normal", value: clamp(roundToStep(baseline, step), min, max) },
+      { label: "High", value: clamp(roundToStep((baseline + safeBand[1]) / 2, step), min, max) },
+    ];
+
+    return dedupeReadingOptionsByValue(options);
   }
 
-  return item;
+  if (VALVE_LESION_SEVERITY_KEYS.has(paramKey)) {
+    if (!range) return null;
+    const step = KNOB_STEPS[paramKey as NumericKnobKey];
+    if (step == null) return null;
+
+    const max = range[1];
+    return dedupeReadingOptionsByValue([
+      { label: "None", value: 0 },
+      { label: "Moderate", value: roundToStep(max / 2, step) },
+      { label: "Severe", value: max },
+    ]);
+  }
+
+  return null;
 }

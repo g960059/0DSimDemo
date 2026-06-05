@@ -146,11 +146,7 @@ describe("readingConversion", () => {
     expect(items[1]).toMatchObject({ paramKey: "contractility", kind: "slider", label: "LV contractility", min: 0.25, max: 2.5, step: 0.05 });
     expect(items[2]).toMatchObject({ paramKey: "relaxation", kind: "slider", label: "Relaxation", min: 0.25, max: 2.5, step: 0.05 });
     expect(items[0].options).toBeUndefined();
-    expect(items[1].options).toEqual([
-      { label: "Low", value: 0.7 },
-      { label: "Normal", value: 1 },
-      { label: "High", value: 1.4 },
-    ]);
+    expect(items[1].options).toBeUndefined();
     expect(items[2].options).toBeUndefined();
     expect(items.map((entry) => entry.paramKey)).toEqual(["HR", "contractility", "relaxation", "baroreflexEnabled", "notARealKnob"]);
     expect(items[3]).toEqual({ paramKey: "baroreflexEnabled", kind: "slider", label: "baroreflexEnabled" });
