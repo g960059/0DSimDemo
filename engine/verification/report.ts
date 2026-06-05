@@ -5,6 +5,7 @@ import {
   type SteadyMeasurement,
 } from "@/engine/measure";
 import type { CoreRuntimeParams, SimMetrics } from "@/engine/protocol";
+import { panelForGate, type VerificationArtifactFile } from "@/engine/verification/panels";
 import type { SettleStatus } from "@/engine/settling";
 import {
   baselineShapeSummary,
@@ -33,7 +34,18 @@ export type VerificationReport = {
   metrics: SimMetrics | null;
   shape: BaselineShapeSummary | null;
   gates: GateResult[];
+  failureLocations: FailureLocation[];
   measurement: SteadyMeasurement | null;
+};
+
+export type FailureLocation = {
+  gateId: string;
+  severity: GateResult["severity"];
+  artifactFile: VerificationArtifactFile;
+  panelId: string;
+  panelTitle: string;
+  value?: GateResult["value"];
+  threshold?: string;
 };
 
 export type VerificationArtifact = Omit<VerificationReport, "measurement"> & {
@@ -72,6 +84,7 @@ export function runVerification(
       metrics: null,
       shape: null,
       gates,
+      failureLocations: failureLocations(gates),
       measurement: null,
     };
   }
@@ -102,6 +115,7 @@ export function runVerification(
     metrics: measurement.metrics,
     shape: gateSet === "normalBaseline" ? baselineShapeSummary(measurement) : null,
     gates,
+    failureLocations: failureLocations(gates),
     measurement,
   };
 }
@@ -136,6 +150,16 @@ export function reportToMarkdown(report: VerificationReport): string {
   lines.push(`- Hard failures: ${report.summary.hardFailures}`);
   lines.push(`- Soft failures: ${report.summary.softFailures}`);
   lines.push(`- Score: ${round(report.summary.score, 3)}`);
+  if (report.failureLocations.length > 0) {
+    lines.push("");
+    lines.push("## Failure Localization");
+    lines.push("");
+    for (const loc of report.failureLocations) {
+      const value = loc.value === undefined ? "" : ` value=${String(loc.value)}`;
+      const threshold = loc.threshold ? ` threshold=${loc.threshold}` : "";
+      lines.push(`- ${loc.gateId} -> ${loc.artifactFile}#${loc.panelId} (${loc.panelTitle})${value}${threshold}`);
+    }
+  }
   if (report.metrics) {
     lines.push("");
     lines.push("## Metrics");
@@ -168,6 +192,23 @@ export function reportToMarkdown(report: VerificationReport): string {
     lines.push(`- ${icon} [${gate.severity}] ${gate.id}: ${gate.message}${value}${threshold}`);
   }
   return `${lines.join("\n")}\n`;
+}
+
+function failureLocations(gates: GateResult[]): FailureLocation[] {
+  return gates
+    .filter((gate) => gate.status === "fail")
+    .map((gate) => {
+      const panel = panelForGate(gate.id);
+      return {
+        gateId: gate.id,
+        severity: gate.severity,
+        artifactFile: panel?.artifactFile ?? "report.md",
+        panelId: panel?.id ?? "gates",
+        panelTitle: panel?.title ?? "Gates",
+        value: gate.value,
+        threshold: gate.threshold,
+      };
+    });
 }
 
 export function toVerificationArtifact(report: VerificationReport): VerificationArtifact {

@@ -1,12 +1,19 @@
 import type { SimSample } from "@/engine/protocol";
 import {
+  contiguousFillingRuns,
   lastCompleteBeat,
+  localExtrema,
+  phaseInWindow,
   phaseOf,
+  positiveValvePeaksDetailed,
   positiveValvePeakInWindow,
   pulmonaryVenousShape,
-  transmitralGradientStats,
 } from "@/engine/verification/shapeMetrics";
 import type { GateResult } from "@/engine/verification/gates";
+import {
+  VERIFICATION_PV_LOOP_PANELS,
+  VERIFICATION_WAVEFORM_PANELS,
+} from "@/engine/verification/panels";
 import type { VerificationReport } from "@/engine/verification/report";
 
 export type VerificationSvgArtifacts = {
@@ -36,43 +43,38 @@ function waveformsSvg(report: VerificationReport, samples: SimSample[]): string 
   const margin = { left: 70, right: 28, top: 42, bottom: 34 };
   const panels = [
     {
-      title: "LVP / AoP / LAP (mmHg)",
+      ...VERIFICATION_WAVEFORM_PANELS[0],
       series: [
         { label: "LVP", key: "LVP", color: "#a855f7" },
         { label: "AoP", key: "AoP", color: "#f472b6" },
         { label: "LAP", key: "LAP", color: "#4f46e5" },
       ] satisfies Series[],
-      gates: ["lvp-aop-peak-gap", "lvp-diastolic-min", "lv-pressure-floor", "lap-oscillation-index", "lap-prominent-extrema"],
     },
     {
-      title: "QMV / QTV model flow (mL/s)",
+      ...VERIFICATION_WAVEFORM_PANELS[1],
       series: [
         { label: "QMV", key: "QMV", color: "#a855f7" },
         { label: "QTV", key: "QTV", color: "#22c55e" },
       ] satisfies Series[],
-      gates: ["qmv-e-peak", "qmv-a-peak", "qmv-a-over-e", "qmv-extra-peaks", "qtv-e-peak", "qtv-a-peak", "qtv-a-over-e"],
     },
     {
-      title: "PVF model flow (mL/s, not Doppler velocity)",
+      ...VERIFICATION_WAVEFORM_PANELS[2],
       series: [
         { label: "PVF", key: "PVF", color: "#38bdf8" },
       ] satisfies Series[],
-      gates: ["pvf-s-peak", "pvf-d-peak", "pvf-ar-present", "pvf-s-fraction", "pvf-s-over-d", "pvf-reverse-fraction"],
     },
     {
-      title: "Transmitral gradient (LAP - LVP, mmHg)",
+      ...VERIFICATION_WAVEFORM_PANELS[3],
       series: [
         { label: "MV gradient", key: "dP_MV", color: "#f59e0b" },
       ] satisfies Series[],
-      gates: ["mv-gradient-forward-count", "mv-gradient-all-mean", "mv-gradient-e-mean", "mv-gradient-e-peak", "mv-gradient-a-mean", "mv-gradient-a-peak"],
     },
     {
-      title: "Apparent elastance reference comparison",
+      ...VERIFICATION_WAVEFORM_PANELS[4],
       series: [
         { label: "ELV active", key: "ELV_active", color: "#a855f7" },
         { label: "ELV TVE", key: "ELV_timeVarying", color: "#f472b6" },
       ] satisfies Series[],
-      gates: ["lv-active-elastance-shape"],
     },
   ];
   const height = panelH * panels.length + 88;
@@ -85,10 +87,12 @@ function waveformsSvg(report: VerificationReport, samples: SimSample[]): string 
   }
   panels.forEach((panel, index) => {
     const y = 68 + index * panelH;
-    out.push(panelFrame(24, y, width - 48, panelH - 16, panel.title));
+    out.push(`<g id="${escapeXml(panel.id)}">`);
+    out.push(panelFrame(24, y, width - 48, panelH - 16, panel.title, failedGateCount(report.gates, panel.gateIds)));
     out.push(plotWaveform(samples, panel.series, 24, y, width - 48, panelH - 16, margin));
     out.push(legend(panel.series, width - 330, y + 24));
-    out.push(gateBadges(report.gates, panel.gates, 40, y + panelH - 34, width - 80));
+    out.push(gateBadges(report.gates, panel.gateIds, 40, y + panelH - 34, width - 80));
+    if (panel.id === "pressures") out.push(lapExtremaMarkers(samples, 24, y, width - 48, panelH - 16, margin));
     if (panel.title.startsWith("QMV")) out.push(inflowMarkers(samples, 24, y, width - 48, panelH - 16, margin));
     if (panel.title.startsWith("PVF")) out.push(pvfMarkers(samples, 24, y, width - 48, panelH - 16, margin));
     if (panel.title.startsWith("Transmitral")) out.push(phaseWindowBands(24, y, width - 48, panelH - 16, margin, [
@@ -96,6 +100,7 @@ function waveformsSvg(report: VerificationReport, samples: SimSample[]): string 
       { lo: 0.85, hi: 1.00, label: "A window" },
       { lo: 0.00, hi: 0.08, label: "A window" },
     ]));
+    out.push("</g>");
   });
   out.push("</svg>");
   return out.join("\n");
@@ -111,19 +116,21 @@ function pvLoopsSvg(report: VerificationReport, samples: SimSample[]): string {
     return out.join("\n");
   }
   const panels = [
-    { title: "LV PV loop", x: "VLV", y: "LVP", color: "#a855f7", gates: ["lvp-aop-peak-gap", "lvp-diastolic-min", "lv-filling-edge-roughness", "lv-filling-edge-curvature", "lv-filling-edge-reversals"] },
-    { title: "RV PV loop", x: "VRV", y: "RVP", color: "#22c55e", gates: ["rv-edp-presystolic", "rv-stroke-fraction", "rvp-max"] },
-    { title: "LA PV loop", x: "VLA", y: "LAP", color: "#38bdf8", gates: ["la-figure-eight"] },
-    { title: "RA PV loop", x: "VRA", y: "RAP", color: "#f59e0b", gates: ["ra-figure-eight", "ra-volume-max", "ra-volume-min", "ra-emptying-fraction"] },
+    { ...VERIFICATION_PV_LOOP_PANELS[0], x: "VLV", y: "LVP", color: "#a855f7" },
+    { ...VERIFICATION_PV_LOOP_PANELS[1], x: "VRV", y: "RVP", color: "#22c55e" },
+    { ...VERIFICATION_PV_LOOP_PANELS[2], x: "VLA", y: "LAP", color: "#38bdf8" },
+    { ...VERIFICATION_PV_LOOP_PANELS[3], x: "VRA", y: "RAP", color: "#f59e0b" },
   ] as const;
   panels.forEach((panel, index) => {
     const col = index % 2;
     const row = Math.floor(index / 2);
     const x = 34 + col * 590;
     const y = 76 + row * 390;
-    out.push(panelFrame(x, y, 556, 350, panel.title));
-    out.push(plotLoop(samples, panel.x, panel.y, panel.color, x, y, 556, 350));
-    out.push(gateBadges(report.gates, panel.gates, x + 16, y + 315, 520));
+    out.push(`<g id="${escapeXml(panel.id)}">`);
+    out.push(panelFrame(x, y, 556, 350, panel.title, failedGateCount(report.gates, panel.gateIds)));
+    out.push(plotLoop(samples, panel.x, panel.y, panel.color, x, y, 556, 350, panel.id === "lv-pv-loop"));
+    out.push(gateBadges(report.gates, panel.gateIds, x + 16, y + 315, 520));
+    out.push("</g>");
   });
   out.push("</svg>");
   return out.join("\n");
@@ -161,6 +168,7 @@ function plotLoop(
   y: number,
   width: number,
   height: number,
+  showFillingEdge = false,
 ): string {
   const plot = plotRect(x, y, width, height, { left: 58, right: 24, top: 42, bottom: 44 });
   const xs = samples.map((sample) => Number(sample[xKey]));
@@ -176,6 +184,7 @@ function plotLoop(
   return [
     grid(plot.x, plot.y, plot.w, plot.h, minY, maxY),
     `<polyline points="${points}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`,
+    showFillingEdge ? fillingEdgeOverlay(samples, plot, minX, maxX, minY, maxY) : "",
     `<circle cx="${markerX}" cy="${markerY}" r="4" fill="${color}"/>`,
     text(plot.x + plot.w / 2 - 48, y + height - 15, "Volume (mL)", 12, "#94a3b8"),
     text(x + 12, plot.y + 18, "Pressure (mmHg)", 12, "#94a3b8"),
@@ -189,12 +198,53 @@ function inflowMarkers(samples: SimSample[], x: number, y: number, width: number
   const qmvA = positiveValvePeakInWindow(samples, "QMV", 0.85, 0.08);
   const qtvE = positiveValvePeakInWindow(samples, "QTV", 0.30, 0.75);
   const qtvA = positiveValvePeakInWindow(samples, "QTV", 0.85, 0.08);
+  const qmvPeaks = positiveValvePeaksDetailed(samples, "QMV", 0.12, 20);
+  const ePeak = qmvPeaks.filter((peak) => phaseInWindow(peak.theta, 0.30, 0.75)).sort((a, b) => b.value - a.value)[0];
+  const aPeak = qmvPeaks.filter((peak) => phaseInWindow(peak.theta, 0.85, 0.08)).sort((a, b) => b.value - a.value)[0];
+  const extraQmvPeaks = qmvPeaks.filter((peak) => peak !== ePeak && peak !== aPeak);
   return [
     marker(plot, minY, maxY, qmvE, "MV E", "#a855f7"),
     marker(plot, minY, maxY, qmvA, "MV A", "#a855f7"),
     marker(plot, minY, maxY, qtvE, "TV E", "#22c55e"),
     marker(plot, minY, maxY, qtvA, "TV A", "#22c55e"),
+    ...extraQmvPeaks.map((peak, index) => marker(plot, minY, maxY, peak, `extra ${index + 1}`, "#fb923c")),
   ].join("\n");
+}
+
+function lapExtremaMarkers(samples: SimSample[], x: number, y: number, width: number, height: number, margin: any): string {
+  const plot = plotRect(x, y, width, height, margin);
+  const [minY, maxY] = paddedRange(samples.flatMap((sample) => [sample.LVP, sample.AoP, sample.LAP]));
+  const lapRange = Math.max(...samples.map((sample) => sample.LAP)) - Math.min(...samples.map((sample) => sample.LAP));
+  const prominence = Math.max(0.35, 0.12 * lapRange);
+  const peaks = localExtrema(samples, "LAP", "max", prominence);
+  const troughs = localExtrema(samples, "LAP", "min", prominence);
+  return [
+    ...peaks.map((peak, index) => marker(plot, minY, maxY, peak, `LAP peak ${index + 1}`, "#818cf8")),
+    ...troughs.map((peak, index) => marker(plot, minY, maxY, peak, `LAP trough ${index + 1}`, "#818cf8")),
+  ].join("\n");
+}
+
+function fillingEdgeOverlay(
+  samples: SimSample[],
+  plot: { x: number; y: number; w: number; h: number },
+  minX: number,
+  maxX: number,
+  minY: number,
+  maxY: number,
+): string {
+  const runs = contiguousFillingRuns(samples).filter((run) => run.length >= 5);
+  return runs.map((run, index) => {
+    const points = run
+      .map((sample) => `${scale(sample.VLV, minX, maxX, plot.x, plot.x + plot.w)},${scale(sample.LVP, minY, maxY, plot.y + plot.h, plot.y)}`)
+      .join(" ");
+    const first = run[0];
+    const labelX = scale(first.VLV, minX, maxX, plot.x, plot.x + plot.w);
+    const labelY = scale(first.LVP, minY, maxY, plot.y + plot.h, plot.y);
+    return [
+      `<polyline points="${points}" fill="none" stroke="#facc15" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" opacity="0.75"><title>LV filling edge run ${index + 1}</title></polyline>`,
+      text(labelX + 6, labelY - 6, `fill ${index + 1}`, 11, "#facc15"),
+    ].join("\n");
+  }).join("\n");
 }
 
 function pvfMarkers(samples: SimSample[], x: number, y: number, width: number, height: number, margin: any): string {
@@ -274,11 +324,19 @@ function legend(series: Series[], x: number, y: number): string {
   }).join("\n");
 }
 
-function panelFrame(x: number, y: number, width: number, height: number, title: string): string {
+function panelFrame(x: number, y: number, width: number, height: number, title: string, failedCount = 0): string {
+  const badge = failedCount > 0
+    ? `<rect x="${x + width - 92}" y="${y + 10}" width="74" height="22" rx="4" fill="#7f1d1d" stroke="#f87171"/><text x="${x + width - 82}" y="${y + 26}" fill="#fee2e2" font-family="Inter, system-ui, sans-serif" font-size="11">${failedCount} failed</text>`
+    : "";
   return [
     `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="6" fill="#0f172a" stroke="#334155"/>`,
     text(x + 18, y + 25, title, 16, "#e2e8f0"),
+    badge,
   ].join("\n");
+}
+
+function failedGateCount(gates: GateResult[], ids: readonly string[]): number {
+  return ids.filter((id) => gates.some((gate) => gate.id === id && gate.status === "fail")).length;
 }
 
 function header(report: VerificationReport, width: number, title: string): string {
