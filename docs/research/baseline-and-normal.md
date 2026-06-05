@@ -67,6 +67,15 @@ stress to preserve normal CO/AoP while the state broadens and delays the apparen
 elastance peak. That keeps the active-stress model as the default chamber
 formulation without using a pressure floor to hide diastolic behavior.
 
+The LV/RV active-stress target also includes a bounded Hill-like force-velocity
+factor derived from the chamber's normalised shortening velocity
+`-dV/dt / stroke-volume-reference`. During ejection, fibre shortening slightly
+reduces force generation; lengthening has only a small capped stabilising effect.
+This is a crossbridge/shortening-velocity connection at the chamber boundary, not
+a new independent state. The default coefficients are intentionally conservative
+so the baseline AoP/LVP gap, CO, EF, LVEDP, and regurgitant-fraction gates remain
+inside the normal corridor.
+
 Literature anchors for this interpretation are the time-varying elastance
 overview (PMC5018161), Ca/crossbridge-dependent elastance discussion in the RV
 elastance literature (AJRCCM 207:678), and the diastolic suction caveat

@@ -55,6 +55,45 @@ describe("ChamberModel behavior parity (S2a refactor guards)", () => {
     expect(lvDelayedPeak - lvShortDelayPeak).toBeGreaterThan(0.04);
   });
 
+  it("ventricular active stress respects bounded force-velocity coupling", () => {
+    const lv = new ActiveStressChamberModel({
+      ...defaultActiveLV,
+      forceVelocityShorteningCoeff: 0.05,
+      forceVelocityLengtheningCoeff: 0.02,
+      forceVelocityMin: 0.75,
+      forceVelocityMax: 1.08,
+    });
+    const ctx = {
+      HR: 75,
+      contractility: 1,
+      relaxation: 1,
+      phi: 0.28,
+      chamber: "LV" as const,
+      tmaxScale: 0.7,
+      geomScale: 1,
+      caReleaseScale: 1,
+      inletValveOpen01: 0,
+      outletValveOpen01: 1,
+    };
+    const internal = { c: 0, a: 0.08, r: 0 };
+    const staticPressure = lv.pressure(110, internal, {
+      ...ctx,
+      pairedVentricleShorteningVelocity01PerSec: 0,
+    });
+    const shorteningPressure = lv.pressure(110, internal, {
+      ...ctx,
+      pairedVentricleShorteningVelocity01PerSec: 4,
+    });
+    const lengtheningPressure = lv.pressure(110, internal, {
+      ...ctx,
+      outletValveOpen01: 0,
+      pairedVentricleShorteningVelocity01PerSec: -2,
+    });
+
+    expect(shorteningPressure).toBeLessThan(staticPressure - 2);
+    expect(lengtheningPressure).toBeGreaterThan(staticPressure);
+  });
+
   it("AV-plane reservoir disabled gates are neutral against each other", () => {
     const strokeZero = runScenario({
       ...DEFAULT_PARAMS,

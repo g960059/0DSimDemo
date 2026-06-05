@@ -1387,6 +1387,12 @@ export class ModelCore {
     const pairedEs = side === "right" ? rvEs : lvEs;
     const inletValve = side === "right" ? "TV" : "MV";
     const outletValve = side === "right" ? "PV" : "AoV";
+    const dynamicFlow = (edge: DynamicEdgeName) =>
+      clamp(x[this.idx.q[edge]], -DYNAMIC_FLOW_CLAMP_ML_PER_S, DYNAMIC_FLOW_CLAMP_ML_PER_S);
+    const lvVolumeRateMlPerSec = dynamicFlow("MV") - dynamicFlow("AoV");
+    const rvVolumeRateMlPerSec = dynamicFlow("TV") - dynamicFlow("PV");
+    const pairedVolumeRateMlPerSec = side === "right" ? rvVolumeRateMlPerSec : lvVolumeRateMlPerSec;
+    const pairedStrokeRefMl = Math.max(pairedEd - pairedEs, 1e-6);
     return {
       HR: this.p.HR,
       contractility: this.p.contractility,
@@ -1400,7 +1406,8 @@ export class ModelCore {
       geomScale: chamber === "LV" ? this.p.lvGeomScale : isRV ? this.p.rvGeomScale : 1,
       caReleaseScale: chamber === "LV" ? this.p.caReleaseScale : isRV ? this.p.rvCaReleaseScale : 1,
       pairedVentricleVolumeMl: pairedVentricleVolume,
-      pairedVentricleShortening01: clamp((pairedEd - pairedVentricleVolume) / Math.max(pairedEd - pairedEs, 1e-6), 0, 1),
+      pairedVentricleShortening01: clamp((pairedEd - pairedVentricleVolume) / pairedStrokeRefMl, 0, 1),
+      pairedVentricleShorteningVelocity01PerSec: clamp(-pairedVolumeRateMlPerSec / pairedStrokeRefMl, -6, 8),
       inletValveOpen01: clamp(x[this.idx.xi[inletValve]], 0, 1),
       outletValveOpen01: clamp(x[this.idx.xi[outletValve]], 0, 1),
       side,

@@ -34,6 +34,7 @@ export type ChamberCtx = {
   caReleaseScale: number;
   pairedVentricleVolumeMl?: number;
   pairedVentricleShortening01?: number;
+  pairedVentricleShorteningVelocity01PerSec?: number;
   inletValveOpen01?: number;
   outletValveOpen01?: number;
   side?: "left" | "right";
@@ -87,6 +88,10 @@ export type ActiveChamberParams = {
   tauTensionRiseSec?: number;
   tauTensionFallSec?: number;
   tensionInstantMix?: number;
+  forceVelocityShorteningCoeff?: number;
+  forceVelocityLengtheningCoeff?: number;
+  forceVelocityMin?: number;
+  forceVelocityMax?: number;
   kOver: number;
   lambdaFail: number;
   geomChi: number;
@@ -212,6 +217,10 @@ export const defaultActiveLV: ActiveChamberParams = {
   tauTensionRiseSec: 0.045,
   tauTensionFallSec: 0.100,
   tensionInstantMix: 0.78,
+  forceVelocityShorteningCoeff: 0.001,
+  forceVelocityLengtheningCoeff: 0.0005,
+  forceVelocityMin: 0.98,
+  forceVelocityMax: 1.01,
   kOver: 35,
   lambdaFail: 1.45,
   geomChi: 1.359637, // M12-lite: exact thick-sphere Laplace (ri+ro)^2/(4 ri^2); was 0.36
@@ -246,6 +255,10 @@ export const defaultActiveRV: ActiveChamberParams = {
   tauTensionRiseSec: 0.045,
   tauTensionFallSec: 0.090,
   tensionInstantMix: 0.78,
+  forceVelocityShorteningCoeff: 0.0008,
+  forceVelocityLengtheningCoeff: 0.0004,
+  forceVelocityMin: 0.98,
+  forceVelocityMax: 1.01,
   geomChi: 1.138505, // M12-lite: exact thick-sphere Laplace for RV ref geometry; was 0.28
 };
 
@@ -275,6 +288,8 @@ export const defaultActiveLA: ActiveChamberParams = {
   tauTensionRiseSec: 0,
   tauTensionFallSec: 0,
   tensionInstantMix: 1,
+  forceVelocityShorteningCoeff: 0,
+  forceVelocityLengtheningCoeff: 0,
   geomChi: 1.1,
   thetaOn: 0.80,
   pressureFloorMmHg: -2,
@@ -322,6 +337,8 @@ export const defaultActiveRA: ActiveChamberParams = {
   tauTensionRiseSec: 0,
   tauTensionFallSec: 0,
   tensionInstantMix: 1,
+  forceVelocityShorteningCoeff: 0,
+  forceVelocityLengtheningCoeff: 0,
   geomChi: 1.10,
   pressureFloorMmHg: -2,
   atrialLeadSec: 0.17,
@@ -390,7 +407,28 @@ export class ActiveStressChamberModel implements ChamberModel {
     const gOver = 1 / (1 + expClamped(ap.kOver * (lambda - ap.lambdaFail)));
     // Realistic f_iso so tension rapidly drops as the heart empties.
     const f_iso = clamp((lambda - ap.lambdaPas0 + 0.3) / 0.35, 0, 1);
-    return ap.Tmax0 * ctx.tmaxScale * ctx.contractility * a * gOver * f_iso;
+    return ap.Tmax0 * ctx.tmaxScale * ctx.contractility * a * gOver * f_iso * this.forceVelocityScale(ctx);
+  }
+
+  private forceVelocityScale(ctx: ChamberCtx): number {
+    if (ctx.chamber !== "LV" && ctx.chamber !== "RV") return 1;
+    const ap = this.ap;
+    const shorteningCoeff = ap.forceVelocityShorteningCoeff ?? 0;
+    const lengtheningCoeff = ap.forceVelocityLengtheningCoeff ?? 0;
+    if (shorteningCoeff <= 0 && lengtheningCoeff <= 0) return 1;
+
+    const velocity = clamp(ctx.pairedVentricleShorteningVelocity01PerSec ?? 0, -4, 6);
+    const shorteningVelocity = Math.max(velocity, 0);
+    const lengtheningVelocity = Math.max(-velocity, 0);
+    const outletOpen = clamp(this.outletValveOpen01(ctx) ?? 0, 0, 1);
+    const inletOpen = clamp(this.inletValveOpen01(ctx) ?? 0, 0, 1);
+    const ejectionGate = outletOpen * clamp(1 - inletOpen, 0, 1);
+
+    // Hill-like force-velocity behavior: active fibre shortening reduces force
+    // development; lengthening has only a small stabilising effect.
+    const shorteningScale = 1 / (1 + shorteningCoeff * shorteningVelocity * (0.35 + 0.65 * ejectionGate));
+    const lengtheningScale = 1 + lengtheningCoeff * Math.min(lengtheningVelocity, 2) * clamp(1 - outletOpen, 0, 1);
+    return clamp(shorteningScale * lengtheningScale, ap.forceVelocityMin ?? 0.85, ap.forceVelocityMax ?? 1.05);
   }
 
   private bodyPressureTerms(V: number, internal: ChamberInternal, ctx: ChamberCtx): ChamberPressureTerms {
