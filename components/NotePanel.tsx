@@ -18,7 +18,69 @@ const EMPTY_EDIT_NOTE: NoteContent = [
   },
 ];
 
+const BareReadNoteContext = React.createContext(false);
+
 const editorCanEdit = (editor: unknown) => (editor as { isEditable?: boolean }).isEditable !== false;
+
+function renderInlineContent(content: unknown): React.ReactNode {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return null;
+
+  return content.map((item, index) => {
+    if (typeof item === "string") return <React.Fragment key={index}>{item}</React.Fragment>;
+    if (!item || typeof item !== "object") return null;
+
+    const inline = item as { type?: unknown; text?: unknown; content?: unknown };
+    if (inline.type === "text" && typeof inline.text === "string") {
+      return <React.Fragment key={index}>{inline.text}</React.Fragment>;
+    }
+    return <React.Fragment key={index}>{renderInlineContent(inline.content)}</React.Fragment>;
+  });
+}
+
+function renderStaticBlock(block: Record<string, unknown>, index: number, bareRead: boolean): React.ReactNode {
+  const type = block.type;
+  const props = (block.props && typeof block.props === "object" ? block.props : {}) as Record<string, unknown>;
+  const children = renderInlineContent(block.content);
+
+  if (type === "heading") {
+    return <h2 key={index} className="mb-3 mt-5 text-xl font-semibold text-slate-100">{children}</h2>;
+  }
+  if (type === "bulletListItem") {
+    return <li key={index} className="ml-5 list-disc text-slate-200">{children}</li>;
+  }
+  if (type === "numberedListItem") {
+    return <li key={index} className="ml-5 list-decimal text-slate-200">{children}</li>;
+  }
+  if (type === "equation") {
+    return <div key={index} className="my-3 text-center font-mono text-sm text-slate-200">{String(props.tex ?? "")}</div>;
+  }
+  if (type === "quiz") {
+    return (
+      <div key={index} className="my-3 rounded-lg border border-slate-700 bg-slate-800/50 p-4">
+        <div className="font-medium text-slate-200">{String(props.question ?? "")}</div>
+      </div>
+    );
+  }
+  if (type === "controller_ref") {
+    if (bareRead) {
+      return <span key={index} className="inline text-slate-400 text-xs font-mono font-medium">{String(props.label ?? "")}</span>;
+    }
+    return (
+      <div key={index} className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-blue-900/30 border border-blue-700/50 text-blue-300 text-xs font-mono font-medium mx-1">
+        ⎈ {String(props.label ?? "")}
+      </div>
+    );
+  }
+
+  return <p key={index} className="mb-3 leading-7 text-slate-200">{children}</p>;
+}
+
+const StaticReadNote: React.FC<{ content: NoteContent; bareRead: boolean }> = ({ content, bareRead }) => (
+  <div className={bareRead ? "flex-1 h-full w-full overflow-y-auto custom-scrollbar py-1 text-slate-200 blocknote-dark-theme-override isolate" : "flex-1 h-full w-full bg-[#0B1120] rounded-b-xl overflow-y-auto custom-scrollbar p-3 sm:p-5 text-slate-200 blocknote-dark-theme-override isolate"}>
+    {content.map((block, index) => renderStaticBlock(block, index, bareRead))}
+  </div>
+);
 
 const BlockMath = ({ math }: { math: string }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -189,11 +251,23 @@ const controllerRefBlock = createReactBlockSpec(
     content: "none",
   },
   {
-    render: (props) => (
-      <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-blue-900/30 border border-blue-700/50 text-blue-300 text-xs font-mono font-medium mx-1" contentEditable={false}>
-        ⎈ {props.block.props.label}
-      </div>
-    ),
+    render: (props) => {
+      const bareRead = React.useContext(BareReadNoteContext);
+
+      if (bareRead) {
+        return (
+          <span className="inline text-slate-400 text-xs font-mono font-medium" contentEditable={false}>
+            {props.block.props.label}
+          </span>
+        );
+      }
+
+      return (
+        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-blue-900/30 border border-blue-700/50 text-blue-300 text-xs font-mono font-medium mx-1" contentEditable={false}>
+          ⎈ {props.block.props.label}
+        </div>
+      );
+    },
   }
 );
 
@@ -210,18 +284,24 @@ interface NotePanelProps {
   mode?: NoteMode;
   content?: NoteContent;
   onChange?: (blocks: NoteContent) => void;
+  bare?: boolean;
 }
 
-export const NotePanel: React.FC<NotePanelProps> = ({ mode = 'read', content, onChange }) => {
+export const NotePanel: React.FC<NotePanelProps> = ({ mode = 'read', content, onChange, bare }) => {
   const hasContent = Array.isArray(content) && content.length > 0;
   const editable = mode !== 'read';
+  const bareRead = bare === true && !editable;
 
   if (!editable && !hasContent) {
     return (
-      <div className="flex-1 h-full w-full bg-[#0B1120] rounded-b-xl overflow-y-auto custom-scrollbar p-3 sm:p-5 text-slate-500 text-sm">
+      <div className={bareRead ? "flex-1 h-full w-full overflow-y-auto custom-scrollbar py-1 text-slate-500 text-sm" : "flex-1 h-full w-full bg-[#0B1120] rounded-b-xl overflow-y-auto custom-scrollbar p-3 sm:p-5 text-slate-500 text-sm"}>
         No notes for this case yet.
       </div>
     );
+  }
+
+  if (!editable && typeof window === "undefined") {
+    return <StaticReadNote content={(hasContent ? content : EMPTY_EDIT_NOTE) as NoteContent} bareRead={bareRead} />;
   }
 
   return (
@@ -229,11 +309,12 @@ export const NotePanel: React.FC<NotePanelProps> = ({ mode = 'read', content, on
       editable={editable}
       content={(hasContent ? content : EMPTY_EDIT_NOTE) as NoteContent}
       onChange={onChange}
+      bareRead={bareRead}
     />
   );
 };
 
-const NoteEditor: React.FC<{ editable: boolean; content: NoteContent; onChange?: (blocks: NoteContent) => void }> = ({ editable, content, onChange }) => {
+const NoteEditor: React.FC<{ editable: boolean; content: NoteContent; onChange?: (blocks: NoteContent) => void; bareRead?: boolean }> = ({ editable, content, onChange, bareRead = false }) => {
   const editor = useCreateBlockNote({
     schema,
     initialContent: content as any,
@@ -244,14 +325,16 @@ const NoteEditor: React.FC<{ editable: boolean; content: NoteContent; onChange?:
   };
 
   return (
-    <div className="flex-1 h-full w-full bg-[#0B1120] rounded-b-xl overflow-y-auto custom-scrollbar p-3 sm:p-5 text-slate-200 blocknote-dark-theme-override isolate">
-      <BlockNoteView
-        editor={editor}
-        editable={editable}
-        theme="dark"
-        onChange={handleChange}
-        className="min-h-full"
-      />
-    </div>
+    <BareReadNoteContext.Provider value={bareRead}>
+      <div className={bareRead ? "flex-1 h-full w-full overflow-y-auto custom-scrollbar py-1 text-slate-200 blocknote-dark-theme-override isolate" : "flex-1 h-full w-full bg-[#0B1120] rounded-b-xl overflow-y-auto custom-scrollbar p-3 sm:p-5 text-slate-200 blocknote-dark-theme-override isolate"}>
+        <BlockNoteView
+          editor={editor}
+          editable={editable}
+          theme="dark"
+          onChange={handleChange}
+          className="min-h-full"
+        />
+      </div>
+    </BareReadNoteContext.Provider>
   );
 };
