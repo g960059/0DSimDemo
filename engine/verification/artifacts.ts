@@ -111,7 +111,7 @@ function pvLoopsSvg(report: VerificationReport, samples: SimSample[]): string {
     return out.join("\n");
   }
   const panels = [
-    { title: "LV PV loop", x: "VLV", y: "LVP", color: "#a855f7", gates: ["lvp-aop-peak-gap", "lvp-diastolic-min", "lv-filling-edge-roughness", "lv-filling-edge-reversals"] },
+    { title: "LV PV loop", x: "VLV", y: "LVP", color: "#a855f7", gates: ["lvp-aop-peak-gap", "lvp-diastolic-min", "lv-filling-edge-roughness", "lv-filling-edge-excess", "lv-filling-edge-curvature", "lv-filling-edge-reversals"] },
     { title: "RV PV loop", x: "VRV", y: "RVP", color: "#22c55e", gates: ["rv-edp-presystolic", "rv-stroke-fraction", "rvp-max"] },
     { title: "LA PV loop", x: "VLA", y: "LAP", color: "#38bdf8", gates: ["la-figure-eight"] },
     { title: "RA PV loop", x: "VRA", y: "RAP", color: "#f59e0b", gates: ["ra-figure-eight", "ra-volume-max", "ra-volume-min", "ra-emptying-fraction"] },

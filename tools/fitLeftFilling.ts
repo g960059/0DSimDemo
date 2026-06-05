@@ -23,6 +23,8 @@ const RINGING_GATE_IDS = [
   "lap-oscillation-index",
   "lap-prominent-extrema",
   "lv-filling-edge-roughness",
+  "lv-filling-edge-excess",
+  "lv-filling-edge-curvature",
   "lv-filling-edge-reversals",
   "pvf-reverse-fraction",
   "mv-gradient-e-peak",
@@ -55,7 +57,7 @@ if (options.writeArtifacts) {
 // eslint-disable-next-line no-console
 console.log(`left-filling sweep wrote ${rows.length} candidates to ${options.outDir}`);
 // eslint-disable-next-line no-console
-  console.table(rows.slice(0, 8).map((row) => ({
+console.table(rows.slice(0, 8).map((row) => ({
   id: row.id,
   hard: row.hardFailures,
   soft: row.softFailures,
@@ -64,6 +66,7 @@ console.log(`left-filling sweep wrote ${rows.length} candidates to ${options.out
   qmvExtra: row.gates["qmv-extra-peaks"],
   lapOsc: row.gates["lap-oscillation-index"],
   lvRough: row.gates["lv-filling-edge-roughness"],
+  lvExcess: row.gates["lv-filling-edge-excess"],
   pvfRev: row.gates["pvf-reverse-fraction"],
   pvfDOverS: row.pvfDOverSPeak?.toFixed(3),
   rvEf: row.efRight?.toFixed(3),
@@ -89,7 +92,7 @@ function evaluate(candidate: Candidate, profile: VerificationMode) {
     ringingFailures,
     score: report.summary.score,
     efRight: report.metrics?.EF_RApprox ?? null,
-    pvfDOverSPeak: sPeak && dPeak ? dPeak.PVF / sPeak.PVF : null,
+    pvfDOverSPeak: sPeak && dPeak && sPeak.PVF > 1e-9 ? dPeak.PVF / sPeak.PVF : null,
     pvfSPeakTheta: sPeak ? phaseOf(sPeak) : null,
     pvfDPeakTheta: dPeak ? phaseOf(dPeak) : null,
     gates: Object.fromEntries(RINGING_GATE_IDS.map((id) => [id, gates[id]?.value ?? null])),

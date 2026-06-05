@@ -119,7 +119,7 @@ describe("fitting/verification mode foundation", () => {
     expect(String(pvfGate?.value)).toContain("Ar=");
   });
 
-  it("detects mitral inflow chatter as extra E/A-window peaks", () => {
+  it("detects mitral inflow chatter as extra diastolic peaks", () => {
     const report = runVerification(DEFAULT_PARAMS, {
       profile: "verifyAccurate",
       gateSet: "normalBaseline",
@@ -133,7 +133,8 @@ describe("fitting/verification mode foundation", () => {
         const theta = sample.phi - Math.floor(sample.phi);
         const extraE1 = 160 * Math.exp(-0.5 * ((theta - 0.48) / 0.012) ** 2);
         const extraE2 = 160 * Math.exp(-0.5 * ((theta - 0.66) / 0.012) ** 2);
-        return { ...sample, QMV: sample.QMV + extraE1 + extraE2 };
+        const extraMid = 160 * Math.exp(-0.5 * ((theta - 0.80) / 0.012) ** 2);
+        return { ...sample, QMV: sample.QMV + extraE1 + extraE2 + extraMid };
       }),
     };
 
@@ -141,6 +142,35 @@ describe("fitting/verification mode foundation", () => {
       .find((gate) => gate.id === "qmv-extra-peaks");
     expect(chatterGate?.status).toBe("fail");
     expect(chatterGate?.value).toBeGreaterThan(0);
+  });
+
+  it("detects the old underdamped left-filling configuration", () => {
+    const report = runVerification({
+      ...DEFAULT_PARAMS,
+      MV_Amax: 5.0,
+      MV_R: 0.002,
+      MV_L: 0.0003,
+      MV_B: 5e-6,
+      MV_tauOpen: 0.020,
+      MV_tauClose: 0.012,
+      edgeOverrides: {
+        PVein_LA: {
+          R: 0.028,
+          pvOstialResistanceR: 0.028,
+          L: 0.002,
+          pvOstialInertanceL: 0.002,
+          B: 0,
+          pvOstialQuadraticB: 0,
+        },
+      },
+    }, {
+      profile: "verifyAccurate",
+      gateSet: "normalBaseline",
+      now: new Date("2026-06-05T00:00:00.000Z"),
+    });
+    const failures = new Set(report.gates.filter((gate) => gate.status === "fail").map((gate) => gate.id));
+    expect(failures).toContain("qmv-extra-peaks");
+    expect(failures).toContain("lv-filling-edge-curvature");
   });
 
   it("generates structural SVG artifacts with waveform and PV-loop panels", () => {
@@ -156,6 +186,7 @@ describe("fitting/verification mode foundation", () => {
     expect(svgs["waveforms.svg"]).toContain("mv-gradient-e-peak");
     expect(svgs["waveforms.svg"]).toContain("qmv-extra-peaks");
     expect(svgs["pv-loops.svg"]).toContain("lv-filling-edge-roughness");
+    expect(svgs["pv-loops.svg"]).toContain("lv-filling-edge-excess");
     expect(svgs["pv-loops.svg"]).toContain("Verification PV Loops");
     expect(svgs["pv-loops.svg"]).toContain("LA PV loop");
     expect(svgs["pv-loops.svg"]).toContain("RA PV loop");

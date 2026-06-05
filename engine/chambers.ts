@@ -295,7 +295,7 @@ export const defaultActiveLA: ActiveChamberParams = {
   thetaOn: 0.80,
   pressureFloorMmHg: -2,
   atrialLeadSec: 0.16,
-  avPlaneGainMl: 8,
+  avPlaneGainMl: 10,
   // PR2 (human plan): turn OFF the hidden LA body+sleeve reservoir branch. LA is
   // a single active-stress chamber; reservoir function should come from pulmonary
   // venous return + MV closure + AV-plane descent + LA wall relaxation, NOT an
