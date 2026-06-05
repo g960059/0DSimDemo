@@ -81,3 +81,10 @@ headless `fit:left-filling` runner compares a bounded set of PVein_LA and MV
 damping candidates and writes `left-filling-candidates.json` plus `.csv`; it is
 a triage runner, not a full optimizer. This scope should not yet build
 case-specific profiles or a user-facing fitting UI.
+
+The headless `fit:right-pvf-headroom` runner uses the same artifact contract for
+right-heart / pulmonary-venous margin work. It evaluates candidates with
+`normalBaseline` gates and ranks hard-gate passers before any headroom score.
+The primary headroom terms are `EF_RApprox - 0.50` and
+`pvfSFraction - 0.40`, capped against the normal-baseline ideals so fitting does
+not chase unbounded RVEF or an artificial S-dominant PVF waveform.
