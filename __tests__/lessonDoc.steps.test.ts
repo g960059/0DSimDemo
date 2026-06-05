@@ -1,41 +1,50 @@
 import { describe, expect, it } from "vitest";
-import { caseDocumentToSimInstances } from "@/caseDoc";
-import { lessonById, resolveLessonCase } from "@/lessonDoc";
+import { LESSONS, lessonById, resolveLessonCase } from "@/lessonDoc";
+import { resolveReadingColumn } from "@/readingConversion";
+import { shouldUseReading } from "@/components/reading/LessonReadingRoute";
 
-describe("stepped lesson registry", () => {
-  it("keeps stepped visibleInstances within the resolved case ids and eventually reveals all instances", () => {
-    const lesson = lessonById("lv-failure-inotrope");
-    expect(lesson?.steps?.length).toBe(2);
-    const [predictStep, revealStep] = lesson!.steps!;
+const EXPECTED_LESSON_IDS = [
+  "normal-reference",
+  "acute-anterior-mi",
+  "systolic-heart-failure",
+  "diastolic-heart-failure",
+  "aortic-stenosis",
+  "hypovolemic-shock",
+];
 
-    const caseDoc = resolveLessonCase(lesson!);
-    expect(caseDoc).toBeDefined();
-    const resolvedIds = new Set(caseDocumentToSimInstances(caseDoc!).map((inst) => inst.id));
-    const visibleUnion = new Set<string>();
-
-    for (const step of lesson!.steps!) {
-      for (const id of step.stage.visibleInstances) {
-        expect(resolvedIds.has(id), `${step.id} references unknown instance ${id}`).toBe(true);
-        visibleUnion.add(id);
-      }
+describe("official lesson registry (stepless reading articles)", () => {
+  it("registers exactly the expected stepless lessons", () => {
+    expect(LESSONS.map((l) => l.meta.id)).toEqual(EXPECTED_LESSON_IDS);
+    for (const lesson of LESSONS) {
+      expect(lesson.steps, `${lesson.meta.id} must be stepless`).toBeUndefined();
+      expect(lesson.noteSpine.length).toBeGreaterThan(0);
+      expect(lesson.meta.level).toBe("Beginner");
+      expect(lesson.meta.objective).toBeTruthy();
     }
-
-    expect([...visibleUnion].sort()).toEqual([...resolvedIds].sort());
-    expect(predictStep.stage.visibleInstances).toEqual(["1"]);
-    expect(predictStep.stage.exposedKnobs).toEqual(["contractility"]);
-    expect(predictStep.stage.knobInstanceId).toBe("1");
-    expect(revealStep.stage.visibleInstances).toEqual(["1", "2"]);
-    expect(revealStep.stage.exposedKnobs).toBeUndefined();
-    expect(predictStep.stage.challenge?.kind).toBe("predict");
-    expect(predictStep.stage.challenge?.revealLabel).toBeTruthy();
-    expect(revealStep.stage.challenge?.kind).not.toBe("predict");
-    expect(lesson!.steps!.at(-1)?.stage.challenge?.kind).not.toBe("predict");
   });
 
-  it("keeps one-page lessons on noteSpine without steps", () => {
-    const lesson = lessonById("normal-reference");
+  for (const id of EXPECTED_LESSON_IDS) {
+    it(`${id} routes through the reading presenter with a resolved column`, () => {
+      const lesson = lessonById(id);
+      expect(lesson).toBeDefined();
+      const caseDoc = resolveLessonCase(lesson!);
+      expect(caseDoc).toBeDefined();
+      expect(shouldUseReading(lesson!, caseDoc!)).toBe(true);
 
+      const resolved = resolveReadingColumn(caseDoc!);
+      expect("column" in resolved).toBe(true);
+      if ("column" in resolved) {
+        // Role-sorted derived order: note -> waveform -> pvloop -> metrics -> controls.
+        const ids = resolved.column.map((e) => (e.kind === "noteRef" ? e.noteId : e.panelId));
+        expect(ids).toEqual(["p_note", "p1", "p2", "p3", "p4"]);
+      }
+    });
+  }
+
+  it("keeps normal-reference working and one-page (no steps)", () => {
+    const lesson = lessonById("normal-reference");
     expect(lesson?.steps).toBeUndefined();
     expect(lesson?.noteSpine.length).toBeGreaterThan(0);
+    expect(lesson?.caseId).toBe("normal-sinus");
   });
 });
