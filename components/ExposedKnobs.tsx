@@ -1,5 +1,6 @@
 import React from "react";
 import { KNOB_RANGES } from "@/engine/knobs";
+import { KNOB_LABELS, KNOB_STEPS } from "@/knobMetadata";
 import { resolveKnobValue } from "@/lessonKnobs";
 import type { NumericKnobKey } from "@/lessonDoc";
 import type { SimInstance } from "@/types";
@@ -8,44 +9,6 @@ type ExposedKnobsProps = {
   instance: SimInstance;
   keys: NumericKnobKey[];
   onChange: (key: NumericKnobKey, value: number) => void;
-};
-
-const KNOB_LABELS: Partial<Record<NumericKnobKey, string>> = {
-  HR: "Heart rate",
-  contractility: "LV contractility",
-  contractilityRV: "RV contractility",
-  relaxation: "Relaxation",
-  diastolicStiffness: "Diastolic stiffness",
-  afterload: "Afterload",
-  arterialStiffness: "Arterial stiffness",
-  pulmonaryResistance: "Pulmonary resistance",
-  venousTone: "Venous tone",
-  peep: "PEEP",
-  aorticStenosis: "Aortic stenosis",
-  aorticRegurgitation: "Aortic regurgitation",
-  mitralStenosis: "Mitral stenosis",
-  mitralRegurgitation: "Mitral regurgitation",
-  tricuspidRegurgitation: "Tricuspid regurgitation",
-  pulmonicStenosis: "Pulmonic stenosis",
-};
-
-const KNOB_STEPS: Record<NumericKnobKey, number> = {
-  HR: 1,
-  contractility: 0.05,
-  contractilityRV: 0.05,
-  relaxation: 0.05,
-  diastolicStiffness: 0.05,
-  afterload: 0.05,
-  arterialStiffness: 0.05,
-  pulmonaryResistance: 0.05,
-  venousTone: 0.05,
-  peep: 1,
-  aorticStenosis: 0.05,
-  aorticRegurgitation: 0.05,
-  mitralStenosis: 0.05,
-  mitralRegurgitation: 0.05,
-  tricuspidRegurgitation: 0.05,
-  pulmonicStenosis: 0.05,
 };
 
 const formatValue = (key: NumericKnobKey, value: number): string => {
