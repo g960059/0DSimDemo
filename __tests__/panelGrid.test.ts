@@ -76,6 +76,7 @@ function createPanelGrid(mode: PanelGridMode, panels: PanelDef[] = [], instances
     updateInstanceSignals: noop,
     toggleGuides: noop,
     updateTimeWindow: noop,
+    updatePanelControllerItems: noop,
     noteCaseKey: "test",
     notes: {},
     onNoteChange: noop,
@@ -165,6 +166,22 @@ const pvLoopPanel: PanelDef = {
   showGuides: true,
 };
 
+const controlsPanel: PanelDef = {
+  id: "controls",
+  type: "CONTROLS",
+  title: "Controls",
+  zone: "sideRail",
+  w: 4,
+  h: 8,
+  config: { normal: { visible: true, selectedSignals: ["clinical"] } },
+  isSettingsOpen: true,
+  view: {
+    kind: "control",
+    groups: ["clinical"],
+    controllerItems: [{ paramKey: "contractility", kind: "slider", label: "LV Focus" }],
+  },
+};
+
 describe("PanelGrid Dockview layout", () => {
   it.each(["learner", "author", "sandbox"] as const)("does not render a separate layout edit toolbar in %s mode", (mode) => {
     const html = renderPanelGrid(mode);
@@ -216,6 +233,25 @@ describe("PanelGrid Dockview layout", () => {
 
     expect(html).not.toContain("Back to PV Loop");
     expect(html).not.toContain("Customizations");
+  });
+
+  it("shows custom controls settings for authorable controller panes", () => {
+    const html = renderPanelGrid("sandbox", [controlsPanel], [{ ...normalInstance, params: { ...DEFAULT_PARAMS } }]);
+
+    expect(html).toContain("Custom controls");
+    expect(html).toContain("Custom controls replace the default Clinical Knobs");
+    expect(html).toContain("LV Focus");
+    expect(html).toContain("Cardiac Function");
+    expect(html).toContain("Preview");
+    expect(html).toContain("type=\"range\"");
+  });
+
+  it("hides custom controls settings in learner mode", () => {
+    const html = renderPanelGrid("learner", [controlsPanel], [{ ...normalInstance, params: { ...DEFAULT_PARAMS } }]);
+
+    expect(html).not.toContain("Back to Controls");
+    expect(html).not.toContain("Controller pane");
+    expect(html).not.toContain("Pane title");
   });
 
   it("uses pane titles only for Dockview tab labels", () => {
@@ -274,7 +310,7 @@ describe("PanelGrid Dockview layout", () => {
 
     expect(html).toContain("Back to Controls");
     expect(html).toContain("Targets");
-    expect(html).toContain("Items");
+    expect(html).toContain("Sections");
     expect(html).toContain("Display");
     expect(html).toContain("Clinical knobs");
     expect(html).toContain("Pane title");
