@@ -1,18 +1,46 @@
 import React from "react";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 import { CASE_SCHEMA_VERSION, DEFAULT_SOLVER, ENGINE_VERSION, type CaseDocument } from "@/caseDoc";
 import { KNOB_MAPPING_VERSION } from "@/engine/knobs";
 import type { Lesson } from "@/lessonDoc";
 import { deriveDefaultReadingColumn, resolveReadingColumn } from "@/readingConversion";
+import { ReadingPresenter } from "@/components/reading/ReadingPresenter";
 import { ReadingColumn } from "@/components/reading/ReadingColumn";
+import { ReadingPaneCard } from "@/components/reading/ReadingPaneCard";
 import { shouldUseReading } from "@/components/reading/LessonReadingRoute";
 import type { NoteContent } from "@/noteTypes";
 import type { PanelDef } from "@/types";
 
 vi.mock("@/components/NotePanel", async () => {
   const React = await import("react");
+  const textOf = (content: unknown): string => {
+    if (typeof content === "string") return content;
+    if (!Array.isArray(content)) return "";
+    return content.map((item) => {
+      if (typeof item === "string") return item;
+      if (!item || typeof item !== "object") return "";
+      const inline = item as { type?: unknown; text?: unknown; content?: unknown };
+      if (inline.type === "text" && typeof inline.text === "string") return inline.text;
+      return textOf(inline.content);
+    }).join("");
+  };
   return {
+    deriveHeadingAnchors: (content: NoteContent) => {
+      const seen = new Map<string, number>();
+      return (content ?? []).filter((block) => block.type === "heading").map((block) => {
+        const text = textOf(block.content);
+        const baseId = text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "section";
+        const count = (seen.get(baseId) ?? 0) + 1;
+        seen.set(baseId, count);
+        return {
+          id: count === 1 ? baseId : `${baseId}-${count}`,
+          text,
+          level: 1,
+        };
+      });
+    },
     NotePanel: ({ content }: { content?: NoteContent }) => React.createElement("div", { "data-note-panel-stub": "true" }, JSON.stringify(content ?? [])),
   };
 });
@@ -174,6 +202,66 @@ describe("ReadingColumn", () => {
     expect(html.indexOf("Controls A")).toBeLessThan(html.indexOf("Controls B"));
     expect(html).toContain("Hide controls");
     expect(html).toContain("Adjust the model");
+  });
+});
+
+describe("ReadingPaneCard", () => {
+  it("renders semantic figure chrome with title figcaption and type-aware sizing", () => {
+    const html = renderToString(React.createElement(ReadingPaneCard, {
+      panel: panel("pv", "PVLOOP", { title: "PV Loop" }),
+      title: "PV Loop",
+      children: React.createElement("div", null, "chart"),
+    }));
+
+    expect(html).toContain("<figure");
+    expect(html).toContain("<figcaption");
+    expect(html).toContain("PV Loop");
+    expect(html).not.toContain("Figure:");
+    expect(html).toContain("relative h-[380px] sm:h-[460px]");
+  });
+
+  it("uses waveform bleed and height classes", () => {
+    const html = renderToString(React.createElement(ReadingPaneCard, {
+      panel: panel("wave", "WAVEFORM", { title: "Waveforms" }),
+      title: "Waveforms",
+      children: React.createElement("div", null, "chart"),
+    }));
+
+    expect(html).toContain("sm:-mx-8");
+    expect(html).toContain("relative h-[320px] sm:h-[360px]");
+  });
+});
+
+describe("ReadingPresenter chrome", () => {
+  it("renders title/meta/TOC in a centered article shell", () => {
+    const doc = caseDoc({
+      panels: [panel("controls", "CONTROLS")],
+      notes: {
+        intro: [
+          { type: "heading", content: [{ type: "text", text: "First Heading", styles: {} }] },
+          { type: "heading", content: [{ type: "text", text: "First Heading", styles: {} }] },
+        ],
+      },
+      reading: { schemaVersion: 1, column: [{ kind: "noteRef", noteId: "intro" }] },
+    });
+
+    const html = renderToString(React.createElement(MemoryRouter, null, React.createElement(ReadingPresenter, {
+      lessonTitle: "Reading Title",
+      lessonLevel: "Beginner",
+      objective: "Read the figures.",
+      caseDoc: doc,
+      column: doc.reading!.column,
+    })));
+
+    expect(html).toContain("max-w-[860px]");
+    expect(html).toContain("text-3xl font-bold text-slate-50 sm:text-[34px]");
+    expect(html).toContain("Beginner");
+    expect(html).toContain("min read");
+    expect(html).toContain("Interactive");
+    expect(html).toContain("目次");
+    expect(html).toContain('href="#first-heading"');
+    expect(html).toContain('href="#first-heading-2"');
+    expect(html).toContain("h-0.5 bg-sky-400");
   });
 });
 

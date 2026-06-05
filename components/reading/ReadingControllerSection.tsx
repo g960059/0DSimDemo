@@ -9,8 +9,8 @@ export const ReadingControllerSection: React.FC<{
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <section className="rounded-lg border border-slate-800 bg-[#0B1120] overflow-hidden">
-      <div className="h-8 px-3 flex items-center justify-between border-b border-slate-800 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+    <figure className="my-10 overflow-hidden rounded-lg border border-slate-800/90 bg-slate-950/60">
+      <figcaption className="flex items-center justify-between gap-3 border-b border-slate-800/80 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
         <span className="truncate">{panel.title}</span>
         <button
           type="button"
@@ -20,12 +20,12 @@ export const ReadingControllerSection: React.FC<{
         >
           {open ? "Hide controls" : "Adjust the model"}
         </button>
-      </div>
+      </figcaption>
       {open && (
         <div className="relative h-[420px] max-h-[60vh] overflow-y-auto">
           {children}
         </div>
       )}
-    </section>
+    </figure>
   );
 };

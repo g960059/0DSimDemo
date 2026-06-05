@@ -7,20 +7,39 @@ import type { PanelDef } from "../../types";
 import { ReadingControllerSection } from "./ReadingControllerSection";
 import { ReadingPaneCard } from "./ReadingPaneCard";
 
+function countHeadingBlocks(blocks: NoteContent): number {
+  return blocks.reduce((count, block) => {
+    const children = Array.isArray(block.children)
+      ? block.children.filter((child): child is Record<string, unknown> => !!child && typeof child === "object")
+      : [];
+    return count + (block.type === "heading" ? 1 : 0) + countHeadingBlocks(children);
+  }, 0);
+}
+
 export const ReadingColumn: React.FC<{
   column: ReadingColumnEntry[];
   panels: PanelDef[];
   notes: Record<string, NoteContent>;
   paneCtx: PaneBodyContext;
-}> = ({ column, panels, notes, paneCtx }) => {
+  headingAnchorIds?: string[];
+}> = ({ column, panels, notes, paneCtx, headingAnchorIds = [] }) => {
   const panelsById = new Map(panels.map((panel) => [panel.id, panel]));
   let controllerIndex = 0;
+  let headingCursor = 0;
 
   return (
     <div className="space-y-8 sm:space-y-10">
       {column.map((entry, index) => {
         if (entry.kind === "noteRef") {
-          return <NotePanel key={`note:${entry.noteId}:${index}`} mode="read" content={notes[entry.noteId]} bare />;
+          const content = notes[entry.noteId] ?? [];
+          const headingCount = countHeadingBlocks(content);
+          const noteHeadingIds = headingAnchorIds.slice(headingCursor, headingCursor + headingCount);
+          headingCursor += headingCount;
+          return (
+            <div key={`note:${entry.noteId}:${index}`} className="mx-auto w-full max-w-[68ch]">
+              <NotePanel mode="read" content={content} bare headingAnchorIds={noteHeadingIds} />
+            </div>
+          );
         }
 
         const panel = panelsById.get(entry.panelId);
