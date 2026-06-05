@@ -23,3 +23,6 @@ dist-ssr
 *.sw?
 dist/
 artifacts/
+
+# machine-local Claude Code permissions (do not track)
+.claude/settings.local.json
