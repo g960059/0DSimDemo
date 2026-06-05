@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, RotateCcw } from 'lucide-react';
-import { SimulationParams, SimInstance, type PanelInstanceConfig } from '../types';
+import { SimulationParams, SimInstance, type ControllerItem, type PanelInstanceConfig } from '../types';
 import type { SimulationHealth } from '../engine/protocol';
 import { type ClinicalKnobs, KNOB_RANGES, neutralKnobs } from '../engine/knobs';
 import { rawDisplayParams } from '../engine/instanceKnobs';
+import { CONTROLLER_CATALOG, CONTROLLER_CATALOG_SECTIONS } from '../controllerCatalog';
+import { buttonOptionsFromRange, normalizeControllerItems } from '../controllerItems';
 import { defaultControllerItemFor, readingButtonOptionsFor } from '../knobMetadata';
 import { HealthDot } from './HealthIndicators';
 import { ControllerItemControl } from './controls/ControllerItemControl';
@@ -19,52 +21,36 @@ interface ControlsProps {
   isPaneMode?: boolean;
   paneConfig?: Record<string, PanelInstanceConfig>;
   presentationMode?: 'studio' | 'reading';
+  controllerItems?: ControllerItem[];
 }
 
 type NumericKnobKey = Exclude<keyof ClinicalKnobs, 'baroreflexEnabled'>;
+type ClinicalControlConfig = { key: NumericKnobKey; label: string; step: number; unit?: string };
+const clinicalSections = CONTROLLER_CATALOG_SECTIONS;
+const allClinicalControls = CONTROLLER_CATALOG;
+const catalogByKey = new Map(CONTROLLER_CATALOG.map((entry) => [entry.key, entry]));
 
-interface ClinicalControlConfig {
-  key: NumericKnobKey;
-  label: string;
-  step: number;
-  unit?: string;
+export function getChangedClinicalControls(
+  knobs: ClinicalKnobs,
+  baselineKnobs: ClinicalKnobs,
+  controls: ClinicalControlConfig[],
+): ClinicalControlConfig[] {
+  return controls.filter(control =>
+    hasChanged(knobs[control.key], baselineKnobs[control.key], control.step)
+  );
 }
 
-const clinicalSections: { title: string; controls: ClinicalControlConfig[] }[] = [
-  {
-    title: 'Cardiac Function',
-    controls: [
-      { key: 'contractility', label: 'LV Contractility', step: 0.05, unit: 'x' },
-      { key: 'contractilityRV', label: 'RV Contractility', step: 0.05, unit: 'x' },
-      { key: 'relaxation', label: 'Relaxation', step: 0.05, unit: 'x' },
-      { key: 'diastolicStiffness', label: 'Diastolic Stiffness', step: 0.05, unit: 'x' },
-    ],
-  },
-  {
-    title: 'Load & Rate',
-    controls: [
-      { key: 'HR', label: 'Heart Rate', step: 1, unit: 'bpm' },
-      { key: 'afterload', label: 'Afterload (SVR)', step: 0.05, unit: 'x' },
-      { key: 'arterialStiffness', label: 'Arterial Stiffness', step: 0.05, unit: 'x' },
-      { key: 'pulmonaryResistance', label: 'Pulmonary Resistance', step: 0.05, unit: 'x' },
-      { key: 'venousTone', label: 'Venous Tone', step: 0.05 },
-      { key: 'peep', label: 'PEEP', step: 1, unit: 'cmH2O' },
-    ],
-  },
-  {
-    title: 'Valve Lesions',
-    controls: [
-      { key: 'aorticStenosis', label: 'Aortic Stenosis', step: 0.05 },
-      { key: 'aorticRegurgitation', label: 'Aortic Regurgitation', step: 0.05 },
-      { key: 'mitralStenosis', label: 'Mitral Stenosis', step: 0.05 },
-      { key: 'mitralRegurgitation', label: 'Mitral Regurgitation', step: 0.05 },
-      { key: 'tricuspidRegurgitation', label: 'Tricuspid Regurgitation', step: 0.05 },
-      { key: 'pulmonicStenosis', label: 'Pulmonic Stenosis', step: 0.05 },
-    ],
-  },
-];
-
-const allClinicalControls = clinicalSections.flatMap(section => section.controls);
+export function resetClinicalKnobsToBaseline(
+  knobs: ClinicalKnobs,
+  baselineKnobs: ClinicalKnobs,
+  controls: ClinicalControlConfig[],
+): ClinicalKnobs {
+  const nextKnobs: ClinicalKnobs = { ...knobs };
+  for (const control of controls) {
+    nextKnobs[control.key] = baselineKnobs[control.key];
+  }
+  return nextKnobs;
+}
 
 const ControlGrid = ({ children, tone = 'raw' }: { children: React.ReactNode; tone?: 'clinical' | 'raw' }) => (
   <div className={`grid gap-1.5 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))] ${tone === 'clinical' ? 'mb-2' : ''}`}>
@@ -127,10 +113,12 @@ const GroupHeader = ({ title, isOpen, toggle, tone = 'raw', changedCount = 0, su
 
 export const Controls: React.FC<ControlsProps> = ({
     instances, instanceHealth, activeInstanceId, updateInstanceParams, updateInstanceKnobs, updateInstanceVolume,
-    isPaneMode, paneConfig, presentationMode = 'studio'
+    isPaneMode, paneConfig, presentationMode = 'studio', controllerItems
 }) => {
   const isStudioMode = presentationMode === 'studio';
   const isReadingMode = presentationMode === 'reading';
+  const authored = useMemo(() => normalizeControllerItems(controllerItems ?? []).items, [controllerItems]);
+  const hasAuthored = authored.length > 0;
   const targetInstances = useMemo(() => {
     const availableInstances = instances.filter(i => i.isVisible !== false);
     if (isPaneMode && paneConfig) {
@@ -211,23 +199,27 @@ export const Controls: React.FC<ControlsProps> = ({
       if (activeInstance) updateInstanceKnobs(activeInstance.id, { ...knobs, [key]: val });
   };
   const kr = (key: keyof ClinicalKnobs): [number, number] => KNOB_RANGES[key] ?? [0, 1];
-  const changedCandidateClinicalControls = isReadingMode
-    ? allClinicalControls.filter(control => readingButtonOptionsFor(control.key, baselineKnobs[control.key]) != null)
-    : allClinicalControls;
-  const changedClinicalControls = changedCandidateClinicalControls.filter(control =>
-    hasChanged(knobs[control.key], baselineKnobs[control.key], control.step)
-  );
+  const changedCandidateClinicalControls = hasAuthored
+    ? authored.map((item) => {
+        const meta = catalogByKey.get(item.paramKey as NumericKnobKey);
+        return {
+          key: item.paramKey as NumericKnobKey,
+          label: item.label ?? meta?.label ?? item.paramKey,
+          step: item.step ?? meta?.step ?? 0.01,
+          unit: meta?.unit,
+        } satisfies ClinicalControlConfig;
+      })
+    : isReadingMode
+      ? allClinicalControls.filter(control => readingButtonOptionsFor(control.key, baselineKnobs[control.key]) != null)
+      : allClinicalControls;
+  const changedClinicalControls = getChangedClinicalControls(knobs, baselineKnobs, changedCandidateClinicalControls);
   const changedClinicalCount = changedClinicalControls.length;
   const changedClinicalSummary = changedClinicalControls.slice(0, 2).map(control => control.label).join(', ');
   const clinicalBodyClass = "mt-1 mb-2 border-l border-blue-500/25 pl-1.5";
   const rawBodyClass = "mt-1 mb-2 border-l border-slate-700/45 pl-1.5";
   const resetClinicalKnobs = () => {
     if (!activeInstance || changedClinicalCount === 0) return;
-    const nextKnobs: ClinicalKnobs = { ...knobs };
-    for (const control of changedClinicalControls) {
-      nextKnobs[control.key] = baselineKnobs[control.key];
-    }
-    updateInstanceKnobs(activeInstance.id, nextKnobs);
+    updateInstanceKnobs(activeInstance.id, resetClinicalKnobsToBaseline(knobs, baselineKnobs, changedClinicalControls));
   };
 
   const showGroup = (key: string) => {
@@ -265,49 +257,77 @@ export const Controls: React.FC<ControlsProps> = ({
               <GroupHeader title="Clinical Knobs" isOpen={openGroups.clinical} toggle={() => toggleGroup('clinical')} tone="clinical" changedCount={changedClinicalCount} summary={changedClinicalSummary} onReset={resetClinicalKnobs} />
               {openGroups.clinical && (
                   <div className={clinicalBodyClass}>
-                      {clinicalSections.map(section => {
-                        const visibleControls = isReadingMode
-                          ? section.controls
-                              .map(control => ({
-                                control,
-                                options: readingButtonOptionsFor(control.key, baselineKnobs[control.key]),
-                              }))
-                              .filter((entry): entry is { control: ClinicalControlConfig; options: { label: string; value: number }[] } => entry.options != null)
-                          : section.controls.map(control => ({ control, options: null }));
-                        const sectionChangedCount = visibleControls.filter(({ control }) =>
-                          hasChanged(knobs[control.key], baselineKnobs[control.key], control.step)
-                        ).length;
-                        if (visibleControls.length === 0) return null;
-                        return (
-                          <React.Fragment key={section.title}>
-                            <ControlGrid tone="clinical">
-                              <SectionLabel changedCount={sectionChangedCount}>{section.title}</SectionLabel>
-                              {visibleControls.map(({ control, options }) => {
-                                const [min, max] = kr(control.key);
-                                return (
-                                  <ControllerItemControl
-                                    key={control.key}
-                                    item={{
-                                      ...defaultControllerItemFor(control.key),
-                                      kind: isReadingMode ? 'buttonGroup' : 'slider',
-                                      label: control.label,
-                                      min,
-                                      max,
-                                      step: control.step,
-                                      ...(options ? { options } : {}),
-                                    }}
-                                    value={knobs[control.key]}
-                                    baseline={baselineKnobs[control.key]}
-                                    onChange={(v) => updateKnob(control.key, v)}
-                                    onReset={() => updateKnob(control.key, baselineKnobs[control.key])}
-                                    unit={control.unit}
-                                  />
-                                );
-                              })}
-                            </ControlGrid>
-                          </React.Fragment>
-                        );
-                      })}
+                      {hasAuthored ? (
+                        <>
+                          <div className="mb-2 text-[10px] font-semibold text-blue-100/80">Custom controls replace the default Clinical Knobs</div>
+                          <ControlGrid tone="clinical">
+                            <SectionLabel changedCount={changedClinicalCount}>Custom controls</SectionLabel>
+                            {authored.map((item) => {
+                              const key = item.paramKey as NumericKnobKey;
+                              const meta = catalogByKey.get(key);
+                              const readingOptions = item.kind === 'buttonGroup' && item.options
+                                ? item.options
+                                : readingButtonOptionsFor(item.paramKey, baselineKnobs[key]) ?? buttonOptionsFromRange(item);
+                              const displayItem: ControllerItem = isReadingMode
+                                ? { ...item, kind: 'buttonGroup', options: readingOptions }
+                                : item;
+                              return (
+                                <ControllerItemControl
+                                  key={item.paramKey}
+                                  item={displayItem}
+                                  value={knobs[key]}
+                                  baseline={baselineKnobs[key]}
+                                  onChange={(v) => updateKnob(key, v)}
+                                  onReset={() => updateKnob(key, baselineKnobs[key])}
+                                  unit={meta?.unit}
+                                />
+                              );
+                            })}
+                          </ControlGrid>
+                        </>
+                      ) : clinicalSections.map(section => {
+                          const visibleControls = isReadingMode
+                            ? section.controls
+                                .map(control => ({
+                                  control,
+                                  options: readingButtonOptionsFor(control.key, baselineKnobs[control.key]),
+                                }))
+                                .filter((entry): entry is { control: (typeof section.controls)[number]; options: { label: string; value: number }[] } => entry.options != null)
+                            : section.controls.map(control => ({ control, options: null }));
+                          const sectionChangedCount = visibleControls.filter(({ control }) =>
+                            hasChanged(knobs[control.key], baselineKnobs[control.key], control.step)
+                          ).length;
+                          if (visibleControls.length === 0) return null;
+                          return (
+                            <React.Fragment key={section.title}>
+                              <ControlGrid tone="clinical">
+                                <SectionLabel changedCount={sectionChangedCount}>{section.title}</SectionLabel>
+                                {visibleControls.map(({ control, options }) => {
+                                  const [min, max] = kr(control.key);
+                                  return (
+                                    <ControllerItemControl
+                                      key={control.key}
+                                      item={{
+                                        ...defaultControllerItemFor(control.key),
+                                        kind: isReadingMode ? 'buttonGroup' : 'slider',
+                                        label: control.label,
+                                        min,
+                                        max,
+                                        step: control.step,
+                                        ...(options ? { options } : {}),
+                                      }}
+                                      value={knobs[control.key]}
+                                      baseline={baselineKnobs[control.key]}
+                                      onChange={(v) => updateKnob(control.key, v)}
+                                      onReset={() => updateKnob(control.key, baselineKnobs[control.key])}
+                                      unit={control.unit}
+                                    />
+                                  );
+                                })}
+                              </ControlGrid>
+                            </React.Fragment>
+                          );
+                        })}
                   </div>
               )}
             </>

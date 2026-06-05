@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { DEFAULT_PARAMS } from './constants';
-import { SimulationParams, SimInstance, PanelDef, PanelType, PanelInstanceConfig, ChamberId, SignalType, MetricType, type DockviewViewState, type WorkbenchWorkspace, type WorkbenchZoneId } from './types';
+import { SimulationParams, SimInstance, PanelDef, PanelType, PanelInstanceConfig, ChamberId, SignalType, MetricType, type ControllerItem, type ControlPanelView, type DockviewViewState, type WorkbenchWorkspace, type WorkbenchZoneId } from './types';
 import { SimulationHealth } from './engine/protocol';
 import { type ClinicalKnobs } from './engine/knobs';
 import { resolveRawEdit, resolveKnobEdit } from './engine/instanceKnobs';
@@ -25,6 +25,8 @@ import type { WorkbenchControlsSide, WorkbenchLayoutState } from './components/w
 import type { NoteContent } from './noteTypes';
 import { addPane, removePane } from './layoutOps';
 import { defaultZoneOf } from './paneZone';
+import { normalizeControllerItems } from './controllerItems';
+import { toTypedPanelView } from './panelView';
 
 // Colors for instances
 const INSTANCE_COLORS = ['#a855f7', '#f472b6', '#22c55e', '#38bdf8', '#fbbf24'];
@@ -141,6 +143,23 @@ export function addHiddenInstanceConfigsToPanels(panels: PanelDef[], ids: string
     }
     return changed ? { ...panel, config } : panel;
   });
+}
+
+export function mergePanelControllerItems(panel: PanelDef, items: ControllerItem[]): PanelDef {
+  if (panel.type !== 'CONTROLS') return panel;
+
+  const normalized = normalizeControllerItems(items).items;
+  const baseView: ControlPanelView = panel.view?.kind === 'control'
+    ? panel.view
+    : (toTypedPanelView({ ...panel, type: 'CONTROLS', view: undefined }) as ControlPanelView);
+  return {
+    ...panel,
+    view: {
+      ...baseView,
+      kind: 'control',
+      controllerItems: normalized,
+    },
+  };
 }
 
 function resolveHeaderModeFromAuthor(author?: string, source?: CaseSource): WorkbenchHeaderMode {
@@ -897,6 +916,10 @@ function Workbench() {
   };
   const toggleGuides = (panelId: string) => { markUserEdited(); setPanels(prev => prev.map(p => p.id === panelId ? { ...p, showGuides: !p.showGuides } : p)); };
   const updateTimeWindow = (panelId: string, val: number) => { markUserEdited(); setPanels(prev => prev.map(p => p.id === panelId ? { ...p, timeWindow: val } : p)); };
+  const updatePanelControllerItems = (panelId: string, items: ControllerItem[]) => {
+    markUserEdited();
+    setPanels(prev => prev.map(p => p.id === panelId ? mergePanelControllerItems(p, items) : p));
+  };
 
   const updateSceneMeta = (next: WorkbenchSceneMeta) => {
     setSceneMeta(next);
@@ -1023,6 +1046,7 @@ function Workbench() {
         updateInstanceSignals={updateInstanceSignals}
         toggleGuides={toggleGuides}
         updateTimeWindow={updateTimeWindow}
+        updatePanelControllerItems={updatePanelControllerItems}
         noteCaseKey={noteCaseKey}
         notes={notes}
         onNoteChange={(panelId, blocks) => {

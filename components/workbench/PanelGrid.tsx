@@ -3,10 +3,12 @@ import { LessonAuthoring } from '../LessonAuthoring';
 import WorkbenchDockview from './WorkbenchDockview';
 import WorkbenchMobile from './WorkbenchMobile';
 import { renderPaneBody } from './renderPaneBody';
+import { ControllerItemsBuilder } from './ControllerItemsBuilder';
 import { type ClinicalKnobs } from '../../engine/knobs';
 import { SimulationHealth } from '../../engine/protocol';
 import {
   ChamberId,
+  ControllerItem,
   type DockviewViewState,
   MetricType,
   PanelDef,
@@ -79,6 +81,7 @@ interface PanelGridProps {
   updateInstanceSignals: (panelId: string, instId: string, signal: string) => void;
   toggleGuides: (panelId: string) => void;
   updateTimeWindow: (panelId: string, val: number) => void;
+  updatePanelControllerItems: (panelId: string, items: ControllerItem[]) => void;
   noteCaseKey: string;
   notes: Record<string, NoteContent>;
   onNoteChange: (panelId: string, blocks: NoteContent) => void;
@@ -97,6 +100,7 @@ export function getDockviewPaneTitle(panel: PanelDef): string {
 interface PanelSettingsButtonProps {
   panel: PanelDef;
   instances: SimInstance[];
+  activeInstanceId: string;
   updatePanelTitle: (id: string, newTitle: string) => void;
   toggleShowLegend: (id: string) => void;
   updatePanelInstanceColor: (panelId: string, instId: string, newColor: string) => void;
@@ -108,6 +112,7 @@ interface PanelSettingsButtonProps {
   updateInstanceSignals: (panelId: string, instId: string, signal: string) => void;
   toggleGuides: (panelId: string) => void;
   updateTimeWindow: (panelId: string, val: number) => void;
+  updatePanelControllerItems: (panelId: string, items: ControllerItem[]) => void;
   chambers: ChamberId[];
   signals: SignalType[];
   metrics: MetricType[];
@@ -118,7 +123,7 @@ type PanelSettingsControlsProps = Omit<PanelSettingsButtonProps, 'toggleSettings
 
 type SignalCategory = 'All' | 'Pressure' | 'Flow' | 'Volume' | 'Valve' | 'Coupling' | 'Derived';
 type GraphSettingsSectionId = 'signals' | 'instances' | 'display' | 'style';
-type ControlSettingsSectionId = 'targets' | 'items' | 'display';
+type ControlSettingsSectionId = 'targets' | 'items' | 'display' | 'custom';
 type SettingsSectionBounds = { top: number; bottom: number };
 
 const GRAPH_SETTINGS_PANEL_TYPES = new Set<PanelType>(['WAVEFORM', 'PVLOOP', 'METRICS', 'GUYTON_LEFT', 'GUYTON_RIGHT', 'GUYTON_3D']);
@@ -143,8 +148,9 @@ const CONTROL_SETTINGS_SECTIONS: Array<{
   icon: React.ComponentType<{ className?: string }>;
 }> = [
   { id: 'targets', label: 'Targets', compactLabel: 'Targets', description: 'Instances this controller pane can edit.', icon: Layers },
-  { id: 'items', label: 'Items', compactLabel: 'Items', description: 'Controller sections shown in the pane.', icon: SlidersHorizontal },
+  { id: 'items', label: 'Sections', compactLabel: 'Sections', description: 'Controller sections shown in the pane.', icon: SlidersHorizontal },
   { id: 'display', label: 'Display', compactLabel: 'Display', description: 'Pane label and target shortcut behavior.', icon: TypeIcon },
+  { id: 'custom', label: 'Custom controls', compactLabel: 'Custom', description: 'Author custom clinical controls for this pane.', icon: SlidersHorizontal },
 ];
 const GRAPH_SETTINGS_SECTION_IDS = GRAPH_SETTINGS_SECTIONS.map((section) => section.id);
 const CONTROL_SETTINGS_SECTION_IDS = CONTROL_SETTINGS_SECTIONS.map((section) => section.id);
@@ -908,11 +914,13 @@ function GraphPanelSettingsBoard({
 function ControlPanelSettingsBoard({
   panel,
   instances,
+  activeInstanceId,
   updatePanelTitle,
   updatePanelInstanceColor,
   updatePanelInstanceName,
   toggleInstanceVisibility,
   updateInstanceSignals,
+  updatePanelControllerItems,
   controlGroups,
 }: PanelSettingsControlsProps) {
   const [activeSection, setActiveSection] = useState<ControlSettingsSectionId>('targets');
@@ -1059,6 +1067,16 @@ function ControlPanelSettingsBoard({
   const renderSectionContent = (sectionId: ControlSettingsSectionId) => {
     if (sectionId === 'items') return renderItems();
     if (sectionId === 'display') return renderDisplay();
+    if (sectionId === 'custom') {
+      return (
+        <ControllerItemsBuilder
+          panel={panel}
+          instances={instances}
+          activeInstanceId={activeInstanceId}
+          updatePanelControllerItems={updatePanelControllerItems}
+        />
+      );
+    }
     return renderTargets();
   };
 
@@ -1216,6 +1234,7 @@ interface PanelCardProps {
   updateInstanceSignals: (panelId: string, instId: string, signal: string) => void;
   toggleGuides: (panelId: string) => void;
   updateTimeWindow: (panelId: string, val: number) => void;
+  updatePanelControllerItems: (panelId: string, items: ControllerItem[]) => void;
   noteCaseKey: string;
   notes: Record<string, NoteContent>;
   onNoteChange: (panelId: string, blocks: NoteContent) => void;
@@ -1261,6 +1280,7 @@ function PanelCard({
   updateInstanceSignals,
   toggleGuides,
   updateTimeWindow,
+  updatePanelControllerItems,
   noteCaseKey,
   notes,
   onNoteChange,
@@ -1321,6 +1341,7 @@ function PanelCard({
       <PanelSettingsView
         panel={panel}
         instances={instances}
+        activeInstanceId={activeInstanceId}
         updatePanelTitle={updatePanelTitle}
         toggleShowLegend={toggleShowLegend}
         updatePanelInstanceColor={updatePanelInstanceColor}
@@ -1332,6 +1353,7 @@ function PanelCard({
         updateInstanceSignals={updateInstanceSignals}
         toggleGuides={toggleGuides}
         updateTimeWindow={updateTimeWindow}
+        updatePanelControllerItems={updatePanelControllerItems}
         chambers={chambers}
         signals={signals}
         metrics={metrics}
@@ -1379,6 +1401,7 @@ function PanelCard({
           <PanelSettingsButton
             panel={panel}
             instances={instances}
+            activeInstanceId={activeInstanceId}
             updatePanelTitle={updatePanelTitle}
             toggleShowLegend={toggleShowLegend}
             updatePanelInstanceColor={updatePanelInstanceColor}
@@ -1390,6 +1413,7 @@ function PanelCard({
             updateInstanceSignals={updateInstanceSignals}
             toggleGuides={toggleGuides}
             updateTimeWindow={updateTimeWindow}
+            updatePanelControllerItems={updatePanelControllerItems}
             chambers={chambers}
             signals={signals}
             metrics={metrics}
@@ -1546,6 +1570,7 @@ export function PanelGrid({
   updateInstanceSignals,
   toggleGuides,
   updateTimeWindow,
+  updatePanelControllerItems,
   noteCaseKey,
   notes,
   onNoteChange,
@@ -1678,6 +1703,7 @@ export function PanelGrid({
       updateInstanceSignals={updateInstanceSignals}
       toggleGuides={toggleGuides}
       updateTimeWindow={updateTimeWindow}
+      updatePanelControllerItems={updatePanelControllerItems}
       noteCaseKey={noteCaseKey}
       notes={notes}
       onNoteChange={onNoteChange}

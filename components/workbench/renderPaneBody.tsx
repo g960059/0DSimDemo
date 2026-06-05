@@ -62,6 +62,7 @@ export function renderPaneBody(panel: PanelDef, ctx: PaneBodyContext): React.Rea
         updateInstanceKnobs={ctx.updateInstanceKnobs}
         updateInstanceVolume={ctx.updateInstanceVolume}
         presentationMode={ctx.presentationMode}
+        controllerItems={panel.view?.kind === 'control' ? panel.view.controllerItems : undefined}
       />
     );
   }
