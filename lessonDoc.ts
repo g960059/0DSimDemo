@@ -42,107 +42,73 @@ export type Lesson = {
   steps?: LessonStep[];
 };
 
+// Stepless reading-mode lessons. None carry `steps`, so every official lesson
+// routes through ReadingPresenter (a single-column article that auto-derives its
+// reading column from the case's panels). The rendered prose lives in the case's
+// notes.p_note (see officialCases.ts); noteSpine here is the short summary line
+// required by the Lesson type, NOT the rendered article.
+const sp = (text: string): NoteContent => [{ type: "paragraph", content: [{ type: "text", text, styles: {} }] }];
+
 export const LESSONS: Lesson[] = [
   {
     meta: {
       id: "normal-reference",
       title: "Normal Physiology Reference",
-      objective: "Read baseline waveforms and metrics before comparing disease states.",
-      level: "Intro",
+      objective: "Learn to read the four core panels — waveforms, PV loop, metrics, and controls — at a normal resting operating point, so you have an anchor to compare every disease case against.",
+      level: "Beginner",
     },
     caseId: "normal-sinus",
-    noteSpine: [
-      {
-        type: "paragraph",
-        content: [{ type: "text", text: "Start with the normal operating point. Use this as the anchor for pressure, loop, and output comparisons.", styles: {} }],
-      },
-      {
-        type: "quiz",
-        props: {
-          question: "Which stage panel summarizes cardiac output and blood pressure most directly?",
-          options: "PV Loop|Metrics|Waveforms",
-          answerIndex: "1",
-        },
-      },
-      {
-        type: "controller_ref",
-        props: { paramKey: "contractility", label: "Contractility control" },
-      },
-    ],
+    noteSpine: sp("Start with the normal operating point. Use this as the anchor for pressure, loop, and output comparisons."),
   },
   {
     meta: {
-      id: "lv-failure-inotrope",
-      title: "LV Failure and Dobutamine",
-      objective: "Compare low-output LV failure with an inotrope response.",
-      level: "Case",
+      id: "acute-anterior-mi",
+      title: "Acute Anterior MI: when the pump stalls",
+      objective: "Recognize how an isolated loss of anterior-wall contractility narrows the LV PV loop, drops SV and CO, and raises left atrial pressure.",
+      level: "Beginner",
     },
-    caseId: "lv-failure-dobutamine",
-    noteSpine: [
-      {
-        type: "paragraph",
-        content: [{ type: "text", text: "The failure case depresses LV pump function. Dobutamine raises contractility, improving output while reducing congestion.", styles: {} }],
-      },
-      {
-        type: "equation",
-        props: { tex: "CO = HR \\times SV" },
-      },
-      {
-        type: "quiz",
-        props: {
-          question: "After dobutamine, which direction should cardiac output move?",
-          options: "Down|Up|No change",
-          answerIndex: "1",
-        },
-      },
-    ],
-    steps: [
-      {
-        id: "predict-dobutamine",
-        title: "Predict the inotrope response",
-        note: [
-          {
-            type: "paragraph",
-            content: [{ type: "text", text: "First inspect LV failure alone. Predict how adding dobutamine will change output and filling pressure before revealing the treated trace.", styles: {} }],
-          },
-          {
-            type: "quiz",
-            props: {
-              question: "What should dobutamine do to cardiac output in this low-contractility state?",
-              options: "Lower it|Raise it|Leave it unchanged",
-              answerIndex: "1",
-            },
-          },
-        ],
-        stage: {
-          visibleInstances: ["1"],
-          exposedKnobs: ["contractility"],
-          knobInstanceId: "1",
-          challenge: {
-            kind: "predict",
-            prompt: "Make your prediction before revealing the treated trace.",
-            revealLabel: "Reveal dobutamine",
-          },
-        },
-      },
-      {
-        id: "reveal-dobutamine",
-        title: "Reveal the dobutamine response",
-        note: [
-          {
-            type: "paragraph",
-            content: [{ type: "text", text: "Now compare LV failure with + Dobutamine. Output and arterial pressure recover while congestion falls.", styles: {} }],
-          },
-          {
-            type: "equation",
-            props: { tex: "CO = HR \\times SV" },
-          },
-        ],
-        stage: {
-          visibleInstances: ["1", "2"],
-        },
-      },
-    ],
+    caseId: "acute-anterior-mi",
+    noteSpine: sp("Acute anterior MI as a sudden, isolated contractility problem: a smaller PV loop, lower output, higher filling pressure."),
+  },
+  {
+    meta: {
+      id: "systolic-heart-failure",
+      title: "Systolic Heart Failure (HFrEF)",
+      objective: "Understand how a weak left ventricle lowers stroke volume and cardiac output, raises filling pressure, and reshapes the PV loop.",
+      level: "Beginner",
+    },
+    caseId: "systolic-heart-failure",
+    noteSpine: sp("How a failing left ventricle changes the pressure waveforms, PV loop, and output metrics versus normal."),
+  },
+  {
+    meta: {
+      id: "diastolic-heart-failure",
+      title: "Diastolic Heart Failure (HFpEF)",
+      objective: "Understand how a stiff, poorly relaxing LV raises filling pressures while EF stays normal, and recognize the HFpEF signature on the PV loop, waveforms, and metrics.",
+      level: "Beginner",
+    },
+    caseId: "diastolic-heart-failure",
+    noteSpine: sp("Diastolic heart failure (HFpEF): preserved ejection fraction, impaired filling."),
+  },
+  {
+    meta: {
+      id: "aortic-stenosis",
+      title: "Aortic Stenosis: a stiff door on the way out",
+      objective: "Understand how a narrowed aortic valve forces the left ventricle to generate high pressure, and read that compensation off the PV loop, the LVP-AoP pressure gradient, and the stroke-volume metrics versus a normal heart.",
+      level: "Beginner",
+    },
+    caseId: "aortic-stenosis",
+    noteSpine: sp("How a narrowed aortic valve forces the left ventricle to generate a high pressure gradient — compared against the normal reference."),
+  },
+  {
+    meta: {
+      id: "hypovolemic-shock",
+      title: "Hypovolemic Shock",
+      objective: "Understand how losing circulating blood volume drops preload, stroke volume, and blood pressure.",
+      level: "Beginner",
+    },
+    caseId: "hypovolemic-shock",
+    noteSpine: sp("Hypovolemic shock is a preload problem: less circulating volume means less filling, lower stroke volume, and lower pressure."),
   },
 ];
 
