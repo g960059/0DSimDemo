@@ -186,7 +186,7 @@ describe("fitting/verification mode foundation", () => {
     expect(svgs["waveforms.svg"]).toContain("mv-gradient-e-peak");
     expect(svgs["waveforms.svg"]).toContain("qmv-extra-peaks");
     expect(svgs["pv-loops.svg"]).toContain("lv-filling-edge-roughness");
-    expect(svgs["pv-loops.svg"]).toContain("lv-filling-edge-excess");
+    expect(svgs["pv-loops.svg"]).toContain("lv-filling-edge-curvature");
     expect(svgs["pv-loops.svg"]).toContain("Verification PV Loops");
     expect(svgs["pv-loops.svg"]).toContain("LA PV loop");
     expect(svgs["pv-loops.svg"]).toContain("RA PV loop");
