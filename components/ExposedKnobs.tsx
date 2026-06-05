@@ -1,9 +1,10 @@
 import React from "react";
 import { KNOB_RANGES } from "@/engine/knobs";
-import { KNOB_LABELS, KNOB_STEPS } from "@/knobMetadata";
+import { defaultControllerItemFor } from "@/knobMetadata";
 import { resolveKnobValue } from "@/lessonKnobs";
 import type { NumericKnobKey } from "@/lessonDoc";
 import type { SimInstance } from "@/types";
+import { ControllerItemControl } from "./controls/ControllerItemControl";
 
 type ExposedKnobsProps = {
   instance: SimInstance;
@@ -11,11 +12,11 @@ type ExposedKnobsProps = {
   onChange: (key: NumericKnobKey, value: number) => void;
 };
 
-const formatValue = (key: NumericKnobKey, value: number): string => {
-  if (key === "HR") return `${Math.round(value)} bpm`;
-  if (key === "peep") return `${Math.round(value)} cmH2O`;
-  if (key === "venousTone") return value.toFixed(2);
-  return `${value.toFixed(2)}x`;
+const unitFor = (key: NumericKnobKey): string | undefined => {
+  if (key === "HR") return "bpm";
+  if (key === "peep") return "cmH2O";
+  if (key === "venousTone") return undefined;
+  return "x";
 };
 
 export const ExposedKnobs: React.FC<ExposedKnobsProps> = ({ instance, keys, onChange }) => (
@@ -29,21 +30,14 @@ export const ExposedKnobs: React.FC<ExposedKnobsProps> = ({ instance, keys, onCh
       if (!range) return null;
       const value = resolveKnobValue(instance, key);
       return (
-        <label key={key} className="block rounded border border-slate-800 bg-slate-950/70 px-3 py-2">
-          <div className="flex items-center justify-between gap-3 mb-2">
-            <span className="text-xs font-bold text-slate-300 truncate">{KNOB_LABELS[key] ?? key}</span>
-            <span className="shrink-0 text-[11px] font-bold text-blue-300">{formatValue(key, value)}</span>
-          </div>
-          <input
-            type="range"
-            min={range[0]}
-            max={range[1]}
-            step={KNOB_STEPS[key]}
+        <div key={key} className="rounded border border-slate-800 bg-slate-950/70 px-3 py-2">
+          <ControllerItemControl
+            item={{ ...defaultControllerItemFor(key), min: range[0], max: range[1] }}
             value={value}
-            onChange={(event) => onChange(key, Number(event.target.value))}
-            className="w-full accent-blue-500"
+            unit={unitFor(key)}
+            onChange={(nextValue) => onChange(key, nextValue)}
           />
-        </label>
+        </div>
       );
     })}
   </div>

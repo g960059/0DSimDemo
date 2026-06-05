@@ -140,13 +140,21 @@ describe("readingConversion", () => {
   });
 
   it("converts knobs to slider controller items with metadata and fallbacks", () => {
-    const items = knobsToControllerItems(["HR", "contractility", "baroreflexEnabled", "notARealKnob" as never]);
+    const items = knobsToControllerItems(["HR", "contractility", "relaxation", "baroreflexEnabled", "notARealKnob" as never]);
 
     expect(items[0]).toMatchObject({ paramKey: "HR", kind: "slider", label: "Heart rate", min: 30, max: 180, step: 1 });
     expect(items[1]).toMatchObject({ paramKey: "contractility", kind: "slider", label: "LV contractility", min: 0.25, max: 2.5, step: 0.05 });
-    expect(items.map((entry) => entry.paramKey)).toEqual(["HR", "contractility", "baroreflexEnabled", "notARealKnob"]);
-    expect(items[2]).toEqual({ paramKey: "baroreflexEnabled", kind: "slider", label: "baroreflexEnabled" });
-    expect(items[3]).toEqual({ paramKey: "notARealKnob", kind: "slider", label: "notARealKnob" });
+    expect(items[2]).toMatchObject({ paramKey: "relaxation", kind: "slider", label: "Relaxation", min: 0.25, max: 2.5, step: 0.05 });
+    expect(items[0].options).toBeUndefined();
+    expect(items[1].options).toEqual([
+      { label: "Low", value: 0.7 },
+      { label: "Normal", value: 1 },
+      { label: "High", value: 1.4 },
+    ]);
+    expect(items[2].options).toBeUndefined();
+    expect(items.map((entry) => entry.paramKey)).toEqual(["HR", "contractility", "relaxation", "baroreflexEnabled", "notARealKnob"]);
+    expect(items[3]).toEqual({ paramKey: "baroreflexEnabled", kind: "slider", label: "baroreflexEnabled" });
+    expect(items[4]).toEqual({ paramKey: "notARealKnob", kind: "slider", label: "notARealKnob" });
   });
 
   it("exposedKnobsToControllerItems delegates with parity", () => {
