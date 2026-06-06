@@ -31,6 +31,18 @@ import {
   type SignalKey,
 } from "@/engine/settling";
 import {
+  MODEL_STATE_SCHEMA_VERSION,
+  MODEL_VERSION,
+  finiteRecord,
+  finiteNumber,
+  finiteNumberArray,
+  simpleStableHash,
+  type ComparableState,
+  type ModelStateLayout,
+  type SerializedModelState,
+  type UnpackModelStateOptions,
+} from "@/engine/stateContract";
+import {
   pericardialPressure,
   type PericardiumParams,
 } from "@/engine/mechanics/pericardium";
@@ -269,6 +281,37 @@ function makeIndex(): StateIndex {
     activeInternal,
     size: i
   };
+}
+
+function stateLayout(): ModelStateLayout {
+  return {
+    nodes: [...nodeNames],
+    dynamicEdges: [...dynamicEdgeNames],
+    valves: [...valveNames],
+    activeChambers: activeChambersFromNodes(buildNodes()),
+    size: makeIndex().size,
+  };
+}
+
+const MODEL_STATE_LAYOUT = stateLayout();
+const MODEL_STATE_LAYOUT_HASH = simpleStableHash(MODEL_STATE_LAYOUT);
+
+function comparableFlowEdgeName(name: string): string {
+  const edgeByComparableName: Record<string, string> = {
+    QAo: "AoV",
+    QPA: "PV",
+    QMV: "MV",
+    QTV: "TV",
+    PVF: "PVein_LA",
+    SVF: "VC_RA",
+    QCapSV: "Cap_SV",
+    QPArtPCap: "PArt_PCap",
+    QCorLAD: "Ao_LAD",
+    QCorLCx: "Ao_LCx",
+    QCorRCA: "Ao_RCA",
+    QCS: "CS_RA",
+  };
+  return edgeByComparableName[name] ?? name;
 }
 
 
@@ -528,6 +571,126 @@ export class ModelCore {
     this.tbvCorrectionMagLastBeat = 0;
     this.tbvCorrectionLastStepMl = 0;
     this.clearBeatTracking();
+  }
+
+  packState(): SerializedModelState {
+    const phi = finiteNumber(this.x[this.idx.phi], "state.phi");
+    return {
+      schemaVersion: MODEL_STATE_SCHEMA_VERSION,
+      modelVersion: MODEL_VERSION,
+      stateLayoutHash: MODEL_STATE_LAYOUT_HASH,
+      paramsHash: this.paramsHash(),
+      targetParamsHash: this.targetParamsHash(),
+      t: finiteNumber(this.t, "state.t"),
+      phi,
+      x: Array.from(this.x, (value, index) => finiteNumber(value, `state.x[${index}]`)),
+      initialTBV: finiteNumber(this.initialTBV, "state.initialTBV"),
+      expectedTBV: finiteNumber(this.expectedTBV, "state.expectedTBV"),
+    };
+  }
+
+  unpackState(snapshot: SerializedModelState, options: UnpackModelStateOptions = {}): void {
+    if (snapshot.schemaVersion !== MODEL_STATE_SCHEMA_VERSION) {
+      throw new Error(`Model state schema mismatch: expected ${MODEL_STATE_SCHEMA_VERSION}, got ${String(snapshot.schemaVersion)}`);
+    }
+    if (snapshot.modelVersion !== MODEL_VERSION) {
+      throw new Error(`Model state model version mismatch: expected ${MODEL_VERSION}, got ${String(snapshot.modelVersion)}`);
+    }
+    if (snapshot.stateLayoutHash !== MODEL_STATE_LAYOUT_HASH) {
+      throw new Error(`Model state layout hash mismatch: expected ${MODEL_STATE_LAYOUT_HASH}, got ${String(snapshot.stateLayoutHash)}`);
+    }
+    if (!options.allowParameterMismatch) {
+      const paramsHash = this.paramsHash();
+      const targetParamsHash = this.targetParamsHash();
+      if (snapshot.paramsHash !== paramsHash) {
+        throw new Error(`Model state params hash mismatch: expected ${paramsHash}, got ${String(snapshot.paramsHash)}`);
+      }
+      if (snapshot.targetParamsHash !== targetParamsHash) {
+        throw new Error(`Model state target params hash mismatch: expected ${targetParamsHash}, got ${String(snapshot.targetParamsHash)}`);
+      }
+    }
+    const x = finiteNumberArray(snapshot.x, "state.x");
+    if (x.length !== this.idx.size) {
+      throw new Error(`Model state vector size mismatch: expected ${this.idx.size}, got ${x.length}`);
+    }
+    const phi = finiteNumber(snapshot.phi, "state.phi");
+    if (Math.abs(phi - x[this.idx.phi]) > 1e-12) {
+      throw new Error(`Model state phi mismatch: snapshot phi=${phi}, vector phi=${x[this.idx.phi]}`);
+    }
+
+    this.t = finiteNumber(snapshot.t, "state.t");
+    this.x.set(x);
+    this.initialTBV = finiteNumber(snapshot.initialTBV, "state.initialTBV");
+    this.expectedTBV = finiteNumber(snapshot.expectedTBV, "state.expectedTBV");
+    this.tbvCorrectionEnabled = true;
+    this.tbvCorrectionMagThisBeat = 0;
+    this.tbvCorrectionMagLastBeat = 0;
+    this.tbvCorrectionLastStepMl = 0;
+    this.clampHitCount = 0;
+    this.history = [];
+    this.lastSample = null;
+    this.clearBeatTracking();
+    this.lastSample = this.sample();
+    this.history = [];
+    this.clearBeatTracking();
+  }
+
+  getComparableState(): ComparableState {
+    const pack = this.computePressures(this.x);
+    const flows = this.computeFlows(this.x, pack);
+    const values: Record<string, number> = {
+      t: this.t,
+      phi: this.x[this.idx.phi],
+      TBV: this.totalBloodVolume(pack),
+      initialTBV: this.initialTBV,
+      expectedTBV: this.expectedTBV,
+      septumShiftMl: this.x[this.idx.septumShift],
+      VLVeff: pack.VLVeff,
+      VRVeff: pack.VRVeff,
+      PLVfw: pack.PLVfw,
+      PRVfw: pack.PRVfw,
+    };
+    for (const name of nodeNames) {
+      const i = this.nodeIndex.get(name)!;
+      values[`P.${name}`] = pack.P[i];
+      values[`V.${name}`] = pack.Vphys[i];
+    }
+    for (const edge of dynamicEdgeNames) {
+      values[`Q.${edge}`] = this.x[this.idx.q[edge]];
+    }
+    for (const valve of valveNames) {
+      values[`xi.${valve}`] = this.x[this.idx.xi[valve]];
+    }
+    for (const name of ["QAo", "QPA", "QMV", "QTV", "PVF", "SVF", "QCapSV", "QPArtPCap", "QCorLAD", "QCorLCx", "QCorRCA", "QCS"] as const) {
+      const edgeName = comparableFlowEdgeName(name);
+      values[name] = flows[this.edgeIndex(edgeName)];
+    }
+    for (const chamber of this.activeChamberNodes()) {
+      const ch = chamber.chamber!;
+      const idx = this.activeInternalIndex(ch);
+      values[`active.${ch}.c`] = this.x[idx.c];
+      values[`active.${ch}.a`] = this.x[idx.a];
+      values[`active.${ch}.r`] = this.x[idx.r];
+      values[`active.${ch}.tensionPa`] = this.x[idx.tensionPa];
+    }
+    return {
+      schemaVersion: MODEL_STATE_SCHEMA_VERSION,
+      modelVersion: MODEL_VERSION,
+      stateLayoutHash: MODEL_STATE_LAYOUT_HASH,
+      paramsHash: this.paramsHash(),
+      targetParamsHash: this.targetParamsHash(),
+      t: finiteNumber(this.t, "comparable.t"),
+      phi: finiteNumber(this.x[this.idx.phi], "comparable.phi"),
+      values: finiteRecord(values, "comparable.values"),
+    };
+  }
+
+  private paramsHash(): string {
+    return simpleStableHash({ ...this.p, speed: 0 });
+  }
+
+  private targetParamsHash(): string {
+    return simpleStableHash({ ...this.pTarget, speed: 0 });
   }
 
   setTargetParameters(patch: ParameterPatch) {
