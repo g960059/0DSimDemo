@@ -2,6 +2,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { ControllerItemControl } from "@/components/controls/ControllerItemControl";
+import { Slider } from "@/components/controls/Slider";
 import type { ControllerItem } from "@/types";
 
 const sliderItem: ControllerItem = {
@@ -28,6 +29,7 @@ function renderControl(item: ControllerItem, value: number, onChange = vi.fn()) 
 
 function collectButtons(node: React.ReactNode): React.ReactElement[] {
   if (!React.isValidElement(node)) return [];
+  if (node.type === Slider) return [];
   if (typeof node.type === "function") {
     const Component = node.type as (props: unknown) => React.ReactNode;
     return collectButtons(Component(node.props));
@@ -35,6 +37,17 @@ function collectButtons(node: React.ReactNode): React.ReactElement[] {
   const props = node.props as { children?: React.ReactNode };
   const current = typeof node.type === "string" && node.type === "button" ? [node] : [];
   return current.concat(React.Children.toArray(props.children).flatMap(collectButtons));
+}
+
+function collectSliders(node: React.ReactNode): React.ReactElement[] {
+  if (!React.isValidElement(node)) return [];
+  if (node.type === Slider) return [node];
+  if (typeof node.type === "function") {
+    const Component = node.type as (props: unknown) => React.ReactNode;
+    return collectSliders(Component(node.props));
+  }
+  const props = node.props as { children?: React.ReactNode };
+  return React.Children.toArray(props.children).flatMap(collectSliders);
 }
 
 describe("ControllerItemControl", () => {
@@ -91,6 +104,24 @@ describe("ControllerItemControl", () => {
     (buttons[2].props as { onClick: () => void }).onClick();
 
     expect(onChange).toHaveBeenCalledWith(1.4);
+  });
+
+  it("range sliders commit through onCommit instead of live onChange", () => {
+    const onChange = vi.fn();
+    const sliders = collectSliders(ControllerItemControl({
+      item: sliderItem,
+      value: 1,
+      onChange,
+    }));
+
+    expect(sliders).toHaveLength(1);
+    const sliderProps = sliders[0].props as { onCommit?: (v: number) => void; onChange?: (v: number) => void };
+    expect(typeof sliderProps.onCommit).toBe("function");
+    expect(sliderProps.onChange).toBeUndefined();
+
+    sliderProps.onCommit?.(1.2);
+
+    expect(onChange).toHaveBeenCalledWith(1.2);
   });
 
   it("renders pure buttonGroup controls as chips only", () => {

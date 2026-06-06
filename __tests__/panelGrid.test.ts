@@ -80,6 +80,7 @@ function createPanelGrid(mode: PanelGridMode, panels: PanelDef[] = [], instances
     toggleGuides: noop,
     updateTimeWindow: noop,
     updatePanelControllerItems: noop,
+    updatePanelLegendPosition: noop,
     noteCaseKey: "test",
     notes: {},
     onNoteChange: noop,
@@ -247,6 +248,54 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).toContain("pointer-events-auto");
     expect(html).toContain("aria-label=\"Open pane settings\"");
     expect(html).toContain("title=\"Open pane settings\"");
+  });
+
+  it("renders a drag grip for configurable legends with a position callback", () => {
+    const html = renderToStaticMarkup(React.createElement(ChartLegend, {
+      instances: [normalInstance],
+      config: pvLoopPanel.config,
+      showLegend: true,
+      panelId: "pv",
+      legendInteractive: true,
+      onOpenSettings: noop,
+      onLegendPositionChange: noop,
+    }));
+
+    expect(html).toContain("aria-label=\"Drag legend\"");
+    expect(html).toContain("cursor-grab");
+  });
+
+  it("renders stored legend positions with inline placement and reset control", () => {
+    const html = renderToStaticMarkup(React.createElement(ChartLegend, {
+      instances: [normalInstance],
+      config: pvLoopPanel.config,
+      showLegend: true,
+      panelId: "pv",
+      legendInteractive: true,
+      onOpenSettings: noop,
+      legendPosition: { xPct: 0.25, yPct: 0.4 },
+      onLegendPositionChange: noop,
+    }));
+
+    expect(html).toContain("style=\"left:0px;top:0px\"");
+    expect(html).not.toContain("top-2 right-2");
+    expect(html).toContain("aria-label=\"Reset legend position\"");
+  });
+
+  it("keeps inert legends without drag or reset controls", () => {
+    const html = renderToStaticMarkup(React.createElement(ChartLegend, {
+      instances: [normalInstance],
+      config: pvLoopPanel.config,
+      showLegend: true,
+      panelId: "pv",
+      legendInteractive: false,
+      legendPosition: { xPct: 0.25, yPct: 0.4 },
+      onLegendPositionChange: noop,
+    }));
+
+    expect(html).toContain("pointer-events-none");
+    expect(html).not.toContain("aria-label=\"Drag legend\"");
+    expect(html).not.toContain("aria-label=\"Reset legend position\"");
   });
 
   it("opens pane settings idempotently from chart legend actions", () => {

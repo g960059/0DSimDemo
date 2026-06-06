@@ -54,6 +54,25 @@ export type PreviewPerfSnapshot = {
   byInstance: Record<string, PreviewInstancePerf>;
 };
 
+export type PreviewSetInstancesOptions = {
+  transitionIds?: string[];
+};
+
+export type PreviewResetOptions = {
+  mode?: "replace" | "transition";
+};
+
+const PREVIEW_TRANSITION_GHOST_MS = 2000;
+
+const previewInstanceSignature = (inst: SimInstance): string => JSON.stringify({
+  params: inst.params,
+  targetVolume: inst.targetVolume,
+});
+
+const previewInstanceListSignature = (instances: SimInstance[]): string => (
+  instances.map((inst) => `${inst.id}:${previewInstanceSignature(inst)}`).join("|")
+);
+
 const emptyHealth = (): SimulationHealth => ({
   status: "ok",
   tbvDriftMl: 0,
@@ -257,6 +276,7 @@ export class PreviewController {
   private workerRequestId = 0;
   private workerGeneration = 0;
   private workerPendingRequestId = 0;
+  private workerInstancesSignature = "";
 
   private readonly dt: number;
   private readonly sampleHz: number;
@@ -302,6 +322,7 @@ export class PreviewController {
     this.worker = null;
     this.workerTickPending = false;
     this.workerPendingRequestId = 0;
+    this.workerInstancesSignature = "";
     this.workerGeneration++;
     const instances = this.instances;
     this.refs.clear();
@@ -327,19 +348,27 @@ export class PreviewController {
   }
 
   /** Reconcile live cores with the instance list: create new, drop removed. */
-  setInstances(instances: SimInstance[]) {
+  setInstances(instances: SimInstance[], options: PreviewSetInstancesOptions = {}) {
     if (this.worker) {
-      this.setInstancesWorker(instances);
+      this.setInstancesWorker(instances, options);
       return;
     }
+    const transitionIds = new Set(options.transitionIds ?? []);
     this.instances = instances;
     const added: string[] = [];
     let resetExisting = false;
     for (const inst of instances) {
+      const signature = previewInstanceSignature(inst);
       const previousHeartModel = this.heartModelByInstance[inst.id];
       const heartModelChanged = previousHeartModel !== undefined && previousHeartModel !== inst.params.heartModel;
       this.heartModelByInstance[inst.id] = inst.params.heartModel;
-      if (this.refs.has(inst.id) && !heartModelChanged) continue;
+      const current = this.refs.get(inst.id);
+      if (current && !heartModelChanged) {
+        if (transitionIds.has(inst.id)) {
+          this.promoteSyncTransition(inst, current, signature);
+        }
+        continue;
+      }
       this.refs.set(inst.id, this.createSettledRef(inst));
       if (heartModelChanged) {
         resetExisting = true;
@@ -379,15 +408,18 @@ export class PreviewController {
       core.t = maxT;
       core.clearBeatTracking(); // the t jump breaks the in-flight beat's dt
     }
-    return { core, buffer: [], lastRenderX: 0 };
+    return { core, buffer: [], lastRenderX: 0, displaySignature: previewInstanceSignature(inst) };
   }
 
-  private setInstancesWorker(instances: SimInstance[]) {
+  private setInstancesWorker(instances: SimInstance[], options: PreviewSetInstancesOptions = {}) {
     this.instances = instances;
     const added: string[] = [];
     const resetIds: string[] = [];
+    const transitionIds = new Set(options.transitionIds ?? []);
+    const nextListSignature = previewInstanceListSignature(instances);
     for (const inst of instances) {
       const current = this.refs.get(inst.id);
+      const signature = previewInstanceSignature(inst);
       const previousHeartModel = this.heartModelByInstance[inst.id];
       const heartModelChanged = previousHeartModel !== undefined && previousHeartModel !== inst.params.heartModel;
       this.heartModelByInstance[inst.id] = inst.params.heartModel;
@@ -397,10 +429,19 @@ export class PreviewController {
           current.lastRenderX = 0;
           current.isSettling = true;
           current.settleProgress = 0;
+          current.previousEpoch = undefined;
+          current.transition = undefined;
           delete this.prevStatus[inst.id];
           resetIds.push(inst.id);
         }
-        if (current.core instanceof RemotePreviewCore) current.core.updateClock(current.core.t, inst.params);
+        if (transitionIds.has(inst.id) && !heartModelChanged) {
+          this.prepareTransition(current, signature);
+          resetIds.push(inst.id);
+        } else if (current.transition?.status === "settling" && current.transition.toSignature === signature) {
+          current.isSettling = true;
+        } else if (current.core instanceof RemotePreviewCore) {
+          current.core.updateClock(current.core.t, inst.params);
+        }
         continue;
       }
       this.refs.set(inst.id, {
@@ -409,6 +450,7 @@ export class PreviewController {
         lastRenderX: 0,
         isSettling: true,
         settleProgress: 0,
+        displaySignature: signature,
       });
       added.push(inst.id);
     }
@@ -420,7 +462,12 @@ export class PreviewController {
         delete this.heartModelByInstance[id];
       }
     }
+    if (resetIds.length === 0 && nextListSignature === this.workerInstancesSignature) {
+      if (added.length > 0) this.onInstancesAdded?.(added);
+      return;
+    }
     const generation = this.bumpWorkerGeneration();
+    this.workerInstancesSignature = nextListSignature;
     this.postWorker({ type: "setInstances", generation, instances });
     if (resetIds.length > 0) {
       this.postWorker({ type: "resetInstances", generation, ids: resetIds });
@@ -430,21 +477,109 @@ export class PreviewController {
     if (added.length > 0) this.onInstancesAdded?.(added);
   }
 
+  private prepareTransition(phys: PhysicsRefState, toSignature: string): void {
+    const now = this.nowMs();
+    phys.isSettling = true;
+    phys.settleProgress = 0;
+    phys.previousEpoch = undefined;
+    phys.transition = {
+      status: "settling",
+      toSignature,
+      startedAtMs: now,
+    };
+  }
+
+  private promoteTransition(
+    phys: PhysicsRefState,
+    toSignature: string,
+    samples: SimSample[],
+    snapshot?: PreviewCoreSnapshot,
+  ): void {
+    const now = this.nowMs();
+    const previous = phys.buffer.slice();
+    if (previous.length > 0) {
+      phys.previousEpoch = {
+        buffer: previous,
+        capturedAtMs: now,
+        expiresAtMs: now + PREVIEW_TRANSITION_GHOST_MS,
+      };
+    } else {
+      phys.previousEpoch = undefined;
+    }
+    if (snapshot && phys.core instanceof RemotePreviewCore) phys.core.update(snapshot);
+    phys.buffer = samples.slice();
+    phys.lastRenderX = 0;
+    phys.isSettling = false;
+    phys.settleProgress = 1;
+    phys.displaySignature = toSignature;
+    phys.transition = {
+      status: "promoted",
+      toSignature,
+      startedAtMs: phys.transition?.startedAtMs ?? now,
+      promotedAtMs: now,
+    };
+  }
+
+  private promoteSyncTransition(inst: SimInstance, current: PhysicsRefState, signature: string): void {
+    const core = new ModelCore(inst.params);
+    core.initializeVenousPressuresForTargetTBV(inst.targetVolume);
+    core.settleToSteady(PREVIEW_SETTLE_POLICY, this.dt, this.sampleHz);
+    const sampleSeconds = 60 / Math.max(core.p.HR, 1);
+    const samples = core.runFor(sampleSeconds, this.dt, this.sampleHz);
+    const now = this.nowMs();
+    const previous = current.buffer.slice();
+    this.refs.set(inst.id, {
+      core,
+      buffer: samples,
+      lastRenderX: 0,
+      isSettling: false,
+      settleProgress: 1,
+      displaySignature: signature,
+      previousEpoch: previous.length > 0
+        ? { buffer: previous, capturedAtMs: now, expiresAtMs: now + PREVIEW_TRANSITION_GHOST_MS }
+        : undefined,
+      transition: {
+        status: "promoted",
+        toSignature: signature,
+        startedAtMs: now,
+        promotedAtMs: now,
+      },
+    });
+    delete this.prevStatus[inst.id];
+  }
+
+  private expirePreviousEpochs(now = this.nowMs()): void {
+    for (const phys of this.refs.values()) {
+      if (phys.previousEpoch && phys.previousEpoch.expiresAtMs <= now) {
+        phys.previousEpoch = undefined;
+        if (phys.transition?.status === "promoted") phys.transition = undefined;
+      }
+    }
+  }
+
   /**
    * Reset selected existing instances to a clean, settled operating point.
    * Used at lesson step boundaries after params change; ordinary live knob
    * edits still merge smoothly through setImmediateParameters in tick().
    */
-  resetInstances(ids: string[]) {
+  resetInstances(ids: string[], options: PreviewResetOptions = {}) {
     if (ids.length === 0) return;
+    const mode = options.mode ?? "replace";
     if (this.worker) {
       for (const id of ids) {
         const current = this.refs.get(id);
         if (!current) continue;
-        current.buffer = [];
-        current.lastRenderX = 0;
-        current.isSettling = true;
-        current.settleProgress = 0;
+        if (mode === "transition") {
+          const inst = this.instances.find((candidate) => candidate.id === id);
+          this.prepareTransition(current, inst ? previewInstanceSignature(inst) : current.displaySignature ?? id);
+        } else {
+          current.buffer = [];
+          current.lastRenderX = 0;
+          current.isSettling = true;
+          current.settleProgress = 0;
+          current.previousEpoch = undefined;
+          current.transition = undefined;
+        }
         delete this.prevStatus[id];
       }
       this.postWorker({ type: "resetInstances", generation: this.bumpWorkerGeneration(), ids });
@@ -457,11 +592,15 @@ export class PreviewController {
       if (!targets.has(inst.id)) continue;
       const current = this.refs.get(inst.id);
       if (!current) continue;
+      if (mode === "transition") {
+        this.promoteSyncTransition(inst, current, previewInstanceSignature(inst));
+        continue;
+      }
       const core = new ModelCore(inst.params);
       core.initializeVenousPressuresForTargetTBV(inst.targetVolume);
       core.settleToSteady(PREVIEW_SETTLE_POLICY, this.dt, this.sampleHz);
       core.clearBeatTracking();
-      this.refs.set(inst.id, { core, buffer: [], lastRenderX: 0 });
+      this.refs.set(inst.id, { core, buffer: [], lastRenderX: 0, displaySignature: previewInstanceSignature(inst) });
       delete this.prevStatus[inst.id];
     }
     this.healthSig = "";
@@ -493,6 +632,7 @@ export class PreviewController {
     if (!this.worker) {
       this.initWorker();
       if (this.worker && this.instances.length > 0) {
+        this.workerInstancesSignature = previewInstanceListSignature(this.instances);
         this.postWorker({ type: "setInstances", generation: this.bumpWorkerGeneration(), instances: this.instances });
       }
     }
@@ -517,11 +657,13 @@ export class PreviewController {
     this.worker = null;
     this.workerTickPending = false;
     this.workerPendingRequestId = 0;
+    this.workerInstancesSignature = "";
   }
 
   /** Advance one frame for a wall-clock timestamp (ms). Driver-agnostic. */
   tick(now: number) {
     const frameStart = this.nowMs();
+    this.expirePreviousEpochs(frameStart);
     if (!this.lastFrameTime) this.lastFrameTime = now;
     let deltaTimeMs = now - this.lastFrameTime;
     this.lastFrameTime = now; // updated even while paused, so resume doesn't jump
@@ -640,9 +782,15 @@ export class PreviewController {
       if (message.generation !== this.workerGeneration) return;
       const phys = this.refs.get(message.id);
       if (!phys) return;
-      if (phys.core instanceof RemotePreviewCore) phys.core.update(message.snapshot);
       phys.isSettling = message.settling;
       phys.settleProgress = Math.min(1, Math.max(0, message.actualSeconds / PREVIEW_SETTLE_POLICY.capSeconds));
+      if (phys.transition?.status === "settling") {
+        if (!message.settling && message.samples && message.samples.length > 0) {
+          this.promoteTransition(phys, phys.transition.toSignature, message.samples, message.snapshot);
+        }
+        return;
+      }
+      if (phys.core instanceof RemotePreviewCore) phys.core.update(message.snapshot);
       if (!message.settling) phys.buffer = [];
       return;
     }
@@ -659,6 +807,14 @@ export class PreviewController {
       const phys = this.refs.get(item.id);
       const inst = this.instances.find((candidate) => candidate.id === item.id);
       if (!phys || !inst) continue;
+      if (phys.transition?.status === "settling") {
+        phys.isSettling = item.settling;
+        if (!item.settling && item.samples.length > 0) {
+          const snapshot = item.snapshot;
+          this.promoteTransition(phys, phys.transition.toSignature, item.samples, snapshot);
+        }
+        continue;
+      }
       if (item.snapshot && phys.core instanceof RemotePreviewCore) {
         phys.core.update(item.snapshot);
       } else if (phys.core instanceof RemotePreviewCore) {

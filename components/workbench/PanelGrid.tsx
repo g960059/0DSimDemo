@@ -15,6 +15,7 @@ import {
   PanelInstanceConfig,
   PanelType,
   PhysicsRefState,
+  type LegendPosition,
   SignalType,
   SimInstance,
   SimulationParams,
@@ -82,6 +83,7 @@ interface PanelGridProps {
   toggleGuides: (panelId: string) => void;
   updateTimeWindow: (panelId: string, val: number) => void;
   updatePanelControllerItems: (panelId: string, items: ControllerItem[]) => void;
+  updatePanelLegendPosition: (panelId: string, pos?: LegendPosition) => void;
   noteCaseKey: string;
   notes: Record<string, NoteContent>;
   onNoteChange: (panelId: string, blocks: NoteContent) => void;
@@ -1244,6 +1246,7 @@ interface PanelCardProps {
   toggleGuides: (panelId: string) => void;
   updateTimeWindow: (panelId: string, val: number) => void;
   updatePanelControllerItems: (panelId: string, items: ControllerItem[]) => void;
+  updatePanelLegendPosition: (panelId: string, pos?: LegendPosition) => void;
   noteCaseKey: string;
   notes: Record<string, NoteContent>;
   onNoteChange: (panelId: string, blocks: NoteContent) => void;
@@ -1290,6 +1293,7 @@ function PanelCard({
   toggleGuides,
   updateTimeWindow,
   updatePanelControllerItems,
+  updatePanelLegendPosition,
   noteCaseKey,
   notes,
   onNoteChange,
@@ -1306,6 +1310,7 @@ function PanelCard({
   const openSettingsFromLegend = canOpenSettingsFromLegend
     ? (panelId: string) => openPanelSettingsIfClosed(panel, panelId, toggleSettings)
     : undefined;
+  const changeLegendPosition = canOpenSettingsFromLegend ? updatePanelLegendPosition : undefined;
   const dockviewNoteModeSwitch = chromeMode === 'dockview' && panel.type === 'NOTE' && canConfigure ? (
     <div className="flex shrink-0 items-center justify-end border-b border-slate-800/70 bg-slate-950/35 px-2 py-1">
       <div className="flex items-center rounded border border-slate-700 bg-slate-900 p-0.5">
@@ -1347,6 +1352,8 @@ function PanelCard({
         updateInstanceColor,
         canConfigure: canOpenSettingsFromLegend,
         onOpenSettings: openSettingsFromLegend,
+        legendPosition: panel.view?.kind === 'graph' ? panel.view.legendPosition : undefined,
+        onLegendPositionChange: changeLegendPosition,
       })}
     </div>
   );
@@ -1586,6 +1593,7 @@ export function PanelGrid({
   toggleGuides,
   updateTimeWindow,
   updatePanelControllerItems,
+  updatePanelLegendPosition,
   noteCaseKey,
   notes,
   onNoteChange,
@@ -1719,6 +1727,7 @@ export function PanelGrid({
       toggleGuides={toggleGuides}
       updateTimeWindow={updateTimeWindow}
       updatePanelControllerItems={updatePanelControllerItems}
+      updatePanelLegendPosition={updatePanelLegendPosition}
       noteCaseKey={noteCaseKey}
       notes={notes}
       onNoteChange={onNoteChange}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { DEFAULT_PARAMS } from './constants';
-import { SimulationParams, SimInstance, PanelDef, PanelType, PanelInstanceConfig, ChamberId, SignalType, MetricType, type ControllerItem, type ControlPanelView, type DockviewViewState, type WorkbenchWorkspace, type WorkbenchZoneId } from './types';
+import { SimulationParams, SimInstance, PanelDef, PanelType, PanelInstanceConfig, ChamberId, SignalType, MetricType, type ControllerItem, type ControlPanelView, type DockviewViewState, type GraphPanelView, type LegendPosition, type WorkbenchWorkspace, type WorkbenchZoneId } from './types';
 import { SimulationHealth } from './engine/protocol';
 import { type ClinicalKnobs } from './engine/knobs';
 import { resolveRawEdit, resolveKnobEdit } from './engine/instanceKnobs';
@@ -159,6 +159,34 @@ export function mergePanelControllerItems(panel: PanelDef, items: ControllerItem
       kind: 'control',
       controllerItems: normalized,
     },
+  };
+}
+
+const GRAPH_PANEL_TYPES = new Set<PanelType>(['PVLOOP', 'WAVEFORM', 'GUYTON_RIGHT', 'GUYTON_LEFT', 'GUYTON_3D']);
+
+export function mergePanelLegendPosition(panel: PanelDef, pos?: LegendPosition): PanelDef {
+  if (!GRAPH_PANEL_TYPES.has(panel.type)) return panel;
+
+  const derivedView = panel.view?.kind === 'graph'
+    ? panel.view
+    : toTypedPanelView({ ...panel, view: undefined });
+  if (derivedView.kind !== 'graph') return panel;
+
+  const baseView: GraphPanelView = derivedView;
+  if (pos !== undefined) {
+    return {
+      ...panel,
+      view: {
+        ...baseView,
+        legendPosition: pos,
+      },
+    };
+  }
+
+  const { legendPosition: _legendPosition, ...viewWithoutPosition } = baseView;
+  return {
+    ...panel,
+    view: viewWithoutPosition,
   };
 }
 
@@ -727,19 +755,26 @@ function Workbench() {
   // Clinical knob edit: makes the instance knob-primary, deriving params.
   const updateInstanceKnobs = (id: string, newKnobs: ClinicalKnobs) => {
       markUserEdited();
-      setInstances(prev => prev.map(inst =>
-          inst.id === id
-            ? { ...inst, ...resolveKnobEdit({ params: inst.params, knobs: inst.knobs, knobBaseline: inst.knobBaseline }, newKnobs) }
-            : inst
-      ));
+      setInstances(prev => {
+          const next = prev.map(inst =>
+              inst.id === id
+                ? { ...inst, ...resolveKnobEdit({ params: inst.params, knobs: inst.knobs, knobBaseline: inst.knobBaseline }, newKnobs) }
+                : inst
+          );
+          controller.setInstances(next, { transitionIds: [id] });
+          return next;
+      });
   };
   
   const updateInstanceVolume = (id: string, vol: number) => {
       markUserEdited();
-      setInstances(prev => prev.map(inst =>
-          inst.id === id ? { ...inst, targetVolume: vol } : inst
-      ));
-      controller.setInstanceVolume(id, vol);
+      setInstances(prev => {
+          const next = prev.map(inst =>
+              inst.id === id ? { ...inst, targetVolume: vol } : inst
+          );
+          controller.setInstances(next, { transitionIds: [id] });
+          return next;
+      });
   }
 
   const updateInstanceColor = (id: string, color: string) => {
@@ -920,6 +955,10 @@ function Workbench() {
     markUserEdited();
     setPanels(prev => prev.map(p => p.id === panelId ? mergePanelControllerItems(p, items) : p));
   };
+  const updatePanelLegendPosition = (panelId: string, pos?: LegendPosition) => {
+    markUserEdited();
+    setPanels(prev => prev.map(p => p.id === panelId ? mergePanelLegendPosition(p, pos) : p));
+  };
 
   const updateSceneMeta = (next: WorkbenchSceneMeta) => {
     setSceneMeta(next);
@@ -1047,6 +1086,7 @@ function Workbench() {
         toggleGuides={toggleGuides}
         updateTimeWindow={updateTimeWindow}
         updatePanelControllerItems={updatePanelControllerItems}
+        updatePanelLegendPosition={updatePanelLegendPosition}
         noteCaseKey={noteCaseKey}
         notes={notes}
         onNoteChange={(panelId, blocks) => {

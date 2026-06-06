@@ -55,6 +55,7 @@ export type PreviewWorkerResponse =
       snapshot: PreviewCoreSnapshot;
       actualSeconds: number;
       settling: boolean;
+      samples?: SimSample[];
     }
   | {
       type: "error";

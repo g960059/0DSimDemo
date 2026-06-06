@@ -7,7 +7,7 @@ import { ScenarioPane } from './ScenarioPane';
 import type { ClinicalKnobs } from '../../engine/knobs';
 import type { SimulationHealth } from '../../engine/protocol';
 import type { NoteContent } from '../../noteTypes';
-import type { PanelDef, PhysicsRefState, SimInstance, SimulationParams } from '../../types';
+import type { LegendPosition, PanelDef, PhysicsRefState, SimInstance, SimulationParams } from '../../types';
 
 export interface PaneBodyContext {
   instances: SimInstance[];
@@ -29,6 +29,8 @@ export interface PaneBodyContext {
   presentationMode?: 'studio' | 'reading';
   canConfigure?: boolean;
   onOpenSettings?: (panelId: string) => void;
+  legendPosition?: LegendPosition;
+  onLegendPositionChange?: (panelId: string, pos?: LegendPosition) => void;
 }
 
 export function renderPaneBody(panel: PanelDef, ctx: PaneBodyContext): React.ReactNode {
@@ -43,6 +45,8 @@ export function renderPaneBody(panel: PanelDef, ctx: PaneBodyContext): React.Rea
         panelId={panel.id}
         legendInteractive={shouldEnableLegendInteractions({ canConfigure: ctx.canConfigure, presentationMode: ctx.presentationMode })}
         onOpenSettings={ctx.onOpenSettings}
+        legendPosition={ctx.legendPosition}
+        onLegendPositionChange={ctx.onLegendPositionChange}
       />
     );
   }
@@ -57,6 +61,8 @@ export function renderPaneBody(panel: PanelDef, ctx: PaneBodyContext): React.Rea
         panelId={panel.id}
         legendInteractive={shouldEnableLegendInteractions({ canConfigure: ctx.canConfigure, presentationMode: ctx.presentationMode })}
         onOpenSettings={ctx.onOpenSettings}
+        legendPosition={ctx.legendPosition}
+        onLegendPositionChange={ctx.onLegendPositionChange}
       />
     );
   }

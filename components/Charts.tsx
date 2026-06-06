@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as d3 from 'd3';
-import { Settings } from 'lucide-react';
-import { SimInstance, PhysicsRefState, PanelInstanceConfig } from '../types';
+import { GripVertical, Settings } from 'lucide-react';
+import { SimInstance, PhysicsRefState, PanelInstanceConfig, type LegendPosition } from '../types';
 import type { SimSample } from '../engine/protocol';
+import { clampLegendFraction, fractionToPx, pxToFraction } from './legendPosition';
 import { useDocumentVisible, useOnscreen } from '../hooks/useOnscreen';
 import {
     buildGuytonPaneData,
@@ -26,6 +27,8 @@ interface ChartPanelProps {
   panelId?: string;
   legendInteractive?: boolean;
   onOpenSettings?: (panelId: string) => void;
+  legendPosition?: LegendPosition;
+  onLegendPositionChange?: (panelId: string, pos?: LegendPosition) => void;
 }
 
 interface WaveformProps extends ChartPanelProps {
@@ -248,6 +251,20 @@ const chartInstanceKey = (instances: SimInstance[]): string => (
         .join('|')
 );
 
+const activePreviousBuffer = (physState: PhysicsRefState, nowMs: number): SimSample[] | null => {
+    const previous = physState.previousEpoch;
+    if (!previous || previous.expiresAtMs <= nowMs || previous.buffer.length < 2) return null;
+    return previous.buffer;
+};
+
+const visibleCurveCount = (instances: SimInstance[], config: Record<string, PanelInstanceConfig>): number => (
+    instances.reduce((count, inst) => {
+        const cfg = config[inst.id];
+        if (!cfg || !cfg.visible) return count;
+        return count + cfg.selectedSignals.length;
+    }, 0)
+);
+
 const isPvLoopDebugEnabled = (): boolean => {
     if (typeof window === 'undefined') return false;
     try {
@@ -358,7 +375,33 @@ type ChartLegendProps = {
     panelId?: string;
     legendInteractive?: boolean;
     onOpenSettings?: (panelId: string) => void;
+    legendPosition?: LegendPosition;
+    onLegendPositionChange?: (panelId: string, pos?: LegendPosition) => void;
 };
+
+type LegendLayout = {
+    container: { width: number; height: number };
+    legend: { width: number; height: number };
+};
+
+type LegendDragState = {
+    pointerId: number;
+    startClient: { x: number; y: number };
+    startPx: { left: number; top: number };
+    latestFraction: LegendPosition;
+};
+
+const EMPTY_LEGEND_LAYOUT: LegendLayout = {
+    container: { width: 0, height: 0 },
+    legend: { width: 0, height: 0 },
+};
+
+function sameLegendLayout(a: LegendLayout, b: LegendLayout): boolean {
+    return a.container.width === b.container.width
+        && a.container.height === b.container.height
+        && a.legend.width === b.legend.width
+        && a.legend.height === b.legend.height;
+}
 
 export const ChartLegend = ({
     instances,
@@ -368,9 +411,50 @@ export const ChartLegend = ({
     panelId,
     legendInteractive = false,
     onOpenSettings,
+    legendPosition,
+    onLegendPositionChange,
 }: ChartLegendProps) => {
-    if (showLegend === false) return null;
+    const legendRef = useRef<HTMLDivElement>(null);
+    const dragRef = useRef<LegendDragState | null>(null);
+    const movedRef = useRef(false);
+    const suppressClickRef = useRef(false);
+    const [layout, setLayout] = useState<LegendLayout>(EMPTY_LEGEND_LAYOUT);
+    const [livePosition, setLivePosition] = useState<LegendPosition | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
     const canOpenSettings = legendInteractive && Boolean(panelId) && Boolean(onOpenSettings);
+    const canDragLegend = canOpenSettings && Boolean(panelId) && Boolean(onLegendPositionChange);
+    const measureLayout = (): LegendLayout => {
+        const legendEl = legendRef.current;
+        const containerEl = (legendEl?.offsetParent as HTMLElement | null) ?? legendEl?.parentElement ?? null;
+        if (!legendEl || !containerEl) return EMPTY_LEGEND_LAYOUT;
+        const legendRect = legendEl.getBoundingClientRect();
+        const next = {
+            container: {
+                width: containerEl.clientWidth,
+                height: containerEl.clientHeight,
+            },
+            legend: {
+                width: legendEl.offsetWidth || legendRect.width,
+                height: legendEl.offsetHeight || legendRect.height,
+            },
+        };
+        setLayout(prev => sameLegendLayout(prev, next) ? prev : next);
+        return next;
+    };
+
+    useEffect(() => {
+        if (showLegend === false) return undefined;
+        const legendEl = legendRef.current;
+        const containerEl = (legendEl?.offsetParent as HTMLElement | null) ?? legendEl?.parentElement ?? null;
+        measureLayout();
+        if (!containerEl || typeof ResizeObserver === 'undefined') return undefined;
+        const observer = new ResizeObserver(() => {
+            measureLayout();
+        });
+        observer.observe(containerEl);
+        return () => observer.disconnect();
+    }, [showLegend, legendPosition, instances.length, config]);
+
     const openSettings = (event: React.MouseEvent<HTMLElement>) => {
         event.stopPropagation();
         if (!canOpenSettings || !panelId) return;
@@ -394,16 +478,124 @@ export const ChartLegend = ({
             );
         });
     });
+    const effectivePosition = livePosition ?? legendPosition;
+    const clampedPosition = effectivePosition
+        ? clampLegendFraction(effectivePosition, layout.container, layout.legend)
+        : undefined;
+    const legendPx = clampedPosition ? fractionToPx(clampedPosition, layout.container) : undefined;
+    const legendStyle: React.CSSProperties | undefined = legendPx
+        ? { left: `${legendPx.left}px`, top: `${legendPx.top}px` }
+        : undefined;
+    const placementClassName = effectivePosition ? '' : 'top-2 right-2';
     const legendClassName = canOpenSettings
-        ? `group absolute top-2 right-2 flex flex-col gap-1 z-30 pointer-events-auto cursor-pointer p-1.5 bg-slate-900/80 rounded border border-slate-700/50 backdrop-blur-sm ${extraClasses}`
-        : `absolute top-2 right-2 flex flex-col gap-1 z-30 pointer-events-none p-1.5 bg-slate-900/80 rounded border border-slate-700/50 backdrop-blur-sm ${extraClasses}`;
+        ? `group absolute ${placementClassName} flex flex-col gap-1 z-30 pointer-events-auto cursor-pointer p-1.5 bg-slate-900/80 rounded border border-slate-700/50 backdrop-blur-sm ${extraClasses}`
+        : `absolute ${placementClassName} flex flex-col gap-1 z-30 pointer-events-none p-1.5 bg-slate-900/80 rounded border border-slate-700/50 backdrop-blur-sm ${extraClasses}`;
+
+    const stopGripClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+        event.stopPropagation();
+        if (suppressClickRef.current) {
+            event.preventDefault();
+            suppressClickRef.current = false;
+        }
+    };
+    const stopGripDoubleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+        event.stopPropagation();
+    };
+    const onGripPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+        if (!canDragLegend || !panelId) return;
+        event.stopPropagation();
+        event.preventDefault();
+        const legendEl = legendRef.current;
+        const containerEl = (legendEl?.offsetParent as HTMLElement | null) ?? legendEl?.parentElement ?? null;
+        if (!legendEl || !containerEl) return;
+
+        const measured = measureLayout();
+        const legendRect = legendEl.getBoundingClientRect();
+        const containerRect = containerEl.getBoundingClientRect();
+        const currentPx = effectivePosition
+            ? fractionToPx(clampLegendFraction(effectivePosition, measured.container, measured.legend), measured.container)
+            : {
+                left: legendRect.left - containerRect.left,
+                top: legendRect.top - containerRect.top,
+            };
+        const currentFraction = clampLegendFraction(pxToFraction(currentPx, measured.container), measured.container, measured.legend);
+        dragRef.current = {
+            pointerId: event.pointerId,
+            startClient: { x: event.clientX, y: event.clientY },
+            startPx: currentPx,
+            latestFraction: currentFraction,
+        };
+        movedRef.current = false;
+        setLivePosition(currentFraction);
+        setIsDragging(true);
+        event.currentTarget.setPointerCapture(event.pointerId);
+    };
+    const onGripPointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
+        const drag = dragRef.current;
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        event.stopPropagation();
+        event.preventDefault();
+        const dx = event.clientX - drag.startClient.x;
+        const dy = event.clientY - drag.startClient.y;
+        if (Math.hypot(dx, dy) > 3) movedRef.current = true;
+        const measured = measureLayout();
+        const nextPx = {
+            left: drag.startPx.left + dx,
+            top: drag.startPx.top + dy,
+        };
+        const nextFraction = clampLegendFraction(pxToFraction(nextPx, measured.container), measured.container, measured.legend);
+        drag.latestFraction = nextFraction;
+        setLivePosition(nextFraction);
+    };
+    const finishGripDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
+        const drag = dragRef.current;
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        event.stopPropagation();
+        event.preventDefault();
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+        if (movedRef.current && panelId) {
+            suppressClickRef.current = true;
+            onLegendPositionChange?.(panelId, drag.latestFraction);
+        }
+        dragRef.current = null;
+        setLivePosition(null);
+        setIsDragging(false);
+    };
+    const resetLegendPosition = (event: React.MouseEvent<HTMLButtonElement>) => {
+        event.stopPropagation();
+        if (!panelId) return;
+        onLegendPositionChange?.(panelId, undefined);
+    };
+
+    if (showLegend === false) return null;
 
     return (
         <div
+            ref={legendRef}
             className={legendClassName}
+            style={legendStyle}
             onDoubleClick={canOpenSettings ? openSettings : undefined}
             title={canOpenSettings ? 'Open pane settings' : undefined}
         >
+            {canDragLegend && (
+                <button
+                    type="button"
+                    className={`absolute left-1 top-1 inline-flex h-5 w-5 items-center justify-center rounded border border-slate-700/70 bg-slate-950/85 text-slate-400 opacity-0 transition-opacity hover:bg-slate-800 hover:text-slate-100 group-hover:opacity-100 focus-visible:opacity-100 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+                    aria-label="Drag legend"
+                    title="Drag legend"
+                    onPointerDown={onGripPointerDown}
+                    onPointerMove={onGripPointerMove}
+                    onPointerUp={finishGripDrag}
+                    onPointerCancel={finishGripDrag}
+                    onClick={stopGripClick}
+                    onDoubleClick={stopGripDoubleClick}
+                    style={{ touchAction: 'none' }}
+                >
+                    <GripVertical className="h-3 w-3" />
+                </button>
+            )}
             {canOpenSettings && (
                 <button
                     type="button"
@@ -415,12 +607,24 @@ export const ChartLegend = ({
                     <Settings className="h-3 w-3" />
                 </button>
             )}
-            {canOpenSettings ? <div className="pr-5">{legendItems}</div> : legendItems}
+            {canDragLegend && legendPosition && (
+                <button
+                    type="button"
+                    className="absolute left-1 top-7 inline-flex h-5 w-5 items-center justify-center rounded border border-slate-700/70 bg-slate-950/85 text-[11px] font-bold leading-none text-slate-400 opacity-0 transition-opacity hover:bg-slate-800 hover:text-slate-100 group-hover:opacity-100 focus-visible:opacity-100"
+                    aria-label="Reset legend position"
+                    title="Reset legend position"
+                    onClick={resetLegendPosition}
+                    onDoubleClick={stopGripDoubleClick}
+                >
+                    ↺
+                </button>
+            )}
+            {canDragLegend ? <div className="px-5">{legendItems}</div> : canOpenSettings ? <div className="pr-5">{legendItems}</div> : legendItems}
         </div>
     );
 };
 
-export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances, config, showGuides, showLegend, panelId, legendInteractive, onOpenSettings }) => {
+export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances, config, showGuides, showLegend, panelId, legendInteractive, onOpenSettings, legendPosition, onLegendPositionChange }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scaleRef = useRef({ maxV: 300, maxP: 200 });
@@ -456,6 +660,7 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
 
     const render = () => {
       if (stopped) return;
+      const nowMs = performance.now();
       const xScale = d3.scaleLinear().domain([0, 300]).range([50, width - 15]);
       const yScale = d3.scaleLinear().domain([0, 200]).range([height - 35, 25]);
 
@@ -472,15 +677,18 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
           const physState = physicsRefs.current.get(inst.id);
           if (!physState || physState.buffer.length < 2) return;
           
-          const data = physState.buffer.slice(-500); 
-          for (let i = 0; i < data.length; i += 10) {
-              const d = data[i];
-              cfg.selectedSignals.forEach((chamber: string) => {
-                  const { v, p } = chamberPVPoint(d, chamber);
-                  if (v > currentFrameMaxV) currentFrameMaxV = v;
-                  if (p > currentFrameMaxP) currentFrameMaxP = p;
-                  hasData = true;
-              });
+          const buffers = [physState.buffer, activePreviousBuffer(physState, nowMs)].filter((buf): buf is SimSample[] => Boolean(buf));
+          for (const buf of buffers) {
+              const data = buf.slice(-500);
+              for (let i = 0; i < data.length; i += 10) {
+                  const d = data[i];
+                  cfg.selectedSignals.forEach((chamber: string) => {
+                      const { v, p } = chamberPVPoint(d, chamber);
+                      if (v > currentFrameMaxV) currentFrameMaxV = v;
+                      if (p > currentFrameMaxP) currentFrameMaxP = p;
+                      hasData = true;
+                  });
+              }
           }
       });
 
@@ -532,6 +740,7 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
 
           const physState = physicsRefs.current.get(inst.id);
           if (!physState || physState.buffer.length < 2) return;
+          const previousBuffer = activePreviousBuffer(physState, nowMs);
           
           // PV loops must be drawn over the LAST COMPLETE beat (floor-aligned),
           // not a trailing 1.0-phase window that mixes a partial current beat —
@@ -541,6 +750,31 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
           const beatSampleCount = beatRange.end - beatRange.start + (beatRange.closingIndex >= 0 ? 1 : 0);
 
           cfg.selectedSignals.forEach((chamber: string) => {
+              if (previousBuffer) {
+                  const previousBeatRange = lastCompleteBeatRange(previousBuffer);
+                  const previousPoints: CanvasPoint[] = [];
+                  for (let i = previousBeatRange.start; i < previousBeatRange.end; i++) {
+                      const { v, p } = chamberPVPoint(previousBuffer[i], chamber);
+                      previousPoints.push({ x: xScale(v), y: yScale(p) });
+                  }
+                  if (previousBeatRange.closingIndex >= 0) {
+                      const { v, p } = chamberPVPoint(previousBuffer[previousBeatRange.closingIndex], chamber);
+                      previousPoints.push({ x: xScale(v), y: yScale(p) });
+                  }
+                  if (previousPoints.length > 1) {
+                      const ghostColor = getColor(inst.color, chamber, cfg.customBaseColor, cfg.customSignalColors);
+                      ctx.save();
+                      ctx.strokeStyle = ghostColor;
+                      ctx.globalAlpha = 0.22;
+                      ctx.lineWidth = 1.5;
+                      ctx.setLineDash([5, 5]);
+                      ctx.lineJoin = 'round';
+                      ctx.lineCap = 'round';
+                      drawSmoothPolyline(ctx, previousPoints);
+                      ctx.restore();
+                  }
+              }
+
               // The LA figure-8 needs a full beat to render its two sub-loops;
               // skip only a degenerate/partial window (live buffer is ~tens of
               // samples per beat, so the old 80 threshold hid the loop entirely).
@@ -630,13 +864,13 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
 
   return (
       <div ref={containerRef} className="absolute inset-0 rounded-b-xl overflow-hidden pointer-events-none">
-         <ChartLegend instances={instances} config={config} showLegend={showLegend} panelId={panelId} legendInteractive={legendInteractive} onOpenSettings={onOpenSettings} />
+         <ChartLegend instances={instances} config={config} showLegend={showLegend} panelId={panelId} legendInteractive={legendInteractive} onOpenSettings={onOpenSettings} legendPosition={legendPosition} onLegendPositionChange={onLegendPositionChange} />
          <canvas ref={canvasRef} className="block pointer-events-auto" />
       </div>
   );
 };
 
-export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances, timeWindow, config, showLegend, panelId, legendInteractive, onOpenSettings }) => {
+export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances, timeWindow, config, showLegend, panelId, legendInteractive, onOpenSettings, legendPosition, onLegendPositionChange }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const scaleRef = useRef({ yMin: 0, yMax: 160 });
@@ -672,6 +906,7 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
 
         const render = () => {
             if (stopped) return;
+            const nowMs = performance.now();
             ctx.clearRect(0, 0, width, height);
             
             let currentGlobalTime = 0;
@@ -691,26 +926,37 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
             let frameYMin = Infinity;
             let hasData = false;
             const frameSignals = new Set<string>();
+            const curveCount = visibleCurveCount(instances, config);
+            const showWaveformGhost = curveCount <= 2;
 
             instances.forEach(inst => {
                 const cfg = (config as any)[inst.id];
                 if (!cfg || !cfg.visible || cfg.selectedSignals.length === 0) return;
                 const physState = physicsRefs.current.get(inst.id);
                 if (!physState) return;
-                
-                const startIndex = firstSampleIndexAtOrAfter(physState.buffer, tMin);
-                const stepFrames = 10;
-                for (let i = startIndex; i < physState.buffer.length; i += stepFrames) {
-                    const d = physState.buffer[i];
-                    if (d.t > tMax) break;
-                    cfg.selectedSignals.forEach((sig: string) => {
-                        const val = sampleSignalValue(d, sig);
-                        if (!Number.isFinite(val)) return;
-                        if (val > frameYMax) frameYMax = val;
-                        if (val < frameYMin) frameYMin = val;
-                        hasData = true;
-                        frameSignals.add(sig);
-                    });
+
+                const scanBuffer = (buf: SimSample[], minT: number, maxT: number) => {
+                    const startIndex = firstSampleIndexAtOrAfter(buf, minT);
+                    const stepFrames = 10;
+                    for (let i = startIndex; i < buf.length; i += stepFrames) {
+                        const d = buf[i];
+                        if (d.t > maxT) break;
+                        cfg.selectedSignals.forEach((sig: string) => {
+                            const val = sampleSignalValue(d, sig);
+                            if (!Number.isFinite(val)) return;
+                            if (val > frameYMax) frameYMax = val;
+                            if (val < frameYMin) frameYMin = val;
+                            hasData = true;
+                            frameSignals.add(sig);
+                        });
+                    }
+                };
+
+                scanBuffer(physState.buffer, tMin, tMax);
+                const previousBuffer = activePreviousBuffer(physState, nowMs);
+                if (previousBuffer) {
+                    const previousTMax = previousBuffer[previousBuffer.length - 1]?.t ?? 0;
+                    scanBuffer(previousBuffer, Math.max(0, previousTMax - timeSec + gapSec), previousTMax);
                 }
             });
 
@@ -746,29 +992,47 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
             ctx.textBaseline = 'top';
             xScale.ticks(5).forEach(t => ctx.fillText(t.toFixed(1) + 's', xScale(t) + 2, height - 20));
 
+            const bandXs: number[] = [];
+            instances.forEach(inst => {
+                const cfg = (config as any)[inst.id];
+                if (!cfg || !cfg.visible) return;
+                const physState = physicsRefs.current.get(inst.id);
+                if (!physState || !activePreviousBuffer(physState, nowMs) || physState.buffer.length === 0) return;
+                const firstNew = physState.buffer[0];
+                const x = xScale(firstNew.t % timeSec);
+                if (Number.isFinite(x) && !bandXs.some((existing) => Math.abs(existing - x) < 3)) bandXs.push(x);
+            });
+            if (bandXs.length > 0) {
+                ctx.save();
+                ctx.fillStyle = 'rgba(148, 163, 184, 0.16)';
+                for (const x of bandXs) ctx.fillRect(x - 3, 10, 6, height - 35);
+                ctx.restore();
+            }
+
             instances.forEach(inst => {
                 const cfg = (config as any)[inst.id];
                 if (!cfg || !cfg.visible) return;
                 const physState = physicsRefs.current.get(inst.id);
                 if (!physState) return;
 
-                const startIndex = firstSampleIndexAtOrAfter(physState.buffer, tMin);
-                const visibleCount = physState.buffer.length - startIndex;
-                const drawStep = Math.max(1, Math.floor(visibleCount / Math.max(1, width * 2)));
-
-                cfg.selectedSignals.forEach((sig: string) => {
-                    const color = getColor(inst.color, sig, cfg.customBaseColor, cfg.customSignalColors);
+                const drawBuffer = (buf: SimSample[], minT: number, maxT: number, sig: string, color: string, alpha: number, dash: number[] = []) => {
+                    const startIndex = firstSampleIndexAtOrAfter(buf, minT);
+                    const visibleCount = buf.length - startIndex;
+                    const drawStep = Math.max(1, Math.floor(visibleCount / Math.max(1, width * 2)));
+                    ctx.save();
+                    ctx.globalAlpha = alpha;
                     ctx.beginPath();
                     ctx.strokeStyle = color;
                     ctx.lineWidth = 1.5;
+                    ctx.setLineDash(dash);
 
                     let prevX = -1;
                     let lastPx = -1;
                     let lastPy = -1;
 
-                    for (let i = startIndex; i < physState.buffer.length; i += drawStep) {
-                        const d = physState.buffer[i];
-                        if (d.t > tMax) break;
+                    for (let i = startIndex; i < buf.length; i += drawStep) {
+                        const d = buf[i];
+                        if (d.t > maxT) break;
                         const val = sampleSignalValue(d, sig);
 
                         const modT = d.t % timeSec;
@@ -780,6 +1044,7 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                             ctx.beginPath();
                             ctx.strokeStyle = color;
                             ctx.lineWidth = 1.5;
+                            ctx.setLineDash(dash);
                             ctx.moveTo(px, py);
                         } else {
                             ctx.lineTo(px, py);
@@ -789,14 +1054,25 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                         lastPy = py;
                     }
                     ctx.stroke();
+                    ctx.restore();
 
-                    if (lastPx !== -1) {
+                    if (alpha >= 1 && lastPx !== -1) {
                          ctx.beginPath();
                          ctx.arc(lastPx, lastPy, 4, 0, Math.PI * 2);
                          const c = d3.color(color);
                          ctx.fillStyle = c ? c.brighter(0.5).formatHex() : color;
                          ctx.fill();
                     }
+                };
+
+                const previousBuffer = activePreviousBuffer(physState, nowMs);
+                cfg.selectedSignals.forEach((sig: string) => {
+                    const color = getColor(inst.color, sig, cfg.customBaseColor, cfg.customSignalColors);
+                    if (showWaveformGhost && previousBuffer) {
+                        const previousTMax = previousBuffer[previousBuffer.length - 1]?.t ?? 0;
+                        drawBuffer(previousBuffer, Math.max(0, previousTMax - timeSec + gapSec), previousTMax, sig, color, 0.22, [5, 5]);
+                    }
+                    drawBuffer(physState.buffer, tMin, tMax, sig, color, 1);
                 });
             });
 
@@ -817,7 +1093,7 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
 
     return (
         <div ref={containerRef} className="absolute inset-0 rounded-b-xl overflow-hidden pointer-events-none">
-            <ChartLegend instances={instances} config={config} showLegend={showLegend} panelId={panelId} legendInteractive={legendInteractive} onOpenSettings={onOpenSettings} />
+            <ChartLegend instances={instances} config={config} showLegend={showLegend} panelId={panelId} legendInteractive={legendInteractive} onOpenSettings={onOpenSettings} legendPosition={legendPosition} onLegendPositionChange={onLegendPositionChange} />
             <canvas ref={canvasRef} className="block pointer-events-auto" />
         </div>
     );

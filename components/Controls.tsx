@@ -341,7 +341,7 @@ export const Controls: React.FC<ControlsProps> = ({
                     <ControlGrid>
                       <Slider label="Heart Rate" value={rawView.HR} min={30} max={180} step={1} onChange={(v) => update('HR', v)} unit="bpm" />
                       <Slider label="AV Delay (P-QRS)" value={rawView.avDelaySec} min={0.04} max={0.30} step={0.005} onChange={(v) => update('avDelaySec', v)} unit="s" />
-                      <Slider label="Total Blood Volume" value={activeInstance.targetVolume} min={2000} max={8000} step={50} onChange={(v) => updateInstanceVolume(activeInstance.id, v)} unit="mL" />
+                      <Slider label="Total Blood Volume" value={activeInstance.targetVolume} min={2000} max={8000} step={50} onCommit={(v) => updateInstanceVolume(activeInstance.id, v)} unit="mL" />
                       <Slider label="Global Venous Tone" value={rawView.venousTone} min={0} max={1} step={0.05} onChange={(v) => update('venousTone', v)} />
                       <Slider label="Global Contractility" value={rawView.contractility} min={0.25} max={2.5} step={0.05} onChange={(v) => update('contractility', v)} unit="x" />
                       <Slider label="Global Relaxation" value={rawView.relaxation} min={0.25} max={2.5} step={0.05} onChange={(v) => update('relaxation', v)} unit="x" />
