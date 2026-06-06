@@ -1,6 +1,6 @@
 import React from 'react';
 import { Controls } from '../Controls';
-import { PVLoopPanel, WaveformPanel, MetricsPanel, GuytonPanel } from '../Charts';
+import { PVLoopPanel, WaveformPanel, MetricsPanel, GuytonPanel, shouldEnableLegendInteractions } from '../Charts';
 import { NotePanel } from '../NotePanel';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { ScenarioPane } from './ScenarioPane';
@@ -27,14 +27,38 @@ export interface PaneBodyContext {
   updateInstanceName?: (id: string, name: string) => void;
   updateInstanceColor?: (id: string, color: string) => void;
   presentationMode?: 'studio' | 'reading';
+  canConfigure?: boolean;
+  onOpenSettings?: (panelId: string) => void;
 }
 
 export function renderPaneBody(panel: PanelDef, ctx: PaneBodyContext): React.ReactNode {
   if (panel.type === 'PVLOOP') {
-    return <PVLoopPanel physicsRefs={ctx.physicsRefs} instances={ctx.instances} config={panel.config} showGuides={panel.showGuides} showLegend={panel.showLegend} />;
+    return (
+      <PVLoopPanel
+        physicsRefs={ctx.physicsRefs}
+        instances={ctx.instances}
+        config={panel.config}
+        showGuides={panel.showGuides}
+        showLegend={panel.showLegend}
+        panelId={panel.id}
+        legendInteractive={shouldEnableLegendInteractions({ canConfigure: ctx.canConfigure, presentationMode: ctx.presentationMode })}
+        onOpenSettings={ctx.onOpenSettings}
+      />
+    );
   }
   if (panel.type === 'WAVEFORM') {
-    return <WaveformPanel physicsRefs={ctx.physicsRefs} instances={ctx.instances} timeWindow={panel.timeWindow || 10000} config={panel.config} showLegend={panel.showLegend} />;
+    return (
+      <WaveformPanel
+        physicsRefs={ctx.physicsRefs}
+        instances={ctx.instances}
+        timeWindow={panel.timeWindow || 10000}
+        config={panel.config}
+        showLegend={panel.showLegend}
+        panelId={panel.id}
+        legendInteractive={shouldEnableLegendInteractions({ canConfigure: ctx.canConfigure, presentationMode: ctx.presentationMode })}
+        onOpenSettings={ctx.onOpenSettings}
+      />
+    );
   }
   if (panel.type === 'METRICS') {
     return <MetricsPanel physicsRefs={ctx.physicsRefs} instances={ctx.instances} config={panel.config} />;

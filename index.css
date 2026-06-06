@@ -243,9 +243,18 @@ body[data-workbench-theme="clinical"] {
 }
 
 .workbench-dockview .dv-tab.dv-active-tab .workbench-dock-tab-menu-button,
+.workbench-dockview .workbench-dock-tab:hover .workbench-dock-tab-menu-button,
+.workbench-dockview .workbench-dock-tab-menu-button[aria-expanded="true"],
 .workbench-dockview .workbench-dock-tab-menu-button:focus-visible {
   opacity: 1;
   pointer-events: auto;
+}
+
+@media (hover: none) {
+  .workbench-dockview .workbench-dock-tab-menu-button {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 .workbench-dockview .dv-tab:focus::after,
