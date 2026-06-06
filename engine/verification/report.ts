@@ -1,11 +1,7 @@
 import { defaultParams } from "@/engine/ModelCore";
-import {
-  measureSteady,
-  settleToSteadyState,
-  type SteadyMeasurement,
-} from "@/engine/measure";
+import type { SteadyMeasurement } from "@/engine/measure";
 import type { CoreRuntimeParams, SimMetrics } from "@/engine/protocol";
-import { runToPeriodicSteady } from "@/engine/steadyJob";
+import { runToPeriodicSteadyInternal } from "@/engine/steadyJob";
 import type { SolverStats, SteadyResiduals, SteadyResult, SteadyStatus } from "@/engine/stateContract";
 import { panelForGate, type VerificationArtifactFile } from "@/engine/verification/panels";
 import type { SettleStatus } from "@/engine/settling";
@@ -94,18 +90,20 @@ export function runVerification(
     measureBeats: profile.measureBeats,
     requireProjectorQuiet: profile.requireProjectorQuiet,
   };
-  const steady = summarizeSteady(runToPeriodicSteady(params, measureOptions));
-  const settled = settleToSteadyState(params, measureOptions);
+  const steadyRun = runToPeriodicSteadyInternal(params, measureOptions);
+  const steady = summarizeSteady(steadyRun.result);
+  const settled = steadyRun.settleStatus;
+  const measurement = steadyRun.measurement;
 
-  if (!settled.ok) {
-    const gates = [settleGate(settled.settleStatus)];
+  if (!measurement || !settled.settled) {
+    const gates = [settleGate(settled)];
     return {
       profile,
       gateSet,
       generatedAt: (options.now ?? new Date()).toISOString(),
       summary: summarizeGates(gates),
       steady,
-      settleStatus: settled.settleStatus,
+      settleStatus: settled,
       metrics: null,
       shape: null,
       gates,
@@ -114,10 +112,8 @@ export function runVerification(
     };
   }
 
-  const measurement = measureSteady(settled.core, settled.settleStatus, measureOptions);
-
   const gates = adjustGatesForProfile([
-    settleGate(settled.settleStatus),
+    settleGate(measurement.settleStatus),
     ...collectValidityGates(measurement).filter((gate) => {
       return profile.requireProjectorQuiet || gate.id !== "projector-quiet";
     }),
@@ -130,7 +126,7 @@ export function runVerification(
     generatedAt: (options.now ?? new Date()).toISOString(),
     summary: summarizeGates(gates),
     steady,
-    settleStatus: settled.settleStatus,
+    settleStatus: measurement.settleStatus,
     metrics: measurement.metrics,
     shape: gateSet === "normalBaseline" ? baselineShapeSummary(measurement) : null,
     gates,
@@ -207,7 +203,7 @@ export function reportToMarkdown(report: VerificationReport): string {
     lines.push("## Steady State");
     lines.push("");
     lines.push(`- Solver: ${solverStats.kind}; dt ${solverStats.dt}; sampleHz ${solverStats.sampleHz}`);
-    lines.push(`- Window: settle ${round(solverStats.settleSeconds, 3)} s; measure ${round(solverStats.measureSeconds, 3)} s`);
+    lines.push(`- Window: settle ${round(solverStats.settleSeconds, 3)} s; measure ${round(solverStats.measureSeconds, 3)} s; beats ${solverStats.nBeats ?? "n/a"}`);
     lines.push(`- Status: ${report.steady.status}; ok ${report.steady.ok ? "yes" : "no"}`);
     lines.push(`- Worst residual: ${residuals.worstSignal ?? "none"}; delta ${nullableRound(residuals.worstDelta, 6)}`);
     lines.push(`- Left-right mismatch: ${round(residuals.leftRightSvMismatchLMin, 4)} L/min (${round(residuals.leftRightSvMismatchPct, 3)}%)`);

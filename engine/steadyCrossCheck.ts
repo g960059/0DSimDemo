@@ -275,7 +275,7 @@ function compactRun(
 }
 
 function compactSolverStats(stats: SolverStats): SolverStats {
-  return {
+  const compact: SolverStats = {
     kind: stats.kind,
     dt: stats.dt,
     sampleHz: stats.sampleHz,
@@ -283,6 +283,8 @@ function compactSolverStats(stats: SolverStats): SolverStats {
     settleSeconds: stats.settleSeconds,
     measureSeconds: stats.measureSeconds,
   };
+  if (stats.nBeats !== undefined) compact.nBeats = stats.nBeats;
+  return compact;
 }
 
 function resolveRunOptions(

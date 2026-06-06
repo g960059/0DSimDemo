@@ -45,6 +45,13 @@ describe("fitting/verification mode foundation", () => {
     expect(report.steady?.residuals.worstSignal === null || typeof report.steady?.residuals.worstSignal === "string").toBe(true);
     expect(report.steady?.solverStats.kind).toBe("fixed-heun");
     expect(report.steady?.solverStats.nSteps).toBeGreaterThan(0);
+    expect(report.steady?.solverStats.nBeats).toBe(report.settleStatus?.beats);
+    expect(report.measurement).not.toBeNull();
+    expect(report.metrics?.CO_L).toBeCloseTo(report.measurement!.metrics.CO_L, 12);
+    expect(report.steady?.solverStats.measureSeconds).toBeCloseTo(report.measurement!.measureSeconds, 12);
+    expect(report.steady?.residuals.leftRightSvMismatchLMin).toBeCloseTo(report.measurement!.forwardCODiffLMin, 12);
+    expect(report.steady?.state.t).toBeCloseTo(report.measurement!.core.packState().t, 12);
+    expect(report.steady?.state.phi).toBeCloseTo(report.measurement!.core.packState().phi, 12);
     expect(report.shape).not.toBeNull();
     expect(report.shape?.pvfSFraction).toBeGreaterThan(0.40);
     expect(report.shape?.laSelfIntersections).toBeGreaterThanOrEqual(1);
@@ -110,6 +117,7 @@ describe("fitting/verification mode foundation", () => {
     expect(report.steady?.state.xLength).toBeGreaterThan(0);
     expect(report.steady?.residuals.venousMaxResidualMl).toBeNull();
     expect(report.steady?.solverStats.measureSeconds).toBe(0);
+    expect(report.steady?.solverStats.nBeats).toBe(report.settleStatus?.beats);
     expect(report.metrics).toBeNull();
     expect(report.measurement).toBeNull();
     expect(report.shape).toBeNull();

@@ -35,6 +35,7 @@ describe("steady cross-check harness", () => {
     expect(report.summary.caseCount).toBe(1);
     expect(report.summary.failedCases).toBe(0);
     expect(report.cases[0].runs.map((run) => run.status)).toEqual(["converged", "converged"]);
+    expect(report.cases[0].runs[0].solverStats.nBeats).toBeGreaterThan(0);
     expect(comparison.pass).toBe(true);
     expect(comparison.statusMismatch).toBe(false);
     expect(comparison.okMismatch).toBe(false);
