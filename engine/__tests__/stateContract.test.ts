@@ -86,4 +86,22 @@ describe("ModelCore state contract", () => {
     expect(Object.keys(comparable.values)).toContain("xi.MV");
     expect(core.assessSteadyState().beats).toBe(beatsBefore);
   });
+
+  it("unpacks dynamic state without reusing settled beat tracking", () => {
+    const source = new ModelCore(DEFAULT_PARAMS);
+    source.initializeVenousPressuresForTargetTBV(5600);
+    source.runFor(4, 0.001, 240);
+    expect(source.assessSteadyState().beats).toBeGreaterThan(0);
+    const snapshot = source.packState();
+
+    const restored = new ModelCore(DEFAULT_PARAMS);
+    restored.unpackState(snapshot);
+    expect(restored.assessSteadyState().beats).toBe(0);
+
+    restored.runFor(0.1, 0.001, 120);
+    const comparable = restored.getComparableState();
+    expect(finiteValues(comparable.values)).toBe(true);
+    expect(Number.isFinite(comparable.t)).toBe(true);
+    expect(Number.isFinite(comparable.phi)).toBe(true);
+  });
 });

@@ -589,6 +589,12 @@ export class ModelCore {
     };
   }
 
+  /**
+   * Restore only the dynamic state needed for steady cache / warm-start.
+   * Raw sample history, beat fingerprints, and TBV correction counters are not
+   * serialized; callers must run a fresh beat window before trusting metrics()
+   * or any convergence evidence after unpacking.
+   */
   unpackState(snapshot: SerializedModelState, options: UnpackModelStateOptions = {}): void {
     if (snapshot.schemaVersion !== MODEL_STATE_SCHEMA_VERSION) {
       throw new Error(`Model state schema mismatch: expected ${MODEL_STATE_SCHEMA_VERSION}, got ${String(snapshot.schemaVersion)}`);
@@ -629,7 +635,6 @@ export class ModelCore {
     this.clampHitCount = 0;
     this.history = [];
     this.lastSample = null;
-    this.clearBeatTracking();
     this.lastSample = this.sample();
     this.history = [];
     this.clearBeatTracking();

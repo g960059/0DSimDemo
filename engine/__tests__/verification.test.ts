@@ -5,7 +5,7 @@ import { makeCandidatePatch } from "@/engine/fitting/parameterSpace";
 import { collectNormalBaselineGates } from "@/engine/verification/gates";
 import { generateVerificationSvgs } from "@/engine/verification/artifacts";
 import { VERIFICATION_PROFILES } from "@/engine/verification/profiles";
-import { reportToMarkdown, runVerification } from "@/engine/verification/report";
+import { reportToMarkdown, runVerification, toVerificationArtifact } from "@/engine/verification/report";
 
 describe("fitting/verification mode foundation", () => {
   it("defaults to validity-only gates so pathologic cases opt into their own gates", () => {
@@ -15,6 +15,8 @@ describe("fitting/verification mode foundation", () => {
     });
 
     expect(report.gateSet).toBe("validityOnly");
+    expect(report.steady?.status).toBe("converged");
+    expect(report.steady?.ok).toBe(true);
     expect(report.shape).toBeNull();
     expect(report.gates.map((gate) => gate.id)).not.toContain("aop-mean");
     expect(report.gates.filter((gate) => gate.severity === "hard" && gate.status === "fail")).toEqual([]);
@@ -33,6 +35,15 @@ describe("fitting/verification mode foundation", () => {
     expect(hardFailures).toEqual([]);
     expect(report.summary.pass).toBe(true);
     expect(report.metrics).not.toBeNull();
+    expect(report.steady).not.toBeNull();
+    expect(report.steady?.status).toBe("converged");
+    expect(report.steady?.state.paramsHash).toMatch(/^[0-9a-f]{8}$/);
+    expect(report.steady?.state.targetParamsHash).toMatch(/^[0-9a-f]{8}$/);
+    expect(report.steady?.state.stateLayoutHash).toMatch(/^[0-9a-f]{8}$/);
+    expect(report.steady?.state.xLength).toBeGreaterThan(0);
+    expect(report.steady?.residuals.worstSignal === null || typeof report.steady?.residuals.worstSignal === "string").toBe(true);
+    expect(report.steady?.solverStats.kind).toBe("fixed-heun");
+    expect(report.steady?.solverStats.nSteps).toBeGreaterThan(0);
     expect(report.shape).not.toBeNull();
     expect(report.shape?.pvfSFraction).toBeGreaterThan(0.40);
     expect(report.shape?.laSelfIntersections).toBeGreaterThanOrEqual(1);
@@ -61,6 +72,9 @@ describe("fitting/verification mode foundation", () => {
     const markdown = reportToMarkdown(report);
     expect(markdown).toContain("Verification Report");
     expect(markdown).toContain("Profile: Fit fast");
+    expect(markdown).toContain("Steady State");
+    expect(markdown).toContain("Params hash:");
+    expect(markdown).toContain("State layout hash:");
     expect(markdown).toContain("PVF S fraction");
   });
 
@@ -90,10 +104,31 @@ describe("fitting/verification mode foundation", () => {
     });
 
     expect(report.summary.pass).toBe(false);
+    expect(report.steady?.status).toBe("cap");
+    expect(report.steady?.ok).toBe(false);
+    expect(report.steady?.state.xLength).toBeGreaterThan(0);
+    expect(report.steady?.residuals.venousMaxResidualMl).toBeNull();
+    expect(report.steady?.solverStats.measureSeconds).toBe(0);
     expect(report.metrics).toBeNull();
+    expect(report.measurement).toBeNull();
     expect(report.shape).toBeNull();
     expect(report.gates).toHaveLength(1);
     expect(report.gates[0].id).toBe("settled");
+  });
+
+  it("serializes verification artifacts without measurement samples or steady state vectors", () => {
+    const report = runVerification(DEFAULT_PARAMS, {
+      profile: "fitFast",
+      gateSet: "normalBaseline",
+      now: new Date("2026-06-05T00:00:00.000Z"),
+    });
+
+    const artifact = toVerificationArtifact(report);
+    expect(artifact.measurement).toBeNull();
+    expect(artifact.steady?.state.paramsHash).toMatch(/^[0-9a-f]{8}$/);
+    expect(artifact.steady?.state.xLength).toBeGreaterThan(0);
+    expect("x" in (artifact.steady?.state as Record<string, unknown>)).toBe(false);
+    expect(JSON.stringify(artifact)).not.toContain('"samples"');
   });
 
   it("requires pulmonary venous Ar to be truly retrograde in the Ar window", () => {
@@ -232,6 +267,7 @@ describe("fitting/verification mode foundation", () => {
     expect(badEval.rejectStage).toBe("validity");
     expect(badEval.hardFailures.map((gate) => gate.id)).toEqual(["candidate-patch-finite"]);
     expect(badEval.report.metrics).toBeNull();
+    expect(badEval.report.steady).toBeNull();
   });
 
   it("uses deterministic candidate ranking tie-breakers", () => {
