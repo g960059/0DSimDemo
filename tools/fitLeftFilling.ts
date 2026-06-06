@@ -7,6 +7,7 @@ import {
   leftFillingReviewToMarkdown,
   type LeftFillingGateSnapshot,
 } from "@/engine/fitting/leftFillingReview";
+import { evaluateObjective, summarizeObjective } from "@/engine/fitting/objective";
 import { mergeParameterPatch } from "@/engine/fitting/parameterSpace";
 import { generateVerificationSvgs } from "@/engine/verification/artifacts";
 import { reportToMarkdown, runVerification, toVerificationArtifact } from "@/engine/verification/report";
@@ -66,6 +67,7 @@ if (options.writeArtifacts) {
       profile: options.profile,
       gateSet: "normalBaseline",
       summary: report.summary,
+      objective: row.objective,
       failedGateIds: row.failedGateIds,
       failureLocations: report.failureLocations,
       artifactFiles: ["metadata.json", "report.json", "report.md", ...Object.keys(svgs)],
@@ -87,6 +89,8 @@ console.table(rows.slice(0, 8).map((row) => ({
   soft: row.softFailures,
   ringing: row.ringingFailures,
   score: row.score.toFixed(3),
+  steady: row.steadyStatus ?? "n/a",
+  objective: row.objectiveTotalLoss.toFixed(3),
   qmvExtra: row.gates["qmv-extra-peaks"]?.value,
   lapOsc: row.gates["lap-oscillation-index"]?.value,
   lvRough: row.gates["lv-filling-edge-roughness"]?.value,
@@ -103,6 +107,7 @@ function evaluate(candidate: Candidate, profile: VerificationMode) {
   const beat = report.measurement ? lastCompleteBeat(report.measurement.samples) : [];
   const sPeak = beat.length > 0 ? sampleInWindowBy(beat, "PVF", 0.05, 0.45, "max") : null;
   const dPeak = beat.length > 0 ? sampleInWindowBy(beat, "PVF", 0.45, 0.80, "max") : null;
+  const objective = summarizeObjective(evaluateObjective(report));
   const ringingFailures = RINGING_GATE_IDS
     .filter((id) => gates[id]?.severity === "hard" && gates[id]?.status === "fail")
     .length;
@@ -115,6 +120,12 @@ function evaluate(candidate: Candidate, profile: VerificationMode) {
     softFailures: report.summary.softFailures,
     ringingFailures,
     score: report.summary.score,
+    objective,
+    steadyStatus: objective.steadyStatus,
+    objectiveTotalLoss: objective.objectiveTotalLoss,
+    convergencePenalty: objective.convergencePenalty,
+    residualPenalty: objective.residualPenalty,
+    paramsHash: objective.paramsHash,
     efRight: report.metrics?.EF_RApprox ?? null,
     pvfDOverSPeak: sPeak && dPeak && sPeak.PVF > 1e-9 ? dPeak.PVF / sPeak.PVF : null,
     pvfSPeakTheta: sPeak ? phaseOf(sPeak) : null,
@@ -179,6 +190,11 @@ function csv(rows: ReturnType<typeof evaluate>[]): string {
     "softFailures",
     "ringingFailures",
     "score",
+    "steadyStatus",
+    "objectiveTotalLoss",
+    "convergencePenalty",
+    "residualPenalty",
+    "paramsHash",
     ...RINGING_GATE_IDS,
     "failedGateIds",
   ];

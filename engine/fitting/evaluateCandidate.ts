@@ -9,6 +9,12 @@ import {
 import type { VerificationMode, VerificationProfile } from "@/engine/verification/profiles";
 import { mergeParameterPatch, type CandidatePatch } from "@/engine/fitting/parameterSpace";
 import { resolveVerificationProfile } from "@/engine/verification/profiles";
+import {
+  evaluateObjective,
+  withObjectiveRejectReason,
+  type ObjectiveEvaluation,
+  type ObjectiveSpec,
+} from "@/engine/fitting/objective";
 
 export type CandidateRejectStage =
   | "none"
@@ -23,12 +29,14 @@ export type CandidateEvaluation = {
   hardFailures: GateResult[];
   softFailures: GateResult[];
   score: number;
+  objective: ObjectiveEvaluation;
   report: VerificationReport;
 };
 
 export type CandidateEvaluationOptions = {
   profile?: VerificationMode | VerificationProfile;
   gateSet?: VerificationGateSet;
+  objective?: ObjectiveSpec;
 };
 
 export function evaluateCandidate(
@@ -62,6 +70,7 @@ export function evaluateCandidate(
       }],
       measurement: null,
     };
+    const objective = withObjectiveRejectReason(evaluateObjective(report, options.objective), "invalid-patch");
     return {
       id,
       accepted: false,
@@ -69,6 +78,7 @@ export function evaluateCandidate(
       hardFailures: [invalid],
       softFailures: [],
       score: 0,
+      objective,
       report,
     };
   }
@@ -86,20 +96,33 @@ export function evaluateCandidate(
     hardFailures,
     softFailures,
     score: report.summary.score,
+    objective: evaluateObjective(report, options.objective),
     report,
   };
 }
 
 export function rankCandidates(evaluations: CandidateEvaluation[]): CandidateEvaluation[] {
+  return [...evaluations].sort(compareByLegacyRank);
+}
+
+export function rankCandidatesByObjective(evaluations: CandidateEvaluation[]): CandidateEvaluation[] {
   return [...evaluations].sort((a, b) => {
-    if (a.accepted !== b.accepted) return a.accepted ? -1 : 1;
-    if (a.hardFailures.length !== b.hardFailures.length) return a.hardFailures.length - b.hardFailures.length;
-    if (a.softFailures.length !== b.softFailures.length) return a.softFailures.length - b.softFailures.length;
-    const aScore = Number.isFinite(a.score) ? a.score : -Infinity;
-    const bScore = Number.isFinite(b.score) ? b.score : -Infinity;
-    if (aScore !== bScore) return bScore - aScore;
-    return a.id.localeCompare(b.id);
+    if (a.objective.ok !== b.objective.ok) return a.objective.ok ? -1 : 1;
+    const aLoss = Number.isFinite(a.objective.totalLoss) ? a.objective.totalLoss : Infinity;
+    const bLoss = Number.isFinite(b.objective.totalLoss) ? b.objective.totalLoss : Infinity;
+    if (aLoss !== bLoss) return aLoss - bLoss;
+    return compareByLegacyRank(a, b);
   });
+}
+
+function compareByLegacyRank(a: CandidateEvaluation, b: CandidateEvaluation): number {
+  if (a.accepted !== b.accepted) return a.accepted ? -1 : 1;
+  if (a.hardFailures.length !== b.hardFailures.length) return a.hardFailures.length - b.hardFailures.length;
+  if (a.softFailures.length !== b.softFailures.length) return a.softFailures.length - b.softFailures.length;
+  const aScore = Number.isFinite(a.score) ? a.score : -Infinity;
+  const bScore = Number.isFinite(b.score) ? b.score : -Infinity;
+  if (aScore !== bScore) return bScore - aScore;
+  return a.id.localeCompare(b.id);
 }
 
 function classifyRejectStage(hardFailures: GateResult[]): CandidateRejectStage {

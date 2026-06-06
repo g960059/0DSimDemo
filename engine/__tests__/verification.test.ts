@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PARAMS } from "@/constants";
-import { evaluateCandidate, rankCandidates } from "@/engine/fitting/evaluateCandidate";
+import { evaluateCandidate, rankCandidates, rankCandidatesByObjective } from "@/engine/fitting/evaluateCandidate";
+import type { ObjectiveEvaluation } from "@/engine/fitting/objective";
 import { makeCandidatePatch } from "@/engine/fitting/parameterSpace";
 import { collectNormalBaselineGates } from "@/engine/verification/gates";
 import { generateVerificationSvgs } from "@/engine/verification/artifacts";
@@ -256,7 +257,10 @@ describe("fitting/verification mode foundation", () => {
 
     expect(neutralEval.hardFailures.map((gate) => gate.id)).toEqual([]);
     expect(neutralEval.accepted).toBe(true);
+    expect(neutralEval.objective.ok).toBe(true);
+    expect(neutralEval.objective.steady?.status).toBe("converged");
     expect(badEval.accepted).toBe(false);
+    expect(Number.isFinite(badEval.objective.totalLoss)).toBe(true);
     expect(badEval.rejectStage).not.toBe("none");
     expect(ranked[0].id).toBe("neutral-rv");
   });
@@ -268,13 +272,57 @@ describe("fitting/verification mode foundation", () => {
     expect(badEval.hardFailures.map((gate) => gate.id)).toEqual(["candidate-patch-finite"]);
     expect(badEval.report.metrics).toBeNull();
     expect(badEval.report.steady).toBeNull();
+    expect(badEval.objective.steady).toBeNull();
+    expect(badEval.objective.rejectReasons).toContain("invalid-patch");
   });
 
   it("uses deterministic candidate ranking tie-breakers", () => {
     const ranked = rankCandidates([
-      { id: "b", accepted: true, rejectStage: "none", hardFailures: [], softFailures: [], score: Number.NaN, report: null as any },
-      { id: "a", accepted: true, rejectStage: "none", hardFailures: [], softFailures: [], score: Number.NaN, report: null as any },
+      { id: "b", accepted: true, rejectStage: "none", hardFailures: [], softFailures: [], score: Number.NaN, objective: dummyObjective(2, true), report: null as any },
+      { id: "a", accepted: true, rejectStage: "none", hardFailures: [], softFailures: [], score: Number.NaN, objective: dummyObjective(1, true), report: null as any },
     ]);
     expect(ranked.map((item) => item.id)).toEqual(["a", "b"]);
   });
+
+  it("can rank candidates by objective without changing legacy ranking", () => {
+    const legacyWinner = {
+      id: "legacy-winner",
+      accepted: true,
+      rejectStage: "none" as const,
+      hardFailures: [],
+      softFailures: [],
+      score: 1,
+      objective: dummyObjective(100, true),
+      report: null as any,
+    };
+    const objectiveWinner = {
+      id: "objective-winner",
+      accepted: true,
+      rejectStage: "none" as const,
+      hardFailures: [],
+      softFailures: [],
+      score: 0.5,
+      objective: dummyObjective(1, true),
+      report: null as any,
+    };
+
+    expect(rankCandidates([objectiveWinner, legacyWinner])[0].id).toBe("legacy-winner");
+    expect(rankCandidatesByObjective([legacyWinner, objectiveWinner])[0].id).toBe("objective-winner");
+  });
 });
+
+function dummyObjective(totalLoss: number, ok: boolean): ObjectiveEvaluation {
+  return {
+    ok,
+    totalLoss,
+    targetLoss: 0,
+    gatePenalty: 0,
+    convergencePenalty: 0,
+    residualPenalty: 0,
+    scoreLoss: 0,
+    rejectReasons: [],
+    steady: null,
+    observables: {},
+    targetBreakdown: [],
+  };
+}

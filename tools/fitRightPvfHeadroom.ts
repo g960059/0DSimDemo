@@ -6,6 +6,7 @@ import {
   headroomReviewToMarkdown,
   type HeadroomGateSnapshot,
 } from "@/engine/fitting/headroomReview";
+import { evaluateObjective, summarizeObjective } from "@/engine/fitting/objective";
 import { mergeParameterPatch } from "@/engine/fitting/parameterSpace";
 import type { CoreRuntimeParams, ParameterPatch } from "@/engine/protocol";
 import { generateVerificationSvgs } from "@/engine/verification/artifacts";
@@ -72,6 +73,7 @@ if (options.writeArtifacts) {
         limitingHeadroom: row.limitingHeadroom,
         cappedHeadroomScore: row.cappedHeadroomScore,
       },
+      objective: row.objective,
       failedGateIds: row.failedGateIds,
       failureLocations: report.failureLocations,
       artifactFiles: ["metadata.json", "report.json", "report.md", ...Object.keys(svgs)],
@@ -97,6 +99,8 @@ console.table(rows.slice(0, 10).map((row) => ({
   pvfRev: row.pvfReverseFraction?.toFixed(3),
   limiting: row.limitingHeadroom?.toFixed(3),
   score: row.score.toFixed(3),
+  steady: row.steadyStatus ?? "n/a",
+  objective: row.objectiveTotalLoss.toFixed(3),
   failed: row.failedGateIds.join(" "),
 })));
 
@@ -110,6 +114,7 @@ function evaluate(candidate: Candidate, profile: VerificationMode) {
   const pvfReverseFraction = report.shape?.pvfReverseFraction ?? null;
   const rvEfHeadroom = finiteOrNull(efRight == null ? null : efRight - 0.50);
   const pvfSFractionHeadroom = finiteOrNull(pvfSFraction == null ? null : pvfSFraction - 0.40);
+  const objective = summarizeObjective(evaluateObjective(report));
   const limitingHeadroom = rvEfHeadroom == null || pvfSFractionHeadroom == null
     ? null
     : Math.min(rvEfHeadroom, pvfSFractionHeadroom);
@@ -121,6 +126,12 @@ function evaluate(candidate: Candidate, profile: VerificationMode) {
     hardFailures: report.summary.hardFailures,
     softFailures: report.summary.softFailures,
     score: report.summary.score,
+    objective,
+    steadyStatus: objective.steadyStatus,
+    objectiveTotalLoss: objective.objectiveTotalLoss,
+    convergencePenalty: objective.convergencePenalty,
+    residualPenalty: objective.residualPenalty,
+    paramsHash: objective.paramsHash,
     efRight,
     pvfSFraction,
     pvfSOverD,
@@ -253,6 +264,11 @@ function csv(rows: ReturnType<typeof evaluate>[]): string {
     "hardFailures",
     "softFailures",
     "score",
+    "steadyStatus",
+    "objectiveTotalLoss",
+    "convergencePenalty",
+    "residualPenalty",
+    "paramsHash",
     "efRight",
     "pvfSFraction",
     "pvfSOverD",
