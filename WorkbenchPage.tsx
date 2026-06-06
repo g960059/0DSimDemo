@@ -17,7 +17,7 @@ import type { Lesson, LessonStep } from './lessonDoc';
 import { remapWorkbenchLoadIds } from './workbenchLoad';
 import { useAuth } from './contexts/AuthContext';
 import { HealthToasts, HealthToast } from './components/HealthIndicators';
-import { PreviewController } from './engine/previewController';
+import { PreviewController, type SteadyUpdateStatusMap } from './engine/previewController';
 import { WorkbenchHeader } from './components/workbench/WorkbenchHeader';
 import type { WorkbenchHeaderMode, WorkbenchSceneMeta, WorkbenchThemeId } from './components/workbench/WorkbenchSidePanel';
 import { PanelGrid } from './components/workbench/PanelGrid';
@@ -244,6 +244,7 @@ function Workbench() {
 
   // Health UX (ROADMAP S1): computed in the PreviewController, surfaced via callbacks.
   const [instanceHealth, setInstanceHealth] = useState<Record<string, SimulationHealth>>({});
+  const [steadyUpdateStatuses, setSteadyUpdateStatuses] = useState<SteadyUpdateStatusMap>({});
   const [healthToasts, setHealthToasts] = useState<HealthToast[]>([]);
   // Stable identity so a toast's 6s auto-dismiss timer isn't reset by re-renders.
   const dismissToast = useCallback((id: string) => setHealthToasts((prev) => prev.filter((t) => t.id !== id)), []);
@@ -387,8 +388,16 @@ function Workbench() {
     controller.onInstancesAdded = (ids) => {
       setPanels((prev) => addHiddenInstanceConfigsToPanels(prev, ids));
     };
+    controller.onSteadyUpdateStatusChange = setSteadyUpdateStatuses;
+    setSteadyUpdateStatuses(controller.getSteadyUpdateStatuses());
     controller.start();
-    return () => controller.stop();
+    return () => {
+      controller.onHealthChange = undefined;
+      controller.onToasts = undefined;
+      controller.onInstancesAdded = undefined;
+      controller.onSteadyUpdateStatusChange = undefined;
+      controller.stop();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1070,6 +1079,7 @@ function Workbench() {
         setNoteModes={setNoteModes}
         physicsRefs={physicsRefs}
         instanceHealth={instanceHealth}
+        steadyUpdateStatuses={steadyUpdateStatuses}
         activeInstanceId={activeInstanceId}
         setActiveInstanceId={setActiveInstanceId}
         updateInstanceParams={updateInstanceParams}

@@ -6,6 +6,7 @@ import { renderPaneBody } from './renderPaneBody';
 import { ControllerItemsBuilder } from './ControllerItemsBuilder';
 import { type ClinicalKnobs } from '../../engine/knobs';
 import { SimulationHealth } from '../../engine/protocol';
+import type { SteadyUpdateStatusMap } from '../../engine/previewController';
 import {
   ChamberId,
   ControllerItem,
@@ -56,6 +57,7 @@ interface PanelGridProps {
   setNoteModes: React.Dispatch<React.SetStateAction<Record<string, 'read' | 'edit'>>>;
   physicsRefs: React.MutableRefObject<Map<string, PhysicsRefState>>;
   instanceHealth: Record<string, SimulationHealth>;
+  steadyUpdateStatuses?: SteadyUpdateStatusMap;
   activeInstanceId: string;
   setActiveInstanceId: (id: string) => void;
   updateInstanceParams: (id: string, params: Partial<SimulationParams>) => void;
@@ -1219,6 +1221,7 @@ interface PanelCardProps {
   setNoteModes: React.Dispatch<React.SetStateAction<Record<string, 'read' | 'edit'>>>;
   physicsRefs: React.MutableRefObject<Map<string, PhysicsRefState>>;
   instanceHealth: Record<string, SimulationHealth>;
+  steadyUpdateStatuses?: SteadyUpdateStatusMap;
   activeInstanceId: string;
   setActiveInstanceId: (id: string) => void;
   updateInstanceParams: (id: string, params: Partial<SimulationParams>) => void;
@@ -1266,6 +1269,7 @@ function PanelCard({
   setNoteModes,
   physicsRefs,
   instanceHealth,
+  steadyUpdateStatuses,
   activeInstanceId,
   setActiveInstanceId,
   updateInstanceParams,
@@ -1337,6 +1341,7 @@ function PanelCard({
         instances,
         physicsRefs,
         instanceHealth,
+        steadyUpdateStatuses,
         activeInstanceId,
         updateInstanceParams,
         updateInstanceKnobs,
@@ -1566,6 +1571,7 @@ export function PanelGrid({
   setNoteModes,
   physicsRefs,
   instanceHealth,
+  steadyUpdateStatuses,
   activeInstanceId,
   setActiveInstanceId,
   updateInstanceParams,
@@ -1700,6 +1706,7 @@ export function PanelGrid({
       setNoteModes={setNoteModes}
       physicsRefs={physicsRefs}
       instanceHealth={instanceHealth}
+      steadyUpdateStatuses={steadyUpdateStatuses}
       activeInstanceId={activeInstanceId}
       setActiveInstanceId={setActiveInstanceId}
       updateInstanceParams={updateInstanceParams}
