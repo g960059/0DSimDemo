@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PARAMS } from "@/constants";
-import { buildGuytonPaneData, sampleVenousReturnCurve } from "@/engine/guytonStarling";
+import {
+  buildGuytonPaneData,
+  defaultGuytonAxis,
+  expandGuytonAxisToFit,
+  guytonSnapshotPoints,
+  liveGuytonOperatingPoint,
+  sampleVenousReturnCurve,
+} from "@/engine/guytonStarling";
 import { runScenario } from "@/engine/harness";
 import type { SimMetrics, SimObservables } from "@/engine/protocol";
 
@@ -53,6 +60,48 @@ describe("Guyton / Starling pane helpers", () => {
     expect(pane.venousReturn.points.length).toBeGreaterThan(50);
   });
 
+  it("keeps the sampled operating-map domain sticky while the live point moves", () => {
+    const baseline = buildGuytonPaneData("right", metrics(), obs());
+    const moved = buildGuytonPaneData(
+      "right",
+      metrics({ RAPMean: 6, CO_R: 6.2 }),
+      obs({
+        RAP: 6,
+        Pmsf: 12,
+        PmsfTm: 12,
+        PmsfAbs: 12,
+        vrGradient: 6,
+      }),
+    );
+
+    expect(moved.operatingPoint.pressure).not.toBe(baseline.operatingPoint.pressure);
+    expect(moved.operatingPoint.flow).not.toBe(baseline.operatingPoint.flow);
+    expect(xDomain(moved.venousReturn.points)).toEqual(xDomain(baseline.venousReturn.points));
+    expect(xDomain(moved.classicVenousReturn.points)).toEqual(xDomain(baseline.classicVenousReturn.points));
+    expect(xDomain(moved.localStarling.points)).toEqual(xDomain(baseline.localStarling.points));
+  });
+
+  it("keeps the local Starling surrogate out of normal snapshot points", () => {
+    const pane = buildGuytonPaneData("right", metrics(), obs());
+    const snapshotPoints = guytonSnapshotPoints(pane, undefined);
+    const sweepPoints = [{ x: 4, y: 5.2 }, { x: 7, y: 6.1 }];
+    const withSweep = guytonSnapshotPoints(pane, {
+      requestId: "test",
+      signature: "sig",
+      instanceId: "inst",
+      warnings: [],
+      right: { side: "right", points: sweepPoints, warnings: [] },
+    });
+
+    expect(pane.localStarling.source).toBe("local-starling-surrogate");
+    expect(pane.localStarling.stroke).toBe("starling");
+    expect(pane.localStarling.dashed).toBe(true);
+    expect(snapshotPoints).toHaveLength(
+      pane.venousReturn.points.length + pane.classicVenousReturn.points.length + 2,
+    );
+    expect(withSweep).toHaveLength(snapshotPoints.length + sweepPoints.length);
+  });
+
   it("moves the systemic Guyton estimate right/up when target blood volume rises", () => {
     const base = runScenario(DEFAULT_PARAMS, { ...FAST_OPTIONS, targetTBV: 5600 });
     const loaded = runScenario(DEFAULT_PARAMS, { ...FAST_OPTIONS, targetTBV: 6200 });
@@ -62,12 +111,38 @@ describe("Guyton / Starling pane helpers", () => {
     expect(loadedPane.fillingPressure).toBeGreaterThan(basePane.fillingPressure);
     expect(loadedPane.summary.stressedVolumeMl).toBeGreaterThan(basePane.summary.stressedVolumeMl);
   });
+
+  it("keeps Guyton axes preset and expands without auto-shrinking", () => {
+    const right = defaultGuytonAxis("right");
+
+    expect(right).toEqual({ xMin: -5, xMax: 20, yMin: 0, yMax: 10 });
+    expect(defaultGuytonAxis("left")).toEqual({ xMin: 0, xMax: 30, yMin: 0, yMax: 10 });
+    expect(expandGuytonAxisToFit(right, [{ x: 0, y: 5 }, { x: 12, y: 8 }])).toEqual(right);
+
+    const expanded = expandGuytonAxisToFit(right, [{ x: -8, y: 2 }, { x: 24, y: 13 }]);
+    expect(expanded.xMin).toBeLessThan(right.xMin);
+    expect(expanded.xMax).toBeGreaterThan(right.xMax);
+    expect(expanded.yMin).toBe(right.yMin);
+    expect(expanded.yMax).toBeGreaterThan(right.yMax);
+  });
+
+  it("extracts the live operating point without rebuilding map curves", () => {
+    const m = metrics({ RAPMean: 4, LAPMean: 9, CO_R: 5.2, CO_L: 4.9 });
+
+    expect(liveGuytonOperatingPoint("right", m)).toEqual({ pressure: 4, flow: 5.2 });
+    expect(liveGuytonOperatingPoint("left", m)).toEqual({ pressure: 9, flow: 4.9 });
+  });
 });
 
 function nearest(points: { x: number; y: number }[], x: number): { x: number; y: number } {
   return points.reduce((best, point) => (
     Math.abs(point.x - x) < Math.abs(best.x - x) ? point : best
   ), points[0]);
+}
+
+function xDomain(points: { x: number }[]): [number, number] {
+  const xs = points.map((point) => point.x);
+  return [Math.min(...xs), Math.max(...xs)];
 }
 
 function metrics(overrides: Partial<SimMetrics> = {}): SimMetrics {
