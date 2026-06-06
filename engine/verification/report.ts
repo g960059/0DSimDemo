@@ -5,6 +5,8 @@ import {
   type SteadyMeasurement,
 } from "@/engine/measure";
 import type { CoreRuntimeParams, SimMetrics } from "@/engine/protocol";
+import { runToPeriodicSteady } from "@/engine/steadyJob";
+import type { SolverStats, SteadyResiduals, SteadyResult, SteadyStatus } from "@/engine/stateContract";
 import { panelForGate, type VerificationArtifactFile } from "@/engine/verification/panels";
 import type { SettleStatus } from "@/engine/settling";
 import {
@@ -30,12 +32,32 @@ export type VerificationReport = {
   gateSet: VerificationGateSet;
   generatedAt: string;
   summary: VerificationSummary;
+  steady: VerificationSteadySummary | null;
   settleStatus: SettleStatus | null;
   metrics: SimMetrics | null;
   shape: BaselineShapeSummary | null;
   gates: GateResult[];
   failureLocations: FailureLocation[];
   measurement: SteadyMeasurement | null;
+};
+
+export type VerificationSteadyStateMetadata = {
+  schemaVersion: SteadyResult["state"]["schemaVersion"];
+  modelVersion: SteadyResult["state"]["modelVersion"];
+  stateLayoutHash: string;
+  paramsHash: string;
+  targetParamsHash: string;
+  t: number;
+  phi: number;
+  xLength: number;
+};
+
+export type VerificationSteadySummary = {
+  status: SteadyStatus;
+  ok: boolean;
+  residuals: SteadyResiduals;
+  solverStats: SolverStats;
+  state: VerificationSteadyStateMetadata;
 };
 
 export type FailureLocation = {
@@ -64,14 +86,16 @@ export function runVerification(
 ): VerificationReport {
   const profile = resolveVerificationProfile(options.profile ?? "verifyAccurate");
   const gateSet = options.gateSet ?? "validityOnly";
-  const settled = settleToSteadyState(params, {
+  const measureOptions = {
     targetTBV: profile.targetTBV,
     dt: profile.dt,
     sampleHz: profile.sampleHz,
     settlePolicy: profile.settlePolicy,
     measureBeats: profile.measureBeats,
     requireProjectorQuiet: profile.requireProjectorQuiet,
-  });
+  };
+  const steady = summarizeSteady(runToPeriodicSteady(params, measureOptions));
+  const settled = settleToSteadyState(params, measureOptions);
 
   if (!settled.ok) {
     const gates = [settleGate(settled.settleStatus)];
@@ -80,6 +104,7 @@ export function runVerification(
       gateSet,
       generatedAt: (options.now ?? new Date()).toISOString(),
       summary: summarizeGates(gates),
+      steady,
       settleStatus: settled.settleStatus,
       metrics: null,
       shape: null,
@@ -89,14 +114,7 @@ export function runVerification(
     };
   }
 
-  const measurement = measureSteady(settled.core, settled.settleStatus, {
-    targetTBV: profile.targetTBV,
-    dt: profile.dt,
-    sampleHz: profile.sampleHz,
-    settlePolicy: profile.settlePolicy,
-    measureBeats: profile.measureBeats,
-    requireProjectorQuiet: profile.requireProjectorQuiet,
-  });
+  const measurement = measureSteady(settled.core, settled.settleStatus, measureOptions);
 
   const gates = adjustGatesForProfile([
     settleGate(settled.settleStatus),
@@ -111,6 +129,7 @@ export function runVerification(
     gateSet,
     generatedAt: (options.now ?? new Date()).toISOString(),
     summary: summarizeGates(gates),
+    steady,
     settleStatus: settled.settleStatus,
     metrics: measurement.metrics,
     shape: gateSet === "normalBaseline" ? baselineShapeSummary(measurement) : null,
@@ -182,6 +201,21 @@ export function reportToMarkdown(report: VerificationReport): string {
     lines.push(`- PVF reverse fraction: ${nullableRound(report.shape.pvfReverseFraction, 3)}`);
     lines.push(`- LA/RA loop intersections: ${report.shape.laSelfIntersections}/${report.shape.raSelfIntersections}`);
   }
+  if (report.steady) {
+    const { residuals, solverStats, state } = report.steady;
+    lines.push("");
+    lines.push("## Steady State");
+    lines.push("");
+    lines.push(`- Solver: ${solverStats.kind}; dt ${solverStats.dt}; sampleHz ${solverStats.sampleHz}`);
+    lines.push(`- Window: settle ${round(solverStats.settleSeconds, 3)} s; measure ${round(solverStats.measureSeconds, 3)} s`);
+    lines.push(`- Status: ${report.steady.status}; ok ${report.steady.ok ? "yes" : "no"}`);
+    lines.push(`- Worst residual: ${residuals.worstSignal ?? "none"}; delta ${nullableRound(residuals.worstDelta, 6)}`);
+    lines.push(`- Left-right mismatch: ${round(residuals.leftRightSvMismatchLMin, 4)} L/min (${round(residuals.leftRightSvMismatchPct, 3)}%)`);
+    lines.push(`- TBV drift: ${nullableRound(residuals.tbvDriftPctPer60s, 6)}% per 60s`);
+    lines.push(`- Projector quiet: ${residuals.projectorQuiet ? "yes" : "no"}`);
+    lines.push(`- Params hash: ${state.paramsHash}; target ${state.targetParamsHash}`);
+    lines.push(`- State layout hash: ${state.stateLayoutHash}`);
+  }
   lines.push("");
   lines.push("## Gates");
   lines.push("");
@@ -215,6 +249,25 @@ export function toVerificationArtifact(report: VerificationReport): Verification
   return {
     ...report,
     measurement: null,
+  };
+}
+
+function summarizeSteady(result: SteadyResult): VerificationSteadySummary {
+  return {
+    status: result.status,
+    ok: result.ok,
+    residuals: result.residuals,
+    solverStats: result.solverStats,
+    state: {
+      schemaVersion: result.state.schemaVersion,
+      modelVersion: result.state.modelVersion,
+      stateLayoutHash: result.state.stateLayoutHash,
+      paramsHash: result.state.paramsHash,
+      targetParamsHash: result.state.targetParamsHash,
+      t: result.state.t,
+      phi: result.state.phi,
+      xLength: result.state.x.length,
+    },
   };
 }
 

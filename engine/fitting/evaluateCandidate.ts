@@ -46,6 +46,7 @@ export function evaluateCandidate(
       gateSet: options.gateSet ?? "validityOnly",
       generatedAt: new Date().toISOString(),
       summary: summarizeGates([invalid]),
+      steady: null,
       settleStatus: null,
       metrics: null,
       shape: null,

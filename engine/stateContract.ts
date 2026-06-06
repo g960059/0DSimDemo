@@ -16,11 +16,14 @@ export type SerializedModelState = {
   schemaVersion: typeof MODEL_STATE_SCHEMA_VERSION;
   modelVersion: typeof MODEL_VERSION;
   stateLayoutHash: string;
+  /** Hash of the current effective runtime parameters (`p`), excluding speed. */
   paramsHash: string;
+  /** Hash of the current target runtime parameters (`pTarget`), excluding speed. */
   targetParamsHash: string;
   t: number;
   phi: number;
   x: number[];
+  /** Dynamic TBV anchor only; TBV projector enablement and counters are intentionally not serialized. */
   initialTBV: number;
   expectedTBV: number;
 };
