@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clampLegendFraction, fractionToPx, pxToFraction } from "@/components/legendPosition";
+import { clampLegendFraction, exceededDragThreshold, fractionToPx, isNearDefaultLegendCorner, pxToFraction } from "@/components/legendPosition";
 import { mergePanelLegendPosition } from "@/WorkbenchPage";
 import type { PanelDef } from "@/types";
 
@@ -49,6 +49,52 @@ describe("legend position helpers", () => {
       { width: 100, height: 80 },
       { width: 100, height: 90 },
     )).toEqual({ xPct: 0, yPct: 0 });
+  });
+
+  it("treats net moves at or under the drag threshold as non-drags", () => {
+    const start = { x: 10, y: 20 };
+
+    expect(exceededDragThreshold(start, { x: 13, y: 24 })).toBe(false);
+    expect(exceededDragThreshold(start, { x: 15, y: 20 })).toBe(false);
+  });
+
+  it("detects net moves over the drag threshold", () => {
+    expect(exceededDragThreshold({ x: 10, y: 20 }, { x: 16, y: 20 })).toBe(true);
+  });
+
+  it("detects positions near the default top-right legend corner", () => {
+    const container = { width: 400, height: 250 };
+    const legend = { width: 100, height: 50 };
+    const defaultPoint = { left: 292, top: 8 };
+
+    expect(isNearDefaultLegendCorner(
+      pxToFraction(defaultPoint, container),
+      container,
+      legend,
+    )).toBe(true);
+    expect(isNearDefaultLegendCorner(
+      pxToFraction({ left: defaultPoint.left - 15.999, top: defaultPoint.top }, container),
+      container,
+      legend,
+    )).toBe(true);
+    expect(isNearDefaultLegendCorner(
+      pxToFraction({ left: defaultPoint.left - 16.001, top: defaultPoint.top }, container),
+      container,
+      legend,
+    )).toBe(false);
+  });
+
+  it("does not treat zero-size or non-finite dimensions as near the default corner", () => {
+    const pos = { xPct: 0.5, yPct: 0.5 };
+    const container = { width: 400, height: 250 };
+    const legend = { width: 100, height: 50 };
+
+    expect(isNearDefaultLegendCorner(pos, { width: 0, height: 250 }, legend)).toBe(false);
+    expect(isNearDefaultLegendCorner(pos, container, { width: 0, height: 50 })).toBe(false);
+    expect(isNearDefaultLegendCorner(pos, { width: Number.NaN, height: 250 }, legend)).toBe(false);
+    expect(isNearDefaultLegendCorner(pos, { width: 400, height: Number.POSITIVE_INFINITY }, legend)).toBe(false);
+    expect(isNearDefaultLegendCorner(pos, container, { width: Number.POSITIVE_INFINITY, height: 50 })).toBe(false);
+    expect(isNearDefaultLegendCorner(pos, container, { width: 100, height: Number.NaN })).toBe(false);
   });
 });
 

@@ -22,6 +22,16 @@ vi.mock("@/components/NotePanel", async () => {
 
 const noop = () => {};
 
+function rootClassName(html: string): string {
+  return html.match(/^<div class="([^"]*)"/)?.[1] ?? "";
+}
+
+function rootPaddingClasses(html: string): string[] {
+  return rootClassName(html)
+    .split(" ")
+    .filter((className) => /^(p|px|py|pl|pr|pt|pb)-/.test(className));
+}
+
 function renderPanelGrid(mode: PanelGridMode, panels: PanelDef[] = [], instances: SimInstance[] = [], controlGroups: string[] = []) {
   return renderToStaticMarkup(
     createPanelGrid(mode, panels, instances, controlGroups),
@@ -232,25 +242,13 @@ describe("PanelGrid Dockview layout", () => {
     }));
 
     expect(html).toContain("pointer-events-none");
-    expect(html).not.toContain("Open pane settings");
+    expect(html).not.toContain("Drag to move");
+    expect(html).not.toContain("cursor-grab");
+    expect(html).not.toContain("hover:ring");
+    expect(html).not.toContain("<button");
   });
 
-  it("renders graph legend settings gear when interactive", () => {
-    const html = renderToStaticMarkup(React.createElement(ChartLegend, {
-      instances: [normalInstance],
-      config: pvLoopPanel.config,
-      showLegend: true,
-      panelId: "pv",
-      legendInteractive: true,
-      onOpenSettings: noop,
-    }));
-
-    expect(html).toContain("pointer-events-auto");
-    expect(html).toContain("aria-label=\"Open pane settings\"");
-    expect(html).toContain("title=\"Open pane settings\"");
-  });
-
-  it("renders a drag grip for configurable legends with a position callback", () => {
+  it("renders zero-footprint hover affordances when interactive", () => {
     const html = renderToStaticMarkup(React.createElement(ChartLegend, {
       instances: [normalInstance],
       config: pvLoopPanel.config,
@@ -261,11 +259,40 @@ describe("PanelGrid Dockview layout", () => {
       onLegendPositionChange: noop,
     }));
 
-    expect(html).toContain("aria-label=\"Drag legend\"");
+    expect(html).toContain("pointer-events-auto");
     expect(html).toContain("cursor-grab");
+    expect(html).toContain("hover:ring-1");
+    expect(html).toContain("hover:ring-sky-400/40");
+    expect(html).toContain("title=\"Drag to move · double-click to edit\"");
+    expect(html).not.toContain("<button");
+    expect(html).not.toContain("aria-label=\"Open pane settings\"");
+    expect(html).not.toContain("aria-label=\"Drag legend\"");
   });
 
-  it("renders stored legend positions with inline placement and reset control", () => {
+  it("keeps interactive legend rest padding identical to inert legends", () => {
+    const inert = renderToStaticMarkup(React.createElement(ChartLegend, {
+      instances: [normalInstance],
+      config: pvLoopPanel.config,
+      showLegend: true,
+    }));
+    const interactive = renderToStaticMarkup(React.createElement(ChartLegend, {
+      instances: [normalInstance],
+      config: pvLoopPanel.config,
+      showLegend: true,
+      panelId: "pv",
+      legendInteractive: true,
+      onOpenSettings: noop,
+      onLegendPositionChange: noop,
+    }));
+
+    expect(rootPaddingClasses(inert)).toEqual(["p-1.5"]);
+    expect(rootPaddingClasses(interactive)).toEqual(["p-1.5"]);
+    expect(interactive).not.toContain("px-5");
+    expect(interactive).not.toContain("pl-5");
+    expect(interactive).not.toContain("pr-5");
+  });
+
+  it("renders stored legend positions with inline placement", () => {
     const html = renderToStaticMarkup(React.createElement(ChartLegend, {
       instances: [normalInstance],
       config: pvLoopPanel.config,
@@ -277,12 +304,13 @@ describe("PanelGrid Dockview layout", () => {
       onLegendPositionChange: noop,
     }));
 
-    expect(html).toContain("style=\"left:0px;top:0px\"");
+    expect(html).toContain("left:0px;top:0px");
+    expect(html).toContain("touch-action:none");
     expect(html).not.toContain("top-2 right-2");
-    expect(html).toContain("aria-label=\"Reset legend position\"");
+    expect(html).not.toContain("aria-label=\"Reset legend position\"");
   });
 
-  it("keeps inert legends without drag or reset controls", () => {
+  it("keeps reading and learner legends inert without drag affordances", () => {
     const html = renderToStaticMarkup(React.createElement(ChartLegend, {
       instances: [normalInstance],
       config: pvLoopPanel.config,
@@ -294,6 +322,10 @@ describe("PanelGrid Dockview layout", () => {
     }));
 
     expect(html).toContain("pointer-events-none");
+    expect(html).not.toContain("cursor-grab");
+    expect(html).not.toContain("touch-action:none");
+    expect(html).not.toContain("Drag to move");
+    expect(html).not.toContain("hover:ring");
     expect(html).not.toContain("aria-label=\"Drag legend\"");
     expect(html).not.toContain("aria-label=\"Reset legend position\"");
   });

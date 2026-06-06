@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as d3 from 'd3';
-import { GripVertical, Settings } from 'lucide-react';
 import { SimInstance, PhysicsRefState, PanelInstanceConfig, type LegendPosition } from '../types';
 import type { SimSample } from '../engine/protocol';
-import { clampLegendFraction, fractionToPx, pxToFraction } from './legendPosition';
+import { clampLegendFraction, exceededDragThreshold, fractionToPx, isNearDefaultLegendCorner, pxToFraction } from './legendPosition';
 import { useDocumentVisible, useOnscreen } from '../hooks/useOnscreen';
 import {
     buildGuytonPaneData,
@@ -395,6 +394,7 @@ const EMPTY_LEGEND_LAYOUT: LegendLayout = {
     container: { width: 0, height: 0 },
     legend: { width: 0, height: 0 },
 };
+const LEGEND_DRAG_THRESHOLD_PX = 5;
 
 function sameLegendLayout(a: LegendLayout, b: LegendLayout): boolean {
     return a.container.width === b.container.width
@@ -418,6 +418,7 @@ export const ChartLegend = ({
     const dragRef = useRef<LegendDragState | null>(null);
     const movedRef = useRef(false);
     const suppressClickRef = useRef(false);
+    const lastDragEndAtRef = useRef(0);
     const [layout, setLayout] = useState<LegendLayout>(EMPTY_LEGEND_LAYOUT);
     const [livePosition, setLivePosition] = useState<LegendPosition | null>(null);
     const [isDragging, setIsDragging] = useState(false);
@@ -457,6 +458,10 @@ export const ChartLegend = ({
 
     const openSettings = (event: React.MouseEvent<HTMLElement>) => {
         event.stopPropagation();
+        if (Date.now() - lastDragEndAtRef.current < 500) {
+            event.preventDefault();
+            return;
+        }
         if (!canOpenSettings || !panelId) return;
         onOpenSettings?.(panelId);
     };
@@ -486,25 +491,25 @@ export const ChartLegend = ({
     const legendStyle: React.CSSProperties | undefined = legendPx
         ? { left: `${legendPx.left}px`, top: `${legendPx.top}px` }
         : undefined;
+    const legendRootStyle: React.CSSProperties | undefined = legendStyle
+        ? { ...legendStyle, touchAction: canDragLegend ? 'none' : undefined }
+        : (canDragLegend ? { touchAction: 'none' } : undefined);
     const placementClassName = effectivePosition ? '' : 'top-2 right-2';
+    const settleTransitionClassName = isDragging ? '' : 'transition-[left,top] duration-150';
     const legendClassName = canOpenSettings
-        ? `group absolute ${placementClassName} flex flex-col gap-1 z-30 pointer-events-auto cursor-pointer p-1.5 bg-slate-900/80 rounded border border-slate-700/50 backdrop-blur-sm ${extraClasses}`
-        : `absolute ${placementClassName} flex flex-col gap-1 z-30 pointer-events-none p-1.5 bg-slate-900/80 rounded border border-slate-700/50 backdrop-blur-sm ${extraClasses}`;
+        ? `absolute ${placementClassName} ${settleTransitionClassName} flex flex-col gap-1 z-30 pointer-events-auto p-1.5 bg-slate-900/80 rounded border border-slate-700/50 backdrop-blur-sm hover:bg-slate-900/90 hover:ring-1 hover:ring-sky-400/40 ${isDragging ? 'cursor-grabbing bg-slate-900/90 ring-1 ring-sky-400/50' : 'cursor-grab'} ${extraClasses}`
+        : `absolute ${placementClassName} ${settleTransitionClassName} flex flex-col gap-1 z-30 pointer-events-none p-1.5 bg-slate-900/80 rounded border border-slate-700/50 backdrop-blur-sm ${extraClasses}`;
 
-    const stopGripClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-        event.stopPropagation();
+    const stopSuppressedClick = (event: React.MouseEvent<HTMLDivElement>) => {
         if (suppressClickRef.current) {
+            event.stopPropagation();
             event.preventDefault();
             suppressClickRef.current = false;
         }
     };
-    const stopGripDoubleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-        event.stopPropagation();
-    };
-    const onGripPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const onLegendPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
         if (!canDragLegend || !panelId) return;
         event.stopPropagation();
-        event.preventDefault();
         const legendEl = legendRef.current;
         const containerEl = (legendEl?.offsetParent as HTMLElement | null) ?? legendEl?.parentElement ?? null;
         if (!legendEl || !containerEl) return;
@@ -526,18 +531,17 @@ export const ChartLegend = ({
             latestFraction: currentFraction,
         };
         movedRef.current = false;
-        setLivePosition(currentFraction);
-        setIsDragging(true);
         event.currentTarget.setPointerCapture(event.pointerId);
     };
-    const onGripPointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const onLegendPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
         const drag = dragRef.current;
         if (!drag || drag.pointerId !== event.pointerId) return;
         event.stopPropagation();
-        event.preventDefault();
         const dx = event.clientX - drag.startClient.x;
         const dy = event.clientY - drag.startClient.y;
-        if (Math.hypot(dx, dy) > 3) movedRef.current = true;
+        if (!movedRef.current && !exceededDragThreshold(drag.startClient, { x: event.clientX, y: event.clientY }, LEGEND_DRAG_THRESHOLD_PX)) return;
+        movedRef.current = true;
+        event.preventDefault();
         const measured = measureLayout();
         const nextPx = {
             left: drag.startPx.left + dx,
@@ -546,27 +550,52 @@ export const ChartLegend = ({
         const nextFraction = clampLegendFraction(pxToFraction(nextPx, measured.container), measured.container, measured.legend);
         drag.latestFraction = nextFraction;
         setLivePosition(nextFraction);
+        setIsDragging(true);
     };
-    const finishGripDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
-        const drag = dragRef.current;
-        if (!drag || drag.pointerId !== event.pointerId) return;
-        event.stopPropagation();
-        event.preventDefault();
-        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-            event.currentTarget.releasePointerCapture(event.pointerId);
-        }
-        if (movedRef.current && panelId) {
-            suppressClickRef.current = true;
-            onLegendPositionChange?.(panelId, drag.latestFraction);
-        }
+    const clearLegendDragState = () => {
         dragRef.current = null;
+        movedRef.current = false;
         setLivePosition(null);
         setIsDragging(false);
     };
-    const resetLegendPosition = (event: React.MouseEvent<HTMLButtonElement>) => {
+    const finishLegendDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+        const drag = dragRef.current;
+        if (!drag || drag.pointerId !== event.pointerId) return;
         event.stopPropagation();
-        if (!panelId) return;
-        onLegendPositionChange?.(panelId, undefined);
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+        const didDrag = exceededDragThreshold(
+            drag.startClient,
+            { x: event.clientX, y: event.clientY },
+            LEGEND_DRAG_THRESHOLD_PX,
+        );
+        if (didDrag && panelId) {
+            event.preventDefault();
+            suppressClickRef.current = true;
+            lastDragEndAtRef.current = Date.now();
+            const measured = measureLayout();
+            const finalPx = {
+                left: drag.startPx.left + event.clientX - drag.startClient.x,
+                top: drag.startPx.top + event.clientY - drag.startClient.y,
+            };
+            const finalPosition = clampLegendFraction(pxToFraction(finalPx, measured.container), measured.container, measured.legend);
+            const shouldSnapToDefault = isNearDefaultLegendCorner(finalPosition, measured.container, measured.legend);
+            onLegendPositionChange?.(panelId, shouldSnapToDefault ? undefined : finalPosition);
+        } else {
+            suppressClickRef.current = false;
+        }
+        clearLegendDragState();
+    };
+    const abortLegendDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+        const drag = dragRef.current;
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        event.stopPropagation();
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+        suppressClickRef.current = false;
+        clearLegendDragState();
     };
 
     if (showLegend === false) return null;
@@ -575,51 +604,16 @@ export const ChartLegend = ({
         <div
             ref={legendRef}
             className={legendClassName}
-            style={legendStyle}
+            style={legendRootStyle}
             onDoubleClick={canOpenSettings ? openSettings : undefined}
-            title={canOpenSettings ? 'Open pane settings' : undefined}
+            onPointerDown={canDragLegend ? onLegendPointerDown : undefined}
+            onPointerMove={canDragLegend ? onLegendPointerMove : undefined}
+            onPointerUp={canDragLegend ? finishLegendDrag : undefined}
+            onPointerCancel={canDragLegend ? abortLegendDrag : undefined}
+            onClick={canDragLegend ? stopSuppressedClick : undefined}
+            title={canOpenSettings ? 'Drag to move · double-click to edit' : undefined}
         >
-            {canDragLegend && (
-                <button
-                    type="button"
-                    className={`absolute left-1 top-1 inline-flex h-5 w-5 items-center justify-center rounded border border-slate-700/70 bg-slate-950/85 text-slate-400 opacity-0 transition-opacity hover:bg-slate-800 hover:text-slate-100 group-hover:opacity-100 focus-visible:opacity-100 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
-                    aria-label="Drag legend"
-                    title="Drag legend"
-                    onPointerDown={onGripPointerDown}
-                    onPointerMove={onGripPointerMove}
-                    onPointerUp={finishGripDrag}
-                    onPointerCancel={finishGripDrag}
-                    onClick={stopGripClick}
-                    onDoubleClick={stopGripDoubleClick}
-                    style={{ touchAction: 'none' }}
-                >
-                    <GripVertical className="h-3 w-3" />
-                </button>
-            )}
-            {canOpenSettings && (
-                <button
-                    type="button"
-                    className="absolute right-1 top-1 inline-flex h-5 w-5 items-center justify-center rounded border border-slate-700/70 bg-slate-950/85 text-slate-400 opacity-0 transition-opacity hover:bg-slate-800 hover:text-slate-100 group-hover:opacity-100 focus-visible:opacity-100"
-                    aria-label="Open pane settings"
-                    title="Open pane settings"
-                    onClick={openSettings}
-                >
-                    <Settings className="h-3 w-3" />
-                </button>
-            )}
-            {canDragLegend && legendPosition && (
-                <button
-                    type="button"
-                    className="absolute left-1 top-7 inline-flex h-5 w-5 items-center justify-center rounded border border-slate-700/70 bg-slate-950/85 text-[11px] font-bold leading-none text-slate-400 opacity-0 transition-opacity hover:bg-slate-800 hover:text-slate-100 group-hover:opacity-100 focus-visible:opacity-100"
-                    aria-label="Reset legend position"
-                    title="Reset legend position"
-                    onClick={resetLegendPosition}
-                    onDoubleClick={stopGripDoubleClick}
-                >
-                    ↺
-                </button>
-            )}
-            {canDragLegend ? <div className="px-5">{legendItems}</div> : canOpenSettings ? <div className="pr-5">{legendItems}</div> : legendItems}
+            {legendItems}
         </div>
     );
 };
