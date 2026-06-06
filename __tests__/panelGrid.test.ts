@@ -1,8 +1,11 @@
 import React from "react";
 import { Writable } from "node:stream";
 import { renderToPipeableStream, renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { PanelGrid, getActiveSettingsSectionId, getDockviewPaneTitle, type PanelGridMode } from "@/components/workbench/PanelGrid";
+import { ChartLegend, shouldEnableLegendInteractions } from "@/components/Charts";
+import { PanelGrid, getActiveSettingsSectionId, getDockviewPaneTitle, openPanelSettingsIfClosed, type PanelGridMode } from "@/components/workbench/PanelGrid";
 import { getDockviewStructureSignature, getDockviewTabMenuPosition } from "@/components/workbench/WorkbenchDockview";
 import { addHiddenInstanceConfigsToPanels } from "@/WorkbenchPage";
 import { DEFAULT_PARAMS } from "@/constants";
@@ -211,6 +214,62 @@ describe("PanelGrid Dockview layout", () => {
 
     expect(html).not.toContain("Add Main pane");
     expect(html).not.toContain("pane settings");
+  });
+
+  it("enables graph legend settings only for configurable studio panes", () => {
+    expect(shouldEnableLegendInteractions({ canConfigure: true })).toBe(true);
+    expect(shouldEnableLegendInteractions({ canConfigure: true, presentationMode: "studio" })).toBe(true);
+    expect(shouldEnableLegendInteractions({ canConfigure: false })).toBe(false);
+    expect(shouldEnableLegendInteractions({ canConfigure: true, presentationMode: "reading" })).toBe(false);
+  });
+
+  it("renders an inert graph legend without settings controls by default", () => {
+    const html = renderToStaticMarkup(React.createElement(ChartLegend, {
+      instances: [normalInstance],
+      config: pvLoopPanel.config,
+      showLegend: true,
+    }));
+
+    expect(html).toContain("pointer-events-none");
+    expect(html).not.toContain("Open pane settings");
+  });
+
+  it("renders graph legend settings gear when interactive", () => {
+    const html = renderToStaticMarkup(React.createElement(ChartLegend, {
+      instances: [normalInstance],
+      config: pvLoopPanel.config,
+      showLegend: true,
+      panelId: "pv",
+      legendInteractive: true,
+      onOpenSettings: noop,
+    }));
+
+    expect(html).toContain("pointer-events-auto");
+    expect(html).toContain("aria-label=\"Open pane settings\"");
+    expect(html).toContain("title=\"Open pane settings\"");
+  });
+
+  it("opens pane settings idempotently from chart legend actions", () => {
+    const toggleSettings = vi.fn();
+
+    openPanelSettingsIfClosed({ id: "pv", isSettingsOpen: false }, "pv", toggleSettings);
+    openPanelSettingsIfClosed({ id: "pv", isSettingsOpen: true }, "pv", toggleSettings);
+    openPanelSettingsIfClosed({ id: "pv", isSettingsOpen: false }, "other", toggleSettings);
+
+    expect(toggleSettings).toHaveBeenCalledTimes(1);
+    expect(toggleSettings).toHaveBeenCalledWith("pv");
+  });
+
+  it("keeps Dockview tab menus rendered and hover-enabled for inactive tabs", () => {
+    const css = readFileSync(resolve(process.cwd(), "index.css"), "utf8");
+    const dockviewSource = readFileSync(resolve(process.cwd(), "components/workbench/WorkbenchDockview.tsx"), "utf8");
+
+    expect(dockviewSource).toContain("workbench-dock-tab-menu-button inline-flex h-5 w-5");
+    expect(dockviewSource).toContain("event.stopPropagation();");
+    expect(css).toContain(".workbench-dock-tab-menu-button");
+    expect(css).toContain(".workbench-dock-tab:hover .workbench-dock-tab-menu-button");
+    expect(css).toContain("@media (hover: none)");
+    expect(css).toContain(".dv-tab.dv-active-tab .workbench-dock-tab-menu-button");
   });
 
   it("renders pane-local settings as the pane body for editable Dockview panes", () => {

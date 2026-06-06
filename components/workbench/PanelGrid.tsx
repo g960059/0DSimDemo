@@ -97,6 +97,15 @@ export function getDockviewPaneTitle(panel: PanelDef): string {
   return panel.title;
 }
 
+export function openPanelSettingsIfClosed(
+  panel: Pick<PanelDef, 'id' | 'isSettingsOpen'>,
+  panelId: string,
+  toggleSettings: (panelId: string) => void,
+): void {
+  if (panel.id !== panelId || panel.isSettingsOpen) return;
+  toggleSettings(panelId);
+}
+
 interface PanelSettingsButtonProps {
   panel: PanelDef;
   instances: SimInstance[];
@@ -1293,6 +1302,10 @@ function PanelCard({
   const bodyClassName = chromeMode === 'mobile' || chromeMode === 'dockview'
     ? 'relative h-full min-h-16 w-full'
     : `flex-1 min-h-0 w-full relative z-10 ${['WAVEFORM', 'GUYTON_RIGHT', 'GUYTON_LEFT'].includes(panel.type) ? '-mt-6' : ''} ${panel.type === 'PVLOOP' ? 'mb-4' : ''}`;
+  const canOpenSettingsFromLegend = chromeMode === 'dockview' && canConfigure;
+  const openSettingsFromLegend = canOpenSettingsFromLegend
+    ? (panelId: string) => openPanelSettingsIfClosed(panel, panelId, toggleSettings)
+    : undefined;
   const dockviewNoteModeSwitch = chromeMode === 'dockview' && panel.type === 'NOTE' && canConfigure ? (
     <div className="flex shrink-0 items-center justify-end border-b border-slate-800/70 bg-slate-950/35 px-2 py-1">
       <div className="flex items-center rounded border border-slate-700 bg-slate-900 p-0.5">
@@ -1332,6 +1345,8 @@ function PanelCard({
         removeInstance,
         updateInstanceName,
         updateInstanceColor,
+        canConfigure: canOpenSettingsFromLegend,
+        onOpenSettings: openSettingsFromLegend,
       })}
     </div>
   );

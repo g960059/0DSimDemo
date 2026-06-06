@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as d3 from 'd3';
+import { Settings } from 'lucide-react';
 import { SimInstance, PhysicsRefState, PanelInstanceConfig } from '../types';
 import type { SimSample } from '../engine/protocol';
 import { useDocumentVisible, useOnscreen } from '../hooks/useOnscreen';
@@ -22,6 +23,9 @@ interface ChartPanelProps {
   config: Record<string, PanelInstanceConfig>;
   showGuides?: boolean;
   showLegend?: boolean;
+  panelId?: string;
+  legendInteractive?: boolean;
+  onOpenSettings?: (panelId: string) => void;
 }
 
 interface WaveformProps extends ChartPanelProps {
@@ -336,33 +340,87 @@ const drawPvDebugOverlay = (ctx: CanvasRenderingContext2D, lines: string[]): voi
     ctx.restore();
 };
 
-const ChartLegend = ({ instances, config, showLegend, extraClasses = '' }: { instances: SimInstance[], config: Record<string, PanelInstanceConfig>, showLegend?: boolean, extraClasses?: string }) => {
+export function shouldEnableLegendInteractions({
+    canConfigure,
+    presentationMode,
+}: {
+    canConfigure?: boolean;
+    presentationMode?: 'studio' | 'reading';
+}): boolean {
+    return Boolean(canConfigure) && presentationMode !== 'reading';
+}
+
+type ChartLegendProps = {
+    instances: SimInstance[];
+    config: Record<string, PanelInstanceConfig>;
+    showLegend?: boolean;
+    extraClasses?: string;
+    panelId?: string;
+    legendInteractive?: boolean;
+    onOpenSettings?: (panelId: string) => void;
+};
+
+export const ChartLegend = ({
+    instances,
+    config,
+    showLegend,
+    extraClasses = '',
+    panelId,
+    legendInteractive = false,
+    onOpenSettings,
+}: ChartLegendProps) => {
     if (showLegend === false) return null;
+    const canOpenSettings = legendInteractive && Boolean(panelId) && Boolean(onOpenSettings);
+    const openSettings = (event: React.MouseEvent<HTMLElement>) => {
+        event.stopPropagation();
+        if (!canOpenSettings || !panelId) return;
+        onOpenSettings?.(panelId);
+    };
+    const legendItems = instances.flatMap(inst => {
+        const cfg = config[inst.id];
+        if (!cfg || !cfg.visible || cfg.selectedSignals.length === 0) return [];
+        const activeName = cfg.customName || inst.name;
+
+        return cfg.selectedSignals.map(sig => {
+            const color = getColor(inst.color, sig, cfg.customBaseColor, cfg.customSignalColors);
+            const signalName = (cfg.customSignalNames && cfg.customSignalNames[sig]) || sig;
+            return (
+                <div key={`${inst.id}-${sig}`} className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{backgroundColor: color, boxShadow: `0 0 4px ${color}`}}></span>
+                    <span className="text-[9px] font-medium text-slate-300 drop-shadow-md tracking-wide">
+                        {activeName} ({signalName})
+                    </span>
+                </div>
+            );
+        });
+    });
+    const legendClassName = canOpenSettings
+        ? `group absolute top-2 right-2 flex flex-col gap-1 z-30 pointer-events-auto cursor-pointer p-1.5 bg-slate-900/80 rounded border border-slate-700/50 backdrop-blur-sm ${extraClasses}`
+        : `absolute top-2 right-2 flex flex-col gap-1 z-30 pointer-events-none p-1.5 bg-slate-900/80 rounded border border-slate-700/50 backdrop-blur-sm ${extraClasses}`;
+
     return (
-        <div className={`absolute top-2 right-2 flex flex-col gap-1 z-30 pointer-events-none p-1.5 bg-slate-900/80 rounded border border-slate-700/50 backdrop-blur-sm ${extraClasses}`}>
-            {instances.flatMap(inst => {
-                const cfg = config[inst.id];
-                if (!cfg || !cfg.visible || cfg.selectedSignals.length === 0) return [];
-                const activeName = cfg.customName || inst.name;
-                
-                return cfg.selectedSignals.map(sig => {
-                    const color = getColor(inst.color, sig, cfg.customBaseColor, cfg.customSignalColors);
-                    const signalName = (cfg.customSignalNames && cfg.customSignalNames[sig]) || sig;
-                    return (
-                        <div key={`${inst.id}-${sig}`} className="flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{backgroundColor: color, boxShadow: `0 0 4px ${color}`}}></span>
-                            <span className="text-[9px] font-medium text-slate-300 drop-shadow-md tracking-wide">
-                                {activeName} ({signalName})
-                            </span>
-                        </div>
-                    );
-                });
-            })}
+        <div
+            className={legendClassName}
+            onDoubleClick={canOpenSettings ? openSettings : undefined}
+            title={canOpenSettings ? 'Open pane settings' : undefined}
+        >
+            {canOpenSettings && (
+                <button
+                    type="button"
+                    className="absolute right-1 top-1 inline-flex h-5 w-5 items-center justify-center rounded border border-slate-700/70 bg-slate-950/85 text-slate-400 opacity-0 transition-opacity hover:bg-slate-800 hover:text-slate-100 group-hover:opacity-100 focus-visible:opacity-100"
+                    aria-label="Open pane settings"
+                    title="Open pane settings"
+                    onClick={openSettings}
+                >
+                    <Settings className="h-3 w-3" />
+                </button>
+            )}
+            {canOpenSettings ? <div className="pr-5">{legendItems}</div> : legendItems}
         </div>
     );
 };
 
-export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances, config, showGuides, showLegend }) => {
+export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances, config, showGuides, showLegend, panelId, legendInteractive, onOpenSettings }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scaleRef = useRef({ maxV: 300, maxP: 200 });
@@ -572,13 +630,13 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
 
   return (
       <div ref={containerRef} className="absolute inset-0 rounded-b-xl overflow-hidden pointer-events-none">
-         <ChartLegend instances={instances} config={config} showLegend={showLegend} />
+         <ChartLegend instances={instances} config={config} showLegend={showLegend} panelId={panelId} legendInteractive={legendInteractive} onOpenSettings={onOpenSettings} />
          <canvas ref={canvasRef} className="block pointer-events-auto" />
       </div>
   );
 };
 
-export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances, timeWindow, config, showLegend }) => {
+export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances, timeWindow, config, showLegend, panelId, legendInteractive, onOpenSettings }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const scaleRef = useRef({ yMin: 0, yMax: 160 });
@@ -759,7 +817,7 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
 
     return (
         <div ref={containerRef} className="absolute inset-0 rounded-b-xl overflow-hidden pointer-events-none">
-            <ChartLegend instances={instances} config={config} showLegend={showLegend} />
+            <ChartLegend instances={instances} config={config} showLegend={showLegend} panelId={panelId} legendInteractive={legendInteractive} onOpenSettings={onOpenSettings} />
             <canvas ref={canvasRef} className="block pointer-events-auto" />
         </div>
     );
