@@ -1,7 +1,8 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { MoreVertical, Plus } from 'lucide-react';
+import { Check, LoaderCircle, MoreVertical, Plus, TriangleAlert } from 'lucide-react';
 import { OFFICIAL_BASELINES } from '../../engine/caseBaselines';
+import type { SteadyUpdateStatus, SteadyUpdateStatusMap } from '../../engine/previewController';
 import type { SimInstance } from '../../types';
 
 interface ScenarioPaneProps {
@@ -10,6 +11,7 @@ interface ScenarioPaneProps {
   removeInstance: (id: string) => void;
   updateInstanceName: (id: string, name: string) => void;
   updateInstanceColor: (id: string, color: string) => void;
+  steadyUpdateStatuses?: SteadyUpdateStatusMap;
 }
 
 const scenarioPresets = Object.entries(OFFICIAL_BASELINES).map(([id, preset]) => ({
@@ -18,12 +20,51 @@ const scenarioPresets = Object.entries(OFFICIAL_BASELINES).map(([id, preset]) =>
   detail: preset.label,
 }));
 
+function SteadyStatusIndicator({ status }: { status?: SteadyUpdateStatus }) {
+  if (!status) return null;
+  if (status === 'computing') {
+    return (
+      <span
+        className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-sky-300"
+        title="Recomputing steady state"
+        aria-label="Recomputing steady state"
+        role="status"
+      >
+        <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+      </span>
+    );
+  }
+  if (status === 'failed') {
+    return (
+      <span
+        className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-amber-300"
+        title="Steady update failed"
+        aria-label="Steady update failed"
+        role="status"
+      >
+        <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+      </span>
+    );
+  }
+  return (
+    <span
+      className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-emerald-300"
+      title="Steady state updated"
+      aria-label="Steady state updated"
+      role="status"
+    >
+      <Check className="h-3.5 w-3.5" aria-hidden="true" />
+    </span>
+  );
+}
+
 export function ScenarioPane({
   instances,
   addInstance,
   removeInstance,
   updateInstanceName,
   updateInstanceColor,
+  steadyUpdateStatuses = {},
 }: ScenarioPaneProps) {
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [draftName, setDraftName] = React.useState('');
@@ -147,6 +188,7 @@ export function ScenarioPane({
               ) : (
                 <span className="min-w-0 flex-1 truncate font-medium">{instance.name}</span>
               )}
+              <SteadyStatusIndicator status={steadyUpdateStatuses[instance.id]} />
               {!isEditing && (
                 <button
                   type="button"

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { PreviewController } from "@/engine/previewController";
 import { DEFAULT_PARAMS } from "@/constants";
 import {
@@ -145,6 +145,7 @@ describe("PreviewController (headless driver)", () => {
       expect(transitionWorker.messages).toEqual([request]);
       expect(c.getPendingTransitionSteadyJob("1")).toBe(pending);
       expect(c.getTransitionSteadyResult("1")).toBeUndefined();
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "computing" });
       expect(request.type).toBe("computeTransitionSteady");
       expect(request.instanceId).toBe("1");
       expect(request.params).toBe(target.params);
@@ -262,6 +263,7 @@ describe("PreviewController (headless driver)", () => {
 
       expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
       expect(c.getTransitionSteadyResult("1")).toBeUndefined();
+      expect(c.getSteadyUpdateStatuses()).toEqual({});
       expect(latestWorkerMessage(previewWorker, "setInstances").instances[0].params.bleedRate).toBe(100);
 
       transitionWorker.emit(transitionResult(pending.request, {
@@ -308,12 +310,14 @@ describe("PreviewController (headless driver)", () => {
       c.resetInstances(["1"]);
       expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
       expect(c.getTransitionSteadyResult("1")).toBeUndefined();
+      expect(c.getSteadyUpdateStatuses()).toEqual({});
 
       const second = c.requestNextSteady({ ...current, targetVolume: current.targetVolume + 200 });
       transitionWorker.emit(transitionResult(second.request));
       c.setInstances([]);
       expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
       expect(c.getTransitionSteadyResult("1")).toBeUndefined();
+      expect(c.getSteadyUpdateStatuses()).toEqual({});
     } finally {
       workerHarness.restore();
     }
@@ -332,6 +336,7 @@ describe("PreviewController (headless driver)", () => {
 
       expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
       expect(c.getTransitionSteadyResult("1")).toBeUndefined();
+      expect(c.getSteadyUpdateStatuses()).toEqual({});
       expect(worker.terminated).toBe(true);
     } finally {
       workerHarness.restore();
@@ -358,6 +363,7 @@ describe("PreviewController (headless driver)", () => {
       transitionWorker.emit(transitionResult(first.request));
       expect(c.getPendingTransitionSteadyJob("1")).toBe(second);
       expect(c.getTransitionSteadyResult("1")).toBeUndefined();
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "computing" });
 
       const samples = [{ t: 1, phi: 1 }] as any[];
       const accepted = transitionResult(second.request, {
@@ -367,6 +373,7 @@ describe("PreviewController (headless driver)", () => {
       transitionWorker.emit(accepted);
       expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
       expect(c.getTransitionSteadyResult("1")).toEqual(accepted);
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "updated" });
       expect(phys.buffer).toEqual(samples);
       expect(phys.previousEpoch?.buffer).toEqual(oldSamples);
       expect(phys.steadySignature).toBe(second.request.toSignature);
@@ -378,6 +385,45 @@ describe("PreviewController (headless driver)", () => {
         state: accepted.steady.state,
       });
     } finally {
+      workerHarness.restore();
+    }
+  });
+
+  it("publishes steady update statuses and expires successful updates", () => {
+    const workerHarness = withFakeWorker();
+    const nowSpy = vi.spyOn(globalThis.performance, "now");
+    try {
+      nowSpy.mockReturnValue(1000);
+      const c = new PreviewController({ useWorker: true });
+      const changes: Array<Record<string, string>> = [];
+      c.onSteadyUpdateStatusChange = (statuses) => changes.push(statuses);
+      c.setInstances([inst("1")]);
+      const target = inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 });
+      c.setInstances([target], { steadyTransitionIds: ["1"] });
+      const pending = c.requestNextSteady(target);
+      const transitionWorker = workerHarness.byScript("transitionSteadyWorker");
+
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "computing" });
+      expect(changes).toContainEqual({ "1": "computing" });
+
+      nowSpy.mockReturnValue(1100);
+      transitionWorker.emit(transitionResult(pending.request, {
+        samples: [{ t: 1, phi: 1 }] as any[],
+        snapshot: snapshot(target.params, 10),
+      }));
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "updated" });
+      expect(changes).toContainEqual({ "1": "updated" });
+
+      nowSpy.mockReturnValue(2299);
+      c.tick(1000);
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "updated" });
+
+      nowSpy.mockReturnValue(2301);
+      c.tick(1016);
+      expect(c.getSteadyUpdateStatuses()).toEqual({});
+      expect(changes).toContainEqual({});
+    } finally {
+      nowSpy.mockRestore();
       workerHarness.restore();
     }
   });
@@ -397,6 +443,7 @@ describe("PreviewController (headless driver)", () => {
 
       expect(c.getPendingTransitionSteadyJob("1")).toBe(pending);
       expect(c.getTransitionSteadyResult("1")).toBeUndefined();
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "computing" });
     } finally {
       workerHarness.restore();
     }
@@ -414,11 +461,13 @@ describe("PreviewController (headless driver)", () => {
       transitionWorker.emit(transitionErrorResult(first.request, "old error"));
       expect(c.getPendingTransitionSteadyJob("1")).toBe(second);
       expect(c.getTransitionSteadyResult("1")).toBeUndefined();
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "computing" });
 
       const error = transitionErrorResult(second.request, "boom");
       transitionWorker.emit(error);
       expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
       expect(c.getTransitionSteadyResult("1")).toEqual(error);
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "failed" });
     } finally {
       workerHarness.restore();
     }
@@ -437,6 +486,7 @@ describe("PreviewController (headless driver)", () => {
         outcome: "error",
         message: "Transition steady worker is unavailable",
       });
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "failed" });
     } finally {
       workerHarness.restore();
     }
@@ -460,6 +510,7 @@ describe("PreviewController (headless driver)", () => {
         outcome: "error",
         message: "Transition steady result cannot be promoted",
       });
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "failed" });
       expect(phys.buffer).toBe(oldSamples);
       expect(phys.transition).toBeUndefined();
     } finally {
@@ -480,6 +531,7 @@ describe("PreviewController (headless driver)", () => {
       expect(transitionWorker.terminated).toBe(true);
       expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
       expect(c.getTransitionSteadyResult("1")).toBeUndefined();
+      expect(c.getSteadyUpdateStatuses()).toEqual({});
     } finally {
       workerHarness.restore();
     }

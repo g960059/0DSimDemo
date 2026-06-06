@@ -6,9 +6,11 @@ import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { ChartLegend, shouldEnableLegendInteractions } from "@/components/Charts";
 import { PanelGrid, getActiveSettingsSectionId, getDockviewPaneTitle, openPanelSettingsIfClosed, type PanelGridMode } from "@/components/workbench/PanelGrid";
+import { ScenarioPane } from "@/components/workbench/ScenarioPane";
 import { getDockviewStructureSignature, getDockviewTabMenuPosition } from "@/components/workbench/WorkbenchDockview";
 import { addHiddenInstanceConfigsToPanels } from "@/WorkbenchPage";
 import { DEFAULT_PARAMS } from "@/constants";
+import type { SteadyUpdateStatusMap } from "@/engine/previewController";
 import type { PanelDef, SimInstance } from "@/types";
 
 // These tests cover layout shell behavior, not BlockNote behavior. Keeping NotePanel
@@ -32,13 +34,25 @@ function rootPaddingClasses(html: string): string[] {
     .filter((className) => /^(p|px|py|pl|pr|pt|pb)-/.test(className));
 }
 
-function renderPanelGrid(mode: PanelGridMode, panels: PanelDef[] = [], instances: SimInstance[] = [], controlGroups: string[] = []) {
+function renderPanelGrid(
+  mode: PanelGridMode,
+  panels: PanelDef[] = [],
+  instances: SimInstance[] = [],
+  controlGroups: string[] = [],
+  steadyUpdateStatuses: SteadyUpdateStatusMap = {},
+) {
   return renderToStaticMarkup(
-    createPanelGrid(mode, panels, instances, controlGroups),
+    createPanelGrid(mode, panels, instances, controlGroups, steadyUpdateStatuses),
   );
 }
 
-function createPanelGrid(mode: PanelGridMode, panels: PanelDef[] = [], instances: SimInstance[] = [], controlGroups: string[] = []) {
+function createPanelGrid(
+  mode: PanelGridMode,
+  panels: PanelDef[] = [],
+  instances: SimInstance[] = [],
+  controlGroups: string[] = [],
+  steadyUpdateStatuses: SteadyUpdateStatusMap = {},
+) {
   return React.createElement(PanelGrid, {
     authoringMode: false,
     publishedLesson: null,
@@ -63,6 +77,7 @@ function createPanelGrid(mode: PanelGridMode, panels: PanelDef[] = [], instances
     setNoteModes: noop,
     physicsRefs: { current: new Map() },
     instanceHealth: {},
+    steadyUpdateStatuses,
     activeInstanceId: "",
     setActiveInstanceId: noop,
     updateInstanceParams: noop,
@@ -196,6 +211,17 @@ const controlsPanel: PanelDef = {
   },
 };
 
+const scenariosPanel: PanelDef = {
+  id: "scenarios",
+  type: "SCENARIOS",
+  title: "Scenarios",
+  zone: "sideRail",
+  w: 4,
+  h: 6,
+  config: { normal: { visible: true, selectedSignals: [] } },
+  isSettingsOpen: false,
+};
+
 describe("PanelGrid Dockview layout", () => {
   it.each(["learner", "author", "sandbox"] as const)("does not render a separate layout edit toolbar in %s mode", (mode) => {
     const html = renderPanelGrid(mode);
@@ -308,6 +334,39 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).toContain("touch-action:none");
     expect(html).not.toContain("top-2 right-2");
     expect(html).not.toContain("aria-label=\"Reset legend position\"");
+  });
+
+  it("renders steady recompute indicators beside scenario labels", () => {
+    const html = renderToStaticMarkup(React.createElement(ScenarioPane, {
+      instances: [normalInstance, copiedInstance, hiddenInstance],
+      addInstance: noop,
+      removeInstance: noop,
+      updateInstanceName: noop,
+      updateInstanceColor: noop,
+      steadyUpdateStatuses: {
+        normal: "computing",
+        copy: "updated",
+        hidden: "failed",
+      },
+    }));
+
+    expect(html).toContain("Recomputing steady state");
+    expect(html).toContain("Steady state updated");
+    expect(html).toContain("Steady update failed");
+    expect(html).toContain("Heart B");
+  });
+
+  it("passes steady recompute statuses from PanelGrid into the scenario pane", () => {
+    const html = renderPanelGrid(
+      "sandbox",
+      [scenariosPanel],
+      [normalInstance],
+      [],
+      { normal: "computing" },
+    );
+
+    expect(html).toContain("Recomputing steady state");
+    expect(html).toContain("Normal");
   });
 
   it("keeps reading and learner legends inert without drag affordances", () => {

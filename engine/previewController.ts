@@ -70,7 +70,11 @@ export type PreviewResetOptions = {
   mode?: "replace" | "transition";
 };
 
+export type SteadyUpdateStatus = "computing" | "updated" | "failed";
+export type SteadyUpdateStatusMap = Record<string, SteadyUpdateStatus>;
+
 const PREVIEW_TRANSITION_GHOST_MS = 2000;
+const STEADY_UPDATE_STATUS_MS = 1200;
 
 const previewInstanceSignature = (inst: SimInstance): string => JSON.stringify({
   params: inst.params,
@@ -296,6 +300,7 @@ export class PreviewController {
   private transitionSteadyPendingJobs = new Map<string, TransitionSteadyPendingJob>();
   private transitionSteadyResults = new Map<string, TransitionSteadyJobResult>();
   private liveInstancesById = new Map<string, SimInstance>();
+  private steadyUpdateStatuses = new Map<string, { status: SteadyUpdateStatus; expiresAtMs?: number }>();
 
   private readonly dt: number;
   private readonly sampleHz: number;
@@ -307,6 +312,7 @@ export class PreviewController {
   onHealthChange?: (health: Record<string, SimulationHealth>) => void;
   onToasts?: (toasts: PreviewToast[]) => void;
   onInstancesAdded?: (ids: string[]) => void;
+  onSteadyUpdateStatusChange?: (statuses: SteadyUpdateStatusMap) => void;
 
   constructor(opts: PreviewControllerOptions = {}) {
     this.dt = opts.dt ?? 0.001;
@@ -372,10 +378,12 @@ export class PreviewController {
     };
     this.transitionSteadyPendingJobs.set(inst.id, pending);
     this.transitionSteadyResults.delete(inst.id);
+    this.setSteadyUpdateStatus(inst.id, "computing");
     if (!this.postTransitionSteadyRequest(pending)) {
       const result = this.transitionSteadyErrorResult(pending.request, "Transition steady worker is unavailable");
       this.transitionSteadyPendingJobs.delete(inst.id);
       this.transitionSteadyResults.set(inst.id, result);
+      this.setSteadyUpdateStatus(inst.id, "failed");
     }
     return pending;
   }
@@ -386,6 +394,10 @@ export class PreviewController {
 
   getTransitionSteadyResult(id: string): TransitionSteadyJobResult | undefined {
     return this.transitionSteadyResults.get(id);
+  }
+
+  getSteadyUpdateStatuses(): SteadyUpdateStatusMap {
+    return this.steadyUpdateStatusSnapshot();
   }
 
   clearPendingTransitionSteadyJob(id: string): void {
@@ -430,9 +442,15 @@ export class PreviewController {
           ? result
           : this.transitionSteadyErrorResult(pending.request, "Transition steady result cannot be promoted"),
       );
+      this.setSteadyUpdateStatus(
+        result.instanceId,
+        promoted ? "updated" : "failed",
+        promoted ? this.nowMs() + STEADY_UPDATE_STATUS_MS : undefined,
+      );
       return;
     }
     this.transitionSteadyResults.set(result.instanceId, result);
+    if (result.outcome === "error") this.setSteadyUpdateStatus(result.instanceId, "failed");
   }
 
   private transitionSteadyErrorResult(
@@ -479,11 +497,13 @@ export class PreviewController {
   private clearTransitionSteadyJob(id: string): void {
     this.transitionSteadyPendingJobs.delete(id);
     this.transitionSteadyResults.delete(id);
+    this.clearSteadyUpdateStatus(id);
   }
 
   private clearTransitionSteadyJobs(): void {
     this.transitionSteadyPendingJobs.clear();
     this.transitionSteadyResults.clear();
+    this.clearSteadyUpdateStatuses();
   }
 
   private pruneTransitionSteadyPendingJobs(currentIds: Set<string>): void {
@@ -508,6 +528,45 @@ export class PreviewController {
       return explicitHold;
     }
     return true;
+  }
+
+  private steadyUpdateStatusSnapshot(): SteadyUpdateStatusMap {
+    return Object.fromEntries(
+      [...this.steadyUpdateStatuses.entries()].map(([id, entry]) => [id, entry.status]),
+    );
+  }
+
+  private emitSteadyUpdateStatusChange(): void {
+    this.onSteadyUpdateStatusChange?.(this.steadyUpdateStatusSnapshot());
+  }
+
+  private setSteadyUpdateStatus(id: string, status: SteadyUpdateStatus, expiresAtMs?: number): void {
+    const current = this.steadyUpdateStatuses.get(id);
+    if (current?.status === status && current.expiresAtMs === expiresAtMs) return;
+    this.steadyUpdateStatuses.set(id, { status, expiresAtMs });
+    this.emitSteadyUpdateStatusChange();
+  }
+
+  private clearSteadyUpdateStatus(id: string): void {
+    if (!this.steadyUpdateStatuses.delete(id)) return;
+    this.emitSteadyUpdateStatusChange();
+  }
+
+  private clearSteadyUpdateStatuses(): void {
+    if (this.steadyUpdateStatuses.size === 0) return;
+    this.steadyUpdateStatuses.clear();
+    this.emitSteadyUpdateStatusChange();
+  }
+
+  private expireSteadyUpdateStatuses(now = this.nowMs()): void {
+    let changed = false;
+    for (const [id, entry] of this.steadyUpdateStatuses) {
+      if (entry.status === "updated" && entry.expiresAtMs !== undefined && entry.expiresAtMs <= now) {
+        this.steadyUpdateStatuses.delete(id);
+        changed = true;
+      }
+    }
+    if (changed) this.emitSteadyUpdateStatusChange();
   }
 
   private fallbackToSync(): void {
@@ -904,6 +963,7 @@ export class PreviewController {
   tick(now: number) {
     const frameStart = this.nowMs();
     this.expirePreviousEpochs(frameStart);
+    this.expireSteadyUpdateStatuses(frameStart);
     if (!this.lastFrameTime) this.lastFrameTime = now;
     let deltaTimeMs = now - this.lastFrameTime;
     this.lastFrameTime = now; // updated even while paused, so resume doesn't jump

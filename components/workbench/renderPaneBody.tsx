@@ -6,6 +6,7 @@ import { ErrorBoundary } from '../ErrorBoundary';
 import { ScenarioPane } from './ScenarioPane';
 import type { ClinicalKnobs } from '../../engine/knobs';
 import type { SimulationHealth } from '../../engine/protocol';
+import type { SteadyUpdateStatusMap } from '../../engine/previewController';
 import type { NoteContent } from '../../noteTypes';
 import type { LegendPosition, PanelDef, PhysicsRefState, SimInstance, SimulationParams } from '../../types';
 
@@ -13,6 +14,7 @@ export interface PaneBodyContext {
   instances: SimInstance[];
   physicsRefs: React.MutableRefObject<Map<string, PhysicsRefState>>;
   instanceHealth?: Record<string, SimulationHealth>;
+  steadyUpdateStatuses?: SteadyUpdateStatusMap;
   activeInstanceId?: string;
   updateInstanceParams?: (id: string, params: Partial<SimulationParams>) => void;
   updateInstanceKnobs?: (id: string, knobs: ClinicalKnobs) => void;
@@ -77,6 +79,7 @@ export function renderPaneBody(panel: PanelDef, ctx: PaneBodyContext): React.Rea
         removeInstance={ctx.removeInstance}
         updateInstanceName={ctx.updateInstanceName}
         updateInstanceColor={ctx.updateInstanceColor}
+        steadyUpdateStatuses={ctx.steadyUpdateStatuses}
       />
     );
   }

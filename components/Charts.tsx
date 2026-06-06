@@ -250,20 +250,6 @@ const chartInstanceKey = (instances: SimInstance[]): string => (
         .join('|')
 );
 
-const activePreviousBuffer = (physState: PhysicsRefState, nowMs: number): SimSample[] | null => {
-    const previous = physState.previousEpoch;
-    if (!previous || previous.expiresAtMs <= nowMs || previous.buffer.length < 2) return null;
-    return previous.buffer;
-};
-
-const visibleCurveCount = (instances: SimInstance[], config: Record<string, PanelInstanceConfig>): number => (
-    instances.reduce((count, inst) => {
-        const cfg = config[inst.id];
-        if (!cfg || !cfg.visible) return count;
-        return count + cfg.selectedSignals.length;
-    }, 0)
-);
-
 const isPvLoopDebugEnabled = (): boolean => {
     if (typeof window === 'undefined') return false;
     try {
@@ -654,7 +640,6 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
 
     const render = () => {
       if (stopped) return;
-      const nowMs = performance.now();
       const xScale = d3.scaleLinear().domain([0, 300]).range([50, width - 15]);
       const yScale = d3.scaleLinear().domain([0, 200]).range([height - 35, 25]);
 
@@ -671,18 +656,15 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
           const physState = physicsRefs.current.get(inst.id);
           if (!physState || physState.buffer.length < 2) return;
           
-          const buffers = [physState.buffer, activePreviousBuffer(physState, nowMs)].filter((buf): buf is SimSample[] => Boolean(buf));
-          for (const buf of buffers) {
-              const data = buf.slice(-500);
-              for (let i = 0; i < data.length; i += 10) {
-                  const d = data[i];
-                  cfg.selectedSignals.forEach((chamber: string) => {
-                      const { v, p } = chamberPVPoint(d, chamber);
-                      if (v > currentFrameMaxV) currentFrameMaxV = v;
-                      if (p > currentFrameMaxP) currentFrameMaxP = p;
-                      hasData = true;
-                  });
-              }
+          const data = physState.buffer.slice(-500);
+          for (let i = 0; i < data.length; i += 10) {
+              const d = data[i];
+              cfg.selectedSignals.forEach((chamber: string) => {
+                  const { v, p } = chamberPVPoint(d, chamber);
+                  if (v > currentFrameMaxV) currentFrameMaxV = v;
+                  if (p > currentFrameMaxP) currentFrameMaxP = p;
+                  hasData = true;
+              });
           }
       });
 
@@ -734,7 +716,6 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
 
           const physState = physicsRefs.current.get(inst.id);
           if (!physState || physState.buffer.length < 2) return;
-          const previousBuffer = activePreviousBuffer(physState, nowMs);
           
           // PV loops must be drawn over the LAST COMPLETE beat (floor-aligned),
           // not a trailing 1.0-phase window that mixes a partial current beat —
@@ -744,31 +725,6 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
           const beatSampleCount = beatRange.end - beatRange.start + (beatRange.closingIndex >= 0 ? 1 : 0);
 
           cfg.selectedSignals.forEach((chamber: string) => {
-              if (previousBuffer) {
-                  const previousBeatRange = lastCompleteBeatRange(previousBuffer);
-                  const previousPoints: CanvasPoint[] = [];
-                  for (let i = previousBeatRange.start; i < previousBeatRange.end; i++) {
-                      const { v, p } = chamberPVPoint(previousBuffer[i], chamber);
-                      previousPoints.push({ x: xScale(v), y: yScale(p) });
-                  }
-                  if (previousBeatRange.closingIndex >= 0) {
-                      const { v, p } = chamberPVPoint(previousBuffer[previousBeatRange.closingIndex], chamber);
-                      previousPoints.push({ x: xScale(v), y: yScale(p) });
-                  }
-                  if (previousPoints.length > 1) {
-                      const ghostColor = getColor(inst.color, chamber, cfg.customBaseColor, cfg.customSignalColors);
-                      ctx.save();
-                      ctx.strokeStyle = ghostColor;
-                      ctx.globalAlpha = 0.22;
-                      ctx.lineWidth = 1.5;
-                      ctx.setLineDash([5, 5]);
-                      ctx.lineJoin = 'round';
-                      ctx.lineCap = 'round';
-                      drawSmoothPolyline(ctx, previousPoints);
-                      ctx.restore();
-                  }
-              }
-
               // The LA figure-8 needs a full beat to render its two sub-loops;
               // skip only a degenerate/partial window (live buffer is ~tens of
               // samples per beat, so the old 80 threshold hid the loop entirely).
@@ -900,7 +856,6 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
 
         const render = () => {
             if (stopped) return;
-            const nowMs = performance.now();
             ctx.clearRect(0, 0, width, height);
             
             let currentGlobalTime = 0;
@@ -920,8 +875,6 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
             let frameYMin = Infinity;
             let hasData = false;
             const frameSignals = new Set<string>();
-            const curveCount = visibleCurveCount(instances, config);
-            const showWaveformGhost = curveCount <= 2;
 
             instances.forEach(inst => {
                 const cfg = (config as any)[inst.id];
@@ -947,11 +900,6 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                 };
 
                 scanBuffer(physState.buffer, tMin, tMax);
-                const previousBuffer = activePreviousBuffer(physState, nowMs);
-                if (previousBuffer) {
-                    const previousTMax = previousBuffer[previousBuffer.length - 1]?.t ?? 0;
-                    scanBuffer(previousBuffer, Math.max(0, previousTMax - timeSec + gapSec), previousTMax);
-                }
             });
 
             if (hasData) {
@@ -985,23 +933,6 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
             ctx.textAlign = 'left';
             ctx.textBaseline = 'top';
             xScale.ticks(5).forEach(t => ctx.fillText(t.toFixed(1) + 's', xScale(t) + 2, height - 20));
-
-            const bandXs: number[] = [];
-            instances.forEach(inst => {
-                const cfg = (config as any)[inst.id];
-                if (!cfg || !cfg.visible) return;
-                const physState = physicsRefs.current.get(inst.id);
-                if (!physState || !activePreviousBuffer(physState, nowMs) || physState.buffer.length === 0) return;
-                const firstNew = physState.buffer[0];
-                const x = xScale(firstNew.t % timeSec);
-                if (Number.isFinite(x) && !bandXs.some((existing) => Math.abs(existing - x) < 3)) bandXs.push(x);
-            });
-            if (bandXs.length > 0) {
-                ctx.save();
-                ctx.fillStyle = 'rgba(148, 163, 184, 0.16)';
-                for (const x of bandXs) ctx.fillRect(x - 3, 10, 6, height - 35);
-                ctx.restore();
-            }
 
             instances.forEach(inst => {
                 const cfg = (config as any)[inst.id];
@@ -1059,13 +990,8 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                     }
                 };
 
-                const previousBuffer = activePreviousBuffer(physState, nowMs);
                 cfg.selectedSignals.forEach((sig: string) => {
                     const color = getColor(inst.color, sig, cfg.customBaseColor, cfg.customSignalColors);
-                    if (showWaveformGhost && previousBuffer) {
-                        const previousTMax = previousBuffer[previousBuffer.length - 1]?.t ?? 0;
-                        drawBuffer(previousBuffer, Math.max(0, previousTMax - timeSec + gapSec), previousTMax, sig, color, 0.22, [5, 5]);
-                    }
                     drawBuffer(physState.buffer, tMin, tMax, sig, color, 1);
                 });
             });
