@@ -68,6 +68,7 @@ export type SolverStats = {
   nSteps: number;
   settleSeconds: number;
   measureSeconds: number;
+  nBeats?: number;
   wallMs?: number;
 };
 

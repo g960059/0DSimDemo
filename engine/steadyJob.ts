@@ -13,10 +13,23 @@ import type {
 const DEFAULT_DT = 0.001;
 const DEFAULT_SAMPLE_HZ = 240;
 
+export type PeriodicSteadyInternalRun = {
+  result: SteadyResult;
+  settleStatus: SettleStatus;
+  measurement: SteadyMeasurement | null;
+};
+
 export function runToPeriodicSteady(
   params: Partial<CoreRuntimeParams> = defaultParams(),
   options: RunToPeriodicSteadyOptions = {},
 ): SteadyResult {
+  return runToPeriodicSteadyInternal(params, options).result;
+}
+
+export function runToPeriodicSteadyInternal(
+  params: Partial<CoreRuntimeParams> = defaultParams(),
+  options: RunToPeriodicSteadyOptions = {},
+): PeriodicSteadyInternalRun {
   const wallStart = options.includeWallMs ? performanceNow() : 0;
   const measureOptions: MeasureOptions = options;
   const settled = settleToSteadyState(params, measureOptions);
@@ -41,7 +54,11 @@ export function runToPeriodicSteady(
   if (options.includeLastBeatSamples === true && measurement) {
     result.lastBeatSamples = lastBeatSamples(measurement.samples);
   }
-  return result;
+  return {
+    result,
+    settleStatus: settled.settleStatus,
+    measurement,
+  };
 }
 
 function mapStatus(
@@ -105,6 +122,7 @@ function solverStats(
     nSteps: Math.max(0, Math.round((settleSeconds + measureSeconds) / Math.max(dt, 1e-9))),
     settleSeconds,
     measureSeconds,
+    nBeats: settleStatus.beats,
   };
   if (options.includeWallMs) stats.wallMs = Math.max(0, performanceNow() - wallStart);
   return stats;

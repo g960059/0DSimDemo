@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PARAMS } from "@/constants";
 import { measureConverged } from "@/engine/measure";
-import { runToPeriodicSteady } from "@/engine/steadyJob";
+import { runToPeriodicSteady, runToPeriodicSteadyInternal } from "@/engine/steadyJob";
 import { VERIFICATION_PROFILES } from "@/engine/verification/profiles";
 
 const FIT_FAST_OPTIONS = {
@@ -25,7 +25,21 @@ describe("runToPeriodicSteady", () => {
     expect(result.residuals.worstSignal === null || typeof result.residuals.worstSignal === "string").toBe(true);
     expect(result.solverStats.kind).toBe("fixed-heun");
     expect(result.solverStats.nSteps).toBeGreaterThan(0);
+    expect(result.solverStats.nBeats).toBeGreaterThan(0);
     expect(result.lastBeatSamples).toBeUndefined();
+    expect("measurement" in (result as Record<string, unknown>)).toBe(false);
+    expect("core" in (result as Record<string, unknown>)).toBe(false);
+    expect(JSON.stringify(result)).not.toContain("\"samples\"");
+  });
+
+  it("exposes measurement only through the internal runner for converged runs", () => {
+    const internal = runToPeriodicSteadyInternal(DEFAULT_PARAMS, FIT_FAST_OPTIONS);
+
+    expect(internal.measurement).not.toBeNull();
+    expect(internal.settleStatus.settled).toBe(true);
+    expect(internal.result.solverStats.nBeats).toBe(internal.settleStatus.beats);
+    expect(internal.result.metrics.CO_L).toBeCloseTo(internal.measurement!.metrics.CO_L, 12);
+    expect(internal.result.residuals.leftRightSvMismatchLMin).toBeCloseTo(internal.measurement!.forwardCODiffLMin, 12);
   });
 
   it("returns forced-trend for ongoing hemorrhage without throwing", () => {
@@ -37,6 +51,25 @@ describe("runToPeriodicSteady", () => {
     expect(result.residuals.projectorQuiet).toBe(false);
     expect(result.residuals.venousMaxResidualMl).toBeNull();
     expect(result.residuals.tbvDriftPctPer60s).toBeNull();
+  });
+
+  it("does not measure failed internal runs", () => {
+    const forcedTrend = runToPeriodicSteadyInternal({ ...DEFAULT_PARAMS, bleedRate: 600 }, FIT_FAST_OPTIONS);
+    const capped = runToPeriodicSteadyInternal(DEFAULT_PARAMS, {
+      ...FIT_FAST_OPTIONS,
+      settlePolicy: {
+        ...FIT_FAST_OPTIONS.settlePolicy,
+        minBeats: 100,
+        capSeconds: 0.001,
+      },
+    });
+
+    expect(forcedTrend.result.status).toBe("forced-trend");
+    expect(forcedTrend.measurement).toBeNull();
+    expect(forcedTrend.result.solverStats.nBeats).toBe(forcedTrend.settleStatus.beats);
+    expect(capped.result.status).toBe("cap");
+    expect(capped.measurement).toBeNull();
+    expect(capped.result.solverStats.nBeats).toBe(capped.settleStatus.beats);
   });
 
   it("returns cap for a settle policy that cannot converge before the cap", () => {
