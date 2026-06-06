@@ -77,12 +77,14 @@ describe("calibration objective", () => {
         { key: "metrics.CO_L", target: co - 1, scale: 1, direction: "atLeast" },
         { key: "metrics.CO_L", target: co + 1, scale: 1, direction: "atMost" },
         { key: "metrics.CO_L", target: co + 1, scale: 1, direction: "atLeast" },
+        { key: "metrics.CO_L", target: co + 1, scale: 1, weight: 0, direction: "atLeast" },
         { key: "metrics.noSuchObservable", target: 1, scale: 1 },
       ],
     });
 
-    expect(objective.targetBreakdown.map((item) => item.loss)).toEqual([0, 0, 0, 1, 1e6]);
-    expect(objective.targetLoss).toBe(1_000_001);
+    expect(objective.targetBreakdown.map((item) => item.loss)).toEqual([0, 0, 0, 1, 1, 1e6]);
+    expect(objective.targetBreakdown[4].weight).toBe(1);
+    expect(objective.targetLoss).toBe(1_000_002);
     expect(objective.rejectReasons).toContain("missing-target:metrics.noSuchObservable");
     expect(objective.ok).toBe(false);
   });

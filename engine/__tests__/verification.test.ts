@@ -309,6 +309,67 @@ describe("fitting/verification mode foundation", () => {
     expect(rankCandidates([objectiveWinner, legacyWinner])[0].id).toBe("legacy-winner");
     expect(rankCandidatesByObjective([legacyWinner, objectiveWinner])[0].id).toBe("objective-winner");
   });
+
+  it("keeps objective-ok candidates ahead of lower-loss rejected candidates", () => {
+    const converged = {
+      id: "converged-large-loss",
+      accepted: true,
+      rejectStage: "none" as const,
+      hardFailures: [],
+      softFailures: [],
+      score: 0,
+      objective: dummyObjective(1e12, true),
+      report: null as any,
+    };
+    const rejected = {
+      id: "rejected-small-loss",
+      accepted: false,
+      rejectStage: "settle" as const,
+      hardFailures: [],
+      softFailures: [],
+      score: 1,
+      objective: dummyObjective(0, false),
+      report: null as any,
+    };
+
+    expect(rankCandidatesByObjective([rejected, converged])[0].id).toBe("converged-large-loss");
+  });
+
+  it("falls back deterministically when objective loss is non-finite", () => {
+    const finite = {
+      id: "finite-loss",
+      accepted: true,
+      rejectStage: "none" as const,
+      hardFailures: [],
+      softFailures: [],
+      score: 0,
+      objective: dummyObjective(10, true),
+      report: null as any,
+    };
+    const nanLoss = {
+      id: "nan-loss",
+      accepted: true,
+      rejectStage: "none" as const,
+      hardFailures: [],
+      softFailures: [],
+      score: 1,
+      objective: dummyObjective(Number.NaN, true),
+      report: null as any,
+    };
+    const infLoss = {
+      id: "inf-loss",
+      accepted: true,
+      rejectStage: "none" as const,
+      hardFailures: [],
+      softFailures: [],
+      score: Number.NaN,
+      objective: dummyObjective(Number.POSITIVE_INFINITY, true),
+      report: null as any,
+    };
+
+    expect(rankCandidatesByObjective([nanLoss, finite])[0].id).toBe("finite-loss");
+    expect(rankCandidatesByObjective([infLoss, nanLoss]).map((item) => item.id)).toEqual(["nan-loss", "inf-loss"]);
+  });
 });
 
 function dummyObjective(totalLoss: number, ok: boolean): ObjectiveEvaluation {

@@ -9,6 +9,7 @@ export type ObjectiveTargetSpec = {
   key: string;
   target: number;
   scale: number;
+  /** v1 requires positive weights; zero/negative/non-finite weights fall back to 1. */
   weight?: number;
   direction?: ObjectiveTargetDirection;
 };
@@ -72,6 +73,7 @@ export function evaluateObjective(
   const gatePenalty = gatePenaltyFor(report, rejectReasons);
   const convergencePenalty = convergencePenaltyFor(report, spec, rejectReasons);
   const residualPenalty = residualPenaltyFor(report.steady);
+  // Gate score remains a lightweight tie-break channel separate from hard/soft gate penalties.
   const scoreLoss = finiteLoss(1 - clamp01(finiteOrDefault(report.summary.score, 0)));
   const totalLoss = finiteSum([
     targetLoss,
