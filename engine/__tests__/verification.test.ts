@@ -83,6 +83,7 @@ describe("fitting/verification mode foundation", () => {
     expect(markdown).toContain("Steady State");
     expect(markdown).toContain("Params hash:");
     expect(markdown).toContain("State layout hash:");
+    expect(markdown).toContain("settle beats");
     expect(markdown).toContain("PVF S fraction");
   });
 

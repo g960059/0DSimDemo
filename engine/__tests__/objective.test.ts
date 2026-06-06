@@ -22,6 +22,7 @@ describe("calibration objective", () => {
     expect(objective.steady?.status).toBe("converged");
     expect(objective.rejectReasons).toEqual([]);
     expect(objective.observables["metrics.CO_L"]).toBeGreaterThan(0);
+    expect(objective.observables["steady.solverStats.nBeats"]).toBeGreaterThan(0);
     expect(objective.observables["steady.state.xLength"]).toBeGreaterThan(0);
   });
 

@@ -37,6 +37,7 @@ describe("runToPeriodicSteady", () => {
 
     expect(internal.measurement).not.toBeNull();
     expect(internal.settleStatus.settled).toBe(true);
+    expect(internal.measurement!.settleStatus).toBe(internal.settleStatus);
     expect(internal.result.solverStats.nBeats).toBe(internal.settleStatus.beats);
     expect(internal.result.metrics.CO_L).toBeCloseTo(internal.measurement!.metrics.CO_L, 12);
     expect(internal.result.residuals.leftRightSvMismatchLMin).toBeCloseTo(internal.measurement!.forwardCODiffLMin, 12);
