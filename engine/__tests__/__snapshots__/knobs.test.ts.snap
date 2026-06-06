@@ -20,7 +20,7 @@ exports[`clinical knob layer > current resolver output is frozen (editing the ma
       },
     },
   },
-  "pulmonaryResistance": 0.65,
+  "pulmonaryResistance": 0.625,
   "relaxation": 1,
   "rvTmaxScale": 1,
   "systemicResistance": 1.3,

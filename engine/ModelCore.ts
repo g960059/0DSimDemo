@@ -282,7 +282,7 @@ export function defaultParams(): CoreRuntimeParams {
     // multiplier is neutral, while the base systemic edge resistances are
     // slightly lower than the earlier graph to keep realised MAP/CO normal.
     systemicResistance: 1.0,
-    pulmonaryResistance: 0.65,
+    pulmonaryResistance: 0.625,
     venousTone: 0.15,
     arterialStiffness: 0.75, // M12-proper #1 Phase-1: more arterial compliance to hold pulse pressure normal
     PEEP: 0,

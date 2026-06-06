@@ -233,7 +233,7 @@ const VALVE_PREFIXES = ["MV", "AoV", "TV", "PV"] as const;
 export const NEUTRAL_PARAMS: CoreRuntimeParams = {
   HR: 75, contractility: 1.0, relaxation: 1.0,
   // Kept in lock-step with defaultParams() (caseContract test).
-  systemicResistance: 1.0, pulmonaryResistance: 0.65, venousTone: 0.15,
+  systemicResistance: 1.0, pulmonaryResistance: 0.625, venousTone: 0.15,
   arterialStiffness: 0.75, PEEP: 0, Pth0: 0, respAmpTh: 0, respAmpAlv: 0,
   respRate: 0.25, speed: 1,
   avDelaySec: 0.16, atrialElectromechanicalDelaySec: 0.00, ventricularElectromechanicalDelaySec: 0.05,

@@ -20,7 +20,7 @@ export const activeStressBaseline: ParameterPatch = {
   lvGeomScale: 1.0,
   rvGeomScale: 1.0,
   systemicResistance: 0.80,
-  pulmonaryResistance: 0.65,
+  pulmonaryResistance: 0.625,
   venousTone: 0.15,
   projectTBV: true,
 };
