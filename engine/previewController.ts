@@ -413,7 +413,7 @@ export class PreviewController {
       };
       this.transitionSteadyWorker.onerror = () => {
         this.disposeTransitionSteadyWorker();
-        this.clearTransitionSteadyJobs();
+        this.failTransitionSteadyJobs("Transition steady worker failed");
       };
       return this.transitionSteadyWorker;
     } catch {
@@ -423,6 +423,7 @@ export class PreviewController {
   }
 
   private restartTransitionSteadyWorkerForPending(unavailableMessage: string): boolean {
+    const now = this.nowMs();
     const pendingJobs = [...this.transitionSteadyPendingJobs.values()];
     this.disposeTransitionSteadyWorker();
     if (pendingJobs.length === 0) return true;
@@ -434,9 +435,16 @@ export class PreviewController {
       return false;
     }
     for (const pending of pendingJobs) {
+      pending.deadlineAtMs = now + TRANSITION_STEADY_WATCHDOG_MS;
       worker.postMessage(pending.request);
     }
     return true;
+  }
+
+  private failTransitionSteadyJobs(message: string): void {
+    for (const pending of [...this.transitionSteadyPendingJobs.values()]) {
+      this.failTransitionSteadyJob(pending, message);
+    }
   }
 
   private failTransitionSteadyJob(pending: TransitionSteadyPendingJob, message: string): void {
