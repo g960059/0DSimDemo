@@ -13,6 +13,10 @@ import type {
   PreviewWorkerRequest,
   PreviewWorkerResponse,
 } from "@/engine/previewWorkerProtocol";
+import {
+  makeTransitionTargetSignature,
+  type TransitionSteadyPendingJob,
+} from "@/engine/transitionSteadyProtocol";
 import type { ChamberId, PhysicsRefState, PreviewCoreFacade, SimInstance } from "@/types";
 
 // Framework-agnostic preview driver (ROADMAP S3a). Owns the per-instance
@@ -277,6 +281,9 @@ export class PreviewController {
   private workerGeneration = 0;
   private workerPendingRequestId = 0;
   private workerInstancesSignature = "";
+  private transitionSteadyGeneration = 0;
+  private transitionSteadyJobSeq = 0;
+  private transitionSteadyPendingJobs = new Map<string, TransitionSteadyPendingJob>();
 
   private readonly dt: number;
   private readonly sampleHz: number;
@@ -317,6 +324,59 @@ export class PreviewController {
     this.worker?.postMessage(message);
   }
 
+  requestNextSteady(inst: SimInstance): TransitionSteadyPendingJob {
+    const currentInstance = this.instances.find((candidate) => candidate.id === inst.id);
+    if (!currentInstance) {
+      this.transitionSteadyPendingJobs.delete(inst.id);
+      throw new Error(`Cannot request transition steady for untracked instance ${inst.id}`);
+    }
+    const fromSignature = makeTransitionTargetSignature({
+      params: currentInstance.params,
+      targetVolume: currentInstance.targetVolume,
+    });
+    const toSignature = makeTransitionTargetSignature({
+      params: inst.params,
+      targetVolume: inst.targetVolume,
+    });
+    const pending: TransitionSteadyPendingJob = {
+      request: {
+        type: "computeTransitionSteady",
+        jobId: `transition-steady-${++this.transitionSteadyJobSeq}`,
+        generation: ++this.transitionSteadyGeneration,
+        instanceId: inst.id,
+        fromSignature,
+        toSignature,
+        params: inst.params,
+        targetVolume: inst.targetVolume,
+        options: {
+          targetTBV: inst.targetVolume,
+          dt: this.dt,
+          sampleHz: this.sampleHz,
+          settlePolicy: PREVIEW_SETTLE_POLICY,
+          measureBeats: 1,
+          includeLastBeatSamples: true,
+          requireProjectorQuiet: false,
+        },
+      },
+    };
+    this.transitionSteadyPendingJobs.set(inst.id, pending);
+    return pending;
+  }
+
+  getPendingTransitionSteadyJob(id: string): TransitionSteadyPendingJob | undefined {
+    return this.transitionSteadyPendingJobs.get(id);
+  }
+
+  clearPendingTransitionSteadyJob(id: string): void {
+    this.transitionSteadyPendingJobs.delete(id);
+  }
+
+  private pruneTransitionSteadyPendingJobs(currentIds: Set<string>): void {
+    for (const id of [...this.transitionSteadyPendingJobs.keys()]) {
+      if (!currentIds.has(id)) this.transitionSteadyPendingJobs.delete(id);
+    }
+  }
+
   private fallbackToSync(): void {
     this.worker?.terminate();
     this.worker = null;
@@ -325,6 +385,7 @@ export class PreviewController {
     this.workerInstancesSignature = "";
     this.workerGeneration++;
     const instances = this.instances;
+    this.transitionSteadyPendingJobs.clear();
     this.refs.clear();
     this.prevStatus = {};
     this.healthSig = "";
@@ -371,6 +432,7 @@ export class PreviewController {
       }
       this.refs.set(inst.id, this.createSettledRef(inst));
       if (heartModelChanged) {
+        this.transitionSteadyPendingJobs.delete(inst.id);
         resetExisting = true;
         delete this.prevStatus[inst.id];
       } else {
@@ -378,9 +440,11 @@ export class PreviewController {
       }
     }
     const currentIds = new Set(instances.map((i) => i.id));
+    this.pruneTransitionSteadyPendingJobs(currentIds);
     for (const id of [...this.refs.keys()]) {
       if (!currentIds.has(id)) {
         this.refs.delete(id);
+        this.transitionSteadyPendingJobs.delete(id);
         delete this.prevStatus[id];
         delete this.heartModelByInstance[id];
       }
@@ -425,6 +489,7 @@ export class PreviewController {
       this.heartModelByInstance[inst.id] = inst.params.heartModel;
       if (current) {
         if (heartModelChanged) {
+          this.transitionSteadyPendingJobs.delete(inst.id);
           current.buffer = [];
           current.lastRenderX = 0;
           current.isSettling = true;
@@ -455,9 +520,11 @@ export class PreviewController {
       added.push(inst.id);
     }
     const currentIds = new Set(instances.map((i) => i.id));
+    this.pruneTransitionSteadyPendingJobs(currentIds);
     for (const id of [...this.refs.keys()]) {
       if (!currentIds.has(id)) {
         this.refs.delete(id);
+        this.transitionSteadyPendingJobs.delete(id);
         delete this.prevStatus[id];
         delete this.heartModelByInstance[id];
       }
@@ -567,6 +634,7 @@ export class PreviewController {
     const mode = options.mode ?? "replace";
     if (this.worker) {
       for (const id of ids) {
+        this.transitionSteadyPendingJobs.delete(id);
         const current = this.refs.get(id);
         if (!current) continue;
         if (mode === "transition") {
@@ -590,6 +658,7 @@ export class PreviewController {
     const targets = new Set(ids);
     for (const inst of this.instances) {
       if (!targets.has(inst.id)) continue;
+      this.transitionSteadyPendingJobs.delete(inst.id);
       const current = this.refs.get(inst.id);
       if (!current) continue;
       if (mode === "transition") {

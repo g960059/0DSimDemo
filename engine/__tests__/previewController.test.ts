@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { PreviewController } from "@/engine/previewController";
 import { DEFAULT_PARAMS } from "@/constants";
+import {
+  isCurrentTransitionSteadyResult,
+  makeTransitionTargetSignature,
+} from "@/engine/transitionSteadyProtocol";
+import type { SteadyResult } from "@/engine/stateContract";
 import type { SimInstance } from "@/types";
 
 // Headless verification of the S3a driver. tick(now) is rAF-free and
@@ -63,6 +68,175 @@ const latestWorkerMessage = (worker: FakePreviewWorker, type: string) => {
 };
 
 describe("PreviewController (headless driver)", () => {
+  it("creates preview transition steady pending jobs without posting to the preview worker", () => {
+    const workerHarness = withFakeWorker();
+    try {
+      const c = new PreviewController({ useWorker: true, dt: 0.002, sampleHz: 240 });
+      const worker = workerHarness.latest();
+      const target = inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 5 });
+      c.setInstances([target]);
+      const beforeMessages = worker.messages.length;
+      const pending = c.requestNextSteady(target);
+      const request = pending.request;
+      const expectedToSignature = makeTransitionTargetSignature({
+        params: target.params,
+        targetVolume: target.targetVolume,
+      });
+
+      expect(worker.messages.length).toBe(beforeMessages);
+      expect(c.getPendingTransitionSteadyJob("1")).toBe(pending);
+      expect(request.type).toBe("computeTransitionSteady");
+      expect(request.instanceId).toBe("1");
+      expect(request.params).toBe(target.params);
+      expect(request.targetVolume).toBe(target.targetVolume);
+      expect(request.toSignature).toBe(expectedToSignature);
+      expect(request.fromSignature).toBe(request.toSignature);
+      expect(request.options).toMatchObject({
+        dt: 0.002,
+        sampleHz: 240,
+        targetTBV: target.targetVolume,
+        measureBeats: 1,
+        includeLastBeatSamples: true,
+        requireProjectorQuiet: false,
+      });
+      expect(request.options.settlePolicy).toBeDefined();
+    } finally {
+      workerHarness.restore();
+    }
+  });
+
+  it("keeps only the latest transition steady request per instance", () => {
+    const workerHarness = withFakeWorker();
+    try {
+      const c = new PreviewController({ useWorker: true });
+      c.setInstances([inst("1")]);
+      const first = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
+      const second = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 }));
+
+      expect(c.getPendingTransitionSteadyJob("1")).toBe(second);
+      expect(second.request.jobId).not.toBe(first.request.jobId);
+      expect(second.request.generation).toBeGreaterThan(first.request.generation);
+    } finally {
+      workerHarness.restore();
+    }
+  });
+
+  it("uses the current instance as the transition steady source signature", () => {
+    const workerHarness = withFakeWorker();
+    try {
+      const c = new PreviewController({ useWorker: true });
+      const current = inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 });
+      const next = {
+        ...inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 }),
+        targetVolume: current.targetVolume + 100,
+      };
+      c.setInstances([current]);
+      const pending = c.requestNextSteady(next);
+      const expectedFromSignature = makeTransitionTargetSignature({
+        params: current.params,
+        targetVolume: current.targetVolume,
+      });
+      const expectedToSignature = makeTransitionTargetSignature({
+        params: next.params,
+        targetVolume: next.targetVolume,
+      });
+
+      expect(pending.request.fromSignature).toBe(expectedFromSignature);
+      expect(pending.request.toSignature).toBe(expectedToSignature);
+      expect(pending.request.fromSignature).not.toBe(pending.request.toSignature);
+    } finally {
+      workerHarness.restore();
+    }
+  });
+
+  it("keeps transition steady pending jobs independent by instance", () => {
+    const workerHarness = withFakeWorker();
+    try {
+      const c = new PreviewController({ useWorker: true });
+      c.setInstances([inst("1"), inst("2")]);
+      const first = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
+      const second = c.requestNextSteady(inst("2", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 }));
+
+      expect(c.getPendingTransitionSteadyJob("1")).toBe(first);
+      expect(c.getPendingTransitionSteadyJob("2")).toBe(second);
+      c.clearPendingTransitionSteadyJob("1");
+      expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
+      expect(c.getPendingTransitionSteadyJob("2")).toBe(second);
+    } finally {
+      workerHarness.restore();
+    }
+  });
+
+  it("clears transition steady pending jobs when the instance is reset or removed", () => {
+    const workerHarness = withFakeWorker();
+    try {
+      const c = new PreviewController({ useWorker: true });
+      const current = inst("1");
+      c.setInstances([current]);
+      c.requestNextSteady({ ...current, targetVolume: current.targetVolume + 100 });
+
+      c.resetInstances(["1"]);
+      expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
+
+      c.requestNextSteady({ ...current, targetVolume: current.targetVolume + 200 });
+      c.setInstances([]);
+      expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
+    } finally {
+      workerHarness.restore();
+    }
+  });
+
+  it("clears transition steady pending jobs when falling back to sync cores", () => {
+    const workerHarness = withFakeWorker();
+    try {
+      const c = new PreviewController({ useWorker: true });
+      const worker = workerHarness.latest();
+      const current = inst("1");
+      c.setInstances([current]);
+      c.requestNextSteady({ ...current, targetVolume: current.targetVolume + 100 });
+
+      worker.emit({ type: "error", message: "boom" });
+
+      expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
+      expect(worker.terminated).toBe(true);
+    } finally {
+      workerHarness.restore();
+    }
+  });
+
+  it("rejects transition steady requests for untracked instances", () => {
+    const c = new PreviewController({ useWorker: false });
+
+    expect(() => c.requestNextSteady(inst("missing"))).toThrow(/untracked instance missing/);
+    expect(c.getPendingTransitionSteadyJob("missing")).toBeUndefined();
+  });
+
+  it("uses transition steady identity helpers to reject stale pending results", () => {
+    const workerHarness = withFakeWorker();
+    try {
+      const c = new PreviewController({ useWorker: true });
+      c.setInstances([inst("1")]);
+      const pending = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
+      const request = pending.request;
+      const current = {
+        type: "transitionSteadyResult" as const,
+        outcome: "completed" as const,
+        jobId: request.jobId,
+        generation: request.generation,
+        instanceId: request.instanceId,
+        toSignature: request.toSignature,
+        steady: {} as SteadyResult,
+      };
+
+      expect(isCurrentTransitionSteadyResult(current, pending)).toBe(true);
+      expect(isCurrentTransitionSteadyResult({ ...current, jobId: "old" }, pending)).toBe(false);
+      expect(isCurrentTransitionSteadyResult({ ...current, generation: request.generation - 1 }, pending)).toBe(false);
+      expect(isCurrentTransitionSteadyResult({ ...current, toSignature: "old" }, pending)).toBe(false);
+    } finally {
+      workerHarness.restore();
+    }
+  });
+
   it("clamps a large frame gap to 100ms of sim time", () => {
     const c = new PreviewController();
     c.setInstances([inst()]);
