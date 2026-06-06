@@ -203,7 +203,7 @@ export function reportToMarkdown(report: VerificationReport): string {
     lines.push("## Steady State");
     lines.push("");
     lines.push(`- Solver: ${solverStats.kind}; dt ${solverStats.dt}; sampleHz ${solverStats.sampleHz}`);
-    lines.push(`- Window: settle ${round(solverStats.settleSeconds, 3)} s; measure ${round(solverStats.measureSeconds, 3)} s; beats ${solverStats.nBeats ?? "n/a"}`);
+    lines.push(`- Window: settle ${round(solverStats.settleSeconds, 3)} s; measure ${round(solverStats.measureSeconds, 3)} s; settle beats ${solverStats.nBeats ?? "n/a"}`);
     lines.push(`- Status: ${report.steady.status}; ok ${report.steady.ok ? "yes" : "no"}`);
     lines.push(`- Worst residual: ${residuals.worstSignal ?? "none"}; delta ${nullableRound(residuals.worstDelta, 6)}`);
     lines.push(`- Left-right mismatch: ${round(residuals.leftRightSvMismatchLMin, 4)} L/min (${round(residuals.leftRightSvMismatchPct, 3)}%)`);

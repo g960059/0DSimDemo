@@ -15,6 +15,12 @@ import {
 
 export type SteadyCrossCheckSolverKind = "fixed-heun";
 export type SteadyCrossCheckCategory = "metrics" | "residuals" | "comparable" | "state";
+export type SteadyCrossCheckPurpose =
+  | "determinism"
+  | "same-solver-regression"
+  | "fixed-step-convergence"
+  | "solver-family-agreement"
+  | "reference-solver-check";
 
 export type SteadyCrossCheckSolver = {
   id: string;
@@ -37,8 +43,14 @@ export type NumericTolerance = {
 export type SteadyCrossCheckTolerances = Record<SteadyCrossCheckCategory, NumericTolerance>;
 
 export type SteadyCrossCheckOptions = {
+  purpose?: SteadyCrossCheckPurpose;
   solvers?: SteadyCrossCheckSolver[];
   tolerances?: Partial<Record<SteadyCrossCheckCategory, Partial<NumericTolerance>>>;
+};
+
+export type SteadyCrossCheckTolerancePreset = {
+  purpose: SteadyCrossCheckPurpose;
+  tolerances: SteadyCrossCheckTolerances;
 };
 
 export type SteadyCrossCheckStateMetadata = {
@@ -85,6 +97,7 @@ export type SteadyCrossCheckComparison = {
   missingKeys: Record<SteadyCrossCheckCategory, SteadyCrossCheckMissingKeys>;
   worst: Record<SteadyCrossCheckCategory, NumericDelta | null>;
   worstOverall: { category: SteadyCrossCheckCategory; delta: NumericDelta } | null;
+  maxNormalizedDeltaByCategory: Record<SteadyCrossCheckCategory, number>;
   maxNormalizedDelta: number;
   failureReasons: string[];
 };
@@ -102,6 +115,7 @@ export type SteadyCrossCheckSummary = {
   comparisonCount: number;
   failedCases: number;
   failedComparisons: number;
+  byCategory: Record<SteadyCrossCheckCategory, SteadyCrossCheckCategorySummary>;
   maxNormalizedDelta: number;
   worst: {
     caseId: string;
@@ -112,7 +126,19 @@ export type SteadyCrossCheckSummary = {
   } | null;
 };
 
+export type SteadyCrossCheckCategorySummary = {
+  maxNormalizedDelta: number;
+  worst: {
+    caseId: string;
+    referenceSolverId: string;
+    candidateSolverId: string;
+    delta: NumericDelta;
+  } | null;
+};
+
 export type SteadyCrossCheckReport = {
+  purpose: SteadyCrossCheckPurpose;
+  tolerancePreset: SteadyCrossCheckTolerancePreset;
   summary: SteadyCrossCheckSummary;
   tolerances: SteadyCrossCheckTolerances;
   cases: SteadyCrossCheckCaseReport[];
@@ -123,11 +149,42 @@ const DEFAULT_SOLVERS: Required<Pick<SteadyCrossCheckSolver, "id" | "kind">>[] =
   { id: "candidate", kind: "fixed-heun" },
 ];
 
-const DEFAULT_TOLERANCES: SteadyCrossCheckTolerances = {
+const CROSS_CHECK_CATEGORIES: readonly SteadyCrossCheckCategory[] = [
+  "metrics",
+  "residuals",
+  "comparable",
+  "state",
+];
+
+const STRICT_SELF_CHECK_TOLERANCES: SteadyCrossCheckTolerances = {
   metrics: { abs: 1e-9, rel: 1e-9 },
   residuals: { abs: 1e-9, rel: 1e-9 },
   comparable: { abs: 1e-9, rel: 1e-9 },
   state: { abs: 1e-12, rel: 1e-12 },
+};
+
+// Diagnostic/reporting presets only; these are not clinical validation thresholds.
+export const CROSS_CHECK_TOLERANCE_PRESETS: Record<SteadyCrossCheckPurpose, SteadyCrossCheckTolerances> = {
+  determinism: STRICT_SELF_CHECK_TOLERANCES,
+  "same-solver-regression": STRICT_SELF_CHECK_TOLERANCES,
+  "fixed-step-convergence": {
+    metrics: { abs: 0.05, rel: 0.005 },
+    residuals: { abs: 0.05, rel: 0.02 },
+    comparable: { abs: 0.05, rel: 0.005 },
+    state: { abs: 0.001, rel: 0.001 },
+  },
+  "solver-family-agreement": {
+    metrics: { abs: 0.25, rel: 0.02 },
+    residuals: { abs: 0.1, rel: 0.05 },
+    comparable: { abs: 0.25, rel: 0.02 },
+    state: { abs: 0.02, rel: 0.01 },
+  },
+  "reference-solver-check": {
+    metrics: { abs: 0.5, rel: 0.03 },
+    residuals: { abs: 0.2, rel: 0.05 },
+    comparable: { abs: 0.5, rel: 0.03 },
+    state: { abs: 0.05, rel: 0.02 },
+  },
 };
 
 export function runSteadyCrossCheck(
@@ -135,10 +192,14 @@ export function runSteadyCrossCheck(
   options: SteadyCrossCheckOptions = {},
 ): SteadyCrossCheckReport {
   if (cases.length === 0) throw new Error("runSteadyCrossCheck requires at least one case");
+  const purpose = resolvePurpose(options.purpose);
+  const tolerancePreset = tolerancePresetFor(purpose);
   const solvers = resolveSolvers(options.solvers);
-  const tolerances = resolveTolerances(options.tolerances);
+  const tolerances = resolveTolerances(tolerancePreset.tolerances, options.tolerances);
   const caseReports = cases.map((item) => runCase(item, solvers, tolerances));
   return {
+    purpose,
+    tolerancePreset,
     summary: summarize(caseReports),
     tolerances,
     cases: caseReports,
@@ -244,6 +305,12 @@ function compareResults(
     worstOverall: worstOverall
       ? { category: worstOverall.category, delta: worstOverall.result.worst! }
       : null,
+    maxNormalizedDeltaByCategory: {
+      metrics: metrics.maxNormalizedDelta,
+      residuals: residuals.maxNormalizedDelta,
+      comparable: comparable.maxNormalizedDelta,
+      state: state.maxNormalizedDelta,
+    },
     maxNormalizedDelta: worstOverall?.result.maxNormalizedDelta ?? 0,
     failureReasons,
   };
@@ -330,20 +397,46 @@ function resolveSolvers(
   return resolved;
 }
 
+function resolvePurpose(purpose: SteadyCrossCheckOptions["purpose"]): SteadyCrossCheckPurpose {
+  const resolved = purpose ?? "determinism";
+  if (Object.prototype.hasOwnProperty.call(CROSS_CHECK_TOLERANCE_PRESETS, resolved)) {
+    return resolved as SteadyCrossCheckPurpose;
+  }
+  throw new Error(`Unsupported steady cross-check purpose: ${String(resolved)}`);
+}
+
+function tolerancePresetFor(purpose: SteadyCrossCheckPurpose): SteadyCrossCheckTolerancePreset {
+  return {
+    purpose,
+    tolerances: cloneTolerances(CROSS_CHECK_TOLERANCE_PRESETS[purpose]),
+  };
+}
+
 function resolveTolerances(
+  preset: SteadyCrossCheckTolerances,
   overrides: SteadyCrossCheckOptions["tolerances"],
 ): SteadyCrossCheckTolerances {
   const tolerances = {
-    metrics: { ...DEFAULT_TOLERANCES.metrics, ...(overrides?.metrics ?? {}) },
-    residuals: { ...DEFAULT_TOLERANCES.residuals, ...(overrides?.residuals ?? {}) },
-    comparable: { ...DEFAULT_TOLERANCES.comparable, ...(overrides?.comparable ?? {}) },
-    state: { ...DEFAULT_TOLERANCES.state, ...(overrides?.state ?? {}) },
+    metrics: { ...preset.metrics, ...(overrides?.metrics ?? {}) },
+    residuals: { ...preset.residuals, ...(overrides?.residuals ?? {}) },
+    comparable: { ...preset.comparable, ...(overrides?.comparable ?? {}) },
+    state: { ...preset.state, ...(overrides?.state ?? {}) },
   };
-  for (const [category, item] of Object.entries(tolerances) as [SteadyCrossCheckCategory, NumericTolerance][]) {
+  for (const category of CROSS_CHECK_CATEGORIES) {
+    const item = tolerances[category];
     validateTolerance(`${category}.abs`, item.abs);
     validateTolerance(`${category}.rel`, item.rel);
   }
   return tolerances;
+}
+
+function cloneTolerances(tolerances: SteadyCrossCheckTolerances): SteadyCrossCheckTolerances {
+  return {
+    metrics: { ...tolerances.metrics },
+    residuals: { ...tolerances.residuals },
+    comparable: { ...tolerances.comparable },
+    state: { ...tolerances.state },
+  };
 }
 
 function validateTolerance(label: string, value: number): void {
@@ -472,10 +565,27 @@ function summarize(cases: SteadyCrossCheckCaseReport[]): SteadyCrossCheckSummary
   let failedComparisons = 0;
   let worst: SteadyCrossCheckSummary["worst"] = null;
   let maxNormalizedDelta = 0;
+  const byCategory = emptyCategorySummary();
   for (const item of cases) {
     for (const comparison of item.comparisons) {
       comparisonCount += 1;
       if (!comparison.pass) failedComparisons += 1;
+      for (const category of CROSS_CHECK_CATEGORIES) {
+        const delta = comparison.worst[category];
+        if (!delta) continue;
+        const categoryMax = comparison.maxNormalizedDeltaByCategory[category];
+        if (!byCategory[category].worst || categoryMax >= byCategory[category].maxNormalizedDelta) {
+          byCategory[category] = {
+            maxNormalizedDelta: categoryMax,
+            worst: {
+              caseId: item.id,
+              referenceSolverId: comparison.referenceSolverId,
+              candidateSolverId: comparison.candidateSolverId,
+              delta,
+            },
+          };
+        }
+      }
       if (comparison.worstOverall && comparison.maxNormalizedDelta >= maxNormalizedDelta) {
         maxNormalizedDelta = comparison.maxNormalizedDelta;
         worst = {
@@ -495,7 +605,17 @@ function summarize(cases: SteadyCrossCheckCaseReport[]): SteadyCrossCheckSummary
     comparisonCount,
     failedCases,
     failedComparisons,
+    byCategory,
     maxNormalizedDelta,
     worst,
+  };
+}
+
+function emptyCategorySummary(): Record<SteadyCrossCheckCategory, SteadyCrossCheckCategorySummary> {
+  return {
+    metrics: { maxNormalizedDelta: 0, worst: null },
+    residuals: { maxNormalizedDelta: 0, worst: null },
+    comparable: { maxNormalizedDelta: 0, worst: null },
+    state: { maxNormalizedDelta: 0, worst: null },
   };
 }
