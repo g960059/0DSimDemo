@@ -62,6 +62,8 @@ export type TransitionSteadyJobResult =
 
 export type TransitionSteadyPendingJob = {
   request: TransitionSteadyJobRequest;
+  startedAtMs: number;
+  deadlineAtMs: number;
 };
 
 // This signature is the physical target identity for transition steady work.

@@ -75,6 +75,7 @@ export type SteadyUpdateStatusMap = Record<string, SteadyUpdateStatus>;
 
 const PREVIEW_TRANSITION_GHOST_MS = 2000;
 const STEADY_UPDATE_STATUS_MS = 1200;
+const TRANSITION_STEADY_WATCHDOG_MS = 20_000;
 
 const previewInstanceSignature = (inst: SimInstance): string => JSON.stringify({
   params: inst.params,
@@ -355,6 +356,7 @@ export class PreviewController {
     }
     const fromSignature = currentRef.steadySignature ?? transitionTargetSignature(currentInstance);
     const toSignature = transitionTargetSignature(inst);
+    const startedAtMs = this.nowMs();
     const pending: TransitionSteadyPendingJob = {
       request: {
         type: "computeTransitionSteady",
@@ -375,16 +377,13 @@ export class PreviewController {
           requireProjectorQuiet: false,
         },
       },
+      startedAtMs,
+      deadlineAtMs: startedAtMs + TRANSITION_STEADY_WATCHDOG_MS,
     };
     this.transitionSteadyPendingJobs.set(inst.id, pending);
     this.transitionSteadyResults.delete(inst.id);
     this.setSteadyUpdateStatus(inst.id, "computing");
-    if (!this.postTransitionSteadyRequest(pending)) {
-      const result = this.transitionSteadyErrorResult(pending.request, "Transition steady worker is unavailable");
-      this.transitionSteadyPendingJobs.delete(inst.id);
-      this.transitionSteadyResults.set(inst.id, result);
-      this.setSteadyUpdateStatus(inst.id, "failed");
-    }
+    this.restartTransitionSteadyWorkerForPending("Transition steady worker is unavailable");
     return pending;
   }
 
@@ -423,11 +422,28 @@ export class PreviewController {
     }
   }
 
-  private postTransitionSteadyRequest(pending: TransitionSteadyPendingJob): boolean {
+  private restartTransitionSteadyWorkerForPending(unavailableMessage: string): boolean {
+    const pendingJobs = [...this.transitionSteadyPendingJobs.values()];
+    this.disposeTransitionSteadyWorker();
+    if (pendingJobs.length === 0) return true;
     const worker = this.initTransitionSteadyWorker();
-    if (!worker) return false;
-    worker.postMessage(pending.request);
+    if (!worker) {
+      for (const pending of pendingJobs) {
+        this.failTransitionSteadyJob(pending, unavailableMessage);
+      }
+      return false;
+    }
+    for (const pending of pendingJobs) {
+      worker.postMessage(pending.request);
+    }
     return true;
+  }
+
+  private failTransitionSteadyJob(pending: TransitionSteadyPendingJob, message: string): void {
+    const id = pending.request.instanceId;
+    this.transitionSteadyPendingJobs.delete(id);
+    this.transitionSteadyResults.set(id, this.transitionSteadyErrorResult(pending.request, message));
+    this.setSteadyUpdateStatus(id, "failed");
   }
 
   private handleTransitionSteadyWorkerMessage(result: TransitionSteadyJobResult): void {
@@ -450,7 +466,7 @@ export class PreviewController {
       return;
     }
     this.transitionSteadyResults.set(result.instanceId, result);
-    if (result.outcome === "error") this.setSteadyUpdateStatus(result.instanceId, "failed");
+    this.setSteadyUpdateStatus(result.instanceId, "failed");
   }
 
   private transitionSteadyErrorResult(
@@ -567,6 +583,16 @@ export class PreviewController {
       }
     }
     if (changed) this.emitSteadyUpdateStatusChange();
+  }
+
+  private expireTransitionSteadyPendingJobs(now = this.nowMs()): void {
+    const expired = [...this.transitionSteadyPendingJobs.values()]
+      .filter((pending) => pending.deadlineAtMs <= now);
+    if (expired.length === 0) return;
+    for (const pending of expired) {
+      this.failTransitionSteadyJob(pending, "Transition steady worker timed out");
+    }
+    this.restartTransitionSteadyWorkerForPending("Transition steady worker is unavailable");
   }
 
   private fallbackToSync(): void {
@@ -964,6 +990,7 @@ export class PreviewController {
     const frameStart = this.nowMs();
     this.expirePreviousEpochs(frameStart);
     this.expireSteadyUpdateStatuses(frameStart);
+    this.expireTransitionSteadyPendingJobs(frameStart);
     if (!this.lastFrameTime) this.lastFrameTime = now;
     let deltaTimeMs = now - this.lastFrameTime;
     this.lastFrameTime = now; // updated even while paused, so resume doesn't jump
