@@ -134,6 +134,7 @@ export function runSteadyCrossCheck(
   cases: SteadyCrossCheckCase[],
   options: SteadyCrossCheckOptions = {},
 ): SteadyCrossCheckReport {
+  if (cases.length === 0) throw new Error("runSteadyCrossCheck requires at least one case");
   const solvers = resolveSolvers(options.solvers);
   const tolerances = resolveTolerances(options.tolerances);
   const caseReports = cases.map((item) => runCase(item, solvers, tolerances));
@@ -330,12 +331,23 @@ function resolveSolvers(
 function resolveTolerances(
   overrides: SteadyCrossCheckOptions["tolerances"],
 ): SteadyCrossCheckTolerances {
-  return {
+  const tolerances = {
     metrics: { ...DEFAULT_TOLERANCES.metrics, ...(overrides?.metrics ?? {}) },
     residuals: { ...DEFAULT_TOLERANCES.residuals, ...(overrides?.residuals ?? {}) },
     comparable: { ...DEFAULT_TOLERANCES.comparable, ...(overrides?.comparable ?? {}) },
     state: { ...DEFAULT_TOLERANCES.state, ...(overrides?.state ?? {}) },
   };
+  for (const [category, item] of Object.entries(tolerances) as [SteadyCrossCheckCategory, NumericTolerance][]) {
+    validateTolerance(`${category}.abs`, item.abs);
+    validateTolerance(`${category}.rel`, item.rel);
+  }
+  return tolerances;
+}
+
+function validateTolerance(label: string, value: number): void {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error(`Invalid steady cross-check tolerance ${label}: expected finite non-negative number`);
+  }
 }
 
 type NumericComparisonResult = {

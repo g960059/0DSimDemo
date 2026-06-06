@@ -4,6 +4,25 @@ import { runSteadyCrossCheck } from "@/engine/steadyCrossCheck";
 import { VERIFICATION_PROFILES } from "@/engine/verification/profiles";
 
 describe("steady cross-check harness", () => {
+  it("rejects empty case lists instead of reporting a vacuous pass", () => {
+    expect(() => runSteadyCrossCheck([])).toThrow(/at least one case/);
+  });
+
+  it("rejects invalid tolerances that would otherwise mask numeric differences", () => {
+    const input = [{
+      id: "baseline",
+      params: DEFAULT_PARAMS,
+      profile: "fitFast" as const,
+    }];
+
+    expect(() => runSteadyCrossCheck(input, {
+      tolerances: { metrics: { abs: Number.NaN } },
+    })).toThrow(/metrics\.abs/);
+    expect(() => runSteadyCrossCheck(input, {
+      tolerances: { residuals: { rel: -1 } },
+    })).toThrow(/residuals\.rel/);
+  });
+
   it("passes a fixed-heun self-check for the normal baseline", () => {
     const report = runSteadyCrossCheck([{
       id: "baseline",
