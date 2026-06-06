@@ -455,6 +455,7 @@ export class PreviewController {
     const phys = this.refs.get(result.instanceId);
     const inst = this.instances.find((candidate) => candidate.id === result.instanceId);
     if (!phys || !inst) return false;
+    if (transitionTargetSignature(inst) !== result.toSignature) return false;
     this.liveInstancesById.set(inst.id, inst);
     if (!(phys.core instanceof RemotePreviewCore)) {
       const core = new ModelCore(inst.params);
@@ -496,6 +497,17 @@ export class PreviewController {
 
   private liveInstancesFor(instances: SimInstance[]): SimInstance[] {
     return instances.map((inst) => this.liveInstancesById.get(inst.id) ?? inst);
+  }
+
+  private shouldHoldLiveInstanceForSteadyTransition(inst: SimInstance, explicitHold: boolean): boolean {
+    const pending = this.transitionSteadyPendingJobs.get(inst.id);
+    if (!pending) return explicitHold;
+    const targetSignature = transitionTargetSignature(inst);
+    if (targetSignature !== pending.request.toSignature) {
+      this.clearTransitionSteadyJob(inst.id);
+      return explicitHold;
+    }
+    return true;
   }
 
   private fallbackToSync(): void {
@@ -549,10 +561,11 @@ export class PreviewController {
       this.heartModelByInstance[inst.id] = inst.params.heartModel;
       const current = this.refs.get(inst.id);
       if (current && !heartModelChanged) {
+        const holdLiveInstance = this.shouldHoldLiveInstanceForSteadyTransition(inst, steadyTransitionIds.has(inst.id));
         if (transitionIds.has(inst.id)) {
           this.liveInstancesById.set(inst.id, inst);
           this.promoteSyncTransition(inst, current, signature);
-        } else if (!steadyTransitionIds.has(inst.id)) {
+        } else if (!holdLiveInstance) {
           this.liveInstancesById.set(inst.id, inst);
         }
         continue;
@@ -623,6 +636,8 @@ export class PreviewController {
       const heartModelChanged = previousHeartModel !== undefined && previousHeartModel !== inst.params.heartModel;
       this.heartModelByInstance[inst.id] = inst.params.heartModel;
       if (current) {
+        const holdLiveInstance = !heartModelChanged
+          && this.shouldHoldLiveInstanceForSteadyTransition(inst, steadyTransitionIds.has(inst.id));
         if (heartModelChanged) {
           this.clearTransitionSteadyJob(inst.id);
           this.liveInstancesById.set(inst.id, inst);
@@ -642,7 +657,7 @@ export class PreviewController {
           resetIds.push(inst.id);
         } else if (current.transition?.status === "settling" && current.transition.toSignature === signature) {
           current.isSettling = true;
-        } else if (!steadyTransitionIds.has(inst.id) && current.core instanceof RemotePreviewCore) {
+        } else if (!holdLiveInstance && current.core instanceof RemotePreviewCore) {
           this.liveInstancesById.set(inst.id, inst);
           current.core.updateClock(current.core.t, inst.params);
         }

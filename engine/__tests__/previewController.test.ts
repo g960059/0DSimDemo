@@ -224,14 +224,54 @@ describe("PreviewController (headless driver)", () => {
 
       c.setInstances([next], { steadyTransitionIds: ["1"] });
       const pending = c.requestNextSteady(next);
+      const pendingMessages = previewWorker.messages.length;
+
+      c.setInstances([{ ...next, name: "Renamed", color: "#38bdf8" }]);
 
       expect(previewWorker.messages.length).toBe(beforeMessages);
+      expect(previewWorker.messages.length).toBe(pendingMessages);
+      expect(c.getPendingTransitionSteadyJob("1")).toBe(pending);
       expect(pending.request.params).toBe(next.params);
       c.tick(1000);
       c.tick(1050);
       const tick = latestWorkerMessage(previewWorker, "tick");
       expect(tick.generation).toBeDefined();
       expect(previewWorker.messages.some((message) => message.type === "resetInstances")).toBe(false);
+    } finally {
+      workerHarness.restore();
+    }
+  });
+
+  it("clears pending transition steady jobs when a plain physical edit changes the target", () => {
+    const workerHarness = withFakeWorker();
+    try {
+      const c = new PreviewController({ useWorker: true });
+      const current = inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 });
+      const next = inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 });
+      c.setInstances([current]);
+      const phys = c.refs.get("1")!;
+      const oldSamples = [{ t: 0.5, phi: 0.5 }] as any[];
+      phys.buffer = oldSamples;
+      c.setInstances([next], { steadyTransitionIds: ["1"] });
+      const pending = c.requestNextSteady(next);
+      const previewWorker = workerHarness.byScript("previewWorker");
+      const transitionWorker = workerHarness.byScript("transitionSteadyWorker");
+      const rawEdited = inst("1", { ...next.params, bleedRate: 100 });
+
+      c.setInstances([rawEdited]);
+
+      expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
+      expect(c.getTransitionSteadyResult("1")).toBeUndefined();
+      expect(latestWorkerMessage(previewWorker, "setInstances").instances[0].params.bleedRate).toBe(100);
+
+      transitionWorker.emit(transitionResult(pending.request, {
+        samples: [{ t: 1, phi: 1 }] as any[],
+        snapshot: snapshot(next.params, 10),
+      }));
+
+      expect(c.getTransitionSteadyResult("1")).toBeUndefined();
+      expect(phys.buffer).toBe(oldSamples);
+      expect(phys.transition).toBeUndefined();
     } finally {
       workerHarness.restore();
     }
