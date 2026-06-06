@@ -330,6 +330,7 @@ function Workbench() {
   // --- Simulation driver (ROADMAP S3a): the loop + cores live here, not in React. ---
   const controllerRef = useRef<PreviewController | null>(null);
   const controller = (controllerRef.current ??= new PreviewController());
+  const pendingSteadyTransitionIdsRef = useRef<Set<string>>(new Set());
   // Stable handle to the driver's live buffers, consumed by the chart panels.
   const physicsRefs = useRef(controller.refs);
 
@@ -392,7 +393,11 @@ function Workbench() {
   }, []);
 
   // Push UI state into the driver.
-  useEffect(() => { controller.setInstances(instances); }, [instances]);
+  useEffect(() => {
+    const steadyTransitionIds = [...pendingSteadyTransitionIdsRef.current];
+    pendingSteadyTransitionIdsRef.current.clear();
+    controller.setInstances(instances, steadyTransitionIds.length > 0 ? { steadyTransitionIds } : undefined);
+  }, [controller, instances]);
   useEffect(() => { controller.setTimeScale(timeScale); }, [timeScale]);
   useEffect(() => { controller.setPlaying(isPlaying); }, [isPlaying]);
 
@@ -761,7 +766,10 @@ function Workbench() {
                 ? { ...inst, ...resolveKnobEdit({ params: inst.params, knobs: inst.knobs, knobBaseline: inst.knobBaseline }, newKnobs) }
                 : inst
           );
-          controller.setInstances(next, { transitionIds: [id] });
+          const target = next.find((inst) => inst.id === id);
+          pendingSteadyTransitionIdsRef.current.add(id);
+          controller.setInstances(next, { steadyTransitionIds: [id] });
+          if (target) controller.requestNextSteady(target);
           return next;
       });
   };
@@ -772,7 +780,10 @@ function Workbench() {
           const next = prev.map(inst =>
               inst.id === id ? { ...inst, targetVolume: vol } : inst
           );
-          controller.setInstances(next, { transitionIds: [id] });
+          const target = next.find((inst) => inst.id === id);
+          pendingSteadyTransitionIdsRef.current.add(id);
+          controller.setInstances(next, { steadyTransitionIds: [id] });
+          if (target) controller.requestNextSteady(target);
           return next;
       });
   }

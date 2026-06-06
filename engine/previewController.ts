@@ -16,6 +16,7 @@ import type {
 import {
   isCurrentTransitionSteadyResult,
   makeTransitionTargetSignature,
+  type TransitionSteadyJobRequest,
   type TransitionSteadyJobResult,
   type TransitionSteadyPendingJob,
 } from "@/engine/transitionSteadyProtocol";
@@ -62,6 +63,7 @@ export type PreviewPerfSnapshot = {
 
 export type PreviewSetInstancesOptions = {
   transitionIds?: string[];
+  steadyTransitionIds?: string[];
 };
 
 export type PreviewResetOptions = {
@@ -292,7 +294,8 @@ export class PreviewController {
   private transitionSteadyGeneration = 0;
   private transitionSteadyJobSeq = 0;
   private transitionSteadyPendingJobs = new Map<string, TransitionSteadyPendingJob>();
-  private transitionSteadyAcceptedResults = new Map<string, TransitionSteadyJobResult>();
+  private transitionSteadyResults = new Map<string, TransitionSteadyJobResult>();
+  private liveInstancesById = new Map<string, SimInstance>();
 
   private readonly dt: number;
   private readonly sampleHz: number;
@@ -368,8 +371,12 @@ export class PreviewController {
       },
     };
     this.transitionSteadyPendingJobs.set(inst.id, pending);
-    this.transitionSteadyAcceptedResults.delete(inst.id);
-    this.postTransitionSteadyRequest(pending);
+    this.transitionSteadyResults.delete(inst.id);
+    if (!this.postTransitionSteadyRequest(pending)) {
+      const result = this.transitionSteadyErrorResult(pending.request, "Transition steady worker is unavailable");
+      this.transitionSteadyPendingJobs.delete(inst.id);
+      this.transitionSteadyResults.set(inst.id, result);
+    }
     return pending;
   }
 
@@ -377,8 +384,8 @@ export class PreviewController {
     return this.transitionSteadyPendingJobs.get(id);
   }
 
-  getAcceptedTransitionSteadyResult(id: string): TransitionSteadyJobResult | undefined {
-    return this.transitionSteadyAcceptedResults.get(id);
+  getTransitionSteadyResult(id: string): TransitionSteadyJobResult | undefined {
+    return this.transitionSteadyResults.get(id);
   }
 
   clearPendingTransitionSteadyJob(id: string): void {
@@ -404,15 +411,63 @@ export class PreviewController {
     }
   }
 
-  private postTransitionSteadyRequest(pending: TransitionSteadyPendingJob): void {
-    this.initTransitionSteadyWorker()?.postMessage(pending.request);
+  private postTransitionSteadyRequest(pending: TransitionSteadyPendingJob): boolean {
+    const worker = this.initTransitionSteadyWorker();
+    if (!worker) return false;
+    worker.postMessage(pending.request);
+    return true;
   }
 
   private handleTransitionSteadyWorkerMessage(result: TransitionSteadyJobResult): void {
     const pending = this.transitionSteadyPendingJobs.get(result.instanceId);
-    if (!isCurrentTransitionSteadyResult(result, pending)) return;
+    if (!pending || !isCurrentTransitionSteadyResult(result, pending)) return;
     this.transitionSteadyPendingJobs.delete(result.instanceId);
-    this.transitionSteadyAcceptedResults.set(result.instanceId, result);
+    if (result.outcome === "completed") {
+      const promoted = this.promoteTransitionSteadyWorkerResult(result);
+      this.transitionSteadyResults.set(
+        result.instanceId,
+        promoted
+          ? result
+          : this.transitionSteadyErrorResult(pending.request, "Transition steady result cannot be promoted"),
+      );
+      return;
+    }
+    this.transitionSteadyResults.set(result.instanceId, result);
+  }
+
+  private transitionSteadyErrorResult(
+    request: TransitionSteadyJobRequest,
+    message: string,
+  ): TransitionSteadyJobResult {
+    return {
+      type: "transitionSteadyResult",
+      jobId: request.jobId,
+      generation: request.generation,
+      instanceId: request.instanceId,
+      toSignature: request.toSignature,
+      outcome: "error",
+      message,
+    };
+  }
+
+  private promoteTransitionSteadyWorkerResult(result: TransitionSteadyJobResult & { outcome: "completed" }): boolean {
+    if (!result.samples || result.samples.length === 0 || !result.snapshot) return false;
+    const phys = this.refs.get(result.instanceId);
+    const inst = this.instances.find((candidate) => candidate.id === result.instanceId);
+    if (!phys || !inst) return false;
+    this.liveInstancesById.set(inst.id, inst);
+    if (!(phys.core instanceof RemotePreviewCore)) {
+      const core = new ModelCore(inst.params);
+      core.unpackState(result.steady.state);
+      phys.core = core;
+    }
+    this.promoteTransition(phys, previewInstanceSignature(inst), result.samples, result.snapshot, result.toSignature);
+    if (this.worker) {
+      const generation = this.bumpWorkerGeneration();
+      this.workerInstancesSignature = previewInstanceListSignature(this.liveInstancesFor(this.instances));
+      this.postWorker({ type: "promoteTransitionSteady", generation, instance: inst, state: result.steady.state });
+    }
+    return true;
   }
 
   private disposeTransitionSteadyWorker(): void {
@@ -422,21 +477,25 @@ export class PreviewController {
 
   private clearTransitionSteadyJob(id: string): void {
     this.transitionSteadyPendingJobs.delete(id);
-    this.transitionSteadyAcceptedResults.delete(id);
+    this.transitionSteadyResults.delete(id);
   }
 
   private clearTransitionSteadyJobs(): void {
     this.transitionSteadyPendingJobs.clear();
-    this.transitionSteadyAcceptedResults.clear();
+    this.transitionSteadyResults.clear();
   }
 
   private pruneTransitionSteadyPendingJobs(currentIds: Set<string>): void {
     for (const id of [...this.transitionSteadyPendingJobs.keys()]) {
       if (!currentIds.has(id)) this.clearTransitionSteadyJob(id);
     }
-    for (const id of [...this.transitionSteadyAcceptedResults.keys()]) {
+    for (const id of [...this.transitionSteadyResults.keys()]) {
       if (!currentIds.has(id)) this.clearTransitionSteadyJob(id);
     }
+  }
+
+  private liveInstancesFor(instances: SimInstance[]): SimInstance[] {
+    return instances.map((inst) => this.liveInstancesById.get(inst.id) ?? inst);
   }
 
   private fallbackToSync(): void {
@@ -450,6 +509,7 @@ export class PreviewController {
     this.disposeTransitionSteadyWorker();
     this.clearTransitionSteadyJobs();
     this.refs.clear();
+    this.liveInstancesById.clear();
     this.prevStatus = {};
     this.healthSig = "";
     this.instances = [];
@@ -478,6 +538,7 @@ export class PreviewController {
       return;
     }
     const transitionIds = new Set(options.transitionIds ?? []);
+    const steadyTransitionIds = new Set(options.steadyTransitionIds ?? []);
     this.instances = instances;
     const added: string[] = [];
     let resetExisting = false;
@@ -489,10 +550,14 @@ export class PreviewController {
       const current = this.refs.get(inst.id);
       if (current && !heartModelChanged) {
         if (transitionIds.has(inst.id)) {
+          this.liveInstancesById.set(inst.id, inst);
           this.promoteSyncTransition(inst, current, signature);
+        } else if (!steadyTransitionIds.has(inst.id)) {
+          this.liveInstancesById.set(inst.id, inst);
         }
         continue;
       }
+      this.liveInstancesById.set(inst.id, inst);
       this.refs.set(inst.id, this.createSettledRef(inst));
       if (heartModelChanged) {
         this.clearTransitionSteadyJob(inst.id);
@@ -507,6 +572,7 @@ export class PreviewController {
     for (const id of [...this.refs.keys()]) {
       if (!currentIds.has(id)) {
         this.refs.delete(id);
+        this.liveInstancesById.delete(id);
         this.clearTransitionSteadyJob(id);
         delete this.prevStatus[id];
         delete this.heartModelByInstance[id];
@@ -549,7 +615,7 @@ export class PreviewController {
     const added: string[] = [];
     const resetIds: string[] = [];
     const transitionIds = new Set(options.transitionIds ?? []);
-    const nextListSignature = previewInstanceListSignature(instances);
+    const steadyTransitionIds = new Set(options.steadyTransitionIds ?? []);
     for (const inst of instances) {
       const current = this.refs.get(inst.id);
       const signature = previewInstanceSignature(inst);
@@ -559,6 +625,7 @@ export class PreviewController {
       if (current) {
         if (heartModelChanged) {
           this.clearTransitionSteadyJob(inst.id);
+          this.liveInstancesById.set(inst.id, inst);
           current.buffer = [];
           current.lastRenderX = 0;
           current.isSettling = true;
@@ -570,15 +637,18 @@ export class PreviewController {
           resetIds.push(inst.id);
         }
         if (transitionIds.has(inst.id) && !heartModelChanged) {
+          this.liveInstancesById.set(inst.id, inst);
           this.prepareTransition(current, signature);
           resetIds.push(inst.id);
         } else if (current.transition?.status === "settling" && current.transition.toSignature === signature) {
           current.isSettling = true;
-        } else if (current.core instanceof RemotePreviewCore) {
+        } else if (!steadyTransitionIds.has(inst.id) && current.core instanceof RemotePreviewCore) {
+          this.liveInstancesById.set(inst.id, inst);
           current.core.updateClock(current.core.t, inst.params);
         }
         continue;
       }
+      this.liveInstancesById.set(inst.id, inst);
       this.refs.set(inst.id, {
         core: new RemotePreviewCore(inst.params),
         buffer: [],
@@ -595,18 +665,21 @@ export class PreviewController {
     for (const id of [...this.refs.keys()]) {
       if (!currentIds.has(id)) {
         this.refs.delete(id);
+        this.liveInstancesById.delete(id);
         this.clearTransitionSteadyJob(id);
         delete this.prevStatus[id];
         delete this.heartModelByInstance[id];
       }
     }
+    const workerInstances = this.liveInstancesFor(instances);
+    const nextListSignature = previewInstanceListSignature(workerInstances);
     if (resetIds.length === 0 && nextListSignature === this.workerInstancesSignature) {
       if (added.length > 0) this.onInstancesAdded?.(added);
       return;
     }
     const generation = this.bumpWorkerGeneration();
     this.workerInstancesSignature = nextListSignature;
-    this.postWorker({ type: "setInstances", generation, instances });
+    this.postWorker({ type: "setInstances", generation, instances: workerInstances });
     if (resetIds.length > 0) {
       this.postWorker({ type: "resetInstances", generation, ids: resetIds });
       this.healthSig = "";
@@ -781,8 +854,9 @@ export class PreviewController {
     if (!this.worker) {
       this.initWorker();
       if (this.worker && this.instances.length > 0) {
-        this.workerInstancesSignature = previewInstanceListSignature(this.instances);
-        this.postWorker({ type: "setInstances", generation: this.bumpWorkerGeneration(), instances: this.instances });
+        const workerInstances = this.liveInstancesFor(this.instances);
+        this.workerInstancesSignature = previewInstanceListSignature(workerInstances);
+        this.postWorker({ type: "setInstances", generation: this.bumpWorkerGeneration(), instances: workerInstances });
       }
     }
     this.running = true;
@@ -876,9 +950,10 @@ export class PreviewController {
     for (const inst of this.instances) {
       const phys = this.refs.get(inst.id);
       if (!phys) continue;
+      const liveInst = this.liveInstancesById.get(inst.id) ?? inst;
       const instanceStart = this.nowMs();
       const core = phys.core as ModelCore;
-      core.setImmediateParameters(inst.params);
+      core.setImmediateParameters(liveInst.params);
       const samples = core.runFor(simSeconds, this.dt, this.sampleHz);
       const cutoffTime = core.t - this.bufferRetentionSec;
       const trimmed = this.appendSamples(phys, samples, cutoffTime);
@@ -967,6 +1042,7 @@ export class PreviewController {
     for (const item of message.instances) {
       const phys = this.refs.get(item.id);
       const inst = this.instances.find((candidate) => candidate.id === item.id);
+      const liveInst = inst ? this.liveInstancesById.get(item.id) ?? inst : undefined;
       if (!phys || !inst) continue;
       if (phys.transition?.status === "settling") {
         phys.isSettling = item.settling;
@@ -985,7 +1061,7 @@ export class PreviewController {
       if (item.snapshot && phys.core instanceof RemotePreviewCore) {
         phys.core.update(item.snapshot);
       } else if (phys.core instanceof RemotePreviewCore) {
-        phys.core.updateClock(item.t, inst.params);
+        phys.core.updateClock(item.t, (liveInst ?? inst).params);
       }
       phys.isSettling = item.settling;
       const trimmed = this.appendSamples(phys, item.samples, item.t - this.bufferRetentionSec);

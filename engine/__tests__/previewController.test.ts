@@ -23,6 +23,7 @@ const inst = (id = "1", params: SimInstance["params"] = { ...DEFAULT_PARAMS }): 
 class FakePreviewWorker {
   static latest: FakePreviewWorker | null = null;
   static instances: FakePreviewWorker[] = [];
+  static throwOnScript: string | null = null;
 
   onmessage: ((event: MessageEvent<any>) => void) | null = null;
   onerror: (() => void) | null = null;
@@ -32,6 +33,9 @@ class FakePreviewWorker {
 
   constructor(...args: any[]) {
     this.script = String(args[0] ?? "");
+    if (FakePreviewWorker.throwOnScript && this.script.includes(FakePreviewWorker.throwOnScript)) {
+      throw new Error(`Failed to construct ${FakePreviewWorker.throwOnScript}`);
+    }
     FakePreviewWorker.latest = this;
     FakePreviewWorker.instances.push(this);
   }
@@ -49,10 +53,11 @@ class FakePreviewWorker {
   }
 }
 
-const withFakeWorker = () => {
+const withFakeWorker = (options: { throwOnScript?: string } = {}) => {
   const previousWorker = (globalThis as any).Worker;
   FakePreviewWorker.latest = null;
   FakePreviewWorker.instances = [];
+  FakePreviewWorker.throwOnScript = options.throwOnScript ?? null;
   (globalThis as any).Worker = FakePreviewWorker;
   return {
     latest: () => {
@@ -66,9 +71,22 @@ const withFakeWorker = () => {
     },
     restore: () => {
       (globalThis as any).Worker = previousWorker;
+      FakePreviewWorker.throwOnScript = null;
     },
   };
 };
+
+const steadyResult = (): SteadyResult => ({
+  state: {} as SteadyResult["state"],
+} as SteadyResult);
+
+const snapshot = (params: SimInstance["params"], t = 1) => ({
+  t,
+  p: params,
+  metrics: {} as any,
+  health: {} as any,
+  observables: {} as any,
+});
 
 const transitionResult = (
   request: ReturnType<PreviewController["requestNextSteady"]>["request"],
@@ -80,7 +98,7 @@ const transitionResult = (
   generation: request.generation,
   instanceId: request.instanceId,
   toSignature: request.toSignature,
-  steady: {} as SteadyResult,
+  steady: steadyResult(),
   ...overrides,
 });
 
@@ -126,7 +144,7 @@ describe("PreviewController (headless driver)", () => {
       expect(previewWorker.messages.length).toBe(beforeMessages);
       expect(transitionWorker.messages).toEqual([request]);
       expect(c.getPendingTransitionSteadyJob("1")).toBe(pending);
-      expect(c.getAcceptedTransitionSteadyResult("1")).toBeUndefined();
+      expect(c.getTransitionSteadyResult("1")).toBeUndefined();
       expect(request.type).toBe("computeTransitionSteady");
       expect(request.instanceId).toBe("1");
       expect(request.params).toBe(target.params);
@@ -194,6 +212,31 @@ describe("PreviewController (headless driver)", () => {
     }
   });
 
+  it("keeps the preview worker on the previous live instance while a no-freeze steady request is pending", () => {
+    const workerHarness = withFakeWorker();
+    try {
+      const c = new PreviewController({ useWorker: true });
+      const current = inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 });
+      const next = inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 });
+      c.setInstances([current]);
+      const previewWorker = workerHarness.byScript("previewWorker");
+      const beforeMessages = previewWorker.messages.length;
+
+      c.setInstances([next], { steadyTransitionIds: ["1"] });
+      const pending = c.requestNextSteady(next);
+
+      expect(previewWorker.messages.length).toBe(beforeMessages);
+      expect(pending.request.params).toBe(next.params);
+      c.tick(1000);
+      c.tick(1050);
+      const tick = latestWorkerMessage(previewWorker, "tick");
+      expect(tick.generation).toBeDefined();
+      expect(previewWorker.messages.some((message) => message.type === "resetInstances")).toBe(false);
+    } finally {
+      workerHarness.restore();
+    }
+  });
+
   it("keeps transition steady pending jobs independent by instance", () => {
     const workerHarness = withFakeWorker();
     try {
@@ -224,13 +267,13 @@ describe("PreviewController (headless driver)", () => {
 
       c.resetInstances(["1"]);
       expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
-      expect(c.getAcceptedTransitionSteadyResult("1")).toBeUndefined();
+      expect(c.getTransitionSteadyResult("1")).toBeUndefined();
 
       const second = c.requestNextSteady({ ...current, targetVolume: current.targetVolume + 200 });
       transitionWorker.emit(transitionResult(second.request));
       c.setInstances([]);
       expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
-      expect(c.getAcceptedTransitionSteadyResult("1")).toBeUndefined();
+      expect(c.getTransitionSteadyResult("1")).toBeUndefined();
     } finally {
       workerHarness.restore();
     }
@@ -248,7 +291,7 @@ describe("PreviewController (headless driver)", () => {
       worker.emit({ type: "error", message: "boom" });
 
       expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
-      expect(c.getAcceptedTransitionSteadyResult("1")).toBeUndefined();
+      expect(c.getTransitionSteadyResult("1")).toBeUndefined();
       expect(worker.terminated).toBe(true);
     } finally {
       workerHarness.restore();
@@ -260,18 +303,40 @@ describe("PreviewController (headless driver)", () => {
     try {
       const c = new PreviewController({ useWorker: true });
       c.setInstances([inst("1")]);
-      const first = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
-      const second = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 }));
+      const phys = c.refs.get("1")!;
+      const oldSamples = [{ t: 0.5, phi: 0.5 }] as any[];
+      phys.buffer = oldSamples;
+      const firstTarget = inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 });
+      c.setInstances([firstTarget], { steadyTransitionIds: ["1"] });
+      const first = c.requestNextSteady(firstTarget);
+      const target = inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 });
+      c.setInstances([target], { steadyTransitionIds: ["1"] });
+      const second = c.requestNextSteady(target);
+      const previewWorker = workerHarness.byScript("previewWorker");
       const transitionWorker = workerHarness.byScript("transitionSteadyWorker");
 
       transitionWorker.emit(transitionResult(first.request));
       expect(c.getPendingTransitionSteadyJob("1")).toBe(second);
-      expect(c.getAcceptedTransitionSteadyResult("1")).toBeUndefined();
+      expect(c.getTransitionSteadyResult("1")).toBeUndefined();
 
-      const accepted = transitionResult(second.request, { samples: [{ t: 1, phi: 1 }] });
+      const samples = [{ t: 1, phi: 1 }] as any[];
+      const accepted = transitionResult(second.request, {
+        samples,
+        snapshot: snapshot(target.params, 10),
+      });
       transitionWorker.emit(accepted);
       expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
-      expect(c.getAcceptedTransitionSteadyResult("1")).toEqual(accepted);
+      expect(c.getTransitionSteadyResult("1")).toEqual(accepted);
+      expect(phys.buffer).toEqual(samples);
+      expect(phys.previousEpoch?.buffer).toEqual(oldSamples);
+      expect(phys.steadySignature).toBe(second.request.toSignature);
+      expect(phys.transition?.status).toBe("promoted");
+      expect((phys.core as any).t).toBe(10);
+      expect(latestWorkerMessage(previewWorker, "promoteTransitionSteady")).toMatchObject({
+        type: "promoteTransitionSteady",
+        instance: target,
+        state: accepted.steady.state,
+      });
     } finally {
       workerHarness.restore();
     }
@@ -291,7 +356,7 @@ describe("PreviewController (headless driver)", () => {
       transitionWorker.emit(transitionResult(pending.request, { toSignature: "old-signature" }));
 
       expect(c.getPendingTransitionSteadyJob("1")).toBe(pending);
-      expect(c.getAcceptedTransitionSteadyResult("1")).toBeUndefined();
+      expect(c.getTransitionSteadyResult("1")).toBeUndefined();
     } finally {
       workerHarness.restore();
     }
@@ -308,12 +373,55 @@ describe("PreviewController (headless driver)", () => {
 
       transitionWorker.emit(transitionErrorResult(first.request, "old error"));
       expect(c.getPendingTransitionSteadyJob("1")).toBe(second);
-      expect(c.getAcceptedTransitionSteadyResult("1")).toBeUndefined();
+      expect(c.getTransitionSteadyResult("1")).toBeUndefined();
 
       const error = transitionErrorResult(second.request, "boom");
       transitionWorker.emit(error);
       expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
-      expect(c.getAcceptedTransitionSteadyResult("1")).toEqual(error);
+      expect(c.getTransitionSteadyResult("1")).toEqual(error);
+    } finally {
+      workerHarness.restore();
+    }
+  });
+
+  it("does not leave pending jobs when the transition steady worker cannot be created", () => {
+    const workerHarness = withFakeWorker({ throwOnScript: "transitionSteadyWorker" });
+    try {
+      const c = new PreviewController({ useWorker: true });
+      c.setInstances([inst("1")]);
+
+      c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
+
+      expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
+      expect(c.getTransitionSteadyResult("1")).toMatchObject({
+        outcome: "error",
+        message: "Transition steady worker is unavailable",
+      });
+    } finally {
+      workerHarness.restore();
+    }
+  });
+
+  it("stores a current completed result without samples or snapshot as an error without promotion", () => {
+    const workerHarness = withFakeWorker();
+    try {
+      const c = new PreviewController({ useWorker: true });
+      c.setInstances([inst("1")]);
+      const phys = c.refs.get("1")!;
+      const oldSamples = [{ t: 0.5, phi: 0.5 }] as any[];
+      phys.buffer = oldSamples;
+      const pending = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
+      const transitionWorker = workerHarness.byScript("transitionSteadyWorker");
+
+      transitionWorker.emit(transitionResult(pending.request));
+
+      expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
+      expect(c.getTransitionSteadyResult("1")).toMatchObject({
+        outcome: "error",
+        message: "Transition steady result cannot be promoted",
+      });
+      expect(phys.buffer).toBe(oldSamples);
+      expect(phys.transition).toBeUndefined();
     } finally {
       workerHarness.restore();
     }
@@ -331,7 +439,7 @@ describe("PreviewController (headless driver)", () => {
 
       expect(transitionWorker.terminated).toBe(true);
       expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
-      expect(c.getAcceptedTransitionSteadyResult("1")).toBeUndefined();
+      expect(c.getTransitionSteadyResult("1")).toBeUndefined();
     } finally {
       workerHarness.restore();
     }
