@@ -65,7 +65,7 @@ const withFakeWorker = (options: { throwOnScript?: string } = {}) => {
       return FakePreviewWorker.latest;
     },
     byScript: (fragment: string) => {
-      const worker = FakePreviewWorker.instances.find((candidate) => candidate.script.includes(fragment));
+      const worker = [...FakePreviewWorker.instances].reverse().find((candidate) => candidate.script.includes(fragment));
       if (!worker) throw new Error(`Fake worker for ${fragment} was not constructed`);
       return worker;
     },
@@ -114,6 +114,19 @@ const transitionErrorResult = (
   instanceId: request.instanceId,
   toSignature: request.toSignature,
   message,
+  ...overrides,
+});
+
+const transitionStaleResult = (
+  request: ReturnType<PreviewController["requestNextSteady"]>["request"],
+  overrides: Record<string, unknown> = {},
+) => ({
+  type: "transitionSteadyResult" as const,
+  outcome: "stale" as const,
+  jobId: request.jobId,
+  generation: request.generation,
+  instanceId: request.instanceId,
+  toSignature: request.toSignature,
   ...overrides,
 });
 
@@ -172,13 +185,41 @@ describe("PreviewController (headless driver)", () => {
       const c = new PreviewController({ useWorker: true });
       c.setInstances([inst("1")]);
       const first = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
+      const firstWorker = workerHarness.byScript("transitionSteadyWorker");
       const second = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 }));
-      const transitionWorker = workerHarness.byScript("transitionSteadyWorker");
+      const secondWorker = workerHarness.byScript("transitionSteadyWorker");
 
       expect(c.getPendingTransitionSteadyJob("1")).toBe(second);
       expect(second.request.jobId).not.toBe(first.request.jobId);
       expect(second.request.generation).toBeGreaterThan(first.request.generation);
-      expect(transitionWorker.messages).toEqual([first.request, second.request]);
+      expect(firstWorker.terminated).toBe(true);
+      expect(firstWorker.messages).toEqual([first.request]);
+      expect(secondWorker).not.toBe(firstWorker);
+      expect(secondWorker.messages).toEqual([second.request]);
+
+      firstWorker.emit(transitionResult(first.request));
+      expect(c.getPendingTransitionSteadyJob("1")).toBe(second);
+      expect(c.getTransitionSteadyResult("1")).toBeUndefined();
+    } finally {
+      workerHarness.restore();
+    }
+  });
+
+  it("restarts the transition steady worker and reposts other pending jobs when superseding", () => {
+    const workerHarness = withFakeWorker();
+    try {
+      const c = new PreviewController({ useWorker: true });
+      c.setInstances([inst("1"), inst("2")]);
+      const first = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
+      const firstWorker = workerHarness.byScript("transitionSteadyWorker");
+      const second = c.requestNextSteady(inst("2", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 }));
+      const secondWorker = workerHarness.byScript("transitionSteadyWorker");
+
+      expect(firstWorker.terminated).toBe(true);
+      expect(c.getPendingTransitionSteadyJob("1")).toBe(first);
+      expect(c.getPendingTransitionSteadyJob("2")).toBe(second);
+      expect(secondWorker.messages).toEqual([first.request, second.request]);
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "computing", "2": "computing" });
     } finally {
       workerHarness.restore();
     }
@@ -428,6 +469,90 @@ describe("PreviewController (headless driver)", () => {
     }
   });
 
+  it("times out a silent transition steady worker and marks the job failed", () => {
+    const workerHarness = withFakeWorker();
+    const nowSpy = vi.spyOn(globalThis.performance, "now");
+    try {
+      nowSpy.mockReturnValue(1000);
+      const c = new PreviewController({ useWorker: true });
+      c.setInstances([inst("1")]);
+      const pending = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
+      const transitionWorker = workerHarness.byScript("transitionSteadyWorker");
+
+      nowSpy.mockReturnValue(20_999);
+      c.tick(1000);
+      expect(c.getPendingTransitionSteadyJob("1")).toBe(pending);
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "computing" });
+
+      nowSpy.mockReturnValue(21_001);
+      c.tick(1016);
+      expect(transitionWorker.terminated).toBe(true);
+      expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
+      expect(c.getTransitionSteadyResult("1")).toMatchObject({
+        outcome: "error",
+        jobId: pending.request.jobId,
+        message: "Transition steady worker timed out",
+      });
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "failed" });
+    } finally {
+      nowSpy.mockRestore();
+      workerHarness.restore();
+    }
+  });
+
+  it("refreshes reposted pending job deadlines after a transition steady watchdog timeout", () => {
+    const workerHarness = withFakeWorker();
+    const nowSpy = vi.spyOn(globalThis.performance, "now");
+    try {
+      const c = new PreviewController({ useWorker: true });
+      c.setInstances([inst("1"), inst("2")]);
+      nowSpy.mockReturnValue(1000);
+      const first = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
+      nowSpy.mockReturnValue(5000);
+      const second = c.requestNextSteady(inst("2", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 }));
+      const activeWorker = workerHarness.byScript("transitionSteadyWorker");
+      first.deadlineAtMs = 21_000;
+      second.deadlineAtMs = 25_000;
+
+      nowSpy.mockReturnValue(21_001);
+      c.tick(1000);
+      const restartedWorker = workerHarness.byScript("transitionSteadyWorker");
+
+      expect(activeWorker.terminated).toBe(true);
+      expect(restartedWorker).not.toBe(activeWorker);
+      expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
+      expect(c.getPendingTransitionSteadyJob("2")).toBe(second);
+      expect(c.getTransitionSteadyResult("1")).toMatchObject({
+        outcome: "error",
+        jobId: first.request.jobId,
+        message: "Transition steady worker timed out",
+      });
+      expect(c.getTransitionSteadyResult("2")).toBeUndefined();
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "failed", "2": "computing" });
+      expect(restartedWorker.messages).toEqual([second.request]);
+      expect(second.deadlineAtMs).toBe(41_001);
+
+      nowSpy.mockReturnValue(24_999);
+      c.tick(1016);
+      expect(c.getPendingTransitionSteadyJob("2")).toBe(second);
+      expect(c.getTransitionSteadyResult("2")).toBeUndefined();
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "failed", "2": "computing" });
+
+      nowSpy.mockReturnValue(41_002);
+      c.tick(1032);
+      expect(c.getPendingTransitionSteadyJob("2")).toBeUndefined();
+      expect(c.getTransitionSteadyResult("2")).toMatchObject({
+        outcome: "error",
+        jobId: second.request.jobId,
+        message: "Transition steady worker timed out",
+      });
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "failed", "2": "failed" });
+    } finally {
+      nowSpy.mockRestore();
+      workerHarness.restore();
+    }
+  });
+
   it("ignores mismatched transition steady worker results without clearing pending", () => {
     const workerHarness = withFakeWorker();
     try {
@@ -492,6 +617,65 @@ describe("PreviewController (headless driver)", () => {
     }
   });
 
+  it("fails all pending transition steady jobs if worker recreation becomes unavailable", () => {
+    const workerHarness = withFakeWorker();
+    try {
+      const c = new PreviewController({ useWorker: true });
+      c.setInstances([inst("1"), inst("2")]);
+      const first = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
+      const firstWorker = workerHarness.byScript("transitionSteadyWorker");
+      FakePreviewWorker.throwOnScript = "transitionSteadyWorker";
+
+      c.requestNextSteady(inst("2", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 }));
+
+      expect(firstWorker.terminated).toBe(true);
+      expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
+      expect(c.getPendingTransitionSteadyJob("2")).toBeUndefined();
+      expect(c.getTransitionSteadyResult("1")).toMatchObject({
+        outcome: "error",
+        jobId: first.request.jobId,
+        message: "Transition steady worker is unavailable",
+      });
+      expect(c.getTransitionSteadyResult("2")).toMatchObject({
+        outcome: "error",
+        message: "Transition steady worker is unavailable",
+      });
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "failed", "2": "failed" });
+    } finally {
+      workerHarness.restore();
+    }
+  });
+
+  it("stores failed results when the transition steady worker reports an error", () => {
+    const workerHarness = withFakeWorker();
+    try {
+      const c = new PreviewController({ useWorker: true });
+      c.setInstances([inst("1"), inst("2")]);
+      const first = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
+      const second = c.requestNextSteady(inst("2", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 }));
+      const transitionWorker = workerHarness.byScript("transitionSteadyWorker");
+
+      transitionWorker.onerror?.();
+
+      expect(transitionWorker.terminated).toBe(true);
+      expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
+      expect(c.getPendingTransitionSteadyJob("2")).toBeUndefined();
+      expect(c.getTransitionSteadyResult("1")).toMatchObject({
+        outcome: "error",
+        jobId: first.request.jobId,
+        message: "Transition steady worker failed",
+      });
+      expect(c.getTransitionSteadyResult("2")).toMatchObject({
+        outcome: "error",
+        jobId: second.request.jobId,
+        message: "Transition steady worker failed",
+      });
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "failed", "2": "failed" });
+    } finally {
+      workerHarness.restore();
+    }
+  });
+
   it("stores a current completed result without samples or snapshot as an error without promotion", () => {
     const workerHarness = withFakeWorker();
     try {
@@ -513,6 +697,25 @@ describe("PreviewController (headless driver)", () => {
       expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "failed" });
       expect(phys.buffer).toBe(oldSamples);
       expect(phys.transition).toBeUndefined();
+    } finally {
+      workerHarness.restore();
+    }
+  });
+
+  it("resolves a current stale transition steady result as failed", () => {
+    const workerHarness = withFakeWorker();
+    try {
+      const c = new PreviewController({ useWorker: true });
+      c.setInstances([inst("1")]);
+      const pending = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
+      const transitionWorker = workerHarness.byScript("transitionSteadyWorker");
+      const stale = transitionStaleResult(pending.request, { message: "superseded by worker" });
+
+      transitionWorker.emit(stale);
+
+      expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
+      expect(c.getTransitionSteadyResult("1")).toEqual(stale);
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "failed" });
     } finally {
       workerHarness.restore();
     }

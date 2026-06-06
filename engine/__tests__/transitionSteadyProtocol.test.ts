@@ -91,7 +91,11 @@ describe("transition steady protocol", () => {
   });
 
   it("accepts only results matching the pending job identity", () => {
-    const pending: TransitionSteadyPendingJob = { request: request() };
+    const pending: TransitionSteadyPendingJob = {
+      request: request(),
+      startedAtMs: 1000,
+      deadlineAtMs: 21_000,
+    };
 
     expect(isCurrentTransitionSteadyResult(result(), pending)).toBe(true);
     expect(isCurrentTransitionSteadyResult(result({ jobId: "job-2" }), pending)).toBe(false);
