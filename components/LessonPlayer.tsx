@@ -106,6 +106,7 @@ const LessonPlayerBody: React.FC<{ lesson: Lesson }> = ({ lesson }) => {
   const physicsRefs = useRef<Map<string, PhysicsRefState>>(controller.refs);
   const liveInstancesRef = useRef(liveInstances);
   const pendingResetIdsRef = useRef<string[]>([]);
+  const pendingSteadyTransitionIdsRef = useRef<Set<string>>(new Set());
   const dirtyIdsRef = useRef<Set<string>>(new Set());
 
   const ids = useMemo(() => baseInstances.map((inst) => inst.id), [baseInstances]);
@@ -142,7 +143,9 @@ const LessonPlayerBody: React.FC<{ lesson: Lesson }> = ({ lesson }) => {
 
   useEffect(() => {
     if (!liveInstances.length) return;
-    controller.setInstances(liveInstances);
+    const steadyTransitionIds = [...pendingSteadyTransitionIdsRef.current];
+    pendingSteadyTransitionIdsRef.current.clear();
+    controller.setInstances(liveInstances, steadyTransitionIds.length > 0 ? { steadyTransitionIds } : undefined);
     const resetIds = pendingResetIdsRef.current;
     if (resetIds.length > 0) {
       pendingResetIdsRef.current = [];
@@ -167,7 +170,10 @@ const LessonPlayerBody: React.FC<{ lesson: Lesson }> = ({ lesson }) => {
         inst.id === targetId ? applyExposedKnob(inst, key, value) : inst
       ));
       liveInstancesRef.current = next;
-      controller.setInstances(next, { transitionIds: [targetId] });
+      pendingSteadyTransitionIdsRef.current.add(targetId);
+      controller.setInstances(next, { steadyTransitionIds: [targetId] });
+      const target = next.find((inst) => inst.id === targetId);
+      if (target) controller.requestNextSteady(target);
       return next;
     });
   };

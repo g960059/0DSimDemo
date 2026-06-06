@@ -6,6 +6,7 @@ import type {
   SimulationHealth,
 } from "@/engine/protocol";
 import type { SettleStatus } from "@/engine/settling";
+import type { SerializedModelState } from "@/engine/stateContract";
 import type { SimInstance } from "@/types";
 
 export type PreviewCoreSnapshot = {
@@ -22,6 +23,7 @@ export type PreviewWorkerRequest =
   | { type: "setInstances"; generation: number; instances: SimInstance[] }
   | { type: "resetInstances"; generation: number; ids: string[] }
   | { type: "setInstanceVolume"; generation: number; id: string; volume: number }
+  | { type: "promoteTransitionSteady"; generation: number; instance: SimInstance; state: SerializedModelState }
   | { type: "tick"; generation: number; requestId: number; now: number; simSeconds: number };
 
 export type PreviewWorkerFrameInstance = {

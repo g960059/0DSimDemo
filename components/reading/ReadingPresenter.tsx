@@ -53,6 +53,7 @@ export const ReadingPresenter: React.FC<{
   const [readingProgress, setReadingProgress] = useState(0);
   const scrollportRef = useRef<HTMLDivElement>(null);
   const physicsRefs = useRef<Map<string, PhysicsRefState>>(controller.refs);
+  const pendingSteadyTransitionIdsRef = useRef<Set<string>>(new Set());
   const activeInstanceId = liveInstances[0]?.id ?? "";
   const notes = useMemo(() => caseDoc.notes ?? {}, [caseDoc.notes]);
   const readingBlocks = useMemo(() => collectReadingNoteBlocks(column, notes), [column, notes]);
@@ -70,13 +71,20 @@ export const ReadingPresenter: React.FC<{
   }, [controller]);
 
   useEffect(() => {
-    controller.setInstances(liveInstances);
+    const steadyTransitionIds = [...pendingSteadyTransitionIdsRef.current];
+    pendingSteadyTransitionIdsRef.current.clear();
+    controller.setInstances(liveInstances, steadyTransitionIds.length > 0 ? { steadyTransitionIds } : undefined);
   }, [controller, liveInstances]);
 
-  const updateWith = (project: (instance: SimInstance) => SimInstance, transitionIds: string[] = []) => {
+  const updateWith = (project: (instance: SimInstance) => SimInstance, steadyTransitionIds: string[] = []) => {
     setLiveInstances((current) => {
       const next = current.map(project);
-      controller.setInstances(next, transitionIds.length > 0 ? { transitionIds } : undefined);
+      steadyTransitionIds.forEach((id) => pendingSteadyTransitionIdsRef.current.add(id));
+      controller.setInstances(next, steadyTransitionIds.length > 0 ? { steadyTransitionIds } : undefined);
+      for (const id of steadyTransitionIds) {
+        const target = next.find((instance) => instance.id === id);
+        if (target) controller.requestNextSteady(target);
+      }
       return next;
     });
   };
@@ -108,7 +116,10 @@ export const ReadingPresenter: React.FC<{
   const updateInstanceVolume = (id: string, vol: number) => {
     setLiveInstances((current) => {
       const next = current.map((instance) => (instance.id === id ? { ...instance, targetVolume: vol } : instance));
-      controller.setInstances(next, { transitionIds: [id] });
+      pendingSteadyTransitionIdsRef.current.add(id);
+      controller.setInstances(next, { steadyTransitionIds: [id] });
+      const target = next.find((instance) => instance.id === id);
+      if (target) controller.requestNextSteady(target);
       return next;
     });
   };

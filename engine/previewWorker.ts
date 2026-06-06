@@ -17,6 +17,7 @@ type WorkerCoreRecord = {
   lastSnapshotNow: number;
   settleSignature: string;
 };
+type TransitionSteadyPromotionState = Extract<PreviewWorkerRequest, { type: "promoteTransitionSteady" }>["state"];
 
 let dt = 0.001;
 let sampleHz = 120;
@@ -190,6 +191,28 @@ const setInstanceVolume = (id: string, volume: number) => {
   record.lastSnapshotNow = -Infinity;
 };
 
+const promoteTransitionSteady = (inst: SimInstance, state: TransitionSteadyPromotionState) => {
+  const existing = records.get(inst.id);
+  if (existing) existing.settleToken++;
+  const core = new ModelCore(inst.params);
+  core.unpackState(state);
+  records.set(inst.id, {
+    core,
+    inst,
+    settling: false,
+    settleToken: 0,
+    settleStartT: core.t,
+    lastSnapshotNow: -Infinity,
+    settleSignature: instanceSignature(inst),
+  });
+  const found = instances.findIndex((candidate) => candidate.id === inst.id);
+  if (found >= 0) {
+    instances = instances.map((candidate) => candidate.id === inst.id ? inst : candidate);
+  } else {
+    instances = [...instances, inst];
+  }
+};
+
 const runTick = (requestGeneration: number, requestId: number, now: number, simSeconds: number) => {
   const started = nowMs();
   let sampleCount = 0;
@@ -259,6 +282,10 @@ self.onmessage = (event: MessageEvent<PreviewWorkerRequest>) => {
       case "setInstanceVolume":
         generation = message.generation;
         setInstanceVolume(message.id, message.volume);
+        break;
+      case "promoteTransitionSteady":
+        generation = message.generation;
+        promoteTransitionSteady(message.instance, message.state);
         break;
       case "tick":
         runTick(message.generation, message.requestId, message.now, message.simSeconds);
