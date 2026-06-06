@@ -73,6 +73,11 @@ export interface PanelInstancePresentation {
     items?: Record<PanelItemId, PanelItemPresentation>;
 }
 
+export interface LegendPosition {
+    xPct: number;
+    yPct: number;
+}
+
 export interface GraphPanelView {
     kind: 'graph';
     graphType: 'pvloop' | 'waveform' | 'guyton-right' | 'guyton-left' | 'guyton-3d';
@@ -84,6 +89,7 @@ export interface GraphPanelView {
     timeWindow?: number;
     showGuides?: boolean;
     showLegend?: boolean;
+    legendPosition?: LegendPosition;
 }
 
 export interface OutputPanelView {
@@ -194,4 +200,16 @@ export interface PhysicsRefState {
     lastRenderX: number;
     isSettling?: boolean;
     settleProgress?: number;
+    displaySignature?: string;
+    previousEpoch?: {
+        buffer: SimSample[];
+        capturedAtMs: number;
+        expiresAtMs: number;
+    };
+    transition?: {
+        status: 'settling' | 'promoted';
+        toSignature: string;
+        startedAtMs: number;
+        promotedAtMs?: number;
+    };
 }

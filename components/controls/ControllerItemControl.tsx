@@ -8,6 +8,7 @@ type ControllerItemControlProps = {
   baseline?: number;
   unit?: string;
   onChange: (v: number) => void;
+  onCommit?: (v: number) => void;
   onReset?: () => void;
 };
 
@@ -38,7 +39,7 @@ const PresetChips = ({ item, value, unit, onChange }: Pick<ControllerItemControl
   );
 };
 
-export const ControllerItemControl = ({ item, value, baseline, unit, onChange, onReset }: ControllerItemControlProps) => {
+export const ControllerItemControl = ({ item, value, baseline, unit, onChange, onCommit, onReset }: ControllerItemControlProps) => {
   const options = item.options ?? [];
   const label = item.label ?? item.paramKey;
   const min = item.min ?? 0;
@@ -64,7 +65,7 @@ export const ControllerItemControl = ({ item, value, baseline, unit, onChange, o
           min={min}
           max={max}
           step={step}
-          onChange={onChange}
+          onCommit={onCommit ?? onChange}
           unit={unit}
           baseline={baseline}
           onReset={onReset}
@@ -80,7 +81,7 @@ export const ControllerItemControl = ({ item, value, baseline, unit, onChange, o
       min={min}
       max={max}
       step={step}
-      onChange={onChange}
+      onCommit={onCommit ?? onChange}
       unit={unit}
       baseline={baseline}
       onReset={onReset}

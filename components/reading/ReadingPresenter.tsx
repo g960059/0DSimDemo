@@ -73,10 +73,10 @@ export const ReadingPresenter: React.FC<{
     controller.setInstances(liveInstances);
   }, [controller, liveInstances]);
 
-  const updateWith = (project: (instance: SimInstance) => SimInstance) => {
+  const updateWith = (project: (instance: SimInstance) => SimInstance, transitionIds: string[] = []) => {
     setLiveInstances((current) => {
       const next = current.map(project);
-      controller.setInstances(next);
+      controller.setInstances(next, transitionIds.length > 0 ? { transitionIds } : undefined);
       return next;
     });
   };
@@ -102,14 +102,13 @@ export const ReadingPresenter: React.FC<{
         knobBaseline: instance.knobBaseline,
       }, knobs);
       return { ...instance, ...next };
-    });
+    }, [id]);
   };
 
   const updateInstanceVolume = (id: string, vol: number) => {
     setLiveInstances((current) => {
       const next = current.map((instance) => (instance.id === id ? { ...instance, targetVolume: vol } : instance));
-      controller.setInstanceVolume(id, vol);
-      controller.setInstances(next);
+      controller.setInstances(next, { transitionIds: [id] });
       return next;
     });
   };

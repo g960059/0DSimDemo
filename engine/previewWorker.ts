@@ -70,13 +70,21 @@ const createRecord = (inst: SimInstance): WorkerCoreRecord => {
   };
 };
 
-const finishSettle = (id: string, record: WorkerCoreRecord, token: number, settleGeneration: number, settling: boolean) => {
+const finishSettle = (
+  id: string,
+  record: WorkerCoreRecord,
+  token: number,
+  settleGeneration: number,
+  settling: boolean,
+  collectSampleSeconds = 0,
+) => {
   if (record.settleToken !== token) return;
   const alignT = maxSettledT(id);
   if (alignT > record.core.t) {
     record.core.t = alignT;
     record.core.clearBeatTracking();
   }
+  const samples = collectSampleSeconds > 0 ? record.core.runFor(collectSampleSeconds, dt, sampleHz) : undefined;
   record.settling = settling;
   record.lastSnapshotNow = nowMs();
   post({
@@ -86,6 +94,7 @@ const finishSettle = (id: string, record: WorkerCoreRecord, token: number, settl
     snapshot: snapshotCore(record.core),
     actualSeconds: record.core.t - record.settleStartT,
     settling,
+    ...(samples ? { samples } : {}),
   });
 };
 
@@ -105,12 +114,12 @@ const startIncrementalSettle = (id: string, record: WorkerCoreRecord, settleGene
     }
     if (before.settled) {
       const postBeatSeconds = (60 / Math.max(record.core.p.HR, 1)) * PREVIEW_SETTLE_POLICY.postSettleBeats;
-      record.core.runFor(postBeatSeconds, dt, sampleHz);
-      finishSettle(id, record, token, settleGeneration, false);
+      finishSettle(id, record, token, settleGeneration, false, postBeatSeconds);
       return;
     }
     if (elapsed >= PREVIEW_SETTLE_POLICY.capSeconds) {
-      finishSettle(id, record, token, settleGeneration, false);
+      const fallbackBeatSeconds = 60 / Math.max(record.core.p.HR, 1);
+      finishSettle(id, record, token, settleGeneration, false, fallbackBeatSeconds);
       return;
     }
 

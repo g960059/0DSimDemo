@@ -333,6 +333,127 @@ describe("PreviewController (headless driver)", () => {
     }
   });
 
+  it("keeps the old display buffer while a worker transition settles, then promotes final samples", () => {
+    const workerHarness = withFakeWorker();
+    try {
+      const c = new PreviewController({ useWorker: true });
+      const worker = workerHarness.latest();
+      c.setInstances([inst("1")]);
+
+      const phys = c.refs.get("1")!;
+      const oldSamples = [{ t: 1, phi: 1 }, { t: 1.1, phi: 1.1 }] as any[];
+      phys.buffer = oldSamples;
+
+      const next = [inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 10 })];
+      c.setInstances(next, { transitionIds: ["1"] });
+      const reset = latestWorkerMessage(worker, "resetInstances");
+
+      expect(phys.buffer).toBe(oldSamples);
+      expect(phys.transition?.status).toBe("settling");
+      expect(phys.isSettling).toBe(true);
+
+      worker.emit({
+        type: "settleProgress",
+        generation: reset.generation,
+        id: "1",
+        snapshot: {
+          t: 2,
+          p: next[0].params,
+          metrics: {} as any,
+          health: {} as any,
+          observables: {} as any,
+        },
+        actualSeconds: 1,
+        settling: true,
+      });
+
+      expect(phys.buffer).toBe(oldSamples);
+      expect(phys.transition?.status).toBe("settling");
+
+      const newSamples = [{ t: 2, phi: 2 }, { t: 2.1, phi: 2.1 }] as any[];
+      worker.emit({
+        type: "settleProgress",
+        generation: reset.generation,
+        id: "1",
+        snapshot: {
+          t: 2.1,
+          p: next[0].params,
+          metrics: {} as any,
+          health: {} as any,
+          observables: {} as any,
+        },
+        actualSeconds: 2,
+        settling: false,
+        samples: newSamples,
+      });
+
+      expect(phys.buffer).toEqual(newSamples);
+      expect(phys.previousEpoch?.buffer).toEqual(oldSamples);
+      expect(phys.transition?.status).toBe("promoted");
+      expect(phys.isSettling).toBe(false);
+    } finally {
+      workerHarness.restore();
+    }
+  });
+
+  it("does not cancel an active transition on a duplicate worker setInstances call", () => {
+    const workerHarness = withFakeWorker();
+    try {
+      const c = new PreviewController({ useWorker: true });
+      const worker = workerHarness.latest();
+      const next = [inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 10 })];
+      c.setInstances([inst("1")]);
+
+      const beforeCount = worker.messages.length;
+      c.setInstances(next, { transitionIds: ["1"] });
+      const reset = latestWorkerMessage(worker, "resetInstances");
+      const afterTransitionCount = worker.messages.length;
+
+      c.setInstances(next);
+
+      expect(worker.messages.length).toBe(afterTransitionCount);
+      expect(worker.messages.length).toBeGreaterThan(beforeCount);
+
+      const phys = c.refs.get("1")!;
+      worker.emit({
+        type: "settleProgress",
+        generation: reset.generation,
+        id: "1",
+        snapshot: {
+          t: 2,
+          p: next[0].params,
+          metrics: {} as any,
+          health: {} as any,
+          observables: {} as any,
+        },
+        actualSeconds: 2,
+        settling: false,
+        samples: [{ t: 2, phi: 2 }] as any[],
+      });
+
+      expect(phys.transition?.status).toBe("promoted");
+      expect(phys.buffer).toHaveLength(1);
+    } finally {
+      workerHarness.restore();
+    }
+  });
+
+  it("expires previous transition epochs on later ticks", () => {
+    const c = new PreviewController({ useWorker: false });
+    c.setInstances([inst("1")]);
+    const phys = c.refs.get("1")!;
+    phys.buffer = [{ t: 1, phi: 1 }] as any[];
+
+    c.setInstances([inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 5 })], { transitionIds: ["1"] });
+
+    const transitioned = c.refs.get("1")!;
+    expect(transitioned.previousEpoch).toBeDefined();
+    transitioned.previousEpoch!.expiresAtMs = 0;
+    c.tick(1000);
+
+    expect(transitioned.previousEpoch).toBeUndefined();
+  });
+
   it("resets selected instances to clean settled cores and buffers", () => {
     const c = new PreviewController();
     c.setInstances([inst("1"), inst("2")]);

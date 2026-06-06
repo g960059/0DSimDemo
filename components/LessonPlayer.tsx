@@ -167,6 +167,7 @@ const LessonPlayerBody: React.FC<{ lesson: Lesson }> = ({ lesson }) => {
         inst.id === targetId ? applyExposedKnob(inst, key, value) : inst
       ));
       liveInstancesRef.current = next;
+      controller.setInstances(next, { transitionIds: [targetId] });
       return next;
     });
   };
