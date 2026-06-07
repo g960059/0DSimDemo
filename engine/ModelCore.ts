@@ -72,6 +72,7 @@ import {
   MODEL_STATE_LAYOUT_HASH,
   makeIndex,
 } from "@/engine/core/stateLayout";
+import { valveFlowIntegral } from "@/engine/flowIntegrals";
 
 export { defaultParams } from "@/engine/core/params";
 
@@ -785,6 +786,10 @@ export class ModelCore {
     const SV_R = integratePositive("QPA");
     const CO_L = (SV_L * this.p.HR) / 1000;
     const CO_R = (SV_R * this.p.HR) / 1000;
+    const mvFlow = valveFlowIntegral(data, "QMV");
+    const aovFlow = valveFlowIntegral(data, "QAo");
+    const tvFlow = valveFlowIntegral(data, "QTV");
+    const pvFlow = valveFlowIntegral(data, "QPV");
     const EDV_L = max("VLV");
     const ESV_L = min("VLV");
     const EDV_R = max("VRV");
@@ -832,6 +837,22 @@ export class ModelCore {
       SV_R,
       CO_L,
       CO_R,
+      MVForwardVolumeMl: mvFlow.forwardVolumeMl,
+      MVReverseVolumeMl: mvFlow.reverseVolumeMl,
+      MVNetVolumeMl: mvFlow.netVolumeMl,
+      MVRegurgitantFraction: mvFlow.regurgitantFraction,
+      AoVForwardVolumeMl: aovFlow.forwardVolumeMl,
+      AoVReverseVolumeMl: aovFlow.reverseVolumeMl,
+      AoVNetVolumeMl: aovFlow.netVolumeMl,
+      AoVRegurgitantFraction: aovFlow.regurgitantFraction,
+      TVForwardVolumeMl: tvFlow.forwardVolumeMl,
+      TVReverseVolumeMl: tvFlow.reverseVolumeMl,
+      TVNetVolumeMl: tvFlow.netVolumeMl,
+      TVRegurgitantFraction: tvFlow.regurgitantFraction,
+      PVForwardVolumeMl: pvFlow.forwardVolumeMl,
+      PVReverseVolumeMl: pvFlow.reverseVolumeMl,
+      PVNetVolumeMl: pvFlow.netVolumeMl,
+      PVRegurgitantFraction: pvFlow.regurgitantFraction,
       EF_LApprox: EDV_L > 1e-6 ? clamp((EDV_L - ESV_L) / EDV_L, 0, 1) : 0,
       EF_RApprox: EDV_R > 1e-6 ? clamp((EDV_R - ESV_R) / EDV_R, 0, 1) : 0,
       TBV: avg("TBV"),
