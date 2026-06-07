@@ -26,3 +26,6 @@ artifacts/
 
 # machine-local Claude Code permissions (do not track)
 .claude/settings.local.json
+.claude/
+.codex/
+.firebase/
