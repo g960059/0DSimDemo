@@ -202,6 +202,7 @@ export interface PhysicsRefState {
     settleProgress?: number;
     displaySignature?: string;
     steadySignature?: string;
+    waveformBreakT?: number;
     previousEpoch?: {
         buffer: SimSample[];
         capturedAtMs: number;

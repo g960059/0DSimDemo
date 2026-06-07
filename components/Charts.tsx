@@ -231,6 +231,31 @@ const lastCompleteBeatRange = (buf: SimSample[]): { start: number; end: number; 
     return { start, end, closingIndex: end < buf.length ? end : -1 };
 };
 
+const hasCompleteBeatForPvLoop = (buf: SimSample[]): boolean => {
+    if (buf.length < 2) return false;
+    const range = lastCompleteBeatRange(buf);
+    return range.closingIndex >= 0 && range.end - range.start >= 2;
+};
+
+export const pvLoopBufferForDisplay = (buf: SimSample[], waveformBreakT?: number): SimSample[] => {
+    if (waveformBreakT === undefined) return buf;
+    const newBuf = buf.filter((sample) => sample.t >= waveformBreakT);
+    if (hasCompleteBeatForPvLoop(newBuf)) return newBuf;
+    const oldBuf = buf.filter((sample) => sample.t < waveformBreakT);
+    return oldBuf.length >= 2 ? oldBuf : buf;
+};
+
+export const waveformShouldBreakBeforeSample = (
+    previous: SimSample | null,
+    current: SimSample,
+    waveformBreakT?: number,
+): boolean => (
+    waveformBreakT !== undefined
+    && previous !== null
+    && previous.t < waveformBreakT
+    && current.t >= waveformBreakT
+);
+
 const firstSampleIndexAtOrAfter = (buf: SimSample[], t: number): number => {
     let lo = 0;
     let hi = buf.length;
@@ -656,7 +681,7 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
           const physState = physicsRefs.current.get(inst.id);
           if (!physState || physState.buffer.length < 2) return;
           
-          const data = physState.buffer.slice(-500);
+          const data = pvLoopBufferForDisplay(physState.buffer, physState.waveformBreakT).slice(-500);
           for (let i = 0; i < data.length; i += 10) {
               const d = data[i];
               cfg.selectedSignals.forEach((chamber: string) => {
@@ -720,7 +745,8 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
           // PV loops must be drawn over the LAST COMPLETE beat (floor-aligned),
           // not a trailing 1.0-phase window that mixes a partial current beat —
           // otherwise the loop's crossing point shifts and stray segments appear.
-          const buf = physState.buffer;
+          const buf = pvLoopBufferForDisplay(physState.buffer, physState.waveformBreakT);
+          if (buf.length < 2) return;
           const beatRange = lastCompleteBeatRange(buf);
           const beatSampleCount = beatRange.end - beatRange.start + (beatRange.closingIndex >= 0 ? 1 : 0);
 
@@ -944,6 +970,7 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                     const startIndex = firstSampleIndexAtOrAfter(buf, minT);
                     const visibleCount = buf.length - startIndex;
                     const drawStep = Math.max(1, Math.floor(visibleCount / Math.max(1, width * 2)));
+                    const waveformBreakT = physState.waveformBreakT;
                     ctx.save();
                     ctx.globalAlpha = alpha;
                     ctx.beginPath();
@@ -952,6 +979,7 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                     ctx.setLineDash(dash);
 
                     let prevX = -1;
+                    let previousSample: SimSample | null = null;
                     let lastPx = -1;
                     let lastPy = -1;
 
@@ -963,8 +991,9 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                         const modT = d.t % timeSec;
                         const px = xScale(modT);
                         const py = yScale(val);
+                        const breakBeforeSample = waveformShouldBreakBeforeSample(previousSample, d, waveformBreakT);
 
-                        if (prevX === -1 || px < prevX) {
+                        if (prevX === -1 || px < prevX || breakBeforeSample) {
                             ctx.stroke();
                             ctx.beginPath();
                             ctx.strokeStyle = color;
@@ -975,6 +1004,7 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                             ctx.lineTo(px, py);
                         }
                         prevX = px;
+                        previousSample = d;
                         lastPx = px;
                         lastPy = py;
                     }

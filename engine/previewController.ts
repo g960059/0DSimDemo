@@ -13,6 +13,7 @@ import type {
   PreviewWorkerRequest,
   PreviewWorkerResponse,
 } from "@/engine/previewWorkerProtocol";
+import type { SerializedModelState } from "@/engine/stateContract";
 import {
   isCurrentTransitionSteadyResult,
   makeTransitionTargetSignature,
@@ -92,6 +93,11 @@ const transitionTargetSignature = (inst: SimInstance): string => makeTransitionT
   params: inst.params,
   targetVolume: inst.targetVolume,
 });
+
+const phaseFraction = (phi: number): number => {
+  const frac = phi - Math.floor(phi);
+  return frac < 0 ? frac + 1 : frac;
+};
 
 const emptyHealth = (): SimulationHealth => ({
   status: "ok",
@@ -274,6 +280,13 @@ class RemotePreviewCore implements PreviewCoreFacade {
     return this.passiveProbe;
   }
 }
+
+type TransitionPromotionPayload = {
+  samples: SimSample[];
+  snapshot: PreviewCoreSnapshot;
+  state: SerializedModelState;
+  waveformBreakT?: number;
+};
 
 export class PreviewController {
   /** Live per-instance cores + buffers. Read directly by chart panels. */
@@ -544,18 +557,89 @@ export class PreviewController {
     if (!phys || !inst) return false;
     if (transitionTargetSignature(inst) !== result.toSignature) return false;
     this.liveInstancesById.set(inst.id, inst);
+    const promotion = this.phaseAlignedTransitionPromotion(phys, inst, result)
+      ?? {
+        samples: result.samples,
+        snapshot: result.snapshot,
+        state: result.steady.state,
+      };
     if (!(phys.core instanceof RemotePreviewCore)) {
       const core = new ModelCore(inst.params);
-      core.unpackState(result.steady.state);
+      core.unpackState(promotion.state);
       phys.core = core;
     }
-    this.promoteTransition(phys, previewInstanceSignature(inst), result.samples, result.snapshot, result.toSignature);
+    this.promoteTransition(
+      phys,
+      previewInstanceSignature(inst),
+      promotion.samples,
+      promotion.snapshot,
+      result.toSignature,
+      { waveformBreakT: promotion.waveformBreakT },
+    );
     if (this.worker) {
       const generation = this.bumpWorkerGeneration();
       this.workerInstancesSignature = previewInstanceListSignature(this.liveInstancesFor(this.instances));
-      this.postWorker({ type: "promoteTransitionSteady", generation, instance: inst, state: result.steady.state });
+      this.postWorker({ type: "promoteTransitionSteady", generation, instance: inst, state: promotion.state });
     }
     return true;
+  }
+
+  private phaseAlignedTransitionPromotion(
+    phys: PhysicsRefState,
+    inst: SimInstance,
+    result: TransitionSteadyJobResult & { outcome: "completed" },
+  ): TransitionPromotionPayload | null {
+    const anchor = phys.buffer.at(-1);
+    if (!anchor || !Number.isFinite(anchor.t) || !Number.isFinite(anchor.phi)) return null;
+    try {
+      const core = new ModelCore(inst.params);
+      core.unpackState(result.steady.state);
+      const aligned = this.alignCoreToDisplayPhase(core, phaseFraction(anchor.phi), anchor.t);
+      if (!aligned) return null;
+      return {
+        samples: [aligned.sample],
+        snapshot: {
+          t: aligned.sample.t,
+          p: core.p,
+          metrics: result.snapshot.metrics,
+          health: result.snapshot.health,
+          observables: core.debugObservables(),
+          settleStatus: result.snapshot.settleStatus,
+        },
+        state: aligned.state,
+        waveformBreakT: aligned.sample.t,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private alignCoreToDisplayPhase(
+    core: ModelCore,
+    targetPhase: number,
+    anchorT: number,
+  ): { sample: SimSample; state: SerializedModelState } | null {
+    if (!Number.isFinite(targetPhase) || !Number.isFinite(anchorT)) return null;
+    const currentPhase = phaseFraction(core.packState().phi);
+    let phaseDelta = targetPhase - currentPhase;
+    if (Math.abs(phaseDelta) < 1e-9) phaseDelta = 0;
+    else if (phaseDelta < 0) phaseDelta += 1;
+    const beatSeconds = 60 / Math.max(core.p.HR, 1);
+    let remaining = phaseDelta * beatSeconds;
+    const maxSeconds = beatSeconds * 1.1;
+    if (!Number.isFinite(remaining) || remaining < 0 || remaining > maxSeconds) return null;
+    while (remaining > 1e-9) {
+      const step = Math.min(this.dt, remaining);
+      core.step(step);
+      remaining -= step;
+    }
+    const displayT = anchorT + Math.max(1 / Math.max(this.sampleHz, 1), this.dt);
+    if (!Number.isFinite(displayT)) return null;
+    core.t = displayT;
+    const state = core.packState();
+    const sample = core.sample();
+    if (!Number.isFinite(sample.t) || !Number.isFinite(sample.phi)) return null;
+    return { sample, state };
   }
 
   private disposeTransitionSteadyWorker(): void {
@@ -760,6 +844,7 @@ export class PreviewController {
       lastRenderX: 0,
       displaySignature: previewInstanceSignature(inst),
       steadySignature: transitionTargetSignature(inst),
+      waveformBreakT: undefined,
     };
   }
 
@@ -787,6 +872,7 @@ export class PreviewController {
           current.settleProgress = 0;
           current.steadySignature = transitionTargetSignature(inst);
           current.previousEpoch = undefined;
+          current.waveformBreakT = undefined;
           current.transition = undefined;
           delete this.prevStatus[inst.id];
           resetIds.push(inst.id);
@@ -812,6 +898,7 @@ export class PreviewController {
         settleProgress: 0,
         displaySignature: signature,
         steadySignature: transitionTargetSignature(inst),
+        waveformBreakT: undefined,
       });
       added.push(inst.id);
     }
@@ -848,6 +935,7 @@ export class PreviewController {
     phys.isSettling = true;
     phys.settleProgress = 0;
     phys.previousEpoch = undefined;
+    phys.waveformBreakT = undefined;
     phys.transition = {
       status: "settling",
       toSignature,
@@ -861,6 +949,7 @@ export class PreviewController {
     samples: SimSample[],
     snapshot?: PreviewCoreSnapshot,
     steadySignature?: string,
+    options: { waveformBreakT?: number } = {},
   ): void {
     const now = this.nowMs();
     const previous = phys.buffer.slice();
@@ -874,7 +963,10 @@ export class PreviewController {
       phys.previousEpoch = undefined;
     }
     if (snapshot && phys.core instanceof RemotePreviewCore) phys.core.update(snapshot);
-    phys.buffer = samples.slice();
+    phys.buffer = options.waveformBreakT !== undefined
+      ? previous.concat(samples)
+      : samples.slice();
+    phys.waveformBreakT = options.waveformBreakT;
     phys.lastRenderX = 0;
     phys.isSettling = false;
     phys.settleProgress = 1;
@@ -904,6 +996,7 @@ export class PreviewController {
       settleProgress: 1,
       displaySignature: signature,
       steadySignature: transitionTargetSignature(inst),
+      waveformBreakT: undefined,
       previousEpoch: previous.length > 0
         ? { buffer: previous, capturedAtMs: now, expiresAtMs: now + PREVIEW_TRANSITION_GHOST_MS }
         : undefined,
@@ -948,6 +1041,7 @@ export class PreviewController {
           current.isSettling = true;
           current.settleProgress = 0;
           current.previousEpoch = undefined;
+          current.waveformBreakT = undefined;
           current.transition = undefined;
         }
         delete this.prevStatus[id];
@@ -977,6 +1071,7 @@ export class PreviewController {
         lastRenderX: 0,
         displaySignature: previewInstanceSignature(inst),
         steadySignature: transitionTargetSignature(inst),
+        waveformBreakT: undefined,
       });
       delete this.prevStatus[inst.id];
     }
@@ -1150,6 +1245,9 @@ export class PreviewController {
       dropCount++;
     }
     if (dropCount > 0) phys.buffer.splice(0, dropCount);
+    if (phys.waveformBreakT !== undefined && (phys.buffer.length === 0 || phys.buffer[0].t >= phys.waveformBreakT)) {
+      phys.waveformBreakT = undefined;
+    }
     return dropCount;
   }
 
