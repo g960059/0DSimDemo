@@ -156,36 +156,45 @@ const CROSS_CHECK_CATEGORIES: readonly SteadyCrossCheckCategory[] = [
   "state",
 ];
 
-const STRICT_SELF_CHECK_TOLERANCES: SteadyCrossCheckTolerances = {
+function freezeTolerances(tolerances: SteadyCrossCheckTolerances): SteadyCrossCheckTolerances {
+  return Object.freeze({
+    metrics: Object.freeze({ ...tolerances.metrics }),
+    residuals: Object.freeze({ ...tolerances.residuals }),
+    comparable: Object.freeze({ ...tolerances.comparable }),
+    state: Object.freeze({ ...tolerances.state }),
+  });
+}
+
+const STRICT_SELF_CHECK_TOLERANCES = freezeTolerances({
   metrics: { abs: 1e-9, rel: 1e-9 },
   residuals: { abs: 1e-9, rel: 1e-9 },
   comparable: { abs: 1e-9, rel: 1e-9 },
   state: { abs: 1e-12, rel: 1e-12 },
-};
+});
 
 // Diagnostic/reporting presets only; these are not clinical validation thresholds.
-export const CROSS_CHECK_TOLERANCE_PRESETS: Record<SteadyCrossCheckPurpose, SteadyCrossCheckTolerances> = {
+export const CROSS_CHECK_TOLERANCE_PRESETS: Record<SteadyCrossCheckPurpose, SteadyCrossCheckTolerances> = Object.freeze({
   determinism: STRICT_SELF_CHECK_TOLERANCES,
   "same-solver-regression": STRICT_SELF_CHECK_TOLERANCES,
-  "fixed-step-convergence": {
+  "fixed-step-convergence": freezeTolerances({
     metrics: { abs: 0.05, rel: 0.005 },
     residuals: { abs: 0.05, rel: 0.02 },
     comparable: { abs: 0.05, rel: 0.005 },
     state: { abs: 0.001, rel: 0.001 },
-  },
-  "solver-family-agreement": {
+  }),
+  "solver-family-agreement": freezeTolerances({
     metrics: { abs: 0.25, rel: 0.02 },
     residuals: { abs: 0.1, rel: 0.05 },
     comparable: { abs: 0.25, rel: 0.02 },
     state: { abs: 0.02, rel: 0.01 },
-  },
-  "reference-solver-check": {
+  }),
+  "reference-solver-check": freezeTolerances({
     metrics: { abs: 0.5, rel: 0.03 },
     residuals: { abs: 0.2, rel: 0.05 },
     comparable: { abs: 0.5, rel: 0.03 },
     state: { abs: 0.05, rel: 0.02 },
-  },
-};
+  }),
+});
 
 export function runSteadyCrossCheck(
   cases: SteadyCrossCheckCase[],

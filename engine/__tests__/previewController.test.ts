@@ -138,10 +138,203 @@ const latestWorkerMessage = (worker: FakePreviewWorker, type: string) => {
 };
 
 describe("PreviewController (headless driver)", () => {
+  it("debounces transition steady worker posts and status until the flush", () => {
+    const workerHarness = withFakeWorker();
+    vi.useFakeTimers();
+    try {
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 300 });
+      const target = inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 5 });
+      c.setInstances([target]);
+      const previewWorker = workerHarness.byScript("previewWorker");
+      const beforeMessages = previewWorker.messages.length;
+      const pending = c.requestNextSteady(target);
+
+      expect(c.getPendingTransitionSteadyJob("1")).toBe(pending);
+      expect(c.getSteadyUpdateStatuses()).toEqual({});
+      expect(previewWorker.messages.length).toBe(beforeMessages);
+      expect(() => workerHarness.byScript("transitionSteadyWorker")).toThrow(/was not constructed/);
+
+      vi.advanceTimersByTime(299);
+      expect(() => workerHarness.byScript("transitionSteadyWorker")).toThrow(/was not constructed/);
+      expect(c.getSteadyUpdateStatuses()).toEqual({});
+
+      vi.advanceTimersByTime(1);
+      const transitionWorker = workerHarness.byScript("transitionSteadyWorker");
+      expect(transitionWorker.messages).toEqual([pending.request]);
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "computing" });
+      expect(pending.postedAtMs).toBeTypeOf("number");
+      expect(pending.deadlineAtMs).toBe((pending.postedAtMs ?? 0) + 20_000);
+    } finally {
+      vi.useRealTimers();
+      workerHarness.restore();
+    }
+  });
+
+  it("debounces same-instance steady requests with latest-wins semantics", () => {
+    const workerHarness = withFakeWorker();
+    vi.useFakeTimers();
+    try {
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 300 });
+      c.setInstances([inst("1")]);
+      const first = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
+      vi.advanceTimersByTime(150);
+      const second = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 }));
+
+      expect(c.getPendingTransitionSteadyJob("1")).toBe(second);
+      expect(second.request.jobId).not.toBe(first.request.jobId);
+      vi.advanceTimersByTime(299);
+      expect(() => workerHarness.byScript("transitionSteadyWorker")).toThrow(/was not constructed/);
+
+      vi.advanceTimersByTime(1);
+      const transitionWorker = workerHarness.byScript("transitionSteadyWorker");
+      expect(transitionWorker.messages).toEqual([second.request]);
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "computing" });
+    } finally {
+      vi.useRealTimers();
+      workerHarness.restore();
+    }
+  });
+
+  it("coalesces multiple instance steady requests into one debounce flush", () => {
+    const workerHarness = withFakeWorker();
+    vi.useFakeTimers();
+    try {
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 300 });
+      c.setInstances([inst("1"), inst("2")]);
+      const first = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
+      vi.advanceTimersByTime(100);
+      const second = c.requestNextSteady(inst("2", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 }));
+      vi.advanceTimersByTime(299);
+      expect(() => workerHarness.byScript("transitionSteadyWorker")).toThrow(/was not constructed/);
+
+      vi.advanceTimersByTime(1);
+      const transitionWorker = workerHarness.byScript("transitionSteadyWorker");
+      expect(transitionWorker.messages).toEqual([first.request, second.request]);
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "computing", "2": "computing" });
+    } finally {
+      vi.useRealTimers();
+      workerHarness.restore();
+    }
+  });
+
+  it("cancels debounce timers when pending steady jobs are cleared", () => {
+    const workerHarness = withFakeWorker();
+    vi.useFakeTimers();
+    try {
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 300 });
+      c.setInstances([inst("1")]);
+      c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
+
+      c.clearPendingTransitionSteadyJob("1");
+      vi.advanceTimersByTime(300);
+
+      expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
+      expect(c.getSteadyUpdateStatuses()).toEqual({});
+      expect(() => workerHarness.byScript("transitionSteadyWorker")).toThrow(/was not constructed/);
+    } finally {
+      vi.useRealTimers();
+      workerHarness.restore();
+    }
+  });
+
+  it("cancels debounced steady posts on reset, removal, fallback, and stop", () => {
+    const cases: Array<{
+      name: string;
+      act: (controller: PreviewController, workerHarness: ReturnType<typeof withFakeWorker>) => void;
+    }> = [
+      { name: "reset", act: (controller) => controller.resetInstances(["1"]) },
+      { name: "remove", act: (controller) => controller.setInstances([]) },
+      {
+        name: "fallback",
+        act: (_controller, workerHarness) => workerHarness.byScript("previewWorker").emit({ type: "error", message: "boom" }),
+      },
+      { name: "stop", act: (controller) => controller.stop() },
+    ];
+
+    vi.useFakeTimers();
+    try {
+      for (const item of cases) {
+        const workerHarness = withFakeWorker();
+        try {
+          const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 300 });
+          c.setInstances([inst("1")]);
+          c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
+
+          item.act(c, workerHarness);
+          vi.advanceTimersByTime(300);
+
+          expect(c.getPendingTransitionSteadyJob("1"), item.name).toBeUndefined();
+          expect(c.getSteadyUpdateStatuses(), item.name).toEqual({});
+          expect(() => workerHarness.byScript("transitionSteadyWorker"), item.name).toThrow(/was not constructed/);
+        } finally {
+          workerHarness.restore();
+        }
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not time out unposted debounced steady jobs", () => {
+    const workerHarness = withFakeWorker();
+    const nowSpy = vi.spyOn(globalThis.performance, "now");
+    try {
+      nowSpy.mockReturnValue(1000);
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 300 });
+      c.setInstances([inst("1")]);
+      const pending = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
+
+      nowSpy.mockReturnValue(30_000);
+      c.tick(1000);
+
+      expect(c.getPendingTransitionSteadyJob("1")).toBe(pending);
+      expect(c.getTransitionSteadyResult("1")).toBeUndefined();
+      expect(c.getSteadyUpdateStatuses()).toEqual({});
+      expect(() => workerHarness.byScript("transitionSteadyWorker")).toThrow(/was not constructed/);
+    } finally {
+      nowSpy.mockRestore();
+      workerHarness.restore();
+    }
+  });
+
+  it("does not fail an unposted debounced latest job when an older transition worker errors", () => {
+    const workerHarness = withFakeWorker();
+    vi.useFakeTimers();
+    try {
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 300 });
+      c.setInstances([inst("1")]);
+      const first = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
+      vi.advanceTimersByTime(300);
+      const firstWorker = workerHarness.byScript("transitionSteadyWorker");
+      expect(firstWorker.messages).toEqual([first.request]);
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "computing" });
+
+      const second = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 }));
+      expect(c.getPendingTransitionSteadyJob("1")).toBe(second);
+      expect(c.getSteadyUpdateStatuses()).toEqual({});
+
+      firstWorker.onerror?.();
+
+      expect(firstWorker.terminated).toBe(true);
+      expect(c.getPendingTransitionSteadyJob("1")).toBe(second);
+      expect(c.getTransitionSteadyResult("1")).toBeUndefined();
+      expect(c.getSteadyUpdateStatuses()).toEqual({});
+
+      vi.advanceTimersByTime(300);
+      const secondWorker = workerHarness.byScript("transitionSteadyWorker");
+      expect(secondWorker).not.toBe(firstWorker);
+      expect(secondWorker.messages).toEqual([second.request]);
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "computing" });
+    } finally {
+      vi.useRealTimers();
+      workerHarness.restore();
+    }
+  });
+
   it("creates preview transition steady pending jobs without posting to the preview worker", () => {
     const workerHarness = withFakeWorker();
     try {
-      const c = new PreviewController({ useWorker: true, dt: 0.002, sampleHz: 240 });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0, dt: 0.002, sampleHz: 240 });
       const previewWorker = workerHarness.byScript("previewWorker");
       const target = inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 5 });
       c.setInstances([target]);
@@ -182,7 +375,7 @@ describe("PreviewController (headless driver)", () => {
   it("keeps only the latest transition steady request per instance", () => {
     const workerHarness = withFakeWorker();
     try {
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       c.setInstances([inst("1")]);
       const first = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
       const firstWorker = workerHarness.byScript("transitionSteadyWorker");
@@ -208,7 +401,7 @@ describe("PreviewController (headless driver)", () => {
   it("restarts the transition steady worker and reposts other pending jobs when superseding", () => {
     const workerHarness = withFakeWorker();
     try {
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       c.setInstances([inst("1"), inst("2")]);
       const first = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
       const firstWorker = workerHarness.byScript("transitionSteadyWorker");
@@ -228,7 +421,7 @@ describe("PreviewController (headless driver)", () => {
   it("uses the current instance as the transition steady source signature", () => {
     const workerHarness = withFakeWorker();
     try {
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       const current = inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 });
       const next = {
         ...inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 }),
@@ -257,7 +450,7 @@ describe("PreviewController (headless driver)", () => {
   it("keeps the preview worker on the previous live instance while a no-freeze steady request is pending", () => {
     const workerHarness = withFakeWorker();
     try {
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       const current = inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 });
       const next = inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 });
       c.setInstances([current]);
@@ -287,7 +480,7 @@ describe("PreviewController (headless driver)", () => {
   it("clears pending transition steady jobs when a plain physical edit changes the target", () => {
     const workerHarness = withFakeWorker();
     try {
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       const current = inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 });
       const next = inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 });
       c.setInstances([current]);
@@ -323,7 +516,7 @@ describe("PreviewController (headless driver)", () => {
   it("keeps transition steady pending jobs independent by instance", () => {
     const workerHarness = withFakeWorker();
     try {
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       c.setInstances([inst("1"), inst("2")]);
       const first = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
       const second = c.requestNextSteady(inst("2", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 }));
@@ -341,7 +534,7 @@ describe("PreviewController (headless driver)", () => {
   it("clears transition steady pending jobs when the instance is reset or removed", () => {
     const workerHarness = withFakeWorker();
     try {
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       const current = inst("1");
       c.setInstances([current]);
       const first = c.requestNextSteady({ ...current, targetVolume: current.targetVolume + 100 });
@@ -367,7 +560,7 @@ describe("PreviewController (headless driver)", () => {
   it("clears transition steady pending jobs when falling back to sync cores", () => {
     const workerHarness = withFakeWorker();
     try {
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       const worker = workerHarness.byScript("previewWorker");
       const current = inst("1");
       c.setInstances([current]);
@@ -387,7 +580,7 @@ describe("PreviewController (headless driver)", () => {
   it("accepts only the latest matching transition steady worker result", () => {
     const workerHarness = withFakeWorker();
     try {
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       c.setInstances([inst("1")]);
       const phys = c.refs.get("1")!;
       const oldSamples = [{ t: 0.5, phi: 0.5 }] as any[];
@@ -435,7 +628,7 @@ describe("PreviewController (headless driver)", () => {
     const nowSpy = vi.spyOn(globalThis.performance, "now");
     try {
       nowSpy.mockReturnValue(1000);
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       const changes: Array<Record<string, string>> = [];
       c.onSteadyUpdateStatusChange = (statuses) => changes.push(statuses);
       c.setInstances([inst("1")]);
@@ -474,7 +667,7 @@ describe("PreviewController (headless driver)", () => {
     const nowSpy = vi.spyOn(globalThis.performance, "now");
     try {
       nowSpy.mockReturnValue(1000);
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       c.setInstances([inst("1")]);
       const pending = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
       const transitionWorker = workerHarness.byScript("transitionSteadyWorker");
@@ -504,7 +697,7 @@ describe("PreviewController (headless driver)", () => {
     const workerHarness = withFakeWorker();
     const nowSpy = vi.spyOn(globalThis.performance, "now");
     try {
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       c.setInstances([inst("1"), inst("2")]);
       nowSpy.mockReturnValue(1000);
       const first = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
@@ -556,7 +749,7 @@ describe("PreviewController (headless driver)", () => {
   it("ignores mismatched transition steady worker results without clearing pending", () => {
     const workerHarness = withFakeWorker();
     try {
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       c.setInstances([inst("1")]);
       const pending = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
       const transitionWorker = workerHarness.byScript("transitionSteadyWorker");
@@ -577,7 +770,7 @@ describe("PreviewController (headless driver)", () => {
   it("clears current transition steady errors and ignores stale errors", () => {
     const workerHarness = withFakeWorker();
     try {
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       c.setInstances([inst("1")]);
       const first = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
       const second = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 }));
@@ -601,7 +794,7 @@ describe("PreviewController (headless driver)", () => {
   it("does not leave pending jobs when the transition steady worker cannot be created", () => {
     const workerHarness = withFakeWorker({ throwOnScript: "transitionSteadyWorker" });
     try {
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       c.setInstances([inst("1")]);
 
       c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
@@ -620,7 +813,7 @@ describe("PreviewController (headless driver)", () => {
   it("fails all pending transition steady jobs if worker recreation becomes unavailable", () => {
     const workerHarness = withFakeWorker();
     try {
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       c.setInstances([inst("1"), inst("2")]);
       const first = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
       const firstWorker = workerHarness.byScript("transitionSteadyWorker");
@@ -649,7 +842,7 @@ describe("PreviewController (headless driver)", () => {
   it("stores failed results when the transition steady worker reports an error", () => {
     const workerHarness = withFakeWorker();
     try {
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       c.setInstances([inst("1"), inst("2")]);
       const first = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
       const second = c.requestNextSteady(inst("2", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 }));
@@ -679,7 +872,7 @@ describe("PreviewController (headless driver)", () => {
   it("stores a current completed result without samples or snapshot as an error without promotion", () => {
     const workerHarness = withFakeWorker();
     try {
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       c.setInstances([inst("1")]);
       const phys = c.refs.get("1")!;
       const oldSamples = [{ t: 0.5, phi: 0.5 }] as any[];
@@ -705,7 +898,7 @@ describe("PreviewController (headless driver)", () => {
   it("resolves a current stale transition steady result as failed", () => {
     const workerHarness = withFakeWorker();
     try {
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       c.setInstances([inst("1")]);
       const pending = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
       const transitionWorker = workerHarness.byScript("transitionSteadyWorker");
@@ -724,7 +917,7 @@ describe("PreviewController (headless driver)", () => {
   it("terminates transition steady worker and clears jobs on stop", () => {
     const workerHarness = withFakeWorker();
     try {
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       c.setInstances([inst("1")]);
       c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
       const transitionWorker = workerHarness.byScript("transitionSteadyWorker");
@@ -750,7 +943,7 @@ describe("PreviewController (headless driver)", () => {
   it("uses transition steady identity helpers to reject stale pending results", () => {
     const workerHarness = withFakeWorker();
     try {
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       c.setInstances([inst("1")]);
       const pending = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
       const request = pending.request;
@@ -925,7 +1118,7 @@ describe("PreviewController (headless driver)", () => {
   it("falls back to sync cores after a typed worker error response", () => {
     const workerHarness = withFakeWorker();
     try {
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       const worker = workerHarness.latest();
       c.setInstances([inst("1")]);
 
@@ -951,7 +1144,7 @@ describe("PreviewController (headless driver)", () => {
   it("asks the worker to reset and discard stale frames when heartModel changes", () => {
     const workerHarness = withFakeWorker();
     try {
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       const worker = workerHarness.latest();
       c.setInstances([inst("1")]);
 
@@ -991,7 +1184,7 @@ describe("PreviewController (headless driver)", () => {
   it("drops stale worker frames and settle progress after a control generation bump", () => {
     const workerHarness = withFakeWorker();
     try {
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       const worker = workerHarness.latest();
       c.setInstances([inst("1")]);
 
@@ -1046,7 +1239,7 @@ describe("PreviewController (headless driver)", () => {
   it("keeps the old display buffer while a worker transition settles, then promotes final samples", () => {
     const workerHarness = withFakeWorker();
     try {
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       const worker = workerHarness.latest();
       c.setInstances([inst("1")]);
 
@@ -1109,7 +1302,7 @@ describe("PreviewController (headless driver)", () => {
   it("does not cancel an active transition on a duplicate worker setInstances call", () => {
     const workerHarness = withFakeWorker();
     try {
-      const c = new PreviewController({ useWorker: true });
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       const worker = workerHarness.latest();
       const next = [inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 10 })];
       c.setInstances([inst("1")]);

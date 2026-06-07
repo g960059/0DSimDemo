@@ -40,6 +40,7 @@ export type PreviewControllerOptions = {
   sampleHz?: number;
   bufferRetentionSec?: number;
   healthThrottleMs?: number;
+  transitionSteadyDebounceMs?: number;
   useWorker?: boolean;
 };
 
@@ -75,6 +76,7 @@ export type SteadyUpdateStatusMap = Record<string, SteadyUpdateStatus>;
 
 const PREVIEW_TRANSITION_GHOST_MS = 2000;
 const STEADY_UPDATE_STATUS_MS = 1200;
+const TRANSITION_STEADY_DEBOUNCE_MS = 300;
 const TRANSITION_STEADY_WATCHDOG_MS = 20_000;
 
 const previewInstanceSignature = (inst: SimInstance): string => JSON.stringify({
@@ -300,6 +302,7 @@ export class PreviewController {
   private transitionSteadyJobSeq = 0;
   private transitionSteadyPendingJobs = new Map<string, TransitionSteadyPendingJob>();
   private transitionSteadyResults = new Map<string, TransitionSteadyJobResult>();
+  private transitionSteadyDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private liveInstancesById = new Map<string, SimInstance>();
   private steadyUpdateStatuses = new Map<string, { status: SteadyUpdateStatus; expiresAtMs?: number }>();
 
@@ -307,6 +310,7 @@ export class PreviewController {
   private readonly sampleHz: number;
   private readonly bufferRetentionSec: number;
   private readonly healthThrottleMs: number;
+  private readonly transitionSteadyDebounceMs: number;
   private readonly preferWorker: boolean;
 
   // Host callbacks (all optional). Fire from the loop, not from React.
@@ -320,6 +324,7 @@ export class PreviewController {
     this.sampleHz = opts.sampleHz ?? 120;
     this.bufferRetentionSec = opts.bufferRetentionSec ?? 20;
     this.healthThrottleMs = opts.healthThrottleMs ?? 500;
+    this.transitionSteadyDebounceMs = opts.transitionSteadyDebounceMs ?? TRANSITION_STEADY_DEBOUNCE_MS;
     this.preferWorker = opts.useWorker ?? true;
     this.initWorker();
   }
@@ -378,12 +383,11 @@ export class PreviewController {
         },
       },
       startedAtMs,
-      deadlineAtMs: startedAtMs + TRANSITION_STEADY_WATCHDOG_MS,
     };
     this.transitionSteadyPendingJobs.set(inst.id, pending);
     this.transitionSteadyResults.delete(inst.id);
-    this.setSteadyUpdateStatus(inst.id, "computing");
-    this.restartTransitionSteadyWorkerForPending("Transition steady worker is unavailable");
+    this.clearSteadyUpdateStatus(inst.id);
+    this.scheduleTransitionSteadyFlush();
     return pending;
   }
 
@@ -413,7 +417,7 @@ export class PreviewController {
       };
       this.transitionSteadyWorker.onerror = () => {
         this.disposeTransitionSteadyWorker();
-        this.failTransitionSteadyJobs("Transition steady worker failed");
+        this.failPostedTransitionSteadyJobs("Transition steady worker failed");
       };
       return this.transitionSteadyWorker;
     } catch {
@@ -425,6 +429,7 @@ export class PreviewController {
   private restartTransitionSteadyWorkerForPending(unavailableMessage: string): boolean {
     const now = this.nowMs();
     const pendingJobs = [...this.transitionSteadyPendingJobs.values()];
+    this.clearTransitionSteadyDebounceTimer();
     this.disposeTransitionSteadyWorker();
     if (pendingJobs.length === 0) return true;
     const worker = this.initTransitionSteadyWorker();
@@ -435,15 +440,55 @@ export class PreviewController {
       return false;
     }
     for (const pending of pendingJobs) {
+      pending.postedAtMs = now;
       pending.deadlineAtMs = now + TRANSITION_STEADY_WATCHDOG_MS;
+      this.setSteadyUpdateStatus(pending.request.instanceId, "computing");
       worker.postMessage(pending.request);
     }
     return true;
   }
 
+  private scheduleTransitionSteadyFlush(): void {
+    this.clearTransitionSteadyDebounceTimer();
+    if (this.transitionSteadyPendingJobs.size === 0) return;
+    if (this.transitionSteadyDebounceMs <= 0 || typeof setTimeout === "undefined") {
+      this.flushTransitionSteadyPendingJobs();
+      return;
+    }
+    this.transitionSteadyDebounceTimer = setTimeout(() => {
+      this.transitionSteadyDebounceTimer = null;
+      this.flushTransitionSteadyPendingJobs();
+    }, this.transitionSteadyDebounceMs);
+  }
+
+  private flushTransitionSteadyPendingJobs(): boolean {
+    this.clearTransitionSteadyDebounceTimer();
+    return this.restartTransitionSteadyWorkerForPending("Transition steady worker is unavailable");
+  }
+
+  private clearTransitionSteadyDebounceTimer(): void {
+    if (this.transitionSteadyDebounceTimer === null) return;
+    clearTimeout(this.transitionSteadyDebounceTimer);
+    this.transitionSteadyDebounceTimer = null;
+  }
+
+  private clearTransitionSteadyDebounceTimerIfIdle(): void {
+    if (this.transitionSteadyPendingJobs.size === 0) {
+      this.clearTransitionSteadyDebounceTimer();
+    }
+  }
+
   private failTransitionSteadyJobs(message: string): void {
     for (const pending of [...this.transitionSteadyPendingJobs.values()]) {
       this.failTransitionSteadyJob(pending, message);
+    }
+  }
+
+  private failPostedTransitionSteadyJobs(message: string): void {
+    for (const pending of [...this.transitionSteadyPendingJobs.values()]) {
+      if (pending.postedAtMs !== undefined) {
+        this.failTransitionSteadyJob(pending, message);
+      }
     }
   }
 
@@ -522,9 +567,11 @@ export class PreviewController {
     this.transitionSteadyPendingJobs.delete(id);
     this.transitionSteadyResults.delete(id);
     this.clearSteadyUpdateStatus(id);
+    this.clearTransitionSteadyDebounceTimerIfIdle();
   }
 
   private clearTransitionSteadyJobs(): void {
+    this.clearTransitionSteadyDebounceTimer();
     this.transitionSteadyPendingJobs.clear();
     this.transitionSteadyResults.clear();
     this.clearSteadyUpdateStatuses();
@@ -595,7 +642,7 @@ export class PreviewController {
 
   private expireTransitionSteadyPendingJobs(now = this.nowMs()): void {
     const expired = [...this.transitionSteadyPendingJobs.values()]
-      .filter((pending) => pending.deadlineAtMs <= now);
+      .filter((pending) => pending.deadlineAtMs !== undefined && pending.deadlineAtMs <= now);
     if (expired.length === 0) return;
     for (const pending of expired) {
       this.failTransitionSteadyJob(pending, "Transition steady worker timed out");

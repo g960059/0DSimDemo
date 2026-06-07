@@ -49,7 +49,12 @@ describe("steady cross-check harness", () => {
       profile: "fitFast" as const,
     }];
 
+    expect(Object.isFrozen(CROSS_CHECK_TOLERANCE_PRESETS)).toBe(true);
     for (const purpose of Object.keys(CROSS_CHECK_TOLERANCE_PRESETS) as SteadyCrossCheckPurpose[]) {
+      expect(Object.isFrozen(CROSS_CHECK_TOLERANCE_PRESETS[purpose])).toBe(true);
+      for (const category of CATEGORIES) {
+        expect(Object.isFrozen(CROSS_CHECK_TOLERANCE_PRESETS[purpose][category])).toBe(true);
+      }
       const report = runSteadyCrossCheck(cases, { purpose });
       expect(report.purpose).toBe(purpose);
       expect(report.tolerancePreset.purpose).toBe(purpose);
@@ -57,10 +62,12 @@ describe("steady cross-check harness", () => {
       expect(report.tolerances).toEqual(CROSS_CHECK_TOLERANCE_PRESETS[purpose]);
     }
 
+    const originalPresetAbs = CROSS_CHECK_TOLERANCE_PRESETS["solver-family-agreement"].metrics.abs;
     const report = runSteadyCrossCheck(cases, {
       purpose: "solver-family-agreement",
       tolerances: { metrics: { abs: 123 } },
     });
+    expect(CROSS_CHECK_TOLERANCE_PRESETS["solver-family-agreement"].metrics.abs).toBe(originalPresetAbs);
     expect(report.tolerancePreset.tolerances.metrics.abs)
       .toBe(CROSS_CHECK_TOLERANCE_PRESETS["solver-family-agreement"].metrics.abs);
     expect(report.tolerances.metrics.abs).toBe(123);
