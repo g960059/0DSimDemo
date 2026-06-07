@@ -11,6 +11,7 @@
 
 import type { SimInstance, PanelDef, PanelRole, WorkbenchRegionId, WorkbenchWorkspace, ControllerItem } from "@/types";
 import type { NoteContent } from "@/noteTypes";
+import type { ExpectedFinding, StructuredModelLimitation } from "@/caseValidation";
 import type { CoreRuntimeParams, ParameterPatch } from "@/engine/protocol";
 import {
   type BaselineDef,
@@ -40,6 +41,9 @@ export interface CaseSpec {
   title?: string;
   description?: string;
   modelLimitations: string[];
+  expectedFindings?: ExpectedFinding[];
+  structuredLimitations?: StructuredModelLimitation[];
+  validationProfileId?: string;
 }
 
 export type CaseKind = "case" | "lesson" | "promptGenerated";
