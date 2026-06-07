@@ -12,6 +12,7 @@
 
 import type { CaseDocument, CaseInstance } from "@/caseDoc";
 import { CASE_SCHEMA_VERSION, ENGINE_VERSION, DEFAULT_SOLVER } from "@/caseDoc";
+import type { ExpectedFinding, StructuredModelLimitation } from "@/caseValidation";
 import { KNOB_MAPPING_VERSION } from "@/engine/knobs";
 import type { NoteContent } from "@/noteTypes";
 import type { PanelDef } from "@/types";
@@ -34,6 +35,17 @@ function buildPanels(instanceIds: string[]): PanelDef[] {
 }
 
 type InstanceAuthor = Pick<CaseInstance, "name" | "knobs" | "interventions" | "targetVolume">;
+type CaseAuthor = {
+  id: string;
+  title: string;
+  description: string;
+  modelLimitations: string[];
+  instances: InstanceAuthor[];
+  notes?: Record<string, NoteContent>;
+  expectedFindings?: ExpectedFinding[];
+  structuredLimitations?: StructuredModelLimitation[];
+  validationProfileId?: string;
+};
 
 function instance(i: number, a: InstanceAuthor): CaseInstance {
   return {
@@ -49,7 +61,7 @@ function instance(i: number, a: InstanceAuthor): CaseInstance {
   };
 }
 
-function makeCase(p: { id: string; title: string; description: string; modelLimitations: string[]; instances: InstanceAuthor[]; notes?: Record<string, NoteContent> }): CaseDocument {
+function makeCase(p: CaseAuthor): CaseDocument {
   const instances = p.instances.map((a, i) => instance(i, a));
   return {
     schemaVersion: CASE_SCHEMA_VERSION,
@@ -57,7 +69,14 @@ function makeCase(p: { id: string; title: string; description: string; modelLimi
     knobMappingVersion: KNOB_MAPPING_VERSION,
     solver: DEFAULT_SOLVER,
     meta: { id: p.id, title: p.title, author: "CircleHeart", createdAt: 0, updatedAt: 0 },
-    spec: { title: p.title, description: p.description, modelLimitations: p.modelLimitations },
+    spec: {
+      title: p.title,
+      description: p.description,
+      modelLimitations: p.modelLimitations,
+      ...(p.expectedFindings ? { expectedFindings: p.expectedFindings } : {}),
+      ...(p.structuredLimitations ? { structuredLimitations: p.structuredLimitations } : {}),
+      ...(p.validationProfileId ? { validationProfileId: p.validationProfileId } : {}),
+    },
     instances,
     panels: buildPanels(instances.map((x) => x.id)),
     ...(p.notes ? { notes: p.notes } : {}),
@@ -67,6 +86,30 @@ function makeCase(p: { id: string; title: string; description: string; modelLimi
 const LIMIT_GENERAL = "0D lumped-parameter closed-loop model — no spatial flow, regional wall motion, or pulsatile wave reflection physics.";
 const LIMIT_CALIB = "Active-stress single-fibre ventricles; parameters are not yet calibrated (M12), so absolute metric values are indicative, not validated — read the waveform SHAPE.";
 const LIMIT_NOREFLEX = "No dynamic baroreflex / neurohormonal control — shock and hypovolemia are shown as UNCOMPENSATED states; any reflex tachycardia/vasoconstriction is only what an intervention explicitly encodes.";
+
+type ExpectedMetric = NonNullable<ExpectedFinding["metric"]>;
+
+function metricDirection(
+  id: string,
+  metric: ExpectedMetric,
+  instanceId: string,
+  comparatorInstanceId: string,
+  direction: "up" | "down" | "unchanged",
+  description: string,
+  tolerance = 0,
+): ExpectedFinding {
+  return { id, description, instanceId, comparatorInstanceId, metric, direction, tolerance, gate: "teaching" };
+}
+
+function metricRange(
+  id: string,
+  metric: ExpectedMetric,
+  instanceId: string,
+  range: NonNullable<ExpectedFinding["range"]>,
+  description: string,
+): ExpectedFinding {
+  return { id, description, instanceId, metric, range, gate: "teaching" };
+}
 
 // --- BlockNote authoring helpers (shapes verified against components/NotePanel.tsx
 //     renderStaticBlock + BlockNoteSchema). Reading-mode renders heading/paragraph/
@@ -230,6 +273,11 @@ export const OFFICIAL_CASES: CaseDocument[] = [
     title: "Normal physiology",
     description: "A roughly-physiological resting adult — the reference operating point all other cases deviate from.",
     modelLimitations: [LIMIT_GENERAL, LIMIT_CALIB],
+    expectedFindings: [
+      metricRange("normal-co-range", "CO_L", "1", { min: 4.5, max: 6.5 }, "Normal resting cardiac output remains in the teaching reference range."),
+      metricRange("normal-map-range", "AoPMean", "1", { min: 70, max: 100 }, "Normal mean aortic pressure remains in the teaching reference range."),
+      metricRange("normal-lap-range", "LAPMean", "1", { min: 3, max: 12 }, "Normal left atrial pressure remains in the teaching reference range."),
+    ],
     instances: [{ name: "Normal", knobs: {}, interventions: [], targetVolume: 5600 }],
     notes: { p_note: NORMAL_REFERENCE_NOTE },
   }),
@@ -247,6 +295,11 @@ export const OFFICIAL_CASES: CaseDocument[] = [
       { name: "Normal", knobs: {}, interventions: [], targetVolume: 5600 },
       { name: "Acute Anterior MI", knobs: { contractility: 0.45 }, interventions: [], targetVolume: 5600 },
     ],
+    expectedFindings: [
+      metricDirection("ami-co-down", "CO_L", "2", "1", "down", "Acute anterior MI lowers cardiac output versus normal.", 0.5),
+      metricDirection("ami-lap-up", "LAPMean", "2", "1", "up", "Acute anterior MI raises left atrial filling pressure versus normal.", 2),
+      metricDirection("ami-ef-down", "EF_LApprox", "2", "1", "down", "Acute anterior MI lowers approximate LV ejection fraction versus normal.", 0.1),
+    ],
     notes: { p_note: ACUTE_ANTERIOR_MI_NOTE },
   }),
   makeCase({
@@ -263,6 +316,11 @@ export const OFFICIAL_CASES: CaseDocument[] = [
       { name: "Normal", knobs: {}, interventions: [], targetVolume: 5600 },
       { name: "HFrEF", knobs: { contractility: 0.45, afterload: 1.25, HR: 95 }, interventions: [], targetVolume: 5600 },
     ],
+    expectedFindings: [
+      metricDirection("hfrEF-co-down", "CO_L", "2", "1", "down", "HFrEF lowers cardiac output versus normal.", 0.5),
+      metricDirection("hfrEF-lap-up", "LAPMean", "2", "1", "up", "HFrEF raises left atrial filling pressure versus normal.", 2),
+      metricDirection("hfrEF-ef-down", "EF_LApprox", "2", "1", "down", "HFrEF lowers approximate LV ejection fraction versus normal.", 0.1),
+    ],
     notes: { p_note: SYSTOLIC_HF_NOTE },
   }),
   makeCase({
@@ -273,6 +331,11 @@ export const OFFICIAL_CASES: CaseDocument[] = [
     instances: [
       { name: "Normal", knobs: {}, interventions: [], targetVolume: 5600 },
       { name: "HFpEF (stiff LV)", knobs: { diastolicStiffness: 1.8, relaxation: 0.6, afterload: 1.2 }, interventions: [], targetVolume: 5600 },
+    ],
+    expectedFindings: [
+      metricDirection("hfpEF-lap-up", "LAPMean", "2", "1", "up", "HFpEF raises left atrial filling pressure versus normal.", 1),
+      metricDirection("hfpEF-co-preserved", "CO_L", "2", "1", "unchanged", "HFpEF keeps cardiac output roughly preserved versus normal in this teaching case.", 0.5),
+      metricRange("hfpEF-ef-preserved", "EF_LApprox", "2", { min: 0.5, max: 0.85 }, "HFpEF keeps approximate LV ejection fraction in the preserved range."),
     ],
     notes: { p_note: DIASTOLIC_HF_NOTE },
   }),
@@ -285,6 +348,10 @@ export const OFFICIAL_CASES: CaseDocument[] = [
       { name: "Normal", knobs: {}, interventions: [], targetVolume: 5600 },
       { name: "Aortic stenosis", knobs: {}, interventions: [{ uid: "as", id: "aorticStenosis", args: { severity: "severe" } }], targetVolume: 5600 },
     ],
+    expectedFindings: [
+      metricDirection("as-gradient-up", "AoVMeanGradient", "2", "1", "up", "Aortic stenosis raises the mean LV-aortic valve gradient versus normal.", 5),
+      metricDirection("as-lap-up", "LAPMean", "2", "1", "up", "Aortic stenosis raises left atrial filling pressure versus normal.", 2),
+    ],
     notes: { p_note: AORTIC_STENOSIS_NOTE },
   }),
   makeCase({
@@ -295,6 +362,11 @@ export const OFFICIAL_CASES: CaseDocument[] = [
     instances: [
       { name: "Normal", knobs: {}, interventions: [], targetVolume: 5600 },
       { name: "Hypovolemic shock", knobs: {}, interventions: [], targetVolume: 4800 },
+    ],
+    expectedFindings: [
+      metricDirection("hypovolemic-shock-co-down", "CO_L", "2", "1", "down", "Hypovolemic shock lowers cardiac output versus normal.", 0.5),
+      metricDirection("hypovolemic-shock-lap-down", "LAPMean", "2", "1", "down", "Hypovolemic shock lowers left atrial filling pressure versus normal.", 1),
+      metricDirection("hypovolemic-shock-rap-down", "RAPMean", "2", "1", "down", "Hypovolemic shock lowers right atrial filling pressure versus normal.", 0.5),
     ],
     notes: { p_note: HYPOVOLEMIC_SHOCK_NOTE },
   }),
@@ -311,6 +383,11 @@ export const OFFICIAL_CASES: CaseDocument[] = [
     instances: [
       { name: "LV failure", knobs: {}, interventions: [{ uid: "f1", id: "lvPumpFailure", args: { severity: 0.8 } }], targetVolume: 5600 },
       { name: "+ Dobutamine", knobs: {}, interventions: [{ uid: "f2", id: "lvPumpFailure", args: { severity: 0.8 } }, { uid: "d", id: "dobutamine", args: { dose: 7 } }], targetVolume: 5600 },
+    ],
+    expectedFindings: [
+      metricDirection("dobutamine-co-up", "CO_L", "2", "1", "up", "Dobutamine raises cardiac output versus the LV failure state.", 0.5),
+      metricDirection("dobutamine-aop-up", "AoPMean", "2", "1", "up", "Dobutamine raises mean aortic pressure versus the LV failure state.", 5),
+      metricDirection("dobutamine-lap-down", "LAPMean", "2", "1", "down", "Dobutamine lowers left atrial filling pressure versus the LV failure state.", 5),
     ],
   }),
   makeCase({
@@ -334,6 +411,10 @@ export const OFFICIAL_CASES: CaseDocument[] = [
       { name: "Aortic stenosis", knobs: {}, interventions: [{ uid: "as", id: "aorticStenosis", args: { severity: "severe" } }], targetVolume: 5600 },
       { name: "Mitral regurgitation", knobs: {}, interventions: [{ uid: "mr", id: "mitralRegurgitation", args: { severity: "moderate" } }], targetVolume: 5600 },
     ],
+    expectedFindings: [
+      metricRange("valve-lesions-as-gradient-high", "AoVMeanGradient", "1", { min: 25 }, "The aortic stenosis branch has an elevated mean LV-aortic valve gradient."),
+      metricRange("valve-lesions-mr-lap-elevated", "LAPMean", "2", { min: 7.5 }, "The mitral regurgitation branch has elevated left atrial pressure."),
+    ],
   }),
   makeCase({
     id: "hypovolemia",
@@ -349,6 +430,11 @@ export const OFFICIAL_CASES: CaseDocument[] = [
     // filling pressures, so 4600 floored the RA (1792 clamps); 4800 is the clean floor (0
     // clamps) that still teaches low preload/output (CO 3.2<4.4, EDV 83<97, RAP lower).
     // Representing Class III-IV hemorrhage without flooring is an M12-proper item.
+    expectedFindings: [
+      metricRange("hypovolemia-co-low", "CO_L", "1", { max: 5 }, "Hypovolemia has low cardiac output in this teaching operating point."),
+      metricRange("hypovolemia-lap-low", "LAPMean", "1", { max: 4 }, "Hypovolemia has low left atrial filling pressure."),
+      metricRange("hypovolemia-rap-low", "RAPMean", "1", { max: 2 }, "Hypovolemia has low right atrial filling pressure."),
+    ],
     instances: [{ name: "Hypovolemia", knobs: {}, interventions: [], targetVolume: 4800 }],
   }),
 ];
