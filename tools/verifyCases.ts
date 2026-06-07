@@ -12,6 +12,7 @@ import type {
   StructuredModelLimitation,
 } from "@/caseValidation";
 import {
+  caseValidationReportToMarkdown,
   collectExpectedFindingMessages,
   collectHealthMessages,
   verdictFromMessages,
@@ -146,37 +147,11 @@ function verifyCase(doc: CaseDocument): CaseValidationReport {
   };
 }
 
-function markdownReport(reports: CaseValidationReport[]) {
-  const lines: string[] = [];
-  lines.push("# Case Validation Report");
-  lines.push("");
-  lines.push(`Generated: ${new Date().toISOString()}`);
-  lines.push("");
-  lines.push(`- Cases: ${reports.length}`);
-  lines.push(`- Pass: ${reports.filter((r) => r.verdict === "pass").length}`);
-  lines.push(`- Warning: ${reports.filter((r) => r.verdict === "warning").length}`);
-  lines.push(`- Fail: ${reports.filter((r) => r.verdict === "fail").length}`);
-  for (const report of reports) {
-    lines.push("");
-    lines.push(`## ${report.caseTitle}`);
-    lines.push("");
-    lines.push(`- Case id: ${report.caseId}`);
-    lines.push(`- Verdict: ${report.verdict}`);
-    lines.push(`- Instances measured: ${Object.keys(report.metricsByInstance).length}`);
-    lines.push(`- Expected findings: ${report.expectedFindings.length}`);
-    lines.push(`- Limitations: ${report.limitations.length}`);
-    for (const warning of report.warnings) lines.push(`- Warning: ${warning}`);
-    for (const error of report.errors) lines.push(`- Error: ${error}`);
-  }
-  lines.push("");
-  return lines.join("\n");
-}
-
 const { outDir, allowWarnings } = parseArgs(process.argv.slice(2));
 mkdirSync(outDir, { recursive: true });
 const reports = OFFICIAL_CASES.map(verifyCase);
 writeFileSync(path.join(outDir, "official-case-validation.json"), JSON.stringify(reports, null, 2));
-writeFileSync(path.join(outDir, "report.md"), markdownReport(reports));
+writeFileSync(path.join(outDir, "report.md"), caseValidationReportToMarkdown(reports));
 
 const failed = reports.filter((report) => report.verdict === "fail");
 const nonPass = reports.filter((report) => report.verdict !== "pass");
