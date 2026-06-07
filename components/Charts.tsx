@@ -5,6 +5,11 @@ import type { SimSample } from '../engine/protocol';
 import { clampLegendFraction, exceededDragThreshold, fractionToPx, isNearDefaultLegendCorner, pxToFraction } from './legendPosition';
 import { useDocumentVisible, useOnscreen } from '../hooks/useOnscreen';
 import {
+    buildWaveformDrawPlan,
+    phaseInSegments,
+    type WaveformPhaseSegment,
+} from './waveformPhaseWipe';
+import {
     buildGuytonPaneData,
     defaultGuytonAxis,
     expandGuytonAxisToFit,
@@ -882,12 +887,22 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                 const physState = physicsRefs.current.get(inst.id);
                 if (!physState) return;
 
-                const scanBuffer = (buf: SimSample[], minT: number, maxT: number) => {
+                const latestT = physState.buffer.at(-1)?.t ?? physState.core.t ?? currentGlobalTime;
+                const drawPlan = buildWaveformDrawPlan({
+                    status: physState.transition?.status,
+                    previousEpoch: physState.previousEpoch,
+                    instanceLatestT: latestT,
+                    timeWindowSec: timeSec,
+                });
+
+                const scanBuffer = (buf: SimSample[], minT: number, maxT: number, segments: WaveformPhaseSegment[]) => {
+                    if (segments.length === 0) return;
                     const startIndex = firstSampleIndexAtOrAfter(buf, minT);
                     const stepFrames = 10;
                     for (let i = startIndex; i < buf.length; i += stepFrames) {
                         const d = buf[i];
                         if (d.t > maxT) break;
+                        if (!phaseInSegments(d.t % timeSec, segments, timeSec)) continue;
                         cfg.selectedSignals.forEach((sig: string) => {
                             const val = sampleSignalValue(d, sig);
                             if (!Number.isFinite(val)) return;
@@ -899,7 +914,13 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                     }
                 };
 
-                scanBuffer(physState.buffer, tMin, tMax);
+                scanBuffer(physState.buffer, tMin, tMax, drawPlan.currentSegments);
+                if (drawPlan.previousAlpha > 0 && physState.previousEpoch) {
+                    const previous = physState.previousEpoch.buffer;
+                    const previousMaxT = previous.at(-1)?.t ?? 0;
+                    const previousMinT = Math.max(0, previousMaxT - timeSec + gapSec);
+                    scanBuffer(previous, previousMinT, previousMaxT, drawPlan.previousSegments);
+                }
             });
 
             if (hasData) {
@@ -940,7 +961,18 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                 const physState = physicsRefs.current.get(inst.id);
                 if (!physState) return;
 
-                const drawBuffer = (buf: SimSample[], minT: number, maxT: number, sig: string, color: string, alpha: number, dash: number[] = []) => {
+                const drawBuffer = (
+                    buf: SimSample[],
+                    minT: number,
+                    maxT: number,
+                    sig: string,
+                    color: string,
+                    alpha: number,
+                    segments: WaveformPhaseSegment[],
+                    markerAlpha = 0,
+                    dash: number[] = [],
+                ) => {
+                    if (segments.length === 0) return;
                     const startIndex = firstSampleIndexAtOrAfter(buf, minT);
                     const visibleCount = buf.length - startIndex;
                     const drawStep = Math.max(1, Math.floor(visibleCount / Math.max(1, width * 2)));
@@ -963,6 +995,14 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                         const modT = d.t % timeSec;
                         const px = xScale(modT);
                         const py = yScale(val);
+                        if (!phaseInSegments(modT, segments, timeSec)) {
+                            if (prevX !== -1) {
+                                ctx.stroke();
+                                ctx.beginPath();
+                                prevX = -1;
+                            }
+                            continue;
+                        }
 
                         if (prevX === -1 || px < prevX) {
                             ctx.stroke();
@@ -981,18 +1021,51 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                     ctx.stroke();
                     ctx.restore();
 
-                    if (alpha >= 1 && lastPx !== -1) {
+                    if (markerAlpha > 0 && lastPx !== -1) {
+                         ctx.save();
+                         ctx.globalAlpha = markerAlpha;
                          ctx.beginPath();
                          ctx.arc(lastPx, lastPy, 4, 0, Math.PI * 2);
                          const c = d3.color(color);
                          ctx.fillStyle = c ? c.brighter(0.5).formatHex() : color;
                          ctx.fill();
+                         ctx.restore();
                     }
                 };
 
+                const latestT = physState.buffer.at(-1)?.t ?? physState.core.t ?? currentGlobalTime;
+                const drawPlan = buildWaveformDrawPlan({
+                    status: physState.transition?.status,
+                    previousEpoch: physState.previousEpoch,
+                    instanceLatestT: latestT,
+                    timeWindowSec: timeSec,
+                });
+                const previous = physState.previousEpoch?.buffer;
+                const previousMaxT = previous?.at(-1)?.t ?? 0;
+                const previousMinT = Math.max(0, previousMaxT - timeSec + gapSec);
                 cfg.selectedSignals.forEach((sig: string) => {
                     const color = getColor(inst.color, sig, cfg.customBaseColor, cfg.customSignalColors);
-                    drawBuffer(physState.buffer, tMin, tMax, sig, color, 1);
+                    if (previous && drawPlan.previousAlpha > 0) {
+                        drawBuffer(
+                            previous,
+                            previousMinT,
+                            previousMaxT,
+                            sig,
+                            color,
+                            drawPlan.previousAlpha,
+                            drawPlan.previousSegments,
+                        );
+                    }
+                    drawBuffer(
+                        physState.buffer,
+                        tMin,
+                        tMax,
+                        sig,
+                        color,
+                        drawPlan.currentAlpha,
+                        drawPlan.currentSegments,
+                        drawPlan.markerAlpha,
+                    );
                 });
             });
 

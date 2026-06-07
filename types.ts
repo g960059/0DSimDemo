@@ -205,10 +205,11 @@ export interface PhysicsRefState {
     previousEpoch?: {
         buffer: SimSample[];
         capturedAtMs: number;
-        expiresAtMs: number;
+        wipeStartedAtT: number;
+        retainUntilT: number;
     };
     transition?: {
-        status: 'settling' | 'promoted';
+        status: 'pending' | 'settling' | 'promoted';
         toSignature: string;
         startedAtMs: number;
         promotedAtMs?: number;
