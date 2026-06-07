@@ -68,6 +68,13 @@ export function useWorkbenchPersistence({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const lastLoadedCaseIdRef = useRef<string | null>(null);
   const loadNonceRef = useRef(0);
+  const routeLoadCaseId = routeCaseId ?? searchParams.get("case");
+  const stepsDraftLengthRef = useRef(lesson.stepsDraft.length);
+  stepsDraftLengthRef.current = lesson.stepsDraft.length;
+
+  const { replaceSceneFromDoc } = scene;
+  const { replacePanelState } = panels;
+  const { resetLessonState } = lesson;
 
   const defaultSceneTitle = useCallback(() => (
     scene.sceneMeta.title.trim() || (scene.instances[0] ? `${scene.instances[0].name} scene` : "Workbench scene")
@@ -121,60 +128,62 @@ export function useWorkbenchPersistence({
       const nonce = `${Date.now().toString(36)}${(loadNonceRef.current++).toString(36)}`;
       const remapped = remapWorkbenchLoadIds(loaded, doc.panels, nonce);
 
-      scene.replaceSceneFromDoc({
+      replaceSceneFromDoc({
         doc,
         instances: remapped.instances,
         activeInstanceId: remapped.activeInstanceId,
         trustedOfficial: opts.trustedOfficial,
       });
-      panels.replacePanelState({
+      replacePanelState({
         panels: remapped.panels,
         workspace: doc.workspace,
         notes: doc.notes ?? {},
         noteCaseKey: `${doc.meta.id}:${nonce}`,
       });
-      lesson.resetLessonState();
+      resetLessonState();
       userEditedRef.current = false;
       return true;
     } catch (err) {
       pushWarningToast("Case load", (err as Error).message);
       return false;
     }
-  }, [lesson, panels, pushWarningToast, scene, userEditedRef]);
+  }, [pushWarningToast, replacePanelState, replaceSceneFromDoc, resetLessonState, userEditedRef]);
+
+  const replaceWorkbenchDocRef = useRef(replaceWorkbenchDoc);
+  replaceWorkbenchDocRef.current = replaceWorkbenchDoc;
 
   useEffect(() => {
-    const caseId = routeCaseId ?? searchParams.get("case");
-    if (!caseId || caseId === lastLoadedCaseIdRef.current) return;
+    if (!routeLoadCaseId || routeLoadCaseId === lastLoadedCaseIdRef.current) return;
 
     let cancelled = false;
-    const localDoc = officialCaseById(caseId);
+    const localDoc = officialCaseById(routeLoadCaseId);
     if (!localDoc && authLoading) return;
     const loadDoc = async (): Promise<{ doc: CaseDocument; trustedOfficial: boolean } | undefined> => {
       if (localDoc) return { doc: localDoc, trustedOfficial: true };
-      const cloudDoc = await fetchCase(caseId);
+      const cloudDoc = await fetchCase(routeLoadCaseId);
       return cloudDoc ? { doc: cloudDoc, trustedOfficial: cloudDoc.visibility === "official" } : undefined;
     };
 
     loadDoc().then((loaded) => {
       if (cancelled) return;
       if (!loaded) {
-        lastLoadedCaseIdRef.current = caseId;
-        pushWarningToast("Case route", `Unknown case "${caseId}" — loaded the default scene`);
+        lastLoadedCaseIdRef.current = routeLoadCaseId;
+        pushWarningToast("Case route", `Unknown case "${routeLoadCaseId}" — loaded the default scene`);
         return;
       }
 
-      if (replaceWorkbenchDoc(loaded.doc, {
-        confirm: userEditedRef.current || lesson.stepsDraft.length > 0,
+      if (replaceWorkbenchDocRef.current(loaded.doc, {
+        confirm: userEditedRef.current || stepsDraftLengthRef.current > 0,
         trustedOfficial: loaded.trustedOfficial,
       })) {
-        lastLoadedCaseIdRef.current = caseId;
+        lastLoadedCaseIdRef.current = routeLoadCaseId;
       }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [authLoading, lesson.stepsDraft.length, pushWarningToast, replaceWorkbenchDoc, routeCaseId, searchParams, userEditedRef]);
+  }, [authLoading, pushWarningToast, routeLoadCaseId, userEditedRef]);
 
   const handleExport = useCallback(() => {
     try {
