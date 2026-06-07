@@ -297,6 +297,40 @@ describe("PreviewController (headless driver)", () => {
     }
   });
 
+  it("does not fail an unposted debounced latest job when an older transition worker errors", () => {
+    const workerHarness = withFakeWorker();
+    vi.useFakeTimers();
+    try {
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 300 });
+      c.setInstances([inst("1")]);
+      const first = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
+      vi.advanceTimersByTime(300);
+      const firstWorker = workerHarness.byScript("transitionSteadyWorker");
+      expect(firstWorker.messages).toEqual([first.request]);
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "computing" });
+
+      const second = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 }));
+      expect(c.getPendingTransitionSteadyJob("1")).toBe(second);
+      expect(c.getSteadyUpdateStatuses()).toEqual({});
+
+      firstWorker.onerror?.();
+
+      expect(firstWorker.terminated).toBe(true);
+      expect(c.getPendingTransitionSteadyJob("1")).toBe(second);
+      expect(c.getTransitionSteadyResult("1")).toBeUndefined();
+      expect(c.getSteadyUpdateStatuses()).toEqual({});
+
+      vi.advanceTimersByTime(300);
+      const secondWorker = workerHarness.byScript("transitionSteadyWorker");
+      expect(secondWorker).not.toBe(firstWorker);
+      expect(secondWorker.messages).toEqual([second.request]);
+      expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "computing" });
+    } finally {
+      vi.useRealTimers();
+      workerHarness.restore();
+    }
+  });
+
   it("creates preview transition steady pending jobs without posting to the preview worker", () => {
     const workerHarness = withFakeWorker();
     try {

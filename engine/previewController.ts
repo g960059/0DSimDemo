@@ -417,7 +417,7 @@ export class PreviewController {
       };
       this.transitionSteadyWorker.onerror = () => {
         this.disposeTransitionSteadyWorker();
-        this.failTransitionSteadyJobs("Transition steady worker failed");
+        this.failPostedTransitionSteadyJobs("Transition steady worker failed");
       };
       return this.transitionSteadyWorker;
     } catch {
@@ -481,6 +481,14 @@ export class PreviewController {
   private failTransitionSteadyJobs(message: string): void {
     for (const pending of [...this.transitionSteadyPendingJobs.values()]) {
       this.failTransitionSteadyJob(pending, message);
+    }
+  }
+
+  private failPostedTransitionSteadyJobs(message: string): void {
+    for (const pending of [...this.transitionSteadyPendingJobs.values()]) {
+      if (pending.postedAtMs !== undefined) {
+        this.failTransitionSteadyJob(pending, message);
+      }
     }
   }
 
