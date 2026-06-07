@@ -39,6 +39,15 @@ export type ExpectedFindingResult = {
   message: string;
 };
 
+export type MorphologyGateResult = {
+  id: string;
+  label: string;
+  instanceId: string;
+  status: "pass" | "fail" | "skip";
+  message: string;
+  values?: Record<string, number | boolean | string | null>;
+};
+
 export type CaseValidationSolverConfig = {
   dt: number;
   sampleHz: number;
@@ -60,11 +69,22 @@ export type CaseValidationReport = {
   healthByInstance: Record<string, SimulationHealth | null>;
   metricsByInstance: Record<string, SimMetrics | null>;
   expectedFindings: ExpectedFindingResult[];
-  morphologyGates: [];
+  morphologyGates: MorphologyGateResult[];
   limitations: StructuredModelLimitation[];
   warnings: string[];
   errors: string[];
   verdict: "pass" | "warning" | "fail";
+};
+
+export type ValidationResultStatusCounts = {
+  pass: number;
+  fail: number;
+  skip: number;
+};
+
+export type HealthStatusCounts = {
+  warnings: number;
+  errors: number;
 };
 
 export type ValidationMessages = {
@@ -168,6 +188,78 @@ export function verdictFromMessages(messages: ValidationMessages): CaseValidatio
   return "pass";
 }
 
+export function countResultStatuses(
+  results: ReadonlyArray<{ status: "pass" | "fail" | "skip" }>,
+): ValidationResultStatusCounts {
+  return results.reduce<ValidationResultStatusCounts>(
+    (acc, result) => {
+      acc[result.status]++;
+      return acc;
+    },
+    { pass: 0, fail: 0, skip: 0 },
+  );
+}
+
+export function countHealthStatuses(healthByInstance: Record<string, SimulationHealth | null>): HealthStatusCounts {
+  const counts: HealthStatusCounts = { warnings: 0, errors: 0 };
+  for (const health of Object.values(healthByInstance)) {
+    if (health?.status === "warning") counts.warnings++;
+    else if (health?.status === "failed") counts.errors++;
+  }
+  return counts;
+}
+
+export function caseValidationReportToMarkdown(
+  reports: ReadonlyArray<CaseValidationReport>,
+  generatedAt = new Date().toISOString(),
+): string {
+  const lines: string[] = [];
+  lines.push("# Case Validation Report");
+  lines.push("");
+  lines.push(`Generated: ${generatedAt}`);
+  lines.push("");
+  lines.push(`- Cases: ${reports.length}`);
+  lines.push(`- Pass: ${reports.filter((r) => r.verdict === "pass").length}`);
+  lines.push(`- Warning: ${reports.filter((r) => r.verdict === "warning").length}`);
+  lines.push(`- Fail: ${reports.filter((r) => r.verdict === "fail").length}`);
+  lines.push("");
+  lines.push("| Case | Verdict | Expected pass/fail/skip | Morphology pass/fail/skip | Health warnings/errors |");
+  lines.push("| --- | --- | ---: | ---: | ---: |");
+  for (const report of reports) {
+    const expected = countResultStatuses(report.expectedFindings);
+    const morphology = countResultStatuses(report.morphologyGates);
+    const health = countHealthStatuses(report.healthByInstance);
+    lines.push(
+      `| ${report.caseId} | ${report.verdict} | ${formatStatusCounts(expected)} | ${formatStatusCounts(morphology)} | ${health.warnings}/${health.errors} |`,
+    );
+  }
+  for (const report of reports) {
+    lines.push("");
+    lines.push(`## ${report.caseTitle}`);
+    lines.push("");
+    lines.push(`- Case id: ${report.caseId}`);
+    lines.push(`- Verdict: ${report.verdict}`);
+    lines.push(`- Instances measured: ${Object.keys(report.metricsByInstance).length}`);
+    lines.push(`- Expected findings: ${report.expectedFindings.length}`);
+    lines.push(`- Morphology gates: ${report.morphologyGates.length}`);
+    lines.push(`- Limitations: ${report.limitations.length}`);
+    for (const warning of report.warnings) lines.push(`- Warning: ${warning}`);
+    for (const error of report.errors) lines.push(`- Error: ${error}`);
+    lines.push("");
+    lines.push("### Valve Flow Metrics");
+    lines.push("");
+    lines.push("| Instance | MV F/R/RF | AoV F/R/RF | TV F/R/RF | PV F/R/RF |");
+    lines.push("| --- | ---: | ---: | ---: | ---: |");
+    for (const [instanceId, metrics] of Object.entries(report.metricsByInstance)) {
+      lines.push(
+        `| ${instanceId} | ${valveFlowCell(metrics, "MV")} | ${valveFlowCell(metrics, "AoV")} | ${valveFlowCell(metrics, "TV")} | ${valveFlowCell(metrics, "PV")} |`,
+      );
+    }
+  }
+  lines.push("");
+  return lines.join("\n");
+}
+
 function comparableValue(value: unknown): number | boolean | undefined {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "boolean") return value;
@@ -200,4 +292,26 @@ function evaluateDirection(
   if (direction === "up") return actual > comparator + tolerance;
   if (direction === "down") return actual < comparator - tolerance;
   return Math.abs(actual - comparator) <= tolerance;
+}
+
+function formatStatusCounts(counts: ValidationResultStatusCounts): string {
+  return `${counts.pass}/${counts.fail}/${counts.skip}`;
+}
+
+function valveFlowCell(metrics: SimMetrics | null, valve: "MV" | "AoV" | "TV" | "PV"): string {
+  if (!metrics) return "n/a";
+  if (valve === "MV") {
+    return `${round(metrics.MVForwardVolumeMl, 1)}/${round(metrics.MVReverseVolumeMl, 1)}/${round(metrics.MVRegurgitantFraction, 3)}`;
+  }
+  if (valve === "AoV") {
+    return `${round(metrics.AoVForwardVolumeMl, 1)}/${round(metrics.AoVReverseVolumeMl, 1)}/${round(metrics.AoVRegurgitantFraction, 3)}`;
+  }
+  if (valve === "TV") {
+    return `${round(metrics.TVForwardVolumeMl, 1)}/${round(metrics.TVReverseVolumeMl, 1)}/${round(metrics.TVRegurgitantFraction, 3)}`;
+  }
+  return `${round(metrics.PVForwardVolumeMl, 1)}/${round(metrics.PVReverseVolumeMl, 1)}/${round(metrics.PVRegurgitantFraction, 3)}`;
+}
+
+function round(value: number, digits: number): string {
+  return Number.isFinite(value) ? value.toFixed(digits) : "n/a";
 }
