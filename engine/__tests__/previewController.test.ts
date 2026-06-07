@@ -150,6 +150,10 @@ describe("PreviewController (headless driver)", () => {
       const pending = c.requestNextSteady(target);
 
       expect(c.getPendingTransitionSteadyJob("1")).toBe(pending);
+      expect(c.refs.get("1")?.transition).toMatchObject({
+        status: "pending",
+        toSignature: pending.request.toSignature,
+      });
       expect(c.getSteadyUpdateStatuses()).toEqual({});
       expect(previewWorker.messages.length).toBe(beforeMessages);
       expect(() => workerHarness.byScript("transitionSteadyWorker")).toThrow(/was not constructed/);
@@ -176,12 +180,24 @@ describe("PreviewController (headless driver)", () => {
     try {
       const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 300 });
       c.setInstances([inst("1")]);
+      const phys = c.refs.get("1")!;
       const first = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
+      phys.previousEpoch = {
+        buffer: [{ t: 0, phi: 0 }] as any[],
+        capturedAtMs: 1,
+        wipeStartedAtT: 0,
+        retainUntilT: 20,
+      };
       vi.advanceTimersByTime(150);
       const second = c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 }));
 
       expect(c.getPendingTransitionSteadyJob("1")).toBe(second);
       expect(second.request.jobId).not.toBe(first.request.jobId);
+      expect(phys.previousEpoch).toBeUndefined();
+      expect(phys.transition).toMatchObject({
+        status: "pending",
+        toSignature: second.request.toSignature,
+      });
       vi.advanceTimersByTime(299);
       expect(() => workerHarness.byScript("transitionSteadyWorker")).toThrow(/was not constructed/);
 
@@ -224,11 +240,13 @@ describe("PreviewController (headless driver)", () => {
       const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 300 });
       c.setInstances([inst("1")]);
       c.requestNextSteady(inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 }));
+      expect(c.refs.get("1")?.transition?.status).toBe("pending");
 
       c.clearPendingTransitionSteadyJob("1");
       vi.advanceTimersByTime(300);
 
       expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
+      expect(c.refs.get("1")?.transition).toBeUndefined();
       expect(c.getSteadyUpdateStatuses()).toEqual({});
       expect(() => workerHarness.byScript("transitionSteadyWorker")).toThrow(/was not constructed/);
     } finally {
@@ -571,6 +589,7 @@ describe("PreviewController (headless driver)", () => {
       expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
       expect(c.getTransitionSteadyResult("1")).toBeUndefined();
       expect(c.getSteadyUpdateStatuses()).toEqual({});
+      expect(c.refs.get("1")?.transition).toBeUndefined();
       expect(worker.terminated).toBe(true);
     } finally {
       workerHarness.restore();
@@ -598,6 +617,11 @@ describe("PreviewController (headless driver)", () => {
       expect(c.getPendingTransitionSteadyJob("1")).toBe(second);
       expect(c.getTransitionSteadyResult("1")).toBeUndefined();
       expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "computing" });
+      expect(phys.buffer).toEqual(oldSamples);
+      expect(phys.transition).toMatchObject({
+        status: "pending",
+        toSignature: second.request.toSignature,
+      });
 
       const samples = [{ t: 1, phi: 1 }] as any[];
       const accepted = transitionResult(second.request, {
@@ -610,6 +634,10 @@ describe("PreviewController (headless driver)", () => {
       expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "updated" });
       expect(phys.buffer).toEqual(samples);
       expect(phys.previousEpoch?.buffer).toEqual(oldSamples);
+      expect(phys.previousEpoch).toMatchObject({
+        wipeStartedAtT: 1,
+        retainUntilT: 21,
+      });
       expect(phys.steadySignature).toBe(second.request.toSignature);
       expect(phys.transition?.status).toBe("promoted");
       expect((phys.core as any).t).toBe(10);
@@ -686,6 +714,7 @@ describe("PreviewController (headless driver)", () => {
         jobId: pending.request.jobId,
         message: "Transition steady worker timed out",
       });
+      expect(c.refs.get("1")?.transition).toBeUndefined();
       expect(c.getSteadyUpdateStatuses()).toEqual({ "1": "failed" });
     } finally {
       nowSpy.mockRestore();
@@ -1351,7 +1380,7 @@ describe("PreviewController (headless driver)", () => {
 
     const transitioned = c.refs.get("1")!;
     expect(transitioned.previousEpoch).toBeDefined();
-    transitioned.previousEpoch!.expiresAtMs = 0;
+    transitioned.previousEpoch!.retainUntilT = 0;
     c.tick(1000);
 
     expect(transitioned.previousEpoch).toBeUndefined();

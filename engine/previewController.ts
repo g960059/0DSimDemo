@@ -74,7 +74,7 @@ export type PreviewResetOptions = {
 export type SteadyUpdateStatus = "computing" | "updated" | "failed";
 export type SteadyUpdateStatusMap = Record<string, SteadyUpdateStatus>;
 
-const PREVIEW_TRANSITION_GHOST_MS = 2000;
+const PREVIEW_TRANSITION_MIN_RETAIN_SEC = 20;
 const STEADY_UPDATE_STATUS_MS = 1200;
 const TRANSITION_STEADY_DEBOUNCE_MS = 300;
 const TRANSITION_STEADY_WATCHDOG_MS = 20_000;
@@ -362,6 +362,7 @@ export class PreviewController {
     const fromSignature = currentRef.steadySignature ?? transitionTargetSignature(currentInstance);
     const toSignature = transitionTargetSignature(inst);
     const startedAtMs = this.nowMs();
+    this.preparePendingTransition(currentRef, toSignature, startedAtMs);
     const pending: TransitionSteadyPendingJob = {
       request: {
         type: "computeTransitionSteady",
@@ -496,6 +497,7 @@ export class PreviewController {
     const id = pending.request.instanceId;
     this.transitionSteadyPendingJobs.delete(id);
     this.transitionSteadyResults.set(id, this.transitionSteadyErrorResult(pending.request, message));
+    this.clearPendingTransitionState(id, pending.request.toSignature);
     this.setSteadyUpdateStatus(id, "failed");
   }
 
@@ -511,6 +513,7 @@ export class PreviewController {
           ? result
           : this.transitionSteadyErrorResult(pending.request, "Transition steady result cannot be promoted"),
       );
+      if (!promoted) this.clearPendingTransitionState(result.instanceId, result.toSignature);
       this.setSteadyUpdateStatus(
         result.instanceId,
         promoted ? "updated" : "failed",
@@ -519,6 +522,7 @@ export class PreviewController {
       return;
     }
     this.transitionSteadyResults.set(result.instanceId, result);
+    this.clearPendingTransitionState(result.instanceId, result.toSignature);
     this.setSteadyUpdateStatus(result.instanceId, "failed");
   }
 
@@ -564,13 +568,19 @@ export class PreviewController {
   }
 
   private clearTransitionSteadyJob(id: string): void {
+    const pending = this.transitionSteadyPendingJobs.get(id);
+    const result = this.transitionSteadyResults.get(id);
     this.transitionSteadyPendingJobs.delete(id);
     this.transitionSteadyResults.delete(id);
+    this.clearPendingTransitionState(id, pending?.request.toSignature ?? result?.toSignature);
     this.clearSteadyUpdateStatus(id);
     this.clearTransitionSteadyDebounceTimerIfIdle();
   }
 
   private clearTransitionSteadyJobs(): void {
+    for (const pending of this.transitionSteadyPendingJobs.values()) {
+      this.clearPendingTransitionState(pending.request.instanceId, pending.request.toSignature);
+    }
     this.clearTransitionSteadyDebounceTimer();
     this.transitionSteadyPendingJobs.clear();
     this.transitionSteadyResults.clear();
@@ -599,6 +609,28 @@ export class PreviewController {
       return explicitHold;
     }
     return true;
+  }
+
+  private preparePendingTransition(phys: PhysicsRefState, toSignature: string, startedAtMs = this.nowMs()): void {
+    phys.previousEpoch = undefined;
+    phys.isSettling = false;
+    phys.settleProgress = undefined;
+    phys.transition = {
+      status: "pending",
+      toSignature,
+      startedAtMs,
+    };
+  }
+
+  private clearPendingTransitionState(id: string, toSignature?: string): void {
+    const phys = this.refs.get(id);
+    if (!phys || phys.transition?.status !== "pending") return;
+    if (toSignature && phys.transition.toSignature !== toSignature) return;
+    phys.transition = undefined;
+  }
+
+  private transitionRetainSeconds(): number {
+    return Math.max(this.bufferRetentionSec, PREVIEW_TRANSITION_MIN_RETAIN_SEC);
   }
 
   private steadyUpdateStatusSnapshot(): SteadyUpdateStatusMap {
@@ -864,11 +896,13 @@ export class PreviewController {
   ): void {
     const now = this.nowMs();
     const previous = phys.buffer.slice();
+    const wipeStartedAtT = samples.at(-1)?.t ?? snapshot?.t ?? phys.core.t;
     if (previous.length > 0) {
       phys.previousEpoch = {
         buffer: previous,
         capturedAtMs: now,
-        expiresAtMs: now + PREVIEW_TRANSITION_GHOST_MS,
+        wipeStartedAtT,
+        retainUntilT: wipeStartedAtT + this.transitionRetainSeconds(),
       };
     } else {
       phys.previousEpoch = undefined;
@@ -896,6 +930,7 @@ export class PreviewController {
     const samples = core.runFor(sampleSeconds, this.dt, this.sampleHz);
     const now = this.nowMs();
     const previous = current.buffer.slice();
+    const wipeStartedAtT = samples.at(-1)?.t ?? core.t;
     this.refs.set(inst.id, {
       core,
       buffer: samples,
@@ -905,7 +940,12 @@ export class PreviewController {
       displaySignature: signature,
       steadySignature: transitionTargetSignature(inst),
       previousEpoch: previous.length > 0
-        ? { buffer: previous, capturedAtMs: now, expiresAtMs: now + PREVIEW_TRANSITION_GHOST_MS }
+        ? {
+          buffer: previous,
+          capturedAtMs: now,
+          wipeStartedAtT,
+          retainUntilT: wipeStartedAtT + this.transitionRetainSeconds(),
+        }
         : undefined,
       transition: {
         status: "promoted",
@@ -917,9 +957,10 @@ export class PreviewController {
     delete this.prevStatus[inst.id];
   }
 
-  private expirePreviousEpochs(now = this.nowMs()): void {
+  private expirePreviousEpochs(): void {
     for (const phys of this.refs.values()) {
-      if (phys.previousEpoch && phys.previousEpoch.expiresAtMs <= now) {
+      const latestT = phys.buffer.at(-1)?.t ?? phys.core.t;
+      if (phys.previousEpoch && phys.previousEpoch.retainUntilT <= latestT) {
         phys.previousEpoch = undefined;
         if (phys.transition?.status === "promoted") phys.transition = undefined;
       }
@@ -1043,7 +1084,7 @@ export class PreviewController {
   /** Advance one frame for a wall-clock timestamp (ms). Driver-agnostic. */
   tick(now: number) {
     const frameStart = this.nowMs();
-    this.expirePreviousEpochs(frameStart);
+    this.expirePreviousEpochs();
     this.expireSteadyUpdateStatuses(frameStart);
     this.expireTransitionSteadyPendingJobs(frameStart);
     if (!this.lastFrameTime) this.lastFrameTime = now;
