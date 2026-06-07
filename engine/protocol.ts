@@ -473,6 +473,22 @@ export type SimMetrics = {
   SV_R: number;
   CO_L: number;
   CO_R: number;
+  MVForwardVolumeMl: number;
+  MVReverseVolumeMl: number;
+  MVNetVolumeMl: number;
+  MVRegurgitantFraction: number;
+  AoVForwardVolumeMl: number;
+  AoVReverseVolumeMl: number;
+  AoVNetVolumeMl: number;
+  AoVRegurgitantFraction: number;
+  TVForwardVolumeMl: number;
+  TVReverseVolumeMl: number;
+  TVNetVolumeMl: number;
+  TVRegurgitantFraction: number;
+  PVForwardVolumeMl: number;
+  PVReverseVolumeMl: number;
+  PVNetVolumeMl: number;
+  PVRegurgitantFraction: number;
 
   EF_LApprox: number;
   EF_RApprox: number;

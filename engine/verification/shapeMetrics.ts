@@ -1,3 +1,4 @@
+import { integrateFlowVolume, valveFlowIntegral } from "@/engine/flowIntegrals";
 import type { SimSample } from "@/engine/protocol";
 
 export type Point = { x: number; y: number };
@@ -251,12 +252,11 @@ export function rangeOf(samples: SimSample[], key: "VRV" | "VRA" | "RVP"): [numb
 }
 
 export function regurgitantFraction(samples: SimSample[], key: ValveFlowKey): number {
-  const forward = integrateFlow(samples, key, (q) => Math.max(0, q));
-  const reverse = integrateFlow(samples, key, (q) => Math.max(0, -q));
-  return reverse / Math.max(forward, 1e-9);
+  return valveFlowIntegral(samples, key).regurgitantFraction;
 }
 
 export function integrateFlow(samples: SimSample[], key: FlowKey, transform: (q: number) => number): number {
+  if (key !== "PVF") return integrateFlowVolume(samples, key, transform);
   let area = 0;
   for (let i = 1; i < samples.length; i++) {
     const dt = samples[i].t - samples[i - 1].t;
