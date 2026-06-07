@@ -6,12 +6,16 @@ import { measureConverged } from "@/engine/measure";
 import { MODEL_VERSION } from "@/engine/stateContract";
 import { caseDocumentToSimInstances, ENGINE_VERSION, isCaseDisplayable } from "@/caseDoc";
 import type { CaseDocument } from "@/caseDoc";
-import type { SimMetrics, SimSample } from "@/engine/protocol";
+import type { SimSample } from "@/engine/protocol";
 import type {
   CaseValidationReport,
-  ExpectedFinding,
-  ExpectedFindingResult,
   StructuredModelLimitation,
+} from "@/caseValidation";
+import {
+  collectExpectedFindingMessages,
+  collectHealthMessages,
+  verdictFromMessages,
+  verifyExpectedFinding,
 } from "@/caseValidation";
 
 const DEFAULT_OUT_DIR = path.join("artifacts", "case-validation", new Date().toISOString().replace(/[:.]/g, "-"));
@@ -28,6 +32,7 @@ function parseArgs(argv: string[]) {
   const outArg = argv.find((arg) => arg.startsWith("--out="));
   return {
     outDir: outArg ? outArg.slice("--out=".length) : DEFAULT_OUT_DIR,
+    allowWarnings: argv.includes("--allow-warnings"),
   };
 }
 
@@ -64,69 +69,6 @@ function inferLimitationCategory(message: string): StructuredModelLimitation["ca
   return "numerical";
 }
 
-function verifyExpectedFinding(
-  finding: ExpectedFinding,
-  metricsByInstance: Record<string, SimMetrics | null>,
-  sampleByInstance: Record<string, SimSample | null>,
-): ExpectedFindingResult {
-  const actual = finding.metric
-    ? metricsByInstance[finding.instanceId]?.[finding.metric]
-    : finding.observable
-      ? sampleByInstance[finding.instanceId]?.[finding.observable]
-      : undefined;
-  const comparator = finding.comparatorInstanceId
-    ? finding.metric
-      ? metricsByInstance[finding.comparatorInstanceId]?.[finding.metric]
-      : finding.observable
-        ? sampleByInstance[finding.comparatorInstanceId]?.[finding.observable]
-        : undefined
-    : undefined;
-
-  if (actual === undefined) {
-    return { finding, status: "skip", message: "No metric or observable value was available for this finding." };
-  }
-  if (finding.comparatorInstanceId && comparator === undefined) {
-    return { finding, status: "skip", actualValue: comparableValue(actual), message: "Comparator value was unavailable." };
-  }
-
-  const tolerance = finding.tolerance ?? 0;
-  const pass = evaluateDirection(actual, comparator, finding.direction, tolerance);
-  return {
-    finding,
-    status: pass ? "pass" : "fail",
-    actualValue: comparableValue(actual),
-    comparatorValue: comparableValue(comparator),
-    message: pass ? "Expected finding satisfied." : "Expected finding was not satisfied.",
-  };
-}
-
-function comparableValue(value: unknown): number | boolean | undefined {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "boolean") return value;
-  return undefined;
-}
-
-function evaluateDirection(
-  actual: unknown,
-  comparator: unknown,
-  direction: ExpectedFinding["direction"],
-  tolerance: number,
-): boolean {
-  if (direction === "present") {
-    if (typeof actual === "boolean") return actual;
-    return typeof actual === "number" && Number.isFinite(actual) && Math.abs(actual) > tolerance;
-  }
-  if (direction === "absent") {
-    if (typeof actual === "boolean") return !actual;
-    return typeof actual === "number" && Number.isFinite(actual) && Math.abs(actual) <= tolerance;
-  }
-  if (typeof actual !== "number" || !Number.isFinite(actual)) return false;
-  if (typeof comparator !== "number" || !Number.isFinite(comparator)) return false;
-  if (direction === "up") return actual > comparator + tolerance;
-  if (direction === "down") return actual < comparator - tolerance;
-  return Math.abs(actual - comparator) <= tolerance;
-}
-
 function verifyCase(doc: CaseDocument): CaseValidationReport {
   const warnings: string[] = [];
   const errors: string[] = [];
@@ -134,17 +76,16 @@ function verifyCase(doc: CaseDocument): CaseValidationReport {
   const healthByInstance: CaseValidationReport["healthByInstance"] = {};
   const metricsByInstance: CaseValidationReport["metricsByInstance"] = {};
   const sampleByInstance: Record<string, SimSample | null> = {};
+  const namesByInstance: Record<string, string> = {};
 
   if (!isCaseDisplayable(doc)) {
     errors.push("Case is not displayable: modelLimitations is missing or empty.");
-  }
-  if (!doc.spec.expectedFindings?.length) {
-    warnings.push("No structured expectedFindings are defined yet.");
   }
 
   try {
     const instances = caseDocumentToSimInstances(doc);
     for (const instance of instances) {
+      namesByInstance[instance.id] = instance.name;
       try {
         const measurement = measureConverged(instance.params, {
           ...officialMeasureOptions(doc.meta.id),
@@ -169,11 +110,17 @@ function verifyCase(doc: CaseDocument): CaseValidationReport {
   const expectedFindings = (doc.spec.expectedFindings ?? []).map((finding) => (
     verifyExpectedFinding(finding, metricsByInstance, sampleByInstance)
   ));
-  if (expectedFindings.some((result) => result.status === "fail")) {
-    errors.push("One or more expected findings failed.");
-  }
+  const expectedMessages = collectExpectedFindingMessages(expectedFindings, {
+    hasDefinitions: Boolean(doc.spec.expectedFindings?.length),
+  });
+  warnings.push(...expectedMessages.warnings);
+  errors.push(...expectedMessages.errors);
 
-  const verdict = errors.length > 0 ? "fail" : warnings.length > 0 ? "warning" : "pass";
+  const healthMessages = collectHealthMessages(healthByInstance, namesByInstance);
+  warnings.push(...healthMessages.warnings);
+  errors.push(...healthMessages.errors);
+
+  const verdict = verdictFromMessages({ warnings, errors });
   return {
     schemaVersion: 1,
     generatedAt: new Date().toISOString(),
@@ -225,15 +172,16 @@ function markdownReport(reports: CaseValidationReport[]) {
   return lines.join("\n");
 }
 
-const { outDir } = parseArgs(process.argv.slice(2));
+const { outDir, allowWarnings } = parseArgs(process.argv.slice(2));
 mkdirSync(outDir, { recursive: true });
 const reports = OFFICIAL_CASES.map(verifyCase);
 writeFileSync(path.join(outDir, "official-case-validation.json"), JSON.stringify(reports, null, 2));
 writeFileSync(path.join(outDir, "report.md"), markdownReport(reports));
 
 const failed = reports.filter((report) => report.verdict === "fail");
+const nonPass = reports.filter((report) => report.verdict !== "pass");
 console.log(`Wrote ${reports.length} case validation reports to ${outDir}`);
 console.log(`pass=${reports.filter((r) => r.verdict === "pass").length} warning=${reports.filter((r) => r.verdict === "warning").length} fail=${failed.length}`);
-if (failed.length > 0) {
+if (failed.length > 0 || (!allowWarnings && nonPass.length > 0)) {
   process.exitCode = 1;
 }
