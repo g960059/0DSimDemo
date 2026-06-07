@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { PreviewController } from "@/engine/previewController";
+import { ModelCore } from "@/engine/ModelCore";
 import { DEFAULT_PARAMS } from "@/constants";
 import {
   isCurrentTransitionSteadyResult,
   makeTransitionTargetSignature,
 } from "@/engine/transitionSteadyProtocol";
-import type { SteadyResult } from "@/engine/stateContract";
+import type { SerializedModelState, SteadyResult } from "@/engine/stateContract";
 import type { SimInstance } from "@/types";
 
 // Headless verification of the S3a driver. tick(now) is rAF-free and
@@ -76,8 +77,19 @@ const withFakeWorker = (options: { throwOnScript?: string } = {}) => {
   };
 };
 
-const steadyResult = (): SteadyResult => ({
-  state: {} as SteadyResult["state"],
+const phase = (phi: number): number => {
+  const frac = phi - Math.floor(phi);
+  return frac < 0 ? frac + 1 : frac;
+};
+
+const packedStateFor = (target: SimInstance): SerializedModelState => {
+  const core = new ModelCore(target.params);
+  core.initializeVenousPressuresForTargetTBV(target.targetVolume);
+  return core.packState();
+};
+
+const steadyResult = (state: SteadyResult["state"] = {} as SteadyResult["state"]): SteadyResult => ({
+  state,
 } as SteadyResult);
 
 const snapshot = (params: SimInstance["params"], t = 1) => ({
@@ -618,6 +630,78 @@ describe("PreviewController (headless driver)", () => {
         instance: target,
         state: accepted.steady.state,
       });
+    } finally {
+      workerHarness.restore();
+    }
+  });
+
+  it("phase-aligns completed transition steady results and keeps the old waveform buffer", () => {
+    const workerHarness = withFakeWorker();
+    try {
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
+      c.setInstances([inst("1")]);
+      const phys = c.refs.get("1")!;
+      const oldSamples = [{ t: 9.95, phi: 40.2 }, { t: 10, phi: 40.25 }] as any[];
+      phys.buffer = oldSamples;
+      const target = inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 });
+      const steadyState = packedStateFor(target);
+      c.setInstances([target], { steadyTransitionIds: ["1"] });
+      const pending = c.requestNextSteady(target);
+      const previewWorker = workerHarness.byScript("previewWorker");
+      const transitionWorker = workerHarness.byScript("transitionSteadyWorker");
+      const accepted = transitionResult(pending.request, {
+        steady: steadyResult(steadyState),
+        samples: [{ t: 1, phi: 1 }] as any[],
+        snapshot: snapshot(target.params, steadyState.t),
+      });
+
+      transitionWorker.emit(accepted);
+
+      const alignedSample = phys.buffer.at(-1)!;
+      const promoteMessage = latestWorkerMessage(previewWorker, "promoteTransitionSteady");
+      expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
+      expect(c.getTransitionSteadyResult("1")).toEqual(accepted);
+      expect(phys.buffer.slice(0, oldSamples.length)).toEqual(oldSamples);
+      expect(phys.buffer.length).toBe(oldSamples.length + 1);
+      expect(alignedSample.t).toBeGreaterThan(oldSamples.at(-1)!.t);
+      expect(phase(alignedSample.phi)).toBeCloseTo(phase(oldSamples.at(-1)!.phi), 5);
+      expect(phys.waveformBreakT).toBe(alignedSample.t);
+      expect(phys.previousEpoch?.buffer).toEqual(oldSamples);
+      expect((phys.core as any).t).toBe(alignedSample.t);
+      expect(promoteMessage).toMatchObject({
+        type: "promoteTransitionSteady",
+        instance: target,
+      });
+      expect(promoteMessage.state.t).toBe(alignedSample.t);
+      expect(promoteMessage.state.t).not.toBe(steadyState.t);
+      expect(phase(promoteMessage.state.phi)).toBeCloseTo(phase(oldSamples.at(-1)!.phi), 5);
+    } finally {
+      workerHarness.restore();
+    }
+  });
+
+  it("falls back to replace promotion when phase alignment has no finite old anchor", () => {
+    const workerHarness = withFakeWorker();
+    try {
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
+      c.setInstances([inst("1")]);
+      const phys = c.refs.get("1")!;
+      phys.buffer = [{ t: Number.NaN, phi: 0.25 }] as any[];
+      const target = inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 });
+      const steadyState = packedStateFor(target);
+      c.setInstances([target], { steadyTransitionIds: ["1"] });
+      const pending = c.requestNextSteady(target);
+      const transitionWorker = workerHarness.byScript("transitionSteadyWorker");
+      const replacementSamples = [{ t: 1, phi: 1 }] as any[];
+
+      transitionWorker.emit(transitionResult(pending.request, {
+        steady: steadyResult(steadyState),
+        samples: replacementSamples,
+        snapshot: snapshot(target.params, steadyState.t),
+      }));
+
+      expect(phys.buffer).toEqual(replacementSamples);
+      expect(phys.waveformBreakT).toBeUndefined();
     } finally {
       workerHarness.restore();
     }
