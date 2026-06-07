@@ -495,6 +495,43 @@ describe("PreviewController (headless driver)", () => {
     }
   });
 
+  it("does not cancel a pending steady request when a stale previous instance is re-synced as an explicit hold", () => {
+    const workerHarness = withFakeWorker();
+    try {
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
+      const current = inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 });
+      const next = inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 2 });
+      c.setInstances([current]);
+      const phys = c.refs.get("1")!;
+      const oldSamples = [{ t: 0.5, phi: 0.5 }] as any[];
+      phys.buffer = oldSamples;
+
+      c.setInstances([next], { steadyTransitionIds: ["1"] });
+      const pending = c.requestNextSteady(next);
+      c.setInstances([current], { steadyTransitionIds: ["1"] });
+
+      expect(c.getPendingTransitionSteadyJob("1")).toBe(pending);
+      expect(phys.transition).toMatchObject({
+        status: "pending",
+        toSignature: pending.request.toSignature,
+      });
+
+      c.setInstances([next], { steadyTransitionIds: ["1"] });
+      const accepted = transitionResult(pending.request, {
+        samples: [{ t: 1, phi: 1 }] as any[],
+        snapshot: snapshot(next.params, 10),
+      });
+      workerHarness.byScript("transitionSteadyWorker").emit(accepted);
+
+      expect(c.getPendingTransitionSteadyJob("1")).toBeUndefined();
+      expect(c.getTransitionSteadyResult("1")).toEqual(accepted);
+      expect(phys.previousEpoch?.buffer).toEqual(oldSamples);
+      expect(phys.transition?.status).toBe("promoted");
+    } finally {
+      workerHarness.restore();
+    }
+  });
+
   it("clears pending transition steady jobs when a plain physical edit changes the target", () => {
     const workerHarness = withFakeWorker();
     try {

@@ -605,6 +605,7 @@ export class PreviewController {
     if (!pending) return explicitHold;
     const targetSignature = transitionTargetSignature(inst);
     if (targetSignature !== pending.request.toSignature) {
+      if (explicitHold && targetSignature === pending.request.fromSignature) return true;
       this.clearTransitionSteadyJob(inst.id);
       return explicitHold;
     }
