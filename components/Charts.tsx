@@ -13,7 +13,7 @@ import { buildPvLoopDrawPlan } from './pvLoopTransition';
 import {
     chamberPVPoint,
     isDrawablePvLoopBeatData,
-    pvLoopBeatData,
+    pvLoopBeatDataForDisplay,
     type PvLoopBeatData,
 } from './pvLoopPoints';
 import {
@@ -685,16 +685,25 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
           });
 
           cfg.selectedSignals.forEach((chamber: string) => {
-              const currentBeatData = pvLoopBeatData(physState.buffer, chamber);
-              if (currentBeatData && isDrawablePvLoopBeatData(chamber, currentBeatData)) {
-                  scanLoopForScale(currentBeatData);
+              const displayBeatData = pvLoopBeatDataForDisplay({
+                  buffer: physState.buffer,
+                  previousBuffer: physState.previousEpoch?.buffer,
+                  waveformBreakT: physState.waveformBreakT,
+                  chamber,
+                  showPrevious: drawPlan.showPrevious,
+              });
+              if (
+                  displayBeatData.currentBeatData
+                  && isDrawablePvLoopBeatData(chamber, displayBeatData.currentBeatData)
+              ) {
+                  scanLoopForScale(displayBeatData.currentBeatData);
               }
 
-              if (drawPlan.showPrevious && physState.previousEpoch) {
-                  const previousBeatData = pvLoopBeatData(physState.previousEpoch.buffer, chamber);
-                  if (previousBeatData && isDrawablePvLoopBeatData(chamber, previousBeatData)) {
-                      scanLoopForScale(previousBeatData);
-                  }
+              if (
+                  displayBeatData.previousBeatData
+                  && isDrawablePvLoopBeatData(chamber, displayBeatData.previousBeatData)
+              ) {
+                  scanLoopForScale(displayBeatData.previousBeatData);
               }
           });
       });
@@ -751,6 +760,12 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
 	          currentBeatData: PvLoopBeatData;
 	          currentPoints: CanvasPoint[];
 	      }> = [];
+	      const pvLoopGhostItems: Array<{
+	          chamber: string;
+	          color: string;
+	          drawPlan: ReturnType<typeof buildPvLoopDrawPlan>;
+	          previousBeatData: PvLoopBeatData;
+	      }> = [];
 
 	      instances.forEach(inst => {
 	          const cfg = (config as any)[inst.id];
@@ -771,14 +786,32 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
 
 	          cfg.selectedSignals.forEach((chamber: string) => {
 	              const color = getColor(inst.color, chamber, cfg.customBaseColor, cfg.customSignalColors);
-	              const currentBeatData = pvLoopBeatData(buf, chamber);
+	              const displayBeatData = pvLoopBeatDataForDisplay({
+	                  buffer: buf,
+	                  previousBuffer: physState.previousEpoch?.buffer,
+	                  waveformBreakT: physState.waveformBreakT,
+	                  chamber,
+	                  showPrevious: drawPlan.showPrevious,
+	              });
+	              if (
+	                  displayBeatData.previousBeatData
+	                  && isDrawablePvLoopBeatData(chamber, displayBeatData.previousBeatData)
+	              ) {
+	                  pvLoopGhostItems.push({
+	                      chamber,
+	                      color,
+	                      drawPlan,
+	                      previousBeatData: displayBeatData.previousBeatData,
+	                  });
+	              }
+	              const currentBeatData = displayBeatData.currentBeatData;
 	              if (!currentBeatData || !isDrawablePvLoopBeatData(chamber, currentBeatData)) return;
 	              const currentPoints = pvLoopCanvasPoints(currentBeatData, xScale, yScale);
 	              pvLoopItems.push({
 	                  inst,
 	                  cfg,
 	                  physState,
-	                  buf,
+	                  buf: displayBeatData.currentBuffer,
 	                  chamber,
 	                  color,
 	                  drawPlan,
@@ -788,10 +821,7 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
 	          });
 	      });
 
-	      pvLoopItems.forEach(({ physState, chamber, color, drawPlan }) => {
-	          if (!drawPlan.showPrevious || !physState.previousEpoch) return;
-	          const previousBeatData = pvLoopBeatData(physState.previousEpoch.buffer, chamber);
-	          if (!previousBeatData || !isDrawablePvLoopBeatData(chamber, previousBeatData)) return;
+	      pvLoopGhostItems.forEach(({ color, drawPlan, previousBeatData }) => {
 	          drawPvLoopStroke(
 	              ctx,
 	              pvLoopCanvasPoints(previousBeatData, xScale, yScale),

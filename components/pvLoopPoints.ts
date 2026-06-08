@@ -19,6 +19,12 @@ export type PvLoopBeatData = {
   vMax: number;
 };
 
+export type PvLoopDisplayBeatData = {
+  currentBuffer: SimSample[];
+  currentBeatData: PvLoopBeatData | null;
+  previousBeatData: PvLoopBeatData | null;
+};
+
 export const chamberPVPoint = (d: SimSample, chamber: string): PvLoopRawPoint => {
   switch (chamber) {
     case "LV": return { v: d.VLV, p: d.LVP };
@@ -77,3 +83,57 @@ export const pvLoopBeatData = (buf: SimSample[], chamber: string): PvLoopBeatDat
 export const isDrawablePvLoopBeatData = (chamber: string, beatData: PvLoopBeatData): boolean => (
   chamber !== "LA" || beatData.beatSampleCount >= 16
 );
+
+export const pvLoopCurrentBufferForDisplay = (
+  buf: SimSample[],
+  waveformBreakT?: number,
+): SimSample[] => (
+  waveformBreakT === undefined
+    ? buf
+    : buf.filter((sample) => sample.t >= waveformBreakT)
+);
+
+export const isCompletePvLoopBeatAfterBufferStart = (
+  buf: SimSample[],
+  beatData: PvLoopBeatData,
+): boolean => {
+  const firstPhi = buf[0]?.phi;
+  const latestPhi = buf.at(-1)?.phi;
+  if (!Number.isFinite(firstPhi) || !Number.isFinite(latestPhi)) return false;
+  if (beatData.beatRange.closingIndex < 0) return false;
+  const beatEnd = Math.floor(latestPhi);
+  const beatStart = beatEnd - 1;
+  const firstCompleteBeatStart = Math.ceil(firstPhi - 1e-9);
+  return beatStart >= firstCompleteBeatStart;
+};
+
+export const pvLoopBeatDataForDisplay = ({
+  buffer,
+  previousBuffer,
+  waveformBreakT,
+  chamber,
+  showPrevious,
+}: {
+  buffer: SimSample[];
+  previousBuffer?: SimSample[];
+  waveformBreakT?: number;
+  chamber: string;
+  showPrevious: boolean;
+}): PvLoopDisplayBeatData => {
+  const currentBuffer = pvLoopCurrentBufferForDisplay(buffer, waveformBreakT);
+  const currentCandidate = pvLoopBeatData(currentBuffer, chamber);
+  const currentBeatData = (
+    currentCandidate
+    && (
+      waveformBreakT === undefined
+      || isCompletePvLoopBeatAfterBufferStart(currentBuffer, currentCandidate)
+    )
+  ) ? currentCandidate : null;
+  return {
+    currentBuffer,
+    currentBeatData,
+    previousBeatData: showPrevious && previousBuffer
+      ? pvLoopBeatData(previousBuffer, chamber)
+      : null,
+  };
+};
