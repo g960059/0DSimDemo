@@ -7,6 +7,7 @@ import type {
   StarlingSweepWorkerMessage,
 } from "@/engine/guytonStarling";
 import {
+  buildColdStarlingSweepResponse,
   buildGuytonBaseMapResponse,
   buildGuytonStarlingWorkerMessages,
   buildStarlingSweepResponse,
@@ -41,6 +42,48 @@ describe("Guyton / Starling worker helpers", () => {
       -300,
       0,
       300,
+      600,
+    ]);
+    expectSortedByPressure(response.right?.points ?? []);
+    expectSortedByPressure(response.left?.points ?? []);
+  });
+
+  it("keeps warm-start sweep close to the cold reference helper", () => {
+    const req = request();
+    const warm = buildStarlingSweepResponse(req);
+    const cold = buildColdStarlingSweepResponse(req);
+
+    for (const side of ["right", "left"] as const) {
+      const warmByDelta = pointsByDelta(warm[side]?.points ?? []);
+      const coldByDelta = pointsByDelta(cold[side]?.points ?? []);
+      expect(Array.from(warmByDelta.keys()).sort((a, b) => a - b)).toEqual(
+        Array.from(coldByDelta.keys()).sort((a, b) => a - b),
+      );
+      for (const [delta, warmPoint] of warmByDelta) {
+        const coldPoint = coldByDelta.get(delta);
+        expect(coldPoint).toBeDefined();
+        expect(Math.abs(warmPoint.x - (coldPoint?.x ?? NaN))).toBeLessThan(0.15);
+        expect(Math.abs(warmPoint.y - (coldPoint?.y ?? NaN))).toBeLessThan(0.08);
+      }
+    }
+  });
+
+  it("supports custom deltas while preserving the requested delta set", () => {
+    const deltasMl = [-450, 0, 150, 600, -150];
+    const response = buildStarlingSweepResponse(request({ deltasMl }));
+
+    expect(response.right?.points.map((point) => point.deltaVolumeMl).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([
+      -450,
+      -150,
+      0,
+      150,
+      600,
+    ]);
+    expect(response.left?.points.map((point) => point.deltaVolumeMl).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([
+      -450,
+      -150,
+      0,
+      150,
       600,
     ]);
     expectSortedByPressure(response.right?.points ?? []);
@@ -129,6 +172,10 @@ function expectSortedByPressure(points: { x: number }[]): void {
   for (let i = 1; i < points.length; i++) {
     expect(points[i].x).toBeGreaterThanOrEqual(points[i - 1].x);
   }
+}
+
+function pointsByDelta(points: { deltaVolumeMl?: number; x: number; y: number }[]): Map<number, { x: number; y: number }> {
+  return new Map(points.map((point) => [point.deltaVolumeMl ?? NaN, point]));
 }
 
 function emptyBaseMap(req: StarlingSweepRequest): GuytonBaseMapResponse {
