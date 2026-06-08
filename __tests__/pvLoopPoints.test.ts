@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { SimSample } from "@/engine/protocol";
 import {
+  isCompletePvLoopBeatAfterBufferStart,
   isDrawablePvLoopBeatData,
   lastCompleteBeatRange,
   pvLoopBeatData,
+  pvLoopBeatDataForDisplay,
+  pvLoopCurrentBufferForDisplay,
 } from "@/components/pvLoopPoints";
 
 const sample = (phi: number, v: number): SimSample => ({
@@ -17,6 +20,12 @@ const sample = (phi: number, v: number): SimSample => ({
   RVP: v + 4,
   VRA: v + 5,
   RAP: v + 6,
+} as SimSample);
+
+const sampleAt = (t: number, phi: number, v: number): SimSample => ({
+  ...sample(phi, v),
+  t,
+  phi,
 } as SimSample);
 
 describe("PV loop point helpers", () => {
@@ -69,5 +78,79 @@ describe("PV loop point helpers", () => {
     expect(shortLa).toBeDefined();
     expect(isDrawablePvLoopBeatData("LV", shortLa!)).toBe(true);
     expect(isDrawablePvLoopBeatData("LA", shortLa!)).toBe(false);
+  });
+
+  it("uses only post-break samples for the promoted current loop", () => {
+    const oldSamples = [
+      sampleAt(8.0, 20.0, 10),
+      sampleAt(8.4, 20.5, 20),
+      sampleAt(8.8, 21.0, 30),
+      sampleAt(9.0, 21.1, 40),
+    ];
+    const newSamples = [
+      sampleAt(10.0, 7.3, 100),
+      sampleAt(10.4, 7.8, 110),
+      sampleAt(10.8, 8.05, 120),
+    ];
+
+    expect(pvLoopCurrentBufferForDisplay([...oldSamples, ...newSamples], 10)).toEqual(newSamples);
+  });
+
+  it("keeps the previous ghost available before the promoted current beat is complete", () => {
+    const previousBuffer = [
+      sampleAt(8.0, 20.0, 10),
+      sampleAt(8.4, 20.5, 20),
+      sampleAt(8.8, 21.0, 30),
+      sampleAt(9.0, 21.1, 40),
+    ];
+    const currentPartial = [
+      sampleAt(10.0, 7.3, 100),
+      sampleAt(10.4, 7.8, 110),
+      sampleAt(10.8, 8.05, 120),
+    ];
+
+    const display = pvLoopBeatDataForDisplay({
+      buffer: [...previousBuffer, ...currentPartial],
+      previousBuffer,
+      waveformBreakT: 10,
+      chamber: "LV",
+      showPrevious: true,
+    });
+
+    expect(display.currentBuffer).toEqual(currentPartial);
+    expect(display.currentBeatData).toBeNull();
+    expect(display.previousBeatData?.points).toEqual([
+      { v: 10, p: 110 },
+      { v: 20, p: 120 },
+      { v: 30, p: 130 },
+      { v: 40, p: 140 },
+    ]);
+  });
+
+  it("shows the promoted current loop after a complete post-break beat exists", () => {
+    const currentComplete = [
+      sampleAt(10.0, 7.3, 100),
+      sampleAt(10.4, 7.8, 110),
+      sampleAt(10.8, 8.0, 120),
+      sampleAt(11.2, 8.5, 130),
+      sampleAt(11.6, 9.0, 140),
+      sampleAt(12.0, 9.1, 150),
+    ];
+
+    const display = pvLoopBeatDataForDisplay({
+      buffer: currentComplete,
+      waveformBreakT: 10,
+      chamber: "LV",
+      showPrevious: false,
+    });
+
+    expect(display.currentBeatData).not.toBeNull();
+    expect(isCompletePvLoopBeatAfterBufferStart(currentComplete, display.currentBeatData!)).toBe(true);
+    expect(display.currentBeatData?.points).toEqual([
+      { v: 120, p: 220 },
+      { v: 130, p: 230 },
+      { v: 140, p: 240 },
+      { v: 150, p: 250 },
+    ]);
   });
 });
