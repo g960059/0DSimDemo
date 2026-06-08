@@ -1,0 +1,79 @@
+import type { SimSample } from "@/engine/protocol";
+
+export type PvLoopBeatRange = {
+  start: number;
+  end: number;
+  closingIndex: number;
+};
+
+export type PvLoopRawPoint = {
+  v: number;
+  p: number;
+};
+
+export type PvLoopBeatData = {
+  beatRange: PvLoopBeatRange;
+  beatSampleCount: number;
+  points: PvLoopRawPoint[];
+  vMin: number;
+  vMax: number;
+};
+
+export const chamberPVPoint = (d: SimSample, chamber: string): PvLoopRawPoint => {
+  switch (chamber) {
+    case "LV": return { v: d.VLV, p: d.LVP };
+    case "LA": return { v: d.VLA, p: d.LAP };
+    case "RV": return { v: d.VRV, p: d.RVP };
+    case "RA": return { v: d.VRA, p: d.RAP };
+    default: return { v: 0, p: 0 };
+  }
+};
+
+export const lastCompleteBeatRange = (buf: SimSample[]): PvLoopBeatRange => {
+  const phiNow = buf[buf.length - 1]?.phi ?? 0;
+  const beatEnd = Math.floor(phiNow);
+  if (beatEnd < 1) return { start: 0, end: buf.length, closingIndex: -1 };
+  const beatStart = beatEnd - 1;
+  let end = buf.length;
+  while (end > 0 && buf[end - 1].phi > beatEnd) end--;
+  let start = end;
+  while (start > 0 && buf[start - 1].phi >= beatStart) start--;
+  return { start, end, closingIndex: end < buf.length ? end : -1 };
+};
+
+export const pvLoopBeatData = (buf: SimSample[], chamber: string): PvLoopBeatData | null => {
+  if (buf.length < 2) return null;
+  const beatRange = lastCompleteBeatRange(buf);
+  const beatSampleCount = beatRange.end - beatRange.start + (beatRange.closingIndex >= 0 ? 1 : 0);
+  const points: PvLoopRawPoint[] = [];
+  let vMin = Infinity;
+  let vMax = -Infinity;
+
+  const addPoint = (d: SimSample | undefined) => {
+    if (!d) return;
+    const { v, p } = chamberPVPoint(d, chamber);
+    vMin = Math.min(vMin, v);
+    vMax = Math.max(vMax, v);
+    points.push({ v, p });
+  };
+
+  for (let i = beatRange.start; i < beatRange.end; i++) {
+    addPoint(buf[i]);
+  }
+  if (beatRange.closingIndex >= 0) {
+    addPoint(buf[beatRange.closingIndex]);
+  }
+  if (points.length < 2) return null;
+
+  return {
+    beatRange,
+    beatSampleCount,
+    points,
+    vMin,
+    vMax,
+  };
+};
+
+export const isDrawablePvLoopBeatData = (chamber: string, beatData: PvLoopBeatData): boolean => (
+  chamber !== "LA" || beatData.beatSampleCount >= 16
+);
