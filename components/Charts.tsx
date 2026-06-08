@@ -5,6 +5,18 @@ import type { SimSample } from '../engine/protocol';
 import { clampLegendFraction, exceededDragThreshold, fractionToPx, isNearDefaultLegendCorner, pxToFraction } from './legendPosition';
 import { useDocumentVisible, useOnscreen } from '../hooks/useOnscreen';
 import {
+    buildWaveformDrawPlan,
+    phaseInSegments,
+    type WaveformPhaseSegment,
+} from './waveformPhaseWipe';
+import { buildPvLoopDrawPlan } from './pvLoopTransition';
+import {
+    chamberPVPoint,
+    isDrawablePvLoopBeatData,
+    pvLoopBeatData,
+    type PvLoopBeatData,
+} from './pvLoopPoints';
+import {
     buildGuytonPaneData,
     defaultGuytonAxis,
     expandGuytonAxisToFit,
@@ -209,53 +221,6 @@ const sampleSignalValue = (d: SimSample, sig: string): number => {
     }
 };
 
-const chamberPVPoint = (d: SimSample, chamber: string): { v: number; p: number } => {
-    switch (chamber) {
-        case 'LV': return { v: d.VLV, p: d.LVP };
-        case 'LA': return { v: d.VLA, p: d.LAP };
-        case 'RV': return { v: d.VRV, p: d.RVP };
-        case 'RA': return { v: d.VRA, p: d.RAP };
-        default: return { v: 0, p: 0 };
-    }
-};
-
-const lastCompleteBeatRange = (buf: SimSample[]): { start: number; end: number; closingIndex: number } => {
-    const phiNow = buf[buf.length - 1]?.phi ?? 0;
-    const beatEnd = Math.floor(phiNow);
-    if (beatEnd < 1) return { start: 0, end: buf.length, closingIndex: -1 };
-    const beatStart = beatEnd - 1;
-    let end = buf.length;
-    while (end > 0 && buf[end - 1].phi > beatEnd) end--;
-    let start = end;
-    while (start > 0 && buf[start - 1].phi >= beatStart) start--;
-    return { start, end, closingIndex: end < buf.length ? end : -1 };
-};
-
-const hasCompleteBeatForPvLoop = (buf: SimSample[]): boolean => {
-    if (buf.length < 2) return false;
-    const range = lastCompleteBeatRange(buf);
-    return range.closingIndex >= 0 && range.end - range.start >= 2;
-};
-
-export const pvLoopBufferForDisplay = (buf: SimSample[], waveformBreakT?: number): SimSample[] => {
-    if (waveformBreakT === undefined) return buf;
-    const newBuf = buf.filter((sample) => sample.t >= waveformBreakT);
-    if (hasCompleteBeatForPvLoop(newBuf)) return newBuf;
-    const oldBuf = buf.filter((sample) => sample.t < waveformBreakT);
-    return oldBuf.length >= 2 ? oldBuf : buf;
-};
-
-export const waveformShouldBreakBeforeSample = (
-    previous: SimSample | null,
-    current: SimSample,
-    waveformBreakT?: number,
-): boolean => (
-    waveformBreakT !== undefined
-    && previous !== null
-    && previous.t < waveformBreakT
-    && current.t >= waveformBreakT
-);
-
 const firstSampleIndexAtOrAfter = (buf: SimSample[], t: number): number => {
     let lo = 0;
     let hi = buf.length;
@@ -302,6 +267,29 @@ const drawSmoothPolyline = (ctx: CanvasRenderingContext2D, points: CanvasPoint[]
     const last = points[points.length - 1];
     ctx.lineTo(last.x, last.y);
     ctx.stroke();
+};
+
+const pvLoopCanvasPoints = (
+    beatData: PvLoopBeatData,
+    xScale: d3.ScaleLinear<number, number>,
+    yScale: d3.ScaleLinear<number, number>,
+): CanvasPoint[] => beatData.points.map(({ v, p }) => ({ x: xScale(v), y: yScale(p) }));
+
+const drawPvLoopStroke = (
+    ctx: CanvasRenderingContext2D,
+    points: CanvasPoint[],
+    color: string,
+    alpha: number,
+): void => {
+    if (points.length < 2 || alpha <= 0) return;
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = alpha;
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    drawSmoothPolyline(ctx, points);
+    ctx.restore();
 };
 
 const drawRawDots = (ctx: CanvasRenderingContext2D, points: CanvasPoint[], color: string): void => {
@@ -674,23 +662,41 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
       let currentFrameMaxP = 0;
       let hasData = false;
 
+      const scanLoopForScale = (beatData: PvLoopBeatData) => {
+          beatData.points.forEach(({ v, p }) => {
+              if (v > currentFrameMaxV) currentFrameMaxV = v;
+              if (p > currentFrameMaxP) currentFrameMaxP = p;
+              hasData = true;
+          });
+      };
+
       instances.forEach(inst => {
           const cfg = (config as any)[inst.id];
           if (!cfg || !cfg.visible || cfg.selectedSignals.length === 0) return;
-          
+
           const physState = physicsRefs.current.get(inst.id);
           if (!physState || physState.buffer.length < 2) return;
-          
-          const data = pvLoopBufferForDisplay(physState.buffer, physState.waveformBreakT).slice(-500);
-          for (let i = 0; i < data.length; i += 10) {
-              const d = data[i];
-              cfg.selectedSignals.forEach((chamber: string) => {
-                  const { v, p } = chamberPVPoint(d, chamber);
-                  if (v > currentFrameMaxV) currentFrameMaxV = v;
-                  if (p > currentFrameMaxP) currentFrameMaxP = p;
-                  hasData = true;
-              });
-          }
+
+          const instanceLatestT = physState.buffer.at(-1)?.t ?? physState.core.t;
+          const drawPlan = buildPvLoopDrawPlan({
+              status: physState.transition?.status,
+              previousEpoch: physState.previousEpoch,
+              instanceLatestT,
+          });
+
+          cfg.selectedSignals.forEach((chamber: string) => {
+              const currentBeatData = pvLoopBeatData(physState.buffer, chamber);
+              if (currentBeatData && isDrawablePvLoopBeatData(chamber, currentBeatData)) {
+                  scanLoopForScale(currentBeatData);
+              }
+
+              if (drawPlan.showPrevious && physState.previousEpoch) {
+                  const previousBeatData = pvLoopBeatData(physState.previousEpoch.buffer, chamber);
+                  if (previousBeatData && isDrawablePvLoopBeatData(chamber, previousBeatData)) {
+                      scanLoopForScale(previousBeatData);
+                  }
+              }
+          });
       });
 
       if (hasData) {
@@ -732,94 +738,116 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
       ctx.fillText("Pressure (mmHg)", 0, 0);
       ctx.restore();
 
-      const pvDebug = isPvLoopDebugEnabled();
-      const debugLines: string[] = [];
+	      const pvDebug = isPvLoopDebugEnabled();
+	      const debugLines: string[] = [];
+	      const pvLoopItems: Array<{
+	          inst: SimInstance;
+	          cfg: PanelInstanceConfig;
+	          physState: PhysicsRefState;
+	          buf: SimSample[];
+	          chamber: string;
+	          color: string;
+	          drawPlan: ReturnType<typeof buildPvLoopDrawPlan>;
+	          currentBeatData: PvLoopBeatData;
+	          currentPoints: CanvasPoint[];
+	      }> = [];
 
-      instances.forEach(inst => {
-          const cfg = (config as any)[inst.id];
-          if (!cfg || !cfg.visible) return;
+	      instances.forEach(inst => {
+	          const cfg = (config as any)[inst.id];
+	          if (!cfg || !cfg.visible) return;
 
-          const physState = physicsRefs.current.get(inst.id);
-          if (!physState || physState.buffer.length < 2) return;
-          
-          // PV loops must be drawn over the LAST COMPLETE beat (floor-aligned),
-          // not a trailing 1.0-phase window that mixes a partial current beat —
-          // otherwise the loop's crossing point shifts and stray segments appear.
-          const buf = pvLoopBufferForDisplay(physState.buffer, physState.waveformBreakT);
-          if (buf.length < 2) return;
-          const beatRange = lastCompleteBeatRange(buf);
-          const beatSampleCount = beatRange.end - beatRange.start + (beatRange.closingIndex >= 0 ? 1 : 0);
+	          const physState = physicsRefs.current.get(inst.id);
+	          if (!physState || physState.buffer.length < 2) return;
 
-          cfg.selectedSignals.forEach((chamber: string) => {
-              // The LA figure-8 needs a full beat to render its two sub-loops;
-              // skip only a degenerate/partial window (live buffer is ~tens of
-              // samples per beat, so the old 80 threshold hid the loop entirely).
-              if (chamber === 'LA' && beatSampleCount < 16) return;
-              const color = getColor(inst.color, chamber, cfg.customBaseColor, cfg.customSignalColors);
-              
-              const points: CanvasPoint[] = [];
-              let vMin = Infinity;
-              let vMax = -Infinity;
-              const addPoint = (d: SimSample) => {
-                  const { v, p } = chamberPVPoint(d, chamber);
-                  vMin = Math.min(vMin, v);
-                  vMax = Math.max(vMax, v);
-                  points.push({ x: xScale(v), y: yScale(p) });
-              };
-              for (let i = beatRange.start; i < beatRange.end; i++) {
-                  addPoint(buf[i]);
-              }
-              if (beatRange.closingIndex >= 0) {
-                  addPoint(buf[beatRange.closingIndex]);
-              }
-              if (points.length < 2) return;
+	          // PV loops are always drawn over the LAST COMPLETE beat. Unlike waveforms,
+	          // transition feedback is a short ghost overlay, not a phase sweep.
+	          const buf = physState.buffer;
+	          const instanceLatestT = buf.at(-1)?.t ?? physState.core.t;
+	          const drawPlan = buildPvLoopDrawPlan({
+	              status: physState.transition?.status,
+	              previousEpoch: physState.previousEpoch,
+	              instanceLatestT,
+	          });
 
-              if (showGuides && (chamber === 'LV' || chamber === 'RV') && Number.isFinite(vMin) && Number.isFinite(vMax)) {
-                  const curveMin = Math.max(0, vMin - 10);
-                  const curveMax = Math.min(scaleRef.current.maxV, Math.max(vMax + 20, curveMin + 20));
-                  const passiveCurve = physState.core.passivePressureVolumeCurve(chamber, curveMin, curveMax, 72)
-                      .filter((pt) => Number.isFinite(pt.v) && Number.isFinite(pt.p) && pt.p >= -10 && pt.p <= scaleRef.current.maxP * 1.4)
-                      .map((pt) => ({ x: xScale(pt.v), y: yScale(pt.p) }));
-                  if (passiveCurve.length > 1) {
-                      ctx.save();
-                      ctx.strokeStyle = color;
-                      ctx.globalAlpha = 0.34;
-                      ctx.lineWidth = 1.2;
-                      ctx.setLineDash([5, 4]);
-                      drawSmoothPolyline(ctx, passiveCurve);
-                      ctx.restore();
-                  }
-              }
+	          cfg.selectedSignals.forEach((chamber: string) => {
+	              const color = getColor(inst.color, chamber, cfg.customBaseColor, cfg.customSignalColors);
+	              const currentBeatData = pvLoopBeatData(buf, chamber);
+	              if (!currentBeatData || !isDrawablePvLoopBeatData(chamber, currentBeatData)) return;
+	              const currentPoints = pvLoopCanvasPoints(currentBeatData, xScale, yScale);
+	              pvLoopItems.push({
+	                  inst,
+	                  cfg,
+	                  physState,
+	                  buf,
+	                  chamber,
+	                  color,
+	                  drawPlan,
+	                  currentBeatData,
+	                  currentPoints,
+	              });
+	          });
+	      });
 
-              ctx.save();
-              ctx.strokeStyle = color;
-              ctx.lineWidth = 2;
-              ctx.lineJoin = 'round';
-              ctx.lineCap = 'round';
-              drawSmoothPolyline(ctx, points);
-              ctx.restore();
+	      pvLoopItems.forEach(({ physState, chamber, color, drawPlan }) => {
+	          if (!drawPlan.showPrevious || !physState.previousEpoch) return;
+	          const previousBeatData = pvLoopBeatData(physState.previousEpoch.buffer, chamber);
+	          if (!previousBeatData || !isDrawablePvLoopBeatData(chamber, previousBeatData)) return;
+	          drawPvLoopStroke(
+	              ctx,
+	              pvLoopCanvasPoints(previousBeatData, xScale, yScale),
+	              color,
+	              drawPlan.previousAlpha,
+	          );
+	      });
 
-              if (pvDebug) {
-                  drawRawDots(ctx, points, color);
-                  const activeName = cfg.customName || inst.name;
-                  debugLines.push(`${activeName} ${chamber}: ${points.length} pts`);
-              }
+	      pvLoopItems.forEach(({ physState, chamber, color, currentBeatData }) => {
+	          if (!showGuides || (chamber !== 'LV' && chamber !== 'RV')) return;
+	          if (!Number.isFinite(currentBeatData.vMin) || !Number.isFinite(currentBeatData.vMax)) return;
+	          const curveMin = Math.max(0, currentBeatData.vMin - 10);
+	          const curveMax = Math.min(scaleRef.current.maxV, Math.max(currentBeatData.vMax + 20, curveMin + 20));
+	          const passiveCurve = physState.core.passivePressureVolumeCurve(chamber, curveMin, curveMax, 72)
+	              .filter((pt) => Number.isFinite(pt.v) && Number.isFinite(pt.p) && pt.p >= -10 && pt.p <= scaleRef.current.maxP * 1.4)
+	              .map((pt) => ({ x: xScale(pt.v), y: yScale(pt.p) }));
+	          if (passiveCurve.length > 1) {
+	              ctx.save();
+	              ctx.strokeStyle = color;
+	              ctx.globalAlpha = 0.34;
+	              ctx.lineWidth = 1.2;
+	              ctx.setLineDash([5, 4]);
+	              drawSmoothPolyline(ctx, passiveCurve);
+	              ctx.restore();
+	          }
+	      });
 
-              // Marker is a live-phase cursor on the displayed beat. The loop is
-              // intentionally last-complete-beat; using the latest transient PV
-              // coordinate would make the dot float away from that displayed curve.
-              const lastPoint = buf[buf.length - 1];
-              if (lastPoint) {
-                  const markerPv = pvPointAtDisplayedPhase(buf, beatRange, chamber, lastPoint.phi) ?? chamberPVPoint(lastPoint, chamber);
-                  ctx.beginPath();
-                  ctx.arc(xScale(markerPv.v), yScale(markerPv.p), 4, 0, Math.PI * 2);
-                  ctx.fillStyle = color;
-                  ctx.fill();
-              }
-          });
-      });
+	      pvLoopItems.forEach(({ color, drawPlan, currentPoints }) => {
+	          drawPvLoopStroke(ctx, currentPoints, color, drawPlan.currentAlpha);
+	      });
 
-      if (pvDebug) drawPvDebugOverlay(ctx, debugLines);
+	      if (pvDebug) {
+	          pvLoopItems.forEach(({ inst, cfg, chamber, color, currentPoints }) => {
+	              drawRawDots(ctx, currentPoints, color);
+	              const activeName = cfg.customName || inst.name;
+	              debugLines.push(`${activeName} ${chamber}: ${currentPoints.length} pts`);
+	          });
+	      }
+
+	      pvLoopItems.forEach(({ buf, chamber, color, drawPlan, currentBeatData }) => {
+	          // Marker is a live-phase cursor on the displayed beat. The loop is
+	          // intentionally last-complete-beat; using the latest transient PV
+	          // coordinate would make the dot float away from that displayed curve.
+	          const lastPoint = buf[buf.length - 1];
+	          if (!lastPoint) return;
+	          const markerPv = pvPointAtDisplayedPhase(buf, currentBeatData.beatRange, chamber, lastPoint.phi) ?? chamberPVPoint(lastPoint, chamber);
+	          ctx.save();
+	          ctx.globalAlpha = drawPlan.markerAlpha;
+	          ctx.beginPath();
+	          ctx.arc(xScale(markerPv.v), yScale(markerPv.p), 4, 0, Math.PI * 2);
+	          ctx.fillStyle = color;
+	          ctx.fill();
+	          ctx.restore();
+	      });
+
+	      if (pvDebug) drawPvDebugOverlay(ctx, debugLines);
 
       animationFrameId = requestAnimationFrame(render);
     };
@@ -908,12 +936,22 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                 const physState = physicsRefs.current.get(inst.id);
                 if (!physState) return;
 
-                const scanBuffer = (buf: SimSample[], minT: number, maxT: number) => {
+                const latestT = physState.buffer.at(-1)?.t ?? physState.core.t ?? currentGlobalTime;
+                const drawPlan = buildWaveformDrawPlan({
+                    status: physState.transition?.status,
+                    previousEpoch: physState.previousEpoch,
+                    instanceLatestT: latestT,
+                    timeWindowSec: timeSec,
+                });
+
+                const scanBuffer = (buf: SimSample[], minT: number, maxT: number, segments: WaveformPhaseSegment[]) => {
+                    if (segments.length === 0) return;
                     const startIndex = firstSampleIndexAtOrAfter(buf, minT);
                     const stepFrames = 10;
                     for (let i = startIndex; i < buf.length; i += stepFrames) {
                         const d = buf[i];
                         if (d.t > maxT) break;
+                        if (!phaseInSegments(d.t % timeSec, segments, timeSec)) continue;
                         cfg.selectedSignals.forEach((sig: string) => {
                             const val = sampleSignalValue(d, sig);
                             if (!Number.isFinite(val)) return;
@@ -925,7 +963,13 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                     }
                 };
 
-                scanBuffer(physState.buffer, tMin, tMax);
+                scanBuffer(physState.buffer, tMin, tMax, drawPlan.currentSegments);
+                if (drawPlan.previousAlpha > 0 && physState.previousEpoch) {
+                    const previous = physState.previousEpoch.buffer;
+                    const previousMaxT = previous.at(-1)?.t ?? 0;
+                    const previousMinT = Math.max(0, previousMaxT - timeSec + gapSec);
+                    scanBuffer(previous, previousMinT, previousMaxT, drawPlan.previousSegments);
+                }
             });
 
             if (hasData) {
@@ -966,11 +1010,21 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                 const physState = physicsRefs.current.get(inst.id);
                 if (!physState) return;
 
-                const drawBuffer = (buf: SimSample[], minT: number, maxT: number, sig: string, color: string, alpha: number, dash: number[] = []) => {
+                const drawBuffer = (
+                    buf: SimSample[],
+                    minT: number,
+                    maxT: number,
+                    sig: string,
+                    color: string,
+                    alpha: number,
+                    segments: WaveformPhaseSegment[],
+                    markerAlpha = 0,
+                    dash: number[] = [],
+                ) => {
+                    if (segments.length === 0) return;
                     const startIndex = firstSampleIndexAtOrAfter(buf, minT);
                     const visibleCount = buf.length - startIndex;
                     const drawStep = Math.max(1, Math.floor(visibleCount / Math.max(1, width * 2)));
-                    const waveformBreakT = physState.waveformBreakT;
                     ctx.save();
                     ctx.globalAlpha = alpha;
                     ctx.beginPath();
@@ -979,7 +1033,6 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                     ctx.setLineDash(dash);
 
                     let prevX = -1;
-                    let previousSample: SimSample | null = null;
                     let lastPx = -1;
                     let lastPy = -1;
 
@@ -991,9 +1044,16 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                         const modT = d.t % timeSec;
                         const px = xScale(modT);
                         const py = yScale(val);
-                        const breakBeforeSample = waveformShouldBreakBeforeSample(previousSample, d, waveformBreakT);
+                        if (!phaseInSegments(modT, segments, timeSec)) {
+                            if (prevX !== -1) {
+                                ctx.stroke();
+                                ctx.beginPath();
+                                prevX = -1;
+                            }
+                            continue;
+                        }
 
-                        if (prevX === -1 || px < prevX || breakBeforeSample) {
+                        if (prevX === -1 || px < prevX) {
                             ctx.stroke();
                             ctx.beginPath();
                             ctx.strokeStyle = color;
@@ -1004,25 +1064,57 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                             ctx.lineTo(px, py);
                         }
                         prevX = px;
-                        previousSample = d;
                         lastPx = px;
                         lastPy = py;
                     }
                     ctx.stroke();
                     ctx.restore();
 
-                    if (alpha >= 1 && lastPx !== -1) {
+                    if (markerAlpha > 0 && lastPx !== -1) {
+                         ctx.save();
+                         ctx.globalAlpha = markerAlpha;
                          ctx.beginPath();
                          ctx.arc(lastPx, lastPy, 4, 0, Math.PI * 2);
                          const c = d3.color(color);
                          ctx.fillStyle = c ? c.brighter(0.5).formatHex() : color;
                          ctx.fill();
+                         ctx.restore();
                     }
                 };
 
+                const latestT = physState.buffer.at(-1)?.t ?? physState.core.t ?? currentGlobalTime;
+                const drawPlan = buildWaveformDrawPlan({
+                    status: physState.transition?.status,
+                    previousEpoch: physState.previousEpoch,
+                    instanceLatestT: latestT,
+                    timeWindowSec: timeSec,
+                });
+                const previous = physState.previousEpoch?.buffer;
+                const previousMaxT = previous?.at(-1)?.t ?? 0;
+                const previousMinT = Math.max(0, previousMaxT - timeSec + gapSec);
                 cfg.selectedSignals.forEach((sig: string) => {
                     const color = getColor(inst.color, sig, cfg.customBaseColor, cfg.customSignalColors);
-                    drawBuffer(physState.buffer, tMin, tMax, sig, color, 1);
+                    if (previous && drawPlan.previousAlpha > 0) {
+                        drawBuffer(
+                            previous,
+                            previousMinT,
+                            previousMaxT,
+                            sig,
+                            color,
+                            drawPlan.previousAlpha,
+                            drawPlan.previousSegments,
+                        );
+                    }
+                    drawBuffer(
+                        physState.buffer,
+                        tMin,
+                        tMax,
+                        sig,
+                        color,
+                        drawPlan.currentAlpha,
+                        drawPlan.currentSegments,
+                        drawPlan.markerAlpha,
+                    );
                 });
             });
 
