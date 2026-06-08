@@ -136,6 +136,21 @@ export type RunForOptions = {
   historyLimit?: number;
 };
 
+export type RetargetTBVOptions = {
+  toleranceMl?: number;
+  maxIterations?: number;
+};
+
+export type RetargetTBVStatus = {
+  ok: boolean;
+  targetTBVMl: number;
+  beforeTBVMl: number;
+  afterTBVMl: number;
+  errorMl: number;
+  iterations: number;
+  reason?: "invalid-target" | "non-finite-tbv" | "residual";
+};
+
 function comparableFlowEdgeName(name: string): string {
   const edgeByComparableName: Record<string, string> = {
     QAo: "AoV",
@@ -447,6 +462,83 @@ export class ModelCore {
     this.tbvCorrectionMagThisBeat = 0;
     this.tbvCorrectionMagLastBeat = 0;
     this.tbvCorrectionLastStepMl = 0;
+  }
+
+  retargetTBVFromCurrentState(
+    targetTBV: number,
+    options: RetargetTBVOptions = {},
+  ): RetargetTBVStatus {
+    const target = Number.isFinite(targetTBV) ? targetTBV : NaN;
+    const beforeTBV = this.totalBloodVolume(this.computePressures(this.x));
+    const toleranceMl = options.toleranceMl ?? 1e-3;
+    const maxIterations = Math.max(1, Math.floor(options.maxIterations ?? 16));
+    if (!Number.isFinite(target) || target <= 0) {
+      return {
+        ok: false,
+        targetTBVMl: targetTBV,
+        beforeTBVMl: beforeTBV,
+        afterTBVMl: beforeTBV,
+        errorMl: Number.NaN,
+        iterations: 0,
+        reason: "invalid-target",
+      };
+    }
+    if (!Number.isFinite(beforeTBV)) {
+      return {
+        ok: false,
+        targetTBVMl: target,
+        beforeTBVMl: beforeTBV,
+        afterTBVMl: beforeTBV,
+        errorMl: Number.NaN,
+        iterations: 0,
+        reason: "non-finite-tbv",
+      };
+    }
+
+    this.expectedTBV = target;
+    let afterTBV = beforeTBV;
+    let errorMl = target - afterTBV;
+    let iterations = 0;
+    for (; iterations < maxIterations; iterations++) {
+      if (Math.abs(errorMl) <= toleranceMl) break;
+      this.correctVenousPressuresToExpectedTBV({
+        gain: 1,
+        maxTotalCorrectionMl: Infinity,
+        maxNodeVolumeMl: Infinity,
+      });
+      afterTBV = this.totalBloodVolume(this.computePressures(this.x));
+      errorMl = target - afterTBV;
+      if (!Number.isFinite(afterTBV) || !Number.isFinite(errorMl)) {
+        return {
+          ok: false,
+          targetTBVMl: target,
+          beforeTBVMl: beforeTBV,
+          afterTBVMl: afterTBV,
+          errorMl,
+          iterations: iterations + 1,
+          reason: "non-finite-tbv",
+        };
+      }
+    }
+
+    this.clearBeatTracking(); // volume retarget re-arms steady-state detection
+    this.lastSample = this.sample();
+    this.initialTBV = this.lastSample.TBV;
+    this.expectedTBV = this.initialTBV;
+    this.tbvCorrectionMagThisBeat = 0;
+    this.tbvCorrectionMagLastBeat = 0;
+    this.tbvCorrectionLastStepMl = 0;
+
+    const ok = Math.abs(errorMl) <= toleranceMl;
+    return {
+      ok,
+      targetTBVMl: target,
+      beforeTBVMl: beforeTBV,
+      afterTBVMl: afterTBV,
+      errorMl,
+      iterations,
+      reason: ok ? undefined : "residual",
+    };
   }
 
   step(dt: number) {

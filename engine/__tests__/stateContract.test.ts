@@ -105,6 +105,29 @@ describe("ModelCore state contract", () => {
     expect(Number.isFinite(comparable.phi)).toBe(true);
   });
 
+  it("retargets TBV from the current state while preserving phase and flow state", () => {
+    const core = new ModelCore(DEFAULT_PARAMS);
+    core.initializeVenousPressuresForTargetTBV(5600);
+    core.runFor(4, 0.001, 240);
+    const before = core.getComparableState();
+    const targetTBV = before.values.TBV + 300;
+
+    const status = core.retargetTBVFromCurrentState(targetTBV);
+    const after = core.getComparableState();
+
+    expect(status.ok).toBe(true);
+    expect(status.reason).toBeUndefined();
+    expect(status.targetTBVMl).toBe(targetTBV);
+    expect(status.beforeTBVMl).toBeCloseTo(before.values.TBV, 8);
+    expect(status.afterTBVMl).toBeCloseTo(targetTBV, 6);
+    expect(after.values.TBV).toBeCloseTo(targetTBV, 6);
+    expect(after.values.phi).toBeCloseTo(before.values.phi, 12);
+    expect(after.values["Q.AoV"]).toBeCloseTo(before.values["Q.AoV"], 12);
+    expect(after.values["Q.MV"]).toBeCloseTo(before.values["Q.MV"], 12);
+    expect(after.values["V.SV"]).not.toBeCloseTo(before.values["V.SV"], 6);
+    expect(finiteValues(after.values)).toBe(true);
+  });
+
   it("collects samples by default when running", () => {
     const core = new ModelCore(DEFAULT_PARAMS);
     core.initializeVenousPressuresForTargetTBV(5600);

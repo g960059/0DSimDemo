@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_PARAMS } from "@/constants";
+import { ModelCore } from "@/engine/ModelCore";
 import type {
   GuytonBaseMapResponse,
   GuytonPaneData,
@@ -25,6 +26,7 @@ describe("Guyton / Starling worker helpers", () => {
     expect(response.instanceId).toBe(req.instanceId);
     expectFiniteExactPane(response.right, "right");
     expectFiniteExactPane(response.left, "left");
+    expectBaseMapTiming(response);
   });
 
   it("builds the default Starling sweep message with pressure-sorted points", () => {
@@ -46,6 +48,7 @@ describe("Guyton / Starling worker helpers", () => {
     ]);
     expectSortedByPressure(response.right?.points ?? []);
     expectSortedByPressure(response.left?.points ?? []);
+    expectSweepTiming(response);
   });
 
   it("keeps warm-start sweep close to the cold reference helper", () => {
@@ -65,6 +68,30 @@ describe("Guyton / Starling worker helpers", () => {
         expect(Math.abs(warmPoint.x - (coldPoint?.x ?? NaN))).toBeLessThan(0.15);
         expect(Math.abs(warmPoint.y - (coldPoint?.y ?? NaN))).toBeLessThan(0.08);
       }
+    }
+    expectSweepTiming(warm);
+  });
+
+  it("falls back to the cold retarget path when warm retarget reports failure", () => {
+    const spy = vi.spyOn(ModelCore.prototype, "retargetTBVFromCurrentState").mockReturnValue({
+      ok: false,
+      targetTBVMl: 0,
+      beforeTBVMl: 0,
+      afterTBVMl: 0,
+      errorMl: Number.NaN,
+      iterations: 0,
+      reason: "residual",
+    });
+    try {
+      const response = buildStarlingSweepResponse(request());
+
+      expect(response.error).toBeUndefined();
+      expect(response.timing?.retargetFallbackCount).toBe(4);
+      expect(response.warnings.filter((warning) => warning.includes("warm retarget fallback"))).toHaveLength(4);
+      expect(response.right?.points).toHaveLength(5);
+      expect(response.left?.points).toHaveLength(5);
+    } finally {
+      spy.mockRestore();
     }
   });
 
@@ -176,6 +203,28 @@ function expectSortedByPressure(points: { x: number }[]): void {
 
 function pointsByDelta(points: { deltaVolumeMl?: number; x: number; y: number }[]): Map<number, { x: number; y: number }> {
   return new Map(points.map((point) => [point.deltaVolumeMl ?? NaN, point]));
+}
+
+function expectBaseMapTiming(response: GuytonBaseMapResponse): void {
+  expect(response.timing?.baselineSource).toBe("cold");
+  expectFiniteNonNegative(response.timing?.baselineMs);
+  expectFiniteNonNegative(response.timing?.baseMapMs);
+  expectFiniteNonNegative(response.timing?.totalMs);
+  expect(response.timing?.totalMs ?? 0).toBeGreaterThanOrEqual(response.timing?.baseMapMs ?? Infinity);
+}
+
+function expectSweepTiming(response: StarlingSweepWorkerMessage): void {
+  expectFiniteNonNegative(response.timing?.positiveChainMs);
+  expectFiniteNonNegative(response.timing?.negativeChainMs);
+  expectFiniteNonNegative(response.timing?.assembleMs);
+  expectFiniteNonNegative(response.timing?.totalMs);
+  expect(response.timing?.retargetFallbackCount).toBe(0);
+}
+
+function expectFiniteNonNegative(value: number | undefined): void {
+  expect(typeof value).toBe("number");
+  expect(Number.isFinite(value)).toBe(true);
+  expect(value ?? -1).toBeGreaterThanOrEqual(0);
 }
 
 function emptyBaseMap(req: StarlingSweepRequest): GuytonBaseMapResponse {
