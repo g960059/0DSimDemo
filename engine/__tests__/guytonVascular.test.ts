@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_PARAMS } from "@/constants";
 import { ModelCore } from "@/engine/ModelCore";
 import {
+  buildVolumeConstrainedGuytonCurve,
+  solveFillingPressureAbs,
+  solveReturnFlowAtDownstreamPressure,
   structuralLinearGuyton,
   type VascularReturnSnapshot,
 } from "@/engine/guytonVascular";
@@ -79,6 +82,70 @@ describe("Guyton vascular structural helpers", () => {
     expect(result.curve.points.every((point) => Number.isFinite(point.x) && Number.isFinite(point.y))).toBe(true);
     for (let i = 1; i < result.curve.points.length; i++) {
       expect(result.curve.points[i].y).toBeLessThanOrEqual(result.curve.points[i - 1].y + 1e-9);
+    }
+  });
+
+  it("matches the structural linear curve for a linear RC snapshot", () => {
+    const snapshot = linearSnapshot();
+    const xGrid = [-2, 0, 2, 4, 6];
+    const structural = structuralLinearGuyton(snapshot, xGrid).curve;
+    const exact = buildVolumeConstrainedGuytonCurve(snapshot, xGrid);
+
+    expect(exact.source).toBe("volume-constrained");
+    for (let i = 0; i < xGrid.length; i++) {
+      expect(exact.points[i].y).toBeCloseTo(structural.points[i].y, 4);
+    }
+  });
+
+  it("solves zero flow at the exact filling pressure", () => {
+    const snapshot = linearSnapshot();
+    const fillingPressure = solveFillingPressureAbs(snapshot);
+    const point = solveReturnFlowAtDownstreamPressure(snapshot, fillingPressure);
+
+    expect(fillingPressure).toBeCloseTo((120 + 10 * 2 + 20 * 0) / 30, 5);
+    expect(point.y).toBeLessThan(0.01);
+  });
+
+  it("keeps the volume-constrained return curve monotone decreasing", () => {
+    const curve = buildVolumeConstrainedGuytonCurve(linearSnapshot(), [-4, -2, 0, 2, 4, 6, 8]);
+
+    for (let i = 1; i < curve.points.length; i++) {
+      expect(curve.points[i].y).toBeLessThanOrEqual(curve.points[i - 1].y + 1e-9);
+    }
+  });
+
+  it("shifts exact filling pressure upward when stressed volume rises", () => {
+    const snapshot = linearSnapshot();
+    const loaded: VascularReturnSnapshot = {
+      ...snapshot,
+      totalStressedVolumeMl: snapshot.totalStressedVolumeMl + 30,
+    };
+
+    expect(solveFillingPressureAbs(loaded)).toBeGreaterThan(solveFillingPressureAbs(snapshot));
+  });
+
+  it("shows a waterfall plateau at low downstream pressure", () => {
+    const snapshot: VascularReturnSnapshot = {
+      ...linearSnapshot(),
+      edgesDownstreamToUpstream: linearSnapshot().edgesDownstreamToUpstream.map((edge, index) => index === 0
+        ? { ...edge, waterfall: true, Pext: 0, Pcrit: 0 }
+        : edge),
+    };
+    const curve = buildVolumeConstrainedGuytonCurve(snapshot, [-8, -4, 0, 4]);
+
+    expect(Math.abs(curve.points[0].y - curve.points[1].y)).toBeLessThan(0.05);
+    expect(curve.points[3].y).toBeLessThan(curve.points[0].y);
+  });
+
+  it("builds finite volume-constrained curves from real ModelCore snapshots", () => {
+    const core = new ModelCore(DEFAULT_PARAMS);
+    const right = buildVolumeConstrainedGuytonCurve(core.vascularReturnSnapshot("right"), [-5, 0, 5, 10, 20]);
+    const left = buildVolumeConstrainedGuytonCurve(core.vascularReturnSnapshot("left"), [0, 5, 10, 20, 30]);
+
+    for (const curve of [right, left]) {
+      expect(curve.points.length).toBe(5);
+      expect(curve.points.every((point) => Number.isFinite(point.x) && Number.isFinite(point.y))).toBe(true);
+      expect(curve.points.every((point) => point.y >= 0)).toBe(true);
     }
   });
 });

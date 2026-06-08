@@ -25,7 +25,7 @@ export type GuytonCurvePoint = {
 export type GuytonCurve = {
   id: string;
   label: string;
-  source: "instant-linearized" | "waterfall-linearized" | "structural-linearized" | "local-starling-surrogate" | "preload-sweep";
+  source: "instant-linearized" | "waterfall-linearized" | "structural-linearized" | "volume-constrained" | "local-starling-surrogate" | "preload-sweep";
   points: GuytonCurvePoint[];
   stroke: "venous" | "classic" | "starling" | "sweep";
   dashed?: boolean;
