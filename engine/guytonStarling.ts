@@ -1,4 +1,8 @@
 import { clamp, smoothMax } from "@/engine/math";
+import {
+  structuralLinearGuyton,
+  type VascularReturnSnapshot,
+} from "@/engine/guytonVascular";
 import type {
   CoreRuntimeParams,
   SimMetrics,
@@ -21,7 +25,7 @@ export type GuytonCurvePoint = {
 export type GuytonCurve = {
   id: string;
   label: string;
-  source: "instant-linearized" | "waterfall-linearized" | "local-starling-surrogate" | "preload-sweep";
+  source: "instant-linearized" | "waterfall-linearized" | "structural-linearized" | "local-starling-surrogate" | "preload-sweep";
   points: GuytonCurvePoint[];
   stroke: "venous" | "classic" | "starling" | "sweep";
   dashed?: boolean;
@@ -102,16 +106,20 @@ export function buildGuytonPaneData(
   side: GuytonSide,
   metrics: SimMetrics,
   obs: SimObservables,
+  vascularSnapshot?: VascularReturnSnapshot,
 ): GuytonPaneData {
   const isRight = side === "right";
   const pressure = isRight ? metrics.RAPMean : metrics.LAPMean;
   const flow = Math.max(isRight ? metrics.CO_R : metrics.CO_L, 0);
-  const fillingPressure = isRight ? obs.PmsfAbs : obs.PmpfAbs;
+  const structuralPreview = vascularSnapshot ? structuralLinearGuyton(vascularSnapshot, []) : undefined;
+  const fillingPressure = structuralPreview?.fillingPressureAbsMmHg ?? (isRight ? obs.PmsfAbs : obs.PmpfAbs);
   const fillingPressureLabel = isRight ? "Pmsf" : "Pmpf";
   const gradient = fillingPressure - pressure;
   const collapsePressure = isRight ? obs.Pth : obs.Palv;
-  const resistance = effectiveResistanceMmHgPerLMin(gradient, flow);
+  const resistance = structuralPreview?.resistanceMmHgPerLMin ?? effectiveResistanceMmHgPerLMin(gradient, flow);
   const xRange = pressureRange(side, pressure, fillingPressure, collapsePressure);
+  const xGrid = pressureGrid(xRange.min, xRange.max, 120);
+  const structural = vascularSnapshot ? structuralLinearGuyton(vascularSnapshot, xGrid) : undefined;
   const warnings = paneWarnings(side, gradient, flow, resistance, metrics, obs);
 
   return {
@@ -124,7 +132,7 @@ export function buildGuytonPaneData(
     fillingPressureLabel,
     gradient,
     collapsePressure,
-    venousReturn: {
+    venousReturn: structural?.curve ?? {
       id: `${side}-waterfall-vr`,
       label: isRight ? "Waterfall-aware venous return" : "Alveolar waterfall-aware return",
       source: "waterfall-linearized",
@@ -141,7 +149,7 @@ export function buildGuytonPaneData(
     classicVenousReturn: {
       id: `${side}-classic-vr`,
       label: "Classic straight-line estimate",
-      source: "instant-linearized",
+      source: structural ? "structural-linearized" : "instant-linearized",
       stroke: "classic",
       dashed: true,
       points: sampleVenousReturnCurve({
@@ -168,10 +176,10 @@ export function buildGuytonPaneData(
       }),
     },
     summary: {
-      stressedVolumeMl: isRight ? obs.stressedVolumeSystemic : obs.pulmonaryVenousStressedVolume,
-      unstressedVolumeMl: isRight ? obs.unstressedVolumeSystemic : obs.pulmonaryVenousUnstressedVolume,
-      effectiveComplianceMlPerMmHg: isRight ? obs.systemicComplianceEff : obs.pulmonaryVenousComplianceEff,
-      externalPressureWeightedMmHg: isRight ? obs.systemicExternalPressureWeighted : obs.pulmonaryVenousExternalPressureWeighted,
+      stressedVolumeMl: structural?.totalStressedVolumeMl ?? (isRight ? obs.stressedVolumeSystemic : obs.pulmonaryVenousStressedVolume),
+      unstressedVolumeMl: structural?.totalUnstressedVolumeMl ?? (isRight ? obs.unstressedVolumeSystemic : obs.pulmonaryVenousUnstressedVolume),
+      effectiveComplianceMlPerMmHg: structural?.totalComplianceMlPerMmHg ?? (isRight ? obs.systemicComplianceEff : obs.pulmonaryVenousComplianceEff),
+      externalPressureWeightedMmHg: structural?.externalPressureWeightedMmHg ?? (isRight ? obs.systemicExternalPressureWeighted : obs.pulmonaryVenousExternalPressureWeighted),
       effectiveResistanceMmHgPerLMin: resistance,
     },
     warnings,
@@ -247,6 +255,14 @@ export function sampleVenousReturnCurve(args: {
       y,
       flags: args.waterfall && x < args.collapsePressure ? ["waterfall"] : undefined,
     });
+  }
+  return points;
+}
+
+function pressureGrid(xMin: number, xMax: number, n: number): number[] {
+  const points: number[] = [];
+  for (let i = 0; i < n; i++) {
+    points.push(xMin + (xMax - xMin) * i / Math.max(n - 1, 1));
   }
   return points;
 }

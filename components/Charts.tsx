@@ -1372,7 +1372,12 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ phys
             const ref = physicsRefs.current.get(inst.id);
             if (!ref) continue;
             try {
-                const pane = buildGuytonPaneData(side, ref.core.metrics(), ref.core.debugObservables());
+                const pane = buildGuytonPaneData(
+                    side,
+                    ref.core.metrics(),
+                    ref.core.debugObservables(),
+                    ref.core.vascularReturnSnapshot?.(side),
+                );
                 const signature = starlingSweepSignature(side, inst.id, inst.params, inst.targetVolume);
                 const sweep = sweeps[inst.id]?.signature === signature ? sweeps[inst.id] : undefined;
                 snapshotMapRef.current.set(cacheKey(inst), {
@@ -1399,7 +1404,12 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ phys
             const ref = physicsRefs.current.get(inst.id);
             if (!ref) return [];
             try {
-                const pane = buildGuytonPaneData(side, ref.core.metrics(), ref.core.debugObservables());
+                const pane = buildGuytonPaneData(
+                    side,
+                    ref.core.metrics(),
+                    ref.core.debugObservables(),
+                    ref.core.vascularReturnSnapshot?.(side),
+                );
                 const signature = starlingSweepSignature(side, inst.id, inst.params, inst.targetVolume);
                 const sweep = sweeps[inst.id]?.signature === signature ? sweeps[inst.id] : undefined;
                 const key = cacheKey(inst);

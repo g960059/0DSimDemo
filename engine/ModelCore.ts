@@ -73,6 +73,12 @@ import {
   makeIndex,
 } from "@/engine/core/stateLayout";
 import { valveFlowIntegral } from "@/engine/flowIntegrals";
+import { complianceFromPtm, type VascularPvLaw } from "@/engine/vascularPv";
+import type {
+  VascularEdgeSnapshot,
+  VascularNodeSnapshot,
+  VascularReturnSnapshot,
+} from "@/engine/guytonVascular";
 
 export { defaultParams } from "@/engine/core/params";
 
@@ -1737,9 +1743,111 @@ export class ModelCore {
   }
 
   /**
-   * Read-only snapshot of valve opening fractions (xi). Additive observability
-   * helper; does not touch dynamics, so the frozen baseline behavior is unchanged.
+   * Read-only vascular return snapshot for structural Guyton maps. This does
+   * not modify state or dynamics; it exposes the current vascular PV laws,
+   * stressed volumes, external pressures, and local effective edge losses.
    */
+  vascularReturnSnapshot(side: VascularReturnSnapshot["side"]): VascularReturnSnapshot {
+    const pack = this.computePressures(this.x);
+    const nodePath = side === "right"
+      ? (["VC", "SV", "Cap", "Art", "SA", "Ao"] as const)
+      : (["PVein", "PVen", "PCap"] as const);
+    const edgePath = side === "right"
+      ? (["VC_RA", "SV_VC", "Cap_SV", "Art_Cap", "SA_Art", "Ao_SA"] as const)
+      : (["PVein_LA", "PVen_PVein", "PCap_PVen"] as const);
+    const nodes = nodePath.map((name) => this.vascularNodeSnapshot(name, pack));
+    const edges = edgePath.map((name) => this.vascularEdgeSnapshot(name, pack));
+    const totalStressedVolumeMl = nodes.reduce((sum, node) => sum + node.stressedVolumeMl, 0);
+    const totalUnstressedVolumeMl = nodes.reduce((sum, node) => sum + node.unstressedVolumeMl, 0);
+    const totalComplianceMlPerMmHg = nodes.reduce((sum, node) => sum + node.complianceEffMlPerMmHg, 0);
+    const externalPressureWeightedMmHg = totalComplianceMlPerMmHg > 1e-9
+      ? nodes.reduce((sum, node) => sum + node.complianceEffMlPerMmHg * node.Pext, 0) / totalComplianceMlPerMmHg
+      : 0;
+    return {
+      side,
+      downstreamNode: side === "right" ? "RA" : "LA",
+      nodesDownstreamToUpstream: nodes,
+      edgesDownstreamToUpstream: edges,
+      totalStressedVolumeMl,
+      totalUnstressedVolumeMl,
+      totalComplianceMlPerMmHg,
+      externalPressureWeightedMmHg,
+    };
+  }
+
+  private vascularNodeSnapshot(name: NodeName, pack: PressurePack): VascularNodeSnapshot {
+    const i = this.nodeIndex.get(name)!;
+    const node = this.nodes[i];
+    if (node.kind !== "arterial" && node.kind !== "linear" && node.kind !== "venousPressure") {
+      throw new Error(`Node ${name} is not a vascular return node`);
+    }
+    const law = this.vascularPvLaw(node);
+    const volumeMl = pack.Vphys[i];
+    const unstressedVolumeMl = this.effectiveVu(node);
+    return {
+      name,
+      kind: node.kind,
+      Pabs: pack.P[i],
+      Ptm: pack.Ptm[i],
+      Pext: this.externalPressure(node.ext ?? "none"),
+      volumeMl,
+      unstressedVolumeMl,
+      stressedVolumeMl: volumeMl - unstressedVolumeMl,
+      complianceEffMlPerMmHg: complianceFromPtm(law, pack.Ptm[i]),
+      law,
+    };
+  }
+
+  private vascularEdgeSnapshot(name: string, pack: PressurePack): VascularEdgeSnapshot {
+    const edge = this.edges[this.edgeIndex(name)];
+    const up = this.nodeIndex.get(edge.up)!;
+    const down = this.nodeIndex.get(edge.down)!;
+    const losses = this.effectiveLosses(edge, pack.P[up], pack.P[down], this.x);
+    return {
+      name,
+      up: edge.up,
+      down: edge.down,
+      R_mmHg_s_per_mL: losses.R,
+      B_mmHg_s2_per_mL2: losses.B,
+      waterfall: Boolean(edge.waterfall),
+      Pext: this.externalPressure(edge.ext ?? "none"),
+      Pcrit: edge.Pcrit ?? 0,
+    };
+  }
+
+  private vascularPvLaw(node: NodeSpec): VascularPvLaw {
+    const Vu = this.effectiveVu(node);
+    if (node.kind === "arterial") {
+      return {
+        kind: "arterial",
+        Vu,
+        P0: node.P0 ?? 50,
+        VsEff: Math.max((node.Vs ?? 100) / Math.max(this.p.arterialStiffness, 0.25), 1),
+      };
+    }
+    if (node.kind === "linear") {
+      return {
+        kind: "linear",
+        Vu,
+        C: Math.max(node.C ?? 1, 1e-6),
+      };
+    }
+    if (node.kind === "venousPressure") {
+      return {
+        kind: "venous3",
+        Vu,
+        Ccoll: node.Ccoll ?? 5,
+        Copen: node.Copen ?? 50,
+        Cdist: node.Cdist ?? 15,
+        Popen: node.Popen ?? -1,
+        Pstiff: node.Pstiff ?? 14,
+        dOpen: Math.max(node.dOpen ?? 1, 1e-6),
+        dStiff: Math.max(node.dStiff ?? 3, 1e-6),
+      };
+    }
+    throw new Error(`Node ${node.name} has no vascular PV law`);
+  }
+
   /**
    * Instantaneous Phase A observables (read-only). Pmsf uses the textbook
    * approximation: systemic-vascular stressed volume / total effective
