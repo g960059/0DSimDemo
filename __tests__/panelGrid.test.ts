@@ -40,9 +40,10 @@ function renderPanelGrid(
   instances: SimInstance[] = [],
   controlGroups: string[] = [],
   steadyUpdateStatuses: SteadyUpdateStatusMap = {},
+  isMobile = false,
 ) {
   return renderToStaticMarkup(
-    createPanelGrid(mode, panels, instances, controlGroups, steadyUpdateStatuses),
+    createPanelGrid(mode, panels, instances, controlGroups, steadyUpdateStatuses, isMobile),
   );
 }
 
@@ -52,6 +53,7 @@ function createPanelGrid(
   instances: SimInstance[] = [],
   controlGroups: string[] = [],
   steadyUpdateStatuses: SteadyUpdateStatusMap = {},
+  isMobile = false,
 ) {
   return React.createElement(PanelGrid, {
     authoringMode: false,
@@ -72,7 +74,7 @@ function createPanelGrid(
     dockviewViewStates: undefined,
     onDockviewViewStateChange: noop,
     mode,
-    isMobile: false,
+    isMobile,
     noteModes: {},
     setNoteModes: noop,
     physicsRefs: { current: new Map() },
@@ -412,17 +414,23 @@ describe("PanelGrid Dockview layout", () => {
     expect(css).toContain(".dv-tab.dv-active-tab .workbench-dock-tab-menu-button");
   });
 
-  it("renders pane-local settings as the pane body for editable Dockview panes", () => {
+  it("renders pane settings as a modal for editable Dockview panes", () => {
     const html = renderPanelGrid("sandbox", [{ ...pvLoopPanel, isSettingsOpen: true }], [normalInstance]);
 
-    expect(html).toContain("Back to PV Loop");
+    expect(html).toContain("role=\"dialog\"");
+    expect(html).toContain("aria-modal=\"true\"");
+    expect(html).toContain("Pane settings");
+    expect(html).toContain("PV Loop · PV loop pane");
+    expect(html).toContain("Done");
     expect(html).toContain("Pane title");
     expect(html).toContain("Signals");
     expect(html).toContain("Instances");
     expect(html).toContain("Display");
     expect(html).toContain("@min-[760px]:grid");
     expect(html).toContain("sticky top-0");
-    expect(html).toContain("overflow-hidden px-1 pb-2");
+    expect(html).toContain("overflow-hidden p-3");
+    expect(html).not.toContain("Back to PV Loop");
+    expect(html).not.toContain("w-[min(42rem,calc(100vw-2rem))]");
     expect(html).not.toContain("Advanced");
     expect(html).not.toContain("Instance keys");
   });
@@ -431,6 +439,7 @@ describe("PanelGrid Dockview layout", () => {
     const html = renderPanelGrid("learner", [{ ...pvLoopPanel, isSettingsOpen: true }], [normalInstance]);
 
     expect(html).not.toContain("Back to PV Loop");
+    expect(html).not.toContain("Pane settings");
     expect(html).not.toContain("Customizations");
   });
 
@@ -449,6 +458,7 @@ describe("PanelGrid Dockview layout", () => {
     const html = renderPanelGrid("learner", [controlsPanel], [{ ...normalInstance, params: { ...DEFAULT_PARAMS } }]);
 
     expect(html).not.toContain("Back to Controls");
+    expect(html).not.toContain("Pane settings");
     expect(html).not.toContain("Controller pane");
     expect(html).not.toContain("Pane title");
   });
@@ -490,7 +500,7 @@ describe("PanelGrid Dockview layout", () => {
     expect(panels[1].config.copy).toEqual({ visible: false, selectedSignals: ["clinical", "Global", "ventricles", "fluids"] });
   });
 
-  it("renders controller settings as pane-local target and item bindings", () => {
+  it("renders controller settings as modal target and item bindings", () => {
     const controlsPanel: PanelDef = {
       id: "controls",
       type: "CONTROLS",
@@ -505,9 +515,14 @@ describe("PanelGrid Dockview layout", () => {
       isSettingsOpen: true,
     };
 
-    const html = renderPanelGrid("sandbox", [controlsPanel], [normalInstance, copiedInstance]);
+    const html = renderPanelGrid("sandbox", [controlsPanel], [
+      { ...normalInstance, params: { ...DEFAULT_PARAMS } },
+      { ...copiedInstance, params: { ...DEFAULT_PARAMS } },
+    ]);
 
-    expect(html).toContain("Back to Controls");
+    expect(html).toContain("role=\"dialog\"");
+    expect(html).toContain("Pane settings");
+    expect(html).toContain("Controls · Controller pane");
     expect(html).toContain("Targets");
     expect(html).toContain("Sections");
     expect(html).toContain("Display");
@@ -515,7 +530,8 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).toContain("Pane title");
     expect(html).toContain("@min-[760px]:grid");
     expect(html).toContain("sticky top-0");
-    expect(html).toContain("overflow-hidden px-1 pb-2");
+    expect(html).toContain("overflow-hidden p-3");
+    expect(html).not.toContain("Back to Controls");
     // Unnecessary count-meta badges removed from controller settings.
     expect(html).not.toContain("Controller scope");
     expect(html).not.toContain("Target shortcut");
@@ -524,6 +540,17 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).not.toContain("Target keys");
     expect(html).not.toContain("Target enabled");
     expect(html).not.toContain("Target hidden");
+  });
+
+  it("uses the same settings modal for mobile active settings state", () => {
+    const html = renderPanelGrid("sandbox", [{ ...pvLoopPanel, isSettingsOpen: true }], [normalInstance], [], {}, true);
+
+    expect(html).toContain("role=\"dialog\"");
+    expect(html).toContain("Pane settings");
+    expect(html).toContain("PV Loop · PV loop pane");
+    expect(html).toContain("h-dvh");
+    expect(html).not.toContain("Back to PV Loop");
+    expect(html).not.toContain("w-[min(42rem,calc(100vw-2rem))]");
   });
 
   it("keeps advanced controller groups out of pane-local settings", () => {
@@ -540,12 +567,13 @@ describe("PanelGrid Dockview layout", () => {
       isSettingsOpen: true,
     };
 
-    const html = renderPanelGrid("sandbox", [controlsPanel], [normalInstance], ["clinical", "advanced", "ventricles"]);
+    const html = renderPanelGrid("sandbox", [controlsPanel], [{ ...normalInstance, params: { ...DEFAULT_PARAMS } }], ["clinical", "advanced", "ventricles"]);
+    const modalHtml = html.slice(html.indexOf("Pane settings"));
 
-    expect(html).toContain("Clinical knobs");
-    expect(html).toContain("Ventricular mechanics");
-    expect(html).not.toContain("Advanced");
-    expect(html).not.toContain("Advanced engine");
+    expect(modalHtml).toContain("Clinical knobs");
+    expect(modalHtml).toContain("Ventricular mechanics");
+    expect(modalHtml).not.toContain("Advanced");
+    expect(modalHtml).not.toContain("Advanced engine");
   });
 
   it("renders controller target shortcuts only for pane-enabled targets", () => {
