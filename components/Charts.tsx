@@ -21,7 +21,6 @@ import {
     type GuytonAxisDomain,
     type GuytonCurvePoint,
     type GuytonSide,
-    type GuytonStarlingWorkerMessage,
     type StarlingSweepResponse,
 } from '../engine/guytonStarling';
 import {
@@ -37,6 +36,7 @@ import {
     type GuytonSteadyMapGhost,
     type GuytonSteadyMapState,
 } from './guytonSteadyMapTransition';
+import { requestGuytonStarlingWorkerMessages } from './guytonStarlingWorkerClient';
 
 interface ChartPanelProps {
   physicsRefs: React.MutableRefObject<Map<string, PhysicsRefState>>;
@@ -1366,68 +1366,62 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
             return;
         }
 
+        setWorkerBusy(false);
         let cancelled = false;
         let remaining = sweepInputs.length;
-        const worker = new Worker(new URL('../engine/guytonStarlingWorker.ts', import.meta.url), { type: 'module' });
-        const timer = window.setTimeout(() => {
-            if (cancelled) return;
-            setWorkerBusy(true);
-            setWorkerError(null);
-            for (const input of sweepInputs) {
-                worker.postMessage({
-                    requestId: `${input.instanceId}-${Date.now()}`,
-                    signature: input.signature,
-                    instanceId: input.instanceId,
-                    params: input.params,
-                    targetVolumeMl: input.targetVolumeMl,
-                });
-            }
-        }, 450);
+        const unsubscribes = sweepInputs.map((input) => requestGuytonStarlingWorkerMessages(
+            {
+                requestId: `${input.instanceId}-${Date.now()}`,
+                signature: input.signature,
+                instanceId: input.instanceId,
+                params: input.params,
+                targetVolumeMl: input.targetVolumeMl,
+            },
+            {
+                onStart: () => {
+                    if (cancelled) return;
+                    setWorkerBusy(true);
+                    setWorkerError(null);
+                },
+                onMessage: (response) => {
+                    if (cancelled) return;
+                    const key = cacheKeyForId(response.instanceId);
+                    const current = steadyMapRef.current.get(key) ?? initialGuytonSteadyMapState(side);
+                    if (response.type === 'base-map') {
+                        steadyMapRef.current.set(key, receiveGuytonBaseMapResponse(current, side, response, Date.now()));
+                        setTick((t) => t + 1);
+                        return;
+                    }
 
-        worker.onmessage = (event: MessageEvent<GuytonStarlingWorkerMessage | StarlingSweepResponse>) => {
-            if (cancelled) return;
-            const response = event.data;
-            const key = cacheKeyForId(response.instanceId);
-            const current = steadyMapRef.current.get(key) ?? initialGuytonSteadyMapState(side);
-            if ('type' in response && response.type === 'base-map') {
-                steadyMapRef.current.set(key, receiveGuytonBaseMapResponse(current, side, response, Date.now()));
-                setTick((t) => t + 1);
-                return;
-            }
-
-            const sweepResponse = response as StarlingSweepResponse;
-            steadyMapRef.current.set(key, receiveGuytonSweepResponse(current, sweepResponse, Date.now()));
-            if (sweepResponse.error) setWorkerError(sweepResponse.error);
-            setTick((t) => t + 1);
-            remaining -= 1;
-            if (remaining <= 0) {
-                setWorkerBusy(false);
-                worker.terminate();
-            }
-        };
-        worker.onerror = (event) => {
-            if (cancelled) return;
-            const message = event.message || 'Starling sweep worker failed';
-            for (const input of sweepInputs) {
-                const key = cacheKeyForId(input.instanceId);
-                const current = steadyMapRef.current.get(key) ?? initialGuytonSteadyMapState(side);
-                steadyMapRef.current.set(
-                    key,
-                    markGuytonSteadyMapPendingWarning(current, input.signature, message, Date.now()),
-                );
-            }
-            setWorkerError(message);
-            setWorkerBusy(false);
-            setTick((t) => t + 1);
-            worker.terminate();
-        };
+                    const sweepResponse = response as StarlingSweepResponse;
+                    steadyMapRef.current.set(key, receiveGuytonSweepResponse(current, sweepResponse, Date.now()));
+                    if (sweepResponse.error) setWorkerError(sweepResponse.error);
+                    setTick((t) => t + 1);
+                },
+                onError: (message) => {
+                    if (cancelled) return;
+                    const key = cacheKeyForId(input.instanceId);
+                    const current = steadyMapRef.current.get(key) ?? initialGuytonSteadyMapState(side);
+                    steadyMapRef.current.set(
+                        key,
+                        markGuytonSteadyMapPendingWarning(current, input.signature, message, Date.now()),
+                    );
+                    setWorkerError(message);
+                    setTick((t) => t + 1);
+                },
+                onDone: () => {
+                    if (cancelled) return;
+                    remaining -= 1;
+                    if (remaining <= 0) setWorkerBusy(false);
+                },
+            },
+        ));
 
         return () => {
             cancelled = true;
-            window.clearTimeout(timer);
-            worker.terminate();
+            for (const unsubscribe of unsubscribes) unsubscribe();
         };
-    }, [sweepKey, refreshSeq]);
+    }, [sweepKey, refreshSeq, side]);
 
     const requestMapRefresh = () => {
         forceRefreshRef.current = true;

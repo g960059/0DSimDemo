@@ -130,6 +130,11 @@ type CoronaryExternalPressures = {
   imRCAVen: number;
 };
 
+export type RunForOptions = {
+  collectSamples?: boolean;
+  recordHistory?: boolean;
+  historyLimit?: number;
+};
 
 function comparableFlowEdgeName(name: string): string {
   const edgeByComparableName: Record<string, string> = {
@@ -478,7 +483,10 @@ export class ModelCore {
     this.tbvCorrectionLastStepMl = 0;
   }
 
-  runFor(seconds: number, dt = 0.001, sampleHz = 60): SimSample[] {
+  runFor(seconds: number, dt = 0.001, sampleHz = 60, options: RunForOptions = {}): SimSample[] {
+    const collectSamples = options.collectSamples ?? true;
+    const recordHistory = options.recordHistory ?? true;
+    const historyLimit = Math.max(0, Math.floor(options.historyLimit ?? 12000));
     const samples: SimSample[] = [];
     const sampleInterval = 1 / sampleHz;
     let sampleAt = Math.floor((this.t + 1e-9) / sampleInterval) * sampleInterval + sampleInterval;
@@ -487,9 +495,11 @@ export class ModelCore {
       this.step(dt);
       if (this.t >= sampleAt) {
         const s = this.sample();
-        samples.push(s);
-        this.history.push(s);
-        if (this.history.length > 12000) this.history.shift();
+        if (collectSamples) samples.push(s);
+        if (recordHistory) {
+          this.history.push(s);
+          while (this.history.length > historyLimit) this.history.shift();
+        }
         sampleAt += sampleInterval;
       }
     }
@@ -710,7 +720,12 @@ export class ModelCore {
    * forced trend. Deterministic for a given dt/platform (fixed-step integration,
    * no Date/random); the cap bounds elapsed sim time.
    */
-  settleToSteady(policy: SettlePolicy = DEFAULT_SETTLE_POLICY, dt = 0.001, sampleHz = 120): SettleStatus {
+  settleToSteady(
+    policy: SettlePolicy = DEFAULT_SETTLE_POLICY,
+    dt = 0.001,
+    sampleHz = 120,
+    options: RunForOptions = {},
+  ): SettleStatus {
     const startT = this.t;
     const forced = this.assessSteadyState(policy);
     if (forced.reason === "forced-trend") {
@@ -720,12 +735,12 @@ export class ModelCore {
     // runs the same number of steps for a given dt on a given platform).
     const sliceSeconds = 0.25;
     while (this.t - startT < policy.capSeconds) {
-      this.runFor(sliceSeconds, dt, sampleHz);
+      this.runFor(sliceSeconds, dt, sampleHz, options);
       const st = this.assessSteadyState(policy);
       if (st.settled) {
         // Run a phase-margin beat or two past convergence.
         const beatSeconds = (60 / Math.max(this.p.HR, 1)) * policy.postSettleBeats;
-        this.runFor(beatSeconds, dt, sampleHz);
+        this.runFor(beatSeconds, dt, sampleHz, options);
         return { ...st, actualSeconds: this.t - startT };
       }
     }

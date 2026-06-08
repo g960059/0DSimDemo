@@ -8,14 +8,36 @@ import {
   type StarlingSweepWorkerMessage,
 } from "@/engine/guytonStarling";
 import { clamp } from "@/engine/math";
-import { PREVIEW_SETTLE_POLICY } from "@/engine/settling";
+import { PREVIEW_SETTLE_POLICY, type SettleStatus } from "@/engine/settling";
+import type { SerializedModelState } from "@/engine/stateContract";
 
 type WorkerComputeFns = {
-  buildBaseMapResponse?: (req: StarlingSweepRequest) => GuytonBaseMapResponse;
-  buildStarlingSweepResponse?: (req: StarlingSweepRequest) => StarlingSweepWorkerMessage;
+  buildBaseline?: (req: StarlingSweepRequest) => WorkerSettledCore;
+  buildBaseMapResponse?: (req: StarlingSweepRequest, baseline?: WorkerSettledCore) => GuytonBaseMapResponse;
+  buildStarlingSweepResponse?: (req: StarlingSweepRequest, baseline?: WorkerSettledCore) => StarlingSweepWorkerMessage;
 };
 
 type WorkerPostMessage = (message: GuytonStarlingWorkerMessage) => void;
+
+type WorkerSettledCore = {
+  core: ModelCore;
+  settle: SettleStatus;
+  metrics: ReturnType<ModelCore["metrics"]>;
+  observables: ReturnType<ModelCore["debugObservables"]>;
+  health: ReturnType<ModelCore["health"]>;
+  state: SerializedModelState;
+  targetVolumeMl: number;
+};
+
+const WORKER_DT = 0.001;
+const WORKER_SAMPLE_HZ = 60;
+const WORKER_HISTORY_LIMIT = 720;
+const WORKER_SETTLE_POLICY = { ...PREVIEW_SETTLE_POLICY, capSeconds: 45 };
+const WORKER_RUN_OPTIONS = {
+  collectSamples: false,
+  recordHistory: true,
+  historyLimit: WORKER_HISTORY_LIMIT,
+};
 
 export function buildGuytonStarlingWorkerMessages(
   req: StarlingSweepRequest,
@@ -31,26 +53,27 @@ export function postGuytonStarlingWorkerMessages(
   postMessage: WorkerPostMessage,
   fns: WorkerComputeFns = {},
 ): void {
+  let baseline: WorkerSettledCore | undefined;
   try {
-    postMessage((fns.buildBaseMapResponse ?? buildGuytonBaseMapResponse)(req));
+    if (!fns.buildBaseMapResponse) baseline = (fns.buildBaseline ?? buildWorkerBaseline)(req);
+    postMessage((fns.buildBaseMapResponse ?? buildGuytonBaseMapResponse)(req, baseline));
   } catch (err) {
     postMessage(buildGuytonBaseMapErrorResponse(req, err));
   }
 
   try {
-    postMessage((fns.buildStarlingSweepResponse ?? buildStarlingSweepResponse)(req));
+    if (!baseline && !fns.buildStarlingSweepResponse) baseline = (fns.buildBaseline ?? buildWorkerBaseline)(req);
+    postMessage((fns.buildStarlingSweepResponse ?? buildStarlingSweepResponse)(req, baseline));
   } catch (err) {
     postMessage(buildStarlingSweepErrorResponse(req, err));
   }
 }
 
-export function buildGuytonBaseMapResponse(req: StarlingSweepRequest): GuytonBaseMapResponse {
-  const core = new ModelCore(req.params);
-  core.initializeVenousPressuresForTargetTBV(clamp(req.targetVolumeMl, 2500, 8500));
-  const settle = core.settleToSteady({ ...PREVIEW_SETTLE_POLICY, capSeconds: 45 }, 0.001, 120);
-  const metrics = core.metrics();
-  const observables = core.debugObservables();
-  const health = core.health();
+export function buildGuytonBaseMapResponse(
+  req: StarlingSweepRequest,
+  baseline = buildWorkerBaseline(req),
+): GuytonBaseMapResponse {
+  const { core, metrics, observables, health, settle } = baseline;
   const warnings: string[] = [];
 
   if (!settle.settled) warnings.push("base map: did not fully settle");
@@ -77,19 +100,95 @@ export function buildGuytonBaseMapResponse(req: StarlingSweepRequest): GuytonBas
   };
 }
 
-export function buildStarlingSweepResponse(req: StarlingSweepRequest): StarlingSweepWorkerMessage {
+export function buildStarlingSweepResponse(
+  req: StarlingSweepRequest,
+  baseline = buildWorkerBaseline(req),
+): StarlingSweepWorkerMessage {
+  return buildSweepResponseFromRuns(req, buildWarmStartedSweepRuns(req, baseline));
+}
+
+export function buildColdStarlingSweepResponse(req: StarlingSweepRequest): StarlingSweepWorkerMessage {
+  const deltas = req.deltasMl ?? [-600, -300, 0, 300, 600];
+  return buildSweepResponseFromRuns(
+    req,
+    deltas.map((delta) => settleWorkerCore(req, clamp(req.targetVolumeMl + delta, 2500, 8500))),
+  );
+}
+
+function buildWorkerBaseline(req: StarlingSweepRequest): WorkerSettledCore {
+  return settleWorkerCore(req, clamp(req.targetVolumeMl, 2500, 8500));
+}
+
+function settleWorkerCore(
+  req: StarlingSweepRequest,
+  targetVolumeMl: number,
+  seedState?: SerializedModelState,
+): WorkerSettledCore {
+  const core = new ModelCore(req.params);
+  if (seedState) core.unpackState(seedState);
+  core.initializeVenousPressuresForTargetTBV(targetVolumeMl);
+  const settle = core.settleToSteady(
+    WORKER_SETTLE_POLICY,
+    WORKER_DT,
+    WORKER_SAMPLE_HZ,
+    WORKER_RUN_OPTIONS,
+  );
+  const metrics = core.metrics();
+  const observables = core.debugObservables();
+  const health = core.health();
+
+  return {
+    core,
+    settle,
+    metrics,
+    observables,
+    health,
+    state: core.packState(),
+    targetVolumeMl,
+  };
+}
+
+function buildWarmStartedSweepRuns(
+  req: StarlingSweepRequest,
+  baseline: WorkerSettledCore,
+): WorkerSettledCore[] {
+  const deltas = req.deltasMl ?? [-600, -300, 0, 300, 600];
+  const runs = new Map<number, WorkerSettledCore>();
+  runs.set(0, baseline);
+
+  const solveChain = (chainDeltas: number[]) => {
+    let seedState = baseline.state;
+    for (const delta of chainDeltas) {
+      const run = settleWorkerCore(req, clamp(req.targetVolumeMl + delta, 2500, 8500), seedState);
+      runs.set(delta, run);
+      seedState = run.state;
+    }
+  };
+
+  const uniqueNonZero = Array.from(new Set(deltas.filter((delta) => delta !== 0)));
+  solveChain(uniqueNonZero.filter((delta) => delta > 0).sort((a, b) => a - b));
+  solveChain(uniqueNonZero.filter((delta) => delta < 0).sort((a, b) => Math.abs(a) - Math.abs(b)));
+
+  return deltas.map((delta) => {
+    const run = runs.get(delta);
+    if (!run) throw new Error(`Missing warm-start sweep run for delta ${String(delta)}`);
+    return run;
+  });
+}
+
+function buildSweepResponseFromRuns(
+  req: StarlingSweepRequest,
+  runs: WorkerSettledCore[],
+): StarlingSweepWorkerMessage {
   const deltas = req.deltasMl ?? [-600, -300, 0, 300, 600];
   const right: GuytonCurvePoint[] = [];
   const left: GuytonCurvePoint[] = [];
   const warnings: string[] = [];
 
-  for (const delta of deltas) {
-    const target = clamp(req.targetVolumeMl + delta, 2500, 8500);
-    const core = new ModelCore(req.params);
-    core.initializeVenousPressuresForTargetTBV(target);
-    const settle = core.settleToSteady({ ...PREVIEW_SETTLE_POLICY, capSeconds: 45 }, 0.001, 120);
-    const metrics = core.metrics();
-    const health = core.health();
+  for (let i = 0; i < deltas.length; i++) {
+    const delta = deltas[i];
+    const run = runs[i];
+    const { metrics, health, settle } = run;
     const label = `${delta >= 0 ? "+" : ""}${Math.round(delta)} mL`;
 
     if (!settle.settled) warnings.push(`${label}: sweep point did not fully settle`);

@@ -389,6 +389,7 @@ export function starlingSweepSignature(
   params: CoreRuntimeParams,
   targetVolumeMl: number,
 ): string {
+  void side;
   const p = params as unknown as Record<string, unknown>;
   const keys = [
     "HR", "contractility", "relaxation", "systemicResistance", "pulmonaryResistance",
@@ -405,7 +406,6 @@ export function starlingSweepSignature(
   const picked: Record<string, unknown> = {};
   for (const key of keys) picked[key] = p[key];
   return JSON.stringify({
-    side,
     instanceId,
     targetVolumeMl: Math.round(targetVolumeMl),
     params: picked,

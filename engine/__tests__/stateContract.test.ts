@@ -104,4 +104,33 @@ describe("ModelCore state contract", () => {
     expect(Number.isFinite(comparable.t)).toBe(true);
     expect(Number.isFinite(comparable.phi)).toBe(true);
   });
+
+  it("collects samples by default when running", () => {
+    const core = new ModelCore(DEFAULT_PARAMS);
+    core.initializeVenousPressuresForTargetTBV(5600);
+
+    const samples = core.runFor(0.2, 0.001, 120);
+
+    expect(samples.length).toBeGreaterThan(0);
+    expect(samples.every((sample) => Number.isFinite(sample.t))).toBe(true);
+  });
+
+  it("can skip returned samples while retaining bounded history for beat metrics", () => {
+    const core = new ModelCore(DEFAULT_PARAMS);
+    core.initializeVenousPressuresForTargetTBV(5600);
+
+    const samples = core.runFor(4, 0.001, 60, {
+      collectSamples: false,
+      recordHistory: true,
+      historyLimit: 180,
+    });
+    const metrics = core.metrics();
+
+    expect(samples).toEqual([]);
+    expect(core.assessSteadyState().beats).toBeGreaterThan(0);
+    expect(Number.isFinite(metrics.RAPMean)).toBe(true);
+    expect(Number.isFinite(metrics.CO_R)).toBe(true);
+    expect(Number.isFinite(metrics.LAPMean)).toBe(true);
+    expect(Number.isFinite(metrics.CO_L)).toBe(true);
+  });
 });
