@@ -112,6 +112,23 @@ describe("Guyton / Starling pane helpers", () => {
     expect(loadedPane.summary.stressedVolumeMl).toBeGreaterThan(basePane.summary.stressedVolumeMl);
   });
 
+  it("uses structural vascular snapshots when supplied", () => {
+    const result = runScenario(DEFAULT_PARAMS, { ...FAST_OPTIONS, targetTBV: 5600 });
+    const pane = buildGuytonPaneData(
+      "right",
+      result.metrics,
+      result.core.debugObservables(),
+      result.core.vascularReturnSnapshot("right"),
+    );
+
+    expect(pane.venousReturn.source).toBe("structural-linearized");
+    expect(pane.summary.effectiveResistanceMmHgPerLMin).toBeGreaterThan(0);
+    expect(pane.venousReturn.points.every((point) => Number.isFinite(point.x) && Number.isFinite(point.y))).toBe(true);
+    for (let i = 1; i < pane.venousReturn.points.length; i++) {
+      expect(pane.venousReturn.points[i].y).toBeLessThanOrEqual(pane.venousReturn.points[i - 1].y + 1e-6);
+    }
+  });
+
   it("keeps Guyton axes preset and expands without auto-shrinking", () => {
     const right = defaultGuytonAxis("right");
 

@@ -7,6 +7,8 @@ import type {
     SimulationHealthStatus,
 } from './engine/protocol';
 import type { ClinicalKnobs, KnobKey } from './engine/knobs';
+import type { GuytonSide } from './engine/guytonStarling';
+import type { VascularReturnSnapshot } from './engine/guytonVascular';
 
 export type SimulationParams = CoreRuntimeParams;
 
@@ -190,6 +192,7 @@ export interface PreviewCoreFacade {
     metrics(): SimMetrics;
     health(): SimulationHealth;
     debugObservables(): SimObservables;
+    vascularReturnSnapshot?(side: GuytonSide): VascularReturnSnapshot;
     passivePressureAt(chamber: ChamberId, volumeMl: number): number;
     passivePressureVolumeCurve(chamber: ChamberId, volumeMinMl: number, volumeMaxMl: number, pointCount?: number): Array<{ v: number; p: number }>;
 }
