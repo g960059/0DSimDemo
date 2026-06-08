@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { LessonAuthoring } from '../LessonAuthoring';
 import WorkbenchDockview from './WorkbenchDockview';
 import WorkbenchMobile from './WorkbenchMobile';
@@ -26,7 +27,7 @@ import type { LessonStep } from '../../lessonDoc';
 import type { NoteContent } from '../../noteTypes';
 import { flowPack } from '../../layoutPresets';
 import { zoneOf } from '../../paneZone';
-import { Activity, ArrowLeft, Brush, Eye, EyeOff, Layers, Search, Settings, SlidersHorizontal, Tags, Type as TypeIcon, X } from 'lucide-react';
+import { Activity, Brush, Eye, EyeOff, Layers, Search, Settings, SlidersHorizontal, Tags, Type as TypeIcon, X } from 'lucide-react';
 
 export type PanelGridMode = 'learner' | 'author' | 'sandbox';
 export type WorkbenchControlsSide = 'left' | 'right';
@@ -110,7 +111,7 @@ export function openPanelSettingsIfClosed(
   toggleSettings(panelId);
 }
 
-interface PanelSettingsButtonProps {
+interface PanelSettingsControlsProps {
   panel: PanelDef;
   instances: SimInstance[];
   activeInstanceId: string;
@@ -120,7 +121,6 @@ interface PanelSettingsButtonProps {
   updatePanelInstanceName: (panelId: string, instId: string, newName: string) => void;
   updatePanelSignalColor: (panelId: string, instId: string, sig: string, newColor: string) => void;
   updatePanelSignalName: (panelId: string, instId: string, sig: string, newName: string) => void;
-  toggleSettings: (panelId: string) => void;
   toggleInstanceVisibility: (panelId: string, instId: string) => void;
   updateInstanceSignals: (panelId: string, instId: string, signal: string) => void;
   toggleGuides: (panelId: string) => void;
@@ -132,7 +132,14 @@ interface PanelSettingsButtonProps {
   controlGroups: string[];
 }
 
-type PanelSettingsControlsProps = Omit<PanelSettingsButtonProps, 'toggleSettings'>;
+interface PanelSettingsButtonProps {
+  panel: PanelDef;
+  toggleSettings: (panelId: string) => void;
+}
+
+interface PaneSettingsModalProps extends PanelSettingsControlsProps {
+  toggleSettings: (panelId: string) => void;
+}
 
 type SignalCategory = 'All' | 'Pressure' | 'Flow' | 'Volume' | 'Valve' | 'Coupling' | 'Derived';
 type GraphSettingsSectionId = 'signals' | 'instances' | 'display' | 'style';
@@ -1144,72 +1151,151 @@ function ControlPanelSettingsBoard({
   );
 }
 
-function PanelSettingsButton({ toggleSettings, ...settingsProps }: PanelSettingsButtonProps) {
-  const { panel } = settingsProps;
-  const usesBoardSettings = isBoardSettingsPanel(panel.type);
+function PanelSettingsButton({ panel, toggleSettings }: PanelSettingsButtonProps) {
   return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); toggleSettings(panel.id); }}
-        className={`relative z-50 flex h-7 w-7 items-center justify-center rounded border border-slate-800/70 transition-colors ${panel.isSettingsOpen ? 'bg-slate-700 text-slate-200' : 'bg-slate-950/75 text-slate-500 hover:bg-slate-800 hover:text-slate-300'}`}
-        title="Pane settings"
-        aria-label={`${panel.title} pane settings`}
-      >
-        <Settings className="h-3.5 w-3.5" />
-      </button>
-      {panel.isSettingsOpen && (
-        <>
-          <div className="fixed inset-0 z-40 cursor-default" onClick={(e) => { e.stopPropagation(); toggleSettings(panel.id); }} />
-          <div className={`absolute top-full right-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-3 z-50 cursor-default ${usesBoardSettings ? 'w-[min(42rem,calc(100vw-2rem))]' : 'w-56'}`}>
-            <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-700">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Configuration</span>
-              <button
-                type="button"
-                onClick={() => toggleSettings(panel.id)}
-                className="inline-flex h-5 w-5 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-700 hover:text-white"
-                aria-label="Close pane settings"
-                title="Close settings"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-            <div className={`${usesBoardSettings ? 'h-[min(32rem,calc(100vh-10rem))]' : 'max-h-64 space-y-3'} overflow-y-auto custom-scrollbar`}>
-              <PanelSettingsControls {...settingsProps} />
-            </div>
-          </div>
-        </>
-      )}
-    </div>
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); toggleSettings(panel.id); }}
+      className={`relative z-50 flex h-7 w-7 items-center justify-center rounded border border-slate-800/70 transition-colors ${panel.isSettingsOpen ? 'bg-slate-700 text-slate-200' : 'bg-slate-950/75 text-slate-500 hover:bg-slate-800 hover:text-slate-300'}`}
+      title="Pane settings"
+      aria-label={`${panel.title} pane settings`}
+      aria-pressed={panel.isSettingsOpen}
+    >
+      <Settings className="h-3.5 w-3.5" />
+    </button>
   );
 }
 
-function PanelSettingsView({ toggleSettings, ...settingsProps }: PanelSettingsButtonProps) {
+function settingsPaneTypeLabel(panel: PanelDef): string {
+  if (panel.type === 'PVLOOP') return 'PV loop pane';
+  if (panel.type === 'WAVEFORM') return 'Waveform pane';
+  if (panel.type === 'METRICS') return 'Metrics pane';
+  if (panel.type === 'CONTROLS') return 'Controller pane';
+  if (panel.type === 'NOTE') return 'Note pane';
+  if (panel.type === 'GUYTON_LEFT' || panel.type === 'GUYTON_RIGHT' || panel.type === 'GUYTON_3D') return 'Guyton pane';
+  return 'Pane';
+}
+
+function paneSettingsFocusRestoreTarget(panel: PanelDef, preferred: HTMLElement | null): HTMLElement | null {
+  if (preferred?.isConnected) return preferred;
+  if (typeof document === 'undefined') return null;
+  const labels = new Set([`${panel.title} pane menu`, `${panel.title} pane settings`]);
+  return Array.from(document.querySelectorAll<HTMLElement>('button[aria-label]'))
+    .find((node) => labels.has(node.getAttribute('aria-label') ?? '')) ?? null;
+}
+
+function PaneSettingsModal({ toggleSettings, ...settingsProps }: PaneSettingsModalProps) {
   const { panel } = settingsProps;
   const usesBoardSettings = isBoardSettingsPanel(panel.type);
-  return (
-    <div className="flex h-full min-h-0 w-full flex-col bg-[#0B1120]">
-      <div className="flex flex-none items-center gap-3 px-3 py-2">
-        <button
-          type="button"
-          onClick={() => toggleSettings(panel.id)}
-          className="inline-flex min-w-0 flex-none items-center gap-1.5 py-1 text-xs font-semibold text-slate-300 transition-colors hover:text-slate-100"
-          aria-label={`Back to ${panel.title}`}
-        >
-          <ArrowLeft className="h-3.5 w-3.5 shrink-0" />
-          <span className="truncate">Back to {panel.title}</span>
-        </button>
-      </div>
-      <div className={`min-h-0 flex-1 ${usesBoardSettings ? 'overflow-hidden px-1 pb-2' : 'overflow-y-auto custom-scrollbar p-3'}`}>
-        {!usesBoardSettings && (
-          <div className="mb-3 border-b border-slate-700 pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            Customizations
+  const titleId = `pane-settings-title-${panel.id}`;
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const latestPanelRef = useRef(panel);
+  const close = useCallback(() => toggleSettings(panel.id), [panel.id, toggleSettings]);
+  latestPanelRef.current = panel;
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialogRef.current?.focus({ preventScroll: true });
+    return () => {
+      paneSettingsFocusRestoreTarget(latestPanelRef.current, previousFocusRef.current)
+        ?.focus({ preventScroll: true });
+    };
+  }, [panel.id]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      close();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [close]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
+  const trapFocus = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Tab') return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    )).filter((node) => !node.hasAttribute('disabled') && node.tabIndex !== -1);
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const activeElement = document.activeElement;
+    if (!focusable.includes(activeElement as HTMLElement)) {
+      event.preventDefault();
+      (event.shiftKey ? last : first).focus();
+    } else if (event.shiftKey && activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
+  const modal = (
+    <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/65 p-0 text-slate-200 backdrop-blur-sm sm:p-4">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        onKeyDown={trapFocus}
+        className="flex h-dvh w-full flex-col overflow-hidden bg-[#0B1120] shadow-2xl sm:h-[min(46rem,calc(100vh-2rem))] sm:max-h-[calc(100vh-2rem)] sm:w-[min(72rem,calc(100vw-2rem))] sm:rounded-lg sm:border sm:border-slate-700"
+      >
+        <div className="flex h-14 flex-none items-center justify-between gap-3 border-b border-slate-800 px-4">
+          <div className="min-w-0">
+            <h2 id={titleId} className="truncate text-sm font-bold text-slate-100">Pane settings</h2>
+            <div className="truncate text-[11px] font-semibold text-slate-500">
+              {panel.title} · {settingsPaneTypeLabel(panel)}
+            </div>
           </div>
-        )}
-        <PanelSettingsControls {...settingsProps} />
+          <div className="flex flex-none items-center gap-2">
+            <button
+              type="button"
+              onClick={close}
+              className="inline-flex h-8 items-center justify-center rounded bg-blue-600 px-3 text-xs font-bold text-white transition-colors hover:bg-blue-500"
+            >
+              Done
+            </button>
+            <button
+              type="button"
+              onClick={close}
+              className="inline-flex h-8 w-8 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-200"
+              aria-label="Close pane settings"
+              title="Close settings"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+        <div className={`min-h-0 flex-1 ${usesBoardSettings ? 'overflow-hidden p-3' : 'overflow-y-auto p-4 custom-scrollbar'}`}>
+          {!usesBoardSettings && (
+            <div className="mb-3 border-b border-slate-700 pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Customizations
+            </div>
+          )}
+          <PanelSettingsControls {...settingsProps} />
+        </div>
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal;
 }
 
 interface PanelCardProps {
@@ -1363,32 +1449,6 @@ function PanelCard({
     </div>
   );
 
-  if (chromeMode === 'dockview' && canConfigure && panel.type !== 'SCENARIOS' && panel.isSettingsOpen) {
-    return (
-      <PanelSettingsView
-        panel={panel}
-        instances={instances}
-        activeInstanceId={activeInstanceId}
-        updatePanelTitle={updatePanelTitle}
-        toggleShowLegend={toggleShowLegend}
-        updatePanelInstanceColor={updatePanelInstanceColor}
-        updatePanelInstanceName={updatePanelInstanceName}
-        updatePanelSignalColor={updatePanelSignalColor}
-        updatePanelSignalName={updatePanelSignalName}
-        toggleSettings={toggleSettings}
-        toggleInstanceVisibility={toggleInstanceVisibility}
-        updateInstanceSignals={updateInstanceSignals}
-        toggleGuides={toggleGuides}
-        updateTimeWindow={updateTimeWindow}
-        updatePanelControllerItems={updatePanelControllerItems}
-        chambers={chambers}
-        signals={signals}
-        metrics={metrics}
-        controlGroups={controlGroups}
-      />
-    );
-  }
-
   if (chromeMode === 'mobile' || chromeMode === 'dockview') {
     return (
       <div className="group relative h-full min-h-0 w-full overflow-hidden bg-[#0B1120]">
@@ -1427,24 +1487,7 @@ function PanelCard({
         <div className={`flex items-center gap-1.5 transition-opacity ${panel.isSettingsOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
           <PanelSettingsButton
             panel={panel}
-            instances={instances}
-            activeInstanceId={activeInstanceId}
-            updatePanelTitle={updatePanelTitle}
-            toggleShowLegend={toggleShowLegend}
-            updatePanelInstanceColor={updatePanelInstanceColor}
-            updatePanelInstanceName={updatePanelInstanceName}
-            updatePanelSignalColor={updatePanelSignalColor}
-            updatePanelSignalName={updatePanelSignalName}
             toggleSettings={toggleSettings}
-            toggleInstanceVisibility={toggleInstanceVisibility}
-            updateInstanceSignals={updateInstanceSignals}
-            toggleGuides={toggleGuides}
-            updateTimeWindow={updateTimeWindow}
-            updatePanelControllerItems={updatePanelControllerItems}
-            chambers={chambers}
-            signals={signals}
-            metrics={metrics}
-            controlGroups={controlGroups}
           />
           {isEditor && (
             <button onClick={() => removePanel(panel.id)} className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-red-400" title="Close Panel" aria-label={`Close ${panel.title}`}>
@@ -1746,6 +1789,33 @@ export function PanelGrid({
     />
   );
 
+  const activeSettingsPanel = mode === 'learner'
+    ? undefined
+    : presenterPanels.find((panel) => panel.isSettingsOpen && panel.type !== 'SCENARIOS');
+  const paneSettingsModal = activeSettingsPanel ? (
+    <PaneSettingsModal
+      panel={activeSettingsPanel}
+      instances={instances}
+      activeInstanceId={activeInstanceId}
+      updatePanelTitle={updatePanelTitle}
+      toggleShowLegend={toggleShowLegend}
+      updatePanelInstanceColor={updatePanelInstanceColor}
+      updatePanelInstanceName={updatePanelInstanceName}
+      updatePanelSignalColor={updatePanelSignalColor}
+      updatePanelSignalName={updatePanelSignalName}
+      toggleSettings={toggleSettings}
+      toggleInstanceVisibility={toggleInstanceVisibility}
+      updateInstanceSignals={updateInstanceSignals}
+      toggleGuides={toggleGuides}
+      updateTimeWindow={updateTimeWindow}
+      updatePanelControllerItems={updatePanelControllerItems}
+      chambers={chambers}
+      signals={signals}
+      metrics={metrics}
+      controlGroups={controlGroups}
+    />
+  ) : null;
+
   const sashClassName = 'z-20 bg-[#08111f] transition-colors hover:bg-slate-800/45 focus-visible:bg-slate-700/70 focus-visible:outline focus-visible:outline-1 focus-visible:outline-sky-400 data-[dragging=true]:bg-slate-700/70';
   const gridTemplateColumns = hasCaseRail
     ? layoutState.controlsSide === 'left'
@@ -1784,6 +1854,7 @@ export function PanelGrid({
           className="min-h-0 flex-1"
           renderPanel={(panel) => renderPanel(panel, false, 'mobile')}
         />
+        {paneSettingsModal}
       </main>
     );
   }
@@ -1912,6 +1983,7 @@ export function PanelGrid({
             renderPanel={(panel) => renderPanel(panel, false, 'dockview')}
           />
         </div>
+        {paneSettingsModal}
     </main>
   );
 }
