@@ -1176,16 +1176,32 @@ function settingsPaneTypeLabel(panel: PanelDef): string {
   return 'Pane';
 }
 
+function paneSettingsFocusRestoreTarget(panel: PanelDef, preferred: HTMLElement | null): HTMLElement | null {
+  if (preferred?.isConnected) return preferred;
+  if (typeof document === 'undefined') return null;
+  const labels = new Set([`${panel.title} pane menu`, `${panel.title} pane settings`]);
+  return Array.from(document.querySelectorAll<HTMLElement>('button[aria-label]'))
+    .find((node) => labels.has(node.getAttribute('aria-label') ?? '')) ?? null;
+}
+
 function PaneSettingsModal({ toggleSettings, ...settingsProps }: PaneSettingsModalProps) {
   const { panel } = settingsProps;
   const usesBoardSettings = isBoardSettingsPanel(panel.type);
   const titleId = `pane-settings-title-${panel.id}`;
   const dialogRef = useRef<HTMLDivElement | null>(null);
-  const doneButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const latestPanelRef = useRef(panel);
   const close = useCallback(() => toggleSettings(panel.id), [panel.id, toggleSettings]);
+  latestPanelRef.current = panel;
 
   useEffect(() => {
-    doneButtonRef.current?.focus();
+    if (typeof document === 'undefined') return undefined;
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialogRef.current?.focus({ preventScroll: true });
+    return () => {
+      paneSettingsFocusRestoreTarget(latestPanelRef.current, previousFocusRef.current)
+        ?.focus({ preventScroll: true });
+    };
   }, [panel.id]);
 
   useEffect(() => {
@@ -1198,6 +1214,15 @@ function PaneSettingsModal({ toggleSettings, ...settingsProps }: PaneSettingsMod
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [close]);
 
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
   const trapFocus = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'Tab') return;
     const dialog = dialogRef.current;
@@ -1208,10 +1233,14 @@ function PaneSettingsModal({ toggleSettings, ...settingsProps }: PaneSettingsMod
     if (focusable.length === 0) return;
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
+    const activeElement = document.activeElement;
+    if (!focusable.includes(activeElement as HTMLElement)) {
+      event.preventDefault();
+      (event.shiftKey ? last : first).focus();
+    } else if (event.shiftKey && activeElement === first) {
       event.preventDefault();
       last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
+    } else if (!event.shiftKey && activeElement === last) {
       event.preventDefault();
       first.focus();
     }
@@ -1224,6 +1253,7 @@ function PaneSettingsModal({ toggleSettings, ...settingsProps }: PaneSettingsMod
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        tabIndex={-1}
         onKeyDown={trapFocus}
         className="flex h-dvh w-full flex-col overflow-hidden bg-[#0B1120] shadow-2xl sm:h-[min(46rem,calc(100vh-2rem))] sm:max-h-[calc(100vh-2rem)] sm:w-[min(72rem,calc(100vw-2rem))] sm:rounded-lg sm:border sm:border-slate-700"
       >
@@ -1236,7 +1266,6 @@ function PaneSettingsModal({ toggleSettings, ...settingsProps }: PaneSettingsMod
           </div>
           <div className="flex flex-none items-center gap-2">
             <button
-              ref={doneButtonRef}
               type="button"
               onClick={close}
               className="inline-flex h-8 items-center justify-center rounded bg-blue-600 px-3 text-xs font-bold text-white transition-colors hover:bg-blue-500"

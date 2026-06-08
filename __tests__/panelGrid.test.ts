@@ -419,6 +419,7 @@ describe("PanelGrid Dockview layout", () => {
 
     expect(html).toContain("role=\"dialog\"");
     expect(html).toContain("aria-modal=\"true\"");
+    expect(html).toContain("tabindex=\"-1\"");
     expect(html).toContain("Pane settings");
     expect(html).toContain("PV Loop · PV loop pane");
     expect(html).toContain("Done");
@@ -433,6 +434,14 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).not.toContain("w-[min(42rem,calc(100vw-2rem))]");
     expect(html).not.toContain("Advanced");
     expect(html).not.toContain("Instance keys");
+  });
+
+  it("keeps pane settings modal focus and scroll behavior explicit", () => {
+    const panelGridSource = readFileSync(resolve(process.cwd(), "components/workbench/PanelGrid.tsx"), "utf8");
+
+    expect(panelGridSource).toContain("paneSettingsFocusRestoreTarget");
+    expect(panelGridSource).toContain("dialogRef.current?.focus({ preventScroll: true })");
+    expect(panelGridSource).toContain("document.body.style.overflow = 'hidden'");
   });
 
   it("does not render pane-local settings for learner mode even if state is open", () => {
