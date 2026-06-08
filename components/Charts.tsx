@@ -17,6 +17,7 @@ import {
     type PvLoopBeatData,
 } from './pvLoopPoints';
 import {
+    buildCommittedGuytonPaneData,
     buildGuytonPaneData,
     defaultGuytonAxis,
     expandGuytonAxisToFit,
@@ -1372,12 +1373,12 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ phys
             const ref = physicsRefs.current.get(inst.id);
             if (!ref) continue;
             try {
-                const pane = buildGuytonPaneData(
-                    side,
-                    ref.core.metrics(),
-                    ref.core.debugObservables(),
-                    ref.core.vascularReturnSnapshot?.(side),
-                );
+                const metrics = ref.core.metrics();
+                const observables = ref.core.debugObservables();
+                const vascularSnapshot = ref.core.vascularReturnSnapshot?.(side);
+                const pane = vascularSnapshot
+                    ? buildCommittedGuytonPaneData(side, metrics, observables, vascularSnapshot)
+                    : buildGuytonPaneData(side, metrics, observables);
                 const signature = starlingSweepSignature(side, inst.id, inst.params, inst.targetVolume);
                 const sweep = sweeps[inst.id]?.signature === signature ? sweeps[inst.id] : undefined;
                 snapshotMapRef.current.set(cacheKey(inst), {
@@ -1404,21 +1405,27 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ phys
             const ref = physicsRefs.current.get(inst.id);
             if (!ref) return [];
             try {
+                const metrics = ref.core.metrics();
+                const observables = ref.core.debugObservables();
+                const vascularSnapshot = ref.core.vascularReturnSnapshot?.(side);
                 const pane = buildGuytonPaneData(
                     side,
-                    ref.core.metrics(),
-                    ref.core.debugObservables(),
-                    ref.core.vascularReturnSnapshot?.(side),
+                    metrics,
+                    observables,
+                    vascularSnapshot,
                 );
                 const signature = starlingSweepSignature(side, inst.id, inst.params, inst.targetVolume);
                 const sweep = sweeps[inst.id]?.signature === signature ? sweeps[inst.id] : undefined;
                 const key = cacheKey(inst);
                 const cached = snapshotMapRef.current.get(key);
                 if (!cached) {
+                    const snapshotPane = vascularSnapshot
+                        ? buildCommittedGuytonPaneData(side, metrics, observables, vascularSnapshot)
+                        : pane;
                     snapshotMapRef.current.set(key, {
-                        pane,
+                        pane: snapshotPane,
                         signature,
-                        axis: expandGuytonAxisToFit(defaultGuytonAxis(side), guytonSnapshotPoints(pane, sweep)),
+                        axis: expandGuytonAxisToFit(defaultGuytonAxis(side), guytonSnapshotPoints(snapshotPane, sweep)),
                         sweep,
                         sweepSignature: sweep?.signature,
                     });

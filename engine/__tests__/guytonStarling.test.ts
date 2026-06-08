@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PARAMS } from "@/constants";
 import {
+  buildCommittedGuytonPaneData,
   buildGuytonPaneData,
   defaultGuytonAxis,
   expandGuytonAxisToFit,
@@ -8,6 +9,7 @@ import {
   liveGuytonOperatingPoint,
   sampleVenousReturnCurve,
 } from "@/engine/guytonStarling";
+import { solveReturnFlowAtDownstreamPressure } from "@/engine/guytonVascular";
 import { runScenario } from "@/engine/harness";
 import type { SimMetrics, SimObservables } from "@/engine/protocol";
 
@@ -127,6 +129,43 @@ describe("Guyton / Starling pane helpers", () => {
     for (let i = 1; i < pane.venousReturn.points.length; i++) {
       expect(pane.venousReturn.points[i].y).toBeLessThanOrEqual(pane.venousReturn.points[i - 1].y + 1e-6);
     }
+  });
+
+  it("uses exact volume-constrained curves only for committed maps", () => {
+    const result = runScenario(DEFAULT_PARAMS, { ...FAST_OPTIONS, targetTBV: 5600 });
+    const snapshot = result.core.vascularReturnSnapshot("right");
+    const livePane = buildGuytonPaneData(
+      "right",
+      result.metrics,
+      result.core.debugObservables(),
+      snapshot,
+    );
+    const committedPane = buildCommittedGuytonPaneData(
+      "right",
+      result.metrics,
+      result.core.debugObservables(),
+      snapshot,
+    );
+
+    expect(livePane.venousReturn.source).toBe("structural-linearized");
+    expect(committedPane.venousReturn.source).toBe("volume-constrained");
+    expect(committedPane.classicVenousReturn.source).toBe("structural-linearized");
+  });
+
+  it("anchors committed filling pressure at exact zero return", () => {
+    const result = runScenario(DEFAULT_PARAMS, { ...FAST_OPTIONS, targetTBV: 5600 });
+    const snapshot = result.core.vascularReturnSnapshot("right");
+    const committedPane = buildCommittedGuytonPaneData(
+      "right",
+      result.metrics,
+      result.core.debugObservables(),
+      snapshot,
+    );
+    const atFill = solveReturnFlowAtDownstreamPressure(snapshot, committedPane.fillingPressure);
+    const snapshotPoints = guytonSnapshotPoints(committedPane, undefined);
+
+    expect(atFill.y).toBeLessThan(0.05);
+    expect(snapshotPoints.some((point) => point.x === committedPane.fillingPressure && point.y === 0)).toBe(true);
   });
 
   it("keeps Guyton axes preset and expands without auto-shrinking", () => {

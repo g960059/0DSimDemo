@@ -1,5 +1,7 @@
 import { clamp, smoothMax } from "@/engine/math";
 import {
+  buildVolumeConstrainedGuytonCurve,
+  solveFillingPressureAbs,
   structuralLinearGuyton,
   type VascularReturnSnapshot,
 } from "@/engine/guytonVascular";
@@ -180,6 +182,77 @@ export function buildGuytonPaneData(
       unstressedVolumeMl: structural?.totalUnstressedVolumeMl ?? (isRight ? obs.unstressedVolumeSystemic : obs.pulmonaryVenousUnstressedVolume),
       effectiveComplianceMlPerMmHg: structural?.totalComplianceMlPerMmHg ?? (isRight ? obs.systemicComplianceEff : obs.pulmonaryVenousComplianceEff),
       externalPressureWeightedMmHg: structural?.externalPressureWeightedMmHg ?? (isRight ? obs.systemicExternalPressureWeighted : obs.pulmonaryVenousExternalPressureWeighted),
+      effectiveResistanceMmHgPerLMin: resistance,
+    },
+    warnings,
+  };
+}
+
+export function buildCommittedGuytonPaneData(
+  side: GuytonSide,
+  metrics: SimMetrics,
+  obs: SimObservables,
+  vascularSnapshot: VascularReturnSnapshot,
+): GuytonPaneData {
+  const isRight = side === "right";
+  const pressure = isRight ? metrics.RAPMean : metrics.LAPMean;
+  const flow = Math.max(isRight ? metrics.CO_R : metrics.CO_L, 0);
+  const structural = structuralLinearGuyton(vascularSnapshot, []);
+  const fillingPressure = solveFillingPressureAbs(vascularSnapshot);
+  const fillingPressureLabel = isRight ? "Pmsf" : "Pmpf";
+  const gradient = fillingPressure - pressure;
+  const collapsePressure = isRight ? obs.Pth : obs.Palv;
+  const resistance = structural.resistanceMmHgPerLMin;
+  const xRange = pressureRange(side, pressure, fillingPressure, collapsePressure);
+  const xGrid = pressureGrid(xRange.min, xRange.max, 120);
+  const venousReturn = buildVolumeConstrainedGuytonCurve(vascularSnapshot, xGrid);
+  const warnings = paneWarnings(side, gradient, flow, resistance, metrics, obs);
+
+  return {
+    side,
+    title: isRight ? "Systemic Guyton / RV Starling" : "Pulmonary Guyton / LV Starling",
+    xLabel: isRight ? "RAP / CVP (mmHg)" : "LAP / PCWP (mmHg)",
+    yLabel: "Flow (L/min)",
+    operatingPoint: { pressure, flow },
+    fillingPressure,
+    fillingPressureLabel,
+    gradient,
+    collapsePressure,
+    venousReturn,
+    classicVenousReturn: {
+      id: `${side}-classic-vr`,
+      label: "Classic straight-line estimate",
+      source: "structural-linearized",
+      stroke: "classic",
+      dashed: true,
+      points: sampleVenousReturnCurve({
+        fillingPressure,
+        resistanceMmHgPerLMin: resistance,
+        collapsePressure,
+        xMin: xRange.min,
+        xMax: xRange.max,
+        waterfall: false,
+      }),
+    },
+    localStarling: {
+      id: `${side}-local-starling`,
+      label: "Local Starling-like pump response",
+      source: "local-starling-surrogate",
+      stroke: "starling",
+      dashed: true,
+      points: sampleLocalStarlingSurrogate({
+        side,
+        operatingPressure: pressure,
+        operatingFlow: flow,
+        xMin: xRange.min,
+        xMax: xRange.max,
+      }),
+    },
+    summary: {
+      stressedVolumeMl: structural.totalStressedVolumeMl,
+      unstressedVolumeMl: structural.totalUnstressedVolumeMl,
+      effectiveComplianceMlPerMmHg: structural.totalComplianceMlPerMmHg,
+      externalPressureWeightedMmHg: structural.externalPressureWeightedMmHg,
       effectiveResistanceMmHgPerLMin: resistance,
     },
     warnings,
