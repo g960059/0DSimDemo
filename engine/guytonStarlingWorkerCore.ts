@@ -1,4 +1,4 @@
-import { ModelCore } from "@/engine/ModelCore";
+import { ModelCore, type RetargetTBVStatus } from "@/engine/ModelCore";
 import {
   buildCommittedGuytonPaneData,
   type GuytonBaseMapResponse,
@@ -27,6 +27,17 @@ type WorkerSettledCore = {
   health: ReturnType<ModelCore["health"]>;
   state: SerializedModelState;
   targetVolumeMl: number;
+  wallMs: number;
+  source: "cold" | "warm-retarget" | "warm-retarget-fallback";
+  retarget?: RetargetTBVStatus;
+  retargetFallback: boolean;
+};
+
+type WarmStartedSweepRuns = {
+  runs: WorkerSettledCore[];
+  positiveChainMs: number;
+  negativeChainMs: number;
+  retargetFallbackCount: number;
 };
 
 const WORKER_DT = 0.001;
@@ -71,15 +82,18 @@ export function postGuytonStarlingWorkerMessages(
 
 export function buildGuytonBaseMapResponse(
   req: StarlingSweepRequest,
-  baseline = buildWorkerBaseline(req),
+  baseline?: WorkerSettledCore,
 ): GuytonBaseMapResponse {
-  const { core, metrics, observables, health, settle } = baseline;
+  const resolvedBaseline = baseline ?? buildWorkerBaseline(req);
+  const baseMapStart = performanceNow();
+  const { core, metrics, observables, health, settle } = resolvedBaseline;
   const warnings: string[] = [];
 
   if (!settle.settled) warnings.push("base map: did not fully settle");
   if (health.status !== "ok") warnings.push(`base map: health ${health.status}`);
+  if (resolvedBaseline.retargetFallback) warnings.push("base map: warm retarget fallback");
 
-  return {
+  const response: GuytonBaseMapResponse = {
     type: "base-map",
     requestId: req.requestId,
     signature: req.signature,
@@ -98,13 +112,29 @@ export function buildGuytonBaseMapResponse(
     ),
     warnings,
   };
+  const baseMapMs = performanceNow() - baseMapStart;
+  response.timing = {
+    baselineMs: resolvedBaseline.wallMs,
+    baseMapMs,
+    totalMs: resolvedBaseline.wallMs + baseMapMs,
+    baselineSource: resolvedBaseline.source,
+  };
+  return response;
 }
 
 export function buildStarlingSweepResponse(
   req: StarlingSweepRequest,
-  baseline = buildWorkerBaseline(req),
+  baseline?: WorkerSettledCore,
 ): StarlingSweepWorkerMessage {
-  return buildSweepResponseFromRuns(req, buildWarmStartedSweepRuns(req, baseline));
+  const resolvedBaseline = baseline ?? buildWorkerBaseline(req);
+  const sweepStart = performanceNow();
+  const warm = buildWarmStartedSweepRuns(req, resolvedBaseline);
+  return buildSweepResponseFromRuns(req, warm.runs, {
+    positiveChainMs: warm.positiveChainMs,
+    negativeChainMs: warm.negativeChainMs,
+    retargetFallbackCount: warm.retargetFallbackCount,
+    sweepStart,
+  });
 }
 
 export function buildColdStarlingSweepResponse(req: StarlingSweepRequest): StarlingSweepWorkerMessage {
@@ -124,9 +154,24 @@ function settleWorkerCore(
   targetVolumeMl: number,
   seedState?: SerializedModelState,
 ): WorkerSettledCore {
+  const started = performanceNow();
   const core = new ModelCore(req.params);
-  if (seedState) core.unpackState(seedState);
-  core.initializeVenousPressuresForTargetTBV(targetVolumeMl);
+  let source: WorkerSettledCore["source"] = "cold";
+  let retarget: RetargetTBVStatus | undefined;
+  let retargetFallback = false;
+  if (seedState) {
+    core.unpackState(seedState);
+    retarget = core.retargetTBVFromCurrentState(targetVolumeMl);
+    if (retarget.ok) {
+      source = "warm-retarget";
+    } else {
+      retargetFallback = true;
+      source = "warm-retarget-fallback";
+      core.initializeVenousPressuresForTargetTBV(targetVolumeMl);
+    }
+  } else {
+    core.initializeVenousPressuresForTargetTBV(targetVolumeMl);
+  }
   const settle = core.settleToSteady(
     WORKER_SETTLE_POLICY,
     WORKER_DT,
@@ -145,13 +190,17 @@ function settleWorkerCore(
     health,
     state: core.packState(),
     targetVolumeMl,
+    wallMs: performanceNow() - started,
+    source,
+    retarget,
+    retargetFallback,
   };
 }
 
 function buildWarmStartedSweepRuns(
   req: StarlingSweepRequest,
   baseline: WorkerSettledCore,
-): WorkerSettledCore[] {
+): WarmStartedSweepRuns {
   const deltas = req.deltasMl ?? [-600, -300, 0, 300, 600];
   const runs = new Map<number, WorkerSettledCore>();
   runs.set(0, baseline);
@@ -166,20 +215,37 @@ function buildWarmStartedSweepRuns(
   };
 
   const uniqueNonZero = Array.from(new Set(deltas.filter((delta) => delta !== 0)));
+  const positiveStart = performanceNow();
   solveChain(uniqueNonZero.filter((delta) => delta > 0).sort((a, b) => a - b));
+  const positiveChainMs = performanceNow() - positiveStart;
+  const negativeStart = performanceNow();
   solveChain(uniqueNonZero.filter((delta) => delta < 0).sort((a, b) => Math.abs(a) - Math.abs(b)));
+  const negativeChainMs = performanceNow() - negativeStart;
 
-  return deltas.map((delta) => {
+  const orderedRuns = deltas.map((delta) => {
     const run = runs.get(delta);
     if (!run) throw new Error(`Missing warm-start sweep run for delta ${String(delta)}`);
     return run;
   });
+  return {
+    runs: orderedRuns,
+    positiveChainMs,
+    negativeChainMs,
+    retargetFallbackCount: orderedRuns.filter((run) => run.retargetFallback).length,
+  };
 }
 
 function buildSweepResponseFromRuns(
   req: StarlingSweepRequest,
   runs: WorkerSettledCore[],
+  timingInput?: {
+    positiveChainMs: number;
+    negativeChainMs: number;
+    retargetFallbackCount: number;
+    sweepStart: number;
+  },
 ): StarlingSweepWorkerMessage {
+  const assembleStart = performanceNow();
   const deltas = req.deltasMl ?? [-600, -300, 0, 300, 600];
   const right: GuytonCurvePoint[] = [];
   const left: GuytonCurvePoint[] = [];
@@ -193,6 +259,7 @@ function buildSweepResponseFromRuns(
 
     if (!settle.settled) warnings.push(`${label}: sweep point did not fully settle`);
     if (health.status !== "ok") warnings.push(`${label}: health ${health.status}`);
+    if (run.retargetFallback) warnings.push(`${label}: warm retarget fallback`);
 
     right.push({
       x: metrics.RAPMean,
@@ -215,7 +282,7 @@ function buildSweepResponseFromRuns(
   right.sort((a, b) => a.x - b.x);
   left.sort((a, b) => a.x - b.x);
 
-  return {
+  const response: StarlingSweepWorkerMessage = {
     type: "starling-sweep",
     requestId: req.requestId,
     signature: req.signature,
@@ -224,6 +291,16 @@ function buildSweepResponseFromRuns(
     left: { side: "left", points: left, warnings },
     warnings,
   };
+  if (timingInput) {
+    response.timing = {
+      positiveChainMs: timingInput.positiveChainMs,
+      negativeChainMs: timingInput.negativeChainMs,
+      assembleMs: performanceNow() - assembleStart,
+      totalMs: performanceNow() - timingInput.sweepStart,
+      retargetFallbackCount: timingInput.retargetFallbackCount,
+    };
+  }
+  return response;
 }
 
 export function buildGuytonBaseMapErrorResponse(
@@ -252,4 +329,9 @@ export function buildStarlingSweepErrorResponse(
     warnings: [],
     error: err instanceof Error ? err.message : "Unknown Starling sweep failure",
   };
+}
+
+function performanceNow(): number {
+  if (typeof performance !== "undefined" && typeof performance.now === "function") return performance.now();
+  return Date.now();
 }

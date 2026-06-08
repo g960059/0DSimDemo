@@ -96,6 +96,21 @@ export type StarlingSweepResponse = {
   error?: string;
 };
 
+export type GuytonBaseMapTiming = {
+  baselineMs: number;
+  baseMapMs: number;
+  totalMs: number;
+  baselineSource: "cold" | "warm-retarget" | "warm-retarget-fallback";
+};
+
+export type StarlingSweepTiming = {
+  positiveChainMs: number;
+  negativeChainMs: number;
+  assembleMs: number;
+  totalMs: number;
+  retargetFallbackCount: number;
+};
+
 export type GuytonBaseMapResponse = {
   type: "base-map";
   requestId: string;
@@ -105,10 +120,12 @@ export type GuytonBaseMapResponse = {
   left?: GuytonPaneData;
   warnings: string[];
   error?: string;
+  timing?: GuytonBaseMapTiming;
 };
 
 export type StarlingSweepWorkerMessage = StarlingSweepResponse & {
   type: "starling-sweep";
+  timing?: StarlingSweepTiming;
 };
 
 export type GuytonStarlingWorkerMessage = GuytonBaseMapResponse | StarlingSweepWorkerMessage;
