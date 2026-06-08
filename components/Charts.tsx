@@ -17,20 +17,26 @@ import {
     type PvLoopBeatData,
 } from './pvLoopPoints';
 import {
-    buildCommittedGuytonPaneData,
-    buildGuytonPaneData,
-    defaultGuytonAxis,
-    expandGuytonAxisToFit,
-    guytonSnapshotPoints,
     starlingSweepSignature,
     type GuytonAxisDomain,
-    type GuytonBaseMapResponse,
     type GuytonCurvePoint,
-    type GuytonPaneData,
     type GuytonSide,
     type GuytonStarlingWorkerMessage,
     type StarlingSweepResponse,
 } from '../engine/guytonStarling';
+import {
+    beginGuytonSteadyMapRequest,
+    expireGuytonSteadyMapGhost,
+    GUYTON_STEADY_GHOST_ALPHA,
+    guytonSteadyMapWarnings,
+    initialGuytonSteadyMapState,
+    markGuytonSteadyMapPendingWarning,
+    receiveGuytonBaseMapResponse,
+    receiveGuytonSweepResponse,
+    type GuytonSteadyMap,
+    type GuytonSteadyMapGhost,
+    type GuytonSteadyMapState,
+} from './guytonSteadyMapTransition';
 
 interface ChartPanelProps {
   physicsRefs: React.MutableRefObject<Map<string, PhysicsRefState>>;
@@ -1269,24 +1275,14 @@ export const MetricsPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances
 
 type GuytonSeries = {
     inst: SimInstance;
-    pane: GuytonPaneData;
-    snapshotPane: GuytonPaneData;
+    current?: GuytonSteadyMap;
+    ghost?: GuytonSteadyMapGhost;
     axis: GuytonAxisDomain;
-    sweep?: StarlingSweepResponse;
-    signature: string;
-    mapStale: boolean;
-    sweepStatus: 'ready' | 'pending' | 'stale';
+    status: 'ready' | 'pending' | 'empty';
+    warnings: string[];
 };
 
-type GuytonPanelSnapshot = {
-    pane: GuytonPaneData;
-    signature: string;
-    axis: GuytonAxisDomain;
-    sweep?: StarlingSweepResponse;
-    sweepSignature?: string;
-};
-
-export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ physicsRefs, instances, config, type }) => {
+export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ instances, config, type }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const isOnscreen = useOnscreen(containerRef);
@@ -1294,10 +1290,11 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ phys
     const canAnimate = isOnscreen && isDocumentVisible;
     const side: GuytonSide = type === 'GUYTON_LEFT' ? 'left' : 'right';
     const [tick, setTick] = useState(0);
-    const [sweeps, setSweeps] = useState<Record<string, StarlingSweepResponse>>({});
-    const [sweepBusy, setSweepBusy] = useState(false);
-    const [sweepError, setSweepError] = useState<string | null>(null);
-    const snapshotMapRef = useRef<Map<string, GuytonPanelSnapshot>>(new Map());
+    const [refreshSeq, setRefreshSeq] = useState(0);
+    const [workerBusy, setWorkerBusy] = useState(false);
+    const [workerError, setWorkerError] = useState<string | null>(null);
+    const forceRefreshRef = useRef(false);
+    const steadyMapRef = useRef<Map<string, GuytonSteadyMapState>>(new Map());
 
     const visibleInstances = useMemo(() => (
         instances.filter((inst) => {
@@ -1327,14 +1324,55 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ phys
     }, []);
 
     useEffect(() => {
-        if (typeof Worker === 'undefined' || sweepInputs.length === 0) return;
+        const nowMs = Date.now();
+        const force = forceRefreshRef.current;
+        forceRefreshRef.current = false;
+        const visibleIds = new Set(sweepInputs.map((input) => cacheKeyForId(input.instanceId)));
+        for (const key of steadyMapRef.current.keys()) {
+            if (!visibleIds.has(key)) steadyMapRef.current.delete(key);
+        }
+        for (const input of sweepInputs) {
+            const key = cacheKeyForId(input.instanceId);
+            const current = steadyMapRef.current.get(key) ?? initialGuytonSteadyMapState(side);
+            steadyMapRef.current.set(
+                key,
+                beginGuytonSteadyMapRequest(current, input.signature, nowMs, { force }),
+            );
+        }
+        setTick((t) => t + 1);
+
+        if (sweepInputs.length === 0) {
+            setWorkerBusy(false);
+            return;
+        }
+
+        if (typeof Worker === 'undefined') {
+            for (const input of sweepInputs) {
+                const key = cacheKeyForId(input.instanceId);
+                const current = steadyMapRef.current.get(key) ?? initialGuytonSteadyMapState(side);
+                steadyMapRef.current.set(
+                    key,
+                    markGuytonSteadyMapPendingWarning(
+                        current,
+                        input.signature,
+                        'Steady map worker unavailable',
+                        Date.now(),
+                    ),
+                );
+            }
+            setWorkerBusy(false);
+            setWorkerError('Steady map worker unavailable');
+            setTick((t) => t + 1);
+            return;
+        }
+
         let cancelled = false;
         let remaining = sweepInputs.length;
         const worker = new Worker(new URL('../engine/guytonStarlingWorker.ts', import.meta.url), { type: 'module' });
         const timer = window.setTimeout(() => {
             if (cancelled) return;
-            setSweepBusy(true);
-            setSweepError(null);
+            setWorkerBusy(true);
+            setWorkerError(null);
             for (const input of sweepInputs) {
                 worker.postMessage({
                     requestId: `${input.instanceId}-${Date.now()}`,
@@ -1346,48 +1384,41 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ phys
             }
         }, 450);
 
-        const applyBaseMapResponse = (response: GuytonBaseMapResponse) => {
-            if (response.error) {
-                setSweepError(response.error);
-                return;
-            }
-            const pane = side === 'right' ? response.right : response.left;
-            if (!pane) return;
-            const paneWithWorkerWarnings = response.warnings.length > 0
-                ? { ...pane, warnings: [...pane.warnings, ...response.warnings] }
-                : pane;
-            snapshotMapRef.current.set(cacheKeyForId(response.instanceId), {
-                pane: paneWithWorkerWarnings,
-                signature: response.signature,
-                axis: expandGuytonAxisToFit(
-                    defaultGuytonAxis(side),
-                    guytonSnapshotPoints(paneWithWorkerWarnings, undefined),
-                ),
-            });
-            setTick((t) => t + 1);
-        };
-
         worker.onmessage = (event: MessageEvent<GuytonStarlingWorkerMessage | StarlingSweepResponse>) => {
             if (cancelled) return;
             const response = event.data;
+            const key = cacheKeyForId(response.instanceId);
+            const current = steadyMapRef.current.get(key) ?? initialGuytonSteadyMapState(side);
             if ('type' in response && response.type === 'base-map') {
-                applyBaseMapResponse(response);
+                steadyMapRef.current.set(key, receiveGuytonBaseMapResponse(current, side, response, Date.now()));
+                setTick((t) => t + 1);
                 return;
             }
 
             const sweepResponse = response as StarlingSweepResponse;
-            if (sweepResponse.error) setSweepError(sweepResponse.error);
-            else setSweeps((prev) => ({ ...prev, [sweepResponse.instanceId]: sweepResponse }));
+            steadyMapRef.current.set(key, receiveGuytonSweepResponse(current, sweepResponse, Date.now()));
+            if (sweepResponse.error) setWorkerError(sweepResponse.error);
+            setTick((t) => t + 1);
             remaining -= 1;
             if (remaining <= 0) {
-                setSweepBusy(false);
+                setWorkerBusy(false);
                 worker.terminate();
             }
         };
         worker.onerror = (event) => {
             if (cancelled) return;
-            setSweepError(event.message || 'Starling sweep worker failed');
-            setSweepBusy(false);
+            const message = event.message || 'Starling sweep worker failed';
+            for (const input of sweepInputs) {
+                const key = cacheKeyForId(input.instanceId);
+                const current = steadyMapRef.current.get(key) ?? initialGuytonSteadyMapState(side);
+                steadyMapRef.current.set(
+                    key,
+                    markGuytonSteadyMapPendingWarning(current, input.signature, message, Date.now()),
+                );
+            }
+            setWorkerError(message);
+            setWorkerBusy(false);
+            setTick((t) => t + 1);
             worker.terminate();
         };
 
@@ -1396,92 +1427,38 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ phys
             window.clearTimeout(timer);
             worker.terminate();
         };
-    }, [sweepKey]);
+    }, [sweepKey, refreshSeq]);
 
-    const commitMapSnapshot = (source: 'initial' | 'manual', targetInstances = visibleInstances) => {
-        for (const inst of targetInstances) {
-            const ref = physicsRefs.current.get(inst.id);
-            if (!ref) continue;
-            try {
-                const metrics = ref.core.metrics();
-                const observables = ref.core.debugObservables();
-                const vascularSnapshot = ref.core.vascularReturnSnapshot?.(side);
-                const pane = source === 'manual' && vascularSnapshot
-                    ? buildCommittedGuytonPaneData(side, metrics, observables, vascularSnapshot)
-                    : buildGuytonPaneData(side, metrics, observables, vascularSnapshot);
-                const signature = starlingSweepSignature(side, inst.id, inst.params, inst.targetVolume);
-                const sweep = sweeps[inst.id]?.signature === signature ? sweeps[inst.id] : undefined;
-                snapshotMapRef.current.set(cacheKey(inst), {
-                    pane,
-                    signature,
-                    axis: expandGuytonAxisToFit(defaultGuytonAxis(side), guytonSnapshotPoints(pane, sweep)),
-                    sweep,
-                    sweepSignature: sweep?.signature,
-                });
-            } catch {
-                // Keep the previous snapshot when the live core is temporarily unavailable.
-            }
-        }
-        if (source === 'manual') setTick((t) => t + 1);
+    const requestMapRefresh = () => {
+        forceRefreshRef.current = true;
+        setRefreshSeq((seq) => seq + 1);
     };
 
     const series: GuytonSeries[] = useMemo(() => {
         void tick;
         const visibleIds = new Set(visibleInstances.map((inst) => cacheKey(inst)));
-        for (const id of snapshotMapRef.current.keys()) {
-            if (!visibleIds.has(id)) snapshotMapRef.current.delete(id);
+        for (const id of steadyMapRef.current.keys()) {
+            if (!visibleIds.has(id)) steadyMapRef.current.delete(id);
         }
+        const nowMs = Date.now();
         return visibleInstances.flatMap((inst) => {
-            const ref = physicsRefs.current.get(inst.id);
-            if (!ref) return [];
-            try {
-                const metrics = ref.core.metrics();
-                const observables = ref.core.debugObservables();
-                const vascularSnapshot = ref.core.vascularReturnSnapshot?.(side);
-                const pane = buildGuytonPaneData(
-                    side,
-                    metrics,
-                    observables,
-                    vascularSnapshot,
-                );
-                const signature = starlingSweepSignature(side, inst.id, inst.params, inst.targetVolume);
-                const sweep = sweeps[inst.id]?.signature === signature ? sweeps[inst.id] : undefined;
-                const key = cacheKey(inst);
-                const cached = snapshotMapRef.current.get(key);
-                if (!cached) {
-                    snapshotMapRef.current.set(key, {
-                        pane,
-                        signature,
-                        axis: expandGuytonAxisToFit(defaultGuytonAxis(side), guytonSnapshotPoints(pane, sweep)),
-                        sweep,
-                        sweepSignature: sweep?.signature,
-                    });
-                } else if (cached.signature === signature && sweep && cached.sweepSignature !== sweep.signature) {
-                    snapshotMapRef.current.set(key, {
-                        ...cached,
-                        axis: expandGuytonAxisToFit(cached.axis, guytonSnapshotPoints(cached.pane, sweep)),
-                        sweep,
-                        sweepSignature: sweep.signature,
-                    });
-                }
-                const snapshot = snapshotMapRef.current.get(key);
-                const snapshotPane = snapshot?.pane ?? pane;
-                const axis = snapshot?.axis ?? expandGuytonAxisToFit(defaultGuytonAxis(side), guytonSnapshotPoints(pane, sweep));
-                const snapshotSweep = snapshot?.sweep;
-                const mapStale = Boolean(snapshot && snapshot.signature !== signature);
-                const sweepStatus = mapStale
-                    ? 'stale'
-                    : snapshotSweep
-                        ? 'ready'
-                        : sweeps[inst.id]
-                        ? 'stale'
-                        : 'pending';
-                return [{ inst, pane, snapshotPane, axis, sweep: snapshotSweep, signature, mapStale, sweepStatus }];
-            } catch {
-                return [];
-            }
+            const key = cacheKey(inst);
+            const state = expireGuytonSteadyMapGhost(
+                steadyMapRef.current.get(key) ?? initialGuytonSteadyMapState(side),
+                nowMs,
+            );
+            steadyMapRef.current.set(key, state);
+            const status = state.current ? 'ready' : state.pending ? 'pending' : 'empty';
+            return [{
+                inst,
+                current: state.current,
+                ghost: state.ghost,
+                axis: state.axis,
+                status,
+                warnings: guytonSteadyMapWarnings(state),
+            }];
         });
-    }, [visibleInstances, physicsRefs, side, sweeps, tick]);
+    }, [visibleInstances, side, tick]);
 
     useEffect(() => {
         if (!canAnimate || !containerRef.current || !canvasRef.current) return;
@@ -1499,32 +1476,29 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ phys
         drawGuytonCanvas(ctx, width, height, series, side);
     }, [canAnimate, series, side]);
 
-    const primary = series[0]?.pane;
     const primarySeries = series[0];
-    const primarySweep = primarySeries?.sweep;
-    const primaryStarling = side === 'right' ? primarySweep?.right : primarySweep?.left;
+    const hasRenderableMap = series.some((item) => item.current || item.ghost);
+    const hasPendingMap = series.some((item) => item.status === 'pending');
+    const hasGhostMap = series.some((item) => item.ghost);
     const statusBadges = [
-        ...(primarySeries?.mapStale ? ['Map stale'] : ['Map frozen']),
-        ...(sweepBusy ? ['Sweep...'] : []),
-        ...(primarySeries?.sweepStatus === 'ready' ? ['Sweep ready'] : []),
-        ...(primarySeries?.sweepStatus === 'stale' ? ['Sweep stale'] : []),
-        ...(primarySeries?.sweepStatus === 'pending' && !sweepBusy ? ['Sweep pending'] : []),
+        ...(primarySeries?.status === 'ready' ? ['Steady map ready'] : []),
+        ...(hasPendingMap ? ['Computing steady map'] : []),
+        ...(hasGhostMap ? ['Previous map'] : []),
+        ...(workerBusy ? ['Worker running'] : []),
     ];
     const warnings = Array.from(new Set([
-        ...(primarySeries?.snapshotPane.warnings ?? []),
-        ...(primary?.warnings ?? []),
-        ...(primaryStarling?.warnings ?? []),
-        ...(sweepError ? [sweepError] : []),
+        ...series.flatMap((item) => item.warnings),
+        ...(workerError ? [workerError] : []),
     ])).slice(0, 2);
 
     return (
         <div ref={containerRef} className="absolute inset-0 bg-[#0B1120] rounded-b-xl overflow-hidden">
             <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
-            {series.length > 0 && (
+            {visibleInstances.length > 0 && (
                 <div className="absolute right-3 top-2 flex flex-wrap justify-end gap-1.5 pointer-events-auto">
                     <button
                         type="button"
-                        onClick={() => commitMapSnapshot('manual')}
+                        onClick={requestMapRefresh}
                         className="rounded border border-slate-700/80 bg-slate-950/85 px-2 py-1 text-[10px] font-medium text-slate-200 hover:border-slate-500 hover:text-white"
                     >
                         Refresh map
@@ -1532,20 +1506,19 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ phys
                     <span className="rounded border border-slate-700/70 bg-slate-950/80 px-2 py-1 text-[10px] text-slate-400">Axis fixed</span>
                 </div>
             )}
-            {primary && (
-                <div className="absolute left-3 right-3 bottom-2 flex flex-wrap gap-1.5 pointer-events-none">
-                    <GuytonStat label={`Map ${primarySeries?.snapshotPane.fillingPressureLabel ?? primary.fillingPressureLabel}`} value={primarySeries?.snapshotPane.fillingPressure ?? primary.fillingPressure} unit="mmHg" />
-                    <GuytonStat label={side === 'right' ? 'Live RAP' : 'Live LAP'} value={primary.operatingPoint.pressure} unit="mmHg" />
-                    <GuytonStat label="Live CO" value={primary.operatingPoint.flow} unit="L/min" />
-                    <GuytonStat label="Gradient" value={primary.gradient} unit="mmHg" />
-                    <GuytonStat label="Rvr" value={primary.summary.effectiveResistanceMmHgPerLMin} unit="mmHg/L/min" />
-                    <GuytonStat label="Stressed V" value={primary.summary.stressedVolumeMl} unit="mL" decimals={0} />
+            {visibleInstances.length > 0 && (statusBadges.length > 0 || warnings.length > 0) && (
+                <div className="absolute left-3 top-2 right-32 flex flex-wrap gap-1.5 pointer-events-none">
                     {statusBadges.map((badge) => (
                         <span key={badge} className="rounded border border-slate-700/70 bg-slate-950/80 px-2 py-1 text-[10px] text-slate-400">{badge}</span>
                     ))}
                     {warnings.map((warning) => (
                         <span key={warning} className="rounded border border-amber-500/30 bg-amber-950/40 px-2 py-1 text-[10px] text-amber-200">{warning}</span>
                     ))}
+                </div>
+            )}
+            {!hasRenderableMap && visibleInstances.length > 0 && (
+                <div className="absolute inset-0 flex items-center justify-center text-center pointer-events-none">
+                    <div className="rounded border border-slate-700/70 bg-slate-950/80 px-3 py-2 text-xs text-slate-400">Computing steady map</div>
                 </div>
             )}
             {series.length === 0 && (
@@ -1556,16 +1529,6 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ phys
         </div>
     );
 };
-
-function GuytonStat({ label, value, unit, decimals = 1 }: { label: string; value: number; unit: string; decimals?: number }) {
-    return (
-        <span className="rounded border border-slate-700/70 bg-slate-950/80 px-2 py-1 text-[10px]">
-            <span className="text-slate-500">{label}</span>
-            <span className="ml-1 font-mono text-slate-100">{Number.isFinite(value) ? value.toFixed(decimals) : '--'}</span>
-            <span className="ml-0.5 text-slate-500">{unit}</span>
-        </span>
-    );
-}
 
 function drawGuytonCanvas(
     ctx: CanvasRenderingContext2D,
@@ -1601,10 +1564,11 @@ function drawGuytonCanvas(
     const y = d3.scaleLinear().domain([yAxis.min, yAxis.max]).range([plot.bottom, plot.top]);
 
     ctx.save();
-    const first = series[0]?.snapshotPane;
-    if (first && first.collapsePressure > xAxis.min && first.collapsePressure < xAxis.max) {
+    const first = series.find((item) => item.current || item.ghost);
+    const firstPane = first?.current?.pane ?? first?.ghost?.pane;
+    if (firstPane && firstPane.collapsePressure > xAxis.min && firstPane.collapsePressure < xAxis.max) {
         ctx.fillStyle = 'rgba(51, 65, 85, 0.24)';
-        ctx.fillRect(plot.left, plot.top, x(first.collapsePressure) - plot.left, plot.bottom - plot.top);
+        ctx.fillRect(plot.left, plot.top, x(firstPane.collapsePressure) - plot.left, plot.bottom - plot.top);
     }
 
     ctx.strokeStyle = '#243244';
@@ -1653,31 +1617,86 @@ function drawGuytonCanvas(
         const classicColor = base.brighter(0.2).formatHex();
         const sweepColor = '#fb923c';
 
-        drawVertical(ctx, x(item.snapshotPane.fillingPressure), plot, classicColor, [4, 4]);
-        drawLine(ctx, item.snapshotPane.classicVenousReturn.points, x, y, classicColor, 1.2, [4, 5]);
-        drawLine(ctx, item.snapshotPane.venousReturn.points, x, y, venousColor, 2.2);
-
-        const sweep = side === 'right' ? item.sweep?.right : item.sweep?.left;
-        if (sweep && sweep.points.length >= 2) {
-            drawLine(ctx, sweep.points, x, y, sweepColor, 2);
-            for (const point of sweep.points) drawPoint(ctx, x(point.x), y(point.y), sweepColor, point.settled === false ? 2.5 : 3.5);
+        if (item.ghost) {
+            drawGuytonSteadyMap(ctx, item.ghost, {
+                venousColor,
+                classicColor,
+                sweepColor,
+                pointColor: item.inst.color,
+                alpha: GUYTON_STEADY_GHOST_ALPHA,
+                label: undefined,
+                side,
+                x,
+                y,
+                plot,
+            });
         }
+        if (item.current) {
+            drawGuytonSteadyMap(ctx, item.current, {
+                venousColor,
+                classicColor,
+                sweepColor,
+                pointColor: item.inst.color,
+                alpha: 1,
+                label: item.inst.name,
+                side,
+                x,
+                y,
+                plot,
+            });
+        }
+    }
 
-        drawHollowPoint(ctx, x(item.snapshotPane.operatingPoint.pressure), y(item.snapshotPane.operatingPoint.flow), item.inst.color, 5);
-        drawPoint(ctx, x(item.pane.operatingPoint.pressure), y(item.pane.operatingPoint.flow), item.inst.color, 5.5);
+    drawLegend(ctx, plot, {
+        hasSweep: Boolean(series.some((item) => {
+            const map = item.current ?? item.ghost;
+            const sweep = side === 'right' ? map?.sweep.right : map?.sweep.left;
+            return sweep && sweep.points.length >= 2;
+        })),
+        hasGhost: Boolean(series.some((item) => item.ghost)),
+    });
+    ctx.restore();
+}
+
+function drawGuytonSteadyMap(
+    ctx: CanvasRenderingContext2D,
+    map: GuytonSteadyMap,
+    args: {
+        venousColor: string;
+        classicColor: string;
+        sweepColor: string;
+        pointColor: string;
+        alpha: number;
+        label?: string;
+        side: GuytonSide;
+        x: d3.ScaleLinear<number, number>;
+        y: d3.ScaleLinear<number, number>;
+        plot: { left: number; right: number; top: number; bottom: number };
+    },
+) {
+    ctx.save();
+    ctx.globalAlpha = args.alpha;
+    drawVertical(ctx, args.x(map.pane.fillingPressure), args.plot, args.classicColor, [4, 4]);
+    drawLine(ctx, map.pane.classicVenousReturn.points, args.x, args.y, args.classicColor, 1.2, [4, 5]);
+    drawLine(ctx, map.pane.venousReturn.points, args.x, args.y, args.venousColor, 2.2);
+
+    const sweep = args.side === 'right' ? map.sweep.right : map.sweep.left;
+    if (sweep && sweep.points.length >= 2) {
+        drawLine(ctx, sweep.points, args.x, args.y, args.sweepColor, 2);
+        for (const point of sweep.points) drawPoint(ctx, args.x(point.x), args.y(point.y), args.sweepColor, point.settled === false ? 2.5 : 3.5);
+    }
+
+    drawPoint(ctx, args.x(map.pane.operatingPoint.pressure), args.y(map.pane.operatingPoint.flow), args.pointColor, 5.5);
+    if (args.label) {
         ctx.fillStyle = '#cbd5e1';
         ctx.font = '10px sans-serif';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        ctx.fillText(item.inst.name, x(item.pane.operatingPoint.pressure) + 7, y(item.pane.operatingPoint.flow));
+        ctx.fillText(args.label, args.x(map.pane.operatingPoint.pressure) + 7, args.y(map.pane.operatingPoint.flow));
     }
-
-    drawLegend(ctx, plot, Boolean(series.some((item) => {
-        const sweep = side === 'right' ? item.sweep?.right : item.sweep?.left;
-        return sweep && sweep.points.length >= 2;
-    })));
     ctx.restore();
 }
+
 
 function drawLine(
     ctx: CanvasRenderingContext2D,
@@ -1735,23 +1754,16 @@ function drawPoint(ctx: CanvasRenderingContext2D, x: number, y: number, color: s
     ctx.restore();
 }
 
-function drawHollowPoint(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, radius: number) {
-    ctx.save();
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.72)';
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-}
-
-function drawLegend(ctx: CanvasRenderingContext2D, plot: { right: number; top: number }, hasSweep: boolean) {
+function drawLegend(
+    ctx: CanvasRenderingContext2D,
+    plot: { right: number; top: number },
+    options: { hasSweep: boolean; hasGhost: boolean },
+) {
     const x0 = plot.right - 154;
     const y0 = plot.top + 6;
     const rows: Array<[string, string]> = [['#38bdf8', 'venous return']];
-    if (hasSweep) rows.push(['#fb923c', 'preload sweep']);
+    if (options.hasSweep) rows.push(['#fb923c', 'preload sweep']);
+    if (options.hasGhost) rows.push(['rgba(148, 163, 184, 0.7)', 'previous map']);
     const legendHeight = 8 + rows.length * 17;
     ctx.save();
     ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
