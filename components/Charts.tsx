@@ -24,9 +24,11 @@ import {
     guytonSnapshotPoints,
     starlingSweepSignature,
     type GuytonAxisDomain,
+    type GuytonBaseMapResponse,
     type GuytonCurvePoint,
     type GuytonPaneData,
     type GuytonSide,
+    type GuytonStarlingWorkerMessage,
     type StarlingSweepResponse,
 } from '../engine/guytonStarling';
 
@@ -1316,6 +1318,9 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ phys
         signature: input.signature,
     }))), [sweepInputs]);
 
+    const cacheKeyForId = (instanceId: string): string => `${side}:${instanceId}`;
+    const cacheKey = (inst: SimInstance): string => cacheKeyForId(inst.id);
+
     useEffect(() => {
         const interval = window.setInterval(() => setTick((t) => t + 1), 500);
         return () => window.clearInterval(interval);
@@ -1341,11 +1346,38 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ phys
             }
         }, 450);
 
-        worker.onmessage = (event: MessageEvent<StarlingSweepResponse>) => {
+        const applyBaseMapResponse = (response: GuytonBaseMapResponse) => {
+            if (response.error) {
+                setSweepError(response.error);
+                return;
+            }
+            const pane = side === 'right' ? response.right : response.left;
+            if (!pane) return;
+            const paneWithWorkerWarnings = response.warnings.length > 0
+                ? { ...pane, warnings: [...pane.warnings, ...response.warnings] }
+                : pane;
+            snapshotMapRef.current.set(cacheKeyForId(response.instanceId), {
+                pane: paneWithWorkerWarnings,
+                signature: response.signature,
+                axis: expandGuytonAxisToFit(
+                    defaultGuytonAxis(side),
+                    guytonSnapshotPoints(paneWithWorkerWarnings, undefined),
+                ),
+            });
+            setTick((t) => t + 1);
+        };
+
+        worker.onmessage = (event: MessageEvent<GuytonStarlingWorkerMessage | StarlingSweepResponse>) => {
             if (cancelled) return;
             const response = event.data;
-            if (response.error) setSweepError(response.error);
-            else setSweeps((prev) => ({ ...prev, [response.instanceId]: response }));
+            if ('type' in response && response.type === 'base-map') {
+                applyBaseMapResponse(response);
+                return;
+            }
+
+            const sweepResponse = response as StarlingSweepResponse;
+            if (sweepResponse.error) setSweepError(sweepResponse.error);
+            else setSweeps((prev) => ({ ...prev, [sweepResponse.instanceId]: sweepResponse }));
             remaining -= 1;
             if (remaining <= 0) {
                 setSweepBusy(false);
@@ -1366,8 +1398,6 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ phys
         };
     }, [sweepKey]);
 
-    const cacheKey = (inst: SimInstance): string => `${side}:${inst.id}`;
-
     const commitMapSnapshot = (source: 'initial' | 'manual', targetInstances = visibleInstances) => {
         for (const inst of targetInstances) {
             const ref = physicsRefs.current.get(inst.id);
@@ -1376,9 +1406,9 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ phys
                 const metrics = ref.core.metrics();
                 const observables = ref.core.debugObservables();
                 const vascularSnapshot = ref.core.vascularReturnSnapshot?.(side);
-                const pane = vascularSnapshot
+                const pane = source === 'manual' && vascularSnapshot
                     ? buildCommittedGuytonPaneData(side, metrics, observables, vascularSnapshot)
-                    : buildGuytonPaneData(side, metrics, observables);
+                    : buildGuytonPaneData(side, metrics, observables, vascularSnapshot);
                 const signature = starlingSweepSignature(side, inst.id, inst.params, inst.targetVolume);
                 const sweep = sweeps[inst.id]?.signature === signature ? sweeps[inst.id] : undefined;
                 snapshotMapRef.current.set(cacheKey(inst), {
@@ -1419,13 +1449,10 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ phys
                 const key = cacheKey(inst);
                 const cached = snapshotMapRef.current.get(key);
                 if (!cached) {
-                    const snapshotPane = vascularSnapshot
-                        ? buildCommittedGuytonPaneData(side, metrics, observables, vascularSnapshot)
-                        : pane;
                     snapshotMapRef.current.set(key, {
-                        pane: snapshotPane,
+                        pane,
                         signature,
-                        axis: expandGuytonAxisToFit(defaultGuytonAxis(side), guytonSnapshotPoints(snapshotPane, sweep)),
+                        axis: expandGuytonAxisToFit(defaultGuytonAxis(side), guytonSnapshotPoints(pane, sweep)),
                         sweep,
                         sweepSignature: sweep?.signature,
                     });
@@ -1483,11 +1510,12 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ phys
         ...(primarySeries?.sweepStatus === 'stale' ? ['Sweep stale'] : []),
         ...(primarySeries?.sweepStatus === 'pending' && !sweepBusy ? ['Sweep pending'] : []),
     ];
-    const warnings = [
+    const warnings = Array.from(new Set([
+        ...(primarySeries?.snapshotPane.warnings ?? []),
         ...(primary?.warnings ?? []),
         ...(primaryStarling?.warnings ?? []),
         ...(sweepError ? [sweepError] : []),
-    ].slice(0, 2);
+    ])).slice(0, 2);
 
     return (
         <div ref={containerRef} className="absolute inset-0 bg-[#0B1120] rounded-b-xl overflow-hidden">

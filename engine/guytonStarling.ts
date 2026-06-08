@@ -96,6 +96,23 @@ export type StarlingSweepResponse = {
   error?: string;
 };
 
+export type GuytonBaseMapResponse = {
+  type: "base-map";
+  requestId: string;
+  signature: string;
+  instanceId: string;
+  right?: GuytonPaneData;
+  left?: GuytonPaneData;
+  warnings: string[];
+  error?: string;
+};
+
+export type StarlingSweepWorkerMessage = StarlingSweepResponse & {
+  type: "starling-sweep";
+};
+
+export type GuytonStarlingWorkerMessage = GuytonBaseMapResponse | StarlingSweepWorkerMessage;
+
 const FLOW_FLOOR_L_MIN = 0.15;
 const RESISTANCE_MIN = 0.05;
 const RESISTANCE_MAX = 20;
