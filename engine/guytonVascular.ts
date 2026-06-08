@@ -1,6 +1,9 @@
 import { smoothMax } from "@/engine/math";
 import type { GuytonCurve, GuytonCurvePoint, GuytonSide } from "@/engine/guytonStarling";
-import type { VascularPvLaw } from "@/engine/vascularPv";
+import {
+  stressedVolumeFromPtm,
+  type VascularPvLaw,
+} from "@/engine/vascularPv";
 
 export type VascularNodeSnapshot = {
   name: string;
@@ -102,6 +105,117 @@ export function structuralLinearGuyton(
       points,
     },
   };
+}
+
+export function solveFillingPressureAbs(snapshot: VascularReturnSnapshot): number {
+  const residual = (pAbs: number) => totalStressedVolumeAtUniformPressure(snapshot, pAbs) - snapshot.totalStressedVolumeMl;
+  return bisectClamped(residual, -30, 100, 1e-5, 80);
+}
+
+export function solveReturnFlowAtDownstreamPressure(
+  snapshot: VascularReturnSnapshot,
+  pDownAbs: number,
+): GuytonCurvePoint {
+  const residual = (qMlPerSec: number) =>
+    totalStressedVolumeAtFlow(snapshot, pDownAbs, qMlPerSec) - snapshot.totalStressedVolumeMl;
+
+  if (residual(0) >= 0) {
+    return { x: pDownAbs, y: 0, flags: ["zero-flow"] };
+  }
+
+  const qMaxMlPerSec = 350;
+  if (residual(qMaxMlPerSec) < 0) {
+    return { x: pDownAbs, y: qMaxMlPerSec * 60 / 1000, flags: ["qmax"] };
+  }
+
+  const qMlPerSec = bisectClamped(residual, 0, qMaxMlPerSec, 1e-4, 64);
+  return { x: pDownAbs, y: qMlPerSec * 60 / 1000 };
+}
+
+export function buildVolumeConstrainedGuytonCurve(
+  snapshot: VascularReturnSnapshot,
+  xGridMmHg: number[],
+): GuytonCurve {
+  return {
+    id: `${snapshot.side}-volume-constrained-vr`,
+    label: snapshot.side === "right"
+      ? "Volume-constrained systemic venous return"
+      : "Volume-constrained pulmonary venous return",
+    source: "volume-constrained",
+    stroke: "venous",
+    points: xGridMmHg.map((x) => solveReturnFlowAtDownstreamPressure(snapshot, x)),
+  };
+}
+
+function totalStressedVolumeAtUniformPressure(snapshot: VascularReturnSnapshot, pAbs: number): number {
+  return sum(snapshot.nodesDownstreamToUpstream.map((node) => (
+    stressedVolumeFromPtm(node.law, pAbs - node.Pext)
+  )));
+}
+
+function totalStressedVolumeAtFlow(
+  snapshot: VascularReturnSnapshot,
+  pDownAbs: number,
+  qMlPerSec: number,
+): number {
+  const pressures = reconstructPressuresFromDownstream(snapshot, pDownAbs, qMlPerSec);
+  return sum(snapshot.nodesDownstreamToUpstream.map((node) => {
+    const pAbs = pressures[node.name] ?? pDownAbs;
+    return stressedVolumeFromPtm(node.law, pAbs - node.Pext);
+  }));
+}
+
+function reconstructPressuresFromDownstream(
+  snapshot: VascularReturnSnapshot,
+  pDownAbs: number,
+  qMlPerSec: number,
+): Record<string, number> {
+  let downstreamPressure = pDownAbs;
+  const pressures: Record<string, number> = {};
+
+  for (const edge of snapshot.edgesDownstreamToUpstream) {
+    const downstreamEffective = edge.waterfall
+      ? smoothMax(downstreamPressure, edge.Pext + edge.Pcrit, 0.25)
+      : downstreamPressure;
+    const pressureDrop = edge.R_mmHg_s_per_mL * qMlPerSec
+      + edge.B_mmHg_s2_per_mL2 * qMlPerSec * Math.abs(qMlPerSec);
+    const upstreamPressure = downstreamEffective + pressureDrop;
+    pressures[edge.up] = upstreamPressure;
+    downstreamPressure = upstreamPressure;
+  }
+
+  return pressures;
+}
+
+function bisectClamped(
+  f: (x: number) => number,
+  lo: number,
+  hi: number,
+  tolerance: number,
+  maxIterations: number,
+): number {
+  let fLo = f(lo);
+  let fHi = f(hi);
+  if (!Number.isFinite(fLo) || !Number.isFinite(fHi)) return lo;
+  if (fLo === 0) return lo;
+  if (fHi === 0) return hi;
+  if (fLo > 0 && fHi > 0) return Math.abs(fLo) <= Math.abs(fHi) ? lo : hi;
+  if (fLo < 0 && fHi < 0) return Math.abs(fLo) <= Math.abs(fHi) ? lo : hi;
+
+  let a = lo;
+  let b = hi;
+  for (let i = 0; i < maxIterations; i++) {
+    const mid = 0.5 * (a + b);
+    const fMid = f(mid);
+    if (!Number.isFinite(fMid) || Math.abs(fMid) <= tolerance || Math.abs(b - a) <= tolerance) return mid;
+    if ((fLo <= 0 && fMid <= 0) || (fLo >= 0 && fMid >= 0)) {
+      a = mid;
+      fLo = fMid;
+    } else {
+      b = mid;
+    }
+  }
+  return 0.5 * (a + b);
 }
 
 function sampleStructuralVenousReturn(
