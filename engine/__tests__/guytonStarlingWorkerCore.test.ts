@@ -126,6 +126,9 @@ describe("Guyton / Starling worker helpers", () => {
     expect(classifyStarlingSweepDeltaPolicy({ RAPMean: 1.5, LAPMean: 5 }, 5600)).toBe("low-preload");
     expect(classifyStarlingSweepDeltaPolicy({ RAPMean: 3, LAPMean: 15 }, 5600)).toBe("high-preload");
     expect(classifyStarlingSweepDeltaPolicy({ RAPMean: 3, LAPMean: 7 }, 5600)).toBe("normal-preload");
+    expect(calibratedAnchorDeltasForPolicy("low-preload")).toEqual([-200, 0, 600, 1200]);
+    expect(calibratedAnchorDeltasForPolicy("normal-preload")).toEqual([-900, -450, 0, 600]);
+    expect(calibratedAnchorDeltasForPolicy("high-preload")).toEqual([-1500, -900, -300, 300]);
     expect(resolveStarlingSweepDeltas(request(), {
       metrics: { RAPMean: 1, LAPMean: 3 } as never,
       targetVolumeMl: 4600,
@@ -293,8 +296,8 @@ describe("Guyton / Starling worker helpers", () => {
 
     expect(events[0]).toBe("post:base-map");
     expect(events.filter((event) => event.startsWith("chain:"))).toEqual([
-      "chain:positive:300,900",
-      "chain:negative:-900",
+      "chain:positive:600",
+      "chain:negative:-450,-900",
     ]);
     expect(progressMessages.length).toBeGreaterThan(0);
     expect(progressMessages[0].completedPoints).toBe(1);

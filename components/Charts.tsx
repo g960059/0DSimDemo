@@ -19,8 +19,8 @@ import {
     type PvLoopBeatData,
 } from './pvLoopPoints';
 import {
-    boundedGuytonDisplayAxis,
     classifyStarlingSweepPoint,
+    focusedGuytonDisplayAxis,
     starlingSweepSignature,
     type GuytonAxisDomain,
     type GuytonCurvePoint,
@@ -1624,7 +1624,7 @@ function drawGuytonCanvas(
     if (plot.right <= plot.left || plot.bottom <= plot.top) return;
 
     if (series.length === 0) return;
-    const displayAxes = series.map((item) => boundedGuytonDisplayAxis(side, item.axis));
+    const displayAxes = series.flatMap((item) => guytonDisplayAxesForSeries(item, side));
     const xAxis = niceAxis(
         Math.min(...displayAxes.map((axis) => axis.xMin)),
         Math.max(...displayAxes.map((axis) => axis.xMax)),
@@ -1762,6 +1762,9 @@ function drawGuytonMap(
 ) {
     ctx.save();
     ctx.globalAlpha = args.alpha;
+    ctx.beginPath();
+    ctx.rect(args.plot.left, args.plot.top, args.plot.right - args.plot.left, args.plot.bottom - args.plot.top);
+    ctx.clip();
     drawVertical(ctx, args.x(map.pane.fillingPressure), args.plot, args.classicColor, [4, 4]);
     drawLine(ctx, map.pane.classicVenousReturn.points, args.x, args.y, args.classicColor, 1.2, [4, 5]);
     drawLine(ctx, map.pane.venousReturn.points, args.x, args.y, args.venousColor, 2.2);
@@ -1791,6 +1794,12 @@ function drawGuytonMap(
         ctx.fillText(args.label, args.x(map.pane.operatingPoint.pressure) + 7, args.y(map.pane.operatingPoint.flow));
     }
     ctx.restore();
+}
+
+function guytonDisplayAxesForSeries(item: GuytonSeries, side: GuytonSide): GuytonAxisDomain[] {
+    const maps = [item.current, item.preview, item.ghost].filter((map): map is GuytonSteadyMap | GuytonSteadyMapPreview | GuytonSteadyMapGhost => Boolean(map));
+    if (maps.length === 0) return [focusedGuytonDisplayAxis(side, item.axis)];
+    return maps.map((map) => focusedGuytonDisplayAxis(side, item.axis, map.pane, map.sweep));
 }
 
 function drawGuytonResidualGuide(
