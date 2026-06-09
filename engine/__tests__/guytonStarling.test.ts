@@ -7,6 +7,7 @@ import {
   buildGuytonPaneData,
   defaultGuytonAxis,
   expandGuytonAxisToFit,
+  focusedGuytonDisplayAxis,
   guytonSnapshotPoints,
   interpolateCurveY,
   liveGuytonOperatingPoint,
@@ -233,6 +234,65 @@ describe("Guyton / Starling pane helpers", () => {
       .toEqual({ xMin: -8, xMax: 24, yMin: 0, yMax: 14 });
     expect(boundedGuytonDisplayAxis("left", { xMin: -3, xMax: 8, yMin: 0, yMax: 0.5 }))
       .toEqual({ xMin: -3, xMax: 8, yMin: 0, yMax: 1 });
+  });
+
+  it("focuses Guyton display axes around measured Starling and operating ranges", () => {
+    const pane = buildGuytonPaneData("left", metrics({ LAPMean: 5.5, CO_L: 5.2 }), obs({ PmpfAbs: 9 }));
+    const sweep = {
+      requestId: "test",
+      signature: "sig",
+      instanceId: "inst",
+      warnings: [],
+      left: {
+        side: "left" as const,
+        points: [
+          { x: 1.6, y: 4.2 },
+          { x: 5.5, y: 5.2 },
+          { x: 10.5, y: 5.8 },
+        ],
+        fit: {
+          kind: "monotone-pchip" as const,
+          points: [
+            { x: 1.6, y: 4.2 },
+            { x: 5.5, y: 5.2 },
+            { x: 10.5, y: 5.8 },
+          ],
+          sourcePointCount: 3,
+          warnings: [],
+          extrapolatedRight: [{ x: 30, y: 7.2 }],
+        },
+        warnings: [],
+      },
+    };
+    const focused = focusedGuytonDisplayAxis("left", { xMin: -20, xMax: 40, yMin: -5, yMax: 25 }, pane, sweep);
+
+    expect(focused.xMin).toBe(-5);
+    expect(focused.xMax).toBeLessThan(16);
+    expect(focused.xMax).toBeGreaterThan(11);
+    expect(focused.yMin).toBe(0);
+    expect(focused.yMax).toBeLessThan(10);
+  });
+
+  it("keeps measured anchors visible even near the focus cap", () => {
+    const pane = buildGuytonPaneData("left", metrics({ LAPMean: 12, CO_L: 5.6 }), obs({ PmpfAbs: 16 }));
+    const sweep = {
+      requestId: "test",
+      signature: "sig",
+      instanceId: "inst",
+      warnings: [],
+      left: {
+        side: "left" as const,
+        points: [
+          { x: 12, y: 5.6 },
+          { x: 23.8, y: 6.2 },
+        ],
+        warnings: [],
+      },
+    };
+    const focused = focusedGuytonDisplayAxis("left", { xMin: -5, xMax: 40, yMin: 0, yMax: 25 }, pane, sweep);
+
+    expect(focused.xMax).toBeGreaterThan(23.8);
+    expect(focused.xMax).toBeLessThan(26);
   });
 
   it("extracts the live operating point without rebuilding map curves", () => {

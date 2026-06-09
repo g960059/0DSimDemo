@@ -471,9 +471,9 @@ export function resolveStarlingSweepPlan(
 export function calibratedAnchorDeltasForPolicy(
   policy: Exclude<StarlingSweepDeltaPolicy, "custom">,
 ): number[] {
-  if (policy === "low-preload") return [-200, 0, 600, 1500];
-  if (policy === "high-preload") return [-1500, -900, 0, 300];
-  return [-900, 0, 300, 900];
+  if (policy === "low-preload") return [-200, 0, 600, 1200];
+  if (policy === "high-preload") return [-1500, -900, -300, 300];
+  return [-900, -450, 0, 600];
 }
 
 export function classifyStarlingSweepDeltaPolicy(

@@ -55,9 +55,9 @@ describe("Guyton / Starling validation report", () => {
     expect(result.sweepPointDiagnostics.length).toBe(4);
     expect(result.sweepPointDiagnostics.map((point) => point.deltaVolumeMl).sort((a, b) => a - b)).toEqual([
       -900,
+      -450,
       0,
-      300,
-      900,
+      600,
     ]);
     expect(result.progressTiming.firstFitProgressMs ?? 0).toBeGreaterThanOrEqual(result.progressTiming.firstProgressMs ?? Infinity);
     expect(result.progressTiming.finalSweepMs ?? 0).toBeGreaterThanOrEqual(result.progressTiming.firstFitProgressMs ?? Infinity);

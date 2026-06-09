@@ -213,6 +213,16 @@ const DISPLAY_X_MIN_FLOOR: Record<GuytonSide, number> = {
   right: -8,
   left: -5,
 };
+const DISPLAY_X_FOCUS_DEFAULT_MAX: Record<GuytonSide, number> = {
+  right: 12,
+  left: 14,
+};
+const DISPLAY_X_FOCUS_HARD_MAX: Record<GuytonSide, number> = {
+  right: 18,
+  left: 24,
+};
+const DISPLAY_X_MEASURED_MARGIN = 1;
+const DISPLAY_Y_DEFAULT_MAX = 8;
 
 export function buildGuytonPaneData(
   side: GuytonSide,
@@ -404,6 +414,69 @@ export function boundedGuytonDisplayAxis(side: GuytonSide, axis: GuytonAxisDomai
   };
 }
 
+export function focusedGuytonDisplayAxis(
+  side: GuytonSide,
+  axis: GuytonAxisDomain,
+  pane?: GuytonPaneData,
+  sweep?: StarlingSweepResponse,
+): GuytonAxisDomain {
+  const bounded = boundedGuytonDisplayAxis(side, axis);
+  if (!pane) return bounded;
+
+  const activeSweep = side === "right" ? sweep?.right : sweep?.left;
+  const measuredStarling = [
+    ...(activeSweep?.points ?? []),
+    ...(activeSweep?.fit?.points ?? []),
+  ].filter(isFinitePoint);
+  const references = [
+    { x: pane.operatingPoint.pressure, y: pane.operatingPoint.flow },
+    { x: pane.returnOperatingPoint.pressure, y: pane.returnOperatingPoint.flow },
+    { x: pane.guytonDiagnostics.pump.pressure, y: pane.guytonDiagnostics.pump.guytonFlow },
+    { x: pane.guytonDiagnostics.return.pressure, y: pane.guytonDiagnostics.return.guytonFlow },
+    { x: pane.fillingPressure, y: 0 },
+  ].filter(isFinitePoint);
+
+  const focusXPoints = [...measuredStarling, ...references];
+  const xMin = Math.max(
+    Math.min(
+      bounded.xMin,
+      focusXPoints.length > 0 ? Math.min(...focusXPoints.map((point) => point.x)) - DISPLAY_X_MEASURED_MARGIN : bounded.xMin,
+    ),
+    DISPLAY_X_MIN_FLOOR[side],
+  );
+  const measuredMaxX = measuredStarling.length > 0 ? Math.max(...measuredStarling.map((point) => point.x)) : Number.NEGATIVE_INFINITY;
+  const referenceMaxX = references.length > 0 ? Math.max(...references.map((point) => point.x)) : Number.NEGATIVE_INFINITY;
+  const desiredXMax = Math.max(
+    DISPLAY_X_FOCUS_DEFAULT_MAX[side],
+    referenceMaxX + DISPLAY_X_MEASURED_MARGIN,
+    measuredMaxX + DISPLAY_X_MEASURED_MARGIN,
+    xMin + 1,
+  );
+  const cappedXMax = Math.min(desiredXMax, DISPLAY_X_FOCUS_HARD_MAX[side]);
+  const xMax = Math.max(
+    xMin + 1,
+    cappedXMax,
+    Number.isFinite(measuredMaxX) ? measuredMaxX + DISPLAY_X_MEASURED_MARGIN : Number.NEGATIVE_INFINITY,
+  );
+
+  const focusYPoints = [...measuredStarling, ...references];
+  const focusYMax = focusYPoints.length > 0
+    ? Math.max(...focusYPoints.map((point) => point.y))
+    : bounded.yMax;
+  const yMax = Math.max(
+    1,
+    DISPLAY_Y_DEFAULT_MAX,
+    focusYMax + Math.max(0.75, focusYMax * 0.18),
+  );
+
+  return {
+    xMin,
+    xMax,
+    yMin: 0,
+    yMax,
+  };
+}
+
 export function liveGuytonOperatingPoint(side: GuytonSide, metrics: SimMetrics): GuytonLiveOperatingPoint {
   return {
     pressure: side === "right" ? metrics.RAPMean : metrics.LAPMean,
@@ -452,6 +525,10 @@ export function guytonSnapshotPoints(
     { x: pane.guytonDiagnostics.return.pressure, y: pane.guytonDiagnostics.return.guytonFlow },
     { x: pane.fillingPressure, y: 0 },
   ];
+}
+
+function isFinitePoint(point: GuytonCurvePoint): boolean {
+  return Number.isFinite(point.x) && Number.isFinite(point.y);
 }
 
 export function buildGuytonDiagnostics(args: {
