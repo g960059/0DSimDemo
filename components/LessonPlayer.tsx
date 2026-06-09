@@ -14,6 +14,7 @@ import type { NumericKnobKey, PanelKey } from "../lessonDoc";
 import { applyExposedKnob, computeStepResetIds, deriveStepInstances, resolveKnobTarget } from "../lessonKnobs";
 import { homeHref } from "../homeLinks";
 import { localeFromPathname } from "../localeRouting";
+import { localeDisplayLabel, resolveLocalizedCaseDocument, resolveLocalizedLesson } from "../contentI18n";
 
 const configFor = (ids: string[], signals: string[]): Record<string, PanelInstanceConfig> =>
   Object.fromEntries(ids.map((id) => [id, { visible: true, selectedSignals: signals }]));
@@ -108,11 +109,25 @@ export const LessonPlayer = () => {
 };
 
 const LessonPlayerBody: React.FC<{ lesson: Lesson }> = ({ lesson }) => {
-  const { t } = useTranslation();
-  const caseDoc = resolveLessonCase(lesson);
-  const steps = lesson?.steps ?? [];
+  const { t, i18n } = useTranslation();
+  const location = useLocation();
+  const locale = localeFromPathname(location.pathname);
+  const lessonResolution = useMemo(() => resolveLocalizedLesson(lesson, locale), [lesson, locale]);
+  const localizedLesson = lessonResolution.doc;
+  const rawCaseDoc = resolveLessonCase(localizedLesson);
+  const caseResolution = useMemo(
+    () => rawCaseDoc ? resolveLocalizedCaseDocument(rawCaseDoc, locale) : undefined,
+    [rawCaseDoc, locale],
+  );
+  const caseDoc = caseResolution?.doc;
+  const fallbackLocale = lessonResolution.isFallback
+    ? lessonResolution.resolvedLocale
+    : caseResolution?.isFallback
+      ? caseResolution.resolvedLocale
+      : undefined;
+  const steps = localizedLesson?.steps ?? [];
   const [controller] = useState(() => new PreviewController());
-  const [baseInstances] = useState(() => caseDoc ? safeConvert(caseDoc) : []);
+  const baseInstances = useMemo(() => caseDoc ? safeConvert(caseDoc) : [], [caseDoc]);
   const [liveInstances, setLiveInstances] = useState(() => deriveStepInstances(baseInstances, steps[0]));
   const [stepIndex, setStepIndex] = useState(0);
   const physicsRefs = useRef<Map<string, PhysicsRefState>>(controller.refs);
@@ -136,7 +151,7 @@ const LessonPlayerBody: React.FC<{ lesson: Lesson }> = ({ lesson }) => {
   const metricsConfig = useMemo(() => maskConfig(baseMetricsConfig, visibleIds), [baseMetricsConfig, visibleIds]);
   const visiblePanels = currentStep?.stage.visiblePanels;
   const showPanel = (panel: PanelKey) => !visiblePanels || visiblePanels.includes(panel);
-  const noteContent = currentStep?.note ?? lesson?.noteSpine;
+  const noteContent = currentStep?.note ?? localizedLesson?.noteSpine;
   const exposedKnobs = currentStep?.stage.exposedKnobs ?? [];
   const knobTargetId = resolveKnobTarget(currentStep, ids);
   const knobTargetInstance = knobTargetId ? liveInstances.find((inst) => inst.id === knobTargetId) : undefined;
@@ -190,7 +205,7 @@ const LessonPlayerBody: React.FC<{ lesson: Lesson }> = ({ lesson }) => {
     });
   };
 
-  if (!lesson || !caseDoc || baseInstances.length === 0) {
+  if (!localizedLesson || !caseDoc || baseInstances.length === 0) {
     return <LessonNotFound />;
   }
 
@@ -199,9 +214,14 @@ const LessonPlayerBody: React.FC<{ lesson: Lesson }> = ({ lesson }) => {
       <div className="min-h-full grid grid-cols-1 lg:grid-cols-[minmax(320px,0.9fr)_minmax(520px,1.35fr)] gap-3 p-3 sm:p-4">
         <section className="min-h-[420px] lg:min-h-0 rounded border border-slate-800 bg-[#0B1120] overflow-hidden flex flex-col">
           <div className="px-4 py-3 border-b border-slate-800">
-            <div className="text-[11px] uppercase font-bold text-blue-400 tracking-wide">{lesson.meta.level ?? t("lessonPlayer.lesson")}</div>
-            <h1 className="text-lg font-bold text-slate-100">{lesson.meta.title}</h1>
-            {lesson.meta.objective && <p className="text-sm text-slate-400 mt-1">{lesson.meta.objective}</p>}
+            <div className="text-[11px] uppercase font-bold text-blue-400 tracking-wide">{localizedLesson.meta.level ?? t("lessonPlayer.lesson")}</div>
+            <h1 className="text-lg font-bold text-slate-100">{localizedLesson.meta.title}</h1>
+            {fallbackLocale && (
+              <p className="mt-1 text-[11px] font-semibold text-amber-300">
+                {t("contentI18n.fallbackNotice", { locale: localeDisplayLabel(fallbackLocale, i18n.language) })}
+              </p>
+            )}
+            {localizedLesson.meta.objective && <p className="text-sm text-slate-400 mt-1">{localizedLesson.meta.objective}</p>}
             {isStepped && currentStep && (
               <div className="mt-3">
                 <div className="flex items-center justify-between text-[11px] font-bold text-slate-500">

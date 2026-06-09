@@ -23,7 +23,7 @@ import { OFFICIAL_BASELINES } from "@/engine/caseBaselines";
 import { type ClinicalKnobs, type KnobKey, neutralKnobs, resolveKnobMappingVersion } from "@/engine/knobs";
 import { roleOf } from "@/paneRole";
 
-export const CASE_SCHEMA_VERSION = 1;
+export const CASE_SCHEMA_VERSION = 2;
 export const WORKSPACE_SCHEMA_VERSION = 1;
 export const ENGINE_VERSION = "circleheart@0.0.0";
 
@@ -114,8 +114,28 @@ export interface CaseExposedController {
   defaultOpen?: boolean;
 }
 
+export type CaseLocalizedPanel = {
+  title?: string;
+};
+
+export type CaseLocalizedInstance = {
+  name?: string;
+};
+
+export type CaseI18nContent = {
+  title?: string;
+  description?: string;
+  modelLimitations?: string[];
+  notes?: Record<string, NoteContent>;
+  panels?: Record<string, CaseLocalizedPanel>;
+  instances?: Record<string, CaseLocalizedInstance>;
+};
+
 export interface CaseDocument {
   schemaVersion: number;
+  defaultLocale?: string;
+  availableLocales?: string[];
+  i18n?: Record<string, CaseI18nContent>;
   engineVersion: string;
   knobMappingVersion: string;
   solver: SolverConfig;
@@ -317,10 +337,32 @@ export function simInstancesToCaseDocument(
     workspace?: WorkbenchWorkspace;
     notes?: Record<string, NoteContent>;
     lesson?: CaseLessonLayer;
+    defaultLocale?: string;
+    availableLocales?: string[];
+    i18n?: Record<string, CaseI18nContent>;
   },
 ): CaseDocument {
+  const defaultLocale = opts.defaultLocale ?? "en";
+  const availableLocales = opts.availableLocales ?? [defaultLocale];
+  const notes = opts.notes;
+  const localizedPanels = Object.fromEntries(panels.map((panel) => [panel.id, { title: panel.title }]));
+  const caseInstances = instances.map((i) => simInstanceToCaseInstance(i));
+  const i18n = opts.i18n ?? {
+    [defaultLocale]: {
+      title: opts.spec.title || opts.title,
+      ...(opts.spec.description ? { description: opts.spec.description } : {}),
+      modelLimitations: opts.spec.modelLimitations,
+      ...(notes ? { notes } : {}),
+      panels: localizedPanels,
+      instances: Object.fromEntries(caseInstances.map((instance) => [instance.id, { name: instance.name }])),
+    },
+  };
+
   return {
     schemaVersion: CASE_SCHEMA_VERSION,
+    defaultLocale,
+    availableLocales,
+    i18n,
     engineVersion: ENGINE_VERSION,
     knobMappingVersion: KNOB_MAPPING_VERSION,
     solver: opts.solver ?? DEFAULT_SOLVER,
@@ -332,10 +374,10 @@ export function simInstancesToCaseDocument(
     ...(opts.source ? { source: opts.source } : {}),
     ...(opts.derivedFrom ? { derivedFrom: opts.derivedFrom } : {}),
     spec: opts.spec,
-    instances: instances.map((i) => simInstanceToCaseInstance(i)),
+    instances: caseInstances,
     panels,
     workspace: opts.workspace ?? defaultWorkspaceForPanels(panels),
-    ...(opts.notes ? { notes: opts.notes } : {}),
+    ...(notes ? { notes } : {}),
     ...(opts.lesson ? { lesson: opts.lesson } : {}),
   };
 }
@@ -369,7 +411,7 @@ export function caseDocumentToSimInstances(
   // Reject an unknown schema (future docs must be migrated, not mis-loaded) and
   // verify the mapping version up front (throws on unknown) — a case authored
   // against another engine is never silently resolved with the current map.
-  if (doc.schemaVersion !== CASE_SCHEMA_VERSION) {
+  if (doc.schemaVersion !== CASE_SCHEMA_VERSION && doc.schemaVersion !== 1) {
     throw new Error(`Unsupported case schemaVersion ${doc.schemaVersion} (this build supports ${CASE_SCHEMA_VERSION}).`);
   }
   resolveKnobMappingVersion(doc.knobMappingVersion);

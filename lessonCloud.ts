@@ -1,6 +1,7 @@
 import { doc, getDoc, getDocFromServer, serverTimestamp, setDoc } from 'firebase/firestore';
 import type { Lesson } from './lessonDoc';
 import { parseLesson } from './lessonPersist';
+import { normalizeLessonI18n, resolveLocalizedLesson } from './contentI18n';
 
 const MAX_CONTENT_SIZE = 500000;
 const LESSON_ID_RE = /^[a-zA-Z0-9_-]+$/;
@@ -9,6 +10,8 @@ export type LessonDocFields = {
   title: string;
   content: string;
   order: number;
+  defaultLocale: string;
+  availableLocales: string[];
 };
 
 export type PublishLessonResult =
@@ -20,14 +23,18 @@ export function isValidLessonId(id: string): boolean {
 }
 
 export function lessonDocFields(lesson: Lesson): LessonDocFields {
-  const content = JSON.stringify(lesson);
+  const normalized = normalizeLessonI18n(lesson, lesson.defaultLocale);
+  const resolvedDefault = resolveLocalizedLesson(normalized, normalized.defaultLocale ?? "en").doc;
+  const content = JSON.stringify(normalized);
   if (content.length > MAX_CONTENT_SIZE) {
     throw new Error(`Lesson content is too large (${content.length}/${MAX_CONTENT_SIZE} characters).`);
   }
   return {
-    title: lesson.meta.title.slice(0, 200),
+    title: resolvedDefault.meta.title.slice(0, 200),
     content,
     order: 0,
+    defaultLocale: normalized.defaultLocale ?? "en",
+    availableLocales: normalized.availableLocales ?? [normalized.defaultLocale ?? "en"],
   };
 }
 
@@ -35,7 +42,7 @@ export function docContentToLesson(content: unknown, expectedId: string): Lesson
   if (typeof content !== 'string') return undefined;
   try {
     const lesson = parseLesson(JSON.parse(content));
-    return lesson?.meta.id === expectedId ? lesson : undefined;
+    return lesson?.meta.id === expectedId ? normalizeLessonI18n(lesson) : undefined;
   } catch {
     return undefined;
   }

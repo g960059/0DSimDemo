@@ -34,6 +34,9 @@
     "signIn": "Sign in",
     "signOut": "Sign out"
   },
+  "contentI18n": {
+    "fallbackNotice": "Content is currently available in {{locale}} only."
+  },
   "home": {
     "lead": "Learn cardiovascular physiology through guided lessons, disease cases, and free simulation.",
     "openWorkbench": "Open Workbench",

@@ -1,4 +1,5 @@
 import type { PanelDef, PanelInstanceConfig, PanelViewConfig, SimInstance } from "./types";
+import type { CaseI18nContent } from "./caseDoc";
 
 function remapViewInstanceIds(view: PanelViewConfig | undefined, idMap: Map<string, string>): PanelViewConfig | undefined {
   if (!view || !("instances" in view) || !view.instances) return view;
@@ -40,4 +41,30 @@ export function remapWorkbenchLoadIds(
     activeInstanceId: remappedInstances[0]?.id ?? "1",
     idMap,
   };
+}
+
+function remapRecordKeys<T>(record: Record<string, T> | undefined, idMap: Map<string, string>): Record<string, T> | undefined {
+  if (!record) return undefined;
+  return Object.fromEntries(
+    Object.entries(record).map(([id, value]) => [idMap.get(id) ?? id, value]),
+  );
+}
+
+export function remapCaseI18nContentIds(
+  i18n: Record<string, CaseI18nContent> | undefined,
+  maps: {
+    instanceIdMap: Map<string, string>;
+    panelIdMap?: Map<string, string>;
+  },
+): Record<string, CaseI18nContent> | undefined {
+  if (!i18n) return undefined;
+  const panelIdMap = maps.panelIdMap ?? new Map<string, string>();
+  return Object.fromEntries(
+    Object.entries(i18n).map(([locale, content]) => [locale, {
+      ...content,
+      ...(content.instances ? { instances: remapRecordKeys(content.instances, maps.instanceIdMap) } : {}),
+      ...(content.panels ? { panels: remapRecordKeys(content.panels, panelIdMap) } : {}),
+      ...(content.notes ? { notes: remapRecordKeys(content.notes, panelIdMap) } : {}),
+    }]),
+  );
 }

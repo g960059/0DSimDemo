@@ -51,7 +51,14 @@ describe("lesson persistence and resolution", () => {
     const lesson = embeddedLesson();
 
     expect(saveLesson(lesson)).toBe(true);
-    expect(getUserLesson(lesson.meta.id)).toEqual(lesson);
+    expect(getUserLesson(lesson.meta.id)).toMatchObject({
+      ...lesson,
+      schemaVersion: 2,
+      defaultLocale: "en",
+      availableLocales: ["en"],
+    });
+    expect(getUserLesson(lesson.meta.id)?.i18n?.en?.title).toBe(lesson.meta.title);
+    expect(getUserLesson(lesson.meta.id)?.i18n?.en?.summary).toEqual(lesson.noteSpine);
     expect(listUserLessons()).toHaveLength(1);
     expect(resolveLessonCase(lesson)?.meta.id).toBe("normal-sinus");
     expect(caseDocumentToSimInstances(resolveLessonCase(lesson)!).length).toBeGreaterThan(0);

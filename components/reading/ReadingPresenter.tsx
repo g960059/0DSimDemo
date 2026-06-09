@@ -14,6 +14,7 @@ import { deriveHeadingAnchors } from "../NotePanel";
 import { ReadingColumn } from "./ReadingColumn";
 import { homeHref } from "../../homeLinks";
 import { localeFromPathname } from "../../localeRouting";
+import { localeDisplayLabel } from "../../contentI18n";
 
 function plainTextFromInlineContent(content: unknown): string {
   if (typeof content === "string") return content;
@@ -49,8 +50,9 @@ export const ReadingPresenter: React.FC<{
   objective?: string;
   caseDoc: CaseDocument;
   column: ReadingColumnEntry[];
-}> = ({ lessonTitle, lessonLevel, objective, caseDoc, column }) => {
-  const { t } = useTranslation();
+  fallbackLocale?: string;
+}> = ({ lessonTitle, lessonLevel, objective, caseDoc, column, fallbackLocale }) => {
+  const { t, i18n } = useTranslation();
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
   const [controller] = useState(() => new PreviewController());
@@ -164,6 +166,11 @@ export const ReadingPresenter: React.FC<{
       <article className="mx-auto w-full max-w-[860px] px-4 pb-16 pt-8 sm:px-6 sm:pt-10">
         <header className="mx-auto w-full max-w-[68ch]">
           <h1 className="text-3xl font-bold text-slate-50 sm:text-[34px]">{lessonTitle}</h1>
+          {fallbackLocale && (
+            <p className="mt-3 text-sm font-semibold text-amber-300">
+              {t("contentI18n.fallbackNotice", { locale: localeDisplayLabel(fallbackLocale, i18n.language) })}
+            </p>
+          )}
           <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-500">
             <span className="rounded border border-slate-800 bg-slate-900/60 px-2 py-1 font-semibold uppercase tracking-wide">{lessonLevel ?? t("lessonPlayer.lesson")}</span>
             <span>{t("reading.minRead", { count: estimatedReadMinutes })}</span>

@@ -46,6 +46,8 @@ describe("caseCloud pure helpers", () => {
     expect(fields.visibility).toBe("public");
     expect(fields.ownerId).toBe("u1");
     expect(fields.schemaVersion).toBe(doc.schemaVersion);
+    expect(fields.defaultLocale).toBe("en");
+    expect(fields.availableLocales).toEqual(["en"]);
     expect(fields.workspaceSchemaVersion).toBe(1);
     expect(fields.source).toBe("remix:normal-sinus");
     expect(fields.derivedFrom).toBe("normal-sinus");

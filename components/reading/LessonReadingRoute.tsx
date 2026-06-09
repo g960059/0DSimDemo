@@ -10,6 +10,7 @@ import { LessonPlayer } from "../LessonPlayer";
 import { ReadingPresenter } from "./ReadingPresenter";
 import { homeHref } from "../../homeLinks";
 import { localeFromPathname } from "../../localeRouting";
+import { resolveLocalizedCaseDocument, resolveLocalizedLesson } from "../../contentI18n";
 
 export const ENABLE_READING_PRESENTER_FOR_LESSONS = true;
 
@@ -58,6 +59,8 @@ const LessonLoading = () => {
 
 export const LessonReadingRoute = () => {
   const { id } = useParams();
+  const location = useLocation();
+  const locale = localeFromPathname(location.pathname);
   const localLesson = useMemo(() => (id ? lessonById(id) : undefined), [id]);
   const [cloudState, setCloudState] = useState<CloudResolveState>({ status: "idle" });
 
@@ -83,14 +86,23 @@ export const LessonReadingRoute = () => {
 
   if (!id) return <LessonNotFound />;
 
-  const lesson = localLesson ?? (cloudState.status === "ready" ? cloudState.lesson : undefined);
+  const rawLesson = localLesson ?? (cloudState.status === "ready" ? cloudState.lesson : undefined);
+  const lessonResolution = rawLesson ? resolveLocalizedLesson(rawLesson, locale) : undefined;
+  const lesson = lessonResolution?.doc;
   if (!lesson) {
     if (cloudState.status === "loading" || cloudState.status === "idle") return <LessonLoading />;
     return <LessonNotFound />;
   }
 
-  const caseDoc = resolveLessonCase(lesson);
+  const rawCaseDoc = resolveLessonCase(lesson);
+  const caseResolution = rawCaseDoc ? resolveLocalizedCaseDocument(rawCaseDoc, locale) : undefined;
+  const caseDoc = caseResolution?.doc;
   const resolvedColumn = caseDoc ? resolveReadingColumn(caseDoc) : undefined;
+  const fallbackLocale = lessonResolution?.isFallback
+    ? lessonResolution.resolvedLocale
+    : caseResolution?.isFallback
+      ? caseResolution.resolvedLocale
+      : undefined;
 
   if (caseDoc && resolvedColumn && "column" in resolvedColumn && shouldUseReading(lesson, caseDoc)) {
     return (
@@ -101,6 +113,7 @@ export const LessonReadingRoute = () => {
         objective={lesson.meta.objective}
         caseDoc={caseDoc}
         column={resolvedColumn.column}
+        fallbackLocale={fallbackLocale}
       />
     );
   }

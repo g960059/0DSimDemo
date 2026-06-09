@@ -4,6 +4,7 @@
 // sensitive, admin-gated milestone.
 
 import type { CaseDocument } from "@/caseDoc";
+import { normalizeCaseI18n } from "@/contentI18n";
 
 export const DRAFT_KEY = "circleheart:workbench-draft";
 const FILE_EXT = ".circleheart.json";
@@ -36,7 +37,7 @@ export function parseCaseDocument(text: string): CaseDocument {
       else delete d.notes;
     }
   }
-  return d as unknown as CaseDocument;
+  return normalizeCaseI18n(d as unknown as CaseDocument);
 }
 
 /** Reject implausibly large files before reading them into memory (DoS guard). */
