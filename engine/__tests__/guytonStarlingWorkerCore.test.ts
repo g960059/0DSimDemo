@@ -243,7 +243,13 @@ describe("Guyton / Starling worker helpers", () => {
     const events: string[] = [];
     const chainRequests: GuytonChainWorkerRequest[] = [];
     const messages: StarlingSweepWorkerMessage[] = [];
-    const progressMessages: Array<{ completedPoints: number; totalPoints: number }> = [];
+    const progressMessages: Array<{
+      completedPoints: number;
+      totalPoints: number;
+      rightPointCount: number;
+      rightHasFit: boolean;
+      rightHasExtrapolation: boolean;
+    }> = [];
 
     await postGuytonStarlingWorkerMessagesAsync(
       req,
@@ -253,6 +259,9 @@ describe("Guyton / Starling worker helpers", () => {
           progressMessages.push({
             completedPoints: message.completedPoints,
             totalPoints: message.totalPoints,
+            rightPointCount: message.right?.points.length ?? 0,
+            rightHasFit: !!message.right?.fit,
+            rightHasExtrapolation: !!message.right?.fit?.extrapolatedLeft || !!message.right?.fit?.extrapolatedRight,
           });
         }
         if (message.type === "starling-sweep") messages.push(message);
@@ -266,8 +275,15 @@ describe("Guyton / Starling worker helpers", () => {
       "chain:negative:-300,-600,-900",
     ]);
     expect(progressMessages.length).toBeGreaterThan(0);
-    expect(progressMessages[0].completedPoints).toBeGreaterThanOrEqual(3);
+    expect(progressMessages[0].completedPoints).toBe(1);
+    expect(progressMessages[0].rightPointCount).toBe(1);
+    expect(progressMessages[0].rightHasFit).toBe(false);
     expect(progressMessages.every((message) => message.totalPoints === 7)).toBe(true);
+    for (let i = 1; i < progressMessages.length; i++) {
+      expect(progressMessages[i].completedPoints).toBeGreaterThanOrEqual(progressMessages[i - 1].completedPoints);
+    }
+    expect(progressMessages.some((message) => message.completedPoints >= 3 && message.rightHasFit)).toBe(true);
+    expect(progressMessages.every((message) => !message.rightHasExtrapolation)).toBe(true);
     expect(chainRequests).toHaveLength(2);
     expect(chainRequests[0].baselineState).toBe(chainRequests[1].baselineState);
     expect(messages).toHaveLength(1);
@@ -277,6 +293,7 @@ describe("Guyton / Starling worker helpers", () => {
     expect(parallel.timing?.parallel).toBe(true);
     expectFiniteNonNegative(parallel.timing?.chainWallMs);
     expect(parallel.timing?.parallelFallback).toBeUndefined();
+    expect(parallel.right?.fit?.extrapolatedRight?.length).toBeGreaterThan(2);
     expect(parallel.right?.points.map((point) => point.deltaVolumeMl).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([
       ...STARLING_NORMAL_PRELOAD_DELTAS_ML,
     ]);

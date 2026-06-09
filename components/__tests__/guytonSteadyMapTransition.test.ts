@@ -64,11 +64,13 @@ describe("Guyton steady-map transition state", () => {
     const current = promotedState("old", 100);
     const pending = beginGuytonSteadyMapRequest(current, "new", 200);
     const withBase = receiveGuytonBaseMapResponse(pending, "right", baseMap("new"), 300);
-    const withProgress = receiveGuytonSweepProgressResponse(withBase, progress("new", 3, 7), 400);
+    const withProgress = receiveGuytonSweepProgressResponse(withBase, progress("new", 1, 7, 1), 400);
 
     expect(withProgress.current).toBeUndefined();
     expect(withProgress.preview?.signature).toBe("new");
-    expect(withProgress.preview?.progress).toEqual({ completedPoints: 3, totalPoints: 7 });
+    expect(withProgress.preview?.progress).toEqual({ completedPoints: 1, totalPoints: 7 });
+    expect(withProgress.preview?.sweep?.right?.points).toHaveLength(1);
+    expect(withProgress.preview?.sweep?.right?.fit).toBeUndefined();
     expect(withProgress.ghost?.signature).toBe("old");
     expect(withProgress.ghost?.expiresAtMs).toBeUndefined();
 
@@ -78,11 +80,27 @@ describe("Guyton steady-map transition state", () => {
     expect(promoted.ghost?.expiresAtMs).toBe(500 + GUYTON_STEADY_GHOST_DURATION_MS);
   });
 
+  it("stores raw progress until enough points are available for a fit", () => {
+    const pending = beginGuytonSteadyMapRequest(initialGuytonSteadyMapState("right"), "sig", 0);
+    const withBase = receiveGuytonBaseMapResponse(pending, "right", baseMap("sig"), 10);
+    const onePoint = receiveGuytonSweepProgressResponse(withBase, progress("sig", 1, 7, 1), 20);
+    const twoPoints = receiveGuytonSweepProgressResponse(onePoint, progress("sig", 2, 7, 2), 30);
+    const threePoints = receiveGuytonSweepProgressResponse(twoPoints, progress("sig", 3, 7, 3), 40);
+
+    expect(onePoint.preview?.sweep?.right?.points).toHaveLength(1);
+    expect(onePoint.preview?.sweep?.right?.fit).toBeUndefined();
+    expect(twoPoints.preview?.sweep?.right?.points).toHaveLength(2);
+    expect(twoPoints.preview?.sweep?.right?.fit).toBeUndefined();
+    expect(threePoints.preview?.sweep?.right?.points).toHaveLength(3);
+    expect(threePoints.preview?.sweep?.right?.fit?.kind).toBe("monotone-pchip");
+    expect(threePoints.current).toBeUndefined();
+  });
+
   it("ignores stale worker responses", () => {
     const current = promotedState("current", 100);
     const pending = beginGuytonSteadyMapRequest(current, "next", 200);
     const afterStaleBase = receiveGuytonBaseMapResponse(pending, "right", baseMap("old"), 300);
-    const afterStaleProgress = receiveGuytonSweepProgressResponse(afterStaleBase, progress("old", 3, 7), 350);
+    const afterStaleProgress = receiveGuytonSweepProgressResponse(afterStaleBase, progress("old", 3, 7, 3), 350);
     const afterStaleSweep = receiveGuytonSweepResponse(afterStaleProgress, sweep("old"), 400);
 
     expect(afterStaleSweep.current).toBeUndefined();
@@ -159,10 +177,41 @@ function sweep(signature: string): StarlingSweepResponse {
   };
 }
 
-function progress(signature: string, completedPoints: number, totalPoints: number): StarlingSweepProgressMessage {
+function progress(
+  signature: string,
+  completedPoints: number,
+  totalPoints: number,
+  pointCount = 2,
+): StarlingSweepProgressMessage {
+  const rightPoints = [
+    { x: 2, y: 4.8 },
+    { x: 4, y: 5.4 },
+    { x: 6, y: 6.1 },
+  ].slice(0, pointCount);
+  const leftPoints = [
+    { x: 8, y: 4.8 },
+    { x: 10, y: 5.4 },
+    { x: 12, y: 6.1 },
+  ].slice(0, pointCount);
   return {
     type: "starling-sweep-progress",
     ...sweep(signature),
+    right: {
+      side: "right",
+      points: rightPoints,
+      fit: pointCount >= 3
+        ? { kind: "monotone-pchip", points: rightPoints, sourcePointCount: pointCount, warnings: [] }
+        : undefined,
+      warnings: [],
+    },
+    left: {
+      side: "left",
+      points: leftPoints,
+      fit: pointCount >= 3
+        ? { kind: "monotone-pchip", points: leftPoints, sourcePointCount: pointCount, warnings: [] }
+        : undefined,
+      warnings: [],
+    },
     completedPoints,
     totalPoints,
   };
