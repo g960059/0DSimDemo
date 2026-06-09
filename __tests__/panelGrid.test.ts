@@ -430,7 +430,7 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).toContain("Done");
     expect(html).toContain("Pane title");
     expect(html).toContain("Signals");
-    expect(html).toContain("Instances");
+    expect(html).toContain("Scenarios");
     expect(html).toContain("Display");
     expect(html).toContain("@min-[760px]:grid");
     expect(html).toContain("sticky top-0");

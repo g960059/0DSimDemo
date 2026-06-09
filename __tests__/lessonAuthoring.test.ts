@@ -254,7 +254,7 @@ describe("lesson authoring step normalization", () => {
     const result = normalizeStepsForSave([step("step-empty", ["stale"])], ["1"]);
 
     expect(result.ok).toBe(false);
-    expect(result.ok === false ? result.message : "").toMatch(/no valid visible instances/);
+    expect(result.ok === false ? result.message : "").toMatch(/no valid visible scenarios/);
   });
 
   it("keeps exposed knob fields when the explicit target survives pruning", () => {

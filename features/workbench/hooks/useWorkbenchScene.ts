@@ -10,7 +10,9 @@ import {
   DEFAULT_MODEL_LIMITATIONS,
   INSTANCE_COLORS,
   LOCAL_COPY_AUTHOR,
+  UNTITLED_CASE_TITLE,
   inferCaseSource,
+  pickDistinctInstanceColor,
   resolveHeaderModeFromAuthor,
 } from "@/features/workbench/workbenchDefaults";
 
@@ -60,7 +62,7 @@ export function useWorkbenchScene({
   ]);
   const [activeInstanceId, setActiveInstanceId] = useState<string>("1");
   const [sceneMeta, setSceneMeta] = useState<WorkbenchSceneMeta>({
-    title: "Untitled scene",
+    title: UNTITLED_CASE_TITLE,
     description: "",
     modelLimitations: DEFAULT_MODEL_LIMITATIONS,
   });
@@ -134,11 +136,14 @@ export function useWorkbenchScene({
   const addInstance = useCallback((sourceId?: string, presetId?: string) => {
     markUserEdited();
     const newId = Date.now().toString();
-    const color = INSTANCE_COLORS[instances.length % INSTANCE_COLORS.length];
     const preset = presetId ? OFFICIAL_BASELINES[presetId] : undefined;
     const sourceInstance = preset ? undefined : instances.find((instance) => (
       instance.id === (typeof sourceId === "string" ? sourceId : activeInstanceId)
     ));
+    const color = pickDistinctInstanceColor(
+      instances.map((instance) => instance.color),
+      sourceInstance?.color,
+    );
     const initialParams = preset
       ? JSON.parse(JSON.stringify(preset.params))
       : sourceInstance
@@ -186,7 +191,7 @@ export function useWorkbenchScene({
     const { doc } = payload;
     setInstances(payload.instances);
     setSceneMeta({
-      title: doc.spec.title || "Untitled scene",
+      title: doc.spec.title || UNTITLED_CASE_TITLE,
       description: doc.spec.description ?? "",
       modelLimitations: doc.spec.modelLimitations.length > 0 ? doc.spec.modelLimitations : DEFAULT_MODEL_LIMITATIONS,
     });

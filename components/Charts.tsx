@@ -155,16 +155,20 @@ const stableRange = (
     cur: { min: number; max: number },
     dmin: number,
     dmax: number,
-    opts: { ticks?: number; zeroFloor?: boolean } = {},
+    opts: { ticks?: number; zeroFloor?: boolean; padFrac?: number; shrinkBelow?: number } = {},
 ): void => {
     if (!isFinite(dmin) || !isFinite(dmax)) return;
-    const pad = (dmax - dmin) * 0.08 || 0.5;
+    const span = dmax - dmin;
+    const pad = span > 0 ? span * (opts.padFrac ?? 0.08) : 0.5;                  // flat/degenerate data -> 0.5 floor
     let lo = opts.zeroFloor ? 0 : dmin - pad;
     let hi = dmax + pad;
     const curRange = cur.max - cur.min;
     const valid = isFinite(curRange) && curRange > 1e-6;
-    const grows = !opts.zeroFloor && dmin < cur.min || dmax > cur.max;          // data clipped -> must grow
-    const shrinks = valid && (hi - lo) < curRange * 0.5;                         // data uses <50% -> zoom in
+    const grows = (!opts.zeroFloor && dmin < cur.min) || dmax > cur.max;        // data clipped -> must grow
+    // Re-fit when the data uses less than `shrinkBelow` of the current window.
+    // Higher = tighter fit / less dead whitespace; the nice-number rounding below
+    // absorbs per-beat wiggle so a steady periodic loop does NOT re-scale each beat.
+    const shrinks = valid && (hi - lo) < curRange * (opts.shrinkBelow ?? 0.5);
     if (!valid || grows || shrinks) {
         const a = niceAxis(lo, hi, opts.ticks ?? 5);
         cur.min = a.min;
@@ -726,11 +730,16 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
           // Nice-number + hysteretic, 0-anchored. No forced 150mL/100mmHg minimum, so a
           // low-pressure/low-volume chamber (LA/RA: V ~10-45 mL, P ~0.5-3 mmHg) fills the
           // box and its figure-8 loop is visible instead of collapsing into the corner.
+          // shrinkBelow 0.72 so the loop fills most of the box instead of floating
+          // in a half-empty 0-200 frame; the pressure axis keeps extra headroom
+          // (padFrac 0.12) so the EDPVR guide and the systolic top of the loop stay
+          // off the ceiling. The guide's volume is clamped to the axis, but its
+          // pressure is only loosely bounded (~1.4*maxP), so the headroom matters.
           const rv = { min: 0, max: scaleRef.current.maxV };
-          stableRange(rv, 0, currentFrameMaxV, { ticks: 6, zeroFloor: true });
+          stableRange(rv, 0, currentFrameMaxV, { ticks: 6, zeroFloor: true, padFrac: 0.10, shrinkBelow: 0.72 });
           scaleRef.current.maxV = rv.max;
           const rp = { min: 0, max: scaleRef.current.maxP };
-          stableRange(rp, 0, currentFrameMaxP, { ticks: 6, zeroFloor: true });
+          stableRange(rp, 0, currentFrameMaxP, { ticks: 6, zeroFloor: true, padFrac: 0.12, shrinkBelow: 0.72 });
           scaleRef.current.maxP = rp.max;
       }
 
@@ -1024,6 +1033,8 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                 stableRange(r, frameYMin, frameYMax, {
                     ticks: 5,
                     zeroFloor: shouldUseZeroFloorForWaveforms(frameSignals),
+                    padFrac: 0.10,
+                    shrinkBelow: 0.72,
                 });
                 scaleRef.current.yMin = r.min;
                 scaleRef.current.yMax = r.max;
