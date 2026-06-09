@@ -53,7 +53,7 @@ export function WorkbenchRoute() {
   requestSteadyTransitionRef.current = simulation.requestSteadyTransition;
 
   const defaultSceneTitle = useCallback(() => (
-    scene.sceneMeta.title.trim() || (scene.instances[0] ? `${scene.instances[0].name} scene` : "Workbench scene")
+    scene.sceneMeta.title.trim() || (scene.instances[0] ? `${scene.instances[0].name} case` : "Workbench case")
   ), [scene.instances, scene.sceneMeta.title]);
 
   const lesson = useLessonAuthoring({

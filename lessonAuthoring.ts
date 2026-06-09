@@ -105,7 +105,7 @@ export function normalizeStepsForSave(steps: LessonStep[], validIds: Iterable<st
 
   const emptyStep = normalized.find((step) => step.stage.visibleInstances.length === 0);
   if (emptyStep) {
-    return { ok: false, message: `Step "${emptyStep.title || emptyStep.id}" has no valid visible instances.` };
+    return { ok: false, message: `Step "${emptyStep.title || emptyStep.id}" has no valid visible scenarios.` };
   }
 
   return { ok: true, steps: normalized };

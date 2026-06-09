@@ -237,7 +237,7 @@
       "editCopy": "Edit a copy",
       "share": "Share",
       "saveCase": "Save case",
-      "untitledScene": "Untitled scene",
+      "untitledScene": "Untitled case",
       "unsavedAuthoringChanges": "Unsaved authoring changes",
       "customizeLayout": "Customize layout",
       "left": "Left",
@@ -248,14 +248,14 @@
       "publishing": "Publishing...",
       "saving": "Saving...",
       "openPanel": "Open workbench panel",
-      "sceneDetails": "Scene details"
+      "sceneDetails": "Case details"
     },
     "sidePanel": {
       "aria": "Workbench details",
       "closePanel": "Close panel",
-      "learningScene": "Learning scene",
+      "learningScene": "Learning case",
       "authorWorkspace": "Author workspace",
-      "sandboxScene": "Sandbox scene",
+      "sandboxScene": "Sandbox case",
       "tabs": {
         "share": "Share",
         "files": "Files",
@@ -271,7 +271,7 @@
       },
       "files": {
         "title": "Files",
-        "description": "Export a portable case file or load a local case. Loading replaces the current scene.",
+        "description": "Export a portable case file or load a local case. Loading replaces the current case.",
         "export": "Export",
         "load": "Load"
       },
@@ -310,10 +310,10 @@
       "showLegend": "Show Legend",
       "showGuides": "Show Guides",
       "windowSize": "Window Size",
-      "chooseInstance": "Choose instance to edit",
+      "chooseInstance": "Choose scenario to edit",
       "standardGuytonCurve": "Standard Guyton curve",
-      "guytonCurveDescription": "Guyton panes render the built-in curve for visible instances. Use Instances for visibility and Style/Labels for per-instance presentation.",
-      "selectInstanceToConfigure": "Select an instance to configure {{source}}.",
+      "guytonCurveDescription": "Guyton panes render the built-in curve for visible scenarios. Use Scenarios for visibility and Style/Labels for per-scenario presentation.",
+      "selectInstanceToConfigure": "Select a scenario to configure {{source}}.",
       "searchSignals": "Search signals",
       "type": "Type",
       "signalCategory": "Signal category",
@@ -325,10 +325,10 @@
       "pvLoopGuides": "PV loop guides",
       "referenceOverlays": "Reference overlays.",
       "waveformTimeWindow": "Waveform time window",
-      "adjacentSectionsConfigurable": "Instance visibility and labels are still configurable in the adjacent sections.",
-      "selectInstanceForStyle": "Select an instance to edit labels and colors.",
-      "instanceStylingOnly": "Instance styling only",
-      "instanceStylingDescription": "Use Instances to rename this pane's visible scenarios and set their base colors. Select {{source}} before editing trace-specific labels.",
+      "adjacentSectionsConfigurable": "Scenario visibility and labels are still configurable in the adjacent sections.",
+      "selectInstanceForStyle": "Select a scenario to edit labels and colors.",
+      "instanceStylingOnly": "Scenario styling only",
+      "instanceStylingDescription": "Use Scenarios to rename this pane's visible scenarios and set their base colors. Select {{source}} before editing trace-specific labels.",
         "selectedSource": "Selected {{source}}",
         "selectedSourceCount_one": "{{count}} {{source}}",
         "selectedSourceCount_other": "{{count}} {{source}}",
@@ -382,11 +382,11 @@
             "signals": {
               "label": "Signals",
               "compactLabel": "Signals",
-              "description": "Choose plotted sources for one instance."
+              "description": "Choose plotted sources for one scenario."
             },
             "instances": {
-              "label": "Instances",
-              "compactLabel": "Instances",
+              "label": "Scenarios",
+              "compactLabel": "Scenarios",
               "description": "Visibility, base color, and display name."
             },
             "display": {
@@ -404,7 +404,7 @@
             "targets": {
               "label": "Targets",
               "compactLabel": "Targets",
-              "description": "Instances this controller pane can edit."
+              "description": "Scenarios this controller pane can edit."
             },
             "items": {
               "label": "Sections",
@@ -497,14 +497,14 @@
     "captureStep": "Capture step",
     "stepTitle": "Step title",
     "stepPlaceholder": "Step {{number}}",
-    "visibleInstances": "Visible instances",
+    "visibleInstances": "Visible scenarios",
     "predictBeforeReveal": "Predict before reveal",
     "reveal": "Reveal",
     "revealLabel": "Reveal label",
     "predictionPrompt": "Prediction prompt",
     "exposedKnobs": "Exposed knobs",
     "maxKnobs": "max {{count}}",
-    "targetInstance": "Target instance",
+    "targetInstance": "Target scenario",
     "target": "Target: {{target}}",
     "startFromCurrentKnobValues": "Start from current knob values",
     "capturedSteps": "Captured steps",
@@ -516,7 +516,7 @@
     "moveUpAria": "Move {{title}} up",
     "moveDownAria": "Move {{title}} down",
     "validation": {
-      "visibleInstanceRequired": "Select at least one visible instance before capturing a step."
+      "visibleInstanceRequired": "Select at least one visible scenario before capturing a step."
     },
     "row": {
       "shows": "shows: {{names}}",

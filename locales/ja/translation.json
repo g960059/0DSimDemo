@@ -237,7 +237,7 @@
       "editCopy": "コピーを編集",
       "share": "共有",
       "saveCase": "ケースを保存",
-      "untitledScene": "無題のシーン",
+      "untitledScene": "無題のケース",
       "unsavedAuthoringChanges": "未保存のオーサリング変更",
       "customizeLayout": "レイアウトを調整",
       "left": "左",
@@ -248,14 +248,14 @@
       "publishing": "公開中...",
       "saving": "保存中...",
       "openPanel": "ワークベンチパネルを開く",
-      "sceneDetails": "シーン詳細"
+      "sceneDetails": "ケース詳細"
     },
     "sidePanel": {
       "aria": "ワークベンチ詳細",
       "closePanel": "パネルを閉じる",
-      "learningScene": "学習シーン",
+      "learningScene": "学習ケース",
       "authorWorkspace": "作成ワークスペース",
-      "sandboxScene": "サンドボックスシーン",
+      "sandboxScene": "サンドボックスケース",
       "tabs": {
         "share": "共有",
         "files": "ファイル",
@@ -271,7 +271,7 @@
       },
       "files": {
         "title": "ファイル",
-        "description": "ポータブルなケースファイルを書き出すか、ローカルケースを読み込みます。読み込みは現在のシーンを置き換えます。",
+        "description": "ポータブルなケースファイルを書き出すか、ローカルケースを読み込みます。読み込みは現在のケースを置き換えます。",
         "export": "書き出し",
         "load": "読み込み"
       },
@@ -310,10 +310,10 @@
       "showLegend": "凡例を表示",
       "showGuides": "ガイドを表示",
       "windowSize": "ウィンドウサイズ",
-      "chooseInstance": "編集するインスタンスを選択",
+      "chooseInstance": "編集するシナリオを選択",
       "standardGuytonCurve": "標準Guyton曲線",
-      "guytonCurveDescription": "Guytonペインは表示中インスタンスの組み込み曲線を描画します。表示とインスタンス別の見た目は、インスタンスとスタイル/ラベルで設定します。",
-      "selectInstanceToConfigure": "{{source}}を設定するインスタンスを選択してください。",
+      "guytonCurveDescription": "Guytonペインは表示中シナリオの組み込み曲線を描画します。表示とシナリオ別の見た目は、シナリオとスタイル/ラベルで設定します。",
+      "selectInstanceToConfigure": "{{source}}を設定するシナリオを選択してください。",
       "searchSignals": "信号を検索",
       "type": "種類",
       "signalCategory": "信号カテゴリ",
@@ -325,10 +325,10 @@
       "pvLoopGuides": "PVループガイド",
       "referenceOverlays": "参照オーバーレイです。",
       "waveformTimeWindow": "波形時間ウィンドウ",
-      "adjacentSectionsConfigurable": "インスタンス表示とラベルは隣のセクションでも設定できます。",
-      "selectInstanceForStyle": "ラベルと色を編集するインスタンスを選択してください。",
-      "instanceStylingOnly": "インスタンスの見た目のみ",
-      "instanceStylingDescription": "インスタンスでこのペインの表示シナリオ名と基準色を変更します。トレース別ラベルを編集する前に{{source}}を選択してください。",
+      "adjacentSectionsConfigurable": "シナリオ表示とラベルは隣のセクションでも設定できます。",
+      "selectInstanceForStyle": "ラベルと色を編集するシナリオを選択してください。",
+      "instanceStylingOnly": "シナリオの見た目のみ",
+      "instanceStylingDescription": "シナリオでこのペインの表示シナリオ名と基準色を変更します。トレース別ラベルを編集する前に{{source}}を選択してください。",
         "selectedSource": "選択中の{{source}}",
         "selectedSourceCount_one": "{{source}} {{count}}件",
         "selectedSourceCount_other": "{{source}} {{count}}件",
@@ -382,11 +382,11 @@
             "signals": {
               "label": "信号",
               "compactLabel": "信号",
-              "description": "1つのインスタンスに描画する情報源を選択します。"
+              "description": "1つのシナリオに描画する情報源を選択します。"
             },
             "instances": {
-              "label": "インスタンス",
-              "compactLabel": "インスタンス",
+              "label": "シナリオ",
+              "compactLabel": "シナリオ",
               "description": "表示、基準色、表示名を設定します。"
             },
             "display": {
@@ -404,7 +404,7 @@
             "targets": {
               "label": "対象",
               "compactLabel": "対象",
-              "description": "このコントローラペインで編集できるインスタンスです。"
+              "description": "このコントローラペインで編集できるシナリオです。"
             },
             "items": {
               "label": "セクション",
@@ -497,14 +497,14 @@
     "captureStep": "ステップを記録",
     "stepTitle": "ステップタイトル",
     "stepPlaceholder": "ステップ {{number}}",
-    "visibleInstances": "表示インスタンス",
+    "visibleInstances": "表示シナリオ",
     "predictBeforeReveal": "表示前に予測",
     "reveal": "表示",
     "revealLabel": "表示ラベル",
     "predictionPrompt": "予測プロンプト",
     "exposedKnobs": "公開ノブ",
     "maxKnobs": "最大{{count}}",
-    "targetInstance": "対象インスタンス",
+    "targetInstance": "対象シナリオ",
     "target": "対象: {{target}}",
     "startFromCurrentKnobValues": "現在のノブ値から開始",
     "capturedSteps": "記録済みステップ",
@@ -516,7 +516,7 @@
     "moveUpAria": "{{title}}を上へ移動",
     "moveDownAria": "{{title}}を下へ移動",
     "validation": {
-      "visibleInstanceRequired": "ステップを記録する前に少なくとも1つの表示インスタンスを選択してください。"
+      "visibleInstanceRequired": "ステップを記録する前に少なくとも1つの表示シナリオを選択してください。"
     },
     "row": {
       "shows": "表示: {{names}}",
