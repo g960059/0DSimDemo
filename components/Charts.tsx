@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as d3 from 'd3';
+import { LoaderCircle, TriangleAlert } from 'lucide-react';
 import { SimInstance, PhysicsRefState, PanelInstanceConfig, type LegendPosition } from '../types';
 import type { SimSample } from '../engine/protocol';
 import { clampLegendFraction, exceededDragThreshold, fractionToPx, isNearDefaultLegendCorner, pxToFraction } from './legendPosition';
@@ -17,6 +18,7 @@ import {
     type PvLoopBeatData,
 } from './pvLoopPoints';
 import {
+    boundedGuytonDisplayAxis,
     starlingSweepSignature,
     type GuytonAxisDomain,
     type GuytonCurvePoint,
@@ -38,6 +40,7 @@ import {
     type GuytonSteadyMapPreview,
     type GuytonSteadyMapState,
 } from './guytonSteadyMapTransition';
+import { guytonPaneChromeState } from './guytonPaneChrome';
 import { requestGuytonStarlingWorkerMessages } from './guytonStarlingWorkerClient';
 
 interface ChartPanelProps {
@@ -1293,10 +1296,9 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
     const canAnimate = isOnscreen && isDocumentVisible;
     const side: GuytonSide = type === 'GUYTON_LEFT' ? 'left' : 'right';
     const [tick, setTick] = useState(0);
-    const [refreshSeq, setRefreshSeq] = useState(0);
     const [workerBusy, setWorkerBusy] = useState(false);
     const [workerError, setWorkerError] = useState<string | null>(null);
-    const forceRefreshRef = useRef(false);
+    const [warningsOpen, setWarningsOpen] = useState(false);
     const steadyMapRef = useRef<Map<string, GuytonSteadyMapState>>(new Map());
 
     const visibleInstances = useMemo(() => (
@@ -1328,8 +1330,6 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
 
     useEffect(() => {
         const nowMs = Date.now();
-        const force = forceRefreshRef.current;
-        forceRefreshRef.current = false;
         const visibleIds = new Set(sweepInputs.map((input) => cacheKeyForId(input.instanceId)));
         for (const key of steadyMapRef.current.keys()) {
             if (!visibleIds.has(key)) steadyMapRef.current.delete(key);
@@ -1339,7 +1339,7 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
             const current = steadyMapRef.current.get(key) ?? initialGuytonSteadyMapState(side);
             steadyMapRef.current.set(
                 key,
-                beginGuytonSteadyMapRequest(current, input.signature, nowMs, { force }),
+                beginGuytonSteadyMapRequest(current, input.signature, nowMs),
             );
         }
         setTick((t) => t + 1);
@@ -1429,12 +1429,7 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
             cancelled = true;
             for (const unsubscribe of unsubscribes) unsubscribe();
         };
-    }, [sweepKey, refreshSeq, side]);
-
-    const requestMapRefresh = () => {
-        forceRefreshRef.current = true;
-        setRefreshSeq((seq) => seq + 1);
-    };
+    }, [sweepKey, side]);
 
     const series: GuytonSeries[] = useMemo(() => {
         void tick;
@@ -1479,51 +1474,58 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
         drawGuytonCanvas(ctx, width, height, series, side);
     }, [canAnimate, series, side]);
 
-    const primarySeries = series[0];
     const hasRenderableMap = series.some((item) => item.current || item.preview || item.ghost);
     const hasPendingMap = series.some((item) => item.status === 'pending');
-    const hasGhostMap = series.some((item) => item.ghost);
-    const primaryProgress = primarySeries?.preview?.progress;
-    const statusBadges = [
-        ...(primarySeries?.status === 'ready' ? ['Steady map ready'] : []),
-        ...(primaryProgress ? [`Sweep ${primaryProgress.completedPoints}/${primaryProgress.totalPoints}`] : []),
-        ...(hasPendingMap ? ['Computing steady map'] : []),
-        ...(hasGhostMap ? ['Previous map'] : []),
-        ...(workerBusy ? ['Worker running'] : []),
-    ];
-    const warnings = Array.from(new Set([
-        ...series.flatMap((item) => item.warnings),
-        ...(workerError ? [workerError] : []),
-    ])).slice(0, 2);
+    const chrome = guytonPaneChromeState({
+        pending: hasPendingMap,
+        workerBusy,
+        warnings: series.flatMap((item) => item.warnings),
+        workerError,
+    });
 
     return (
         <div ref={containerRef} className="absolute inset-0 bg-[#0B1120] rounded-b-xl overflow-hidden">
             <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
-            {visibleInstances.length > 0 && (
-                <div className="absolute right-3 top-2 flex flex-wrap justify-end gap-1.5 pointer-events-auto">
-                    <button
-                        type="button"
-                        onClick={requestMapRefresh}
-                        className="rounded border border-slate-700/80 bg-slate-950/85 px-2 py-1 text-[10px] font-medium text-slate-200 hover:border-slate-500 hover:text-white"
-                    >
-                        Refresh map
-                    </button>
-                    <span className="rounded border border-slate-700/70 bg-slate-950/80 px-2 py-1 text-[10px] text-slate-400">Axis fixed</span>
-                </div>
-            )}
-            {visibleInstances.length > 0 && (statusBadges.length > 0 || warnings.length > 0) && (
-                <div className="absolute left-3 top-2 right-32 flex flex-wrap gap-1.5 pointer-events-none">
-                    {statusBadges.map((badge) => (
-                        <span key={badge} className="rounded border border-slate-700/70 bg-slate-950/80 px-2 py-1 text-[10px] text-slate-400">{badge}</span>
-                    ))}
-                    {warnings.map((warning) => (
-                        <span key={warning} className="rounded border border-amber-500/30 bg-amber-950/40 px-2 py-1 text-[10px] text-amber-200">{warning}</span>
-                    ))}
+            {visibleInstances.length > 0 && (chrome.showSpinner || chrome.hasWarnings) && (
+                <div className="absolute right-3 top-2 flex items-center gap-1.5 pointer-events-auto">
+                    {chrome.showSpinner && (
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded border border-slate-800/70 bg-slate-950/65 text-slate-400" title="Computing Starling sweep" aria-label="Computing Starling sweep">
+                            <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                        </span>
+                    )}
+                    {chrome.hasWarnings && (
+                        <div
+                            className="relative"
+                            onMouseEnter={() => setWarningsOpen(true)}
+                            onMouseLeave={() => setWarningsOpen(false)}
+                            onFocus={() => setWarningsOpen(true)}
+                            onBlur={() => setWarningsOpen(false)}
+                        >
+                            <button
+                                type="button"
+                                className="inline-flex h-7 w-7 items-center justify-center rounded border border-amber-500/35 bg-amber-950/45 text-amber-200 transition-colors hover:border-amber-300/60 hover:text-amber-100"
+                                aria-label="Guyton Starling warnings"
+                                aria-expanded={warningsOpen}
+                                onClick={() => setWarningsOpen((open) => !open)}
+                            >
+                                <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+                            </button>
+                            {warningsOpen && (
+                                <div className="absolute right-0 top-8 z-20 w-72 max-h-52 overflow-y-auto rounded border border-amber-500/30 bg-slate-950/95 p-2 text-[10px] leading-snug text-amber-100 shadow-xl">
+                                    {chrome.warnings.map((warning) => (
+                                        <div key={warning} className="border-b border-amber-500/10 py-1 last:border-b-0">{warning}</div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
             {!hasRenderableMap && visibleInstances.length > 0 && (
                 <div className="absolute inset-0 flex items-center justify-center text-center pointer-events-none">
-                    <div className="rounded border border-slate-700/70 bg-slate-950/80 px-3 py-2 text-xs text-slate-400">Computing steady map</div>
+                    <div className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-700/70 bg-slate-950/70 text-slate-400">
+                        <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    </div>
                 </div>
             )}
             {series.length === 0 && (
@@ -1555,14 +1557,15 @@ function drawGuytonCanvas(
     if (plot.right <= plot.left || plot.bottom <= plot.top) return;
 
     if (series.length === 0) return;
+    const displayAxes = series.map((item) => boundedGuytonDisplayAxis(side, item.axis));
     const xAxis = niceAxis(
-        Math.min(...series.map((item) => item.axis.xMin)),
-        Math.max(...series.map((item) => item.axis.xMax)),
+        Math.min(...displayAxes.map((axis) => axis.xMin)),
+        Math.max(...displayAxes.map((axis) => axis.xMax)),
         7,
     );
     const yAxis = niceAxis(
-        Math.min(0, ...series.map((item) => item.axis.yMin)),
-        Math.max(1, ...series.map((item) => item.axis.yMax)),
+        0,
+        Math.max(1, ...displayAxes.map((axis) => axis.yMax)),
         6,
     );
     const x = d3.scaleLinear().domain([xAxis.min, xAxis.max]).range([plot.left, plot.right]);
@@ -1610,11 +1613,7 @@ function drawGuytonCanvas(
     ctx.fillText('Flow (L/min)', 0, 0);
     ctx.restore();
 
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    ctx.font = '12px sans-serif';
-    ctx.fillStyle = '#e2e8f0';
-    ctx.fillText(firstPane?.title ?? (side === 'right' ? 'Systemic Guyton / RV Starling' : 'Pulmonary venous return / LV preload sweep'), plot.left, 10);
+    void firstPane;
 
     for (const item of series) {
         const base = d3.color(item.inst.color) ?? d3.color('#a855f7')!;
@@ -1818,25 +1817,19 @@ function drawPoint(ctx: CanvasRenderingContext2D, x: number, y: number, color: s
 
 function drawLegend(
     ctx: CanvasRenderingContext2D,
-    plot: { right: number; top: number },
+    plot: { left: number; right: number; top: number },
     options: { hasSweep: boolean; hasGhost: boolean },
 ) {
-    const x0 = plot.right - 154;
+    if (plot.right - plot.left < 360) return;
+    const x0 = plot.right - 140;
+    if (x0 < plot.left + 12) return;
     const y0 = plot.top + 6;
     const rows: Array<[string, string]> = [['#38bdf8', 'venous return']];
     if (options.hasSweep) rows.push(['#fb923c', 'preload sweep']);
     if (options.hasGhost) rows.push(['rgba(148, 163, 184, 0.7)', 'previous map']);
-    const legendHeight = 8 + rows.length * 17;
     ctx.save();
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
-    ctx.strokeStyle = 'rgba(71, 85, 105, 0.7)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect(x0 - 8, y0 - 6, 142, legendHeight, 5);
-    ctx.fill();
-    ctx.stroke();
     rows.forEach(([color, label], i) => {
-        const yy = y0 + i * 17;
+        const yy = y0 + i * 15;
         ctx.strokeStyle = color;
         ctx.lineWidth = 2;
         ctx.beginPath();
