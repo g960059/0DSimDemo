@@ -1670,7 +1670,7 @@ function drawGuytonCanvas(
         hasSweep: Boolean(series.some((item) => {
             const map = item.current ?? item.preview ?? item.ghost;
             const sweep = side === 'right' ? map?.sweep?.right : map?.sweep?.left;
-            return sweep && sweep.points.length >= 2;
+            return sweep && sweep.points.length >= 1;
         })),
         hasGhost: Boolean(series.some((item) => item.ghost)),
     });

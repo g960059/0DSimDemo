@@ -238,9 +238,10 @@ export async function buildParallelStarlingSweepResponse(
   const runsByDelta = new Map<number, GuytonWorkerSettledRun>();
   runsByDelta.set(0, baseline);
   const emitProgress = () => {
-    if (!options.onProgress || runsByDelta.size < 3) return;
+    if (!options.onProgress || runsByDelta.size === 0) return;
     options.onProgress(buildSweepProgressMessage(req, runsByDelta, deltas));
   };
+  emitProgress();
   try {
     const [positive, negative] = await Promise.all([
       runChain(req, baseline.state, "positive", chains.positive, createChainWorker, options.chainTimeoutMs, (result) => {
