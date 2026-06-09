@@ -1,7 +1,11 @@
-export const lessonHref = (id: string) => `/lesson/${encodeURIComponent(id)}`;
+import { type Locale, prefixPath } from "./localeRouting";
 
-export const caseHref = (id: string) => `/workbench/${encodeURIComponent(id)}?from=cases`;
+export const lessonHref = (id: string, locale?: Locale) => prefixPath(`/lesson/${encodeURIComponent(id)}`, locale);
 
-export const workbenchHref = () => '/workbench';
+export const caseHref = (id: string, locale?: Locale) => `${prefixPath(`/workbench/${encodeURIComponent(id)}`, locale)}?from=cases`;
 
-export const allCasesHref = () => '/cases';
+export const workbenchHref = (locale?: Locale) => prefixPath("/workbench", locale);
+
+export const allCasesHref = (locale?: Locale) => prefixPath("/cases", locale);
+
+export const homeHref = (locale?: Locale) => prefixPath("/", locale);

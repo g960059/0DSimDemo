@@ -1,0 +1,110 @@
+{
+  "common": {
+    "appName": "CircleHeart",
+    "language": {
+      "ja": "日本語",
+      "en": "EN",
+      "switchTo": "Switch to {{language}}"
+    }
+  },
+  "nav": {
+    "home": "Home",
+    "cases": "Cases",
+    "workbench": "Workbench"
+  },
+  "auth": {
+    "admin": "Admin",
+    "signIn": "Sign in",
+    "signOut": "Sign out"
+  },
+  "home": {
+    "lead": "Learn cardiovascular physiology through guided lessons, disease cases, and free simulation.",
+    "openWorkbench": "Open Workbench",
+    "openFreeSimulation": "Open Workbench (free simulation)",
+    "learnTitle": "Learn",
+    "learnDescription": "Start with the official learning path.",
+    "openLessonFallback": "Open the interactive lesson.",
+    "startLesson": "Start lesson",
+    "noLessons": "No lessons are available yet.",
+    "exploreTitle": "Explore",
+    "exploreDescription": "Open disease-first cases in the Workbench.",
+    "seeAllCases": "See all cases",
+    "openCase": "Open case",
+    "noCases": "No official cases are available yet.",
+    "openBlankWorkbench": "Open a blank Workbench (free play)"
+  },
+  "cases": {
+    "title": "Cases",
+    "myCases": "My cases",
+    "noSavedCases": "No saved cases yet.",
+    "officialCases": "Official cases",
+    "community": "Community",
+    "openCase": "Open case",
+    "officialBadge": "official",
+    "draftBadge": "draft"
+  },
+  "lessons": {
+    "normal-reference": {
+      "title": "Normal Physiology Reference",
+      "objective": "Learn to read the four core panels - waveforms, PV loop, metrics, and controls - at a normal resting operating point, so you have an anchor to compare every disease case against."
+    },
+    "acute-anterior-mi": {
+      "title": "Acute Anterior MI: when the pump stalls",
+      "objective": "Recognize how an isolated loss of anterior-wall contractility narrows the LV PV loop, drops SV and CO, and raises left atrial pressure."
+    },
+    "systolic-heart-failure": {
+      "title": "Systolic Heart Failure (HFrEF)",
+      "objective": "Understand how a weak left ventricle lowers stroke volume and cardiac output, raises filling pressure, and reshapes the PV loop."
+    },
+    "diastolic-heart-failure": {
+      "title": "Diastolic Heart Failure (HFpEF)",
+      "objective": "Understand how a stiff, poorly relaxing LV raises filling pressures while EF stays normal, and recognize the HFpEF signature on the PV loop, waveforms, and metrics."
+    },
+    "aortic-stenosis": {
+      "title": "Aortic Stenosis: a stiff door on the way out",
+      "objective": "Understand how a narrowed aortic valve forces the left ventricle to generate high pressure, and read that compensation off the PV loop, the LVP-AoP pressure gradient, and the stroke-volume metrics versus a normal heart."
+    },
+    "hypovolemic-shock": {
+      "title": "Hypovolemic Shock",
+      "objective": "Understand how losing circulating blood volume drops preload, stroke volume, and blood pressure."
+    }
+  },
+  "officialCases": {
+    "normal-sinus": {
+      "title": "Normal physiology",
+      "description": "A roughly-physiological resting adult - the reference operating point all other cases deviate from."
+    },
+    "acute-anterior-mi": {
+      "title": "Acute Anterior MI: when the pump stalls",
+      "description": "A normal heart vs an acute anterior MI heart: an isolated loss of anterior-wall contractility narrows the LV PV loop, drops stroke volume and cardiac output, and raises left atrial filling pressure."
+    },
+    "systolic-heart-failure": {
+      "title": "Systolic Heart Failure (HFrEF)",
+      "description": "A normal left ventricle compared with a failing one (HFrEF). Reduced contractility plus higher afterload drops stroke volume and cardiac output while raising filling pressure - read it on the waveforms, the PV loop, and the metrics."
+    },
+    "diastolic-heart-failure": {
+      "title": "Diastolic Heart Failure (HFpEF)",
+      "description": "A stiff, slow-relaxing left ventricle with preserved ejection fraction, compared with the normal reference. Filling pressures rise even though the pump is intact."
+    },
+    "aortic-stenosis": {
+      "title": "Aortic Stenosis: a stiff door on the way out",
+      "description": "A severely stenotic aortic valve compared with the normal reference: the ventricle builds a large pressure gradient and a tall PV loop to maintain output."
+    },
+    "hypovolemic-shock": {
+      "title": "Hypovolemic Shock",
+      "description": "A normal heart compared with one that has lost circulating volume: reduced preload narrows and left-shifts the PV loop, dropping stroke volume, cardiac output, and pressure."
+    },
+    "lv-failure-dobutamine": {
+      "title": "Cardiogenic shock: LV failure +/- dobutamine",
+      "description": "Severe global LV pump failure, and the response to a beta-1 inotrope (dobutamine). Compare the two side by side: CO and arterial pressure recover, filling pressure falls."
+    },
+    "valve-lesions": {
+      "title": "Valvular lesions: aortic stenosis & mitral regurgitation",
+      "description": "Two classic left-heart valve lesions. AS imposes a systolic LV-aortic pressure gradient; MR sends a regurgitant jet into the LA, raising LAP and cutting forward output."
+    },
+    "hypovolemia": {
+      "title": "Hypovolemia",
+      "description": "Reduced circulating volume (e.g. haemorrhage): preload falls, so stroke volume and cardiac output drop while the heart itself is normal - a preload, not a pump, problem."
+    }
+  }
+}

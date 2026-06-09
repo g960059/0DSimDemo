@@ -1,5 +1,8 @@
 import React, { useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Download, FileUp, Info, Link2, Palette, Settings, Share2, X } from 'lucide-react';
+import { lessonHref } from '@/homeLinks';
+import { localeFromPathname } from '@/localeRouting';
 
 export type WorkbenchHeaderMode = 'learner' | 'author' | 'sandbox';
 export type WorkbenchThemeId = 'midnight' | 'graphite' | 'clinical';
@@ -55,6 +58,8 @@ export function WorkbenchSidePanel({
   theme,
   onThemeChange,
 }: WorkbenchSidePanelProps) {
+  const location = useLocation();
+  const locale = localeFromPathname(location.pathname);
   const tabs = useMemo(() => {
     const available: Array<{ id: TabId; label: string; icon: React.ReactNode }> = [
       { id: 'details', label: 'Details', icon: <Info className="h-4 w-4" /> },
@@ -125,7 +130,7 @@ export function WorkbenchSidePanel({
                   </button>
                 </div>
               ) : savedLesson ? (
-                <a href={`/lesson/${savedLesson.id}`} className="inline-flex rounded bg-emerald-500/15 px-3 py-2 text-sm font-bold text-emerald-100 hover:bg-emerald-500/25">
+                <a href={lessonHref(savedLesson.id, locale)} className="inline-flex rounded bg-emerald-500/15 px-3 py-2 text-sm font-bold text-emerald-100 hover:bg-emerald-500/25">
                   Open saved lesson
                 </a>
               ) : (

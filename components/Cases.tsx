@@ -1,12 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { listCaseSummaries, type CaseSummary } from '../caseCloud';
 import { useAuth } from '../contexts/AuthContext';
 import { OFFICIAL_CASES } from '../officialCases';
 import { caseHref } from '../homeLinks';
+import { localeFromPathname } from '../localeRouting';
 
 export const OfficialCases = () => {
   const { user } = useAuth();
+  const { t } = useTranslation();
+  const location = useLocation();
+  const locale = localeFromPathname(location.pathname);
   const [myCases, setMyCases] = useState<CaseSummary[]>([]);
   const [communityCases, setCommunityCases] = useState<CaseSummary[]>([]);
 
@@ -44,10 +49,10 @@ export const OfficialCases = () => {
         {c.description}
       </p>
       <Link
-        to={caseHref(c.id)}
+        to={caseHref(c.id, locale)}
         className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded text-sm font-bold shadow transition-colors w-full text-center"
       >
-        Open case
+        {t('cases.openCase')}
       </Link>
     </div>
   );
@@ -56,42 +61,42 @@ export const OfficialCases = () => {
     <div className="h-full w-full overflow-y-auto p-4 sm:p-8 bg-slate-950 text-slate-200">
       <div className="max-w-5xl mx-auto space-y-10">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold">Cases</h1>
+          <h1 className="text-3xl font-bold">{t('cases.title')}</h1>
         </div>
 
         {user && (
           <section>
-            <h2 className="mb-4 text-xl font-bold text-slate-100">My cases</h2>
+            <h2 className="mb-4 text-xl font-bold text-slate-100">{t('cases.myCases')}</h2>
             {myCases.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {myCases.map((c) => renderCaseCard({
                   id: c.id,
                   title: c.title,
                   description: c.description,
-                  badge: c.status === 'published' ? c.visibility : 'draft',
+                  badge: c.status === 'published' ? c.visibility : t('cases.draftBadge'),
                 }))}
               </div>
             ) : (
-              <div className="rounded-xl border border-slate-800 bg-slate-900 p-5 text-sm text-slate-400">No saved cases yet.</div>
+              <div className="rounded-xl border border-slate-800 bg-slate-900 p-5 text-sm text-slate-400">{t('cases.noSavedCases')}</div>
             )}
           </section>
         )}
 
         <section>
-          <h2 className="mb-4 text-xl font-bold text-slate-100">Official cases</h2>
+          <h2 className="mb-4 text-xl font-bold text-slate-100">{t('cases.officialCases')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {OFFICIAL_CASES.map((c) => renderCaseCard({
               id: c.meta.id,
-              title: c.meta.title,
-              description: c.spec.description,
-              badge: 'official',
+              title: t(`officialCases.${c.meta.id}.title`, { defaultValue: c.meta.title }),
+              description: t(`officialCases.${c.meta.id}.description`, { defaultValue: c.spec.description }),
+              badge: t('cases.officialBadge'),
             }))}
           </div>
         </section>
 
         {communityCases.length > 0 && (
           <section className="pb-6">
-            <h2 className="mb-4 text-xl font-bold text-slate-100">Community</h2>
+            <h2 className="mb-4 text-xl font-bold text-slate-100">{t('cases.community')}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {communityCases.map((c) => renderCaseCard({
                 id: c.id,

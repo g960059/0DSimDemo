@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { caseDocumentToSimInstances, type CaseDocument } from "../../caseDoc";
 import { fetchCase } from "../../caseCloud";
 import { fetchPublishedLesson } from "../../lessonCloud";
@@ -7,6 +7,8 @@ import { caseDocumentToLesson, lessonById, resolveLessonCase, type Lesson } from
 import { resolveReadingColumn } from "../../readingConversion";
 import { LessonPlayer } from "../LessonPlayer";
 import { ReadingPresenter } from "./ReadingPresenter";
+import { homeHref } from "../../homeLinks";
+import { localeFromPathname } from "../../localeRouting";
 
 export const ENABLE_READING_PRESENTER_FOR_LESSONS = true;
 
@@ -27,17 +29,21 @@ type CloudResolveState =
   | { status: "idle" | "loading" | "notfound" }
   | { status: "ready"; lesson: Lesson };
 
-const LessonNotFound = () => (
-  <div className="h-full w-full bg-slate-950 text-slate-200 flex items-center justify-center p-6">
-    <div className="max-w-md text-center">
-      <h1 className="text-2xl font-bold mb-3">Lesson not found</h1>
-      <p className="text-sm text-slate-400 mb-5">This lesson is not available in the current learning path.</p>
-      <Link to="/" className="inline-flex px-4 py-2 rounded bg-slate-800 hover:bg-slate-700 text-sm font-bold">
-        Back to Home
-      </Link>
+const LessonNotFound = () => {
+  const location = useLocation();
+  const locale = localeFromPathname(location.pathname);
+  return (
+    <div className="h-full w-full bg-slate-950 text-slate-200 flex items-center justify-center p-6">
+      <div className="max-w-md text-center">
+        <h1 className="text-2xl font-bold mb-3">Lesson not found</h1>
+        <p className="text-sm text-slate-400 mb-5">This lesson is not available in the current learning path.</p>
+        <Link to={homeHref(locale)} className="inline-flex px-4 py-2 rounded bg-slate-800 hover:bg-slate-700 text-sm font-bold">
+          Back to Home
+        </Link>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const LessonLoading = () => (
   <div className="h-full w-full bg-slate-950 text-slate-200 flex items-center justify-center p-6">

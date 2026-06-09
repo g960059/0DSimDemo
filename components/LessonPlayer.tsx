@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { caseDocumentToSimInstances } from "../caseDoc";
 import { caseDocumentToLesson, lessonById, resolveLessonCase, type Lesson } from "../lessonDoc";
 import { fetchPublishedLesson } from "../lessonCloud";
@@ -11,6 +11,8 @@ import { PreviewController } from "../engine/previewController";
 import type { PanelInstanceConfig, PhysicsRefState } from "../types";
 import type { NumericKnobKey, PanelKey } from "../lessonDoc";
 import { applyExposedKnob, computeStepResetIds, deriveStepInstances, resolveKnobTarget } from "../lessonKnobs";
+import { homeHref } from "../homeLinks";
+import { localeFromPathname } from "../localeRouting";
 
 const configFor = (ids: string[], signals: string[]): Record<string, PanelInstanceConfig> =>
   Object.fromEntries(ids.map((id) => [id, { visible: true, selectedSignals: signals }]));
@@ -42,17 +44,21 @@ const safeConvert = (caseDoc: NonNullable<ReturnType<typeof resolveLessonCase>>)
   }
 };
 
-const LessonNotFound = () => (
-  <div className="h-full w-full bg-slate-950 text-slate-200 flex items-center justify-center p-6">
-    <div className="max-w-md text-center">
-      <h1 className="text-2xl font-bold mb-3">Lesson not found</h1>
-      <p className="text-sm text-slate-400 mb-5">This lesson is not available in the current learning path.</p>
-      <Link to="/" className="inline-flex px-4 py-2 rounded bg-slate-800 hover:bg-slate-700 text-sm font-bold">
-        Back to Home
-      </Link>
+const LessonNotFound = () => {
+  const location = useLocation();
+  const locale = localeFromPathname(location.pathname);
+  return (
+    <div className="h-full w-full bg-slate-950 text-slate-200 flex items-center justify-center p-6">
+      <div className="max-w-md text-center">
+        <h1 className="text-2xl font-bold mb-3">Lesson not found</h1>
+        <p className="text-sm text-slate-400 mb-5">This lesson is not available in the current learning path.</p>
+        <Link to={homeHref(locale)} className="inline-flex px-4 py-2 rounded bg-slate-800 hover:bg-slate-700 text-sm font-bold">
+          Back to Home
+        </Link>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const LessonLoading = () => (
   <div className="h-full w-full bg-slate-950 text-slate-200 flex items-center justify-center p-6">
