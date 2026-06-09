@@ -1,10 +1,12 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { KNOB_RANGES } from "@/engine/knobs";
 import { defaultControllerItemFor } from "@/knobMetadata";
 import { resolveKnobValue } from "@/lessonKnobs";
 import type { NumericKnobKey } from "@/lessonDoc";
 import type { SimInstance } from "@/types";
 import { ControllerItemControl } from "./controls/ControllerItemControl";
+import { translatedKnobLabel } from "@/i18nText";
 
 type ExposedKnobsProps = {
   instance: SimInstance;
@@ -19,26 +21,30 @@ const unitFor = (key: NumericKnobKey): string | undefined => {
   return "x";
 };
 
-export const ExposedKnobs: React.FC<ExposedKnobsProps> = ({ instance, keys, onChange }) => (
-  <div className="h-full overflow-y-auto custom-scrollbar p-3 space-y-3">
-    <div className="flex items-center gap-2 min-w-0">
-      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: instance.color }} />
-      <div className="text-xs font-bold text-slate-200 truncate">{instance.name}</div>
+export const ExposedKnobs: React.FC<ExposedKnobsProps> = ({ instance, keys, onChange }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="h-full overflow-y-auto custom-scrollbar p-3 space-y-3">
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: instance.color }} />
+        <div className="text-xs font-bold text-slate-200 truncate">{instance.name}</div>
+      </div>
+      {keys.map((key) => {
+        const range = KNOB_RANGES[key];
+        if (!range) return null;
+        const value = resolveKnobValue(instance, key);
+        const item = defaultControllerItemFor(key);
+        return (
+          <div key={key} className="rounded border border-slate-800 bg-slate-950/70 px-3 py-2">
+            <ControllerItemControl
+              item={{ ...item, label: translatedKnobLabel(t, key, item.label ?? key), min: range[0], max: range[1] }}
+              value={value}
+              unit={unitFor(key)}
+              onChange={(nextValue) => onChange(key, nextValue)}
+            />
+          </div>
+        );
+      })}
     </div>
-    {keys.map((key) => {
-      const range = KNOB_RANGES[key];
-      if (!range) return null;
-      const value = resolveKnobValue(instance, key);
-      return (
-        <div key={key} className="rounded border border-slate-800 bg-slate-950/70 px-3 py-2">
-          <ControllerItemControl
-            item={{ ...defaultControllerItemFor(key), min: range[0], max: range[1] }}
-            value={value}
-            unit={unitFor(key)}
-            onChange={(nextValue) => onChange(key, nextValue)}
-          />
-        </div>
-      );
-    })}
-  </div>
-);
+  );
+};

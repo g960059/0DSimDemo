@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { caseDocumentToSimInstances } from "../caseDoc";
 import { caseDocumentToLesson, lessonById, resolveLessonCase, type Lesson } from "../lessonDoc";
@@ -45,26 +46,30 @@ const safeConvert = (caseDoc: NonNullable<ReturnType<typeof resolveLessonCase>>)
 };
 
 const LessonNotFound = () => {
+  const { t } = useTranslation();
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
   return (
     <div className="h-full w-full bg-slate-950 text-slate-200 flex items-center justify-center p-6">
       <div className="max-w-md text-center">
-        <h1 className="text-2xl font-bold mb-3">Lesson not found</h1>
-        <p className="text-sm text-slate-400 mb-5">This lesson is not available in the current learning path.</p>
+        <h1 className="text-2xl font-bold mb-3">{t("lessonPlayer.notFound.title")}</h1>
+        <p className="text-sm text-slate-400 mb-5">{t("lessonPlayer.notFound.description")}</p>
         <Link to={homeHref(locale)} className="inline-flex px-4 py-2 rounded bg-slate-800 hover:bg-slate-700 text-sm font-bold">
-          Back to Home
+          {t("lessonPlayer.backToHome")}
         </Link>
       </div>
     </div>
   );
 };
 
-const LessonLoading = () => (
-  <div className="h-full w-full bg-slate-950 text-slate-200 flex items-center justify-center p-6">
-    <div className="text-sm font-bold text-slate-400">Loading lesson...</div>
-  </div>
-);
+const LessonLoading = () => {
+  const { t } = useTranslation();
+  return (
+    <div className="h-full w-full bg-slate-950 text-slate-200 flex items-center justify-center p-6">
+      <div className="text-sm font-bold text-slate-400">{t("lessonPlayer.loading")}</div>
+    </div>
+  );
+};
 
 type CloudResolveState =
   | { status: "idle" | "loading" | "notfound" }
@@ -103,6 +108,7 @@ export const LessonPlayer = () => {
 };
 
 const LessonPlayerBody: React.FC<{ lesson: Lesson }> = ({ lesson }) => {
+  const { t } = useTranslation();
   const caseDoc = resolveLessonCase(lesson);
   const steps = lesson?.steps ?? [];
   const [controller] = useState(() => new PreviewController());
@@ -139,8 +145,8 @@ const LessonPlayerBody: React.FC<{ lesson: Lesson }> = ({ lesson }) => {
     ? "lg:grid-rows-[minmax(220px,1fr)_minmax(220px,1fr)_minmax(160px,0.7fr)_minmax(160px,0.65fr)]"
     : "lg:grid-rows-[minmax(260px,1fr)_minmax(260px,1fr)_minmax(180px,0.7fr)]";
   const nextLabel = currentStep?.stage.challenge?.kind === "predict"
-    ? (currentStep.stage.challenge.revealLabel ?? "Reveal")
-    : "Next";
+    ? (currentStep.stage.challenge.revealLabel ?? t("lessonPlayer.reveal"))
+    : t("lessonPlayer.next");
 
   useEffect(() => {
     controller.start();
@@ -193,13 +199,13 @@ const LessonPlayerBody: React.FC<{ lesson: Lesson }> = ({ lesson }) => {
       <div className="min-h-full grid grid-cols-1 lg:grid-cols-[minmax(320px,0.9fr)_minmax(520px,1.35fr)] gap-3 p-3 sm:p-4">
         <section className="min-h-[420px] lg:min-h-0 rounded border border-slate-800 bg-[#0B1120] overflow-hidden flex flex-col">
           <div className="px-4 py-3 border-b border-slate-800">
-            <div className="text-[11px] uppercase font-bold text-blue-400 tracking-wide">{lesson.meta.level ?? "Lesson"}</div>
+            <div className="text-[11px] uppercase font-bold text-blue-400 tracking-wide">{lesson.meta.level ?? t("lessonPlayer.lesson")}</div>
             <h1 className="text-lg font-bold text-slate-100">{lesson.meta.title}</h1>
             {lesson.meta.objective && <p className="text-sm text-slate-400 mt-1">{lesson.meta.objective}</p>}
             {isStepped && currentStep && (
               <div className="mt-3">
                 <div className="flex items-center justify-between text-[11px] font-bold text-slate-500">
-                  <span>{currentStep.title ?? `Step ${stepIndex + 1}`}</span>
+                  <span>{currentStep.title ?? t("lessonPlayer.step", { number: stepIndex + 1 })}</span>
                   <span>{stepIndex + 1} / {steps.length}</span>
                 </div>
                 <div className="mt-1 h-1.5 rounded bg-slate-800 overflow-hidden">
@@ -221,14 +227,14 @@ const LessonPlayerBody: React.FC<{ lesson: Lesson }> = ({ lesson }) => {
                 disabled={stepIndex === 0}
                 className="px-3 py-1.5 rounded bg-slate-800 text-xs font-bold text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-700"
               >
-                Back
+                {t("lessonPlayer.back")}
               </button>
               <button
                 onClick={() => setStepIndex((i) => Math.min(steps.length - 1, i + 1))}
                 disabled={stepIndex >= steps.length - 1}
                 className="px-4 py-1.5 rounded bg-blue-600 text-xs font-bold text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-500"
               >
-                {stepIndex >= steps.length - 1 ? "Complete" : nextLabel}
+                {stepIndex >= steps.length - 1 ? t("lessonPlayer.complete") : nextLabel}
               </button>
             </div>
           )}
@@ -236,22 +242,22 @@ const LessonPlayerBody: React.FC<{ lesson: Lesson }> = ({ lesson }) => {
 
         <section className={`min-h-[760px] lg:min-h-0 grid auto-rows-[minmax(180px,auto)] ${stageGridRows} gap-3`}>
           {showPanel("waveform") && (
-            <StagePanel title="Waveforms">
+            <StagePanel title={t("workbench.panels.waveforms")}>
               <WaveformPanel physicsRefs={physicsRefs} instances={liveInstances} timeWindow={5000} config={waveformConfig} />
             </StagePanel>
           )}
           {showPanel("pvloop") && (
-            <StagePanel title="PV Loop">
+            <StagePanel title={t("workbench.panels.pvLoop")}>
               <PVLoopPanel physicsRefs={physicsRefs} instances={liveInstances} config={pvConfig} showGuides />
             </StagePanel>
           )}
           {showPanel("metrics") && (
-            <StagePanel title="Metrics">
+            <StagePanel title={t("workbench.panels.metrics")}>
               <MetricsPanel physicsRefs={physicsRefs} instances={liveInstances} config={metricsConfig} />
             </StagePanel>
           )}
           {showExposedControls && knobTargetInstance && (
-            <StagePanel title="Controls">
+            <StagePanel title={t("workbench.panels.controls")}>
               <ExposedKnobs instance={knobTargetInstance} keys={exposedKnobs} onChange={setExposedKnob} />
             </StagePanel>
           )}

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import {
   DockviewReact,
@@ -240,15 +241,17 @@ function captureDockviewViewState(api: DockviewApi, zone: WorkbenchZoneId): Dock
 }
 
 function WorkbenchDockPanel(props: IDockviewPanelProps<DockPanelParams>) {
+  const { t } = useTranslation();
   const context = useContext(WorkbenchDockviewContext);
   const panel = context?.panelsById.get(props.params.panelId);
   if (!context || !panel) {
-    return <div className="flex h-full items-center justify-center text-xs text-slate-500">Panel unavailable</div>;
+    return <div className="flex h-full items-center justify-center text-xs text-slate-500">{t('workbench.dockview.panelUnavailable')}</div>;
   }
   return <>{context.renderPanel(panel)}</>;
 }
 
 function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
+  const { t } = useTranslation();
   const context = useContext(WorkbenchDockviewContext);
   const [isActive, setIsActive] = useState(props.api.isActive);
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
@@ -289,7 +292,7 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
 
   const renamePanel = () => {
     if (!context?.onRenamePanel) return;
-    const nextTitle = window.prompt('Rename pane', title);
+    const nextTitle = window.prompt(t('workbench.dockview.renamePanePrompt'), title);
     if (nextTitle === null) return;
     const trimmedTitle = nextTitle.trim();
     if (!trimmedTitle || trimmedTitle === title) return;
@@ -327,10 +330,10 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
               className={`workbench-dock-tab-menu-button inline-flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-slate-700/80 hover:text-slate-100 ${
                 menuPosition ? 'opacity-100' : ''
               }`}
-              aria-label={`${title} pane menu`}
+              aria-label={t('workbench.dockview.paneMenuAria', { title })}
               aria-haspopup="menu"
               aria-expanded={Boolean(menuPosition)}
-              title="Pane menu"
+              title={t('workbench.dockview.paneMenu')}
             >
               <MoreVertical className="h-3.5 w-3.5" />
             </button>
@@ -353,7 +356,7 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
                       role="menuitem"
                       className="workbench-popover-menu-item block w-full px-3 py-1.5 text-left text-xs font-medium"
                     >
-                      Rename
+                      {t('common.rename')}
                     </button>
                   )}
                   {canConfigure && (
@@ -367,7 +370,7 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
                       role="menuitem"
                       className="workbench-popover-menu-item block w-full px-3 py-1.5 text-left text-xs font-medium"
                     >
-                      Pane settings
+                      {t('workbench.panelGrid.paneSettings')}
                     </button>
                   )}
                   {canClose && (
@@ -381,7 +384,7 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
                       role="menuitem"
                       className="workbench-popover-menu-item-danger block w-full px-3 py-1.5 text-left text-xs font-medium"
                     >
-                      Close pane
+                      {t('workbench.dockview.closePane')}
                     </button>
                   )}
                 </div>
@@ -402,6 +405,7 @@ function ZoneAddMenu({
   zone: WorkbenchZoneId;
   onChoose: (type: PanelType) => void;
 }) {
+  const { t } = useTranslation();
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const options = ADD_OPTIONS_BY_ZONE[zone];
 
@@ -424,8 +428,8 @@ function ZoneAddMenu({
         type="button"
         onClick={openMenu}
         className="inline-flex h-5 w-5 items-center justify-center rounded text-slate-500 hover:bg-slate-800 hover:text-slate-100"
-        aria-label={`Add ${ZONE_LABELS[zone]} pane`}
-        title={`Add ${ZONE_LABELS[zone]} pane`}
+        aria-label={t('workbench.dockview.addPaneAria', { zone: t(`workbench.zones.${zone}`) })}
+        title={t('workbench.dockview.addPaneAria', { zone: t(`workbench.zones.${zone}`) })}
       >
         <Plus className="h-3.5 w-3.5" />
       </button>
@@ -447,7 +451,7 @@ function ZoneAddMenu({
                 }}
                 className="workbench-popover-menu-item block w-full px-3 py-2 text-left text-xs font-medium"
               >
-                {option.label}
+                {t(`workbench.panelTypes.${option.type}`)}
               </button>
             ))}
           </div>
@@ -474,6 +478,7 @@ function EmptyDockview({
   mode,
   onAddPanel,
 }: Pick<WorkbenchDockviewProps, 'zone' | 'mode' | 'onAddPanel'>) {
+  const { t } = useTranslation();
   const canAdd = mode !== 'learner' && Boolean(onAddPanel);
   return (
     <div className="relative flex h-full items-center justify-center bg-[#0B1120] text-sm text-slate-600">
@@ -482,7 +487,7 @@ function EmptyDockview({
           <ZoneAddMenu zone={zone} onChoose={(type) => onAddPanel?.(type, zone)} />
         </div>
       )}
-      No panels
+      {t('workbench.dockview.noPanels')}
     </div>
   );
 }

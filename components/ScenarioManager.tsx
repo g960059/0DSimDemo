@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface ScenarioManagerProps {
     isOpen: boolean;
@@ -13,6 +14,7 @@ interface ScenarioManagerProps {
 export const ScenarioManager: React.FC<ScenarioManagerProps> = ({
     isOpen, onClose, instances, addInstance, removeInstance, updateInstanceName, updateInstanceColor
 }) => {
+    const { t } = useTranslation();
     if (!isOpen) return null;
 
     return (
@@ -20,7 +22,7 @@ export const ScenarioManager: React.FC<ScenarioManagerProps> = ({
             <div className="bg-slate-900 border border-slate-700 rounded-lg shadow-2xl p-6 w-full max-w-2xl flex flex-col max-h-[80vh]">
                 <div className="flex justify-between items-center mb-6 shrink-0">
                     <h2 className="text-xl font-bold text-slate-200 tracking-tight flex items-center gap-2">
-                        <span className="text-blue-400">❖</span> Scenario Manager
+                        <span className="text-blue-400">❖</span> {t('scenarioManager.title')}
                     </h2>
                     <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">✕</button>
                 </div>
@@ -35,7 +37,7 @@ export const ScenarioManager: React.FC<ScenarioManagerProps> = ({
                                     value={inst.color} 
                                     onChange={(e) => updateInstanceColor(inst.id, e.target.value)} 
                                     className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                                    title="Change color"
+                                    title={t('scenarioManager.changeColor')}
                                 />
                             </div>
                             
@@ -44,23 +46,23 @@ export const ScenarioManager: React.FC<ScenarioManagerProps> = ({
                                 value={inst.name}
                                 onChange={(e) => updateInstanceName(inst.id, e.target.value)}
                                 className="flex-1 bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 outline-none focus:border-blue-500 transition-colors font-medium"
-                                placeholder="Scenario Name"
+                                placeholder={t('scenarioManager.scenarioName')}
                             />
 
                             <div className="flex items-center gap-2 shrink-0">
                                 <button 
                                     onClick={() => addInstance(inst.id)}
                                     className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold rounded transition-colors flex items-center gap-1"
-                                    title="Duplicate this scenario"
+                                    title={t('scenarioManager.duplicateTitle')}
                                 >
-                                    <span>⎘</span> Duplicate
+                                    <span>⎘</span> {t('common.duplicate')}
                                 </button>
                                 
                                 <button 
                                     onClick={() => removeInstance(inst.id)}
                                     disabled={instances.length <= 1}
                                     className={`px-3 py-1.5 text-xs font-bold rounded transition-colors flex items-center gap-1 ${instances.length <= 1 ? 'bg-red-950/20 text-red-900/50 cursor-not-allowed' : 'bg-red-950/50 hover:bg-red-900/80 text-red-400'}`}
-                                    title="Delete scenario"
+                                    title={t('scenarioManager.deleteTitle')}
                                 >
                                     <span>🗑️</span>
                                 </button>
@@ -74,13 +76,13 @@ export const ScenarioManager: React.FC<ScenarioManagerProps> = ({
                         onClick={() => addInstance()}
                         className="px-4 py-2 bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 border border-blue-500/30 rounded text-sm font-bold transition-colors flex items-center gap-2"
                     >
-                        <span>+</span> New Default Scenario
+                        <span>+</span> {t('scenarioManager.newDefaultScenario')}
                     </button>
                     <button 
                         onClick={onClose}
                         className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-sm font-bold transition-colors"
                     >
-                        Done
+                        {t('common.done')}
                     </button>
                 </div>
             </div>

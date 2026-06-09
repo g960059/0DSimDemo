@@ -3,7 +3,8 @@ import { Writable } from "node:stream";
 import { renderToPipeableStream, renderToStaticMarkup } from "react-dom/server";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import i18n from "@/i18n";
 import { ChartLegend, shouldEnableLegendInteractions } from "@/components/Charts";
 import { PanelGrid, getActiveSettingsSectionId, getDockviewPaneTitle, openPanelSettingsIfClosed, type PanelGridMode } from "@/components/workbench/PanelGrid";
 import { ScenarioPane } from "@/components/workbench/ScenarioPane";
@@ -20,6 +21,10 @@ vi.mock("@/components/NotePanel", async () => {
   return {
     NotePanel: () => React.createElement("div", { "data-note-panel-stub": "true" }),
   };
+});
+
+beforeAll(async () => {
+  await i18n.changeLanguage("en");
 });
 
 const noop = () => {};

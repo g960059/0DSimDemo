@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ArrowLeft } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { caseDocumentToSimInstances } from "../../caseDoc";
@@ -49,6 +50,7 @@ export const ReadingPresenter: React.FC<{
   caseDoc: CaseDocument;
   column: ReadingColumnEntry[];
 }> = ({ lessonTitle, lessonLevel, objective, caseDoc, column }) => {
+  const { t } = useTranslation();
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
   const [controller] = useState(() => new PreviewController());
@@ -151,7 +153,7 @@ export const ReadingPresenter: React.FC<{
     <div ref={scrollportRef} onScroll={updateReadingProgress} className="h-full min-h-0 w-full overflow-y-auto bg-slate-950 text-slate-200">
       <div className="sticky top-0 z-20 h-12 border-b border-slate-900/80 bg-slate-950/90 backdrop-blur">
         <div className="mx-auto flex h-12 max-w-[960px] items-center gap-3 px-4">
-          <Link to={homeHref(locale)} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-100" aria-label="Back to home">
+          <Link to={homeHref(locale)} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-100" aria-label={t("lessonPlayer.backToHome")}>
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div className="min-w-0 truncate text-sm font-semibold text-slate-300">{lessonTitle}</div>
@@ -163,16 +165,16 @@ export const ReadingPresenter: React.FC<{
         <header className="mx-auto w-full max-w-[68ch]">
           <h1 className="text-3xl font-bold text-slate-50 sm:text-[34px]">{lessonTitle}</h1>
           <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-            <span className="rounded border border-slate-800 bg-slate-900/60 px-2 py-1 font-semibold uppercase tracking-wide">{lessonLevel ?? "Lesson"}</span>
-            <span>{estimatedReadMinutes} min read</span>
-            {hasInteractiveControls && <span className="rounded border border-sky-900/70 bg-sky-950/40 px-2 py-1 font-semibold text-sky-300">Interactive</span>}
+            <span className="rounded border border-slate-800 bg-slate-900/60 px-2 py-1 font-semibold uppercase tracking-wide">{lessonLevel ?? t("lessonPlayer.lesson")}</span>
+            <span>{t("reading.minRead", { count: estimatedReadMinutes })}</span>
+            {hasInteractiveControls && <span className="rounded border border-sky-900/70 bg-sky-950/40 px-2 py-1 font-semibold text-sky-300">{t("reading.interactive")}</span>}
           </div>
           {objective && <p className="mt-4 text-base leading-7 text-slate-400">{objective}</p>}
         </header>
 
         {headingAnchors.length > 0 && (
           <details className="mx-auto mt-8 w-full max-w-[68ch] rounded-md border border-slate-800 bg-slate-900/30 px-4 py-3">
-            <summary className="cursor-pointer text-sm font-semibold text-slate-300">目次</summary>
+            <summary className="cursor-pointer text-sm font-semibold text-slate-300">{t("reading.tableOfContents")}</summary>
             <nav className="mt-3 flex flex-col gap-2">
               {headingAnchors.map((anchor) => (
                 <a key={anchor.id} href={`#${anchor.id}`} className="text-sm text-slate-400 hover:text-sky-300">

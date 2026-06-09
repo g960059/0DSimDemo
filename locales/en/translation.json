@@ -5,7 +5,24 @@
       "ja": "日本語",
       "en": "EN",
       "switchTo": "Switch to {{language}}"
-    }
+    },
+    "none": "none",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "rename": "Rename",
+    "duplicate": "Duplicate",
+    "done": "Done",
+    "close": "Close",
+    "dismiss": "Dismiss",
+    "copy": "Copy",
+    "edit": "Edit",
+    "title": "Title",
+    "description": "Description",
+    "on": "On",
+    "off": "Off",
+    "visible": "Visible",
+    "hidden": "Hidden"
   },
   "nav": {
     "home": "Home",
@@ -42,6 +59,533 @@
     "openCase": "Open case",
     "officialBadge": "official",
     "draftBadge": "draft"
+  },
+  "workbench": {
+    "panels": {
+      "waveforms": "Waveforms",
+      "pvLoop": "PV Loop",
+      "metrics": "Metrics",
+      "controls": "Controls"
+    },
+    "zones": {
+      "caseRail": "Case",
+      "main": "Main",
+      "sideRail": "Controls",
+      "bottomPanel": "Outputs"
+    },
+    "panelTypes": {
+      "NOTE": "Note",
+      "PVLOOP": "PV Loop",
+      "WAVEFORM": "Waveforms",
+      "GUYTON_LEFT": "Guyton (L)",
+      "GUYTON_RIGHT": "Guyton (R)",
+      "GUYTON_3D": "Guyton 3D",
+      "SCENARIOS": "Scenarios",
+      "CONTROLS": "Controls",
+      "METRICS": "Metrics"
+    },
+    "controls": {
+      "changed": "changed",
+      "reset": "Reset",
+      "resetClinicalBaseline": "Reset clinical knobs to baseline",
+      "customReplaceDefault": "Custom controls replace the default Clinical Knobs",
+      "customControls": "Custom controls",
+      "baselineValue": "Baseline {{value}}{{unit}}",
+      "resetTo": "Reset to {{value}}{{unit}}",
+      "resetAria": "Reset {{label}}",
+      "groups": {
+        "clinical": "Clinical Knobs",
+        "global": "Global Physiology",
+        "ventricles": "Ventricular Mechanics",
+        "atria": "Atrial Mechanics",
+        "vascular": "Vascular Resistance & Compliance",
+        "coronary": "Coronary Circulation",
+        "fluids": "Fluids & Hemorrhage",
+        "valves": "Valvular Mechanics",
+        "resp": "Respiratory & Environment",
+        "advanced": "Advanced Engine"
+      },
+      "categories": {
+        "cardiacFunction": "Cardiac Function",
+        "loadRate": "Load & Rate",
+        "valveLesions": "Valve Lesions"
+      },
+      "knobs": {
+        "HR": "Heart rate",
+        "contractility": "LV contractility",
+        "contractilityRV": "RV contractility",
+        "relaxation": "Relaxation",
+        "diastolicStiffness": "Diastolic stiffness",
+        "afterload": "Afterload",
+        "arterialStiffness": "Arterial stiffness",
+        "pulmonaryResistance": "Pulmonary resistance",
+        "venousTone": "Venous tone",
+        "peep": "PEEP",
+        "aorticStenosis": "Aortic stenosis",
+        "aorticRegurgitation": "Aortic regurgitation",
+        "mitralStenosis": "Mitral stenosis",
+        "mitralRegurgitation": "Mitral regurgitation",
+        "tricuspidRegurgitation": "Tricuspid regurgitation",
+        "pulmonicStenosis": "Pulmonic stenosis"
+      },
+      "options": {
+        "low": "Low",
+        "normal": "Normal",
+        "high": "High",
+        "none": "None",
+        "moderate": "Moderate",
+        "severe": "Severe"
+      },
+      "raw": {
+        "heartRate": "Heart Rate",
+        "avDelay": "AV Delay (P-QRS)",
+        "totalBloodVolume": "Total Blood Volume",
+        "globalVenousTone": "Global Venous Tone",
+        "globalContractility": "Global Contractility",
+        "globalRelaxation": "Global Relaxation",
+        "ventricleModel": "Ventricle Model",
+        "activeStress": "Active-stress",
+        "elastance": "Elastance",
+        "activeStressTitle": "Single-fibre active-stress LV/RV (default)",
+        "elastanceTitle": "Time-varying elastance fallback",
+        "leftVentricle": "Left Ventricle (LV)",
+        "lvBaselineVolume": "LV Baseline Volume (V0)",
+        "lvTveEes": "LV TVE Ees",
+        "lvTmaxScale": "LV Tmax Scale (Force)",
+        "lvCaReleaseScale": "LV Ca2+ Release Scale",
+        "lvGeometryScale": "LV Geometry Scale",
+        "rightVentricle": "Right Ventricle (RV)",
+        "rvBaselineVolume": "RV Baseline Volume (V0)",
+        "rvTveEes": "RV TVE Ees",
+        "rvTmaxScale": "RV Tmax Scale (Force)",
+        "rvCaReleaseScale": "RV Ca2+ Release Scale",
+        "rvGeometryScale": "RV Geometry Scale",
+        "pericardiumSeptum": "Pericardium & Septum",
+        "pericardialConstraintEnabled": "Pericardial constraint enabled",
+        "pericardialConstraint": "Pericardial Constraint",
+        "pericardialEffusion": "Pericardial Effusion",
+        "pericardialSlackVolume": "Pericardial Slack Volume",
+        "septalVolumeShiftEnabled": "Septal volume-shift enabled",
+        "septalStiffness": "Septal Stiffness",
+        "septalMaxShift": "Septal Max Shift",
+        "septalLvForceWeight": "Septal LV Force Weight",
+        "leftAtrium": "Left Atrium (LA)",
+        "laBaselineVolume": "LA Baseline Volume (V0)",
+        "laElastance": "LA Elastance (Ees)",
+        "rightAtrium": "Right Atrium (RA)",
+        "raBaselineVolume": "RA Baseline Volume (V0)",
+        "raElastance": "RA Elastance (Ees)",
+        "globalScaleMultipliers": "Global Scale Multipliers",
+        "systemicResistance": "Systemic Resistance",
+        "pulmonaryResistance": "Pulmonary Resistance",
+        "globalArterialStiffness": "Global Arterial Stiffness",
+        "systemicSegmentResistance": "Systemic Segment Resistance",
+        "pulmonarySegmentResistance": "Pulmonary Segment Resistance",
+        "coronaryBedEnabled": "Coronary bed enabled",
+        "coronaryResistance": "Coronary Resistance",
+        "myocardialCompression": "Myocardial Compression",
+        "hyperemiaVasodilator": "Hyperemia / Vasodilator",
+        "reserveMax": "Reserve Max",
+        "epicardialDiameterStenosis": "Epicardial Diameter Stenosis",
+        "ladStenosis": "LAD Stenosis",
+        "lcxStenosis": "LCx Stenosis",
+        "rcaStenosis": "RCA Stenosis",
+        "hemorrhageRate": "Hemorrhage Rate",
+        "fluidTransfusionRate": "Fluid / Transfusion Rate",
+        "netVolumeNote": "Net volume change is integrated over time; no autonomic compensation (baroreflex is a later phase).",
+        "valveParameters": "{{valve}} Parameters",
+        "arefHealthyArea": "Aref (Healthy Area)",
+        "amaxMaxArea": "Amax (Max Area)",
+        "aleakLeakArea": "Aleak (Leak Area)",
+        "resistance": "Resistance",
+        "inertance": "Inertance",
+        "quadraticLoss": "Quadratic loss",
+        "basePleuralP": "Base Pleural P (Pth0)",
+        "respAmpPleural": "Resp Amp (Pleural)",
+        "respAmpAlveolar": "Resp Amp (Alveolar)",
+        "respiratoryRate": "Respiratory Rate",
+        "useDynamicStarling": "Use dynamic Starling resistance (χ) for waterfall collapse"
+      }
+    },
+    "controllerBuilder": {
+      "description": "Custom controls replace the default Clinical Knobs (shown to readers as buttons).",
+      "empty": "No custom controls yet - readers see the default Clinical Knobs.",
+      "slider": "Slider",
+      "button": "Button",
+      "optionNumber": "Option {{number}}",
+      "addOption": "Add option",
+      "needsDistinctValues": "Needs >=2 distinct values - will show as a slider"
+    },
+    "dialogs": {
+      "saveLesson": {
+        "title": "Save as lesson",
+        "lessonTitle": "Title",
+        "noteSpine": "Note spine",
+        "capturedSteps": "Captured steps",
+        "stepsCount_one": "{{count}} step",
+        "stepsCount_other": "{{count}} steps"
+      },
+      "addPanel": {
+        "title": "Configure {{panelType}} Panel",
+        "confirm": "Add Panel"
+      }
+    },
+    "header": {
+      "editCopy": "Edit a copy",
+      "share": "Share",
+      "saveCase": "Save case",
+      "untitledScene": "Untitled scene",
+      "unsavedAuthoringChanges": "Unsaved authoring changes",
+      "customizeLayout": "Customize layout",
+      "left": "Left",
+      "right": "Right",
+      "resetLayout": "Reset layout",
+      "pause": "Pause",
+      "play": "Play",
+      "publishing": "Publishing...",
+      "saving": "Saving...",
+      "openPanel": "Open workbench panel",
+      "sceneDetails": "Scene details"
+    },
+    "sidePanel": {
+      "aria": "Workbench details",
+      "closePanel": "Close panel",
+      "learningScene": "Learning scene",
+      "authorWorkspace": "Author workspace",
+      "sandboxScene": "Sandbox scene",
+      "tabs": {
+        "share": "Share",
+        "files": "Files",
+        "details": "Details",
+        "settings": "Settings"
+      },
+      "share": {
+        "title": "Share",
+        "description": "Use published lesson links when available. Saving and sharing stay separate.",
+        "copyLink": "Copy link",
+        "openSavedLesson": "Open saved lesson",
+        "noLink": "No share link yet."
+      },
+      "files": {
+        "title": "Files",
+        "description": "Export a portable case file or load a local case. Loading replaces the current scene.",
+        "export": "Export",
+        "load": "Load"
+      },
+      "details": {
+        "noDescription": "No description set."
+      },
+      "settings": {
+        "title": "Settings",
+        "description": "Low-frequency workbench settings.",
+        "appearance": "Appearance",
+        "theme": "Theme",
+        "saveAsLesson": "Save as lesson",
+        "exitAuthoring": "Exit authoring",
+        "createLesson": "Create lesson"
+      },
+      "themes": {
+        "midnight": "Midnight",
+        "graphite": "Graphite",
+        "clinical": "Clinical"
+      }
+    },
+    "scenarioPane": {
+      "steadyComputing": "Recomputing steady state",
+      "steadyFailed": "Steady update failed",
+      "steadyUpdated": "Steady state updated",
+      "changeColor": "Change scenario color",
+      "colorAria": "{{name}} color",
+      "scenarioName": "Scenario name",
+      "actions": "Scenario actions",
+      "actionsAria": "{{name}} actions",
+      "addFromPreset": "Add scenario from preset",
+      "addFromPresetShort": "Add from preset"
+    },
+      "panelGrid": {
+        "panelTitle": "Panel Title",
+      "showLegend": "Show Legend",
+      "showGuides": "Show Guides",
+      "windowSize": "Window Size",
+      "chooseInstance": "Choose instance to edit",
+      "standardGuytonCurve": "Standard Guyton curve",
+      "guytonCurveDescription": "Guyton panes render the built-in curve for visible instances. Use Instances for visibility and Style/Labels for per-instance presentation.",
+      "selectInstanceToConfigure": "Select an instance to configure {{source}}.",
+      "searchSignals": "Search signals",
+      "type": "Type",
+      "signalCategory": "Signal category",
+      "noMatchingSource": "No matching {{source}}.",
+      "paneTitle": "Pane title",
+      "graph": "Graph",
+      "legend": "Legend",
+      "showGraphLabels": "Show graph labels.",
+      "pvLoopGuides": "PV loop guides",
+      "referenceOverlays": "Reference overlays.",
+      "waveformTimeWindow": "Waveform time window",
+      "adjacentSectionsConfigurable": "Instance visibility and labels are still configurable in the adjacent sections.",
+      "selectInstanceForStyle": "Select an instance to edit labels and colors.",
+      "instanceStylingOnly": "Instance styling only",
+      "instanceStylingDescription": "Use Instances to rename this pane's visible scenarios and set their base colors. Select {{source}} before editing trace-specific labels.",
+        "selectedSource": "Selected {{source}}",
+        "selectedSourceCount_one": "{{count}} {{source}}",
+        "selectedSourceCount_other": "{{count}} {{source}}",
+        "color": "Color",
+      "label": "Label",
+      "settingsCategories": "Settings categories",
+      "controllerSettingsCategories": "Controller settings categories",
+      "visibleCount_one": "{{count}} visible",
+      "visibleCount_other": "{{count}} visible",
+      "selectedCount_one": "{{count}} selected",
+      "selectedCount_other": "{{count}} selected",
+      "paneSettings": "Pane settings",
+      "paneSettingsAria": "{{title}} pane settings",
+      "closePaneSettings": "Close pane settings",
+      "closeSettings": "Close settings",
+      "customizations": "Customizations",
+      "preview": "Preview",
+      "closePanel": "Close Panel",
+      "closePanelAria": "Close {{title}}",
+      "zoneAria": "{{zone}} zone",
+        "shareUrl": "Share URL",
+        "sources": {
+          "chambers": {
+            "title": "Chambers",
+            "sentence": "chambers"
+          },
+          "metrics": {
+            "title": "Metrics",
+            "sentence": "metrics"
+          },
+          "signals": {
+            "title": "Signals",
+            "sentence": "signals"
+          },
+          "curve": {
+            "title": "Curve",
+            "sentence": "curve"
+          }
+        },
+        "signalCategories": {
+          "all": "All",
+          "pressure": "Pressure",
+          "flow": "Flow",
+          "volume": "Volume",
+          "valve": "Valve",
+          "coupling": "Coupling",
+          "derived": "Derived"
+        },
+        "settings": {
+          "graph": {
+            "signals": {
+              "label": "Signals",
+              "compactLabel": "Signals",
+              "description": "Choose plotted sources for one instance."
+            },
+            "instances": {
+              "label": "Instances",
+              "compactLabel": "Instances",
+              "description": "Visibility, base color, and display name."
+            },
+            "display": {
+              "label": "Display",
+              "compactLabel": "Display",
+              "description": "Pane-level graph controls."
+            },
+            "style": {
+              "label": "Style/Labels",
+              "compactLabel": "Style",
+              "description": "Focused color and label overrides."
+            }
+          },
+          "control": {
+            "targets": {
+              "label": "Targets",
+              "compactLabel": "Targets",
+              "description": "Instances this controller pane can edit."
+            },
+            "items": {
+              "label": "Sections",
+              "compactLabel": "Sections",
+              "description": "Controller sections shown in the pane."
+            },
+            "display": {
+              "label": "Display",
+              "compactLabel": "Display",
+              "description": "Pane label and target shortcut behavior."
+            },
+            "custom": {
+              "label": "Custom controls",
+              "compactLabel": "Custom",
+              "description": "Author custom clinical controls for this pane."
+            }
+          }
+        },
+        "controlGroups": {
+          "clinical": {
+            "label": "Clinical knobs",
+            "description": "Beginner-facing contractility, loading, rate, and valve-lesion controls."
+          },
+          "global": {
+            "label": "Global physiology",
+            "description": "Raw heart rate, blood volume, venous tone, and global multipliers."
+          },
+          "ventricles": {
+            "label": "Ventricular mechanics",
+            "description": "LV/RV mechanics, pericardium, and septal coupling parameters."
+          },
+          "atria": {
+            "label": "Atrial mechanics",
+            "description": "LA/RA baseline volume and elastance controls."
+          },
+          "vascular": {
+            "label": "Vascular resistance",
+            "description": "Systemic and pulmonary resistance/compliance controls."
+          },
+          "fluids": {
+            "label": "Fluids & hemorrhage",
+            "description": "Bleeding, infusion, and net volume-change controls."
+          },
+          "valves": {
+            "label": "Valvular mechanics",
+            "description": "Raw valve area, leak, resistance, inertance, and timing controls."
+          },
+          "resp": {
+            "label": "Respiratory environment",
+            "description": "PEEP, pleural pressure, and respiratory waveform controls."
+          },
+          "custom": {
+            "description": "Custom controller section."
+          },
+          "selectedAll": "selected for all targets",
+          "selectedSome": "selected for some targets",
+          "notSelected": "not selected",
+          "aria": "{{label}}: {{status}}; {{selected}} of {{total}} targets"
+        },
+        "paneType": {
+        "pvLoop": "PV loop pane",
+        "waveform": "Waveform pane",
+        "metrics": "Metrics pane",
+        "guyton": "Guyton pane",
+        "controller": "Controller pane"
+      }
+    },
+    "mobile": {
+      "panelRenderError": "This panel could not be rendered.",
+      "openControls": "Open controls",
+      "noOutputPanel": "No output panel",
+      "noPanelsAvailable": "No panels available",
+      "charts": "Charts",
+      "notes": "Notes"
+    },
+    "dockview": {
+      "panelUnavailable": "Panel unavailable",
+      "renamePanePrompt": "Rename pane",
+      "paneMenuAria": "{{title}} pane menu",
+      "paneMenu": "Pane menu",
+      "closePane": "Close pane",
+      "addPaneAria": "Add {{zone}} pane",
+      "noPanels": "No panels"
+    }
+  },
+  "lessonAuthoring": {
+    "title": "Lesson authoring",
+    "stepsCount_one": "{{count}} step",
+    "stepsCount_other": "{{count}} steps",
+    "captureStep": "Capture step",
+    "stepTitle": "Step title",
+    "stepPlaceholder": "Step {{number}}",
+    "visibleInstances": "Visible instances",
+    "predictBeforeReveal": "Predict before reveal",
+    "reveal": "Reveal",
+    "revealLabel": "Reveal label",
+    "predictionPrompt": "Prediction prompt",
+    "exposedKnobs": "Exposed knobs",
+    "maxKnobs": "max {{count}}",
+    "targetInstance": "Target instance",
+    "target": "Target: {{target}}",
+    "startFromCurrentKnobValues": "Start from current knob values",
+    "capturedSteps": "Captured steps",
+    "finalPredictWarning": "Final step is predict. Add a reveal step before saving.",
+    "noStepsCaptured": "No steps captured.",
+    "predictBadge": "predict",
+    "moveStepUp": "Move step up",
+    "moveStepDown": "Move step down",
+    "moveUpAria": "Move {{title}} up",
+    "moveDownAria": "Move {{title}} down",
+    "validation": {
+      "visibleInstanceRequired": "Select at least one visible instance before capturing a step."
+    },
+    "row": {
+      "shows": "shows: {{names}}",
+      "showsNone": "shows: none",
+      "knobs": "knobs: {{knobs}} -> {{target}}",
+      "stale": "stale: {{ids}}"
+    }
+  },
+  "scenarioManager": {
+    "title": "Scenario Manager",
+    "changeColor": "Change color",
+    "scenarioName": "Scenario Name",
+    "duplicateTitle": "Duplicate this scenario",
+    "deleteTitle": "Delete scenario",
+    "newDefaultScenario": "New Default Scenario"
+  },
+  "modelLimitations": {
+    "title": "Educational model - limitations",
+    "titleShort": "Model limitations",
+    "buttonTitle": "Model limitations (educational model)",
+    "buttonShort": "Model limits",
+    "understand": "I understand",
+    "items": [
+      "Research & education only - not a medical device, and not for diagnosis, treatment, or any patient-specific decision.",
+      "0D lumped-parameter model: it does not resolve spatial blood flow, local wall stress, or 3D hemodynamics.",
+      "Parameters are calibration targets, not fixed physiological constants; outputs are approximate and not yet validated against clinical data.",
+      "Several subsystems are not modeled yet (coronary circulation, renal/hepatic/portal beds, detailed baroreflex, fluid exchange).",
+      "Use it to build intuition and explore hypotheses - not to predict a specific patient."
+    ]
+  },
+  "health": {
+    "warning": "Warning",
+    "unstable": "Unstable",
+    "simulationHealth": "Simulation health",
+    "noDetail": "No detail.",
+    "instanceHealth": "{{name}} health"
+  },
+  "notes": {
+    "empty": "No notes for this case yet.",
+    "quiz": {
+      "correct": "Correct!",
+      "tryAgain": "Try again"
+    },
+    "editor": {
+      "saveMath": "Save Math",
+      "editQuiz": "EDIT QUIZ",
+      "question": "Question",
+      "newOption": "New Option",
+      "addOption": "Add Option"
+    }
+  },
+  "lessonPlayer": {
+    "notFound": {
+      "title": "Lesson not found",
+      "description": "This lesson is not available in the current learning path."
+    },
+    "backToHome": "Back to Home",
+    "loading": "Loading lesson...",
+    "reveal": "Reveal",
+    "next": "Next",
+    "lesson": "Lesson",
+    "step": "Step {{number}}",
+    "back": "Back",
+    "complete": "Complete"
+  },
+  "reading": {
+    "minRead_one": "{{count}} min read",
+    "minRead_other": "{{count}} min read",
+    "interactive": "Interactive",
+    "tableOfContents": "Table of contents",
+    "hideControls": "Hide controls",
+    "adjustModel": "Adjust the model"
   },
   "lessons": {
     "normal-reference": {

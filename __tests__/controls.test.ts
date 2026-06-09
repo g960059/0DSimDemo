@@ -1,10 +1,17 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import i18n from "@/i18n";
 import { Controls, getChangedClinicalControls, resetClinicalKnobsToBaseline } from "@/components/Controls";
 import { DEFAULT_PARAMS } from "@/constants";
 import { neutralKnobs } from "@/engine/knobs";
+import { defaultControllerItemFor, readingButtonOptionsFor } from "@/knobMetadata";
+import { controllerOptionsWithLabelKeys } from "@/i18nText";
 import type { SimInstance } from "@/types";
+
+beforeAll(async () => {
+  await i18n.changeLanguage("en");
+});
 
 describe("Controls", () => {
   it("renders studio clinical knobs as sliders without preset chips by default", () => {
@@ -29,13 +36,13 @@ describe("Controls", () => {
     }));
 
     expect(html).toContain('type="range"');
-    expect(html).not.toContain("Low");
-    expect(html).not.toContain("Normal");
-    expect(html).not.toContain("High");
+    expect(html).not.toContain(i18n.t("workbench.controls.options.low"));
+    expect(html).not.toContain(i18n.t("workbench.controls.options.normal"));
+    expect(html).not.toContain(i18n.t("workbench.controls.options.high"));
     expect(html).toContain("1 changed");
-    expect(html).toContain("Reset clinical knobs to baseline");
-    expect(html).toContain("Global Physiology");
-    expect(html).not.toContain("Global Contractility");
+    expect(html).toContain(`aria-label="${i18n.t("workbench.controls.resetClinicalBaseline")}"`);
+    expect(html).toContain(i18n.t("workbench.controls.groups.global"));
+    expect(html).not.toContain(i18n.t("workbench.controls.raw.globalContractility"));
   });
 
   it("renders reading controls as clinical-only button groups", () => {
@@ -67,21 +74,21 @@ describe("Controls", () => {
       presentationMode: "reading",
     }));
 
-    expect(html).toContain("Low");
-    expect(html).toContain("Normal");
-    expect(html).toContain("High");
-    expect(html).toContain("None");
-    expect(html).toContain("Moderate");
-    expect(html).toContain("Severe");
-    expect(html).toContain("LV Contractility");
-    expect(html).toContain("Heart Rate");
-    expect(html).toContain("Aortic Stenosis");
+    expect(html).toContain(i18n.t("workbench.controls.options.low"));
+    expect(html).toContain(i18n.t("workbench.controls.options.normal"));
+    expect(html).toContain(i18n.t("workbench.controls.options.high"));
+    expect(html).toContain(i18n.t("workbench.controls.options.none"));
+    expect(html).toContain(i18n.t("workbench.controls.options.moderate"));
+    expect(html).toContain(i18n.t("workbench.controls.options.severe"));
+    expect(html).toContain(i18n.t("workbench.controls.knobs.contractility"));
+    expect(html).toContain(i18n.t("workbench.controls.knobs.HR"));
+    expect(html).toContain(i18n.t("workbench.controls.knobs.aorticStenosis"));
     expect(html).not.toContain('type="range"');
-    expect(html).not.toContain("Global Physiology");
-    expect(html).not.toContain("Ventricular Mechanics");
-    expect(html).not.toContain("Relaxation");
-    expect(html).not.toContain("Diastolic Stiffness");
-    expect(html).not.toContain("Venous Tone");
+    expect(html).not.toContain(i18n.t("workbench.controls.groups.global"));
+    expect(html).not.toContain(i18n.t("workbench.controls.groups.ventricles"));
+    expect(html).not.toContain(i18n.t("workbench.controls.knobs.relaxation"));
+    expect(html).not.toContain(i18n.t("workbench.controls.knobs.diastolicStiffness"));
+    expect(html).not.toContain(i18n.t("workbench.controls.knobs.venousTone"));
   });
 
   it("forces clinical controls in reading mode when pane signals exclude clinical", () => {
@@ -113,13 +120,13 @@ describe("Controls", () => {
       presentationMode: "reading",
     }));
 
-    expect(html).toContain("Clinical Knobs");
-    expect(html).toContain("LV Contractility");
-    expect(html).toContain("Low");
-    expect(html).toContain("Normal");
-    expect(html).toContain("High");
-    expect(html).not.toContain("Global Physiology");
-    expect(html).not.toContain("Ventricular Mechanics");
+    expect(html).toContain(i18n.t("workbench.controls.groups.clinical"));
+    expect(html).toContain(i18n.t("workbench.controls.knobs.contractility"));
+    expect(html).toContain(i18n.t("workbench.controls.options.low"));
+    expect(html).toContain(i18n.t("workbench.controls.options.normal"));
+    expect(html).toContain(i18n.t("workbench.controls.options.high"));
+    expect(html).not.toContain(i18n.t("workbench.controls.groups.global"));
+    expect(html).not.toContain(i18n.t("workbench.controls.groups.ventricles"));
   });
 
   it("uses authored controls instead of the built-in clinical group in studio mode", () => {
@@ -145,11 +152,64 @@ describe("Controls", () => {
     }));
 
     expect(html).toContain("LV Focus");
-    expect(html).not.toContain("RV Contractility");
-    expect(html).not.toContain("Afterload (SVR)");
+    expect(html).not.toContain(i18n.t("workbench.controls.knobs.contractilityRV"));
+    expect(html).not.toContain(i18n.t("workbench.controls.knobs.afterload"));
     expect(html).toContain("1 changed");
-    expect(html).toContain("Reset clinical knobs to baseline");
-    expect(html).toContain("Custom controls replace the default Clinical Knobs");
+    expect(html).toContain(`aria-label="${i18n.t("workbench.controls.resetClinicalBaseline")}"`);
+    expect(html).toContain(i18n.t("workbench.controls.customReplaceDefault"));
+  });
+
+  it("localizes default authored controller labels and options at display time", async () => {
+    const instance: SimInstance = {
+      id: "normal",
+      name: "Normal",
+      color: "#3b82f6",
+      params: { ...DEFAULT_PARAMS },
+      targetVolume: 5000,
+      isVisible: true,
+      knobs: neutralKnobs(DEFAULT_PARAMS),
+      knobBaseline: { ...DEFAULT_PARAMS },
+    };
+    const baseItem = defaultControllerItemFor("contractility");
+    const controllerItems = [{
+      ...baseItem,
+      labelKey: "contractility",
+      kind: "buttonGroup" as const,
+      options: controllerOptionsWithLabelKeys(baseItem, readingButtonOptionsFor("contractility", 1) ?? [], 1),
+    }];
+
+    expect(controllerItems[0].label).toBe("LV contractility");
+    expect(controllerItems[0].options?.map((option) => option.label)).toEqual(["Low", "Normal", "High"]);
+
+    await i18n.changeLanguage("ja");
+    const jaHtml = renderToStaticMarkup(React.createElement(Controls, {
+      instances: [instance],
+      activeInstanceId: instance.id,
+      updateInstanceParams: vi.fn(),
+      updateInstanceKnobs: vi.fn(),
+      updateInstanceVolume: vi.fn(),
+      presentationMode: "reading",
+      controllerItems,
+    }));
+
+    expect(jaHtml).toContain("LV収縮性");
+    expect(jaHtml).toContain("低");
+    expect(jaHtml).not.toContain("LV contractility");
+
+    await i18n.changeLanguage("en");
+    const enHtml = renderToStaticMarkup(React.createElement(Controls, {
+      instances: [instance],
+      activeInstanceId: instance.id,
+      updateInstanceParams: vi.fn(),
+      updateInstanceKnobs: vi.fn(),
+      updateInstanceVolume: vi.fn(),
+      presentationMode: "reading",
+      controllerItems,
+    }));
+
+    expect(enHtml).toContain("LV contractility");
+    expect(enHtml).toContain("Low");
+    expect(enHtml).not.toContain("LV収縮性");
   });
 
   it("renders authored reading controls as buttons without falling back to auto clinical", () => {
@@ -192,12 +252,12 @@ describe("Controls", () => {
     expect(html).toContain("Slow");
     expect(html).toContain("Fast");
     expect(html).toContain("Relaxation focus");
-    expect(html).toContain("Low");
-    expect(html).toContain("Normal");
-    expect(html).toContain("High");
+    expect(html).toContain(i18n.t("workbench.controls.options.low"));
+    expect(html).toContain(i18n.t("workbench.controls.options.normal"));
+    expect(html).toContain(i18n.t("workbench.controls.options.high"));
     expect(html).not.toContain('type="range"');
-    expect(html).not.toContain("LV Contractility");
-    expect(html).not.toContain("Aortic Stenosis");
+    expect(html).not.toContain(i18n.t("workbench.controls.knobs.contractility"));
+    expect(html).not.toContain(i18n.t("workbench.controls.knobs.aorticStenosis"));
   });
 
   it("derives authored reading buttons from the item's own continuous range when no teaching-safe band exists", () => {
@@ -225,9 +285,9 @@ describe("Controls", () => {
     }));
 
     expect(html).toContain("Relaxation range");
-    expect(html).toContain("Low");
-    expect(html).toContain("Normal");
-    expect(html).toContain("High");
+    expect(html).toContain(i18n.t("workbench.controls.options.low"));
+    expect(html).toContain(i18n.t("workbench.controls.options.normal"));
+    expect(html).toContain(i18n.t("workbench.controls.options.high"));
     expect(html).toContain('title="0.4 x"');
     expect(html).toContain('title="1 x"');
     expect(html).toContain('title="1.6 x"');

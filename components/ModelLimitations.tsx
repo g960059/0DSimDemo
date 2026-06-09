@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Info, X } from 'lucide-react';
 
 const ACK_KEY = 'circleheart.modelLimitations.ack.v1';
@@ -44,6 +45,9 @@ const Body: React.FC<{ limitations?: string[] }> = ({ limitations = LIMITATIONS 
  * Deliberately NOT a large always-on banner.
  */
 export const ModelLimitations: React.FC<{ compact?: boolean; limitations?: string[] }> = ({ compact = false, limitations }) => {
+  const { t } = useTranslation();
+  const defaultLimitations = t('modelLimitations.items', { returnObjects: true }) as string[];
+  const shownLimitations = limitations ?? defaultLimitations;
   // First-run modal: open if not acknowledged. Manual reopen via the header icon.
   const [firstRun, setFirstRun] = useState<boolean>(() => !hasAck());
   const [reopened, setReopened] = useState(false);
@@ -68,11 +72,11 @@ export const ModelLimitations: React.FC<{ compact?: boolean; limitations?: strin
       <button
         onClick={() => setReopened(true)}
         className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded transition-colors flex items-center gap-1"
-        title="Model limitations (educational model)"
-        aria-label="Model limitations"
+        title={t('modelLimitations.buttonTitle')}
+        aria-label={t('modelLimitations.titleShort')}
       >
         <Info className="w-4 h-4" />
-        {!compact && <span className="hidden lg:inline text-[10px] font-medium">Model limits</span>}
+        {!compact && <span className="hidden lg:inline text-[10px] font-medium">{t('modelLimitations.buttonShort')}</span>}
       </button>
 
       {open && (
@@ -81,16 +85,16 @@ export const ModelLimitations: React.FC<{ compact?: boolean; limitations?: strin
             <div className="flex items-center justify-between px-5 py-3 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <Info className="w-4 h-4 text-blue-400" />
-                <h2 id="model-limits-title" className="text-sm font-bold text-slate-200">Educational model — limitations</h2>
+                <h2 id="model-limits-title" className="text-sm font-bold text-slate-200">{t('modelLimitations.title')}</h2>
               </div>
               {!firstRun && (
-                <button onClick={close} aria-label="Close" className="text-slate-500 hover:text-slate-300">
+                <button onClick={close} aria-label={t('common.close')} className="text-slate-500 hover:text-slate-300">
                   <X className="w-4 h-4" />
                 </button>
               )}
             </div>
             <div className="px-5 py-4">
-              <Body limitations={limitations} />
+              <Body limitations={shownLimitations} />
             </div>
             <div className="px-5 py-3 border-t border-slate-800 flex justify-end">
               <button
@@ -98,7 +102,7 @@ export const ModelLimitations: React.FC<{ compact?: boolean; limitations?: strin
                 autoFocus
                 className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm font-bold transition-colors"
               >
-                I understand
+                {t('modelLimitations.understand')}
               </button>
             </div>
           </div>

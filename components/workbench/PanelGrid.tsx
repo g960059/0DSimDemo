@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { LessonAuthoring } from '../LessonAuthoring';
 import WorkbenchDockview from './WorkbenchDockview';
 import WorkbenchMobile from './WorkbenchMobile';
@@ -145,32 +147,27 @@ type SignalCategory = 'All' | 'Pressure' | 'Flow' | 'Volume' | 'Valve' | 'Coupli
 type GraphSettingsSectionId = 'signals' | 'instances' | 'display' | 'style';
 type ControlSettingsSectionId = 'targets' | 'items' | 'display' | 'custom';
 type SettingsSectionBounds = { top: number; bottom: number };
+type PanelGridT = TFunction<'translation', undefined>;
 
 const GRAPH_SETTINGS_PANEL_TYPES = new Set<PanelType>(['WAVEFORM', 'PVLOOP', 'METRICS', 'GUYTON_LEFT', 'GUYTON_RIGHT', 'GUYTON_3D']);
 const SIGNAL_CATEGORY_ORDER: SignalCategory[] = ['All', 'Pressure', 'Flow', 'Volume', 'Valve', 'Coupling', 'Derived'];
 const GRAPH_SETTINGS_SECTIONS: Array<{
   id: GraphSettingsSectionId;
-  label: string;
-  compactLabel: string;
-  description: string;
   icon: React.ComponentType<{ className?: string }>;
 }> = [
-  { id: 'signals', label: 'Signals', compactLabel: 'Signals', description: 'Choose plotted sources for one instance.', icon: Activity },
-  { id: 'instances', label: 'Instances', compactLabel: 'Instances', description: 'Visibility, base color, and display name.', icon: Layers },
-  { id: 'display', label: 'Display', compactLabel: 'Display', description: 'Pane-level graph controls.', icon: SlidersHorizontal },
-  { id: 'style', label: 'Style/Labels', compactLabel: 'Style', description: 'Focused color and label overrides.', icon: Brush },
+  { id: 'signals', icon: Activity },
+  { id: 'instances', icon: Layers },
+  { id: 'display', icon: SlidersHorizontal },
+  { id: 'style', icon: Brush },
 ];
 const CONTROL_SETTINGS_SECTIONS: Array<{
   id: ControlSettingsSectionId;
-  label: string;
-  compactLabel: string;
-  description: string;
   icon: React.ComponentType<{ className?: string }>;
 }> = [
-  { id: 'targets', label: 'Targets', compactLabel: 'Targets', description: 'Instances this controller pane can edit.', icon: Layers },
-  { id: 'items', label: 'Sections', compactLabel: 'Sections', description: 'Controller sections shown in the pane.', icon: SlidersHorizontal },
-  { id: 'display', label: 'Display', compactLabel: 'Display', description: 'Pane label and target shortcut behavior.', icon: TypeIcon },
-  { id: 'custom', label: 'Custom controls', compactLabel: 'Custom', description: 'Author custom clinical controls for this pane.', icon: SlidersHorizontal },
+  { id: 'targets', icon: Layers },
+  { id: 'items', icon: SlidersHorizontal },
+  { id: 'display', icon: TypeIcon },
+  { id: 'custom', icon: SlidersHorizontal },
 ];
 const GRAPH_SETTINGS_SECTION_IDS = GRAPH_SETTINGS_SECTIONS.map((section) => section.id);
 const CONTROL_SETTINGS_SECTION_IDS = CONTROL_SETTINGS_SECTIONS.map((section) => section.id);
@@ -188,16 +185,6 @@ const DEFAULT_WAVEFORM_OPTIONS: SignalType[] = [
 ];
 const DEFAULT_METRIC_OPTIONS: MetricType[] = ['ABP', 'CVP', 'PAP', 'PCWP', 'SV', 'CO', 'LVEF', 'RVEF'];
 const DEFAULT_CONTROL_GROUP_OPTIONS = ['clinical', 'Global', 'ventricles', 'atria', 'vascular', 'fluids', 'valves', 'resp'];
-const CONTROL_GROUP_METADATA: Record<string, { label: string; description: string }> = {
-  clinical: { label: 'Clinical knobs', description: 'Beginner-facing contractility, loading, rate, and valve-lesion controls.' },
-  global: { label: 'Global physiology', description: 'Raw heart rate, blood volume, venous tone, and global multipliers.' },
-  ventricles: { label: 'Ventricular mechanics', description: 'LV/RV mechanics, pericardium, and septal coupling parameters.' },
-  atria: { label: 'Atrial mechanics', description: 'LA/RA baseline volume and elastance controls.' },
-  vascular: { label: 'Vascular resistance', description: 'Systemic and pulmonary resistance/compliance controls.' },
-  fluids: { label: 'Fluids & hemorrhage', description: 'Bleeding, infusion, and net volume-change controls.' },
-  valves: { label: 'Valvular mechanics', description: 'Raw valve area, leak, resistance, inertance, and timing controls.' },
-  resp: { label: 'Respiratory environment', description: 'PEEP, pleural pressure, and respiratory waveform controls.' },
-};
 const SIGNAL_METADATA: Record<string, { label: string; category: Exclude<SignalCategory, 'All'>; unit?: string }> = {
   LV: { label: 'Left ventricle', category: 'Volume' },
   LA: { label: 'Left atrium', category: 'Volume' },
@@ -287,14 +274,41 @@ function signalMetadata(signal: string) {
   return SIGNAL_METADATA[signal] ?? { label: signal, category: 'Derived' as const };
 }
 
+function signalCategoryLabel(t: PanelGridT, category: SignalCategory): string {
+  const key = category.charAt(0).toLowerCase() + category.slice(1);
+  return t(`workbench.panelGrid.signalCategories.${key}`);
+}
+
+function panelSourceKey(panelType: PanelType): 'chambers' | 'metrics' | 'signals' | 'curve' {
+  if (panelType === 'PVLOOP') return 'chambers';
+  if (panelType === 'METRICS') return 'metrics';
+  if (panelType === 'WAVEFORM') return 'signals';
+  return 'curve';
+}
+
+function panelSourceLabel(t: PanelGridT, panelType: PanelType, form: 'title' | 'sentence' = 'sentence'): string {
+  return t(`workbench.panelGrid.sources.${panelSourceKey(panelType)}.${form}`);
+}
+
+function settingsSectionLabel(t: PanelGridT, kind: 'graph' | 'control', sectionId: GraphSettingsSectionId | ControlSettingsSectionId): string {
+  return t(`workbench.panelGrid.settings.${kind}.${sectionId}.label`);
+}
+
 function normalizeControlGroupId(group: string) {
   return group.trim().toLowerCase();
 }
 
-function controlGroupMetadata(group: string) {
-  return CONTROL_GROUP_METADATA[normalizeControlGroupId(group)] ?? {
-    label: group,
-    description: 'Custom controller section.',
+function controlGroupMetadata(t: PanelGridT, group: string) {
+  const groupId = normalizeControlGroupId(group);
+  if (!['clinical', 'global', 'ventricles', 'atria', 'vascular', 'fluids', 'valves', 'resp'].includes(groupId)) {
+    return {
+      label: group,
+      description: t('workbench.panelGrid.controlGroups.custom.description'),
+    };
+  }
+  return {
+    label: t(`workbench.panelGrid.controlGroups.${groupId}.label`),
+    description: t(`workbench.panelGrid.controlGroups.${groupId}.description`),
   };
 }
 
@@ -383,36 +397,37 @@ function LegacyPanelSettingsControls({
   metrics,
   controlGroups,
 }: PanelSettingsControlsProps) {
+  const { t } = useTranslation();
   const itemOptions = getPanelItemOptions(panel, chambers, signals, metrics, controlGroups);
 
   return (
     <>
       <div className="mb-2 flex items-center gap-2 border-b border-slate-700 pb-2">
-        <span className="text-xs font-medium text-slate-400">Title:</span>
+        <span className="text-xs font-medium text-slate-400">{t('common.title')}:</span>
         <input
           type="text"
           value={panel.title}
           onChange={(e) => updatePanelTitle(panel.id, e.target.value)}
           className="w-full rounded border border-slate-700 bg-slate-900 px-1.5 py-0.5 text-xs font-medium text-slate-200 outline-none focus:border-slate-500"
-          placeholder="Panel Title"
+          placeholder={t('workbench.panelGrid.panelTitle')}
         />
       </div>
       {['PVLOOP', 'WAVEFORM'].includes(panel.type) && (
         <div className="mb-2 flex items-center gap-2 border-b border-slate-700 pb-2">
           <input type="checkbox" className="cursor-pointer accent-blue-500" checked={panel.showLegend !== false} onChange={() => toggleShowLegend(panel.id)} />
-          <span className="text-xs font-medium text-slate-200">Show Legend</span>
+          <span className="text-xs font-medium text-slate-200">{t('workbench.panelGrid.showLegend')}</span>
         </div>
       )}
       {panel.type === 'PVLOOP' && (
         <div className="mb-2 flex items-center gap-2 border-b border-slate-700 pb-2">
           <input type="checkbox" className="cursor-pointer accent-blue-500" checked={panel.showGuides} onChange={() => toggleGuides(panel.id)} />
-          <span className="text-xs font-medium text-slate-200">Show Guides</span>
+          <span className="text-xs font-medium text-slate-200">{t('workbench.panelGrid.showGuides')}</span>
         </div>
       )}
       {panel.type === 'WAVEFORM' && (
         <div className="mb-3 border-b border-slate-700 pb-3">
           <div className="mb-2 flex justify-between text-[10px] font-medium text-slate-400">
-            <span>Window Size</span>
+            <span>{t('workbench.panelGrid.windowSize')}</span>
             <span className="text-blue-400">{(panel.timeWindow || 10000) / 1000}s</span>
           </div>
           <input type="range" min={2000} max={20000} step={1000} value={panel.timeWindow || 10000} onChange={(e) => updateTimeWindow(panel.id, parseFloat(e.target.value))} className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-slate-900 accent-blue-500" />
@@ -474,6 +489,7 @@ function GraphPanelSettingsBoard({
   metrics,
   controlGroups,
 }: PanelSettingsControlsProps) {
+  const { t } = useTranslation();
   const [activeInstanceId, setActiveInstanceId] = useState(() => instances.find((inst) => panel.config[inst.id])?.id ?? instances[0]?.id ?? '');
   const [activeSection, setActiveSection] = useState<GraphSettingsSectionId>('signals');
   const [query, setQuery] = useState('');
@@ -507,14 +523,8 @@ function GraphPanelSettingsBoard({
       || customName.toLowerCase().includes(normalizedQuery);
     return matchesCategory && matchesQuery;
   });
-  const sourceLabel = panel.type === 'PVLOOP'
-    ? 'Chambers'
-    : panel.type === 'METRICS'
-      ? 'Metrics'
-      : panel.type === 'WAVEFORM'
-        ? 'Signals'
-        : 'Curve';
-  const sourceLabelLower = sourceLabel.toLowerCase();
+  const sourceLabel = panelSourceLabel(t, panel.type, 'title');
+  const sourceLabelSentence = panelSourceLabel(t, panel.type, 'sentence');
   const visibleInstanceCount = instances.filter((inst) => panel.config[inst.id]?.visible).length;
   const selectedItemCount = Object.values(panel.config).reduce((sum, cfg) => sum + cfg.selectedSignals.length, 0);
   const updateActiveSectionFromScroll = useCallback(() => {
@@ -547,7 +557,7 @@ function GraphPanelSettingsBoard({
   };
 
   const renderInstancePicker = () => (
-    <div className="flex flex-none gap-1 overflow-x-auto pb-1 custom-scrollbar" aria-label="Choose instance to edit">
+    <div className="flex flex-none gap-1 overflow-x-auto pb-1 custom-scrollbar" aria-label={t('workbench.panelGrid.chooseInstance')}>
       {instances.map((inst) => {
         const cfg = panel.config[inst.id];
         const isActive = activeInstance?.id === inst.id;
@@ -561,7 +571,7 @@ function GraphPanelSettingsBoard({
             <span className="h-2.5 w-2.5 flex-none rounded-full" style={{ backgroundColor: cfg?.customBaseColor ?? inst.color }} />
             <span className="truncate">{cfg?.customName ?? inst.name}</span>
             <span className={`rounded px-1 py-0.5 text-[9px] uppercase ${cfg?.visible ? 'bg-emerald-500/15 text-emerald-200' : 'bg-slate-800 text-slate-500'}`}>
-              {cfg?.visible ? 'On' : 'Off'}
+              {cfg?.visible ? t('common.on') : t('common.off')}
             </span>
           </button>
         );
@@ -574,9 +584,9 @@ function GraphPanelSettingsBoard({
       return (
         <div className="flex min-h-[5rem] items-center justify-center rounded bg-slate-950/25 p-4 text-center">
           <div>
-            <div className="text-sm font-bold text-slate-200">Standard Guyton curve</div>
+            <div className="text-sm font-bold text-slate-200">{t('workbench.panelGrid.standardGuytonCurve')}</div>
             <div className="mt-1 max-w-md text-xs font-medium leading-5 text-slate-500">
-              Guyton panes render the built-in curve for visible instances. Use Instances for visibility and Style/Labels for per-instance presentation.
+              {t('workbench.panelGrid.guytonCurveDescription')}
             </div>
           </div>
         </div>
@@ -586,7 +596,7 @@ function GraphPanelSettingsBoard({
     if (!activeInstance || !activeCfg) {
       return (
         <div className="flex min-h-[5rem] items-center justify-center rounded bg-slate-950/25 text-xs font-semibold text-slate-500">
-          Select an instance to configure {sourceLabelLower}.
+          {t('workbench.panelGrid.selectInstanceToConfigure', { source: sourceLabelSentence })}
         </div>
       );
     }
@@ -603,7 +613,7 @@ function GraphPanelSettingsBoard({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-slate-200 outline-none placeholder:text-slate-600"
-                placeholder="Search signals"
+                placeholder={t('workbench.panelGrid.searchSignals')}
               />
             </label>
             {layout === 'wide' ? (
@@ -615,21 +625,21 @@ function GraphPanelSettingsBoard({
                     onClick={() => setCategory(chip)}
                     className={`h-7 rounded-full border px-2 text-[10px] font-bold transition-colors ${category === chip ? 'border-sky-500/50 bg-sky-500/15 text-sky-100' : 'border-slate-700 bg-slate-950/55 text-slate-400 hover:text-slate-200'}`}
                   >
-                    {chip}
+                    {signalCategoryLabel(t, chip)}
                   </button>
                 ))}
               </div>
             ) : (
               <label className="flex h-9 min-w-[10rem] items-center gap-2 rounded border border-slate-700/80 bg-slate-950/70 px-2">
-                <span className="text-[10px] font-bold uppercase text-slate-500">Type</span>
+                <span className="text-[10px] font-bold uppercase text-slate-500">{t('workbench.panelGrid.type')}</span>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as SignalCategory)}
                   className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-slate-200 outline-none"
-                  aria-label="Signal category"
+                  aria-label={t('workbench.panelGrid.signalCategory')}
                 >
                   {visibleCategories.map((chip) => (
-                    <option key={chip} value={chip}>{chip}</option>
+                    <option key={chip} value={chip}>{signalCategoryLabel(t, chip)}</option>
                   ))}
                 </select>
               </label>
@@ -658,7 +668,7 @@ function GraphPanelSettingsBoard({
                         <span className="block truncate text-[10px] font-semibold text-slate-500">{meta.label}</span>
                       </span>
                       {panel.type === 'WAVEFORM' && (
-                        <span className="rounded bg-slate-950/70 px-1.5 py-0.5 text-[9px] font-bold uppercase text-slate-500">{meta.category}</span>
+                        <span className="rounded bg-slate-950/70 px-1.5 py-0.5 text-[9px] font-bold uppercase text-slate-500">{signalCategoryLabel(t, meta.category)}</span>
                       )}
                     </div>
                     {meta.unit && <div className="mt-0.5 pl-4 text-[10px] font-semibold text-slate-600">{meta.unit}</div>}
@@ -668,7 +678,7 @@ function GraphPanelSettingsBoard({
             </div>
           ) : (
             <div className="flex min-h-[5rem] items-center justify-center text-xs font-semibold text-slate-500">
-              No matching {sourceLabelLower}.
+              {t('workbench.panelGrid.noMatchingSource', { source: sourceLabelSentence })}
             </div>
           )}
         </div>
@@ -709,8 +719,8 @@ function GraphPanelSettingsBoard({
                 />
               </div>
               <div className="mt-1.5 flex items-center justify-between text-[10px] font-semibold text-slate-500">
-                <span>{cfg?.visible ? 'Visible' : 'Hidden'}</span>
-                <span>{selectedCount} {sourceLabelLower}</span>
+                <span>{cfg?.visible ? t('common.visible') : t('common.hidden')}</span>
+                <span>{t('workbench.panelGrid.selectedSourceCount', { count: selectedCount, source: sourceLabelSentence })}</span>
               </div>
             </div>
           );
@@ -726,13 +736,13 @@ function GraphPanelSettingsBoard({
     return (
       <div className="space-y-2">
         <label className="grid gap-2 rounded bg-slate-900/25 p-2 sm:grid-cols-[8rem_minmax(0,1fr)] sm:items-center">
-          <span className="text-[10px] font-bold uppercase text-slate-500">Pane title</span>
+          <span className="text-[10px] font-bold uppercase text-slate-500">{t('workbench.panelGrid.paneTitle')}</span>
           <input
             type="text"
             value={panel.title}
             onChange={(e) => updatePanelTitle(panel.id, e.target.value)}
             className="h-9 w-full rounded border border-slate-700/70 bg-slate-950/70 px-2 text-sm font-bold text-slate-100 outline-none focus:border-slate-500"
-            placeholder="Graph"
+            placeholder={t('workbench.panelGrid.graph')}
           />
         </label>
         <div className="divide-y divide-slate-800/70 rounded bg-slate-950/20">
@@ -745,8 +755,8 @@ function GraphPanelSettingsBoard({
             >
               {panel.showLegend !== false ? <Eye className="h-4 w-4 flex-none" /> : <EyeOff className="h-4 w-4 flex-none" />}
               <span>
-                <span className="block text-sm font-bold">Legend</span>
-                <span className="block text-xs font-medium text-slate-500">Show graph labels.</span>
+                <span className="block text-sm font-bold">{t('workbench.panelGrid.legend')}</span>
+                <span className="block text-xs font-medium text-slate-500">{t('workbench.panelGrid.showGraphLabels')}</span>
               </span>
             </button>
           )}
@@ -759,15 +769,15 @@ function GraphPanelSettingsBoard({
             >
               <Tags className="h-4 w-4 flex-none" />
               <span>
-                <span className="block text-sm font-bold">PV loop guides</span>
-                <span className="block text-xs font-medium text-slate-500">Reference overlays.</span>
+                <span className="block text-sm font-bold">{t('workbench.panelGrid.pvLoopGuides')}</span>
+                <span className="block text-xs font-medium text-slate-500">{t('workbench.panelGrid.referenceOverlays')}</span>
               </span>
             </button>
           )}
           {hasWindow && (
             <label className="block px-2 py-2">
               <span className="flex items-center justify-between gap-3">
-                <span className="block text-sm font-bold text-slate-100">Waveform time window</span>
+                <span className="block text-sm font-bold text-slate-100">{t('workbench.panelGrid.waveformTimeWindow')}</span>
                 <span className="text-sm font-bold text-sky-200">{(panel.timeWindow || 10000) / 1000}s</span>
               </span>
               <input
@@ -784,7 +794,7 @@ function GraphPanelSettingsBoard({
         </div>
         {!hasLegend && !hasGuides && !hasWindow && (
           <div className="px-1 text-xs font-semibold text-slate-500">
-            Instance visibility and labels are still configurable in the adjacent sections.
+            {t('workbench.panelGrid.adjacentSectionsConfigurable')}
           </div>
         )}
       </div>
@@ -795,7 +805,7 @@ function GraphPanelSettingsBoard({
     if (!activeInstance || !activeCfg) {
       return (
         <div className="flex min-h-[5rem] items-center justify-center rounded bg-slate-950/25 text-xs font-semibold text-slate-500">
-          Select an instance to edit labels and colors.
+          {t('workbench.panelGrid.selectInstanceForStyle')}
         </div>
       );
     }
@@ -803,9 +813,9 @@ function GraphPanelSettingsBoard({
       return (
         <div className="flex min-h-[5rem] items-center justify-center rounded bg-slate-950/25 p-4 text-center">
           <div>
-            <div className="text-sm font-bold text-slate-200">Instance styling only</div>
+            <div className="text-sm font-bold text-slate-200">{t('workbench.panelGrid.instanceStylingOnly')}</div>
             <div className="mt-1 max-w-md text-xs font-medium leading-5 text-slate-500">
-              Use Instances to rename this pane's visible scenarios and set their base colors. Select {sourceLabelLower} before editing trace-specific labels.
+              {t('workbench.panelGrid.instanceStylingDescription', { source: sourceLabelSentence })}
             </div>
           </div>
         </div>
@@ -817,7 +827,7 @@ function GraphPanelSettingsBoard({
     return (
       <div className="grid gap-2 md:grid-cols-[minmax(10rem,13rem)_minmax(0,1fr)]">
         <div className="rounded bg-slate-950/20 p-2">
-          <div className="mb-2 px-1 text-[10px] font-bold uppercase text-slate-500">Selected {sourceLabel}</div>
+          <div className="mb-2 px-1 text-[10px] font-bold uppercase text-slate-500">{t('workbench.panelGrid.selectedSource', { source: sourceLabel })}</div>
           <div className="space-y-1">
             {selectedItems.map((sig) => (
               <button
@@ -838,11 +848,11 @@ function GraphPanelSettingsBoard({
               <div className="text-sm font-bold text-slate-100">{focusedItem}</div>
               <div className="text-xs font-semibold text-slate-500">{meta.label}</div>
             </div>
-            <span className="rounded bg-slate-950/70 px-2 py-1 text-[10px] font-bold uppercase text-slate-500">{meta.category}</span>
+            <span className="rounded bg-slate-950/70 px-2 py-1 text-[10px] font-bold uppercase text-slate-500">{signalCategoryLabel(t, meta.category)}</span>
           </div>
           <div className="grid gap-3 sm:grid-cols-[6rem_minmax(0,1fr)]">
             <label className="block">
-              <span className="mb-1 block text-[10px] font-bold uppercase text-slate-500">Color</span>
+              <span className="mb-1 block text-[10px] font-bold uppercase text-slate-500">{t('workbench.panelGrid.color')}</span>
               <input
                 type="color"
                 className="block h-9 w-full cursor-pointer appearance-none rounded border-0 bg-transparent p-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded [&::-webkit-color-swatch]:border-none"
@@ -852,7 +862,7 @@ function GraphPanelSettingsBoard({
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-[10px] font-bold uppercase text-slate-500">Label</span>
+              <span className="mb-1 block text-[10px] font-bold uppercase text-slate-500">{t('workbench.panelGrid.label')}</span>
               <input
                 type="text"
                 className="h-9 w-full rounded border border-slate-700/70 bg-slate-950/70 px-2 text-xs font-semibold text-slate-200 outline-none focus:border-slate-500"
@@ -878,7 +888,7 @@ function GraphPanelSettingsBoard({
     <div className="@container h-full min-h-0 w-full text-slate-200">
       <div className="flex h-full min-h-0 w-full flex-col @min-[760px]:grid @min-[760px]:grid-cols-[minmax(10rem,12rem)_minmax(0,1fr)] @min-[760px]:gap-4">
       <div className="hidden min-h-0 @min-[760px]:block">
-        <aside className="h-full min-h-0 overflow-y-auto py-1 pr-1 custom-scrollbar" aria-label="Settings categories">
+        <aside className="h-full min-h-0 overflow-y-auto py-1 pr-1 custom-scrollbar" aria-label={t('workbench.panelGrid.settingsCategories')}>
           <div className="space-y-1">
             {GRAPH_SETTINGS_SECTIONS.map((section) => {
               return (
@@ -888,7 +898,7 @@ function GraphPanelSettingsBoard({
                   onClick={() => jumpToSection(section.id)}
                   className={`block w-full border-l-2 px-3 py-1.5 text-left text-xs font-semibold transition-colors ${activeSection === section.id ? 'border-slate-300 text-slate-100' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
                 >
-                  <span className="min-w-0 truncate">{section.label}</span>
+                  <span className="min-w-0 truncate">{settingsSectionLabel(t, 'graph', section.id)}</span>
                 </button>
               );
             })}
@@ -899,12 +909,12 @@ function GraphPanelSettingsBoard({
         <div className="mb-3 flex flex-none items-center justify-between gap-3 px-1 pb-1">
           <div className="min-w-0">
             <div className="text-sm font-bold text-slate-100">
-              {panel.type === 'PVLOOP' ? 'PV loop pane' : panel.type === 'WAVEFORM' ? 'Waveform pane' : panel.type === 'METRICS' ? 'Metrics pane' : 'Guyton pane'}
+              {t(`workbench.panelGrid.paneType.${panel.type === 'PVLOOP' ? 'pvLoop' : panel.type === 'WAVEFORM' ? 'waveform' : panel.type === 'METRICS' ? 'metrics' : 'guyton'}`)}
             </div>
           </div>
           <div className="flex flex-none items-center gap-2 text-[10px] font-bold text-slate-500">
-            <span>{visibleInstanceCount} visible</span>
-            <span>{selectedItemCount} selected</span>
+            <span>{t('workbench.panelGrid.visibleCount', { count: visibleInstanceCount })}</span>
+            <span>{t('workbench.panelGrid.selectedCount', { count: selectedItemCount })}</span>
           </div>
         </div>
         {GRAPH_SETTINGS_SECTIONS.map((section) => {
@@ -917,7 +927,7 @@ function GraphPanelSettingsBoard({
             >
               <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-slate-800/70 bg-[#0B1120]/95 px-1 py-1 backdrop-blur">
                 <Icon className="h-3.5 w-3.5 text-slate-500" />
-                <h3 className="text-sm font-bold text-slate-100">{section.label}</h3>
+                <h3 className="text-sm font-bold text-slate-100">{settingsSectionLabel(t, 'graph', section.id)}</h3>
               </div>
               <div className="min-h-0 pt-2">
                 {renderSectionContent(section.id, 'wide')}
@@ -943,6 +953,7 @@ function ControlPanelSettingsBoard({
   updatePanelControllerItems,
   controlGroups,
 }: PanelSettingsControlsProps) {
+  const { t } = useTranslation();
   const [activeSection, setActiveSection] = useState<ControlSettingsSectionId>('targets');
   const sectionRefs = useRef<Partial<Record<ControlSettingsSectionId, HTMLElement | null>>>({});
   const settingsScrollRef = useRef<HTMLDivElement | null>(null);
@@ -1039,7 +1050,7 @@ function ControlPanelSettingsBoard({
   const renderItems = () => (
     <div className="divide-y divide-slate-800/70 rounded bg-slate-950/20">
       {groupOptions.map((group) => {
-        const meta = controlGroupMetadata(group);
+        const meta = controlGroupMetadata(t, group);
         const selectedCount = configuredInstances.filter((inst) => configHasControlGroup(panel.config[inst.id], group)).length;
         const isSelected = configuredCount > 0 && selectedCount === configuredCount;
         const isPartial = selectedCount > 0 && !isSelected;
@@ -1056,7 +1067,16 @@ function ControlPanelSettingsBoard({
                   : 'text-slate-400 hover:text-slate-200'
             }`}
             aria-pressed={isSelected}
-            aria-label={`${meta.label}: ${isSelected ? 'selected for all targets' : isPartial ? 'selected for some targets' : 'not selected'}; ${selectedCount} of ${configuredCount || instances.length} targets`}
+            aria-label={t('workbench.panelGrid.controlGroups.aria', {
+              label: meta.label,
+              status: isSelected
+                ? t('workbench.panelGrid.controlGroups.selectedAll')
+                : isPartial
+                  ? t('workbench.panelGrid.controlGroups.selectedSome')
+                  : t('workbench.panelGrid.controlGroups.notSelected'),
+              selected: selectedCount,
+              total: configuredCount || instances.length,
+            })}
           >
             <span className={`h-3.5 w-3.5 rounded border ${isSelected ? 'border-sky-300 bg-sky-400' : isPartial ? 'border-amber-300 bg-amber-400/60' : 'border-slate-600 bg-slate-950'}`} />
             <span className="min-w-0">
@@ -1072,13 +1092,13 @@ function ControlPanelSettingsBoard({
   const renderDisplay = () => (
     <div className="divide-y divide-slate-800/70 rounded bg-slate-950/20">
       <label className="grid gap-2 px-2 py-2 sm:grid-cols-[8rem_minmax(0,1fr)] sm:items-center">
-        <span className="text-[10px] font-bold uppercase text-slate-500">Pane title</span>
+        <span className="text-[10px] font-bold uppercase text-slate-500">{t('workbench.panelGrid.paneTitle')}</span>
         <input
           type="text"
           value={panel.title}
           onChange={(e) => updatePanelTitle(panel.id, e.target.value)}
           className="h-9 w-full rounded border border-slate-700/70 bg-slate-950/70 px-2 text-sm font-bold text-slate-100 outline-none focus:border-slate-500"
-          placeholder="Controls"
+          placeholder={t('workbench.panels.controls')}
         />
       </label>
     </div>
@@ -1104,7 +1124,7 @@ function ControlPanelSettingsBoard({
     <div className="@container h-full min-h-0 w-full text-slate-200">
       <div className="flex h-full min-h-0 w-full flex-col @min-[760px]:grid @min-[760px]:grid-cols-[minmax(10rem,12rem)_minmax(0,1fr)] @min-[760px]:gap-4">
       <div className="hidden min-h-0 @min-[760px]:block">
-        <aside className="h-full min-h-0 overflow-y-auto py-1 pr-1 custom-scrollbar" aria-label="Controller settings categories">
+        <aside className="h-full min-h-0 overflow-y-auto py-1 pr-1 custom-scrollbar" aria-label={t('workbench.panelGrid.controllerSettingsCategories')}>
           <div className="space-y-1">
             {CONTROL_SETTINGS_SECTIONS.map((section) => {
               return (
@@ -1114,7 +1134,7 @@ function ControlPanelSettingsBoard({
                   onClick={() => jumpToSection(section.id)}
                   className={`block w-full border-l-2 px-3 py-1.5 text-left text-xs font-semibold transition-colors ${activeSection === section.id ? 'border-slate-300 text-slate-100' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
                 >
-                  <span className="min-w-0 truncate">{section.label}</span>
+                  <span className="min-w-0 truncate">{settingsSectionLabel(t, 'control', section.id)}</span>
                 </button>
               );
             })}
@@ -1124,7 +1144,7 @@ function ControlPanelSettingsBoard({
       <div ref={settingsScrollRef} onScroll={updateActiveSectionFromScroll} className="min-h-0 w-full flex-1 overflow-y-auto pr-1 custom-scrollbar">
         <div className="mb-3 flex flex-none items-center justify-between gap-3 px-1 pb-1">
           <div className="min-w-0">
-            <div className="text-sm font-bold text-slate-100">Controller pane</div>
+            <div className="text-sm font-bold text-slate-100">{t('workbench.panelGrid.paneType.controller')}</div>
           </div>
         </div>
         {CONTROL_SETTINGS_SECTIONS.map((section) => {
@@ -1137,7 +1157,7 @@ function ControlPanelSettingsBoard({
             >
               <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-slate-800/70 bg-[#0B1120]/95 px-1 py-1 backdrop-blur">
                 <Icon className="h-3.5 w-3.5 text-slate-500" />
-                <h3 className="text-sm font-bold text-slate-100">{section.label}</h3>
+                <h3 className="text-sm font-bold text-slate-100">{settingsSectionLabel(t, 'control', section.id)}</h3>
               </div>
               <div className="min-h-0 pt-2">
                 {renderSectionContent(section.id)}
@@ -1152,13 +1172,14 @@ function ControlPanelSettingsBoard({
 }
 
 function PanelSettingsButton({ panel, toggleSettings }: PanelSettingsButtonProps) {
+  const { t } = useTranslation();
   return (
     <button
       type="button"
       onClick={(e) => { e.stopPropagation(); toggleSettings(panel.id); }}
       className={`relative z-50 flex h-7 w-7 items-center justify-center rounded border border-slate-800/70 transition-colors ${panel.isSettingsOpen ? 'bg-slate-700 text-slate-200' : 'bg-slate-950/75 text-slate-500 hover:bg-slate-800 hover:text-slate-300'}`}
-      title="Pane settings"
-      aria-label={`${panel.title} pane settings`}
+      title={t('workbench.panelGrid.paneSettings')}
+      aria-label={t('workbench.panelGrid.paneSettingsAria', { title: panel.title })}
       aria-pressed={panel.isSettingsOpen}
     >
       <Settings className="h-3.5 w-3.5" />
@@ -1185,6 +1206,7 @@ function paneSettingsFocusRestoreTarget(panel: PanelDef, preferred: HTMLElement 
 }
 
 function PaneSettingsModal({ toggleSettings, ...settingsProps }: PaneSettingsModalProps) {
+  const { t } = useTranslation();
   const { panel } = settingsProps;
   const usesBoardSettings = isBoardSettingsPanel(panel.type);
   const titleId = `pane-settings-title-${panel.id}`;
@@ -1259,7 +1281,7 @@ function PaneSettingsModal({ toggleSettings, ...settingsProps }: PaneSettingsMod
       >
         <div className="flex h-14 flex-none items-center justify-between gap-3 border-b border-slate-800 px-4">
           <div className="min-w-0">
-            <h2 id={titleId} className="truncate text-sm font-bold text-slate-100">Pane settings</h2>
+            <h2 id={titleId} className="truncate text-sm font-bold text-slate-100">{t('workbench.panelGrid.paneSettings')}</h2>
             <div className="truncate text-[11px] font-semibold text-slate-500">
               {panel.title} · {settingsPaneTypeLabel(panel)}
             </div>
@@ -1270,14 +1292,14 @@ function PaneSettingsModal({ toggleSettings, ...settingsProps }: PaneSettingsMod
               onClick={close}
               className="inline-flex h-8 items-center justify-center rounded bg-blue-600 px-3 text-xs font-bold text-white transition-colors hover:bg-blue-500"
             >
-              Done
+              {t('common.done')}
             </button>
             <button
               type="button"
               onClick={close}
               className="inline-flex h-8 w-8 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-200"
-              aria-label="Close pane settings"
-              title="Close settings"
+              aria-label={t('workbench.panelGrid.closePaneSettings')}
+              title={t('workbench.panelGrid.closeSettings')}
             >
               <X className="h-4 w-4" />
             </button>
@@ -1286,7 +1308,7 @@ function PaneSettingsModal({ toggleSettings, ...settingsProps }: PaneSettingsMod
         <div className={`min-h-0 flex-1 ${usesBoardSettings ? 'overflow-hidden p-3' : 'overflow-y-auto p-4 custom-scrollbar'}`}>
           {!usesBoardSettings && (
             <div className="mb-3 border-b border-slate-700 pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Customizations
+              {t('workbench.panelGrid.customizations')}
             </div>
           )}
           <PanelSettingsControls {...settingsProps} />
@@ -1393,6 +1415,7 @@ function PanelCard({
   controlGroups,
   canConfigure = isEditor,
 }: PanelCardProps) {
+  const { t } = useTranslation();
   const bodyClassName = chromeMode === 'mobile' || chromeMode === 'dockview'
     ? 'relative h-full min-h-16 w-full'
     : `flex-1 min-h-0 w-full relative z-10 ${['WAVEFORM', 'GUYTON_RIGHT', 'GUYTON_LEFT'].includes(panel.type) ? '-mt-6' : ''} ${panel.type === 'PVLOOP' ? 'mb-4' : ''}`;
@@ -1409,14 +1432,14 @@ function PanelCard({
           onClick={() => setNoteModes(prev => ({ ...prev, [panel.id]: 'read' }))}
           className={`rounded px-2 py-0.5 text-[10px] font-bold transition-colors ${noteMode === 'read' ? 'bg-slate-700 text-slate-100' : 'text-slate-500 hover:text-slate-300'}`}
         >
-          Preview
+          {t('workbench.panelGrid.preview')}
         </button>
         <button
           type="button"
           onClick={() => setNoteModes(prev => ({ ...prev, [panel.id]: 'edit' }))}
           className={`rounded px-2 py-0.5 text-[10px] font-bold transition-colors ${noteMode === 'edit' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
         >
-          Edit
+          {t('common.edit')}
         </button>
       </div>
     </div>
@@ -1474,13 +1497,13 @@ function PanelCard({
               onClick={() => setNoteModes(prev => ({ ...prev, [panel.id]: 'read' }))}
               className={`px-2 py-0.5 text-[10px] font-bold rounded transition-colors ${noteMode === 'read' ? 'bg-slate-700 text-slate-100' : 'text-slate-500 hover:text-slate-300'}`}
             >
-              Preview
+              {t('workbench.panelGrid.preview')}
             </button>
             <button
               onClick={() => setNoteModes(prev => ({ ...prev, [panel.id]: 'edit' }))}
               className={`px-2 py-0.5 text-[10px] font-bold rounded transition-colors ${noteMode === 'edit' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
             >
-              Edit
+              {t('common.edit')}
             </button>
           </div>
         )}
@@ -1490,7 +1513,7 @@ function PanelCard({
             toggleSettings={toggleSettings}
           />
           {isEditor && (
-            <button onClick={() => removePanel(panel.id)} className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-red-400" title="Close Panel" aria-label={`Close ${panel.title}`}>
+            <button onClick={() => removePanel(panel.id)} className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-red-400" title={t('workbench.panelGrid.closePanel')} aria-label={t('workbench.panelGrid.closePanelAria', { title: panel.title })}>
               <X className="h-3.5 w-3.5" />
             </button>
           )}
@@ -1574,8 +1597,9 @@ function ZoneShell({
   className?: string;
   style?: React.CSSProperties;
 }) {
+  const { t } = useTranslation();
   return (
-    <section className={`flex min-h-0 flex-col overflow-hidden bg-[#0B1120] ${getZoneSurfaceClassForLayout(zone, hasCaseRail, controlsSide)} ${className}`} style={style} aria-label={`${ZONE_LABELS[zone]} zone`}>
+    <section className={`flex min-h-0 flex-col overflow-hidden bg-[#0B1120] ${getZoneSurfaceClassForLayout(zone, hasCaseRail, controlsSide)} ${className}`} style={style} aria-label={t('workbench.panelGrid.zoneAria', { zone: t(`workbench.zones.${zone}`) })}>
       <WorkbenchDockview
         panels={panels}
         zone={zone}
@@ -1651,6 +1675,7 @@ export function PanelGrid({
   metrics,
   controlGroups,
 }: PanelGridProps) {
+  const { t } = useTranslation();
   const presenterPanels = useMemo(() => flowPack(panels), [panels]);
   const panelsByZone = useMemo<Record<WorkbenchZoneId, PanelDef[]>>(() => ({
     caseRail: presenterPanels.filter((panel) => zoneOf(panel) === 'caseRail'),
@@ -1661,12 +1686,12 @@ export function PanelGrid({
   const hasCaseRail = panelsByZone.caseRail.length > 0;
   const shareBanner = authoringMode && publishedLesson ? (
     <div className="mb-2 flex flex-col gap-2 rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100 sm:flex-row sm:items-center">
-      <span className="font-bold">Share URL</span>
+      <span className="font-bold">{t('workbench.panelGrid.shareUrl')}</span>
       <a href={publishedLesson.url} className="min-w-0 flex-1 truncate transition-colors hover:text-emerald-50">
         {publishedLesson.url}
       </a>
       <button onClick={copyShareUrl} className="self-start rounded bg-emerald-500/15 px-2 py-1 font-bold text-emerald-100 transition-colors hover:bg-emerald-500/25 sm:self-auto">
-        Copy
+        {t('common.copy')}
       </button>
     </div>
   ) : null;

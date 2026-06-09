@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { RotateCcw } from "lucide-react";
 
 export interface SliderProps {
@@ -18,6 +19,7 @@ export const hasChanged = (value: number, baseline: number | undefined, step: nu
   baseline !== undefined && Math.abs(value - baseline) > Math.max(step/2, 1e-6);
 
 export const Slider = ({ label, value, min, max, step, onChange, onCommit, unit, baseline, onReset }: SliderProps) => {
+  const { t } = useTranslation();
   const [draftValue, setDraftValue] = useState(value);
   const editingRef = useRef(false);
   const lastCommittedRef = useRef(value);
@@ -69,7 +71,7 @@ export const Slider = ({ label, value, min, max, step, onChange, onCommit, unit,
       <span className={`min-w-0 truncate text-[11px] font-medium ${isChanged ? 'text-blue-100' : 'text-slate-300'}`}>{label}</span>
       <span
         className={`rounded border px-1.5 py-0.5 text-[10px] font-mono leading-none ${isChanged ? 'border-blue-400/40 bg-blue-400/15 text-blue-100' : 'border-slate-700/60 bg-slate-950/60 text-slate-200'}`}
-        title={isChanged ? `Baseline ${baseline?.toFixed(decimals)}${unit ? ` ${unit}` : ''}` : undefined}
+        title={isChanged ? t("workbench.controls.baselineValue", { value: baseline?.toFixed(decimals), unit: unit ? ` ${unit}` : "" }) : undefined}
       >
         {valueText}
         {unit && <span className="ml-0.5 text-[9px] text-slate-400">{unit}</span>}
@@ -79,8 +81,8 @@ export const Slider = ({ label, value, min, max, step, onChange, onCommit, unit,
         onClick={onReset}
         disabled={!isChanged || !onReset}
         className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${isChanged && onReset ? 'border-blue-400/30 bg-blue-400/10 text-blue-100 hover:bg-blue-400/20' : 'pointer-events-none border-transparent text-transparent'}`}
-        title={isChanged && baseline !== undefined ? `Reset to ${baseline.toFixed(decimals)}${unit ? ` ${unit}` : ''}` : undefined}
-        aria-label={`Reset ${label}`}
+        title={isChanged && baseline !== undefined ? t("workbench.controls.resetTo", { value: baseline.toFixed(decimals), unit: unit ? ` ${unit}` : "" }) : undefined}
+        aria-label={t("workbench.controls.resetAria", { label })}
       >
         <RotateCcw className="h-3 w-3" />
       </button>

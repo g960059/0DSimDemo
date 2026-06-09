@@ -23,6 +23,11 @@ function normalizedLabel(value: unknown, fallback: string): string {
   return (value == null ? "" : String(value).trim()) || fallback;
 }
 
+function normalizedLabelKey(value: unknown): string | undefined {
+  const key = value == null ? "" : String(value).trim();
+  return key || undefined;
+}
+
 export function buttonOptionsFromRange(item: ControllerItem): { label: string; value: number }[] {
   const range = KNOB_RANGES[item.paramKey as KnobKey];
   const min = finiteOr(item.min, range?.[0] ?? 0);
@@ -75,6 +80,7 @@ export function normalizeControllerItems(items: ControllerItem[]): { items: Cont
       paramKey: item.paramKey,
       kind,
       label,
+      ...(normalizedLabelKey(item.labelKey) ? { labelKey: normalizedLabelKey(item.labelKey) } : {}),
       min,
       max,
       step,
@@ -89,7 +95,12 @@ export function normalizeControllerItems(items: ControllerItem[]): { items: Cont
         }
         const value = roundToStep(clamp(option.value, rangeMin, rangeMax), step);
         if (!optionsByValue.has(value)) {
-          optionsByValue.set(value, { label: normalizedLabel(option.label, String(value)), value });
+          const labelKey = normalizedLabelKey(option.labelKey);
+          optionsByValue.set(value, {
+            label: normalizedLabel(option.label, String(value)),
+            value,
+            ...(labelKey ? { labelKey } : {}),
+          });
         }
       }
       const options = [...optionsByValue.values()];

@@ -1,24 +1,27 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AlertTriangle, X } from 'lucide-react';
 import type { SimulationHealth, SimulationHealthStatus } from '../engine/protocol';
 
 // Low-noise health UX (ROADMAP S1): nothing is shown while healthy.
 // warning = amber, failed/unstable = red. ok renders nothing.
 
-export const STATUS_META: Record<SimulationHealthStatus, { color: string; label: string } | null> = {
+export const STATUS_META: Record<SimulationHealthStatus, { color: string } | null> = {
   ok: null,
-  warning: { color: '#fbbf24', label: 'Warning' },
-  failed: { color: '#ef4444', label: 'Unstable' },
+  warning: { color: '#fbbf24' },
+  failed: { color: '#ef4444' },
 };
 
 /** Tiny per-instance dot. Renders nothing when ok (no noise in the steady state). */
 export const HealthDot: React.FC<{ status: SimulationHealthStatus; title?: string }> = ({ status, title }) => {
+  const { t } = useTranslation();
   const meta = STATUS_META[status];
   if (!meta) return null;
+  const label = status === 'failed' ? t('health.unstable') : t('health.warning');
   return (
     <span
-      title={title ?? meta.label}
-      aria-label={meta.label}
+      title={title ?? label}
+      aria-label={label}
       className={`inline-block w-2 h-2 rounded-full ${status === 'failed' ? 'animate-pulse' : ''}`}
       style={{ backgroundColor: meta.color, boxShadow: `0 0 6px ${meta.color}` }}
     />
@@ -37,6 +40,7 @@ export const HealthBadge: React.FC<{
   items: HealthBadgeItem[];
   getLiveHealth?: (id: string) => SimulationHealth | undefined;
 }> = ({ items, getLiveHealth }) => {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const problems = items.filter((it) => it.health.status !== 'ok');
   useEffect(() => {
@@ -60,12 +64,12 @@ export const HealthBadge: React.FC<{
         onClick={() => setOpen((v) => !v)}
         className="px-2 sm:px-3 py-1.5 rounded text-[10px] sm:text-xs font-bold flex items-center gap-1.5 transition-colors"
         style={{ color: meta.color, backgroundColor: `${meta.color}1a` }}
-        title="Simulation health"
+        title={t('health.simulationHealth')}
         aria-haspopup="dialog"
         aria-expanded={open}
       >
         <AlertTriangle className="w-3.5 h-3.5" />
-        <span className="hidden sm:inline">{meta.label}</span>
+        <span className="hidden sm:inline">{anyFailed ? t('health.unstable') : t('health.warning')}</span>
         {problems.length > 1 && <span>({problems.length})</span>}
       </button>
 
@@ -74,12 +78,12 @@ export const HealthBadge: React.FC<{
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden="true" />
           <div
             role="dialog"
-            aria-label="Simulation health"
+            aria-label={t('health.simulationHealth')}
             className="absolute right-0 mt-2 w-72 max-h-80 overflow-y-auto bg-slate-900 border border-slate-700 rounded-lg shadow-2xl z-50 p-3 text-left custom-scrollbar"
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-slate-300">Simulation health</span>
-              <button onClick={() => setOpen(false)} aria-label="Close" className="text-slate-500 hover:text-slate-300">
+              <span className="text-xs font-bold text-slate-300">{t('health.simulationHealth')}</span>
+              <button onClick={() => setOpen(false)} aria-label={t('common.close')} className="text-slate-500 hover:text-slate-300">
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -91,11 +95,11 @@ export const HealthBadge: React.FC<{
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
                     <span className="text-xs font-semibold text-slate-200">{p.name}</span>
-                    <span className="text-[10px] font-bold uppercase" style={{ color: pm!.color }}>{pm!.label}</span>
+                    <span className="text-[10px] font-bold uppercase" style={{ color: pm!.color }}>{live.status === 'failed' ? t('health.unstable') : t('health.warning')}</span>
                   </div>
                   <ul className="mt-1 pl-4 list-disc text-[11px] text-slate-400 space-y-0.5">
                     {live.messages.length === 0 ? (
-                      <li>No detail.</li>
+                      <li>{t('health.noDetail')}</li>
                     ) : (
                       live.messages.map((m, i) => <li key={i}>{m}</li>)
                     )}
@@ -113,6 +117,7 @@ export const HealthBadge: React.FC<{
 export type HealthToast = { id: string; name: string; status: SimulationHealthStatus; message: string };
 
 const Toast: React.FC<{ toast: HealthToast; onDismiss: (id: string) => void }> = ({ toast, onDismiss }) => {
+  const { t } = useTranslation();
   // Keep onDismiss in a ref so the auto-dismiss timer is armed once per toast
   // and is NOT reset by parent re-renders (which recreate onDismiss).
   const dismissRef = useRef(onDismiss);
@@ -129,10 +134,10 @@ const Toast: React.FC<{ toast: HealthToast; onDismiss: (id: string) => void }> =
     >
       <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" style={{ color: meta.color }} />
       <div className="flex-1 min-w-0">
-        <div className="text-xs font-bold" style={{ color: meta.color }}>{toast.name}: {meta.label}</div>
+        <div className="text-xs font-bold" style={{ color: meta.color }}>{toast.name}: {toast.status === 'failed' ? t('health.unstable') : t('health.warning')}</div>
         {toast.message && <div className="text-[11px] text-slate-400 mt-0.5 break-words">{toast.message}</div>}
       </div>
-      <button onClick={() => onDismiss(toast.id)} aria-label="Dismiss" className="text-slate-500 hover:text-slate-300 shrink-0">
+      <button onClick={() => onDismiss(toast.id)} aria-label={t('common.dismiss')} className="text-slate-500 hover:text-slate-300 shrink-0">
         <X className="w-3.5 h-3.5" />
       </button>
     </div>
