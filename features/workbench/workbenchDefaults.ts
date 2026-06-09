@@ -17,7 +17,63 @@ import type {
 import type { WorkbenchLayoutState, WorkbenchControlsSide } from "@/components/workbench/PanelGrid";
 import type { WorkbenchHeaderMode, WorkbenchThemeId } from "@/components/workbench/WorkbenchSidePanel";
 
-export const INSTANCE_COLORS = ['#a855f7', '#f472b6', '#22c55e', '#38bdf8', '#fbbf24'];
+// Ordered so that ADJACENT palette entries are maximally distinct in hue — a
+// duplicate (which takes the next free slot) lands on a clearly different color
+// instead of purple->pink (which read as near-identical on a dark canvas).
+export const INSTANCE_COLORS = ['#a855f7', '#22c55e', '#fbbf24', '#38bdf8', '#f472b6'];
+//                               purple     green      amber      cyan       pink
+
+export const UNTITLED_CASE_TITLE = 'Untitled case';
+
+function hexToRgb(hex: string): [number, number, number] {
+  const raw = hex.replace('#', '');
+  const full = raw.length === 3 ? raw.split('').map((c) => c + c).join('') : raw;
+  const int = Number.parseInt(full, 16);
+  return [(int >> 16) & 255, (int >> 8) & 255, int & 255];
+}
+
+// "Redmean" approximation of perceptual color distance — close enough to rank
+// palette colors without pulling in a color-space dependency.
+function perceptualColorDistance(a: string, b: string): number {
+  const [r1, g1, b1] = hexToRgb(a);
+  const [r2, g2, b2] = hexToRgb(b);
+  const rbar = (r1 + r2) / 2;
+  const dr = r1 - r2, dg = g1 - g2, db = b1 - b2;
+  return Math.sqrt((2 + rbar / 256) * dr * dr + 4 * dg * dg + (2 + (255 - rbar) / 256) * db * db);
+}
+
+/**
+ * Pick an instance color that stays visually distinct from those already in use.
+ * Prefers the first UNUSED palette color; once the palette is exhausted it returns
+ * the candidate whose nearest OTHER in-use color is farthest away (max-min distance),
+ * so even >5 scenarios stay as separable as the palette allows. It inspects the SET
+ * of colors currently in use (not the instance count), so it is deletion-order
+ * independent. `avoidColor` (e.g. the source scenario's color on a duplicate) is
+ * dropped from the candidate set so a duplicate never echoes its source's color.
+ */
+export function pickDistinctInstanceColor(usedColors: Iterable<string>, avoidColor?: string): string {
+  const avoid = avoidColor?.toLowerCase();
+  const filtered = INSTANCE_COLORS.filter((c) => c.toLowerCase() !== avoid);
+  const palette = filtered.length > 0 ? filtered : INSTANCE_COLORS;
+  const used = new Set(Array.from(usedColors, (c) => c.toLowerCase()));
+  const unused = palette.find((c) => !used.has(c.toLowerCase()));
+  if (unused) return unused;
+  // Every candidate is already in use — rank by distance to the nearest OTHER
+  // in-use color. Self-matches are skipped so a color does not score 0 against
+  // itself (which would otherwise collapse every candidate to the first entry).
+  let best = palette[0];
+  let bestScore = -Infinity;
+  for (const cand of palette) {
+    const candLower = cand.toLowerCase();
+    let nearest = Infinity;
+    for (const u of used) {
+      if (u === candLower) continue;
+      nearest = Math.min(nearest, perceptualColorDistance(cand, u));
+    }
+    if (nearest > bestScore) { bestScore = nearest; best = cand; }
+  }
+  return best;
+}
 
 export const ALL_CHAMBERS: ChamberId[] = ['LV', 'LA', 'RV', 'RA'];
 export const ALL_SIGNALS: SignalType[] = [

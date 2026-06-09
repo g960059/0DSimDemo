@@ -81,7 +81,7 @@ export function useWorkbenchPersistence({
   const { resetLessonState } = lesson;
 
   const defaultSceneTitle = useCallback(() => (
-    scene.sceneMeta.title.trim() || (scene.instances[0] ? `${scene.instances[0].name} scene` : "Workbench scene")
+    scene.sceneMeta.title.trim() || (scene.instances[0] ? `${scene.instances[0].name} case` : "Workbench case")
   ), [scene.instances, scene.sceneMeta.title]);
 
   const buildCurrentDoc: BuildCurrentDoc = useCallback((overrides = {}) => {
@@ -125,7 +125,7 @@ export function useWorkbenchPersistence({
   buildCurrentDocRef.current = buildCurrentDoc;
 
   const replaceWorkbenchDoc = useCallback((doc: CaseDocument, opts: { confirm: boolean; trustedOfficial?: boolean }) => {
-    if (opts.confirm && !window.confirm("Load this case? It will replace the current scene; unsaved changes are lost.")) return false;
+    if (opts.confirm && !window.confirm("Load this case? It will replace the current case; unsaved changes are lost.")) return false;
 
     try {
       const loaded = caseDocumentToSimInstances(doc);
@@ -172,7 +172,7 @@ export function useWorkbenchPersistence({
       if (cancelled) return;
       if (!loaded) {
         lastLoadedCaseIdRef.current = routeLoadCaseId;
-        pushWarningToast("Case route", `Unknown case "${routeLoadCaseId}" — loaded the default scene`);
+        pushWarningToast("Case route", `Unknown case "${routeLoadCaseId}" — loaded the default case`);
         return;
       }
 
