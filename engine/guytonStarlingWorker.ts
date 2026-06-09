@@ -2,7 +2,10 @@ import type {
   GuytonStarlingWorkerMessage,
   StarlingSweepRequest,
 } from "@/engine/guytonStarling";
-import { postGuytonStarlingWorkerMessages } from "@/engine/guytonStarlingWorkerCore";
+import {
+  postGuytonStarlingWorkerMessagesAsync,
+  type GuytonChainWorkerLike,
+} from "@/engine/guytonStarlingWorkerCore";
 
 const ctx = self as unknown as {
   onmessage: ((event: MessageEvent<StarlingSweepRequest>) => void) | null;
@@ -10,7 +13,15 @@ const ctx = self as unknown as {
 };
 
 ctx.onmessage = (event: MessageEvent<StarlingSweepRequest>) => {
-  postGuytonStarlingWorkerMessages(event.data, (message) => ctx.postMessage(message));
+  void postGuytonStarlingWorkerMessagesAsync(
+    event.data,
+    (message) => ctx.postMessage(message),
+    { createChainWorker },
+  );
 };
+
+function createChainWorker(): GuytonChainWorkerLike {
+  return new Worker(new URL("./guytonStarlingChainWorker.ts", import.meta.url), { type: "module" });
+}
 
 export {};
