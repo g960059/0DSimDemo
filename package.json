@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "verify:baseline": "vite-node tools/verifyBaseline.ts",
     "verify:cases": "vite-node tools/verifyCases.ts",
+    "verify:guyton-starling": "vite-node tools/verifyGuytonStarling.ts",
     "fit:left-filling": "vite-node tools/fitLeftFilling.ts",
     "fit:right-pvf-headroom": "vite-node tools/fitRightPvfHeadroom.ts"
   },
