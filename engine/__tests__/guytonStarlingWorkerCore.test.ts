@@ -318,8 +318,8 @@ function expectSweepClose(actual: StarlingSweepWorkerMessage, expected: Starling
     for (const [delta, actualPoint] of actualByDelta) {
       const expectedPoint = expectedByDelta.get(delta);
       expect(expectedPoint).toBeDefined();
-      expect(Math.abs(actualPoint.x - (expectedPoint?.x ?? NaN))).toBeLessThan(0.15);
-      expect(Math.abs(actualPoint.y - (expectedPoint?.y ?? NaN))).toBeLessThan(0.08);
+      expect(Math.abs(actualPoint.x - (expectedPoint?.x ?? NaN))).toBeLessThan(1e-9);
+      expect(Math.abs(actualPoint.y - (expectedPoint?.y ?? NaN))).toBeLessThan(1e-9);
     }
   }
 }

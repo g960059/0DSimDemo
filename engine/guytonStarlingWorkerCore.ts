@@ -72,7 +72,7 @@ const WORKER_RUN_OPTIONS = {
   recordHistory: true,
   historyLimit: WORKER_HISTORY_LIMIT,
 };
-const DEFAULT_CHAIN_TIMEOUT_MS = 30_000;
+const DEFAULT_CHAIN_TIMEOUT_MS = 10_000;
 
 export function buildGuytonStarlingWorkerMessages(
   req: StarlingSweepRequest,
