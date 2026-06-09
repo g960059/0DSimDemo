@@ -87,6 +87,18 @@
       "CONTROLS": "Controls",
       "METRICS": "Metrics"
     },
+    "guyton": {
+      "calibration": {
+        "axis": "Axis",
+        "sweep": "Sweep",
+        "anchors": "Anchors",
+        "measuredRange": "Measured range",
+        "zeroFlow": "Low-flow end",
+        "notAvailable": "n/a",
+        "zeroFlowNotConstrained": "Calibrated from TBV sweep anchors. Zero-flow/V0 is not constrained.",
+        "detailsAria": "Starling calibration details"
+      }
+    },
     "controls": {
       "changed": "changed",
       "reset": "Reset",

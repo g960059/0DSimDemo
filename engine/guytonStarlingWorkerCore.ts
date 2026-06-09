@@ -6,6 +6,7 @@ import {
   type GuytonPaneData,
   type GuytonStarlingWorkerMessage,
   type StarlingCalibrationSummary,
+  type StarlingSweepInterpretation,
   type StarlingSweepMode,
   type StarlingSweepCurve,
   type StarlingSweepProgressMessage,
@@ -412,7 +413,11 @@ function withCalibrationSummary<T extends StarlingSweepCurve | undefined>(
   calibration: StarlingCalibrationSummary,
 ): T {
   if (!curve) return curve;
-  return { ...curve, calibration } as T;
+  return {
+    ...curve,
+    calibration,
+    interpretation: buildStarlingSweepInterpretation(curve.side, curve.points, calibration, curve.fit),
+  } as T;
 }
 
 export async function buildParallelFull7StarlingSweepResponse(
@@ -696,24 +701,61 @@ function buildSweepCurvesFromRuns(
   right.sort((a, b) => a.x - b.x);
   left.sort((a, b) => a.x - b.x);
   const fitMode = calibration?.mode === "calibrated" ? "calibrated" : "measured";
+  const rightFit = buildStarlingSweepFit("right", right, { includeExtrapolation, mode: fitMode });
+  const leftFit = buildStarlingSweepFit("left", left, { includeExtrapolation, mode: fitMode });
 
   return {
     right: {
       side: "right",
       points: right,
-      fit: buildStarlingSweepFit("right", right, { includeExtrapolation, mode: fitMode }),
+      fit: rightFit,
       calibration,
+      interpretation: buildStarlingSweepInterpretation("right", right, calibration, rightFit),
       warnings,
     },
     left: {
       side: "left",
       points: left,
-      fit: buildStarlingSweepFit("left", left, { includeExtrapolation, mode: fitMode }),
+      fit: leftFit,
       calibration,
+      interpretation: buildStarlingSweepInterpretation("left", left, calibration, leftFit),
       warnings,
     },
     warnings,
   };
+}
+
+function buildStarlingSweepInterpretation(
+  side: "right" | "left",
+  points: GuytonCurvePoint[],
+  calibration: StarlingCalibrationSummary | undefined,
+  fit: ReturnType<typeof buildStarlingSweepFit>,
+): StarlingSweepInterpretation | undefined {
+  if (!calibration) return undefined;
+  const measured = points
+    .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
+    .map((point) => point.x);
+  const measuredRangeMmHg = measured.length > 0
+    ? { min: Math.min(...measured), max: Math.max(...measured) }
+    : null;
+  return {
+    xAxis: side === "right" ? "RAP" : "LAP",
+    yAxis: "CO",
+    sweepVariable: "TBV delta",
+    fitBasis: fitBasisForCalibration(calibration.mode),
+    anchorDeltasMl: [...calibration.anchorDeltasMl],
+    measuredRangeMmHg,
+    extrapolation: fit?.extrapolatedLeft || fit?.extrapolatedRight ? "final-only dashed" : "none",
+    zeroFlowConstrained: false,
+    zeroFlowConstraintReason: "Starling x-axis is cycle-mean RAP/LAP from a TBV sweep, not the ESPVR volume-axis V0.",
+  };
+}
+
+function fitBasisForCalibration(mode: StarlingCalibrationSummary["mode"]): StarlingSweepInterpretation["fitBasis"] {
+  if (mode === "calibrated") return "calibrated anchors";
+  if (mode === "full7-fallback") return "full7 fallback";
+  if (mode === "custom") return "custom anchors";
+  return "measured full7";
 }
 
 function classifyStarlingSweepRunForDisplay(run: GuytonWorkerSettledRun): GuytonCurvePoint["quality"] {

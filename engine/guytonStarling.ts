@@ -101,6 +101,7 @@ export type StarlingSweepCurve = {
   points: GuytonCurvePoint[];
   fit?: StarlingSweepFit;
   calibration?: StarlingCalibrationSummary;
+  interpretation?: StarlingSweepInterpretation;
   warnings: string[];
 };
 
@@ -120,6 +121,18 @@ export type StarlingCalibrationSummary = {
   anchorDeltasMl: number[];
   fallbackReasons: string[];
   holdoutMaxFlowErrorLMin?: number;
+};
+
+export type StarlingSweepInterpretation = {
+  xAxis: "RAP" | "LAP";
+  yAxis: "CO";
+  sweepVariable: "TBV delta";
+  fitBasis: "calibrated anchors" | "measured full7" | "custom anchors" | "full7 fallback";
+  anchorDeltasMl: number[];
+  measuredRangeMmHg: { min: number; max: number } | null;
+  extrapolation: "final-only dashed" | "none";
+  zeroFlowConstrained: false;
+  zeroFlowConstraintReason: string;
 };
 
 export type StarlingSweepRequest = {

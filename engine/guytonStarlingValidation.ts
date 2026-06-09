@@ -9,6 +9,7 @@ import type {
   StarlingSweepRequest,
   StarlingSweepWorkerMessage,
 } from "@/engine/guytonStarling";
+import type { StarlingSweepInterpretation } from "@/engine/guytonStarling";
 import { classifyStarlingSweepPoint, starlingSweepSignature } from "@/engine/guytonStarling";
 import type {
   GuytonChainWorkerMessage,
@@ -44,6 +45,7 @@ export type GuytonStarlingSideValidation = {
   flowLMin: number;
   returnFlowLMin: number;
   sweep: SweepQualityReport;
+  interpretation?: StarlingSweepInterpretation;
 };
 
 export type SweepQualityReport = {
@@ -176,7 +178,7 @@ export type CalibrationComparisonReport = {
 };
 
 export type GuytonStarlingValidationReport = {
-  schemaVersion: 4;
+  schemaVersion: 5;
   generatedAt: string;
   summary: {
     scenarioCount: number;
@@ -232,7 +234,7 @@ export async function runGuytonStarlingValidation(
   const warningCount = results.reduce((sum, result) => sum + result.warnings.length, 0);
   const errorCount = results.reduce((sum, result) => sum + result.errors.length, 0);
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     generatedAt: new Date().toISOString(),
     summary: {
       scenarioCount: results.length,
@@ -458,6 +460,31 @@ export function guytonStarlingValidationReportToMarkdown(report: GuytonStarlingV
 
   lines.push(
     "",
+    "## Sweep Interpretation",
+    "",
+    "| Scenario | Side | x/y | Sweep | Basis | Anchors | Measured range | Extrapolation | zeroFlowConstrained |",
+    "|---|---|---|---|---|---|---|---|---|",
+  );
+
+  for (const result of report.scenarios) {
+    for (const side of ["right", "left"] as const) {
+      const interpretation = result[side].interpretation;
+      lines.push([
+        `| ${result.scenarioId}`,
+        side,
+        interpretation ? `${interpretation.xAxis}/${interpretation.yAxis}` : "-",
+        interpretation?.sweepVariable ?? "-",
+        interpretation?.fitBasis ?? "-",
+        interpretation ? interpretation.anchorDeltasMl.map(formatSignedMl).join(", ") : "-",
+        interpretation?.measuredRangeMmHg ? `${fmt(interpretation.measuredRangeMmHg.min)}-${fmt(interpretation.measuredRangeMmHg.max)} mmHg` : "-",
+        interpretation?.extrapolation ?? "-",
+        `${interpretation?.zeroFlowConstrained === false ? "false" : "-"} |`,
+      ].join(" | "));
+    }
+  }
+
+  lines.push(
+    "",
     "## Queue / Cancellation Timing",
     "",
     "| Burst requests | Dropped queued | Cancelled active | Posted finals | Latest signature |",
@@ -623,6 +650,7 @@ function sideValidation(
     flowLMin: pane?.operatingPoint.flow ?? NaN,
     returnFlowLMin: pane?.returnOperatingPoint.flow ?? NaN,
     sweep: sweepQuality(curve),
+    interpretation: curve?.interpretation,
   };
 }
 
@@ -946,6 +974,10 @@ function fmtNullable(value: number | null | undefined): string {
 
 function fmtOptional(value: number | null | undefined, digits = 1): string {
   return value == null || !Number.isFinite(value) ? "n/a" : value.toFixed(digits);
+}
+
+function formatSignedMl(value: number): string {
+  return `${value > 0 ? "+" : ""}${Math.round(value)} mL`;
 }
 
 function performanceNow(): number {

@@ -32,7 +32,7 @@ describe("Guyton / Starling validation report", () => {
 
   it("returns finite diagnostics and timing for the default scenario", () => {
     const result = defaultReport.scenarios[0];
-    expect(defaultReport.schemaVersion).toBe(4);
+    expect(defaultReport.schemaVersion).toBe(5);
     expect(result.scenarioId).toBe("default");
     expect(result.measurementMode).toBe("in-process-inline-chain");
     expect(Number.isFinite(result.baseline.metrics.RAPMean)).toBe(true);
@@ -73,6 +73,18 @@ describe("Guyton / Starling validation report", () => {
     expect(Number.isFinite(result.left.residualPumpLMin)).toBe(true);
     expect(Number.isFinite(result.right.residualReturnLMin)).toBe(true);
     expect(Number.isFinite(result.left.residualReturnLMin)).toBe(true);
+    expect(result.right.interpretation).toMatchObject({
+      xAxis: "RAP",
+      yAxis: "CO",
+      sweepVariable: "TBV delta",
+      zeroFlowConstrained: false,
+    });
+    expect(result.left.interpretation).toMatchObject({
+      xAxis: "LAP",
+      yAxis: "CO",
+      sweepVariable: "TBV delta",
+      zeroFlowConstrained: false,
+    });
     expect(defaultReport.summary.queueCancellation.droppedQueuedRequests).toBeGreaterThan(0);
   });
 
@@ -122,6 +134,8 @@ describe("Guyton / Starling validation report", () => {
     expect(markdown).toContain("sweepOnlyMs");
     expect(markdown).toContain("Queue / Cancellation Timing");
     expect(markdown).toContain("Dropped queued");
+    expect(markdown).toContain("Sweep Interpretation");
+    expect(markdown).toContain("zeroFlowConstrained");
     expect(markdown).toContain("Unsettled / Health Points");
     expect(markdown).toContain("worstSignal");
     expect(markdown).toContain("worstDelta");
@@ -207,7 +221,7 @@ function syntheticReport(): GuytonStarlingValidationReport {
     },
   ];
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     generatedAt: "2026-06-09T00:00:00.000Z",
     summary: {
       scenarioCount: 1,

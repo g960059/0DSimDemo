@@ -87,6 +87,18 @@
       "CONTROLS": "コントロール",
       "METRICS": "指標"
     },
+    "guyton": {
+      "calibration": {
+        "axis": "軸",
+        "sweep": "sweep",
+        "anchors": "anchors",
+        "measuredRange": "実測範囲",
+        "zeroFlow": "低流量端",
+        "notAvailable": "なし",
+        "zeroFlowNotConstrained": "TBV sweep実測点から較正。ゼロ流量/V0制約なし。",
+        "detailsAria": "Starling較正の詳細"
+      }
+    },
     "controls": {
       "changed": "変更",
       "reset": "リセット",
