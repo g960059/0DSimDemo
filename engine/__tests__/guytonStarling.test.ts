@@ -249,6 +249,51 @@ describe("Guyton / Starling pane helpers", () => {
       expect(Number.isFinite(pane.guytonDiagnostics.return.mismatchLMin)).toBe(true);
     }
   });
+
+  it("substantially reduces the default left Guyton residual with cycle-mean snapshots", () => {
+    const result = runScenario(DEFAULT_PARAMS, { targetTBV: 5600 });
+    const side = "left";
+    const instant = buildCommittedGuytonPaneData(
+      side,
+      result.metrics,
+      result.core.debugObservables(),
+      result.core.vascularReturnSnapshot(side),
+    );
+    const cycleMean = buildCommittedGuytonPaneData(
+      side,
+      result.metrics,
+      result.core.debugObservables(),
+      result.core.vascularReturnSnapshot(side, { mode: "cycle-mean", dt: 0.001, sampleHz: 60 }),
+    );
+
+    expect(Math.abs(instant.guytonDiagnostics.pump.mismatchLMin)).toBeGreaterThan(1);
+    expect(Math.abs(cycleMean.guytonDiagnostics.pump.mismatchLMin)).toBeLessThan(0.25);
+    expect(Math.abs(cycleMean.guytonDiagnostics.return.mismatchLMin)).toBeLessThan(0.25);
+  });
+
+  it("keeps cycle-mean right Guyton residuals near the instant-snapshot residuals", () => {
+    const result = runScenario(DEFAULT_PARAMS, { targetTBV: 5600 });
+    const side = "right";
+    const instant = buildCommittedGuytonPaneData(
+      side,
+      result.metrics,
+      result.core.debugObservables(),
+      result.core.vascularReturnSnapshot(side),
+    );
+    const cycleMean = buildCommittedGuytonPaneData(
+      side,
+      result.metrics,
+      result.core.debugObservables(),
+      result.core.vascularReturnSnapshot(side, { mode: "cycle-mean", dt: 0.001, sampleHz: 60 }),
+    );
+
+    expect(Number.isFinite(cycleMean.guytonDiagnostics.pump.mismatchLMin)).toBe(true);
+    expect(Number.isFinite(cycleMean.guytonDiagnostics.return.mismatchLMin)).toBe(true);
+    expect(Math.abs(cycleMean.guytonDiagnostics.pump.mismatchLMin))
+      .toBeLessThanOrEqual(Math.abs(instant.guytonDiagnostics.pump.mismatchLMin) + 0.05);
+    expect(Math.abs(cycleMean.guytonDiagnostics.return.mismatchLMin))
+      .toBeLessThanOrEqual(Math.abs(instant.guytonDiagnostics.return.mismatchLMin) + 0.05);
+  });
 });
 
 function nearest(points: { x: number; y: number }[], x: number): { x: number; y: number } {

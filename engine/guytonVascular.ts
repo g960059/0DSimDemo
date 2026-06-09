@@ -38,6 +38,9 @@ export type VascularReturnSnapshot = {
   totalUnstressedVolumeMl: number;
   totalComplianceMlPerMmHg: number;
   externalPressureWeightedMmHg: number;
+  mode?: "instant" | "cycle-mean";
+  sampleCount?: number;
+  durationSeconds?: number;
 };
 
 export type StructuralLinearGuytonResult = {

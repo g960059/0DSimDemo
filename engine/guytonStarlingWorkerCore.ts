@@ -13,6 +13,7 @@ import type {
   GuytonChainWorkerResponse,
   GuytonWorkerSettledRun,
 } from "@/engine/guytonStarlingChainProtocol";
+import type { VascularReturnSnapshot } from "@/engine/guytonVascular";
 import { clamp } from "@/engine/math";
 import { PREVIEW_SETTLE_POLICY, type SettleStatus } from "@/engine/settling";
 import type { SerializedModelState } from "@/engine/stateContract";
@@ -137,6 +138,8 @@ export function buildGuytonBaseMapResponse(
   if (!settle.settled) warnings.push("base map: did not fully settle");
   if (health.status !== "ok") warnings.push(`base map: health ${health.status}`);
   if (resolvedBaseline.retargetFallback) warnings.push("base map: warm retarget fallback");
+  const rightSnapshot = baseMapVascularSnapshot(core, "right", warnings);
+  const leftSnapshot = baseMapVascularSnapshot(core, "left", warnings);
 
   const response: GuytonBaseMapResponse = {
     type: "base-map",
@@ -147,13 +150,13 @@ export function buildGuytonBaseMapResponse(
       "right",
       metrics,
       observables,
-      core.vascularReturnSnapshot("right"),
+      rightSnapshot,
     ),
     left: buildCommittedGuytonPaneData(
       "left",
       metrics,
       observables,
-      core.vascularReturnSnapshot("left"),
+      leftSnapshot,
     ),
     warnings,
   };
@@ -165,6 +168,23 @@ export function buildGuytonBaseMapResponse(
     baselineSource: resolvedBaseline.source,
   };
   return response;
+}
+
+function baseMapVascularSnapshot(
+  core: ModelCore,
+  side: VascularReturnSnapshot["side"],
+  warnings: string[],
+): VascularReturnSnapshot {
+  try {
+    return core.vascularReturnSnapshot(side, {
+      mode: "cycle-mean",
+      dt: WORKER_DT,
+      sampleHz: WORKER_SAMPLE_HZ,
+    });
+  } catch {
+    warnings.push(`${side} cycle-mean snapshot fallback`);
+    return core.vascularReturnSnapshot(side);
+  }
 }
 
 export function buildStarlingSweepResponse(
