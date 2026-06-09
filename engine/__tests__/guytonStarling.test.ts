@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PARAMS } from "@/constants";
 import {
+  boundedGuytonDisplayAxis,
   buildGuytonDiagnostics,
   buildCommittedGuytonPaneData,
   buildGuytonPaneData,
@@ -223,6 +224,15 @@ describe("Guyton / Starling pane helpers", () => {
     expect(expanded.xMax).toBeGreaterThan(right.xMax);
     expect(expanded.yMin).toBe(right.yMin);
     expect(expanded.yMax).toBeGreaterThan(right.yMax);
+  });
+
+  it("bounds the Guyton display axis without shrinking useful positive range", () => {
+    expect(boundedGuytonDisplayAxis("left", { xMin: -20, xMax: 40, yMin: -5, yMax: 12 }))
+      .toEqual({ xMin: -5, xMax: 40, yMin: 0, yMax: 12 });
+    expect(boundedGuytonDisplayAxis("right", { xMin: -20, xMax: 24, yMin: -3, yMax: 14 }))
+      .toEqual({ xMin: -8, xMax: 24, yMin: 0, yMax: 14 });
+    expect(boundedGuytonDisplayAxis("left", { xMin: -3, xMax: 8, yMin: 0, yMax: 0.5 }))
+      .toEqual({ xMin: -3, xMax: 8, yMin: 0, yMax: 1 });
   });
 
   it("extracts the live operating point without rebuilding map curves", () => {

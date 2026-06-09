@@ -179,6 +179,10 @@ const DEFAULT_GUYTON_AXIS: Record<GuytonSide, GuytonAxisDomain> = {
   right: { xMin: -5, xMax: 20, yMin: 0, yMax: 10 },
   left: { xMin: 0, xMax: 30, yMin: 0, yMax: 10 },
 };
+const DISPLAY_X_MIN_FLOOR: Record<GuytonSide, number> = {
+  right: -8,
+  left: -5,
+};
 
 export function buildGuytonPaneData(
   side: GuytonSide,
@@ -358,6 +362,16 @@ export function buildCommittedGuytonPaneData(
 
 export function defaultGuytonAxis(side: GuytonSide): GuytonAxisDomain {
   return { ...DEFAULT_GUYTON_AXIS[side] };
+}
+
+export function boundedGuytonDisplayAxis(side: GuytonSide, axis: GuytonAxisDomain): GuytonAxisDomain {
+  const xMin = Math.max(axis.xMin, DISPLAY_X_MIN_FLOOR[side]);
+  return {
+    xMin,
+    xMax: Math.max(axis.xMax, xMin + 1),
+    yMin: 0,
+    yMax: Math.max(axis.yMax, 1),
+  };
 }
 
 export function liveGuytonOperatingPoint(side: GuytonSide, metrics: SimMetrics): GuytonLiveOperatingPoint {
