@@ -13,7 +13,14 @@ import {
   buildGuytonStarlingWorkerMessages,
   buildStarlingSweepResponse,
   postGuytonStarlingWorkerMessages,
+  postGuytonStarlingWorkerMessagesAsync,
+  type GuytonChainWorkerLike,
 } from "@/engine/guytonStarlingWorkerCore";
+import { buildGuytonChainWorkerResponse } from "@/engine/guytonStarlingChainWorkerCore";
+import type {
+  GuytonChainWorkerRequest,
+  GuytonChainWorkerResponse,
+} from "@/engine/guytonStarlingChainProtocol";
 
 describe("Guyton / Starling worker helpers", () => {
   it("builds an exact volume-constrained base map for both sides", () => {
@@ -170,6 +177,102 @@ describe("Guyton / Starling worker helpers", () => {
       "post:starling-sweep",
     ]);
   });
+
+  it("posts the base map before parallel chain workers and matches sync warm results", async () => {
+    const req = request();
+    const events: string[] = [];
+    const chainRequests: GuytonChainWorkerRequest[] = [];
+    const messages: StarlingSweepWorkerMessage[] = [];
+
+    await postGuytonStarlingWorkerMessagesAsync(
+      req,
+      (message) => {
+        events.push(`post:${message.type}`);
+        if (message.type === "starling-sweep") messages.push(message);
+      },
+      { createChainWorker: () => new InlineChainWorker(events, chainRequests) },
+    );
+
+    expect(events[0]).toBe("post:base-map");
+    expect(events.filter((event) => event.startsWith("chain:"))).toEqual([
+      "chain:positive:300,600",
+      "chain:negative:-300,-600",
+    ]);
+    expect(chainRequests).toHaveLength(2);
+    expect(chainRequests[0].baselineState).toBe(chainRequests[1].baselineState);
+    expect(messages).toHaveLength(1);
+    const parallel = messages[0];
+    const sync = buildStarlingSweepResponse(req);
+
+    expect(parallel.timing?.parallel).toBe(true);
+    expectFiniteNonNegative(parallel.timing?.chainWallMs);
+    expect(parallel.timing?.parallelFallback).toBeUndefined();
+    expect(parallel.right?.points.map((point) => point.deltaVolumeMl).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([
+      -600,
+      -300,
+      0,
+      300,
+      600,
+    ]);
+    expectSweepClose(parallel, sync);
+  });
+
+  it("falls back to sync warm sweep when a chain worker cannot be created", async () => {
+    const req = request();
+    const messages: StarlingSweepWorkerMessage[] = [];
+
+    await postGuytonStarlingWorkerMessagesAsync(
+      req,
+      (message) => {
+        if (message.type === "starling-sweep") messages.push(message);
+      },
+      {
+        createChainWorker: () => {
+          throw new Error("child unavailable");
+        },
+      },
+    );
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0].error).toBeUndefined();
+    expect(messages[0].timing?.parallel).toBe(false);
+    expect(messages[0].timing?.parallelFallback).toContain("child unavailable");
+    expect(messages[0].warnings.some((warning) => warning.includes("parallel chain fallback"))).toBe(true);
+    expect(messages[0].right?.points).toHaveLength(5);
+    expect(messages[0].left?.points).toHaveLength(5);
+  });
+
+  it("supports custom deltas through the parallel chain path", async () => {
+    const req = request({ deltasMl: [-450, 0, 150, 600, -150] });
+    const messages: StarlingSweepWorkerMessage[] = [];
+
+    await postGuytonStarlingWorkerMessagesAsync(
+      req,
+      (message) => {
+        if (message.type === "starling-sweep") messages.push(message);
+      },
+      { createChainWorker: () => new InlineChainWorker() },
+    );
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0].timing?.parallel).toBe(true);
+    expect(messages[0].right?.points.map((point) => point.deltaVolumeMl).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([
+      -450,
+      -150,
+      0,
+      150,
+      600,
+    ]);
+    expect(messages[0].left?.points.map((point) => point.deltaVolumeMl).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([
+      -450,
+      -150,
+      0,
+      150,
+      600,
+    ]);
+    expectSortedByPressure(messages[0].right?.points ?? []);
+    expectSortedByPressure(messages[0].left?.points ?? []);
+  });
 });
 
 function request(overrides: Partial<StarlingSweepRequest> = {}): StarlingSweepRequest {
@@ -203,6 +306,22 @@ function expectSortedByPressure(points: { x: number }[]): void {
 
 function pointsByDelta(points: { deltaVolumeMl?: number; x: number; y: number }[]): Map<number, { x: number; y: number }> {
   return new Map(points.map((point) => [point.deltaVolumeMl ?? NaN, point]));
+}
+
+function expectSweepClose(actual: StarlingSweepWorkerMessage, expected: StarlingSweepWorkerMessage): void {
+  for (const side of ["right", "left"] as const) {
+    const actualByDelta = pointsByDelta(actual[side]?.points ?? []);
+    const expectedByDelta = pointsByDelta(expected[side]?.points ?? []);
+    expect(Array.from(actualByDelta.keys()).sort((a, b) => a - b)).toEqual(
+      Array.from(expectedByDelta.keys()).sort((a, b) => a - b),
+    );
+    for (const [delta, actualPoint] of actualByDelta) {
+      const expectedPoint = expectedByDelta.get(delta);
+      expect(expectedPoint).toBeDefined();
+      expect(Math.abs(actualPoint.x - (expectedPoint?.x ?? NaN))).toBeLessThan(0.15);
+      expect(Math.abs(actualPoint.y - (expectedPoint?.y ?? NaN))).toBeLessThan(0.08);
+    }
+  }
 }
 
 function expectBaseMapTiming(response: GuytonBaseMapResponse): void {
@@ -247,4 +366,25 @@ function emptySweep(req: StarlingSweepRequest): StarlingSweepWorkerMessage {
     left: { side: "left", points: [], warnings: [] },
     warnings: [],
   };
+}
+
+class InlineChainWorker implements GuytonChainWorkerLike {
+  onmessage: ((event: MessageEvent<GuytonChainWorkerResponse>) => void) | null = null;
+  onerror: ((event: ErrorEvent) => void) | null = null;
+  terminated = false;
+
+  constructor(
+    private readonly events: string[] = [],
+    private readonly requests: GuytonChainWorkerRequest[] = [],
+  ) {}
+
+  postMessage(request: GuytonChainWorkerRequest): void {
+    this.events.push(`chain:${request.chainId}:${request.chainDeltas.join(",")}`);
+    this.requests.push(request);
+    this.onmessage?.({ data: buildGuytonChainWorkerResponse(request) } as MessageEvent<GuytonChainWorkerResponse>);
+  }
+
+  terminate(): void {
+    this.terminated = true;
+  }
 }

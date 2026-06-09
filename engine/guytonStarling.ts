@@ -109,6 +109,9 @@ export type StarlingSweepTiming = {
   assembleMs: number;
   totalMs: number;
   retargetFallbackCount: number;
+  parallel?: boolean;
+  parallelFallback?: string;
+  chainWallMs?: number;
 };
 
 export type GuytonBaseMapResponse = {

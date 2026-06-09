@@ -7,6 +7,12 @@ import {
   type StarlingSweepRequest,
   type StarlingSweepWorkerMessage,
 } from "@/engine/guytonStarling";
+import type {
+  GuytonChainId,
+  GuytonChainWorkerRequest,
+  GuytonChainWorkerResponse,
+  GuytonWorkerSettledRun,
+} from "@/engine/guytonStarlingChainProtocol";
 import { clamp } from "@/engine/math";
 import { PREVIEW_SETTLE_POLICY, type SettleStatus } from "@/engine/settling";
 import type { SerializedModelState } from "@/engine/stateContract";
@@ -19,25 +25,42 @@ type WorkerComputeFns = {
 
 type WorkerPostMessage = (message: GuytonStarlingWorkerMessage) => void;
 
-type WorkerSettledCore = {
+export type GuytonChainWorkerLike = {
+  onmessage: ((event: MessageEvent<GuytonChainWorkerResponse>) => void) | null;
+  onerror: ((event: ErrorEvent) => void) | null;
+  postMessage: (request: GuytonChainWorkerRequest) => void;
+  terminate: () => void;
+};
+
+type AsyncWorkerOptions = {
+  createChainWorker?: () => GuytonChainWorkerLike;
+  chainTimeoutMs?: number;
+};
+
+type WorkerSettledCore = GuytonWorkerSettledRun & {
   core: ModelCore;
-  settle: SettleStatus;
-  metrics: ReturnType<ModelCore["metrics"]>;
-  observables: ReturnType<ModelCore["debugObservables"]>;
-  health: ReturnType<ModelCore["health"]>;
-  state: SerializedModelState;
-  targetVolumeMl: number;
-  wallMs: number;
-  source: "cold" | "warm-retarget" | "warm-retarget-fallback";
-  retarget?: RetargetTBVStatus;
-  retargetFallback: boolean;
 };
 
 type WarmStartedSweepRuns = {
-  runs: WorkerSettledCore[];
+  runs: GuytonWorkerSettledRun[];
   positiveChainMs: number;
   negativeChainMs: number;
   retargetFallbackCount: number;
+};
+
+type SweepTimingInput = {
+  positiveChainMs: number;
+  negativeChainMs: number;
+  retargetFallbackCount: number;
+  sweepStart: number;
+  parallel?: boolean;
+  parallelFallback?: string;
+  chainWallMs?: number;
+};
+
+type SweepDeltaChains = {
+  positive: number[];
+  negative: number[];
 };
 
 const WORKER_DT = 0.001;
@@ -49,6 +72,7 @@ const WORKER_RUN_OPTIONS = {
   recordHistory: true,
   historyLimit: WORKER_HISTORY_LIMIT,
 };
+const DEFAULT_CHAIN_TIMEOUT_MS = 30_000;
 
 export function buildGuytonStarlingWorkerMessages(
   req: StarlingSweepRequest,
@@ -75,6 +99,27 @@ export function postGuytonStarlingWorkerMessages(
   try {
     if (!baseline && !fns.buildStarlingSweepResponse) baseline = (fns.buildBaseline ?? buildWorkerBaseline)(req);
     postMessage((fns.buildStarlingSweepResponse ?? buildStarlingSweepResponse)(req, baseline));
+  } catch (err) {
+    postMessage(buildStarlingSweepErrorResponse(req, err));
+  }
+}
+
+export async function postGuytonStarlingWorkerMessagesAsync(
+  req: StarlingSweepRequest,
+  postMessage: WorkerPostMessage,
+  options: AsyncWorkerOptions = {},
+): Promise<void> {
+  let baseline: WorkerSettledCore | undefined;
+  try {
+    baseline = buildWorkerBaseline(req);
+    postMessage(buildGuytonBaseMapResponse(req, baseline));
+  } catch (err) {
+    postMessage(buildGuytonBaseMapErrorResponse(req, err));
+  }
+
+  try {
+    if (!baseline) baseline = buildWorkerBaseline(req);
+    postMessage(await buildParallelStarlingSweepResponse(req, baseline, options));
   } catch (err) {
     postMessage(buildStarlingSweepErrorResponse(req, err));
   }
@@ -137,6 +182,50 @@ export function buildStarlingSweepResponse(
   });
 }
 
+export async function buildParallelStarlingSweepResponse(
+  req: StarlingSweepRequest,
+  baseline: WorkerSettledCore,
+  options: AsyncWorkerOptions = {},
+): Promise<StarlingSweepWorkerMessage> {
+  const createChainWorker = options.createChainWorker;
+  if (!createChainWorker) {
+    return buildParallelFallbackSweepResponse(req, baseline, "chain worker unavailable");
+  }
+
+  const sweepStart = performanceNow();
+  const chainStart = performanceNow();
+  const chains = splitSweepDeltas(req.deltasMl ?? [-600, -300, 0, 300, 600]);
+  try {
+    const [positive, negative] = await Promise.all([
+      runChain(req, baseline.state, "positive", chains.positive, createChainWorker, options.chainTimeoutMs),
+      runChain(req, baseline.state, "negative", chains.negative, createChainWorker, options.chainTimeoutMs),
+    ]);
+    const chainWallMs = performanceNow() - chainStart;
+    const runsByDelta = new Map<number, GuytonWorkerSettledRun>();
+    runsByDelta.set(0, baseline);
+    for (const result of [...positive.runs, ...negative.runs]) {
+      runsByDelta.set(result.deltaVolumeMl, result.run);
+    }
+    const deltas = req.deltasMl ?? [-600, -300, 0, 300, 600];
+    const orderedRuns = deltas.map((delta) => {
+      const run = runsByDelta.get(delta);
+      if (!run) throw new Error(`Missing parallel sweep run for delta ${String(delta)}`);
+      return run;
+    });
+    return buildSweepResponseFromRuns(req, orderedRuns, {
+      positiveChainMs: positive.chainMs,
+      negativeChainMs: negative.chainMs,
+      retargetFallbackCount: positive.retargetFallbackCount + negative.retargetFallbackCount,
+      sweepStart,
+      parallel: true,
+      chainWallMs,
+    });
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : "parallel chain failed";
+    return buildParallelFallbackSweepResponse(req, baseline, reason, performanceNow() - chainStart);
+  }
+}
+
 export function buildColdStarlingSweepResponse(req: StarlingSweepRequest): StarlingSweepWorkerMessage {
   const deltas = req.deltasMl ?? [-600, -300, 0, 300, 600];
   return buildSweepResponseFromRuns(
@@ -145,11 +234,11 @@ export function buildColdStarlingSweepResponse(req: StarlingSweepRequest): Starl
   );
 }
 
-function buildWorkerBaseline(req: StarlingSweepRequest): WorkerSettledCore {
+export function buildWorkerBaseline(req: StarlingSweepRequest): WorkerSettledCore {
   return settleWorkerCore(req, clamp(req.targetVolumeMl, 2500, 8500));
 }
 
-function settleWorkerCore(
+export function settleWorkerCore(
   req: StarlingSweepRequest,
   targetVolumeMl: number,
   seedState?: SerializedModelState,
@@ -235,15 +324,10 @@ function buildWarmStartedSweepRuns(
   };
 }
 
-function buildSweepResponseFromRuns(
+export function buildSweepResponseFromRuns(
   req: StarlingSweepRequest,
-  runs: WorkerSettledCore[],
-  timingInput?: {
-    positiveChainMs: number;
-    negativeChainMs: number;
-    retargetFallbackCount: number;
-    sweepStart: number;
-  },
+  runs: GuytonWorkerSettledRun[],
+  timingInput?: SweepTimingInput,
 ): StarlingSweepWorkerMessage {
   const assembleStart = performanceNow();
   const deltas = req.deltasMl ?? [-600, -300, 0, 300, 600];
@@ -298,9 +382,130 @@ function buildSweepResponseFromRuns(
       assembleMs: performanceNow() - assembleStart,
       totalMs: performanceNow() - timingInput.sweepStart,
       retargetFallbackCount: timingInput.retargetFallbackCount,
+      parallel: timingInput.parallel,
+      parallelFallback: timingInput.parallelFallback,
+      chainWallMs: timingInput.chainWallMs,
     };
   }
   return response;
+}
+
+function buildParallelFallbackSweepResponse(
+  req: StarlingSweepRequest,
+  baseline: WorkerSettledCore,
+  reason: string,
+  chainWallMs = 0,
+): StarlingSweepWorkerMessage {
+  const response = buildStarlingSweepResponse(req, baseline);
+  response.warnings.push(`parallel chain fallback: ${reason}`);
+  if (response.timing) {
+    response.timing.parallel = false;
+    response.timing.parallelFallback = reason;
+    response.timing.chainWallMs = chainWallMs;
+  }
+  return response;
+}
+
+function splitSweepDeltas(deltas: number[]): SweepDeltaChains {
+  const uniqueNonZero = Array.from(new Set(deltas.filter((delta) => delta !== 0)));
+  return {
+    positive: uniqueNonZero.filter((delta) => delta > 0).sort((a, b) => a - b),
+    negative: uniqueNonZero.filter((delta) => delta < 0).sort((a, b) => Math.abs(a) - Math.abs(b)),
+  };
+}
+
+function runChain(
+  req: StarlingSweepRequest,
+  baselineState: SerializedModelState,
+  chainId: GuytonChainId,
+  chainDeltas: number[],
+  createChainWorker: () => GuytonChainWorkerLike,
+  timeoutMs = DEFAULT_CHAIN_TIMEOUT_MS,
+): Promise<GuytonChainWorkerResponse> {
+  if (chainDeltas.length === 0) {
+    return Promise.resolve({
+      type: "chain-result",
+      chainId,
+      requestId: req.requestId,
+      signature: req.signature,
+      instanceId: req.instanceId,
+      runs: [],
+      chainMs: 0,
+      retargetFallbackCount: 0,
+    });
+  }
+
+  const request: GuytonChainWorkerRequest = {
+    type: "solve-chain",
+    chainId,
+    requestId: req.requestId,
+    signature: req.signature,
+    instanceId: req.instanceId,
+    params: req.params,
+    targetVolumeMl: req.targetVolumeMl,
+    baselineState,
+    chainDeltas,
+  };
+
+  return new Promise((resolve, reject) => {
+    let worker: GuytonChainWorkerLike | undefined;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    let finished = false;
+
+    const finish = (fn: () => void) => {
+      if (finished) return;
+      finished = true;
+      if (timeout) clearTimeout(timeout);
+      worker?.terminate();
+      fn();
+    };
+
+    try {
+      worker = createChainWorker();
+    } catch (err) {
+      reject(err instanceof Error ? err : new Error("chain worker creation failed"));
+      return;
+    }
+    const activeWorker = worker;
+
+    timeout = setTimeout(() => {
+      finish(() => reject(new Error(`chain worker ${chainId} timed out`)));
+    }, timeoutMs);
+
+    activeWorker.onmessage = (event: MessageEvent<GuytonChainWorkerResponse>) => {
+      const response = event.data;
+      if (!isMatchingChainResponse(response, request)) {
+        finish(() => reject(new Error(`invalid ${chainId} chain response`)));
+        return;
+      }
+      if (response.error) {
+        finish(() => reject(new Error(response.error)));
+        return;
+      }
+      finish(() => resolve(response));
+    };
+    activeWorker.onerror = (event: ErrorEvent) => {
+      finish(() => reject(new Error(event.message || `${chainId} chain worker failed`)));
+    };
+    activeWorker.postMessage(request);
+  });
+}
+
+function isMatchingChainResponse(
+  response: unknown,
+  request: GuytonChainWorkerRequest,
+): response is GuytonChainWorkerResponse {
+  if (!response || typeof response !== "object") return false;
+  const candidate = response as Partial<GuytonChainWorkerResponse>;
+  return candidate.type === "chain-result"
+    && candidate.chainId === request.chainId
+    && candidate.requestId === request.requestId
+    && candidate.signature === request.signature
+    && candidate.instanceId === request.instanceId
+    && Array.isArray(candidate.runs)
+    && typeof candidate.chainMs === "number"
+    && Number.isFinite(candidate.chainMs)
+    && typeof candidate.retargetFallbackCount === "number";
 }
 
 export function buildGuytonBaseMapErrorResponse(
