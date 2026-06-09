@@ -76,6 +76,37 @@ describe("Guyton vascular structural helpers", () => {
     }
   });
 
+  it("returns finite cycle-mean vascular snapshots without mutating the source core", () => {
+    const core = new ModelCore(DEFAULT_PARAMS);
+    core.initializeVenousPressuresForTargetTBV(5600);
+    core.runFor(4, 0.001, 120);
+    const before = core.packState();
+
+    const right = core.vascularReturnSnapshot("right", { mode: "cycle-mean", seconds: 0.8, dt: 0.001, sampleHz: 60 });
+    const left = core.vascularReturnSnapshot("left", { mode: "cycle-mean", seconds: 0.8, dt: 0.001, sampleHz: 60 });
+
+    expect(core.packState()).toEqual(before);
+    for (const snapshot of [right, left]) {
+      expect(snapshot.mode).toBe("cycle-mean");
+      expect(snapshot.sampleCount).toBeGreaterThanOrEqual(5);
+      expect(snapshot.durationSeconds).toBeCloseTo(0.8, 8);
+      expect(snapshot.totalStressedVolumeMl).toBeGreaterThan(0);
+      expect(snapshot.totalComplianceMlPerMmHg).toBeGreaterThan(0);
+      expect(snapshot.nodesDownstreamToUpstream.every((node) => (
+        Number.isFinite(node.Pabs)
+        && Number.isFinite(node.Ptm)
+        && Number.isFinite(node.Pext)
+        && Number.isFinite(node.stressedVolumeMl)
+        && node.complianceEffMlPerMmHg > 0
+      ))).toBe(true);
+      expect(snapshot.edgesDownstreamToUpstream.every((edge) => (
+        edge.R_mmHg_s_per_mL > 0
+        && edge.B_mmHg_s2_per_mL2 >= 0
+        && Number.isFinite(edge.Pext)
+      ))).toBe(true);
+    }
+  });
+
   it("samples a finite monotone decreasing structural return curve", () => {
     const result = structuralLinearGuyton(linearSnapshot(), [-2, 0, 2, 4, 6]);
 

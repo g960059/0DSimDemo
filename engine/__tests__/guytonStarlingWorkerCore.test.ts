@@ -36,6 +36,45 @@ describe("Guyton / Starling worker helpers", () => {
     expectBaseMapTiming(response);
   });
 
+  it("requests cycle-mean snapshots for worker base maps", () => {
+    const original = ModelCore.prototype.vascularReturnSnapshot;
+    const calls: Array<{ side: "right" | "left"; mode: string | undefined }> = [];
+    const spy = vi.spyOn(ModelCore.prototype, "vascularReturnSnapshot")
+      .mockImplementation(function (this: ModelCore, side, options) {
+        calls.push({ side, mode: options?.mode });
+        return original.call(this, side, options);
+      });
+    try {
+      const response = buildGuytonBaseMapResponse(request());
+
+      expect(response.error).toBeUndefined();
+      expect(calls.filter((call) => call.mode === "cycle-mean").map((call) => call.side).sort())
+        .toEqual(["left", "right"]);
+      expect(response.warnings.some((warning) => warning.includes("cycle-mean snapshot fallback"))).toBe(false);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("falls back to instant snapshots when cycle-mean base-map snapshots fail", () => {
+    const original = ModelCore.prototype.vascularReturnSnapshot;
+    const spy = vi.spyOn(ModelCore.prototype, "vascularReturnSnapshot")
+      .mockImplementation(function (this: ModelCore, side, options) {
+        if (options?.mode === "cycle-mean") throw new Error("forced cycle-mean failure");
+        return original.call(this, side, options);
+      });
+    try {
+      const response = buildGuytonBaseMapResponse(request());
+
+      expect(response.error).toBeUndefined();
+      expectFiniteExactPane(response.right, "right");
+      expectFiniteExactPane(response.left, "left");
+      expect(response.warnings.filter((warning) => warning.includes("cycle-mean snapshot fallback"))).toHaveLength(2);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it("builds the default Starling sweep message with pressure-sorted points", () => {
     const req = request();
     const response = buildStarlingSweepResponse(req);

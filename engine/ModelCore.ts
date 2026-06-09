@@ -151,6 +151,13 @@ export type RetargetTBVStatus = {
   reason?: "invalid-target" | "non-finite-tbv" | "residual";
 };
 
+export type VascularReturnSnapshotOptions = {
+  mode?: "instant" | "cycle-mean";
+  seconds?: number;
+  dt?: number;
+  sampleHz?: number;
+};
+
 function comparableFlowEdgeName(name: string): string {
   const edgeByComparableName: Record<string, string> = {
     QAo: "AoV",
@@ -1858,7 +1865,24 @@ export class ModelCore {
    * not modify state or dynamics; it exposes the current vascular PV laws,
    * stressed volumes, external pressures, and local effective edge losses.
    */
-  vascularReturnSnapshot(side: VascularReturnSnapshot["side"]): VascularReturnSnapshot {
+  vascularReturnSnapshot(
+    side: VascularReturnSnapshot["side"],
+    options: VascularReturnSnapshotOptions = {},
+  ): VascularReturnSnapshot {
+    if (options.mode === "cycle-mean") {
+      return this.cycleMeanVascularReturnSnapshot(side, options);
+    }
+    return this.instantVascularReturnSnapshot(side, {
+      mode: "instant",
+      sampleCount: 1,
+      durationSeconds: 0,
+    });
+  }
+
+  private instantVascularReturnSnapshot(
+    side: VascularReturnSnapshot["side"],
+    metadata: Pick<VascularReturnSnapshot, "mode" | "sampleCount" | "durationSeconds"> = {},
+  ): VascularReturnSnapshot {
     const pack = this.computePressures(this.x);
     const nodePath = side === "right"
       ? (["VC", "SV", "Cap", "Art", "SA", "Ao"] as const)
@@ -1883,7 +1907,44 @@ export class ModelCore {
       totalUnstressedVolumeMl,
       totalComplianceMlPerMmHg,
       externalPressureWeightedMmHg,
+      ...metadata,
     };
+  }
+
+  private cycleMeanVascularReturnSnapshot(
+    side: VascularReturnSnapshot["side"],
+    options: VascularReturnSnapshotOptions,
+  ): VascularReturnSnapshot {
+    const seconds = options.seconds ?? (60 / Math.max(this.p.HR, 1));
+    const dt = options.dt ?? 0.001;
+    const sampleHz = options.sampleHz ?? 120;
+    if (!(seconds > 0) || !(dt > 0) || !(sampleHz > 0)) {
+      throw new Error("cycle-mean vascular snapshot requires positive seconds, dt, and sampleHz");
+    }
+
+    const clone = this.cloneForReadOnlyMeasurement();
+    const snapshots: VascularReturnSnapshot[] = [];
+    const sampleInterval = 1 / sampleHz;
+    let sampleAt = Math.floor((clone.t + 1e-9) / sampleInterval) * sampleInterval + sampleInterval;
+    const tEnd = clone.t + seconds - 1e-9;
+    while (clone.t < tEnd) {
+      clone.step(dt);
+      if (clone.t >= sampleAt) {
+        snapshots.push(clone.instantVascularReturnSnapshot(side));
+        sampleAt += sampleInterval;
+      }
+    }
+    if (snapshots.length === 0) {
+      throw new Error("cycle-mean vascular snapshot collected no samples");
+    }
+    return meanVascularReturnSnapshot(side, snapshots, seconds);
+  }
+
+  private cloneForReadOnlyMeasurement(): ModelCore {
+    const clone = new ModelCore(this.p);
+    clone.pTarget = { ...this.pTarget };
+    clone.unpackState(this.packState());
+    return clone;
   }
 
   private vascularNodeSnapshot(name: NodeName, pack: PressurePack): VascularNodeSnapshot {
@@ -2170,4 +2231,56 @@ export class ModelCore {
     for (let i = 0; i < pack.Vphys.length; i++) tbv += pack.Vphys[i];
     return tbv;
   }
+}
+
+function meanVascularReturnSnapshot(
+  side: VascularReturnSnapshot["side"],
+  snapshots: VascularReturnSnapshot[],
+  durationSeconds: number,
+): VascularReturnSnapshot {
+  const first = snapshots[0];
+  const sampleCount = snapshots.length;
+  const mean = (values: number[]): number => values.reduce((sum, value) => sum + value, 0) / sampleCount;
+  const nodes = first.nodesDownstreamToUpstream.map((node, index): VascularNodeSnapshot => {
+    const samples = snapshots.map((snapshot) => snapshot.nodesDownstreamToUpstream[index]);
+    return {
+      ...node,
+      Pabs: mean(samples.map((sample) => sample.Pabs)),
+      Ptm: mean(samples.map((sample) => sample.Ptm)),
+      Pext: mean(samples.map((sample) => sample.Pext)),
+      volumeMl: mean(samples.map((sample) => sample.volumeMl)),
+      unstressedVolumeMl: mean(samples.map((sample) => sample.unstressedVolumeMl)),
+      stressedVolumeMl: mean(samples.map((sample) => sample.stressedVolumeMl)),
+      complianceEffMlPerMmHg: mean(samples.map((sample) => sample.complianceEffMlPerMmHg)),
+      law: node.law,
+    };
+  });
+  const edges = first.edgesDownstreamToUpstream.map((edge, index): VascularEdgeSnapshot => {
+    const samples = snapshots.map((snapshot) => snapshot.edgesDownstreamToUpstream[index]);
+    return {
+      ...edge,
+      R_mmHg_s_per_mL: mean(samples.map((sample) => sample.R_mmHg_s_per_mL)),
+      B_mmHg_s2_per_mL2: mean(samples.map((sample) => sample.B_mmHg_s2_per_mL2)),
+      Pext: mean(samples.map((sample) => sample.Pext)),
+    };
+  });
+  const totalStressedVolumeMl = nodes.reduce((sum, node) => sum + node.stressedVolumeMl, 0);
+  const totalUnstressedVolumeMl = nodes.reduce((sum, node) => sum + node.unstressedVolumeMl, 0);
+  const totalComplianceMlPerMmHg = nodes.reduce((sum, node) => sum + node.complianceEffMlPerMmHg, 0);
+  const externalPressureWeightedMmHg = totalComplianceMlPerMmHg > 1e-9
+    ? nodes.reduce((sum, node) => sum + node.complianceEffMlPerMmHg * node.Pext, 0) / totalComplianceMlPerMmHg
+    : 0;
+  return {
+    side,
+    downstreamNode: first.downstreamNode,
+    nodesDownstreamToUpstream: nodes,
+    edgesDownstreamToUpstream: edges,
+    totalStressedVolumeMl,
+    totalUnstressedVolumeMl,
+    totalComplianceMlPerMmHg,
+    externalPressureWeightedMmHg,
+    mode: "cycle-mean",
+    sampleCount,
+    durationSeconds,
+  };
 }
