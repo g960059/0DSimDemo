@@ -20,6 +20,7 @@ import {
   type CaseVisibility,
   WORKSPACE_SCHEMA_VERSION,
 } from "./caseDoc";
+import { normalizeCaseI18n, resolveLocalizedCaseDocument } from "./contentI18n";
 import { parseCaseDocument, serializeCaseDocument } from "./casePersist";
 
 const MAX_CONTENT_SIZE = 500000;
@@ -34,6 +35,8 @@ export type CaseDocFields = {
   visibility: CaseVisibility;
   ownerId: string;
   schemaVersion: number;
+  defaultLocale: string;
+  availableLocales: string[];
   engineVersion: string;
   knobMappingVersion: string;
   workspaceSchemaVersion: number;
@@ -50,6 +53,8 @@ export type CaseSummary = {
   visibility: CaseVisibility;
   ownerId: string;
   schemaVersion: number;
+  defaultLocale?: string;
+  availableLocales?: string[];
   workspaceSchemaVersion: number;
   source?: string;
   derivedFrom?: string;
@@ -99,19 +104,21 @@ export function normalizeCaseForCloud(
   ownerId: string,
   overrides: { status?: CaseStatus; visibility?: CaseVisibility; kind?: CaseKind } = {},
 ): CaseDocument {
+  const localized = normalizeCaseI18n(caseDoc, caseDoc.defaultLocale);
+  const resolvedDefault = resolveLocalizedCaseDocument(localized, localized.defaultLocale ?? "en").doc;
   const kind = overrides.kind ?? caseDoc.kind ?? (caseDoc.lesson ? "lesson" : "case");
   const status = overrides.status ?? caseDoc.status ?? "draft";
   const visibility = overrides.visibility ?? caseDoc.visibility ?? "private";
   return {
-    ...caseDoc,
+    ...resolvedDefault,
     kind,
     status,
     visibility,
     ownerId,
     meta: {
-      ...caseDoc.meta,
-      id: caseDoc.meta.id,
-      title: caseDoc.spec.title || caseDoc.meta.title,
+      ...resolvedDefault.meta,
+      id: resolvedDefault.meta.id,
+      title: resolvedDefault.spec.title || resolvedDefault.meta.title,
     },
   };
 }
@@ -132,6 +139,8 @@ export function caseDocFields(caseDoc: CaseDocument, ownerId: string, overrides:
     visibility: normalized.visibility ?? "private",
     ownerId,
     schemaVersion: normalized.schemaVersion,
+    defaultLocale: normalized.defaultLocale ?? "en",
+    availableLocales: normalized.availableLocales ?? [normalized.defaultLocale ?? "en"],
     engineVersion: normalized.engineVersion,
     knobMappingVersion: normalized.knobMappingVersion,
     workspaceSchemaVersion: normalized.workspace?.schemaVersion ?? WORKSPACE_SCHEMA_VERSION,
@@ -286,6 +295,8 @@ function snapshotToCaseSummary(snapshot: QueryDocumentSnapshot): CaseSummary | u
     typeof data.visibility !== "string" ||
     typeof data.ownerId !== "string" ||
     typeof data.schemaVersion !== "number" ||
+    (data.defaultLocale !== undefined && typeof data.defaultLocale !== "string") ||
+    (data.availableLocales !== undefined && (!Array.isArray(data.availableLocales) || !data.availableLocales.every((locale) => typeof locale === "string"))) ||
     typeof data.workspaceSchemaVersion !== "number"
   ) {
     return undefined;
@@ -299,6 +310,8 @@ function snapshotToCaseSummary(snapshot: QueryDocumentSnapshot): CaseSummary | u
     visibility: data.visibility as CaseVisibility,
     ownerId: data.ownerId,
     schemaVersion: data.schemaVersion,
+    ...(typeof data.defaultLocale === "string" ? { defaultLocale: data.defaultLocale } : {}),
+    ...(Array.isArray(data.availableLocales) && data.availableLocales.every((locale) => typeof locale === "string") ? { availableLocales: data.availableLocales } : {}),
     workspaceSchemaVersion: data.workspaceSchemaVersion,
     ...(typeof data.source === "string" ? { source: data.source } : {}),
     ...(typeof data.derivedFrom === "string" ? { derivedFrom: data.derivedFrom } : {}),

@@ -5,6 +5,7 @@ import { createUserLessonId, getUserLesson, saveLesson } from "@/lessonPersist";
 import { publishLesson } from "@/lessonCloud";
 import { normalizeStepsForSave } from "@/lessonAuthoring";
 import type { Lesson, LessonStep } from "@/lessonDoc";
+import { upsertCaseLocaleContent, upsertLessonLocaleContent } from "@/contentI18n";
 import type { NoteContent } from "@/noteTypes";
 import type { PanelDef } from "@/types";
 import { EMPTY_NOTE_SPINE } from "@/features/workbench/workbenchDefaults";
@@ -76,19 +77,24 @@ export function useLessonAuthoring({
     if (!buildCurrentDoc) return { message: "Could not build this lesson." };
     const notePanel = panels.find((panel) => panel.type === "NOTE");
     const noteSpine = notePanel ? (notes[notePanel.id] ?? EMPTY_NOTE_SPINE) : EMPTY_NOTE_SPINE;
-    const caseDoc = buildCurrentDoc({ id, title, createdAt: now, updatedAt: now, includeNotes: false });
+    // Case text is captured at the embedded-case layer; lesson step localization stays lesson-native.
+    const caseDoc = upsertCaseLocaleContent(
+      buildCurrentDoc({ id, title, createdAt: now, updatedAt: now, includeNotes: false }),
+      locale,
+    );
     const normalizedSteps = normalizeStepsForSave(stepsDraft, caseDoc.instances.map((instance) => instance.id));
     if (normalizedSteps.ok === false) return { message: normalizedSteps.message };
 
-    return {
-      lesson: {
-        meta: { id, title, createdAt: now },
-        case: caseDoc,
-        noteSpine,
-        ...(normalizedSteps.steps ? { steps: normalizedSteps.steps } : {}),
-      },
+    const lesson: Lesson = {
+      meta: { id, title, createdAt: now },
+      case: caseDoc,
+      noteSpine,
+      ...(normalizedSteps.steps ? { steps: normalizedSteps.steps } : {}),
     };
-  }, [buildCurrentDocRef, notes, panels, stepsDraft]);
+    return {
+      lesson: upsertLessonLocaleContent(lesson, locale),
+    };
+  }, [buildCurrentDocRef, locale, notes, panels, stepsDraft]);
 
   const saveCurrentLesson = useCallback(() => {
     try {

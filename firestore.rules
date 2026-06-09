@@ -26,6 +26,17 @@ service cloud.firestore {
              data.role is string && (data.role == 'user' || data.role == 'admin') &&
              data.createdAt is timestamp;
     }
+
+    function isValidLocale(locale) {
+      return locale is string && locale.size() >= 2 && locale.size() <= 16 && locale.matches('^[a-zA-Z]{2}(-[a-zA-Z0-9]+)*$');
+    }
+
+    function isValidLocaleList(locales) {
+      return locales is list &&
+             locales.size() >= 1 &&
+             locales.size() <= 20 &&
+             locales.all(locale, isValidLocale(locale));
+    }
     
     match /users/{userId} {
       allow get: if isValidId(userId) && isSignedIn() && (request.auth.uid == userId || isAdmin());
@@ -47,11 +58,14 @@ service cloud.firestore {
     }
     
     function isValidLesson(data) {
-      return data.keys().hasAll(['title', 'content', 'order', 'status', 'authorId', 'createdAt', 'updatedAt']) &&
-             data.keys().size() == 7 &&
+      return data.keys().hasAll(['title', 'content', 'order', 'defaultLocale', 'availableLocales', 'status', 'authorId', 'createdAt', 'updatedAt']) &&
+             data.keys().size() == 9 &&
              data.title is string && data.title.size() <= 200 &&
              data.content is string && data.content.size() <= 500000 &&
              data.order is number &&
+             isValidLocale(data.defaultLocale) &&
+             isValidLocaleList(data.availableLocales) &&
+             data.defaultLocale in data.availableLocales &&
              data.status is string && (data.status == 'draft' || data.status == 'published') &&
              data.authorId is string && data.authorId.size() <= 128 &&
              data.createdAt is timestamp &&
@@ -80,12 +94,12 @@ service cloud.firestore {
     function isValidCase(data) {
       return data.keys().hasAll([
                'title', 'description', 'kind', 'content', 'status', 'visibility',
-               'ownerId', 'schemaVersion', 'engineVersion', 'knobMappingVersion',
+               'ownerId', 'schemaVersion', 'defaultLocale', 'availableLocales', 'engineVersion', 'knobMappingVersion',
                'workspaceSchemaVersion', 'createdAt', 'updatedAt'
              ]) &&
              data.keys().hasOnly([
                'title', 'description', 'kind', 'content', 'status', 'visibility',
-               'ownerId', 'schemaVersion', 'engineVersion', 'knobMappingVersion',
+               'ownerId', 'schemaVersion', 'defaultLocale', 'availableLocales', 'engineVersion', 'knobMappingVersion',
                'workspaceSchemaVersion', 'tags', 'source', 'derivedFrom',
                'createdAt', 'updatedAt', 'publishedAt'
              ]) &&
@@ -97,6 +111,9 @@ service cloud.firestore {
              data.visibility is string && (data.visibility == 'private' || data.visibility == 'unlisted' || data.visibility == 'public' || data.visibility == 'official') &&
              data.ownerId is string && data.ownerId.size() <= 128 &&
              data.schemaVersion is number &&
+             isValidLocale(data.defaultLocale) &&
+             isValidLocaleList(data.availableLocales) &&
+             data.defaultLocale in data.availableLocales &&
              data.engineVersion is string && data.engineVersion.size() <= 80 &&
              data.knobMappingVersion is string && data.knobMappingVersion.size() <= 80 &&
              data.workspaceSchemaVersion is number &&

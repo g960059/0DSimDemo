@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { SimInstance, PanelDef } from "@/types";
 import {
   caseDocumentToSimInstances,
+  CASE_SCHEMA_VERSION,
   isCaseDisplayable,
   simInstancesToCaseDocument,
   type CaseInstance,
@@ -43,7 +44,7 @@ describe("CaseDocument bridge round-trip (#3-b)", () => {
   it("stamps the schema/engine/knobMapping versions", () => {
     const doc = buildDoc([knobPrimary]);
     expect(doc.knobMappingVersion).toBe(KNOB_MAPPING_VERSION);
-    expect(doc.schemaVersion).toBe(1);
+    expect(doc.schemaVersion).toBe(CASE_SCHEMA_VERSION);
     expect(isCaseDisplayable(doc)).toBe(true);
   });
 

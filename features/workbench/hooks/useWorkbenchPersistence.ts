@@ -11,8 +11,9 @@ import {
 } from "@/caseDoc";
 import { createUserCaseId, fetchCase, isValidCaseId, saveCase } from "@/caseCloud";
 import { exportCaseFile, readCaseFile, saveDraft } from "@/casePersist";
+import { resolveLocalizedCaseDocument, upsertCaseLocaleContent } from "@/contentI18n";
 import { officialCaseById } from "@/officialCases";
-import { remapWorkbenchLoadIds } from "@/workbenchLoad";
+import { remapCaseI18nContentIds, remapWorkbenchLoadIds } from "@/workbenchLoad";
 import { DEFAULT_MODEL_LIMITATIONS } from "@/features/workbench/workbenchDefaults";
 import type { WorkbenchSceneState } from "@/features/workbench/hooks/useWorkbenchScene";
 import type { WorkbenchPanelsState } from "@/features/workbench/hooks/useWorkbenchPanels";
@@ -73,6 +74,7 @@ export function useWorkbenchPersistence({
   const lastLoadedCaseIdRef = useRef<string | null>(null);
   const loadNonceRef = useRef(0);
   const routeLoadCaseId = routeCaseId ?? searchParams.get("case");
+  const routeLoadKey = routeLoadCaseId ? `${locale}:${routeLoadCaseId}` : undefined;
   const stepsDraftLengthRef = useRef(lesson.stepsDraft.length);
   stepsDraftLengthRef.current = lesson.stepsDraft.length;
 
@@ -90,7 +92,7 @@ export function useWorkbenchPersistence({
     const modelLimitations = scene.sceneMeta.modelLimitations.length > 0
       ? scene.sceneMeta.modelLimitations
       : DEFAULT_MODEL_LIMITATIONS;
-    return simInstancesToCaseDocument(scene.instances, panels.panels, {
+    const doc = simInstancesToCaseDocument(scene.instances, panels.panels, {
       id: overrides.id ?? `wb-${now}`,
       title,
       author: overrides.author ?? scene.caseAuthor,
@@ -108,14 +110,22 @@ export function useWorkbenchPersistence({
       },
       workspace: workspaceForPanels(panels.panels, panels.workspace),
       notes: overrides.includeNotes === false ? undefined : panels.notes,
+      defaultLocale: scene.currentCaseDefaultLocale ?? locale,
+      availableLocales: scene.currentCaseAvailableLocales,
+      i18n: scene.currentCaseI18n,
     });
+    return upsertCaseLocaleContent(doc, locale);
   }, [
     defaultSceneTitle,
+    locale,
     panels.notes,
     panels.panels,
     panels.workspace,
     scene.caseAuthor,
+    scene.currentCaseAvailableLocales,
     scene.currentCaseDerivedFrom,
+    scene.currentCaseDefaultLocale,
+    scene.currentCaseI18n,
     scene.currentCaseOwnerId,
     scene.currentCaseSource,
     scene.instances,
@@ -128,21 +138,30 @@ export function useWorkbenchPersistence({
     if (opts.confirm && !window.confirm("Load this case? It will replace the current scene; unsaved changes are lost.")) return false;
 
     try {
-      const loaded = caseDocumentToSimInstances(doc);
+      const localized = resolveLocalizedCaseDocument(doc, locale).doc;
+      const loaded = caseDocumentToSimInstances(localized);
       const nonce = `${Date.now().toString(36)}${(loadNonceRef.current++).toString(36)}`;
-      const remapped = remapWorkbenchLoadIds(loaded, doc.panels, nonce);
+      const remapped = remapWorkbenchLoadIds(loaded, localized.panels, nonce);
+      const panelIdMap = new Map(localized.panels.map((panel, index) => [panel.id, remapped.panels[index]?.id ?? panel.id]));
+      const retainedDoc: CaseDocument = {
+        ...localized,
+        i18n: remapCaseI18nContentIds(localized.i18n, {
+          instanceIdMap: remapped.idMap,
+          panelIdMap,
+        }),
+      };
 
       replaceSceneFromDoc({
-        doc,
+        doc: retainedDoc,
         instances: remapped.instances,
         activeInstanceId: remapped.activeInstanceId,
         trustedOfficial: opts.trustedOfficial,
       });
       replacePanelState({
         panels: remapped.panels,
-        workspace: doc.workspace,
-        notes: doc.notes ?? {},
-        noteCaseKey: `${doc.meta.id}:${nonce}`,
+        workspace: localized.workspace,
+        notes: localized.notes ?? {},
+        noteCaseKey: `${localized.meta.id}:${nonce}`,
       });
       resetLessonState();
       userEditedRef.current = false;
@@ -151,13 +170,13 @@ export function useWorkbenchPersistence({
       pushWarningToast("Case load", (err as Error).message);
       return false;
     }
-  }, [pushWarningToast, replacePanelState, replaceSceneFromDoc, resetLessonState, userEditedRef]);
+  }, [locale, pushWarningToast, replacePanelState, replaceSceneFromDoc, resetLessonState, userEditedRef]);
 
   const replaceWorkbenchDocRef = useRef(replaceWorkbenchDoc);
   replaceWorkbenchDocRef.current = replaceWorkbenchDoc;
 
   useEffect(() => {
-    if (!routeLoadCaseId || routeLoadCaseId === lastLoadedCaseIdRef.current) return;
+    if (!routeLoadCaseId || routeLoadKey === lastLoadedCaseIdRef.current) return;
 
     let cancelled = false;
     const localDoc = officialCaseById(routeLoadCaseId);
@@ -171,7 +190,7 @@ export function useWorkbenchPersistence({
     loadDoc().then((loaded) => {
       if (cancelled) return;
       if (!loaded) {
-        lastLoadedCaseIdRef.current = routeLoadCaseId;
+        lastLoadedCaseIdRef.current = routeLoadKey ?? routeLoadCaseId;
         pushWarningToast("Case route", `Unknown case "${routeLoadCaseId}" — loaded the default scene`);
         return;
       }
@@ -180,14 +199,14 @@ export function useWorkbenchPersistence({
         confirm: userEditedRef.current || stepsDraftLengthRef.current > 0,
         trustedOfficial: loaded.trustedOfficial,
       })) {
-        lastLoadedCaseIdRef.current = routeLoadCaseId;
+        lastLoadedCaseIdRef.current = routeLoadKey ?? routeLoadCaseId;
       }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [authLoading, pushWarningToast, routeLoadCaseId, userEditedRef]);
+  }, [authLoading, pushWarningToast, routeLoadCaseId, routeLoadKey, userEditedRef]);
 
   const handleExport = useCallback(() => {
     try {
@@ -264,7 +283,7 @@ export function useWorkbenchPersistence({
       createdAt: canUpdateCurrentCase ? (scene.currentCaseCreatedAt ?? now) : now,
       updatedAt: now,
     });
-    const nextDoc: CaseDocument = {
+    const nextDocBase: CaseDocument = {
       ...caseDoc,
       meta: {
         ...caseDoc.meta,
@@ -277,6 +296,7 @@ export function useWorkbenchPersistence({
         ...(description ? { description } : {}),
       },
     };
+    const nextDoc = upsertCaseLocaleContent(nextDocBase, locale);
 
     setIsSavingCase(true);
     try {
@@ -298,10 +318,13 @@ export function useWorkbenchPersistence({
         createdAt: nextDoc.meta.createdAt,
         source,
         derivedFrom,
+        defaultLocale: nextDoc.defaultLocale,
+        availableLocales: nextDoc.availableLocales,
+        i18n: nextDoc.i18n,
       });
       lesson.setSavedLesson(null);
       lesson.setPublishedLesson(null);
-      lastLoadedCaseIdRef.current = caseId;
+      lastLoadedCaseIdRef.current = `${locale}:${caseId}`;
       navigate(caseHref(caseId, locale), { replace: true });
       pushWarningToast("Case save", opts.copy ? "Created an editable copy." : "Saved case.");
     } finally {

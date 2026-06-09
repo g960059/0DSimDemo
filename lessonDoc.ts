@@ -5,6 +5,8 @@ import type { KnobKey } from "@/engine/knobs";
 import { officialCaseById } from "@/officialCases";
 import { listUserLessons } from "@/lessonPersist";
 
+export const LESSON_SCHEMA_VERSION = 2;
+
 export type LessonStep = {
   id: string;
   title?: string;
@@ -28,7 +30,26 @@ export type StageManifest = {
   initialState?: Partial<Record<NumericKnobKey, number>>;
 };
 
+export type LessonLocalizedStep = {
+  label?: string;
+  body?: NoteContent;
+  challengePrompt?: string;
+  revealLabel?: string;
+};
+
+export type LessonI18nContent = {
+  title?: string;
+  objective?: string;
+  level?: string;
+  summary?: NoteContent;
+  steps?: Record<string, LessonLocalizedStep>;
+};
+
 export type Lesson = {
+  schemaVersion?: number;
+  defaultLocale?: string;
+  availableLocales?: string[];
+  i18n?: Record<string, LessonI18nContent>;
   meta: {
     id: string;
     title: string;
@@ -154,6 +175,9 @@ export function lessonLayerFromLesson(lesson: Lesson): CaseLessonLayer {
 export function caseDocumentToLesson(doc: CaseDocument): Lesson | undefined {
   if (!doc.lesson) return undefined;
   return {
+    schemaVersion: LESSON_SCHEMA_VERSION,
+    ...(doc.defaultLocale ? { defaultLocale: doc.defaultLocale } : {}),
+    ...(doc.availableLocales ? { availableLocales: doc.availableLocales } : {}),
     meta: {
       id: doc.meta.id,
       title: doc.spec.title || doc.meta.title,
@@ -185,6 +209,9 @@ export function lessonToCaseDocument(lesson: Lesson): CaseDocument | undefined {
   return {
     ...caseDoc,
     kind: "lesson",
+    ...(lesson.defaultLocale ?? caseDoc.defaultLocale ? { defaultLocale: lesson.defaultLocale ?? caseDoc.defaultLocale } : {}),
+    ...(lesson.availableLocales ?? caseDoc.availableLocales ? { availableLocales: lesson.availableLocales ?? caseDoc.availableLocales } : {}),
+    ...(caseDoc.i18n ? { i18n: caseDoc.i18n } : {}),
     meta: {
       ...caseDoc.meta,
       id: lesson.meta.id,

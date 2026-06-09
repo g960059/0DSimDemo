@@ -13,7 +13,10 @@ describe('lessonCloud pure helpers', () => {
 
     expect(fields.title).toHaveLength(200);
     expect(fields.order).toBe(0);
+    expect(fields.defaultLocale).toBe("en");
+    expect(fields.availableLocales).toEqual(["en"]);
     expect(JSON.parse(fields.content).meta.id).toBe(lesson.meta.id);
+    expect(JSON.parse(fields.content).schemaVersion).toBe(2);
   });
 
   it('rejects content over the Firestore rules size guard', () => {

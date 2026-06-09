@@ -1,6 +1,6 @@
 import { useCallback, useState, type MutableRefObject, type SetStateAction } from "react";
 import { DEFAULT_PARAMS } from "@/constants";
-import type { CaseDocument, CaseSource } from "@/caseDoc";
+import type { CaseDocument, CaseI18nContent, CaseSource } from "@/caseDoc";
 import { OFFICIAL_BASELINES } from "@/engine/caseBaselines";
 import { type ClinicalKnobs } from "@/engine/knobs";
 import { resolveKnobEdit, resolveRawEdit } from "@/engine/instanceKnobs";
@@ -35,6 +35,9 @@ type SavedCasePayload = {
   source: CaseSource;
   derivedFrom?: string;
   modelLimitations: string[];
+  defaultLocale?: string;
+  availableLocales?: string[];
+  i18n?: Record<string, CaseI18nContent>;
 };
 
 export function useWorkbenchScene({
@@ -71,6 +74,9 @@ export function useWorkbenchScene({
   const [currentCaseCreatedAt, setCurrentCaseCreatedAt] = useState<number | undefined>(undefined);
   const [currentCaseSource, setCurrentCaseSource] = useState<CaseSource | undefined>(undefined);
   const [currentCaseDerivedFrom, setCurrentCaseDerivedFrom] = useState<string | undefined>(undefined);
+  const [currentCaseDefaultLocale, setCurrentCaseDefaultLocale] = useState<string | undefined>(undefined);
+  const [currentCaseAvailableLocales, setCurrentCaseAvailableLocales] = useState<string[] | undefined>(undefined);
+  const [currentCaseI18n, setCurrentCaseI18n] = useState<Record<string, CaseI18nContent> | undefined>(undefined);
 
   const ownsCurrentCase = Boolean(user && currentCaseOwnerId === user.uid);
   const headerMode: WorkbenchHeaderMode = authoringMode
@@ -196,6 +202,9 @@ export function useWorkbenchScene({
     setCurrentCaseCreatedAt(doc.meta.createdAt);
     setCurrentCaseSource(inferCaseSource(doc, { trustedOfficial: payload.trustedOfficial || doc.visibility === "official" }));
     setCurrentCaseDerivedFrom(doc.derivedFrom);
+    setCurrentCaseDefaultLocale(doc.defaultLocale);
+    setCurrentCaseAvailableLocales(doc.availableLocales);
+    setCurrentCaseI18n(doc.i18n);
     setActiveInstanceId(payload.activeInstanceId);
     setAuthoringMode(false);
   }, []);
@@ -212,6 +221,9 @@ export function useWorkbenchScene({
     setCurrentCaseCreatedAt(payload.createdAt);
     setCurrentCaseSource(payload.source);
     setCurrentCaseDerivedFrom(payload.derivedFrom);
+    setCurrentCaseDefaultLocale(payload.defaultLocale);
+    setCurrentCaseAvailableLocales(payload.availableLocales);
+    setCurrentCaseI18n(payload.i18n);
     setAuthoringMode(false);
   }, []);
 
@@ -239,6 +251,9 @@ export function useWorkbenchScene({
     currentCaseCreatedAt,
     currentCaseSource,
     currentCaseDerivedFrom,
+    currentCaseDefaultLocale,
+    currentCaseAvailableLocales,
+    currentCaseI18n,
     ownsCurrentCase,
     headerMode,
     updateInstanceParams,

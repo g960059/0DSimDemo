@@ -65,6 +65,8 @@ function makeCase(p: CaseAuthor): CaseDocument {
   const instances = p.instances.map((a, i) => instance(i, a));
   return {
     schemaVersion: CASE_SCHEMA_VERSION,
+    defaultLocale: "en",
+    availableLocales: ["en"],
     engineVersion: ENGINE_VERSION,
     knobMappingVersion: KNOB_MAPPING_VERSION,
     solver: DEFAULT_SOLVER,
@@ -80,6 +82,16 @@ function makeCase(p: CaseAuthor): CaseDocument {
     instances,
     panels: buildPanels(instances.map((x) => x.id)),
     ...(p.notes ? { notes: p.notes } : {}),
+    i18n: {
+      en: {
+        title: p.title,
+        description: p.description,
+        modelLimitations: p.modelLimitations,
+        ...(p.notes ? { notes: p.notes } : {}),
+        panels: Object.fromEntries(buildPanels(instances.map((x) => x.id)).map((panel) => [panel.id, { title: panel.title }])),
+        instances: Object.fromEntries(instances.map((item) => [item.id, { name: item.name }])),
+      },
+    },
   };
 }
 

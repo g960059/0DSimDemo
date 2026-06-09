@@ -1,6 +1,7 @@
-import type { Lesson, NumericKnobKey } from "@/lessonDoc";
+import type { Lesson, LessonI18nContent, LessonLocalizedStep, NumericKnobKey } from "@/lessonDoc";
 import { parseCaseDocument } from "@/casePersist";
 import { KNOB_RANGES } from "@/engine/knobs";
+import type { NoteContent } from "@/noteTypes";
 
 export const USER_LESSONS_KEY = "circleheart:user-lessons:v1";
 
@@ -84,6 +85,72 @@ function parseSteps(value: unknown): Lesson["steps"] | undefined {
   return steps.length > 0 ? steps : undefined;
 }
 
+function parseLocalizedSteps(value: unknown): Record<string, LessonLocalizedStep> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const steps: Record<string, LessonLocalizedStep> = {};
+  for (const [id, rawStep] of Object.entries(value as Record<string, unknown>)) {
+    if (!rawStep || typeof rawStep !== "object" || Array.isArray(rawStep)) continue;
+    const entry = rawStep as Record<string, unknown>;
+    const parsed: LessonLocalizedStep = {
+      ...(typeof entry.label === "string" ? { label: entry.label } : {}),
+      ...(Array.isArray(entry.body) ? { body: entry.body } : {}),
+      ...(typeof entry.challengePrompt === "string" ? { challengePrompt: entry.challengePrompt } : {}),
+      ...(typeof entry.revealLabel === "string" ? { revealLabel: entry.revealLabel } : {}),
+    };
+    if (Object.keys(parsed).length > 0) steps[id] = parsed;
+  }
+  return Object.keys(steps).length > 0 ? steps : undefined;
+}
+
+function parseLessonI18n(value: unknown): Record<string, LessonI18nContent> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const i18n: Record<string, LessonI18nContent> = {};
+  for (const [locale, rawContent] of Object.entries(value as Record<string, unknown>)) {
+    if (!rawContent || typeof rawContent !== "object" || Array.isArray(rawContent)) continue;
+    const entry = rawContent as Record<string, unknown>;
+    const steps = parseLocalizedSteps(entry.steps);
+    const content: LessonI18nContent = {
+      ...(typeof entry.title === "string" ? { title: entry.title } : {}),
+      ...(typeof entry.objective === "string" ? { objective: entry.objective } : {}),
+      ...(typeof entry.level === "string" ? { level: entry.level } : {}),
+      ...(Array.isArray(entry.summary) ? { summary: entry.summary } : {}),
+      ...(steps ? { steps } : {}),
+    };
+    if (Object.keys(content).length > 0) i18n[locale] = content;
+  }
+  return Object.keys(i18n).length > 0 ? i18n : undefined;
+}
+
+function lessonI18nFromLegacy(rawMeta: Record<string, unknown>, noteSpine: NoteContent, steps?: Lesson["steps"]): Record<string, LessonI18nContent> {
+  const localizedSteps = steps?.reduce<Record<string, LessonLocalizedStep>>((acc, step) => {
+    acc[step.id] = {
+      ...(step.title ? { label: step.title } : {}),
+      body: step.note,
+      ...(step.stage.challenge?.prompt ? { challengePrompt: step.stage.challenge.prompt } : {}),
+      ...(step.stage.challenge?.revealLabel ? { revealLabel: step.stage.challenge.revealLabel } : {}),
+    };
+    return acc;
+  }, {});
+  return {
+    en: {
+      title: rawMeta.title as string,
+      ...(typeof rawMeta.objective === "string" ? { objective: rawMeta.objective } : {}),
+      ...(typeof rawMeta.level === "string" ? { level: rawMeta.level } : {}),
+      summary: noteSpine,
+      ...(localizedSteps && Object.keys(localizedSteps).length > 0 ? { steps: localizedSteps } : {}),
+    },
+  };
+}
+
+function parseLessonLocales(raw: Record<string, unknown>, rawMeta: Record<string, unknown>, noteSpine: NoteContent, steps?: Lesson["steps"]) {
+  const i18n = parseLessonI18n(raw.i18n) ?? lessonI18nFromLegacy(rawMeta, noteSpine, steps);
+  const defaultLocale = typeof raw.defaultLocale === "string" ? raw.defaultLocale : Object.keys(i18n)[0] ?? "en";
+  const availableLocales = Array.isArray(raw.availableLocales) && raw.availableLocales.every((locale) => typeof locale === "string")
+    ? raw.availableLocales
+    : Array.from(new Set([defaultLocale, ...Object.keys(i18n)]));
+  return { defaultLocale, availableLocales, i18n };
+}
+
 export function parseLesson(value: unknown): Lesson | null {
   if (!value || typeof value !== "object") return null;
   const raw = value as Record<string, unknown>;
@@ -93,8 +160,13 @@ export function parseLesson(value: unknown): Lesson | null {
   if (typeof rawMeta.id !== "string" || typeof rawMeta.title !== "string") return null;
   if (!Array.isArray(raw.noteSpine)) return null;
   const steps = parseSteps(raw.steps);
+  const localized = parseLessonLocales(raw, rawMeta, raw.noteSpine, steps);
 
   const lesson: Lesson = {
+    ...(typeof raw.schemaVersion === "number" ? { schemaVersion: raw.schemaVersion } : { schemaVersion: 2 }),
+    defaultLocale: localized.defaultLocale,
+    availableLocales: localized.availableLocales,
+    i18n: localized.i18n,
     meta: {
       id: rawMeta.id,
       title: rawMeta.title,
