@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { caseDocumentToSimInstances, type CaseDocument } from "../../caseDoc";
 import { fetchCase } from "../../caseCloud";
@@ -30,26 +31,30 @@ type CloudResolveState =
   | { status: "ready"; lesson: Lesson };
 
 const LessonNotFound = () => {
+  const { t } = useTranslation();
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
   return (
     <div className="h-full w-full bg-slate-950 text-slate-200 flex items-center justify-center p-6">
       <div className="max-w-md text-center">
-        <h1 className="text-2xl font-bold mb-3">Lesson not found</h1>
-        <p className="text-sm text-slate-400 mb-5">This lesson is not available in the current learning path.</p>
+        <h1 className="text-2xl font-bold mb-3">{t("lessonPlayer.notFound.title")}</h1>
+        <p className="text-sm text-slate-400 mb-5">{t("lessonPlayer.notFound.description")}</p>
         <Link to={homeHref(locale)} className="inline-flex px-4 py-2 rounded bg-slate-800 hover:bg-slate-700 text-sm font-bold">
-          Back to Home
+          {t("lessonPlayer.backToHome")}
         </Link>
       </div>
     </div>
   );
 };
 
-const LessonLoading = () => (
-  <div className="h-full w-full bg-slate-950 text-slate-200 flex items-center justify-center p-6">
-    <div className="text-sm font-bold text-slate-400">Loading lesson...</div>
-  </div>
-);
+const LessonLoading = () => {
+  const { t } = useTranslation();
+  return (
+    <div className="h-full w-full bg-slate-950 text-slate-200 flex items-center justify-center p-6">
+      <div className="text-sm font-bold text-slate-400">{t("lessonPlayer.loading")}</div>
+    </div>
+  );
+};
 
 export const LessonReadingRoute = () => {
   const { id } = useParams();

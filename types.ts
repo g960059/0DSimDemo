@@ -107,10 +107,11 @@ export type ControllerItem = {
     paramKey: string;
     kind: 'slider' | 'buttonGroup' | 'knob' | 'custom';
     label?: string;
+    labelKey?: string;
     min?: number;
     max?: number;
     step?: number;
-    options?: { label: string; value: number }[];
+    options?: { label: string; value: number; labelKey?: string }[];
 };
 
 export interface ControlPanelView {

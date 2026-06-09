@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Activity, BarChart3, ChevronDown, ChevronUp, SlidersHorizontal, StickyNote } from 'lucide-react';
 import type { PanelDef } from '../../types';
 import { ErrorBoundary } from '../ErrorBoundary';
@@ -61,8 +62,9 @@ function pickActivePanel(
 }
 
 function MobilePaneBoundary({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
   return (
-    <ErrorBoundary fallback={<div className="p-3 text-xs text-rose-200">This panel could not be rendered.</div>}>
+    <ErrorBoundary fallback={<div className="p-3 text-xs text-rose-200">{t('workbench.mobile.panelRenderError')}</div>}>
       {children}
     </ErrorBoundary>
   );
@@ -81,6 +83,7 @@ export function WorkbenchMobile({
   onControlsOpenChange,
   emptyState,
 }: WorkbenchMobileProps) {
+  const { t } = useTranslation();
   const groups = useMemo(() => groupPanels(panels), [panels]);
   const [internalGraphId, setInternalGraphId] = useState<string | undefined>(groups.graph[0]?.id);
   const [internalNoteId, setInternalNoteId] = useState<string | undefined>(groups.note[0]?.id);
@@ -138,7 +141,7 @@ export function WorkbenchMobile({
             type="button"
             onClick={() => setControlsOpen(true)}
             className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-700 bg-slate-900 text-slate-200 active:bg-slate-800"
-            aria-label="Open controls"
+            aria-label={t('workbench.mobile.openControls')}
           >
             <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -165,7 +168,7 @@ export function WorkbenchMobile({
             ))
           ) : (
             <div className="min-h-16 w-full rounded-md border border-dashed border-slate-700 bg-slate-900/50 p-3 text-xs text-slate-500">
-              No output panel
+              {t('workbench.mobile.noOutputPanel')}
             </div>
           )}
         </div>
@@ -174,12 +177,12 @@ export function WorkbenchMobile({
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pb-28 pt-3">
         {!hasPanels && (
           <div className="flex min-h-64 items-center justify-center rounded-md border border-dashed border-slate-700 bg-slate-900/50 p-4 text-sm text-slate-400">
-            {emptyState ?? 'No panels available'}
+            {emptyState ?? t('workbench.mobile.noPanelsAvailable')}
           </div>
         )}
 
         {groups.graph.length > 0 && (
-          <section aria-label="Charts" className="flex min-h-[24rem] flex-col">
+          <section aria-label={t('workbench.mobile.charts')} className="flex min-h-[24rem] flex-col">
             <div className="mb-2 flex gap-1 overflow-x-auto rounded-md border border-slate-800 bg-slate-900 p-1">
               {groups.graph.map((panel) => {
                 const isActive = activeGraph?.id === panel.id;
@@ -213,7 +216,7 @@ export function WorkbenchMobile({
         )}
 
         {groups.note.length > 0 && (
-          <section aria-label="Notes" className="mt-4">
+          <section aria-label={t('workbench.mobile.notes')} className="mt-4">
             <div className="mb-2 flex gap-1 overflow-x-auto rounded-md border border-slate-800 bg-slate-900 p-1">
               {groups.note.map((panel) => {
                 const isActive = activeNote?.id === panel.id;
@@ -258,7 +261,7 @@ export function WorkbenchMobile({
             >
               <span className="inline-flex min-w-0 items-center gap-2">
                 <SlidersHorizontal className="h-4 w-4 shrink-0 text-sky-300" aria-hidden="true" />
-                <span className="truncate">Controls</span>
+                <span className="truncate">{t('workbench.panels.controls')}</span>
               </span>
               {isControlsOpen ? (
                 <ChevronDown className="h-4 w-4 text-slate-400" aria-hidden="true" />

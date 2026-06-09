@@ -5,7 +5,24 @@
       "ja": "日本語",
       "en": "EN",
       "switchTo": "{{language}}に切り替え"
-    }
+    },
+    "none": "なし",
+    "cancel": "キャンセル",
+    "save": "保存",
+    "delete": "削除",
+    "rename": "名前を変更",
+    "duplicate": "複製",
+    "done": "完了",
+    "close": "閉じる",
+    "dismiss": "閉じる",
+    "copy": "コピー",
+    "edit": "編集",
+    "title": "タイトル",
+    "description": "説明",
+    "on": "オン",
+    "off": "オフ",
+    "visible": "表示",
+    "hidden": "非表示"
   },
   "nav": {
     "home": "ホーム",
@@ -42,6 +59,533 @@
     "openCase": "ケースを開く",
     "officialBadge": "公式",
     "draftBadge": "下書き"
+  },
+  "workbench": {
+    "panels": {
+      "waveforms": "波形",
+      "pvLoop": "PVループ",
+      "metrics": "指標",
+      "controls": "コントロール"
+    },
+    "zones": {
+      "caseRail": "ケース",
+      "main": "メイン",
+      "sideRail": "コントロール",
+      "bottomPanel": "出力"
+    },
+    "panelTypes": {
+      "NOTE": "ノート",
+      "PVLOOP": "PVループ",
+      "WAVEFORM": "波形",
+      "GUYTON_LEFT": "Guyton (L)",
+      "GUYTON_RIGHT": "Guyton (R)",
+      "GUYTON_3D": "Guyton 3D",
+      "SCENARIOS": "シナリオ",
+      "CONTROLS": "コントロール",
+      "METRICS": "指標"
+    },
+    "controls": {
+      "changed": "変更",
+      "reset": "リセット",
+      "resetClinicalBaseline": "臨床ノブを基準値にリセット",
+      "customReplaceDefault": "カスタムコントロールが標準の臨床ノブを置き換えます",
+      "customControls": "カスタムコントロール",
+      "baselineValue": "基準値 {{value}}{{unit}}",
+      "resetTo": "{{value}}{{unit}} にリセット",
+      "resetAria": "{{label}}をリセット",
+      "groups": {
+        "clinical": "臨床ノブ",
+        "global": "全身生理",
+        "ventricles": "心室メカニクス",
+        "atria": "心房メカニクス",
+        "vascular": "血管抵抗とコンプライアンス",
+        "coronary": "冠循環",
+        "fluids": "輸液と出血",
+        "valves": "弁メカニクス",
+        "resp": "呼吸と環境",
+        "advanced": "高度なエンジン"
+      },
+      "categories": {
+        "cardiacFunction": "心機能",
+        "loadRate": "負荷と拍動",
+        "valveLesions": "弁病変"
+      },
+      "knobs": {
+        "HR": "心拍数",
+        "contractility": "LV収縮性",
+        "contractilityRV": "RV収縮性",
+        "relaxation": "弛緩",
+        "diastolicStiffness": "拡張期スティフネス",
+        "afterload": "後負荷",
+        "arterialStiffness": "動脈硬さ",
+        "pulmonaryResistance": "肺血管抵抗",
+        "venousTone": "静脈緊張",
+        "peep": "PEEP",
+        "aorticStenosis": "大動脈弁狭窄",
+        "aorticRegurgitation": "大動脈弁逆流",
+        "mitralStenosis": "僧帽弁狭窄",
+        "mitralRegurgitation": "僧帽弁逆流",
+        "tricuspidRegurgitation": "三尖弁逆流",
+        "pulmonicStenosis": "肺動脈弁狭窄"
+      },
+      "options": {
+        "low": "低",
+        "normal": "標準",
+        "high": "高",
+        "none": "なし",
+        "moderate": "中等度",
+        "severe": "重度"
+      },
+      "raw": {
+        "heartRate": "心拍数",
+        "avDelay": "AV遅延 (P-QRS)",
+        "totalBloodVolume": "総血液量",
+        "globalVenousTone": "全身静脈緊張",
+        "globalContractility": "全体収縮性",
+        "globalRelaxation": "全体弛緩",
+        "ventricleModel": "心室モデル",
+        "activeStress": "能動応力",
+        "elastance": "エラスタンス",
+        "activeStressTitle": "単一線維の能動応力LV/RV (標準)",
+        "elastanceTitle": "時変エラスタンスのフォールバック",
+        "leftVentricle": "左室 (LV)",
+        "lvBaselineVolume": "LV基準容積 (V0)",
+        "lvTveEes": "LV TVE Ees",
+        "lvTmaxScale": "LV Tmaxスケール (力)",
+        "lvCaReleaseScale": "LV Ca2+放出スケール",
+        "lvGeometryScale": "LV形状スケール",
+        "rightVentricle": "右室 (RV)",
+        "rvBaselineVolume": "RV基準容積 (V0)",
+        "rvTveEes": "RV TVE Ees",
+        "rvTmaxScale": "RV Tmaxスケール (力)",
+        "rvCaReleaseScale": "RV Ca2+放出スケール",
+        "rvGeometryScale": "RV形状スケール",
+        "pericardiumSeptum": "心膜と中隔",
+        "pericardialConstraintEnabled": "心膜拘束を有効化",
+        "pericardialConstraint": "心膜拘束",
+        "pericardialEffusion": "心嚢液",
+        "pericardialSlackVolume": "心膜ゆとり容積",
+        "septalVolumeShiftEnabled": "中隔容積シフトを有効化",
+        "septalStiffness": "中隔硬さ",
+        "septalMaxShift": "中隔最大シフト",
+        "septalLvForceWeight": "中隔LV力重み",
+        "leftAtrium": "左房 (LA)",
+        "laBaselineVolume": "LA基準容積 (V0)",
+        "laElastance": "LAエラスタンス (Ees)",
+        "rightAtrium": "右房 (RA)",
+        "raBaselineVolume": "RA基準容積 (V0)",
+        "raElastance": "RAエラスタンス (Ees)",
+        "globalScaleMultipliers": "全体スケール倍率",
+        "systemicResistance": "体血管抵抗",
+        "pulmonaryResistance": "肺血管抵抗",
+        "globalArterialStiffness": "全体動脈硬さ",
+        "systemicSegmentResistance": "体循環セグメント抵抗",
+        "pulmonarySegmentResistance": "肺循環セグメント抵抗",
+        "coronaryBedEnabled": "冠血管床を有効化",
+        "coronaryResistance": "冠血管抵抗",
+        "myocardialCompression": "心筋圧迫",
+        "hyperemiaVasodilator": "充血 / 血管拡張",
+        "reserveMax": "最大予備能",
+        "epicardialDiameterStenosis": "心外膜冠動脈径狭窄",
+        "ladStenosis": "LAD狭窄",
+        "lcxStenosis": "LCx狭窄",
+        "rcaStenosis": "RCA狭窄",
+        "hemorrhageRate": "出血速度",
+        "fluidTransfusionRate": "輸液 / 輸血速度",
+        "netVolumeNote": "正味の容積変化は時間積分されます。自律神経補償はありません (圧受容体反射は後続フェーズ)。",
+        "valveParameters": "{{valve}}パラメータ",
+        "arefHealthyArea": "Aref (正常面積)",
+        "amaxMaxArea": "Amax (最大面積)",
+        "aleakLeakArea": "Aleak (漏れ面積)",
+        "resistance": "抵抗",
+        "inertance": "イナータンス",
+        "quadraticLoss": "二次損失",
+        "basePleuralP": "基礎胸腔内圧 (Pth0)",
+        "respAmpPleural": "呼吸振幅 (胸腔)",
+        "respAmpAlveolar": "呼吸振幅 (肺胞)",
+        "respiratoryRate": "呼吸数",
+        "useDynamicStarling": "waterfall collapseに動的Starling抵抗 (χ) を使う"
+      }
+    },
+    "controllerBuilder": {
+      "description": "カスタムコントロールが標準の臨床ノブを置き換えます (読者にはボタンとして表示)。",
+      "empty": "カスタムコントロールはまだありません。読者には標準の臨床ノブが表示されます。",
+      "slider": "スライダー",
+      "button": "ボタン",
+      "optionNumber": "オプション {{number}}",
+      "addOption": "オプションを追加",
+      "needsDistinctValues": "2つ以上の異なる値が必要です。スライダーとして表示されます"
+    },
+    "dialogs": {
+      "saveLesson": {
+        "title": "レッスンとして保存",
+        "lessonTitle": "タイトル",
+        "noteSpine": "ノート本文",
+        "capturedSteps": "記録済みステップ",
+        "stepsCount_one": "{{count}}ステップ",
+        "stepsCount_other": "{{count}}ステップ"
+      },
+      "addPanel": {
+        "title": "{{panelType}}パネルを設定",
+        "confirm": "パネルを追加"
+      }
+    },
+    "header": {
+      "editCopy": "コピーを編集",
+      "share": "共有",
+      "saveCase": "ケースを保存",
+      "untitledScene": "無題のシーン",
+      "unsavedAuthoringChanges": "未保存のオーサリング変更",
+      "customizeLayout": "レイアウトを調整",
+      "left": "左",
+      "right": "右",
+      "resetLayout": "レイアウトをリセット",
+      "pause": "一時停止",
+      "play": "再生",
+      "publishing": "公開中...",
+      "saving": "保存中...",
+      "openPanel": "ワークベンチパネルを開く",
+      "sceneDetails": "シーン詳細"
+    },
+    "sidePanel": {
+      "aria": "ワークベンチ詳細",
+      "closePanel": "パネルを閉じる",
+      "learningScene": "学習シーン",
+      "authorWorkspace": "作成ワークスペース",
+      "sandboxScene": "サンドボックスシーン",
+      "tabs": {
+        "share": "共有",
+        "files": "ファイル",
+        "details": "詳細",
+        "settings": "設定"
+      },
+      "share": {
+        "title": "共有",
+        "description": "利用できる場合は公開済みレッスンリンクを使います。保存と共有は別です。",
+        "copyLink": "リンクをコピー",
+        "openSavedLesson": "保存済みレッスンを開く",
+        "noLink": "共有リンクはまだありません。"
+      },
+      "files": {
+        "title": "ファイル",
+        "description": "ポータブルなケースファイルを書き出すか、ローカルケースを読み込みます。読み込みは現在のシーンを置き換えます。",
+        "export": "書き出し",
+        "load": "読み込み"
+      },
+      "details": {
+        "noDescription": "説明は設定されていません。"
+      },
+      "settings": {
+        "title": "設定",
+        "description": "低頻度で使うワークベンチ設定です。",
+        "appearance": "外観",
+        "theme": "テーマ",
+        "saveAsLesson": "レッスンとして保存",
+        "exitAuthoring": "オーサリングを終了",
+        "createLesson": "レッスンを作成"
+      },
+      "themes": {
+        "midnight": "ミッドナイト",
+        "graphite": "グラファイト",
+        "clinical": "クリニカル"
+      }
+    },
+    "scenarioPane": {
+      "steadyComputing": "定常状態を再計算中",
+      "steadyFailed": "定常更新に失敗",
+      "steadyUpdated": "定常状態を更新しました",
+      "changeColor": "シナリオ色を変更",
+      "colorAria": "{{name}}の色",
+      "scenarioName": "シナリオ名",
+      "actions": "シナリオ操作",
+      "actionsAria": "{{name}}の操作",
+      "addFromPreset": "プリセットからシナリオを追加",
+      "addFromPresetShort": "プリセットから追加"
+    },
+      "panelGrid": {
+      "panelTitle": "パネルタイトル",
+      "showLegend": "凡例を表示",
+      "showGuides": "ガイドを表示",
+      "windowSize": "ウィンドウサイズ",
+      "chooseInstance": "編集するインスタンスを選択",
+      "standardGuytonCurve": "標準Guyton曲線",
+      "guytonCurveDescription": "Guytonペインは表示中インスタンスの組み込み曲線を描画します。表示とインスタンス別の見た目は、インスタンスとスタイル/ラベルで設定します。",
+      "selectInstanceToConfigure": "{{source}}を設定するインスタンスを選択してください。",
+      "searchSignals": "信号を検索",
+      "type": "種類",
+      "signalCategory": "信号カテゴリ",
+      "noMatchingSource": "一致する{{source}}がありません。",
+      "paneTitle": "ペインタイトル",
+      "graph": "グラフ",
+      "legend": "凡例",
+      "showGraphLabels": "グラフラベルを表示します。",
+      "pvLoopGuides": "PVループガイド",
+      "referenceOverlays": "参照オーバーレイです。",
+      "waveformTimeWindow": "波形時間ウィンドウ",
+      "adjacentSectionsConfigurable": "インスタンス表示とラベルは隣のセクションでも設定できます。",
+      "selectInstanceForStyle": "ラベルと色を編集するインスタンスを選択してください。",
+      "instanceStylingOnly": "インスタンスの見た目のみ",
+      "instanceStylingDescription": "インスタンスでこのペインの表示シナリオ名と基準色を変更します。トレース別ラベルを編集する前に{{source}}を選択してください。",
+        "selectedSource": "選択中の{{source}}",
+        "selectedSourceCount_one": "{{source}} {{count}}件",
+        "selectedSourceCount_other": "{{source}} {{count}}件",
+        "color": "色",
+      "label": "ラベル",
+      "settingsCategories": "設定カテゴリ",
+      "controllerSettingsCategories": "コントローラ設定カテゴリ",
+      "visibleCount_one": "{{count}}表示",
+      "visibleCount_other": "{{count}}表示",
+      "selectedCount_one": "{{count}}選択",
+      "selectedCount_other": "{{count}}選択",
+      "paneSettings": "ペイン設定",
+      "paneSettingsAria": "{{title}}のペイン設定",
+      "closePaneSettings": "ペイン設定を閉じる",
+      "closeSettings": "設定を閉じる",
+      "customizations": "カスタマイズ",
+      "preview": "プレビュー",
+      "closePanel": "パネルを閉じる",
+      "closePanelAria": "{{title}}を閉じる",
+      "zoneAria": "{{zone}}ゾーン",
+        "shareUrl": "共有URL",
+        "sources": {
+          "chambers": {
+            "title": "心腔",
+            "sentence": "心腔"
+          },
+          "metrics": {
+            "title": "指標",
+            "sentence": "指標"
+          },
+          "signals": {
+            "title": "信号",
+            "sentence": "信号"
+          },
+          "curve": {
+            "title": "曲線",
+            "sentence": "曲線"
+          }
+        },
+        "signalCategories": {
+          "all": "すべて",
+          "pressure": "圧",
+          "flow": "流量",
+          "volume": "容積",
+          "valve": "弁",
+          "coupling": "連成",
+          "derived": "派生"
+        },
+        "settings": {
+          "graph": {
+            "signals": {
+              "label": "信号",
+              "compactLabel": "信号",
+              "description": "1つのインスタンスに描画する情報源を選択します。"
+            },
+            "instances": {
+              "label": "インスタンス",
+              "compactLabel": "インスタンス",
+              "description": "表示、基準色、表示名を設定します。"
+            },
+            "display": {
+              "label": "表示",
+              "compactLabel": "表示",
+              "description": "ペイン単位のグラフ制御を設定します。"
+            },
+            "style": {
+              "label": "スタイル/ラベル",
+              "compactLabel": "スタイル",
+              "description": "選択中の色とラベル上書きを設定します。"
+            }
+          },
+          "control": {
+            "targets": {
+              "label": "対象",
+              "compactLabel": "対象",
+              "description": "このコントローラペインで編集できるインスタンスです。"
+            },
+            "items": {
+              "label": "セクション",
+              "compactLabel": "セクション",
+              "description": "ペインに表示するコントローラセクションです。"
+            },
+            "display": {
+              "label": "表示",
+              "compactLabel": "表示",
+              "description": "ペインラベルと対象ショートカットの動作です。"
+            },
+            "custom": {
+              "label": "カスタムコントロール",
+              "compactLabel": "カスタム",
+              "description": "このペイン用のカスタム臨床コントロールを作成します。"
+            }
+          }
+        },
+        "controlGroups": {
+          "clinical": {
+            "label": "臨床ノブ",
+            "description": "初学者向けの収縮性、負荷、拍動、弁病変コントロールです。"
+          },
+          "global": {
+            "label": "全身生理",
+            "description": "生の心拍数、血液量、静脈緊張、全体倍率です。"
+          },
+          "ventricles": {
+            "label": "心室メカニクス",
+            "description": "LV/RVメカニクス、心膜、中隔連成パラメータです。"
+          },
+          "atria": {
+            "label": "心房メカニクス",
+            "description": "LA/RAの基準容積とエラスタンス制御です。"
+          },
+          "vascular": {
+            "label": "血管抵抗",
+            "description": "体循環と肺循環の抵抗/コンプライアンス制御です。"
+          },
+          "fluids": {
+            "label": "輸液と出血",
+            "description": "出血、注入、正味容積変化の制御です。"
+          },
+          "valves": {
+            "label": "弁メカニクス",
+            "description": "生の弁面積、漏れ、抵抗、イナータンス、タイミング制御です。"
+          },
+          "resp": {
+            "label": "呼吸環境",
+            "description": "PEEP、胸腔内圧、呼吸波形の制御です。"
+          },
+          "custom": {
+            "description": "カスタムコントローラセクションです。"
+          },
+          "selectedAll": "すべての対象で選択済み",
+          "selectedSome": "一部の対象で選択済み",
+          "notSelected": "未選択",
+          "aria": "{{label}}: {{status}}、{{total}}件中{{selected}}件の対象"
+        },
+        "paneType": {
+        "pvLoop": "PVループペイン",
+        "waveform": "波形ペイン",
+        "metrics": "指標ペイン",
+        "guyton": "Guytonペイン",
+        "controller": "コントローラペイン"
+      }
+    },
+    "mobile": {
+      "panelRenderError": "このパネルを描画できませんでした。",
+      "openControls": "コントロールを開く",
+      "noOutputPanel": "出力パネルがありません",
+      "noPanelsAvailable": "利用できるパネルがありません",
+      "charts": "チャート",
+      "notes": "ノート"
+    },
+    "dockview": {
+      "panelUnavailable": "パネルを利用できません",
+      "renamePanePrompt": "ペイン名を変更",
+      "paneMenuAria": "{{title}}のペインメニュー",
+      "paneMenu": "ペインメニュー",
+      "closePane": "ペインを閉じる",
+      "addPaneAria": "{{zone}}ペインを追加",
+      "noPanels": "パネルがありません"
+    }
+  },
+  "lessonAuthoring": {
+    "title": "レッスン作成",
+    "stepsCount_one": "{{count}}ステップ",
+    "stepsCount_other": "{{count}}ステップ",
+    "captureStep": "ステップを記録",
+    "stepTitle": "ステップタイトル",
+    "stepPlaceholder": "ステップ {{number}}",
+    "visibleInstances": "表示インスタンス",
+    "predictBeforeReveal": "表示前に予測",
+    "reveal": "表示",
+    "revealLabel": "表示ラベル",
+    "predictionPrompt": "予測プロンプト",
+    "exposedKnobs": "公開ノブ",
+    "maxKnobs": "最大{{count}}",
+    "targetInstance": "対象インスタンス",
+    "target": "対象: {{target}}",
+    "startFromCurrentKnobValues": "現在のノブ値から開始",
+    "capturedSteps": "記録済みステップ",
+    "finalPredictWarning": "最後のステップが予測です。保存前に表示ステップを追加してください。",
+    "noStepsCaptured": "記録済みステップはありません。",
+    "predictBadge": "予測",
+    "moveStepUp": "ステップを上へ移動",
+    "moveStepDown": "ステップを下へ移動",
+    "moveUpAria": "{{title}}を上へ移動",
+    "moveDownAria": "{{title}}を下へ移動",
+    "validation": {
+      "visibleInstanceRequired": "ステップを記録する前に少なくとも1つの表示インスタンスを選択してください。"
+    },
+    "row": {
+      "shows": "表示: {{names}}",
+      "showsNone": "表示: なし",
+      "knobs": "ノブ: {{knobs}} -> {{target}}",
+      "stale": "古い参照: {{ids}}"
+    }
+  },
+  "scenarioManager": {
+    "title": "シナリオマネージャ",
+    "changeColor": "色を変更",
+    "scenarioName": "シナリオ名",
+    "duplicateTitle": "このシナリオを複製",
+    "deleteTitle": "シナリオを削除",
+    "newDefaultScenario": "新しい標準シナリオ"
+  },
+  "modelLimitations": {
+    "title": "教育用モデル - 制限事項",
+    "titleShort": "モデル制限",
+    "buttonTitle": "モデル制限 (教育用モデル)",
+    "buttonShort": "モデル制限",
+    "understand": "理解しました",
+    "items": [
+      "研究・教育目的のみです。医療機器ではなく、診断、治療、患者個別の判断には使用できません。",
+      "0D集中定数モデルです。空間的な血流、局所壁応力、3D血行動態は解きません。",
+      "パラメータは較正目標であり、固定された生理定数ではありません。出力は近似であり臨床データでの検証は未完了です。",
+      "冠循環、腎/肝/門脈床、詳細な圧受容体反射、体液交換など、未実装のサブシステムがあります。",
+      "直感を作り仮説を探索するために使い、特定患者の予測には使わないでください。"
+    ]
+  },
+  "health": {
+    "warning": "警告",
+    "unstable": "不安定",
+    "simulationHealth": "シミュレーション状態",
+    "noDetail": "詳細はありません。",
+    "instanceHealth": "{{name}}の状態"
+  },
+  "notes": {
+    "empty": "このケースのノートはまだありません。",
+    "quiz": {
+      "correct": "正解です",
+      "tryAgain": "もう一度試してください"
+    },
+    "editor": {
+      "saveMath": "数式を保存",
+      "editQuiz": "クイズを編集",
+      "question": "質問",
+      "newOption": "新しいオプション",
+      "addOption": "オプションを追加"
+    }
+  },
+  "lessonPlayer": {
+    "notFound": {
+      "title": "レッスンが見つかりません",
+      "description": "このレッスンは現在の学習パスでは利用できません。"
+    },
+    "backToHome": "ホームに戻る",
+    "loading": "レッスンを読み込み中...",
+    "reveal": "表示",
+    "next": "次へ",
+    "lesson": "レッスン",
+    "step": "ステップ {{number}}",
+    "back": "戻る",
+    "complete": "完了"
+  },
+  "reading": {
+    "minRead_one": "{{count}}分で読めます",
+    "minRead_other": "{{count}}分で読めます",
+    "interactive": "インタラクティブ",
+    "tableOfContents": "目次",
+    "hideControls": "コントロールを隠す",
+    "adjustModel": "モデルを調整"
   },
   "lessons": {
     "normal-reference": {

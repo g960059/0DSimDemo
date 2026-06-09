@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from "react-i18next";
 import { BlockNoteView } from "@blocknote/mantine";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteSchema, defaultBlockSpecs } from "@blocknote/core";
@@ -182,6 +183,7 @@ export function normalizeStaticBlocks(blocks: NoteContent): NormalizedStaticBloc
 }
 
 export const StaticQuiz: React.FC<{ question: string; options: string; answerIndex: string }> = ({ question, options, answerIndex }) => {
+  const { t } = useTranslation();
   const [selected, setSelected] = useState<number | null>(null);
   const choices = options.split("|").map((option) => option.trim()).filter((option) => option.length > 0);
   const correctIndex = Number.parseInt(answerIndex, 10);
@@ -213,7 +215,7 @@ export const StaticQuiz: React.FC<{ question: string; options: string; answerInd
       </div>
       {selected !== null && (
         <div className={`mt-3 text-xs font-semibold ${selected === correctIndex ? "text-green-400" : "text-red-400"}`}>
-          {selected === correctIndex ? "✓ Correct!" : "✗ Try again"}
+          {selected === correctIndex ? t("notes.quiz.correct") : t("notes.quiz.tryAgain")}
         </div>
       )}
     </div>
@@ -336,6 +338,7 @@ const equationBlock = createReactBlockSpec(
   },
   {
     render: (props) => {
+      const { t } = useTranslation();
       const [isEditing, setIsEditing] = useState(false);
       const [tex, setTex] = useState(props.block.props.tex);
       const editable = editorCanEdit(props.editor);
@@ -362,7 +365,7 @@ const equationBlock = createReactBlockSpec(
                   setIsEditing(false);
                 }}
               >
-                Save Math
+                {t("notes.editor.saveMath")}
               </button>
             </div>
           ) : (
@@ -391,6 +394,7 @@ const quizBlock = createReactBlockSpec(
   },
   {
     render: (props) => {
+      const { t } = useTranslation();
       const [selected, setSelected] = useState<number | null>(null);
       const [isEditing, setIsEditing] = useState(false);
       const editable = editorCanEdit(props.editor);
@@ -410,14 +414,14 @@ const quizBlock = createReactBlockSpec(
         return (
           <div className="my-2 p-4 bg-indigo-900/30 rounded-lg border border-indigo-700/50" contentEditable={false}>
             <div className="flex justify-between items-center mb-2">
-              <span className="text-xs font-bold text-indigo-400">EDIT QUIZ</span>
-              <button className="text-xs bg-indigo-600 px-2 py-1 roundedtext-white" onClick={() => setIsEditing(false)}>Done</button>
+              <span className="text-xs font-bold text-indigo-400">{t("notes.editor.editQuiz")}</span>
+              <button className="text-xs bg-indigo-600 px-2 py-1 roundedtext-white" onClick={() => setIsEditing(false)}>{t("common.done")}</button>
             </div>
             <input
               value={props.block.props.question}
               onChange={(e) => props.editor.updateBlock(props.block, { type: "quiz", props: { question: e.target.value } })}
               className="w-full bg-slate-900 border border-slate-600 rounded p-1 text-slate-200 text-sm mb-2"
-              placeholder="Question"
+              placeholder={t("notes.editor.question")}
             />
             {options.map((opt, idx) => (
               <div key={idx} className="flex items-center gap-2 mb-1">
@@ -429,7 +433,7 @@ const quizBlock = createReactBlockSpec(
                 />
               </div>
             ))}
-            <button className="text-xs text-indigo-400 mt-2" onClick={() => props.editor.updateBlock(props.block, { type: "quiz", props: { options: props.block.props.options + '|New Option' } })}>+ Add Option</button>
+            <button className="text-xs text-indigo-400 mt-2" onClick={() => props.editor.updateBlock(props.block, { type: "quiz", props: { options: props.block.props.options + `|${t("notes.editor.newOption")}` } })}>+ {t("notes.editor.addOption")}</button>
           </div>
         );
       }
@@ -462,7 +466,7 @@ const quizBlock = createReactBlockSpec(
           </div>
           {selected !== null && (
             <div className={`mt-3 text-xs font-semibold ${selected === correctIndex ? 'text-green-400' : 'text-red-400'}`}>
-              {selected === correctIndex ? '✓ Correct!' : '✗ Try again'}
+              {selected === correctIndex ? t("notes.quiz.correct") : t("notes.quiz.tryAgain")}
             </div>
           )}
         </div>
@@ -519,6 +523,7 @@ interface NotePanelProps {
 }
 
 export const NotePanel: React.FC<NotePanelProps> = ({ mode = 'read', content, onChange, bare, headingAnchorIds }) => {
+  const { t } = useTranslation();
   const hasContent = Array.isArray(content) && content.length > 0;
   const editable = mode !== 'read';
   const bareRead = bare === true && !editable;
@@ -526,7 +531,7 @@ export const NotePanel: React.FC<NotePanelProps> = ({ mode = 'read', content, on
   if (!editable && !hasContent) {
     return (
       <div className={bareRead ? "flex-1 h-full w-full overflow-y-auto custom-scrollbar py-1 text-slate-500 text-sm" : "flex-1 h-full w-full bg-[#0B1120] rounded-b-xl overflow-y-auto custom-scrollbar p-3 sm:p-5 text-slate-500 text-sm"}>
-        No notes for this case yet.
+        {t("notes.empty")}
       </div>
     );
   }

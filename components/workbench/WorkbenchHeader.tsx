@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Check,
   ChevronDown,
@@ -100,6 +101,7 @@ export function WorkbenchHeader({
   theme,
   onThemeChange,
 }: WorkbenchHeaderProps) {
+  const { t } = useTranslation();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [isSpeedOpen, setIsSpeedOpen] = useState(false);
   const [isLayoutOpen, setIsLayoutOpen] = useState(false);
@@ -107,7 +109,7 @@ export function WorkbenchHeader({
   const [draftMeta, setDraftMeta] = useState(sceneMeta);
 
   const isLearner = mode === 'learner';
-  const primaryLabel = isLearner ? 'Edit a copy' : authoringMode ? 'Share' : 'Save case';
+  const primaryLabel = isLearner ? t('workbench.header.editCopy') : authoringMode ? t('workbench.header.share') : t('workbench.header.saveCase');
 
   const openMetaEditor = () => {
     setDraftMeta(sceneMeta);
@@ -116,7 +118,7 @@ export function WorkbenchHeader({
 
   const saveMeta = () => {
     onSceneMetaChange({
-      title: draftMeta.title.trim() || 'Untitled scene',
+      title: draftMeta.title.trim() || t('workbench.header.untitledScene'),
       description: draftMeta.description.trim(),
       modelLimitations: draftMeta.modelLimitations.map((item) => item.trim()).filter(Boolean),
     });
@@ -145,8 +147,8 @@ export function WorkbenchHeader({
           ) : (
             <button onClick={openMetaEditor} className="flex min-w-0 items-center gap-1 rounded-md px-2 py-1 text-left hover:bg-slate-900">
               <Edit3 className="h-3.5 w-3.5 shrink-0 text-slate-500" />
-              <span className="truncate text-sm font-bold text-slate-100">{sceneMeta.title || 'Untitled scene'}</span>
-              {authoringMode && stepsDraftLength > 0 && <span className="h-1.5 w-1.5 rounded-full bg-amber-300" title="Unsaved authoring changes" />}
+              <span className="truncate text-sm font-bold text-slate-100">{sceneMeta.title || t('workbench.header.untitledScene')}</span>
+              {authoringMode && stepsDraftLength > 0 && <span className="h-1.5 w-1.5 rounded-full bg-amber-300" title={t('workbench.header.unsavedAuthoringChanges')} />}
             </button>
           )}
 
@@ -159,8 +161,8 @@ export function WorkbenchHeader({
               type="button"
               onClick={() => setIsLayoutOpen((open) => !open)}
               className="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-slate-900 hover:text-slate-100"
-              title="Customize layout"
-              aria-label="Customize layout"
+              title={t('workbench.header.customizeLayout')}
+              aria-label={t('workbench.header.customizeLayout')}
             >
               <LayoutPanelLeft className="h-4.5 w-4.5" />
             </button>
@@ -168,7 +170,7 @@ export function WorkbenchHeader({
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setIsLayoutOpen(false)} />
                 <div className="absolute right-0 top-full z-50 mt-1 w-64 rounded-md border border-slate-700 bg-slate-900 p-3 shadow-xl">
-                  <div className="mb-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">Customize layout</div>
+                  <div className="mb-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">{t('workbench.header.customizeLayout')}</div>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
@@ -180,7 +182,7 @@ export function WorkbenchHeader({
                       }`}
                     >
                       <PanelLeft className="h-4 w-4" />
-                      Left
+                      {t('workbench.header.left')}
                     </button>
                     <button
                       type="button"
@@ -192,7 +194,7 @@ export function WorkbenchHeader({
                       }`}
                     >
                       <PanelRight className="h-4 w-4" />
-                      Right
+                      {t('workbench.header.right')}
                     </button>
                   </div>
                   <button
@@ -204,7 +206,7 @@ export function WorkbenchHeader({
                     className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-300 transition-colors hover:bg-slate-800"
                   >
                     <RotateCcw className="h-4 w-4" />
-                    Reset layout
+                    {t('workbench.header.resetLayout')}
                   </button>
                 </div>
               </>
@@ -214,8 +216,8 @@ export function WorkbenchHeader({
             <button
               onClick={togglePlay}
               className="inline-flex h-9 w-9 items-center justify-center text-slate-200 hover:bg-slate-800"
-              title={isPlaying ? 'Pause' : 'Play'}
-              aria-label={isPlaying ? 'Pause' : 'Play'}
+              title={isPlaying ? t('workbench.header.pause') : t('workbench.header.play')}
+              aria-label={isPlaying ? t('workbench.header.pause') : t('workbench.header.play')}
             >
               {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
             </button>
@@ -250,10 +252,10 @@ export function WorkbenchHeader({
             className="inline-flex h-9 items-center gap-1.5 rounded-md bg-blue-600 px-3 text-xs font-bold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {authoringMode ? <Share2 className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
-            <span className="hidden sm:inline">{authoringMode && isPublishingLesson ? 'Publishing...' : isSavingCase ? 'Saving...' : primaryLabel}</span>
+            <span className="hidden sm:inline">{authoringMode && isPublishingLesson ? t('workbench.header.publishing') : isSavingCase ? t('workbench.header.saving') : primaryLabel}</span>
           </button>
 
-          <button onClick={() => setIsPanelOpen(true)} className="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-slate-900 hover:text-slate-100" aria-label="Open workbench panel">
+          <button onClick={() => setIsPanelOpen(true)} className="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-slate-900 hover:text-slate-100" aria-label={t('workbench.header.openPanel')}>
             <MoreHorizontal className="h-5 w-5" />
           </button>
         </div>
@@ -263,19 +265,19 @@ export function WorkbenchHeader({
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4">
           <div role="dialog" aria-modal="true" className="w-full max-w-lg rounded-lg border border-slate-700 bg-slate-900 shadow-2xl">
             <div className="border-b border-slate-800 px-5 py-3">
-              <h2 className="text-sm font-bold text-slate-100">Scene details</h2>
+              <h2 className="text-sm font-bold text-slate-100">{t('workbench.header.sceneDetails')}</h2>
             </div>
             <div className="space-y-4 p-5">
               <label className="block">
-                <span className="mb-1 block text-xs font-bold text-slate-400">Title</span>
+                <span className="mb-1 block text-xs font-bold text-slate-400">{t('common.title')}</span>
                 <input value={draftMeta.title} onChange={(e) => setDraftMeta((prev) => ({ ...prev, title: e.target.value }))} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-blue-500" />
               </label>
               <label className="block">
-                <span className="mb-1 block text-xs font-bold text-slate-400">Description</span>
+                <span className="mb-1 block text-xs font-bold text-slate-400">{t('common.description')}</span>
                 <textarea value={draftMeta.description} onChange={(e) => setDraftMeta((prev) => ({ ...prev, description: e.target.value }))} className="h-24 w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-blue-500" />
               </label>
               <label className="block">
-                <span className="mb-1 block text-xs font-bold text-slate-400">Model limitations</span>
+                <span className="mb-1 block text-xs font-bold text-slate-400">{t('modelLimitations.titleShort')}</span>
                 <textarea
                   value={draftMeta.modelLimitations.join('\n')}
                   onChange={(e) => setDraftMeta((prev) => ({ ...prev, modelLimitations: e.target.value.split('\n') }))}
@@ -284,8 +286,8 @@ export function WorkbenchHeader({
               </label>
             </div>
             <div className="flex justify-end gap-2 border-t border-slate-800 px-5 py-3">
-              <button onClick={() => setIsMetaOpen(false)} className="rounded px-3 py-1.5 text-sm font-bold text-slate-400 hover:text-slate-100">Cancel</button>
-              <button onClick={saveMeta} className="rounded bg-blue-600 px-4 py-1.5 text-sm font-bold text-white hover:bg-blue-500">Save</button>
+              <button onClick={() => setIsMetaOpen(false)} className="rounded px-3 py-1.5 text-sm font-bold text-slate-400 hover:text-slate-100">{t('common.cancel')}</button>
+              <button onClick={saveMeta} className="rounded bg-blue-600 px-4 py-1.5 text-sm font-bold text-white hover:bg-blue-500">{t('common.save')}</button>
             </div>
           </div>
         </div>

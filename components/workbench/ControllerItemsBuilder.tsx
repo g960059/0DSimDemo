@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
 import { CONTROLLER_CATALOG_SECTIONS } from "../../controllerCatalog";
 import { buttonOptionsFromRange, normalizeControllerItems } from "../../controllerItems";
@@ -6,6 +7,7 @@ import { KNOB_RANGES, neutralKnobs, type KnobKey } from "../../engine/knobs";
 import { defaultControllerItemFor, readingButtonOptionsFor, roundToStep } from "../../knobMetadata";
 import type { ControllerItem, PanelDef, SimInstance } from "../../types";
 import { ControllerItemControl } from "../controls/ControllerItemControl";
+import { controllerOptionsWithLabelKeys, translatedControllerCategory, translatedControllerItemLabel, translatedControllerOptions, translatedKnobLabel } from "../../i18nText";
 
 type ControllerItemsBuilderProps = {
   panel: PanelDef;
@@ -52,6 +54,7 @@ export function ControllerItemsBuilder({
   activeInstanceId,
   updatePanelControllerItems,
 }: ControllerItemsBuilderProps) {
+  const { t } = useTranslation();
   const normalized = useMemo(
     () => normalizeControllerItems(panel.view?.kind === "control" ? panel.view.controllerItems ?? [] : []),
     [panel.view],
@@ -105,12 +108,20 @@ export function ControllerItemsBuilder({
 
   const commitItemLabelDraft = (itemIndex: number, key: string, value: string) => {
     clearDraft(key);
-    updateItem(itemIndex, { label: value });
+    const item = items[itemIndex];
+    updateItem(itemIndex, {
+      label: value,
+      ...(value.trim() === (item?.label ?? "").trim() ? {} : { labelKey: undefined }),
+    });
   };
 
   const commitOptionLabelDraft = (itemIndex: number, optionIndex: number, key: string, value: string) => {
     clearDraft(key);
-    updateOption(itemIndex, optionIndex, { label: value });
+    const option = items[itemIndex]?.options?.[optionIndex];
+    updateOption(itemIndex, optionIndex, {
+      label: value,
+      ...(value.trim() === (option?.label ?? "").trim() ? {} : { labelKey: undefined }),
+    });
   };
 
   const commitOptionValueDraft = (itemIndex: number, optionIndex: number, key: string, value: string) => {
@@ -123,13 +134,13 @@ export function ControllerItemsBuilder({
   return (
     <div className="space-y-3">
       <div className="rounded bg-slate-950/20 px-2 py-2 text-[11px] font-medium text-slate-400">
-        Custom controls replace the default Clinical Knobs (shown to readers as buttons).
+        {t("workbench.controllerBuilder.description")}
       </div>
 
       <div className="divide-y divide-slate-800/70 rounded bg-slate-950/20">
         {CONTROLLER_CATALOG_SECTIONS.map((section) => (
           <div key={section.title} className="px-2 py-2">
-            <div className="mb-1.5 text-[10px] font-bold uppercase text-slate-500">{section.title}</div>
+            <div className="mb-1.5 text-[10px] font-bold uppercase text-slate-500">{translatedControllerCategory(t, section.title)}</div>
             <div className="grid gap-1.5 sm:grid-cols-2">
               {section.controls.map((entry) => {
                 const added = usedKeys.has(entry.key);
@@ -138,14 +149,17 @@ export function ControllerItemsBuilder({
                     key={entry.key}
                     type="button"
                     disabled={added}
-                    onClick={() => commit([...items, defaultControllerItemFor(entry.key)])}
+                    onClick={() => {
+                      const nextItem = defaultControllerItemFor(entry.key);
+                      commit([...items, { ...nextItem, labelKey: entry.key }]);
+                    }}
                     className={`flex min-h-8 items-center justify-between gap-2 rounded border px-2 text-left text-xs font-semibold transition-colors ${
                       added
                         ? "border-slate-800/70 bg-slate-900/25 text-slate-600"
                         : "border-slate-700/70 bg-slate-950/45 text-slate-300 hover:border-slate-500 hover:text-slate-100"
                     }`}
                   >
-                    <span className="min-w-0 truncate">{entry.label}</span>
+                    <span className="min-w-0 truncate">{translatedKnobLabel(t, entry.key, entry.label)}</span>
                     <Plus className="h-3.5 w-3.5 shrink-0" />
                   </button>
                 );
@@ -157,7 +171,7 @@ export function ControllerItemsBuilder({
 
       {items.length === 0 ? (
         <div className="rounded bg-slate-950/20 px-2 py-3 text-xs font-medium text-slate-500">
-          No custom controls yet - readers see the default Clinical Knobs.
+          {t("workbench.controllerBuilder.empty")}
         </div>
       ) : (
         <div className="divide-y divide-slate-800/70 rounded bg-slate-950/20">
@@ -191,11 +205,11 @@ export function ControllerItemsBuilder({
                         type="button"
                         onClick={() => updateItem(index, {
                           kind,
-                          ...(kind === "buttonGroup" ? { options: seedButtonOptions(item, baseline) } : { options: undefined }),
+                          ...(kind === "buttonGroup" ? { options: controllerOptionsWithLabelKeys(item, seedButtonOptions(item, baseline), baseline) } : { options: undefined }),
                         })}
                         className={`h-6 rounded px-2 text-[10px] font-bold transition-colors ${item.kind === kind ? "bg-sky-500/20 text-sky-100" : "text-slate-500 hover:text-slate-300"}`}
                       >
-                        {kind === "slider" ? "Slider" : "Button"}
+                        {kind === "slider" ? t("workbench.controllerBuilder.slider") : t("workbench.controllerBuilder.button")}
                       </button>
                     ))}
                   </div>
@@ -265,16 +279,20 @@ export function ControllerItemsBuilder({
                       onClick={() => updateItem(index, { options: [...(item.options ?? []), { label: `Option ${(item.options?.length ?? 0) + 1}`, value: baseline }] })}
                       className="h-7 rounded border border-slate-700/70 px-2 text-[11px] font-bold text-slate-300 transition-colors hover:border-slate-500 hover:text-slate-100 disabled:opacity-30"
                     >
-                      Add option
+                      {t("workbench.controllerBuilder.addOption")}
                     </button>
-                    {optionWarning && <div className="text-[10px] font-semibold text-amber-200">Needs &gt;=2 distinct values - will show as a slider</div>}
+                    {optionWarning && <div className="text-[10px] font-semibold text-amber-200">{t("workbench.controllerBuilder.needsDistinctValues")}</div>}
                   </div>
                 )}
 
                 <div className="rounded border border-slate-800/70 bg-slate-950/35 p-2">
-                  <div className="mb-1 text-[10px] font-semibold uppercase text-slate-500">Preview</div>
+                  <div className="mb-1 text-[10px] font-semibold uppercase text-slate-500">{t("workbench.panelGrid.preview")}</div>
                   <ControllerItemControl
-                    item={item}
+                    item={{
+                      ...item,
+                      label: translatedControllerItemLabel(t, item),
+                      ...(item.options ? { options: translatedControllerOptions(t, item.options) } : {}),
+                    }}
                     value={baseline}
                     baseline={baseline}
                     onChange={() => {}}

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight, RotateCcw } from 'lucide-react';
 import { SimulationParams, SimInstance, type ControllerItem, type PanelInstanceConfig } from '../types';
 import type { SimulationHealth } from '../engine/protocol';
@@ -10,6 +11,7 @@ import { defaultControllerItemFor, readingButtonOptionsFor } from '../knobMetada
 import { HealthDot } from './HealthIndicators';
 import { ControllerItemControl } from './controls/ControllerItemControl';
 import { Slider, hasChanged } from './controls/Slider';
+import { controllerOptionsWithLabelKeys, translatedControllerCategory, translatedControllerItemLabel, translatedControllerOptions, translatedKnobLabel } from '../i18nText';
 
 interface ControlsProps {
   instances: SimInstance[];
@@ -74,7 +76,7 @@ const Subhead = ({ children }: { children: React.ReactNode }) => (
   <span className="col-span-full mt-2 block text-[10px] font-semibold uppercase text-slate-400 first:mt-0">{children}</span>
 );
 
-const GroupHeader = ({ title, isOpen, toggle, tone = 'raw', changedCount = 0, summary, onReset }: { title: string, isOpen: boolean, toggle: () => void, tone?: 'clinical' | 'raw', changedCount?: number, summary?: string, onReset?: () => void }) => {
+const GroupHeader = ({ title, isOpen, toggle, tone = 'raw', changedCount = 0, summary, onReset, changedLabel, resetLabel, resetTitle }: { title: string, isOpen: boolean, toggle: () => void, tone?: 'clinical' | 'raw', changedCount?: number, summary?: string, onReset?: () => void, changedLabel: string, resetLabel: string, resetTitle?: string }) => {
     const isClinical = tone === 'clinical';
     return (
     <div className={`mt-1.5 flex h-8 w-full items-center border-y transition-colors ${isClinical ? 'border-blue-500/20 bg-blue-500/10 text-blue-100' : 'border-slate-800/80 bg-slate-900/25 text-slate-300'}`}>
@@ -90,7 +92,7 @@ const GroupHeader = ({ title, isOpen, toggle, tone = 'raw', changedCount = 0, su
             {summary && <span className="hidden truncate text-[10px] font-medium normal-case text-slate-500 min-[420px]:inline">{summary}</span>}
             {changedCount > 0 && (
               <span className="rounded-full border border-blue-400/30 bg-blue-400/10 px-1.5 py-0.5 text-[9px] font-semibold leading-none text-blue-100">
-                {changedCount} changed
+                {changedCount} {changedLabel}
               </span>
             )}
             {isOpen ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-500" />}
@@ -100,11 +102,11 @@ const GroupHeader = ({ title, isOpen, toggle, tone = 'raw', changedCount = 0, su
             type="button"
             onClick={onReset}
             className="mr-1 flex h-6 shrink-0 items-center gap-1 rounded border border-blue-400/30 bg-blue-400/10 px-1.5 text-blue-100 transition-colors hover:bg-blue-400/20"
-            title="Reset clinical knobs to baseline"
-            aria-label="Reset clinical knobs to baseline"
+            title={resetTitle ?? resetLabel}
+            aria-label={resetTitle ?? resetLabel}
           >
             <RotateCcw className="h-3.5 w-3.5" />
-            <span className="text-[10px] font-semibold">Reset</span>
+            <span className="text-[10px] font-semibold">{resetLabel}</span>
           </button>
         )}
     </div>
@@ -115,6 +117,7 @@ export const Controls: React.FC<ControlsProps> = ({
     instances, instanceHealth, activeInstanceId, updateInstanceParams, updateInstanceKnobs, updateInstanceVolume,
     isPaneMode, paneConfig, presentationMode = 'studio', controllerItems
 }) => {
+  const { t } = useTranslation();
   const isStudioMode = presentationMode === 'studio';
   const isReadingMode = presentationMode === 'reading';
   const authored = useMemo(() => normalizeControllerItems(controllerItems ?? []).items, [controllerItems]);
@@ -204,7 +207,7 @@ export const Controls: React.FC<ControlsProps> = ({
         const meta = catalogByKey.get(item.paramKey as NumericKnobKey);
         return {
           key: item.paramKey as NumericKnobKey,
-          label: item.label ?? meta?.label ?? item.paramKey,
+          label: translatedControllerItemLabel(t, item, meta?.label ?? item.paramKey),
           step: item.step ?? meta?.step ?? 0.01,
           unit: meta?.unit,
         } satisfies ClinicalControlConfig;
@@ -243,7 +246,7 @@ export const Controls: React.FC<ControlsProps> = ({
             >
                 <div className="h-2 w-2 rounded-full" style={{backgroundColor: inst.color, boxShadow: currentActiveId === inst.id ? `0 0 6px ${inst.color}` : undefined}}></div>
                 {inst.name}
-                <HealthDot status={instanceHealth?.[inst.id]?.status ?? 'ok'} title={`${inst.name} health`} />
+                <HealthDot status={instanceHealth?.[inst.id]?.status ?? 'ok'} title={t('health.instanceHealth', { name: inst.name })} />
             </button>
          ))}
       </div>
@@ -254,23 +257,23 @@ export const Controls: React.FC<ControlsProps> = ({
 
           {(isReadingMode || showGroup('clinical')) && (
             <>
-              <GroupHeader title="Clinical Knobs" isOpen={openGroups.clinical} toggle={() => toggleGroup('clinical')} tone="clinical" changedCount={changedClinicalCount} summary={changedClinicalSummary} onReset={resetClinicalKnobs} />
+              <GroupHeader title={t('workbench.controls.groups.clinical')} isOpen={openGroups.clinical} toggle={() => toggleGroup('clinical')} tone="clinical" changedCount={changedClinicalCount} summary={changedClinicalSummary} onReset={resetClinicalKnobs} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} resetTitle={t('workbench.controls.resetClinicalBaseline')} />
               {openGroups.clinical && (
                   <div className={clinicalBodyClass}>
                       {hasAuthored ? (
                         <>
-                          <div className="mb-2 text-[10px] font-semibold text-blue-100/80">Custom controls replace the default Clinical Knobs</div>
+                          <div className="mb-2 text-[10px] font-semibold text-blue-100/80">{t('workbench.controls.customReplaceDefault')}</div>
                           <ControlGrid tone="clinical">
-                            <SectionLabel changedCount={changedClinicalCount}>Custom controls</SectionLabel>
+                            <SectionLabel changedCount={changedClinicalCount}>{t('workbench.controls.customControls')}</SectionLabel>
                             {authored.map((item) => {
                               const key = item.paramKey as NumericKnobKey;
                               const meta = catalogByKey.get(key);
                               const readingOptions = item.kind === 'buttonGroup' && item.options
-                                ? item.options
-                                : readingButtonOptionsFor(item.paramKey, baselineKnobs[key]) ?? buttonOptionsFromRange(item);
+                                ? translatedControllerOptions(t, item.options)
+                                : translatedControllerOptions(t, controllerOptionsWithLabelKeys(item, readingButtonOptionsFor(item.paramKey, baselineKnobs[key]) ?? buttonOptionsFromRange(item), baselineKnobs[key]));
                               const displayItem: ControllerItem = isReadingMode
-                                ? { ...item, kind: 'buttonGroup', options: readingOptions }
-                                : item;
+                                ? { ...item, kind: 'buttonGroup', label: translatedControllerItemLabel(t, item, meta?.label ?? item.paramKey), options: readingOptions }
+                                : { ...item, label: translatedControllerItemLabel(t, item, meta?.label ?? item.paramKey), ...(item.options ? { options: translatedControllerOptions(t, item.options) } : {}) };
                               return (
                                 <ControllerItemControl
                                   key={item.paramKey}
@@ -301,7 +304,7 @@ export const Controls: React.FC<ControlsProps> = ({
                           return (
                             <React.Fragment key={section.title}>
                               <ControlGrid tone="clinical">
-                                <SectionLabel changedCount={sectionChangedCount}>{section.title}</SectionLabel>
+                                <SectionLabel changedCount={sectionChangedCount}>{translatedControllerCategory(t, section.title)}</SectionLabel>
                                 {visibleControls.map(({ control, options }) => {
                                   const [min, max] = kr(control.key);
                                   return (
@@ -310,11 +313,11 @@ export const Controls: React.FC<ControlsProps> = ({
                                       item={{
                                         ...defaultControllerItemFor(control.key),
                                         kind: isReadingMode ? 'buttonGroup' : 'slider',
-                                        label: control.label,
+                                        label: translatedKnobLabel(t, control.key, control.label),
                                         min,
                                         max,
                                         step: control.step,
-                                        ...(options ? { options } : {}),
+                                        ...(options ? { options: translatedControllerOptions(t, controllerOptionsWithLabelKeys(defaultControllerItemFor(control.key), options, baselineKnobs[control.key])) } : {}),
                                       }}
                                       value={knobs[control.key]}
                                       baseline={baselineKnobs[control.key]}
@@ -335,16 +338,16 @@ export const Controls: React.FC<ControlsProps> = ({
 
           {isStudioMode && showGroup('global') && (
             <>
-              <GroupHeader title="Global Physiology" isOpen={openGroups.global} toggle={() => toggleGroup('global')} />
+              <GroupHeader title={t('workbench.controls.groups.global')} isOpen={openGroups.global} toggle={() => toggleGroup('global')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.global && (
                   <div className={rawBodyClass}>
                     <ControlGrid>
-                      <Slider label="Heart Rate" value={rawView.HR} min={30} max={180} step={1} onChange={(v) => update('HR', v)} unit="bpm" />
-                      <Slider label="AV Delay (P-QRS)" value={rawView.avDelaySec} min={0.04} max={0.30} step={0.005} onChange={(v) => update('avDelaySec', v)} unit="s" />
-                      <Slider label="Total Blood Volume" value={activeInstance.targetVolume} min={2000} max={8000} step={50} onCommit={(v) => updateInstanceVolume(activeInstance.id, v)} unit="mL" />
-                      <Slider label="Global Venous Tone" value={rawView.venousTone} min={0} max={1} step={0.05} onChange={(v) => update('venousTone', v)} />
-                      <Slider label="Global Contractility" value={rawView.contractility} min={0.25} max={2.5} step={0.05} onChange={(v) => update('contractility', v)} unit="x" />
-                      <Slider label="Global Relaxation" value={rawView.relaxation} min={0.25} max={2.5} step={0.05} onChange={(v) => update('relaxation', v)} unit="x" />
+                      <Slider label={t('workbench.controls.raw.heartRate')} value={rawView.HR} min={30} max={180} step={1} onChange={(v) => update('HR', v)} unit="bpm" />
+                      <Slider label={t('workbench.controls.raw.avDelay')} value={rawView.avDelaySec} min={0.04} max={0.30} step={0.005} onChange={(v) => update('avDelaySec', v)} unit="s" />
+                      <Slider label={t('workbench.controls.raw.totalBloodVolume')} value={activeInstance.targetVolume} min={2000} max={8000} step={50} onCommit={(v) => updateInstanceVolume(activeInstance.id, v)} unit="mL" />
+                      <Slider label={t('workbench.controls.raw.globalVenousTone')} value={rawView.venousTone} min={0} max={1} step={0.05} onChange={(v) => update('venousTone', v)} />
+                      <Slider label={t('workbench.controls.raw.globalContractility')} value={rawView.contractility} min={0.25} max={2.5} step={0.05} onChange={(v) => update('contractility', v)} unit="x" />
+                      <Slider label={t('workbench.controls.raw.globalRelaxation')} value={rawView.relaxation} min={0.25} max={2.5} step={0.05} onChange={(v) => update('relaxation', v)} unit="x" />
                     </ControlGrid>
               </div>
           )}
@@ -353,18 +356,18 @@ export const Controls: React.FC<ControlsProps> = ({
 
           {isStudioMode && showGroup('ventricles') && (
             <>
-              <GroupHeader title="Ventricular Mechanics" isOpen={openGroups.ventricles} toggle={() => toggleGroup('ventricles')} />
+              <GroupHeader title={t('workbench.controls.groups.ventricles')} isOpen={openGroups.ventricles} toggle={() => toggleGroup('ventricles')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.ventricles && (
                   <div className={rawBodyClass}>
                       <div className="mb-3">
-                          <span className="text-[11px] font-medium text-slate-400 block mb-1">Ventricle Model</span>
+                          <span className="text-[11px] font-medium text-slate-400 block mb-1">{t('workbench.controls.raw.ventricleModel')}</span>
                           <div className="flex gap-1 bg-slate-950 rounded p-0.5 border border-slate-800">
-                              {([['activeStress', 'Active-stress'], ['elastance', 'Elastance']] as const).map(([mode, label]) => (
+                              {([['activeStress', t('workbench.controls.raw.activeStress')], ['elastance', t('workbench.controls.raw.elastance')]] as const).map(([mode, label]) => (
                                   <button
                                       key={mode}
                                       onClick={() => update('heartModel', mode)}
                                       className={`flex-1 py-1 text-[11px] font-semibold rounded transition-colors ${params.heartModel === mode ? 'bg-blue-500/20 text-blue-300' : 'text-slate-500 hover:text-slate-300'}`}
-                                      title={mode === 'activeStress' ? 'Single-fibre active-stress LV/RV (default)' : 'Time-varying elastance fallback'}
+                                      title={mode === 'activeStress' ? t('workbench.controls.raw.activeStressTitle') : t('workbench.controls.raw.elastanceTitle')}
                                   >
                                       {label}
                                   </button>
@@ -373,35 +376,35 @@ export const Controls: React.FC<ControlsProps> = ({
                       </div>
 
                       <ControlGrid>
-                      <Subhead>Left Ventricle (LV)</Subhead>
-                      <Slider label="LV Baseline Volume (V0)" value={nodeNum('LV', 'V0', 10)} min={0} max={100} step={1} onChange={(v) => updateNode('LV', 'V0', v)} unit="mL" />
-                      <Slider label="LV TVE Ees" value={nodeNum('LV', 'Ees', 1.6)} min={0.4} max={4.0} step={0.05} onChange={(v) => updateNode('LV', 'Ees', v)} unit="mmHg/mL" />
-                      <Slider label="LV Tmax Scale (Force)" value={rawView.lvTmaxScale} min={0.05} max={2.5} step={0.05} onChange={(v) => update('lvTmaxScale', v)} unit="x" />
-                      <Slider label="LV Ca²⁺ Release Scale" value={rawView.caReleaseScale} min={0.25} max={6} step={0.1} onChange={(v) => update('caReleaseScale', v)} unit="x" />
-                      <Slider label="LV Geometry Scale" value={rawView.lvGeomScale} min={0.5} max={2.5} step={0.1} onChange={(v) => update('lvGeomScale', v)} unit="x" />
+                      <Subhead>{t('workbench.controls.raw.leftVentricle')}</Subhead>
+                      <Slider label={t('workbench.controls.raw.lvBaselineVolume')} value={nodeNum('LV', 'V0', 10)} min={0} max={100} step={1} onChange={(v) => updateNode('LV', 'V0', v)} unit="mL" />
+                      <Slider label={t('workbench.controls.raw.lvTveEes')} value={nodeNum('LV', 'Ees', 1.6)} min={0.4} max={4.0} step={0.05} onChange={(v) => updateNode('LV', 'Ees', v)} unit="mmHg/mL" />
+                      <Slider label={t('workbench.controls.raw.lvTmaxScale')} value={rawView.lvTmaxScale} min={0.05} max={2.5} step={0.05} onChange={(v) => update('lvTmaxScale', v)} unit="x" />
+                      <Slider label={t('workbench.controls.raw.lvCaReleaseScale')} value={rawView.caReleaseScale} min={0.25} max={6} step={0.1} onChange={(v) => update('caReleaseScale', v)} unit="x" />
+                      <Slider label={t('workbench.controls.raw.lvGeometryScale')} value={rawView.lvGeomScale} min={0.5} max={2.5} step={0.1} onChange={(v) => update('lvGeomScale', v)} unit="x" />
 
-                      <Subhead>Right Ventricle (RV)</Subhead>
-                      <Slider label="RV Baseline Volume (V0)" value={nodeNum('RV', 'V0', 15)} min={0} max={100} step={1} onChange={(v) => updateNode('RV', 'V0', v)} unit="mL" />
-                      <Slider label="RV TVE Ees" value={nodeNum('RV', 'Ees', 0.85)} min={0.2} max={2.0} step={0.05} onChange={(v) => updateNode('RV', 'Ees', v)} unit="mmHg/mL" />
-                      <Slider label="RV Tmax Scale (Force)" value={rawView.rvTmaxScale} min={0.05} max={3.0} step={0.05} onChange={(v) => update('rvTmaxScale', v)} unit="x" />
-                      <Slider label="RV Ca²⁺ Release Scale" value={rawView.rvCaReleaseScale} min={0.25} max={8} step={0.1} onChange={(v) => update('rvCaReleaseScale', v)} unit="x" />
-                      <Slider label="RV Geometry Scale" value={rawView.rvGeomScale} min={0.5} max={3.0} step={0.1} onChange={(v) => update('rvGeomScale', v)} unit="x" />
+                      <Subhead>{t('workbench.controls.raw.rightVentricle')}</Subhead>
+                      <Slider label={t('workbench.controls.raw.rvBaselineVolume')} value={nodeNum('RV', 'V0', 15)} min={0} max={100} step={1} onChange={(v) => updateNode('RV', 'V0', v)} unit="mL" />
+                      <Slider label={t('workbench.controls.raw.rvTveEes')} value={nodeNum('RV', 'Ees', 0.85)} min={0.2} max={2.0} step={0.05} onChange={(v) => updateNode('RV', 'Ees', v)} unit="mmHg/mL" />
+                      <Slider label={t('workbench.controls.raw.rvTmaxScale')} value={rawView.rvTmaxScale} min={0.05} max={3.0} step={0.05} onChange={(v) => update('rvTmaxScale', v)} unit="x" />
+                      <Slider label={t('workbench.controls.raw.rvCaReleaseScale')} value={rawView.rvCaReleaseScale} min={0.25} max={8} step={0.1} onChange={(v) => update('rvCaReleaseScale', v)} unit="x" />
+                      <Slider label={t('workbench.controls.raw.rvGeometryScale')} value={rawView.rvGeomScale} min={0.5} max={3.0} step={0.1} onChange={(v) => update('rvGeomScale', v)} unit="x" />
 
-                      <Subhead>Pericardium & Septum</Subhead>
+                      <Subhead>{t('workbench.controls.raw.pericardiumSeptum')}</Subhead>
                       <div className="col-span-full flex items-center gap-2 rounded border border-slate-800/60 bg-slate-900/35 px-2 py-1.5 text-xs">
                          <input type="checkbox" checked={rawView.pericardiumEnabled} onChange={(e) => update('pericardiumEnabled', e.target.checked)} />
-                         <span className="text-slate-300">Pericardial constraint enabled</span>
+                         <span className="text-slate-300">{t('workbench.controls.raw.pericardialConstraintEnabled')}</span>
                       </div>
-                      <Slider label="Pericardial Constraint" value={rawView.pericardialPressureScaleMmHg} min={0} max={12} step={0.25} onChange={(v) => update('pericardialPressureScaleMmHg', v)} unit="mmHg" />
-                      <Slider label="Pericardial Effusion" value={rawView.pericardialFluidMl} min={0} max={500} step={10} onChange={(v) => update('pericardialFluidMl', v)} unit="mL" />
-                      <Slider label="Pericardial Slack Volume" value={rawView.pericardialSlackVolumeMl} min={220} max={600} step={10} onChange={(v) => update('pericardialSlackVolumeMl', v)} unit="mL" />
+                      <Slider label={t('workbench.controls.raw.pericardialConstraint')} value={rawView.pericardialPressureScaleMmHg} min={0} max={12} step={0.25} onChange={(v) => update('pericardialPressureScaleMmHg', v)} unit="mmHg" />
+                      <Slider label={t('workbench.controls.raw.pericardialEffusion')} value={rawView.pericardialFluidMl} min={0} max={500} step={10} onChange={(v) => update('pericardialFluidMl', v)} unit="mL" />
+                      <Slider label={t('workbench.controls.raw.pericardialSlackVolume')} value={rawView.pericardialSlackVolumeMl} min={220} max={600} step={10} onChange={(v) => update('pericardialSlackVolumeMl', v)} unit="mL" />
                       <div className="col-span-full flex items-center gap-2 rounded border border-slate-800/60 bg-slate-900/35 px-2 py-1.5 text-xs">
                          <input type="checkbox" checked={rawView.septalCouplingEnabled} onChange={(e) => update('septalCouplingEnabled', e.target.checked)} />
-                         <span className="text-slate-300">Septal volume-shift enabled</span>
+                         <span className="text-slate-300">{t('workbench.controls.raw.septalVolumeShiftEnabled')}</span>
                       </div>
-                      <Slider label="Septal Stiffness" value={rawView.septalStiffnessScale} min={0.25} max={3.0} step={0.05} onChange={(v) => update('septalStiffnessScale', v)} unit="x" />
-                      <Slider label="Septal Max Shift" value={rawView.septalMaxShiftMl} min={0} max={50} step={1} onChange={(v) => update('septalMaxShiftMl', v)} unit="mL" />
-                      <Slider label="Septal LV Force Weight" value={rawView.septalLvPressureWeight} min={0} max={1} step={0.02} onChange={(v) => update('septalLvPressureWeight', v)} />
+                      <Slider label={t('workbench.controls.raw.septalStiffness')} value={rawView.septalStiffnessScale} min={0.25} max={3.0} step={0.05} onChange={(v) => update('septalStiffnessScale', v)} unit="x" />
+                      <Slider label={t('workbench.controls.raw.septalMaxShift')} value={rawView.septalMaxShiftMl} min={0} max={50} step={1} onChange={(v) => update('septalMaxShiftMl', v)} unit="mL" />
+                      <Slider label={t('workbench.controls.raw.septalLvForceWeight')} value={rawView.septalLvPressureWeight} min={0} max={1} step={0.02} onChange={(v) => update('septalLvPressureWeight', v)} />
                       </ControlGrid>
                   </div>
               )}
@@ -410,17 +413,17 @@ export const Controls: React.FC<ControlsProps> = ({
 
           {isStudioMode && showGroup('atria') && (
             <>
-              <GroupHeader title="Atrial Mechanics" isOpen={openGroups.atria} toggle={() => toggleGroup('atria')} />
+              <GroupHeader title={t('workbench.controls.groups.atria')} isOpen={openGroups.atria} toggle={() => toggleGroup('atria')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.atria && (
                   <div className={rawBodyClass}>
                     <ControlGrid>
-                      <Subhead>Left Atrium (LA)</Subhead>
-                      <Slider label="LA Baseline Volume (V0)" value={nodeNum('LA', 'V0', 5)} min={0} max={50} step={1} onChange={(v) => updateNode('LA', 'V0', v)} unit="mL" />
-                      <Slider label="LA Elastance (Ees)" value={nodeNum('LA', 'Ees', 0.25)} min={0.05} max={2.0} step={0.05} onChange={(v) => updateNode('LA', 'Ees', v)} />
+                      <Subhead>{t('workbench.controls.raw.leftAtrium')}</Subhead>
+                      <Slider label={t('workbench.controls.raw.laBaselineVolume')} value={nodeNum('LA', 'V0', 5)} min={0} max={50} step={1} onChange={(v) => updateNode('LA', 'V0', v)} unit="mL" />
+                      <Slider label={t('workbench.controls.raw.laElastance')} value={nodeNum('LA', 'Ees', 0.25)} min={0.05} max={2.0} step={0.05} onChange={(v) => updateNode('LA', 'Ees', v)} />
 
-                      <Subhead>Right Atrium (RA)</Subhead>
-                      <Slider label="RA Baseline Volume (V0)" value={nodeNum('RA', 'V0', 5)} min={0} max={50} step={1} onChange={(v) => updateNode('RA', 'V0', v)} unit="mL" />
-                      <Slider label="RA Elastance (Ees)" value={nodeNum('RA', 'Ees', 0.22)} min={0.05} max={2.0} step={0.05} onChange={(v) => updateNode('RA', 'Ees', v)} />
+                      <Subhead>{t('workbench.controls.raw.rightAtrium')}</Subhead>
+                      <Slider label={t('workbench.controls.raw.raBaselineVolume')} value={nodeNum('RA', 'V0', 5)} min={0} max={50} step={1} onChange={(v) => updateNode('RA', 'V0', v)} unit="mL" />
+                      <Slider label={t('workbench.controls.raw.raElastance')} value={nodeNum('RA', 'Ees', 0.22)} min={0.05} max={2.0} step={0.05} onChange={(v) => updateNode('RA', 'Ees', v)} />
                     </ControlGrid>
                   </div>
               )}
@@ -429,16 +432,16 @@ export const Controls: React.FC<ControlsProps> = ({
 
           {isStudioMode && showGroup('vascular') && (
             <>
-              <GroupHeader title="Vascular Resistance & Compliance" isOpen={openGroups.vascular} toggle={() => toggleGroup('vascular')} />
+              <GroupHeader title={t('workbench.controls.groups.vascular')} isOpen={openGroups.vascular} toggle={() => toggleGroup('vascular')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.vascular && (
                   <div className={rawBodyClass}>
                     <ControlGrid>
-                      <Subhead>Global Scale Multipliers</Subhead>
-                      <Slider label="Systemic Resistance" value={rawView.systemicResistance} min={0.2} max={3.5} step={0.05} onChange={(v) => update('systemicResistance', v)} unit="x" />
-                      <Slider label="Pulmonary Resistance" value={rawView.pulmonaryResistance} min={0.2} max={4.0} step={0.05} onChange={(v) => update('pulmonaryResistance', v)} unit="x" />
-                      <Slider label="Global Arterial Stiffness" value={rawView.arterialStiffness} min={0.4} max={3.0} step={0.05} onChange={(v) => update('arterialStiffness', v)} unit="x" />
+                      <Subhead>{t('workbench.controls.raw.globalScaleMultipliers')}</Subhead>
+                      <Slider label={t('workbench.controls.raw.systemicResistance')} value={rawView.systemicResistance} min={0.2} max={3.5} step={0.05} onChange={(v) => update('systemicResistance', v)} unit="x" />
+                      <Slider label={t('workbench.controls.raw.pulmonaryResistance')} value={rawView.pulmonaryResistance} min={0.2} max={4.0} step={0.05} onChange={(v) => update('pulmonaryResistance', v)} unit="x" />
+                      <Slider label={t('workbench.controls.raw.globalArterialStiffness')} value={rawView.arterialStiffness} min={0.4} max={3.0} step={0.05} onChange={(v) => update('arterialStiffness', v)} unit="x" />
 
-                      <Subhead>Systemic Segment Resistance</Subhead>
+                      <Subhead>{t('workbench.controls.raw.systemicSegmentResistance')}</Subhead>
                       <Slider label="Ao → SA" value={rawView.edgeOverrides?.Ao_SA?.R ?? 0.05} min={0.01} max={0.5} step={0.01} onChange={(v) => updateEdge('Ao_SA', 'R', v)} />
                       <Slider label="SA → Art" value={rawView.edgeOverrides?.SA_Art?.R ?? 0.08} min={0.01} max={0.5} step={0.01} onChange={(v) => updateEdge('SA_Art', 'R', v)} />
                       <Slider label="Art → Cap" value={rawView.edgeOverrides?.Art_Cap?.R ?? 0.65} min={0.1} max={3.0} step={0.05} onChange={(v) => updateEdge('Art_Cap', 'R', v)} />
@@ -446,7 +449,7 @@ export const Controls: React.FC<ControlsProps> = ({
                       <Slider label="SV → VC" value={rawView.edgeOverrides?.SV_VC?.R ?? 0.05} min={0.01} max={0.5} step={0.01} onChange={(v) => updateEdge('SV_VC', 'R', v)} />
                       <Slider label="VC → RA" value={rawView.edgeOverrides?.VC_RA?.R ?? 0.04} min={0.01} max={0.3} step={0.01} onChange={(v) => updateEdge('VC_RA', 'R', v)} />
 
-                      <Subhead>Pulmonary Segment Resistance</Subhead>
+                      <Subhead>{t('workbench.controls.raw.pulmonarySegmentResistance')}</Subhead>
                       <Slider label="PA → PArt" value={rawView.edgeOverrides?.PA_PArt?.R ?? 0.01} min={0.001} max={0.1} step={0.001} onChange={(v) => updateEdge('PA_PArt', 'R', v)} />
                       <Slider label="PArt → PCap" value={rawView.edgeOverrides?.PArt_PCap?.R ?? 0.04} min={0.01} max={0.3} step={0.01} onChange={(v) => updateEdge('PArt_PCap', 'R', v)} />
                       <Slider label="PCap → PVen" value={rawView.edgeOverrides?.PCap_PVen?.R ?? 0.03} min={0.01} max={0.3} step={0.01} onChange={(v) => updateEdge('PCap_PVen', 'R', v)} />
@@ -460,22 +463,22 @@ export const Controls: React.FC<ControlsProps> = ({
 
           {isStudioMode && showGroup('coronary') && (
             <>
-              <GroupHeader title="Coronary Circulation" isOpen={openGroups.coronary} toggle={() => toggleGroup('coronary')} />
+              <GroupHeader title={t('workbench.controls.groups.coronary')} isOpen={openGroups.coronary} toggle={() => toggleGroup('coronary')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.coronary && (
                   <div className="mt-2 pl-3 border-l-2 border-slate-700/30 ml-2 mb-4">
                       <div className="flex items-center gap-2 mt-2 mb-2 text-xs">
                          <input type="checkbox" checked={rawView.coronaryEnabled} onChange={(e) => update('coronaryEnabled', e.target.checked)} />
-                         <span className="text-slate-300">Coronary bed enabled</span>
+                         <span className="text-slate-300">{t('workbench.controls.raw.coronaryBedEnabled')}</span>
                       </div>
-                      <Slider label="Coronary Resistance" value={rawView.coronaryResistanceScale} min={0.2} max={5.0} step={0.05} onChange={(v) => update('coronaryResistanceScale', v)} unit="x" />
-                      <Slider label="Myocardial Compression" value={rawView.coronaryCompressionScale} min={0} max={2.0} step={0.05} onChange={(v) => update('coronaryCompressionScale', v)} unit="x" />
-                      <Slider label="Hyperemia / Vasodilator" value={rawView.coronaryVasodilator} min={0} max={1} step={0.05} onChange={(v) => update('coronaryVasodilator', v)} />
-                      <Slider label="Reserve Max" value={rawView.coronaryReserveMax} min={1} max={5} step={0.1} onChange={(v) => update('coronaryReserveMax', v)} unit="x" />
+                      <Slider label={t('workbench.controls.raw.coronaryResistance')} value={rawView.coronaryResistanceScale} min={0.2} max={5.0} step={0.05} onChange={(v) => update('coronaryResistanceScale', v)} unit="x" />
+                      <Slider label={t('workbench.controls.raw.myocardialCompression')} value={rawView.coronaryCompressionScale} min={0} max={2.0} step={0.05} onChange={(v) => update('coronaryCompressionScale', v)} unit="x" />
+                      <Slider label={t('workbench.controls.raw.hyperemiaVasodilator')} value={rawView.coronaryVasodilator} min={0} max={1} step={0.05} onChange={(v) => update('coronaryVasodilator', v)} />
+                      <Slider label={t('workbench.controls.raw.reserveMax')} value={rawView.coronaryReserveMax} min={1} max={5} step={0.1} onChange={(v) => update('coronaryReserveMax', v)} unit="x" />
 
-                      <span className="text-xs font-bold text-slate-300 block mt-4 mb-1">Epicardial Diameter Stenosis</span>
-                      <Slider label="LAD Stenosis" value={rawView.LADStenosis} min={0} max={0.95} step={0.01} onChange={(v) => update('LADStenosis', v)} />
-                      <Slider label="LCx Stenosis" value={rawView.LCxStenosis} min={0} max={0.95} step={0.01} onChange={(v) => update('LCxStenosis', v)} />
-                      <Slider label="RCA Stenosis" value={rawView.RCAStenosis} min={0} max={0.95} step={0.01} onChange={(v) => update('RCAStenosis', v)} />
+                      <span className="text-xs font-bold text-slate-300 block mt-4 mb-1">{t('workbench.controls.raw.epicardialDiameterStenosis')}</span>
+                      <Slider label={t('workbench.controls.raw.ladStenosis')} value={rawView.LADStenosis} min={0} max={0.95} step={0.01} onChange={(v) => update('LADStenosis', v)} />
+                      <Slider label={t('workbench.controls.raw.lcxStenosis')} value={rawView.LCxStenosis} min={0} max={0.95} step={0.01} onChange={(v) => update('LCxStenosis', v)} />
+                      <Slider label={t('workbench.controls.raw.rcaStenosis')} value={rawView.RCAStenosis} min={0} max={0.95} step={0.01} onChange={(v) => update('RCAStenosis', v)} />
                   </div>
               )}
             </>
@@ -483,13 +486,13 @@ export const Controls: React.FC<ControlsProps> = ({
 
           {isStudioMode && showGroup('fluids') && (
             <>
-              <GroupHeader title="Fluids & Hemorrhage" isOpen={openGroups.fluids} toggle={() => toggleGroup('fluids')} />
+              <GroupHeader title={t('workbench.controls.groups.fluids')} isOpen={openGroups.fluids} toggle={() => toggleGroup('fluids')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.fluids && (
                   <div className={rawBodyClass}>
                     <ControlGrid>
-                      <Slider label="Hemorrhage Rate" value={rawView.bleedRate} min={0} max={1500} step={25} onChange={(v) => update('bleedRate', v)} unit="mL/min" />
-                      <Slider label="Fluid / Transfusion Rate" value={rawView.fluidRate} min={0} max={1500} step={25} onChange={(v) => update('fluidRate', v)} unit="mL/min" />
-                      <span className="col-span-full block text-[10px] text-slate-500">Net volume change is integrated over time; no autonomic compensation (baroreflex is a later phase).</span>
+                      <Slider label={t('workbench.controls.raw.hemorrhageRate')} value={rawView.bleedRate} min={0} max={1500} step={25} onChange={(v) => update('bleedRate', v)} unit="mL/min" />
+                      <Slider label={t('workbench.controls.raw.fluidTransfusionRate')} value={rawView.fluidRate} min={0} max={1500} step={25} onChange={(v) => update('fluidRate', v)} unit="mL/min" />
+                      <span className="col-span-full block text-[10px] text-slate-500">{t('workbench.controls.raw.netVolumeNote')}</span>
                     </ControlGrid>
                   </div>
               )}
@@ -498,19 +501,19 @@ export const Controls: React.FC<ControlsProps> = ({
 
           {isStudioMode && showGroup('valves') && (
             <>
-              <GroupHeader title="Valvular Mechanics" isOpen={openGroups.valves} toggle={() => toggleGroup('valves')} />
+              <GroupHeader title={t('workbench.controls.groups.valves')} isOpen={openGroups.valves} toggle={() => toggleGroup('valves')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.valves && (
                   <div className={`${rawBodyClass} flex flex-col gap-0`}>
                      {['MV', 'AoV', 'TV', 'PV'].map(vName => (
                          <div key={vName} className="mb-1.5 rounded border border-slate-800/70 bg-slate-900/35 p-1.5">
-                             <span className="mb-1 block text-[10px] font-semibold uppercase text-slate-400">{vName} Parameters</span>
+                             <span className="mb-1 block text-[10px] font-semibold uppercase text-slate-400">{t('workbench.controls.raw.valveParameters', { valve: vName })}</span>
                              <ControlGrid>
-                             <Slider label={`Aref (Healthy Area)`} value={(params as any)[`${vName}_Aref`]} min={0.1} max={10.0} step={0.1} onChange={(v) => update(`${vName}_Aref` as any, v)} unit="cm²" />
-                             <Slider label={`Amax (Max Area)`} value={(params as any)[`${vName}_Amax`]} min={0.1} max={10.0} step={0.1} onChange={(v) => update(`${vName}_Amax` as any, v)} unit="cm²" />
-                             <Slider label={`Aleak (Leak Area)`} value={(params as any)[`${vName}_Aleak`]} min={0.00000} max={1.0} step={0.001} onChange={(v) => update(`${vName}_Aleak` as any, v)} unit="cm²" />
-                             <Slider label={`Resistance`} value={(params as any)[`${vName}_R`]} min={0.0005} max={0.05} step={0.0005} onChange={(v) => update(`${vName}_R` as any, v)} />
-                             <Slider label={`Inertance`} value={(params as any)[`${vName}_L`]} min={0.0001} max={0.01} step={0.0001} onChange={(v) => update(`${vName}_L` as any, v)} />
-                             <Slider label={`Quadratic loss`} value={(params as any)[`${vName}_B`]} min={0} max={0.001} step={0.000001} onChange={(v) => update(`${vName}_B` as any, v)} />
+                             <Slider label={t('workbench.controls.raw.arefHealthyArea')} value={(params as any)[`${vName}_Aref`]} min={0.1} max={10.0} step={0.1} onChange={(v) => update(`${vName}_Aref` as any, v)} unit="cm²" />
+                             <Slider label={t('workbench.controls.raw.amaxMaxArea')} value={(params as any)[`${vName}_Amax`]} min={0.1} max={10.0} step={0.1} onChange={(v) => update(`${vName}_Amax` as any, v)} unit="cm²" />
+                             <Slider label={t('workbench.controls.raw.aleakLeakArea')} value={(params as any)[`${vName}_Aleak`]} min={0.00000} max={1.0} step={0.001} onChange={(v) => update(`${vName}_Aleak` as any, v)} unit="cm²" />
+                             <Slider label={t('workbench.controls.raw.resistance')} value={(params as any)[`${vName}_R`]} min={0.0005} max={0.05} step={0.0005} onChange={(v) => update(`${vName}_R` as any, v)} />
+                             <Slider label={t('workbench.controls.raw.inertance')} value={(params as any)[`${vName}_L`]} min={0.0001} max={0.01} step={0.0001} onChange={(v) => update(`${vName}_L` as any, v)} />
+                             <Slider label={t('workbench.controls.raw.quadraticLoss')} value={(params as any)[`${vName}_B`]} min={0} max={0.001} step={0.000001} onChange={(v) => update(`${vName}_B` as any, v)} />
                              <Slider label={`kOpen`} value={(params as any)[`${vName}_kOpen`]} min={0.1} max={10.0} step={0.1} onChange={(v) => update(`${vName}_kOpen` as any, v)} />
                              <Slider label={`tauOpen`} value={(params as any)[`${vName}_tauOpen`]} min={0.001} max={0.1} step={0.001} onChange={(v) => update(`${vName}_tauOpen` as any, v)} />
                              <Slider label={`tauClose`} value={(params as any)[`${vName}_tauClose`]} min={0.001} max={0.1} step={0.001} onChange={(v) => update(`${vName}_tauClose` as any, v)} />
@@ -524,15 +527,15 @@ export const Controls: React.FC<ControlsProps> = ({
 
           {isStudioMode && showGroup('resp') && (
             <>
-              <GroupHeader title="Respiratory & Environment" isOpen={openGroups.resp} toggle={() => toggleGroup('resp')} />
+              <GroupHeader title={t('workbench.controls.groups.resp')} isOpen={openGroups.resp} toggle={() => toggleGroup('resp')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.resp && (
                   <div className={rawBodyClass}>
                     <ControlGrid>
                       <Slider label="PEEP" value={rawView.PEEP} min={0} max={25} step={1} onChange={(v) => update('PEEP', v)} unit="cmH2O" />
-                      <Slider label="Base Pleural P (Pth0)" value={rawView.Pth0} min={-20} max={30} step={1} onChange={(v) => update('Pth0', v)} unit="cmH2O" />
-                      <Slider label="Resp Amp (Pleural)" value={rawView.respAmpTh} min={-20} max={20} step={1} onChange={(v) => update('respAmpTh', v)} unit="cmH2O" />
-                      <Slider label="Resp Amp (Alveolar)" value={rawView.respAmpAlv} min={-20} max={20} step={1} onChange={(v) => update('respAmpAlv', v)} unit="cmH2O" />
-                      <Slider label="Respiratory Rate" value={rawView.respRate} min={0} max={1.0} step={0.05} onChange={(v) => update('respRate', v)} unit="Hz" />
+                      <Slider label={t('workbench.controls.raw.basePleuralP')} value={rawView.Pth0} min={-20} max={30} step={1} onChange={(v) => update('Pth0', v)} unit="cmH2O" />
+                      <Slider label={t('workbench.controls.raw.respAmpPleural')} value={rawView.respAmpTh} min={-20} max={20} step={1} onChange={(v) => update('respAmpTh', v)} unit="cmH2O" />
+                      <Slider label={t('workbench.controls.raw.respAmpAlveolar')} value={rawView.respAmpAlv} min={-20} max={20} step={1} onChange={(v) => update('respAmpAlv', v)} unit="cmH2O" />
+                      <Slider label={t('workbench.controls.raw.respiratoryRate')} value={rawView.respRate} min={0} max={1.0} step={0.05} onChange={(v) => update('respRate', v)} unit="Hz" />
                     </ControlGrid>
                   </div>
               )}
@@ -541,12 +544,12 @@ export const Controls: React.FC<ControlsProps> = ({
 
           {isStudioMode && showGroup('advanced') && (
             <>
-              <GroupHeader title="Advanced Engine" isOpen={openGroups.advanced} toggle={() => toggleGroup('advanced')} />
+              <GroupHeader title={t('workbench.controls.groups.advanced')} isOpen={openGroups.advanced} toggle={() => toggleGroup('advanced')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.advanced && (
                   <div className={rawBodyClass}>
                       <div className="flex items-center gap-2 rounded border border-slate-800/60 bg-slate-900/35 px-2 py-1.5 text-xs">
                          <input type="checkbox" checked={params.useChiResistance} onChange={(e) => update('useChiResistance', e.target.checked)} />
-                         <span className="text-slate-300">Use dynamic Starling resistance (χ) for waterfall collapse</span>
+                         <span className="text-slate-300">{t('workbench.controls.raw.useDynamicStarling')}</span>
                       </div>
                   </div>
               )}

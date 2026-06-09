@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { PanelDef } from "../../types";
 
 export const ReadingControllerSection: React.FC<{
@@ -6,6 +7,7 @@ export const ReadingControllerSection: React.FC<{
   children: React.ReactNode;
   defaultOpen?: boolean;
 }> = ({ panel, children, defaultOpen = false }) => {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(defaultOpen);
 
   return (
@@ -18,7 +20,7 @@ export const ReadingControllerSection: React.FC<{
           className="rounded border border-slate-700 px-2 py-1 text-[11px] font-bold normal-case tracking-normal text-slate-200 transition-colors hover:bg-slate-800"
           aria-expanded={open}
         >
-          {open ? "Hide controls" : "Adjust the model"}
+          {open ? t("reading.hideControls") : t("reading.adjustModel")}
         </button>
       </figcaption>
       {open && (

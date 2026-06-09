@@ -1,7 +1,8 @@
 import React from "react";
 import { renderToString } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
+import i18n from "@/i18n";
 import { CASE_SCHEMA_VERSION, DEFAULT_SOLVER, ENGINE_VERSION, type CaseDocument } from "@/caseDoc";
 import { KNOB_MAPPING_VERSION } from "@/engine/knobs";
 import type { Lesson } from "@/lessonDoc";
@@ -43,6 +44,10 @@ vi.mock("@/components/NotePanel", async () => {
     },
     NotePanel: ({ content }: { content?: NoteContent }) => React.createElement("div", { "data-note-panel-stub": "true" }, JSON.stringify(content ?? [])),
   };
+});
+
+beforeAll(async () => {
+  await i18n.changeLanguage("en");
 });
 
 function panel(id: string, type: PanelDef["type"], extras: Partial<PanelDef> = {}): PanelDef {
@@ -257,8 +262,8 @@ describe("ReadingPresenter chrome", () => {
     expect(html).toContain("text-3xl font-bold text-slate-50 sm:text-[34px]");
     expect(html).toContain("Beginner");
     expect(html).toContain("min read");
-    expect(html).toContain("Interactive");
-    expect(html).toContain("目次");
+    expect(html).toContain(i18n.t("reading.interactive"));
+    expect(html).toContain(i18n.t("reading.tableOfContents"));
     expect(html).toContain('href="#first-heading"');
     expect(html).toContain('href="#first-heading-2"');
     expect(html).toContain("h-0.5 bg-sky-400");

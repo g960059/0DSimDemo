@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { LessonStep, NumericKnobKey } from "../lessonDoc";
 import {
   buildExposedKnobStage,
@@ -15,6 +16,7 @@ import type { SimInstance } from "../types";
 import { KNOB_RANGES } from "../engine/knobs";
 import { resolveKnobValue } from "../lessonKnobs";
 import { NotePanel } from "./NotePanel";
+import { translatedKnobLabel } from "../i18nText";
 
 type LessonAuthoringProps = {
   instances: SimInstance[];
@@ -51,6 +53,7 @@ const formatKnobValue = (key: NumericKnobKey, value: number): string => {
 };
 
 export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, stepsDraft, setStepsDraft }) => {
+  const { t } = useTranslation();
   const allInstanceIds = useMemo(() => instances.map((instance) => instance.id), [instances]);
   const idsKey = instanceIdsKey(allInstanceIds);
   const instanceNameById = useMemo(() => new Map(instances.map((instance) => [instance.id, instance.name])), [instances]);
@@ -59,7 +62,7 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
   const [stepVisibleIdsDraft, setStepVisibleIdsDraft] = useState<string[]>(allInstanceIds);
   const stepVisibleIdsKey = instanceIdsKey(stepVisibleIdsDraft);
   const [predictDraft, setPredictDraft] = useState(false);
-  const [revealLabelDraft, setRevealLabelDraft] = useState("Reveal");
+  const [revealLabelDraft, setRevealLabelDraft] = useState(() => t("lessonAuthoring.reveal"));
   const [promptDraft, setPromptDraft] = useState("");
   const [exposedKnobsDraft, setExposedKnobsDraft] = useState<NumericKnobKey[]>([]);
   const [knobInstanceIdDraft, setKnobInstanceIdDraft] = useState<string | undefined>(allInstanceIds[0]);
@@ -85,7 +88,7 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
     setStepNoteDraft(EMPTY_AUTHOR_NOTE);
     setStepVisibleIdsDraft(allInstanceIds);
     setPredictDraft(false);
-    setRevealLabelDraft("Reveal");
+    setRevealLabelDraft(t("lessonAuthoring.reveal"));
     setPromptDraft("");
     setExposedKnobsDraft([]);
     setKnobInstanceIdDraft(allInstanceIds[0]);
@@ -110,7 +113,7 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
 
   const captureStep = () => {
     if (stepVisibleIdsDraft.length === 0) {
-      setWarning("Select at least one visible instance before capturing a step.");
+      setWarning(t("lessonAuthoring.validation.visibleInstanceRequired"));
       return;
     }
     stepCounterRef.current += 1;
@@ -162,31 +165,31 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
     <section className="mb-2 rounded border border-slate-800 bg-[#0B1120] overflow-hidden">
       <div className="px-3 py-2 border-b border-slate-800 flex items-center justify-between gap-3">
         <div>
-          <div className="text-[11px] uppercase font-bold text-blue-400 tracking-wide">Lesson authoring</div>
-          <div className="text-sm font-bold text-slate-200">{stepsDraft.length} steps</div>
+          <div className="text-[11px] uppercase font-bold text-blue-400 tracking-wide">{t("lessonAuthoring.title")}</div>
+          <div className="text-sm font-bold text-slate-200">{t("lessonAuthoring.stepsCount", { count: stepsDraft.length })}</div>
         </div>
         <button
           onClick={captureStep}
           className="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white transition-colors"
         >
-          Capture step
+          {t("lessonAuthoring.captureStep")}
         </button>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[320px_minmax(360px,1fr)_280px] gap-3 p-3">
         <div className="space-y-3">
           <label className="block">
-            <span className="block text-xs font-bold text-slate-400 mb-1">Step title</span>
+            <span className="block text-xs font-bold text-slate-400 mb-1">{t("lessonAuthoring.stepTitle")}</span>
             <input
               value={stepTitleDraft}
               onChange={(event) => setStepTitleDraft(event.target.value)}
               className="w-full bg-slate-950 border border-slate-700 outline-none focus:border-blue-500 rounded px-3 py-2 text-sm text-slate-100"
-              placeholder={`Step ${stepsDraft.length + 1}`}
+              placeholder={t("lessonAuthoring.stepPlaceholder", { number: stepsDraft.length + 1 })}
             />
           </label>
 
           <div>
-            <div className="text-xs font-bold text-slate-400 mb-2">Visible instances</div>
+            <div className="text-xs font-bold text-slate-400 mb-2">{t("lessonAuthoring.visibleInstances")}</div>
             <div className="space-y-1.5">
               {instances.map((instance) => (
                 <label key={instance.id} className="flex items-center gap-2 rounded bg-slate-950/70 border border-slate-800 px-2 py-1.5">
@@ -210,7 +213,7 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
               checked={predictDraft}
               onChange={(event) => setPredictDraft(event.target.checked)}
             />
-            <span className="text-xs font-bold text-amber-200">Predict before reveal</span>
+            <span className="text-xs font-bold text-amber-200">{t("lessonAuthoring.predictBeforeReveal")}</span>
           </label>
 
           {predictDraft && (
@@ -219,21 +222,21 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
                 value={revealLabelDraft}
                 onChange={(event) => setRevealLabelDraft(event.target.value)}
                 className="w-full bg-slate-950 border border-slate-700 outline-none focus:border-amber-500 rounded px-3 py-2 text-xs text-slate-100"
-                placeholder="Reveal label"
+                placeholder={t("lessonAuthoring.revealLabel")}
               />
               <input
                 value={promptDraft}
                 onChange={(event) => setPromptDraft(event.target.value)}
                 className="w-full bg-slate-950 border border-slate-700 outline-none focus:border-amber-500 rounded px-3 py-2 text-xs text-slate-100"
-                placeholder="Prediction prompt"
+                placeholder={t("lessonAuthoring.predictionPrompt")}
               />
             </div>
           )}
 
           <div className="rounded border border-slate-800 bg-slate-950/50 p-2">
             <div className="flex items-center justify-between gap-2 mb-2">
-              <div className="text-xs font-bold text-slate-400">Exposed knobs</div>
-              {exposedKnobsDraft.length >= 3 && <div className="text-[11px] font-semibold text-amber-300">max 3</div>}
+              <div className="text-xs font-bold text-slate-400">{t("lessonAuthoring.exposedKnobs")}</div>
+              {exposedKnobsDraft.length >= 3 && <div className="text-[11px] font-semibold text-amber-300">{t("lessonAuthoring.maxKnobs", { count: 3 })}</div>}
             </div>
             <div className="space-y-1.5">
               {KNOB_KEYS.map((key) => {
@@ -248,7 +251,7 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
                       disabled={disabled}
                       onChange={() => toggleExposedKnob(key)}
                     />
-                    <span className="text-xs font-bold text-slate-200 truncate">{KNOB_LABELS[key]}</span>
+                    <span className="text-xs font-bold text-slate-200 truncate">{translatedKnobLabel(t, key, KNOB_LABELS[key])}</span>
                   </label>
                 );
               })}
@@ -258,7 +261,7 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
               <div className="mt-3 space-y-2">
                 {showExposedTargetSelect ? (
                   <label className="block">
-                    <span className="block text-xs font-bold text-slate-400 mb-1">Target instance</span>
+                    <span className="block text-xs font-bold text-slate-400 mb-1">{t("lessonAuthoring.targetInstance")}</span>
                     <select
                       value={knobInstanceIdDraft ?? stepVisibleIdsDraft[0] ?? ""}
                       onChange={(event) => setKnobInstanceIdDraft(event.target.value || undefined)}
@@ -271,7 +274,7 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
                   </label>
                 ) : (
                   <div className="text-[11px] font-semibold text-slate-500">
-                    Target: {instanceNameById.get(stepVisibleIdsDraft[0]) ?? stepVisibleIdsDraft[0] ?? "none"}
+                    {t("lessonAuthoring.target", { target: instanceNameById.get(stepVisibleIdsDraft[0]) ?? stepVisibleIdsDraft[0] ?? t("common.none") })}
                   </div>
                 )}
                 <label className="flex items-center gap-2 rounded bg-slate-950/70 border border-slate-800 px-2 py-1.5">
@@ -281,13 +284,13 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
                     checked={snapshotInitialDraft}
                     onChange={(event) => setSnapshotInitialDraft(event.target.checked)}
                   />
-                  <span className="text-xs font-bold text-slate-200">Start from current knob values</span>
+                  <span className="text-xs font-bold text-slate-200">{t("lessonAuthoring.startFromCurrentKnobValues")}</span>
                 </label>
                 {showSnapshotPreview && (
                   <div className="rounded bg-slate-950/70 border border-slate-800 px-2 py-1.5 text-[11px] text-slate-400">
                     {exposedKnobsDraft.map((key) => (
                       <div key={key} className="flex items-center justify-between gap-2">
-                        <span className="truncate">{KNOB_LABELS[key]}</span>
+                        <span className="truncate">{translatedKnobLabel(t, key, KNOB_LABELS[key])}</span>
                         <span className="shrink-0 font-mono text-slate-200">{formatKnobValue(key, resolveKnobValue(selectedKnobTarget, key))}</span>
                       </div>
                     ))}
@@ -310,15 +313,15 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
         </div>
 
         <div className="rounded border border-slate-800 bg-slate-950/60 overflow-hidden">
-          <div className="px-3 py-2 border-b border-slate-800 text-xs font-bold text-slate-400">Captured steps</div>
+          <div className="px-3 py-2 border-b border-slate-800 text-xs font-bold text-slate-400">{t("lessonAuthoring.capturedSteps")}</div>
           {hasFinalPredictWarning && (
             <div className="px-3 py-2 border-b border-amber-500/20 bg-amber-500/10 text-[11px] font-semibold text-amber-200">
-              Final step is predict. Add a reveal step before saving.
+              {t("lessonAuthoring.finalPredictWarning")}
             </div>
           )}
           <div className="max-h-[280px] overflow-y-auto custom-scrollbar">
             {stepsDraft.length === 0 ? (
-              <div className="p-3 text-xs text-slate-500">No steps captured.</div>
+              <div className="p-3 text-xs text-slate-500">{t("lessonAuthoring.noStepsCaptured")}</div>
             ) : (
               stepsDraft.map((step, index) => (
                 <CapturedStepRow
@@ -349,15 +352,16 @@ const CapturedStepRow: React.FC<{
   onMove: (index: number, dir: -1 | 1) => void;
   onDelete: (id: string) => void;
 }> = ({ step, index, count, allInstanceIds, instanceNameById, onMove, onDelete }) => {
+  const { t } = useTranslation();
   const staleIds = staleVisibleIds(step, allInstanceIds);
   const visibleNames = step.stage.visibleInstances
     .map((id) => instanceNameById.get(id))
     .filter((name): name is string => Boolean(name));
-  const visibleSummary = visibleNames.length > 0 ? `shows: ${visibleNames.join(", ")}` : "shows: none";
+  const visibleSummary = visibleNames.length > 0 ? t("lessonAuthoring.row.shows", { names: visibleNames.join(", ") }) : t("lessonAuthoring.row.showsNone");
   const knobTargetId = step.stage.knobInstanceId ?? step.stage.visibleInstances[0];
-  const knobTargetName = knobTargetId ? (instanceNameById.get(knobTargetId) ?? knobTargetId) : "none";
+  const knobTargetName = knobTargetId ? (instanceNameById.get(knobTargetId) ?? knobTargetId) : t("common.none");
   const knobSummary = step.stage.exposedKnobs?.length
-    ? `knobs: ${step.stage.exposedKnobs.map((key) => KNOB_LABELS[key]).join(", ")} → ${knobTargetName}`
+    ? t("lessonAuthoring.row.knobs", { knobs: step.stage.exposedKnobs.map((key) => translatedKnobLabel(t, key, KNOB_LABELS[key])).join(", "), target: knobTargetName })
     : undefined;
   const canMoveUp = index > 0;
   const canMoveDown = index < count - 1;
@@ -370,7 +374,7 @@ const CapturedStepRow: React.FC<{
           <div className="text-[11px] text-slate-500 truncate" title={visibleSummary}>{visibleSummary}</div>
           {predict && (
             <span className="shrink-0 rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-200">
-              predict
+              {t("lessonAuthoring.predictBadge")}
             </span>
           )}
         </div>
@@ -378,7 +382,7 @@ const CapturedStepRow: React.FC<{
           <div className="text-[11px] text-blue-300 truncate" title={knobSummary}>{knobSummary}</div>
         )}
         {staleIds.length > 0 && (
-          <div className="text-[11px] font-semibold text-amber-300 truncate">stale: {staleIds.join(", ")}</div>
+          <div className="text-[11px] font-semibold text-amber-300 truncate">{t("lessonAuthoring.row.stale", { ids: staleIds.join(", ") })}</div>
         )}
       </div>
       <div className="shrink-0 flex items-center gap-1">
@@ -386,8 +390,8 @@ const CapturedStepRow: React.FC<{
           type="button"
           onClick={() => onMove(index, -1)}
           disabled={!canMoveUp}
-          aria-label={`Move ${step.title || step.id} up`}
-          title="Move step up"
+          aria-label={t("lessonAuthoring.moveUpAria", { title: step.title || step.id })}
+          title={t("lessonAuthoring.moveStepUp")}
           className="w-7 h-7 rounded bg-slate-800 text-[11px] font-bold text-slate-300 transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-slate-800"
         >
           ↑
@@ -396,8 +400,8 @@ const CapturedStepRow: React.FC<{
           type="button"
           onClick={() => onMove(index, 1)}
           disabled={!canMoveDown}
-          aria-label={`Move ${step.title || step.id} down`}
-          title="Move step down"
+          aria-label={t("lessonAuthoring.moveDownAria", { title: step.title || step.id })}
+          title={t("lessonAuthoring.moveStepDown")}
           className="w-7 h-7 rounded bg-slate-800 text-[11px] font-bold text-slate-300 transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-slate-800"
         >
           ↓
@@ -407,7 +411,7 @@ const CapturedStepRow: React.FC<{
           onClick={() => onDelete(step.id)}
           className="px-2 py-1 rounded bg-slate-800 hover:bg-red-500/20 text-[11px] font-bold text-slate-400 hover:text-red-200 transition-colors"
         >
-          Delete
+          {t("common.delete")}
         </button>
       </div>
     </div>
