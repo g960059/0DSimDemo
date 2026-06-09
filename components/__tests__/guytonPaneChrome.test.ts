@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { guytonPaneChromeState, guytonStarlingCalibrationLabel } from "@/components/guytonPaneChrome";
+import {
+  guytonPaneChromeState,
+  guytonStarlingCalibrationDetail,
+  guytonStarlingCalibrationLabel,
+} from "@/components/guytonPaneChrome";
+import type { StarlingSweepCurve } from "@/engine/guytonStarling";
 
 describe("Guyton pane chrome helpers", () => {
   it("dedupes warnings for the warning popover", () => {
@@ -38,7 +43,7 @@ describe("Guyton pane chrome helpers", () => {
   });
 
   it("formats compact calibrated sweep labels", () => {
-    expect(guytonStarlingCalibrationLabel({
+    const curve: StarlingSweepCurve = {
       side: "left",
       points: [],
       warnings: [],
@@ -48,7 +53,29 @@ describe("Guyton pane chrome helpers", () => {
         anchorDeltasMl: [-900, 0, 300, 900],
         fallbackReasons: [],
       },
-    })).toBe("calibrated 4 anchors");
+      interpretation: {
+        xAxis: "LAP",
+        yAxis: "CO",
+        sweepVariable: "TBV delta",
+        fitBasis: "calibrated anchors",
+        anchorDeltasMl: [-900, 0, 300, 900],
+        measuredRangeMmHg: { min: 1.2, max: 8.4 },
+        extrapolation: "final-only dashed",
+        zeroFlowConstrained: false,
+        zeroFlowConstraintReason: "Starling x-axis is cycle-mean RAP/LAP from a TBV sweep, not the ESPVR volume-axis V0.",
+      },
+    };
+
+    expect(guytonStarlingCalibrationLabel(curve)).toBe("calibrated 4 anchors");
+    const detail = guytonStarlingCalibrationDetail(curve, labels());
+    expect(detail?.label).toBe("calibrated 4 anchors");
+    expect(detail?.rows).toEqual([
+      { label: "Axis", value: "x=LAP, y=CO" },
+      { label: "Sweep", value: "TBV delta" },
+      { label: "Anchors", value: "-900 mL, 0 mL, +300 mL, +900 mL" },
+      { label: "Measured range", value: "1.2-8.4 mmHg" },
+      { label: "Low-flow end", value: "Zero-flow/V0 is not constrained." },
+    ]);
 
     expect(guytonStarlingCalibrationLabel({
       side: "left",
@@ -63,3 +90,15 @@ describe("Guyton pane chrome helpers", () => {
     })).toBe("full7 fallback");
   });
 });
+
+function labels() {
+  return {
+    axis: "Axis",
+    sweep: "Sweep",
+    anchors: "Anchors",
+    measuredRange: "Measured range",
+    zeroFlow: "Low-flow end",
+    notAvailable: "n/a",
+    zeroFlowNotConstrained: "Zero-flow/V0 is not constrained.",
+  };
+}

@@ -102,6 +102,20 @@ describe("Guyton / Starling worker helpers", () => {
     expect(response.right?.fit?.kind).toBe("monotone-pchip");
     expect(response.right?.fit?.mode).toBe("calibrated");
     expect(response.right?.fit?.extrapolatedRight?.length).toBeGreaterThan(2);
+    expect(response.right?.interpretation).toMatchObject({
+      xAxis: "RAP",
+      yAxis: "CO",
+      sweepVariable: "TBV delta",
+      fitBasis: "calibrated anchors",
+      zeroFlowConstrained: false,
+    });
+    expect(response.left?.interpretation).toMatchObject({
+      xAxis: "LAP",
+      yAxis: "CO",
+      fitBasis: "calibrated anchors",
+      zeroFlowConstrained: false,
+    });
+    expect(response.right?.interpretation?.measuredRangeMmHg?.max).toBeGreaterThan(response.right?.interpretation?.measuredRangeMmHg?.min ?? Infinity);
     expectSortedByPressure(response.right?.points ?? []);
     expectSortedByPressure(response.left?.points ?? []);
     expectSweepTiming(response);
@@ -119,6 +133,7 @@ describe("Guyton / Starling worker helpers", () => {
     expect(response.timing?.fallbackReasons).toContain("left return residual threshold");
     expect(response.right?.points).toHaveLength(7);
     expect(response.right?.calibration?.mode).toBe("full7-fallback");
+    expect(response.right?.interpretation?.fitBasis).toBe("full7 fallback");
     expect(response.warnings.some((warning) => warning.includes("calibrated Starling fallback"))).toBe(true);
   });
 
@@ -205,6 +220,8 @@ describe("Guyton / Starling worker helpers", () => {
       150,
       600,
     ]);
+    expect(response.right?.interpretation?.fitBasis).toBe("custom anchors");
+    expect(response.right?.interpretation?.anchorDeltasMl).toEqual(deltasMl);
     expectSortedByPressure(response.right?.points ?? []);
     expectSortedByPressure(response.left?.points ?? []);
   });

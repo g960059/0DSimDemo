@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { LoaderCircle, TriangleAlert } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { SimInstance, PhysicsRefState, PanelInstanceConfig, type LegendPosition } from '../types';
 import type { SimSample } from '../engine/protocol';
 import { clampLegendFraction, exceededDragThreshold, fractionToPx, isNearDefaultLegendCorner, pxToFraction } from './legendPosition';
@@ -43,7 +44,8 @@ import {
     type GuytonSteadyMapPreview,
     type GuytonSteadyMapState,
 } from './guytonSteadyMapTransition';
-import { guytonPaneChromeState, guytonStarlingCalibrationLabel } from './guytonPaneChrome';
+import { guytonPaneChromeState, guytonStarlingCalibrationDetail } from './guytonPaneChrome';
+import type { GuytonCalibrationDetail } from './guytonPaneChrome';
 import { requestGuytonStarlingWorkerMessages } from './guytonStarlingWorkerClient';
 
 interface ChartPanelProps {
@@ -1334,7 +1336,7 @@ type GuytonSeries = {
     status: 'ready' | 'pending' | 'empty';
     warnings: string[];
     stressWarnings: string[];
-    calibrationLabel?: string;
+    calibrationDetail?: GuytonCalibrationDetail;
 };
 
 function sweepCurveForSide(
@@ -1346,6 +1348,7 @@ function sweepCurveForSide(
 }
 
 export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ instances, config, type }) => {
+    const { t } = useTranslation();
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const isOnscreen = useOnscreen(containerRef);
@@ -1356,7 +1359,17 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
     const [workerBusy, setWorkerBusy] = useState(false);
     const [workerError, setWorkerError] = useState<string | null>(null);
     const [warningsOpen, setWarningsOpen] = useState(false);
+    const [calibrationOpen, setCalibrationOpen] = useState(false);
     const steadyMapRef = useRef<Map<string, GuytonSteadyMapState>>(new Map());
+    const calibrationLabels = useMemo(() => ({
+        axis: t('workbench.guyton.calibration.axis'),
+        sweep: t('workbench.guyton.calibration.sweep'),
+        anchors: t('workbench.guyton.calibration.anchors'),
+        measuredRange: t('workbench.guyton.calibration.measuredRange'),
+        zeroFlow: t('workbench.guyton.calibration.zeroFlow'),
+        notAvailable: t('workbench.guyton.calibration.notAvailable'),
+        zeroFlowNotConstrained: t('workbench.guyton.calibration.zeroFlowNotConstrained'),
+    }), [t]);
 
     const visibleInstances = useMemo(() => (
         instances.filter((inst) => {
@@ -1512,10 +1525,13 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
                 status,
                 warnings: guytonSteadyMapWarnings(state),
                 stressWarnings: guytonSteadyMapStressWarnings(state),
-                calibrationLabel: guytonStarlingCalibrationLabel(sweepCurveForSide(state.current ?? state.preview ?? state.ghost, side)),
+                calibrationDetail: guytonStarlingCalibrationDetail(
+                    sweepCurveForSide(state.current ?? state.preview ?? state.ghost, side),
+                    calibrationLabels,
+                ),
             }];
         });
-    }, [visibleInstances, side, tick]);
+    }, [visibleInstances, side, tick, calibrationLabels]);
 
     useEffect(() => {
         if (!canAnimate || !containerRef.current || !canvasRef.current) return;
@@ -1542,12 +1558,43 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
         notes: series.flatMap((item) => item.stressWarnings),
         workerError,
     });
+    const calibrationDetail = series.map((item) => item.calibrationDetail).find(Boolean);
 
     return (
         <div ref={containerRef} className="absolute inset-0 bg-[#0B1120] rounded-b-xl overflow-hidden">
             <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
-            {visibleInstances.length > 0 && (chrome.showSpinner || chrome.hasWarnings) && (
+            {visibleInstances.length > 0 && (chrome.showSpinner || chrome.hasWarnings || calibrationDetail) && (
                 <div className="absolute right-3 top-2 flex items-center gap-1.5 pointer-events-auto">
+                    {calibrationDetail && (
+                        <div
+                            className="relative"
+                            onMouseEnter={() => setCalibrationOpen(true)}
+                            onMouseLeave={() => setCalibrationOpen(false)}
+                            onFocus={() => setCalibrationOpen(true)}
+                            onBlur={() => setCalibrationOpen(false)}
+                        >
+                            <button
+                                type="button"
+                                className="inline-flex h-7 items-center rounded border border-slate-800/70 bg-slate-950/55 px-2 text-[10px] font-medium text-slate-400 transition-colors hover:border-slate-600 hover:text-slate-200"
+                                aria-label={t('workbench.guyton.calibration.detailsAria')}
+                                aria-expanded={calibrationOpen}
+                                onClick={() => setCalibrationOpen((open) => !open)}
+                            >
+                                {calibrationDetail.label}
+                            </button>
+                            {calibrationOpen && (
+                                <div className="absolute right-0 top-8 z-20 w-72 rounded border border-slate-700/70 bg-slate-950/95 p-2 text-[10px] leading-snug text-slate-200 shadow-xl">
+                                    <div className="mb-1 font-semibold text-slate-300">{calibrationDetail.label}</div>
+                                    {calibrationDetail.rows.map((row) => (
+                                        <div key={row.label} className="grid grid-cols-[6.5rem_1fr] gap-2 border-t border-slate-800/70 py-1 first:border-t-0">
+                                            <span className="text-slate-500">{row.label}</span>
+                                            <span className="text-slate-300">{row.value}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
                     {chrome.showSpinner && (
                         <span className="inline-flex h-7 w-7 items-center justify-center rounded border border-slate-800/70 bg-slate-950/65 text-slate-400" title="Computing Starling sweep" aria-label="Computing Starling sweep">
                             <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
@@ -1739,7 +1786,6 @@ function drawGuytonCanvas(
             return sweep && sweep.points.length >= 1;
         })),
         hasGhost: Boolean(series.some((item) => item.ghost)),
-        calibrationLabel: series.map((item) => item.calibrationLabel).find(Boolean),
     });
     ctx.restore();
 }
@@ -1895,7 +1941,7 @@ function drawPoint(ctx: CanvasRenderingContext2D, x: number, y: number, color: s
 function drawLegend(
     ctx: CanvasRenderingContext2D,
     plot: { left: number; right: number; top: number },
-    options: { hasSweep: boolean; hasGhost: boolean; calibrationLabel?: string },
+    options: { hasSweep: boolean; hasGhost: boolean },
 ) {
     if (plot.right - plot.left < 360) return;
     const x0 = plot.right - 140;
@@ -1919,14 +1965,6 @@ function drawLegend(
         ctx.textBaseline = 'middle';
         ctx.fillText(label, x0 + 26, yy);
     });
-    if (options.calibrationLabel) {
-        const yy = y0 + rows.length * 15;
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = '9px sans-serif';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(options.calibrationLabel, x0, yy);
-    }
     ctx.restore();
 }
 
