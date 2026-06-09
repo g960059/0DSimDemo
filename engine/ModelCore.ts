@@ -899,6 +899,8 @@ export class ModelCore {
     const SV_R = integratePositive("QPA");
     const CO_L = (SV_L * this.p.HR) / 1000;
     const CO_R = (SV_R * this.p.HR) / 1000;
+    const systemicVenousReturnLMin = avg("SVF") * 60 / 1000;
+    const pulmonaryVenousReturnLMin = avg("PVF") * 60 / 1000;
     const mvFlow = valveFlowIntegral(data, "QMV");
     const aovFlow = valveFlowIntegral(data, "QAo");
     const tvFlow = valveFlowIntegral(data, "QTV");
@@ -950,6 +952,8 @@ export class ModelCore {
       SV_R,
       CO_L,
       CO_R,
+      systemicVenousReturnLMin,
+      pulmonaryVenousReturnLMin,
       MVForwardVolumeMl: mvFlow.forwardVolumeMl,
       MVReverseVolumeMl: mvFlow.reverseVolumeMl,
       MVNetVolumeMl: mvFlow.netVolumeMl,

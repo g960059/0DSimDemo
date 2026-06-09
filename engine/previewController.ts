@@ -129,6 +129,8 @@ const emptyMetrics = (hr: number): SimMetrics => ({
   SV_R: 0,
   CO_L: 0,
   CO_R: 0,
+  systemicVenousReturnLMin: 0,
+  pulmonaryVenousReturnLMin: 0,
   MVForwardVolumeMl: 0,
   MVReverseVolumeMl: 0,
   MVNetVolumeMl: 0,
