@@ -48,3 +48,16 @@ export type GuytonChainWorkerResponse = {
   retargetFallbackCount: number;
   error?: string;
 };
+
+export type GuytonChainWorkerProgress = {
+  type: "chain-progress";
+  chainId: GuytonChainId;
+  requestId: string;
+  signature: string;
+  instanceId: string;
+  result: GuytonChainRunResult;
+  completedInChain: number;
+  totalInChain: number;
+};
+
+export type GuytonChainWorkerMessage = GuytonChainWorkerResponse | GuytonChainWorkerProgress;

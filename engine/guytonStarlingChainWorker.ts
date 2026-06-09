@@ -1,20 +1,20 @@
 import type {
+  GuytonChainWorkerMessage,
   GuytonChainWorkerRequest,
-  GuytonChainWorkerResponse,
 } from "@/engine/guytonStarlingChainProtocol";
 import {
   buildGuytonChainWorkerErrorResponse,
-  buildGuytonChainWorkerResponse,
+  postGuytonChainWorkerMessages,
 } from "@/engine/guytonStarlingChainWorkerCore";
 
 const ctx = self as unknown as {
   onmessage: ((event: MessageEvent<GuytonChainWorkerRequest>) => void) | null;
-  postMessage: (message: GuytonChainWorkerResponse) => void;
+  postMessage: (message: GuytonChainWorkerMessage) => void;
 };
 
 ctx.onmessage = (event: MessageEvent<GuytonChainWorkerRequest>) => {
   try {
-    ctx.postMessage(buildGuytonChainWorkerResponse(event.data));
+    postGuytonChainWorkerMessages(event.data, (message) => ctx.postMessage(message));
   } catch (err) {
     ctx.postMessage(buildGuytonChainWorkerErrorResponse(event.data, err));
   }

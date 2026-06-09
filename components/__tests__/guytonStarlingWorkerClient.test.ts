@@ -3,6 +3,7 @@ import { DEFAULT_PARAMS } from "@/constants";
 import type {
   GuytonBaseMapResponse,
   GuytonStarlingWorkerMessage,
+  StarlingSweepProgressMessage,
   StarlingSweepRequest,
   StarlingSweepWorkerMessage,
 } from "@/engine/guytonStarling";
@@ -100,6 +101,34 @@ describe("Guyton / Starling worker client", () => {
     expect(late.map((message) => message.type)).toEqual(["base-map", "starling-sweep"]);
   });
 
+  it("keeps the in-flight worker open for progress messages and replays them", () => {
+    const req = request();
+    const early: GuytonStarlingWorkerMessage[] = [];
+    const late: GuytonStarlingWorkerMessage[] = [];
+    let earlyDone = 0;
+
+    requestGuytonStarlingWorkerMessages(req, {
+      onMessage: (message) => early.push(message),
+      onDone: () => { earlyDone += 1; },
+    }, { createWorker: createFakeWorker, delayMs: 0 });
+    vi.runOnlyPendingTimers();
+
+    workers[0].emit(baseMap(req));
+    workers[0].emit(progress(req, 3, 7));
+    expect(workers[0].terminated).toBe(false);
+    expect(earlyDone).toBe(0);
+
+    requestGuytonStarlingWorkerMessages({ ...req, requestId: "req-late" }, {
+      onMessage: (message) => late.push(message),
+    }, { createWorker: createFakeWorker, delayMs: 0 });
+    expect(late.map((message) => message.type)).toEqual(["base-map", "starling-sweep-progress"]);
+
+    workers[0].emit(sweep(req));
+    expect(early.map((message) => message.type)).toEqual(["base-map", "starling-sweep-progress", "starling-sweep"]);
+    expect(earlyDone).toBe(1);
+    expect(workers[0].terminated).toBe(true);
+  });
+
   it("cancels a delayed request when all subscribers leave before start", () => {
     const unsubscribe = requestGuytonStarlingWorkerMessages(request(), {
       onMessage: () => undefined,
@@ -148,5 +177,23 @@ function sweep(req: StarlingSweepRequest): StarlingSweepWorkerMessage {
     right: { side: "right", points: [], warnings: [] },
     left: { side: "left", points: [], warnings: [] },
     warnings: [],
+  };
+}
+
+function progress(
+  req: StarlingSweepRequest,
+  completedPoints: number,
+  totalPoints: number,
+): StarlingSweepProgressMessage {
+  return {
+    type: "starling-sweep-progress",
+    requestId: req.requestId,
+    signature: req.signature,
+    instanceId: req.instanceId,
+    right: { side: "right", points: [], warnings: [] },
+    left: { side: "left", points: [], warnings: [] },
+    warnings: [],
+    completedPoints,
+    totalPoints,
   };
 }

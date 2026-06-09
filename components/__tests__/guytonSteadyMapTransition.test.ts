@@ -6,6 +6,7 @@ import {
   initialGuytonSteadyMapState,
   markGuytonSteadyMapPendingWarning,
   receiveGuytonBaseMapResponse,
+  receiveGuytonSweepProgressResponse,
   receiveGuytonSweepResponse,
   type GuytonSteadyMapState,
 } from "@/components/guytonSteadyMapTransition";
@@ -14,6 +15,7 @@ import type {
   GuytonCurve,
   GuytonPaneData,
   GuytonSide,
+  StarlingSweepProgressMessage,
   StarlingSweepResponse,
 } from "@/engine/guytonStarling";
 
@@ -33,6 +35,7 @@ describe("Guyton steady-map transition state", () => {
     const next = receiveGuytonBaseMapResponse(state, "right", baseMap("sig"), 100);
 
     expect(next.current).toBeUndefined();
+    expect(next.preview?.pane.venousReturn.source).toBe("volume-constrained");
     expect(next.pending?.baseMap?.venousReturn.source).toBe("volume-constrained");
     expect(next.pending?.sweep).toBeUndefined();
   });
@@ -57,11 +60,30 @@ describe("Guyton steady-map transition state", () => {
     expect(promoted.current?.sweep.right?.points).toHaveLength(2);
   });
 
+  it("keeps progress previews out of current until the final sweep arrives", () => {
+    const current = promotedState("old", 100);
+    const pending = beginGuytonSteadyMapRequest(current, "new", 200);
+    const withBase = receiveGuytonBaseMapResponse(pending, "right", baseMap("new"), 300);
+    const withProgress = receiveGuytonSweepProgressResponse(withBase, progress("new", 3, 7), 400);
+
+    expect(withProgress.current).toBeUndefined();
+    expect(withProgress.preview?.signature).toBe("new");
+    expect(withProgress.preview?.progress).toEqual({ completedPoints: 3, totalPoints: 7 });
+    expect(withProgress.ghost?.signature).toBe("old");
+    expect(withProgress.ghost?.expiresAtMs).toBeUndefined();
+
+    const promoted = receiveGuytonSweepResponse(withProgress, sweep("new"), 500);
+    expect(promoted.current?.signature).toBe("new");
+    expect(promoted.preview).toBeUndefined();
+    expect(promoted.ghost?.expiresAtMs).toBe(500 + GUYTON_STEADY_GHOST_DURATION_MS);
+  });
+
   it("ignores stale worker responses", () => {
     const current = promotedState("current", 100);
     const pending = beginGuytonSteadyMapRequest(current, "next", 200);
     const afterStaleBase = receiveGuytonBaseMapResponse(pending, "right", baseMap("old"), 300);
-    const afterStaleSweep = receiveGuytonSweepResponse(afterStaleBase, sweep("old"), 400);
+    const afterStaleProgress = receiveGuytonSweepProgressResponse(afterStaleBase, progress("old", 3, 7), 350);
+    const afterStaleSweep = receiveGuytonSweepResponse(afterStaleProgress, sweep("old"), 400);
 
     expect(afterStaleSweep.current).toBeUndefined();
     expect(afterStaleSweep.pending?.signature).toBe("next");
@@ -134,6 +156,15 @@ function sweep(signature: string): StarlingSweepResponse {
       warnings: [],
     },
     warnings: [],
+  };
+}
+
+function progress(signature: string, completedPoints: number, totalPoints: number): StarlingSweepProgressMessage {
+  return {
+    type: "starling-sweep-progress",
+    ...sweep(signature),
+    completedPoints,
+    totalPoints,
   };
 }
 

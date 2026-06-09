@@ -95,7 +95,17 @@ export type GuytonLiveOperatingPoint = {
 export type StarlingSweepCurve = {
   side: GuytonSide;
   points: GuytonCurvePoint[];
+  fit?: StarlingSweepFit;
   warnings: string[];
+};
+
+export type StarlingSweepFit = {
+  kind: "monotone-pchip";
+  points: GuytonCurvePoint[];
+  sourcePointCount: number;
+  warnings: string[];
+  extrapolatedLeft?: GuytonCurvePoint[];
+  extrapolatedRight?: GuytonCurvePoint[];
 };
 
 export type StarlingSweepRequest = {
@@ -152,7 +162,13 @@ export type StarlingSweepWorkerMessage = StarlingSweepResponse & {
   timing?: StarlingSweepTiming;
 };
 
-export type GuytonStarlingWorkerMessage = GuytonBaseMapResponse | StarlingSweepWorkerMessage;
+export type StarlingSweepProgressMessage = StarlingSweepResponse & {
+  type: "starling-sweep-progress";
+  completedPoints: number;
+  totalPoints: number;
+};
+
+export type GuytonStarlingWorkerMessage = GuytonBaseMapResponse | StarlingSweepProgressMessage | StarlingSweepWorkerMessage;
 
 const FLOW_FLOOR_L_MIN = 0.15;
 const RESISTANCE_MIN = 0.05;
@@ -383,6 +399,9 @@ export function guytonSnapshotPoints(
     ...pane.venousReturn.points,
     ...pane.classicVenousReturn.points,
     ...(activeSweep?.points ?? []),
+    ...(activeSweep?.fit?.points ?? []),
+    ...(activeSweep?.fit?.extrapolatedLeft ?? []),
+    ...(activeSweep?.fit?.extrapolatedRight ?? []),
     { x: pane.operatingPoint.pressure, y: pane.operatingPoint.flow },
     { x: pane.returnOperatingPoint.pressure, y: pane.returnOperatingPoint.flow },
     { x: pane.guytonDiagnostics.pump.pressure, y: pane.guytonDiagnostics.pump.guytonFlow },

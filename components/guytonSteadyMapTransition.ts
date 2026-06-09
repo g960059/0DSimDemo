@@ -6,6 +6,7 @@ import {
   type GuytonBaseMapResponse,
   type GuytonPaneData,
   type GuytonSide,
+  type StarlingSweepProgressMessage,
   type StarlingSweepResponse,
 } from "@/engine/guytonStarling";
 
@@ -25,9 +26,23 @@ export type GuytonSteadyMapGhost = GuytonSteadyMap & {
   expiresAtMs?: number;
 };
 
+export type GuytonSteadyMapPreview = {
+  signature: string;
+  pane: GuytonPaneData;
+  sweep?: StarlingSweepProgressMessage;
+  axis: GuytonAxisDomain;
+  warnings: string[];
+  progress?: {
+    completedPoints: number;
+    totalPoints: number;
+  };
+  updatedAtMs: number;
+};
+
 export type GuytonPendingSteadyMap = {
   signature: string;
   baseMap?: GuytonPaneData;
+  progressSweep?: StarlingSweepProgressMessage;
   sweep?: StarlingSweepResponse;
   warnings: string[];
 };
@@ -36,6 +51,7 @@ export type GuytonSteadyMapState = {
   axis: GuytonAxisDomain;
   current?: GuytonSteadyMap;
   pending?: GuytonPendingSteadyMap;
+  preview?: GuytonSteadyMapPreview;
   ghost?: GuytonSteadyMapGhost;
 };
 
@@ -52,7 +68,7 @@ export function beginGuytonSteadyMapRequest(
   const sameCurrent = state.current?.signature === signature;
   const samePending = state.pending?.signature === signature;
   if (sameCurrent && !options.force) {
-    return expireGuytonSteadyMapGhost({ ...state, pending: undefined }, nowMs);
+    return expireGuytonSteadyMapGhost({ ...state, pending: undefined, preview: undefined }, nowMs);
   }
   if (samePending && !options.force) return expireGuytonSteadyMapGhost(state, nowMs);
 
@@ -64,6 +80,7 @@ export function beginGuytonSteadyMapRequest(
     ...state,
     current: undefined,
     pending: { signature, warnings: [] },
+    preview: undefined,
     ghost: nextGhost,
   }, nowMs);
 }
@@ -90,11 +107,32 @@ export function receiveGuytonBaseMapResponse(
     ...response.warnings,
     ...pane.warnings,
   ]);
-  return promoteIfComplete({
+  return promoteIfComplete(withPreview({
     ...state,
     pending: {
       ...state.pending,
       baseMap: { ...pane, warnings },
+      warnings,
+    },
+  }, nowMs), nowMs);
+}
+
+export function receiveGuytonSweepProgressResponse(
+  state: GuytonSteadyMapState,
+  response: StarlingSweepProgressMessage,
+  nowMs: number,
+): GuytonSteadyMapState {
+  if (state.pending?.signature !== response.signature) return expireGuytonSteadyMapGhost(state, nowMs);
+
+  const warnings = uniqueStrings([
+    ...state.pending.warnings,
+    ...response.warnings,
+  ]);
+  return withPreview({
+    ...state,
+    pending: {
+      ...state.pending,
+      progressSweep: response,
       warnings,
     },
   }, nowMs);
@@ -146,6 +184,7 @@ export function expireGuytonSteadyMapGhost(
 export function guytonSteadyMapWarnings(state: GuytonSteadyMapState): string[] {
   return uniqueStrings([
     ...(state.current?.warnings ?? []),
+    ...(state.preview?.warnings ?? []),
     ...(state.pending?.warnings ?? []),
     ...(state.ghost?.warnings ?? []),
   ]);
@@ -171,7 +210,34 @@ function promoteIfComplete(state: GuytonSteadyMapState, nowMs: number): GuytonSt
       promotedAtMs: nowMs,
     },
     pending: undefined,
+    preview: undefined,
     ghost: state.ghost ? expireGhostAfterPromote(state.ghost, nowMs) : undefined,
+  }, nowMs);
+}
+
+function withPreview(state: GuytonSteadyMapState, nowMs: number): GuytonSteadyMapState {
+  const pending = state.pending;
+  if (!pending?.baseMap) return expireGuytonSteadyMapGhost(state, nowMs);
+
+  let axis = expandGuytonAxisToFit(state.axis, guytonSnapshotPoints(pending.baseMap, pending.progressSweep));
+  if (state.ghost) axis = expandGuytonAxisToFit(axis, guytonSnapshotPoints(state.ghost.pane, state.ghost.sweep));
+  return expireGuytonSteadyMapGhost({
+    ...state,
+    axis,
+    preview: {
+      signature: pending.signature,
+      pane: pending.baseMap,
+      sweep: pending.progressSweep,
+      axis,
+      warnings: pending.warnings,
+      progress: pending.progressSweep
+        ? {
+          completedPoints: pending.progressSweep.completedPoints,
+          totalPoints: pending.progressSweep.totalPoints,
+        }
+        : undefined,
+      updatedAtMs: nowMs,
+    },
   }, nowMs);
 }
 
