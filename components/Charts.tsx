@@ -31,9 +31,11 @@ import {
     initialGuytonSteadyMapState,
     markGuytonSteadyMapPendingWarning,
     receiveGuytonBaseMapResponse,
+    receiveGuytonSweepProgressResponse,
     receiveGuytonSweepResponse,
     type GuytonSteadyMap,
     type GuytonSteadyMapGhost,
+    type GuytonSteadyMapPreview,
     type GuytonSteadyMapState,
 } from './guytonSteadyMapTransition';
 import { requestGuytonStarlingWorkerMessages } from './guytonStarlingWorkerClient';
@@ -1276,6 +1278,7 @@ export const MetricsPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances
 type GuytonSeries = {
     inst: SimInstance;
     current?: GuytonSteadyMap;
+    preview?: GuytonSteadyMapPreview;
     ghost?: GuytonSteadyMapGhost;
     axis: GuytonAxisDomain;
     status: 'ready' | 'pending' | 'empty';
@@ -1392,6 +1395,11 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
                         setTick((t) => t + 1);
                         return;
                     }
+                    if (response.type === 'starling-sweep-progress') {
+                        steadyMapRef.current.set(key, receiveGuytonSweepProgressResponse(current, response, Date.now()));
+                        setTick((t) => t + 1);
+                        return;
+                    }
 
                     const sweepResponse = response as StarlingSweepResponse;
                     steadyMapRef.current.set(key, receiveGuytonSweepResponse(current, sweepResponse, Date.now()));
@@ -1446,6 +1454,7 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
             return [{
                 inst,
                 current: state.current,
+                preview: state.preview,
                 ghost: state.ghost,
                 axis: state.axis,
                 status,
@@ -1471,11 +1480,13 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
     }, [canAnimate, series, side]);
 
     const primarySeries = series[0];
-    const hasRenderableMap = series.some((item) => item.current || item.ghost);
+    const hasRenderableMap = series.some((item) => item.current || item.preview || item.ghost);
     const hasPendingMap = series.some((item) => item.status === 'pending');
     const hasGhostMap = series.some((item) => item.ghost);
+    const primaryProgress = primarySeries?.preview?.progress;
     const statusBadges = [
         ...(primarySeries?.status === 'ready' ? ['Steady map ready'] : []),
+        ...(primaryProgress ? [`Sweep ${primaryProgress.completedPoints}/${primaryProgress.totalPoints}`] : []),
         ...(hasPendingMap ? ['Computing steady map'] : []),
         ...(hasGhostMap ? ['Previous map'] : []),
         ...(workerBusy ? ['Worker running'] : []),
@@ -1558,8 +1569,8 @@ function drawGuytonCanvas(
     const y = d3.scaleLinear().domain([yAxis.min, yAxis.max]).range([plot.bottom, plot.top]);
 
     ctx.save();
-    const first = series.find((item) => item.current || item.ghost);
-    const firstPane = first?.current?.pane ?? first?.ghost?.pane;
+    const first = series.find((item) => item.current || item.preview || item.ghost);
+    const firstPane = first?.current?.pane ?? first?.preview?.pane ?? first?.ghost?.pane;
     if (firstPane && firstPane.collapsePressure > xAxis.min && firstPane.collapsePressure < xAxis.max) {
         ctx.fillStyle = 'rgba(51, 65, 85, 0.24)';
         ctx.fillRect(plot.left, plot.top, x(firstPane.collapsePressure) - plot.left, plot.bottom - plot.top);
@@ -1612,7 +1623,7 @@ function drawGuytonCanvas(
         const sweepColor = '#fb923c';
 
         if (item.ghost) {
-            drawGuytonSteadyMap(ctx, item.ghost, {
+            drawGuytonMap(ctx, item.ghost, {
                 venousColor,
                 classicColor,
                 sweepColor,
@@ -1625,8 +1636,22 @@ function drawGuytonCanvas(
                 plot,
             });
         }
+        if (item.preview) {
+            drawGuytonMap(ctx, item.preview, {
+                venousColor,
+                classicColor,
+                sweepColor,
+                pointColor: item.inst.color,
+                alpha: 0.78,
+                label: item.inst.name,
+                side,
+                x,
+                y,
+                plot,
+            });
+        }
         if (item.current) {
-            drawGuytonSteadyMap(ctx, item.current, {
+            drawGuytonMap(ctx, item.current, {
                 venousColor,
                 classicColor,
                 sweepColor,
@@ -1643,8 +1668,8 @@ function drawGuytonCanvas(
 
     drawLegend(ctx, plot, {
         hasSweep: Boolean(series.some((item) => {
-            const map = item.current ?? item.ghost;
-            const sweep = side === 'right' ? map?.sweep.right : map?.sweep.left;
+            const map = item.current ?? item.preview ?? item.ghost;
+            const sweep = side === 'right' ? map?.sweep?.right : map?.sweep?.left;
             return sweep && sweep.points.length >= 2;
         })),
         hasGhost: Boolean(series.some((item) => item.ghost)),
@@ -1652,9 +1677,9 @@ function drawGuytonCanvas(
     ctx.restore();
 }
 
-function drawGuytonSteadyMap(
+function drawGuytonMap(
     ctx: CanvasRenderingContext2D,
-    map: GuytonSteadyMap,
+    map: GuytonSteadyMap | GuytonSteadyMapPreview | GuytonSteadyMapGhost,
     args: {
         venousColor: string;
         classicColor: string;
@@ -1674,10 +1699,17 @@ function drawGuytonSteadyMap(
     drawLine(ctx, map.pane.classicVenousReturn.points, args.x, args.y, args.classicColor, 1.2, [4, 5]);
     drawLine(ctx, map.pane.venousReturn.points, args.x, args.y, args.venousColor, 2.2);
 
-    const sweep = args.side === 'right' ? map.sweep.right : map.sweep.left;
-    if (sweep && sweep.points.length >= 2) {
-        drawLine(ctx, sweep.points, args.x, args.y, args.sweepColor, 2);
-        for (const point of sweep.points) drawPoint(ctx, args.x(point.x), args.y(point.y), args.sweepColor, point.settled === false ? 2.5 : 3.5);
+    const sweep = args.side === 'right' ? map.sweep?.right : map.sweep?.left;
+    if (sweep) {
+        const fit = sweep.fit;
+        if (fit?.extrapolatedLeft) drawLine(ctx, fit.extrapolatedLeft, args.x, args.y, args.sweepColor, 1.5, [5, 5], 0.42);
+        if (fit?.extrapolatedRight) drawLine(ctx, fit.extrapolatedRight, args.x, args.y, args.sweepColor, 1.5, [5, 5], 0.42);
+        if (fit && fit.points.length >= 2) drawLine(ctx, fit.points, args.x, args.y, args.sweepColor, 2);
+        else if (sweep.points.length >= 2) drawLine(ctx, sweep.points, args.x, args.y, args.sweepColor, 1.6);
+        for (const point of sweep.points) {
+            const reliable = point.settled !== false && point.status === 'ok';
+            drawPoint(ctx, args.x(point.x), args.y(point.y), args.sweepColor, reliable ? 3.5 : 2.5, reliable ? 1 : 0.45);
+        }
     }
 
     drawGuytonResidualGuide(ctx, map.pane.guytonDiagnostics.pump, args.x, args.y, args.plot, args.pointColor);
@@ -1733,9 +1765,11 @@ function drawLine(
     color: string,
     width: number,
     dash: number[] = [],
+    alpha = 1,
 ) {
     if (points.length < 2) return;
     ctx.save();
+    ctx.globalAlpha *= alpha;
     ctx.strokeStyle = color;
     ctx.lineWidth = width;
     ctx.setLineDash(dash);
@@ -1769,8 +1803,9 @@ function drawVertical(
     ctx.restore();
 }
 
-function drawPoint(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, radius: number) {
+function drawPoint(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, radius: number, alpha = 1) {
     ctx.save();
+    ctx.globalAlpha *= alpha;
     ctx.fillStyle = color;
     ctx.strokeStyle = '#e2e8f0';
     ctx.lineWidth = 1;

@@ -12,14 +12,19 @@ import {
   buildGuytonBaseMapResponse,
   buildGuytonStarlingWorkerMessages,
   buildStarlingSweepResponse,
+  classifyStarlingSweepDeltaPolicy,
   postGuytonStarlingWorkerMessages,
   postGuytonStarlingWorkerMessagesAsync,
+  resolveStarlingSweepDeltas,
+  STARLING_HIGH_PRELOAD_DELTAS_ML,
+  STARLING_LOW_PRELOAD_DELTAS_ML,
+  STARLING_NORMAL_PRELOAD_DELTAS_ML,
   type GuytonChainWorkerLike,
 } from "@/engine/guytonStarlingWorkerCore";
-import { buildGuytonChainWorkerResponse } from "@/engine/guytonStarlingChainWorkerCore";
+import { postGuytonChainWorkerMessages } from "@/engine/guytonStarlingChainWorkerCore";
 import type {
+  GuytonChainWorkerMessage,
   GuytonChainWorkerRequest,
-  GuytonChainWorkerResponse,
 } from "@/engine/guytonStarlingChainProtocol";
 
 describe("Guyton / Starling worker helpers", () => {
@@ -83,22 +88,38 @@ describe("Guyton / Starling worker helpers", () => {
     expect(response.requestId).toBe(req.requestId);
     expect(response.signature).toBe(req.signature);
     expect(response.instanceId).toBe(req.instanceId);
-    expect(response.right?.points).toHaveLength(5);
-    expect(response.left?.points).toHaveLength(5);
+    expect(response.right?.points).toHaveLength(7);
+    expect(response.left?.points).toHaveLength(7);
     expect(response.right?.points.map((point) => point.deltaVolumeMl).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([
-      -600,
-      -300,
-      0,
-      300,
-      600,
+      ...STARLING_NORMAL_PRELOAD_DELTAS_ML,
     ]);
+    expect(response.right?.fit?.kind).toBe("monotone-pchip");
+    expect(response.right?.fit?.extrapolatedRight?.length).toBeGreaterThan(2);
     expectSortedByPressure(response.right?.points ?? []);
     expectSortedByPressure(response.left?.points ?? []);
     expectSweepTiming(response);
   });
 
+  it("chooses adaptive default deltas and preserves custom deltas", () => {
+    expect(classifyStarlingSweepDeltaPolicy({ RAPMean: 1.5, LAPMean: 5 }, 5600)).toBe("low-preload");
+    expect(classifyStarlingSweepDeltaPolicy({ RAPMean: 3, LAPMean: 15 }, 5600)).toBe("high-preload");
+    expect(classifyStarlingSweepDeltaPolicy({ RAPMean: 3, LAPMean: 7 }, 5600)).toBe("normal-preload");
+    expect(resolveStarlingSweepDeltas(request(), {
+      metrics: { RAPMean: 1, LAPMean: 3 } as never,
+      targetVolumeMl: 4600,
+    })).toEqual([...STARLING_LOW_PRELOAD_DELTAS_ML]);
+    expect(resolveStarlingSweepDeltas(request(), {
+      metrics: { RAPMean: 11, LAPMean: 5 } as never,
+      targetVolumeMl: 5600,
+    })).toEqual([...STARLING_HIGH_PRELOAD_DELTAS_ML]);
+    expect(resolveStarlingSweepDeltas(request({ deltasMl: [-100, 0, 250] }), {
+      metrics: { RAPMean: 11, LAPMean: 15 } as never,
+      targetVolumeMl: 7000,
+    })).toEqual([-100, 0, 250]);
+  });
+
   it("keeps warm-start sweep close to the cold reference helper", () => {
-    const req = request();
+    const req = request({ deltasMl: [-600, -300, 0, 300, 600] });
     const warm = buildStarlingSweepResponse(req);
     const cold = buildColdStarlingSweepResponse(req);
 
@@ -132,10 +153,10 @@ describe("Guyton / Starling worker helpers", () => {
       const response = buildStarlingSweepResponse(request());
 
       expect(response.error).toBeUndefined();
-      expect(response.timing?.retargetFallbackCount).toBe(4);
-      expect(response.warnings.filter((warning) => warning.includes("warm retarget fallback"))).toHaveLength(4);
-      expect(response.right?.points).toHaveLength(5);
-      expect(response.left?.points).toHaveLength(5);
+      expect(response.timing?.retargetFallbackCount).toBe(6);
+      expect(response.warnings.filter((warning) => warning.includes("warm retarget fallback"))).toHaveLength(6);
+      expect(response.right?.points).toHaveLength(7);
+      expect(response.left?.points).toHaveLength(7);
     } finally {
       spy.mockRestore();
     }
@@ -222,11 +243,18 @@ describe("Guyton / Starling worker helpers", () => {
     const events: string[] = [];
     const chainRequests: GuytonChainWorkerRequest[] = [];
     const messages: StarlingSweepWorkerMessage[] = [];
+    const progressMessages: Array<{ completedPoints: number; totalPoints: number }> = [];
 
     await postGuytonStarlingWorkerMessagesAsync(
       req,
       (message) => {
         events.push(`post:${message.type}`);
+        if (message.type === "starling-sweep-progress") {
+          progressMessages.push({
+            completedPoints: message.completedPoints,
+            totalPoints: message.totalPoints,
+          });
+        }
         if (message.type === "starling-sweep") messages.push(message);
       },
       { createChainWorker: () => new InlineChainWorker(events, chainRequests) },
@@ -234,9 +262,12 @@ describe("Guyton / Starling worker helpers", () => {
 
     expect(events[0]).toBe("post:base-map");
     expect(events.filter((event) => event.startsWith("chain:"))).toEqual([
-      "chain:positive:300,600",
-      "chain:negative:-300,-600",
+      "chain:positive:300,600,900",
+      "chain:negative:-300,-600,-900",
     ]);
+    expect(progressMessages.length).toBeGreaterThan(0);
+    expect(progressMessages[0].completedPoints).toBeGreaterThanOrEqual(3);
+    expect(progressMessages.every((message) => message.totalPoints === 7)).toBe(true);
     expect(chainRequests).toHaveLength(2);
     expect(chainRequests[0].baselineState).toBe(chainRequests[1].baselineState);
     expect(messages).toHaveLength(1);
@@ -247,11 +278,7 @@ describe("Guyton / Starling worker helpers", () => {
     expectFiniteNonNegative(parallel.timing?.chainWallMs);
     expect(parallel.timing?.parallelFallback).toBeUndefined();
     expect(parallel.right?.points.map((point) => point.deltaVolumeMl).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([
-      -600,
-      -300,
-      0,
-      300,
-      600,
+      ...STARLING_NORMAL_PRELOAD_DELTAS_ML,
     ]);
     expectSweepClose(parallel, sync);
   });
@@ -277,8 +304,8 @@ describe("Guyton / Starling worker helpers", () => {
     expect(messages[0].timing?.parallel).toBe(false);
     expect(messages[0].timing?.parallelFallback).toContain("child unavailable");
     expect(messages[0].warnings.some((warning) => warning.includes("parallel chain fallback"))).toBe(true);
-    expect(messages[0].right?.points).toHaveLength(5);
-    expect(messages[0].left?.points).toHaveLength(5);
+    expect(messages[0].right?.points).toHaveLength(7);
+    expect(messages[0].left?.points).toHaveLength(7);
   });
 
   it("supports custom deltas through the parallel chain path", async () => {
@@ -412,7 +439,7 @@ function emptySweep(req: StarlingSweepRequest): StarlingSweepWorkerMessage {
 }
 
 class InlineChainWorker implements GuytonChainWorkerLike {
-  onmessage: ((event: MessageEvent<GuytonChainWorkerResponse>) => void) | null = null;
+  onmessage: ((event: MessageEvent<GuytonChainWorkerMessage>) => void) | null = null;
   onerror: ((event: ErrorEvent) => void) | null = null;
   terminated = false;
 
@@ -424,7 +451,9 @@ class InlineChainWorker implements GuytonChainWorkerLike {
   postMessage(request: GuytonChainWorkerRequest): void {
     this.events.push(`chain:${request.chainId}:${request.chainDeltas.join(",")}`);
     this.requests.push(request);
-    this.onmessage?.({ data: buildGuytonChainWorkerResponse(request) } as MessageEvent<GuytonChainWorkerResponse>);
+    postGuytonChainWorkerMessages(request, (message) => {
+      this.onmessage?.({ data: message } as MessageEvent<GuytonChainWorkerMessage>);
+    });
   }
 
   terminate(): void {
