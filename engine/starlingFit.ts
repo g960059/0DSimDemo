@@ -1,4 +1,9 @@
-import type { GuytonCurvePoint, GuytonSide, StarlingSweepFit } from "@/engine/guytonStarling";
+import {
+  classifyStarlingSweepPoint,
+  type GuytonCurvePoint,
+  type GuytonSide,
+  type StarlingSweepFit,
+} from "@/engine/guytonStarling";
 
 const UNIQUE_X_EPSILON = 1e-6;
 const FIT_SAMPLE_COUNT = 96;
@@ -17,7 +22,7 @@ type FitAnchor = {
 export function buildStarlingSweepFit(
   side: GuytonSide,
   points: GuytonCurvePoint[],
-  options: { includeExtrapolation?: boolean } = {},
+  options: { includeExtrapolation?: boolean; mode?: StarlingSweepFit["mode"] } = {},
 ): StarlingSweepFit | undefined {
   const anchors = uniqueUsableAnchors(points);
   if (anchors.length < 3) return undefined;
@@ -28,6 +33,7 @@ export function buildStarlingSweepFit(
   const measured = samplePchip(x, y, slopes, FIT_SAMPLE_COUNT);
   const fit: StarlingSweepFit = {
     kind: "monotone-pchip",
+    mode: options.mode ?? "measured",
     points: measured,
     sourcePointCount: anchors.length,
     warnings: [],
@@ -44,7 +50,7 @@ export function buildStarlingSweepFit(
 
 function uniqueUsableAnchors(points: GuytonCurvePoint[]): FitAnchor[] {
   const usable = points
-    .filter((point) => point.settled !== false && point.status === "ok")
+    .filter((point) => classifyStarlingSweepPoint(point) === "reliable")
     .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
     .sort((a, b) => a.x - b.x);
 

@@ -4,6 +4,8 @@ import {
   type GuytonBaseMapResponse,
   type GuytonCurvePoint,
   type GuytonStarlingWorkerMessage,
+  type StarlingCalibrationSummary,
+  type StarlingSweepMode,
   type StarlingSweepCurve,
   type StarlingSweepProgressMessage,
   type StarlingSweepRequest,
@@ -40,9 +42,12 @@ export type GuytonChainWorkerLike = {
 };
 
 type AsyncWorkerOptions = {
-  createChainWorker?: () => GuytonChainWorkerLike;
+  createChainWorker?: (chainId: GuytonChainId) => GuytonChainWorkerLike;
   chainTimeoutMs?: number;
   onProgress?: (message: StarlingSweepProgressMessage) => void;
+  persistentChainWorkers?: boolean;
+  onChainWorkerFailure?: (chainId: GuytonChainId) => void;
+  isCancelled?: () => boolean;
 };
 
 type WorkerSettledCore = GuytonWorkerSettledRun & {
@@ -66,11 +71,25 @@ type SweepTimingInput = {
   parallel?: boolean;
   parallelFallback?: string;
   chainWallMs?: number;
+  plannedPointCount?: number;
+  mode?: StarlingSweepMode | "full7-fallback" | "full7-reference";
+  anchorDeltasMl?: number[];
+  fullDeltasMl?: number[];
+  fallbackReasons?: string[];
+  full7ReferenceMs?: number;
+  holdoutMaxFlowErrorLMin?: number;
 };
 
 type SweepDeltaChains = {
   positive: number[];
   negative: number[];
+};
+
+type SweepPlan = {
+  mode: StarlingSweepMode;
+  deltasMl: number[];
+  fullDeltasMl: number[];
+  anchorDeltasMl: number[];
 };
 
 const WORKER_DT = 0.001;
@@ -83,6 +102,10 @@ const WORKER_RUN_OPTIONS = {
   historyLimit: WORKER_HISTORY_LIMIT,
 };
 const DEFAULT_CHAIN_TIMEOUT_MS = 10_000;
+const CANCELLED_MESSAGE = "Guyton/Starling request superseded";
+const STARLING_DISPLAY_RELIABLE_SHAPE_SIGNALS = new Set([
+  "aopSys", "aopDia", "papSys", "papDia", "esvL", "esvR", "lvEdp", "rvEdp",
+]);
 export const STARLING_LOW_PRELOAD_DELTAS_ML = [-200, 0, 300, 600, 900, 1200, 1500] as const;
 export const STARLING_NORMAL_PRELOAD_DELTAS_ML = [-900, -600, -300, 0, 300, 600, 900] as const;
 export const STARLING_HIGH_PRELOAD_DELTAS_ML = [-1500, -1200, -900, -600, -300, 0, 300] as const;
@@ -127,19 +150,27 @@ export async function postGuytonStarlingWorkerMessagesAsync(
   let baseline: WorkerSettledCore | undefined;
   try {
     baseline = buildWorkerBaseline(req);
+    if (isRequestCancelled(options)) return;
     postMessage(buildGuytonBaseMapResponse(req, baseline));
   } catch (err) {
+    if (isRequestCancelled(options)) return;
     postMessage(buildGuytonBaseMapErrorResponse(req, err));
   }
 
   try {
+    if (isRequestCancelled(options)) return;
     if (!baseline) baseline = buildWorkerBaseline(req);
-    postMessage(await buildParallelStarlingSweepResponse(req, baseline, {
+    const response = await buildParallelStarlingSweepResponse(req, baseline, {
       ...options,
-      onProgress: postMessage,
-    }));
+      onProgress: (message) => {
+        if (!isRequestCancelled(options)) postMessage(message);
+      },
+    });
+    if (!isRequestCancelled(options)) postMessage(response);
   } catch (err) {
-    postMessage(buildStarlingSweepErrorResponse(req, err));
+    if (!isRequestCancelled(options) && !isCancellationError(err)) {
+      postMessage(buildStarlingSweepErrorResponse(req, err));
+    }
   }
 }
 
@@ -209,16 +240,21 @@ export function buildStarlingSweepResponse(
   baseline?: WorkerSettledCore,
 ): StarlingSweepWorkerMessage {
   const resolvedBaseline = baseline ?? buildWorkerBaseline(req);
-  const deltas = resolveStarlingSweepDeltas(req, resolvedBaseline);
+  const plan = resolveStarlingSweepPlan(req, resolvedBaseline);
   const sweepStart = performanceNow();
-  const warm = buildWarmStartedSweepRuns(req, resolvedBaseline, deltas);
-  return buildSweepResponseFromRuns(req, warm.runs, {
+  const warm = buildWarmStartedSweepRuns(req, resolvedBaseline, plan.deltasMl);
+  const response = buildSweepResponseFromRuns(req, warm.runs, {
     positiveChainMs: warm.positiveChainMs,
     negativeChainMs: warm.negativeChainMs,
     retargetFallbackCount: warm.retargetFallbackCount,
     sweepStart,
-    deltasMl: deltas,
+    deltasMl: plan.deltasMl,
+    plannedPointCount: plan.fullDeltasMl.length,
+    mode: plan.mode,
+    anchorDeltasMl: plan.anchorDeltasMl,
+    fullDeltasMl: plan.fullDeltasMl,
   });
+  return maybeFallbackToFull7(req, resolvedBaseline, response, plan);
 }
 
 export async function buildParallelStarlingSweepResponse(
@@ -233,36 +269,42 @@ export async function buildParallelStarlingSweepResponse(
 
   const sweepStart = performanceNow();
   const chainStart = performanceNow();
-  const deltas = resolveStarlingSweepDeltas(req, baseline);
+  const plan = resolveStarlingSweepPlan(req, baseline);
+  const deltas = plan.deltasMl;
   const chains = splitSweepDeltas(deltas);
   const runsByDelta = new Map<number, GuytonWorkerSettledRun>();
   runsByDelta.set(0, baseline);
   const emitProgress = () => {
-    if (!options.onProgress || runsByDelta.size === 0) return;
+    if (!options.onProgress || runsByDelta.size === 0 || isRequestCancelled(options)) return;
     options.onProgress(buildSweepProgressMessage(req, runsByDelta, deltas));
   };
   emitProgress();
   try {
+    if (isRequestCancelled(options)) throw new CancellationError();
     const [positive, negative] = await Promise.all([
       runChain(req, baseline.state, "positive", chains.positive, createChainWorker, options.chainTimeoutMs, (result) => {
         runsByDelta.set(result.deltaVolumeMl, result.run);
         emitProgress();
-      }),
+      }, options),
       runChain(req, baseline.state, "negative", chains.negative, createChainWorker, options.chainTimeoutMs, (result) => {
         runsByDelta.set(result.deltaVolumeMl, result.run);
         emitProgress();
-      }),
+      }, options),
     ]);
     const chainWallMs = performanceNow() - chainStart;
     for (const result of [...positive.runs, ...negative.runs]) {
       runsByDelta.set(result.deltaVolumeMl, result.run);
+    }
+    const missingDeltas = deltas.filter((delta) => !runsByDelta.has(delta));
+    if (missingDeltas.length > 0) {
+      throw new Error(`Missing parallel sweep run for delta ${missingDeltas.map(String).join(",")}`);
     }
     const orderedRuns = deltas.map((delta) => {
       const run = runsByDelta.get(delta);
       if (!run) throw new Error(`Missing parallel sweep run for delta ${String(delta)}`);
       return run;
     });
-    return buildSweepResponseFromRuns(req, orderedRuns, {
+    const response = buildSweepResponseFromRuns(req, orderedRuns, {
       positiveChainMs: positive.chainMs,
       negativeChainMs: negative.chainMs,
       retargetFallbackCount: positive.retargetFallbackCount + negative.retargetFallbackCount,
@@ -270,8 +312,14 @@ export async function buildParallelStarlingSweepResponse(
       deltasMl: deltas,
       parallel: true,
       chainWallMs,
+      plannedPointCount: plan.fullDeltasMl.length,
+      mode: plan.mode,
+      anchorDeltasMl: plan.anchorDeltasMl,
+      fullDeltasMl: plan.fullDeltasMl,
     });
+    return maybeFallbackToFull7(req, baseline, response, plan);
   } catch (err) {
+    if (isCancellationError(err)) throw err;
     const reason = err instanceof Error ? err.message : "parallel chain failed";
     return buildParallelFallbackSweepResponse(req, baseline, reason, performanceNow() - chainStart);
   }
@@ -287,6 +335,74 @@ export function buildColdStarlingSweepResponse(req: StarlingSweepRequest): Starl
   );
 }
 
+export function buildFull7StarlingSweepResponse(
+  req: StarlingSweepRequest,
+  baseline?: WorkerSettledCore,
+): StarlingSweepWorkerMessage {
+  return buildStarlingSweepResponse({ ...req, sweepMode: "full7", deltasMl: undefined }, baseline);
+}
+
+function maybeFallbackToFull7(
+  req: StarlingSweepRequest,
+  baseline: WorkerSettledCore,
+  response: StarlingSweepWorkerMessage,
+  plan: SweepPlan,
+): StarlingSweepWorkerMessage {
+  if (plan.mode !== "calibrated") return response;
+  const fallbackReasons = calibratedFallbackReasons(response);
+  if (fallbackReasons.length === 0) return response;
+  const started = performanceNow();
+  const fallback = buildStarlingSweepResponse({ ...req, sweepMode: "full7", deltasMl: undefined }, baseline);
+  fallback.warnings.push(`calibrated Starling fallback: ${fallbackReasons.join("; ")}`);
+  fallback.right = withCalibrationSummary(fallback.right, {
+    mode: "full7-fallback",
+    plannedDeltasMl: plan.fullDeltasMl,
+    anchorDeltasMl: plan.anchorDeltasMl,
+    fallbackReasons,
+  });
+  fallback.left = withCalibrationSummary(fallback.left, {
+    mode: "full7-fallback",
+    plannedDeltasMl: plan.fullDeltasMl,
+    anchorDeltasMl: plan.anchorDeltasMl,
+    fallbackReasons,
+  });
+  if (fallback.timing) {
+    fallback.timing.mode = "full7-fallback";
+    fallback.timing.fallbackReasons = fallbackReasons;
+    fallback.timing.full7ReferenceMs = performanceNow() - started;
+  }
+  return fallback;
+}
+
+function calibratedFallbackReasons(response: StarlingSweepWorkerMessage): string[] {
+  const reasons: string[] = [];
+  for (const [side, curve] of [["right", response.right], ["left", response.left]] as const) {
+    if (!curve) {
+      reasons.push(`${side} curve missing`);
+      continue;
+    }
+    if (!curve.fit || curve.fit.sourcePointCount < 3) reasons.push(`${side} usable anchors < 3`);
+    if (curve.points.some((point) => point.quality === "invalid")) reasons.push(`${side} invalid anchor`);
+  }
+  return Array.from(new Set(reasons));
+}
+
+function withCalibrationSummary<T extends StarlingSweepCurve | undefined>(
+  curve: T,
+  calibration: StarlingCalibrationSummary,
+): T {
+  if (!curve) return curve;
+  return { ...curve, calibration } as T;
+}
+
+export async function buildParallelFull7StarlingSweepResponse(
+  req: StarlingSweepRequest,
+  baseline: WorkerSettledCore,
+  options: AsyncWorkerOptions = {},
+): Promise<StarlingSweepWorkerMessage> {
+  return buildParallelStarlingSweepResponse({ ...req, sweepMode: "full7", deltasMl: undefined }, baseline, options);
+}
+
 export function buildWorkerBaseline(req: StarlingSweepRequest): WorkerSettledCore {
   return settleWorkerCore(req, clamp(req.targetVolumeMl, 2500, 8500));
 }
@@ -300,6 +416,44 @@ export function resolveStarlingSweepDeltas(
   if (policy === "high-preload") return [...STARLING_HIGH_PRELOAD_DELTAS_ML];
   if (policy === "low-preload") return [...STARLING_LOW_PRELOAD_DELTAS_ML];
   return [...STARLING_NORMAL_PRELOAD_DELTAS_ML];
+}
+
+export function resolveStarlingSweepPlan(
+  req: StarlingSweepRequest,
+  baseline: Pick<WorkerSettledCore, "metrics" | "targetVolumeMl">,
+): SweepPlan {
+  if (req.deltasMl?.length) {
+    return {
+      mode: "custom",
+      deltasMl: [...req.deltasMl],
+      fullDeltasMl: [...req.deltasMl],
+      anchorDeltasMl: [...req.deltasMl],
+    };
+  }
+  const fullDeltasMl = resolveStarlingSweepDeltas({ ...req, sweepMode: "full7" }, baseline);
+  if (req.sweepMode === "full7") {
+    return {
+      mode: "full7",
+      deltasMl: fullDeltasMl,
+      fullDeltasMl,
+      anchorDeltasMl: fullDeltasMl,
+    };
+  }
+  const policy = classifyStarlingSweepDeltaPolicy(baseline.metrics, baseline.targetVolumeMl);
+  return {
+    mode: "calibrated",
+    deltasMl: calibratedAnchorDeltasForPolicy(policy),
+    fullDeltasMl,
+    anchorDeltasMl: calibratedAnchorDeltasForPolicy(policy),
+  };
+}
+
+export function calibratedAnchorDeltasForPolicy(
+  policy: Exclude<StarlingSweepDeltaPolicy, "custom">,
+): number[] {
+  if (policy === "low-preload") return [-200, 0, 600, 1500];
+  if (policy === "high-preload") return [-1500, -900, 0, 300];
+  return [-900, 0, 300, 900];
 }
 
 export function classifyStarlingSweepDeltaPolicy(
@@ -406,7 +560,8 @@ export function buildSweepResponseFromRuns(
 ): StarlingSweepWorkerMessage {
   const assembleStart = performanceNow();
   const deltas = timingInput?.deltasMl ?? req.deltasMl ?? STARLING_NORMAL_PRELOAD_DELTAS_ML.slice();
-  const curves = buildSweepCurvesFromRuns(req, runs, deltas, timingInput?.includeExtrapolation ?? true);
+  const calibration = calibrationSummaryFromTiming(timingInput, deltas);
+  const curves = buildSweepCurvesFromRuns(req, runs, deltas, timingInput?.includeExtrapolation ?? true, calibration);
   const response: StarlingSweepWorkerMessage = {
     type: "starling-sweep",
     requestId: req.requestId,
@@ -426,9 +581,29 @@ export function buildSweepResponseFromRuns(
       parallel: timingInput.parallel,
       parallelFallback: timingInput.parallelFallback,
       chainWallMs: timingInput.chainWallMs,
+      plannedPointCount: timingInput.plannedPointCount ?? deltas.length,
+      mode: timingInput.mode,
+      anchorCount: timingInput.anchorDeltasMl?.length ?? deltas.length,
+      fallbackReasons: timingInput.fallbackReasons,
+      full7ReferenceMs: timingInput.full7ReferenceMs,
+      holdoutMaxFlowErrorLMin: timingInput.holdoutMaxFlowErrorLMin,
     };
   }
   return response;
+}
+
+function calibrationSummaryFromTiming(
+  timingInput: SweepTimingInput | undefined,
+  deltas: readonly number[],
+): StarlingCalibrationSummary | undefined {
+  if (!timingInput?.mode) return undefined;
+  return {
+    mode: timingInput.mode,
+    plannedDeltasMl: timingInput.fullDeltasMl ?? [...deltas],
+    anchorDeltasMl: timingInput.anchorDeltasMl ?? [...deltas],
+    fallbackReasons: timingInput.fallbackReasons ?? [],
+    holdoutMaxFlowErrorLMin: timingInput.holdoutMaxFlowErrorLMin,
+  };
 }
 
 function buildSweepProgressMessage(
@@ -461,6 +636,7 @@ function buildSweepCurvesFromRuns(
   runs: GuytonWorkerSettledRun[],
   deltas: readonly number[],
   includeExtrapolation: boolean,
+  calibration?: StarlingCalibrationSummary,
 ): { right: StarlingSweepCurve; left: StarlingSweepCurve; warnings: string[] } {
   const right: GuytonCurvePoint[] = [];
   const left: GuytonCurvePoint[] = [];
@@ -471,47 +647,68 @@ function buildSweepCurvesFromRuns(
     const run = runs[i];
     const { metrics, health, settle } = run;
     const label = `${delta >= 0 ? "+" : ""}${Math.round(delta)} mL`;
+    const quality = classifyStarlingSweepRunForDisplay(run);
 
-    if (!settle.settled) warnings.push(`${label}: sweep point did not fully settle`);
+    if (!settle.settled && quality !== "reliable") warnings.push(`${label}: sweep point did not fully settle`);
     if (health.status !== "ok") warnings.push(`${label}: health ${health.status}`);
     if (run.retargetFallback) warnings.push(`${label}: warm retarget fallback`);
 
-    right.push({
+    const rightPoint: GuytonCurvePoint = {
       x: metrics.RAPMean,
       y: metrics.CO_R,
       label,
       settled: settle.settled,
       status: health.status,
       deltaVolumeMl: delta,
-    });
-    left.push({
+    };
+    right.push({ ...rightPoint, quality });
+    const leftPoint: GuytonCurvePoint = {
       x: metrics.LAPMean,
       y: metrics.CO_L,
       label,
       settled: settle.settled,
       status: health.status,
       deltaVolumeMl: delta,
-    });
+    };
+    left.push({ ...leftPoint, quality });
   }
 
   right.sort((a, b) => a.x - b.x);
   left.sort((a, b) => a.x - b.x);
+  const fitMode = calibration?.mode === "calibrated" ? "calibrated" : "measured";
 
   return {
     right: {
       side: "right",
       points: right,
-      fit: buildStarlingSweepFit("right", right, { includeExtrapolation }),
+      fit: buildStarlingSweepFit("right", right, { includeExtrapolation, mode: fitMode }),
+      calibration,
       warnings,
     },
     left: {
       side: "left",
       points: left,
-      fit: buildStarlingSweepFit("left", left, { includeExtrapolation }),
+      fit: buildStarlingSweepFit("left", left, { includeExtrapolation, mode: fitMode }),
+      calibration,
       warnings,
     },
     warnings,
   };
+}
+
+function classifyStarlingSweepRunForDisplay(run: GuytonWorkerSettledRun): GuytonCurvePoint["quality"] {
+  if (run.health.status === "failed") return "invalid";
+  if (run.health.status === "warning") return "stress";
+  if (run.settle.settled) return "reliable";
+  if (run.settle.reason === "forced-trend") return "stress";
+  if (
+    (run.settle.reason === "cap" || run.settle.reason === "converging")
+    && run.settle.worstSignal
+    && STARLING_DISPLAY_RELIABLE_SHAPE_SIGNALS.has(run.settle.worstSignal)
+  ) {
+    return "reliable";
+  }
+  return "stress";
 }
 
 function buildParallelFallbackSweepResponse(
@@ -543,9 +740,10 @@ function runChain(
   baselineState: SerializedModelState,
   chainId: GuytonChainId,
   chainDeltas: number[],
-  createChainWorker: () => GuytonChainWorkerLike,
+  createChainWorker: (chainId: GuytonChainId) => GuytonChainWorkerLike,
   timeoutMs = DEFAULT_CHAIN_TIMEOUT_MS,
   onProgress?: (result: GuytonChainRunResult) => void,
+  options: Pick<AsyncWorkerOptions, "persistentChainWorkers" | "onChainWorkerFailure" | "isCancelled"> = {},
 ): Promise<GuytonChainWorkerResponse> {
   if (chainDeltas.length === 0) {
     return Promise.resolve({
@@ -581,12 +779,16 @@ function runChain(
       if (finished) return;
       finished = true;
       if (timeout) clearTimeout(timeout);
-      worker?.terminate();
+      if (!options.persistentChainWorkers) worker?.terminate();
       fn();
     };
 
     try {
-      worker = createChainWorker();
+      if (isRequestCancelled(options)) {
+        reject(new CancellationError());
+        return;
+      }
+      worker = createChainWorker(chainId);
     } catch (err) {
       reject(err instanceof Error ? err : new Error("chain worker creation failed"));
       return;
@@ -594,30 +796,47 @@ function runChain(
     const activeWorker = worker;
 
     timeout = setTimeout(() => {
+      options.onChainWorkerFailure?.(chainId);
       finish(() => reject(new Error(`chain worker ${chainId} timed out`)));
     }, timeoutMs);
 
     activeWorker.onmessage = (event: MessageEvent<GuytonChainWorkerMessage>) => {
+      if (finished) return;
       const response = event.data;
       if (response.type === "chain-progress") {
         if (!isMatchingChainProgress(response, request)) {
+          options.onChainWorkerFailure?.(chainId);
           finish(() => reject(new Error(`invalid ${chainId} chain progress`)));
+          return;
+        }
+        if (isRequestCancelled(options)) {
+          options.onChainWorkerFailure?.(chainId);
+          finish(() => reject(new CancellationError()));
           return;
         }
         onProgress?.(response.result);
         return;
       }
       if (!isMatchingChainResponse(response, request)) {
+        options.onChainWorkerFailure?.(chainId);
         finish(() => reject(new Error(`invalid ${chainId} chain response`)));
         return;
       }
       if (response.error) {
+        options.onChainWorkerFailure?.(chainId);
         finish(() => reject(new Error(response.error)));
+        return;
+      }
+      if (isRequestCancelled(options)) {
+        options.onChainWorkerFailure?.(chainId);
+        finish(() => reject(new CancellationError()));
         return;
       }
       finish(() => resolve(response));
     };
     activeWorker.onerror = (event: ErrorEvent) => {
+      if (finished) return;
+      options.onChainWorkerFailure?.(chainId);
       finish(() => reject(new Error(event.message || `${chainId} chain worker failed`)));
     };
     activeWorker.postMessage(request);
@@ -656,6 +875,22 @@ function isMatchingChainResponse(
     && typeof candidate.chainMs === "number"
     && Number.isFinite(candidate.chainMs)
     && typeof candidate.retargetFallbackCount === "number";
+}
+
+class CancellationError extends Error {
+  constructor() {
+    super(CANCELLED_MESSAGE);
+    this.name = "CancellationError";
+  }
+}
+
+function isCancellationError(err: unknown): boolean {
+  return err instanceof CancellationError
+    || (err instanceof Error && err.name === "CancellationError");
+}
+
+function isRequestCancelled(options: Pick<AsyncWorkerOptions, "isCancelled">): boolean {
+  return options.isCancelled?.() === true;
 }
 
 export function buildGuytonBaseMapErrorResponse(

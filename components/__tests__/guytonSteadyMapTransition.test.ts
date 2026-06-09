@@ -3,6 +3,8 @@ import {
   beginGuytonSteadyMapRequest,
   expireGuytonSteadyMapGhost,
   GUYTON_STEADY_GHOST_DURATION_MS,
+  guytonSteadyMapStressWarnings,
+  guytonSteadyMapWarnings,
   initialGuytonSteadyMapState,
   markGuytonSteadyMapPendingWarning,
   receiveGuytonBaseMapResponse,
@@ -138,6 +140,24 @@ describe("Guyton steady-map transition state", () => {
 
     expect(warned.pending?.warnings).toContain("Steady map worker unavailable");
   });
+
+  it("keeps stress endpoint caps out of high-priority warnings", () => {
+    const pending = beginGuytonSteadyMapRequest(initialGuytonSteadyMapState("right"), "sig", 0);
+    const withBase = receiveGuytonBaseMapResponse(pending, "right", baseMap("sig"), 10);
+    const withStress = receiveGuytonSweepResponse(withBase, stressSweep("sig"), 20);
+
+    expect(guytonSteadyMapWarnings(withStress)).toEqual([]);
+    expect(guytonSteadyMapStressWarnings(withStress)).toEqual(["+300 mL: sweep point did not fully settle"]);
+  });
+
+  it("keeps invalid endpoint warnings high-priority", () => {
+    const pending = beginGuytonSteadyMapRequest(initialGuytonSteadyMapState("right"), "sig", 0);
+    const withBase = receiveGuytonBaseMapResponse(pending, "right", baseMap("sig"), 10);
+    const withInvalid = receiveGuytonSweepResponse(withBase, invalidSweep("sig"), 20);
+
+    expect(guytonSteadyMapWarnings(withInvalid)).toEqual(["+300 mL: health warning"]);
+    expect(guytonSteadyMapStressWarnings(withInvalid)).toEqual([]);
+  });
 });
 
 function promotedState(signature: string, nowMs: number): GuytonSteadyMapState {
@@ -174,6 +194,44 @@ function sweep(signature: string): StarlingSweepResponse {
       warnings: [],
     },
     warnings: [],
+  };
+}
+
+function stressSweep(signature: string): StarlingSweepResponse {
+  return {
+    requestId: `req-${signature}`,
+    signature,
+    instanceId: "inst",
+    right: {
+      side: "right",
+      points: [{ x: 2, y: 4.8, label: "+300 mL", settled: false, status: "ok", quality: "stress", deltaVolumeMl: 300 }],
+      warnings: ["+300 mL: sweep point did not fully settle"],
+    },
+    left: {
+      side: "left",
+      points: [{ x: 8, y: 4.8, label: "+300 mL", settled: false, status: "ok", quality: "stress", deltaVolumeMl: 300 }],
+      warnings: ["+300 mL: sweep point did not fully settle"],
+    },
+    warnings: ["+300 mL: sweep point did not fully settle"],
+  };
+}
+
+function invalidSweep(signature: string): StarlingSweepResponse {
+  return {
+    requestId: `req-${signature}`,
+    signature,
+    instanceId: "inst",
+    right: {
+      side: "right",
+      points: [{ x: 2, y: 4.8, label: "+300 mL", settled: false, status: "warning", quality: "invalid", deltaVolumeMl: 300 }],
+      warnings: ["+300 mL: health warning"],
+    },
+    left: {
+      side: "left",
+      points: [{ x: 8, y: 4.8, label: "+300 mL", settled: false, status: "warning", quality: "invalid", deltaVolumeMl: 300 }],
+      warnings: ["+300 mL: health warning"],
+    },
+    warnings: ["+300 mL: health warning"],
   };
 }
 

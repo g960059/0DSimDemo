@@ -7,6 +7,7 @@ describe("Guyton pane chrome helpers", () => {
       pending: false,
       workerBusy: false,
       warnings: ["+300 mL: sweep point did not fully settle", "+300 mL: sweep point did not fully settle"],
+      notes: ["+600 mL: sweep point did not fully settle", "+600 mL: sweep point did not fully settle"],
       workerError: "Worker failed",
     });
 
@@ -15,6 +16,7 @@ describe("Guyton pane chrome helpers", () => {
       "+300 mL: sweep point did not fully settle",
       "Worker failed",
     ]);
+    expect(state.notes).toEqual(["+600 mL: sweep point did not fully settle"]);
   });
 
   it("uses a spinner state instead of textual progress labels", () => {
@@ -25,6 +27,7 @@ describe("Guyton pane chrome helpers", () => {
     })).toEqual({
       showSpinner: true,
       warnings: [],
+      notes: [],
       hasWarnings: false,
     });
     expect(guytonPaneChromeState({

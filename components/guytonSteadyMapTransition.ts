@@ -1,4 +1,5 @@
 import {
+  classifyStarlingSweepPoint,
   defaultGuytonAxis,
   expandGuytonAxisToFit,
   guytonSnapshotPoints,
@@ -7,6 +8,7 @@ import {
   type GuytonPaneData,
   type GuytonSide,
   type StarlingSweepProgressMessage,
+  type StarlingSweepCurve,
   type StarlingSweepResponse,
 } from "@/engine/guytonStarling";
 
@@ -182,11 +184,22 @@ export function expireGuytonSteadyMapGhost(
 }
 
 export function guytonSteadyMapWarnings(state: GuytonSteadyMapState): string[] {
+  const stress = new Set(guytonSteadyMapStressWarnings(state));
   return uniqueStrings([
     ...(state.current?.warnings ?? []),
     ...(state.preview?.warnings ?? []),
     ...(state.pending?.warnings ?? []),
     ...(state.ghost?.warnings ?? []),
+  ].filter((warning) => !stress.has(warning)));
+}
+
+export function guytonSteadyMapStressWarnings(state: GuytonSteadyMapState): string[] {
+  return uniqueStrings([
+    ...stressWarningsFromSweep(state.current?.sweep),
+    ...stressWarningsFromSweep(state.preview?.sweep),
+    ...stressWarningsFromSweep(state.pending?.progressSweep),
+    ...stressWarningsFromSweep(state.pending?.sweep),
+    ...stressWarningsFromSweep(state.ghost?.sweep),
   ]);
 }
 
@@ -280,4 +293,21 @@ function expireGhostAfterPromote(ghost: GuytonSteadyMapGhost, nowMs: number): Gu
 
 function uniqueStrings(values: string[]): string[] {
   return Array.from(new Set(values.filter(Boolean)));
+}
+
+function stressWarningsFromSweep(response: StarlingSweepResponse | StarlingSweepProgressMessage | undefined): string[] {
+  return uniqueStrings([
+    ...stressWarningsFromCurve(response?.right),
+    ...stressWarningsFromCurve(response?.left),
+  ]);
+}
+
+function stressWarningsFromCurve(curve: StarlingSweepCurve | undefined): string[] {
+  if (!curve) return [];
+  const stressWarnings = new Set<string>();
+  for (const point of curve.points) {
+    if (classifyStarlingSweepPoint(point) !== "stress" || !point.label) continue;
+    stressWarnings.add(`${point.label}: sweep point did not fully settle`);
+  }
+  return curve.warnings.filter((warning) => stressWarnings.has(warning));
 }
