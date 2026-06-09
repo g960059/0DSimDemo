@@ -15,10 +15,12 @@ import {
     chamberPVPoint,
     isDrawablePvLoopBeatData,
     pvLoopBeatDataForDisplay,
+    pvLoopEndSystolicPoint,
     type PvLoopBeatData,
 } from './pvLoopPoints';
 import {
     boundedGuytonDisplayAxis,
+    classifyStarlingSweepPoint,
     starlingSweepSignature,
     type GuytonAxisDomain,
     type GuytonCurvePoint,
@@ -29,6 +31,7 @@ import {
     beginGuytonSteadyMapRequest,
     expireGuytonSteadyMapGhost,
     GUYTON_STEADY_GHOST_ALPHA,
+    guytonSteadyMapStressWarnings,
     guytonSteadyMapWarnings,
     initialGuytonSteadyMapState,
     markGuytonSteadyMapPendingWarning,
@@ -40,7 +43,7 @@ import {
     type GuytonSteadyMapPreview,
     type GuytonSteadyMapState,
 } from './guytonSteadyMapTransition';
-import { guytonPaneChromeState } from './guytonPaneChrome';
+import { guytonPaneChromeState, guytonStarlingCalibrationLabel } from './guytonPaneChrome';
 import { requestGuytonStarlingWorkerMessages } from './guytonStarlingWorkerClient';
 
 interface ChartPanelProps {
@@ -307,6 +310,27 @@ const drawPvLoopStroke = (
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     drawSmoothPolyline(ctx, points);
+    ctx.restore();
+};
+
+const drawEndSystolicMarker = (
+    ctx: CanvasRenderingContext2D,
+    point: { v: number; p: number; quality: 'ok' | 'warning' },
+    xScale: d3.ScaleLinear<number, number>,
+    yScale: d3.ScaleLinear<number, number>,
+    color: string,
+    alpha: number,
+): void => {
+    if (alpha <= 0 || !Number.isFinite(point.v) || !Number.isFinite(point.p)) return;
+    ctx.save();
+    ctx.globalAlpha = alpha * (point.quality === 'ok' ? 0.9 : 0.55);
+    ctx.strokeStyle = color;
+    ctx.fillStyle = '#0f172a';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(xScale(point.v), yScale(point.p), 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
     ctx.restore();
 };
 
@@ -853,6 +877,12 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
 	          );
 	      });
 
+	      pvLoopGhostItems.forEach(({ chamber, color, drawPlan, previousBeatData }) => {
+	          if (!showGuides || (chamber !== 'LV' && chamber !== 'RV')) return;
+	          const esPoint = pvLoopEndSystolicPoint(previousBeatData, chamber);
+	          if (esPoint) drawEndSystolicMarker(ctx, esPoint, xScale, yScale, color, drawPlan.previousAlpha);
+	      });
+
 	      pvLoopItems.forEach(({ physState, chamber, color, currentBeatData }) => {
 	          if (!showGuides || (chamber !== 'LV' && chamber !== 'RV')) return;
 	          if (!Number.isFinite(currentBeatData.vMin) || !Number.isFinite(currentBeatData.vMax)) return;
@@ -874,6 +904,12 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
 
 	      pvLoopItems.forEach(({ color, drawPlan, currentPoints }) => {
 	          drawPvLoopStroke(ctx, currentPoints, color, drawPlan.currentAlpha);
+	      });
+
+	      pvLoopItems.forEach(({ chamber, color, drawPlan, currentBeatData }) => {
+	          if (!showGuides || (chamber !== 'LV' && chamber !== 'RV')) return;
+	          const esPoint = pvLoopEndSystolicPoint(currentBeatData, chamber);
+	          if (esPoint) drawEndSystolicMarker(ctx, esPoint, xScale, yScale, color, drawPlan.currentAlpha);
 	      });
 
 	      if (pvDebug) {
@@ -1297,7 +1333,17 @@ type GuytonSeries = {
     axis: GuytonAxisDomain;
     status: 'ready' | 'pending' | 'empty';
     warnings: string[];
+    stressWarnings: string[];
+    calibrationLabel?: string;
 };
+
+function sweepCurveForSide(
+    map: GuytonSteadyMap | GuytonSteadyMapPreview | GuytonSteadyMapGhost | undefined,
+    side: GuytonSide,
+) {
+    if (!map?.sweep) return undefined;
+    return side === 'right' ? map.sweep.right : map.sweep.left;
+}
 
 export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ instances, config, type }) => {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -1465,6 +1511,8 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
                 axis: state.axis,
                 status,
                 warnings: guytonSteadyMapWarnings(state),
+                stressWarnings: guytonSteadyMapStressWarnings(state),
+                calibrationLabel: guytonStarlingCalibrationLabel(sweepCurveForSide(state.current ?? state.preview ?? state.ghost, side)),
             }];
         });
     }, [visibleInstances, side, tick]);
@@ -1491,6 +1539,7 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
         pending: hasPendingMap,
         workerBusy,
         warnings: series.flatMap((item) => item.warnings),
+        notes: series.flatMap((item) => item.stressWarnings),
         workerError,
     });
 
@@ -1526,6 +1575,13 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
                                     {chrome.warnings.map((warning) => (
                                         <div key={warning} className="border-b border-amber-500/10 py-1 last:border-b-0">{warning}</div>
                                     ))}
+                                    {chrome.notes.length > 0 && (
+                                        <div className="mt-1 border-t border-slate-700/60 pt-1 text-slate-400">
+                                            {chrome.notes.map((note) => (
+                                                <div key={note} className="py-0.5">{note.replace('sweep point did not fully settle', 'stress endpoint did not fully settle')}</div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -1683,6 +1739,7 @@ function drawGuytonCanvas(
             return sweep && sweep.points.length >= 1;
         })),
         hasGhost: Boolean(series.some((item) => item.ghost)),
+        calibrationLabel: series.map((item) => item.calibrationLabel).find(Boolean),
     });
     ctx.restore();
 }
@@ -1717,8 +1774,8 @@ function drawGuytonMap(
         if (fit && fit.points.length >= 2) drawLine(ctx, fit.points, args.x, args.y, args.sweepColor, 2);
         else if (sweep.points.length >= 2) drawLine(ctx, sweep.points, args.x, args.y, args.sweepColor, 1.6);
         for (const point of sweep.points) {
-            const reliable = point.settled !== false && point.status === 'ok';
-            drawPoint(ctx, args.x(point.x), args.y(point.y), args.sweepColor, reliable ? 3.5 : 2.5, reliable ? 1 : 0.45);
+            const quality = point.quality ?? classifyStarlingSweepPoint(point);
+            drawPoint(ctx, args.x(point.x), args.y(point.y), args.sweepColor, quality === 'reliable' ? 3.5 : 2.5, quality === 'reliable' ? 1 : quality === 'stress' ? 0.5 : 0.32);
         }
     }
 
@@ -1829,7 +1886,7 @@ function drawPoint(ctx: CanvasRenderingContext2D, x: number, y: number, color: s
 function drawLegend(
     ctx: CanvasRenderingContext2D,
     plot: { left: number; right: number; top: number },
-    options: { hasSweep: boolean; hasGhost: boolean },
+    options: { hasSweep: boolean; hasGhost: boolean; calibrationLabel?: string },
 ) {
     if (plot.right - plot.left < 360) return;
     const x0 = plot.right - 140;
@@ -1853,6 +1910,14 @@ function drawLegend(
         ctx.textBaseline = 'middle';
         ctx.fillText(label, x0 + 26, yy);
     });
+    if (options.calibrationLabel) {
+        const yy = y0 + rows.length * 15;
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '9px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(options.calibrationLabel, x0, yy);
+    }
     ctx.restore();
 }
 

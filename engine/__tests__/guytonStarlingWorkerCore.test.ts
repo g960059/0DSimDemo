@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_PARAMS } from "@/constants";
 import { ModelCore } from "@/engine/ModelCore";
 import type {
+  GuytonStarlingWorkerMessage,
   GuytonBaseMapResponse,
   GuytonPaneData,
   StarlingSweepRequest,
@@ -12,10 +13,12 @@ import {
   buildGuytonBaseMapResponse,
   buildGuytonStarlingWorkerMessages,
   buildStarlingSweepResponse,
+  buildWorkerBaseline,
   classifyStarlingSweepDeltaPolicy,
   postGuytonStarlingWorkerMessages,
   postGuytonStarlingWorkerMessagesAsync,
   resolveStarlingSweepDeltas,
+  calibratedAnchorDeltasForPolicy,
   STARLING_HIGH_PRELOAD_DELTAS_ML,
   STARLING_LOW_PRELOAD_DELTAS_ML,
   STARLING_NORMAL_PRELOAD_DELTAS_ML,
@@ -23,6 +26,7 @@ import {
 } from "@/engine/guytonStarlingWorkerCore";
 import { postGuytonChainWorkerMessages } from "@/engine/guytonStarlingChainWorkerCore";
 import type {
+  GuytonChainId,
   GuytonChainWorkerMessage,
   GuytonChainWorkerRequest,
 } from "@/engine/guytonStarlingChainProtocol";
@@ -80,7 +84,7 @@ describe("Guyton / Starling worker helpers", () => {
     }
   });
 
-  it("builds the default Starling sweep message with pressure-sorted points", () => {
+  it("builds the default calibrated Starling sweep message with pressure-sorted anchors", () => {
     const req = request();
     const response = buildStarlingSweepResponse(req);
 
@@ -88,16 +92,34 @@ describe("Guyton / Starling worker helpers", () => {
     expect(response.requestId).toBe(req.requestId);
     expect(response.signature).toBe(req.signature);
     expect(response.instanceId).toBe(req.instanceId);
-    expect(response.right?.points).toHaveLength(7);
-    expect(response.left?.points).toHaveLength(7);
+    expect(response.right?.points).toHaveLength(4);
+    expect(response.left?.points).toHaveLength(4);
     expect(response.right?.points.map((point) => point.deltaVolumeMl).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([
-      ...STARLING_NORMAL_PRELOAD_DELTAS_ML,
+      ...calibratedAnchorDeltasForPolicy("normal-preload"),
     ]);
+    expect(response.timing?.mode).toBe("calibrated");
+    expect(response.right?.calibration?.plannedDeltasMl).toEqual([...STARLING_NORMAL_PRELOAD_DELTAS_ML]);
     expect(response.right?.fit?.kind).toBe("monotone-pchip");
+    expect(response.right?.fit?.mode).toBe("calibrated");
     expect(response.right?.fit?.extrapolatedRight?.length).toBeGreaterThan(2);
     expectSortedByPressure(response.right?.points ?? []);
     expectSortedByPressure(response.left?.points ?? []);
     expectSweepTiming(response);
+  });
+
+  it("falls back to full7 when committed Guyton residual diagnostics exceed threshold", () => {
+    const req = request();
+    const baseline = buildWorkerBaseline(req);
+    buildGuytonBaseMapResponse(req, baseline);
+    baseline.calibratedFallbackReasons = ["left return residual threshold"];
+
+    const response = buildStarlingSweepResponse(req, baseline);
+
+    expect(response.timing?.mode).toBe("full7-fallback");
+    expect(response.timing?.fallbackReasons).toContain("left return residual threshold");
+    expect(response.right?.points).toHaveLength(7);
+    expect(response.right?.calibration?.mode).toBe("full7-fallback");
+    expect(response.warnings.some((warning) => warning.includes("calibrated Starling fallback"))).toBe(true);
   });
 
   it("chooses adaptive default deltas and preserves custom deltas", () => {
@@ -153,10 +175,10 @@ describe("Guyton / Starling worker helpers", () => {
       const response = buildStarlingSweepResponse(request());
 
       expect(response.error).toBeUndefined();
-      expect(response.timing?.retargetFallbackCount).toBe(6);
-      expect(response.warnings.filter((warning) => warning.includes("warm retarget fallback"))).toHaveLength(6);
-      expect(response.right?.points).toHaveLength(7);
-      expect(response.left?.points).toHaveLength(7);
+      expect(response.timing?.retargetFallbackCount).toBeGreaterThanOrEqual(3);
+      expect(response.warnings.filter((warning) => warning.includes("warm retarget fallback")).length).toBeGreaterThanOrEqual(3);
+      expect(response.right?.points.length).toBeGreaterThanOrEqual(4);
+      expect(response.left?.points.length).toBeGreaterThanOrEqual(4);
     } finally {
       spy.mockRestore();
     }
@@ -271,14 +293,14 @@ describe("Guyton / Starling worker helpers", () => {
 
     expect(events[0]).toBe("post:base-map");
     expect(events.filter((event) => event.startsWith("chain:"))).toEqual([
-      "chain:positive:300,600,900",
-      "chain:negative:-300,-600,-900",
+      "chain:positive:300,900",
+      "chain:negative:-900",
     ]);
     expect(progressMessages.length).toBeGreaterThan(0);
     expect(progressMessages[0].completedPoints).toBe(1);
     expect(progressMessages[0].rightPointCount).toBe(1);
     expect(progressMessages[0].rightHasFit).toBe(false);
-    expect(progressMessages.every((message) => message.totalPoints === 7)).toBe(true);
+    expect(progressMessages.every((message) => message.totalPoints === 4)).toBe(true);
     for (let i = 1; i < progressMessages.length; i++) {
       expect(progressMessages[i].completedPoints).toBeGreaterThanOrEqual(progressMessages[i - 1].completedPoints);
     }
@@ -293,9 +315,12 @@ describe("Guyton / Starling worker helpers", () => {
     expect(parallel.timing?.parallel).toBe(true);
     expectFiniteNonNegative(parallel.timing?.chainWallMs);
     expect(parallel.timing?.parallelFallback).toBeUndefined();
+    expect(parallel.timing?.plannedPointCount).toBe(7);
+    expect(parallel.timing?.mode).toBe("calibrated");
+    expect(parallel.timing?.anchorCount).toBe(4);
     expect(parallel.right?.fit?.extrapolatedRight?.length).toBeGreaterThan(2);
     expect(parallel.right?.points.map((point) => point.deltaVolumeMl).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([
-      ...STARLING_NORMAL_PRELOAD_DELTAS_ML,
+      ...calibratedAnchorDeltasForPolicy("normal-preload"),
     ]);
     expectSweepClose(parallel, sync);
   });
@@ -321,8 +346,28 @@ describe("Guyton / Starling worker helpers", () => {
     expect(messages[0].timing?.parallel).toBe(false);
     expect(messages[0].timing?.parallelFallback).toContain("child unavailable");
     expect(messages[0].warnings.some((warning) => warning.includes("parallel chain fallback"))).toBe(true);
-    expect(messages[0].right?.points).toHaveLength(7);
-    expect(messages[0].left?.points).toHaveLength(7);
+    expect(messages[0].right?.points.length).toBeGreaterThanOrEqual(4);
+    expect(messages[0].left?.points.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("stops posting async sweep messages when the request is cancelled after the base map", async () => {
+    const req = request({ deltasMl: [-150, 0, 150] });
+    const messages: GuytonStarlingWorkerMessage[] = [];
+    let cancelled = false;
+
+    await postGuytonStarlingWorkerMessagesAsync(
+      req,
+      (message) => {
+        messages.push(message);
+        if (message.type === "base-map") cancelled = true;
+      },
+      {
+        createChainWorker: () => new InlineChainWorker(),
+        isCancelled: () => cancelled,
+      },
+    );
+
+    expect(messages.map((message) => message.type)).toEqual(["base-map"]);
   });
 
   it("supports custom deltas through the parallel chain path", async () => {
@@ -356,6 +401,43 @@ describe("Guyton / Starling worker helpers", () => {
     expectSortedByPressure(messages[0].right?.points ?? []);
     expectSortedByPressure(messages[0].left?.points ?? []);
   });
+
+  it("can keep positive and negative chain workers alive across sequential sweeps", async () => {
+    const workers = new Map<GuytonChainId, InlineChainWorker>();
+    const createCounts: Record<GuytonChainId, number> = { positive: 0, negative: 0 };
+    const createChainWorker = (chainId: GuytonChainId): InlineChainWorker => {
+      let worker = workers.get(chainId);
+      if (!worker) {
+        worker = new InlineChainWorker();
+        workers.set(chainId, worker);
+        createCounts[chainId] += 1;
+      }
+      return worker;
+    };
+    const messages: StarlingSweepWorkerMessage[] = [];
+
+    await postGuytonStarlingWorkerMessagesAsync(
+      request({ signature: "right:inst-1:first", deltasMl: [-150, 0, 150] }),
+      (message) => {
+        if (message.type === "starling-sweep") messages.push(message);
+      },
+      { createChainWorker, persistentChainWorkers: true },
+    );
+    await postGuytonStarlingWorkerMessagesAsync(
+      request({ requestId: "req-2", signature: "right:inst-1:second", deltasMl: [-150, 0, 150] }),
+      (message) => {
+        if (message.type === "starling-sweep") messages.push(message);
+      },
+      { createChainWorker, persistentChainWorkers: true },
+    );
+
+    expect(createCounts).toEqual({ positive: 1, negative: 1 });
+    expect([...workers.values()].every((worker) => !worker.terminated)).toBe(true);
+    expect(messages).toHaveLength(2);
+    expect(messages.every((message) => message.timing?.parallel === true)).toBe(true);
+    expect(messages.every((message) => message.right?.points.length === 3)).toBe(true);
+  });
+
 });
 
 function request(overrides: Partial<StarlingSweepRequest> = {}): StarlingSweepRequest {

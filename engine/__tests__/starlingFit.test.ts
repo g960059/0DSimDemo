@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildStarlingSweepFit } from "@/engine/starlingFit";
-import type { GuytonCurvePoint } from "@/engine/guytonStarling";
+import { classifyStarlingSweepPoint, type GuytonCurvePoint } from "@/engine/guytonStarling";
 
 describe("Starling sweep fit", () => {
   it("builds a finite monotone measured-range PCHIP fit", () => {
@@ -30,6 +30,28 @@ describe("Starling sweep fit", () => {
       ]),
       { x: 12, y: 9, deltaVolumeMl: 600, settled: false, status: "ok" },
       { x: 15, y: 12, deltaVolumeMl: 900, settled: true, status: "warning" },
+    ]);
+
+    expect(fit?.sourcePointCount).toBe(3);
+    expect(fit?.points.at(-1)?.x).toBeCloseTo(8);
+  });
+
+  it("classifies Starling sweep point quality for display", () => {
+    expect(classifyStarlingSweepPoint({ settled: true, status: "ok" })).toBe("reliable");
+    expect(classifyStarlingSweepPoint({ settled: false, status: "ok" })).toBe("stress");
+    expect(classifyStarlingSweepPoint({ settled: true, status: "warning" })).toBe("stress");
+    expect(classifyStarlingSweepPoint({ settled: true, status: "failed" })).toBe("invalid");
+    expect(classifyStarlingSweepPoint({ settled: true, status: "ok", quality: "invalid" })).toBe("invalid");
+  });
+
+  it("uses quality when present and still excludes stress points from the fit", () => {
+    const fit = buildStarlingSweepFit("right", [
+      ...points([
+        [1, 4.5, -300],
+        [4, 5.6, 0],
+        [8, 6.0, 300],
+      ]),
+      { x: 12, y: 9, deltaVolumeMl: 600, settled: true, status: "ok", quality: "stress" },
     ]);
 
     expect(fit?.sourcePointCount).toBe(3);

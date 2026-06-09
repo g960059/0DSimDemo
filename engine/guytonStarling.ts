@@ -15,6 +15,9 @@ import type {
 
 export type GuytonSide = "right" | "left";
 
+export type StarlingSweepPointQuality = "reliable" | "stress" | "invalid";
+export type StarlingSweepMode = "calibrated" | "full7" | "custom";
+
 export type GuytonCurvePoint = {
   x: number;
   y: number;
@@ -23,6 +26,7 @@ export type GuytonCurvePoint = {
   settled?: boolean;
   status?: SimulationHealthStatus;
   deltaVolumeMl?: number;
+  quality?: StarlingSweepPointQuality;
 };
 
 export type GuytonCurve = {
@@ -96,16 +100,26 @@ export type StarlingSweepCurve = {
   side: GuytonSide;
   points: GuytonCurvePoint[];
   fit?: StarlingSweepFit;
+  calibration?: StarlingCalibrationSummary;
   warnings: string[];
 };
 
 export type StarlingSweepFit = {
   kind: "monotone-pchip";
+  mode?: "measured" | "calibrated";
   points: GuytonCurvePoint[];
   sourcePointCount: number;
   warnings: string[];
   extrapolatedLeft?: GuytonCurvePoint[];
   extrapolatedRight?: GuytonCurvePoint[];
+};
+
+export type StarlingCalibrationSummary = {
+  mode: StarlingSweepMode | "full7-fallback" | "full7-reference";
+  plannedDeltasMl: number[];
+  anchorDeltasMl: number[];
+  fallbackReasons: string[];
+  holdoutMaxFlowErrorLMin?: number;
 };
 
 export type StarlingSweepRequest = {
@@ -115,6 +129,7 @@ export type StarlingSweepRequest = {
   params: CoreRuntimeParams;
   targetVolumeMl: number;
   deltasMl?: number[];
+  sweepMode?: StarlingSweepMode;
 };
 
 export type StarlingSweepResponse = {
@@ -143,6 +158,21 @@ export type StarlingSweepTiming = {
   parallel?: boolean;
   parallelFallback?: string;
   chainWallMs?: number;
+  plannedPointCount?: number;
+  mode?: StarlingSweepMode | "full7-fallback" | "full7-reference";
+  anchorCount?: number;
+  fallbackReasons?: string[];
+  full7ReferenceMs?: number;
+  holdoutMaxFlowErrorLMin?: number;
+};
+
+export type GuytonStarlingBrowserTiming = {
+  workerCreateMs: number;
+  baseMapMs: number | null;
+  firstProgressMs: number | null;
+  firstFitMs: number | null;
+  finalSweepMs: number | null;
+  totalMs: number;
 };
 
 export type GuytonBaseMapResponse = {
@@ -550,6 +580,16 @@ export function starlingSweepSignature(
     targetVolumeMl: Math.round(targetVolumeMl),
     params: picked,
   });
+}
+
+export function classifyStarlingSweepPoint(
+  point: Pick<GuytonCurvePoint, "settled" | "status" | "quality">,
+): StarlingSweepPointQuality {
+  if (point.quality) return point.quality;
+  if (point.status === "failed") return "invalid";
+  if (point.status === "warning") return "stress";
+  if (point.settled === false) return "stress";
+  return "reliable";
 }
 
 function effectiveResistanceMmHgPerLMin(gradient: number, flowLMin: number): number {

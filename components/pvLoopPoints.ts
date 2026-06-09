@@ -19,6 +19,16 @@ export type PvLoopBeatData = {
   vMax: number;
 };
 
+export type EndSystolicPoint = {
+  chamber: "LV" | "RV";
+  v: number;
+  p: number;
+  pointIndex: number;
+  elastanceMmHgPerMl: number;
+  method: "max-elastance";
+  quality: "ok" | "warning";
+};
+
 export type PvLoopDisplayBeatData = {
   currentBuffer: SimSample[];
   currentBeatData: PvLoopBeatData | null;
@@ -78,6 +88,33 @@ export const pvLoopBeatData = (buf: SimSample[], chamber: string): PvLoopBeatDat
     vMin,
     vMax,
   };
+};
+
+export const pvLoopEndSystolicPoint = (
+  beatData: PvLoopBeatData,
+  chamber: string,
+  v0Ml = 0,
+): EndSystolicPoint | null => {
+  if (chamber !== "LV" && chamber !== "RV") return null;
+  let best: EndSystolicPoint | null = null;
+  for (let i = 0; i < beatData.points.length; i++) {
+    const point = beatData.points[i];
+    const volumeMargin = point.v - v0Ml;
+    if (!(volumeMargin > 1) || !Number.isFinite(point.p) || !Number.isFinite(point.v)) continue;
+    const elastance = point.p / volumeMargin;
+    if (!Number.isFinite(elastance)) continue;
+    if (best && elastance <= best.elastanceMmHgPerMl) continue;
+    best = {
+      chamber,
+      v: point.v,
+      p: point.p,
+      pointIndex: i,
+      elastanceMmHgPerMl: elastance,
+      method: "max-elastance",
+      quality: volumeMargin < 5 || point.p < 0 ? "warning" : "ok",
+    };
+  }
+  return best;
 };
 
 export const isDrawablePvLoopBeatData = (chamber: string, beatData: PvLoopBeatData): boolean => (

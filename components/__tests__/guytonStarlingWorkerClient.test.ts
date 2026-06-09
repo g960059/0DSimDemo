@@ -9,6 +9,7 @@ import type {
 } from "@/engine/guytonStarling";
 import {
   __clearGuytonStarlingWorkerClientForTests,
+  measureGuytonStarlingBrowserWorkerTiming,
   requestGuytonStarlingWorkerMessages,
   type GuytonStarlingWorkerLike,
 } from "@/components/guytonStarlingWorkerClient";
@@ -29,6 +30,10 @@ class FakeGuytonWorker implements GuytonStarlingWorkerLike {
 
   emit(message: GuytonStarlingWorkerMessage): void {
     this.onmessage?.({ data: message } as MessageEvent<GuytonStarlingWorkerMessage>);
+  }
+
+  fail(message = "worker failed"): void {
+    this.onerror?.({ message } as ErrorEvent);
   }
 }
 
@@ -55,13 +60,13 @@ describe("Guyton / Starling worker client", () => {
     requestGuytonStarlingWorkerMessages(req, {
       onMessage: (message) => first.push(message),
       onDone: () => { firstDone += 1; },
-    }, { createWorker: createFakeWorker, delayMs: 0 });
+    }, { createWorker: createFakeWorker, delayMs: 0, idleTimeoutMs: 1000 });
     requestGuytonStarlingWorkerMessages({ ...req, requestId: "req-2" }, {
       onMessage: (message) => second.push(message),
       onDone: () => { secondDone += 1; },
-    }, { createWorker: createFakeWorker, delayMs: 0 });
+    }, { createWorker: createFakeWorker, delayMs: 0, idleTimeoutMs: 1000 });
 
-    vi.runOnlyPendingTimers();
+    vi.advanceTimersByTime(0);
     expect(workers).toHaveLength(1);
     expect(workers[0].posts).toHaveLength(1);
 
@@ -72,7 +77,81 @@ describe("Guyton / Starling worker client", () => {
     expect(second.map((message) => message.type)).toEqual(["base-map", "starling-sweep"]);
     expect(firstDone).toBe(1);
     expect(secondDone).toBe(1);
+    expect(workers[0].terminated).toBe(false);
+    vi.advanceTimersByTime(999);
+    expect(workers[0].terminated).toBe(false);
+    vi.advanceTimersByTime(1);
     expect(workers[0].terminated).toBe(true);
+  });
+
+  it("reuses the default persistent worker for sequential signatures", () => {
+    const firstReq = request({ signature: "inst-1:first" });
+    const secondReq = request({ requestId: "req-2", signature: "inst-1:second" });
+    const firstMessages: GuytonStarlingWorkerMessage[] = [];
+    const secondMessages: GuytonStarlingWorkerMessage[] = [];
+
+    requestGuytonStarlingWorkerMessages(firstReq, {
+      onMessage: (message) => firstMessages.push(message),
+    }, { createWorker: createFakeWorker, delayMs: 0, idleTimeoutMs: 1000 });
+    vi.advanceTimersByTime(0);
+    expect(workers).toHaveLength(1);
+
+    workers[0].emit(baseMap(firstReq));
+    workers[0].emit(sweep(firstReq));
+    expect(firstMessages.map((message) => message.type)).toEqual(["base-map", "starling-sweep"]);
+    expect(workers[0].terminated).toBe(false);
+
+    requestGuytonStarlingWorkerMessages(secondReq, {
+      onMessage: (message) => secondMessages.push(message),
+    }, { createWorker: createFakeWorker, delayMs: 0, idleTimeoutMs: 1000 });
+    vi.advanceTimersByTime(0);
+    expect(workers).toHaveLength(1);
+    expect(workers[0].posts).toEqual([firstReq, secondReq]);
+
+    workers[0].emit(baseMap(secondReq));
+    workers[0].emit(sweep(secondReq));
+    expect(secondMessages.map((message) => message.type)).toEqual(["base-map", "starling-sweep"]);
+    expect(workers[0].terminated).toBe(false);
+  });
+
+  it("can keep per-request worker termination for one-shot timing-sensitive callers", () => {
+    const req = request();
+
+    requestGuytonStarlingWorkerMessages(req, {
+      onMessage: () => undefined,
+    }, { createWorker: createFakeWorker, delayMs: 0, workerMode: "per-request" });
+    vi.advanceTimersByTime(0);
+
+    expect(workers).toHaveLength(1);
+    workers[0].emit(sweep(req));
+    expect(workers[0].terminated).toBe(true);
+  });
+
+  it("fails active persistent subscriptions and recreates the worker after an error", () => {
+    const firstReq = request({ signature: "inst-1:error" });
+    const secondReq = request({ requestId: "req-2", signature: "inst-1:after-error" });
+    const errors: string[] = [];
+    let doneCount = 0;
+
+    requestGuytonStarlingWorkerMessages(firstReq, {
+      onMessage: () => undefined,
+      onError: (message) => errors.push(message),
+      onDone: () => { doneCount += 1; },
+    }, { createWorker: createFakeWorker, delayMs: 0, idleTimeoutMs: 1000 });
+    vi.advanceTimersByTime(0);
+    expect(workers).toHaveLength(1);
+
+    workers[0].fail("boom");
+    expect(errors).toEqual(["boom"]);
+    expect(doneCount).toBe(1);
+    expect(workers[0].terminated).toBe(true);
+
+    requestGuytonStarlingWorkerMessages(secondReq, {
+      onMessage: () => undefined,
+    }, { createWorker: createFakeWorker, delayMs: 0, idleTimeoutMs: 1000 });
+    vi.advanceTimersByTime(0);
+    expect(workers).toHaveLength(2);
+    expect(workers[1].posts).toEqual([secondReq]);
   });
 
   it("replays already posted base maps to late subscribers", () => {
@@ -84,7 +163,7 @@ describe("Guyton / Starling worker client", () => {
     requestGuytonStarlingWorkerMessages(req, {
       onMessage: (message) => early.push(message),
     }, { createWorker: createFakeWorker, delayMs: 0 });
-    vi.runOnlyPendingTimers();
+    vi.advanceTimersByTime(0);
     workers[0].emit(baseMap(req));
 
     requestGuytonStarlingWorkerMessages({ ...req, requestId: "req-late" }, {
@@ -111,7 +190,7 @@ describe("Guyton / Starling worker client", () => {
       onMessage: (message) => early.push(message),
       onDone: () => { earlyDone += 1; },
     }, { createWorker: createFakeWorker, delayMs: 0 });
-    vi.runOnlyPendingTimers();
+    vi.advanceTimersByTime(0);
 
     workers[0].emit(baseMap(req));
     workers[0].emit(progress(req, 3, 7));
@@ -126,7 +205,7 @@ describe("Guyton / Starling worker client", () => {
     workers[0].emit(sweep(req));
     expect(early.map((message) => message.type)).toEqual(["base-map", "starling-sweep-progress", "starling-sweep"]);
     expect(earlyDone).toBe(1);
-    expect(workers[0].terminated).toBe(true);
+    expect(workers[0].terminated).toBe(false);
   });
 
   it("cancels a delayed request when all subscribers leave before start", () => {
@@ -138,6 +217,33 @@ describe("Guyton / Starling worker client", () => {
     vi.advanceTimersByTime(500);
 
     expect(workers).toHaveLength(0);
+  });
+
+  it("measures browser worker timing milestones without sharing in-flight state", async () => {
+    const req = request();
+    const promise = measureGuytonStarlingBrowserWorkerTiming(req, { createWorker: createFakeWorker });
+
+    expect(workers).toHaveLength(1);
+    expect(workers[0].posts).toEqual([req]);
+
+    vi.advanceTimersByTime(5);
+    workers[0].emit(baseMap(req));
+    vi.advanceTimersByTime(7);
+    workers[0].emit(progress(req, 1, 7));
+    vi.advanceTimersByTime(11);
+    workers[0].emit(progressWithFit(req));
+    vi.advanceTimersByTime(13);
+    workers[0].emit(sweep(req));
+
+    const timing = await promise;
+    expect(workers[0].terminated).toBe(true);
+    expect(timing.workerCreateMs).toBeGreaterThanOrEqual(0);
+    expect(timing.baseMapMs).not.toBeNull();
+    expect(timing.firstProgressMs).not.toBeNull();
+    expect(timing.firstFitMs).not.toBeNull();
+    expect(timing.finalSweepMs).not.toBeNull();
+    expect(timing.totalMs).toBeGreaterThanOrEqual(timing.finalSweepMs ?? 0);
+    expect(timing.firstFitMs ?? 0).toBeGreaterThan(timing.firstProgressMs ?? 0);
   });
 
   function createFakeWorker(): FakeGuytonWorker {
@@ -195,5 +301,17 @@ function progress(
     warnings: [],
     completedPoints,
     totalPoints,
+  };
+}
+
+function progressWithFit(req: StarlingSweepRequest): StarlingSweepProgressMessage {
+  return {
+    ...progress(req, 3, 7),
+    right: {
+      side: "right",
+      points: [{ x: 1, y: 4 }, { x: 2, y: 5 }, { x: 3, y: 6 }],
+      fit: { kind: "monotone-pchip", points: [{ x: 1, y: 4 }, { x: 2, y: 5 }], sourcePointCount: 3, warnings: [] },
+      warnings: [],
+    },
   };
 }
