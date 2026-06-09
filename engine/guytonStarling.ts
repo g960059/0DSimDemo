@@ -2,6 +2,7 @@ import { clamp, smoothMax } from "@/engine/math";
 import {
   buildVolumeConstrainedGuytonCurve,
   solveFillingPressureAbs,
+  solveReturnFlowAtDownstreamPressure,
   structuralLinearGuyton,
   type VascularReturnSnapshot,
 } from "@/engine/guytonVascular";
@@ -42,6 +43,11 @@ export type GuytonPaneData = {
     pressure: number;
     flow: number;
   };
+  returnOperatingPoint: {
+    pressure: number;
+    flow: number;
+  };
+  guytonDiagnostics: GuytonDiagnostics;
   fillingPressure: number;
   fillingPressureLabel: string;
   gradient: number;
@@ -57,6 +63,21 @@ export type GuytonPaneData = {
     effectiveResistanceMmHgPerLMin: number;
   };
   warnings: string[];
+};
+
+export type GuytonMismatchDiagnostic = {
+  pressure: number;
+  observedFlow: number;
+  guytonFlow: number;
+  mismatchLMin: number;
+  mismatchFraction: number;
+  exceedsThreshold: boolean;
+};
+
+export type GuytonDiagnostics = {
+  source: "exact-solver" | "curve-interpolation";
+  pump: GuytonMismatchDiagnostic;
+  return: GuytonMismatchDiagnostic;
 };
 
 export type GuytonAxisDomain = {
@@ -136,6 +157,8 @@ export type GuytonStarlingWorkerMessage = GuytonBaseMapResponse | StarlingSweepW
 const FLOW_FLOOR_L_MIN = 0.15;
 const RESISTANCE_MIN = 0.05;
 const RESISTANCE_MAX = 20;
+const GUYTON_MISMATCH_FLOW_THRESHOLD_L_MIN = 0.5;
+const GUYTON_MISMATCH_FRACTION_THRESHOLD = 0.1;
 const DEFAULT_GUYTON_AXIS: Record<GuytonSide, GuytonAxisDomain> = {
   right: { xMin: -5, xMax: 20, yMin: 0, yMax: 10 },
   left: { xMin: 0, xMax: 30, yMin: 0, yMax: 10 },
@@ -150,6 +173,7 @@ export function buildGuytonPaneData(
   const isRight = side === "right";
   const pressure = isRight ? metrics.RAPMean : metrics.LAPMean;
   const flow = Math.max(isRight ? metrics.CO_R : metrics.CO_L, 0);
+  const returnFlow = Math.max(isRight ? metrics.systemicVenousReturnLMin : metrics.pulmonaryVenousReturnLMin, 0);
   const structuralPreview = vascularSnapshot ? structuralLinearGuyton(vascularSnapshot, []) : undefined;
   const fillingPressure = structuralPreview?.fillingPressureAbsMmHg ?? (isRight ? obs.PmsfAbs : obs.PmpfAbs);
   const fillingPressureLabel = isRight ? "Pmsf" : "Pmpf";
@@ -160,31 +184,41 @@ export function buildGuytonPaneData(
   const xGrid = pressureGrid(xRange.min, xRange.max, 120);
   const structural = vascularSnapshot ? structuralLinearGuyton(vascularSnapshot, xGrid) : undefined;
   const warnings = paneWarnings(side, gradient, flow, resistance, metrics, obs);
+  const venousReturn = structural?.curve ?? {
+    id: `${side}-waterfall-vr`,
+    label: isRight ? "Waterfall-aware venous return" : "Alveolar waterfall-aware return",
+    source: "waterfall-linearized" as const,
+    stroke: "venous" as const,
+    points: sampleVenousReturnCurve({
+      fillingPressure,
+      resistanceMmHgPerLMin: resistance,
+      collapsePressure,
+      xMin: xRange.min,
+      xMax: xRange.max,
+      waterfall: true,
+    }),
+  };
+  const guytonDiagnostics = buildGuytonDiagnostics({
+    venousReturn,
+    vascularSnapshot,
+    pumpPoint: { pressure, flow },
+    returnPoint: { pressure, flow: returnFlow },
+  });
+  warnings.push(...guytonMismatchWarnings(guytonDiagnostics));
 
   return {
     side,
-    title: isRight ? "Systemic Guyton / RV Starling" : "Pulmonary Guyton / LV Starling",
+    title: paneTitle(side),
     xLabel: isRight ? "RAP / CVP (mmHg)" : "LAP / PCWP (mmHg)",
     yLabel: "Flow (L/min)",
     operatingPoint: { pressure, flow },
+    returnOperatingPoint: { pressure, flow: returnFlow },
+    guytonDiagnostics,
     fillingPressure,
     fillingPressureLabel,
     gradient,
     collapsePressure,
-    venousReturn: structural?.curve ?? {
-      id: `${side}-waterfall-vr`,
-      label: isRight ? "Waterfall-aware venous return" : "Alveolar waterfall-aware return",
-      source: "waterfall-linearized",
-      stroke: "venous",
-      points: sampleVenousReturnCurve({
-        fillingPressure,
-        resistanceMmHgPerLMin: resistance,
-        collapsePressure,
-        xMin: xRange.min,
-        xMax: xRange.max,
-        waterfall: true,
-      }),
-    },
+    venousReturn,
     classicVenousReturn: {
       id: `${side}-classic-vr`,
       label: "Classic straight-line estimate",
@@ -234,6 +268,7 @@ export function buildCommittedGuytonPaneData(
   const isRight = side === "right";
   const pressure = isRight ? metrics.RAPMean : metrics.LAPMean;
   const flow = Math.max(isRight ? metrics.CO_R : metrics.CO_L, 0);
+  const returnFlow = Math.max(isRight ? metrics.systemicVenousReturnLMin : metrics.pulmonaryVenousReturnLMin, 0);
   const structural = structuralLinearGuyton(vascularSnapshot, []);
   const fillingPressure = solveFillingPressureAbs(vascularSnapshot);
   const fillingPressureLabel = isRight ? "Pmsf" : "Pmpf";
@@ -244,13 +279,22 @@ export function buildCommittedGuytonPaneData(
   const xGrid = pressureGrid(xRange.min, xRange.max, 120);
   const venousReturn = buildVolumeConstrainedGuytonCurve(vascularSnapshot, xGrid);
   const warnings = paneWarnings(side, gradient, flow, resistance, metrics, obs);
+  const guytonDiagnostics = buildGuytonDiagnostics({
+    venousReturn,
+    vascularSnapshot,
+    pumpPoint: { pressure, flow },
+    returnPoint: { pressure, flow: returnFlow },
+  });
+  warnings.push(...guytonMismatchWarnings(guytonDiagnostics));
 
   return {
     side,
-    title: isRight ? "Systemic Guyton / RV Starling" : "Pulmonary Guyton / LV Starling",
+    title: paneTitle(side),
     xLabel: isRight ? "RAP / CVP (mmHg)" : "LAP / PCWP (mmHg)",
     yLabel: "Flow (L/min)",
     operatingPoint: { pressure, flow },
+    returnOperatingPoint: { pressure, flow: returnFlow },
+    guytonDiagnostics,
     fillingPressure,
     fillingPressureLabel,
     gradient,
@@ -340,8 +384,51 @@ export function guytonSnapshotPoints(
     ...pane.classicVenousReturn.points,
     ...(activeSweep?.points ?? []),
     { x: pane.operatingPoint.pressure, y: pane.operatingPoint.flow },
+    { x: pane.returnOperatingPoint.pressure, y: pane.returnOperatingPoint.flow },
+    { x: pane.guytonDiagnostics.pump.pressure, y: pane.guytonDiagnostics.pump.guytonFlow },
+    { x: pane.guytonDiagnostics.return.pressure, y: pane.guytonDiagnostics.return.guytonFlow },
     { x: pane.fillingPressure, y: 0 },
   ];
+}
+
+export function buildGuytonDiagnostics(args: {
+  venousReturn: GuytonCurve;
+  vascularSnapshot?: VascularReturnSnapshot;
+  pumpPoint: { pressure: number; flow: number };
+  returnPoint: { pressure: number; flow: number };
+}): GuytonDiagnostics {
+  const source = args.vascularSnapshot ? "exact-solver" : "curve-interpolation";
+  const flowAtPressure = (pressure: number): number => {
+    if (args.vascularSnapshot) {
+      return solveReturnFlowAtDownstreamPressure(args.vascularSnapshot, pressure).y;
+    }
+    return interpolateCurveY(args.venousReturn.points, pressure);
+  };
+  return {
+    source,
+    pump: buildGuytonMismatchDiagnostic(args.pumpPoint, flowAtPressure(args.pumpPoint.pressure)),
+    return: buildGuytonMismatchDiagnostic(args.returnPoint, flowAtPressure(args.returnPoint.pressure)),
+  };
+}
+
+export function interpolateCurveY(points: GuytonCurvePoint[], x: number): number {
+  const finite = points
+    .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
+    .sort((a, b) => a.x - b.x);
+  if (finite.length === 0) return Number.NaN;
+  if (finite.length === 1 || x <= finite[0].x) return finite[0].y;
+  const last = finite[finite.length - 1];
+  if (x >= last.x) return last.y;
+  for (let i = 1; i < finite.length; i++) {
+    const lo = finite[i - 1];
+    const hi = finite[i];
+    if (x > hi.x) continue;
+    const span = hi.x - lo.x;
+    if (Math.abs(span) <= 1e-12) return hi.y;
+    const alpha = (x - lo.x) / span;
+    return lo.y + alpha * (hi.y - lo.y);
+  }
+  return last.y;
 }
 
 export function sampleVenousReturnCurve(args: {
@@ -435,6 +522,51 @@ export function starlingSweepSignature(
 function effectiveResistanceMmHgPerLMin(gradient: number, flowLMin: number): number {
   if (!(flowLMin > FLOW_FLOOR_L_MIN) || !Number.isFinite(gradient)) return 1;
   return clamp(Math.abs(gradient) / Math.max(flowLMin, FLOW_FLOOR_L_MIN), RESISTANCE_MIN, RESISTANCE_MAX);
+}
+
+function paneTitle(side: GuytonSide): string {
+  return side === "right"
+    ? "Systemic Guyton / RV Starling"
+    : "Pulmonary venous return / LV preload sweep";
+}
+
+function buildGuytonMismatchDiagnostic(
+  point: { pressure: number; flow: number },
+  guytonFlow: number,
+): GuytonMismatchDiagnostic {
+  const observedFlow = point.flow;
+  const mismatchLMin = guytonFlow - observedFlow;
+  const mismatchFraction = mismatchLMin / Math.max(Math.abs(observedFlow), 0.1);
+  const exceedsThreshold = Number.isFinite(mismatchLMin)
+    && (
+      Math.abs(mismatchLMin) > GUYTON_MISMATCH_FLOW_THRESHOLD_L_MIN
+      || Math.abs(mismatchFraction) > GUYTON_MISMATCH_FRACTION_THRESHOLD
+    );
+  return {
+    pressure: point.pressure,
+    observedFlow,
+    guytonFlow,
+    mismatchLMin,
+    mismatchFraction,
+    exceedsThreshold,
+  };
+}
+
+function guytonMismatchWarnings(diagnostics: GuytonDiagnostics): string[] {
+  const warnings: string[] = [];
+  if (diagnostics.pump.exceedsThreshold) {
+    warnings.push(`Guyton pump mismatch ${formatSignedFlow(diagnostics.pump.mismatchLMin)} L/min`);
+  }
+  if (diagnostics.return.exceedsThreshold) {
+    warnings.push(`Guyton return mismatch ${formatSignedFlow(diagnostics.return.mismatchLMin)} L/min`);
+  }
+  return warnings;
+}
+
+function formatSignedFlow(value: number): string {
+  if (!Number.isFinite(value)) return "NaN";
+  const fixed = Math.abs(value).toFixed(1);
+  return value >= 0 ? `+${fixed}` : `-${fixed}`;
 }
 
 function pressureRange(

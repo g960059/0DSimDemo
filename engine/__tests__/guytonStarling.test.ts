@@ -1,17 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PARAMS } from "@/constants";
 import {
+  buildGuytonDiagnostics,
   buildCommittedGuytonPaneData,
   buildGuytonPaneData,
   defaultGuytonAxis,
   expandGuytonAxisToFit,
   guytonSnapshotPoints,
+  interpolateCurveY,
   liveGuytonOperatingPoint,
   sampleVenousReturnCurve,
 } from "@/engine/guytonStarling";
 import { solveReturnFlowAtDownstreamPressure } from "@/engine/guytonVascular";
 import { runScenario } from "@/engine/harness";
-import type { SimMetrics, SimObservables } from "@/engine/protocol";
+import type { SimMetrics, SimObservables, SimSample } from "@/engine/protocol";
 
 const FAST_OPTIONS = { settleSeconds: 35, measureSeconds: 8 };
 
@@ -56,6 +58,7 @@ describe("Guyton / Starling pane helpers", () => {
     }));
 
     expect(pane.fillingPressureLabel).toBe("Pmpf");
+    expect(pane.title).toBe("Pulmonary venous return / LV preload sweep");
     expect(pane.operatingPoint.pressure).toBe(8);
     expect(pane.gradient).toBeCloseTo(5, 6);
     expect(pane.summary.effectiveComplianceMlPerMmHg).toBeGreaterThan(0);
@@ -99,9 +102,39 @@ describe("Guyton / Starling pane helpers", () => {
     expect(pane.localStarling.stroke).toBe("starling");
     expect(pane.localStarling.dashed).toBe(true);
     expect(snapshotPoints).toHaveLength(
-      pane.venousReturn.points.length + pane.classicVenousReturn.points.length + 2,
+      pane.venousReturn.points.length + pane.classicVenousReturn.points.length + 5,
     );
     expect(withSweep).toHaveLength(snapshotPoints.length + sweepPoints.length);
+  });
+
+  it("reports Guyton mismatch diagnostics from curve interpolation", () => {
+    const curve = sampleVenousReturnCurve({
+      fillingPressure: 10,
+      resistanceMmHgPerLMin: 1,
+      collapsePressure: -10,
+      xMin: 0,
+      xMax: 10,
+      n: 11,
+      waterfall: false,
+    });
+    const diagnostics = buildGuytonDiagnostics({
+      venousReturn: {
+        id: "test",
+        label: "test",
+        source: "waterfall-linearized",
+        stroke: "venous",
+        points: curve,
+      },
+      pumpPoint: { pressure: 5, flow: 5 },
+      returnPoint: { pressure: 5, flow: 3.8 },
+    });
+
+    expect(interpolateCurveY(curve, 5)).toBeCloseTo(5, 8);
+    expect(diagnostics.source).toBe("curve-interpolation");
+    expect(diagnostics.pump.mismatchLMin).toBeCloseTo(0, 8);
+    expect(diagnostics.pump.exceedsThreshold).toBe(false);
+    expect(diagnostics.return.mismatchLMin).toBeCloseTo(1.2, 8);
+    expect(diagnostics.return.exceedsThreshold).toBe(true);
   });
 
   it("moves the systemic Guyton estimate right/up when target blood volume rises", () => {
@@ -112,6 +145,15 @@ describe("Guyton / Starling pane helpers", () => {
 
     expect(loadedPane.fillingPressure).toBeGreaterThan(basePane.fillingPressure);
     expect(loadedPane.summary.stressedVolumeMl).toBeGreaterThan(basePane.summary.stressedVolumeMl);
+  });
+
+  it("reports beat-mean systemic and pulmonary venous return in L/min", () => {
+    const result = runScenario(DEFAULT_PARAMS, { ...FAST_OPTIONS, targetTBV: 5600 });
+    const beat = lastCompleteBeatWindow(result.samples);
+    const mean = (key: "SVF" | "PVF") => beat.reduce((sum, sample) => sum + sample[key], 0) / beat.length;
+
+    expect(result.metrics.systemicVenousReturnLMin).toBeCloseTo(mean("SVF") * 60 / 1000, 6);
+    expect(result.metrics.pulmonaryVenousReturnLMin).toBeCloseTo(mean("PVF") * 60 / 1000, 6);
   });
 
   it("uses structural vascular snapshots when supplied", () => {
@@ -150,6 +192,7 @@ describe("Guyton / Starling pane helpers", () => {
     expect(livePane.venousReturn.source).toBe("structural-linearized");
     expect(committedPane.venousReturn.source).toBe("volume-constrained");
     expect(committedPane.classicVenousReturn.source).toBe("structural-linearized");
+    expect(committedPane.guytonDiagnostics.source).toBe("exact-solver");
   });
 
   it("anchors committed filling pressure at exact zero return", () => {
@@ -188,6 +231,24 @@ describe("Guyton / Starling pane helpers", () => {
     expect(liveGuytonOperatingPoint("right", m)).toEqual({ pressure: 4, flow: 5.2 });
     expect(liveGuytonOperatingPoint("left", m)).toEqual({ pressure: 9, flow: 4.9 });
   });
+
+  it("surfaces finite committed Guyton diagnostics from a settled real core", () => {
+    const result = runScenario(DEFAULT_PARAMS, { ...FAST_OPTIONS, targetTBV: 5600 });
+    for (const side of ["right", "left"] as const) {
+      const pane = buildCommittedGuytonPaneData(
+        side,
+        result.metrics,
+        result.core.debugObservables(),
+        result.core.vascularReturnSnapshot(side),
+      );
+
+      expect(Number.isFinite(pane.returnOperatingPoint.flow)).toBe(true);
+      expect(Number.isFinite(pane.guytonDiagnostics.pump.guytonFlow)).toBe(true);
+      expect(Number.isFinite(pane.guytonDiagnostics.pump.mismatchLMin)).toBe(true);
+      expect(Number.isFinite(pane.guytonDiagnostics.return.guytonFlow)).toBe(true);
+      expect(Number.isFinite(pane.guytonDiagnostics.return.mismatchLMin)).toBe(true);
+    }
+  });
 });
 
 function nearest(points: { x: number; y: number }[], x: number): { x: number; y: number } {
@@ -199,6 +260,23 @@ function nearest(points: { x: number; y: number }[], x: number): { x: number; y:
 function xDomain(points: { x: number }[]): [number, number] {
   const xs = points.map((point) => point.x);
   return [Math.min(...xs), Math.max(...xs)];
+}
+
+function lastCompleteBeatWindow(samples: SimSample[]): SimSample[] {
+  const curBeat = Math.floor(samples[samples.length - 1].phi);
+  const target = curBeat - 1;
+  let start = -1;
+  let end = -1;
+  for (let i = 0; i < samples.length; i++) {
+    const beat = Math.floor(samples[i].phi);
+    if (start === -1 && beat === target) start = i;
+    else if (start !== -1 && beat > target) {
+      end = i;
+      break;
+    }
+  }
+  if (start !== -1 && end !== -1 && end - start >= 5) return samples.slice(start, end + 1);
+  throw new Error("No complete beat in scenario samples");
 }
 
 function metrics(overrides: Partial<SimMetrics> = {}): SimMetrics {
@@ -218,6 +296,8 @@ function metrics(overrides: Partial<SimMetrics> = {}): SimMetrics {
     SV_R: 66,
     CO_L: 4.8,
     CO_R: 5,
+    systemicVenousReturnLMin: 5,
+    pulmonaryVenousReturnLMin: 4.8,
     MVForwardVolumeMl: 64,
     MVReverseVolumeMl: 0,
     MVNetVolumeMl: 64,

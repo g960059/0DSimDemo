@@ -296,6 +296,10 @@ function expectFiniteExactPane(pane: GuytonPaneData | undefined, side: "right" |
   ))).toBe(true);
   expect(Number.isFinite(pane?.fillingPressure)).toBe(true);
   expect(Number.isFinite(pane?.summary.stressedVolumeMl)).toBe(true);
+  expect(Number.isFinite(pane?.returnOperatingPoint.flow)).toBe(true);
+  expect(pane?.guytonDiagnostics.source).toBe("exact-solver");
+  expect(Number.isFinite(pane?.guytonDiagnostics.pump.mismatchLMin)).toBe(true);
+  expect(Number.isFinite(pane?.guytonDiagnostics.return.mismatchLMin)).toBe(true);
 }
 
 function expectSortedByPressure(points: { x: number }[]): void {

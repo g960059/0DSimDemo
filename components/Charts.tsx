@@ -1603,7 +1603,7 @@ function drawGuytonCanvas(
     ctx.textBaseline = 'top';
     ctx.font = '12px sans-serif';
     ctx.fillStyle = '#e2e8f0';
-    ctx.fillText(side === 'right' ? 'Systemic Guyton / RV Starling' : 'Pulmonary Guyton / LV Starling', plot.left, 10);
+    ctx.fillText(firstPane?.title ?? (side === 'right' ? 'Systemic Guyton / RV Starling' : 'Pulmonary venous return / LV preload sweep'), plot.left, 10);
 
     for (const item of series) {
         const base = d3.color(item.inst.color) ?? d3.color('#a855f7')!;
@@ -1680,6 +1680,9 @@ function drawGuytonSteadyMap(
         for (const point of sweep.points) drawPoint(ctx, args.x(point.x), args.y(point.y), args.sweepColor, point.settled === false ? 2.5 : 3.5);
     }
 
+    drawGuytonResidualGuide(ctx, map.pane.guytonDiagnostics.pump, args.x, args.y, args.plot, args.pointColor);
+    drawGuytonResidualGuide(ctx, map.pane.guytonDiagnostics.return, args.x, args.y, args.plot, args.venousColor);
+    drawPoint(ctx, args.x(map.pane.returnOperatingPoint.pressure), args.y(map.pane.returnOperatingPoint.flow), args.venousColor, 3.2);
     drawPoint(ctx, args.x(map.pane.operatingPoint.pressure), args.y(map.pane.operatingPoint.flow), args.pointColor, 5.5);
     if (args.label) {
         ctx.fillStyle = '#cbd5e1';
@@ -1688,6 +1691,36 @@ function drawGuytonSteadyMap(
         ctx.textBaseline = 'middle';
         ctx.fillText(args.label, args.x(map.pane.operatingPoint.pressure) + 7, args.y(map.pane.operatingPoint.flow));
     }
+    ctx.restore();
+}
+
+function drawGuytonResidualGuide(
+    ctx: CanvasRenderingContext2D,
+    diagnostic: { pressure: number; observedFlow: number; guytonFlow: number; exceedsThreshold: boolean },
+    x: d3.ScaleLinear<number, number>,
+    y: d3.ScaleLinear<number, number>,
+    plot: { left: number; right: number; top: number; bottom: number },
+    color: string,
+) {
+    if (!diagnostic.exceedsThreshold) return;
+    if (!Number.isFinite(diagnostic.pressure) || !Number.isFinite(diagnostic.observedFlow) || !Number.isFinite(diagnostic.guytonFlow)) return;
+    const px = x(diagnostic.pressure);
+    if (px < plot.left || px > plot.right) return;
+    const yObserved = y(diagnostic.observedFlow);
+    const yGuyton = y(diagnostic.guytonFlow);
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.globalAlpha *= 0.45;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 4]);
+    ctx.beginPath();
+    ctx.moveTo(px, yObserved);
+    ctx.lineTo(px, yGuyton);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(px, yGuyton, 2.4, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
 }
 

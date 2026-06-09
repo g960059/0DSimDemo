@@ -473,6 +473,8 @@ export type SimMetrics = {
   SV_R: number;
   CO_L: number;
   CO_R: number;
+  systemicVenousReturnLMin: number;
+  pulmonaryVenousReturnLMin: number;
   MVForwardVolumeMl: number;
   MVReverseVolumeMl: number;
   MVNetVolumeMl: number;

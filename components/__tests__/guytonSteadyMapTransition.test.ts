@@ -155,10 +155,30 @@ function pane(side: GuytonSide): GuytonPaneData {
   };
   return {
     side,
-    title: side === "right" ? "Systemic Guyton / RV Starling" : "Pulmonary Guyton / LV Starling",
+    title: side === "right" ? "Systemic Guyton / RV Starling" : "Pulmonary venous return / LV preload sweep",
     xLabel: side === "right" ? "RAP / CVP (mmHg)" : "LAP / PCWP (mmHg)",
     yLabel: "Flow (L/min)",
     operatingPoint: { pressure: side === "right" ? 3 : 9, flow: 5 },
+    returnOperatingPoint: { pressure: side === "right" ? 3 : 9, flow: 4.9 },
+    guytonDiagnostics: {
+      source: "exact-solver",
+      pump: {
+        pressure: side === "right" ? 3 : 9,
+        observedFlow: 5,
+        guytonFlow: 5,
+        mismatchLMin: 0,
+        mismatchFraction: 0,
+        exceedsThreshold: false,
+      },
+      return: {
+        pressure: side === "right" ? 3 : 9,
+        observedFlow: 4.9,
+        guytonFlow: 5,
+        mismatchLMin: 0.1,
+        mismatchFraction: 0.02040816326530612,
+        exceedsThreshold: false,
+      },
+    },
     fillingPressure: side === "right" ? 10 : 15,
     fillingPressureLabel: side === "right" ? "Pmsf" : "Pmpf",
     gradient: 7,
