@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   type CaseDocument,
   type CaseSource,
@@ -17,6 +17,8 @@ import { DEFAULT_MODEL_LIMITATIONS } from "@/features/workbench/workbenchDefault
 import type { WorkbenchSceneState } from "@/features/workbench/hooks/useWorkbenchScene";
 import type { WorkbenchPanelsState } from "@/features/workbench/hooks/useWorkbenchPanels";
 import type { LessonAuthoringState } from "@/features/workbench/hooks/useLessonAuthoring";
+import { allCasesHref, caseHref, homeHref } from "@/homeLinks";
+import { localeFromPathname } from "@/localeRouting";
 
 type AuthUser = {
   uid: string;
@@ -62,6 +64,8 @@ export function useWorkbenchPersistence({
   pushWarningToast: (name: string, message: string) => void;
 }) {
   const { caseId: routeCaseId } = useParams();
+  const location = useLocation();
+  const locale = localeFromPathname(location.pathname);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [isSavingCase, setIsSavingCase] = useState(false);
@@ -298,7 +302,7 @@ export function useWorkbenchPersistence({
       lesson.setSavedLesson(null);
       lesson.setPublishedLesson(null);
       lastLoadedCaseIdRef.current = caseId;
-      navigate(`/workbench/${encodeURIComponent(caseId)}?from=cases`, { replace: true });
+      navigate(caseHref(caseId, locale), { replace: true });
       pushWarningToast("Case save", opts.copy ? "Created an editable copy." : "Saved case.");
     } finally {
       setIsSavingCase(false);
@@ -309,6 +313,7 @@ export function useWorkbenchPersistence({
     defaultSceneTitle,
     isSavingCase,
     lesson,
+    locale,
     navigate,
     pushWarningToast,
     routeCaseId,
@@ -327,10 +332,10 @@ export function useWorkbenchPersistence({
 
   const fromParam = searchParams.get("from");
   const backTarget = fromParam === "cases"
-    ? { href: "/cases", label: "Cases" }
+    ? { href: allCasesHref(locale), label: "Cases" }
     : fromParam === "lesson"
-      ? { href: "/", label: "Home" }
-      : { href: "/", label: "Home" };
+      ? { href: homeHref(locale), label: "Home" }
+      : { href: homeHref(locale), label: "Home" };
 
   return {
     routeCaseId,

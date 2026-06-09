@@ -1,15 +1,20 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { LESSONS } from '../lessonDoc';
 import { OFFICIAL_CASES } from '../officialCases';
 import { allCasesHref, caseHref, lessonHref, workbenchHref } from '../homeLinks';
+import { localeFromPathname } from '../localeRouting';
 
 export const Home = () => {
+  const { t } = useTranslation();
+  const location = useLocation();
+  const locale = localeFromPathname(location.pathname);
   const lessons = LESSONS.map((lesson, index) => ({
     id: lesson.meta.id,
     order: index + 1,
-    title: lesson.meta.title,
-    description: lesson.meta.objective,
+    title: t(`lessons.${lesson.meta.id}.title`, { defaultValue: lesson.meta.title }),
+    description: t(`lessons.${lesson.meta.id}.objective`, { defaultValue: lesson.meta.objective ?? '' }),
   }));
 
   return (
@@ -17,25 +22,25 @@ export const Home = () => {
       <div className="max-w-5xl mx-auto space-y-10">
         <section className="flex flex-col gap-5 border-b border-slate-800 pb-8">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-100">CircleHeart</h1>
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-100">{t('common.appName')}</h1>
             <p className="mt-3 max-w-2xl text-sm sm:text-base text-slate-400">
-              Learn cardiovascular physiology through guided lessons, disease cases, and free simulation.
+              {t('home.lead')}
             </p>
           </div>
           <div>
             <Link
-              to={workbenchHref()}
+              to={workbenchHref(locale)}
               className="inline-flex px-4 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded text-sm font-bold text-slate-200 shadow transition-colors"
             >
-              Open Workbench (free simulation)
+              {t('home.openFreeSimulation')}
             </Link>
           </div>
         </section>
 
         <section>
           <div className="mb-4">
-            <h2 className="text-2xl font-bold text-slate-100">Learn</h2>
-            <p className="mt-1 text-sm text-slate-400">Start with the official learning path.</p>
+            <h2 className="text-2xl font-bold text-slate-100">{t('home.learnTitle')}</h2>
+            <p className="mt-1 text-sm text-slate-400">{t('home.learnDescription')}</p>
           </div>
 
           <div className="space-y-4">
@@ -50,20 +55,20 @@ export const Home = () => {
                       <h3 className="text-xl font-bold text-slate-200">{lesson.title}</h3>
                     </div>
                     <p className="text-sm text-slate-400 pl-11">
-                      {lesson.description ?? 'Open the interactive lesson.'}
+                      {lesson.description || t('home.openLessonFallback')}
                     </p>
                   </div>
                   <Link
-                    to={lessonHref(lesson.id)}
+                    to={lessonHref(lesson.id, locale)}
                     className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded text-sm font-bold shadow transition-colors w-full sm:w-auto text-center"
                   >
-                    Start lesson
+                    {t('home.startLesson')}
                   </Link>
                 </div>
               ))
             ) : (
               <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 text-sm text-slate-400">
-                No lessons are available yet.
+                {t('home.noLessons')}
               </div>
             )}
           </div>
@@ -72,11 +77,11 @@ export const Home = () => {
         <section>
           <div className="mb-4 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
             <div>
-              <h2 className="text-2xl font-bold text-slate-100">Explore</h2>
-              <p className="mt-1 text-sm text-slate-400">Open disease-first cases in the Workbench.</p>
+              <h2 className="text-2xl font-bold text-slate-100">{t('home.exploreTitle')}</h2>
+              <p className="mt-1 text-sm text-slate-400">{t('home.exploreDescription')}</p>
             </div>
-            <Link to={allCasesHref()} className="text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors">
-              See all cases →
+            <Link to={allCasesHref(locale)} className="text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors">
+              {t('home.seeAllCases')} →
             </Link>
           </div>
 
@@ -86,22 +91,24 @@ export const Home = () => {
                 // Kept intentionally close to Cases.tsx for HI-1; shared card extraction is a follow-up.
                 <div key={c.meta.id} className="bg-slate-900 border border-slate-800 rounded-xl p-5 transition-all hover:border-slate-700 flex flex-col">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-bold text-slate-200 line-clamp-1">{c.meta.title}</h3>
+                    <h3 className="text-lg font-bold text-slate-200 line-clamp-1">
+                      {t(`officialCases.${c.meta.id}.title`, { defaultValue: c.meta.title })}
+                    </h3>
                   </div>
                   <p className="text-sm text-slate-400 mb-6 flex-1 line-clamp-3">
-                    {c.spec.description}
+                    {t(`officialCases.${c.meta.id}.description`, { defaultValue: c.spec.description })}
                   </p>
                   <Link
-                    to={caseHref(c.meta.id)}
+                    to={caseHref(c.meta.id, locale)}
                     className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded text-sm font-bold shadow transition-colors w-full text-center"
                   >
-                    Open case
+                    {t('home.openCase')}
                   </Link>
                 </div>
               ))
             ) : (
               <div className="md:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-6 text-sm text-slate-400">
-                No official cases are available yet.
+                {t('home.noCases')}
               </div>
             )}
           </div>
@@ -109,10 +116,10 @@ export const Home = () => {
 
         <section className="pb-6">
           <Link
-            to={workbenchHref()}
+            to={workbenchHref(locale)}
             className="inline-flex px-4 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded text-sm font-bold text-slate-200 shadow transition-colors"
           >
-            Open a blank Workbench (free play)
+            {t('home.openBlankWorkbench')}
           </Link>
         </section>
       </div>

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { caseDocumentToSimInstances } from "../../caseDoc";
 import { resolveRawEdit, resolveKnobEdit } from "../../engine/instanceKnobs";
 import { PreviewController } from "../../engine/previewController";
@@ -11,6 +11,8 @@ import type { NoteContent } from "../../noteTypes";
 import type { PhysicsRefState, SimInstance, SimulationParams } from "../../types";
 import { deriveHeadingAnchors } from "../NotePanel";
 import { ReadingColumn } from "./ReadingColumn";
+import { homeHref } from "../../homeLinks";
+import { localeFromPathname } from "../../localeRouting";
 
 function plainTextFromInlineContent(content: unknown): string {
   if (typeof content === "string") return content;
@@ -47,6 +49,8 @@ export const ReadingPresenter: React.FC<{
   caseDoc: CaseDocument;
   column: ReadingColumnEntry[];
 }> = ({ lessonTitle, lessonLevel, objective, caseDoc, column }) => {
+  const location = useLocation();
+  const locale = localeFromPathname(location.pathname);
   const [controller] = useState(() => new PreviewController());
   const [liveInstances, setLiveInstances] = useState<SimInstance[]>(() => caseDocumentToSimInstances(caseDoc));
   const [instanceHealth, setInstanceHealth] = useState<Record<string, SimulationHealth>>({});
@@ -147,7 +151,7 @@ export const ReadingPresenter: React.FC<{
     <div ref={scrollportRef} onScroll={updateReadingProgress} className="h-full min-h-0 w-full overflow-y-auto bg-slate-950 text-slate-200">
       <div className="sticky top-0 z-20 h-12 border-b border-slate-900/80 bg-slate-950/90 backdrop-blur">
         <div className="mx-auto flex h-12 max-w-[960px] items-center gap-3 px-4">
-          <Link to="/" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-100" aria-label="Back to home">
+          <Link to={homeHref(locale)} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-100" aria-label="Back to home">
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div className="min-w-0 truncate text-sm font-semibold text-slate-300">{lessonTitle}</div>

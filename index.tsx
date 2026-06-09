@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Navigate, Routes, Route, useLocation, useParams } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { Layout } from './components/Layout';
 import { Home } from './components/Home';
@@ -8,7 +8,9 @@ import { OfficialCases } from './components/Cases';
 import { LessonReadingRoute } from './components/reading/LessonReadingRoute';
 import Workbench from './WorkbenchPage';
 import './index.css';
+import './i18n';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { detectPreferredLocale, isLocale, prefixPath, stripLocaleFromPathname } from './localeRouting';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -16,19 +18,43 @@ if (!rootElement) {
 }
 
 const root = ReactDOM.createRoot(rootElement);
+
+const appRoutes = () => (
+  <>
+    <Route index element={<Home />} />
+    <Route path="cases" element={<OfficialCases />} />
+    <Route path="lesson/:id" element={<LessonReadingRoute />} />
+    <Route path="workbench" element={<Workbench />} />
+    <Route path="workbench/:caseId" element={<Workbench />} />
+    <Route path="*" element={<Navigate to="." replace />} />
+  </>
+);
+
+const LocalizedLayout = () => {
+  const { locale } = useParams();
+  const location = useLocation();
+  if (!isLocale(locale)) {
+    const redirected = `${prefixPath(stripLocaleFromPathname(location.pathname), detectPreferredLocale())}${location.search}${location.hash}`;
+    return <Navigate to={redirected} replace />;
+  }
+  return <Layout />;
+};
+
+const PreferredLocaleRedirect = () => (
+  <Navigate to={prefixPath("/", detectPreferredLocale())} replace />
+);
+
 root.render(
   <React.StrictMode>
     <ErrorBoundary>
       <AuthProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Layout />}>
-              <Route index element={<Home />} />
-              <Route path="cases" element={<OfficialCases />} />
-              <Route path="lesson/:id" element={<LessonReadingRoute />} />
-              <Route path="workbench" element={<Workbench />} />
-              <Route path="workbench/:caseId" element={<Workbench />} />
+            <Route path="/" element={<PreferredLocaleRedirect />} />
+            <Route path="/:locale" element={<LocalizedLayout />}>
+              {appRoutes()}
             </Route>
+            <Route path="*" element={<PreferredLocaleRedirect />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

@@ -1,4 +1,5 @@
 import { useCallback, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import { useLocation } from "react-router-dom";
 import type { CaseDocument, CaseStatus, CaseVisibility } from "@/caseDoc";
 import { createUserLessonId, getUserLesson, saveLesson } from "@/lessonPersist";
 import { publishLesson } from "@/lessonCloud";
@@ -7,6 +8,8 @@ import type { Lesson, LessonStep } from "@/lessonDoc";
 import type { NoteContent } from "@/noteTypes";
 import type { PanelDef } from "@/types";
 import { EMPTY_NOTE_SPINE } from "@/features/workbench/workbenchDefaults";
+import { lessonHref } from "@/homeLinks";
+import { localeFromPathname } from "@/localeRouting";
 
 type AuthUser = {
   uid: string;
@@ -49,6 +52,8 @@ export function useLessonAuthoring({
   pushWarningToast: (name: string, message: string) => void;
   setAuthoringMode: Dispatch<SetStateAction<boolean>>;
 }) {
+  const location = useLocation();
+  const locale = localeFromPathname(location.pathname);
   const [isLessonDialogOpen, setIsLessonDialogOpen] = useState(false);
   const [lessonTitle, setLessonTitle] = useState("");
   const [savedLesson, setSavedLesson] = useState<{ id: string; title: string } | null>(null);
@@ -109,8 +114,8 @@ export function useLessonAuthoring({
   }, [buildLessonDraft, defaultSceneTitle, lessonTitle, nextLessonId, pushWarningToast]);
 
   const shareUrlFor = useCallback((id: string) => (
-    `${window.location.origin}/lesson/${encodeURIComponent(id)}`
-  ), []);
+    `${window.location.origin}${lessonHref(id, locale)}`
+  ), [locale]);
 
   const copyShareUrl = useCallback(async () => {
     if (!publishedLesson) return;
