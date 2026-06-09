@@ -1,3 +1,5 @@
+import type { StarlingSweepCurve } from "@/engine/guytonStarling";
+
 export type GuytonPaneChromeStateInput = {
   pending: boolean;
   workerBusy: boolean;
@@ -29,4 +31,17 @@ export function guytonPaneChromeState(input: GuytonPaneChromeStateInput): Guyton
 
 function uniqueStrings(values: string[]): string[] {
   return Array.from(new Set(values.filter(Boolean)));
+}
+
+export function guytonStarlingCalibrationLabel(curve?: StarlingSweepCurve): string | undefined {
+  const calibration = curve?.calibration;
+  if (!calibration) return undefined;
+  if (calibration.mode === "calibrated") {
+    const count = calibration.anchorDeltasMl.length || curve?.fit?.sourcePointCount || curve?.points.length || 0;
+    return count > 0 ? `calibrated ${count} anchors` : "calibrated";
+  }
+  if (calibration.mode === "full7-fallback") return "full7 fallback";
+  if (calibration.mode === "full7" || calibration.mode === "full7-reference") return "measured full7";
+  if (calibration.mode === "custom") return "measured custom";
+  return undefined;
 }

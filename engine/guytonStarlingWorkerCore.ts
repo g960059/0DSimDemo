@@ -3,6 +3,7 @@ import {
   buildCommittedGuytonPaneData,
   type GuytonBaseMapResponse,
   type GuytonCurvePoint,
+  type GuytonPaneData,
   type GuytonStarlingWorkerMessage,
   type StarlingCalibrationSummary,
   type StarlingSweepMode,
@@ -52,6 +53,7 @@ type AsyncWorkerOptions = {
 
 type WorkerSettledCore = GuytonWorkerSettledRun & {
   core: ModelCore;
+  calibratedFallbackReasons?: string[];
 };
 
 type WarmStartedSweepRuns = {
@@ -189,23 +191,27 @@ export function buildGuytonBaseMapResponse(
   const rightSnapshot = baseMapVascularSnapshot(core, "right", warnings);
   const leftSnapshot = baseMapVascularSnapshot(core, "left", warnings);
 
+  const rightPane = buildCommittedGuytonPaneData(
+    "right",
+    metrics,
+    observables,
+    rightSnapshot,
+  );
+  const leftPane = buildCommittedGuytonPaneData(
+    "left",
+    metrics,
+    observables,
+    leftSnapshot,
+  );
+  resolvedBaseline.calibratedFallbackReasons = calibratedResidualFallbackReasons({ right: rightPane, left: leftPane });
+
   const response: GuytonBaseMapResponse = {
     type: "base-map",
     requestId: req.requestId,
     signature: req.signature,
     instanceId: req.instanceId,
-    right: buildCommittedGuytonPaneData(
-      "right",
-      metrics,
-      observables,
-      rightSnapshot,
-    ),
-    left: buildCommittedGuytonPaneData(
-      "left",
-      metrics,
-      observables,
-      leftSnapshot,
-    ),
+    right: rightPane,
+    left: leftPane,
     warnings,
   };
   const baseMapMs = performanceNow() - baseMapStart;
@@ -253,6 +259,7 @@ export function buildStarlingSweepResponse(
     mode: plan.mode,
     anchorDeltasMl: plan.anchorDeltasMl,
     fullDeltasMl: plan.fullDeltasMl,
+    fallbackReasons: resolvedBaseline.calibratedFallbackReasons,
   });
   return maybeFallbackToFull7(req, resolvedBaseline, response, plan);
 }
@@ -316,6 +323,7 @@ export async function buildParallelStarlingSweepResponse(
       mode: plan.mode,
       anchorDeltasMl: plan.anchorDeltasMl,
       fullDeltasMl: plan.fullDeltasMl,
+      fallbackReasons: baseline.calibratedFallbackReasons,
     });
     return maybeFallbackToFull7(req, baseline, response, plan);
   } catch (err) {
@@ -376,6 +384,7 @@ function maybeFallbackToFull7(
 
 function calibratedFallbackReasons(response: StarlingSweepWorkerMessage): string[] {
   const reasons: string[] = [];
+  if (response.timing?.fallbackReasons?.length) reasons.push(...response.timing.fallbackReasons);
   for (const [side, curve] of [["right", response.right], ["left", response.left]] as const) {
     if (!curve) {
       reasons.push(`${side} curve missing`);
@@ -385,6 +394,17 @@ function calibratedFallbackReasons(response: StarlingSweepWorkerMessage): string
     if (curve.points.some((point) => point.quality === "invalid")) reasons.push(`${side} invalid anchor`);
   }
   return Array.from(new Set(reasons));
+}
+
+function calibratedResidualFallbackReasons(panes: { right?: GuytonPaneData; left?: GuytonPaneData }): string[] {
+  const reasons: string[] = [];
+  for (const side of ["right", "left"] as const) {
+    const diagnostics = panes[side]?.guytonDiagnostics;
+    if (!diagnostics) continue;
+    if (diagnostics.pump.exceedsThreshold) reasons.push(`${side} pump residual threshold`);
+    if (diagnostics.return.exceedsThreshold) reasons.push(`${side} return residual threshold`);
+  }
+  return reasons;
 }
 
 function withCalibrationSummary<T extends StarlingSweepCurve | undefined>(

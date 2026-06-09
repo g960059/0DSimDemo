@@ -13,6 +13,7 @@ import {
   buildGuytonBaseMapResponse,
   buildGuytonStarlingWorkerMessages,
   buildStarlingSweepResponse,
+  buildWorkerBaseline,
   classifyStarlingSweepDeltaPolicy,
   postGuytonStarlingWorkerMessages,
   postGuytonStarlingWorkerMessagesAsync,
@@ -104,6 +105,21 @@ describe("Guyton / Starling worker helpers", () => {
     expectSortedByPressure(response.right?.points ?? []);
     expectSortedByPressure(response.left?.points ?? []);
     expectSweepTiming(response);
+  });
+
+  it("falls back to full7 when committed Guyton residual diagnostics exceed threshold", () => {
+    const req = request();
+    const baseline = buildWorkerBaseline(req);
+    buildGuytonBaseMapResponse(req, baseline);
+    baseline.calibratedFallbackReasons = ["left return residual threshold"];
+
+    const response = buildStarlingSweepResponse(req, baseline);
+
+    expect(response.timing?.mode).toBe("full7-fallback");
+    expect(response.timing?.fallbackReasons).toContain("left return residual threshold");
+    expect(response.right?.points).toHaveLength(7);
+    expect(response.right?.calibration?.mode).toBe("full7-fallback");
+    expect(response.warnings.some((warning) => warning.includes("calibrated Starling fallback"))).toBe(true);
   });
 
   it("chooses adaptive default deltas and preserves custom deltas", () => {

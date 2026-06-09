@@ -43,7 +43,7 @@ import {
     type GuytonSteadyMapPreview,
     type GuytonSteadyMapState,
 } from './guytonSteadyMapTransition';
-import { guytonPaneChromeState } from './guytonPaneChrome';
+import { guytonPaneChromeState, guytonStarlingCalibrationLabel } from './guytonPaneChrome';
 import { requestGuytonStarlingWorkerMessages } from './guytonStarlingWorkerClient';
 
 interface ChartPanelProps {
@@ -1334,7 +1334,16 @@ type GuytonSeries = {
     status: 'ready' | 'pending' | 'empty';
     warnings: string[];
     stressWarnings: string[];
+    calibrationLabel?: string;
 };
+
+function sweepCurveForSide(
+    map: GuytonSteadyMap | GuytonSteadyMapPreview | GuytonSteadyMapGhost | undefined,
+    side: GuytonSide,
+) {
+    if (!map?.sweep) return undefined;
+    return side === 'right' ? map.sweep.right : map.sweep.left;
+}
 
 export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ instances, config, type }) => {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -1503,6 +1512,7 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
                 status,
                 warnings: guytonSteadyMapWarnings(state),
                 stressWarnings: guytonSteadyMapStressWarnings(state),
+                calibrationLabel: guytonStarlingCalibrationLabel(sweepCurveForSide(state.current ?? state.preview ?? state.ghost, side)),
             }];
         });
     }, [visibleInstances, side, tick]);
@@ -1729,6 +1739,7 @@ function drawGuytonCanvas(
             return sweep && sweep.points.length >= 1;
         })),
         hasGhost: Boolean(series.some((item) => item.ghost)),
+        calibrationLabel: series.map((item) => item.calibrationLabel).find(Boolean),
     });
     ctx.restore();
 }
@@ -1875,7 +1886,7 @@ function drawPoint(ctx: CanvasRenderingContext2D, x: number, y: number, color: s
 function drawLegend(
     ctx: CanvasRenderingContext2D,
     plot: { left: number; right: number; top: number },
-    options: { hasSweep: boolean; hasGhost: boolean },
+    options: { hasSweep: boolean; hasGhost: boolean; calibrationLabel?: string },
 ) {
     if (plot.right - plot.left < 360) return;
     const x0 = plot.right - 140;
@@ -1899,6 +1910,14 @@ function drawLegend(
         ctx.textBaseline = 'middle';
         ctx.fillText(label, x0 + 26, yy);
     });
+    if (options.calibrationLabel) {
+        const yy = y0 + rows.length * 15;
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '9px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(options.calibrationLabel, x0, yy);
+    }
     ctx.restore();
 }
 

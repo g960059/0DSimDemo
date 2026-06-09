@@ -39,7 +39,9 @@ describe("Starling sweep fit", () => {
   it("classifies Starling sweep point quality for display", () => {
     expect(classifyStarlingSweepPoint({ settled: true, status: "ok" })).toBe("reliable");
     expect(classifyStarlingSweepPoint({ settled: false, status: "ok" })).toBe("stress");
-    expect(classifyStarlingSweepPoint({ settled: true, status: "warning" })).toBe("invalid");
+    expect(classifyStarlingSweepPoint({ settled: true, status: "warning" })).toBe("stress");
+    expect(classifyStarlingSweepPoint({ settled: true, status: "failed" })).toBe("invalid");
+    expect(classifyStarlingSweepPoint({ settled: true, status: "ok", quality: "invalid" })).toBe("invalid");
   });
 
   it("uses quality when present and still excludes stress points from the fit", () => {

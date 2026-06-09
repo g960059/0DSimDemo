@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { guytonPaneChromeState } from "@/components/guytonPaneChrome";
+import { guytonPaneChromeState, guytonStarlingCalibrationLabel } from "@/components/guytonPaneChrome";
 
 describe("Guyton pane chrome helpers", () => {
   it("dedupes warnings for the warning popover", () => {
@@ -35,5 +35,31 @@ describe("Guyton pane chrome helpers", () => {
       workerBusy: true,
       warnings: [],
     }).showSpinner).toBe(true);
+  });
+
+  it("formats compact calibrated sweep labels", () => {
+    expect(guytonStarlingCalibrationLabel({
+      side: "left",
+      points: [],
+      warnings: [],
+      calibration: {
+        mode: "calibrated",
+        plannedDeltasMl: [-900, -300, 0, 300, 900],
+        anchorDeltasMl: [-900, 0, 300, 900],
+        fallbackReasons: [],
+      },
+    })).toBe("calibrated 4 anchors");
+
+    expect(guytonStarlingCalibrationLabel({
+      side: "left",
+      points: [],
+      warnings: [],
+      calibration: {
+        mode: "full7-fallback",
+        plannedDeltasMl: [-900, -600, -300, 0, 300, 600, 900],
+        anchorDeltasMl: [-900, 0, 300, 900],
+        fallbackReasons: ["left return residual threshold"],
+      },
+    })).toBe("full7 fallback");
   });
 });
