@@ -94,8 +94,15 @@ The run above completed with `points=5 period2=4 maxAdjacentDelta=0.592 maxRever
 Interpretation:
 
 - Positive `tauLambdaActSec` often suppresses period-2 classification in this focused march, supporting the active-stretch-gain hypothesis.
+- This should not be read as proof of stabilization. `max adjacent delta = 1.0000` means adjacent beats are still maximally different under the settle fingerprint normalization, so positive tau can also be moving the system into a non-period-2/non-converged regime.
 - The result is not yet sufficient for default adoption. Some tau/dt combinations still show large adjacent deltas or large local slopes.
 - Clamp/nonsmooth flags should be considered before using return-map slopes as calibration targets.
+
+PR #114 updates the report so reviewers can avoid this misread:
+
+- branch amplitude and branch amplitude fraction are displayed as the primary low-preload stabilization signal
+- `dLog...dLambdaAct` names clarify that static active-gain diagnostics are derivatives with respect to the filtered active-stretch input, not raw instantaneous geometry
+- the return-map diagnostic includes both `volumeLambdaActFixed` and `volumeLambdaActReset` modes
 
 ## Review questions for model team
 

@@ -26,6 +26,8 @@ describe("low-preload Starling debug diagnostics", () => {
       expect(t?.gOver).toBeGreaterThanOrEqual(0);
       expect(t?.gOver).toBeLessThanOrEqual(1);
       expect(t?.forceVelocityScale).toBeGreaterThan(0);
+      expect(Number.isFinite(t?.dLogCompositeActive_dLambdaAct)).toBe(true);
+      expect(Number.isFinite(t?.lambdaActMinusRaw)).toBe(true);
       expect(Number.isFinite(t?.dLogCompositeActive_dLambda)).toBe(true);
     }
   });
@@ -42,7 +44,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(diagnostics.valveDiodeClampHits).toBeDefined();
   });
 
-  it("builds a schema-v4 low-preload report with active, valve, clamp, return-map, and tau/dt fields", () => {
+  it("builds a schema-v5 low-preload report with active, valve, clamp, return-map, and tau/dt fields", () => {
     const report = runLowPreloadDebug({
       outDir: "unused",
       targetVolumeMl: 5600,
@@ -53,7 +55,7 @@ describe("low-preload Starling debug diagnostics", () => {
       sampleHz: 40,
     });
 
-    expect(report.schemaVersion).toBe(4);
+    expect(report.schemaVersion).toBe(5);
     expect(report.dtScenarios).toHaveLength(1);
     expect(report.points).toHaveLength(1);
     const point = report.points[0];
@@ -71,17 +73,25 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(Number.isFinite(point.returnMap.features.EDV_L?.centralSlope)).toBe(true);
     expect(Number.isFinite(point.returnMap.features.CO_L?.centralSlope)).toBe(true);
     expect(Number.isFinite(point.returnMap.twoBeatSamePhase?.features.EDV_L?.centralSlope)).toBe(true);
+    expect(point.returnMap.primaryMode).toBe("volumeLambdaActFixed");
+    expect(point.returnMap.modes.volumeLambdaActFixed?.oneBeat).toBeDefined();
+    expect(point.returnMap.modes.volumeLambdaActReset?.twoBeatSamePhase).toBeDefined();
     expect(point.returnMap.branchAmplitude.CO_L).toEqual(expect.any(Number));
+    expect(point.returnMap.branchAmplitudeFraction.CO_L).toEqual(expect.any(Number));
     expect(Number.isFinite(report.summary.maxAbsReturnMapSlopeEDVL)).toBe(true);
+    expect(Number.isFinite(report.summary.maxBranchAmplitudeFractionCOL)).toBe(true);
 
     const md = reportToMarkdown(report);
     expect(md).toContain("worst signal");
     expect(md).toContain("one-beat EDV slope");
     expect(md).toContain("two-beat EDV slope");
+    expect(md).toContain("branch CO frac");
     expect(md).toContain("Dynamic-flow clamps");
     const csv = reportToCsv(report);
     expect(csv).toContain("LV_KdMean");
     expect(csv).toContain("LV_lambdaActMean");
+    expect(csv).toContain("LV_lambdaActMinusRawMean");
+    expect(csv).toContain("branchAmplitudeFractionCO_L");
     expect(csv).toContain("returnMapEDVSlope");
   });
 
