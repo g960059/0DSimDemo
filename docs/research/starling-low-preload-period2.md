@@ -154,6 +154,34 @@ After PR #114 the same report tightens the evaluation gate without changing mode
 
 This is intentionally not a solver or model fix. It is a reproducible handoff artifact for model review.
 
+After PR #115 the diagnostic workflow is split into a fast branch-first pass and a selected return-map pass:
+
+- `--return-map-mode=none|fixed|reset|both` controls whether EDV-section return-map diagnostics are computed. The default remains `both` for compatibility.
+- `--branch-only` is an alias for `--return-map-mode=none`; it keeps period, branch-amplitude, clamp, valve, and active-stress diagnostics while skipping expensive return maps.
+- `--max-return-map-points=N` limits return-map diagnostics to suspicious points selected by branch amplitude, clamp activity, lowest finite preload, and the `-1250 mL` baseline representative when present.
+- `--lambda-act-scope=lv|ventricles|all` applies off-by-default `tauLambdaActSec` only to the selected active chamber set. The default is `all`, matching the earlier report behavior.
+- `--quiet-clamp-log` suppresses console clamp spam during debug runs while preserving clamp counters in `report.json`.
+
+For broad model-team comparisons, prefer the matrix runner:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/manual-matrix \
+  --deltas=0,-900,-1000,-1100,-1200,-1250,-1300,-1400,-1500,-1600 \
+  --dt=0.001,0.0005 \
+  --lambda-act-tau=0,0.05,0.10,0.15,0.20,0.40 \
+  --lambda-act-scope=lv,ventricles \
+  --max-return-map-points=6
+```
+
+The matrix runner first performs branch-only marches across the full grid, then replays each selected scenario with `return-map-mode=both` while computing EDV-section return maps only for the selected suspicious deltas. It writes:
+
+- `matrix-report.json`
+- `matrix-report.md`
+- `branch-table.csv`
+
+This keeps the default debug command available for deep single-scenario investigation, while making tau/scope sweeps cheap enough to run routinely.
+
 ## Recommended root-fix experiments
 
 The next model-level PR should be evidence-first. Do not start by hiding points, changing the Starling fit, or lowering `betaLambda` globally.

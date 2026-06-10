@@ -15,8 +15,13 @@ type DebugOptions = {
   deltasMl: number[];
   dtValues: number[];
   lambdaActTauSecValues: number[];
+  lambdaActScope: LambdaActScope;
   traceBeats: number;
   sampleHz: number;
+  returnMapMode: ReturnMapModeOption;
+  maxReturnMapPoints?: number;
+  returnMapDeltasMl?: number[];
+  quietClampLog: boolean;
 };
 
 type ActiveBeatSummary = {
@@ -84,6 +89,8 @@ type ReturnMapFeature = {
 
 type ReturnMapFeatureKey = "EDV_L" | "ESV_L" | "CO_L" | "LAPMean";
 type ReturnMapModeKey = "volumeLambdaActFixed" | "volumeLambdaActReset";
+export type ReturnMapModeOption = "none" | "fixed" | "reset" | "both";
+export type LambdaActScope = "lv" | "ventricles" | "all";
 
 type ReturnMapPhaseDiagnostic = {
   measuredBeatPlus: number | null;
@@ -96,7 +103,7 @@ type ReturnMapPhaseDiagnostic = {
 };
 
 type ReturnMapDiagnostic = {
-  status: "ok" | "failed";
+  status: "ok" | "failed" | "skipped";
   method: "edv-section-volume-preserving-lv-pvein-central-difference";
   sectionInterpolation: "sample-peak";
   perturbationMl: number;
@@ -173,6 +180,7 @@ type MetricSummary = {
 type DtScenarioReport = {
   dt: number;
   lambdaActTauSec: number;
+  lambdaActScope: LambdaActScope;
   points: DebugPoint[];
   summary: DebugSummary;
 };
@@ -200,15 +208,20 @@ type DebugSummary = {
 };
 
 type DebugReport = {
-  schemaVersion: 5;
+  schemaVersion: 6;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
   deltasMl: number[];
   dtValues: number[];
   lambdaActTauSecValues: number[];
+  lambdaActScope: LambdaActScope;
   traceBeats: number;
   sampleHz: number;
+  returnMapMode: ReturnMapModeOption;
+  maxReturnMapPoints?: number;
+  returnMapDeltasMl?: number[];
+  quietClampLog: boolean;
   points: DebugPoint[];
   summary: DebugSummary;
   dtScenarios: DtScenarioReport[];
@@ -238,7 +251,9 @@ type DebugRun = {
 const DEFAULT_DELTAS = [0, -900, -1000, -1100, -1200, -1300, -1400, -1500, -1600];
 const DEFAULT_DT_VALUES = [0.001, 0.0005, 0.002];
 const DEFAULT_LAMBDA_ACT_TAU_SEC_VALUES = [0];
+const DEFAULT_LAMBDA_ACT_SCOPE: LambdaActScope = "all";
 const DEFAULT_SAMPLE_HZ = 120;
+const DEFAULT_RETURN_MAP_MODE: ReturnMapModeOption = "both";
 const RETURN_MAP_PERTURBATION_ML = 0.5;
 const SETTLE_POLICY = { ...PREVIEW_SETTLE_POLICY, capSeconds: 45 };
 const RUN_OPTIONS = {
@@ -249,6 +264,7 @@ const RUN_OPTIONS = {
 const CSV_COLUMNS = [
   "dt",
   "lambdaActTauSec",
+  "lambdaActScope",
   "deltaVolumeMl",
   "targetVolumeMl",
   "beat",
@@ -269,6 +285,7 @@ const CSV_COLUMNS = [
   "branchAmplitudeFractionCO_L",
   "branchAmplitudeEDV_L",
   "branchAmplitudeFractionEDV_L",
+  "returnMapStatus",
   "returnMapEDVSlope",
   "returnMapTwoBeatEDVSlope",
   "returnMapResetLambdaActTwoBeatEDVSlope",
@@ -277,6 +294,11 @@ const CSV_COLUMNS = [
 ];
 
 export function runLowPreloadDebug(opts: DebugOptions): DebugReport {
+  const build = (): DebugReport => runLowPreloadDebugImpl(opts);
+  return opts.quietClampLog ? withQuietClampLogs(build) : build();
+}
+
+function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
   const dtValues = opts.dtValues.length > 0 ? opts.dtValues : DEFAULT_DT_VALUES;
   const lambdaActTauSecValues = opts.lambdaActTauSecValues.length > 0
     ? opts.lambdaActTauSecValues
@@ -284,15 +306,20 @@ export function runLowPreloadDebug(opts: DebugOptions): DebugReport {
   const dtScenarios = lambdaActTauSecValues.flatMap((tau) => dtValues.map((dt) => runDtScenario(opts, dt, tau)));
   const primary = dtScenarios[0] ?? runDtScenario(opts, 0.001, 0);
   return {
-    schemaVersion: 5,
+    schemaVersion: 6,
     generatedAt: new Date().toISOString(),
     measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve diagnostics; branch-amplitude primary gate; EDV-section volume-preserving LV/PVein one-beat/two-beat return-map slopes with lambdaAct consistency modes; dt and off-by-default lambdaAct sensitivity",
     targetVolumeMl: opts.targetVolumeMl,
     deltasMl: opts.deltasMl,
     dtValues,
     lambdaActTauSecValues,
+    lambdaActScope: opts.lambdaActScope,
     traceBeats: opts.traceBeats,
     sampleHz: opts.sampleHz,
+    returnMapMode: opts.returnMapMode,
+    maxReturnMapPoints: opts.maxReturnMapPoints,
+    returnMapDeltasMl: opts.returnMapDeltasMl,
+    quietClampLog: opts.quietClampLog,
     points: primary.points,
     summary: primary.summary,
     dtScenarios,
@@ -304,20 +331,38 @@ export function runLowPreloadDebug(opts: DebugOptions): DebugReport {
   };
 }
 
+function withQuietClampLogs<T>(fn: () => T): T {
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    const text = args.map((arg) => String(arg)).join(" ");
+    if (/\bclamp\b/i.test(text)) return;
+    originalWarn(...args);
+  };
+  try {
+    return fn();
+  } finally {
+    console.warn = originalWarn;
+  }
+}
+
 export function reportToMarkdown(report: DebugReport): string {
   const lines: string[] = [];
   lines.push("# Starling low-preload root-cause diagnostics");
   lines.push("");
   lines.push(`Generated: ${report.generatedAt}`);
   lines.push(`Measurement: ${report.measurementMode}`);
+  lines.push(`lambdaAct scope: ${report.lambdaActScope}`);
+  lines.push(`return-map mode: ${report.returnMapMode}`);
+  if (report.maxReturnMapPoints != null) lines.push(`max return-map points: ${report.maxReturnMapPoints}`);
   lines.push("");
   lines.push("## Summary");
   lines.push("");
-  lines.push("| tau lambdaAct s | dt | points | period-2 | max adjacent delta | max period delta | max CO branch amp | max CO branch frac | max EDV branch amp | max EDV branch frac | max valve reverse mL | max clamp hits | max one-beat EDV slope | max two-beat EDV slope |");
-  lines.push("| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| tau lambdaAct s | scope | dt | points | period-2 | max adjacent delta | max period delta | max CO branch amp | max CO branch frac | max EDV branch amp | max EDV branch frac | max valve reverse mL | max clamp hits | max one-beat EDV slope | max two-beat EDV slope |");
+  lines.push("| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
   for (const scenario of report.dtScenarios) {
     lines.push([
       round(scenario.lambdaActTauSec, 4),
+      scenario.lambdaActScope,
       round(scenario.dt, 5),
       scenario.summary.pointCount,
       scenario.summary.period2Count,
@@ -336,8 +381,8 @@ export function reportToMarkdown(report: DebugReport): string {
   lines.push("");
   lines.push("## Primary dt points");
   lines.push("");
-  lines.push("| delta | target TBV | seed | period | reason | actual s | worst signal | worst delta | adj delta | period delta | LAP | CO_L period | CO_L last beat | CO_R period | PV return | clamp hits | valve reverse max | LV lambda raw | LV lambda act | LV lambdaAct-raw | LV Kd mean | LV fIso mean | branch CO amp | branch CO frac | branch EDV amp | branch EDV frac | one-beat EDV slope | two-beat EDV slope | reset-lambdaAct two-beat EDV slope | nonsmooth |");
-  lines.push("| ---: | ---: | ---: | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
+  lines.push("| delta | target TBV | seed | period | reason | actual s | worst signal | worst delta | adj delta | period delta | LAP | CO_L period | CO_L last beat | CO_R period | PV return | clamp hits | valve reverse max | LV lambda raw | LV lambda act | LV lambdaAct-raw | LV Kd mean | LV fIso mean | branch CO amp | branch CO frac | branch EDV amp | branch EDV frac | return-map | one-beat EDV slope | two-beat EDV slope | reset-lambdaAct two-beat EDV slope | nonsmooth |");
+  lines.push("| ---: | ---: | ---: | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | --- |");
   for (const p of report.points) {
     const lastBeat = p.beatTrace.at(-1);
     const lv = lastBeat?.active.LV;
@@ -368,6 +413,7 @@ export function reportToMarkdown(report: DebugReport): string {
       round(p.returnMap.branchAmplitudeFraction.CO_L ?? NaN, 4),
       round(p.returnMap.branchAmplitude.EDV_L ?? NaN, 4),
       round(p.returnMap.branchAmplitudeFraction.EDV_L ?? NaN, 4),
+      p.returnMap.status,
       round(returnMapSlope(p, "EDV_L"), 4),
       round(twoBeatReturnMapSlope(p, "EDV_L"), 4),
       round(modeTwoBeatSlope(p, "volumeLambdaActReset", "EDV_L"), 4),
@@ -407,6 +453,7 @@ export function reportToCsv(report: DebugReport): string {
         rows.push([
           scenario.dt,
           scenario.lambdaActTauSec,
+          scenario.lambdaActScope,
           point.deltaVolumeMl,
           point.targetVolumeMl,
           beat.beat,
@@ -427,6 +474,7 @@ export function reportToCsv(report: DebugReport): string {
           point.returnMap.branchAmplitudeFraction.CO_L ?? "",
           point.returnMap.branchAmplitude.EDV_L ?? "",
           point.returnMap.branchAmplitudeFraction.EDV_L ?? "",
+          point.returnMap.status,
           point.returnMap.features.EDV_L?.centralSlope ?? "",
           point.returnMap.twoBeatSamePhase?.features.EDV_L?.centralSlope ?? "",
           point.returnMap.modes.volumeLambdaActReset?.twoBeatSamePhase?.features.EDV_L?.centralSlope ?? "",
@@ -440,7 +488,7 @@ export function reportToCsv(report: DebugReport): string {
 }
 
 function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number): DtScenarioReport {
-  const params = paramsWithLambdaActTau(DEFAULT_PARAMS, lambdaActTauSec);
+  const params = paramsWithLambdaActTau(DEFAULT_PARAMS, lambdaActTauSec, opts.lambdaActScope);
   const req: StarlingSweepRequest = {
     requestId: "debug-starling-low-preload",
     signature: "debug-starling-low-preload",
@@ -451,6 +499,7 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
     sweepMode: "adaptive",
   };
   const points: DebugPoint[] = [];
+  const returnMapStates: SerializedModelState[] = [];
   let seedState: SerializedModelState | undefined;
   let seededFromDeltaMl = 0;
   for (const delta of opts.deltasMl) {
@@ -459,7 +508,14 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
     traceCore.unpackState(run.state);
     const traceSamples = collectTraceSamples(traceCore, opts.traceBeats, dt, opts.sampleHz);
     const beatTrace = summarizeBeatTrace(traceSamples, req.params.HR, opts.traceBeats);
-    const returnMap = estimateReturnMapDiagnostic(run.state, req.params, dt, opts.sampleHz);
+    const branchAmplitude = branchAmplitudeFromTrace(traceSamples, req.params.HR);
+    const branchAmplitudeFraction = branchAmplitudeFractionFromTrace(traceSamples, req.params.HR);
+    const returnMap = skippedReturnMapDiagnostic(
+      run.state,
+      branchAmplitude,
+      branchAmplitudeFraction,
+      opts.returnMapMode === "none" ? "return-map disabled" : "return-map not selected",
+    );
     points.push({
       deltaVolumeMl: delta,
       targetVolumeMl: opts.targetVolumeMl + delta,
@@ -518,25 +574,92 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
         septumShiftMl: run.observables.septumShiftMl,
       },
     });
+    returnMapStates.push(run.state);
     seedState = run.state;
     seededFromDeltaMl = delta;
   }
-  return { dt, lambdaActTauSec, points, summary: summarizePoints(points) };
+  const selectedReturnMapIndices = selectedReturnMapPointIndices(points, opts);
+  for (const index of selectedReturnMapIndices) {
+    const point = points[index];
+    if (!point) continue;
+    point.returnMap = estimateReturnMapDiagnostic(
+      returnMapStates[index],
+      req.params,
+      dt,
+      opts.sampleHz,
+      opts.returnMapMode,
+      point.returnMap.branchAmplitude,
+      point.returnMap.branchAmplitudeFraction,
+    );
+  }
+  return { dt, lambdaActTauSec, lambdaActScope: opts.lambdaActScope, points, summary: summarizePoints(points) };
 }
 
-function paramsWithLambdaActTau(params: CoreRuntimeParams, tauSec: number): CoreRuntimeParams {
+function selectedReturnMapPointIndices(points: DebugPoint[], opts: DebugOptions): number[] {
+  if (opts.returnMapMode === "none") return [];
+  if (opts.returnMapDeltasMl && opts.returnMapDeltasMl.length > 0) {
+    const wanted = new Set(opts.returnMapDeltasMl.map((delta) => String(delta)));
+    return points
+      .map((point, index) => [point, index] as const)
+      .filter(([point]) => wanted.has(String(point.deltaVolumeMl)))
+      .map(([, index]) => index);
+  }
+  if (opts.maxReturnMapPoints != null && Number.isFinite(opts.maxReturnMapPoints) && opts.maxReturnMapPoints < points.length) {
+    return selectSuspiciousPointIndices(points, Math.max(0, Math.floor(opts.maxReturnMapPoints)));
+  }
+  return points.map((_, index) => index);
+}
+
+export function selectSuspiciousPointIndices(points: DebugPoint[], limit: number): number[] {
+  if (limit <= 0 || points.length === 0) return [];
+  const selected = new Set<number>();
+  const addIndex = (index: number | undefined) => {
+    if (index != null && index >= 0 && index < points.length && selected.size < limit) selected.add(index);
+  };
+  const byScore = (score: (point: DebugPoint) => number) => points
+    .map((point, index) => ({ index, score: score(point) }))
+    .filter((entry) => Number.isFinite(entry.score))
+    .sort((a, b) => b.score - a.score);
+  const baselineIndex = points.findIndex((point) => point.deltaVolumeMl === -1250);
+  addIndex(baselineIndex >= 0 ? baselineIndex : undefined);
+  for (const entry of byScore((point) => Math.max(
+    point.returnMap.branchAmplitudeFraction.CO_L ?? 0,
+    point.returnMap.branchAmplitudeFraction.EDV_L ?? 0,
+    point.returnMap.branchAmplitudeFraction.ESV_L ?? 0,
+  )).slice(0, 2)) addIndex(entry.index);
+  addIndex(byScore((point) => point.health.clampHitCount + point.clampDiagnostics.totalClampHits)[0]?.index);
+  const finiteByDelta = points
+    .map((point, index) => ({ point, index }))
+    .filter(({ point }) => Number.isFinite(point.periodMetrics.CO_L) && Number.isFinite(point.periodMetrics.LAPMean))
+    .sort((a, b) => a.point.deltaVolumeMl - b.point.deltaVolumeMl);
+  addIndex(finiteByDelta[0]?.index);
+  for (const entry of byScore((point) => Math.max(
+    point.returnMap.branchAmplitudeFraction.CO_L ?? 0,
+    point.returnMap.branchAmplitudeFraction.EDV_L ?? 0,
+  ))) addIndex(entry.index);
+  return Array.from(selected).slice(0, limit).sort((a, b) => a - b);
+}
+
+function paramsWithLambdaActTau(params: CoreRuntimeParams, tauSec: number, scope: LambdaActScope): CoreRuntimeParams {
   const tau = Math.max(Number.isFinite(tauSec) ? tauSec : 0, 0);
   if (tau <= 0) return params;
   const activeOverride = { tauLambdaActSec: tau };
+  const apply = (chamber: "LV" | "RV" | "LA" | "RA") => {
+    if (scope === "lv") return chamber === "LV";
+    if (scope === "ventricles") return chamber === "LV" || chamber === "RV";
+    return true;
+  };
+  const nodeOverrides = { ...(params.nodeOverrides ?? {}) };
+  for (const chamber of ["LV", "RV", "LA", "RA"] as const) {
+    if (!apply(chamber)) continue;
+    nodeOverrides[chamber] = {
+      ...(nodeOverrides[chamber] ?? {}),
+      active: { ...((nodeOverrides[chamber]?.active as Record<string, number> | undefined) ?? {}), ...activeOverride },
+    };
+  }
   return {
     ...params,
-    nodeOverrides: {
-      ...(params.nodeOverrides ?? {}),
-      LV: { ...(params.nodeOverrides?.LV ?? {}), active: { ...((params.nodeOverrides?.LV?.active as Record<string, number> | undefined) ?? {}), ...activeOverride } },
-      RV: { ...(params.nodeOverrides?.RV ?? {}), active: { ...((params.nodeOverrides?.RV?.active as Record<string, number> | undefined) ?? {}), ...activeOverride } },
-      LA: { ...(params.nodeOverrides?.LA ?? {}), active: { ...((params.nodeOverrides?.LA?.active as Record<string, number> | undefined) ?? {}), ...activeOverride } },
-      RA: { ...(params.nodeOverrides?.RA ?? {}), active: { ...((params.nodeOverrides?.RA?.active as Record<string, number> | undefined) ?? {}), ...activeOverride } },
-    },
+    nodeOverrides,
   };
 }
 
@@ -596,23 +719,46 @@ function estimateReturnMapDiagnostic(
   params: CoreRuntimeParams,
   dt: number,
   sampleHz: number,
+  returnMapMode: ReturnMapModeOption,
+  branchAmplitude: Partial<Record<ReturnMapFeatureKey, number>>,
+  branchAmplitudeFraction: Partial<Record<ReturnMapFeatureKey, number>>,
 ): ReturnMapDiagnostic {
+  if (returnMapMode === "none") {
+    return skippedReturnMapDiagnostic(state, branchAmplitude, branchAmplitudeFraction, "return-map disabled");
+  }
   try {
     const section = findNextLvEdvSection(state, params, dt);
-    const fixedMode = returnMapModeDiagnostic(section.state, params, dt, sampleHz, "volumeLambdaActFixed");
-    const resetMode = returnMapModeDiagnostic(section.state, params, dt, sampleHz, "volumeLambdaActReset");
-    const branchTraceSamples = collectTraceSamples(newCoreFromState(state, params), 4, dt, sampleHz);
-    const branchAmplitude = branchAmplitudeFromTrace(branchTraceSamples, params.HR);
-    const branchAmplitudeFraction = branchAmplitudeFractionFromTrace(branchTraceSamples, params.HR);
-    const oneBeat = fixedMode.oneBeat;
-    const twoBeatSamePhase = fixedMode.twoBeatSamePhase;
+    const includeFixed = returnMapMode === "fixed" || returnMapMode === "both";
+    const includeReset = returnMapMode === "reset" || returnMapMode === "both";
+    const fixedMode = includeFixed ? returnMapModeDiagnostic(section.state, params, dt, sampleHz, "volumeLambdaActFixed") : undefined;
+    const resetMode = includeReset ? returnMapModeDiagnostic(section.state, params, dt, sampleHz, "volumeLambdaActReset") : undefined;
+    const primaryMode: ReturnMapModeKey = includeFixed ? "volumeLambdaActFixed" : "volumeLambdaActReset";
+    const primary = includeFixed ? fixedMode : resetMode;
+    if (!primary) throw new Error(`unsupported return-map mode: ${returnMapMode}`);
+    const oneBeat = primary.oneBeat;
+    const twoBeatSamePhase = primary.twoBeatSamePhase;
     const nonsmooth = oneBeat.nonsmooth || twoBeatSamePhase.nonsmooth;
+    const modes: ReturnMapDiagnostic["modes"] = {};
+    if (fixedMode) {
+      modes.volumeLambdaActFixed = {
+        description: "volume-preserving LV/PVein perturbation; active-stretch memory remains unchanged",
+        oneBeat: fixedMode.oneBeat,
+        twoBeatSamePhase: fixedMode.twoBeatSamePhase,
+      };
+    }
+    if (resetMode) {
+      modes.volumeLambdaActReset = {
+        description: "same perturbation, with LV lambdaAct reset to post-perturbation raw LV stretch before marching",
+        oneBeat: resetMode.oneBeat,
+        twoBeatSamePhase: resetMode.twoBeatSamePhase,
+      };
+    }
     return {
       status: "ok",
       method: "edv-section-volume-preserving-lv-pvein-central-difference",
       sectionInterpolation: "sample-peak",
       perturbationMl: RETURN_MAP_PERTURBATION_ML,
-      primaryMode: "volumeLambdaActFixed",
+      primaryMode,
       sourcePhi: section.state.phi,
       sectionBeat: section.beat,
       sectionPhi: section.state.phi,
@@ -622,18 +768,7 @@ function estimateReturnMapDiagnostic(
       features: oneBeat.features,
       oneBeat,
       twoBeatSamePhase,
-      modes: {
-        volumeLambdaActFixed: {
-          description: "volume-preserving LV/PVein perturbation; active-stretch memory remains unchanged",
-          oneBeat,
-          twoBeatSamePhase,
-        },
-        volumeLambdaActReset: {
-          description: "same perturbation, with LV lambdaAct reset to post-perturbation raw LV stretch before marching",
-          oneBeat: resetMode.oneBeat,
-          twoBeatSamePhase: resetMode.twoBeatSamePhase,
-        },
-      },
+      modes,
       branchAmplitude,
       branchAmplitudeFraction,
       clampCrossing: oneBeat.clampCrossing || twoBeatSamePhase.clampCrossing,
@@ -656,13 +791,43 @@ function estimateReturnMapDiagnostic(
       oneBeat: null,
       twoBeatSamePhase: null,
       modes: {},
-      branchAmplitude: {},
-      branchAmplitudeFraction: {},
+      branchAmplitude,
+      branchAmplitudeFraction,
       clampCrossing: false,
       nonsmooth: false,
       failureReason: error instanceof Error ? error.message : String(error),
     };
   }
+}
+
+function skippedReturnMapDiagnostic(
+  state: SerializedModelState,
+  branchAmplitude: Partial<Record<ReturnMapFeatureKey, number>>,
+  branchAmplitudeFraction: Partial<Record<ReturnMapFeatureKey, number>>,
+  reason: string,
+): ReturnMapDiagnostic {
+  return {
+    status: "skipped",
+    method: "edv-section-volume-preserving-lv-pvein-central-difference",
+    sectionInterpolation: "sample-peak",
+    perturbationMl: RETURN_MAP_PERTURBATION_ML,
+    primaryMode: "volumeLambdaActFixed",
+    sourcePhi: state.phi,
+    sectionBeat: null,
+    sectionPhi: null,
+    sectionVlvMl: null,
+    measuredBeatPlus: null,
+    measuredBeatMinus: null,
+    features: {},
+    oneBeat: null,
+    twoBeatSamePhase: null,
+    modes: {},
+    branchAmplitude,
+    branchAmplitudeFraction,
+    clampCrossing: false,
+    nonsmooth: false,
+    failureReason: reason,
+  };
 }
 
 function returnMapModeDiagnostic(
@@ -1069,7 +1234,7 @@ function meanNumbers(values: number[]): number {
   return finite.reduce((acc, value) => acc + value, 0) / finite.length;
 }
 
-function parseArgs(args: string[]): DebugOptions {
+export function parseLowPreloadDebugArgs(args: string[]): DebugOptions {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const opts: DebugOptions = {
     outDir: path.join("artifacts", "starling-low-preload-debug", timestamp),
@@ -1077,8 +1242,11 @@ function parseArgs(args: string[]): DebugOptions {
     deltasMl: DEFAULT_DELTAS,
     dtValues: DEFAULT_DT_VALUES,
     lambdaActTauSecValues: DEFAULT_LAMBDA_ACT_TAU_SEC_VALUES,
+    lambdaActScope: DEFAULT_LAMBDA_ACT_SCOPE,
     traceBeats: 10,
     sampleHz: DEFAULT_SAMPLE_HZ,
+    returnMapMode: DEFAULT_RETURN_MAP_MODE,
+    quietClampLog: false,
   };
   for (const arg of args) {
     const [key, value] = arg.split("=", 2);
@@ -1087,6 +1255,12 @@ function parseArgs(args: string[]): DebugOptions {
     else if (key === "--deltas" && value) opts.deltasMl = parseNumberList(value);
     else if (key === "--dt" && value) opts.dtValues = parseNumberList(value);
     else if (key === "--lambda-act-tau" && value) opts.lambdaActTauSecValues = parseNumberList(value);
+    else if (key === "--lambda-act-scope" && value) opts.lambdaActScope = parseLambdaActScope(value);
+    else if (key === "--return-map-mode" && value) opts.returnMapMode = parseReturnMapMode(value);
+    else if (key === "--branch-only") opts.returnMapMode = "none";
+    else if (key === "--max-return-map-points" && value) opts.maxReturnMapPoints = Math.max(0, Math.floor(Number(value)));
+    else if (key === "--return-map-deltas" && value) opts.returnMapDeltasMl = parseNumberList(value);
+    else if (key === "--quiet-clamp-log") opts.quietClampLog = true;
     else if (key === "--trace-beats" && value) opts.traceBeats = Math.max(2, Math.floor(Number(value)));
     else if (key === "--sample-hz" && value) opts.sampleHz = Math.max(20, Math.floor(Number(value)));
     else if (key === "--help") {
@@ -1099,6 +1273,16 @@ function parseArgs(args: string[]): DebugOptions {
   return opts;
 }
 
+function parseReturnMapMode(value: string): ReturnMapModeOption {
+  if (value === "none" || value === "fixed" || value === "reset" || value === "both") return value;
+  throw new Error(`Invalid return-map mode: ${value}`);
+}
+
+function parseLambdaActScope(value: string): LambdaActScope {
+  if (value === "lv" || value === "ventricles" || value === "all") return value;
+  throw new Error(`Invalid lambdaAct scope: ${value}`);
+}
+
 function parseNumberList(value: string): number[] {
   return value.split(",").map((v) => Number(v.trim())).filter(Number.isFinite);
 }
@@ -1107,13 +1291,16 @@ function printHelp(): void {
   // eslint-disable-next-line no-console
   console.log([
     "Usage: npm run debug:starling-low-preload -- [--out=DIR] [--target-volume=5600]",
-    "       [--deltas=0,-900,-1000,-1100] [--dt=0.001,0.0005,0.002] [--lambda-act-tau=0,0.15,0.25,0.4] [--trace-beats=10] [--sample-hz=120]",
+    "       [--deltas=0,-900,-1000,-1100] [--dt=0.001,0.0005,0.002] [--lambda-act-tau=0,0.15,0.25,0.4]",
+    "       [--lambda-act-scope=lv|ventricles|all] [--return-map-mode=none|fixed|reset|both] [--branch-only]",
+    "       [--max-return-map-points=4] [--quiet-clamp-log] [--trace-beats=10] [--sample-hz=120]",
     "",
     "Examples:",
     "  npm run debug:starling-low-preload",
     "  npm run debug:starling-low-preload -- --out=artifacts/starling-low-preload-debug/manual",
     "  npm run debug:starling-low-preload -- --dt=0.001 --deltas=0,-1250 --trace-beats=4",
     "  npm run debug:starling-low-preload -- --deltas=0,-1200,-1250 --dt=0.001,0.0005 --lambda-act-tau=0,0.15,0.25,0.4",
+    "  npm run debug:starling-low-preload -- --branch-only --quiet-clamp-log --deltas=0,-1250,-1400",
   ].join("\n"));
 }
 
@@ -1130,7 +1317,7 @@ function csvCell(value: unknown): string {
 }
 
 function main(): void {
-  const options = parseArgs(process.argv.slice(2));
+  const options = parseLowPreloadDebugArgs(process.argv.slice(2));
   mkdirSync(options.outDir, { recursive: true });
   const report = runLowPreloadDebug(options);
   writeFileSync(path.join(options.outDir, "report.json"), `${JSON.stringify(report, null, 2)}\n`);
@@ -1146,4 +1333,4 @@ function main(): void {
   );
 }
 
-if (!process.env.VITEST) main();
+if (process.env.STARLING_LOW_PRELOAD_DEBUG_MAIN === "1") main();
