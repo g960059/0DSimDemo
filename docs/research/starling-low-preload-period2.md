@@ -143,6 +143,15 @@ After PR #113 the same report adds a v2 return-map and an off-by-default `lambda
 
 This is still not a default model change. `lambdaAct` is an experiment designed to test the external model-team hypothesis that low-preload period-2 is driven by excessive beat-to-beat active-stretch gain. Default adoption requires a separate PR with normal/default, HR100, Guyton/Starling, clamp, valve, and return-map acceptance checks.
 
+After PR #114 the same report tightens the evaluation gate without changing model dynamics:
+
+- Report schema v5 treats last-two-beat `branchAmplitude` and `branchAmplitudeFraction` as the primary classifier-independent signal. A lower `period-2 count` is not considered improvement if adjacent-beat amplitude remains large.
+- Active-stress static-gain fields are also emitted as `dLogAInf_dLambdaAct`, `dLogFIso_dLambdaAct`, `dLogGOver_dLambdaRaw`, and `dLogCompositeActive_dLambdaAct`. The `lambdaAct` composite intentionally covers the `Kd/aInf + fIso` path only; `gOver` remains a raw-lambda gain and is reported separately. The older `...dLambda` aliases remain for compatibility, but reviewers should read the new names when `tauLambdaActSec > 0`.
+- Return-map output now contains two modes:
+  - `volumeLambdaActFixed`: the original volume-preserving LV/PVein perturbation with active-stretch memory held fixed.
+  - `volumeLambdaActReset`: the same perturbation, but LV `lambdaAct` is reset to the post-perturbation raw LV stretch before the Poincare march. This is a quasi-static consistency check for `lambdaAct` experiments.
+- `nonsmooth` / `clampCrossing` slopes remain reportable context but should be excluded from model calibration objectives. Clamp activity itself remains an independent rejection/stress signal.
+
 This is intentionally not a solver or model fix. It is a reproducible handoff artifact for model review.
 
 ## Recommended root-fix experiments

@@ -160,6 +160,12 @@ export type ActiveStressDebugTerms = ChamberPressureTerms & {
   lambdaRaw: number;
   lambdaAct: number;
   tauLambdaActSec: number;
+  dLogAInf_dLambdaAct: number;
+  dLogFIso_dLambdaAct: number;
+  dLogGOver_dLambdaRaw: number;
+  dLogCompositeActive_dLambdaAct: number;
+  lambdaActMinusRaw: number;
+  lambdaActTransferTauSec: number;
   dLogAInf_dLambda: number;
   dLogFIso_dLambda: number;
   dLogGOver_dLambda: number;
@@ -538,6 +544,12 @@ export class ActiveStressChamberModel implements ChamberModel {
       lambdaRaw,
       lambdaAct,
       tauLambdaActSec: Math.max(ap.tauLambdaActSec ?? 0, 0),
+      dLogAInf_dLambdaAct: dLogAInf_dLambda,
+      dLogFIso_dLambdaAct: dLogFIso_dLambda,
+      dLogGOver_dLambdaRaw: dLogGOver_dLambda,
+      dLogCompositeActive_dLambdaAct: dLogAInf_dLambda + dLogFIso_dLambda,
+      lambdaActMinusRaw: lambdaAct - lambdaRaw,
+      lambdaActTransferTauSec: Math.max(ap.tauLambdaActSec ?? 0, 0),
       dLogAInf_dLambda,
       dLogFIso_dLambda,
       dLogGOver_dLambda,
