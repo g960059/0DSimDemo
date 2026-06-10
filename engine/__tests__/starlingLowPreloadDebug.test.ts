@@ -39,7 +39,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(diagnostics.valveDiodeClampHits).toBeDefined();
   });
 
-  it("builds a schema-v2 low-preload report with active, valve, clamp, and dt fields", () => {
+  it("builds a schema-v3 low-preload report with active, valve, clamp, return-map, and dt fields", () => {
     const report = runLowPreloadDebug({
       outDir: "unused",
       targetVolumeMl: 5600,
@@ -49,7 +49,7 @@ describe("low-preload Starling debug diagnostics", () => {
       sampleHz: 40,
     });
 
-    expect(report.schemaVersion).toBe(2);
+    expect(report.schemaVersion).toBe(3);
     expect(report.dtScenarios).toHaveLength(1);
     expect(report.points).toHaveLength(1);
     const point = report.points[0];
@@ -58,11 +58,21 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(point.beatTrace[0].active.LV?.KdMean).toEqual(expect.any(Number));
     expect(point.valveTrace.AoV.maxQ).toEqual(expect.any(Number));
     expect(point.clampDiagnostics.nodeClampHits).toBeDefined();
+    expect(point.returnMap.method).toBe("edv-section-volume-preserving-lv-pvein-central-difference");
+    expect(point.returnMap.status).toBe("ok");
+    expect(point.returnMap.sectionBeat).toEqual(expect.any(Number));
+    expect(Number.isFinite(point.returnMap.sectionPhi)).toBe(true);
+    expect(Number.isFinite(point.returnMap.sectionVlvMl)).toBe(true);
+    expect(Number.isFinite(point.returnMap.features.EDV_L?.centralSlope)).toBe(true);
+    expect(Number.isFinite(point.returnMap.features.CO_L?.centralSlope)).toBe(true);
+    expect(Number.isFinite(report.summary.maxAbsReturnMapSlopeEDVL)).toBe(true);
 
     const md = reportToMarkdown(report);
     expect(md).toContain("worst signal");
+    expect(md).toContain("EDV return slope");
     expect(md).toContain("Dynamic-flow clamps");
     const csv = reportToCsv(report);
     expect(csv).toContain("LV_KdMean");
+    expect(csv).toContain("returnMapEDVSlope");
   });
 });

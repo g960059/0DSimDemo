@@ -114,6 +114,7 @@ After PR #110, the same command also emits root-cause diagnostics:
 - active-stress terms by chamber: `lambda`, `Kd`, `aInf`, `tauA`, `c`, `a`, `sigmaActTarget`, `sigmaAct`, `sigmaPas`, `fIso`, `gOver`, and `forceVelocityScale`.
 - clamp attribution: node clamp hits, dynamic-flow clamp hits, and valve diode clamp hits.
 - valve trace summaries: min/max flow, forward volume, reverse volume, and negative sample count.
+- `returnMap`: an EDV-section, volume-preserving LV/PVein central-difference diagnostic that estimates local one-beat slopes for `EDV_L`, `ESV_L`, `CO_L`, and `LAPMean`.
 - `beat-trace.csv`: a compact table for plotting LV active-stress terms against beat output.
 
 Useful focused runs:
@@ -129,6 +130,7 @@ Interpretation:
 - If the period-2 branch persists at smaller `dt`, active-stress model dynamics are implicated.
 - Valve reverse volume near zero keeps reverse-flow artifacts low on the suspect list.
 - Node-specific clamp hits identify whether the low-preload edge is being shaped by LA / pulmonary venous / other low-volume bounds.
+- Return-map slopes first advance to the next LV EDV section, perturb the serialized state by `LV +/- 0.5 mL` and `PVein -/+ 0.5 mL`, then measure the next complete beat. EDV/ESV slopes are one-coordinate section slopes; CO/LAP slopes are response slopes with their own units. Values near or above unit magnitude for volume slopes should be read as a reason to inspect local gain, not as proof of a specific fix.
 
 This is intentionally not a solver or model fix. It is a reproducible handoff artifact for model review.
 
@@ -138,7 +140,7 @@ The next model-level PR should be evidence-first. Do not start by hiding points,
 
 Recommended order:
 
-1. Build a low-preload return-map/Floquet diagnostic: perturb LV EDV around a settled point and estimate `dEDV(n+1)/dEDV(n)`. The target criterion is keeping the relevant multiplier within `(-1, 1)` over the intended physiologic preload range.
+1. Build a low-preload return-map/Floquet diagnostic: perturb LV EDV around a settled point and estimate `dEDV(n+1)/dEDV(n)`. The target criterion is keeping the relevant multiplier within `(-1, 1)` over the intended physiologic preload range. This is now available in the debug report as a local central-difference diagnostic; a full Floquet analysis can still refine the perturbation basis later.
 2. Run a dt sensitivity experiment (`0.001`, `0.0005`, possibly `0.002`) at the period-2 point. Strong dt dependence points to numerical coupling; weak dt dependence points to a continuous-model attractor.
 3. Add active-stress internal diagnostics: `lambda`, `Kd`, `aInf`, `fIso`, `gOver`, `forceVelocityScale`, `sigmaAct`, `sigmaPas`, and pressure-floor hits per beat.
 4. Add node-specific clamp attribution instead of relying on aggregate `clampHitCount`.
