@@ -275,19 +275,41 @@ describe("low-preload Starling debug diagnostics", () => {
       "--max-return-map-points=1",
       "--trace-beats=2",
       "--sample-hz=40",
+      "--quiet-progress",
     ]);
     const report = runLowPreloadMatrix(opts);
 
-    expect(report.schemaVersion).toBe(2);
+    expect(report.schemaVersion).toBe(3);
     expect(report.scenarios).toHaveLength(4);
     expect(report.scenarios.filter((scenario) => scenario.lambdaActTauSec === 0)).toHaveLength(1);
     expect(report.scenarios[1].lambdaActTerms).toBe("kd");
     expect(report.scenarios[0].selectedDeltasMl).toHaveLength(1);
-    expect(report.scenarios[0].waveformGates).toHaveLength(2);
+    expect(report.scenarios[0].waveformGates.map((gate) => gate.label)).toEqual(["normal", "HR100", "HR100-rearm"]);
+    expect(report.scenarios[0].waveformGates[0].maxDeltaMetric).toEqual(expect.any(String));
+    expect(report.summary.maxWaveformGateDeltaMetric).toEqual(expect.any(String));
     expect(report.scenarios[0].points.some((point) => point.returnMap.status === "ok")).toBe(true);
     expect(matrixReportToMarkdown(report)).toContain("Selected return-map points");
     expect(matrixReportToMarkdown(report)).toContain("Normal / HR100 waveform gates");
     expect(matrixReportToCsv(report)).toContain("returnMapSelected");
     expect(matrixReportToCsv(report)).toContain("branchAmplitudeFractionESV_L");
+  });
+
+  it("supports branch-only matrix runs without selected return-map points", () => {
+    const opts = parseLowPreloadMatrixArgs([
+      "--out=unused",
+      "--deltas=0",
+      "--dt=0.002",
+      "--lambda-act-tau=0",
+      "--branch-only",
+      "--trace-beats=2",
+      "--sample-hz=40",
+      "--quiet-progress",
+    ]);
+    const report = runLowPreloadMatrix(opts);
+
+    expect(opts.maxReturnMapPoints).toBe(0);
+    expect(report.summary.selectedReturnMapPointCount).toBe(0);
+    expect(report.scenarios[0].selectedDeltasMl).toEqual([]);
+    expect(report.scenarios[0].points.every((point) => point.returnMap.status === "skipped")).toBe(true);
   });
 });
