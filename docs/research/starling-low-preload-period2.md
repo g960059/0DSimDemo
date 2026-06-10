@@ -61,6 +61,75 @@ There are two separate issues:
 1. Measurement/steady-state semantics: period-2 Starling points now use two-beat average metrics and are labeled as period-2. ESPVR still needs separate handling because end-systolic points should not be averaged into one synthetic beat.
 2. Active-stress low-preload dynamics: the LV active-stress equations can enter a period-2 attractor at low preload. This may be physiological alternans, a model artifact, or a parameterization problem. The current strongest candidate is the low-volume interaction of length-dependent activation (`betaLambda`), active stress target shape, thick-sphere geometry, and dynamic AoV coupling.
 
+## Root-cause synthesis after PR #108
+
+External model reviews and local subagent reviews converged on the same interpretation: the low-preload dip/re-rise is best viewed as a beat-to-beat Poincare map crossing a flip bifurcation, not as a plotting or interpolation bug.
+
+The leading mechanism is:
+
+```text
+low preload -> LV lambda changes -> Kd/aInf and active force change ->
+stroke volume changes -> next-beat LV preload changes
+```
+
+At low preload this one-beat delayed feedback can have gain below `-1`, producing a stable period-2 alternans. The strongest code-level suspects are in `engine/chambers.ts`:
+
+- `Kd = Kd0 * exp(-betaLambda * (lambda - 1) + betaKd * betaDrive)`.
+- `f_iso = clamp((lambda - lambdaPas0 + 0.3) / 0.35, 0, 1)`.
+- LV/RV default tension filtering is effectively off (`tauTensionRiseSec = 0`, `tauTensionFallSec = 0`, `tensionInstantMix = 1`).
+- Dynamic AoV flow/inertance and the `1500 mL/s` flow clamp shape the high-output half of the alternans, but current evidence suggests they are not the initiating cause.
+
+The valve-flow review found no evidence that nominal valves are producing true reverse flow. Default valves have `Aleak = 0`, and the dynamic valve predictor clamps no-leak reverse flow to zero. A low-preload probe around `-1250 mL` showed period-2 behavior and many clamp hits, but all four nominal valve reverse volumes were zero or near-zero. Therefore reverse flow should remain a diagnostic check, not the primary hypothesis.
+
+The most likely root-cause classes are:
+
+1. Excess low-stretch length-dependent activation gain.
+2. Non-smooth or overly steep low-stretch force-length gating.
+3. Lack of active tension dynamics / damping.
+4. Valve-flow and pressure coupling amplifying an already marginal alternans.
+5. Node-specific low-volume clamps, especially pulmonary venous nodes, shaping the edge cases.
+
+## Diagnostic tool
+
+`npm run debug:starling-low-preload` generates a compact low-preload march report under `artifacts/starling-low-preload-debug/<timestamp>/`.
+
+The report compares period-aware metrics with last-single-beat metrics at the same point:
+
+- `CO_L period`: the period-aware Starling value.
+- `CO_L last beat`: the old period-1-style measurement for contrast.
+- `period`, `adjacentDelta`, `periodDelta`, `worstSignal`.
+- nominal valve forward/reverse volumes.
+- aggregate health clamp count.
+
+Example:
+
+```bash
+npm run debug:starling-low-preload -- --out=artifacts/starling-low-preload-debug/manual
+```
+
+This is intentionally not a solver or model fix. It is a reproducible handoff artifact for model review.
+
+## Recommended root-fix experiments
+
+The next model-level PR should be evidence-first. Do not start by hiding points, changing the Starling fit, or lowering `betaLambda` globally.
+
+Recommended order:
+
+1. Build a low-preload return-map/Floquet diagnostic: perturb LV EDV around a settled point and estimate `dEDV(n+1)/dEDV(n)`. The target criterion is keeping the relevant multiplier within `(-1, 1)` over the intended physiologic preload range.
+2. Run a dt sensitivity experiment (`0.001`, `0.0005`, possibly `0.002`) at the period-2 point. Strong dt dependence points to numerical coupling; weak dt dependence points to a continuous-model attractor.
+3. Add active-stress internal diagnostics: `lambda`, `Kd`, `aInf`, `fIso`, `gOver`, `forceVelocityScale`, `sigmaAct`, `sigmaPas`, and pressure-floor hits per beat.
+4. Add node-specific clamp attribution instead of relying on aggregate `clampHitCount`.
+5. Only after those diagnostics, test candidate model changes.
+
+Candidate model changes, in increasing blast radius:
+
+- Enable a modest LV/RV active-tension filter so active stress is not an instantaneous function of stretch and activation.
+- Smooth the low-stretch `f_iso` ramp with a C1/C2 force-length gate.
+- Saturate or filter length-dependent Ca sensitivity at low `lambda`, preserving the normal-preload slope while reducing low-preload dynamic gain.
+- Revisit AoV/MV dynamic coupling only if active-stress smoothing leaves a residual alternans.
+
+Several reviewers independently warned against a simple global `betaLambda` reduction. It can remove the period-2 point but also changes low-volume contractility and can introduce clamp/overcontraction artifacts.
+
 ## Candidate root fixes
 
 - Extend period-k handling beyond period-2 only if future model review shows higher-period attractors.
