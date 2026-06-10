@@ -2,6 +2,7 @@ import { clamp, frac, sigmoid, smoothMax, smoothMin, softplus, solveQuadraticFlo
 import {
   ActiveStressChamberModel,
   ElastanceChamberModel,
+  type ActiveStressDebugTerms,
   type Chamber,
   type ChamberCtx,
 } from "@/engine/chambers";
@@ -130,6 +131,15 @@ type PressurePack = {
   PimRCAVen: number;
 };
 
+export type ModelCoreClampDiagnostics = {
+  totalClampHits: number;
+  nodeClampHits: Partial<Record<NodeName, number>>;
+  dynamicFlowClampHits: Partial<Record<DynamicEdgeName, number>>;
+  valveDiodeClampHits: Partial<Record<ValveName, number>>;
+};
+
+export type ModelCoreActiveStressDiagnostics = Partial<Record<Chamber, ActiveStressDebugTerms>>;
+
 type CoronaryExternalPressures = {
   imLAD: number;
   imLCx: number;
@@ -210,6 +220,9 @@ export class ModelCore {
   // The projector follows this, and health compares mass conservation against it.
   private expectedTBV = 0;
   private clampHitCount = 0;
+  private nodeClampHits: Partial<Record<NodeName, number>> = {};
+  private dynamicFlowClampHits: Partial<Record<DynamicEdgeName, number>> = {};
+  private valveDiodeClampHits: Partial<Record<ValveName, number>> = {};
   private tbvCorrectionMagThisBeat = 0;
   private tbvCorrectionMagLastBeat = 0;
   private tbvCorrectionLastStepMl = 0;
@@ -274,6 +287,7 @@ export class ModelCore {
     this.initialTBV = this.lastSample.TBV;
     this.expectedTBV = this.initialTBV;
     this.clampHitCount = 0;
+    this.resetClampDiagnostics();
     this.tbvCorrectionMagThisBeat = 0;
     this.tbvCorrectionMagLastBeat = 0;
     this.tbvCorrectionLastStepMl = 0;
@@ -340,6 +354,7 @@ export class ModelCore {
     this.tbvCorrectionMagLastBeat = 0;
     this.tbvCorrectionLastStepMl = 0;
     this.clampHitCount = 0;
+    this.resetClampDiagnostics();
     this.history = [];
     this.lastSample = null;
     this.lastSample = this.sample();
@@ -591,6 +606,12 @@ export class ModelCore {
     this.tbvCorrectionLastStepMl = 0;
   }
 
+  private resetClampDiagnostics(): void {
+    this.nodeClampHits = {};
+    this.dynamicFlowClampHits = {};
+    this.valveDiodeClampHits = {};
+  }
+
   runFor(seconds: number, dt = 0.001, sampleHz = 60, options: RunForOptions = {}): SimSample[] {
     const collectSamples = options.collectSamples ?? true;
     const recordHistory = options.recordHistory ?? true;
@@ -725,6 +746,35 @@ export class ModelCore {
     this.trackBeat(s);
     this.lastSample = s;
     return s;
+  }
+
+  debugActiveStressDiagnostics(): ModelCoreActiveStressDiagnostics {
+    if (this.p.heartModel !== "activeStress") return {};
+    const pack = this.computePressures(this.x);
+    const out: ModelCoreActiveStressDiagnostics = {};
+    for (const n of this.activeChamberNodes()) {
+      const ch = n.chamber!;
+      const chamberVolume = ch === "LV"
+        ? pack.VLVeff
+        : ch === "RV"
+          ? pack.VRVeff
+          : pack.Vphys[this.nodeIndex.get(n.name)!];
+      out[ch] = this.activeModel(ch).debugActiveStressTerms(
+        chamberVolume,
+        this.activeInternalFromState(ch, this.x),
+        this.chamberCtx(ch, this.x),
+      );
+    }
+    return out;
+  }
+
+  debugClampDiagnostics(): ModelCoreClampDiagnostics {
+    return {
+      totalClampHits: this.clampHitCount,
+      nodeClampHits: { ...this.nodeClampHits },
+      dynamicFlowClampHits: { ...this.dynamicFlowClampHits },
+      valveDiodeClampHits: { ...this.valveDiodeClampHits },
+    };
   }
 
   /** Feed a sample to the per-beat fingerprint accumulator (steady-state detection). */
@@ -1181,7 +1231,10 @@ export class ModelCore {
       let qNext = (q + (h / L) * (Pu - PdEff)) / (1 + (h * Reff) / L);
       if (e.kind === "valve") {
         const vName = e.name as ValveName;
-        if (this.valveLeakArea(vName, e) <= 1e-9 && qNext < 0) qNext = 0;
+        if (this.valveLeakArea(vName, e) <= 1e-9 && qNext < 0) {
+          this.valveDiodeClampHits[vName] = (this.valveDiodeClampHits[vName] ?? 0) + 1;
+          qNext = 0;
+        }
       }
       
       dy[qi] = clamp((qNext - q) / h, -40000, 40000);
@@ -1811,9 +1864,17 @@ export class ModelCore {
       if (Math.abs(x[ix] - before) > 1e-9) {
           if (this.clampHitCount < 10) console.warn(`Clamp hit on node ${name}: from ${before.toFixed(3)} to ${x[ix].toFixed(3)} at t=${this.t.toFixed(3)}`);
           this.clampHitCount++;
+          this.nodeClampHits[name] = (this.nodeClampHits[name] ?? 0) + 1;
       }
     }
-    for (const e of dynamicEdgeNames) x[this.idx.q[e]] = clamp(x[this.idx.q[e]], -DYNAMIC_FLOW_CLAMP_ML_PER_S, DYNAMIC_FLOW_CLAMP_ML_PER_S);
+    for (const e of dynamicEdgeNames) {
+      const ix = this.idx.q[e];
+      const before = x[ix];
+      x[ix] = clamp(x[ix], -DYNAMIC_FLOW_CLAMP_ML_PER_S, DYNAMIC_FLOW_CLAMP_ML_PER_S);
+      if (Math.abs(x[ix] - before) > 1e-9) {
+        this.dynamicFlowClampHits[e] = (this.dynamicFlowClampHits[e] ?? 0) + 1;
+      }
+    }
     for (const v of valveNames) x[this.idx.xi[v]] = clamp(x[this.idx.xi[v]], 0, 1);
     x[this.idx.phi] = x[this.idx.phi] > 1e6 ? frac(x[this.idx.phi]) : x[this.idx.phi];
     x[this.idx.septumShift] = clampSeptalShift(x[this.idx.septumShift], {
