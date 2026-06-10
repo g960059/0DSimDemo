@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { DEFAULT_PARAMS } from "@/constants";
 import { ModelCore, type ModelCoreActiveStressDiagnostics, type ModelCoreClampDiagnostics } from "@/engine/ModelCore";
+import { makeIndex } from "@/engine/core/stateLayout";
 import type { StarlingSweepRequest } from "@/engine/guytonStarling";
 import { PREVIEW_SETTLE_POLICY, type SettleStatus } from "@/engine/settling";
 import type { CoreRuntimeParams, SimMetrics, SimObservables, SimSample, SimulationHealth } from "@/engine/protocol";
@@ -61,6 +62,27 @@ type ValveTraceSummary = {
   negativeSampleCount: number;
 };
 
+type ReturnMapFeature = {
+  plus: number;
+  minus: number;
+  centralSlope: number;
+  absCentralSlope: number;
+};
+
+type ReturnMapDiagnostic = {
+  status: "ok" | "failed";
+  method: "edv-section-volume-preserving-lv-pvein-central-difference";
+  perturbationMl: number;
+  sourcePhi: number;
+  sectionBeat: number | null;
+  sectionPhi: number | null;
+  sectionVlvMl: number | null;
+  measuredBeatPlus: number | null;
+  measuredBeatMinus: number | null;
+  features: Partial<Record<"EDV_L" | "ESV_L" | "CO_L" | "LAPMean", ReturnMapFeature>>;
+  failureReason?: string;
+};
+
 type DebugPoint = {
   deltaVolumeMl: number;
   targetVolumeMl: number;
@@ -92,6 +114,7 @@ type DebugPoint = {
   clampDiagnostics: ModelCoreClampDiagnostics;
   activeStressTerminal: ModelCoreActiveStressDiagnostics;
   beatTrace: BeatTraceRow[];
+  returnMap: ReturnMapDiagnostic;
   observables: Pick<SimObservables, "P_PVein" | "Pperi" | "Ppc" | "VLVeff" | "VRVeff" | "PLVfw" | "PVI_LV" | "septumShiftMl">;
 };
 
@@ -121,13 +144,15 @@ type DebugSummary = {
   maxPeriodDelta: number;
   maxValveReverseMl: number;
   maxClampHitCount: number;
+  maxAbsReturnMapSlopeEDVL: number;
+  maxAbsReturnMapSlopeCOL: number;
   nodeClampHits: Record<string, number>;
   dynamicFlowClampHits: Record<string, number>;
   valveDiodeClampHits: Record<string, number>;
 };
 
 type DebugReport = {
-  schemaVersion: 2;
+  schemaVersion: 3;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -164,6 +189,7 @@ type DebugRun = {
 const DEFAULT_DELTAS = [0, -900, -1000, -1100, -1200, -1300, -1400, -1500, -1600];
 const DEFAULT_DT_VALUES = [0.001, 0.0005, 0.002];
 const DEFAULT_SAMPLE_HZ = 120;
+const RETURN_MAP_PERTURBATION_ML = 0.5;
 const SETTLE_POLICY = { ...PREVIEW_SETTLE_POLICY, capSeconds: 45 };
 const RUN_OPTIONS = {
   collectSamples: false,
@@ -186,6 +212,8 @@ const CSV_COLUMNS = [
   "LV_sigmaActMean",
   "LV_fIsoMean",
   "LV_forceVelocityScaleMean",
+  "returnMapEDVSlope",
+  "returnMapCOSlope",
 ];
 
 export function runLowPreloadDebug(opts: DebugOptions): DebugReport {
@@ -193,9 +221,9 @@ export function runLowPreloadDebug(opts: DebugOptions): DebugReport {
   const dtScenarios = dtValues.map((dt) => runDtScenario(opts, dt));
   const primary = dtScenarios[0] ?? runDtScenario(opts, 0.001);
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     generatedAt: new Date().toISOString(),
-    measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve diagnostics; dt sensitivity",
+    measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve diagnostics; EDV-section volume-preserving LV/PVein return-map slope; dt sensitivity",
     targetVolumeMl: opts.targetVolumeMl,
     deltasMl: opts.deltasMl,
     dtValues,
@@ -221,8 +249,8 @@ export function reportToMarkdown(report: DebugReport): string {
   lines.push("");
   lines.push("## Summary");
   lines.push("");
-  lines.push("| dt | points | period-2 | max adjacent delta | max period delta | max valve reverse mL | max clamp hits |");
-  lines.push("| ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| dt | points | period-2 | max adjacent delta | max period delta | max valve reverse mL | max clamp hits | max EDV return slope | max CO return slope |");
+  lines.push("| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
   for (const scenario of report.dtScenarios) {
     lines.push([
       round(scenario.dt, 5),
@@ -232,13 +260,15 @@ export function reportToMarkdown(report: DebugReport): string {
       round(scenario.summary.maxPeriodDelta, 4),
       round(scenario.summary.maxValveReverseMl, 6),
       scenario.summary.maxClampHitCount,
+      round(scenario.summary.maxAbsReturnMapSlopeEDVL, 4),
+      round(scenario.summary.maxAbsReturnMapSlopeCOL, 4),
     ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
   }
   lines.push("");
   lines.push("## Primary dt points");
   lines.push("");
-  lines.push("| delta | target TBV | seed | period | reason | actual s | worst signal | worst delta | adj delta | period delta | LAP | CO_L period | CO_L last beat | CO_R period | PV return | clamp hits | valve reverse max | LV lambda mean | LV Kd mean | LV fIso mean |");
-  lines.push("| ---: | ---: | ---: | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| delta | target TBV | seed | period | reason | actual s | worst signal | worst delta | adj delta | period delta | LAP | CO_L period | CO_L last beat | CO_R period | PV return | clamp hits | valve reverse max | LV lambda mean | LV Kd mean | LV fIso mean | EDV return slope | CO return slope |");
+  lines.push("| ---: | ---: | ---: | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
   for (const p of report.points) {
     const lastBeat = p.beatTrace.at(-1);
     const lv = lastBeat?.active.LV;
@@ -263,6 +293,8 @@ export function reportToMarkdown(report: DebugReport): string {
       round(lv?.lambdaMean ?? NaN, 4),
       round(lv?.KdMean ?? NaN, 4),
       round(lv?.fIsoMean ?? NaN, 4),
+      round(returnMapSlope(p, "EDV_L"), 4),
+      round(returnMapSlope(p, "CO_L"), 4),
     ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
   }
   lines.push("");
@@ -280,6 +312,7 @@ export function reportToMarkdown(report: DebugReport): string {
   lines.push("- `CO_L last beat` is intentionally shown next to period-aware `CO_L period`; large separation is expected in period-2 alternans.");
   lines.push("- Nominal valve reverse volumes should remain near zero. Diode clamp hits show how often no-leak valve reverse predictions were clipped before becoming state flow.");
   lines.push("- Node-specific clamp attribution separates low-volume pressure/volume bounds from aggregate health warnings.");
+  lines.push("- Return-map slopes are central differences from a volume-preserving LV/PVein perturbation at the next LV EDV section. EDV/ESV slopes are one-coordinate section slopes; CO/LAP slopes are response slopes. None of them change model dynamics.");
   lines.push("- Smaller-dt persistence supports a model-dynamics interpretation; strong dt sensitivity supports an explicit-coupling/numerical interpretation.");
   lines.push("");
   return `${lines.join("\n")}\n`;
@@ -307,6 +340,8 @@ export function reportToCsv(report: DebugReport): string {
           lv?.sigmaActMean ?? "",
           lv?.fIsoMean ?? "",
           lv?.forceVelocityScaleMean ?? "",
+          point.returnMap.features.EDV_L?.centralSlope ?? "",
+          point.returnMap.features.CO_L?.centralSlope ?? "",
         ].map(csvCell).join(","));
       }
     }
@@ -333,6 +368,7 @@ function runDtScenario(opts: DebugOptions, dt: number): DtScenarioReport {
     traceCore.unpackState(run.state);
     const traceSamples = collectTraceSamples(traceCore, opts.traceBeats, dt, opts.sampleHz);
     const beatTrace = summarizeBeatTrace(traceSamples, req.params.HR, opts.traceBeats);
+    const returnMap = estimateReturnMapDiagnostic(run.state, req.params, dt, opts.sampleHz);
     points.push({
       deltaVolumeMl: delta,
       targetVolumeMl: opts.targetVolumeMl + delta,
@@ -379,6 +415,7 @@ function runDtScenario(opts: DebugOptions, dt: number): DtScenarioReport {
       clampDiagnostics: run.core.debugClampDiagnostics(),
       activeStressTerminal: run.core.debugActiveStressDiagnostics(),
       beatTrace,
+      returnMap,
       observables: {
         P_PVein: run.observables.P_PVein,
         Pperi: run.observables.Pperi,
@@ -447,7 +484,117 @@ function collectTraceSamples(core: ModelCore, beats: number, dt: number, sampleH
   return samples;
 }
 
-function summarizeBeatTrace(traceSamples: TraceSample[], HR: number, traceBeats: number): BeatTraceRow[] {
+function estimateReturnMapDiagnostic(
+  state: SerializedModelState,
+  params: CoreRuntimeParams,
+  dt: number,
+  sampleHz: number,
+): ReturnMapDiagnostic {
+  try {
+    const section = findNextLvEdvSection(state, params, dt);
+    const plusState = perturbLvAgainstPVein(section.state, RETURN_MAP_PERTURBATION_ML);
+    const minusState = perturbLvAgainstPVein(section.state, -RETURN_MAP_PERTURBATION_ML);
+    const plusBeat = postPerturbationBeat(plusState, params, dt, sampleHz);
+    const minusBeat = postPerturbationBeat(minusState, params, dt, sampleHz);
+    return {
+      status: "ok",
+      method: "edv-section-volume-preserving-lv-pvein-central-difference",
+      perturbationMl: RETURN_MAP_PERTURBATION_ML,
+      sourcePhi: section.state.phi,
+      sectionBeat: section.beat,
+      sectionPhi: section.state.phi,
+      sectionVlvMl: section.vlvMl,
+      measuredBeatPlus: plusBeat.beat,
+      measuredBeatMinus: minusBeat.beat,
+      features: {
+        EDV_L: centralFeature(plusBeat.EDV_L, minusBeat.EDV_L),
+        ESV_L: centralFeature(plusBeat.ESV_L, minusBeat.ESV_L),
+        CO_L: centralFeature(plusBeat.CO_L, minusBeat.CO_L),
+        LAPMean: centralFeature(plusBeat.LAPMean, minusBeat.LAPMean),
+      },
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      method: "edv-section-volume-preserving-lv-pvein-central-difference",
+      perturbationMl: RETURN_MAP_PERTURBATION_ML,
+      sourcePhi: state.phi,
+      sectionBeat: null,
+      sectionPhi: null,
+      sectionVlvMl: null,
+      measuredBeatPlus: null,
+      measuredBeatMinus: null,
+      features: {},
+      failureReason: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+function findNextLvEdvSection(
+  state: SerializedModelState,
+  params: CoreRuntimeParams,
+  dt: number,
+): { state: SerializedModelState; beat: number; vlvMl: number } {
+  const core = new ModelCore(params);
+  core.unpackState(state);
+  const targetBeat = Math.floor(core.sample().phi) + 1;
+  const maxSeconds = (60 / Math.max(core.p.HR, 1)) * 3.5;
+  const tEnd = core.t + maxSeconds;
+  let bestState: SerializedModelState | undefined;
+  let bestVlv = -Infinity;
+  while (core.t < tEnd - 1e-9) {
+    core.step(dt);
+    const sample = core.sample();
+    const beat = Math.floor(sample.phi);
+    if (beat === targetBeat && sample.VLV > bestVlv) {
+      bestVlv = sample.VLV;
+      bestState = core.packState();
+    }
+    if (beat > targetBeat && bestState) break;
+  }
+  if (!bestState || !Number.isFinite(bestVlv)) {
+    throw new Error("could not find next LV EDV section for return-map diagnostic");
+  }
+  return { state: bestState, beat: targetBeat, vlvMl: bestVlv };
+}
+
+function perturbLvAgainstPVein(state: SerializedModelState, lvDeltaMl: number): SerializedModelState {
+  const idx = makeIndex();
+  const x = [...state.x];
+  const lvIndex = idx.node.LV;
+  const pVeinIndex = idx.node.PVein;
+  const nextLv = x[lvIndex] + lvDeltaMl;
+  const nextPVein = x[pVeinIndex] - lvDeltaMl;
+  if (!Number.isFinite(nextLv) || !Number.isFinite(nextPVein) || nextLv <= 1 || nextPVein <= 1) {
+    throw new Error("perturbation would create non-finite or non-positive LV/PVein volume");
+  }
+  x[lvIndex] = nextLv;
+  x[pVeinIndex] = nextPVein;
+  return { ...state, x };
+}
+
+function postPerturbationBeat(state: SerializedModelState, params: CoreRuntimeParams, dt: number, sampleHz: number): BeatTraceRow {
+  const core = new ModelCore(params);
+  core.unpackState(state);
+  void sampleHz;
+  const targetBeat = Math.floor(core.sample().phi) + 1;
+  const beatSeconds = 60 / Math.max(core.p.HR, 1);
+  const entries: TraceSample[] = [];
+  const tEnd = core.t + beatSeconds * 3.5;
+  while (core.t < tEnd - 1e-9) {
+    core.step(dt);
+    const sample = core.sample();
+    const beat = Math.floor(sample.phi);
+    if (beat === targetBeat) entries.push({ sample, active: core.debugActiveStressDiagnostics() });
+    if (beat > targetBeat && entries.length >= 5) break;
+  }
+  if (entries.length < 5) {
+    throw new Error("could not collect a complete post-perturbation beat");
+  }
+  return summarizeBeat(targetBeat, entries, params.HR);
+}
+
+function groupTraceSamplesByBeat(traceSamples: TraceSample[]): Map<number, TraceSample[]> {
   const groups = new Map<number, TraceSample[]>();
   for (const entry of traceSamples) {
     const beat = Math.floor(entry.sample.phi);
@@ -455,6 +602,21 @@ function summarizeBeatTrace(traceSamples: TraceSample[], HR: number, traceBeats:
     arr.push(entry);
     groups.set(beat, arr);
   }
+  return groups;
+}
+
+function centralFeature(plus: number, minus: number): ReturnMapFeature {
+  const centralSlope = (plus - minus) / (2 * RETURN_MAP_PERTURBATION_ML);
+  return {
+    plus,
+    minus,
+    centralSlope,
+    absCentralSlope: Math.abs(centralSlope),
+  };
+}
+
+function summarizeBeatTrace(traceSamples: TraceSample[], HR: number, traceBeats: number): BeatTraceRow[] {
+  const groups = groupTraceSamplesByBeat(traceSamples);
   const beatIds = Array.from(groups.keys()).sort((a, b) => a - b);
   const completeIds = beatIds.slice(1, -1).filter((beat) => (groups.get(beat)?.length ?? 0) >= 5);
   return completeIds.slice(-traceBeats).map((beat) => summarizeBeat(beat, groups.get(beat) ?? [], HR));
@@ -551,6 +713,8 @@ function summarizePoints(points: DebugPoint[]): DebugSummary {
     maxPeriodDelta: Math.max(0, ...points.map((p) => p.settle.periodDelta)),
     maxValveReverseMl,
     maxClampHitCount: Math.max(0, ...points.map((p) => p.health.clampHitCount)),
+    maxAbsReturnMapSlopeEDVL: Math.max(0, ...points.map((p) => p.returnMap.features.EDV_L?.absCentralSlope ?? 0)),
+    maxAbsReturnMapSlopeCOL: Math.max(0, ...points.map((p) => p.returnMap.features.CO_L?.absCentralSlope ?? 0)),
     nodeClampHits: mergeCountRecords(points.map((p) => p.clampDiagnostics.nodeClampHits)),
     dynamicFlowClampHits: mergeCountRecords(points.map((p) => p.clampDiagnostics.dynamicFlowClampHits)),
     valveDiodeClampHits: mergeCountRecords(points.map((p) => p.clampDiagnostics.valveDiodeClampHits)),
@@ -624,6 +788,10 @@ function maxValveReverse(p: DebugPoint): number {
     p.valveTrace.TV.reverseVolumeMl,
     p.valveTrace.PV.reverseVolumeMl,
   );
+}
+
+function returnMapSlope(p: DebugPoint, key: keyof ReturnMapDiagnostic["features"]): number {
+  return p.returnMap.features[key]?.centralSlope ?? Number.NaN;
 }
 
 function meanNumbers(values: number[]): number {
