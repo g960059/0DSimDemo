@@ -16,7 +16,28 @@ import type {
 export type GuytonSide = "right" | "left";
 
 export type StarlingSweepPointQuality = "reliable" | "stress" | "invalid";
-export type StarlingSweepMode = "calibrated" | "full7" | "custom";
+export type StarlingSweepMode = "adaptive" | "calibrated" | "full7" | "custom";
+export type StarlingSweepPointSource = "adaptive-exploration" | "calibrated-anchor" | "audit-added" | "custom";
+export type StarlingSweepExplorationReason =
+  | "full7-fill"
+  | "largest-gap"
+  | "low-preload-shape"
+  | "hypervolume-shape"
+  | "curvature"
+  | "adaptive-refinement"
+  | "hypervolume-plateau"
+  | "baseline-reference";
+export type StarlingSweepAuditCandidate = {
+  deltaVolumeMl: number;
+  explorationReason: StarlingSweepExplorationReason;
+  candidateRank: number;
+};
+export type StarlingPointReliability = {
+  strictSettled: boolean;
+  displayReliable: boolean;
+  seedReliable: boolean;
+  seedRejectReason?: string;
+};
 
 export type GuytonCurvePoint = {
   x: number;
@@ -27,6 +48,10 @@ export type GuytonCurvePoint = {
   status?: SimulationHealthStatus;
   deltaVolumeMl?: number;
   quality?: StarlingSweepPointQuality;
+  pointSource?: StarlingSweepPointSource;
+  reliability?: StarlingPointReliability;
+  explorationReason?: StarlingSweepExplorationReason;
+  candidateRank?: number;
 };
 
 export type GuytonCurve = {
@@ -102,11 +127,20 @@ export type StarlingSweepCurve = {
   fit?: StarlingSweepFit;
   calibration?: StarlingCalibrationSummary;
   interpretation?: StarlingSweepInterpretation;
+  audit?: StarlingSweepAudit;
   warnings: string[];
 };
 
+export type StarlingSweepAudit = {
+  points: GuytonCurvePoint[];
+  holdoutErrorLMin: number | null;
+  addedDeltasMl: number[];
+  reusedDeltasMl: number[];
+  exploration: StarlingSweepAuditCandidate[];
+};
+
 export type StarlingSweepFit = {
-  kind: "monotone-pchip";
+  kind: "monotone-pchip" | "pchip";
   mode?: "measured" | "calibrated";
   points: GuytonCurvePoint[];
   sourcePointCount: number;
@@ -116,7 +150,7 @@ export type StarlingSweepFit = {
 };
 
 export type StarlingCalibrationSummary = {
-  mode: StarlingSweepMode | "full7-fallback" | "full7-reference";
+  mode: StarlingSweepMode | "full7-fallback" | "full7-reference" | "adaptive-audit";
   plannedDeltasMl: number[];
   anchorDeltasMl: number[];
   fallbackReasons: string[];
@@ -127,7 +161,7 @@ export type StarlingSweepInterpretation = {
   xAxis: "RAP" | "LAP";
   yAxis: "CO";
   sweepVariable: "TBV delta";
-  fitBasis: "calibrated anchors" | "measured full7" | "custom anchors" | "full7 fallback";
+  fitBasis: "adaptive exploration" | "calibrated anchors" | "measured full7" | "custom anchors" | "full7 fallback";
   anchorDeltasMl: number[];
   measuredRangeMmHg: { min: number; max: number } | null;
   extrapolation: "final-only dashed" | "none";
@@ -172,7 +206,7 @@ export type StarlingSweepTiming = {
   parallelFallback?: string;
   chainWallMs?: number;
   plannedPointCount?: number;
-  mode?: StarlingSweepMode | "full7-fallback" | "full7-reference";
+  mode?: StarlingSweepMode | "full7-fallback" | "full7-reference" | "adaptive-audit";
   anchorCount?: number;
   fallbackReasons?: string[];
   full7ReferenceMs?: number;
@@ -211,7 +245,12 @@ export type StarlingSweepProgressMessage = StarlingSweepResponse & {
   totalPoints: number;
 };
 
-export type GuytonStarlingWorkerMessage = GuytonBaseMapResponse | StarlingSweepProgressMessage | StarlingSweepWorkerMessage;
+export type StarlingSweepAuditMessage = StarlingSweepResponse & {
+  type: "starling-sweep-audit";
+  timing?: StarlingSweepTiming;
+};
+
+export type GuytonStarlingWorkerMessage = GuytonBaseMapResponse | StarlingSweepProgressMessage | StarlingSweepWorkerMessage | StarlingSweepAuditMessage;
 
 const FLOW_FLOOR_L_MIN = 0.15;
 const RESISTANCE_MIN = 0.05;
@@ -680,6 +719,12 @@ export function classifyStarlingSweepPoint(
   if (point.status === "warning") return "stress";
   if (point.settled === false) return "stress";
   return "reliable";
+}
+
+export function isStarlingSweepFitSourcePoint(
+  point: Pick<GuytonCurvePoint, "settled" | "status" | "quality" | "reliability" | "x" | "y">,
+): boolean {
+  return Number.isFinite(point.x) && Number.isFinite(point.y);
 }
 
 function effectiveResistanceMmHgPerLMin(gradient: number, flowLMin: number): number {

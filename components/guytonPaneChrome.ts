@@ -21,6 +21,8 @@ export type GuytonCalibrationDetailLabels = {
   anchors: string;
   measuredRange: string;
   zeroFlow: string;
+  audit: string;
+  holdoutError: string;
   notAvailable: string;
   zeroFlowNotConstrained: string;
 };
@@ -51,6 +53,10 @@ function uniqueStrings(values: string[]): string[] {
 export function guytonStarlingCalibrationLabel(curve?: StarlingSweepCurve): string | undefined {
   const calibration = curve?.calibration;
   if (!calibration) return undefined;
+  if (calibration.mode === "adaptive") {
+    const count = curve?.points.length || curve?.fit?.sourcePointCount || 0;
+    return count > 0 ? `adaptive ${count} points` : "adaptive exploration";
+  }
   if (calibration.mode === "calibrated") {
     const count = calibration.anchorDeltasMl.length || curve?.fit?.sourcePointCount || curve?.points.length || 0;
     return count > 0 ? `calibrated ${count} anchors` : "calibrated";
@@ -77,6 +83,14 @@ export function guytonStarlingCalibrationDetail(
       { label: labels.axis, value: `x=${interpretation.xAxis}, y=${interpretation.yAxis}` },
       { label: labels.sweep, value: interpretation.sweepVariable },
       { label: labels.anchors, value: interpretation.anchorDeltasMl.map(formatDeltaMl).join(", ") },
+      ...(curve?.audit ? [{
+        label: labels.audit,
+        value: `${curve.audit.reusedDeltasMl.length} reused / ${curve.audit.addedDeltasMl.length} added`,
+      }] : []),
+      ...(curve?.audit ? [{
+        label: labels.holdoutError,
+        value: curve.audit.holdoutErrorLMin === null ? labels.notAvailable : `${curve.audit.holdoutErrorLMin.toFixed(2)} L/min`,
+      }] : []),
       { label: labels.measuredRange, value: measuredRange },
       { label: labels.zeroFlow, value: labels.zeroFlowNotConstrained },
     ],

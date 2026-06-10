@@ -21,7 +21,7 @@ describe("Starling sweep fit", () => {
     expect(fit?.extrapolatedRight).toBeUndefined();
   });
 
-  it("excludes unsettled and non-ok points from the fit", () => {
+  it("uses all finite exploration points in the fit even when they are stressed", () => {
     const fit = buildStarlingSweepFit("right", [
       ...points([
         [1, 4.5, -300],
@@ -32,8 +32,8 @@ describe("Starling sweep fit", () => {
       { x: 15, y: 12, deltaVolumeMl: 900, settled: true, status: "warning" },
     ]);
 
-    expect(fit?.sourcePointCount).toBe(3);
-    expect(fit?.points.at(-1)?.x).toBeCloseTo(8);
+    expect(fit?.sourcePointCount).toBe(5);
+    expect(fit?.points.at(-1)?.x).toBeCloseTo(15);
   });
 
   it("classifies Starling sweep point quality for display", () => {
@@ -44,7 +44,7 @@ describe("Starling sweep fit", () => {
     expect(classifyStarlingSweepPoint({ settled: true, status: "ok", quality: "invalid" })).toBe("invalid");
   });
 
-  it("uses quality when present and still excludes stress points from the fit", () => {
+  it("uses quality for marker classification but keeps finite stress points in the fit", () => {
     const fit = buildStarlingSweepFit("right", [
       ...points([
         [1, 4.5, -300],
@@ -54,8 +54,35 @@ describe("Starling sweep fit", () => {
       { x: 12, y: 9, deltaVolumeMl: 600, settled: true, status: "ok", quality: "stress" },
     ]);
 
+    expect(fit?.sourcePointCount).toBe(4);
+    expect(fit?.points.at(-1)?.x).toBeCloseTo(12);
+  });
+
+  it("uses displayReliable points as fit anchors even when strict settle is false", () => {
+    const fit = buildStarlingSweepFit("left", [
+      ...points([
+        [2, 4.2, -900],
+        [7, 5.4, 0],
+      ]),
+      {
+        x: 4,
+        y: 4.9,
+        deltaVolumeMl: -450,
+        settled: false,
+        status: "ok",
+        quality: "stress",
+        reliability: {
+          strictSettled: false,
+          displayReliable: true,
+          seedReliable: false,
+          seedRejectReason: "settle cap",
+        },
+      },
+    ]);
+
     expect(fit?.sourcePointCount).toBe(3);
-    expect(fit?.points.at(-1)?.x).toBeCloseTo(8);
+    expect(fit?.points[0].x).toBeCloseTo(2);
+    expect(fit?.points.at(-1)?.x).toBeCloseTo(7);
   });
 
   it("uses isotonic smoothing before interpolation when raw points dip", () => {
@@ -70,7 +97,23 @@ describe("Starling sweep fit", () => {
     expectMonotone(fit?.points ?? []);
   });
 
-  it("requires three usable unique pressure points", () => {
+  it("can preserve non-monotone finite exploration shape when monotone smoothing is disabled", () => {
+    const fit = buildStarlingSweepFit("left", points([
+      [1, 3.2, -1000],
+      [1.4, 2.4, -750],
+      [2.2, 4.6, -500],
+      [8, 5.8, 500],
+      [10, 5.6, 1000],
+    ]), { monotone: false });
+
+    expect(fit?.kind).toBe("pchip");
+    expect(fit?.sourcePointCount).toBe(5);
+    expectSorted(fit?.points ?? []);
+    expect(fit?.points.some((point, index, all) => index > 0 && point.y < all[index - 1].y - 1e-4)).toBe(true);
+    expect(fit?.points.some((point, index, all) => index > 0 && point.y > all[index - 1].y + 1e-4)).toBe(true);
+  });
+
+  it("requires three finite unique pressure points", () => {
     const fit = buildStarlingSweepFit("left", [
       ...points([
         [3, 4.5, -300],
@@ -79,7 +122,7 @@ describe("Starling sweep fit", () => {
       { x: 8, y: 6.0, deltaVolumeMl: 300, settled: false, status: "ok" },
     ]);
 
-    expect(fit).toBeUndefined();
+    expect(fit?.sourcePointCount).toBe(3);
   });
 
   it("adds conservative extrapolated tails only when requested", () => {

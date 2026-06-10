@@ -25,15 +25,22 @@ export function postGuytonChainWorkerMessages(
   const started = performanceNow();
   const runs: GuytonChainRunResult[] = [];
   let seedState = req.baselineState;
+  let seededFromDeltaMl = 0;
 
   for (let i = 0; i < req.chainDeltas.length; i++) {
     const delta = req.chainDeltas[i];
-    const run = settleWorkerCore(req, clamp(req.targetVolumeMl + delta, 2500, 8500), seedState);
+    const run = settleWorkerCore(req, clamp(req.targetVolumeMl + delta, 2500, 8500), seedState, { seededFromDeltaMl });
     const { core: _core, ...serializableRun } = run;
     void _core;
     const result = { deltaVolumeMl: delta, run: serializableRun };
     runs.push(result);
-    seedState = run.state;
+    if (run.reliability.seedReliable) {
+      seedState = run.state;
+      seededFromDeltaMl = delta;
+    } else {
+      seedState = req.baselineState;
+      seededFromDeltaMl = 0;
+    }
     postMessage({
       type: "chain-progress",
       chainId: req.chainId,

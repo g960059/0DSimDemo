@@ -36,6 +36,7 @@ type InFlightEntry = {
   subscribers: Set<Subscriber>;
   messages: GuytonStarlingWorkerMessage[];
   started: boolean;
+  doneNotified: boolean;
   timer?: ReturnType<typeof setTimeout>;
   worker?: GuytonStarlingWorkerLike;
   workerMode: "persistent" | "per-request";
@@ -63,6 +64,7 @@ export function requestGuytonStarlingWorkerMessages(
       subscribers: new Set(),
       messages: [],
       started: false,
+      doneNotified: false,
       workerMode,
       idleTimeoutMs,
     };
@@ -223,9 +225,19 @@ function handleWorkerMessage(message: GuytonStarlingWorkerMessage): void {
   current.messages.push(message);
   for (const subscriber of current.subscribers) subscriber.onMessage(message);
   if (message.type === "starling-sweep") {
-    for (const subscriber of current.subscribers) subscriber.onDone?.();
+    notifyDoneOnce(current);
     cleanupEntry(message.signature);
   }
+  if (message.type === "starling-sweep-audit") {
+    notifyDoneOnce(current);
+    cleanupEntry(message.signature);
+  }
+}
+
+function notifyDoneOnce(entry: InFlightEntry): void {
+  if (entry.doneNotified) return;
+  entry.doneNotified = true;
+  for (const subscriber of entry.subscribers) subscriber.onDone?.();
 }
 
 function failAllEntries(message: string): void {

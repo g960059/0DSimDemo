@@ -91,12 +91,14 @@
       "calibration": {
         "axis": "軸",
         "sweep": "sweep",
-        "anchors": "anchors",
+        "anchors": "探索点",
+        "audit": "確認",
+        "holdoutError": "holdout誤差",
         "measuredRange": "実測範囲",
         "zeroFlow": "低流量端",
         "notAvailable": "なし",
-        "zeroFlowNotConstrained": "TBV sweep実測点から較正。ゼロ流量/V0制約なし。",
-        "detailsAria": "Starling較正の詳細"
+        "zeroFlowNotConstrained": "TBV sweep探索点から表示。ゼロ流量/V0制約なし。",
+        "detailsAria": "Starling探索の詳細"
       }
     },
     "controls": {

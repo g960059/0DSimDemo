@@ -96,6 +96,8 @@ function labels() {
     axis: "Axis",
     sweep: "Sweep",
     anchors: "Anchors",
+    audit: "Audit",
+    holdoutError: "Holdout error",
     measuredRange: "Measured range",
     zeroFlow: "Low-flow end",
     notAvailable: "n/a",
