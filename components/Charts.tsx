@@ -1367,6 +1367,7 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
         sweep: t('workbench.guyton.calibration.sweep'),
         anchors: t('workbench.guyton.calibration.anchors'),
         measuredRange: t('workbench.guyton.calibration.measuredRange'),
+        period: t('workbench.guyton.calibration.period'),
         zeroFlow: t('workbench.guyton.calibration.zeroFlow'),
         audit: t('workbench.guyton.calibration.audit'),
         holdoutError: t('workbench.guyton.calibration.holdoutError'),

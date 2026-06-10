@@ -19,6 +19,7 @@ describe("assessBeatRing (pure convergence logic)", () => {
     const st = assessBeatRing(ring, 8, DEFAULT_SETTLE_POLICY);
     expect(st.settled).toBe(true);
     expect(st.reason).toBe("converged");
+    expect(st.periodBeats).toBe(1);
   });
 
   it("reports insufficient before minBeats", () => {
@@ -31,6 +32,31 @@ describe("assessBeatRing (pure convergence logic)", () => {
     const st = assessBeatRing(ring, 8, DEFAULT_SETTLE_POLICY);
     expect(st.settled).toBe(false);
     expect(st.worstSignal).toBe("svL");
+  });
+
+  it("declares period-2 settled when same-phase beats agree", () => {
+    const ring = Array.from({ length: 8 }, (_, i) => (
+      i % 2 === 0
+        ? beat(i, { svL: 45, edvL: 95, esvL: 50 })
+        : beat(i, { svL: 75, edvL: 125, esvL: 45 })
+    ));
+    const st = assessBeatRing(ring, 8, DEFAULT_SETTLE_POLICY);
+    expect(st.settled).toBe(true);
+    expect(st.reason).toBe("converged");
+    expect(st.periodBeats).toBe(2);
+    expect(st.periodDelta).toBeLessThan(DEFAULT_SETTLE_POLICY.tolPrimary);
+    expect(st.adjacentDelta).toBeGreaterThan(DEFAULT_SETTLE_POLICY.tolPrimary);
+  });
+
+  it("does not declare period-2 settled when one branch drifts", () => {
+    const ring = Array.from({ length: 8 }, (_, i) => (
+      i % 2 === 0
+        ? beat(i, { svL: i === 6 ? 52 : 45, edvL: 95, esvL: 50 })
+        : beat(i, { svL: 75, edvL: 125, esvL: 45 })
+    ));
+    const st = assessBeatRing(ring, 8, DEFAULT_SETTLE_POLICY);
+    expect(st.settled).toBe(false);
+    expect(st.periodBeats).toBe(1);
   });
 });
 
@@ -75,5 +101,18 @@ describe("ModelCore.settleToSteady", () => {
     // ...and re-converges to the new operating point.
     const st = c.settleToSteady();
     expect(st.settled).toBe(true);
+  });
+
+  it("can measure over two complete beats without changing the one-beat default", () => {
+    const c = fresh();
+    c.settleToSteady();
+    c.runFor(2.0, 0.001, 120);
+
+    const oneBeat = c.metrics();
+    const twoBeat = c.metrics({ windowBeats: 2 });
+    expect(twoBeat.CO_L).toBeCloseTo(oneBeat.CO_L, 1);
+    expect(twoBeat.CO_R).toBeCloseTo(oneBeat.CO_R, 1);
+    expect(twoBeat.RAPMean).toBeCloseTo(oneBeat.RAPMean, 1);
+    expect(twoBeat.LAPMean).toBeCloseTo(oneBeat.LAPMean, 1);
   });
 });

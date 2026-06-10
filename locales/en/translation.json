@@ -95,6 +95,7 @@
         "audit": "Audit",
         "holdoutError": "Holdout error",
         "measuredRange": "Measured range",
+        "period": "Period",
         "zeroFlow": "Low-flow end",
         "notAvailable": "n/a",
         "zeroFlowNotConstrained": "Explored from TBV sweep points. Zero-flow/V0 is not constrained.",

@@ -101,6 +101,8 @@ describe("Guyton / Starling worker helpers", () => {
     expect(response.right?.points.some((point) => (point.deltaVolumeMl ?? 0) < 0)).toBe(true);
     expect(response.right?.points.some((point) => (point.deltaVolumeMl ?? 0) > 0)).toBe(true);
     expect(response.right?.points.every((point) => point.pointSource === "adaptive-exploration")).toBe(true);
+    expect(response.right?.points.every((point) => point.periodBeats === 1 || point.periodBeats === 2)).toBe(true);
+    expect(response.left?.points.every((point) => point.periodLabel === "period-1" || point.periodLabel === "period-2")).toBe(true);
     expect(response.timing?.mode).toBe("adaptive");
     expect(response.right?.calibration?.mode).toBe("adaptive");
     expect(response.right?.fit?.kind).toBe("pchip");

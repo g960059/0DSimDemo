@@ -18,6 +18,7 @@ export type GuytonSide = "right" | "left";
 export type StarlingSweepPointQuality = "reliable" | "stress" | "invalid";
 export type StarlingSweepMode = "adaptive" | "calibrated" | "full7" | "custom";
 export type StarlingSweepPointSource = "adaptive-exploration" | "calibrated-anchor" | "audit-added" | "custom";
+export type StarlingSweepPeriodLabel = "period-1" | "period-2";
 export type StarlingSweepExplorationReason =
   | "full7-fill"
   | "largest-gap"
@@ -52,6 +53,8 @@ export type GuytonCurvePoint = {
   reliability?: StarlingPointReliability;
   explorationReason?: StarlingSweepExplorationReason;
   candidateRank?: number;
+  periodBeats?: 1 | 2;
+  periodLabel?: StarlingSweepPeriodLabel;
 };
 
 export type GuytonCurve = {

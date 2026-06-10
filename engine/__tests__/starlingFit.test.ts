@@ -85,6 +85,27 @@ describe("Starling sweep fit", () => {
     expect(fit?.points.at(-1)?.x).toBeCloseTo(7);
   });
 
+  it("uses finite period-2 average points as fit anchors", () => {
+    const fit = buildStarlingSweepFit("left", [
+      ...points([
+        [2, 4.0, -900],
+        [7, 5.4, 0],
+      ]),
+      {
+        x: 4,
+        y: 4.8,
+        deltaVolumeMl: -450,
+        settled: true,
+        status: "ok",
+        periodBeats: 2,
+        periodLabel: "period-2",
+      },
+    ]);
+
+    expect(fit?.sourcePointCount).toBe(3);
+    expect(fit?.points.every((point) => Number.isFinite(point.x) && Number.isFinite(point.y))).toBe(true);
+  });
+
   it("uses isotonic smoothing before interpolation when raw points dip", () => {
     const fit = buildStarlingSweepFit("left", points([
       [2, 4.0, -300],
