@@ -130,6 +130,8 @@ export type SweepPointDiagnostics = {
   retarget: GuytonWorkerSettledRun["retarget"];
   retargetFallback: boolean;
   settle: SettleStatus;
+  periodBeats: 1 | 2;
+  periodLabel: "period-1" | "period-2";
   health: SimulationHealth;
   displayReliable: boolean;
   seedReliable: boolean;
@@ -198,7 +200,7 @@ export type CalibrationComparisonReport = {
 };
 
 export type GuytonStarlingValidationReport = {
-  schemaVersion: 5;
+  schemaVersion: 6;
   generatedAt: string;
   summary: {
     scenarioCount: number;
@@ -254,7 +256,7 @@ export async function runGuytonStarlingValidation(
   const warningCount = results.reduce((sum, result) => sum + result.warnings.length, 0);
   const errorCount = results.reduce((sum, result) => sum + result.errors.length, 0);
   return {
-    schemaVersion: 5,
+    schemaVersion: 6,
     generatedAt: new Date().toISOString(),
     summary: {
       scenarioCount: results.length,
@@ -593,15 +595,15 @@ export function guytonStarlingValidationReportToMarkdown(report: GuytonStarlingV
     "",
     "## Unsettled / Health Points",
     "",
-    "| Scenario | Scope | Delta | Target TBV | Reason | actualSeconds | worstSignal | worstDelta | Health | Message |",
-    "|---|---|---:|---:|---|---:|---|---:|---|---|",
+    "| Scenario | Scope | Delta | Target TBV | Period | Reason | actualSeconds | worstSignal | worstDelta | Health | Message |",
+    "|---|---|---:|---:|---|---|---:|---|---:|---|---|",
   );
 
   const warningRows = report.scenarios.flatMap((result) => (
     result.warningDetails.map((detail) => ({ result, detail }))
   ));
   if (warningRows.length === 0) {
-    lines.push("| none | - | - | - | - | - | - | - | - | - |");
+    lines.push("| none | - | - | - | - | - | - | - | - | - | - |");
   } else {
     for (const { result, detail } of warningRows) {
       lines.push([
@@ -609,6 +611,7 @@ export function guytonStarlingValidationReportToMarkdown(report: GuytonStarlingV
         detail.scope,
         fmtOptional(detail.deltaVolumeMl, 0),
         fmtOptional(detail.targetVolumeMl, 0),
+        periodLabel(detail.settle),
         detail.settle?.reason ?? "-",
         fmtOptional(detail.settle?.actualSeconds),
         detail.settle?.worstSignal ?? "-",
@@ -623,8 +626,8 @@ export function guytonStarlingValidationReportToMarkdown(report: GuytonStarlingV
     "",
     "## Seed Diagnostics",
     "",
-    "| Scenario | Delta | Chain | wallMs | actualSeconds | Display reliable | Seed reliable | Seeded from | Seed accepted | Reject reason | Exploration |",
-    "|---|---:|---|---:|---:|---|---|---:|---|---|---|",
+    "| Scenario | Delta | Chain | Period | wallMs | actualSeconds | Display reliable | Seed reliable | Seeded from | Seed accepted | Reject reason | Exploration |",
+    "|---|---:|---|---|---:|---:|---|---|---:|---|---|---|",
   );
   for (const result of report.scenarios) {
     for (const point of result.sweepPointDiagnostics.filter((item) => item.chain !== "baseline")) {
@@ -632,6 +635,7 @@ export function guytonStarlingValidationReportToMarkdown(report: GuytonStarlingV
         `| ${result.scenarioId}`,
         fmt(point.deltaVolumeMl, 0),
         point.chain,
+        point.periodLabel,
         fmt(point.wallMs),
         fmtOptional(point.settle.actualSeconds),
         point.displayReliable ? "yes" : "no",
@@ -916,6 +920,8 @@ function sweepPointDiagnosticsFromRun(
     retarget: captured.run.retarget,
     retargetFallback: captured.run.retargetFallback,
     settle: captured.run.settle,
+    periodBeats: captured.run.settle.periodBeats ?? 1,
+    periodLabel: captured.run.settle.periodBeats === 2 ? "period-2" : "period-1",
     health: captured.run.health,
     displayReliable: captured.run.reliability.displayReliable,
     seedReliable: captured.run.reliability.seedReliable,
@@ -1145,6 +1151,11 @@ function fmtNullable(value: number | null | undefined): string {
 
 function fmtOptional(value: number | null | undefined, digits = 1): string {
   return value == null || !Number.isFinite(value) ? "n/a" : value.toFixed(digits);
+}
+
+function periodLabel(settle: SettleStatus | undefined): string {
+  if (!settle) return "-";
+  return settle.periodBeats === 2 ? "period-2" : "period-1";
 }
 
 function formatSignedMl(value: number): string {

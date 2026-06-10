@@ -36,7 +36,9 @@ Two-beat averages are much more balanced:
 | CO_R | ~3.805 L/min |
 | LAP | ~1.25 mmHg |
 
-The current steady-state and metrics path is period-1 oriented. `settling.ts` compares consecutive beat fingerprints; `ModelCore.metrics()` reads the last complete beat window. For a period-2 limit cycle, this means settle reaches cap and the Starling point may represent only one of the alternating beats.
+Before PR #108, the steady-state and metrics path was period-1 oriented. `settling.ts` compared consecutive beat fingerprints and `ModelCore.metrics()` read the last complete beat window. For a period-2 limit cycle, this meant settle reached cap and the Starling point could represent only one of the alternating beats.
+
+PR #108 adds period-2 detection and period-aware metrics. When same-phase beats repeat stably, Starling points use a two-beat mean and carry `period-2` metadata. This is a measurement fix only; it does not decide whether the low-preload alternans is physiological or a model artifact.
 
 ## Negative controls
 
@@ -56,14 +58,13 @@ Observed during local debug work:
 
 There are two separate issues:
 
-1. Measurement/steady-state semantics: the engine currently has only period-1 steady detection and last-beat metrics. Period-2 points need explicit handling before they can be used honestly in Starling/ESPVR measurements.
+1. Measurement/steady-state semantics: period-2 Starling points now use two-beat average metrics and are labeled as period-2. ESPVR still needs separate handling because end-systolic points should not be averaged into one synthetic beat.
 2. Active-stress low-preload dynamics: the LV active-stress equations can enter a period-2 attractor at low preload. This may be physiological alternans, a model artifact, or a parameterization problem. The current strongest candidate is the low-volume interaction of length-dependent activation (`betaLambda`), active stress target shape, thick-sphere geometry, and dynamic AoV coupling.
 
 ## Candidate root fixes
 
-- Add period-k steady detection, starting with period-2.
-- For period-2 steady points, compute metrics and health over the full period window rather than the final single beat.
-- Mark period-2 Starling/ESPVR points explicitly in diagnostics/UI.
+- Extend period-k handling beyond period-2 only if future model review shows higher-period attractors.
+- Add ESPVR-specific period-2 handling: show separate beat-specific ES points or exclude/label them, rather than averaging into a single ES point.
 - Separately review active-stress low-preload formulation:
   - LV `betaLambda`
   - low-volume active stress target / `f_iso`

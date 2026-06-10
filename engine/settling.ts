@@ -29,6 +29,9 @@ export type SettleStatus = {
   beats: number;          // total completed beats observed since reset
   worstSignal: SignalKey | null;
   worstDelta: number;     // max normalized beat-to-beat delta over the checked pairs
+  periodBeats: 1 | 2;     // detected repeating cycle length in beats
+  periodDelta: number;    // max normalized same-phase delta for periodBeats
+  adjacentDelta: number;  // max normalized adjacent-beat delta, useful for alternans diagnostics
   actualSeconds?: number; // set by settleToSteady()
 };
 
@@ -90,31 +93,18 @@ function relDelta(a: number, b: number, floor: number): number {
   return Math.abs(a - b) / Math.max(Math.abs(a), Math.abs(b), floor);
 }
 
-/**
- * Assess the ring of beat fingerprints (period-1 limit cycle).
- * `totalBeats` is the count of completed beats since reset (>= ring.length).
- * Pure: no engine access.
- */
-export function assessBeatRing(
+function compareBeatPairs(
   ring: BeatSummary[],
-  totalBeats: number,
+  comparisons: Array<[number, number]>,
   policy: SettlePolicy,
-): SettleStatus {
-  const need = policy.consecutiveBeats + 1; // N pairs need N+1 beats
-  if (totalBeats < policy.minBeats || ring.length < need) {
-    return { settled: false, reason: "insufficient", beats: totalBeats, worstSignal: null, worstDelta: NaN };
-  }
-
-  // Check the last N consecutive beat-pairs. A pair passes if all primary
-  // deltas < tolPrimary and all shape deltas < tolShape. worst* is the max
-  // normalized delta across the checked pairs (for diagnostics).
+): { allPass: boolean; worstDelta: number; worstSignal: SignalKey | null } {
   let worstDelta = 0;
   let worstSignal: SignalKey | null = null;
   let allPass = true;
 
-  for (let p = 0; p < policy.consecutiveBeats; p++) {
-    const cur = ring[ring.length - 1 - p];
-    const prev = ring[ring.length - 2 - p];
+  for (const [curIndex, prevIndex] of comparisons) {
+    const cur = ring[curIndex];
+    const prev = ring[prevIndex];
     for (const sig of ALL_SIGNALS) {
       const d = relDelta(cur.vals[sig], prev.vals[sig], FLOOR[sig]);
       const tol = PRIMARY.includes(sig) ? policy.tolPrimary : policy.tolShape;
@@ -123,11 +113,90 @@ export function assessBeatRing(
     }
   }
 
+  return { allPass, worstDelta, worstSignal };
+}
+
+function adjacentComparisons(ring: BeatSummary[], count: number): Array<[number, number]> {
+  const pairs: Array<[number, number]> = [];
+  for (let p = 0; p < count; p++) {
+    pairs.push([ring.length - 1 - p, ring.length - 2 - p]);
+  }
+  return pairs;
+}
+
+function periodComparisons(ring: BeatSummary[], periodBeats: 1 | 2, count: number): Array<[number, number]> {
+  const pairs: Array<[number, number]> = [];
+  for (let p = 0; p < count; p++) {
+    pairs.push([ring.length - 1 - p, ring.length - 1 - p - periodBeats]);
+  }
+  return pairs;
+}
+
+/**
+ * Assess the ring of beat fingerprints (period-1, then period-2 limit cycle).
+ * `totalBeats` is the count of completed beats since reset (>= ring.length).
+ * Pure: no engine access.
+ */
+export function assessBeatRing(
+  ring: BeatSummary[],
+  totalBeats: number,
+  policy: SettlePolicy,
+): SettleStatus {
+  const need = policy.consecutiveBeats + 1; // period-1: N pairs need N+1 beats
+  if (totalBeats < policy.minBeats || ring.length < need) {
+    return {
+      settled: false,
+      reason: "insufficient",
+      beats: totalBeats,
+      worstSignal: null,
+      worstDelta: NaN,
+      periodBeats: 1,
+      periodDelta: NaN,
+      adjacentDelta: NaN,
+    };
+  }
+
+  // Period-1 remains preferred: adjacent beat fingerprints must agree.
+  const adjacent = compareBeatPairs(ring, adjacentComparisons(ring, policy.consecutiveBeats), policy);
+  if (adjacent.allPass) {
+    return {
+      settled: true,
+      reason: "converged",
+      beats: totalBeats,
+      worstSignal: adjacent.worstSignal,
+      worstDelta: adjacent.worstDelta,
+      periodBeats: 1,
+      periodDelta: adjacent.worstDelta,
+      adjacentDelta: adjacent.worstDelta,
+    };
+  }
+
+  // Period-2: same phase in the two-beat cycle agrees, while adjacent beats may differ.
+  const period2Need = policy.consecutiveBeats + 2; // N same-phase pairs need N+2 beats
+  if (ring.length >= period2Need) {
+    const period2 = compareBeatPairs(ring, periodComparisons(ring, 2, policy.consecutiveBeats), policy);
+    if (period2.allPass) {
+      return {
+        settled: true,
+        reason: "converged",
+        beats: totalBeats,
+        worstSignal: period2.worstSignal,
+        worstDelta: period2.worstDelta,
+        periodBeats: 2,
+        periodDelta: period2.worstDelta,
+        adjacentDelta: adjacent.worstDelta,
+      };
+    }
+  }
+
   return {
-    settled: allPass,
-    reason: allPass ? "converged" : "converging",
+    settled: false,
+    reason: "converging",
     beats: totalBeats,
-    worstSignal,
-    worstDelta,
+    worstSignal: adjacent.worstSignal,
+    worstDelta: adjacent.worstDelta,
+    periodBeats: 1,
+    periodDelta: adjacent.worstDelta,
+    adjacentDelta: adjacent.worstDelta,
   };
 }

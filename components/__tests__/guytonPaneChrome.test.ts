@@ -89,6 +89,40 @@ describe("Guyton pane chrome helpers", () => {
       },
     })).toBe("full7 fallback");
   });
+
+  it("summarizes period-2 averaged points only in the detail popover", () => {
+    const curve: StarlingSweepCurve = {
+      side: "left",
+      points: [
+        { x: 1.2, y: 3.8, periodBeats: 2, periodLabel: "period-2" },
+        { x: 2.0, y: 4.3, periodBeats: 2, periodLabel: "period-2" },
+        { x: 6.8, y: 5.4, periodBeats: 1, periodLabel: "period-1" },
+      ],
+      warnings: [],
+      calibration: {
+        mode: "adaptive",
+        plannedDeltasMl: [-1000, -500, 0],
+        anchorDeltasMl: [-1000, -500, 0],
+        fallbackReasons: [],
+      },
+      interpretation: {
+        xAxis: "LAP",
+        yAxis: "CO",
+        sweepVariable: "TBV delta",
+        fitBasis: "adaptive exploration",
+        anchorDeltasMl: [-1000, -500, 0],
+        measuredRangeMmHg: { min: 1.2, max: 6.8 },
+        extrapolation: "none",
+        zeroFlowConstrained: false,
+        zeroFlowConstraintReason: "Starling x-axis is cycle-mean RAP/LAP from a TBV sweep, not the ESPVR volume-axis V0.",
+      },
+    };
+
+    expect(guytonStarlingCalibrationDetail(curve, labels())?.rows).toContainEqual({
+      label: "Period",
+      value: "2 period-2 averaged points",
+    });
+  });
 });
 
 function labels() {
@@ -99,6 +133,7 @@ function labels() {
     audit: "Audit",
     holdoutError: "Holdout error",
     measuredRange: "Measured range",
+    period: "Period",
     zeroFlow: "Low-flow end",
     notAvailable: "n/a",
     zeroFlowNotConstrained: "Zero-flow/V0 is not constrained.",

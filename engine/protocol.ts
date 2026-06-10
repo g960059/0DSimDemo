@@ -621,6 +621,7 @@ export type SimulationHealthStatus = "ok" | "warning" | "failed";
 
 export type SimulationHealth = {
   status: SimulationHealthStatus;
+  periodBeats?: 1 | 2;
   tbvDriftMl: number;
   tbvDriftPercent: number;
   leftRightFlowMismatchLMin: number;

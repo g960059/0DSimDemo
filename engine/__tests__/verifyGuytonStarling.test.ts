@@ -32,7 +32,7 @@ describe("Guyton / Starling validation report", () => {
 
   it("returns finite diagnostics and timing for the default scenario", () => {
     const result = defaultReport.scenarios[0];
-    expect(defaultReport.schemaVersion).toBe(5);
+    expect(defaultReport.schemaVersion).toBe(6);
     expect(result.scenarioId).toBe("default");
     expect(result.measurementMode).toBe("in-process-inline-chain");
     expect(Number.isFinite(result.baseline.metrics.RAPMean)).toBe(true);
@@ -148,6 +148,7 @@ describe("Guyton / Starling validation report", () => {
     expect(markdown).toContain("worstSignal");
     expect(markdown).toContain("worstDelta");
     expect(markdown).toContain("actualSeconds");
+    expect(markdown).toContain("Period");
     expect(markdown).toContain("Display reliable");
     expect(markdown).toContain("Seed reliable");
     expect(markdown).toContain("Exploration");
@@ -164,7 +165,17 @@ describe("Guyton / Starling validation report", () => {
   });
 
   it("classifies structured warning details by category", () => {
-    const capSettle: SettleStatus = { settled: false, reason: "cap", beats: 12, worstSignal: "lvEdp", worstDelta: 0.03, actualSeconds: 45 };
+    const capSettle: SettleStatus = {
+      settled: false,
+      reason: "cap",
+      beats: 12,
+      worstSignal: "lvEdp",
+      worstDelta: 0.03,
+      periodBeats: 1,
+      periodDelta: 0.03,
+      adjacentDelta: 0.03,
+      actualSeconds: 45,
+    };
     const details: WarningDetail[] = [
       { category: "sweepSettleCap", scope: "sweep-point", message: "-900 mL: sweep point did not fully settle", settle: capSettle },
       { category: "baseSettle", scope: "base-map", message: "base map: did not fully settle", settle: capSettle },
@@ -200,8 +211,28 @@ function expectFiniteNonNegative(value: number | undefined): void {
 }
 
 function syntheticReport(): GuytonStarlingValidationReport {
-  const okSettle: SettleStatus = { settled: true, reason: "converged", beats: 8, worstSignal: null, worstDelta: 0, actualSeconds: 6 };
-  const capSettle: SettleStatus = { settled: false, reason: "cap", beats: 56, worstSignal: "lvEdp", worstDelta: 0.031, actualSeconds: 45 };
+  const okSettle: SettleStatus = {
+    settled: true,
+    reason: "converged",
+    beats: 8,
+    worstSignal: null,
+    worstDelta: 0,
+    periodBeats: 1,
+    periodDelta: 0,
+    adjacentDelta: 0,
+    actualSeconds: 6,
+  };
+  const capSettle: SettleStatus = {
+    settled: false,
+    reason: "cap",
+    beats: 56,
+    worstSignal: "lvEdp",
+    worstDelta: 0.031,
+    periodBeats: 1,
+    periodDelta: 0.031,
+    adjacentDelta: 0.031,
+    actualSeconds: 45,
+  };
   const okHealth = syntheticHealth("ok");
   const warningHealth = syntheticHealth("warning", ["CO mismatch"]);
   const warningDetails: WarningDetail[] = [
@@ -232,7 +263,7 @@ function syntheticReport(): GuytonStarlingValidationReport {
     },
   ];
   return {
-    schemaVersion: 5,
+    schemaVersion: 6,
     generatedAt: "2026-06-09T00:00:00.000Z",
     summary: {
       scenarioCount: 1,

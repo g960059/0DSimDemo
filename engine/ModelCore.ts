@@ -96,6 +96,15 @@ type BeatAccum = {
   tbv: number;
 };
 
+export type MetricsOptions = {
+  windowBeats?: 1 | 2;
+};
+
+type BeatWindow = {
+  data: SimSample[];
+  beatCount: 1 | 2;
+};
+
 type PressurePack = {
   P: Float64Array;
   Ptm: Float64Array;
@@ -805,7 +814,16 @@ export class ModelCore {
    *  convergence band, so it is intentionally allowed to settle. */
   assessSteadyState(policy: SettlePolicy = DEFAULT_SETTLE_POLICY): SettleStatus {
     if (this.p.projectTBV && Math.abs(this.p.fluidRate - this.p.bleedRate) > 0.5) {
-      return { settled: false, reason: "forced-trend", beats: this.totalBeats, worstSignal: null, worstDelta: NaN };
+      return {
+        settled: false,
+        reason: "forced-trend",
+        beats: this.totalBeats,
+        worstSignal: null,
+        worstDelta: NaN,
+        periodBeats: 1,
+        periodDelta: NaN,
+        adjacentDelta: NaN,
+      };
     }
     return assessBeatRing(this.beatRing, this.totalBeats, policy);
   }
@@ -838,7 +856,7 @@ export class ModelCore {
       const st = this.assessSteadyState(policy);
       if (st.settled) {
         // Run a phase-margin beat or two past convergence.
-        const beatSeconds = (60 / Math.max(this.p.HR, 1)) * policy.postSettleBeats;
+        const beatSeconds = (60 / Math.max(this.p.HR, 1)) * policy.postSettleBeats * (st.periodBeats ?? 1);
         this.runFor(beatSeconds, dt, sampleHz, options);
         return { ...st, actualSeconds: this.t - startT };
       }
@@ -855,26 +873,31 @@ export class ModelCore {
    * fingerprint reproducibility across save/load. Falls back to the in-progress
    * beat, then the last sample, when <1 complete beat of history exists.
    */
-  private lastCompleteBeatWindow(): SimSample[] {
+  private lastCompleteBeatWindow(windowBeats: 1 | 2 = 1): BeatWindow {
     const h = this.history;
-    if (h.length < 2) return this.lastSample ? [this.lastSample] : [...h];
+    if (h.length < 2) return { data: this.lastSample ? [this.lastSample] : [...h], beatCount: 1 };
     const curBeat = Math.floor(h[h.length - 1].phi);
-    const target = curBeat - 1;
+    const requested = windowBeats === 2 ? 2 : 1;
+    const endBeat = curBeat - 1;
+    const startBeat = endBeat - requested + 1;
     let start = -1;
     let end = -1;
     for (let i = 0; i < h.length; i++) {
       const b = Math.floor(h[i].phi);
-      if (start === -1 && b === target) start = i;
-      else if (start !== -1 && b > target) { end = i; break; } // first sample of next beat = closing boundary
+      if (start === -1 && b === startBeat) start = i;
+      else if (start !== -1 && b > endBeat) { end = i; break; } // first sample after window = closing boundary
     }
-    if (start !== -1 && end !== -1 && end - start >= 5) return h.slice(start, end + 1);
+    if (start !== -1 && end !== -1 && end - start >= 5 * requested) {
+      return { data: h.slice(start, end + 1), beatCount: requested as 1 | 2 };
+    }
+    if (requested === 2) return this.lastCompleteBeatWindow(1);
     const cur = h.filter((sample) => Math.floor(sample.phi) === curBeat);
-    if (cur.length >= 5) return cur;
-    return this.lastSample ? [this.lastSample] : [h[h.length - 1]];
+    if (cur.length >= 5) return { data: cur, beatCount: 1 };
+    return { data: this.lastSample ? [this.lastSample] : [h[h.length - 1]], beatCount: 1 };
   }
 
-  metrics(): SimMetrics {
-    const data = this.lastCompleteBeatWindow();
+  metrics(options: MetricsOptions = {}): SimMetrics {
+    const { data, beatCount } = this.lastCompleteBeatWindow(options.windowBeats ?? 1);
     const avg = (key: keyof SimSample) => data.reduce((acc, sample) => acc + Number(sample[key]), 0) / Math.max(data.length, 1);
     const min = (key: keyof SimSample) => Math.min(...data.map((sample) => Number(sample[key])));
     const max = (key: keyof SimSample) => Math.max(...data.map((sample) => Number(sample[key])));
@@ -902,16 +925,23 @@ export class ModelCore {
       if (total <= 1e-9) return 0;
       return clamp(integratePositiveWhen(key, (sample) => sample.QAo <= 5) / total, 0, 1);
     };
-    const SV_L = integratePositive("QAo");
-    const SV_R = integratePositive("QPA");
+    const windowBeatDivisor = Math.max(beatCount, 1);
+    const SV_L = integratePositive("QAo") / windowBeatDivisor;
+    const SV_R = integratePositive("QPA") / windowBeatDivisor;
     const CO_L = (SV_L * this.p.HR) / 1000;
     const CO_R = (SV_R * this.p.HR) / 1000;
     const systemicVenousReturnLMin = avg("SVF") * 60 / 1000;
     const pulmonaryVenousReturnLMin = avg("PVF") * 60 / 1000;
-    const mvFlow = valveFlowIntegral(data, "QMV");
-    const aovFlow = valveFlowIntegral(data, "QAo");
-    const tvFlow = valveFlowIntegral(data, "QTV");
-    const pvFlow = valveFlowIntegral(data, "QPV");
+    const scaleValveFlow = (flow: ReturnType<typeof valveFlowIntegral>) => ({
+      ...flow,
+      forwardVolumeMl: flow.forwardVolumeMl / windowBeatDivisor,
+      reverseVolumeMl: flow.reverseVolumeMl / windowBeatDivisor,
+      netVolumeMl: flow.netVolumeMl / windowBeatDivisor,
+    });
+    const mvFlow = scaleValveFlow(valveFlowIntegral(data, "QMV"));
+    const aovFlow = scaleValveFlow(valveFlowIntegral(data, "QAo"));
+    const tvFlow = scaleValveFlow(valveFlowIntegral(data, "QTV"));
+    const pvFlow = scaleValveFlow(valveFlowIntegral(data, "QPV"));
     const EDV_L = max("VLV");
     const ESV_L = min("VLV");
     const EDV_R = max("VRV");
@@ -1024,8 +1054,9 @@ export class ModelCore {
     return points;
   }
 
-  health(): SimulationHealth {
-    const m = this.metrics();
+  health(options: { periodBeats?: 1 | 2 } = {}): SimulationHealth {
+    const periodBeats = options.periodBeats === 2 ? 2 : 1;
+    const m = this.metrics({ windowBeats: periodBeats });
     // Use the CURRENT state TBV (not a possibly-stale lastSample), so a bare
     // step() loop still reports mass conservation correctly. Compared against the
     // EXPECTED TBV (ledger) so intended hemorrhage/fluid is not flagged — only
@@ -1035,7 +1066,7 @@ export class ModelCore {
     const tbvDriftMl = currentTBV - this.expectedTBV;
     const tbvDriftPercent = this.expectedTBV > 0 ? 100 * tbvDriftMl / this.expectedTBV : 0;
     const leftRightFlowMismatchLMin = Math.abs(m.CO_L - m.CO_R);
-    const cycleMetricDelta = this.computeCycleMetricDelta();
+    const cycleMetricDelta = this.computeCycleMetricDelta(periodBeats);
     const messages: string[] = [];
 
     let numericalStability: SimulationHealthStatus = "ok";
@@ -1081,6 +1112,7 @@ export class ModelCore {
 
     return {
       status,
+      periodBeats,
       tbvDriftMl,
       tbvDriftPercent,
       leftRightFlowMismatchLMin,
@@ -1094,10 +1126,11 @@ export class ModelCore {
     };
   }
 
-  private computeCycleMetricDelta(): number {
+  private computeCycleMetricDelta(windowBeats: 1 | 2 = 1): number {
     const T = 60 / Math.max(this.p.HR, 1);
-    const a = this.history.filter((sample) => sample.t >= this.t - T);
-    const b = this.history.filter((sample) => sample.t < this.t - T && sample.t >= this.t - 2 * T);
+    const windowSeconds = T * Math.max(windowBeats, 1);
+    const a = this.history.filter((sample) => sample.t >= this.t - windowSeconds);
+    const b = this.history.filter((sample) => sample.t < this.t - windowSeconds && sample.t >= this.t - 2 * windowSeconds);
     if (a.length < 5 || b.length < 5) return 0;
     const mean = (xs: SimSample[], key: keyof SimSample) => xs.reduce((acc, sample) => acc + Number(sample[key]), 0) / xs.length;
     const denom = (Math.abs(mean(a, "AoP")) + Math.abs(mean(b, "AoP")) + 1);

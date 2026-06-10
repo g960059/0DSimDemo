@@ -20,6 +20,7 @@ export type GuytonCalibrationDetailLabels = {
   sweep: string;
   anchors: string;
   measuredRange: string;
+  period: string;
   zeroFlow: string;
   audit: string;
   holdoutError: string;
@@ -77,12 +78,17 @@ export function guytonStarlingCalibrationDetail(
   const measuredRange = interpretation.measuredRangeMmHg
     ? `${formatMmHg(interpretation.measuredRangeMmHg.min)}-${formatMmHg(interpretation.measuredRangeMmHg.max)} mmHg`
     : labels.notAvailable;
+  const period2Count = curve?.points.filter((point) => point.periodBeats === 2).length ?? 0;
   return {
     label,
     rows: [
       { label: labels.axis, value: `x=${interpretation.xAxis}, y=${interpretation.yAxis}` },
       { label: labels.sweep, value: interpretation.sweepVariable },
       { label: labels.anchors, value: interpretation.anchorDeltasMl.map(formatDeltaMl).join(", ") },
+      ...(period2Count > 0 ? [{
+        label: labels.period,
+        value: `${period2Count} period-2 averaged point${period2Count === 1 ? "" : "s"}`,
+      }] : []),
       ...(curve?.audit ? [{
         label: labels.audit,
         value: `${curve.audit.reusedDeltasMl.length} reused / ${curve.audit.addedDeltasMl.length} added`,

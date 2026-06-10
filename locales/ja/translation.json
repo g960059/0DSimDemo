@@ -95,6 +95,7 @@
         "audit": "確認",
         "holdoutError": "holdout誤差",
         "measuredRange": "実測範囲",
+        "period": "周期",
         "zeroFlow": "低流量端",
         "notAvailable": "なし",
         "zeroFlowNotConstrained": "TBV sweep探索点から表示。ゼロ流量/V0制約なし。",

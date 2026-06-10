@@ -1280,9 +1280,10 @@ export function settleWorkerCore(
     WORKER_SAMPLE_HZ,
     WORKER_RUN_OPTIONS,
   );
-  const metrics = core.metrics();
+  const periodBeats = settle.periodBeats ?? 1;
+  const metrics = core.metrics({ windowBeats: periodBeats });
   const observables = core.debugObservables();
-  const health = core.health();
+  const health = core.health({ periodBeats });
   const reliability = starlingReliabilityForRun(settle, health.status, metrics, retargetFallback);
 
   return {
@@ -1472,6 +1473,8 @@ function buildSweepCurvesFromRuns(
       reliability: run.reliability,
       explorationReason: auditCandidate?.explorationReason,
       candidateRank: auditCandidate?.candidateRank,
+      periodBeats: settle.periodBeats ?? 1,
+      periodLabel: periodLabelForSettle(settle),
     };
     right.push({ ...rightPoint, quality });
     const leftPoint: GuytonCurvePoint = {
@@ -1485,6 +1488,8 @@ function buildSweepCurvesFromRuns(
       reliability: run.reliability,
       explorationReason: auditCandidate?.explorationReason,
       candidateRank: auditCandidate?.candidateRank,
+      periodBeats: settle.periodBeats ?? 1,
+      periodLabel: periodLabelForSettle(settle),
     };
     left.push({ ...leftPoint, quality });
   }
@@ -1515,6 +1520,10 @@ function buildSweepCurvesFromRuns(
     },
     warnings,
   };
+}
+
+function periodLabelForSettle(settle: SettleStatus): GuytonCurvePoint["periodLabel"] {
+  return (settle.periodBeats ?? 1) === 2 ? "period-2" : "period-1";
 }
 
 function buildStarlingSweepInterpretation(
