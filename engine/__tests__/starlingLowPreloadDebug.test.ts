@@ -16,6 +16,8 @@ describe("low-preload Starling debug diagnostics", () => {
       const t = terms[chamber];
       expect(t).toBeDefined();
       expect(Number.isFinite(t?.lambda)).toBe(true);
+      expect(Number.isFinite(t?.lambdaRaw)).toBe(true);
+      expect(Number.isFinite(t?.lambdaAct)).toBe(true);
       expect(Number.isFinite(t?.Kd)).toBe(true);
       expect(Number.isFinite(t?.aInf)).toBe(true);
       expect(Number.isFinite(t?.tauA)).toBe(true);
@@ -24,6 +26,7 @@ describe("low-preload Starling debug diagnostics", () => {
       expect(t?.gOver).toBeGreaterThanOrEqual(0);
       expect(t?.gOver).toBeLessThanOrEqual(1);
       expect(t?.forceVelocityScale).toBeGreaterThan(0);
+      expect(Number.isFinite(t?.dLogCompositeActive_dLambda)).toBe(true);
     }
   });
 
@@ -39,17 +42,18 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(diagnostics.valveDiodeClampHits).toBeDefined();
   });
 
-  it("builds a schema-v3 low-preload report with active, valve, clamp, return-map, and dt fields", () => {
+  it("builds a schema-v4 low-preload report with active, valve, clamp, return-map, and tau/dt fields", () => {
     const report = runLowPreloadDebug({
       outDir: "unused",
       targetVolumeMl: 5600,
       deltasMl: [0],
       dtValues: [0.002],
+      lambdaActTauSecValues: [0],
       traceBeats: 2,
       sampleHz: 40,
     });
 
-    expect(report.schemaVersion).toBe(3);
+    expect(report.schemaVersion).toBe(4);
     expect(report.dtScenarios).toHaveLength(1);
     expect(report.points).toHaveLength(1);
     const point = report.points[0];
@@ -59,20 +63,42 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(point.valveTrace.AoV.maxQ).toEqual(expect.any(Number));
     expect(point.clampDiagnostics.nodeClampHits).toBeDefined();
     expect(point.returnMap.method).toBe("edv-section-volume-preserving-lv-pvein-central-difference");
+    expect(point.returnMap.sectionInterpolation).toBe("sample-peak");
     expect(point.returnMap.status).toBe("ok");
     expect(point.returnMap.sectionBeat).toEqual(expect.any(Number));
     expect(Number.isFinite(point.returnMap.sectionPhi)).toBe(true);
     expect(Number.isFinite(point.returnMap.sectionVlvMl)).toBe(true);
     expect(Number.isFinite(point.returnMap.features.EDV_L?.centralSlope)).toBe(true);
     expect(Number.isFinite(point.returnMap.features.CO_L?.centralSlope)).toBe(true);
+    expect(Number.isFinite(point.returnMap.twoBeatSamePhase?.features.EDV_L?.centralSlope)).toBe(true);
+    expect(point.returnMap.branchAmplitude.CO_L).toEqual(expect.any(Number));
     expect(Number.isFinite(report.summary.maxAbsReturnMapSlopeEDVL)).toBe(true);
 
     const md = reportToMarkdown(report);
     expect(md).toContain("worst signal");
-    expect(md).toContain("EDV return slope");
+    expect(md).toContain("one-beat EDV slope");
+    expect(md).toContain("two-beat EDV slope");
     expect(md).toContain("Dynamic-flow clamps");
     const csv = reportToCsv(report);
     expect(csv).toContain("LV_KdMean");
+    expect(csv).toContain("LV_lambdaActMean");
     expect(csv).toContain("returnMapEDVSlope");
+  });
+
+  it("can run the off-by-default lambdaAct tau experiment without changing runtime defaults", () => {
+    const report = runLowPreloadDebug({
+      outDir: "unused",
+      targetVolumeMl: 5600,
+      deltasMl: [0],
+      dtValues: [0.002],
+      lambdaActTauSecValues: [0, 0.15],
+      traceBeats: 2,
+      sampleHz: 40,
+    });
+
+    expect(report.dtScenarios.map((s) => s.lambdaActTauSec)).toEqual([0, 0.15]);
+    const tauPoint = report.dtScenarios[1].points[0];
+    expect(tauPoint.activeStressTerminal.LV?.tauLambdaActSec).toBeCloseTo(0.15, 6);
+    expect(Number.isFinite(tauPoint.activeStressTerminal.LV?.lambdaAct)).toBe(true);
   });
 });

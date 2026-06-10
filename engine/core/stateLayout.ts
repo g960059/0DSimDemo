@@ -17,7 +17,7 @@ export type StateIndex = {
   xi: Record<ValveName, number>;
   phi: number;
   septumShift: number;
-  activeInternal: Partial<Record<Chamber, { c: number; a: number; r: number; tensionPa: number }>>;
+  activeInternal: Partial<Record<Chamber, { c: number; a: number; r: number; tensionPa: number; lambdaAct: number }>>;
   size: number;
 };
 
@@ -31,9 +31,9 @@ export function makeIndex(): StateIndex {
   for (const v of valveNames) xi[v] = i++;
   const phi = i++;
   const septumShift = i++;
-  const activeInternal: Partial<Record<Chamber, { c: number; a: number; r: number; tensionPa: number }>> = {};
+  const activeInternal: Partial<Record<Chamber, { c: number; a: number; r: number; tensionPa: number; lambdaAct: number }>> = {};
   for (const ch of activeChambersFromNodes(buildNodes())) {
-    activeInternal[ch] = { c: i++, a: i++, r: i++, tensionPa: i++ };
+    activeInternal[ch] = { c: i++, a: i++, r: i++, tensionPa: i++, lambdaAct: i++ };
   }
   return {
     node,

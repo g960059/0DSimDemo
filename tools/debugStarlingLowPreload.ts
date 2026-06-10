@@ -14,6 +14,7 @@ type DebugOptions = {
   targetVolumeMl: number;
   deltasMl: number[];
   dtValues: number[];
+  lambdaActTauSecValues: number[];
   traceBeats: number;
   sampleHz: number;
 };
@@ -22,6 +23,9 @@ type ActiveBeatSummary = {
   lambdaMean: number;
   lambdaMin: number;
   lambdaMax: number;
+  lambdaRawMean: number;
+  lambdaActMean: number;
+  tauLambdaActSecMean: number;
   KdMean: number;
   aInfMean: number;
   tauAMean: number;
@@ -33,6 +37,10 @@ type ActiveBeatSummary = {
   fIsoMean: number;
   gOverMean: number;
   forceVelocityScaleMean: number;
+  dLogAInf_dLambdaMean: number;
+  dLogFIso_dLambdaMean: number;
+  dLogGOver_dLambdaMean: number;
+  dLogCompositeActive_dLambdaMean: number;
   pressureFloorHitFraction: number;
 };
 
@@ -69,9 +77,22 @@ type ReturnMapFeature = {
   absCentralSlope: number;
 };
 
+type ReturnMapFeatureKey = "EDV_L" | "ESV_L" | "CO_L" | "LAPMean";
+
+type ReturnMapPhaseDiagnostic = {
+  measuredBeatPlus: number | null;
+  measuredBeatMinus: number | null;
+  features: Partial<Record<ReturnMapFeatureKey, ReturnMapFeature>>;
+  clampCrossing: boolean;
+  nonsmooth: boolean;
+  plusClampHits: number;
+  minusClampHits: number;
+};
+
 type ReturnMapDiagnostic = {
   status: "ok" | "failed";
   method: "edv-section-volume-preserving-lv-pvein-central-difference";
+  sectionInterpolation: "sample-peak";
   perturbationMl: number;
   sourcePhi: number;
   sectionBeat: number | null;
@@ -79,7 +100,12 @@ type ReturnMapDiagnostic = {
   sectionVlvMl: number | null;
   measuredBeatPlus: number | null;
   measuredBeatMinus: number | null;
-  features: Partial<Record<"EDV_L" | "ESV_L" | "CO_L" | "LAPMean", ReturnMapFeature>>;
+  features: Partial<Record<ReturnMapFeatureKey, ReturnMapFeature>>;
+  oneBeat: ReturnMapPhaseDiagnostic | null;
+  twoBeatSamePhase: ReturnMapPhaseDiagnostic | null;
+  branchAmplitude: Partial<Record<ReturnMapFeatureKey, number>>;
+  clampCrossing: boolean;
+  nonsmooth: boolean;
   failureReason?: string;
 };
 
@@ -133,6 +159,7 @@ type MetricSummary = {
 
 type DtScenarioReport = {
   dt: number;
+  lambdaActTauSec: number;
   points: DebugPoint[];
   summary: DebugSummary;
 };
@@ -145,19 +172,22 @@ type DebugSummary = {
   maxValveReverseMl: number;
   maxClampHitCount: number;
   maxAbsReturnMapSlopeEDVL: number;
+  maxAbsTwoBeatReturnMapSlopeEDVL: number;
   maxAbsReturnMapSlopeCOL: number;
+  maxAbsTwoBeatReturnMapSlopeCOL: number;
   nodeClampHits: Record<string, number>;
   dynamicFlowClampHits: Record<string, number>;
   valveDiodeClampHits: Record<string, number>;
 };
 
 type DebugReport = {
-  schemaVersion: 3;
+  schemaVersion: 4;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
   deltasMl: number[];
   dtValues: number[];
+  lambdaActTauSecValues: number[];
   traceBeats: number;
   sampleHz: number;
   points: DebugPoint[];
@@ -188,6 +218,7 @@ type DebugRun = {
 
 const DEFAULT_DELTAS = [0, -900, -1000, -1100, -1200, -1300, -1400, -1500, -1600];
 const DEFAULT_DT_VALUES = [0.001, 0.0005, 0.002];
+const DEFAULT_LAMBDA_ACT_TAU_SEC_VALUES = [0];
 const DEFAULT_SAMPLE_HZ = 120;
 const RETURN_MAP_PERTURBATION_ML = 0.5;
 const SETTLE_POLICY = { ...PREVIEW_SETTLE_POLICY, capSeconds: 45 };
@@ -198,6 +229,7 @@ const RUN_OPTIONS = {
 };
 const CSV_COLUMNS = [
   "dt",
+  "lambdaActTauSec",
   "deltaVolumeMl",
   "targetVolumeMl",
   "beat",
@@ -207,26 +239,33 @@ const CSV_COLUMNS = [
   "EDV_L",
   "ESV_L",
   "LV_lambdaMean",
+  "LV_lambdaActMean",
   "LV_KdMean",
   "LV_aInfMean",
   "LV_sigmaActMean",
   "LV_fIsoMean",
   "LV_forceVelocityScaleMean",
   "returnMapEDVSlope",
+  "returnMapTwoBeatEDVSlope",
   "returnMapCOSlope",
+  "returnMapTwoBeatCOSlope",
 ];
 
 export function runLowPreloadDebug(opts: DebugOptions): DebugReport {
   const dtValues = opts.dtValues.length > 0 ? opts.dtValues : DEFAULT_DT_VALUES;
-  const dtScenarios = dtValues.map((dt) => runDtScenario(opts, dt));
-  const primary = dtScenarios[0] ?? runDtScenario(opts, 0.001);
+  const lambdaActTauSecValues = opts.lambdaActTauSecValues.length > 0
+    ? opts.lambdaActTauSecValues
+    : DEFAULT_LAMBDA_ACT_TAU_SEC_VALUES;
+  const dtScenarios = lambdaActTauSecValues.flatMap((tau) => dtValues.map((dt) => runDtScenario(opts, dt, tau)));
+  const primary = dtScenarios[0] ?? runDtScenario(opts, 0.001, 0);
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     generatedAt: new Date().toISOString(),
-    measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve diagnostics; EDV-section volume-preserving LV/PVein return-map slope; dt sensitivity",
+    measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve diagnostics; EDV-section volume-preserving LV/PVein one-beat/two-beat return-map slopes; dt and off-by-default lambdaAct sensitivity",
     targetVolumeMl: opts.targetVolumeMl,
     deltasMl: opts.deltasMl,
     dtValues,
+    lambdaActTauSecValues,
     traceBeats: opts.traceBeats,
     sampleHz: opts.sampleHz,
     points: primary.points,
@@ -234,7 +273,7 @@ export function runLowPreloadDebug(opts: DebugOptions): DebugReport {
     dtScenarios,
     interpretation: {
       dtSensitivity: "If period-2 disappears or strongly changes at smaller dt, numerical coupling is implicated; if it persists, active-stress model dynamics are implicated.",
-      activeStressFields: ["lambda", "Kd", "aInf", "tauA", "c", "a", "sigmaActTarget", "sigmaAct", "sigmaPas", "fIso", "gOver", "forceVelocityScale"],
+      activeStressFields: ["lambdaRaw", "lambdaAct", "tauLambdaActSec", "Kd", "aInf", "tauA", "c", "a", "sigmaActTarget", "sigmaAct", "sigmaPas", "fIso", "gOver", "forceVelocityScale", "dLogAInf_dLambda", "dLogFIso_dLambda", "dLogCompositeActive_dLambda"],
       clampFields: ["nodeClampHits", "dynamicFlowClampHits", "valveDiodeClampHits"],
     },
   };
@@ -249,10 +288,11 @@ export function reportToMarkdown(report: DebugReport): string {
   lines.push("");
   lines.push("## Summary");
   lines.push("");
-  lines.push("| dt | points | period-2 | max adjacent delta | max period delta | max valve reverse mL | max clamp hits | max EDV return slope | max CO return slope |");
-  lines.push("| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| tau lambdaAct s | dt | points | period-2 | max adjacent delta | max period delta | max valve reverse mL | max clamp hits | max one-beat EDV slope | max two-beat EDV slope | max one-beat CO slope | max two-beat CO slope |");
+  lines.push("| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
   for (const scenario of report.dtScenarios) {
     lines.push([
+      round(scenario.lambdaActTauSec, 4),
       round(scenario.dt, 5),
       scenario.summary.pointCount,
       scenario.summary.period2Count,
@@ -261,14 +301,16 @@ export function reportToMarkdown(report: DebugReport): string {
       round(scenario.summary.maxValveReverseMl, 6),
       scenario.summary.maxClampHitCount,
       round(scenario.summary.maxAbsReturnMapSlopeEDVL, 4),
+      round(scenario.summary.maxAbsTwoBeatReturnMapSlopeEDVL, 4),
       round(scenario.summary.maxAbsReturnMapSlopeCOL, 4),
+      round(scenario.summary.maxAbsTwoBeatReturnMapSlopeCOL, 4),
     ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
   }
   lines.push("");
   lines.push("## Primary dt points");
   lines.push("");
-  lines.push("| delta | target TBV | seed | period | reason | actual s | worst signal | worst delta | adj delta | period delta | LAP | CO_L period | CO_L last beat | CO_R period | PV return | clamp hits | valve reverse max | LV lambda mean | LV Kd mean | LV fIso mean | EDV return slope | CO return slope |");
-  lines.push("| ---: | ---: | ---: | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| delta | target TBV | seed | period | reason | actual s | worst signal | worst delta | adj delta | period delta | LAP | CO_L period | CO_L last beat | CO_R period | PV return | clamp hits | valve reverse max | LV lambda raw | LV lambda act | LV Kd mean | LV fIso mean | branch CO amp | one-beat EDV slope | two-beat EDV slope | one-beat CO slope | two-beat CO slope | nonsmooth |");
+  lines.push("| ---: | ---: | ---: | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
   for (const p of report.points) {
     const lastBeat = p.beatTrace.at(-1);
     const lv = lastBeat?.active.LV;
@@ -290,11 +332,16 @@ export function reportToMarkdown(report: DebugReport): string {
       round(p.periodMetrics.pulmonaryVenousReturnLMin, 3),
       p.health.clampHitCount,
       round(maxValveReverse(p), 6),
-      round(lv?.lambdaMean ?? NaN, 4),
+      round(lv?.lambdaRawMean ?? lv?.lambdaMean ?? NaN, 4),
+      round(lv?.lambdaActMean ?? NaN, 4),
       round(lv?.KdMean ?? NaN, 4),
       round(lv?.fIsoMean ?? NaN, 4),
+      round(p.returnMap.branchAmplitude.CO_L ?? NaN, 4),
       round(returnMapSlope(p, "EDV_L"), 4),
+      round(twoBeatReturnMapSlope(p, "EDV_L"), 4),
       round(returnMapSlope(p, "CO_L"), 4),
+      round(twoBeatReturnMapSlope(p, "CO_L"), 4),
+      p.returnMap.nonsmooth ? "yes" : "no",
     ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
   }
   lines.push("");
@@ -312,7 +359,8 @@ export function reportToMarkdown(report: DebugReport): string {
   lines.push("- `CO_L last beat` is intentionally shown next to period-aware `CO_L period`; large separation is expected in period-2 alternans.");
   lines.push("- Nominal valve reverse volumes should remain near zero. Diode clamp hits show how often no-leak valve reverse predictions were clipped before becoming state flow.");
   lines.push("- Node-specific clamp attribution separates low-volume pressure/volume bounds from aggregate health warnings.");
-  lines.push("- Return-map slopes are central differences from a volume-preserving LV/PVein perturbation at the next LV EDV section. EDV/ESV slopes are one-coordinate section slopes; CO/LAP slopes are response slopes. None of them change model dynamics.");
+  lines.push("- Return-map slopes are central differences from a volume-preserving LV/PVein perturbation at the next LV EDV section. `one-beat` measures the next beat; `two-beat` measures the same phase two beats later. EDV/ESV slopes are one-coordinate section slopes; CO/LAP slopes are response slopes. None of them change model dynamics.");
+  lines.push("- `tau lambdaAct s` is an off-by-default experiment. `tau=0` is the shipped model. Positive tau values lag only the length input used by Kd/fIso, not passive pressure, geometry, gOver, force-velocity, or valves.");
   lines.push("- Smaller-dt persistence supports a model-dynamics interpretation; strong dt sensitivity supports an explicit-coupling/numerical interpretation.");
   lines.push("");
   return `${lines.join("\n")}\n`;
@@ -326,6 +374,7 @@ export function reportToCsv(report: DebugReport): string {
         const lv = beat.active.LV;
         rows.push([
           scenario.dt,
+          scenario.lambdaActTauSec,
           point.deltaVolumeMl,
           point.targetVolumeMl,
           beat.beat,
@@ -335,13 +384,16 @@ export function reportToCsv(report: DebugReport): string {
           beat.EDV_L,
           beat.ESV_L,
           lv?.lambdaMean ?? "",
+          lv?.lambdaActMean ?? "",
           lv?.KdMean ?? "",
           lv?.aInfMean ?? "",
           lv?.sigmaActMean ?? "",
           lv?.fIsoMean ?? "",
           lv?.forceVelocityScaleMean ?? "",
           point.returnMap.features.EDV_L?.centralSlope ?? "",
+          point.returnMap.twoBeatSamePhase?.features.EDV_L?.centralSlope ?? "",
           point.returnMap.features.CO_L?.centralSlope ?? "",
+          point.returnMap.twoBeatSamePhase?.features.CO_L?.centralSlope ?? "",
         ].map(csvCell).join(","));
       }
     }
@@ -349,12 +401,13 @@ export function reportToCsv(report: DebugReport): string {
   return `${rows.join("\n")}\n`;
 }
 
-function runDtScenario(opts: DebugOptions, dt: number): DtScenarioReport {
+function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number): DtScenarioReport {
+  const params = paramsWithLambdaActTau(DEFAULT_PARAMS, lambdaActTauSec);
   const req: StarlingSweepRequest = {
     requestId: "debug-starling-low-preload",
     signature: "debug-starling-low-preload",
     instanceId: "debug",
-    params: DEFAULT_PARAMS,
+    params,
     targetVolumeMl: opts.targetVolumeMl,
     deltasMl: opts.deltasMl,
     sweepMode: "adaptive",
@@ -430,7 +483,23 @@ function runDtScenario(opts: DebugOptions, dt: number): DtScenarioReport {
     seedState = run.state;
     seededFromDeltaMl = delta;
   }
-  return { dt, points, summary: summarizePoints(points) };
+  return { dt, lambdaActTauSec, points, summary: summarizePoints(points) };
+}
+
+function paramsWithLambdaActTau(params: CoreRuntimeParams, tauSec: number): CoreRuntimeParams {
+  const tau = Math.max(Number.isFinite(tauSec) ? tauSec : 0, 0);
+  if (tau <= 0) return params;
+  const activeOverride = { tauLambdaActSec: tau };
+  return {
+    ...params,
+    nodeOverrides: {
+      ...(params.nodeOverrides ?? {}),
+      LV: { ...(params.nodeOverrides?.LV ?? {}), active: { ...((params.nodeOverrides?.LV?.active as Record<string, number> | undefined) ?? {}), ...activeOverride } },
+      RV: { ...(params.nodeOverrides?.RV ?? {}), active: { ...((params.nodeOverrides?.RV?.active as Record<string, number> | undefined) ?? {}), ...activeOverride } },
+      LA: { ...(params.nodeOverrides?.LA ?? {}), active: { ...((params.nodeOverrides?.LA?.active as Record<string, number> | undefined) ?? {}), ...activeOverride } },
+      RA: { ...(params.nodeOverrides?.RA ?? {}), active: { ...((params.nodeOverrides?.RA?.active as Record<string, number> | undefined) ?? {}), ...activeOverride } },
+    },
+  };
 }
 
 function settleDebugCore(
@@ -494,29 +563,38 @@ function estimateReturnMapDiagnostic(
     const section = findNextLvEdvSection(state, params, dt);
     const plusState = perturbLvAgainstPVein(section.state, RETURN_MAP_PERTURBATION_ML);
     const minusState = perturbLvAgainstPVein(section.state, -RETURN_MAP_PERTURBATION_ML);
-    const plusBeat = postPerturbationBeat(plusState, params, dt, sampleHz);
-    const minusBeat = postPerturbationBeat(minusState, params, dt, sampleHz);
+    const plus = postPerturbationBeats(plusState, params, dt, sampleHz);
+    const minus = postPerturbationBeats(minusState, params, dt, sampleHz);
+    const oneBeat = phaseDiagnostic(plus.oneBeat, minus.oneBeat, plus.clampHits, minus.clampHits);
+    const twoBeatSamePhase = phaseDiagnostic(plus.twoBeat, minus.twoBeat, plus.clampHits, minus.clampHits);
+    const branchAmplitude = branchAmplitudeFromTrace(
+      collectTraceSamples(newCoreFromState(state, params), 4, dt, sampleHz),
+      params.HR,
+    );
+    const nonsmooth = oneBeat.nonsmooth || twoBeatSamePhase.nonsmooth;
     return {
       status: "ok",
       method: "edv-section-volume-preserving-lv-pvein-central-difference",
+      sectionInterpolation: "sample-peak",
       perturbationMl: RETURN_MAP_PERTURBATION_ML,
       sourcePhi: section.state.phi,
       sectionBeat: section.beat,
       sectionPhi: section.state.phi,
       sectionVlvMl: section.vlvMl,
-      measuredBeatPlus: plusBeat.beat,
-      measuredBeatMinus: minusBeat.beat,
-      features: {
-        EDV_L: centralFeature(plusBeat.EDV_L, minusBeat.EDV_L),
-        ESV_L: centralFeature(plusBeat.ESV_L, minusBeat.ESV_L),
-        CO_L: centralFeature(plusBeat.CO_L, minusBeat.CO_L),
-        LAPMean: centralFeature(plusBeat.LAPMean, minusBeat.LAPMean),
-      },
+      measuredBeatPlus: oneBeat.measuredBeatPlus,
+      measuredBeatMinus: oneBeat.measuredBeatMinus,
+      features: oneBeat.features,
+      oneBeat,
+      twoBeatSamePhase,
+      branchAmplitude,
+      clampCrossing: oneBeat.clampCrossing || twoBeatSamePhase.clampCrossing,
+      nonsmooth,
     };
   } catch (error) {
     return {
       status: "failed",
       method: "edv-section-volume-preserving-lv-pvein-central-difference",
+      sectionInterpolation: "sample-peak",
       perturbationMl: RETURN_MAP_PERTURBATION_ML,
       sourcePhi: state.phi,
       sectionBeat: null,
@@ -525,6 +603,11 @@ function estimateReturnMapDiagnostic(
       measuredBeatPlus: null,
       measuredBeatMinus: null,
       features: {},
+      oneBeat: null,
+      twoBeatSamePhase: null,
+      branchAmplitude: {},
+      clampCrossing: false,
+      nonsmooth: false,
       failureReason: error instanceof Error ? error.message : String(error),
     };
   }
@@ -573,11 +656,22 @@ function perturbLvAgainstPVein(state: SerializedModelState, lvDeltaMl: number): 
   return { ...state, x };
 }
 
-function postPerturbationBeat(state: SerializedModelState, params: CoreRuntimeParams, dt: number, sampleHz: number): BeatTraceRow {
+function newCoreFromState(state: SerializedModelState, params: CoreRuntimeParams): ModelCore {
   const core = new ModelCore(params);
   core.unpackState(state);
+  return core;
+}
+
+function postPerturbationBeats(
+  state: SerializedModelState,
+  params: CoreRuntimeParams,
+  dt: number,
+  sampleHz: number,
+): { oneBeat: BeatTraceRow; twoBeat: BeatTraceRow; clampHits: number } {
+  const core = newCoreFromState(state, params);
   void sampleHz;
-  const targetBeat = Math.floor(core.sample().phi) + 1;
+  const firstTargetBeat = Math.floor(core.sample().phi) + 1;
+  const secondTargetBeat = firstTargetBeat + 1;
   const beatSeconds = 60 / Math.max(core.p.HR, 1);
   const entries: TraceSample[] = [];
   const tEnd = core.t + beatSeconds * 3.5;
@@ -585,13 +679,56 @@ function postPerturbationBeat(state: SerializedModelState, params: CoreRuntimePa
     core.step(dt);
     const sample = core.sample();
     const beat = Math.floor(sample.phi);
-    if (beat === targetBeat) entries.push({ sample, active: core.debugActiveStressDiagnostics() });
-    if (beat > targetBeat && entries.length >= 5) break;
+    if (beat === firstTargetBeat || beat === secondTargetBeat) entries.push({ sample, active: core.debugActiveStressDiagnostics() });
+    if (beat > secondTargetBeat && entries.length >= 10) break;
   }
-  if (entries.length < 5) {
-    throw new Error("could not collect a complete post-perturbation beat");
+  const groups = groupTraceSamplesByBeat(entries);
+  const oneEntries = groups.get(firstTargetBeat) ?? [];
+  const twoEntries = groups.get(secondTargetBeat) ?? [];
+  if (oneEntries.length < 5 || twoEntries.length < 5) {
+    throw new Error("could not collect complete one-beat and two-beat post-perturbation responses");
   }
-  return summarizeBeat(targetBeat, entries, params.HR);
+  return {
+    oneBeat: summarizeBeat(firstTargetBeat, oneEntries, params.HR),
+    twoBeat: summarizeBeat(secondTargetBeat, twoEntries, params.HR),
+    clampHits: core.debugClampDiagnostics().totalClampHits,
+  };
+}
+
+function phaseDiagnostic(
+  plusBeat: BeatTraceRow,
+  minusBeat: BeatTraceRow,
+  plusClampHits: number,
+  minusClampHits: number,
+): ReturnMapPhaseDiagnostic {
+  const clampCrossing = plusClampHits > 0 || minusClampHits > 0 || plusClampHits !== minusClampHits;
+  return {
+    measuredBeatPlus: plusBeat.beat,
+    measuredBeatMinus: minusBeat.beat,
+    features: {
+      EDV_L: centralFeature(plusBeat.EDV_L, minusBeat.EDV_L),
+      ESV_L: centralFeature(plusBeat.ESV_L, minusBeat.ESV_L),
+      CO_L: centralFeature(plusBeat.CO_L, minusBeat.CO_L),
+      LAPMean: centralFeature(plusBeat.LAPMean, minusBeat.LAPMean),
+    },
+    clampCrossing,
+    nonsmooth: clampCrossing,
+    plusClampHits,
+    minusClampHits,
+  };
+}
+
+function branchAmplitudeFromTrace(traceSamples: TraceSample[], HR: number): Partial<Record<ReturnMapFeatureKey, number>> {
+  const trace = summarizeBeatTrace(traceSamples, HR, 4);
+  if (trace.length < 2) return {};
+  const a = trace[trace.length - 1];
+  const b = trace[trace.length - 2];
+  return {
+    EDV_L: Math.abs(a.EDV_L - b.EDV_L),
+    ESV_L: Math.abs(a.ESV_L - b.ESV_L),
+    CO_L: Math.abs(a.CO_L - b.CO_L),
+    LAPMean: Math.abs(a.LAPMean - b.LAPMean),
+  };
 }
 
 function groupTraceSamplesByBeat(traceSamples: TraceSample[]): Map<number, TraceSample[]> {
@@ -658,6 +795,9 @@ function summarizeActive(entries: TraceSample[]): Partial<Record<Chamber, Active
       lambdaMean: meanNumbers(terms.map((term) => term.lambda)),
       lambdaMin: Math.min(...terms.map((term) => term.lambda)),
       lambdaMax: Math.max(...terms.map((term) => term.lambda)),
+      lambdaRawMean: meanNumbers(terms.map((term) => term.lambdaRaw)),
+      lambdaActMean: meanNumbers(terms.map((term) => term.lambdaAct)),
+      tauLambdaActSecMean: meanNumbers(terms.map((term) => term.tauLambdaActSec)),
       KdMean: meanNumbers(terms.map((term) => term.Kd)),
       aInfMean: meanNumbers(terms.map((term) => term.aInf)),
       tauAMean: meanNumbers(terms.map((term) => term.tauA)),
@@ -669,6 +809,10 @@ function summarizeActive(entries: TraceSample[]): Partial<Record<Chamber, Active
       fIsoMean: meanNumbers(terms.map((term) => term.fIso)),
       gOverMean: meanNumbers(terms.map((term) => term.gOver)),
       forceVelocityScaleMean: meanNumbers(terms.map((term) => term.forceVelocityScale)),
+      dLogAInf_dLambdaMean: meanNumbers(terms.map((term) => term.dLogAInf_dLambda)),
+      dLogFIso_dLambdaMean: meanNumbers(terms.map((term) => term.dLogFIso_dLambda)),
+      dLogGOver_dLambdaMean: meanNumbers(terms.map((term) => term.dLogGOver_dLambda)),
+      dLogCompositeActive_dLambdaMean: meanNumbers(terms.map((term) => term.dLogCompositeActive_dLambda)),
       pressureFloorHitFraction: meanNumbers(terms.map((term) => term.pressureFloorHit01)),
     };
   }
@@ -714,7 +858,9 @@ function summarizePoints(points: DebugPoint[]): DebugSummary {
     maxValveReverseMl,
     maxClampHitCount: Math.max(0, ...points.map((p) => p.health.clampHitCount)),
     maxAbsReturnMapSlopeEDVL: Math.max(0, ...points.map((p) => p.returnMap.features.EDV_L?.absCentralSlope ?? 0)),
+    maxAbsTwoBeatReturnMapSlopeEDVL: Math.max(0, ...points.map((p) => p.returnMap.twoBeatSamePhase?.features.EDV_L?.absCentralSlope ?? 0)),
     maxAbsReturnMapSlopeCOL: Math.max(0, ...points.map((p) => p.returnMap.features.CO_L?.absCentralSlope ?? 0)),
+    maxAbsTwoBeatReturnMapSlopeCOL: Math.max(0, ...points.map((p) => p.returnMap.twoBeatSamePhase?.features.CO_L?.absCentralSlope ?? 0)),
     nodeClampHits: mergeCountRecords(points.map((p) => p.clampDiagnostics.nodeClampHits)),
     dynamicFlowClampHits: mergeCountRecords(points.map((p) => p.clampDiagnostics.dynamicFlowClampHits)),
     valveDiodeClampHits: mergeCountRecords(points.map((p) => p.clampDiagnostics.valveDiodeClampHits)),
@@ -794,6 +940,10 @@ function returnMapSlope(p: DebugPoint, key: keyof ReturnMapDiagnostic["features"
   return p.returnMap.features[key]?.centralSlope ?? Number.NaN;
 }
 
+function twoBeatReturnMapSlope(p: DebugPoint, key: keyof ReturnMapDiagnostic["features"]): number {
+  return p.returnMap.twoBeatSamePhase?.features[key]?.centralSlope ?? Number.NaN;
+}
+
 function meanNumbers(values: number[]): number {
   const finite = values.filter(Number.isFinite);
   if (finite.length === 0) return Number.NaN;
@@ -807,6 +957,7 @@ function parseArgs(args: string[]): DebugOptions {
     targetVolumeMl: 5600,
     deltasMl: DEFAULT_DELTAS,
     dtValues: DEFAULT_DT_VALUES,
+    lambdaActTauSecValues: DEFAULT_LAMBDA_ACT_TAU_SEC_VALUES,
     traceBeats: 10,
     sampleHz: DEFAULT_SAMPLE_HZ,
   };
@@ -816,6 +967,7 @@ function parseArgs(args: string[]): DebugOptions {
     else if (key === "--target-volume" && value) opts.targetVolumeMl = Number(value);
     else if (key === "--deltas" && value) opts.deltasMl = parseNumberList(value);
     else if (key === "--dt" && value) opts.dtValues = parseNumberList(value);
+    else if (key === "--lambda-act-tau" && value) opts.lambdaActTauSecValues = parseNumberList(value);
     else if (key === "--trace-beats" && value) opts.traceBeats = Math.max(2, Math.floor(Number(value)));
     else if (key === "--sample-hz" && value) opts.sampleHz = Math.max(20, Math.floor(Number(value)));
     else if (key === "--help") {
@@ -836,12 +988,13 @@ function printHelp(): void {
   // eslint-disable-next-line no-console
   console.log([
     "Usage: npm run debug:starling-low-preload -- [--out=DIR] [--target-volume=5600]",
-    "       [--deltas=0,-900,-1000,-1100] [--dt=0.001,0.0005,0.002] [--trace-beats=10] [--sample-hz=120]",
+    "       [--deltas=0,-900,-1000,-1100] [--dt=0.001,0.0005,0.002] [--lambda-act-tau=0,0.15,0.25,0.4] [--trace-beats=10] [--sample-hz=120]",
     "",
     "Examples:",
     "  npm run debug:starling-low-preload",
     "  npm run debug:starling-low-preload -- --out=artifacts/starling-low-preload-debug/manual",
     "  npm run debug:starling-low-preload -- --dt=0.001 --deltas=0,-1250 --trace-beats=4",
+    "  npm run debug:starling-low-preload -- --deltas=0,-1200,-1250 --dt=0.001,0.0005 --lambda-act-tau=0,0.15,0.25,0.4",
   ].join("\n"));
 }
 
