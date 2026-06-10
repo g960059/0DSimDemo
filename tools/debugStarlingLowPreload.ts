@@ -6,7 +6,7 @@ import { makeIndex } from "@/engine/core/stateLayout";
 import type { StarlingSweepRequest } from "@/engine/guytonStarling";
 import { PREVIEW_SETTLE_POLICY, type SettleStatus } from "@/engine/settling";
 import type { CoreRuntimeParams, SimMetrics, SimObservables, SimSample, SimulationHealth } from "@/engine/protocol";
-import type { Chamber } from "@/engine/chambers";
+import type { ActiveChamberParams, Chamber, LambdaActTerms } from "@/engine/chambers";
 import type { SerializedModelState } from "@/engine/stateContract";
 
 type DebugOptions = {
@@ -16,6 +16,7 @@ type DebugOptions = {
   dtValues: number[];
   lambdaActTauSecValues: number[];
   lambdaActScope: LambdaActScope;
+  lambdaActTerms?: LambdaActTerms;
   traceBeats: number;
   sampleHz: number;
   returnMapMode: ReturnMapModeOption;
@@ -30,6 +31,8 @@ type ActiveBeatSummary = {
   lambdaMax: number;
   lambdaRawMean: number;
   lambdaActMean: number;
+  lambdaForKdMean: number;
+  lambdaForFIsoMean: number;
   tauLambdaActSecMean: number;
   KdMean: number;
   aInfMean: number;
@@ -181,6 +184,7 @@ type DtScenarioReport = {
   dt: number;
   lambdaActTauSec: number;
   lambdaActScope: LambdaActScope;
+  lambdaActTerms: LambdaActTerms;
   points: DebugPoint[];
   summary: DebugSummary;
 };
@@ -208,7 +212,7 @@ type DebugSummary = {
 };
 
 type DebugReport = {
-  schemaVersion: 6;
+  schemaVersion: 7;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -216,6 +220,7 @@ type DebugReport = {
   dtValues: number[];
   lambdaActTauSecValues: number[];
   lambdaActScope: LambdaActScope;
+  lambdaActTerms: LambdaActTerms;
   traceBeats: number;
   sampleHz: number;
   returnMapMode: ReturnMapModeOption;
@@ -252,6 +257,7 @@ const DEFAULT_DELTAS = [0, -900, -1000, -1100, -1200, -1300, -1400, -1500, -1600
 const DEFAULT_DT_VALUES = [0.001, 0.0005, 0.002];
 const DEFAULT_LAMBDA_ACT_TAU_SEC_VALUES = [0];
 const DEFAULT_LAMBDA_ACT_SCOPE: LambdaActScope = "all";
+const DEFAULT_LAMBDA_ACT_TERMS: LambdaActTerms = "kd+fiso";
 const DEFAULT_SAMPLE_HZ = 120;
 const DEFAULT_RETURN_MAP_MODE: ReturnMapModeOption = "both";
 const RETURN_MAP_PERTURBATION_ML = 0.5;
@@ -265,6 +271,7 @@ const CSV_COLUMNS = [
   "dt",
   "lambdaActTauSec",
   "lambdaActScope",
+  "lambdaActTerms",
   "deltaVolumeMl",
   "targetVolumeMl",
   "beat",
@@ -275,6 +282,8 @@ const CSV_COLUMNS = [
   "ESV_L",
   "LV_lambdaMean",
   "LV_lambdaActMean",
+  "LV_lambdaForKdMean",
+  "LV_lambdaForFIsoMean",
   "LV_lambdaActMinusRawMean",
   "LV_KdMean",
   "LV_aInfMean",
@@ -303,10 +312,11 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
   const lambdaActTauSecValues = opts.lambdaActTauSecValues.length > 0
     ? opts.lambdaActTauSecValues
     : DEFAULT_LAMBDA_ACT_TAU_SEC_VALUES;
+  const lambdaActTerms = opts.lambdaActTerms ?? DEFAULT_LAMBDA_ACT_TERMS;
   const dtScenarios = lambdaActTauSecValues.flatMap((tau) => dtValues.map((dt) => runDtScenario(opts, dt, tau)));
   const primary = dtScenarios[0] ?? runDtScenario(opts, 0.001, 0);
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
     generatedAt: new Date().toISOString(),
     measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve diagnostics; branch-amplitude primary gate; EDV-section volume-preserving LV/PVein one-beat/two-beat return-map slopes with lambdaAct consistency modes; dt and off-by-default lambdaAct sensitivity",
     targetVolumeMl: opts.targetVolumeMl,
@@ -314,6 +324,7 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
     dtValues,
     lambdaActTauSecValues,
     lambdaActScope: opts.lambdaActScope,
+    lambdaActTerms,
     traceBeats: opts.traceBeats,
     sampleHz: opts.sampleHz,
     returnMapMode: opts.returnMapMode,
@@ -325,7 +336,7 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
     dtScenarios,
     interpretation: {
       dtSensitivity: "If period-2 disappears or strongly changes at smaller dt, numerical coupling is implicated; if it persists, active-stress model dynamics are implicated.",
-      activeStressFields: ["lambdaRaw", "lambdaAct", "tauLambdaActSec", "lambdaActMinusRaw", "Kd", "aInf", "tauA", "c", "a", "sigmaActTarget", "sigmaAct", "sigmaPas", "fIso", "gOver", "forceVelocityScale", "dLogAInf_dLambdaAct", "dLogFIso_dLambdaAct", "dLogGOver_dLambdaRaw", "dLogCompositeActive_dLambdaAct"],
+      activeStressFields: ["lambdaRaw", "lambdaAct", "lambdaForKd", "lambdaForFIso", "lambdaActTerms", "tauLambdaActSec", "lambdaActMinusRaw", "Kd", "aInf", "tauA", "c", "a", "sigmaActTarget", "sigmaAct", "sigmaPas", "fIso", "gOver", "forceVelocityScale", "dLogAInf_dLambdaAct", "dLogFIso_dLambdaAct", "dLogGOver_dLambdaRaw", "dLogCompositeActive_dLambdaAct"],
       clampFields: ["nodeClampHits", "dynamicFlowClampHits", "valveDiodeClampHits"],
     },
   };
@@ -352,17 +363,19 @@ export function reportToMarkdown(report: DebugReport): string {
   lines.push(`Generated: ${report.generatedAt}`);
   lines.push(`Measurement: ${report.measurementMode}`);
   lines.push(`lambdaAct scope: ${report.lambdaActScope}`);
+  lines.push(`lambdaAct terms: ${report.lambdaActTerms}`);
   lines.push(`return-map mode: ${report.returnMapMode}`);
   if (report.maxReturnMapPoints != null) lines.push(`max return-map points: ${report.maxReturnMapPoints}`);
   lines.push("");
   lines.push("## Summary");
   lines.push("");
-  lines.push("| tau lambdaAct s | scope | dt | points | period-2 | max adjacent delta | max period delta | max CO branch amp | max CO branch frac | max EDV branch amp | max EDV branch frac | max valve reverse mL | max clamp hits | max one-beat EDV slope | max two-beat EDV slope |");
-  lines.push("| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| tau lambdaAct s | scope | terms | dt | points | period-2 | max adjacent delta | max period delta | max CO branch amp | max CO branch frac | max EDV branch amp | max EDV branch frac | max valve reverse mL | max clamp hits | max one-beat EDV slope | max two-beat EDV slope |");
+  lines.push("| ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
   for (const scenario of report.dtScenarios) {
     lines.push([
       round(scenario.lambdaActTauSec, 4),
       scenario.lambdaActScope,
+      scenario.lambdaActTerms,
       round(scenario.dt, 5),
       scenario.summary.pointCount,
       scenario.summary.period2Count,
@@ -381,8 +394,8 @@ export function reportToMarkdown(report: DebugReport): string {
   lines.push("");
   lines.push("## Primary dt points");
   lines.push("");
-  lines.push("| delta | target TBV | seed | period | reason | actual s | worst signal | worst delta | adj delta | period delta | LAP | CO_L period | CO_L last beat | CO_R period | PV return | clamp hits | valve reverse max | LV lambda raw | LV lambda act | LV lambdaAct-raw | LV Kd mean | LV fIso mean | branch CO amp | branch CO frac | branch EDV amp | branch EDV frac | return-map | one-beat EDV slope | two-beat EDV slope | reset-lambdaAct two-beat EDV slope | nonsmooth |");
-  lines.push("| ---: | ---: | ---: | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | --- |");
+  lines.push("| delta | target TBV | seed | period | reason | actual s | worst signal | worst delta | adj delta | period delta | LAP | CO_L period | CO_L last beat | CO_R period | PV return | clamp hits | valve reverse max | LV lambda raw | LV lambda act | LV lambda Kd | LV lambda fIso | LV lambdaAct-raw | LV Kd mean | LV fIso mean | branch CO amp | branch CO frac | branch EDV amp | branch EDV frac | return-map | one-beat EDV slope | two-beat EDV slope | reset-lambdaAct two-beat EDV slope | nonsmooth |");
+  lines.push("| ---: | ---: | ---: | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | --- |");
   for (const p of report.points) {
     const lastBeat = p.beatTrace.at(-1);
     const lv = lastBeat?.active.LV;
@@ -406,6 +419,8 @@ export function reportToMarkdown(report: DebugReport): string {
       round(maxValveReverse(p), 6),
       round(lv?.lambdaRawMean ?? lv?.lambdaMean ?? NaN, 4),
       round(lv?.lambdaActMean ?? NaN, 4),
+      round(lv?.lambdaForKdMean ?? NaN, 4),
+      round(lv?.lambdaForFIsoMean ?? NaN, 4),
       round(lv?.lambdaActMinusRawMean ?? NaN, 4),
       round(lv?.KdMean ?? NaN, 4),
       round(lv?.fIsoMean ?? NaN, 4),
@@ -438,7 +453,7 @@ export function reportToMarkdown(report: DebugReport): string {
   lines.push("- Return-map slopes are central differences from a volume-preserving LV/PVein perturbation at the next LV EDV section. `one-beat` measures the next beat; `two-beat` measures the same phase two beats later. EDV/ESV slopes are one-coordinate section slopes; CO/LAP slopes are response slopes. None of them change model dynamics.");
   lines.push("- Branch amplitude and branch amplitude fraction are classifier-independent high/low beat measurements from the trace; treat them as the primary stabilization signal before interpreting period labels or local slopes.");
   lines.push("- `volumeLambdaActFixed` keeps the active-stretch memory fixed after a volume perturbation; `volumeLambdaActReset` resets LV `lambdaAct` to the post-perturbation raw LV stretch before measuring the return map. The latter is a quasi-static consistency check for lambdaAct experiments, not a model change.");
-  lines.push("- `tau lambdaAct s` is an off-by-default experiment. `tau=0` is the shipped model. Positive tau values lag only the length input used by Kd/fIso, not passive pressure, geometry, gOver, force-velocity, or valves.");
+  lines.push("- `tau lambdaAct s` is an off-by-default experiment. `tau=0` is the shipped model. Positive tau values lag only selected active-stress length inputs (`kd`, `fiso`, or `kd+fiso`), not passive pressure, geometry, gOver, force-velocity, or valves.");
   lines.push("- Smaller-dt persistence supports a model-dynamics interpretation; strong dt sensitivity supports an explicit-coupling/numerical interpretation.");
   lines.push("");
   return `${lines.join("\n")}\n`;
@@ -454,6 +469,7 @@ export function reportToCsv(report: DebugReport): string {
           scenario.dt,
           scenario.lambdaActTauSec,
           scenario.lambdaActScope,
+          scenario.lambdaActTerms,
           point.deltaVolumeMl,
           point.targetVolumeMl,
           beat.beat,
@@ -464,6 +480,8 @@ export function reportToCsv(report: DebugReport): string {
           beat.ESV_L,
           lv?.lambdaMean ?? "",
           lv?.lambdaActMean ?? "",
+          lv?.lambdaForKdMean ?? "",
+          lv?.lambdaForFIsoMean ?? "",
           lv?.lambdaActMinusRawMean ?? "",
           lv?.KdMean ?? "",
           lv?.aInfMean ?? "",
@@ -488,7 +506,8 @@ export function reportToCsv(report: DebugReport): string {
 }
 
 function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number): DtScenarioReport {
-  const params = paramsWithLambdaActTau(DEFAULT_PARAMS, lambdaActTauSec, opts.lambdaActScope);
+  const lambdaActTerms = opts.lambdaActTerms ?? DEFAULT_LAMBDA_ACT_TERMS;
+  const params = paramsWithLambdaActTau(DEFAULT_PARAMS, lambdaActTauSec, opts.lambdaActScope, lambdaActTerms);
   const req: StarlingSweepRequest = {
     requestId: "debug-starling-low-preload",
     signature: "debug-starling-low-preload",
@@ -592,7 +611,7 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
       point.returnMap.branchAmplitudeFraction,
     );
   }
-  return { dt, lambdaActTauSec, lambdaActScope: opts.lambdaActScope, points, summary: summarizePoints(points) };
+  return { dt, lambdaActTauSec, lambdaActScope: opts.lambdaActScope, lambdaActTerms, points, summary: summarizePoints(points) };
 }
 
 function selectedReturnMapPointIndices(points: DebugPoint[], opts: DebugOptions): number[] {
@@ -640,10 +659,15 @@ export function selectSuspiciousPointIndices(points: DebugPoint[], limit: number
   return Array.from(selected).slice(0, limit).sort((a, b) => a - b);
 }
 
-function paramsWithLambdaActTau(params: CoreRuntimeParams, tauSec: number, scope: LambdaActScope): CoreRuntimeParams {
+export function paramsWithLambdaActTau(
+  params: CoreRuntimeParams,
+  tauSec: number,
+  scope: LambdaActScope,
+  terms: LambdaActTerms = DEFAULT_LAMBDA_ACT_TERMS,
+): CoreRuntimeParams {
   const tau = Math.max(Number.isFinite(tauSec) ? tauSec : 0, 0);
   if (tau <= 0) return params;
-  const activeOverride = { tauLambdaActSec: tau };
+  const activeOverride = { tauLambdaActSec: tau, lambdaActTerms: terms };
   const apply = (chamber: "LV" | "RV" | "LA" | "RA") => {
     if (scope === "lv") return chamber === "LV";
     if (scope === "ventricles") return chamber === "LV" || chamber === "RV";
@@ -654,7 +678,7 @@ function paramsWithLambdaActTau(params: CoreRuntimeParams, tauSec: number, scope
     if (!apply(chamber)) continue;
     nodeOverrides[chamber] = {
       ...(nodeOverrides[chamber] ?? {}),
-      active: { ...((nodeOverrides[chamber]?.active as Record<string, number> | undefined) ?? {}), ...activeOverride },
+      active: { ...((nodeOverrides[chamber]?.active as Partial<ActiveChamberParams> | undefined) ?? {}), ...activeOverride },
     };
   }
   return {
@@ -1066,6 +1090,8 @@ function summarizeActive(entries: TraceSample[]): Partial<Record<Chamber, Active
       lambdaMax: Math.max(...terms.map((term) => term.lambda)),
       lambdaRawMean: meanNumbers(terms.map((term) => term.lambdaRaw)),
       lambdaActMean: meanNumbers(terms.map((term) => term.lambdaAct)),
+      lambdaForKdMean: meanNumbers(terms.map((term) => term.lambdaForKd)),
+      lambdaForFIsoMean: meanNumbers(terms.map((term) => term.lambdaForFIso)),
       tauLambdaActSecMean: meanNumbers(terms.map((term) => term.tauLambdaActSec)),
       KdMean: meanNumbers(terms.map((term) => term.Kd)),
       aInfMean: meanNumbers(terms.map((term) => term.aInf)),
@@ -1243,6 +1269,7 @@ export function parseLowPreloadDebugArgs(args: string[]): DebugOptions {
     dtValues: DEFAULT_DT_VALUES,
     lambdaActTauSecValues: DEFAULT_LAMBDA_ACT_TAU_SEC_VALUES,
     lambdaActScope: DEFAULT_LAMBDA_ACT_SCOPE,
+    lambdaActTerms: DEFAULT_LAMBDA_ACT_TERMS,
     traceBeats: 10,
     sampleHz: DEFAULT_SAMPLE_HZ,
     returnMapMode: DEFAULT_RETURN_MAP_MODE,
@@ -1256,6 +1283,7 @@ export function parseLowPreloadDebugArgs(args: string[]): DebugOptions {
     else if (key === "--dt" && value) opts.dtValues = parseNumberList(value);
     else if (key === "--lambda-act-tau" && value) opts.lambdaActTauSecValues = parseNumberList(value);
     else if (key === "--lambda-act-scope" && value) opts.lambdaActScope = parseLambdaActScope(value);
+    else if (key === "--lambda-act-terms" && value) opts.lambdaActTerms = parseLambdaActTerms(value);
     else if (key === "--return-map-mode" && value) opts.returnMapMode = parseReturnMapMode(value);
     else if (key === "--branch-only") opts.returnMapMode = "none";
     else if (key === "--max-return-map-points" && value) opts.maxReturnMapPoints = Math.max(0, Math.floor(Number(value)));
@@ -1283,6 +1311,11 @@ function parseLambdaActScope(value: string): LambdaActScope {
   throw new Error(`Invalid lambdaAct scope: ${value}`);
 }
 
+function parseLambdaActTerms(value: string): LambdaActTerms {
+  if (value === "kd" || value === "fiso" || value === "kd+fiso") return value;
+  throw new Error(`Invalid lambdaAct terms: ${value}`);
+}
+
 function parseNumberList(value: string): number[] {
   return value.split(",").map((v) => Number(v.trim())).filter(Number.isFinite);
 }
@@ -1292,7 +1325,8 @@ function printHelp(): void {
   console.log([
     "Usage: npm run debug:starling-low-preload -- [--out=DIR] [--target-volume=5600]",
     "       [--deltas=0,-900,-1000,-1100] [--dt=0.001,0.0005,0.002] [--lambda-act-tau=0,0.15,0.25,0.4]",
-    "       [--lambda-act-scope=lv|ventricles|all] [--return-map-mode=none|fixed|reset|both] [--branch-only]",
+    "       [--lambda-act-scope=lv|ventricles|all] [--lambda-act-terms=kd|fiso|kd+fiso]",
+    "       [--return-map-mode=none|fixed|reset|both] [--branch-only]",
     "       [--max-return-map-points=4] [--quiet-clamp-log] [--trace-beats=10] [--sample-hz=120]",
     "",
     "Examples:",

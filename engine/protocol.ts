@@ -110,7 +110,7 @@ export type CoreRuntimeParams = {
  * active-chamber params (e.g. { active: { bPas: 20 } }) which ModelCore
  * deep-merges onto the chamber model. So one level of nesting is allowed.
  */
-export type OverrideBlock = Record<string, Record<string, number | Record<string, number>>>;
+export type OverrideBlock = Record<string, Record<string, number | Record<string, number | string>>>;
 
 export type ParameterPatch = Partial<CoreRuntimeParams>;
 
@@ -342,14 +342,15 @@ function sanitizeOverrides(raw: unknown, nestedKeys: ReadonlySet<string>): Overr
   const out: OverrideBlock = {};
   for (const [group, fields] of Object.entries(raw)) {
     if (!isPlainObject(fields)) continue;
-    const clean: Record<string, number | Record<string, number>> = {};
+    const clean: Record<string, number | Record<string, number | string>> = {};
     for (const [k, v] of Object.entries(fields)) {
       if (typeof v === "number" && Number.isFinite(v)) {
         clean[k] = v;
       } else if (nestedKeys.has(k) && isPlainObject(v)) {
-        const nested: Record<string, number> = {};
+        const nested: Record<string, number | string> = {};
         for (const [k2, v2] of Object.entries(v)) {
           if (typeof v2 === "number" && Number.isFinite(v2)) nested[k2] = v2;
+          else if (k2 === "lambdaActTerms" && (v2 === "kd" || v2 === "fiso" || v2 === "kd+fiso")) nested[k2] = v2;
         }
         if (Object.keys(nested).length > 0) clean[k] = nested;
       }

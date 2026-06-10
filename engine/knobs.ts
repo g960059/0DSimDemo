@@ -272,7 +272,7 @@ export function mergeNodeOverrides(a: OverrideBlock | undefined, b: OverrideBloc
   for (const node of new Set([...Object.keys(a), ...Object.keys(b)])) {
     const fa = a[node] ?? {};
     const fb = b[node] ?? {};
-    const fields: Record<string, number | Record<string, number>> = { ...fa };
+    const fields: Record<string, number | Record<string, number | string>> = { ...fa };
     for (const [key, vb] of Object.entries(fb)) {
       const va = fields[key];
       if (va && typeof va === "object" && vb && typeof vb === "object") {

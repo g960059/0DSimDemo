@@ -160,6 +160,7 @@ After PR #115 the diagnostic workflow is split into a fast branch-first pass and
 - `--branch-only` is an alias for `--return-map-mode=none`; it keeps period, branch-amplitude, clamp, valve, and active-stress diagnostics while skipping expensive return maps.
 - `--max-return-map-points=N` limits return-map diagnostics to suspicious points selected by branch amplitude, clamp activity, lowest finite preload, and the `-1250 mL` baseline representative when present.
 - `--lambda-act-scope=lv|ventricles|all` applies off-by-default `tauLambdaActSec` only to the selected active chamber set. The default is `all`, matching the earlier report behavior.
+- `--lambda-act-terms=kd|fiso|kd+fiso` chooses which active-stress length inputs use the lagged `lambdaAct` state. `kd` lags only length-dependent calcium sensitivity, `fiso` lags only the force-length gate, and `kd+fiso` preserves the original comparator behavior.
 - `--quiet-clamp-log` suppresses console clamp spam during debug runs while preserving clamp counters in `report.json`.
 
 For broad model-team comparisons, prefer the matrix runner:
@@ -171,16 +172,23 @@ npm run verify:starling-low-preload-matrix -- \
   --dt=0.001,0.0005 \
   --lambda-act-tau=0,0.05,0.10,0.15,0.20,0.40 \
   --lambda-act-scope=lv,ventricles \
+  --lambda-act-terms=kd,fiso,kd+fiso \
   --max-return-map-points=6
 ```
 
-The matrix runner first performs branch-only marches across the full grid, then replays each selected scenario with `return-map-mode=both` while computing EDV-section return maps only for the selected suspicious deltas. It writes:
+The matrix runner first performs branch-only marches across the full grid, then replays each selected scenario with `return-map-mode=both` while computing EDV-section return maps only for the selected suspicious deltas. `tau=0` is term/scope independent and is run once per dt. Positive tau values expand across scope and term. The report also includes normal and HR100 waveform gates so low-preload improvement can be checked against ordinary waveform distortion before any model-fix candidate is promoted. It writes:
 
 - `matrix-report.json`
 - `matrix-report.md`
 - `branch-table.csv`
 
 This keeps the default debug command available for deep single-scenario investigation, while making tau/scope sweeps cheap enough to run routinely.
+
+Interpretation guardrails:
+
+- A strong `kd` result does not prove Kd is the root cause. It means the low-preload active-stretch gain is sensitive to the length-dependent calcium path under this comparator.
+- A strong `fiso` result does not license a hidden force-length reshape. Any fIso/composite-gain change still needs normal/HR100 waveform gates and validation.
+- Treat branch amplitude, clamp activity, and normal/HR100 waveform deltas together. Reducing period-2 while increasing clamp hits or distorting LVP/QAo/dPdt is not a root fix.
 
 ## Recommended root-fix experiments
 

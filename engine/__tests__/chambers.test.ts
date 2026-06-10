@@ -122,6 +122,39 @@ describe("ChamberModel behavior parity (S2a refactor guards)", () => {
     expect(Number.isFinite(d.lambdaActDot)).toBe(true);
   });
 
+  it("can scope lambdaAct lag to Kd, fIso, or both active-stress terms", () => {
+    const ctx = {
+      HR: 75,
+      contractility: 1,
+      relaxation: 1,
+      phi: 0.28,
+      chamber: "LV" as const,
+      tmaxScale: 0.7,
+      geomScale: 1,
+      caReleaseScale: 1,
+      inletValveOpen01: 0,
+      outletValveOpen01: 1,
+    };
+    const internal = { c: 0.55, a: 0.5, r: 0, tensionPa: 0, lambdaAct: 0.75 };
+    const kdOnly = new ActiveStressChamberModel({ ...defaultActiveLV, tauLambdaActSec: 0.25, lambdaActTerms: "kd" });
+    const fIsoOnly = new ActiveStressChamberModel({ ...defaultActiveLV, tauLambdaActSec: 0.25, lambdaActTerms: "fiso" });
+    const both = new ActiveStressChamberModel({ ...defaultActiveLV, tauLambdaActSec: 0.25, lambdaActTerms: "kd+fiso" });
+
+    const kd = kdOnly.debugActiveStressTerms(80, internal, ctx);
+    const fIso = fIsoOnly.debugActiveStressTerms(80, internal, ctx);
+    const bothTerms = both.debugActiveStressTerms(80, internal, ctx);
+
+    expect(kd.lambdaActTerms).toBe("kd");
+    expect(kd.lambdaForKd).toBeCloseTo(internal.lambdaAct, 9);
+    expect(kd.lambdaForFIso).toBeCloseTo(kd.lambdaRaw, 9);
+    expect(fIso.lambdaActTerms).toBe("fiso");
+    expect(fIso.lambdaForKd).toBeCloseTo(fIso.lambdaRaw, 9);
+    expect(fIso.lambdaForFIso).toBeCloseTo(internal.lambdaAct, 9);
+    expect(bothTerms.lambdaActTerms).toBe("kd+fiso");
+    expect(bothTerms.lambdaForKd).toBeCloseTo(internal.lambdaAct, 9);
+    expect(bothTerms.lambdaForFIso).toBeCloseTo(internal.lambdaAct, 9);
+  });
+
   it("atrial AV-plane gain uses side-specific paired ventricle and inlet valve context", () => {
     const la = new ActiveStressChamberModel(defaultActiveLA);
     const internal = { c: 0, a: 0, r: 0 };
