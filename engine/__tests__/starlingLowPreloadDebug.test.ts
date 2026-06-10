@@ -30,6 +30,9 @@ describe("low-preload Starling debug diagnostics", () => {
       expect(Number.isFinite(t?.lambda)).toBe(true);
       expect(Number.isFinite(t?.lambdaRaw)).toBe(true);
       expect(Number.isFinite(t?.lambdaAct)).toBe(true);
+      expect(Number.isFinite(t?.lambdaForKd)).toBe(true);
+      expect(Number.isFinite(t?.lambdaForFIso)).toBe(true);
+      expect(["kd", "fiso", "kd+fiso"]).toContain(t?.lambdaActTerms);
       expect(Number.isFinite(t?.Kd)).toBe(true);
       expect(Number.isFinite(t?.aInf)).toBe(true);
       expect(Number.isFinite(t?.tauA)).toBe(true);
@@ -56,7 +59,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(diagnostics.valveDiodeClampHits).toBeDefined();
   });
 
-  it("builds a schema-v6 low-preload report with active, valve, clamp, return-map, and tau/dt fields", () => {
+  it("builds a schema-v7 low-preload report with active, valve, clamp, return-map, and tau/dt fields", () => {
     const report = runLowPreloadDebug({
       outDir: "unused",
       targetVolumeMl: 5600,
@@ -70,9 +73,10 @@ describe("low-preload Starling debug diagnostics", () => {
       quietClampLog: true,
     });
 
-    expect(report.schemaVersion).toBe(6);
+    expect(report.schemaVersion).toBe(7);
     expect(report.returnMapMode).toBe("both");
     expect(report.lambdaActScope).toBe("all");
+    expect(report.lambdaActTerms).toBe("kd+fiso");
     expect(report.dtScenarios).toHaveLength(1);
     expect(report.points).toHaveLength(1);
     const point = report.points[0];
@@ -107,6 +111,8 @@ describe("low-preload Starling debug diagnostics", () => {
     const csv = reportToCsv(report);
     expect(csv).toContain("LV_KdMean");
     expect(csv).toContain("LV_lambdaActMean");
+    expect(csv).toContain("LV_lambdaForKdMean");
+    expect(csv).toContain("LV_lambdaForFIsoMean");
     expect(csv).toContain("LV_lambdaActMinusRawMean");
     expect(csv).toContain("branchAmplitudeFractionCO_L");
     expect(csv).toContain("returnMapEDVSlope");
@@ -132,12 +138,13 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(Number.isFinite(tauPoint.activeStressTerminal.LV?.lambdaAct)).toBe(true);
   });
 
-  it("parses branch-only, return-map mode, quiet logging, max points, and lambdaAct scope options", () => {
+  it("parses branch-only, return-map mode, quiet logging, max points, lambdaAct scope, and lambdaAct terms options", () => {
     const opts = parseLowPreloadDebugArgs([
       "--branch-only",
       "--quiet-clamp-log",
       "--max-return-map-points=2",
       "--lambda-act-scope=ventricles",
+      "--lambda-act-terms=kd",
       "--return-map-deltas=-1250,-1400",
     ]);
 
@@ -145,6 +152,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(opts.quietClampLog).toBe(true);
     expect(opts.maxReturnMapPoints).toBe(2);
     expect(opts.lambdaActScope).toBe("ventricles");
+    expect(opts.lambdaActTerms).toBe("kd");
     expect(opts.returnMapDeltasMl).toEqual([-1250, -1400]);
   });
 
@@ -167,6 +175,40 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(point.returnMap.failureReason).toMatch(/disabled/);
     expect(point.returnMap.branchAmplitude.CO_L).toEqual(expect.any(Number));
     expect(Number.isFinite(report.summary.maxBranchAmplitudeFractionCOL)).toBe(true);
+  });
+
+  it("applies lambdaAct tau only to the requested active-stress term", () => {
+    const kdOnly = runLowPreloadDebug({
+      outDir: "unused",
+      targetVolumeMl: 5600,
+      deltasMl: [0],
+      dtValues: [0.002],
+      lambdaActTauSecValues: [0.15],
+      lambdaActScope: "lv",
+      lambdaActTerms: "kd",
+      traceBeats: 2,
+      sampleHz: 40,
+      returnMapMode: "none",
+      quietClampLog: true,
+    }).points[0].beatTrace.at(-1)?.active.LV;
+    const fIsoOnly = runLowPreloadDebug({
+      outDir: "unused",
+      targetVolumeMl: 5600,
+      deltasMl: [0],
+      dtValues: [0.002],
+      lambdaActTauSecValues: [0.15],
+      lambdaActScope: "lv",
+      lambdaActTerms: "fiso",
+      traceBeats: 2,
+      sampleHz: 40,
+      returnMapMode: "none",
+      quietClampLog: true,
+    }).points[0].beatTrace.at(-1)?.active.LV;
+
+    expect(Number.isFinite(kdOnly?.lambdaForKdMean)).toBe(true);
+    expect(kdOnly?.lambdaForFIsoMean).toBeCloseTo(kdOnly?.lambdaRawMean ?? NaN, 3);
+    expect(fIsoOnly?.lambdaForKdMean).toBeCloseTo(fIsoOnly?.lambdaRawMean ?? NaN, 3);
+    expect(Number.isFinite(fIsoOnly?.lambdaForFIsoMean)).toBe(true);
   });
 
   it("applies lambdaAct tau only to the requested chamber scope", () => {
@@ -227,19 +269,25 @@ describe("low-preload Starling debug diagnostics", () => {
       "--out=unused",
       "--deltas=0",
       "--dt=0.002",
-      "--lambda-act-tau=0",
+      "--lambda-act-tau=0,0.15",
       "--lambda-act-scope=lv",
+      "--lambda-act-terms=kd,fiso,kd+fiso",
       "--max-return-map-points=1",
       "--trace-beats=2",
       "--sample-hz=40",
     ]);
     const report = runLowPreloadMatrix(opts);
 
-    expect(report.schemaVersion).toBe(1);
-    expect(report.scenarios).toHaveLength(1);
+    expect(report.schemaVersion).toBe(2);
+    expect(report.scenarios).toHaveLength(4);
+    expect(report.scenarios.filter((scenario) => scenario.lambdaActTauSec === 0)).toHaveLength(1);
+    expect(report.scenarios[1].lambdaActTerms).toBe("kd");
     expect(report.scenarios[0].selectedDeltasMl).toHaveLength(1);
+    expect(report.scenarios[0].waveformGates).toHaveLength(2);
     expect(report.scenarios[0].points.some((point) => point.returnMap.status === "ok")).toBe(true);
     expect(matrixReportToMarkdown(report)).toContain("Selected return-map points");
+    expect(matrixReportToMarkdown(report)).toContain("Normal / HR100 waveform gates");
     expect(matrixReportToCsv(report)).toContain("returnMapSelected");
+    expect(matrixReportToCsv(report)).toContain("branchAmplitudeFractionESV_L");
   });
 });

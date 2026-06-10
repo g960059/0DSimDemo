@@ -13,6 +13,7 @@ export const MMHG_TO_PA = 133.322;
 export const ML_TO_M3 = 1e-6;
 
 export type Chamber = "LV" | "RV" | "LA" | "RA";
+export type LambdaActTerms = "kd" | "fiso" | "kd+fiso";
 
 /** Internal Ca-transient / troponin-activation/reservoir/tension state of an active chamber. */
 export type ChamberInternal = { c: number; a: number; r: number; tensionPa?: number; lambdaAct?: number };
@@ -86,6 +87,7 @@ export type ActiveChamberParams = {
   passiveHingeWidth?: number;
   Tmax0: number;
   tauLambdaActSec?: number;
+  lambdaActTerms?: LambdaActTerms;
   tauTensionRiseSec?: number;
   tauTensionFallSec?: number;
   tensionInstantMix?: number;
@@ -159,6 +161,9 @@ export type ActiveStressDebugTerms = ChamberPressureTerms & {
   tensionFilterActive01: number;
   lambdaRaw: number;
   lambdaAct: number;
+  lambdaForKd: number;
+  lambdaForFIso: number;
+  lambdaActTerms: LambdaActTerms;
   tauLambdaActSec: number;
   dLogAInf_dLambdaAct: number;
   dLogFIso_dLambdaAct: number;
@@ -437,6 +442,21 @@ export class ActiveStressChamberModel implements ChamberModel {
     return Number.isFinite(lambdaAct) ? clamp(lambdaAct ?? lambdaRaw, 0.25, 2.5) : lambdaRaw;
   }
 
+  private lambdaActTerms(): LambdaActTerms {
+    const terms = this.ap.lambdaActTerms ?? "kd+fiso";
+    return terms === "kd" || terms === "fiso" || terms === "kd+fiso" ? terms : "kd+fiso";
+  }
+
+  private lambdaActAppliesTo(term: "kd" | "fiso"): boolean {
+    const terms = this.lambdaActTerms();
+    return terms === "kd+fiso" || terms === term;
+  }
+
+  private lambdaForTerm(lambdaRaw: number, internal: ChamberInternal, term: "kd" | "fiso"): number {
+    if (!this.lambdaActAppliesTo(term)) return lambdaRaw;
+    return this.lambdaForActivation(lambdaRaw, internal);
+  }
+
   private fIso(lambdaAct: number): number {
     const ap = this.ap;
     return clamp((lambdaAct - ap.lambdaPas0 + 0.3) / 0.35, 0, 1);
@@ -475,10 +495,10 @@ export class ActiveStressChamberModel implements ChamberModel {
     const ap = this.ap;
     const a = clamp(internal.a, 0, 1);
     const { lambda, h, rm } = this.geometry(V);
-    const lambdaAct = this.lambdaForActivation(lambda, internal);
+    const lambdaForFIso = this.lambdaForTerm(lambda, internal, "fiso");
     const stretch = smoothPositiveHinge(lambda - ap.lambdaPas0, ap.passiveHingeWidth ?? 0.015);
     const sigmaPas = ap.sigmaPas0 * (expClamped(ap.bPas * stretch) - 1);
-    const sigmaActTarget = this.activeStressTargetPa(a, lambda, lambdaAct, ctx);
+    const sigmaActTarget = this.activeStressTargetPa(a, lambda, lambdaForFIso, ctx);
     const sigmaAct = this.usesTensionFilter(ctx)
       ? clamp(
         (internal.tensionPa ?? sigmaActTarget)
@@ -519,17 +539,22 @@ export class ActiveStressChamberModel implements ChamberModel {
     const betaDrive = clamp((ctx.contractility - 1) / 1.5, 0, 1);
     const lambdaRaw = pressure.lambda;
     const lambdaAct = this.lambdaForActivation(lambdaRaw, internal);
-    const Kd = ap.Kd0 * expClamped(-ap.betaLambda * (lambdaAct - 1) + ap.betaKd * betaDrive);
+    const lambdaForKd = this.lambdaForTerm(lambdaRaw, internal, "kd");
+    const lambdaForFIso = this.lambdaForTerm(lambdaRaw, internal, "fiso");
+    const Kd = ap.Kd0 * expClamped(-ap.betaLambda * (lambdaForKd - 1) + ap.betaKd * betaDrive);
     const cn = Math.pow(Math.max(c, 0), ap.hillN);
     const kn = Math.pow(Math.max(Kd, 1e-6), ap.hillN);
     const aInf = cn / Math.max(cn + kn, 1e-9);
     const tauA = 1 / Math.max(ap.kOn * cn + ap.kOff, 0.5);
     const gOver = 1 / (1 + expClamped(ap.kOver * (lambdaRaw - ap.lambdaFail)));
-    const fIso = this.fIso(lambdaAct);
+    const fIso = this.fIso(lambdaForFIso);
     const forceVelocityScale = this.forceVelocityScale(ctx);
     const dLogAInf_dLambda = ap.hillN * ap.betaLambda * (1 - aInf);
     const dLogFIso_dLambda = fIso > 1e-6 && fIso < 1 ? 1 / (0.35 * fIso) : 0;
     const dLogGOver_dLambda = -ap.kOver * (1 - gOver);
+    const terms = this.lambdaActTerms();
+    const dLogCompositeActive_dLambdaAct = (this.lambdaActAppliesTo("kd") ? dLogAInf_dLambda : 0)
+      + (this.lambdaActAppliesTo("fiso") ? dLogFIso_dLambda : 0);
     return {
       ...pressure,
       c,
@@ -543,11 +568,14 @@ export class ActiveStressChamberModel implements ChamberModel {
       tensionFilterActive01: this.usesTensionFilter(ctx) ? 1 : 0,
       lambdaRaw,
       lambdaAct,
+      lambdaForKd,
+      lambdaForFIso,
+      lambdaActTerms: terms,
       tauLambdaActSec: Math.max(ap.tauLambdaActSec ?? 0, 0),
       dLogAInf_dLambdaAct: dLogAInf_dLambda,
       dLogFIso_dLambdaAct: dLogFIso_dLambda,
       dLogGOver_dLambdaRaw: dLogGOver_dLambda,
-      dLogCompositeActive_dLambdaAct: dLogAInf_dLambda + dLogFIso_dLambda,
+      dLogCompositeActive_dLambdaAct,
       lambdaActMinusRaw: lambdaAct - lambdaRaw,
       lambdaActTransferTauSec: Math.max(ap.tauLambdaActSec ?? 0, 0),
       dLogAInf_dLambda,
@@ -676,6 +704,8 @@ export class ActiveStressChamberModel implements ChamberModel {
     const { lambda } = this.geometry(this.wallVolume(V, ctx));
     const tauLambdaAct = Math.max(ap.tauLambdaActSec ?? 0, 0);
     const lambdaAct = this.lambdaForActivation(lambda, internal);
+    const lambdaForKd = this.lambdaForTerm(lambda, internal, "kd");
+    const lambdaForFIso = this.lambdaForTerm(lambda, internal, "fiso");
 
     const HR = Math.max(ctx.HR, 20);
     const T = 60 / HR;
@@ -701,7 +731,7 @@ export class ActiveStressChamberModel implements ChamberModel {
     const Arel = ap.Arel0 * ctx.caReleaseScale * ffr * (1 + 0.2 * betaDrive) * ctx.contractility;
     const cDot = clamp(-(c - ap.cDia) / Math.max(tauCa, 0.02) + Arel * pulse, -20, 20);
 
-    const Kd = ap.Kd0 * expClamped(-ap.betaLambda * (lambdaAct - 1) + ap.betaKd * betaDrive);
+    const Kd = ap.Kd0 * expClamped(-ap.betaLambda * (lambdaForKd - 1) + ap.betaKd * betaDrive);
     const cn = Math.pow(Math.max(c, 0), ap.hillN);
     const kn = Math.pow(Math.max(Kd, 1e-6), ap.hillN);
     const aInf = cn / Math.max(cn + kn, 1e-9);
@@ -710,7 +740,7 @@ export class ActiveStressChamberModel implements ChamberModel {
     const rDot = reservoirQDot(ap, internal, ctx, theta);
     let tensionPaDot = 0;
     if (this.usesTensionFilter(ctx)) {
-      const target = this.activeStressTargetPa(a, lambda, lambdaAct, ctx);
+      const target = this.activeStressTargetPa(a, lambda, lambdaForFIso, ctx);
       const current = clamp(internal.tensionPa ?? target, 0, 500000);
       const tau = target > current
         ? Math.max(ap.tauTensionRiseSec ?? 0.045, 1e-4)
