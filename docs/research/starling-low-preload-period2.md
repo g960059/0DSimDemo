@@ -153,6 +153,28 @@ Candidate model changes, in increasing blast radius:
 
 Several reviewers independently warned against a simple global `betaLambda` reduction. It can remove the period-2 point but also changes low-volume contractility and can introduce clamp/overcontraction artifacts.
 
+## Candidate experiments after PR #110
+
+Follow-up local experiments tested active-stress force-length and activation changes without changing valve equations, dt defaults, Starling sweep display, or settle policy. The baseline comparison is the PR #110 default low-preload march:
+
+| Candidate | Dynamics change | dt=0.001 period-2 | max adjacent delta | max valve reverse mL | Result |
+| --- | --- | ---: | ---: | ---: | --- |
+| PR #110 baseline | none | 7 / 9 | 0.6057 | 0 | reference |
+| Full C2 `fIso` smootherstep | Replace the linear/clamped force-length gate with smootherstep over the same support | 3 / 9 | 0.4052 | 0 | Improves low-preload alternans, but fails the HR100 re-arm settling test (`reason=cap`, `worstSignal=svL`, large L/R CO split). Do not merge. |
+| Low-lambda `Kd` saturation | Smoothly saturate the lambda term used by length-dependent calcium sensitivity | 4 / 9 | 0.4372 | 0 | Worse than full C2 `fIso`, still changes activation dynamics. Do not merge. |
+| LV/RV active tension filter | Enable short first-order active-tension filtering with rise/fall 0.035/0.070 s | not completed | n/a | n/a | Produces large LV low-volume clamp activity during the march. Do not merge in this form. |
+| 35-60% linear/smooth `fIso` blends | Blend the current linear gate with smootherstep | 6 / 9 | 0.5527-0.4920 | 0 | Preserves settling at <=60% blend but improvement is too weak for a root-fix PR. |
+| Non-monotone localized blend | Blend back to linear around the normal range | 6 / 9 | 0.7632 | 0 | Can become locally non-monotone in force-length response and worsens the march. Do not merge. |
+| Monotone low-stretch C1 gate | Preserve the existing linear gate above a join point and lower only low-stretch active force | 5 / 9 | 0.2796 | 0 | Reduces alternans amplitude and passes settling, but shifts default validation metrics enough that it needs explicit recalibration review before merge. |
+
+The most important negative result is that the only simple `fIso` change with strong low-preload benefit also destabilizes an ordinary HR increase. That suggests the issue is not just the discontinuity of the force-length gate; it is the coupled gain from stretch-sensitive active force, length-dependent calcium sensitivity, and valve/vascular loading.
+
+At this point, a model-fix PR should not ship a hidden force-length curve change by trial and error. The next credible model-level step is one of:
+
+1. A true return-map/Floquet diagnostic around the low-preload branch, with a target multiplier before/after the candidate change.
+2. A constrained monotone Hermite `fIso` redesign that is explicitly calibrated to keep normal and HR100 operating points within tolerance while reducing the low-preload return-map gain.
+3. A low-stretch active-gain limiter that constrains local gain (`d log active force / d lambda` or the equivalent Poincare-map gain) rather than changing `betaLambda` or `Kd` values globally.
+
 ## Candidate root fixes
 
 - Extend period-k handling beyond period-2 only if future model review shows higher-period attractors.
