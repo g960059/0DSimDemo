@@ -1,7 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PARAMS } from "@/constants";
 import { ModelCore } from "@/engine/ModelCore";
-import { runLowPreloadDebug, reportToCsv, reportToMarkdown } from "@/tools/debugStarlingLowPreload";
+import {
+  parseLowPreloadDebugArgs,
+  runLowPreloadDebug,
+  selectSuspiciousPointIndices,
+  reportToCsv,
+  reportToMarkdown,
+} from "@/tools/debugStarlingLowPreload";
+import {
+  matrixReportToCsv,
+  matrixReportToMarkdown,
+  parseLowPreloadMatrixArgs,
+  runLowPreloadMatrix,
+} from "@/tools/verifyStarlingLowPreloadMatrix";
 
 describe("low-preload Starling debug diagnostics", () => {
   it("exposes finite active-stress diagnostic terms", () => {
@@ -44,18 +56,23 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(diagnostics.valveDiodeClampHits).toBeDefined();
   });
 
-  it("builds a schema-v5 low-preload report with active, valve, clamp, return-map, and tau/dt fields", () => {
+  it("builds a schema-v6 low-preload report with active, valve, clamp, return-map, and tau/dt fields", () => {
     const report = runLowPreloadDebug({
       outDir: "unused",
       targetVolumeMl: 5600,
       deltasMl: [0],
       dtValues: [0.002],
       lambdaActTauSecValues: [0],
+      lambdaActScope: "all",
       traceBeats: 2,
       sampleHz: 40,
+      returnMapMode: "both",
+      quietClampLog: true,
     });
 
-    expect(report.schemaVersion).toBe(5);
+    expect(report.schemaVersion).toBe(6);
+    expect(report.returnMapMode).toBe("both");
+    expect(report.lambdaActScope).toBe("all");
     expect(report.dtScenarios).toHaveLength(1);
     expect(report.points).toHaveLength(1);
     const point = report.points[0];
@@ -102,13 +119,127 @@ describe("low-preload Starling debug diagnostics", () => {
       deltasMl: [0],
       dtValues: [0.002],
       lambdaActTauSecValues: [0, 0.15],
+      lambdaActScope: "all",
       traceBeats: 2,
       sampleHz: 40,
+      returnMapMode: "both",
+      quietClampLog: true,
     });
 
     expect(report.dtScenarios.map((s) => s.lambdaActTauSec)).toEqual([0, 0.15]);
     const tauPoint = report.dtScenarios[1].points[0];
     expect(tauPoint.activeStressTerminal.LV?.tauLambdaActSec).toBeCloseTo(0.15, 6);
     expect(Number.isFinite(tauPoint.activeStressTerminal.LV?.lambdaAct)).toBe(true);
+  });
+
+  it("parses branch-only, return-map mode, quiet logging, max points, and lambdaAct scope options", () => {
+    const opts = parseLowPreloadDebugArgs([
+      "--branch-only",
+      "--quiet-clamp-log",
+      "--max-return-map-points=2",
+      "--lambda-act-scope=ventricles",
+      "--return-map-deltas=-1250,-1400",
+    ]);
+
+    expect(opts.returnMapMode).toBe("none");
+    expect(opts.quietClampLog).toBe(true);
+    expect(opts.maxReturnMapPoints).toBe(2);
+    expect(opts.lambdaActScope).toBe("ventricles");
+    expect(opts.returnMapDeltasMl).toEqual([-1250, -1400]);
+  });
+
+  it("can skip return-map diagnostics while preserving branch amplitude fields", () => {
+    const report = runLowPreloadDebug({
+      outDir: "unused",
+      targetVolumeMl: 5600,
+      deltasMl: [0],
+      dtValues: [0.002],
+      lambdaActTauSecValues: [0],
+      lambdaActScope: "all",
+      traceBeats: 2,
+      sampleHz: 40,
+      returnMapMode: "none",
+      quietClampLog: true,
+    });
+
+    const point = report.points[0];
+    expect(point.returnMap.status).toBe("skipped");
+    expect(point.returnMap.failureReason).toMatch(/disabled/);
+    expect(point.returnMap.branchAmplitude.CO_L).toEqual(expect.any(Number));
+    expect(Number.isFinite(report.summary.maxBranchAmplitudeFractionCOL)).toBe(true);
+  });
+
+  it("applies lambdaAct tau only to the requested chamber scope", () => {
+    const lvOnly = runLowPreloadDebug({
+      outDir: "unused",
+      targetVolumeMl: 5600,
+      deltasMl: [0],
+      dtValues: [0.002],
+      lambdaActTauSecValues: [0.15],
+      lambdaActScope: "lv",
+      traceBeats: 2,
+      sampleHz: 40,
+      returnMapMode: "none",
+      quietClampLog: true,
+    }).points[0].activeStressTerminal;
+    const ventricles = runLowPreloadDebug({
+      outDir: "unused",
+      targetVolumeMl: 5600,
+      deltasMl: [0],
+      dtValues: [0.002],
+      lambdaActTauSecValues: [0.15],
+      lambdaActScope: "ventricles",
+      traceBeats: 2,
+      sampleHz: 40,
+      returnMapMode: "none",
+      quietClampLog: true,
+    }).points[0].activeStressTerminal;
+
+    expect(lvOnly.LV?.tauLambdaActSec).toBeCloseTo(0.15, 6);
+    expect(lvOnly.RV?.tauLambdaActSec).toBe(0);
+    expect(ventricles.LV?.tauLambdaActSec).toBeCloseTo(0.15, 6);
+    expect(ventricles.RV?.tauLambdaActSec).toBeCloseTo(0.15, 6);
+    expect(ventricles.LA?.tauLambdaActSec).toBe(0);
+  });
+
+  it("selects suspicious return-map points without duplicates", () => {
+    const report = runLowPreloadDebug({
+      outDir: "unused",
+      targetVolumeMl: 5600,
+      deltasMl: [0, -1250],
+      dtValues: [0.002],
+      lambdaActTauSecValues: [0],
+      lambdaActScope: "all",
+      traceBeats: 2,
+      sampleHz: 40,
+      returnMapMode: "none",
+      quietClampLog: true,
+    });
+
+    const selected = selectSuspiciousPointIndices(report.points, 2);
+    expect(new Set(selected).size).toBe(selected.length);
+    expect(selected.length).toBeGreaterThan(0);
+    expect(selected.length).toBeLessThanOrEqual(2);
+  });
+
+  it("builds a low-preload matrix report with branch pass and selected return maps", () => {
+    const opts = parseLowPreloadMatrixArgs([
+      "--out=unused",
+      "--deltas=0",
+      "--dt=0.002",
+      "--lambda-act-tau=0",
+      "--lambda-act-scope=lv",
+      "--max-return-map-points=1",
+      "--trace-beats=2",
+      "--sample-hz=40",
+    ]);
+    const report = runLowPreloadMatrix(opts);
+
+    expect(report.schemaVersion).toBe(1);
+    expect(report.scenarios).toHaveLength(1);
+    expect(report.scenarios[0].selectedDeltasMl).toHaveLength(1);
+    expect(report.scenarios[0].points.some((point) => point.returnMap.status === "ok")).toBe(true);
+    expect(matrixReportToMarkdown(report)).toContain("Selected return-map points");
+    expect(matrixReportToCsv(report)).toContain("returnMapSelected");
   });
 });

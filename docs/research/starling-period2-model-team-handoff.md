@@ -76,6 +76,22 @@ Generated files:
 - `report.md`
 - `beat-trace.csv`
 
+## Branch-first matrix command
+
+PR #115 adds a lighter matrix workflow for tau/scope comparisons. It avoids computing EDV-section return maps at every delta:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/manual-matrix \
+  --deltas=0,-900,-1000,-1100,-1200,-1250,-1300,-1400,-1500,-1600 \
+  --dt=0.001,0.0005 \
+  --lambda-act-tau=0,0.05,0.10,0.15,0.20,0.40 \
+  --lambda-act-scope=lv,ventricles \
+  --max-return-map-points=6
+```
+
+The first pass records branch amplitude, clamp, valve, period, and active-stress diagnostics with return maps disabled. The second pass replays each selected scenario for seeded-state continuity, but computes EDV-section diagnostics only for selected suspicious deltas with both `volumeLambdaActFixed` and `volumeLambdaActReset` return-map modes. This is the preferred handoff artifact for comparing `tauLambdaActSec` scopes before any default model change.
+
 ## Preliminary local result
 
 The run above completed with `points=5 period2=4 maxAdjacentDelta=0.592 maxReverseMl=0`. Scenario summary from the local report:
