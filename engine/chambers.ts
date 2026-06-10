@@ -139,10 +139,23 @@ export type ChamberPressureTerms = {
   lambda: number;
   passiveStretch: number;
   sigmaPas: number;
+  sigmaActTarget: number;
   sigmaAct: number;
   pressureUnclampedMmHg: number;
   pressureMmHg: number;
   pressureFloorHit01: number;
+};
+
+export type ActiveStressDebugTerms = ChamberPressureTerms & {
+  c: number;
+  a: number;
+  Kd: number;
+  aInf: number;
+  tauA: number;
+  fIso: number;
+  gOver: number;
+  forceVelocityScale: number;
+  tensionFilterActive01: number;
 };
 
 function smoothPositiveHinge(x: number, width: number): number {
@@ -455,6 +468,7 @@ export class ActiveStressChamberModel implements ChamberModel {
       lambda,
       passiveStretch: stretch,
       sigmaPas,
+      sigmaActTarget,
       sigmaAct,
       pressureUnclampedMmHg,
       pressureMmHg: clamp(pressureUnclampedMmHg, pressureFloor, 260),
@@ -468,6 +482,34 @@ export class ActiveStressChamberModel implements ChamberModel {
 
   debugPressureTerms(V: number, internal: ChamberInternal, ctx: ChamberCtx): ChamberPressureTerms {
     return this.bodyPressureTerms(this.wallVolume(V, ctx), internal, ctx);
+  }
+
+  debugActiveStressTerms(V: number, internal: ChamberInternal, ctx: ChamberCtx): ActiveStressDebugTerms {
+    const ap = this.ap;
+    const pressure = this.bodyPressureTerms(V, internal, ctx);
+    const c = Math.max(internal.c, 0);
+    const a = clamp(internal.a, 0, 1);
+    const betaDrive = clamp((ctx.contractility - 1) / 1.5, 0, 1);
+    const Kd = ap.Kd0 * expClamped(-ap.betaLambda * (pressure.lambda - 1) + ap.betaKd * betaDrive);
+    const cn = Math.pow(Math.max(c, 0), ap.hillN);
+    const kn = Math.pow(Math.max(Kd, 1e-6), ap.hillN);
+    const aInf = cn / Math.max(cn + kn, 1e-9);
+    const tauA = 1 / Math.max(ap.kOn * cn + ap.kOff, 0.5);
+    const gOver = 1 / (1 + expClamped(ap.kOver * (pressure.lambda - ap.lambdaFail)));
+    const fIso = clamp((pressure.lambda - ap.lambdaPas0 + 0.3) / 0.35, 0, 1);
+    const forceVelocityScale = this.forceVelocityScale(ctx);
+    return {
+      ...pressure,
+      c,
+      a,
+      Kd,
+      aInf,
+      tauA,
+      fIso,
+      gOver,
+      forceVelocityScale,
+      tensionFilterActive01: this.usesTensionFilter(ctx) ? 1 : 0,
+    };
   }
 
   passivePressure(V: number, ctx: ChamberCtx): number {

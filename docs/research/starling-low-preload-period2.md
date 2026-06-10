@@ -107,6 +107,29 @@ Example:
 npm run debug:starling-low-preload -- --out=artifacts/starling-low-preload-debug/manual
 ```
 
+After PR #110, the same command also emits root-cause diagnostics:
+
+- `dtScenarios`: the same low-preload march at `dt=0.001`, `0.0005`, and `0.002` by default.
+- `beatTrace`: the last complete beats at each delta, including `CO_L/R`, `EDV/ESV`, `LAP/RAP`, `LVPmax`, and `QAoMax`.
+- active-stress terms by chamber: `lambda`, `Kd`, `aInf`, `tauA`, `c`, `a`, `sigmaActTarget`, `sigmaAct`, `sigmaPas`, `fIso`, `gOver`, and `forceVelocityScale`.
+- clamp attribution: node clamp hits, dynamic-flow clamp hits, and valve diode clamp hits.
+- valve trace summaries: min/max flow, forward volume, reverse volume, and negative sample count.
+- `beat-trace.csv`: a compact table for plotting LV active-stress terms against beat output.
+
+Useful focused runs:
+
+```bash
+npm run debug:starling-low-preload -- --out=artifacts/starling-low-preload-debug/manual --deltas=0,-1200,-1300,-1400 --trace-beats=12
+npm run debug:starling-low-preload -- --out=artifacts/starling-low-preload-debug/dt-only --deltas=0,-1250 --dt=0.001,0.0005,0.002
+```
+
+Interpretation:
+
+- If the period-2 branch disappears or shifts strongly when `dt` is halved, explicit coupling / numerical integration is implicated.
+- If the period-2 branch persists at smaller `dt`, active-stress model dynamics are implicated.
+- Valve reverse volume near zero keeps reverse-flow artifacts low on the suspect list.
+- Node-specific clamp hits identify whether the low-preload edge is being shaped by LA / pulmonary venous / other low-volume bounds.
+
 This is intentionally not a solver or model fix. It is a reproducible handoff artifact for model review.
 
 ## Recommended root-fix experiments
