@@ -1,5 +1,5 @@
 import {
-  classifyStarlingSweepPoint,
+  isStarlingSweepFitSourcePoint,
   type GuytonCurvePoint,
   type GuytonSide,
   type StarlingSweepFit,
@@ -22,17 +22,17 @@ type FitAnchor = {
 export function buildStarlingSweepFit(
   side: GuytonSide,
   points: GuytonCurvePoint[],
-  options: { includeExtrapolation?: boolean; mode?: StarlingSweepFit["mode"] } = {},
+  options: { includeExtrapolation?: boolean; mode?: StarlingSweepFit["mode"]; monotone?: boolean } = {},
 ): StarlingSweepFit | undefined {
   const anchors = uniqueUsableAnchors(points);
   if (anchors.length < 3) return undefined;
 
   const x = anchors.map((point) => point.x);
-  const y = isotonicY(anchors);
+  const y = options.monotone === false ? anchors.map((point) => point.y) : isotonicY(anchors);
   const slopes = pchipSlopes(x, y);
   const measured = samplePchip(x, y, slopes, FIT_SAMPLE_COUNT);
   const fit: StarlingSweepFit = {
-    kind: "monotone-pchip",
+    kind: options.monotone === false ? "pchip" : "monotone-pchip",
     mode: options.mode ?? "measured",
     points: measured,
     sourcePointCount: anchors.length,
@@ -50,7 +50,7 @@ export function buildStarlingSweepFit(
 
 function uniqueUsableAnchors(points: GuytonCurvePoint[]): FitAnchor[] {
   const usable = points
-    .filter((point) => classifyStarlingSweepPoint(point) === "reliable")
+    .filter(isStarlingSweepFitSourcePoint)
     .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
     .sort((a, b) => a.x - b.x);
 
@@ -113,7 +113,7 @@ function pchipSlopes(x: number[], y: number[]): number[] {
   m[0] = d[0] ?? 0;
   m[n - 1] = d[n - 2] ?? 0;
   for (let i = 1; i < n - 1; i++) {
-    if (d[i - 1] <= 0 || d[i] <= 0) {
+    if (d[i - 1] * d[i] <= 0) {
       m[i] = 0;
       continue;
     }

@@ -208,6 +208,30 @@ describe("Guyton / Starling worker client", () => {
     expect(workers[0].terminated).toBe(false);
   });
 
+  it("completes adaptive subscriptions at the final sweep and ignores late audit messages", () => {
+    const req = request();
+    const messages: GuytonStarlingWorkerMessage[] = [];
+    let doneCount = 0;
+
+    requestGuytonStarlingWorkerMessages(req, {
+      onMessage: (message) => messages.push(message),
+      onDone: () => { doneCount += 1; },
+    }, { createWorker: createFakeWorker, delayMs: 0, idleTimeoutMs: 1000 });
+    vi.advanceTimersByTime(0);
+
+    workers[0].emit(baseMap(req));
+    workers[0].emit(sweep(req));
+    expect(messages.map((message) => message.type)).toEqual(["base-map", "starling-sweep"]);
+    expect(doneCount).toBe(1);
+    expect(workers[0].terminated).toBe(false);
+
+    workers[0].emit(audit(req));
+    expect(messages.map((message) => message.type)).toEqual(["base-map", "starling-sweep"]);
+    expect(doneCount).toBe(1);
+    vi.advanceTimersByTime(1000);
+    expect(workers[0].terminated).toBe(true);
+  });
+
   it("cancels a delayed request when all subscribers leave before start", () => {
     const unsubscribe = requestGuytonStarlingWorkerMessages(request(), {
       onMessage: () => undefined,
@@ -282,6 +306,32 @@ function sweep(req: StarlingSweepRequest): StarlingSweepWorkerMessage {
     instanceId: req.instanceId,
     right: { side: "right", points: [], warnings: [] },
     left: { side: "left", points: [], warnings: [] },
+    warnings: [],
+  };
+}
+
+function calibratedSweep(req: StarlingSweepRequest): StarlingSweepWorkerMessage {
+  return {
+    ...sweep(req),
+    timing: {
+      positiveChainMs: 1,
+      negativeChainMs: 1,
+      assembleMs: 0,
+      totalMs: 2,
+      retargetFallbackCount: 0,
+      mode: "calibrated",
+    },
+  };
+}
+
+function audit(req: StarlingSweepRequest): GuytonStarlingWorkerMessage {
+  return {
+    type: "starling-sweep-audit",
+    requestId: req.requestId,
+    signature: req.signature,
+    instanceId: req.instanceId,
+    right: { side: "right", points: [], warnings: [], audit: { points: [], holdoutErrorLMin: 0, addedDeltasMl: [], reusedDeltasMl: [], exploration: [] } },
+    left: { side: "left", points: [], warnings: [], audit: { points: [], holdoutErrorLMin: 0, addedDeltasMl: [], reusedDeltasMl: [], exploration: [] } },
     warnings: [],
   };
 }

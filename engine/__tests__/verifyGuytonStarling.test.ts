@@ -51,24 +51,31 @@ describe("Guyton / Starling validation report", () => {
     expectFiniteNonNegative(result.timingBreakdown.baseMapMs);
     expectFiniteNonNegative(result.timingBreakdown.sweepOnlyMs);
     expectFiniteNonNegative(result.timingBreakdown.finalFromStartMs);
+    expect(result.timingBreakdown.auditOnlyMs).toBeNull();
+    expect(result.timingBreakdown.auditFromStartMs).toBeNull();
     expect(result.baselineDiagnostics.targetVolumeMl).toBe(5600);
-    expect(result.sweepPointDiagnostics.length).toBe(4);
-    expect(result.sweepPointDiagnostics.map((point) => point.deltaVolumeMl).sort((a, b) => a - b)).toEqual([
-      -900,
-      -450,
-      0,
-      600,
-    ]);
+    expect(result.auditAddedPointCount).toBe(0);
+    expect(result.auditReusedPointCount).toBe(0);
+    expect(result.auditCompletionMs).toBeNull();
+    expect(result.seedRejectionCount).toBeGreaterThanOrEqual(0);
+    expect(result.sweepPointDiagnostics.length).toBeGreaterThanOrEqual(5);
+    expect(result.sweepPointDiagnostics.some((point) => point.deltaVolumeMl === 0)).toBe(true);
+    expect(result.sweepPointDiagnostics.some((point) => point.deltaVolumeMl < 0)).toBe(true);
+    expect(result.sweepPointDiagnostics.some((point) => point.deltaVolumeMl > 0)).toBe(true);
+    expect(result.sweepPointDiagnostics.some((point) => point.explorationReason === "low-preload-shape")).toBe(true);
+    expect(result.sweepPointDiagnostics.some((point) => point.explorationReason === "hypervolume-shape")).toBe(true);
+    expect(result.sweepPointDiagnostics.every((point) => typeof point.seedAccepted === "boolean")).toBe(true);
     expect(result.progressTiming.firstFitProgressMs ?? 0).toBeGreaterThanOrEqual(result.progressTiming.firstProgressMs ?? Infinity);
     expect(result.progressTiming.finalSweepMs ?? 0).toBeGreaterThanOrEqual(result.progressTiming.firstFitProgressMs ?? Infinity);
-    expect(result.right.sweep.pointCount).toBe(4);
-    expect(result.left.sweep.pointCount).toBe(4);
+    expect(result.right.sweep.pointCount).toBe(result.sweepPointDiagnostics.length);
+    expect(result.left.sweep.pointCount).toBe(result.sweepPointDiagnostics.length);
     expect(result.right.sweep.fitSourcePointCount).toBeGreaterThanOrEqual(3);
     expect(result.left.sweep.fitSourcePointCount).toBeGreaterThanOrEqual(3);
-    expect(result.calibrationComparison.calibratedPointCount).toBe(4);
-    expect(result.calibrationComparison.full7PointCount).toBe(7);
+    expect(result.calibrationComparison.calibratedPointCount).toBe(result.sweepPointDiagnostics.length);
+    expect(result.calibrationComparison.full7PointCount).toBe(result.sweepPointDiagnostics.length);
     expectFiniteNonNegative(result.full7SweepTiming?.totalMs);
-    expectFiniteNonNegative(result.calibrationComparison.maxHoldoutFlowErrorLMin ?? undefined);
+    expect(result.auditTiming).toBeUndefined();
+    expect(result.calibrationComparison.maxHoldoutFlowErrorLMin).toBe(0);
     expect(Number.isFinite(result.right.residualPumpLMin)).toBe(true);
     expect(Number.isFinite(result.left.residualPumpLMin)).toBe(true);
     expect(Number.isFinite(result.right.residualReturnLMin)).toBe(true);
@@ -129,9 +136,10 @@ describe("Guyton / Starling validation report", () => {
     expect(markdown).toContain("Final");
     expect(markdown).toContain("Warning Breakdown");
     expect(markdown).toContain("Timing Breakdown");
-    expect(markdown).toContain("Calibrated vs Full7");
-    expect(markdown).toContain("R holdout err");
+    expect(markdown).toContain("Adaptive Exploration");
+    expect(markdown).toContain("Seed Diagnostics");
     expect(markdown).toContain("sweepOnlyMs");
+    expect(markdown).toContain("auditOnlyMs");
     expect(markdown).toContain("Queue / Cancellation Timing");
     expect(markdown).toContain("Dropped queued");
     expect(markdown).toContain("Sweep Interpretation");
@@ -140,6 +148,9 @@ describe("Guyton / Starling validation report", () => {
     expect(markdown).toContain("worstSignal");
     expect(markdown).toContain("worstDelta");
     expect(markdown).toContain("actualSeconds");
+    expect(markdown).toContain("Display reliable");
+    expect(markdown).toContain("Seed reliable");
+    expect(markdown).toContain("Exploration");
   });
 
   it("reports latest-only queue cancellation behavior", () => {
@@ -251,6 +262,8 @@ function syntheticReport(): GuytonStarlingValidationReport {
         baseMapMs: { maxMs: 2, medianMs: 2 },
         sweepOnlyMs: { maxMs: 900, medianMs: 900 },
         finalFromStartMs: { maxMs: 1200, medianMs: 1200 },
+        auditOnlyMs: { maxMs: 700, medianMs: 700 },
+        auditFromStartMs: { maxMs: 1900, medianMs: 1900 },
       },
     },
     scenarios: [{
@@ -286,6 +299,22 @@ function syntheticReport(): GuytonStarlingValidationReport {
         mode: "calibrated",
         anchorCount: 4,
       },
+      auditTiming: {
+        positiveChainMs: 350,
+        negativeChainMs: 320,
+        assembleMs: 1,
+        totalMs: 700,
+        retargetFallbackCount: 0,
+        parallel: false,
+        chainWallMs: 0,
+        plannedPointCount: 4,
+        mode: "full7-reference",
+        anchorCount: 4,
+      },
+      auditCompletionMs: 700,
+      auditAddedPointCount: 4,
+      auditReusedPointCount: 4,
+      seedRejectionCount: 1,
       full7SweepTiming: {
         positiveChainMs: 800,
         negativeChainMs: 850,
@@ -317,6 +346,8 @@ function syntheticReport(): GuytonStarlingValidationReport {
         baseMapMs: 2,
         sweepOnlyMs: 900,
         finalFromStartMs: 1200,
+        auditOnlyMs: 700,
+        auditFromStartMs: 1900,
       },
       baselineDiagnostics: {
         targetVolumeMl: 5600,
@@ -336,12 +367,18 @@ function syntheticReport(): GuytonStarlingValidationReport {
         retargetFallback: false,
         settle: capSettle,
         health: warningHealth,
+        displayReliable: true,
+        seedReliable: true,
+        explorationReason: "low-preload-shape",
+        candidateRank: 1,
+        seededFromDeltaMl: 0,
+        seedAccepted: true,
       }],
       warningDetails,
       warningBreakdown: warningBreakdownFromDetails(warningDetails),
       calibrationComparison: {
         calibratedPointCount: 4,
-        full7PointCount: 7,
+        full7PointCount: 8,
         calibratedFinalMs: 900,
         full7FinalMs: 1600,
         latencyDeltaMs: -700,

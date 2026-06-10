@@ -91,12 +91,14 @@
       "calibration": {
         "axis": "Axis",
         "sweep": "Sweep",
-        "anchors": "Anchors",
+        "anchors": "Explored points",
+        "audit": "Audit",
+        "holdoutError": "Holdout error",
         "measuredRange": "Measured range",
         "zeroFlow": "Low-flow end",
         "notAvailable": "n/a",
-        "zeroFlowNotConstrained": "Calibrated from TBV sweep anchors. Zero-flow/V0 is not constrained.",
-        "detailsAria": "Starling calibration details"
+        "zeroFlowNotConstrained": "Explored from TBV sweep points. Zero-flow/V0 is not constrained.",
+        "detailsAria": "Starling exploration details"
       }
     },
     "controls": {

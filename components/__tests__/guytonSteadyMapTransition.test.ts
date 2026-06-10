@@ -8,6 +8,7 @@ import {
   initialGuytonSteadyMapState,
   markGuytonSteadyMapPendingWarning,
   receiveGuytonBaseMapResponse,
+  receiveGuytonSweepAuditResponse,
   receiveGuytonSweepProgressResponse,
   receiveGuytonSweepResponse,
   type GuytonSteadyMapState,
@@ -19,6 +20,7 @@ import type {
   GuytonSide,
   StarlingSweepProgressMessage,
   StarlingSweepResponse,
+  StarlingSweepAuditMessage,
 } from "@/engine/guytonStarling";
 
 describe("Guyton steady-map transition state", () => {
@@ -141,6 +143,24 @@ describe("Guyton steady-map transition state", () => {
     expect(warned.pending?.warnings).toContain("Steady map worker unavailable");
   });
 
+  it("adds legacy audit points without re-promoting or changing ghost expiry", () => {
+    const current = promotedState("sig", 100);
+    const audited = receiveGuytonSweepAuditResponse(current, audit("sig"), 200);
+
+    expect(audited.current?.signature).toBe("sig");
+    expect(audited.current?.promotedAtMs).toBe(current.current?.promotedAtMs);
+    expect(audited.current?.sweep.right?.audit?.addedDeltasMl).toEqual([-600, -300, 300, 900]);
+    expect(audited.current?.sweep.right?.audit?.points.some((point) => point.pointSource === "audit-added")).toBe(true);
+    expect(audited.ghost?.expiresAtMs).toBe(current.ghost?.expiresAtMs);
+  });
+
+  it("ignores stale legacy audit responses", () => {
+    const current = promotedState("sig", 100);
+    const stale = receiveGuytonSweepAuditResponse(current, audit("old"), 200);
+
+    expect(stale.current?.sweep.right?.audit).toBeUndefined();
+  });
+
   it("keeps stress endpoint caps out of high-priority warnings", () => {
     const pending = beginGuytonSteadyMapRequest(initialGuytonSteadyMapState("right"), "sig", 0);
     const withBase = receiveGuytonBaseMapResponse(pending, "right", baseMap("sig"), 10);
@@ -213,6 +233,50 @@ function stressSweep(signature: string): StarlingSweepResponse {
       warnings: ["+300 mL: sweep point did not fully settle"],
     },
     warnings: ["+300 mL: sweep point did not fully settle"],
+  };
+}
+
+function audit(signature: string): StarlingSweepAuditMessage {
+  return {
+    type: "starling-sweep-audit",
+    requestId: `req-${signature}`,
+    signature,
+    instanceId: "inst",
+    right: {
+      side: "right",
+      points: [],
+      audit: {
+        points: [
+          { x: 2, y: 4.8, deltaVolumeMl: 0, pointSource: "calibrated-anchor" },
+          { x: 3, y: 5.0, deltaVolumeMl: -300, pointSource: "audit-added" },
+        ],
+        holdoutErrorLMin: 0.1,
+        addedDeltasMl: [-600, -300, 300, 900],
+        reusedDeltasMl: [-900, -450, 0, 600],
+        exploration: [
+          { deltaVolumeMl: -300, explorationReason: "low-preload-shape", candidateRank: 1 },
+        ],
+      },
+      warnings: [],
+    },
+    left: {
+      side: "left",
+      points: [],
+      audit: {
+        points: [
+          { x: 8, y: 4.8, deltaVolumeMl: 0, pointSource: "calibrated-anchor" },
+          { x: 9, y: 5.0, deltaVolumeMl: -300, pointSource: "audit-added" },
+        ],
+        holdoutErrorLMin: 0.1,
+        addedDeltasMl: [-600, -300, 300, 900],
+        reusedDeltasMl: [-900, -450, 0, 600],
+        exploration: [
+          { deltaVolumeMl: -300, explorationReason: "low-preload-shape", candidateRank: 1 },
+        ],
+      },
+      warnings: [],
+    },
+    warnings: [],
   };
 }
 

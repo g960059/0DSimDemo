@@ -7,18 +7,22 @@ import type {
   StarlingSweepCurve,
   StarlingSweepProgressMessage,
   StarlingSweepRequest,
+  StarlingSweepAuditMessage,
+  StarlingSweepExplorationReason,
   StarlingSweepWorkerMessage,
 } from "@/engine/guytonStarling";
 import type { StarlingSweepInterpretation } from "@/engine/guytonStarling";
-import { classifyStarlingSweepPoint, starlingSweepSignature } from "@/engine/guytonStarling";
+import { classifyStarlingSweepPoint, isStarlingSweepFitSourcePoint, starlingSweepSignature } from "@/engine/guytonStarling";
 import type {
   GuytonChainWorkerMessage,
   GuytonChainWorkerRequest,
+  GuytonChainId,
   GuytonWorkerSettledRun,
 } from "@/engine/guytonStarlingChainProtocol";
 import { postGuytonChainWorkerMessages } from "@/engine/guytonStarlingChainWorkerCore";
 import {
   buildGuytonBaseMapResponse,
+  buildParallelStarlingSweepAuditMessage,
   buildParallelStarlingSweepResponse,
   buildWorkerBaseline,
   type GuytonChainWorkerLike,
@@ -95,6 +99,8 @@ export type TimingBreakdownSummary = {
   baseMapMs: TimingMetricBreakdown;
   sweepOnlyMs: TimingMetricBreakdown;
   finalFromStartMs: TimingMetricBreakdown;
+  auditOnlyMs: TimingMetricBreakdown;
+  auditFromStartMs: TimingMetricBreakdown;
 };
 
 export type ScenarioTimingBreakdown = {
@@ -102,6 +108,8 @@ export type ScenarioTimingBreakdown = {
   baseMapMs: number;
   sweepOnlyMs: number;
   finalFromStartMs: number;
+  auditOnlyMs: number | null;
+  auditFromStartMs: number | null;
 };
 
 export type BaselineDiagnostics = {
@@ -115,7 +123,7 @@ export type BaselineDiagnostics = {
 export type SweepPointDiagnostics = {
   deltaVolumeMl: number;
   targetVolumeMl: number;
-  chain: "baseline" | "positive" | "negative";
+  chain: "baseline" | "adaptive" | GuytonChainId;
   arrivalOrder: number;
   wallMs: number;
   source: string;
@@ -123,6 +131,13 @@ export type SweepPointDiagnostics = {
   retargetFallback: boolean;
   settle: SettleStatus;
   health: SimulationHealth;
+  displayReliable: boolean;
+  seedReliable: boolean;
+  explorationReason?: StarlingSweepExplorationReason;
+  candidateRank?: number;
+  seededFromDeltaMl?: number;
+  seedAccepted: boolean;
+  seedRejectReason?: string;
 };
 
 export type WarningDetail = {
@@ -151,6 +166,11 @@ export type GuytonStarlingValidationResult = {
   baseMapTiming: GuytonBaseMapResponse["timing"];
   sweepTiming: StarlingSweepWorkerMessage["timing"];
   full7SweepTiming: StarlingSweepWorkerMessage["timing"];
+  auditTiming?: StarlingSweepAuditMessage["timing"];
+  auditCompletionMs: number | null;
+  auditAddedPointCount: number;
+  auditReusedPointCount: number;
+  seedRejectionCount: number;
   progressTiming: ProgressTimingReport;
   browserTiming?: GuytonStarlingBrowserTiming;
   timingBreakdown: ScenarioTimingBreakdown;
@@ -286,19 +306,45 @@ export async function runGuytonStarlingValidationScenario(
     onProgress: (message) => {
       progressEvents.push(progressTimingEvent(message, performanceNow() - started));
     },
+    onRun: (result) => {
+      capturedRuns.push({
+        chain: result.chain,
+        arrivalOrder: nextArrivalOrder++,
+        deltaVolumeMl: result.deltaVolumeMl,
+        run: result.run,
+      });
+    },
   });
-  const full7Started = performanceNow();
-  const full7Sweep = await buildParallelStarlingSweepResponse({ ...req, sweepMode: "full7" }, baseline, {
-    createChainWorker: () => new InlineValidationChainWorker(),
+  const calibratedFinalFromStartMs = performanceNow() - started;
+  const auditStarted = performanceNow();
+  const audit = await buildParallelStarlingSweepAuditMessage(req, baseline, sweep, {
+    createChainWorker: () => new InlineValidationChainWorker((message) => {
+      capturedRuns.push({
+        chain: message.chainId,
+        arrivalOrder: nextArrivalOrder++,
+        deltaVolumeMl: message.result.deltaVolumeMl,
+        run: message.result.run,
+      });
+    }),
   });
-  const full7Elapsed = performanceNow() - full7Started;
-  const timingBreakdown = scenarioTimingBreakdown(baseMap, sweep, performanceNow() - started);
-  const sweepPointDiagnostics = capturedRuns
-    .map(sweepPointDiagnosticsFromRun)
+  const auditElapsed = performanceNow() - auditStarted;
+  const auditFromStartMs = audit ? performanceNow() - started : null;
+  const full7Sweep = auditToFull7Sweep(sweep, audit, auditElapsed);
+  const timingBreakdown = scenarioTimingBreakdown(
+    baseMap,
+    sweep,
+    calibratedFinalFromStartMs,
+    audit ? auditElapsed : null,
+    auditFromStartMs,
+  );
+  const explorationByDeltaMap = buildExplorationByDelta(sweep, audit);
+  const uniqueCapturedRuns = uniqueCapturedSweepRuns(capturedRuns);
+  const sweepPointDiagnostics = uniqueCapturedRuns
+    .map((run) => sweepPointDiagnosticsFromRun(run, explorationByDeltaMap.get(run.deltaVolumeMl)))
     .sort((a, b) => a.arrivalOrder - b.arrivalOrder);
   const baselineDiagnostics = baselineDiagnosticsFromRun(baseline);
   const warningDetails = validationWarningDetails(baseMap, sweep, baselineDiagnostics, sweepPointDiagnostics);
-  const calibrationComparison = calibrationComparisonReport(sweep, full7Sweep, full7Elapsed);
+  const calibrationComparison = calibrationComparisonReport(sweep, full7Sweep, auditElapsed);
 
   return {
     scenarioId: item.id,
@@ -322,7 +368,12 @@ export async function runGuytonStarlingValidationScenario(
     baseMapTiming: baseMap.timing,
     sweepTiming: sweep.timing,
     full7SweepTiming: full7Sweep.timing,
-    progressTiming: buildProgressTimingReport(progressEvents, performanceNow() - started),
+    auditTiming: audit?.timing,
+    auditCompletionMs: audit ? auditElapsed : null,
+    auditAddedPointCount: audit?.right?.audit?.addedDeltasMl.length ?? audit?.left?.audit?.addedDeltasMl.length ?? 0,
+    auditReusedPointCount: audit?.right?.audit?.reusedDeltasMl.length ?? audit?.left?.audit?.reusedDeltasMl.length ?? 0,
+    seedRejectionCount: sweepPointDiagnostics.filter((point) => !point.seedAccepted).length,
+    progressTiming: buildProgressTimingReport(progressEvents, calibratedFinalFromStartMs),
     timingBreakdown,
     baselineDiagnostics,
     sweepPointDiagnostics,
@@ -343,6 +394,17 @@ export async function runGuytonStarlingValidationScenario(
   };
 }
 
+function uniqueCapturedSweepRuns(runs: CapturedSweepRun[]): CapturedSweepRun[] {
+  const seen = new Set<number>();
+  const unique: CapturedSweepRun[] = [];
+  for (const run of runs.sort((a, b) => a.arrivalOrder - b.arrivalOrder)) {
+    if (seen.has(run.deltaVolumeMl)) continue;
+    seen.add(run.deltaVolumeMl);
+    unique.push(run);
+  }
+  return unique;
+}
+
 export function guytonStarlingValidationReportToMarkdown(report: GuytonStarlingValidationReport): string {
   const lines: string[] = [
     "# Guyton/Starling Validation",
@@ -359,10 +421,10 @@ export function guytonStarlingValidationReportToMarkdown(report: GuytonStarlingV
     `- Max pump residual: ${fmt(report.summary.maxAbsPumpResidualLMin)} L/min`,
     `- Max return residual: ${fmt(report.summary.maxAbsReturnResidualLMin)} L/min`,
     `- Max final sweep latency: ${fmt(report.summary.maxFinalSweepMs)} ms`,
-    `- Calibrated final median: ${fmt(report.summary.calibratedVsFull7.medianCalibratedFinalMs)} ms`,
-    `- Full7 final median: ${fmt(report.summary.calibratedVsFull7.medianFull7FinalMs)} ms`,
-    `- Median latency delta: ${fmt(report.summary.calibratedVsFull7.medianLatencyDeltaMs)} ms`,
-    `- Max holdout flow error: ${fmt(report.summary.calibratedVsFull7.maxHoldoutFlowErrorLMin)} L/min`,
+    `- Adaptive final median: ${fmt(report.summary.calibratedVsFull7.medianCalibratedFinalMs)} ms`,
+    `- Final exploration median: ${fmt(report.summary.calibratedVsFull7.medianFull7FinalMs)} ms`,
+    `- Median exploration latency delta: ${fmt(report.summary.calibratedVsFull7.medianLatencyDeltaMs)} ms`,
+    `- Max adaptive interpolation error: ${fmt(report.summary.calibratedVsFull7.maxHoldoutFlowErrorLMin)} L/min`,
     "",
     "## Warning Breakdown",
     "",
@@ -372,23 +434,26 @@ export function guytonStarlingValidationReportToMarkdown(report: GuytonStarlingV
     "",
     "## Timing Breakdown",
     "",
-    "| Scenario | baselineMs | baseMapMs | sweepOnlyMs | finalFromStartMs |",
-    "|---|---:|---:|---:|---:|",
+    "| Scenario | baselineMs | baseMapMs | sweepOnlyMs | finalFromStartMs | auditOnlyMs | auditFromStartMs |",
+    "|---|---:|---:|---:|---:|---:|---:|",
     ...report.scenarios.map((result) => [
       `| ${result.scenarioId}`,
       fmt(result.timingBreakdown.baselineMs),
       fmt(result.timingBreakdown.baseMapMs),
       fmt(result.timingBreakdown.sweepOnlyMs),
-      `${fmt(result.timingBreakdown.finalFromStartMs)} |`,
+      fmt(result.timingBreakdown.finalFromStartMs),
+      fmtNullable(result.timingBreakdown.auditOnlyMs),
+      `${fmtNullable(result.timingBreakdown.auditFromStartMs)} |`,
     ].join(" | ")),
     "",
     `Timing summary: baseline median ${fmt(report.summary.timingBreakdown.baselineMs.medianMs)} ms / max ${fmt(report.summary.timingBreakdown.baselineMs.maxMs)} ms; `
-      + `sweepOnlyMs median ${fmt(report.summary.timingBreakdown.sweepOnlyMs.medianMs)} ms / max ${fmt(report.summary.timingBreakdown.sweepOnlyMs.maxMs)} ms.`,
+      + `sweepOnlyMs median ${fmt(report.summary.timingBreakdown.sweepOnlyMs.medianMs)} ms / max ${fmt(report.summary.timingBreakdown.sweepOnlyMs.maxMs)} ms; `
+      + `auditOnlyMs median ${fmt(report.summary.timingBreakdown.auditOnlyMs.medianMs)} ms / max ${fmt(report.summary.timingBreakdown.auditOnlyMs.maxMs)} ms.`,
     "",
-    "## Calibrated vs Full7",
+    "## Adaptive Exploration",
     "",
-    "| Scenario | Anchors | Full7 pts | Cal final | Full7 final | Delta | R holdout err | L holdout err | Fallback |",
-    "|---|---:|---:|---:|---:|---:|---:|---:|---|",
+    "| Scenario | Points | Added | Reused | Final pts | Adaptive final | Exploration final | Delta | R interp err | L interp err | Seed rejects | Fallback |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|",
   ];
 
   for (const result of report.scenarios) {
@@ -396,12 +461,15 @@ export function guytonStarlingValidationReportToMarkdown(report: GuytonStarlingV
     lines.push([
       `| ${result.scenarioId}`,
       cmp.calibratedPointCount,
+      result.auditAddedPointCount,
+      result.auditReusedPointCount,
       cmp.full7PointCount,
       fmtNullable(cmp.calibratedFinalMs),
       fmtNullable(cmp.full7FinalMs),
       fmtNullable(cmp.latencyDeltaMs),
       fmtNullable(cmp.rightHoldoutMaxFlowErrorLMin),
       fmtNullable(cmp.leftHoldoutMaxFlowErrorLMin),
+      result.seedRejectionCount,
       `${cmp.fallbackReasons.length ? cmp.fallbackReasons.join("; ").replace(/\|/g, "/") : "none"} |`,
     ].join(" | "));
   }
@@ -551,6 +619,31 @@ export function guytonStarlingValidationReportToMarkdown(report: GuytonStarlingV
     }
   }
 
+  lines.push(
+    "",
+    "## Seed Diagnostics",
+    "",
+    "| Scenario | Delta | Chain | wallMs | actualSeconds | Display reliable | Seed reliable | Seeded from | Seed accepted | Reject reason | Exploration |",
+    "|---|---:|---|---:|---:|---|---|---:|---|---|---|",
+  );
+  for (const result of report.scenarios) {
+    for (const point of result.sweepPointDiagnostics.filter((item) => item.chain !== "baseline")) {
+      lines.push([
+        `| ${result.scenarioId}`,
+        fmt(point.deltaVolumeMl, 0),
+        point.chain,
+        fmt(point.wallMs),
+        fmtOptional(point.settle.actualSeconds),
+        point.displayReliable ? "yes" : "no",
+        point.seedReliable ? "yes" : "no",
+        fmtOptional(point.seededFromDeltaMl, 0),
+        point.seedAccepted ? "yes" : "no",
+        point.seedRejectReason?.replace(/\|/g, "/") ?? "-",
+        `${point.explorationReason ?? "-"} |`,
+      ].join(" | "));
+    }
+  }
+
   lines.push("", "## Warnings / Fallbacks", "");
   for (const result of report.scenarios) {
     const fallback = result.sweepTiming?.parallelFallback ? `; parallel fallback: ${result.sweepTiming.parallelFallback}` : "";
@@ -665,7 +758,7 @@ function sweepQuality(curve: StarlingSweepCurve | undefined): SweepQualityReport
     fitPointCount: fit?.points.length ?? 0,
     extrapolatedLeftCount: fit?.extrapolatedLeft?.length ?? 0,
     extrapolatedRightCount: fit?.extrapolatedRight?.length ?? 0,
-    reliablePointCount: points.filter((point) => classifyStarlingSweepPoint(point) === "reliable").length,
+    reliablePointCount: points.filter(isStarlingSweepFitSourcePoint).length,
     stressPointCount: points.filter((point) => classifyStarlingSweepPoint(point) === "stress").length,
     invalidPointCount: points.filter((point) => classifyStarlingSweepPoint(point) === "invalid").length,
   };
@@ -694,6 +787,40 @@ function calibrationComparisonReport(
       ...(calibrated.right?.calibration?.fallbackReasons ?? []),
       ...(calibrated.left?.calibration?.fallbackReasons ?? []),
     ]),
+  };
+}
+
+function auditToFull7Sweep(
+  calibrated: StarlingSweepWorkerMessage,
+  audit: StarlingSweepAuditMessage | undefined,
+  auditElapsedMs: number,
+): StarlingSweepWorkerMessage {
+  if (!audit) return calibrated;
+  return {
+    type: "starling-sweep",
+    requestId: calibrated.requestId,
+    signature: calibrated.signature,
+    instanceId: calibrated.instanceId,
+    right: audit.right
+      ? { ...audit.right, points: audit.right.audit?.points ?? audit.right.points }
+      : undefined,
+    left: audit.left
+      ? { ...audit.left, points: audit.left.audit?.points ?? audit.left.points }
+      : undefined,
+    warnings: audit.warnings,
+    timing: {
+      positiveChainMs: audit.timing?.positiveChainMs ?? 0,
+      negativeChainMs: audit.timing?.negativeChainMs ?? 0,
+      assembleMs: audit.timing?.assembleMs ?? 0,
+      totalMs: auditElapsedMs,
+      retargetFallbackCount: audit.timing?.retargetFallbackCount ?? 0,
+      mode: "adaptive-audit",
+      plannedPointCount: audit.timing?.plannedPointCount,
+      anchorCount: audit.timing?.anchorCount,
+      parallel: audit.timing?.parallel,
+      chainWallMs: audit.timing?.chainWallMs,
+      parallelFallback: audit.timing?.parallelFallback,
+    },
   };
 }
 
@@ -751,7 +878,34 @@ function baselineDiagnosticsFromRun(run: GuytonWorkerSettledRun): BaselineDiagno
   };
 }
 
-function sweepPointDiagnosticsFromRun(captured: CapturedSweepRun): SweepPointDiagnostics {
+function buildExplorationByDelta(
+  sweep: StarlingSweepWorkerMessage,
+  audit: StarlingSweepAuditMessage | undefined,
+): Map<number, {
+  explorationReason: StarlingSweepExplorationReason;
+  candidateRank: number;
+}> {
+  const map = new Map<number, { explorationReason: StarlingSweepExplorationReason; candidateRank: number }>();
+  for (const point of [...(sweep.right?.points ?? []), ...(sweep.left?.points ?? [])]) {
+    if (typeof point.deltaVolumeMl !== "number" || !point.explorationReason || point.candidateRank === undefined) continue;
+    map.set(point.deltaVolumeMl, {
+      explorationReason: point.explorationReason,
+      candidateRank: point.candidateRank,
+    });
+  }
+  for (const candidate of audit?.right?.audit?.exploration ?? audit?.left?.audit?.exploration ?? []) {
+    map.set(candidate.deltaVolumeMl, {
+      explorationReason: candidate.explorationReason,
+      candidateRank: candidate.candidateRank,
+    });
+  }
+  return map;
+}
+
+function sweepPointDiagnosticsFromRun(
+  captured: CapturedSweepRun,
+  exploration?: { explorationReason: StarlingSweepExplorationReason; candidateRank: number },
+): SweepPointDiagnostics {
   return {
     deltaVolumeMl: captured.deltaVolumeMl,
     targetVolumeMl: captured.run.targetVolumeMl,
@@ -763,6 +917,13 @@ function sweepPointDiagnosticsFromRun(captured: CapturedSweepRun): SweepPointDia
     retargetFallback: captured.run.retargetFallback,
     settle: captured.run.settle,
     health: captured.run.health,
+    displayReliable: captured.run.reliability.displayReliable,
+    seedReliable: captured.run.reliability.seedReliable,
+    explorationReason: exploration?.explorationReason,
+    candidateRank: exploration?.candidateRank,
+    seededFromDeltaMl: captured.run.seededFromDeltaMl,
+    seedAccepted: captured.run.seedAccepted,
+    seedRejectReason: captured.run.seedRejectReason,
   };
 }
 
@@ -877,12 +1038,16 @@ function scenarioTimingBreakdown(
   baseMap: GuytonBaseMapResponse,
   sweep: StarlingSweepWorkerMessage,
   finalFromStartMs: number,
+  auditOnlyMs: number | null = null,
+  auditFromStartMs: number | null = null,
 ): ScenarioTimingBreakdown {
   return {
     baselineMs: baseMap.timing?.baselineMs ?? 0,
     baseMapMs: baseMap.timing?.baseMapMs ?? 0,
     sweepOnlyMs: sweep.timing?.totalMs ?? 0,
     finalFromStartMs,
+    auditOnlyMs,
+    auditFromStartMs,
   };
 }
 
@@ -892,6 +1057,8 @@ function buildTimingBreakdownSummary(items: readonly ScenarioTimingBreakdown[]):
     baseMapMs: timingMetric(items.map((item) => item.baseMapMs)),
     sweepOnlyMs: timingMetric(items.map((item) => item.sweepOnlyMs)),
     finalFromStartMs: timingMetric(items.map((item) => item.finalFromStartMs)),
+    auditOnlyMs: timingMetricNullable(items.map((item) => item.auditOnlyMs)),
+    auditFromStartMs: timingMetricNullable(items.map((item) => item.auditFromStartMs)),
   };
 }
 
@@ -900,6 +1067,10 @@ function timingMetric(values: readonly number[]): TimingMetricBreakdown {
     maxMs: maxFinite(values),
     medianMs: medianFinite(values),
   };
+}
+
+function timingMetricNullable(values: ReadonlyArray<number | null>): TimingMetricBreakdown {
+  return timingMetric(values.filter((value): value is number => typeof value === "number" && Number.isFinite(value)));
 }
 
 function progressTimingEvent(

@@ -7,6 +7,7 @@ import {
   type GuytonBaseMapResponse,
   type GuytonPaneData,
   type GuytonSide,
+  type StarlingSweepAuditMessage,
   type StarlingSweepProgressMessage,
   type StarlingSweepCurve,
   type StarlingSweepResponse,
@@ -165,6 +166,37 @@ export function receiveGuytonSweepResponse(
   }, nowMs);
 }
 
+export function receiveGuytonSweepAuditResponse(
+  state: GuytonSteadyMapState,
+  response: StarlingSweepAuditMessage,
+  nowMs: number,
+): GuytonSteadyMapState {
+  if (state.current?.signature !== response.signature) return expireGuytonSteadyMapGhost(state, nowMs);
+  if (response.error) {
+    return expireGuytonSteadyMapGhost({
+      ...state,
+      current: {
+        ...state.current,
+        warnings: uniqueStrings([...state.current.warnings, response.error]),
+      },
+    }, nowMs);
+  }
+  const sweep = mergeAuditIntoSweep(state.current.sweep, response);
+  return expireGuytonSteadyMapGhost({
+    ...state,
+    current: {
+      ...state.current,
+      sweep,
+      warnings: uniqueStrings([
+        ...state.current.warnings,
+        ...response.warnings,
+        ...(sweep.right?.warnings ?? []),
+        ...(sweep.left?.warnings ?? []),
+      ]),
+    },
+  }, nowMs);
+}
+
 export function markGuytonSteadyMapPendingWarning(
   state: GuytonSteadyMapState,
   signature: string,
@@ -278,6 +310,31 @@ function withPendingWarnings(
       warnings: uniqueStrings([...state.pending.warnings, ...warnings]),
     },
   }, nowMs);
+}
+
+function mergeAuditIntoSweep(
+  current: StarlingSweepResponse,
+  audit: StarlingSweepAuditMessage,
+): StarlingSweepResponse {
+  return {
+    ...current,
+    warnings: uniqueStrings([...current.warnings, ...audit.warnings]),
+    right: mergeCurveAudit(current.right, audit.right),
+    left: mergeCurveAudit(current.left, audit.left),
+  };
+}
+
+function mergeCurveAudit(
+  current: StarlingSweepCurve | undefined,
+  audit: StarlingSweepCurve | undefined,
+): StarlingSweepCurve | undefined {
+  if (!current) return audit;
+  if (!audit?.audit) return current;
+  return {
+    ...current,
+    audit: audit.audit,
+    warnings: uniqueStrings([...current.warnings, ...audit.warnings]),
+  };
 }
 
 function ghostFromCurrent(current: GuytonSteadyMap): GuytonSteadyMapGhost {

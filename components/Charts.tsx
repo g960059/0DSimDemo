@@ -37,6 +37,7 @@ import {
     initialGuytonSteadyMapState,
     markGuytonSteadyMapPendingWarning,
     receiveGuytonBaseMapResponse,
+    receiveGuytonSweepAuditResponse,
     receiveGuytonSweepProgressResponse,
     receiveGuytonSweepResponse,
     type GuytonSteadyMap,
@@ -1367,6 +1368,8 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
         anchors: t('workbench.guyton.calibration.anchors'),
         measuredRange: t('workbench.guyton.calibration.measuredRange'),
         zeroFlow: t('workbench.guyton.calibration.zeroFlow'),
+        audit: t('workbench.guyton.calibration.audit'),
+        holdoutError: t('workbench.guyton.calibration.holdoutError'),
         notAvailable: t('workbench.guyton.calibration.notAvailable'),
         zeroFlowNotConstrained: t('workbench.guyton.calibration.zeroFlowNotConstrained'),
     }), [t]);
@@ -1467,6 +1470,11 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
                     }
                     if (response.type === 'starling-sweep-progress') {
                         steadyMapRef.current.set(key, receiveGuytonSweepProgressResponse(current, response, Date.now()));
+                        setTick((t) => t + 1);
+                        return;
+                    }
+                    if (response.type === 'starling-sweep-audit') {
+                        steadyMapRef.current.set(key, receiveGuytonSweepAuditResponse(current, response, Date.now()));
                         setTick((t) => t + 1);
                         return;
                     }
@@ -1822,6 +1830,10 @@ function drawGuytonMap(
         if (fit?.extrapolatedRight) drawLine(ctx, fit.extrapolatedRight, args.x, args.y, args.sweepColor, 1.5, [5, 5], 0.42);
         if (fit && fit.points.length >= 2) drawLine(ctx, fit.points, args.x, args.y, args.sweepColor, 2);
         else if (sweep.points.length >= 2) drawLine(ctx, sweep.points, args.x, args.y, args.sweepColor, 1.6);
+        for (const point of sweep.audit?.points ?? []) {
+            if (point.pointSource !== 'audit-added') continue;
+            drawPoint(ctx, args.x(point.x), args.y(point.y), args.sweepColor, 2.2, 0.24);
+        }
         for (const point of sweep.points) {
             const quality = point.quality ?? classifyStarlingSweepPoint(point);
             drawPoint(ctx, args.x(point.x), args.y(point.y), args.sweepColor, quality === 'reliable' ? 3.5 : 2.5, quality === 'reliable' ? 1 : quality === 'stress' ? 0.5 : 0.32);

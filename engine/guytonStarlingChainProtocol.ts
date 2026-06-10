@@ -1,4 +1,5 @@
 import type { RetargetTBVStatus } from "@/engine/ModelCore";
+import type { StarlingPointReliability } from "@/engine/guytonStarling";
 import type { CoreRuntimeParams, SimMetrics, SimObservables, SimulationHealth } from "@/engine/protocol";
 import type { SettleStatus } from "@/engine/settling";
 import type { SerializedModelState } from "@/engine/stateContract";
@@ -16,9 +17,13 @@ export type GuytonWorkerSettledRun = {
   source: GuytonWorkerCoreSource;
   retarget?: RetargetTBVStatus;
   retargetFallback: boolean;
+  seededFromDeltaMl?: number;
+  seedAccepted: boolean;
+  seedRejectReason?: string;
+  reliability: StarlingPointReliability;
 };
 
-export type GuytonChainId = "positive" | "negative";
+export type GuytonChainId = "positive" | "negative" | "audit-low" | "audit-mid" | "audit-high" | "audit-plateau";
 
 export type GuytonChainWorkerRequest = {
   type: "solve-chain";
