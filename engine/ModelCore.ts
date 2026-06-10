@@ -280,6 +280,7 @@ export class ModelCore {
       this.x[internalIndex.a] = initial.a;
       this.x[internalIndex.r] = initial.r;
       this.x[internalIndex.tensionPa] = initial.tensionPa ?? 0;
+      this.x[internalIndex.lambdaAct] = initial.lambdaAct ?? 1;
     }
     this.t = 0;
     this.history = [];
@@ -399,6 +400,7 @@ export class ModelCore {
       values[`active.${ch}.a`] = this.x[idx.a];
       values[`active.${ch}.r`] = this.x[idx.r];
       values[`active.${ch}.tensionPa`] = this.x[idx.tensionPa];
+      values[`active.${ch}.lambdaAct`] = this.x[idx.lambdaAct];
     }
     return {
       schemaVersion: MODEL_STATE_SCHEMA_VERSION,
@@ -1278,6 +1280,7 @@ export class ModelCore {
       dy[internalIndex.a] = dInternal.aDot;
       dy[internalIndex.r] = dInternal.rDot;
       dy[internalIndex.tensionPa] = dInternal.tensionPaDot ?? 0;
+      dy[internalIndex.lambdaAct] = dInternal.lambdaActDot ?? 0;
     }
 
     const shiftState = x[this.idx.septumShift];
@@ -1574,7 +1577,7 @@ export class ModelCore {
     return this.nodes.filter((n) => n.kind === "heartActive" && n.chamber && n.active);
   }
 
-  private activeInternalIndex(chamber: Chamber): { c: number; a: number; r: number; tensionPa: number } {
+  private activeInternalIndex(chamber: Chamber): { c: number; a: number; r: number; tensionPa: number; lambdaAct: number } {
     const idx = this.idx.activeInternal[chamber];
     if (!idx) throw new Error(`Missing active internal state index for ${chamber}`);
     return idx;
@@ -1582,7 +1585,7 @@ export class ModelCore {
 
   private activeInternalFromState(chamber: Chamber, x: Float64Array) {
     const idx = this.activeInternalIndex(chamber);
-    return { c: x[idx.c], a: x[idx.a], r: x[idx.r], tensionPa: x[idx.tensionPa] };
+    return { c: x[idx.c], a: x[idx.a], r: x[idx.r], tensionPa: x[idx.tensionPa], lambdaAct: x[idx.lambdaAct] };
   }
 
   private activeModel(chamber: Chamber): ActiveStressChamberModel {
@@ -1889,11 +1892,12 @@ export class ModelCore {
       x[active.a] = clamp(x[active.a], 0, 1);
       x[active.r] = clamp(x[active.r], 0, this.maxReservoirStrokeForInternal(active));
       x[active.tensionPa] = clamp(x[active.tensionPa], 0, 500000);
+      x[active.lambdaAct] = clamp(x[active.lambdaAct], 0.25, 2.5);
     }
   }
 
-  private maxReservoirStrokeForInternal(active: { c: number; a: number; r: number; tensionPa: number }): number {
-    for (const [ch, idx] of Object.entries(this.idx.activeInternal) as [Chamber, { c: number; a: number; r: number; tensionPa: number }][]) {
+  private maxReservoirStrokeForInternal(active: { c: number; a: number; r: number; tensionPa: number; lambdaAct: number }): number {
+    for (const [ch, idx] of Object.entries(this.idx.activeInternal) as [Chamber, { c: number; a: number; r: number; tensionPa: number; lambdaAct: number }][]) {
       if (idx?.r !== active.r) continue;
       return Math.max(this.activeModels[ch]?.ap.reservoirStrokeMl ?? 0, 0);
     }

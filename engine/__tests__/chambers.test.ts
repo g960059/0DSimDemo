@@ -98,6 +98,30 @@ describe("ChamberModel behavior parity (S2a refactor guards)", () => {
     expect(lengtheningPressure).toBeGreaterThan(staticPressure);
   });
 
+  it("uses lambdaAct only when the off-by-default lag experiment is enabled", () => {
+    const base = {
+      HR: 75,
+      contractility: 1,
+      relaxation: 1,
+      phi: 0.28,
+      chamber: "LV" as const,
+      tmaxScale: 0.7,
+      geomScale: 1,
+      caReleaseScale: 1,
+      inletValveOpen01: 0,
+      outletValveOpen01: 1,
+    };
+    const tauOff = new ActiveStressChamberModel({ ...defaultActiveLV, tauLambdaActSec: 0 });
+    const tauOn = new ActiveStressChamberModel({ ...defaultActiveLV, tauLambdaActSec: 0.25 });
+    const lowAct = { c: 0.55, a: 0.5, r: 0, tensionPa: 0, lambdaAct: 0.75 };
+    const highAct = { ...lowAct, lambdaAct: 1.05 };
+
+    expect(tauOff.pressure(80, lowAct, base)).toBeCloseTo(tauOff.pressure(80, highAct, base), 9);
+    expect(Math.abs(tauOn.pressure(80, lowAct, base) - tauOn.pressure(80, highAct, base))).toBeGreaterThan(1);
+    const d = tauOn.internalDerivatives(80, highAct, base);
+    expect(Number.isFinite(d.lambdaActDot)).toBe(true);
+  });
+
   it("atrial AV-plane gain uses side-specific paired ventricle and inlet valve context", () => {
     const la = new ActiveStressChamberModel(defaultActiveLA);
     const internal = { c: 0, a: 0, r: 0 };

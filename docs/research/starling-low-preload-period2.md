@@ -122,6 +122,7 @@ Useful focused runs:
 ```bash
 npm run debug:starling-low-preload -- --out=artifacts/starling-low-preload-debug/manual --deltas=0,-1200,-1300,-1400 --trace-beats=12
 npm run debug:starling-low-preload -- --out=artifacts/starling-low-preload-debug/dt-only --deltas=0,-1250 --dt=0.001,0.0005,0.002
+npm run debug:starling-low-preload -- --out=artifacts/starling-low-preload-debug/lambda-act --deltas=0,-1200,-1250,-1300,-1400 --dt=0.001,0.0005 --lambda-act-tau=0,0.15,0.25,0.4
 ```
 
 Interpretation:
@@ -131,6 +132,16 @@ Interpretation:
 - Valve reverse volume near zero keeps reverse-flow artifacts low on the suspect list.
 - Node-specific clamp hits identify whether the low-preload edge is being shaped by LA / pulmonary venous / other low-volume bounds.
 - Return-map slopes first advance to the next LV EDV section, perturb the serialized state by `LV +/- 0.5 mL` and `PVein -/+ 0.5 mL`, then measure the next complete beat. EDV/ESV slopes are one-coordinate section slopes; CO/LAP slopes are response slopes with their own units. Values near or above unit magnitude for volume slopes should be read as a reason to inspect local gain, not as proof of a specific fix.
+
+After PR #113 the same report adds a v2 return-map and an off-by-default `lambdaAct` experiment:
+
+- `oneBeat` and `twoBeatSamePhase` central differences are both reported. `oneBeat` estimates the next-beat Poincare response; `twoBeatSamePhase` measures the response two beats later, which is the more relevant same-phase map once a period-2 attractor is present.
+- `branchAmplitude` reports the last two-beat high/low amplitude for `EDV_L`, `ESV_L`, `CO_L`, and `LAPMean`.
+- `clampCrossing` / `nonsmooth` mark return-map points where the finite-difference perturbation passes through clamp activity; these slopes should be treated as diagnostic context rather than primary calibration targets.
+- `--lambda-act-tau` injects `tauLambdaActSec` through `nodeOverrides.*.active` for debug runs only. The shipped model is `tau=0`. Positive tau values add a chamber internal `lambdaAct` state and use it only as the length input to `Kd` and `fIso`; passive pressure, raw geometry, `gOver`, force-velocity coupling, and valves continue to use instantaneous `lambda`.
+- The report includes `lambdaRaw`, `lambdaAct`, `tauLambdaActSec`, `dLogAInf_dLambda`, `dLogFIso_dLambda`, `dLogGOver_dLambda`, and `dLogCompositeActive_dLambda` so reviewers can see whether a tau value reduces low-stretch active gain without hiding clamp or valve diagnostics.
+
+This is still not a default model change. `lambdaAct` is an experiment designed to test the external model-team hypothesis that low-preload period-2 is driven by excessive beat-to-beat active-stretch gain. Default adoption requires a separate PR with normal/default, HR100, Guyton/Starling, clamp, valve, and return-map acceptance checks.
 
 This is intentionally not a solver or model fix. It is a reproducible handoff artifact for model review.
 
