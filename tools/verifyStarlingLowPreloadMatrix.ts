@@ -27,9 +27,11 @@ type MatrixOptions = {
   traceBeats: number;
   sampleHz: number;
   includeAllScope: boolean;
+  progress?: boolean;
+  partialWrite?: (report: MatrixReport) => void;
 };
 
-type WaveformGateLabel = "normal" | "HR100";
+type WaveformGateLabel = "normal" | "HR100" | "HR100-rearm";
 type WaveformGateMetrics = {
   settled: boolean;
   settleReason: string;
@@ -51,6 +53,8 @@ type WaveformGateComparison = {
   baseline: WaveformGateMetrics;
   candidate: WaveformGateMetrics;
   delta: Pick<WaveformGateMetrics, "CO_L" | "CO_R" | "EDV_L" | "ESV_L" | "EF_L" | "LVPMax" | "QAoMax" | "maxDpdtLVP" | "clampHitCount" | "valveReverseVolumeMl">;
+  maxDeltaMetric: keyof WaveformGateComparison["delta"];
+  maxDeltaFraction: number;
 };
 
 type MatrixScenario = {
@@ -66,7 +70,7 @@ type MatrixScenario = {
 };
 
 type MatrixReport = {
-  schemaVersion: 2;
+  schemaVersion: 3;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -86,6 +90,7 @@ type MatrixReport = {
     maxBranchAmplitudeFractionESVL: number;
     maxClampHitCount: number;
     maxWaveformGateDeltaFraction: number;
+    maxWaveformGateDeltaMetric: string | null;
     selectedReturnMapPointCount: number;
   };
 };
@@ -104,8 +109,15 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
     : opts.lambdaActScopes;
   const scenarios: MatrixScenario[] = [];
   const waveformBaselineCache = new Map<string, WaveformGateMetrics>();
-  for (const spec of matrixScenarioSpecs(opts, scopes)) {
+  const specs = matrixScenarioSpecs(opts, scopes);
+  specs.forEach((spec, index) => {
     const { lambdaActScope, lambdaActTauSec, lambdaActTerms, dt } = spec;
+    if (opts.progress) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[matrix] ${index + 1}/${specs.length} dt=${dt} tau=${lambdaActTauSec} scope=${lambdaActScope} terms=${lambdaActTerms}`,
+      );
+    }
     const branchReport = runLowPreloadDebug({
       outDir: "unused",
       targetVolumeMl: opts.targetVolumeMl,
@@ -121,20 +133,22 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
     });
     const selectedIndices = selectSuspiciousPointIndices(branchReport.points, opts.maxReturnMapPoints);
     const selectedDeltasMl = selectedIndices.map((index) => branchReport.points[index]?.deltaVolumeMl).filter(isFiniteNumber);
-    const returnMapReport = runLowPreloadDebug({
-      outDir: "unused",
-      targetVolumeMl: opts.targetVolumeMl,
-      deltasMl: opts.deltasMl,
-      dtValues: [dt],
-      lambdaActTauSecValues: [lambdaActTauSec],
-      lambdaActScope,
-      lambdaActTerms,
-      traceBeats: opts.traceBeats,
-      sampleHz: opts.sampleHz,
-      returnMapMode: "both",
-      returnMapDeltasMl: selectedDeltasMl,
-      quietClampLog: true,
-    });
+    const returnMapReport = selectedDeltasMl.length === 0
+      ? branchReport
+      : runLowPreloadDebug({
+          outDir: "unused",
+          targetVolumeMl: opts.targetVolumeMl,
+          deltasMl: opts.deltasMl,
+          dtValues: [dt],
+          lambdaActTauSecValues: [lambdaActTauSec],
+          lambdaActScope,
+          lambdaActTerms,
+          traceBeats: opts.traceBeats,
+          sampleHz: opts.sampleHz,
+          returnMapMode: "both",
+          returnMapDeltasMl: selectedDeltasMl,
+          quietClampLog: true,
+        });
     scenarios.push({
       dt,
       lambdaActTauSec,
@@ -154,9 +168,22 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
       ),
       points: returnMapReport.points,
     });
-  }
+    opts.partialWrite?.(buildMatrixReport(opts, scopes, scenarios));
+  });
+  return buildMatrixReport(opts, scopes, scenarios);
+}
+
+function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenarios: MatrixScenario[]): MatrixReport {
+  const maxWaveformGate = scenarios
+    .flatMap((scenario) => scenario.waveformGates)
+    .reduce<{ fraction: number; metric: string | null }>(
+      (best, gate) => gate.maxDeltaFraction > best.fraction
+        ? { fraction: gate.maxDeltaFraction, metric: `${gate.label}:${gate.maxDeltaMetric}` }
+        : best,
+      { fraction: 0, metric: null },
+    );
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     generatedAt: new Date().toISOString(),
     measurementMode: "branch-only broad low-preload matrix followed by selected EDV-section return-map diagnostics",
     targetVolumeMl: opts.targetVolumeMl,
@@ -175,7 +202,8 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
       maxBranchAmplitudeFractionEDVL: Math.max(0, ...scenarios.map((s) => s.returnMapSummary.maxBranchAmplitudeFractionEDVL)),
       maxBranchAmplitudeFractionESVL: Math.max(0, ...scenarios.map((s) => s.returnMapSummary.maxBranchAmplitudeFractionESVL)),
       maxClampHitCount: Math.max(0, ...scenarios.map((s) => s.returnMapSummary.maxClampHitCount)),
-      maxWaveformGateDeltaFraction: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map(maxWaveformGateFraction))),
+      maxWaveformGateDeltaFraction: maxWaveformGate.fraction,
+      maxWaveformGateDeltaMetric: maxWaveformGate.metric,
       selectedReturnMapPointCount: scenarios.reduce((sum, scenario) => sum + scenario.selectedDeltasMl.length, 0),
     },
   };
@@ -211,6 +239,7 @@ function buildWaveformGateComparisons(
   return [
     waveformGateComparison("normal", DEFAULT_PARAMS.HR, targetVolumeMl, dt, sampleHz, scope, tauSec, terms, baselineCache),
     waveformGateComparison("HR100", 100, targetVolumeMl, dt, sampleHz, scope, tauSec, terms, baselineCache),
+    waveformGateComparison("HR100-rearm", 100, targetVolumeMl, dt, sampleHz, scope, tauSec, terms, baselineCache),
   ];
 }
 
@@ -228,33 +257,38 @@ function waveformGateComparison(
   const baselineKey = `${label}|${HR}|${targetVolumeMl}|${dt}|${sampleHz}`;
   let baseline = baselineCache.get(baselineKey);
   if (!baseline) {
-    baseline = measureWaveformGate(HR, targetVolumeMl, dt, sampleHz, "all", 0, "kd+fiso");
+    baseline = measureWaveformGate(label, HR, targetVolumeMl, dt, sampleHz, "all", 0, "kd+fiso");
     baselineCache.set(baselineKey, baseline);
   }
   const candidate = tauSec <= 0
     ? baseline
-    : measureWaveformGate(HR, targetVolumeMl, dt, sampleHz, scope, tauSec, terms);
+    : measureWaveformGate(label, HR, targetVolumeMl, dt, sampleHz, scope, tauSec, terms);
+  const delta = {
+    CO_L: candidate.CO_L - baseline.CO_L,
+    CO_R: candidate.CO_R - baseline.CO_R,
+    EDV_L: candidate.EDV_L - baseline.EDV_L,
+    ESV_L: candidate.ESV_L - baseline.ESV_L,
+    EF_L: candidate.EF_L - baseline.EF_L,
+    LVPMax: candidate.LVPMax - baseline.LVPMax,
+    QAoMax: candidate.QAoMax - baseline.QAoMax,
+    maxDpdtLVP: candidate.maxDpdtLVP - baseline.maxDpdtLVP,
+    clampHitCount: candidate.clampHitCount - baseline.clampHitCount,
+    valveReverseVolumeMl: candidate.valveReverseVolumeMl - baseline.valveReverseVolumeMl,
+  };
+  const maxDelta = maxWaveformDelta(delta, baseline);
   return {
     label,
     HR,
     baseline,
     candidate,
-    delta: {
-      CO_L: candidate.CO_L - baseline.CO_L,
-      CO_R: candidate.CO_R - baseline.CO_R,
-      EDV_L: candidate.EDV_L - baseline.EDV_L,
-      ESV_L: candidate.ESV_L - baseline.ESV_L,
-      EF_L: candidate.EF_L - baseline.EF_L,
-      LVPMax: candidate.LVPMax - baseline.LVPMax,
-      QAoMax: candidate.QAoMax - baseline.QAoMax,
-      maxDpdtLVP: candidate.maxDpdtLVP - baseline.maxDpdtLVP,
-      clampHitCount: candidate.clampHitCount - baseline.clampHitCount,
-      valveReverseVolumeMl: candidate.valveReverseVolumeMl - baseline.valveReverseVolumeMl,
-    },
+    delta,
+    maxDeltaMetric: maxDelta.metric,
+    maxDeltaFraction: maxDelta.fraction,
   };
 }
 
 function measureWaveformGate(
+  label: WaveformGateLabel,
   HR: number,
   targetVolumeMl: number,
   dt: number,
@@ -263,10 +297,11 @@ function measureWaveformGate(
   tauSec: number,
   terms: LambdaActTerms,
 ): WaveformGateMetrics {
-  return withQuietClampLogs(() => measureWaveformGateImpl(HR, targetVolumeMl, dt, sampleHz, scope, tauSec, terms));
+  return withQuietClampLogs(() => measureWaveformGateImpl(label, HR, targetVolumeMl, dt, sampleHz, scope, tauSec, terms));
 }
 
 function measureWaveformGateImpl(
+  label: WaveformGateLabel,
   HR: number,
   targetVolumeMl: number,
   dt: number,
@@ -275,9 +310,13 @@ function measureWaveformGateImpl(
   tauSec: number,
   terms: LambdaActTerms,
 ): WaveformGateMetrics {
-  const params = paramsWithLambdaActTau({ ...DEFAULT_PARAMS, HR }, tauSec, scope, terms);
+  const params = paramsWithLambdaActTau(label === "HR100-rearm" ? DEFAULT_PARAMS : { ...DEFAULT_PARAMS, HR }, tauSec, scope, terms);
   const core = new ModelCore(params);
   core.initializeVenousPressuresForTargetTBV(targetVolumeMl);
+  if (label === "HR100-rearm") {
+    core.settleToSteady(WAVEFORM_SETTLE_POLICY, dt, sampleHz, WAVEFORM_RUN_OPTIONS);
+    core.setImmediateParameters({ HR });
+  }
   const settle = core.settleToSteady(WAVEFORM_SETTLE_POLICY, dt, sampleHz, WAVEFORM_RUN_OPTIONS);
   const periodBeats = settle.periodBeats ?? 1;
   const metrics = core.metrics({ windowBeats: periodBeats });
@@ -348,25 +387,29 @@ function integrateNegativeMagnitude(samples: SimSample[], key: keyof SimSample):
 }
 
 function maxWaveformGateFractionForScenario(scenario: MatrixScenario): number {
-  return Math.max(0, ...scenario.waveformGates.map(maxWaveformGateFraction));
+  return Math.max(0, ...scenario.waveformGates.map((gate) => gate.maxDeltaFraction));
 }
 
-function maxWaveformGateFraction(gate: WaveformGateComparison): number {
-  const fraction = (key: keyof WaveformGateComparison["delta"]) => {
-    const baseline = Number(gate.baseline[key as keyof WaveformGateMetrics]);
-    const delta = Number(gate.delta[key]);
-    return Number.isFinite(delta) ? Math.abs(delta) / Math.max(Math.abs(baseline), 1e-6) : 0;
-  };
-  return Math.max(
-    fraction("CO_L"),
-    fraction("CO_R"),
-    fraction("EDV_L"),
-    fraction("ESV_L"),
-    fraction("EF_L"),
-    fraction("LVPMax"),
-    fraction("QAoMax"),
-    fraction("maxDpdtLVP"),
-  );
+function maxWaveformDelta(
+  delta: WaveformGateComparison["delta"],
+  baseline: WaveformGateMetrics,
+): { metric: keyof WaveformGateComparison["delta"]; fraction: number } {
+  const keys: Array<keyof WaveformGateComparison["delta"]> = [
+    "CO_L",
+    "CO_R",
+    "EDV_L",
+    "ESV_L",
+    "EF_L",
+    "LVPMax",
+    "QAoMax",
+    "maxDpdtLVP",
+  ];
+  return keys.reduce<{ metric: keyof WaveformGateComparison["delta"]; fraction: number }>((best, key) => {
+    const baselineValue = Number(baseline[key as keyof WaveformGateMetrics]);
+    const deltaValue = Number(delta[key]);
+    const fraction = Number.isFinite(deltaValue) ? Math.abs(deltaValue) / Math.max(Math.abs(baselineValue), 1e-6) : 0;
+    return fraction > best.fraction ? { metric: key, fraction } : best;
+  }, { metric: "CO_L", fraction: 0 });
 }
 
 export function matrixReportToMarkdown(report: MatrixReport): string {
@@ -378,9 +421,15 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("## Scenario summary");
   lines.push("");
-  lines.push("| scope | terms | tau s | dt | selected deltas | period-2 | max CO branch frac | max EDV branch frac | max ESV branch frac | max clamp hits | max one-beat EDV slope | max two-beat EDV slope | max waveform gate frac |");
-  lines.push("| --- | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| scope | terms | tau s | dt | selected deltas | period-2 | max CO branch frac | max EDV branch frac | max ESV branch frac | max clamp hits | max one-beat EDV slope | max two-beat EDV slope | max waveform gate frac | worst waveform metric |");
+  lines.push("| --- | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
   for (const scenario of report.scenarios) {
+    const worstWaveform = scenario.waveformGates.reduce<{ label: string; metric: string; fraction: number }>(
+      (best, gate) => gate.maxDeltaFraction > best.fraction
+        ? { label: gate.label, metric: gate.maxDeltaMetric, fraction: gate.maxDeltaFraction }
+        : best,
+      { label: "", metric: "", fraction: 0 },
+    );
     lines.push([
       scenario.lambdaActScope,
       scenario.lambdaActTerms,
@@ -395,13 +444,14 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
       round(scenario.returnMapSummary.maxAbsReturnMapSlopeEDVL, 4),
       round(scenario.returnMapSummary.maxAbsTwoBeatReturnMapSlopeEDVL, 4),
       round(maxWaveformGateFractionForScenario(scenario), 4),
+      worstWaveform.label ? `${worstWaveform.label}:${worstWaveform.metric}` : "",
     ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
   }
   lines.push("");
   lines.push("## Normal / HR100 waveform gates");
   lines.push("");
-  lines.push("| scope | terms | tau s | dt | case | dCO_L | dESV_L | dEF_L | dLVPmax | dQAoMax | dMax dP/dt | dClamp hits |");
-  lines.push("| --- | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| scope | terms | tau s | dt | case | dCO_L | dESV_L | dEF_L | dLVPmax | dQAoMax | dMax dP/dt | dClamp hits | worst metric | worst frac |");
+  lines.push("| --- | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: |");
   for (const scenario of report.scenarios) {
     for (const gate of scenario.waveformGates) {
       lines.push([
@@ -417,6 +467,8 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         round(gate.delta.QAoMax, 4),
         round(gate.delta.maxDpdtLVP, 4),
         round(gate.delta.clampHitCount, 0),
+        gate.maxDeltaMetric,
+        round(gate.maxDeltaFraction, 4),
       ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
     }
   }
@@ -514,6 +566,7 @@ export function parseLowPreloadMatrixArgs(args: string[]): MatrixOptions {
     maxReturnMapPoints: 6,
     traceBeats: 10,
     sampleHz: 120,
+    progress: true,
   };
   for (const arg of args) {
     const [key, value] = arg.split("=", 2);
@@ -525,9 +578,11 @@ export function parseLowPreloadMatrixArgs(args: string[]): MatrixOptions {
     else if (key === "--lambda-act-scope" && value) opts.lambdaActScopes = parseScopes(value);
     else if (key === "--lambda-act-terms" && value) opts.lambdaActTermsValues = parseTerms(value);
     else if (key === "--include-all-scope") opts.includeAllScope = true;
+    else if (key === "--branch-only") opts.maxReturnMapPoints = 0;
     else if (key === "--max-return-map-points" && value) opts.maxReturnMapPoints = Math.max(0, Math.floor(Number(value)));
     else if (key === "--trace-beats" && value) opts.traceBeats = Math.max(2, Math.floor(Number(value)));
     else if (key === "--sample-hz" && value) opts.sampleHz = Math.max(20, Math.floor(Number(value)));
+    else if (key === "--quiet-progress") opts.progress = false;
     else if (key === "--help") {
       printHelp();
       process.exit(0);
@@ -580,7 +635,8 @@ function printHelp(): void {
     "Usage: npm run verify:starling-low-preload-matrix -- [--out=DIR]",
     "       [--deltas=0,-900,-1250] [--dt=0.001,0.0005] [--lambda-act-tau=0,0.15]",
     "       [--lambda-act-scope=lv,ventricles] [--lambda-act-terms=kd,fiso,kd+fiso]",
-    "       [--include-all-scope] [--max-return-map-points=6]",
+    "       [--include-all-scope] [--branch-only] [--max-return-map-points=6]",
+    "       [--quiet-progress]",
     "",
     "Example:",
     "  npm run verify:starling-low-preload-matrix -- --deltas=0,-1250,-1400 --dt=0.001 --lambda-act-tau=0,0.15 --lambda-act-scope=lv --lambda-act-terms=kd,fiso,kd+fiso --max-return-map-points=2",
@@ -590,10 +646,11 @@ function printHelp(): void {
 function main(): void {
   const options = parseLowPreloadMatrixArgs(process.argv.slice(2));
   mkdirSync(options.outDir, { recursive: true });
-  const report = runLowPreloadMatrix(options);
-  writeFileSync(path.join(options.outDir, "matrix-report.json"), `${JSON.stringify(report, null, 2)}\n`);
-  writeFileSync(path.join(options.outDir, "matrix-report.md"), matrixReportToMarkdown(report));
-  writeFileSync(path.join(options.outDir, "branch-table.csv"), matrixReportToCsv(report));
+  const report = runLowPreloadMatrix({
+    ...options,
+    partialWrite: (partial) => writeMatrixReport(options.outDir, partial, "partial-"),
+  });
+  writeMatrixReport(options.outDir, report);
 
   // eslint-disable-next-line no-console
   console.log(`Wrote Starling low-preload matrix report to ${options.outDir}`);
@@ -602,6 +659,12 @@ function main(): void {
     `scenarios=${report.summary.scenarioCount} selectedReturnMapPoints=${report.summary.selectedReturnMapPointCount} ` +
     `maxBranchCOFrac=${round(report.summary.maxBranchAmplitudeFractionCOL, 4)}`,
   );
+}
+
+function writeMatrixReport(outDir: string, report: MatrixReport, prefix = ""): void {
+  writeFileSync(path.join(outDir, `${prefix}matrix-report.json`), `${JSON.stringify(report, null, 2)}\n`);
+  writeFileSync(path.join(outDir, `${prefix}matrix-report.md`), matrixReportToMarkdown(report));
+  writeFileSync(path.join(outDir, `${prefix}branch-table.csv`), matrixReportToCsv(report));
 }
 
 if (process.env.STARLING_LOW_PRELOAD_MATRIX_MAIN === "1") main();
