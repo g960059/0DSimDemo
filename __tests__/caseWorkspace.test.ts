@@ -14,10 +14,10 @@ const panels: PanelDef[] = [
 
 describe("semantic workspace", () => {
   it("groups panels into deterministic role regions", () => {
-    const workspace = defaultWorkspaceForPanels(panels, "compare");
+    const workspace = defaultWorkspaceForPanels(panels);
 
     expect(workspace.schemaVersion).toBe(1);
-    expect(workspace.mode).toBe("compare");
+    expect("mode" in workspace).toBe(false);
     expect(workspace.regions.graph?.panelIds).toEqual(["pv", "wave"]);
     expect(workspace.regions.graph?.activePanelId).toBe("pv");
     expect(workspace.regions.output?.visible).toBe("compact");
@@ -48,29 +48,31 @@ describe("semantic workspace", () => {
       updatedAt: 10,
     };
     const previous = {
-      ...defaultWorkspaceForPanels(panels, "custom"),
+      ...defaultWorkspaceForPanels(panels),
+      mode: "custom",
       regions: {
-        ...defaultWorkspaceForPanels(panels, "custom").regions,
+        ...defaultWorkspaceForPanels(panels).regions,
         graph: { visible: true, position: "center" as const, panelIds: ["pv", "wave"], activePanelId: "wave" },
       },
       viewState,
-    };
+    } as ReturnType<typeof defaultWorkspaceForPanels> & { mode: string };
     const next = workspaceForPanels(panels.filter((panel) => panel.id !== "wave"), previous);
 
     expect(next.viewState).toBe(viewState);
     expect(next.regions.graph?.panelIds).toEqual(["pv"]);
     expect(next.regions.graph?.activePanelId).toBe("pv");
-    expect(next.mode).toBe("custom");
+    expect("mode" in next).toBe(false);
   });
 
   it("clears stale region visibility and active panel when the region has no panels", () => {
     const previous = {
-      ...defaultWorkspaceForPanels(panels, "custom"),
+      ...defaultWorkspaceForPanels(panels),
+      mode: "custom",
       regions: {
-        ...defaultWorkspaceForPanels(panels, "custom").regions,
+        ...defaultWorkspaceForPanels(panels).regions,
         scenarios: { visible: true, position: "left" as const, panelIds: ["scenarios"], activePanelId: "scenarios" },
       },
-    };
+    } as ReturnType<typeof defaultWorkspaceForPanels> & { mode: string };
     const next = workspaceForPanels(panels.filter((panel) => panel.id !== "scenarios"), previous);
 
     expect(next.regions.scenarios?.visible).toBe(false);

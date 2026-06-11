@@ -212,7 +212,6 @@ function mergeRegionState(
 
 export function defaultWorkspaceForPanels(
   panels: PanelDef[],
-  mode: WorkbenchWorkspace["mode"] = "learn",
 ): WorkbenchWorkspace {
   const graphPanelIds = panelsForRole(panels, "graph");
   const notePanelIds = panelsForRole(panels, "note");
@@ -233,15 +232,14 @@ export function defaultWorkspaceForPanels(
     output: { visible: outputPanelIds.length > 0 ? "compact" : false, position: "bottom", panelIds: outputPanelIds, activePanelId: outputPanelIds[0] },
     control: { visible: controlPanelIds.length > 0, position: "left", panelIds: controlPanelIds, activePanelId: controlPanelIds[0] },
   };
-  return { schemaVersion: WORKSPACE_SCHEMA_VERSION, mode, regions, learnerLocked: mode === "learn" };
+  return { schemaVersion: WORKSPACE_SCHEMA_VERSION, regions, learnerLocked: true };
 }
 
 export function workspaceForPanels(
   panels: PanelDef[],
   previous?: WorkbenchWorkspace,
-  mode: WorkbenchWorkspace["mode"] = previous?.mode ?? "learn",
 ): WorkbenchWorkspace {
-  const defaults = defaultWorkspaceForPanels(panels, mode);
+  const defaults = defaultWorkspaceForPanels(panels);
   if (!previous) return defaults;
 
   const regions: WorkbenchWorkspace["regions"] = {};
@@ -252,7 +250,6 @@ export function workspaceForPanels(
 
   return {
     ...defaults,
-    mode,
     regions,
     learnerLocked: previous.learnerLocked ?? defaults.learnerLocked,
     ...(previous.viewState ? { viewState: previous.viewState } : {}),

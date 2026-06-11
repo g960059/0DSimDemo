@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { addPane, applyPreset, movePane, removePane, resizePane, setPaneSignals } from "@/layoutOps";
-import { COMPARE_PRESET, flowPack, LAYOUT_PRESETS } from "@/layoutPresets";
+import { addPane, movePane, removePane, resizePane, setPaneSignals } from "@/layoutOps";
+import { flowPack, READ_PRESET } from "@/layoutPresets";
 import { roleOf } from "@/paneRole";
 import type { PanelDef, PanelType } from "@/types";
 
@@ -47,20 +47,17 @@ describe("pane roles", () => {
 });
 
 describe("layout presets and flowPack", () => {
-  it("exports role-tagged Read/Compare/Tweak/Focus presets with complete geometry", () => {
-    expect(Object.keys(LAYOUT_PRESETS)).toEqual(["Read", "Compare", "Tweak", "Focus"]);
-    for (const preset of Object.values(LAYOUT_PRESETS)) {
-      expect(preset.length).toBeGreaterThan(0);
-      for (const pane of preset) {
-        expect(pane.role).toBe(roleOf(pane.type));
-        expect(Number.isInteger(pane.x)).toBe(true);
-        expect(Number.isInteger(pane.y)).toBe(true);
-        expect(pane.w).toBeGreaterThan(0);
-        expect(pane.h).toBeGreaterThan(0);
-        expect((pane.x ?? 0) + pane.w).toBeLessThanOrEqual(12);
-      }
-      expectNoOverlap(preset);
+  it("exports the role-tagged Read preset with complete geometry", () => {
+    expect(READ_PRESET.length).toBeGreaterThan(0);
+    for (const pane of READ_PRESET) {
+      expect(pane.role).toBe(roleOf(pane.type));
+      expect(Number.isInteger(pane.x)).toBe(true);
+      expect(Number.isInteger(pane.y)).toBe(true);
+      expect(pane.w).toBeGreaterThan(0);
+      expect(pane.h).toBeGreaterThan(0);
+      expect((pane.x ?? 0) + pane.w).toBeLessThanOrEqual(12);
     }
+    expectNoOverlap(READ_PRESET);
   });
 
   it("flow-packs legacy ordered panels without mutating the input", () => {
@@ -104,13 +101,6 @@ describe("layout presets and flowPack", () => {
 });
 
 describe("layout ops", () => {
-  it("applyPreset replaces the doc with a cloned, flow-packed preset", () => {
-    const applied = applyPreset([panel("old", "NOTE")], COMPARE_PRESET);
-    expect(applied.map((entry) => entry.id)).toEqual(COMPARE_PRESET.map((entry) => entry.id));
-    expect(applied).toEqual(COMPARE_PRESET);
-    expect(applied).not.toBe(COMPARE_PRESET);
-  });
-
   it("add/remove/move/resize are pure panel-document transforms", () => {
     const start = flowPack([panel("a", "NOTE"), panel("b", "WAVEFORM")]);
     const added = addPane(start, panel("c", "CONTROLS", 3, 2));
