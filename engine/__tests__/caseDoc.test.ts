@@ -7,6 +7,7 @@ import {
   simInstancesToCaseDocument,
   type CaseInstance,
 } from "@/caseDoc";
+import { migratePanelsToViewSpecs } from "@/features/workbench/viewSpec";
 import { applyKnobs, KNOB_MAPPING_VERSION, neutralKnobs } from "@/engine/knobs";
 import { defaultParams } from "@/engine/ModelCore";
 
@@ -74,6 +75,52 @@ describe("CaseDocument bridge round-trip (#3-b)", () => {
     const doc = buildDoc([knobPrimary]);
     const round = JSON.parse(JSON.stringify(doc));
     expect(round.panels).toEqual(panels);
+  });
+
+  it("preserves reading, exposed controllers, and ViewSpec fields through save rebuilds", () => {
+    const migrated = migratePanelsToViewSpecs(panels);
+    const reading = {
+      schemaVersion: 1 as const,
+      column: [{ kind: "paneRef" as const, panelId: "p1" }],
+    };
+    const exposedControllers = [{
+      items: [{ paramKey: "contractility", kind: "slider" as const, label: "Contractility" }],
+      targetPolicy: "fixedInstance" as const,
+      instanceId: "1",
+      defaultOpen: true,
+    }];
+    const doc = simInstancesToCaseDocument([knobPrimary], panels, {
+      id: "case-1",
+      title: "Round-trip",
+      createdAt: 1000,
+      updatedAt: 2000,
+      spec: { title: "Round-trip", modelLimitations: ["0D lumped model; no regional wall motion."] },
+      reading,
+      exposedControllers,
+      views: migrated.views,
+      graphBoardLayout: migrated.graphBoardLayout,
+      initialActiveScenarioId: "1",
+    });
+    const parsed = JSON.parse(JSON.stringify(doc));
+    const rebuilt = simInstancesToCaseDocument(caseDocumentToSimInstances(parsed), parsed.panels, {
+      id: parsed.meta.id,
+      title: parsed.meta.title,
+      createdAt: parsed.meta.createdAt,
+      updatedAt: parsed.meta.updatedAt,
+      spec: parsed.spec,
+      workspace: parsed.workspace,
+      reading: parsed.reading,
+      exposedControllers: parsed.exposedControllers,
+      views: parsed.views,
+      graphBoardLayout: parsed.graphBoardLayout,
+      initialActiveScenarioId: parsed.initialActiveScenarioId,
+    });
+
+    expect(rebuilt.reading).toEqual(reading);
+    expect(rebuilt.exposedControllers).toEqual(exposedControllers);
+    expect(rebuilt.views).toEqual(migrated.views);
+    expect(rebuilt.graphBoardLayout).toEqual(migrated.graphBoardLayout);
+    expect(rebuilt.initialActiveScenarioId).toBe("1");
   });
 
   it("refuses to load a case stamped with an unknown knobMappingVersion (no silent fallback)", () => {

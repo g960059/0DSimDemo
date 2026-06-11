@@ -1,5 +1,6 @@
 import type { PanelDef, PanelInstanceConfig, PanelViewConfig, SimInstance } from "./types";
-import type { CaseI18nContent } from "./caseDoc";
+import type { CaseDocument, CaseI18nContent } from "./caseDoc";
+import { remapGraphBoardLayoutViewIds, remapViewSpecIds } from "./features/workbench/viewSpec";
 
 function remapViewInstanceIds(view: PanelViewConfig | undefined, idMap: Map<string, string>): PanelViewConfig | undefined {
   if (!view || !("instances" in view) || !view.instances) return view;
@@ -67,4 +68,45 @@ export function remapCaseI18nContentIds(
       ...(content.notes ? { notes: remapRecordKeys(content.notes, panelIdMap) } : {}),
     }]),
   );
+}
+
+export function remapCaseDocumentViewIds(
+  doc: CaseDocument,
+  maps: {
+    instanceIdMap: Map<string, string>;
+    panelIdMap?: Map<string, string>;
+  },
+): CaseDocument {
+  const panelIdMap = maps.panelIdMap ?? new Map<string, string>();
+  return {
+    ...doc,
+    ...(doc.reading ? {
+      reading: {
+        ...doc.reading,
+        column: doc.reading.column.map((entry) => (
+          entry.kind === "paneRef"
+            ? { ...entry, panelId: panelIdMap.get(entry.panelId) ?? entry.panelId }
+            : { ...entry, noteId: panelIdMap.get(entry.noteId) ?? entry.noteId }
+        )),
+      },
+    } : {}),
+    ...(doc.exposedControllers ? {
+      exposedControllers: doc.exposedControllers.map((controller) => ({
+        ...controller,
+        ...(controller.instanceId ? { instanceId: maps.instanceIdMap.get(controller.instanceId) ?? controller.instanceId } : {}),
+      })),
+    } : {}),
+    ...(doc.views ? {
+      views: doc.views.map((view) => remapViewSpecIds(view, {
+        scenarioIdMap: maps.instanceIdMap,
+        viewIdMap: panelIdMap,
+      })),
+    } : {}),
+    ...(doc.graphBoardLayout ? {
+      graphBoardLayout: remapGraphBoardLayoutViewIds(doc.graphBoardLayout, panelIdMap),
+    } : {}),
+    ...(doc.initialActiveScenarioId ? {
+      initialActiveScenarioId: maps.instanceIdMap.get(doc.initialActiveScenarioId) ?? doc.initialActiveScenarioId,
+    } : {}),
+  };
 }

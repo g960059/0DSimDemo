@@ -1,6 +1,7 @@
 import { useCallback, useState, type MutableRefObject, type SetStateAction } from "react";
 import { DEFAULT_PARAMS } from "@/constants";
 import type { CaseDocument, CaseI18nContent, CaseSource } from "@/caseDoc";
+import type { GraphBoardLayout, ViewSpec } from "@/features/workbench/viewSpec";
 import { OFFICIAL_BASELINES } from "@/engine/caseBaselines";
 import { type ClinicalKnobs } from "@/engine/knobs";
 import { resolveKnobEdit, resolveRawEdit } from "@/engine/instanceKnobs";
@@ -40,6 +41,11 @@ type SavedCasePayload = {
   defaultLocale?: string;
   availableLocales?: string[];
   i18n?: Record<string, CaseI18nContent>;
+  reading?: CaseDocument["reading"];
+  exposedControllers?: CaseDocument["exposedControllers"];
+  views?: ViewSpec[];
+  graphBoardLayout?: GraphBoardLayout;
+  initialActiveScenarioId?: string;
 };
 
 export function useWorkbenchScene({
@@ -79,6 +85,11 @@ export function useWorkbenchScene({
   const [currentCaseDefaultLocale, setCurrentCaseDefaultLocale] = useState<string | undefined>(undefined);
   const [currentCaseAvailableLocales, setCurrentCaseAvailableLocales] = useState<string[] | undefined>(undefined);
   const [currentCaseI18n, setCurrentCaseI18n] = useState<Record<string, CaseI18nContent> | undefined>(undefined);
+  const [currentCaseReading, setCurrentCaseReading] = useState<CaseDocument["reading"] | undefined>(undefined);
+  const [currentCaseExposedControllers, setCurrentCaseExposedControllers] = useState<CaseDocument["exposedControllers"] | undefined>(undefined);
+  const [currentCaseViews, setCurrentCaseViews] = useState<ViewSpec[] | undefined>(undefined);
+  const [currentCaseGraphBoardLayout, setCurrentCaseGraphBoardLayout] = useState<GraphBoardLayout | undefined>(undefined);
+  const [currentCaseInitialActiveScenarioId, setCurrentCaseInitialActiveScenarioId] = useState<string | undefined>(undefined);
 
   const ownsCurrentCase = Boolean(user && currentCaseOwnerId === user.uid);
   const headerMode: WorkbenchHeaderMode = authoringMode
@@ -210,6 +221,11 @@ export function useWorkbenchScene({
     setCurrentCaseDefaultLocale(doc.defaultLocale);
     setCurrentCaseAvailableLocales(doc.availableLocales);
     setCurrentCaseI18n(doc.i18n);
+    setCurrentCaseReading(doc.reading);
+    setCurrentCaseExposedControllers(doc.exposedControllers);
+    setCurrentCaseViews(doc.views);
+    setCurrentCaseGraphBoardLayout(doc.graphBoardLayout);
+    setCurrentCaseInitialActiveScenarioId(doc.initialActiveScenarioId);
     setActiveInstanceId(payload.activeInstanceId);
     setAuthoringMode(false);
   }, []);
@@ -229,6 +245,11 @@ export function useWorkbenchScene({
     setCurrentCaseDefaultLocale(payload.defaultLocale);
     setCurrentCaseAvailableLocales(payload.availableLocales);
     setCurrentCaseI18n(payload.i18n);
+    setCurrentCaseReading(payload.reading);
+    setCurrentCaseExposedControllers(payload.exposedControllers);
+    setCurrentCaseViews(payload.views);
+    setCurrentCaseGraphBoardLayout(payload.graphBoardLayout);
+    setCurrentCaseInitialActiveScenarioId(payload.initialActiveScenarioId);
     setAuthoringMode(false);
   }, []);
 
@@ -259,6 +280,11 @@ export function useWorkbenchScene({
     currentCaseDefaultLocale,
     currentCaseAvailableLocales,
     currentCaseI18n,
+    currentCaseReading,
+    currentCaseExposedControllers,
+    currentCaseViews,
+    currentCaseGraphBoardLayout,
+    currentCaseInitialActiveScenarioId,
     ownsCurrentCase,
     headerMode,
     updateInstanceParams,

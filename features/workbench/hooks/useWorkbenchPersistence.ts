@@ -13,7 +13,7 @@ import { createUserCaseId, fetchCase, isValidCaseId, saveCase } from "@/caseClou
 import { exportCaseFile, readCaseFile, saveDraft } from "@/casePersist";
 import { resolveLocalizedCaseDocument, upsertCaseLocaleContent } from "@/contentI18n";
 import { officialCaseById } from "@/officialCases";
-import { remapCaseI18nContentIds, remapWorkbenchLoadIds } from "@/workbenchLoad";
+import { remapCaseDocumentViewIds, remapCaseI18nContentIds, remapWorkbenchLoadIds } from "@/workbenchLoad";
 import { DEFAULT_MODEL_LIMITATIONS } from "@/features/workbench/workbenchDefaults";
 import type { WorkbenchSceneState } from "@/features/workbench/hooks/useWorkbenchScene";
 import type { WorkbenchPanelsState } from "@/features/workbench/hooks/useWorkbenchPanels";
@@ -110,6 +110,11 @@ export function useWorkbenchPersistence({
       },
       workspace: workspaceForPanels(panels.panels, panels.workspace),
       notes: overrides.includeNotes === false ? undefined : panels.notes,
+      reading: scene.currentCaseReading,
+      exposedControllers: scene.currentCaseExposedControllers,
+      views: scene.currentCaseViews,
+      graphBoardLayout: scene.currentCaseGraphBoardLayout,
+      initialActiveScenarioId: scene.currentCaseInitialActiveScenarioId,
       defaultLocale: scene.currentCaseDefaultLocale ?? locale,
       availableLocales: scene.currentCaseAvailableLocales,
       i18n: scene.currentCaseI18n,
@@ -126,6 +131,11 @@ export function useWorkbenchPersistence({
     scene.currentCaseDerivedFrom,
     scene.currentCaseDefaultLocale,
     scene.currentCaseI18n,
+    scene.currentCaseReading,
+    scene.currentCaseExposedControllers,
+    scene.currentCaseViews,
+    scene.currentCaseGraphBoardLayout,
+    scene.currentCaseInitialActiveScenarioId,
     scene.currentCaseOwnerId,
     scene.currentCaseSource,
     scene.instances,
@@ -143,13 +153,16 @@ export function useWorkbenchPersistence({
       const nonce = `${Date.now().toString(36)}${(loadNonceRef.current++).toString(36)}`;
       const remapped = remapWorkbenchLoadIds(loaded, localized.panels, nonce);
       const panelIdMap = new Map(localized.panels.map((panel, index) => [panel.id, remapped.panels[index]?.id ?? panel.id]));
-      const retainedDoc: CaseDocument = {
+      const retainedDoc: CaseDocument = remapCaseDocumentViewIds({
         ...localized,
         i18n: remapCaseI18nContentIds(localized.i18n, {
           instanceIdMap: remapped.idMap,
           panelIdMap,
         }),
-      };
+      }, {
+        instanceIdMap: remapped.idMap,
+        panelIdMap,
+      });
 
       replaceSceneFromDoc({
         doc: retainedDoc,
@@ -321,6 +334,11 @@ export function useWorkbenchPersistence({
         defaultLocale: nextDoc.defaultLocale,
         availableLocales: nextDoc.availableLocales,
         i18n: nextDoc.i18n,
+        reading: nextDoc.reading,
+        exposedControllers: nextDoc.exposedControllers,
+        views: nextDoc.views,
+        graphBoardLayout: nextDoc.graphBoardLayout,
+        initialActiveScenarioId: nextDoc.initialActiveScenarioId,
       });
       lesson.setSavedLesson(null);
       lesson.setPublishedLesson(null);

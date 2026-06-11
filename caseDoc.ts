@@ -13,6 +13,7 @@ import type { SimInstance, PanelDef, PanelRole, WorkbenchRegionId, WorkbenchWork
 import type { NoteContent } from "@/noteTypes";
 import type { ExpectedFinding, StructuredModelLimitation } from "@/caseValidation";
 import type { CoreRuntimeParams, ParameterPatch } from "@/engine/protocol";
+import type { GraphBoardLayout, ViewSpec } from "@/features/workbench/viewSpec";
 import {
   type BaselineDef,
   type CaseInstanceSpec,
@@ -150,6 +151,9 @@ export interface CaseDocument {
   instances: CaseInstance[];
   panels: PanelDef[];
   workspace?: WorkbenchWorkspace;
+  views?: ViewSpec[];
+  graphBoardLayout?: GraphBoardLayout;
+  initialActiveScenarioId?: string;
   notes?: Record<string, NoteContent>;
   reading?: CaseReadingManifest;
   exposedControllers?: CaseExposedController[];
@@ -335,7 +339,12 @@ export function simInstancesToCaseDocument(
     spec: CaseSpec;
     solver?: SolverConfig;
     workspace?: WorkbenchWorkspace;
+    views?: ViewSpec[];
+    graphBoardLayout?: GraphBoardLayout;
+    initialActiveScenarioId?: string;
     notes?: Record<string, NoteContent>;
+    reading?: CaseReadingManifest;
+    exposedControllers?: CaseExposedController[];
     lesson?: CaseLessonLayer;
     defaultLocale?: string;
     availableLocales?: string[];
@@ -377,7 +386,12 @@ export function simInstancesToCaseDocument(
     instances: caseInstances,
     panels,
     workspace: opts.workspace ?? defaultWorkspaceForPanels(panels),
+    ...(opts.views ? { views: opts.views } : {}),
+    ...(opts.graphBoardLayout ? { graphBoardLayout: opts.graphBoardLayout } : {}),
+    ...(opts.initialActiveScenarioId ? { initialActiveScenarioId: opts.initialActiveScenarioId } : {}),
     ...(notes ? { notes } : {}),
+    ...(opts.reading ? { reading: opts.reading } : {}),
+    ...(opts.exposedControllers ? { exposedControllers: opts.exposedControllers } : {}),
     ...(opts.lesson ? { lesson: opts.lesson } : {}),
   };
 }
