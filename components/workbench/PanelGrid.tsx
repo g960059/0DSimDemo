@@ -7,6 +7,9 @@ import WorkbenchDockview from './WorkbenchDockview';
 import WorkbenchMobile from './WorkbenchMobile';
 import { renderPaneBody } from './renderPaneBody';
 import { ControllerItemsBuilder } from './ControllerItemsBuilder';
+import { ScenarioPane } from './ScenarioPane';
+import { Controls } from '../Controls';
+import { MetricsPanel } from '../Charts';
 import { type ClinicalKnobs } from '../../engine/knobs';
 import { SimulationHealth } from '../../engine/protocol';
 import type { SteadyUpdateStatusMap } from '../../engine/previewController';
@@ -29,16 +32,28 @@ import type { LessonStep } from '../../lessonDoc';
 import type { NoteContent } from '../../noteTypes';
 import { flowPack } from '../../layoutPresets';
 import { zoneOf } from '../../paneZone';
-import { Activity, Brush, Eye, EyeOff, Layers, Search, Settings, SlidersHorizontal, Tags, Type as TypeIcon, X } from 'lucide-react';
+import {
+  builtInMetricsConfig,
+  effectiveGlobalConfig,
+  firstPanelOfType,
+  graphPanelsOnly,
+  metricsHostTabs,
+  type MetricsHostTab,
+} from '../../features/workbench/p1aStructuralHosts';
+import { Activity, Brush, ChevronDown, Eye, EyeOff, FileText, Layers, Search, Settings, SlidersHorizontal, Tags, Type as TypeIcon, X } from 'lucide-react';
 
 export type PanelGridMode = 'learner' | 'author' | 'sandbox';
 export type WorkbenchControlsSide = 'left' | 'right';
+export type RightRailView = 'scenarios' | 'inspector';
 
 export interface WorkbenchLayoutState {
   controlsSide: WorkbenchControlsSide;
   controlsWidth: number;
   caseRailWidth: number;
   outputHeight: number;
+  noteOpen: boolean;
+  metricsOpen: boolean;
+  rightRailView: RightRailView;
 }
 
 interface PanelGridProps {
@@ -68,6 +83,7 @@ interface PanelGridProps {
   updateInstanceVolume: (id: string, vol: number) => void;
   updateInstanceColor: (id: string, color: string) => void;
   updateInstanceName: (id: string, name: string) => void;
+  toggleGlobalInstanceVisibility: (id: string) => void;
   addInstance: (sourceId?: string, presetId?: string) => void;
   removeInstance: (id: string) => void;
   timeScale: number;
@@ -1337,6 +1353,7 @@ interface PanelCardProps {
   updateInstanceVolume: (id: string, vol: number) => void;
   updateInstanceColor: (id: string, color: string) => void;
   updateInstanceName: (id: string, name: string) => void;
+  toggleGlobalInstanceVisibility: (id: string) => void;
   addInstance: (sourceId?: string, presetId?: string) => void;
   removeInstance: (id: string) => void;
   timeScale: number;
@@ -1385,6 +1402,7 @@ function PanelCard({
   updateInstanceVolume,
   updateInstanceColor,
   updateInstanceName,
+  toggleGlobalInstanceVisibility,
   addInstance,
   removeInstance,
   timeScale,
@@ -1452,6 +1470,7 @@ function PanelCard({
         instanceHealth,
         steadyUpdateStatuses,
         activeInstanceId,
+        setActiveInstanceId,
         updateInstanceParams,
         updateInstanceKnobs,
         updateInstanceVolume,
@@ -1464,6 +1483,7 @@ function PanelCard({
         removeInstance,
         updateInstanceName,
         updateInstanceColor,
+        toggleGlobalInstanceVisibility,
         canConfigure: canOpenSettingsFromLegend,
         onOpenSettings: openSettingsFromLegend,
         legendPosition: panel.view?.kind === 'graph' ? panel.view.legendPosition : undefined,
@@ -1562,6 +1582,10 @@ function getZoneSurfaceClassForLayout(
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
+function metricsTabLabel(t: PanelGridT, tab: MetricsHostTab): string {
+  return tab.kind === 'builtIn' ? t(tab.titleKey) : tab.title;
+}
+
 function ZoneShell({
   zone,
   panels,
@@ -1646,6 +1670,7 @@ export function PanelGrid({
   updateInstanceVolume,
   updateInstanceColor,
   updateInstanceName,
+  toggleGlobalInstanceVisibility,
   addInstance,
   removeInstance,
   timeScale,
@@ -1677,13 +1702,16 @@ export function PanelGrid({
 }: PanelGridProps) {
   const { t } = useTranslation();
   const presenterPanels = useMemo(() => flowPack(panels), [panels]);
-  const panelsByZone = useMemo<Record<WorkbenchZoneId, PanelDef[]>>(() => ({
-    caseRail: presenterPanels.filter((panel) => zoneOf(panel) === 'caseRail'),
-    main: presenterPanels.filter((panel) => zoneOf(panel) === 'main'),
-    sideRail: presenterPanels.filter((panel) => zoneOf(panel) === 'sideRail'),
-    bottomPanel: presenterPanels.filter((panel) => zoneOf(panel) === 'bottomPanel'),
-  }), [presenterPanels]);
-  const hasCaseRail = panelsByZone.caseRail.length > 0;
+  const mainGraphPanels = useMemo(() => graphPanelsOnly(presenterPanels), [presenterPanels]);
+  const notePanel = useMemo(() => firstPanelOfType(presenterPanels, 'NOTE'), [presenterPanels]);
+  const fixedMetricsTabs = useMemo(() => metricsHostTabs(metrics, presenterPanels), [metrics, presenterPanels]);
+  const [activeMetricsTabId, setActiveMetricsTabId] = useState(() => fixedMetricsTabs[0]?.id ?? '');
+  useEffect(() => {
+    if (fixedMetricsTabs.some((tab) => tab.id === activeMetricsTabId)) return;
+    setActiveMetricsTabId(fixedMetricsTabs[0]?.id ?? '');
+  }, [activeMetricsTabId, fixedMetricsTabs]);
+  const activeMetricsTab = fixedMetricsTabs.find((tab) => tab.id === activeMetricsTabId) ?? fixedMetricsTabs[0];
+  const hasCaseRail = Boolean(notePanel && layoutState.noteOpen);
   const shareBanner = authoringMode && publishedLesson ? (
     <div className="mb-2 flex flex-col gap-2 rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100 sm:flex-row sm:items-center">
       <span className="font-bold">{t('workbench.panelGrid.shareUrl')}</span>
@@ -1782,6 +1810,7 @@ export function PanelGrid({
       updateInstanceVolume={updateInstanceVolume}
       updateInstanceColor={updateInstanceColor}
       updateInstanceName={updateInstanceName}
+      toggleGlobalInstanceVisibility={toggleGlobalInstanceVisibility}
       addInstance={addInstance}
       removeInstance={removeInstance}
       timeScale={timeScale}
@@ -1816,7 +1845,7 @@ export function PanelGrid({
 
   const activeSettingsPanel = mode === 'learner'
     ? undefined
-    : presenterPanels.find((panel) => panel.isSettingsOpen && panel.type !== 'SCENARIOS');
+    : mainGraphPanels.find((panel) => panel.isSettingsOpen);
   const paneSettingsModal = activeSettingsPanel ? (
     <PaneSettingsModal
       panel={activeSettingsPanel}
@@ -1841,32 +1870,47 @@ export function PanelGrid({
     />
   ) : null;
 
-  const sashClassName = 'z-20 bg-[#08111f] transition-colors hover:bg-slate-800/45 focus-visible:bg-slate-700/70 focus-visible:outline focus-visible:outline-1 focus-visible:outline-sky-400 data-[dragging=true]:bg-slate-700/70';
+  const rightRailWidth = clamp(layoutState.controlsWidth, 280, 380);
+  const noteWidth = hasCaseRail ? clamp(layoutState.caseRailWidth, 220, 360) : 0;
+  const metricsHeight = layoutState.metricsOpen ? clamp(layoutState.outputHeight, 150, 280) : 0;
   const gridTemplateColumns = hasCaseRail
-    ? layoutState.controlsSide === 'left'
-      ? `${layoutState.caseRailWidth}px 3px ${layoutState.controlsWidth}px 3px minmax(320px,1fr)`
-      : `${layoutState.caseRailWidth}px 3px minmax(320px,1fr) 3px ${layoutState.controlsWidth}px`
-    : layoutState.controlsSide === 'left'
-      ? `${layoutState.controlsWidth}px 3px minmax(320px,1fr)`
-      : `minmax(320px,1fr) 3px ${layoutState.controlsWidth}px`;
-  const gridTemplateRows = `minmax(0,1fr) 3px ${layoutState.outputHeight}px`;
-  const caseRailStyle = { gridColumn: '1', gridRow: '1 / 4' };
-  const caseRailSashStyle = { gridColumn: '2', gridRow: '1 / 4' };
-  const mainStyle = hasCaseRail
-    ? { gridColumn: layoutState.controlsSide === 'left' ? '5' : '3', gridRow: '1' }
-    : { gridColumn: layoutState.controlsSide === 'left' ? '3' : '1', gridRow: '1' };
-  const sideRailStyle = hasCaseRail
-    ? { gridColumn: layoutState.controlsSide === 'left' ? '3' : '5', gridRow: '1' }
-    : { gridColumn: layoutState.controlsSide === 'left' ? '1' : '3', gridRow: '1' };
-  const controlSashStyle = hasCaseRail
-    ? { gridColumn: '4', gridRow: '1' }
-    : { gridColumn: '2', gridRow: '1' };
-  const outputSashStyle = hasCaseRail
-    ? { gridColumn: '3 / 6', gridRow: '2' }
-    : { gridColumn: '1 / 4', gridRow: '2' };
-  const bottomPanelStyle = hasCaseRail
-    ? { gridColumn: '3 / 6', gridRow: '3' }
-    : { gridColumn: '1 / 4', gridRow: '3' };
+    ? `${noteWidth}px minmax(320px,1fr) ${rightRailWidth}px`
+    : `minmax(320px,1fr) ${rightRailWidth}px`;
+  const gridTemplateRows = layoutState.metricsOpen ? `minmax(0,1fr) ${metricsHeight}px` : 'minmax(0,1fr)';
+  const mainColumn = hasCaseRail ? '2' : '1';
+  const rightRailColumn = hasCaseRail ? '3' : '2';
+  const activeRightRailView = layoutState.rightRailView ?? 'scenarios';
+  const inspectorInstances = instances.map((instance) => (
+    instance.id === activeInstanceId ? { ...instance, isVisible: true } : instance
+  ));
+  const inspectorConfig = activeInstanceId
+    ? { [activeInstanceId]: { visible: true, selectedSignals: ['clinical'] } }
+    : {};
+  const noteMode = notePanel ? (noteModes[notePanel.id] ?? 'read') : 'read';
+  const noteHeader = notePanel ? (
+    <div className="flex shrink-0 items-center justify-between border-b border-slate-800/70 bg-slate-950/35 px-2 py-1">
+      <div className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+        <FileText className="h-3.5 w-3.5" />
+        {t('workbench.panelGrid.note')}
+      </div>
+      <div className="flex items-center rounded border border-slate-700 bg-slate-900 p-0.5">
+        <button
+          type="button"
+          onClick={() => setNoteModes(prev => ({ ...prev, [notePanel.id]: 'read' }))}
+          className={`rounded px-2 py-0.5 text-[10px] font-bold transition-colors ${noteMode === 'read' ? 'bg-slate-700 text-slate-100' : 'text-slate-500 hover:text-slate-300'}`}
+        >
+          {t('workbench.panelGrid.preview')}
+        </button>
+        <button
+          type="button"
+          onClick={() => setNoteModes(prev => ({ ...prev, [notePanel.id]: 'edit' }))}
+          className={`rounded px-2 py-0.5 text-[10px] font-bold transition-colors ${noteMode === 'edit' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+        >
+          {t('common.edit')}
+        </button>
+      </div>
+    </div>
+  ) : null;
 
   if (isMobile) {
     return (
@@ -1892,47 +1936,41 @@ export function PanelGrid({
           className="grid min-h-0 flex-1 gap-0 overflow-hidden"
           style={{ gridTemplateColumns, gridTemplateRows }}
         >
-          {hasCaseRail && (
-            <>
-              <ZoneShell
-                zone="caseRail"
-                panels={panelsByZone.caseRail}
-                mode={mode}
-                hasCaseRail={hasCaseRail}
-                controlsSide={layoutState.controlsSide}
-                layoutKey={dockviewLayoutKey}
-                viewState={dockviewViewStates?.caseRail}
-                onViewStateChange={onDockviewViewStateChange}
-                addPanel={addPanel}
-                removePanel={removePanel}
-                updatePanelTitle={updatePanelTitle}
-                toggleSettings={toggleSettings}
-                className=""
-                style={caseRailStyle}
-                getPanelTitle={getPanelTitle}
-                renderPanel={(panel) => renderPanel(panel, false, 'dockview')}
-              />
-              <div
-                role="separator"
-                aria-label="Resize case area"
-                aria-orientation="vertical"
-                aria-valuemin={200}
-                aria-valuemax={560}
-                aria-valuenow={layoutState.caseRailWidth}
-                tabIndex={0}
-                className={`${sashClassName} cursor-col-resize`}
-                style={caseRailSashStyle}
-                onPointerDown={(event) => beginResize(event, 'caseRail')}
-                onKeyDown={(event) => resizeWithKeyboard(event, 'caseRail')}
-              />
-            </>
+          {hasCaseRail && notePanel && (
+            <section
+              className="workbench-zone-aux flex min-h-0 flex-col overflow-hidden border-r border-slate-800/60 bg-[#0B1120]"
+              style={{ gridColumn: '1', gridRow: layoutState.metricsOpen ? '1 / 3' : '1' }}
+              aria-label={t('workbench.panelGrid.noteDrawer')}
+            >
+              {renderPaneBody(notePanel, {
+                instances,
+                physicsRefs,
+                instanceHealth,
+                steadyUpdateStatuses,
+                activeInstanceId,
+                setActiveInstanceId,
+                updateInstanceParams,
+                updateInstanceKnobs,
+                updateInstanceVolume,
+                noteMode,
+                notes,
+                noteCaseKey,
+                onNoteChange,
+                noteHeader,
+                addInstance,
+                removeInstance,
+                updateInstanceName,
+                updateInstanceColor,
+                toggleGlobalInstanceVisibility,
+              })}
+            </section>
           )}
           <ZoneShell
             zone="main"
-            panels={panelsByZone.main}
+            panels={mainGraphPanels}
             mode={mode}
             hasCaseRail={hasCaseRail}
-            controlsSide={layoutState.controlsSide}
+            controlsSide="right"
             layoutKey={dockviewLayoutKey}
             viewState={dockviewViewStates?.main}
             onViewStateChange={onDockviewViewStateChange}
@@ -1941,72 +1979,98 @@ export function PanelGrid({
             updatePanelTitle={updatePanelTitle}
             toggleSettings={toggleSettings}
             className=""
-            style={mainStyle}
+            style={{ gridColumn: mainColumn, gridRow: '1' }}
             getPanelTitle={getPanelTitle}
             renderPanel={(panel) => renderPanel(panel, false, 'dockview')}
           />
-          <ZoneShell
-            zone="sideRail"
-            panels={panelsByZone.sideRail}
-            mode={mode}
-            hasCaseRail={hasCaseRail}
-            controlsSide={layoutState.controlsSide}
-            layoutKey={dockviewLayoutKey}
-            viewState={dockviewViewStates?.sideRail}
-            onViewStateChange={onDockviewViewStateChange}
-            addPanel={addPanel}
-            removePanel={removePanel}
-            updatePanelTitle={updatePanelTitle}
-            toggleSettings={toggleSettings}
-            className=""
-            style={sideRailStyle}
-            getPanelTitle={getPanelTitle}
-            renderPanel={(panel) => renderPanel(panel, false, 'dockview')}
-          />
-          <div
-            role="separator"
-            aria-label="Resize controls area"
-            aria-orientation="vertical"
-            aria-valuemin={240}
-            aria-valuemax={620}
-            aria-valuenow={layoutState.controlsWidth}
-            tabIndex={0}
-            className={`${sashClassName} cursor-col-resize`}
-            style={controlSashStyle}
-            onPointerDown={(event) => beginResize(event, 'controls')}
-            onKeyDown={(event) => resizeWithKeyboard(event, 'controls')}
-          />
-          <div
-            role="separator"
-            aria-label="Resize output area"
-            aria-orientation="horizontal"
-            aria-valuemin={140}
-            aria-valuemax={320}
-            aria-valuenow={layoutState.outputHeight}
-            tabIndex={0}
-            className={`${sashClassName} cursor-row-resize`}
-            style={outputSashStyle}
-            onPointerDown={(event) => beginResize(event, 'output')}
-            onKeyDown={(event) => resizeWithKeyboard(event, 'output')}
-          />
-          <ZoneShell
-            zone="bottomPanel"
-            panels={panelsByZone.bottomPanel}
-            mode={mode}
-            hasCaseRail={hasCaseRail}
-            controlsSide={layoutState.controlsSide}
-            layoutKey={dockviewLayoutKey}
-            viewState={dockviewViewStates?.bottomPanel}
-            onViewStateChange={onDockviewViewStateChange}
-            addPanel={addPanel}
-            removePanel={removePanel}
-            updatePanelTitle={updatePanelTitle}
-            toggleSettings={toggleSettings}
-            className=""
-            style={bottomPanelStyle}
-            getPanelTitle={getPanelTitle}
-            renderPanel={(panel) => renderPanel(panel, false, 'dockview')}
-          />
+          <section
+            className="workbench-zone-aux flex min-h-0 flex-col overflow-hidden border-l border-slate-800/60 bg-[#0B1120]"
+            style={{ gridColumn: rightRailColumn, gridRow: layoutState.metricsOpen ? '1 / 3' : '1' }}
+            aria-label={t('workbench.panelGrid.railAria')}
+          >
+            <div className="grid h-9 shrink-0 grid-cols-2 border-b border-slate-800/70 bg-slate-950/35 p-1">
+              {(['scenarios', 'inspector'] as const).map((view) => (
+                <button
+                  key={view}
+                  type="button"
+                  onClick={() => onLayoutStateChange((prev) => ({ ...prev, rightRailView: view }))}
+                  className={`rounded text-xs font-bold transition-colors ${
+                    activeRightRailView === view
+                      ? 'bg-slate-800 text-slate-100'
+                      : 'text-slate-500 hover:bg-slate-900 hover:text-slate-300'
+                  }`}
+                >
+                  {t(`workbench.panelGrid.rail.${view}`)}
+                </button>
+              ))}
+            </div>
+            <div className="relative min-h-0 flex-1">
+              {activeRightRailView === 'inspector' ? (
+                <Controls
+                  isPaneMode
+                  paneConfig={inspectorConfig}
+                  instances={inspectorInstances}
+                  instanceHealth={instanceHealth}
+                  activeInstanceId={activeInstanceId}
+                  updateInstanceParams={updateInstanceParams}
+                  updateInstanceKnobs={updateInstanceKnobs}
+                  updateInstanceVolume={updateInstanceVolume}
+                  presentationMode="studio"
+                />
+              ) : (
+                <ScenarioPane
+                  instances={instances}
+                  addInstance={addInstance}
+                  removeInstance={removeInstance}
+                  updateInstanceName={updateInstanceName}
+                  updateInstanceColor={updateInstanceColor}
+                  activeInstanceId={activeInstanceId}
+                  setActiveInstanceId={setActiveInstanceId}
+                  toggleInstanceVisibility={toggleGlobalInstanceVisibility}
+                  steadyUpdateStatuses={steadyUpdateStatuses}
+                />
+              )}
+            </div>
+          </section>
+          {layoutState.metricsOpen && activeMetricsTab && (
+            <section
+              className="workbench-zone-aux flex min-h-0 flex-col overflow-hidden border-t border-slate-800/60 bg-[#0B1120]"
+              style={{ gridColumn: mainColumn, gridRow: '2' }}
+              aria-label={t('workbench.panelGrid.metricsHost')}
+            >
+              <div className="flex h-9 shrink-0 items-center gap-1 overflow-x-auto border-b border-slate-800/70 bg-slate-950/35 px-2 custom-scrollbar">
+                {fixedMetricsTabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveMetricsTabId(tab.id)}
+                    className={`inline-flex h-7 shrink-0 items-center rounded px-2 text-xs font-bold transition-colors ${
+                      activeMetricsTab.id === tab.id
+                        ? 'bg-slate-800 text-slate-100'
+                        : 'text-slate-500 hover:bg-slate-900 hover:text-slate-300'
+                    }`}
+                  >
+                    {metricsTabLabel(t, tab)}
+                  </button>
+                ))}
+              </div>
+              <div className="relative min-h-0 flex-1">
+                {activeMetricsTab.kind === 'builtIn' ? (
+                  <MetricsPanel
+                    physicsRefs={physicsRefs}
+                    instances={instances}
+                    config={builtInMetricsConfig(instances, activeMetricsTab.metrics)}
+                  />
+                ) : (
+                  <MetricsPanel
+                    physicsRefs={physicsRefs}
+                    instances={instances}
+                    config={effectiveGlobalConfig(activeMetricsTab.panel.config, instances)}
+                  />
+                )}
+              </div>
+            </section>
+          )}
         </div>
         {paneSettingsModal}
     </main>

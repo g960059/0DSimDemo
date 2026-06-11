@@ -150,6 +150,13 @@ export function useWorkbenchScene({
     )));
   }, [markUserEdited]);
 
+  const toggleInstanceVisibility = useCallback((id: string) => {
+    markUserEdited();
+    setInstances((prev) => prev.map((instance) => (
+      instance.id === id ? { ...instance, isVisible: instance.isVisible === false } : instance
+    )));
+  }, [markUserEdited]);
+
   const addInstance = useCallback((sourceId?: string, presetId?: string) => {
     markUserEdited();
     const newId = Date.now().toString();
@@ -292,6 +299,7 @@ export function useWorkbenchScene({
     updateInstanceVolume,
     updateInstanceColor,
     updateInstanceName,
+    toggleInstanceVisibility,
     addInstance,
     removeInstance,
     replaceSceneFromDoc,

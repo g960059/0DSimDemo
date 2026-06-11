@@ -25,9 +25,11 @@ import {
   mergePanelControllerItems,
   mergePanelLegendPosition,
 } from "@/features/workbench/workbenchDefaults";
+import { mainDockviewViewStatesOnly } from "@/features/workbench/p1aStructuralHosts";
 import {
   createDefaultPanelConfig,
   createPanelDef,
+  ensureNotePanelForDrawer,
   noteModesAfterPanelAdded,
   noteModesAfterPanelRemoved,
   notesAfterPanelAdded,
@@ -65,16 +67,19 @@ export function useWorkbenchPanels({
           ...prevWorkspace.regions,
           control: {
             ...prevWorkspace.regions.control,
-            position: resolved.controlsSide,
+            position: "right",
             size: resolved.controlsWidth,
+            visible: true,
           },
           note: {
             ...prevWorkspace.regions.note,
             size: resolved.caseRailWidth,
+            visible: resolved.noteOpen,
           },
           output: {
             ...prevWorkspace.regions.output,
             size: resolved.outputHeight,
+            visible: resolved.metricsOpen ? "compact" : false,
           },
         },
       }));
@@ -84,9 +89,10 @@ export function useWorkbenchPanels({
   }, [headerMode, markUserEdited]);
 
   const updateDockviewViewState = useCallback((zone: WorkbenchZoneId, viewState: DockviewViewState) => {
+    if (zone !== "main") return;
     setWorkspace((prev) => workspaceForPanels(panels, {
       ...prev,
-      viewStates: { ...(prev.viewStates ?? {}), [zone]: viewState },
+      viewStates: { main: viewState },
     }));
     if (headerMode !== "learner") markUserEdited();
   }, [headerMode, markUserEdited, panels]);
@@ -102,7 +108,7 @@ export function useWorkbenchPanels({
     noteCaseKey: string;
   }) => {
     setPanels(next.panels);
-    const nextWorkspace = workspaceForPanels(next.panels, next.workspace);
+    const nextWorkspace = mainDockviewViewStatesOnly(workspaceForPanels(next.panels, next.workspace));
     setWorkspace(nextWorkspace);
     setWorkbenchLayoutState(layoutStateFromWorkspace(nextWorkspace));
     setDockviewLayoutVersion((value) => value + 1);
@@ -266,6 +272,35 @@ export function useWorkbenchPanels({
     markUserEdited();
   }, [markUserEdited]);
 
+  const ensureNoteDrawerPanel = useCallback(() => {
+    setPanels((prev) => {
+      const result = ensureNotePanelForDrawer({
+        panels: prev,
+        instances,
+        notes: {},
+        noteModes: {},
+      });
+      if (!result.created) return prev;
+      setWorkspace((prevWorkspace) => workspaceAfterPanelsChanged(result.panels, prevWorkspace));
+      setNotes((prevNotes) => notesAfterPanelAdded(prevNotes, result.panel));
+      setNoteModes((prevModes) => noteModesAfterPanelAdded(prevModes, result.panel));
+      return result.panels;
+    });
+  }, [instances]);
+
+  const toggleNoteDrawer = useCallback(() => {
+    const hasNotePanel = panels.some((panel) => panel.type === "NOTE");
+    if (workbenchLayout.noteOpen) {
+      setWorkbenchLayout((prev) => ({ ...prev, noteOpen: false }));
+      return;
+    }
+    if (!hasNotePanel) {
+      if (headerMode === "learner") return;
+      ensureNoteDrawerPanel();
+    }
+    setWorkbenchLayout((prev) => ({ ...prev, noteOpen: true }));
+  }, [ensureNoteDrawerPanel, headerMode, panels, setWorkbenchLayout, workbenchLayout.noteOpen]);
+
   const resetWorkbenchLayout = useCallback(() => {
     setWorkbenchLayout(DEFAULT_WORKBENCH_LAYOUT);
     setWorkspace((prev) => {
@@ -274,8 +309,8 @@ export function useWorkbenchPanels({
         regions: {
           ...prev.regions,
           control: { ...prev.regions.control, position: DEFAULT_WORKBENCH_LAYOUT.controlsSide, size: DEFAULT_WORKBENCH_LAYOUT.controlsWidth },
-          note: { ...prev.regions.note, size: DEFAULT_WORKBENCH_LAYOUT.caseRailWidth },
-          output: { ...prev.regions.output, size: DEFAULT_WORKBENCH_LAYOUT.outputHeight },
+          note: { ...prev.regions.note, size: DEFAULT_WORKBENCH_LAYOUT.caseRailWidth, visible: DEFAULT_WORKBENCH_LAYOUT.noteOpen },
+          output: { ...prev.regions.output, size: DEFAULT_WORKBENCH_LAYOUT.outputHeight, visible: DEFAULT_WORKBENCH_LAYOUT.metricsOpen ? "compact" : false },
         },
         viewStates: undefined,
       });
@@ -321,6 +356,7 @@ export function useWorkbenchPanels({
     updatePanelControllerItems,
     updatePanelLegendPosition,
     onNoteChange,
+    toggleNoteDrawer,
     resetWorkbenchLayout,
     emptyNoteSpine: EMPTY_NOTE_SPINE,
   };

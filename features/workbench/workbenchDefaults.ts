@@ -14,8 +14,9 @@ import type {
   SignalType,
   WorkbenchWorkspace,
 } from "@/types";
-import type { WorkbenchLayoutState, WorkbenchControlsSide } from "@/components/workbench/PanelGrid";
+import type { WorkbenchLayoutState } from "@/components/workbench/PanelGrid";
 import type { WorkbenchHeaderMode, WorkbenchThemeId } from "@/components/workbench/WorkbenchSidePanel";
+import { metricsOpenFromWorkspace, noteOpenFromWorkspace } from "@/features/workbench/p1aStructuralHosts";
 
 // Ordered so that ADJACENT palette entries are maximally distinct in hue — a
 // duplicate (which takes the next free slot) lands on a clearly different color
@@ -135,20 +136,24 @@ export const INITIAL_PANELS: PanelDef[] = [
 ];
 
 export const DEFAULT_WORKBENCH_LAYOUT: WorkbenchLayoutState = {
-  controlsSide: 'left',
+  controlsSide: 'right',
   controlsWidth: 320,
   caseRailWidth: 260,
   outputHeight: 190,
+  noteOpen: false,
+  metricsOpen: true,
+  rightRailView: 'scenarios',
 };
 
 export function layoutStateFromWorkspace(workspace?: WorkbenchWorkspace): WorkbenchLayoutState {
-  const controlPosition = workspace?.regions.control?.position;
-  const controlsSide: WorkbenchControlsSide = controlPosition === 'right' ? 'right' : 'left';
   return {
-    controlsSide,
+    controlsSide: 'right',
     controlsWidth: workspace?.regions.control?.size ?? DEFAULT_WORKBENCH_LAYOUT.controlsWidth,
     caseRailWidth: workspace?.regions.note?.size ?? DEFAULT_WORKBENCH_LAYOUT.caseRailWidth,
     outputHeight: workspace?.regions.output?.size ?? DEFAULT_WORKBENCH_LAYOUT.outputHeight,
+    noteOpen: noteOpenFromWorkspace(workspace),
+    metricsOpen: metricsOpenFromWorkspace(workspace),
+    rightRailView: DEFAULT_WORKBENCH_LAYOUT.rightRailView,
   };
 }
 

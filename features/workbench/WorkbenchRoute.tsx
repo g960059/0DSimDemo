@@ -115,9 +115,11 @@ export function WorkbenchRoute() {
         togglePlay={simulation.togglePlay}
         timeScale={simulation.timeScale}
         setTimeScale={simulation.setTimeScale}
-        controlsSide={panels.workbenchLayout.controlsSide}
-        onControlsSideChange={(side) => panels.setWorkbenchLayout((prev) => ({ ...prev, controlsSide: side }))}
-        onResetLayout={panels.resetWorkbenchLayout}
+        noteOpen={panels.workbenchLayout.noteOpen}
+        metricsOpen={panels.workbenchLayout.metricsOpen}
+        hasNotePanel={panels.panels.some((panel) => panel.type === "NOTE")}
+        onToggleNote={panels.toggleNoteDrawer}
+        onToggleMetrics={() => panels.setWorkbenchLayout((prev) => ({ ...prev, metricsOpen: !prev.metricsOpen }))}
         theme={workbenchTheme}
         onThemeChange={setWorkbenchTheme}
       />
@@ -149,6 +151,7 @@ export function WorkbenchRoute() {
         updateInstanceVolume={scene.updateInstanceVolume}
         updateInstanceColor={scene.updateInstanceColor}
         updateInstanceName={scene.updateInstanceName}
+        toggleGlobalInstanceVisibility={scene.toggleInstanceVisibility}
         addInstance={scene.addInstance}
         removeInstance={scene.removeInstance}
         timeScale={simulation.timeScale}

@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "@/i18n";
 import { ChartLegend, shouldEnableLegendInteractions } from "@/components/Charts";
-import { PanelGrid, getActiveSettingsSectionId, getDockviewPaneTitle, openPanelSettingsIfClosed, type PanelGridMode } from "@/components/workbench/PanelGrid";
+import { PanelGrid, getActiveSettingsSectionId, getDockviewPaneTitle, openPanelSettingsIfClosed, type PanelGridMode, type WorkbenchLayoutState } from "@/components/workbench/PanelGrid";
 import { ScenarioPane } from "@/components/workbench/ScenarioPane";
 import { getDockviewStructureSignature, getDockviewTabMenuPosition } from "@/components/workbench/WorkbenchDockview";
 import { addHiddenInstanceConfigsToPanels } from "@/WorkbenchPage";
@@ -46,9 +46,10 @@ function renderPanelGrid(
   controlGroups: string[] = [],
   steadyUpdateStatuses: SteadyUpdateStatusMap = {},
   isMobile = false,
+  layoutOverrides: Partial<WorkbenchLayoutState> = {},
 ) {
   return renderToStaticMarkup(
-    createPanelGrid(mode, panels, instances, controlGroups, steadyUpdateStatuses, isMobile),
+    createPanelGrid(mode, panels, instances, controlGroups, steadyUpdateStatuses, isMobile, layoutOverrides),
   );
 }
 
@@ -59,6 +60,7 @@ function createPanelGrid(
   controlGroups: string[] = [],
   steadyUpdateStatuses: SteadyUpdateStatusMap = {},
   isMobile = false,
+  layoutOverrides: Partial<WorkbenchLayoutState> = {},
 ) {
   return React.createElement(PanelGrid, {
     authoringMode: false,
@@ -69,10 +71,14 @@ function createPanelGrid(
     setStepsDraft: noop,
     panels,
     layoutState: {
-      controlsSide: "left",
+      controlsSide: "right",
       controlsWidth: 320,
       caseRailWidth: 260,
       outputHeight: 190,
+      noteOpen: false,
+      metricsOpen: false,
+      rightRailView: "scenarios",
+      ...layoutOverrides,
     },
     onLayoutStateChange: noop,
     dockviewLayoutKey: "test",
@@ -85,13 +91,14 @@ function createPanelGrid(
     physicsRefs: { current: new Map() },
     instanceHealth: {},
     steadyUpdateStatuses,
-    activeInstanceId: "",
+    activeInstanceId: instances[0]?.id ?? "",
     setActiveInstanceId: noop,
     updateInstanceParams: noop,
     updateInstanceKnobs: noop,
     updateInstanceVolume: noop,
     updateInstanceColor: noop,
     updateInstanceName: noop,
+    toggleGlobalInstanceVisibility: noop,
     addInstance: noop,
     removeInstance: noop,
     timeScale: 1,
@@ -245,12 +252,12 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).toContain("No panels");
   });
 
-  it("keeps add controls available in empty editable zones", () => {
+  it("keeps add controls available only in the main graph board", () => {
     const html = renderPanelGrid("sandbox");
 
     expect(html).toContain("Add Main pane");
-    expect(html).toContain("Add Controls pane");
-    expect(html).toContain("Add Outputs pane");
+    expect(html).not.toContain("Add Controls pane");
+    expect(html).not.toContain("Add Outputs pane");
   });
 
   it("hides add and pane settings chrome for learner mode", () => {
@@ -457,15 +464,15 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).not.toContain("Customizations");
   });
 
-  it("shows custom controls settings for authorable controller panes", () => {
-    const html = renderPanelGrid("sandbox", [controlsPanel], [{ ...normalInstance, params: { ...DEFAULT_PARAMS } }]);
+  it("renders the fixed inspector from built-in clinical controls", () => {
+    const html = renderPanelGrid("sandbox", [controlsPanel], [{ ...normalInstance, params: { ...DEFAULT_PARAMS } }], [], {}, false, {
+      rightRailView: "inspector",
+    });
 
-    expect(html).toContain("Custom controls");
-    expect(html).toContain("Custom controls replace the default Clinical Knobs");
-    expect(html).toContain("LV Focus");
     expect(html).toContain("Cardiac Function");
-    expect(html).toContain("Preview");
     expect(html).toContain("type=\"range\"");
+    expect(html).not.toContain("Custom controls replace the default Clinical Knobs");
+    expect(html).not.toContain("LV Focus");
   });
 
   it("hides custom controls settings in learner mode", () => {
@@ -514,7 +521,7 @@ describe("PanelGrid Dockview layout", () => {
     expect(panels[1].config.copy).toEqual({ visible: false, selectedSignals: ["clinical", "Global", "ventricles", "fluids"] });
   });
 
-  it("renders controller settings as modal target and item bindings", () => {
+  it("does not render pane-local controller settings for the fixed inspector", () => {
     const controlsPanel: PanelDef = {
       id: "controls",
       type: "CONTROLS",
@@ -534,17 +541,11 @@ describe("PanelGrid Dockview layout", () => {
       { ...copiedInstance, params: { ...DEFAULT_PARAMS } },
     ]);
 
-    expect(html).toContain("role=\"dialog\"");
-    expect(html).toContain("Pane settings");
-    expect(html).toContain("Controls · Controller pane");
-    expect(html).toContain("Targets");
-    expect(html).toContain("Sections");
-    expect(html).toContain("Display");
-    expect(html).toContain("Clinical knobs");
-    expect(html).toContain("Pane title");
-    expect(html).toContain("@min-[760px]:grid");
-    expect(html).toContain("sticky top-0");
-    expect(html).toContain("overflow-hidden p-3");
+    expect(html).not.toContain("role=\"dialog\"");
+    expect(html).not.toContain("Pane settings");
+    expect(html).not.toContain("Controls · Controller pane");
+    expect(html).toContain("Scenarios");
+    expect(html).toContain("Inspector");
     expect(html).not.toContain("Back to Controls");
     // Unnecessary count-meta badges removed from controller settings.
     expect(html).not.toContain("Controller scope");
@@ -567,7 +568,7 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).not.toContain("w-[min(42rem,calc(100vw-2rem))]");
   });
 
-  it("keeps advanced controller groups out of pane-local settings", () => {
+  it("keeps the fixed inspector on built-in clinical controls even when legacy controller panes select advanced groups", () => {
     const controlsPanel: PanelDef = {
       id: "controls",
       type: "CONTROLS",
@@ -581,16 +582,16 @@ describe("PanelGrid Dockview layout", () => {
       isSettingsOpen: true,
     };
 
-    const html = renderPanelGrid("sandbox", [controlsPanel], [{ ...normalInstance, params: { ...DEFAULT_PARAMS } }], ["clinical", "advanced", "ventricles"]);
-    const modalHtml = html.slice(html.indexOf("Pane settings"));
+    const html = renderPanelGrid("sandbox", [controlsPanel], [{ ...normalInstance, params: { ...DEFAULT_PARAMS } }], ["clinical", "advanced", "ventricles"], {}, false, {
+      rightRailView: "inspector",
+    });
 
-    expect(modalHtml).toContain("Clinical knobs");
-    expect(modalHtml).toContain("Ventricular mechanics");
-    expect(modalHtml).not.toContain("Advanced");
-    expect(modalHtml).not.toContain("Advanced engine");
+    expect(html).toContain("Clinical Knobs");
+    expect(html).not.toContain("Advanced");
+    expect(html).not.toContain("Advanced engine");
   });
 
-  it("renders controller target shortcuts only for pane-enabled targets", () => {
+  it("shows hidden scenarios in the rail while the fixed inspector targets the active scenario only", () => {
     const controlsPanel: PanelDef = {
       id: "controls",
       type: "CONTROLS",
@@ -606,16 +607,25 @@ describe("PanelGrid Dockview layout", () => {
       isSettingsOpen: false,
     };
 
-    const html = renderPanelGrid("sandbox", [controlsPanel], [
+    const scenarioHtml = renderPanelGrid("sandbox", [controlsPanel], [
       { ...normalInstance, params: { ...DEFAULT_PARAMS } },
       { ...copiedInstance, params: { ...DEFAULT_PARAMS } },
       { ...hiddenInstance, params: { ...DEFAULT_PARAMS } },
     ]);
 
-    expect(html).toContain("Heart B");
-    expect(html).not.toContain("Heart C");
-    expect(html).not.toContain("Pause simulation");
-    expect(html).not.toContain("0.5x");
+    expect(scenarioHtml).toContain("Heart B");
+    expect(scenarioHtml).toContain("Heart C");
+
+    const inspectorHtml = renderPanelGrid("sandbox", [controlsPanel], [
+      { ...normalInstance, params: { ...DEFAULT_PARAMS } },
+      { ...copiedInstance, params: { ...DEFAULT_PARAMS } },
+      { ...hiddenInstance, params: { ...DEFAULT_PARAMS } },
+    ], [], {}, false, { rightRailView: "inspector" });
+
+    expect(inspectorHtml).not.toContain("Heart B");
+    expect(inspectorHtml).not.toContain("Heart C");
+    expect(inspectorHtml).not.toContain("Pause simulation");
+    expect(inspectorHtml).not.toContain("0.5x");
   });
 });
 

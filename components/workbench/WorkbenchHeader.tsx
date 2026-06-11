@@ -5,13 +5,12 @@ import {
   ChevronDown,
   ChevronLeft,
   Edit3,
+  FileText,
   LayoutPanelLeft,
-  PanelLeft,
-  PanelRight,
+  BarChart3,
   MoreHorizontal,
   Pause,
   Play,
-  RotateCcw,
   Save,
   Share2,
 } from 'lucide-react';
@@ -20,7 +19,6 @@ import { SimulationHealth } from '../../engine/protocol';
 import { HealthBadge } from '../HealthIndicators';
 import { ModelLimitations } from '../ModelLimitations';
 import { WorkbenchHeaderMode, WorkbenchSceneMeta, WorkbenchSidePanel, type WorkbenchThemeId } from './WorkbenchSidePanel';
-import type { WorkbenchControlsSide } from './PanelGrid';
 
 interface WorkbenchHeaderProps {
   mode: WorkbenchHeaderMode;
@@ -52,9 +50,11 @@ interface WorkbenchHeaderProps {
   togglePlay: () => void;
   timeScale: number;
   setTimeScale: React.Dispatch<React.SetStateAction<number>>;
-  controlsSide: WorkbenchControlsSide;
-  onControlsSideChange: (side: WorkbenchControlsSide) => void;
-  onResetLayout: () => void;
+  noteOpen: boolean;
+  metricsOpen: boolean;
+  hasNotePanel: boolean;
+  onToggleNote: () => void;
+  onToggleMetrics: () => void;
   theme: WorkbenchThemeId;
   onThemeChange: (theme: WorkbenchThemeId) => void;
 }
@@ -95,9 +95,11 @@ export function WorkbenchHeader({
   togglePlay,
   timeScale,
   setTimeScale,
-  controlsSide,
-  onControlsSideChange,
-  onResetLayout,
+  noteOpen,
+  metricsOpen,
+  hasNotePanel,
+  onToggleNote,
+  onToggleMetrics,
   theme,
   onThemeChange,
 }: WorkbenchHeaderProps) {
@@ -109,6 +111,7 @@ export function WorkbenchHeader({
   const [draftMeta, setDraftMeta] = useState(sceneMeta);
 
   const isLearner = mode === 'learner';
+  const showNoteToggle = !isLearner || hasNotePanel;
   const primaryLabel = isLearner ? t('workbench.header.editCopy') : authoringMode ? t('workbench.header.share') : t('workbench.header.saveCase');
 
   const openMetaEditor = () => {
@@ -169,44 +172,37 @@ export function WorkbenchHeader({
             {isLayoutOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setIsLayoutOpen(false)} />
-                <div className="absolute right-0 top-full z-50 mt-1 w-64 rounded-md border border-slate-700 bg-slate-900 p-3 shadow-xl">
+                <div className="absolute right-0 top-full z-50 mt-1 w-64 rounded-md border border-slate-700 bg-slate-900 p-2 shadow-xl">
                   <div className="mb-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">{t('workbench.header.customizeLayout')}</div>
-                  <div className="grid grid-cols-2 gap-2">
+                  {showNoteToggle && (
                     <button
                       type="button"
-                      onClick={() => onControlsSideChange('left')}
-                      className={`inline-flex items-center justify-center gap-2 rounded border px-3 py-2 text-xs font-bold transition-colors ${
-                        controlsSide === 'left'
-                          ? 'border-blue-500/60 bg-blue-500/15 text-blue-100'
-                          : 'border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800'
-                      }`}
+                      onClick={() => {
+                        onToggleNote();
+                      }}
+                      className="flex w-full items-center justify-between rounded px-2 py-2 text-xs font-bold text-slate-300 transition-colors hover:bg-slate-800"
                     >
-                      <PanelLeft className="h-4 w-4" />
-                      {t('workbench.header.left')}
+                      <span className="inline-flex items-center gap-2"><FileText className="h-4 w-4" />{t('workbench.header.noteDrawer')}</span>
+                      <span className={noteOpen ? 'text-blue-300' : 'text-slate-500'}>{noteOpen ? t('common.on') : t('common.off')}</span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => onControlsSideChange('right')}
-                      className={`inline-flex items-center justify-center gap-2 rounded border px-3 py-2 text-xs font-bold transition-colors ${
-                        controlsSide === 'right'
-                          ? 'border-blue-500/60 bg-blue-500/15 text-blue-100'
-                          : 'border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800'
-                      }`}
-                    >
-                      <PanelRight className="h-4 w-4" />
-                      {t('workbench.header.right')}
-                    </button>
-                  </div>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
-                      onResetLayout();
-                      setIsLayoutOpen(false);
+                      onToggleMetrics();
                     }}
-                    className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-300 transition-colors hover:bg-slate-800"
+                    className="flex w-full items-center justify-between rounded px-2 py-2 text-xs font-bold text-slate-300 transition-colors hover:bg-slate-800"
                   >
-                    <RotateCcw className="h-4 w-4" />
-                    {t('workbench.header.resetLayout')}
+                    <span className="inline-flex items-center gap-2"><BarChart3 className="h-4 w-4" />{t('workbench.header.metricsHost')}</span>
+                    <span className={metricsOpen ? 'text-blue-300' : 'text-slate-500'}>{metricsOpen ? t('common.on') : t('common.off')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled
+                    className="mt-1 flex w-full cursor-not-allowed items-center justify-between rounded px-2 py-2 text-xs font-bold text-slate-600"
+                  >
+                    <span className="inline-flex items-center gap-2"><LayoutPanelLeft className="h-4 w-4" />{t('workbench.header.arrange')}</span>
+                    <ChevronDown className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </>

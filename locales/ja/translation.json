@@ -255,6 +255,9 @@
       "untitledScene": "無題のケース",
       "unsavedAuthoringChanges": "未保存のオーサリング変更",
       "customizeLayout": "レイアウトを調整",
+      "noteDrawer": "ノートドロワー",
+      "metricsHost": "指標ホスト",
+      "arrange": "配置",
       "left": "左",
       "right": "右",
       "resetLayout": "レイアウトをリセット",
@@ -317,6 +320,11 @@
       "scenarioName": "シナリオ名",
       "actions": "シナリオ操作",
       "actionsAria": "{{name}}の操作",
+      "showScenario": "シナリオを表示",
+      "hideScenario": "シナリオを非表示",
+      "hiddenHint": "非表示",
+      "showScenarioAria": "{{name}}をグラフに表示",
+      "hideScenarioAria": "{{name}}をグラフで非表示",
       "addFromPreset": "プリセットからシナリオを追加",
       "addFromPresetShort": "プリセットから追加"
     },
@@ -365,6 +373,20 @@
       "closePanelAria": "{{title}}を閉じる",
       "zoneAria": "{{zone}}ゾーン",
         "shareUrl": "共有URL",
+        "noteDrawer": "ノートドロワー",
+        "metricsHost": "指標ホスト",
+        "note": "ノート",
+        "railAria": "シナリオレール",
+        "rail": {
+          "scenarios": "シナリオ",
+          "inspector": "インスペクタ"
+        },
+        "metricsTabs": {
+          "pressure": "圧",
+          "flowVolume": "流量 / 容積",
+          "function": "機能",
+          "coronary": "冠循環"
+        },
         "sources": {
           "chambers": {
             "title": "心腔",

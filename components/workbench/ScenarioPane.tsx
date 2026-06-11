@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
-import { Check, LoaderCircle, MoreVertical, Plus, TriangleAlert } from 'lucide-react';
+import { Check, Eye, EyeOff, LoaderCircle, MoreVertical, Plus, TriangleAlert } from 'lucide-react';
 import { OFFICIAL_BASELINES } from '../../engine/caseBaselines';
 import type { SteadyUpdateStatus, SteadyUpdateStatusMap } from '../../engine/previewController';
 import type { SimInstance } from '../../types';
@@ -12,6 +12,9 @@ interface ScenarioPaneProps {
   removeInstance: (id: string) => void;
   updateInstanceName: (id: string, name: string) => void;
   updateInstanceColor: (id: string, color: string) => void;
+  activeInstanceId?: string;
+  setActiveInstanceId?: (id: string) => void;
+  toggleInstanceVisibility?: (id: string) => void;
   steadyUpdateStatuses?: SteadyUpdateStatusMap;
 }
 
@@ -66,6 +69,9 @@ export function ScenarioPane({
   removeInstance,
   updateInstanceName,
   updateInstanceColor,
+  activeInstanceId,
+  setActiveInstanceId,
+  toggleInstanceVisibility,
   steadyUpdateStatuses = {},
 }: ScenarioPaneProps) {
   const { t } = useTranslation();
@@ -147,14 +153,19 @@ export function ScenarioPane({
         {instances.map((instance) => {
           const isEditing = instance.id === editingId;
           const isMenuOpen = menuState?.instanceId === instance.id;
+          const isActive = instance.id === activeInstanceId;
+          const isHidden = instance.isVisible === false;
           return (
             <div
               key={instance.id}
-              className={`group relative flex h-8 items-center gap-2 rounded px-2 text-xs transition-colors ${
-                isMenuOpen
-                  ? 'bg-slate-900/90 text-slate-200'
-                  : 'text-slate-400 hover:bg-slate-900/80 hover:text-slate-200'
+              className={`group relative flex min-h-8 items-center gap-2 rounded border px-2 text-xs transition-colors ${
+                isActive
+                  ? 'border-sky-500/45 bg-sky-500/12 text-sky-100'
+                  : isMenuOpen
+                    ? 'border-slate-700 bg-slate-900/90 text-slate-200'
+                    : 'border-transparent text-slate-400 hover:bg-slate-900/80 hover:text-slate-200'
               }`}
+              onClick={() => setActiveInstanceId?.(instance.id)}
               onContextMenu={(event) => openMenuAtCursor(event, instance)}
               onDoubleClick={() => beginRename(instance)}
             >
@@ -189,9 +200,31 @@ export function ScenarioPane({
                   placeholder={t('workbench.scenarioPane.scenarioName')}
                 />
               ) : (
-                <span className="min-w-0 flex-1 truncate font-medium">{instance.name}</span>
+                <span className="min-w-0 flex-1 truncate font-medium">
+                  {instance.name}
+                  {isActive && isHidden && <span className="ml-1 text-[10px] font-bold text-slate-500">{t('workbench.scenarioPane.hiddenHint')}</span>}
+                </span>
               )}
               <SteadyStatusIndicator status={steadyUpdateStatuses[instance.id]} />
+              {!isEditing && toggleInstanceVisibility && (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    toggleInstanceVisibility(instance.id);
+                  }}
+                  className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded transition-colors ${
+                    isHidden
+                      ? 'text-slate-600 hover:bg-slate-800 hover:text-slate-300'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                  }`}
+                  title={isHidden ? t('workbench.scenarioPane.showScenario') : t('workbench.scenarioPane.hideScenario')}
+                  aria-label={isHidden ? t('workbench.scenarioPane.showScenarioAria', { name: instance.name }) : t('workbench.scenarioPane.hideScenarioAria', { name: instance.name })}
+                  aria-pressed={!isHidden}
+                >
+                  {isHidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                </button>
+              )}
               {!isEditing && (
                 <button
                   type="button"

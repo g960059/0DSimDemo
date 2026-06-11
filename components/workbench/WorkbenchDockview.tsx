@@ -79,7 +79,6 @@ const ADD_OPTIONS_BY_ZONE: Record<WorkbenchZoneId, Array<{ type: PanelType; labe
     { type: 'WAVEFORM', label: 'Waveforms' },
     { type: 'GUYTON_LEFT', label: 'Guyton (L)' },
     { type: 'GUYTON_RIGHT', label: 'Guyton (R)' },
-    { type: 'NOTE', label: 'Note' },
   ],
   sideRail: [
     { type: 'SCENARIOS', label: 'Scenarios' },

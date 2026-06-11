@@ -255,6 +255,9 @@
       "untitledScene": "Untitled case",
       "unsavedAuthoringChanges": "Unsaved authoring changes",
       "customizeLayout": "Customize layout",
+      "noteDrawer": "Note drawer",
+      "metricsHost": "Metrics host",
+      "arrange": "Arrange",
       "left": "Left",
       "right": "Right",
       "resetLayout": "Reset layout",
@@ -317,6 +320,11 @@
       "scenarioName": "Scenario name",
       "actions": "Scenario actions",
       "actionsAria": "{{name}} actions",
+      "showScenario": "Show scenario",
+      "hideScenario": "Hide scenario",
+      "hiddenHint": "hidden",
+      "showScenarioAria": "Show {{name}} on graphs",
+      "hideScenarioAria": "Hide {{name}} on graphs",
       "addFromPreset": "Add scenario from preset",
       "addFromPresetShort": "Add from preset"
     },
@@ -365,6 +373,20 @@
       "closePanelAria": "Close {{title}}",
       "zoneAria": "{{zone}} zone",
         "shareUrl": "Share URL",
+        "noteDrawer": "Note drawer",
+        "metricsHost": "Metrics host",
+        "note": "Note",
+        "railAria": "Scenario rail",
+        "rail": {
+          "scenarios": "Scenarios",
+          "inspector": "Inspector"
+        },
+        "metricsTabs": {
+          "pressure": "Pressures",
+          "flowVolume": "Flow / volume",
+          "function": "Function",
+          "coronary": "Coronary"
+        },
         "sources": {
           "chambers": {
             "title": "Chambers",

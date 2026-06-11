@@ -15,6 +15,7 @@ import { resolveLocalizedCaseDocument, upsertCaseLocaleContent } from "@/content
 import { officialCaseById } from "@/officialCases";
 import { remapCaseDocumentViewIds, remapCaseI18nContentIds, remapWorkbenchLoadIds } from "@/workbenchLoad";
 import { DEFAULT_MODEL_LIMITATIONS } from "@/features/workbench/workbenchDefaults";
+import { mainDockviewViewStatesOnly } from "@/features/workbench/p1aStructuralHosts";
 import type { WorkbenchSceneState } from "@/features/workbench/hooks/useWorkbenchScene";
 import type { WorkbenchPanelsState } from "@/features/workbench/hooks/useWorkbenchPanels";
 import type { LessonAuthoringState } from "@/features/workbench/hooks/useLessonAuthoring";
@@ -108,7 +109,10 @@ export function useWorkbenchPersistence({
         ...(scene.sceneMeta.description.trim() ? { description: scene.sceneMeta.description.trim() } : {}),
         modelLimitations,
       },
-      workspace: workspaceForPanels(panels.panels, panels.workspace),
+      // P1a keeps legacy PanelDef hosts for document compatibility, but Dockview
+      // display state is live only for the main Graph Board. Older documents may
+      // load side/bottom/caseRail viewStates; saves intentionally drop them.
+      workspace: mainDockviewViewStatesOnly(workspaceForPanels(panels.panels, panels.workspace)),
       notes: overrides.includeNotes === false ? undefined : panels.notes,
       reading: scene.currentCaseReading,
       exposedControllers: scene.currentCaseExposedControllers,
