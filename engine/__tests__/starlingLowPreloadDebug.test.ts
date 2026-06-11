@@ -410,7 +410,7 @@ describe("low-preload Starling debug diagnostics", () => {
     ]);
     const report = runLowPreloadMatrix(opts);
 
-    expect(report.schemaVersion).toBe(7);
+    expect(report.schemaVersion).toBe(8);
     expect(report.scenarios).toHaveLength(7);
     expect(report.scenarios.filter((scenario) => scenario.lambdaActTauSec === 0)).toHaveLength(4);
     expect(report.scenarios.filter((scenario) => scenario.lambdaActTauSec === 0 && scenario.lowStretchLimiterMode === "none")).toHaveLength(1);
@@ -432,6 +432,12 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.summary.classificationCounts.baseline).toBeGreaterThan(0);
     expect(report.scenarios[0].evaluation.classification).toBe("baseline");
     expect(report.scenarios[0].evaluation.branchEnvelopeClass).toEqual(expect.any(String));
+    expect(report.scenarios[0].evaluation.worstDeltaCleanSlopeCovered).toEqual(expect.any(Boolean));
+    expect(report.scenarios[0].evaluation.cleanSlopeCoverageClass).toEqual(expect.any(String));
+    expect(report.scenarios[0].evaluation.returnMapEvidenceLevel).toEqual(expect.any(String));
+    expect(report.scenarios[0].evaluation.requiresFullJacobianConfirmation).toEqual(expect.any(Boolean));
+    expect(Array.isArray(report.scenarios[0].evaluation.cleanSlopeCoveredDeltasMl)).toBe(true);
+    expect(Array.isArray(report.scenarios[0].evaluation.cleanSlopeMissingDeltasMl)).toBe(true);
     expect(report.scenarios[0].perDeltaEvaluation).toHaveLength(1);
     expect(report.scenarios[0].perDeltaEvaluation[0].branchEnvelopeClass).toEqual(expect.any(String));
     expect(report.scenarios[0].perDeltaEvaluation[0].cleanForReturnMapSlope).toEqual(expect.any(Boolean));
@@ -442,6 +448,8 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToMarkdown(report)).toContain("Normal / HR100 waveform gates");
     expect(matrixReportToMarkdown(report)).toContain("TBV / Clamp Audit");
     expect(matrixReportToMarkdown(report)).toContain("dip/re-rise");
+    expect(matrixReportToMarkdown(report)).toContain("scalar EDV");
+    expect(matrixReportToMarkdown(report)).toContain("full-state Poincare Jacobian");
     expect(matrixReportToCsv(report)).toContain("returnMapSelected");
     expect(matrixReportToCsv(report)).toContain("tbvCorrectionMode");
     expect(matrixReportToCsv(report)).toContain("lowStretchLimiterMode");
@@ -450,6 +458,8 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToCsv(report)).toContain("branchAmplitudeFractionESV_L");
     expect(matrixReportToCsv(report)).toContain("scenarioClassification");
     expect(matrixReportToCsv(report)).toContain("cleanForReturnMapSlope");
+    expect(matrixReportToCsv(report)).toContain("worstDeltaCleanSlopeCovered");
+    expect(matrixReportToCsv(report)).toContain("returnMapEvidenceLevel");
   });
 
   it("supports branch-only matrix runs without selected return-map points", () => {
