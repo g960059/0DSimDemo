@@ -74,11 +74,52 @@ type MatrixScenario = {
   activeReservePreset: ActiveReservePreset;
   tbvCorrectionMode: TBVCorrectionMode;
   selectedDeltasMl: number[];
+  evaluation: ScenarioEvaluation;
   shapeSummary: ShapeSummary;
   branchSummary: DebugReport["summary"];
   returnMapSummary: DebugReport["summary"];
   waveformGates: WaveformGateComparison[];
+  perDeltaEvaluation: PerDeltaEvaluation[];
   points: DebugPoint[];
+};
+
+type ScenarioClassification = "baseline" | "fail" | "mitigator" | "root-fix-candidate";
+type BranchEnvelopeClass = "good" | "mitigated" | "residual" | "poor";
+
+type ScenarioEvaluation = {
+  classification: ScenarioClassification;
+  branchEnvelopeClass: BranchEnvelopeClass;
+  reasons: string[];
+  worstDeltaVolumeMl: number | null;
+  worstLAPMean: number | null;
+  maxPerDeltaBranchFractionCOL: number;
+  maxPerDeltaBranchFractionEDVL: number;
+  maxPerDeltaBranchFractionESVL: number;
+  maxCleanAbsOneBeatEDVSlope: number | null;
+  maxCleanAbsTwoBeatEDVSlope: number | null;
+  cleanReturnMapPointCount: number;
+};
+
+type PerDeltaEvaluation = {
+  deltaVolumeMl: number;
+  LAPMean: number;
+  CO_L: number;
+  lastBeatCO_L: number;
+  periodBeats: number;
+  branchEnvelopeClass: BranchEnvelopeClass;
+  branchAmplitudeFractionCOL: number;
+  branchAmplitudeFractionEDVL: number;
+  branchAmplitudeFractionESVL: number;
+  activeReserveHitFraction: number;
+  activeReserveMinScale: number;
+  sigmaActTargetReductionFraction: number;
+  returnMapStatus: string;
+  cleanForReturnMapSlope: boolean;
+  oneBeatEDVSlope: number | null;
+  twoBeatEDVSlope: number | null;
+  nonsmooth: boolean;
+  clampCrossing: boolean;
+  tbvAuditClass: string;
 };
 
 type ShapeSummary = {
@@ -93,7 +134,7 @@ type ShapeSummary = {
 };
 
 type MatrixReport = {
-  schemaVersion: 6;
+  schemaVersion: 7;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -130,6 +171,7 @@ type MatrixReport = {
     maxProjectionAppliedMl: number;
     contaminatedPointCount: number;
     selectedReturnMapPointCount: number;
+    classificationCounts: Record<ScenarioClassification, number>;
   };
 };
 
@@ -205,6 +247,28 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
       branchBaselineCache.set(baselineKey, branchReport.points);
     }
     const baselinePoints = branchBaselineCache.get(baselineKey) ?? branchReport.points;
+    const perDeltaEvaluation = buildPerDeltaEvaluation(returnMapReport.points);
+    const waveformGates = buildWaveformGateComparisons(
+      opts.targetVolumeMl,
+      dt,
+      opts.sampleHz,
+      lambdaActScope,
+      lambdaActTauSec,
+      lambdaActTerms,
+      lowStretchLimiterMode,
+      lowStretchLimiterScope,
+      activeReservePreset,
+      waveformBaselineCache,
+    );
+    const shapeSummary = buildShapeSummary(branchReport.points, baselinePoints);
+    const evaluation = buildScenarioEvaluation({
+      lowStretchLimiterMode,
+      lambdaActTauSec,
+      returnMapSummary: returnMapReport.summary,
+      shapeSummary,
+      waveformGates,
+      perDeltaEvaluation,
+    });
     scenarios.push({
       dt,
       lambdaActTauSec,
@@ -215,21 +279,12 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
       activeReservePreset,
       tbvCorrectionMode,
       selectedDeltasMl,
-      shapeSummary: buildShapeSummary(branchReport.points, baselinePoints),
+      evaluation,
+      shapeSummary,
       branchSummary: branchReport.summary,
       returnMapSummary: returnMapReport.summary,
-      waveformGates: buildWaveformGateComparisons(
-        opts.targetVolumeMl,
-        dt,
-        opts.sampleHz,
-        lambdaActScope,
-        lambdaActTauSec,
-        lambdaActTerms,
-        lowStretchLimiterMode,
-        lowStretchLimiterScope,
-        activeReservePreset,
-        waveformBaselineCache,
-      ),
+      waveformGates,
+      perDeltaEvaluation,
       points: returnMapReport.points,
     });
     opts.partialWrite?.(buildMatrixReport(opts, scopes, scenarios));
@@ -247,7 +302,7 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
       { fraction: 0, metric: null },
     );
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
     generatedAt: new Date().toISOString(),
     measurementMode: "branch-only broad low-preload matrix followed by selected EDV-section return-map diagnostics; optional TBV correction on/off/low contamination axis; off-by-default low-stretch limiter comparator axis",
     targetVolumeMl: opts.targetVolumeMl,
@@ -284,6 +339,7 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
       maxProjectionAppliedMl: Math.max(0, ...scenarios.map((s) => s.returnMapSummary.maxProjectionAppliedMl)),
       contaminatedPointCount: scenarios.reduce((sum, scenario) => sum + scenario.returnMapSummary.contaminatedPointCount, 0),
       selectedReturnMapPointCount: scenarios.reduce((sum, scenario) => sum + scenario.selectedDeltasMl.length, 0),
+      classificationCounts: classificationCounts(scenarios),
     },
   };
 }
@@ -397,6 +453,134 @@ function buildShapeSummary(points: DebugPoint[], baselinePoints: DebugPoint[]): 
     minActiveReserveScale: active.minScale,
     maxSigmaActTargetReductionFraction: active.maxReductionFraction,
   };
+}
+
+function buildPerDeltaEvaluation(points: DebugPoint[]): PerDeltaEvaluation[] {
+  return points.map((point) => {
+    const active = activeReserveStats([point]);
+    const coBranch = finiteOrZero(point.returnMap.branchAmplitudeFraction.CO_L ?? NaN);
+    const edvBranch = finiteOrZero(point.returnMap.branchAmplitudeFraction.EDV_L ?? NaN);
+    const esvBranch = finiteOrZero(point.returnMap.branchAmplitudeFraction.ESV_L ?? NaN);
+    const oneBeatSlope = finiteOrNull(point.returnMap.features.EDV_L?.centralSlope ?? NaN);
+    const twoBeatSlope = finiteOrNull(point.returnMap.twoBeatSamePhase?.features.EDV_L?.centralSlope ?? NaN);
+    return {
+      deltaVolumeMl: point.deltaVolumeMl,
+      LAPMean: point.periodMetrics.LAPMean,
+      CO_L: point.periodMetrics.CO_L,
+      lastBeatCO_L: point.lastBeatMetrics.CO_L,
+      periodBeats: point.settle.periodBeats ?? 1,
+      branchEnvelopeClass: branchEnvelopeClass(coBranch, edvBranch, esvBranch),
+      branchAmplitudeFractionCOL: coBranch,
+      branchAmplitudeFractionEDVL: edvBranch,
+      branchAmplitudeFractionESVL: esvBranch,
+      activeReserveHitFraction: active.maxHitFraction,
+      activeReserveMinScale: active.minScale,
+      sigmaActTargetReductionFraction: active.maxReductionFraction,
+      returnMapStatus: point.returnMap.status,
+      cleanForReturnMapSlope: isCleanReturnMapPoint(point),
+      oneBeatEDVSlope: oneBeatSlope,
+      twoBeatEDVSlope: twoBeatSlope,
+      nonsmooth: point.returnMap.nonsmooth,
+      clampCrossing: point.returnMap.clampCrossing,
+      tbvAuditClass: point.tbvAudit.classification,
+    };
+  });
+}
+
+function buildScenarioEvaluation(input: {
+  lowStretchLimiterMode: LowStretchLimiterMode;
+  lambdaActTauSec: number;
+  returnMapSummary: DebugReport["summary"];
+  shapeSummary: ShapeSummary;
+  waveformGates: WaveformGateComparison[];
+  perDeltaEvaluation: PerDeltaEvaluation[];
+}): ScenarioEvaluation {
+  const maxCO = Math.max(0, ...input.perDeltaEvaluation.map((point) => point.branchAmplitudeFractionCOL));
+  const maxEDV = Math.max(0, ...input.perDeltaEvaluation.map((point) => point.branchAmplitudeFractionEDVL));
+  const maxESV = Math.max(0, ...input.perDeltaEvaluation.map((point) => point.branchAmplitudeFractionESVL));
+  const worst = input.perDeltaEvaluation.reduce<PerDeltaEvaluation | null>(
+    (best, point) => !best || point.branchAmplitudeFractionCOL > best.branchAmplitudeFractionCOL ? point : best,
+    null,
+  );
+  const cleanSlopePoints = input.perDeltaEvaluation.filter((point) => point.cleanForReturnMapSlope);
+  const maxCleanAbsOneBeat = finiteMaxOrNull(cleanSlopePoints.map((point) => Math.abs(point.oneBeatEDVSlope ?? Number.NaN)));
+  const maxCleanAbsTwoBeat = finiteMaxOrNull(cleanSlopePoints.map((point) => Math.abs(point.twoBeatEDVSlope ?? Number.NaN)));
+  const waveformMax = Math.max(0, ...input.waveformGates.map((gate) => gate.maxDeltaFraction));
+  const branchClass = branchEnvelopeClass(maxCO, maxEDV, maxESV);
+  const reasons: string[] = [];
+
+  let classification: ScenarioClassification;
+  if (input.lambdaActTauSec === 0 && input.lowStretchLimiterMode === "none") {
+    classification = "baseline";
+    reasons.push("tau=0/no-limiter baseline");
+  } else if (
+    input.returnMapSummary.contaminatedPointCount > 0
+    || waveformMax > 0.08
+    || input.shapeSummary.meanCOLErrorFractionVsBaseline > 0.08
+    || input.shapeSummary.meanSVLErrorFractionVsBaseline > 0.08
+    || input.shapeSummary.lowPreloadMonotonicityViolations > 0
+    || input.shapeSummary.dipReRiseScoreLMin > 0.2
+  ) {
+    classification = "fail";
+    if (input.returnMapSummary.contaminatedPointCount > 0) reasons.push("contaminated points present");
+    if (waveformMax > 0.08) reasons.push("normal/HR waveform delta exceeds 8%");
+    if (input.shapeSummary.meanCOLErrorFractionVsBaseline > 0.08) reasons.push("mean CO preservation error exceeds 8%");
+    if (input.shapeSummary.meanSVLErrorFractionVsBaseline > 0.08) reasons.push("mean SV preservation error exceeds 8%");
+    if (input.shapeSummary.lowPreloadMonotonicityViolations > 0) reasons.push("low-preload monotonicity breaks");
+    if (input.shapeSummary.dipReRiseScoreLMin > 0.2) reasons.push("dip/re-rise score remains high");
+  } else if (
+    branchClass === "good"
+    && cleanSlopePoints.length > 0
+    && (maxCleanAbsOneBeat == null || maxCleanAbsOneBeat < 0.85)
+    && (maxCleanAbsTwoBeat == null || maxCleanAbsTwoBeat < 0.85)
+  ) {
+    classification = "root-fix-candidate";
+    reasons.push("branch envelope small and clean return-map slopes below 0.85");
+  } else {
+    classification = "mitigator";
+    if (branchClass === "mitigated" || branchClass === "residual") reasons.push(`branch envelope is ${branchClass}, not root-fixed`);
+    if (branchClass === "poor") reasons.push("branch envelope remains large");
+    if (cleanSlopePoints.length === 0) reasons.push("no clean selected return-map slopes");
+    else if ((maxCleanAbsOneBeat ?? 0) >= 0.85 || (maxCleanAbsTwoBeat ?? 0) >= 0.85) reasons.push("clean return-map slope remains near or beyond flip threshold");
+  }
+
+  return {
+    classification,
+    branchEnvelopeClass: branchClass,
+    reasons,
+    worstDeltaVolumeMl: worst?.deltaVolumeMl ?? null,
+    worstLAPMean: finiteOrNull(worst?.LAPMean ?? Number.NaN),
+    maxPerDeltaBranchFractionCOL: maxCO,
+    maxPerDeltaBranchFractionEDVL: maxEDV,
+    maxPerDeltaBranchFractionESVL: maxESV,
+    maxCleanAbsOneBeatEDVSlope: maxCleanAbsOneBeat,
+    maxCleanAbsTwoBeatEDVSlope: maxCleanAbsTwoBeat,
+    cleanReturnMapPointCount: cleanSlopePoints.length,
+  };
+}
+
+function branchEnvelopeClass(coBranch: number, edvBranch: number, esvBranch: number): BranchEnvelopeClass {
+  const maxBranch = Math.max(finiteOrZero(coBranch), finiteOrZero(edvBranch), finiteOrZero(esvBranch));
+  if (maxBranch < 0.1) return "good";
+  if (maxBranch < 0.3) return "mitigated";
+  if (maxBranch < 0.5) return "residual";
+  return "poor";
+}
+
+function isCleanReturnMapPoint(point: DebugPoint): boolean {
+  return point.returnMap.status === "ok"
+    && point.tbvAudit.classification === "clean"
+    && !point.returnMap.nonsmooth
+    && !point.returnMap.clampCrossing
+    && Number.isFinite(point.returnMap.features.EDV_L?.centralSlope)
+    && Number.isFinite(point.returnMap.twoBeatSamePhase?.features.EDV_L?.centralSlope);
+}
+
+function classificationCounts(scenarios: MatrixScenario[]): Record<ScenarioClassification, number> {
+  return scenarios.reduce<Record<ScenarioClassification, number>>((counts, scenario) => {
+    counts[scenario.evaluation.classification]++;
+    return counts;
+  }, { baseline: 0, fail: 0, mitigator: 0, "root-fix-candidate": 0 });
 }
 
 function safeSlopeRatio(candidateSlope: number, baselineSlope: number): number {
@@ -653,10 +837,21 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push(`Generated: ${report.generatedAt}`);
   lines.push(`Measurement: ${report.measurementMode}`);
   lines.push("");
+  lines.push("## Classification counts");
+  lines.push("");
+  lines.push("| baseline | fail | mitigator | root-fix candidate |");
+  lines.push("| ---: | ---: | ---: | ---: |");
+  lines.push([
+    report.summary.classificationCounts.baseline,
+    report.summary.classificationCounts.fail,
+    report.summary.classificationCounts.mitigator,
+    report.summary.classificationCounts["root-fix-candidate"],
+  ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
+  lines.push("");
   lines.push("## Scenario summary");
   lines.push("");
-  lines.push("| scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | selected deltas | period-2 | max CO branch frac | max EDV branch frac | max ESV branch frac | mean CO err | mean SV err | monotonicity breaks | dip/re-rise | slope ratio | active hit frac | min active scale | target reduction | max clamp hits | max sanitize abs mL | max projection applied mL | contaminated | max one-beat EDV slope | max two-beat EDV slope | max waveform gate frac | worst waveform metric |");
-  lines.push("| --- | --- | ---: | --- | --- | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
+  lines.push("| class | branch class | reasons | scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | selected deltas | period-2 | worst delta | max CO branch frac | max EDV branch frac | max ESV branch frac | clean slopes | clean one-beat EDV slope | clean two-beat EDV slope | mean CO err | mean SV err | monotonicity breaks | dip/re-rise | slope ratio | active hit frac | min active scale | target reduction | max clamp hits | max sanitize abs mL | max projection applied mL | contaminated | max one-beat EDV slope | max two-beat EDV slope | max waveform gate frac | worst waveform metric |");
+  lines.push("| --- | --- | --- | --- | --- | ---: | --- | --- | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
   for (const scenario of report.scenarios) {
     const worstWaveform = scenario.waveformGates.reduce<{ label: string; metric: string; fraction: number }>(
       (best, gate) => gate.maxDeltaFraction > best.fraction
@@ -665,6 +860,9 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
       { label: "", metric: "", fraction: 0 },
     );
     lines.push([
+      scenario.evaluation.classification,
+      scenario.evaluation.branchEnvelopeClass,
+      scenario.evaluation.reasons.join("; "),
       scenario.lambdaActScope,
       scenario.lambdaActTerms,
       round(scenario.lambdaActTauSec, 4),
@@ -675,9 +873,13 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
       scenario.tbvCorrectionMode,
       scenario.selectedDeltasMl.join(", "),
       scenario.returnMapSummary.period2Count,
-      round(scenario.returnMapSummary.maxBranchAmplitudeFractionCOL, 4),
-      round(scenario.returnMapSummary.maxBranchAmplitudeFractionEDVL, 4),
-      round(scenario.returnMapSummary.maxBranchAmplitudeFractionESVL, 4),
+      scenario.evaluation.worstDeltaVolumeMl ?? "",
+      round(scenario.evaluation.maxPerDeltaBranchFractionCOL, 4),
+      round(scenario.evaluation.maxPerDeltaBranchFractionEDVL, 4),
+      round(scenario.evaluation.maxPerDeltaBranchFractionESVL, 4),
+      scenario.evaluation.cleanReturnMapPointCount,
+      round(scenario.evaluation.maxCleanAbsOneBeatEDVSlope ?? NaN, 4),
+      round(scenario.evaluation.maxCleanAbsTwoBeatEDVSlope ?? NaN, 4),
       round(scenario.shapeSummary.meanCOLErrorFractionVsBaseline, 4),
       round(scenario.shapeSummary.meanSVLErrorFractionVsBaseline, 4),
       scenario.shapeSummary.lowPreloadMonotonicityViolations,
@@ -695,6 +897,44 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
       round(maxWaveformGateFractionForScenario(scenario), 4),
       worstWaveform.label ? `${worstWaveform.label}:${worstWaveform.metric}` : "",
     ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
+  }
+  lines.push("");
+  lines.push("## Per-delta primary branch / slope view");
+  lines.push("");
+  lines.push("| class | lambda scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | delta | LAP | CO_L period | CO_L last beat | period | branch class | CO branch frac | EDV branch frac | ESV branch frac | active hit frac | min active scale | target reduction | return-map | clean slope | one-beat EDV slope | two-beat EDV slope | nonsmooth | audit |");
+  lines.push("| --- | --- | --- | ---: | --- | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | --- | --- |");
+  for (const scenario of report.scenarios) {
+    for (const point of scenario.perDeltaEvaluation) {
+      lines.push([
+        scenario.evaluation.classification,
+        scenario.lambdaActScope,
+        scenario.lambdaActTerms,
+        round(scenario.lambdaActTauSec, 4),
+        scenario.lowStretchLimiterMode,
+        scenario.lowStretchLimiterScope,
+        scenario.activeReservePreset,
+        round(scenario.dt, 5),
+        scenario.tbvCorrectionMode,
+        point.deltaVolumeMl,
+        round(point.LAPMean, 4),
+        round(point.CO_L, 4),
+        round(point.lastBeatCO_L, 4),
+        point.periodBeats,
+        point.branchEnvelopeClass,
+        round(point.branchAmplitudeFractionCOL, 4),
+        round(point.branchAmplitudeFractionEDVL, 4),
+        round(point.branchAmplitudeFractionESVL, 4),
+        round(point.activeReserveHitFraction, 4),
+        round(point.activeReserveMinScale, 4),
+        round(point.sigmaActTargetReductionFraction, 4),
+        point.returnMapStatus,
+        point.cleanForReturnMapSlope ? "yes" : "no",
+        round(point.oneBeatEDVSlope ?? NaN, 4),
+        round(point.twoBeatEDVSlope ?? NaN, 4),
+        point.nonsmooth ? "yes" : "no",
+        point.tbvAuditClass,
+      ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
+    }
   }
   lines.push("");
   lines.push("## TBV / Clamp Audit");
@@ -792,6 +1032,9 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
 
 export function matrixReportToCsv(report: MatrixReport): string {
   const columns = [
+    "scenarioClassification",
+    "scenarioBranchEnvelopeClass",
+    "scenarioReasons",
     "lambdaActScope",
     "lambdaActTerms",
     "lambdaActTauSec",
@@ -807,6 +1050,8 @@ export function matrixReportToCsv(report: MatrixReport): string {
     "branchAmplitudeFractionCO_L",
     "branchAmplitudeFractionEDV_L",
     "branchAmplitudeFractionESV_L",
+    "perDeltaBranchEnvelopeClass",
+    "cleanForReturnMapSlope",
     "meanCOLErrorFractionVsBaseline",
     "meanSVLErrorFractionVsBaseline",
     "lowPreloadMonotonicityViolations",
@@ -827,8 +1072,13 @@ export function matrixReportToCsv(report: MatrixReport): string {
   const rows = [columns.join(",")];
   for (const scenario of report.scenarios) {
     const selected = new Set(scenario.selectedDeltasMl.map(String));
+    const perDeltaByDelta = new Map(scenario.perDeltaEvaluation.map((entry) => [String(entry.deltaVolumeMl), entry]));
     for (const point of scenario.points) {
+      const perDelta = perDeltaByDelta.get(String(point.deltaVolumeMl));
       rows.push([
+        scenario.evaluation.classification,
+        scenario.evaluation.branchEnvelopeClass,
+        scenario.evaluation.reasons.join("; "),
         scenario.lambdaActScope,
         scenario.lambdaActTerms,
         scenario.lambdaActTauSec,
@@ -844,6 +1094,8 @@ export function matrixReportToCsv(report: MatrixReport): string {
         point.returnMap.branchAmplitudeFraction.CO_L ?? "",
         point.returnMap.branchAmplitudeFraction.EDV_L ?? "",
         point.returnMap.branchAmplitudeFraction.ESV_L ?? "",
+        perDelta?.branchEnvelopeClass ?? "",
+        perDelta?.cleanForReturnMapSlope ? "yes" : "no",
         scenario.shapeSummary.meanCOLErrorFractionVsBaseline,
         scenario.shapeSummary.meanSVLErrorFractionVsBaseline,
         scenario.shapeSummary.lowPreloadMonotonicityViolations,
@@ -982,6 +1234,15 @@ function fractionalAbsDelta(value: number, baseline: number, floor: number): num
 
 function finiteOrZero(value: number): number {
   return Number.isFinite(value) ? value : 0;
+}
+
+function finiteOrNull(value: number): number | null {
+  return Number.isFinite(value) ? value : null;
+}
+
+function finiteMaxOrNull(values: number[]): number | null {
+  const finite = values.filter(Number.isFinite);
+  return finite.length > 0 ? Math.max(...finite) : null;
 }
 
 function finiteMin(values: number[]): number {

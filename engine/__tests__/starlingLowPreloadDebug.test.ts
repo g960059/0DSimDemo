@@ -410,7 +410,7 @@ describe("low-preload Starling debug diagnostics", () => {
     ]);
     const report = runLowPreloadMatrix(opts);
 
-    expect(report.schemaVersion).toBe(6);
+    expect(report.schemaVersion).toBe(7);
     expect(report.scenarios).toHaveLength(7);
     expect(report.scenarios.filter((scenario) => scenario.lambdaActTauSec === 0)).toHaveLength(4);
     expect(report.scenarios.filter((scenario) => scenario.lambdaActTauSec === 0 && scenario.lowStretchLimiterMode === "none")).toHaveLength(1);
@@ -429,8 +429,16 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.summary.maxProjectionAppliedMl).toEqual(expect.any(Number));
     expect(report.summary.maxMeanCOLErrorFractionVsBaseline).toEqual(expect.any(Number));
     expect(report.summary.maxActiveReserveHitFraction).toEqual(expect.any(Number));
+    expect(report.summary.classificationCounts.baseline).toBeGreaterThan(0);
+    expect(report.scenarios[0].evaluation.classification).toBe("baseline");
+    expect(report.scenarios[0].evaluation.branchEnvelopeClass).toEqual(expect.any(String));
+    expect(report.scenarios[0].perDeltaEvaluation).toHaveLength(1);
+    expect(report.scenarios[0].perDeltaEvaluation[0].branchEnvelopeClass).toEqual(expect.any(String));
+    expect(report.scenarios[0].perDeltaEvaluation[0].cleanForReturnMapSlope).toEqual(expect.any(Boolean));
     expect(report.scenarios[0].points.some((point) => point.returnMap.status === "ok")).toBe(true);
     expect(matrixReportToMarkdown(report)).toContain("Selected return-map points");
+    expect(matrixReportToMarkdown(report)).toContain("Per-delta primary branch / slope view");
+    expect(matrixReportToMarkdown(report)).toContain("Classification counts");
     expect(matrixReportToMarkdown(report)).toContain("Normal / HR100 waveform gates");
     expect(matrixReportToMarkdown(report)).toContain("TBV / Clamp Audit");
     expect(matrixReportToMarkdown(report)).toContain("dip/re-rise");
@@ -440,6 +448,8 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToCsv(report)).toContain("activeReservePreset");
     expect(matrixReportToCsv(report)).toContain("meanCOLErrorFractionVsBaseline");
     expect(matrixReportToCsv(report)).toContain("branchAmplitudeFractionESV_L");
+    expect(matrixReportToCsv(report)).toContain("scenarioClassification");
+    expect(matrixReportToCsv(report)).toContain("cleanForReturnMapSlope");
   });
 
   it("supports branch-only matrix runs without selected return-map points", () => {
