@@ -158,6 +158,33 @@ Representative PR #120 smoke (`deltas=0,-1200,-1250,-1300,-1400`, `dt=0.001`, `t
 
 This is not a default-adoption decision. It means direct activeReserveCap remains the leading comparator to send into a wider matrix; threshold presets may need lower thresholds or a different trigger if they are intended to act in this low-preload branch.
 
+PR #121 tightens the framing. `activeReserveCap directMedium` should be called a leading mitigator/comparator, not a root fix. The representative smoke still has residual beat-level alternans (`CO branch fraction` around `0.29`), even though the period-mean Starling curve is much cleaner (`dip/re-rise = 0`, small mean CO error).
+
+The matrix report now classifies each scenario:
+
+- `fail`: unsafe or shape-breaking candidate.
+- `mitigator`: branch amplitude is reduced and the mean curve is usable, but residual branch envelope or return-map slope remains.
+- `root-fix-candidate`: per-delta branch fractions are small and clean selected one-beat/two-beat EDV slopes are away from the flip threshold.
+
+Read the new `Per-delta primary branch / slope view` table before relying on max summary numbers. The table shows whether a candidate stabilizes the whole low-preload branch or only moves the alternans envelope to a different delta. Clean selected return-map slopes are secondary but important: branch fraction can improve by amplitude clipping or curve flattening, so a root-fix candidate should also move clean signed EDV slopes away from the flip threshold.
+
+Recommended next matrix for model-team review:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/active-reserve-full-slope-primary \
+  --deltas=0,-900,-1000,-1100,-1200,-1250,-1300,-1400,-1500,-1600 \
+  --dt=0.001,0.0005 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on,off,low \
+  --low-stretch-limiter=none,activeReserveCap \
+  --low-stretch-limiter-scope=lv,ventricles \
+  --active-reserve-preset=directMild,directMedium \
+  --max-return-map-points=8 \
+  --trace-beats=6 \
+  --sample-hz=120
+```
+
 ## Preliminary local result
 
 The run above completed with `points=5 period2=4 maxAdjacentDelta=0.592 maxReverseMl=0`. Scenario summary from the local report:

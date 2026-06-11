@@ -235,6 +235,17 @@ After PR #120 the matrix also reports whether the branch reduction preserves the
 
 The intended interpretation is strict: a candidate should not be accepted only because `maxBranchAmplitudeFraction` drops. It should reduce branch amplitude while keeping two-beat mean CO/SV and the low-preload curve shape close to baseline, and it should hit mainly in the problematic low-preload/high-output beat rather than ordinary normal or HR100 systole.
 
+PR #121 adds an explicit report classification layer for this interpretation:
+
+- `baseline`: tau=0/no-limiter reference rows.
+- `fail`: contamination, waveform regression, mean CO/SV regression, monotonicity breaks, or residual dip/re-rise.
+- `mitigator`: branch envelope improves or the mean curve is preserved, but beat-level branch amplitude or clean return-map slopes are still not root-fixed.
+- `root-fix-candidate`: small per-delta CO/EDV/ESV branch envelope plus clean selected return-map slopes away from the flip threshold.
+
+This is deliberately conservative. The PR #120 `activeReserveCap directMedium` smoke is a strong leading comparator, but its representative CO branch fraction around `0.29` is still residual alternans. It should be read as a mitigator until a wider matrix shows that per-delta branch fractions are small and clean one-beat/two-beat EDV slopes move away from the flip threshold across the low-preload branch.
+
+The matrix markdown now includes a `Per-delta primary branch / slope view` table. Use that table before the scenario summary when making model-fix decisions. The scenario summary is useful for triage, but the per-delta table shows whether improvement is uniform or only moves the problem to another preload point.
+
 Example:
 
 ```bash
@@ -249,6 +260,23 @@ npm run verify:starling-low-preload-matrix -- \
   --max-return-map-points=4 \
   --trace-beats=4 \
   --sample-hz=60
+```
+
+Recommended slope-primary follow-up matrix:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/active-reserve-full-slope-primary \
+  --deltas=0,-900,-1000,-1100,-1200,-1250,-1300,-1400,-1500,-1600 \
+  --dt=0.001,0.0005 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on,off,low \
+  --low-stretch-limiter=none,activeReserveCap \
+  --low-stretch-limiter-scope=lv,ventricles \
+  --active-reserve-preset=directMild,directMedium \
+  --max-return-map-points=8 \
+  --trace-beats=6 \
+  --sample-hz=120
 ```
 
 ## Recommended root-fix experiments
