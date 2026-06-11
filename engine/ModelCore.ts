@@ -136,9 +136,100 @@ export type ModelCoreClampDiagnostics = {
   nodeClampHits: Partial<Record<NodeName, number>>;
   dynamicFlowClampHits: Partial<Record<DynamicEdgeName, number>>;
   valveDiodeClampHits: Partial<Record<ValveName, number>>;
+  sanitizeLastStep: ModelCoreVolumeDeltaAudit;
+  sanitizeCurrentBeat: ModelCoreVolumeDeltaAudit;
+  sanitizeLastBeat: ModelCoreVolumeDeltaAudit;
+  tbvProjectionLastStep: ModelCoreTBVProjectionAudit;
+  tbvProjectionCurrentBeat: ModelCoreTBVProjectionAudit;
+  tbvProjectionLastBeat: ModelCoreTBVProjectionAudit;
 };
 
 export type ModelCoreActiveStressDiagnostics = Partial<Record<Chamber, ActiveStressDebugTerms>>;
+
+export type ModelCoreVolumeDeltaAudit = {
+  signedMl: number;
+  absMl: number;
+  byNodeSignedMl: Partial<Record<NodeName, number>>;
+  byNodeAbsMl: Partial<Record<NodeName, number>>;
+};
+
+export type ModelCoreTBVProjectionAudit = {
+  requestedMl: number;
+  appliedMl: number;
+  absAppliedMl: number;
+  lastBeforeTBVMl: number;
+  lastAfterTBVMl: number;
+  lastExpectedTBVMl: number;
+  lastErrorBeforeMl: number;
+  lastErrorAfterMl: number;
+  byNodeSignedMl: Partial<Record<NodeName, number>>;
+  byNodeAbsMl: Partial<Record<NodeName, number>>;
+};
+
+function emptyVolumeDeltaAudit(): ModelCoreVolumeDeltaAudit {
+  return { signedMl: 0, absMl: 0, byNodeSignedMl: {}, byNodeAbsMl: {} };
+}
+
+function cloneVolumeDeltaAudit(audit: ModelCoreVolumeDeltaAudit): ModelCoreVolumeDeltaAudit {
+  return {
+    signedMl: audit.signedMl,
+    absMl: audit.absMl,
+    byNodeSignedMl: { ...audit.byNodeSignedMl },
+    byNodeAbsMl: { ...audit.byNodeAbsMl },
+  };
+}
+
+function emptyTBVProjectionAudit(): ModelCoreTBVProjectionAudit {
+  return {
+    requestedMl: 0,
+    appliedMl: 0,
+    absAppliedMl: 0,
+    lastBeforeTBVMl: Number.NaN,
+    lastAfterTBVMl: Number.NaN,
+    lastExpectedTBVMl: Number.NaN,
+    lastErrorBeforeMl: Number.NaN,
+    lastErrorAfterMl: Number.NaN,
+    byNodeSignedMl: {},
+    byNodeAbsMl: {},
+  };
+}
+
+function cloneTBVProjectionAudit(audit: ModelCoreTBVProjectionAudit): ModelCoreTBVProjectionAudit {
+  return {
+    requestedMl: audit.requestedMl,
+    appliedMl: audit.appliedMl,
+    absAppliedMl: audit.absAppliedMl,
+    lastBeforeTBVMl: audit.lastBeforeTBVMl,
+    lastAfterTBVMl: audit.lastAfterTBVMl,
+    lastExpectedTBVMl: audit.lastExpectedTBVMl,
+    lastErrorBeforeMl: audit.lastErrorBeforeMl,
+    lastErrorAfterMl: audit.lastErrorAfterMl,
+    byNodeSignedMl: { ...audit.byNodeSignedMl },
+    byNodeAbsMl: { ...audit.byNodeAbsMl },
+  };
+}
+
+function addNodeVolumeDelta(
+  audit: ModelCoreVolumeDeltaAudit,
+  node: NodeName,
+  deltaMl: number,
+): void {
+  if (!Number.isFinite(deltaMl) || Math.abs(deltaMl) <= 1e-12) return;
+  audit.signedMl += deltaMl;
+  audit.absMl += Math.abs(deltaMl);
+  audit.byNodeSignedMl[node] = (audit.byNodeSignedMl[node] ?? 0) + deltaMl;
+  audit.byNodeAbsMl[node] = (audit.byNodeAbsMl[node] ?? 0) + Math.abs(deltaMl);
+}
+
+function addProjectionNodeDelta(
+  audit: ModelCoreTBVProjectionAudit,
+  node: NodeName,
+  deltaMl: number,
+): void {
+  if (!Number.isFinite(deltaMl) || Math.abs(deltaMl) <= 1e-12) return;
+  audit.byNodeSignedMl[node] = (audit.byNodeSignedMl[node] ?? 0) + deltaMl;
+  audit.byNodeAbsMl[node] = (audit.byNodeAbsMl[node] ?? 0) + Math.abs(deltaMl);
+}
 
 type CoronaryExternalPressures = {
   imLAD: number;
@@ -223,10 +314,21 @@ export class ModelCore {
   private nodeClampHits: Partial<Record<NodeName, number>> = {};
   private dynamicFlowClampHits: Partial<Record<DynamicEdgeName, number>> = {};
   private valveDiodeClampHits: Partial<Record<ValveName, number>> = {};
+  private sanitizeLastStepAudit = emptyVolumeDeltaAudit();
+  private sanitizeCurrentBeatAudit = emptyVolumeDeltaAudit();
+  private sanitizeLastBeatAudit = emptyVolumeDeltaAudit();
+  private tbvProjectionLastStepAudit = emptyTBVProjectionAudit();
+  private tbvProjectionCurrentBeatAudit = emptyTBVProjectionAudit();
+  private tbvProjectionLastBeatAudit = emptyTBVProjectionAudit();
   private tbvCorrectionMagThisBeat = 0;
   private tbvCorrectionMagLastBeat = 0;
   private tbvCorrectionLastStepMl = 0;
   private tbvCorrectionEnabled = true;
+  private tbvCorrectionOptions: {
+    gain?: number;
+    maxTotalCorrectionMl?: number;
+    maxNodeVolumeMl?: number;
+  } | null = null;
 
   // Steady-state detection (engine/settling.ts). The detector keeps its OWN
   // small ring of per-beat fingerprints, independent of the 1200-sample raw
@@ -576,6 +678,8 @@ export class ModelCore {
 
   step(dt: number) {
     this.rhsDt = Math.max(dt, 1e-6);
+    this.sanitizeLastStepAudit = emptyVolumeDeltaAudit();
+    this.tbvProjectionLastStepAudit = emptyTBVProjectionAudit();
     this.smoothParams(dt);
 
     // Hemorrhage / fluid ledger (M5a): mL/min -> mL/s. Clamped to a safe range.
@@ -606,12 +710,35 @@ export class ModelCore {
     this.tbvCorrectionMagThisBeat = 0;
     this.tbvCorrectionMagLastBeat = 0;
     this.tbvCorrectionLastStepMl = 0;
+    this.tbvProjectionLastStepAudit = emptyTBVProjectionAudit();
+    this.tbvProjectionCurrentBeatAudit = emptyTBVProjectionAudit();
+    this.tbvProjectionLastBeatAudit = emptyTBVProjectionAudit();
+  }
+
+  resetDebugDiagnostics(): void {
+    this.clampHitCount = 0;
+    this.resetClampDiagnostics();
+    this.resetTBVCorrectionCounters();
+  }
+
+  setTBVCorrectionAuditOptions(options: {
+    gain?: number;
+    maxTotalCorrectionMl?: number;
+    maxNodeVolumeMl?: number;
+  } | null): void {
+    this.tbvCorrectionOptions = options ? { ...options } : null;
   }
 
   private resetClampDiagnostics(): void {
     this.nodeClampHits = {};
     this.dynamicFlowClampHits = {};
     this.valveDiodeClampHits = {};
+    this.sanitizeLastStepAudit = emptyVolumeDeltaAudit();
+    this.sanitizeCurrentBeatAudit = emptyVolumeDeltaAudit();
+    this.sanitizeLastBeatAudit = emptyVolumeDeltaAudit();
+    this.tbvProjectionLastStepAudit = emptyTBVProjectionAudit();
+    this.tbvProjectionCurrentBeatAudit = emptyTBVProjectionAudit();
+    this.tbvProjectionLastBeatAudit = emptyTBVProjectionAudit();
   }
 
   runFor(seconds: number, dt = 0.001, sampleHz = 60, options: RunForOptions = {}): SimSample[] {
@@ -776,6 +903,12 @@ export class ModelCore {
       nodeClampHits: { ...this.nodeClampHits },
       dynamicFlowClampHits: { ...this.dynamicFlowClampHits },
       valveDiodeClampHits: { ...this.valveDiodeClampHits },
+      sanitizeLastStep: cloneVolumeDeltaAudit(this.sanitizeLastStepAudit),
+      sanitizeCurrentBeat: cloneVolumeDeltaAudit(this.sanitizeCurrentBeatAudit),
+      sanitizeLastBeat: cloneVolumeDeltaAudit(this.sanitizeLastBeatAudit),
+      tbvProjectionLastStep: cloneTBVProjectionAudit(this.tbvProjectionLastStepAudit),
+      tbvProjectionCurrentBeat: cloneTBVProjectionAudit(this.tbvProjectionCurrentBeatAudit),
+      tbvProjectionLastBeat: cloneTBVProjectionAudit(this.tbvProjectionLastBeatAudit),
     };
   }
 
@@ -797,6 +930,10 @@ export class ModelCore {
       this.totalBeats++;
       this.tbvCorrectionMagLastBeat = this.tbvCorrectionMagThisBeat;
       this.tbvCorrectionMagThisBeat = 0;
+      this.sanitizeLastBeatAudit = cloneVolumeDeltaAudit(this.sanitizeCurrentBeatAudit);
+      this.sanitizeCurrentBeatAudit = emptyVolumeDeltaAudit();
+      this.tbvProjectionLastBeatAudit = cloneTBVProjectionAudit(this.tbvProjectionCurrentBeatAudit);
+      this.tbvProjectionCurrentBeatAudit = emptyTBVProjectionAudit();
       this.beatAccum = this.newBeatAccum(beat, s);
     }
     const a = this.beatAccum;
@@ -1865,9 +2002,12 @@ export class ModelCore {
         x[ix] = clamp(x[ix], 1, 3000);
       }
       if (Math.abs(x[ix] - before) > 1e-9) {
-          if (this.clampHitCount < 10) console.warn(`Clamp hit on node ${name}: from ${before.toFixed(3)} to ${x[ix].toFixed(3)} at t=${this.t.toFixed(3)}`);
-          this.clampHitCount++;
-          this.nodeClampHits[name] = (this.nodeClampHits[name] ?? 0) + 1;
+        const delta = x[ix] - before;
+        if (this.clampHitCount < 10) console.warn(`Clamp hit on node ${name}: from ${before.toFixed(3)} to ${x[ix].toFixed(3)} at t=${this.t.toFixed(3)}`);
+        this.clampHitCount++;
+        this.nodeClampHits[name] = (this.nodeClampHits[name] ?? 0) + 1;
+        addNodeVolumeDelta(this.sanitizeLastStepAudit, name, delta);
+        addNodeVolumeDelta(this.sanitizeCurrentBeatAudit, name, delta);
       }
     }
     for (const e of dynamicEdgeNames) {
@@ -1913,11 +2053,28 @@ export class ModelCore {
     const pack = this.computePressures(this.x);
     const currentTBV = this.totalBloodVolume(pack);
     const error = this.expectedTBV - currentTBV;
-    const gain = options.gain ?? 0.35;
-    const maxTotal = options.maxTotalCorrectionMl ?? 0.25;
+    const resolvedOptions = { ...(this.tbvCorrectionOptions ?? {}), ...options };
+    const gain = resolvedOptions.gain ?? 0.35;
+    const maxTotal = resolvedOptions.maxTotalCorrectionMl ?? 0.25;
     const correction = clamp(error * gain, -maxTotal, maxTotal);
     this.tbvCorrectionLastStepMl = Math.abs(correction);
-    if (Math.abs(correction) < 1e-9) return;
+    const stepAudit = emptyTBVProjectionAudit();
+    stepAudit.requestedMl = correction;
+    stepAudit.lastBeforeTBVMl = currentTBV;
+    stepAudit.lastExpectedTBVMl = this.expectedTBV;
+    stepAudit.lastErrorBeforeMl = error;
+    this.tbvProjectionLastStepAudit = stepAudit;
+    this.tbvProjectionCurrentBeatAudit.requestedMl += correction;
+    this.tbvProjectionCurrentBeatAudit.lastBeforeTBVMl = currentTBV;
+    this.tbvProjectionCurrentBeatAudit.lastExpectedTBVMl = this.expectedTBV;
+    this.tbvProjectionCurrentBeatAudit.lastErrorBeforeMl = error;
+    if (Math.abs(correction) < 1e-9) {
+      stepAudit.lastAfterTBVMl = currentTBV;
+      stepAudit.lastErrorAfterMl = error;
+      this.tbvProjectionCurrentBeatAudit.lastAfterTBVMl = currentTBV;
+      this.tbvProjectionCurrentBeatAudit.lastErrorAfterMl = error;
+      return;
+    }
 
     const entries = tbvCorrectionNodeNames.map((name) => {
       const node = this.nodes[this.nodeIndex.get(name)!];
@@ -1929,7 +2086,7 @@ export class ModelCore {
     });
     let applied = 0;
     let remaining = correction;
-    const maxNode = options.maxNodeVolumeMl ?? 0.1;
+    const maxNode = resolvedOptions.maxNodeVolumeMl ?? 0.1;
     for (let iter = 0; iter < entries.length && Math.abs(remaining) > 1e-9; iter++) {
       const candidates = entries.filter((e) => {
         if (remaining > 0) return this.x[e.ix] < e.bounds.max - 1e-9;
@@ -1948,14 +2105,28 @@ export class ModelCore {
         if (Math.abs(delta) < 1e-12) continue;
         const beforeVolume = this.x[e.ix];
         this.x[e.ix] = clamp(beforeVolume + delta, e.bounds.min, e.bounds.max);
-        iterApplied += this.x[e.ix] - beforeVolume;
+        const appliedDelta = this.x[e.ix] - beforeVolume;
+        iterApplied += appliedDelta;
+        addProjectionNodeDelta(stepAudit, e.node.name as NodeName, appliedDelta);
+        addProjectionNodeDelta(this.tbvProjectionCurrentBeatAudit, e.node.name as NodeName, appliedDelta);
       }
       applied += iterApplied;
       remaining -= iterApplied;
       if (Math.abs(iterApplied) < 1e-12) break;
     }
+    const afterPack = this.computePressures(this.x);
+    const afterTBV = this.totalBloodVolume(afterPack);
+    const afterError = this.expectedTBV - afterTBV;
     this.tbvCorrectionLastStepMl = Math.abs(applied);
     this.tbvCorrectionMagThisBeat += Math.abs(applied);
+    stepAudit.appliedMl = applied;
+    stepAudit.absAppliedMl = Math.abs(applied);
+    stepAudit.lastAfterTBVMl = afterTBV;
+    stepAudit.lastErrorAfterMl = afterError;
+    this.tbvProjectionCurrentBeatAudit.appliedMl += applied;
+    this.tbvProjectionCurrentBeatAudit.absAppliedMl += Math.abs(applied);
+    this.tbvProjectionCurrentBeatAudit.lastAfterTBVMl = afterTBV;
+    this.tbvProjectionCurrentBeatAudit.lastErrorAfterMl = afterError;
   }
 
   /**

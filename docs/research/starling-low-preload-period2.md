@@ -190,6 +190,30 @@ Interpretation guardrails:
 - A strong `fiso` result does not license a hidden force-length reshape. Any fIso/composite-gain change still needs normal/HR100 waveform gates and validation.
 - Treat branch amplitude, clamp activity, and normal/HR100 waveform deltas together. Reducing period-2 while increasing clamp hits or distorting LVP/QAo/dPdt is not a root fix.
 
+After PR #118 the same workflow adds a clamp/TBV projection contamination audit:
+
+- `sanitizeState()` now reports quantitative signed and absolute volume/pressure repair deltas, aggregated by node for the last step, current beat, and last beat.
+- TBV projection now reports requested and applied correction, before/after TBV error, and node-level applied deltas.
+- `--tbv-correction=on|off|low` lets debug and matrix runs compare the current default projection, a projection-off negative control after retargeting, and a low-gain diagnostic projection mode. The default model remains `on`.
+- Each point includes a `tbvAudit` block and a `clean` / `contaminated` classification. Contamination means clamp repair or TBV projection moved volume by a non-negligible amount during the measured settle window.
+- Matrix summaries include `maxSanitizeAbsMl`, `maxProjectionAppliedMl`, `contaminatedPointCount`, and correction-mode comparisons of branch amplitude.
+
+Use this audit before interpreting `lambdaAct`, Kd/aInf, or fIso changes as root fixes. If period-2 branch amplitude persists with `tbv-correction=off` and clamp-clean points, the active-stretch gain hypothesis remains the leading next target. If branch amplitude changes mainly with projection mode or clamp contamination, first inspect soft floors, conservative state repair, or projection timing before changing active-stress gain.
+
+Example:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/clamp-tbv \
+  --deltas=0,-1200,-1250,-1300,-1400 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on,off,low \
+  --max-return-map-points=3 \
+  --trace-beats=4 \
+  --sample-hz=60
+```
+
 ## Recommended root-fix experiments
 
 The next model-level PR should be evidence-first. Do not start by hiding points, changing the Starling fit, or lowering `betaLambda` globally.

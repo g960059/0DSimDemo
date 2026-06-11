@@ -92,6 +92,27 @@ npm run verify:starling-low-preload-matrix -- \
 
 The first pass records branch amplitude, clamp, valve, period, and active-stress diagnostics with return maps disabled. The second pass replays each selected scenario for seeded-state continuity, but computes EDV-section diagnostics only for selected suspicious deltas with both `volumeLambdaActFixed` and `volumeLambdaActReset` return-map modes. This is the preferred handoff artifact for comparing `tauLambdaActSec` scopes before any default model change.
 
+PR #118 adds a clamp/TBV projection contamination axis to that same matrix workflow:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/clamp-tbv \
+  --deltas=0,-1200,-1250,-1300,-1400 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on,off,low \
+  --max-return-map-points=3 \
+  --trace-beats=4 \
+  --sample-hz=60
+```
+
+`tbv-correction=on` is the shipped behavior. `off` disables continuous TBV projection after the target-volume retarget step and is a negative-control diagnostic, not a runtime proposal. `low` keeps projection enabled with debug-only low gain/caps. The report adds per-point `tbvAudit` fields for sanitize repair and TBV projection movement, plus correction-mode summaries for branch amplitude and contamination counts.
+
+Interpretation:
+
+- If period-2 and branch amplitude remain in clamp-clean points with projection off, prioritize active-stretch gain fixes such as Kd/aInf or fIso/composite-gain shaping.
+- If branch amplitude changes mostly with projection mode, or high-amplitude points are contaminated by hard repair/projection movement, inspect soft floors, conservative repair, and projection timing before changing active-stress gain.
+
 ## Preliminary local result
 
 The run above completed with `points=5 period2=4 maxAdjacentDelta=0.592 maxReverseMl=0`. Scenario summary from the local report:
