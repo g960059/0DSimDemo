@@ -666,9 +666,8 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scaleRef = useRef({ maxV: 300, maxP: 200 });
-  const isOnscreen = useOnscreen(containerRef);
   const isDocumentVisible = useDocumentVisible();
-  const canAnimate = isOnscreen && isDocumentVisible;
+  const canAnimate = isDocumentVisible;
   const instanceKey = useMemo(() => chartInstanceKey(instances), [instances]);
 
   useEffect(() => {
@@ -678,15 +677,18 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let width = containerRef.current.clientWidth;
-    let height = containerRef.current.clientHeight;
+    let width = 0;
+    let height = 0;
     const dpr = window.devicePixelRatio || 1;
     
     const resize = () => {
-        width = containerRef.current!.clientWidth;
-        height = containerRef.current!.clientHeight;
-        canvas.width = width * dpr;
-        canvas.height = height * dpr;
+        const container = containerRef.current;
+        if (!container) return;
+        const rect = container.getBoundingClientRect();
+        width = Math.max(0, Math.floor(rect.width || container.clientWidth));
+        height = Math.max(0, Math.floor(rect.height || container.clientHeight));
+        canvas.width = Math.max(1, Math.round(width * dpr));
+        canvas.height = Math.max(1, Math.round(height * dpr));
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         canvas.style.width = `${width}px`;
         canvas.style.height = `${height}px`;
@@ -698,6 +700,11 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
 
     const render = () => {
       if (stopped) return;
+      if (width <= 0 || height <= 0) {
+        resize();
+        animationFrameId = requestAnimationFrame(render);
+        return;
+      }
       const xScale = d3.scaleLinear().domain([0, 300]).range([50, width - 15]);
       const yScale = d3.scaleLinear().domain([0, 200]).range([height - 35, 25]);
 
@@ -970,9 +977,8 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const scaleRef = useRef({ yMin: 0, yMax: 160 });
-    const isOnscreen = useOnscreen(containerRef);
     const isDocumentVisible = useDocumentVisible();
-    const canAnimate = isOnscreen && isDocumentVisible;
+    const canAnimate = isDocumentVisible;
     const instanceKey = useMemo(() => chartInstanceKey(instances), [instances]);
 
     useEffect(() => {
@@ -982,15 +988,18 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        let width = containerRef.current.clientWidth;
-        let height = containerRef.current.clientHeight;
+        let width = 0;
+        let height = 0;
         const dpr = window.devicePixelRatio || 1;
         
         const resize = () => {
-            width = containerRef.current!.clientWidth;
-            height = containerRef.current!.clientHeight;
-            canvas.width = width * dpr;
-            canvas.height = height * dpr;
+            const container = containerRef.current;
+            if (!container) return;
+            const rect = container.getBoundingClientRect();
+            width = Math.max(0, Math.floor(rect.width || container.clientWidth));
+            height = Math.max(0, Math.floor(rect.height || container.clientHeight));
+            canvas.width = Math.max(1, Math.round(width * dpr));
+            canvas.height = Math.max(1, Math.round(height * dpr));
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             canvas.style.width = `${width}px`;
             canvas.style.height = `${height}px`;
@@ -1002,6 +1011,11 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
 
         const render = () => {
             if (stopped) return;
+            if (width <= 0 || height <= 0) {
+                resize();
+                animationFrameId = requestAnimationFrame(render);
+                return;
+            }
             ctx.clearRect(0, 0, width, height);
             
             let currentGlobalTime = 0;
