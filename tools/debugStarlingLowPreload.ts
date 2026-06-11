@@ -19,6 +19,7 @@ type DebugOptions = {
   lambdaActTerms?: LambdaActTerms;
   lowStretchLimiterMode?: LowStretchLimiterMode;
   lowStretchLimiterScope?: LambdaActScope;
+  activeReservePreset?: ActiveReservePreset;
   traceBeats: number;
   sampleHz: number;
   returnMapMode: ReturnMapModeOption;
@@ -62,7 +63,12 @@ type ActiveBeatSummary = {
   aInfCapMean: number;
   aInfLimiterDeltaMean: number;
   activeTargetLimiterMean: number;
+  activeTargetLimiterMin: number;
+  activeTargetLimiterHitFraction: number;
   sigmaActTargetRawMean: number;
+  sigmaActTargetRawMax: number;
+  sigmaActTargetMax: number;
+  sigmaActTargetReductionFractionMean: number;
   pressureFloorHitFraction: number;
 };
 
@@ -104,6 +110,7 @@ type ReturnMapModeKey = "volumeLambdaActFixed" | "volumeLambdaActReset";
 export type ReturnMapModeOption = "none" | "fixed" | "reset" | "both";
 export type LambdaActScope = "lv" | "ventricles" | "all";
 export type TBVCorrectionMode = "on" | "off" | "low";
+export type ActiveReservePreset = "none" | "directMild" | "directMedium" | "thresholdMild" | "thresholdMedium";
 
 type ReturnMapPhaseDiagnostic = {
   measuredBeatPlus: number | null;
@@ -245,7 +252,7 @@ type DebugSummary = {
 };
 
 type DebugReport = {
-  schemaVersion: 9;
+  schemaVersion: 10;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -256,6 +263,7 @@ type DebugReport = {
   lambdaActTerms: LambdaActTerms;
   lowStretchLimiterMode: LowStretchLimiterMode;
   lowStretchLimiterScope: LambdaActScope;
+  activeReservePreset: ActiveReservePreset;
   traceBeats: number;
   sampleHz: number;
   returnMapMode: ReturnMapModeOption;
@@ -296,6 +304,7 @@ const DEFAULT_LAMBDA_ACT_SCOPE: LambdaActScope = "all";
 const DEFAULT_LAMBDA_ACT_TERMS: LambdaActTerms = "kd+fiso";
 const DEFAULT_LOW_STRETCH_LIMITER_MODE: LowStretchLimiterMode = "none";
 const DEFAULT_LOW_STRETCH_LIMITER_SCOPE: LambdaActScope = "lv";
+const DEFAULT_ACTIVE_RESERVE_PRESET: ActiveReservePreset = "directMedium";
 const DEFAULT_SAMPLE_HZ = 120;
 const DEFAULT_RETURN_MAP_MODE: ReturnMapModeOption = "both";
 const DEFAULT_TBV_CORRECTION_MODE: TBVCorrectionMode = "on";
@@ -319,6 +328,7 @@ const CSV_COLUMNS = [
   "lambdaActTerms",
   "lowStretchLimiter",
   "lowStretchLimiterScope",
+  "activeReservePreset",
   "tbvCorrectionMode",
   "deltaVolumeMl",
   "targetVolumeMl",
@@ -339,7 +349,12 @@ const CSV_COLUMNS = [
   "LV_aInfCapMean",
   "LV_aInfLimiterDeltaMean",
   "LV_activeTargetLimiterMean",
+  "LV_activeTargetLimiterMin",
+  "LV_activeTargetLimiterHitFraction",
   "LV_sigmaActTargetRawMean",
+  "LV_sigmaActTargetRawMax",
+  "LV_sigmaActTargetMax",
+  "LV_sigmaActTargetReductionFractionMean",
   "LV_lowStretchLimiterGateMean",
   "LV_sigmaActMean",
   "LV_fIsoMean",
@@ -375,10 +390,11 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
   const lambdaActTerms = opts.lambdaActTerms ?? DEFAULT_LAMBDA_ACT_TERMS;
   const lowStretchLimiterMode = opts.lowStretchLimiterMode ?? DEFAULT_LOW_STRETCH_LIMITER_MODE;
   const lowStretchLimiterScope = opts.lowStretchLimiterScope ?? DEFAULT_LOW_STRETCH_LIMITER_SCOPE;
+  const activeReservePreset = effectiveActiveReservePreset(lowStretchLimiterMode, opts.activeReservePreset);
   const dtScenarios = lambdaActTauSecValues.flatMap((tau) => dtValues.map((dt) => runDtScenario(opts, dt, tau)));
   const primary = dtScenarios[0] ?? runDtScenario(opts, 0.001, 0);
   return {
-    schemaVersion: 9,
+    schemaVersion: 10,
     generatedAt: new Date().toISOString(),
     measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve/TBV-projection diagnostics; branch-amplitude primary gate; EDV-section volume-preserving LV/PVein one-beat/two-beat return-map slopes with lambdaAct consistency modes; dt and off-by-default lambdaAct sensitivity",
     targetVolumeMl: opts.targetVolumeMl,
@@ -389,6 +405,7 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
     lambdaActTerms,
     lowStretchLimiterMode,
     lowStretchLimiterScope,
+    activeReservePreset,
     traceBeats: opts.traceBeats,
     sampleHz: opts.sampleHz,
     returnMapMode: opts.returnMapMode,
@@ -431,6 +448,7 @@ export function reportToMarkdown(report: DebugReport): string {
   lines.push(`lambdaAct terms: ${report.lambdaActTerms}`);
   lines.push(`low-stretch limiter: ${report.lowStretchLimiterMode}`);
   lines.push(`low-stretch limiter scope: ${report.lowStretchLimiterScope}`);
+  lines.push(`active reserve preset: ${report.activeReservePreset}`);
   lines.push(`return-map mode: ${report.returnMapMode}`);
   lines.push(`TBV correction mode: ${report.tbvCorrectionMode}`);
   if (report.maxReturnMapPoints != null) lines.push(`max return-map points: ${report.maxReturnMapPoints}`);
@@ -547,7 +565,7 @@ export function reportToMarkdown(report: DebugReport): string {
   lines.push("- Branch amplitude and branch amplitude fraction are classifier-independent high/low beat measurements from the trace; treat them as the primary stabilization signal before interpreting period labels or local slopes.");
   lines.push("- `volumeLambdaActFixed` keeps the active-stretch memory fixed after a volume perturbation; `volumeLambdaActReset` resets LV `lambdaAct` to the post-perturbation raw LV stretch before measuring the return map. The latter is a quasi-static consistency check for lambdaAct experiments, not a model change.");
   lines.push("- `tau lambdaAct s` is an off-by-default experiment. `tau=0` is the shipped model. Positive tau values lag only selected active-stress length inputs (`kd`, `fiso`, or `kd+fiso`), not passive pressure, geometry, gOver, force-velocity, or valves.");
-  lines.push("- `low-stretch limiter` is an off-by-default comparator. `aInfCap` caps activation only downward at low raw lambda; `activeReserveCap` multiplies active target by a factor <= 1 at low raw lambda, or only above `lowStretchLimiterActivationThreshold` when that optional threshold is configured. Neither changes passive geometry, valves, or default dynamics.");
+  lines.push("- `low-stretch limiter` is an off-by-default comparator. `aInfCap` caps activation only downward at low raw lambda; `activeReserveCap` multiplies active target by a factor <= 1 at low raw lambda, or only above `lowStretchLimiterActivationThreshold` when that optional threshold is configured. The `activeReservePreset` label records the debug-only strength/threshold preset used by this run. Neither changes passive geometry, valves, or default dynamics.");
   lines.push("- Smaller-dt persistence supports a model-dynamics interpretation; strong dt sensitivity supports an explicit-coupling/numerical interpretation.");
   lines.push("");
   return `${lines.join("\n")}\n`;
@@ -566,6 +584,7 @@ export function reportToCsv(report: DebugReport): string {
           scenario.lambdaActTerms,
           report.lowStretchLimiterMode,
           report.lowStretchLimiterScope,
+          report.activeReservePreset,
           point.tbvAudit.correctionMode,
           point.deltaVolumeMl,
           point.targetVolumeMl,
@@ -586,7 +605,12 @@ export function reportToCsv(report: DebugReport): string {
           lv?.aInfCapMean ?? "",
           lv?.aInfLimiterDeltaMean ?? "",
           lv?.activeTargetLimiterMean ?? "",
+          lv?.activeTargetLimiterMin ?? "",
+          lv?.activeTargetLimiterHitFraction ?? "",
           lv?.sigmaActTargetRawMean ?? "",
+          lv?.sigmaActTargetRawMax ?? "",
+          lv?.sigmaActTargetMax ?? "",
+          lv?.sigmaActTargetReductionFractionMean ?? "",
           lv?.lowStretchLimiterGateMean ?? "",
           lv?.sigmaActMean ?? "",
           lv?.fIsoMean ?? "",
@@ -618,10 +642,12 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
   const tbvCorrectionMode = opts.tbvCorrectionMode ?? DEFAULT_TBV_CORRECTION_MODE;
   const lowStretchLimiterMode = opts.lowStretchLimiterMode ?? DEFAULT_LOW_STRETCH_LIMITER_MODE;
   const lowStretchLimiterScope = opts.lowStretchLimiterScope ?? DEFAULT_LOW_STRETCH_LIMITER_SCOPE;
+  const activeReservePreset = effectiveActiveReservePreset(lowStretchLimiterMode, opts.activeReservePreset);
   const params = paramsWithLowStretchLimiter(
     paramsWithLambdaActTau(DEFAULT_PARAMS, lambdaActTauSec, opts.lambdaActScope, lambdaActTerms),
     lowStretchLimiterMode,
     lowStretchLimiterScope,
+    activeReservePreset,
   );
   const req: StarlingSweepRequest = {
     requestId: "debug-starling-low-preload",
@@ -811,6 +837,7 @@ export function paramsWithLowStretchLimiter(
   params: CoreRuntimeParams,
   mode: LowStretchLimiterMode,
   scope: LambdaActScope,
+  activeReservePreset: ActiveReservePreset = DEFAULT_ACTIVE_RESERVE_PRESET,
 ): CoreRuntimeParams {
   const limiter = mode === "aInfCap" || mode === "activeReserveCap" ? mode : "none";
   if (limiter === "none") return params;
@@ -827,6 +854,7 @@ export function paramsWithLowStretchLimiter(
       active: {
         ...((nodeOverrides[chamber]?.active as Partial<ActiveChamberParams> | undefined) ?? {}),
         lowStretchLimiter: limiter,
+        ...activeReservePresetOverrides(limiter, activeReservePreset),
       },
     };
   }
@@ -834,6 +862,33 @@ export function paramsWithLowStretchLimiter(
     ...params,
     nodeOverrides,
   };
+}
+
+function activeReservePresetOverrides(
+  limiter: LowStretchLimiterMode,
+  preset: ActiveReservePreset,
+): Partial<ActiveChamberParams> {
+  if (limiter !== "activeReserveCap") return {};
+  if (preset === "directMild") {
+    return { lowStretchLimiterStrength: 0.12, lowStretchLimiterActivationThreshold: undefined };
+  }
+  if (preset === "none") {
+    return { lowStretchLimiterStrength: 0, lowStretchLimiterActivationThreshold: undefined };
+  }
+  if (preset === "directMedium") {
+    return { lowStretchLimiterStrength: 0.22, lowStretchLimiterActivationThreshold: undefined };
+  }
+  if (preset === "thresholdMild") {
+    return { lowStretchLimiterStrength: 0.22, lowStretchLimiterActivationThreshold: 0.65 };
+  }
+  return { lowStretchLimiterStrength: 0.35, lowStretchLimiterActivationThreshold: 0.55 };
+}
+
+function effectiveActiveReservePreset(
+  limiter: LowStretchLimiterMode,
+  preset: ActiveReservePreset | undefined,
+): ActiveReservePreset {
+  return limiter === "activeReserveCap" ? preset ?? DEFAULT_ACTIVE_RESERVE_PRESET : "none";
 }
 
 function applyTBVCorrectionMode(core: ModelCore, mode: TBVCorrectionMode): void {
@@ -1322,7 +1377,15 @@ function summarizeActive(entries: TraceSample[]): Partial<Record<Chamber, Active
       aInfCapMean: meanNumbers(terms.map((term) => term.aInfCap)),
       aInfLimiterDeltaMean: meanNumbers(terms.map((term) => term.aInfLimiterDelta)),
       activeTargetLimiterMean: meanNumbers(terms.map((term) => term.activeTargetLimiter)),
+      activeTargetLimiterMin: Math.min(...terms.map((term) => term.activeTargetLimiter).filter(Number.isFinite)),
+      activeTargetLimiterHitFraction: meanNumbers(terms.map((term) => term.activeTargetLimiter < 0.999 ? 1 : 0)),
       sigmaActTargetRawMean: meanNumbers(terms.map((term) => term.sigmaActTargetRaw)),
+      sigmaActTargetRawMax: Math.max(...terms.map((term) => term.sigmaActTargetRaw).filter(Number.isFinite)),
+      sigmaActTargetMax: Math.max(...terms.map((term) => term.sigmaActTarget).filter(Number.isFinite)),
+      sigmaActTargetReductionFractionMean: meanNumbers(terms.map((term) => {
+        const raw = Math.max(term.sigmaActTargetRaw, 1e-9);
+        return Math.max(0, term.sigmaActTargetRaw - term.sigmaActTarget) / raw;
+      })),
       pressureFloorHitFraction: meanNumbers(terms.map((term) => term.pressureFloorHit01)),
     };
   }
@@ -1494,6 +1557,7 @@ export function parseLowPreloadDebugArgs(args: string[]): DebugOptions {
     lambdaActTerms: DEFAULT_LAMBDA_ACT_TERMS,
     lowStretchLimiterMode: DEFAULT_LOW_STRETCH_LIMITER_MODE,
     lowStretchLimiterScope: DEFAULT_LOW_STRETCH_LIMITER_SCOPE,
+    activeReservePreset: DEFAULT_ACTIVE_RESERVE_PRESET,
     traceBeats: 10,
     sampleHz: DEFAULT_SAMPLE_HZ,
     returnMapMode: DEFAULT_RETURN_MAP_MODE,
@@ -1511,6 +1575,7 @@ export function parseLowPreloadDebugArgs(args: string[]): DebugOptions {
     else if (key === "--lambda-act-terms" && value) opts.lambdaActTerms = parseLambdaActTerms(value);
     else if (key === "--low-stretch-limiter" && value) opts.lowStretchLimiterMode = parseLowStretchLimiterMode(value);
     else if (key === "--low-stretch-limiter-scope" && value) opts.lowStretchLimiterScope = parseLambdaActScope(value);
+    else if (key === "--active-reserve-preset" && value) opts.activeReservePreset = parseActiveReservePreset(value);
     else if (key === "--return-map-mode" && value) opts.returnMapMode = parseReturnMapMode(value);
     else if (key === "--branch-only") opts.returnMapMode = "none";
     else if (key === "--max-return-map-points" && value) opts.maxReturnMapPoints = Math.max(0, Math.floor(Number(value)));
@@ -1554,6 +1619,19 @@ function parseLowStretchLimiterMode(value: string): LowStretchLimiterMode {
   throw new Error(`Invalid low-stretch limiter mode: ${value}`);
 }
 
+function parseActiveReservePreset(value: string): ActiveReservePreset {
+  if (
+    value === "none"
+    || value === "directMild"
+    || value === "directMedium"
+    || value === "thresholdMild"
+    || value === "thresholdMedium"
+  ) {
+    return value;
+  }
+  throw new Error(`Invalid active reserve preset: ${value}`);
+}
+
 function parseNumberList(value: string): number[] {
   return value.split(",").map((v) => Number(v.trim())).filter(Number.isFinite);
 }
@@ -1565,6 +1643,7 @@ function printHelp(): void {
     "       [--deltas=0,-900,-1000,-1100] [--dt=0.001,0.0005,0.002] [--lambda-act-tau=0,0.15,0.25,0.4]",
     "       [--lambda-act-scope=lv|ventricles|all] [--lambda-act-terms=kd|fiso|kd+fiso]",
     "       [--low-stretch-limiter=none|aInfCap|activeReserveCap] [--low-stretch-limiter-scope=lv|ventricles|all]",
+    "       [--active-reserve-preset=directMild|directMedium|thresholdMild|thresholdMedium]",
     "       [--return-map-mode=none|fixed|reset|both] [--branch-only]",
     "       [--tbv-correction=on|off|low]",
     "       [--max-return-map-points=4] [--quiet-clamp-log] [--trace-beats=10] [--sample-hz=120]",

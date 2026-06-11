@@ -123,6 +123,7 @@ npm run verify:starling-low-preload-matrix -- \
   --tbv-correction=on,off \
   --low-stretch-limiter=none,aInfCap,activeReserveCap \
   --low-stretch-limiter-scope=lv \
+  --active-reserve-preset=directMild,directMedium,thresholdMild,thresholdMedium \
   --max-return-map-points=4 \
   --trace-beats=4 \
   --sample-hz=60
@@ -134,6 +135,28 @@ This does not change default dynamics. It deliberately implements conservative a
 - `activeReserveCap`: low-raw-lambda active-target multiplier. By default it directly caps low-stretch target force; if an activation threshold is configured, it becomes high-activation gated. It can only reduce `sigmaActTarget`.
 
 We are not testing the unguarded `phi(lambda)` Kd slope-limiter as a merge candidate because it can make `phi(lambda) > lambda` at low stretch, lower `Kd`, and raise calcium sensitivity/active force. If a Kd slope-cap arm is revisited, it needs a level/active-reserve guard and separate validation.
+
+PR #120 expands this into an activeReserveCap tuning matrix. It adds `directMild`, `directMedium`, `thresholdMild`, and `thresholdMedium` presets, plus shape-preservation gates:
+
+- mean CO/SV error versus the no-limiter baseline at matching deltas
+- low-preload monotonicity violations and dip/re-rise score
+- low-preload slope ratio versus baseline
+- active-reserve hit fraction, minimum active scale, and sigmaActTarget reduction fraction
+
+This is meant to answer the model-team concern that activeReserveCap might simply reduce pump output instead of stabilizing the branch. A good candidate should reduce CO/ESV branch amplitude while preserving period-mean CO/SV and the low-preload Starling limb, with minimal normal/HR100 waveform delta and no increase in sanitize/TBV projection contamination, valve reverse volume, or dynamic-flow clamp activity.
+
+Representative PR #120 smoke (`deltas=0,-1200,-1250,-1300,-1400`, `dt=0.001`, `tbv-correction=on,off`, LV scope) showed:
+
+| limiter | preset | TBV correction | CO branch frac | ESV branch frac | mean CO err | dip/re-rise | active hit frac | min scale | normal/HR100 max delta | contaminated |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| none | none | on | 0.5978 | 0.4602 | 0.0000 | 1.6648 | 0.000 | 1.000 | 0.0000 | 0 |
+| activeReserveCap | directMild | on | 0.5448 | 0.3761 | 0.0036 | 0.0000 | 0.750 | 0.880 | 0.0132 | 0 |
+| activeReserveCap | directMedium | on | 0.2945 | 0.1823 | 0.0041 | 0.0000 | 0.729 | 0.780 | 0.0099 | 0 |
+| activeReserveCap | thresholdMild/Medium | on | 0.5978 | 0.4602 | 0.0000 | 1.6648 | 0.000 | 1.000 | 0.0000 | 0 |
+| none | none | off | 0.6085 | 0.4662 | 0.0000 | 0.0000 | 0.000 | 1.000 | 0.0000 | 0 |
+| activeReserveCap | directMedium | off | 0.2935 | 0.1816 | 0.0041 | 0.0000 | 0.729 | 0.780 | 0.0099 | 0 |
+
+This is not a default-adoption decision. It means direct activeReserveCap remains the leading comparator to send into a wider matrix; threshold presets may need lower thresholds or a different trigger if they are intended to act in this low-preload branch.
 
 ## Preliminary local result
 
@@ -165,7 +188,7 @@ PR #114 updates the report so reviewers can avoid this misread:
 
 ## Review questions for model team
 
-1. Do `aInfCap` or `activeReserveCap` reduce clean-point branch amplitude without increasing dynamic-flow clamp, valve reverse volume, sanitize/projection contamination, or normal/HR100 waveform deltas?
+1. Do `aInfCap` or activeReserveCap presets reduce clean-point branch amplitude without increasing dynamic-flow clamp, valve reverse volume, sanitize/projection contamination, or normal/HR100 waveform deltas?
 2. Which acceptance metric should gate default adoption: period-2 count, branch amplitude, signed one-beat slope, two-beat same-phase slope, clamp activity, or a combination?
 3. Should `lambdaAct` apply to all active chambers or initially only ventricles?
 4. What tau range is physiologically defensible for length-dependent activation filtering?
@@ -181,4 +204,5 @@ Do not adopt `lambdaAct` or the low-stretch limiter arms as defaults in this PR.
 - Guyton/Starling residuals do not regress
 - nominal valve reverse volumes do not increase
 - low-preload period-2 branch amplitude and clamp activity decrease
+- low-preload period-mean CO/SV and curve shape are preserved; branch suppression by flattening the whole limb is not acceptable
 - signed return-map slopes move away from the flip threshold where the dynamics are smooth enough to interpret

@@ -218,6 +218,7 @@ After PR #119 the same branch/matrix workflow can compare off-by-default low-str
 
 - `--low-stretch-limiter=none|aInfCap|activeReserveCap`
 - `--low-stretch-limiter-scope=lv|ventricles|all`
+- `--active-reserve-preset=directMild|directMedium|thresholdMild|thresholdMedium`
 
 These are diagnostic comparator arms only. They do not change shipped dynamics unless explicitly enabled through debug parameters:
 
@@ -225,6 +226,14 @@ These are diagnostic comparator arms only. They do not change shipped dynamics u
 - `activeReserveCap` applies a low-raw-lambda active-target multiplier `<= 1`. By default it is a direct low-stretch target cap; if `lowStretchLimiterActivationThreshold` is provided, it becomes high-activation gated. It can only reduce `sigmaActTarget`.
 
 This intentionally avoids the unguarded `phi(lambda)` Kd slope-limiter proposal where low-lambda `phi(lambda) > lambda` could lower `Kd`, raise calcium sensitivity, and worsen low-volume overcontraction/clamp activity. The first acceptance screen for these comparator arms is branch-amplitude reduction with no increase in sanitize/projection contamination, dynamic-flow clamp activity, valve reverse volume, or normal/HR100 waveform distortion.
+
+After PR #120 the matrix also reports whether the branch reduction preserves the actual Starling shape:
+
+- `meanCOLErrorFractionVsBaseline` and `meanSVLErrorFractionVsBaseline` compare each candidate to the no-limiter baseline at matching deltas.
+- `lowPreloadMonotonicityViolations`, `dipReRiseScoreLMin`, and `lowPreloadSlopeRatioVsBaseline` check whether the low-preload limb remains interpretable rather than merely flattening or hiding the oscillation.
+- `maxActiveReserveHitFraction`, `minActiveReserveScale`, and `maxSigmaActTargetReductionFraction` show how often and how strongly `activeReserveCap` is actually cutting `sigmaActTarget`.
+
+The intended interpretation is strict: a candidate should not be accepted only because `maxBranchAmplitudeFraction` drops. It should reduce branch amplitude while keeping two-beat mean CO/SV and the low-preload curve shape close to baseline, and it should hit mainly in the problematic low-preload/high-output beat rather than ordinary normal or HR100 systole.
 
 Example:
 
@@ -236,6 +245,7 @@ npm run verify:starling-low-preload-matrix -- \
   --tbv-correction=on,off \
   --low-stretch-limiter=none,aInfCap,activeReserveCap \
   --low-stretch-limiter-scope=lv \
+  --active-reserve-preset=directMild,directMedium,thresholdMild,thresholdMedium \
   --max-return-map-points=4 \
   --trace-beats=4 \
   --sample-hz=60

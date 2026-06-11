@@ -10,6 +10,7 @@ import {
   paramsWithLowStretchLimiter,
   runLowPreloadDebug,
   selectSuspiciousPointIndices,
+  type ActiveReservePreset,
   type LambdaActScope,
   type TBVCorrectionMode,
 } from "@/tools/debugStarlingLowPreload";
@@ -27,6 +28,7 @@ type MatrixOptions = {
   lambdaActTermsValues: LambdaActTerms[];
   lowStretchLimiterModes: LowStretchLimiterMode[];
   lowStretchLimiterScopes: LambdaActScope[];
+  activeReservePresets: ActiveReservePreset[];
   tbvCorrectionModes: TBVCorrectionMode[];
   maxReturnMapPoints: number;
   traceBeats: number;
@@ -69,16 +71,29 @@ type MatrixScenario = {
   lambdaActTerms: LambdaActTerms;
   lowStretchLimiterMode: LowStretchLimiterMode;
   lowStretchLimiterScope: LambdaActScope;
+  activeReservePreset: ActiveReservePreset;
   tbvCorrectionMode: TBVCorrectionMode;
   selectedDeltasMl: number[];
+  shapeSummary: ShapeSummary;
   branchSummary: DebugReport["summary"];
   returnMapSummary: DebugReport["summary"];
   waveformGates: WaveformGateComparison[];
   points: DebugPoint[];
 };
 
+type ShapeSummary = {
+  meanCOLErrorFractionVsBaseline: number;
+  meanSVLErrorFractionVsBaseline: number;
+  lowPreloadMonotonicityViolations: number;
+  dipReRiseScoreLMin: number;
+  lowPreloadSlopeRatioVsBaseline: number;
+  maxActiveReserveHitFraction: number;
+  minActiveReserveScale: number;
+  maxSigmaActTargetReductionFraction: number;
+};
+
 type MatrixReport = {
-  schemaVersion: 5;
+  schemaVersion: 6;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -89,6 +104,7 @@ type MatrixReport = {
   lambdaActTermsValues: LambdaActTerms[];
   lowStretchLimiterModes: LowStretchLimiterMode[];
   lowStretchLimiterScopes: LambdaActScope[];
+  activeReservePresets: ActiveReservePreset[];
   tbvCorrectionModes: TBVCorrectionMode[];
   maxReturnMapPoints: number;
   traceBeats: number;
@@ -100,6 +116,14 @@ type MatrixReport = {
     maxBranchAmplitudeFractionEDVL: number;
     maxBranchAmplitudeFractionESVL: number;
     maxClampHitCount: number;
+    maxMeanCOLErrorFractionVsBaseline: number;
+    maxMeanSVLErrorFractionVsBaseline: number;
+    maxLowPreloadMonotonicityViolations: number;
+    maxDipReRiseScoreLMin: number;
+    minLowPreloadSlopeRatioVsBaseline: number;
+    maxActiveReserveHitFraction: number;
+    minActiveReserveScale: number;
+    maxSigmaActTargetReductionFraction: number;
     maxWaveformGateDeltaFraction: number;
     maxWaveformGateDeltaMetric: string | null;
     maxSanitizeAbsMl: number;
@@ -116,6 +140,7 @@ const DEFAULT_SCOPES: LambdaActScope[] = ["lv", "ventricles"];
 const DEFAULT_TERMS: LambdaActTerms[] = ["kd", "fiso", "kd+fiso"];
 const DEFAULT_LOW_STRETCH_LIMITERS: LowStretchLimiterMode[] = ["none"];
 const DEFAULT_LOW_STRETCH_LIMITER_SCOPES: LambdaActScope[] = ["lv"];
+const DEFAULT_ACTIVE_RESERVE_PRESETS: ActiveReservePreset[] = ["directMild", "directMedium", "thresholdMild", "thresholdMedium"];
 const DEFAULT_TBV_CORRECTION_MODES: TBVCorrectionMode[] = ["on"];
 const WAVEFORM_RUN_OPTIONS = { collectSamples: false, recordHistory: true, historyLimit: 720 };
 const WAVEFORM_SETTLE_POLICY = { ...PREVIEW_SETTLE_POLICY, capSeconds: 45 };
@@ -126,13 +151,14 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
     : opts.lambdaActScopes;
   const scenarios: MatrixScenario[] = [];
   const waveformBaselineCache = new Map<string, WaveformGateMetrics>();
+  const branchBaselineCache = new Map<string, DebugPoint[]>();
   const specs = matrixScenarioSpecs(opts, scopes);
   specs.forEach((spec, index) => {
-    const { lambdaActScope, lambdaActTauSec, lambdaActTerms, lowStretchLimiterMode, lowStretchLimiterScope, tbvCorrectionMode, dt } = spec;
+    const { lambdaActScope, lambdaActTauSec, lambdaActTerms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, tbvCorrectionMode, dt } = spec;
     if (opts.progress) {
       // eslint-disable-next-line no-console
       console.log(
-        `[matrix] ${index + 1}/${specs.length} dt=${dt} tau=${lambdaActTauSec} scope=${lambdaActScope} terms=${lambdaActTerms} limiter=${lowStretchLimiterMode}/${lowStretchLimiterScope} tbv=${tbvCorrectionMode}`,
+        `[matrix] ${index + 1}/${specs.length} dt=${dt} tau=${lambdaActTauSec} scope=${lambdaActScope} terms=${lambdaActTerms} limiter=${lowStretchLimiterMode}/${lowStretchLimiterScope} preset=${activeReservePreset} tbv=${tbvCorrectionMode}`,
       );
     }
     const branchReport = runLowPreloadDebug({
@@ -145,6 +171,7 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
       lambdaActTerms,
       lowStretchLimiterMode,
       lowStretchLimiterScope,
+      activeReservePreset,
       tbvCorrectionMode,
       traceBeats: opts.traceBeats,
       sampleHz: opts.sampleHz,
@@ -165,6 +192,7 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
           lambdaActTerms,
           lowStretchLimiterMode,
           lowStretchLimiterScope,
+          activeReservePreset,
           tbvCorrectionMode,
           traceBeats: opts.traceBeats,
           sampleHz: opts.sampleHz,
@@ -172,6 +200,11 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
           returnMapDeltasMl: selectedDeltasMl,
           quietClampLog: true,
         });
+    const baselineKey = branchBaselineKey(dt, tbvCorrectionMode);
+    if (lambdaActTauSec === 0 && lowStretchLimiterMode === "none") {
+      branchBaselineCache.set(baselineKey, branchReport.points);
+    }
+    const baselinePoints = branchBaselineCache.get(baselineKey) ?? branchReport.points;
     scenarios.push({
       dt,
       lambdaActTauSec,
@@ -179,8 +212,10 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
       lambdaActTerms,
       lowStretchLimiterMode,
       lowStretchLimiterScope,
+      activeReservePreset,
       tbvCorrectionMode,
       selectedDeltasMl,
+      shapeSummary: buildShapeSummary(branchReport.points, baselinePoints),
       branchSummary: branchReport.summary,
       returnMapSummary: returnMapReport.summary,
       waveformGates: buildWaveformGateComparisons(
@@ -192,6 +227,7 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
         lambdaActTerms,
         lowStretchLimiterMode,
         lowStretchLimiterScope,
+        activeReservePreset,
         waveformBaselineCache,
       ),
       points: returnMapReport.points,
@@ -211,7 +247,7 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
       { fraction: 0, metric: null },
     );
   return {
-    schemaVersion: 5,
+    schemaVersion: 6,
     generatedAt: new Date().toISOString(),
     measurementMode: "branch-only broad low-preload matrix followed by selected EDV-section return-map diagnostics; optional TBV correction on/off/low contamination axis; off-by-default low-stretch limiter comparator axis",
     targetVolumeMl: opts.targetVolumeMl,
@@ -222,6 +258,7 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
     lambdaActTermsValues: opts.lambdaActTermsValues,
     lowStretchLimiterModes: Array.from(new Set(["none" as LowStretchLimiterMode, ...opts.lowStretchLimiterModes])),
     lowStretchLimiterScopes: opts.lowStretchLimiterScopes,
+    activeReservePresets: opts.activeReservePresets,
     tbvCorrectionModes: opts.tbvCorrectionModes,
     maxReturnMapPoints: opts.maxReturnMapPoints,
     traceBeats: opts.traceBeats,
@@ -233,6 +270,14 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
       maxBranchAmplitudeFractionEDVL: Math.max(0, ...scenarios.map((s) => s.returnMapSummary.maxBranchAmplitudeFractionEDVL)),
       maxBranchAmplitudeFractionESVL: Math.max(0, ...scenarios.map((s) => s.returnMapSummary.maxBranchAmplitudeFractionESVL)),
       maxClampHitCount: Math.max(0, ...scenarios.map((s) => s.returnMapSummary.maxClampHitCount)),
+      maxMeanCOLErrorFractionVsBaseline: Math.max(0, ...scenarios.map((s) => finiteOrZero(s.shapeSummary.meanCOLErrorFractionVsBaseline))),
+      maxMeanSVLErrorFractionVsBaseline: Math.max(0, ...scenarios.map((s) => finiteOrZero(s.shapeSummary.meanSVLErrorFractionVsBaseline))),
+      maxLowPreloadMonotonicityViolations: Math.max(0, ...scenarios.map((s) => s.shapeSummary.lowPreloadMonotonicityViolations)),
+      maxDipReRiseScoreLMin: Math.max(0, ...scenarios.map((s) => finiteOrZero(s.shapeSummary.dipReRiseScoreLMin))),
+      minLowPreloadSlopeRatioVsBaseline: finiteMin(scenarios.map((s) => s.shapeSummary.lowPreloadSlopeRatioVsBaseline)),
+      maxActiveReserveHitFraction: Math.max(0, ...scenarios.map((s) => finiteOrZero(s.shapeSummary.maxActiveReserveHitFraction))),
+      minActiveReserveScale: finiteMin(scenarios.map((s) => s.shapeSummary.minActiveReserveScale)),
+      maxSigmaActTargetReductionFraction: Math.max(0, ...scenarios.map((s) => finiteOrZero(s.shapeSummary.maxSigmaActTargetReductionFraction))),
       maxWaveformGateDeltaFraction: maxWaveformGate.fraction,
       maxWaveformGateDeltaMetric: maxWaveformGate.metric,
       maxSanitizeAbsMl: Math.max(0, ...scenarios.map((s) => s.returnMapSummary.maxSanitizeAbsMl)),
@@ -253,6 +298,7 @@ function matrixScenarioSpecs(
   lambdaActTerms: LambdaActTerms;
   lowStretchLimiterMode: LowStretchLimiterMode;
   lowStretchLimiterScope: LambdaActScope;
+  activeReservePreset: ActiveReservePreset;
   tbvCorrectionMode: TBVCorrectionMode;
 }> {
   const specs: Array<{
@@ -262,6 +308,7 @@ function matrixScenarioSpecs(
     lambdaActTerms: LambdaActTerms;
     lowStretchLimiterMode: LowStretchLimiterMode;
     lowStretchLimiterScope: LambdaActScope;
+    activeReservePreset: ActiveReservePreset;
     tbvCorrectionMode: TBVCorrectionMode;
   }> = [];
   for (const dt of opts.dtValues) {
@@ -273,19 +320,24 @@ function matrixScenarioSpecs(
         lambdaActTerms: "kd+fiso",
         lowStretchLimiterMode: "none",
         lowStretchLimiterScope: "lv",
+        activeReservePreset: "none",
         tbvCorrectionMode,
       });
       for (const lowStretchLimiterMode of opts.lowStretchLimiterModes.filter((mode) => mode !== "none")) {
         for (const lowStretchLimiterScope of opts.lowStretchLimiterScopes) {
-          specs.push({
-            dt,
-            lambdaActTauSec: 0,
-            lambdaActScope: "all",
-            lambdaActTerms: "kd+fiso",
-            lowStretchLimiterMode,
-            lowStretchLimiterScope,
-            tbvCorrectionMode,
-          });
+          const presets = lowStretchLimiterMode === "activeReserveCap" ? opts.activeReservePresets : ["none" as ActiveReservePreset];
+          for (const activeReservePreset of presets) {
+            specs.push({
+              dt,
+              lambdaActTauSec: 0,
+              lambdaActScope: "all",
+              lambdaActTerms: "kd+fiso",
+              lowStretchLimiterMode,
+              lowStretchLimiterScope,
+              activeReservePreset,
+              tbvCorrectionMode,
+            });
+          }
         }
       }
       for (const lambdaActTauSec of opts.lambdaActTauSecValues.filter((tau) => tau > 0)) {
@@ -298,6 +350,7 @@ function matrixScenarioSpecs(
               lambdaActTerms,
               lowStretchLimiterMode: "none",
               lowStretchLimiterScope: "lv",
+              activeReservePreset: "none",
               tbvCorrectionMode,
             });
           }
@@ -306,6 +359,89 @@ function matrixScenarioSpecs(
     }
   }
   return specs;
+}
+
+function branchBaselineKey(dt: number, tbvCorrectionMode: TBVCorrectionMode): string {
+  return `${dt}|${tbvCorrectionMode}`;
+}
+
+function buildShapeSummary(points: DebugPoint[], baselinePoints: DebugPoint[]): ShapeSummary {
+  const baselineByDelta = new Map(baselinePoints.map((point) => [String(point.deltaVolumeMl), point]));
+  const matched = points
+    .map((point) => ({ point, baseline: baselineByDelta.get(String(point.deltaVolumeMl)) }))
+    .filter((entry): entry is { point: DebugPoint; baseline: DebugPoint } => !!entry.baseline);
+  const coErrors = matched
+    .map(({ point, baseline }) => fractionalAbsDelta(point.periodMetrics.CO_L, baseline.periodMetrics.CO_L, 0.05))
+    .filter(Number.isFinite);
+  const svErrors = matched
+    .map(({ point, baseline }) => fractionalAbsDelta(point.periodMetrics.SV_L, baseline.periodMetrics.SV_L, 1))
+    .filter(Number.isFinite);
+  const lowPoints = points
+    .filter((point) => point.deltaVolumeMl <= 0)
+    .filter((point) => Number.isFinite(point.periodMetrics.LAPMean) && Number.isFinite(point.periodMetrics.CO_L))
+    .sort((a, b) => a.periodMetrics.LAPMean - b.periodMetrics.LAPMean);
+  const lowBaselinePoints = baselinePoints
+    .filter((point) => point.deltaVolumeMl <= 0)
+    .filter((point) => Number.isFinite(point.periodMetrics.LAPMean) && Number.isFinite(point.periodMetrics.CO_L))
+    .sort((a, b) => a.periodMetrics.LAPMean - b.periodMetrics.LAPMean);
+  const active = activeReserveStats(points);
+  const candidateSlope = lowPreloadSlope(lowPoints);
+  const baselineSlope = lowPreloadSlope(lowBaselinePoints);
+  return {
+    meanCOLErrorFractionVsBaseline: meanNumbers(coErrors),
+    meanSVLErrorFractionVsBaseline: meanNumbers(svErrors),
+    lowPreloadMonotonicityViolations: countMonotonicityViolations(lowPoints),
+    dipReRiseScoreLMin: dipReRiseScore(lowPoints),
+    lowPreloadSlopeRatioVsBaseline: safeSlopeRatio(candidateSlope, baselineSlope),
+    maxActiveReserveHitFraction: active.maxHitFraction,
+    minActiveReserveScale: active.minScale,
+    maxSigmaActTargetReductionFraction: active.maxReductionFraction,
+  };
+}
+
+function safeSlopeRatio(candidateSlope: number, baselineSlope: number): number {
+  if (!Number.isFinite(candidateSlope) || !Number.isFinite(baselineSlope) || Math.abs(baselineSlope) < 1e-9) return 1;
+  return candidateSlope / baselineSlope;
+}
+
+function activeReserveStats(points: DebugPoint[]): {
+  maxHitFraction: number;
+  minScale: number;
+  maxReductionFraction: number;
+} {
+  const summaries = points.flatMap((point) => point.beatTrace.flatMap((beat) => beat.active.LV ? [beat.active.LV] : []));
+  return {
+    maxHitFraction: Math.max(0, ...summaries.map((summary) => finiteOrZero(summary.activeTargetLimiterHitFraction))),
+    minScale: finiteMin(summaries.map((summary) => summary.activeTargetLimiterMin)),
+    maxReductionFraction: Math.max(0, ...summaries.map((summary) => finiteOrZero(summary.sigmaActTargetReductionFractionMean))),
+  };
+}
+
+function countMonotonicityViolations(points: DebugPoint[]): number {
+  let count = 0;
+  for (let i = 1; i < points.length; i++) {
+    if (points[i].periodMetrics.CO_L < points[i - 1].periodMetrics.CO_L - 0.05) count++;
+  }
+  return count;
+}
+
+function dipReRiseScore(points: DebugPoint[]): number {
+  let maxScore = 0;
+  for (let i = 1; i < points.length; i++) {
+    const drop = points[i - 1].periodMetrics.CO_L - points[i].periodMetrics.CO_L;
+    if (drop <= 0.05) continue;
+    const futureMax = Math.max(...points.slice(i + 1).map((point) => point.periodMetrics.CO_L).filter(Number.isFinite));
+    if (Number.isFinite(futureMax)) maxScore = Math.max(maxScore, futureMax - points[i].periodMetrics.CO_L);
+  }
+  return maxScore;
+}
+
+function lowPreloadSlope(points: DebugPoint[]): number {
+  for (let i = 1; i < points.length; i++) {
+    const dx = points[i].periodMetrics.LAPMean - points[i - 1].periodMetrics.LAPMean;
+    if (Math.abs(dx) > 1e-6) return (points[i].periodMetrics.CO_L - points[i - 1].periodMetrics.CO_L) / dx;
+  }
+  return Number.NaN;
 }
 
 function buildWaveformGateComparisons(
@@ -317,12 +453,13 @@ function buildWaveformGateComparisons(
   terms: LambdaActTerms,
   lowStretchLimiterMode: LowStretchLimiterMode,
   lowStretchLimiterScope: LambdaActScope,
+  activeReservePreset: ActiveReservePreset,
   baselineCache: Map<string, WaveformGateMetrics>,
 ): WaveformGateComparison[] {
   return [
-    waveformGateComparison("normal", DEFAULT_PARAMS.HR, targetVolumeMl, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, baselineCache),
-    waveformGateComparison("HR100", 100, targetVolumeMl, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, baselineCache),
-    waveformGateComparison("HR100-rearm", 100, targetVolumeMl, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, baselineCache),
+    waveformGateComparison("normal", DEFAULT_PARAMS.HR, targetVolumeMl, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, baselineCache),
+    waveformGateComparison("HR100", 100, targetVolumeMl, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, baselineCache),
+    waveformGateComparison("HR100-rearm", 100, targetVolumeMl, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, baselineCache),
   ];
 }
 
@@ -337,6 +474,7 @@ function waveformGateComparison(
   terms: LambdaActTerms,
   lowStretchLimiterMode: LowStretchLimiterMode,
   lowStretchLimiterScope: LambdaActScope,
+  activeReservePreset: ActiveReservePreset,
   baselineCache: Map<string, WaveformGateMetrics>,
 ): WaveformGateComparison {
   const baselineKey = `${label}|${HR}|${targetVolumeMl}|${dt}|${sampleHz}`;
@@ -347,7 +485,7 @@ function waveformGateComparison(
   }
   const candidate = tauSec <= 0 && lowStretchLimiterMode === "none"
     ? baseline
-    : measureWaveformGate(label, HR, targetVolumeMl, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope);
+    : measureWaveformGate(label, HR, targetVolumeMl, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset);
   const delta = {
     CO_L: candidate.CO_L - baseline.CO_L,
     CO_R: candidate.CO_R - baseline.CO_R,
@@ -383,8 +521,9 @@ function measureWaveformGate(
   terms: LambdaActTerms,
   lowStretchLimiterMode: LowStretchLimiterMode = "none",
   lowStretchLimiterScope: LambdaActScope = "lv",
+  activeReservePreset: ActiveReservePreset = "none",
 ): WaveformGateMetrics {
-  return withQuietClampLogs(() => measureWaveformGateImpl(label, HR, targetVolumeMl, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope));
+  return withQuietClampLogs(() => measureWaveformGateImpl(label, HR, targetVolumeMl, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset));
 }
 
 function measureWaveformGateImpl(
@@ -398,11 +537,13 @@ function measureWaveformGateImpl(
   terms: LambdaActTerms,
   lowStretchLimiterMode: LowStretchLimiterMode = "none",
   lowStretchLimiterScope: LambdaActScope = "lv",
+  activeReservePreset: ActiveReservePreset = "none",
 ): WaveformGateMetrics {
   const params = paramsWithLowStretchLimiter(
     paramsWithLambdaActTau(label === "HR100-rearm" ? DEFAULT_PARAMS : { ...DEFAULT_PARAMS, HR }, tauSec, scope, terms),
     lowStretchLimiterMode,
     lowStretchLimiterScope,
+    activeReservePreset,
   );
   const core = new ModelCore(params);
   core.initializeVenousPressuresForTargetTBV(targetVolumeMl);
@@ -514,8 +655,8 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("## Scenario summary");
   lines.push("");
-  lines.push("| scope | terms | tau s | limiter | limiter scope | dt | TBV correction | selected deltas | period-2 | max CO branch frac | max EDV branch frac | max ESV branch frac | max clamp hits | max sanitize abs mL | max projection applied mL | contaminated | max one-beat EDV slope | max two-beat EDV slope | max waveform gate frac | worst waveform metric |");
-  lines.push("| --- | --- | ---: | --- | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
+  lines.push("| scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | selected deltas | period-2 | max CO branch frac | max EDV branch frac | max ESV branch frac | mean CO err | mean SV err | monotonicity breaks | dip/re-rise | slope ratio | active hit frac | min active scale | target reduction | max clamp hits | max sanitize abs mL | max projection applied mL | contaminated | max one-beat EDV slope | max two-beat EDV slope | max waveform gate frac | worst waveform metric |");
+  lines.push("| --- | --- | ---: | --- | --- | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
   for (const scenario of report.scenarios) {
     const worstWaveform = scenario.waveformGates.reduce<{ label: string; metric: string; fraction: number }>(
       (best, gate) => gate.maxDeltaFraction > best.fraction
@@ -529,6 +670,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
       round(scenario.lambdaActTauSec, 4),
       scenario.lowStretchLimiterMode,
       scenario.lowStretchLimiterScope,
+      scenario.activeReservePreset,
       round(scenario.dt, 5),
       scenario.tbvCorrectionMode,
       scenario.selectedDeltasMl.join(", "),
@@ -536,6 +678,14 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
       round(scenario.returnMapSummary.maxBranchAmplitudeFractionCOL, 4),
       round(scenario.returnMapSummary.maxBranchAmplitudeFractionEDVL, 4),
       round(scenario.returnMapSummary.maxBranchAmplitudeFractionESVL, 4),
+      round(scenario.shapeSummary.meanCOLErrorFractionVsBaseline, 4),
+      round(scenario.shapeSummary.meanSVLErrorFractionVsBaseline, 4),
+      scenario.shapeSummary.lowPreloadMonotonicityViolations,
+      round(scenario.shapeSummary.dipReRiseScoreLMin, 4),
+      round(scenario.shapeSummary.lowPreloadSlopeRatioVsBaseline, 4),
+      round(scenario.shapeSummary.maxActiveReserveHitFraction, 4),
+      round(scenario.shapeSummary.minActiveReserveScale, 4),
+      round(scenario.shapeSummary.maxSigmaActTargetReductionFraction, 4),
       scenario.returnMapSummary.maxClampHitCount,
       round(scenario.returnMapSummary.maxSanitizeAbsMl, 6),
       round(scenario.returnMapSummary.maxProjectionAppliedMl, 6),
@@ -549,8 +699,8 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("## TBV / Clamp Audit");
   lines.push("");
-  lines.push("| scope | terms | tau s | limiter | limiter scope | dt | TBV correction | max CO branch frac | max sanitize abs mL | max projection applied mL | contaminated points |");
-  lines.push("| --- | --- | ---: | --- | --- | ---: | --- | ---: | ---: | ---: | ---: |");
+  lines.push("| scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | max CO branch frac | max sanitize abs mL | max projection applied mL | contaminated points |");
+  lines.push("| --- | --- | ---: | --- | --- | --- | ---: | --- | ---: | ---: | ---: | ---: |");
   for (const scenario of report.scenarios) {
     lines.push([
       scenario.lambdaActScope,
@@ -558,6 +708,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
       round(scenario.lambdaActTauSec, 4),
       scenario.lowStretchLimiterMode,
       scenario.lowStretchLimiterScope,
+      scenario.activeReservePreset,
       round(scenario.dt, 5),
       scenario.tbvCorrectionMode,
       round(scenario.returnMapSummary.maxBranchAmplitudeFractionCOL, 4),
@@ -569,8 +720,8 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("## Normal / HR100 waveform gates");
   lines.push("");
-  lines.push("| scope | terms | tau s | limiter | limiter scope | dt | TBV correction | case | dCO_L | dESV_L | dEF_L | dLVPmax | dQAoMax | dMax dP/dt | dClamp hits | worst metric | worst frac |");
-  lines.push("| --- | --- | ---: | --- | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: |");
+  lines.push("| scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | case | dCO_L | dESV_L | dEF_L | dLVPmax | dQAoMax | dMax dP/dt | dClamp hits | worst metric | worst frac |");
+  lines.push("| --- | --- | ---: | --- | --- | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: |");
   for (const scenario of report.scenarios) {
     for (const gate of scenario.waveformGates) {
       lines.push([
@@ -579,6 +730,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         round(scenario.lambdaActTauSec, 4),
         scenario.lowStretchLimiterMode,
         scenario.lowStretchLimiterScope,
+        scenario.activeReservePreset,
         round(scenario.dt, 5),
         scenario.tbvCorrectionMode,
         gate.label,
@@ -597,8 +749,8 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("## Selected return-map points");
   lines.push("");
-  lines.push("| scope | terms | tau s | limiter | limiter scope | dt | TBV correction | delta | return-map | branch CO frac | branch EDV frac | branch ESV frac | one-beat EDV slope | two-beat EDV slope | clamps | audit |");
-  lines.push("| --- | --- | ---: | --- | --- | ---: | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
+  lines.push("| scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | delta | return-map | branch CO frac | branch EDV frac | branch ESV frac | one-beat EDV slope | two-beat EDV slope | clamps | audit |");
+  lines.push("| --- | --- | ---: | --- | --- | --- | ---: | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
   for (const scenario of report.scenarios) {
     for (const point of scenario.points.filter((p) => p.returnMap.status !== "skipped")) {
       lines.push([
@@ -607,6 +759,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         round(scenario.lambdaActTauSec, 4),
         scenario.lowStretchLimiterMode,
         scenario.lowStretchLimiterScope,
+        scenario.activeReservePreset,
         round(scenario.dt, 5),
         scenario.tbvCorrectionMode,
         point.deltaVolumeMl,
@@ -630,6 +783,8 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("- Contaminated points have representative-beat sanitize or projection volume movement above 0.05 mL. They are reported, not removed.");
   lines.push("- `lambdaAct` remains off by default. This matrix compares scope, term, and tau values for diagnosis only.");
   lines.push("- `low-stretch limiter` remains off by default. `aInfCap` and `activeReserveCap` are conservative comparator arms that can only reduce low-stretch activation/target force.");
+  lines.push("- Active reserve preset expands only the `activeReserveCap` comparator: direct presets broadly scale low-stretch active target, threshold presets act only at high activation/reserve.");
+  lines.push("- Shape gates compare each candidate to the tau=0/no-limiter baseline at matching deltas. They report mean CO/SV preservation, low-preload monotonicity, dip/re-rise, low-side slope preservation, and limiter hit/reduction statistics.");
   lines.push("- Waveform gates compare normal and HR100 settled waveforms against the tau=0 baseline; they are report-only in this PR.");
   lines.push("");
   return `${lines.join("\n")}\n`;
@@ -642,6 +797,7 @@ export function matrixReportToCsv(report: MatrixReport): string {
     "lambdaActTauSec",
     "lowStretchLimiterMode",
     "lowStretchLimiterScope",
+    "activeReservePreset",
     "dt",
     "tbvCorrectionMode",
     "deltaVolumeMl",
@@ -651,6 +807,14 @@ export function matrixReportToCsv(report: MatrixReport): string {
     "branchAmplitudeFractionCO_L",
     "branchAmplitudeFractionEDV_L",
     "branchAmplitudeFractionESV_L",
+    "meanCOLErrorFractionVsBaseline",
+    "meanSVLErrorFractionVsBaseline",
+    "lowPreloadMonotonicityViolations",
+    "dipReRiseScoreLMin",
+    "lowPreloadSlopeRatioVsBaseline",
+    "maxActiveReserveHitFraction",
+    "minActiveReserveScale",
+    "maxSigmaActTargetReductionFraction",
     "clampHitCount",
     "tbvAuditClass",
     "sanitizeAbsMl",
@@ -670,6 +834,7 @@ export function matrixReportToCsv(report: MatrixReport): string {
         scenario.lambdaActTauSec,
         scenario.lowStretchLimiterMode,
         scenario.lowStretchLimiterScope,
+        scenario.activeReservePreset,
         scenario.dt,
         scenario.tbvCorrectionMode,
         point.deltaVolumeMl,
@@ -679,6 +844,14 @@ export function matrixReportToCsv(report: MatrixReport): string {
         point.returnMap.branchAmplitudeFraction.CO_L ?? "",
         point.returnMap.branchAmplitudeFraction.EDV_L ?? "",
         point.returnMap.branchAmplitudeFraction.ESV_L ?? "",
+        scenario.shapeSummary.meanCOLErrorFractionVsBaseline,
+        scenario.shapeSummary.meanSVLErrorFractionVsBaseline,
+        scenario.shapeSummary.lowPreloadMonotonicityViolations,
+        scenario.shapeSummary.dipReRiseScoreLMin,
+        scenario.shapeSummary.lowPreloadSlopeRatioVsBaseline,
+        scenario.shapeSummary.maxActiveReserveHitFraction,
+        scenario.shapeSummary.minActiveReserveScale,
+        scenario.shapeSummary.maxSigmaActTargetReductionFraction,
         point.health.clampHitCount,
         point.tbvAudit.classification,
         point.tbvAudit.sanitizeAbsMl,
@@ -705,6 +878,7 @@ export function parseLowPreloadMatrixArgs(args: string[]): MatrixOptions {
     lambdaActTermsValues: DEFAULT_TERMS,
     lowStretchLimiterModes: DEFAULT_LOW_STRETCH_LIMITERS,
     lowStretchLimiterScopes: DEFAULT_LOW_STRETCH_LIMITER_SCOPES,
+    activeReservePresets: DEFAULT_ACTIVE_RESERVE_PRESETS,
     tbvCorrectionModes: DEFAULT_TBV_CORRECTION_MODES,
     includeAllScope: false,
     maxReturnMapPoints: 6,
@@ -723,6 +897,7 @@ export function parseLowPreloadMatrixArgs(args: string[]): MatrixOptions {
     else if (key === "--lambda-act-terms" && value) opts.lambdaActTermsValues = parseTerms(value);
     else if (key === "--low-stretch-limiter" && value) opts.lowStretchLimiterModes = parseLowStretchLimiterModes(value);
     else if (key === "--low-stretch-limiter-scope" && value) opts.lowStretchLimiterScopes = parseScopes(value);
+    else if (key === "--active-reserve-preset" && value) opts.activeReservePresets = parseActiveReservePresets(value);
     else if (key === "--tbv-correction" && value) opts.tbvCorrectionModes = parseTBVCorrectionModes(value);
     else if (key === "--include-all-scope") opts.includeAllScope = true;
     else if (key === "--branch-only") opts.maxReturnMapPoints = 0;
@@ -766,6 +941,22 @@ function parseLowStretchLimiterModes(value: string): LowStretchLimiterMode[] {
   return modes as LowStretchLimiterMode[];
 }
 
+function parseActiveReservePresets(value: string): ActiveReservePreset[] {
+  const presets = value.split(",").map((entry) => entry.trim()).filter(Boolean);
+  for (const preset of presets) {
+    if (
+      preset !== "none"
+      && preset !== "directMild"
+      && preset !== "directMedium"
+      && preset !== "thresholdMild"
+      && preset !== "thresholdMedium"
+    ) {
+      throw new Error(`Invalid active reserve preset: ${preset}`);
+    }
+  }
+  return presets as ActiveReservePreset[];
+}
+
 function parseScopes(value: string): LambdaActScope[] {
   const scopes = value.split(",").map((entry) => entry.trim()).filter(Boolean);
   for (const scope of scopes) {
@@ -776,6 +967,26 @@ function parseScopes(value: string): LambdaActScope[] {
 
 function parseNumberList(value: string): number[] {
   return value.split(",").map((v) => Number(v.trim())).filter(Number.isFinite);
+}
+
+function meanNumbers(values: number[]): number {
+  const finite = values.filter(Number.isFinite);
+  if (finite.length === 0) return Number.NaN;
+  return finite.reduce((acc, value) => acc + value, 0) / finite.length;
+}
+
+function fractionalAbsDelta(value: number, baseline: number, floor: number): number {
+  if (!Number.isFinite(value) || !Number.isFinite(baseline)) return Number.NaN;
+  return Math.abs(value - baseline) / Math.max(Math.abs(baseline), floor);
+}
+
+function finiteOrZero(value: number): number {
+  return Number.isFinite(value) ? value : 0;
+}
+
+function finiteMin(values: number[]): number {
+  const finite = values.filter(Number.isFinite);
+  return finite.length > 0 ? Math.min(...finite) : Number.NaN;
 }
 
 function isFiniteNumber(value: unknown): value is number {
@@ -801,12 +1012,13 @@ function printHelp(): void {
     "       [--deltas=0,-900,-1250] [--dt=0.001,0.0005] [--lambda-act-tau=0,0.15]",
     "       [--lambda-act-scope=lv,ventricles] [--lambda-act-terms=kd,fiso,kd+fiso]",
     "       [--low-stretch-limiter=none,aInfCap,activeReserveCap] [--low-stretch-limiter-scope=lv,ventricles]",
+    "       [--active-reserve-preset=directMild,directMedium,thresholdMild,thresholdMedium]",
     "       [--tbv-correction=on,off,low]",
     "       [--include-all-scope] [--branch-only] [--max-return-map-points=6]",
     "       [--quiet-progress]",
     "",
     "Example:",
-    "  npm run verify:starling-low-preload-matrix -- --deltas=0,-1250,-1400 --dt=0.001 --lambda-act-tau=0,0.15 --lambda-act-scope=lv --lambda-act-terms=kd,fiso,kd+fiso --low-stretch-limiter=none,aInfCap,activeReserveCap --tbv-correction=on,off --max-return-map-points=2",
+    "  npm run verify:starling-low-preload-matrix -- --deltas=0,-1250,-1400 --dt=0.001 --lambda-act-tau=0,0.15 --lambda-act-scope=lv --lambda-act-terms=kd,fiso,kd+fiso --low-stretch-limiter=none,aInfCap,activeReserveCap --active-reserve-preset=directMild,directMedium --tbv-correction=on,off --max-return-map-points=2",
   ].join("\n"));
 }
 
