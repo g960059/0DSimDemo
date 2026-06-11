@@ -15,7 +15,8 @@ import { resolveLocalizedCaseDocument, upsertCaseLocaleContent } from "@/content
 import { officialCaseById } from "@/officialCases";
 import { remapCaseDocumentViewIds, remapCaseI18nContentIds, remapWorkbenchLoadIds } from "@/workbenchLoad";
 import { DEFAULT_MODEL_LIMITATIONS } from "@/features/workbench/workbenchDefaults";
-import { mainDockviewViewStatesOnly } from "@/features/workbench/p1aStructuralHosts";
+import { graphPanelsOnly, mainDockviewViewStatesOnly } from "@/features/workbench/p1aStructuralHosts";
+import { graphBoardLayoutFromPanels, normalizeGraphBoardLayout } from "@/features/workbench/viewSpec";
 import type { WorkbenchSceneState } from "@/features/workbench/hooks/useWorkbenchScene";
 import type { WorkbenchPanelsState } from "@/features/workbench/hooks/useWorkbenchPanels";
 import type { LessonAuthoringState } from "@/features/workbench/hooks/useLessonAuthoring";
@@ -93,6 +94,10 @@ export function useWorkbenchPersistence({
     const modelLimitations = scene.sceneMeta.modelLimitations.length > 0
       ? scene.sceneMeta.modelLimitations
       : DEFAULT_MODEL_LIMITATIONS;
+    const graphPanels = graphPanelsOnly(panels.panels);
+    const graphPanelIds = graphPanels.map((panel) => panel.id);
+    const normalizedGraphBoardLayout = normalizeGraphBoardLayout(scene.currentCaseGraphBoardLayout, { graphViewIds: graphPanelIds }).layout
+      ?? graphBoardLayoutFromPanels(graphPanels);
     const doc = simInstancesToCaseDocument(scene.instances, panels.panels, {
       id: overrides.id ?? `wb-${now}`,
       title,
@@ -117,7 +122,7 @@ export function useWorkbenchPersistence({
       reading: scene.currentCaseReading,
       exposedControllers: scene.currentCaseExposedControllers,
       views: scene.currentCaseViews,
-      graphBoardLayout: scene.currentCaseGraphBoardLayout,
+      graphBoardLayout: normalizedGraphBoardLayout,
       initialActiveScenarioId: scene.currentCaseInitialActiveScenarioId,
       defaultLocale: scene.currentCaseDefaultLocale ?? locale,
       availableLocales: scene.currentCaseAvailableLocales,

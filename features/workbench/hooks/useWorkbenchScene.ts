@@ -157,6 +157,11 @@ export function useWorkbenchScene({
     )));
   }, [markUserEdited]);
 
+  const updateGraphBoardLayout = useCallback((layout: GraphBoardLayout | undefined) => {
+    setCurrentCaseGraphBoardLayout(layout);
+    markUserEdited();
+  }, [markUserEdited]);
+
   const addInstance = useCallback((sourceId?: string, presetId?: string) => {
     markUserEdited();
     const newId = Date.now().toString();
@@ -291,6 +296,7 @@ export function useWorkbenchScene({
     currentCaseExposedControllers,
     currentCaseViews,
     currentCaseGraphBoardLayout,
+    updateGraphBoardLayout,
     currentCaseInitialActiveScenarioId,
     ownsCurrentCase,
     headerMode,

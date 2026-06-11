@@ -81,4 +81,19 @@ describe("P1a structural host helpers", () => {
 
     expect(mainDockviewViewStatesOnly(workspace).viewStates).toEqual({ main });
   });
+
+  it("converts legacy singular Dockview viewState into the main cache", () => {
+    const main: DockviewViewState = { library: "dockview", schemaVersion: 1, zone: "main", state: { panels: {}, grid: {} } };
+    const workspace: WorkbenchWorkspace = {
+      schemaVersion: 1,
+      regions: {},
+      viewState: main,
+    };
+
+    expect(mainDockviewViewStatesOnly(workspace)).toEqual({
+      schemaVersion: 1,
+      regions: {},
+      viewStates: { main },
+    });
+  });
 });

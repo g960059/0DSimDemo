@@ -101,7 +101,8 @@ export function metricsOpenFromWorkspace(workspace?: WorkbenchWorkspace): boolea
 }
 
 export function mainDockviewViewStatesOnly(workspace: WorkbenchWorkspace): WorkbenchWorkspace {
-  const main = workspace.viewStates?.main;
+  const main = workspace.viewStates?.main ?? workspace.viewState;
   const { viewStates: _viewStates, ...withoutViewStates } = workspace;
-  return main ? { ...withoutViewStates, viewStates: { main } } : withoutViewStates;
+  const { viewState: _viewState, ...withoutLegacyViewState } = withoutViewStates;
+  return main ? { ...withoutLegacyViewState, viewStates: { main } } : withoutLegacyViewState;
 }
