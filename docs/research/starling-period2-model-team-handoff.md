@@ -113,6 +113,28 @@ Interpretation:
 - If period-2 and branch amplitude remain in clamp-clean points with projection off, prioritize active-stretch gain fixes such as Kd/aInf or fIso/composite-gain shaping.
 - If branch amplitude changes mostly with projection mode, or high-amplitude points are contaminated by hard repair/projection movement, inspect soft floors, conservative repair, and projection timing before changing active-stress gain.
 
+PR #119 adds an off-by-default low-stretch limiter comparison axis to the same matrix:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/kd-limiter \
+  --deltas=0,-1200,-1250,-1300,-1400 \
+  --dt=0.001,0.0005 \
+  --tbv-correction=on,off \
+  --low-stretch-limiter=none,aInfCap,activeReserveCap \
+  --low-stretch-limiter-scope=lv \
+  --max-return-map-points=4 \
+  --trace-beats=4 \
+  --sample-hz=60
+```
+
+This does not change default dynamics. It deliberately implements conservative arms only:
+
+- `aInfCap`: low-raw-lambda activation ceiling. It can only reduce `aInf`; it does not lower `Kd`.
+- `activeReserveCap`: low-raw-lambda active-target multiplier. By default it directly caps low-stretch target force; if an activation threshold is configured, it becomes high-activation gated. It can only reduce `sigmaActTarget`.
+
+We are not testing the unguarded `phi(lambda)` Kd slope-limiter as a merge candidate because it can make `phi(lambda) > lambda` at low stretch, lower `Kd`, and raise calcium sensitivity/active force. If a Kd slope-cap arm is revisited, it needs a level/active-reserve guard and separate validation.
+
 ## Preliminary local result
 
 The run above completed with `points=5 period2=4 maxAdjacentDelta=0.592 maxReverseMl=0`. Scenario summary from the local report:
@@ -143,15 +165,16 @@ PR #114 updates the report so reviewers can avoid this misread:
 
 ## Review questions for model team
 
-1. Is `lambdaAct` the right first root-fix candidate, or should the first model-level intervention be a constrained low-stretch `fIso` gate or composite active-gain limiter?
+1. Do `aInfCap` or `activeReserveCap` reduce clean-point branch amplitude without increasing dynamic-flow clamp, valve reverse volume, sanitize/projection contamination, or normal/HR100 waveform deltas?
 2. Which acceptance metric should gate default adoption: period-2 count, branch amplitude, signed one-beat slope, two-beat same-phase slope, clamp activity, or a combination?
 3. Should `lambdaAct` apply to all active chambers or initially only ventricles?
 4. What tau range is physiologically defensible for length-dependent activation filtering?
 5. Should slopes marked `nonsmooth` or `clampCrossing` be excluded entirely from model calibration decisions?
+6. Should a static active-geometry regularization arm be compared in parallel, separately from Kd/aInf limiter arms?
 
 ## Proposed next step
 
-Do not adopt `lambdaAct` as a default in this PR. Use this report to choose a model-fix branch with explicit gates:
+Do not adopt `lambdaAct` or the low-stretch limiter arms as defaults in this PR. Use this report to choose a model-fix branch with explicit gates:
 
 - default baseline metrics remain within tolerance
 - HR100 re-arm still settles without increased clamp activity

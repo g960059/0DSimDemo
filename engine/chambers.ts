@@ -14,6 +14,7 @@ export const ML_TO_M3 = 1e-6;
 
 export type Chamber = "LV" | "RV" | "LA" | "RA";
 export type LambdaActTerms = "kd" | "fiso" | "kd+fiso";
+export type LowStretchLimiterMode = "none" | "aInfCap" | "activeReserveCap";
 
 /** Internal Ca-transient / troponin-activation/reservoir/tension state of an active chamber. */
 export type ChamberInternal = { c: number; a: number; r: number; tensionPa?: number; lambdaAct?: number };
@@ -88,6 +89,11 @@ export type ActiveChamberParams = {
   Tmax0: number;
   tauLambdaActSec?: number;
   lambdaActTerms?: LambdaActTerms;
+  lowStretchLimiter?: LowStretchLimiterMode;
+  lowStretchLimiterKnee?: number;
+  lowStretchLimiterWidth?: number;
+  lowStretchLimiterStrength?: number;
+  lowStretchLimiterActivationThreshold?: number;
   tauTensionRiseSec?: number;
   tauTensionFallSec?: number;
   tensionInstantMix?: number;
@@ -171,6 +177,14 @@ export type ActiveStressDebugTerms = ChamberPressureTerms & {
   dLogCompositeActive_dLambdaAct: number;
   lambdaActMinusRaw: number;
   lambdaActTransferTauSec: number;
+  lowStretchLimiter: LowStretchLimiterMode;
+  lowStretchLimiterGate: number;
+  lowStretchLimiterStrength: number;
+  aInfRaw: number;
+  aInfCap: number;
+  aInfLimiterDelta: number;
+  activeTargetLimiter: number;
+  sigmaActTargetRaw: number;
   dLogAInf_dLambda: number;
   dLogFIso_dLambda: number;
   dLogGOver_dLambda: number;
@@ -457,6 +471,62 @@ export class ActiveStressChamberModel implements ChamberModel {
     return this.lambdaForActivation(lambdaRaw, internal);
   }
 
+  private lowStretchLimiterMode(): LowStretchLimiterMode {
+    const mode = this.ap.lowStretchLimiter ?? "none";
+    return mode === "aInfCap" || mode === "activeReserveCap" ? mode : "none";
+  }
+
+  private lowStretchLimiterStrength(): number {
+    return clamp(this.ap.lowStretchLimiterStrength ?? 0.22, 0, 0.8);
+  }
+
+  private lowStretchLimiterGate(lambdaRaw: number): number {
+    if (this.lowStretchLimiterMode() === "none") return 0;
+    const knee = this.ap.lowStretchLimiterKnee ?? 0.9;
+    const width = Math.max(this.ap.lowStretchLimiterWidth ?? 0.08, 1e-6);
+    const x = clamp((knee - lambdaRaw) / width, 0, 1);
+    return x * x * (3 - 2 * x);
+  }
+
+  private smoothUpperCap(value: number, capValue: number, width = 0.015): number {
+    if (value <= capValue || width <= 0) return Math.min(value, capValue);
+    return capValue + width * (1 - Math.exp(-(value - capValue) / width));
+  }
+
+  private effectiveAInf(aInfRaw: number, lambdaRaw: number): {
+    aInf: number;
+    cap: number;
+    delta: number;
+    gate: number;
+    strength: number;
+  } {
+    const gate = this.lowStretchLimiterGate(lambdaRaw);
+    const strength = this.lowStretchLimiterStrength();
+    if (this.lowStretchLimiterMode() !== "aInfCap" || gate <= 0 || strength <= 0) {
+      return { aInf: aInfRaw, cap: 1, delta: 0, gate, strength };
+    }
+    const capValue = clamp(1 - strength * gate, 0.05, 1);
+    const aInf = clamp(this.smoothUpperCap(aInfRaw, capValue), 0, Math.max(capValue, 0));
+    return { aInf, cap: capValue, delta: Math.max(0, aInfRaw - aInf), gate, strength };
+  }
+
+  private activeTargetLimiter(lambdaRaw: number, a: number): {
+    limiter: number;
+    gate: number;
+    strength: number;
+  } {
+    const gate = this.lowStretchLimiterGate(lambdaRaw);
+    const strength = this.lowStretchLimiterStrength();
+    if (this.lowStretchLimiterMode() !== "activeReserveCap" || gate <= 0 || strength <= 0) {
+      return { limiter: 1, gate, strength };
+    }
+    const thresholdRaw = this.ap.lowStretchLimiterActivationThreshold;
+    const reserve = thresholdRaw == null
+      ? 1
+      : clamp((a - clamp(thresholdRaw, 0, 0.98)) / Math.max(1 - clamp(thresholdRaw, 0, 0.98), 1e-6), 0, 1);
+    return { limiter: clamp(1 - strength * gate * reserve, 0.1, 1), gate, strength };
+  }
+
   private fIso(lambdaAct: number): number {
     const ap = this.ap;
     return clamp((lambdaAct - ap.lambdaPas0 + 0.3) / 0.35, 0, 1);
@@ -467,7 +537,8 @@ export class ActiveStressChamberModel implements ChamberModel {
     const gOver = 1 / (1 + expClamped(ap.kOver * (lambdaRaw - ap.lambdaFail)));
     // Realistic f_iso so tension rapidly drops as the heart empties.
     const f_iso = this.fIso(lambdaAct);
-    return ap.Tmax0 * ctx.tmaxScale * ctx.contractility * a * gOver * f_iso * this.forceVelocityScale(ctx);
+    const raw = ap.Tmax0 * ctx.tmaxScale * ctx.contractility * a * gOver * f_iso * this.forceVelocityScale(ctx);
+    return raw * this.activeTargetLimiter(lambdaRaw, a).limiter;
   }
 
   private forceVelocityScale(ctx: ChamberCtx): number {
@@ -544,12 +615,18 @@ export class ActiveStressChamberModel implements ChamberModel {
     const Kd = ap.Kd0 * expClamped(-ap.betaLambda * (lambdaForKd - 1) + ap.betaKd * betaDrive);
     const cn = Math.pow(Math.max(c, 0), ap.hillN);
     const kn = Math.pow(Math.max(Kd, 1e-6), ap.hillN);
-    const aInf = cn / Math.max(cn + kn, 1e-9);
+    const aInfRaw = cn / Math.max(cn + kn, 1e-9);
+    const aInfLimit = this.effectiveAInf(aInfRaw, lambdaRaw);
+    const aInf = aInfLimit.aInf;
     const tauA = 1 / Math.max(ap.kOn * cn + ap.kOff, 0.5);
     const gOver = 1 / (1 + expClamped(ap.kOver * (lambdaRaw - ap.lambdaFail)));
     const fIso = this.fIso(lambdaForFIso);
     const forceVelocityScale = this.forceVelocityScale(ctx);
-    const dLogAInf_dLambda = ap.hillN * ap.betaLambda * (1 - aInf);
+    const sigmaActTargetRaw = ap.Tmax0 * ctx.tmaxScale * ctx.contractility * a * gOver * fIso * forceVelocityScale;
+    const activeLimiter = this.activeTargetLimiter(lambdaRaw, a);
+    // Report the raw Kd/aInf length sensitivity. aInfCap is a ceiling on the
+    // effective activation and must not make the diagnostic slope look larger.
+    const dLogAInf_dLambda = ap.hillN * ap.betaLambda * (1 - aInfRaw);
     const dLogFIso_dLambda = fIso > 1e-6 && fIso < 1 ? 1 / (0.35 * fIso) : 0;
     const dLogGOver_dLambda = -ap.kOver * (1 - gOver);
     const terms = this.lambdaActTerms();
@@ -578,6 +655,14 @@ export class ActiveStressChamberModel implements ChamberModel {
       dLogCompositeActive_dLambdaAct,
       lambdaActMinusRaw: lambdaAct - lambdaRaw,
       lambdaActTransferTauSec: Math.max(ap.tauLambdaActSec ?? 0, 0),
+      lowStretchLimiter: this.lowStretchLimiterMode(),
+      lowStretchLimiterGate: Math.max(aInfLimit.gate, activeLimiter.gate),
+      lowStretchLimiterStrength: this.lowStretchLimiterStrength(),
+      aInfRaw,
+      aInfCap: aInfLimit.cap,
+      aInfLimiterDelta: aInfLimit.delta,
+      activeTargetLimiter: activeLimiter.limiter,
+      sigmaActTargetRaw,
       dLogAInf_dLambda,
       dLogFIso_dLambda,
       dLogGOver_dLambda,
@@ -734,7 +819,8 @@ export class ActiveStressChamberModel implements ChamberModel {
     const Kd = ap.Kd0 * expClamped(-ap.betaLambda * (lambdaForKd - 1) + ap.betaKd * betaDrive);
     const cn = Math.pow(Math.max(c, 0), ap.hillN);
     const kn = Math.pow(Math.max(Kd, 1e-6), ap.hillN);
-    const aInf = cn / Math.max(cn + kn, 1e-9);
+    const aInfRaw = cn / Math.max(cn + kn, 1e-9);
+    const aInf = this.effectiveAInf(aInfRaw, lambda).aInf;
     const tauA = 1 / Math.max(ap.kOn * cn + ap.kOff, 0.5);
     const aDot = clamp((aInf - a) / tauA, -20, 20);
     const rDot = reservoirQDot(ap, internal, ctx, theta);

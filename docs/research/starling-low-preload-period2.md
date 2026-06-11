@@ -214,6 +214,33 @@ npm run verify:starling-low-preload-matrix -- \
   --sample-hz=60
 ```
 
+After PR #119 the same branch/matrix workflow can compare off-by-default low-stretch active-gain limiter candidates:
+
+- `--low-stretch-limiter=none|aInfCap|activeReserveCap`
+- `--low-stretch-limiter-scope=lv|ventricles|all`
+
+These are diagnostic comparator arms only. They do not change shipped dynamics unless explicitly enabled through debug parameters:
+
+- `aInfCap` applies a low-raw-lambda activation ceiling. It can only reduce `aInf`; it never lowers `Kd` or increases calcium sensitivity.
+- `activeReserveCap` applies a low-raw-lambda active-target multiplier `<= 1`. By default it is a direct low-stretch target cap; if `lowStretchLimiterActivationThreshold` is provided, it becomes high-activation gated. It can only reduce `sigmaActTarget`.
+
+This intentionally avoids the unguarded `phi(lambda)` Kd slope-limiter proposal where low-lambda `phi(lambda) > lambda` could lower `Kd`, raise calcium sensitivity, and worsen low-volume overcontraction/clamp activity. The first acceptance screen for these comparator arms is branch-amplitude reduction with no increase in sanitize/projection contamination, dynamic-flow clamp activity, valve reverse volume, or normal/HR100 waveform distortion.
+
+Example:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/kd-limiter \
+  --deltas=0,-1200,-1250,-1300,-1400 \
+  --dt=0.001,0.0005 \
+  --tbv-correction=on,off \
+  --low-stretch-limiter=none,aInfCap,activeReserveCap \
+  --low-stretch-limiter-scope=lv \
+  --max-return-map-points=4 \
+  --trace-beats=4 \
+  --sample-hz=60
+```
+
 ## Recommended root-fix experiments
 
 The next model-level PR should be evidence-first. Do not start by hiding points, changing the Starling fit, or lowering `betaLambda` globally.
@@ -229,8 +256,9 @@ Recommended order:
 Candidate model changes, in increasing blast radius:
 
 - Enable a modest LV/RV active-tension filter so active stress is not an instantaneous function of stretch and activation.
-- Smooth the low-stretch `f_iso` ramp with a C1/C2 force-length gate.
-- Saturate or filter length-dependent Ca sensitivity at low `lambda`, preserving the normal-preload slope while reducing low-preload dynamic gain.
+- Compare low-stretch `aInfCap` / `activeReserveCap` candidates that can only reduce low-stretch activation or active target force.
+- Smooth the low-stretch `f_iso` ramp with a C1/C2 force-length gate only after Kd/aInf candidates fail or require a secondary trim.
+- Saturate or filter length-dependent Ca sensitivity at low `lambda` only with a level/active-reserve guard; avoid any candidate that lowers low-lambda `Kd` and increases active force.
 - Revisit AoV/MV dynamic coupling only if active-stress smoothing leaves a residual alternans.
 
 Several reviewers independently warned against a simple global `betaLambda` reduction. It can remove the period-2 point but also changes low-volume contractility and can introduce clamp/overcontraction artifacts.
