@@ -89,7 +89,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(Object.keys(diagnostics.tbvProjectionLastStep.byNodeAbsMl).length).toBeGreaterThan(0);
   });
 
-  it("builds a schema-v9 low-preload report with active, valve, clamp, TBV audit, return-map, and tau/dt fields", () => {
+  it("builds a schema-v10 low-preload report with active, valve, clamp, TBV audit, return-map, and tau/dt fields", () => {
     const report = runLowPreloadDebug({
       outDir: "unused",
       targetVolumeMl: 5600,
@@ -103,19 +103,23 @@ describe("low-preload Starling debug diagnostics", () => {
       quietClampLog: true,
     });
 
-    expect(report.schemaVersion).toBe(9);
+    expect(report.schemaVersion).toBe(10);
     expect(report.returnMapMode).toBe("both");
     expect(report.tbvCorrectionMode).toBe("on");
     expect(report.lambdaActScope).toBe("all");
     expect(report.lambdaActTerms).toBe("kd+fiso");
     expect(report.lowStretchLimiterMode).toBe("none");
     expect(report.lowStretchLimiterScope).toBe("lv");
+    expect(report.activeReservePreset).toBe("none");
     expect(report.dtScenarios).toHaveLength(1);
     expect(report.points).toHaveLength(1);
     const point = report.points[0];
     expect(point.deltaVolumeMl).toBe(0);
     expect(point.beatTrace.length).toBeGreaterThan(0);
     expect(point.beatTrace[0].active.LV?.KdMean).toEqual(expect.any(Number));
+    expect(point.beatTrace[0].active.LV?.activeTargetLimiterMin).toEqual(expect.any(Number));
+    expect(point.beatTrace[0].active.LV?.activeTargetLimiterHitFraction).toEqual(expect.any(Number));
+    expect(point.beatTrace[0].active.LV?.sigmaActTargetReductionFractionMean).toEqual(expect.any(Number));
     expect(point.valveTrace.AoV.maxQ).toEqual(expect.any(Number));
     expect(point.clampDiagnostics.nodeClampHits).toBeDefined();
     expect(point.tbvAudit.correctionMode).toBe("on");
@@ -156,6 +160,8 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(csv).toContain("LV_lambdaActMinusRawMean");
     expect(csv).toContain("LV_aInfRawMean");
     expect(csv).toContain("LV_activeTargetLimiterMean");
+    expect(csv).toContain("LV_activeTargetLimiterMin");
+    expect(csv).toContain("LV_sigmaActTargetReductionFractionMean");
     expect(csv).toContain("branchAmplitudeFractionCO_L");
     expect(csv).toContain("returnMapEDVSlope");
     expect(csv).toContain("tbvAuditClass");
@@ -190,6 +196,7 @@ describe("low-preload Starling debug diagnostics", () => {
       "--lambda-act-terms=kd",
       "--low-stretch-limiter=activeReserveCap",
       "--low-stretch-limiter-scope=ventricles",
+      "--active-reserve-preset=thresholdMild",
       "--return-map-deltas=-1250,-1400",
       "--tbv-correction=off",
     ]);
@@ -201,6 +208,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(opts.lambdaActTerms).toBe("kd");
     expect(opts.lowStretchLimiterMode).toBe("activeReserveCap");
     expect(opts.lowStretchLimiterScope).toBe("ventricles");
+    expect(opts.activeReservePreset).toBe("thresholdMild");
     expect(opts.returnMapDeltasMl).toEqual([-1250, -1400]);
     expect(opts.tbvCorrectionMode).toBe("off");
   });
@@ -394,6 +402,7 @@ describe("low-preload Starling debug diagnostics", () => {
       "--lambda-act-terms=kd,fiso,kd+fiso",
       "--low-stretch-limiter=none,aInfCap,activeReserveCap",
       "--low-stretch-limiter-scope=lv",
+      "--active-reserve-preset=directMild,directMedium",
       "--max-return-map-points=1",
       "--trace-beats=2",
       "--sample-hz=40",
@@ -401,26 +410,35 @@ describe("low-preload Starling debug diagnostics", () => {
     ]);
     const report = runLowPreloadMatrix(opts);
 
-    expect(report.schemaVersion).toBe(5);
-    expect(report.scenarios).toHaveLength(6);
-    expect(report.scenarios.filter((scenario) => scenario.lambdaActTauSec === 0)).toHaveLength(3);
+    expect(report.schemaVersion).toBe(6);
+    expect(report.scenarios).toHaveLength(7);
+    expect(report.scenarios.filter((scenario) => scenario.lambdaActTauSec === 0)).toHaveLength(4);
     expect(report.scenarios.filter((scenario) => scenario.lambdaActTauSec === 0 && scenario.lowStretchLimiterMode === "none")).toHaveLength(1);
-    expect(report.scenarios.filter((scenario) => scenario.lowStretchLimiterMode !== "none")).toHaveLength(2);
+    expect(report.scenarios.filter((scenario) => scenario.lowStretchLimiterMode !== "none")).toHaveLength(3);
     expect(report.scenarios.find((scenario) => scenario.lambdaActTauSec === 0 && scenario.lowStretchLimiterMode === "aInfCap")).toBeDefined();
+    expect(report.scenarios.filter((scenario) => scenario.lowStretchLimiterMode === "activeReserveCap").map((scenario) => scenario.activeReservePreset)).toEqual(["directMild", "directMedium"]);
     expect(report.scenarios.find((scenario) => scenario.lambdaActTerms === "kd" && scenario.lambdaActTauSec === 0.15)).toBeDefined();
     expect(report.scenarios[0].selectedDeltasMl).toHaveLength(1);
+    expect(Number.isFinite(report.scenarios[0].shapeSummary.meanCOLErrorFractionVsBaseline)).toBe(true);
+    expect(Number.isFinite(report.scenarios[0].shapeSummary.lowPreloadSlopeRatioVsBaseline)).toBe(true);
+    expect(report.scenarios[0].shapeSummary.lowPreloadMonotonicityViolations).toEqual(expect.any(Number));
     expect(report.scenarios[0].waveformGates.map((gate) => gate.label)).toEqual(["normal", "HR100", "HR100-rearm"]);
     expect(report.scenarios[0].waveformGates[0].maxDeltaMetric).toEqual(expect.any(String));
     expect(report.summary.maxWaveformGateDeltaMetric).toEqual(expect.any(String));
     expect(report.summary.maxSanitizeAbsMl).toEqual(expect.any(Number));
     expect(report.summary.maxProjectionAppliedMl).toEqual(expect.any(Number));
+    expect(report.summary.maxMeanCOLErrorFractionVsBaseline).toEqual(expect.any(Number));
+    expect(report.summary.maxActiveReserveHitFraction).toEqual(expect.any(Number));
     expect(report.scenarios[0].points.some((point) => point.returnMap.status === "ok")).toBe(true);
     expect(matrixReportToMarkdown(report)).toContain("Selected return-map points");
     expect(matrixReportToMarkdown(report)).toContain("Normal / HR100 waveform gates");
     expect(matrixReportToMarkdown(report)).toContain("TBV / Clamp Audit");
+    expect(matrixReportToMarkdown(report)).toContain("dip/re-rise");
     expect(matrixReportToCsv(report)).toContain("returnMapSelected");
     expect(matrixReportToCsv(report)).toContain("tbvCorrectionMode");
     expect(matrixReportToCsv(report)).toContain("lowStretchLimiterMode");
+    expect(matrixReportToCsv(report)).toContain("activeReservePreset");
+    expect(matrixReportToCsv(report)).toContain("meanCOLErrorFractionVsBaseline");
     expect(matrixReportToCsv(report)).toContain("branchAmplitudeFractionESV_L");
   });
 
