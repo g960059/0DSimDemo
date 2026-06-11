@@ -10,6 +10,7 @@ import {
   runLowPreloadDebug,
   selectSuspiciousPointIndices,
   type LambdaActScope,
+  type TBVCorrectionMode,
 } from "@/tools/debugStarlingLowPreload";
 
 type DebugReport = ReturnType<typeof runLowPreloadDebug>;
@@ -23,6 +24,7 @@ type MatrixOptions = {
   lambdaActTauSecValues: number[];
   lambdaActScopes: LambdaActScope[];
   lambdaActTermsValues: LambdaActTerms[];
+  tbvCorrectionModes: TBVCorrectionMode[];
   maxReturnMapPoints: number;
   traceBeats: number;
   sampleHz: number;
@@ -62,6 +64,7 @@ type MatrixScenario = {
   lambdaActTauSec: number;
   lambdaActScope: LambdaActScope;
   lambdaActTerms: LambdaActTerms;
+  tbvCorrectionMode: TBVCorrectionMode;
   selectedDeltasMl: number[];
   branchSummary: DebugReport["summary"];
   returnMapSummary: DebugReport["summary"];
@@ -70,7 +73,7 @@ type MatrixScenario = {
 };
 
 type MatrixReport = {
-  schemaVersion: 3;
+  schemaVersion: 4;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -79,6 +82,7 @@ type MatrixReport = {
   lambdaActTauSecValues: number[];
   lambdaActScopes: LambdaActScope[];
   lambdaActTermsValues: LambdaActTerms[];
+  tbvCorrectionModes: TBVCorrectionMode[];
   maxReturnMapPoints: number;
   traceBeats: number;
   sampleHz: number;
@@ -91,6 +95,9 @@ type MatrixReport = {
     maxClampHitCount: number;
     maxWaveformGateDeltaFraction: number;
     maxWaveformGateDeltaMetric: string | null;
+    maxSanitizeAbsMl: number;
+    maxProjectionAppliedMl: number;
+    contaminatedPointCount: number;
     selectedReturnMapPointCount: number;
   };
 };
@@ -100,6 +107,7 @@ const DEFAULT_DT_VALUES = [0.001, 0.0005];
 const DEFAULT_TAU_VALUES = [0, 0.05, 0.1, 0.15, 0.2, 0.4];
 const DEFAULT_SCOPES: LambdaActScope[] = ["lv", "ventricles"];
 const DEFAULT_TERMS: LambdaActTerms[] = ["kd", "fiso", "kd+fiso"];
+const DEFAULT_TBV_CORRECTION_MODES: TBVCorrectionMode[] = ["on"];
 const WAVEFORM_RUN_OPTIONS = { collectSamples: false, recordHistory: true, historyLimit: 720 };
 const WAVEFORM_SETTLE_POLICY = { ...PREVIEW_SETTLE_POLICY, capSeconds: 45 };
 
@@ -111,11 +119,11 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
   const waveformBaselineCache = new Map<string, WaveformGateMetrics>();
   const specs = matrixScenarioSpecs(opts, scopes);
   specs.forEach((spec, index) => {
-    const { lambdaActScope, lambdaActTauSec, lambdaActTerms, dt } = spec;
+    const { lambdaActScope, lambdaActTauSec, lambdaActTerms, tbvCorrectionMode, dt } = spec;
     if (opts.progress) {
       // eslint-disable-next-line no-console
       console.log(
-        `[matrix] ${index + 1}/${specs.length} dt=${dt} tau=${lambdaActTauSec} scope=${lambdaActScope} terms=${lambdaActTerms}`,
+        `[matrix] ${index + 1}/${specs.length} dt=${dt} tau=${lambdaActTauSec} scope=${lambdaActScope} terms=${lambdaActTerms} tbv=${tbvCorrectionMode}`,
       );
     }
     const branchReport = runLowPreloadDebug({
@@ -126,6 +134,7 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
       lambdaActTauSecValues: [lambdaActTauSec],
       lambdaActScope,
       lambdaActTerms,
+      tbvCorrectionMode,
       traceBeats: opts.traceBeats,
       sampleHz: opts.sampleHz,
       returnMapMode: "none",
@@ -143,6 +152,7 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
           lambdaActTauSecValues: [lambdaActTauSec],
           lambdaActScope,
           lambdaActTerms,
+          tbvCorrectionMode,
           traceBeats: opts.traceBeats,
           sampleHz: opts.sampleHz,
           returnMapMode: "both",
@@ -154,6 +164,7 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
       lambdaActTauSec,
       lambdaActScope,
       lambdaActTerms,
+      tbvCorrectionMode,
       selectedDeltasMl,
       branchSummary: branchReport.summary,
       returnMapSummary: returnMapReport.summary,
@@ -183,15 +194,16 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
       { fraction: 0, metric: null },
     );
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     generatedAt: new Date().toISOString(),
-    measurementMode: "branch-only broad low-preload matrix followed by selected EDV-section return-map diagnostics",
+    measurementMode: "branch-only broad low-preload matrix followed by selected EDV-section return-map diagnostics; optional TBV correction on/off/low contamination axis",
     targetVolumeMl: opts.targetVolumeMl,
     deltasMl: opts.deltasMl,
     dtValues: opts.dtValues,
     lambdaActTauSecValues: opts.lambdaActTauSecValues,
     lambdaActScopes: scopes,
     lambdaActTermsValues: opts.lambdaActTermsValues,
+    tbvCorrectionModes: opts.tbvCorrectionModes,
     maxReturnMapPoints: opts.maxReturnMapPoints,
     traceBeats: opts.traceBeats,
     sampleHz: opts.sampleHz,
@@ -204,6 +216,9 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
       maxClampHitCount: Math.max(0, ...scenarios.map((s) => s.returnMapSummary.maxClampHitCount)),
       maxWaveformGateDeltaFraction: maxWaveformGate.fraction,
       maxWaveformGateDeltaMetric: maxWaveformGate.metric,
+      maxSanitizeAbsMl: Math.max(0, ...scenarios.map((s) => s.returnMapSummary.maxSanitizeAbsMl)),
+      maxProjectionAppliedMl: Math.max(0, ...scenarios.map((s) => s.returnMapSummary.maxProjectionAppliedMl)),
+      contaminatedPointCount: scenarios.reduce((sum, scenario) => sum + scenario.returnMapSummary.contaminatedPointCount, 0),
       selectedReturnMapPointCount: scenarios.reduce((sum, scenario) => sum + scenario.selectedDeltasMl.length, 0),
     },
   };
@@ -212,14 +227,16 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
 function matrixScenarioSpecs(
   opts: MatrixOptions,
   scopes: LambdaActScope[],
-): Array<{ dt: number; lambdaActTauSec: number; lambdaActScope: LambdaActScope; lambdaActTerms: LambdaActTerms }> {
-  const specs: Array<{ dt: number; lambdaActTauSec: number; lambdaActScope: LambdaActScope; lambdaActTerms: LambdaActTerms }> = [];
+): Array<{ dt: number; lambdaActTauSec: number; lambdaActScope: LambdaActScope; lambdaActTerms: LambdaActTerms; tbvCorrectionMode: TBVCorrectionMode }> {
+  const specs: Array<{ dt: number; lambdaActTauSec: number; lambdaActScope: LambdaActScope; lambdaActTerms: LambdaActTerms; tbvCorrectionMode: TBVCorrectionMode }> = [];
   for (const dt of opts.dtValues) {
-    specs.push({ dt, lambdaActTauSec: 0, lambdaActScope: "all", lambdaActTerms: "kd+fiso" });
-    for (const lambdaActTauSec of opts.lambdaActTauSecValues.filter((tau) => tau > 0)) {
-      for (const lambdaActScope of scopes) {
-        for (const lambdaActTerms of opts.lambdaActTermsValues) {
-          specs.push({ dt, lambdaActTauSec, lambdaActScope, lambdaActTerms });
+    for (const tbvCorrectionMode of opts.tbvCorrectionModes) {
+      specs.push({ dt, lambdaActTauSec: 0, lambdaActScope: "all", lambdaActTerms: "kd+fiso", tbvCorrectionMode });
+      for (const lambdaActTauSec of opts.lambdaActTauSecValues.filter((tau) => tau > 0)) {
+        for (const lambdaActScope of scopes) {
+          for (const lambdaActTerms of opts.lambdaActTermsValues) {
+            specs.push({ dt, lambdaActTauSec, lambdaActScope, lambdaActTerms, tbvCorrectionMode });
+          }
         }
       }
     }
@@ -421,8 +438,8 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("## Scenario summary");
   lines.push("");
-  lines.push("| scope | terms | tau s | dt | selected deltas | period-2 | max CO branch frac | max EDV branch frac | max ESV branch frac | max clamp hits | max one-beat EDV slope | max two-beat EDV slope | max waveform gate frac | worst waveform metric |");
-  lines.push("| --- | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
+  lines.push("| scope | terms | tau s | dt | TBV correction | selected deltas | period-2 | max CO branch frac | max EDV branch frac | max ESV branch frac | max clamp hits | max sanitize abs mL | max projection applied mL | contaminated | max one-beat EDV slope | max two-beat EDV slope | max waveform gate frac | worst waveform metric |");
+  lines.push("| --- | --- | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
   for (const scenario of report.scenarios) {
     const worstWaveform = scenario.waveformGates.reduce<{ label: string; metric: string; fraction: number }>(
       (best, gate) => gate.maxDeltaFraction > best.fraction
@@ -435,12 +452,16 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
       scenario.lambdaActTerms,
       round(scenario.lambdaActTauSec, 4),
       round(scenario.dt, 5),
+      scenario.tbvCorrectionMode,
       scenario.selectedDeltasMl.join(", "),
       scenario.returnMapSummary.period2Count,
       round(scenario.returnMapSummary.maxBranchAmplitudeFractionCOL, 4),
       round(scenario.returnMapSummary.maxBranchAmplitudeFractionEDVL, 4),
       round(scenario.returnMapSummary.maxBranchAmplitudeFractionESVL, 4),
       scenario.returnMapSummary.maxClampHitCount,
+      round(scenario.returnMapSummary.maxSanitizeAbsMl, 6),
+      round(scenario.returnMapSummary.maxProjectionAppliedMl, 6),
+      scenario.returnMapSummary.contaminatedPointCount,
       round(scenario.returnMapSummary.maxAbsReturnMapSlopeEDVL, 4),
       round(scenario.returnMapSummary.maxAbsTwoBeatReturnMapSlopeEDVL, 4),
       round(maxWaveformGateFractionForScenario(scenario), 4),
@@ -448,10 +469,28 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
     ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
   }
   lines.push("");
+  lines.push("## TBV / Clamp Audit");
+  lines.push("");
+  lines.push("| scope | terms | tau s | dt | TBV correction | max CO branch frac | max sanitize abs mL | max projection applied mL | contaminated points |");
+  lines.push("| --- | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |");
+  for (const scenario of report.scenarios) {
+    lines.push([
+      scenario.lambdaActScope,
+      scenario.lambdaActTerms,
+      round(scenario.lambdaActTauSec, 4),
+      round(scenario.dt, 5),
+      scenario.tbvCorrectionMode,
+      round(scenario.returnMapSummary.maxBranchAmplitudeFractionCOL, 4),
+      round(scenario.returnMapSummary.maxSanitizeAbsMl, 6),
+      round(scenario.returnMapSummary.maxProjectionAppliedMl, 6),
+      scenario.returnMapSummary.contaminatedPointCount,
+    ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
+  }
+  lines.push("");
   lines.push("## Normal / HR100 waveform gates");
   lines.push("");
-  lines.push("| scope | terms | tau s | dt | case | dCO_L | dESV_L | dEF_L | dLVPmax | dQAoMax | dMax dP/dt | dClamp hits | worst metric | worst frac |");
-  lines.push("| --- | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: |");
+  lines.push("| scope | terms | tau s | dt | TBV correction | case | dCO_L | dESV_L | dEF_L | dLVPmax | dQAoMax | dMax dP/dt | dClamp hits | worst metric | worst frac |");
+  lines.push("| --- | --- | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: |");
   for (const scenario of report.scenarios) {
     for (const gate of scenario.waveformGates) {
       lines.push([
@@ -459,6 +498,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         scenario.lambdaActTerms,
         round(scenario.lambdaActTauSec, 4),
         round(scenario.dt, 5),
+        scenario.tbvCorrectionMode,
         gate.label,
         round(gate.delta.CO_L, 4),
         round(gate.delta.ESV_L, 4),
@@ -475,8 +515,8 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("## Selected return-map points");
   lines.push("");
-  lines.push("| scope | terms | tau s | dt | delta | return-map | branch CO frac | branch EDV frac | branch ESV frac | one-beat EDV slope | two-beat EDV slope | clamps |");
-  lines.push("| --- | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| scope | terms | tau s | dt | TBV correction | delta | return-map | branch CO frac | branch EDV frac | branch ESV frac | one-beat EDV slope | two-beat EDV slope | clamps | audit |");
+  lines.push("| --- | --- | ---: | ---: | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
   for (const scenario of report.scenarios) {
     for (const point of scenario.points.filter((p) => p.returnMap.status !== "skipped")) {
       lines.push([
@@ -484,6 +524,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         scenario.lambdaActTerms,
         round(scenario.lambdaActTauSec, 4),
         round(scenario.dt, 5),
+        scenario.tbvCorrectionMode,
         point.deltaVolumeMl,
         point.returnMap.status,
         round(point.returnMap.branchAmplitudeFraction.CO_L ?? NaN, 4),
@@ -492,6 +533,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         round(point.returnMap.features.EDV_L?.centralSlope ?? NaN, 4),
         round(point.returnMap.twoBeatSamePhase?.features.EDV_L?.centralSlope ?? NaN, 4),
         point.health.clampHitCount,
+        point.tbvAudit.classification,
       ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
     }
   }
@@ -500,6 +542,8 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("- Broad branch passes run with `return-map-mode=none`; return-map diagnostics are computed only for selected suspicious deltas.");
   lines.push("- Selection prioritizes high branch amplitude fraction, clamp activity, the lowest finite low-preload point, and the baseline `-1250 mL` representative when present.");
+  lines.push("- `TBV correction=off` disables continuous projection after target retargeting; `low` keeps projection enabled with lower debug-only gain/caps.");
+  lines.push("- Contaminated points have representative-beat sanitize or projection volume movement above 0.05 mL. They are reported, not removed.");
   lines.push("- `lambdaAct` remains off by default. This matrix compares scope, term, and tau values for diagnosis only.");
   lines.push("- Waveform gates compare normal and HR100 settled waveforms against the tau=0 baseline; they are report-only in this PR.");
   lines.push("");
@@ -512,6 +556,7 @@ export function matrixReportToCsv(report: MatrixReport): string {
     "lambdaActTerms",
     "lambdaActTauSec",
     "dt",
+    "tbvCorrectionMode",
     "deltaVolumeMl",
     "periodBeats",
     "CO_L",
@@ -520,6 +565,9 @@ export function matrixReportToCsv(report: MatrixReport): string {
     "branchAmplitudeFractionEDV_L",
     "branchAmplitudeFractionESV_L",
     "clampHitCount",
+    "tbvAuditClass",
+    "sanitizeAbsMl",
+    "projectionAppliedMl",
     "returnMapSelected",
     "returnMapStatus",
     "oneBeatEDVSlope",
@@ -534,6 +582,7 @@ export function matrixReportToCsv(report: MatrixReport): string {
         scenario.lambdaActTerms,
         scenario.lambdaActTauSec,
         scenario.dt,
+        scenario.tbvCorrectionMode,
         point.deltaVolumeMl,
         point.settle.periodBeats ?? 1,
         point.periodMetrics.CO_L,
@@ -542,6 +591,9 @@ export function matrixReportToCsv(report: MatrixReport): string {
         point.returnMap.branchAmplitudeFraction.EDV_L ?? "",
         point.returnMap.branchAmplitudeFraction.ESV_L ?? "",
         point.health.clampHitCount,
+        point.tbvAudit.classification,
+        point.tbvAudit.sanitizeAbsMl,
+        point.tbvAudit.projectionAppliedMl,
         selected.has(String(point.deltaVolumeMl)) ? "yes" : "no",
         point.returnMap.status,
         point.returnMap.features.EDV_L?.centralSlope ?? "",
@@ -562,6 +614,7 @@ export function parseLowPreloadMatrixArgs(args: string[]): MatrixOptions {
     lambdaActTauSecValues: DEFAULT_TAU_VALUES,
     lambdaActScopes: DEFAULT_SCOPES,
     lambdaActTermsValues: DEFAULT_TERMS,
+    tbvCorrectionModes: DEFAULT_TBV_CORRECTION_MODES,
     includeAllScope: false,
     maxReturnMapPoints: 6,
     traceBeats: 10,
@@ -577,6 +630,7 @@ export function parseLowPreloadMatrixArgs(args: string[]): MatrixOptions {
     else if (key === "--lambda-act-tau" && value) opts.lambdaActTauSecValues = parseNumberList(value);
     else if (key === "--lambda-act-scope" && value) opts.lambdaActScopes = parseScopes(value);
     else if (key === "--lambda-act-terms" && value) opts.lambdaActTermsValues = parseTerms(value);
+    else if (key === "--tbv-correction" && value) opts.tbvCorrectionModes = parseTBVCorrectionModes(value);
     else if (key === "--include-all-scope") opts.includeAllScope = true;
     else if (key === "--branch-only") opts.maxReturnMapPoints = 0;
     else if (key === "--max-return-map-points" && value) opts.maxReturnMapPoints = Math.max(0, Math.floor(Number(value)));
@@ -591,6 +645,14 @@ export function parseLowPreloadMatrixArgs(args: string[]): MatrixOptions {
     }
   }
   return opts;
+}
+
+function parseTBVCorrectionModes(value: string): TBVCorrectionMode[] {
+  const modes = value.split(",").map((entry) => entry.trim()).filter(Boolean);
+  for (const mode of modes) {
+    if (mode !== "on" && mode !== "off" && mode !== "low") throw new Error(`Invalid TBV correction mode: ${mode}`);
+  }
+  return modes as TBVCorrectionMode[];
 }
 
 function parseTerms(value: string): LambdaActTerms[] {
@@ -635,11 +697,12 @@ function printHelp(): void {
     "Usage: npm run verify:starling-low-preload-matrix -- [--out=DIR]",
     "       [--deltas=0,-900,-1250] [--dt=0.001,0.0005] [--lambda-act-tau=0,0.15]",
     "       [--lambda-act-scope=lv,ventricles] [--lambda-act-terms=kd,fiso,kd+fiso]",
+    "       [--tbv-correction=on,off,low]",
     "       [--include-all-scope] [--branch-only] [--max-return-map-points=6]",
     "       [--quiet-progress]",
     "",
     "Example:",
-    "  npm run verify:starling-low-preload-matrix -- --deltas=0,-1250,-1400 --dt=0.001 --lambda-act-tau=0,0.15 --lambda-act-scope=lv --lambda-act-terms=kd,fiso,kd+fiso --max-return-map-points=2",
+    "  npm run verify:starling-low-preload-matrix -- --deltas=0,-1250,-1400 --dt=0.001 --lambda-act-tau=0,0.15 --lambda-act-scope=lv --lambda-act-terms=kd,fiso,kd+fiso --tbv-correction=on,off --max-return-map-points=2",
   ].join("\n"));
 }
 

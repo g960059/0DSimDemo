@@ -57,9 +57,32 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(diagnostics.nodeClampHits).toBeDefined();
     expect(diagnostics.dynamicFlowClampHits).toBeDefined();
     expect(diagnostics.valveDiodeClampHits).toBeDefined();
+    expect(diagnostics.sanitizeLastStep.absMl).toBeGreaterThanOrEqual(0);
+    expect(diagnostics.sanitizeCurrentBeat.byNodeAbsMl).toBeDefined();
+    expect(diagnostics.tbvProjectionLastStep.absAppliedMl).toBeGreaterThanOrEqual(0);
+    expect(diagnostics.tbvProjectionCurrentBeat.byNodeAbsMl).toBeDefined();
   });
 
-  it("builds a schema-v7 low-preload report with active, valve, clamp, return-map, and tau/dt fields", () => {
+  it("records requested and applied TBV projection corrections", () => {
+    const core = new ModelCore(DEFAULT_PARAMS);
+    core.initializeVenousPressuresForTargetTBV(5600);
+    const snapshot = core.packState();
+    core.unpackState({ ...snapshot, expectedTBV: snapshot.expectedTBV + 20 });
+    core.setTBVCorrectionAuditOptions({ gain: 1, maxTotalCorrectionMl: 2, maxNodeVolumeMl: 2 });
+
+    core.step(0.001);
+
+    const diagnostics = core.debugClampDiagnostics();
+    expect(diagnostics.tbvProjectionLastStep.requestedMl).toBeGreaterThan(0);
+    expect(diagnostics.tbvProjectionLastStep.absAppliedMl).toBeGreaterThan(0);
+    expect(diagnostics.tbvProjectionCurrentBeat.absAppliedMl).toBeGreaterThan(0);
+    expect(Math.abs(diagnostics.tbvProjectionLastStep.lastErrorAfterMl)).toBeLessThan(
+      Math.abs(diagnostics.tbvProjectionLastStep.lastErrorBeforeMl),
+    );
+    expect(Object.keys(diagnostics.tbvProjectionLastStep.byNodeAbsMl).length).toBeGreaterThan(0);
+  });
+
+  it("builds a schema-v8 low-preload report with active, valve, clamp, TBV audit, return-map, and tau/dt fields", () => {
     const report = runLowPreloadDebug({
       outDir: "unused",
       targetVolumeMl: 5600,
@@ -73,8 +96,9 @@ describe("low-preload Starling debug diagnostics", () => {
       quietClampLog: true,
     });
 
-    expect(report.schemaVersion).toBe(7);
+    expect(report.schemaVersion).toBe(8);
     expect(report.returnMapMode).toBe("both");
+    expect(report.tbvCorrectionMode).toBe("on");
     expect(report.lambdaActScope).toBe("all");
     expect(report.lambdaActTerms).toBe("kd+fiso");
     expect(report.dtScenarios).toHaveLength(1);
@@ -85,6 +109,10 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(point.beatTrace[0].active.LV?.KdMean).toEqual(expect.any(Number));
     expect(point.valveTrace.AoV.maxQ).toEqual(expect.any(Number));
     expect(point.clampDiagnostics.nodeClampHits).toBeDefined();
+    expect(point.tbvAudit.correctionMode).toBe("on");
+    expect(["clean", "contaminated"]).toContain(point.tbvAudit.classification);
+    expect(Number.isFinite(point.tbvAudit.sanitizeAbsMl)).toBe(true);
+    expect(Number.isFinite(point.tbvAudit.projectionAppliedMl)).toBe(true);
     expect(point.returnMap.method).toBe("edv-section-volume-preserving-lv-pvein-central-difference");
     expect(point.returnMap.sectionInterpolation).toBe("sample-peak");
     expect(point.returnMap.status).toBe("ok");
@@ -101,6 +129,8 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(point.returnMap.branchAmplitudeFraction.CO_L).toEqual(expect.any(Number));
     expect(Number.isFinite(report.summary.maxAbsReturnMapSlopeEDVL)).toBe(true);
     expect(Number.isFinite(report.summary.maxBranchAmplitudeFractionCOL)).toBe(true);
+    expect(Number.isFinite(report.summary.maxSanitizeAbsMl)).toBe(true);
+    expect(Number.isFinite(report.summary.maxProjectionAppliedMl)).toBe(true);
 
     const md = reportToMarkdown(report);
     expect(md).toContain("worst signal");
@@ -108,6 +138,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(md).toContain("two-beat EDV slope");
     expect(md).toContain("branch CO frac");
     expect(md).toContain("Dynamic-flow clamps");
+    expect(md).toContain("TBV / Clamp Audit");
     const csv = reportToCsv(report);
     expect(csv).toContain("LV_KdMean");
     expect(csv).toContain("LV_lambdaActMean");
@@ -116,6 +147,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(csv).toContain("LV_lambdaActMinusRawMean");
     expect(csv).toContain("branchAmplitudeFractionCO_L");
     expect(csv).toContain("returnMapEDVSlope");
+    expect(csv).toContain("tbvAuditClass");
   });
 
   it("can run the off-by-default lambdaAct tau experiment without changing runtime defaults", () => {
@@ -146,6 +178,7 @@ describe("low-preload Starling debug diagnostics", () => {
       "--lambda-act-scope=ventricles",
       "--lambda-act-terms=kd",
       "--return-map-deltas=-1250,-1400",
+      "--tbv-correction=off",
     ]);
 
     expect(opts.returnMapMode).toBe("none");
@@ -154,6 +187,41 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(opts.lambdaActScope).toBe("ventricles");
     expect(opts.lambdaActTerms).toBe("kd");
     expect(opts.returnMapDeltasMl).toEqual([-1250, -1400]);
+    expect(opts.tbvCorrectionMode).toBe("off");
+  });
+
+  it("supports TBV correction off and low audit modes", () => {
+    const offReport = runLowPreloadDebug({
+      outDir: "unused",
+      targetVolumeMl: 5600,
+      deltasMl: [0],
+      dtValues: [0.002],
+      lambdaActTauSecValues: [0],
+      lambdaActScope: "all",
+      traceBeats: 2,
+      sampleHz: 40,
+      returnMapMode: "none",
+      quietClampLog: true,
+      tbvCorrectionMode: "off",
+    });
+    const lowReport = runLowPreloadDebug({
+      outDir: "unused",
+      targetVolumeMl: 5600,
+      deltasMl: [0],
+      dtValues: [0.002],
+      lambdaActTauSecValues: [0],
+      lambdaActScope: "all",
+      traceBeats: 2,
+      sampleHz: 40,
+      returnMapMode: "none",
+      quietClampLog: true,
+      tbvCorrectionMode: "low",
+    });
+
+    expect(offReport.points[0].tbvAudit.correctionMode).toBe("off");
+    expect(offReport.points[0].tbvAudit.projectionAbsAppliedMl).toBe(0);
+    expect(lowReport.points[0].tbvAudit.correctionMode).toBe("low");
+    expect(Number.isFinite(lowReport.points[0].tbvAudit.projectionAbsAppliedMl)).toBe(true);
   });
 
   it("can skip return-map diagnostics while preserving branch amplitude fields", () => {
@@ -279,7 +347,7 @@ describe("low-preload Starling debug diagnostics", () => {
     ]);
     const report = runLowPreloadMatrix(opts);
 
-    expect(report.schemaVersion).toBe(3);
+    expect(report.schemaVersion).toBe(4);
     expect(report.scenarios).toHaveLength(4);
     expect(report.scenarios.filter((scenario) => scenario.lambdaActTauSec === 0)).toHaveLength(1);
     expect(report.scenarios[1].lambdaActTerms).toBe("kd");
@@ -287,10 +355,14 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.scenarios[0].waveformGates.map((gate) => gate.label)).toEqual(["normal", "HR100", "HR100-rearm"]);
     expect(report.scenarios[0].waveformGates[0].maxDeltaMetric).toEqual(expect.any(String));
     expect(report.summary.maxWaveformGateDeltaMetric).toEqual(expect.any(String));
+    expect(report.summary.maxSanitizeAbsMl).toEqual(expect.any(Number));
+    expect(report.summary.maxProjectionAppliedMl).toEqual(expect.any(Number));
     expect(report.scenarios[0].points.some((point) => point.returnMap.status === "ok")).toBe(true);
     expect(matrixReportToMarkdown(report)).toContain("Selected return-map points");
     expect(matrixReportToMarkdown(report)).toContain("Normal / HR100 waveform gates");
+    expect(matrixReportToMarkdown(report)).toContain("TBV / Clamp Audit");
     expect(matrixReportToCsv(report)).toContain("returnMapSelected");
+    expect(matrixReportToCsv(report)).toContain("tbvCorrectionMode");
     expect(matrixReportToCsv(report)).toContain("branchAmplitudeFractionESV_L");
   });
 
