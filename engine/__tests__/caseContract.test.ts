@@ -80,6 +80,27 @@ describe("sanitizeParams (engine contract boundary)", () => {
     expect((clean.nodeOverrides?.RV?.active as Record<string, number>)?.bPas).toBe(18);
   });
 
+  it("PRESERVES string-valued active chamber experiment selectors", () => {
+    const clean = sanitizeParams({
+      ...defaultParams(),
+      nodeOverrides: {
+        LV: {
+          active: {
+            tauLambdaActSec: 0.15,
+            lambdaActTerms: "kd",
+            lowStretchLimiter: "activeReserveCap",
+            bogusMode: "unsafe",
+          },
+        },
+      },
+    } as unknown as CoreRuntimeParams);
+    const lvActive = clean.nodeOverrides?.LV?.active as Record<string, number | string> | undefined;
+    expect(lvActive?.tauLambdaActSec).toBe(0.15);
+    expect(lvActive?.lambdaActTerms).toBe("kd");
+    expect(lvActive?.lowStretchLimiter).toBe("activeReserveCap");
+    expect(lvActive?.bogusMode).toBeUndefined();
+  });
+
   it("DROPS wrong-shaped (object-where-number) overrides — nesting only under `active`", () => {
     // A stray object where the integrator expects a number must never reach
     // ModelCore arithmetic. Nesting is allowed ONLY under a node's `active`.

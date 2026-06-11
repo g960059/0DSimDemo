@@ -155,6 +155,95 @@ describe("ChamberModel behavior parity (S2a refactor guards)", () => {
     expect(bothTerms.lambdaForFIso).toBeCloseTo(internal.lambdaAct, 9);
   });
 
+  it("keeps low-stretch limiter off by default", () => {
+    const ctx = {
+      HR: 75,
+      contractility: 1,
+      relaxation: 1,
+      phi: 0.28,
+      chamber: "LV" as const,
+      tmaxScale: 0.7,
+      geomScale: 1,
+      caReleaseScale: 1,
+      inletValveOpen01: 0,
+      outletValveOpen01: 1,
+    };
+    const internal = { c: 0.8, a: 0.7, r: 0, tensionPa: 0, lambdaAct: 1 };
+    const base = new ActiveStressChamberModel(defaultActiveLV);
+    const explicitNone = new ActiveStressChamberModel({ ...defaultActiveLV, lowStretchLimiter: "none" });
+
+    expect(explicitNone.pressure(45, internal, ctx)).toBeCloseTo(base.pressure(45, internal, ctx), 9);
+    expect(explicitNone.debugActiveStressTerms(45, internal, ctx).lowStretchLimiter).toBe("none");
+  });
+
+  it("can cap low-stretch aInf without increasing activation", () => {
+    const ctx = {
+      HR: 75,
+      contractility: 1,
+      relaxation: 1,
+      phi: 0.28,
+      chamber: "LV" as const,
+      tmaxScale: 0.7,
+      geomScale: 1,
+      caReleaseScale: 1,
+      inletValveOpen01: 0,
+      outletValveOpen01: 1,
+    };
+    const internal = { c: 5, a: 0.7, r: 0, tensionPa: 0, lambdaAct: 1 };
+    const limited = new ActiveStressChamberModel({
+      ...defaultActiveLV,
+      lowStretchLimiter: "aInfCap",
+      lowStretchLimiterStrength: 0.5,
+      lowStretchLimiterKnee: 0.95,
+      lowStretchLimiterWidth: 0.25,
+    });
+    const terms = limited.debugActiveStressTerms(45, internal, ctx);
+
+    expect(terms.lowStretchLimiter).toBe("aInfCap");
+    expect(terms.lowStretchLimiterGate).toBeGreaterThan(0);
+    expect(terms.aInf).toBeLessThanOrEqual(terms.aInfRaw);
+    expect(terms.aInfLimiterDelta).toBeGreaterThan(0);
+    expect(terms.dLogAInf_dLambda).toBeCloseTo(
+      defaultActiveLV.hillN * defaultActiveLV.betaLambda * (1 - terms.aInfRaw),
+      12,
+    );
+    expect(terms.dLogAInf_dLambda).toBeLessThan(
+      defaultActiveLV.hillN * defaultActiveLV.betaLambda * (1 - terms.aInf),
+    );
+  });
+
+  it("can reduce low-stretch active target reserve without raising force", () => {
+    const ctx = {
+      HR: 75,
+      contractility: 1,
+      relaxation: 1,
+      phi: 0.28,
+      chamber: "LV" as const,
+      tmaxScale: 0.7,
+      geomScale: 1,
+      caReleaseScale: 1,
+      inletValveOpen01: 0,
+      outletValveOpen01: 1,
+    };
+    const internal = { c: 0.8, a: 1, r: 0, tensionPa: 0, lambdaAct: 1 };
+    const base = new ActiveStressChamberModel(defaultActiveLV);
+    const limited = new ActiveStressChamberModel({
+      ...defaultActiveLV,
+      lowStretchLimiter: "activeReserveCap",
+      lowStretchLimiterStrength: 0.4,
+      lowStretchLimiterKnee: 0.95,
+      lowStretchLimiterWidth: 0.25,
+      lowStretchLimiterActivationThreshold: 0.4,
+    });
+    const baseTerms = base.debugActiveStressTerms(45, internal, ctx);
+    const limitedTerms = limited.debugActiveStressTerms(45, internal, ctx);
+
+    expect(limitedTerms.lowStretchLimiter).toBe("activeReserveCap");
+    expect(limitedTerms.activeTargetLimiter).toBeLessThan(1);
+    expect(limitedTerms.sigmaActTarget).toBeLessThanOrEqual(baseTerms.sigmaActTarget);
+    expect(limited.pressure(45, internal, ctx)).toBeLessThanOrEqual(base.pressure(45, internal, ctx));
+  });
+
   it("atrial AV-plane gain uses side-specific paired ventricle and inlet valve context", () => {
     const la = new ActiveStressChamberModel(defaultActiveLA);
     const internal = { c: 0, a: 0, r: 0 };
