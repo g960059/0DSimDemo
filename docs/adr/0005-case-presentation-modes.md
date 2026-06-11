@@ -5,6 +5,8 @@
 - Builds on: [ADR-0003](0003-workbench-layout-engine.md) (Dockview zones — **now scoped to Studio**, see "Supersedes" below), [ADR-0004](0004-case-workspace-canonical-schema.md) (canonical CaseDocument)
 - Gate note: drafted, then both reviewers (opus + codex) returned REQUEST-CHANGES on the keystone (over-claimed "no drift", a factual conversion error, an under-specified net-new schema, an ADR-0003 contradiction, and a sequencing trap). This revision incorporates those findings.
 
+> **Status note (2026-06-11):** Partially superseded by [ADR-0007](0007-workbench-ia-redesign.md). Shared read-only Explore is now the Workbench read-only entrance; note-backed documents use a Read | Explore switcher; Compare-as-state is confirmed.
+
 ## Context
 The desktop workbench was rebuilt on Dockview with fixed role-region zones (ADR-0003). The lesson player is a **separate, hardcoded 2-column layout** (`components/LessonPlayer.tsx`) that recomputes its own panel configs and chart props and will permanently drift from the workbench renderer. Official/community cases that a learner only *reads* have no first-class home.
 

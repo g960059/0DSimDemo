@@ -1,46 +1,112 @@
-# Workbench Header + Layout — Implementation Plan (parallel)
+# Workbench IA/UX Redesign — Implementation Plan
 
-Derived from [ADR-0002](adr/0002-workbench-header-ia.md) + [ADR-0003](adr/0003-workbench-layout-engine.md).
-Team: `uiux` — lead `UIUXlead2`; implementers `codexUX1..4`.
-Process per increment: lead spec → (plan-gate optional, decisions already triple-vetted) → codex implements on a branch off `origin/main` → **2-reviewer post-impl gate** (opus subagent + codex CLI, always ask for improvement proposals, 1/2 OK, adoption = lead) → lead merges via `gh pr merge <n> --merge`.
-Verify: `npx vitest run --exclude '**/.claude/**'` + `tsc --noEmit` + `vite build`. Pre-merge: `git diff --name-only origin/main <branch>` (no forbidden/out-of-stream files).
+Derived from [ADR-0007](adr/0007-workbench-ia-redesign.md) and the active work order in [docs/plans/workbench-ia-redesign-plan.md](plans/workbench-ia-redesign-plan.md).
 
-## Strategy
-`WorkbenchPage.tsx` is the contention hotspot. **Wave 1** parallelizes only **file-disjoint** work, and includes a behavior-preserving **component extraction** that unblocks **Wave 2** parallelism (header vs grid become separate files).
+Status: P0 foundation in progress. Color design is out of scope.
 
-Shared type contract (fix now, so all streams build to it): `PanelDef.role: 'graph'|'output'|'control'|'note'` and optional `x?,y?:number` (ADR-0003).
+## Current Code Structure
 
-## Wave 1 — parallel, file-disjoint (start now)
+The Workbench is already split across route, hooks, model helpers, and presentation components:
 
-### codexUX1 — Charts visibility / rAF gate
-- Gate `requestAnimationFrame` in `PVLoopPanel` & `WaveformPanel` ([components/Charts.tsx](../components/Charts.tsx)) on an `isOnscreen` signal (IntersectionObserver) + pause on `document.hidden`; resume cleanly.
-- Files: `components/Charts.tsx` (+ optional `hooks/useOnscreen.ts`). Tests where feasible.
-- Disjoint. Battery/perf win for long sessions and prerequisite for mobile unmount.
+- `features/workbench/WorkbenchRoute.tsx` composes the Workbench feature.
+- `features/workbench/hooks/useWorkbenchScene.ts` owns scenarios, case metadata, active scenario, and retained document metadata.
+- `features/workbench/hooks/useWorkbenchPanels.ts` owns `PanelDef[]`, notes, workspace state, and panel mutations.
+- `features/workbench/hooks/useWorkbenchPersistence.ts` owns import/export, cloud save, case loading, id remapping, and `simInstancesToCaseDocument` save construction.
+- `features/workbench/hooks/useLessonAuthoring.ts` owns legacy lesson draft/publish flow during the transition.
+- `features/workbench/panelModel.ts` and `features/workbench/workbenchDefaults.ts` hold pure-ish panel/default helpers.
+- `features/workbench/viewSpec.ts` is the P0 pure IA model layer for `ViewSpec`, `GraphBoardLayout`, runtime/workspace state definitions, visibility helpers, validation, normalization, migration, and remapping.
+- `components/workbench/PanelGrid.tsx` is the current desktop layout shell.
+- `components/workbench/WorkbenchDockview.tsx` wraps Dockview integration.
+- `components/workbench/WorkbenchHeader.tsx`, `WorkbenchSidePanel.tsx`, `WorkbenchMobile.tsx`, `ScenarioPane.tsx`, `ControllerItemsBuilder.tsx`, and `renderPaneBody.tsx` are the present Workbench UI components.
 
-### codexUX2 — Layout doc model + op-stack + presets (the spine)
-- `types.ts`: add `role` + optional `x,y` to `PanelDef` (additive, no break).
-- New `layoutOps.ts`: pure named ops `applyPreset/addPane/removePane/movePane/resizePane/setPaneSignals` as `(panels)=>panels'`.
-- New `layoutPresets.ts`: `Read/Compare/Tweak/Focus` as role-tagged `PanelDef[]` geometry + `flowPack(panels)` legacy x/y seeding.
-- New `paneRole.ts`: `roleOf(type): Role`.
-- Vitest for ops + presets + flow-pack. **No `WorkbenchPage.tsx` wiring yet.**
-- Files: `types.ts` + 3 new modules + tests. Disjoint from UX1.
+## Invariants
 
-### codexUX3 — `WorkbenchPage.tsx` component extraction (Wave-2 enabler)
-- Behavior-preserving refactor: extract `components/workbench/WorkbenchHeader.tsx` (current header JSX, props-threaded) and `components/workbench/PanelGrid.tsx` (current `panels.map` grid + existing drag/resize) out of `WorkbenchPage.tsx`. **No behavior change.**
-- Files: `WorkbenchPage.tsx` + 2 new component files. Disjoint from UX1 (Charts) and UX2 (types/new layout modules).
+- No P0 runtime UI behavior changes. P0 is types, docs, migration helpers, save-path preservation, and tests only.
+- `PanelDef[]` remains the live UI surface until P1 wiring.
+- `ViewSpec` is a new schema and must not be treated as a promotion of `PanelDef.view`.
+- Dockview JSON is not canonical. The future canonical main-area layout is `GraphBoardLayout`.
+- Effective graph display is `membership ∩ globalVisibility`.
+- Compare is state, not a mode.
 
-### codexUX4 — Mobile role-flatten renderer (new file, contract-based)
-- New `components/workbench/WorkbenchMobile.tsx` consuming `PanelDef[]` + `role` (ADR contract): sticky output strip (output-role) + chart segmented-tabs (graph-role, only active mounted) + Controls bottom-sheet (control-role) + Notes tab (note-role). Built standalone; **not wired into `WorkbenchPage.tsx` yet**.
-- Files: new component(s) under `components/workbench/`. Soft-dep on UX2's `role` type → land UX2's `types.ts` first, others rebase.
+## P0 — ADR + Model Groundwork
 
-## Wave 2 — after Wave 1 merges (now file-disjoint via extraction)
-- **Header IA** (ADR-0002) on `WorkbenchHeader.tsx` + `Layout.tsx` global-chrome suppression on `/workbench`,`/lesson` + right `WorkbenchSidePanel.tsx`. (UX3)
-- **Dockview desktop shell** (ADR-0003) on `PanelGrid.tsx`/`WorkbenchDockview.tsx`; no separate layout edit mode, constrained zones with zone-local add actions, semantic `PanelDef[]` as the source of truth. (UX4 + UX1)
-- **Op-stack wiring**: route `Workbench` pane mutations through `layoutOps`; Dockview serialized state is stored only as zone-specific `workspace.viewStates`. (UX2)
-- **Mobile wiring**: mount `WorkbenchMobile` on the phone branch; delete the `span 12` stack. (UX4)
-- **Presets UI**: future compact case/workspace selector; keep pane creation zone-local rather than global header chrome. (UX3)
+Deliverables:
 
-## Notes / risks
-- Drift guard: Author Preview renders through the learner presenter (ADR-0003).
-- Learner default = Compare; mode inferred from provenance, ambiguous → Learner.
-- codex implementers do **not** auto-poll agmsg — the human wakes them after assignment.
+- Add ADR-0007 and mark ADR-0003, ADR-0004, and ADR-0005 as partially superseded.
+- Fix `docs/adr/README.md` so ADR-0005, ADR-0006, and ADR-0007 are indexed.
+- Add the pure type layer in `features/workbench/viewSpec.ts`:
+  - `ViewSpec` union for graph, controller, and metrics views;
+  - `ScenarioBinding`;
+  - `GraphBoardLayout` split tree;
+  - validation and normalization helpers;
+  - `WorkspaceViewState` and `RuntimeState`;
+  - visibility intersection helpers;
+  - one-way `PanelDef[]` migration.
+- Extend `CaseDocument` with optional `views`, `graphBoardLayout`, and `initialActiveScenarioId`.
+- Preserve `reading`, `exposedControllers`, and P0 fields through `simInstancesToCaseDocument` rebuilds and Workbench retained-document save/export.
+- Rewrite this implementation plan to match the current feature structure.
+- Add focused Vitest coverage for migration, layout invariants, visibility, remapping, and CaseDocument round-trip.
+
+Quality gate: `npm test` and `npm run build`.
+
+## P1 — Main-Only Dockview
+
+Goal: make the center Graph Board the only Dockview while keeping the surrounding hosts fixed.
+
+Work:
+
+- Refactor `components/workbench/PanelGrid.tsx` so Dockview exists only in the main Graph Board.
+- Keep `components/workbench/WorkbenchDockview.tsx` responsible for Dockview mechanics and state extraction.
+- Replace side/bottom Dockview zones with fixed hosts:
+  - right rail: scenario list plus inspector switcher;
+  - bottom: metrics category/authored-view tabs;
+  - left: push note drawer.
+- Wire `GraphBoardLayout` restore/derive behavior.
+- Remove pane-local visible flags from live graph display paths and use `membership ∩ globalVisibility`.
+- Remove `COMPARE_PRESET` and `WorkbenchWorkspace.mode` compare remnants.
+- Reduce header layout controls to note toggle, metrics toggle, and arrange commands.
+
+Checkpoint: human user testing for scenario-list discoverability, active/visible independence, and split-command discoverability.
+
+## P2 — Read-Only Interactive
+
+Goal: support Reading and Workbench read-only entrances with document ops blocked and runtime ops allowed.
+
+Work:
+
+- Centralize document-op blocking so read-only prevents ViewSpec edits, note edits, scenario CRUD, pane add/remove, and publish settings.
+- Keep runtime operations free: active scenario, sliders, visibility, metrics tab, Read/Explore switch, and reset.
+- Carry runtime state across Read/Explore switches.
+- Integrate ReadingPresenter runtime with the Workbench simulation/runtime state instead of reloading on switch.
+- Add persistent "changes won't be saved" affordance plus Fork.
+
+## P3 — Binding + Publish Flow
+
+Goal: make active-slot binding and explicit pins authorable and reproducible.
+
+Work:
+
+- Default controller and authored view bindings to `{ slot: "active" }`.
+- Add explicit scenario pinning UI and persistence with `{ scenarioId }`.
+- Persist `initialActiveScenarioId` and the author runtime snapshot for Reset to author's state.
+- Ensure publish does not freeze-resolve active bindings.
+- Fork from the viewer's current runtime state.
+
+## P4 — Aspect Mechanism
+
+Goal: render graph aspect constraints at the pane-content layer.
+
+Work:
+
+- Apply `GraphViewSpec.aspect` in graph pane content.
+- Lock PV loops to square inside the cell with centered letterboxing.
+- Let waveform views fill the cell without aspect constraint.
+- Verify note drawer push, display size changes, and split-ratio changes do not distort locked graph content.
+
+## Deferred
+
+- Color design.
+- Metrics-zone horizontal split.
+- Selected-graph inspector in the right rail.
+- Metrics "Differences" tab.
+- Retiring legacy `PanelDef[]` live rendering before P1+ migration gates.
