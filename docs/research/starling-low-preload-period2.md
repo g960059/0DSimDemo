@@ -244,6 +244,13 @@ PR #121 adds an explicit report classification layer for this interpretation:
 
 This is deliberately conservative. The PR #120 `activeReserveCap directMedium` smoke is a strong leading comparator, but its representative CO branch fraction around `0.29` is still residual alternans. It should be read as a mitigator until a wider matrix shows that per-delta branch fractions are small and clean one-beat/two-beat EDV slopes move away from the flip threshold across the low-preload branch.
 
+PR #122 adds two false-positive guards to that classification:
+
+- A `root-fix-candidate` must have clean scalar EDV return-map slope coverage at the worst branch delta. If the worst delta is contaminated, nonsmooth, clamp-crossing, skipped, or otherwise lacks a clean slope, the row remains a mitigator/inconclusive even when the summary branch envelope looks small.
+- The report now labels return-map evidence as scalar EDV evidence, not full-state Floquet evidence. A `root-fix-candidate` is therefore provisional until broader validation, and ideally a full-state Poincare Jacobian, confirms that no off-EDV mode is unstable.
+
+Do not stack mitigators simply to satisfy the classifier. If multiple low-stretch limiters or clamp regularizers are required, label the result as a stabilization bundle rather than a single-mechanism root fix.
+
 The matrix markdown now includes a `Per-delta primary branch / slope view` table. Use that table before the scenario summary when making model-fix decisions. The scenario summary is useful for triage, but the per-delta table shows whether improvement is uniform or only moves the problem to another preload point.
 
 Example:

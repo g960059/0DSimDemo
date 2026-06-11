@@ -85,6 +85,12 @@ type MatrixScenario = {
 
 type ScenarioClassification = "baseline" | "fail" | "mitigator" | "root-fix-candidate";
 type BranchEnvelopeClass = "good" | "mitigated" | "residual" | "poor";
+type CleanSlopeCoverageClass = "worst-covered" | "partial" | "none";
+type ReturnMapEvidenceLevel =
+  | "none"
+  | "scalar-edv-clean"
+  | "worst-delta-scalar-edv-clean"
+  | "full-jacobian-confirmed";
 
 type ScenarioEvaluation = {
   classification: ScenarioClassification;
@@ -98,6 +104,13 @@ type ScenarioEvaluation = {
   maxCleanAbsOneBeatEDVSlope: number | null;
   maxCleanAbsTwoBeatEDVSlope: number | null;
   cleanReturnMapPointCount: number;
+  worstDeltaCleanSlopeCovered: boolean;
+  uncoveredWorstDeltaReason?: string;
+  cleanSlopeCoverageClass: CleanSlopeCoverageClass;
+  cleanSlopeCoveredDeltasMl: number[];
+  cleanSlopeMissingDeltasMl: number[];
+  returnMapEvidenceLevel: ReturnMapEvidenceLevel;
+  requiresFullJacobianConfirmation: boolean;
 };
 
 type PerDeltaEvaluation = {
@@ -134,7 +147,7 @@ type ShapeSummary = {
 };
 
 type MatrixReport = {
-  schemaVersion: 7;
+  schemaVersion: 8;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -302,7 +315,7 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
       { fraction: 0, metric: null },
     );
   return {
-    schemaVersion: 7,
+    schemaVersion: 8,
     generatedAt: new Date().toISOString(),
     measurementMode: "branch-only broad low-preload matrix followed by selected EDV-section return-map diagnostics; optional TBV correction on/off/low contamination axis; off-by-default low-stretch limiter comparator axis",
     targetVolumeMl: opts.targetVolumeMl,
@@ -505,9 +518,27 @@ function buildScenarioEvaluation(input: {
   const cleanSlopePoints = input.perDeltaEvaluation.filter((point) => point.cleanForReturnMapSlope);
   const maxCleanAbsOneBeat = finiteMaxOrNull(cleanSlopePoints.map((point) => Math.abs(point.oneBeatEDVSlope ?? Number.NaN)));
   const maxCleanAbsTwoBeat = finiteMaxOrNull(cleanSlopePoints.map((point) => Math.abs(point.twoBeatEDVSlope ?? Number.NaN)));
+  const worstDeltaCleanSlopeCovered = worst?.cleanForReturnMapSlope === true;
+  const suspiciousPoints = input.perDeltaEvaluation.filter((point) => point.branchEnvelopeClass !== "good");
+  const cleanSlopeCoveredDeltasMl = cleanSlopePoints.map((point) => point.deltaVolumeMl);
+  const cleanSlopeMissingDeltasMl = suspiciousPoints
+    .filter((point) => !point.cleanForReturnMapSlope)
+    .map((point) => point.deltaVolumeMl);
+  const cleanSlopeCoverageClass: CleanSlopeCoverageClass = cleanSlopePoints.length === 0
+    ? "none"
+    : worstDeltaCleanSlopeCovered ? "worst-covered" : "partial";
+  const returnMapEvidenceLevel: ReturnMapEvidenceLevel = cleanSlopePoints.length === 0
+    ? "none"
+    : worstDeltaCleanSlopeCovered ? "worst-delta-scalar-edv-clean" : "scalar-edv-clean";
+  const uncoveredWorstDeltaReason = worstDeltaCleanSlopeCovered ? undefined : describeMissingCleanSlopeCoverage(worst);
   const waveformMax = Math.max(0, ...input.waveformGates.map((gate) => gate.maxDeltaFraction));
   const branchClass = branchEnvelopeClass(maxCO, maxEDV, maxESV);
   const reasons: string[] = [];
+  const slopeOk = worstDeltaCleanSlopeCovered
+    && maxCleanAbsOneBeat != null
+    && maxCleanAbsOneBeat < 0.85
+    && maxCleanAbsTwoBeat != null
+    && maxCleanAbsTwoBeat < 0.85;
 
   let classification: ScenarioClassification;
   if (input.lambdaActTauSec === 0 && input.lowStretchLimiterMode === "none") {
@@ -530,19 +561,22 @@ function buildScenarioEvaluation(input: {
     if (input.shapeSummary.dipReRiseScoreLMin > 0.2) reasons.push("dip/re-rise score remains high");
   } else if (
     branchClass === "good"
-    && cleanSlopePoints.length > 0
-    && (maxCleanAbsOneBeat == null || maxCleanAbsOneBeat < 0.85)
-    && (maxCleanAbsTwoBeat == null || maxCleanAbsTwoBeat < 0.85)
+    && slopeOk
   ) {
     classification = "root-fix-candidate";
-    reasons.push("branch envelope small and clean return-map slopes below 0.85");
+    reasons.push("branch envelope small and worst-delta scalar EDV slopes below 0.85");
+    reasons.push("pending full-state Jacobian confirmation");
   } else {
     classification = "mitigator";
     if (branchClass === "mitigated" || branchClass === "residual") reasons.push(`branch envelope is ${branchClass}, not root-fixed`);
     if (branchClass === "poor") reasons.push("branch envelope remains large");
+    if (branchClass === "good" && !worstDeltaCleanSlopeCovered) reasons.push("branch envelope good, but worst delta lacks clean return-map slope coverage");
+    else if (!worstDeltaCleanSlopeCovered) reasons.push("worst branch delta lacks clean return-map slope coverage");
     if (cleanSlopePoints.length === 0) reasons.push("no clean selected return-map slopes");
     else if ((maxCleanAbsOneBeat ?? 0) >= 0.85 || (maxCleanAbsTwoBeat ?? 0) >= 0.85) reasons.push("clean return-map slope remains near or beyond flip threshold");
   }
+
+  const requiresFullJacobianConfirmation = classification === "root-fix-candidate";
 
   return {
     classification,
@@ -556,7 +590,24 @@ function buildScenarioEvaluation(input: {
     maxCleanAbsOneBeatEDVSlope: maxCleanAbsOneBeat,
     maxCleanAbsTwoBeatEDVSlope: maxCleanAbsTwoBeat,
     cleanReturnMapPointCount: cleanSlopePoints.length,
+    worstDeltaCleanSlopeCovered,
+    uncoveredWorstDeltaReason,
+    cleanSlopeCoverageClass,
+    cleanSlopeCoveredDeltasMl,
+    cleanSlopeMissingDeltasMl,
+    returnMapEvidenceLevel,
+    requiresFullJacobianConfirmation,
   };
+}
+
+function describeMissingCleanSlopeCoverage(point: PerDeltaEvaluation | null): string | undefined {
+  if (!point) return "no branch delta";
+  if (point.returnMapStatus !== "ok") return `return-map ${point.returnMapStatus}`;
+  if (point.tbvAuditClass !== "clean") return `tbv audit ${point.tbvAuditClass}`;
+  if (point.nonsmooth) return "nonsmooth return map";
+  if (point.clampCrossing) return "clamp crossing";
+  if (point.oneBeatEDVSlope == null || point.twoBeatEDVSlope == null) return "missing scalar EDV slope";
+  return "not selected for clean scalar EDV return-map slope";
 }
 
 function branchEnvelopeClass(coBranch: number, edvBranch: number, esvBranch: number): BranchEnvelopeClass {
@@ -850,8 +901,8 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("## Scenario summary");
   lines.push("");
-  lines.push("| class | branch class | reasons | scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | selected deltas | period-2 | worst delta | max CO branch frac | max EDV branch frac | max ESV branch frac | clean slopes | clean one-beat EDV slope | clean two-beat EDV slope | mean CO err | mean SV err | monotonicity breaks | dip/re-rise | slope ratio | active hit frac | min active scale | target reduction | max clamp hits | max sanitize abs mL | max projection applied mL | contaminated | max one-beat EDV slope | max two-beat EDV slope | max waveform gate frac | worst waveform metric |");
-  lines.push("| --- | --- | --- | --- | --- | ---: | --- | --- | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
+  lines.push("| class | branch class | reasons | scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | selected deltas | period-2 | worst delta | worst covered | coverage | evidence | needs Jacobian | max CO branch frac | max EDV branch frac | max ESV branch frac | clean slopes | clean one-beat EDV slope | clean two-beat EDV slope | mean CO err | mean SV err | monotonicity breaks | dip/re-rise | slope ratio | active hit frac | min active scale | target reduction | max clamp hits | max sanitize abs mL | max projection applied mL | contaminated | max one-beat EDV slope | max two-beat EDV slope | max waveform gate frac | worst waveform metric |");
+  lines.push("| --- | --- | --- | --- | --- | ---: | --- | --- | --- | ---: | --- | --- | ---: | ---: | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
   for (const scenario of report.scenarios) {
     const worstWaveform = scenario.waveformGates.reduce<{ label: string; metric: string; fraction: number }>(
       (best, gate) => gate.maxDeltaFraction > best.fraction
@@ -874,6 +925,10 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
       scenario.selectedDeltasMl.join(", "),
       scenario.returnMapSummary.period2Count,
       scenario.evaluation.worstDeltaVolumeMl ?? "",
+      scenario.evaluation.worstDeltaCleanSlopeCovered ? "yes" : `no (${scenario.evaluation.uncoveredWorstDeltaReason ?? "unknown"})`,
+      scenario.evaluation.cleanSlopeCoverageClass,
+      scenario.evaluation.returnMapEvidenceLevel,
+      scenario.evaluation.requiresFullJacobianConfirmation ? "yes" : "no",
       round(scenario.evaluation.maxPerDeltaBranchFractionCOL, 4),
       round(scenario.evaluation.maxPerDeltaBranchFractionEDVL, 4),
       round(scenario.evaluation.maxPerDeltaBranchFractionESVL, 4),
@@ -898,6 +953,12 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
       worstWaveform.label ? `${worstWaveform.label}:${worstWaveform.metric}` : "",
     ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
   }
+  lines.push("");
+  lines.push("## Interpretation notes");
+  lines.push("");
+  lines.push("- `root-fix-candidate` requires the worst branch delta to have clean scalar EDV return-map slope coverage. If the worst delta is nonsmooth, clamp-crossing, contaminated, or otherwise unmeasured, the scenario remains a mitigator/inconclusive even when the branch envelope is small.");
+  lines.push("- `scalar-edv-clean` evidence is not a full-state Floquet/Jacobian result. Any root-fix candidate remains provisional until broader validation, and ideally full-state Poincare Jacobian confirmation, is available.");
+  lines.push("- Avoid stacking multiple mitigators just to satisfy the classifier. Multiple-lever tuning should be labeled as a stabilization bundle, not a single-mechanism root fix.");
   lines.push("");
   lines.push("## Per-delta primary branch / slope view");
   lines.push("");
@@ -1035,6 +1096,13 @@ export function matrixReportToCsv(report: MatrixReport): string {
     "scenarioClassification",
     "scenarioBranchEnvelopeClass",
     "scenarioReasons",
+    "worstDeltaCleanSlopeCovered",
+    "uncoveredWorstDeltaReason",
+    "cleanSlopeCoverageClass",
+    "cleanSlopeCoveredDeltasMl",
+    "cleanSlopeMissingDeltasMl",
+    "returnMapEvidenceLevel",
+    "requiresFullJacobianConfirmation",
     "lambdaActScope",
     "lambdaActTerms",
     "lambdaActTauSec",
@@ -1079,6 +1147,13 @@ export function matrixReportToCsv(report: MatrixReport): string {
         scenario.evaluation.classification,
         scenario.evaluation.branchEnvelopeClass,
         scenario.evaluation.reasons.join("; "),
+        scenario.evaluation.worstDeltaCleanSlopeCovered ? "yes" : "no",
+        scenario.evaluation.uncoveredWorstDeltaReason ?? "",
+        scenario.evaluation.cleanSlopeCoverageClass,
+        scenario.evaluation.cleanSlopeCoveredDeltasMl.join(";"),
+        scenario.evaluation.cleanSlopeMissingDeltasMl.join(";"),
+        scenario.evaluation.returnMapEvidenceLevel,
+        scenario.evaluation.requiresFullJacobianConfirmation ? "yes" : "no",
         scenario.lambdaActScope,
         scenario.lambdaActTerms,
         scenario.lambdaActTauSec,

@@ -168,6 +168,10 @@ The matrix report now classifies each scenario:
 
 Read the new `Per-delta primary branch / slope view` table before relying on max summary numbers. The table shows whether a candidate stabilizes the whole low-preload branch or only moves the alternans envelope to a different delta. Clean selected return-map slopes are secondary but important: branch fraction can improve by amplitude clipping or curve flattening, so a root-fix candidate should also move clean signed EDV slopes away from the flip threshold.
 
+PR #122 adds a guard against false root-fix promotion. The worst branch delta must be covered by a clean scalar EDV return-map slope; if that worst point is nonsmooth, clamp-crossing, contaminated, skipped, or missing a slope, the report downgrades the scenario to mitigator/inconclusive. The report also marks the evidence level explicitly as scalar EDV return-map evidence. This is useful but is not a full-state Floquet/Poincare Jacobian, so any root-fix candidate remains provisional until broader validation and, for default adoption, full-state confirmation if needed.
+
+Avoid mitigator stacking as a shortcut. If activeReserveCap, Kd/aInf limiting, geometry regularization, and clamp smoothing have to be combined to pass the matrix, the result should be called a stabilization bundle, not a single-mechanism root fix.
+
 Recommended next matrix for model-team review:
 
 ```bash
