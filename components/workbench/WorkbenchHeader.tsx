@@ -55,6 +55,7 @@ interface WorkbenchHeaderProps {
   hasNotePanel: boolean;
   onToggleNote: () => void;
   onToggleMetrics: () => void;
+  onArrangeGraphBoard?: (arrangement: '2x2' | 'sideBySide' | 'stacked') => void;
   theme: WorkbenchThemeId;
   onThemeChange: (theme: WorkbenchThemeId) => void;
 }
@@ -100,6 +101,7 @@ export function WorkbenchHeader({
   hasNotePanel,
   onToggleNote,
   onToggleMetrics,
+  onArrangeGraphBoard,
   theme,
   onThemeChange,
 }: WorkbenchHeaderProps) {
@@ -196,14 +198,29 @@ export function WorkbenchHeader({
                     <span className="inline-flex items-center gap-2"><BarChart3 className="h-4 w-4" />{t('workbench.header.metricsHost')}</span>
                     <span className={metricsOpen ? 'text-blue-300' : 'text-slate-500'}>{metricsOpen ? t('common.on') : t('common.off')}</span>
                   </button>
-                  <button
-                    type="button"
-                    disabled
-                    className="mt-1 flex w-full cursor-not-allowed items-center justify-between rounded px-2 py-2 text-xs font-bold text-slate-600"
-                  >
-                    <span className="inline-flex items-center gap-2"><LayoutPanelLeft className="h-4 w-4" />{t('workbench.header.arrange')}</span>
-                    <ChevronDown className="h-3.5 w-3.5" />
-                  </button>
+                  <div className="mt-1 border-t border-slate-800/80 pt-1">
+                    <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                      {t('workbench.header.arrange')}
+                    </div>
+                    {([
+                      ['2x2', 'arrange2x2'],
+                      ['sideBySide', 'arrangeSideBySide'],
+                      ['stacked', 'arrangeStacked'],
+                    ] as const).map(([arrangement, labelKey]) => (
+                      <button
+                        key={arrangement}
+                        type="button"
+                        onClick={() => {
+                          onArrangeGraphBoard?.(arrangement);
+                          setIsLayoutOpen(false);
+                        }}
+                        disabled={!onArrangeGraphBoard}
+                        className="flex w-full items-center justify-between rounded px-2 py-2 text-xs font-bold text-slate-300 transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-transparent"
+                      >
+                        <span className="inline-flex items-center gap-2"><LayoutPanelLeft className="h-4 w-4" />{t(`workbench.header.${labelKey}`)}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </>
             )}

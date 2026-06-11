@@ -31,7 +31,6 @@ import {
 import type { LessonStep } from '../../lessonDoc';
 import type { NoteContent } from '../../noteTypes';
 import { flowPack } from '../../layoutPresets';
-import { zoneOf } from '../../paneZone';
 import {
   builtInMetricsConfig,
   effectiveGlobalConfig,
@@ -40,6 +39,7 @@ import {
   metricsHostTabs,
   type MetricsHostTab,
 } from '../../features/workbench/p1aStructuralHosts';
+import type { GraphBoardLayout } from '../../features/workbench/viewSpec';
 import { Activity, Brush, ChevronDown, Eye, EyeOff, FileText, Layers, Search, Settings, SlidersHorizontal, Tags, Type as TypeIcon, X } from 'lucide-react';
 
 export type PanelGridMode = 'learner' | 'author' | 'sandbox';
@@ -69,6 +69,8 @@ interface PanelGridProps {
   dockviewLayoutKey?: string;
   dockviewViewStates?: Partial<Record<WorkbenchZoneId, DockviewViewState>>;
   onDockviewViewStateChange?: (zone: WorkbenchZoneId, viewState: DockviewViewState) => void;
+  graphBoardLayout?: GraphBoardLayout;
+  onGraphBoardLayoutChange?: (layout: GraphBoardLayout | undefined) => void;
   mode: PanelGridMode;
   isMobile: boolean;
   noteModes: Record<string, 'read' | 'edit'>;
@@ -716,7 +718,7 @@ function GraphPanelSettingsBoard({
                   className="h-3.5 w-3.5 flex-none cursor-pointer accent-sky-500"
                   checked={cfg?.visible || false}
                   onChange={() => toggleInstanceVisibility(panel.id, inst.id)}
-                  aria-label={`${inst.name} visibility`}
+                  aria-label={t('workbench.panelGrid.toggleScenarioMembership', { name: inst.name })}
                 />
                 <input
                   type="color"
@@ -735,7 +737,7 @@ function GraphPanelSettingsBoard({
                 />
               </div>
               <div className="mt-1.5 flex items-center justify-between text-[10px] font-semibold text-slate-500">
-                <span>{cfg?.visible ? t('common.visible') : t('common.hidden')}</span>
+                <span>{cfg?.visible ? t('workbench.panelGrid.included') : t('workbench.panelGrid.excluded')}</span>
                 <span>{t('workbench.panelGrid.selectedSourceCount', { count: selectedCount, source: sourceLabelSentence })}</span>
               </div>
             </div>
@@ -929,7 +931,7 @@ function GraphPanelSettingsBoard({
             </div>
           </div>
           <div className="flex flex-none items-center gap-2 text-[10px] font-bold text-slate-500">
-            <span>{t('workbench.panelGrid.visibleCount', { count: visibleInstanceCount })}</span>
+            <span>{t('workbench.panelGrid.includedCount', { count: visibleInstanceCount })}</span>
             <span>{t('workbench.panelGrid.selectedCount', { count: selectedItemCount })}</span>
           </div>
         </div>
@@ -1544,42 +1546,6 @@ function PanelCard({
   );
 }
 
-const ZONE_LABELS: Record<WorkbenchZoneId, string> = {
-  caseRail: 'Case',
-  main: 'Main',
-  sideRail: 'Controls',
-  bottomPanel: 'Outputs',
-};
-
-function getZoneSurfaceClass(zone: WorkbenchZoneId, hasCaseRail: boolean): string {
-  const divider = 'border-slate-800/60';
-  switch (zone) {
-    case 'caseRail':
-      return `workbench-zone-aux border ${divider} rounded-r-lg`;
-    case 'sideRail':
-      return `workbench-zone-aux border ${divider} rounded-lg shadow-[0_10px_28px_rgba(2,6,23,0.2)]`;
-    case 'bottomPanel':
-      return hasCaseRail
-        ? `workbench-zone-aux border ${divider} rounded-lg shadow-[0_-8px_24px_rgba(2,6,23,0.18)]`
-        : `workbench-zone-aux border ${divider} rounded-lg shadow-[0_-8px_24px_rgba(2,6,23,0.18)]`;
-    case 'main':
-    default:
-      return 'workbench-zone-main';
-  }
-}
-
-function getZoneSurfaceClassForLayout(
-  zone: WorkbenchZoneId,
-  hasCaseRail: boolean,
-  _controlsSide: WorkbenchControlsSide,
-): string {
-  const divider = 'border-slate-800/60';
-  if (zone === 'sideRail') {
-    return `workbench-zone-aux border ${divider} rounded-lg shadow-[0_10px_28px_rgba(2,6,23,0.2)]`;
-  }
-  return getZoneSurfaceClass(zone, hasCaseRail);
-}
-
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
 function metricsTabLabel(t: PanelGridT, tab: MetricsHostTab): string {
@@ -1590,11 +1556,11 @@ function ZoneShell({
   zone,
   panels,
   mode,
-  hasCaseRail,
-  controlsSide,
   layoutKey,
   viewState,
   onViewStateChange,
+  graphBoardLayout,
+  onGraphBoardLayoutChange,
   addPanel,
   removePanel,
   updatePanelTitle,
@@ -1607,11 +1573,11 @@ function ZoneShell({
   zone: WorkbenchZoneId;
   panels: PanelDef[];
   mode: PanelGridMode;
-  hasCaseRail: boolean;
-  controlsSide: WorkbenchControlsSide;
   layoutKey?: string;
   viewState?: DockviewViewState;
   onViewStateChange?: (zone: WorkbenchZoneId, viewState: DockviewViewState) => void;
+  graphBoardLayout?: GraphBoardLayout;
+  onGraphBoardLayoutChange?: (layout: GraphBoardLayout | undefined) => void;
   addPanel: (type: PanelType, zone?: WorkbenchZoneId) => void;
   removePanel: (id: string) => void;
   updatePanelTitle: (id: string, newTitle: string) => void;
@@ -1623,7 +1589,7 @@ function ZoneShell({
 }) {
   const { t } = useTranslation();
   return (
-    <section className={`flex min-h-0 flex-col overflow-hidden bg-[#0B1120] ${getZoneSurfaceClassForLayout(zone, hasCaseRail, controlsSide)} ${className}`} style={style} aria-label={t('workbench.panelGrid.zoneAria', { zone: t(`workbench.zones.${zone}`) })}>
+    <section className={`workbench-zone-main flex min-h-0 flex-col overflow-hidden bg-[#0B1120] ${className}`} style={style} aria-label={t('workbench.panelGrid.zoneAria', { zone: t(`workbench.zones.${zone}`) })}>
       <WorkbenchDockview
         panels={panels}
         zone={zone}
@@ -1631,6 +1597,8 @@ function ZoneShell({
         layoutKey={`${layoutKey ?? 'default'}:${zone}`}
         viewState={viewState}
         onViewStateChange={(next) => onViewStateChange?.(zone, next)}
+        graphBoardLayout={graphBoardLayout}
+        onGraphBoardLayoutChange={onGraphBoardLayoutChange}
         onRemovePanel={removePanel}
         onToggleSettings={toggleSettings}
         onRenamePanel={updatePanelTitle}
@@ -1656,6 +1624,8 @@ export function PanelGrid({
   dockviewLayoutKey,
   dockviewViewStates,
   onDockviewViewStateChange,
+  graphBoardLayout,
+  onGraphBoardLayoutChange,
   mode,
   isMobile,
   noteModes,
@@ -1725,72 +1695,6 @@ export function PanelGrid({
   ) : null;
 
   const getPanelTitle = useCallback(getDockviewPaneTitle, []);
-  const beginResize = useCallback((
-    event: React.PointerEvent<HTMLDivElement>,
-    target: 'caseRail' | 'controls' | 'output',
-  ) => {
-    event.preventDefault();
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const startLayout = layoutState;
-    const onMove = (moveEvent: PointerEvent) => {
-      const dx = moveEvent.clientX - startX;
-      const dy = moveEvent.clientY - startY;
-      onLayoutStateChange((prev) => {
-        if (target === 'caseRail') {
-          return { ...prev, caseRailWidth: clamp(startLayout.caseRailWidth + dx, 200, 560) };
-        }
-        if (target === 'controls') {
-          const signedDelta = startLayout.controlsSide === 'left' ? dx : -dx;
-          return { ...prev, controlsWidth: clamp(startLayout.controlsWidth + signedDelta, 240, 620) };
-        }
-        return { ...prev, outputHeight: clamp(startLayout.outputHeight - dy, 140, 320) };
-      });
-    };
-    const onUp = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp, { once: true });
-  }, [layoutState, onLayoutStateChange]);
-
-  const resizeWithKeyboard = useCallback((
-    event: React.KeyboardEvent<HTMLDivElement>,
-    target: 'caseRail' | 'controls' | 'output',
-  ) => {
-    const fineStep = 10;
-    const coarseStep = 40;
-    const key = event.key;
-    const isHome = key === 'Home';
-    const isEnd = key === 'End';
-    const isCoarseIncrease = key === 'PageUp';
-    const isCoarseDecrease = key === 'PageDown';
-    const handled = isHome || isEnd || isCoarseIncrease || isCoarseDecrease
-      || (target !== 'output' && (key === 'ArrowLeft' || key === 'ArrowRight'))
-      || (target === 'output' && (key === 'ArrowUp' || key === 'ArrowDown'));
-    if (!handled) return;
-    event.preventDefault();
-
-    onLayoutStateChange((prev) => {
-      if (target === 'caseRail') {
-        const delta = isCoarseIncrease ? coarseStep : isCoarseDecrease ? -coarseStep : key === 'ArrowRight' ? fineStep : key === 'ArrowLeft' ? -fineStep : 0;
-        const next = isHome ? 200 : isEnd ? 560 : prev.caseRailWidth + delta;
-        return { ...prev, caseRailWidth: clamp(next, 200, 560) };
-      }
-      if (target === 'controls') {
-        const expandsWithKey = prev.controlsSide === 'left' ? 'ArrowRight' : 'ArrowLeft';
-        const shrinksWithKey = prev.controlsSide === 'left' ? 'ArrowLeft' : 'ArrowRight';
-        const delta = isCoarseIncrease ? coarseStep : isCoarseDecrease ? -coarseStep : key === expandsWithKey ? fineStep : key === shrinksWithKey ? -fineStep : 0;
-        const next = isHome ? 240 : isEnd ? 620 : prev.controlsWidth + delta;
-        return { ...prev, controlsWidth: clamp(next, 240, 620) };
-      }
-      const delta = isCoarseIncrease ? coarseStep : isCoarseDecrease ? -coarseStep : key === 'ArrowUp' ? fineStep : key === 'ArrowDown' ? -fineStep : 0;
-      const next = isHome ? 140 : isEnd ? 320 : prev.outputHeight + delta;
-      return { ...prev, outputHeight: clamp(next, 140, 320) };
-    });
-  }, [onLayoutStateChange]);
-
   const renderPanel = (panel: PanelDef, isEditor: boolean, chromeMode: PanelChromeMode = 'desktop') => (
     <PanelCard
       key={panel.id}
@@ -1969,11 +1873,11 @@ export function PanelGrid({
             zone="main"
             panels={mainGraphPanels}
             mode={mode}
-            hasCaseRail={hasCaseRail}
-            controlsSide="right"
             layoutKey={dockviewLayoutKey}
             viewState={dockviewViewStates?.main}
             onViewStateChange={onDockviewViewStateChange}
+            graphBoardLayout={graphBoardLayout}
+            onGraphBoardLayoutChange={onGraphBoardLayoutChange}
             addPanel={addPanel}
             removePanel={removePanel}
             updatePanelTitle={updatePanelTitle}

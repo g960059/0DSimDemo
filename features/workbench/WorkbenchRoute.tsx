@@ -13,6 +13,8 @@ import { type BuildCurrentDoc, useWorkbenchPersistence } from "@/features/workbe
 import { useWorkbenchScene } from "@/features/workbench/hooks/useWorkbenchScene";
 import { useWorkbenchSimulation } from "@/features/workbench/hooks/useWorkbenchSimulation";
 import { useWorkbenchTheme } from "@/features/workbench/hooks/useWorkbenchTheme";
+import { arrangeGraphBoardLayout } from "@/features/workbench/graphBoardLayout";
+import { graphPanelsOnly } from "@/features/workbench/p1aStructuralHosts";
 import {
   ALL_CHAMBERS,
   ALL_CONTROL_GROUPS,
@@ -55,6 +57,10 @@ export function WorkbenchRoute() {
   const defaultSceneTitle = useCallback(() => (
     scene.sceneMeta.title.trim() || (scene.instances[0] ? `${scene.instances[0].name} case` : "Workbench case")
   ), [scene.instances, scene.sceneMeta.title]);
+
+  const arrangeMainGraphBoard = useCallback((arrangement: "2x2" | "sideBySide" | "stacked") => {
+    scene.updateGraphBoardLayout(arrangeGraphBoardLayout(graphPanelsOnly(panels.panels), arrangement));
+  }, [panels.panels, scene]);
 
   const lesson = useLessonAuthoring({
     user,
@@ -120,6 +126,7 @@ export function WorkbenchRoute() {
         hasNotePanel={panels.panels.some((panel) => panel.type === "NOTE")}
         onToggleNote={panels.toggleNoteDrawer}
         onToggleMetrics={() => panels.setWorkbenchLayout((prev) => ({ ...prev, metricsOpen: !prev.metricsOpen }))}
+        onArrangeGraphBoard={arrangeMainGraphBoard}
         theme={workbenchTheme}
         onThemeChange={setWorkbenchTheme}
       />
@@ -137,6 +144,8 @@ export function WorkbenchRoute() {
         dockviewLayoutKey={`${panels.noteCaseKey}:${panels.dockviewLayoutVersion}`}
         dockviewViewStates={panels.workspace.viewStates}
         onDockviewViewStateChange={panels.updateDockviewViewState}
+        graphBoardLayout={scene.currentCaseGraphBoardLayout}
+        onGraphBoardLayoutChange={scene.updateGraphBoardLayout}
         mode={scene.headerMode}
         isMobile={isMobile}
         noteModes={panels.noteModes}
