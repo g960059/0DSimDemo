@@ -77,7 +77,11 @@ function createPanelGrid(
       outputHeight: 190,
       noteOpen: false,
       metricsOpen: false,
+      rightRailVisible: true,
       rightRailView: "scenarios",
+      scenarioListCollapsed: false,
+      scenarioListMaxRatio: 0.4,
+      metricsSpan: "main",
       ...layoutOverrides,
     },
     onLayoutStateChange: noop,
@@ -98,7 +102,8 @@ function createPanelGrid(
     updateInstanceVolume: noop,
     updateInstanceColor: noop,
     updateInstanceName: noop,
-    toggleGlobalInstanceVisibility: noop,
+    toggleScenarioGlobalVisibility: noop,
+    resetInstanceKnobs: noop,
     addInstance: noop,
     removeInstance: noop,
     timeScale: 1,
@@ -106,6 +111,7 @@ function createPanelGrid(
     isPlaying: true,
     togglePlay: noop,
     addPanel: noop,
+    duplicatePanel: () => undefined,
     removePanel: noop,
     updatePanelTitle: noop,
     toggleShowLegend: noop,
@@ -114,7 +120,7 @@ function createPanelGrid(
     updatePanelSignalColor: noop,
     updatePanelSignalName: noop,
     toggleSettings: noop,
-    toggleInstanceVisibility: noop,
+    togglePaneMembership: noop,
     updateInstanceSignals: noop,
     toggleGuides: noop,
     updateTimeWindow: noop,
@@ -178,7 +184,7 @@ const normalInstance: SimInstance = {
   id: "normal",
   name: "Normal",
   color: "#a855f7",
-  params: {} as SimInstance["params"],
+  params: { ...DEFAULT_PARAMS },
   targetVolume: 5000,
   isVisible: true,
 };
@@ -591,7 +597,7 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).not.toContain("Advanced engine");
   });
 
-  it("shows hidden scenarios in the rail while the fixed inspector targets the active scenario only", () => {
+  it("shows hidden scenarios above the fixed inspector while the inspector targets the active scenario only", () => {
     const controlsPanel: PanelDef = {
       id: "controls",
       type: "CONTROLS",
@@ -622,8 +628,10 @@ describe("PanelGrid Dockview layout", () => {
       { ...hiddenInstance, params: { ...DEFAULT_PARAMS } },
     ], [], {}, false, { rightRailView: "inspector" });
 
-    expect(inspectorHtml).not.toContain("Heart B");
-    expect(inspectorHtml).not.toContain("Heart C");
+    expect(inspectorHtml).toContain("Scenarios (3)");
+    expect(inspectorHtml).toContain("Heart B");
+    expect(inspectorHtml).toContain("Heart C");
+    expect(inspectorHtml).toContain("Editing:");
     expect(inspectorHtml).not.toContain("Pause simulation");
     expect(inspectorHtml).not.toContain("0.5x");
   });

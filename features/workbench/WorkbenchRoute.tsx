@@ -13,8 +13,6 @@ import { type BuildCurrentDoc, useWorkbenchPersistence } from "@/features/workbe
 import { useWorkbenchScene } from "@/features/workbench/hooks/useWorkbenchScene";
 import { useWorkbenchSimulation } from "@/features/workbench/hooks/useWorkbenchSimulation";
 import { useWorkbenchTheme } from "@/features/workbench/hooks/useWorkbenchTheme";
-import { arrangeGraphBoardLayout } from "@/features/workbench/graphBoardLayout";
-import { graphPanelsOnly } from "@/features/workbench/p1aStructuralHosts";
 import {
   ALL_CHAMBERS,
   ALL_CONTROL_GROUPS,
@@ -57,10 +55,6 @@ export function WorkbenchRoute() {
   const defaultSceneTitle = useCallback(() => (
     scene.sceneMeta.title.trim() || (scene.instances[0] ? `${scene.instances[0].name} case` : "Workbench case")
   ), [scene.instances, scene.sceneMeta.title]);
-
-  const arrangeMainGraphBoard = useCallback((arrangement: "2x2" | "sideBySide" | "stacked") => {
-    scene.updateGraphBoardLayout(arrangeGraphBoardLayout(graphPanelsOnly(panels.panels), arrangement));
-  }, [panels.panels, scene]);
 
   const lesson = useLessonAuthoring({
     user,
@@ -123,10 +117,13 @@ export function WorkbenchRoute() {
         setTimeScale={simulation.setTimeScale}
         noteOpen={panels.workbenchLayout.noteOpen}
         metricsOpen={panels.workbenchLayout.metricsOpen}
+        rightRailVisible={panels.workbenchLayout.rightRailVisible}
+        metricsSpan={panels.workbenchLayout.metricsSpan}
         hasNotePanel={panels.panels.some((panel) => panel.type === "NOTE")}
         onToggleNote={panels.toggleNoteDrawer}
         onToggleMetrics={() => panels.setWorkbenchLayout((prev) => ({ ...prev, metricsOpen: !prev.metricsOpen }))}
-        onArrangeGraphBoard={arrangeMainGraphBoard}
+        onToggleRightRail={() => panels.setWorkbenchLayout((prev) => ({ ...prev, rightRailVisible: !prev.rightRailVisible }))}
+        onMetricsSpanChange={(metricsSpan) => panels.setWorkbenchLayout((prev) => ({ ...prev, metricsSpan }))}
         theme={workbenchTheme}
         onThemeChange={setWorkbenchTheme}
       />
@@ -160,7 +157,8 @@ export function WorkbenchRoute() {
         updateInstanceVolume={scene.updateInstanceVolume}
         updateInstanceColor={scene.updateInstanceColor}
         updateInstanceName={scene.updateInstanceName}
-        toggleGlobalInstanceVisibility={scene.toggleInstanceVisibility}
+        toggleScenarioGlobalVisibility={scene.toggleScenarioGlobalVisibility}
+        resetInstanceKnobs={scene.resetInstanceKnobs}
         addInstance={scene.addInstance}
         removeInstance={scene.removeInstance}
         timeScale={simulation.timeScale}
@@ -168,6 +166,7 @@ export function WorkbenchRoute() {
         isPlaying={simulation.isPlaying}
         togglePlay={simulation.togglePlay}
         addPanel={panels.addPanel}
+        duplicatePanel={panels.duplicatePanel}
         removePanel={panels.removePanel}
         updatePanelTitle={panels.updatePanelTitle}
         toggleShowLegend={panels.toggleShowLegend}
@@ -176,7 +175,7 @@ export function WorkbenchRoute() {
         updatePanelSignalColor={panels.updatePanelSignalColor}
         updatePanelSignalName={panels.updatePanelSignalName}
         toggleSettings={panels.toggleSettings}
-        toggleInstanceVisibility={panels.toggleInstanceVisibility}
+        togglePaneMembership={panels.togglePaneMembership}
         updateInstanceSignals={panels.updateInstanceSignals}
         toggleGuides={panels.toggleGuides}
         updateTimeWindow={panels.updateTimeWindow}

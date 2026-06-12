@@ -40,11 +40,12 @@ import {
   type MetricsHostTab,
 } from '../../features/workbench/p1aStructuralHosts';
 import type { GraphBoardLayout } from '../../features/workbench/viewSpec';
-import { Activity, Brush, ChevronDown, Eye, EyeOff, FileText, Layers, Search, Settings, SlidersHorizontal, Tags, Type as TypeIcon, X } from 'lucide-react';
+import { Activity, Brush, ChevronDown, ChevronRight, Eye, EyeOff, FileText, Layers, Search, Settings, SlidersHorizontal, Tags, Type as TypeIcon, X } from 'lucide-react';
 
 export type PanelGridMode = 'learner' | 'author' | 'sandbox';
 export type WorkbenchControlsSide = 'left' | 'right';
 export type RightRailView = 'scenarios' | 'inspector';
+export type MetricsSpanMode = 'main' | 'full';
 
 export interface WorkbenchLayoutState {
   controlsSide: WorkbenchControlsSide;
@@ -53,7 +54,11 @@ export interface WorkbenchLayoutState {
   outputHeight: number;
   noteOpen: boolean;
   metricsOpen: boolean;
+  rightRailVisible: boolean;
   rightRailView: RightRailView;
+  scenarioListCollapsed: boolean;
+  scenarioListMaxRatio: number;
+  metricsSpan: MetricsSpanMode;
 }
 
 interface PanelGridProps {
@@ -85,7 +90,8 @@ interface PanelGridProps {
   updateInstanceVolume: (id: string, vol: number) => void;
   updateInstanceColor: (id: string, color: string) => void;
   updateInstanceName: (id: string, name: string) => void;
-  toggleGlobalInstanceVisibility: (id: string) => void;
+  toggleScenarioGlobalVisibility: (id: string) => void;
+  resetInstanceKnobs: (id: string) => void;
   addInstance: (sourceId?: string, presetId?: string) => void;
   removeInstance: (id: string) => void;
   timeScale: number;
@@ -93,6 +99,7 @@ interface PanelGridProps {
   isPlaying: boolean;
   togglePlay: () => void;
   addPanel: (type: PanelType, zone?: WorkbenchZoneId) => void;
+  duplicatePanel: (panelId: string) => PanelDef | undefined;
   removePanel: (id: string) => void;
   updatePanelTitle: (id: string, newTitle: string) => void;
   toggleShowLegend: (id: string) => void;
@@ -101,7 +108,7 @@ interface PanelGridProps {
   updatePanelSignalColor: (panelId: string, instId: string, sig: string, newColor: string) => void;
   updatePanelSignalName: (panelId: string, instId: string, sig: string, newName: string) => void;
   toggleSettings: (panelId: string) => void;
-  toggleInstanceVisibility: (panelId: string, instId: string) => void;
+  togglePaneMembership: (panelId: string, instId: string) => void;
   updateInstanceSignals: (panelId: string, instId: string, signal: string) => void;
   toggleGuides: (panelId: string) => void;
   updateTimeWindow: (panelId: string, val: number) => void;
@@ -141,7 +148,7 @@ interface PanelSettingsControlsProps {
   updatePanelInstanceName: (panelId: string, instId: string, newName: string) => void;
   updatePanelSignalColor: (panelId: string, instId: string, sig: string, newColor: string) => void;
   updatePanelSignalName: (panelId: string, instId: string, sig: string, newName: string) => void;
-  toggleInstanceVisibility: (panelId: string, instId: string) => void;
+  togglePaneMembership: (panelId: string, instId: string) => void;
   updateInstanceSignals: (panelId: string, instId: string, signal: string) => void;
   toggleGuides: (panelId: string) => void;
   updateTimeWindow: (panelId: string, val: number) => void;
@@ -406,7 +413,7 @@ function LegacyPanelSettingsControls({
   updatePanelInstanceName,
   updatePanelSignalColor,
   updatePanelSignalName,
-  toggleInstanceVisibility,
+  togglePaneMembership,
   updateInstanceSignals,
   toggleGuides,
   updateTimeWindow,
@@ -457,7 +464,7 @@ function LegacyPanelSettingsControls({
           return (
             <div key={inst.id}>
               <div className="mb-1 flex items-center gap-2">
-                <input type="checkbox" className="flex-none cursor-pointer accent-blue-500" checked={cfg?.visible || false} onChange={() => toggleInstanceVisibility(panel.id, inst.id)} />
+                <input type="checkbox" className="flex-none cursor-pointer accent-blue-500" checked={cfg?.visible || false} onChange={() => togglePaneMembership(panel.id, inst.id)} />
                 <input type="color" className="block h-[14px] w-[14px] flex-none cursor-pointer appearance-none rounded border-0 bg-transparent p-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded [&::-webkit-color-swatch]:border-none" value={cfg?.customBaseColor ?? inst.color} onChange={(e) => updatePanelInstanceColor(panel.id, inst.id, e.target.value)} />
                 <input type="text" className="w-full min-w-0 border-b border-transparent bg-transparent text-xs font-bold text-slate-300 outline-none focus:border-slate-500" value={cfg?.customName ?? inst.name} onChange={(e) => updatePanelInstanceName(panel.id, inst.id, e.target.value)} placeholder={inst.name} />
               </div>
@@ -498,7 +505,7 @@ function GraphPanelSettingsBoard({
   updatePanelInstanceName,
   updatePanelSignalColor,
   updatePanelSignalName,
-  toggleInstanceVisibility,
+  togglePaneMembership,
   updateInstanceSignals,
   toggleGuides,
   updateTimeWindow,
@@ -717,7 +724,7 @@ function GraphPanelSettingsBoard({
                   type="checkbox"
                   className="h-3.5 w-3.5 flex-none cursor-pointer accent-sky-500"
                   checked={cfg?.visible || false}
-                  onChange={() => toggleInstanceVisibility(panel.id, inst.id)}
+                  onChange={() => togglePaneMembership(panel.id, inst.id)}
                   aria-label={t('workbench.panelGrid.toggleScenarioMembership', { name: inst.name })}
                 />
                 <input
@@ -966,7 +973,7 @@ function ControlPanelSettingsBoard({
   updatePanelTitle,
   updatePanelInstanceColor,
   updatePanelInstanceName,
-  toggleInstanceVisibility,
+  togglePaneMembership,
   updateInstanceSignals,
   updatePanelControllerItems,
   controlGroups,
@@ -1039,7 +1046,7 @@ function ControlPanelSettingsBoard({
               className="h-3.5 w-3.5 cursor-pointer accent-sky-500"
               checked={isEnabled}
               disabled={!cfg}
-              onChange={() => cfg && toggleInstanceVisibility(panel.id, inst.id)}
+              onChange={() => cfg && togglePaneMembership(panel.id, inst.id)}
               aria-label={`${inst.name} controller target`}
             />
             <input
@@ -1355,7 +1362,8 @@ interface PanelCardProps {
   updateInstanceVolume: (id: string, vol: number) => void;
   updateInstanceColor: (id: string, color: string) => void;
   updateInstanceName: (id: string, name: string) => void;
-  toggleGlobalInstanceVisibility: (id: string) => void;
+  toggleScenarioGlobalVisibility: (id: string) => void;
+  resetInstanceKnobs: (id: string) => void;
   addInstance: (sourceId?: string, presetId?: string) => void;
   removeInstance: (id: string) => void;
   timeScale: number;
@@ -1363,6 +1371,7 @@ interface PanelCardProps {
   isPlaying: boolean;
   togglePlay: () => void;
   addPanel: (type: PanelType, zone?: WorkbenchZoneId) => void;
+  duplicatePanel: (panelId: string) => PanelDef | undefined;
   removePanel: (id: string) => void;
   updatePanelTitle: (id: string, newTitle: string) => void;
   toggleShowLegend: (id: string) => void;
@@ -1371,7 +1380,7 @@ interface PanelCardProps {
   updatePanelSignalColor: (panelId: string, instId: string, sig: string, newColor: string) => void;
   updatePanelSignalName: (panelId: string, instId: string, sig: string, newName: string) => void;
   toggleSettings: (panelId: string) => void;
-  toggleInstanceVisibility: (panelId: string, instId: string) => void;
+  togglePaneMembership: (panelId: string, instId: string) => void;
   updateInstanceSignals: (panelId: string, instId: string, signal: string) => void;
   toggleGuides: (panelId: string) => void;
   updateTimeWindow: (panelId: string, val: number) => void;
@@ -1404,7 +1413,8 @@ function PanelCard({
   updateInstanceVolume,
   updateInstanceColor,
   updateInstanceName,
-  toggleGlobalInstanceVisibility,
+  toggleScenarioGlobalVisibility,
+  resetInstanceKnobs,
   addInstance,
   removeInstance,
   timeScale,
@@ -1412,6 +1422,7 @@ function PanelCard({
   isPlaying,
   togglePlay,
   addPanel,
+  duplicatePanel,
   removePanel,
   updatePanelTitle,
   toggleShowLegend,
@@ -1420,7 +1431,7 @@ function PanelCard({
   updatePanelSignalColor,
   updatePanelSignalName,
   toggleSettings,
-  toggleInstanceVisibility,
+  togglePaneMembership,
   updateInstanceSignals,
   toggleGuides,
   updateTimeWindow,
@@ -1485,7 +1496,8 @@ function PanelCard({
         removeInstance,
         updateInstanceName,
         updateInstanceColor,
-        toggleGlobalInstanceVisibility,
+        toggleScenarioGlobalVisibility,
+        resetInstanceKnobs,
         canConfigure: canOpenSettingsFromLegend,
         onOpenSettings: openSettingsFromLegend,
         legendPosition: panel.view?.kind === 'graph' ? panel.view.legendPosition : undefined,
@@ -1562,6 +1574,7 @@ function ZoneShell({
   graphBoardLayout,
   onGraphBoardLayoutChange,
   addPanel,
+  duplicatePanel,
   removePanel,
   updatePanelTitle,
   toggleSettings,
@@ -1579,6 +1592,7 @@ function ZoneShell({
   graphBoardLayout?: GraphBoardLayout;
   onGraphBoardLayoutChange?: (layout: GraphBoardLayout | undefined) => void;
   addPanel: (type: PanelType, zone?: WorkbenchZoneId) => void;
+  duplicatePanel: (panelId: string) => PanelDef | undefined;
   removePanel: (id: string) => void;
   updatePanelTitle: (id: string, newTitle: string) => void;
   toggleSettings: (panelId: string) => void;
@@ -1603,6 +1617,7 @@ function ZoneShell({
         onToggleSettings={toggleSettings}
         onRenamePanel={updatePanelTitle}
         onAddPanel={addPanel}
+        onDuplicatePanel={duplicatePanel}
         getPanelTitle={getPanelTitle}
         className={`workbench-dockview workbench-dockview-${zone} flex-1`}
         renderPanel={renderPanel}
@@ -1640,7 +1655,8 @@ export function PanelGrid({
   updateInstanceVolume,
   updateInstanceColor,
   updateInstanceName,
-  toggleGlobalInstanceVisibility,
+  toggleScenarioGlobalVisibility,
+  resetInstanceKnobs,
   addInstance,
   removeInstance,
   timeScale,
@@ -1648,6 +1664,7 @@ export function PanelGrid({
   isPlaying,
   togglePlay,
   addPanel,
+  duplicatePanel,
   removePanel,
   updatePanelTitle,
   toggleShowLegend,
@@ -1656,7 +1673,7 @@ export function PanelGrid({
   updatePanelSignalColor,
   updatePanelSignalName,
   toggleSettings,
-  toggleInstanceVisibility,
+  togglePaneMembership,
   updateInstanceSignals,
   toggleGuides,
   updateTimeWindow,
@@ -1714,7 +1731,8 @@ export function PanelGrid({
       updateInstanceVolume={updateInstanceVolume}
       updateInstanceColor={updateInstanceColor}
       updateInstanceName={updateInstanceName}
-      toggleGlobalInstanceVisibility={toggleGlobalInstanceVisibility}
+      toggleScenarioGlobalVisibility={toggleScenarioGlobalVisibility}
+      resetInstanceKnobs={resetInstanceKnobs}
       addInstance={addInstance}
       removeInstance={removeInstance}
       timeScale={timeScale}
@@ -1722,6 +1740,7 @@ export function PanelGrid({
       isPlaying={isPlaying}
       togglePlay={togglePlay}
       addPanel={addPanel}
+      duplicatePanel={duplicatePanel}
       removePanel={removePanel}
       updatePanelTitle={updatePanelTitle}
       toggleShowLegend={toggleShowLegend}
@@ -1730,7 +1749,7 @@ export function PanelGrid({
       updatePanelSignalColor={updatePanelSignalColor}
       updatePanelSignalName={updatePanelSignalName}
       toggleSettings={toggleSettings}
-      toggleInstanceVisibility={toggleInstanceVisibility}
+      togglePaneMembership={togglePaneMembership}
       updateInstanceSignals={updateInstanceSignals}
       toggleGuides={toggleGuides}
       updateTimeWindow={updateTimeWindow}
@@ -1762,7 +1781,7 @@ export function PanelGrid({
       updatePanelSignalColor={updatePanelSignalColor}
       updatePanelSignalName={updatePanelSignalName}
       toggleSettings={toggleSettings}
-      toggleInstanceVisibility={toggleInstanceVisibility}
+      togglePaneMembership={togglePaneMembership}
       updateInstanceSignals={updateInstanceSignals}
       toggleGuides={toggleGuides}
       updateTimeWindow={updateTimeWindow}
@@ -1777,13 +1796,38 @@ export function PanelGrid({
   const rightRailWidth = clamp(layoutState.controlsWidth, 280, 380);
   const noteWidth = hasCaseRail ? clamp(layoutState.caseRailWidth, 220, 360) : 0;
   const metricsHeight = layoutState.metricsOpen ? clamp(layoutState.outputHeight, 150, 280) : 0;
-  const gridTemplateColumns = hasCaseRail
-    ? `${noteWidth}px minmax(320px,1fr) ${rightRailWidth}px`
-    : `minmax(320px,1fr) ${rightRailWidth}px`;
+  const hasRightRail = layoutState.rightRailVisible;
+  const columnTracks = [
+    ...(hasCaseRail ? [`${noteWidth}px`] : []),
+    'minmax(320px,1fr)',
+    ...(hasRightRail ? [`${rightRailWidth}px`] : []),
+  ];
+  const gridTemplateColumns = columnTracks.join(' ');
   const gridTemplateRows = layoutState.metricsOpen ? `minmax(0,1fr) ${metricsHeight}px` : 'minmax(0,1fr)';
   const mainColumn = hasCaseRail ? '2' : '1';
   const rightRailColumn = hasCaseRail ? '3' : '2';
-  const activeRightRailView = layoutState.rightRailView ?? 'scenarios';
+  const auxiliaryGridRow = layoutState.metricsOpen && layoutState.metricsSpan === 'main' ? '1 / 3' : '1';
+  const metricsGridColumn = layoutState.metricsSpan === 'full' ? '1 / -1' : mainColumn;
+  const scenarioListMaxRatio = clamp(layoutState.scenarioListMaxRatio ?? 0.4, 0.25, 0.65);
+  const rightRailRef = useRef<HTMLDivElement | null>(null);
+  const activeInstance = instances.find((instance) => instance.id === activeInstanceId);
+  const startScenarioListResize = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const railRect = rightRailRef.current?.getBoundingClientRect();
+    if (!railRect || railRect.height <= 0) return;
+
+    const onMove = (moveEvent: MouseEvent) => {
+      const ratio = clamp((moveEvent.clientY - railRect.top) / railRect.height, 0.25, 0.65);
+      onLayoutStateChange((prev) => ({ ...prev, scenarioListCollapsed: false, scenarioListMaxRatio: ratio }));
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [onLayoutStateChange]);
   const inspectorInstances = instances.map((instance) => (
     instance.id === activeInstanceId ? { ...instance, isVisible: true } : instance
   ));
@@ -1843,7 +1887,7 @@ export function PanelGrid({
           {hasCaseRail && notePanel && (
             <section
               className="workbench-zone-aux flex min-h-0 flex-col overflow-hidden border-r border-slate-800/60 bg-[#0B1120]"
-              style={{ gridColumn: '1', gridRow: layoutState.metricsOpen ? '1 / 3' : '1' }}
+              style={{ gridColumn: '1', gridRow: auxiliaryGridRow }}
               aria-label={t('workbench.panelGrid.noteDrawer')}
             >
               {renderPaneBody(notePanel, {
@@ -1865,7 +1909,8 @@ export function PanelGrid({
                 removeInstance,
                 updateInstanceName,
                 updateInstanceColor,
-                toggleGlobalInstanceVisibility,
+                toggleScenarioGlobalVisibility,
+                resetInstanceKnobs,
               })}
             </section>
           )}
@@ -1882,64 +1927,93 @@ export function PanelGrid({
             removePanel={removePanel}
             updatePanelTitle={updatePanelTitle}
             toggleSettings={toggleSettings}
+            duplicatePanel={duplicatePanel}
             className=""
             style={{ gridColumn: mainColumn, gridRow: '1' }}
             getPanelTitle={getPanelTitle}
             renderPanel={(panel) => renderPanel(panel, false, 'dockview')}
           />
-          <section
-            className="workbench-zone-aux flex min-h-0 flex-col overflow-hidden border-l border-slate-800/60 bg-[#0B1120]"
-            style={{ gridColumn: rightRailColumn, gridRow: layoutState.metricsOpen ? '1 / 3' : '1' }}
-            aria-label={t('workbench.panelGrid.railAria')}
-          >
-            <div className="grid h-9 shrink-0 grid-cols-2 border-b border-slate-800/70 bg-slate-950/35 p-1">
-              {(['scenarios', 'inspector'] as const).map((view) => (
+          {hasRightRail && (
+            <section
+              ref={rightRailRef}
+              className="workbench-zone-aux flex min-h-0 flex-col overflow-hidden border-l border-slate-800/60 bg-[#0B1120]"
+              style={{ gridColumn: rightRailColumn, gridRow: auxiliaryGridRow }}
+              aria-label={t('workbench.panelGrid.railAria')}
+            >
+              <div
+                className="flex min-h-0 shrink-0 flex-col overflow-hidden border-b border-slate-800/70"
+                style={{
+                  maxHeight: layoutState.scenarioListCollapsed ? 36 : `calc(100% * ${scenarioListMaxRatio})`,
+                }}
+              >
                 <button
-                  key={view}
                   type="button"
-                  onClick={() => onLayoutStateChange((prev) => ({ ...prev, rightRailView: view }))}
-                  className={`rounded text-xs font-bold transition-colors ${
-                    activeRightRailView === view
-                      ? 'bg-slate-800 text-slate-100'
-                      : 'text-slate-500 hover:bg-slate-900 hover:text-slate-300'
-                  }`}
+                  onClick={() => onLayoutStateChange((prev) => ({ ...prev, scenarioListCollapsed: !prev.scenarioListCollapsed }))}
+                  className="flex h-9 shrink-0 items-center gap-2 border-b border-slate-800/70 bg-slate-950/35 px-2 text-left text-xs font-bold text-slate-300 transition-colors hover:bg-slate-900/70 hover:text-slate-100"
+                  aria-expanded={!layoutState.scenarioListCollapsed}
                 >
-                  {t(`workbench.panelGrid.rail.${view}`)}
+                  {layoutState.scenarioListCollapsed ? <ChevronRight className="h-3.5 w-3.5 text-slate-500" /> : <ChevronDown className="h-3.5 w-3.5 text-slate-500" />}
+                  <span className="min-w-0 flex-1 truncate">{t('workbench.panelGrid.scenariosCount', { count: instances.length })}</span>
                 </button>
-              ))}
-            </div>
-            <div className="relative min-h-0 flex-1">
-              {activeRightRailView === 'inspector' ? (
-                <Controls
-                  isPaneMode
-                  paneConfig={inspectorConfig}
-                  instances={inspectorInstances}
-                  instanceHealth={instanceHealth}
-                  activeInstanceId={activeInstanceId}
-                  updateInstanceParams={updateInstanceParams}
-                  updateInstanceKnobs={updateInstanceKnobs}
-                  updateInstanceVolume={updateInstanceVolume}
-                  presentationMode="studio"
-                />
-              ) : (
-                <ScenarioPane
-                  instances={instances}
-                  addInstance={addInstance}
-                  removeInstance={removeInstance}
-                  updateInstanceName={updateInstanceName}
-                  updateInstanceColor={updateInstanceColor}
-                  activeInstanceId={activeInstanceId}
-                  setActiveInstanceId={setActiveInstanceId}
-                  toggleInstanceVisibility={toggleGlobalInstanceVisibility}
-                  steadyUpdateStatuses={steadyUpdateStatuses}
-                />
+                {!layoutState.scenarioListCollapsed && (
+                  <div className="min-h-0 overflow-hidden">
+                    <ScenarioPane
+                      instances={instances}
+                      addInstance={addInstance}
+                      removeInstance={removeInstance}
+                      updateInstanceName={updateInstanceName}
+                      updateInstanceColor={updateInstanceColor}
+                      activeInstanceId={activeInstanceId}
+                      setActiveInstanceId={setActiveInstanceId}
+                      toggleScenarioGlobalVisibility={toggleScenarioGlobalVisibility}
+                      resetInstanceKnobs={resetInstanceKnobs}
+                      steadyUpdateStatuses={steadyUpdateStatuses}
+                    />
+                  </div>
+                )}
+              </div>
+              {!layoutState.scenarioListCollapsed && (
+                <div
+                  role="separator"
+                  aria-orientation="horizontal"
+                  onMouseDown={startScenarioListResize}
+                  className="group flex h-2 shrink-0 cursor-row-resize items-center justify-center bg-slate-950/35"
+                  title={t('workbench.panelGrid.resizeScenarioList')}
+                >
+                  <span className="h-px w-10 bg-slate-700 transition-colors group-hover:bg-sky-500/70" />
+                </div>
               )}
-            </div>
-          </section>
+              <div className="flex min-h-0 flex-1 flex-col">
+                <div className="flex h-9 shrink-0 items-center gap-2 border-b border-slate-800/70 bg-slate-950/35 px-2">
+                  <span className="text-xs font-bold text-slate-300">{t('workbench.panelGrid.rail.inspector')}</span>
+                  {activeInstance && (
+                    <span className="ml-auto inline-flex min-w-0 items-center gap-1.5 rounded border border-slate-700 bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-slate-400">
+                      {t('workbench.panelGrid.editingScenario')}
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: activeInstance.color }} />
+                      <span className="min-w-0 max-w-28 truncate text-slate-200">{activeInstance.name}</span>
+                    </span>
+                  )}
+                </div>
+                <div className="relative min-h-0 flex-1">
+                  <Controls
+                    isPaneMode
+                    paneConfig={inspectorConfig}
+                    instances={inspectorInstances}
+                    instanceHealth={instanceHealth}
+                    activeInstanceId={activeInstanceId}
+                    updateInstanceParams={updateInstanceParams}
+                    updateInstanceKnobs={updateInstanceKnobs}
+                    updateInstanceVolume={updateInstanceVolume}
+                    presentationMode="studio"
+                  />
+                </div>
+              </div>
+            </section>
+          )}
           {layoutState.metricsOpen && activeMetricsTab && (
             <section
               className="workbench-zone-aux flex min-h-0 flex-col overflow-hidden border-t border-slate-800/60 bg-[#0B1120]"
-              style={{ gridColumn: mainColumn, gridRow: '2' }}
+              style={{ gridColumn: metricsGridColumn, gridRow: '2' }}
               aria-label={t('workbench.panelGrid.metricsHost')}
             >
               <div className="flex h-9 shrink-0 items-center gap-1 overflow-x-auto border-b border-slate-800/70 bg-slate-950/35 px-2 custom-scrollbar">

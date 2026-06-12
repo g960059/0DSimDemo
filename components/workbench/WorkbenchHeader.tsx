@@ -13,12 +13,14 @@ import {
   Play,
   Save,
   Share2,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { SimInstance } from '../../types';
 import { SimulationHealth } from '../../engine/protocol';
 import { HealthBadge } from '../HealthIndicators';
 import { ModelLimitations } from '../ModelLimitations';
 import { WorkbenchHeaderMode, WorkbenchSceneMeta, WorkbenchSidePanel, type WorkbenchThemeId } from './WorkbenchSidePanel';
+import type { MetricsSpanMode } from './PanelGrid';
 
 interface WorkbenchHeaderProps {
   mode: WorkbenchHeaderMode;
@@ -52,10 +54,13 @@ interface WorkbenchHeaderProps {
   setTimeScale: React.Dispatch<React.SetStateAction<number>>;
   noteOpen: boolean;
   metricsOpen: boolean;
+  rightRailVisible: boolean;
+  metricsSpan: MetricsSpanMode;
   hasNotePanel: boolean;
   onToggleNote: () => void;
   onToggleMetrics: () => void;
-  onArrangeGraphBoard?: (arrangement: '2x2' | 'sideBySide' | 'stacked') => void;
+  onToggleRightRail: () => void;
+  onMetricsSpanChange: (span: MetricsSpanMode) => void;
   theme: WorkbenchThemeId;
   onThemeChange: (theme: WorkbenchThemeId) => void;
 }
@@ -98,10 +103,13 @@ export function WorkbenchHeader({
   setTimeScale,
   noteOpen,
   metricsOpen,
+  rightRailVisible,
+  metricsSpan,
   hasNotePanel,
   onToggleNote,
   onToggleMetrics,
-  onArrangeGraphBoard,
+  onToggleRightRail,
+  onMetricsSpanChange,
   theme,
   onThemeChange,
 }: WorkbenchHeaderProps) {
@@ -115,6 +123,13 @@ export function WorkbenchHeader({
   const isLearner = mode === 'learner';
   const showNoteToggle = !isLearner || hasNotePanel;
   const primaryLabel = isLearner ? t('workbench.header.editCopy') : authoringMode ? t('workbench.header.share') : t('workbench.header.saveCase');
+  const visibilityButtonClass = (pressed: boolean) => (
+    `inline-flex h-9 w-9 items-center justify-center rounded-md border transition-colors ${
+      pressed
+        ? 'border-slate-700 bg-slate-900 text-slate-100'
+        : 'border-transparent text-slate-500 hover:bg-slate-900 hover:text-slate-200'
+    }`
+  );
 
   const openMetaEditor = () => {
     setDraftMeta(sceneMeta);
@@ -161,6 +176,38 @@ export function WorkbenchHeader({
 
         <div className="flex shrink-0 items-center gap-1.5">
           <HealthBadge items={instances.filter(i => instanceHealth[i.id]).map(i => ({ id: i.id, name: i.name, color: i.color, health: instanceHealth[i.id] }))} getLiveHealth={getLiveHealth} />
+          {showNoteToggle && (
+            <button
+              type="button"
+              onClick={onToggleNote}
+              className={visibilityButtonClass(noteOpen)}
+              title={t('workbench.header.toggleNoteDrawer')}
+              aria-label={t('workbench.header.toggleNoteDrawer')}
+              aria-pressed={noteOpen}
+            >
+              <FileText className="h-4.5 w-4.5" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onToggleMetrics}
+            className={visibilityButtonClass(metricsOpen)}
+            title={t('workbench.header.toggleMetricsHost')}
+            aria-label={t('workbench.header.toggleMetricsHost')}
+            aria-pressed={metricsOpen}
+          >
+            <BarChart3 className="h-4.5 w-4.5" />
+          </button>
+          <button
+            type="button"
+            onClick={onToggleRightRail}
+            className={visibilityButtonClass(rightRailVisible)}
+            title={t('workbench.header.toggleRightRail')}
+            aria-label={t('workbench.header.toggleRightRail')}
+            aria-pressed={rightRailVisible}
+          >
+            <LayoutPanelLeft className="h-4.5 w-4.5" />
+          </button>
           <div className="relative">
             <button
               type="button"
@@ -169,55 +216,31 @@ export function WorkbenchHeader({
               title={t('workbench.header.customizeLayout')}
               aria-label={t('workbench.header.customizeLayout')}
             >
-              <LayoutPanelLeft className="h-4.5 w-4.5" />
+              <SlidersHorizontal className="h-4.5 w-4.5" />
             </button>
             {isLayoutOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setIsLayoutOpen(false)} />
-                <div className="absolute right-0 top-full z-50 mt-1 w-64 rounded-md border border-slate-700 bg-slate-900 p-2 shadow-xl">
+                <div className="absolute right-0 top-full z-50 mt-1 w-60 rounded-md border border-slate-700 bg-slate-900 p-2 shadow-xl">
                   <div className="mb-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">{t('workbench.header.customizeLayout')}</div>
-                  {showNoteToggle && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onToggleNote();
-                      }}
-                      className="flex w-full items-center justify-between rounded px-2 py-2 text-xs font-bold text-slate-300 transition-colors hover:bg-slate-800"
-                    >
-                      <span className="inline-flex items-center gap-2"><FileText className="h-4 w-4" />{t('workbench.header.noteDrawer')}</span>
-                      <span className={noteOpen ? 'text-blue-300' : 'text-slate-500'}>{noteOpen ? t('common.on') : t('common.off')}</span>
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onToggleMetrics();
-                    }}
-                    className="flex w-full items-center justify-between rounded px-2 py-2 text-xs font-bold text-slate-300 transition-colors hover:bg-slate-800"
-                  >
-                    <span className="inline-flex items-center gap-2"><BarChart3 className="h-4 w-4" />{t('workbench.header.metricsHost')}</span>
-                    <span className={metricsOpen ? 'text-blue-300' : 'text-slate-500'}>{metricsOpen ? t('common.on') : t('common.off')}</span>
-                  </button>
-                  <div className="mt-1 border-t border-slate-800/80 pt-1">
-                    <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                      {t('workbench.header.arrange')}
-                    </div>
-                    {([
-                      ['2x2', 'arrange2x2'],
-                      ['sideBySide', 'arrangeSideBySide'],
-                      ['stacked', 'arrangeStacked'],
-                    ] as const).map(([arrangement, labelKey]) => (
+                  <div className="px-2 pb-1 text-xs font-bold text-slate-300">{t('workbench.header.metricsSpanLabel')}</div>
+                  <div className="grid gap-1">
+                    {(['main', 'full'] as const).map((span) => (
                       <button
-                        key={arrangement}
+                        key={span}
                         type="button"
                         onClick={() => {
-                          onArrangeGraphBoard?.(arrangement);
+                          onMetricsSpanChange(span);
                           setIsLayoutOpen(false);
                         }}
-                        disabled={!onArrangeGraphBoard}
-                        className="flex w-full items-center justify-between rounded px-2 py-2 text-xs font-bold text-slate-300 transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-transparent"
+                        className={`flex w-full items-center justify-between rounded px-2 py-2 text-xs font-bold transition-colors ${
+                          metricsSpan === span
+                            ? 'bg-slate-800 text-slate-100'
+                            : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                        }`}
                       >
-                        <span className="inline-flex items-center gap-2"><LayoutPanelLeft className="h-4 w-4" />{t(`workbench.header.${labelKey}`)}</span>
+                        <span>{t(`workbench.header.metricsSpan${span === 'main' ? 'Main' : 'Full'}`)}</span>
+                        {metricsSpan === span && <Check className="h-3.5 w-3.5" />}
                       </button>
                     ))}
                   </div>

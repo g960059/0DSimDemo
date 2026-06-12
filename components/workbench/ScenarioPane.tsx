@@ -14,7 +14,8 @@ interface ScenarioPaneProps {
   updateInstanceColor: (id: string, color: string) => void;
   activeInstanceId?: string;
   setActiveInstanceId?: (id: string) => void;
-  toggleInstanceVisibility?: (id: string) => void;
+  toggleScenarioGlobalVisibility?: (id: string) => void;
+  resetInstanceKnobs?: (id: string) => void;
   steadyUpdateStatuses?: SteadyUpdateStatusMap;
 }
 
@@ -71,7 +72,8 @@ export function ScenarioPane({
   updateInstanceColor,
   activeInstanceId,
   setActiveInstanceId,
-  toggleInstanceVisibility,
+  toggleScenarioGlobalVisibility,
+  resetInstanceKnobs,
   steadyUpdateStatuses = {},
 }: ScenarioPaneProps) {
   const { t } = useTranslation();
@@ -206,12 +208,12 @@ export function ScenarioPane({
                 </span>
               )}
               <SteadyStatusIndicator status={steadyUpdateStatuses[instance.id]} />
-              {!isEditing && toggleInstanceVisibility && (
+              {!isEditing && toggleScenarioGlobalVisibility && (
                 <button
                   type="button"
                   onClick={(event) => {
                     event.stopPropagation();
-                    toggleInstanceVisibility(instance.id);
+                    toggleScenarioGlobalVisibility(instance.id);
                   }}
                   className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded transition-colors ${
                     isHidden
@@ -262,6 +264,17 @@ export function ScenarioPane({
                       className="workbench-popover-menu-item block w-full px-3 py-1.5 text-left text-xs font-medium"
                     >
                       {t('common.duplicate')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        resetInstanceKnobs?.(instance.id);
+                        setMenuState(null);
+                      }}
+                      disabled={!resetInstanceKnobs || !instance.knobBaseline}
+                      className="workbench-popover-menu-item block w-full px-3 py-1.5 text-left text-xs font-medium disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent"
+                    >
+                      {t('workbench.scenarioPane.reset')}
                     </button>
                     <button
                       type="button"

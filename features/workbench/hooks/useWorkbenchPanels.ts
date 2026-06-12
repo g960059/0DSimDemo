@@ -69,7 +69,7 @@ export function useWorkbenchPanels({
             ...prevWorkspace.regions.control,
             position: "right",
             size: resolved.controlsWidth,
-            visible: true,
+            visible: resolved.rightRailVisible,
           },
           note: {
             ...prevWorkspace.regions.note,
@@ -138,6 +138,25 @@ export function useWorkbenchPanels({
     setAddingPanelType(type);
     setAddingPanelZone(zone ?? defaultZoneOf(type));
   }, [appendPanel, instances]);
+
+  const duplicatePanel = useCallback((panelId: string): PanelDef | undefined => {
+    const source = panels.find((panel) => panel.id === panelId);
+    if (!source) return undefined;
+    markUserEdited();
+    const newPanel: PanelDef = JSON.parse(JSON.stringify({
+      ...source,
+      id: `${source.id}-${Date.now().toString(36)}`,
+      isSettingsOpen: false,
+    }));
+    setPanels((prev) => {
+      const nextPanels = addPane(prev, newPanel);
+      setWorkspace((prevWorkspace) => workspaceAfterPanelsChanged(nextPanels, prevWorkspace));
+      return nextPanels;
+    });
+    setNotes((prev) => notesAfterPanelAdded(prev, newPanel));
+    setNoteModes((prev) => noteModesAfterPanelAdded(prev, newPanel));
+    return newPanel;
+  }, [markUserEdited, panels]);
 
   const confirmAddPanel = useCallback(() => {
     if (!addingPanelType) return;
@@ -222,7 +241,7 @@ export function useWorkbenchPanels({
     )));
   }, []);
 
-  const toggleInstanceVisibility = useCallback((panelId: string, instId: string) => {
+  const togglePaneMembership = useCallback((panelId: string, instId: string) => {
     markUserEdited();
     setPanels((prev) => prev.map((panel) => panel.id === panelId ? {
       ...panel,
@@ -308,7 +327,12 @@ export function useWorkbenchPanels({
         ...prev,
         regions: {
           ...prev.regions,
-          control: { ...prev.regions.control, position: DEFAULT_WORKBENCH_LAYOUT.controlsSide, size: DEFAULT_WORKBENCH_LAYOUT.controlsWidth },
+          control: {
+            ...prev.regions.control,
+            position: DEFAULT_WORKBENCH_LAYOUT.controlsSide,
+            size: DEFAULT_WORKBENCH_LAYOUT.controlsWidth,
+            visible: DEFAULT_WORKBENCH_LAYOUT.rightRailVisible,
+          },
           note: { ...prev.regions.note, size: DEFAULT_WORKBENCH_LAYOUT.caseRailWidth, visible: DEFAULT_WORKBENCH_LAYOUT.noteOpen },
           output: { ...prev.regions.output, size: DEFAULT_WORKBENCH_LAYOUT.outputHeight, visible: DEFAULT_WORKBENCH_LAYOUT.metricsOpen ? "compact" : false },
         },
@@ -339,6 +363,7 @@ export function useWorkbenchPanels({
     replacePanelState,
     updateDockviewViewState,
     addPanel,
+    duplicatePanel,
     confirmAddPanel,
     cancelAddPanel,
     removePanel,
@@ -349,7 +374,7 @@ export function useWorkbenchPanels({
     updatePanelSignalColor,
     updatePanelSignalName,
     toggleSettings,
-    toggleInstanceVisibility,
+    togglePaneMembership,
     updateInstanceSignals,
     toggleGuides,
     updateTimeWindow,

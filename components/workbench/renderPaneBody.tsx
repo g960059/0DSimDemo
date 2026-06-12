@@ -30,7 +30,8 @@ export interface PaneBodyContext {
   removeInstance?: (id: string) => void;
   updateInstanceName?: (id: string, name: string) => void;
   updateInstanceColor?: (id: string, color: string) => void;
-  toggleGlobalInstanceVisibility?: (id: string) => void;
+  toggleScenarioGlobalVisibility?: (id: string) => void;
+  resetInstanceKnobs?: (id: string) => void;
   presentationMode?: 'studio' | 'reading';
   canConfigure?: boolean;
   onOpenSettings?: (panelId: string) => void;
@@ -47,6 +48,7 @@ export function renderPaneBody(panel: PanelDef, ctx: PaneBodyContext): React.Rea
         config={effectiveGlobalConfig(panel.config, ctx.instances)}
         showGuides={panel.showGuides}
         showLegend={panel.showLegend}
+        activeInstanceId={ctx.activeInstanceId}
         panelId={panel.id}
         legendInteractive={shouldEnableLegendInteractions({ canConfigure: ctx.canConfigure, presentationMode: ctx.presentationMode })}
         onOpenSettings={ctx.onOpenSettings}
@@ -63,6 +65,7 @@ export function renderPaneBody(panel: PanelDef, ctx: PaneBodyContext): React.Rea
         timeWindow={panel.timeWindow || 10000}
         config={effectiveGlobalConfig(panel.config, ctx.instances)}
         showLegend={panel.showLegend}
+        activeInstanceId={ctx.activeInstanceId}
         panelId={panel.id}
         legendInteractive={shouldEnableLegendInteractions({ canConfigure: ctx.canConfigure, presentationMode: ctx.presentationMode })}
         onOpenSettings={ctx.onOpenSettings}
@@ -84,7 +87,8 @@ export function renderPaneBody(panel: PanelDef, ctx: PaneBodyContext): React.Rea
         updateInstanceColor={ctx.updateInstanceColor}
         activeInstanceId={ctx.activeInstanceId}
         setActiveInstanceId={ctx.setActiveInstanceId}
-        toggleInstanceVisibility={ctx.toggleGlobalInstanceVisibility}
+        toggleScenarioGlobalVisibility={ctx.toggleScenarioGlobalVisibility}
+        resetInstanceKnobs={ctx.resetInstanceKnobs}
         steadyUpdateStatuses={ctx.steadyUpdateStatuses}
       />
     );

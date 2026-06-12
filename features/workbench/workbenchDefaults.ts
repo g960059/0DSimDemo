@@ -142,7 +142,11 @@ export const DEFAULT_WORKBENCH_LAYOUT: WorkbenchLayoutState = {
   outputHeight: 190,
   noteOpen: false,
   metricsOpen: true,
+  rightRailVisible: true,
   rightRailView: 'scenarios',
+  scenarioListCollapsed: false,
+  scenarioListMaxRatio: 0.4,
+  metricsSpan: 'main',
 };
 
 export function layoutStateFromWorkspace(workspace?: WorkbenchWorkspace): WorkbenchLayoutState {
@@ -153,7 +157,11 @@ export function layoutStateFromWorkspace(workspace?: WorkbenchWorkspace): Workbe
     outputHeight: workspace?.regions.output?.size ?? DEFAULT_WORKBENCH_LAYOUT.outputHeight,
     noteOpen: noteOpenFromWorkspace(workspace),
     metricsOpen: metricsOpenFromWorkspace(workspace),
+    rightRailVisible: DEFAULT_WORKBENCH_LAYOUT.rightRailVisible,
     rightRailView: DEFAULT_WORKBENCH_LAYOUT.rightRailView,
+    scenarioListCollapsed: DEFAULT_WORKBENCH_LAYOUT.scenarioListCollapsed,
+    scenarioListMaxRatio: DEFAULT_WORKBENCH_LAYOUT.scenarioListMaxRatio,
+    metricsSpan: DEFAULT_WORKBENCH_LAYOUT.metricsSpan,
   };
 }
 
