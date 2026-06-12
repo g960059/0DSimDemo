@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { DEFAULT_PARAMS } from "@/constants";
-import { ModelCore, type ModelCoreActiveStressDiagnostics, type ModelCoreClampDiagnostics } from "@/engine/ModelCore";
+import { ModelCore, type AorticFlowClampMode, type ModelCoreActiveStressDiagnostics, type ModelCoreClampDiagnostics } from "@/engine/ModelCore";
 import { makeIndex } from "@/engine/core/stateLayout";
 import type { StarlingSweepRequest } from "@/engine/guytonStarling";
 import { PREVIEW_SETTLE_POLICY, type SettleStatus } from "@/engine/settling";
@@ -29,6 +29,7 @@ type DebugOptions = {
   beatPairOverlay?: boolean;
   quietClampLog: boolean;
   tbvCorrectionMode?: TBVCorrectionMode;
+  aorticFlowClampMode?: AorticFlowClampMode;
 };
 
 type ActiveBeatSummary = {
@@ -88,6 +89,8 @@ type BeatTraceRow = {
   EDV_R: number;
   ESV_R: number;
   LVPMax: number;
+  AoPMean: number;
+  AoPMax: number;
   QAoMax: number;
   filling: FillingRegimeSummary;
   active: Partial<Record<Chamber, ActiveBeatSummary>>;
@@ -134,7 +137,7 @@ type ReturnMapFeature = {
   absCentralSlope: number;
 };
 
-type ReturnMapFeatureKey = "EDV_L" | "ESV_L" | "CO_L" | "LAPMean";
+type ReturnMapFeatureKey = "EDV_L" | "ESV_L" | "CO_L" | "LAPMean" | "QAoMax" | "AoPMax" | "AoPMean" | "LVPMax" | "sigmaActTargetMax" | "sigmaActMean";
 type ReturnMapModeKey = "volumeLambdaActFixed" | "volumeLambdaActReset";
 export type ReturnMapModeOption = "none" | "fixed" | "reset" | "both";
 export type LambdaActScope = "lv" | "ventricles" | "all";
@@ -380,12 +383,20 @@ type DebugSummary = {
   maxAbsTwoBeatReturnMapSlopeESVL: number;
   maxAbsReturnMapSlopeCOL: number;
   maxAbsTwoBeatReturnMapSlopeCOL: number;
+  maxAbsReturnMapSlopeQAoMax: number;
+  maxAbsTwoBeatReturnMapSlopeQAoMax: number;
+  maxAbsReturnMapSlopeAoPMax: number;
+  maxAbsTwoBeatReturnMapSlopeAoPMax: number;
   maxBranchAmplitudeCOL: number;
   maxBranchAmplitudeFractionCOL: number;
   maxBranchAmplitudeEDVL: number;
   maxBranchAmplitudeFractionEDVL: number;
   maxBranchAmplitudeESVL: number;
   maxBranchAmplitudeFractionESVL: number;
+  maxBranchAmplitudeQAoMax: number;
+  maxBranchAmplitudeFractionQAoMax: number;
+  maxBranchAmplitudeAoPMax: number;
+  maxBranchAmplitudeFractionAoPMax: number;
   minMVAForwardMl: number;
   minMVAFraction: number;
   minLAAloopArea: number;
@@ -402,7 +413,7 @@ type DebugSummary = {
 };
 
 type DebugReport = {
-  schemaVersion: 15;
+  schemaVersion: 16;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -422,6 +433,7 @@ type DebugReport = {
   returnMapDeltasMl?: number[];
   quietClampLog: boolean;
   tbvCorrectionMode: TBVCorrectionMode;
+  aorticFlowClampMode: AorticFlowClampMode;
   beatPairOverlay: boolean;
   points: DebugPoint[];
   summary: DebugSummary;
@@ -462,6 +474,7 @@ const DEFAULT_ACTIVE_RESERVE_PRESET: ActiveReservePreset = "directMedium";
 const DEFAULT_SAMPLE_HZ = 120;
 const DEFAULT_RETURN_MAP_MODE: ReturnMapModeOption = "both";
 const DEFAULT_TBV_CORRECTION_MODE: TBVCorrectionMode = "on";
+const DEFAULT_AORTIC_FLOW_CLAMP_MODE: AorticFlowClampMode = "hard";
 const TBV_AUDIT_CONTAMINATION_THRESHOLD_ML = 0.05;
 const LOW_TBV_CORRECTION_OPTIONS = {
   gain: 0.035,
@@ -507,6 +520,7 @@ const CSV_COLUMNS = [
   "lowStretchLimiterScope",
   "activeReservePreset",
   "tbvCorrectionMode",
+  "aorticFlowClampMode",
   "deltaVolumeMl",
   "targetVolumeMl",
   "beat",
@@ -515,6 +529,10 @@ const CSV_COLUMNS = [
   "CO_R",
   "EDV_L",
   "ESV_L",
+  "LVPMax",
+  "AoPMean",
+  "AoPMax",
+  "QAoMax",
   "MV_E_forward_mL",
   "MV_A_forward_mL",
   "MV_A_fraction",
@@ -562,6 +580,10 @@ const CSV_COLUMNS = [
   "branchAmplitudeFractionEDV_L",
   "branchAmplitudeESV_L",
   "branchAmplitudeFractionESV_L",
+  "branchAmplitudeQAoMax",
+  "branchAmplitudeFractionQAoMax",
+  "branchAmplitudeAoPMax",
+  "branchAmplitudeFractionAoPMax",
   "tbvAuditClass",
   "sanitizeAbsMl",
   "projectionAppliedMl",
@@ -575,6 +597,10 @@ const CSV_COLUMNS = [
   "returnMapResetLambdaActTwoBeatEDVSlope",
   "returnMapCOSlope",
   "returnMapTwoBeatCOSlope",
+  "returnMapQAoMaxSlope",
+  "returnMapTwoBeatQAoMaxSlope",
+  "returnMapAoPMaxSlope",
+  "returnMapTwoBeatAoPMaxSlope",
 ];
 const BEAT_PAIR_OVERLAY_CSV_COLUMNS = [
   "dt",
@@ -672,6 +698,7 @@ export function runLowPreloadDebug(opts: DebugOptions): DebugReport {
 
 function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
   const tbvCorrectionMode = opts.tbvCorrectionMode ?? DEFAULT_TBV_CORRECTION_MODE;
+  const aorticFlowClampMode = opts.aorticFlowClampMode ?? DEFAULT_AORTIC_FLOW_CLAMP_MODE;
   const dtValues = opts.dtValues.length > 0 ? opts.dtValues : DEFAULT_DT_VALUES;
   const lambdaActTauSecValues = opts.lambdaActTauSecValues.length > 0
     ? opts.lambdaActTauSecValues
@@ -683,9 +710,9 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
   const dtScenarios = lambdaActTauSecValues.flatMap((tau) => dtValues.map((dt) => runDtScenario(opts, dt, tau)));
   const primary = dtScenarios[0] ?? runDtScenario(opts, 0.001, 0);
   return {
-    schemaVersion: 15,
+    schemaVersion: 16,
     generatedAt: new Date().toISOString(),
-    measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve/TBV-projection diagnostics; branch-amplitude primary gate; EDV-section volume-preserving LV/PVein one-beat/two-beat return-map slopes with EDV/ESV/CO features; LA/MV filling-regime and MV event-count morphology diagnostics; optional phase-aligned last-two-beat active/ejection/MV overlay diagnostics with high-low divergence summary; dt and off-by-default lambdaAct sensitivity",
+    measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve/TBV-projection diagnostics; branch-amplitude primary gate; EDV-section volume-preserving LV/PVein one-beat/two-beat return-map slopes with EDV/ESV/CO/afterload/ejection features; LA/MV filling-regime and MV event-count morphology diagnostics; optional phase-aligned last-two-beat active/ejection/MV overlay diagnostics with high-low divergence summary; dt, off-by-default lambdaAct, and off-by-default AoV flow-clamp sensitivity",
     targetVolumeMl: opts.targetVolumeMl,
     heartModel: opts.heartModel ?? DEFAULT_HEART_MODEL,
     deltasMl: opts.deltasMl,
@@ -703,6 +730,7 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
     returnMapDeltasMl: opts.returnMapDeltasMl,
     quietClampLog: opts.quietClampLog,
     tbvCorrectionMode,
+    aorticFlowClampMode,
     beatPairOverlay: opts.beatPairOverlay === true,
     points: primary.points,
     summary: primary.summary,
@@ -743,13 +771,14 @@ export function reportToMarkdown(report: DebugReport): string {
   lines.push(`active reserve preset: ${report.activeReservePreset}`);
   lines.push(`return-map mode: ${report.returnMapMode}`);
   lines.push(`TBV correction mode: ${report.tbvCorrectionMode}`);
+  lines.push(`AoV flow clamp mode: ${report.aorticFlowClampMode}`);
   lines.push(`beat-pair overlay: ${report.beatPairOverlay ? "enabled" : "disabled"}`);
   if (report.maxReturnMapPoints != null) lines.push(`max return-map points: ${report.maxReturnMapPoints}`);
   lines.push("");
   lines.push("## Summary");
   lines.push("");
-  lines.push("| tau lambdaAct s | scope | terms | dt | points | period-2 | max adjacent delta | max period delta | max CO branch frac | max EDV branch frac | max ESV branch frac | min MV A mL | min MV A frac | min LA A-loop area | min LA A-loop frac | max valve reverse mL | max clamp hits | max sanitize abs mL | max projection applied mL | contaminated points | max one-beat EDV slope | max two-beat EDV slope | max one-beat ESV slope | max two-beat ESV slope |");
-  lines.push("| ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| tau lambdaAct s | scope | terms | dt | points | period-2 | max adjacent delta | max period delta | max CO branch frac | max EDV branch frac | max ESV branch frac | max QAo branch frac | max AoP branch frac | min MV A mL | min MV A frac | min LA A-loop area | min LA A-loop frac | max valve reverse mL | max clamp hits | max sanitize abs mL | max projection applied mL | contaminated points | max one-beat EDV slope | max two-beat EDV slope | max one-beat ESV slope | max two-beat ESV slope | max one-beat QAo slope | max two-beat QAo slope |");
+  lines.push("| ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
   for (const scenario of report.dtScenarios) {
     lines.push([
       round(scenario.lambdaActTauSec, 4),
@@ -763,6 +792,8 @@ export function reportToMarkdown(report: DebugReport): string {
       round(scenario.summary.maxBranchAmplitudeFractionCOL, 4),
       round(scenario.summary.maxBranchAmplitudeFractionEDVL, 4),
       round(scenario.summary.maxBranchAmplitudeFractionESVL, 4),
+      round(scenario.summary.maxBranchAmplitudeFractionQAoMax, 4),
+      round(scenario.summary.maxBranchAmplitudeFractionAoPMax, 4),
       round(scenario.summary.minMVAForwardMl, 4),
       round(scenario.summary.minMVAFraction, 4),
       round(scenario.summary.minLAAloopArea, 4),
@@ -776,6 +807,8 @@ export function reportToMarkdown(report: DebugReport): string {
       round(scenario.summary.maxAbsTwoBeatReturnMapSlopeEDVL, 4),
       round(scenario.summary.maxAbsReturnMapSlopeESVL, 4),
       round(scenario.summary.maxAbsTwoBeatReturnMapSlopeESVL, 4),
+      round(scenario.summary.maxAbsReturnMapSlopeQAoMax, 4),
+      round(scenario.summary.maxAbsTwoBeatReturnMapSlopeQAoMax, 4),
     ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
   }
   lines.push("");
@@ -972,6 +1005,7 @@ export function reportToCsv(report: DebugReport): string {
           report.lowStretchLimiterScope,
           report.activeReservePreset,
           point.tbvAudit.correctionMode,
+          report.aorticFlowClampMode,
           point.deltaVolumeMl,
           point.targetVolumeMl,
           beat.beat,
@@ -980,6 +1014,10 @@ export function reportToCsv(report: DebugReport): string {
           beat.CO_R,
           beat.EDV_L,
           beat.ESV_L,
+          beat.LVPMax,
+          beat.AoPMean,
+          beat.AoPMax,
+          beat.QAoMax,
           filling.MV_E_forward_mL,
           filling.MV_A_forward_mL,
           filling.MV_A_fraction ?? "",
@@ -1027,6 +1065,10 @@ export function reportToCsv(report: DebugReport): string {
           point.returnMap.branchAmplitudeFraction.EDV_L ?? "",
           point.returnMap.branchAmplitude.ESV_L ?? "",
           point.returnMap.branchAmplitudeFraction.ESV_L ?? "",
+          point.returnMap.branchAmplitude.QAoMax ?? "",
+          point.returnMap.branchAmplitudeFraction.QAoMax ?? "",
+          point.returnMap.branchAmplitude.AoPMax ?? "",
+          point.returnMap.branchAmplitudeFraction.AoPMax ?? "",
           point.tbvAudit.classification,
           point.tbvAudit.sanitizeAbsMl,
           point.tbvAudit.projectionAppliedMl,
@@ -1040,6 +1082,10 @@ export function reportToCsv(report: DebugReport): string {
           point.returnMap.modes.volumeLambdaActReset?.twoBeatSamePhase?.features.EDV_L?.centralSlope ?? "",
           point.returnMap.features.CO_L?.centralSlope ?? "",
           point.returnMap.twoBeatSamePhase?.features.CO_L?.centralSlope ?? "",
+          point.returnMap.features.QAoMax?.centralSlope ?? "",
+          point.returnMap.twoBeatSamePhase?.features.QAoMax?.centralSlope ?? "",
+          point.returnMap.features.AoPMax?.centralSlope ?? "",
+          point.returnMap.twoBeatSamePhase?.features.AoPMax?.centralSlope ?? "",
         ].map(csvCell).join(","));
       }
     }
@@ -1188,6 +1234,7 @@ export function reportToBeatPairOverlaySummaryCsv(report: DebugReport): string {
 function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number): DtScenarioReport {
   const lambdaActTerms = opts.lambdaActTerms ?? DEFAULT_LAMBDA_ACT_TERMS;
   const tbvCorrectionMode = opts.tbvCorrectionMode ?? DEFAULT_TBV_CORRECTION_MODE;
+  const aorticFlowClampMode = opts.aorticFlowClampMode ?? DEFAULT_AORTIC_FLOW_CLAMP_MODE;
   const lowStretchLimiterMode = opts.lowStretchLimiterMode ?? DEFAULT_LOW_STRETCH_LIMITER_MODE;
   const lowStretchLimiterScope = opts.lowStretchLimiterScope ?? DEFAULT_LOW_STRETCH_LIMITER_SCOPE;
   const activeReservePreset = effectiveActiveReservePreset(lowStretchLimiterMode, opts.activeReservePreset);
@@ -1211,10 +1258,10 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
   let seedState: SerializedModelState | undefined;
   let seededFromDeltaMl = 0;
   for (const delta of opts.deltasMl) {
-    const run = settleDebugCore(req.params, opts.targetVolumeMl + delta, dt, opts.sampleHz, tbvCorrectionMode, seedState);
+    const run = settleDebugCore(req.params, opts.targetVolumeMl + delta, dt, opts.sampleHz, tbvCorrectionMode, aorticFlowClampMode, seedState);
     const traceCore = new ModelCore(req.params);
     traceCore.unpackState(run.state);
-    applyTBVCorrectionMode(traceCore, tbvCorrectionMode);
+    configureDebugCore(traceCore, tbvCorrectionMode, aorticFlowClampMode);
     const traceSamples = collectTraceSamples(traceCore, opts.traceBeats, dt, opts.sampleHz);
     const beatTrace = summarizeBeatTrace(traceSamples, req.params.HR, opts.traceBeats);
     const beatPairOverlay = opts.beatPairOverlay === true ? buildBeatPairOverlay(traceSamples, req.params.HR) : undefined;
@@ -1303,6 +1350,7 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
       opts.sampleHz,
       opts.returnMapMode,
       tbvCorrectionMode,
+      aorticFlowClampMode,
       point.returnMap.branchAmplitude,
       point.returnMap.branchAmplitudeFraction,
     );
@@ -1450,6 +1498,11 @@ function applyTBVCorrectionMode(core: ModelCore, mode: TBVCorrectionMode): void 
   core.setTBVCorrectionAuditOptions(mode === "low" ? LOW_TBV_CORRECTION_OPTIONS : null);
 }
 
+function configureDebugCore(core: ModelCore, tbvCorrectionMode: TBVCorrectionMode, aorticFlowClampMode: AorticFlowClampMode): void {
+  applyTBVCorrectionMode(core, tbvCorrectionMode);
+  core.setAorticFlowClampMode(aorticFlowClampMode);
+}
+
 function tbvAuditFromClampDiagnostics(
   diagnostics: ModelCoreClampDiagnostics,
   correctionMode: TBVCorrectionMode,
@@ -1496,6 +1549,7 @@ function settleDebugCore(
   dt: number,
   sampleHz: number,
   tbvCorrectionMode: TBVCorrectionMode,
+  aorticFlowClampMode: AorticFlowClampMode,
   seedState?: SerializedModelState,
 ): DebugRun {
   const started = performance.now();
@@ -1507,7 +1561,7 @@ function settleDebugCore(
   } else {
     core.initializeVenousPressuresForTargetTBV(targetVolumeMl);
   }
-  applyTBVCorrectionMode(core, tbvCorrectionMode);
+  configureDebugCore(core, tbvCorrectionMode, aorticFlowClampMode);
   core.resetDebugDiagnostics();
   const settle = core.settleToSteady(SETTLE_POLICY, dt, sampleHz, RUN_OPTIONS);
   const periodBeats = settle.periodBeats ?? 1;
@@ -1551,6 +1605,7 @@ function estimateReturnMapDiagnostic(
   sampleHz: number,
   returnMapMode: ReturnMapModeOption,
   tbvCorrectionMode: TBVCorrectionMode,
+  aorticFlowClampMode: AorticFlowClampMode,
   branchAmplitude: Partial<Record<ReturnMapFeatureKey, number>>,
   branchAmplitudeFraction: Partial<Record<ReturnMapFeatureKey, number>>,
 ): ReturnMapDiagnostic {
@@ -1558,11 +1613,11 @@ function estimateReturnMapDiagnostic(
     return skippedReturnMapDiagnostic(state, branchAmplitude, branchAmplitudeFraction, "return-map disabled");
   }
   try {
-    const section = findNextLvEdvSection(state, params, dt, tbvCorrectionMode);
+    const section = findNextLvEdvSection(state, params, dt, tbvCorrectionMode, aorticFlowClampMode);
     const includeFixed = returnMapMode === "fixed" || returnMapMode === "both";
     const includeReset = returnMapMode === "reset" || returnMapMode === "both";
-    const fixedMode = includeFixed ? returnMapModeDiagnostic(section.state, params, dt, sampleHz, "volumeLambdaActFixed", tbvCorrectionMode) : undefined;
-    const resetMode = includeReset ? returnMapModeDiagnostic(section.state, params, dt, sampleHz, "volumeLambdaActReset", tbvCorrectionMode) : undefined;
+    const fixedMode = includeFixed ? returnMapModeDiagnostic(section.state, params, dt, sampleHz, "volumeLambdaActFixed", tbvCorrectionMode, aorticFlowClampMode) : undefined;
+    const resetMode = includeReset ? returnMapModeDiagnostic(section.state, params, dt, sampleHz, "volumeLambdaActReset", tbvCorrectionMode, aorticFlowClampMode) : undefined;
     const primaryMode: ReturnMapModeKey = includeFixed ? "volumeLambdaActFixed" : "volumeLambdaActReset";
     const primary = includeFixed ? fixedMode : resetMode;
     if (!primary) throw new Error(`unsupported return-map mode: ${returnMapMode}`);
@@ -1668,6 +1723,7 @@ function returnMapModeDiagnostic(
   sampleHz: number,
   mode: ReturnMapModeKey,
   tbvCorrectionMode: TBVCorrectionMode,
+  aorticFlowClampMode: AorticFlowClampMode,
 ): { oneBeat: ReturnMapPhaseDiagnostic; twoBeatSamePhase: ReturnMapPhaseDiagnostic } {
   let plusState = perturbLvAgainstPVein(sectionState, RETURN_MAP_PERTURBATION_ML);
   let minusState = perturbLvAgainstPVein(sectionState, -RETURN_MAP_PERTURBATION_ML);
@@ -1675,8 +1731,8 @@ function returnMapModeDiagnostic(
     plusState = resetLvLambdaActToRaw(plusState, params);
     minusState = resetLvLambdaActToRaw(minusState, params);
   }
-  const plus = postPerturbationBeats(plusState, params, dt, sampleHz, tbvCorrectionMode);
-  const minus = postPerturbationBeats(minusState, params, dt, sampleHz, tbvCorrectionMode);
+  const plus = postPerturbationBeats(plusState, params, dt, sampleHz, tbvCorrectionMode, aorticFlowClampMode);
+  const minus = postPerturbationBeats(minusState, params, dt, sampleHz, tbvCorrectionMode, aorticFlowClampMode);
   return {
     oneBeat: phaseDiagnostic(plus.oneBeat, minus.oneBeat, plus.clampHits, minus.clampHits),
     twoBeatSamePhase: phaseDiagnostic(plus.twoBeat, minus.twoBeat, plus.clampHits, minus.clampHits),
@@ -1688,10 +1744,11 @@ function findNextLvEdvSection(
   params: CoreRuntimeParams,
   dt: number,
   tbvCorrectionMode: TBVCorrectionMode,
+  aorticFlowClampMode: AorticFlowClampMode,
 ): { state: SerializedModelState; beat: number; vlvMl: number } {
   const core = new ModelCore(params);
   core.unpackState(state);
-  applyTBVCorrectionMode(core, tbvCorrectionMode);
+  configureDebugCore(core, tbvCorrectionMode, aorticFlowClampMode);
   const targetBeat = Math.floor(core.sample().phi) + 1;
   const maxSeconds = (60 / Math.max(core.p.HR, 1)) * 3.5;
   const tEnd = core.t + maxSeconds;
@@ -1753,9 +1810,10 @@ function postPerturbationBeats(
   dt: number,
   sampleHz: number,
   tbvCorrectionMode: TBVCorrectionMode,
+  aorticFlowClampMode: AorticFlowClampMode,
 ): { oneBeat: BeatTraceRow; twoBeat: BeatTraceRow; clampHits: number } {
   const core = newCoreFromState(state, params);
-  applyTBVCorrectionMode(core, tbvCorrectionMode);
+  configureDebugCore(core, tbvCorrectionMode, aorticFlowClampMode);
   core.resetDebugDiagnostics();
   void sampleHz;
   const firstTargetBeat = Math.floor(core.sample().phi) + 1;
@@ -1798,6 +1856,12 @@ function phaseDiagnostic(
       ESV_L: centralFeature(plusBeat.ESV_L, minusBeat.ESV_L),
       CO_L: centralFeature(plusBeat.CO_L, minusBeat.CO_L),
       LAPMean: centralFeature(plusBeat.LAPMean, minusBeat.LAPMean),
+      QAoMax: centralFeature(plusBeat.QAoMax, minusBeat.QAoMax),
+      AoPMax: centralFeature(plusBeat.AoPMax, minusBeat.AoPMax),
+      AoPMean: centralFeature(plusBeat.AoPMean, minusBeat.AoPMean),
+      LVPMax: centralFeature(plusBeat.LVPMax, minusBeat.LVPMax),
+      sigmaActTargetMax: centralFeature(activeFeature(plusBeat, "sigmaActTargetMax"), activeFeature(minusBeat, "sigmaActTargetMax")),
+      sigmaActMean: centralFeature(activeFeature(plusBeat, "sigmaActMean"), activeFeature(minusBeat, "sigmaActMean")),
     },
     clampCrossing,
     nonsmooth: clampCrossing,
@@ -1816,6 +1880,12 @@ function branchAmplitudeFromTrace(traceSamples: TraceSample[], HR: number): Part
     ESV_L: Math.abs(a.ESV_L - b.ESV_L),
     CO_L: Math.abs(a.CO_L - b.CO_L),
     LAPMean: Math.abs(a.LAPMean - b.LAPMean),
+    QAoMax: Math.abs(a.QAoMax - b.QAoMax),
+    AoPMax: Math.abs(a.AoPMax - b.AoPMax),
+    AoPMean: Math.abs(a.AoPMean - b.AoPMean),
+    LVPMax: Math.abs(a.LVPMax - b.LVPMax),
+    sigmaActTargetMax: Math.abs(activeFeature(a, "sigmaActTargetMax") - activeFeature(b, "sigmaActTargetMax")),
+    sigmaActMean: Math.abs(activeFeature(a, "sigmaActMean") - activeFeature(b, "sigmaActMean")),
   };
 }
 
@@ -1829,7 +1899,17 @@ function branchAmplitudeFractionFromTrace(traceSamples: TraceSample[], HR: numbe
     ESV_L: fractionalDifference(a.ESV_L, b.ESV_L, 1),
     CO_L: fractionalDifference(a.CO_L, b.CO_L, 0.05),
     LAPMean: fractionalDifference(a.LAPMean, b.LAPMean, 0.1),
+    QAoMax: fractionalDifference(a.QAoMax, b.QAoMax, 1),
+    AoPMax: fractionalDifference(a.AoPMax, b.AoPMax, 1),
+    AoPMean: fractionalDifference(a.AoPMean, b.AoPMean, 1),
+    LVPMax: fractionalDifference(a.LVPMax, b.LVPMax, 1),
+    sigmaActTargetMax: fractionalDifference(activeFeature(a, "sigmaActTargetMax"), activeFeature(b, "sigmaActTargetMax"), 1),
+    sigmaActMean: fractionalDifference(activeFeature(a, "sigmaActMean"), activeFeature(b, "sigmaActMean"), 1),
   };
+}
+
+function activeFeature(beat: BeatTraceRow, key: keyof Pick<ActiveBeatSummary, "sigmaActTargetMax" | "sigmaActMean">): number {
+  return Number(beat.active.LV?.[key] ?? Number.NaN);
 }
 
 function groupTraceSamplesByBeat(traceSamples: TraceSample[]): Map<number, TraceSample[]> {
@@ -2157,6 +2237,8 @@ function summarizeBeat(beat: number, entries: TraceSample[], HR: number): BeatTr
     EDV_R: max("VRV"),
     ESV_R: min("VRV"),
     LVPMax: max("LVP"),
+    AoPMean: mean("AoP"),
+    AoPMax: max("AoP"),
     QAoMax: max("QAo"),
     filling: fillingRegimeSummary(samples),
     active: summarizeActive(entries),
@@ -2424,12 +2506,20 @@ function summarizePoints(points: DebugPoint[]): DebugSummary {
     maxAbsTwoBeatReturnMapSlopeESVL: Math.max(0, ...points.map((p) => p.returnMap.twoBeatSamePhase?.features.ESV_L?.absCentralSlope ?? 0)),
     maxAbsReturnMapSlopeCOL: Math.max(0, ...points.map((p) => p.returnMap.features.CO_L?.absCentralSlope ?? 0)),
     maxAbsTwoBeatReturnMapSlopeCOL: Math.max(0, ...points.map((p) => p.returnMap.twoBeatSamePhase?.features.CO_L?.absCentralSlope ?? 0)),
+    maxAbsReturnMapSlopeQAoMax: Math.max(0, ...points.map((p) => p.returnMap.features.QAoMax?.absCentralSlope ?? 0)),
+    maxAbsTwoBeatReturnMapSlopeQAoMax: Math.max(0, ...points.map((p) => p.returnMap.twoBeatSamePhase?.features.QAoMax?.absCentralSlope ?? 0)),
+    maxAbsReturnMapSlopeAoPMax: Math.max(0, ...points.map((p) => p.returnMap.features.AoPMax?.absCentralSlope ?? 0)),
+    maxAbsTwoBeatReturnMapSlopeAoPMax: Math.max(0, ...points.map((p) => p.returnMap.twoBeatSamePhase?.features.AoPMax?.absCentralSlope ?? 0)),
     maxBranchAmplitudeCOL: Math.max(0, ...points.map((p) => p.returnMap.branchAmplitude.CO_L ?? 0)),
     maxBranchAmplitudeFractionCOL: Math.max(0, ...points.map((p) => p.returnMap.branchAmplitudeFraction.CO_L ?? 0)),
     maxBranchAmplitudeEDVL: Math.max(0, ...points.map((p) => p.returnMap.branchAmplitude.EDV_L ?? 0)),
     maxBranchAmplitudeFractionEDVL: Math.max(0, ...points.map((p) => p.returnMap.branchAmplitudeFraction.EDV_L ?? 0)),
     maxBranchAmplitudeESVL: Math.max(0, ...points.map((p) => p.returnMap.branchAmplitude.ESV_L ?? 0)),
     maxBranchAmplitudeFractionESVL: Math.max(0, ...points.map((p) => p.returnMap.branchAmplitudeFraction.ESV_L ?? 0)),
+    maxBranchAmplitudeQAoMax: Math.max(0, ...points.map((p) => p.returnMap.branchAmplitude.QAoMax ?? 0)),
+    maxBranchAmplitudeFractionQAoMax: Math.max(0, ...points.map((p) => p.returnMap.branchAmplitudeFraction.QAoMax ?? 0)),
+    maxBranchAmplitudeAoPMax: Math.max(0, ...points.map((p) => p.returnMap.branchAmplitude.AoPMax ?? 0)),
+    maxBranchAmplitudeFractionAoPMax: Math.max(0, ...points.map((p) => p.returnMap.branchAmplitudeFraction.AoPMax ?? 0)),
     minMVAForwardMl: finiteMin(points.map((p) => representativeFilling(p)?.MV_A_forward_mL ?? Number.NaN)),
     minMVAFraction: finiteMin(points.map((p) => representativeFilling(p)?.MV_A_fraction ?? Number.NaN)),
     minLAAloopArea: finiteMin(points.map((p) => representativeFilling(p)?.LA_A_loop_area ?? Number.NaN)),
@@ -2571,6 +2661,7 @@ export function parseLowPreloadDebugArgs(args: string[]): DebugOptions {
     beatPairOverlay: false,
     quietClampLog: false,
     tbvCorrectionMode: DEFAULT_TBV_CORRECTION_MODE,
+    aorticFlowClampMode: DEFAULT_AORTIC_FLOW_CLAMP_MODE,
   };
   for (const arg of args) {
     const [key, value] = arg.split("=", 2);
@@ -2591,6 +2682,7 @@ export function parseLowPreloadDebugArgs(args: string[]): DebugOptions {
     else if (key === "--max-return-map-points" && value) opts.maxReturnMapPoints = Math.max(0, Math.floor(Number(value)));
     else if (key === "--return-map-deltas" && value) opts.returnMapDeltasMl = parseNumberList(value);
     else if (key === "--tbv-correction" && value) opts.tbvCorrectionMode = parseTBVCorrectionMode(value);
+    else if (key === "--aortic-flow-clamp" && value) opts.aorticFlowClampMode = parseAorticFlowClampMode(value);
     else if (key === "--quiet-clamp-log") opts.quietClampLog = true;
     else if (key === "--trace-beats" && value) opts.traceBeats = Math.max(2, Math.floor(Number(value)));
     else if (key === "--sample-hz" && value) opts.sampleHz = Math.max(20, Math.floor(Number(value)));
@@ -2602,6 +2694,11 @@ export function parseLowPreloadDebugArgs(args: string[]): DebugOptions {
     }
   }
   return opts;
+}
+
+function parseAorticFlowClampMode(value: string): AorticFlowClampMode {
+  if (value === "hard" || value === "soft-tanh" || value === "soft-rational") return value;
+  throw new Error(`Invalid AoV flow clamp mode: ${value}`);
 }
 
 function parseTBVCorrectionMode(value: string): TBVCorrectionMode {
@@ -2663,6 +2760,7 @@ function printHelp(): void {
     "       [--return-map-mode=none|fixed|reset|both] [--branch-only]",
     "       [--beat-pair-overlay]",
     "       [--tbv-correction=on|off|low]",
+    "       [--aortic-flow-clamp=hard|soft-tanh|soft-rational]",
     "       [--max-return-map-points=4] [--quiet-clamp-log] [--trace-beats=10] [--sample-hz=120]",
     "",
     "Examples:",

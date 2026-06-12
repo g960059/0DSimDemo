@@ -370,3 +370,29 @@ or does active/ejection state diverge first and then shape the next filling beat
 ```
 
 Representative current interpretation remains conservative. MV morphology switching is still tracked, but the stronger hypothesis is that the active-stress/ejection loop is the driver or amplifier, with MV/filling morphology more likely downstream or coupled rather than the primary trigger.
+
+## Afterload/ejection return-map and AoV clamp comparator
+
+The next diagnostic branch extends the low-preload report without changing default dynamics or UI behavior:
+
+- return-map and branch-amplitude features now include `QAoMax`, `AoPMax`, `AoPMean`, `LVPMax`, `sigmaActTargetMax`, and `sigmaActMean`, in addition to `EDV_L`, `ESV_L`, `CO_L`, and `LAPMean`.
+- `debug:starling-low-preload` and `verify:starling-low-preload-matrix` accept `--aortic-flow-clamp=hard|soft-tanh|soft-rational`.
+- `hard` is the default and is the only runtime behavior used by the app.
+- `soft-tanh` and `soft-rational` are off-by-default comparators for testing whether the current AoV/QAo dynamic flow clamp is merely shaping the high-output beat or participating in the alternans loop.
+
+This branch should be read as diagnostic evidence only. A soft clamp mode is not a proposed model fix unless it also passes normal, HR100, HR100-rearm, valve reverse, TBV contamination, and Starling-shape gates.
+
+Suggested smoke:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/soft-qao-smoke \
+  --deltas=0,-1250,-1300 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --aortic-flow-clamp=hard,soft-tanh,soft-rational \
+  --max-return-map-points=2 \
+  --trace-beats=4 \
+  --sample-hz=60
+```
