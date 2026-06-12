@@ -234,6 +234,32 @@
       "addOption": "オプションを追加",
       "needsDistinctValues": "2つ以上の異なる値が必要です。スライダーとして表示されます"
     },
+    "viewManagement": {
+      "builtInInspector": "インスペクタ (すべての項目)",
+      "newController": "新規コントローラー",
+      "newMetrics": "新規指標ビュー",
+      "rename": "名前を変更",
+      "duplicate": "複製",
+      "renamePrompt": "ビュー名を変更",
+      "deleteConfirm": "「{{title}}」を削除しますか?",
+      "metricsMenu": "指標ビューメニュー"
+    },
+    "viewEditor": {
+      "controllerTitle": "コントローラービュー",
+      "metricsTitle": "指標ビュー",
+      "newControllerTitle": "コントローラービュー",
+      "newMetricsTitle": "指標ビュー",
+      "createMode": "作成",
+      "editMode": "編集",
+      "close": "ビューエディタを閉じる",
+      "name": "名前",
+      "searchMetrics": "指標を検索",
+      "selectedMetrics": "選択中の指標",
+      "noMetrics": "指標が選択されていません。",
+      "moveUp": "上へ移動",
+      "moveDown": "下へ移動",
+      "removeMetric": "指標を削除"
+    },
     "dialogs": {
       "saveLesson": {
         "title": "レッスンとして保存",

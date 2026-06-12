@@ -234,6 +234,32 @@
       "addOption": "Add option",
       "needsDistinctValues": "Needs >=2 distinct values - will show as a slider"
     },
+    "viewManagement": {
+      "builtInInspector": "Inspector (all items)",
+      "newController": "New controller",
+      "newMetrics": "New metrics view",
+      "rename": "Rename",
+      "duplicate": "Duplicate",
+      "renamePrompt": "Rename view",
+      "deleteConfirm": "Delete \"{{title}}\"?",
+      "metricsMenu": "Metrics view menu"
+    },
+    "viewEditor": {
+      "controllerTitle": "Controller view",
+      "metricsTitle": "Metrics view",
+      "newControllerTitle": "Controller view",
+      "newMetricsTitle": "Metrics view",
+      "createMode": "Create",
+      "editMode": "Edit",
+      "close": "Close view editor",
+      "name": "Name",
+      "searchMetrics": "Search metrics",
+      "selectedMetrics": "Selected metrics",
+      "noMetrics": "No metrics selected.",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "removeMetric": "Remove metric"
+    },
     "dialogs": {
       "saveLesson": {
         "title": "Save as lesson",

@@ -39,8 +39,17 @@ import {
   metricsHostTabs,
   type MetricsHostTab,
 } from '../../features/workbench/p1aStructuralHosts';
-import type { GraphBoardLayout } from '../../features/workbench/viewSpec';
-import { Activity, Brush, ChevronDown, ChevronRight, Eye, EyeOff, FileText, Layers, Search, Settings, SlidersHorizontal, Tags, Type as TypeIcon, X } from 'lucide-react';
+import {
+  BUILT_IN_INSPECTOR_VIEW_ID,
+  controllerViews,
+  createControllerViewSpec,
+  createMetricsViewSpec,
+  metricsViewConfig,
+  metricsViews,
+  type AuthoredViewSpec,
+} from '../../features/workbench/authoredViews';
+import type { ControllerViewSpec, GraphBoardLayout, MetricsViewSpec } from '../../features/workbench/viewSpec';
+import { Activity, Brush, ChevronDown, ChevronRight, Copy, Eye, EyeOff, FileText, Layers, MoreVertical, Pencil, Plus, Search, Settings, SlidersHorizontal, Tags, Trash2, Type as TypeIcon, X } from 'lucide-react';
 
 export type PanelGridMode = 'learner' | 'author' | 'sandbox';
 export type WorkbenchControlsSide = 'left' | 'right';
@@ -56,6 +65,7 @@ export interface WorkbenchLayoutState {
   metricsOpen: boolean;
   rightRailVisible: boolean;
   rightRailView: RightRailView;
+  selectedControllerViewId?: string;
   scenarioListCollapsed: boolean;
   scenarioListMaxRatio: number;
   metricsSpan: MetricsSpanMode;
@@ -76,6 +86,13 @@ interface PanelGridProps {
   onDockviewViewStateChange?: (zone: WorkbenchZoneId, viewState: DockviewViewState) => void;
   graphBoardLayout?: GraphBoardLayout;
   onGraphBoardLayoutChange?: (layout: GraphBoardLayout | undefined) => void;
+  authoredViews?: AuthoredViewSpec[];
+  createControllerView: (title: string, items?: ControllerItem[]) => ControllerViewSpec;
+  createMetricsView: (title: string, metrics?: MetricType[]) => MetricsViewSpec;
+  updateAuthoredView: (view: AuthoredViewSpec) => void;
+  renameAuthoredView: (id: string, title: string) => void;
+  duplicateAuthoredView: (id: string) => AuthoredViewSpec | undefined;
+  deleteAuthoredView: (id: string) => void;
   mode: PanelGridMode;
   isMobile: boolean;
   noteModes: Record<string, 'read' | 'edit'>;
@@ -1345,6 +1362,208 @@ function PaneSettingsModal({ toggleSettings, ...settingsProps }: PaneSettingsMod
   return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal;
 }
 
+type ViewEditorState =
+  | { mode: 'create'; kind: 'controller' }
+  | { mode: 'create'; kind: 'metrics' }
+  | { mode: 'edit'; view: AuthoredViewSpec };
+
+type ViewEditorSave =
+  | { kind: 'controller'; title: string; items: ControllerItem[] }
+  | { kind: 'metrics'; title: string; metrics: MetricType[] };
+
+function ViewSpecEditorModal({
+  editor,
+  instances,
+  activeInstanceId,
+  metrics,
+  onClose,
+  onSave,
+}: {
+  editor: ViewEditorState;
+  instances: SimInstance[];
+  activeInstanceId: string;
+  metrics: MetricType[];
+  onClose: () => void;
+  onSave: (draft: ViewEditorSave) => void;
+}) {
+  const { t } = useTranslation();
+  const existing = editor.mode === 'edit' ? editor.view : undefined;
+  const kind = editor.mode === 'edit' ? editor.view.kind : editor.kind;
+  const titleId = `view-editor-title-${existing?.id ?? kind}`;
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const [title, setTitle] = useState(existing?.title ?? (kind === 'controller' ? t('workbench.viewEditor.newControllerTitle') : t('workbench.viewEditor.newMetricsTitle')));
+  const [items, setItems] = useState<ControllerItem[]>(existing?.kind === 'controller' ? existing.items : []);
+  const [selectedMetrics, setSelectedMetrics] = useState<MetricType[]>(existing?.kind === 'metrics' ? existing.metrics : []);
+  const [metricSearch, setMetricSearch] = useState('');
+
+  useEffect(() => {
+    dialogRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
+  const metricSections = useMemo(() => {
+    const query = metricSearch.trim().toLowerCase();
+    const available = metrics.length > 0 ? metrics : DEFAULT_METRIC_OPTIONS;
+    const sections = new Map<string, MetricType[]>();
+    for (const metric of available) {
+      const meta = signalMetadata(metric);
+      const label = meta.label;
+      if (query && !metric.toLowerCase().includes(query) && !label.toLowerCase().includes(query)) continue;
+      const key = meta.category;
+      sections.set(key, [...(sections.get(key) ?? []), metric]);
+    }
+    return [...sections.entries()];
+  }, [metricSearch, metrics]);
+
+  const toggleMetric = (metric: MetricType) => {
+    setSelectedMetrics((prev) => prev.includes(metric) ? prev.filter((item) => item !== metric) : [...prev, metric]);
+  };
+
+  const moveMetric = (metric: MetricType, direction: -1 | 1) => {
+    setSelectedMetrics((prev) => {
+      const index = prev.indexOf(metric);
+      const target = index + direction;
+      if (index < 0 || target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  };
+
+  const save = () => {
+    const nextTitle = title.trim() || (kind === 'controller' ? t('workbench.viewEditor.newControllerTitle') : t('workbench.viewEditor.newMetricsTitle'));
+    if (kind === 'controller') onSave({ kind, title: nextTitle, items });
+    else onSave({ kind, title: nextTitle, metrics: selectedMetrics });
+  };
+
+  const modal = (
+    <div className="fixed inset-0 z-[96] flex items-center justify-center bg-black/65 p-0 text-slate-200 backdrop-blur-sm sm:p-4">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="flex h-dvh w-full flex-col overflow-hidden bg-[#0B1120] shadow-2xl sm:h-[min(46rem,calc(100vh-2rem))] sm:max-h-[calc(100vh-2rem)] sm:w-[min(72rem,calc(100vw-2rem))] sm:rounded-lg sm:border sm:border-slate-700"
+      >
+        <div className="flex h-14 flex-none items-center justify-between gap-3 border-b border-slate-800 px-4">
+          <div className="min-w-0">
+            <h2 id={titleId} className="truncate text-sm font-bold text-slate-100">
+              {kind === 'controller' ? t('workbench.viewEditor.controllerTitle') : t('workbench.viewEditor.metricsTitle')}
+            </h2>
+            <div className="truncate text-[11px] font-semibold text-slate-500">
+              {editor.mode === 'create' ? t('workbench.viewEditor.createMode') : t('workbench.viewEditor.editMode')}
+            </div>
+          </div>
+          <div className="flex flex-none items-center gap-2">
+            <button type="button" onClick={save} className="inline-flex h-8 items-center justify-center rounded bg-blue-600 px-3 text-xs font-bold text-white transition-colors hover:bg-blue-500">
+              {t('common.done')}
+            </button>
+            <button type="button" onClick={onClose} className="inline-flex h-8 w-8 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-200" aria-label={t('workbench.viewEditor.close')} title={t('workbench.viewEditor.close')}>
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+        <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-3 overflow-hidden p-3">
+          <label className="grid gap-1 text-[11px] font-bold uppercase text-slate-500">
+            {t('workbench.viewEditor.name')}
+            <input
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              className="h-9 rounded border border-slate-700 bg-slate-950 px-2 text-sm font-semibold normal-case text-slate-100 outline-none focus:border-slate-500"
+            />
+          </label>
+          {kind === 'controller' ? (
+            <div className="min-h-0 overflow-y-auto custom-scrollbar">
+              <ControllerItemsBuilder
+                items={items}
+                instances={instances}
+                activeInstanceId={activeInstanceId}
+                onItemsChange={setItems}
+              />
+            </div>
+          ) : (
+            <div className="grid min-h-0 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+              <div className="min-h-0 overflow-y-auto rounded border border-slate-800/70 bg-slate-950/20 p-2 custom-scrollbar">
+                <div className="mb-2 flex h-8 items-center gap-2 rounded border border-slate-800 bg-slate-950/70 px-2">
+                  <Search className="h-3.5 w-3.5 text-slate-500" />
+                  <input
+                    value={metricSearch}
+                    onChange={(event) => setMetricSearch(event.target.value)}
+                    placeholder={t('workbench.viewEditor.searchMetrics')}
+                    className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-slate-200 outline-none placeholder:text-slate-600"
+                  />
+                </div>
+                <div className="space-y-2">
+                  {metricSections.map(([category, categoryMetrics]) => (
+                    <details key={category} open className="rounded border border-slate-800/70 bg-slate-950/20">
+                      <summary className="cursor-pointer px-2 py-1.5 text-[10px] font-bold uppercase text-slate-500">{signalCategoryLabel(t, category as SignalCategory)}</summary>
+                      <div className="grid gap-1.5 px-2 pb-2 sm:grid-cols-2">
+                        {categoryMetrics.map((metric) => {
+                          const selected = selectedMetrics.includes(metric);
+                          return (
+                            <button
+                              key={metric}
+                              type="button"
+                              onClick={() => toggleMetric(metric)}
+                              className={`flex min-h-8 items-center justify-between gap-2 rounded border px-2 text-left text-xs font-semibold transition-colors ${
+                                selected
+                                  ? 'border-sky-400/45 bg-sky-500/15 text-sky-100'
+                                  : 'border-slate-700/70 bg-slate-950/45 text-slate-300 hover:border-slate-500 hover:text-slate-100'
+                              }`}
+                            >
+                              <span className="min-w-0 truncate">{signalMetadata(metric).label}</span>
+                              <span className="shrink-0 font-mono text-[10px] text-slate-500">{metric}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </details>
+                  ))}
+                </div>
+              </div>
+              <div className="min-h-0 overflow-y-auto rounded border border-slate-800/70 bg-slate-950/20 p-2 custom-scrollbar">
+                <div className="mb-2 text-[10px] font-bold uppercase text-slate-500">{t('workbench.viewEditor.selectedMetrics')}</div>
+                {selectedMetrics.length === 0 ? (
+                  <div className="rounded bg-slate-950/30 px-2 py-3 text-xs font-semibold text-slate-500">{t('workbench.viewEditor.noMetrics')}</div>
+                ) : (
+                  <div className="divide-y divide-slate-800/70 rounded bg-slate-950/30">
+                    {selectedMetrics.map((metric, index) => (
+                      <div key={metric} className="flex min-h-9 items-center gap-2 px-2">
+                        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-200">{signalMetadata(metric).label}</span>
+                        <button type="button" onClick={() => moveMetric(metric, -1)} disabled={index === 0} className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-200 disabled:opacity-30" aria-label={t('workbench.viewEditor.moveUp')}>
+                          <ChevronDown className="h-3.5 w-3.5 rotate-180" />
+                        </button>
+                        <button type="button" onClick={() => moveMetric(metric, 1)} disabled={index === selectedMetrics.length - 1} className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-200 disabled:opacity-30" aria-label={t('workbench.viewEditor.moveDown')}>
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        </button>
+                        <button type="button" onClick={() => toggleMetric(metric)} className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-red-300" aria-label={t('workbench.viewEditor.removeMetric')}>
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal;
+}
+
 interface PanelCardProps {
   panel: PanelDef;
   isEditor: boolean;
@@ -1737,6 +1956,13 @@ export function PanelGrid({
   onDockviewViewStateChange,
   graphBoardLayout,
   onGraphBoardLayoutChange,
+  authoredViews = [],
+  createControllerView,
+  createMetricsView,
+  updateAuthoredView,
+  renameAuthoredView,
+  duplicateAuthoredView,
+  deleteAuthoredView,
   mode,
   isMobile,
   noteModes,
@@ -1787,13 +2013,25 @@ export function PanelGrid({
   const presenterPanels = useMemo(() => flowPack(panels), [panels]);
   const mainGraphPanels = useMemo(() => graphPanelsOnly(presenterPanels), [presenterPanels]);
   const notePanel = useMemo(() => firstPanelOfType(presenterPanels, 'NOTE'), [presenterPanels]);
-  const fixedMetricsTabs = useMemo(() => metricsHostTabs(metrics, presenterPanels), [metrics, presenterPanels]);
+  const authoredControllerViews = useMemo(() => controllerViews(authoredViews), [authoredViews]);
+  const authoredMetricViews = useMemo(() => metricsViews(authoredViews), [authoredViews]);
+  const fixedMetricsTabs = useMemo(() => metricsHostTabs(metrics, authoredMetricViews), [metrics, authoredMetricViews]);
   const [activeMetricsTabId, setActiveMetricsTabId] = useState(() => fixedMetricsTabs[0]?.id ?? '');
+  const [openControllerMenu, setOpenControllerMenu] = useState(false);
+  const [metricsMenuViewId, setMetricsMenuViewId] = useState<string | null>(null);
+  const [viewEditor, setViewEditor] = useState<ViewEditorState | null>(null);
   useEffect(() => {
     if (fixedMetricsTabs.some((tab) => tab.id === activeMetricsTabId)) return;
     setActiveMetricsTabId(fixedMetricsTabs[0]?.id ?? '');
   }, [activeMetricsTabId, fixedMetricsTabs]);
   const activeMetricsTab = fixedMetricsTabs.find((tab) => tab.id === activeMetricsTabId) ?? fixedMetricsTabs[0];
+  const selectedControllerViewId = layoutState.selectedControllerViewId ?? BUILT_IN_INSPECTOR_VIEW_ID;
+  const selectedControllerView = authoredControllerViews.find((view) => view.id === selectedControllerViewId);
+  const selectedControllerEntryId = selectedControllerView ? selectedControllerView.id : BUILT_IN_INSPECTOR_VIEW_ID;
+  useEffect(() => {
+    if (selectedControllerViewId === BUILT_IN_INSPECTOR_VIEW_ID || selectedControllerView) return;
+    onLayoutStateChange((prev) => ({ ...prev, selectedControllerViewId: BUILT_IN_INSPECTOR_VIEW_ID }));
+  }, [onLayoutStateChange, selectedControllerView, selectedControllerViewId]);
   const hasCaseRail = Boolean(notePanel && layoutState.noteOpen);
   const shareBanner = authoringMode && publishedLesson ? (
     <div className="mb-2 flex flex-col gap-2 rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100 sm:flex-row sm:items-center">
@@ -1888,6 +2126,32 @@ export function PanelGrid({
       controlGroups={controlGroups}
     />
   ) : null;
+  const viewEditorModal = viewEditor ? (
+    <ViewSpecEditorModal
+      editor={viewEditor}
+      instances={instances}
+      activeInstanceId={activeInstanceId}
+      metrics={metrics}
+      onClose={() => setViewEditor(null)}
+      onSave={(draft) => {
+        if (viewEditor.mode === 'edit') {
+          const source = viewEditor.view;
+          if (draft.kind === 'controller') {
+            updateAuthoredView(createControllerViewSpec(source.id, draft.title, draft.items));
+          } else {
+            updateAuthoredView(createMetricsViewSpec(source.id, draft.title, draft.metrics, instances, source.kind === 'metrics' ? source.membership : undefined));
+          }
+        } else if (draft.kind === 'controller') {
+          const view = createControllerView(draft.title, draft.items);
+          onLayoutStateChange((prev) => ({ ...prev, selectedControllerViewId: view.id }));
+        } else {
+          const view = createMetricsView(draft.title, draft.metrics);
+          setActiveMetricsTabId(view.id);
+        }
+        setViewEditor(null);
+      }}
+    />
+  ) : null;
 
   const rightRailWidth = clamp(layoutState.controlsWidth, 280, 460);
   const noteWidth = hasCaseRail ? clamp(layoutState.caseRailWidth, 280, 560) : 0;
@@ -1946,6 +2210,38 @@ export function PanelGrid({
     </div>
   ) : null;
 
+  const selectControllerEntry = (id: string) => {
+    onLayoutStateChange((prev) => ({ ...prev, selectedControllerViewId: id }));
+    setOpenControllerMenu(false);
+  };
+
+  const renameView = (view: AuthoredViewSpec) => {
+    const next = window.prompt(t('workbench.viewManagement.renamePrompt'), view.title ?? '');
+    if (next == null || next.trim().length === 0) return;
+    renameAuthoredView(view.id, next.trim());
+  };
+
+  const duplicateView = (view: AuthoredViewSpec) => {
+    const copy = duplicateAuthoredView(view.id);
+    if (!copy) return;
+    if (copy.kind === 'controller') {
+      onLayoutStateChange((prev) => ({ ...prev, selectedControllerViewId: copy.id }));
+    } else {
+      setActiveMetricsTabId(copy.id);
+    }
+  };
+
+  const deleteView = (view: AuthoredViewSpec) => {
+    if (!window.confirm(t('workbench.viewManagement.deleteConfirm', { title: view.title ?? '' }))) return;
+    deleteAuthoredView(view.id);
+    if (view.kind === 'controller' && selectedControllerEntryId === view.id) {
+      onLayoutStateChange((prev) => ({ ...prev, selectedControllerViewId: BUILT_IN_INSPECTOR_VIEW_ID }));
+    }
+    if (view.kind === 'metrics' && activeMetricsTabId === view.id) {
+      setActiveMetricsTabId(fixedMetricsTabs.find((tab) => tab.kind === 'builtIn')?.id ?? '');
+    }
+  };
+
   if (isMobile) {
     return (
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-950 p-2">
@@ -1958,6 +2254,7 @@ export function PanelGrid({
           renderPanel={(panel) => renderPanel(panel, false, 'mobile')}
         />
         {paneSettingsModal}
+        {viewEditorModal}
       </main>
     );
   }
@@ -2119,14 +2416,69 @@ export function PanelGrid({
                 />
               )}
               <div className="flex min-h-0 flex-1 flex-col">
-                <div className="flex h-9 shrink-0 items-center gap-2 border-b border-slate-800/70 bg-slate-950/35 px-2">
-                  <span className="text-xs font-bold text-slate-300">{t('workbench.panelGrid.rail.inspector')}</span>
+                <div className="relative flex h-9 shrink-0 items-center gap-2 border-b border-slate-800/70 bg-slate-950/35 px-2">
+                  <button
+                    type="button"
+                    onClick={() => setOpenControllerMenu((open) => !open)}
+                    className="inline-flex min-w-0 flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left text-xs font-bold text-slate-300 transition-colors hover:bg-slate-900 hover:text-slate-100"
+                    aria-expanded={openControllerMenu}
+                  >
+                    <span className="min-w-0 truncate">
+                      {selectedControllerView ? selectedControllerView.title : t('workbench.viewManagement.builtInInspector')}
+                    </span>
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                  </button>
                   {activeInstance && (
                     <span className="ml-auto inline-flex min-w-0 items-center gap-1.5 rounded border border-slate-700 bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-slate-400">
                       {t('workbench.panelGrid.editingScenario')}
                       <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: activeInstance.color }} />
                       <span className="min-w-0 max-w-28 truncate text-slate-200">{activeInstance.name}</span>
                     </span>
+                  )}
+                  {openControllerMenu && (
+                    <div className="absolute left-2 right-2 top-10 z-40 rounded border border-slate-700 bg-slate-950 p-1 shadow-2xl">
+                      <button
+                        type="button"
+                        onClick={() => selectControllerEntry(BUILT_IN_INSPECTOR_VIEW_ID)}
+                        className={`flex h-8 w-full items-center rounded px-2 text-left text-xs font-semibold transition-colors ${selectedControllerEntryId === BUILT_IN_INSPECTOR_VIEW_ID ? 'bg-slate-800 text-slate-100' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-100'}`}
+                      >
+                        <span className="min-w-0 flex-1 truncate">{t('workbench.viewManagement.builtInInspector')}</span>
+                      </button>
+                      {authoredControllerViews.map((view) => (
+                        <div key={view.id} className={`group flex h-8 items-center gap-1 rounded px-2 ${selectedControllerEntryId === view.id ? 'bg-slate-800' : 'hover:bg-slate-900'}`}>
+                          <button
+                            type="button"
+                            onClick={() => selectControllerEntry(view.id)}
+                            className={`min-w-0 flex-1 truncate text-left text-xs font-semibold ${selectedControllerEntryId === view.id ? 'text-slate-100' : 'text-slate-400 group-hover:text-slate-100'}`}
+                          >
+                            {view.title}
+                          </button>
+                          <button type="button" onClick={() => setViewEditor({ mode: 'edit', view })} className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-800 hover:text-slate-200" aria-label={t('common.edit')}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button type="button" onClick={() => renameView(view)} className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-800 hover:text-slate-200" aria-label={t('workbench.viewManagement.rename')}>
+                            <TypeIcon className="h-3.5 w-3.5" />
+                          </button>
+                          <button type="button" onClick={() => duplicateView(view)} className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-800 hover:text-slate-200" aria-label={t('workbench.viewManagement.duplicate')}>
+                            <Copy className="h-3.5 w-3.5" />
+                          </button>
+                          <button type="button" onClick={() => deleteView(view)} className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-800 hover:text-red-300" aria-label={t('common.delete')}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenControllerMenu(false);
+                          setViewEditor({ mode: 'create', kind: 'controller' });
+                        }}
+                        className="mt-1 flex h-8 w-full items-center gap-2 rounded border border-slate-800 px-2 text-left text-xs font-bold text-sky-100 transition-colors hover:border-sky-500/50 hover:bg-sky-500/10"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        <span>{t('workbench.viewManagement.newController')}</span>
+                      </button>
+                    </div>
                   )}
                 </div>
                 <div className="relative min-h-0 flex-1">
@@ -2140,6 +2492,7 @@ export function PanelGrid({
                     updateInstanceKnobs={updateInstanceKnobs}
                     updateInstanceVolume={updateInstanceVolume}
                     presentationMode="studio"
+                    controllerItems={selectedControllerView?.items}
                   />
                 </div>
               </div>
@@ -2171,19 +2524,60 @@ export function PanelGrid({
             >
               <div className="flex h-9 shrink-0 items-center gap-1 overflow-x-auto border-b border-slate-800/70 bg-slate-950/35 px-2 custom-scrollbar">
                 {fixedMetricsTabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActiveMetricsTabId(tab.id)}
-                    className={`inline-flex h-7 shrink-0 items-center rounded px-2 text-xs font-bold transition-colors ${
-                      activeMetricsTab.id === tab.id
-                        ? 'bg-slate-800 text-slate-100'
-                        : 'text-slate-500 hover:bg-slate-900 hover:text-slate-300'
-                    }`}
-                  >
-                    {metricsTabLabel(t, tab)}
-                  </button>
+                  <div key={tab.id} className="relative flex shrink-0 items-center">
+                    <button
+                      type="button"
+                      onClick={() => setActiveMetricsTabId(tab.id)}
+                      onContextMenu={(event) => {
+                        if (tab.kind !== 'authored') return;
+                        event.preventDefault();
+                        setMetricsMenuViewId((current) => current === tab.id ? null : tab.id);
+                      }}
+                      className={`inline-flex h-7 shrink-0 items-center rounded px-2 text-xs font-bold transition-colors ${
+                        activeMetricsTab.id === tab.id
+                          ? 'bg-slate-800 text-slate-100'
+                          : 'text-slate-500 hover:bg-slate-900 hover:text-slate-300'
+                      }`}
+                    >
+                      {metricsTabLabel(t, tab)}
+                    </button>
+                    {tab.kind === 'authored' && (
+                      <button
+                        type="button"
+                        onClick={() => setMetricsMenuViewId((current) => current === tab.id ? null : tab.id)}
+                        className="ml-0.5 inline-flex h-7 w-7 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-900 hover:text-slate-200"
+                        aria-label={t('workbench.viewManagement.metricsMenu')}
+                      >
+                        <MoreVertical className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    {tab.kind === 'authored' && metricsMenuViewId === tab.id && (
+                      <div className="absolute left-0 top-8 z-40 w-36 rounded border border-slate-700 bg-slate-950 p-1 shadow-2xl">
+                        <button type="button" onClick={() => { setViewEditor({ mode: 'edit', view: tab.view }); setMetricsMenuViewId(null); }} className="flex h-8 w-full items-center gap-2 rounded px-2 text-xs font-semibold text-slate-300 hover:bg-slate-900 hover:text-slate-100">
+                          <Pencil className="h-3.5 w-3.5" /> {t('common.edit')}
+                        </button>
+                        <button type="button" onClick={() => { renameView(tab.view); setMetricsMenuViewId(null); }} className="flex h-8 w-full items-center gap-2 rounded px-2 text-xs font-semibold text-slate-300 hover:bg-slate-900 hover:text-slate-100">
+                          <TypeIcon className="h-3.5 w-3.5" /> {t('workbench.viewManagement.rename')}
+                        </button>
+                        <button type="button" onClick={() => { duplicateView(tab.view); setMetricsMenuViewId(null); }} className="flex h-8 w-full items-center gap-2 rounded px-2 text-xs font-semibold text-slate-300 hover:bg-slate-900 hover:text-slate-100">
+                          <Copy className="h-3.5 w-3.5" /> {t('workbench.viewManagement.duplicate')}
+                        </button>
+                        <button type="button" onClick={() => { deleteView(tab.view); setMetricsMenuViewId(null); }} className="flex h-8 w-full items-center gap-2 rounded px-2 text-xs font-semibold text-red-200 hover:bg-red-500/10">
+                          <Trash2 className="h-3.5 w-3.5" /> {t('common.delete')}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => setViewEditor({ mode: 'create', kind: 'metrics' })}
+                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border border-slate-800 text-slate-400 transition-colors hover:border-sky-500/50 hover:bg-sky-500/10 hover:text-sky-100"
+                  aria-label={t('workbench.viewManagement.newMetrics')}
+                  title={t('workbench.viewManagement.newMetrics')}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
               </div>
               <div className="relative min-h-0 flex-1">
                 {activeMetricsTab.kind === 'builtIn' ? (
@@ -2196,7 +2590,7 @@ export function PanelGrid({
                   <MetricsPanel
                     physicsRefs={physicsRefs}
                     instances={instances}
-                    config={effectiveGlobalConfig(activeMetricsTab.panel.config, instances)}
+                    config={effectiveGlobalConfig(metricsViewConfig(activeMetricsTab.view, instances), instances)}
                   />
                 )}
               </div>
@@ -2204,6 +2598,7 @@ export function PanelGrid({
           )}
         </div>
         {paneSettingsModal}
+        {viewEditorModal}
     </main>
   );
 }

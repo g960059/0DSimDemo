@@ -143,6 +143,13 @@ export function WorkbenchRoute() {
         onDockviewViewStateChange={panels.updateDockviewViewState}
         graphBoardLayout={scene.currentCaseGraphBoardLayout}
         onGraphBoardLayoutChange={scene.updateGraphBoardLayout}
+        authoredViews={scene.currentCaseViews}
+        createControllerView={scene.createControllerView}
+        createMetricsView={scene.createMetricsView}
+        updateAuthoredView={scene.updateAuthoredView}
+        renameAuthoredView={scene.renameAuthoredView}
+        duplicateAuthoredView={scene.duplicateAuthoredView}
+        deleteAuthoredView={scene.deleteAuthoredView}
         mode={scene.headerMode}
         isMobile={isMobile}
         noteModes={panels.noteModes}

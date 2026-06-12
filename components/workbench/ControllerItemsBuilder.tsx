@@ -10,10 +10,12 @@ import { ControllerItemControl } from "../controls/ControllerItemControl";
 import { controllerOptionsWithLabelKeys, translatedControllerCategory, translatedControllerItemLabel, translatedControllerOptions, translatedKnobLabel } from "../../i18nText";
 
 type ControllerItemsBuilderProps = {
-  panel: PanelDef;
+  panel?: PanelDef;
+  items?: ControllerItem[];
   instances: SimInstance[];
   activeInstanceId?: string;
-  updatePanelControllerItems: (panelId: string, items: ControllerItem[]) => void;
+  updatePanelControllerItems?: (panelId: string, items: ControllerItem[]) => void;
+  onItemsChange?: (items: ControllerItem[]) => void;
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -24,14 +26,17 @@ function distinctOptionValues(item: ControllerItem): number {
   return new Set((item.options ?? []).map((option) => option.value)).size;
 }
 
-function targetInstance(panel: PanelDef, instances: SimInstance[], activeInstanceId?: string): SimInstance | undefined {
+function targetInstance(panel: PanelDef | undefined, instances: SimInstance[], activeInstanceId?: string): SimInstance | undefined {
+  if (!panel) {
+    return instances.find((inst) => inst.id === activeInstanceId) ?? instances[0];
+  }
   const isPaneTarget = (inst: SimInstance) => panel.config[inst.id]?.visible;
   return instances.find((inst) => inst.id === activeInstanceId && isPaneTarget(inst))
     ?? instances.find(isPaneTarget)
     ?? instances[0];
 }
 
-function baselineFor(panel: PanelDef, instances: SimInstance[], activeInstanceId?: string): Record<string, number> {
+function baselineFor(panel: PanelDef | undefined, instances: SimInstance[], activeInstanceId?: string): Record<string, number> {
   const inst = targetInstance(panel, instances, activeInstanceId);
   if (!inst) return {};
   return neutralKnobs(inst.knobBaseline ?? inst.params) as unknown as Record<string, number>;
@@ -50,14 +55,16 @@ function normalizedPreviewValue(item: ControllerItem, baseline: number | undefin
 
 export function ControllerItemsBuilder({
   panel,
+  items: authoredItems,
   instances,
   activeInstanceId,
   updatePanelControllerItems,
+  onItemsChange,
 }: ControllerItemsBuilderProps) {
   const { t } = useTranslation();
   const normalized = useMemo(
-    () => normalizeControllerItems(panel.view?.kind === "control" ? panel.view.controllerItems ?? [] : []),
-    [panel.view],
+    () => normalizeControllerItems(authoredItems ?? (panel?.view?.kind === "control" ? panel.view.controllerItems ?? [] : [])),
+    [authoredItems, panel?.view],
   );
   const items = normalized.items;
   const [editWarnings, setEditWarnings] = useState<string[]>([]);
@@ -69,7 +76,11 @@ export function ControllerItemsBuilder({
   const commit = (nextItems: ControllerItem[]) => {
     const next = normalizeControllerItems(nextItems);
     setEditWarnings(next.warnings);
-    updatePanelControllerItems(panel.id, next.items);
+    if (panel && updatePanelControllerItems) {
+      updatePanelControllerItems(panel.id, next.items);
+      return;
+    }
+    onItemsChange?.(next.items);
   };
 
   const updateItem = (index: number, patch: Partial<ControllerItem>) => {

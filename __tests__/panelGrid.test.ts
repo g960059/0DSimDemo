@@ -88,6 +88,24 @@ function createPanelGrid(
     dockviewLayoutKey: "test",
     dockviewViewStates: undefined,
     onDockviewViewStateChange: noop,
+    createControllerView: (title: string, items = []) => ({
+      id: "controller-test",
+      title,
+      kind: "controller" as const,
+      items,
+      binding: { slot: "active" as const },
+    }),
+    createMetricsView: (title: string, metrics = []) => ({
+      id: "metrics-test",
+      title,
+      kind: "metrics" as const,
+      metrics,
+      membership: {},
+    }),
+    updateAuthoredView: noop,
+    renameAuthoredView: noop,
+    duplicateAuthoredView: () => undefined,
+    deleteAuthoredView: noop,
     mode,
     isMobile,
     noteModes: {},
@@ -131,7 +149,7 @@ function createPanelGrid(
     onNoteChange: noop,
     chambers: [],
     signals: [],
-    metrics: [],
+    metrics: ["ABP"],
     controlGroups,
   });
 }

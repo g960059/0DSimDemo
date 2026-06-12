@@ -61,33 +61,41 @@ export function useWorkbenchPanels({
   const setWorkbenchLayout: Dispatch<SetStateAction<WorkbenchLayoutState>> = useCallback((next) => {
     setWorkbenchLayoutState((prevLayout) => {
       const resolved = typeof next === "function" ? next(prevLayout) : next;
-      setWorkspace((prevWorkspace) => {
-        const { size: _controlSize, ...controlRegion } = prevWorkspace.regions.control ?? {};
-        const { size: _noteSize, ...noteRegion } = prevWorkspace.regions.note ?? {};
-        const { size: _outputSize, ...outputRegion } = prevWorkspace.regions.output ?? {};
-        return {
-          ...prevWorkspace,
-          regions: {
-            ...prevWorkspace.regions,
-            control: {
-              ...controlRegion,
-              position: "right",
-              visible: resolved.rightRailVisible,
+      const workspaceVisibilityChanged = resolved.rightRailVisible !== prevLayout.rightRailVisible
+        || resolved.noteOpen !== prevLayout.noteOpen
+        || resolved.metricsOpen !== prevLayout.metricsOpen;
+      if (workspaceVisibilityChanged) {
+        setWorkspace((prevWorkspace) => {
+          const { size: _controlSize, ...controlRegion } = prevWorkspace.regions.control ?? {};
+          const { size: _noteSize, ...noteRegion } = prevWorkspace.regions.note ?? {};
+          const { size: _outputSize, ...outputRegion } = prevWorkspace.regions.output ?? {};
+          return {
+            ...prevWorkspace,
+            regions: {
+              ...prevWorkspace.regions,
+              control: {
+                ...controlRegion,
+                position: "right",
+                visible: resolved.rightRailVisible,
+              },
+              note: {
+                ...noteRegion,
+                visible: resolved.noteOpen,
+              },
+              output: {
+                ...outputRegion,
+                visible: resolved.metricsOpen ? "compact" : false,
+              },
             },
-            note: {
-              ...noteRegion,
-              visible: resolved.noteOpen,
-            },
-            output: {
-              ...outputRegion,
-              visible: resolved.metricsOpen ? "compact" : false,
-            },
-          },
-        };
-      });
+          };
+        });
+      }
+      const selectedControllerOnly = Object.entries(resolved).every(([key, value]) => (
+        key === "selectedControllerViewId" || value === prevLayout[key as keyof WorkbenchLayoutState]
+      ));
+      if (!selectedControllerOnly && headerMode !== "learner") markUserEdited();
       return resolved;
     });
-    if (headerMode !== "learner") markUserEdited();
   }, [headerMode, markUserEdited]);
 
   const updateDockviewViewState = useCallback((zone: WorkbenchZoneId, viewState: DockviewViewState) => {
