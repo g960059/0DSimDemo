@@ -19,9 +19,11 @@ must be captured in **ADR-0007** (P0 deliverable); this file is the execution pl
    - Center (**main**): **Graph Board** — the ONLY dockview. Free splitting, persisted as a
      semantic split tree.
    - Right (**rail**): Scenario list (top) + Inspector (bottom). Fixed position & width
-     (invariants). One pane each, exclusive switcher, no split. **No left/right swap.**
-   - Bottom: **Metrics host** — fixed category tabs + authored view tabs. Tab switching only.
-3. Header layout popover stays minimal: note open/close, metrics open/close, Arrange commands.
+     (invariants). Two-tier simultaneous stack with a draggable scenario/inspector sash.
+     One pane each, no split. **No left/right swap.**
+   - Bottom: **Metrics host** — document metrics view tabs. Tab switching only.
+3. Header uses inline visibility toggles plus a trimmed customize popover for metrics span.
+   Arrange UI was removed; one-click split covers composition.
 
 ## Canonical model split (the foundation)
 
@@ -47,8 +49,9 @@ type GraphBoardLayout =
 - Canonical: the split tree + ratios, DERIVED from Dockview state on change.
   Dockview JSON itself is never canonical (existing ADR-0003 principle is kept).
 - Non-canonical: active tab, scroll position, absolute pixels.
-- Presets ("Arrange as 2x2" etc.) are COMMANDS that generate a tree in one shot;
-  only the resulting tree is saved.
+- Presets ("Arrange as 2x2" etc.) are command semantics that generate a tree in one shot;
+  only the resulting tree is saved. The visible Arrange UI was removed; the helper remains
+  unwired for future MCP/LLM/API use.
 - Degradation across screen sizes is accepted by spec (ratios don't break).
 
 ### Aspect ratio — property of GraphViewSpec, resolved at pane-content layer
@@ -91,11 +94,11 @@ and `COMPARE_PRESET` are cleanup targets (P1). A future metrics "Differences" ta
 
 ### View host / ViewSpec
 
-- Every zone is a view host; its views = built-in ∪ authored.
-- Inspector = built-in controller view (all knobs, follows active; ViewSpec config
-  NOT editable; knob operation of course allowed).
-- Fixed metrics categories = built-in metrics views.
-- Custom controller / metrics = authored **ViewSpec** (saved in CaseDocument, on the op-stack).
+- Every zone is a view host; its controller/metrics views are document ViewSpecs.
+- The standard controller set and four standard metrics sets are official factory seeds,
+  not a separate built-in runtime mode. They are editable, duplicable, deletable, and
+  restorable.
+- Controller / metrics views are **ViewSpec** document content saved in CaseDocument.
 - **(REVISED 2026-06-12)** Creation/serious editing happens in a MODAL (shared
   frame with the graph pane settings modal), NOT as a main-area pane. Rationale:
   the main area is the Graph Board (graphs only — hosting editors there would
@@ -110,11 +113,11 @@ and `COMPARE_PRESET` are cleanup targets (P1). A future metrics "Differences" ta
   content; the per-case count stays small (2-5). What grows is the parameter
   CATALOG (assist devices, model refinement) — absorbed by the item PICKER
   (search + device/category sections) and by collapsible sections + search in
-  the built-in Inspector, never by a separate screen.
+  the standard clinical-parameters view, never by a separate screen.
 - **The rail dropdown IS the list and the management UI.** The inspector tier
-  header becomes a dropdown: built-in Inspector (always first, not editable or
-  deletable) + authored controller views + "+ new controller". Row hover
-  actions: rename / duplicate / delete. The "Editing: ● scenario" chip stays.
+  header becomes a dropdown: document controller views + "+ new controller" +
+  "restore standard views". Row hover actions: edit / rename / duplicate / delete.
+  The "Editing: ● scenario" chip opens the selected view's editor.
 - **Creation paths, primary first:** (1) from the Inspector — curate by
   selecting from the full catalog ("+ add to custom" affordance or the modal
   picker showing the same catalog tree); (2) duplicate an existing view (A→B);
@@ -126,8 +129,9 @@ and `COMPARE_PRESET` are cleanup targets (P1). A future metrics "Differences" ta
   viewSpecId. Binding is VIEW-level only ({ slot: "active" } default, pin
   opt-in in P3) — per-item binding is explicitly rejected.
 - **Metrics views follow the identical pattern:** the metrics host tab strip is
-  the list (built-in categories + authored), "+" opens the same modal frame
-  with a metric picker, tab context menu offers rename / duplicate / delete.
+  the list of MetricsViewSpecs, "+" opens the same modal frame with a metric
+  picker, restore standard views re-adds missing seeded sets, and tab context
+  menu offers edit / rename / duplicate / delete.
 - **Future (not now):** item applicability may become scenario-dependent
   (e.g. no ECMO attached). The picker/renderer should key off the catalog
   registry (paramKey + device grouping) so an N/A state can be added later.
@@ -183,7 +187,9 @@ Metrics in-sheet tabs or below graph.
 
 ## Phases
 
-### P0 — ADR-0007 + model groundwork  ← CURRENT
+### P0 — ADR-0007 + model groundwork  ← DONE
+
+Commit: `79ff6ea` (plus ADR seed `1dc4344`).
 
 Deliverables (no runtime UI behavior change in P0):
 
@@ -227,10 +233,12 @@ Deliverables (no runtime UI behavior change in P0):
 5. **`docs/workbench-implementation-plan.md`** — rewrite to match the current
    `features/workbench/*` structure and this P0–P4 roadmap.
 
-### P1 — main-only dockview
+### P1 — main-only dockview  ← DONE
+
+Commits: P1a `7068e1b`, `5a03df0`; P1b `4096e23`, `7420e16`, `349be4b`; P1c `f387c91`, `2fc22a9`; P1d `a846ef4`.
 
 - Remove dockview from sideRail/bottomPanel/caseRail; main Graph Board is the only dockview.
-- Right rail = scenario list + inspector switcher (fixed). Scenario list rows:
+- Right rail = scenario list + inspector two-tier stack (fixed). Scenario list rows:
   color swatch, eye toggle, hover "…" menu; behaviors per the 4-state table.
 - Metrics host = fixed category tabs (+ authored view tabs).
 - Note = push drawer (main shrinks; rail fixed).
@@ -251,23 +259,33 @@ curation path: author creates curated views → embeds them in the note →
 learners operate them in the reader. Built-in hosts (full Inspector, metrics
 category tabs) are workbench-only affordances and do not appear in the reader.
 
-**P2a — authored view management in the Workbench (view management spec above):**
+**P2a — authored view management in the Workbench (view management spec above): DONE**
+
+Commits: `bd7f771`, `f49019b`, `cb1cb3f`, `bfd4314`, `f0bc599`, `65eae01`, plus the current P2a-5 cleanup (uncommitted).
+
 - ControllerViewSpec and MetricsViewSpec become LIVE document content:
-  rail-dropdown list/switcher (built-in Inspector first), shared modal editor
+  rail-dropdown list, shared modal editor
   (create / rename / duplicate / delete; item picker = catalog tree with
   search + category sections), metrics host "+" tab via the same modal frame.
 - Custom controller views render against the active scenario (binding
   { slot: "active" }), reusing the shipped ControllerItem renderers
   (slider / buttonGroup, beginner labels — ADR-0006).
 - `views` persistence is RE-ENABLED for authored controller/metrics views (the
-  dormant-blob objection no longer applies: the views are now live state).
+  dormant-blob objection no longer applies: the views are now live state) and
+  always writes an array, including `[]`.
   Load tolerates and ignores graph-kind entries; id remapping already exists.
+- Standard controller/metrics views are official seeds: blank sessions seed them;
+  legacy `views === undefined` documents seed them plus migrate legacy panels;
+  `views` arrays, including empty arrays, are authoritative.
 - One-way migration on load: legacy CONTROLS panels with controllerItems and
   METRICS panels become authored views (existing migratePanelsToViewSpecs
-  mapping); the metrics host then lists built-in categories + authored
-  MetricsViewSpecs (no more panel-backed tabs).
+  mapping) only for documents without a `views` array; the metrics host then
+  lists MetricsViewSpecs (no more panel-backed tabs).
 
-**P2b — note embedding + reader curation:**
+**P2b — note embedding + reader curation: DONE**
+
+Commit: `acf8caa`.
+
 - `view_ref` note block (pane_ref generalization) referencing viewSpecId;
   renders the authored view inline (interactive) in note and reader;
   dangling refs degrade to placeholder.
@@ -275,7 +293,7 @@ category tabs) are workbench-only affordances and do not appear in the reader.
   column / pane refs as today; controllers and metrics via view_refs and the
   reading manifest), unifying with exposedControllers where they overlap.
 
-**P2c — read-only interactive (original P2):**
+**P2c — read-only interactive (original P2): REMAINING**
 - Document-op blocking / runtime-op allowing; Reset to author's state;
   Read|Explore switcher; runtime state carried across the switch
   (integrate ReadingPresenter's own `PreviewController`/`liveInstances` with the

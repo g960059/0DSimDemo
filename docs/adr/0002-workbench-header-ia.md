@@ -43,3 +43,9 @@ Reframing the right slide panel as the canonical **global-settings / clutter-off
 - It houses **instance management (CRUD: add/remove/name/color)** in addition to Share / Export / Versions / Details / Settings. On the primary surface, the **graph legend** is the only instance affordance (identity + mute + edit-target) — there is no separate instance chip row.
 - **Compare is removed as a feature** (ADR-0005): multiple instances overlay on every graph automatically; nothing in the header/drawer is a "compare mode." The "no dead tabs" rule still holds.
 
+## Update (2026-06-12) — partially superseded by ADR-0007 P1c/P1d
+
+ADR-0007 P1c/P1d partially supersedes the header customization details here:
+the shipped Workbench header now uses inline VS Code-style visibility toggles,
+a trimmed customize popover, and a metrics span option. The save/share/export
+flow and provenance-derived modes from this ADR remain unchanged.

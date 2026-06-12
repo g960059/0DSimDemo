@@ -21,10 +21,14 @@ Workbench IA has four zones with layout freedom concentrated in the center only:
 
 - **Left:** Note drawer. It is hidden by default, single-pane, no split, and push-based rather than overlay. Opening it shrinks only the main area; the right rail width is fixed.
 - **Center:** Graph Board. This is the only Dockview area. It supports free splitting, and the persisted canonical shape is a semantic split tree.
-- **Right:** Scenario list above Inspector. The rail has fixed position and width, one pane per host, an exclusive switcher, no split, and no left/right swap.
-- **Bottom:** Metrics host. It has fixed category tabs plus authored metrics view tabs. It supports tab switching only.
+- **Right:** Scenario list above Inspector. The rail has fixed position and width, one pane per host, a simultaneous two-tier stack, no split, and no left/right swap.
+- **Bottom:** Metrics host. It has document metrics view tabs. It supports tab switching only.
 
-The header layout popover stays minimal: note open/close, metrics open/close, and arrange commands.
+The header layout popover stays minimal: note open/close, metrics open/close, and metrics span.
+
+**Update 2026-06-12 (owner decision):** the right rail is not an exclusive switcher. It is a simultaneous two-tier stack: a content-sized collapsible scenario list, an always-draggable scenario/inspector sash, and the Inspector below it with the selected controller view chip. The note/main, main/rail, main/metrics, and scenario/inspector sashes are local `WorkbenchLayoutState` sizing only; they do not become case document structure.
+
+**Update 2026-06-12 (header):** the header evolved to inline VS Code-style visibility toggles plus a trimmed customize popover. Arrange UI was removed. One-click split covers composition; `arrangeGraphBoardLayout` remains as an unwired helper for future MCP/LLM/API commands.
 
 ### Canonical model split
 The document/runtime split is:
@@ -49,7 +53,9 @@ type GraphBoardLayout =
 Dockview JSON remains non-canonical display state. Presets such as "Arrange as 2x2" are commands that generate this tree; only the resulting tree is saved. Ratios are accepted as the degradation strategy across screen sizes.
 
 ### ViewSpec and aspect
-Every zone is a view host whose tabs are derived from built-in plus authored ViewSpecs. Inspector is a built-in controller view that follows the active scenario. Fixed metrics categories are built-in metrics views. Authored controller and metrics views are saved ViewSpecs and participate in document ops.
+Every zone is a view host whose tabs are derived from document ViewSpecs. Standard controller and metrics sets are official factory seeds, not a separate built-in runtime mode. Authored controller and metrics views are saved ViewSpecs and participate in document ops.
+
+**Update 2026-06-12 (owner decision):** "built-in" is just a subset created by official seeding. New blank sessions seed the standard controller view plus four standard metrics views. Legacy documents with `views === undefined` seed those standards and also run legacy panel migration. Documents with `views` as an array, including `[]`, are respected exactly so deleted standards do not resurrect. Saves always write `views`, including an empty array.
 
 Graph view aspect belongs on `GraphViewSpec` and is resolved by the pane content layer:
 
@@ -67,14 +73,15 @@ PV loops use `{ ratio: 1, fit: "lock" }`. Waveforms have no aspect constraint.
   editing is a selection task that does not need live charts beside it. Mobile
   degrades to a fullscreen sheet. (This supersedes any earlier wording that
   placed serious view editing in a main-area pane.)
-- **No dedicated management screen.** Authored views are case-scoped document
-  content; the rail inspector dropdown IS the list and management surface:
-  built-in Inspector first (composition not editable), then authored
-  controller views with rename / duplicate / delete, then "+ new". The metrics
-  host tab strip plays the same role for metrics views.
+- **No dedicated management screen.** Views are case-scoped document content;
+  the rail inspector dropdown IS the list and management surface: controller
+  views with rename / duplicate / delete, then "+ new" and "restore standard
+  views". The metrics host tab strip plays the same role for metrics views.
+  All views are editable document views; the editing chip opens any selected
+  view's editor.
 - **Catalog growth (assist devices, model refinement) is absorbed by the item
   picker** — search plus device/category sections, mirrored by collapsible
-  sections in the built-in Inspector — never by a separate screen. Item
+  sections in the standard clinical-parameters view — never by a separate screen. Item
   applicability may later become scenario-dependent (N/A state); the picker
   keys off the parameter catalog registry to allow that.
 - **Creation paths:** curate from the Inspector's full catalog (primary),
@@ -85,6 +92,13 @@ PV loops use `{ ratio: 1, fit: "lock" }`. Waveforms have no aspect constraint.
 - **Note embedding** generalizes `pane_ref` to `view_ref` (viewSpecId).
   Binding stays VIEW-level — `{ slot: "active" }` by default, explicit pin
   later; per-item binding is rejected.
+
+**Terminology update 2026-06-12:** UI strings say "clinical parameters" (ja
+`臨床パラメータ`). `ClinicalKnobs` remains a code-level name.
+
+**Raw parameter update 2026-06-12:** controller authoring also exposes a
+researcher-facing raw scalar catalog. Raw parameters are bounded by engine
+`HARD_CLAMP` ranges; authors may edit min/max/step within those hard ranges.
 
 ### Scenario state
 Scenario interaction has four independent states:
