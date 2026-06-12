@@ -14,6 +14,11 @@ import {
   DEFAULT_AOV_AMAX,
   DEFAULT_AOV_AREF,
   DEFAULT_AOV_B,
+  DEFAULT_AOV_L,
+  DEFAULT_AOV_TAU_CLOSE,
+  DEFAULT_AOV_TAU_OPEN,
+  DEFAULT_ARTERIAL_STIFFNESS,
+  DEFAULT_SYSTEMIC_RESISTANCE,
   runLowPreloadDebug,
   selectSuspiciousPointIndices,
   type ActiveReservePreset,
@@ -40,6 +45,11 @@ type MatrixOptions = {
   aorticFlowClampModes: AorticFlowClampMode[];
   aovBValues: number[];
   asAovAmaxValues: number[];
+  aovLValues: number[];
+  aovTauOpenValues: number[];
+  aovTauCloseValues: number[];
+  systemicResistanceValues: number[];
+  arterialStiffnessValues: number[];
   maxReturnMapPoints: number;
   traceBeats: number;
   sampleHz: number;
@@ -83,7 +93,15 @@ type WaveformGateMetrics = {
   AoVOpen01AtQAoMax: number;
   AoVMeanOpen01DuringEjection: number;
   AoVTimeToNearFullOpenMs: number;
+  AoVClosureResidualMean: number;
+  AoVFlowWeightedClosureResidual: number;
+  AoVClosureResidualAtQAoMax: number;
+  AoVClosureResidualSV5To95Mean: number;
+  AoVFlowWeightedClosureResidualSV5To95: number;
   QAoPeakMeanRatio: number;
+  QAoMeanPositive: number;
+  QAoTimeToPeakMs: number;
+  maxDQAoDt: number;
   ejectionDurationMs: number;
   ejectionPositiveDurationMs: number;
   ejectionFivePercentPeakDurationMs: number;
@@ -113,7 +131,12 @@ type WaveformGateComparison = {
     | "AoVFlowWeightedBernoulliGradient"
     | "AoVFlowWeightedInertialGradient"
     | "AoVFlowWeightedAreaLossExtraGradient"
+    | "AoVFlowWeightedClosureResidual"
+    | "AoVClosureResidualSV5To95Mean"
     | "QAoPeakMeanRatio"
+    | "QAoMeanPositive"
+    | "QAoTimeToPeakMs"
+    | "maxDQAoDt"
     | "ejectionDurationMs"
     | "ejectionPositiveDurationMs"
     | "ejectionFivePercentPeakDurationMs"
@@ -140,6 +163,11 @@ type MatrixScenario = {
   aovB: number;
   aovAmax: number;
   aovAref: number;
+  aovL: number;
+  aovTauOpen: number;
+  aovTauClose: number;
+  systemicResistance: number;
+  arterialStiffness: number;
   selectedDeltasMl: number[];
   evaluation: ScenarioEvaluation;
   shapeSummary: ShapeSummary;
@@ -274,7 +302,7 @@ type ShapeSummary = {
 };
 
 type MatrixReport = {
-  schemaVersion: 16;
+  schemaVersion: 17;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -291,6 +319,11 @@ type MatrixReport = {
   aorticFlowClampModes: AorticFlowClampMode[];
   aovBValues: number[];
   asAovAmaxValues: number[];
+  aovLValues: number[];
+  aovTauOpenValues: number[];
+  aovTauCloseValues: number[];
+  systemicResistanceValues: number[];
+  arterialStiffnessValues: number[];
   maxReturnMapPoints: number;
   traceBeats: number;
   sampleHz: number;
@@ -316,7 +349,13 @@ type MatrixReport = {
     maxAoVFlowWeightedInertialGradient: number;
     maxAoVFlowWeightedAreaLossExtraGradient: number;
     maxAoVFlowWeightedResidualGradient: number;
+    maxAoVFlowWeightedClosureResidual: number;
+    maxAoVClosureResidualSV5To95Mean: number;
+    maxAoVFlowWeightedClosureResidualSV5To95: number;
     maxQAoPeakMeanRatio: number;
+    maxQAoMeanPositive: number;
+    minQAoTimeToPeakMs: number;
+    maxDQAoDt: number;
     minEjectionDurationMs: number;
     minEjectionPositiveDurationMs: number;
     minEjectionFivePercentPeakDurationMs: number;
@@ -377,6 +416,11 @@ const DEFAULT_TBV_CORRECTION_MODES: TBVCorrectionMode[] = ["on"];
 const DEFAULT_AORTIC_FLOW_CLAMP_MODES: AorticFlowClampMode[] = ["hard"];
 const DEFAULT_AOV_B_VALUES = [DEFAULT_AOV_B];
 const DEFAULT_AS_AOV_AMAX_VALUES = [DEFAULT_AOV_AMAX];
+const DEFAULT_AOV_L_VALUES = [DEFAULT_AOV_L];
+const DEFAULT_AOV_TAU_OPEN_VALUES = [DEFAULT_AOV_TAU_OPEN];
+const DEFAULT_AOV_TAU_CLOSE_VALUES = [DEFAULT_AOV_TAU_CLOSE];
+const DEFAULT_SYSTEMIC_RESISTANCE_VALUES = [DEFAULT_SYSTEMIC_RESISTANCE];
+const DEFAULT_ARTERIAL_STIFFNESS_VALUES = [DEFAULT_ARTERIAL_STIFFNESS];
 const WAVEFORM_RUN_OPTIONS = { collectSamples: false, recordHistory: true, historyLimit: 720 };
 const WAVEFORM_SETTLE_POLICY = { ...PREVIEW_SETTLE_POLICY, capSeconds: 45 };
 
@@ -389,11 +433,29 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
   const branchBaselineCache = new Map<string, DebugPoint[]>();
   const specs = matrixScenarioSpecs(opts, scopes);
   specs.forEach((spec, index) => {
-    const { heartModel, lambdaActScope, lambdaActTauSec, lambdaActTerms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, tbvCorrectionMode, aorticFlowClampMode, aovB, aovAmax, dt } = spec;
+    const {
+      heartModel,
+      lambdaActScope,
+      lambdaActTauSec,
+      lambdaActTerms,
+      lowStretchLimiterMode,
+      lowStretchLimiterScope,
+      activeReservePreset,
+      tbvCorrectionMode,
+      aorticFlowClampMode,
+      aovB,
+      aovAmax,
+      aovL,
+      aovTauOpen,
+      aovTauClose,
+      systemicResistance,
+      arterialStiffness,
+      dt,
+    } = spec;
     if (opts.progress) {
       // eslint-disable-next-line no-console
       console.log(
-        `[matrix] ${index + 1}/${specs.length} heart=${heartModel} dt=${dt} tau=${lambdaActTauSec} scope=${lambdaActScope} terms=${lambdaActTerms} limiter=${lowStretchLimiterMode}/${lowStretchLimiterScope} preset=${activeReservePreset} tbv=${tbvCorrectionMode} aovClamp=${aorticFlowClampMode} AoV_B=${aovB} AoV_Amax=${aovAmax}`,
+        `[matrix] ${index + 1}/${specs.length} heart=${heartModel} dt=${dt} tau=${lambdaActTauSec} scope=${lambdaActScope} terms=${lambdaActTerms} limiter=${lowStretchLimiterMode}/${lowStretchLimiterScope} preset=${activeReservePreset} tbv=${tbvCorrectionMode} aovClamp=${aorticFlowClampMode} AoV_B=${aovB} AoV_L=${aovL} AoV_tau=${aovTauOpen}/${aovTauClose} AoV_Amax=${aovAmax} SVR=${systemicResistance} artStiff=${arterialStiffness}`,
       );
     }
     const branchReport = runLowPreloadDebug({
@@ -412,6 +474,11 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
       aorticFlowClampMode,
       aovB,
       aovAmax,
+      aovL,
+      aovTauOpen,
+      aovTauClose,
+      systemicResistance,
+      arterialStiffness,
       traceBeats: opts.traceBeats,
       sampleHz: opts.sampleHz,
       returnMapMode: "none",
@@ -437,6 +504,11 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
         aorticFlowClampMode,
         aovB,
         aovAmax,
+        aovL,
+        aovTauOpen,
+        aovTauClose,
+        systemicResistance,
+        arterialStiffness,
         traceBeats: opts.traceBeats,
         sampleHz: opts.sampleHz,
         returnMapMode: "both",
@@ -444,7 +516,7 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
         quietClampLog: true,
       });
     const baselineKey = branchBaselineKey(heartModel, dt, tbvCorrectionMode);
-    if (isDefaultAorticValveComparator(aovB, aovAmax)
+    if (isDefaultAorticValveComparator(aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness)
       && lambdaActTauSec === 0
       && lowStretchLimiterMode === "none"
       && aorticFlowClampMode === "hard") {
@@ -466,6 +538,11 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
       aorticFlowClampMode,
       aovB,
       aovAmax,
+      aovL,
+      aovTauOpen,
+      aovTauClose,
+      systemicResistance,
+      arterialStiffness,
       waveformBaselineCache,
     );
     const shapeSummary = buildShapeSummary(branchReport.points, baselinePoints);
@@ -475,6 +552,11 @@ const evaluation = buildScenarioEvaluation({
       aorticFlowClampMode,
       aovB,
       aovAmax,
+      aovL,
+      aovTauOpen,
+      aovTauClose,
+      systemicResistance,
+      arterialStiffness,
       returnMapSummary: returnMapReport.summary,
       shapeSummary,
       waveformGates,
@@ -494,6 +576,11 @@ const evaluation = buildScenarioEvaluation({
       aovB,
       aovAmax,
       aovAref: DEFAULT_AOV_AREF,
+      aovL,
+      aovTauOpen,
+      aovTauClose,
+      systemicResistance,
+      arterialStiffness,
       selectedDeltasMl,
       evaluation,
       shapeSummary,
@@ -518,9 +605,9 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
       { fraction: 0, metric: null },
     );
   return {
-    schemaVersion: 16,
+    schemaVersion: 17,
     generatedAt: new Date().toISOString(),
-    measurementMode: "branch-only broad low-preload matrix followed by selected EDV-section return-map diagnostics with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap comparator axes, off-by-default AoV_B/AoV_Amax physical-loss comparator axes, and fIsoSlopeRelax low-stretch active-force comparator; AoV gradient is decomposed into full-open orifice, area-loss extra, inertial, and residual terms; ejection duration is reported as QAo>0, QAo>5% peak, SV 5-95%, and historical high-flow windows; optional TBV correction on/off/low contamination axis; activeStress/elastance heart-model comparison axis",
+    measurementMode: "branch-only broad low-preload matrix followed by selected EDV-section return-map diagnostics with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap comparator axes, off-by-default AoV_B/AoV_Amax/AoV_L/AoV_tau/systemicResistance/arterialStiffness ejection-dynamics comparator axes, and fIsoSlopeRelax low-stretch active-force comparator; AoV gradient is decomposed into full-open orifice, area-loss extra, inertial, residual, and direct ODE closure residual terms; ejection duration is reported as QAo>0, QAo>5% peak, SV 5-95%, and historical high-flow windows; optional TBV correction on/off/low contamination axis; activeStress/elastance heart-model comparison axis",
     targetVolumeMl: opts.targetVolumeMl,
     heartModels: opts.heartModels,
     deltasMl: opts.deltasMl,
@@ -535,6 +622,11 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
     aorticFlowClampModes: opts.aorticFlowClampModes,
     aovBValues: opts.aovBValues,
     asAovAmaxValues: opts.asAovAmaxValues,
+    aovLValues: opts.aovLValues,
+    aovTauOpenValues: opts.aovTauOpenValues,
+    aovTauCloseValues: opts.aovTauCloseValues,
+    systemicResistanceValues: opts.systemicResistanceValues,
+    arterialStiffnessValues: opts.arterialStiffnessValues,
     maxReturnMapPoints: opts.maxReturnMapPoints,
     traceBeats: opts.traceBeats,
     sampleHz: opts.sampleHz,
@@ -560,7 +652,13 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
         maxAoVFlowWeightedInertialGradient: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.AoVFlowWeightedInertialGradient)))),
         maxAoVFlowWeightedAreaLossExtraGradient: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.AoVFlowWeightedAreaLossExtraGradient)))),
         maxAoVFlowWeightedResidualGradient: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.AoVFlowWeightedResidualGradient)))),
+        maxAoVFlowWeightedClosureResidual: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => Math.abs(finiteOrZero(gate.candidate.AoVFlowWeightedClosureResidual))))),
+        maxAoVClosureResidualSV5To95Mean: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => Math.abs(finiteOrZero(gate.candidate.AoVClosureResidualSV5To95Mean))))),
+        maxAoVFlowWeightedClosureResidualSV5To95: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => Math.abs(finiteOrZero(gate.candidate.AoVFlowWeightedClosureResidualSV5To95))))),
         maxQAoPeakMeanRatio: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.QAoPeakMeanRatio)))),
+        maxQAoMeanPositive: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.QAoMeanPositive)))),
+        minQAoTimeToPeakMs: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.QAoTimeToPeakMs))),
+        maxDQAoDt: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.maxDQAoDt)))),
         minEjectionDurationMs: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.ejectionDurationMs))),
         minEjectionPositiveDurationMs: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.ejectionPositiveDurationMs))),
         minEjectionFivePercentPeakDurationMs: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.ejectionFivePercentPeakDurationMs))),
@@ -623,6 +721,11 @@ function matrixScenarioSpecs(
   aorticFlowClampMode: AorticFlowClampMode;
   aovB: number;
   aovAmax: number;
+  aovL: number;
+  aovTauOpen: number;
+  aovTauClose: number;
+  systemicResistance: number;
+  arterialStiffness: number;
 }> {
   const specs: Array<{
     heartModel: HeartModelMode;
@@ -637,6 +740,11 @@ function matrixScenarioSpecs(
     aorticFlowClampMode: AorticFlowClampMode;
     aovB: number;
     aovAmax: number;
+    aovL: number;
+    aovTauOpen: number;
+    aovTauClose: number;
+    systemicResistance: number;
+    arterialStiffness: number;
   }> = [];
   for (const heartModel of opts.heartModels) {
     for (const dt of opts.dtValues) {
@@ -644,58 +752,83 @@ function matrixScenarioSpecs(
         for (const aorticFlowClampMode of opts.aorticFlowClampModes) {
           for (const aovB of opts.aovBValues) {
             for (const aovAmax of opts.asAovAmaxValues) {
-              specs.push({
-                heartModel,
-                dt,
-                lambdaActTauSec: 0,
-                lambdaActScope: "all",
-                lambdaActTerms: "kd+fiso",
-                lowStretchLimiterMode: "none",
-                lowStretchLimiterScope: "lv",
-                activeReservePreset: "none",
-                tbvCorrectionMode,
-                aorticFlowClampMode,
-                aovB,
-                aovAmax,
-              });
-              for (const lowStretchLimiterMode of opts.lowStretchLimiterModes.filter((mode) => mode !== "none")) {
-                for (const lowStretchLimiterScope of opts.lowStretchLimiterScopes) {
-                  const presets = lowStretchLimiterMode === "activeReserveCap" ? opts.activeReservePresets : ["none" as ActiveReservePreset];
-                  for (const activeReservePreset of presets) {
-                    specs.push({
-                      heartModel,
-                      dt,
-                      lambdaActTauSec: 0,
-                      lambdaActScope: "all",
-                      lambdaActTerms: "kd+fiso",
-                      lowStretchLimiterMode,
-                      lowStretchLimiterScope,
-                      activeReservePreset,
-                      tbvCorrectionMode,
-                      aorticFlowClampMode,
-                      aovB,
-                      aovAmax,
-                    });
-                  }
-                }
-              }
-              for (const lambdaActTauSec of opts.lambdaActTauSecValues.filter((tau) => tau > 0)) {
-                for (const lambdaActScope of scopes) {
-                  for (const lambdaActTerms of opts.lambdaActTermsValues) {
-                    specs.push({
-                      heartModel,
-                      dt,
-                      lambdaActTauSec,
-                      lambdaActScope,
-                      lambdaActTerms,
-                      lowStretchLimiterMode: "none",
-                      lowStretchLimiterScope: "lv",
-                      activeReservePreset: "none",
-                      tbvCorrectionMode,
-                      aorticFlowClampMode,
-                      aovB,
-                      aovAmax,
-                    });
+              for (const aovL of opts.aovLValues) {
+                for (const aovTauOpen of opts.aovTauOpenValues) {
+                  for (const aovTauClose of opts.aovTauCloseValues) {
+                    for (const systemicResistance of opts.systemicResistanceValues) {
+                      for (const arterialStiffness of opts.arterialStiffnessValues) {
+                        specs.push({
+                          heartModel,
+                          dt,
+                          lambdaActTauSec: 0,
+                          lambdaActScope: "all",
+                          lambdaActTerms: "kd+fiso",
+                          lowStretchLimiterMode: "none",
+                          lowStretchLimiterScope: "lv",
+                          activeReservePreset: "none",
+                          tbvCorrectionMode,
+                          aorticFlowClampMode,
+                          aovB,
+                          aovAmax,
+                          aovL,
+                          aovTauOpen,
+                          aovTauClose,
+                          systemicResistance,
+                          arterialStiffness,
+                        });
+                        for (const lowStretchLimiterMode of opts.lowStretchLimiterModes.filter((mode) => mode !== "none")) {
+                          for (const lowStretchLimiterScope of opts.lowStretchLimiterScopes) {
+                            const presets = lowStretchLimiterMode === "activeReserveCap" ? opts.activeReservePresets : ["none" as ActiveReservePreset];
+                            for (const activeReservePreset of presets) {
+                              specs.push({
+                                heartModel,
+                                dt,
+                                lambdaActTauSec: 0,
+                                lambdaActScope: "all",
+                                lambdaActTerms: "kd+fiso",
+                                lowStretchLimiterMode,
+                                lowStretchLimiterScope,
+                                activeReservePreset,
+                                tbvCorrectionMode,
+                                aorticFlowClampMode,
+                                aovB,
+                                aovAmax,
+                                aovL,
+                                aovTauOpen,
+                                aovTauClose,
+                                systemicResistance,
+                                arterialStiffness,
+                              });
+                            }
+                          }
+                        }
+                        for (const lambdaActTauSec of opts.lambdaActTauSecValues.filter((tau) => tau > 0)) {
+                          for (const lambdaActScope of scopes) {
+                            for (const lambdaActTerms of opts.lambdaActTermsValues) {
+                              specs.push({
+                                heartModel,
+                                dt,
+                                lambdaActTauSec,
+                                lambdaActScope,
+                                lambdaActTerms,
+                                lowStretchLimiterMode: "none",
+                                lowStretchLimiterScope: "lv",
+                                activeReservePreset: "none",
+                                tbvCorrectionMode,
+                                aorticFlowClampMode,
+                                aovB,
+                                aovAmax,
+                                aovL,
+                                aovTauOpen,
+                                aovTauClose,
+                                systemicResistance,
+                                arterialStiffness,
+                              });
+                            }
+                          }
+                        }
+                      }
+                    }
                   }
                 }
               }
@@ -853,6 +986,11 @@ function buildScenarioEvaluation(input: {
   aorticFlowClampMode: AorticFlowClampMode;
   aovB: number;
   aovAmax: number;
+  aovL: number;
+  aovTauOpen: number;
+  aovTauClose: number;
+  systemicResistance: number;
+  arterialStiffness: number;
   returnMapSummary: DebugReport["summary"];
   shapeSummary: ShapeSummary;
   waveformGates: WaveformGateComparison[];
@@ -897,7 +1035,15 @@ function buildScenarioEvaluation(input: {
   const isDefaultBaseline = input.lambdaActTauSec === 0
     && input.lowStretchLimiterMode === "none"
     && input.aorticFlowClampMode === "hard"
-    && isDefaultAorticValveComparator(input.aovB, input.aovAmax);
+    && isDefaultAorticValveComparator(
+      input.aovB,
+      input.aovAmax,
+      input.aovL,
+      input.aovTauOpen,
+      input.aovTauClose,
+      input.systemicResistance,
+      input.arterialStiffness,
+    );
 
   let classification: ScenarioClassification;
   if (isDefaultBaseline) {
@@ -1078,12 +1224,17 @@ function buildWaveformGateComparisons(
   aorticFlowClampMode: AorticFlowClampMode,
   aovB: number,
   aovAmax: number,
+  aovL: number,
+  aovTauOpen: number,
+  aovTauClose: number,
+  systemicResistance: number,
+  arterialStiffness: number,
   baselineCache: Map<string, WaveformGateMetrics>,
 ): WaveformGateComparison[] {
   return [
-    waveformGateComparison("normal", DEFAULT_PARAMS.HR, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, baselineCache),
-    waveformGateComparison("HR100", 100, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, baselineCache),
-    waveformGateComparison("HR100-rearm", 100, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, baselineCache),
+    waveformGateComparison("normal", DEFAULT_PARAMS.HR, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness, baselineCache),
+    waveformGateComparison("HR100", 100, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness, baselineCache),
+    waveformGateComparison("HR100-rearm", 100, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness, baselineCache),
   ];
 }
 
@@ -1103,17 +1254,22 @@ function waveformGateComparison(
   aorticFlowClampMode: AorticFlowClampMode,
   aovB: number,
   aovAmax: number,
+  aovL: number,
+  aovTauOpen: number,
+  aovTauClose: number,
+  systemicResistance: number,
+  arterialStiffness: number,
   baselineCache: Map<string, WaveformGateMetrics>,
 ): WaveformGateComparison {
   const baselineKey = `${heartModel}|${label}|${HR}|${targetVolumeMl}|${dt}|${sampleHz}`;
   let baseline = baselineCache.get(baselineKey);
   if (!baseline) {
-    baseline = measureWaveformGate(label, HR, targetVolumeMl, heartModel, dt, sampleHz, "all", 0, "kd+fiso", "none", "lv", "none", "hard", DEFAULT_AOV_B, DEFAULT_AOV_AMAX);
+    baseline = measureWaveformGate(label, HR, targetVolumeMl, heartModel, dt, sampleHz, "all", 0, "kd+fiso", "none", "lv", "none", "hard", DEFAULT_AOV_B, DEFAULT_AOV_AMAX, DEFAULT_AOV_L, DEFAULT_AOV_TAU_OPEN, DEFAULT_AOV_TAU_CLOSE, DEFAULT_SYSTEMIC_RESISTANCE, DEFAULT_ARTERIAL_STIFFNESS);
     baselineCache.set(baselineKey, baseline);
   }
-  const candidate = tauSec <= 0 && lowStretchLimiterMode === "none" && aorticFlowClampMode === "hard" && isDefaultAorticValveComparator(aovB, aovAmax)
+  const candidate = tauSec <= 0 && lowStretchLimiterMode === "none" && aorticFlowClampMode === "hard" && isDefaultAorticValveComparator(aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness)
     ? baseline
-    : measureWaveformGate(label, HR, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax);
+    : measureWaveformGate(label, HR, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness);
   const delta = {
     CO_L: candidate.CO_L - baseline.CO_L,
     CO_R: candidate.CO_R - baseline.CO_R,
@@ -1129,7 +1285,12 @@ function waveformGateComparison(
       AoVFlowWeightedBernoulliGradient: candidate.AoVFlowWeightedBernoulliGradient - baseline.AoVFlowWeightedBernoulliGradient,
       AoVFlowWeightedInertialGradient: candidate.AoVFlowWeightedInertialGradient - baseline.AoVFlowWeightedInertialGradient,
       AoVFlowWeightedAreaLossExtraGradient: candidate.AoVFlowWeightedAreaLossExtraGradient - baseline.AoVFlowWeightedAreaLossExtraGradient,
+      AoVFlowWeightedClosureResidual: candidate.AoVFlowWeightedClosureResidual - baseline.AoVFlowWeightedClosureResidual,
+      AoVClosureResidualSV5To95Mean: candidate.AoVClosureResidualSV5To95Mean - baseline.AoVClosureResidualSV5To95Mean,
       QAoPeakMeanRatio: candidate.QAoPeakMeanRatio - baseline.QAoPeakMeanRatio,
+      QAoMeanPositive: candidate.QAoMeanPositive - baseline.QAoMeanPositive,
+      QAoTimeToPeakMs: candidate.QAoTimeToPeakMs - baseline.QAoTimeToPeakMs,
+      maxDQAoDt: candidate.maxDQAoDt - baseline.maxDQAoDt,
       ejectionDurationMs: candidate.ejectionDurationMs - baseline.ejectionDurationMs,
       ejectionPositiveDurationMs: candidate.ejectionPositiveDurationMs - baseline.ejectionPositiveDurationMs,
       ejectionFivePercentPeakDurationMs: candidate.ejectionFivePercentPeakDurationMs - baseline.ejectionFivePercentPeakDurationMs,
@@ -1166,8 +1327,13 @@ function measureWaveformGate(
   aorticFlowClampMode: AorticFlowClampMode = "hard",
   aovB: number = DEFAULT_AOV_B,
   aovAmax: number = DEFAULT_AOV_AMAX,
+  aovL: number = DEFAULT_AOV_L,
+  aovTauOpen: number = DEFAULT_AOV_TAU_OPEN,
+  aovTauClose: number = DEFAULT_AOV_TAU_CLOSE,
+  systemicResistance: number = DEFAULT_SYSTEMIC_RESISTANCE,
+  arterialStiffness: number = DEFAULT_ARTERIAL_STIFFNESS,
 ): WaveformGateMetrics {
-  return withQuietClampLogs(() => measureWaveformGateImpl(label, HR, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax));
+  return withQuietClampLogs(() => measureWaveformGateImpl(label, HR, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness));
 }
 
 function measureWaveformGateImpl(
@@ -1186,6 +1352,11 @@ function measureWaveformGateImpl(
   aorticFlowClampMode: AorticFlowClampMode = "hard",
   aovB: number = DEFAULT_AOV_B,
   aovAmax: number = DEFAULT_AOV_AMAX,
+  aovL: number = DEFAULT_AOV_L,
+  aovTauOpen: number = DEFAULT_AOV_TAU_OPEN,
+  aovTauClose: number = DEFAULT_AOV_TAU_CLOSE,
+  systemicResistance: number = DEFAULT_SYSTEMIC_RESISTANCE,
+  arterialStiffness: number = DEFAULT_ARTERIAL_STIFFNESS,
 ): WaveformGateMetrics {
   const params = paramsWithLowStretchLimiter(
     paramsWithLambdaActTau(
@@ -1193,6 +1364,11 @@ function measureWaveformGateImpl(
         label === "HR100-rearm" ? { ...DEFAULT_PARAMS, heartModel } : { ...DEFAULT_PARAMS, heartModel, HR },
         aovB,
         aovAmax,
+        aovL,
+        aovTauOpen,
+        aovTauClose,
+        systemicResistance,
+        arterialStiffness,
       ),
       tauSec,
       scope,
@@ -1223,10 +1399,13 @@ function measureWaveformGateImpl(
   const esv = Math.min(...volumes);
   const lvp = samples.map((sample) => sample.LVP).filter(Number.isFinite);
     const qao = samples.map((sample) => sample.QAo).filter(Number.isFinite);
+    const qAoPositive = qao.filter((value) => value > 0);
     const aovEjection = samples.filter((sample) => sample.QAo > 50 && sample.xiAoV > 0.8);
     const qAoMeanDuringEjection = meanNumbers(aovEjection.map((sample) => sample.QAo));
     const qAoProximity = qAoCapProximity(qao, aorticFlowClampMode);
     const aovGradient = aovGradientDecomposition(samples, params);
+    const aovClosure = aovClosureAudit(samples, params);
+    const qAoShape = aorticFlowShapeSummary(samples, measuredBeatCount);
     const ejectionDurations = aorticEjectionDurations(samples, measuredBeatCount);
     const opening = aorticOpeningSummary(samples, measuredBeatCount);
     return {
@@ -1244,10 +1423,13 @@ function measureWaveformGateImpl(
     AoVMeanGradient: metrics.AoVMeanGradient,
     AoVPeakGradient: metrics.AoVPeakGradient,
       ...aovGradient,
+      ...aovClosure,
       ...opening,
       QAoPeakMeanRatio: Number.isFinite(qAoMeanDuringEjection) && qAoMeanDuringEjection > 1e-9
         ? Math.max(...qao) / qAoMeanDuringEjection
         : Number.NaN,
+      QAoMeanPositive: meanNumbers(qAoPositive),
+      ...qAoShape,
       ejectionDurationMs: ejectionDurations.positiveMs,
       ejectionPositiveDurationMs: ejectionDurations.positiveMs,
       ejectionFivePercentPeakDurationMs: ejectionDurations.fivePercentPeakMs,
@@ -1355,6 +1537,94 @@ function aovGradientDecomposition(samples: SimSample[], params: CoreRuntimeParam
     };
   }
 
+function aovClosureAudit(samples: SimSample[], params: CoreRuntimeParams): Pick<WaveformGateMetrics,
+  "AoVClosureResidualMean"
+  | "AoVFlowWeightedClosureResidual"
+  | "AoVClosureResidualAtQAoMax"
+  | "AoVClosureResidualSV5To95Mean"
+  | "AoVFlowWeightedClosureResidualSV5To95"
+> {
+  const positive = samples
+    .map((sample, index) => ({ sample, index }))
+    .filter(({ sample }) => Number.isFinite(sample.QAo) && sample.QAo > 0);
+  if (positive.length === 0) {
+    return {
+      AoVClosureResidualMean: Number.NaN,
+      AoVFlowWeightedClosureResidual: Number.NaN,
+      AoVClosureResidualAtQAoMax: Number.NaN,
+      AoVClosureResidualSV5To95Mean: Number.NaN,
+      AoVFlowWeightedClosureResidualSV5To95: Number.NaN,
+    };
+  }
+  let residualSum = 0;
+  let qWeight = 0;
+  let residualWeighted = 0;
+  let peakQ = Number.NEGATIVE_INFINITY;
+  let residualAtPeak = Number.NaN;
+  for (const { sample, index } of positive) {
+    const q = Math.max(0, sample.QAo);
+    const residual = aovClosureResidual(samples, index, params);
+    residualSum += residual;
+    qWeight += q;
+    residualWeighted += residual * q;
+    if (q > peakQ) {
+      peakQ = q;
+      residualAtPeak = residual;
+    }
+  }
+  const svWindows = sv5To95Windows(samples);
+  const svSamples = positive.filter(({ sample }) =>
+    svWindows.some((window) => sample.t >= window.t5 && sample.t <= window.t95)
+  );
+  let svResidualSum = 0;
+  let svQWeight = 0;
+  let svResidualWeighted = 0;
+  for (const { sample, index } of svSamples) {
+    const q = Math.max(0, sample.QAo);
+    const residual = aovClosureResidual(samples, index, params);
+    svResidualSum += residual;
+    svQWeight += q;
+    svResidualWeighted += residual * q;
+  }
+  return {
+    AoVClosureResidualMean: residualSum / Math.max(positive.length, 1),
+    AoVFlowWeightedClosureResidual: residualWeighted / Math.max(qWeight, 1e-9),
+    AoVClosureResidualAtQAoMax: residualAtPeak,
+    AoVClosureResidualSV5To95Mean: svSamples.length > 0 ? svResidualSum / svSamples.length : Number.NaN,
+    AoVFlowWeightedClosureResidualSV5To95: svQWeight > 0 ? svResidualWeighted / svQWeight : Number.NaN,
+  };
+}
+
+function aovClosureResidual(samples: SimSample[], index: number, params: CoreRuntimeParams): number {
+  const sample = samples[index];
+  const total = sample.LVP - sample.AoP;
+  const orifice = sample.AoV_loss_R + sample.AoV_loss_B;
+  const inertial = params.AoV_L * qDerivative(samples, index, "QAo");
+  return total - orifice - inertial;
+}
+
+function aorticFlowShapeSummary(
+  samples: SimSample[],
+  measuredBeatCount: number,
+): Pick<WaveformGateMetrics,
+  "QAoTimeToPeakMs"
+  | "maxDQAoDt"
+> {
+  const byBeat = Array.from(groupSamplesByBeat(samples).values());
+  const timeToPeakMs: number[] = [];
+  for (const beatSamples of byBeat) {
+    const positive = beatSamples.filter((sample) => sample.QAo > 0);
+    if (positive.length === 0) continue;
+    const start = positive[0];
+    const peak = positive.reduce((best, sample) => sample.QAo > best.QAo ? sample : best, positive[0]);
+    timeToPeakMs.push((peak.t - start.t) * 1000);
+  }
+  return {
+    QAoTimeToPeakMs: timeToPeakMs.length > 0 ? meanNumbers(timeToPeakMs.slice(-measuredBeatCount)) : Number.NaN,
+    maxDQAoDt: maxDerivative(samples, "QAo"),
+  };
+}
+
 function qDerivative(samples: SimSample[], index: number, key: keyof SimSample): number {
   const previous = samples[index - 1];
   const current = samples[index];
@@ -1450,7 +1720,18 @@ function groupSamplesByBeat(samples: SimSample[]): Map<number, SimSample[]> {
 }
 
 function sv5To95DurationForBeat(samples: SimSample[]): number {
-  if (samples.length < 2) return Number.NaN;
+  const window = sv5To95WindowForBeat(samples);
+  return window ? (window.t95 - window.t5) * 1000 : Number.NaN;
+}
+
+function sv5To95Windows(samples: SimSample[]): Array<{ t5: number; t95: number }> {
+  return Array.from(groupSamplesByBeat(samples).values())
+    .map(sv5To95WindowForBeat)
+    .filter((window): window is { t5: number; t95: number } => !!window);
+}
+
+function sv5To95WindowForBeat(samples: SimSample[]): { t5: number; t95: number } | undefined {
+  if (samples.length < 2) return undefined;
   const increments: Array<{ t: number; cumulative: number }> = [{ t: samples[0].t, cumulative: 0 }];
   let total = 0;
   for (let i = 1; i < samples.length; i++) {
@@ -1460,10 +1741,10 @@ function sv5To95DurationForBeat(samples: SimSample[]): number {
     total += flow * dt;
     increments.push({ t: samples[i].t, cumulative: total });
   }
-  if (total <= 1e-6) return Number.NaN;
+  if (total <= 1e-6) return undefined;
   const t5 = crossingTime(increments, total * 0.05);
   const t95 = crossingTime(increments, total * 0.95);
-  return Number.isFinite(t5) && Number.isFinite(t95) ? (t95 - t5) * 1000 : Number.NaN;
+  return Number.isFinite(t5) && Number.isFinite(t95) ? { t5, t95 } : undefined;
 }
 
 function crossingTime(points: Array<{ t: number; cumulative: number }>, target: number): number {
@@ -1563,6 +1844,11 @@ function maxWaveformDelta(
     "AoVMeanGradient",
     "AoVPeakGradient",
     "QAoPeakMeanRatio",
+    "QAoMeanPositive",
+    "QAoTimeToPeakMs",
+    "maxDQAoDt",
+    "AoVFlowWeightedClosureResidual",
+    "AoVClosureResidualSV5To95Mean",
     "ejectionDurationMs",
     "ejectionPositiveDurationMs",
     "ejectionFivePercentPeakDurationMs",
@@ -1577,9 +1863,27 @@ function maxWaveformDelta(
   }, { metric: "CO_L", fraction: 0 });
 }
 
-function isDefaultAorticValveComparator(aovB: number, aovAmax: number): boolean {
+function isDefaultAorticValveComparator(
+  aovB: number,
+  aovAmax: number,
+  aovL: number = DEFAULT_AOV_L,
+  aovTauOpen: number = DEFAULT_AOV_TAU_OPEN,
+  aovTauClose: number = DEFAULT_AOV_TAU_CLOSE,
+  systemicResistance: number = DEFAULT_SYSTEMIC_RESISTANCE,
+  arterialStiffness: number = DEFAULT_ARTERIAL_STIFFNESS,
+): boolean {
   return Math.abs(aovB - DEFAULT_AOV_B) <= Math.max(DEFAULT_AOV_B, 1) * 1e-9
-    && Math.abs(aovAmax - DEFAULT_AOV_AMAX) <= Math.max(DEFAULT_AOV_AMAX, 1) * 1e-9;
+    && Math.abs(aovAmax - DEFAULT_AOV_AMAX) <= Math.max(DEFAULT_AOV_AMAX, 1) * 1e-9
+    && Math.abs(aovL - DEFAULT_AOV_L) <= Math.max(DEFAULT_AOV_L, 1) * 1e-9
+    && Math.abs(aovTauOpen - DEFAULT_AOV_TAU_OPEN) <= Math.max(DEFAULT_AOV_TAU_OPEN, 1) * 1e-9
+    && Math.abs(aovTauClose - DEFAULT_AOV_TAU_CLOSE) <= Math.max(DEFAULT_AOV_TAU_CLOSE, 1) * 1e-9
+    && Math.abs(systemicResistance - DEFAULT_SYSTEMIC_RESISTANCE) <= Math.max(DEFAULT_SYSTEMIC_RESISTANCE, 1) * 1e-9
+    && Math.abs(arterialStiffness - DEFAULT_ARTERIAL_STIFFNESS) <= Math.max(DEFAULT_ARTERIAL_STIFFNESS, 1) * 1e-9;
+}
+
+function markdownSeparator(headerLine: string): string {
+  const columnCount = Math.max(1, headerLine.split("|").length - 2);
+  return `| ${Array.from({ length: columnCount }, () => "---").join(" | ")} |`;
 }
 
 export function matrixReportToMarkdown(report: MatrixReport): string {
@@ -1592,7 +1896,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("## Classification counts");
   lines.push("");
   lines.push("| baseline | fail | mitigator | root-fix candidate |");
-  lines.push("| ---: | ---: | ---: | ---: |");
+  lines.push(markdownSeparator(lines[lines.length - 1]));
   lines.push([
     report.summary.classificationCounts.baseline,
     report.summary.classificationCounts.fail,
@@ -1603,7 +1907,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("## Branch localization counts");
   lines.push("");
   lines.push("| EDV dominant | ESV/ejection dominant | mixed |");
-  lines.push("| ---: | ---: | ---: |");
+  lines.push(markdownSeparator(lines[lines.length - 1]));
   lines.push([
     report.summary.branchLocalizationCounts["edv-dominant"],
     report.summary.branchLocalizationCounts["esv/ejection-dominant"],
@@ -1613,7 +1917,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("## Filling morphology alternation counts");
   lines.push("");
   lines.push("| morphology alternation | peak-count alternation | max MV A branch frac | max MV mid branch frac | max LA A-loop branch frac |");
-  lines.push("| ---: | ---: | ---: | ---: | ---: |");
+  lines.push(markdownSeparator(lines[lines.length - 1]));
   lines.push([
     report.summary.fillingMorphologyAlternationCount,
     report.summary.peakCountAlternationCount,
@@ -1625,7 +1929,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("## Primary MV event alternation counts");
   lines.push("");
   lines.push("| near-zero return alternation | MV reopen alternation | LAP-LVP crossing alternation | max xi-min branch | max open01-min branch |");
-  lines.push("| ---: | ---: | ---: | ---: | ---: |");
+  lines.push(markdownSeparator(lines[lines.length - 1]));
   lines.push([
     report.summary.nearZeroReturnAlternationCount,
     report.summary.reopenCountAlternationCount,
@@ -1636,8 +1940,8 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("## Scenario summary");
   lines.push("");
-  lines.push("| class | branch class | localization | reasons | heart model | scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | AoV clamp | AoV B | AoV Amax | selected deltas | period-2 | worst delta | worst covered | coverage | evidence | needs Jacobian | max CO branch frac | max EDV branch frac | max ESV branch frac | max QAo branch frac | max AoP branch frac | max QAo/cap | near cap >95% | at cap | local cap active | clean slopes | clean one-beat EDV slope | clean two-beat EDV slope | clean one-beat ESV slope | clean two-beat ESV slope | clean one-beat volume max slope | clean two-beat volume max slope | min MV A mL | min MV A frac | min LA A-loop frac | mean CO err | mean SV err | monotonicity breaks | dip/re-rise | slope ratio | active hit frac | min active scale | target reduction | max clamp hits | max sanitize abs mL | max projection applied mL | contaminated | max waveform gate frac | worst waveform metric |");
-  lines.push("| --- | --- | --- | --- | --- | --- | --- | ---: | --- | --- | --- | ---: | --- | --- | ---: | ---: | --- | ---: | ---: | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
+  lines.push("| class | branch class | localization | reasons | heart model | scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | AoV clamp | AoV B | AoV Amax | AoV L | tau open | tau close | SVR | art stiff | selected deltas | period-2 | worst delta | worst covered | coverage | evidence | needs Jacobian | max CO branch frac | max EDV branch frac | max ESV branch frac | max QAo branch frac | max AoP branch frac | max QAo/cap | near cap >95% | at cap | local cap active | clean slopes | clean one-beat EDV slope | clean two-beat EDV slope | clean one-beat ESV slope | clean two-beat ESV slope | clean one-beat volume max slope | clean two-beat volume max slope | min MV A mL | min MV A frac | min LA A-loop frac | mean CO err | mean SV err | monotonicity breaks | dip/re-rise | slope ratio | active hit frac | min active scale | target reduction | max clamp hits | max sanitize abs mL | max projection applied mL | contaminated | max waveform gate frac | worst waveform metric |");
+  lines.push(markdownSeparator(lines[lines.length - 1]));
   for (const scenario of report.scenarios) {
     const worstWaveform = scenario.waveformGates.reduce<{ label: string; metric: string; fraction: number }>(
       (best, gate) => gate.maxDeltaFraction > best.fraction
@@ -1662,6 +1966,11 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
       scenario.aorticFlowClampMode,
       scenario.aovB,
       scenario.aovAmax,
+      scenario.aovL,
+      scenario.aovTauOpen,
+      scenario.aovTauClose,
+      scenario.systemicResistance,
+      scenario.arterialStiffness,
       scenario.selectedDeltasMl.join(", "),
       scenario.returnMapSummary.period2Count,
       scenario.evaluation.worstDeltaVolumeMl ?? "",
@@ -1714,7 +2023,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("## Per-delta primary branch / slope view");
   lines.push("");
   lines.push("| class | heart model | lambda scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | delta | LAP | CO_L period | CO_L last beat | period | branch class | localization | CO branch frac | EDV branch frac | ESV branch frac | MV reopen A/B | zero return A/B | LAP-LVP crossings A/B | xi-min branch | open01-min branch | MV A mL | MV A frac | MV mid mL | MV peaks | morphology | MV A branch frac | MV mid branch frac | morphology alternates | peak-count alternates | LA A-loop frac | active hit frac | min active scale | target reduction | return-map | clean slope | one-beat EDV slope | two-beat EDV slope | one-beat ESV slope | two-beat ESV slope | one-beat volume max slope | two-beat volume max slope | nonsmooth | audit |");
-  lines.push("| --- | --- | --- | --- | ---: | --- | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |");
+  lines.push(markdownSeparator(lines[lines.length - 1]));
   for (const scenario of report.scenarios) {
     for (const point of scenario.perDeltaEvaluation) {
       lines.push([
@@ -1772,8 +2081,8 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("## TBV / Clamp Audit");
   lines.push("");
-  lines.push("| scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | AoV B | AoV Amax | max CO branch frac | max sanitize abs mL | max projection applied mL | contaminated points |");
-  lines.push("| --- | --- | ---: | --- | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | AoV B | AoV Amax | AoV L | tau open | tau close | SVR | art stiff | max CO branch frac | max sanitize abs mL | max projection applied mL | contaminated points |");
+  lines.push(markdownSeparator(lines[lines.length - 1]));
   for (const scenario of report.scenarios) {
     lines.push([
       scenario.lambdaActScope,
@@ -1786,6 +2095,11 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
       scenario.tbvCorrectionMode,
       scenario.aovB,
       scenario.aovAmax,
+      scenario.aovL,
+      scenario.aovTauOpen,
+      scenario.aovTauClose,
+      scenario.systemicResistance,
+      scenario.arterialStiffness,
       round(scenario.returnMapSummary.maxBranchAmplitudeFractionCOL, 4),
       round(scenario.returnMapSummary.maxSanitizeAbsMl, 6),
       round(scenario.returnMapSummary.maxProjectionAppliedMl, 6),
@@ -1796,7 +2110,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("## LA/MV filling regime diagnostics");
   lines.push("");
   lines.push("| class | scope | limiter | limiter scope | preset | dt | TBV correction | delta | CO branch frac | EDV branch frac | ESV branch frac | MV E mL | MV A mL | MV A frac | MV mid mL | MV E peak | MV A peak | MV mid peak | MV peaks | mid peaks | QMV zero returns | MV reopen count | xi min E-A | open01 min E-A | LAP-LVP zc | morphology | MV A branch abs | MV A branch frac | MV mid branch abs | MV mid branch frac | LA A-loop branch abs | LA A-loop branch frac | morphology A | morphology B | morphology alternates | peak count A | peak count B | peak-count alternates | LA A-loop area | LA A-loop frac | A mean LAP-LVP | A max LAP-LVP | A MV open frac | period |");
-  lines.push("| --- | --- | --- | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push(markdownSeparator(lines[lines.length - 1]));
   for (const scenario of report.scenarios) {
     for (const point of scenario.perDeltaEvaluation) {
       lines.push([
@@ -1850,8 +2164,8 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("## Normal / HR100 waveform gates");
   lines.push("");
-  lines.push("| scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | AoV B | AoV Amax | case | dCO_L | dESV_L | dEF_L | dLVPmax | dQAoMax | candidate QAo/cap | near cap >95% | local cap active | AoV total mean | AoV peak total | orifice mean | full-open orifice | area-loss extra | Bq2 mean | inertial mean | residual mean | AoV open01 mean | open01 at QAoMax | near-full-open ms | QAo peak/mean | eject QAo>0 ms | eject >5%peak ms | eject SV5-95 ms | high-flow ms | baseline QAo/cap | dMax dP/dt | dClamp hits | worst metric | worst frac |");
-  lines.push("| --- | --- | ---: | --- | --- | --- | ---: | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: |");
+  lines.push("| scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | AoV B | AoV Amax | AoV L | tau open | tau close | SVR | art stiff | case | dCO_L | dESV_L | dEF_L | dLVPmax | dQAoMax | candidate QAo/cap | near cap >95% | local cap active | AoV total mean | AoV peak total | orifice mean | full-open orifice | area-loss extra | Bq2 mean | inertial mean | residual mean | closure mean | closure fw | closure at QAoMax | closure SV5-95 | closure SV5-95 fw | QAo mean+ | QAo t-peak ms | max dQAo/dt | AoV open01 mean | open01 at QAoMax | near-full-open ms | QAo peak/mean | eject QAo>0 ms | eject >5%peak ms | eject SV5-95 ms | high-flow ms | baseline QAo/cap | dMax dP/dt | dClamp hits | worst metric | worst frac |");
+  lines.push(markdownSeparator(lines[lines.length - 1]));
   for (const scenario of report.scenarios) {
     for (const gate of scenario.waveformGates) {
       lines.push([
@@ -1865,6 +2179,11 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         scenario.tbvCorrectionMode,
         scenario.aovB,
         scenario.aovAmax,
+        scenario.aovL,
+        scenario.aovTauOpen,
+        scenario.aovTauClose,
+        scenario.systemicResistance,
+        scenario.arterialStiffness,
         gate.label,
         round(gate.delta.CO_L, 4),
         round(gate.delta.ESV_L, 4),
@@ -1882,6 +2201,14 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         round(gate.candidate.AoVFlowWeightedBernoulliGradient, 4),
         round(gate.candidate.AoVFlowWeightedInertialGradient, 4),
         round(gate.candidate.AoVFlowWeightedResidualGradient, 4),
+        round(gate.candidate.AoVClosureResidualMean, 4),
+        round(gate.candidate.AoVFlowWeightedClosureResidual, 4),
+        round(gate.candidate.AoVClosureResidualAtQAoMax, 4),
+        round(gate.candidate.AoVClosureResidualSV5To95Mean, 4),
+        round(gate.candidate.AoVFlowWeightedClosureResidualSV5To95, 4),
+        round(gate.candidate.QAoMeanPositive, 4),
+        round(gate.candidate.QAoTimeToPeakMs, 2),
+        round(gate.candidate.maxDQAoDt, 4),
         round(gate.candidate.AoVFlowWeightedOpen01, 4),
         round(gate.candidate.AoVOpen01AtQAoMax, 4),
         round(gate.candidate.AoVTimeToNearFullOpenMs, 2),
@@ -1903,8 +2230,8 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("These values split the normal/HR waveform AoV pressure loss into total transient gradient, quasi-steady orifice loss (`Rq + Bq|q|` using the sampled effective valve loss), full-open orifice loss, area-loss extra while the valve is not fully open, inertial loss, and residual. Use the full-open/orifice columns for AS-like sanity; the total gradient also contains inertial/transient effects and residual model/coupling terms.");
   lines.push("");
-  lines.push("| heart model | dt | TBV correction | AoV clamp | limiter | preset | AoV B | AoV Amax | case | total mean | sampled orifice mean | full-open orifice mean | area-loss extra mean | Rq mean | Bq2 mean | inertial mean | residual mean | open01 mean | open01 at QAoMax | near-full-open ms | peak orifice | peak area-loss extra | peak inertial | peak residual |");
-  lines.push("| --- | ---: | --- | --- | --- | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| heart model | dt | TBV correction | AoV clamp | limiter | preset | AoV B | AoV Amax | AoV L | tau open | tau close | SVR | art stiff | case | total mean | sampled orifice mean | full-open orifice mean | area-loss extra mean | Rq mean | Bq2 mean | inertial mean | residual mean | open01 mean | open01 at QAoMax | near-full-open ms | peak orifice | peak area-loss extra | peak inertial | peak residual |");
+  lines.push(markdownSeparator(lines[lines.length - 1]));
   for (const scenario of report.scenarios) {
     for (const gate of scenario.waveformGates) {
       lines.push([
@@ -1916,6 +2243,11 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         scenario.activeReservePreset,
         scenario.aovB,
         scenario.aovAmax,
+        scenario.aovL,
+        scenario.aovTauOpen,
+        scenario.aovTauClose,
+        scenario.systemicResistance,
+        scenario.arterialStiffness,
         gate.label,
         round(gate.candidate.AoVFlowWeightedTotalGradient, 4),
         round(gate.candidate.AoVFlowWeightedOrificeGradient, 4),
@@ -1925,6 +2257,14 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         round(gate.candidate.AoVFlowWeightedBernoulliGradient, 4),
         round(gate.candidate.AoVFlowWeightedInertialGradient, 4),
         round(gate.candidate.AoVFlowWeightedResidualGradient, 4),
+        round(gate.candidate.AoVClosureResidualMean, 4),
+        round(gate.candidate.AoVFlowWeightedClosureResidual, 4),
+        round(gate.candidate.AoVClosureResidualAtQAoMax, 4),
+        round(gate.candidate.AoVClosureResidualSV5To95Mean, 4),
+        round(gate.candidate.AoVFlowWeightedClosureResidualSV5To95, 4),
+        round(gate.candidate.QAoMeanPositive, 4),
+        round(gate.candidate.QAoTimeToPeakMs, 2),
+        round(gate.candidate.maxDQAoDt, 4),
         round(gate.candidate.AoVFlowWeightedOpen01, 4),
         round(gate.candidate.AoVOpen01AtQAoMax, 4),
         round(gate.candidate.AoVTimeToNearFullOpenMs, 2),
@@ -1938,8 +2278,8 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("## AoV_B / AS sanity");
   lines.push("");
-  lines.push("| heart model | dt | TBV correction | AoV clamp | AoV B | AoV Aref | AoV Amax | case | total mean grad | sampled orifice mean | full-open orifice mean | area-loss extra | inertial mean | residual mean | open01 mean | eject QAo>0 ms | eject SV5-95 ms | QAo peak/mean | QAo/cap | branch CO frac | branch ESV frac | waveform worst frac |");
-  lines.push("| --- | ---: | --- | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| heart model | dt | TBV correction | AoV clamp | AoV B | AoV Aref | AoV Amax | AoV L | tau open | tau close | SVR | art stiff | case | total mean grad | sampled orifice mean | full-open orifice mean | area-loss extra | inertial mean | residual mean | closure fw | open01 mean | eject QAo>0 ms | eject SV5-95 ms | QAo peak/mean | QAo t-peak ms | QAo/cap | branch CO frac | branch ESV frac | waveform worst frac |");
+  lines.push(markdownSeparator(lines[lines.length - 1]));
   for (const scenario of report.scenarios) {
     for (const gate of scenario.waveformGates) {
       lines.push([
@@ -1950,6 +2290,11 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         scenario.aovB,
         scenario.aovAref,
         scenario.aovAmax,
+        scenario.aovL,
+        scenario.aovTauOpen,
+        scenario.aovTauClose,
+        scenario.systemicResistance,
+        scenario.arterialStiffness,
         gate.label,
         round(gate.candidate.AoVMeanGradient, 4),
         round(gate.candidate.AoVFlowWeightedOrificeGradient, 4),
@@ -1957,10 +2302,12 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         round(gate.candidate.AoVFlowWeightedAreaLossExtraGradient, 4),
         round(gate.candidate.AoVFlowWeightedInertialGradient, 4),
         round(gate.candidate.AoVFlowWeightedResidualGradient, 4),
+        round(gate.candidate.AoVFlowWeightedClosureResidual, 4),
         round(gate.candidate.AoVFlowWeightedOpen01, 4),
         round(gate.candidate.ejectionPositiveDurationMs, 2),
         round(gate.candidate.ejectionSV5To95DurationMs, 2),
         round(gate.candidate.QAoPeakMeanRatio, 4),
+        round(gate.candidate.QAoTimeToPeakMs, 2),
         round(gate.candidate.QAoCapRatioMax, 4),
         round(scenario.evaluation.maxPerDeltaBranchFractionCOL, 4),
         round(scenario.evaluation.maxPerDeltaBranchFractionESVL, 4),
@@ -1972,7 +2319,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("## Selected return-map points");
   lines.push("");
   lines.push("| scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | delta | return-map | branch CO frac | branch EDV frac | branch ESV frac | one-beat EDV slope | two-beat EDV slope | one-beat ESV slope | two-beat ESV slope | one-beat volume max slope | two-beat volume max slope | clamps | audit |");
-  lines.push("| --- | --- | ---: | --- | --- | --- | ---: | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
+  lines.push(markdownSeparator(lines[lines.length - 1]));
   for (const scenario of report.scenarios) {
     for (const point of scenario.points.filter((p) => p.returnMap.status !== "skipped")) {
       lines.push([
@@ -2052,6 +2399,11 @@ export function matrixReportToCsv(report: MatrixReport): string {
     "AoV_B",
     "AoV_Amax",
     "AoV_Aref",
+    "AoV_L",
+    "AoV_tauOpen",
+    "AoV_tauClose",
+    "systemicResistance",
+    "arterialStiffness",
     "deltaVolumeMl",
     "periodBeats",
     "CO_L",
@@ -2073,6 +2425,11 @@ export function matrixReportToCsv(report: MatrixReport): string {
     "normalAoVFlowWeightedBernoulliGradient",
     "normalAoVFlowWeightedInertialGradient",
     "normalAoVFlowWeightedResidualGradient",
+    "normalAoVClosureResidualMean",
+    "normalAoVFlowWeightedClosureResidual",
+    "normalAoVClosureResidualAtQAoMax",
+    "normalAoVClosureResidualSV5To95Mean",
+    "normalAoVFlowWeightedClosureResidualSV5To95",
     "normalAoVFlowWeightedFullOpenOrificeGradient",
     "normalAoVFlowWeightedAreaLossExtraGradient",
     "normalAoVFlowWeightedOpen01",
@@ -2083,6 +2440,9 @@ export function matrixReportToCsv(report: MatrixReport): string {
     "normalAoVOpen01AtQAoMax",
     "normalAoVMeanOpen01DuringEjection",
     "normalAoVTimeToNearFullOpenMs",
+    "normalQAoMeanPositive",
+    "normalQAoTimeToPeakMs",
+    "normalMaxDQAoDt",
     "normalQAoPeakMeanRatio",
     "normalEjectionDurationMs",
     "normalEjectionPositiveDurationMs",
@@ -2188,6 +2548,11 @@ export function matrixReportToCsv(report: MatrixReport): string {
         scenario.aovB,
         scenario.aovAmax,
         scenario.aovAref,
+        scenario.aovL,
+        scenario.aovTauOpen,
+        scenario.aovTauClose,
+        scenario.systemicResistance,
+        scenario.arterialStiffness,
         point.deltaVolumeMl,
         point.settle.periodBeats ?? 1,
         point.periodMetrics.CO_L,
@@ -2209,6 +2574,11 @@ export function matrixReportToCsv(report: MatrixReport): string {
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVFlowWeightedBernoulliGradient ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVFlowWeightedInertialGradient ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVFlowWeightedResidualGradient ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVClosureResidualMean ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVFlowWeightedClosureResidual ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVClosureResidualAtQAoMax ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVClosureResidualSV5To95Mean ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVFlowWeightedClosureResidualSV5To95 ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVFlowWeightedFullOpenOrificeGradient ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVFlowWeightedAreaLossExtraGradient ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVFlowWeightedOpen01 ?? "",
@@ -2219,6 +2589,9 @@ export function matrixReportToCsv(report: MatrixReport): string {
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVOpen01AtQAoMax ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVMeanOpen01DuringEjection ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVTimeToNearFullOpenMs ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.QAoMeanPositive ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.QAoTimeToPeakMs ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.maxDQAoDt ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.QAoPeakMeanRatio ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.ejectionDurationMs ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.ejectionPositiveDurationMs ?? "",
@@ -2316,6 +2689,11 @@ export function parseLowPreloadMatrixArgs(args: string[]): MatrixOptions {
     aorticFlowClampModes: DEFAULT_AORTIC_FLOW_CLAMP_MODES,
     aovBValues: DEFAULT_AOV_B_VALUES,
     asAovAmaxValues: DEFAULT_AS_AOV_AMAX_VALUES,
+    aovLValues: DEFAULT_AOV_L_VALUES,
+    aovTauOpenValues: DEFAULT_AOV_TAU_OPEN_VALUES,
+    aovTauCloseValues: DEFAULT_AOV_TAU_CLOSE_VALUES,
+    systemicResistanceValues: DEFAULT_SYSTEMIC_RESISTANCE_VALUES,
+    arterialStiffnessValues: DEFAULT_ARTERIAL_STIFFNESS_VALUES,
     includeAllScope: false,
     maxReturnMapPoints: 6,
     traceBeats: 10,
@@ -2339,6 +2717,11 @@ export function parseLowPreloadMatrixArgs(args: string[]): MatrixOptions {
     else if (key === "--aortic-flow-clamp" && value) opts.aorticFlowClampModes = parseAorticFlowClampModes(value);
     else if (key === "--aov-b" && value) opts.aovBValues = normalizeAovValues(parseNumberList(value), DEFAULT_AOV_B);
     else if (key === "--as-aov-amax" && value) opts.asAovAmaxValues = normalizeAovValues(parseNumberList(value), DEFAULT_AOV_AMAX);
+    else if (key === "--aov-l" && value) opts.aovLValues = normalizeAovValues(parseNumberList(value), DEFAULT_AOV_L);
+    else if (key === "--aov-tau-open" && value) opts.aovTauOpenValues = normalizeAovValues(parseNumberList(value), DEFAULT_AOV_TAU_OPEN);
+    else if (key === "--aov-tau-close" && value) opts.aovTauCloseValues = normalizeAovValues(parseNumberList(value), DEFAULT_AOV_TAU_CLOSE);
+    else if (key === "--systemic-resistance" && value) opts.systemicResistanceValues = normalizeAovValues(parseNumberList(value), DEFAULT_SYSTEMIC_RESISTANCE);
+    else if (key === "--arterial-stiffness" && value) opts.arterialStiffnessValues = normalizeAovValues(parseNumberList(value), DEFAULT_ARTERIAL_STIFFNESS);
     else if (key === "--include-all-scope") opts.includeAllScope = true;
     else if (key === "--branch-only") opts.maxReturnMapPoints = 0;
     else if (key === "--max-return-map-points" && value) opts.maxReturnMapPoints = Math.max(0, Math.floor(Number(value)));
@@ -2501,11 +2884,13 @@ function printHelp(): void {
     "       [--tbv-correction=on,off,low]",
     "       [--aortic-flow-clamp=hard,soft-tanh,soft-rational,local-c1-0.95,local-c2-0.98]",
     "       [--aov-b=0.000001,0.00001,0.00003] [--as-aov-amax=3.5,2,1.5,1]",
+    "       [--aov-l=0.00025,0.0005] [--aov-tau-open=0.006,0.012] [--aov-tau-close=0.008,0.016]",
+    "       [--systemic-resistance=1,1.2] [--arterial-stiffness=0.75,1.0]",
     "       [--include-all-scope] [--branch-only] [--max-return-map-points=6]",
     "       [--quiet-progress]",
     "",
     "Example:",
-    "  npm run verify:starling-low-preload-matrix -- --deltas=0,-1250,-1400 --dt=0.001 --lambda-act-tau=0,0.15 --lambda-act-scope=lv --lambda-act-terms=kd,fiso,kd+fiso --low-stretch-limiter=none,activeReserveCap,fIsoSlopeRelax --active-reserve-preset=directMild,directMedium --tbv-correction=on,off --max-return-map-points=2",
+    "  npm run verify:starling-low-preload-matrix -- --deltas=0,-1250,-1400 --dt=0.001 --lambda-act-tau=0 --aov-b=0.000001,0.000002 --aov-l=0.00025,0.0005 --aov-tau-open=0.006,0.012 --tbv-correction=on --max-return-map-points=2",
   ].join("\n"));
 }
 

@@ -555,3 +555,59 @@ Primary readout:
 - Does `fIsoSlopeRelax` reduce CO/ESV/QAo branch amplitude and clean ESV-section slope without flattening the period-mean Starling curve?
 - Does it preserve normal / HR100 / HR100-rearm CO, SV, ESV, EF, LVPmax, QAoMax, dP/dt, and ejection durations better than `activeReserveCap`?
 - Does it move QAo/cap away from the hard cap without increasing AoV residual, area-loss extra, valve reverse volume, sanitize/TBV contamination, or clamp activity?
+
+Current model-team interpretation:
+
+- The initial `fIsoSlopeRelax` comparator is valuable negative evidence. In the 2026-06-12 matrix it barely reduced CO/ESV/QAo branch fractions while moving period-mean CO/SV substantially, so it should not be treated as a root-fix candidate.
+- `activeReserveCap` remains a leading mitigator, not a cure. Branch amplitude alone is not enough; clean ESV-section slope remains the primary distinction between clipping and true stabilization.
+- `AoV_B` / orifice-loss changes can suppress the branch, but high values fail normal/HR waveform and orifice-gradient sanity. They are calibration probes, not default proposals.
+- The next diagnostic focus is AoV/ejection physicality: closure residual, QAo waveform shape, low-range AoV_B, AoV_L, valve opening/closing tau, systemic resistance, and arterial stiffness.
+
+The matrix report now adds report-only axes and readouts for:
+
+- `--aov-l=...`
+- `--aov-tau-open=...`
+- `--aov-tau-close=...`
+- `--systemic-resistance=...`
+- `--arterial-stiffness=...`
+- direct AoV ODE closure residual `LVP-AoP-(Rq+Bq|q|+LqDot)`
+- QAo physicality: positive-flow mean, time-to-peak, and max dQAo/dt
+
+Suggested single-axis AoV/ejection physicality smoke:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/aov-closure-smoke \
+  --deltas=0,-1250,-1300 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --aortic-flow-clamp=hard \
+  --aov-b=0.000001,0.0000015,0.000002,0.0000025,0.000003,0.000005 \
+  --max-return-map-points=2 \
+  --trace-beats=4 \
+  --sample-hz=60
+```
+
+Run AoV_L, tau, and afterload axes as separate single-axis sweeps first to preserve attribution and avoid candidate explosion:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/aov-l-smoke \
+  --deltas=0,-1250,-1300 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --aortic-flow-clamp=hard \
+  --aov-l=0.00025,0.000375,0.0005 \
+  --max-return-map-points=2 \
+  --trace-beats=4 \
+  --sample-hz=60
+```
+
+Interpretation guardrails:
+
+- Use full-open/sampled orifice gradient for AS-like sanity. Total `LVP-AoP` also includes inertial and residual components.
+- Treat large closure residuals as a reason to inspect valve/coupling numerics before drawing stenosis-like conclusions.
+- Use QAo `SV 5-95%` duration, `QAo > 5% peak` duration, peak/mean, time-to-peak, and dQAo/dt for waveform physicality; keep historical high-flow duration only for continuity with older reports.
+- If dynamic axes reduce clean ESV-section slope below 1 without raising orifice gradient or damaging normal/HR gates, they become stronger root-fix leads than static active-stress level caps.

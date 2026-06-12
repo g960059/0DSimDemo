@@ -33,6 +33,11 @@ type DebugOptions = {
   aorticFlowClampMode?: AorticFlowClampMode;
   aovB?: number;
   aovAmax?: number;
+  aovL?: number;
+  aovTauOpen?: number;
+  aovTauClose?: number;
+  systemicResistance?: number;
+  arterialStiffness?: number;
 };
 
 type ActiveBeatSummary = {
@@ -457,6 +462,11 @@ type DebugReport = {
   aovB: number;
   aovAmax: number;
   aovAref: number;
+  aovL: number;
+  aovTauOpen: number;
+  aovTauClose: number;
+  systemicResistance: number;
+  arterialStiffness: number;
   beatPairOverlay: boolean;
   points: DebugPoint[];
   summary: DebugSummary;
@@ -501,6 +511,11 @@ const DEFAULT_AORTIC_FLOW_CLAMP_MODE: AorticFlowClampMode = "hard";
 export const DEFAULT_AOV_B = DEFAULT_PARAMS.AoV_B;
 export const DEFAULT_AOV_AREF = DEFAULT_PARAMS.AoV_Aref;
 export const DEFAULT_AOV_AMAX = DEFAULT_PARAMS.AoV_Amax;
+export const DEFAULT_AOV_L = DEFAULT_PARAMS.AoV_L;
+export const DEFAULT_AOV_TAU_OPEN = DEFAULT_PARAMS.AoV_tauOpen;
+export const DEFAULT_AOV_TAU_CLOSE = DEFAULT_PARAMS.AoV_tauClose;
+export const DEFAULT_SYSTEMIC_RESISTANCE = DEFAULT_PARAMS.systemicResistance;
+export const DEFAULT_ARTERIAL_STIFFNESS = DEFAULT_PARAMS.arterialStiffness;
 const TBV_AUDIT_CONTAMINATION_THRESHOLD_ML = 0.05;
 const LOW_TBV_CORRECTION_OPTIONS = {
   gain: 0.035,
@@ -745,6 +760,11 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
   const aorticFlowClampMode = opts.aorticFlowClampMode ?? DEFAULT_AORTIC_FLOW_CLAMP_MODE;
   const aovB = finitePositiveOrDefault(opts.aovB, DEFAULT_AOV_B);
   const aovAmax = finitePositiveOrDefault(opts.aovAmax, DEFAULT_AOV_AMAX);
+  const aovL = finitePositiveOrDefault(opts.aovL, DEFAULT_AOV_L);
+  const aovTauOpen = finitePositiveOrDefault(opts.aovTauOpen, DEFAULT_AOV_TAU_OPEN);
+  const aovTauClose = finitePositiveOrDefault(opts.aovTauClose, DEFAULT_AOV_TAU_CLOSE);
+  const systemicResistance = finitePositiveOrDefault(opts.systemicResistance, DEFAULT_SYSTEMIC_RESISTANCE);
+  const arterialStiffness = finitePositiveOrDefault(opts.arterialStiffness, DEFAULT_ARTERIAL_STIFFNESS);
   const dtValues = opts.dtValues.length > 0 ? opts.dtValues : DEFAULT_DT_VALUES;
   const lambdaActTauSecValues = opts.lambdaActTauSecValues.length > 0
     ? opts.lambdaActTauSecValues
@@ -780,6 +800,11 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
     aovB,
     aovAmax,
     aovAref: DEFAULT_AOV_AREF,
+    aovL,
+    aovTauOpen,
+    aovTauClose,
+    systemicResistance,
+    arterialStiffness,
     beatPairOverlay: opts.beatPairOverlay === true,
     points: primary.points,
     summary: primary.summary,
@@ -821,7 +846,8 @@ export function reportToMarkdown(report: DebugReport): string {
   lines.push(`return-map mode: ${report.returnMapMode}`);
   lines.push(`TBV correction mode: ${report.tbvCorrectionMode}`);
   lines.push(`AoV flow clamp mode: ${report.aorticFlowClampMode}`);
-  lines.push(`AoV_B: ${report.aovB}; AoV_Amax: ${report.aovAmax}; AoV_Aref: ${report.aovAref}`);
+  lines.push(`AoV_B: ${report.aovB}; AoV_L: ${report.aovL}; AoV_tauOpen: ${report.aovTauOpen}; AoV_tauClose: ${report.aovTauClose}; AoV_Amax: ${report.aovAmax}; AoV_Aref: ${report.aovAref}`);
+  lines.push(`systemicResistance: ${report.systemicResistance}; arterialStiffness: ${report.arterialStiffness}`);
   lines.push(`beat-pair overlay: ${report.beatPairOverlay ? "enabled" : "disabled"}`);
   if (report.maxReturnMapPoints != null) lines.push(`max return-map points: ${report.maxReturnMapPoints}`);
   lines.push("");
@@ -1327,7 +1353,16 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
   const activeReservePreset = effectiveActiveReservePreset(lowStretchLimiterMode, opts.activeReservePreset);
   const params = paramsWithLowStretchLimiter(
     paramsWithLambdaActTau(
-      paramsWithAorticValveComparator(defaultParamsForHeartModel(opts.heartModel), opts.aovB, opts.aovAmax),
+      paramsWithAorticValveComparator(
+        defaultParamsForHeartModel(opts.heartModel),
+        opts.aovB,
+        opts.aovAmax,
+        opts.aovL,
+        opts.aovTauOpen,
+        opts.aovTauClose,
+        opts.systemicResistance,
+        opts.arterialStiffness,
+      ),
       lambdaActTauSec,
       opts.lambdaActScope,
       lambdaActTerms,
@@ -1458,6 +1493,11 @@ export function paramsWithAorticValveComparator(
   params: CoreRuntimeParams,
   aovB?: number,
   aovAmax?: number,
+  aovL?: number,
+  aovTauOpen?: number,
+  aovTauClose?: number,
+  systemicResistance?: number,
+  arterialStiffness?: number,
 ): CoreRuntimeParams {
   const next = { ...params };
   if (aovB != null && Number.isFinite(aovB) && aovB > 0) next.AoV_B = aovB;
@@ -1465,6 +1505,11 @@ export function paramsWithAorticValveComparator(
     next.AoV_Aref = DEFAULT_AOV_AREF;
     next.AoV_Amax = aovAmax;
   }
+  if (aovL != null && Number.isFinite(aovL) && aovL > 0) next.AoV_L = aovL;
+  if (aovTauOpen != null && Number.isFinite(aovTauOpen) && aovTauOpen > 0) next.AoV_tauOpen = aovTauOpen;
+  if (aovTauClose != null && Number.isFinite(aovTauClose) && aovTauClose > 0) next.AoV_tauClose = aovTauClose;
+  if (systemicResistance != null && Number.isFinite(systemicResistance) && systemicResistance > 0) next.systemicResistance = systemicResistance;
+  if (arterialStiffness != null && Number.isFinite(arterialStiffness) && arterialStiffness > 0) next.arterialStiffness = arterialStiffness;
   return next;
 }
 
@@ -2836,6 +2881,11 @@ export function parseLowPreloadDebugArgs(args: string[]): DebugOptions {
     else if (key === "--aortic-flow-clamp" && value) opts.aorticFlowClampMode = parseAorticFlowClampMode(value);
     else if (key === "--aov-b" && value) opts.aovB = finitePositiveOrDefault(Number(value), DEFAULT_AOV_B);
     else if (key === "--as-aov-amax" && value) opts.aovAmax = finitePositiveOrDefault(Number(value), DEFAULT_AOV_AMAX);
+    else if (key === "--aov-l" && value) opts.aovL = finitePositiveOrDefault(Number(value), DEFAULT_AOV_L);
+    else if (key === "--aov-tau-open" && value) opts.aovTauOpen = finitePositiveOrDefault(Number(value), DEFAULT_AOV_TAU_OPEN);
+    else if (key === "--aov-tau-close" && value) opts.aovTauClose = finitePositiveOrDefault(Number(value), DEFAULT_AOV_TAU_CLOSE);
+    else if (key === "--systemic-resistance" && value) opts.systemicResistance = finitePositiveOrDefault(Number(value), DEFAULT_SYSTEMIC_RESISTANCE);
+    else if (key === "--arterial-stiffness" && value) opts.arterialStiffness = finitePositiveOrDefault(Number(value), DEFAULT_ARTERIAL_STIFFNESS);
     else if (key === "--quiet-clamp-log") opts.quietClampLog = true;
     else if (key === "--trace-beats" && value) opts.traceBeats = Math.max(2, Math.floor(Number(value)));
     else if (key === "--sample-hz" && value) opts.sampleHz = Math.max(20, Math.floor(Number(value)));
@@ -2929,7 +2979,8 @@ function printHelp(): void {
     "       [--beat-pair-overlay]",
     "       [--tbv-correction=on|off|low]",
     "       [--aortic-flow-clamp=hard|soft-tanh|soft-rational|local-c1-0.95|local-c2-0.98]",
-    "       [--aov-b=0.000001] [--as-aov-amax=1.5]",
+    "       [--aov-b=0.000001] [--as-aov-amax=1.5] [--aov-l=0.00025]",
+    "       [--aov-tau-open=0.006] [--aov-tau-close=0.008] [--systemic-resistance=1] [--arterial-stiffness=0.75]",
     "       [--max-return-map-points=4] [--quiet-clamp-log] [--trace-beats=10] [--sample-hz=120]",
     "",
     "Examples:",

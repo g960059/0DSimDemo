@@ -460,3 +460,54 @@ Review questions:
 3. Does it reduce QAo/cap and branch amplitude without moving normal / HR100 waveform gates?
 4. Is the remaining AoV gradient driven by full-open orifice loss, valve-opening area-loss extra, inertial loss, or residual?
 5. If `fIsoSlopeRelax` helps but does not fully stabilize, should the next comparator be a refined force-length gate, a Kd/aInf gain limiter with level guard, or an ejection-path regularization?
+
+## 2026-06-12 update: fIso negative comparator and AoV/ejection physicality
+
+The 2026-06-12 matrix weakens the simple `fIsoSlopeRelax` hypothesis. It is useful negative evidence, but not a root-fix candidate: branch fractions remain close to baseline while mean CO/SV shifts substantially. The next question is whether the remaining ESV/ejection alternans is controlled by dynamic ejection/afterload coupling rather than static active-stress level.
+
+New report-only axes and columns:
+
+- `--aov-l=...`
+- `--aov-tau-open=...`
+- `--aov-tau-close=...`
+- `--systemic-resistance=...`
+- `--arterial-stiffness=...`
+- AoV ODE closure residual: `LVP-AoP-(Rq+Bq|q|+LqDot)`
+- QAo physicality: positive-flow mean, time-to-peak, and max dQAo/dt
+
+Recommended handoff artifact commands:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/aov-closure-smoke \
+  --deltas=0,-1250,-1300 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --aortic-flow-clamp=hard \
+  --aov-b=0.000001,0.0000015,0.000002,0.0000025,0.000003,0.000005 \
+  --max-return-map-points=2 \
+  --trace-beats=4 \
+  --sample-hz=60
+```
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/aov-l-smoke \
+  --deltas=0,-1250,-1300 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --aortic-flow-clamp=hard \
+  --aov-l=0.00025,0.000375,0.0005 \
+  --max-return-map-points=2 \
+  --trace-beats=4 \
+  --sample-hz=60
+```
+
+Readout discipline:
+
+- Primary stabilization evidence is clean ESV-section slope, not branch amplitude alone.
+- AS-like sanity should use sampled/full-open orifice loss, not total transient `LVP-AoP`.
+- Large closure residual means the valve/coupling accounting is not closed and should be investigated before making stenosis-like claims.
+- Run AoV_B, AoV_L, tauOpen/tauClose, systemicResistance, and arterialStiffness as separate single-axis sweeps before trying bundles. Bundles remain stabilization comparators, not single-mechanism root fixes.
