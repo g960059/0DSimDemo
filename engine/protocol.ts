@@ -418,6 +418,16 @@ export type SimSample = {
   AoV_loss_R: number;
   AoV_loss_B: number;
   AoV_loss_residual: number;
+  AoV_qNextPreDiode: number;
+  AoV_qNextPostDiode: number;
+  AoV_qNextPreFlowClamp: number;
+  AoV_qNextPostFlowClamp: number;
+  AoV_qDotRaw: number;
+  AoV_qDotPost: number;
+  AoV_qDotClampHit01: number;
+  AoV_qDotClampImpulse: number;
+  AoV_diodeImpulse: number;
+  AoV_flowClampImpulse: number;
   LVPressureFloorHit01: number;
   RVPressureFloorHit01: number;
   ELV_active: number;

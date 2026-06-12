@@ -113,12 +113,14 @@ describe("low-preload Starling debug diagnostics", () => {
       quietClampLog: true,
     });
 
-    expect(report.schemaVersion).toBe(19);
+    expect(report.schemaVersion).toBe(20);
     expect(report.heartModel).toBe("activeStress");
     expect(report.returnMapMode).toBe("both");
     expect(report.beatPairOverlay).toBe(false);
     expect(report.tbvCorrectionMode).toBe("on");
     expect(report.aorticFlowClampMode).toBe("hard");
+    expect(report.tensionRiseSec).toBe(0);
+    expect(report.aovQDotClamp).toBe(40000);
     expect(report.aovB).toBeCloseTo(DEFAULT_PARAMS.AoV_B, 12);
     expect(report.aovAmax).toBeCloseTo(DEFAULT_PARAMS.AoV_Amax, 12);
     expect(report.aovAref).toBeCloseTo(DEFAULT_PARAMS.AoV_Aref, 12);
@@ -251,7 +253,7 @@ describe("low-preload Starling debug diagnostics", () => {
       quietClampLog: true,
     });
 
-    expect(report.schemaVersion).toBe(19);
+    expect(report.schemaVersion).toBe(20);
     expect(report.beatPairOverlay).toBe(true);
     const overlay = report.points[0].beatPairOverlay;
     expect(overlay).toBeDefined();
@@ -434,6 +436,10 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrix.summary.maxAoVFlowWeightedOrificeGradient).toEqual(expect.any(Number));
     expect(matrix.summary.maxAoVFlowWeightedAreaLossExtraGradient).toEqual(expect.any(Number));
     expect(matrix.summary.maxAoVFlowWeightedClosureResidual).toEqual(expect.any(Number));
+    expect(matrix.summary.maxAoVFlowWeightedCleanClosureResidual).toEqual(expect.any(Number));
+    expect(matrix.summary.maxAoVQDotRawMaxAbs).toEqual(expect.any(Number));
+    expect(matrix.summary.maxAoVQDotClampHitFraction).toEqual(expect.any(Number));
+    expect(matrix.summary.maxAoVQDotClampHitFractionSV5To95).toEqual(expect.any(Number));
     expect(matrix.summary.maxAoVClosureResidualSV5To95Mean).toEqual(expect.any(Number));
     expect(matrix.summary.maxQAoMeanPositive).toEqual(expect.any(Number));
     expect(matrix.summary.minQAoTimeToPeakMs).toEqual(expect.any(Number));
@@ -456,6 +462,9 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(normalGate?.candidate.ejectionPositiveDurationMs).toBeGreaterThanOrEqual(normalGate?.candidate.ejectionHighFlowDurationMs ?? Number.NaN);
     expect(Number.isFinite(normalGate?.candidate.AoVFlowWeightedFullOpenOrificeGradient)).toBe(true);
     expect(Number.isFinite(normalGate?.candidate.AoVFlowWeightedClosureResidual)).toBe(true);
+    expect(Number.isFinite(normalGate?.candidate.AoVQDotRawMaxAbs)).toBe(true);
+    expect(Number.isFinite(normalGate?.candidate.AoVQDotPostMaxAbs)).toBe(true);
+    expect(Number.isFinite(normalGate?.candidate.AoVQDotClampHitFraction)).toBe(true);
     expect(Number.isFinite(normalGate?.candidate.AoVClosureResidualAtQAoMax)).toBe(true);
     expect(Number.isFinite(normalGate?.candidate.QAoMeanPositive)).toBe(true);
     expect(Number.isFinite(normalGate?.candidate.QAoTimeToPeakMs)).toBe(true);
@@ -463,6 +472,8 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToMarkdown(matrix)).toContain("AoV_B / AS sanity");
     expect(matrixReportToMarkdown(matrix)).toContain("AoV gradient decomposition");
     expect(matrixReportToMarkdown(matrix)).toContain("closure fw");
+    expect(matrixReportToMarkdown(matrix)).toContain("clean closure fw");
+    expect(matrixReportToMarkdown(matrix)).toContain("qDot hit SV5-95");
     expect(matrixReportToMarkdown(matrix)).toContain("full-open orifice");
     expect(matrixReportToMarkdown(matrix)).toContain("QAo t-peak ms");
     expect(matrixReportToMarkdown(matrix)).toContain("eject QAo>0 ms");
@@ -473,12 +484,16 @@ describe("low-preload Starling debug diagnostics", () => {
       "--aov-tau-close=0.008,0.016",
       "--systemic-resistance=1,1.25",
       "--arterial-stiffness=0.75,0.9",
+      "--tension-rise=0,0.02",
+      "--aov-qdot-clamp=40000,80000",
     ]);
     expect(axisOpts.aovLValues).toEqual([DEFAULT_PARAMS.AoV_L, 0.0005]);
     expect(axisOpts.aovTauOpenValues).toEqual([DEFAULT_PARAMS.AoV_tauOpen, 0.012]);
     expect(axisOpts.aovTauCloseValues).toEqual([DEFAULT_PARAMS.AoV_tauClose, 0.016]);
     expect(axisOpts.systemicResistanceValues).toEqual([DEFAULT_PARAMS.systemicResistance, 1.25]);
     expect(axisOpts.arterialStiffnessValues).toEqual([DEFAULT_PARAMS.arterialStiffness, 0.9]);
+    expect(axisOpts.tensionRiseSecValues).toEqual([0, 0.02]);
+    expect(axisOpts.aovQDotClampValues).toEqual([40000, 80000]);
   });
 
   it("can skip return-map diagnostics while preserving branch amplitude fields", () => {
@@ -667,7 +682,7 @@ describe("low-preload Starling debug diagnostics", () => {
     ]);
     const report = runLowPreloadMatrix(opts);
 
-    expect(report.schemaVersion).toBe(17);
+    expect(report.schemaVersion).toBe(18);
     expect(report.heartModels).toEqual(["activeStress"]);
     expect(report.aorticFlowClampModes).toEqual(["hard"]);
     expect(report.aovBValues).toEqual([DEFAULT_PARAMS.AoV_B]);
@@ -677,6 +692,8 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.aovTauCloseValues).toEqual([DEFAULT_PARAMS.AoV_tauClose]);
     expect(report.systemicResistanceValues).toEqual([DEFAULT_PARAMS.systemicResistance]);
     expect(report.arterialStiffnessValues).toEqual([DEFAULT_PARAMS.arterialStiffness]);
+    expect(report.tensionRiseSecValues).toEqual([0]);
+    expect(report.aovQDotClampValues).toEqual([40000]);
     expect(report.scenarios).toHaveLength(8);
     expect(report.scenarios[0].heartModel).toBe("activeStress");
     expect(report.scenarios[0].aorticFlowClampMode).toBe("hard");

@@ -611,3 +611,47 @@ Interpretation guardrails:
 - Treat large closure residuals as a reason to inspect valve/coupling numerics before drawing stenosis-like conclusions.
 - Use QAo `SV 5-95%` duration, `QAo > 5% peak` duration, peak/mean, time-to-peak, and dQAo/dt for waveform physicality; keep historical high-flow duration only for continuity with older reports.
 - If dynamic axes reduce clean ESV-section slope below 1 without raising orifice gradient or damaging normal/HR gates, they become stronger root-fix leads than static active-stress level caps.
+
+### 2026-06-12 update: AoV qDot clamp audit and tension-rise comparator
+
+The matrix report now records the AoV solver-side flow update terms in addition to sampled finite differences:
+
+- pre/post diode `qNext`
+- pre/post AoV flow clamp `qNext`
+- raw and post-clamp `qDot`
+- qDot clamp hit fraction and clamp impulse
+- discrete closure residual using the solver raw `qDot`
+- continuous closure residual using the solver post-clamp `qDot`
+- clean-window closure residual restricted to near-full-open, positive-flow, SV 5-95% samples with no diode, flow, or qDot clamp activity
+
+These fields are report-only diagnostics. The default AoV qDot clamp remains 40000 mL/s^2 and the default active-stress tension path remains unchanged.
+
+Recommended smoke for sharing the current evidence:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/aov-qdot-tension-smoke \
+  --deltas=0,-1250 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --tension-rise=0,0.02 \
+  --aov-qdot-clamp=40000,80000 \
+  --max-return-map-points=1 \
+  --trace-beats=3 \
+  --sample-hz=60 \
+  --quiet-progress
+```
+
+Current smoke result:
+
+- Baseline raw AoV qDot demand is very large in the low-preload point (about 4.3e5 mL/s^2 in the smoke artifact), and the default qDot clamp is active through the SV 5-95% window.
+- Raising the qDot clamp to 80000 mL/s^2 can suppress the branch in the smoke case, but it badly fails waveform gates. Treat it as a diagnostic negative-control, not a runtime proposal.
+- A 20 ms tension-rise comparator with the default qDot clamp worsens branch and waveform gates in the smoke case.
+- A 20 ms tension-rise comparator plus 80000 mL/s^2 qDot clamp can produce clean-window closure samples with small clean closure residual, but still fails waveform gates. This suggests that large closure residuals are dominated by non-clean/clamped intervals, not that the clean fully open valve relation is necessarily wrong.
+
+Readout discipline:
+
+- Do not read whole-window closure residual as an AS or valve-loss metric. It includes diode-closed and clamp-overridden intervals by construction.
+- Prefer `clean closure fw`, qDot hit fractions, and `SV 5-95%` / `>5% peak` ejection windows when judging whether ejection is ODE-dominated.
+- If a candidate improves branch amplitude only by changing qDot clamp behavior or by damaging normal/HR waveform gates, classify it as a diagnostic comparator rather than a model-fix candidate.
