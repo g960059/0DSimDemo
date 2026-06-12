@@ -360,16 +360,16 @@ type AorticFlowStepDiagnostics = {
 
 function emptyAorticFlowStepDiagnostics(): AorticFlowStepDiagnostics {
   return {
-    qNextPreDiode: Number.NaN,
-    qNextPostDiode: Number.NaN,
-    qNextPreFlowClamp: Number.NaN,
-    qNextPostFlowClamp: Number.NaN,
-    qDotRaw: Number.NaN,
-    qDotPost: Number.NaN,
+    qNextPreDiode: 0,
+    qNextPostDiode: 0,
+    qNextPreFlowClamp: 0,
+    qNextPostFlowClamp: 0,
+    qDotRaw: 0,
+    qDotPost: 0,
     qDotClampHit01: 0,
-    qDotClampImpulse: Number.NaN,
-    diodeImpulse: Number.NaN,
-    flowClampImpulse: Number.NaN,
+    qDotClampImpulse: 0,
+    diodeImpulse: 0,
+    flowClampImpulse: 0,
   };
 }
 
