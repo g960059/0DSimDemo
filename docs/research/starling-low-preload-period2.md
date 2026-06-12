@@ -515,3 +515,43 @@ Readout:
 - A useful bundle should reduce CO/ESV/QAo branch fractions and QAo/cap proximity without increasing sanitize/TBV contamination, valve reverse volume, or normal/HR100 waveform deltas.
 - If the orifice gradient remains plausible but total gradient is high, inspect the inertial and residual columns before labeling the result AS-like.
 - If a combination passes branch and waveform gates, keep the label as `stabilization bundle` until broader validation and clean return-map slope coverage support stronger claims.
+
+## fIso low-stretch slope comparator and ejection-path audit v2
+
+The next diagnostic axis keeps default runtime behavior unchanged and adds an off-by-default `fIsoSlopeRelax` comparator. This returns the investigation from valve-loss bundles to the active-stress low-stretch gain hypothesis:
+
+- `fIsoSlopeRelax` applies only when explicitly requested with `--low-stretch-limiter=fIsoSlopeRelax`.
+- It never raises the force-length gate. Below the join point it multiplies the raw low-stretch `fIso` ramp by a C1 smooth gate `<= 1`; above the join point the raw curve is unchanged.
+- It is intended as a comparator for the hypothesis that the low-preload flip is driven by excessive low-stretch active-force gain. It is not a default model change.
+
+The same report also refines ejection-path interpretation:
+
+- AoV loss is split into sampled effective orifice loss, full-open orifice loss, extra area-loss while the valve is not fully open, inertial loss, and residual.
+- Ejection duration is reported as multiple definitions: `QAo > 0`, `QAo > 5% peak`, stroke-volume `5-95%`, and the older high-flow/open-window duration.
+- AS-like conclusions should use the full-open / quasi-steady orifice columns, not total transient `LVP - AoP` alone.
+- Large residual or area-loss-extra terms should be interpreted as valve-opening / transient coupling diagnostics before making stenosis-like claims.
+
+Suggested smoke:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/fiso-ejection-smoke \
+  --deltas=0,-1250,-1300 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --aortic-flow-clamp=hard \
+  --aov-b=0.000001,0.000003 \
+  --low-stretch-limiter=none,fIsoSlopeRelax,activeReserveCap \
+  --low-stretch-limiter-scope=lv \
+  --active-reserve-preset=directMedium \
+  --max-return-map-points=2 \
+  --trace-beats=4 \
+  --sample-hz=60
+```
+
+Primary readout:
+
+- Does `fIsoSlopeRelax` reduce CO/ESV/QAo branch amplitude and clean ESV-section slope without flattening the period-mean Starling curve?
+- Does it preserve normal / HR100 / HR100-rearm CO, SV, ESV, EF, LVPmax, QAoMax, dP/dt, and ejection durations better than `activeReserveCap`?
+- Does it move QAo/cap away from the hard cap without increasing AoV residual, area-loss extra, valve reverse volume, sanitize/TBV contamination, or clamp activity?

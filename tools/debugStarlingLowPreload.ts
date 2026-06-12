@@ -53,6 +53,11 @@ type ActiveBeatSummary = {
   sigmaActMean: number;
   sigmaPasMean: number;
   fIsoMean: number;
+  fIsoRawMean: number;
+  fIsoLimiterMean: number;
+  fIsoLimiterMin: number;
+  fIsoLimiterHitFraction: number;
+  fIsoLimiterDeltaMean: number;
   gOverMean: number;
   forceVelocityScaleMean: number;
   dLogAInf_dLambdaActMean: number;
@@ -428,7 +433,7 @@ type DebugSummary = {
 };
 
 type DebugReport = {
-  schemaVersion: 18;
+  schemaVersion: 19;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -603,6 +608,11 @@ const CSV_COLUMNS = [
   "LV_lowStretchLimiterGateMean",
   "LV_sigmaActMean",
   "LV_fIsoMean",
+  "LV_fIsoRawMean",
+  "LV_fIsoLimiterMean",
+  "LV_fIsoLimiterMin",
+  "LV_fIsoLimiterHitFraction",
+  "LV_fIsoLimiterDeltaMean",
   "LV_forceVelocityScaleMean",
   "branchAmplitudeCO_L",
   "branchAmplitudeFractionCO_L",
@@ -746,7 +756,7 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
   const dtScenarios = lambdaActTauSecValues.flatMap((tau) => dtValues.map((dt) => runDtScenario(opts, dt, tau)));
   const primary = dtScenarios[0] ?? runDtScenario(opts, 0.001, 0);
   return {
-    schemaVersion: 18,
+    schemaVersion: 19,
     generatedAt: new Date().toISOString(),
     measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve/TBV-projection diagnostics; branch-amplitude primary gate; EDV-section volume-preserving LV/PVein one-beat/two-beat return-map slopes with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap sensitivity, and off-by-default AoV_B/AoV_Amax physical-loss comparators; LA/MV filling-regime and MV event-count morphology diagnostics; optional phase-aligned last-two-beat active/ejection/MV overlay diagnostics with high-low divergence summary; dt, off-by-default lambdaAct, and off-by-default AoV flow-clamp sensitivity",
     targetVolumeMl: opts.targetVolumeMl,
@@ -776,7 +786,7 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
     dtScenarios,
     interpretation: {
       dtSensitivity: "If period-2 disappears or strongly changes at smaller dt, numerical coupling is implicated; if it persists, active-stress model dynamics are implicated.",
-      activeStressFields: ["lambdaRaw", "lambdaAct", "lambdaForKd", "lambdaForFIso", "lambdaActTerms", "tauLambdaActSec", "lambdaActMinusRaw", "Kd", "aInf", "aInfRaw", "aInfCap", "aInfLimiterDelta", "activeTargetLimiter", "sigmaActTargetRaw", "tauA", "c", "a", "sigmaActTarget", "sigmaAct", "sigmaPas", "fIso", "gOver", "forceVelocityScale", "lowStretchLimiter", "lowStretchLimiterGate", "lowStretchLimiterStrength", "dLogAInf_dLambdaAct", "dLogFIso_dLambdaAct", "dLogGOver_dLambdaRaw", "dLogCompositeActive_dLambdaAct"],
+      activeStressFields: ["lambdaRaw", "lambdaAct", "lambdaForKd", "lambdaForFIso", "lambdaActTerms", "tauLambdaActSec", "lambdaActMinusRaw", "Kd", "aInf", "aInfRaw", "aInfCap", "aInfLimiterDelta", "activeTargetLimiter", "sigmaActTargetRaw", "tauA", "c", "a", "sigmaActTarget", "sigmaAct", "sigmaPas", "fIso", "fIsoRaw", "fIsoLimiter", "fIsoLimiterDelta", "gOver", "forceVelocityScale", "lowStretchLimiter", "lowStretchLimiterGate", "lowStretchLimiterStrength", "dLogAInf_dLambdaAct", "dLogFIso_dLambdaAct", "dLogGOver_dLambdaRaw", "dLogCompositeActive_dLambdaAct"],
       clampFields: ["nodeClampHits", "dynamicFlowClampHits", "valveDiodeClampHits", "sanitizeSignedMl", "sanitizeAbsMl", "projectionRequestedMl", "projectionAppliedMl", "tbvErrorBeforeProjectionMl", "tbvErrorAfterProjectionMl"],
       beatPairOverlay: "When enabled, phase-aligned last-two-beat rows expose QMV/MV xi/LAP-LVP/VLV, LV c/a/sigmaActTarget/sigmaAct, and QAo/AoV/AoP signals to test whether MV event switching precedes ejection alternans or follows prior-beat active/ejection state.",
     },
@@ -982,7 +992,7 @@ export function reportToMarkdown(report: DebugReport): string {
   lines.push("- Branch amplitude and branch amplitude fraction are classifier-independent high/low beat measurements from the trace; treat them as the primary stabilization signal before interpreting period labels or local slopes.");
   lines.push("- `volumeLambdaActFixed` keeps the active-stretch memory fixed after a volume perturbation; `volumeLambdaActReset` resets LV `lambdaAct` to the post-perturbation raw LV stretch before measuring the return map. The latter is a quasi-static consistency check for lambdaAct experiments, not a model change.");
   lines.push("- `tau lambdaAct s` is an off-by-default experiment. `tau=0` is the shipped model. Positive tau values lag only selected active-stress length inputs (`kd`, `fiso`, or `kd+fiso`), not passive pressure, geometry, gOver, force-velocity, or valves.");
-  lines.push("- `low-stretch limiter` is an off-by-default comparator. `aInfCap` caps activation only downward at low raw lambda; `activeReserveCap` multiplies active target by a factor <= 1 at low raw lambda, or only above `lowStretchLimiterActivationThreshold` when that optional threshold is configured. The `activeReservePreset` label records the debug-only strength/threshold preset used by this run. Neither changes passive geometry, valves, or default dynamics.");
+  lines.push("- `low-stretch limiter` is an off-by-default comparator. `aInfCap` caps activation only downward at low raw lambda; `activeReserveCap` multiplies active target by a factor <= 1 at low raw lambda, or only above `lowStretchLimiterActivationThreshold` when that optional threshold is configured; `fIsoSlopeRelax` multiplies the low-stretch force-length ramp by a C1 gate <= 1 below the join point. The `activeReservePreset` label records the debug-only strength/threshold preset used by activeReserveCap runs. None of these comparators changes passive geometry, valves, or default dynamics unless explicitly enabled.");
   lines.push("- Smaller-dt persistence supports a model-dynamics interpretation; strong dt sensitivity supports an explicit-coupling/numerical interpretation.");
   lines.push("");
   return `${lines.join("\n")}\n`;
@@ -1126,6 +1136,11 @@ export function reportToCsv(report: DebugReport): string {
           lv?.lowStretchLimiterGateMean ?? "",
           lv?.sigmaActMean ?? "",
           lv?.fIsoMean ?? "",
+          lv?.fIsoRawMean ?? "",
+          lv?.fIsoLimiterMean ?? "",
+          lv?.fIsoLimiterMin ?? "",
+          lv?.fIsoLimiterHitFraction ?? "",
+          lv?.fIsoLimiterDeltaMean ?? "",
           lv?.forceVelocityScaleMean ?? "",
           point.returnMap.branchAmplitude.CO_L ?? "",
           point.returnMap.branchAmplitudeFraction.CO_L ?? "",
@@ -1532,7 +1547,7 @@ export function paramsWithLowStretchLimiter(
   scope: LambdaActScope,
   activeReservePreset: ActiveReservePreset = DEFAULT_ACTIVE_RESERVE_PRESET,
 ): CoreRuntimeParams {
-  const limiter = mode === "aInfCap" || mode === "activeReserveCap" ? mode : "none";
+  const limiter = mode === "aInfCap" || mode === "activeReserveCap" || mode === "fIsoSlopeRelax" ? mode : "none";
   if (limiter === "none") return params;
   const apply = (chamber: "LV" | "RV" | "LA" | "RA") => {
     if (scope === "lv") return chamber === "LV";
@@ -2556,6 +2571,11 @@ function summarizeActive(entries: TraceSample[]): Partial<Record<Chamber, Active
       sigmaActMean: meanNumbers(terms.map((term) => term.sigmaAct)),
       sigmaPasMean: meanNumbers(terms.map((term) => term.sigmaPas)),
       fIsoMean: meanNumbers(terms.map((term) => term.fIso)),
+      fIsoRawMean: meanNumbers(terms.map((term) => term.fIsoRaw)),
+      fIsoLimiterMean: meanNumbers(terms.map((term) => term.fIsoLimiter)),
+      fIsoLimiterMin: Math.min(...terms.map((term) => term.fIsoLimiter).filter(Number.isFinite)),
+      fIsoLimiterHitFraction: meanNumbers(terms.map((term) => term.fIsoLimiter < 0.999 ? 1 : 0)),
+      fIsoLimiterDeltaMean: meanNumbers(terms.map((term) => term.fIsoLimiterDelta)),
       gOverMean: meanNumbers(terms.map((term) => term.gOver)),
       forceVelocityScaleMean: meanNumbers(terms.map((term) => term.forceVelocityScale)),
       dLogAInf_dLambdaActMean: meanNumbers(terms.map((term) => term.dLogAInf_dLambdaAct)),
@@ -2871,7 +2891,7 @@ function parseLambdaActTerms(value: string): LambdaActTerms {
 }
 
 function parseLowStretchLimiterMode(value: string): LowStretchLimiterMode {
-  if (value === "none" || value === "aInfCap" || value === "activeReserveCap") return value;
+  if (value === "none" || value === "aInfCap" || value === "activeReserveCap" || value === "fIsoSlopeRelax") return value;
   throw new Error(`Invalid low-stretch limiter mode: ${value}`);
 }
 
@@ -2903,7 +2923,7 @@ function printHelp(): void {
     "       [--heart-model=activeStress|elastance]",
     "       [--deltas=0,-900,-1000,-1100] [--dt=0.001,0.0005,0.002] [--lambda-act-tau=0,0.15,0.25,0.4]",
     "       [--lambda-act-scope=lv|ventricles|all] [--lambda-act-terms=kd|fiso|kd+fiso]",
-    "       [--low-stretch-limiter=none|aInfCap|activeReserveCap] [--low-stretch-limiter-scope=lv|ventricles|all]",
+    "       [--low-stretch-limiter=none|aInfCap|activeReserveCap|fIsoSlopeRelax] [--low-stretch-limiter-scope=lv|ventricles|all]",
     "       [--active-reserve-preset=directMild|directMedium|thresholdMild|thresholdMedium]",
     "       [--return-map-mode=none|fixed|reset|both] [--branch-only]",
     "       [--beat-pair-overlay]",
