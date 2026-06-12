@@ -1,12 +1,12 @@
 import type { MetricType, PanelDef, PanelInstanceConfig, PanelType, SimInstance, WorkbenchWorkspace } from "@/types";
-import { effectiveVisibility, type ViewMembership } from "@/features/workbench/viewSpec";
+import { effectiveVisibility, type MetricsViewSpec, type ViewMembership } from "@/features/workbench/viewSpec";
 
 const GRAPH_PANEL_TYPES = new Set<PanelType>(["PVLOOP", "WAVEFORM", "GUYTON_RIGHT", "GUYTON_LEFT", "GUYTON_3D"]);
 
 export type BuiltInMetricsCategoryId = "pressure" | "flowVolume" | "function" | "coronary";
 
 export type BuiltInMetricsTab = { kind: "builtIn"; id: BuiltInMetricsCategoryId; titleKey: string; metrics: MetricType[] };
-export type AuthoredMetricsTab = { kind: "authored"; id: string; title: string; panel: PanelDef };
+export type AuthoredMetricsTab = { kind: "authored"; id: string; title: string; view: MetricsViewSpec };
 export type MetricsHostTab = BuiltInMetricsTab | AuthoredMetricsTab;
 
 const BUILT_IN_METRIC_CATEGORIES: Array<{
@@ -48,16 +48,19 @@ export function deriveBuiltInMetricsTabs(metrics: readonly MetricType[]): BuiltI
     .filter((tab) => tab.metrics.length > 0);
 }
 
-export function authoredMetricsTabsFromPanels(panels: readonly PanelDef[]): MetricsHostTab[] {
-  return panels
-    .filter((panel) => panel.type === "METRICS")
-    .map((panel) => ({ kind: "authored" as const, id: panel.id, title: panel.title, panel }));
+export function authoredMetricsTabsFromViews(views: readonly MetricsViewSpec[]): MetricsHostTab[] {
+  return views.map((view) => ({
+    kind: "authored" as const,
+    id: view.id,
+    title: view.title ?? "Metrics view",
+    view,
+  }));
 }
 
-export function metricsHostTabs(metrics: readonly MetricType[], panels: readonly PanelDef[]): MetricsHostTab[] {
+export function metricsHostTabs(metrics: readonly MetricType[], views: readonly MetricsViewSpec[] = []): MetricsHostTab[] {
   return [
     ...deriveBuiltInMetricsTabs(metrics),
-    ...authoredMetricsTabsFromPanels(panels),
+    ...authoredMetricsTabsFromViews(views),
   ];
 }
 

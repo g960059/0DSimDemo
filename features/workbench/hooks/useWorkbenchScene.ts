@@ -1,11 +1,21 @@
 import { useCallback, useState, type MutableRefObject, type SetStateAction } from "react";
 import { DEFAULT_PARAMS } from "@/constants";
 import type { CaseDocument, CaseI18nContent, CaseSource } from "@/caseDoc";
-import type { GraphBoardLayout, ViewSpec } from "@/features/workbench/viewSpec";
+import {
+  authoredViewsForLoad,
+  createControllerViewSpec,
+  createMetricsViewSpec,
+  deleteAuthoredView,
+  duplicateAuthoredView,
+  serializableAuthoredViews,
+  upsertAuthoredView,
+  type AuthoredViewSpec,
+} from "@/features/workbench/authoredViews";
+import type { GraphBoardLayout } from "@/features/workbench/viewSpec";
 import { OFFICIAL_BASELINES } from "@/engine/caseBaselines";
 import { applyKnobs, KNOB_MAPPING_VERSION, neutralKnobs, type ClinicalKnobs } from "@/engine/knobs";
 import { resolveKnobEdit, resolveRawEdit } from "@/engine/instanceKnobs";
-import type { SimulationParams, SimInstance } from "@/types";
+import type { ControllerItem, MetricType, PanelDef, SimulationParams, SimInstance } from "@/types";
 import type { WorkbenchHeaderMode, WorkbenchSceneMeta } from "@/components/workbench/WorkbenchSidePanel";
 import {
   DEFAULT_MODEL_LIMITATIONS,
@@ -24,6 +34,7 @@ type AuthUser = {
 type ReplaceScenePayload = {
   instances: SimInstance[];
   activeInstanceId: string;
+  panels: PanelDef[];
   doc: CaseDocument;
   trustedOfficial?: boolean;
 };
@@ -43,7 +54,7 @@ type SavedCasePayload = {
   i18n?: Record<string, CaseI18nContent>;
   reading?: CaseDocument["reading"];
   exposedControllers?: CaseDocument["exposedControllers"];
-  views?: ViewSpec[];
+  views?: AuthoredViewSpec[];
   graphBoardLayout?: GraphBoardLayout;
   initialActiveScenarioId?: string;
 };
@@ -87,7 +98,7 @@ export function useWorkbenchScene({
   const [currentCaseI18n, setCurrentCaseI18n] = useState<Record<string, CaseI18nContent> | undefined>(undefined);
   const [currentCaseReading, setCurrentCaseReading] = useState<CaseDocument["reading"] | undefined>(undefined);
   const [currentCaseExposedControllers, setCurrentCaseExposedControllers] = useState<CaseDocument["exposedControllers"] | undefined>(undefined);
-  const [currentCaseViews, setCurrentCaseViews] = useState<ViewSpec[] | undefined>(undefined);
+  const [currentCaseViews, setCurrentCaseViews] = useState<AuthoredViewSpec[] | undefined>(undefined);
   const [currentCaseGraphBoardLayout, setCurrentCaseGraphBoardLayout] = useState<GraphBoardLayout | undefined>(undefined);
   const [currentCaseInitialActiveScenarioId, setCurrentCaseInitialActiveScenarioId] = useState<string | undefined>(undefined);
 
@@ -181,6 +192,48 @@ export function useWorkbenchScene({
     markUserEdited();
   }, [markUserEdited]);
 
+  const nextViewId = useCallback((kind: "controller" | "metrics") => (
+    `${kind}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
+  ), []);
+
+  const createControllerView = useCallback((title: string, items: ControllerItem[] = []) => {
+    const view = createControllerViewSpec(nextViewId("controller"), title, items);
+    setCurrentCaseViews((prev) => upsertAuthoredView(prev ?? [], view));
+    markUserEdited();
+    return view;
+  }, [markUserEdited, nextViewId]);
+
+  const createMetricsView = useCallback((title: string, metrics: MetricType[] = []) => {
+    const view = createMetricsViewSpec(nextViewId("metrics"), title, metrics, instances);
+    setCurrentCaseViews((prev) => upsertAuthoredView(prev ?? [], view));
+    markUserEdited();
+    return view;
+  }, [instances, markUserEdited, nextViewId]);
+
+  const updateAuthoredView = useCallback((view: AuthoredViewSpec) => {
+    setCurrentCaseViews((prev) => upsertAuthoredView(prev ?? [], view));
+    markUserEdited();
+  }, [markUserEdited]);
+
+  const renameAuthoredView = useCallback((id: string, title: string) => {
+    setCurrentCaseViews((prev) => (prev ?? []).map((view) => view.id === id ? { ...view, title } : view));
+    markUserEdited();
+  }, [markUserEdited]);
+
+  const duplicateView = useCallback((id: string) => {
+    const source = currentCaseViews?.find((view) => view.id === id);
+    if (!source) return undefined;
+    const view = duplicateAuthoredView(source, nextViewId(source.kind), `${source.title ?? (source.kind === "controller" ? "Controller view" : "Metrics view")} copy`);
+    setCurrentCaseViews((prev) => upsertAuthoredView(prev ?? [], view));
+    markUserEdited();
+    return view;
+  }, [currentCaseViews, markUserEdited, nextViewId]);
+
+  const deleteView = useCallback((id: string) => {
+    setCurrentCaseViews((prev) => deleteAuthoredView(prev ?? [], id));
+    markUserEdited();
+  }, [markUserEdited]);
+
   const addInstance = useCallback((sourceId?: string, presetId?: string) => {
     markUserEdited();
     const newId = Date.now().toString();
@@ -254,7 +307,7 @@ export function useWorkbenchScene({
     setCurrentCaseI18n(doc.i18n);
     setCurrentCaseReading(doc.reading);
     setCurrentCaseExposedControllers(doc.exposedControllers);
-    setCurrentCaseViews(doc.views);
+    setCurrentCaseViews(serializableAuthoredViews(authoredViewsForLoad(doc.views, payload.panels)));
     setCurrentCaseGraphBoardLayout(doc.graphBoardLayout);
     setCurrentCaseInitialActiveScenarioId(doc.initialActiveScenarioId);
     setActiveInstanceId(payload.activeInstanceId);
@@ -278,7 +331,7 @@ export function useWorkbenchScene({
     setCurrentCaseI18n(payload.i18n);
     setCurrentCaseReading(payload.reading);
     setCurrentCaseExposedControllers(payload.exposedControllers);
-    setCurrentCaseViews(payload.views);
+    setCurrentCaseViews(serializableAuthoredViews(payload.views));
     setCurrentCaseGraphBoardLayout(payload.graphBoardLayout);
     setCurrentCaseInitialActiveScenarioId(payload.initialActiveScenarioId);
     setAuthoringMode(false);
@@ -314,6 +367,12 @@ export function useWorkbenchScene({
     currentCaseReading,
     currentCaseExposedControllers,
     currentCaseViews,
+    createControllerView,
+    createMetricsView,
+    updateAuthoredView,
+    renameAuthoredView,
+    duplicateAuthoredView: duplicateView,
+    deleteAuthoredView: deleteView,
     currentCaseGraphBoardLayout,
     updateGraphBoardLayout,
     currentCaseInitialActiveScenarioId,

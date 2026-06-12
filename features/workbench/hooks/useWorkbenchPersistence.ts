@@ -17,6 +17,7 @@ import { remapCaseDocumentViewIds, remapCaseI18nContentIds, remapWorkbenchLoadId
 import { DEFAULT_MODEL_LIMITATIONS } from "@/features/workbench/workbenchDefaults";
 import { graphPanelsOnly, mainDockviewViewStatesOnly } from "@/features/workbench/p1aStructuralHosts";
 import { graphBoardLayoutFromPanels, normalizeGraphBoardLayout } from "@/features/workbench/viewSpec";
+import { serializableAuthoredViews } from "@/features/workbench/authoredViews";
 import type { WorkbenchSceneState } from "@/features/workbench/hooks/useWorkbenchScene";
 import type { WorkbenchPanelsState } from "@/features/workbench/hooks/useWorkbenchPanels";
 import type { LessonAuthoringState } from "@/features/workbench/hooks/useLessonAuthoring";
@@ -121,9 +122,10 @@ export function useWorkbenchPersistence({
       notes: overrides.includeNotes === false ? undefined : panels.notes,
       reading: scene.currentCaseReading,
       exposedControllers: scene.currentCaseExposedControllers,
-      // ViewSpec loading stays tolerant, but authored-reading consumers are not
-      // live yet. Avoid re-saving the dormant blob because it is not derived
-      // from current PanelDef state and would become stale as panes change.
+      // P2a re-enables ViewSpec persistence for authored controller/metrics
+      // views because they are now live Workbench document content. Graph views
+      // remain represented by graphBoardLayout + legacy graph panels here.
+      views: serializableAuthoredViews(scene.currentCaseViews),
       graphBoardLayout: normalizedGraphBoardLayout,
       initialActiveScenarioId: scene.currentCaseInitialActiveScenarioId,
       defaultLocale: scene.currentCaseDefaultLocale ?? locale,
@@ -144,6 +146,7 @@ export function useWorkbenchPersistence({
     scene.currentCaseI18n,
     scene.currentCaseReading,
     scene.currentCaseExposedControllers,
+    scene.currentCaseViews,
     scene.currentCaseGraphBoardLayout,
     scene.currentCaseInitialActiveScenarioId,
     scene.currentCaseOwnerId,
@@ -178,6 +181,7 @@ export function useWorkbenchPersistence({
         doc: retainedDoc,
         instances: remapped.instances,
         activeInstanceId: remapped.activeInstanceId,
+        panels: remapped.panels,
         trustedOfficial: opts.trustedOfficial,
       });
       replacePanelState({
@@ -346,7 +350,7 @@ export function useWorkbenchPersistence({
         i18n: nextDoc.i18n,
         reading: nextDoc.reading,
         exposedControllers: nextDoc.exposedControllers,
-        views: nextDoc.views,
+        views: serializableAuthoredViews(nextDoc.views),
         graphBoardLayout: nextDoc.graphBoardLayout,
         initialActiveScenarioId: nextDoc.initialActiveScenarioId,
       });

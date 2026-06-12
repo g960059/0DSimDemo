@@ -8,11 +8,19 @@ import {
   metricsHostTabs,
 } from "@/features/workbench/p1aStructuralHosts";
 import type { DockviewViewState, PanelDef, SimInstance, WorkbenchWorkspace } from "@/types";
+import type { MetricsViewSpec } from "@/features/workbench/viewSpec";
 
 const wave: PanelDef = { id: "wave", type: "WAVEFORM", title: "Wave", zone: "main", w: 4, h: 4, config: {}, isSettingsOpen: false };
 const pv: PanelDef = { id: "pv", type: "PVLOOP", title: "PV", zone: "main", w: 4, h: 4, config: {}, isSettingsOpen: false };
 const controls: PanelDef = { id: "controls", type: "CONTROLS", title: "Controls", zone: "sideRail", w: 4, h: 4, config: {}, isSettingsOpen: false };
 const metrics: PanelDef = { id: "metrics", type: "METRICS", title: "Custom metrics", zone: "bottomPanel", w: 4, h: 4, config: {}, isSettingsOpen: false };
+const metricsView: MetricsViewSpec = {
+  id: "metrics-view",
+  title: "Custom metrics",
+  kind: "metrics",
+  metrics: ["ABP"],
+  membership: { visible: ["ABP"] },
+};
 
 const visibleInstance: SimInstance = {
   id: "visible",
@@ -47,8 +55,8 @@ describe("P1a structural host helpers", () => {
     ]);
   });
 
-  it("adds authored metrics panels after built-in metrics categories", () => {
-    expect(metricsHostTabs(["ABP"], [metrics]).map((tab) => tab.kind === "authored" ? tab.title : tab.id))
+  it("adds authored metrics views after built-in metrics categories", () => {
+    expect(metricsHostTabs(["ABP"], [metricsView]).map((tab) => tab.kind === "authored" ? tab.title : tab.id))
       .toEqual(["pressure", "Custom metrics"]);
   });
 

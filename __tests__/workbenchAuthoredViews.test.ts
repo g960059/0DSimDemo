@@ -1,0 +1,122 @@
+import { describe, expect, it } from "vitest";
+import {
+  authoredViewsForLoad,
+  createControllerViewSpec,
+  createMetricsViewSpec,
+  deleteAuthoredView,
+  duplicateAuthoredView,
+  metricsViewConfig,
+  serializableAuthoredViews,
+  upsertAuthoredView,
+} from "@/features/workbench/authoredViews";
+import type { MetricsViewSpec, ViewSpec } from "@/features/workbench/viewSpec";
+import type { PanelDef, SimInstance } from "@/types";
+
+const instances: SimInstance[] = [
+  { id: "normal", name: "Normal", color: "#38bdf8", params: {} as SimInstance["params"], targetVolume: 5000, isVisible: true },
+  { id: "hidden", name: "Hidden", color: "#f97316", params: {} as SimInstance["params"], targetVolume: 5000, isVisible: false },
+];
+
+const legacyPanels: PanelDef[] = [
+  {
+    id: "controls",
+    type: "CONTROLS",
+    title: "Curated controls",
+    w: 4,
+    h: 4,
+    config: { normal: { visible: true, selectedSignals: ["clinical"] } },
+    view: {
+      kind: "control",
+      controllerItems: [{ paramKey: "contractility", kind: "slider", label: "LV contractility" }],
+    },
+    isSettingsOpen: false,
+  },
+  {
+    id: "metrics",
+    type: "METRICS",
+    title: "Teaching metrics",
+    w: 4,
+    h: 4,
+    config: {
+      normal: { visible: true, selectedSignals: ["ABP", "CO"] },
+      hidden: { visible: false, selectedSignals: ["CO"] },
+    },
+    isSettingsOpen: false,
+  },
+  {
+    id: "built-in-pressure",
+    type: "METRICS",
+    title: "Pressures",
+    w: 4,
+    h: 4,
+    config: {
+      normal: { visible: true, selectedSignals: ["ABP", "CVP", "PAP", "PCWP"] },
+    },
+    isSettingsOpen: false,
+  },
+];
+
+describe("P2a authored view helpers", () => {
+  it("filters graph specs out of serializable authored views", () => {
+    const views: ViewSpec[] = [
+      { id: "graph", kind: "graph", graphType: "pvloop", membership: { normal: ["LV"] } },
+      createControllerViewSpec("controller", "Controller", [{ paramKey: "HR", kind: "slider", label: "HR" }]),
+      createMetricsViewSpec("metrics", "Metrics", ["ABP"], instances),
+    ];
+
+    expect(serializableAuthoredViews(views)?.map((view) => [view.id, view.kind])).toEqual([
+      ["controller", "controller"],
+      ["metrics", "metrics"],
+    ]);
+  });
+
+  it("creates, updates, duplicates, and deletes authored views with normalized payloads", () => {
+    const controller = createControllerViewSpec("controller-a", "Controller A", [
+      { paramKey: "HR", kind: "slider", label: "Heart rate" },
+      { paramKey: "HR", kind: "slider", label: "Duplicate" },
+    ]);
+    expect(controller.items).toHaveLength(1);
+
+    const metrics = createMetricsViewSpec("metrics-a", "Metrics A", ["ABP", "ABP", "CO"], instances);
+    expect(metrics.metrics).toEqual(["ABP", "CO"]);
+    expect(metrics.membership).toEqual({
+      normal: ["ABP", "CO"],
+      hidden: ["ABP", "CO"],
+    });
+
+    const copy = duplicateAuthoredView(controller, "controller-b", "Controller B");
+    expect(copy).toMatchObject({ id: "controller-b", title: "Controller B", kind: "controller" });
+
+    const upserted = upsertAuthoredView([controller], copy);
+    expect(upserted.map((view) => view.id)).toEqual(["controller-a", "controller-b"]);
+    expect(deleteAuthoredView(upserted, "controller-a").map((view) => view.id)).toEqual(["controller-b"]);
+  });
+
+  it("migrates legacy controller and custom metrics panels only when an authored id is absent", () => {
+    const existing: MetricsViewSpec = createMetricsViewSpec("metrics", "Existing metrics", ["SV"], instances);
+    const loaded = authoredViewsForLoad([
+      existing,
+      { id: "graph", kind: "graph", graphType: "waveform", membership: { normal: ["LVP"] } },
+    ], legacyPanels);
+
+    expect(loaded.map((view) => [view.id, view.kind, view.title])).toEqual([
+      ["metrics", "metrics", "Existing metrics"],
+      ["controls", "controller", "Curated controls"],
+    ]);
+  });
+
+  it("derives a metrics render config from view membership", () => {
+    const view: MetricsViewSpec = {
+      id: "teaching",
+      title: "Teaching",
+      kind: "metrics",
+      metrics: ["ABP", "CO"],
+      membership: { normal: ["ABP"], hidden: ["CO"] },
+    };
+
+    expect(metricsViewConfig(view, instances)).toEqual({
+      normal: { visible: true, selectedSignals: ["ABP"] },
+      hidden: { visible: true, selectedSignals: ["CO"] },
+    });
+  });
+});
