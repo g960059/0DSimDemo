@@ -87,6 +87,7 @@ type BeatTraceRow = {
   ESV_R: number;
   LVPMax: number;
   QAoMax: number;
+  filling: FillingRegimeSummary;
   active: Partial<Record<Chamber, ActiveBeatSummary>>;
 };
 
@@ -96,6 +97,20 @@ type ValveTraceSummary = {
   forwardVolumeMl: number;
   reverseVolumeMl: number;
   negativeSampleCount: number;
+};
+
+type FillingRegimeSummary = {
+  MV_E_forward_mL: number;
+  MV_A_forward_mL: number;
+  MV_A_fraction: number | null;
+  MV_E_peak: number | null;
+  MV_A_peak: number | null;
+  LA_loop_area: number;
+  LA_A_loop_area: number;
+  LA_A_loop_fraction: number | null;
+  atrialSystoleTransmitralGradientMean: number;
+  atrialSystoleTransmitralGradientMax: number;
+  atrialSystoleMVOpenFraction: number;
 };
 
 type ReturnMapFeature = {
@@ -235,6 +250,8 @@ type DebugSummary = {
   maxClampHitCount: number;
   maxAbsReturnMapSlopeEDVL: number;
   maxAbsTwoBeatReturnMapSlopeEDVL: number;
+  maxAbsReturnMapSlopeESVL: number;
+  maxAbsTwoBeatReturnMapSlopeESVL: number;
   maxAbsReturnMapSlopeCOL: number;
   maxAbsTwoBeatReturnMapSlopeCOL: number;
   maxBranchAmplitudeCOL: number;
@@ -243,6 +260,13 @@ type DebugSummary = {
   maxBranchAmplitudeFractionEDVL: number;
   maxBranchAmplitudeESVL: number;
   maxBranchAmplitudeFractionESVL: number;
+  minMVAForwardMl: number;
+  minMVAFraction: number;
+  minLAAloopArea: number;
+  minLAAloopFraction: number;
+  maxAtrialSystoleTransmitralGradientMean: number;
+  maxAtrialSystoleTransmitralGradientMax: number;
+  minAtrialSystoleMVOpenFraction: number;
   nodeClampHits: Record<string, number>;
   dynamicFlowClampHits: Record<string, number>;
   valveDiodeClampHits: Record<string, number>;
@@ -252,7 +276,7 @@ type DebugSummary = {
 };
 
 type DebugReport = {
-  schemaVersion: 10;
+  schemaVersion: 11;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -338,6 +362,16 @@ const CSV_COLUMNS = [
   "CO_R",
   "EDV_L",
   "ESV_L",
+  "MV_E_forward_mL",
+  "MV_A_forward_mL",
+  "MV_A_fraction",
+  "MV_E_peak",
+  "MV_A_peak",
+  "LA_A_loop_area",
+  "LA_A_loop_fraction",
+  "atrialSystoleTransmitralGradientMean",
+  "atrialSystoleTransmitralGradientMax",
+  "atrialSystoleMVOpenFraction",
   "LV_lambdaMean",
   "LV_lambdaActMean",
   "LV_lambdaForKdMean",
@@ -363,6 +397,8 @@ const CSV_COLUMNS = [
   "branchAmplitudeFractionCO_L",
   "branchAmplitudeEDV_L",
   "branchAmplitudeFractionEDV_L",
+  "branchAmplitudeESV_L",
+  "branchAmplitudeFractionESV_L",
   "tbvAuditClass",
   "sanitizeAbsMl",
   "projectionAppliedMl",
@@ -371,6 +407,8 @@ const CSV_COLUMNS = [
   "returnMapStatus",
   "returnMapEDVSlope",
   "returnMapTwoBeatEDVSlope",
+  "returnMapESVSlope",
+  "returnMapTwoBeatESVSlope",
   "returnMapResetLambdaActTwoBeatEDVSlope",
   "returnMapCOSlope",
   "returnMapTwoBeatCOSlope",
@@ -394,9 +432,9 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
   const dtScenarios = lambdaActTauSecValues.flatMap((tau) => dtValues.map((dt) => runDtScenario(opts, dt, tau)));
   const primary = dtScenarios[0] ?? runDtScenario(opts, 0.001, 0);
   return {
-    schemaVersion: 10,
+    schemaVersion: 11,
     generatedAt: new Date().toISOString(),
-    measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve/TBV-projection diagnostics; branch-amplitude primary gate; EDV-section volume-preserving LV/PVein one-beat/two-beat return-map slopes with lambdaAct consistency modes; dt and off-by-default lambdaAct sensitivity",
+    measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve/TBV-projection diagnostics; branch-amplitude primary gate; EDV-section volume-preserving LV/PVein one-beat/two-beat return-map slopes with EDV/ESV/CO features; LA/MV filling-regime diagnostics; dt and off-by-default lambdaAct sensitivity",
     targetVolumeMl: opts.targetVolumeMl,
     deltasMl: opts.deltasMl,
     dtValues,
@@ -455,8 +493,8 @@ export function reportToMarkdown(report: DebugReport): string {
   lines.push("");
   lines.push("## Summary");
   lines.push("");
-  lines.push("| tau lambdaAct s | scope | terms | dt | points | period-2 | max adjacent delta | max period delta | max CO branch amp | max CO branch frac | max EDV branch amp | max EDV branch frac | max valve reverse mL | max clamp hits | max sanitize abs mL | max projection applied mL | contaminated points | max one-beat EDV slope | max two-beat EDV slope |");
-  lines.push("| ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| tau lambdaAct s | scope | terms | dt | points | period-2 | max adjacent delta | max period delta | max CO branch frac | max EDV branch frac | max ESV branch frac | min MV A mL | min MV A frac | min LA A-loop area | min LA A-loop frac | max valve reverse mL | max clamp hits | max sanitize abs mL | max projection applied mL | contaminated points | max one-beat EDV slope | max two-beat EDV slope | max one-beat ESV slope | max two-beat ESV slope |");
+  lines.push("| ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
   for (const scenario of report.dtScenarios) {
     lines.push([
       round(scenario.lambdaActTauSec, 4),
@@ -467,10 +505,13 @@ export function reportToMarkdown(report: DebugReport): string {
       scenario.summary.period2Count,
       round(scenario.summary.maxAdjacentDelta, 4),
       round(scenario.summary.maxPeriodDelta, 4),
-      round(scenario.summary.maxBranchAmplitudeCOL, 4),
       round(scenario.summary.maxBranchAmplitudeFractionCOL, 4),
-      round(scenario.summary.maxBranchAmplitudeEDVL, 4),
       round(scenario.summary.maxBranchAmplitudeFractionEDVL, 4),
+      round(scenario.summary.maxBranchAmplitudeFractionESVL, 4),
+      round(scenario.summary.minMVAForwardMl, 4),
+      round(scenario.summary.minMVAFraction, 4),
+      round(scenario.summary.minLAAloopArea, 4),
+      round(scenario.summary.minLAAloopFraction, 4),
       round(scenario.summary.maxValveReverseMl, 6),
       scenario.summary.maxClampHitCount,
       round(scenario.summary.maxSanitizeAbsMl, 6),
@@ -478,16 +519,19 @@ export function reportToMarkdown(report: DebugReport): string {
       scenario.summary.contaminatedPointCount,
       round(scenario.summary.maxAbsReturnMapSlopeEDVL, 4),
       round(scenario.summary.maxAbsTwoBeatReturnMapSlopeEDVL, 4),
+      round(scenario.summary.maxAbsReturnMapSlopeESVL, 4),
+      round(scenario.summary.maxAbsTwoBeatReturnMapSlopeESVL, 4),
     ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
   }
   lines.push("");
   lines.push("## Primary dt points");
   lines.push("");
-  lines.push("| delta | target TBV | seed | period | reason | actual s | worst signal | worst delta | adj delta | period delta | LAP | CO_L period | CO_L last beat | CO_R period | PV return | clamp hits | valve reverse max | LV lambda raw | LV lambda act | LV lambda Kd | LV lambda fIso | LV lambdaAct-raw | LV Kd mean | LV fIso mean | branch CO amp | branch CO frac | branch EDV amp | branch EDV frac | return-map | one-beat EDV slope | two-beat EDV slope | reset-lambdaAct two-beat EDV slope | nonsmooth |");
-  lines.push("| ---: | ---: | ---: | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | --- |");
+  lines.push("| delta | target TBV | seed | period | reason | actual s | worst signal | worst delta | adj delta | period delta | LAP | CO_L period | CO_L last beat | CO_R period | PV return | clamp hits | valve reverse max | MV A mL | MV A frac | MV A peak | MV E peak | LA A-loop area | LA A-loop frac | A mean LAP-LVP | A max LAP-LVP | A MV open frac | LV lambda raw | LV lambda act | LV lambda Kd | LV lambda fIso | LV lambdaAct-raw | LV Kd mean | LV fIso mean | branch CO amp | branch CO frac | branch EDV amp | branch EDV frac | branch ESV amp | branch ESV frac | return-map | one-beat EDV slope | two-beat EDV slope | one-beat ESV slope | two-beat ESV slope | reset-lambdaAct two-beat EDV slope | nonsmooth |");
+  lines.push("| ---: | ---: | ---: | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | --- |");
   for (const p of report.points) {
     const lastBeat = p.beatTrace.at(-1);
     const lv = lastBeat?.active.LV;
+    const filling = lastBeat?.filling;
     lines.push([
       p.deltaVolumeMl,
       p.targetVolumeMl,
@@ -506,6 +550,15 @@ export function reportToMarkdown(report: DebugReport): string {
       round(p.periodMetrics.pulmonaryVenousReturnLMin, 3),
       p.health.clampHitCount,
       round(maxValveReverse(p), 6),
+      round(filling?.MV_A_forward_mL ?? NaN, 4),
+      round(filling?.MV_A_fraction ?? NaN, 4),
+      round(filling?.MV_A_peak ?? NaN, 4),
+      round(filling?.MV_E_peak ?? NaN, 4),
+      round(filling?.LA_A_loop_area ?? NaN, 4),
+      round(filling?.LA_A_loop_fraction ?? NaN, 4),
+      round(filling?.atrialSystoleTransmitralGradientMean ?? NaN, 4),
+      round(filling?.atrialSystoleTransmitralGradientMax ?? NaN, 4),
+      round(filling?.atrialSystoleMVOpenFraction ?? NaN, 4),
       round(lv?.lambdaRawMean ?? lv?.lambdaMean ?? NaN, 4),
       round(lv?.lambdaActMean ?? NaN, 4),
       round(lv?.lambdaForKdMean ?? NaN, 4),
@@ -517,9 +570,13 @@ export function reportToMarkdown(report: DebugReport): string {
       round(p.returnMap.branchAmplitudeFraction.CO_L ?? NaN, 4),
       round(p.returnMap.branchAmplitude.EDV_L ?? NaN, 4),
       round(p.returnMap.branchAmplitudeFraction.EDV_L ?? NaN, 4),
+      round(p.returnMap.branchAmplitude.ESV_L ?? NaN, 4),
+      round(p.returnMap.branchAmplitudeFraction.ESV_L ?? NaN, 4),
       p.returnMap.status,
       round(returnMapSlope(p, "EDV_L"), 4),
       round(twoBeatReturnMapSlope(p, "EDV_L"), 4),
+      round(returnMapSlope(p, "ESV_L"), 4),
+      round(twoBeatReturnMapSlope(p, "ESV_L"), 4),
       round(modeTwoBeatSlope(p, "volumeLambdaActReset", "EDV_L"), 4),
       p.returnMap.nonsmooth ? "yes" : "no",
     ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
@@ -562,6 +619,7 @@ export function reportToMarkdown(report: DebugReport): string {
   lines.push("- Node-specific clamp attribution separates low-volume pressure/volume bounds from aggregate health warnings.");
   lines.push("- TBV / Clamp Audit quantifies how much hard state sanitation and the TBV projector move volume. `contaminated` means sanitize or projection moved more than 0.05 mL in the representative beat.");
   lines.push("- Return-map slopes are central differences from a volume-preserving LV/PVein perturbation at the next LV EDV section. `one-beat` measures the next beat; `two-beat` measures the same phase two beats later. EDV/ESV slopes are one-coordinate section slopes; CO/LAP slopes are response slopes. None of them change model dynamics.");
+  lines.push("- MV/LA filling diagnostics split transmitral flow into E and A windows and report LA A-loop area plus atrial-systole transmitral pressure gradient/open fraction. These are observational regime markers, not model changes.");
   lines.push("- Branch amplitude and branch amplitude fraction are classifier-independent high/low beat measurements from the trace; treat them as the primary stabilization signal before interpreting period labels or local slopes.");
   lines.push("- `volumeLambdaActFixed` keeps the active-stretch memory fixed after a volume perturbation; `volumeLambdaActReset` resets LV `lambdaAct` to the post-perturbation raw LV stretch before measuring the return map. The latter is a quasi-static consistency check for lambdaAct experiments, not a model change.");
   lines.push("- `tau lambdaAct s` is an off-by-default experiment. `tau=0` is the shipped model. Positive tau values lag only selected active-stress length inputs (`kd`, `fiso`, or `kd+fiso`), not passive pressure, geometry, gOver, force-velocity, or valves.");
@@ -577,6 +635,7 @@ export function reportToCsv(report: DebugReport): string {
     for (const point of scenario.points) {
       for (const beat of point.beatTrace) {
         const lv = beat.active.LV;
+        const filling = beat.filling;
         rows.push([
           scenario.dt,
           scenario.lambdaActTauSec,
@@ -594,6 +653,16 @@ export function reportToCsv(report: DebugReport): string {
           beat.CO_R,
           beat.EDV_L,
           beat.ESV_L,
+          filling.MV_E_forward_mL,
+          filling.MV_A_forward_mL,
+          filling.MV_A_fraction ?? "",
+          filling.MV_E_peak ?? "",
+          filling.MV_A_peak ?? "",
+          filling.LA_A_loop_area,
+          filling.LA_A_loop_fraction ?? "",
+          filling.atrialSystoleTransmitralGradientMean,
+          filling.atrialSystoleTransmitralGradientMax,
+          filling.atrialSystoleMVOpenFraction,
           lv?.lambdaMean ?? "",
           lv?.lambdaActMean ?? "",
           lv?.lambdaForKdMean ?? "",
@@ -619,6 +688,8 @@ export function reportToCsv(report: DebugReport): string {
           point.returnMap.branchAmplitudeFraction.CO_L ?? "",
           point.returnMap.branchAmplitude.EDV_L ?? "",
           point.returnMap.branchAmplitudeFraction.EDV_L ?? "",
+          point.returnMap.branchAmplitude.ESV_L ?? "",
+          point.returnMap.branchAmplitudeFraction.ESV_L ?? "",
           point.tbvAudit.classification,
           point.tbvAudit.sanitizeAbsMl,
           point.tbvAudit.projectionAppliedMl,
@@ -627,6 +698,8 @@ export function reportToCsv(report: DebugReport): string {
           point.returnMap.status,
           point.returnMap.features.EDV_L?.centralSlope ?? "",
           point.returnMap.twoBeatSamePhase?.features.EDV_L?.centralSlope ?? "",
+          point.returnMap.features.ESV_L?.centralSlope ?? "",
+          point.returnMap.twoBeatSamePhase?.features.ESV_L?.centralSlope ?? "",
           point.returnMap.modes.volumeLambdaActReset?.twoBeatSamePhase?.features.EDV_L?.centralSlope ?? "",
           point.returnMap.features.CO_L?.centralSlope ?? "",
           point.returnMap.twoBeatSamePhase?.features.CO_L?.centralSlope ?? "",
@@ -1333,8 +1406,58 @@ function summarizeBeat(beat: number, entries: TraceSample[], HR: number): BeatTr
     ESV_R: min("VRV"),
     LVPMax: max("LVP"),
     QAoMax: max("QAo"),
+    filling: fillingRegimeSummary(samples),
     active: summarizeActive(entries),
   };
+}
+
+function fillingRegimeSummary(samples: SimSample[]): FillingRegimeSummary {
+  const eSamples = samples.filter((sample) => phaseInWindow(sample, 0.30, 0.75));
+  const aSamples = samples.filter((sample) => phaseInWindow(sample, 0.85, 0.08));
+  const eForward = integratePositive(eSamples, "QMV");
+  const aForward = integratePositive(aSamples, "QMV");
+  const totalForward = eForward + aForward;
+  const ePeak = finiteMaxOrNull(eSamples.map((sample) => Math.max(0, sample.QMV)));
+  const aPeak = finiteMaxOrNull(aSamples.map((sample) => Math.max(0, sample.QMV)));
+  const laLoopArea = Math.abs(loopArea(samples.map((sample) => ({ x: sample.VLA, y: sample.LAP }))));
+  const laALoopArea = Math.abs(loopArea(aSamples.map((sample) => ({ x: sample.VLA, y: sample.LAP }))));
+  const aGradients = aSamples.map((sample) => Math.max(0, sample.LAP - sample.LVP)).filter(Number.isFinite);
+  return {
+    MV_E_forward_mL: eForward,
+    MV_A_forward_mL: aForward,
+    MV_A_fraction: totalForward > 1e-9 ? aForward / totalForward : null,
+    MV_E_peak: ePeak,
+    MV_A_peak: aPeak,
+    LA_loop_area: laLoopArea,
+    LA_A_loop_area: laALoopArea,
+    LA_A_loop_fraction: laLoopArea > 1e-9 ? laALoopArea / laLoopArea : null,
+    atrialSystoleTransmitralGradientMean: finiteOrZero(meanNumbers(aGradients)),
+    atrialSystoleTransmitralGradientMax: finiteMaxOrNull(aGradients) ?? 0,
+    atrialSystoleMVOpenFraction: aSamples.length > 0
+      ? meanNumbers(aSamples.map((sample) => sample.xiMV > 0.05 || sample.QMV > 1 ? 1 : 0))
+      : 0,
+  };
+}
+
+function phaseInWindow(sample: SimSample, lo: number, hi: number): boolean {
+  const theta = sample.phi - Math.floor(sample.phi);
+  return lo <= hi ? theta >= lo && theta < hi : theta >= lo || theta < hi;
+}
+
+function loopArea(points: Array<{ x: number; y: number }>): number {
+  if (points.length < 3) return 0;
+  let area = 0;
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i];
+    const b = points[(i + 1) % points.length];
+    area += a.x * b.y - b.x * a.y;
+  }
+  return 0.5 * area;
+}
+
+function finiteMaxOrNull(values: number[]): number | null {
+  const finite = values.filter(Number.isFinite);
+  return finite.length > 0 ? Math.max(...finite) : null;
 }
 
 function summarizeActive(entries: TraceSample[]): Partial<Record<Chamber, ActiveBeatSummary>> {
@@ -1432,6 +1555,8 @@ function summarizePoints(points: DebugPoint[]): DebugSummary {
     maxClampHitCount: Math.max(0, ...points.map((p) => p.health.clampHitCount)),
     maxAbsReturnMapSlopeEDVL: Math.max(0, ...points.map((p) => p.returnMap.features.EDV_L?.absCentralSlope ?? 0)),
     maxAbsTwoBeatReturnMapSlopeEDVL: Math.max(0, ...points.map((p) => p.returnMap.twoBeatSamePhase?.features.EDV_L?.absCentralSlope ?? 0)),
+    maxAbsReturnMapSlopeESVL: Math.max(0, ...points.map((p) => p.returnMap.features.ESV_L?.absCentralSlope ?? 0)),
+    maxAbsTwoBeatReturnMapSlopeESVL: Math.max(0, ...points.map((p) => p.returnMap.twoBeatSamePhase?.features.ESV_L?.absCentralSlope ?? 0)),
     maxAbsReturnMapSlopeCOL: Math.max(0, ...points.map((p) => p.returnMap.features.CO_L?.absCentralSlope ?? 0)),
     maxAbsTwoBeatReturnMapSlopeCOL: Math.max(0, ...points.map((p) => p.returnMap.twoBeatSamePhase?.features.CO_L?.absCentralSlope ?? 0)),
     maxBranchAmplitudeCOL: Math.max(0, ...points.map((p) => p.returnMap.branchAmplitude.CO_L ?? 0)),
@@ -1440,6 +1565,13 @@ function summarizePoints(points: DebugPoint[]): DebugSummary {
     maxBranchAmplitudeFractionEDVL: Math.max(0, ...points.map((p) => p.returnMap.branchAmplitudeFraction.EDV_L ?? 0)),
     maxBranchAmplitudeESVL: Math.max(0, ...points.map((p) => p.returnMap.branchAmplitude.ESV_L ?? 0)),
     maxBranchAmplitudeFractionESVL: Math.max(0, ...points.map((p) => p.returnMap.branchAmplitudeFraction.ESV_L ?? 0)),
+    minMVAForwardMl: finiteMin(points.map((p) => representativeFilling(p)?.MV_A_forward_mL ?? Number.NaN)),
+    minMVAFraction: finiteMin(points.map((p) => representativeFilling(p)?.MV_A_fraction ?? Number.NaN)),
+    minLAAloopArea: finiteMin(points.map((p) => representativeFilling(p)?.LA_A_loop_area ?? Number.NaN)),
+    minLAAloopFraction: finiteMin(points.map((p) => representativeFilling(p)?.LA_A_loop_fraction ?? Number.NaN)),
+    maxAtrialSystoleTransmitralGradientMean: Math.max(0, ...points.map((p) => representativeFilling(p)?.atrialSystoleTransmitralGradientMean ?? 0)),
+    maxAtrialSystoleTransmitralGradientMax: Math.max(0, ...points.map((p) => representativeFilling(p)?.atrialSystoleTransmitralGradientMax ?? 0)),
+    minAtrialSystoleMVOpenFraction: finiteMin(points.map((p) => representativeFilling(p)?.atrialSystoleMVOpenFraction ?? Number.NaN)),
     nodeClampHits: mergeCountRecords(points.map((p) => p.clampDiagnostics.nodeClampHits)),
     dynamicFlowClampHits: mergeCountRecords(points.map((p) => p.clampDiagnostics.dynamicFlowClampHits)),
     valveDiodeClampHits: mergeCountRecords(points.map((p) => p.clampDiagnostics.valveDiodeClampHits)),
@@ -1527,6 +1659,10 @@ function maxValveReverse(p: DebugPoint): number {
   );
 }
 
+function representativeFilling(p: DebugPoint): FillingRegimeSummary | undefined {
+  return p.beatTrace.at(-1)?.filling;
+}
+
 function returnMapSlope(p: DebugPoint, key: keyof ReturnMapDiagnostic["features"]): number {
   return p.returnMap.features[key]?.centralSlope ?? Number.NaN;
 }
@@ -1543,6 +1679,11 @@ function meanNumbers(values: number[]): number {
   const finite = values.filter(Number.isFinite);
   if (finite.length === 0) return Number.NaN;
   return finite.reduce((acc, value) => acc + value, 0) / finite.length;
+}
+
+function finiteMin(values: number[]): number {
+  const finite = values.filter(Number.isFinite);
+  return finite.length > 0 ? Math.min(...finite) : Number.NaN;
 }
 
 export function parseLowPreloadDebugArgs(args: string[]): DebugOptions {
