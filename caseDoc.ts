@@ -101,7 +101,8 @@ export interface CaseLessonLayer {
 
 export type ReadingColumnEntry =
   | { kind: "paneRef"; panelId: string; generated?: boolean }
-  | { kind: "noteRef"; noteId: string };
+  | { kind: "noteRef"; noteId: string }
+  | { kind: "viewRef"; viewId: string };
 
 export interface CaseReadingManifest {
   schemaVersion: 1;

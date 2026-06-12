@@ -29,6 +29,7 @@ import {
   WorkbenchZoneId,
 } from '../../types';
 import type { LessonStep } from '../../lessonDoc';
+import type { CaseReadingManifest } from '../../caseDoc';
 import type { NoteContent } from '../../noteTypes';
 import { flowPack } from '../../layoutPresets';
 import {
@@ -48,6 +49,7 @@ import {
   metricsViews,
   type AuthoredViewSpec,
 } from '../../features/workbench/authoredViews';
+import { hasViewRefUsage, viewRefUsageForDeletion } from '../../features/workbench/noteViewRefs';
 import type { ControllerViewSpec, GraphBoardLayout, MetricsViewSpec } from '../../features/workbench/viewSpec';
 import { Activity, Brush, ChevronDown, ChevronRight, Copy, Eye, EyeOff, FileText, Layers, MoreVertical, Pencil, Plus, Search, Settings, SlidersHorizontal, Tags, Trash2, Type as TypeIcon, X } from 'lucide-react';
 
@@ -87,6 +89,7 @@ interface PanelGridProps {
   graphBoardLayout?: GraphBoardLayout;
   onGraphBoardLayoutChange?: (layout: GraphBoardLayout | undefined) => void;
   authoredViews?: AuthoredViewSpec[];
+  reading?: CaseReadingManifest;
   createControllerView: (title: string, items?: ControllerItem[]) => ControllerViewSpec;
   createMetricsView: (title: string, metrics?: MetricType[]) => MetricsViewSpec;
   updateAuthoredView: (view: AuthoredViewSpec) => void;
@@ -1607,6 +1610,7 @@ interface PanelCardProps {
   updatePanelLegendPosition: (panelId: string, pos?: LegendPosition) => void;
   noteCaseKey: string;
   notes: Record<string, NoteContent>;
+  authoredViews: readonly AuthoredViewSpec[];
   onNoteChange: (panelId: string, blocks: NoteContent) => void;
   chambers: ChamberId[];
   signals: SignalType[];
@@ -1658,6 +1662,7 @@ function PanelCard({
   updatePanelLegendPosition,
   noteCaseKey,
   notes,
+  authoredViews,
   onNoteChange,
   chambers,
   signals,
@@ -1708,6 +1713,7 @@ function PanelCard({
         updateInstanceVolume,
         noteMode,
         notes,
+        authoredViews,
         noteCaseKey,
         onNoteChange,
         noteHeader: dockviewNoteModeSwitch,
@@ -1957,6 +1963,7 @@ export function PanelGrid({
   graphBoardLayout,
   onGraphBoardLayoutChange,
   authoredViews = [],
+  reading,
   createControllerView,
   createMetricsView,
   updateAuthoredView,
@@ -2091,6 +2098,7 @@ export function PanelGrid({
       updatePanelLegendPosition={updatePanelLegendPosition}
       noteCaseKey={noteCaseKey}
       notes={notes}
+      authoredViews={authoredViews}
       onNoteChange={onNoteChange}
       chambers={chambers}
       signals={signals}
@@ -2232,7 +2240,15 @@ export function PanelGrid({
   };
 
   const deleteView = (view: AuthoredViewSpec) => {
-    if (!window.confirm(t('workbench.viewManagement.deleteConfirm', { title: view.title ?? '' }))) return;
+    const usage = viewRefUsageForDeletion(view.id, notes, reading);
+    const confirmKey = hasViewRefUsage(usage)
+      ? 'workbench.viewManagement.deleteReferencedConfirm'
+      : 'workbench.viewManagement.deleteConfirm';
+    if (!window.confirm(t(confirmKey, {
+      title: view.title ?? '',
+      noteCount: usage.notes.length,
+      readingCount: usage.reading ? 1 : 0,
+    }))) return;
     deleteAuthoredView(view.id);
     if (view.kind === 'controller' && selectedControllerEntryId === view.id) {
       onLayoutStateChange((prev) => ({ ...prev, selectedControllerViewId: BUILT_IN_INSPECTOR_VIEW_ID }));
@@ -2285,6 +2301,7 @@ export function PanelGrid({
                 updateInstanceVolume,
                 noteMode,
                 notes,
+                authoredViews,
                 noteCaseKey,
                 onNoteChange,
                 noteHeader,

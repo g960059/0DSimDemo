@@ -15,6 +15,8 @@ import { ReadingColumn } from "./ReadingColumn";
 import { homeHref } from "../../homeLinks";
 import { localeFromPathname } from "../../localeRouting";
 import { localeDisplayLabel } from "../../contentI18n";
+import { authoredViewsOnly } from "../../features/workbench/authoredViews";
+import { collectNoteViewRefIds } from "../../features/workbench/noteViewRefs";
 
 function plainTextFromInlineContent(content: unknown): string {
   if (typeof content === "string") return content;
@@ -64,10 +66,16 @@ export const ReadingPresenter: React.FC<{
   const pendingSteadyTransitionIdsRef = useRef<Set<string>>(new Set());
   const activeInstanceId = liveInstances[0]?.id ?? "";
   const notes = useMemo(() => caseDoc.notes ?? {}, [caseDoc.notes]);
+  const authoredViews = useMemo(() => authoredViewsOnly(caseDoc.views), [caseDoc.views]);
   const readingBlocks = useMemo(() => collectReadingNoteBlocks(column, notes), [column, notes]);
   const headingAnchors = useMemo(() => deriveHeadingAnchors(readingBlocks), [readingBlocks]);
   const estimatedReadMinutes = Math.max(1, Math.ceil(countWords(readingBlocks) / 220));
-  const hasInteractiveControls = caseDoc.panels.some((panel) => panel.type === "CONTROLS") || (caseDoc.exposedControllers?.length ?? 0) > 0;
+  const noteViewRefs = useMemo(() => collectNoteViewRefIds(notes), [notes]);
+  const hasInteractiveViewRefs = authoredViews.some((view) => (
+    view.kind === "controller"
+    && (noteViewRefs.has(view.id) || column.some((entry) => entry.kind === "viewRef" && entry.viewId === view.id))
+  ));
+  const hasInteractiveControls = caseDoc.panels.some((panel) => panel.type === "CONTROLS") || (caseDoc.exposedControllers?.length ?? 0) > 0 || hasInteractiveViewRefs;
 
   useEffect(() => {
     controller.onHealthChange = setInstanceHealth;
@@ -208,6 +216,7 @@ export const ReadingPresenter: React.FC<{
               updateInstanceVolume,
               noteMode: "read",
               notes,
+              authoredViews,
               noteCaseKey: caseDoc.meta.id,
               presentationMode: "reading",
             }}

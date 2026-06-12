@@ -208,6 +208,32 @@ describe("ReadingColumn", () => {
     expect(html).toContain("Hide controls");
     expect(html).toContain("Adjust the model");
   });
+
+  it("renders reading manifest view refs through authored views and dangling placeholders", () => {
+    const html = renderToString(React.createElement(ReadingColumn, {
+      column: [
+        { kind: "viewRef", viewId: "controller-a" },
+        { kind: "viewRef", viewId: "missing-view" },
+      ],
+      panels: [],
+      notes: {},
+      paneCtx: {
+        instances: [],
+        physicsRefs: { current: new Map() },
+        activeInstanceId: "",
+        updateInstanceParams: () => {},
+        updateInstanceKnobs: () => {},
+        updateInstanceVolume: () => {},
+        authoredViews: [
+          { id: "controller-a", title: "Curated Controller", kind: "controller", items: [], binding: { slot: "active" } },
+        ],
+      },
+    }));
+
+    expect(html).toContain("Curated Controller");
+    expect(html).toContain(i18n.t("notes.viewRef.missingTitle"));
+    expect(html).toContain("missing-view");
+  });
 });
 
 describe("ReadingPaneCard", () => {

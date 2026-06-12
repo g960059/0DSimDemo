@@ -1,14 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from "react-i18next";
 import { BlockNoteView } from "@blocknote/mantine";
-import { useCreateBlockNote } from "@blocknote/react";
+import { getDefaultReactSlashMenuItems, SuggestionMenuController, useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteSchema, defaultBlockSpecs } from "@blocknote/core";
+import { filterSuggestionItems, insertOrUpdateBlockForSlashMenu } from "@blocknote/core/extensions";
 import { createReactBlockSpec } from "@blocknote/react";
+import { Activity, SlidersHorizontal } from "lucide-react";
 import { BlockMath as KatexBlockMath } from "react-katex";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import 'katex/dist/katex.min.css';
 import type { NoteContent } from '../noteTypes';
+import { AuthoredViewEmbed, type AuthoredViewRuntime } from "./workbench/AuthoredViewEmbed";
+import type { AuthoredViewSpec } from "@/features/workbench/authoredViews";
 
 type NoteMode = 'read' | 'edit' | 'author';
 
@@ -20,6 +24,7 @@ const EMPTY_EDIT_NOTE: NoteContent = [
 ];
 
 const BareReadNoteContext = React.createContext(false);
+const NoteViewContext = React.createContext<{ authoredViews: readonly AuthoredViewSpec[]; runtime?: AuthoredViewRuntime }>({ authoredViews: [] });
 
 const editorCanEdit = (editor: unknown) => (editor as { isEditable?: boolean }).isEditable !== false;
 
@@ -227,6 +232,7 @@ function renderStaticBlockInternal(
   index: number,
   bareRead: boolean,
   nextHeadingId: () => string | undefined,
+  viewCtx: { authoredViews: readonly AuthoredViewSpec[]; runtime?: AuthoredViewRuntime } = { authoredViews: [] },
 ): React.ReactNode {
   if (isNormalizedListBlock(block)) {
     const listClass = block.listType === "bullet"
@@ -239,7 +245,7 @@ function renderStaticBlockInternal(
       block.items.map((item, itemIndex) => (
         <li key={itemIndex} className={bareRead ? "text-[17px] leading-[1.75] text-slate-300 text-pretty" : "leading-7 text-slate-200 text-pretty"}>
           {renderInlineContent(item.content)}
-          {renderStaticChildren(item, bareRead, nextHeadingId)}
+          {renderStaticChildren(item, bareRead, nextHeadingId, viewCtx)}
         </li>
       )),
     );
@@ -254,7 +260,7 @@ function renderStaticBlockInternal(
     const level = headingLevel(staticBlock);
     const Tag = (`h${level}`) as keyof React.JSX.IntrinsicElements;
     const headingId = nextHeadingId();
-    const nestedChildren = renderStaticChildren(staticBlock, bareRead, nextHeadingId);
+    const nestedChildren = renderStaticChildren(staticBlock, bareRead, nextHeadingId, viewCtx);
     return (
       <React.Fragment key={index}>
         {React.createElement(
@@ -269,7 +275,7 @@ function renderStaticBlockInternal(
       </React.Fragment>
     );
   }
-  const nestedChildren = renderStaticChildren(staticBlock, bareRead, nextHeadingId);
+  const nestedChildren = renderStaticChildren(staticBlock, bareRead, nextHeadingId, viewCtx);
   if (type === "equation") {
     return (
       <div key={index} className="my-7 overflow-x-auto text-center text-slate-100">
@@ -293,6 +299,17 @@ function renderStaticBlockInternal(
   if (type === "controller_ref") {
     return <span key={index} className="mx-1 inline rounded bg-slate-800/45 px-1.5 py-0.5 font-mono text-xs text-slate-500">{String(props.label ?? "")}</span>;
   }
+  if (type === "view_ref") {
+    return (
+      <AuthoredViewEmbed
+        key={index}
+        viewId={String(props.viewId ?? "")}
+        authoredViews={viewCtx.authoredViews}
+        runtime={viewCtx.runtime}
+        className={bareRead ? "sm:-mx-8" : ""}
+      />
+    );
+  }
   if (type === "blockquote") {
     return <blockquote key={index} className="my-6 border-l-2 border-sky-400/50 bg-slate-900/35 py-3 pl-5 pr-4 text-slate-300 text-pretty">{children}{nestedChildren}</blockquote>;
   }
@@ -303,12 +320,17 @@ function renderStaticBlockInternal(
   return <p key={index} className={bareRead ? "my-[1em] text-[17px] leading-[1.75] text-slate-300 text-pretty" : "mb-3 leading-7 text-slate-200"}>{children}{nestedChildren}</p>;
 }
 
-function renderStaticChildren(block: StaticBlock, bareRead: boolean, nextHeadingId: () => string | undefined): React.ReactNode {
+function renderStaticChildren(
+  block: StaticBlock,
+  bareRead: boolean,
+  nextHeadingId: () => string | undefined,
+  viewCtx: { authoredViews: readonly AuthoredViewSpec[]; runtime?: AuthoredViewRuntime } = { authoredViews: [] },
+): React.ReactNode {
   const children = blockChildren(block);
   if (children.length === 0) return null;
   return (
     <div className="mt-3">
-      {normalizeStaticBlocks(children).map((child, index) => renderStaticBlockInternal(child, index, bareRead, nextHeadingId))}
+      {normalizeStaticBlocks(children).map((child, index) => renderStaticBlockInternal(child, index, bareRead, nextHeadingId, viewCtx))}
     </div>
   );
 }
@@ -319,11 +341,18 @@ export function renderStaticBlock(block: NormalizedStaticBlock, index: number, b
   return renderStaticBlockInternal(block, index, bareRead, () => headingAnchorIds[headingIndex++]);
 }
 
-const StaticReadNote: React.FC<{ content: NoteContent; bareRead: boolean; headingAnchorIds?: string[] }> = ({ content, bareRead, headingAnchorIds = [] }) => {
+const StaticReadNote: React.FC<{
+  content: NoteContent;
+  bareRead: boolean;
+  headingAnchorIds?: string[];
+  authoredViews: readonly AuthoredViewSpec[];
+  viewRuntime?: AuthoredViewRuntime;
+}> = ({ content, bareRead, headingAnchorIds = [], authoredViews, viewRuntime }) => {
   let headingIndex = 0;
+  const viewCtx = { authoredViews, runtime: viewRuntime };
   return (
     <div className={bareRead ? "flex-1 h-full w-full py-1 text-slate-200 blocknote-dark-theme-override isolate" : "flex-1 h-full w-full bg-[#0B1120] rounded-b-xl overflow-y-auto custom-scrollbar p-3 sm:p-5 text-slate-200 blocknote-dark-theme-override isolate"}>
-      {normalizeStaticBlocks(content).map((block, index) => renderStaticBlockInternal(block, index, bareRead, () => headingAnchorIds[headingIndex++]))}
+      {normalizeStaticBlocks(content).map((block, index) => renderStaticBlockInternal(block, index, bareRead, () => headingAnchorIds[headingIndex++], viewCtx))}
     </div>
   );
 };
@@ -505,12 +534,35 @@ const controllerRefBlock = createReactBlockSpec(
   }
 );
 
+const viewRefBlock = createReactBlockSpec(
+  {
+    type: "view_ref",
+    propSchema: {
+      viewId: { default: "" },
+    },
+    content: "none",
+  },
+  {
+    render: (props) => {
+      const { authoredViews, runtime } = React.useContext(NoteViewContext);
+      return (
+        <AuthoredViewEmbed
+          viewId={props.block.props.viewId}
+          authoredViews={authoredViews}
+          runtime={runtime}
+        />
+      );
+    },
+  }
+);
+
 const schema = BlockNoteSchema.create({
   blockSpecs: {
     ...defaultBlockSpecs,
     equation: equationBlock(),
     quiz: quizBlock(),
     controller_ref: controllerRefBlock(),
+    view_ref: viewRefBlock(),
   },
 });
 
@@ -520,9 +572,11 @@ interface NotePanelProps {
   onChange?: (blocks: NoteContent) => void;
   bare?: boolean;
   headingAnchorIds?: string[];
+  authoredViews?: readonly AuthoredViewSpec[];
+  viewRuntime?: AuthoredViewRuntime;
 }
 
-export const NotePanel: React.FC<NotePanelProps> = ({ mode = 'read', content, onChange, bare, headingAnchorIds }) => {
+export const NotePanel: React.FC<NotePanelProps> = ({ mode = 'read', content, onChange, bare, headingAnchorIds, authoredViews = [], viewRuntime }) => {
   const { t } = useTranslation();
   const hasContent = Array.isArray(content) && content.length > 0;
   const editable = mode !== 'read';
@@ -537,7 +591,15 @@ export const NotePanel: React.FC<NotePanelProps> = ({ mode = 'read', content, on
   }
 
   if (!editable) {
-    return <StaticReadNote content={(hasContent ? content : EMPTY_EDIT_NOTE) as NoteContent} bareRead={bareRead} headingAnchorIds={headingAnchorIds} />;
+    return (
+      <StaticReadNote
+        content={(hasContent ? content : EMPTY_EDIT_NOTE) as NoteContent}
+        bareRead={bareRead}
+        headingAnchorIds={headingAnchorIds}
+        authoredViews={authoredViews}
+        viewRuntime={viewRuntime}
+      />
+    );
   }
 
   return (
@@ -546,11 +608,21 @@ export const NotePanel: React.FC<NotePanelProps> = ({ mode = 'read', content, on
       content={(hasContent ? content : EMPTY_EDIT_NOTE) as NoteContent}
       onChange={onChange}
       bareRead={bareRead}
+      authoredViews={authoredViews}
+      viewRuntime={viewRuntime}
     />
   );
 };
 
-const NoteEditor: React.FC<{ editable: boolean; content: NoteContent; onChange?: (blocks: NoteContent) => void; bareRead?: boolean }> = ({ editable, content, onChange, bareRead = false }) => {
+const NoteEditor: React.FC<{
+  editable: boolean;
+  content: NoteContent;
+  onChange?: (blocks: NoteContent) => void;
+  bareRead?: boolean;
+  authoredViews: readonly AuthoredViewSpec[];
+  viewRuntime?: AuthoredViewRuntime;
+}> = ({ editable, content, onChange, bareRead = false, authoredViews, viewRuntime }) => {
+  const { t } = useTranslation();
   const editor = useCreateBlockNote({
     schema,
     initialContent: content as any,
@@ -560,17 +632,42 @@ const NoteEditor: React.FC<{ editable: boolean; content: NoteContent; onChange?:
     if (editable) onChange?.(editor.document as NoteContent);
   };
 
+  const getSlashMenuItems = async (query: string) => {
+    const viewItems = authoredViews.map((view) => ({
+      title: view.title,
+      subtext: view.kind === "controller" ? t("notes.viewRef.controllerKind") : t("notes.viewRef.metricsKind"),
+      group: t("notes.viewRef.menuGroup"),
+      aliases: [view.title, view.kind, t("notes.viewRef.menuTitle")],
+      icon: view.kind === "controller" ? <SlidersHorizontal size={18} /> : <Activity size={18} />,
+      onItemClick: () => {
+        insertOrUpdateBlockForSlashMenu(editor as any, {
+          type: "view_ref",
+          props: { viewId: view.id },
+        } as any);
+      },
+    }));
+    return filterSuggestionItems([
+      ...getDefaultReactSlashMenuItems(editor as any),
+      ...viewItems,
+    ], query);
+  };
+
   return (
-    <BareReadNoteContext.Provider value={bareRead}>
-      <div className={bareRead ? "flex-1 h-full w-full overflow-y-auto custom-scrollbar py-1 text-slate-200 blocknote-dark-theme-override isolate" : "flex-1 h-full w-full bg-[#0B1120] rounded-b-xl overflow-y-auto custom-scrollbar p-3 sm:p-5 text-slate-200 blocknote-dark-theme-override isolate"}>
-        <BlockNoteView
-          editor={editor}
-          editable={editable}
-          theme="dark"
-          onChange={handleChange}
-          className="min-h-full"
-        />
-      </div>
-    </BareReadNoteContext.Provider>
+    <NoteViewContext.Provider value={{ authoredViews, runtime: viewRuntime }}>
+      <BareReadNoteContext.Provider value={bareRead}>
+        <div className={bareRead ? "flex-1 h-full w-full overflow-y-auto custom-scrollbar py-1 text-slate-200 blocknote-dark-theme-override isolate" : "flex-1 h-full w-full bg-[#0B1120] rounded-b-xl overflow-y-auto custom-scrollbar p-3 sm:p-5 text-slate-200 blocknote-dark-theme-override isolate"}>
+          <BlockNoteView
+            editor={editor}
+            editable={editable}
+            theme="dark"
+            onChange={handleChange}
+            slashMenu={false}
+            className="min-h-full"
+          >
+            <SuggestionMenuController triggerCharacter="/" getItems={getSlashMenuItems} />
+          </BlockNoteView>
+        </div>
+      </BareReadNoteContext.Provider>
+    </NoteViewContext.Provider>
   );
 };

@@ -242,6 +242,7 @@
       "duplicate": "複製",
       "renamePrompt": "ビュー名を変更",
       "deleteConfirm": "「{{title}}」を削除しますか?",
+      "deleteReferencedConfirm": "「{{title}}」を削除しますか? {{noteCount}}件のノート参照と{{readingCount}}件のリーディング参照はプレースホルダーになります。",
       "metricsMenu": "指標ビューメニュー"
     },
     "viewEditor": {
@@ -643,6 +644,14 @@
   },
   "notes": {
     "empty": "このケースのノートはまだありません。",
+    "viewRef": {
+      "menuTitle": "ビュー",
+      "menuGroup": "ビュー",
+      "controllerKind": "コントローラービュー",
+      "metricsKind": "指標ビュー",
+      "missingTitle": "参照先ビューを利用できません",
+      "unknownView": "不明なビュー"
+    },
     "quiz": {
       "correct": "正解です",
       "tryAgain": "もう一度試してください"

@@ -187,7 +187,7 @@ export function useWorkbenchPersistence({
       replacePanelState({
         panels: remapped.panels,
         workspace: localized.workspace,
-        notes: localized.notes ?? {},
+        notes: retainedDoc.notes ?? {},
         noteCaseKey: `${localized.meta.id}:${nonce}`,
       });
       resetLessonState();

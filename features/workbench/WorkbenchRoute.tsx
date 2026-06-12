@@ -144,6 +144,7 @@ export function WorkbenchRoute() {
         graphBoardLayout={scene.currentCaseGraphBoardLayout}
         onGraphBoardLayoutChange={scene.updateGraphBoardLayout}
         authoredViews={scene.currentCaseViews}
+        reading={scene.currentCaseReading}
         createControllerView={scene.createControllerView}
         createMetricsView={scene.createMetricsView}
         updateAuthoredView={scene.updateAuthoredView}

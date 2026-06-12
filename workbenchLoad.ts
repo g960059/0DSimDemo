@@ -1,6 +1,7 @@
 import type { PanelDef, PanelInstanceConfig, PanelViewConfig, SimInstance } from "./types";
 import type { CaseDocument, CaseI18nContent } from "./caseDoc";
 import { remapGraphBoardLayoutViewIds, remapViewSpecIds } from "./features/workbench/viewSpec";
+import { remapNoteViewRefIds } from "./features/workbench/noteViewRefs";
 
 function remapViewInstanceIds(view: PanelViewConfig | undefined, idMap: Map<string, string>): PanelViewConfig | undefined {
   if (!view || !("instances" in view) || !view.instances) return view;
@@ -56,16 +57,18 @@ export function remapCaseI18nContentIds(
   maps: {
     instanceIdMap: Map<string, string>;
     panelIdMap?: Map<string, string>;
+    viewIdMap?: Map<string, string>;
   },
 ): Record<string, CaseI18nContent> | undefined {
   if (!i18n) return undefined;
   const panelIdMap = maps.panelIdMap ?? new Map<string, string>();
+  const viewIdMap = maps.viewIdMap ?? panelIdMap;
   return Object.fromEntries(
     Object.entries(i18n).map(([locale, content]) => [locale, {
       ...content,
       ...(content.instances ? { instances: remapRecordKeys(content.instances, maps.instanceIdMap) } : {}),
       ...(content.panels ? { panels: remapRecordKeys(content.panels, panelIdMap) } : {}),
-      ...(content.notes ? { notes: remapRecordKeys(content.notes, panelIdMap) } : {}),
+      ...(content.notes ? { notes: remapNoteViewRefIds(remapRecordKeys(content.notes, panelIdMap), viewIdMap) } : {}),
     }]),
   );
 }
@@ -75,18 +78,23 @@ export function remapCaseDocumentViewIds(
   maps: {
     instanceIdMap: Map<string, string>;
     panelIdMap?: Map<string, string>;
+    viewIdMap?: Map<string, string>;
   },
 ): CaseDocument {
   const panelIdMap = maps.panelIdMap ?? new Map<string, string>();
+  const viewIdMap = maps.viewIdMap ?? panelIdMap;
   return {
     ...doc,
+    ...(doc.notes ? { notes: remapNoteViewRefIds(doc.notes, viewIdMap) } : {}),
     ...(doc.reading ? {
       reading: {
         ...doc.reading,
         column: doc.reading.column.map((entry) => (
           entry.kind === "paneRef"
             ? { ...entry, panelId: panelIdMap.get(entry.panelId) ?? entry.panelId }
-            : { ...entry, noteId: panelIdMap.get(entry.noteId) ?? entry.noteId }
+            : entry.kind === "noteRef"
+              ? { ...entry, noteId: panelIdMap.get(entry.noteId) ?? entry.noteId }
+              : { ...entry, viewId: viewIdMap.get(entry.viewId) ?? entry.viewId }
         )),
       },
     } : {}),
@@ -99,11 +107,11 @@ export function remapCaseDocumentViewIds(
     ...(doc.views ? {
       views: doc.views.map((view) => remapViewSpecIds(view, {
         scenarioIdMap: maps.instanceIdMap,
-        viewIdMap: panelIdMap,
+        viewIdMap,
       })),
     } : {}),
     ...(doc.graphBoardLayout ? {
-      graphBoardLayout: remapGraphBoardLayoutViewIds(doc.graphBoardLayout, panelIdMap),
+      graphBoardLayout: remapGraphBoardLayoutViewIds(doc.graphBoardLayout, viewIdMap),
     } : {}),
     ...(doc.initialActiveScenarioId ? {
       initialActiveScenarioId: maps.instanceIdMap.get(doc.initialActiveScenarioId) ?? doc.initialActiveScenarioId,

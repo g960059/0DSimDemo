@@ -242,6 +242,7 @@
       "duplicate": "Duplicate",
       "renamePrompt": "Rename view",
       "deleteConfirm": "Delete \"{{title}}\"?",
+      "deleteReferencedConfirm": "Delete \"{{title}}\"? {{noteCount}} note reference(s) and {{readingCount}} reading reference(s) will become placeholders.",
       "metricsMenu": "Metrics view menu"
     },
     "viewEditor": {
@@ -643,6 +644,14 @@
   },
   "notes": {
     "empty": "No notes for this case yet.",
+    "viewRef": {
+      "menuTitle": "View",
+      "menuGroup": "Views",
+      "controllerKind": "Controller view",
+      "metricsKind": "Metrics view",
+      "missingTitle": "Referenced view unavailable",
+      "unknownView": "Unknown view"
+    },
     "quiz": {
       "correct": "Correct!",
       "tryAgain": "Try again"

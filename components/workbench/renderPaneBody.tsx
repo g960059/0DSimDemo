@@ -5,6 +5,7 @@ import { NotePanel } from '../NotePanel';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { ScenarioPane } from './ScenarioPane';
 import { effectiveGlobalConfig } from '../../features/workbench/p1aStructuralHosts';
+import type { AuthoredViewSpec } from '../../features/workbench/authoredViews';
 import type { ClinicalKnobs } from '../../engine/knobs';
 import type { SimulationHealth } from '../../engine/protocol';
 import type { SteadyUpdateStatusMap } from '../../engine/previewController';
@@ -23,6 +24,7 @@ export interface PaneBodyContext {
   updateInstanceVolume?: (id: string, vol: number) => void;
   noteMode?: 'read' | 'edit';
   notes?: Record<string, NoteContent>;
+  authoredViews?: readonly AuthoredViewSpec[];
   noteCaseKey?: string;
   onNoteChange?: (panelId: string, blocks: NoteContent) => void;
   noteHeader?: React.ReactNode;
@@ -123,6 +125,17 @@ export function renderPaneBody(panel: PanelDef, ctx: PaneBodyContext): React.Rea
               mode={ctx.noteMode ?? 'read'}
               content={ctx.notes?.[panel.id]}
               onChange={(blocks) => ctx.onNoteChange?.(panel.id, blocks)}
+              authoredViews={ctx.authoredViews}
+              viewRuntime={{
+                instances: ctx.instances,
+                physicsRefs: ctx.physicsRefs,
+                instanceHealth: ctx.instanceHealth,
+                activeInstanceId: ctx.activeInstanceId,
+                updateInstanceParams: ctx.updateInstanceParams,
+                updateInstanceKnobs: ctx.updateInstanceKnobs,
+                updateInstanceVolume: ctx.updateInstanceVolume,
+                presentationMode: ctx.presentationMode ?? 'studio',
+              }}
             />
           </div>
         </div>
