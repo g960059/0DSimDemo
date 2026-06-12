@@ -322,3 +322,47 @@ npm run verify:starling-low-preload-matrix -- \
   --trace-beats=4 \
   --sample-hz=60
 ```
+
+## AoV_B physical-loss sweep and AS sanity comparator
+
+The latest diagnostic axis tests whether the aortic valve pressure-loss calibration is forcing the hard QAo cap to act as the effective ejection envelope. This is still diagnostic-only. Default app dynamics remain unchanged.
+
+New CLI axes:
+
+```bash
+--aov-b=0.000001,0.000003,0.00001,0.00003,0.00005
+--as-aov-amax=3.5,2,1.5,1,0.75
+```
+
+`--aov-b` varies normal-valve loss. `--as-aov-amax` is an aortic-stenosis sanity comparator: it keeps `AoV_Aref = 3.5` fixed and varies only `AoV_Amax`, so normal calibration and disease comparison are not conflated.
+
+The matrix report now carries the valve comparator parameters through every scenario and adds normal / HR100 / HR100-rearm valve sanity fields:
+
+- `AoVMeanGradient`
+- `AoVPeakGradient`
+- `QAoPeakMeanRatio`
+- ejection duration
+- QAo/cap proximity
+
+Suggested handoff artifact command:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/aov-loss-smoke \
+  --deltas=0,-1250,-1300 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --aortic-flow-clamp=hard \
+  --aov-b=0.000001,0.000003,0.00001,0.00003 \
+  --as-aov-amax=3.5,2,1.5 \
+  --max-return-map-points=2 \
+  --trace-beats=4 \
+  --sample-hz=60
+```
+
+Review questions:
+
+1. Does any plausible `AoV_B` reduce QAo cap proximity and branch amplitude without producing implausible normal or HR100 aortic gradients?
+2. Do AS sanity cases behave monotonically with smaller `AoV_Amax` while preserving the distinction between `Aref` and `Amax`?
+3. If plausible `AoV_B` values do not materially change the branch envelope, should the next root-fix effort return to active-stress low-stretch gain rather than further QAo cap tuning?

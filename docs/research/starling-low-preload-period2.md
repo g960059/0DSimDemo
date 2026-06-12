@@ -436,3 +436,42 @@ npm run verify:starling-low-preload-matrix -- \
   --trace-beats=4 \
   --sample-hz=60
 ```
+
+## AoV_B physical-loss sweep and AS sanity comparator
+
+The next diagnostic axis keeps the default `hard` dynamic-flow cap and app runtime unchanged, but adds two off-by-default aortic-valve comparators to the debug/matrix tools:
+
+- `--aov-b=...` changes `AoV_B`, the Bernoulli-like pressure-loss coefficient in the aortic valve relation.
+- `--as-aov-amax=...` changes only `AoV_Amax` while keeping `AoV_Aref = 3.5` fixed, so reviewers can distinguish normal-valve loss calibration from explicit aortic-stenosis sanity cases.
+
+The motivation is that earlier QAo cap experiments showed the `1500 mL/s` dynamic-flow cap is shaping the high-output alternans beat. That does not prove the cap is the root cause. It may instead mean `AoV_B` / valve loss is under-calibrated and the safety cap is acting as the effective ejection envelope. This axis tests that possibility without changing the default model.
+
+The matrix report now includes:
+
+- `AoV_B`, `AoV_Amax`, and `AoV_Aref` per scenario.
+- normal / HR100 / HR100-rearm `AoVMeanGradient`, `AoVPeakGradient`, `QAoPeakMeanRatio`, and ejection duration.
+- a compact `AoV_B / AS sanity` markdown section that aligns valve-loss physiology with low-preload branch fractions, QAo/cap proximity, and waveform-gate deltas.
+
+Suggested smoke:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/aov-loss-smoke \
+  --deltas=0,-1250,-1300 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --aortic-flow-clamp=hard \
+  --aov-b=0.000001,0.000003,0.00001,0.00003 \
+  --as-aov-amax=3.5,2,1.5 \
+  --max-return-map-points=2 \
+  --trace-beats=4 \
+  --sample-hz=60
+```
+
+Interpretation guardrails:
+
+- Treat `AoV_B` values as calibration probes, not default proposals. A higher `AoV_B` should reduce QAo cap proximity without creating unrealistic normal / HR100 aortic gradients.
+- Treat `as-aov-amax` values as disease sanity checks. They should not be mixed into normal-valve calibration conclusions.
+- If increasing `AoV_B` removes branch amplitude while normal / HR100 gradients remain plausible, the next model discussion should include valve-loss calibration before further active-stress gain tuning.
+- If branch amplitude persists across plausible `AoV_B` values, the active-stress low-stretch gain hypothesis remains the stronger root-fix path.
