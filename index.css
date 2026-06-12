@@ -206,9 +206,11 @@ body[data-workbench-theme="clinical"] {
 }
 
 .workbench-dockview .dv-tabs-and-actions-container {
+  /* hard transparent: dockview's own theme re-defines the var on inner
+     nodes (#1c1c2a default), so var() indirection leaks library color */
   border-bottom: 0;
   padding: 0;
-  background: var(--dv-tabs-and-actions-container-background-color);
+  background: transparent;
 }
 
 .workbench-dockview .dv-scrollable {
