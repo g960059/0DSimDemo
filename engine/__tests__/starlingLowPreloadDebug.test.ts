@@ -89,7 +89,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(Object.keys(diagnostics.tbvProjectionLastStep.byNodeAbsMl).length).toBeGreaterThan(0);
   });
 
-  it("builds a schema-v12 low-preload report with active, valve, clamp, TBV audit, return-map, filling morphology, and tau/dt fields", () => {
+  it("builds a schema-v13 low-preload report with active, valve, clamp, TBV audit, return-map, filling morphology, and tau/dt fields", () => {
     const report = runLowPreloadDebug({
       outDir: "unused",
       targetVolumeMl: 5600,
@@ -103,7 +103,8 @@ describe("low-preload Starling debug diagnostics", () => {
       quietClampLog: true,
     });
 
-    expect(report.schemaVersion).toBe(12);
+    expect(report.schemaVersion).toBe(13);
+    expect(report.heartModel).toBe("activeStress");
     expect(report.returnMapMode).toBe("both");
     expect(report.tbvCorrectionMode).toBe("on");
     expect(report.lambdaActScope).toBe("all");
@@ -446,8 +447,10 @@ describe("low-preload Starling debug diagnostics", () => {
     ]);
     const report = runLowPreloadMatrix(opts);
 
-    expect(report.schemaVersion).toBe(10);
+    expect(report.schemaVersion).toBe(11);
+    expect(report.heartModels).toEqual(["activeStress"]);
     expect(report.scenarios).toHaveLength(7);
+    expect(report.scenarios[0].heartModel).toBe("activeStress");
     expect(report.scenarios.filter((scenario) => scenario.lambdaActTauSec === 0)).toHaveLength(4);
     expect(report.scenarios.filter((scenario) => scenario.lambdaActTauSec === 0 && scenario.lowStretchLimiterMode === "none")).toHaveLength(1);
     expect(report.scenarios.filter((scenario) => scenario.lowStretchLimiterMode !== "none")).toHaveLength(3);
@@ -477,6 +480,11 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.summary.maxFillingBranchMVAFraction).toEqual(expect.any(Number));
     expect(report.summary.maxFillingBranchMidFraction).toEqual(expect.any(Number));
     expect(report.summary.maxFillingBranchLAAloopFraction).toEqual(expect.any(Number));
+    expect(report.summary.nearZeroReturnAlternationCount).toEqual(expect.any(Number));
+    expect(report.summary.reopenCountAlternationCount).toEqual(expect.any(Number));
+    expect(report.summary.pressureCrossingAlternationCount).toEqual(expect.any(Number));
+    expect(report.summary.maxInterwaveXiMinAbs).toEqual(expect.any(Number));
+    expect(report.summary.maxInterwaveOpen01MinAbs).toEqual(expect.any(Number));
     expect(report.summary.fillingMorphologyAlternationCount).toEqual(expect.any(Number));
     expect(report.summary.peakCountAlternationCount).toEqual(expect.any(Number));
     expect(report.summary.classificationCounts.baseline).toBeGreaterThan(0);
@@ -505,6 +513,10 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.scenarios[0].perDeltaEvaluation[0].fillingMorphologyClass).toEqual(expect.any(String));
     expect(report.scenarios[0].perDeltaEvaluation[0].fillingBranch?.MV_A_forward_fraction).toEqual(expect.any(Number));
     expect(report.scenarios[0].perDeltaEvaluation[0].fillingBranch?.MV_mid_forward_fraction).toEqual(expect.any(Number));
+    expect(report.scenarios[0].perDeltaEvaluation[0].fillingBranch?.nearZeroReturnAlternates).toEqual(expect.any(Boolean));
+    expect(report.scenarios[0].perDeltaEvaluation[0].fillingBranch?.reopenCountAlternates).toEqual(expect.any(Boolean));
+    expect(report.scenarios[0].perDeltaEvaluation[0].fillingBranch?.pressureCrossingAlternates).toEqual(expect.any(Boolean));
+    expect(report.scenarios[0].perDeltaEvaluation[0].fillingBranch?.interwaveXiMinAbs).toEqual(expect.any(Number));
     expect(report.scenarios[0].perDeltaEvaluation[0].fillingBranch?.morphologyClassA).toEqual(expect.any(String));
     expect(report.scenarios[0].perDeltaEvaluation[0].fillingBranch?.morphologyClassB).toEqual(expect.any(String));
     expect(report.scenarios[0].perDeltaEvaluation[0].LA_A_loop_fraction).toEqual(expect.any(Number));
@@ -516,6 +528,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToMarkdown(report)).toContain("Classification counts");
     expect(matrixReportToMarkdown(report)).toContain("Branch localization counts");
     expect(matrixReportToMarkdown(report)).toContain("Filling morphology alternation counts");
+    expect(matrixReportToMarkdown(report)).toContain("Primary MV event alternation counts");
     expect(matrixReportToMarkdown(report)).toContain("LA/MV filling regime diagnostics");
     expect(matrixReportToMarkdown(report)).toContain("MV reopen count");
     expect(matrixReportToMarkdown(report)).toContain("Normal / HR100 waveform gates");
@@ -524,6 +537,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToMarkdown(report)).toContain("scalar EDV");
     expect(matrixReportToMarkdown(report)).toContain("full-state Poincare Jacobian");
     expect(matrixReportToCsv(report)).toContain("returnMapSelected");
+    expect(matrixReportToCsv(report)).toContain("heartModel");
     expect(matrixReportToCsv(report)).toContain("tbvCorrectionMode");
     expect(matrixReportToCsv(report)).toContain("lowStretchLimiterMode");
     expect(matrixReportToCsv(report)).toContain("activeReservePreset");
@@ -537,6 +551,8 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToCsv(report)).toContain("MV_mid_forward_mL");
     expect(matrixReportToCsv(report)).toContain("MV_forward_peak_count");
     expect(matrixReportToCsv(report)).toContain("fillingBranch_MV_A_forward_fraction");
+    expect(matrixReportToCsv(report)).toContain("fillingBranch_reopenCountAlternates");
+    expect(matrixReportToCsv(report)).toContain("fillingBranch_pressureCrossingAlternates");
     expect(matrixReportToCsv(report)).toContain("fillingBranch_morphologyAlternates");
     expect(matrixReportToCsv(report)).toContain("LA_A_loop_fraction");
     expect(matrixReportToCsv(report)).toContain("scenarioClassification");
@@ -562,5 +578,23 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.summary.selectedReturnMapPointCount).toBe(0);
     expect(report.scenarios[0].selectedDeltasMl).toEqual([]);
     expect(report.scenarios[0].points.every((point) => point.returnMap.status === "skipped")).toBe(true);
+  });
+
+  it("supports activeStress vs elastance heart-model matrix comparison", () => {
+    const opts = parseLowPreloadMatrixArgs([
+      "--out=unused",
+      "--heart-model=activeStress,elastance",
+      "--deltas=0",
+      "--dt=0.002",
+      "--lambda-act-tau=0",
+      "--branch-only",
+      "--trace-beats=2",
+      "--sample-hz=40",
+      "--quiet-progress",
+    ]);
+    const report = runLowPreloadMatrix(opts);
+
+    expect(opts.heartModels).toEqual(["activeStress", "elastance"]);
+    expect(report.scenarios.map((scenario) => scenario.heartModel)).toEqual(["activeStress", "elastance"]);
   });
 });

@@ -3,7 +3,7 @@ import path from "node:path";
 import { DEFAULT_PARAMS } from "@/constants";
 import { ModelCore } from "@/engine/ModelCore";
 import type { LambdaActTerms, LowStretchLimiterMode } from "@/engine/chambers";
-import type { SimSample } from "@/engine/protocol";
+import type { HeartModelMode, SimSample } from "@/engine/protocol";
 import { PREVIEW_SETTLE_POLICY } from "@/engine/settling";
 import {
   paramsWithLambdaActTau,
@@ -21,6 +21,7 @@ type DebugPoint = DebugReport["points"][number];
 type MatrixOptions = {
   outDir: string;
   targetVolumeMl: number;
+  heartModels: HeartModelMode[];
   deltasMl: number[];
   dtValues: number[];
   lambdaActTauSecValues: number[];
@@ -65,6 +66,7 @@ type WaveformGateComparison = {
 };
 
 type MatrixScenario = {
+  heartModel: HeartModelMode;
   dt: number;
   lambdaActTauSec: number;
   lambdaActScope: LambdaActScope;
@@ -176,6 +178,17 @@ type FillingBranchSummary = {
   LA_A_loop_area_abs: number;
   LA_A_loop_area_fraction: number;
   atrialSystoleMVOpenFraction_abs: number;
+  nearZeroReturnCountA: number;
+  nearZeroReturnCountB: number;
+  nearZeroReturnAlternates: boolean;
+  reopenCountA: number;
+  reopenCountB: number;
+  reopenCountAlternates: boolean;
+  pressureCrossingCountA: number;
+  pressureCrossingCountB: number;
+  pressureCrossingAlternates: boolean;
+  interwaveXiMinAbs: number;
+  interwaveOpen01MinAbs: number;
   forwardPeakCountA: number;
   forwardPeakCountB: number;
   peakCountAlternates: boolean;
@@ -196,10 +209,11 @@ type ShapeSummary = {
 };
 
 type MatrixReport = {
-  schemaVersion: 10;
+  schemaVersion: 11;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
+  heartModels: HeartModelMode[];
   deltasMl: number[];
   dtValues: number[];
   lambdaActTauSecValues: number[];
@@ -233,6 +247,11 @@ type MatrixReport = {
     maxFillingBranchMVAFraction: number;
     maxFillingBranchMidFraction: number;
     maxFillingBranchLAAloopFraction: number;
+    nearZeroReturnAlternationCount: number;
+    reopenCountAlternationCount: number;
+    pressureCrossingAlternationCount: number;
+    maxInterwaveXiMinAbs: number;
+    maxInterwaveOpen01MinAbs: number;
     fillingMorphologyAlternationCount: number;
     peakCountAlternationCount: number;
     maxClampHitCount: number;
@@ -258,6 +277,7 @@ type BranchLocalizationClass = "edv-dominant" | "esv/ejection-dominant" | "mixed
 
 const DEFAULT_DELTAS = [0, -900, -1000, -1100, -1200, -1250, -1300, -1400, -1500, -1600];
 const DEFAULT_DT_VALUES = [0.001, 0.0005];
+const DEFAULT_HEART_MODELS: HeartModelMode[] = ["activeStress"];
 const DEFAULT_TAU_VALUES = [0, 0.05, 0.1, 0.15, 0.2, 0.4];
 const DEFAULT_SCOPES: LambdaActScope[] = ["lv", "ventricles"];
 const DEFAULT_TERMS: LambdaActTerms[] = ["kd", "fiso", "kd+fiso"];
@@ -277,16 +297,17 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
   const branchBaselineCache = new Map<string, DebugPoint[]>();
   const specs = matrixScenarioSpecs(opts, scopes);
   specs.forEach((spec, index) => {
-    const { lambdaActScope, lambdaActTauSec, lambdaActTerms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, tbvCorrectionMode, dt } = spec;
+    const { heartModel, lambdaActScope, lambdaActTauSec, lambdaActTerms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, tbvCorrectionMode, dt } = spec;
     if (opts.progress) {
       // eslint-disable-next-line no-console
       console.log(
-        `[matrix] ${index + 1}/${specs.length} dt=${dt} tau=${lambdaActTauSec} scope=${lambdaActScope} terms=${lambdaActTerms} limiter=${lowStretchLimiterMode}/${lowStretchLimiterScope} preset=${activeReservePreset} tbv=${tbvCorrectionMode}`,
+        `[matrix] ${index + 1}/${specs.length} heart=${heartModel} dt=${dt} tau=${lambdaActTauSec} scope=${lambdaActScope} terms=${lambdaActTerms} limiter=${lowStretchLimiterMode}/${lowStretchLimiterScope} preset=${activeReservePreset} tbv=${tbvCorrectionMode}`,
       );
     }
     const branchReport = runLowPreloadDebug({
       outDir: "unused",
       targetVolumeMl: opts.targetVolumeMl,
+      heartModel,
       deltasMl: opts.deltasMl,
       dtValues: [dt],
       lambdaActTauSecValues: [lambdaActTauSec],
@@ -306,9 +327,10 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
     const returnMapReport = selectedDeltasMl.length === 0
       ? branchReport
       : runLowPreloadDebug({
-          outDir: "unused",
-          targetVolumeMl: opts.targetVolumeMl,
-          deltasMl: opts.deltasMl,
+        outDir: "unused",
+        targetVolumeMl: opts.targetVolumeMl,
+        heartModel,
+        deltasMl: opts.deltasMl,
           dtValues: [dt],
           lambdaActTauSecValues: [lambdaActTauSec],
           lambdaActScope,
@@ -323,7 +345,7 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
           returnMapDeltasMl: selectedDeltasMl,
           quietClampLog: true,
         });
-    const baselineKey = branchBaselineKey(dt, tbvCorrectionMode);
+    const baselineKey = branchBaselineKey(heartModel, dt, tbvCorrectionMode);
     if (lambdaActTauSec === 0 && lowStretchLimiterMode === "none") {
       branchBaselineCache.set(baselineKey, branchReport.points);
     }
@@ -331,6 +353,7 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
     const perDeltaEvaluation = buildPerDeltaEvaluation(returnMapReport.points);
     const waveformGates = buildWaveformGateComparisons(
       opts.targetVolumeMl,
+      heartModel,
       dt,
       opts.sampleHz,
       lambdaActScope,
@@ -351,6 +374,7 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
       perDeltaEvaluation,
     });
     scenarios.push({
+      heartModel,
       dt,
       lambdaActTauSec,
       lambdaActScope,
@@ -383,10 +407,11 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
       { fraction: 0, metric: null },
     );
   return {
-    schemaVersion: 10,
+    schemaVersion: 11,
     generatedAt: new Date().toISOString(),
-    measurementMode: "branch-only broad low-preload matrix followed by selected EDV-section return-map diagnostics with EDV/ESV/CO features; LA/MV filling-regime and MV event-count morphology diagnostics with last-two-beat filling branch amplitudes; optional TBV correction on/off/low contamination axis; off-by-default low-stretch limiter comparator axis",
+    measurementMode: "branch-only broad low-preload matrix followed by selected EDV-section return-map diagnostics with EDV/ESV/CO features; LA/MV filling-regime and MV event-count morphology diagnostics with last-two-beat filling branch amplitudes and primary event-count alternation; optional TBV correction on/off/low contamination axis; activeStress/elastance heart-model comparison axis; off-by-default low-stretch limiter comparator axis",
     targetVolumeMl: opts.targetVolumeMl,
+    heartModels: opts.heartModels,
     deltasMl: opts.deltasMl,
     dtValues: opts.dtValues,
     lambdaActTauSecValues: opts.lambdaActTauSecValues,
@@ -420,6 +445,11 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
       maxFillingBranchMVAFraction: Math.max(0, ...scenarios.flatMap((s) => s.perDeltaEvaluation.map((point) => point.fillingBranch?.MV_A_forward_fraction ?? 0))),
       maxFillingBranchMidFraction: Math.max(0, ...scenarios.flatMap((s) => s.perDeltaEvaluation.map((point) => point.fillingBranch?.MV_mid_forward_fraction ?? 0))),
       maxFillingBranchLAAloopFraction: Math.max(0, ...scenarios.flatMap((s) => s.perDeltaEvaluation.map((point) => point.fillingBranch?.LA_A_loop_area_fraction ?? 0))),
+      nearZeroReturnAlternationCount: scenarios.reduce((sum, s) => sum + s.perDeltaEvaluation.filter((point) => point.fillingBranch?.nearZeroReturnAlternates).length, 0),
+      reopenCountAlternationCount: scenarios.reduce((sum, s) => sum + s.perDeltaEvaluation.filter((point) => point.fillingBranch?.reopenCountAlternates).length, 0),
+      pressureCrossingAlternationCount: scenarios.reduce((sum, s) => sum + s.perDeltaEvaluation.filter((point) => point.fillingBranch?.pressureCrossingAlternates).length, 0),
+      maxInterwaveXiMinAbs: Math.max(0, ...scenarios.flatMap((s) => s.perDeltaEvaluation.map((point) => point.fillingBranch?.interwaveXiMinAbs ?? 0))),
+      maxInterwaveOpen01MinAbs: Math.max(0, ...scenarios.flatMap((s) => s.perDeltaEvaluation.map((point) => point.fillingBranch?.interwaveOpen01MinAbs ?? 0))),
       fillingMorphologyAlternationCount: scenarios.reduce((sum, s) => sum + s.perDeltaEvaluation.filter((point) => point.fillingBranch?.morphologyAlternates).length, 0),
       peakCountAlternationCount: scenarios.reduce((sum, s) => sum + s.perDeltaEvaluation.filter((point) => point.fillingBranch?.peakCountAlternates).length, 0),
       maxClampHitCount: Math.max(0, ...scenarios.map((s) => s.returnMapSummary.maxClampHitCount)),
@@ -446,6 +476,7 @@ function matrixScenarioSpecs(
   opts: MatrixOptions,
   scopes: LambdaActScope[],
 ): Array<{
+  heartModel: HeartModelMode;
   dt: number;
   lambdaActTauSec: number;
   lambdaActScope: LambdaActScope;
@@ -456,6 +487,7 @@ function matrixScenarioSpecs(
   tbvCorrectionMode: TBVCorrectionMode;
 }> {
   const specs: Array<{
+    heartModel: HeartModelMode;
     dt: number;
     lambdaActTauSec: number;
     lambdaActScope: LambdaActScope;
@@ -465,48 +497,53 @@ function matrixScenarioSpecs(
     activeReservePreset: ActiveReservePreset;
     tbvCorrectionMode: TBVCorrectionMode;
   }> = [];
-  for (const dt of opts.dtValues) {
-    for (const tbvCorrectionMode of opts.tbvCorrectionModes) {
-      specs.push({
-        dt,
-        lambdaActTauSec: 0,
-        lambdaActScope: "all",
-        lambdaActTerms: "kd+fiso",
-        lowStretchLimiterMode: "none",
-        lowStretchLimiterScope: "lv",
-        activeReservePreset: "none",
-        tbvCorrectionMode,
-      });
-      for (const lowStretchLimiterMode of opts.lowStretchLimiterModes.filter((mode) => mode !== "none")) {
-        for (const lowStretchLimiterScope of opts.lowStretchLimiterScopes) {
-          const presets = lowStretchLimiterMode === "activeReserveCap" ? opts.activeReservePresets : ["none" as ActiveReservePreset];
-          for (const activeReservePreset of presets) {
-            specs.push({
-              dt,
-              lambdaActTauSec: 0,
-              lambdaActScope: "all",
-              lambdaActTerms: "kd+fiso",
-              lowStretchLimiterMode,
-              lowStretchLimiterScope,
-              activeReservePreset,
-              tbvCorrectionMode,
-            });
+  for (const heartModel of opts.heartModels) {
+    for (const dt of opts.dtValues) {
+      for (const tbvCorrectionMode of opts.tbvCorrectionModes) {
+        specs.push({
+          heartModel,
+          dt,
+          lambdaActTauSec: 0,
+          lambdaActScope: "all",
+          lambdaActTerms: "kd+fiso",
+          lowStretchLimiterMode: "none",
+          lowStretchLimiterScope: "lv",
+          activeReservePreset: "none",
+          tbvCorrectionMode,
+        });
+        for (const lowStretchLimiterMode of opts.lowStretchLimiterModes.filter((mode) => mode !== "none")) {
+          for (const lowStretchLimiterScope of opts.lowStretchLimiterScopes) {
+            const presets = lowStretchLimiterMode === "activeReserveCap" ? opts.activeReservePresets : ["none" as ActiveReservePreset];
+            for (const activeReservePreset of presets) {
+              specs.push({
+                heartModel,
+                dt,
+                lambdaActTauSec: 0,
+                lambdaActScope: "all",
+                lambdaActTerms: "kd+fiso",
+                lowStretchLimiterMode,
+                lowStretchLimiterScope,
+                activeReservePreset,
+                tbvCorrectionMode,
+              });
+            }
           }
         }
-      }
-      for (const lambdaActTauSec of opts.lambdaActTauSecValues.filter((tau) => tau > 0)) {
-        for (const lambdaActScope of scopes) {
-          for (const lambdaActTerms of opts.lambdaActTermsValues) {
-            specs.push({
-              dt,
-              lambdaActTauSec,
-              lambdaActScope,
-              lambdaActTerms,
-              lowStretchLimiterMode: "none",
-              lowStretchLimiterScope: "lv",
-              activeReservePreset: "none",
-              tbvCorrectionMode,
-            });
+        for (const lambdaActTauSec of opts.lambdaActTauSecValues.filter((tau) => tau > 0)) {
+          for (const lambdaActScope of scopes) {
+            for (const lambdaActTerms of opts.lambdaActTermsValues) {
+              specs.push({
+                heartModel,
+                dt,
+                lambdaActTauSec,
+                lambdaActScope,
+                lambdaActTerms,
+                lowStretchLimiterMode: "none",
+                lowStretchLimiterScope: "lv",
+                activeReservePreset: "none",
+                tbvCorrectionMode,
+              });
+            }
           }
         }
       }
@@ -515,8 +552,8 @@ function matrixScenarioSpecs(
   return specs;
 }
 
-function branchBaselineKey(dt: number, tbvCorrectionMode: TBVCorrectionMode): string {
-  return `${dt}|${tbvCorrectionMode}`;
+function branchBaselineKey(heartModel: HeartModelMode, dt: number, tbvCorrectionMode: TBVCorrectionMode): string {
+  return `${heartModel}|${dt}|${tbvCorrectionMode}`;
 }
 
 function buildShapeSummary(points: DebugPoint[], baselinePoints: DebugPoint[]): ShapeSummary {
@@ -634,6 +671,17 @@ function lastTwoBeatFillingBranch(point: DebugPoint): FillingBranchSummary | nul
     LA_A_loop_area_abs: Math.abs(b.LA_A_loop_area - a.LA_A_loop_area),
     LA_A_loop_area_fraction: fractionalAbsDelta(b.LA_A_loop_area, a.LA_A_loop_area, 1),
     atrialSystoleMVOpenFraction_abs: Math.abs(b.atrialSystoleMVOpenFraction - a.atrialSystoleMVOpenFraction),
+    nearZeroReturnCountA: a.QMV_near_zero_return_count,
+    nearZeroReturnCountB: b.QMV_near_zero_return_count,
+    nearZeroReturnAlternates: a.QMV_near_zero_return_count !== b.QMV_near_zero_return_count,
+    reopenCountA: a.MV_open_close_reopen_count,
+    reopenCountB: b.MV_open_close_reopen_count,
+    reopenCountAlternates: a.MV_open_close_reopen_count !== b.MV_open_close_reopen_count,
+    pressureCrossingCountA: a.LAP_LVP_zero_crossing_count,
+    pressureCrossingCountB: b.LAP_LVP_zero_crossing_count,
+    pressureCrossingAlternates: a.LAP_LVP_zero_crossing_count !== b.LAP_LVP_zero_crossing_count,
+    interwaveXiMinAbs: Math.abs(b.MV_interwave_xi_min - a.MV_interwave_xi_min),
+    interwaveOpen01MinAbs: Math.abs(b.MV_interwave_open01_min - a.MV_interwave_open01_min),
     forwardPeakCountA: a.MV_forward_peak_count,
     forwardPeakCountB: b.MV_forward_peak_count,
     peakCountAlternates: a.MV_forward_peak_count !== b.MV_forward_peak_count,
@@ -849,6 +897,7 @@ function lowPreloadSlope(points: DebugPoint[]): number {
 
 function buildWaveformGateComparisons(
   targetVolumeMl: number,
+  heartModel: HeartModelMode,
   dt: number,
   sampleHz: number,
   scope: LambdaActScope,
@@ -860,9 +909,9 @@ function buildWaveformGateComparisons(
   baselineCache: Map<string, WaveformGateMetrics>,
 ): WaveformGateComparison[] {
   return [
-    waveformGateComparison("normal", DEFAULT_PARAMS.HR, targetVolumeMl, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, baselineCache),
-    waveformGateComparison("HR100", 100, targetVolumeMl, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, baselineCache),
-    waveformGateComparison("HR100-rearm", 100, targetVolumeMl, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, baselineCache),
+    waveformGateComparison("normal", DEFAULT_PARAMS.HR, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, baselineCache),
+    waveformGateComparison("HR100", 100, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, baselineCache),
+    waveformGateComparison("HR100-rearm", 100, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, baselineCache),
   ];
 }
 
@@ -870,6 +919,7 @@ function waveformGateComparison(
   label: WaveformGateLabel,
   HR: number,
   targetVolumeMl: number,
+  heartModel: HeartModelMode,
   dt: number,
   sampleHz: number,
   scope: LambdaActScope,
@@ -880,15 +930,15 @@ function waveformGateComparison(
   activeReservePreset: ActiveReservePreset,
   baselineCache: Map<string, WaveformGateMetrics>,
 ): WaveformGateComparison {
-  const baselineKey = `${label}|${HR}|${targetVolumeMl}|${dt}|${sampleHz}`;
+  const baselineKey = `${heartModel}|${label}|${HR}|${targetVolumeMl}|${dt}|${sampleHz}`;
   let baseline = baselineCache.get(baselineKey);
   if (!baseline) {
-    baseline = measureWaveformGate(label, HR, targetVolumeMl, dt, sampleHz, "all", 0, "kd+fiso");
+    baseline = measureWaveformGate(label, HR, targetVolumeMl, heartModel, dt, sampleHz, "all", 0, "kd+fiso");
     baselineCache.set(baselineKey, baseline);
   }
   const candidate = tauSec <= 0 && lowStretchLimiterMode === "none"
     ? baseline
-    : measureWaveformGate(label, HR, targetVolumeMl, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset);
+    : measureWaveformGate(label, HR, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset);
   const delta = {
     CO_L: candidate.CO_L - baseline.CO_L,
     CO_R: candidate.CO_R - baseline.CO_R,
@@ -917,6 +967,7 @@ function measureWaveformGate(
   label: WaveformGateLabel,
   HR: number,
   targetVolumeMl: number,
+  heartModel: HeartModelMode,
   dt: number,
   sampleHz: number,
   scope: LambdaActScope,
@@ -926,13 +977,14 @@ function measureWaveformGate(
   lowStretchLimiterScope: LambdaActScope = "lv",
   activeReservePreset: ActiveReservePreset = "none",
 ): WaveformGateMetrics {
-  return withQuietClampLogs(() => measureWaveformGateImpl(label, HR, targetVolumeMl, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset));
+  return withQuietClampLogs(() => measureWaveformGateImpl(label, HR, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset));
 }
 
 function measureWaveformGateImpl(
   label: WaveformGateLabel,
   HR: number,
   targetVolumeMl: number,
+  heartModel: HeartModelMode,
   dt: number,
   sampleHz: number,
   scope: LambdaActScope,
@@ -943,7 +995,7 @@ function measureWaveformGateImpl(
   activeReservePreset: ActiveReservePreset = "none",
 ): WaveformGateMetrics {
   const params = paramsWithLowStretchLimiter(
-    paramsWithLambdaActTau(label === "HR100-rearm" ? DEFAULT_PARAMS : { ...DEFAULT_PARAMS, HR }, tauSec, scope, terms),
+    paramsWithLambdaActTau(label === "HR100-rearm" ? { ...DEFAULT_PARAMS, heartModel } : { ...DEFAULT_PARAMS, heartModel, HR }, tauSec, scope, terms),
     lowStretchLimiterMode,
     lowStretchLimiterScope,
     activeReservePreset,
@@ -1089,10 +1141,22 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
     round(report.summary.maxFillingBranchLAAloopFraction, 4),
   ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
   lines.push("");
+  lines.push("## Primary MV event alternation counts");
+  lines.push("");
+  lines.push("| near-zero return alternation | MV reopen alternation | LAP-LVP crossing alternation | max xi-min branch | max open01-min branch |");
+  lines.push("| ---: | ---: | ---: | ---: | ---: |");
+  lines.push([
+    report.summary.nearZeroReturnAlternationCount,
+    report.summary.reopenCountAlternationCount,
+    report.summary.pressureCrossingAlternationCount,
+    round(report.summary.maxInterwaveXiMinAbs, 4),
+    round(report.summary.maxInterwaveOpen01MinAbs, 4),
+  ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
+  lines.push("");
   lines.push("## Scenario summary");
   lines.push("");
-  lines.push("| class | branch class | localization | reasons | scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | selected deltas | period-2 | worst delta | worst covered | coverage | evidence | needs Jacobian | max CO branch frac | max EDV branch frac | max ESV branch frac | clean slopes | clean one-beat EDV slope | clean two-beat EDV slope | clean one-beat ESV slope | clean two-beat ESV slope | clean one-beat volume max slope | clean two-beat volume max slope | min MV A mL | min MV A frac | min LA A-loop frac | mean CO err | mean SV err | monotonicity breaks | dip/re-rise | slope ratio | active hit frac | min active scale | target reduction | max clamp hits | max sanitize abs mL | max projection applied mL | contaminated | max waveform gate frac | worst waveform metric |");
-  lines.push("| --- | --- | --- | --- | --- | --- | ---: | --- | --- | --- | ---: | --- | --- | ---: | ---: | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
+  lines.push("| class | branch class | localization | reasons | heart model | scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | selected deltas | period-2 | worst delta | worst covered | coverage | evidence | needs Jacobian | max CO branch frac | max EDV branch frac | max ESV branch frac | clean slopes | clean one-beat EDV slope | clean two-beat EDV slope | clean one-beat ESV slope | clean two-beat ESV slope | clean one-beat volume max slope | clean two-beat volume max slope | min MV A mL | min MV A frac | min LA A-loop frac | mean CO err | mean SV err | monotonicity breaks | dip/re-rise | slope ratio | active hit frac | min active scale | target reduction | max clamp hits | max sanitize abs mL | max projection applied mL | contaminated | max waveform gate frac | worst waveform metric |");
+  lines.push("| --- | --- | --- | --- | --- | --- | --- | ---: | --- | --- | --- | ---: | --- | --- | ---: | ---: | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
   for (const scenario of report.scenarios) {
     const worstWaveform = scenario.waveformGates.reduce<{ label: string; metric: string; fraction: number }>(
       (best, gate) => gate.maxDeltaFraction > best.fraction
@@ -1105,6 +1169,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
       scenario.evaluation.branchEnvelopeClass,
       scenario.evaluation.branchLocalizationClass,
       scenario.evaluation.reasons.join("; "),
+      scenario.heartModel,
       scenario.lambdaActScope,
       scenario.lambdaActTerms,
       round(scenario.lambdaActTauSec, 4),
@@ -1158,12 +1223,13 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("## Per-delta primary branch / slope view");
   lines.push("");
-  lines.push("| class | lambda scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | delta | LAP | CO_L period | CO_L last beat | period | branch class | localization | CO branch frac | EDV branch frac | ESV branch frac | MV A mL | MV A frac | MV mid mL | MV peaks | morphology | MV A branch frac | MV mid branch frac | morphology alternates | peak-count alternates | LA A-loop frac | active hit frac | min active scale | target reduction | return-map | clean slope | one-beat EDV slope | two-beat EDV slope | one-beat ESV slope | two-beat ESV slope | one-beat volume max slope | two-beat volume max slope | nonsmooth | audit |");
-  lines.push("| --- | --- | --- | ---: | --- | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |");
+  lines.push("| class | heart model | lambda scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | delta | LAP | CO_L period | CO_L last beat | period | branch class | localization | CO branch frac | EDV branch frac | ESV branch frac | MV reopen A/B | zero return A/B | LAP-LVP crossings A/B | xi-min branch | open01-min branch | MV A mL | MV A frac | MV mid mL | MV peaks | morphology | MV A branch frac | MV mid branch frac | morphology alternates | peak-count alternates | LA A-loop frac | active hit frac | min active scale | target reduction | return-map | clean slope | one-beat EDV slope | two-beat EDV slope | one-beat ESV slope | two-beat ESV slope | one-beat volume max slope | two-beat volume max slope | nonsmooth | audit |");
+  lines.push("| --- | --- | --- | --- | ---: | --- | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |");
   for (const scenario of report.scenarios) {
     for (const point of scenario.perDeltaEvaluation) {
       lines.push([
         scenario.evaluation.classification,
+        scenario.heartModel,
         scenario.lambdaActScope,
         scenario.lambdaActTerms,
         round(scenario.lambdaActTauSec, 4),
@@ -1182,6 +1248,11 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         round(point.branchAmplitudeFractionCOL, 4),
         round(point.branchAmplitudeFractionEDVL, 4),
         round(point.branchAmplitudeFractionESVL, 4),
+        point.fillingBranch ? `${point.fillingBranch.reopenCountA}/${point.fillingBranch.reopenCountB}` : "",
+        point.fillingBranch ? `${point.fillingBranch.nearZeroReturnCountA}/${point.fillingBranch.nearZeroReturnCountB}` : "",
+        point.fillingBranch ? `${point.fillingBranch.pressureCrossingCountA}/${point.fillingBranch.pressureCrossingCountB}` : "",
+        round(point.fillingBranch?.interwaveXiMinAbs ?? NaN, 4),
+        round(point.fillingBranch?.interwaveOpen01MinAbs ?? NaN, 4),
         round(point.MV_A_forward_mL ?? NaN, 4),
         round(point.MV_A_fraction ?? NaN, 4),
         round(point.MV_mid_forward_mL ?? NaN, 4),
@@ -1382,6 +1453,7 @@ export function matrixReportToCsv(report: MatrixReport): string {
     "cleanSlopeMissingDeltasMl",
     "returnMapEvidenceLevel",
     "requiresFullJacobianConfirmation",
+    "heartModel",
     "lambdaActScope",
     "lambdaActTerms",
     "lambdaActTauSec",
@@ -1421,6 +1493,17 @@ export function matrixReportToCsv(report: MatrixReport): string {
     "fillingBranch_LA_A_loop_area_abs",
     "fillingBranch_LA_A_loop_area_fraction",
     "fillingBranch_atrialSystoleMVOpenFraction_abs",
+    "fillingBranch_nearZeroReturnCountA",
+    "fillingBranch_nearZeroReturnCountB",
+    "fillingBranch_nearZeroReturnAlternates",
+    "fillingBranch_reopenCountA",
+    "fillingBranch_reopenCountB",
+    "fillingBranch_reopenCountAlternates",
+    "fillingBranch_pressureCrossingCountA",
+    "fillingBranch_pressureCrossingCountB",
+    "fillingBranch_pressureCrossingAlternates",
+    "fillingBranch_interwaveXiMinAbs",
+    "fillingBranch_interwaveOpen01MinAbs",
     "fillingBranch_forwardPeakCountA",
     "fillingBranch_forwardPeakCountB",
     "fillingBranch_peakCountAlternates",
@@ -1472,6 +1555,7 @@ export function matrixReportToCsv(report: MatrixReport): string {
         scenario.evaluation.cleanSlopeMissingDeltasMl.join(";"),
         scenario.evaluation.returnMapEvidenceLevel,
         scenario.evaluation.requiresFullJacobianConfirmation ? "yes" : "no",
+        scenario.heartModel,
         scenario.lambdaActScope,
         scenario.lambdaActTerms,
         scenario.lambdaActTauSec,
@@ -1511,6 +1595,17 @@ export function matrixReportToCsv(report: MatrixReport): string {
         perDelta?.fillingBranch?.LA_A_loop_area_abs ?? "",
         perDelta?.fillingBranch?.LA_A_loop_area_fraction ?? "",
         perDelta?.fillingBranch?.atrialSystoleMVOpenFraction_abs ?? "",
+        perDelta?.fillingBranch?.nearZeroReturnCountA ?? "",
+        perDelta?.fillingBranch?.nearZeroReturnCountB ?? "",
+        perDelta?.fillingBranch?.nearZeroReturnAlternates ? "yes" : "no",
+        perDelta?.fillingBranch?.reopenCountA ?? "",
+        perDelta?.fillingBranch?.reopenCountB ?? "",
+        perDelta?.fillingBranch?.reopenCountAlternates ? "yes" : "no",
+        perDelta?.fillingBranch?.pressureCrossingCountA ?? "",
+        perDelta?.fillingBranch?.pressureCrossingCountB ?? "",
+        perDelta?.fillingBranch?.pressureCrossingAlternates ? "yes" : "no",
+        perDelta?.fillingBranch?.interwaveXiMinAbs ?? "",
+        perDelta?.fillingBranch?.interwaveOpen01MinAbs ?? "",
         perDelta?.fillingBranch?.forwardPeakCountA ?? "",
         perDelta?.fillingBranch?.forwardPeakCountB ?? "",
         perDelta?.fillingBranch?.peakCountAlternates ? "yes" : "no",
@@ -1554,6 +1649,7 @@ export function parseLowPreloadMatrixArgs(args: string[]): MatrixOptions {
   const opts: MatrixOptions = {
     outDir: path.join("artifacts", "starling-low-preload-debug", timestamp),
     targetVolumeMl: 5600,
+    heartModels: DEFAULT_HEART_MODELS,
     deltasMl: DEFAULT_DELTAS,
     dtValues: DEFAULT_DT_VALUES,
     lambdaActTauSecValues: DEFAULT_TAU_VALUES,
@@ -1573,6 +1669,7 @@ export function parseLowPreloadMatrixArgs(args: string[]): MatrixOptions {
     const [key, value] = arg.split("=", 2);
     if (key === "--out" && value) opts.outDir = value;
     else if (key === "--target-volume" && value) opts.targetVolumeMl = Number(value);
+    else if (key === "--heart-model" && value) opts.heartModels = parseHeartModels(value);
     else if (key === "--deltas" && value) opts.deltasMl = parseNumberList(value);
     else if (key === "--dt" && value) opts.dtValues = parseNumberList(value);
     else if (key === "--lambda-act-tau" && value) opts.lambdaActTauSecValues = parseNumberList(value);
@@ -1604,6 +1701,14 @@ function parseTBVCorrectionModes(value: string): TBVCorrectionMode[] {
     if (mode !== "on" && mode !== "off" && mode !== "low") throw new Error(`Invalid TBV correction mode: ${mode}`);
   }
   return modes as TBVCorrectionMode[];
+}
+
+function parseHeartModels(value: string): HeartModelMode[] {
+  const modes = value.split(",").map((entry) => entry.trim()).filter(Boolean);
+  for (const mode of modes) {
+    if (mode !== "activeStress" && mode !== "elastance") throw new Error(`Invalid heart model: ${mode}`);
+  }
+  return modes as HeartModelMode[];
 }
 
 function parseTerms(value: string): LambdaActTerms[] {
@@ -1701,6 +1806,7 @@ function printHelp(): void {
   // eslint-disable-next-line no-console
   console.log([
     "Usage: npm run verify:starling-low-preload-matrix -- [--out=DIR]",
+    "       [--heart-model=activeStress,elastance]",
     "       [--deltas=0,-900,-1250] [--dt=0.001,0.0005] [--lambda-act-tau=0,0.15]",
     "       [--lambda-act-scope=lv,ventricles] [--lambda-act-terms=kd,fiso,kd+fiso]",
     "       [--low-stretch-limiter=none,aInfCap,activeReserveCap] [--low-stretch-limiter-scope=lv,ventricles]",
