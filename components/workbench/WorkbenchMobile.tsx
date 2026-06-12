@@ -127,20 +127,20 @@ export function WorkbenchMobile({
 
   return (
     <section
-      className={`relative flex min-h-dvh flex-col overflow-hidden bg-slate-950 text-slate-100 ${className}`}
+      className={`relative flex min-h-dvh flex-col overflow-hidden bg-wb-panel text-wb-text ${className}`}
       style={{ touchAction: 'pan-y' }}
       aria-label={title}
     >
-      <div className="sticky top-0 z-30 flex h-12 shrink-0 items-center justify-between border-b border-slate-800 bg-slate-950/95 px-3 backdrop-blur">
+      <div className="sticky top-0 z-30 flex h-12 shrink-0 items-center justify-between border-b border-wb-line bg-wb-panel px-3 backdrop-blur">
         <div className="flex min-w-0 items-center gap-2">
           <Activity className="h-4 w-4 shrink-0 text-emerald-300" aria-hidden="true" />
-          <h1 className="truncate text-sm font-semibold tracking-normal text-slate-100">{title}</h1>
+          <h1 className="truncate text-sm font-semibold text-wb-text">{title}</h1>
         </div>
         {groups.control.length > 0 && (
           <button
             type="button"
             onClick={() => setControlsOpen(true)}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-700 bg-slate-900 text-slate-200 active:bg-slate-800"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-wb-line bg-wb-panel text-wb-text active:bg-wb-active"
             aria-label={t('workbench.mobile.openControls')}
           >
             <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
@@ -148,15 +148,15 @@ export function WorkbenchMobile({
         )}
       </div>
 
-      <div className="sticky top-12 z-20 border-b border-slate-800 bg-slate-950 px-3 py-2">
+      <div className="sticky top-12 z-20 border-b border-wb-line bg-wb-panel px-3 py-2">
         <div className="flex gap-2 overflow-x-auto pb-1">
           {groups.output.length > 0 ? (
             groups.output.map((panel) => (
               <div
                 key={panel.id}
-                className="min-w-[11rem] flex-1 rounded-md border border-slate-700 bg-slate-900/90 p-2"
+                className="min-w-[11rem] flex-1 rounded-md border border-wb-line bg-wb-strip p-2"
               >
-                <div className="mb-1 truncate text-[11px] font-semibold uppercase tracking-normal text-slate-400">
+                <div className="mb-1 truncate text-[11px] font-medium text-wb-muted">
                   {panel.title}
                 </div>
                 <div className="min-h-16">
@@ -167,7 +167,7 @@ export function WorkbenchMobile({
               </div>
             ))
           ) : (
-            <div className="min-h-16 w-full rounded-md border border-dashed border-slate-700 bg-slate-900/50 p-3 text-xs text-slate-500">
+            <div className="min-h-16 w-full rounded-md border border-dashed border-wb-line bg-wb-strip p-3 text-xs text-wb-subtle">
               {t('workbench.mobile.noOutputPanel')}
             </div>
           )}
@@ -176,14 +176,14 @@ export function WorkbenchMobile({
 
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pb-28 pt-3">
         {!hasPanels && (
-          <div className="flex min-h-64 items-center justify-center rounded-md border border-dashed border-slate-700 bg-slate-900/50 p-4 text-sm text-slate-400">
+          <div className="flex min-h-64 items-center justify-center rounded-md border border-dashed border-wb-line bg-wb-strip p-4 text-sm text-wb-muted">
             {emptyState ?? t('workbench.mobile.noPanelsAvailable')}
           </div>
         )}
 
         {groups.graph.length > 0 && (
           <section aria-label={t('workbench.mobile.charts')} className="flex min-h-[24rem] flex-col">
-            <div className="mb-2 flex gap-1 overflow-x-auto rounded-md border border-slate-800 bg-slate-900 p-1">
+            <div className="mb-2 flex gap-1 overflow-x-auto rounded-md border border-wb-line bg-wb-panel p-1">
               {groups.graph.map((panel) => {
                 const isActive = activeGraph?.id === panel.id;
                 return (
@@ -193,8 +193,8 @@ export function WorkbenchMobile({
                     onClick={() => setActiveGraph(panel.id)}
                     className={`inline-flex min-w-28 flex-1 items-center justify-center gap-1.5 rounded px-3 py-2 text-xs font-semibold ${
                       isActive
-                        ? 'bg-sky-500 text-white'
-                        : 'text-slate-300 active:bg-slate-800'
+                        ? 'bg-wb-active text-wb-text'
+                        : 'text-wb-muted active:bg-wb-active'
                     }`}
                     aria-pressed={isActive}
                   >
@@ -206,7 +206,7 @@ export function WorkbenchMobile({
             </div>
 
             {activeGraph && (
-              <div className="min-h-[20rem] flex-1 overflow-hidden rounded-md border border-slate-800 bg-slate-900">
+              <div className="min-h-[20rem] flex-1 overflow-hidden rounded-md border border-wb-line bg-wb-panel">
                 <MobilePaneBoundary>
                   {renderPanel(activeGraph, { role: 'graph', isActive: true })}
                 </MobilePaneBoundary>
@@ -217,7 +217,7 @@ export function WorkbenchMobile({
 
         {groups.note.length > 0 && (
           <section aria-label={t('workbench.mobile.notes')} className="mt-4">
-            <div className="mb-2 flex gap-1 overflow-x-auto rounded-md border border-slate-800 bg-slate-900 p-1">
+            <div className="mb-2 flex gap-1 overflow-x-auto rounded-md border border-wb-line bg-wb-panel p-1">
               {groups.note.map((panel) => {
                 const isActive = activeNote?.id === panel.id;
                 return (
@@ -227,8 +227,8 @@ export function WorkbenchMobile({
                     onClick={() => setActiveNote(panel.id)}
                     className={`inline-flex min-w-24 flex-1 items-center justify-center gap-1.5 rounded px-3 py-2 text-xs font-semibold ${
                       isActive
-                        ? 'bg-amber-400 text-slate-950'
-                        : 'text-slate-300 active:bg-slate-800'
+                        ? 'bg-wb-active text-wb-text'
+                        : 'text-wb-muted active:bg-wb-active'
                     }`}
                     aria-pressed={isActive}
                   >
@@ -240,7 +240,7 @@ export function WorkbenchMobile({
             </div>
 
             {activeNote && (
-              <div className="min-h-56 overflow-hidden rounded-md border border-slate-800 bg-slate-900">
+              <div className="min-h-56 overflow-hidden rounded-md border border-wb-line bg-wb-panel">
                 <MobilePaneBoundary>
                   {renderPanel(activeNote, { role: 'note', isActive: true })}
                 </MobilePaneBoundary>
@@ -252,26 +252,26 @@ export function WorkbenchMobile({
 
       {groups.control.length > 0 && (
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-3">
-          <div className="pointer-events-auto w-full max-w-xl overflow-hidden rounded-t-md border border-slate-700 bg-slate-950 shadow-2xl">
+          <div className="pointer-events-auto w-full max-w-xl overflow-hidden rounded-t-md border border-wb-line bg-wb-panel shadow-2xl">
             <button
               type="button"
               onClick={() => setControlsOpen(!isControlsOpen)}
-              className="flex h-12 w-full items-center justify-between bg-slate-900 px-3 text-left text-sm font-semibold text-slate-100 active:bg-slate-800"
+              className="flex h-12 w-full items-center justify-between bg-wb-panel px-3 text-left text-sm font-semibold text-wb-text active:bg-wb-active"
               aria-expanded={isControlsOpen}
             >
               <span className="inline-flex min-w-0 items-center gap-2">
-                <SlidersHorizontal className="h-4 w-4 shrink-0 text-sky-300" aria-hidden="true" />
+                <SlidersHorizontal className="h-4 w-4 shrink-0 text-wb-accent" aria-hidden="true" />
                 <span className="truncate">{t('workbench.panels.controls')}</span>
               </span>
               {isControlsOpen ? (
-                <ChevronDown className="h-4 w-4 text-slate-400" aria-hidden="true" />
+                <ChevronDown className="h-4 w-4 text-wb-muted" aria-hidden="true" />
               ) : (
-                <ChevronUp className="h-4 w-4 text-slate-400" aria-hidden="true" />
+                <ChevronUp className="h-4 w-4 text-wb-muted" aria-hidden="true" />
               )}
             </button>
 
             {isControlsOpen && (
-              <div className="max-h-[70dvh] overflow-y-auto border-t border-slate-800 p-3">
+              <div className="max-h-[70dvh] overflow-y-auto border-t border-wb-line p-3">
                 {groups.control.map((panel) => (
                   <div key={panel.id} className="mb-3 last:mb-0">
                     <MobilePaneBoundary>

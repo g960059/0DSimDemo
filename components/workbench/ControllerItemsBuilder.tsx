@@ -216,17 +216,17 @@ export function ControllerItemsBuilder({
         title={`${label} — ${entry.key}`}
         className={`group/entry flex min-h-7 w-full items-center gap-2 rounded px-2 text-left text-xs transition-colors ${
           added
-            ? "cursor-default text-slate-600"
-            : "text-slate-300 hover:bg-slate-800/50 hover:text-slate-100"
+            ? "cursor-default text-wb-subtle"
+            : "text-wb-muted hover:bg-wb-hover hover:text-wb-text"
         }`}
       >
         <span className="min-w-0 flex-1 truncate font-medium">
           {label}
-          {entry.unit && <span className="ml-1 text-[11px] text-slate-500">{entry.unit}</span>}
+          {entry.unit && <span className="ml-1 text-[11px] text-wb-subtle">{entry.unit}</span>}
         </span>
         {added
-          ? <Check className="h-3 w-3 shrink-0 text-slate-600" />
-          : <Plus className="h-3.5 w-3.5 shrink-0 text-slate-500 opacity-0 transition-opacity group-hover/entry:opacity-100" />}
+          ? <Check className="h-3 w-3 shrink-0 text-wb-subtle" />
+          : <Plus className="h-3.5 w-3.5 shrink-0 text-wb-subtle opacity-0 transition-opacity group-hover/entry:opacity-100" />}
       </button>
     );
   };
@@ -235,18 +235,18 @@ export function ControllerItemsBuilder({
     <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-2">
       <div className="grid min-h-0 grid-cols-1 gap-0 overflow-hidden lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
         <div className="min-h-0 overflow-y-auto pr-4 custom-scrollbar">
-          <div className="mb-2 flex h-9 items-center gap-2 border-b border-slate-800 px-1">
-            <Search className="h-3.5 w-3.5 text-slate-500" />
+          <div className="mb-2 flex h-9 items-center gap-2 border-b border-wb-line px-1">
+            <Search className="h-3.5 w-3.5 text-wb-subtle" />
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder={t("workbench.controllerBuilder.searchControls")}
-              className="min-w-0 flex-1 bg-transparent text-xs font-medium text-slate-200 outline-none placeholder:text-slate-600"
+              className="min-w-0 flex-1 bg-transparent text-xs font-medium text-wb-text outline-none placeholder:text-wb-subtle"
             />
           </div>
           <div className="space-y-1">
             <details open className="group">
-              <summary className="flex cursor-pointer select-none items-center gap-1.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 transition-colors hover:text-slate-400 [&::-webkit-details-marker]:hidden">
+              <summary className="flex cursor-pointer select-none items-center gap-1.5 py-1.5 text-[11px] font-medium text-wb-subtle transition-colors hover:text-wb-muted [&::-webkit-details-marker]:hidden">
                 <ChevronDown className="h-3 w-3 shrink-0 transition-transform group-open:rotate-0 -rotate-90" />
                 {t("workbench.controllerBuilder.clinicalKnobs")}
               </summary>
@@ -256,7 +256,7 @@ export function ControllerItemsBuilder({
             </details>
             {rawSections.map((section) => (
               <details key={section.title} open={query.length > 0 ? true : undefined} className="group">
-                <summary className="flex cursor-pointer select-none items-center gap-1.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 transition-colors hover:text-slate-400 [&::-webkit-details-marker]:hidden">
+                <summary className="flex cursor-pointer select-none items-center gap-1.5 py-1.5 text-[11px] font-medium text-wb-subtle transition-colors hover:text-wb-muted [&::-webkit-details-marker]:hidden">
                   <ChevronDown className="h-3 w-3 shrink-0 transition-transform group-open:rotate-0 -rotate-90" />
                   {translatedControllerCategory(t, section.title)}
                 </summary>
@@ -268,14 +268,14 @@ export function ControllerItemsBuilder({
           </div>
         </div>
 
-        <div className="min-h-0 overflow-y-auto pl-4 lg:border-l lg:border-slate-800/60 custom-scrollbar">
-          <div className="mb-1 flex h-9 items-center text-[10px] font-bold uppercase tracking-wider text-slate-500">{t("workbench.controllerBuilder.selectedControls")}</div>
+        <div className="min-h-0 overflow-y-auto pl-4 lg:border-l lg:border-wb-line custom-scrollbar">
+          <div className="mb-1 flex h-9 items-center text-[11px] font-medium text-wb-subtle">{t("workbench.controllerBuilder.selectedControls")}</div>
           {items.length === 0 ? (
-            <div className="px-1 py-3 text-xs text-slate-500">
+            <div className="px-1 py-3 text-xs text-wb-subtle">
               {t("workbench.controllerBuilder.addFromLeft")}
             </div>
           ) : (
-            <div className="divide-y divide-slate-800/50">
+            <div className="divide-y divide-wb-line">
               {items.map((item, index) => {
                 const meta = catalogMetaFor(item.paramKey);
                 const baseline = normalizedPreviewValue(item, baselines[item.paramKey]);
@@ -298,10 +298,10 @@ export function ControllerItemsBuilder({
                             event.currentTarget.blur();
                           }
                         }}
-                        className="h-8 min-w-0 rounded bg-transparent px-1.5 text-xs font-semibold text-slate-100 outline-none transition-colors hover:bg-slate-800/40 focus:bg-slate-900 focus:ring-1 focus:ring-slate-600"
+                        className="h-8 min-w-0 rounded bg-transparent px-1.5 text-xs font-semibold text-wb-text outline-none transition-colors hover:bg-wb-hover focus:bg-wb-soft focus:ring-1 focus:ring-wb-accent"
                         aria-label={`${item.paramKey} label`}
                       />
-                      <div className="flex shrink-0 rounded bg-slate-900/70 p-0.5" aria-label={t("workbench.controllerBuilder.controlType")}>
+                      <div className="flex shrink-0 rounded bg-wb-input p-0.5" aria-label={t("workbench.controllerBuilder.controlType")}>
                         {(["slider", "buttonGroup"] as const).map((kind) => (
                           <button
                             key={kind}
@@ -310,23 +310,23 @@ export function ControllerItemsBuilder({
                               kind,
                               ...(kind === "buttonGroup" ? { options: controllerOptionsWithLabelKeys(item, seedButtonOptions(item, baseline), baseline) } : { options: undefined }),
                             })}
-                            className={`h-6 rounded px-2 text-[10px] font-bold transition-colors ${item.kind === kind ? "bg-sky-500/20 text-sky-100" : "text-slate-500 hover:text-slate-300"}`}
+                            className={`h-6 rounded px-2 text-[10px] font-bold transition-colors ${item.kind === kind ? "bg-wb-active text-wb-text" : "text-wb-subtle hover:text-wb-muted"}`}
                           >
                             {kind === "slider" ? t("workbench.controllerBuilder.slider") : t("workbench.controllerBuilder.button")}
                           </button>
                         ))}
                       </div>
-                      <button type="button" onClick={() => setExpanded((current) => ({ ...current, [item.paramKey]: !isExpanded }))} className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-200" aria-label={isExpanded ? t("workbench.controllerBuilder.collapse") : t("workbench.controllerBuilder.expand")}>
+                      <button type="button" onClick={() => setExpanded((current) => ({ ...current, [item.paramKey]: !isExpanded }))} className="inline-flex h-7 w-7 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text" aria-label={isExpanded ? t("workbench.controllerBuilder.collapse") : t("workbench.controllerBuilder.expand")}>
                         <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                       </button>
                       <div className="flex shrink-0 items-center opacity-60 transition-opacity group-hover/row:opacity-100">
-                        <button type="button" onClick={() => moveItem(index, -1)} disabled={index === 0} className="inline-flex h-7 w-6 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-200 disabled:opacity-25" aria-label={t("workbench.viewEditor.moveUp")}>
+                        <button type="button" onClick={() => moveItem(index, -1)} disabled={index === 0} className="inline-flex h-7 w-6 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text disabled:opacity-25" aria-label={t("workbench.viewEditor.moveUp")}>
                           <ArrowUp className="h-3.5 w-3.5" />
                         </button>
-                        <button type="button" onClick={() => moveItem(index, 1)} disabled={index === items.length - 1} className="inline-flex h-7 w-6 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-200 disabled:opacity-25" aria-label={t("workbench.viewEditor.moveDown")}>
+                        <button type="button" onClick={() => moveItem(index, 1)} disabled={index === items.length - 1} className="inline-flex h-7 w-6 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text disabled:opacity-25" aria-label={t("workbench.viewEditor.moveDown")}>
                           <ArrowDown className="h-3.5 w-3.5" />
                         </button>
-                        <button type="button" onClick={() => removeItem(index)} className="inline-flex h-7 w-6 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-red-300" aria-label={t("workbench.controllerBuilder.removeControl")}>
+                        <button type="button" onClick={() => removeItem(index)} className="inline-flex h-7 w-6 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-danger" aria-label={t("workbench.controllerBuilder.removeControl")}>
                           <X className="h-3.5 w-3.5" />
                         </button>
                       </div>
@@ -336,14 +336,14 @@ export function ControllerItemsBuilder({
                       <div className="mt-1.5 space-y-3 pl-1.5">
                         <div>
                           <div className="mb-1.5 flex items-center justify-between gap-2">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{t("workbench.controllerBuilder.advancedRange")}</span>
-                            <span className="text-[10px] text-slate-600">{t("workbench.controllerBuilder.engineRange", { min: meta.min, max: meta.max })}</span>
+                            <span className="text-[11px] font-medium text-wb-subtle">{t("workbench.controllerBuilder.advancedRange")}</span>
+                            <span className="text-[10px] text-wb-subtle">{t("workbench.controllerBuilder.engineRange", { min: meta.min, max: meta.max })}</span>
                           </div>
                           <div className="grid grid-cols-3 gap-2">
                             {(["min", "max", "step"] as const).map((field) => {
                               const draftKey = `${item.paramKey}:range:${field}`;
                               return (
-                                <label key={field} className="grid gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                                <label key={field} className="grid gap-1 text-[11px] font-medium text-wb-subtle">
                                   {t(`workbench.controllerBuilder.${field}`)}
                                   <input
                                     type="number"
@@ -359,7 +359,7 @@ export function ControllerItemsBuilder({
                                         event.currentTarget.blur();
                                       }
                                     }}
-                                    className="h-7 min-w-0 rounded bg-slate-800/40 px-2 text-[11px] font-semibold normal-case text-slate-200 outline-none transition-colors focus:bg-slate-900 focus:ring-1 focus:ring-slate-600"
+                                    className="h-7 min-w-0 rounded bg-wb-input px-2 text-[11px] font-semibold normal-case text-wb-text outline-none transition-colors focus:bg-wb-soft focus:ring-1 focus:ring-wb-accent"
                                   />
                                 </label>
                               );
@@ -386,7 +386,7 @@ export function ControllerItemsBuilder({
                                         event.currentTarget.blur();
                                       }
                                     }}
-                                    className="h-7 min-w-0 rounded bg-slate-800/40 px-2 text-[11px] font-semibold text-slate-200 outline-none transition-colors focus:bg-slate-900 focus:ring-1 focus:ring-slate-600"
+                                    className="h-7 min-w-0 rounded bg-wb-input px-2 text-[11px] font-semibold text-wb-text outline-none transition-colors focus:bg-wb-soft focus:ring-1 focus:ring-wb-accent"
                                     aria-label={`${displayedItemLabel} option label`}
                                   />
                                   <input
@@ -403,13 +403,13 @@ export function ControllerItemsBuilder({
                                         event.currentTarget.blur();
                                       }
                                     }}
-                                    className="h-7 min-w-0 rounded bg-slate-800/40 px-2 text-[11px] font-semibold text-slate-200 outline-none transition-colors focus:bg-slate-900 focus:ring-1 focus:ring-slate-600"
+                                    className="h-7 min-w-0 rounded bg-wb-input px-2 text-[11px] font-semibold text-wb-text outline-none transition-colors focus:bg-wb-soft focus:ring-1 focus:ring-wb-accent"
 	                                    aria-label={`${displayedItemLabel} option value`}
 	                                  />
                                   <button
                                     type="button"
                                     onClick={() => updateItem(index, { options: (item.options ?? []).filter((_option, optionItemIndex) => optionItemIndex !== optionIndex) })}
-                                    className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-red-300"
+                                    className="inline-flex h-7 w-7 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-danger"
                                     aria-label={`Remove ${option.label}`}
                                   >
                                     <X className="h-3.5 w-3.5" />
@@ -421,7 +421,7 @@ export function ControllerItemsBuilder({
                               type="button"
                               disabled={(item.options?.length ?? 0) >= 3}
                               onClick={() => updateItem(index, { options: [...(item.options ?? []), { label: t("workbench.controllerBuilder.optionNumber", { number: (item.options?.length ?? 0) + 1 }), value: baseline }] })}
-                              className="h-7 rounded bg-slate-800/50 px-2.5 text-[11px] font-bold text-slate-300 transition-colors hover:bg-slate-800 hover:text-slate-100 disabled:opacity-30"
+                              className="h-7 rounded bg-wb-hover px-2.5 text-[11px] font-bold text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text disabled:opacity-30"
                             >
                               {t("workbench.controllerBuilder.addOption")}
                             </button>
@@ -430,7 +430,7 @@ export function ControllerItemsBuilder({
                         )}
 
                         <div>
-                          <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">{t("workbench.controllerBuilder.preview")}</div>
+                          <div className="mb-1.5 text-[11px] font-medium text-wb-subtle">{t("workbench.controllerBuilder.preview")}</div>
                           <ControllerItemControl
                             item={{
                               ...item,

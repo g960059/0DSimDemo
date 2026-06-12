@@ -63,46 +63,46 @@ const ControlGrid = ({ children, tone = 'raw' }: { children: React.ReactNode; to
 
 const SectionLabel = ({ children, changedCount = 0 }: { children: React.ReactNode; changedCount?: number }) => (
   <div className="col-span-full mb-0.5 mt-2 flex items-center gap-2 first:mt-0">
-    <span className="text-[10px] font-semibold uppercase text-slate-400">{children}</span>
+    <span className="text-[11px] font-medium text-wb-muted">{children}</span>
     {changedCount > 0 && (
-      <span className="rounded-full border border-blue-400/30 bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-semibold leading-none text-blue-100">
+      <span className="rounded-full border border-wb-line bg-wb-active px-1.5 py-0.5 text-[9px] font-semibold leading-none text-wb-text">
         {changedCount}
       </span>
     )}
-    <span className="h-px flex-1 bg-slate-800/80" />
+    <span className="h-px flex-1 bg-wb-active/80" />
   </div>
 );
 
 const Subhead = ({ children }: { children: React.ReactNode }) => (
-  <span className="col-span-full mt-2 block text-[10px] font-semibold uppercase text-slate-400 first:mt-0">{children}</span>
+  <span className="col-span-full mt-2 block text-[11px] font-medium text-wb-muted first:mt-0">{children}</span>
 );
 
 const GroupHeader = ({ title, isOpen, toggle, tone = 'raw', changedCount = 0, summary, onReset, changedLabel, resetLabel, resetTitle }: { title: string, isOpen: boolean, toggle: () => void, tone?: 'clinical' | 'raw', changedCount?: number, summary?: string, onReset?: () => void, changedLabel: string, resetLabel: string, resetTitle?: string }) => {
     const isClinical = tone === 'clinical';
     return (
-    <div className={`mt-1.5 flex h-8 w-full items-center border-y transition-colors ${isClinical ? 'border-blue-500/20 bg-blue-500/10 text-blue-100' : 'border-slate-800/80 bg-slate-900/25 text-slate-300'}`}>
+    <div className={`mt-1.5 flex h-8 w-full items-center border-y transition-colors ${isClinical ? 'border-wb-line bg-wb-active text-wb-text' : 'border-wb-line bg-wb-strip text-wb-muted'}`}>
         <button
             type="button"
             onClick={toggle}
-            className={`flex h-full min-w-0 flex-1 items-center gap-2 px-2 text-left transition-colors ${isClinical ? 'hover:bg-blue-500/15' : 'hover:bg-slate-800/45'}`}
+            className={`flex h-full min-w-0 flex-1 items-center gap-2 px-2 text-left transition-colors ${isClinical ? 'hover:bg-wb-hover' : 'hover:bg-wb-hover'}`}
         >
-            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${isClinical ? 'bg-blue-300' : 'bg-slate-500'}`} />
-            <span className="min-w-0 flex-1 truncate text-[11px] font-semibold uppercase">
+            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${isClinical ? 'bg-wb-accent' : 'bg-wb-subtle'}`} />
+            <span className="min-w-0 flex-1 truncate text-[11px] font-medium">
                {title}
             </span>
-            {summary && <span className="hidden truncate text-[10px] font-medium normal-case text-slate-500 min-[420px]:inline">{summary}</span>}
+            {summary && <span className="hidden truncate text-[10px] font-medium normal-case text-wb-subtle min-[420px]:inline">{summary}</span>}
             {changedCount > 0 && (
-              <span className="rounded-full border border-blue-400/30 bg-blue-400/10 px-1.5 py-0.5 text-[9px] font-semibold leading-none text-blue-100">
+              <span className="rounded-full border border-wb-line bg-wb-active px-1.5 py-0.5 text-[9px] font-semibold leading-none text-wb-text">
                 {changedCount} {changedLabel}
               </span>
             )}
-            {isOpen ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-500" />}
+            {isOpen ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-wb-muted" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-wb-subtle" />}
         </button>
         {onReset && changedCount > 0 && (
           <button
             type="button"
             onClick={onReset}
-            className="mr-1 flex h-6 shrink-0 items-center gap-1 rounded border border-blue-400/30 bg-blue-400/10 px-1.5 text-blue-100 transition-colors hover:bg-blue-400/20"
+            className="mr-1 flex h-6 shrink-0 items-center gap-1 rounded border border-wb-line bg-wb-active px-1.5 text-wb-text transition-colors hover:bg-wb-hover"
             title={resetTitle ?? resetLabel}
             aria-label={resetTitle ?? resetLabel}
           >
@@ -219,8 +219,8 @@ export const Controls: React.FC<ControlsProps> = ({
   const changedClinicalControls = getChangedClinicalControls(knobs, baselineKnobs, changedCandidateClinicalControls);
   const changedClinicalCount = changedClinicalControls.length;
   const changedClinicalSummary = changedClinicalControls.slice(0, 2).map(control => control.label).join(', ');
-  const clinicalBodyClass = "mt-1 mb-2 border-l border-blue-500/25 pl-1.5";
-  const rawBodyClass = "mt-1 mb-2 border-l border-slate-700/45 pl-1.5";
+  const clinicalBodyClass = "mt-1 mb-2 border-l border-wb-accent pl-1.5";
+  const rawBodyClass = "mt-1 mb-2 border-l border-wb-line pl-1.5";
   const resetClinicalKnobs = () => {
     if (!activeInstance || changedClinicalCount === 0) return;
     updateInstanceKnobs(activeInstance.id, resetClinicalKnobsToBaseline(knobs, baselineKnobs, changedClinicalControls));
@@ -294,12 +294,12 @@ export const Controls: React.FC<ControlsProps> = ({
     <div className="absolute inset-0 flex flex-col gap-0 h-full bg-transparent overflow-hidden">
       
       {targetInstances.length > 1 && (
-      <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-slate-800/60 bg-transparent px-2 py-1.5 custom-scrollbar">
+      <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-wb-line bg-transparent px-2 py-1.5 custom-scrollbar">
          {targetInstances.map(inst => (
             <button
                 key={inst.id}
                 onClick={() => setPaneTargetId(inst.id)}
-                className={`flex h-7 items-center gap-1.5 rounded border px-2 text-[11px] font-semibold transition-colors whitespace-nowrap ${currentActiveId === inst.id ? 'border-blue-400/45 bg-blue-400/15 text-blue-100' : 'border-slate-800/70 bg-slate-900/35 text-slate-500 hover:border-slate-700 hover:text-slate-300'}`}
+                className={`flex h-7 items-center gap-1.5 rounded border px-2 text-[11px] font-semibold transition-colors whitespace-nowrap ${currentActiveId === inst.id ? 'border-wb-line bg-wb-active text-wb-text' : 'border-wb-line bg-wb-strip text-wb-subtle hover:border-wb-line hover:text-wb-muted'}`}
             >
                 <div className="h-2 w-2 rounded-full" style={{backgroundColor: inst.color, boxShadow: currentActiveId === inst.id ? `0 0 6px ${inst.color}` : undefined}}></div>
                 {inst.name}
@@ -391,13 +391,13 @@ export const Controls: React.FC<ControlsProps> = ({
               {openGroups.ventricles && (
                   <div className={rawBodyClass}>
                       <div className="mb-3">
-                          <span className="text-[11px] font-medium text-slate-400 block mb-1">{t('workbench.controls.raw.ventricleModel')}</span>
-                          <div className="flex gap-1 bg-slate-950 rounded p-0.5 border border-slate-800">
+                          <span className="text-[11px] font-medium text-wb-muted block mb-1">{t('workbench.controls.raw.ventricleModel')}</span>
+                          <div className="flex gap-1 bg-wb-panel rounded p-0.5 border border-wb-line">
                               {([['activeStress', t('workbench.controls.raw.activeStress')], ['elastance', t('workbench.controls.raw.elastance')]] as const).map(([mode, label]) => (
                                   <button
                                       key={mode}
                                       onClick={() => update('heartModel', mode)}
-                                      className={`flex-1 py-1 text-[11px] font-semibold rounded transition-colors ${params.heartModel === mode ? 'bg-blue-500/20 text-blue-300' : 'text-slate-500 hover:text-slate-300'}`}
+                                      className={`flex-1 py-1 text-[11px] font-semibold rounded transition-colors ${params.heartModel === mode ? 'bg-wb-active text-wb-text' : 'text-wb-subtle hover:text-wb-muted'}`}
                                       title={mode === 'activeStress' ? t('workbench.controls.raw.activeStressTitle') : t('workbench.controls.raw.elastanceTitle')}
                                   >
                                       {label}
@@ -422,16 +422,16 @@ export const Controls: React.FC<ControlsProps> = ({
                       <Slider label={t('workbench.controls.raw.rvGeometryScale')} value={rawView.rvGeomScale} min={0.5} max={3.0} step={0.1} onChange={(v) => update('rvGeomScale', v)} unit="x" />
 
                       <Subhead>{t('workbench.controls.raw.pericardiumSeptum')}</Subhead>
-                      <div className="col-span-full flex items-center gap-2 rounded border border-slate-800/60 bg-slate-900/35 px-2 py-1.5 text-xs">
+                      <div className="col-span-full flex items-center gap-2 rounded border border-wb-line bg-wb-strip px-2 py-1.5 text-xs">
                          <input type="checkbox" checked={rawView.pericardiumEnabled} onChange={(e) => update('pericardiumEnabled', e.target.checked)} />
-                         <span className="text-slate-300">{t('workbench.controls.raw.pericardialConstraintEnabled')}</span>
+                         <span className="text-wb-muted">{t('workbench.controls.raw.pericardialConstraintEnabled')}</span>
                       </div>
                       <Slider label={t('workbench.controls.raw.pericardialConstraint')} value={rawView.pericardialPressureScaleMmHg} min={0} max={12} step={0.25} onChange={(v) => update('pericardialPressureScaleMmHg', v)} unit="mmHg" />
                       <Slider label={t('workbench.controls.raw.pericardialEffusion')} value={rawView.pericardialFluidMl} min={0} max={500} step={10} onChange={(v) => update('pericardialFluidMl', v)} unit="mL" />
                       <Slider label={t('workbench.controls.raw.pericardialSlackVolume')} value={rawView.pericardialSlackVolumeMl} min={220} max={600} step={10} onChange={(v) => update('pericardialSlackVolumeMl', v)} unit="mL" />
-                      <div className="col-span-full flex items-center gap-2 rounded border border-slate-800/60 bg-slate-900/35 px-2 py-1.5 text-xs">
+                      <div className="col-span-full flex items-center gap-2 rounded border border-wb-line bg-wb-strip px-2 py-1.5 text-xs">
                          <input type="checkbox" checked={rawView.septalCouplingEnabled} onChange={(e) => update('septalCouplingEnabled', e.target.checked)} />
-                         <span className="text-slate-300">{t('workbench.controls.raw.septalVolumeShiftEnabled')}</span>
+                         <span className="text-wb-muted">{t('workbench.controls.raw.septalVolumeShiftEnabled')}</span>
                       </div>
                       <Slider label={t('workbench.controls.raw.septalStiffness')} value={rawView.septalStiffnessScale} min={0.25} max={3.0} step={0.05} onChange={(v) => update('septalStiffnessScale', v)} unit="x" />
                       <Slider label={t('workbench.controls.raw.septalMaxShift')} value={rawView.septalMaxShiftMl} min={0} max={50} step={1} onChange={(v) => update('septalMaxShiftMl', v)} unit="mL" />
@@ -496,17 +496,17 @@ export const Controls: React.FC<ControlsProps> = ({
             <>
               <GroupHeader title={t('workbench.controls.groups.coronary')} isOpen={openGroups.coronary} toggle={() => toggleGroup('coronary')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.coronary && (
-                  <div className="mt-2 pl-3 border-l-2 border-slate-700/30 ml-2 mb-4">
+                  <div className="mt-2 pl-3 border-l-2 border-wb-line ml-2 mb-4">
                       <div className="flex items-center gap-2 mt-2 mb-2 text-xs">
                          <input type="checkbox" checked={rawView.coronaryEnabled} onChange={(e) => update('coronaryEnabled', e.target.checked)} />
-                         <span className="text-slate-300">{t('workbench.controls.raw.coronaryBedEnabled')}</span>
+                         <span className="text-wb-muted">{t('workbench.controls.raw.coronaryBedEnabled')}</span>
                       </div>
                       <Slider label={t('workbench.controls.raw.coronaryResistance')} value={rawView.coronaryResistanceScale} min={0.2} max={5.0} step={0.05} onChange={(v) => update('coronaryResistanceScale', v)} unit="x" />
                       <Slider label={t('workbench.controls.raw.myocardialCompression')} value={rawView.coronaryCompressionScale} min={0} max={2.0} step={0.05} onChange={(v) => update('coronaryCompressionScale', v)} unit="x" />
                       <Slider label={t('workbench.controls.raw.hyperemiaVasodilator')} value={rawView.coronaryVasodilator} min={0} max={1} step={0.05} onChange={(v) => update('coronaryVasodilator', v)} />
                       <Slider label={t('workbench.controls.raw.reserveMax')} value={rawView.coronaryReserveMax} min={1} max={5} step={0.1} onChange={(v) => update('coronaryReserveMax', v)} unit="x" />
 
-                      <span className="text-xs font-bold text-slate-300 block mt-4 mb-1">{t('workbench.controls.raw.epicardialDiameterStenosis')}</span>
+                      <span className="text-xs font-bold text-wb-muted block mt-4 mb-1">{t('workbench.controls.raw.epicardialDiameterStenosis')}</span>
                       <Slider label={t('workbench.controls.raw.ladStenosis')} value={rawView.LADStenosis} min={0} max={0.95} step={0.01} onChange={(v) => update('LADStenosis', v)} />
                       <Slider label={t('workbench.controls.raw.lcxStenosis')} value={rawView.LCxStenosis} min={0} max={0.95} step={0.01} onChange={(v) => update('LCxStenosis', v)} />
                       <Slider label={t('workbench.controls.raw.rcaStenosis')} value={rawView.RCAStenosis} min={0} max={0.95} step={0.01} onChange={(v) => update('RCAStenosis', v)} />
@@ -523,7 +523,7 @@ export const Controls: React.FC<ControlsProps> = ({
                     <ControlGrid>
                       <Slider label={t('workbench.controls.raw.hemorrhageRate')} value={rawView.bleedRate} min={0} max={1500} step={25} onChange={(v) => update('bleedRate', v)} unit="mL/min" />
                       <Slider label={t('workbench.controls.raw.fluidTransfusionRate')} value={rawView.fluidRate} min={0} max={1500} step={25} onChange={(v) => update('fluidRate', v)} unit="mL/min" />
-                      <span className="col-span-full block text-[10px] text-slate-500">{t('workbench.controls.raw.netVolumeNote')}</span>
+                      <span className="col-span-full block text-[10px] text-wb-subtle">{t('workbench.controls.raw.netVolumeNote')}</span>
                     </ControlGrid>
                   </div>
               )}
@@ -536,8 +536,8 @@ export const Controls: React.FC<ControlsProps> = ({
               {openGroups.valves && (
                   <div className={`${rawBodyClass} flex flex-col gap-0`}>
                      {['MV', 'AoV', 'TV', 'PV'].map(vName => (
-                         <div key={vName} className="mb-1.5 rounded border border-slate-800/70 bg-slate-900/35 p-1.5">
-                             <span className="mb-1 block text-[10px] font-semibold uppercase text-slate-400">{t('workbench.controls.raw.valveParameters', { valve: vName })}</span>
+                         <div key={vName} className="mb-1.5 rounded border border-wb-line bg-wb-strip p-1.5">
+                             <span className="mb-1 block text-[11px] font-medium text-wb-muted">{t('workbench.controls.raw.valveParameters', { valve: vName })}</span>
                              <ControlGrid>
                              <Slider label={t('workbench.controls.raw.arefHealthyArea')} value={(params as any)[`${vName}_Aref`]} min={0.1} max={10.0} step={0.1} onChange={(v) => update(`${vName}_Aref` as any, v)} unit="cm²" />
                              <Slider label={t('workbench.controls.raw.amaxMaxArea')} value={(params as any)[`${vName}_Amax`]} min={0.1} max={10.0} step={0.1} onChange={(v) => update(`${vName}_Amax` as any, v)} unit="cm²" />
@@ -578,9 +578,9 @@ export const Controls: React.FC<ControlsProps> = ({
               <GroupHeader title={t('workbench.controls.groups.advanced')} isOpen={openGroups.advanced} toggle={() => toggleGroup('advanced')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.advanced && (
                   <div className={rawBodyClass}>
-                      <div className="flex items-center gap-2 rounded border border-slate-800/60 bg-slate-900/35 px-2 py-1.5 text-xs">
+                      <div className="flex items-center gap-2 rounded border border-wb-line bg-wb-strip px-2 py-1.5 text-xs">
                          <input type="checkbox" checked={params.useChiResistance} onChange={(e) => update('useChiResistance', e.target.checked)} />
-                         <span className="text-slate-300">{t('workbench.controls.raw.useDynamicStarling')}</span>
+                         <span className="text-wb-muted">{t('workbench.controls.raw.useDynamicStarling')}</span>
                       </div>
                   </div>
               )}

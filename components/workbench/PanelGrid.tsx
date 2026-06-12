@@ -446,35 +446,35 @@ function LegacyPanelSettingsControls({
 
   return (
     <>
-      <div className="mb-2 flex items-center gap-2 border-b border-slate-700 pb-2">
-        <span className="text-xs font-medium text-slate-400">{t('common.title')}:</span>
+      <div className="mb-2 flex items-center gap-2 border-b border-wb-line pb-2">
+        <span className="text-xs font-medium text-wb-muted">{t('common.title')}:</span>
         <input
           type="text"
           value={panel.title}
           onChange={(e) => updatePanelTitle(panel.id, e.target.value)}
-          className="w-full rounded border border-slate-700 bg-slate-900 px-1.5 py-0.5 text-xs font-medium text-slate-200 outline-none focus:border-slate-500"
+          className="w-full rounded border border-wb-line bg-wb-panel px-1.5 py-0.5 text-xs font-medium text-wb-text outline-none focus:border-wb-accent"
           placeholder={t('workbench.panelGrid.panelTitle')}
         />
       </div>
       {['PVLOOP', 'WAVEFORM'].includes(panel.type) && (
-        <div className="mb-2 flex items-center gap-2 border-b border-slate-700 pb-2">
-          <input type="checkbox" className="cursor-pointer accent-blue-500" checked={panel.showLegend !== false} onChange={() => toggleShowLegend(panel.id)} />
-          <span className="text-xs font-medium text-slate-200">{t('workbench.panelGrid.showLegend')}</span>
+        <div className="mb-2 flex items-center gap-2 border-b border-wb-line pb-2">
+          <input type="checkbox" className="cursor-pointer accent-wb-accent" checked={panel.showLegend !== false} onChange={() => toggleShowLegend(panel.id)} />
+          <span className="text-xs font-medium text-wb-text">{t('workbench.panelGrid.showLegend')}</span>
         </div>
       )}
       {panel.type === 'PVLOOP' && (
-        <div className="mb-2 flex items-center gap-2 border-b border-slate-700 pb-2">
-          <input type="checkbox" className="cursor-pointer accent-blue-500" checked={panel.showGuides} onChange={() => toggleGuides(panel.id)} />
-          <span className="text-xs font-medium text-slate-200">{t('workbench.panelGrid.showGuides')}</span>
+        <div className="mb-2 flex items-center gap-2 border-b border-wb-line pb-2">
+          <input type="checkbox" className="cursor-pointer accent-wb-accent" checked={panel.showGuides} onChange={() => toggleGuides(panel.id)} />
+          <span className="text-xs font-medium text-wb-text">{t('workbench.panelGrid.showGuides')}</span>
         </div>
       )}
       {panel.type === 'WAVEFORM' && (
-        <div className="mb-3 border-b border-slate-700 pb-3">
-          <div className="mb-2 flex justify-between text-[10px] font-medium text-slate-400">
+        <div className="mb-3 border-b border-wb-line pb-3">
+          <div className="mb-2 flex justify-between text-[10px] font-medium text-wb-muted">
             <span>{t('workbench.panelGrid.windowSize')}</span>
-            <span className="text-blue-400">{(panel.timeWindow || 10000) / 1000}s</span>
+            <span className="text-wb-accent">{(panel.timeWindow || 10000) / 1000}s</span>
           </div>
-          <input type="range" min={2000} max={20000} step={1000} value={panel.timeWindow || 10000} onChange={(e) => updateTimeWindow(panel.id, parseFloat(e.target.value))} className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-slate-900 accent-blue-500" />
+          <input type="range" min={2000} max={20000} step={1000} value={panel.timeWindow || 10000} onChange={(e) => updateTimeWindow(panel.id, parseFloat(e.target.value))} className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-wb-panel accent-wb-accent" />
         </div>
       )}
       <div className="space-y-3">
@@ -483,24 +483,24 @@ function LegacyPanelSettingsControls({
           return (
             <div key={inst.id}>
               <div className="mb-1 flex items-center gap-2">
-                <input type="checkbox" className="flex-none cursor-pointer accent-blue-500" checked={cfg?.visible || false} onChange={() => togglePaneMembership(panel.id, inst.id)} />
+                <input type="checkbox" className="flex-none cursor-pointer accent-wb-accent" checked={cfg?.visible || false} onChange={() => togglePaneMembership(panel.id, inst.id)} />
                 <input type="color" className="block h-[14px] w-[14px] flex-none cursor-pointer appearance-none rounded border-0 bg-transparent p-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded [&::-webkit-color-swatch]:border-none" value={cfg?.customBaseColor ?? inst.color} onChange={(e) => updatePanelInstanceColor(panel.id, inst.id, e.target.value)} />
-                <input type="text" className="w-full min-w-0 border-b border-transparent bg-transparent text-xs font-bold text-slate-300 outline-none focus:border-slate-500" value={cfg?.customName ?? inst.name} onChange={(e) => updatePanelInstanceName(panel.id, inst.id, e.target.value)} placeholder={inst.name} />
+                <input type="text" className="w-full min-w-0 border-b border-transparent bg-transparent text-xs font-bold text-wb-muted outline-none focus:border-wb-accent" value={cfg?.customName ?? inst.name} onChange={(e) => updatePanelInstanceName(panel.id, inst.id, e.target.value)} placeholder={inst.name} />
               </div>
               {cfg?.visible && (panel.type !== 'GUYTON_RIGHT' && panel.type !== 'GUYTON_LEFT') && (
                 <div className="grid grid-cols-1 gap-1 pl-5">
                   {itemOptions.map(sig => {
                     const isSelected = cfg.selectedSignals.includes(sig);
                     return (
-                      <div key={sig} className="flex items-center gap-1 rounded bg-slate-950/50 px-1 py-0.5 text-[10px]">
-                        <input type="checkbox" className="m-0 h-3 w-3 flex-none cursor-pointer accent-blue-500" checked={isSelected} onChange={() => updateInstanceSignals(panel.id, inst.id, sig)} />
+                      <div key={sig} className="flex items-center gap-1 rounded bg-wb-strip px-1 py-0.5 text-[10px]">
+                        <input type="checkbox" className="m-0 h-3 w-3 flex-none cursor-pointer accent-wb-accent" checked={isSelected} onChange={() => updateInstanceSignals(panel.id, inst.id, sig)} />
                         {isSelected && (
                           <input type="color" className="block h-3 w-3 flex-none cursor-pointer appearance-none rounded border-0 bg-transparent p-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded [&::-webkit-color-swatch]:border-none" value={cfg.customSignalColors?.[sig] || cfg.customBaseColor || inst.color} onChange={(e) => updatePanelSignalColor(panel.id, inst.id, sig, e.target.value)} />
                         )}
                         {isSelected ? (
-                          <input type="text" className="w-full min-w-0 border-b border-transparent bg-transparent text-[10px] font-medium text-slate-300 outline-none focus:border-slate-500" value={cfg.customSignalNames?.[sig] || sig} onChange={(e) => updatePanelSignalName(panel.id, inst.id, sig, e.target.value)} placeholder={sig} />
+                          <input type="text" className="w-full min-w-0 border-b border-transparent bg-transparent text-[10px] font-medium text-wb-muted outline-none focus:border-wb-accent" value={cfg.customSignalNames?.[sig] || sig} onChange={(e) => updatePanelSignalName(panel.id, inst.id, sig, e.target.value)} placeholder={sig} />
                         ) : (
-                          <span className="flex-1 select-none truncate text-slate-600">{sig}</span>
+                          <span className="flex-1 select-none truncate text-wb-subtle">{sig}</span>
                         )}
                       </div>
                     );
@@ -610,11 +610,11 @@ function GraphPanelSettingsBoard({
             key={inst.id}
             type="button"
             onClick={() => setActiveInstanceId(inst.id)}
-            className={`inline-flex h-8 max-w-[12rem] flex-none items-center gap-2 rounded border px-2 text-xs font-bold transition-colors ${isActive ? 'border-sky-500/50 bg-sky-500/15 text-sky-100' : 'border-slate-700 bg-slate-950/65 text-slate-400 hover:text-slate-200'}`}
+            className={`inline-flex h-8 max-w-[12rem] flex-none items-center gap-2 rounded border px-2 text-xs font-bold transition-colors ${isActive ? 'border-wb-line bg-wb-active text-wb-text' : 'border-wb-line bg-wb-strip text-wb-muted hover:text-wb-text'}`}
           >
             <span className="h-2.5 w-2.5 flex-none rounded-full" style={{ backgroundColor: cfg?.customBaseColor ?? inst.color }} />
             <span className="truncate">{cfg?.customName ?? inst.name}</span>
-            <span className={`rounded px-1 py-0.5 text-[9px] uppercase ${cfg?.visible ? 'bg-emerald-500/15 text-emerald-200' : 'bg-slate-800 text-slate-500'}`}>
+            <span className={`rounded px-1 py-0.5 text-[10px] ${cfg?.visible ? 'bg-emerald-500/15 text-emerald-200' : 'bg-wb-active text-wb-subtle'}`}>
               {cfg?.visible ? t('common.on') : t('common.off')}
             </span>
           </button>
@@ -626,10 +626,10 @@ function GraphPanelSettingsBoard({
   const renderSignalBoard = (layout: 'wide' | 'document' = 'wide') => {
     if (panel.type === 'GUYTON_LEFT' || panel.type === 'GUYTON_RIGHT' || panel.type === 'GUYTON_3D') {
       return (
-        <div className="flex min-h-[5rem] items-center justify-center rounded bg-slate-950/25 p-4 text-center">
+        <div className="flex min-h-[5rem] items-center justify-center rounded bg-wb-strip p-4 text-center">
           <div>
-            <div className="text-sm font-bold text-slate-200">{t('workbench.panelGrid.standardGuytonCurve')}</div>
-            <div className="mt-1 max-w-md text-xs font-medium leading-5 text-slate-500">
+            <div className="text-sm font-bold text-wb-text">{t('workbench.panelGrid.standardGuytonCurve')}</div>
+            <div className="mt-1 max-w-md text-xs font-medium leading-5 text-wb-subtle">
               {t('workbench.panelGrid.guytonCurveDescription')}
             </div>
           </div>
@@ -639,7 +639,7 @@ function GraphPanelSettingsBoard({
 
     if (!activeInstance || !activeCfg) {
       return (
-        <div className="flex min-h-[5rem] items-center justify-center rounded bg-slate-950/25 text-xs font-semibold text-slate-500">
+        <div className="flex min-h-[5rem] items-center justify-center rounded bg-wb-strip text-xs font-semibold text-wb-subtle">
           {t('workbench.panelGrid.selectInstanceToConfigure', { source: sourceLabelSentence })}
         </div>
       );
@@ -650,13 +650,13 @@ function GraphPanelSettingsBoard({
         {renderInstancePicker()}
         {panel.type === 'WAVEFORM' && (
           <div className="flex flex-none flex-wrap items-center gap-2">
-            <label className="flex h-9 min-w-[13rem] flex-1 items-center gap-2 rounded border border-slate-700/80 bg-slate-950/70 px-2">
-              <Search className="h-3.5 w-3.5 flex-none text-slate-500" />
+            <label className="flex h-9 min-w-[13rem] flex-1 items-center gap-2 rounded border border-wb-line/80 bg-wb-input px-2">
+              <Search className="h-3.5 w-3.5 flex-none text-wb-subtle" />
               <input
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-slate-200 outline-none placeholder:text-slate-600"
+                className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-wb-text outline-none placeholder:text-wb-subtle"
                 placeholder={t('workbench.panelGrid.searchSignals')}
               />
             </label>
@@ -667,19 +667,19 @@ function GraphPanelSettingsBoard({
                     key={chip}
                     type="button"
                     onClick={() => setCategory(chip)}
-                    className={`h-7 rounded-full border px-2 text-[10px] font-bold transition-colors ${category === chip ? 'border-sky-500/50 bg-sky-500/15 text-sky-100' : 'border-slate-700 bg-slate-950/55 text-slate-400 hover:text-slate-200'}`}
+                    className={`h-7 rounded-full border px-2 text-[10px] font-bold transition-colors ${category === chip ? 'border-wb-line bg-wb-active text-wb-text' : 'border-wb-line bg-wb-strip text-wb-muted hover:text-wb-text'}`}
                   >
                     {signalCategoryLabel(t, chip)}
                   </button>
                 ))}
               </div>
             ) : (
-              <label className="flex h-9 min-w-[10rem] items-center gap-2 rounded border border-slate-700/80 bg-slate-950/70 px-2">
-                <span className="text-[10px] font-bold uppercase text-slate-500">{t('workbench.panelGrid.type')}</span>
+              <label className="flex h-9 min-w-[10rem] items-center gap-2 rounded border border-wb-line/80 bg-wb-input px-2">
+                <span className="text-[11px] font-medium text-wb-subtle">{t('workbench.panelGrid.type')}</span>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as SignalCategory)}
-                  className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-slate-200 outline-none"
+                  className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-wb-text outline-none"
                   aria-label={t('workbench.panelGrid.signalCategory')}
                 >
                   {visibleCategories.map((chip) => (
@@ -690,7 +690,7 @@ function GraphPanelSettingsBoard({
             )}
           </div>
         )}
-        <div className="rounded bg-slate-950/20 p-2">
+        <div className="rounded bg-wb-strip p-2">
           {filteredItems.length > 0 ? (
             <div className={`grid gap-1.5 ${panel.type === 'PVLOOP' ? 'grid-cols-[repeat(auto-fill,minmax(6.75rem,1fr))]' : 'grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]'}`}>
               {filteredItems.map((sig) => {
@@ -702,26 +702,26 @@ function GraphPanelSettingsBoard({
                     key={sig}
                     type="button"
                     onClick={() => updateInstanceSignals(panel.id, activeInstance.id, sig)}
-                    className={`rounded px-2 py-1.5 text-left transition-colors ${isSelected ? 'bg-sky-500/10 text-slate-100 ring-1 ring-sky-500/35' : 'bg-slate-900/35 text-slate-400 hover:bg-slate-900/70 hover:text-slate-200'}`}
+                    className={`rounded px-2 py-1.5 text-left transition-colors ${isSelected ? 'bg-wb-active text-wb-text' : 'bg-wb-strip text-wb-muted hover:bg-wb-input hover:text-wb-text'}`}
                     aria-pressed={isSelected}
                   >
                     <div className="flex items-center gap-2">
                       <span className="h-2.5 w-2.5 flex-none rounded-full" style={{ backgroundColor: isSelected ? signalColor : 'rgba(100,116,139,0.55)' }} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-xs font-bold">{sig}</span>
-                        <span className="block truncate text-[10px] font-semibold text-slate-500">{meta.label}</span>
+                        <span className="block truncate text-[10px] font-semibold text-wb-subtle">{meta.label}</span>
                       </span>
                       {panel.type === 'WAVEFORM' && (
-                        <span className="rounded bg-slate-950/70 px-1.5 py-0.5 text-[9px] font-bold uppercase text-slate-500">{signalCategoryLabel(t, meta.category)}</span>
+                        <span className="rounded bg-wb-input px-1.5 py-0.5 text-[10px] font-medium text-wb-subtle">{signalCategoryLabel(t, meta.category)}</span>
                       )}
                     </div>
-                    {meta.unit && <div className="mt-0.5 pl-4 text-[10px] font-semibold text-slate-600">{meta.unit}</div>}
+                    {meta.unit && <div className="mt-0.5 pl-4 text-[10px] font-semibold text-wb-subtle">{meta.unit}</div>}
                   </button>
                 );
               })}
             </div>
           ) : (
-            <div className="flex min-h-[5rem] items-center justify-center text-xs font-semibold text-slate-500">
+            <div className="flex min-h-[5rem] items-center justify-center text-xs font-semibold text-wb-subtle">
               {t('workbench.panelGrid.noMatchingSource', { source: sourceLabelSentence })}
             </div>
           )}
@@ -731,17 +731,17 @@ function GraphPanelSettingsBoard({
   };
 
   const renderInstances = () => (
-    <div className="rounded bg-slate-950/20 p-2">
+    <div className="rounded bg-wb-strip p-2">
       <div className="grid grid-cols-[repeat(auto-fill,minmax(13rem,1fr))] gap-1.5">
         {instances.map((inst) => {
           const cfg = panel.config[inst.id];
           const selectedCount = cfg?.selectedSignals.length ?? 0;
           return (
-            <div key={inst.id} className="rounded bg-slate-900/35 p-2">
+            <div key={inst.id} className="rounded bg-wb-strip p-2">
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  className="h-3.5 w-3.5 flex-none cursor-pointer accent-sky-500"
+                  className="h-3.5 w-3.5 flex-none cursor-pointer accent-wb-accent"
                   checked={cfg?.visible || false}
                   onChange={() => togglePaneMembership(panel.id, inst.id)}
                   aria-label={t('workbench.panelGrid.toggleScenarioMembership', { name: inst.name })}
@@ -755,14 +755,14 @@ function GraphPanelSettingsBoard({
                 />
                 <input
                   type="text"
-                  className="min-w-0 flex-1 rounded border border-slate-700/70 bg-slate-950/60 px-2 py-1 text-xs font-bold text-slate-200 outline-none focus:border-slate-500"
+                  className="min-w-0 flex-1 rounded border border-wb-line/70 bg-wb-input px-2 py-1 text-xs font-bold text-wb-text outline-none focus:border-wb-accent"
                   value={cfg?.customName ?? inst.name}
                   onChange={(e) => updatePanelInstanceName(panel.id, inst.id, e.target.value)}
                   placeholder={inst.name}
                   aria-label={`${inst.name} graph display name`}
                 />
               </div>
-              <div className="mt-1.5 flex items-center justify-between text-[10px] font-semibold text-slate-500">
+              <div className="mt-1.5 flex items-center justify-between text-[10px] font-semibold text-wb-subtle">
                 <span>{cfg?.visible ? t('workbench.panelGrid.included') : t('workbench.panelGrid.excluded')}</span>
                 <span>{t('workbench.panelGrid.selectedSourceCount', { count: selectedCount, source: sourceLabelSentence })}</span>
               </div>
@@ -779,28 +779,28 @@ function GraphPanelSettingsBoard({
     const hasWindow = panel.type === 'WAVEFORM';
     return (
       <div className="space-y-2">
-        <label className="grid gap-2 rounded bg-slate-900/25 p-2 sm:grid-cols-[8rem_minmax(0,1fr)] sm:items-center">
-          <span className="text-[10px] font-bold uppercase text-slate-500">{t('workbench.panelGrid.paneTitle')}</span>
+        <label className="grid gap-2 rounded bg-wb-strip p-2 sm:grid-cols-[8rem_minmax(0,1fr)] sm:items-center">
+          <span className="text-[11px] font-medium text-wb-subtle">{t('workbench.panelGrid.paneTitle')}</span>
           <input
             type="text"
             value={panel.title}
             onChange={(e) => updatePanelTitle(panel.id, e.target.value)}
-            className="h-9 w-full rounded border border-slate-700/70 bg-slate-950/70 px-2 text-sm font-bold text-slate-100 outline-none focus:border-slate-500"
+            className="h-9 w-full rounded border border-wb-line/70 bg-wb-input px-2 text-sm font-bold text-wb-text outline-none focus:border-wb-accent"
             placeholder={t('workbench.panelGrid.graph')}
           />
         </label>
-        <div className="divide-y divide-slate-800/70 rounded bg-slate-950/20">
+        <div className="divide-y divide-wb-line rounded bg-wb-strip">
           {hasLegend && (
             <button
               type="button"
               onClick={() => toggleShowLegend(panel.id)}
-              className={`flex w-full items-center gap-3 px-2 py-2 text-left transition-colors ${panel.showLegend !== false ? 'text-sky-100' : 'text-slate-400 hover:text-slate-200'}`}
+              className={`flex w-full items-center gap-3 px-2 py-2 text-left transition-colors ${panel.showLegend !== false ? 'text-wb-text' : 'text-wb-muted hover:text-wb-text'}`}
               aria-pressed={panel.showLegend !== false}
             >
               {panel.showLegend !== false ? <Eye className="h-4 w-4 flex-none" /> : <EyeOff className="h-4 w-4 flex-none" />}
               <span>
                 <span className="block text-sm font-bold">{t('workbench.panelGrid.legend')}</span>
-                <span className="block text-xs font-medium text-slate-500">{t('workbench.panelGrid.showGraphLabels')}</span>
+                <span className="block text-xs font-medium text-wb-subtle">{t('workbench.panelGrid.showGraphLabels')}</span>
               </span>
             </button>
           )}
@@ -808,21 +808,21 @@ function GraphPanelSettingsBoard({
             <button
               type="button"
               onClick={() => toggleGuides(panel.id)}
-              className={`flex w-full items-center gap-3 px-2 py-2 text-left transition-colors ${panel.showGuides ? 'text-emerald-100' : 'text-slate-400 hover:text-slate-200'}`}
+              className={`flex w-full items-center gap-3 px-2 py-2 text-left transition-colors ${panel.showGuides ? 'text-emerald-100' : 'text-wb-muted hover:text-wb-text'}`}
               aria-pressed={Boolean(panel.showGuides)}
             >
               <Tags className="h-4 w-4 flex-none" />
               <span>
                 <span className="block text-sm font-bold">{t('workbench.panelGrid.pvLoopGuides')}</span>
-                <span className="block text-xs font-medium text-slate-500">{t('workbench.panelGrid.referenceOverlays')}</span>
+                <span className="block text-xs font-medium text-wb-subtle">{t('workbench.panelGrid.referenceOverlays')}</span>
               </span>
             </button>
           )}
           {hasWindow && (
             <label className="block px-2 py-2">
               <span className="flex items-center justify-between gap-3">
-                <span className="block text-sm font-bold text-slate-100">{t('workbench.panelGrid.waveformTimeWindow')}</span>
-                <span className="text-sm font-bold text-sky-200">{(panel.timeWindow || 10000) / 1000}s</span>
+                <span className="block text-sm font-bold text-wb-text">{t('workbench.panelGrid.waveformTimeWindow')}</span>
+                <span className="text-sm font-bold text-wb-text">{(panel.timeWindow || 10000) / 1000}s</span>
               </span>
               <input
                 type="range"
@@ -831,13 +831,13 @@ function GraphPanelSettingsBoard({
                 step={1000}
                 value={panel.timeWindow || 10000}
                 onChange={(e) => updateTimeWindow(panel.id, parseFloat(e.target.value))}
-                className="mt-4 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-slate-800 accent-sky-400"
+                className="mt-4 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-wb-active accent-wb-accent"
               />
             </label>
           )}
         </div>
         {!hasLegend && !hasGuides && !hasWindow && (
-          <div className="px-1 text-xs font-semibold text-slate-500">
+          <div className="px-1 text-xs font-semibold text-wb-subtle">
             {t('workbench.panelGrid.adjacentSectionsConfigurable')}
           </div>
         )}
@@ -848,17 +848,17 @@ function GraphPanelSettingsBoard({
   const renderStyle = () => {
     if (!activeInstance || !activeCfg) {
       return (
-        <div className="flex min-h-[5rem] items-center justify-center rounded bg-slate-950/25 text-xs font-semibold text-slate-500">
+        <div className="flex min-h-[5rem] items-center justify-center rounded bg-wb-strip text-xs font-semibold text-wb-subtle">
           {t('workbench.panelGrid.selectInstanceForStyle')}
         </div>
       );
     }
     if (selectedItems.length === 0 || panel.type === 'GUYTON_LEFT' || panel.type === 'GUYTON_RIGHT' || panel.type === 'GUYTON_3D') {
       return (
-        <div className="flex min-h-[5rem] items-center justify-center rounded bg-slate-950/25 p-4 text-center">
+        <div className="flex min-h-[5rem] items-center justify-center rounded bg-wb-strip p-4 text-center">
           <div>
-            <div className="text-sm font-bold text-slate-200">{t('workbench.panelGrid.instanceStylingOnly')}</div>
-            <div className="mt-1 max-w-md text-xs font-medium leading-5 text-slate-500">
+            <div className="text-sm font-bold text-wb-text">{t('workbench.panelGrid.instanceStylingOnly')}</div>
+            <div className="mt-1 max-w-md text-xs font-medium leading-5 text-wb-subtle">
               {t('workbench.panelGrid.instanceStylingDescription', { source: sourceLabelSentence })}
             </div>
           </div>
@@ -870,15 +870,15 @@ function GraphPanelSettingsBoard({
     const displayName = activeCfg.customSignalNames?.[focusedItem] || focusedItem;
     return (
       <div className="grid gap-2 md:grid-cols-[minmax(10rem,13rem)_minmax(0,1fr)]">
-        <div className="rounded bg-slate-950/20 p-2">
-          <div className="mb-2 px-1 text-[10px] font-bold uppercase text-slate-500">{t('workbench.panelGrid.selectedSource', { source: sourceLabel })}</div>
+        <div className="rounded bg-wb-strip p-2">
+          <div className="mb-2 px-1 text-[11px] font-medium text-wb-subtle">{t('workbench.panelGrid.selectedSource', { source: sourceLabel })}</div>
           <div className="space-y-1">
             {selectedItems.map((sig) => (
               <button
                 key={sig}
                 type="button"
                 onClick={() => setFocusedItemId(sig)}
-                className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs font-bold transition-colors ${focusedItem === sig ? 'bg-sky-500/10 text-sky-100 ring-1 ring-sky-500/35' : 'bg-slate-900/35 text-slate-400 hover:text-slate-200'}`}
+                className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs font-bold transition-colors ${focusedItem === sig ? 'bg-wb-active text-wb-text' : 'bg-wb-strip text-wb-muted hover:text-wb-text'}`}
               >
                 <span className="h-2.5 w-2.5 flex-none rounded-full" style={{ backgroundColor: activeCfg.customSignalColors?.[sig] || activeCfg.customBaseColor || activeInstance.color }} />
                 <span className="truncate">{activeCfg.customSignalNames?.[sig] || sig}</span>
@@ -886,17 +886,17 @@ function GraphPanelSettingsBoard({
             ))}
           </div>
         </div>
-        <div className="rounded bg-slate-900/35 p-3">
+        <div className="rounded bg-wb-strip p-3">
           <div className="mb-3 flex items-start justify-between gap-3">
             <div>
-              <div className="text-sm font-bold text-slate-100">{focusedItem}</div>
-              <div className="text-xs font-semibold text-slate-500">{meta.label}</div>
+              <div className="text-sm font-bold text-wb-text">{focusedItem}</div>
+              <div className="text-xs font-semibold text-wb-subtle">{meta.label}</div>
             </div>
-            <span className="rounded bg-slate-950/70 px-2 py-1 text-[10px] font-bold uppercase text-slate-500">{signalCategoryLabel(t, meta.category)}</span>
+            <span className="rounded bg-wb-input px-2 py-1 text-[11px] font-medium text-wb-subtle">{signalCategoryLabel(t, meta.category)}</span>
           </div>
           <div className="grid gap-3 sm:grid-cols-[6rem_minmax(0,1fr)]">
             <label className="block">
-              <span className="mb-1 block text-[10px] font-bold uppercase text-slate-500">{t('workbench.panelGrid.color')}</span>
+              <span className="mb-1 block text-[11px] font-medium text-wb-subtle">{t('workbench.panelGrid.color')}</span>
               <input
                 type="color"
                 className="block h-9 w-full cursor-pointer appearance-none rounded border-0 bg-transparent p-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded [&::-webkit-color-swatch]:border-none"
@@ -906,10 +906,10 @@ function GraphPanelSettingsBoard({
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-[10px] font-bold uppercase text-slate-500">{t('workbench.panelGrid.label')}</span>
+              <span className="mb-1 block text-[11px] font-medium text-wb-subtle">{t('workbench.panelGrid.label')}</span>
               <input
                 type="text"
-                className="h-9 w-full rounded border border-slate-700/70 bg-slate-950/70 px-2 text-xs font-semibold text-slate-200 outline-none focus:border-slate-500"
+                className="h-9 w-full rounded border border-wb-line/70 bg-wb-input px-2 text-xs font-semibold text-wb-text outline-none focus:border-wb-accent"
                 value={displayName}
                 onChange={(e) => updatePanelSignalName(panel.id, activeInstance.id, focusedItem, e.target.value)}
                 placeholder={focusedItem}
@@ -929,7 +929,7 @@ function GraphPanelSettingsBoard({
   };
 
   return (
-    <div className="@container h-full min-h-0 w-full text-slate-200">
+    <div className="@container h-full min-h-0 w-full text-wb-text">
       <div className="flex h-full min-h-0 w-full flex-col @min-[760px]:grid @min-[760px]:grid-cols-[minmax(10rem,12rem)_minmax(0,1fr)] @min-[760px]:gap-4">
       <div className="hidden min-h-0 @min-[760px]:block">
         <aside className="h-full min-h-0 overflow-y-auto py-1 pr-1 custom-scrollbar" aria-label={t('workbench.panelGrid.settingsCategories')}>
@@ -940,7 +940,7 @@ function GraphPanelSettingsBoard({
                   key={section.id}
                   type="button"
                   onClick={() => jumpToSection(section.id)}
-                  className={`block w-full border-l-2 px-3 py-1.5 text-left text-xs font-semibold transition-colors ${activeSection === section.id ? 'border-slate-300 text-slate-100' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+                  className={`block w-full border-l-2 px-3 py-1.5 text-left text-xs font-semibold transition-colors ${activeSection === section.id ? 'border-wb-line-strong text-wb-text' : 'border-transparent text-wb-subtle hover:text-wb-muted'}`}
                 >
                   <span className="min-w-0 truncate">{settingsSectionLabel(t, 'graph', section.id)}</span>
                 </button>
@@ -952,11 +952,11 @@ function GraphPanelSettingsBoard({
       <div ref={settingsScrollRef} onScroll={updateActiveSectionFromScroll} className="min-h-0 w-full flex-1 overflow-y-auto pr-1 custom-scrollbar">
         <div className="mb-3 flex flex-none items-center justify-between gap-3 px-1 pb-1">
           <div className="min-w-0">
-            <div className="text-sm font-bold text-slate-100">
+            <div className="text-sm font-bold text-wb-text">
               {t(`workbench.panelGrid.paneType.${panel.type === 'PVLOOP' ? 'pvLoop' : panel.type === 'WAVEFORM' ? 'waveform' : panel.type === 'METRICS' ? 'metrics' : 'guyton'}`)}
             </div>
           </div>
-          <div className="flex flex-none items-center gap-2 text-[10px] font-bold text-slate-500">
+          <div className="flex flex-none items-center gap-2 text-[10px] font-bold text-wb-subtle">
             <span>{t('workbench.panelGrid.includedCount', { count: visibleInstanceCount })}</span>
             <span>{t('workbench.panelGrid.selectedCount', { count: selectedItemCount })}</span>
           </div>
@@ -967,11 +967,11 @@ function GraphPanelSettingsBoard({
             <section
               key={section.id}
               ref={(node) => { sectionRefs.current[section.id] = node; }}
-              className="relative scroll-mt-2 border-b border-slate-800/70 pb-4 last:border-b-0 last:pb-1"
+              className="relative scroll-mt-2 border-b border-wb-line pb-4 last:border-b-0 last:pb-1"
             >
-              <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-slate-800/70 bg-[#0B1120]/95 px-1 py-1 backdrop-blur">
-                <Icon className="h-3.5 w-3.5 text-slate-500" />
-                <h3 className="text-sm font-bold text-slate-100">{settingsSectionLabel(t, 'graph', section.id)}</h3>
+              <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-wb-line bg-wb-aux px-1 py-1 backdrop-blur">
+                <Icon className="h-3.5 w-3.5 text-wb-subtle" />
+                <h3 className="text-sm font-bold text-wb-text">{settingsSectionLabel(t, 'graph', section.id)}</h3>
               </div>
               <div className="min-h-0 pt-2">
                 {renderSectionContent(section.id, 'wide')}
@@ -1051,18 +1051,18 @@ function ControlPanelSettingsBoard({
   };
 
   const renderTargets = () => (
-    <div className="divide-y divide-slate-800/70 rounded bg-slate-950/20">
+    <div className="divide-y divide-wb-line rounded bg-wb-strip">
       {instances.map((inst) => {
         const cfg = panel.config[inst.id];
         const isEnabled = Boolean(cfg?.visible);
         return (
           <div
             key={inst.id}
-            className={`grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2 px-2 py-1.5 transition-colors ${isEnabled ? 'text-slate-100' : 'text-slate-500'}`}
+            className={`grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2 px-2 py-1.5 transition-colors ${isEnabled ? 'text-wb-text' : 'text-wb-subtle'}`}
           >
             <input
               type="checkbox"
-              className="h-3.5 w-3.5 cursor-pointer accent-sky-500"
+              className="h-3.5 w-3.5 cursor-pointer accent-wb-accent"
               checked={isEnabled}
               disabled={!cfg}
               onChange={() => cfg && togglePaneMembership(panel.id, inst.id)}
@@ -1078,7 +1078,7 @@ function ControlPanelSettingsBoard({
             />
             <input
               type="text"
-              className="min-w-0 bg-transparent text-xs font-bold text-slate-200 outline-none disabled:text-slate-500"
+              className="min-w-0 bg-transparent text-xs font-bold text-wb-text outline-none disabled:text-wb-subtle"
               value={cfg?.customName ?? inst.name}
               disabled={!cfg}
               onChange={(e) => updatePanelInstanceName(panel.id, inst.id, e.target.value)}
@@ -1092,7 +1092,7 @@ function ControlPanelSettingsBoard({
   );
 
   const renderItems = () => (
-    <div className="divide-y divide-slate-800/70 rounded bg-slate-950/20">
+    <div className="divide-y divide-wb-line rounded bg-wb-strip">
       {groupOptions.map((group) => {
         const meta = controlGroupMetadata(t, group);
         const selectedCount = configuredInstances.filter((inst) => configHasControlGroup(panel.config[inst.id], group)).length;
@@ -1105,10 +1105,10 @@ function ControlPanelSettingsBoard({
             onClick={() => toggleGroupForPane(group)}
             className={`grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-2 px-2 py-1.5 text-left transition-colors ${
               isSelected
-                ? 'text-sky-100'
+                ? 'text-wb-text'
                 : isPartial
                   ? 'text-amber-100'
-                  : 'text-slate-400 hover:text-slate-200'
+                  : 'text-wb-muted hover:text-wb-text'
             }`}
             aria-pressed={isSelected}
             aria-label={t('workbench.panelGrid.controlGroups.aria', {
@@ -1122,10 +1122,10 @@ function ControlPanelSettingsBoard({
               total: configuredCount || instances.length,
             })}
           >
-            <span className={`h-3.5 w-3.5 rounded border ${isSelected ? 'border-sky-300 bg-sky-400' : isPartial ? 'border-amber-300 bg-amber-400/60' : 'border-slate-600 bg-slate-950'}`} />
+            <span className={`h-3.5 w-3.5 rounded border ${isSelected ? 'border-wb-accent bg-wb-accent' : isPartial ? 'border-amber-300 bg-amber-400/60' : 'border-wb-line-strong bg-wb-panel'}`} />
             <span className="min-w-0">
               <span className="block truncate text-xs font-bold">{meta.label}</span>
-              <span className="hidden truncate text-[10px] font-medium text-slate-500 sm:block">{meta.description}</span>
+              <span className="hidden truncate text-[10px] font-medium text-wb-subtle sm:block">{meta.description}</span>
             </span>
           </button>
         );
@@ -1134,14 +1134,14 @@ function ControlPanelSettingsBoard({
   );
 
   const renderDisplay = () => (
-    <div className="divide-y divide-slate-800/70 rounded bg-slate-950/20">
+    <div className="divide-y divide-wb-line rounded bg-wb-strip">
       <label className="grid gap-2 px-2 py-2 sm:grid-cols-[8rem_minmax(0,1fr)] sm:items-center">
-        <span className="text-[10px] font-bold uppercase text-slate-500">{t('workbench.panelGrid.paneTitle')}</span>
+        <span className="text-[11px] font-medium text-wb-subtle">{t('workbench.panelGrid.paneTitle')}</span>
         <input
           type="text"
           value={panel.title}
           onChange={(e) => updatePanelTitle(panel.id, e.target.value)}
-          className="h-9 w-full rounded border border-slate-700/70 bg-slate-950/70 px-2 text-sm font-bold text-slate-100 outline-none focus:border-slate-500"
+          className="h-9 w-full rounded border border-wb-line/70 bg-wb-input px-2 text-sm font-bold text-wb-text outline-none focus:border-wb-accent"
           placeholder={t('workbench.panels.controls')}
         />
       </label>
@@ -1165,7 +1165,7 @@ function ControlPanelSettingsBoard({
   };
 
   return (
-    <div className="@container h-full min-h-0 w-full text-slate-200">
+    <div className="@container h-full min-h-0 w-full text-wb-text">
       <div className="flex h-full min-h-0 w-full flex-col @min-[760px]:grid @min-[760px]:grid-cols-[minmax(10rem,12rem)_minmax(0,1fr)] @min-[760px]:gap-4">
       <div className="hidden min-h-0 @min-[760px]:block">
         <aside className="h-full min-h-0 overflow-y-auto py-1 pr-1 custom-scrollbar" aria-label={t('workbench.panelGrid.controllerSettingsCategories')}>
@@ -1176,7 +1176,7 @@ function ControlPanelSettingsBoard({
                   key={section.id}
                   type="button"
                   onClick={() => jumpToSection(section.id)}
-                  className={`block w-full border-l-2 px-3 py-1.5 text-left text-xs font-semibold transition-colors ${activeSection === section.id ? 'border-slate-300 text-slate-100' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+                  className={`block w-full border-l-2 px-3 py-1.5 text-left text-xs font-semibold transition-colors ${activeSection === section.id ? 'border-wb-line-strong text-wb-text' : 'border-transparent text-wb-subtle hover:text-wb-muted'}`}
                 >
                   <span className="min-w-0 truncate">{settingsSectionLabel(t, 'control', section.id)}</span>
                 </button>
@@ -1188,7 +1188,7 @@ function ControlPanelSettingsBoard({
       <div ref={settingsScrollRef} onScroll={updateActiveSectionFromScroll} className="min-h-0 w-full flex-1 overflow-y-auto pr-1 custom-scrollbar">
         <div className="mb-3 flex flex-none items-center justify-between gap-3 px-1 pb-1">
           <div className="min-w-0">
-            <div className="text-sm font-bold text-slate-100">{t('workbench.panelGrid.paneType.controller')}</div>
+            <div className="text-sm font-bold text-wb-text">{t('workbench.panelGrid.paneType.controller')}</div>
           </div>
         </div>
         {CONTROL_SETTINGS_SECTIONS.map((section) => {
@@ -1197,11 +1197,11 @@ function ControlPanelSettingsBoard({
             <section
               key={section.id}
               ref={(node) => { sectionRefs.current[section.id] = node; }}
-              className="relative scroll-mt-2 border-b border-slate-800/70 pb-4 last:border-b-0 last:pb-1"
+              className="relative scroll-mt-2 border-b border-wb-line pb-4 last:border-b-0 last:pb-1"
             >
-              <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-slate-800/70 bg-[#0B1120]/95 px-1 py-1 backdrop-blur">
-                <Icon className="h-3.5 w-3.5 text-slate-500" />
-                <h3 className="text-sm font-bold text-slate-100">{settingsSectionLabel(t, 'control', section.id)}</h3>
+              <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-wb-line bg-wb-aux px-1 py-1 backdrop-blur">
+                <Icon className="h-3.5 w-3.5 text-wb-subtle" />
+                <h3 className="text-sm font-bold text-wb-text">{settingsSectionLabel(t, 'control', section.id)}</h3>
               </div>
               <div className="min-h-0 pt-2">
                 {renderSectionContent(section.id)}
@@ -1221,7 +1221,7 @@ function PanelSettingsButton({ panel, toggleSettings }: PanelSettingsButtonProps
     <button
       type="button"
       onClick={(e) => { e.stopPropagation(); toggleSettings(panel.id); }}
-      className={`relative z-50 flex h-7 w-7 items-center justify-center rounded border border-slate-800/70 transition-colors ${panel.isSettingsOpen ? 'bg-slate-700 text-slate-200' : 'bg-slate-950/75 text-slate-500 hover:bg-slate-800 hover:text-slate-300'}`}
+      className={`relative z-50 flex h-7 w-7 items-center justify-center rounded border border-wb-line transition-colors ${panel.isSettingsOpen ? 'bg-wb-active text-wb-text' : 'bg-wb-panel text-wb-subtle hover:bg-wb-hover hover:text-wb-muted'}`}
       title={t('workbench.panelGrid.paneSettings')}
       aria-label={t('workbench.panelGrid.paneSettingsAria', { title: panel.title })}
       aria-pressed={panel.isSettingsOpen}
@@ -1313,7 +1313,7 @@ function PaneSettingsModal({ toggleSettings, ...settingsProps }: PaneSettingsMod
   };
 
   const modal = (
-    <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/65 p-0 text-slate-200 backdrop-blur-sm sm:p-4">
+    <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/65 p-0 text-wb-text backdrop-blur-sm sm:p-4">
       <div
         ref={dialogRef}
         role="dialog"
@@ -1321,12 +1321,12 @@ function PaneSettingsModal({ toggleSettings, ...settingsProps }: PaneSettingsMod
         aria-labelledby={titleId}
         tabIndex={-1}
         onKeyDown={trapFocus}
-        className="flex h-dvh w-full flex-col overflow-hidden bg-[#0B1120] shadow-2xl sm:h-[min(46rem,calc(100vh-2rem))] sm:max-h-[calc(100vh-2rem)] sm:w-[min(72rem,calc(100vw-2rem))] sm:rounded-lg sm:border sm:border-slate-700"
+        className="flex h-dvh w-full flex-col overflow-hidden bg-wb-panel shadow-2xl sm:h-[min(46rem,calc(100vh-2rem))] sm:max-h-[calc(100vh-2rem)] sm:w-[min(72rem,calc(100vw-2rem))] sm:rounded-lg sm:border sm:border-wb-line"
       >
-        <div className="flex h-14 flex-none items-center justify-between gap-3 border-b border-slate-800 px-4">
+        <div className="flex h-14 flex-none items-center justify-between gap-3 border-b border-wb-line px-4">
           <div className="min-w-0">
-            <h2 id={titleId} className="truncate text-sm font-bold text-slate-100">{t('workbench.panelGrid.paneSettings')}</h2>
-            <div className="truncate text-[11px] font-semibold text-slate-500">
+            <h2 id={titleId} className="truncate text-sm font-bold text-wb-text">{t('workbench.panelGrid.paneSettings')}</h2>
+            <div className="truncate text-[11px] font-semibold text-wb-subtle">
               {panel.title} · {settingsPaneTypeLabel(panel)}
             </div>
           </div>
@@ -1334,14 +1334,14 @@ function PaneSettingsModal({ toggleSettings, ...settingsProps }: PaneSettingsMod
             <button
               type="button"
               onClick={close}
-              className="inline-flex h-8 items-center justify-center rounded bg-blue-600 px-3 text-xs font-bold text-white transition-colors hover:bg-blue-500"
+              className="inline-flex h-8 items-center justify-center rounded bg-wb-primary px-3 text-xs font-bold text-white transition-colors hover:bg-wb-primary-hover"
             >
               {t('common.done')}
             </button>
             <button
               type="button"
               onClick={close}
-              className="inline-flex h-8 w-8 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-200"
+              className="inline-flex h-8 w-8 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text"
               aria-label={t('workbench.panelGrid.closePaneSettings')}
               title={t('workbench.panelGrid.closeSettings')}
             >
@@ -1351,7 +1351,7 @@ function PaneSettingsModal({ toggleSettings, ...settingsProps }: PaneSettingsMod
         </div>
         <div className={`min-h-0 flex-1 ${usesBoardSettings ? 'overflow-hidden p-3' : 'overflow-y-auto p-4 custom-scrollbar'}`}>
           {!usesBoardSettings && (
-            <div className="mb-3 border-b border-slate-700 pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            <div className="mb-3 border-b border-wb-line pb-2 text-[11px] font-medium text-wb-muted">
               {t('workbench.panelGrid.customizations')}
             </div>
           )}
@@ -1448,40 +1448,40 @@ function ViewSpecEditorModal({
   };
 
   const modal = (
-    <div className="fixed inset-0 z-[96] flex items-center justify-center bg-black/65 p-0 text-slate-200 backdrop-blur-sm sm:p-4">
+    <div className="fixed inset-0 z-[96] flex items-center justify-center bg-black/65 p-0 text-wb-text backdrop-blur-sm sm:p-4">
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="flex h-dvh w-full flex-col overflow-hidden bg-[#0B1120] shadow-2xl sm:h-[min(46rem,calc(100vh-2rem))] sm:max-h-[calc(100vh-2rem)] sm:w-[min(72rem,calc(100vw-2rem))] sm:rounded-lg sm:border sm:border-slate-700"
+        className="flex h-dvh w-full flex-col overflow-hidden bg-wb-panel shadow-2xl sm:h-[min(46rem,calc(100vh-2rem))] sm:max-h-[calc(100vh-2rem)] sm:w-[min(72rem,calc(100vw-2rem))] sm:rounded-lg sm:border sm:border-wb-line"
       >
-        <div className="flex h-14 flex-none items-center justify-between gap-3 border-b border-slate-800 px-4">
+        <div className="flex h-14 flex-none items-center justify-between gap-3 border-b border-wb-line px-4">
           <div className="min-w-0">
-            <h2 id={titleId} className="truncate text-sm font-bold text-slate-100">
+            <h2 id={titleId} className="truncate text-sm font-bold text-wb-text">
               {kind === 'controller' ? t('workbench.viewEditor.controllerTitle') : t('workbench.viewEditor.metricsTitle')}
             </h2>
-            <div className="truncate text-[11px] font-semibold text-slate-500">
+            <div className="truncate text-[11px] font-semibold text-wb-subtle">
               {editor.mode === 'create' ? t('workbench.viewEditor.createMode') : t('workbench.viewEditor.editMode')}
             </div>
           </div>
           <div className="flex flex-none items-center gap-2">
-            <button type="button" onClick={save} className="inline-flex h-8 items-center justify-center rounded bg-blue-600 px-3 text-xs font-bold text-white transition-colors hover:bg-blue-500">
+            <button type="button" onClick={save} className="inline-flex h-8 items-center justify-center rounded bg-wb-primary px-3 text-xs font-bold text-white transition-colors hover:bg-wb-primary-hover">
               {t('common.done')}
             </button>
-            <button type="button" onClick={onClose} className="inline-flex h-8 w-8 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-200" aria-label={t('workbench.viewEditor.close')} title={t('workbench.viewEditor.close')}>
+            <button type="button" onClick={onClose} className="inline-flex h-8 w-8 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text" aria-label={t('workbench.viewEditor.close')} title={t('workbench.viewEditor.close')}>
               <X className="h-4 w-4" />
             </button>
           </div>
         </div>
         <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-3 overflow-hidden p-3">
-          <label className="grid gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+          <label className="grid gap-1 text-[11px] font-medium text-wb-subtle">
             {t('workbench.viewEditor.name')}
             <input
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              className="h-9 rounded bg-slate-800/40 px-2.5 text-sm font-semibold normal-case text-slate-100 outline-none transition-colors focus:bg-slate-900 focus:ring-1 focus:ring-slate-600"
+              className="h-9 rounded bg-wb-input px-2.5 text-sm font-semibold normal-case text-wb-text outline-none transition-colors focus:bg-wb-soft focus:ring-1 focus:ring-wb-accent"
             />
           </label>
           {kind === 'controller' ? (
@@ -1494,19 +1494,19 @@ function ViewSpecEditorModal({
           ) : (
             <div className="grid min-h-0 grid-cols-1 gap-0 overflow-hidden lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
               <div className="min-h-0 overflow-y-auto pr-4 custom-scrollbar">
-                <div className="mb-2 flex h-9 items-center gap-2 border-b border-slate-800 px-1">
-                  <Search className="h-3.5 w-3.5 text-slate-500" />
+                <div className="mb-2 flex h-9 items-center gap-2 border-b border-wb-line px-1">
+                  <Search className="h-3.5 w-3.5 text-wb-subtle" />
                   <input
                     value={metricSearch}
                     onChange={(event) => setMetricSearch(event.target.value)}
                     placeholder={t('workbench.viewEditor.searchMetrics')}
-                    className="min-w-0 flex-1 bg-transparent text-xs font-medium text-slate-200 outline-none placeholder:text-slate-600"
+                    className="min-w-0 flex-1 bg-transparent text-xs font-medium text-wb-text outline-none placeholder:text-wb-subtle"
                   />
                 </div>
                 <div className="space-y-1">
                   {metricSections.map(([category, categoryMetrics]) => (
                     <details key={category} open className="group">
-                      <summary className="flex cursor-pointer select-none items-center gap-1.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 transition-colors hover:text-slate-400 [&::-webkit-details-marker]:hidden">
+                      <summary className="flex cursor-pointer select-none items-center gap-1.5 py-1.5 text-[11px] font-medium text-wb-subtle transition-colors hover:text-wb-muted [&::-webkit-details-marker]:hidden">
                         <ChevronDown className="h-3 w-3 shrink-0 transition-transform group-open:rotate-0 -rotate-90" />
                         {signalCategoryLabel(t, category as SignalCategory)}
                       </summary>
@@ -1522,14 +1522,14 @@ function ViewSpecEditorModal({
                                 title={`${label} — ${metric}`}
 	                              className={`group/entry flex min-h-7 w-full items-center gap-2 rounded px-2 text-left text-xs transition-colors ${
 	                                selected
-	                                  ? 'text-sky-200'
-                                  : 'text-slate-300 hover:bg-slate-800/50 hover:text-slate-100'
+	                                  ? 'text-wb-text'
+                                  : 'text-wb-muted hover:bg-wb-hover hover:text-wb-text'
 	                              }`}
 	                            >
 	                              <span className="min-w-0 flex-1 truncate font-medium">{label}</span>
 	                              {selected
-	                                ? <Check className="h-3 w-3 shrink-0 text-sky-300" />
-                                : <Plus className="h-3.5 w-3.5 shrink-0 text-slate-500 opacity-0 transition-opacity group-hover/entry:opacity-100" />}
+	                                ? <Check className="h-3 w-3 shrink-0 text-wb-accent" />
+                                : <Plus className="h-3.5 w-3.5 shrink-0 text-wb-subtle opacity-0 transition-opacity group-hover/entry:opacity-100" />}
                             </button>
                           );
                         })}
@@ -1538,23 +1538,23 @@ function ViewSpecEditorModal({
                   ))}
                 </div>
               </div>
-              <div className="min-h-0 overflow-y-auto pl-4 lg:border-l lg:border-slate-800/60 custom-scrollbar">
-                <div className="mb-1 flex h-9 items-center text-[10px] font-bold uppercase tracking-wider text-slate-500">{t('workbench.viewEditor.selectedMetrics')}</div>
+              <div className="min-h-0 overflow-y-auto pl-4 lg:border-l lg:border-wb-line custom-scrollbar">
+                <div className="mb-1 flex h-9 items-center text-[11px] font-medium text-wb-subtle">{t('workbench.viewEditor.selectedMetrics')}</div>
                 {selectedMetrics.length === 0 ? (
-                  <div className="px-1 py-3 text-xs text-slate-500">{t('workbench.viewEditor.noMetrics')}</div>
+                  <div className="px-1 py-3 text-xs text-wb-subtle">{t('workbench.viewEditor.noMetrics')}</div>
                 ) : (
-                  <div className="divide-y divide-slate-800/50">
+                  <div className="divide-y divide-wb-line">
                     {selectedMetrics.map((metric, index) => (
                       <div key={metric} className="group/row flex min-h-9 items-center gap-1 px-1">
-                        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-200">{signalMetadata(metric).label}</span>
+                        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-wb-text">{signalMetadata(metric).label}</span>
                         <div className="flex shrink-0 items-center opacity-60 transition-opacity group-hover/row:opacity-100">
-                          <button type="button" onClick={() => moveMetric(metric, -1)} disabled={index === 0} className="inline-flex h-7 w-6 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-200 disabled:opacity-25" aria-label={t('workbench.viewEditor.moveUp')}>
+                          <button type="button" onClick={() => moveMetric(metric, -1)} disabled={index === 0} className="inline-flex h-7 w-6 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text disabled:opacity-25" aria-label={t('workbench.viewEditor.moveUp')}>
                             <ChevronDown className="h-3.5 w-3.5 rotate-180" />
                           </button>
-                          <button type="button" onClick={() => moveMetric(metric, 1)} disabled={index === selectedMetrics.length - 1} className="inline-flex h-7 w-6 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-200 disabled:opacity-25" aria-label={t('workbench.viewEditor.moveDown')}>
+                          <button type="button" onClick={() => moveMetric(metric, 1)} disabled={index === selectedMetrics.length - 1} className="inline-flex h-7 w-6 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text disabled:opacity-25" aria-label={t('workbench.viewEditor.moveDown')}>
                             <ChevronDown className="h-3.5 w-3.5" />
                           </button>
-                          <button type="button" onClick={() => toggleMetric(metric)} className="inline-flex h-7 w-6 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-red-300" aria-label={t('workbench.viewEditor.removeMetric')}>
+                          <button type="button" onClick={() => toggleMetric(metric)} className="inline-flex h-7 w-6 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-danger" aria-label={t('workbench.viewEditor.removeMetric')}>
                             <X className="h-3.5 w-3.5" />
                           </button>
                         </div>
@@ -1686,19 +1686,19 @@ function PanelCard({
     : undefined;
   const changeLegendPosition = canOpenSettingsFromLegend ? updatePanelLegendPosition : undefined;
   const dockviewNoteModeSwitch = chromeMode === 'dockview' && panel.type === 'NOTE' && canConfigure ? (
-    <div className="flex shrink-0 items-center justify-end border-b border-slate-800/70 bg-slate-950/35 px-2 py-1">
-      <div className="flex items-center rounded border border-slate-700 bg-slate-900 p-0.5">
+    <div className="flex shrink-0 items-center justify-end border-b border-wb-line bg-wb-strip px-2 py-1">
+      <div className="flex items-center rounded border border-wb-line bg-wb-panel p-0.5">
         <button
           type="button"
           onClick={() => setNoteModes(prev => ({ ...prev, [panel.id]: 'read' }))}
-          className={`rounded px-2 py-0.5 text-[10px] font-bold transition-colors ${noteMode === 'read' ? 'bg-slate-700 text-slate-100' : 'text-slate-500 hover:text-slate-300'}`}
+          className={`rounded px-2 py-0.5 text-[10px] font-bold transition-colors ${noteMode === 'read' ? 'bg-wb-active text-wb-text' : 'text-wb-subtle hover:text-wb-muted'}`}
         >
           {t('workbench.panelGrid.preview')}
         </button>
         <button
           type="button"
           onClick={() => setNoteModes(prev => ({ ...prev, [panel.id]: 'edit' }))}
-          className={`rounded px-2 py-0.5 text-[10px] font-bold transition-colors ${noteMode === 'edit' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+          className={`rounded px-2 py-0.5 text-[10px] font-bold transition-colors ${noteMode === 'edit' ? 'bg-wb-active text-wb-text' : 'text-wb-subtle hover:text-wb-muted'}`}
         >
           {t('common.edit')}
         </button>
@@ -1739,7 +1739,7 @@ function PanelCard({
 
   if (chromeMode === 'mobile' || chromeMode === 'dockview') {
     return (
-      <div className="group relative h-full min-h-0 w-full overflow-hidden bg-[#0B1120]">
+      <div className="group relative h-full min-h-0 w-full overflow-hidden bg-wb-aux">
         {panelBody}
       </div>
     );
@@ -1747,26 +1747,26 @@ function PanelCard({
 
   return (
     <div
-      className={`relative bg-[#0B1120] rounded-xl border border-slate-800 shadow-sm flex flex-col group transition-all h-full ${panel.isSettingsOpen ? 'z-50' : 'z-10'}`}
+      className={`relative bg-wb-aux rounded-xl border border-wb-line shadow-sm flex flex-col group transition-all h-full ${panel.isSettingsOpen ? 'z-50' : 'z-10'}`}
     >
       <div className="flex-none px-3 pt-1.5 pb-0 flex justify-between items-center pointer-events-auto rounded-t-xl z-20 relative">
         <div className={`flex-1 flex items-center min-w-0 ${isEditor ? 'panel-grid-drag-handle cursor-move' : ''}`}>
-          <span className="text-[11px] font-medium text-slate-500 select-none flex items-center gap-1.5 transition-colors group-hover:text-slate-400 tracking-wide drop-shadow-md min-w-0">
+          <span className="text-[11px] font-medium text-wb-subtle select-none flex items-center gap-1.5 transition-colors group-hover:text-wb-muted drop-shadow-md min-w-0">
             {isEditor && <span className="opacity-40">::</span>}
             <span className="truncate">{panel.title}</span>
           </span>
         </div>
         {panel.type === 'NOTE' && (
-          <div className="mr-2 flex items-center rounded border border-slate-700 bg-slate-900 p-0.5">
+          <div className="mr-2 flex items-center rounded border border-wb-line bg-wb-panel p-0.5">
             <button
               onClick={() => setNoteModes(prev => ({ ...prev, [panel.id]: 'read' }))}
-              className={`px-2 py-0.5 text-[10px] font-bold rounded transition-colors ${noteMode === 'read' ? 'bg-slate-700 text-slate-100' : 'text-slate-500 hover:text-slate-300'}`}
+              className={`px-2 py-0.5 text-[10px] font-bold rounded transition-colors ${noteMode === 'read' ? 'bg-wb-active text-wb-text' : 'text-wb-subtle hover:text-wb-muted'}`}
             >
               {t('workbench.panelGrid.preview')}
             </button>
             <button
               onClick={() => setNoteModes(prev => ({ ...prev, [panel.id]: 'edit' }))}
-              className={`px-2 py-0.5 text-[10px] font-bold rounded transition-colors ${noteMode === 'edit' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+              className={`px-2 py-0.5 text-[10px] font-bold rounded transition-colors ${noteMode === 'edit' ? 'bg-wb-active text-wb-text' : 'text-wb-subtle hover:text-wb-muted'}`}
             >
               {t('common.edit')}
             </button>
@@ -1778,7 +1778,7 @@ function PanelCard({
             toggleSettings={toggleSettings}
           />
           {isEditor && (
-            <button onClick={() => removePanel(panel.id)} className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-red-400" title={t('workbench.panelGrid.closePanel')} aria-label={t('workbench.panelGrid.closePanelAria', { title: panel.title })}>
+            <button onClick={() => removePanel(panel.id)} className="inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-danger" title={t('workbench.panelGrid.closePanel')} aria-label={t('workbench.panelGrid.closePanelAria', { title: panel.title })}>
               <X className="h-3.5 w-3.5" />
             </button>
           )}
@@ -1834,7 +1834,7 @@ function ResizeSash({
       aria-valuemax={Math.round(max)}
       aria-valuenow={Math.round(clampedValue)}
       title={label}
-      className={`group flex shrink-0 items-center justify-center bg-slate-950/35 outline-none transition-colors hover:bg-slate-900/80 focus-visible:bg-slate-900/80 ${
+      className={`group flex shrink-0 items-center justify-center bg-wb-strip outline-none transition-colors hover:bg-wb-hover focus-visible:bg-wb-hover ${
         isVertical ? 'cursor-col-resize' : 'cursor-row-resize'
       } ${className}`}
       style={style}
@@ -1879,7 +1879,7 @@ function ResizeSash({
     >
       <span
         aria-hidden="true"
-        className={`rounded-full bg-slate-700 transition-colors group-hover:bg-sky-500/70 group-focus-visible:bg-sky-500/70 ${
+        className={`rounded-full bg-wb-active transition-colors group-hover:bg-wb-accent group-focus-visible:bg-wb-accent ${
           isVertical ? 'h-10 w-px' : 'h-px w-10'
         }`}
       />
@@ -1930,7 +1930,7 @@ function ZoneShell({
 }) {
   const { t } = useTranslation();
   return (
-    <section className={`workbench-zone-main flex min-h-0 flex-col overflow-hidden bg-[#0B1120] ${className}`} style={style} aria-label={t('workbench.panelGrid.zoneAria', { zone: t(`workbench.zones.${zone}`) })}>
+    <section className={`workbench-zone-main flex min-h-0 flex-col overflow-hidden bg-wb-aux ${className}`} style={style} aria-label={t('workbench.panelGrid.zoneAria', { zone: t(`workbench.zones.${zone}`) })}>
       <WorkbenchDockview
         panels={panels}
         zone={zone}
@@ -2210,23 +2210,23 @@ export function PanelGrid({
     : {};
   const noteMode = notePanel ? (noteModes[notePanel.id] ?? 'read') : 'read';
   const noteHeader = notePanel ? (
-    <div className="flex shrink-0 items-center justify-between border-b border-slate-800/70 bg-slate-950/35 px-2 py-1">
-      <div className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+    <div className="flex shrink-0 items-center justify-between border-b border-wb-line bg-wb-strip px-2 py-1">
+      <div className="inline-flex items-center gap-1 text-[11px] font-medium text-wb-subtle">
         <FileText className="h-3.5 w-3.5" />
         {t('workbench.panelGrid.note')}
       </div>
-      <div className="flex items-center rounded border border-slate-700 bg-slate-900 p-0.5">
+      <div className="flex items-center rounded border border-wb-line bg-wb-panel p-0.5">
         <button
           type="button"
           onClick={() => setNoteModes(prev => ({ ...prev, [notePanel.id]: 'read' }))}
-          className={`rounded px-2 py-0.5 text-[10px] font-bold transition-colors ${noteMode === 'read' ? 'bg-slate-700 text-slate-100' : 'text-slate-500 hover:text-slate-300'}`}
+          className={`rounded px-2 py-0.5 text-[10px] font-bold transition-colors ${noteMode === 'read' ? 'bg-wb-active text-wb-text' : 'text-wb-subtle hover:text-wb-muted'}`}
         >
           {t('workbench.panelGrid.preview')}
         </button>
         <button
           type="button"
           onClick={() => setNoteModes(prev => ({ ...prev, [notePanel.id]: 'edit' }))}
-          className={`rounded px-2 py-0.5 text-[10px] font-bold transition-colors ${noteMode === 'edit' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+          className={`rounded px-2 py-0.5 text-[10px] font-bold transition-colors ${noteMode === 'edit' ? 'bg-wb-active text-wb-text' : 'text-wb-subtle hover:text-wb-muted'}`}
         >
           {t('common.edit')}
         </button>
@@ -2299,7 +2299,7 @@ export function PanelGrid({
 
   if (isMobile) {
     return (
-      <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-950 p-2">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-wb-panel p-2">
         {shareBanner}
         {authoringMode && <LessonAuthoring instances={instances} stepsDraft={stepsDraft} setStepsDraft={setStepsDraft} />}
         <WorkbenchMobile
@@ -2315,7 +2315,7 @@ export function PanelGrid({
   }
 
   return (
-    <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-950 p-0">
+    <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-wb-panel p-0">
         {shareBanner}
         {authoringMode && <LessonAuthoring instances={instances} stepsDraft={stepsDraft} setStepsDraft={setStepsDraft} />}
         <div
@@ -2324,7 +2324,7 @@ export function PanelGrid({
         >
           {hasCaseRail && notePanel && (
             <section
-              className="workbench-zone-aux flex min-h-0 flex-col overflow-hidden border-r border-slate-800/60 bg-[#0B1120]"
+              className="workbench-zone-aux flex min-h-0 flex-col overflow-hidden border-r border-wb-line bg-wb-aux"
               style={{ gridColumn: noteColumn, gridRow: auxiliaryGridRow }}
               aria-label={t('workbench.panelGrid.noteDrawer')}
             >
@@ -2411,7 +2411,7 @@ export function PanelGrid({
           {hasRightRail && (
             <section
               ref={rightRailRef}
-              className="workbench-zone-aux flex min-h-0 flex-col overflow-hidden bg-[#0B1120]"
+              className="workbench-zone-aux flex min-h-0 flex-col overflow-hidden bg-wb-aux"
               style={{ gridColumn: rightRailColumn, gridRow: auxiliaryGridRow }}
               aria-label={t('workbench.panelGrid.railAria')}
             >
@@ -2422,20 +2422,20 @@ export function PanelGrid({
                   maxHeight: layoutState.scenarioListCollapsed ? 36 : `calc(100% * ${scenarioListMaxRatio})`,
                 }}
               >
-                <div className="group flex h-9 shrink-0 items-center bg-slate-950/35 px-2 text-xs font-bold text-slate-300 transition-colors hover:bg-slate-900/70 hover:text-slate-100">
+                <div className="group flex h-9 shrink-0 items-center bg-wb-strip px-2 text-xs font-bold text-wb-muted transition-colors hover:bg-wb-input hover:text-wb-text">
                   <button
                     type="button"
                     onClick={() => onLayoutStateChange((prev) => ({ ...prev, scenarioListCollapsed: !prev.scenarioListCollapsed }))}
                     className="flex h-full min-w-0 flex-1 items-center gap-2 text-left"
                     aria-expanded={!layoutState.scenarioListCollapsed}
                   >
-                    {layoutState.scenarioListCollapsed ? <ChevronRight className="h-3.5 w-3.5 text-slate-500" /> : <ChevronDown className="h-3.5 w-3.5 text-slate-500" />}
+                    {layoutState.scenarioListCollapsed ? <ChevronRight className="h-3.5 w-3.5 text-wb-subtle" /> : <ChevronDown className="h-3.5 w-3.5 text-wb-subtle" />}
                     <span className="min-w-0 flex-1 truncate">{t('workbench.panelGrid.scenariosCount', { count: instances.length })}</span>
                   </button>
                   <button
                     type="button"
                     onClick={openScenarioAddMenu}
-                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-slate-500 opacity-70 transition-colors hover:bg-slate-800 hover:text-slate-100 group-hover:opacity-100"
+                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-wb-subtle opacity-70 transition-colors hover:bg-wb-hover hover:text-wb-text group-hover:opacity-100"
                     title={t('workbench.scenarioPane.addScenario')}
                     aria-label={t('workbench.scenarioPane.addScenario')}
                   >
@@ -2494,41 +2494,41 @@ export function PanelGrid({
                 />
               )}
               <div className="flex min-h-0 flex-1 flex-col">
-                <div className="relative flex h-9 shrink-0 items-center gap-2 bg-slate-950/35 px-2">
+                <div className="relative flex h-9 shrink-0 items-center gap-2 bg-wb-strip px-2">
                   <button
                     type="button"
                     onClick={() => setOpenControllerMenu((open) => !open)}
-                    className="inline-flex min-w-0 flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left text-xs font-bold text-slate-300 transition-colors hover:bg-slate-900 hover:text-slate-100"
+                    className="inline-flex min-w-0 flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left text-xs font-bold text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text"
                     aria-expanded={openControllerMenu}
                   >
                     <span className="min-w-0 truncate">
                       {selectedControllerView ? selectedControllerView.title : t('workbench.viewManagement.noControllerViews')}
                     </span>
-                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-wb-subtle" />
                   </button>
                   {activeInstance && selectedControllerView && (
                     <button
                       type="button"
                       onClick={() => setViewEditor({ mode: 'edit', view: selectedControllerView })}
-                      className="ml-auto inline-flex min-w-0 cursor-pointer items-center gap-1.5 rounded border border-slate-700 bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-slate-400 transition-colors hover:border-sky-500/50 hover:bg-slate-800 hover:text-slate-200"
+                      className="ml-auto inline-flex min-w-0 cursor-pointer items-center gap-1.5 rounded border border-wb-line bg-wb-panel px-2 py-0.5 text-[10px] font-semibold text-wb-muted transition-colors hover:border-wb-line-strong hover:bg-wb-hover hover:text-wb-text"
                       title={t('common.edit')}
                     >
                       {t('workbench.panelGrid.editingScenario')}
                       <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: activeInstance.color }} />
-                      <span className="min-w-0 max-w-28 truncate text-slate-200">{activeInstance.name}</span>
+                      <span className="min-w-0 max-w-28 truncate text-wb-text">{activeInstance.name}</span>
                     </button>
                   )}
                   {openControllerMenu && (
-                    <div className="absolute left-2 right-2 top-10 z-40 rounded border border-slate-700 bg-slate-950 p-1 shadow-2xl">
+                    <div className="absolute left-2 right-2 top-10 z-40 rounded border border-wb-line bg-wb-panel p-1 shadow-2xl">
                       {authoredControllerViews.length === 0 && (
-                        <div className="px-2 py-2 text-xs text-slate-500">
+                        <div className="px-2 py-2 text-xs text-wb-subtle">
                           {t('workbench.viewManagement.controllerEmptyHint')}
                         </div>
                       )}
 	                      {authoredControllerViews.map((view) => {
 	                        const isRenaming = renamingViewId === view.id;
 	                        return (
-	                          <div key={view.id} className={`group flex h-8 items-center gap-1 rounded px-2 ${selectedControllerEntryId === view.id ? 'bg-slate-800' : 'hover:bg-slate-900'}`}>
+	                          <div key={view.id} className={`group flex h-8 items-center gap-1 rounded px-2 ${selectedControllerEntryId === view.id ? 'bg-wb-active' : 'hover:bg-wb-hover'}`}>
 	                            {isRenaming ? (
 	                              <input
 	                                type="text"
@@ -2548,7 +2548,7 @@ export function PanelGrid({
 	                                    cancelRenameView();
 	                                  }
 	                                }}
-	                                className="h-6 min-w-0 flex-1 rounded border border-blue-400/60 bg-blue-950/40 px-1.5 text-xs font-semibold text-slate-100 outline-none"
+	                                className="h-6 min-w-0 flex-1 rounded border border-wb-accent bg-wb-input px-1.5 text-xs font-semibold text-wb-text outline-none"
 	                                aria-label={t('workbench.viewManagement.rename')}
 	                              />
 	                            ) : (
@@ -2556,21 +2556,21 @@ export function PanelGrid({
 	                                type="button"
 	                                onClick={() => selectControllerEntry(view.id)}
 	                                onDoubleClick={() => beginRenameView(view)}
-	                                className={`min-w-0 flex-1 truncate text-left text-xs font-semibold ${selectedControllerEntryId === view.id ? 'text-slate-100' : 'text-slate-400 group-hover:text-slate-100'}`}
+	                                className={`min-w-0 flex-1 truncate text-left text-xs font-semibold ${selectedControllerEntryId === view.id ? 'text-wb-text' : 'text-wb-muted group-hover:text-wb-text'}`}
 	                              >
 	                                {view.title}
 	                              </button>
 	                            )}
-	                            <button type="button" onClick={() => setViewEditor({ mode: 'edit', view })} className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-800 hover:text-slate-200" aria-label={t('common.edit')}>
+	                            <button type="button" onClick={() => setViewEditor({ mode: 'edit', view })} className="inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text" aria-label={t('common.edit')}>
 	                              <Pencil className="h-3.5 w-3.5" />
 	                            </button>
-	                            <button type="button" onClick={() => beginRenameView(view)} className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-800 hover:text-slate-200" aria-label={t('workbench.viewManagement.rename')}>
+	                            <button type="button" onClick={() => beginRenameView(view)} className="inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text" aria-label={t('workbench.viewManagement.rename')}>
 	                              <TypeIcon className="h-3.5 w-3.5" />
 	                            </button>
-	                            <button type="button" onClick={() => duplicateView(view)} className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-800 hover:text-slate-200" aria-label={t('workbench.viewManagement.duplicate')}>
+	                            <button type="button" onClick={() => duplicateView(view)} className="inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text" aria-label={t('workbench.viewManagement.duplicate')}>
 	                              <Copy className="h-3.5 w-3.5" />
 	                            </button>
-	                            <button type="button" onClick={() => deleteView(view)} className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-800 hover:text-red-300" aria-label={t('common.delete')}>
+	                            <button type="button" onClick={() => deleteView(view)} className="inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-danger" aria-label={t('common.delete')}>
 	                              <Trash2 className="h-3.5 w-3.5" />
 	                            </button>
 	                          </div>
@@ -2583,7 +2583,7 @@ export function PanelGrid({
                             setOpenControllerMenu(false);
                             setViewEditor({ mode: 'create', kind: 'controller' });
                           }}
-                          className="flex h-8 items-center justify-center gap-2 rounded border border-slate-800 px-2 text-xs font-bold text-sky-100 transition-colors hover:border-sky-500/50 hover:bg-sky-500/10"
+                          className="flex h-8 items-center justify-center gap-2 rounded border border-wb-line px-2 text-xs font-bold text-wb-text transition-colors hover:border-wb-line-strong hover:bg-wb-hover"
                         >
                           <Plus className="h-3.5 w-3.5" />
                           <span className="truncate">{t('workbench.viewManagement.newController')}</span>
@@ -2594,7 +2594,7 @@ export function PanelGrid({
                             restoreStandardViews();
                             setOpenControllerMenu(false);
                           }}
-                          className="flex h-8 items-center justify-center gap-2 rounded border border-slate-800 px-2 text-xs font-semibold text-slate-300 transition-colors hover:border-slate-600 hover:bg-slate-900 hover:text-slate-100"
+                          className="flex h-8 items-center justify-center gap-2 rounded border border-wb-line px-2 text-xs font-semibold text-wb-muted transition-colors hover:border-wb-line-strong hover:bg-wb-hover hover:text-wb-text"
                         >
                           <RotateCcw className="h-3.5 w-3.5" />
                           <span className="truncate">{t('workbench.viewManagement.restoreStandard')}</span>
@@ -2619,12 +2619,12 @@ export function PanelGrid({
                     />
                   ) : (
                     <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-                      <p className="text-xs font-semibold text-slate-400">{t('workbench.viewManagement.controllerEmptyHint')}</p>
+                      <p className="text-xs font-semibold text-wb-muted">{t('workbench.viewManagement.controllerEmptyHint')}</p>
                       <div className="flex flex-wrap justify-center gap-2">
                         <button
                           type="button"
                           onClick={() => setViewEditor({ mode: 'create', kind: 'controller' })}
-                          className="inline-flex h-8 items-center gap-2 rounded border border-sky-500/40 px-2.5 text-xs font-bold text-sky-100 transition-colors hover:bg-sky-500/10"
+                          className="inline-flex h-8 items-center gap-2 rounded border border-wb-line px-2.5 text-xs font-bold text-wb-text transition-colors hover:bg-wb-hover"
                         >
                           <Plus className="h-3.5 w-3.5" />
                           {t('workbench.viewManagement.newController')}
@@ -2632,7 +2632,7 @@ export function PanelGrid({
                         <button
                           type="button"
                           onClick={restoreStandardViews}
-                          className="inline-flex h-8 items-center gap-2 rounded border border-slate-700 px-2.5 text-xs font-semibold text-slate-300 transition-colors hover:bg-slate-900 hover:text-slate-100"
+                          className="inline-flex h-8 items-center gap-2 rounded border border-wb-line px-2.5 text-xs font-semibold text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text"
                         >
                           <RotateCcw className="h-3.5 w-3.5" />
                           {t('workbench.viewManagement.restoreStandard')}
@@ -2664,11 +2664,11 @@ export function PanelGrid({
           )}
           {layoutState.metricsOpen && (
             <section
-              className="workbench-zone-aux flex min-h-0 flex-col overflow-hidden border-t border-slate-800/60 bg-[#0B1120]"
+              className="workbench-zone-aux flex min-h-0 flex-col overflow-hidden border-t border-wb-line bg-wb-aux"
               style={{ gridColumn: metricsGridColumn, gridRow: '3' }}
               aria-label={t('workbench.panelGrid.metricsHost')}
             >
-              <div className="flex h-9 shrink-0 items-center gap-1 overflow-x-auto border-b border-slate-800/70 bg-slate-950/35 px-2 custom-scrollbar">
+              <div className="flex h-9 shrink-0 items-center gap-1 overflow-x-auto border-b border-wb-line bg-wb-strip px-2 custom-scrollbar">
 	                {fixedMetricsTabs.map((tab) => {
 	                  const isRenaming = renamingViewId === tab.id;
 	                  return (
@@ -2691,7 +2691,7 @@ export function PanelGrid({
 	                              cancelRenameView();
 	                            }
 	                          }}
-	                          className="h-7 min-w-28 rounded border border-blue-400/60 bg-blue-950/40 px-2 text-xs font-bold text-slate-100 outline-none"
+	                          className="h-7 min-w-28 rounded border border-wb-accent bg-wb-input px-2 text-xs font-bold text-wb-text outline-none"
 	                          aria-label={t('workbench.viewManagement.rename')}
 	                        />
 	                      ) : (
@@ -2705,8 +2705,8 @@ export function PanelGrid({
 	                          }}
 	                          className={`inline-flex h-7 shrink-0 items-center rounded px-2 text-xs font-bold transition-colors ${
 	                            activeMetricsTab?.id === tab.id
-	                              ? 'bg-slate-800 text-slate-100'
-	                              : 'text-slate-500 hover:bg-slate-900 hover:text-slate-300'
+	                              ? 'bg-wb-active text-wb-text'
+	                              : 'text-wb-subtle hover:bg-wb-hover hover:text-wb-muted'
 	                          }`}
 	                        >
 	                          {metricsTabLabel(t, tab)}
@@ -2716,21 +2716,21 @@ export function PanelGrid({
                       <button
                         type="button"
                         onClick={() => setMetricsMenuViewId((current) => current === tab.id ? null : tab.id)}
-                        className="ml-0.5 inline-flex h-7 w-7 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-900 hover:text-slate-200"
+                        className="ml-0.5 inline-flex h-7 w-7 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text"
                         aria-label={t('workbench.viewManagement.metricsMenu')}
                       >
                         <MoreVertical className="h-3.5 w-3.5" />
                       </button>
                     )}
                     {metricsMenuViewId === tab.id && (
-                      <div className="absolute left-0 top-8 z-40 w-36 rounded border border-slate-700 bg-slate-950 p-1 shadow-2xl">
-                        <button type="button" onClick={() => { setViewEditor({ mode: 'edit', view: tab.view }); setMetricsMenuViewId(null); }} className="flex h-8 w-full items-center gap-2 rounded px-2 text-xs font-semibold text-slate-300 hover:bg-slate-900 hover:text-slate-100">
+                      <div className="absolute left-0 top-8 z-40 w-36 rounded border border-wb-line bg-wb-panel p-1 shadow-2xl">
+                        <button type="button" onClick={() => { setViewEditor({ mode: 'edit', view: tab.view }); setMetricsMenuViewId(null); }} className="flex h-8 w-full items-center gap-2 rounded px-2 text-xs font-semibold text-wb-muted hover:bg-wb-hover hover:text-wb-text">
                           <Pencil className="h-3.5 w-3.5" /> {t('common.edit')}
                         </button>
-                        <button type="button" onClick={() => { beginRenameView(tab.view); setMetricsMenuViewId(null); }} className="flex h-8 w-full items-center gap-2 rounded px-2 text-xs font-semibold text-slate-300 hover:bg-slate-900 hover:text-slate-100">
+                        <button type="button" onClick={() => { beginRenameView(tab.view); setMetricsMenuViewId(null); }} className="flex h-8 w-full items-center gap-2 rounded px-2 text-xs font-semibold text-wb-muted hover:bg-wb-hover hover:text-wb-text">
                           <TypeIcon className="h-3.5 w-3.5" /> {t('workbench.viewManagement.rename')}
                         </button>
-                        <button type="button" onClick={() => { duplicateView(tab.view); setMetricsMenuViewId(null); }} className="flex h-8 w-full items-center gap-2 rounded px-2 text-xs font-semibold text-slate-300 hover:bg-slate-900 hover:text-slate-100">
+                        <button type="button" onClick={() => { duplicateView(tab.view); setMetricsMenuViewId(null); }} className="flex h-8 w-full items-center gap-2 rounded px-2 text-xs font-semibold text-wb-muted hover:bg-wb-hover hover:text-wb-text">
                           <Copy className="h-3.5 w-3.5" /> {t('workbench.viewManagement.duplicate')}
                         </button>
                         <button type="button" onClick={() => { deleteView(tab.view); setMetricsMenuViewId(null); }} className="flex h-8 w-full items-center gap-2 rounded px-2 text-xs font-semibold text-red-200 hover:bg-red-500/10">
@@ -2744,7 +2744,7 @@ export function PanelGrid({
                 <button
                   type="button"
                   onClick={() => setViewEditor({ mode: 'create', kind: 'metrics' })}
-                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border border-slate-800 text-slate-400 transition-colors hover:border-sky-500/50 hover:bg-sky-500/10 hover:text-sky-100"
+                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border border-wb-line text-wb-muted transition-colors hover:border-wb-line-strong hover:bg-wb-hover hover:text-wb-text"
                   aria-label={t('workbench.viewManagement.newMetrics')}
                   title={t('workbench.viewManagement.newMetrics')}
                 >
@@ -2753,7 +2753,7 @@ export function PanelGrid({
                 <button
                   type="button"
                   onClick={restoreStandardViews}
-                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border border-slate-800 text-slate-500 transition-colors hover:border-slate-600 hover:bg-slate-900 hover:text-slate-200"
+                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border border-wb-line text-wb-subtle transition-colors hover:border-wb-line-strong hover:bg-wb-hover hover:text-wb-text"
                   aria-label={t('workbench.viewManagement.restoreStandard')}
                   title={t('workbench.viewManagement.restoreStandard')}
                 >
@@ -2769,12 +2769,12 @@ export function PanelGrid({
                   />
                 ) : (
                   <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-                    <p className="text-xs font-semibold text-slate-400">{t('workbench.viewManagement.metricsEmptyHint')}</p>
+                    <p className="text-xs font-semibold text-wb-muted">{t('workbench.viewManagement.metricsEmptyHint')}</p>
                     <div className="flex flex-wrap justify-center gap-2">
                       <button
                         type="button"
                         onClick={() => setViewEditor({ mode: 'create', kind: 'metrics' })}
-                        className="inline-flex h-8 items-center gap-2 rounded border border-sky-500/40 px-2.5 text-xs font-bold text-sky-100 transition-colors hover:bg-sky-500/10"
+                        className="inline-flex h-8 items-center gap-2 rounded border border-wb-line px-2.5 text-xs font-bold text-wb-text transition-colors hover:bg-wb-hover"
                       >
                         <Plus className="h-3.5 w-3.5" />
                         {t('workbench.viewManagement.newMetrics')}
@@ -2782,7 +2782,7 @@ export function PanelGrid({
                       <button
                         type="button"
                         onClick={restoreStandardViews}
-                        className="inline-flex h-8 items-center gap-2 rounded border border-slate-700 px-2.5 text-xs font-semibold text-slate-300 transition-colors hover:bg-slate-900 hover:text-slate-100"
+                        className="inline-flex h-8 items-center gap-2 rounded border border-wb-line px-2.5 text-xs font-semibold text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text"
                       >
                         <RotateCcw className="h-3.5 w-3.5" />
                         {t('workbench.viewManagement.restoreStandard')}

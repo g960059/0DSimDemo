@@ -324,7 +324,7 @@ function WorkbenchDockPanel(props: IDockviewPanelProps<DockPanelParams>) {
   const context = useContext(WorkbenchDockviewContext);
   const panel = context?.panelsById.get(props.params.panelId);
   if (!context || !panel) {
-    return <div className="flex h-full items-center justify-center text-xs text-slate-500">{t('workbench.dockview.panelUnavailable')}</div>;
+    return <div className="flex h-full items-center justify-center text-xs text-wb-subtle">{t('workbench.dockview.panelUnavailable')}</div>;
   }
   return <>{context.renderPanel(panel)}</>;
 }
@@ -402,7 +402,7 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
 
   return (
     <div
-      className={`workbench-dock-tab flex h-full min-w-0 items-center justify-between gap-2 px-2.5 text-xs font-semibold ${isActive ? 'text-slate-100' : 'text-slate-500'}`}
+      className={`workbench-dock-tab flex h-full min-w-0 items-center justify-between gap-2 px-2.5 text-xs font-semibold ${isActive ? 'text-wb-text' : 'text-wb-subtle'}`}
       onContextMenu={(event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -433,7 +433,7 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
               cancelRenamePanel();
             }
           }}
-          className="h-6 min-w-0 flex-1 rounded border border-blue-400/60 bg-blue-950/40 px-1.5 text-xs font-semibold text-slate-100 outline-none"
+          className="h-6 min-w-0 flex-1 rounded border border-wb-accent bg-wb-input px-1.5 text-xs font-semibold text-wb-text outline-none"
           aria-label={t('common.rename')}
         />
       ) : (
@@ -448,7 +448,7 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
               context?.requestClosePanel(props.params.panelId);
               setMenuPosition(null);
             }}
-            className="workbench-dock-tab-close-button inline-flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-slate-700/80 hover:text-red-300"
+            className="workbench-dock-tab-close-button inline-flex h-5 w-5 items-center justify-center rounded text-wb-muted hover:bg-wb-hover hover:text-wb-danger"
             aria-label={t('workbench.panelGrid.closePanelAria', { title })}
             title={t('workbench.panelGrid.closePanelAria', { title })}
           >
@@ -468,7 +468,7 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
                     : getMenuPositionNearPoint({ x: rect.right - TAB_MENU_WIDTH, y: rect.bottom + 4 })
                 ));
               }}
-              className={`workbench-dock-tab-menu-button inline-flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-slate-700/80 hover:text-slate-100 ${
+              className={`workbench-dock-tab-menu-button inline-flex h-5 w-5 items-center justify-center rounded text-wb-muted hover:bg-wb-hover hover:text-wb-text ${
                 menuPosition ? 'opacity-100' : ''
               }`}
               aria-label={t('workbench.dockview.paneMenuAria', { title })}
@@ -597,7 +597,7 @@ function ZoneAddMenu({
       <button
         type="button"
         onClick={openMenu}
-        className="inline-flex h-5 w-5 items-center justify-center rounded text-slate-500 hover:bg-slate-800 hover:text-slate-100"
+        className="inline-flex h-5 w-5 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text"
         aria-label={t('workbench.dockview.addPaneAria', { zone: t(`workbench.zones.${zone}`) })}
         title={t('workbench.dockview.addPaneAria', { zone: t(`workbench.zones.${zone}`) })}
       >
@@ -661,7 +661,7 @@ function WorkbenchDockHeaderRightActions(props: IDockviewHeaderActionsProps) {
         <button
           type="button"
           onClick={() => context.requestSplitPanel(activePanelId, props.group.id, 'right')}
-          className="inline-flex h-5 w-5 items-center justify-center rounded text-slate-500 hover:bg-slate-800 hover:text-slate-100"
+          className="inline-flex h-5 w-5 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text"
           aria-label={t('workbench.dockview.splitRight')}
           title={t('workbench.dockview.splitRight')}
         >
@@ -680,7 +680,7 @@ function EmptyDockview({
   const { t } = useTranslation();
   const canAdd = mode !== 'learner' && Boolean(onAddPanel);
   return (
-    <div className="relative flex h-full items-center justify-center bg-[#0B1120] text-sm text-slate-600">
+    <div className="relative flex h-full items-center justify-center bg-wb-aux text-sm text-wb-subtle">
       {canAdd && (
         <div className="absolute right-2 top-2">
           <ZoneAddMenu zone={zone} onChoose={(type) => onAddPanel?.(type, zone)} />
@@ -702,7 +702,7 @@ function StaticDockviewFallback({
   return (
     <div className="grid h-full min-h-0 grid-cols-1 gap-0 overflow-hidden lg:grid-cols-2">
       {panels.map((panel) => (
-        <div key={panel.id} className="min-h-0 overflow-hidden border-r border-slate-800/70 bg-[#0B1120] last:border-r-0">
+        <div key={panel.id} className="min-h-0 overflow-hidden border-r border-wb-line bg-wb-aux last:border-r-0">
           {renderPanel(panel)}
         </div>
       ))}

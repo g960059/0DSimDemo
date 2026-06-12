@@ -22,8 +22,8 @@ export type AuthoredViewRuntime = {
 export function AuthoredViewPlaceholder({ viewId }: { viewId: string }) {
   const { t } = useTranslation();
   return (
-    <div className="my-3 rounded-md border border-dashed border-slate-700 bg-slate-900/45 px-3 py-2 text-xs text-slate-500" contentEditable={false}>
-      <div className="font-semibold text-slate-400">{t("notes.viewRef.missingTitle")}</div>
+    <div className="my-3 rounded-md border border-dashed border-wb-line bg-wb-strip px-3 py-2 text-xs text-wb-subtle" contentEditable={false}>
+      <div className="font-semibold text-wb-muted">{t("notes.viewRef.missingTitle")}</div>
       <div className="mt-1 font-mono">{viewId || t("notes.viewRef.unknownView")}</div>
     </div>
   );
@@ -70,8 +70,8 @@ export function AuthoredViewEmbed({
   if (!body) return <AuthoredViewPlaceholder viewId={viewId} />;
 
   return (
-    <figure className={`my-4 overflow-hidden rounded-md border border-slate-800 bg-slate-950/60 ${className}`} contentEditable={false}>
-      <figcaption className="border-b border-slate-800/80 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+    <figure className={`my-4 overflow-hidden rounded-md border border-wb-line bg-wb-input ${className}`} contentEditable={false}>
+      <figcaption className="border-b border-wb-line px-3 py-1.5 text-[11px] font-medium text-wb-subtle">
         {view.title}
       </figcaption>
       <div className={view.kind === "controller" ? "relative h-[360px] max-h-[58vh] overflow-y-auto" : "relative min-h-[180px]"}>
