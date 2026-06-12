@@ -1,5 +1,6 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { HealthToasts } from "@/components/HealthIndicators";
+import { ReadingPresenter } from "@/components/reading/ReadingPresenter";
 import { PanelGrid } from "@/components/workbench/PanelGrid";
 import { WorkbenchHeader } from "@/components/workbench/WorkbenchHeader";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +14,7 @@ import { type BuildCurrentDoc, useWorkbenchPersistence } from "@/features/workbe
 import { useWorkbenchScene } from "@/features/workbench/hooks/useWorkbenchScene";
 import { useWorkbenchSimulation } from "@/features/workbench/hooks/useWorkbenchSimulation";
 import { useWorkbenchTheme } from "@/features/workbench/hooks/useWorkbenchTheme";
+import { canUseReadExplore, deriveReadExploreEntryMode, switchReadExplorePresentation, type ReadExploreMode } from "@/features/workbench/readExplore";
 import {
   ALL_CHAMBERS,
   ALL_CONTROL_GROUPS,
@@ -22,12 +24,15 @@ import {
   type AddedInstanceConfig,
   noteExcerpt,
 } from "@/features/workbench/workbenchDefaults";
+import { resolveReadingColumn } from "@/readingConversion";
 
 export function WorkbenchRoute() {
   const { user, isAdmin, signIn, loading: authLoading } = useAuth();
   const isMobile = useIsMobile();
   const { workbenchTheme, setWorkbenchTheme } = useWorkbenchTheme();
   const userEditedRef = useRef(false);
+  const entryPresentationKeyRef = useRef<string | null>(null);
+  const [readExploreState, setReadExploreState] = useState<{ presentation: ReadExploreMode }>({ presentation: "explore" });
   const buildCurrentDocRef = useRef<BuildCurrentDoc | null>(null);
   const requestSteadyTransitionRef = useRef<(id: string, nextInstances: SimInstance[]) => void>(() => {});
   const addVisibleInstanceConfigsRef = useRef<(additions: AddedInstanceConfig[]) => void>(() => {});
@@ -55,6 +60,35 @@ export function WorkbenchRoute() {
   }, [panels.addVisibleInstanceConfigs]);
   const simulation = useWorkbenchSimulation(scene.instances, addSimulationInstanceConfigs);
   requestSteadyTransitionRef.current = simulation.requestSteadyTransition;
+
+  const readExploreDoc = useMemo(() => ({
+    panels: panels.panels,
+    notes: panels.notes,
+    reading: scene.currentCaseReading,
+  }), [panels.notes, panels.panels, scene.currentCaseReading]);
+  const readExploreAvailable = scene.headerMode === "learner" && canUseReadExplore(readExploreDoc);
+  const resolvedReadingColumn = useMemo(() => resolveReadingColumn(readExploreDoc), [readExploreDoc]);
+  const readingColumn = "column" in resolvedReadingColumn ? resolvedReadingColumn.column : undefined;
+  const setReadExploreMode = useCallback((presentation: ReadExploreMode) => {
+    setReadExploreState((prev) => switchReadExplorePresentation(prev, presentation));
+  }, []);
+
+  useEffect(() => {
+    if (scene.headerMode !== "learner") {
+      entryPresentationKeyRef.current = null;
+      setReadExploreMode("explore");
+      return;
+    }
+    if (!scene.currentCaseId) return;
+    const entryKey = `${scene.currentCaseId}:${panels.noteCaseKey}`;
+    if (entryPresentationKeyRef.current === entryKey) return;
+    entryPresentationKeyRef.current = entryKey;
+    setReadExploreMode(deriveReadExploreEntryMode(readExploreDoc, { readOnly: true }));
+  }, [panels.noteCaseKey, readExploreDoc, scene.currentCaseId, scene.headerMode, setReadExploreMode]);
+
+  useEffect(() => {
+    if (!readExploreAvailable && readExploreState.presentation === "read") setReadExploreMode("explore");
+  }, [readExploreAvailable, readExploreState.presentation, setReadExploreMode]);
 
   const defaultSceneTitle = useCallback(() => (
     scene.sceneMeta.title.trim() || (scene.instances[0] ? `${scene.instances[0].name} case` : "Workbench case")
@@ -84,11 +118,49 @@ export function WorkbenchRoute() {
     pushWarningToast: simulation.pushWarningToast,
   });
 
+  const showReadingPresentation = readExploreAvailable && readExploreState.presentation === "read" && Boolean(readingColumn);
+
   return (
     <div
-      className="workbench-root flex flex-col h-full w-full bg-slate-950 text-slate-200 overflow-hidden font-sans relative"
+      className="workbench-root flex flex-col h-full w-full bg-wb-app text-wb-text overflow-hidden font-sans relative"
       data-workbench-theme={workbenchTheme}
     >
+      {showReadingPresentation && (
+        <ReadingPresenter
+          lessonTitle={scene.sceneMeta.title}
+          objective={scene.sceneMeta.description}
+          caseDoc={{
+            meta: { id: scene.currentCaseId ?? panels.noteCaseKey, title: scene.sceneMeta.title, createdAt: scene.currentCaseCreatedAt ?? 0, updatedAt: scene.currentCaseCreatedAt ?? 0 },
+            panels: panels.panels,
+            notes: panels.notes,
+            views: scene.currentCaseViews,
+            exposedControllers: scene.currentCaseExposedControllers,
+          }}
+          column={readingColumn ?? []}
+          runtime={{
+            instances: scene.instances,
+            physicsRefs: simulation.physicsRefs,
+            instanceHealth: simulation.instanceHealth,
+            activeInstanceId: scene.activeInstanceId,
+            updateInstanceParams: scene.updateInstanceParams,
+            updateInstanceKnobs: scene.updateInstanceKnobs,
+            updateInstanceVolume: scene.updateInstanceVolume,
+          }}
+          chrome={{
+            backHref: persistence.backTarget.href,
+            backLabel: persistence.backTarget.label,
+            showReadExploreSwitcher: readExploreAvailable,
+            readExploreMode: readExploreState.presentation,
+            onReadExploreModeChange: setReadExploreMode,
+            onResetToAuthorState: scene.resetToAuthorState,
+            onFork: persistence.runHeaderPrimaryAction,
+            isForking: persistence.isSavingCase,
+          }}
+        />
+      )}
+      {/* The Explore subtree stays mounted while Reading shows so PanelGrid-local
+          state (metrics dockview mirrors/layout) survives Read<->Explore. */}
+      <div className={showReadingPresentation ? 'hidden' : 'flex min-h-0 flex-1 flex-col overflow-hidden'}>
       <WorkbenchHeader
         mode={scene.headerMode}
         backHref={persistence.backTarget.href}
@@ -131,6 +203,9 @@ export function WorkbenchRoute() {
         onMetricsSpanChange={(metricsSpan) => panels.setWorkbenchLayout((prev) => ({ ...prev, metricsSpan }))}
         theme={workbenchTheme}
         onThemeChange={setWorkbenchTheme}
+        showReadExploreSwitcher={readExploreAvailable}
+        readExploreMode={readExploreState.presentation}
+        onReadExploreModeChange={setReadExploreMode}
       />
 
       <PanelGrid
@@ -204,6 +279,7 @@ export function WorkbenchRoute() {
         metrics={ALL_METRICS}
         controlGroups={ALL_CONTROL_GROUPS}
       />
+      </div>
 
       <AddPanelDialog
         panelType={panels.addingPanelType}

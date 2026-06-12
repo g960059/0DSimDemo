@@ -63,6 +63,17 @@ function matches(pattern: RegExp, html: string): string[] {
   return [...html.matchAll(pattern)].map((match) => match[1]);
 }
 
+function readingRuntime() {
+  return {
+    instances: [],
+    physicsRefs: { current: new Map() },
+    activeInstanceId: "",
+    updateInstanceParams: () => {},
+    updateInstanceKnobs: () => {},
+    updateInstanceVolume: () => {},
+  };
+}
+
 describe("ReadingPresenter with the real NotePanel static renderer", () => {
   it("renders every TOC href with a matching article heading id, including nested duplicates", () => {
     const note: NoteContent = [
@@ -82,6 +93,7 @@ describe("ReadingPresenter with the real NotePanel static renderer", () => {
       lessonTitle: "Real TOC",
       caseDoc: doc,
       column: [{ kind: "noteRef", noteId: "intro" }],
+      runtime: readingRuntime(),
     })));
 
     const expectedIds = deriveHeadingAnchors(note).map((anchor) => anchor.id);
@@ -111,6 +123,7 @@ describe("ReadingPresenter with the real NotePanel static renderer", () => {
       lessonTitle: "View refs",
       caseDoc: doc,
       column: [{ kind: "noteRef", noteId: "intro" }],
+      runtime: readingRuntime(),
     })));
 
     expect(html).toContain("Inline Controller");

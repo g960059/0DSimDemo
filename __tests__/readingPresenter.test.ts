@@ -89,6 +89,17 @@ function lesson(extras: Partial<Lesson> = {}): Lesson {
   };
 }
 
+function readingRuntime() {
+  return {
+    instances: [],
+    physicsRefs: { current: new Map() },
+    activeInstanceId: "",
+    updateInstanceParams: () => {},
+    updateInstanceKnobs: () => {},
+    updateInstanceVolume: () => {},
+  };
+}
+
 describe("resolveReadingColumn", () => {
   it("preserves explicit reading column order", () => {
     const doc = caseDoc({
@@ -282,6 +293,7 @@ describe("ReadingPresenter chrome", () => {
       objective: "Read the figures.",
       caseDoc: doc,
       column: doc.reading!.column,
+      runtime: readingRuntime(),
     })));
 
     expect(html).toContain("max-w-[860px]");

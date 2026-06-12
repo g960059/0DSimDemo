@@ -4,6 +4,7 @@ import {
   Check,
   ChevronDown,
   ChevronLeft,
+  Copy,
   Edit3,
   MoreHorizontal,
   PanelBottom,
@@ -22,6 +23,8 @@ import { HealthBadge } from '../HealthIndicators';
 import { ModelLimitations } from '../ModelLimitations';
 import { WorkbenchHeaderMode, WorkbenchSceneMeta, WorkbenchSidePanel, type WorkbenchThemeId } from './WorkbenchSidePanel';
 import type { MetricsSpanMode } from './PanelGrid';
+import { ReadExploreSwitcher } from './ReadExploreSwitcher';
+import type { ReadExploreMode } from '../../features/workbench/readExplore';
 
 interface WorkbenchHeaderProps {
   mode: WorkbenchHeaderMode;
@@ -65,6 +68,9 @@ interface WorkbenchHeaderProps {
   onMetricsSpanChange: (span: MetricsSpanMode) => void;
   theme: WorkbenchThemeId;
   onThemeChange: (theme: WorkbenchThemeId) => void;
+  showReadExploreSwitcher?: boolean;
+  readExploreMode?: ReadExploreMode;
+  onReadExploreModeChange?: (mode: ReadExploreMode) => void;
 }
 
 const SPEEDS = [0.5, 1, 2, 5];
@@ -115,6 +121,9 @@ export function WorkbenchHeader({
   onMetricsSpanChange,
   theme,
   onThemeChange,
+  showReadExploreSwitcher = false,
+  readExploreMode,
+  onReadExploreModeChange,
 }: WorkbenchHeaderProps) {
   const { t } = useTranslation();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -125,7 +134,7 @@ export function WorkbenchHeader({
 
   const isLearner = mode === 'learner';
   const showNoteToggle = !isLearner || hasNotePanel;
-  const primaryLabel = isLearner ? t('workbench.header.editCopy') : authoringMode ? t('workbench.header.share') : t('workbench.header.saveCase');
+  const primaryLabel = isLearner ? t('workbench.header.fork') : authoringMode ? t('workbench.header.share') : t('workbench.header.saveCase');
   const visibilityButtonClass = (pressed: boolean) => (
     `inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors ${
       pressed
@@ -169,6 +178,9 @@ export function WorkbenchHeader({
                 {t('workbench.header.readOnlyBadge')}
               </span>
               <ModelLimitations compact limitations={sceneMeta.modelLimitations} />
+              {showReadExploreSwitcher && readExploreMode && onReadExploreModeChange && (
+                <ReadExploreSwitcher mode={readExploreMode} onModeChange={onReadExploreModeChange} className="ml-1" />
+              )}
             </div>
           ) : (
             <button onClick={openMetaEditor} className="flex min-w-0 items-center gap-1 rounded-md px-2 py-1 text-left hover:bg-wb-hover">
@@ -304,7 +316,7 @@ export function WorkbenchHeader({
             disabled={(authoringMode && isPublishingLesson) || isSavingCase}
             className={`inline-flex h-9 items-center gap-1.5 rounded-md bg-wb-primary px-3 text-xs font-bold text-white hover:bg-wb-primary-hover disabled:cursor-not-allowed disabled:opacity-60 ${isLearner ? 'ml-2' : ''}`}
           >
-            {authoringMode ? <Share2 className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
+            {isLearner ? <Copy className="h-3.5 w-3.5" /> : authoringMode ? <Share2 className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
             <span className="hidden sm:inline">{authoringMode && isPublishingLesson ? t('workbench.header.publishing') : isSavingCase ? t('workbench.header.saving') : primaryLabel}</span>
           </button>
 

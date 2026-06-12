@@ -1,10 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Copy, RotateCcw } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
-import { caseDocumentToSimInstances } from "../../caseDoc";
-import { resolveRawEdit, resolveKnobEdit } from "../../engine/instanceKnobs";
-import { PreviewController } from "../../engine/previewController";
 import type { ClinicalKnobs } from "../../engine/knobs";
 import type { SimulationHealth } from "../../engine/protocol";
 import type { CaseDocument, ReadingColumnEntry } from "../../caseDoc";
@@ -17,6 +14,8 @@ import { localeFromPathname } from "../../localeRouting";
 import { localeDisplayLabel } from "../../contentI18n";
 import { authoredViewsOnly } from "../../features/workbench/authoredViews";
 import { collectNoteViewRefIds } from "../../features/workbench/noteViewRefs";
+import { ReadExploreSwitcher } from "../workbench/ReadExploreSwitcher";
+import type { ReadExploreMode } from "../../features/workbench/readExplore";
 
 function plainTextFromInlineContent(content: unknown): string {
   if (typeof content === "string") return content;
@@ -50,21 +49,34 @@ export const ReadingPresenter: React.FC<{
   lessonTitle: string;
   lessonLevel?: string;
   objective?: string;
-  caseDoc: CaseDocument;
+  caseDoc: Pick<CaseDocument, "meta" | "panels" | "notes" | "views" | "exposedControllers">;
   column: ReadingColumnEntry[];
   fallbackLocale?: string;
-}> = ({ lessonTitle, lessonLevel, objective, caseDoc, column, fallbackLocale }) => {
+  runtime: {
+    instances: SimInstance[];
+    physicsRefs: React.MutableRefObject<Map<string, PhysicsRefState>>;
+    instanceHealth?: Record<string, SimulationHealth>;
+    activeInstanceId: string;
+    updateInstanceParams: (id: string, params: Partial<SimulationParams>) => void;
+    updateInstanceKnobs: (id: string, knobs: ClinicalKnobs) => void;
+    updateInstanceVolume: (id: string, vol: number) => void;
+  };
+  chrome?: {
+    backHref?: string;
+    backLabel?: string;
+    showReadExploreSwitcher?: boolean;
+    readExploreMode?: ReadExploreMode;
+    onReadExploreModeChange?: (mode: ReadExploreMode) => void;
+    onResetToAuthorState?: () => void;
+    onFork?: () => void | Promise<void>;
+    isForking?: boolean;
+  };
+}> = ({ lessonTitle, lessonLevel, objective, caseDoc, column, fallbackLocale, runtime, chrome }) => {
   const { t, i18n } = useTranslation();
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
-  const [controller] = useState(() => new PreviewController());
-  const [liveInstances, setLiveInstances] = useState<SimInstance[]>(() => caseDocumentToSimInstances(caseDoc));
-  const [instanceHealth, setInstanceHealth] = useState<Record<string, SimulationHealth>>({});
   const [readingProgress, setReadingProgress] = useState(0);
   const scrollportRef = useRef<HTMLDivElement>(null);
-  const physicsRefs = useRef<Map<string, PhysicsRefState>>(controller.refs);
-  const pendingSteadyTransitionIdsRef = useRef<Set<string>>(new Set());
-  const activeInstanceId = liveInstances[0]?.id ?? "";
   const notes = useMemo(() => caseDoc.notes ?? {}, [caseDoc.notes]);
   const authoredViews = useMemo(() => authoredViewsOnly(caseDoc.views), [caseDoc.views]);
   const readingBlocks = useMemo(() => collectReadingNoteBlocks(column, notes), [column, notes]);
@@ -76,69 +88,6 @@ export const ReadingPresenter: React.FC<{
     && (noteViewRefs.has(view.id) || column.some((entry) => entry.kind === "viewRef" && entry.viewId === view.id))
   ));
   const hasInteractiveControls = caseDoc.panels.some((panel) => panel.type === "CONTROLS") || (caseDoc.exposedControllers?.length ?? 0) > 0 || hasInteractiveViewRefs;
-
-  useEffect(() => {
-    controller.onHealthChange = setInstanceHealth;
-    controller.start();
-    return () => {
-      controller.onHealthChange = undefined;
-      controller.stop();
-    };
-  }, [controller]);
-
-  useEffect(() => {
-    const steadyTransitionIds = [...pendingSteadyTransitionIdsRef.current];
-    pendingSteadyTransitionIdsRef.current.clear();
-    controller.setInstances(liveInstances, steadyTransitionIds.length > 0 ? { steadyTransitionIds } : undefined);
-  }, [controller, liveInstances]);
-
-  const updateWith = (project: (instance: SimInstance) => SimInstance, steadyTransitionIds: string[] = []) => {
-    setLiveInstances((current) => {
-      const next = current.map(project);
-      steadyTransitionIds.forEach((id) => pendingSteadyTransitionIdsRef.current.add(id));
-      controller.setInstances(next, steadyTransitionIds.length > 0 ? { steadyTransitionIds } : undefined);
-      for (const id of steadyTransitionIds) {
-        const target = next.find((instance) => instance.id === id);
-        if (target) controller.requestNextSteady(target);
-      }
-      return next;
-    });
-  };
-
-  const updateInstanceParams = (id: string, params: Partial<SimulationParams>) => {
-    updateWith((instance) => {
-      if (instance.id !== id) return instance;
-      const next = resolveRawEdit({
-        params: instance.params,
-        knobs: instance.knobs,
-        knobBaseline: instance.knobBaseline,
-      }, params);
-      return { ...instance, ...next };
-    });
-  };
-
-  const updateInstanceKnobs = (id: string, knobs: ClinicalKnobs) => {
-    updateWith((instance) => {
-      if (instance.id !== id) return instance;
-      const next = resolveKnobEdit({
-        params: instance.params,
-        knobs: instance.knobs,
-        knobBaseline: instance.knobBaseline,
-      }, knobs);
-      return { ...instance, ...next };
-    }, [id]);
-  };
-
-  const updateInstanceVolume = (id: string, vol: number) => {
-    setLiveInstances((current) => {
-      const next = current.map((instance) => (instance.id === id ? { ...instance, targetVolume: vol } : instance));
-      pendingSteadyTransitionIdsRef.current.add(id);
-      controller.setInstances(next, { steadyTransitionIds: [id] });
-      const target = next.find((instance) => instance.id === id);
-      if (target) controller.requestNextSteady(target);
-      return next;
-    });
-  };
 
   const updateReadingProgress = () => {
     const scrollport = scrollportRef.current;
@@ -154,23 +103,54 @@ export const ReadingPresenter: React.FC<{
     const resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(updateReadingProgress) : undefined;
     resizeObserver?.observe(scrollport);
     return () => resizeObserver?.disconnect();
-  }, [column, headingAnchors.length, liveInstances.length]);
+  }, [column, headingAnchors.length, runtime.instances.length]);
 
   // h-full (NOT min-h-full): this div must be the bounded scrollport under
   // Layout's `flex-1 overflow-hidden` <main>. min-h-full grows to content
   // height so nothing scrolls (the reading-article scroll bug).
   return (
-    <div ref={scrollportRef} onScroll={updateReadingProgress} className="h-full min-h-0 w-full overflow-y-auto bg-slate-950 text-slate-200">
-      <div className="sticky top-0 z-20 h-12 border-b border-slate-900/80 bg-slate-950/90 backdrop-blur">
-        <div className="mx-auto flex h-12 max-w-[960px] items-center gap-3 px-4">
-          <Link to={homeHref(locale)} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-100" aria-label={t("lessonPlayer.backToHome")}>
+    <div className="flex min-h-0 flex-1 flex-col bg-wb-app text-wb-text">
+      <div className="workbench-header relative z-20 h-14 shrink-0">
+        <div className="flex h-14 items-center gap-2 px-3 sm:px-4">
+          <Link to={chrome?.backHref ?? homeHref(locale)} className="inline-flex h-9 items-center gap-1 rounded-md px-2 text-xs font-medium text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text" aria-label={chrome?.backLabel ?? t("lessonPlayer.backToHome")}>
             <ArrowLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">{chrome?.backLabel ?? t("lessonPlayer.backToHome")}</span>
           </Link>
-          <div className="min-w-0 truncate text-sm font-semibold text-slate-300">{lessonTitle}</div>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <div className="min-w-0 truncate text-sm font-bold text-wb-text">{lessonTitle}</div>
+            <span className="hidden shrink-0 rounded border border-wb-line bg-wb-strip px-2 py-0.5 text-[11px] font-semibold text-wb-subtle sm:inline">
+              {t("workbench.header.readOnlyBadge")}
+            </span>
+            {chrome?.showReadExploreSwitcher && chrome.readExploreMode && chrome.onReadExploreModeChange && (
+              <ReadExploreSwitcher mode={chrome.readExploreMode} onModeChange={chrome.onReadExploreModeChange} className="ml-1" />
+            )}
+          </div>
+          {chrome?.onResetToAuthorState && (
+            <button
+              type="button"
+              onClick={chrome.onResetToAuthorState}
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-wb-line bg-transparent px-2.5 text-xs font-bold text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">{t("workbench.header.resetToAuthorState")}</span>
+            </button>
+          )}
+          {chrome?.onFork && (
+            <button
+              type="button"
+              onClick={chrome.onFork}
+              disabled={chrome.isForking}
+              className="inline-flex h-9 items-center gap-1.5 rounded-md bg-wb-primary px-3 text-xs font-bold text-white hover:bg-wb-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Copy className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{chrome.isForking ? t("workbench.header.saving") : t("workbench.header.fork")}</span>
+            </button>
+          )}
         </div>
         <div className="absolute bottom-0 left-0 h-0.5 bg-sky-400" style={{ width: `${readingProgress * 100}%` }} />
       </div>
 
+      <div ref={scrollportRef} onScroll={updateReadingProgress} className="min-h-0 flex-1 overflow-y-auto">
       <article className="mx-auto w-full max-w-[860px] px-4 pb-16 pt-8 sm:px-6 sm:pt-10">
         <header className="mx-auto w-full max-w-[68ch]">
           <h1 className="text-3xl font-bold text-slate-50 sm:text-[34px]">{lessonTitle}</h1>
@@ -207,13 +187,13 @@ export const ReadingPresenter: React.FC<{
             notes={notes}
             headingAnchorIds={headingAnchors.map((anchor) => anchor.id)}
             paneCtx={{
-              instances: liveInstances,
-              physicsRefs,
-              instanceHealth,
-              activeInstanceId,
-              updateInstanceParams,
-              updateInstanceKnobs,
-              updateInstanceVolume,
+              instances: runtime.instances,
+              physicsRefs: runtime.physicsRefs,
+              instanceHealth: runtime.instanceHealth,
+              activeInstanceId: runtime.activeInstanceId,
+              updateInstanceParams: runtime.updateInstanceParams,
+              updateInstanceKnobs: runtime.updateInstanceKnobs,
+              updateInstanceVolume: runtime.updateInstanceVolume,
               noteMode: "read",
               notes,
               authoredViews,
@@ -223,6 +203,7 @@ export const ReadingPresenter: React.FC<{
           />
         </div>
       </article>
+      </div>
     </div>
   );
 };

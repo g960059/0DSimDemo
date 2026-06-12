@@ -346,8 +346,12 @@
     },
     "header": {
       "editCopy": "Edit a copy",
+      "fork": "Fork",
       "readOnlyBadge": "Changes are not saved",
       "resetToAuthorState": "Reset to author's state",
+      "read": "Read",
+      "explore": "Explore",
+      "readExploreSwitcher": "Read or Explore",
       "share": "Share",
       "saveCase": "Save case",
       "untitledScene": "Untitled case",

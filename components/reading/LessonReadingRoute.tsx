@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useParams } from "react-router-dom";
-import { caseDocumentToSimInstances, type CaseDocument } from "../../caseDoc";
+import { caseDocumentToSimInstances, type CaseDocument, type ReadingColumnEntry } from "../../caseDoc";
 import { fetchCase } from "../../caseCloud";
 import { fetchPublishedLesson } from "../../lessonCloud";
 import { caseDocumentToLesson, lessonById, resolveLessonCase, type Lesson } from "../../lessonDoc";
@@ -11,6 +11,11 @@ import { ReadingPresenter } from "./ReadingPresenter";
 import { homeHref } from "../../homeLinks";
 import { localeFromPathname } from "../../localeRouting";
 import { resolveLocalizedCaseDocument, resolveLocalizedLesson } from "../../contentI18n";
+import { PreviewController } from "../../engine/previewController";
+import { resolveKnobEdit, resolveRawEdit } from "../../engine/instanceKnobs";
+import type { ClinicalKnobs } from "../../engine/knobs";
+import type { SimulationHealth } from "../../engine/protocol";
+import type { PhysicsRefState, SimInstance, SimulationParams } from "../../types";
 
 export const ENABLE_READING_PRESENTER_FOR_LESSONS = true;
 
@@ -30,6 +35,87 @@ export function shouldUseReading(lesson: Lesson, caseDoc: CaseDocument): boolean
 type CloudResolveState =
   | { status: "idle" | "loading" | "notfound" }
   | { status: "ready"; lesson: Lesson };
+
+function useReadingPresenterRuntime(caseDoc: CaseDocument) {
+  const [controller] = useState(() => new PreviewController());
+  const [instances, setInstances] = useState<SimInstance[]>(() => caseDocumentToSimInstances(caseDoc));
+  const [instanceHealth, setInstanceHealth] = useState<Record<string, SimulationHealth>>({});
+  const physicsRefs = useRef<Map<string, PhysicsRefState>>(controller.refs);
+  const pendingSteadyTransitionIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    controller.onHealthChange = setInstanceHealth;
+    controller.start();
+    return () => {
+      controller.onHealthChange = undefined;
+      controller.stop();
+    };
+  }, [controller]);
+
+  useEffect(() => {
+    const steadyTransitionIds = [...pendingSteadyTransitionIdsRef.current];
+    pendingSteadyTransitionIdsRef.current.clear();
+    controller.setInstances(instances, steadyTransitionIds.length > 0 ? { steadyTransitionIds } : undefined);
+  }, [controller, instances]);
+
+  const updateWith = useCallback((project: (instance: SimInstance) => SimInstance, steadyTransitionIds: string[] = []) => {
+    setInstances((current) => {
+      const next = current.map(project);
+      steadyTransitionIds.forEach((id) => pendingSteadyTransitionIdsRef.current.add(id));
+      controller.setInstances(next, steadyTransitionIds.length > 0 ? { steadyTransitionIds } : undefined);
+      for (const id of steadyTransitionIds) {
+        const target = next.find((instance) => instance.id === id);
+        if (target) controller.requestNextSteady(target);
+      }
+      return next;
+    });
+  }, [controller]);
+
+  const updateInstanceParams = useCallback((id: string, params: Partial<SimulationParams>) => {
+    updateWith((instance) => {
+      if (instance.id !== id) return instance;
+      const next = resolveRawEdit({
+        params: instance.params,
+        knobs: instance.knobs,
+        knobBaseline: instance.knobBaseline,
+      }, params);
+      return { ...instance, ...next };
+    });
+  }, [updateWith]);
+
+  const updateInstanceKnobs = useCallback((id: string, knobs: ClinicalKnobs) => {
+    updateWith((instance) => {
+      if (instance.id !== id) return instance;
+      const next = resolveKnobEdit({
+        params: instance.params,
+        knobs: instance.knobs,
+        knobBaseline: instance.knobBaseline,
+      }, knobs);
+      return { ...instance, ...next };
+    }, [id]);
+  }, [updateWith]);
+
+  const updateInstanceVolume = useCallback((id: string, vol: number) => {
+    setInstances((current) => {
+      const next = current.map((instance) => (instance.id === id ? { ...instance, targetVolume: vol } : instance));
+      pendingSteadyTransitionIdsRef.current.add(id);
+      controller.setInstances(next, { steadyTransitionIds: [id] });
+      const target = next.find((instance) => instance.id === id);
+      if (target) controller.requestNextSteady(target);
+      return next;
+    });
+  }, [controller]);
+
+  return {
+    instances,
+    physicsRefs,
+    instanceHealth,
+    activeInstanceId: instances[0]?.id ?? "",
+    updateInstanceParams,
+    updateInstanceKnobs,
+    updateInstanceVolume,
+  };
+}
 
 const LessonNotFound = () => {
   const { t } = useTranslation();
@@ -106,8 +192,8 @@ export const LessonReadingRoute = () => {
 
   if (caseDoc && resolvedColumn && "column" in resolvedColumn && shouldUseReading(lesson, caseDoc)) {
     return (
-      <ReadingPresenter
-        key={lesson.meta.id}
+      <LessonReadingPresenter
+        key={`${lesson.meta.id}:${caseDoc.meta.id}`}
         lessonTitle={lesson.meta.title}
         lessonLevel={lesson.meta.level}
         objective={lesson.meta.objective}
@@ -119,4 +205,20 @@ export const LessonReadingRoute = () => {
   }
 
   return <LessonPlayer />;
+};
+
+const LessonReadingPresenter = (props: {
+  lessonTitle: string;
+  lessonLevel?: string;
+  objective?: string;
+  caseDoc: CaseDocument;
+  column: ReadingColumnEntry[];
+  fallbackLocale?: string;
+}) => {
+  const runtime = useReadingPresenterRuntime(props.caseDoc);
+  return (
+    <div className="workbench-root flex h-full min-h-0 w-full" data-workbench-theme="dark">
+      <ReadingPresenter {...props} runtime={runtime} />
+    </div>
+  );
 };

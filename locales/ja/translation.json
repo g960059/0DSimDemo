@@ -346,8 +346,12 @@
     },
     "header": {
       "editCopy": "コピーを編集",
+      "fork": "フォーク",
       "readOnlyBadge": "変更は保存されません",
       "resetToAuthorState": "作者の状態に戻す",
+      "read": "読む",
+      "explore": "探索",
+      "readExploreSwitcher": "読む／探索",
       "share": "共有",
       "saveCase": "ケースを保存",
       "untitledScene": "無題のケース",
