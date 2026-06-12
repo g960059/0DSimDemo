@@ -73,6 +73,12 @@ const SectionLabel = ({ children, changedCount = 0 }: { children: React.ReactNod
   </div>
 );
 
+const FlatSectionLabel = ({ children, isFirst }: { children: React.ReactNode; isFirst: boolean }) => (
+  <div className={`col-span-full pb-1 text-[11px] font-medium text-wb-subtle ${isFirst ? '' : 'pt-3'}`}>
+    {children}
+  </div>
+);
+
 const Subhead = ({ children }: { children: React.ReactNode }) => (
   <span className="col-span-full mt-2 block text-[11px] font-medium text-wb-muted first:mt-0">{children}</span>
 );
@@ -319,7 +325,7 @@ export const Controls: React.FC<ControlsProps> = ({
               {!flattenSingleClinicalGroup && <GroupHeader title={t('workbench.controls.groups.clinical')} isOpen={openGroups.clinical} toggle={() => toggleGroup('clinical')} tone="clinical" changedCount={changedClinicalCount} summary={changedClinicalSummary} onReset={resetClinicalKnobs} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} resetTitle={t('workbench.controls.resetClinicalBaseline')} />}
               {(flattenSingleClinicalGroup || openGroups.clinical) && (
                   <div className={flattenSingleClinicalGroup ? "mb-2" : clinicalBodyClass}>
-                      {clinicalSections.map(section => {
+                      {clinicalSections.map((section, sectionIndex) => {
                           const visibleControls = isReadingMode
                             ? section.controls
                                 .map(control => ({
@@ -335,7 +341,11 @@ export const Controls: React.FC<ControlsProps> = ({
                           return (
                             <React.Fragment key={section.title}>
                               <ControlGrid tone="clinical">
-                                <SectionLabel changedCount={sectionChangedCount}>{translatedControllerCategory(t, section.title)}</SectionLabel>
+                                {flattenSingleClinicalGroup ? (
+                                  <FlatSectionLabel isFirst={sectionIndex === 0}>{translatedControllerCategory(t, section.title)}</FlatSectionLabel>
+                                ) : (
+                                  <SectionLabel changedCount={sectionChangedCount}>{translatedControllerCategory(t, section.title)}</SectionLabel>
+                                )}
                                 {visibleControls.map(({ control, options }) => {
                                   const [min, max] = kr(control.key);
                                   return (

@@ -234,37 +234,39 @@ export function ScenarioPane({
                 </span>
               )}
               <SteadyStatusIndicator status={steadyUpdateStatuses[instance.id]} />
-              {!isEditing && toggleScenarioGlobalVisibility && (
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    toggleScenarioGlobalVisibility(instance.id);
-                  }}
-                  className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded transition-colors ${
-                    isHidden
-                      ? 'text-wb-subtle hover:bg-wb-hover hover:text-wb-muted'
-                      : 'text-wb-muted hover:bg-wb-hover hover:text-wb-text'
-                  }`}
-                  title={isHidden ? t('workbench.scenarioPane.showScenario') : t('workbench.scenarioPane.hideScenario')}
-                  aria-label={isHidden ? t('workbench.scenarioPane.showScenarioAria', { name: instance.name }) : t('workbench.scenarioPane.hideScenarioAria', { name: instance.name })}
-                  aria-pressed={!isHidden}
-                >
-                  {isHidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                </button>
-              )}
               {!isEditing && (
-                <button
-                  type="button"
-                  onClick={(event) => openMenuForButton(event, instance)}
-                  className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-wb-subtle transition-opacity hover:bg-wb-hover hover:text-wb-text ${
-                    isMenuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                  }`}
-                  title={t('workbench.scenarioPane.actions')}
-                  aria-label={t('workbench.scenarioPane.actionsAria', { name: instance.name })}
-                >
-                  <MoreVertical className="h-3.5 w-3.5" />
-                </button>
+                <div className="ml-auto flex shrink-0 items-center gap-1">
+                  {toggleScenarioGlobalVisibility && (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        toggleScenarioGlobalVisibility(instance.id);
+                      }}
+                      className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded transition-colors ${
+                        isHidden
+                          ? 'text-wb-subtle hover:bg-wb-hover hover:text-wb-muted'
+                          : 'text-wb-muted hover:bg-wb-hover hover:text-wb-text'
+                      }`}
+                      title={isHidden ? t('workbench.scenarioPane.showScenario') : t('workbench.scenarioPane.hideScenario')}
+                      aria-label={isHidden ? t('workbench.scenarioPane.showScenarioAria', { name: instance.name }) : t('workbench.scenarioPane.hideScenarioAria', { name: instance.name })}
+                      aria-pressed={!isHidden}
+                    >
+                      {isHidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={(event) => openMenuForButton(event, instance)}
+                    className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-wb-subtle transition-opacity hover:bg-wb-hover hover:text-wb-text ${
+                      isMenuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                    }`}
+                    title={t('workbench.scenarioPane.actions')}
+                    aria-label={t('workbench.scenarioPane.actionsAria', { name: instance.name })}
+                  >
+                    <MoreVertical className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               )}
               {isMenuOpen && typeof document !== 'undefined' && createPortal(
                 <>

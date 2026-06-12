@@ -325,6 +325,26 @@ body[data-workbench-theme="clinical"] {
   }
 }
 
+.workbench-metrics-tab .workbench-metrics-tab-menu-button {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.workbench-metrics-tab-active .workbench-metrics-tab-menu-button,
+.workbench-metrics-tab:hover .workbench-metrics-tab-menu-button,
+.workbench-metrics-tab-menu-button[aria-expanded="true"],
+.workbench-metrics-tab-menu-button:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (hover: none) {
+  .workbench-metrics-tab .workbench-metrics-tab-menu-button {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
 .workbench-dockview .dv-tab:focus::after,
 .workbench-dockview .dv-tab:focus-within::after {
   border-radius: 0;

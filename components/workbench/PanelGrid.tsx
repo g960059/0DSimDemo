@@ -2672,7 +2672,12 @@ export function PanelGrid({
 	                {fixedMetricsTabs.map((tab) => {
 	                  const isRenaming = renamingViewId === tab.id;
 	                  return (
-	                    <div key={tab.id} className="relative flex shrink-0 items-center">
+	                    <div
+                        key={tab.id}
+                        className={`workbench-metrics-tab relative flex shrink-0 items-center ${
+                          activeMetricsTab?.id === tab.id ? 'workbench-metrics-tab-active' : ''
+                        }`}
+                      >
 	                      {isRenaming ? (
 	                        <input
 	                          type="text"
@@ -2716,8 +2721,9 @@ export function PanelGrid({
                       <button
                         type="button"
                         onClick={() => setMetricsMenuViewId((current) => current === tab.id ? null : tab.id)}
-                        className="ml-0.5 inline-flex h-7 w-7 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text"
+                        className="workbench-metrics-tab-menu-button ml-0.5 inline-flex h-7 w-7 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text"
                         aria-label={t('workbench.viewManagement.metricsMenu')}
+                        aria-expanded={metricsMenuViewId === tab.id}
                       >
                         <MoreVertical className="h-3.5 w-3.5" />
                       </button>
