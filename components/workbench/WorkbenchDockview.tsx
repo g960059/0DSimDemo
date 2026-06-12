@@ -440,10 +440,11 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
       ) : (
         <span className="min-w-0 flex-1 truncate" onDoubleClick={beginRenamePanel}>{title}</span>
       )}
-      <div className="relative flex h-5 shrink-0 items-center justify-center gap-0.5">
+      <div className="workbench-dock-tab-actions relative flex h-5 shrink-0 items-center justify-center gap-0.5">
         {canClose && (
           <button
             type="button"
+            draggable={false}
             onClick={(event) => {
               event.stopPropagation();
               context?.requestClosePanel(props.params.panelId);
@@ -460,6 +461,7 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
           <>
             <button
               type="button"
+              draggable={false}
               onClick={(event) => {
                 event.stopPropagation();
                 const rect = event.currentTarget.getBoundingClientRect();
@@ -645,7 +647,7 @@ function WorkbenchDockHeaderLeftActions(props: IDockviewHeaderActionsProps) {
   if (!context || context.mode === 'learner') return null;
 
   return (
-    <div className="flex h-full items-center">
+    <div className="workbench-dock-header-actions flex h-full items-center">
       {context.onAddPanel && (
         <ZoneAddMenu
           zone={context.zone}
@@ -664,10 +666,11 @@ function WorkbenchDockHeaderRightActions(props: IDockviewHeaderActionsProps) {
   const canSplit = context.zone === 'main' && Boolean(activePanelId) && Boolean(activePanelId && context.panelsById.get(activePanelId));
 
   return (
-    <div className="flex h-full items-center">
+    <div className="workbench-dock-header-actions flex h-full items-center">
       {canSplit && activePanelId && (
         <button
           type="button"
+          draggable={false}
           onClick={() => context.requestSplitPanel(activePanelId, props.group.id, 'right')}
           className="inline-flex h-5 w-5 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent"
           aria-label={t('workbench.dockview.splitRight')}
@@ -753,6 +756,7 @@ export function WorkbenchDockview({
   const onViewStateChangeRef = useRef(onViewStateChange);
   const onGraphBoardLayoutChangeRef = useRef(onGraphBoardLayoutChange);
   const panelsRef = useRef(panels);
+  const dockviewRootRef = useRef<HTMLDivElement | null>(null);
   const structureSignature = useMemo(() => getDockviewStructureSignature(panels), [panels]);
   const lastStructureSignatureRef = useRef(structureSignature);
   const metadataSignature = useMemo(() => getDockviewMetadataSignature(panels), [panels]);
@@ -828,6 +832,24 @@ export function WorkbenchDockview({
     layoutSubscriptionRef.current?.dispose();
     if (pendingEmitRef.current !== null) window.clearTimeout(pendingEmitRef.current);
   }, []);
+
+  useEffect(() => {
+    const root = dockviewRootRef.current;
+    if (!root || typeof window === 'undefined') return;
+    const startDragging = () => root.classList.add('wb-tab-dragging');
+    const stopDragging = () => root.classList.remove('wb-tab-dragging');
+    root.addEventListener('dragstart', startDragging, true);
+    root.addEventListener('dragend', stopDragging, true);
+    window.addEventListener('dragend', stopDragging, true);
+    window.addEventListener('drop', stopDragging, true);
+    return () => {
+      root.removeEventListener('dragstart', startDragging, true);
+      root.removeEventListener('dragend', stopDragging, true);
+      window.removeEventListener('dragend', stopDragging, true);
+      window.removeEventListener('drop', stopDragging, true);
+      stopDragging();
+    };
+  }, [panels.length]);
 
   const scheduleViewStateEmit = (api: DockviewApi) => {
     if ((!onViewStateChangeRef.current && !onGraphBoardLayoutChangeRef.current) || suppressChangeRef.current) return;
@@ -919,7 +941,7 @@ export function WorkbenchDockview({
 
   if (panels.length === 0) {
     return (
-      <div className={`dockview-theme-dark h-full min-h-0 overflow-hidden ${className}`}>
+      <div ref={dockviewRootRef} className={`dockview-theme-dark h-full min-h-0 overflow-hidden ${className}`}>
         <EmptyDockview zone={zone} mode={mode} onAddPanel={onAddPanel} />
       </div>
     );
@@ -927,7 +949,7 @@ export function WorkbenchDockview({
 
   return (
     <WorkbenchDockviewContext.Provider value={contextValue}>
-      <div className={`dockview-theme-dark h-full min-h-0 overflow-hidden ${className}`}>
+      <div ref={dockviewRootRef} className={`dockview-theme-dark h-full min-h-0 overflow-hidden ${className}`}>
         <DockviewReact
           components={components}
           defaultTabComponent={WorkbenchDockTab}

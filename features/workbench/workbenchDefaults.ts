@@ -151,6 +151,7 @@ export const DEFAULT_WORKBENCH_LAYOUT: WorkbenchLayoutState = {
   scenarioListMaxRatio: 0.4,
   scenarioListHeightPx: undefined,
   metricsSpan: 'main',
+  metricsColumns: undefined,
 };
 
 export function layoutStateFromWorkspace(workspace?: WorkbenchWorkspace): WorkbenchLayoutState {
@@ -168,6 +169,7 @@ export function layoutStateFromWorkspace(workspace?: WorkbenchWorkspace): Workbe
     scenarioListMaxRatio: DEFAULT_WORKBENCH_LAYOUT.scenarioListMaxRatio,
     scenarioListHeightPx: DEFAULT_WORKBENCH_LAYOUT.scenarioListHeightPx,
     metricsSpan: DEFAULT_WORKBENCH_LAYOUT.metricsSpan,
+    metricsColumns: DEFAULT_WORKBENCH_LAYOUT.metricsColumns,
   };
 }
 

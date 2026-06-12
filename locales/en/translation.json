@@ -309,7 +309,9 @@
       "renamePrompt": "Rename view",
       "deleteConfirm": "Delete \"{{title}}\"?",
       "deleteReferencedConfirm": "Delete \"{{title}}\"? {{noteCount}} note reference(s) and {{readingCount}} reading reference(s) will become placeholders.",
-      "metricsMenu": "Metrics view menu"
+      "metricsMenu": "Metrics view menu",
+      "splitRight": "Split right",
+      "closeSplit": "Close split"
     },
     "viewEditor": {
       "controllerTitle": "Controller view",
@@ -493,6 +495,7 @@
         "resizeNoteDrawer": "Resize note drawer",
         "resizeRightRail": "Resize right rail",
         "resizeMetricsHost": "Resize metrics host",
+        "resizeMetricsSplit": "Resize metrics split",
         "resizeScenarioList": "Resize scenario list (double-click to reset)",
         "editingScenario": "Editing:",
         "rail": {

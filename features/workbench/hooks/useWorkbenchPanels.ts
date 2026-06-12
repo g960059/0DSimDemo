@@ -91,10 +91,10 @@ export function useWorkbenchPanels({
           };
         });
       }
-      const selectedControllerOnly = Object.entries(resolved).every(([key, value]) => (
-        key === "selectedControllerViewId" || value === prevLayout[key as keyof WorkbenchLayoutState]
+      const selectedLocalOnly = Object.entries(resolved).every(([key, value]) => (
+        key === "selectedControllerViewId" || key === "metricsColumns" || value === prevLayout[key as keyof WorkbenchLayoutState]
       ));
-      if (!selectedControllerOnly && headerMode !== "learner") markUserEdited();
+      if (!selectedLocalOnly && headerMode !== "learner") markUserEdited();
       return resolved;
     });
   }, [headerMode, markUserEdited]);

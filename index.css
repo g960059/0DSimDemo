@@ -363,6 +363,15 @@ body[data-workbench-theme="light"] {
   pointer-events: auto;
 }
 
+.workbench-dockview.wb-tab-dragging .workbench-dock-tab-actions,
+.workbench-dockview.wb-tab-dragging .workbench-dock-header-actions,
+.workbench-dockview.wb-tab-dragging .workbench-dock-tab-menu-button,
+.workbench-dockview.wb-tab-dragging .workbench-dock-tab-close-button {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 @media (hover: none) {
   .workbench-dockview .workbench-dock-tab-menu-button,
   .workbench-dockview .workbench-dock-tab-close-button {

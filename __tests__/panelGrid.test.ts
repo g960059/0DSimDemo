@@ -472,9 +472,12 @@ describe("PanelGrid Dockview layout", () => {
     expect(dockviewSource).toContain("workbench-dock-tab-close-button inline-flex h-5 w-5");
     expect(dockviewSource).toContain("workbench.panelGrid.closePanelAria");
     expect(dockviewSource).toContain("event.stopPropagation();");
+    expect(dockviewSource).toContain("draggable={false}");
+    expect(dockviewSource).toContain("wb-tab-dragging");
     expect(css).toContain(".workbench-dock-tab-menu-button");
     expect(css).toContain(".workbench-dock-tab-close-button");
     expect(css).toContain(".workbench-dock-tab:hover .workbench-dock-tab-menu-button");
+    expect(css).toContain(".workbench-dockview.wb-tab-dragging .workbench-dock-tab-actions");
     expect(css).toContain("@media (hover: none)");
     expect(css).toContain(".dv-tab.dv-active-tab .workbench-dock-tab-menu-button");
   });
@@ -506,7 +509,9 @@ describe("PanelGrid Dockview layout", () => {
     const panelGridSource = readFileSync(resolve(process.cwd(), "components/workbench/PanelGrid.tsx"), "utf8");
 
     expect(panelGridSource).toContain("wb-tabstrip shrink-0 gap-1 overflow-x-auto px-2 custom-scrollbar");
-    expect(panelGridSource).toContain("wb-tab inline-flex h-full shrink-0 items-center px-2.5");
+    expect(panelGridSource).toContain("workbench-metrics-tab wb-tab relative flex h-full shrink-0 items-center");
+    expect(panelGridSource).toContain("workbench-metrics-tab-menu-button mr-0.5 inline-flex h-6 w-6");
+    expect(panelGridSource).toContain("workbench-popover-menu fixed z-[90] w-44");
     expect(css).toContain(".wb-tabstrip");
     expect(css).toContain("height: 32px;");
     expect(css).toContain("box-shadow: inset 0 -1px 0 var(--wb-border);");
@@ -775,6 +780,17 @@ describe("PanelGrid Dockview layout", () => {
     expect(html.match(/role=\"separator\"/g)?.length ?? 0).toBeGreaterThanOrEqual(4);
     expect(html).toContain("tabindex=\"0\"");
     expect(html).toContain("aria-valuenow=\"400\"");
+  });
+
+  it("renders a local metrics split with its own keyboard-addressable sash", () => {
+    const html = renderPanelGrid("sandbox", [pvLoopPanel, metricsPanel], [normalInstance, copiedInstance], [], {}, false, {
+      metricsOpen: true,
+      metricsColumns: { secondViewId: "metrics-2", ratio: 0.6 },
+    });
+
+    expect(html).toContain("aria-label=\"Resize metrics split\"");
+    expect(html).toContain("aria-valuenow=\"60\"");
+    expect(html.match(/wb-tabstrip/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
   });
 
   it("keeps scenario deletion available only when a second scenario exists", () => {
