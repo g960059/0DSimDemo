@@ -54,8 +54,8 @@ export function ScenarioPresetMenu({
             onClick={() => onSelect(preset.id)}
             className="workbench-popover-menu-item block w-full px-3 py-2 text-left"
           >
-            <span className="block truncate text-xs font-semibold text-slate-200">{preset.label}</span>
-            <span className="block truncate text-[10px] text-slate-500">{preset.detail}</span>
+            <span className="block truncate text-xs font-semibold text-wb-text">{preset.label}</span>
+            <span className="block truncate text-[10px] text-wb-subtle">{preset.detail}</span>
           </button>
         ))}
       </div>
@@ -70,7 +70,7 @@ function SteadyStatusIndicator({ status }: { status?: SteadyUpdateStatus }) {
   if (status === 'computing') {
     return (
       <span
-        className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-sky-300"
+        className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-wb-accent"
         title={t('workbench.scenarioPane.steadyComputing')}
         aria-label={t('workbench.scenarioPane.steadyComputing')}
         role="status"
@@ -175,7 +175,7 @@ export function ScenarioPane({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[#0B1120]">
+    <div className="flex h-full min-h-0 flex-col bg-wb-aux">
       <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-2 custom-scrollbar">
         {instances.map((instance) => {
           const isEditing = instance.id === editingId;
@@ -187,10 +187,10 @@ export function ScenarioPane({
               key={instance.id}
               className={`group relative flex min-h-8 items-center gap-2 rounded-sm px-2 text-xs transition-colors ${
                 isActive
-                  ? 'bg-sky-500/10 text-sky-100'
+                  ? 'bg-wb-active text-wb-text'
                   : isMenuOpen
-                    ? 'text-slate-200'
-                    : 'text-slate-400 hover:bg-slate-900/60 hover:text-slate-200'
+                    ? 'text-wb-text'
+                    : 'text-wb-muted hover:bg-wb-hover hover:text-wb-text'
               }`}
               onClick={() => setActiveInstanceId?.(instance.id)}
               onContextMenu={(event) => openMenuAtCursor(event, instance)}
@@ -224,13 +224,13 @@ export function ScenarioPane({
                     if (event.key === 'Enter') commitRename(instance);
                     if (event.key === 'Escape') cancelRename();
                   }}
-                  className="h-6 min-w-0 flex-1 rounded border border-blue-400/60 bg-blue-950/40 px-1.5 text-xs font-semibold text-slate-100 outline-none"
+                  className="h-6 min-w-0 flex-1 rounded border border-wb-accent bg-wb-input px-1.5 text-xs font-semibold text-wb-text outline-none"
                   placeholder={t('workbench.scenarioPane.scenarioName')}
                 />
               ) : (
                 <span className="min-w-0 flex-1 truncate font-medium">
                   {instance.name}
-                  {isActive && isHidden && <span className="ml-1 text-[10px] font-bold text-slate-500">{t('workbench.scenarioPane.hiddenHint')}</span>}
+                  {isActive && isHidden && <span className="ml-1 text-[10px] font-bold text-wb-subtle">{t('workbench.scenarioPane.hiddenHint')}</span>}
                 </span>
               )}
               <SteadyStatusIndicator status={steadyUpdateStatuses[instance.id]} />
@@ -243,8 +243,8 @@ export function ScenarioPane({
                   }}
                   className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded transition-colors ${
                     isHidden
-                      ? 'text-slate-600 hover:bg-slate-800 hover:text-slate-300'
-                      : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                      ? 'text-wb-subtle hover:bg-wb-hover hover:text-wb-muted'
+                      : 'text-wb-muted hover:bg-wb-hover hover:text-wb-text'
                   }`}
                   title={isHidden ? t('workbench.scenarioPane.showScenario') : t('workbench.scenarioPane.hideScenario')}
                   aria-label={isHidden ? t('workbench.scenarioPane.showScenarioAria', { name: instance.name }) : t('workbench.scenarioPane.hideScenarioAria', { name: instance.name })}
@@ -257,7 +257,7 @@ export function ScenarioPane({
                 <button
                   type="button"
                   onClick={(event) => openMenuForButton(event, instance)}
-                  className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-slate-500 transition-opacity hover:bg-slate-800 hover:text-slate-100 ${
+                  className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-wb-subtle transition-opacity hover:bg-wb-hover hover:text-wb-text ${
                     isMenuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                   }`}
                   title={t('workbench.scenarioPane.actions')}

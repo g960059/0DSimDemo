@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+/*
+ * Workbench design tokens — the single source of visual truth.
+ * Components consume these ONLY through the bg-wb-* / text-wb-* / border-wb-*
+ * utilities defined in the @theme block below; raw slate-* literals are
+ * reserved for non-workbench surfaces. Adding a theme (e.g. light) means
+ * remapping this block, nothing else.
+ *
+ * Surface model (3 levels):
+ *   surface-0 = app background + graph interiors   (--wb-app-bg)
+ *   surface-1 = chrome: rail, metrics host, strips  (--wb-zone-aux-bg)
+ *   surface-2 = floating: popover, modal, dropdown  (--wb-panel-bg)
+ * One hairline (--wb-border), one hover (--wb-hover-bg), one selection
+ * treatment (--wb-active-bg), one primary action (--wb-primary).
+ */
 .workbench-root,
 body[data-workbench-theme] {
   --wb-app-bg: #08111f;
@@ -12,6 +26,9 @@ body[data-workbench-theme] {
   --wb-tab-active-bg: var(--wb-zone-aux-bg);
   --wb-tab-inactive-bg: rgba(15, 23, 42, 0.44);
   --wb-tab-hover-bg: rgba(30, 41, 59, 0.72);
+  --wb-hover-bg: rgba(30, 41, 59, 0.55);
+  --wb-active-bg: rgba(56, 189, 248, 0.14);
+  --wb-input-bg: rgba(30, 41, 59, 0.42);
   --wb-border: rgba(51, 65, 85, 0.56);
   --wb-border-strong: rgba(100, 116, 139, 0.62);
   --wb-text: #e2e8f0;
@@ -19,9 +36,33 @@ body[data-workbench-theme] {
   --wb-text-subtle: #64748b;
   --wb-accent: #38bdf8;
   --wb-accent-soft: rgba(56, 189, 248, 0.16);
+  --wb-primary: #2563eb;
+  --wb-primary-hover: #3b82f6;
+  --wb-danger: #f87171;
   --wb-sash: #08111f;
   background: var(--wb-app-bg);
   color: var(--wb-text);
+}
+
+@theme inline {
+  --color-wb-app: var(--wb-app-bg);
+  --color-wb-aux: var(--wb-zone-aux-bg);
+  --color-wb-panel: var(--wb-panel-bg);
+  --color-wb-soft: var(--wb-panel-bg-soft);
+  --color-wb-strip: var(--wb-tab-strip-bg);
+  --color-wb-hover: var(--wb-hover-bg);
+  --color-wb-active: var(--wb-active-bg);
+  --color-wb-input: var(--wb-input-bg);
+  --color-wb-line: var(--wb-border);
+  --color-wb-line-strong: var(--wb-border-strong);
+  --color-wb-text: var(--wb-text);
+  --color-wb-muted: var(--wb-text-muted);
+  --color-wb-subtle: var(--wb-text-subtle);
+  --color-wb-accent: var(--wb-accent);
+  --color-wb-accent-soft: var(--wb-accent-soft);
+  --color-wb-primary: var(--wb-primary);
+  --color-wb-primary-hover: var(--wb-primary-hover);
+  --color-wb-danger: var(--wb-danger);
 }
 
 .workbench-root[data-workbench-theme="graphite"],
@@ -36,6 +77,9 @@ body[data-workbench-theme="graphite"] {
   --wb-tab-active-bg: #191d21;
   --wb-tab-inactive-bg: rgba(32, 37, 42, 0.78);
   --wb-tab-hover-bg: #252b30;
+  --wb-hover-bg: rgba(37, 43, 48, 0.78);
+  --wb-active-bg: rgba(20, 184, 166, 0.14);
+  --wb-input-bg: rgba(32, 37, 42, 0.6);
   --wb-border: rgba(91, 103, 112, 0.52);
   --wb-border-strong: rgba(129, 145, 155, 0.68);
   --wb-text: #e6edf0;
@@ -43,6 +87,8 @@ body[data-workbench-theme="graphite"] {
   --wb-text-subtle: #7b878e;
   --wb-accent: #14b8a6;
   --wb-accent-soft: rgba(20, 184, 166, 0.16);
+  --wb-primary: #0d9488;
+  --wb-primary-hover: #14b8a6;
   --wb-sash: #111315;
 }
 
@@ -58,6 +104,9 @@ body[data-workbench-theme="clinical"] {
   --wb-tab-active-bg: #0b1d1b;
   --wb-tab-inactive-bg: rgba(16, 40, 35, 0.74);
   --wb-tab-hover-bg: #16352f;
+  --wb-hover-bg: rgba(22, 53, 47, 0.72);
+  --wb-active-bg: rgba(34, 197, 94, 0.13);
+  --wb-input-bg: rgba(16, 40, 35, 0.55);
   --wb-border: rgba(71, 114, 105, 0.48);
   --wb-border-strong: rgba(110, 154, 145, 0.66);
   --wb-text: #e4f2ef;
@@ -65,6 +114,8 @@ body[data-workbench-theme="clinical"] {
   --wb-text-subtle: #6f8d86;
   --wb-accent: #22c55e;
   --wb-accent-soft: rgba(34, 197, 94, 0.14);
+  --wb-primary: #16a34a;
+  --wb-primary-hover: #22c55e;
   --wb-sash: #071312;
 }
 
@@ -109,15 +160,11 @@ body[data-workbench-theme="clinical"] {
 }
 
 .workbench-zone-main {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--wb-panel-bg-soft) 34%, transparent), transparent 56%),
-    var(--wb-zone-main-bg);
+  background: var(--wb-zone-main-bg);
 }
 
 .workbench-zone-aux {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--wb-panel-bg-soft) 60%, transparent), color-mix(in srgb, var(--wb-zone-aux-bg) 88%, transparent)),
-    var(--wb-zone-aux-bg);
+  background: var(--wb-zone-aux-bg);
   border-color: var(--wb-border);
 }
 
