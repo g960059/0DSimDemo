@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeControllerItems } from "@/controllerItems";
+import { groupControllerItemsByCategory, normalizeControllerItems } from "@/controllerItems";
 import { mergePanelControllerItems } from "@/WorkbenchPage";
 import { readingToStudioZones } from "@/readingConversion";
 import type { ControllerItem, PanelDef } from "@/types";
@@ -130,6 +130,60 @@ describe("normalizeControllerItems", () => {
     expect(items[0].kind).toBe("slider");
     expect(items[0].options).toBeUndefined();
     expect(warnings.join("\n")).toContain("fewer than 2");
+  });
+});
+
+describe("groupControllerItemsByCategory", () => {
+  it("keeps small curated views as one flat group even with multiple categories", () => {
+    const items: ControllerItem[] = [
+      { paramKey: "contractility", kind: "slider" },
+      { paramKey: "HR", kind: "slider" },
+      { paramKey: "aorticStenosis", kind: "slider" },
+    ];
+
+    expect(groupControllerItemsByCategory(items)).toEqual([
+      { category: "Cardiac Function", items },
+    ]);
+  });
+
+  it("keeps long single-category views as one flat group", () => {
+    const items: ControllerItem[] = [
+      { paramKey: "contractility", kind: "slider" },
+      { paramKey: "contractilityRV", kind: "slider" },
+      { paramKey: "relaxation", kind: "slider" },
+      { paramKey: "diastolicStiffness", kind: "slider" },
+      { paramKey: "contractility", kind: "buttonGroup" },
+      { paramKey: "relaxation", kind: "buttonGroup" },
+      { paramKey: "diastolicStiffness", kind: "buttonGroup" },
+    ];
+
+    expect(groupControllerItemsByCategory(items)).toEqual([
+      { category: "Cardiac Function", items },
+    ]);
+  });
+
+  it("groups consecutive items for long multi-category views using clinical, raw, then other categories", () => {
+    const items: ControllerItem[] = [
+      { paramKey: "contractility", kind: "slider" },
+      { paramKey: "contractilityRV", kind: "slider" },
+      { paramKey: "HR", kind: "slider" },
+      { paramKey: "afterload", kind: "slider" },
+      { paramKey: "lvGeomScale", kind: "slider" },
+      { paramKey: "aorticStenosis", kind: "slider" },
+      { paramKey: "unknownParameter", kind: "slider" },
+      { paramKey: "relaxation", kind: "slider" },
+    ];
+
+    const groups = groupControllerItemsByCategory(items);
+
+    expect(groups.map((group) => [group.category, group.items.map((item) => item.paramKey)])).toEqual([
+      ["Cardiac Function", ["contractility", "contractilityRV"]],
+      ["Load & Rate", ["HR", "afterload"]],
+      ["geometry", ["lvGeomScale"]],
+      ["Valve Lesions", ["aorticStenosis"]],
+      ["other", ["unknownParameter"]],
+      ["Cardiac Function", ["relaxation"]],
+    ]);
   });
 });
 

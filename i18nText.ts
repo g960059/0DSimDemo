@@ -30,6 +30,7 @@ const CONTROLLER_CATEGORY_KEY: Record<string, string> = {
   "Cardiac Function": "workbench.controls.categories.cardiacFunction",
   "Load & Rate": "workbench.controls.categories.loadRate",
   "Valve Lesions": "workbench.controls.categories.valveLesions",
+  other: "workbench.controls.categories.other",
 };
 
 const OPTION_LABEL_KEY: Record<string, string> = {

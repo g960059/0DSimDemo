@@ -6,7 +6,7 @@ import type { SimulationHealth } from '../engine/protocol';
 import { type ClinicalKnobs, KNOB_RANGES, neutralKnobs } from '../engine/knobs';
 import { rawDisplayParams } from '../engine/instanceKnobs';
 import { CONTROLLER_CATALOG, CONTROLLER_CATALOG_SECTIONS } from '../controllerCatalog';
-import { buttonOptionsFromRange, normalizeControllerItems } from '../controllerItems';
+import { buttonOptionsFromRange, groupControllerItemsByCategory, normalizeControllerItems } from '../controllerItems';
 import { defaultControllerItemFor, readingButtonOptionsFor } from '../knobMetadata';
 import { rawParamCatalogEntry } from '../rawParameterCatalog';
 import { HealthDot } from './HealthIndicators';
@@ -265,34 +265,41 @@ export const Controls: React.FC<ControlsProps> = ({
 
   const authoredControls = hasAuthored ? (
     <div className="grid gap-1.5">
-      {authored.map((item) => {
-        const key = item.paramKey as NumericKnobKey;
-        const meta = catalogByKey.get(key);
-        const rawMeta = rawParamCatalogEntry(item.paramKey);
-        const isClinical = meta != null;
-        const rawValue = rawView[item.paramKey as keyof SimulationParams];
-        const value = isClinical
-          ? knobs[key]
-          : (typeof rawValue === 'number' ? rawValue : item.min ?? rawMeta?.min ?? 0);
-        const baseline = isClinical ? baselineKnobs[key] : undefined;
-        const readingOptions = item.kind === 'buttonGroup' && item.options
-          ? translatedControllerOptions(t, item.options)
-          : translatedControllerOptions(t, controllerOptionsWithLabelKeys(item, readingButtonOptionsFor(item.paramKey, baseline ?? value) ?? buttonOptionsFromRange(item), baseline ?? value));
-        const displayItem: ControllerItem = isReadingMode
-          ? { ...item, kind: 'buttonGroup', label: translatedControllerItemLabel(t, item, meta?.label ?? rawMeta?.label ?? item.paramKey), options: readingOptions }
-          : { ...item, label: translatedControllerItemLabel(t, item, meta?.label ?? rawMeta?.label ?? item.paramKey), ...(item.options ? { options: translatedControllerOptions(t, item.options) } : {}) };
-        return (
-          <ControllerItemControl
-            key={item.paramKey}
-            item={displayItem}
-            value={value}
-            baseline={baseline}
-            onChange={(v) => isClinical ? updateKnob(key, v) : update(item.paramKey as keyof SimulationParams, v)}
-            onReset={isClinical ? () => updateKnob(key, baselineKnobs[key]) : undefined}
-            unit={meta?.unit ?? rawMeta?.unit}
-          />
-        );
-      })}
+      {groupControllerItemsByCategory(authored).map((group, groupIndex, groups) => (
+        <React.Fragment key={`${group.category}-${group.items[0]?.paramKey ?? groupIndex}`}>
+          {groups.length > 1 && (
+            <FlatSectionLabel isFirst={groupIndex === 0}>{translatedControllerCategory(t, group.category)}</FlatSectionLabel>
+          )}
+          {group.items.map((item) => {
+            const key = item.paramKey as NumericKnobKey;
+            const meta = catalogByKey.get(key);
+            const rawMeta = rawParamCatalogEntry(item.paramKey);
+            const isClinical = meta != null;
+            const rawValue = rawView[item.paramKey as keyof SimulationParams];
+            const value = isClinical
+              ? knobs[key]
+              : (typeof rawValue === 'number' ? rawValue : item.min ?? rawMeta?.min ?? 0);
+            const baseline = isClinical ? baselineKnobs[key] : undefined;
+            const readingOptions = item.kind === 'buttonGroup' && item.options
+              ? translatedControllerOptions(t, item.options)
+              : translatedControllerOptions(t, controllerOptionsWithLabelKeys(item, readingButtonOptionsFor(item.paramKey, baseline ?? value) ?? buttonOptionsFromRange(item), baseline ?? value));
+            const displayItem: ControllerItem = isReadingMode
+              ? { ...item, kind: 'buttonGroup', label: translatedControllerItemLabel(t, item, meta?.label ?? rawMeta?.label ?? item.paramKey), options: readingOptions }
+              : { ...item, label: translatedControllerItemLabel(t, item, meta?.label ?? rawMeta?.label ?? item.paramKey), ...(item.options ? { options: translatedControllerOptions(t, item.options) } : {}) };
+            return (
+              <ControllerItemControl
+                key={item.paramKey}
+                item={displayItem}
+                value={value}
+                baseline={baseline}
+                onChange={(v) => isClinical ? updateKnob(key, v) : update(item.paramKey as keyof SimulationParams, v)}
+                onReset={isClinical ? () => updateKnob(key, baselineKnobs[key]) : undefined}
+                unit={meta?.unit ?? rawMeta?.unit}
+              />
+            );
+          })}
+        </React.Fragment>
+      ))}
     </div>
   ) : null;
 

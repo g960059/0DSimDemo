@@ -126,7 +126,8 @@
       "categories": {
         "cardiacFunction": "心機能",
         "loadRate": "負荷と拍動",
-        "valveLesions": "弁病変"
+        "valveLesions": "弁病変",
+        "other": "その他"
       },
       "rawCategories": {
         "electricalTiming": "電気/タイミング",

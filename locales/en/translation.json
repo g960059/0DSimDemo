@@ -126,7 +126,8 @@
       "categories": {
         "cardiacFunction": "Cardiac Function",
         "loadRate": "Load & Rate",
-        "valveLesions": "Valve Lesions"
+        "valveLesions": "Valve Lesions",
+        "other": "Other"
       },
       "rawCategories": {
         "electricalTiming": "Electrical/Timing",

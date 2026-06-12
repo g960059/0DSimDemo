@@ -6,6 +6,12 @@ import type { ControllerItem } from "./types";
 
 const VALID_KINDS = new Set<ControllerItem["kind"]>(["slider", "buttonGroup", "knob", "custom"]);
 const catalogByKey = new Map<string, (typeof CONTROLLER_CATALOG)[number]>(CONTROLLER_CATALOG.map((entry) => [entry.key, entry]));
+const AUTHORED_CATEGORY_LABEL_MIN_ITEMS = 7;
+
+export type ControllerItemGroup = {
+  category: string;
+  items: ControllerItem[];
+};
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -35,6 +41,35 @@ function catalogDefaultsFor(paramKey: string): { label: string; rangeMin: number
     rangeMax: raw.max,
     step: raw.step,
   };
+}
+
+export function controllerItemCategory(item: Pick<ControllerItem, "paramKey">): string {
+  return catalogByKey.get(item.paramKey)?.category
+    ?? rawParamCatalogEntry(item.paramKey)?.category
+    ?? "other";
+}
+
+export function groupControllerItemsByCategory(items: ControllerItem[]): ControllerItemGroup[] {
+  if (items.length === 0) return [];
+
+  const categories = items.map(controllerItemCategory);
+  const shouldGroup = items.length >= AUTHORED_CATEGORY_LABEL_MIN_ITEMS && new Set(categories).size > 1;
+  if (!shouldGroup) {
+    return [{ category: categories[0] ?? "other", items: [...items] }];
+  }
+
+  const groups: ControllerItemGroup[] = [];
+  for (let index = 0; index < items.length; index += 1) {
+    const item = items[index];
+    const category = categories[index] ?? "other";
+    const currentGroup = groups[groups.length - 1];
+    if (currentGroup?.category === category) {
+      currentGroup.items.push(item);
+    } else {
+      groups.push({ category, items: [item] });
+    }
+  }
+  return groups;
 }
 
 function stepFor(paramKey: string): number {
