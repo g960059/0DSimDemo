@@ -333,7 +333,9 @@ npm run preview
 | `npm run dev` | Vite 開発サーバーを起動 |
 | `npm run build` | TypeScript check と production build |
 | `npm run preview` | production build をローカルで確認 |
-| `npm run test` | Firestore emulator test を除く Vitest suite を実行 |
+| `npm run test` | PR CI と同じ fast Vitest suite を実行（Firestore emulator と opt-in heavy verification tests は除外） |
+| `npm run test:all` | opt-in heavy verification tests を含む full Vitest suite を実行 |
+| `npm run test:heavy` | opt-in heavy cases を有効にして Guyton/Starling と low-preload verification files を実行 |
 | `npm run test:rules` | Firestore rules emulator test を実行 |
 | `npm run test:watch` | watch mode で Vitest を実行 |
 | `npm run verify:baseline` | baseline verification script を実行 |
@@ -412,6 +414,7 @@ npm run test
 
 - 何の生理学的問題を直すのか
 - どの文献・実測・ベンチマークに基づくのか
+- Guyton/Starling や low-preload 挙動に触れる変更では、`npm run test:heavy` または `npm run test:all` を実行したかどうか
 - どの波形・PV ループ・metric が改善するのか
 - どのケースが影響を受けるのか
 - baseline freeze を更新する必要があるのか
