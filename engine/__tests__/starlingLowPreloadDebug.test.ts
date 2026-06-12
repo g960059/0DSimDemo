@@ -404,7 +404,22 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrix.scenarios.some((scenario) => scenario.aovB === 0.00001 && scenario.aovAmax === 1.5)).toBe(true);
     expect(matrix.summary.maxQAoCapRatioMax).toEqual(expect.any(Number));
     expect(matrix.summary.maxAoVPeakGradient).toEqual(expect.any(Number));
+    expect(matrix.summary.maxAoVFlowWeightedOrificeGradient).toEqual(expect.any(Number));
+    const defaultValveScenario = matrix.scenarios.find((scenario) =>
+      scenario.aorticFlowClampMode === "hard"
+      && scenario.aovB === DEFAULT_PARAMS.AoV_B
+      && scenario.aovAmax === DEFAULT_PARAMS.AoV_Amax
+    );
+    const asValveScenario = matrix.scenarios.find((scenario) =>
+      scenario.aorticFlowClampMode === "hard"
+      && scenario.aovB === DEFAULT_PARAMS.AoV_B
+      && scenario.aovAmax === 1.5
+    );
+    const defaultOrifice = defaultValveScenario?.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVFlowWeightedOrificeGradient ?? Number.NaN;
+    const asOrifice = asValveScenario?.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVFlowWeightedOrificeGradient ?? Number.NaN;
+    expect(asOrifice).toBeGreaterThan(defaultOrifice);
     expect(matrixReportToMarkdown(matrix)).toContain("AoV_B / AS sanity");
+    expect(matrixReportToMarkdown(matrix)).toContain("AoV gradient decomposition");
   });
 
   it("can skip return-map diagnostics while preserving branch amplitude fields", () => {
@@ -570,7 +585,7 @@ describe("low-preload Starling debug diagnostics", () => {
     ]);
     const report = runLowPreloadMatrix(opts);
 
-    expect(report.schemaVersion).toBe(14);
+    expect(report.schemaVersion).toBe(15);
     expect(report.heartModels).toEqual(["activeStress"]);
     expect(report.aorticFlowClampModes).toEqual(["hard"]);
     expect(report.aovBValues).toEqual([DEFAULT_PARAMS.AoV_B]);
@@ -595,6 +610,10 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.summary.maxWaveformGateDeltaMetric).toEqual(expect.any(String));
     expect(report.summary.maxAoVMeanGradient).toEqual(expect.any(Number));
     expect(report.summary.maxAoVPeakGradient).toEqual(expect.any(Number));
+    expect(report.summary.maxAoVFlowWeightedTotalGradient).toEqual(expect.any(Number));
+    expect(report.summary.maxAoVFlowWeightedOrificeGradient).toEqual(expect.any(Number));
+    expect(report.summary.maxAoVFlowWeightedBernoulliGradient).toEqual(expect.any(Number));
+    expect(report.summary.maxAoVFlowWeightedInertialGradient).toEqual(expect.any(Number));
     expect(report.summary.maxSanitizeAbsMl).toEqual(expect.any(Number));
     expect(report.summary.maxProjectionAppliedMl).toEqual(expect.any(Number));
     expect(report.summary.maxMeanCOLErrorFractionVsBaseline).toEqual(expect.any(Number));
@@ -663,6 +682,9 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToMarkdown(report)).toContain("LA/MV filling regime diagnostics");
     expect(matrixReportToMarkdown(report)).toContain("MV reopen count");
     expect(matrixReportToMarkdown(report)).toContain("Normal / HR100 waveform gates");
+    expect(matrixReportToMarkdown(report)).toContain("AoV gradient decomposition");
+    expect(matrixReportToMarkdown(report)).toContain("orifice mean");
+    expect(matrixReportToMarkdown(report)).toContain("Bq2 mean");
     expect(matrixReportToMarkdown(report)).toContain("AoV_B / AS sanity");
     expect(matrixReportToMarkdown(report)).toContain("TBV / Clamp Audit");
     expect(matrixReportToMarkdown(report)).toContain("dip/re-rise");
@@ -693,6 +715,8 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToCsv(report)).toContain("returnMapEvidenceLevel");
     expect(matrixReportToCsv(report)).toContain("AoV_B");
     expect(matrixReportToCsv(report)).toContain("normalAoVPeakGradient");
+    expect(matrixReportToCsv(report)).toContain("normalAoVFlowWeightedOrificeGradient");
+    expect(matrixReportToCsv(report)).toContain("normalAoVFlowWeightedInertialGradient");
   });
 
   heavyIt("supports branch-only matrix runs without selected return-map points", () => {
