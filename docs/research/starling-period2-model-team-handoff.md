@@ -237,3 +237,17 @@ Do not adopt `lambdaAct` or the low-stretch limiter arms as defaults in this PR.
 - low-preload period-2 branch amplitude and clamp activity decrease
 - low-preload period-mean CO/SV and curve shape are preserved; branch suppression by flattening the whole limb is not acceptable
 - signed return-map slopes move away from the flip threshold where the dynamics are smooth enough to interpret
+
+## PR #127: beat-pair overlay divergence summary
+
+PR #127 is diagnostic-only. It adds a structured summary for the existing beat-pair overlay so model reviewers do not need to manually inspect the raw phase-aligned CSV for every representative run.
+
+New output when `--beat-pair-overlay` is enabled:
+
+- `beat-pair-overlay.csv`: unchanged raw phase-aligned rows.
+- `beat-pair-overlay-summary.csv`: high-output minus low-output summary rows.
+- `report.md`: compact `Beat-pair overlay divergence summary` section.
+
+The summary labels the last two complete beats as high-output / low-output by `CO_L`, then computes normalized high-minus-low differences for `LV.c`, `LV.a`, `sigmaActTarget`, `sigmaAct`, `QAo`, `AoV open`, `AoP`, `VLV`, `QMV`, `MV open`, and `LAP-LVP`. It reports the first sustained divergence phase and the phase window (`early filling`, `diastasis / mid-diastole`, `atrial systole`, `isovolumic contraction`, `ejection`, `relaxation`) where that divergence appears.
+
+Use this as a trigger-order aid, not a causality proof. The intended question is whether active/ejection signals diverge before MV/filling morphology, or whether filling morphology leads the alternans. Current representative interpretation remains that MV morphology is less likely to be the initiating trigger, while the active-stress/ejection loop remains the stronger driver/amplifier hypothesis.
