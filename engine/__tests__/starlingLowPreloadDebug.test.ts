@@ -3,6 +3,7 @@ import { DEFAULT_PARAMS } from "@/constants";
 import { ModelCore } from "@/engine/ModelCore";
 import {
   parseLowPreloadDebugArgs,
+  reportToBeatPairOverlayCsv,
   runLowPreloadDebug,
   selectSuspiciousPointIndices,
   reportToCsv,
@@ -89,7 +90,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(Object.keys(diagnostics.tbvProjectionLastStep.byNodeAbsMl).length).toBeGreaterThan(0);
   });
 
-  it("builds a schema-v13 low-preload report with active, valve, clamp, TBV audit, return-map, filling morphology, and tau/dt fields", () => {
+  it("builds a schema-v14 low-preload report with active, valve, clamp, TBV audit, return-map, filling morphology, and tau/dt fields", () => {
     const report = runLowPreloadDebug({
       outDir: "unused",
       targetVolumeMl: 5600,
@@ -103,9 +104,10 @@ describe("low-preload Starling debug diagnostics", () => {
       quietClampLog: true,
     });
 
-    expect(report.schemaVersion).toBe(13);
+    expect(report.schemaVersion).toBe(14);
     expect(report.heartModel).toBe("activeStress");
     expect(report.returnMapMode).toBe("both");
+    expect(report.beatPairOverlay).toBe(false);
     expect(report.tbvCorrectionMode).toBe("on");
     expect(report.lambdaActScope).toBe("all");
     expect(report.lambdaActTerms).toBe("kd+fiso");
@@ -173,6 +175,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(md).toContain("two-beat EDV slope");
     expect(md).toContain("one-beat ESV slope");
     expect(md).toContain("MV/LA filling diagnostics");
+    expect(md).toContain("beat-pair overlay");
     expect(md).toContain("MV mid mL");
     expect(md).toContain("morphology");
     expect(md).toContain("MV A mL");
@@ -202,6 +205,48 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(csv).toContain("LA_A_loop_fraction");
     expect(csv).toContain("atrialSystoleMVOpenFraction");
     expect(csv).toContain("tbvAuditClass");
+  });
+
+  it("can emit phase-aligned last-two-beat overlay rows for active/ejection versus MV event timing", () => {
+    const report = runLowPreloadDebug({
+      outDir: "unused",
+      targetVolumeMl: 5600,
+      deltasMl: [-1300],
+      dtValues: [0.002],
+      lambdaActTauSecValues: [0],
+      lambdaActScope: "all",
+      traceBeats: 4,
+      sampleHz: 40,
+      returnMapMode: "none",
+      beatPairOverlay: true,
+      quietClampLog: true,
+    });
+
+    expect(report.schemaVersion).toBe(14);
+    expect(report.beatPairOverlay).toBe(true);
+    const overlay = report.points[0].beatPairOverlay;
+    expect(overlay).toBeDefined();
+    expect(overlay?.beats).toHaveLength(2);
+    expect(overlay?.rows.length).toBeGreaterThan(0);
+    const row = overlay?.rows[0];
+    expect(row?.pairBeat).toMatch(/previous|last/);
+    expect(row?.QMV).toEqual(expect.any(Number));
+    expect(row?.xiMV).toEqual(expect.any(Number));
+    expect(row?.LAP_minus_LVP).toEqual(expect.any(Number));
+    expect(row?.VLV).toEqual(expect.any(Number));
+    expect(row?.LV_c).toEqual(expect.any(Number));
+    expect(row?.LV_a).toEqual(expect.any(Number));
+    expect(row?.LV_sigmaActTarget).toEqual(expect.any(Number));
+    expect(row?.LV_sigmaAct).toEqual(expect.any(Number));
+    expect(row?.QAo).toEqual(expect.any(Number));
+    expect(row?.xiAoV).toEqual(expect.any(Number));
+    expect(row?.AoP_minus_LVP).toEqual(expect.any(Number));
+
+    const csv = reportToBeatPairOverlayCsv(report);
+    expect(csv).toContain("pairBeat");
+    expect(csv).toContain("LAP_minus_LVP");
+    expect(csv).toContain("LV_sigmaActTarget");
+    expect(csv).toContain("AoP_minus_LVP");
   });
 
   it("can run the off-by-default lambdaAct tau experiment without changing runtime defaults", () => {
@@ -236,6 +281,7 @@ describe("low-preload Starling debug diagnostics", () => {
       "--active-reserve-preset=thresholdMild",
       "--return-map-deltas=-1250,-1400",
       "--tbv-correction=off",
+      "--beat-pair-overlay",
     ]);
 
     expect(opts.returnMapMode).toBe("none");
@@ -248,6 +294,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(opts.activeReservePreset).toBe("thresholdMild");
     expect(opts.returnMapDeltasMl).toEqual([-1250, -1400]);
     expect(opts.tbvCorrectionMode).toBe("off");
+    expect(opts.beatPairOverlay).toBe(true);
   });
 
   it("supports TBV correction off and low audit modes", () => {
