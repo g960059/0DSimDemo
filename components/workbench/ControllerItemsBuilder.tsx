@@ -1,10 +1,12 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
-import { CONTROLLER_CATALOG_SECTIONS } from "../../controllerCatalog";
+import { ArrowDown, ArrowUp, Check, ChevronDown, Plus, Search, X } from "lucide-react";
+import { CONTROLLER_CATALOG, CONTROLLER_CATALOG_SECTIONS, type ControllerCatalogEntry } from "../../controllerCatalog";
 import { buttonOptionsFromRange, normalizeControllerItems } from "../../controllerItems";
 import { KNOB_RANGES, neutralKnobs, type KnobKey } from "../../engine/knobs";
+import { rawDisplayParams } from "../../engine/instanceKnobs";
 import { defaultControllerItemFor, readingButtonOptionsFor, roundToStep } from "../../knobMetadata";
+import { RAW_PARAM_CATALOG_SECTIONS, rawParamCatalogEntry, type RawParamEntry } from "../../rawParameterCatalog";
 import type { ControllerItem, PanelDef, SimInstance } from "../../types";
 import { ControllerItemControl } from "../controls/ControllerItemControl";
 import { controllerOptionsWithLabelKeys, translatedControllerCategory, translatedControllerItemLabel, translatedControllerOptions, translatedKnobLabel } from "../../i18nText";
@@ -17,6 +19,10 @@ type ControllerItemsBuilderProps = {
   updatePanelControllerItems?: (panelId: string, items: ControllerItem[]) => void;
   onItemsChange?: (items: ControllerItem[]) => void;
 };
+
+type CatalogEntry = ControllerCatalogEntry | RawParamEntry;
+
+const clinicalCatalogByKey = new Map<string, ControllerCatalogEntry>(CONTROLLER_CATALOG.map((entry) => [entry.key, entry]));
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -39,7 +45,20 @@ function targetInstance(panel: PanelDef | undefined, instances: SimInstance[], a
 function baselineFor(panel: PanelDef | undefined, instances: SimInstance[], activeInstanceId?: string): Record<string, number> {
   const inst = targetInstance(panel, instances, activeInstanceId);
   if (!inst) return {};
-  return neutralKnobs(inst.knobBaseline ?? inst.params) as unknown as Record<string, number>;
+  const raw = rawDisplayParams({ params: inst.params, knobs: inst.knobs, knobBaseline: inst.knobBaseline }) as unknown as Record<string, number>;
+  const clinical = neutralKnobs(inst.knobBaseline ?? inst.params) as unknown as Record<string, number>;
+  return { ...raw, ...clinical };
+}
+
+function catalogMetaFor(paramKey: string): { label: string; min: number; max: number; step: number; unit?: string } {
+  const clinical = clinicalCatalogByKey.get(paramKey);
+  if (clinical) {
+    const range = KNOB_RANGES[paramKey as KnobKey] ?? [0, 1];
+    return { label: clinical.label, min: range[0], max: range[1], step: clinical.step, ...(clinical.unit ? { unit: clinical.unit } : {}) };
+  }
+  const raw = rawParamCatalogEntry(paramKey);
+  if (raw) return { label: raw.label, min: raw.min, max: raw.max, step: raw.step, ...(raw.unit ? { unit: raw.unit } : {}) };
+  return { label: paramKey, min: 0, max: 1, step: 0.01 };
 }
 
 function seedButtonOptions(item: ControllerItem, baseline: number): { label: string; value: number }[] {
@@ -47,10 +66,15 @@ function seedButtonOptions(item: ControllerItem, baseline: number): { label: str
 }
 
 function normalizedPreviewValue(item: ControllerItem, baseline: number | undefined): number {
-  const min = item.min ?? KNOB_RANGES[item.paramKey as KnobKey]?.[0] ?? 0;
-  const max = item.max ?? KNOB_RANGES[item.paramKey as KnobKey]?.[1] ?? 1;
-  const step = item.step ?? 0.01;
+  const meta = catalogMetaFor(item.paramKey);
+  const min = item.min ?? meta.min;
+  const max = item.max ?? meta.max;
+  const step = item.step ?? meta.step;
   return roundToStep(clamp(Number.isFinite(baseline) ? baseline as number : (min + max) / 2, min, max), step);
+}
+
+function entrySearchText(entry: CatalogEntry, translatedLabel: string): string {
+  return `${entry.key} ${entry.label} ${translatedLabel} ${entry.unit ?? ""}`.toLowerCase();
 }
 
 export function ControllerItemsBuilder({
@@ -69,9 +93,29 @@ export function ControllerItemsBuilder({
   const items = normalized.items;
   const [editWarnings, setEditWarnings] = useState<string[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [search, setSearch] = useState("");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const warnings = editWarnings.length > 0 ? editWarnings : normalized.warnings;
   const baselines = useMemo(() => baselineFor(panel, instances, activeInstanceId), [activeInstanceId, instances, panel]);
   const usedKeys = new Set(items.map((item) => item.paramKey));
+  const query = search.trim().toLowerCase();
+
+  const clinicalEntries = useMemo(() => {
+    return CONTROLLER_CATALOG_SECTIONS.flatMap((section) => section.controls).filter((entry) => {
+      const label = translatedKnobLabel(t, entry.key, entry.label);
+      return !query || entrySearchText(entry, label).includes(query);
+    });
+  }, [query, t]);
+
+  const rawSections = useMemo(() => {
+    return RAW_PARAM_CATALOG_SECTIONS.map((section) => ({
+      ...section,
+      controls: section.controls.filter((entry) => {
+        const label = translatedKnobLabel(t, entry.key, entry.label);
+        return !query || entrySearchText(entry, label).includes(query);
+      }),
+    })).filter((section) => section.controls.length > 0);
+  }, [query, t]);
 
   const commit = (nextItems: ControllerItem[]) => {
     const next = normalizeControllerItems(nextItems);
@@ -126,6 +170,16 @@ export function ControllerItemsBuilder({
     });
   };
 
+  const commitRangeDraft = (itemIndex: number, key: string, field: "min" | "max" | "step", value: string) => {
+    clearDraft(key);
+    const item = items[itemIndex];
+    const meta = catalogMetaFor(item.paramKey);
+    const fallback = item[field] ?? meta[field];
+    const parsed = Number(value);
+    const nextValue = value.trim() !== "" && Number.isFinite(parsed) && (field !== "step" || parsed > 0) ? parsed : fallback;
+    updateItem(itemIndex, { [field]: nextValue });
+  };
+
   const commitOptionLabelDraft = (itemIndex: number, optionIndex: number, key: string, value: string) => {
     clearDraft(key);
     const option = items[itemIndex]?.options?.[optionIndex];
@@ -142,178 +196,257 @@ export function ControllerItemsBuilder({
     updateOption(itemIndex, optionIndex, { value: value.trim() !== "" && Number.isFinite(parsed) ? parsed : previousValue });
   };
 
-  return (
-    <div className="space-y-3">
-      <div className="rounded bg-slate-950/20 px-2 py-2 text-[11px] font-medium text-slate-400">
-        {t("workbench.controllerBuilder.description")}
-      </div>
+  const addEntry = (entry: CatalogEntry) => {
+    const nextItem = defaultControllerItemFor(entry.key);
+    commit([...items, { ...nextItem, labelKey: entry.key }]);
+    setExpanded((current) => ({ ...current, [entry.key]: false }));
+  };
 
-      <div className="divide-y divide-slate-800/70 rounded bg-slate-950/20">
-        {CONTROLLER_CATALOG_SECTIONS.map((section) => (
-          <div key={section.title} className="px-2 py-2">
-            <div className="mb-1.5 text-[10px] font-bold uppercase text-slate-500">{translatedControllerCategory(t, section.title)}</div>
-            <div className="grid gap-1.5 sm:grid-cols-2">
-              {section.controls.map((entry) => {
-                const added = usedKeys.has(entry.key);
+  const renderCatalogButton = (entry: CatalogEntry) => {
+    const added = usedKeys.has(entry.key);
+    return (
+      <button
+        key={entry.key}
+        type="button"
+        disabled={added}
+        onClick={() => addEntry(entry)}
+        className={`group/entry flex min-h-7 w-full items-center gap-2 rounded px-2 text-left text-xs transition-colors ${
+          added
+            ? "cursor-default text-slate-600"
+            : "text-slate-300 hover:bg-slate-800/50 hover:text-slate-100"
+        }`}
+      >
+        <span className="min-w-0 flex-1 truncate font-medium">
+          {translatedKnobLabel(t, entry.key, entry.label)}
+          {entry.unit && <span className="ml-1 text-[11px] text-slate-500">{entry.unit}</span>}
+        </span>
+        <span className="shrink-0 font-mono text-[10px] text-slate-600">{entry.key}</span>
+        {added
+          ? <Check className="h-3 w-3 shrink-0 text-slate-600" />
+          : <Plus className="h-3.5 w-3.5 shrink-0 text-slate-500 opacity-0 transition-opacity group-hover/entry:opacity-100" />}
+      </button>
+    );
+  };
+
+  return (
+    <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-2">
+      <div className="grid min-h-0 grid-cols-1 gap-0 overflow-hidden lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+        <div className="min-h-0 overflow-y-auto pr-4 custom-scrollbar">
+          <div className="mb-2 flex h-9 items-center gap-2 border-b border-slate-800 px-1">
+            <Search className="h-3.5 w-3.5 text-slate-500" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={t("workbench.controllerBuilder.searchControls")}
+              className="min-w-0 flex-1 bg-transparent text-xs font-medium text-slate-200 outline-none placeholder:text-slate-600"
+            />
+          </div>
+          <div className="space-y-1">
+            <details open className="group">
+              <summary className="flex cursor-pointer select-none items-center gap-1.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 transition-colors hover:text-slate-400 [&::-webkit-details-marker]:hidden">
+                <ChevronDown className="h-3 w-3 shrink-0 transition-transform group-open:rotate-0 -rotate-90" />
+                {t("workbench.controllerBuilder.clinicalKnobs")}
+              </summary>
+              <div className="grid pb-1 sm:grid-cols-2">
+                {clinicalEntries.map(renderCatalogButton)}
+              </div>
+            </details>
+            {rawSections.map((section) => (
+              <details key={section.title} open={query.length > 0 ? true : undefined} className="group">
+                <summary className="flex cursor-pointer select-none items-center gap-1.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 transition-colors hover:text-slate-400 [&::-webkit-details-marker]:hidden">
+                  <ChevronDown className="h-3 w-3 shrink-0 transition-transform group-open:rotate-0 -rotate-90" />
+                  {translatedControllerCategory(t, section.title)}
+                </summary>
+                <div className="grid pb-1 sm:grid-cols-2">
+                  {section.controls.map(renderCatalogButton)}
+                </div>
+              </details>
+            ))}
+          </div>
+        </div>
+
+        <div className="min-h-0 overflow-y-auto pl-4 lg:border-l lg:border-slate-800/60 custom-scrollbar">
+          <div className="mb-1 flex h-9 items-center text-[10px] font-bold uppercase tracking-wider text-slate-500">{t("workbench.controllerBuilder.selectedControls")}</div>
+          {items.length === 0 ? (
+            <div className="px-1 py-3 text-xs text-slate-500">
+              {t("workbench.controllerBuilder.addFromLeft")}
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-800/50">
+              {items.map((item, index) => {
+                const meta = catalogMetaFor(item.paramKey);
+                const baseline = normalizedPreviewValue(item, baselines[item.paramKey]);
+                const isButton = item.kind === "buttonGroup";
+                const optionWarning = isButton && distinctOptionValues(item) < 2;
+                const isExpanded = expanded[item.paramKey] ?? false;
+                const itemLabelDraftKey = `${item.paramKey}:label`;
                 return (
-                  <button
-                    key={entry.key}
-                    type="button"
-                    disabled={added}
-                    onClick={() => {
-                      const nextItem = defaultControllerItemFor(entry.key);
-                      commit([...items, { ...nextItem, labelKey: entry.key }]);
-                    }}
-                    className={`flex min-h-8 items-center justify-between gap-2 rounded border px-2 text-left text-xs font-semibold transition-colors ${
-                      added
-                        ? "border-slate-800/70 bg-slate-900/25 text-slate-600"
-                        : "border-slate-700/70 bg-slate-950/45 text-slate-300 hover:border-slate-500 hover:text-slate-100"
-                    }`}
-                  >
-                    <span className="min-w-0 truncate">{translatedKnobLabel(t, entry.key, entry.label)}</span>
-                    <Plus className="h-3.5 w-3.5 shrink-0" />
-                  </button>
+                  <div key={item.paramKey} className="py-1.5">
+                    <div className="group/row grid min-h-8 grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-1">
+                      <input
+                        type="text"
+                        value={drafts[itemLabelDraftKey] ?? item.label ?? ""}
+                        onChange={(event) => setDraft(itemLabelDraftKey, event.target.value)}
+                        onBlur={(event) => commitItemLabelDraft(index, itemLabelDraftKey, event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            event.currentTarget.blur();
+                          }
+                        }}
+                        className="h-8 min-w-0 rounded bg-transparent px-1.5 text-xs font-semibold text-slate-100 outline-none transition-colors hover:bg-slate-800/40 focus:bg-slate-900 focus:ring-1 focus:ring-slate-600"
+                        aria-label={`${item.paramKey} label`}
+                      />
+                      <div className="flex shrink-0 rounded bg-slate-900/70 p-0.5" aria-label={t("workbench.controllerBuilder.controlType")}>
+                        {(["slider", "buttonGroup"] as const).map((kind) => (
+                          <button
+                            key={kind}
+                            type="button"
+                            onClick={() => updateItem(index, {
+                              kind,
+                              ...(kind === "buttonGroup" ? { options: controllerOptionsWithLabelKeys(item, seedButtonOptions(item, baseline), baseline) } : { options: undefined }),
+                            })}
+                            className={`h-6 rounded px-2 text-[10px] font-bold transition-colors ${item.kind === kind ? "bg-sky-500/20 text-sky-100" : "text-slate-500 hover:text-slate-300"}`}
+                          >
+                            {kind === "slider" ? t("workbench.controllerBuilder.slider") : t("workbench.controllerBuilder.button")}
+                          </button>
+                        ))}
+                      </div>
+                      <button type="button" onClick={() => setExpanded((current) => ({ ...current, [item.paramKey]: !isExpanded }))} className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-200" aria-label={isExpanded ? t("workbench.controllerBuilder.collapse") : t("workbench.controllerBuilder.expand")}>
+                        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                      </button>
+                      <div className="flex shrink-0 items-center opacity-60 transition-opacity group-hover/row:opacity-100">
+                        <button type="button" onClick={() => moveItem(index, -1)} disabled={index === 0} className="inline-flex h-7 w-6 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-200 disabled:opacity-25" aria-label={t("workbench.viewEditor.moveUp")}>
+                          <ArrowUp className="h-3.5 w-3.5" />
+                        </button>
+                        <button type="button" onClick={() => moveItem(index, 1)} disabled={index === items.length - 1} className="inline-flex h-7 w-6 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-200 disabled:opacity-25" aria-label={t("workbench.viewEditor.moveDown")}>
+                          <ArrowDown className="h-3.5 w-3.5" />
+                        </button>
+                        <button type="button" onClick={() => removeItem(index)} className="inline-flex h-7 w-6 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-red-300" aria-label={t("workbench.controllerBuilder.removeControl")}>
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="mt-1.5 space-y-3 pl-1.5">
+                        <div>
+                          <div className="mb-1.5 flex items-center justify-between gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{t("workbench.controllerBuilder.advancedRange")}</span>
+                            <span className="text-[10px] text-slate-600">{t("workbench.controllerBuilder.engineRange", { min: meta.min, max: meta.max })}</span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            {(["min", "max", "step"] as const).map((field) => {
+                              const draftKey = `${item.paramKey}:range:${field}`;
+                              return (
+                                <label key={field} className="grid gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                                  {t(`workbench.controllerBuilder.${field}`)}
+                                  <input
+                                    type="number"
+                                    value={drafts[draftKey] ?? String(item[field] ?? meta[field])}
+                                    min={field === "step" ? undefined : meta.min}
+                                    max={field === "step" ? undefined : meta.max}
+                                    step={field === "step" ? "any" : item.step}
+                                    onChange={(event) => setDraft(draftKey, event.target.value)}
+                                    onBlur={(event) => commitRangeDraft(index, draftKey, field, event.target.value)}
+                                    onKeyDown={(event) => {
+                                      if (event.key === "Enter") {
+                                        event.preventDefault();
+                                        event.currentTarget.blur();
+                                      }
+                                    }}
+                                    className="h-7 min-w-0 rounded bg-slate-800/40 px-2 text-[11px] font-semibold normal-case text-slate-200 outline-none transition-colors focus:bg-slate-900 focus:ring-1 focus:ring-slate-600"
+                                  />
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {isButton && (
+                          <div className="space-y-1.5">
+                            {(item.options ?? []).map((option, optionIndex) => {
+                              const optionLabelDraftKey = `${item.paramKey}:option:${optionIndex}:label`;
+                              const optionValueDraftKey = `${item.paramKey}:option:${optionIndex}:value`;
+                              return (
+                                <div key={`${option.label}-${optionIndex}`} className="grid grid-cols-[minmax(0,1fr)_5.5rem_auto] items-center gap-1.5">
+                                  <input
+                                    type="text"
+                                    value={drafts[optionLabelDraftKey] ?? option.label}
+                                    onChange={(event) => setDraft(optionLabelDraftKey, event.target.value)}
+                                    onBlur={(event) => commitOptionLabelDraft(index, optionIndex, optionLabelDraftKey, event.target.value)}
+                                    onKeyDown={(event) => {
+                                      if (event.key === "Enter") {
+                                        event.preventDefault();
+                                        event.currentTarget.blur();
+                                      }
+                                    }}
+                                    className="h-7 min-w-0 rounded bg-slate-800/40 px-2 text-[11px] font-semibold text-slate-200 outline-none transition-colors focus:bg-slate-900 focus:ring-1 focus:ring-slate-600"
+                                    aria-label={`${item.label} option label`}
+                                  />
+                                  <input
+                                    type="number"
+                                    value={drafts[optionValueDraftKey] ?? String(option.value)}
+                                    min={meta.min}
+                                    max={meta.max}
+                                    step={item.step}
+                                    onChange={(event) => setDraft(optionValueDraftKey, event.target.value)}
+                                    onBlur={(event) => commitOptionValueDraft(index, optionIndex, optionValueDraftKey, event.target.value)}
+                                    onKeyDown={(event) => {
+                                      if (event.key === "Enter") {
+                                        event.preventDefault();
+                                        event.currentTarget.blur();
+                                      }
+                                    }}
+                                    className="h-7 min-w-0 rounded bg-slate-800/40 px-2 text-[11px] font-semibold text-slate-200 outline-none transition-colors focus:bg-slate-900 focus:ring-1 focus:ring-slate-600"
+                                    aria-label={`${item.label} option value`}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => updateItem(index, { options: (item.options ?? []).filter((_option, optionItemIndex) => optionItemIndex !== optionIndex) })}
+                                    className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-red-300"
+                                    aria-label={`Remove ${option.label}`}
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                            <button
+                              type="button"
+                              disabled={(item.options?.length ?? 0) >= 3}
+                              onClick={() => updateItem(index, { options: [...(item.options ?? []), { label: t("workbench.controllerBuilder.optionNumber", { number: (item.options?.length ?? 0) + 1 }), value: baseline }] })}
+                              className="h-7 rounded bg-slate-800/50 px-2.5 text-[11px] font-bold text-slate-300 transition-colors hover:bg-slate-800 hover:text-slate-100 disabled:opacity-30"
+                            >
+                              {t("workbench.controllerBuilder.addOption")}
+                            </button>
+                            {optionWarning && <div className="text-[10px] font-semibold text-amber-200">{t("workbench.controllerBuilder.needsDistinctValues")}</div>}
+                          </div>
+                        )}
+
+                        <div>
+                          <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">{t("workbench.controllerBuilder.preview")}</div>
+                          <ControllerItemControl
+                            item={{
+                              ...item,
+                              label: translatedControllerItemLabel(t, item, meta.label),
+                              ...(item.options ? { options: translatedControllerOptions(t, item.options) } : {}),
+                            }}
+                            value={baseline}
+                            baseline={baseline}
+                            onChange={() => {}}
+                            unit={meta.unit}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
-          </div>
-        ))}
+          )}
+        </div>
       </div>
-
-      {items.length === 0 ? (
-        <div className="rounded bg-slate-950/20 px-2 py-3 text-xs font-medium text-slate-500">
-          {t("workbench.controllerBuilder.empty")}
-        </div>
-      ) : (
-        <div className="divide-y divide-slate-800/70 rounded bg-slate-950/20">
-          {items.map((item, index) => {
-            const range = KNOB_RANGES[item.paramKey as KnobKey] ?? [item.min ?? 0, item.max ?? 1];
-            const baseline = normalizedPreviewValue(item, baselines[item.paramKey]);
-            const isButton = item.kind === "buttonGroup";
-            const optionWarning = isButton && distinctOptionValues(item) < 2;
-            const itemLabelDraftKey = `${item.paramKey}:label`;
-            return (
-              <div key={item.paramKey} className="space-y-2 px-2 py-2">
-                <div className="flex items-center gap-1.5">
-                  <input
-                    type="text"
-                    value={drafts[itemLabelDraftKey] ?? item.label ?? ""}
-                    onChange={(event) => setDraft(itemLabelDraftKey, event.target.value)}
-                    onBlur={(event) => commitItemLabelDraft(index, itemLabelDraftKey, event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        event.currentTarget.blur();
-                      }
-                    }}
-                    className="h-8 min-w-0 flex-1 rounded border border-slate-700/70 bg-slate-950/70 px-2 text-xs font-bold text-slate-100 outline-none focus:border-slate-500"
-                    aria-label={`${item.paramKey} label`}
-                  />
-                  <div className="flex shrink-0 rounded border border-slate-700 bg-slate-900 p-0.5">
-                    {(["slider", "buttonGroup"] as const).map((kind) => (
-                      <button
-                        key={kind}
-                        type="button"
-                        onClick={() => updateItem(index, {
-                          kind,
-                          ...(kind === "buttonGroup" ? { options: controllerOptionsWithLabelKeys(item, seedButtonOptions(item, baseline), baseline) } : { options: undefined }),
-                        })}
-                        className={`h-6 rounded px-2 text-[10px] font-bold transition-colors ${item.kind === kind ? "bg-sky-500/20 text-sky-100" : "text-slate-500 hover:text-slate-300"}`}
-                      >
-                        {kind === "slider" ? t("workbench.controllerBuilder.slider") : t("workbench.controllerBuilder.button")}
-                      </button>
-                    ))}
-                  </div>
-                  <button type="button" onClick={() => moveItem(index, -1)} disabled={index === 0} className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-200 disabled:opacity-30" aria-label={`Move ${item.label} up`}>
-                    <ArrowUp className="h-3.5 w-3.5" />
-                  </button>
-                  <button type="button" onClick={() => moveItem(index, 1)} disabled={index === items.length - 1} className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-200 disabled:opacity-30" aria-label={`Move ${item.label} down`}>
-                    <ArrowDown className="h-3.5 w-3.5" />
-                  </button>
-                  <button type="button" onClick={() => removeItem(index)} className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-red-300" aria-label={`Remove ${item.label}`}>
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-
-                {isButton && (
-                  <div className="space-y-1">
-                    {(item.options ?? []).map((option, optionIndex) => {
-                      const optionLabelDraftKey = `${item.paramKey}:option:${optionIndex}:label`;
-                      const optionValueDraftKey = `${item.paramKey}:option:${optionIndex}:value`;
-                      return (
-                        <div key={`${option.label}-${optionIndex}`} className="grid grid-cols-[minmax(0,1fr)_5.5rem_auto] items-center gap-1.5">
-                          <input
-                            type="text"
-                            value={drafts[optionLabelDraftKey] ?? option.label}
-                            onChange={(event) => setDraft(optionLabelDraftKey, event.target.value)}
-                            onBlur={(event) => commitOptionLabelDraft(index, optionIndex, optionLabelDraftKey, event.target.value)}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter") {
-                                event.preventDefault();
-                                event.currentTarget.blur();
-                              }
-                            }}
-                            className="h-7 min-w-0 rounded border border-slate-800 bg-slate-950/70 px-2 text-[11px] font-semibold text-slate-200 outline-none focus:border-slate-500"
-                            aria-label={`${item.label} option label`}
-                          />
-                          <input
-                            type="number"
-                            value={drafts[optionValueDraftKey] ?? String(option.value)}
-                            min={range[0]}
-                            max={range[1]}
-                            step={item.step}
-                            onChange={(event) => setDraft(optionValueDraftKey, event.target.value)}
-                            onBlur={(event) => commitOptionValueDraft(index, optionIndex, optionValueDraftKey, event.target.value)}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter") {
-                                event.preventDefault();
-                                event.currentTarget.blur();
-                              }
-                            }}
-                            className="h-7 min-w-0 rounded border border-slate-800 bg-slate-950/70 px-2 text-[11px] font-semibold text-slate-200 outline-none focus:border-slate-500"
-                            aria-label={`${item.label} option value`}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => updateItem(index, { options: (item.options ?? []).filter((_option, optionItemIndex) => optionItemIndex !== optionIndex) })}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-red-300"
-                            aria-label={`Remove ${option.label}`}
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      );
-                    })}
-                    <button
-                      type="button"
-                      disabled={(item.options?.length ?? 0) >= 3}
-                      onClick={() => updateItem(index, { options: [...(item.options ?? []), { label: `Option ${(item.options?.length ?? 0) + 1}`, value: baseline }] })}
-                      className="h-7 rounded border border-slate-700/70 px-2 text-[11px] font-bold text-slate-300 transition-colors hover:border-slate-500 hover:text-slate-100 disabled:opacity-30"
-                    >
-                      {t("workbench.controllerBuilder.addOption")}
-                    </button>
-                    {optionWarning && <div className="text-[10px] font-semibold text-amber-200">{t("workbench.controllerBuilder.needsDistinctValues")}</div>}
-                  </div>
-                )}
-
-                <div className="rounded border border-slate-800/70 bg-slate-950/35 p-2">
-                  <div className="mb-1 text-[10px] font-semibold uppercase text-slate-500">{t("workbench.panelGrid.preview")}</div>
-                  <ControllerItemControl
-                    item={{
-                      ...item,
-                      label: translatedControllerItemLabel(t, item),
-                      ...(item.options ? { options: translatedControllerOptions(t, item.options) } : {}),
-                    }}
-                    value={baseline}
-                    baseline={baseline}
-                    onChange={() => {}}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
 
       {warnings.length > 0 && (
         <div className="space-y-1 rounded bg-amber-500/10 px-2 py-2 text-[10px] font-semibold text-amber-100">

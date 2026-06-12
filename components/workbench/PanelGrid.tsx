@@ -51,7 +51,7 @@ import {
 } from '../../features/workbench/authoredViews';
 import { hasViewRefUsage, viewRefUsageForDeletion } from '../../features/workbench/noteViewRefs';
 import type { ControllerViewSpec, GraphBoardLayout, MetricsViewSpec } from '../../features/workbench/viewSpec';
-import { Activity, Brush, ChevronDown, ChevronRight, Copy, Eye, EyeOff, FileText, Layers, MoreVertical, Pencil, Plus, Search, Settings, SlidersHorizontal, Tags, Trash2, Type as TypeIcon, X } from 'lucide-react';
+import { Activity, Brush, Check, ChevronDown, ChevronRight, Copy, Eye, EyeOff, FileText, Layers, MoreVertical, Pencil, Plus, Search, Settings, SlidersHorizontal, Tags, Trash2, Type as TypeIcon, X } from 'lucide-react';
 
 export type PanelGridMode = 'learner' | 'author' | 'sandbox';
 export type WorkbenchControlsSide = 'left' | 'right';
@@ -1477,40 +1477,41 @@ function ViewSpecEditorModal({
           </div>
         </div>
         <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-3 overflow-hidden p-3">
-          <label className="grid gap-1 text-[11px] font-bold uppercase text-slate-500">
+          <label className="grid gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
             {t('workbench.viewEditor.name')}
             <input
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              className="h-9 rounded border border-slate-700 bg-slate-950 px-2 text-sm font-semibold normal-case text-slate-100 outline-none focus:border-slate-500"
+              className="h-9 rounded bg-slate-800/40 px-2.5 text-sm font-semibold normal-case text-slate-100 outline-none transition-colors focus:bg-slate-900 focus:ring-1 focus:ring-slate-600"
             />
           </label>
           {kind === 'controller' ? (
-            <div className="min-h-0 overflow-y-auto custom-scrollbar">
-              <ControllerItemsBuilder
-                items={items}
-                instances={instances}
-                activeInstanceId={activeInstanceId}
-                onItemsChange={setItems}
-              />
-            </div>
+            <ControllerItemsBuilder
+              items={items}
+              instances={instances}
+              activeInstanceId={activeInstanceId}
+              onItemsChange={setItems}
+            />
           ) : (
-            <div className="grid min-h-0 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-              <div className="min-h-0 overflow-y-auto rounded border border-slate-800/70 bg-slate-950/20 p-2 custom-scrollbar">
-                <div className="mb-2 flex h-8 items-center gap-2 rounded border border-slate-800 bg-slate-950/70 px-2">
+            <div className="grid min-h-0 grid-cols-1 gap-0 overflow-hidden lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+              <div className="min-h-0 overflow-y-auto pr-4 custom-scrollbar">
+                <div className="mb-2 flex h-9 items-center gap-2 border-b border-slate-800 px-1">
                   <Search className="h-3.5 w-3.5 text-slate-500" />
                   <input
                     value={metricSearch}
                     onChange={(event) => setMetricSearch(event.target.value)}
                     placeholder={t('workbench.viewEditor.searchMetrics')}
-                    className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-slate-200 outline-none placeholder:text-slate-600"
+                    className="min-w-0 flex-1 bg-transparent text-xs font-medium text-slate-200 outline-none placeholder:text-slate-600"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1">
                   {metricSections.map(([category, categoryMetrics]) => (
-                    <details key={category} open className="rounded border border-slate-800/70 bg-slate-950/20">
-                      <summary className="cursor-pointer px-2 py-1.5 text-[10px] font-bold uppercase text-slate-500">{signalCategoryLabel(t, category as SignalCategory)}</summary>
-                      <div className="grid gap-1.5 px-2 pb-2 sm:grid-cols-2">
+                    <details key={category} open className="group">
+                      <summary className="flex cursor-pointer select-none items-center gap-1.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 transition-colors hover:text-slate-400 [&::-webkit-details-marker]:hidden">
+                        <ChevronDown className="h-3 w-3 shrink-0 transition-transform group-open:rotate-0 -rotate-90" />
+                        {signalCategoryLabel(t, category as SignalCategory)}
+                      </summary>
+                      <div className="grid pb-1 sm:grid-cols-2">
                         {categoryMetrics.map((metric) => {
                           const selected = selectedMetrics.includes(metric);
                           return (
@@ -1518,14 +1519,17 @@ function ViewSpecEditorModal({
                               key={metric}
                               type="button"
                               onClick={() => toggleMetric(metric)}
-                              className={`flex min-h-8 items-center justify-between gap-2 rounded border px-2 text-left text-xs font-semibold transition-colors ${
+                              className={`group/entry flex min-h-7 w-full items-center gap-2 rounded px-2 text-left text-xs transition-colors ${
                                 selected
-                                  ? 'border-sky-400/45 bg-sky-500/15 text-sky-100'
-                                  : 'border-slate-700/70 bg-slate-950/45 text-slate-300 hover:border-slate-500 hover:text-slate-100'
+                                  ? 'text-sky-200'
+                                  : 'text-slate-300 hover:bg-slate-800/50 hover:text-slate-100'
                               }`}
                             >
-                              <span className="min-w-0 truncate">{signalMetadata(metric).label}</span>
-                              <span className="shrink-0 font-mono text-[10px] text-slate-500">{metric}</span>
+                              <span className="min-w-0 flex-1 truncate font-medium">{signalMetadata(metric).label}</span>
+                              <span className="shrink-0 font-mono text-[10px] text-slate-600">{metric}</span>
+                              {selected
+                                ? <Check className="h-3 w-3 shrink-0 text-sky-300" />
+                                : <Plus className="h-3.5 w-3.5 shrink-0 text-slate-500 opacity-0 transition-opacity group-hover/entry:opacity-100" />}
                             </button>
                           );
                         })}
@@ -1534,24 +1538,26 @@ function ViewSpecEditorModal({
                   ))}
                 </div>
               </div>
-              <div className="min-h-0 overflow-y-auto rounded border border-slate-800/70 bg-slate-950/20 p-2 custom-scrollbar">
-                <div className="mb-2 text-[10px] font-bold uppercase text-slate-500">{t('workbench.viewEditor.selectedMetrics')}</div>
+              <div className="min-h-0 overflow-y-auto pl-4 lg:border-l lg:border-slate-800/60 custom-scrollbar">
+                <div className="mb-1 flex h-9 items-center text-[10px] font-bold uppercase tracking-wider text-slate-500">{t('workbench.viewEditor.selectedMetrics')}</div>
                 {selectedMetrics.length === 0 ? (
-                  <div className="rounded bg-slate-950/30 px-2 py-3 text-xs font-semibold text-slate-500">{t('workbench.viewEditor.noMetrics')}</div>
+                  <div className="px-1 py-3 text-xs text-slate-500">{t('workbench.viewEditor.noMetrics')}</div>
                 ) : (
-                  <div className="divide-y divide-slate-800/70 rounded bg-slate-950/30">
+                  <div className="divide-y divide-slate-800/50">
                     {selectedMetrics.map((metric, index) => (
-                      <div key={metric} className="flex min-h-9 items-center gap-2 px-2">
+                      <div key={metric} className="group/row flex min-h-9 items-center gap-1 px-1">
                         <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-200">{signalMetadata(metric).label}</span>
-                        <button type="button" onClick={() => moveMetric(metric, -1)} disabled={index === 0} className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-200 disabled:opacity-30" aria-label={t('workbench.viewEditor.moveUp')}>
-                          <ChevronDown className="h-3.5 w-3.5 rotate-180" />
-                        </button>
-                        <button type="button" onClick={() => moveMetric(metric, 1)} disabled={index === selectedMetrics.length - 1} className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-200 disabled:opacity-30" aria-label={t('workbench.viewEditor.moveDown')}>
-                          <ChevronDown className="h-3.5 w-3.5" />
-                        </button>
-                        <button type="button" onClick={() => toggleMetric(metric)} className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-red-300" aria-label={t('workbench.viewEditor.removeMetric')}>
-                          <X className="h-3.5 w-3.5" />
-                        </button>
+                        <div className="flex shrink-0 items-center opacity-60 transition-opacity group-hover/row:opacity-100">
+                          <button type="button" onClick={() => moveMetric(metric, -1)} disabled={index === 0} className="inline-flex h-7 w-6 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-200 disabled:opacity-25" aria-label={t('workbench.viewEditor.moveUp')}>
+                            <ChevronDown className="h-3.5 w-3.5 rotate-180" />
+                          </button>
+                          <button type="button" onClick={() => moveMetric(metric, 1)} disabled={index === selectedMetrics.length - 1} className="inline-flex h-7 w-6 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-200 disabled:opacity-25" aria-label={t('workbench.viewEditor.moveDown')}>
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          </button>
+                          <button type="button" onClick={() => toggleMetric(metric)} className="inline-flex h-7 w-6 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-800 hover:text-red-300" aria-label={t('workbench.viewEditor.removeMetric')}>
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
