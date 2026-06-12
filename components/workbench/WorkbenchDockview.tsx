@@ -969,10 +969,18 @@ export function WorkbenchDockview({
   useEffect(() => {
     const root = dockviewRootRef.current;
     if (!root || typeof window === 'undefined') return;
+    let pendingOverlayFrame: number | null = null;
     const clearInsertionIndicators = () => {
+      if (pendingOverlayFrame !== null) {
+        window.cancelAnimationFrame(pendingOverlayFrame);
+        pendingOverlayFrame = null;
+      }
       root.querySelectorAll<HTMLElement>('.wb-tab-insertion-target').forEach((node) => {
         node.classList.remove('wb-tab-insertion-target');
         node.style.removeProperty('--wb-tab-insertion-x');
+      });
+      root.querySelectorAll<HTMLElement>('.wb-tab-drop-target-overlay').forEach((node) => {
+        node.classList.remove('wb-tab-drop-target-overlay');
       });
     };
     const startDragging = () => root.classList.add('wb-tab-dragging');
@@ -980,11 +988,49 @@ export function WorkbenchDockview({
       root.classList.remove('wb-tab-dragging');
       clearInsertionIndicators();
     };
+    const headerAtPoint = (event: DragEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      const targetHeader = target?.closest('.dv-tabs-and-actions-container') as HTMLElement | null;
+      if (targetHeader && root.contains(targetHeader)) return targetHeader;
+
+      for (const header of Array.from(root.querySelectorAll<HTMLElement>('.dv-tabs-and-actions-container'))) {
+        const rect = header.getBoundingClientRect();
+        if (
+          event.clientX >= rect.left &&
+          event.clientX <= rect.right &&
+          event.clientY >= rect.top &&
+          event.clientY <= rect.bottom
+        ) {
+          return header;
+        }
+      }
+      return null;
+    };
+    const updateDockviewHeaderOverlayScope = (header: HTMLElement) => {
+      const headerRect = header.getBoundingClientRect();
+      root.querySelectorAll<HTMLElement>('.dv-drop-target-anchor').forEach((overlay) => {
+        const rect = overlay.getBoundingClientRect();
+        const targetsHeader =
+          rect.width > 0 &&
+          rect.height > 0 &&
+          rect.left < headerRect.right &&
+          rect.right > headerRect.left &&
+          rect.top < headerRect.bottom &&
+          rect.bottom > headerRect.top;
+        overlay.classList.toggle('wb-tab-drop-target-overlay', targetsHeader);
+      });
+    };
+    const scheduleDockviewHeaderOverlayScopeUpdate = (header: HTMLElement) => {
+      if (pendingOverlayFrame !== null) window.cancelAnimationFrame(pendingOverlayFrame);
+      pendingOverlayFrame = window.requestAnimationFrame(() => {
+        pendingOverlayFrame = null;
+        updateDockviewHeaderOverlayScope(header);
+      });
+    };
     const updateInsertionIndicator = (event: DragEvent) => {
       if (!root.classList.contains('wb-tab-dragging')) return;
-      const target = event.target instanceof Element ? event.target : null;
-      const header = target?.closest('.dv-tabs-and-actions-container') as HTMLElement | null;
-      if (!header || !root.contains(header)) {
+      const header = headerAtPoint(event);
+      if (!header) {
         clearInsertionIndicators();
         return;
       }
@@ -1005,7 +1051,7 @@ export function WorkbenchDockview({
         }
         insertionClientX = rect.right;
       }
-      const insertionX = Math.max(0, Math.min(insertionClientX - headerRect.left, Math.max(0, headerRect.width - 2)));
+      const insertionX = Math.round(Math.max(0, Math.min(insertionClientX - headerRect.left, Math.max(0, headerRect.width - 2))));
       root.querySelectorAll<HTMLElement>('.wb-tab-insertion-target').forEach((node) => {
         if (node === header) return;
         node.classList.remove('wb-tab-insertion-target');
@@ -1013,6 +1059,7 @@ export function WorkbenchDockview({
       });
       header.classList.add('wb-tab-insertion-target');
       header.style.setProperty('--wb-tab-insertion-x', `${insertionX}px`);
+      scheduleDockviewHeaderOverlayScopeUpdate(header);
     };
     const leaveRoot = (event: DragEvent) => {
       const relatedTarget = event.relatedTarget instanceof Node ? event.relatedTarget : null;

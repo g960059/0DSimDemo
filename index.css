@@ -316,6 +316,13 @@ body[data-workbench-theme="light"] {
   pointer-events: none;
 }
 
+.workbench-dockview .dv-tabs-and-actions-container.dv-drop-target > .dv-drop-target-dropzone > .dv-drop-target-selection,
+.workbench-dockview .dv-drop-target-anchor.wb-tab-drop-target-overlay {
+  background-color: transparent !important;
+  border-color: transparent !important;
+  outline-color: transparent !important;
+}
+
 .workbench-dockview .dv-tab .workbench-dock-tab {
   min-width: 0;
   max-width: 12rem;
@@ -337,6 +344,18 @@ body[data-workbench-theme="light"] {
   transform: none;
   color: var(--wb-text);
   font-weight: 600;
+}
+
+.workbench-dockview.wb-tab-dragging .dv-tab.dv-tab--dragging,
+.workbench-dockview.wb-tab-dragging .dv-tab.dv-tab-dragging {
+  opacity: 0.4 !important;
+}
+
+.workbench-dockview.wb-tab-dragging .dv-tab.dv-tab--dragging .workbench-dock-tab,
+.workbench-dockview.wb-tab-dragging .dv-tab.dv-tab-dragging .workbench-dock-tab {
+  box-shadow: none;
+  color: var(--wb-text-subtle);
+  font-weight: 500;
 }
 
 .workbench-dockview .dv-tab.dv-active-tab .workbench-dock-tab::after {
