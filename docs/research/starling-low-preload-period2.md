@@ -341,3 +341,32 @@ At this point, a model-fix PR should not ship a hidden force-length curve change
   - whether period-2 should be accepted as physiological alternans or treated as model artifact
 
 The adaptive sweep runtime is merged before resolving this because it exposes the issue and is useful for further model review. The period-2 problem remains a known open modeling task.
+
+## Beat-pair overlay summary added in PR #127
+
+PR #127 adds a report-only summary on top of the raw phase-aligned `beat-pair-overlay.csv`. It does not change model dynamics, settle policy, Starling rendering, or limiter candidates.
+
+The summary labels the final two complete beats as high-output versus low-output using `CO_L`, then computes high-minus-low differences at matched phase for:
+
+- `LV.c`
+- `LV.a`
+- `sigmaActTarget`
+- `sigmaAct`
+- `QAo`
+- `AoV open`
+- `AoP`
+- `VLV`
+- `QMV`
+- `MV open`
+- `LAP-LVP`
+
+For each signal it reports the first phase where normalized high-low difference exceeds the configured threshold for consecutive samples. It also reports window-level differences for early filling, diastasis / mid-diastole, atrial systole, isovolumic contraction, ejection, and relaxation.
+
+The goal is to let model reviewers answer a narrower question without manually scanning the raw overlay CSV:
+
+```text
+Does MV/filling morphology diverge before active/ejection state,
+or does active/ejection state diverge first and then shape the next filling beat?
+```
+
+Representative current interpretation remains conservative. MV morphology switching is still tracked, but the stronger hypothesis is that the active-stress/ejection loop is the driver or amplifier, with MV/filling morphology more likely downstream or coupled rather than the primary trigger.

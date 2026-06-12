@@ -4,6 +4,7 @@ import { ModelCore } from "@/engine/ModelCore";
 import {
   parseLowPreloadDebugArgs,
   reportToBeatPairOverlayCsv,
+  reportToBeatPairOverlaySummaryCsv,
   runLowPreloadDebug,
   selectSuspiciousPointIndices,
   reportToCsv,
@@ -90,7 +91,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(Object.keys(diagnostics.tbvProjectionLastStep.byNodeAbsMl).length).toBeGreaterThan(0);
   });
 
-  it("builds a schema-v14 low-preload report with active, valve, clamp, TBV audit, return-map, filling morphology, and tau/dt fields", () => {
+  it("builds a schema-v15 low-preload report with active, valve, clamp, TBV audit, return-map, filling morphology, and tau/dt fields", () => {
     const report = runLowPreloadDebug({
       outDir: "unused",
       targetVolumeMl: 5600,
@@ -104,7 +105,7 @@ describe("low-preload Starling debug diagnostics", () => {
       quietClampLog: true,
     });
 
-    expect(report.schemaVersion).toBe(14);
+    expect(report.schemaVersion).toBe(15);
     expect(report.heartModel).toBe("activeStress");
     expect(report.returnMapMode).toBe("both");
     expect(report.beatPairOverlay).toBe(false);
@@ -222,12 +223,18 @@ describe("low-preload Starling debug diagnostics", () => {
       quietClampLog: true,
     });
 
-    expect(report.schemaVersion).toBe(14);
+    expect(report.schemaVersion).toBe(15);
     expect(report.beatPairOverlay).toBe(true);
     const overlay = report.points[0].beatPairOverlay;
     expect(overlay).toBeDefined();
     expect(overlay?.beats).toHaveLength(2);
     expect(overlay?.rows.length).toBeGreaterThan(0);
+    expect(overlay?.summary).toBeDefined();
+    expect(overlay?.summary?.beatSummaries).toHaveLength(2);
+    expect(overlay?.summary?.signals.some((signal) => signal.signal === "QAo")).toBe(true);
+    expect(overlay?.summary?.signals.some((signal) => signal.signal === "LV.a")).toBe(true);
+    expect(overlay?.summary?.windows.some((window) => window.window === "ejection")).toBe(true);
+    expect(overlay?.summary?.divergenceThreshold).toBeGreaterThan(0);
     const row = overlay?.rows[0];
     expect(row?.pairBeat).toMatch(/previous|last/);
     expect(row?.QMV).toEqual(expect.any(Number));
@@ -247,6 +254,15 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(csv).toContain("LAP_minus_LVP");
     expect(csv).toContain("LV_sigmaActTarget");
     expect(csv).toContain("AoP_minus_LVP");
+    const summaryCsv = reportToBeatPairOverlaySummaryCsv(report);
+    expect(summaryCsv).toContain("recordType");
+    expect(summaryCsv).toContain("firstDivergencePhase");
+    expect(summaryCsv).toContain("highOutputBeat");
+    expect(summaryCsv).toContain("signal");
+    expect(summaryCsv).toContain("window");
+    const md = reportToMarkdown(report);
+    expect(md).toContain("Beat-pair overlay divergence summary");
+    expect(md).toContain("High/low labels");
   });
 
   it("can run the off-by-default lambdaAct tau experiment without changing runtime defaults", () => {

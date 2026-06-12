@@ -218,11 +218,82 @@ type DebugPoint = {
 type BeatPairOverlay = {
   beats: [number, number] | [];
   rows: BeatPairOverlayRow[];
+  summary?: BeatPairOverlaySummary;
   interpretation: {
     purpose: string;
     primaryQuestion: string;
     columns: string[];
   };
+};
+
+type BeatPairLabel = "high-output" | "low-output" | "tie";
+
+type BeatPairBeatSummary = {
+  beat: number;
+  pairBeat: "previous" | "last";
+  label: BeatPairLabel;
+  CO_L: number;
+  SV_L: number;
+  EDV_L: number;
+  ESV_L: number;
+  QAoMax: number;
+  sigmaActTargetMax: number | null;
+  sigmaActMax: number | null;
+};
+
+type BeatPairSignalKey =
+  | "LV_c"
+  | "LV_a"
+  | "LV_sigmaActTarget"
+  | "LV_sigmaAct"
+  | "QAo"
+  | "AoV_open01"
+  | "AoP"
+  | "VLV"
+  | "QMV"
+  | "MV_open01"
+  | "LAP_minus_LVP";
+
+type BeatPairSignalDivergence = {
+  signal: string;
+  sourceColumn: BeatPairSignalKey;
+  scale: number;
+  maxAbsDiff: number;
+  maxNormalizedDiff: number;
+  meanAbsNormalizedDiff: number;
+  firstDivergencePhase: number | null;
+  firstDivergenceWindow: string | null;
+  highMinusLowAtFirstDivergence: number | null;
+};
+
+type BeatPairWindowDifference = {
+  window: string;
+  phaseStart: number;
+  phaseEnd: number;
+  signal: string;
+  sourceColumn: BeatPairSignalKey;
+  meanDiff: number;
+  meanAbsDiff: number;
+  maxAbsDiff: number;
+  meanNormalizedDiff: number;
+  maxNormalizedDiff: number;
+  signedArea: number;
+};
+
+type BeatPairOverlaySummary = {
+  highOutputBeat: number | null;
+  lowOutputBeat: number | null;
+  coDifferenceLMin: number | null;
+  svDifferenceMl: number | null;
+  esvDifferenceMl: number | null;
+  qAoMaxDifferenceMlPerSec: number | null;
+  sigmaActTargetMaxDifferencePa: number | null;
+  sigmaActMaxDifferencePa: number | null;
+  divergenceThreshold: number;
+  divergenceConsecutiveSamples: number;
+  beatSummaries: BeatPairBeatSummary[];
+  signals: BeatPairSignalDivergence[];
+  windows: BeatPairWindowDifference[];
 };
 
 type BeatPairOverlayRow = {
@@ -331,7 +402,7 @@ type DebugSummary = {
 };
 
 type DebugReport = {
-  schemaVersion: 14;
+  schemaVersion: 15;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -398,6 +469,29 @@ const LOW_TBV_CORRECTION_OPTIONS = {
   maxNodeVolumeMl: 0.01,
 };
 const RETURN_MAP_PERTURBATION_ML = 0.5;
+const BEAT_PAIR_DIVERGENCE_THRESHOLD = 0.08;
+const BEAT_PAIR_DIVERGENCE_CONSECUTIVE_SAMPLES = 2;
+const BEAT_PAIR_SIGNAL_SPECS: Array<{ signal: string; key: BeatPairSignalKey; scaleFloor: number }> = [
+  { signal: "LV.c", key: "LV_c", scaleFloor: 0.02 },
+  { signal: "LV.a", key: "LV_a", scaleFloor: 0.02 },
+  { signal: "sigmaActTarget", key: "LV_sigmaActTarget", scaleFloor: 100 },
+  { signal: "sigmaAct", key: "LV_sigmaAct", scaleFloor: 100 },
+  { signal: "QAo", key: "QAo", scaleFloor: 50 },
+  { signal: "AoV open", key: "AoV_open01", scaleFloor: 1 },
+  { signal: "AoP", key: "AoP", scaleFloor: 5 },
+  { signal: "VLV", key: "VLV", scaleFloor: 5 },
+  { signal: "QMV", key: "QMV", scaleFloor: 50 },
+  { signal: "MV open", key: "MV_open01", scaleFloor: 1 },
+  { signal: "LAP-LVP", key: "LAP_minus_LVP", scaleFloor: 5 },
+];
+const BEAT_PAIR_PHASE_WINDOWS = [
+  { name: "early filling", phaseStart: 0.30, phaseEnd: 0.58 },
+  { name: "diastasis / mid-diastole", phaseStart: 0.58, phaseEnd: 0.85 },
+  { name: "atrial systole", phaseStart: 0.85, phaseEnd: 0.08 },
+  { name: "isovolumic contraction", phaseStart: 0.08, phaseEnd: 0.18 },
+  { name: "ejection", phaseStart: 0.18, phaseEnd: 0.42 },
+  { name: "relaxation", phaseStart: 0.42, phaseEnd: 0.58 },
+];
 const SETTLE_POLICY = { ...PREVIEW_SETTLE_POLICY, capSeconds: 45 };
 const RUN_OPTIONS = {
   collectSamples: false,
@@ -522,6 +616,54 @@ const BEAT_PAIR_OVERLAY_CSV_COLUMNS = [
   "dP_AoV",
   "AoV_areaRatio",
 ];
+const BEAT_PAIR_OVERLAY_SUMMARY_CSV_COLUMNS = [
+  "recordType",
+  "dt",
+  "lambdaActTauSec",
+  "lambdaActScope",
+  "lambdaActTerms",
+  "lowStretchLimiter",
+  "lowStretchLimiterScope",
+  "activeReservePreset",
+  "tbvCorrectionMode",
+  "deltaVolumeMl",
+  "targetVolumeMl",
+  "pairBeats",
+  "highOutputBeat",
+  "lowOutputBeat",
+  "coDifferenceLMin",
+  "svDifferenceMl",
+  "esvDifferenceMl",
+  "qAoMaxDifferenceMlPerSec",
+  "sigmaActTargetMaxDifferencePa",
+  "sigmaActMaxDifferencePa",
+  "beat",
+  "pairBeat",
+  "label",
+  "CO_L",
+  "SV_L",
+  "EDV_L",
+  "ESV_L",
+  "QAoMax",
+  "sigmaActTargetMax",
+  "sigmaActMax",
+  "signal",
+  "sourceColumn",
+  "scale",
+  "maxAbsDiff",
+  "maxNormalizedDiff",
+  "meanAbsNormalizedDiff",
+  "firstDivergencePhase",
+  "firstDivergenceWindow",
+  "highMinusLowAtFirstDivergence",
+  "window",
+  "phaseStart",
+  "phaseEnd",
+  "meanDiff",
+  "meanAbsDiff",
+  "meanNormalizedDiff",
+  "signedArea",
+];
 
 export function runLowPreloadDebug(opts: DebugOptions): DebugReport {
   const build = (): DebugReport => runLowPreloadDebugImpl(opts);
@@ -541,9 +683,9 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
   const dtScenarios = lambdaActTauSecValues.flatMap((tau) => dtValues.map((dt) => runDtScenario(opts, dt, tau)));
   const primary = dtScenarios[0] ?? runDtScenario(opts, 0.001, 0);
   return {
-    schemaVersion: 14,
+    schemaVersion: 15,
     generatedAt: new Date().toISOString(),
-    measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve/TBV-projection diagnostics; branch-amplitude primary gate; EDV-section volume-preserving LV/PVein one-beat/two-beat return-map slopes with EDV/ESV/CO features; LA/MV filling-regime and MV event-count morphology diagnostics; optional phase-aligned last-two-beat active/ejection/MV overlay diagnostics; dt and off-by-default lambdaAct sensitivity",
+    measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve/TBV-projection diagnostics; branch-amplitude primary gate; EDV-section volume-preserving LV/PVein one-beat/two-beat return-map slopes with EDV/ESV/CO features; LA/MV filling-regime and MV event-count morphology diagnostics; optional phase-aligned last-two-beat active/ejection/MV overlay diagnostics with high-low divergence summary; dt and off-by-default lambdaAct sensitivity",
     targetVolumeMl: opts.targetVolumeMl,
     heartModel: opts.heartModel ?? DEFAULT_HEART_MODEL,
     deltasMl: opts.deltasMl,
@@ -705,6 +847,7 @@ export function reportToMarkdown(report: DebugReport): string {
     ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
   }
   lines.push("");
+  appendBeatPairOverlaySummaryMarkdown(lines, report);
   lines.push("## TBV / Clamp Audit, primary dt");
   lines.push("");
   lines.push("| delta | target TBV | correction | class | sanitize signed mL | sanitize abs mL | projection requested mL | projection applied mL | TBV err before | TBV err after | top sanitize nodes | top projection nodes |");
@@ -751,6 +894,66 @@ export function reportToMarkdown(report: DebugReport): string {
   lines.push("- Smaller-dt persistence supports a model-dynamics interpretation; strong dt sensitivity supports an explicit-coupling/numerical interpretation.");
   lines.push("");
   return `${lines.join("\n")}\n`;
+}
+
+function appendBeatPairOverlaySummaryMarkdown(lines: string[], report: DebugReport): void {
+  if (!report.beatPairOverlay) return;
+  const points = report.points.filter((point) => point.beatPairOverlay?.summary);
+  lines.push("## Beat-pair overlay divergence summary");
+  lines.push("");
+  if (points.length === 0) {
+    lines.push("Beat-pair overlay was requested, but no complete two-beat overlay summary was available.");
+    lines.push("");
+    return;
+  }
+  lines.push("High/low labels are based on `CO_L`; all signal differences are high-output minus low-output at matched phase.");
+  lines.push("");
+  lines.push("| delta | pair beats | high beat | low beat | CO diff | SV diff | ESV diff | first LV.a | first sigma target | first sigmaAct | first QAo | first AoP | first QMV | first MV open |");
+  lines.push("| ---: | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- | --- | --- | --- | --- |");
+  for (const p of points) {
+    const summary = p.beatPairOverlay?.summary;
+    if (!summary) continue;
+    const pairBeats = p.beatPairOverlay?.beats.join("/") ?? "";
+    lines.push([
+      p.deltaVolumeMl,
+      pairBeats,
+      summary.highOutputBeat ?? "",
+      summary.lowOutputBeat ?? "",
+      round(summary.coDifferenceLMin ?? NaN, 4),
+      round(summary.svDifferenceMl ?? NaN, 4),
+      round(summary.esvDifferenceMl ?? NaN, 4),
+      divergenceCell(summary, "LV.a"),
+      divergenceCell(summary, "sigmaActTarget"),
+      divergenceCell(summary, "sigmaAct"),
+      divergenceCell(summary, "QAo"),
+      divergenceCell(summary, "AoP"),
+      divergenceCell(summary, "QMV"),
+      divergenceCell(summary, "MV open"),
+    ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
+  }
+  lines.push("");
+  lines.push("| delta | window | signal | mean normalized diff | max normalized diff | signed area |");
+  lines.push("| ---: | --- | --- | ---: | ---: | ---: |");
+  for (const p of points) {
+    const windows = p.beatPairOverlay?.summary?.windows ?? [];
+    for (const row of windows.filter((window) => ["ejection", "early filling", "atrial systole"].includes(window.window) && ["LV.a", "sigmaActTarget", "sigmaAct", "QAo", "QMV", "MV open"].includes(window.signal))) {
+      lines.push([
+        p.deltaVolumeMl,
+        row.window,
+        row.signal,
+        round(row.meanNormalizedDiff, 4),
+        round(row.maxNormalizedDiff, 4),
+        round(row.signedArea, 4),
+      ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
+    }
+  }
+  lines.push("");
+}
+
+function divergenceCell(summary: BeatPairOverlaySummary, signal: string): string {
+  const row = summary.signals.find((candidate) => candidate.signal === signal);
+  if (!row || row.firstDivergencePhase == null) return "";
+  return `${round(row.firstDivergencePhase, 3)} (${row.firstDivergenceWindow ?? "unknown"})`;
 }
 
 export function reportToCsv(report: DebugReport): string {
@@ -891,6 +1094,90 @@ export function reportToBeatPairOverlayCsv(report: DebugReport): string {
           row.AoP_minus_LVP,
           row.dP_AoV,
           row.AoV_areaRatio,
+        ].map(csvCell).join(","));
+      }
+    }
+  }
+  return `${rows.join("\n")}\n`;
+}
+
+export function reportToBeatPairOverlaySummaryCsv(report: DebugReport): string {
+  const rows = [BEAT_PAIR_OVERLAY_SUMMARY_CSV_COLUMNS.join(",")];
+  for (const scenario of report.dtScenarios) {
+    for (const point of scenario.points) {
+      const overlay = point.beatPairOverlay;
+      const summary = overlay?.summary;
+      if (!overlay || !summary) continue;
+      const common = [
+        scenario.dt,
+        scenario.lambdaActTauSec,
+        scenario.lambdaActScope,
+        scenario.lambdaActTerms,
+        report.lowStretchLimiterMode,
+        report.lowStretchLimiterScope,
+        report.activeReservePreset,
+        point.tbvAudit.correctionMode,
+        point.deltaVolumeMl,
+        point.targetVolumeMl,
+        overlay.beats.join("/"),
+        summary.highOutputBeat ?? "",
+        summary.lowOutputBeat ?? "",
+        summary.coDifferenceLMin ?? "",
+        summary.svDifferenceMl ?? "",
+        summary.esvDifferenceMl ?? "",
+        summary.qAoMaxDifferenceMlPerSec ?? "",
+        summary.sigmaActTargetMaxDifferencePa ?? "",
+        summary.sigmaActMaxDifferencePa ?? "",
+      ];
+      for (const beat of summary.beatSummaries) {
+        rows.push([
+          "beat",
+          ...common,
+          beat.beat,
+          beat.pairBeat,
+          beat.label,
+          beat.CO_L,
+          beat.SV_L,
+          beat.EDV_L,
+          beat.ESV_L,
+          beat.QAoMax,
+          beat.sigmaActTargetMax ?? "",
+          beat.sigmaActMax ?? "",
+          "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+        ].map(csvCell).join(","));
+      }
+      for (const signal of summary.signals) {
+        rows.push([
+          "signal",
+          ...common,
+          "", "", "", "", "", "", "", "", "", "", "",
+          signal.signal,
+          signal.sourceColumn,
+          signal.scale,
+          signal.maxAbsDiff,
+          signal.maxNormalizedDiff,
+          signal.meanAbsNormalizedDiff,
+          signal.firstDivergencePhase ?? "",
+          signal.firstDivergenceWindow ?? "",
+          signal.highMinusLowAtFirstDivergence ?? "",
+          "", "", "", "", "", "",
+        ].map(csvCell).join(","));
+      }
+      for (const window of summary.windows) {
+        rows.push([
+          "window",
+          ...common,
+          "", "", "", "", "", "", "", "", "", "",
+          window.signal,
+          window.sourceColumn,
+          "", "", window.maxNormalizedDiff, "", "", "", "",
+          window.window,
+          window.phaseStart,
+          window.phaseEnd,
+          window.meanDiff,
+          window.meanAbsDiff,
+          window.meanNormalizedDiff,
+          window.signedArea,
         ].map(csvCell).join(","));
       }
     }
@@ -1592,8 +1879,22 @@ function buildBeatPairOverlay(traceSamples: TraceSample[], HR: number): BeatPair
   }
   const beatSeconds = 60 / Math.max(HR, 1);
   const rows: BeatPairOverlayRow[] = [];
+  const beatSummaries: BeatPairBeatSummary[] = [];
   for (const [pairIndex, beat] of pair.entries()) {
     const entries = groups.get(beat) ?? [];
+    const summary = summarizeBeat(beat, entries, HR);
+    beatSummaries.push({
+      beat,
+      pairBeat: pairIndex === 0 ? "previous" : "last",
+      label: "tie",
+      CO_L: summary.CO_L,
+      SV_L: summary.SV_L,
+      EDV_L: summary.EDV_L,
+      ESV_L: summary.ESV_L,
+      QAoMax: finiteMaxOrNull(entries.map((entry) => entry.sample.QAo)) ?? Number.NaN,
+      sigmaActTargetMax: finiteMaxOrNull(entries.map((entry) => entry.active.LV?.sigmaActTarget ?? Number.NaN)),
+      sigmaActMax: finiteMaxOrNull(entries.map((entry) => entry.active.LV?.sigmaAct ?? Number.NaN)),
+    });
     const samples = entries.map((entry) => entry.sample);
     const minVlv = finiteMin(samples.map((sample) => sample.VLV));
     const maxVlv = finiteMaxOrNull(samples.map((sample) => sample.VLV)) ?? Number.NaN;
@@ -1632,11 +1933,184 @@ function buildBeatPairOverlay(traceSamples: TraceSample[], HR: number): BeatPair
       });
     }
   }
+  const summary = buildBeatPairOverlaySummary(rows, beatSummaries);
   return {
     beats: [pair[0], pair[1]],
     rows,
+    summary,
     interpretation: beatPairOverlayInterpretation(),
   };
+}
+
+function buildBeatPairOverlaySummary(rows: BeatPairOverlayRow[], beatSummaries: BeatPairBeatSummary[]): BeatPairOverlaySummary | undefined {
+  if (beatSummaries.length !== 2 || rows.length === 0) return undefined;
+  const labeledBeats = labelBeatPair(beatSummaries);
+  const highBeat = labeledBeats.find((beat) => beat.label === "high-output") ?? null;
+  const lowBeat = labeledBeats.find((beat) => beat.label === "low-output") ?? null;
+  const highRows = highBeat ? rows.filter((row) => row.beat === highBeat.beat).sort((a, b) => a.phase - b.phase) : [];
+  const lowRows = lowBeat ? rows.filter((row) => row.beat === lowBeat.beat).sort((a, b) => a.phase - b.phase) : [];
+  const signals = highRows.length > 0 && lowRows.length > 0
+    ? BEAT_PAIR_SIGNAL_SPECS.map((spec) => summarizeBeatPairSignal(spec, highRows, lowRows))
+    : [];
+  const windows = highRows.length > 0 && lowRows.length > 0
+    ? BEAT_PAIR_PHASE_WINDOWS.flatMap((window) => BEAT_PAIR_SIGNAL_SPECS.map((spec) => summarizeBeatPairWindow(spec, window, highRows, lowRows)))
+    : [];
+  return {
+    highOutputBeat: highBeat?.beat ?? null,
+    lowOutputBeat: lowBeat?.beat ?? null,
+    coDifferenceLMin: diffOrNull(highBeat?.CO_L, lowBeat?.CO_L),
+    svDifferenceMl: diffOrNull(highBeat?.SV_L, lowBeat?.SV_L),
+    esvDifferenceMl: diffOrNull(highBeat?.ESV_L, lowBeat?.ESV_L),
+    qAoMaxDifferenceMlPerSec: diffOrNull(highBeat?.QAoMax, lowBeat?.QAoMax),
+    sigmaActTargetMaxDifferencePa: diffOrNull(highBeat?.sigmaActTargetMax, lowBeat?.sigmaActTargetMax),
+    sigmaActMaxDifferencePa: diffOrNull(highBeat?.sigmaActMax, lowBeat?.sigmaActMax),
+    divergenceThreshold: BEAT_PAIR_DIVERGENCE_THRESHOLD,
+    divergenceConsecutiveSamples: BEAT_PAIR_DIVERGENCE_CONSECUTIVE_SAMPLES,
+    beatSummaries: labeledBeats,
+    signals,
+    windows,
+  };
+}
+
+function labelBeatPair(beatSummaries: BeatPairBeatSummary[]): BeatPairBeatSummary[] {
+  const [a, b] = beatSummaries;
+  if (!a || !b) return beatSummaries;
+  if (Math.abs(a.CO_L - b.CO_L) < 1e-6) {
+    return beatSummaries.map((beat) => ({ ...beat, label: "tie" }));
+  }
+  const highBeat = a.CO_L > b.CO_L ? a.beat : b.beat;
+  return beatSummaries.map((beat) => ({
+    ...beat,
+    label: beat.beat === highBeat ? "high-output" : "low-output",
+  }));
+}
+
+function summarizeBeatPairSignal(
+  spec: { signal: string; key: BeatPairSignalKey; scaleFloor: number },
+  highRows: BeatPairOverlayRow[],
+  lowRows: BeatPairOverlayRow[],
+): BeatPairSignalDivergence {
+  const pairs = pairedBeatRows(highRows, lowRows)
+    .map(({ high, low }) => beatPairDiff(spec, high, low))
+    .filter((value): value is NonNullable<typeof value> => value != null)
+    .sort((a, b) => a.phase - b.phase);
+  const first = firstDivergence(pairs);
+  return {
+    signal: spec.signal,
+    sourceColumn: spec.key,
+    scale: finiteMaxOrNull(pairs.map((pair) => pair.scale)) ?? spec.scaleFloor,
+    maxAbsDiff: finiteMaxOrNull(pairs.map((pair) => Math.abs(pair.diff))) ?? Number.NaN,
+    maxNormalizedDiff: finiteMaxOrNull(pairs.map((pair) => Math.abs(pair.normalizedDiff))) ?? Number.NaN,
+    meanAbsNormalizedDiff: meanNumbers(pairs.map((pair) => Math.abs(pair.normalizedDiff))),
+    firstDivergencePhase: first?.phase ?? null,
+    firstDivergenceWindow: first ? phaseWindowName(first.phase) : null,
+    highMinusLowAtFirstDivergence: first?.diff ?? null,
+  };
+}
+
+function summarizeBeatPairWindow(
+  spec: { signal: string; key: BeatPairSignalKey; scaleFloor: number },
+  window: { name: string; phaseStart: number; phaseEnd: number },
+  highRows: BeatPairOverlayRow[],
+  lowRows: BeatPairOverlayRow[],
+): BeatPairWindowDifference {
+  const pairs = pairedBeatRows(highRows, lowRows)
+    .filter(({ high }) => phaseValueInWindow(high.phase, window.phaseStart, window.phaseEnd))
+    .map(({ high, low }) => beatPairDiff(spec, high, low))
+    .filter((value): value is NonNullable<typeof value> => value != null);
+  const meanDiff = meanNumbers(pairs.map((pair) => pair.diff));
+  return {
+    window: window.name,
+    phaseStart: window.phaseStart,
+    phaseEnd: window.phaseEnd,
+    signal: spec.signal,
+    sourceColumn: spec.key,
+    meanDiff,
+    meanAbsDiff: meanNumbers(pairs.map((pair) => Math.abs(pair.diff))),
+    maxAbsDiff: finiteMaxOrNull(pairs.map((pair) => Math.abs(pair.diff))) ?? Number.NaN,
+    meanNormalizedDiff: meanNumbers(pairs.map((pair) => pair.normalizedDiff)),
+    maxNormalizedDiff: finiteMaxOrNull(pairs.map((pair) => Math.abs(pair.normalizedDiff))) ?? Number.NaN,
+    signedArea: meanDiff * phaseWindowWidth(window.phaseStart, window.phaseEnd),
+  };
+}
+
+function pairedBeatRows(highRows: BeatPairOverlayRow[], lowRows: BeatPairOverlayRow[]): Array<{ high: BeatPairOverlayRow; low: BeatPairOverlayRow }> {
+  return highRows
+    .map((high) => ({ high, low: nearestPhaseRow(lowRows, high.phase) }))
+    .filter((pair): pair is { high: BeatPairOverlayRow; low: BeatPairOverlayRow } => pair.low != null);
+}
+
+function beatPairDiff(
+  spec: { signal: string; key: BeatPairSignalKey; scaleFloor: number },
+  high: BeatPairOverlayRow,
+  low: BeatPairOverlayRow,
+): { phase: number; diff: number; normalizedDiff: number; scale: number } | null {
+  const highValue = beatPairValue(high, spec.key);
+  const lowValue = beatPairValue(low, spec.key);
+  if (highValue == null || lowValue == null) return null;
+  const diff = highValue - lowValue;
+  const scale = Math.max(Math.abs(highValue), Math.abs(lowValue), spec.scaleFloor);
+  return {
+    phase: high.phase,
+    diff,
+    normalizedDiff: diff / scale,
+    scale,
+  };
+}
+
+function firstDivergence(pairs: Array<{ phase: number; diff: number; normalizedDiff: number }>): { phase: number; diff: number } | null {
+  let runStart: { phase: number; diff: number } | null = null;
+  let runLength = 0;
+  for (const pair of pairs) {
+    if (Math.abs(pair.normalizedDiff) >= BEAT_PAIR_DIVERGENCE_THRESHOLD) {
+      runStart ??= { phase: pair.phase, diff: pair.diff };
+      runLength += 1;
+      if (runLength >= BEAT_PAIR_DIVERGENCE_CONSECUTIVE_SAMPLES) return runStart;
+    } else {
+      runStart = null;
+      runLength = 0;
+    }
+  }
+  return null;
+}
+
+function beatPairValue(row: BeatPairOverlayRow, key: BeatPairSignalKey): number | null {
+  const value = row[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function nearestPhaseRow(rows: BeatPairOverlayRow[], phase: number): BeatPairOverlayRow | null {
+  let best: BeatPairOverlayRow | null = null;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const row of rows) {
+    const distance = circularPhaseDistance(row.phase, phase);
+    if (distance < bestDistance) {
+      best = row;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
+function circularPhaseDistance(a: number, b: number): number {
+  const raw = Math.abs(a - b);
+  return Math.min(raw, 1 - raw);
+}
+
+function phaseValueInWindow(phase: number, lo: number, hi: number): boolean {
+  return lo <= hi ? phase >= lo && phase < hi : phase >= lo || phase < hi;
+}
+
+function phaseWindowName(phase: number): string | null {
+  return BEAT_PAIR_PHASE_WINDOWS.find((window) => phaseValueInWindow(phase, window.phaseStart, window.phaseEnd))?.name ?? null;
+}
+
+function phaseWindowWidth(lo: number, hi: number): number {
+  return lo <= hi ? hi - lo : 1 - lo + hi;
+}
+
+function diffOrNull(a: number | null | undefined, b: number | null | undefined): number | null {
+  return typeof a === "number" && Number.isFinite(a) && typeof b === "number" && Number.isFinite(b) ? a - b : null;
 }
 
 function beatPairOverlayInterpretation(): BeatPairOverlay["interpretation"] {
@@ -2221,6 +2695,7 @@ function main(): void {
   writeFileSync(path.join(options.outDir, "beat-trace.csv"), reportToCsv(report));
   if (report.beatPairOverlay) {
     writeFileSync(path.join(options.outDir, "beat-pair-overlay.csv"), reportToBeatPairOverlayCsv(report));
+    writeFileSync(path.join(options.outDir, "beat-pair-overlay-summary.csv"), reportToBeatPairOverlaySummaryCsv(report));
   }
 
   // eslint-disable-next-line no-console
