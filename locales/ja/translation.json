@@ -411,9 +411,7 @@
         "createLesson": "レッスンを作成"
       },
       "themes": {
-        "midnight": "ミッドナイト",
-        "graphite": "グラファイト",
-        "clinical": "クリニカル",
+        "dark": "ダーク",
         "light": "ライト"
       }
     },

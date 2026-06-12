@@ -411,9 +411,7 @@
         "createLesson": "Create lesson"
       },
       "themes": {
-        "midnight": "Midnight",
-        "graphite": "Graphite",
-        "clinical": "Clinical",
+        "dark": "Dark",
         "light": "Light"
       }
     },
