@@ -346,6 +346,8 @@
     },
     "header": {
       "editCopy": "Edit a copy",
+      "readOnlyBadge": "Changes are not saved",
+      "resetToAuthorState": "Reset to author's state",
       "share": "Share",
       "saveCase": "Save case",
       "untitledScene": "Untitled case",

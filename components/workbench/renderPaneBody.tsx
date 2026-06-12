@@ -36,6 +36,7 @@ export interface PaneBodyContext {
   updateInstanceColor?: (id: string, color: string) => void;
   toggleScenarioGlobalVisibility?: (id: string) => void;
   resetInstanceKnobs?: (id: string) => void;
+  readOnly?: boolean;
   presentationMode?: 'studio' | 'reading';
   canConfigure?: boolean;
   onOpenSettings?: (panelId: string) => void;
@@ -94,6 +95,7 @@ export function renderPaneBody(panel: PanelDef, ctx: PaneBodyContext): React.Rea
         toggleScenarioGlobalVisibility={ctx.toggleScenarioGlobalVisibility}
         resetInstanceKnobs={ctx.resetInstanceKnobs}
         steadyUpdateStatuses={ctx.steadyUpdateStatuses}
+        readOnly={ctx.readOnly}
       />
     );
   }

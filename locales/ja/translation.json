@@ -346,6 +346,8 @@
     },
     "header": {
       "editCopy": "コピーを編集",
+      "readOnlyBadge": "変更は保存されません",
+      "resetToAuthorState": "作者の状態に戻す",
       "share": "共有",
       "saveCase": "ケースを保存",
       "untitledScene": "無題のケース",

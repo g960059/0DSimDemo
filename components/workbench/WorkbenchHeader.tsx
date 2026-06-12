@@ -11,6 +11,7 @@ import {
   PanelRight,
   Pause,
   Play,
+  RotateCcw,
   Save,
   Share2,
   SlidersHorizontal,
@@ -29,6 +30,7 @@ interface WorkbenchHeaderProps {
   sceneMeta: WorkbenchSceneMeta;
   onSceneMetaChange: (meta: WorkbenchSceneMeta) => void;
   onPrimaryAction: () => void | Promise<void>;
+  onResetToAuthorState?: () => void;
   instances: SimInstance[];
   instanceHealth: Record<string, SimulationHealth>;
   getLiveHealth: (id: string) => SimulationHealth | undefined;
@@ -78,6 +80,7 @@ export function WorkbenchHeader({
   sceneMeta,
   onSceneMetaChange,
   onPrimaryAction,
+  onResetToAuthorState,
   instances,
   instanceHealth,
   getLiveHealth,
@@ -160,8 +163,11 @@ export function WorkbenchHeader({
 
         <div className="flex min-w-0 flex-1 items-center gap-2">
           {isLearner ? (
-            <div className="flex min-w-0 items-center gap-1">
+            <div className="flex min-w-0 items-center gap-2">
               <h1 className="truncate text-sm font-bold text-wb-text">{sceneMeta.title}</h1>
+              <span className="hidden shrink-0 rounded border border-wb-line bg-wb-strip px-2 py-0.5 text-[11px] font-semibold text-wb-subtle sm:inline">
+                {t('workbench.header.readOnlyBadge')}
+              </span>
               <ModelLimitations compact limitations={sceneMeta.modelLimitations} />
             </div>
           ) : (
@@ -282,10 +288,21 @@ export function WorkbenchHeader({
             </div>
           </div>
 
+          {isLearner && onResetToAuthorState && (
+            <button
+              type="button"
+              onClick={onResetToAuthorState}
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-wb-line bg-transparent px-2.5 text-xs font-bold text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">{t('workbench.header.resetToAuthorState')}</span>
+            </button>
+          )}
+
           <button
             onClick={runPrimaryAction}
             disabled={(authoringMode && isPublishingLesson) || isSavingCase}
-            className="inline-flex h-9 items-center gap-1.5 rounded-md bg-wb-primary px-3 text-xs font-bold text-white hover:bg-wb-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
+            className={`inline-flex h-9 items-center gap-1.5 rounded-md bg-wb-primary px-3 text-xs font-bold text-white hover:bg-wb-primary-hover disabled:cursor-not-allowed disabled:opacity-60 ${isLearner ? 'ml-2' : ''}`}
           >
             {authoringMode ? <Share2 className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
             <span className="hidden sm:inline">{authoringMode && isPublishingLesson ? t('workbench.header.publishing') : isSavingCase ? t('workbench.header.saving') : primaryLabel}</span>

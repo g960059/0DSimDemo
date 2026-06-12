@@ -1816,6 +1816,7 @@ interface PanelCardProps {
   metrics: MetricType[];
   controlGroups: string[];
   canConfigure?: boolean;
+  readOnly?: boolean;
   workbenchTheme?: WorkbenchThemeId;
 }
 
@@ -1897,6 +1898,7 @@ function PanelCard({
   metrics,
   controlGroups,
   canConfigure = isEditor,
+  readOnly = false,
   workbenchTheme = 'dark',
 }: PanelCardProps) {
   const { t } = useTranslation();
@@ -1908,6 +1910,7 @@ function PanelCard({
     ? (panelId: string) => openPanelSettingsIfClosed(panel, panelId, toggleSettings)
     : undefined;
   const changeLegendPosition = canOpenSettingsFromLegend ? updatePanelLegendPosition : undefined;
+  const effectiveNoteMode = readOnly ? 'read' : noteMode;
   const dockviewNoteModeSwitch = chromeMode === 'dockview' && panel.type === 'NOTE' && canConfigure ? (
     <div className="flex shrink-0 items-center justify-between border-b border-wb-line bg-wb-strip px-2 py-1">
       <div className="inline-flex items-center gap-1 text-[11px] font-medium text-wb-subtle">
@@ -1915,7 +1918,7 @@ function PanelCard({
         {t('workbench.panelGrid.note')}
       </div>
       <NoteModeToggleButton
-        noteMode={noteMode}
+        noteMode={effectiveNoteMode}
         onToggle={() => setNoteModes(prev => ({ ...prev, [panel.id]: noteMode === 'edit' ? 'read' : 'edit' }))}
         t={t}
       />
@@ -1933,7 +1936,7 @@ function PanelCard({
         updateInstanceParams,
         updateInstanceKnobs,
         updateInstanceVolume,
-        noteMode,
+        noteMode: effectiveNoteMode,
         notes,
         authoredViews,
         noteCaseKey,
@@ -1946,6 +1949,7 @@ function PanelCard({
         updateInstanceColor,
         toggleScenarioGlobalVisibility,
         resetInstanceKnobs,
+        readOnly,
         canConfigure: canOpenSettingsFromLegend,
         onOpenSettings: openSettingsFromLegend,
         legendPosition: panel.view?.kind === 'graph' ? panel.view.legendPosition : undefined,
@@ -1973,19 +1977,21 @@ function PanelCard({
             <span className="truncate">{panel.title}</span>
           </span>
         </div>
-        {panel.type === 'NOTE' && (
+        {panel.type === 'NOTE' && canConfigure && (
           <NoteModeToggleButton
-            noteMode={noteMode}
+            noteMode={effectiveNoteMode}
             onToggle={() => setNoteModes(prev => ({ ...prev, [panel.id]: noteMode === 'edit' ? 'read' : 'edit' }))}
             t={t}
             className="mr-2 h-6 w-6"
           />
         )}
         <div className={`flex items-center gap-1.5 transition-opacity ${panel.isSettingsOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-          <PanelSettingsButton
-            panel={panel}
-            toggleSettings={toggleSettings}
-          />
+          {canConfigure && (
+            <PanelSettingsButton
+              panel={panel}
+              toggleSettings={toggleSettings}
+            />
+          )}
           {isEditor && (
             <button onClick={() => removePanel(panel.id)} className="inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-danger" title={t('workbench.panelGrid.closePanel')} aria-label={t('workbench.panelGrid.closePanelAria', { title: panel.title })}>
               <X className="h-3.5 w-3.5" />
@@ -2239,6 +2245,7 @@ export function PanelGrid({
   controlGroups,
 }: PanelGridProps) {
   const { t } = useTranslation();
+  const isReadOnly = mode === 'learner';
   const presenterPanels = useMemo(() => flowPack(panels), [panels]);
   const mainGraphPanels = useMemo(() => graphPanelsOnly(presenterPanels), [presenterPanels]);
   const notePanel = useMemo(() => firstPanelOfType(presenterPanels, 'NOTE'), [presenterPanels]);
@@ -2346,6 +2353,7 @@ export function PanelGrid({
       metrics={metrics}
       controlGroups={controlGroups}
       canConfigure={mode !== 'learner'}
+      readOnly={isReadOnly}
       workbenchTheme={workbenchTheme}
     />
   );
@@ -2376,7 +2384,7 @@ export function PanelGrid({
       controlGroups={controlGroups}
     />
   ) : null;
-  const viewEditorModal = viewEditor ? (
+  const viewEditorModal = !isReadOnly && viewEditor ? (
     <ViewSpecEditorModal
       editor={viewEditor}
       instances={instances}
@@ -2401,7 +2409,7 @@ export function PanelGrid({
       }}
     />
   ) : null;
-  const deleteViewConfirmModal = deleteViewConfirm ? (
+  const deleteViewConfirmModal = !isReadOnly && deleteViewConfirm ? (
     <DeleteViewConfirmModal
       state={deleteViewConfirm}
       onCancel={() => setDeleteViewConfirm(null)}
@@ -2470,18 +2478,20 @@ export function PanelGrid({
   const inspectorConfig = activeInstanceId
     ? { [activeInstanceId]: { visible: true, selectedSignals: ['clinical'] } }
     : {};
-  const noteMode = notePanel ? (noteModes[notePanel.id] ?? 'read') : 'read';
+  const noteMode = notePanel && !isReadOnly ? (noteModes[notePanel.id] ?? 'read') : 'read';
   const noteHeader = notePanel ? (
     <div className="flex shrink-0 items-center justify-between border-b border-wb-line bg-wb-strip px-2 py-1">
       <div className="inline-flex items-center gap-1 text-[11px] font-medium text-wb-subtle">
         <FileText className="h-3.5 w-3.5" />
         {t('workbench.panelGrid.note')}
       </div>
-      <NoteModeToggleButton
-        noteMode={noteMode}
-        onToggle={() => setNoteModes(prev => ({ ...prev, [notePanel.id]: noteMode === 'edit' ? 'read' : 'edit' }))}
-        t={t}
-      />
+      {!isReadOnly && (
+        <NoteModeToggleButton
+          noteMode={noteMode}
+          onToggle={() => setNoteModes(prev => ({ ...prev, [notePanel.id]: noteMode === 'edit' ? 'read' : 'edit' }))}
+          t={t}
+        />
+      )}
     </div>
   ) : null;
 
@@ -2501,6 +2511,7 @@ export function PanelGrid({
   };
 
   const beginRenameView = (view: AuthoredViewSpec) => {
+    if (isReadOnly) return;
     setRenamingViewId(view.id);
     setRenameDraft(view.title ?? '');
   };
@@ -2520,6 +2531,7 @@ export function PanelGrid({
   };
 
   const duplicateView = (view: AuthoredViewSpec) => {
+    if (isReadOnly) return;
     const copy = duplicateAuthoredView(view.id);
     if (!copy) return;
     if (copy.kind === 'controller') {
@@ -2528,6 +2540,7 @@ export function PanelGrid({
   };
 
   const requestDeleteView = (view: AuthoredViewSpec): boolean => {
+    if (isReadOnly) return false;
     const usage = viewRefUsageForDeletion(view.id, notes, reading);
     setDeleteViewConfirm({ view, usage });
     return false;
@@ -2549,15 +2562,18 @@ export function PanelGrid({
   const metricsSourceViewIdForPanelId = (panelId: string): string => metricsDockviewPanelsById.get(panelId)?.sourceViewId ?? panelId;
 
   const editMetricsPanel = (panelId: string) => {
+    if (isReadOnly) return;
     const view = metricsViewsById.get(metricsSourceViewIdForPanelId(panelId));
     if (view) setViewEditor({ mode: 'edit', view });
   };
 
   const renameMetricsPanel = (panelId: string, title: string) => {
+    if (isReadOnly) return;
     renameAuthoredView(metricsSourceViewIdForPanelId(panelId), title);
   };
 
   const duplicateMetricsPanel = (panelId: string): PanelDef | undefined => {
+    if (isReadOnly) return undefined;
     const copy = duplicateAuthoredView(metricsSourceViewIdForPanelId(panelId));
     if (copy?.kind !== 'metrics') return undefined;
     setMetricsPanelBindings((prev) => [...prev, { panelId: copy.id, viewId: copy.id }]);
@@ -2565,6 +2581,7 @@ export function PanelGrid({
   };
 
   const mirrorMetricsPanel = (panelId: string): PanelDef | undefined => {
+    if (isReadOnly) return undefined;
     const viewId = metricsSourceViewIdForPanelId(panelId);
     const view = metricsViewsById.get(viewId);
     if (!view) return undefined;
@@ -2575,6 +2592,7 @@ export function PanelGrid({
   };
 
   const deleteMetricsPanel = (panelId: string): boolean => {
+    if (isReadOnly) return false;
     const viewId = metricsSourceViewIdForPanelId(panelId);
     const view = metricsViewsById.get(viewId);
     if (!view) return false;
@@ -2614,13 +2632,13 @@ export function PanelGrid({
   const renderMetricsEmptyState = () => (
     <WorkbenchEmptyState
       description={t('workbench.viewManagement.metricsEmptyHint')}
-      primaryAction={{
+      primaryAction={isReadOnly ? undefined : {
         label: t('workbench.viewManagement.newMetricsShort'),
         onClick: () => setViewEditor({ mode: 'create', kind: 'metrics' }),
         icon: <Plus className="h-3.5 w-3.5" />,
         ariaLabel: t('workbench.viewManagement.newMetrics'),
       }}
-      secondaryAction={{
+      secondaryAction={isReadOnly ? undefined : {
         label: t('workbench.viewManagement.restoreStandard'),
         onClick: restoreStandardViews,
         icon: <RotateCcw className="h-3.5 w-3.5" />,
@@ -2683,6 +2701,7 @@ export function PanelGrid({
                 updateInstanceColor,
                 toggleScenarioGlobalVisibility,
                 resetInstanceKnobs,
+                readOnly: isReadOnly,
               })}
             </section>
           )}
@@ -2763,16 +2782,18 @@ export function PanelGrid({
                     {layoutState.scenarioListCollapsed ? <ChevronRight className="h-3.5 w-3.5 text-wb-subtle" /> : <ChevronDown className="h-3.5 w-3.5 text-wb-subtle" />}
                     <span className="min-w-0 flex-1 truncate">{t('workbench.panelGrid.scenariosCount', { count: instances.length })}</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={openScenarioAddMenu}
-                    className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-wb-subtle opacity-70 transition-colors hover:bg-wb-hover hover:text-wb-text group-hover:opacity-100 ${WB_FOCUS_RING}`}
-                    title={t('workbench.scenarioPane.addScenario')}
-                    aria-label={t('workbench.scenarioPane.addScenario')}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                  </button>
-                  {scenarioAddMenuPosition && (
+                  {!isReadOnly && (
+                    <button
+                      type="button"
+                      onClick={openScenarioAddMenu}
+                      className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-wb-subtle opacity-70 transition-colors hover:bg-wb-hover hover:text-wb-text group-hover:opacity-100 ${WB_FOCUS_RING}`}
+                      title={t('workbench.scenarioPane.addScenario')}
+                      aria-label={t('workbench.scenarioPane.addScenario')}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  {scenarioAddMenuPosition && !isReadOnly && (
                     <ScenarioPresetMenu
                       position={scenarioAddMenuPosition}
                       onClose={() => setScenarioAddMenuPosition(null)}
@@ -2796,6 +2817,7 @@ export function PanelGrid({
                       toggleScenarioGlobalVisibility={toggleScenarioGlobalVisibility}
                       resetInstanceKnobs={resetInstanceKnobs}
                       steadyUpdateStatuses={steadyUpdateStatuses}
+                      readOnly={isReadOnly}
                     />
                   </div>
                 )}
@@ -2846,7 +2868,7 @@ export function PanelGrid({
                     </span>
                     <ChevronDown className="h-3.5 w-3.5 shrink-0 text-wb-subtle" />
                   </button>
-                  {activeInstance && selectedControllerView && (
+                  {activeInstance && selectedControllerView && !isReadOnly && (
                     <button
                       type="button"
                       onClick={() => setViewEditor({ mode: 'edit', view: selectedControllerView })}
@@ -2860,7 +2882,7 @@ export function PanelGrid({
                   )}
                   {openControllerMenu && (
                     <div className="absolute left-2 right-2 top-10 z-40 rounded border border-wb-line bg-wb-panel p-1 shadow-2xl">
-                      {authoredControllerViews.length === 0 && (
+                      {authoredControllerViews.length === 0 && !isReadOnly && (
                         <WorkbenchEmptyState
                           description={t('workbench.viewManagement.controllerEmptyHint')}
                           primaryAction={{
@@ -2918,22 +2940,26 @@ export function PanelGrid({
 	                                {view.title}
 	                              </button>
 	                            )}
-	                            <button type="button" onClick={() => setViewEditor({ mode: 'edit', view })} className={`inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`} aria-label={t('common.edit')}>
-	                              <Pencil className="h-3.5 w-3.5" />
-	                            </button>
-	                            <button type="button" onClick={() => beginRenameView(view)} className={`inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`} aria-label={t('workbench.viewManagement.rename')}>
-	                              <TypeIcon className="h-3.5 w-3.5" />
-	                            </button>
-	                            <button type="button" onClick={() => duplicateView(view)} className={`inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`} aria-label={t('workbench.viewManagement.duplicate')}>
-	                              <Copy className="h-3.5 w-3.5" />
-	                            </button>
-	                            <button type="button" onClick={() => requestDeleteView(view)} className={`inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-danger ${WB_FOCUS_RING}`} aria-label={t('common.delete')}>
-	                              <Trash2 className="h-3.5 w-3.5" />
-	                            </button>
+                              {!isReadOnly && (
+                                <>
+  	                            <button type="button" onClick={() => setViewEditor({ mode: 'edit', view })} className={`inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`} aria-label={t('common.edit')}>
+  	                              <Pencil className="h-3.5 w-3.5" />
+  	                            </button>
+  	                            <button type="button" onClick={() => beginRenameView(view)} className={`inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`} aria-label={t('workbench.viewManagement.rename')}>
+  	                              <TypeIcon className="h-3.5 w-3.5" />
+  	                            </button>
+  	                            <button type="button" onClick={() => duplicateView(view)} className={`inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`} aria-label={t('workbench.viewManagement.duplicate')}>
+  	                              <Copy className="h-3.5 w-3.5" />
+  	                            </button>
+  	                            <button type="button" onClick={() => requestDeleteView(view)} className={`inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-danger ${WB_FOCUS_RING}`} aria-label={t('common.delete')}>
+  	                              <Trash2 className="h-3.5 w-3.5" />
+  	                            </button>
+                                </>
+                              )}
 	                          </div>
 	                        );
 	                      })}
-                      <div className="mt-1 grid grid-cols-2 gap-1">
+                      {!isReadOnly && <div className="mt-1 grid grid-cols-2 gap-1">
                         <button
                           type="button"
                           onClick={() => {
@@ -2956,7 +2982,7 @@ export function PanelGrid({
                           <RotateCcw className="h-3.5 w-3.5" />
                           <span className="truncate">{t('workbench.viewManagement.restoreStandard')}</span>
                         </button>
-                      </div>
+                      </div>}
                     </div>
                   )}
                 </div>
@@ -2977,12 +3003,12 @@ export function PanelGrid({
                   ) : (
                     <WorkbenchEmptyState
                       description={t('workbench.viewManagement.controllerEmptyHint')}
-                      primaryAction={{
+                      primaryAction={isReadOnly ? undefined : {
                         label: t('workbench.viewManagement.newController'),
                         onClick: () => setViewEditor({ mode: 'create', kind: 'controller' }),
                         icon: <Plus className="h-3.5 w-3.5" />,
                       }}
-                      secondaryAction={{
+                      secondaryAction={isReadOnly ? undefined : {
                         label: t('workbench.viewManagement.restoreStandard'),
                         onClick: restoreStandardViews,
                         icon: <RotateCcw className="h-3.5 w-3.5" />,

@@ -42,6 +42,7 @@ export type BuildCurrentDocOverrides = {
   createdAt?: number;
   updatedAt?: number;
   includeNotes?: boolean;
+  initialActiveScenarioId?: string;
 };
 
 export type BuildCurrentDoc = (overrides?: BuildCurrentDocOverrides) => CaseDocument;
@@ -127,7 +128,7 @@ export function useWorkbenchPersistence({
       // remain represented by graphBoardLayout + legacy graph panels here.
       views: serializableAuthoredViews(scene.currentCaseViews),
       graphBoardLayout: normalizedGraphBoardLayout,
-      initialActiveScenarioId: scene.currentCaseInitialActiveScenarioId,
+      initialActiveScenarioId: overrides.initialActiveScenarioId ?? scene.currentCaseInitialActiveScenarioId,
       defaultLocale: scene.currentCaseDefaultLocale ?? locale,
       availableLocales: scene.currentCaseAvailableLocales,
       i18n: scene.currentCaseI18n,
@@ -301,6 +302,9 @@ export function useWorkbenchPersistence({
     const caseDoc = buildCurrentDoc({
       id: caseId,
       title,
+      // Fork seeds the copy from the VIEWER's current runtime state — the
+      // active scenario is part of that state (ADR-0007).
+      ...(opts.copy ? { initialActiveScenarioId: scene.activeInstanceId } : {}),
       author: userDisplayName(activeUser),
       ownerId: activeUser.uid,
       status: "draft",

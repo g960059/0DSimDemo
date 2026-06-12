@@ -96,6 +96,7 @@ export function WorkbenchRoute() {
         sceneMeta={scene.sceneMeta}
         onSceneMetaChange={scene.updateSceneMeta}
         onPrimaryAction={persistence.runHeaderPrimaryAction}
+        onResetToAuthorState={scene.resetToAuthorState}
         instances={scene.instances}
         instanceHealth={simulation.instanceHealth}
         getLiveHealth={simulation.getLiveHealth}

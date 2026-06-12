@@ -10,6 +10,7 @@ import { PanelGrid, getActiveSettingsSectionId, getDockviewPaneTitle, metricsBin
 import { ScenarioPane } from "@/components/workbench/ScenarioPane";
 import { getDockviewStructureSignature, getDockviewTabMenuPosition, isDockviewHorizontalOnlyDropAllowed, shouldReapplyDockviewLayout } from "@/components/workbench/WorkbenchDockview";
 import { standardAuthoredViews } from "@/features/workbench/authoredViews";
+import { createAuthorRuntimeSnapshot, resolveAuthorActiveInstanceId } from "@/features/workbench/hooks/useWorkbenchScene";
 import { addVisibleInstanceConfigsToPanels } from "@/WorkbenchPage";
 import { DEFAULT_PARAMS } from "@/constants";
 import type { SteadyUpdateStatusMap } from "@/engine/previewController";
@@ -544,6 +545,25 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).not.toContain("Instance keys");
   });
 
+  it("hides document operation affordances in learner mode while keeping runtime controls visible", () => {
+    const html = renderPanelGrid("learner", [notePanel, pvLoopPanel], [normalInstance, copiedInstance], [], {}, false, {
+      noteOpen: true,
+      metricsOpen: true,
+      rightRailVisible: true,
+    });
+
+    expect(html).not.toContain("aria-label=\"Add scenario\"");
+    expect(html).not.toContain("Switch to edit");
+    expect(html).not.toContain("Editing");
+    expect(html).not.toContain("New controller");
+    expect(html).not.toContain("Restore standard views");
+    expect(html).not.toContain("New metrics");
+    expect(html).not.toContain("Pane settings");
+    expect(html).toContain("aria-label=\"Hide Normal on graphs\"");
+    expect(html).toContain("aria-label=\"Resize metrics host\"");
+    expect(html).toContain("aria-label=\"Resize scenario list (double-click to reset)\"");
+  });
+
   it("keeps pane settings modal focus and scroll behavior explicit", () => {
     const panelGridSource = readFileSync(resolve(process.cwd(), "components/workbench/PanelGrid.tsx"), "utf8");
 
@@ -835,6 +855,34 @@ describe("PanelGrid Dockview layout", () => {
     expect(scenarioPaneSource).toContain("removeInstance(instance.id)");
     expect(scenarioPaneSource).toContain("disabled={instances.length <= 1}");
     expect(scenarioPaneSource).toContain("{t('common.delete')}");
+    expect(scenarioPaneSource).toContain("{!readOnly && (");
+    expect(scenarioPaneSource).toContain("resetInstanceKnobs?.(instance.id)");
+  });
+
+  it("keeps Dockview document operations and tab dragging gated in learner mode", () => {
+    const dockviewSource = readFileSync(resolve(process.cwd(), "components/workbench/WorkbenchDockview.tsx"), "utf8");
+
+    expect(dockviewSource).toContain("const isLearnerMode = mode === 'learner';");
+    expect(dockviewSource).toContain("disableDnd={isLearnerMode}");
+    expect(dockviewSource.match(/context\.mode === 'learner'/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+  });
+
+  it("builds a reset-to-author runtime snapshot with initial active scenario and deep-cloned instances", () => {
+    const authored = [
+      { ...normalInstance, id: "a", isVisible: true, params: { ...DEFAULT_PARAMS, HR: 72 } },
+      { ...copiedInstance, id: "b", isVisible: false, params: { ...DEFAULT_PARAMS, HR: 88 } },
+    ];
+    const activeId = resolveAuthorActiveInstanceId(authored, "a", "b");
+    const snapshot = createAuthorRuntimeSnapshot(authored, activeId);
+
+    authored[1].isVisible = true;
+    authored[1].params.HR = 120;
+
+    expect(activeId).toBe("b");
+    expect(resolveAuthorActiveInstanceId(authored, "a", "missing")).toBe("a");
+    expect(snapshot.activeInstanceId).toBe("b");
+    expect(snapshot.instances[1].isVisible).toBe(false);
+    expect(snapshot.instances[1].params.HR).toBe(88);
   });
 });
 

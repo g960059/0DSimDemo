@@ -166,6 +166,7 @@ export function useWorkbenchPanels({
   }, [markUserEdited, panels]);
 
   const confirmAddPanel = useCallback(() => {
+    if (headerMode === "learner") return;
     if (!addingPanelType) return;
     appendPanel(createPanelDef(addingPanelType, addingPanelConfig, addingPanelZone ?? defaultZoneOf(addingPanelType)));
     setAddingPanelType(null);

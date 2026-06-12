@@ -17,6 +17,7 @@ interface ScenarioPaneProps {
   toggleScenarioGlobalVisibility?: (id: string) => void;
   resetInstanceKnobs?: (id: string) => void;
   steadyUpdateStatuses?: SteadyUpdateStatusMap;
+  readOnly?: boolean;
 }
 
 const scenarioPresets = Object.entries(OFFICIAL_BASELINES).map(([id, preset]) => ({
@@ -114,6 +115,7 @@ export function ScenarioPane({
   toggleScenarioGlobalVisibility,
   resetInstanceKnobs,
   steadyUpdateStatuses = {},
+  readOnly = false,
 }: ScenarioPaneProps) {
   const { t } = useTranslation();
   const [editingId, setEditingId] = React.useState<string | null>(null);
@@ -143,6 +145,7 @@ export function ScenarioPane({
   }, [instances, menuState]);
 
   const beginRename = (instance: SimInstance) => {
+    if (readOnly) return;
     setMenuState(null);
     setEditingId(instance.id);
     setDraftName(instance.name);
@@ -204,18 +207,20 @@ export function ScenarioPane({
               onDoubleClick={() => beginRename(instance)}
             >
               <label
-                className="relative h-2.5 w-2.5 shrink-0 overflow-hidden rounded-full ring-1 ring-wb-line-strong"
-                title={t('workbench.scenarioPane.changeColor')}
+                className={`relative h-2.5 w-2.5 shrink-0 overflow-hidden rounded-full ring-1 ring-wb-line-strong ${readOnly ? '' : 'cursor-pointer'}`}
+                title={readOnly ? instance.name : t('workbench.scenarioPane.changeColor')}
                 onClick={(event) => event.stopPropagation()}
               >
                 <span className="absolute inset-0" style={{ backgroundColor: instance.color }} />
-                <input
-                  type="color"
-                  value={instance.color}
-                  onChange={(event) => updateInstanceColor(instance.id, event.target.value)}
-                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent"
-                  aria-label={t('workbench.scenarioPane.colorAria', { name: instance.name })}
-                />
+                {!readOnly && (
+                  <input
+                    type="color"
+                    value={instance.color}
+                    onChange={(event) => updateInstanceColor(instance.id, event.target.value)}
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent"
+                    aria-label={t('workbench.scenarioPane.colorAria', { name: instance.name })}
+                  />
+                )}
               </label>
               {isEditing ? (
                 <input
@@ -283,23 +288,27 @@ export function ScenarioPane({
                     style={{ left: menuState.x, top: menuState.y }}
                     onClick={(event) => event.stopPropagation()}
                   >
-                    <button
-                      type="button"
-                      onClick={() => beginRename(instance)}
-                      className="workbench-popover-menu-item block w-full px-3 py-1.5 text-left text-xs font-medium"
-                    >
-                      {t('common.rename')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        addInstance(instance.id);
-                        setMenuState(null);
-                      }}
-                      className="workbench-popover-menu-item block w-full px-3 py-1.5 text-left text-xs font-medium"
-                    >
-                      {t('common.duplicate')}
-                    </button>
+                    {!readOnly && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => beginRename(instance)}
+                          className="workbench-popover-menu-item block w-full px-3 py-1.5 text-left text-xs font-medium"
+                        >
+                          {t('common.rename')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            addInstance(instance.id);
+                            setMenuState(null);
+                          }}
+                          className="workbench-popover-menu-item block w-full px-3 py-1.5 text-left text-xs font-medium"
+                        >
+                          {t('common.duplicate')}
+                        </button>
+                      </>
+                    )}
                     <button
                       type="button"
                       onClick={() => {
@@ -311,17 +320,19 @@ export function ScenarioPane({
                     >
                       {t('workbench.scenarioPane.reset')}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        removeInstance(instance.id);
-                        setMenuState(null);
-                      }}
-                      disabled={instances.length <= 1}
-                      className="workbench-popover-menu-item-danger block w-full px-3 py-1.5 text-left text-xs font-medium disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent"
-                    >
-                      {t('common.delete')}
-                    </button>
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          removeInstance(instance.id);
+                          setMenuState(null);
+                        }}
+                        disabled={instances.length <= 1}
+                        className="workbench-popover-menu-item-danger block w-full px-3 py-1.5 text-left text-xs font-medium disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent"
+                      >
+                        {t('common.delete')}
+                      </button>
+                    )}
                   </div>
                 </>,
                 document.body,

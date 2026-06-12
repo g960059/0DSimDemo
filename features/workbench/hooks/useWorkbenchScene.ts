@@ -63,8 +63,38 @@ type SavedCasePayload = {
   initialActiveScenarioId?: string;
 };
 
+export type AuthorRuntimeSnapshot = {
+  instances: SimInstance[];
+  activeInstanceId: string;
+};
+
 function nextViewId(kind: "controller" | "metrics"): string {
   return `${kind}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+export function cloneInstances(instances: readonly SimInstance[]): SimInstance[] {
+  return JSON.parse(JSON.stringify(instances)) as SimInstance[];
+}
+
+export function resolveAuthorActiveInstanceId(
+  instances: readonly SimInstance[],
+  fallbackActiveInstanceId: string,
+  initialActiveScenarioId?: string,
+): string {
+  if (initialActiveScenarioId && instances.some((instance) => instance.id === initialActiveScenarioId)) {
+    return initialActiveScenarioId;
+  }
+  return fallbackActiveInstanceId;
+}
+
+export function createAuthorRuntimeSnapshot(
+  instances: readonly SimInstance[],
+  activeInstanceId: string,
+): AuthorRuntimeSnapshot {
+  return {
+    instances: cloneInstances(instances),
+    activeInstanceId,
+  };
 }
 
 export function useWorkbenchScene({
@@ -109,6 +139,7 @@ export function useWorkbenchScene({
   const [currentCaseViews, setCurrentCaseViews] = useState<AuthoredViewSpec[]>(() => standardAuthoredViews(nextViewId));
   const [currentCaseGraphBoardLayout, setCurrentCaseGraphBoardLayout] = useState<GraphBoardLayout | undefined>(undefined);
   const [currentCaseInitialActiveScenarioId, setCurrentCaseInitialActiveScenarioId] = useState<string | undefined>(undefined);
+  const [authorRuntimeSnapshot, setAuthorRuntimeSnapshot] = useState<AuthorRuntimeSnapshot | undefined>(undefined);
 
   const ownsCurrentCase = Boolean(user && currentCaseOwnerId === user.uid);
   const headerMode: WorkbenchHeaderMode = authoringMode
@@ -116,23 +147,27 @@ export function useWorkbenchScene({
     : ownsCurrentCase || caseAuthor === LOCAL_COPY_AUTHOR
       ? "sandbox"
       : resolveHeaderModeFromAuthor(caseAuthor, currentCaseSource);
+  const markDocumentEdited = useCallback(() => {
+    if (headerMode !== "learner") markUserEdited();
+  }, [headerMode, markUserEdited]);
 
   const updateSceneMeta = useCallback((next: WorkbenchSceneMeta) => {
+    if (headerMode === "learner") return;
     setSceneMeta(next);
-    markUserEdited();
-  }, [markUserEdited]);
+    markDocumentEdited();
+  }, [headerMode, markDocumentEdited]);
 
   const updateInstanceParams = useCallback((id: string, newParams: Partial<SimulationParams>) => {
-    markUserEdited();
+    markDocumentEdited();
     setInstances((prev) => prev.map((instance) =>
       instance.id === id
         ? { ...instance, ...resolveRawEdit({ params: instance.params, knobs: instance.knobs, knobBaseline: instance.knobBaseline }, newParams) }
         : instance
     ));
-  }, [markUserEdited]);
+  }, [markDocumentEdited]);
 
   const updateInstanceKnobs = useCallback((id: string, newKnobs: ClinicalKnobs) => {
-    markUserEdited();
+    markDocumentEdited();
     setInstances((prev) => {
       const next = prev.map((instance) =>
         instance.id === id
@@ -142,10 +177,10 @@ export function useWorkbenchScene({
       requestSteadyTransitionRef.current(id, next);
       return next;
     });
-  }, [markUserEdited, requestSteadyTransitionRef]);
+  }, [markDocumentEdited, requestSteadyTransitionRef]);
 
   const updateInstanceVolume = useCallback((id: string, vol: number) => {
-    markUserEdited();
+    markDocumentEdited();
     setInstances((prev) => {
       const next = prev.map((instance) => (
         instance.id === id ? { ...instance, targetVolume: vol } : instance
@@ -153,31 +188,33 @@ export function useWorkbenchScene({
       requestSteadyTransitionRef.current(id, next);
       return next;
     });
-  }, [markUserEdited, requestSteadyTransitionRef]);
+  }, [markDocumentEdited, requestSteadyTransitionRef]);
 
   const updateInstanceColor = useCallback((id: string, color: string) => {
-    markUserEdited();
+    if (headerMode === "learner") return;
+    markDocumentEdited();
     setInstances((prev) => prev.map((instance) => (
       instance.id === id ? { ...instance, color } : instance
     )));
-  }, [markUserEdited]);
+  }, [headerMode, markDocumentEdited]);
 
   const updateInstanceName = useCallback((id: string, name: string) => {
-    markUserEdited();
+    if (headerMode === "learner") return;
+    markDocumentEdited();
     setInstances((prev) => prev.map((instance) => (
       instance.id === id ? { ...instance, name } : instance
     )));
-  }, [markUserEdited]);
+  }, [headerMode, markDocumentEdited]);
 
   const toggleScenarioGlobalVisibility = useCallback((id: string) => {
-    markUserEdited();
+    markDocumentEdited();
     setInstances((prev) => prev.map((instance) => (
       instance.id === id ? { ...instance, isVisible: instance.isVisible === false } : instance
     )));
-  }, [markUserEdited]);
+  }, [markDocumentEdited]);
 
   const resetInstanceKnobs = useCallback((id: string) => {
-    markUserEdited();
+    markDocumentEdited();
     setInstances((prev) => {
       let changed = false;
       const next = prev.map((instance) => {
@@ -193,58 +230,67 @@ export function useWorkbenchScene({
       if (changed) requestSteadyTransitionRef.current(id, next);
       return next;
     });
-  }, [markUserEdited, requestSteadyTransitionRef]);
+  }, [markDocumentEdited, requestSteadyTransitionRef]);
 
   const updateGraphBoardLayout = useCallback((layout: GraphBoardLayout | undefined) => {
+    if (headerMode === "learner") return;
     setCurrentCaseGraphBoardLayout(layout);
-    markUserEdited();
-  }, [markUserEdited]);
+    markDocumentEdited();
+  }, [headerMode, markDocumentEdited]);
 
   const createControllerView = useCallback((title: string, items: ControllerItem[] = []) => {
+    if (headerMode === "learner") return createControllerViewSpec(nextViewId("controller"), title, items);
     const view = createControllerViewSpec(nextViewId("controller"), title, items);
     setCurrentCaseViews((prev) => upsertAuthoredView(prev ?? [], view));
-    markUserEdited();
+    markDocumentEdited();
     return view;
-  }, [markUserEdited]);
+  }, [headerMode, markDocumentEdited]);
 
   const createMetricsView = useCallback((title: string, metrics: MetricType[] = []) => {
+    if (headerMode === "learner") return createMetricsViewSpec(nextViewId("metrics"), title, metrics, instances);
     const view = createMetricsViewSpec(nextViewId("metrics"), title, metrics, instances);
     setCurrentCaseViews((prev) => upsertAuthoredView(prev ?? [], view));
-    markUserEdited();
+    markDocumentEdited();
     return view;
-  }, [instances, markUserEdited]);
+  }, [headerMode, instances, markDocumentEdited]);
 
   const restoreStandardViews = useCallback(() => {
+    if (headerMode === "learner") return;
     setCurrentCaseViews((prev) => appendMissingStandardViews(prev, nextViewId, instances, currentCaseDefaultLocale));
-    markUserEdited();
-  }, [currentCaseDefaultLocale, instances, markUserEdited]);
+    markDocumentEdited();
+  }, [currentCaseDefaultLocale, headerMode, instances, markDocumentEdited]);
 
   const updateAuthoredView = useCallback((view: AuthoredViewSpec) => {
+    if (headerMode === "learner") return;
     setCurrentCaseViews((prev) => upsertAuthoredView(prev ?? [], view));
-    markUserEdited();
-  }, [markUserEdited]);
+    markDocumentEdited();
+  }, [headerMode, markDocumentEdited]);
 
   const renameAuthoredView = useCallback((id: string, title: string) => {
+    if (headerMode === "learner") return;
     setCurrentCaseViews((prev) => (prev ?? []).map((view) => view.id === id ? { ...view, title } : view));
-    markUserEdited();
-  }, [markUserEdited]);
+    markDocumentEdited();
+  }, [headerMode, markDocumentEdited]);
 
   const duplicateView = useCallback((id: string) => {
+    if (headerMode === "learner") return undefined;
     const source = currentCaseViews?.find((view) => view.id === id);
     if (!source) return undefined;
     const view = duplicateAuthoredView(source, nextViewId(source.kind), `${source.title ?? (source.kind === "controller" ? "Controller view" : "Metrics view")} copy`);
     setCurrentCaseViews((prev) => upsertAuthoredView(prev ?? [], view));
-    markUserEdited();
+    markDocumentEdited();
     return view;
-  }, [currentCaseViews, markUserEdited]);
+  }, [currentCaseViews, headerMode, markDocumentEdited]);
 
   const deleteView = useCallback((id: string) => {
+    if (headerMode === "learner") return;
     setCurrentCaseViews((prev) => deleteAuthoredView(prev ?? [], id));
-    markUserEdited();
-  }, [markUserEdited]);
+    markDocumentEdited();
+  }, [headerMode, markDocumentEdited]);
 
   const addInstance = useCallback((sourceId?: string, presetId?: string) => {
-    markUserEdited();
+    if (headerMode === "learner") return;
+    markDocumentEdited();
     const newId = Date.now().toString();
     const preset = presetId ? OFFICIAL_BASELINES[presetId] : undefined;
     const sourceInstance = preset ? undefined : instances.find((instance) => (
@@ -287,19 +333,29 @@ export function useWorkbenchScene({
     }]);
     addVisibleInstanceConfigsRef.current([{ id: newId, sourceId: sourceInstance?.id }]);
     setCurrentCaseViews((prev) => addVisibleScenariosToMetricsViews(prev ?? [], [newId]));
-  }, [activeInstanceId, addVisibleInstanceConfigsRef, instances, markUserEdited]);
+  }, [activeInstanceId, addVisibleInstanceConfigsRef, headerMode, instances, markDocumentEdited]);
 
   const removeInstance = useCallback((id: string) => {
-    markUserEdited();
+    if (headerMode === "learner") return;
+    markDocumentEdited();
     setInstances((prev) => {
       const next = prev.filter((instance) => instance.id !== id);
       if (activeInstanceId === id) setActiveInstanceId(next[0]?.id || "");
       return next;
     });
-  }, [activeInstanceId, markUserEdited]);
+  }, [activeInstanceId, headerMode, markDocumentEdited]);
+
+  const resetToAuthorState = useCallback(() => {
+    if (!authorRuntimeSnapshot) return;
+    const next = cloneInstances(authorRuntimeSnapshot.instances);
+    setInstances(next);
+    setActiveInstanceId(authorRuntimeSnapshot.activeInstanceId);
+    next.forEach((instance) => requestSteadyTransitionRef.current(instance.id, next));
+  }, [authorRuntimeSnapshot, requestSteadyTransitionRef]);
 
   const replaceSceneFromDoc = useCallback((payload: ReplaceScenePayload) => {
     const { doc } = payload;
+    const initialActiveInstanceId = resolveAuthorActiveInstanceId(payload.instances, payload.activeInstanceId, doc.initialActiveScenarioId);
     setInstances(payload.instances);
     setSceneMeta({
       title: doc.spec.title || UNTITLED_CASE_TITLE,
@@ -324,7 +380,8 @@ export function useWorkbenchScene({
     }));
     setCurrentCaseGraphBoardLayout(doc.graphBoardLayout);
     setCurrentCaseInitialActiveScenarioId(doc.initialActiveScenarioId);
-    setActiveInstanceId(payload.activeInstanceId);
+    setActiveInstanceId(initialActiveInstanceId);
+    setAuthorRuntimeSnapshot(createAuthorRuntimeSnapshot(payload.instances, initialActiveInstanceId));
     setAuthoringMode(false);
   }, []);
 
@@ -400,6 +457,7 @@ export function useWorkbenchScene({
     updateInstanceName,
     toggleScenarioGlobalVisibility,
     resetInstanceKnobs,
+    resetToAuthorState,
     addInstance,
     removeInstance,
     replaceSceneFromDoc,
