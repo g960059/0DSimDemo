@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { DEFAULT_PARAMS } from "@/constants";
 import { ModelCore, type AorticFlowClampMode, type ModelCoreActiveStressDiagnostics, type ModelCoreClampDiagnostics } from "@/engine/ModelCore";
+import { DYNAMIC_FLOW_CLAMP_ML_PER_S } from "@/engine/core/topology";
 import { makeIndex } from "@/engine/core/stateLayout";
 import type { StarlingSweepRequest } from "@/engine/guytonStarling";
 import { PREVIEW_SETTLE_POLICY, type SettleStatus } from "@/engine/settling";
@@ -92,6 +93,12 @@ type BeatTraceRow = {
   AoPMean: number;
   AoPMax: number;
   QAoMax: number;
+  QAoCapRatioMax: number;
+  QAoNearCap90Fraction: number;
+  QAoNearCap95Fraction: number;
+  QAoNearCap98Fraction: number;
+  QAoAtCapFraction: number;
+  QAoLocalCapActiveFraction: number;
   filling: FillingRegimeSummary;
   active: Partial<Record<Chamber, ActiveBeatSummary>>;
 };
@@ -397,6 +404,12 @@ type DebugSummary = {
   maxBranchAmplitudeFractionQAoMax: number;
   maxBranchAmplitudeAoPMax: number;
   maxBranchAmplitudeFractionAoPMax: number;
+  maxQAoCapRatioMax: number;
+  maxQAoNearCap90Fraction: number;
+  maxQAoNearCap95Fraction: number;
+  maxQAoNearCap98Fraction: number;
+  maxQAoAtCapFraction: number;
+  maxQAoLocalCapActiveFraction: number;
   minMVAForwardMl: number;
   minMVAFraction: number;
   minLAAloopArea: number;
@@ -413,7 +426,7 @@ type DebugSummary = {
 };
 
 type DebugReport = {
-  schemaVersion: 16;
+  schemaVersion: 17;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -533,6 +546,12 @@ const CSV_COLUMNS = [
   "AoPMean",
   "AoPMax",
   "QAoMax",
+  "QAoCapRatioMax",
+  "QAoNearCap90Fraction",
+  "QAoNearCap95Fraction",
+  "QAoNearCap98Fraction",
+  "QAoAtCapFraction",
+  "QAoLocalCapActiveFraction",
   "MV_E_forward_mL",
   "MV_A_forward_mL",
   "MV_A_fraction",
@@ -584,6 +603,10 @@ const CSV_COLUMNS = [
   "branchAmplitudeFractionQAoMax",
   "branchAmplitudeAoPMax",
   "branchAmplitudeFractionAoPMax",
+  "summaryMaxQAoCapRatio",
+  "summaryMaxQAoNearCap95Fraction",
+  "summaryMaxQAoAtCapFraction",
+  "summaryMaxQAoLocalCapActiveFraction",
   "tbvAuditClass",
   "sanitizeAbsMl",
   "projectionAppliedMl",
@@ -710,9 +733,9 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
   const dtScenarios = lambdaActTauSecValues.flatMap((tau) => dtValues.map((dt) => runDtScenario(opts, dt, tau)));
   const primary = dtScenarios[0] ?? runDtScenario(opts, 0.001, 0);
   return {
-    schemaVersion: 16,
+    schemaVersion: 17,
     generatedAt: new Date().toISOString(),
-    measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve/TBV-projection diagnostics; branch-amplitude primary gate; EDV-section volume-preserving LV/PVein one-beat/two-beat return-map slopes with EDV/ESV/CO/afterload/ejection features; LA/MV filling-regime and MV event-count morphology diagnostics; optional phase-aligned last-two-beat active/ejection/MV overlay diagnostics with high-low divergence summary; dt, off-by-default lambdaAct, and off-by-default AoV flow-clamp sensitivity",
+    measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve/TBV-projection diagnostics; branch-amplitude primary gate; EDV-section volume-preserving LV/PVein one-beat/two-beat return-map slopes with EDV/ESV/CO/afterload/ejection features; QAo cap proximity and localized AoV soft-cap sensitivity; LA/MV filling-regime and MV event-count morphology diagnostics; optional phase-aligned last-two-beat active/ejection/MV overlay diagnostics with high-low divergence summary; dt, off-by-default lambdaAct, and off-by-default AoV flow-clamp sensitivity",
     targetVolumeMl: opts.targetVolumeMl,
     heartModel: opts.heartModel ?? DEFAULT_HEART_MODEL,
     deltasMl: opts.deltasMl,
@@ -809,6 +832,25 @@ export function reportToMarkdown(report: DebugReport): string {
       round(scenario.summary.maxAbsTwoBeatReturnMapSlopeESVL, 4),
       round(scenario.summary.maxAbsReturnMapSlopeQAoMax, 4),
       round(scenario.summary.maxAbsTwoBeatReturnMapSlopeQAoMax, 4),
+    ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
+  }
+  lines.push("");
+  lines.push("## QAo cap proximity");
+  lines.push("");
+  lines.push("| tau s | scope | dt | AoV clamp | max QAo/cap | near cap >90% | near cap >95% | near cap >98% | at cap | local cap active |");
+  lines.push("| ---: | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |");
+  for (const scenario of report.dtScenarios) {
+    lines.push([
+      round(scenario.lambdaActTauSec, 4),
+      scenario.lambdaActScope,
+      round(scenario.dt, 5),
+      report.aorticFlowClampMode,
+      round(scenario.summary.maxQAoCapRatioMax, 4),
+      round(scenario.summary.maxQAoNearCap90Fraction, 4),
+      round(scenario.summary.maxQAoNearCap95Fraction, 4),
+      round(scenario.summary.maxQAoNearCap98Fraction, 4),
+      round(scenario.summary.maxQAoAtCapFraction, 4),
+      round(scenario.summary.maxQAoLocalCapActiveFraction, 4),
     ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
   }
   lines.push("");
@@ -1018,6 +1060,12 @@ export function reportToCsv(report: DebugReport): string {
           beat.AoPMean,
           beat.AoPMax,
           beat.QAoMax,
+          beat.QAoCapRatioMax,
+          beat.QAoNearCap90Fraction,
+          beat.QAoNearCap95Fraction,
+          beat.QAoNearCap98Fraction,
+          beat.QAoAtCapFraction,
+          beat.QAoLocalCapActiveFraction,
           filling.MV_E_forward_mL,
           filling.MV_A_forward_mL,
           filling.MV_A_fraction ?? "",
@@ -1069,6 +1117,10 @@ export function reportToCsv(report: DebugReport): string {
           point.returnMap.branchAmplitudeFraction.QAoMax ?? "",
           point.returnMap.branchAmplitude.AoPMax ?? "",
           point.returnMap.branchAmplitudeFraction.AoPMax ?? "",
+          scenario.summary.maxQAoCapRatioMax,
+          scenario.summary.maxQAoNearCap95Fraction,
+          scenario.summary.maxQAoAtCapFraction,
+          scenario.summary.maxQAoLocalCapActiveFraction,
           point.tbvAudit.classification,
           point.tbvAudit.sanitizeAbsMl,
           point.tbvAudit.projectionAppliedMl,
@@ -1263,10 +1315,10 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
     traceCore.unpackState(run.state);
     configureDebugCore(traceCore, tbvCorrectionMode, aorticFlowClampMode);
     const traceSamples = collectTraceSamples(traceCore, opts.traceBeats, dt, opts.sampleHz);
-    const beatTrace = summarizeBeatTrace(traceSamples, req.params.HR, opts.traceBeats);
-    const beatPairOverlay = opts.beatPairOverlay === true ? buildBeatPairOverlay(traceSamples, req.params.HR) : undefined;
-    const branchAmplitude = branchAmplitudeFromTrace(traceSamples, req.params.HR);
-    const branchAmplitudeFraction = branchAmplitudeFractionFromTrace(traceSamples, req.params.HR);
+    const beatTrace = summarizeBeatTrace(traceSamples, req.params.HR, opts.traceBeats, aorticFlowClampMode);
+    const beatPairOverlay = opts.beatPairOverlay === true ? buildBeatPairOverlay(traceSamples, req.params.HR, aorticFlowClampMode) : undefined;
+    const branchAmplitude = branchAmplitudeFromTrace(traceSamples, req.params.HR, aorticFlowClampMode);
+    const branchAmplitudeFraction = branchAmplitudeFractionFromTrace(traceSamples, req.params.HR, aorticFlowClampMode);
     const clampDiagnostics = run.core.debugClampDiagnostics();
     const tbvAudit = tbvAuditFromClampDiagnostics(clampDiagnostics, tbvCorrectionMode);
     const returnMap = skippedReturnMapDiagnostic(
@@ -1835,8 +1887,8 @@ function postPerturbationBeats(
     throw new Error("could not collect complete one-beat and two-beat post-perturbation responses");
   }
   return {
-    oneBeat: summarizeBeat(firstTargetBeat, oneEntries, params.HR),
-    twoBeat: summarizeBeat(secondTargetBeat, twoEntries, params.HR),
+    oneBeat: summarizeBeat(firstTargetBeat, oneEntries, params.HR, aorticFlowClampMode),
+    twoBeat: summarizeBeat(secondTargetBeat, twoEntries, params.HR, aorticFlowClampMode),
     clampHits: core.debugClampDiagnostics().totalClampHits,
   };
 }
@@ -1870,8 +1922,8 @@ function phaseDiagnostic(
   };
 }
 
-function branchAmplitudeFromTrace(traceSamples: TraceSample[], HR: number): Partial<Record<ReturnMapFeatureKey, number>> {
-  const trace = summarizeBeatTrace(traceSamples, HR, 4);
+function branchAmplitudeFromTrace(traceSamples: TraceSample[], HR: number, aorticFlowClampMode: AorticFlowClampMode): Partial<Record<ReturnMapFeatureKey, number>> {
+  const trace = summarizeBeatTrace(traceSamples, HR, 4, aorticFlowClampMode);
   if (trace.length < 2) return {};
   const a = trace[trace.length - 1];
   const b = trace[trace.length - 2];
@@ -1889,8 +1941,8 @@ function branchAmplitudeFromTrace(traceSamples: TraceSample[], HR: number): Part
   };
 }
 
-function branchAmplitudeFractionFromTrace(traceSamples: TraceSample[], HR: number): Partial<Record<ReturnMapFeatureKey, number>> {
-  const trace = summarizeBeatTrace(traceSamples, HR, 4);
+function branchAmplitudeFractionFromTrace(traceSamples: TraceSample[], HR: number, aorticFlowClampMode: AorticFlowClampMode): Partial<Record<ReturnMapFeatureKey, number>> {
+  const trace = summarizeBeatTrace(traceSamples, HR, 4, aorticFlowClampMode);
   if (trace.length < 2) return {};
   const a = trace[trace.length - 1];
   const b = trace[trace.length - 2];
@@ -1938,14 +1990,14 @@ function fractionalDifference(a: number, b: number, floor: number): number {
   return Math.abs(a - b) / denom;
 }
 
-function summarizeBeatTrace(traceSamples: TraceSample[], HR: number, traceBeats: number): BeatTraceRow[] {
+function summarizeBeatTrace(traceSamples: TraceSample[], HR: number, traceBeats: number, aorticFlowClampMode: AorticFlowClampMode): BeatTraceRow[] {
   const groups = groupTraceSamplesByBeat(traceSamples);
   const beatIds = Array.from(groups.keys()).sort((a, b) => a - b);
   const completeIds = beatIds.slice(1, -1).filter((beat) => (groups.get(beat)?.length ?? 0) >= 5);
-  return completeIds.slice(-traceBeats).map((beat) => summarizeBeat(beat, groups.get(beat) ?? [], HR));
+  return completeIds.slice(-traceBeats).map((beat) => summarizeBeat(beat, groups.get(beat) ?? [], HR, aorticFlowClampMode));
 }
 
-function buildBeatPairOverlay(traceSamples: TraceSample[], HR: number): BeatPairOverlay {
+function buildBeatPairOverlay(traceSamples: TraceSample[], HR: number, aorticFlowClampMode: AorticFlowClampMode): BeatPairOverlay {
   const groups = groupTraceSamplesByBeat(traceSamples);
   const beatIds = Array.from(groups.keys()).sort((a, b) => a - b);
   const completeIds = beatIds.slice(1, -1).filter((beat) => (groups.get(beat)?.length ?? 0) >= 5);
@@ -1962,7 +2014,7 @@ function buildBeatPairOverlay(traceSamples: TraceSample[], HR: number): BeatPair
   const beatSummaries: BeatPairBeatSummary[] = [];
   for (const [pairIndex, beat] of pair.entries()) {
     const entries = groups.get(beat) ?? [];
-    const summary = summarizeBeat(beat, entries, HR);
+    const summary = summarizeBeat(beat, entries, HR, aorticFlowClampMode);
     beatSummaries.push({
       beat,
       pairBeat: pairIndex === 0 ? "previous" : "last",
@@ -2216,13 +2268,15 @@ function beatPairOverlayInterpretation(): BeatPairOverlay["interpretation"] {
   };
 }
 
-function summarizeBeat(beat: number, entries: TraceSample[], HR: number): BeatTraceRow {
+function summarizeBeat(beat: number, entries: TraceSample[], HR: number, aorticFlowClampMode: AorticFlowClampMode): BeatTraceRow {
   const samples = entries.map((entry) => entry.sample);
   const mean = (key: keyof SimSample) => meanNumbers(samples.map((sample) => Number(sample[key])));
   const max = (key: keyof SimSample) => Math.max(...samples.map((sample) => Number(sample[key])));
   const min = (key: keyof SimSample) => Math.min(...samples.map((sample) => Number(sample[key])));
   const svL = integratePositive(samples, "QAo");
   const svR = integratePositive(samples, "QPA");
+  const qAoValues = samples.map((sample) => Number(sample.QAo)).filter(Number.isFinite);
+  const qAoProximity = qAoCapProximity(qAoValues, aorticFlowClampMode);
   return {
     beat,
     sampleCount: samples.length,
@@ -2240,9 +2294,41 @@ function summarizeBeat(beat: number, entries: TraceSample[], HR: number): BeatTr
     AoPMean: mean("AoP"),
     AoPMax: max("AoP"),
     QAoMax: max("QAo"),
+    ...qAoProximity,
     filling: fillingRegimeSummary(samples),
     active: summarizeActive(entries),
   };
+}
+
+function qAoCapProximity(values: number[], aorticFlowClampMode: AorticFlowClampMode): Pick<BeatTraceRow,
+  "QAoCapRatioMax"
+  | "QAoNearCap90Fraction"
+  | "QAoNearCap95Fraction"
+  | "QAoNearCap98Fraction"
+  | "QAoAtCapFraction"
+  | "QAoLocalCapActiveFraction"
+> {
+  const positive = values.filter((value) => Number.isFinite(value) && value > 0);
+  const denom = Math.max(positive.length, 1);
+  const cap = DYNAMIC_FLOW_CLAMP_ML_PER_S;
+  const localIdentityFraction = aorticFlowClampIdentityFraction(aorticFlowClampMode);
+  const localThreshold = localIdentityFraction == null ? undefined : cap * localIdentityFraction;
+  const maxValue = positive.length > 0 ? Math.max(...positive) : 0;
+  return {
+    QAoCapRatioMax: maxValue / cap,
+    QAoNearCap90Fraction: positive.filter((value) => value >= cap * 0.90).length / denom,
+    QAoNearCap95Fraction: positive.filter((value) => value >= cap * 0.95).length / denom,
+    QAoNearCap98Fraction: positive.filter((value) => value >= cap * 0.98).length / denom,
+    QAoAtCapFraction: positive.filter((value) => value >= cap * 0.999).length / denom,
+    QAoLocalCapActiveFraction: localThreshold == null ? 0 : positive.filter((value) => value > localThreshold).length / denom,
+  };
+}
+
+function aorticFlowClampIdentityFraction(mode: AorticFlowClampMode): number | undefined {
+  if (mode === "local-c1-0.90") return 0.90;
+  if (mode === "local-c1-0.95" || mode === "local-c2-0.95") return 0.95;
+  if (mode === "local-c1-0.98" || mode === "local-c2-0.98") return 0.98;
+  return undefined;
 }
 
 function fillingRegimeSummary(samples: SimSample[]): FillingRegimeSummary {
@@ -2520,6 +2606,12 @@ function summarizePoints(points: DebugPoint[]): DebugSummary {
     maxBranchAmplitudeFractionQAoMax: Math.max(0, ...points.map((p) => p.returnMap.branchAmplitudeFraction.QAoMax ?? 0)),
     maxBranchAmplitudeAoPMax: Math.max(0, ...points.map((p) => p.returnMap.branchAmplitude.AoPMax ?? 0)),
     maxBranchAmplitudeFractionAoPMax: Math.max(0, ...points.map((p) => p.returnMap.branchAmplitudeFraction.AoPMax ?? 0)),
+    maxQAoCapRatioMax: Math.max(0, ...points.flatMap((p) => p.beatTrace.map((beat) => beat.QAoCapRatioMax))),
+    maxQAoNearCap90Fraction: Math.max(0, ...points.flatMap((p) => p.beatTrace.map((beat) => beat.QAoNearCap90Fraction))),
+    maxQAoNearCap95Fraction: Math.max(0, ...points.flatMap((p) => p.beatTrace.map((beat) => beat.QAoNearCap95Fraction))),
+    maxQAoNearCap98Fraction: Math.max(0, ...points.flatMap((p) => p.beatTrace.map((beat) => beat.QAoNearCap98Fraction))),
+    maxQAoAtCapFraction: Math.max(0, ...points.flatMap((p) => p.beatTrace.map((beat) => beat.QAoAtCapFraction))),
+    maxQAoLocalCapActiveFraction: Math.max(0, ...points.flatMap((p) => p.beatTrace.map((beat) => beat.QAoLocalCapActiveFraction))),
     minMVAForwardMl: finiteMin(points.map((p) => representativeFilling(p)?.MV_A_forward_mL ?? Number.NaN)),
     minMVAFraction: finiteMin(points.map((p) => representativeFilling(p)?.MV_A_fraction ?? Number.NaN)),
     minLAAloopArea: finiteMin(points.map((p) => representativeFilling(p)?.LA_A_loop_area ?? Number.NaN)),
@@ -2697,8 +2789,19 @@ export function parseLowPreloadDebugArgs(args: string[]): DebugOptions {
 }
 
 function parseAorticFlowClampMode(value: string): AorticFlowClampMode {
-  if (value === "hard" || value === "soft-tanh" || value === "soft-rational") return value;
+  if (isAorticFlowClampMode(value)) return value;
   throw new Error(`Invalid AoV flow clamp mode: ${value}`);
+}
+
+function isAorticFlowClampMode(value: string): value is AorticFlowClampMode {
+  return value === "hard"
+    || value === "soft-tanh"
+    || value === "soft-rational"
+    || value === "local-c1-0.90"
+    || value === "local-c1-0.95"
+    || value === "local-c1-0.98"
+    || value === "local-c2-0.95"
+    || value === "local-c2-0.98";
 }
 
 function parseTBVCorrectionMode(value: string): TBVCorrectionMode {
@@ -2760,7 +2863,7 @@ function printHelp(): void {
     "       [--return-map-mode=none|fixed|reset|both] [--branch-only]",
     "       [--beat-pair-overlay]",
     "       [--tbv-correction=on|off|low]",
-    "       [--aortic-flow-clamp=hard|soft-tanh|soft-rational]",
+    "       [--aortic-flow-clamp=hard|soft-tanh|soft-rational|local-c1-0.95|local-c2-0.98]",
     "       [--max-return-map-points=4] [--quiet-clamp-log] [--trace-beats=10] [--sample-hz=120]",
     "",
     "Examples:",

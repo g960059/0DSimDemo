@@ -91,7 +91,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(Object.keys(diagnostics.tbvProjectionLastStep.byNodeAbsMl).length).toBeGreaterThan(0);
   });
 
-  it("builds a schema-v16 low-preload report with active, valve, clamp, TBV audit, return-map, filling morphology, and tau/dt fields", () => {
+  it("builds a schema-v17 low-preload report with active, valve, clamp, TBV audit, return-map, filling morphology, and tau/dt fields", () => {
     const report = runLowPreloadDebug({
       outDir: "unused",
       targetVolumeMl: 5600,
@@ -105,7 +105,7 @@ describe("low-preload Starling debug diagnostics", () => {
       quietClampLog: true,
     });
 
-    expect(report.schemaVersion).toBe(16);
+    expect(report.schemaVersion).toBe(17);
     expect(report.heartModel).toBe("activeStress");
     expect(report.returnMapMode).toBe("both");
     expect(report.beatPairOverlay).toBe(false);
@@ -125,6 +125,9 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(point.beatTrace[0].active.LV?.activeTargetLimiterMin).toEqual(expect.any(Number));
     expect(point.beatTrace[0].active.LV?.activeTargetLimiterHitFraction).toEqual(expect.any(Number));
     expect(point.beatTrace[0].AoPMax).toEqual(expect.any(Number));
+    expect(point.beatTrace[0].QAoCapRatioMax).toEqual(expect.any(Number));
+    expect(point.beatTrace[0].QAoNearCap95Fraction).toEqual(expect.any(Number));
+    expect(point.beatTrace[0].QAoLocalCapActiveFraction).toEqual(expect.any(Number));
     expect(point.returnMap.features.QAoMax?.centralSlope).toEqual(expect.any(Number));
     expect(point.beatTrace[0].active.LV?.sigmaActTargetReductionFractionMean).toEqual(expect.any(Number));
     expect(point.beatTrace[0].filling.MV_E_forward_mL).toEqual(expect.any(Number));
@@ -226,7 +229,7 @@ describe("low-preload Starling debug diagnostics", () => {
       quietClampLog: true,
     });
 
-    expect(report.schemaVersion).toBe(16);
+    expect(report.schemaVersion).toBe(17);
     expect(report.beatPairOverlay).toBe(true);
     const overlay = report.points[0].beatPairOverlay;
     expect(overlay).toBeDefined();
@@ -355,30 +358,32 @@ describe("low-preload Starling debug diagnostics", () => {
       "--out=unused",
       "--deltas=0",
       "--dt=0.002",
-      "--aortic-flow-clamp=soft-tanh",
+      "--aortic-flow-clamp=local-c1-0.95",
       "--branch-only",
       "--trace-beats=2",
       "--sample-hz=40",
       "--quiet-clamp-log",
     ]);
     const report = runLowPreloadDebug(debugOpts);
-    expect(report.aorticFlowClampMode).toBe("soft-tanh");
+    expect(report.aorticFlowClampMode).toBe("local-c1-0.95");
     expect(report.points[0].beatTrace[0].QAoMax).toEqual(expect.any(Number));
+    expect(report.points[0].beatTrace[0].QAoLocalCapActiveFraction).toEqual(expect.any(Number));
 
     const matrixOpts = parseLowPreloadMatrixArgs([
       "--out=unused",
       "--deltas=0",
       "--dt=0.002",
       "--lambda-act-tau=0",
-      "--aortic-flow-clamp=hard,soft-rational",
+      "--aortic-flow-clamp=hard,soft-rational,local-c2-0.98",
       "--branch-only",
       "--trace-beats=2",
       "--sample-hz=40",
       "--quiet-progress",
     ]);
     const matrix = runLowPreloadMatrix(matrixOpts);
-    expect(matrix.aorticFlowClampModes).toEqual(["hard", "soft-rational"]);
-    expect(matrix.scenarios.map((scenario) => scenario.aorticFlowClampMode)).toEqual(["hard", "soft-rational"]);
+    expect(matrix.aorticFlowClampModes).toEqual(["hard", "local-c2-0.98", "soft-rational"]);
+    expect(matrix.scenarios.map((scenario) => scenario.aorticFlowClampMode)).toEqual(["hard", "local-c2-0.98", "soft-rational"]);
+    expect(matrix.summary.maxQAoCapRatioMax).toEqual(expect.any(Number));
   });
 
   it("can skip return-map diagnostics while preserving branch amplitude fields", () => {
@@ -544,7 +549,7 @@ describe("low-preload Starling debug diagnostics", () => {
     ]);
     const report = runLowPreloadMatrix(opts);
 
-    expect(report.schemaVersion).toBe(12);
+    expect(report.schemaVersion).toBe(13);
     expect(report.heartModels).toEqual(["activeStress"]);
     expect(report.aorticFlowClampModes).toEqual(["hard"]);
     expect(report.scenarios).toHaveLength(7);

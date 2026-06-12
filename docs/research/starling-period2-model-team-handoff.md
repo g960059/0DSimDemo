@@ -287,3 +287,38 @@ npm run verify:starling-low-preload-matrix -- \
   --trace-beats=4 \
   --sample-hz=60
 ```
+
+## QAo cap proximity and localized soft-cap comparator
+
+The global `soft-tanh` / `soft-rational` comparators are positive controls: they can collapse the low-preload branch envelope, but they also reshape normal / HR100 waveforms. They should not be read as default candidates.
+
+The localized comparator family is narrower:
+
+```bash
+--aortic-flow-clamp=hard,local-c1-0.95,local-c1-0.98,local-c2-0.95,local-c2-0.98
+```
+
+Each localized mode is exactly identity below its configured fraction of the existing QAo dynamic-flow cap, then smoothly approaches the cap over the remaining band. The report adds:
+
+- low-preload max `QAo / cap`
+- sample fraction above 90%, 95%, and 98% of cap
+- sample fraction at cap
+- localized cap active fraction
+- normal / HR100 candidate and baseline QAo cap proximity in waveform gates
+
+Use this to decide whether there is a default-safe localized AoV/QAo regularization path. A useful candidate should affect the low-preload high-output beat but remain nearly inactive for normal, HR100, and HR100-rearm waveforms.
+
+Suggested handoff artifact command:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/local-qao-smoke \
+  --deltas=0,-1250,-1300 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --aortic-flow-clamp=hard,local-c1-0.95,local-c2-0.98,soft-tanh \
+  --max-return-map-points=2 \
+  --trace-beats=4 \
+  --sample-hz=60
+```
