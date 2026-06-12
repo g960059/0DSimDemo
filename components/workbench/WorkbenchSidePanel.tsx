@@ -6,7 +6,7 @@ import { lessonHref } from '@/homeLinks';
 import { localeFromPathname } from '@/localeRouting';
 
 export type WorkbenchHeaderMode = 'learner' | 'author' | 'sandbox';
-export type WorkbenchThemeId = 'midnight' | 'graphite' | 'clinical' | 'light';
+export type WorkbenchThemeId = 'dark' | 'light';
 
 export interface WorkbenchSceneMeta {
   title: string;
@@ -15,10 +15,8 @@ export interface WorkbenchSceneMeta {
 }
 
 export const WORKBENCH_THEME_OPTIONS: Array<{ id: WorkbenchThemeId; label: string; swatch: string }> = [
-  { id: 'midnight', label: 'Midnight', swatch: '#2563eb' },
-  { id: 'graphite', label: 'Graphite', swatch: '#14b8a6' },
-  { id: 'clinical', label: 'Clinical', swatch: '#22c55e' },
-  { id: 'light', label: 'Light', swatch: '#0284c7' },
+  { id: 'dark', label: 'Dark', swatch: '#0b1120' },
+  { id: 'light', label: 'Light', swatch: '#f5f7fa' },
 ];
 
 interface WorkbenchSidePanelProps {
