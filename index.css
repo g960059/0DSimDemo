@@ -173,7 +173,7 @@ body[data-workbench-theme="clinical"] {
   --workbench-surface-soft: var(--wb-panel-bg-soft);
   --workbench-divider: var(--wb-border);
   --dv-group-view-background-color: var(--workbench-surface);
-  --dv-tabs-and-actions-container-background-color: var(--wb-tab-strip-bg);
+  --dv-tabs-and-actions-container-background-color: transparent;
   --dv-activegroup-visiblepanel-tab-background-color: transparent;
   --dv-activegroup-hiddenpanel-tab-background-color: transparent;
   --dv-inactivegroup-visiblepanel-tab-background-color: transparent;
@@ -193,7 +193,7 @@ body[data-workbench-theme="clinical"] {
 
 .workbench-dockview-main.dockview-theme-dark {
   --workbench-surface: var(--wb-zone-main-bg);
-  --dv-tabs-and-actions-container-background-color: color-mix(in srgb, var(--wb-tab-strip-bg) 76%, transparent);
+  --dv-tabs-and-actions-container-background-color: transparent;
 }
 
 .workbench-dockview .dv-groupview,
@@ -264,27 +264,36 @@ body[data-workbench-theme="clinical"] {
   padding: 0;
 }
 
+/*
+ * Tab grammar (applies to every tab strip in the workbench):
+ * tabs are plain text on the zone surface — no boxes, no strip band.
+ * Active = 2px accent underline + full text color; the whole strip
+ * carries one hairline underneath. Selection in LISTS uses the tint
+ * (--wb-active-bg); tabs and lists are the only two selection idioms.
+ */
+.workbench-dockview .dv-tabs-and-actions-container {
+  box-shadow: inset 0 -1px 0 var(--wb-border);
+}
+
 .workbench-dockview .dv-tab .workbench-dock-tab {
-  min-width: 8.25rem;
+  min-width: 6.5rem;
   max-width: 12rem;
-  background: var(--wb-tab-inactive-bg);
-  border: 1px solid var(--workbench-divider);
-  border-left-color: color-mix(in srgb, var(--workbench-divider) 76%, transparent);
-  border-bottom-color: var(--workbench-divider);
+  background: transparent;
+  border: 0;
   border-radius: 0;
-  color: var(--wb-text-muted);
+  color: var(--wb-text-subtle);
 }
 
 .workbench-dockview .dv-tab.dv-active-tab .workbench-dock-tab {
   position: relative;
   z-index: 1;
-  background: var(--workbench-surface);
+  background: transparent;
   border: 0;
-  box-shadow: none;
+  box-shadow: inset 0 -2px 0 var(--wb-accent);
   outline: 0;
   transform: none;
   color: var(--wb-text);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .workbench-dockview .dv-tab.dv-active-tab .workbench-dock-tab::after {
@@ -292,8 +301,24 @@ body[data-workbench-theme="clinical"] {
 }
 
 .workbench-dockview .dv-tab.dv-inactive-tab .workbench-dock-tab:hover {
-  background: var(--wb-tab-hover-bg);
+  background: transparent;
   color: var(--wb-text);
+}
+
+.wb-tab {
+  color: var(--wb-text-subtle);
+  font-weight: 500;
+  transition: color 120ms ease;
+}
+
+.wb-tab:hover {
+  color: var(--wb-text);
+}
+
+.wb-tab-active {
+  color: var(--wb-text);
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--wb-accent);
 }
 
 .workbench-dockview .workbench-dock-tab-menu-button {

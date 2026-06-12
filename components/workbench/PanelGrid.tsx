@@ -610,7 +610,7 @@ function GraphPanelSettingsBoard({
             key={inst.id}
             type="button"
             onClick={() => setActiveInstanceId(inst.id)}
-            className={`inline-flex h-8 max-w-[12rem] flex-none items-center gap-2 rounded border px-2 text-xs font-bold transition-colors ${isActive ? 'border-wb-line bg-wb-active text-wb-text' : 'border-wb-line bg-wb-strip text-wb-muted hover:text-wb-text'}`}
+            className={`wb-tab inline-flex h-8 max-w-[12rem] flex-none items-center gap-2 px-2.5 text-xs transition-colors ${isActive ? 'wb-tab-active' : ''}`}
           >
             <span className="h-2.5 w-2.5 flex-none rounded-full" style={{ backgroundColor: cfg?.customBaseColor ?? inst.color }} />
             <span className="truncate">{cfg?.customName ?? inst.name}</span>
