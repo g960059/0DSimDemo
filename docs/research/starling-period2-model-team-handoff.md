@@ -251,3 +251,39 @@ New output when `--beat-pair-overlay` is enabled:
 The summary labels the last two complete beats as high-output / low-output by `CO_L`, then computes normalized high-minus-low differences for `LV.c`, `LV.a`, `sigmaActTarget`, `sigmaAct`, `QAo`, `AoV open`, `AoP`, `VLV`, `QMV`, `MV open`, and `LAP-LVP`. It reports the first sustained divergence phase and the phase window (`early filling`, `diastasis / mid-diastole`, `atrial systole`, `isovolumic contraction`, `ejection`, `relaxation`) where that divergence appears.
 
 Use this as a trigger-order aid, not a causality proof. The intended question is whether active/ejection signals diverge before MV/filling morphology, or whether filling morphology leads the alternans. Current representative interpretation remains that MV morphology is less likely to be the initiating trigger, while the active-stress/ejection loop remains the stronger driver/amplifier hypothesis.
+
+## Afterload / ejection diagnostics and AoV soft-clamp comparator
+
+The current diagnostic branch adds report-only afterload/ejection features and an off-by-default AoV flow-clamp comparator. It does not change default app dynamics.
+
+New return-map / branch features:
+
+- `QAoMax`
+- `AoPMax`
+- `AoPMean`
+- `LVPMax`
+- `sigmaActTargetMax`
+- `sigmaActMean`
+
+New comparator axis:
+
+```bash
+--aortic-flow-clamp=hard,soft-tanh,soft-rational
+```
+
+`hard` is the current default. `soft-tanh` and `soft-rational` are diagnostic-only alternatives for testing whether QAoMax/AoV dynamic-flow clamp shaping is downstream, amplifying, or mechanistically necessary for the low-preload alternans envelope. Treat these as controls, not proposed defaults.
+
+Suggested handoff artifact command:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/soft-qao-smoke \
+  --deltas=0,-1250,-1300 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --aortic-flow-clamp=hard,soft-tanh,soft-rational \
+  --max-return-map-points=2 \
+  --trace-beats=4 \
+  --sample-hz=60
+```

@@ -101,6 +101,8 @@ export type MetricsOptions = {
   windowBeats?: 1 | 2;
 };
 
+export type AorticFlowClampMode = "hard" | "soft-tanh" | "soft-rational";
+
 type BeatWindow = {
   data: SimSample[];
   beatCount: 1 | 2;
@@ -329,6 +331,7 @@ export class ModelCore {
     maxTotalCorrectionMl?: number;
     maxNodeVolumeMl?: number;
   } | null = null;
+  private aorticFlowClampMode: AorticFlowClampMode = "hard";
 
   // Steady-state detection (engine/settling.ts). The detector keeps its OWN
   // small ring of per-beat fingerprints, independent of the 1200-sample raw
@@ -727,6 +730,10 @@ export class ModelCore {
     maxNodeVolumeMl?: number;
   } | null): void {
     this.tbvCorrectionOptions = options ? { ...options } : null;
+  }
+
+  setAorticFlowClampMode(mode: AorticFlowClampMode): void {
+    this.aorticFlowClampMode = mode;
   }
 
   private resetClampDiagnostics(): void {
@@ -1375,6 +1382,7 @@ export class ModelCore {
           qNext = 0;
         }
       }
+      if (e.name === "AoV") qNext = this.applyAorticFlowClamp(qNext);
       
       dy[qi] = clamp((qNext - q) / h, -40000, 40000);
     }
@@ -1580,7 +1588,7 @@ export class ModelCore {
       const Pd = pack.P[down];
       const PdEff = this.downstreamEffective(e, Pd);
       if (e.kind === "dynamic" || e.kind === "valve") {
-        flows[ei] = clamp(x[this.idx.q[e.name as DynamicEdgeName]], -DYNAMIC_FLOW_CLAMP_ML_PER_S, DYNAMIC_FLOW_CLAMP_ML_PER_S);
+        flows[ei] = this.dynamicFlowValue(e.name as DynamicEdgeName, x[this.idx.q[e.name as DynamicEdgeName]]);
       } else {
         const { R, B } = this.effectiveLosses(e, Pu, Pd, x);
         flows[ei] = solveQuadraticFlow(Pu - PdEff, R, B);
@@ -1608,8 +1616,7 @@ export class ModelCore {
     const pairedEs = side === "right" ? rvEs : lvEs;
     const inletValve = side === "right" ? "TV" : "MV";
     const outletValve = side === "right" ? "PV" : "AoV";
-    const dynamicFlow = (edge: DynamicEdgeName) =>
-      clamp(x[this.idx.q[edge]], -DYNAMIC_FLOW_CLAMP_ML_PER_S, DYNAMIC_FLOW_CLAMP_ML_PER_S);
+    const dynamicFlow = (edge: DynamicEdgeName) => this.dynamicFlowValue(edge, x[this.idx.q[edge]]);
     const lvVolumeRateMlPerSec = dynamicFlow("MV") - dynamicFlow("AoV");
     const rvVolumeRateMlPerSec = dynamicFlow("TV") - dynamicFlow("PV");
     const pairedVolumeRateMlPerSec = side === "right" ? rvVolumeRateMlPerSec : lvVolumeRateMlPerSec;
@@ -2013,7 +2020,9 @@ export class ModelCore {
     for (const e of dynamicEdgeNames) {
       const ix = this.idx.q[e];
       const before = x[ix];
-      x[ix] = clamp(x[ix], -DYNAMIC_FLOW_CLAMP_ML_PER_S, DYNAMIC_FLOW_CLAMP_ML_PER_S);
+      x[ix] = e === "AoV"
+        ? this.applyAorticFlowClamp(x[ix])
+        : clamp(x[ix], -DYNAMIC_FLOW_CLAMP_ML_PER_S, DYNAMIC_FLOW_CLAMP_ML_PER_S);
       if (Math.abs(x[ix] - before) > 1e-9) {
         this.dynamicFlowClampHits[e] = (this.dynamicFlowClampHits[e] ?? 0) + 1;
       }
@@ -2042,6 +2051,21 @@ export class ModelCore {
       return Math.max(this.activeModels[ch]?.ap.reservoirStrokeMl ?? 0, 0);
     }
     return 0;
+  }
+
+  private dynamicFlowValue(edge: DynamicEdgeName, value: number): number {
+    return edge === "AoV"
+      ? this.applyAorticFlowClamp(value)
+      : clamp(value, -DYNAMIC_FLOW_CLAMP_ML_PER_S, DYNAMIC_FLOW_CLAMP_ML_PER_S);
+  }
+
+  private applyAorticFlowClamp(value: number): number {
+    const limit = DYNAMIC_FLOW_CLAMP_ML_PER_S;
+    if (this.aorticFlowClampMode === "hard" || value <= 0) return clamp(value, -limit, limit);
+    const positive = Math.min(Math.max(value, 0), limit * 50);
+    if (this.aorticFlowClampMode === "soft-tanh") return limit * Math.tanh(positive / limit);
+    if (this.aorticFlowClampMode === "soft-rational") return positive / (1 + positive / limit);
+    return clamp(value, -limit, limit);
   }
 
   private correctVenousPressuresToExpectedTBV(options: {
