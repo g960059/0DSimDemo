@@ -138,7 +138,7 @@ export const INITIAL_PANELS: PanelDef[] = [
 export const DEFAULT_WORKBENCH_LAYOUT: WorkbenchLayoutState = {
   controlsSide: 'right',
   controlsWidth: 320,
-  caseRailWidth: 260,
+  caseRailWidth: 400,
   outputHeight: 190,
   noteOpen: false,
   metricsOpen: true,
@@ -152,9 +152,9 @@ export const DEFAULT_WORKBENCH_LAYOUT: WorkbenchLayoutState = {
 export function layoutStateFromWorkspace(workspace?: WorkbenchWorkspace): WorkbenchLayoutState {
   return {
     controlsSide: 'right',
-    controlsWidth: workspace?.regions.control?.size ?? DEFAULT_WORKBENCH_LAYOUT.controlsWidth,
-    caseRailWidth: workspace?.regions.note?.size ?? DEFAULT_WORKBENCH_LAYOUT.caseRailWidth,
-    outputHeight: workspace?.regions.output?.size ?? DEFAULT_WORKBENCH_LAYOUT.outputHeight,
+    controlsWidth: DEFAULT_WORKBENCH_LAYOUT.controlsWidth,
+    caseRailWidth: DEFAULT_WORKBENCH_LAYOUT.caseRailWidth,
+    outputHeight: DEFAULT_WORKBENCH_LAYOUT.outputHeight,
     noteOpen: noteOpenFromWorkspace(workspace),
     metricsOpen: metricsOpenFromWorkspace(workspace),
     rightRailVisible: DEFAULT_WORKBENCH_LAYOUT.rightRailVisible,

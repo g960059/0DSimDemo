@@ -61,28 +61,30 @@ export function useWorkbenchPanels({
   const setWorkbenchLayout: Dispatch<SetStateAction<WorkbenchLayoutState>> = useCallback((next) => {
     setWorkbenchLayoutState((prevLayout) => {
       const resolved = typeof next === "function" ? next(prevLayout) : next;
-      setWorkspace((prevWorkspace) => ({
-        ...prevWorkspace,
-        regions: {
-          ...prevWorkspace.regions,
-          control: {
-            ...prevWorkspace.regions.control,
-            position: "right",
-            size: resolved.controlsWidth,
-            visible: resolved.rightRailVisible,
+      setWorkspace((prevWorkspace) => {
+        const { size: _controlSize, ...controlRegion } = prevWorkspace.regions.control ?? {};
+        const { size: _noteSize, ...noteRegion } = prevWorkspace.regions.note ?? {};
+        const { size: _outputSize, ...outputRegion } = prevWorkspace.regions.output ?? {};
+        return {
+          ...prevWorkspace,
+          regions: {
+            ...prevWorkspace.regions,
+            control: {
+              ...controlRegion,
+              position: "right",
+              visible: resolved.rightRailVisible,
+            },
+            note: {
+              ...noteRegion,
+              visible: resolved.noteOpen,
+            },
+            output: {
+              ...outputRegion,
+              visible: resolved.metricsOpen ? "compact" : false,
+            },
           },
-          note: {
-            ...prevWorkspace.regions.note,
-            size: resolved.caseRailWidth,
-            visible: resolved.noteOpen,
-          },
-          output: {
-            ...prevWorkspace.regions.output,
-            size: resolved.outputHeight,
-            visible: resolved.metricsOpen ? "compact" : false,
-          },
-        },
-      }));
+        };
+      });
       return resolved;
     });
     if (headerMode !== "learner") markUserEdited();
@@ -323,18 +325,20 @@ export function useWorkbenchPanels({
   const resetWorkbenchLayout = useCallback(() => {
     setWorkbenchLayout(DEFAULT_WORKBENCH_LAYOUT);
     setWorkspace((prev) => {
+      const { size: _controlSize, ...controlRegion } = prev.regions.control ?? {};
+      const { size: _noteSize, ...noteRegion } = prev.regions.note ?? {};
+      const { size: _outputSize, ...outputRegion } = prev.regions.output ?? {};
       const nextWorkspace = workspaceForPanels(panels, {
         ...prev,
         regions: {
           ...prev.regions,
           control: {
-            ...prev.regions.control,
+            ...controlRegion,
             position: DEFAULT_WORKBENCH_LAYOUT.controlsSide,
-            size: DEFAULT_WORKBENCH_LAYOUT.controlsWidth,
             visible: DEFAULT_WORKBENCH_LAYOUT.rightRailVisible,
           },
-          note: { ...prev.regions.note, size: DEFAULT_WORKBENCH_LAYOUT.caseRailWidth, visible: DEFAULT_WORKBENCH_LAYOUT.noteOpen },
-          output: { ...prev.regions.output, size: DEFAULT_WORKBENCH_LAYOUT.outputHeight, visible: DEFAULT_WORKBENCH_LAYOUT.metricsOpen ? "compact" : false },
+          note: { ...noteRegion, visible: DEFAULT_WORKBENCH_LAYOUT.noteOpen },
+          output: { ...outputRegion, visible: DEFAULT_WORKBENCH_LAYOUT.metricsOpen ? "compact" : false },
         },
         viewStates: undefined,
       });

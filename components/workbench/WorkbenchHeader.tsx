@@ -5,10 +5,10 @@ import {
   ChevronDown,
   ChevronLeft,
   Edit3,
-  FileText,
-  LayoutPanelLeft,
-  BarChart3,
   MoreHorizontal,
+  PanelBottom,
+  PanelLeft,
+  PanelRight,
   Pause,
   Play,
   Save,
@@ -126,8 +126,8 @@ export function WorkbenchHeader({
   const visibilityButtonClass = (pressed: boolean) => (
     `inline-flex h-9 w-9 items-center justify-center rounded-md border transition-colors ${
       pressed
-        ? 'border-slate-700 bg-slate-900 text-slate-100'
-        : 'border-transparent text-slate-500 hover:bg-slate-900 hover:text-slate-200'
+        ? 'border-sky-500/25 bg-sky-500/12 text-sky-100 shadow-[inset_0_0_0_1px_rgba(125,211,252,0.08)]'
+        : 'border-transparent text-slate-600 hover:bg-slate-900 hover:text-slate-300'
     }`
   );
 
@@ -185,7 +185,7 @@ export function WorkbenchHeader({
               aria-label={t('workbench.header.toggleNoteDrawer')}
               aria-pressed={noteOpen}
             >
-              <FileText className="h-4.5 w-4.5" />
+              <PanelLeft className="h-4.5 w-4.5" />
             </button>
           )}
           <button
@@ -196,7 +196,7 @@ export function WorkbenchHeader({
             aria-label={t('workbench.header.toggleMetricsHost')}
             aria-pressed={metricsOpen}
           >
-            <BarChart3 className="h-4.5 w-4.5" />
+            <PanelBottom className="h-4.5 w-4.5" />
           </button>
           <button
             type="button"
@@ -206,7 +206,7 @@ export function WorkbenchHeader({
             aria-label={t('workbench.header.toggleRightRail')}
             aria-pressed={rightRailVisible}
           >
-            <LayoutPanelLeft className="h-4.5 w-4.5" />
+            <PanelRight className="h-4.5 w-4.5" />
           </button>
           <div className="relative">
             <button

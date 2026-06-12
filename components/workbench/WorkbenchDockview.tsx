@@ -4,13 +4,14 @@ import { createPortal } from 'react-dom';
 import {
   DockviewReact,
   type DockviewApi,
+  type DockviewGroupPanel,
   type IDockviewHeaderActionsProps,
   type DockviewReadyEvent,
   type IDockviewPanelHeaderProps,
   type IDockviewPanelProps,
   type SerializedDockview,
 } from 'dockview';
-import { MoreVertical, Plus, Split } from 'lucide-react';
+import { Columns2, MoreVertical, Plus, Rows2, X } from 'lucide-react';
 import 'dockview/dist/styles/dockview.css';
 import type { DockviewViewState, PanelDef, PanelRole, PanelType, WorkbenchZoneId } from '../../types';
 import { roleOf } from '../../paneRole';
@@ -37,6 +38,7 @@ type WorkbenchDockviewContextValue = {
   zone: WorkbenchZoneId;
   getPanelTitle: (panel: PanelDef) => string;
   onAddPanel?: (type: PanelType, zone?: WorkbenchZoneId) => void;
+  requestClosePanel: (panelId: string) => void;
   requestAddPanel: (type: PanelType, groupId?: string) => void;
   requestSplitPanel: (panelId: string, groupId: string, direction: GraphBoardSplitDirection) => void;
 };
@@ -85,6 +87,7 @@ const defaultPanelTitle = (panel: PanelDef) => panel.title;
 const TAB_MENU_WIDTH = 144;
 const TAB_MENU_ESTIMATED_HEIGHT = 128;
 type MenuPosition = { x: number; y: number };
+type PendingDirectSplit = { panelId: string; groupId: string; direction: GraphBoardSplitDirection };
 
 export function getDockviewTabMenuPosition({
   point,
@@ -117,6 +120,32 @@ function isSerializedDockviewState(value: unknown): value is SerializedDockview 
 function hasCompatibleSavedPanels(state: SerializedDockview, panels: readonly PanelDef[]) {
   const currentIds = new Set(panels.map((panel) => panel.id));
   return Object.keys(state.panels).every((id) => currentIds.has(id));
+}
+
+function samePanelIdSet(left: readonly string[], right: readonly string[]): boolean {
+  if (left.length !== right.length) return false;
+  const rightIds = new Set(right);
+  return left.every((id) => rightIds.has(id));
+}
+
+export function shouldReapplyDockviewLayout({
+  livePanelIds,
+  statePanelIds,
+  layoutIdentityChanged,
+  imperativePanelChangePending,
+  forceGraphBoardLayout,
+}: {
+  livePanelIds: readonly string[];
+  statePanelIds: readonly string[];
+  layoutIdentityChanged: boolean;
+  imperativePanelChangePending: boolean;
+  forceGraphBoardLayout: boolean;
+}): boolean {
+  if (layoutIdentityChanged) return true;
+  const panelIdsAlreadyMatch = samePanelIdSet(livePanelIds, statePanelIds);
+  if (imperativePanelChangePending && panelIdsAlreadyMatch) return false;
+  if (forceGraphBoardLayout) return true;
+  return !panelIdsAlreadyMatch;
 }
 
 function addPanelToDockview(
@@ -219,7 +248,7 @@ function restoreDockview(
   viewState?: DockviewViewState,
   zone?: WorkbenchZoneId,
   preferredGroupId?: string | null,
-  pendingDirectSplit?: { panelId: string; groupId: string; direction: GraphBoardSplitDirection } | null,
+  pendingDirectSplit?: PendingDirectSplit | null,
 ) {
   if (viewState?.library !== 'dockview' || viewState.schemaVersion !== 1) return false;
   if (viewState.zone && zone && viewState.zone !== zone) return false;
@@ -253,7 +282,7 @@ function applyDockviewLayout(
   viewState?: DockviewViewState,
   zone?: WorkbenchZoneId,
   preferredGroupId?: string | null,
-  pendingDirectSplit?: { panelId: string; groupId: string; direction: GraphBoardSplitDirection } | null,
+  pendingDirectSplit?: PendingDirectSplit | null,
   graphBoardLayout?: GraphBoardLayout,
   forceGraphBoardLayout?: boolean,
 ) {
@@ -365,6 +394,21 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
     >
       <span className="min-w-0 flex-1 truncate">{title}</span>
       <div className="relative flex h-5 shrink-0 items-center justify-center gap-0.5">
+        {canClose && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              context?.requestClosePanel(props.params.panelId);
+              setMenuPosition(null);
+            }}
+            className="workbench-dock-tab-close-button inline-flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-slate-700/80 hover:text-red-300"
+            aria-label={t('workbench.panelGrid.closePanelAria', { title })}
+            title={t('workbench.panelGrid.closePanelAria', { title })}
+          >
+            <X className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        )}
         {hasMenu && (
           <>
             <button
@@ -434,9 +478,10 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
                           setMenuPosition(null);
                         }}
                         role="menuitem"
-                        className="workbench-popover-menu-item block w-full px-3 py-1.5 text-left text-xs font-medium"
+                        className="workbench-popover-menu-item flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs font-medium"
                       >
-                        {t('workbench.dockview.splitRight')}
+                        <Columns2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>{t('workbench.dockview.splitRight')}</span>
                       </button>
                       <button
                         type="button"
@@ -446,9 +491,10 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
                           setMenuPosition(null);
                         }}
                         role="menuitem"
-                        className="workbench-popover-menu-item block w-full px-3 py-1.5 text-left text-xs font-medium"
+                        className="workbench-popover-menu-item flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs font-medium"
                       >
-                        {t('workbench.dockview.splitDown')}
+                        <Rows2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>{t('workbench.dockview.splitDown')}</span>
                       </button>
                     </>
                   )}
@@ -457,7 +503,7 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
                       type="button"
                       onClick={(event) => {
                         event.stopPropagation();
-                        context?.onRemovePanel?.(props.params.panelId);
+                        context?.requestClosePanel(props.params.panelId);
                         setMenuPosition(null);
                       }}
                       role="menuitem"
@@ -540,7 +586,24 @@ function ZoneAddMenu({
   );
 }
 
-function WorkbenchDockHeaderActions(props: IDockviewHeaderActionsProps) {
+function WorkbenchDockHeaderLeftActions(props: IDockviewHeaderActionsProps) {
+  const { t } = useTranslation();
+  const context = useContext(WorkbenchDockviewContext);
+  if (!context || context.mode === 'learner') return null;
+
+  return (
+    <div className="flex h-full items-center">
+      {context.onAddPanel && (
+        <ZoneAddMenu
+          zone={context.zone}
+          onChoose={(type) => context.requestAddPanel(type, props.group.id)}
+        />
+      )}
+    </div>
+  );
+}
+
+function WorkbenchDockHeaderRightActions(props: IDockviewHeaderActionsProps) {
   const { t } = useTranslation();
   const context = useContext(WorkbenchDockviewContext);
   if (!context || context.mode === 'learner') return null;
@@ -557,14 +620,8 @@ function WorkbenchDockHeaderActions(props: IDockviewHeaderActionsProps) {
           aria-label={t('workbench.dockview.splitRight')}
           title={t('workbench.dockview.splitRight')}
         >
-          <Split className="h-3.5 w-3.5" />
+          <Columns2 className="h-3.5 w-3.5" />
         </button>
-      )}
-      {context.onAddPanel && (
-        <ZoneAddMenu
-          zone={context.zone}
-          onChoose={(type) => context.requestAddPanel(type, props.group.id)}
-        />
       )}
     </div>
   );
@@ -628,10 +685,12 @@ export function WorkbenchDockview({
 }: WorkbenchDockviewProps) {
   const apiRef = useRef<DockviewApi | null>(null);
   const pendingAddGroupIdRef = useRef<string | null>(null);
-  const pendingDirectSplitRef = useRef<{ panelId: string; groupId: string; direction: GraphBoardSplitDirection } | null>(null);
+  const pendingDirectSplitRef = useRef<PendingDirectSplit | null>(null);
+  const pendingImperativePanelChangeRef = useRef(false);
   const layoutSubscriptionRef = useRef<{ dispose: () => void } | null>(null);
   const didApplyInitialLayoutRef = useRef(false);
   const lastLayoutKeyRef = useRef(layoutKey);
+  const lastZoneRef = useRef(zone);
   const lastEmittedGraphBoardLayoutRef = useRef('');
   const suppressChangeRef = useRef(false);
   const pendingEmitRef = useRef<number | null>(null);
@@ -639,6 +698,7 @@ export function WorkbenchDockview({
   const onGraphBoardLayoutChangeRef = useRef(onGraphBoardLayoutChange);
   const panelsRef = useRef(panels);
   const structureSignature = useMemo(() => getDockviewStructureSignature(panels), [panels]);
+  const lastStructureSignatureRef = useRef(structureSignature);
   const metadataSignature = useMemo(() => getDockviewMetadataSignature(panels), [panels]);
   const graphBoardLayoutSignature = useMemo(() => layoutSignature(graphBoardLayout), [graphBoardLayout]);
   const panelsById = useMemo(() => new Map(panels.map((panel) => [panel.id, panel])), [panels]);
@@ -653,6 +713,14 @@ export function WorkbenchDockview({
       zone,
       getPanelTitle,
       onAddPanel,
+      requestClosePanel: (panelId) => {
+        const dockPanel = apiRef.current?.getPanel(panelId);
+        if (dockPanel) {
+          pendingImperativePanelChangeRef.current = true;
+          dockPanel.api.close();
+        }
+        onRemovePanel?.(panelId);
+      },
       requestAddPanel: (type, groupId) => {
         pendingAddGroupIdRef.current = groupId ?? null;
         pendingDirectSplitRef.current = null;
@@ -665,8 +733,9 @@ export function WorkbenchDockview({
         if (!api || !referenceGroup || !newPanel) return;
         pendingAddGroupIdRef.current = null;
         pendingDirectSplitRef.current = { panelId: newPanel.id, groupId, direction };
+        pendingImperativePanelChangeRef.current = true;
         addPanelToDockview(api, newPanel, undefined, {
-          referenceGroup: referenceGroup as Parameters<DockviewApi['addPanel']>[0]['position'] extends { referenceGroup: infer T } ? T : never,
+          referenceGroup: referenceGroup as DockviewGroupPanel,
           direction: direction === 'below' ? 'below' : 'right',
         });
         syncDockviewPanelMetadata(api, [...panelsRef.current, newPanel]);
@@ -710,13 +779,36 @@ export function WorkbenchDockview({
 
   const applyLayoutWithoutEmitting = (api: DockviewApi) => {
     suppressChangeRef.current = true;
-    if (lastLayoutKeyRef.current !== layoutKey) {
+    const layoutIdentityChanged = lastLayoutKeyRef.current !== layoutKey || lastZoneRef.current !== zone;
+    if (layoutIdentityChanged) {
       didApplyInitialLayoutRef.current = false;
       lastLayoutKeyRef.current = layoutKey;
+      lastZoneRef.current = zone;
     }
+    const structureChanged = lastStructureSignatureRef.current !== structureSignature;
     const forceGraphBoardLayout = didApplyInitialLayoutRef.current
+      && !structureChanged
       && graphBoardLayoutSignature.length > 0
       && graphBoardLayoutSignature !== lastEmittedGraphBoardLayoutRef.current;
+    const shouldReapply = shouldReapplyDockviewLayout({
+      livePanelIds: api.panels.map((panel) => panel.id),
+      statePanelIds: panels.map((panel) => panel.id),
+      layoutIdentityChanged,
+      imperativePanelChangePending: pendingImperativePanelChangeRef.current || Boolean(pendingDirectSplitRef.current),
+      forceGraphBoardLayout,
+    });
+    if (!shouldReapply) {
+      syncDockviewPanelMetadata(api, panels);
+      didApplyInitialLayoutRef.current = true;
+      lastStructureSignatureRef.current = structureSignature;
+      pendingAddGroupIdRef.current = null;
+      pendingDirectSplitRef.current = null;
+      pendingImperativePanelChangeRef.current = false;
+      window.queueMicrotask(() => {
+        suppressChangeRef.current = false;
+      });
+      return;
+    }
     applyDockviewLayout(
       api,
       panels,
@@ -728,8 +820,10 @@ export function WorkbenchDockview({
       forceGraphBoardLayout,
     );
     didApplyInitialLayoutRef.current = true;
+    lastStructureSignatureRef.current = structureSignature;
     pendingAddGroupIdRef.current = null;
     pendingDirectSplitRef.current = null;
+    pendingImperativePanelChangeRef.current = false;
     window.queueMicrotask(() => {
       suppressChangeRef.current = false;
     });
@@ -769,7 +863,8 @@ export function WorkbenchDockview({
         <DockviewReact
           components={components}
           defaultTabComponent={WorkbenchDockTab}
-          rightHeaderActionsComponent={WorkbenchDockHeaderActions}
+          leftHeaderActionsComponent={WorkbenchDockHeaderLeftActions}
+          rightHeaderActionsComponent={WorkbenchDockHeaderRightActions}
           defaultRenderer="onlyWhenVisible"
           disableDnd={isLearnerMode}
           disableFloatingGroups

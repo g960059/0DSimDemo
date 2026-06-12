@@ -8,7 +8,7 @@ import i18n from "@/i18n";
 import { ChartLegend, shouldEnableLegendInteractions } from "@/components/Charts";
 import { PanelGrid, getActiveSettingsSectionId, getDockviewPaneTitle, openPanelSettingsIfClosed, type PanelGridMode, type WorkbenchLayoutState } from "@/components/workbench/PanelGrid";
 import { ScenarioPane } from "@/components/workbench/ScenarioPane";
-import { getDockviewStructureSignature, getDockviewTabMenuPosition } from "@/components/workbench/WorkbenchDockview";
+import { getDockviewStructureSignature, getDockviewTabMenuPosition, shouldReapplyDockviewLayout } from "@/components/workbench/WorkbenchDockview";
 import { addHiddenInstanceConfigsToPanels } from "@/WorkbenchPage";
 import { DEFAULT_PARAMS } from "@/constants";
 import type { SteadyUpdateStatusMap } from "@/engine/previewController";
@@ -73,7 +73,7 @@ function createPanelGrid(
     layoutState: {
       controlsSide: "right",
       controlsWidth: 320,
-      caseRailWidth: 260,
+      caseRailWidth: 400,
       outputHeight: 190,
       noteOpen: false,
       metricsOpen: false,
@@ -239,6 +239,28 @@ const scenariosPanel: PanelDef = {
   w: 4,
   h: 6,
   config: { normal: { visible: true, selectedSignals: [] } },
+  isSettingsOpen: false,
+};
+
+const notePanel: PanelDef = {
+  id: "note",
+  type: "NOTE",
+  title: "Note",
+  zone: "caseRail",
+  w: 6,
+  h: 10,
+  config: { normal: { visible: false, selectedSignals: [] } },
+  isSettingsOpen: false,
+};
+
+const metricsPanel: PanelDef = {
+  id: "metrics",
+  type: "METRICS",
+  title: "Metrics",
+  zone: "bottomPanel",
+  w: 4,
+  h: 4,
+  config: { normal: { visible: true, selectedSignals: ["ABP"] } },
   isSettingsOpen: false,
 };
 
@@ -425,11 +447,36 @@ describe("PanelGrid Dockview layout", () => {
     const dockviewSource = readFileSync(resolve(process.cwd(), "components/workbench/WorkbenchDockview.tsx"), "utf8");
 
     expect(dockviewSource).toContain("workbench-dock-tab-menu-button inline-flex h-5 w-5");
+    expect(dockviewSource).toContain("workbench-dock-tab-close-button inline-flex h-5 w-5");
+    expect(dockviewSource).toContain("workbench.panelGrid.closePanelAria");
     expect(dockviewSource).toContain("event.stopPropagation();");
     expect(css).toContain(".workbench-dock-tab-menu-button");
+    expect(css).toContain(".workbench-dock-tab-close-button");
     expect(css).toContain(".workbench-dock-tab:hover .workbench-dock-tab-menu-button");
     expect(css).toContain("@media (hover: none)");
     expect(css).toContain(".dv-tab.dv-active-tab .workbench-dock-tab-menu-button");
+  });
+
+  it("keeps the add-pane action next to tabs and the split action at the far header edge", () => {
+    const css = readFileSync(resolve(process.cwd(), "index.css"), "utf8");
+    const dockviewSource = readFileSync(resolve(process.cwd(), "components/workbench/WorkbenchDockview.tsx"), "utf8");
+
+    expect(dockviewSource).toContain("leftHeaderActionsComponent={WorkbenchDockHeaderLeftActions}");
+    expect(dockviewSource).toContain("rightHeaderActionsComponent={WorkbenchDockHeaderRightActions}");
+    expect(dockviewSource).toContain("<Columns2 className=\"h-3.5 w-3.5\"");
+    expect(dockviewSource).toContain("<Rows2 className=\"h-3.5 w-3.5\"");
+    expect(dockviewSource).not.toContain("Split } from 'lucide-react'");
+    expect(css).toContain("margin-left: auto;");
+    expect(css).toContain("flex: 1 1 auto;");
+  });
+
+  it("lets Dockview tabs scroll horizontally while header actions stay outside the scroll area", () => {
+    const css = readFileSync(resolve(process.cwd(), "index.css"), "utf8");
+
+    expect(css).toContain(".workbench-dockview .dv-scrollable");
+    expect(css).toContain("overflow-x: auto;");
+    expect(css).toContain(".workbench-dockview .dv-scrollable > .dv-tabs-container");
+    expect(css).toContain("overflow: visible;");
   });
 
   it("renders pane settings as a modal for editable Dockview panes", () => {
@@ -635,6 +682,43 @@ describe("PanelGrid Dockview layout", () => {
     expect(inspectorHtml).not.toContain("Pause simulation");
     expect(inspectorHtml).not.toContain("0.5x");
   });
+
+  it("renders the scenario-list resize sash whenever the list is expanded", () => {
+    const expandedHtml = renderPanelGrid("sandbox", [], [normalInstance, copiedInstance]);
+    const collapsedHtml = renderPanelGrid("sandbox", [], [normalInstance, copiedInstance], [], {}, false, {
+      scenarioListCollapsed: true,
+    });
+
+    expect(expandedHtml).toContain("role=\"separator\"");
+    expect(expandedHtml).toContain("aria-label=\"Resize scenario list\"");
+    expect(expandedHtml).toContain("cursor-row-resize");
+    expect(collapsedHtml).not.toContain("aria-label=\"Resize scenario list\"");
+  });
+
+  it("renders keyboard-addressable sashes for note, right rail, metrics, and scenario tiers", () => {
+    const html = renderPanelGrid("sandbox", [notePanel, pvLoopPanel, metricsPanel], [normalInstance, copiedInstance], [], {}, false, {
+      noteOpen: true,
+      metricsOpen: true,
+      rightRailVisible: true,
+      metricsSpan: "main",
+    });
+
+    expect(html).toContain("aria-label=\"Resize note drawer\"");
+    expect(html).toContain("aria-label=\"Resize right rail\"");
+    expect(html).toContain("aria-label=\"Resize metrics host\"");
+    expect(html).toContain("aria-label=\"Resize scenario list\"");
+    expect(html.match(/role=\"separator\"/g)?.length ?? 0).toBeGreaterThanOrEqual(4);
+    expect(html).toContain("tabindex=\"0\"");
+    expect(html).toContain("aria-valuenow=\"400\"");
+  });
+
+  it("keeps scenario deletion available only when a second scenario exists", () => {
+    const scenarioPaneSource = readFileSync(resolve(process.cwd(), "components/workbench/ScenarioPane.tsx"), "utf8");
+
+    expect(scenarioPaneSource).toContain("removeInstance(instance.id)");
+    expect(scenarioPaneSource).toContain("disabled={instances.length <= 1}");
+    expect(scenarioPaneSource).toContain("{t('common.delete')}");
+  });
 });
 
 describe("PanelGrid settings scroll spy", () => {
@@ -679,5 +763,51 @@ describe("WorkbenchDockview tab menu positioning", () => {
       viewportWidth: 1200,
       viewportHeight: 800,
     })).toEqual({ x: 1048, y: 672 });
+  });
+});
+
+describe("WorkbenchDockview layout reapply guard", () => {
+  it("skips stale serialized-layout replay after an imperative split has already added the pane", () => {
+    expect(shouldReapplyDockviewLayout({
+      livePanelIds: ["pv", "wave"],
+      statePanelIds: ["wave", "pv"],
+      layoutIdentityChanged: false,
+      imperativePanelChangePending: true,
+      forceGraphBoardLayout: false,
+    })).toBe(false);
+  });
+
+  it("lets an imperative split guard win over a stale forced graph-board layout prop", () => {
+    expect(shouldReapplyDockviewLayout({
+      livePanelIds: ["pv", "wave"],
+      statePanelIds: ["wave", "pv"],
+      layoutIdentityChanged: false,
+      imperativePanelChangePending: true,
+      forceGraphBoardLayout: true,
+    })).toBe(false);
+  });
+
+  it("reapplies when panes diverge, a case or locale key changes, or an explicit layout command arrives", () => {
+    expect(shouldReapplyDockviewLayout({
+      livePanelIds: ["pv"],
+      statePanelIds: ["pv", "wave"],
+      layoutIdentityChanged: false,
+      imperativePanelChangePending: true,
+      forceGraphBoardLayout: false,
+    })).toBe(true);
+    expect(shouldReapplyDockviewLayout({
+      livePanelIds: ["pv", "wave"],
+      statePanelIds: ["pv", "wave"],
+      layoutIdentityChanged: true,
+      imperativePanelChangePending: true,
+      forceGraphBoardLayout: false,
+    })).toBe(true);
+    expect(shouldReapplyDockviewLayout({
+      livePanelIds: ["pv", "wave"],
+      statePanelIds: ["pv", "wave"],
+      layoutIdentityChanged: false,
+      imperativePanelChangePending: false,
+      forceGraphBoardLayout: true,
+    })).toBe(true);
   });
 });

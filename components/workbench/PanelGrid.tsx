@@ -1560,6 +1560,102 @@ function PanelCard({
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
+type ResizeSashOrientation = 'vertical' | 'horizontal';
+
+interface ResizeSashProps {
+  orientation: ResizeSashOrientation;
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (value: number) => void;
+  valueFromDrag: (startValue: number, deltaPx: number) => number;
+  valueFromKey: (key: string, currentValue: number) => number | undefined;
+  className?: string;
+  style?: React.CSSProperties;
+}
+
+function ResizeSash({
+  orientation,
+  label,
+  value,
+  min,
+  max,
+  onChange,
+  valueFromDrag,
+  valueFromKey,
+  className = '',
+  style,
+}: ResizeSashProps) {
+  const dragRef = useRef<{ pointerId: number; startX: number; startY: number; startValue: number } | null>(null);
+  const clampedValue = clamp(value, min, max);
+  const isVertical = orientation === 'vertical';
+
+  const commitValue = (nextValue: number) => onChange(clamp(nextValue, min, max));
+
+  return (
+    <div
+      role="separator"
+      tabIndex={0}
+      aria-orientation={orientation}
+      aria-label={label}
+      aria-valuemin={Math.round(min)}
+      aria-valuemax={Math.round(max)}
+      aria-valuenow={Math.round(clampedValue)}
+      title={label}
+      className={`group flex shrink-0 items-center justify-center bg-slate-950/35 outline-none transition-colors hover:bg-slate-900/80 focus-visible:bg-slate-900/80 ${
+        isVertical ? 'cursor-col-resize' : 'cursor-row-resize'
+      } ${className}`}
+      style={style}
+      onPointerDown={(event) => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        event.currentTarget.focus({ preventScroll: true });
+        event.currentTarget.setPointerCapture(event.pointerId);
+        dragRef.current = {
+          pointerId: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+          startValue: clampedValue,
+        };
+      }}
+      onPointerMove={(event) => {
+        const drag = dragRef.current;
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        const deltaPx = isVertical ? event.clientX - drag.startX : event.clientY - drag.startY;
+        commitValue(valueFromDrag(drag.startValue, deltaPx));
+      }}
+      onPointerUp={(event) => {
+        if (dragRef.current?.pointerId !== event.pointerId) return;
+        dragRef.current = null;
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+          event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+      }}
+      onPointerCancel={(event) => {
+        if (dragRef.current?.pointerId !== event.pointerId) return;
+        dragRef.current = null;
+      }}
+      onLostPointerCapture={() => {
+        dragRef.current = null;
+      }}
+      onKeyDown={(event) => {
+        const nextValue = valueFromKey(event.key, clampedValue);
+        if (nextValue === undefined) return;
+        event.preventDefault();
+        commitValue(nextValue);
+      }}
+    >
+      <span
+        aria-hidden="true"
+        className={`rounded-full bg-slate-700 transition-colors group-hover:bg-sky-500/70 group-focus-visible:bg-sky-500/70 ${
+          isVertical ? 'h-10 w-px' : 'h-px w-10'
+        }`}
+      />
+    </div>
+  );
+}
+
 function metricsTabLabel(t: PanelGridT, tab: MetricsHostTab): string {
   return tab.kind === 'builtIn' ? t(tab.titleKey) : tab.title;
 }
@@ -1793,41 +1889,31 @@ export function PanelGrid({
     />
   ) : null;
 
-  const rightRailWidth = clamp(layoutState.controlsWidth, 280, 380);
-  const noteWidth = hasCaseRail ? clamp(layoutState.caseRailWidth, 220, 360) : 0;
-  const metricsHeight = layoutState.metricsOpen ? clamp(layoutState.outputHeight, 150, 280) : 0;
+  const rightRailWidth = clamp(layoutState.controlsWidth, 280, 460);
+  const noteWidth = hasCaseRail ? clamp(layoutState.caseRailWidth, 280, 560) : 0;
+  const metricsHeight = layoutState.metricsOpen ? clamp(layoutState.outputHeight, 120, 400) : 0;
   const hasRightRail = layoutState.rightRailVisible;
-  const columnTracks = [
-    ...(hasCaseRail ? [`${noteWidth}px`] : []),
-    'minmax(320px,1fr)',
-    ...(hasRightRail ? [`${rightRailWidth}px`] : []),
-  ];
+  const columnTracks: string[] = [];
+  let nextGridColumn = 1;
+  const noteColumn = hasCaseRail ? String(nextGridColumn++) : undefined;
+  if (hasCaseRail) columnTracks.push(`${noteWidth}px`, '6px');
+  if (hasCaseRail) nextGridColumn += 1;
+  const noteSashColumn = hasCaseRail ? String(Number(noteColumn) + 1) : undefined;
+  const mainColumn = String(nextGridColumn++);
+  columnTracks.push('minmax(320px,1fr)');
+  const rightRailSashColumn = hasRightRail ? String(nextGridColumn++) : undefined;
+  if (hasRightRail) columnTracks.push('6px');
+  const rightRailColumn = hasRightRail ? String(nextGridColumn++) : undefined;
+  if (hasRightRail) columnTracks.push(`${rightRailWidth}px`);
   const gridTemplateColumns = columnTracks.join(' ');
-  const gridTemplateRows = layoutState.metricsOpen ? `minmax(0,1fr) ${metricsHeight}px` : 'minmax(0,1fr)';
-  const mainColumn = hasCaseRail ? '2' : '1';
-  const rightRailColumn = hasCaseRail ? '3' : '2';
-  const auxiliaryGridRow = layoutState.metricsOpen && layoutState.metricsSpan === 'main' ? '1 / 3' : '1';
+  const gridTemplateRows = layoutState.metricsOpen ? `minmax(0,1fr) 6px ${metricsHeight}px` : 'minmax(0,1fr)';
+  const auxiliaryGridRow = layoutState.metricsOpen && layoutState.metricsSpan === 'main' ? '1 / 4' : '1';
   const metricsGridColumn = layoutState.metricsSpan === 'full' ? '1 / -1' : mainColumn;
+  const metricsSashGridColumn = metricsGridColumn;
   const scenarioListMaxRatio = clamp(layoutState.scenarioListMaxRatio ?? 0.4, 0.25, 0.65);
+  const showScenarioListResize = !layoutState.scenarioListCollapsed;
   const rightRailRef = useRef<HTMLDivElement | null>(null);
   const activeInstance = instances.find((instance) => instance.id === activeInstanceId);
-  const startScenarioListResize = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const railRect = rightRailRef.current?.getBoundingClientRect();
-    if (!railRect || railRect.height <= 0) return;
-
-    const onMove = (moveEvent: MouseEvent) => {
-      const ratio = clamp((moveEvent.clientY - railRect.top) / railRect.height, 0.25, 0.65);
-      onLayoutStateChange((prev) => ({ ...prev, scenarioListCollapsed: false, scenarioListMaxRatio: ratio }));
-    };
-    const onUp = () => {
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-    };
-
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  }, [onLayoutStateChange]);
   const inspectorInstances = instances.map((instance) => (
     instance.id === activeInstanceId ? { ...instance, isVisible: true } : instance
   ));
@@ -1887,7 +1973,7 @@ export function PanelGrid({
           {hasCaseRail && notePanel && (
             <section
               className="workbench-zone-aux flex min-h-0 flex-col overflow-hidden border-r border-slate-800/60 bg-[#0B1120]"
-              style={{ gridColumn: '1', gridRow: auxiliaryGridRow }}
+              style={{ gridColumn: noteColumn, gridRow: auxiliaryGridRow }}
               aria-label={t('workbench.panelGrid.noteDrawer')}
             >
               {renderPaneBody(notePanel, {
@@ -1914,6 +2000,24 @@ export function PanelGrid({
               })}
             </section>
           )}
+          {hasCaseRail && noteSashColumn && (
+            <ResizeSash
+              orientation="vertical"
+              label={t('workbench.panelGrid.resizeNoteDrawer')}
+              value={noteWidth}
+              min={280}
+              max={560}
+              onChange={(caseRailWidth) => onLayoutStateChange((prev) => ({ ...prev, caseRailWidth }))}
+              valueFromDrag={(startValue, deltaPx) => startValue + deltaPx}
+              valueFromKey={(key, currentValue) => {
+                if (key === 'ArrowLeft') return currentValue - 10;
+                if (key === 'ArrowRight') return currentValue + 10;
+                return undefined;
+              }}
+              className="min-h-0"
+              style={{ gridColumn: noteSashColumn, gridRow: auxiliaryGridRow }}
+            />
+          )}
           <ZoneShell
             zone="main"
             panels={mainGraphPanels}
@@ -1933,6 +2037,24 @@ export function PanelGrid({
             getPanelTitle={getPanelTitle}
             renderPanel={(panel) => renderPanel(panel, false, 'dockview')}
           />
+          {hasRightRail && rightRailSashColumn && (
+            <ResizeSash
+              orientation="vertical"
+              label={t('workbench.panelGrid.resizeRightRail')}
+              value={rightRailWidth}
+              min={280}
+              max={460}
+              onChange={(controlsWidth) => onLayoutStateChange((prev) => ({ ...prev, controlsWidth }))}
+              valueFromDrag={(startValue, deltaPx) => startValue - deltaPx}
+              valueFromKey={(key, currentValue) => {
+                if (key === 'ArrowLeft') return currentValue + 10;
+                if (key === 'ArrowRight') return currentValue - 10;
+                return undefined;
+              }}
+              className="min-h-0"
+              style={{ gridColumn: rightRailSashColumn, gridRow: auxiliaryGridRow }}
+            />
+          )}
           {hasRightRail && (
             <section
               ref={rightRailRef}
@@ -1972,16 +2094,29 @@ export function PanelGrid({
                   </div>
                 )}
               </div>
-              {!layoutState.scenarioListCollapsed && (
-                <div
-                  role="separator"
-                  aria-orientation="horizontal"
-                  onMouseDown={startScenarioListResize}
-                  className="group flex h-2 shrink-0 cursor-row-resize items-center justify-center bg-slate-950/35"
-                  title={t('workbench.panelGrid.resizeScenarioList')}
-                >
-                  <span className="h-px w-10 bg-slate-700 transition-colors group-hover:bg-sky-500/70" />
-                </div>
+              {showScenarioListResize && (
+                <ResizeSash
+                  orientation="horizontal"
+                  label={t('workbench.panelGrid.resizeScenarioList')}
+                  value={scenarioListMaxRatio * 100}
+                  min={25}
+                  max={65}
+                  onChange={(scenarioListMaxPercent) => onLayoutStateChange((prev) => ({
+                    ...prev,
+                    scenarioListCollapsed: false,
+                    scenarioListMaxRatio: scenarioListMaxPercent / 100,
+                  }))}
+                  valueFromDrag={(startValue, deltaPx) => {
+                    const railHeight = Math.max(1, rightRailRef.current?.getBoundingClientRect().height ?? 1);
+                    return startValue + (deltaPx / railHeight) * 100;
+                  }}
+                  valueFromKey={(key, currentValue) => {
+                    if (key === 'ArrowUp') return currentValue - 5;
+                    if (key === 'ArrowDown') return currentValue + 5;
+                    return undefined;
+                  }}
+                  className="h-2"
+                />
               )}
               <div className="flex min-h-0 flex-1 flex-col">
                 <div className="flex h-9 shrink-0 items-center gap-2 border-b border-slate-800/70 bg-slate-950/35 px-2">
@@ -2011,9 +2146,27 @@ export function PanelGrid({
             </section>
           )}
           {layoutState.metricsOpen && activeMetricsTab && (
+            <ResizeSash
+              orientation="horizontal"
+              label={t('workbench.panelGrid.resizeMetricsHost')}
+              value={metricsHeight}
+              min={120}
+              max={400}
+              onChange={(outputHeight) => onLayoutStateChange((prev) => ({ ...prev, outputHeight }))}
+              valueFromDrag={(startValue, deltaPx) => startValue - deltaPx}
+              valueFromKey={(key, currentValue) => {
+                if (key === 'ArrowUp') return currentValue + 10;
+                if (key === 'ArrowDown') return currentValue - 10;
+                return undefined;
+              }}
+              className="min-w-0"
+              style={{ gridColumn: metricsSashGridColumn, gridRow: '2' }}
+            />
+          )}
+          {layoutState.metricsOpen && activeMetricsTab && (
             <section
               className="workbench-zone-aux flex min-h-0 flex-col overflow-hidden border-t border-slate-800/60 bg-[#0B1120]"
-              style={{ gridColumn: metricsGridColumn, gridRow: '2' }}
+              style={{ gridColumn: metricsGridColumn, gridRow: '3' }}
               aria-label={t('workbench.panelGrid.metricsHost')}
             >
               <div className="flex h-9 shrink-0 items-center gap-1 overflow-x-auto border-b border-slate-800/70 bg-slate-950/35 px-2 custom-scrollbar">

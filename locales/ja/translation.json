@@ -394,6 +394,9 @@
         "railAria": "シナリオレール",
         "scenariosCount_one": "シナリオ（{{count}}）",
         "scenariosCount_other": "シナリオ（{{count}}）",
+        "resizeNoteDrawer": "ノートドロワーのサイズを変更",
+        "resizeRightRail": "右レールのサイズを変更",
+        "resizeMetricsHost": "指標ホストのサイズを変更",
         "resizeScenarioList": "シナリオリストのサイズを変更",
         "editingScenario": "編集中:",
         "rail": {

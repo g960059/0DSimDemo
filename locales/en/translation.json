@@ -394,6 +394,9 @@
         "railAria": "Scenario rail",
         "scenariosCount_one": "Scenarios ({{count}})",
         "scenariosCount_other": "Scenarios ({{count}})",
+        "resizeNoteDrawer": "Resize note drawer",
+        "resizeRightRail": "Resize right rail",
+        "resizeMetricsHost": "Resize metrics host",
         "resizeScenarioList": "Resize scenario list",
         "editingScenario": "Editing:",
         "rail": {
