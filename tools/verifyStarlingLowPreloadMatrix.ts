@@ -150,9 +150,38 @@ type PerDeltaEvaluation = {
   atrialSystoleTransmitralGradientMean: number | null;
   atrialSystoleTransmitralGradientMax: number | null;
   atrialSystoleMVOpenFraction: number | null;
+  MV_mid_forward_mL: number | null;
+  MV_mid_peak: number | null;
+  MV_forward_peak_count: number | null;
+  MV_mid_forward_peak_count: number | null;
+  QMV_near_zero_return_count: number | null;
+  MV_open_close_reopen_count: number | null;
+  MV_interwave_xi_min: number | null;
+  MV_interwave_open01_min: number | null;
+  LAP_LVP_zero_crossing_count: number | null;
+  fillingMorphologyClass: FillingMorphologyClass | null;
+  fillingBranch: FillingBranchSummary | null;
   nonsmooth: boolean;
   clampCrossing: boolean;
   tbvAuditClass: string;
+};
+
+type FillingMorphologyClass = "E-only" | "E+A" | "E+mid+A" | "weak-A" | "indeterminate";
+
+type FillingBranchSummary = {
+  MV_A_forward_abs: number;
+  MV_A_forward_fraction: number;
+  MV_mid_forward_abs: number;
+  MV_mid_forward_fraction: number;
+  LA_A_loop_area_abs: number;
+  LA_A_loop_area_fraction: number;
+  atrialSystoleMVOpenFraction_abs: number;
+  forwardPeakCountA: number;
+  forwardPeakCountB: number;
+  peakCountAlternates: boolean;
+  morphologyClassA: FillingMorphologyClass;
+  morphologyClassB: FillingMorphologyClass;
+  morphologyAlternates: boolean;
 };
 
 type ShapeSummary = {
@@ -167,7 +196,7 @@ type ShapeSummary = {
 };
 
 type MatrixReport = {
-  schemaVersion: 9;
+  schemaVersion: 10;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -201,6 +230,11 @@ type MatrixReport = {
     maxAtrialSystoleTransmitralGradientMean: number;
     maxAtrialSystoleTransmitralGradientMax: number;
     minAtrialSystoleMVOpenFraction: number;
+    maxFillingBranchMVAFraction: number;
+    maxFillingBranchMidFraction: number;
+    maxFillingBranchLAAloopFraction: number;
+    fillingMorphologyAlternationCount: number;
+    peakCountAlternationCount: number;
     maxClampHitCount: number;
     maxMeanCOLErrorFractionVsBaseline: number;
     maxMeanSVLErrorFractionVsBaseline: number;
@@ -349,9 +383,9 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
       { fraction: 0, metric: null },
     );
   return {
-    schemaVersion: 9,
+    schemaVersion: 10,
     generatedAt: new Date().toISOString(),
-    measurementMode: "branch-only broad low-preload matrix followed by selected EDV-section return-map diagnostics with EDV/ESV/CO features; LA/MV filling-regime diagnostics; optional TBV correction on/off/low contamination axis; off-by-default low-stretch limiter comparator axis",
+    measurementMode: "branch-only broad low-preload matrix followed by selected EDV-section return-map diagnostics with EDV/ESV/CO features; LA/MV filling-regime and MV event-count morphology diagnostics with last-two-beat filling branch amplitudes; optional TBV correction on/off/low contamination axis; off-by-default low-stretch limiter comparator axis",
     targetVolumeMl: opts.targetVolumeMl,
     deltasMl: opts.deltasMl,
     dtValues: opts.dtValues,
@@ -383,6 +417,11 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
       maxAtrialSystoleTransmitralGradientMean: Math.max(0, ...scenarios.map((s) => finiteOrZero(s.returnMapSummary.maxAtrialSystoleTransmitralGradientMean))),
       maxAtrialSystoleTransmitralGradientMax: Math.max(0, ...scenarios.map((s) => finiteOrZero(s.returnMapSummary.maxAtrialSystoleTransmitralGradientMax))),
       minAtrialSystoleMVOpenFraction: finiteMin(scenarios.map((s) => s.returnMapSummary.minAtrialSystoleMVOpenFraction)),
+      maxFillingBranchMVAFraction: Math.max(0, ...scenarios.flatMap((s) => s.perDeltaEvaluation.map((point) => point.fillingBranch?.MV_A_forward_fraction ?? 0))),
+      maxFillingBranchMidFraction: Math.max(0, ...scenarios.flatMap((s) => s.perDeltaEvaluation.map((point) => point.fillingBranch?.MV_mid_forward_fraction ?? 0))),
+      maxFillingBranchLAAloopFraction: Math.max(0, ...scenarios.flatMap((s) => s.perDeltaEvaluation.map((point) => point.fillingBranch?.LA_A_loop_area_fraction ?? 0))),
+      fillingMorphologyAlternationCount: scenarios.reduce((sum, s) => sum + s.perDeltaEvaluation.filter((point) => point.fillingBranch?.morphologyAlternates).length, 0),
+      peakCountAlternationCount: scenarios.reduce((sum, s) => sum + s.perDeltaEvaluation.filter((point) => point.fillingBranch?.peakCountAlternates).length, 0),
       maxClampHitCount: Math.max(0, ...scenarios.map((s) => s.returnMapSummary.maxClampHitCount)),
       maxMeanCOLErrorFractionVsBaseline: Math.max(0, ...scenarios.map((s) => finiteOrZero(s.shapeSummary.meanCOLErrorFractionVsBaseline))),
       maxMeanSVLErrorFractionVsBaseline: Math.max(0, ...scenarios.map((s) => finiteOrZero(s.shapeSummary.meanSVLErrorFractionVsBaseline))),
@@ -525,6 +564,7 @@ function buildPerDeltaEvaluation(points: DebugPoint[]): PerDeltaEvaluation[] {
     const oneBeatESVSlope = finiteOrNull(point.returnMap.features.ESV_L?.centralSlope ?? NaN);
     const twoBeatESVSlope = finiteOrNull(point.returnMap.twoBeatSamePhase?.features.ESV_L?.centralSlope ?? NaN);
     const filling = point.beatTrace.at(-1)?.filling;
+    const fillingBranch = lastTwoBeatFillingBranch(point);
     return {
       deltaVolumeMl: point.deltaVolumeMl,
       LAPMean: point.periodMetrics.LAPMean,
@@ -563,11 +603,44 @@ function buildPerDeltaEvaluation(points: DebugPoint[]): PerDeltaEvaluation[] {
       atrialSystoleTransmitralGradientMean: finiteOrNull(filling?.atrialSystoleTransmitralGradientMean ?? Number.NaN),
       atrialSystoleTransmitralGradientMax: finiteOrNull(filling?.atrialSystoleTransmitralGradientMax ?? Number.NaN),
       atrialSystoleMVOpenFraction: finiteOrNull(filling?.atrialSystoleMVOpenFraction ?? Number.NaN),
+      MV_mid_forward_mL: finiteOrNull(filling?.MV_mid_forward_mL ?? Number.NaN),
+      MV_mid_peak: finiteOrNull(filling?.MV_mid_peak ?? Number.NaN),
+      MV_forward_peak_count: finiteOrNull(filling?.MV_forward_peak_count ?? Number.NaN),
+      MV_mid_forward_peak_count: finiteOrNull(filling?.MV_mid_forward_peak_count ?? Number.NaN),
+      QMV_near_zero_return_count: finiteOrNull(filling?.QMV_near_zero_return_count ?? Number.NaN),
+      MV_open_close_reopen_count: finiteOrNull(filling?.MV_open_close_reopen_count ?? Number.NaN),
+      MV_interwave_xi_min: finiteOrNull(filling?.MV_interwave_xi_min ?? Number.NaN),
+      MV_interwave_open01_min: finiteOrNull(filling?.MV_interwave_open01_min ?? Number.NaN),
+      LAP_LVP_zero_crossing_count: finiteOrNull(filling?.LAP_LVP_zero_crossing_count ?? Number.NaN),
+      fillingMorphologyClass: filling?.fillingMorphologyClass ?? null,
+      fillingBranch,
       nonsmooth: point.returnMap.nonsmooth,
       clampCrossing: point.returnMap.clampCrossing,
       tbvAuditClass: point.tbvAudit.classification,
     };
   });
+}
+
+function lastTwoBeatFillingBranch(point: DebugPoint): FillingBranchSummary | null {
+  const beats = point.beatTrace.slice(-2);
+  if (beats.length < 2) return null;
+  const a = beats[0].filling;
+  const b = beats[1].filling;
+  return {
+    MV_A_forward_abs: Math.abs(b.MV_A_forward_mL - a.MV_A_forward_mL),
+    MV_A_forward_fraction: fractionalAbsDelta(b.MV_A_forward_mL, a.MV_A_forward_mL, 1),
+    MV_mid_forward_abs: Math.abs(b.MV_mid_forward_mL - a.MV_mid_forward_mL),
+    MV_mid_forward_fraction: fractionalAbsDelta(b.MV_mid_forward_mL, a.MV_mid_forward_mL, 1),
+    LA_A_loop_area_abs: Math.abs(b.LA_A_loop_area - a.LA_A_loop_area),
+    LA_A_loop_area_fraction: fractionalAbsDelta(b.LA_A_loop_area, a.LA_A_loop_area, 1),
+    atrialSystoleMVOpenFraction_abs: Math.abs(b.atrialSystoleMVOpenFraction - a.atrialSystoleMVOpenFraction),
+    forwardPeakCountA: a.MV_forward_peak_count,
+    forwardPeakCountB: b.MV_forward_peak_count,
+    peakCountAlternates: a.MV_forward_peak_count !== b.MV_forward_peak_count,
+    morphologyClassA: a.fillingMorphologyClass,
+    morphologyClassB: b.fillingMorphologyClass,
+    morphologyAlternates: a.fillingMorphologyClass !== b.fillingMorphologyClass,
+  };
 }
 
 function buildScenarioEvaluation(input: {
@@ -1004,6 +1077,18 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
     report.summary.branchLocalizationCounts.mixed,
   ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
   lines.push("");
+  lines.push("## Filling morphology alternation counts");
+  lines.push("");
+  lines.push("| morphology alternation | peak-count alternation | max MV A branch frac | max MV mid branch frac | max LA A-loop branch frac |");
+  lines.push("| ---: | ---: | ---: | ---: | ---: |");
+  lines.push([
+    report.summary.fillingMorphologyAlternationCount,
+    report.summary.peakCountAlternationCount,
+    round(report.summary.maxFillingBranchMVAFraction, 4),
+    round(report.summary.maxFillingBranchMidFraction, 4),
+    round(report.summary.maxFillingBranchLAAloopFraction, 4),
+  ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
+  lines.push("");
   lines.push("## Scenario summary");
   lines.push("");
   lines.push("| class | branch class | localization | reasons | scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | selected deltas | period-2 | worst delta | worst covered | coverage | evidence | needs Jacobian | max CO branch frac | max EDV branch frac | max ESV branch frac | clean slopes | clean one-beat EDV slope | clean two-beat EDV slope | clean one-beat ESV slope | clean two-beat ESV slope | clean one-beat volume max slope | clean two-beat volume max slope | min MV A mL | min MV A frac | min LA A-loop frac | mean CO err | mean SV err | monotonicity breaks | dip/re-rise | slope ratio | active hit frac | min active scale | target reduction | max clamp hits | max sanitize abs mL | max projection applied mL | contaminated | max waveform gate frac | worst waveform metric |");
@@ -1073,8 +1158,8 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("## Per-delta primary branch / slope view");
   lines.push("");
-  lines.push("| class | lambda scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | delta | LAP | CO_L period | CO_L last beat | period | branch class | localization | CO branch frac | EDV branch frac | ESV branch frac | MV A mL | MV A frac | LA A-loop frac | active hit frac | min active scale | target reduction | return-map | clean slope | one-beat EDV slope | two-beat EDV slope | one-beat ESV slope | two-beat ESV slope | one-beat volume max slope | two-beat volume max slope | nonsmooth | audit |");
-  lines.push("| --- | --- | --- | ---: | --- | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |");
+  lines.push("| class | lambda scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | delta | LAP | CO_L period | CO_L last beat | period | branch class | localization | CO branch frac | EDV branch frac | ESV branch frac | MV A mL | MV A frac | MV mid mL | MV peaks | morphology | MV A branch frac | MV mid branch frac | morphology alternates | peak-count alternates | LA A-loop frac | active hit frac | min active scale | target reduction | return-map | clean slope | one-beat EDV slope | two-beat EDV slope | one-beat ESV slope | two-beat ESV slope | one-beat volume max slope | two-beat volume max slope | nonsmooth | audit |");
+  lines.push("| --- | --- | --- | ---: | --- | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |");
   for (const scenario of report.scenarios) {
     for (const point of scenario.perDeltaEvaluation) {
       lines.push([
@@ -1099,6 +1184,13 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         round(point.branchAmplitudeFractionESVL, 4),
         round(point.MV_A_forward_mL ?? NaN, 4),
         round(point.MV_A_fraction ?? NaN, 4),
+        round(point.MV_mid_forward_mL ?? NaN, 4),
+        point.MV_forward_peak_count ?? "",
+        point.fillingMorphologyClass ?? "",
+        round(point.fillingBranch?.MV_A_forward_fraction ?? NaN, 4),
+        round(point.fillingBranch?.MV_mid_forward_fraction ?? NaN, 4),
+        point.fillingBranch?.morphologyAlternates ? "yes" : "no",
+        point.fillingBranch?.peakCountAlternates ? "yes" : "no",
         round(point.LA_A_loop_fraction ?? NaN, 4),
         round(point.activeReserveHitFraction, 4),
         round(point.activeReserveMinScale, 4),
@@ -1140,8 +1232,8 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("## LA/MV filling regime diagnostics");
   lines.push("");
-  lines.push("| class | scope | limiter | limiter scope | preset | dt | TBV correction | delta | CO branch frac | EDV branch frac | ESV branch frac | MV E mL | MV A mL | MV A frac | MV E peak | MV A peak | LA A-loop area | LA A-loop frac | A mean LAP-LVP | A max LAP-LVP | A MV open frac | period |");
-  lines.push("| --- | --- | --- | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| class | scope | limiter | limiter scope | preset | dt | TBV correction | delta | CO branch frac | EDV branch frac | ESV branch frac | MV E mL | MV A mL | MV A frac | MV mid mL | MV E peak | MV A peak | MV mid peak | MV peaks | mid peaks | QMV zero returns | MV reopen count | xi min E-A | open01 min E-A | LAP-LVP zc | morphology | MV A branch abs | MV A branch frac | MV mid branch abs | MV mid branch frac | LA A-loop branch abs | LA A-loop branch frac | morphology A | morphology B | morphology alternates | peak count A | peak count B | peak-count alternates | LA A-loop area | LA A-loop frac | A mean LAP-LVP | A max LAP-LVP | A MV open frac | period |");
+  lines.push("| --- | --- | --- | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |");
   for (const scenario of report.scenarios) {
     for (const point of scenario.perDeltaEvaluation) {
       lines.push([
@@ -1159,8 +1251,30 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         round(point.MV_E_forward_mL ?? NaN, 4),
         round(point.MV_A_forward_mL ?? NaN, 4),
         round(point.MV_A_fraction ?? NaN, 4),
+        round(point.MV_mid_forward_mL ?? NaN, 4),
         round(point.MV_E_peak ?? NaN, 4),
         round(point.MV_A_peak ?? NaN, 4),
+        round(point.MV_mid_peak ?? NaN, 4),
+        point.MV_forward_peak_count ?? "",
+        point.MV_mid_forward_peak_count ?? "",
+        point.QMV_near_zero_return_count ?? "",
+        point.MV_open_close_reopen_count ?? "",
+        round(point.MV_interwave_xi_min ?? NaN, 4),
+        round(point.MV_interwave_open01_min ?? NaN, 4),
+        point.LAP_LVP_zero_crossing_count ?? "",
+        point.fillingMorphologyClass ?? "",
+        round(point.fillingBranch?.MV_A_forward_abs ?? NaN, 4),
+        round(point.fillingBranch?.MV_A_forward_fraction ?? NaN, 4),
+        round(point.fillingBranch?.MV_mid_forward_abs ?? NaN, 4),
+        round(point.fillingBranch?.MV_mid_forward_fraction ?? NaN, 4),
+        round(point.fillingBranch?.LA_A_loop_area_abs ?? NaN, 4),
+        round(point.fillingBranch?.LA_A_loop_area_fraction ?? NaN, 4),
+        point.fillingBranch?.morphologyClassA ?? "",
+        point.fillingBranch?.morphologyClassB ?? "",
+        point.fillingBranch?.morphologyAlternates ? "yes" : "no",
+        point.fillingBranch?.forwardPeakCountA ?? "",
+        point.fillingBranch?.forwardPeakCountB ?? "",
+        point.fillingBranch?.peakCountAlternates ? "yes" : "no",
         round(point.LA_A_loop_area ?? NaN, 4),
         round(point.LA_A_loop_fraction ?? NaN, 4),
         round(point.atrialSystoleTransmitralGradientMean ?? NaN, 4),
@@ -1249,7 +1363,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("- Active reserve preset expands only the `activeReserveCap` comparator: direct presets broadly scale low-stretch active target, threshold presets act only at high activation/reserve.");
   lines.push("- Shape gates compare each candidate to the tau=0/no-limiter baseline at matching deltas. They report mean CO/SV preservation, low-preload monotonicity, dip/re-rise, low-side slope preservation, and limiter hit/reduction statistics.");
   lines.push("- Branch localization is report-only: `edv-dominant` means preload/EDV branch motion dominates, `esv/ejection-dominant` means CO/ESV branch motion dominates, and `mixed` is ambiguous.");
-  lines.push("- LA/MV filling diagnostics are report-only regime markers for testing whether MV A-flow or LA A-loop collapse co-localizes with low-preload alternans onset.");
+  lines.push("- LA/MV filling diagnostics are report-only regime markers for testing whether MV A-flow, mid-diastolic flow, LA A-loop collapse, MV event counts, or E/mid/A morphology alternation co-localizes with low-preload or hypervolume alternans onset.");
   lines.push("- Waveform gates compare normal and HR100 settled waveforms against the tau=0 baseline; they are report-only in this PR.");
   lines.push("");
   return `${lines.join("\n")}\n`;
@@ -1290,6 +1404,29 @@ export function matrixReportToCsv(report: MatrixReport): string {
     "MV_A_fraction",
     "MV_E_peak",
     "MV_A_peak",
+    "MV_mid_forward_mL",
+    "MV_mid_peak",
+    "MV_forward_peak_count",
+    "MV_mid_forward_peak_count",
+    "QMV_near_zero_return_count",
+    "MV_open_close_reopen_count",
+    "MV_interwave_xi_min",
+    "MV_interwave_open01_min",
+    "LAP_LVP_zero_crossing_count",
+    "fillingMorphologyClass",
+    "fillingBranch_MV_A_forward_abs",
+    "fillingBranch_MV_A_forward_fraction",
+    "fillingBranch_MV_mid_forward_abs",
+    "fillingBranch_MV_mid_forward_fraction",
+    "fillingBranch_LA_A_loop_area_abs",
+    "fillingBranch_LA_A_loop_area_fraction",
+    "fillingBranch_atrialSystoleMVOpenFraction_abs",
+    "fillingBranch_forwardPeakCountA",
+    "fillingBranch_forwardPeakCountB",
+    "fillingBranch_peakCountAlternates",
+    "fillingBranch_morphologyClassA",
+    "fillingBranch_morphologyClassB",
+    "fillingBranch_morphologyAlternates",
     "LA_A_loop_area",
     "LA_A_loop_fraction",
     "atrialSystoleTransmitralGradientMean",
@@ -1357,6 +1494,29 @@ export function matrixReportToCsv(report: MatrixReport): string {
         perDelta?.MV_A_fraction ?? "",
         perDelta?.MV_E_peak ?? "",
         perDelta?.MV_A_peak ?? "",
+        perDelta?.MV_mid_forward_mL ?? "",
+        perDelta?.MV_mid_peak ?? "",
+        perDelta?.MV_forward_peak_count ?? "",
+        perDelta?.MV_mid_forward_peak_count ?? "",
+        perDelta?.QMV_near_zero_return_count ?? "",
+        perDelta?.MV_open_close_reopen_count ?? "",
+        perDelta?.MV_interwave_xi_min ?? "",
+        perDelta?.MV_interwave_open01_min ?? "",
+        perDelta?.LAP_LVP_zero_crossing_count ?? "",
+        perDelta?.fillingMorphologyClass ?? "",
+        perDelta?.fillingBranch?.MV_A_forward_abs ?? "",
+        perDelta?.fillingBranch?.MV_A_forward_fraction ?? "",
+        perDelta?.fillingBranch?.MV_mid_forward_abs ?? "",
+        perDelta?.fillingBranch?.MV_mid_forward_fraction ?? "",
+        perDelta?.fillingBranch?.LA_A_loop_area_abs ?? "",
+        perDelta?.fillingBranch?.LA_A_loop_area_fraction ?? "",
+        perDelta?.fillingBranch?.atrialSystoleMVOpenFraction_abs ?? "",
+        perDelta?.fillingBranch?.forwardPeakCountA ?? "",
+        perDelta?.fillingBranch?.forwardPeakCountB ?? "",
+        perDelta?.fillingBranch?.peakCountAlternates ? "yes" : "no",
+        perDelta?.fillingBranch?.morphologyClassA ?? "",
+        perDelta?.fillingBranch?.morphologyClassB ?? "",
+        perDelta?.fillingBranch?.morphologyAlternates ? "yes" : "no",
         perDelta?.LA_A_loop_area ?? "",
         perDelta?.LA_A_loop_fraction ?? "",
         perDelta?.atrialSystoleTransmitralGradientMean ?? "",

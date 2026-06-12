@@ -105,6 +105,16 @@ type FillingRegimeSummary = {
   MV_A_fraction: number | null;
   MV_E_peak: number | null;
   MV_A_peak: number | null;
+  MV_mid_forward_mL: number;
+  MV_mid_peak: number | null;
+  MV_forward_peak_count: number;
+  MV_mid_forward_peak_count: number;
+  QMV_near_zero_return_count: number;
+  MV_open_close_reopen_count: number;
+  MV_interwave_xi_min: number | null;
+  MV_interwave_open01_min: number | null;
+  LAP_LVP_zero_crossing_count: number;
+  fillingMorphologyClass: FillingMorphologyClass;
   LA_loop_area: number;
   LA_A_loop_area: number;
   LA_A_loop_fraction: number | null;
@@ -112,6 +122,8 @@ type FillingRegimeSummary = {
   atrialSystoleTransmitralGradientMax: number;
   atrialSystoleMVOpenFraction: number;
 };
+
+type FillingMorphologyClass = "E-only" | "E+A" | "E+mid+A" | "weak-A" | "indeterminate";
 
 type ReturnMapFeature = {
   plus: number;
@@ -276,7 +288,7 @@ type DebugSummary = {
 };
 
 type DebugReport = {
-  schemaVersion: 11;
+  schemaVersion: 12;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -367,6 +379,16 @@ const CSV_COLUMNS = [
   "MV_A_fraction",
   "MV_E_peak",
   "MV_A_peak",
+  "MV_mid_forward_mL",
+  "MV_mid_peak",
+  "MV_forward_peak_count",
+  "MV_mid_forward_peak_count",
+  "QMV_near_zero_return_count",
+  "MV_open_close_reopen_count",
+  "MV_interwave_xi_min",
+  "MV_interwave_open01_min",
+  "LAP_LVP_zero_crossing_count",
+  "fillingMorphologyClass",
   "LA_A_loop_area",
   "LA_A_loop_fraction",
   "atrialSystoleTransmitralGradientMean",
@@ -432,9 +454,9 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
   const dtScenarios = lambdaActTauSecValues.flatMap((tau) => dtValues.map((dt) => runDtScenario(opts, dt, tau)));
   const primary = dtScenarios[0] ?? runDtScenario(opts, 0.001, 0);
   return {
-    schemaVersion: 11,
+    schemaVersion: 12,
     generatedAt: new Date().toISOString(),
-    measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve/TBV-projection diagnostics; branch-amplitude primary gate; EDV-section volume-preserving LV/PVein one-beat/two-beat return-map slopes with EDV/ESV/CO features; LA/MV filling-regime diagnostics; dt and off-by-default lambdaAct sensitivity",
+    measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve/TBV-projection diagnostics; branch-amplitude primary gate; EDV-section volume-preserving LV/PVein one-beat/two-beat return-map slopes with EDV/ESV/CO features; LA/MV filling-regime and MV event-count morphology diagnostics; dt and off-by-default lambdaAct sensitivity",
     targetVolumeMl: opts.targetVolumeMl,
     deltasMl: opts.deltasMl,
     dtValues,
@@ -526,8 +548,8 @@ export function reportToMarkdown(report: DebugReport): string {
   lines.push("");
   lines.push("## Primary dt points");
   lines.push("");
-  lines.push("| delta | target TBV | seed | period | reason | actual s | worst signal | worst delta | adj delta | period delta | LAP | CO_L period | CO_L last beat | CO_R period | PV return | clamp hits | valve reverse max | MV A mL | MV A frac | MV A peak | MV E peak | LA A-loop area | LA A-loop frac | A mean LAP-LVP | A max LAP-LVP | A MV open frac | LV lambda raw | LV lambda act | LV lambda Kd | LV lambda fIso | LV lambdaAct-raw | LV Kd mean | LV fIso mean | branch CO amp | branch CO frac | branch EDV amp | branch EDV frac | branch ESV amp | branch ESV frac | return-map | one-beat EDV slope | two-beat EDV slope | one-beat ESV slope | two-beat ESV slope | reset-lambdaAct two-beat EDV slope | nonsmooth |");
-  lines.push("| ---: | ---: | ---: | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | --- |");
+  lines.push("| delta | target TBV | seed | period | reason | actual s | worst signal | worst delta | adj delta | period delta | LAP | CO_L period | CO_L last beat | CO_R period | PV return | clamp hits | valve reverse max | MV A mL | MV A frac | MV A peak | MV E peak | MV mid mL | MV mid peak | MV peaks | mid peaks | QMV zero returns | MV reopen count | xi min E-A | open01 min E-A | LAP-LVP zc | morphology | LA A-loop area | LA A-loop frac | A mean LAP-LVP | A max LAP-LVP | A MV open frac | LV lambda raw | LV lambda act | LV lambda Kd | LV lambda fIso | LV lambdaAct-raw | LV Kd mean | LV fIso mean | branch CO amp | branch CO frac | branch EDV amp | branch EDV frac | branch ESV amp | branch ESV frac | return-map | one-beat EDV slope | two-beat EDV slope | one-beat ESV slope | two-beat ESV slope | reset-lambdaAct two-beat EDV slope | nonsmooth |");
+  lines.push("| ---: | ---: | ---: | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | --- |");
   for (const p of report.points) {
     const lastBeat = p.beatTrace.at(-1);
     const lv = lastBeat?.active.LV;
@@ -554,6 +576,16 @@ export function reportToMarkdown(report: DebugReport): string {
       round(filling?.MV_A_fraction ?? NaN, 4),
       round(filling?.MV_A_peak ?? NaN, 4),
       round(filling?.MV_E_peak ?? NaN, 4),
+      round(filling?.MV_mid_forward_mL ?? NaN, 4),
+      round(filling?.MV_mid_peak ?? NaN, 4),
+      filling?.MV_forward_peak_count ?? "",
+      filling?.MV_mid_forward_peak_count ?? "",
+      filling?.QMV_near_zero_return_count ?? "",
+      filling?.MV_open_close_reopen_count ?? "",
+      round(filling?.MV_interwave_xi_min ?? NaN, 4),
+      round(filling?.MV_interwave_open01_min ?? NaN, 4),
+      filling?.LAP_LVP_zero_crossing_count ?? "",
+      filling?.fillingMorphologyClass ?? "",
       round(filling?.LA_A_loop_area ?? NaN, 4),
       round(filling?.LA_A_loop_fraction ?? NaN, 4),
       round(filling?.atrialSystoleTransmitralGradientMean ?? NaN, 4),
@@ -619,7 +651,7 @@ export function reportToMarkdown(report: DebugReport): string {
   lines.push("- Node-specific clamp attribution separates low-volume pressure/volume bounds from aggregate health warnings.");
   lines.push("- TBV / Clamp Audit quantifies how much hard state sanitation and the TBV projector move volume. `contaminated` means sanitize or projection moved more than 0.05 mL in the representative beat.");
   lines.push("- Return-map slopes are central differences from a volume-preserving LV/PVein perturbation at the next LV EDV section. `one-beat` measures the next beat; `two-beat` measures the same phase two beats later. EDV/ESV slopes are one-coordinate section slopes; CO/LAP slopes are response slopes. None of them change model dynamics.");
-  lines.push("- MV/LA filling diagnostics split transmitral flow into E and A windows and report LA A-loop area plus atrial-systole transmitral pressure gradient/open fraction. These are observational regime markers, not model changes.");
+  lines.push("- MV/LA filling diagnostics split transmitral flow into E, mid-diastolic, and A windows; event-count fields report QMV peak count, near-zero returns, MV open-close-reopen count, LAP-LVP zero crossings, and an E/mid/A morphology class. These are observational regime markers, not model changes.");
   lines.push("- Branch amplitude and branch amplitude fraction are classifier-independent high/low beat measurements from the trace; treat them as the primary stabilization signal before interpreting period labels or local slopes.");
   lines.push("- `volumeLambdaActFixed` keeps the active-stretch memory fixed after a volume perturbation; `volumeLambdaActReset` resets LV `lambdaAct` to the post-perturbation raw LV stretch before measuring the return map. The latter is a quasi-static consistency check for lambdaAct experiments, not a model change.");
   lines.push("- `tau lambdaAct s` is an off-by-default experiment. `tau=0` is the shipped model. Positive tau values lag only selected active-stress length inputs (`kd`, `fiso`, or `kd+fiso`), not passive pressure, geometry, gOver, force-velocity, or valves.");
@@ -658,6 +690,16 @@ export function reportToCsv(report: DebugReport): string {
           filling.MV_A_fraction ?? "",
           filling.MV_E_peak ?? "",
           filling.MV_A_peak ?? "",
+          filling.MV_mid_forward_mL,
+          filling.MV_mid_peak ?? "",
+          filling.MV_forward_peak_count,
+          filling.MV_mid_forward_peak_count,
+          filling.QMV_near_zero_return_count,
+          filling.MV_open_close_reopen_count,
+          filling.MV_interwave_xi_min ?? "",
+          filling.MV_interwave_open01_min ?? "",
+          filling.LAP_LVP_zero_crossing_count,
+          filling.fillingMorphologyClass,
           filling.LA_A_loop_area,
           filling.LA_A_loop_fraction ?? "",
           filling.atrialSystoleTransmitralGradientMean,
@@ -1413,12 +1455,24 @@ function summarizeBeat(beat: number, entries: TraceSample[], HR: number): BeatTr
 
 function fillingRegimeSummary(samples: SimSample[]): FillingRegimeSummary {
   const eSamples = samples.filter((sample) => phaseInWindow(sample, 0.30, 0.75));
+  const midSamples = samples.filter((sample) => phaseInWindow(sample, 0.58, 0.85));
   const aSamples = samples.filter((sample) => phaseInWindow(sample, 0.85, 0.08));
+  const diastolicSamples = samples.filter((sample) => phaseInWindow(sample, 0.30, 0.08));
   const eForward = integratePositive(eSamples, "QMV");
+  const midForward = integratePositive(midSamples, "QMV");
   const aForward = integratePositive(aSamples, "QMV");
   const totalForward = eForward + aForward;
+  const totalDiastolicForward = integratePositive(diastolicSamples, "QMV");
   const ePeak = finiteMaxOrNull(eSamples.map((sample) => Math.max(0, sample.QMV)));
+  const midPeak = finiteMaxOrNull(midSamples.map((sample) => Math.max(0, sample.QMV)));
   const aPeak = finiteMaxOrNull(aSamples.map((sample) => Math.max(0, sample.QMV)));
+  const maxForwardPeak = finiteMaxOrNull(samples.map((sample) => Math.max(0, sample.QMV))) ?? 0;
+  const forwardThreshold = Math.max(1, maxForwardPeak * 0.08);
+  const nearZeroThreshold = Math.max(0.5, maxForwardPeak * 0.02);
+  const forwardRuns = countBooleanRuns(diastolicSamples.map((sample) => sample.QMV > forwardThreshold));
+  const openRuns = countBooleanRuns(diastolicSamples.map((sample) => sample.xiMV > 0.05 || sample.QMV > 1));
+  const interwaveXi = midSamples.map((sample) => sample.xiMV).filter(Number.isFinite);
+  const interwaveOpen01 = midSamples.map((sample) => sample.xiMV > 0.05 || sample.QMV > 1 ? 1 : 0);
   const laLoopArea = Math.abs(loopArea(samples.map((sample) => ({ x: sample.VLA, y: sample.LAP }))));
   const laALoopArea = Math.abs(loopArea(aSamples.map((sample) => ({ x: sample.VLA, y: sample.LAP }))));
   const aGradients = aSamples.map((sample) => Math.max(0, sample.LAP - sample.LVP)).filter(Number.isFinite);
@@ -1428,6 +1482,25 @@ function fillingRegimeSummary(samples: SimSample[]): FillingRegimeSummary {
     MV_A_fraction: totalForward > 1e-9 ? aForward / totalForward : null,
     MV_E_peak: ePeak,
     MV_A_peak: aPeak,
+    MV_mid_forward_mL: midForward,
+    MV_mid_peak: midPeak,
+    MV_forward_peak_count: countForwardPeaks(diastolicSamples, forwardThreshold),
+    MV_mid_forward_peak_count: countForwardPeaks(midSamples, forwardThreshold),
+    QMV_near_zero_return_count: countNearZeroReturns(diastolicSamples, forwardThreshold, nearZeroThreshold),
+    MV_open_close_reopen_count: Math.max(0, openRuns - 1),
+    MV_interwave_xi_min: interwaveXi.length > 0 ? Math.min(...interwaveXi) : null,
+    MV_interwave_open01_min: interwaveOpen01.length > 0 ? Math.min(...interwaveOpen01) : null,
+    LAP_LVP_zero_crossing_count: countZeroCrossings(diastolicSamples.map((sample) => sample.LAP - sample.LVP)),
+    fillingMorphologyClass: fillingMorphologyClass({
+      eForward,
+      aForward,
+      midForward,
+      totalForward: totalDiastolicForward,
+      ePeak,
+      aPeak,
+      midPeak,
+      peakCount: countForwardPeaks(diastolicSamples, forwardThreshold),
+    }),
     LA_loop_area: laLoopArea,
     LA_A_loop_area: laALoopArea,
     LA_A_loop_fraction: laLoopArea > 1e-9 ? laALoopArea / laLoopArea : null,
@@ -1437,6 +1510,88 @@ function fillingRegimeSummary(samples: SimSample[]): FillingRegimeSummary {
       ? meanNumbers(aSamples.map((sample) => sample.xiMV > 0.05 || sample.QMV > 1 ? 1 : 0))
       : 0,
   };
+}
+
+function countForwardPeaks(samples: SimSample[], threshold: number): number {
+  const q = samples.map((sample) => Math.max(0, sample.QMV));
+  if (q.length < 3) return q.some((value) => value > threshold) ? 1 : 0;
+  let count = 0;
+  let inRun = false;
+  let runMax = 0;
+  for (const value of q) {
+    if (value > threshold) {
+      inRun = true;
+      runMax = Math.max(runMax, value);
+    } else if (inRun) {
+      if (runMax > threshold) count++;
+      inRun = false;
+      runMax = 0;
+    }
+  }
+  if (inRun && runMax > threshold) count++;
+  return count;
+}
+
+function countNearZeroReturns(samples: SimSample[], forwardThreshold: number, nearZeroThreshold: number): number {
+  let count = 0;
+  let sawForwardBeforeZero = false;
+  let inNearZeroAfterForward = false;
+  for (const sample of samples) {
+    const q = Math.max(0, sample.QMV);
+    if (q > forwardThreshold) {
+      if (inNearZeroAfterForward) count++;
+      sawForwardBeforeZero = true;
+      inNearZeroAfterForward = false;
+    } else if (sawForwardBeforeZero && q <= nearZeroThreshold) {
+      inNearZeroAfterForward = true;
+    }
+  }
+  return count;
+}
+
+function countBooleanRuns(values: boolean[]): number {
+  let count = 0;
+  let inRun = false;
+  for (const value of values) {
+    if (value && !inRun) count++;
+    inRun = value;
+  }
+  return count;
+}
+
+function countZeroCrossings(values: number[]): number {
+  let count = 0;
+  let prev = 0;
+  for (const value of values) {
+    if (!Number.isFinite(value) || Math.abs(value) < 1e-6) continue;
+    const sign = Math.sign(value);
+    if (prev !== 0 && sign !== prev) count++;
+    prev = sign;
+  }
+  return count;
+}
+
+function fillingMorphologyClass(input: {
+  eForward: number;
+  aForward: number;
+  midForward: number;
+  totalForward: number;
+  ePeak: number | null;
+  aPeak: number | null;
+  midPeak: number | null;
+  peakCount: number;
+}): FillingMorphologyClass {
+  const total = input.totalForward;
+  if (!Number.isFinite(total) || total < 1) return "indeterminate";
+  const eStrong = input.eForward / total >= 0.15 || (input.ePeak ?? 0) >= 5;
+  const aFraction = input.aForward / total;
+  const aStrong = aFraction >= 0.12 || (input.aPeak ?? 0) >= Math.max(5, (input.ePeak ?? 0) * 0.12);
+  const midStrong = input.midForward / total >= 0.12 || (input.midPeak ?? 0) >= Math.max(5, (input.ePeak ?? 0) * 0.10);
+  if (eStrong && aStrong && midStrong && input.peakCount >= 3) return "E+mid+A";
+  if (eStrong && aStrong) return "E+A";
+  if (eStrong && !aStrong && (aFraction > 0.02 || (input.aPeak ?? 0) > 1)) return "weak-A";
+  if (eStrong) return "E-only";
+  return "indeterminate";
 }
 
 function phaseInWindow(sample: SimSample, lo: number, hi: number): boolean {
