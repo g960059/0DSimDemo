@@ -5,13 +5,14 @@ import { ModelCore, type ModelCoreActiveStressDiagnostics, type ModelCoreClampDi
 import { makeIndex } from "@/engine/core/stateLayout";
 import type { StarlingSweepRequest } from "@/engine/guytonStarling";
 import { PREVIEW_SETTLE_POLICY, type SettleStatus } from "@/engine/settling";
-import type { CoreRuntimeParams, SimMetrics, SimObservables, SimSample, SimulationHealth } from "@/engine/protocol";
+import type { CoreRuntimeParams, HeartModelMode, SimMetrics, SimObservables, SimSample, SimulationHealth } from "@/engine/protocol";
 import type { ActiveChamberParams, Chamber, LambdaActTerms, LowStretchLimiterMode } from "@/engine/chambers";
 import type { SerializedModelState } from "@/engine/stateContract";
 
 type DebugOptions = {
   outDir: string;
   targetVolumeMl: number;
+  heartModel?: HeartModelMode;
   deltasMl: number[];
   dtValues: number[];
   lambdaActTauSecValues: number[];
@@ -288,10 +289,11 @@ type DebugSummary = {
 };
 
 type DebugReport = {
-  schemaVersion: 12;
+  schemaVersion: 13;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
+  heartModel: HeartModelMode;
   deltasMl: number[];
   dtValues: number[];
   lambdaActTauSecValues: number[];
@@ -335,6 +337,7 @@ type DebugRun = {
 
 const DEFAULT_DELTAS = [0, -900, -1000, -1100, -1200, -1300, -1400, -1500, -1600];
 const DEFAULT_DT_VALUES = [0.001, 0.0005, 0.002];
+const DEFAULT_HEART_MODEL: HeartModelMode = "activeStress";
 const DEFAULT_LAMBDA_ACT_TAU_SEC_VALUES = [0];
 const DEFAULT_LAMBDA_ACT_SCOPE: LambdaActScope = "all";
 const DEFAULT_LAMBDA_ACT_TERMS: LambdaActTerms = "kd+fiso";
@@ -454,10 +457,11 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
   const dtScenarios = lambdaActTauSecValues.flatMap((tau) => dtValues.map((dt) => runDtScenario(opts, dt, tau)));
   const primary = dtScenarios[0] ?? runDtScenario(opts, 0.001, 0);
   return {
-    schemaVersion: 12,
+    schemaVersion: 13,
     generatedAt: new Date().toISOString(),
     measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve/TBV-projection diagnostics; branch-amplitude primary gate; EDV-section volume-preserving LV/PVein one-beat/two-beat return-map slopes with EDV/ESV/CO features; LA/MV filling-regime and MV event-count morphology diagnostics; dt and off-by-default lambdaAct sensitivity",
     targetVolumeMl: opts.targetVolumeMl,
+    heartModel: opts.heartModel ?? DEFAULT_HEART_MODEL,
     deltasMl: opts.deltasMl,
     dtValues,
     lambdaActTauSecValues,
@@ -759,7 +763,7 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
   const lowStretchLimiterScope = opts.lowStretchLimiterScope ?? DEFAULT_LOW_STRETCH_LIMITER_SCOPE;
   const activeReservePreset = effectiveActiveReservePreset(lowStretchLimiterMode, opts.activeReservePreset);
   const params = paramsWithLowStretchLimiter(
-    paramsWithLambdaActTau(DEFAULT_PARAMS, lambdaActTauSec, opts.lambdaActScope, lambdaActTerms),
+    paramsWithLambdaActTau(defaultParamsForHeartModel(opts.heartModel), lambdaActTauSec, opts.lambdaActScope, lambdaActTerms),
     lowStretchLimiterMode,
     lowStretchLimiterScope,
     activeReservePreset,
@@ -873,6 +877,10 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
     );
   }
   return { dt, lambdaActTauSec, lambdaActScope: opts.lambdaActScope, lambdaActTerms, points, summary: summarizePoints(points) };
+}
+
+function defaultParamsForHeartModel(heartModel: HeartModelMode = DEFAULT_HEART_MODEL): CoreRuntimeParams {
+  return { ...DEFAULT_PARAMS, heartModel };
 }
 
 function selectedReturnMapPointIndices(points: DebugPoint[], opts: DebugOptions): number[] {
@@ -1846,6 +1854,7 @@ export function parseLowPreloadDebugArgs(args: string[]): DebugOptions {
   const opts: DebugOptions = {
     outDir: path.join("artifacts", "starling-low-preload-debug", timestamp),
     targetVolumeMl: 5600,
+    heartModel: DEFAULT_HEART_MODEL,
     deltasMl: DEFAULT_DELTAS,
     dtValues: DEFAULT_DT_VALUES,
     lambdaActTauSecValues: DEFAULT_LAMBDA_ACT_TAU_SEC_VALUES,
@@ -1864,6 +1873,7 @@ export function parseLowPreloadDebugArgs(args: string[]): DebugOptions {
     const [key, value] = arg.split("=", 2);
     if (key === "--out" && value) opts.outDir = value;
     else if (key === "--target-volume" && value) opts.targetVolumeMl = Number(value);
+    else if (key === "--heart-model" && value) opts.heartModel = parseHeartModel(value);
     else if (key === "--deltas" && value) opts.deltasMl = parseNumberList(value);
     else if (key === "--dt" && value) opts.dtValues = parseNumberList(value);
     else if (key === "--lambda-act-tau" && value) opts.lambdaActTauSecValues = parseNumberList(value);
@@ -1893,6 +1903,11 @@ export function parseLowPreloadDebugArgs(args: string[]): DebugOptions {
 function parseTBVCorrectionMode(value: string): TBVCorrectionMode {
   if (value === "on" || value === "off" || value === "low") return value;
   throw new Error(`Invalid TBV correction mode: ${value}`);
+}
+
+function parseHeartModel(value: string): HeartModelMode {
+  if (value === "activeStress" || value === "elastance") return value;
+  throw new Error(`Invalid heart model: ${value}`);
 }
 
 function parseReturnMapMode(value: string): ReturnMapModeOption {
@@ -1936,6 +1951,7 @@ function printHelp(): void {
   // eslint-disable-next-line no-console
   console.log([
     "Usage: npm run debug:starling-low-preload -- [--out=DIR] [--target-volume=5600]",
+    "       [--heart-model=activeStress|elastance]",
     "       [--deltas=0,-900,-1000,-1100] [--dt=0.001,0.0005,0.002] [--lambda-act-tau=0,0.15,0.25,0.4]",
     "       [--lambda-act-scope=lv|ventricles|all] [--lambda-act-terms=kd|fiso|kd+fiso]",
     "       [--low-stretch-limiter=none|aInfCap|activeReserveCap] [--low-stretch-limiter-scope=lv|ventricles|all]",
