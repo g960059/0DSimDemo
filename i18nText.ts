@@ -1,6 +1,7 @@
 import type { TFunction } from "i18next";
 import { KNOB_RANGES, type KnobKey } from "./engine/knobs";
 import { KNOB_STEPS, readingButtonOptionsFor, roundToStep } from "./knobMetadata";
+import { RAW_PARAM_CATEGORY_LABELS, rawParamCatalogEntry, type RawParamCategoryId } from "./rawParameterCatalog";
 import type { ControllerItem } from "./types";
 
 type T = TFunction<"translation", undefined>;
@@ -86,12 +87,16 @@ function optionLabelKeyForValue(item: ControllerItem, option: Pick<ControllerOpt
 
 export function translatedKnobLabel(t: T, key: string, fallback = key): string {
   const translationKey = KNOB_LABEL_KEY[key];
-  return translationKey ? t(translationKey) : fallback;
+  if (translationKey) return t(translationKey);
+  const raw = rawParamCatalogEntry(key);
+  return raw ? t(`workbench.controls.rawParams.${key}`, { defaultValue: fallback }) : fallback;
 }
 
 export function translatedControllerCategory(t: T, category: string): string {
   const translationKey = CONTROLLER_CATEGORY_KEY[category];
-  return translationKey ? t(translationKey) : category;
+  if (translationKey) return t(translationKey);
+  const fallback = RAW_PARAM_CATEGORY_LABELS[category as RawParamCategoryId];
+  return fallback ? t(`workbench.controls.rawCategories.${category}`, { defaultValue: fallback }) : category;
 }
 
 export function translatedControllerItemLabel(t: T, item: ControllerItem, fallback = item.paramKey): string {

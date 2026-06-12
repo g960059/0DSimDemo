@@ -8,6 +8,7 @@ import { rawDisplayParams } from '../engine/instanceKnobs';
 import { CONTROLLER_CATALOG, CONTROLLER_CATALOG_SECTIONS } from '../controllerCatalog';
 import { buttonOptionsFromRange, normalizeControllerItems } from '../controllerItems';
 import { defaultControllerItemFor, readingButtonOptionsFor } from '../knobMetadata';
+import { rawParamCatalogEntry } from '../rawParameterCatalog';
 import { HealthDot } from './HealthIndicators';
 import { ControllerItemControl } from './controls/ControllerItemControl';
 import { Slider, hasChanged } from './controls/Slider';
@@ -203,7 +204,7 @@ export const Controls: React.FC<ControlsProps> = ({
   };
   const kr = (key: keyof ClinicalKnobs): [number, number] => KNOB_RANGES[key] ?? [0, 1];
   const changedCandidateClinicalControls = hasAuthored
-    ? authored.map((item) => {
+    ? authored.filter((item) => catalogByKey.has(item.paramKey as NumericKnobKey)).map((item) => {
         const meta = catalogByKey.get(item.paramKey as NumericKnobKey);
         return {
           key: item.paramKey as NumericKnobKey,
@@ -268,21 +269,28 @@ export const Controls: React.FC<ControlsProps> = ({
                             {authored.map((item) => {
                               const key = item.paramKey as NumericKnobKey;
                               const meta = catalogByKey.get(key);
+                              const rawMeta = rawParamCatalogEntry(item.paramKey);
+                              const isClinical = meta != null;
+                              const rawValue = rawView[item.paramKey as keyof SimulationParams];
+                              const value = isClinical
+                                ? knobs[key]
+                                : (typeof rawValue === 'number' ? rawValue : item.min ?? rawMeta?.min ?? 0);
+                              const baseline = isClinical ? baselineKnobs[key] : undefined;
                               const readingOptions = item.kind === 'buttonGroup' && item.options
                                 ? translatedControllerOptions(t, item.options)
-                                : translatedControllerOptions(t, controllerOptionsWithLabelKeys(item, readingButtonOptionsFor(item.paramKey, baselineKnobs[key]) ?? buttonOptionsFromRange(item), baselineKnobs[key]));
+                                : translatedControllerOptions(t, controllerOptionsWithLabelKeys(item, readingButtonOptionsFor(item.paramKey, baseline ?? value) ?? buttonOptionsFromRange(item), baseline ?? value));
                               const displayItem: ControllerItem = isReadingMode
-                                ? { ...item, kind: 'buttonGroup', label: translatedControllerItemLabel(t, item, meta?.label ?? item.paramKey), options: readingOptions }
-                                : { ...item, label: translatedControllerItemLabel(t, item, meta?.label ?? item.paramKey), ...(item.options ? { options: translatedControllerOptions(t, item.options) } : {}) };
+                                ? { ...item, kind: 'buttonGroup', label: translatedControllerItemLabel(t, item, meta?.label ?? rawMeta?.label ?? item.paramKey), options: readingOptions }
+                                : { ...item, label: translatedControllerItemLabel(t, item, meta?.label ?? rawMeta?.label ?? item.paramKey), ...(item.options ? { options: translatedControllerOptions(t, item.options) } : {}) };
                               return (
                                 <ControllerItemControl
                                   key={item.paramKey}
                                   item={displayItem}
-                                  value={knobs[key]}
-                                  baseline={baselineKnobs[key]}
-                                  onChange={(v) => updateKnob(key, v)}
-                                  onReset={() => updateKnob(key, baselineKnobs[key])}
-                                  unit={meta?.unit}
+                                  value={value}
+                                  baseline={baseline}
+                                  onChange={(v) => isClinical ? updateKnob(key, v) : update(item.paramKey as keyof SimulationParams, v)}
+                                  onReset={isClinical ? () => updateKnob(key, baselineKnobs[key]) : undefined}
+                                  unit={meta?.unit ?? rawMeta?.unit}
                                 />
                               );
                             })}

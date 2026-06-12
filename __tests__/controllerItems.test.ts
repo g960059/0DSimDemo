@@ -18,14 +18,41 @@ function controlPanel(extras: Partial<PanelDef> = {}): PanelDef {
 }
 
 describe("normalizeControllerItems", () => {
-  it("clamps to knob ranges and rounds to the catalog step", () => {
+  it("clamps to knob ranges and keeps an author step override", () => {
     const { items } = normalizeControllerItems([
       { paramKey: "contractility", kind: "slider", label: "  LV  ", min: -10, max: 99, step: 0.001 },
       { paramKey: "HR", kind: "buttonGroup", label: "Rate", options: [{ label: "A", value: 41.4 }, { label: "B", value: 180.4 }] },
     ]);
 
-    expect(items[0]).toMatchObject({ min: 0.25, max: 2.5, step: 0.05, label: "LV" });
+    expect(items[0]).toMatchObject({ min: 0.25, max: 2.5, step: 0.001, label: "LV" });
     expect(items[1].options).toEqual([{ label: "A", value: 41 }, { label: "B", value: 180 }]);
+  });
+
+  it("keeps cataloged raw parameters with default slider metadata", () => {
+    const { items, warnings } = normalizeControllerItems([
+      { paramKey: "lvGeomScale", kind: "slider", label: "LV size" },
+    ]);
+
+    expect(items).toEqual([
+      expect.objectContaining({ paramKey: "lvGeomScale", label: "LV size", min: 0.5, max: 2.5, step: 0.05 }),
+    ]);
+    expect(warnings).toEqual([]);
+  });
+
+  it("allows authors to narrow raw ranges within the engine hard range", () => {
+    const { items } = normalizeControllerItems([
+      { paramKey: "pericardialFluidMl", kind: "slider", label: "Effusion", min: 100, max: 300, step: 10 },
+    ]);
+
+    expect(items[0]).toMatchObject({ min: 100, max: 300, step: 10 });
+  });
+
+  it("clamps author raw ranges to the engine hard range", () => {
+    const { items } = normalizeControllerItems([
+      { paramKey: "pericardialFluidMl", kind: "slider", label: "Effusion", min: -50, max: 2000, step: 10 },
+    ]);
+
+    expect(items[0]).toMatchObject({ min: 0, max: 1000, step: 10 });
   });
 
   it("dedups items, drops unknown keys, trims labels, and falls back to catalog labels", () => {
