@@ -1,10 +1,13 @@
 import { normalizeControllerItems } from "@/controllerItems";
+import { CONTROLLER_CATALOG } from "@/controllerCatalog";
+import i18n from "@/i18n";
+import { defaultControllerItemFor } from "@/knobMetadata";
 import type { ControllerItem, MetricType, PanelDef, PanelInstanceConfig, SimInstance } from "@/types";
+import { BUILT_IN_METRIC_CATEGORIES } from "@/features/workbench/p1aStructuralHosts";
 import { migratePanelsToViewSpecs, normalizeMembership, type ControllerViewSpec, type MetricsViewSpec, type ViewMembership, type ViewSpec } from "@/features/workbench/viewSpec";
 
 export type AuthoredViewSpec = ControllerViewSpec | MetricsViewSpec;
-
-export const BUILT_IN_INSPECTOR_VIEW_ID = "builtin-inspector";
+export type StandardViewIdFactory = (kind: "controller" | "metrics") => string;
 
 const BUILT_IN_METRICS_SIGNATURES = new Set([
   "ABP|CVP|PAP|PCWP",
@@ -32,6 +35,58 @@ function metricsFromMembership(membership: ViewMembership): MetricType[] {
 
 function isBuiltInMetricsPanel(view: MetricsViewSpec): boolean {
   return BUILT_IN_METRICS_SIGNATURES.has(metricSignature(view.metrics.length > 0 ? view.metrics : metricsFromMembership(view.membership)));
+}
+
+function currentUiLocale(): string {
+  return i18n.resolvedLanguage || i18n.language || "en";
+}
+
+function translatedSeedTitle(key: string, locale?: string): string {
+  return i18n.t(key, { lng: locale ?? currentUiLocale() });
+}
+
+export function standardControllerView(idFactory: StandardViewIdFactory, locale?: string): ControllerViewSpec {
+  return createControllerViewSpec(
+    idFactory("controller"),
+    translatedSeedTitle("workbench.viewManagement.standardControllerTitle", locale),
+    CONTROLLER_CATALOG.map((entry) => ({ ...defaultControllerItemFor(entry.key), labelKey: entry.key })),
+  );
+}
+
+export function standardMetricsViews(
+  idFactory: StandardViewIdFactory,
+  instances: readonly SimInstance[] = [],
+  locale?: string,
+): MetricsViewSpec[] {
+  return BUILT_IN_METRIC_CATEGORIES.map((category) => createMetricsViewSpec(
+    idFactory("metrics"),
+    translatedSeedTitle(category.titleKey, locale),
+    category.metrics,
+    instances,
+  ));
+}
+
+export function standardAuthoredViews(
+  idFactory: StandardViewIdFactory,
+  instances: readonly SimInstance[] = [],
+  locale?: string,
+): AuthoredViewSpec[] {
+  return [
+    standardControllerView(idFactory, locale),
+    ...standardMetricsViews(idFactory, instances, locale),
+  ];
+}
+
+export function appendMissingStandardViews(
+  views: readonly AuthoredViewSpec[],
+  idFactory: StandardViewIdFactory,
+  instances: readonly SimInstance[] = [],
+  locale?: string,
+): AuthoredViewSpec[] {
+  const existingTitles = new Set(views.map((view) => `${view.kind}:${view.title ?? ""}`));
+  const missing = standardAuthoredViews(idFactory, instances, locale)
+    .filter((view) => !existingTitles.has(`${view.kind}:${view.title ?? ""}`));
+  return missing.length > 0 ? [...views, ...missing] : [...views];
 }
 
 export function authoredViewsOnly(views: readonly ViewSpec[] | undefined): AuthoredViewSpec[] {
@@ -150,15 +205,21 @@ export function migrateLegacyPanelsToAuthoredViews(
 export function authoredViewsForLoad(
   views: readonly ViewSpec[] | undefined,
   panels: readonly PanelDef[],
+  options: {
+    idFactory: StandardViewIdFactory;
+    instances?: readonly SimInstance[];
+    locale?: string;
+  },
 ): AuthoredViewSpec[] {
   const authored = authoredViewsOnly(views);
+  if (Array.isArray(views)) return authored;
+  const seeded = standardAuthoredViews(options.idFactory, options.instances ?? [], options.locale);
   return [
-    ...authored,
-    ...migrateLegacyPanelsToAuthoredViews(panels, authored),
+    ...seeded,
+    ...migrateLegacyPanelsToAuthoredViews(panels, seeded),
   ];
 }
 
-export function serializableAuthoredViews(views: readonly ViewSpec[] | readonly AuthoredViewSpec[] | undefined): AuthoredViewSpec[] | undefined {
-  const authored = authoredViewsOnly(views);
-  return authored.length > 0 ? authored : undefined;
+export function serializableAuthoredViews(views: readonly ViewSpec[] | readonly AuthoredViewSpec[] | undefined): AuthoredViewSpec[] {
+  return authoredViewsOnly(views);
 }

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  builtInMetricsConfig,
   deriveBuiltInMetricsTabs,
   effectiveGlobalConfig,
   graphPanelsOnly,
@@ -55,9 +54,10 @@ describe("P1a structural host helpers", () => {
     ]);
   });
 
-  it("adds authored metrics views after built-in metrics categories", () => {
-    expect(metricsHostTabs(["ABP"], [metricsView]).map((tab) => tab.kind === "authored" ? tab.title : tab.id))
-      .toEqual(["pressure", "Custom metrics"]);
+  it("exposes authored metrics views only for the live metrics host", () => {
+    expect(metricsHostTabs(["ABP"], [metricsView]).map((tab) => tab.title))
+      .toEqual(["Custom metrics"]);
+    expect(metricsHostTabs(["ABP"], [])).toEqual([]);
   });
 
   it("intersects panel membership with global scenario visibility at render time", () => {
@@ -69,13 +69,6 @@ describe("P1a structural host helpers", () => {
     expect(config.visible.visible).toBe(true);
     expect(config.hidden.visible).toBe(false);
     expect(config.hidden.selectedSignals).toEqual(["ABP"]);
-  });
-
-  it("builds built-in metrics config from global visibility", () => {
-    expect(builtInMetricsConfig([visibleInstance, hiddenInstance], ["ABP", "CO"])).toEqual({
-      visible: { visible: true, selectedSignals: ["ABP", "CO"] },
-      hidden: { visible: false, selectedSignals: ["ABP", "CO"] },
-    });
   });
 
   it("keeps only main Dockview viewState when saving P1a workspace state", () => {

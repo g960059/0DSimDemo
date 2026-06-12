@@ -3,11 +3,13 @@ import { DEFAULT_PARAMS } from "@/constants";
 import type { CaseDocument, CaseI18nContent, CaseSource } from "@/caseDoc";
 import {
   authoredViewsForLoad,
+  appendMissingStandardViews,
   createControllerViewSpec,
   createMetricsViewSpec,
   deleteAuthoredView,
   duplicateAuthoredView,
   serializableAuthoredViews,
+  standardAuthoredViews,
   upsertAuthoredView,
   type AuthoredViewSpec,
 } from "@/features/workbench/authoredViews";
@@ -59,6 +61,10 @@ type SavedCasePayload = {
   initialActiveScenarioId?: string;
 };
 
+function nextViewId(kind: "controller" | "metrics"): string {
+  return `${kind}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
 export function useWorkbenchScene({
   user,
   markUserEdited,
@@ -98,7 +104,7 @@ export function useWorkbenchScene({
   const [currentCaseI18n, setCurrentCaseI18n] = useState<Record<string, CaseI18nContent> | undefined>(undefined);
   const [currentCaseReading, setCurrentCaseReading] = useState<CaseDocument["reading"] | undefined>(undefined);
   const [currentCaseExposedControllers, setCurrentCaseExposedControllers] = useState<CaseDocument["exposedControllers"] | undefined>(undefined);
-  const [currentCaseViews, setCurrentCaseViews] = useState<AuthoredViewSpec[] | undefined>(undefined);
+  const [currentCaseViews, setCurrentCaseViews] = useState<AuthoredViewSpec[]>(() => standardAuthoredViews(nextViewId));
   const [currentCaseGraphBoardLayout, setCurrentCaseGraphBoardLayout] = useState<GraphBoardLayout | undefined>(undefined);
   const [currentCaseInitialActiveScenarioId, setCurrentCaseInitialActiveScenarioId] = useState<string | undefined>(undefined);
 
@@ -192,23 +198,24 @@ export function useWorkbenchScene({
     markUserEdited();
   }, [markUserEdited]);
 
-  const nextViewId = useCallback((kind: "controller" | "metrics") => (
-    `${kind}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
-  ), []);
-
   const createControllerView = useCallback((title: string, items: ControllerItem[] = []) => {
     const view = createControllerViewSpec(nextViewId("controller"), title, items);
     setCurrentCaseViews((prev) => upsertAuthoredView(prev ?? [], view));
     markUserEdited();
     return view;
-  }, [markUserEdited, nextViewId]);
+  }, [markUserEdited]);
 
   const createMetricsView = useCallback((title: string, metrics: MetricType[] = []) => {
     const view = createMetricsViewSpec(nextViewId("metrics"), title, metrics, instances);
     setCurrentCaseViews((prev) => upsertAuthoredView(prev ?? [], view));
     markUserEdited();
     return view;
-  }, [instances, markUserEdited, nextViewId]);
+  }, [instances, markUserEdited]);
+
+  const restoreStandardViews = useCallback(() => {
+    setCurrentCaseViews((prev) => appendMissingStandardViews(prev, nextViewId, instances, currentCaseDefaultLocale));
+    markUserEdited();
+  }, [currentCaseDefaultLocale, instances, markUserEdited]);
 
   const updateAuthoredView = useCallback((view: AuthoredViewSpec) => {
     setCurrentCaseViews((prev) => upsertAuthoredView(prev ?? [], view));
@@ -227,7 +234,7 @@ export function useWorkbenchScene({
     setCurrentCaseViews((prev) => upsertAuthoredView(prev ?? [], view));
     markUserEdited();
     return view;
-  }, [currentCaseViews, markUserEdited, nextViewId]);
+  }, [currentCaseViews, markUserEdited]);
 
   const deleteView = useCallback((id: string) => {
     setCurrentCaseViews((prev) => deleteAuthoredView(prev ?? [], id));
@@ -307,7 +314,11 @@ export function useWorkbenchScene({
     setCurrentCaseI18n(doc.i18n);
     setCurrentCaseReading(doc.reading);
     setCurrentCaseExposedControllers(doc.exposedControllers);
-    setCurrentCaseViews(serializableAuthoredViews(authoredViewsForLoad(doc.views, payload.panels)));
+    setCurrentCaseViews(authoredViewsForLoad(doc.views, payload.panels, {
+      idFactory: nextViewId,
+      instances: payload.instances,
+      locale: doc.defaultLocale,
+    }));
     setCurrentCaseGraphBoardLayout(doc.graphBoardLayout);
     setCurrentCaseInitialActiveScenarioId(doc.initialActiveScenarioId);
     setActiveInstanceId(payload.activeInstanceId);
@@ -371,6 +382,7 @@ export function useWorkbenchScene({
     createMetricsView,
     updateAuthoredView,
     renameAuthoredView,
+    restoreStandardViews,
     duplicateAuthoredView: duplicateView,
     deleteAuthoredView: deleteView,
     currentCaseGraphBoardLayout,

@@ -7,9 +7,9 @@ export type BuiltInMetricsCategoryId = "pressure" | "flowVolume" | "function" | 
 
 export type BuiltInMetricsTab = { kind: "builtIn"; id: BuiltInMetricsCategoryId; titleKey: string; metrics: MetricType[] };
 export type AuthoredMetricsTab = { kind: "authored"; id: string; title: string; view: MetricsViewSpec };
-export type MetricsHostTab = BuiltInMetricsTab | AuthoredMetricsTab;
+export type MetricsHostTab = AuthoredMetricsTab;
 
-const BUILT_IN_METRIC_CATEGORIES: Array<{
+export const BUILT_IN_METRIC_CATEGORIES: Array<{
   id: BuiltInMetricsCategoryId;
   titleKey: string;
   metrics: MetricType[];
@@ -57,11 +57,8 @@ export function authoredMetricsTabsFromViews(views: readonly MetricsViewSpec[]):
   }));
 }
 
-export function metricsHostTabs(metrics: readonly MetricType[], views: readonly MetricsViewSpec[] = []): MetricsHostTab[] {
-  return [
-    ...deriveBuiltInMetricsTabs(metrics),
-    ...authoredMetricsTabsFromViews(views),
-  ];
+export function metricsHostTabs(_metrics: readonly MetricType[], views: readonly MetricsViewSpec[] = []): MetricsHostTab[] {
+  return authoredMetricsTabsFromViews(views);
 }
 
 export function effectiveGlobalConfig(
@@ -84,21 +81,6 @@ export function effectiveGlobalConfig(
       {
         ...instanceConfig,
         visible: Boolean(visibleMembership[instanceId]),
-      },
-    ]),
-  );
-}
-
-export function builtInMetricsConfig(
-  instances: readonly SimInstance[],
-  metrics: readonly MetricType[],
-): Record<string, PanelInstanceConfig> {
-  return Object.fromEntries(
-    instances.map((instance) => [
-      instance.id,
-      {
-        visible: instance.isVisible !== false,
-        selectedSignals: [...metrics],
       },
     ]),
   );

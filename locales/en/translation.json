@@ -295,9 +295,13 @@
       "controlType": "Control type"
     },
     "viewManagement": {
-      "builtInInspector": "Clinical parameters (standard)",
+      "standardControllerTitle": "Clinical parameters (standard)",
       "newController": "New controller",
       "newMetrics": "New metrics view",
+      "restoreStandard": "Restore standard views",
+      "noControllerViews": "No controller views",
+      "controllerEmptyHint": "No controller views in this document.",
+      "metricsEmptyHint": "No metrics views in this document.",
       "rename": "Rename",
       "duplicate": "Duplicate",
       "renamePrompt": "Rename view",
@@ -488,7 +492,6 @@
         "resizeMetricsHost": "Resize metrics host",
         "resizeScenarioList": "Resize scenario list",
         "editingScenario": "Editing:",
-        "standardSetNotEditable": "The standard set isn't editable",
         "rail": {
           "scenarios": "Scenarios",
           "inspector": "Inspector"

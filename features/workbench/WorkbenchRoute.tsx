@@ -149,6 +149,7 @@ export function WorkbenchRoute() {
         createMetricsView={scene.createMetricsView}
         updateAuthoredView={scene.updateAuthoredView}
         renameAuthoredView={scene.renameAuthoredView}
+        restoreStandardViews={scene.restoreStandardViews}
         duplicateAuthoredView={scene.duplicateAuthoredView}
         deleteAuthoredView={scene.deleteAuthoredView}
         mode={scene.headerMode}

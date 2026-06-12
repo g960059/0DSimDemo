@@ -295,9 +295,13 @@
       "controlType": "コントロール種別"
     },
     "viewManagement": {
-      "builtInInspector": "臨床パラメータ（標準）",
+      "standardControllerTitle": "臨床パラメータ（標準）",
       "newController": "新規コントローラー",
       "newMetrics": "新規指標ビュー",
+      "restoreStandard": "標準セットを復元",
+      "noControllerViews": "コントローラービューなし",
+      "controllerEmptyHint": "このドキュメントにはコントローラービューがありません。",
+      "metricsEmptyHint": "このドキュメントには指標ビューがありません。",
       "rename": "名前を変更",
       "duplicate": "複製",
       "renamePrompt": "ビュー名を変更",
@@ -488,7 +492,6 @@
         "resizeMetricsHost": "指標ホストのサイズを変更",
         "resizeScenarioList": "シナリオリストのサイズを変更",
         "editingScenario": "編集中:",
-        "standardSetNotEditable": "標準セットは編集できません",
         "rail": {
           "scenarios": "シナリオ",
           "inspector": "インスペクタ"

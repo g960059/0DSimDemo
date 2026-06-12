@@ -33,7 +33,6 @@ import type { CaseReadingManifest } from '../../caseDoc';
 import type { NoteContent } from '../../noteTypes';
 import { flowPack } from '../../layoutPresets';
 import {
-  builtInMetricsConfig,
   effectiveGlobalConfig,
   firstPanelOfType,
   graphPanelsOnly,
@@ -41,7 +40,6 @@ import {
   type MetricsHostTab,
 } from '../../features/workbench/p1aStructuralHosts';
 import {
-  BUILT_IN_INSPECTOR_VIEW_ID,
   controllerViews,
   createControllerViewSpec,
   createMetricsViewSpec,
@@ -51,7 +49,7 @@ import {
 } from '../../features/workbench/authoredViews';
 import { hasViewRefUsage, viewRefUsageForDeletion } from '../../features/workbench/noteViewRefs';
 import type { ControllerViewSpec, GraphBoardLayout, MetricsViewSpec } from '../../features/workbench/viewSpec';
-import { Activity, Brush, Check, ChevronDown, ChevronRight, Copy, Eye, EyeOff, FileText, Layers, MoreVertical, Pencil, Plus, Search, Settings, SlidersHorizontal, Tags, Trash2, Type as TypeIcon, X } from 'lucide-react';
+import { Activity, Brush, Check, ChevronDown, ChevronRight, Copy, Eye, EyeOff, FileText, Layers, MoreVertical, Pencil, Plus, RotateCcw, Search, Settings, SlidersHorizontal, Tags, Trash2, Type as TypeIcon, X } from 'lucide-react';
 
 export type PanelGridMode = 'learner' | 'author' | 'sandbox';
 export type WorkbenchControlsSide = 'left' | 'right';
@@ -94,6 +92,7 @@ interface PanelGridProps {
   createMetricsView: (title: string, metrics?: MetricType[]) => MetricsViewSpec;
   updateAuthoredView: (view: AuthoredViewSpec) => void;
   renameAuthoredView: (id: string, title: string) => void;
+  restoreStandardViews: () => void;
   duplicateAuthoredView: (id: string) => AuthoredViewSpec | undefined;
   deleteAuthoredView: (id: string) => void;
   mode: PanelGridMode;
@@ -1888,8 +1887,8 @@ function ResizeSash({
   );
 }
 
-function metricsTabLabel(t: PanelGridT, tab: MetricsHostTab): string {
-  return tab.kind === 'builtIn' ? t(tab.titleKey) : tab.title;
+function metricsTabLabel(_t: PanelGridT, tab: MetricsHostTab): string {
+  return tab.title;
 }
 
 function ZoneShell({
@@ -1975,6 +1974,7 @@ export function PanelGrid({
   createMetricsView,
   updateAuthoredView,
   renameAuthoredView,
+  restoreStandardViews,
   duplicateAuthoredView,
   deleteAuthoredView,
   mode,
@@ -2042,13 +2042,13 @@ export function PanelGrid({
     setActiveMetricsTabId(fixedMetricsTabs[0]?.id ?? '');
   }, [activeMetricsTabId, fixedMetricsTabs]);
   const activeMetricsTab = fixedMetricsTabs.find((tab) => tab.id === activeMetricsTabId) ?? fixedMetricsTabs[0];
-  const selectedControllerViewId = layoutState.selectedControllerViewId ?? BUILT_IN_INSPECTOR_VIEW_ID;
-  const selectedControllerView = authoredControllerViews.find((view) => view.id === selectedControllerViewId);
-  const selectedControllerEntryId = selectedControllerView ? selectedControllerView.id : BUILT_IN_INSPECTOR_VIEW_ID;
+  const requestedControllerViewId = layoutState.selectedControllerViewId;
+  const selectedControllerView = authoredControllerViews.find((view) => view.id === requestedControllerViewId) ?? authoredControllerViews[0];
+  const selectedControllerEntryId = selectedControllerView?.id;
   useEffect(() => {
-    if (selectedControllerViewId === BUILT_IN_INSPECTOR_VIEW_ID || selectedControllerView) return;
-    onLayoutStateChange((prev) => ({ ...prev, selectedControllerViewId: BUILT_IN_INSPECTOR_VIEW_ID }));
-  }, [onLayoutStateChange, selectedControllerView, selectedControllerViewId]);
+    if (!requestedControllerViewId || authoredControllerViews.some((view) => view.id === requestedControllerViewId)) return;
+    onLayoutStateChange((prev) => ({ ...prev, selectedControllerViewId: undefined }));
+  }, [authoredControllerViews, onLayoutStateChange, requestedControllerViewId]);
   useEffect(() => {
     if (!renamingViewId || authoredViews.some((view) => view.id === renamingViewId)) return;
     setRenamingViewId(null);
@@ -2289,10 +2289,10 @@ export function PanelGrid({
     }))) return;
     deleteAuthoredView(view.id);
     if (view.kind === 'controller' && selectedControllerEntryId === view.id) {
-      onLayoutStateChange((prev) => ({ ...prev, selectedControllerViewId: BUILT_IN_INSPECTOR_VIEW_ID }));
+      onLayoutStateChange((prev) => ({ ...prev, selectedControllerViewId: undefined }));
     }
     if (view.kind === 'metrics' && activeMetricsTabId === view.id) {
-      setActiveMetricsTabId(fixedMetricsTabs.find((tab) => tab.kind === 'builtIn')?.id ?? '');
+      setActiveMetricsTabId(fixedMetricsTabs.find((tab) => tab.id !== view.id)?.id ?? '');
     }
   };
 
@@ -2500,7 +2500,7 @@ export function PanelGrid({
                     aria-expanded={openControllerMenu}
                   >
                     <span className="min-w-0 truncate">
-                      {selectedControllerView ? selectedControllerView.title : t('workbench.viewManagement.builtInInspector')}
+                      {selectedControllerView ? selectedControllerView.title : t('workbench.viewManagement.noControllerViews')}
                     </span>
                     <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-500" />
                   </button>
@@ -2516,25 +2516,13 @@ export function PanelGrid({
                       <span className="min-w-0 max-w-28 truncate text-slate-200">{activeInstance.name}</span>
                     </button>
                   )}
-                  {activeInstance && !selectedControllerView && (
-                    <span
-                      className="ml-auto inline-flex min-w-0 cursor-default items-center gap-1.5 rounded border border-slate-700 bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-slate-400"
-                      title={t('workbench.panelGrid.standardSetNotEditable')}
-                    >
-                      {t('workbench.panelGrid.editingScenario')}
-                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: activeInstance.color }} />
-                      <span className="min-w-0 max-w-28 truncate text-slate-200">{activeInstance.name}</span>
-                    </span>
-                  )}
                   {openControllerMenu && (
                     <div className="absolute left-2 right-2 top-10 z-40 rounded border border-slate-700 bg-slate-950 p-1 shadow-2xl">
-                      <button
-                        type="button"
-                        onClick={() => selectControllerEntry(BUILT_IN_INSPECTOR_VIEW_ID)}
-                        className={`flex h-8 w-full items-center rounded px-2 text-left text-xs font-semibold transition-colors ${selectedControllerEntryId === BUILT_IN_INSPECTOR_VIEW_ID ? 'bg-slate-800 text-slate-100' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-100'}`}
-                      >
-                        <span className="min-w-0 flex-1 truncate">{t('workbench.viewManagement.builtInInspector')}</span>
-                      </button>
+                      {authoredControllerViews.length === 0 && (
+                        <div className="px-2 py-2 text-xs text-slate-500">
+                          {t('workbench.viewManagement.controllerEmptyHint')}
+                        </div>
+                      )}
 	                      {authoredControllerViews.map((view) => {
 	                        const isRenaming = renamingViewId === view.id;
 	                        return (
@@ -2586,38 +2574,75 @@ export function PanelGrid({
 	                          </div>
 	                        );
 	                      })}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setOpenControllerMenu(false);
-                          setViewEditor({ mode: 'create', kind: 'controller' });
-                        }}
-                        className="mt-1 flex h-8 w-full items-center gap-2 rounded border border-slate-800 px-2 text-left text-xs font-bold text-sky-100 transition-colors hover:border-sky-500/50 hover:bg-sky-500/10"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        <span>{t('workbench.viewManagement.newController')}</span>
-                      </button>
+                      <div className="mt-1 grid grid-cols-2 gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpenControllerMenu(false);
+                            setViewEditor({ mode: 'create', kind: 'controller' });
+                          }}
+                          className="flex h-8 items-center justify-center gap-2 rounded border border-slate-800 px-2 text-xs font-bold text-sky-100 transition-colors hover:border-sky-500/50 hover:bg-sky-500/10"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          <span className="truncate">{t('workbench.viewManagement.newController')}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            restoreStandardViews();
+                            setOpenControllerMenu(false);
+                          }}
+                          className="flex h-8 items-center justify-center gap-2 rounded border border-slate-800 px-2 text-xs font-semibold text-slate-300 transition-colors hover:border-slate-600 hover:bg-slate-900 hover:text-slate-100"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                          <span className="truncate">{t('workbench.viewManagement.restoreStandard')}</span>
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
                 <div className="relative min-h-0 flex-1">
-                  <Controls
-                    isPaneMode
-                    paneConfig={inspectorConfig}
-                    instances={inspectorInstances}
-                    instanceHealth={instanceHealth}
-                    activeInstanceId={activeInstanceId}
-                    updateInstanceParams={updateInstanceParams}
-                    updateInstanceKnobs={updateInstanceKnobs}
-                    updateInstanceVolume={updateInstanceVolume}
-                    presentationMode="studio"
-                    controllerItems={selectedControllerView?.items}
-                  />
+                  {selectedControllerView ? (
+                    <Controls
+                      isPaneMode
+                      paneConfig={inspectorConfig}
+                      instances={inspectorInstances}
+                      instanceHealth={instanceHealth}
+                      activeInstanceId={activeInstanceId}
+                      updateInstanceParams={updateInstanceParams}
+                      updateInstanceKnobs={updateInstanceKnobs}
+                      updateInstanceVolume={updateInstanceVolume}
+                      presentationMode="studio"
+                      controllerItems={selectedControllerView.items}
+                    />
+                  ) : (
+                    <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
+                      <p className="text-xs font-semibold text-slate-400">{t('workbench.viewManagement.controllerEmptyHint')}</p>
+                      <div className="flex flex-wrap justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setViewEditor({ mode: 'create', kind: 'controller' })}
+                          className="inline-flex h-8 items-center gap-2 rounded border border-sky-500/40 px-2.5 text-xs font-bold text-sky-100 transition-colors hover:bg-sky-500/10"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          {t('workbench.viewManagement.newController')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={restoreStandardViews}
+                          className="inline-flex h-8 items-center gap-2 rounded border border-slate-700 px-2.5 text-xs font-semibold text-slate-300 transition-colors hover:bg-slate-900 hover:text-slate-100"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                          {t('workbench.viewManagement.restoreStandard')}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </section>
           )}
-          {layoutState.metricsOpen && activeMetricsTab && (
+          {layoutState.metricsOpen && (
             <ResizeSash
               orientation="horizontal"
               label={t('workbench.panelGrid.resizeMetricsHost')}
@@ -2635,7 +2660,7 @@ export function PanelGrid({
               style={{ gridColumn: metricsSashGridColumn, gridRow: '2' }}
             />
           )}
-          {layoutState.metricsOpen && activeMetricsTab && (
+          {layoutState.metricsOpen && (
             <section
               className="workbench-zone-aux flex min-h-0 flex-col overflow-hidden border-t border-slate-800/60 bg-[#0B1120]"
               style={{ gridColumn: metricsGridColumn, gridRow: '3' }}
@@ -2643,7 +2668,7 @@ export function PanelGrid({
             >
               <div className="flex h-9 shrink-0 items-center gap-1 overflow-x-auto border-b border-slate-800/70 bg-slate-950/35 px-2 custom-scrollbar">
 	                {fixedMetricsTabs.map((tab) => {
-	                  const isRenaming = tab.kind === 'authored' && renamingViewId === tab.id;
+	                  const isRenaming = renamingViewId === tab.id;
 	                  return (
 	                    <div key={tab.id} className="relative flex shrink-0 items-center">
 	                      {isRenaming ? (
@@ -2671,16 +2696,13 @@ export function PanelGrid({
 	                        <button
 	                          type="button"
 	                          onClick={() => setActiveMetricsTabId(tab.id)}
-	                          onDoubleClick={() => {
-	                            if (tab.kind === 'authored') beginRenameView(tab.view);
-	                          }}
+	                          onDoubleClick={() => beginRenameView(tab.view)}
 	                          onContextMenu={(event) => {
-	                            if (tab.kind !== 'authored') return;
 	                            event.preventDefault();
 	                            setMetricsMenuViewId((current) => current === tab.id ? null : tab.id);
 	                          }}
 	                          className={`inline-flex h-7 shrink-0 items-center rounded px-2 text-xs font-bold transition-colors ${
-	                            activeMetricsTab.id === tab.id
+	                            activeMetricsTab?.id === tab.id
 	                              ? 'bg-slate-800 text-slate-100'
 	                              : 'text-slate-500 hover:bg-slate-900 hover:text-slate-300'
 	                          }`}
@@ -2688,7 +2710,7 @@ export function PanelGrid({
 	                          {metricsTabLabel(t, tab)}
 	                        </button>
 	                      )}
-                    {tab.kind === 'authored' && (
+                    {(
                       <button
                         type="button"
                         onClick={() => setMetricsMenuViewId((current) => current === tab.id ? null : tab.id)}
@@ -2698,7 +2720,7 @@ export function PanelGrid({
                         <MoreVertical className="h-3.5 w-3.5" />
                       </button>
                     )}
-                    {tab.kind === 'authored' && metricsMenuViewId === tab.id && (
+                    {metricsMenuViewId === tab.id && (
                       <div className="absolute left-0 top-8 z-40 w-36 rounded border border-slate-700 bg-slate-950 p-1 shadow-2xl">
                         <button type="button" onClick={() => { setViewEditor({ mode: 'edit', view: tab.view }); setMetricsMenuViewId(null); }} className="flex h-8 w-full items-center gap-2 rounded px-2 text-xs font-semibold text-slate-300 hover:bg-slate-900 hover:text-slate-100">
                           <Pencil className="h-3.5 w-3.5" /> {t('common.edit')}
@@ -2726,20 +2748,45 @@ export function PanelGrid({
                 >
                   <Plus className="h-3.5 w-3.5" />
                 </button>
+                <button
+                  type="button"
+                  onClick={restoreStandardViews}
+                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border border-slate-800 text-slate-500 transition-colors hover:border-slate-600 hover:bg-slate-900 hover:text-slate-200"
+                  aria-label={t('workbench.viewManagement.restoreStandard')}
+                  title={t('workbench.viewManagement.restoreStandard')}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </button>
               </div>
               <div className="relative min-h-0 flex-1">
-                {activeMetricsTab.kind === 'builtIn' ? (
-                  <MetricsPanel
-                    physicsRefs={physicsRefs}
-                    instances={instances}
-                    config={builtInMetricsConfig(instances, activeMetricsTab.metrics)}
-                  />
-                ) : (
+                {activeMetricsTab ? (
                   <MetricsPanel
                     physicsRefs={physicsRefs}
                     instances={instances}
                     config={effectiveGlobalConfig(metricsViewConfig(activeMetricsTab.view, instances), instances)}
                   />
+                ) : (
+                  <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
+                    <p className="text-xs font-semibold text-slate-400">{t('workbench.viewManagement.metricsEmptyHint')}</p>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setViewEditor({ mode: 'create', kind: 'metrics' })}
+                        className="inline-flex h-8 items-center gap-2 rounded border border-sky-500/40 px-2.5 text-xs font-bold text-sky-100 transition-colors hover:bg-sky-500/10"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        {t('workbench.viewManagement.newMetrics')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={restoreStandardViews}
+                        className="inline-flex h-8 items-center gap-2 rounded border border-slate-700 px-2.5 text-xs font-semibold text-slate-300 transition-colors hover:bg-slate-900 hover:text-slate-100"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        {t('workbench.viewManagement.restoreStandard')}
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             </section>

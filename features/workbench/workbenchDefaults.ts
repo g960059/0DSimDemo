@@ -144,7 +144,7 @@ export const DEFAULT_WORKBENCH_LAYOUT: WorkbenchLayoutState = {
   metricsOpen: true,
   rightRailVisible: true,
   rightRailView: 'scenarios',
-  selectedControllerViewId: 'builtin-inspector',
+  selectedControllerViewId: undefined,
   scenarioListCollapsed: false,
   scenarioListMaxRatio: 0.4,
   metricsSpan: 'main',

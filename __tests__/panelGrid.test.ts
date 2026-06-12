@@ -9,6 +9,7 @@ import { ChartLegend, shouldEnableLegendInteractions } from "@/components/Charts
 import { PanelGrid, getActiveSettingsSectionId, getDockviewPaneTitle, openPanelSettingsIfClosed, type PanelGridMode, type WorkbenchLayoutState } from "@/components/workbench/PanelGrid";
 import { ScenarioPane } from "@/components/workbench/ScenarioPane";
 import { getDockviewStructureSignature, getDockviewTabMenuPosition, shouldReapplyDockviewLayout } from "@/components/workbench/WorkbenchDockview";
+import { standardAuthoredViews } from "@/features/workbench/authoredViews";
 import { addHiddenInstanceConfigsToPanels } from "@/WorkbenchPage";
 import { DEFAULT_PARAMS } from "@/constants";
 import type { SteadyUpdateStatusMap } from "@/engine/previewController";
@@ -62,6 +63,7 @@ function createPanelGrid(
   isMobile = false,
   layoutOverrides: Partial<WorkbenchLayoutState> = {},
 ) {
+  let nextViewId = 0;
   return React.createElement(PanelGrid, {
     authoringMode: false,
     publishedLesson: null,
@@ -88,6 +90,7 @@ function createPanelGrid(
     dockviewLayoutKey: "test",
     dockviewViewStates: undefined,
     onDockviewViewStateChange: noop,
+    authoredViews: standardAuthoredViews((kind) => `${kind}-${nextViewId++}`, instances, "en"),
     createControllerView: (title: string, items = []) => ({
       id: "controller-test",
       title,
@@ -104,6 +107,7 @@ function createPanelGrid(
     }),
     updateAuthoredView: noop,
     renameAuthoredView: noop,
+    restoreStandardViews: noop,
     duplicateAuthoredView: () => undefined,
     deleteAuthoredView: noop,
     mode,
@@ -535,12 +539,13 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).not.toContain("Customizations");
   });
 
-  it("renders the fixed inspector from built-in clinical controls", () => {
+  it("renders the fixed inspector from seeded standard clinical controls", () => {
     const html = renderPanelGrid("sandbox", [controlsPanel], [{ ...normalInstance, params: { ...DEFAULT_PARAMS } }], [], {}, false, {
       rightRailView: "inspector",
     });
 
-    expect(html).toContain("Cardiac Function");
+    expect(html).toContain("Clinical parameters (standard)");
+    expect(html).toContain("LV contractility");
     expect(html).toContain("type=\"range\"");
     expect(html).not.toContain("Custom controls replace the default Clinical Knobs");
     expect(html).not.toContain("LV Focus");
@@ -639,7 +644,7 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).not.toContain("w-[min(42rem,calc(100vw-2rem))]");
   });
 
-  it("keeps the fixed inspector on built-in clinical controls even when legacy controller panes select advanced groups", () => {
+  it("keeps the fixed inspector on seeded standard clinical controls even when legacy controller panes select advanced groups", () => {
     const controlsPanel: PanelDef = {
       id: "controls",
       type: "CONTROLS",
@@ -657,7 +662,8 @@ describe("PanelGrid Dockview layout", () => {
       rightRailView: "inspector",
     });
 
-    expect(html).toContain("Cardiac Function");
+    expect(html).toContain("Clinical parameters (standard)");
+    expect(html).toContain("LV contractility");
     expect(html).not.toContain("Clinical Knobs");
     expect(html).not.toContain("Advanced");
     expect(html).not.toContain("Advanced engine");

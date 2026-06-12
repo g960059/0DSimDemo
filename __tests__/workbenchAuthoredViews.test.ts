@@ -7,6 +7,7 @@ import {
   duplicateAuthoredView,
   metricsViewConfig,
   serializableAuthoredViews,
+  standardAuthoredViews,
   upsertAuthoredView,
 } from "@/features/workbench/authoredViews";
 import type { MetricsViewSpec, ViewSpec } from "@/features/workbench/viewSpec";
@@ -16,6 +17,11 @@ const instances: SimInstance[] = [
   { id: "normal", name: "Normal", color: "#38bdf8", params: {} as SimInstance["params"], targetVolume: 5000, isVisible: true },
   { id: "hidden", name: "Hidden", color: "#f97316", params: {} as SimInstance["params"], targetVolume: 5000, isVisible: false },
 ];
+
+function testIdFactory() {
+  let next = 0;
+  return (kind: "controller" | "metrics") => `${kind}-${next++}`;
+}
 
 const legacyPanels: PanelDef[] = [
   {
@@ -64,10 +70,11 @@ describe("P2a authored view helpers", () => {
       createMetricsViewSpec("metrics", "Metrics", ["ABP"], instances),
     ];
 
-    expect(serializableAuthoredViews(views)?.map((view) => [view.id, view.kind])).toEqual([
+    expect(serializableAuthoredViews(views).map((view) => [view.id, view.kind])).toEqual([
       ["controller", "controller"],
       ["metrics", "metrics"],
     ]);
+    expect(serializableAuthoredViews(undefined)).toEqual([]);
   });
 
   it("creates, updates, duplicates, and deletes authored views with normalized payloads", () => {
@@ -87,22 +94,60 @@ describe("P2a authored view helpers", () => {
     const copy = duplicateAuthoredView(controller, "controller-b", "Controller B");
     expect(copy).toMatchObject({ id: "controller-b", title: "Controller B", kind: "controller" });
 
-    const upserted = upsertAuthoredView([controller], copy);
+    const upserted = upsertAuthoredView([controller] as ReturnType<typeof createControllerViewSpec>[], copy);
     expect(upserted.map((view) => view.id)).toEqual(["controller-a", "controller-b"]);
     expect(deleteAuthoredView(upserted, "controller-a").map((view) => view.id)).toEqual(["controller-b"]);
   });
 
-  it("migrates legacy controller and custom metrics panels only when an authored id is absent", () => {
+  it("seeds standard views and migrates legacy panels only when doc.views is undefined", () => {
+    const loaded = authoredViewsForLoad(undefined, legacyPanels, {
+      idFactory: testIdFactory(),
+      instances,
+      locale: "en",
+    });
+
+    expect(loaded.map((view) => [view.kind, view.title])).toEqual([
+      ["controller", "Clinical parameters (standard)"],
+      ["metrics", "Pressures"],
+      ["metrics", "Flow / volume"],
+      ["metrics", "Function"],
+      ["metrics", "Coronary"],
+      ["controller", "Curated controls"],
+      ["metrics", "Teaching metrics"],
+    ]);
+  });
+
+  it("respects doc.views arrays exactly, including legacy panels and empty arrays", () => {
     const existing: MetricsViewSpec = createMetricsViewSpec("metrics", "Existing metrics", ["SV"], instances);
     const loaded = authoredViewsForLoad([
       existing,
       { id: "graph", kind: "graph", graphType: "waveform", membership: { normal: ["LVP"] } },
-    ], legacyPanels);
+    ], legacyPanels, {
+      idFactory: testIdFactory(),
+      instances,
+      locale: "en",
+    });
 
     expect(loaded.map((view) => [view.id, view.kind, view.title])).toEqual([
       ["metrics", "metrics", "Existing metrics"],
-      ["controls", "controller", "Curated controls"],
     ]);
+    expect(authoredViewsForLoad([], legacyPanels, {
+      idFactory: testIdFactory(),
+      instances,
+      locale: "en",
+    })).toEqual([]);
+  });
+
+  it("creates localized standard document views", () => {
+    const views = standardAuthoredViews(testIdFactory(), instances, "ja");
+    expect(views.map((view) => [view.id, view.kind, view.title])).toEqual([
+      ["controller-0", "controller", "臨床パラメータ（標準）"],
+      ["metrics-1", "metrics", "圧"],
+      ["metrics-2", "metrics", "流量 / 容積"],
+      ["metrics-3", "metrics", "機能"],
+      ["metrics-4", "metrics", "冠循環"],
+    ]);
+    expect(views[0]).toMatchObject({ kind: "controller", items: expect.arrayContaining([expect.objectContaining({ paramKey: "contractility", labelKey: "contractility" })]) });
   });
 
   it("derives a metrics render config from view membership", () => {
