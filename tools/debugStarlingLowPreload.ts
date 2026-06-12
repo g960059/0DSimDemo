@@ -26,6 +26,7 @@ type DebugOptions = {
   returnMapMode: ReturnMapModeOption;
   maxReturnMapPoints?: number;
   returnMapDeltasMl?: number[];
+  beatPairOverlay?: boolean;
   quietClampLog: boolean;
   tbvCorrectionMode?: TBVCorrectionMode;
 };
@@ -209,8 +210,49 @@ type DebugPoint = {
   tbvAudit: TBVAuditSummary;
   activeStressTerminal: ModelCoreActiveStressDiagnostics;
   beatTrace: BeatTraceRow[];
+  beatPairOverlay?: BeatPairOverlay;
   returnMap: ReturnMapDiagnostic;
   observables: Pick<SimObservables, "P_PVein" | "Pperi" | "Ppc" | "VLVeff" | "VRVeff" | "PLVfw" | "PVI_LV" | "septumShiftMl">;
+};
+
+type BeatPairOverlay = {
+  beats: [number, number] | [];
+  rows: BeatPairOverlayRow[];
+  interpretation: {
+    purpose: string;
+    primaryQuestion: string;
+    columns: string[];
+  };
+};
+
+type BeatPairOverlayRow = {
+  beat: number;
+  pairBeat: "previous" | "last";
+  phase: number;
+  tFromBeatStartSec: number;
+  tSec: number;
+  QMV: number;
+  xiMV: number;
+  MV_open01: number;
+  LAP_minus_LVP: number;
+  VLV: number;
+  ESV_marker01: number;
+  EDV_marker01: number;
+  LV_c: number | null;
+  LV_a: number | null;
+  LV_sigmaActTargetRaw: number | null;
+  LV_sigmaActTarget: number | null;
+  LV_sigmaAct: number | null;
+  LV_lambdaRaw: number | null;
+  LV_lambdaAct: number | null;
+  QAo: number;
+  xiAoV: number;
+  AoV_open01: number;
+  AoP: number;
+  LVP: number;
+  AoP_minus_LVP: number;
+  dP_AoV: number;
+  AoV_areaRatio: number;
 };
 
 type TBVAuditSummary = {
@@ -289,7 +331,7 @@ type DebugSummary = {
 };
 
 type DebugReport = {
-  schemaVersion: 13;
+  schemaVersion: 14;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -309,6 +351,7 @@ type DebugReport = {
   returnMapDeltasMl?: number[];
   quietClampLog: boolean;
   tbvCorrectionMode: TBVCorrectionMode;
+  beatPairOverlay: boolean;
   points: DebugPoint[];
   summary: DebugSummary;
   dtScenarios: DtScenarioReport[];
@@ -316,6 +359,7 @@ type DebugReport = {
     dtSensitivity: string;
     activeStressFields: string[];
     clampFields: string[];
+    beatPairOverlay: string;
   };
 };
 
@@ -438,6 +482,46 @@ const CSV_COLUMNS = [
   "returnMapCOSlope",
   "returnMapTwoBeatCOSlope",
 ];
+const BEAT_PAIR_OVERLAY_CSV_COLUMNS = [
+  "dt",
+  "lambdaActTauSec",
+  "lambdaActScope",
+  "lambdaActTerms",
+  "lowStretchLimiter",
+  "lowStretchLimiterScope",
+  "activeReservePreset",
+  "tbvCorrectionMode",
+  "deltaVolumeMl",
+  "targetVolumeMl",
+  "pairBeats",
+  "beat",
+  "pairBeat",
+  "phase",
+  "tFromBeatStartSec",
+  "tSec",
+  "QMV",
+  "xiMV",
+  "MV_open01",
+  "LAP_minus_LVP",
+  "VLV",
+  "ESV_marker01",
+  "EDV_marker01",
+  "LV_c",
+  "LV_a",
+  "LV_sigmaActTargetRaw",
+  "LV_sigmaActTarget",
+  "LV_sigmaAct",
+  "LV_lambdaRaw",
+  "LV_lambdaAct",
+  "QAo",
+  "xiAoV",
+  "AoV_open01",
+  "AoP",
+  "LVP",
+  "AoP_minus_LVP",
+  "dP_AoV",
+  "AoV_areaRatio",
+];
 
 export function runLowPreloadDebug(opts: DebugOptions): DebugReport {
   const build = (): DebugReport => runLowPreloadDebugImpl(opts);
@@ -457,9 +541,9 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
   const dtScenarios = lambdaActTauSecValues.flatMap((tau) => dtValues.map((dt) => runDtScenario(opts, dt, tau)));
   const primary = dtScenarios[0] ?? runDtScenario(opts, 0.001, 0);
   return {
-    schemaVersion: 13,
+    schemaVersion: 14,
     generatedAt: new Date().toISOString(),
-    measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve/TBV-projection diagnostics; branch-amplitude primary gate; EDV-section volume-preserving LV/PVein one-beat/two-beat return-map slopes with EDV/ESV/CO features; LA/MV filling-regime and MV event-count morphology diagnostics; dt and off-by-default lambdaAct sensitivity",
+    measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve/TBV-projection diagnostics; branch-amplitude primary gate; EDV-section volume-preserving LV/PVein one-beat/two-beat return-map slopes with EDV/ESV/CO features; LA/MV filling-regime and MV event-count morphology diagnostics; optional phase-aligned last-two-beat active/ejection/MV overlay diagnostics; dt and off-by-default lambdaAct sensitivity",
     targetVolumeMl: opts.targetVolumeMl,
     heartModel: opts.heartModel ?? DEFAULT_HEART_MODEL,
     deltasMl: opts.deltasMl,
@@ -477,6 +561,7 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
     returnMapDeltasMl: opts.returnMapDeltasMl,
     quietClampLog: opts.quietClampLog,
     tbvCorrectionMode,
+    beatPairOverlay: opts.beatPairOverlay === true,
     points: primary.points,
     summary: primary.summary,
     dtScenarios,
@@ -484,6 +569,7 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
       dtSensitivity: "If period-2 disappears or strongly changes at smaller dt, numerical coupling is implicated; if it persists, active-stress model dynamics are implicated.",
       activeStressFields: ["lambdaRaw", "lambdaAct", "lambdaForKd", "lambdaForFIso", "lambdaActTerms", "tauLambdaActSec", "lambdaActMinusRaw", "Kd", "aInf", "aInfRaw", "aInfCap", "aInfLimiterDelta", "activeTargetLimiter", "sigmaActTargetRaw", "tauA", "c", "a", "sigmaActTarget", "sigmaAct", "sigmaPas", "fIso", "gOver", "forceVelocityScale", "lowStretchLimiter", "lowStretchLimiterGate", "lowStretchLimiterStrength", "dLogAInf_dLambdaAct", "dLogFIso_dLambdaAct", "dLogGOver_dLambdaRaw", "dLogCompositeActive_dLambdaAct"],
       clampFields: ["nodeClampHits", "dynamicFlowClampHits", "valveDiodeClampHits", "sanitizeSignedMl", "sanitizeAbsMl", "projectionRequestedMl", "projectionAppliedMl", "tbvErrorBeforeProjectionMl", "tbvErrorAfterProjectionMl"],
+      beatPairOverlay: "When enabled, phase-aligned last-two-beat rows expose QMV/MV xi/LAP-LVP/VLV, LV c/a/sigmaActTarget/sigmaAct, and QAo/AoV/AoP signals to test whether MV event switching precedes ejection alternans or follows prior-beat active/ejection state.",
     },
   };
 }
@@ -515,6 +601,7 @@ export function reportToMarkdown(report: DebugReport): string {
   lines.push(`active reserve preset: ${report.activeReservePreset}`);
   lines.push(`return-map mode: ${report.returnMapMode}`);
   lines.push(`TBV correction mode: ${report.tbvCorrectionMode}`);
+  lines.push(`beat-pair overlay: ${report.beatPairOverlay ? "enabled" : "disabled"}`);
   if (report.maxReturnMapPoints != null) lines.push(`max return-map points: ${report.maxReturnMapPoints}`);
   lines.push("");
   lines.push("## Summary");
@@ -656,6 +743,7 @@ export function reportToMarkdown(report: DebugReport): string {
   lines.push("- TBV / Clamp Audit quantifies how much hard state sanitation and the TBV projector move volume. `contaminated` means sanitize or projection moved more than 0.05 mL in the representative beat.");
   lines.push("- Return-map slopes are central differences from a volume-preserving LV/PVein perturbation at the next LV EDV section. `one-beat` measures the next beat; `two-beat` measures the same phase two beats later. EDV/ESV slopes are one-coordinate section slopes; CO/LAP slopes are response slopes. None of them change model dynamics.");
   lines.push("- MV/LA filling diagnostics split transmitral flow into E, mid-diastolic, and A windows; event-count fields report QMV peak count, near-zero returns, MV open-close-reopen count, LAP-LVP zero crossings, and an E/mid/A morphology class. These are observational regime markers, not model changes.");
+  lines.push("- Optional beat-pair overlay rows phase-align the final two complete beats for QMV/MV xi/LAP-LVP/VLV, LV c/a/sigmaActTarget/sigmaAct, and QAo/AoV/AoP signals. Use these rows to test whether MV event switching leads same-beat ejection changes or follows prior-beat active/ejection state.");
   lines.push("- Branch amplitude and branch amplitude fraction are classifier-independent high/low beat measurements from the trace; treat them as the primary stabilization signal before interpreting period labels or local slopes.");
   lines.push("- `volumeLambdaActFixed` keeps the active-stretch memory fixed after a volume perturbation; `volumeLambdaActReset` resets LV `lambdaAct` to the post-perturbation raw LV stretch before measuring the return map. The latter is a quasi-static consistency check for lambdaAct experiments, not a model change.");
   lines.push("- `tau lambdaAct s` is an off-by-default experiment. `tau=0` is the shipped model. Positive tau values lag only selected active-stress length inputs (`kd`, `fiso`, or `kd+fiso`), not passive pressure, geometry, gOver, force-velocity, or valves.");
@@ -756,6 +844,60 @@ export function reportToCsv(report: DebugReport): string {
   return `${rows.join("\n")}\n`;
 }
 
+export function reportToBeatPairOverlayCsv(report: DebugReport): string {
+  const rows = [BEAT_PAIR_OVERLAY_CSV_COLUMNS.join(",")];
+  for (const scenario of report.dtScenarios) {
+    for (const point of scenario.points) {
+      const overlay = point.beatPairOverlay;
+      if (!overlay || overlay.rows.length === 0) continue;
+      const pairBeats = overlay.beats.join("/");
+      for (const row of overlay.rows) {
+        rows.push([
+          scenario.dt,
+          scenario.lambdaActTauSec,
+          scenario.lambdaActScope,
+          scenario.lambdaActTerms,
+          report.lowStretchLimiterMode,
+          report.lowStretchLimiterScope,
+          report.activeReservePreset,
+          point.tbvAudit.correctionMode,
+          point.deltaVolumeMl,
+          point.targetVolumeMl,
+          pairBeats,
+          row.beat,
+          row.pairBeat,
+          row.phase,
+          row.tFromBeatStartSec,
+          row.tSec,
+          row.QMV,
+          row.xiMV,
+          row.MV_open01,
+          row.LAP_minus_LVP,
+          row.VLV,
+          row.ESV_marker01,
+          row.EDV_marker01,
+          row.LV_c ?? "",
+          row.LV_a ?? "",
+          row.LV_sigmaActTargetRaw ?? "",
+          row.LV_sigmaActTarget ?? "",
+          row.LV_sigmaAct ?? "",
+          row.LV_lambdaRaw ?? "",
+          row.LV_lambdaAct ?? "",
+          row.QAo,
+          row.xiAoV,
+          row.AoV_open01,
+          row.AoP,
+          row.LVP,
+          row.AoP_minus_LVP,
+          row.dP_AoV,
+          row.AoV_areaRatio,
+        ].map(csvCell).join(","));
+      }
+    }
+  }
+  return `${rows.join("\n")}\n`;
+}
+
 function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number): DtScenarioReport {
   const lambdaActTerms = opts.lambdaActTerms ?? DEFAULT_LAMBDA_ACT_TERMS;
   const tbvCorrectionMode = opts.tbvCorrectionMode ?? DEFAULT_TBV_CORRECTION_MODE;
@@ -788,6 +930,7 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
     applyTBVCorrectionMode(traceCore, tbvCorrectionMode);
     const traceSamples = collectTraceSamples(traceCore, opts.traceBeats, dt, opts.sampleHz);
     const beatTrace = summarizeBeatTrace(traceSamples, req.params.HR, opts.traceBeats);
+    const beatPairOverlay = opts.beatPairOverlay === true ? buildBeatPairOverlay(traceSamples, req.params.HR) : undefined;
     const branchAmplitude = branchAmplitudeFromTrace(traceSamples, req.params.HR);
     const branchAmplitudeFraction = branchAmplitudeFractionFromTrace(traceSamples, req.params.HR);
     const clampDiagnostics = run.core.debugClampDiagnostics();
@@ -845,6 +988,7 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
       tbvAudit,
       activeStressTerminal: run.core.debugActiveStressDiagnostics(),
       beatTrace,
+      beatPairOverlay,
       returnMap,
       observables: {
         P_PVein: run.observables.P_PVein,
@@ -1434,6 +1578,90 @@ function summarizeBeatTrace(traceSamples: TraceSample[], HR: number, traceBeats:
   return completeIds.slice(-traceBeats).map((beat) => summarizeBeat(beat, groups.get(beat) ?? [], HR));
 }
 
+function buildBeatPairOverlay(traceSamples: TraceSample[], HR: number): BeatPairOverlay {
+  const groups = groupTraceSamplesByBeat(traceSamples);
+  const beatIds = Array.from(groups.keys()).sort((a, b) => a - b);
+  const completeIds = beatIds.slice(1, -1).filter((beat) => (groups.get(beat)?.length ?? 0) >= 5);
+  const pair = completeIds.slice(-2);
+  if (pair.length < 2) {
+    return {
+      beats: [],
+      rows: [],
+      interpretation: beatPairOverlayInterpretation(),
+    };
+  }
+  const beatSeconds = 60 / Math.max(HR, 1);
+  const rows: BeatPairOverlayRow[] = [];
+  for (const [pairIndex, beat] of pair.entries()) {
+    const entries = groups.get(beat) ?? [];
+    const samples = entries.map((entry) => entry.sample);
+    const minVlv = finiteMin(samples.map((sample) => sample.VLV));
+    const maxVlv = finiteMaxOrNull(samples.map((sample) => sample.VLV)) ?? Number.NaN;
+    for (const entry of entries) {
+      const sample = entry.sample;
+      const lv = entry.active.LV;
+      const phase = sample.phi - Math.floor(sample.phi);
+      rows.push({
+        beat,
+        pairBeat: pairIndex === 0 ? "previous" : "last",
+        phase,
+        tFromBeatStartSec: phase * beatSeconds,
+        tSec: sample.t,
+        QMV: sample.QMV,
+        xiMV: sample.xiMV,
+        MV_open01: sample.xiMV > 0.05 || sample.QMV > 1 ? 1 : 0,
+        LAP_minus_LVP: sample.LAP - sample.LVP,
+        VLV: sample.VLV,
+        ESV_marker01: Math.abs(sample.VLV - minVlv) <= 1e-6 ? 1 : 0,
+        EDV_marker01: Math.abs(sample.VLV - maxVlv) <= 1e-6 ? 1 : 0,
+        LV_c: lv?.c ?? null,
+        LV_a: lv?.a ?? null,
+        LV_sigmaActTargetRaw: lv?.sigmaActTargetRaw ?? null,
+        LV_sigmaActTarget: lv?.sigmaActTarget ?? null,
+        LV_sigmaAct: lv?.sigmaAct ?? null,
+        LV_lambdaRaw: lv?.lambdaRaw ?? null,
+        LV_lambdaAct: lv?.lambdaAct ?? null,
+        QAo: sample.QAo,
+        xiAoV: sample.xiAoV,
+        AoV_open01: sample.xiAoV > 0.05 || sample.QAo > 1 ? 1 : 0,
+        AoP: sample.AoP,
+        LVP: sample.LVP,
+        AoP_minus_LVP: sample.AoP - sample.LVP,
+        dP_AoV: sample.dP_AoV,
+        AoV_areaRatio: sample.AoV_areaRatio,
+      });
+    }
+  }
+  return {
+    beats: [pair[0], pair[1]],
+    rows,
+    interpretation: beatPairOverlayInterpretation(),
+  };
+}
+
+function beatPairOverlayInterpretation(): BeatPairOverlay["interpretation"] {
+  return {
+    purpose: "Phase-align the last two complete beats so active/ejection state can be compared against MV/filling event timing without changing model dynamics.",
+    primaryQuestion: "Does MV near-zero/filling morphology switch precede same-beat ejection/ESV/CO changes, or does prior-beat active/ejection state explain next-beat filling morphology?",
+    columns: [
+      "QMV",
+      "xiMV",
+      "MV_open01",
+      "LAP_minus_LVP",
+      "VLV with ESV/EDV markers",
+      "LV_c",
+      "LV_a",
+      "LV_sigmaActTargetRaw",
+      "LV_sigmaActTarget",
+      "LV_sigmaAct",
+      "QAo",
+      "xiAoV",
+      "AoV_open01",
+      "AoP_minus_LVP",
+    ],
+  };
+}
+
 function summarizeBeat(beat: number, entries: TraceSample[], HR: number): BeatTraceRow {
   const samples = entries.map((entry) => entry.sample);
   const mean = (key: keyof SimSample) => meanNumbers(samples.map((sample) => Number(sample[key])));
@@ -1866,6 +2094,7 @@ export function parseLowPreloadDebugArgs(args: string[]): DebugOptions {
     traceBeats: 10,
     sampleHz: DEFAULT_SAMPLE_HZ,
     returnMapMode: DEFAULT_RETURN_MAP_MODE,
+    beatPairOverlay: false,
     quietClampLog: false,
     tbvCorrectionMode: DEFAULT_TBV_CORRECTION_MODE,
   };
@@ -1884,6 +2113,7 @@ export function parseLowPreloadDebugArgs(args: string[]): DebugOptions {
     else if (key === "--active-reserve-preset" && value) opts.activeReservePreset = parseActiveReservePreset(value);
     else if (key === "--return-map-mode" && value) opts.returnMapMode = parseReturnMapMode(value);
     else if (key === "--branch-only") opts.returnMapMode = "none";
+    else if (key === "--beat-pair-overlay") opts.beatPairOverlay = true;
     else if (key === "--max-return-map-points" && value) opts.maxReturnMapPoints = Math.max(0, Math.floor(Number(value)));
     else if (key === "--return-map-deltas" && value) opts.returnMapDeltasMl = parseNumberList(value);
     else if (key === "--tbv-correction" && value) opts.tbvCorrectionMode = parseTBVCorrectionMode(value);
@@ -1957,6 +2187,7 @@ function printHelp(): void {
     "       [--low-stretch-limiter=none|aInfCap|activeReserveCap] [--low-stretch-limiter-scope=lv|ventricles|all]",
     "       [--active-reserve-preset=directMild|directMedium|thresholdMild|thresholdMedium]",
     "       [--return-map-mode=none|fixed|reset|both] [--branch-only]",
+    "       [--beat-pair-overlay]",
     "       [--tbv-correction=on|off|low]",
     "       [--max-return-map-points=4] [--quiet-clamp-log] [--trace-beats=10] [--sample-hz=120]",
     "",
@@ -1988,6 +2219,9 @@ function main(): void {
   writeFileSync(path.join(options.outDir, "report.json"), `${JSON.stringify(report, null, 2)}\n`);
   writeFileSync(path.join(options.outDir, "report.md"), reportToMarkdown(report));
   writeFileSync(path.join(options.outDir, "beat-trace.csv"), reportToCsv(report));
+  if (report.beatPairOverlay) {
+    writeFileSync(path.join(options.outDir, "beat-pair-overlay.csv"), reportToBeatPairOverlayCsv(report));
+  }
 
   // eslint-disable-next-line no-console
   console.log(`Wrote Starling low-preload debug report to ${options.outDir}`);
