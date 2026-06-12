@@ -59,6 +59,33 @@ GraphViewSpec.aspect?: { ratio: number; fit: "lock" | "prefer" }
 
 PV loops use `{ ratio: 1, fit: "lock" }`. Waveforms have no aspect constraint.
 
+### View management and editing surface (update 2026-06-12)
+
+- **Editing surface is a modal**, sharing one frame across graph / metrics /
+  controller view editors (the graph pane settings modal idiom). Main-area
+  editors are rejected: the Graph Board hosts graphs only, and composition
+  editing is a selection task that does not need live charts beside it. Mobile
+  degrades to a fullscreen sheet. (This supersedes any earlier wording that
+  placed serious view editing in a main-area pane.)
+- **No dedicated management screen.** Authored views are case-scoped document
+  content; the rail inspector dropdown IS the list and management surface:
+  built-in Inspector first (composition not editable), then authored
+  controller views with rename / duplicate / delete, then "+ new". The metrics
+  host tab strip plays the same role for metrics views.
+- **Catalog growth (assist devices, model refinement) is absorbed by the item
+  picker** — search plus device/category sections, mirrored by collapsible
+  sections in the built-in Inspector — never by a separate screen. Item
+  applicability may later become scenario-dependent (N/A state); the picker
+  keys off the parameter catalog registry to allow that.
+- **Creation paths:** curate from the Inspector's full catalog (primary),
+  duplicate an existing view, or start blank.
+- **Deletion** warns when note `view_ref` blocks or the reading column
+  reference the view and degrades those references to the established
+  dangling-placeholder pattern; deletion is never hard-blocked.
+- **Note embedding** generalizes `pane_ref` to `view_ref` (viewSpecId).
+  Binding stays VIEW-level — `{ slot: "active" }` by default, explicit pin
+  later; per-item binding is rejected.
+
 ### Scenario state
 Scenario interaction has four independent states:
 
@@ -119,7 +146,7 @@ Mobile remaps roles to form-factor conventions: scenario chips at the top, graph
 ## Implementation phases
 - **P0:** ADR, supersede markers, new pure type layer, one-way PanelDef migration, additive CaseDocument fields, save-path preservation, tests, and roadmap rewrite. No runtime UI behavior change.
 - **P1:** main-only Dockview, fixed right rail and metrics host, push note drawer, GraphBoardLayout wiring, compare cleanup, and pane-local visibility removal.
-- **P2:** read-only interactive operation blocking, runtime operation allowance, reset to author state, and Read/Explore state carry-over.
+- **P2 (redefined 2026-06-12, reader-traffic-first):** P2a authored view management in the Workbench (live ControllerViewSpec / MetricsViewSpec, rail dropdown, shared modal editor, views persistence re-enabled); P2b note `view_ref` + reader curation (reader consumes authored views only); P2c read-only interactive operation blocking, runtime operation allowance, reset to author state, and Read/Explore state carry-over.
 - **P3:** binding and publish flow: active-slot default, explicit pinning, `initialActiveScenarioId`, and author snapshot persistence.
 - **P4:** aspect rendering at the pane-content layer.
 

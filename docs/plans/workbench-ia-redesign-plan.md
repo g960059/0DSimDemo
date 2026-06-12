@@ -96,8 +96,41 @@ and `COMPARE_PRESET` are cleanup targets (P1). A future metrics "Differences" ta
   NOT editable; knob operation of course allowed).
 - Fixed metrics categories = built-in metrics views.
 - Custom controller / metrics = authored **ViewSpec** (saved in CaseDocument, on the op-stack).
-- Creation/serious editing happens as a main-area pane (side-by-side with graphs);
-  light edits (+item) allowed inline at the host.
+- **(REVISED 2026-06-12)** Creation/serious editing happens in a MODAL (shared
+  frame with the graph pane settings modal), NOT as a main-area pane. Rationale:
+  the main area is the Graph Board (graphs only — hosting editors there would
+  break the zone semantics); composition editing (which items, labels, ranges)
+  is a selection task that does not need live graphs; one editing idiom across
+  graph/metrics/controller views; mobile degrades naturally to a fullscreen
+  sheet. Light edits (+item) may still be offered inline at the host.
+
+### View management (decided 2026-06-12)
+
+- **No dedicated management screen.** Authored views are case-scoped document
+  content; the per-case count stays small (2-5). What grows is the parameter
+  CATALOG (assist devices, model refinement) — absorbed by the item PICKER
+  (search + device/category sections) and by collapsible sections + search in
+  the built-in Inspector, never by a separate screen.
+- **The rail dropdown IS the list and the management UI.** The inspector tier
+  header becomes a dropdown: built-in Inspector (always first, not editable or
+  deletable) + authored controller views + "+ new controller". Row hover
+  actions: rename / duplicate / delete. The "Editing: ● scenario" chip stays.
+- **Creation paths, primary first:** (1) from the Inspector — curate by
+  selecting from the full catalog ("+ add to custom" affordance or the modal
+  picker showing the same catalog tree); (2) duplicate an existing view (A→B);
+  (3) from blank.
+- **Deletion:** allowed with a warning when the view is referenced (note
+  view_ref / reading column); references degrade to the existing dangling-ref
+  placeholder pattern (same as pane_ref). Never hard-block deletion.
+- **Note embedding:** extend pane_ref to a `view_ref` block referencing a
+  viewSpecId. Binding is VIEW-level only ({ slot: "active" } default, pin
+  opt-in in P3) — per-item binding is explicitly rejected.
+- **Metrics views follow the identical pattern:** the metrics host tab strip is
+  the list (built-in categories + authored), "+" opens the same modal frame
+  with a metric picker, tab context menu offers rename / duplicate / delete.
+- **Future (not now):** item applicability may become scenario-dependent
+  (e.g. no ECMO attached). The picker/renderer should key off the catalog
+  registry (paramKey + device grouping) so an N/A state can be added later.
 - Switcher/tab choices are DERIVED from in-document ViewSpecs (users don't create tabs).
 - **Schema is NEW — not a promotion of `PanelDef.view`.** Write a one-way migration
   from existing PanelDef. Do not lift the "typed but not live" layer.
@@ -209,8 +242,40 @@ Deliverables (no runtime UI behavior change in P0):
 - After P1: human user testing checkpoint (scenario list discoverability,
   active/visible independence comprehension, split command discoverability).
 
-### P2 — read-only interactive
+### P2 — reading curation + read-only interactive (REDEFINED 2026-06-12)
 
+Premise (product owner): top-page traffic ≈ lessons 50% / official cases 30% /
+community 10% / workbench 10%. Reader mode is note-primary; graphs / metrics /
+controllers are author-CURATED subsets. So P2's center of gravity is the
+curation path: author creates curated views → embeds them in the note →
+learners operate them in the reader. Built-in hosts (full Inspector, metrics
+category tabs) are workbench-only affordances and do not appear in the reader.
+
+**P2a — authored view management in the Workbench (view management spec above):**
+- ControllerViewSpec and MetricsViewSpec become LIVE document content:
+  rail-dropdown list/switcher (built-in Inspector first), shared modal editor
+  (create / rename / duplicate / delete; item picker = catalog tree with
+  search + category sections), metrics host "+" tab via the same modal frame.
+- Custom controller views render against the active scenario (binding
+  { slot: "active" }), reusing the shipped ControllerItem renderers
+  (slider / buttonGroup, beginner labels — ADR-0006).
+- `views` persistence is RE-ENABLED for authored controller/metrics views (the
+  dormant-blob objection no longer applies: the views are now live state).
+  Load tolerates and ignores graph-kind entries; id remapping already exists.
+- One-way migration on load: legacy CONTROLS panels with controllerItems and
+  METRICS panels become authored views (existing migratePanelsToViewSpecs
+  mapping); the metrics host then lists built-in categories + authored
+  MetricsViewSpecs (no more panel-backed tabs).
+
+**P2b — note embedding + reader curation:**
+- `view_ref` note block (pane_ref generalization) referencing viewSpecId;
+  renders the authored view inline (interactive) in note and reader;
+  dangling refs degrade to placeholder.
+- Reading presentation consumes authored views only (graphs via reading
+  column / pane refs as today; controllers and metrics via view_refs and the
+  reading manifest), unifying with exposedControllers where they overlap.
+
+**P2c — read-only interactive (original P2):**
 - Document-op blocking / runtime-op allowing; Reset to author's state;
   Read|Explore switcher; runtime state carried across the switch
   (integrate ReadingPresenter's own `PreviewController`/`liveInstances` with the
