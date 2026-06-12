@@ -316,7 +316,11 @@ body[data-workbench-theme="light"] {
   pointer-events: none;
 }
 
-.workbench-dockview .dv-tabs-and-actions-container.dv-drop-target > .dv-drop-target-dropzone > .dv-drop-target-selection,
+/* Native grey drop visuals inside ANY tab strip are replaced by our accent
+   insertion line. The dropzone attaches to the individual .dv-tab (verified
+   in-DOM), so suppress every selection rendered within the strip; content-
+   area split overlays (under dv-content-container) keep their visuals. */
+.workbench-root .workbench-dockview .dv-tabs-and-actions-container .dv-drop-target-selection,
 .workbench-dockview .dv-drop-target-anchor.wb-tab-drop-target-overlay {
   background-color: transparent !important;
   border-color: transparent !important;
@@ -347,11 +351,13 @@ body[data-workbench-theme="light"] {
 }
 
 .workbench-dockview.wb-tab-dragging .dv-tab.dv-tab--dragging,
+.workbench-dockview.wb-tab-dragging .dv-tab.wb-dragged-tab,
 .workbench-dockview.wb-tab-dragging .dv-tab.dv-tab-dragging {
   opacity: 0.4 !important;
 }
 
 .workbench-dockview.wb-tab-dragging .dv-tab.dv-tab--dragging .workbench-dock-tab,
+.workbench-dockview.wb-tab-dragging .dv-tab.wb-dragged-tab .workbench-dock-tab,
 .workbench-dockview.wb-tab-dragging .dv-tab.dv-tab-dragging .workbench-dock-tab {
   box-shadow: none;
   color: var(--wb-text-subtle);

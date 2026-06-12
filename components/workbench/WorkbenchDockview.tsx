@@ -983,9 +983,14 @@ export function WorkbenchDockview({
         node.classList.remove('wb-tab-drop-target-overlay');
       });
     };
-    const startDragging = () => root.classList.add('wb-tab-dragging');
+    const startDragging = (event?: Event) => {
+      root.classList.add('wb-tab-dragging');
+      const sourceTab = event?.target instanceof Element ? event.target.closest('.dv-tab') : null;
+      sourceTab?.classList.add('wb-dragged-tab');
+    };
     const stopDragging = () => {
       root.classList.remove('wb-tab-dragging');
+      root.querySelectorAll('.wb-dragged-tab').forEach((node) => node.classList.remove('wb-dragged-tab'));
       clearInsertionIndicators();
     };
     const headerAtPoint = (event: DragEvent) => {
