@@ -22,6 +22,7 @@ import {
   type GraphBoardAddPanelInstruction,
   type GraphBoardSplitDirection,
 } from '../../features/workbench/graphBoardLayout';
+import { WorkbenchEmptyState } from './WorkbenchEmptyState';
 
 type DockPanelParams = {
   panelId: string;
@@ -433,7 +434,7 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
               cancelRenamePanel();
             }
           }}
-          className="h-6 min-w-0 flex-1 rounded border border-wb-accent bg-wb-input px-1.5 text-xs font-semibold text-wb-text outline-none"
+          className="h-6 min-w-0 flex-1 rounded border border-wb-accent bg-wb-input px-1.5 text-xs font-semibold text-wb-text outline-none focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
           aria-label={t('common.rename')}
         />
       ) : (
@@ -448,7 +449,7 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
               context?.requestClosePanel(props.params.panelId);
               setMenuPosition(null);
             }}
-            className="workbench-dock-tab-close-button inline-flex h-5 w-5 items-center justify-center rounded text-wb-muted hover:bg-wb-hover hover:text-wb-danger"
+            className="workbench-dock-tab-close-button inline-flex h-5 w-5 items-center justify-center rounded text-wb-muted hover:bg-wb-hover hover:text-wb-danger focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent"
             aria-label={t('workbench.panelGrid.closePanelAria', { title })}
             title={t('workbench.panelGrid.closePanelAria', { title })}
           >
@@ -468,7 +469,7 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
                     : getMenuPositionNearPoint({ x: rect.right - TAB_MENU_WIDTH, y: rect.bottom + 4 })
                 ));
               }}
-              className={`workbench-dock-tab-menu-button inline-flex h-5 w-5 items-center justify-center rounded text-wb-muted hover:bg-wb-hover hover:text-wb-text ${
+              className={`workbench-dock-tab-menu-button inline-flex h-5 w-5 items-center justify-center rounded text-wb-muted hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent ${
                 menuPosition ? 'opacity-100' : ''
               }`}
               aria-label={t('workbench.dockview.paneMenuAria', { title })}
@@ -571,9 +572,15 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
 function ZoneAddMenu({
   zone,
   onChoose,
+  buttonClassName,
+  iconClassName = 'h-3.5 w-3.5',
+  label,
 }: {
   zone: WorkbenchZoneId;
   onChoose: (type: PanelType) => void;
+  buttonClassName?: string;
+  iconClassName?: string;
+  label?: React.ReactNode;
 }) {
   const { t } = useTranslation();
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
@@ -597,11 +604,12 @@ function ZoneAddMenu({
       <button
         type="button"
         onClick={openMenu}
-        className="inline-flex h-5 w-5 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text"
+        className={buttonClassName ?? 'inline-flex h-5 w-5 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent'}
         aria-label={t('workbench.dockview.addPaneAria', { zone: t(`workbench.zones.${zone}`) })}
         title={t('workbench.dockview.addPaneAria', { zone: t(`workbench.zones.${zone}`) })}
       >
-        <Plus className="h-3.5 w-3.5" />
+        <Plus className={iconClassName} />
+        {label}
       </button>
       {menuPosition && typeof document !== 'undefined' && createPortal(
         <>
@@ -661,7 +669,7 @@ function WorkbenchDockHeaderRightActions(props: IDockviewHeaderActionsProps) {
         <button
           type="button"
           onClick={() => context.requestSplitPanel(activePanelId, props.group.id, 'right')}
-          className="inline-flex h-5 w-5 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text"
+          className="inline-flex h-5 w-5 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent"
           aria-label={t('workbench.dockview.splitRight')}
           title={t('workbench.dockview.splitRight')}
         >
@@ -680,13 +688,16 @@ function EmptyDockview({
   const { t } = useTranslation();
   const canAdd = mode !== 'learner' && Boolean(onAddPanel);
   return (
-    <div className="relative flex h-full items-center justify-center bg-wb-aux text-sm text-wb-subtle">
-      {canAdd && (
-        <div className="absolute right-2 top-2">
-          <ZoneAddMenu zone={zone} onChoose={(type) => onAddPanel?.(type, zone)} />
-        </div>
-      )}
-      {t('workbench.dockview.noPanels')}
+    <div className="relative h-full bg-wb-aux">
+      <WorkbenchEmptyState
+        description={t('workbench.dockview.noPanels')}
+        primaryAction={canAdd ? {
+          label: t('workbench.dockview.addPane'),
+          onClick: () => onAddPanel?.('PVLOOP', zone),
+          icon: <Plus className="h-3.5 w-3.5" />,
+          ariaLabel: t('workbench.dockview.addPaneAria', { zone: t(`workbench.zones.${zone}`) }),
+        } : undefined}
+      />
     </div>
   );
 }

@@ -185,7 +185,9 @@ export function ScenarioPane({
           return (
             <div
               key={instance.id}
-              className={`group relative flex min-h-8 items-center gap-2 rounded-sm px-2 text-xs transition-colors ${
+              role="button"
+              tabIndex={isEditing ? -1 : 0}
+              className={`group relative flex min-h-8 items-center gap-2 rounded-sm px-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent ${
                 isActive
                   ? 'bg-wb-active text-wb-text'
                   : isMenuOpen
@@ -193,11 +195,16 @@ export function ScenarioPane({
                     : 'text-wb-muted hover:bg-wb-hover hover:text-wb-text'
               }`}
               onClick={() => setActiveInstanceId?.(instance.id)}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                setActiveInstanceId?.(instance.id);
+              }}
               onContextMenu={(event) => openMenuAtCursor(event, instance)}
               onDoubleClick={() => beginRename(instance)}
             >
               <label
-                className="relative h-2.5 w-2.5 shrink-0 overflow-hidden rounded-full ring-1 ring-slate-900/80"
+                className="relative h-2.5 w-2.5 shrink-0 overflow-hidden rounded-full ring-1 ring-wb-line-strong"
                 title={t('workbench.scenarioPane.changeColor')}
                 onClick={(event) => event.stopPropagation()}
               >
@@ -206,7 +213,7 @@ export function ScenarioPane({
                   type="color"
                   value={instance.color}
                   onChange={(event) => updateInstanceColor(instance.id, event.target.value)}
-                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent"
                   aria-label={t('workbench.scenarioPane.colorAria', { name: instance.name })}
                 />
               </label>
@@ -224,7 +231,7 @@ export function ScenarioPane({
                     if (event.key === 'Enter') commitRename(instance);
                     if (event.key === 'Escape') cancelRename();
                   }}
-                  className="h-6 min-w-0 flex-1 rounded border border-wb-accent bg-wb-input px-1.5 text-xs font-semibold text-wb-text outline-none"
+                  className="h-6 min-w-0 flex-1 rounded border border-wb-accent bg-wb-input px-1.5 text-xs font-semibold text-wb-text outline-none focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
                   placeholder={t('workbench.scenarioPane.scenarioName')}
                 />
               ) : (
@@ -243,7 +250,7 @@ export function ScenarioPane({
                         event.stopPropagation();
                         toggleScenarioGlobalVisibility(instance.id);
                       }}
-                      className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded transition-colors ${
+                      className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent ${
                         isHidden
                           ? 'text-wb-subtle hover:bg-wb-hover hover:text-wb-muted'
                           : 'text-wb-muted hover:bg-wb-hover hover:text-wb-text'
@@ -258,7 +265,7 @@ export function ScenarioPane({
                   <button
                     type="button"
                     onClick={(event) => openMenuForButton(event, instance)}
-                    className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-wb-subtle transition-opacity hover:bg-wb-hover hover:text-wb-text ${
+                    className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-wb-subtle transition-opacity hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent ${
                       isMenuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                     }`}
                     title={t('workbench.scenarioPane.actions')}

@@ -23,34 +23,34 @@ export function SaveLessonDialog({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-lg shadow-2xl p-6 w-full max-w-md">
-        <h2 className="text-lg font-bold text-slate-200 mb-4 tracking-tight">{t('workbench.dialogs.saveLesson.title')}</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-lg border border-wb-line bg-wb-panel p-6 shadow-2xl">
+        <h2 className="mb-4 text-lg font-bold tracking-tight text-wb-text">{t('workbench.dialogs.saveLesson.title')}</h2>
         <div className="space-y-4 mb-6">
           <label className="block">
-            <span className="block text-xs font-bold text-slate-400 mb-2">{t('workbench.dialogs.saveLesson.lessonTitle')}</span>
+            <span className="mb-2 block text-xs font-bold text-wb-muted">{t('workbench.dialogs.saveLesson.lessonTitle')}</span>
             <input
               type="text"
               value={lessonTitle}
               onChange={(e) => onTitleChange(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700 outline-none focus:border-blue-500 rounded px-3 py-2 text-sm font-medium text-slate-100"
+              className="w-full rounded border border-wb-line bg-wb-input px-3 py-2 text-sm font-medium text-wb-text outline-none focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
               autoFocus
             />
           </label>
-          <div className="rounded border border-slate-800 bg-slate-950/60 p-3">
-            <div className="text-xs font-bold text-slate-400 mb-1">{t('workbench.dialogs.saveLesson.noteSpine')}</div>
-            <div className="text-sm text-slate-200 truncate">
+          <div className="rounded border border-wb-line bg-wb-strip p-3">
+            <div className="mb-1 text-xs font-bold text-wb-muted">{t('workbench.dialogs.saveLesson.noteSpine')}</div>
+            <div className="truncate text-sm text-wb-text">
               {noteExcerptText}
             </div>
           </div>
-          <div className="rounded border border-slate-800 bg-slate-950/60 p-3">
-            <div className="text-xs font-bold text-slate-400 mb-1">{t('workbench.dialogs.saveLesson.capturedSteps')}</div>
-            <div className="text-sm text-slate-200">{t('workbench.dialogs.saveLesson.stepsCount', { count: stepsCount })}</div>
+          <div className="rounded border border-wb-line bg-wb-strip p-3">
+            <div className="mb-1 text-xs font-bold text-wb-muted">{t('workbench.dialogs.saveLesson.capturedSteps')}</div>
+            <div className="text-sm text-wb-text">{t('workbench.dialogs.saveLesson.stepsCount', { count: stepsCount })}</div>
           </div>
         </div>
         <div className="flex items-center justify-end gap-3 pt-2">
-          <button onClick={onCancel} className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200 transition-colors">{t('common.cancel')}</button>
-          <button onClick={onSave} className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded shadow transition-colors">{t('common.save')}</button>
+          <button onClick={onCancel} className="px-4 py-2 text-sm text-wb-muted transition-colors hover:text-wb-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent">{t('common.cancel')}</button>
+          <button onClick={onSave} className="rounded bg-wb-primary px-6 py-2 text-sm font-bold text-white shadow transition-colors hover:bg-wb-primary-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent">{t('common.save')}</button>
         </div>
       </div>
     </div>

@@ -6,7 +6,7 @@ import { lessonHref } from '@/homeLinks';
 import { localeFromPathname } from '@/localeRouting';
 
 export type WorkbenchHeaderMode = 'learner' | 'author' | 'sandbox';
-export type WorkbenchThemeId = 'midnight' | 'graphite' | 'clinical';
+export type WorkbenchThemeId = 'midnight' | 'graphite' | 'clinical' | 'light';
 
 export interface WorkbenchSceneMeta {
   title: string;
@@ -18,6 +18,7 @@ export const WORKBENCH_THEME_OPTIONS: Array<{ id: WorkbenchThemeId; label: strin
   { id: 'midnight', label: 'Midnight', swatch: '#2563eb' },
   { id: 'graphite', label: 'Graphite', swatch: '#14b8a6' },
   { id: 'clinical', label: 'Clinical', swatch: '#22c55e' },
+  { id: 'light', label: 'Light', swatch: '#0284c7' },
 ];
 
 interface WorkbenchSidePanelProps {
@@ -94,7 +95,7 @@ export function WorkbenchSidePanel({
             <div className="text-sm font-bold text-wb-text">{t('nav.workbench')}</div>
             <div className="text-[11px] text-wb-subtle">{mode === 'learner' ? t('workbench.sidePanel.learningScene') : mode === 'author' ? t('workbench.sidePanel.authorWorkspace') : t('workbench.sidePanel.sandboxScene')}</div>
           </div>
-          <button onClick={onClose} className="rounded p-1.5 text-wb-subtle hover:bg-wb-hover hover:text-wb-text" aria-label={t('workbench.sidePanel.closePanel')}>
+          <button onClick={onClose} className="rounded p-1.5 text-wb-subtle hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent" aria-label={t('workbench.sidePanel.closePanel')}>
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -104,7 +105,7 @@ export function WorkbenchSidePanel({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold transition-colors ${
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent ${
                 currentTab === tab.id ? 'bg-wb-active text-wb-text' : 'text-wb-subtle hover:bg-wb-hover hover:text-wb-muted'
               }`}
             >
@@ -126,7 +127,7 @@ export function WorkbenchSidePanel({
                   <a href={publishedLesson.url} className="block truncate text-sm font-bold text-emerald-100 hover:text-emerald-50">
                     {publishedLesson.url}
                   </a>
-                  <button onClick={copyShareUrl} className="mt-3 inline-flex items-center gap-2 rounded bg-emerald-500/15 px-3 py-1.5 text-xs font-bold text-emerald-100 hover:bg-emerald-500/25">
+                  <button onClick={copyShareUrl} className="mt-3 inline-flex items-center gap-2 rounded bg-emerald-500/15 px-3 py-1.5 text-xs font-bold text-emerald-100 hover:bg-emerald-500/25 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent">
                     <Link2 className="h-3.5 w-3.5" />
                     {t('workbench.sidePanel.share.copyLink')}
                   </button>
@@ -157,11 +158,11 @@ export function WorkbenchSidePanel({
                 onChange={(e) => { const file = e.target.files?.[0]; if (file) onImportFile(file); e.target.value = ''; }}
               />
               <div className="grid grid-cols-2 gap-2">
-                <button onClick={onExport} className="inline-flex items-center justify-center gap-2 rounded-md border border-wb-line bg-wb-panel px-3 py-2 text-sm font-bold text-wb-text hover:bg-wb-hover">
+                <button onClick={onExport} className="inline-flex items-center justify-center gap-2 rounded-md border border-wb-line bg-wb-panel px-3 py-2 text-sm font-bold text-wb-text hover:bg-wb-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent">
                   <Download className="h-4 w-4" />
                   {t('workbench.sidePanel.files.export')}
                 </button>
-                <button onClick={() => fileInputRef.current?.click()} className="inline-flex items-center justify-center gap-2 rounded-md border border-wb-line bg-wb-panel px-3 py-2 text-sm font-bold text-wb-text hover:bg-wb-hover">
+                <button onClick={() => fileInputRef.current?.click()} className="inline-flex items-center justify-center gap-2 rounded-md border border-wb-line bg-wb-panel px-3 py-2 text-sm font-bold text-wb-text hover:bg-wb-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent">
                   <FileUp className="h-4 w-4" />
                   {t('workbench.sidePanel.files.load')}
                 </button>
@@ -202,13 +203,13 @@ export function WorkbenchSidePanel({
                 </div>
                 <div>
                   <div className="mb-2 text-xs font-bold text-wb-muted">{t('workbench.sidePanel.settings.theme')}</div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {WORKBENCH_THEME_OPTIONS.map((option) => (
                       <button
                         key={option.id}
                         type="button"
                         onClick={() => onThemeChange(option.id)}
-                        className={`flex min-w-0 items-center justify-center gap-2 rounded-md border px-2 py-2 text-xs font-bold transition-colors ${
+                        className={`flex min-w-0 items-center justify-center gap-2 rounded-md border px-2 py-2 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent ${
                           theme === option.id
                             ? 'border-wb-line bg-wb-active text-wb-text'
                             : 'border-wb-line bg-wb-panel text-wb-muted hover:bg-wb-hover'
@@ -224,15 +225,15 @@ export function WorkbenchSidePanel({
               </section>
               {mode !== 'learner' && (authoringMode ? (
                 <>
-                  <button onClick={onSaveLesson} className="w-full rounded-md border border-wb-line bg-wb-primary px-3 py-2 text-left text-sm font-bold text-white hover:bg-wb-primary-hover">
+                  <button onClick={onSaveLesson} className="w-full rounded-md border border-wb-line bg-wb-primary px-3 py-2 text-left text-sm font-bold text-white hover:bg-wb-primary-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent">
                     {t('workbench.sidePanel.settings.saveAsLesson')}
                   </button>
-                  <button onClick={onExitAuthoring} className="w-full rounded-md border border-wb-line bg-wb-panel px-3 py-2 text-left text-sm font-bold text-wb-text hover:bg-wb-hover">
+                  <button onClick={onExitAuthoring} className="w-full rounded-md border border-wb-line bg-wb-panel px-3 py-2 text-left text-sm font-bold text-wb-text hover:bg-wb-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent">
                     {t('workbench.sidePanel.settings.exitAuthoring')}
                   </button>
                 </>
               ) : (
-                <button onClick={onCreateLesson} className="w-full rounded-md border border-wb-line bg-wb-panel px-3 py-2 text-left text-sm font-bold text-wb-text hover:bg-wb-hover">
+                <button onClick={onCreateLesson} className="w-full rounded-md border border-wb-line bg-wb-panel px-3 py-2 text-left text-sm font-bold text-wb-text hover:bg-wb-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent">
                   {t('workbench.sidePanel.settings.createLesson')}
                 </button>
               ))}

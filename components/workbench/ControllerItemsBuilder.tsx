@@ -241,7 +241,7 @@ export function ControllerItemsBuilder({
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder={t("workbench.controllerBuilder.searchControls")}
-              className="min-w-0 flex-1 bg-transparent text-xs font-medium text-wb-text outline-none placeholder:text-wb-subtle"
+              className="min-w-0 flex-1 rounded bg-transparent text-xs font-medium text-wb-text outline-none placeholder:text-wb-subtle focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
             />
           </div>
           <div className="space-y-1">
@@ -298,7 +298,7 @@ export function ControllerItemsBuilder({
                             event.currentTarget.blur();
                           }
                         }}
-                        className="h-8 min-w-0 rounded bg-transparent px-1.5 text-xs font-semibold text-wb-text outline-none transition-colors hover:bg-wb-hover focus:bg-wb-soft focus:ring-1 focus:ring-wb-accent"
+                        className="h-8 min-w-0 rounded bg-transparent px-1.5 text-xs font-semibold text-wb-text outline-none transition-colors hover:bg-wb-hover focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
                         aria-label={`${item.paramKey} label`}
                       />
                       <div className="flex shrink-0 rounded bg-wb-input p-0.5" aria-label={t("workbench.controllerBuilder.controlType")}>
@@ -359,7 +359,7 @@ export function ControllerItemsBuilder({
                                         event.currentTarget.blur();
                                       }
                                     }}
-                                    className="h-7 min-w-0 rounded bg-wb-input px-2 text-[11px] font-semibold normal-case text-wb-text outline-none transition-colors focus:bg-wb-soft focus:ring-1 focus:ring-wb-accent"
+                                    className="h-7 min-w-0 rounded bg-wb-input px-2 text-[11px] font-semibold normal-case text-wb-text outline-none transition-colors focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
                                   />
                                 </label>
                               );
@@ -386,7 +386,7 @@ export function ControllerItemsBuilder({
                                         event.currentTarget.blur();
                                       }
                                     }}
-                                    className="h-7 min-w-0 rounded bg-wb-input px-2 text-[11px] font-semibold text-wb-text outline-none transition-colors focus:bg-wb-soft focus:ring-1 focus:ring-wb-accent"
+                                    className="h-7 min-w-0 rounded bg-wb-input px-2 text-[11px] font-semibold text-wb-text outline-none transition-colors focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
                                     aria-label={`${displayedItemLabel} option label`}
                                   />
                                   <input
@@ -403,7 +403,7 @@ export function ControllerItemsBuilder({
                                         event.currentTarget.blur();
                                       }
                                     }}
-                                    className="h-7 min-w-0 rounded bg-wb-input px-2 text-[11px] font-semibold text-wb-text outline-none transition-colors focus:bg-wb-soft focus:ring-1 focus:ring-wb-accent"
+                                    className="h-7 min-w-0 rounded bg-wb-input px-2 text-[11px] font-semibold text-wb-text outline-none transition-colors focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
 	                                    aria-label={`${displayedItemLabel} option value`}
 	                                  />
                                   <button

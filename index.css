@@ -119,6 +119,40 @@ body[data-workbench-theme="clinical"] {
   --wb-sash: #071312;
 }
 
+.workbench-root[data-workbench-theme="light"],
+body[data-workbench-theme="light"] {
+  --wb-app-bg: #f5f7fa;
+  --wb-header-bg: #ffffff;
+  --wb-panel-bg: #ffffff;
+  --wb-panel-bg-soft: #eef1f5;
+  --wb-zone-main-bg: #f5f7fa;
+  --wb-zone-aux-bg: #fbfcfe;
+  --wb-tab-strip-bg: transparent;
+  --wb-tab-active-bg: transparent;
+  --wb-tab-inactive-bg: transparent;
+  --wb-tab-hover-bg: rgba(15, 23, 42, 0.06);
+  --wb-hover-bg: rgba(15, 23, 42, 0.05);
+  --wb-active-bg: rgba(2, 132, 199, 0.10);
+  --wb-input-bg: rgba(15, 23, 42, 0.045);
+  --wb-border: rgba(15, 23, 42, 0.12);
+  --wb-border-strong: rgba(15, 23, 42, 0.24);
+  --wb-text: #0f172a;
+  --wb-text-muted: #475569;
+  --wb-text-subtle: #8a94a6;
+  --wb-accent: #0284c7;
+  --wb-accent-soft: rgba(2, 132, 199, 0.12);
+  --wb-primary: #2563eb;
+  --wb-primary-hover: #1d4ed8;
+  --wb-danger: #dc2626;
+  --wb-sash: #e2e8f0;
+}
+
+.workbench-root[data-workbench-theme="light"] .workbench-dockview.dockview-theme-dark {
+  color-scheme: light;
+  background: var(--wb-zone-aux-bg);
+  color: var(--wb-text);
+}
+
 .workbench-header {
   background: var(--wb-header-bg);
   border-bottom: 1px solid var(--wb-border);
@@ -388,6 +422,18 @@ body[data-workbench-theme="clinical"] {
 .workbench-dockview .dv-tab.dv-active-tab:focus-within::after {
   outline-color: transparent !important;
   outline-width: 0 !important;
+}
+
+.workbench-root input[type="range"]:focus-visible {
+  outline: none;
+}
+
+.workbench-root input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 1px var(--wb-accent);
+}
+
+.workbench-root input[type="range"]:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 1px var(--wb-accent);
 }
 
 .workbench-dockview .dv-split-view-container.dv-separator-border .dv-view:not(:first-child)::before {

@@ -98,7 +98,7 @@ export const DEFAULT_MODEL_LIMITATIONS = [
 ];
 export const WORKBENCH_THEME_STORAGE_KEY = 'hemosim.workbench.theme';
 export const DEFAULT_WORKBENCH_THEME: WorkbenchThemeId = 'midnight';
-export const WORKBENCH_THEMES = new Set<WorkbenchThemeId>(['midnight', 'graphite', 'clinical']);
+export const WORKBENCH_THEMES = new Set<WorkbenchThemeId>(['midnight', 'graphite', 'clinical', 'light']);
 export const LOCAL_COPY_AUTHOR = 'Local copy';
 export const EMPTY_NOTE_SPINE: NoteContent = [
   { type: 'paragraph', content: [{ type: 'text', text: '', styles: {} }] },

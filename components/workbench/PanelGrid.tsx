@@ -8,6 +8,7 @@ import WorkbenchMobile from './WorkbenchMobile';
 import { renderPaneBody } from './renderPaneBody';
 import { ControllerItemsBuilder } from './ControllerItemsBuilder';
 import { getScenarioPresetMenuPosition, ScenarioPane, ScenarioPresetMenu } from './ScenarioPane';
+import { WorkbenchEmptyState } from './WorkbenchEmptyState';
 import { Controls } from '../Controls';
 import { MetricsPanel } from '../Charts';
 import { type ClinicalKnobs } from '../../engine/knobs';
@@ -143,6 +144,8 @@ interface PanelGridProps {
 }
 
 type PanelChromeMode = 'desktop' | 'mobile' | 'dockview';
+
+const WB_FOCUS_RING = 'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent';
 
 export function getDockviewPaneTitle(panel: PanelDef): string {
   return panel.title;
@@ -452,7 +455,7 @@ function LegacyPanelSettingsControls({
           type="text"
           value={panel.title}
           onChange={(e) => updatePanelTitle(panel.id, e.target.value)}
-          className="w-full rounded border border-wb-line bg-wb-panel px-1.5 py-0.5 text-xs font-medium text-wb-text outline-none focus:border-wb-accent"
+          className="w-full rounded border border-wb-line bg-wb-panel px-1.5 py-0.5 text-xs font-medium text-wb-text outline-none focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
           placeholder={t('workbench.panelGrid.panelTitle')}
         />
       </div>
@@ -474,7 +477,7 @@ function LegacyPanelSettingsControls({
             <span>{t('workbench.panelGrid.windowSize')}</span>
             <span className="text-wb-accent">{(panel.timeWindow || 10000) / 1000}s</span>
           </div>
-          <input type="range" min={2000} max={20000} step={1000} value={panel.timeWindow || 10000} onChange={(e) => updateTimeWindow(panel.id, parseFloat(e.target.value))} className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-wb-panel accent-wb-accent" />
+          <input type="range" min={2000} max={20000} step={1000} value={panel.timeWindow || 10000} onChange={(e) => updateTimeWindow(panel.id, parseFloat(e.target.value))} className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-wb-panel accent-wb-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent" />
         </div>
       )}
       <div className="space-y-3">
@@ -485,7 +488,7 @@ function LegacyPanelSettingsControls({
               <div className="mb-1 flex items-center gap-2">
                 <input type="checkbox" className="flex-none cursor-pointer accent-wb-accent" checked={cfg?.visible || false} onChange={() => togglePaneMembership(panel.id, inst.id)} />
                 <input type="color" className="block h-[14px] w-[14px] flex-none cursor-pointer appearance-none rounded border-0 bg-transparent p-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded [&::-webkit-color-swatch]:border-none" value={cfg?.customBaseColor ?? inst.color} onChange={(e) => updatePanelInstanceColor(panel.id, inst.id, e.target.value)} />
-                <input type="text" className="w-full min-w-0 border-b border-transparent bg-transparent text-xs font-bold text-wb-muted outline-none focus:border-wb-accent" value={cfg?.customName ?? inst.name} onChange={(e) => updatePanelInstanceName(panel.id, inst.id, e.target.value)} placeholder={inst.name} />
+                <input type="text" className="w-full min-w-0 border-b border-transparent bg-transparent text-xs font-bold text-wb-muted outline-none focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent" value={cfg?.customName ?? inst.name} onChange={(e) => updatePanelInstanceName(panel.id, inst.id, e.target.value)} placeholder={inst.name} />
               </div>
               {cfg?.visible && (panel.type !== 'GUYTON_RIGHT' && panel.type !== 'GUYTON_LEFT') && (
                 <div className="grid grid-cols-1 gap-1 pl-5">
@@ -498,7 +501,7 @@ function LegacyPanelSettingsControls({
                           <input type="color" className="block h-3 w-3 flex-none cursor-pointer appearance-none rounded border-0 bg-transparent p-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded [&::-webkit-color-swatch]:border-none" value={cfg.customSignalColors?.[sig] || cfg.customBaseColor || inst.color} onChange={(e) => updatePanelSignalColor(panel.id, inst.id, sig, e.target.value)} />
                         )}
                         {isSelected ? (
-                          <input type="text" className="w-full min-w-0 border-b border-transparent bg-transparent text-[10px] font-medium text-wb-muted outline-none focus:border-wb-accent" value={cfg.customSignalNames?.[sig] || sig} onChange={(e) => updatePanelSignalName(panel.id, inst.id, sig, e.target.value)} placeholder={sig} />
+                          <input type="text" className="w-full min-w-0 border-b border-transparent bg-transparent text-[10px] font-medium text-wb-muted outline-none focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent" value={cfg.customSignalNames?.[sig] || sig} onChange={(e) => updatePanelSignalName(panel.id, inst.id, sig, e.target.value)} placeholder={sig} />
                         ) : (
                           <span className="flex-1 select-none truncate text-wb-subtle">{sig}</span>
                         )}
@@ -656,7 +659,7 @@ function GraphPanelSettingsBoard({
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-wb-text outline-none placeholder:text-wb-subtle"
+                className="min-w-0 flex-1 rounded bg-transparent text-xs font-semibold text-wb-text outline-none placeholder:text-wb-subtle focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
                 placeholder={t('workbench.panelGrid.searchSignals')}
               />
             </label>
@@ -679,7 +682,7 @@ function GraphPanelSettingsBoard({
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as SignalCategory)}
-                  className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-wb-text outline-none"
+                  className="min-w-0 flex-1 rounded bg-transparent text-xs font-semibold text-wb-text outline-none focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
                   aria-label={t('workbench.panelGrid.signalCategory')}
                 >
                   {visibleCategories.map((chip) => (
@@ -755,7 +758,7 @@ function GraphPanelSettingsBoard({
                 />
                 <input
                   type="text"
-                  className="min-w-0 flex-1 rounded border border-wb-line/70 bg-wb-input px-2 py-1 text-xs font-bold text-wb-text outline-none focus:border-wb-accent"
+                  className="min-w-0 flex-1 rounded border border-wb-line/70 bg-wb-input px-2 py-1 text-xs font-bold text-wb-text outline-none focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
                   value={cfg?.customName ?? inst.name}
                   onChange={(e) => updatePanelInstanceName(panel.id, inst.id, e.target.value)}
                   placeholder={inst.name}
@@ -785,7 +788,7 @@ function GraphPanelSettingsBoard({
             type="text"
             value={panel.title}
             onChange={(e) => updatePanelTitle(panel.id, e.target.value)}
-            className="h-9 w-full rounded border border-wb-line/70 bg-wb-input px-2 text-sm font-bold text-wb-text outline-none focus:border-wb-accent"
+            className="h-9 w-full rounded border border-wb-line/70 bg-wb-input px-2 text-sm font-bold text-wb-text outline-none focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
             placeholder={t('workbench.panelGrid.graph')}
           />
         </label>
@@ -831,7 +834,7 @@ function GraphPanelSettingsBoard({
                 step={1000}
                 value={panel.timeWindow || 10000}
                 onChange={(e) => updateTimeWindow(panel.id, parseFloat(e.target.value))}
-                className="mt-4 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-wb-active accent-wb-accent"
+                className="mt-4 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-wb-active accent-wb-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent"
               />
             </label>
           )}
@@ -909,7 +912,7 @@ function GraphPanelSettingsBoard({
               <span className="mb-1 block text-[11px] font-medium text-wb-subtle">{t('workbench.panelGrid.label')}</span>
               <input
                 type="text"
-                className="h-9 w-full rounded border border-wb-line/70 bg-wb-input px-2 text-xs font-semibold text-wb-text outline-none focus:border-wb-accent"
+                className="h-9 w-full rounded border border-wb-line/70 bg-wb-input px-2 text-xs font-semibold text-wb-text outline-none focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
                 value={displayName}
                 onChange={(e) => updatePanelSignalName(panel.id, activeInstance.id, focusedItem, e.target.value)}
                 placeholder={focusedItem}
@@ -1078,7 +1081,7 @@ function ControlPanelSettingsBoard({
             />
             <input
               type="text"
-              className="min-w-0 bg-transparent text-xs font-bold text-wb-text outline-none disabled:text-wb-subtle"
+              className="min-w-0 rounded bg-transparent text-xs font-bold text-wb-text outline-none disabled:text-wb-subtle focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
               value={cfg?.customName ?? inst.name}
               disabled={!cfg}
               onChange={(e) => updatePanelInstanceName(panel.id, inst.id, e.target.value)}
@@ -1141,7 +1144,7 @@ function ControlPanelSettingsBoard({
           type="text"
           value={panel.title}
           onChange={(e) => updatePanelTitle(panel.id, e.target.value)}
-          className="h-9 w-full rounded border border-wb-line/70 bg-wb-input px-2 text-sm font-bold text-wb-text outline-none focus:border-wb-accent"
+          className="h-9 w-full rounded border border-wb-line/70 bg-wb-input px-2 text-sm font-bold text-wb-text outline-none focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
           placeholder={t('workbench.panels.controls')}
         />
       </label>
@@ -1481,7 +1484,7 @@ function ViewSpecEditorModal({
             <input
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              className="h-9 rounded bg-wb-input px-2.5 text-sm font-semibold normal-case text-wb-text outline-none transition-colors focus:bg-wb-soft focus:ring-1 focus:ring-wb-accent"
+              className="h-9 rounded bg-wb-input px-2.5 text-sm font-semibold normal-case text-wb-text outline-none transition-colors focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
             />
           </label>
           {kind === 'controller' ? (
@@ -1500,7 +1503,7 @@ function ViewSpecEditorModal({
                     value={metricSearch}
                     onChange={(event) => setMetricSearch(event.target.value)}
                     placeholder={t('workbench.viewEditor.searchMetrics')}
-                    className="min-w-0 flex-1 bg-transparent text-xs font-medium text-wb-text outline-none placeholder:text-wb-subtle"
+                    className="min-w-0 flex-1 rounded bg-transparent text-xs font-medium text-wb-text outline-none placeholder:text-wb-subtle focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
                   />
                 </div>
                 <div className="space-y-1">
@@ -1625,6 +1628,34 @@ interface PanelCardProps {
   canConfigure?: boolean;
 }
 
+function NoteModeToggleButton({
+  noteMode,
+  onToggle,
+  t,
+  className = '',
+}: {
+  noteMode: 'read' | 'edit';
+  onToggle: () => void;
+  t: PanelGridT;
+  className?: string;
+}) {
+  const isEditing = noteMode === 'edit';
+  const label = isEditing ? t('workbench.panelGrid.switchToPreview') : t('workbench.panelGrid.switchToEdit');
+  const Icon = isEditing ? Eye : Pencil;
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={`inline-flex h-7 w-7 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING} ${className}`}
+      aria-label={label}
+      aria-pressed={isEditing}
+      title={label}
+    >
+      <Icon className="h-3.5 w-3.5" />
+    </button>
+  );
+}
+
 function PanelCard({
   panel,
   isEditor,
@@ -1686,23 +1717,16 @@ function PanelCard({
     : undefined;
   const changeLegendPosition = canOpenSettingsFromLegend ? updatePanelLegendPosition : undefined;
   const dockviewNoteModeSwitch = chromeMode === 'dockview' && panel.type === 'NOTE' && canConfigure ? (
-    <div className="flex shrink-0 items-center justify-end border-b border-wb-line bg-wb-strip px-2 py-1">
-      <div className="flex items-center rounded border border-wb-line bg-wb-panel p-0.5">
-        <button
-          type="button"
-          onClick={() => setNoteModes(prev => ({ ...prev, [panel.id]: 'read' }))}
-          className={`rounded px-2 py-0.5 text-[10px] font-bold transition-colors ${noteMode === 'read' ? 'bg-wb-active text-wb-text' : 'text-wb-subtle hover:text-wb-muted'}`}
-        >
-          {t('workbench.panelGrid.preview')}
-        </button>
-        <button
-          type="button"
-          onClick={() => setNoteModes(prev => ({ ...prev, [panel.id]: 'edit' }))}
-          className={`rounded px-2 py-0.5 text-[10px] font-bold transition-colors ${noteMode === 'edit' ? 'bg-wb-active text-wb-text' : 'text-wb-subtle hover:text-wb-muted'}`}
-        >
-          {t('common.edit')}
-        </button>
+    <div className="flex shrink-0 items-center justify-between border-b border-wb-line bg-wb-strip px-2 py-1">
+      <div className="inline-flex items-center gap-1 text-[11px] font-medium text-wb-subtle">
+        <FileText className="h-3.5 w-3.5" />
+        {t('workbench.panelGrid.note')}
       </div>
+      <NoteModeToggleButton
+        noteMode={noteMode}
+        onToggle={() => setNoteModes(prev => ({ ...prev, [panel.id]: noteMode === 'edit' ? 'read' : 'edit' }))}
+        t={t}
+      />
     </div>
   ) : null;
   const panelBody = (
@@ -1757,20 +1781,12 @@ function PanelCard({
           </span>
         </div>
         {panel.type === 'NOTE' && (
-          <div className="mr-2 flex items-center rounded border border-wb-line bg-wb-panel p-0.5">
-            <button
-              onClick={() => setNoteModes(prev => ({ ...prev, [panel.id]: 'read' }))}
-              className={`px-2 py-0.5 text-[10px] font-bold rounded transition-colors ${noteMode === 'read' ? 'bg-wb-active text-wb-text' : 'text-wb-subtle hover:text-wb-muted'}`}
-            >
-              {t('workbench.panelGrid.preview')}
-            </button>
-            <button
-              onClick={() => setNoteModes(prev => ({ ...prev, [panel.id]: 'edit' }))}
-              className={`px-2 py-0.5 text-[10px] font-bold rounded transition-colors ${noteMode === 'edit' ? 'bg-wb-active text-wb-text' : 'text-wb-subtle hover:text-wb-muted'}`}
-            >
-              {t('common.edit')}
-            </button>
-          </div>
+          <NoteModeToggleButton
+            noteMode={noteMode}
+            onToggle={() => setNoteModes(prev => ({ ...prev, [panel.id]: noteMode === 'edit' ? 'read' : 'edit' }))}
+            t={t}
+            className="mr-2 h-6 w-6"
+          />
         )}
         <div className={`flex items-center gap-1.5 transition-opacity ${panel.isSettingsOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
           <PanelSettingsButton
@@ -1834,7 +1850,7 @@ function ResizeSash({
       aria-valuemax={Math.round(max)}
       aria-valuenow={Math.round(clampedValue)}
       title={label}
-      className={`group flex shrink-0 items-center justify-center bg-wb-strip outline-none transition-colors hover:bg-wb-hover focus-visible:bg-wb-hover ${
+              className={`group flex shrink-0 items-center justify-center bg-wb-strip outline-none transition-colors hover:bg-wb-hover focus-visible:bg-wb-hover focus-visible:ring-1 focus-visible:ring-wb-accent ${
         isVertical ? 'cursor-col-resize' : 'cursor-row-resize'
       } ${className}`}
       style={style}
@@ -2215,22 +2231,11 @@ export function PanelGrid({
         <FileText className="h-3.5 w-3.5" />
         {t('workbench.panelGrid.note')}
       </div>
-      <div className="flex items-center rounded border border-wb-line bg-wb-panel p-0.5">
-        <button
-          type="button"
-          onClick={() => setNoteModes(prev => ({ ...prev, [notePanel.id]: 'read' }))}
-          className={`rounded px-2 py-0.5 text-[10px] font-bold transition-colors ${noteMode === 'read' ? 'bg-wb-active text-wb-text' : 'text-wb-subtle hover:text-wb-muted'}`}
-        >
-          {t('workbench.panelGrid.preview')}
-        </button>
-        <button
-          type="button"
-          onClick={() => setNoteModes(prev => ({ ...prev, [notePanel.id]: 'edit' }))}
-          className={`rounded px-2 py-0.5 text-[10px] font-bold transition-colors ${noteMode === 'edit' ? 'bg-wb-active text-wb-text' : 'text-wb-subtle hover:text-wb-muted'}`}
-        >
-          {t('common.edit')}
-        </button>
-      </div>
+      <NoteModeToggleButton
+        noteMode={noteMode}
+        onToggle={() => setNoteModes(prev => ({ ...prev, [notePanel.id]: noteMode === 'edit' ? 'read' : 'edit' }))}
+        t={t}
+      />
     </div>
   ) : null;
 
@@ -2426,7 +2431,7 @@ export function PanelGrid({
                   <button
                     type="button"
                     onClick={() => onLayoutStateChange((prev) => ({ ...prev, scenarioListCollapsed: !prev.scenarioListCollapsed }))}
-                    className="flex h-full min-w-0 flex-1 items-center gap-2 text-left"
+                    className={`flex h-full min-w-0 flex-1 items-center gap-2 text-left ${WB_FOCUS_RING}`}
                     aria-expanded={!layoutState.scenarioListCollapsed}
                   >
                     {layoutState.scenarioListCollapsed ? <ChevronRight className="h-3.5 w-3.5 text-wb-subtle" /> : <ChevronDown className="h-3.5 w-3.5 text-wb-subtle" />}
@@ -2435,7 +2440,7 @@ export function PanelGrid({
                   <button
                     type="button"
                     onClick={openScenarioAddMenu}
-                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-wb-subtle opacity-70 transition-colors hover:bg-wb-hover hover:text-wb-text group-hover:opacity-100"
+                    className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-wb-subtle opacity-70 transition-colors hover:bg-wb-hover hover:text-wb-text group-hover:opacity-100 ${WB_FOCUS_RING}`}
                     title={t('workbench.scenarioPane.addScenario')}
                     aria-label={t('workbench.scenarioPane.addScenario')}
                   >
@@ -2498,7 +2503,7 @@ export function PanelGrid({
                   <button
                     type="button"
                     onClick={() => setOpenControllerMenu((open) => !open)}
-                    className="inline-flex min-w-0 flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left text-xs font-bold text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text"
+                    className={`inline-flex min-w-0 flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left text-xs font-bold text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`}
                     aria-expanded={openControllerMenu}
                   >
                     <span className="min-w-0 truncate">
@@ -2510,7 +2515,7 @@ export function PanelGrid({
                     <button
                       type="button"
                       onClick={() => setViewEditor({ mode: 'edit', view: selectedControllerView })}
-                      className="ml-auto inline-flex min-w-0 cursor-pointer items-center gap-1.5 rounded border border-wb-line bg-wb-panel px-2 py-0.5 text-[10px] font-semibold text-wb-muted transition-colors hover:border-wb-line-strong hover:bg-wb-hover hover:text-wb-text"
+                      className={`ml-auto inline-flex min-w-0 cursor-pointer items-center gap-1.5 rounded border border-wb-line bg-wb-panel px-2 py-0.5 text-[10px] font-semibold text-wb-muted transition-colors hover:border-wb-line-strong hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`}
                       title={t('common.edit')}
                     >
                       {t('workbench.panelGrid.editingScenario')}
@@ -2521,9 +2526,26 @@ export function PanelGrid({
                   {openControllerMenu && (
                     <div className="absolute left-2 right-2 top-10 z-40 rounded border border-wb-line bg-wb-panel p-1 shadow-2xl">
                       {authoredControllerViews.length === 0 && (
-                        <div className="px-2 py-2 text-xs text-wb-subtle">
-                          {t('workbench.viewManagement.controllerEmptyHint')}
-                        </div>
+                        <WorkbenchEmptyState
+                          description={t('workbench.viewManagement.controllerEmptyHint')}
+                          primaryAction={{
+                            label: t('workbench.viewManagement.newController'),
+                            onClick: () => {
+                              setOpenControllerMenu(false);
+                              setViewEditor({ mode: 'create', kind: 'controller' });
+                            },
+                            icon: <Plus className="h-3.5 w-3.5" />,
+                          }}
+                          secondaryAction={{
+                            label: t('workbench.viewManagement.restoreStandard'),
+                            onClick: () => {
+                              restoreStandardViews();
+                              setOpenControllerMenu(false);
+                            },
+                            icon: <RotateCcw className="h-3.5 w-3.5" />,
+                          }}
+                          className="py-2"
+                        />
                       )}
 	                      {authoredControllerViews.map((view) => {
 	                        const isRenaming = renamingViewId === view.id;
@@ -2548,7 +2570,7 @@ export function PanelGrid({
 	                                    cancelRenameView();
 	                                  }
 	                                }}
-	                                className="h-6 min-w-0 flex-1 rounded border border-wb-accent bg-wb-input px-1.5 text-xs font-semibold text-wb-text outline-none"
+	                                className="h-6 min-w-0 flex-1 rounded border border-wb-accent bg-wb-input px-1.5 text-xs font-semibold text-wb-text outline-none focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
 	                                aria-label={t('workbench.viewManagement.rename')}
 	                              />
 	                            ) : (
@@ -2556,21 +2578,21 @@ export function PanelGrid({
 	                                type="button"
 	                                onClick={() => selectControllerEntry(view.id)}
 	                                onDoubleClick={() => beginRenameView(view)}
-	                                className={`min-w-0 flex-1 truncate text-left text-xs font-semibold ${selectedControllerEntryId === view.id ? 'text-wb-text' : 'text-wb-muted group-hover:text-wb-text'}`}
+	                                className={`min-w-0 flex-1 truncate rounded text-left text-xs font-semibold ${WB_FOCUS_RING} ${selectedControllerEntryId === view.id ? 'text-wb-text' : 'text-wb-muted group-hover:text-wb-text'}`}
 	                              >
 	                                {view.title}
 	                              </button>
 	                            )}
-	                            <button type="button" onClick={() => setViewEditor({ mode: 'edit', view })} className="inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text" aria-label={t('common.edit')}>
+	                            <button type="button" onClick={() => setViewEditor({ mode: 'edit', view })} className={`inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`} aria-label={t('common.edit')}>
 	                              <Pencil className="h-3.5 w-3.5" />
 	                            </button>
-	                            <button type="button" onClick={() => beginRenameView(view)} className="inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text" aria-label={t('workbench.viewManagement.rename')}>
+	                            <button type="button" onClick={() => beginRenameView(view)} className={`inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`} aria-label={t('workbench.viewManagement.rename')}>
 	                              <TypeIcon className="h-3.5 w-3.5" />
 	                            </button>
-	                            <button type="button" onClick={() => duplicateView(view)} className="inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text" aria-label={t('workbench.viewManagement.duplicate')}>
+	                            <button type="button" onClick={() => duplicateView(view)} className={`inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`} aria-label={t('workbench.viewManagement.duplicate')}>
 	                              <Copy className="h-3.5 w-3.5" />
 	                            </button>
-	                            <button type="button" onClick={() => deleteView(view)} className="inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-danger" aria-label={t('common.delete')}>
+	                            <button type="button" onClick={() => deleteView(view)} className={`inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-danger ${WB_FOCUS_RING}`} aria-label={t('common.delete')}>
 	                              <Trash2 className="h-3.5 w-3.5" />
 	                            </button>
 	                          </div>
@@ -2583,7 +2605,7 @@ export function PanelGrid({
                             setOpenControllerMenu(false);
                             setViewEditor({ mode: 'create', kind: 'controller' });
                           }}
-                          className="flex h-8 items-center justify-center gap-2 rounded border border-wb-line px-2 text-xs font-bold text-wb-text transition-colors hover:border-wb-line-strong hover:bg-wb-hover"
+                          className={`flex h-8 items-center justify-center gap-2 rounded border border-wb-line px-2 text-xs font-bold text-wb-text transition-colors hover:border-wb-line-strong hover:bg-wb-hover ${WB_FOCUS_RING}`}
                         >
                           <Plus className="h-3.5 w-3.5" />
                           <span className="truncate">{t('workbench.viewManagement.newController')}</span>
@@ -2594,7 +2616,7 @@ export function PanelGrid({
                             restoreStandardViews();
                             setOpenControllerMenu(false);
                           }}
-                          className="flex h-8 items-center justify-center gap-2 rounded border border-wb-line px-2 text-xs font-semibold text-wb-muted transition-colors hover:border-wb-line-strong hover:bg-wb-hover hover:text-wb-text"
+                          className={`flex h-8 items-center justify-center gap-2 rounded border border-wb-line px-2 text-xs font-semibold text-wb-muted transition-colors hover:border-wb-line-strong hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`}
                         >
                           <RotateCcw className="h-3.5 w-3.5" />
                           <span className="truncate">{t('workbench.viewManagement.restoreStandard')}</span>
@@ -2618,27 +2640,19 @@ export function PanelGrid({
                       controllerItems={selectedControllerView.items}
                     />
                   ) : (
-                    <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-                      <p className="text-xs font-semibold text-wb-muted">{t('workbench.viewManagement.controllerEmptyHint')}</p>
-                      <div className="flex flex-wrap justify-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setViewEditor({ mode: 'create', kind: 'controller' })}
-                          className="inline-flex h-8 items-center gap-2 rounded border border-wb-line px-2.5 text-xs font-bold text-wb-text transition-colors hover:bg-wb-hover"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                          {t('workbench.viewManagement.newController')}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={restoreStandardViews}
-                          className="inline-flex h-8 items-center gap-2 rounded border border-wb-line px-2.5 text-xs font-semibold text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text"
-                        >
-                          <RotateCcw className="h-3.5 w-3.5" />
-                          {t('workbench.viewManagement.restoreStandard')}
-                        </button>
-                      </div>
-                    </div>
+                    <WorkbenchEmptyState
+                      description={t('workbench.viewManagement.controllerEmptyHint')}
+                      primaryAction={{
+                        label: t('workbench.viewManagement.newController'),
+                        onClick: () => setViewEditor({ mode: 'create', kind: 'controller' }),
+                        icon: <Plus className="h-3.5 w-3.5" />,
+                      }}
+                      secondaryAction={{
+                        label: t('workbench.viewManagement.restoreStandard'),
+                        onClick: restoreStandardViews,
+                        icon: <RotateCcw className="h-3.5 w-3.5" />,
+                      }}
+                    />
                   )}
                 </div>
               </div>
@@ -2696,7 +2710,7 @@ export function PanelGrid({
 	                              cancelRenameView();
 	                            }
 	                          }}
-	                          className="h-7 min-w-28 rounded border border-wb-accent bg-wb-input px-2 text-xs font-bold text-wb-text outline-none"
+	                          className="h-7 min-w-28 rounded border border-wb-accent bg-wb-input px-2 text-xs font-bold text-wb-text outline-none focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
 	                          aria-label={t('workbench.viewManagement.rename')}
 	                        />
 	                      ) : (
@@ -2708,7 +2722,7 @@ export function PanelGrid({
 	                            event.preventDefault();
 	                            setMetricsMenuViewId((current) => current === tab.id ? null : tab.id);
 	                          }}
-	                          className={`inline-flex h-7 shrink-0 items-center rounded px-2 text-xs font-bold transition-colors ${
+	                          className={`inline-flex h-7 shrink-0 items-center rounded px-2 text-xs font-bold transition-colors ${WB_FOCUS_RING} ${
 	                            activeMetricsTab?.id === tab.id
 	                              ? 'bg-wb-active text-wb-text'
 	                              : 'text-wb-subtle hover:bg-wb-hover hover:text-wb-muted'
@@ -2721,7 +2735,7 @@ export function PanelGrid({
                       <button
                         type="button"
                         onClick={() => setMetricsMenuViewId((current) => current === tab.id ? null : tab.id)}
-                        className="workbench-metrics-tab-menu-button ml-0.5 inline-flex h-7 w-7 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text"
+                        className={`workbench-metrics-tab-menu-button ml-0.5 inline-flex h-7 w-7 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`}
                         aria-label={t('workbench.viewManagement.metricsMenu')}
                         aria-expanded={metricsMenuViewId === tab.id}
                       >
@@ -2730,16 +2744,16 @@ export function PanelGrid({
                     )}
                     {metricsMenuViewId === tab.id && (
                       <div className="absolute left-0 top-8 z-40 w-36 rounded border border-wb-line bg-wb-panel p-1 shadow-2xl">
-                        <button type="button" onClick={() => { setViewEditor({ mode: 'edit', view: tab.view }); setMetricsMenuViewId(null); }} className="flex h-8 w-full items-center gap-2 rounded px-2 text-xs font-semibold text-wb-muted hover:bg-wb-hover hover:text-wb-text">
+                        <button type="button" onClick={() => { setViewEditor({ mode: 'edit', view: tab.view }); setMetricsMenuViewId(null); }} className={`flex h-8 w-full items-center gap-2 rounded px-2 text-xs font-semibold text-wb-muted hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`}>
                           <Pencil className="h-3.5 w-3.5" /> {t('common.edit')}
                         </button>
-                        <button type="button" onClick={() => { beginRenameView(tab.view); setMetricsMenuViewId(null); }} className="flex h-8 w-full items-center gap-2 rounded px-2 text-xs font-semibold text-wb-muted hover:bg-wb-hover hover:text-wb-text">
+                        <button type="button" onClick={() => { beginRenameView(tab.view); setMetricsMenuViewId(null); }} className={`flex h-8 w-full items-center gap-2 rounded px-2 text-xs font-semibold text-wb-muted hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`}>
                           <TypeIcon className="h-3.5 w-3.5" /> {t('workbench.viewManagement.rename')}
                         </button>
-                        <button type="button" onClick={() => { duplicateView(tab.view); setMetricsMenuViewId(null); }} className="flex h-8 w-full items-center gap-2 rounded px-2 text-xs font-semibold text-wb-muted hover:bg-wb-hover hover:text-wb-text">
+                        <button type="button" onClick={() => { duplicateView(tab.view); setMetricsMenuViewId(null); }} className={`flex h-8 w-full items-center gap-2 rounded px-2 text-xs font-semibold text-wb-muted hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`}>
                           <Copy className="h-3.5 w-3.5" /> {t('workbench.viewManagement.duplicate')}
                         </button>
-                        <button type="button" onClick={() => { deleteView(tab.view); setMetricsMenuViewId(null); }} className="flex h-8 w-full items-center gap-2 rounded px-2 text-xs font-semibold text-red-200 hover:bg-red-500/10">
+                        <button type="button" onClick={() => { deleteView(tab.view); setMetricsMenuViewId(null); }} className={`flex h-8 w-full items-center gap-2 rounded px-2 text-xs font-semibold text-wb-danger hover:bg-wb-hover ${WB_FOCUS_RING}`}>
                           <Trash2 className="h-3.5 w-3.5" /> {t('common.delete')}
                         </button>
                       </div>
@@ -2750,7 +2764,7 @@ export function PanelGrid({
                 <button
                   type="button"
                   onClick={() => setViewEditor({ mode: 'create', kind: 'metrics' })}
-                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border border-wb-line text-wb-muted transition-colors hover:border-wb-line-strong hover:bg-wb-hover hover:text-wb-text"
+                  className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border border-wb-line text-wb-muted transition-colors hover:border-wb-line-strong hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`}
                   aria-label={t('workbench.viewManagement.newMetrics')}
                   title={t('workbench.viewManagement.newMetrics')}
                 >
@@ -2759,7 +2773,7 @@ export function PanelGrid({
                 <button
                   type="button"
                   onClick={restoreStandardViews}
-                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border border-wb-line text-wb-subtle transition-colors hover:border-wb-line-strong hover:bg-wb-hover hover:text-wb-text"
+                  className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border border-wb-line text-wb-subtle transition-colors hover:border-wb-line-strong hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`}
                   aria-label={t('workbench.viewManagement.restoreStandard')}
                   title={t('workbench.viewManagement.restoreStandard')}
                 >
@@ -2774,27 +2788,15 @@ export function PanelGrid({
                     config={effectiveGlobalConfig(metricsViewConfig(activeMetricsTab.view, instances), instances)}
                   />
                 ) : (
-                  <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-                    <p className="text-xs font-semibold text-wb-muted">{t('workbench.viewManagement.metricsEmptyHint')}</p>
-                    <div className="flex flex-wrap justify-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setViewEditor({ mode: 'create', kind: 'metrics' })}
-                        className="inline-flex h-8 items-center gap-2 rounded border border-wb-line px-2.5 text-xs font-bold text-wb-text transition-colors hover:bg-wb-hover"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        {t('workbench.viewManagement.newMetrics')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={restoreStandardViews}
-                        className="inline-flex h-8 items-center gap-2 rounded border border-wb-line px-2.5 text-xs font-semibold text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text"
-                      >
-                        <RotateCcw className="h-3.5 w-3.5" />
-                        {t('workbench.viewManagement.restoreStandard')}
-                      </button>
-                    </div>
-                  </div>
+                  <WorkbenchEmptyState
+                    description={t('workbench.viewManagement.metricsEmptyHint')}
+                    primaryAction={{
+                      label: t('workbench.viewManagement.newMetricsShort'),
+                      onClick: () => setViewEditor({ mode: 'create', kind: 'metrics' }),
+                      icon: <Plus className="h-3.5 w-3.5" />,
+                      ariaLabel: t('workbench.viewManagement.newMetrics'),
+                    }}
+                  />
                 )}
               </div>
             </section>

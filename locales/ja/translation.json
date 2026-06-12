@@ -299,6 +299,7 @@
       "standardControllerTitle": "臨床パラメータ（標準）",
       "newController": "新規コントローラー",
       "newMetrics": "新規指標ビュー",
+      "newMetricsShort": "新規指標",
       "restoreStandard": "標準セットを復元",
       "noControllerViews": "コントローラービューなし",
       "controllerEmptyHint": "このドキュメントにはコントローラービューがありません。",
@@ -412,7 +413,8 @@
       "themes": {
         "midnight": "ミッドナイト",
         "graphite": "グラファイト",
-        "clinical": "クリニカル"
+        "clinical": "クリニカル",
+        "light": "ライト"
       }
     },
     "scenarioPane": {
@@ -485,6 +487,8 @@
         "noteDrawer": "ノートドロワー",
         "metricsHost": "指標ホスト",
         "note": "ノート",
+        "switchToPreview": "プレビューに切り替え",
+        "switchToEdit": "編集に切り替え",
         "railAria": "シナリオレール",
         "scenariosCount_one": "シナリオ（{{count}}）",
         "scenariosCount_other": "シナリオ（{{count}}）",
@@ -642,6 +646,7 @@
       "splitDown": "下に分割",
       "closePane": "ペインを閉じる",
       "addPaneAria": "{{zone}}ペインを追加",
+      "addPane": "ペインを追加",
       "noPanels": "パネルがありません"
     }
   },

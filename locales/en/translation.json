@@ -299,6 +299,7 @@
       "standardControllerTitle": "Clinical parameters (standard)",
       "newController": "New controller",
       "newMetrics": "New metrics view",
+      "newMetricsShort": "New metrics",
       "restoreStandard": "Restore standard views",
       "noControllerViews": "No controller views",
       "controllerEmptyHint": "No controller views in this document.",
@@ -412,7 +413,8 @@
       "themes": {
         "midnight": "Midnight",
         "graphite": "Graphite",
-        "clinical": "Clinical"
+        "clinical": "Clinical",
+        "light": "Light"
       }
     },
     "scenarioPane": {
@@ -485,6 +487,8 @@
         "noteDrawer": "Note drawer",
         "metricsHost": "Metrics host",
         "note": "Note",
+        "switchToPreview": "Switch to preview",
+        "switchToEdit": "Switch to edit",
         "railAria": "Scenario rail",
         "scenariosCount_one": "Scenarios ({{count}})",
         "scenariosCount_other": "Scenarios ({{count}})",
@@ -642,6 +646,7 @@
       "splitDown": "Split down",
       "closePane": "Close pane",
       "addPaneAria": "Add {{zone}} pane",
+      "addPane": "Add pane",
       "noPanels": "No panels"
     }
   },

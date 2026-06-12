@@ -259,6 +259,40 @@ const firstSampleIndexAtOrAfter = (buf: SimSample[], t: number): number => {
 
 type CanvasPoint = { x: number; y: number };
 
+const CHART_PLOT_PADDING = {
+    left: 48,
+    right: 16,
+    top: 24,
+    bottom: 32,
+};
+
+type CanvasThemeColors = {
+    background: string;
+    grid: string;
+    tick: string;
+    label: string;
+    shade: string;
+};
+
+const cssVar = (style: CSSStyleDeclaration, name: string, fallback: string): string => {
+    const value = style.getPropertyValue(name).trim();
+    return value || fallback;
+};
+
+const canvasThemeColors = (container: HTMLElement | null): CanvasThemeColors => {
+    if (!container || typeof getComputedStyle === 'undefined') {
+        return { background: '#08111f', grid: '#334155', tick: '#64748b', label: '#94a3b8', shade: 'rgba(56, 189, 248, 0.16)' };
+    }
+    const style = getComputedStyle(container);
+    return {
+        background: cssVar(style, '--wb-app-bg', '#08111f'),
+        grid: cssVar(style, '--wb-border', '#334155'),
+        tick: cssVar(style, '--wb-text-subtle', '#64748b'),
+        label: cssVar(style, '--wb-text-muted', '#94a3b8'),
+        shade: cssVar(style, '--wb-accent-soft', 'rgba(56, 189, 248, 0.16)'),
+    };
+};
+
 const chartInstanceKey = (instances: SimInstance[]): string => (
     instances
         .map((inst) => `${inst.id}:${inst.name}:${inst.color}:${inst.isVisible !== false}`)
@@ -715,8 +749,15 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
         animationFrameId = requestAnimationFrame(render);
         return;
       }
-      const xScale = d3.scaleLinear().domain([0, 300]).range([50, width - 15]);
-      const yScale = d3.scaleLinear().domain([0, 200]).range([height - 35, 25]);
+      const plot = {
+          left: CHART_PLOT_PADDING.left,
+          right: Math.max(CHART_PLOT_PADDING.left + 1, width - CHART_PLOT_PADDING.right),
+          top: CHART_PLOT_PADDING.top,
+          bottom: Math.max(CHART_PLOT_PADDING.top + 1, height - CHART_PLOT_PADDING.bottom),
+      };
+      const colors = canvasThemeColors(containerRef.current);
+      const xScale = d3.scaleLinear().domain([0, 300]).range([plot.left, plot.right]);
+      const yScale = d3.scaleLinear().domain([0, 200]).range([plot.bottom, plot.top]);
 
       ctx.clearRect(0, 0, width, height);
 
@@ -787,29 +828,32 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
           scaleRef.current.maxP = rp.max;
       }
 
-      xScale.domain([0, scaleRef.current.maxV]).range([50, width - 15]);
-      yScale.domain([0, scaleRef.current.maxP]).range([height - 35, 10]);
+      xScale.domain([0, scaleRef.current.maxV]).range([plot.left, plot.right]);
+      yScale.domain([0, scaleRef.current.maxP]).range([plot.bottom, plot.top]);
 
-      ctx.strokeStyle = '#334155';
+      ctx.strokeStyle = colors.grid;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      xScale.ticks(6).forEach(t => { ctx.moveTo(xScale(t), height-35); ctx.lineTo(xScale(t), 10); });
-      yScale.ticks(6).forEach(t => { ctx.moveTo(50, yScale(t)); ctx.lineTo(width-15, yScale(t)); });
+      xScale.ticks(6).forEach(t => { ctx.moveTo(xScale(t), plot.bottom); ctx.lineTo(xScale(t), plot.top); });
+      yScale.ticks(6).forEach(t => { ctx.moveTo(plot.left, yScale(t)); ctx.lineTo(plot.right, yScale(t)); });
       ctx.stroke();
 
-      ctx.fillStyle = '#94a3b8';
+      ctx.fillStyle = colors.tick;
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'center';
-      xScale.ticks(6).forEach(t => ctx.fillText(t.toString(), xScale(t), height - 20));
+      ctx.textBaseline = 'top';
+      xScale.ticks(6).forEach(t => ctx.fillText(t.toString(), xScale(t), plot.bottom + 7));
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
-      yScale.ticks(6).forEach(t => ctx.fillText(t.toString(), 42, yScale(t)));
+      yScale.ticks(6).forEach(t => ctx.fillText(t.toString(), plot.left - 8, yScale(t)));
 
+      ctx.fillStyle = colors.label;
       ctx.font = '11px sans-serif';
       ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
       ctx.fillText("Volume (mL)", width / 2, height - 4);
       ctx.save();
-      ctx.translate(15, height / 2);
+      ctx.translate(14, height / 2);
       ctx.rotate(-Math.PI / 2);
       ctx.fillText("Pressure (mmHg)", 0, 0);
       ctx.restore();
@@ -1103,24 +1147,31 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                 scaleRef.current.yMax = r.max;
             }
 
-            const xScale = d3.scaleLinear().domain([0, timeSec]).range([30, width - 5]);
-            const yScale = d3.scaleLinear().domain([scaleRef.current.yMin, scaleRef.current.yMax]).range([height - 25, 10]);
+            const plot = {
+                left: CHART_PLOT_PADDING.left,
+                right: Math.max(CHART_PLOT_PADDING.left + 1, width - CHART_PLOT_PADDING.right),
+                top: CHART_PLOT_PADDING.top,
+                bottom: Math.max(CHART_PLOT_PADDING.top + 1, height - CHART_PLOT_PADDING.bottom),
+            };
+            const colors = canvasThemeColors(containerRef.current);
+            const xScale = d3.scaleLinear().domain([0, timeSec]).range([plot.left, plot.right]);
+            const yScale = d3.scaleLinear().domain([scaleRef.current.yMin, scaleRef.current.yMax]).range([plot.bottom, plot.top]);
 
-            ctx.strokeStyle = '#334155';
+            ctx.strokeStyle = colors.grid;
             ctx.lineWidth = 1;
             ctx.beginPath();
-            yScale.ticks(4).forEach(t => { ctx.moveTo(30, yScale(t)); ctx.lineTo(width-5, yScale(t)); });
+            yScale.ticks(4).forEach(t => { ctx.moveTo(plot.left, yScale(t)); ctx.lineTo(plot.right, yScale(t)); });
             ctx.stroke();
 
-            ctx.fillStyle = '#94a3b8';
+            ctx.fillStyle = colors.tick;
             ctx.font = '10px sans-serif';
             ctx.textAlign = 'right';
             ctx.textBaseline = 'middle';
-            yScale.ticks(4).forEach(t => ctx.fillText(t.toString(), 28, yScale(t)));
+            yScale.ticks(4).forEach(t => ctx.fillText(t.toString(), plot.left - 8, yScale(t)));
 
             ctx.textAlign = 'left';
             ctx.textBaseline = 'top';
-            xScale.ticks(5).forEach(t => ctx.fillText(t.toFixed(1) + 's', xScale(t) + 2, height - 20));
+            xScale.ticks(5).forEach(t => ctx.fillText(t.toFixed(1) + 's', xScale(t) + 2, plot.bottom + 7));
 
             instances.forEach(inst => {
                 const cfg = (config as any)[inst.id];
@@ -1579,7 +1630,7 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
         canvas.style.width = `${width}px`;
         canvas.style.height = `${height}px`;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        drawGuytonCanvas(ctx, width, height, series, side);
+        drawGuytonCanvas(ctx, width, height, series, side, canvasThemeColors(containerRef.current));
     }, [canAnimate, series, side]);
 
     const hasRenderableMap = series.some((item) => item.current || item.preview || item.ghost);
@@ -1594,7 +1645,7 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
     const calibrationDetail = series.map((item) => item.calibrationDetail).find(Boolean);
 
     return (
-        <div ref={containerRef} className="absolute inset-0 bg-[#0B1120] rounded-b-xl overflow-hidden">
+        <div ref={containerRef} className="absolute inset-0 rounded-b-xl bg-wb-app overflow-hidden">
             <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
             {visibleInstances.length > 0 && (chrome.showSpinner || chrome.hasWarnings || calibrationDetail) && (
                 <div className="absolute right-3 top-2 flex items-center gap-1.5 pointer-events-auto">
@@ -1690,9 +1741,10 @@ function drawGuytonCanvas(
     height: number,
     series: GuytonSeries[],
     side: GuytonSide,
+    colors: CanvasThemeColors,
 ) {
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = '#0B1120';
+    ctx.fillStyle = colors.background;
     ctx.fillRect(0, 0, width, height);
 
     const plot = {
@@ -1722,18 +1774,18 @@ function drawGuytonCanvas(
     const first = series.find((item) => item.current || item.preview || item.ghost);
     const firstPane = first?.current?.pane ?? first?.preview?.pane ?? first?.ghost?.pane;
     if (firstPane && firstPane.collapsePressure > xAxis.min && firstPane.collapsePressure < xAxis.max) {
-        ctx.fillStyle = 'rgba(51, 65, 85, 0.24)';
+        ctx.fillStyle = colors.shade;
         ctx.fillRect(plot.left, plot.top, x(firstPane.collapsePressure) - plot.left, plot.bottom - plot.top);
     }
 
-    ctx.strokeStyle = '#243244';
+    ctx.strokeStyle = colors.grid;
     ctx.lineWidth = 1;
     ctx.beginPath();
     x.ticks(7).forEach((t) => { ctx.moveTo(x(t), plot.top); ctx.lineTo(x(t), plot.bottom); });
     y.ticks(6).forEach((t) => { ctx.moveTo(plot.left, y(t)); ctx.lineTo(plot.right, y(t)); });
     ctx.stroke();
 
-    ctx.strokeStyle = '#475569';
+    ctx.strokeStyle = colors.tick;
     ctx.beginPath();
     ctx.moveTo(plot.left, plot.bottom);
     ctx.lineTo(plot.right, plot.bottom);
@@ -1741,7 +1793,7 @@ function drawGuytonCanvas(
     ctx.lineTo(plot.left, plot.bottom);
     ctx.stroke();
 
-    ctx.fillStyle = '#94a3b8';
+    ctx.fillStyle = colors.tick;
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
@@ -1753,6 +1805,7 @@ function drawGuytonCanvas(
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.font = '11px sans-serif';
+    ctx.fillStyle = colors.label;
     ctx.fillText(side === 'right' ? 'RAP / CVP (mmHg)' : 'LAP / PCWP (mmHg)', (plot.left + plot.right) / 2, height - 34);
     ctx.save();
     ctx.translate(14, (plot.top + plot.bottom) / 2);

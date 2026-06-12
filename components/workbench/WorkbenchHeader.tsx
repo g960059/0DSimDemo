@@ -306,18 +306,18 @@ export function WorkbenchHeader({
             <div className="space-y-4 p-5">
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-wb-muted">{t('common.title')}</span>
-                <input value={draftMeta.title} onChange={(e) => setDraftMeta((prev) => ({ ...prev, title: e.target.value }))} className="w-full rounded border border-wb-line bg-wb-input px-3 py-2 text-sm text-wb-text outline-none focus:border-wb-accent" />
+                <input value={draftMeta.title} onChange={(e) => setDraftMeta((prev) => ({ ...prev, title: e.target.value }))} className="w-full rounded border border-wb-line bg-wb-input px-3 py-2 text-sm text-wb-text outline-none focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent" />
               </label>
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-wb-muted">{t('common.description')}</span>
-                <textarea value={draftMeta.description} onChange={(e) => setDraftMeta((prev) => ({ ...prev, description: e.target.value }))} className="h-24 w-full rounded border border-wb-line bg-wb-input px-3 py-2 text-sm text-wb-text outline-none focus:border-wb-accent" />
+                <textarea value={draftMeta.description} onChange={(e) => setDraftMeta((prev) => ({ ...prev, description: e.target.value }))} className="h-24 w-full rounded border border-wb-line bg-wb-input px-3 py-2 text-sm text-wb-text outline-none focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent" />
               </label>
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-wb-muted">{t('modelLimitations.titleShort')}</span>
                 <textarea
                   value={draftMeta.modelLimitations.join('\n')}
                   onChange={(e) => setDraftMeta((prev) => ({ ...prev, modelLimitations: e.target.value.split('\n') }))}
-                  className="h-28 w-full rounded border border-wb-line bg-wb-input px-3 py-2 text-sm text-wb-text outline-none focus:border-wb-accent"
+                  className="h-28 w-full rounded border border-wb-line bg-wb-input px-3 py-2 text-sm text-wb-text outline-none focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
                 />
               </label>
             </div>
