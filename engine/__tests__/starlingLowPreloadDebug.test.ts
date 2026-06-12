@@ -51,11 +51,14 @@ describe("low-preload Starling debug diagnostics", () => {
       expect(Number.isFinite(t?.dLogCompositeActive_dLambdaAct)).toBe(true);
       expect(Number.isFinite(t?.lambdaActMinusRaw)).toBe(true);
       expect(Number.isFinite(t?.dLogCompositeActive_dLambda)).toBe(true);
-      expect(["none", "aInfCap", "activeReserveCap"]).toContain(t?.lowStretchLimiter);
+      expect(["none", "aInfCap", "activeReserveCap", "fIsoSlopeRelax"]).toContain(t?.lowStretchLimiter);
       expect(Number.isFinite(t?.lowStretchLimiterGate)).toBe(true);
       expect(Number.isFinite(t?.aInfRaw)).toBe(true);
       expect(Number.isFinite(t?.aInfCap)).toBe(true);
       expect(Number.isFinite(t?.aInfLimiterDelta)).toBe(true);
+      expect(Number.isFinite(t?.fIsoRaw)).toBe(true);
+      expect(Number.isFinite(t?.fIsoLimiter)).toBe(true);
+      expect(Number.isFinite(t?.fIsoLimiterDelta)).toBe(true);
       expect(Number.isFinite(t?.activeTargetLimiter)).toBe(true);
       expect(Number.isFinite(t?.sigmaActTargetRaw)).toBe(true);
     }
@@ -96,7 +99,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(Object.keys(diagnostics.tbvProjectionLastStep.byNodeAbsMl).length).toBeGreaterThan(0);
   });
 
-  it("builds a schema-v18 low-preload report with active, valve, clamp, TBV audit, return-map, filling morphology, and tau/dt fields", () => {
+  it("builds a schema-v19 low-preload report with active, valve, clamp, TBV audit, return-map, filling morphology, and tau/dt fields", () => {
     const report = runLowPreloadDebug({
       outDir: "unused",
       targetVolumeMl: 5600,
@@ -110,7 +113,7 @@ describe("low-preload Starling debug diagnostics", () => {
       quietClampLog: true,
     });
 
-    expect(report.schemaVersion).toBe(18);
+    expect(report.schemaVersion).toBe(19);
     expect(report.heartModel).toBe("activeStress");
     expect(report.returnMapMode).toBe("both");
     expect(report.beatPairOverlay).toBe(false);
@@ -130,6 +133,9 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(point.deltaVolumeMl).toBe(0);
     expect(point.beatTrace.length).toBeGreaterThan(0);
     expect(point.beatTrace[0].active.LV?.KdMean).toEqual(expect.any(Number));
+    expect(point.beatTrace[0].active.LV?.fIsoRawMean).toEqual(expect.any(Number));
+    expect(point.beatTrace[0].active.LV?.fIsoLimiterMean).toEqual(expect.any(Number));
+    expect(point.beatTrace[0].active.LV?.fIsoLimiterDeltaMean).toEqual(expect.any(Number));
     expect(point.beatTrace[0].active.LV?.activeTargetLimiterMin).toEqual(expect.any(Number));
     expect(point.beatTrace[0].active.LV?.activeTargetLimiterHitFraction).toEqual(expect.any(Number));
     expect(point.beatTrace[0].AoPMax).toEqual(expect.any(Number));
@@ -203,6 +209,9 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(csv).toContain("LV_lambdaForKdMean");
     expect(csv).toContain("LV_lambdaForFIsoMean");
     expect(csv).toContain("LV_lambdaActMinusRawMean");
+    expect(csv).toContain("LV_fIsoRawMean");
+    expect(csv).toContain("LV_fIsoLimiterMean");
+    expect(csv).toContain("LV_fIsoLimiterDeltaMean");
     expect(csv).toContain("LV_aInfRawMean");
     expect(csv).toContain("LV_activeTargetLimiterMean");
     expect(csv).toContain("LV_activeTargetLimiterMin");
@@ -237,7 +246,7 @@ describe("low-preload Starling debug diagnostics", () => {
       quietClampLog: true,
     });
 
-    expect(report.schemaVersion).toBe(18);
+    expect(report.schemaVersion).toBe(19);
     expect(report.beatPairOverlay).toBe(true);
     const overlay = report.points[0].beatPairOverlay;
     expect(overlay).toBeDefined();
@@ -325,6 +334,9 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(opts.returnMapDeltasMl).toEqual([-1250, -1400]);
     expect(opts.tbvCorrectionMode).toBe("off");
     expect(opts.beatPairOverlay).toBe(true);
+
+    const fIsoOpts = parseLowPreloadDebugArgs(["--low-stretch-limiter=fIsoSlopeRelax"]);
+    expect(fIsoOpts.lowStretchLimiterMode).toBe("fIsoSlopeRelax");
   });
 
   it("supports TBV correction off and low audit modes", () => {
@@ -405,6 +417,8 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrix.summary.maxQAoCapRatioMax).toEqual(expect.any(Number));
     expect(matrix.summary.maxAoVPeakGradient).toEqual(expect.any(Number));
     expect(matrix.summary.maxAoVFlowWeightedOrificeGradient).toEqual(expect.any(Number));
+    expect(matrix.summary.maxAoVFlowWeightedAreaLossExtraGradient).toEqual(expect.any(Number));
+    expect(matrix.summary.minEjectionPositiveDurationMs).toEqual(expect.any(Number));
     const defaultValveScenario = matrix.scenarios.find((scenario) =>
       scenario.aorticFlowClampMode === "hard"
       && scenario.aovB === DEFAULT_PARAMS.AoV_B
@@ -418,8 +432,13 @@ describe("low-preload Starling debug diagnostics", () => {
     const defaultOrifice = defaultValveScenario?.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVFlowWeightedOrificeGradient ?? Number.NaN;
     const asOrifice = asValveScenario?.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVFlowWeightedOrificeGradient ?? Number.NaN;
     expect(asOrifice).toBeGreaterThan(defaultOrifice);
+    const normalGate = defaultValveScenario?.waveformGates.find((gate) => gate.label === "normal");
+    expect(normalGate?.candidate.ejectionPositiveDurationMs).toBeGreaterThanOrEqual(normalGate?.candidate.ejectionHighFlowDurationMs ?? Number.NaN);
+    expect(Number.isFinite(normalGate?.candidate.AoVFlowWeightedFullOpenOrificeGradient)).toBe(true);
     expect(matrixReportToMarkdown(matrix)).toContain("AoV_B / AS sanity");
     expect(matrixReportToMarkdown(matrix)).toContain("AoV gradient decomposition");
+    expect(matrixReportToMarkdown(matrix)).toContain("full-open orifice");
+    expect(matrixReportToMarkdown(matrix)).toContain("eject QAo>0 ms");
   });
 
   it("can skip return-map diagnostics while preserving branch amplitude fields", () => {
@@ -547,6 +566,29 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(ventricles.LA?.lowStretchLimiter).toBe("none");
   });
 
+  it("supports the off-by-default fIso low-stretch slope relaxation comparator", () => {
+    const report = runLowPreloadDebug({
+      outDir: "unused",
+      targetVolumeMl: 5600,
+      deltasMl: [0],
+      dtValues: [0.002],
+      lambdaActTauSecValues: [0],
+      lambdaActScope: "all",
+      lowStretchLimiterMode: "fIsoSlopeRelax",
+      lowStretchLimiterScope: "lv",
+      traceBeats: 2,
+      sampleHz: 40,
+      returnMapMode: "none",
+      quietClampLog: true,
+    });
+
+    const lv = report.points[0].activeStressTerminal.LV;
+    expect(lv?.lowStretchLimiter).toBe("fIsoSlopeRelax");
+    expect(lv?.fIsoLimiter).toBeLessThanOrEqual(1);
+    expect(Number.isFinite(lv?.fIsoLimiterDelta)).toBe(true);
+    expect(report.points[0].beatTrace[0].active.LV?.fIsoLimiterMin).toEqual(expect.any(Number));
+  });
+
   it("selects suspicious return-map points without duplicates", () => {
     const report = runLowPreloadDebug({
       outDir: "unused",
@@ -575,7 +617,7 @@ describe("low-preload Starling debug diagnostics", () => {
       "--lambda-act-tau=0,0.15",
       "--lambda-act-scope=lv",
       "--lambda-act-terms=kd,fiso,kd+fiso",
-      "--low-stretch-limiter=none,aInfCap,activeReserveCap",
+      "--low-stretch-limiter=none,aInfCap,activeReserveCap,fIsoSlopeRelax",
       "--low-stretch-limiter-scope=lv",
       "--active-reserve-preset=directMild,directMedium",
       "--max-return-map-points=1",
@@ -585,20 +627,21 @@ describe("low-preload Starling debug diagnostics", () => {
     ]);
     const report = runLowPreloadMatrix(opts);
 
-    expect(report.schemaVersion).toBe(15);
+    expect(report.schemaVersion).toBe(16);
     expect(report.heartModels).toEqual(["activeStress"]);
     expect(report.aorticFlowClampModes).toEqual(["hard"]);
     expect(report.aovBValues).toEqual([DEFAULT_PARAMS.AoV_B]);
     expect(report.asAovAmaxValues).toEqual([DEFAULT_PARAMS.AoV_Amax]);
-    expect(report.scenarios).toHaveLength(7);
+    expect(report.scenarios).toHaveLength(8);
     expect(report.scenarios[0].heartModel).toBe("activeStress");
     expect(report.scenarios[0].aorticFlowClampMode).toBe("hard");
     expect(report.scenarios[0].aovB).toBeCloseTo(DEFAULT_PARAMS.AoV_B, 12);
     expect(report.scenarios[0].aovAmax).toBeCloseTo(DEFAULT_PARAMS.AoV_Amax, 12);
-    expect(report.scenarios.filter((scenario) => scenario.lambdaActTauSec === 0)).toHaveLength(4);
+    expect(report.scenarios.filter((scenario) => scenario.lambdaActTauSec === 0)).toHaveLength(5);
     expect(report.scenarios.filter((scenario) => scenario.lambdaActTauSec === 0 && scenario.lowStretchLimiterMode === "none")).toHaveLength(1);
-    expect(report.scenarios.filter((scenario) => scenario.lowStretchLimiterMode !== "none")).toHaveLength(3);
+    expect(report.scenarios.filter((scenario) => scenario.lowStretchLimiterMode !== "none")).toHaveLength(4);
     expect(report.scenarios.find((scenario) => scenario.lambdaActTauSec === 0 && scenario.lowStretchLimiterMode === "aInfCap")).toBeDefined();
+    expect(report.scenarios.find((scenario) => scenario.lambdaActTauSec === 0 && scenario.lowStretchLimiterMode === "fIsoSlopeRelax")).toBeDefined();
     expect(report.scenarios.filter((scenario) => scenario.lowStretchLimiterMode === "activeReserveCap").map((scenario) => scenario.activeReservePreset)).toEqual(["directMild", "directMedium"]);
     expect(report.scenarios.find((scenario) => scenario.lambdaActTerms === "kd" && scenario.lambdaActTauSec === 0.15)).toBeDefined();
     expect(report.scenarios[0].selectedDeltasMl).toHaveLength(1);
@@ -614,6 +657,10 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.summary.maxAoVFlowWeightedOrificeGradient).toEqual(expect.any(Number));
     expect(report.summary.maxAoVFlowWeightedBernoulliGradient).toEqual(expect.any(Number));
     expect(report.summary.maxAoVFlowWeightedInertialGradient).toEqual(expect.any(Number));
+    expect(report.summary.maxAoVFlowWeightedAreaLossExtraGradient).toEqual(expect.any(Number));
+    expect(report.summary.minEjectionPositiveDurationMs).toEqual(expect.any(Number));
+    expect(report.summary.minEjectionFivePercentPeakDurationMs).toEqual(expect.any(Number));
+    expect(report.summary.minEjectionSV5To95DurationMs).toEqual(expect.any(Number));
     expect(report.summary.maxSanitizeAbsMl).toEqual(expect.any(Number));
     expect(report.summary.maxProjectionAppliedMl).toEqual(expect.any(Number));
     expect(report.summary.maxMeanCOLErrorFractionVsBaseline).toEqual(expect.any(Number));
@@ -717,6 +764,9 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToCsv(report)).toContain("normalAoVPeakGradient");
     expect(matrixReportToCsv(report)).toContain("normalAoVFlowWeightedOrificeGradient");
     expect(matrixReportToCsv(report)).toContain("normalAoVFlowWeightedInertialGradient");
+    expect(matrixReportToCsv(report)).toContain("normalAoVFlowWeightedAreaLossExtraGradient");
+    expect(matrixReportToCsv(report)).toContain("normalEjectionPositiveDurationMs");
+    expect(matrixReportToCsv(report)).toContain("normalEjectionSV5To95DurationMs");
   });
 
   heavyIt("supports branch-only matrix runs without selected return-map points", () => {

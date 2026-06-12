@@ -88,7 +88,7 @@ describe("sanitizeParams (engine contract boundary)", () => {
           active: {
             tauLambdaActSec: 0.15,
             lambdaActTerms: "kd",
-            lowStretchLimiter: "activeReserveCap",
+            lowStretchLimiter: "fIsoSlopeRelax",
             bogusMode: "unsafe",
           },
         },
@@ -97,7 +97,7 @@ describe("sanitizeParams (engine contract boundary)", () => {
     const lvActive = clean.nodeOverrides?.LV?.active as Record<string, number | string> | undefined;
     expect(lvActive?.tauLambdaActSec).toBe(0.15);
     expect(lvActive?.lambdaActTerms).toBe("kd");
-    expect(lvActive?.lowStretchLimiter).toBe("activeReserveCap");
+    expect(lvActive?.lowStretchLimiter).toBe("fIsoSlopeRelax");
     expect(lvActive?.bogusMode).toBeUndefined();
   });
 

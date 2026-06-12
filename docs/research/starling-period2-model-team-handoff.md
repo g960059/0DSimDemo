@@ -412,3 +412,51 @@ Review questions:
 2. Does QAo/cap move away from the hard cap without making normal / HR100 orifice gradients implausible?
 3. Are failures driven by quasi-steady orifice loss, inertial loss, or residual transient pressure?
 4. If a combination looks good, is it best described as a stabilization bundle, or is there enough evidence for a more focused model change?
+
+## fIso low-stretch slope comparator and ejection audit v2
+
+The current branch adds a focused comparator for the model-team hypothesis that the remaining low-preload alternans is driven by excessive low-stretch active-force gain rather than by a pure valve-loss defect.
+
+New off-by-default axis:
+
+- `--low-stretch-limiter=fIsoSlopeRelax`
+- Scope remains controlled by `--low-stretch-limiter-scope=lv|ventricles|all`.
+- The comparator does not change default app dynamics. It only applies when requested by debug/matrix options.
+
+Mechanically, `fIsoSlopeRelax` keeps raw geometry, passive pressure, Kd/aInf, gOver, force-velocity, valves, and default parameters unchanged. It multiplies the low-stretch `fIso` ramp by a C1 gate `<= 1` below the join point, leaving the upper normal-stretch side unchanged. It is designed to test whether reducing low-stretch force-length gain moves clean ESV-section slopes away from the flip threshold without the pump-output clipping seen in `activeReserveCap`.
+
+The waveform gate now also reports:
+
+- ejection duration as QAo positive, QAo above 5% peak, SV 5-95%, and the older high-flow/open-window duration.
+- sampled effective AoV orifice loss.
+- full-open AoV orifice loss.
+- extra area-loss while the valve is not fully open.
+- inertial loss and residual loss.
+- AoV opening fraction at peak QAo, mean opening during ejection, and time to near-full opening.
+
+Suggested handoff artifact command:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/fiso-ejection-smoke \
+  --deltas=0,-1250,-1300 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --aortic-flow-clamp=hard \
+  --aov-b=0.000001,0.000003 \
+  --low-stretch-limiter=none,fIsoSlopeRelax,activeReserveCap \
+  --low-stretch-limiter-scope=lv \
+  --active-reserve-preset=directMedium \
+  --max-return-map-points=2 \
+  --trace-beats=4 \
+  --sample-hz=60
+```
+
+Review questions:
+
+1. Does `fIsoSlopeRelax` improve clean ESV-section slope, not just branch amplitude?
+2. Does it preserve period-mean CO/SV and low-preload Starling shape better than `activeReserveCap`?
+3. Does it reduce QAo/cap and branch amplitude without moving normal / HR100 waveform gates?
+4. Is the remaining AoV gradient driven by full-open orifice loss, valve-opening area-loss extra, inertial loss, or residual?
+5. If `fIsoSlopeRelax` helps but does not fully stabilize, should the next comparator be a refined force-length gate, a Kd/aInf gain limiter with level guard, or an ejection-path regularization?

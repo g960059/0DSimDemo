@@ -351,7 +351,7 @@ function sanitizeOverrides(raw: unknown, nestedKeys: ReadonlySet<string>): Overr
         for (const [k2, v2] of Object.entries(v)) {
           if (typeof v2 === "number" && Number.isFinite(v2)) nested[k2] = v2;
           else if (k2 === "lambdaActTerms" && (v2 === "kd" || v2 === "fiso" || v2 === "kd+fiso")) nested[k2] = v2;
-          else if (k2 === "lowStretchLimiter" && (v2 === "none" || v2 === "aInfCap" || v2 === "activeReserveCap")) nested[k2] = v2;
+          else if (k2 === "lowStretchLimiter" && (v2 === "none" || v2 === "aInfCap" || v2 === "activeReserveCap" || v2 === "fIsoSlopeRelax")) nested[k2] = v2;
         }
         if (Object.keys(nested).length > 0) clean[k] = nested;
       }

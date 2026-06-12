@@ -14,7 +14,7 @@ export const ML_TO_M3 = 1e-6;
 
 export type Chamber = "LV" | "RV" | "LA" | "RA";
 export type LambdaActTerms = "kd" | "fiso" | "kd+fiso";
-export type LowStretchLimiterMode = "none" | "aInfCap" | "activeReserveCap";
+export type LowStretchLimiterMode = "none" | "aInfCap" | "activeReserveCap" | "fIsoSlopeRelax";
 
 /** Internal Ca-transient / troponin-activation/reservoir/tension state of an active chamber. */
 export type ChamberInternal = { c: number; a: number; r: number; tensionPa?: number; lambdaAct?: number };
@@ -162,6 +162,9 @@ export type ActiveStressDebugTerms = ChamberPressureTerms & {
   aInf: number;
   tauA: number;
   fIso: number;
+  fIsoRaw: number;
+  fIsoLimiter: number;
+  fIsoLimiterDelta: number;
   gOver: number;
   forceVelocityScale: number;
   tensionFilterActive01: number;
@@ -473,11 +476,12 @@ export class ActiveStressChamberModel implements ChamberModel {
 
   private lowStretchLimiterMode(): LowStretchLimiterMode {
     const mode = this.ap.lowStretchLimiter ?? "none";
-    return mode === "aInfCap" || mode === "activeReserveCap" ? mode : "none";
+    return mode === "aInfCap" || mode === "activeReserveCap" || mode === "fIsoSlopeRelax" ? mode : "none";
   }
 
   private lowStretchLimiterStrength(): number {
-    return clamp(this.ap.lowStretchLimiterStrength ?? 0.22, 0, 0.8);
+    const fallback = this.lowStretchLimiterMode() === "fIsoSlopeRelax" ? 0.35 : 0.22;
+    return clamp(this.ap.lowStretchLimiterStrength ?? fallback, 0, 0.8);
   }
 
   private lowStretchLimiterGate(lambdaRaw: number): number {
@@ -527,16 +531,56 @@ export class ActiveStressChamberModel implements ChamberModel {
     return { limiter: clamp(1 - strength * gate * reserve, 0.1, 1), gate, strength };
   }
 
-  private fIso(lambdaAct: number): number {
+  private fIsoRaw(lambdaAct: number): number {
     const ap = this.ap;
     return clamp((lambdaAct - ap.lambdaPas0 + 0.3) / 0.35, 0, 1);
+  }
+
+  private effectiveFIso(lambdaAct: number): {
+    fIso: number;
+    raw: number;
+    limiter: number;
+    delta: number;
+    gate: number;
+    strength: number;
+  } {
+    const raw = this.fIsoRaw(lambdaAct);
+    const mode = this.lowStretchLimiterMode();
+    const strength = this.lowStretchLimiterStrength();
+    if (mode !== "fIsoSlopeRelax" || strength <= 0 || raw <= 0 || raw >= 1) {
+      return { fIso: raw, raw, limiter: 1, delta: 0, gate: 0, strength };
+    }
+
+    const ap = this.ap;
+    const start = ap.lambdaPas0 - 0.3;
+    const full = start + 0.35;
+    const join = clamp(ap.lowStretchLimiterKnee ?? 0.86, start + 1e-5, full - 1e-5);
+    if (lambdaAct >= join) {
+      return { fIso: raw, raw, limiter: 1, delta: 0, gate: 0, strength };
+    }
+
+    const x = clamp((join - lambdaAct) / Math.max(join - start, 1e-6), 0, 1);
+    const gate = x * x * (3 - 2 * x);
+    // Multiplicative cap keeps fNew <= fOld everywhere and is C1 at the join
+    // because the smoothstep gate has zero slope there.
+    const limiter = clamp(1 - strength * gate, 0.05, 1);
+    const fIso = raw * limiter;
+    return { fIso, raw, limiter, delta: Math.max(0, raw - fIso), gate, strength };
+  }
+
+  private dLogEffectiveFIso_dLambda(lambdaAct: number): number {
+    const eps = 1e-4;
+    const lo = this.effectiveFIso(lambdaAct - eps).fIso;
+    const hi = this.effectiveFIso(lambdaAct + eps).fIso;
+    if (!Number.isFinite(lo) || !Number.isFinite(hi) || lo <= 1e-6 || hi <= 1e-6) return 0;
+    return (Math.log(hi) - Math.log(lo)) / (2 * eps);
   }
 
   private activeStressTargetPa(a: number, lambdaRaw: number, lambdaAct: number, ctx: ChamberCtx): number {
     const ap = this.ap;
     const gOver = 1 / (1 + expClamped(ap.kOver * (lambdaRaw - ap.lambdaFail)));
     // Realistic f_iso so tension rapidly drops as the heart empties.
-    const f_iso = this.fIso(lambdaAct);
+    const f_iso = this.effectiveFIso(lambdaAct).fIso;
     const raw = ap.Tmax0 * ctx.tmaxScale * ctx.contractility * a * gOver * f_iso * this.forceVelocityScale(ctx);
     return raw * this.activeTargetLimiter(lambdaRaw, a).limiter;
   }
@@ -620,14 +664,15 @@ export class ActiveStressChamberModel implements ChamberModel {
     const aInf = aInfLimit.aInf;
     const tauA = 1 / Math.max(ap.kOn * cn + ap.kOff, 0.5);
     const gOver = 1 / (1 + expClamped(ap.kOver * (lambdaRaw - ap.lambdaFail)));
-    const fIso = this.fIso(lambdaForFIso);
+    const fIsoTerms = this.effectiveFIso(lambdaForFIso);
+    const fIso = fIsoTerms.fIso;
     const forceVelocityScale = this.forceVelocityScale(ctx);
     const sigmaActTargetRaw = ap.Tmax0 * ctx.tmaxScale * ctx.contractility * a * gOver * fIso * forceVelocityScale;
     const activeLimiter = this.activeTargetLimiter(lambdaRaw, a);
     // Report the raw Kd/aInf length sensitivity. aInfCap is a ceiling on the
     // effective activation and must not make the diagnostic slope look larger.
     const dLogAInf_dLambda = ap.hillN * ap.betaLambda * (1 - aInfRaw);
-    const dLogFIso_dLambda = fIso > 1e-6 && fIso < 1 ? 1 / (0.35 * fIso) : 0;
+    const dLogFIso_dLambda = this.dLogEffectiveFIso_dLambda(lambdaForFIso);
     const dLogGOver_dLambda = -ap.kOver * (1 - gOver);
     const terms = this.lambdaActTerms();
     const dLogCompositeActive_dLambdaAct = (this.lambdaActAppliesTo("kd") ? dLogAInf_dLambda : 0)
@@ -640,6 +685,9 @@ export class ActiveStressChamberModel implements ChamberModel {
       aInf,
       tauA,
       fIso,
+      fIsoRaw: fIsoTerms.raw,
+      fIsoLimiter: fIsoTerms.limiter,
+      fIsoLimiterDelta: fIsoTerms.delta,
       gOver,
       forceVelocityScale,
       tensionFilterActive01: this.usesTensionFilter(ctx) ? 1 : 0,
@@ -656,7 +704,7 @@ export class ActiveStressChamberModel implements ChamberModel {
       lambdaActMinusRaw: lambdaAct - lambdaRaw,
       lambdaActTransferTauSec: Math.max(ap.tauLambdaActSec ?? 0, 0),
       lowStretchLimiter: this.lowStretchLimiterMode(),
-      lowStretchLimiterGate: Math.max(aInfLimit.gate, activeLimiter.gate),
+      lowStretchLimiterGate: Math.max(aInfLimit.gate, activeLimiter.gate, fIsoTerms.gate),
       lowStretchLimiterStrength: this.lowStretchLimiterStrength(),
       aInfRaw,
       aInfCap: aInfLimit.cap,
