@@ -559,11 +559,11 @@ export const ChartLegend = ({
             return (
                 <div key={`${inst.id}-${sig}`} className={`flex items-center gap-1.5 ${isHiddenActive ? 'opacity-55' : ''}`}>
                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{backgroundColor: color, boxShadow: isHiddenActive ? undefined : `0 0 4px ${color}`}}></span>
-                    <span className={`text-[9px] font-medium drop-shadow-md tracking-wide ${isHiddenActive ? 'text-slate-500' : 'text-slate-300'}`}>
+                    <span className={`text-[9px] font-medium tracking-wide ${isHiddenActive ? 'text-wb-subtle' : 'text-wb-muted'}`}>
                         {activeName} ({signalName})
                     </span>
                     {isHiddenActive && (
-                        <span className="rounded border border-slate-600/70 px-1 py-0 text-[8px] font-bold uppercase leading-3 text-slate-500">
+                        <span className="rounded border border-wb-line-strong px-1 py-0 text-[8px] font-bold uppercase leading-3 text-wb-subtle">
                             {t('common.hidden')}
                         </span>
                     )}
@@ -585,8 +585,8 @@ export const ChartLegend = ({
     const placementClassName = effectivePosition ? '' : 'top-2 right-2';
     const settleTransitionClassName = isDragging ? '' : 'transition-[left,top] duration-150';
     const legendClassName = canOpenSettings
-        ? `absolute ${placementClassName} ${settleTransitionClassName} flex flex-col gap-1 z-30 pointer-events-auto p-1.5 bg-slate-900/80 rounded border border-slate-700/50 backdrop-blur-sm hover:bg-slate-900/90 hover:ring-1 hover:ring-sky-400/40 ${isDragging ? 'cursor-grabbing bg-slate-900/90 ring-1 ring-sky-400/50' : 'cursor-grab'} ${extraClasses}`
-        : `absolute ${placementClassName} ${settleTransitionClassName} flex flex-col gap-1 z-30 pointer-events-none p-1.5 bg-slate-900/80 rounded border border-slate-700/50 backdrop-blur-sm ${extraClasses}`;
+        ? `absolute ${placementClassName} ${settleTransitionClassName} flex flex-col gap-1 z-30 pointer-events-auto p-1.5 bg-wb-panel rounded border border-wb-line backdrop-blur-sm hover:bg-wb-panel/90 hover:ring-1 hover:ring-wb-accent ${isDragging ? 'cursor-grabbing bg-wb-panel/90 ring-1 ring-wb-accent' : 'cursor-grab'} ${extraClasses}`
+        : `absolute ${placementClassName} ${settleTransitionClassName} flex flex-col gap-1 z-30 pointer-events-none p-1.5 bg-wb-panel rounded border border-wb-line backdrop-blur-sm ${extraClasses}`;
 
     const stopSuppressedClick = (event: React.MouseEvent<HTMLDivElement>) => {
         if (suppressClickRef.current) {
@@ -1380,17 +1380,17 @@ export const MetricsPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances
                     <div key={inst.id} className="flex flex-col gap-1 pb-2">
                          <div className="flex items-center gap-2 pb-1 pt-1">
                              <div className="w-2 h-2 rounded-full shadow-sm" style={{backgroundColor: activeColor, boxShadow: `0 0 6px ${activeColor}`}}></div>
-                             <span className="font-medium text-[13px] text-slate-200">{activeName}</span>
+                             <span className="font-medium text-[13px] text-wb-text">{activeName}</span>
                          </div>
                          <div className="flex flex-wrap gap-x-8 gap-y-2.5 px-2">
                              {cfg.selectedSignals.map((sig: string) => {
                                  const signalName = (cfg.customSignalNames && cfg.customSignalNames[sig]) || sig;
                                  return metricsMap[sig] ? (
                                      <div key={sig} className="flex items-baseline gap-2">
-                                         <span className="text-[11px] text-slate-400 font-medium tracking-wide uppercase">{signalName}</span>
+                                         <span className="text-[11px] text-wb-muted font-medium tracking-wide uppercase">{signalName}</span>
                                          <div className="flex items-baseline gap-1">
-                                            <span className="text-sm font-mono text-slate-100 font-medium">{metricsMap[sig]}</span>
-                                            {unitsMap[sig] && <span className="text-[10px] text-slate-500">{unitsMap[sig]}</span>}
+                                            <span className="text-sm font-mono text-wb-text font-medium">{metricsMap[sig]}</span>
+                                            {unitsMap[sig] && <span className="text-[10px] text-wb-subtle">{unitsMap[sig]}</span>}
                                          </div>
                                      </div>
                                  ) : null;
@@ -1659,7 +1659,7 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
                         >
                             <button
                                 type="button"
-                                className="inline-flex h-7 items-center rounded border border-slate-800/70 bg-slate-950/55 px-2 text-[10px] font-medium text-slate-400 transition-colors hover:border-slate-600 hover:text-slate-200"
+                                className="inline-flex h-7 items-center rounded border border-wb-line bg-wb-input px-2 text-[10px] font-medium text-wb-muted transition-colors hover:border-wb-line-strong hover:text-wb-text"
                                 aria-label={t('workbench.guyton.calibration.detailsAria')}
                                 aria-expanded={calibrationOpen}
                                 onClick={() => setCalibrationOpen((open) => !open)}
@@ -1667,12 +1667,12 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
                                 {calibrationDetail.label}
                             </button>
                             {calibrationOpen && (
-                                <div className="absolute right-0 top-8 z-20 w-72 rounded border border-slate-700/70 bg-slate-950/95 p-2 text-[10px] leading-snug text-slate-200 shadow-xl">
-                                    <div className="mb-1 font-semibold text-slate-300">{calibrationDetail.label}</div>
+                                <div className="absolute right-0 top-8 z-20 w-72 rounded border border-wb-line bg-wb-panel p-2 text-[10px] leading-snug text-wb-text shadow-xl">
+                                    <div className="mb-1 font-semibold text-wb-muted">{calibrationDetail.label}</div>
                                     {calibrationDetail.rows.map((row) => (
-                                        <div key={row.label} className="grid grid-cols-[6.5rem_1fr] gap-2 border-t border-slate-800/70 py-1 first:border-t-0">
-                                            <span className="text-slate-500">{row.label}</span>
-                                            <span className="text-slate-300">{row.value}</span>
+                                        <div key={row.label} className="grid grid-cols-[6.5rem_1fr] gap-2 border-t border-wb-line py-1 first:border-t-0">
+                                            <span className="text-wb-subtle">{row.label}</span>
+                                            <span className="text-wb-muted">{row.value}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -1680,7 +1680,7 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
                         </div>
                     )}
                     {chrome.showSpinner && (
-                        <span className="inline-flex h-7 w-7 items-center justify-center rounded border border-slate-800/70 bg-slate-950/65 text-slate-400" title="Computing Starling sweep" aria-label="Computing Starling sweep">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded border border-wb-line bg-wb-input text-wb-muted" title="Computing Starling sweep" aria-label="Computing Starling sweep">
                             <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
                         </span>
                     )}
@@ -1702,12 +1702,12 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
                                 <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
                             </button>
                             {warningsOpen && (
-                                <div className="absolute right-0 top-8 z-20 w-72 max-h-52 overflow-y-auto rounded border border-amber-500/30 bg-slate-950/95 p-2 text-[10px] leading-snug text-amber-100 shadow-xl">
+                                <div className="absolute right-0 top-8 z-20 w-72 max-h-52 overflow-y-auto rounded border border-amber-500/30 bg-wb-panel p-2 text-[10px] leading-snug text-amber-100 shadow-xl">
                                     {chrome.warnings.map((warning) => (
                                         <div key={warning} className="border-b border-amber-500/10 py-1 last:border-b-0">{warning}</div>
                                     ))}
                                     {chrome.notes.length > 0 && (
-                                        <div className="mt-1 border-t border-slate-700/60 pt-1 text-slate-400">
+                                        <div className="mt-1 border-t border-wb-line pt-1 text-wb-muted">
                                             {chrome.notes.map((note) => (
                                                 <div key={note} className="py-0.5">{note.replace('sweep point did not fully settle', 'stress endpoint did not fully settle')}</div>
                                             ))}
@@ -1721,14 +1721,14 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
             )}
             {!hasRenderableMap && visibleInstances.length > 0 && (
                 <div className="absolute inset-0 flex items-center justify-center text-center pointer-events-none">
-                    <div className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-700/70 bg-slate-950/70 text-slate-400">
+                    <div className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-wb-line bg-wb-input text-wb-muted">
                         <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
                     </div>
                 </div>
             )}
             {series.length === 0 && (
                 <div className="absolute inset-0 flex items-center justify-center text-center">
-                    <div className="text-xs text-slate-500">No visible instance</div>
+                    <div className="text-xs text-wb-subtle">No visible instance</div>
                 </div>
             )}
         </div>

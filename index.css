@@ -93,7 +93,9 @@ body[data-workbench-theme="light"] {
   --wb-sash: #e2e8f0;
 }
 
-.workbench-root[data-workbench-theme="light"] .workbench-dockview.dockview-theme-dark {
+.workbench-root[data-workbench-theme="light"] .workbench-dockview.dockview-theme-dark,
+.workbench-dockview .dockview-theme-dark,
+.workbench-root .workbench-dockview .dv-dockview {
   color-scheme: light;
   background: var(--wb-zone-aux-bg);
   color: var(--wb-text);
@@ -171,9 +173,32 @@ body[data-workbench-theme="light"] {
   --dv-scrollbar-background-color: color-mix(in srgb, var(--wb-border-strong) 72%, transparent);
 }
 
-.workbench-dockview-main.dockview-theme-dark {
+.workbench-dockview-main.dockview-theme-dark,
+.workbench-dockview-main .dockview-theme-dark,
+.workbench-root .workbench-dockview-main .dv-dockview {
   --workbench-surface: var(--wb-zone-main-bg);
   --dv-tabs-and-actions-container-background-color: transparent;
+}
+
+/* Library hard-overrides: dockview ships dark-theme literals (#000c18 grid,
+   #10192c tabs) that win by stylesheet order — pin every dockview surface to
+   our tokens with raised specificity so Light works end to end. */
+.workbench-root .workbench-dockview.dockview-theme-dark,
+.workbench-root .workbench-dockview .dockview-theme-dark,
+.workbench-root .workbench-dockview .dv-grid-view,
+.workbench-root .workbench-dockview .dv-dockview {
+  background: var(--workbench-surface);
+}
+
+.workbench-root .workbench-dockview .dv-groupview > .dv-tabs-and-actions-container .dv-tabs-container > .dv-tab,
+.workbench-root .workbench-dockview .dv-groupview.dv-active-group > .dv-tabs-and-actions-container .dv-tabs-container > .dv-tab.dv-inactive-tab,
+.workbench-root .workbench-dockview .dv-groupview.dv-active-group > .dv-tabs-and-actions-container .dv-tabs-container > .dv-tab.dv-active-tab,
+.workbench-root .workbench-dockview .dv-groupview.dv-inactive-group > .dv-tabs-and-actions-container .dv-tabs-container > .dv-tab.dv-inactive-tab,
+.workbench-root .workbench-dockview .dv-groupview.dv-inactive-group > .dv-tabs-and-actions-container .dv-tabs-container > .dv-tab.dv-active-tab,
+.workbench-root .workbench-dockview .dv-tabs-and-actions-container .dv-tab,
+.workbench-root .workbench-dockview .dv-tabs-and-actions-container .dv-tab.dv-active-tab,
+.workbench-root .workbench-dockview .dv-tabs-and-actions-container .dv-tab.dv-inactive-tab {
+  background: transparent;
 }
 
 .workbench-dockview .dv-groupview,
