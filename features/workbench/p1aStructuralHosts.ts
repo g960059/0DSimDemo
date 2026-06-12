@@ -1,4 +1,4 @@
-import type { MetricType, PanelDef, PanelInstanceConfig, PanelType, SimInstance, WorkbenchWorkspace } from "@/types";
+import type { MetricType, PanelDef, PanelInstanceConfig, PanelType, SimInstance, WorkbenchRegionState, WorkbenchWorkspace } from "@/types";
 import { effectiveVisibility, type MetricsViewSpec, type ViewMembership } from "@/features/workbench/viewSpec";
 
 const GRAPH_PANEL_TYPES = new Set<PanelType>(["PVLOOP", "WAVEFORM", "GUYTON_RIGHT", "GUYTON_LEFT", "GUYTON_3D"]);
@@ -86,13 +86,21 @@ export function effectiveGlobalConfig(
   );
 }
 
+export function visibleFromRegion(region: WorkbenchRegionState | undefined, defaultValue: boolean): boolean {
+  const visible = region?.visible;
+  return visible === undefined ? defaultValue : visible === true || visible === "compact";
+}
+
 export function noteOpenFromWorkspace(workspace?: WorkbenchWorkspace): boolean {
-  return workspace?.regions.note?.visible === true || workspace?.regions.note?.visible === "compact";
+  return visibleFromRegion(workspace?.regions.note, false);
 }
 
 export function metricsOpenFromWorkspace(workspace?: WorkbenchWorkspace): boolean {
-  const visible = workspace?.regions.output?.visible;
-  return visible === undefined ? true : visible === true || visible === "compact";
+  return visibleFromRegion(workspace?.regions.output, true);
+}
+
+export function rightRailVisibleFromWorkspace(workspace?: WorkbenchWorkspace): boolean {
+  return visibleFromRegion(workspace?.regions.control, true);
 }
 
 export function mainDockviewViewStatesOnly(workspace: WorkbenchWorkspace): WorkbenchWorkspace {

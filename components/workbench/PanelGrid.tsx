@@ -44,6 +44,7 @@ import {
   metricsViews,
   type AuthoredViewSpec,
 } from '../../features/workbench/authoredViews';
+import { resolveControllerTargetId } from '../../features/workbench/controllerBinding';
 import { hasViewRefUsage, viewRefUsageForDeletion } from '../../features/workbench/noteViewRefs';
 import type { ControllerViewSpec, GraphBoardLayout, MetricsViewSpec } from '../../features/workbench/viewSpec';
 import type { WorkbenchThemeId } from './WorkbenchSidePanel';
@@ -2448,12 +2449,15 @@ export function PanelGrid({
   const scenarioListResizeValue = scenarioListExplicitHeight
     ?? scenarioListTierRef.current?.getBoundingClientRect().height
     ?? scenarioListExpandedMinHeight;
-  const activeInstance = instances.find((instance) => instance.id === activeInstanceId);
+  const selectedControllerTargetId = selectedControllerView
+    ? resolveControllerTargetId(selectedControllerView.binding, activeInstanceId, instances)
+    : activeInstanceId;
+  const activeInstance = instances.find((instance) => instance.id === selectedControllerTargetId);
   const inspectorInstances = instances.map((instance) => (
-    instance.id === activeInstanceId ? { ...instance, isVisible: true } : instance
+    instance.id === selectedControllerTargetId ? { ...instance, isVisible: true } : instance
   ));
-  const inspectorConfig = activeInstanceId
-    ? { [activeInstanceId]: { visible: true, selectedSignals: ['clinical'] } }
+  const inspectorConfig = selectedControllerTargetId
+    ? { [selectedControllerTargetId]: { visible: true, selectedSignals: ['clinical'] } }
     : {};
   const noteMode = notePanel && !isReadOnly ? (noteModes[notePanel.id] ?? 'read') : 'read';
   const noteHeader = notePanel ? (
@@ -2966,7 +2970,7 @@ export function PanelGrid({
                       paneConfig={inspectorConfig}
                       instances={inspectorInstances}
                       instanceHealth={instanceHealth}
-                      activeInstanceId={activeInstanceId}
+                      activeInstanceId={selectedControllerTargetId}
                       updateInstanceParams={updateInstanceParams}
                       updateInstanceKnobs={updateInstanceKnobs}
                       updateInstanceVolume={updateInstanceVolume}

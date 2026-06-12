@@ -16,7 +16,7 @@ import type {
 } from "@/types";
 import type { WorkbenchLayoutState } from "@/components/workbench/PanelGrid";
 import type { WorkbenchHeaderMode, WorkbenchThemeId } from "@/components/workbench/WorkbenchSidePanel";
-import { metricsOpenFromWorkspace, noteOpenFromWorkspace } from "@/features/workbench/p1aStructuralHosts";
+import { metricsOpenFromWorkspace, noteOpenFromWorkspace, rightRailVisibleFromWorkspace } from "@/features/workbench/p1aStructuralHosts";
 
 // Ordered so that ADJACENT palette entries are maximally distinct in hue — a
 // duplicate (which takes the next free slot) lands on a clearly different color
@@ -161,7 +161,7 @@ export function layoutStateFromWorkspace(workspace?: WorkbenchWorkspace): Workbe
     outputHeight: DEFAULT_WORKBENCH_LAYOUT.outputHeight,
     noteOpen: noteOpenFromWorkspace(workspace),
     metricsOpen: metricsOpenFromWorkspace(workspace),
-    rightRailVisible: DEFAULT_WORKBENCH_LAYOUT.rightRailVisible,
+    rightRailVisible: rightRailVisibleFromWorkspace(workspace),
     rightRailView: DEFAULT_WORKBENCH_LAYOUT.rightRailView,
     selectedControllerViewId: DEFAULT_WORKBENCH_LAYOUT.selectedControllerViewId,
     scenarioListCollapsed: DEFAULT_WORKBENCH_LAYOUT.scenarioListCollapsed,

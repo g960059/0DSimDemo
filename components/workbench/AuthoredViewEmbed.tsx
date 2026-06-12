@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { Controls } from "@/components/Controls";
 import { MetricsPanel } from "@/components/Charts";
+import { resolveControllerTargetId } from "@/features/workbench/controllerBinding";
 import { effectiveGlobalConfig } from "@/features/workbench/p1aStructuralHosts";
 import { metricsViewConfig, type AuthoredViewSpec } from "@/features/workbench/authoredViews";
 import type { ClinicalKnobs } from "@/engine/knobs";
@@ -44,14 +45,17 @@ export function AuthoredViewEmbed({
   if (!view || !runtime) return <AuthoredViewPlaceholder viewId={viewId} />;
 
   const activeInstanceId = runtime.activeInstanceId ?? runtime.instances[0]?.id ?? "";
+  const controllerTargetId = view.kind === "controller"
+    ? resolveControllerTargetId(view.binding, activeInstanceId, runtime.instances)
+    : activeInstanceId;
   const body = view.kind === "controller" ? (
     runtime.updateInstanceParams && runtime.updateInstanceKnobs && runtime.updateInstanceVolume ? (
       <Controls
         isPaneMode
-        paneConfig={activeInstanceId ? { [activeInstanceId]: { visible: true, selectedSignals: ["clinical"] } } : {}}
-        instances={runtime.instances.map((instance) => (instance.id === activeInstanceId ? { ...instance, isVisible: true } : instance))}
+        paneConfig={controllerTargetId ? { [controllerTargetId]: { visible: true, selectedSignals: ["clinical"] } } : {}}
+        instances={runtime.instances.map((instance) => (instance.id === controllerTargetId ? { ...instance, isVisible: true } : instance))}
         instanceHealth={runtime.instanceHealth}
-        activeInstanceId={activeInstanceId}
+        activeInstanceId={controllerTargetId}
         updateInstanceParams={runtime.updateInstanceParams}
         updateInstanceKnobs={runtime.updateInstanceKnobs}
         updateInstanceVolume={runtime.updateInstanceVolume}

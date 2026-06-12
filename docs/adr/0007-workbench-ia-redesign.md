@@ -22,7 +22,7 @@ Workbench IA has four zones with layout freedom concentrated in the center only:
 - **Left:** Note drawer. It is hidden by default, single-pane, no split, and push-based rather than overlay. Opening it shrinks only the main area; the right rail width is fixed.
 - **Center:** Graph Board. This is the only Dockview area. It supports free splitting, and the persisted canonical shape is a semantic split tree.
 - **Right:** Scenario list above Inspector. The rail has fixed position and width, one pane per host, a simultaneous two-tier stack, no split, and no left/right swap.
-- **Bottom:** Metrics host. It has document metrics view tabs. It supports tab switching plus an optional two-column horizontal split (owner decision 2026-06-12; split state is local layout state, never document content).
+- **Bottom:** Metrics host. It has document metrics view tabs. It supports tab switching plus an optional two-column horizontal split (owner decision 2026-06-12; split state is local layout state, never document content). The metrics host uses a constrained Dockview as an implementation detail; its split/tab state is local UI state, never document structure.
 
 The header layout popover stays minimal: note open/close, metrics open/close, and metrics span.
 

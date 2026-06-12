@@ -9,7 +9,7 @@
 //   load: CaseDocument -> SimInstance[]   (resolves knobs->params; verifies the
 //                                          knobMappingVersion, no silent fallback)
 
-import type { SimInstance, PanelDef, PanelRole, WorkbenchRegionId, WorkbenchWorkspace, ControllerItem } from "@/types";
+import type { SimInstance, PanelDef, PanelRole, WorkbenchRegionId, WorkbenchRegionPosition, WorkbenchWorkspace, ControllerItem } from "@/types";
 import type { NoteContent } from "@/noteTypes";
 import type { ExpectedFinding, StructuredModelLimitation } from "@/caseValidation";
 import type { CoreRuntimeParams, ParameterPatch } from "@/engine/protocol";
@@ -224,16 +224,40 @@ export function defaultWorkspaceForPanels(
   const regions: WorkbenchWorkspace["regions"] = {
     scenarios: {
       visible: scenariosPanelIds.length > 0,
-      position: "left",
+      position: "right",
       panelIds: scenariosPanelIds,
       activePanelId: scenariosPanelIds[0],
     },
     graph: { visible: true, position: "center", panelIds: graphPanelIds, activePanelId: graphPanelIds[0], split: "single" },
-    note: { visible: notePanelIds.length > 0, position: "right", panelIds: notePanelIds, activePanelId: notePanelIds[0] },
+    note: { visible: notePanelIds.length > 0, position: "left", panelIds: notePanelIds, activePanelId: notePanelIds[0] },
     output: { visible: outputPanelIds.length > 0 ? "compact" : false, position: "bottom", panelIds: outputPanelIds, activePanelId: outputPanelIds[0] },
-    control: { visible: controlPanelIds.length > 0, position: "left", panelIds: controlPanelIds, activePanelId: controlPanelIds[0] },
+    control: { visible: controlPanelIds.length > 0, position: "right", panelIds: controlPanelIds, activePanelId: controlPanelIds[0] },
   };
   return { schemaVersion: WORKSPACE_SCHEMA_VERSION, regions, learnerLocked: true };
+}
+
+export function normalizeWorkspaceForAdr0007(workspace: WorkbenchWorkspace): WorkbenchWorkspace {
+  const regions: WorkbenchWorkspace["regions"] = { ...workspace.regions };
+  const legacyPositions: Partial<Record<WorkbenchRegionId, WorkbenchRegionPosition>> = {
+    scenarios: "left",
+    control: "left",
+    note: "right",
+  };
+  const adr0007Positions: Partial<Record<WorkbenchRegionId, WorkbenchRegionPosition>> = {
+    scenarios: "right",
+    control: "right",
+    note: "left",
+    graph: "center",
+    output: "bottom",
+  };
+
+  for (const region of ["scenarios", "control", "note"] as const) {
+    const current = regions[region];
+    if (!current || current.position !== legacyPositions[region]) continue;
+    regions[region] = { ...current, position: adr0007Positions[region] };
+  }
+
+  return { ...workspace, regions };
 }
 
 export function workspaceForPanels(
@@ -242,19 +266,20 @@ export function workspaceForPanels(
 ): WorkbenchWorkspace {
   const defaults = defaultWorkspaceForPanels(panels);
   if (!previous) return defaults;
+  const normalizedPrevious = normalizeWorkspaceForAdr0007(previous);
 
   const regions: WorkbenchWorkspace["regions"] = {};
   for (const region of ["scenarios", "control", "graph", "output", "note"] as const) {
-    const merged = mergeRegionState(defaults.regions[region], previous.regions?.[region]);
+    const merged = mergeRegionState(defaults.regions[region], normalizedPrevious.regions?.[region]);
     if (merged) regions[region] = merged;
   }
 
   return {
     ...defaults,
     regions,
-    learnerLocked: previous.learnerLocked ?? defaults.learnerLocked,
-    ...(previous.viewState ? { viewState: previous.viewState } : {}),
-    ...(previous.viewStates ? { viewStates: previous.viewStates } : {}),
+    learnerLocked: normalizedPrevious.learnerLocked ?? defaults.learnerLocked,
+    ...(normalizedPrevious.viewState ? { viewState: normalizedPrevious.viewState } : {}),
+    ...(normalizedPrevious.viewStates ? { viewStates: normalizedPrevious.viewStates } : {}),
   };
 }
 

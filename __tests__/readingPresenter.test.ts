@@ -297,14 +297,14 @@ describe("ReadingPresenter chrome", () => {
     })));
 
     expect(html).toContain("max-w-[860px]");
-    expect(html).toContain("text-3xl font-bold text-slate-50 sm:text-[34px]");
+    expect(html).toContain("text-3xl font-bold text-wb-text sm:text-[34px]");
     expect(html).toContain("Beginner");
     expect(html).toContain("min read");
     expect(html).toContain(i18n.t("reading.interactive"));
     expect(html).toContain(i18n.t("reading.tableOfContents"));
     expect(html).toContain('href="#first-heading"');
     expect(html).toContain('href="#first-heading-2"');
-    expect(html).toContain("h-0.5 bg-sky-400");
+    expect(html).toContain("h-0.5 bg-wb-accent");
   });
 });
 

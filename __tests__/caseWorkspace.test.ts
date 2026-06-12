@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultWorkspaceForPanels, workspaceForPanels } from "@/caseDoc";
+import { defaultWorkspaceForPanels, normalizeWorkspaceForAdr0007, workspaceForPanels } from "@/caseDoc";
 import { LESSONS, lessonToCaseDocument } from "@/lessonDoc";
 import type { PanelDef } from "@/types";
 
@@ -21,11 +21,14 @@ describe("semantic workspace", () => {
     expect(workspace.regions.graph?.panelIds).toEqual(["pv", "wave"]);
     expect(workspace.regions.graph?.activePanelId).toBe("pv");
     expect(workspace.regions.output?.visible).toBe("compact");
-    expect(workspace.regions.control?.position).toBe("left");
+    expect(workspace.regions.output?.position).toBe("bottom");
+    expect(workspace.regions.graph?.position).toBe("center");
+    expect(workspace.regions.control?.position).toBe("right");
     expect(workspace.regions.control?.panelIds).toEqual(["controls"]);
     expect(workspace.regions.control?.activePanelId).toBe("controls");
-    expect(workspace.regions.note?.position).toBe("right");
+    expect(workspace.regions.note?.position).toBe("left");
     expect(workspace.regions.scenarios?.visible).toBe(true);
+    expect(workspace.regions.scenarios?.position).toBe("right");
     expect(workspace.regions.scenarios?.panelIds).toEqual(["scenarios"]);
     expect(workspace.regions.scenarios?.activePanelId).toBe("scenarios");
   });
@@ -70,7 +73,7 @@ describe("semantic workspace", () => {
       mode: "custom",
       regions: {
         ...defaultWorkspaceForPanels(panels).regions,
-        scenarios: { visible: true, position: "left" as const, panelIds: ["scenarios"], activePanelId: "scenarios" },
+        scenarios: { visible: true, position: "right" as const, panelIds: ["scenarios"], activePanelId: "scenarios" },
       },
     } as ReturnType<typeof defaultWorkspaceForPanels> & { mode: string };
     const next = workspaceForPanels(panels.filter((panel) => panel.id !== "scenarios"), previous);
@@ -78,5 +81,28 @@ describe("semantic workspace", () => {
     expect(next.regions.scenarios?.visible).toBe(false);
     expect(next.regions.scenarios?.panelIds).toEqual([]);
     expect(next.regions.scenarios?.activePanelId).toBeUndefined();
+  });
+
+  it("normalizes legacy stored rail positions onto ADR-0007 semantics while loading", () => {
+    const oldDocWorkspace = {
+      ...defaultWorkspaceForPanels(panels),
+      regions: {
+        ...defaultWorkspaceForPanels(panels).regions,
+        scenarios: { visible: true, position: "left" as const, panelIds: ["scenarios"], activePanelId: "scenarios" },
+        control: { visible: true, position: "left" as const, panelIds: ["controls"], activePanelId: "controls" },
+        note: { visible: true, position: "right" as const, panelIds: ["note"], activePanelId: "note" },
+      },
+    };
+
+    expect(normalizeWorkspaceForAdr0007(oldDocWorkspace).regions).toMatchObject({
+      scenarios: { position: "right" },
+      control: { position: "right" },
+      note: { position: "left" },
+    });
+
+    const loaded = workspaceForPanels(panels, oldDocWorkspace);
+    expect(loaded.regions.scenarios?.position).toBe("right");
+    expect(loaded.regions.control?.position).toBe("right");
+    expect(loaded.regions.note?.position).toBe("left");
   });
 });

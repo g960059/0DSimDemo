@@ -122,7 +122,7 @@ export function useWorkbenchPersistence({
       // remain represented by graphBoardLayout + legacy graph panels here.
       views: serializableAuthoredViews(scene.currentCaseViews),
       graphBoardLayout: normalizedGraphBoardLayout,
-      initialActiveScenarioId: overrides.initialActiveScenarioId ?? scene.currentCaseInitialActiveScenarioId,
+      initialActiveScenarioId: overrides.initialActiveScenarioId ?? scene.activeInstanceId,
       defaultLocale: scene.currentCaseDefaultLocale ?? locale,
       availableLocales: scene.currentCaseAvailableLocales,
       i18n: scene.currentCaseI18n,
@@ -143,7 +143,7 @@ export function useWorkbenchPersistence({
     scene.currentCaseExposedControllers,
     scene.currentCaseViews,
     scene.currentCaseGraphBoardLayout,
-    scene.currentCaseInitialActiveScenarioId,
+    scene.activeInstanceId,
     scene.currentCaseOwnerId,
     scene.currentCaseSource,
     scene.instances,

@@ -68,8 +68,11 @@ export type AuthorRuntimeSnapshot = {
   activeInstanceId: string;
 };
 
+let viewIdCounter = 0;
+
 function nextViewId(kind: "controller" | "metrics"): string {
-  return `${kind}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  viewIdCounter += 1;
+  return `${kind}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}-${viewIdCounter.toString(36)}`;
 }
 
 export function cloneInstances(instances: readonly SimInstance[]): SimInstance[] {

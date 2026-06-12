@@ -147,32 +147,32 @@ export const ReadingPresenter: React.FC<{
             </button>
           )}
         </div>
-        <div className="absolute bottom-0 left-0 h-0.5 bg-sky-400" style={{ width: `${readingProgress * 100}%` }} />
+        <div className="absolute bottom-0 left-0 h-0.5 bg-wb-accent" style={{ width: `${readingProgress * 100}%` }} />
       </div>
 
       <div ref={scrollportRef} onScroll={updateReadingProgress} className="min-h-0 flex-1 overflow-y-auto">
       <article className="mx-auto w-full max-w-[860px] px-4 pb-16 pt-8 sm:px-6 sm:pt-10">
         <header className="mx-auto w-full max-w-[68ch]">
-          <h1 className="text-3xl font-bold text-slate-50 sm:text-[34px]">{lessonTitle}</h1>
+          <h1 className="text-3xl font-bold text-wb-text sm:text-[34px]">{lessonTitle}</h1>
           {fallbackLocale && (
             <p className="mt-3 text-sm font-semibold text-amber-300">
               {t("contentI18n.fallbackNotice", { locale: localeDisplayLabel(fallbackLocale, i18n.language) })}
             </p>
           )}
-          <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-            <span className="rounded border border-slate-800 bg-slate-900/60 px-2 py-1 font-semibold uppercase tracking-wide">{lessonLevel ?? t("lessonPlayer.lesson")}</span>
+          <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-wb-subtle">
+            <span className="rounded border border-wb-line bg-wb-strip px-2 py-1 font-semibold uppercase tracking-wide">{lessonLevel ?? t("lessonPlayer.lesson")}</span>
             <span>{t("reading.minRead", { count: estimatedReadMinutes })}</span>
-            {hasInteractiveControls && <span className="rounded border border-sky-900/70 bg-sky-950/40 px-2 py-1 font-semibold text-sky-300">{t("reading.interactive")}</span>}
+            {hasInteractiveControls && <span className="rounded border border-wb-accent bg-wb-accent-soft px-2 py-1 font-semibold text-wb-accent">{t("reading.interactive")}</span>}
           </div>
-          {objective && <p className="mt-4 text-base leading-7 text-slate-400">{objective}</p>}
+          {objective && <p className="mt-4 text-base leading-7 text-wb-muted">{objective}</p>}
         </header>
 
         {headingAnchors.length > 0 && (
-          <details className="mx-auto mt-8 w-full max-w-[68ch] rounded-md border border-slate-800 bg-slate-900/30 px-4 py-3">
-            <summary className="cursor-pointer text-sm font-semibold text-slate-300">{t("reading.tableOfContents")}</summary>
+          <details className="mx-auto mt-8 w-full max-w-[68ch] rounded-md border border-wb-line bg-wb-input px-4 py-3">
+            <summary className="cursor-pointer text-sm font-semibold text-wb-muted">{t("reading.tableOfContents")}</summary>
             <nav className="mt-3 flex flex-col gap-2">
               {headingAnchors.map((anchor) => (
-                <a key={anchor.id} href={`#${anchor.id}`} className="text-sm text-slate-400 hover:text-sky-300">
+                <a key={anchor.id} href={`#${anchor.id}`} className="text-sm text-wb-muted hover:text-wb-accent">
                   {anchor.text}
                 </a>
               ))}
