@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  addVisibleScenariosToMetricsViews,
   authoredViewsForLoad,
   createControllerViewSpec,
   createMetricsViewSpec,
@@ -163,5 +164,23 @@ describe("P2a authored view helpers", () => {
       normal: { visible: true, selectedSignals: ["ABP"] },
       hidden: { visible: true, selectedSignals: ["CO"] },
     });
+  });
+
+  it("adds new scenarios to authored metrics view membership as visible", () => {
+    const views = [
+      createControllerViewSpec("controller", "Controller", []),
+      createMetricsViewSpec("metrics", "Metrics", ["ABP", "CO"], [instances[0]]),
+    ];
+
+    const next = addVisibleScenariosToMetricsViews(views, ["copy"]);
+    expect(next[0]).toBe(views[0]);
+    expect(next[1]).toMatchObject({
+      kind: "metrics",
+      membership: {
+        normal: ["ABP", "CO"],
+        copy: ["ABP", "CO"],
+      },
+    });
+    expect(metricsViewConfig(next[1] as MetricsViewSpec, [...instances, { ...instances[0], id: "copy" }]).copy.visible).toBe(true);
   });
 });

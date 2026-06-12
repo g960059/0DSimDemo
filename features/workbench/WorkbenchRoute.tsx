@@ -19,6 +19,7 @@ import {
   ALL_METRICS,
   ALL_SIGNALS,
   EMPTY_NOTE_SPINE,
+  type AddedInstanceConfig,
   noteExcerpt,
 } from "@/features/workbench/workbenchDefaults";
 
@@ -29,7 +30,7 @@ export function WorkbenchRoute() {
   const userEditedRef = useRef(false);
   const buildCurrentDocRef = useRef<BuildCurrentDoc | null>(null);
   const requestSteadyTransitionRef = useRef<(id: string, nextInstances: SimInstance[]) => void>(() => {});
-  const addHiddenInstanceConfigsRef = useRef<(ids: string[]) => void>(() => {});
+  const addVisibleInstanceConfigsRef = useRef<(additions: AddedInstanceConfig[]) => void>(() => {});
 
   const markUserEdited = useCallback(() => {
     userEditedRef.current = true;
@@ -39,7 +40,7 @@ export function WorkbenchRoute() {
     user,
     markUserEdited,
     requestSteadyTransitionRef,
-    addHiddenInstanceConfigsRef,
+    addVisibleInstanceConfigsRef,
   });
 
   const panels = useWorkbenchPanels({
@@ -47,9 +48,12 @@ export function WorkbenchRoute() {
     headerMode: scene.headerMode,
     markUserEdited,
   });
-  addHiddenInstanceConfigsRef.current = panels.addHiddenInstanceConfigs;
+  addVisibleInstanceConfigsRef.current = panels.addVisibleInstanceConfigs;
 
-  const simulation = useWorkbenchSimulation(scene.instances, panels.addHiddenInstanceConfigs);
+  const addSimulationInstanceConfigs = useCallback((ids: string[]) => {
+    panels.addVisibleInstanceConfigs(ids.map((id) => ({ id })));
+  }, [panels.addVisibleInstanceConfigs]);
+  const simulation = useWorkbenchSimulation(scene.instances, addSimulationInstanceConfigs);
   requestSteadyTransitionRef.current = simulation.requestSteadyTransition;
 
   const defaultSceneTitle = useCallback(() => (

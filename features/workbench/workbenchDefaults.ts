@@ -192,13 +192,28 @@ export function defaultSignalsForPanelType(type: PanelType): string[] {
   return [];
 }
 
-export function addHiddenInstanceConfigsToPanels(panels: PanelDef[], ids: string[]): PanelDef[] {
+export type AddedInstanceConfig = {
+  id: string;
+  sourceId?: string;
+};
+
+function selectedSignalsForAddedInstance(panel: PanelDef, sourceId?: string): string[] {
+  if (sourceId && panel.config[sourceId]) return [...panel.config[sourceId].selectedSignals];
+  const existingDefault = Object.values(panel.config).find((cfg) => cfg.visible && cfg.selectedSignals.length > 0)
+    ?? Object.values(panel.config).find((cfg) => cfg.selectedSignals.length > 0);
+  return existingDefault ? [...existingDefault.selectedSignals] : defaultSignalsForPanelType(panel.type);
+}
+
+export function addVisibleInstanceConfigsToPanels(panels: PanelDef[], additions: AddedInstanceConfig[]): PanelDef[] {
   return panels.map((panel) => {
     let changed = false;
     const config = { ...panel.config };
-    for (const id of ids) {
+    for (const { id, sourceId } of additions) {
       if (config[id]) continue;
-      config[id] = { visible: false, selectedSignals: defaultSignalsForPanelType(panel.type) };
+      config[id] = {
+        visible: panel.type !== 'NOTE',
+        selectedSignals: selectedSignalsForAddedInstance(panel, sourceId),
+      };
       changed = true;
     }
     return changed ? { ...panel, config } : panel;

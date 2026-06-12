@@ -10,7 +10,7 @@ import { PanelGrid, getActiveSettingsSectionId, getDockviewPaneTitle, openPanelS
 import { ScenarioPane } from "@/components/workbench/ScenarioPane";
 import { getDockviewStructureSignature, getDockviewTabMenuPosition, shouldReapplyDockviewLayout } from "@/components/workbench/WorkbenchDockview";
 import { standardAuthoredViews } from "@/features/workbench/authoredViews";
-import { addHiddenInstanceConfigsToPanels } from "@/WorkbenchPage";
+import { addVisibleInstanceConfigsToPanels } from "@/WorkbenchPage";
 import { DEFAULT_PARAMS } from "@/constants";
 import type { SteadyUpdateStatusMap } from "@/engine/previewController";
 import type { PanelDef, SimInstance } from "@/types";
@@ -576,8 +576,8 @@ describe("PanelGrid Dockview layout", () => {
       .toBe(getDockviewStructureSignature([{ ...pvLoopPanel, title: "Renamed PV" }]));
   });
 
-  it("adds new instances to existing pane configs as hidden by default", () => {
-    const panels = addHiddenInstanceConfigsToPanels([
+  it("adds new instances to existing pane configs as visible with source signals", () => {
+    const panels = addVisibleInstanceConfigsToPanels([
       pvLoopPanel,
       {
         id: "controls",
@@ -589,12 +589,22 @@ describe("PanelGrid Dockview layout", () => {
         config: { normal: { visible: true, selectedSignals: ["clinical"] } },
         isSettingsOpen: false,
       },
-    ], ["copy"]);
+    ], [{ id: "copy", sourceId: "normal" }]);
 
     expect(panels[0].config.normal.visible).toBe(true);
-    expect(panels[0].config.copy).toEqual({ visible: false, selectedSignals: ["LV"] });
+    expect(panels[0].config.copy).toEqual({ visible: true, selectedSignals: ["LV"] });
     expect(panels[1].config.normal.visible).toBe(true);
-    expect(panels[1].config.copy).toEqual({ visible: false, selectedSignals: ["clinical", "Global", "ventricles", "fluids"] });
+    expect(panels[1].config.copy).toEqual({ visible: true, selectedSignals: ["clinical"] });
+  });
+
+  it("caps the scenario list height instead of assigning a fixed ratio height", () => {
+    const html = renderPanelGrid("sandbox", [], [normalInstance], [], {}, false, {
+      scenarioListMaxRatio: 0.5,
+    });
+
+    expect(html).toContain("min-height:84px");
+    expect(html).toContain("max-height:calc(100% * 0.5)");
+    expect(html).not.toContain("flex-basis:calc(100% * 0.5)");
   });
 
   it("does not render pane-local controller settings for the fixed inspector", () => {

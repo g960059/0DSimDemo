@@ -3,6 +3,7 @@ import { DEFAULT_PARAMS } from "@/constants";
 import type { CaseDocument, CaseI18nContent, CaseSource } from "@/caseDoc";
 import {
   authoredViewsForLoad,
+  addVisibleScenariosToMetricsViews,
   appendMissingStandardViews,
   createControllerViewSpec,
   createMetricsViewSpec,
@@ -24,6 +25,7 @@ import {
   INSTANCE_COLORS,
   LOCAL_COPY_AUTHOR,
   UNTITLED_CASE_TITLE,
+  type AddedInstanceConfig,
   inferCaseSource,
   pickDistinctInstanceColor,
   resolveHeaderModeFromAuthor,
@@ -69,12 +71,12 @@ export function useWorkbenchScene({
   user,
   markUserEdited,
   requestSteadyTransitionRef,
-  addHiddenInstanceConfigsRef,
+  addVisibleInstanceConfigsRef,
 }: {
   user: AuthUser;
   markUserEdited: () => void;
   requestSteadyTransitionRef: MutableRefObject<(id: string, nextInstances: SimInstance[]) => void>;
-  addHiddenInstanceConfigsRef: MutableRefObject<(ids: string[]) => void>;
+  addVisibleInstanceConfigsRef: MutableRefObject<(additions: AddedInstanceConfig[]) => void>;
 }) {
   const [instances, setInstances] = useState<SimInstance[]>([
     {
@@ -283,8 +285,9 @@ export function useWorkbenchScene({
       knobs: initialKnobs,
       knobBaseline: initialKnobBaseline,
     }]);
-    addHiddenInstanceConfigsRef.current([newId]);
-  }, [activeInstanceId, addHiddenInstanceConfigsRef, instances, markUserEdited]);
+    addVisibleInstanceConfigsRef.current([{ id: newId, sourceId: sourceInstance?.id }]);
+    setCurrentCaseViews((prev) => addVisibleScenariosToMetricsViews(prev ?? [], [newId]));
+  }, [activeInstanceId, addVisibleInstanceConfigsRef, instances, markUserEdited]);
 
   const removeInstance = useCallback((id: string) => {
     markUserEdited();

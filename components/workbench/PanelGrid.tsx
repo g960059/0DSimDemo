@@ -2198,6 +2198,7 @@ export function PanelGrid({
   const metricsGridColumn = layoutState.metricsSpan === 'full' ? '1 / -1' : mainColumn;
   const metricsSashGridColumn = metricsGridColumn;
   const scenarioListMaxRatio = clamp(layoutState.scenarioListMaxRatio ?? 0.4, 0.25, 0.65);
+  const scenarioListExpandedMinHeight = 36 + 16 + 32;
   const showScenarioListResize = !layoutState.scenarioListCollapsed;
   const rightRailRef = useRef<HTMLDivElement | null>(null);
   const activeInstance = instances.find((instance) => instance.id === activeInstanceId);
@@ -2417,7 +2418,8 @@ export function PanelGrid({
               <div
                 className="flex min-h-0 shrink-0 flex-col overflow-hidden"
                 style={{
-                  flexBasis: layoutState.scenarioListCollapsed ? 36 : `calc(100% * ${scenarioListMaxRatio})`,
+                  minHeight: layoutState.scenarioListCollapsed ? 36 : scenarioListExpandedMinHeight,
+                  maxHeight: layoutState.scenarioListCollapsed ? 36 : `calc(100% * ${scenarioListMaxRatio})`,
                 }}
               >
                 <div className="group flex h-9 shrink-0 items-center bg-slate-950/35 px-2 text-xs font-bold text-slate-300 transition-colors hover:bg-slate-900/70 hover:text-slate-100">
@@ -2451,7 +2453,7 @@ export function PanelGrid({
                   )}
                 </div>
                 {!layoutState.scenarioListCollapsed && (
-                  <div className="min-h-0 overflow-hidden">
+                  <div className="flex min-h-0 flex-1 overflow-hidden">
                     <ScenarioPane
                       instances={instances}
                       addInstance={addInstance}

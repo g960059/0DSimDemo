@@ -19,11 +19,12 @@ import {
   DEFAULT_WORKBENCH_LAYOUT,
   EMPTY_NOTE_SPINE,
   INITIAL_PANELS,
-  addHiddenInstanceConfigsToPanels,
+  addVisibleInstanceConfigsToPanels,
   cloneInitialPanels,
   layoutStateFromWorkspace,
   mergePanelControllerItems,
   mergePanelLegendPosition,
+  type AddedInstanceConfig,
 } from "@/features/workbench/workbenchDefaults";
 import { mainDockviewViewStatesOnly } from "@/features/workbench/p1aStructuralHosts";
 import {
@@ -107,8 +108,8 @@ export function useWorkbenchPanels({
     if (headerMode !== "learner") markUserEdited();
   }, [headerMode, markUserEdited, panels]);
 
-  const addHiddenInstanceConfigs = useCallback((ids: string[]) => {
-    setPanels((prev) => addHiddenInstanceConfigsToPanels(prev, ids));
+  const addVisibleInstanceConfigs = useCallback((additions: AddedInstanceConfig[]) => {
+    setPanels((prev) => addVisibleInstanceConfigsToPanels(prev, additions));
   }, []);
 
   const replacePanelState = useCallback((next: {
@@ -371,7 +372,7 @@ export function useWorkbenchPanels({
     addingPanelType,
     addingPanelConfig,
     setAddingPanelConfig,
-    addHiddenInstanceConfigs,
+    addVisibleInstanceConfigs,
     replacePanelState,
     updateDockviewViewState,
     addPanel,

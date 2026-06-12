@@ -151,6 +151,26 @@ export function deleteAuthoredView(views: readonly AuthoredViewSpec[], id: strin
   return views.filter((view) => view.id !== id);
 }
 
+export function addVisibleScenariosToMetricsViews(
+  views: readonly AuthoredViewSpec[],
+  scenarioIds: readonly string[],
+): AuthoredViewSpec[] {
+  if (scenarioIds.length === 0) return [...views];
+  return views.map((view) => {
+    if (view.kind !== "metrics") return view;
+    const selectedSignals = view.metrics.length > 0 ? [...new Set(view.metrics)] as string[] : metricsFromMembership(view.membership);
+    if (selectedSignals.length === 0) return view;
+    let changed = false;
+    const membership: ViewMembership = { ...view.membership };
+    for (const id of scenarioIds) {
+      if (membership[id]) continue;
+      membership[id] = [...selectedSignals];
+      changed = true;
+    }
+    return changed ? { ...view, membership: normalizeMembership(membership) } : view;
+  });
+}
+
 export function metricsMembershipForInstances(
   metrics: readonly MetricType[],
   instances: readonly SimInstance[],
