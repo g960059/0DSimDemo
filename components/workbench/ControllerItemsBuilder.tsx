@@ -142,7 +142,7 @@ export function ControllerItemsBuilder({
     commit(next);
   };
 
-  const updateOption = (itemIndex: number, optionIndex: number, patch: Partial<{ label: string; value: number }>) => {
+  const updateOption = (itemIndex: number, optionIndex: number, patch: Partial<{ label: string; value: number; labelKey?: string }>) => {
     const item = items[itemIndex];
     const nextOptions = (item.options ?? []).map((option, index) => index === optionIndex ? { ...option, ...patch } : option);
     updateItem(itemIndex, { options: nextOptions });
@@ -164,10 +164,11 @@ export function ControllerItemsBuilder({
   const commitItemLabelDraft = (itemIndex: number, key: string, value: string) => {
     clearDraft(key);
     const item = items[itemIndex];
-    updateItem(itemIndex, {
-      label: value,
-      ...(value.trim() === (item?.label ?? "").trim() ? {} : { labelKey: undefined }),
-    });
+    if (!item) return;
+    const meta = catalogMetaFor(item.paramKey);
+    const displayedLabel = translatedControllerItemLabel(t, item, meta.label);
+    if (value.trim() === displayedLabel.trim()) return;
+    updateItem(itemIndex, { label: value, labelKey: undefined });
   };
 
   const commitRangeDraft = (itemIndex: number, key: string, field: "min" | "max" | "step", value: string) => {
@@ -182,11 +183,12 @@ export function ControllerItemsBuilder({
 
   const commitOptionLabelDraft = (itemIndex: number, optionIndex: number, key: string, value: string) => {
     clearDraft(key);
-    const option = items[itemIndex]?.options?.[optionIndex];
-    updateOption(itemIndex, optionIndex, {
-      label: value,
-      ...(value.trim() === (option?.label ?? "").trim() ? {} : { labelKey: undefined }),
-    });
+    const item = items[itemIndex];
+    const option = item?.options?.[optionIndex];
+    if (!item || !option) return;
+    const displayedOption = translatedControllerOptions(t, [option])[0];
+    if (value.trim() === displayedOption.label.trim()) return;
+    updateOption(itemIndex, optionIndex, { label: value, labelKey: undefined });
   };
 
   const commitOptionValueDraft = (itemIndex: number, optionIndex: number, key: string, value: string) => {
@@ -204,12 +206,14 @@ export function ControllerItemsBuilder({
 
   const renderCatalogButton = (entry: CatalogEntry) => {
     const added = usedKeys.has(entry.key);
+    const label = translatedKnobLabel(t, entry.key, entry.label);
     return (
       <button
         key={entry.key}
         type="button"
         disabled={added}
         onClick={() => addEntry(entry)}
+        title={`${label} — ${entry.key}`}
         className={`group/entry flex min-h-7 w-full items-center gap-2 rounded px-2 text-left text-xs transition-colors ${
           added
             ? "cursor-default text-slate-600"
@@ -217,10 +221,9 @@ export function ControllerItemsBuilder({
         }`}
       >
         <span className="min-w-0 flex-1 truncate font-medium">
-          {translatedKnobLabel(t, entry.key, entry.label)}
+          {label}
           {entry.unit && <span className="ml-1 text-[11px] text-slate-500">{entry.unit}</span>}
         </span>
-        <span className="shrink-0 font-mono text-[10px] text-slate-600">{entry.key}</span>
         {added
           ? <Check className="h-3 w-3 shrink-0 text-slate-600" />
           : <Plus className="h-3.5 w-3.5 shrink-0 text-slate-500 opacity-0 transition-opacity group-hover/entry:opacity-100" />}
@@ -280,12 +283,13 @@ export function ControllerItemsBuilder({
                 const optionWarning = isButton && distinctOptionValues(item) < 2;
                 const isExpanded = expanded[item.paramKey] ?? false;
                 const itemLabelDraftKey = `${item.paramKey}:label`;
+                const displayedItemLabel = translatedControllerItemLabel(t, item, meta.label);
                 return (
                   <div key={item.paramKey} className="py-1.5">
                     <div className="group/row grid min-h-8 grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-1">
                       <input
                         type="text"
-                        value={drafts[itemLabelDraftKey] ?? item.label ?? ""}
+                        value={drafts[itemLabelDraftKey] ?? displayedItemLabel}
                         onChange={(event) => setDraft(itemLabelDraftKey, event.target.value)}
                         onBlur={(event) => commitItemLabelDraft(index, itemLabelDraftKey, event.target.value)}
                         onKeyDown={(event) => {
@@ -368,11 +372,12 @@ export function ControllerItemsBuilder({
                             {(item.options ?? []).map((option, optionIndex) => {
                               const optionLabelDraftKey = `${item.paramKey}:option:${optionIndex}:label`;
                               const optionValueDraftKey = `${item.paramKey}:option:${optionIndex}:value`;
+                              const displayedOptionLabel = translatedControllerOptions(t, [option])[0].label;
                               return (
                                 <div key={`${option.label}-${optionIndex}`} className="grid grid-cols-[minmax(0,1fr)_5.5rem_auto] items-center gap-1.5">
                                   <input
                                     type="text"
-                                    value={drafts[optionLabelDraftKey] ?? option.label}
+                                    value={drafts[optionLabelDraftKey] ?? displayedOptionLabel}
                                     onChange={(event) => setDraft(optionLabelDraftKey, event.target.value)}
                                     onBlur={(event) => commitOptionLabelDraft(index, optionIndex, optionLabelDraftKey, event.target.value)}
                                     onKeyDown={(event) => {
@@ -382,7 +387,7 @@ export function ControllerItemsBuilder({
                                       }
                                     }}
                                     className="h-7 min-w-0 rounded bg-slate-800/40 px-2 text-[11px] font-semibold text-slate-200 outline-none transition-colors focus:bg-slate-900 focus:ring-1 focus:ring-slate-600"
-                                    aria-label={`${item.label} option label`}
+                                    aria-label={`${displayedItemLabel} option label`}
                                   />
                                   <input
                                     type="number"
@@ -399,8 +404,8 @@ export function ControllerItemsBuilder({
                                       }
                                     }}
                                     className="h-7 min-w-0 rounded bg-slate-800/40 px-2 text-[11px] font-semibold text-slate-200 outline-none transition-colors focus:bg-slate-900 focus:ring-1 focus:ring-slate-600"
-                                    aria-label={`${item.label} option value`}
-                                  />
+	                                    aria-label={`${displayedItemLabel} option value`}
+	                                  />
                                   <button
                                     type="button"
                                     onClick={() => updateItem(index, { options: (item.options ?? []).filter((_option, optionItemIndex) => optionItemIndex !== optionIndex) })}

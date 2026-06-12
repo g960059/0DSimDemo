@@ -1512,23 +1512,24 @@ function ViewSpecEditorModal({
                         {signalCategoryLabel(t, category as SignalCategory)}
                       </summary>
                       <div className="grid pb-1 sm:grid-cols-2">
-                        {categoryMetrics.map((metric) => {
-                          const selected = selectedMetrics.includes(metric);
-                          return (
-                            <button
-                              key={metric}
-                              type="button"
-                              onClick={() => toggleMetric(metric)}
-                              className={`group/entry flex min-h-7 w-full items-center gap-2 rounded px-2 text-left text-xs transition-colors ${
-                                selected
-                                  ? 'text-sky-200'
+	                        {categoryMetrics.map((metric) => {
+	                          const selected = selectedMetrics.includes(metric);
+                            const label = signalMetadata(metric).label;
+	                          return (
+	                            <button
+	                              key={metric}
+	                              type="button"
+	                              onClick={() => toggleMetric(metric)}
+                                title={`${label} — ${metric}`}
+	                              className={`group/entry flex min-h-7 w-full items-center gap-2 rounded px-2 text-left text-xs transition-colors ${
+	                                selected
+	                                  ? 'text-sky-200'
                                   : 'text-slate-300 hover:bg-slate-800/50 hover:text-slate-100'
-                              }`}
-                            >
-                              <span className="min-w-0 flex-1 truncate font-medium">{signalMetadata(metric).label}</span>
-                              <span className="shrink-0 font-mono text-[10px] text-slate-600">{metric}</span>
-                              {selected
-                                ? <Check className="h-3 w-3 shrink-0 text-sky-300" />
+	                              }`}
+	                            >
+	                              <span className="min-w-0 flex-1 truncate font-medium">{label}</span>
+	                              {selected
+	                                ? <Check className="h-3 w-3 shrink-0 text-sky-300" />
                                 : <Plus className="h-3.5 w-3.5 shrink-0 text-slate-500 opacity-0 transition-opacity group-hover/entry:opacity-100" />}
                             </button>
                           );
@@ -2032,6 +2033,8 @@ export function PanelGrid({
   const [activeMetricsTabId, setActiveMetricsTabId] = useState(() => fixedMetricsTabs[0]?.id ?? '');
   const [openControllerMenu, setOpenControllerMenu] = useState(false);
   const [metricsMenuViewId, setMetricsMenuViewId] = useState<string | null>(null);
+  const [renamingViewId, setRenamingViewId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState('');
   const [viewEditor, setViewEditor] = useState<ViewEditorState | null>(null);
   useEffect(() => {
     if (fixedMetricsTabs.some((tab) => tab.id === activeMetricsTabId)) return;
@@ -2045,6 +2048,11 @@ export function PanelGrid({
     if (selectedControllerViewId === BUILT_IN_INSPECTOR_VIEW_ID || selectedControllerView) return;
     onLayoutStateChange((prev) => ({ ...prev, selectedControllerViewId: BUILT_IN_INSPECTOR_VIEW_ID }));
   }, [onLayoutStateChange, selectedControllerView, selectedControllerViewId]);
+  useEffect(() => {
+    if (!renamingViewId || authoredViews.some((view) => view.id === renamingViewId)) return;
+    setRenamingViewId(null);
+    setRenameDraft('');
+  }, [authoredViews, renamingViewId]);
   const hasCaseRail = Boolean(notePanel && layoutState.noteOpen);
   const shareBanner = authoringMode && publishedLesson ? (
     <div className="mb-2 flex flex-col gap-2 rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100 sm:flex-row sm:items-center">
@@ -2229,10 +2237,23 @@ export function PanelGrid({
     setOpenControllerMenu(false);
   };
 
-  const renameView = (view: AuthoredViewSpec) => {
-    const next = window.prompt(t('workbench.viewManagement.renamePrompt'), view.title ?? '');
-    if (next == null || next.trim().length === 0) return;
-    renameAuthoredView(view.id, next.trim());
+  const beginRenameView = (view: AuthoredViewSpec) => {
+    setRenamingViewId(view.id);
+    setRenameDraft(view.title ?? '');
+  };
+
+  const commitRenameView = (view: AuthoredViewSpec) => {
+    const nextTitle = renameDraft.trim();
+    if (nextTitle && nextTitle !== view.title) {
+      renameAuthoredView(view.id, nextTitle);
+    }
+    setRenamingViewId(null);
+    setRenameDraft('');
+  };
+
+  const cancelRenameView = () => {
+    setRenamingViewId(null);
+    setRenameDraft('');
   };
 
   const duplicateView = (view: AuthoredViewSpec) => {
@@ -2378,12 +2399,12 @@ export function PanelGrid({
           {hasRightRail && (
             <section
               ref={rightRailRef}
-              className="workbench-zone-aux flex min-h-0 flex-col overflow-hidden border-l border-slate-800/60 bg-[#0B1120]"
+              className="workbench-zone-aux flex min-h-0 flex-col overflow-hidden bg-[#0B1120]"
               style={{ gridColumn: rightRailColumn, gridRow: auxiliaryGridRow }}
               aria-label={t('workbench.panelGrid.railAria')}
             >
               <div
-                className="flex min-h-0 shrink-0 flex-col overflow-hidden border-b border-slate-800/70"
+                className="flex min-h-0 shrink-0 flex-col overflow-hidden"
                 style={{
                   maxHeight: layoutState.scenarioListCollapsed ? 36 : `calc(100% * ${scenarioListMaxRatio})`,
                 }}
@@ -2391,7 +2412,7 @@ export function PanelGrid({
                 <button
                   type="button"
                   onClick={() => onLayoutStateChange((prev) => ({ ...prev, scenarioListCollapsed: !prev.scenarioListCollapsed }))}
-                  className="flex h-9 shrink-0 items-center gap-2 border-b border-slate-800/70 bg-slate-950/35 px-2 text-left text-xs font-bold text-slate-300 transition-colors hover:bg-slate-900/70 hover:text-slate-100"
+                  className="flex h-9 shrink-0 items-center gap-2 bg-slate-950/35 px-2 text-left text-xs font-bold text-slate-300 transition-colors hover:bg-slate-900/70 hover:text-slate-100"
                   aria-expanded={!layoutState.scenarioListCollapsed}
                 >
                   {layoutState.scenarioListCollapsed ? <ChevronRight className="h-3.5 w-3.5 text-slate-500" /> : <ChevronDown className="h-3.5 w-3.5 text-slate-500" />}
@@ -2439,7 +2460,7 @@ export function PanelGrid({
                 />
               )}
               <div className="flex min-h-0 flex-1 flex-col">
-                <div className="relative flex h-9 shrink-0 items-center gap-2 border-b border-slate-800/70 bg-slate-950/35 px-2">
+                <div className="relative flex h-9 shrink-0 items-center gap-2 bg-slate-950/35 px-2">
                   <button
                     type="button"
                     onClick={() => setOpenControllerMenu((open) => !open)}
@@ -2467,29 +2488,57 @@ export function PanelGrid({
                       >
                         <span className="min-w-0 flex-1 truncate">{t('workbench.viewManagement.builtInInspector')}</span>
                       </button>
-                      {authoredControllerViews.map((view) => (
-                        <div key={view.id} className={`group flex h-8 items-center gap-1 rounded px-2 ${selectedControllerEntryId === view.id ? 'bg-slate-800' : 'hover:bg-slate-900'}`}>
-                          <button
-                            type="button"
-                            onClick={() => selectControllerEntry(view.id)}
-                            className={`min-w-0 flex-1 truncate text-left text-xs font-semibold ${selectedControllerEntryId === view.id ? 'text-slate-100' : 'text-slate-400 group-hover:text-slate-100'}`}
-                          >
-                            {view.title}
-                          </button>
-                          <button type="button" onClick={() => setViewEditor({ mode: 'edit', view })} className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-800 hover:text-slate-200" aria-label={t('common.edit')}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button type="button" onClick={() => renameView(view)} className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-800 hover:text-slate-200" aria-label={t('workbench.viewManagement.rename')}>
-                            <TypeIcon className="h-3.5 w-3.5" />
-                          </button>
-                          <button type="button" onClick={() => duplicateView(view)} className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-800 hover:text-slate-200" aria-label={t('workbench.viewManagement.duplicate')}>
-                            <Copy className="h-3.5 w-3.5" />
-                          </button>
-                          <button type="button" onClick={() => deleteView(view)} className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-800 hover:text-red-300" aria-label={t('common.delete')}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      ))}
+	                      {authoredControllerViews.map((view) => {
+	                        const isRenaming = renamingViewId === view.id;
+	                        return (
+	                          <div key={view.id} className={`group flex h-8 items-center gap-1 rounded px-2 ${selectedControllerEntryId === view.id ? 'bg-slate-800' : 'hover:bg-slate-900'}`}>
+	                            {isRenaming ? (
+	                              <input
+	                                type="text"
+	                                value={renameDraft}
+	                                autoFocus
+	                                onFocus={(event) => event.currentTarget.select()}
+	                                onClick={(event) => event.stopPropagation()}
+	                                onBlur={() => commitRenameView(view)}
+	                                onChange={(event) => setRenameDraft(event.target.value)}
+	                                onKeyDown={(event) => {
+	                                  if (event.key === 'Enter') {
+	                                    event.preventDefault();
+	                                    commitRenameView(view);
+	                                  }
+	                                  if (event.key === 'Escape') {
+	                                    event.preventDefault();
+	                                    cancelRenameView();
+	                                  }
+	                                }}
+	                                className="h-6 min-w-0 flex-1 rounded border border-blue-400/60 bg-blue-950/40 px-1.5 text-xs font-semibold text-slate-100 outline-none"
+	                                aria-label={t('workbench.viewManagement.rename')}
+	                              />
+	                            ) : (
+	                              <button
+	                                type="button"
+	                                onClick={() => selectControllerEntry(view.id)}
+	                                onDoubleClick={() => beginRenameView(view)}
+	                                className={`min-w-0 flex-1 truncate text-left text-xs font-semibold ${selectedControllerEntryId === view.id ? 'text-slate-100' : 'text-slate-400 group-hover:text-slate-100'}`}
+	                              >
+	                                {view.title}
+	                              </button>
+	                            )}
+	                            <button type="button" onClick={() => setViewEditor({ mode: 'edit', view })} className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-800 hover:text-slate-200" aria-label={t('common.edit')}>
+	                              <Pencil className="h-3.5 w-3.5" />
+	                            </button>
+	                            <button type="button" onClick={() => beginRenameView(view)} className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-800 hover:text-slate-200" aria-label={t('workbench.viewManagement.rename')}>
+	                              <TypeIcon className="h-3.5 w-3.5" />
+	                            </button>
+	                            <button type="button" onClick={() => duplicateView(view)} className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-800 hover:text-slate-200" aria-label={t('workbench.viewManagement.duplicate')}>
+	                              <Copy className="h-3.5 w-3.5" />
+	                            </button>
+	                            <button type="button" onClick={() => deleteView(view)} className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-800 hover:text-red-300" aria-label={t('common.delete')}>
+	                              <Trash2 className="h-3.5 w-3.5" />
+	                            </button>
+	                          </div>
+	                        );
+	                      })}
                       <button
                         type="button"
                         onClick={() => {
@@ -2546,24 +2595,52 @@ export function PanelGrid({
               aria-label={t('workbench.panelGrid.metricsHost')}
             >
               <div className="flex h-9 shrink-0 items-center gap-1 overflow-x-auto border-b border-slate-800/70 bg-slate-950/35 px-2 custom-scrollbar">
-                {fixedMetricsTabs.map((tab) => (
-                  <div key={tab.id} className="relative flex shrink-0 items-center">
-                    <button
-                      type="button"
-                      onClick={() => setActiveMetricsTabId(tab.id)}
-                      onContextMenu={(event) => {
-                        if (tab.kind !== 'authored') return;
-                        event.preventDefault();
-                        setMetricsMenuViewId((current) => current === tab.id ? null : tab.id);
-                      }}
-                      className={`inline-flex h-7 shrink-0 items-center rounded px-2 text-xs font-bold transition-colors ${
-                        activeMetricsTab.id === tab.id
-                          ? 'bg-slate-800 text-slate-100'
-                          : 'text-slate-500 hover:bg-slate-900 hover:text-slate-300'
-                      }`}
-                    >
-                      {metricsTabLabel(t, tab)}
-                    </button>
+	                {fixedMetricsTabs.map((tab) => {
+	                  const isRenaming = tab.kind === 'authored' && renamingViewId === tab.id;
+	                  return (
+	                    <div key={tab.id} className="relative flex shrink-0 items-center">
+	                      {isRenaming ? (
+	                        <input
+	                          type="text"
+	                          value={renameDraft}
+	                          autoFocus
+	                          onFocus={(event) => event.currentTarget.select()}
+	                          onBlur={() => commitRenameView(tab.view)}
+	                          onChange={(event) => setRenameDraft(event.target.value)}
+	                          onKeyDown={(event) => {
+	                            if (event.key === 'Enter') {
+	                              event.preventDefault();
+	                              commitRenameView(tab.view);
+	                            }
+	                            if (event.key === 'Escape') {
+	                              event.preventDefault();
+	                              cancelRenameView();
+	                            }
+	                          }}
+	                          className="h-7 min-w-28 rounded border border-blue-400/60 bg-blue-950/40 px-2 text-xs font-bold text-slate-100 outline-none"
+	                          aria-label={t('workbench.viewManagement.rename')}
+	                        />
+	                      ) : (
+	                        <button
+	                          type="button"
+	                          onClick={() => setActiveMetricsTabId(tab.id)}
+	                          onDoubleClick={() => {
+	                            if (tab.kind === 'authored') beginRenameView(tab.view);
+	                          }}
+	                          onContextMenu={(event) => {
+	                            if (tab.kind !== 'authored') return;
+	                            event.preventDefault();
+	                            setMetricsMenuViewId((current) => current === tab.id ? null : tab.id);
+	                          }}
+	                          className={`inline-flex h-7 shrink-0 items-center rounded px-2 text-xs font-bold transition-colors ${
+	                            activeMetricsTab.id === tab.id
+	                              ? 'bg-slate-800 text-slate-100'
+	                              : 'text-slate-500 hover:bg-slate-900 hover:text-slate-300'
+	                          }`}
+	                        >
+	                          {metricsTabLabel(t, tab)}
+	                        </button>
+	                      )}
                     {tab.kind === 'authored' && (
                       <button
                         type="button"
@@ -2579,7 +2656,7 @@ export function PanelGrid({
                         <button type="button" onClick={() => { setViewEditor({ mode: 'edit', view: tab.view }); setMetricsMenuViewId(null); }} className="flex h-8 w-full items-center gap-2 rounded px-2 text-xs font-semibold text-slate-300 hover:bg-slate-900 hover:text-slate-100">
                           <Pencil className="h-3.5 w-3.5" /> {t('common.edit')}
                         </button>
-                        <button type="button" onClick={() => { renameView(tab.view); setMetricsMenuViewId(null); }} className="flex h-8 w-full items-center gap-2 rounded px-2 text-xs font-semibold text-slate-300 hover:bg-slate-900 hover:text-slate-100">
+                        <button type="button" onClick={() => { beginRenameView(tab.view); setMetricsMenuViewId(null); }} className="flex h-8 w-full items-center gap-2 rounded px-2 text-xs font-semibold text-slate-300 hover:bg-slate-900 hover:text-slate-100">
                           <TypeIcon className="h-3.5 w-3.5" /> {t('workbench.viewManagement.rename')}
                         </button>
                         <button type="button" onClick={() => { duplicateView(tab.view); setMetricsMenuViewId(null); }} className="flex h-8 w-full items-center gap-2 rounded px-2 text-xs font-semibold text-slate-300 hover:bg-slate-900 hover:text-slate-100">
@@ -2591,7 +2668,8 @@ export function PanelGrid({
                       </div>
                     )}
                   </div>
-                ))}
+                  );
+                })}
                 <button
                   type="button"
                   onClick={() => setViewEditor({ mode: 'create', kind: 'metrics' })}

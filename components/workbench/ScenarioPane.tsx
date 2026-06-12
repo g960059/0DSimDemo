@@ -160,12 +160,12 @@ export function ScenarioPane({
           return (
             <div
               key={instance.id}
-              className={`group relative flex min-h-8 items-center gap-2 rounded border px-2 text-xs transition-colors ${
+              className={`group relative flex min-h-8 items-center gap-2 rounded-sm px-2 text-xs transition-colors ${
                 isActive
-                  ? 'border-sky-500/45 bg-sky-500/12 text-sky-100'
+                  ? 'bg-sky-500/10 text-sky-100'
                   : isMenuOpen
-                    ? 'border-slate-700 bg-slate-900/90 text-slate-200'
-                    : 'border-transparent text-slate-400 hover:bg-slate-900/80 hover:text-slate-200'
+                    ? 'text-slate-200'
+                    : 'text-slate-400 hover:bg-slate-900/60 hover:text-slate-200'
               }`}
               onClick={() => setActiveInstanceId?.(instance.id)}
               onContextMenu={(event) => openMenuAtCursor(event, instance)}
@@ -188,9 +188,10 @@ export function ScenarioPane({
               {isEditing ? (
                 <input
                   type="text"
-                  value={draftName}
-                  autoFocus
-                  onClick={(event) => event.stopPropagation()}
+	                  value={draftName}
+	                  autoFocus
+                    onFocus={(event) => event.currentTarget.select()}
+	                  onClick={(event) => event.stopPropagation()}
                   onDoubleClick={(event) => event.stopPropagation()}
                   onBlur={() => commitRename(instance)}
                   onChange={(event) => setDraftName(event.target.value)}

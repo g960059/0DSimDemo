@@ -334,6 +334,8 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
   const context = useContext(WorkbenchDockviewContext);
   const [isActive, setIsActive] = useState(props.api.isActive);
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameDraft, setRenameDraft] = useState('');
   const panel = context?.panelsById.get(props.params.panelId);
   const title = panel && context ? context.getPanelTitle(panel) : (props.api.title ?? props.params.panelId);
 
@@ -353,6 +355,12 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
   const hasMenu = canConfigure || canRename || canClose || canSplit;
 
   useEffect(() => {
+    if (canRename) return;
+    setIsRenaming(false);
+    setRenameDraft('');
+  }, [canRename]);
+
+  useEffect(() => {
     if (!menuPosition) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
@@ -370,13 +378,26 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
     viewportHeight: window.innerHeight,
   });
 
-  const renamePanel = () => {
+  const beginRenamePanel = () => {
     if (!context?.onRenamePanel) return;
-    const nextTitle = window.prompt(t('workbench.dockview.renamePanePrompt'), title);
-    if (nextTitle === null) return;
-    const trimmedTitle = nextTitle.trim();
-    if (!trimmedTitle || trimmedTitle === title) return;
-    context.onRenamePanel(props.params.panelId, trimmedTitle);
+    setMenuPosition(null);
+    setIsRenaming(true);
+    setRenameDraft(title);
+  };
+
+  const commitRenamePanel = () => {
+    if (!context?.onRenamePanel) return;
+    const trimmedTitle = renameDraft.trim();
+    if (trimmedTitle && trimmedTitle !== title) {
+      context.onRenamePanel(props.params.panelId, trimmedTitle);
+    }
+    setIsRenaming(false);
+    setRenameDraft('');
+  };
+
+  const cancelRenamePanel = () => {
+    setIsRenaming(false);
+    setRenameDraft('');
   };
 
   return (
@@ -392,7 +413,32 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
         ));
       }}
     >
-      <span className="min-w-0 flex-1 truncate">{title}</span>
+      {isRenaming ? (
+        <input
+          type="text"
+          value={renameDraft}
+          autoFocus
+          onFocus={(event) => event.currentTarget.select()}
+          onClick={(event) => event.stopPropagation()}
+          onDoubleClick={(event) => event.stopPropagation()}
+          onBlur={commitRenamePanel}
+          onChange={(event) => setRenameDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              commitRenamePanel();
+            }
+            if (event.key === 'Escape') {
+              event.preventDefault();
+              cancelRenamePanel();
+            }
+          }}
+          className="h-6 min-w-0 flex-1 rounded border border-blue-400/60 bg-blue-950/40 px-1.5 text-xs font-semibold text-slate-100 outline-none"
+          aria-label={t('common.rename')}
+        />
+      ) : (
+        <span className="min-w-0 flex-1 truncate" onDoubleClick={beginRenamePanel}>{title}</span>
+      )}
       <div className="relative flex h-5 shrink-0 items-center justify-center gap-0.5">
         {canClose && (
           <button
@@ -445,8 +491,7 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
                       type="button"
                       onClick={(event) => {
                         event.stopPropagation();
-                        setMenuPosition(null);
-                        renamePanel();
+                        beginRenamePanel();
                       }}
                       role="menuitem"
                       className="workbench-popover-menu-item block w-full px-3 py-1.5 text-left text-xs font-medium"

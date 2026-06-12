@@ -154,9 +154,9 @@ describe("Controls", () => {
     expect(html).toContain("LV Focus");
     expect(html).not.toContain(i18n.t("workbench.controls.knobs.contractilityRV"));
     expect(html).not.toContain(i18n.t("workbench.controls.knobs.afterload"));
-    expect(html).toContain("1 changed");
-    expect(html).toContain(`aria-label="${i18n.t("workbench.controls.resetClinicalBaseline")}"`);
-    expect(html).toContain(i18n.t("workbench.controls.customReplaceDefault"));
+    expect(html).not.toContain(i18n.t("workbench.controls.groups.clinical"));
+    expect(html).not.toContain(i18n.t("workbench.controls.customReplaceDefault"));
+    expect(html).not.toContain(i18n.t("workbench.controls.customControls"));
   });
 
   it("localizes default authored controller labels and options at display time", async () => {
@@ -323,7 +323,8 @@ describe("Controls", () => {
     expect(changed).toEqual(authoredControls);
     expect(reset.contractility).toBe(baseline.contractility);
     expect(reset.afterload).toBe(knobs.afterload);
-    expect(html).toContain("1 changed");
-    expect(html).not.toContain("2 changed");
+    expect(html).toContain("LV Focus");
+    expect(html).not.toContain(i18n.t("workbench.controls.groups.clinical"));
+    expect(html).not.toContain(i18n.t("workbench.controls.groups.global"));
   });
 });

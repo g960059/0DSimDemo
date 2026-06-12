@@ -227,12 +227,45 @@ export const Controls: React.FC<ControlsProps> = ({
   };
 
   const showGroup = (key: string) => {
-      if (isPaneMode && paneConfig && paneConfig[currentActiveId]) {
-          const selectedSignals = paneConfig[currentActiveId].selectedSignals ?? [];
-          return selectedSignals.includes(key) || selectedSignals.some((sig: string) => sig.toLowerCase() === key.toLowerCase());
-      }
-      return true;
+    if (isPaneMode && paneConfig && paneConfig[currentActiveId]) {
+      const selectedSignals = paneConfig[currentActiveId].selectedSignals ?? [];
+      return selectedSignals.includes(key) || selectedSignals.some((sig: string) => sig.toLowerCase() === key.toLowerCase());
+    }
+    return true;
   };
+
+  const authoredControls = hasAuthored ? (
+    <div className="grid gap-1.5">
+      {authored.map((item) => {
+        const key = item.paramKey as NumericKnobKey;
+        const meta = catalogByKey.get(key);
+        const rawMeta = rawParamCatalogEntry(item.paramKey);
+        const isClinical = meta != null;
+        const rawValue = rawView[item.paramKey as keyof SimulationParams];
+        const value = isClinical
+          ? knobs[key]
+          : (typeof rawValue === 'number' ? rawValue : item.min ?? rawMeta?.min ?? 0);
+        const baseline = isClinical ? baselineKnobs[key] : undefined;
+        const readingOptions = item.kind === 'buttonGroup' && item.options
+          ? translatedControllerOptions(t, item.options)
+          : translatedControllerOptions(t, controllerOptionsWithLabelKeys(item, readingButtonOptionsFor(item.paramKey, baseline ?? value) ?? buttonOptionsFromRange(item), baseline ?? value));
+        const displayItem: ControllerItem = isReadingMode
+          ? { ...item, kind: 'buttonGroup', label: translatedControllerItemLabel(t, item, meta?.label ?? rawMeta?.label ?? item.paramKey), options: readingOptions }
+          : { ...item, label: translatedControllerItemLabel(t, item, meta?.label ?? rawMeta?.label ?? item.paramKey), ...(item.options ? { options: translatedControllerOptions(t, item.options) } : {}) };
+        return (
+          <ControllerItemControl
+            key={item.paramKey}
+            item={displayItem}
+            value={value}
+            baseline={baseline}
+            onChange={(v) => isClinical ? updateKnob(key, v) : update(item.paramKey as keyof SimulationParams, v)}
+            onReset={isClinical ? () => updateKnob(key, baselineKnobs[key]) : undefined}
+            unit={meta?.unit ?? rawMeta?.unit}
+          />
+        );
+      })}
+    </div>
+  ) : null;
 
   return (
     <div className="absolute inset-0 flex flex-col gap-0 h-full bg-transparent overflow-hidden">
@@ -256,47 +289,14 @@ export const Controls: React.FC<ControlsProps> = ({
       {/* Pane content - edits apply to the pane-local target in pane mode. */}
       <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
 
-          {(isReadingMode || showGroup('clinical')) && (
+          {hasAuthored && authoredControls}
+
+          {!hasAuthored && (isReadingMode || showGroup('clinical')) && (
             <>
               <GroupHeader title={t('workbench.controls.groups.clinical')} isOpen={openGroups.clinical} toggle={() => toggleGroup('clinical')} tone="clinical" changedCount={changedClinicalCount} summary={changedClinicalSummary} onReset={resetClinicalKnobs} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} resetTitle={t('workbench.controls.resetClinicalBaseline')} />
               {openGroups.clinical && (
                   <div className={clinicalBodyClass}>
-                      {hasAuthored ? (
-                        <>
-                          <div className="mb-2 text-[10px] font-semibold text-blue-100/80">{t('workbench.controls.customReplaceDefault')}</div>
-                          <ControlGrid tone="clinical">
-                            <SectionLabel changedCount={changedClinicalCount}>{t('workbench.controls.customControls')}</SectionLabel>
-                            {authored.map((item) => {
-                              const key = item.paramKey as NumericKnobKey;
-                              const meta = catalogByKey.get(key);
-                              const rawMeta = rawParamCatalogEntry(item.paramKey);
-                              const isClinical = meta != null;
-                              const rawValue = rawView[item.paramKey as keyof SimulationParams];
-                              const value = isClinical
-                                ? knobs[key]
-                                : (typeof rawValue === 'number' ? rawValue : item.min ?? rawMeta?.min ?? 0);
-                              const baseline = isClinical ? baselineKnobs[key] : undefined;
-                              const readingOptions = item.kind === 'buttonGroup' && item.options
-                                ? translatedControllerOptions(t, item.options)
-                                : translatedControllerOptions(t, controllerOptionsWithLabelKeys(item, readingButtonOptionsFor(item.paramKey, baseline ?? value) ?? buttonOptionsFromRange(item), baseline ?? value));
-                              const displayItem: ControllerItem = isReadingMode
-                                ? { ...item, kind: 'buttonGroup', label: translatedControllerItemLabel(t, item, meta?.label ?? rawMeta?.label ?? item.paramKey), options: readingOptions }
-                                : { ...item, label: translatedControllerItemLabel(t, item, meta?.label ?? rawMeta?.label ?? item.paramKey), ...(item.options ? { options: translatedControllerOptions(t, item.options) } : {}) };
-                              return (
-                                <ControllerItemControl
-                                  key={item.paramKey}
-                                  item={displayItem}
-                                  value={value}
-                                  baseline={baseline}
-                                  onChange={(v) => isClinical ? updateKnob(key, v) : update(item.paramKey as keyof SimulationParams, v)}
-                                  onReset={isClinical ? () => updateKnob(key, baselineKnobs[key]) : undefined}
-                                  unit={meta?.unit ?? rawMeta?.unit}
-                                />
-                              );
-                            })}
-                          </ControlGrid>
-                        </>
-                      ) : clinicalSections.map(section => {
+                      {clinicalSections.map(section => {
                           const visibleControls = isReadingMode
                             ? section.controls
                                 .map(control => ({
@@ -344,7 +344,7 @@ export const Controls: React.FC<ControlsProps> = ({
             </>
           )}
 
-          {isStudioMode && showGroup('global') && (
+          {!hasAuthored && isStudioMode && showGroup('global') && (
             <>
               <GroupHeader title={t('workbench.controls.groups.global')} isOpen={openGroups.global} toggle={() => toggleGroup('global')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.global && (
@@ -362,7 +362,7 @@ export const Controls: React.FC<ControlsProps> = ({
           </>
       )}
 
-          {isStudioMode && showGroup('ventricles') && (
+          {!hasAuthored && isStudioMode && showGroup('ventricles') && (
             <>
               <GroupHeader title={t('workbench.controls.groups.ventricles')} isOpen={openGroups.ventricles} toggle={() => toggleGroup('ventricles')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.ventricles && (
@@ -419,7 +419,7 @@ export const Controls: React.FC<ControlsProps> = ({
             </>
           )}
 
-          {isStudioMode && showGroup('atria') && (
+          {!hasAuthored && isStudioMode && showGroup('atria') && (
             <>
               <GroupHeader title={t('workbench.controls.groups.atria')} isOpen={openGroups.atria} toggle={() => toggleGroup('atria')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.atria && (
@@ -438,7 +438,7 @@ export const Controls: React.FC<ControlsProps> = ({
             </>
           )}
 
-          {isStudioMode && showGroup('vascular') && (
+          {!hasAuthored && isStudioMode && showGroup('vascular') && (
             <>
               <GroupHeader title={t('workbench.controls.groups.vascular')} isOpen={openGroups.vascular} toggle={() => toggleGroup('vascular')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.vascular && (
@@ -469,7 +469,7 @@ export const Controls: React.FC<ControlsProps> = ({
             </>
           )}
 
-          {isStudioMode && showGroup('coronary') && (
+          {!hasAuthored && isStudioMode && showGroup('coronary') && (
             <>
               <GroupHeader title={t('workbench.controls.groups.coronary')} isOpen={openGroups.coronary} toggle={() => toggleGroup('coronary')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.coronary && (
@@ -492,7 +492,7 @@ export const Controls: React.FC<ControlsProps> = ({
             </>
           )}
 
-          {isStudioMode && showGroup('fluids') && (
+          {!hasAuthored && isStudioMode && showGroup('fluids') && (
             <>
               <GroupHeader title={t('workbench.controls.groups.fluids')} isOpen={openGroups.fluids} toggle={() => toggleGroup('fluids')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.fluids && (
@@ -507,7 +507,7 @@ export const Controls: React.FC<ControlsProps> = ({
             </>
           )}
 
-          {isStudioMode && showGroup('valves') && (
+          {!hasAuthored && isStudioMode && showGroup('valves') && (
             <>
               <GroupHeader title={t('workbench.controls.groups.valves')} isOpen={openGroups.valves} toggle={() => toggleGroup('valves')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.valves && (
@@ -533,7 +533,7 @@ export const Controls: React.FC<ControlsProps> = ({
             </>
           )}
 
-          {isStudioMode && showGroup('resp') && (
+          {!hasAuthored && isStudioMode && showGroup('resp') && (
             <>
               <GroupHeader title={t('workbench.controls.groups.resp')} isOpen={openGroups.resp} toggle={() => toggleGroup('resp')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.resp && (
@@ -550,7 +550,7 @@ export const Controls: React.FC<ControlsProps> = ({
             </>
           )}
 
-          {isStudioMode && showGroup('advanced') && (
+          {!hasAuthored && isStudioMode && showGroup('advanced') && (
             <>
               <GroupHeader title={t('workbench.controls.groups.advanced')} isOpen={openGroups.advanced} toggle={() => toggleGroup('advanced')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.advanced && (
