@@ -101,7 +101,15 @@ export type MetricsOptions = {
   windowBeats?: 1 | 2;
 };
 
-export type AorticFlowClampMode = "hard" | "soft-tanh" | "soft-rational";
+export type AorticFlowClampMode =
+  | "hard"
+  | "soft-tanh"
+  | "soft-rational"
+  | "local-c1-0.90"
+  | "local-c1-0.95"
+  | "local-c1-0.98"
+  | "local-c2-0.95"
+  | "local-c2-0.98";
 
 type BeatWindow = {
   data: SimSample[];
@@ -288,6 +296,32 @@ function comparableFlowEdgeName(name: string): string {
   return edgeByComparableName[name] ?? name;
 }
 
+type LocalAorticFlowClampShape = {
+  identityFraction: 0.9 | 0.95 | 0.98;
+  smoothness: "c1" | "c2";
+};
+
+function localAorticFlowClampShape(mode: AorticFlowClampMode): LocalAorticFlowClampShape | undefined {
+  if (mode === "local-c1-0.90") return { identityFraction: 0.9, smoothness: "c1" };
+  if (mode === "local-c1-0.95") return { identityFraction: 0.95, smoothness: "c1" };
+  if (mode === "local-c1-0.98") return { identityFraction: 0.98, smoothness: "c1" };
+  if (mode === "local-c2-0.95") return { identityFraction: 0.95, smoothness: "c2" };
+  if (mode === "local-c2-0.98") return { identityFraction: 0.98, smoothness: "c2" };
+  return undefined;
+}
+
+function localizedAorticFlowClamp(value: number, limit: number, identityFraction: number, smoothness: "c1" | "c2"): number {
+  if (!Number.isFinite(value)) return 0;
+  const threshold = limit * identityFraction;
+  if (value <= threshold) return value;
+  if (value >= limit) return limit;
+  const span = Math.max(limit - threshold, 1e-9);
+  const s = clamp((value - threshold) / span, 0, 1);
+  const shaped = smoothness === "c2"
+    ? s + 4 * s ** 3 - 7 * s ** 4 + 3 * s ** 5
+    : s + s ** 2 - s ** 3;
+  return threshold + span * shaped;
+}
 
 export class ModelCore {
   private readonly idx = makeIndex();
@@ -2054,9 +2088,11 @@ export class ModelCore {
   }
 
   private dynamicFlowValue(edge: DynamicEdgeName, value: number): number {
-    return edge === "AoV"
-      ? this.applyAorticFlowClamp(value)
-      : clamp(value, -DYNAMIC_FLOW_CLAMP_ML_PER_S, DYNAMIC_FLOW_CLAMP_ML_PER_S);
+    if (edge !== "AoV") return clamp(value, -DYNAMIC_FLOW_CLAMP_ML_PER_S, DYNAMIC_FLOW_CLAMP_ML_PER_S);
+    const local = localAorticFlowClampShape(this.aorticFlowClampMode);
+    return local
+      ? this.applyLocalizedAorticFlowClamp(value, local)
+      : this.applyAorticFlowClamp(value);
   }
 
   private applyAorticFlowClamp(value: number): number {
@@ -2066,6 +2102,17 @@ export class ModelCore {
     if (this.aorticFlowClampMode === "soft-tanh") return limit * Math.tanh(positive / limit);
     if (this.aorticFlowClampMode === "soft-rational") return positive / (1 + positive / limit);
     return clamp(value, -limit, limit);
+  }
+
+  private applyLocalizedAorticFlowClamp(value: number, local: LocalAorticFlowClampShape): number {
+    if (value <= 0) return clamp(value, -DYNAMIC_FLOW_CLAMP_ML_PER_S, DYNAMIC_FLOW_CLAMP_ML_PER_S);
+    const positive = Math.min(Math.max(value, 0), DYNAMIC_FLOW_CLAMP_ML_PER_S * 50);
+    return localizedAorticFlowClamp(
+      positive,
+      DYNAMIC_FLOW_CLAMP_ML_PER_S,
+      local.identityFraction,
+      local.smoothness,
+    );
   }
 
   private correctVenousPressuresToExpectedTBV(options: {

@@ -396,3 +396,43 @@ npm run verify:starling-low-preload-matrix -- \
   --trace-beats=4 \
   --sample-hz=60
 ```
+
+## QAo cap proximity and localized soft-cap comparator
+
+The next diagnostic layer keeps the `hard` AoV clamp as the default but adds a more conservative report-only comparator family:
+
+- `local-c1-0.90`
+- `local-c1-0.95`
+- `local-c1-0.98`
+- `local-c2-0.95`
+- `local-c2-0.98`
+
+Unlike `soft-tanh` and `soft-rational`, these localized comparators are exactly identity below their configured fraction of `QAoMax` and only smooth the last part of the approach to the existing dynamic-flow cap. They are designed to answer a narrower question:
+
+```text
+Can the AoV/QAo clamp corner be smoothed near the cap without touching normal and HR100 ejection?
+```
+
+The reports now include QAo cap proximity fields:
+
+- max `QAo / cap`
+- fraction of positive QAo samples above 90%, 95%, and 98% of the cap
+- fraction of samples at the cap
+- fraction of samples above the localized comparator's identity threshold
+
+These fields are emitted for low-preload traces and for normal / HR100 waveform gates. A localized comparator should only be considered further if normal and HR100 are nearly identity while the low-preload high-output beat is affected.
+
+Suggested smoke:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/local-qao-smoke \
+  --deltas=0,-1250,-1300 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --aortic-flow-clamp=hard,local-c1-0.95,local-c2-0.98,soft-tanh \
+  --max-return-map-points=2 \
+  --trace-beats=4 \
+  --sample-hz=60
+```

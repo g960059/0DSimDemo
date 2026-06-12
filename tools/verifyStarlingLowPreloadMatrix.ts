@@ -3,6 +3,7 @@ import path from "node:path";
 import { DEFAULT_PARAMS } from "@/constants";
 import { ModelCore, type AorticFlowClampMode } from "@/engine/ModelCore";
 import type { LambdaActTerms, LowStretchLimiterMode } from "@/engine/chambers";
+import { DYNAMIC_FLOW_CLAMP_ML_PER_S } from "@/engine/core/topology";
 import type { HeartModelMode, SimSample } from "@/engine/protocol";
 import { PREVIEW_SETTLE_POLICY } from "@/engine/settling";
 import {
@@ -52,6 +53,11 @@ type WaveformGateMetrics = {
   EF_L: number;
   LVPMax: number;
   QAoMax: number;
+  QAoCapRatioMax: number;
+  QAoNearCap95Fraction: number;
+  QAoNearCap98Fraction: number;
+  QAoAtCapFraction: number;
+  QAoLocalCapActiveFraction: number;
   maxDpdtLVP: number;
   clampHitCount: number;
   valveReverseVolumeMl: number;
@@ -211,7 +217,7 @@ type ShapeSummary = {
 };
 
 type MatrixReport = {
-  schemaVersion: 12;
+  schemaVersion: 13;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -237,6 +243,12 @@ type MatrixReport = {
     maxBranchAmplitudeFractionESVL: number;
     maxBranchAmplitudeFractionQAoMax: number;
     maxBranchAmplitudeFractionAoPMax: number;
+    maxQAoCapRatioMax: number;
+    maxQAoNearCap90Fraction: number;
+    maxQAoNearCap95Fraction: number;
+    maxQAoNearCap98Fraction: number;
+    maxQAoAtCapFraction: number;
+    maxQAoLocalCapActiveFraction: number;
     maxCleanAbsOneBeatESVSlope: number | null;
     maxCleanAbsTwoBeatESVSlope: number | null;
     maxCleanAbsOneBeatVolumeFeatureSlope: number | null;
@@ -418,9 +430,9 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
       { fraction: 0, metric: null },
     );
   return {
-    schemaVersion: 12,
+    schemaVersion: 13,
     generatedAt: new Date().toISOString(),
-    measurementMode: "branch-only broad low-preload matrix followed by selected EDV-section return-map diagnostics with EDV/ESV/CO/afterload/ejection features; LA/MV filling-regime and MV event-count morphology diagnostics with last-two-beat filling branch amplitudes and primary event-count alternation; optional TBV correction on/off/low contamination axis; activeStress/elastance heart-model comparison axis; off-by-default low-stretch limiter and AoV soft-flow-clamp comparator axes",
+    measurementMode: "branch-only broad low-preload matrix followed by selected EDV-section return-map diagnostics with EDV/ESV/CO/afterload/ejection features; QAo cap proximity and localized AoV soft-cap comparator axes; LA/MV filling-regime and MV event-count morphology diagnostics with last-two-beat filling branch amplitudes and primary event-count alternation; optional TBV correction on/off/low contamination axis; activeStress/elastance heart-model comparison axis; off-by-default low-stretch limiter and AoV soft-flow-clamp comparator axes",
     targetVolumeMl: opts.targetVolumeMl,
     heartModels: opts.heartModels,
     deltasMl: opts.deltasMl,
@@ -444,6 +456,12 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
       maxBranchAmplitudeFractionESVL: Math.max(0, ...scenarios.map((s) => s.returnMapSummary.maxBranchAmplitudeFractionESVL)),
       maxBranchAmplitudeFractionQAoMax: Math.max(0, ...scenarios.map((s) => s.returnMapSummary.maxBranchAmplitudeFractionQAoMax)),
       maxBranchAmplitudeFractionAoPMax: Math.max(0, ...scenarios.map((s) => s.returnMapSummary.maxBranchAmplitudeFractionAoPMax)),
+      maxQAoCapRatioMax: Math.max(0, ...scenarios.map((s) => s.returnMapSummary.maxQAoCapRatioMax)),
+      maxQAoNearCap90Fraction: Math.max(0, ...scenarios.map((s) => s.returnMapSummary.maxQAoNearCap90Fraction)),
+      maxQAoNearCap95Fraction: Math.max(0, ...scenarios.map((s) => s.returnMapSummary.maxQAoNearCap95Fraction)),
+      maxQAoNearCap98Fraction: Math.max(0, ...scenarios.map((s) => s.returnMapSummary.maxQAoNearCap98Fraction)),
+      maxQAoAtCapFraction: Math.max(0, ...scenarios.map((s) => s.returnMapSummary.maxQAoAtCapFraction)),
+      maxQAoLocalCapActiveFraction: Math.max(0, ...scenarios.map((s) => s.returnMapSummary.maxQAoLocalCapActiveFraction)),
       maxCleanAbsOneBeatESVSlope: finiteMaxOrNull(scenarios.map((s) => s.evaluation.maxCleanAbsOneBeatESVSlope ?? Number.NaN)),
       maxCleanAbsTwoBeatESVSlope: finiteMaxOrNull(scenarios.map((s) => s.evaluation.maxCleanAbsTwoBeatESVSlope ?? Number.NaN)),
       maxCleanAbsOneBeatVolumeFeatureSlope: finiteMaxOrNull(scenarios.map((s) => s.evaluation.maxCleanAbsOneBeatVolumeFeatureSlope ?? Number.NaN)),
@@ -1049,6 +1067,7 @@ function measureWaveformGateImpl(
   const esv = Math.min(...volumes);
   const lvp = samples.map((sample) => sample.LVP).filter(Number.isFinite);
   const qao = samples.map((sample) => sample.QAo).filter(Number.isFinite);
+  const qAoProximity = qAoCapProximity(qao, aorticFlowClampMode);
   return {
     settled: settle.settled,
     settleReason: settle.reason,
@@ -1060,10 +1079,39 @@ function measureWaveformGateImpl(
     EF_L: Number.isFinite(edv) && edv > 1e-9 ? (edv - esv) / edv : Number.NaN,
     LVPMax: Math.max(...lvp),
     QAoMax: Math.max(...qao),
+    ...qAoProximity,
     maxDpdtLVP: maxDerivative(samples, "LVP"),
     clampHitCount: core.debugClampDiagnostics().totalClampHits,
     valveReverseVolumeMl: valveReverseVolumeMl(samples),
   };
+}
+
+function qAoCapProximity(values: number[], aorticFlowClampMode: AorticFlowClampMode): Pick<WaveformGateMetrics,
+  "QAoCapRatioMax"
+  | "QAoNearCap95Fraction"
+  | "QAoNearCap98Fraction"
+  | "QAoAtCapFraction"
+  | "QAoLocalCapActiveFraction"
+> {
+  const positive = values.filter((value) => Number.isFinite(value) && value > 0);
+  const denom = Math.max(positive.length, 1);
+  const cap = DYNAMIC_FLOW_CLAMP_ML_PER_S;
+  const localThreshold = localAorticIdentityFraction(aorticFlowClampMode);
+  const maxValue = positive.length > 0 ? Math.max(...positive) : 0;
+  return {
+    QAoCapRatioMax: maxValue / cap,
+    QAoNearCap95Fraction: positive.filter((value) => value >= cap * 0.95).length / denom,
+    QAoNearCap98Fraction: positive.filter((value) => value >= cap * 0.98).length / denom,
+    QAoAtCapFraction: positive.filter((value) => value >= cap * 0.999).length / denom,
+    QAoLocalCapActiveFraction: localThreshold == null ? 0 : positive.filter((value) => value > cap * localThreshold).length / denom,
+  };
+}
+
+function localAorticIdentityFraction(mode: AorticFlowClampMode): number | undefined {
+  if (mode === "local-c1-0.90") return 0.90;
+  if (mode === "local-c1-0.95" || mode === "local-c2-0.95") return 0.95;
+  if (mode === "local-c1-0.98" || mode === "local-c2-0.98") return 0.98;
+  return undefined;
 }
 
 function withQuietClampLogs<T>(fn: () => T): T {
@@ -1185,8 +1233,8 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("## Scenario summary");
   lines.push("");
-  lines.push("| class | branch class | localization | reasons | heart model | scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | AoV clamp | selected deltas | period-2 | worst delta | worst covered | coverage | evidence | needs Jacobian | max CO branch frac | max EDV branch frac | max ESV branch frac | max QAo branch frac | max AoP branch frac | clean slopes | clean one-beat EDV slope | clean two-beat EDV slope | clean one-beat ESV slope | clean two-beat ESV slope | clean one-beat volume max slope | clean two-beat volume max slope | min MV A mL | min MV A frac | min LA A-loop frac | mean CO err | mean SV err | monotonicity breaks | dip/re-rise | slope ratio | active hit frac | min active scale | target reduction | max clamp hits | max sanitize abs mL | max projection applied mL | contaminated | max waveform gate frac | worst waveform metric |");
-  lines.push("| --- | --- | --- | --- | --- | --- | --- | ---: | --- | --- | --- | ---: | --- | --- | --- | ---: | ---: | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
+  lines.push("| class | branch class | localization | reasons | heart model | scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | AoV clamp | selected deltas | period-2 | worst delta | worst covered | coverage | evidence | needs Jacobian | max CO branch frac | max EDV branch frac | max ESV branch frac | max QAo branch frac | max AoP branch frac | max QAo/cap | near cap >95% | at cap | local cap active | clean slopes | clean one-beat EDV slope | clean two-beat EDV slope | clean one-beat ESV slope | clean two-beat ESV slope | clean one-beat volume max slope | clean two-beat volume max slope | min MV A mL | min MV A frac | min LA A-loop frac | mean CO err | mean SV err | monotonicity breaks | dip/re-rise | slope ratio | active hit frac | min active scale | target reduction | max clamp hits | max sanitize abs mL | max projection applied mL | contaminated | max waveform gate frac | worst waveform metric |");
+  lines.push("| --- | --- | --- | --- | --- | --- | --- | ---: | --- | --- | --- | ---: | --- | --- | --- | ---: | ---: | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
   for (const scenario of report.scenarios) {
     const worstWaveform = scenario.waveformGates.reduce<{ label: string; metric: string; fraction: number }>(
       (best, gate) => gate.maxDeltaFraction > best.fraction
@@ -1221,6 +1269,10 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
       round(scenario.evaluation.maxPerDeltaBranchFractionESVL, 4),
       round(scenario.returnMapSummary.maxBranchAmplitudeFractionQAoMax, 4),
       round(scenario.returnMapSummary.maxBranchAmplitudeFractionAoPMax, 4),
+      round(scenario.returnMapSummary.maxQAoCapRatioMax, 4),
+      round(scenario.returnMapSummary.maxQAoNearCap95Fraction, 4),
+      round(scenario.returnMapSummary.maxQAoAtCapFraction, 4),
+      round(scenario.returnMapSummary.maxQAoLocalCapActiveFraction, 4),
       scenario.evaluation.cleanReturnMapPointCount,
       round(scenario.evaluation.maxCleanAbsOneBeatEDVSlope ?? NaN, 4),
       round(scenario.evaluation.maxCleanAbsTwoBeatEDVSlope ?? NaN, 4),
@@ -1391,8 +1443,8 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("## Normal / HR100 waveform gates");
   lines.push("");
-  lines.push("| scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | case | dCO_L | dESV_L | dEF_L | dLVPmax | dQAoMax | dMax dP/dt | dClamp hits | worst metric | worst frac |");
-  lines.push("| --- | --- | ---: | --- | --- | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: |");
+  lines.push("| scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | case | dCO_L | dESV_L | dEF_L | dLVPmax | dQAoMax | candidate QAo/cap | candidate near cap >95% | candidate local cap active | baseline QAo/cap | dMax dP/dt | dClamp hits | worst metric | worst frac |");
+  lines.push("| --- | --- | ---: | --- | --- | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: |");
   for (const scenario of report.scenarios) {
     for (const gate of scenario.waveformGates) {
       lines.push([
@@ -1410,6 +1462,10 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         round(gate.delta.EF_L, 4),
         round(gate.delta.LVPMax, 4),
         round(gate.delta.QAoMax, 4),
+        round(gate.candidate.QAoCapRatioMax, 4),
+        round(gate.candidate.QAoNearCap95Fraction, 4),
+        round(gate.candidate.QAoLocalCapActiveFraction, 4),
+        round(gate.baseline.QAoCapRatioMax, 4),
         round(gate.delta.maxDpdtLVP, 4),
         round(gate.delta.clampHitCount, 0),
         gate.maxDeltaMetric,
@@ -1505,6 +1561,10 @@ export function matrixReportToCsv(report: MatrixReport): string {
     "branchAmplitudeFractionESV_L",
     "branchAmplitudeFractionQAoMax",
     "branchAmplitudeFractionAoPMax",
+    "scenarioMaxQAoCapRatio",
+    "scenarioMaxQAoNearCap95Fraction",
+    "scenarioMaxQAoAtCapFraction",
+    "scenarioMaxQAoLocalCapActiveFraction",
     "perDeltaBranchEnvelopeClass",
     "perDeltaBranchLocalizationClass",
     "MV_E_forward_mL",
@@ -1610,6 +1670,10 @@ export function matrixReportToCsv(report: MatrixReport): string {
         point.returnMap.branchAmplitudeFraction.ESV_L ?? "",
         point.returnMap.branchAmplitudeFraction.QAoMax ?? "",
         point.returnMap.branchAmplitudeFraction.AoPMax ?? "",
+        scenario.returnMapSummary.maxQAoCapRatioMax,
+        scenario.returnMapSummary.maxQAoNearCap95Fraction,
+        scenario.returnMapSummary.maxQAoAtCapFraction,
+        scenario.returnMapSummary.maxQAoLocalCapActiveFraction,
         perDelta?.branchEnvelopeClass ?? "",
         perDelta?.branchLocalizationClass ?? "",
         perDelta?.MV_E_forward_mL ?? "",
@@ -1747,10 +1811,21 @@ function parseTBVCorrectionModes(value: string): TBVCorrectionMode[] {
 function parseAorticFlowClampModes(value: string): AorticFlowClampMode[] {
   const modes = value.split(",").map((entry) => entry.trim()).filter(Boolean);
   for (const mode of modes) {
-    if (mode !== "hard" && mode !== "soft-tanh" && mode !== "soft-rational") throw new Error(`Invalid AoV flow clamp mode: ${mode}`);
+    if (!isAorticFlowClampMode(mode)) throw new Error(`Invalid AoV flow clamp mode: ${mode}`);
   }
   const unique = Array.from(new Set(modes)) as AorticFlowClampMode[];
   return unique.sort((a, b) => (a === "hard" ? -1 : b === "hard" ? 1 : a.localeCompare(b)));
+}
+
+function isAorticFlowClampMode(value: string): value is AorticFlowClampMode {
+  return value === "hard"
+    || value === "soft-tanh"
+    || value === "soft-rational"
+    || value === "local-c1-0.90"
+    || value === "local-c1-0.95"
+    || value === "local-c1-0.98"
+    || value === "local-c2-0.95"
+    || value === "local-c2-0.98";
 }
 
 function parseHeartModels(value: string): HeartModelMode[] {
@@ -1862,7 +1937,7 @@ function printHelp(): void {
     "       [--low-stretch-limiter=none,aInfCap,activeReserveCap] [--low-stretch-limiter-scope=lv,ventricles]",
     "       [--active-reserve-preset=directMild,directMedium,thresholdMild,thresholdMedium]",
     "       [--tbv-correction=on,off,low]",
-    "       [--aortic-flow-clamp=hard,soft-tanh,soft-rational]",
+    "       [--aortic-flow-clamp=hard,soft-tanh,soft-rational,local-c1-0.95,local-c2-0.98]",
     "       [--include-all-scope] [--branch-only] [--max-return-map-points=6]",
     "       [--quiet-progress]",
     "",
