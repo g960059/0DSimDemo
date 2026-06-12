@@ -331,14 +331,6 @@
       "removeMetric": "指標を削除"
     },
     "dialogs": {
-      "saveLesson": {
-        "title": "レッスンとして保存",
-        "lessonTitle": "タイトル",
-        "noteSpine": "ノート本文",
-        "capturedSteps": "記録済みステップ",
-        "stepsCount_one": "{{count}}ステップ",
-        "stepsCount_other": "{{count}}ステップ"
-      },
       "addPanel": {
         "title": "{{panelType}}パネルを設定",
         "confirm": "パネルを追加"
@@ -352,10 +344,8 @@
       "read": "読む",
       "explore": "探索",
       "readExploreSwitcher": "読む／探索",
-      "share": "共有",
       "saveCase": "ケースを保存",
       "untitledScene": "無題のケース",
-      "unsavedAuthoringChanges": "未保存のオーサリング変更",
       "customizeLayout": "レイアウトを調整",
       "noteDrawer": "ノートドロワー",
       "metricsHost": "指標ホスト",
@@ -374,7 +364,6 @@
       "resetLayout": "レイアウトをリセット",
       "pause": "一時停止",
       "play": "再生",
-      "publishing": "公開中...",
       "saving": "保存中...",
       "openPanel": "ワークベンチパネルを開く",
       "sceneDetails": "ケース詳細"
@@ -383,7 +372,6 @@
       "aria": "ワークベンチ詳細",
       "closePanel": "パネルを閉じる",
       "learningScene": "学習ケース",
-      "authorWorkspace": "作成ワークスペース",
       "sandboxScene": "サンドボックスケース",
       "tabs": {
         "share": "共有",
@@ -394,8 +382,6 @@
       "share": {
         "title": "共有",
         "description": "利用できる場合は公開済みレッスンリンクを使います。保存と共有は別です。",
-        "copyLink": "リンクをコピー",
-        "openSavedLesson": "保存済みレッスンを開く",
         "noLink": "共有リンクはまだありません。"
       },
       "files": {
@@ -411,10 +397,7 @@
         "title": "設定",
         "description": "低頻度で使うワークベンチ設定です。",
         "appearance": "外観",
-        "theme": "テーマ",
-        "saveAsLesson": "レッスンとして保存",
-        "exitAuthoring": "オーサリングを終了",
-        "createLesson": "レッスンを作成"
+        "theme": "テーマ"
       },
       "themes": {
         "dark": "ダーク",
@@ -487,7 +470,6 @@
       "closePanel": "パネルを閉じる",
       "closePanelAria": "{{title}}を閉じる",
       "zoneAria": "{{zone}}ゾーン",
-        "shareUrl": "共有URL",
         "noteDrawer": "ノートドロワー",
         "metricsHost": "指標ホスト",
         "note": "ノート",
@@ -652,41 +634,6 @@
       "addPaneAria": "{{zone}}ペインを追加",
       "addPane": "ペインを追加",
       "noPanels": "パネルがありません"
-    }
-  },
-  "lessonAuthoring": {
-    "title": "レッスン作成",
-    "stepsCount_one": "{{count}}ステップ",
-    "stepsCount_other": "{{count}}ステップ",
-    "captureStep": "ステップを記録",
-    "stepTitle": "ステップタイトル",
-    "stepPlaceholder": "ステップ {{number}}",
-    "visibleInstances": "表示シナリオ",
-    "predictBeforeReveal": "表示前に予測",
-    "reveal": "表示",
-    "revealLabel": "表示ラベル",
-    "predictionPrompt": "予測プロンプト",
-    "exposedKnobs": "公開パラメータ",
-    "maxKnobs": "最大{{count}}",
-    "targetInstance": "対象シナリオ",
-    "target": "対象: {{target}}",
-    "startFromCurrentKnobValues": "現在のパラメータ値から開始",
-    "capturedSteps": "記録済みステップ",
-    "finalPredictWarning": "最後のステップが予測です。保存前に表示ステップを追加してください。",
-    "noStepsCaptured": "記録済みステップはありません。",
-    "predictBadge": "予測",
-    "moveStepUp": "ステップを上へ移動",
-    "moveStepDown": "ステップを下へ移動",
-    "moveUpAria": "{{title}}を上へ移動",
-    "moveDownAria": "{{title}}を下へ移動",
-    "validation": {
-      "visibleInstanceRequired": "ステップを記録する前に少なくとも1つの表示シナリオを選択してください。"
-    },
-    "row": {
-      "shows": "表示: {{names}}",
-      "showsNone": "表示: なし",
-      "knobs": "パラメータ: {{knobs}} -> {{target}}",
-      "stale": "古い参照: {{ids}}"
     }
   },
   "scenarioManager": {

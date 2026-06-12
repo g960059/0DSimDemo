@@ -14,7 +14,6 @@ import {
   Play,
   RotateCcw,
   Save,
-  Share2,
   SlidersHorizontal,
 } from 'lucide-react';
 import { SimInstance } from '../../types';
@@ -40,19 +39,7 @@ interface WorkbenchHeaderProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onImportFile: (file: File) => void;
   onExport: () => void;
-  authoringMode: boolean;
-  setAuthoringMode: React.Dispatch<React.SetStateAction<boolean>>;
-  stepsDraftLength: number;
-  openLessonDialog: () => void;
-  onExitAuthoring: () => void;
-  user: unknown;
-  isAdmin: boolean;
-  publishCurrentLesson: () => void;
-  isPublishingLesson: boolean;
   isSavingCase?: boolean;
-  savedLesson: { id: string; title: string } | null;
-  publishedLesson: { id: string; title: string; url: string } | null;
-  copyShareUrl: () => void;
   isPlaying: boolean;
   togglePlay: () => void;
   timeScale: number;
@@ -93,19 +80,7 @@ export function WorkbenchHeader({
   fileInputRef,
   onImportFile,
   onExport,
-  authoringMode,
-  setAuthoringMode,
-  stepsDraftLength,
-  openLessonDialog,
-  onExitAuthoring,
-  user,
-  isAdmin,
-  publishCurrentLesson,
-  isPublishingLesson,
   isSavingCase = false,
-  savedLesson,
-  publishedLesson,
-  copyShareUrl,
   isPlaying,
   togglePlay,
   timeScale,
@@ -134,7 +109,7 @@ export function WorkbenchHeader({
 
   const isLearner = mode === 'learner';
   const showNoteToggle = !isLearner || hasNotePanel;
-  const primaryLabel = isLearner ? t('workbench.header.fork') : authoringMode ? t('workbench.header.share') : t('workbench.header.saveCase');
+  const primaryLabel = isLearner ? t('workbench.header.fork') : t('workbench.header.saveCase');
   const visibilityButtonClass = (pressed: boolean) => (
     `inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors ${
       pressed
@@ -155,11 +130,6 @@ export function WorkbenchHeader({
       modelLimitations: draftMeta.modelLimitations.map((item) => item.trim()).filter(Boolean),
     });
     setIsMetaOpen(false);
-  };
-
-  const runPrimaryAction = () => {
-    if (authoringMode) publishCurrentLesson();
-    else onPrimaryAction();
   };
 
   return (
@@ -186,7 +156,6 @@ export function WorkbenchHeader({
             <button onClick={openMetaEditor} className="flex min-w-0 items-center gap-1 rounded-md px-2 py-1 text-left hover:bg-wb-hover">
               <Edit3 className="h-3.5 w-3.5 shrink-0 text-wb-subtle" />
               <span className="truncate text-sm font-bold text-wb-text">{sceneMeta.title || t('workbench.header.untitledScene')}</span>
-              {authoringMode && stepsDraftLength > 0 && <span className="h-1.5 w-1.5 rounded-full bg-amber-300" title={t('workbench.header.unsavedAuthoringChanges')} />}
             </button>
           )}
 
@@ -312,12 +281,12 @@ export function WorkbenchHeader({
           )}
 
           <button
-            onClick={runPrimaryAction}
-            disabled={(authoringMode && isPublishingLesson) || isSavingCase}
+            onClick={onPrimaryAction}
+            disabled={isSavingCase}
             className={`inline-flex h-9 items-center gap-1.5 rounded-md bg-wb-primary px-3 text-xs font-bold text-white hover:bg-wb-primary-hover disabled:cursor-not-allowed disabled:opacity-60 ${isLearner ? 'ml-2' : ''}`}
           >
-            {isLearner ? <Copy className="h-3.5 w-3.5" /> : authoringMode ? <Share2 className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
-            <span className="hidden sm:inline">{authoringMode && isPublishingLesson ? t('workbench.header.publishing') : isSavingCase ? t('workbench.header.saving') : primaryLabel}</span>
+            {isLearner ? <Copy className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
+            <span className="hidden sm:inline">{isSavingCase ? t('workbench.header.saving') : primaryLabel}</span>
           </button>
 
           <button onClick={() => setIsPanelOpen(true)} className="inline-flex h-9 w-9 items-center justify-center rounded-md text-wb-muted hover:bg-wb-hover hover:text-wb-text" aria-label={t('workbench.header.openPanel')}>
@@ -366,13 +335,6 @@ export function WorkbenchHeader({
         fileInputRef={fileInputRef}
         onImportFile={onImportFile}
         onExport={onExport}
-        onCreateLesson={() => setAuthoringMode(true)}
-        onSaveLesson={openLessonDialog}
-        onExitAuthoring={onExitAuthoring}
-        authoringMode={authoringMode}
-        savedLesson={savedLesson}
-        publishedLesson={publishedLesson}
-        copyShareUrl={copyShareUrl}
         theme={theme}
         onThemeChange={onThemeChange}
       />

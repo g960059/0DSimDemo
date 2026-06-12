@@ -1,4 +1,4 @@
-import { useCallback, useState, type MutableRefObject, type SetStateAction } from "react";
+import { useCallback, useState, type MutableRefObject } from "react";
 import { DEFAULT_PARAMS } from "@/constants";
 import type { CaseDocument, CaseI18nContent, CaseSource } from "@/caseDoc";
 import {
@@ -124,7 +124,6 @@ export function useWorkbenchScene({
     description: "",
     modelLimitations: DEFAULT_MODEL_LIMITATIONS,
   });
-  const [authoringMode, setAuthoringMode] = useState(false);
   const [caseAuthor, setCaseAuthor] = useState<string | undefined>(undefined);
   const [currentCaseId, setCurrentCaseId] = useState<string | null>(null);
   const [currentCaseOwnerId, setCurrentCaseOwnerId] = useState<string | undefined>(undefined);
@@ -142,11 +141,9 @@ export function useWorkbenchScene({
   const [authorRuntimeSnapshot, setAuthorRuntimeSnapshot] = useState<AuthorRuntimeSnapshot | undefined>(undefined);
 
   const ownsCurrentCase = Boolean(user && currentCaseOwnerId === user.uid);
-  const headerMode: WorkbenchHeaderMode = authoringMode
-    ? "author"
-    : ownsCurrentCase || caseAuthor === LOCAL_COPY_AUTHOR
-      ? "sandbox"
-      : resolveHeaderModeFromAuthor(caseAuthor, currentCaseSource);
+  const headerMode: WorkbenchHeaderMode = ownsCurrentCase || caseAuthor === LOCAL_COPY_AUTHOR
+    ? "sandbox"
+    : resolveHeaderModeFromAuthor(caseAuthor, currentCaseSource);
   const markDocumentEdited = useCallback(() => {
     if (headerMode !== "learner") markUserEdited();
   }, [headerMode, markUserEdited]);
@@ -382,7 +379,6 @@ export function useWorkbenchScene({
     setCurrentCaseInitialActiveScenarioId(doc.initialActiveScenarioId);
     setActiveInstanceId(initialActiveInstanceId);
     setAuthorRuntimeSnapshot(createAuthorRuntimeSnapshot(payload.instances, initialActiveInstanceId));
-    setAuthoringMode(false);
   }, []);
 
   const applySavedCase = useCallback((payload: SavedCasePayload) => {
@@ -405,14 +401,7 @@ export function useWorkbenchScene({
     setCurrentCaseViews(serializableAuthoredViews(payload.views));
     setCurrentCaseGraphBoardLayout(payload.graphBoardLayout);
     setCurrentCaseInitialActiveScenarioId(payload.initialActiveScenarioId);
-    setAuthoringMode(false);
   }, []);
-
-  const setWorkbenchAuthoringMode = useCallback((next: SetStateAction<boolean>) => {
-    const resolved = typeof next === "function" ? next(authoringMode) : next;
-    if (resolved && !caseAuthor && !currentCaseOwnerId) setCaseAuthor(LOCAL_COPY_AUTHOR);
-    setAuthoringMode(resolved);
-  }, [authoringMode, caseAuthor, currentCaseOwnerId]);
 
   return {
     instances,
@@ -422,9 +411,6 @@ export function useWorkbenchScene({
     sceneMeta,
     setSceneMeta,
     updateSceneMeta,
-    authoringMode,
-    setAuthoringMode,
-    setWorkbenchAuthoringMode,
     caseAuthor,
     setCaseAuthor,
     currentCaseId,

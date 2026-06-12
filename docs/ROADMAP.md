@@ -20,7 +20,7 @@
 - LAD / LCx / RCA の 3 territory coronary teaching model
 - `PreviewController` + `previewWorker` + `transitionSteadyWorker`
 - `CaseDocument` / `CaseInstance` / clinical knob mapping / versioned knob resolver
-- official cases / official lessons / lesson authoring / note rendering
+- official cases / official lessons / lesson playback / note rendering
 - low-noise `SimulationHealth` UX と first-run model limitation modal
 - baseline freeze、morphology gates、official case directionality tests
 
@@ -168,7 +168,7 @@ Acceptance:
 
 ### P2: `WorkbenchPage.tsx` decomposition
 
-目的: Workbench route が、simulation / persistence / lesson authoring / panel layout を全部抱える状態をやめる。
+目的: Workbench route が、simulation / persistence / panel layout を全部抱える状態をやめる。
 
 推奨分割:
 
@@ -180,7 +180,6 @@ features/workbench/
   useWorkbenchScene.ts
   useWorkbenchPersistence.ts
   useWorkbenchPanels.ts
-  useLessonAuthoring.ts
   useWorkbenchTheme.ts
 ```
 

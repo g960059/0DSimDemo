@@ -67,12 +67,7 @@ function createPanelGrid(
 ) {
   let nextViewId = 0;
   return React.createElement(PanelGrid, {
-    authoringMode: false,
-    publishedLesson: null,
-    copyShareUrl: noop,
     instances,
-    stepsDraft: [],
-    setStepsDraft: noop,
     panels,
     layoutState: {
       controlsSide: "right",
@@ -289,7 +284,7 @@ const metricsPanel: PanelDef = {
 };
 
 describe("PanelGrid Dockview layout", () => {
-  it.each(["learner", "author", "sandbox"] as const)("does not render a separate layout edit toolbar in %s mode", (mode) => {
+  it.each(["learner", "sandbox"] as const)("does not render a separate layout edit toolbar in %s mode", (mode) => {
     const html = renderPanelGrid(mode);
 
     expect(html).not.toContain("Edit layout");
@@ -298,7 +293,7 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).not.toContain("panel-grid-editor");
   });
 
-  it.each(["learner", "author", "sandbox"] as const)("renders the workbench layout for %s mode", async (mode) => {
+  it.each(["learner", "sandbox"] as const)("renders the workbench layout for %s mode", async (mode) => {
     const html = await renderPanelGridAllReady(mode);
 
     expect(html).toContain("No panels");

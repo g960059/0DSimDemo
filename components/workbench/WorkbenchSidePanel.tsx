@@ -1,11 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation } from 'react-router-dom';
-import { Download, FileUp, Info, Link2, Palette, Settings, Share2, X } from 'lucide-react';
-import { lessonHref } from '@/homeLinks';
-import { localeFromPathname } from '@/localeRouting';
+import { Download, FileUp, Info, Palette, Settings, Share2, X } from 'lucide-react';
 
-export type WorkbenchHeaderMode = 'learner' | 'author' | 'sandbox';
+export type WorkbenchHeaderMode = 'learner' | 'sandbox';
 export type WorkbenchThemeId = 'dark' | 'light';
 
 export interface WorkbenchSceneMeta {
@@ -27,13 +24,6 @@ interface WorkbenchSidePanelProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onImportFile: (file: File) => void;
   onExport: () => void;
-  onCreateLesson: () => void;
-  onSaveLesson: () => void;
-  onExitAuthoring: () => void;
-  authoringMode: boolean;
-  savedLesson: { id: string; title: string } | null;
-  publishedLesson: { id: string; title: string; url: string } | null;
-  copyShareUrl: () => void;
   theme: WorkbenchThemeId;
   onThemeChange: (theme: WorkbenchThemeId) => void;
 }
@@ -48,19 +38,10 @@ export function WorkbenchSidePanel({
   fileInputRef,
   onImportFile,
   onExport,
-  onCreateLesson,
-  onSaveLesson,
-  onExitAuthoring,
-  authoringMode,
-  savedLesson,
-  publishedLesson,
-  copyShareUrl,
   theme,
   onThemeChange,
 }: WorkbenchSidePanelProps) {
   const { t } = useTranslation();
-  const location = useLocation();
-  const locale = localeFromPathname(location.pathname);
   const tabs = useMemo(() => {
     const available: Array<{ id: TabId; label: string; icon: React.ReactNode }> = [
       { id: 'details', label: t('workbench.sidePanel.tabs.details'), icon: <Info className="h-4 w-4" /> },
@@ -71,11 +52,11 @@ export function WorkbenchSidePanel({
         { id: 'files', label: t('workbench.sidePanel.tabs.files'), icon: <Download className="h-4 w-4" /> },
       );
     }
-    if (mode !== 'learner' || publishedLesson || savedLesson) {
+    if (mode !== 'learner') {
       available.unshift({ id: 'share', label: t('workbench.sidePanel.tabs.share'), icon: <Share2 className="h-4 w-4" /> });
     }
     return available;
-  }, [mode, publishedLesson, savedLesson, t]);
+  }, [mode, t]);
   const [activeTab, setActiveTab] = useState<TabId>(tabs[0]?.id ?? 'details');
   const currentTab = tabs.some((tab) => tab.id === activeTab) ? activeTab : tabs[0]?.id ?? 'details';
 
@@ -91,7 +72,7 @@ export function WorkbenchSidePanel({
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-wb-line px-4">
           <div>
             <div className="text-sm font-bold text-wb-text">{t('nav.workbench')}</div>
-            <div className="text-[11px] text-wb-subtle">{mode === 'learner' ? t('workbench.sidePanel.learningScene') : mode === 'author' ? t('workbench.sidePanel.authorWorkspace') : t('workbench.sidePanel.sandboxScene')}</div>
+            <div className="text-[11px] text-wb-subtle">{mode === 'learner' ? t('workbench.sidePanel.learningScene') : t('workbench.sidePanel.sandboxScene')}</div>
           </div>
           <button onClick={onClose} className="rounded p-1.5 text-wb-subtle hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent" aria-label={t('workbench.sidePanel.closePanel')}>
             <X className="h-4 w-4" />
@@ -120,25 +101,9 @@ export function WorkbenchSidePanel({
                 <h2 className="text-sm font-bold text-wb-text">{t('workbench.sidePanel.share.title')}</h2>
                 <p className="mt-1 text-xs leading-5 text-wb-muted">{t('workbench.sidePanel.share.description')}</p>
               </div>
-              {publishedLesson ? (
-                <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3">
-                  <a href={publishedLesson.url} className="block truncate text-sm font-bold text-emerald-100 hover:text-emerald-50">
-                    {publishedLesson.url}
-                  </a>
-                  <button onClick={copyShareUrl} className="mt-3 inline-flex items-center gap-2 rounded bg-emerald-500/15 px-3 py-1.5 text-xs font-bold text-emerald-100 hover:bg-emerald-500/25 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent">
-                    <Link2 className="h-3.5 w-3.5" />
-                    {t('workbench.sidePanel.share.copyLink')}
-                  </button>
-                </div>
-              ) : savedLesson ? (
-                <a href={lessonHref(savedLesson.id, locale)} className="inline-flex rounded bg-emerald-500/15 px-3 py-2 text-sm font-bold text-emerald-100 hover:bg-emerald-500/25">
-                  {t('workbench.sidePanel.share.openSavedLesson')}
-                </a>
-              ) : (
-                <div className="rounded-md border border-wb-line bg-wb-strip p-3 text-sm text-wb-muted">
-                  {t('workbench.sidePanel.share.noLink')}
-                </div>
-              )}
+              <div className="rounded-md border border-wb-line bg-wb-strip p-3 text-sm text-wb-muted">
+                {t('workbench.sidePanel.share.noLink')}
+              </div>
             </div>
           )}
 
@@ -221,20 +186,6 @@ export function WorkbenchSidePanel({
                   </div>
                 </div>
               </section>
-              {mode !== 'learner' && (authoringMode ? (
-                <>
-                  <button onClick={onSaveLesson} className="w-full rounded-md border border-wb-line bg-wb-primary px-3 py-2 text-left text-sm font-bold text-white hover:bg-wb-primary-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent">
-                    {t('workbench.sidePanel.settings.saveAsLesson')}
-                  </button>
-                  <button onClick={onExitAuthoring} className="w-full rounded-md border border-wb-line bg-wb-panel px-3 py-2 text-left text-sm font-bold text-wb-text hover:bg-wb-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent">
-                    {t('workbench.sidePanel.settings.exitAuthoring')}
-                  </button>
-                </>
-              ) : (
-                <button onClick={onCreateLesson} className="w-full rounded-md border border-wb-line bg-wb-panel px-3 py-2 text-left text-sm font-bold text-wb-text hover:bg-wb-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent">
-                  {t('workbench.sidePanel.settings.createLesson')}
-                </button>
-              ))}
             </div>
           )}
         </div>

@@ -55,7 +55,7 @@ type WorkbenchDockviewContextValue = {
 interface WorkbenchDockviewProps {
   panels: readonly PanelDef[];
   zone: WorkbenchZoneId;
-  mode: 'learner' | 'author' | 'sandbox';
+  mode: 'learner' | 'sandbox';
   variant?: 'graph' | 'metrics';
   renderPanel: (panel: PanelDef) => React.ReactNode;
   layoutKey?: string;

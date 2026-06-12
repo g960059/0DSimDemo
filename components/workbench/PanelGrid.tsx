@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { LessonAuthoring } from '../LessonAuthoring';
 import WorkbenchDockview from './WorkbenchDockview';
 import WorkbenchMobile from './WorkbenchMobile';
 import { renderPaneBody } from './renderPaneBody';
@@ -29,7 +28,6 @@ import {
   SimulationParams,
   WorkbenchZoneId,
 } from '../../types';
-import type { LessonStep } from '../../lessonDoc';
 import type { CaseReadingManifest } from '../../caseDoc';
 import type { NoteContent } from '../../noteTypes';
 import { flowPack } from '../../layoutPresets';
@@ -51,7 +49,7 @@ import type { ControllerViewSpec, GraphBoardLayout, MetricsViewSpec } from '../.
 import type { WorkbenchThemeId } from './WorkbenchSidePanel';
 import { Activity, Brush, Check, ChevronDown, ChevronRight, Copy, Eye, EyeOff, FileText, Layers, Pencil, Plus, RotateCcw, Search, Settings, SlidersHorizontal, Tags, Trash2, Type as TypeIcon, X } from 'lucide-react';
 
-export type PanelGridMode = 'learner' | 'author' | 'sandbox';
+export type PanelGridMode = 'learner' | 'sandbox';
 export type WorkbenchControlsSide = 'left' | 'right';
 export type RightRailView = 'scenarios' | 'inspector';
 export type MetricsSpanMode = 'main' | 'full';
@@ -73,12 +71,7 @@ export interface WorkbenchLayoutState {
 }
 
 interface PanelGridProps {
-  authoringMode: boolean;
-  publishedLesson: { id: string; title: string; url: string } | null;
-  copyShareUrl: () => void;
   instances: SimInstance[];
-  stepsDraft: LessonStep[];
-  setStepsDraft: React.Dispatch<React.SetStateAction<LessonStep[]>>;
   panels: PanelDef[];
   layoutState: WorkbenchLayoutState;
   onLayoutStateChange: React.Dispatch<React.SetStateAction<WorkbenchLayoutState>>;
@@ -2174,12 +2167,7 @@ function ZoneShell({
 }
 
 export function PanelGrid({
-  authoringMode,
-  publishedLesson,
-  copyShareUrl,
   instances,
-  stepsDraft,
-  setStepsDraft,
   panels,
   layoutState,
   onLayoutStateChange,
@@ -2288,17 +2276,6 @@ export function PanelGrid({
     setRenameDraft('');
   }, [authoredViews, renamingViewId]);
   const hasCaseRail = Boolean(notePanel && layoutState.noteOpen);
-  const shareBanner = authoringMode && publishedLesson ? (
-    <div className="mb-2 flex flex-col gap-2 rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100 sm:flex-row sm:items-center">
-      <span className="font-bold">{t('workbench.panelGrid.shareUrl')}</span>
-      <a href={publishedLesson.url} className="min-w-0 flex-1 truncate transition-colors hover:text-emerald-50">
-        {publishedLesson.url}
-      </a>
-      <button onClick={copyShareUrl} className="self-start rounded bg-emerald-500/15 px-2 py-1 font-bold text-emerald-100 transition-colors hover:bg-emerald-500/25 sm:self-auto">
-        {t('common.copy')}
-      </button>
-    </div>
-  ) : null;
 
   const getPanelTitle = useCallback(getDockviewPaneTitle, []);
   const renderPanel = (panel: PanelDef, isEditor: boolean, chromeMode: PanelChromeMode = 'desktop') => (
@@ -2649,8 +2626,6 @@ export function PanelGrid({
   if (isMobile) {
     return (
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-wb-panel p-2">
-        {shareBanner}
-        {authoringMode && <LessonAuthoring instances={instances} stepsDraft={stepsDraft} setStepsDraft={setStepsDraft} workbenchTheme={workbenchTheme} />}
         <WorkbenchMobile
           panels={presenterPanels}
           title="Workbench"
@@ -2666,8 +2641,6 @@ export function PanelGrid({
 
   return (
     <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-wb-panel p-0">
-        {shareBanner}
-        {authoringMode && <LessonAuthoring instances={instances} stepsDraft={stepsDraft} setStepsDraft={setStepsDraft} workbenchTheme={workbenchTheme} />}
         <div
           className="grid min-h-0 flex-1 gap-0 overflow-hidden"
           style={{ gridTemplateColumns, gridTemplateRows }}

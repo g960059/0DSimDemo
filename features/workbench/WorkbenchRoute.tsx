@@ -6,9 +6,7 @@ import { WorkbenchHeader } from "@/components/workbench/WorkbenchHeader";
 import { useAuth } from "@/contexts/AuthContext";
 import type { SimInstance } from "@/types";
 import { AddPanelDialog } from "@/features/workbench/dialogs/AddPanelDialog";
-import { SaveLessonDialog } from "@/features/workbench/dialogs/SaveLessonDialog";
 import { useIsMobile } from "@/features/workbench/hooks/useIsMobile";
-import { useLessonAuthoring } from "@/features/workbench/hooks/useLessonAuthoring";
 import { useWorkbenchPanels } from "@/features/workbench/hooks/useWorkbenchPanels";
 import { type BuildCurrentDoc, useWorkbenchPersistence } from "@/features/workbench/hooks/useWorkbenchPersistence";
 import { useWorkbenchScene } from "@/features/workbench/hooks/useWorkbenchScene";
@@ -20,14 +18,12 @@ import {
   ALL_CONTROL_GROUPS,
   ALL_METRICS,
   ALL_SIGNALS,
-  EMPTY_NOTE_SPINE,
   type AddedInstanceConfig,
-  noteExcerpt,
 } from "@/features/workbench/workbenchDefaults";
 import { resolveReadingColumn } from "@/readingConversion";
 
 export function WorkbenchRoute() {
-  const { user, isAdmin, signIn, loading: authLoading } = useAuth();
+  const { user, signIn, loading: authLoading } = useAuth();
   const isMobile = useIsMobile();
   const { workbenchTheme, setWorkbenchTheme } = useWorkbenchTheme();
   const userEditedRef = useRef(false);
@@ -90,29 +86,12 @@ export function WorkbenchRoute() {
     if (!readExploreAvailable && readExploreState.presentation === "read") setReadExploreMode("explore");
   }, [readExploreAvailable, readExploreState.presentation, setReadExploreMode]);
 
-  const defaultSceneTitle = useCallback(() => (
-    scene.sceneMeta.title.trim() || (scene.instances[0] ? `${scene.instances[0].name} case` : "Workbench case")
-  ), [scene.instances, scene.sceneMeta.title]);
-
-  const lesson = useLessonAuthoring({
-    user,
-    isAdmin,
-    signIn,
-    panels: panels.panels,
-    notes: panels.notes,
-    defaultSceneTitle,
-    buildCurrentDocRef,
-    pushWarningToast: simulation.pushWarningToast,
-    setAuthoringMode: scene.setAuthoringMode,
-  });
-
   const persistence = useWorkbenchPersistence({
     user,
     authLoading,
     signIn,
     scene,
     panels,
-    lesson,
     userEditedRef,
     buildCurrentDocRef,
     pushWarningToast: simulation.pushWarningToast,
@@ -175,19 +154,7 @@ export function WorkbenchRoute() {
         fileInputRef={persistence.fileInputRef}
         onImportFile={persistence.handleImportFile}
         onExport={persistence.handleExport}
-        authoringMode={scene.authoringMode}
-        setAuthoringMode={scene.setWorkbenchAuthoringMode}
-        stepsDraftLength={lesson.stepsDraft.length}
-        openLessonDialog={lesson.openLessonDialog}
-        onExitAuthoring={lesson.exitAuthoring}
-        user={user}
-        isAdmin={isAdmin}
-        publishCurrentLesson={lesson.publishCurrentLesson}
-        isPublishingLesson={lesson.isPublishingLesson}
         isSavingCase={persistence.isSavingCase}
-        savedLesson={lesson.savedLesson}
-        publishedLesson={lesson.publishedLesson}
-        copyShareUrl={lesson.copyShareUrl}
         isPlaying={simulation.isPlaying}
         togglePlay={simulation.togglePlay}
         timeScale={simulation.timeScale}
@@ -209,12 +176,7 @@ export function WorkbenchRoute() {
       />
 
       <PanelGrid
-        authoringMode={scene.authoringMode}
-        publishedLesson={lesson.publishedLesson}
-        copyShareUrl={lesson.copyShareUrl}
         instances={scene.instances}
-        stepsDraft={lesson.stepsDraft}
-        setStepsDraft={lesson.setStepsDraft}
         panels={panels.panels}
         layoutState={panels.workbenchLayout}
         onLayoutStateChange={panels.setWorkbenchLayout}
@@ -288,16 +250,6 @@ export function WorkbenchRoute() {
         setConfig={panels.setAddingPanelConfig}
         onCancel={panels.cancelAddPanel}
         onConfirm={panels.confirmAddPanel}
-      />
-
-      <SaveLessonDialog
-        isOpen={lesson.isLessonDialogOpen}
-        lessonTitle={lesson.lessonTitle}
-        noteExcerptText={noteExcerpt(panels.notes[panels.panels.find((panel) => panel.type === "NOTE")?.id ?? ""] ?? EMPTY_NOTE_SPINE)}
-        stepsCount={lesson.stepsDraft.length}
-        onTitleChange={lesson.setLessonTitle}
-        onCancel={() => lesson.setIsLessonDialogOpen(false)}
-        onSave={lesson.saveCurrentLesson}
       />
 
       <HealthToasts toasts={simulation.healthToasts} onDismiss={simulation.dismissToast} />

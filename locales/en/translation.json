@@ -331,14 +331,6 @@
       "removeMetric": "Remove metric"
     },
     "dialogs": {
-      "saveLesson": {
-        "title": "Save as lesson",
-        "lessonTitle": "Title",
-        "noteSpine": "Note spine",
-        "capturedSteps": "Captured steps",
-        "stepsCount_one": "{{count}} step",
-        "stepsCount_other": "{{count}} steps"
-      },
       "addPanel": {
         "title": "Configure {{panelType}} Panel",
         "confirm": "Add Panel"
@@ -352,10 +344,8 @@
       "read": "Read",
       "explore": "Explore",
       "readExploreSwitcher": "Read or Explore",
-      "share": "Share",
       "saveCase": "Save case",
       "untitledScene": "Untitled case",
-      "unsavedAuthoringChanges": "Unsaved authoring changes",
       "customizeLayout": "Customize layout",
       "noteDrawer": "Note drawer",
       "metricsHost": "Metrics host",
@@ -374,7 +364,6 @@
       "resetLayout": "Reset layout",
       "pause": "Pause",
       "play": "Play",
-      "publishing": "Publishing...",
       "saving": "Saving...",
       "openPanel": "Open workbench panel",
       "sceneDetails": "Case details"
@@ -383,7 +372,6 @@
       "aria": "Workbench details",
       "closePanel": "Close panel",
       "learningScene": "Learning case",
-      "authorWorkspace": "Author workspace",
       "sandboxScene": "Sandbox case",
       "tabs": {
         "share": "Share",
@@ -394,8 +382,6 @@
       "share": {
         "title": "Share",
         "description": "Use published lesson links when available. Saving and sharing stay separate.",
-        "copyLink": "Copy link",
-        "openSavedLesson": "Open saved lesson",
         "noLink": "No share link yet."
       },
       "files": {
@@ -411,10 +397,7 @@
         "title": "Settings",
         "description": "Low-frequency workbench settings.",
         "appearance": "Appearance",
-        "theme": "Theme",
-        "saveAsLesson": "Save as lesson",
-        "exitAuthoring": "Exit authoring",
-        "createLesson": "Create lesson"
+        "theme": "Theme"
       },
       "themes": {
         "dark": "Dark",
@@ -487,7 +470,6 @@
       "closePanel": "Close Panel",
       "closePanelAria": "Close {{title}}",
       "zoneAria": "{{zone}} zone",
-        "shareUrl": "Share URL",
         "noteDrawer": "Note drawer",
         "metricsHost": "Metrics host",
         "note": "Note",
@@ -652,41 +634,6 @@
       "addPaneAria": "Add {{zone}} pane",
       "addPane": "Add pane",
       "noPanels": "No panels"
-    }
-  },
-  "lessonAuthoring": {
-    "title": "Lesson authoring",
-    "stepsCount_one": "{{count}} step",
-    "stepsCount_other": "{{count}} steps",
-    "captureStep": "Capture step",
-    "stepTitle": "Step title",
-    "stepPlaceholder": "Step {{number}}",
-    "visibleInstances": "Visible scenarios",
-    "predictBeforeReveal": "Predict before reveal",
-    "reveal": "Reveal",
-    "revealLabel": "Reveal label",
-    "predictionPrompt": "Prediction prompt",
-    "exposedKnobs": "Exposed parameters",
-    "maxKnobs": "max {{count}}",
-    "targetInstance": "Target scenario",
-    "target": "Target: {{target}}",
-    "startFromCurrentKnobValues": "Start from current parameter values",
-    "capturedSteps": "Captured steps",
-    "finalPredictWarning": "Final step is predict. Add a reveal step before saving.",
-    "noStepsCaptured": "No steps captured.",
-    "predictBadge": "predict",
-    "moveStepUp": "Move step up",
-    "moveStepDown": "Move step down",
-    "moveUpAria": "Move {{title}} up",
-    "moveDownAria": "Move {{title}} down",
-    "validation": {
-      "visibleInstanceRequired": "Select at least one visible scenario before capturing a step."
-    },
-    "row": {
-      "shows": "shows: {{names}}",
-      "showsNone": "shows: none",
-      "knobs": "parameters: {{knobs}} -> {{target}}",
-      "stale": "stale: {{ids}}"
     }
   },
   "scenarioManager": {

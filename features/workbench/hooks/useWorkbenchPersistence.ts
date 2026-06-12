@@ -20,7 +20,6 @@ import { graphBoardLayoutFromPanels, normalizeGraphBoardLayout } from "@/feature
 import { serializableAuthoredViews } from "@/features/workbench/authoredViews";
 import type { WorkbenchSceneState } from "@/features/workbench/hooks/useWorkbenchScene";
 import type { WorkbenchPanelsState } from "@/features/workbench/hooks/useWorkbenchPanels";
-import type { LessonAuthoringState } from "@/features/workbench/hooks/useLessonAuthoring";
 import { allCasesHref, caseHref, homeHref } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
 
@@ -53,7 +52,6 @@ export function useWorkbenchPersistence({
   signIn,
   scene,
   panels,
-  lesson,
   userEditedRef,
   buildCurrentDocRef,
   pushWarningToast,
@@ -63,7 +61,6 @@ export function useWorkbenchPersistence({
   signIn: () => Promise<AuthUser>;
   scene: WorkbenchSceneState;
   panels: WorkbenchPanelsState;
-  lesson: LessonAuthoringState;
   userEditedRef: MutableRefObject<boolean>;
   buildCurrentDocRef: MutableRefObject<BuildCurrentDoc | null>;
   pushWarningToast: (name: string, message: string) => void;
@@ -79,12 +76,9 @@ export function useWorkbenchPersistence({
   const loadNonceRef = useRef(0);
   const routeLoadCaseId = routeCaseId ?? searchParams.get("case");
   const routeLoadKey = routeLoadCaseId ? `${locale}:${routeLoadCaseId}` : undefined;
-  const stepsDraftLengthRef = useRef(lesson.stepsDraft.length);
-  stepsDraftLengthRef.current = lesson.stepsDraft.length;
 
   const { replaceSceneFromDoc } = scene;
   const { replacePanelState } = panels;
-  const { resetLessonState } = lesson;
 
   const defaultSceneTitle = useCallback(() => (
     scene.sceneMeta.title.trim() || (scene.instances[0] ? `${scene.instances[0].name} case` : "Workbench case")
@@ -191,14 +185,13 @@ export function useWorkbenchPersistence({
         notes: retainedDoc.notes ?? {},
         noteCaseKey: `${localized.meta.id}:${nonce}`,
       });
-      resetLessonState();
       userEditedRef.current = false;
       return true;
     } catch (err) {
       pushWarningToast("Case load", (err as Error).message);
       return false;
     }
-  }, [locale, pushWarningToast, replacePanelState, replaceSceneFromDoc, resetLessonState, userEditedRef]);
+  }, [locale, pushWarningToast, replacePanelState, replaceSceneFromDoc, userEditedRef]);
 
   const replaceWorkbenchDocRef = useRef(replaceWorkbenchDoc);
   replaceWorkbenchDocRef.current = replaceWorkbenchDoc;
@@ -224,7 +217,7 @@ export function useWorkbenchPersistence({
       }
 
       if (replaceWorkbenchDocRef.current(loaded.doc, {
-        confirm: userEditedRef.current || stepsDraftLengthRef.current > 0,
+        confirm: userEditedRef.current,
         trustedOfficial: loaded.trustedOfficial,
       })) {
         lastLoadedCaseIdRef.current = routeLoadKey ?? routeLoadCaseId;
@@ -246,11 +239,11 @@ export function useWorkbenchPersistence({
 
   const handleImportFile = useCallback(async (file: File) => {
     try {
-      replaceWorkbenchDoc(await readCaseFile(file), { confirm: userEditedRef.current || lesson.stepsDraft.length > 0 });
+      replaceWorkbenchDoc(await readCaseFile(file), { confirm: userEditedRef.current });
     } catch (err) {
       window.alert(`Import failed: ${(err as Error).message}`);
     }
-  }, [lesson.stepsDraft.length, replaceWorkbenchDoc, userEditedRef]);
+  }, [replaceWorkbenchDoc, userEditedRef]);
 
   const cacheCurrentDraft = useCallback((doc: CaseDocument) => {
     saveDraft(doc);
@@ -358,8 +351,6 @@ export function useWorkbenchPersistence({
         graphBoardLayout: nextDoc.graphBoardLayout,
         initialActiveScenarioId: nextDoc.initialActiveScenarioId,
       });
-      lesson.setSavedLesson(null);
-      lesson.setPublishedLesson(null);
       lastLoadedCaseIdRef.current = `${locale}:${caseId}`;
       navigate(caseHref(caseId, locale), { replace: true });
       pushWarningToast("Case save", opts.copy ? "Created an editable copy." : "Saved case.");
@@ -371,7 +362,6 @@ export function useWorkbenchPersistence({
     cacheCurrentDraft,
     defaultSceneTitle,
     isSavingCase,
-    lesson,
     locale,
     navigate,
     pushWarningToast,
