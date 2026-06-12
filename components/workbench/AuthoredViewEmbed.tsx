@@ -70,11 +70,11 @@ export function AuthoredViewEmbed({
   if (!body) return <AuthoredViewPlaceholder viewId={viewId} />;
 
   return (
-    <figure className={`my-4 overflow-hidden rounded-md border border-wb-line bg-wb-input ${className}`} contentEditable={false}>
+    <figure className={`workbench-authored-view-embed my-4 block w-full max-w-full overflow-hidden rounded-md border border-wb-line bg-wb-input text-wb-text ${className}`} contentEditable={false}>
       <figcaption className="border-b border-wb-line px-3 py-1.5 text-[11px] font-medium text-wb-subtle">
         {view.title}
       </figcaption>
-      <div className={view.kind === "controller" ? "relative h-[360px] max-h-[58vh] overflow-y-auto" : "relative min-h-[180px]"}>
+      <div className={view.kind === "controller" ? "relative h-[360px] max-h-[58vh] w-full max-w-full overflow-y-auto" : "relative min-h-[180px] w-full max-w-full"}>
         {body}
       </div>
     </figure>

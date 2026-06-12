@@ -92,7 +92,7 @@ export function useWorkbenchPanels({
         });
       }
       const selectedLocalOnly = Object.entries(resolved).every(([key, value]) => (
-        key === "selectedControllerViewId" || key === "metricsColumns" || value === prevLayout[key as keyof WorkbenchLayoutState]
+        key === "selectedControllerViewId" || value === prevLayout[key as keyof WorkbenchLayoutState]
       ));
       if (!selectedLocalOnly && headerMode !== "learner") markUserEdited();
       return resolved;

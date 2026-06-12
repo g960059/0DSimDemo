@@ -37,8 +37,6 @@ import {
   effectiveGlobalConfig,
   firstPanelOfType,
   graphPanelsOnly,
-  metricsHostTabs,
-  type MetricsHostTab,
 } from '../../features/workbench/p1aStructuralHosts';
 import {
   controllerViews,
@@ -50,18 +48,13 @@ import {
 } from '../../features/workbench/authoredViews';
 import { hasViewRefUsage, viewRefUsageForDeletion } from '../../features/workbench/noteViewRefs';
 import type { ControllerViewSpec, GraphBoardLayout, MetricsViewSpec } from '../../features/workbench/viewSpec';
-import { Activity, Brush, Check, ChevronDown, ChevronRight, Columns2, Copy, Eye, EyeOff, FileText, Layers, MoreVertical, Pencil, Plus, RotateCcw, Search, Settings, SlidersHorizontal, Tags, Trash2, Type as TypeIcon, X } from 'lucide-react';
+import type { WorkbenchThemeId } from './WorkbenchSidePanel';
+import { Activity, Brush, Check, ChevronDown, ChevronRight, Copy, Eye, EyeOff, FileText, Layers, Pencil, Plus, RotateCcw, Search, Settings, SlidersHorizontal, Tags, Trash2, Type as TypeIcon, X } from 'lucide-react';
 
 export type PanelGridMode = 'learner' | 'author' | 'sandbox';
 export type WorkbenchControlsSide = 'left' | 'right';
 export type RightRailView = 'scenarios' | 'inspector';
 export type MetricsSpanMode = 'main' | 'full';
-export type MetricsColumnId = 'primary' | 'secondary';
-
-export interface MetricsColumnsState {
-  secondViewId?: string;
-  ratio?: number;
-}
 
 export interface WorkbenchLayoutState {
   controlsSide: WorkbenchControlsSide;
@@ -77,7 +70,6 @@ export interface WorkbenchLayoutState {
   scenarioListMaxRatio: number;
   scenarioListHeightPx?: number;
   metricsSpan: MetricsSpanMode;
-  metricsColumns?: MetricsColumnsState;
 }
 
 interface PanelGridProps {
@@ -95,6 +87,7 @@ interface PanelGridProps {
   onDockviewViewStateChange?: (zone: WorkbenchZoneId, viewState: DockviewViewState) => void;
   graphBoardLayout?: GraphBoardLayout;
   onGraphBoardLayoutChange?: (layout: GraphBoardLayout | undefined) => void;
+  workbenchTheme?: WorkbenchThemeId;
   authoredViews?: AuthoredViewSpec[];
   reading?: CaseReadingManifest;
   createControllerView: (title: string, items?: ControllerItem[]) => ControllerViewSpec;
@@ -154,11 +147,27 @@ interface PanelGridProps {
 type PanelChromeMode = 'desktop' | 'mobile' | 'dockview';
 
 const WB_FOCUS_RING = 'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent';
-const METRICS_MENU_WIDTH = 176;
-const METRICS_MENU_HEIGHT = 220;
 
 export function getDockviewPaneTitle(panel: PanelDef): string {
   return panel.title;
+}
+
+export function metricsViewToDockviewPanel(view: MetricsViewSpec): PanelDef {
+  return {
+    id: view.id,
+    type: 'METRICS',
+    title: view.title ?? 'Metrics view',
+    role: 'output',
+    zone: 'bottomPanel',
+    w: 4,
+    h: 4,
+    config: {},
+    isSettingsOpen: false,
+  };
+}
+
+export function metricsViewsToDockviewPanels(views: readonly MetricsViewSpec[]): PanelDef[] {
+  return views.map(metricsViewToDockviewPanel);
 }
 
 export function openPanelSettingsIfClosed(
@@ -1636,6 +1645,7 @@ interface PanelCardProps {
   metrics: MetricType[];
   controlGroups: string[];
   canConfigure?: boolean;
+  workbenchTheme?: WorkbenchThemeId;
 }
 
 function NoteModeToggleButton({
@@ -1716,6 +1726,7 @@ function PanelCard({
   metrics,
   controlGroups,
   canConfigure = isEditor,
+  workbenchTheme = 'dark',
 }: PanelCardProps) {
   const { t } = useTranslation();
   const bodyClassName = chromeMode === 'mobile' || chromeMode === 'dockview'
@@ -1757,6 +1768,7 @@ function PanelCard({
         noteCaseKey,
         onNoteChange,
         noteHeader: dockviewNoteModeSwitch,
+        workbenchTheme,
         addInstance,
         removeInstance,
         updateInstanceName,
@@ -1922,19 +1934,6 @@ function ResizeSash({
   );
 }
 
-function metricsTabLabel(_t: PanelGridT, tab: MetricsHostTab): string {
-  return tab.title;
-}
-
-function getMetricsMenuPosition(anchorRect: DOMRect) {
-  return getScenarioPresetMenuPosition(
-    anchorRect.right - METRICS_MENU_WIDTH,
-    anchorRect.bottom + 4,
-    METRICS_MENU_WIDTH,
-    METRICS_MENU_HEIGHT,
-  );
-}
-
 function ZoneShell({
   zone,
   panels,
@@ -2012,6 +2011,7 @@ export function PanelGrid({
   onDockviewViewStateChange,
   graphBoardLayout,
   onGraphBoardLayoutChange,
+  workbenchTheme = 'dark',
   authoredViews = [],
   reading,
   createControllerView,
@@ -2073,34 +2073,17 @@ export function PanelGrid({
   const notePanel = useMemo(() => firstPanelOfType(presenterPanels, 'NOTE'), [presenterPanels]);
   const authoredControllerViews = useMemo(() => controllerViews(authoredViews), [authoredViews]);
   const authoredMetricViews = useMemo(() => metricsViews(authoredViews), [authoredViews]);
-  const fixedMetricsTabs = useMemo(() => metricsHostTabs(metrics, authoredMetricViews), [metrics, authoredMetricViews]);
-  const [activeMetricsTabId, setActiveMetricsTabId] = useState(() => fixedMetricsTabs[0]?.id ?? '');
+  const metricsDockviewPanels = useMemo(() => metricsViewsToDockviewPanels(authoredMetricViews), [authoredMetricViews]);
+  const metricsViewsById = useMemo(() => new Map(authoredMetricViews.map((view) => [view.id, view])), [authoredMetricViews]);
+  const [metricsDockviewViewState, setMetricsDockviewViewState] = useState<DockviewViewState | undefined>(undefined);
   const [openControllerMenu, setOpenControllerMenu] = useState(false);
-  const [metricsMenuState, setMetricsMenuState] = useState<{ viewId: string; column: MetricsColumnId; x: number; y: number } | null>(null);
   const [renamingViewId, setRenamingViewId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const [viewEditor, setViewEditor] = useState<ViewEditorState | null>(null);
   const [scenarioAddMenuPosition, setScenarioAddMenuPosition] = useState<{ x: number; y: number } | null>(null);
-  const metricsSplitRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (fixedMetricsTabs.some((tab) => tab.id === activeMetricsTabId)) return;
-    setActiveMetricsTabId(fixedMetricsTabs[0]?.id ?? '');
-  }, [activeMetricsTabId, fixedMetricsTabs]);
-  const activeMetricsTab = fixedMetricsTabs.find((tab) => tab.id === activeMetricsTabId) ?? fixedMetricsTabs[0];
-  const metricsSplitViewId = layoutState.metricsColumns?.secondViewId;
-  const metricsSplitTab = metricsSplitViewId
-    ? fixedMetricsTabs.find((tab) => tab.id === metricsSplitViewId)
-    : undefined;
-  const isMetricsSplit = Boolean(metricsSplitTab);
-  const metricsSplitRatio = clamp(layoutState.metricsColumns?.ratio ?? 0.5, 0.2, 0.8);
   const requestedControllerViewId = layoutState.selectedControllerViewId;
   const selectedControllerView = authoredControllerViews.find((view) => view.id === requestedControllerViewId) ?? authoredControllerViews[0];
   const selectedControllerEntryId = selectedControllerView?.id;
-  useEffect(() => {
-    if (!layoutState.metricsColumns?.secondViewId) return;
-    if (fixedMetricsTabs.some((tab) => tab.id === layoutState.metricsColumns?.secondViewId)) return;
-    onLayoutStateChange((prev) => ({ ...prev, metricsColumns: undefined }));
-  }, [fixedMetricsTabs, layoutState.metricsColumns?.secondViewId, onLayoutStateChange]);
   useEffect(() => {
     if (!requestedControllerViewId || authoredControllerViews.some((view) => view.id === requestedControllerViewId)) return;
     onLayoutStateChange((prev) => ({ ...prev, selectedControllerViewId: undefined }));
@@ -2110,16 +2093,6 @@ export function PanelGrid({
     setRenamingViewId(null);
     setRenameDraft('');
   }, [authoredViews, renamingViewId]);
-  useEffect(() => {
-    if (!metricsMenuState) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      setMetricsMenuState(null);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [metricsMenuState]);
   const hasCaseRail = Boolean(notePanel && layoutState.noteOpen);
   const shareBanner = authoringMode && publishedLesson ? (
     <div className="mb-2 flex flex-col gap-2 rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100 sm:flex-row sm:items-center">
@@ -2186,6 +2159,7 @@ export function PanelGrid({
       metrics={metrics}
       controlGroups={controlGroups}
       canConfigure={mode !== 'learner'}
+      workbenchTheme={workbenchTheme}
     />
   );
 
@@ -2234,8 +2208,7 @@ export function PanelGrid({
           const view = createControllerView(draft.title, draft.items);
           onLayoutStateChange((prev) => ({ ...prev, selectedControllerViewId: view.id }));
         } else {
-          const view = createMetricsView(draft.title, draft.metrics);
-          setActiveMetricsTabId(view.id);
+          createMetricsView(draft.title, draft.metrics);
         }
         setViewEditor(null);
       }}
@@ -2333,19 +2306,6 @@ export function PanelGrid({
     ));
   };
 
-  const openMetricsMenu = (
-    tab: MetricsHostTab,
-    column: MetricsColumnId,
-    anchorRect: DOMRect,
-  ) => {
-    const position = getMetricsMenuPosition(anchorRect);
-    setMetricsMenuState((current) => (
-      current?.viewId === tab.id && current.column === column
-        ? null
-        : { viewId: tab.id, column, ...position }
-    ));
-  };
-
   const beginRenameView = (view: AuthoredViewSpec) => {
     setRenamingViewId(view.id);
     setRenameDraft(view.title ?? '');
@@ -2370,28 +2330,10 @@ export function PanelGrid({
     if (!copy) return;
     if (copy.kind === 'controller') {
       onLayoutStateChange((prev) => ({ ...prev, selectedControllerViewId: copy.id }));
-    } else {
-      setActiveMetricsTabId(copy.id);
     }
   };
 
-  const splitMetricsRight = (viewId: string) => {
-    onLayoutStateChange((prev) => ({
-      ...prev,
-      metricsColumns: {
-        secondViewId: viewId,
-        ratio: clamp(prev.metricsColumns?.ratio ?? 0.5, 0.2, 0.8),
-      },
-    }));
-    setMetricsMenuState(null);
-  };
-
-  const closeMetricsSplit = () => {
-    onLayoutStateChange((prev) => ({ ...prev, metricsColumns: undefined }));
-    setMetricsMenuState(null);
-  };
-
-  const deleteView = (view: AuthoredViewSpec) => {
+  const deleteView = (view: AuthoredViewSpec): boolean => {
     const usage = viewRefUsageForDeletion(view.id, notes, reading);
     const confirmKey = hasViewRefUsage(usage)
       ? 'workbench.viewManagement.deleteReferencedConfirm'
@@ -2400,187 +2342,69 @@ export function PanelGrid({
       title: view.title ?? '',
       noteCount: usage.notes.length,
       readingCount: usage.reading ? 1 : 0,
-    }))) return;
+    }))) return false;
     deleteAuthoredView(view.id);
     if (view.kind === 'controller' && selectedControllerEntryId === view.id) {
       onLayoutStateChange((prev) => ({ ...prev, selectedControllerViewId: undefined }));
     }
-    if (view.kind === 'metrics' && activeMetricsTabId === view.id) {
-      setActiveMetricsTabId(fixedMetricsTabs.find((tab) => tab.id !== view.id)?.id ?? '');
-    }
-    if (view.kind === 'metrics' && layoutState.metricsColumns?.secondViewId === view.id) {
-      onLayoutStateChange((prev) => ({ ...prev, metricsColumns: undefined }));
-    }
+    return true;
   };
 
-  const renderMetricsMenu = (tab: MetricsHostTab, column: MetricsColumnId) => {
-    if (
-      metricsMenuState?.viewId !== tab.id
-      || metricsMenuState.column !== column
-      || typeof document === 'undefined'
-    ) return null;
-
-    return createPortal(
-      <>
-        <div className="fixed inset-0 z-[80]" onClick={() => setMetricsMenuState(null)} />
-        <div
-          role="menu"
-          className="workbench-popover-menu fixed z-[90] w-44 rounded-md border py-1 shadow-xl"
-          style={{ left: metricsMenuState.x, top: metricsMenuState.y }}
-          onClick={(event) => event.stopPropagation()}
-        >
-          <button type="button" role="menuitem" onClick={() => { setViewEditor({ mode: 'edit', view: tab.view }); setMetricsMenuState(null); }} className={`workbench-popover-menu-item flex h-8 w-full items-center gap-2 px-2 text-xs font-semibold ${WB_FOCUS_RING}`}>
-            <Pencil className="h-3.5 w-3.5" /> {t('common.edit')}
-          </button>
-          <button type="button" role="menuitem" onClick={() => { beginRenameView(tab.view); setMetricsMenuState(null); }} className={`workbench-popover-menu-item flex h-8 w-full items-center gap-2 px-2 text-xs font-semibold ${WB_FOCUS_RING}`}>
-            <TypeIcon className="h-3.5 w-3.5" /> {t('workbench.viewManagement.rename')}
-          </button>
-          <button type="button" role="menuitem" onClick={() => { duplicateView(tab.view); setMetricsMenuState(null); }} className={`workbench-popover-menu-item flex h-8 w-full items-center gap-2 px-2 text-xs font-semibold ${WB_FOCUS_RING}`}>
-            <Copy className="h-3.5 w-3.5" /> {t('workbench.viewManagement.duplicate')}
-          </button>
-          {!isMetricsSplit && (
-            <button type="button" role="menuitem" onClick={() => splitMetricsRight(tab.id)} className={`workbench-popover-menu-item flex h-8 w-full items-center gap-2 px-2 text-xs font-semibold ${WB_FOCUS_RING}`}>
-              <Columns2 className="h-3.5 w-3.5" /> {t('workbench.viewManagement.splitRight')}
-            </button>
-          )}
-          {isMetricsSplit && column === 'secondary' && (
-            <button type="button" role="menuitem" onClick={closeMetricsSplit} className={`workbench-popover-menu-item flex h-8 w-full items-center gap-2 px-2 text-xs font-semibold ${WB_FOCUS_RING}`}>
-              <X className="h-3.5 w-3.5" /> {t('workbench.viewManagement.closeSplit')}
-            </button>
-          )}
-          <button type="button" role="menuitem" onClick={() => { deleteView(tab.view); setMetricsMenuState(null); }} className={`workbench-popover-menu-item-danger flex h-8 w-full items-center gap-2 px-2 text-xs font-semibold ${WB_FOCUS_RING}`}>
-            <Trash2 className="h-3.5 w-3.5" /> {t('common.delete')}
-          </button>
-        </div>
-      </>,
-      document.body,
-    );
+  const editMetricsPanel = (panelId: string) => {
+    const view = metricsViewsById.get(panelId);
+    if (view) setViewEditor({ mode: 'edit', view });
   };
 
-  const renderMetricsColumn = (column: MetricsColumnId, activeTab: MetricsHostTab | undefined) => {
-    const activeTabId = activeTab?.id ?? '';
-    const selectTab = (tabId: string) => {
-      if (column === 'primary') {
-        setActiveMetricsTabId(tabId);
-        return;
-      }
-      onLayoutStateChange((prev) => ({
-        ...prev,
-        metricsColumns: {
-          secondViewId: tabId,
-          ratio: clamp(prev.metricsColumns?.ratio ?? metricsSplitRatio, 0.2, 0.8),
-        },
-      }));
-    };
+  const duplicateMetricsPanel = (panelId: string): PanelDef | undefined => {
+    const copy = duplicateAuthoredView(panelId);
+    return copy?.kind === 'metrics' ? metricsViewToDockviewPanel(copy) : undefined;
+  };
 
+  const deleteMetricsPanel = (panelId: string): boolean => {
+    const view = metricsViewsById.get(panelId);
+    return view ? deleteView(view) : false;
+  };
+
+  const renderMetricsDockviewPanel = (panel: PanelDef) => {
+    const view = metricsViewsById.get(panel.id);
+    if (!view) {
+      return (
+        <WorkbenchEmptyState
+          description={t('workbench.dockview.panelUnavailable')}
+        />
+      );
+    }
     return (
-      <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
-        <div className="wb-tabstrip shrink-0 gap-1 overflow-x-auto px-2 custom-scrollbar">
-          {fixedMetricsTabs.map((tab) => {
-            const isRenaming = renamingViewId === tab.id;
-            const isActive = activeTabId === tab.id;
-            const isMenuOpen = metricsMenuState?.viewId === tab.id && metricsMenuState.column === column;
-            return (
-              <div
-                key={tab.id}
-                className={`workbench-metrics-tab wb-tab relative flex h-full shrink-0 items-center ${isActive ? 'workbench-metrics-tab-active wb-tab-active' : ''}`}
-                onContextMenu={(event) => {
-                  event.preventDefault();
-                  openMetricsMenu(tab, column, event.currentTarget.getBoundingClientRect());
-                }}
-              >
-                {isRenaming ? (
-                  <input
-                    type="text"
-                    value={renameDraft}
-                    autoFocus
-                    onFocus={(event) => event.currentTarget.select()}
-                    onBlur={() => commitRenameView(tab.view)}
-                    onChange={(event) => setRenameDraft(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') {
-                        event.preventDefault();
-                        commitRenameView(tab.view);
-                      }
-                      if (event.key === 'Escape') {
-                        event.preventDefault();
-                        cancelRenameView();
-                      }
-                    }}
-                    className="h-7 min-w-28 rounded border border-wb-accent bg-wb-input px-2 text-xs font-bold text-wb-text outline-none focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
-                    aria-label={t('workbench.viewManagement.rename')}
-                  />
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => selectTab(tab.id)}
-                    onDoubleClick={() => beginRenameView(tab.view)}
-                    className={`inline-flex h-full min-w-0 shrink-0 items-center px-2.5 text-xs transition-colors ${WB_FOCUS_RING}`}
-                  >
-                    {metricsTabLabel(t, tab)}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={(event) => openMetricsMenu(tab, column, event.currentTarget.getBoundingClientRect())}
-                  className={`workbench-metrics-tab-menu-button mr-0.5 inline-flex h-6 w-6 items-center justify-center rounded text-current transition-colors hover:bg-wb-hover ${WB_FOCUS_RING}`}
-                  aria-label={t('workbench.viewManagement.metricsMenu')}
-                  aria-haspopup="menu"
-                  aria-expanded={isMenuOpen}
-                >
-                  <MoreVertical className="h-3.5 w-3.5" />
-                </button>
-                {renderMetricsMenu(tab, column)}
-              </div>
-            );
-          })}
-          <button
-            type="button"
-            onClick={() => setViewEditor({ mode: 'create', kind: 'metrics' })}
-            className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`}
-            aria-label={t('workbench.viewManagement.newMetrics')}
-            title={t('workbench.viewManagement.newMetrics')}
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={restoreStandardViews}
-            className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border border-wb-line text-wb-subtle transition-colors hover:border-wb-line-strong hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`}
-            aria-label={t('workbench.viewManagement.restoreStandard')}
-            title={t('workbench.viewManagement.restoreStandard')}
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-          </button>
-        </div>
-        <div className="relative min-h-0 flex-1">
-          {activeTab ? (
-            <MetricsPanel
-              physicsRefs={physicsRefs}
-              instances={instances}
-              config={effectiveGlobalConfig(metricsViewConfig(activeTab.view, instances), instances)}
-            />
-          ) : (
-            <WorkbenchEmptyState
-              description={t('workbench.viewManagement.metricsEmptyHint')}
-              primaryAction={{
-                label: t('workbench.viewManagement.newMetricsShort'),
-                onClick: () => setViewEditor({ mode: 'create', kind: 'metrics' }),
-                icon: <Plus className="h-3.5 w-3.5" />,
-                ariaLabel: t('workbench.viewManagement.newMetrics'),
-              }}
-            />
-          )}
-        </div>
-      </div>
+      <MetricsPanel
+        physicsRefs={physicsRefs}
+        instances={instances}
+        config={effectiveGlobalConfig(metricsViewConfig(view, instances), instances)}
+      />
     );
   };
+
+  const renderMetricsEmptyState = () => (
+    <WorkbenchEmptyState
+      description={t('workbench.viewManagement.metricsEmptyHint')}
+      primaryAction={{
+        label: t('workbench.viewManagement.newMetricsShort'),
+        onClick: () => setViewEditor({ mode: 'create', kind: 'metrics' }),
+        icon: <Plus className="h-3.5 w-3.5" />,
+        ariaLabel: t('workbench.viewManagement.newMetrics'),
+      }}
+      secondaryAction={{
+        label: t('workbench.viewManagement.restoreStandard'),
+        onClick: restoreStandardViews,
+        icon: <RotateCcw className="h-3.5 w-3.5" />,
+      }}
+    />
+  );
 
   if (isMobile) {
     return (
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-wb-panel p-2">
         {shareBanner}
-        {authoringMode && <LessonAuthoring instances={instances} stepsDraft={stepsDraft} setStepsDraft={setStepsDraft} />}
+        {authoringMode && <LessonAuthoring instances={instances} stepsDraft={stepsDraft} setStepsDraft={setStepsDraft} workbenchTheme={workbenchTheme} />}
         <WorkbenchMobile
           panels={presenterPanels}
           title="Workbench"
@@ -2596,7 +2420,7 @@ export function PanelGrid({
   return (
     <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-wb-panel p-0">
         {shareBanner}
-        {authoringMode && <LessonAuthoring instances={instances} stepsDraft={stepsDraft} setStepsDraft={setStepsDraft} />}
+        {authoringMode && <LessonAuthoring instances={instances} stepsDraft={stepsDraft} setStepsDraft={setStepsDraft} workbenchTheme={workbenchTheme} />}
         <div
           className="grid min-h-0 flex-1 gap-0 overflow-hidden"
           style={{ gridTemplateColumns, gridTemplateRows }}
@@ -2623,6 +2447,7 @@ export function PanelGrid({
                 noteCaseKey,
                 onNoteChange,
                 noteHeader,
+                workbenchTheme,
                 addInstance,
                 removeInstance,
                 updateInstanceName,
@@ -2963,48 +2788,28 @@ export function PanelGrid({
               style={{ gridColumn: metricsGridColumn, gridRow: '3' }}
               aria-label={t('workbench.panelGrid.metricsHost')}
             >
-              {isMetricsSplit && metricsSplitTab ? (
-                <div
-                  ref={metricsSplitRef}
-                  className="grid min-h-0 flex-1 overflow-hidden"
-                  style={{ gridTemplateColumns: `${metricsSplitRatio}fr 6px ${1 - metricsSplitRatio}fr` }}
-                >
-                  {renderMetricsColumn('primary', activeMetricsTab)}
-                  <ResizeSash
-                    orientation="vertical"
-                    label={t('workbench.panelGrid.resizeMetricsSplit')}
-                    value={metricsSplitRatio * 100}
-                    min={20}
-                    max={80}
-                    onChange={(ratioPercent) => onLayoutStateChange((prev) => ({
-                      ...prev,
-                      metricsColumns: {
-                        secondViewId: prev.metricsColumns?.secondViewId ?? metricsSplitTab.id,
-                        ratio: ratioPercent / 100,
-                      },
-                    }))}
-                    valueFromDrag={(startValue, deltaPx) => {
-                      const width = metricsSplitRef.current?.getBoundingClientRect().width ?? 1;
-                      return startValue + (deltaPx / width) * 100;
-                    }}
-                    valueFromKey={(key, currentValue) => {
-                      if (key === 'ArrowLeft') return currentValue - 5;
-                      if (key === 'ArrowRight') return currentValue + 5;
-                      return undefined;
-                    }}
-                    onDoubleClick={() => onLayoutStateChange((prev) => ({
-                      ...prev,
-                      metricsColumns: prev.metricsColumns
-                        ? { ...prev.metricsColumns, ratio: 0.5 }
-                        : prev.metricsColumns,
-                    }))}
-                    className="min-h-0"
-                  />
-                  {renderMetricsColumn('secondary', metricsSplitTab)}
-                </div>
-              ) : (
-                renderMetricsColumn('primary', activeMetricsTab)
-              )}
+              <WorkbenchDockview
+                panels={metricsDockviewPanels}
+                zone="bottomPanel"
+                mode={mode}
+                variant="metrics"
+                layoutKey={`${dockviewLayoutKey ?? 'default'}:metrics`}
+                viewState={metricsDockviewViewState}
+                onViewStateChange={setMetricsDockviewViewState}
+                onCreatePanel={() => {
+                  setViewEditor({ mode: 'create', kind: 'metrics' });
+                  return undefined;
+                }}
+                onEditPanel={editMetricsPanel}
+                onRenamePanel={renameAuthoredView}
+                onDuplicatePanel={duplicateMetricsPanel}
+                onRemovePanel={deleteMetricsPanel}
+                getPanelTitle={getPanelTitle}
+                renderPanel={renderMetricsDockviewPanel}
+                renderEmptyState={renderMetricsEmptyState}
+                splitAxis="horizontal-only"
+                className="workbench-dockview workbench-dockview-metrics flex-1"
+              />
             </section>
           )}
         </div>

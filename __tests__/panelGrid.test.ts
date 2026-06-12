@@ -6,13 +6,14 @@ import { resolve } from "node:path";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "@/i18n";
 import { ChartLegend, shouldEnableLegendInteractions } from "@/components/Charts";
-import { PanelGrid, getActiveSettingsSectionId, getDockviewPaneTitle, openPanelSettingsIfClosed, type PanelGridMode, type WorkbenchLayoutState } from "@/components/workbench/PanelGrid";
+import { PanelGrid, getActiveSettingsSectionId, getDockviewPaneTitle, metricsViewsToDockviewPanels, openPanelSettingsIfClosed, type PanelGridMode, type WorkbenchLayoutState } from "@/components/workbench/PanelGrid";
 import { ScenarioPane } from "@/components/workbench/ScenarioPane";
-import { getDockviewStructureSignature, getDockviewTabMenuPosition, shouldReapplyDockviewLayout } from "@/components/workbench/WorkbenchDockview";
+import { getDockviewStructureSignature, getDockviewTabMenuPosition, isDockviewHorizontalOnlyDropAllowed, shouldReapplyDockviewLayout } from "@/components/workbench/WorkbenchDockview";
 import { standardAuthoredViews } from "@/features/workbench/authoredViews";
 import { addVisibleInstanceConfigsToPanels } from "@/WorkbenchPage";
 import { DEFAULT_PARAMS } from "@/constants";
 import type { SteadyUpdateStatusMap } from "@/engine/previewController";
+import type { MetricsViewSpec } from "@/features/workbench/viewSpec";
 import type { PanelDef, SimInstance } from "@/types";
 
 // These tests cover layout shell behavior, not BlockNote behavior. Keeping NotePanel
@@ -504,14 +505,14 @@ describe("PanelGrid Dockview layout", () => {
     expect(css).toContain("overflow: visible;");
   });
 
-  it("keeps metrics and Dockview tab strips on the same strip grammar", () => {
+  it("uses the shared Dockview tab grammar for the metrics host", () => {
     const css = readFileSync(resolve(process.cwd(), "index.css"), "utf8");
     const panelGridSource = readFileSync(resolve(process.cwd(), "components/workbench/PanelGrid.tsx"), "utf8");
 
-    expect(panelGridSource).toContain("wb-tabstrip shrink-0 gap-1 overflow-x-auto px-2 custom-scrollbar");
-    expect(panelGridSource).toContain("workbench-metrics-tab wb-tab relative flex h-full shrink-0 items-center");
-    expect(panelGridSource).toContain("workbench-metrics-tab-menu-button mr-0.5 inline-flex h-6 w-6");
-    expect(panelGridSource).toContain("workbench-popover-menu fixed z-[90] w-44");
+    expect(panelGridSource).toContain('variant="metrics"');
+    expect(panelGridSource).toContain('splitAxis="horizontal-only"');
+    expect(panelGridSource).toContain("workbench-dockview workbench-dockview-metrics flex-1");
+    expect(panelGridSource).not.toContain("workbench-metrics-tab");
     expect(css).toContain(".wb-tabstrip");
     expect(css).toContain("height: 32px;");
     expect(css).toContain("box-shadow: inset 0 -1px 0 var(--wb-border);");
@@ -782,15 +783,24 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).toContain("aria-valuenow=\"400\"");
   });
 
-  it("renders a local metrics split with its own keyboard-addressable sash", () => {
-    const html = renderPanelGrid("sandbox", [pvLoopPanel, metricsPanel], [normalInstance, copiedInstance], [], {}, false, {
-      metricsOpen: true,
-      metricsColumns: { secondViewId: "metrics-2", ratio: 0.6 },
-    });
+  it("maps metrics views to dockview panels without persisting split columns", () => {
+    const views: MetricsViewSpec[] = [
+      { id: "metrics-a", kind: "metrics", title: "Pressures", metrics: ["ABP"], membership: {} },
+      { id: "metrics-b", kind: "metrics", title: "Flow", metrics: ["CO"], membership: {} },
+    ];
 
-    expect(html).toContain("aria-label=\"Resize metrics split\"");
-    expect(html).toContain("aria-valuenow=\"60\"");
-    expect(html.match(/wb-tabstrip/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(metricsViewsToDockviewPanels(views)).toEqual([
+      expect.objectContaining({ id: "metrics-a", title: "Pressures", type: "METRICS", role: "output", zone: "bottomPanel" }),
+      expect.objectContaining({ id: "metrics-b", title: "Flow", type: "METRICS", role: "output", zone: "bottomPanel" }),
+    ]);
+  });
+
+  it("rejects vertical metrics dockview drop targets", () => {
+    expect(isDockviewHorizontalOnlyDropAllowed("left")).toBe(true);
+    expect(isDockviewHorizontalOnlyDropAllowed("right")).toBe(true);
+    expect(isDockviewHorizontalOnlyDropAllowed("center")).toBe(true);
+    expect(isDockviewHorizontalOnlyDropAllowed("top")).toBe(false);
+    expect(isDockviewHorizontalOnlyDropAllowed("bottom")).toBe(false);
   });
 
   it("keeps scenario deletion available only when a second scenario exists", () => {

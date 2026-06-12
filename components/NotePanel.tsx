@@ -13,6 +13,7 @@ import 'katex/dist/katex.min.css';
 import type { NoteContent } from '../noteTypes';
 import { AuthoredViewEmbed, type AuthoredViewRuntime } from "./workbench/AuthoredViewEmbed";
 import type { AuthoredViewSpec } from "@/features/workbench/authoredViews";
+import type { WorkbenchThemeId } from "./workbench/WorkbenchSidePanel";
 
 type NoteMode = 'read' | 'edit' | 'author';
 
@@ -39,15 +40,15 @@ type NormalizedListBlock = {
 export type NormalizedStaticBlock = StaticBlock | NormalizedListBlock;
 
 const articleHeadingClass: Record<number, string> = {
-  1: "mt-12 mb-4 text-[28px] font-semibold leading-snug text-slate-50 text-balance scroll-mt-16",
-  2: "mt-10 mb-3 text-[22px] font-semibold text-slate-50 text-balance scroll-mt-16",
-  3: "mt-8 mb-2 text-[18px] font-semibold text-slate-100 text-balance scroll-mt-16",
+  1: "mt-12 mb-4 text-[28px] font-semibold leading-snug text-wb-text text-balance scroll-mt-16",
+  2: "mt-10 mb-3 text-[22px] font-semibold text-wb-text text-balance scroll-mt-16",
+  3: "mt-8 mb-2 text-[18px] font-semibold text-wb-text text-balance scroll-mt-16",
 };
 
 const compactHeadingClass: Record<number, string> = {
-  1: "mb-3 mt-5 text-lg font-semibold text-slate-100 text-balance scroll-mt-16",
-  2: "mb-2 mt-4 text-base font-semibold text-slate-100 text-balance scroll-mt-16",
-  3: "mb-2 mt-3 text-sm font-semibold text-slate-100 text-balance scroll-mt-16",
+  1: "mb-3 mt-5 text-lg font-semibold text-wb-text text-balance scroll-mt-16",
+  2: "mb-2 mt-4 text-base font-semibold text-wb-text text-balance scroll-mt-16",
+  3: "mb-2 mt-3 text-sm font-semibold text-wb-text text-balance scroll-mt-16",
 };
 
 function blockProps(block: StaticBlock): Record<string, unknown> {
@@ -129,13 +130,13 @@ export function renderInlineContent(content: unknown): React.ReactNode {
     const inline = item as { type?: unknown; text?: unknown; href?: unknown; styles?: Record<string, unknown>; content?: unknown };
     if (inline.type === "text" && typeof inline.text === "string") {
       const classes = [
-        inline.styles?.bold ? "font-semibold text-slate-100" : "",
+        inline.styles?.bold ? "font-semibold text-wb-text" : "",
         inline.styles?.italic ? "italic" : "",
       ].filter(Boolean).join(" ");
 
       if (inline.styles?.code) {
         return (
-          <code key={index} className={`rounded bg-slate-800/70 px-1.5 py-0.5 font-mono text-[0.88em] text-sky-200 ring-1 ring-slate-700/60 ${classes}`}>
+          <code key={index} className={`rounded bg-wb-input px-1.5 py-0.5 font-mono text-[0.88em] text-wb-accent ring-1 ring-wb-line ${classes}`}>
             {inline.text}
           </code>
         );
@@ -150,7 +151,7 @@ export function renderInlineContent(content: unknown): React.ReactNode {
         <a
           key={index}
           href={inline.href}
-          className="font-medium text-sky-400 underline decoration-sky-400/40 underline-offset-4 hover:text-sky-300"
+          className="font-medium text-wb-accent underline decoration-wb-accent/40 underline-offset-4 hover:text-wb-text"
         >
           {renderInlineContent(inline.content)}
         </a>
@@ -195,7 +196,7 @@ export const StaticQuiz: React.FC<{ question: string; options: string; answerInd
 
   return (
     <div data-answer-index={Number.isFinite(correctIndex) ? correctIndex : -1}>
-      <div className="mb-3 font-medium text-slate-200">{question}</div>
+      <div className="mb-3 font-medium text-wb-text">{question}</div>
       <div className="flex flex-col gap-2">
         {choices.map((option, index) => {
           const isSelected = selected === index;
@@ -208,9 +209,9 @@ export const StaticQuiz: React.FC<{ question: string; options: string; answerInd
               onClick={() => setSelected(index)}
               aria-pressed={isSelected}
               className={`rounded border px-3 py-2 text-left text-sm transition-colors ${
-                isCorrect ? "border-green-500 bg-green-900/30 text-green-200" :
-                isWrong ? "border-red-500 bg-red-900/30 text-red-200" :
-                "border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-700"
+                isCorrect ? "border-wb-accent bg-wb-accent-soft text-wb-text" :
+                isWrong ? "border-wb-danger bg-wb-hover text-wb-danger" :
+                "border-wb-line bg-wb-panel text-wb-muted hover:bg-wb-hover hover:text-wb-text"
               }`}
             >
               {option}
@@ -219,7 +220,7 @@ export const StaticQuiz: React.FC<{ question: string; options: string; answerInd
         })}
       </div>
       {selected !== null && (
-        <div className={`mt-3 text-xs font-semibold ${selected === correctIndex ? "text-green-400" : "text-red-400"}`}>
+        <div className={`mt-3 text-xs font-semibold ${selected === correctIndex ? "text-wb-accent" : "text-wb-danger"}`}>
           {selected === correctIndex ? t("notes.quiz.correct") : t("notes.quiz.tryAgain")}
         </div>
       )}
@@ -236,14 +237,14 @@ function renderStaticBlockInternal(
 ): React.ReactNode {
   if (isNormalizedListBlock(block)) {
     const listClass = block.listType === "bullet"
-      ? "my-5 list-disc space-y-2 pl-6 marker:text-slate-500"
-      : "my-5 list-decimal space-y-2 pl-6 marker:text-slate-500";
+      ? "my-5 list-disc space-y-2 pl-6 marker:text-wb-subtle"
+      : "my-5 list-decimal space-y-2 pl-6 marker:text-wb-subtle";
     const Tag = block.listType === "bullet" ? "ul" : "ol";
     return React.createElement(
       Tag,
       { key: index, className: listClass },
       block.items.map((item, itemIndex) => (
-        <li key={itemIndex} className={bareRead ? "text-[17px] leading-[1.75] text-slate-300 text-pretty" : "leading-7 text-slate-200 text-pretty"}>
+        <li key={itemIndex} className={bareRead ? "text-[17px] leading-[1.75] text-wb-muted text-pretty" : "leading-7 text-wb-text text-pretty"}>
           {renderInlineContent(item.content)}
           {renderStaticChildren(item, bareRead, nextHeadingId, viewCtx)}
         </li>
@@ -278,7 +279,7 @@ function renderStaticBlockInternal(
   const nestedChildren = renderStaticChildren(staticBlock, bareRead, nextHeadingId, viewCtx);
   if (type === "equation") {
     return (
-      <div key={index} className="my-7 overflow-x-auto text-center text-slate-100">
+      <div key={index} className="my-7 overflow-x-auto text-center text-wb-text">
         <KatexBlockMath math={String(props.tex ?? "")} />
         {nestedChildren}
       </div>
@@ -286,7 +287,7 @@ function renderStaticBlockInternal(
   }
   if (type === "quiz") {
     return (
-      <div key={index} className="my-7 rounded-md border border-slate-800 bg-slate-900/45 p-4">
+      <div key={index} className="my-7 rounded-md border border-wb-line bg-wb-input p-4">
         <StaticQuiz
           question={String(props.question ?? "")}
           options={String(props.options ?? "")}
@@ -297,7 +298,7 @@ function renderStaticBlockInternal(
     );
   }
   if (type === "controller_ref") {
-    return <span key={index} className="mx-1 inline rounded bg-slate-800/45 px-1.5 py-0.5 font-mono text-xs text-slate-500">{String(props.label ?? "")}</span>;
+    return <span key={index} className="mx-1 inline rounded bg-wb-input px-1.5 py-0.5 font-mono text-xs text-wb-subtle">{String(props.label ?? "")}</span>;
   }
   if (type === "view_ref") {
     return (
@@ -311,13 +312,13 @@ function renderStaticBlockInternal(
     );
   }
   if (type === "blockquote") {
-    return <blockquote key={index} className="my-6 border-l-2 border-sky-400/50 bg-slate-900/35 py-3 pl-5 pr-4 text-slate-300 text-pretty">{children}{nestedChildren}</blockquote>;
+    return <blockquote key={index} className="my-6 border-l-2 border-wb-accent bg-wb-input py-3 pl-5 pr-4 text-wb-muted text-pretty">{children}{nestedChildren}</blockquote>;
   }
   if (type === "codeBlock") {
-    return <pre key={index} className="my-6 overflow-x-auto rounded-md border border-slate-800 bg-slate-950/80 p-4 font-mono text-sm text-slate-200"><code>{inlinePlainText(staticBlock.content) || String(props.code ?? "")}</code></pre>;
+    return <pre key={index} className="my-6 overflow-x-auto rounded-md border border-wb-line bg-wb-panel p-4 font-mono text-sm text-wb-text"><code>{inlinePlainText(staticBlock.content) || String(props.code ?? "")}</code></pre>;
   }
 
-  return <p key={index} className={bareRead ? "my-[1em] text-[17px] leading-[1.75] text-slate-300 text-pretty" : "mb-3 leading-7 text-slate-200"}>{children}{nestedChildren}</p>;
+  return <p key={index} className={bareRead ? "my-[1em] text-[17px] leading-[1.75] text-wb-muted text-pretty" : "mb-3 leading-7 text-wb-text"}>{children}{nestedChildren}</p>;
 }
 
 function renderStaticChildren(
@@ -347,11 +348,12 @@ const StaticReadNote: React.FC<{
   headingAnchorIds?: string[];
   authoredViews: readonly AuthoredViewSpec[];
   viewRuntime?: AuthoredViewRuntime;
+  theme?: WorkbenchThemeId;
 }> = ({ content, bareRead, headingAnchorIds = [], authoredViews, viewRuntime }) => {
   let headingIndex = 0;
   const viewCtx = { authoredViews, runtime: viewRuntime };
   return (
-    <div className={bareRead ? "flex-1 h-full w-full py-1 text-slate-200 blocknote-dark-theme-override isolate" : "flex-1 h-full w-full bg-[#0B1120] rounded-b-xl overflow-y-auto custom-scrollbar p-3 sm:p-5 text-slate-200 blocknote-dark-theme-override isolate"}>
+    <div className={bareRead ? "flex-1 h-full w-full py-1 text-wb-text isolate" : "flex-1 h-full w-full rounded-b-xl bg-wb-aux p-3 text-wb-text isolate overflow-y-auto custom-scrollbar sm:p-5"}>
       {normalizeStaticBlocks(content).map((block, index) => renderStaticBlockInternal(block, index, bareRead, () => headingAnchorIds[headingIndex++], viewCtx))}
     </div>
   );
@@ -377,18 +379,18 @@ const equationBlock = createReactBlockSpec(
       }, [editable, isEditing]);
 
       return (
-        <div className="my-2 p-4 bg-slate-800 rounded-lg border border-slate-700 relative group" contentEditable={false}>
+        <div className="group relative my-2 rounded-lg border border-wb-line bg-wb-input p-4" contentEditable={false}>
           {isEditing && editable ? (
             <div className="flex flex-col gap-2">
               <input
                 type="text"
                 value={tex}
                 onChange={(e) => setTex(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-600 rounded p-1 text-slate-200 text-sm font-mono"
+                className="w-full rounded border border-wb-line bg-wb-panel p-1 font-mono text-sm text-wb-text"
                 autoFocus
               />
               <button
-                className="self-end bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded text-xs"
+                className="self-end rounded bg-wb-primary px-2 py-1 text-xs text-white hover:bg-wb-primary-hover"
                 onClick={() => {
                   props.editor.updateBlock(props.block, { type: "equation", props: { tex } });
                   setIsEditing(false);
@@ -399,7 +401,7 @@ const equationBlock = createReactBlockSpec(
             </div>
           ) : (
             <div
-              className={`flex justify-center text-slate-200 ${editable ? 'cursor-pointer' : ''}`}
+              className={`flex justify-center text-wb-text ${editable ? 'cursor-pointer' : ''}`}
               onClick={() => { if (editable) setIsEditing(true); }}
             >
               <KatexBlockMath math={props.block.props.tex} />
@@ -441,15 +443,15 @@ const quizBlock = createReactBlockSpec(
           props.editor.updateBlock(props.block, { type: "quiz", props: { options: newOpts.join('|') } });
         };
         return (
-          <div className="my-2 p-4 bg-indigo-900/30 rounded-lg border border-indigo-700/50" contentEditable={false}>
+          <div className="my-2 rounded-lg border border-wb-line bg-wb-input p-4" contentEditable={false}>
             <div className="flex justify-between items-center mb-2">
-              <span className="text-xs font-bold text-indigo-400">{t("notes.editor.editQuiz")}</span>
-              <button className="text-xs bg-indigo-600 px-2 py-1 roundedtext-white" onClick={() => setIsEditing(false)}>{t("common.done")}</button>
+              <span className="text-xs font-bold text-wb-accent">{t("notes.editor.editQuiz")}</span>
+              <button className="rounded bg-wb-primary px-2 py-1 text-xs text-white" onClick={() => setIsEditing(false)}>{t("common.done")}</button>
             </div>
             <input
               value={props.block.props.question}
               onChange={(e) => props.editor.updateBlock(props.block, { type: "quiz", props: { question: e.target.value } })}
-              className="w-full bg-slate-900 border border-slate-600 rounded p-1 text-slate-200 text-sm mb-2"
+              className="mb-2 w-full rounded border border-wb-line bg-wb-panel p-1 text-sm text-wb-text"
               placeholder={t("notes.editor.question")}
             />
             {options.map((opt, idx) => (
@@ -458,21 +460,21 @@ const quizBlock = createReactBlockSpec(
                 <input
                   value={opt}
                   onChange={(e) => updateOption(idx, e.target.value)}
-                  className="flex-1 bg-slate-800 border border-slate-700 rounded px-2 py-0.5 text-sm"
+                  className="flex-1 rounded border border-wb-line bg-wb-input px-2 py-0.5 text-sm text-wb-text"
                 />
               </div>
             ))}
-            <button className="text-xs text-indigo-400 mt-2" onClick={() => props.editor.updateBlock(props.block, { type: "quiz", props: { options: props.block.props.options + `|${t("notes.editor.newOption")}` } })}>+ {t("notes.editor.addOption")}</button>
+            <button className="mt-2 text-xs text-wb-accent" onClick={() => props.editor.updateBlock(props.block, { type: "quiz", props: { options: props.block.props.options + `|${t("notes.editor.newOption")}` } })}>+ {t("notes.editor.addOption")}</button>
           </div>
         );
       }
 
       return (
-        <div className="my-2 p-4 bg-slate-800/50 rounded-lg border border-slate-700 relative" contentEditable={false}>
+        <div className="relative my-2 rounded-lg border border-wb-line bg-wb-input p-4" contentEditable={false}>
           {editable && (
-            <button className="absolute top-2 right-2 text-slate-500 hover:text-slate-300 text-xs" onClick={() => setIsEditing(true)}>⚙</button>
+            <button className="absolute right-2 top-2 text-xs text-wb-subtle hover:text-wb-text" onClick={() => setIsEditing(true)}>⚙</button>
           )}
-          <div className="font-medium text-slate-200 mb-3">{props.block.props.question}</div>
+          <div className="mb-3 font-medium text-wb-text">{props.block.props.question}</div>
           <div className="flex flex-col gap-2">
             {options.map((opt, idx) => {
               const isSelected = selected === idx;
@@ -483,9 +485,9 @@ const quizBlock = createReactBlockSpec(
                   key={idx}
                   onClick={() => setSelected(idx)}
                   className={`text-left px-3 py-2 rounded text-sm transition-colors border ${
-                    isCorrect ? 'bg-green-900/30 border-green-500 text-green-200' :
-                    isWrong ? 'bg-red-900/30 border-red-500 text-red-200' :
-                    'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-700'
+                    isCorrect ? 'border-wb-accent bg-wb-accent-soft text-wb-text' :
+                    isWrong ? 'border-wb-danger bg-wb-hover text-wb-danger' :
+                    'border-wb-line bg-wb-panel text-wb-muted hover:bg-wb-hover hover:text-wb-text'
                   }`}
                 >
                   {opt}
@@ -494,7 +496,7 @@ const quizBlock = createReactBlockSpec(
             })}
           </div>
           {selected !== null && (
-            <div className={`mt-3 text-xs font-semibold ${selected === correctIndex ? 'text-green-400' : 'text-red-400'}`}>
+            <div className={`mt-3 text-xs font-semibold ${selected === correctIndex ? 'text-wb-accent' : 'text-wb-danger'}`}>
               {selected === correctIndex ? t("notes.quiz.correct") : t("notes.quiz.tryAgain")}
             </div>
           )}
@@ -519,14 +521,14 @@ const controllerRefBlock = createReactBlockSpec(
 
       if (bareRead) {
         return (
-          <span className="inline text-slate-400 text-xs font-mono font-medium" contentEditable={false}>
+          <span className="inline font-mono text-xs font-medium text-wb-muted" contentEditable={false}>
             {props.block.props.label}
           </span>
         );
       }
 
       return (
-        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-blue-900/30 border border-blue-700/50 text-blue-300 text-xs font-mono font-medium mx-1" contentEditable={false}>
+        <div className="mx-1 inline-flex items-center gap-1.5 rounded border border-wb-line bg-wb-accent-soft px-2 py-0.5 font-mono text-xs font-medium text-wb-accent" contentEditable={false}>
           ⎈ {props.block.props.label}
         </div>
       );
@@ -574,9 +576,10 @@ interface NotePanelProps {
   headingAnchorIds?: string[];
   authoredViews?: readonly AuthoredViewSpec[];
   viewRuntime?: AuthoredViewRuntime;
+  theme?: WorkbenchThemeId;
 }
 
-export const NotePanel: React.FC<NotePanelProps> = ({ mode = 'read', content, onChange, bare, headingAnchorIds, authoredViews = [], viewRuntime }) => {
+export const NotePanel: React.FC<NotePanelProps> = ({ mode = 'read', content, onChange, bare, headingAnchorIds, authoredViews = [], viewRuntime, theme = 'dark' }) => {
   const { t } = useTranslation();
   const hasContent = Array.isArray(content) && content.length > 0;
   const editable = mode !== 'read';
@@ -584,7 +587,7 @@ export const NotePanel: React.FC<NotePanelProps> = ({ mode = 'read', content, on
 
   if (!editable && !hasContent) {
     return (
-      <div className={bareRead ? "flex-1 h-full w-full overflow-y-auto custom-scrollbar py-1 text-slate-500 text-sm" : "flex-1 h-full w-full bg-[#0B1120] rounded-b-xl overflow-y-auto custom-scrollbar p-3 sm:p-5 text-slate-500 text-sm"}>
+      <div className={bareRead ? "flex-1 h-full w-full overflow-y-auto custom-scrollbar py-1 text-wb-subtle text-sm" : "flex-1 h-full w-full rounded-b-xl bg-wb-aux p-3 text-sm text-wb-subtle overflow-y-auto custom-scrollbar sm:p-5"}>
         {t("notes.empty")}
       </div>
     );
@@ -598,6 +601,7 @@ export const NotePanel: React.FC<NotePanelProps> = ({ mode = 'read', content, on
         headingAnchorIds={headingAnchorIds}
         authoredViews={authoredViews}
         viewRuntime={viewRuntime}
+        theme={theme}
       />
     );
   }
@@ -610,6 +614,7 @@ export const NotePanel: React.FC<NotePanelProps> = ({ mode = 'read', content, on
       bareRead={bareRead}
       authoredViews={authoredViews}
       viewRuntime={viewRuntime}
+      theme={theme}
     />
   );
 };
@@ -621,7 +626,8 @@ const NoteEditor: React.FC<{
   bareRead?: boolean;
   authoredViews: readonly AuthoredViewSpec[];
   viewRuntime?: AuthoredViewRuntime;
-}> = ({ editable, content, onChange, bareRead = false, authoredViews, viewRuntime }) => {
+  theme: WorkbenchThemeId;
+}> = ({ editable, content, onChange, bareRead = false, authoredViews, viewRuntime, theme }) => {
   const { t } = useTranslation();
   const editor = useCreateBlockNote({
     schema,
@@ -655,11 +661,11 @@ const NoteEditor: React.FC<{
   return (
     <NoteViewContext.Provider value={{ authoredViews, runtime: viewRuntime }}>
       <BareReadNoteContext.Provider value={bareRead}>
-        <div className={bareRead ? "flex-1 h-full w-full overflow-y-auto custom-scrollbar py-1 text-slate-200 blocknote-dark-theme-override isolate" : "flex-1 h-full w-full bg-[#0B1120] rounded-b-xl overflow-y-auto custom-scrollbar p-3 sm:p-5 text-slate-200 blocknote-dark-theme-override isolate"}>
+        <div className={bareRead ? "flex-1 h-full w-full overflow-y-auto custom-scrollbar py-1 text-wb-text isolate" : "flex-1 h-full w-full rounded-b-xl bg-wb-aux p-3 text-wb-text isolate overflow-y-auto custom-scrollbar sm:p-5"}>
           <BlockNoteView
             editor={editor}
             editable={editable}
-            theme="dark"
+            theme={theme}
             onChange={handleChange}
             slashMenu={false}
             className="min-h-full"

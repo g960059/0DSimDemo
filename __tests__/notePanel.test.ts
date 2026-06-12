@@ -77,11 +77,11 @@ describe("NotePanel static read helpers", () => {
       ),
     );
 
-    expect(html).toContain("font-semibold text-slate-100");
+    expect(html).toContain("font-semibold text-wb-text");
     expect(html).toContain("italic");
-    expect(html).toContain("rounded bg-slate-800/70 px-1.5 py-0.5 font-mono text-[0.88em] text-sky-200 ring-1 ring-slate-700/60");
+    expect(html).toContain("rounded bg-wb-input px-1.5 py-0.5 font-mono text-[0.88em] text-wb-accent ring-1 ring-wb-line");
     expect(html).toContain('href="https://example.test"');
-    expect(html).toContain("font-medium text-sky-400 underline decoration-sky-400/40 underline-offset-4 hover:text-sky-300");
+    expect(html).toContain("font-medium text-wb-accent underline decoration-wb-accent/40 underline-offset-4 hover:text-wb-text");
   });
 
   it("normalizes adjacent list items into one list group and passes non-lists through", () => {
@@ -161,7 +161,7 @@ describe("NotePanel static read helpers", () => {
   it("renders controller refs as de-emphasized inert inline chips", () => {
     const html = renderToStaticMarkup(React.createElement(React.Fragment, null, renderStaticBlock({ type: "controller_ref", props: { label: "Contractility" } }, 0, true)));
 
-    expect(html).toContain("mx-1 inline rounded bg-slate-800/45 px-1.5 py-0.5 font-mono text-xs text-slate-500");
+    expect(html).toContain("mx-1 inline rounded bg-wb-input px-1.5 py-0.5 font-mono text-xs text-wb-subtle");
     expect(html).toContain("Contractility");
   });
 

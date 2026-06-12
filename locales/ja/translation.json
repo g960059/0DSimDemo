@@ -308,10 +308,7 @@
       "duplicate": "複製",
       "renamePrompt": "ビュー名を変更",
       "deleteConfirm": "「{{title}}」を削除しますか?",
-      "deleteReferencedConfirm": "「{{title}}」を削除しますか? {{noteCount}}件のノート参照と{{readingCount}}件のリーディング参照はプレースホルダーになります。",
-      "metricsMenu": "指標ビューメニュー",
-      "splitRight": "右に分割",
-      "closeSplit": "分割を閉じる"
+      "deleteReferencedConfirm": "「{{title}}」を削除しますか? {{noteCount}}件のノート参照と{{readingCount}}件のリーディング参照はプレースホルダーになります。"
     },
     "viewEditor": {
       "controllerTitle": "コントローラービュー",
@@ -495,7 +492,6 @@
         "resizeNoteDrawer": "ノートドロワーのサイズを変更",
         "resizeRightRail": "右レールのサイズを変更",
         "resizeMetricsHost": "指標ホストのサイズを変更",
-        "resizeMetricsSplit": "指標分割のサイズを変更",
         "resizeScenarioList": "シナリオリストのサイズを変更（ダブルクリックでリセット）",
         "editingScenario": "編集中:",
         "rail": {

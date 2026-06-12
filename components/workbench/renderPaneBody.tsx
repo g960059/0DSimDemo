@@ -6,6 +6,7 @@ import { ErrorBoundary } from '../ErrorBoundary';
 import { ScenarioPane } from './ScenarioPane';
 import { effectiveGlobalConfig } from '../../features/workbench/p1aStructuralHosts';
 import type { AuthoredViewSpec } from '../../features/workbench/authoredViews';
+import type { WorkbenchThemeId } from './WorkbenchSidePanel';
 import type { ClinicalKnobs } from '../../engine/knobs';
 import type { SimulationHealth } from '../../engine/protocol';
 import type { SteadyUpdateStatusMap } from '../../engine/previewController';
@@ -28,6 +29,7 @@ export interface PaneBodyContext {
   noteCaseKey?: string;
   onNoteChange?: (panelId: string, blocks: NoteContent) => void;
   noteHeader?: React.ReactNode;
+  workbenchTheme?: WorkbenchThemeId;
   addInstance?: (sourceId?: string, presetId?: string) => void;
   removeInstance?: (id: string) => void;
   updateInstanceName?: (id: string, name: string) => void;
@@ -126,6 +128,7 @@ export function renderPaneBody(panel: PanelDef, ctx: PaneBodyContext): React.Rea
               content={ctx.notes?.[panel.id]}
               onChange={(blocks) => ctx.onNoteChange?.(panel.id, blocks)}
               authoredViews={ctx.authoredViews}
+              theme={ctx.workbenchTheme}
               viewRuntime={{
                 instances: ctx.instances,
                 physicsRefs: ctx.physicsRefs,

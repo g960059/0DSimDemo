@@ -22,6 +22,7 @@ type LessonAuthoringProps = {
   instances: SimInstance[];
   stepsDraft: LessonStep[];
   setStepsDraft: React.Dispatch<React.SetStateAction<LessonStep[]>>;
+  workbenchTheme?: 'dark' | 'light';
 };
 
 const KNOB_LABELS: Record<NumericKnobKey, string> = {
@@ -52,7 +53,7 @@ const formatKnobValue = (key: NumericKnobKey, value: number): string => {
   return `${value.toFixed(2)}x`;
 };
 
-export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, stepsDraft, setStepsDraft }) => {
+export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, stepsDraft, setStepsDraft, workbenchTheme }) => {
   const { t } = useTranslation();
   const allInstanceIds = useMemo(() => instances.map((instance) => instance.id), [instances]);
   const idsKey = instanceIdsKey(allInstanceIds);
@@ -306,6 +307,7 @@ export const LessonAuthoring: React.FC<LessonAuthoringProps> = ({ instances, ste
         <div className="min-h-[280px] rounded border border-slate-800 overflow-hidden">
           <NotePanel
             key={`step-note-${noteEditorKey}`}
+            theme={workbenchTheme}
             mode="author"
             content={stepNoteDraft}
             onChange={setStepNoteDraft}

@@ -312,7 +312,7 @@ describe("NotePanel bare read rendering", () => {
 
     expect(bareHtml).not.toContain("bg-[#0B1120]");
     expect(bareHtml).not.toContain("rounded-b-xl");
-    expect(boxedHtml).toContain("bg-[#0B1120]");
+    expect(boxedHtml).toContain("bg-wb-aux");
     expect(boxedHtml).toContain("rounded-b-xl");
   });
 });

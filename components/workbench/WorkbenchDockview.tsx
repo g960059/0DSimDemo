@@ -11,7 +11,7 @@ import {
   type IDockviewPanelProps,
   type SerializedDockview,
 } from 'dockview';
-import { Columns2, MoreVertical, Plus, Rows2, X } from 'lucide-react';
+import { Columns2, Copy, MoreVertical, Pencil, Plus, Rows2, Trash2, X } from 'lucide-react';
 import 'dockview/dist/styles/dockview.css';
 import type { DockviewViewState, PanelDef, PanelRole, PanelType, WorkbenchZoneId } from '../../types';
 import { roleOf } from '../../paneRole';
@@ -33,14 +33,20 @@ type WorkbenchDockviewContextValue = {
   panelsById: Map<string, PanelDef>;
   renderPanel: (panel: PanelDef) => React.ReactNode;
   mode: WorkbenchDockviewProps['mode'];
-  onRemovePanel?: (panelId: string) => void;
+  variant: NonNullable<WorkbenchDockviewProps['variant']>;
+  onRemovePanel?: (panelId: string) => boolean | void;
+  onEditPanel?: (panelId: string) => void;
   onToggleSettings?: (panelId: string) => void;
   onRenamePanel?: (panelId: string, title: string) => void;
+  onDuplicatePanel?: (panelId: string) => PanelDef | undefined;
   zone: WorkbenchZoneId;
   getPanelTitle: (panel: PanelDef) => string;
   onAddPanel?: (type: PanelType, zone?: WorkbenchZoneId) => PanelDef | undefined;
+  onCreatePanel?: (groupId?: string) => PanelDef | undefined;
   requestClosePanel: (panelId: string) => void;
   requestAddPanel: (type: PanelType, groupId?: string) => void;
+  requestCreatePanel: (groupId?: string) => void;
+  requestDuplicatePanel: (panelId: string, groupId?: string) => void;
   requestSplitPanel: (panelId: string, groupId: string, direction: GraphBoardSplitDirection) => void;
 };
 
@@ -48,18 +54,23 @@ interface WorkbenchDockviewProps {
   panels: readonly PanelDef[];
   zone: WorkbenchZoneId;
   mode: 'learner' | 'author' | 'sandbox';
+  variant?: 'graph' | 'metrics';
   renderPanel: (panel: PanelDef) => React.ReactNode;
   layoutKey?: string;
   viewState?: DockviewViewState;
   onViewStateChange?: (viewState: DockviewViewState) => void;
   graphBoardLayout?: GraphBoardLayout;
   onGraphBoardLayoutChange?: (layout: GraphBoardLayout | undefined) => void;
-  onRemovePanel?: (panelId: string) => void;
+  onRemovePanel?: (panelId: string) => boolean | void;
+  onEditPanel?: (panelId: string) => void;
   onToggleSettings?: (panelId: string) => void;
   onRenamePanel?: (panelId: string, title: string) => void;
   onAddPanel?: (type: PanelType, zone?: WorkbenchZoneId) => PanelDef | undefined;
+  onCreatePanel?: (groupId?: string) => PanelDef | undefined;
   onDuplicatePanel?: (panelId: string) => PanelDef | undefined;
   getPanelTitle?: (panel: PanelDef) => string;
+  renderEmptyState?: () => React.ReactNode;
+  splitAxis?: 'both' | 'horizontal-only';
   className?: string;
 }
 
@@ -147,6 +158,10 @@ export function shouldReapplyDockviewLayout({
   if (imperativePanelChangePending && panelIdsAlreadyMatch) return false;
   if (forceGraphBoardLayout) return true;
   return !panelIdsAlreadyMatch;
+}
+
+export function isDockviewHorizontalOnlyDropAllowed(position: string): boolean {
+  return position !== 'top' && position !== 'bottom';
 }
 
 function addPanelToDockview(
@@ -349,11 +364,14 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
     return () => disposable.dispose();
   }, [props.api]);
 
-  const canConfigure = context?.mode !== 'learner' && Boolean(panel) && panel?.type !== 'SCENARIOS' && Boolean(context?.onToggleSettings);
+  const isMetricsHost = context?.variant === 'metrics';
+  const canEdit = context?.mode !== 'learner' && Boolean(panel) && isMetricsHost && Boolean(context?.onEditPanel);
+  const canConfigure = context?.mode !== 'learner' && Boolean(panel) && !isMetricsHost && panel?.type !== 'SCENARIOS' && Boolean(context?.onToggleSettings);
   const canRename = context?.mode !== 'learner' && Boolean(panel) && Boolean(context?.onRenamePanel);
-  const canClose = context?.mode !== 'learner' && Boolean(context?.onRemovePanel);
-  const canSplit = context?.mode !== 'learner' && context?.zone === 'main' && Boolean(panel);
-  const hasMenu = canConfigure || canRename || canClose || canSplit;
+  const canDuplicate = context?.mode !== 'learner' && Boolean(panel) && isMetricsHost && Boolean(context?.onDuplicatePanel);
+  const canClose = context?.mode !== 'learner' && Boolean(panel) && Boolean(context?.onRemovePanel);
+  const canSplit = context?.mode !== 'learner' && context?.zone === 'main' && !isMetricsHost && Boolean(panel);
+  const hasMenu = canEdit || canConfigure || canRename || canDuplicate || canClose || canSplit;
 
   useEffect(() => {
     if (canRename) return;
@@ -441,7 +459,7 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
         <span className="min-w-0 flex-1 truncate" onDoubleClick={beginRenamePanel}>{title}</span>
       )}
       <div className="workbench-dock-tab-actions relative flex h-5 shrink-0 items-center justify-center gap-0.5">
-        {canClose && (
+        {canClose && !isMetricsHost && (
           <button
             type="button"
             draggable={false}
@@ -486,9 +504,24 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
                 <div className="fixed inset-0 z-[80]" onClick={() => setMenuPosition(null)} />
                 <div
                   role="menu"
-                  className="workbench-popover-menu fixed z-[90] w-36 rounded-md border py-1 shadow-xl"
+                  className="workbench-popover-menu fixed z-[90] w-40 rounded-md border py-1 shadow-xl"
                   style={{ left: menuPosition.x, top: menuPosition.y }}
                 >
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        context?.onEditPanel?.(props.params.panelId);
+                        setMenuPosition(null);
+                      }}
+                      role="menuitem"
+                      className="workbench-popover-menu-item flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs font-medium"
+                    >
+                      <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>{t('common.edit')}</span>
+                    </button>
+                  )}
                   {canRename && (
                     <button
                       type="button"
@@ -500,6 +533,21 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
                       className="workbench-popover-menu-item block w-full px-3 py-1.5 text-left text-xs font-medium"
                     >
                       {t('common.rename')}
+                    </button>
+                  )}
+                  {canDuplicate && (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        context?.requestDuplicatePanel(props.params.panelId, props.api.group.id);
+                        setMenuPosition(null);
+                      }}
+                      role="menuitem"
+                      className="workbench-popover-menu-item flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs font-medium"
+                    >
+                      <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>{t('workbench.viewManagement.duplicate')}</span>
                     </button>
                   )}
                   {canConfigure && (
@@ -555,9 +603,10 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
                         setMenuPosition(null);
                       }}
                       role="menuitem"
-                      className="workbench-popover-menu-item-danger block w-full px-3 py-1.5 text-left text-xs font-medium"
+                      className="workbench-popover-menu-item-danger flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs font-medium"
                     >
-                      {t('workbench.dockview.closePane')}
+                      {isMetricsHost && <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />}
+                      <span>{isMetricsHost ? t('common.delete') : t('workbench.dockview.closePane')}</span>
                     </button>
                   )}
                 </div>
@@ -648,7 +697,18 @@ function WorkbenchDockHeaderLeftActions(props: IDockviewHeaderActionsProps) {
 
   return (
     <div className="workbench-dock-header-actions flex h-full items-center">
-      {context.onAddPanel && (
+      {context.variant === 'metrics' && context.onCreatePanel && (
+        <button
+          type="button"
+          onClick={() => context.requestCreatePanel(props.group.id)}
+          className="inline-flex h-5 w-5 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent"
+          aria-label={t('workbench.viewManagement.newMetrics')}
+          title={t('workbench.viewManagement.newMetrics')}
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </button>
+      )}
+      {context.variant === 'graph' && context.onAddPanel && (
         <ZoneAddMenu
           zone={context.zone}
           onChoose={(type) => context.requestAddPanel(type, props.group.id)}
@@ -663,7 +723,7 @@ function WorkbenchDockHeaderRightActions(props: IDockviewHeaderActionsProps) {
   const context = useContext(WorkbenchDockviewContext);
   if (!context || context.mode === 'learner') return null;
   const activePanelId = props.activePanel?.id;
-  const canSplit = context.zone === 'main' && Boolean(activePanelId) && Boolean(activePanelId && context.panelsById.get(activePanelId));
+  const canSplit = context.variant === 'graph' && context.zone === 'main' && Boolean(activePanelId) && Boolean(activePanelId && context.panelsById.get(activePanelId));
 
   return (
     <div className="workbench-dock-header-actions flex h-full items-center">
@@ -687,8 +747,10 @@ function EmptyDockview({
   zone,
   mode,
   onAddPanel,
-}: Pick<WorkbenchDockviewProps, 'zone' | 'mode' | 'onAddPanel'>) {
+  renderEmptyState,
+}: Pick<WorkbenchDockviewProps, 'zone' | 'mode' | 'onAddPanel' | 'renderEmptyState'>) {
   const { t } = useTranslation();
+  if (renderEmptyState) return <>{renderEmptyState()}</>;
   const canAdd = mode !== 'learner' && Boolean(onAddPanel);
   return (
     <div className="relative h-full bg-wb-aux">
@@ -711,8 +773,9 @@ function StaticDockviewFallback({
   zone,
   mode,
   onAddPanel,
-}: Pick<WorkbenchDockviewProps, 'panels' | 'renderPanel' | 'zone' | 'mode' | 'onAddPanel'>) {
-  if (panels.length === 0) return <EmptyDockview zone={zone} mode={mode} onAddPanel={onAddPanel} />;
+  renderEmptyState,
+}: Pick<WorkbenchDockviewProps, 'panels' | 'renderPanel' | 'zone' | 'mode' | 'onAddPanel' | 'renderEmptyState'>) {
+  if (panels.length === 0) return <EmptyDockview zone={zone} mode={mode} onAddPanel={onAddPanel} renderEmptyState={renderEmptyState} />;
   return (
     <div className="grid h-full min-h-0 grid-cols-1 gap-0 overflow-hidden lg:grid-cols-2">
       {panels.map((panel) => (
@@ -728,6 +791,7 @@ export function WorkbenchDockview({
   panels,
   zone,
   mode,
+  variant = 'graph',
   renderPanel,
   layoutKey = 'default',
   viewState,
@@ -735,11 +799,15 @@ export function WorkbenchDockview({
   graphBoardLayout,
   onGraphBoardLayoutChange,
   onRemovePanel,
+  onEditPanel,
   onToggleSettings,
   onRenamePanel,
   onAddPanel,
+  onCreatePanel,
   onDuplicatePanel,
   getPanelTitle = defaultPanelTitle,
+  renderEmptyState,
+  splitAxis = 'both',
   className = '',
 }: WorkbenchDockviewProps) {
   const apiRef = useRef<DockviewApi | null>(null);
@@ -767,13 +835,27 @@ export function WorkbenchDockview({
       panelsById,
       renderPanel,
       mode,
+      variant,
       onRemovePanel,
+      onEditPanel,
       onToggleSettings,
       onRenamePanel,
+      onDuplicatePanel,
       zone,
       getPanelTitle,
       onAddPanel,
+      onCreatePanel,
       requestClosePanel: (panelId) => {
+        if (variant === 'metrics') {
+          const shouldClose = onRemovePanel?.(panelId);
+          if (shouldClose === false) return;
+          const dockPanel = apiRef.current?.getPanel(panelId);
+          if (dockPanel) {
+            pendingImperativePanelChangeRef.current = true;
+            dockPanel.api.close();
+          }
+          return;
+        }
         const dockPanel = apiRef.current?.getPanel(panelId);
         if (dockPanel) {
           pendingImperativePanelChangeRef.current = true;
@@ -798,6 +880,37 @@ export function WorkbenchDockview({
         });
         syncDockviewPanelMetadata(api, [...panelsRef.current, newPanel]);
       },
+      requestCreatePanel: (groupId) => {
+        pendingDirectSplitRef.current = null;
+        const api = apiRef.current;
+        const referenceGroup = groupId ? api?.getGroup(groupId) : undefined;
+        const newPanel = onCreatePanel?.(groupId);
+        if (!api || !referenceGroup || !newPanel) {
+          pendingAddGroupIdRef.current = groupId ?? null;
+          return;
+        }
+        pendingAddGroupIdRef.current = groupId ?? null;
+        pendingImperativePanelChangeRef.current = true;
+        addPanelToDockview(api, newPanel, undefined, {
+          referenceGroup: referenceGroup as DockviewGroupPanel,
+          direction: 'within',
+        });
+        syncDockviewPanelMetadata(api, [...panelsRef.current, newPanel]);
+      },
+      requestDuplicatePanel: (panelId, groupId) => {
+        const api = apiRef.current;
+        const referenceGroup = groupId ? api?.getGroup(groupId) : undefined;
+        const newPanel = onDuplicatePanel?.(panelId);
+        if (!api || !referenceGroup || !newPanel) return;
+        pendingAddGroupIdRef.current = groupId ?? null;
+        pendingDirectSplitRef.current = null;
+        pendingImperativePanelChangeRef.current = true;
+        addPanelToDockview(api, newPanel, undefined, {
+          referenceGroup: referenceGroup as DockviewGroupPanel,
+          direction: 'within',
+        });
+        syncDockviewPanelMetadata(api, [...panelsRef.current, newPanel]);
+      },
       requestSplitPanel: (panelId, groupId, direction) => {
         const api = apiRef.current;
         const referenceGroup = api?.getGroup(groupId);
@@ -813,7 +926,7 @@ export function WorkbenchDockview({
         syncDockviewPanelMetadata(api, [...panelsRef.current, newPanel]);
       },
     }),
-    [getPanelTitle, mode, onAddPanel, onDuplicatePanel, onRemovePanel, onRenamePanel, onToggleSettings, panelsById, renderPanel, zone],
+    [getPanelTitle, mode, onAddPanel, onCreatePanel, onDuplicatePanel, onEditPanel, onRemovePanel, onRenamePanel, onToggleSettings, panelsById, renderPanel, variant, zone],
   );
   const components = useMemo(() => ({ 'workbench-panel': WorkbenchDockPanel }), []);
   useEffect(() => {
@@ -934,7 +1047,7 @@ export function WorkbenchDockview({
   }, [metadataSignature, panels]);
 
   if (typeof window === 'undefined') {
-    return <StaticDockviewFallback panels={panels} renderPanel={renderPanel} zone={zone} mode={mode} onAddPanel={onAddPanel} />;
+    return <StaticDockviewFallback panels={panels} renderPanel={renderPanel} zone={zone} mode={mode} onAddPanel={onAddPanel} renderEmptyState={renderEmptyState} />;
   }
 
   const isLearnerMode = mode === 'learner';
@@ -942,7 +1055,7 @@ export function WorkbenchDockview({
   if (panels.length === 0) {
     return (
       <div ref={dockviewRootRef} className={`dockview-theme-dark h-full min-h-0 overflow-hidden ${className}`}>
-        <EmptyDockview zone={zone} mode={mode} onAddPanel={onAddPanel} />
+        <EmptyDockview zone={zone} mode={mode} onAddPanel={onAddPanel} renderEmptyState={renderEmptyState} />
       </div>
     );
   }
@@ -965,7 +1078,24 @@ export function WorkbenchDockview({
             apiRef.current = event.api;
             applyLayoutWithoutEmitting(event.api);
             layoutSubscriptionRef.current?.dispose();
-            layoutSubscriptionRef.current = event.api.onDidLayoutChange(() => scheduleViewStateEmit(event.api));
+            const layoutChangeSubscription = event.api.onDidLayoutChange(() => scheduleViewStateEmit(event.api));
+            const horizontalOverlaySubscription = splitAxis === 'horizontal-only'
+              ? event.api.onWillShowOverlay((overlayEvent) => {
+                  if (!isDockviewHorizontalOnlyDropAllowed(overlayEvent.position)) overlayEvent.preventDefault();
+                })
+              : undefined;
+            const horizontalDropSubscription = splitAxis === 'horizontal-only'
+              ? event.api.onWillDrop((dropEvent) => {
+                  if (!isDockviewHorizontalOnlyDropAllowed(dropEvent.position)) dropEvent.preventDefault();
+                })
+              : undefined;
+            layoutSubscriptionRef.current = {
+              dispose: () => {
+                layoutChangeSubscription.dispose();
+                horizontalOverlaySubscription?.dispose();
+                horizontalDropSubscription?.dispose();
+              },
+            };
           }}
         />
       </div>

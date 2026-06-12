@@ -147,6 +147,7 @@ export function WorkbenchRoute() {
         onDockviewViewStateChange={panels.updateDockviewViewState}
         graphBoardLayout={scene.currentCaseGraphBoardLayout}
         onGraphBoardLayoutChange={scene.updateGraphBoardLayout}
+        workbenchTheme={workbenchTheme}
         authoredViews={scene.currentCaseViews}
         reading={scene.currentCaseReading}
         createControllerView={scene.createControllerView}
