@@ -89,7 +89,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(Object.keys(diagnostics.tbvProjectionLastStep.byNodeAbsMl).length).toBeGreaterThan(0);
   });
 
-  it("builds a schema-v10 low-preload report with active, valve, clamp, TBV audit, return-map, and tau/dt fields", () => {
+  it("builds a schema-v11 low-preload report with active, valve, clamp, TBV audit, return-map, filling, and tau/dt fields", () => {
     const report = runLowPreloadDebug({
       outDir: "unused",
       targetVolumeMl: 5600,
@@ -103,7 +103,7 @@ describe("low-preload Starling debug diagnostics", () => {
       quietClampLog: true,
     });
 
-    expect(report.schemaVersion).toBe(10);
+    expect(report.schemaVersion).toBe(11);
     expect(report.returnMapMode).toBe("both");
     expect(report.tbvCorrectionMode).toBe("on");
     expect(report.lambdaActScope).toBe("all");
@@ -120,6 +120,13 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(point.beatTrace[0].active.LV?.activeTargetLimiterMin).toEqual(expect.any(Number));
     expect(point.beatTrace[0].active.LV?.activeTargetLimiterHitFraction).toEqual(expect.any(Number));
     expect(point.beatTrace[0].active.LV?.sigmaActTargetReductionFractionMean).toEqual(expect.any(Number));
+    expect(point.beatTrace[0].filling.MV_E_forward_mL).toEqual(expect.any(Number));
+    expect(point.beatTrace[0].filling.MV_A_forward_mL).toEqual(expect.any(Number));
+    expect(point.beatTrace[0].filling.MV_A_fraction).toEqual(expect.any(Number));
+    expect(point.beatTrace[0].filling.LA_A_loop_area).toEqual(expect.any(Number));
+    expect(point.beatTrace[0].filling.LA_A_loop_fraction).toEqual(expect.any(Number));
+    expect(point.beatTrace[0].filling.atrialSystoleTransmitralGradientMean).toEqual(expect.any(Number));
+    expect(point.beatTrace[0].filling.atrialSystoleMVOpenFraction).toEqual(expect.any(Number));
     expect(point.valveTrace.AoV.maxQ).toEqual(expect.any(Number));
     expect(point.clampDiagnostics.nodeClampHits).toBeDefined();
     expect(point.tbvAudit.correctionMode).toBe("on");
@@ -141,7 +148,14 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(point.returnMap.branchAmplitude.CO_L).toEqual(expect.any(Number));
     expect(point.returnMap.branchAmplitudeFraction.CO_L).toEqual(expect.any(Number));
     expect(Number.isFinite(report.summary.maxAbsReturnMapSlopeEDVL)).toBe(true);
+    expect(Number.isFinite(report.summary.maxAbsReturnMapSlopeESVL)).toBe(true);
     expect(Number.isFinite(report.summary.maxBranchAmplitudeFractionCOL)).toBe(true);
+    expect(Number.isFinite(report.summary.maxBranchAmplitudeFractionESVL)).toBe(true);
+    expect(Number.isFinite(report.summary.minMVAForwardMl)).toBe(true);
+    expect(Number.isFinite(report.summary.minMVAFraction)).toBe(true);
+    expect(Number.isFinite(report.summary.minLAAloopFraction)).toBe(true);
+    expect(Number.isFinite(report.summary.maxAtrialSystoleTransmitralGradientMean)).toBe(true);
+    expect(Number.isFinite(report.summary.minAtrialSystoleMVOpenFraction)).toBe(true);
     expect(Number.isFinite(report.summary.maxSanitizeAbsMl)).toBe(true);
     expect(Number.isFinite(report.summary.maxProjectionAppliedMl)).toBe(true);
 
@@ -149,6 +163,9 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(md).toContain("worst signal");
     expect(md).toContain("one-beat EDV slope");
     expect(md).toContain("two-beat EDV slope");
+    expect(md).toContain("one-beat ESV slope");
+    expect(md).toContain("MV/LA filling diagnostics");
+    expect(md).toContain("MV A mL");
     expect(md).toContain("branch CO frac");
     expect(md).toContain("Dynamic-flow clamps");
     expect(md).toContain("TBV / Clamp Audit");
@@ -163,7 +180,12 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(csv).toContain("LV_activeTargetLimiterMin");
     expect(csv).toContain("LV_sigmaActTargetReductionFractionMean");
     expect(csv).toContain("branchAmplitudeFractionCO_L");
+    expect(csv).toContain("branchAmplitudeFractionESV_L");
     expect(csv).toContain("returnMapEDVSlope");
+    expect(csv).toContain("returnMapESVSlope");
+    expect(csv).toContain("MV_A_forward_mL");
+    expect(csv).toContain("LA_A_loop_fraction");
+    expect(csv).toContain("atrialSystoleMVOpenFraction");
     expect(csv).toContain("tbvAuditClass");
   });
 
@@ -410,7 +432,7 @@ describe("low-preload Starling debug diagnostics", () => {
     ]);
     const report = runLowPreloadMatrix(opts);
 
-    expect(report.schemaVersion).toBe(8);
+    expect(report.schemaVersion).toBe(9);
     expect(report.scenarios).toHaveLength(7);
     expect(report.scenarios.filter((scenario) => scenario.lambdaActTauSec === 0)).toHaveLength(4);
     expect(report.scenarios.filter((scenario) => scenario.lambdaActTauSec === 0 && scenario.lowStretchLimiterMode === "none")).toHaveLength(1);
@@ -429,9 +451,21 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.summary.maxProjectionAppliedMl).toEqual(expect.any(Number));
     expect(report.summary.maxMeanCOLErrorFractionVsBaseline).toEqual(expect.any(Number));
     expect(report.summary.maxActiveReserveHitFraction).toEqual(expect.any(Number));
+    expect(report.summary.branchLocalizationCounts.mixed).toEqual(expect.any(Number));
+    expect(report.summary.branchLocalizationCounts["edv-dominant"]).toEqual(expect.any(Number));
+    expect(report.summary.branchLocalizationCounts["esv/ejection-dominant"]).toEqual(expect.any(Number));
+    expect(report.summary.maxCleanAbsOneBeatESVSlope).toEqual(expect.any(Number));
+    expect(report.summary.maxCleanAbsOneBeatVolumeFeatureSlope).toEqual(expect.any(Number));
+    expect(report.summary.minMVAForwardMl).toEqual(expect.any(Number));
+    expect(report.summary.minMVAFraction).toEqual(expect.any(Number));
+    expect(report.summary.minLAAloopFraction).toEqual(expect.any(Number));
+    expect(report.summary.minAtrialSystoleMVOpenFraction).toEqual(expect.any(Number));
     expect(report.summary.classificationCounts.baseline).toBeGreaterThan(0);
     expect(report.scenarios[0].evaluation.classification).toBe("baseline");
     expect(report.scenarios[0].evaluation.branchEnvelopeClass).toEqual(expect.any(String));
+    expect(report.scenarios[0].evaluation.branchLocalizationClass).toEqual(expect.any(String));
+    expect(report.scenarios[0].evaluation.maxCleanAbsOneBeatESVSlope).toEqual(expect.any(Number));
+    expect(report.scenarios[0].evaluation.maxCleanAbsOneBeatVolumeFeatureSlope).toEqual(expect.any(Number));
     expect(report.scenarios[0].evaluation.worstDeltaCleanSlopeCovered).toEqual(expect.any(Boolean));
     expect(report.scenarios[0].evaluation.cleanSlopeCoverageClass).toEqual(expect.any(String));
     expect(report.scenarios[0].evaluation.returnMapEvidenceLevel).toEqual(expect.any(String));
@@ -440,11 +474,20 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(Array.isArray(report.scenarios[0].evaluation.cleanSlopeMissingDeltasMl)).toBe(true);
     expect(report.scenarios[0].perDeltaEvaluation).toHaveLength(1);
     expect(report.scenarios[0].perDeltaEvaluation[0].branchEnvelopeClass).toEqual(expect.any(String));
+    expect(report.scenarios[0].perDeltaEvaluation[0].branchLocalizationClass).toEqual(expect.any(String));
+    expect(report.scenarios[0].perDeltaEvaluation[0].oneBeatESVSlope).toEqual(expect.any(Number));
+    expect(report.scenarios[0].perDeltaEvaluation[0].maxAbsOneBeatVolumeFeatureSlope).toEqual(expect.any(Number));
+    expect(report.scenarios[0].perDeltaEvaluation[0].MV_A_forward_mL).toEqual(expect.any(Number));
+    expect(report.scenarios[0].perDeltaEvaluation[0].MV_A_fraction).toEqual(expect.any(Number));
+    expect(report.scenarios[0].perDeltaEvaluation[0].LA_A_loop_fraction).toEqual(expect.any(Number));
+    expect(report.scenarios[0].perDeltaEvaluation[0].atrialSystoleMVOpenFraction).toEqual(expect.any(Number));
     expect(report.scenarios[0].perDeltaEvaluation[0].cleanForReturnMapSlope).toEqual(expect.any(Boolean));
     expect(report.scenarios[0].points.some((point) => point.returnMap.status === "ok")).toBe(true);
     expect(matrixReportToMarkdown(report)).toContain("Selected return-map points");
     expect(matrixReportToMarkdown(report)).toContain("Per-delta primary branch / slope view");
     expect(matrixReportToMarkdown(report)).toContain("Classification counts");
+    expect(matrixReportToMarkdown(report)).toContain("Branch localization counts");
+    expect(matrixReportToMarkdown(report)).toContain("LA/MV filling regime diagnostics");
     expect(matrixReportToMarkdown(report)).toContain("Normal / HR100 waveform gates");
     expect(matrixReportToMarkdown(report)).toContain("TBV / Clamp Audit");
     expect(matrixReportToMarkdown(report)).toContain("dip/re-rise");
@@ -456,6 +499,12 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToCsv(report)).toContain("activeReservePreset");
     expect(matrixReportToCsv(report)).toContain("meanCOLErrorFractionVsBaseline");
     expect(matrixReportToCsv(report)).toContain("branchAmplitudeFractionESV_L");
+    expect(matrixReportToCsv(report)).toContain("scenarioBranchLocalizationClass");
+    expect(matrixReportToCsv(report)).toContain("perDeltaBranchLocalizationClass");
+    expect(matrixReportToCsv(report)).toContain("oneBeatESVSlope");
+    expect(matrixReportToCsv(report)).toContain("maxAbsOneBeatVolumeFeatureSlope");
+    expect(matrixReportToCsv(report)).toContain("MV_A_forward_mL");
+    expect(matrixReportToCsv(report)).toContain("LA_A_loop_fraction");
     expect(matrixReportToCsv(report)).toContain("scenarioClassification");
     expect(matrixReportToCsv(report)).toContain("cleanForReturnMapSlope");
     expect(matrixReportToCsv(report)).toContain("worstDeltaCleanSlopeCovered");
