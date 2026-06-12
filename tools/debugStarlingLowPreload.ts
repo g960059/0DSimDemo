@@ -31,6 +31,8 @@ type DebugOptions = {
   quietClampLog: boolean;
   tbvCorrectionMode?: TBVCorrectionMode;
   aorticFlowClampMode?: AorticFlowClampMode;
+  aovB?: number;
+  aovAmax?: number;
 };
 
 type ActiveBeatSummary = {
@@ -426,7 +428,7 @@ type DebugSummary = {
 };
 
 type DebugReport = {
-  schemaVersion: 17;
+  schemaVersion: 18;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -447,6 +449,9 @@ type DebugReport = {
   quietClampLog: boolean;
   tbvCorrectionMode: TBVCorrectionMode;
   aorticFlowClampMode: AorticFlowClampMode;
+  aovB: number;
+  aovAmax: number;
+  aovAref: number;
   beatPairOverlay: boolean;
   points: DebugPoint[];
   summary: DebugSummary;
@@ -488,6 +493,9 @@ const DEFAULT_SAMPLE_HZ = 120;
 const DEFAULT_RETURN_MAP_MODE: ReturnMapModeOption = "both";
 const DEFAULT_TBV_CORRECTION_MODE: TBVCorrectionMode = "on";
 const DEFAULT_AORTIC_FLOW_CLAMP_MODE: AorticFlowClampMode = "hard";
+export const DEFAULT_AOV_B = DEFAULT_PARAMS.AoV_B;
+export const DEFAULT_AOV_AREF = DEFAULT_PARAMS.AoV_Aref;
+export const DEFAULT_AOV_AMAX = DEFAULT_PARAMS.AoV_Amax;
 const TBV_AUDIT_CONTAMINATION_THRESHOLD_ML = 0.05;
 const LOW_TBV_CORRECTION_OPTIONS = {
   gain: 0.035,
@@ -534,6 +542,9 @@ const CSV_COLUMNS = [
   "activeReservePreset",
   "tbvCorrectionMode",
   "aorticFlowClampMode",
+  "AoV_B",
+  "AoV_Amax",
+  "AoV_Aref",
   "deltaVolumeMl",
   "targetVolumeMl",
   "beat",
@@ -722,6 +733,8 @@ export function runLowPreloadDebug(opts: DebugOptions): DebugReport {
 function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
   const tbvCorrectionMode = opts.tbvCorrectionMode ?? DEFAULT_TBV_CORRECTION_MODE;
   const aorticFlowClampMode = opts.aorticFlowClampMode ?? DEFAULT_AORTIC_FLOW_CLAMP_MODE;
+  const aovB = finitePositiveOrDefault(opts.aovB, DEFAULT_AOV_B);
+  const aovAmax = finitePositiveOrDefault(opts.aovAmax, DEFAULT_AOV_AMAX);
   const dtValues = opts.dtValues.length > 0 ? opts.dtValues : DEFAULT_DT_VALUES;
   const lambdaActTauSecValues = opts.lambdaActTauSecValues.length > 0
     ? opts.lambdaActTauSecValues
@@ -733,9 +746,9 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
   const dtScenarios = lambdaActTauSecValues.flatMap((tau) => dtValues.map((dt) => runDtScenario(opts, dt, tau)));
   const primary = dtScenarios[0] ?? runDtScenario(opts, 0.001, 0);
   return {
-    schemaVersion: 17,
+    schemaVersion: 18,
     generatedAt: new Date().toISOString(),
-    measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve/TBV-projection diagnostics; branch-amplitude primary gate; EDV-section volume-preserving LV/PVein one-beat/two-beat return-map slopes with EDV/ESV/CO/afterload/ejection features; QAo cap proximity and localized AoV soft-cap sensitivity; LA/MV filling-regime and MV event-count morphology diagnostics; optional phase-aligned last-two-beat active/ejection/MV overlay diagnostics with high-low divergence summary; dt, off-by-default lambdaAct, and off-by-default AoV flow-clamp sensitivity",
+    measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve/TBV-projection diagnostics; branch-amplitude primary gate; EDV-section volume-preserving LV/PVein one-beat/two-beat return-map slopes with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap sensitivity, and off-by-default AoV_B/AoV_Amax physical-loss comparators; LA/MV filling-regime and MV event-count morphology diagnostics; optional phase-aligned last-two-beat active/ejection/MV overlay diagnostics with high-low divergence summary; dt, off-by-default lambdaAct, and off-by-default AoV flow-clamp sensitivity",
     targetVolumeMl: opts.targetVolumeMl,
     heartModel: opts.heartModel ?? DEFAULT_HEART_MODEL,
     deltasMl: opts.deltasMl,
@@ -754,6 +767,9 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
     quietClampLog: opts.quietClampLog,
     tbvCorrectionMode,
     aorticFlowClampMode,
+    aovB,
+    aovAmax,
+    aovAref: DEFAULT_AOV_AREF,
     beatPairOverlay: opts.beatPairOverlay === true,
     points: primary.points,
     summary: primary.summary,
@@ -795,6 +811,7 @@ export function reportToMarkdown(report: DebugReport): string {
   lines.push(`return-map mode: ${report.returnMapMode}`);
   lines.push(`TBV correction mode: ${report.tbvCorrectionMode}`);
   lines.push(`AoV flow clamp mode: ${report.aorticFlowClampMode}`);
+  lines.push(`AoV_B: ${report.aovB}; AoV_Amax: ${report.aovAmax}; AoV_Aref: ${report.aovAref}`);
   lines.push(`beat-pair overlay: ${report.beatPairOverlay ? "enabled" : "disabled"}`);
   if (report.maxReturnMapPoints != null) lines.push(`max return-map points: ${report.maxReturnMapPoints}`);
   lines.push("");
@@ -1048,6 +1065,9 @@ export function reportToCsv(report: DebugReport): string {
           report.activeReservePreset,
           point.tbvAudit.correctionMode,
           report.aorticFlowClampMode,
+          report.aovB,
+          report.aovAmax,
+          report.aovAref,
           point.deltaVolumeMl,
           point.targetVolumeMl,
           beat.beat,
@@ -1291,7 +1311,12 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
   const lowStretchLimiterScope = opts.lowStretchLimiterScope ?? DEFAULT_LOW_STRETCH_LIMITER_SCOPE;
   const activeReservePreset = effectiveActiveReservePreset(lowStretchLimiterMode, opts.activeReservePreset);
   const params = paramsWithLowStretchLimiter(
-    paramsWithLambdaActTau(defaultParamsForHeartModel(opts.heartModel), lambdaActTauSec, opts.lambdaActScope, lambdaActTerms),
+    paramsWithLambdaActTau(
+      paramsWithAorticValveComparator(defaultParamsForHeartModel(opts.heartModel), opts.aovB, opts.aovAmax),
+      lambdaActTauSec,
+      opts.lambdaActScope,
+      lambdaActTerms,
+    ),
     lowStretchLimiterMode,
     lowStretchLimiterScope,
     activeReservePreset,
@@ -1412,6 +1437,20 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
 
 function defaultParamsForHeartModel(heartModel: HeartModelMode = DEFAULT_HEART_MODEL): CoreRuntimeParams {
   return { ...DEFAULT_PARAMS, heartModel };
+}
+
+export function paramsWithAorticValveComparator(
+  params: CoreRuntimeParams,
+  aovB?: number,
+  aovAmax?: number,
+): CoreRuntimeParams {
+  const next = { ...params };
+  if (aovB != null && Number.isFinite(aovB) && aovB > 0) next.AoV_B = aovB;
+  if (aovAmax != null && Number.isFinite(aovAmax) && aovAmax > 0) {
+    next.AoV_Aref = DEFAULT_AOV_AREF;
+    next.AoV_Amax = aovAmax;
+  }
+  return next;
 }
 
 function selectedReturnMapPointIndices(points: DebugPoint[], opts: DebugOptions): number[] {
@@ -2775,6 +2814,8 @@ export function parseLowPreloadDebugArgs(args: string[]): DebugOptions {
     else if (key === "--return-map-deltas" && value) opts.returnMapDeltasMl = parseNumberList(value);
     else if (key === "--tbv-correction" && value) opts.tbvCorrectionMode = parseTBVCorrectionMode(value);
     else if (key === "--aortic-flow-clamp" && value) opts.aorticFlowClampMode = parseAorticFlowClampMode(value);
+    else if (key === "--aov-b" && value) opts.aovB = finitePositiveOrDefault(Number(value), DEFAULT_AOV_B);
+    else if (key === "--as-aov-amax" && value) opts.aovAmax = finitePositiveOrDefault(Number(value), DEFAULT_AOV_AMAX);
     else if (key === "--quiet-clamp-log") opts.quietClampLog = true;
     else if (key === "--trace-beats" && value) opts.traceBeats = Math.max(2, Math.floor(Number(value)));
     else if (key === "--sample-hz" && value) opts.sampleHz = Math.max(20, Math.floor(Number(value)));
@@ -2851,6 +2892,10 @@ function parseNumberList(value: string): number[] {
   return value.split(",").map((v) => Number(v.trim())).filter(Number.isFinite);
 }
 
+function finitePositiveOrDefault(value: number | undefined, fallback: number): number {
+  return value != null && Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
 function printHelp(): void {
   // eslint-disable-next-line no-console
   console.log([
@@ -2864,6 +2909,7 @@ function printHelp(): void {
     "       [--beat-pair-overlay]",
     "       [--tbv-correction=on|off|low]",
     "       [--aortic-flow-clamp=hard|soft-tanh|soft-rational|local-c1-0.95|local-c2-0.98]",
+    "       [--aov-b=0.000001] [--as-aov-amax=1.5]",
     "       [--max-return-map-points=4] [--quiet-clamp-log] [--trace-beats=10] [--sample-hz=120]",
     "",
     "Examples:",
