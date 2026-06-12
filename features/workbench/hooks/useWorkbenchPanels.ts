@@ -137,17 +137,13 @@ export function useWorkbenchPanels({
     });
     setNotes((prev) => notesAfterPanelAdded(prev, newPanel));
     setNoteModes((prev) => noteModesAfterPanelAdded(prev, newPanel));
+    return newPanel;
   }, [markUserEdited]);
 
-  const addPanel = useCallback((type: PanelType, zone?: WorkbenchZoneId) => {
+  const addPanel = useCallback((type: PanelType, zone?: WorkbenchZoneId): PanelDef => {
     const newConfig = createDefaultPanelConfig(type, instances);
-    if (type === "NOTE" || type === "SCENARIOS") {
-      appendPanel(createPanelDef(type, newConfig, zone));
-      return;
-    }
-    setAddingPanelConfig(newConfig);
-    setAddingPanelType(type);
-    setAddingPanelZone(zone ?? defaultZoneOf(type));
+    const newPanel = createPanelDef(type, newConfig, zone ?? defaultZoneOf(type));
+    return appendPanel(newPanel);
   }, [appendPanel, instances]);
 
   const duplicatePanel = useCallback((panelId: string): PanelDef | undefined => {

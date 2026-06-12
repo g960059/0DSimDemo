@@ -65,60 +65,6 @@ body[data-workbench-theme] {
   --color-wb-danger: var(--wb-danger);
 }
 
-.workbench-root[data-workbench-theme="graphite"],
-body[data-workbench-theme="graphite"] {
-  --wb-app-bg: #111315;
-  --wb-header-bg: #0a0c0d;
-  --wb-panel-bg: #171a1d;
-  --wb-panel-bg-soft: #20252a;
-  --wb-zone-main-bg: #14181b;
-  --wb-zone-aux-bg: #191d21;
-  --wb-tab-strip-bg: rgba(10, 12, 13, 0.54);
-  --wb-tab-active-bg: #191d21;
-  --wb-tab-inactive-bg: rgba(32, 37, 42, 0.78);
-  --wb-tab-hover-bg: #252b30;
-  --wb-hover-bg: rgba(37, 43, 48, 0.78);
-  --wb-active-bg: rgba(20, 184, 166, 0.14);
-  --wb-input-bg: rgba(32, 37, 42, 0.6);
-  --wb-border: rgba(91, 103, 112, 0.52);
-  --wb-border-strong: rgba(129, 145, 155, 0.68);
-  --wb-text: #e6edf0;
-  --wb-text-muted: #a5b1b8;
-  --wb-text-subtle: #7b878e;
-  --wb-accent: #14b8a6;
-  --wb-accent-soft: rgba(20, 184, 166, 0.16);
-  --wb-primary: #0d9488;
-  --wb-primary-hover: #14b8a6;
-  --wb-sash: #111315;
-}
-
-.workbench-root[data-workbench-theme="clinical"],
-body[data-workbench-theme="clinical"] {
-  --wb-app-bg: #071312;
-  --wb-header-bg: #03100f;
-  --wb-panel-bg: #0a1b19;
-  --wb-panel-bg-soft: #102823;
-  --wb-zone-main-bg: #081614;
-  --wb-zone-aux-bg: #0b1d1b;
-  --wb-tab-strip-bg: rgba(3, 16, 15, 0.52);
-  --wb-tab-active-bg: #0b1d1b;
-  --wb-tab-inactive-bg: rgba(16, 40, 35, 0.74);
-  --wb-tab-hover-bg: #16352f;
-  --wb-hover-bg: rgba(22, 53, 47, 0.72);
-  --wb-active-bg: rgba(34, 197, 94, 0.13);
-  --wb-input-bg: rgba(16, 40, 35, 0.55);
-  --wb-border: rgba(71, 114, 105, 0.48);
-  --wb-border-strong: rgba(110, 154, 145, 0.66);
-  --wb-text: #e4f2ef;
-  --wb-text-muted: #9fb8b2;
-  --wb-text-subtle: #6f8d86;
-  --wb-accent: #22c55e;
-  --wb-accent-soft: rgba(34, 197, 94, 0.14);
-  --wb-primary: #16a34a;
-  --wb-primary-hover: #22c55e;
-  --wb-sash: #071312;
-}
-
 .workbench-root[data-workbench-theme="light"],
 body[data-workbench-theme="light"] {
   --wb-app-bg: #f5f7fa;
@@ -307,12 +253,23 @@ body[data-workbench-theme="light"] {
  * carries one hairline underneath. Selection in LISTS uses the tint
  * (--wb-active-bg); tabs and lists are the only two selection idioms.
  */
+.wb-tabstrip {
+  display: flex;
+  align-items: stretch;
+  height: 32px;
+  box-shadow: inset 0 -1px 0 var(--wb-border);
+  background: transparent;
+}
+
 .workbench-dockview .dv-tabs-and-actions-container {
+  display: flex;
+  align-items: stretch;
+  height: 32px;
   box-shadow: inset 0 -1px 0 var(--wb-border);
 }
 
 .workbench-dockview .dv-tab .workbench-dock-tab {
-  min-width: 6.5rem;
+  min-width: 0;
   max-width: 12rem;
   background: transparent;
   border: 0;
@@ -342,6 +299,9 @@ body[data-workbench-theme="light"] {
 }
 
 .wb-tab {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   color: var(--wb-text-subtle);
   font-weight: 500;
   transition: color 120ms ease;

@@ -495,7 +495,7 @@
         "resizeNoteDrawer": "Resize note drawer",
         "resizeRightRail": "Resize right rail",
         "resizeMetricsHost": "Resize metrics host",
-        "resizeScenarioList": "Resize scenario list",
+        "resizeScenarioList": "Resize scenario list (double-click to reset)",
         "editingScenario": "Editing:",
         "rail": {
           "scenarios": "Scenarios",

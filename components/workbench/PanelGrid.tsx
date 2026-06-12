@@ -69,6 +69,7 @@ export interface WorkbenchLayoutState {
   selectedControllerViewId?: string;
   scenarioListCollapsed: boolean;
   scenarioListMaxRatio: number;
+  scenarioListHeightPx?: number;
   metricsSpan: MetricsSpanMode;
 }
 
@@ -118,7 +119,7 @@ interface PanelGridProps {
   setTimeScale: React.Dispatch<React.SetStateAction<number>>;
   isPlaying: boolean;
   togglePlay: () => void;
-  addPanel: (type: PanelType, zone?: WorkbenchZoneId) => void;
+  addPanel: (type: PanelType, zone?: WorkbenchZoneId) => PanelDef | undefined;
   duplicatePanel: (panelId: string) => PanelDef | undefined;
   removePanel: (id: string) => void;
   updatePanelTitle: (id: string, newTitle: string) => void;
@@ -1601,7 +1602,7 @@ interface PanelCardProps {
   setTimeScale: React.Dispatch<React.SetStateAction<number>>;
   isPlaying: boolean;
   togglePlay: () => void;
-  addPanel: (type: PanelType, zone?: WorkbenchZoneId) => void;
+  addPanel: (type: PanelType, zone?: WorkbenchZoneId) => PanelDef | undefined;
   duplicatePanel: (panelId: string) => PanelDef | undefined;
   removePanel: (id: string) => void;
   updatePanelTitle: (id: string, newTitle: string) => void;
@@ -1818,6 +1819,8 @@ interface ResizeSashProps {
   onChange: (value: number) => void;
   valueFromDrag: (startValue: number, deltaPx: number) => number;
   valueFromKey: (key: string, currentValue: number) => number | undefined;
+  getDragStartValue?: () => number | undefined;
+  onDoubleClick?: () => void;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -1831,6 +1834,8 @@ function ResizeSash({
   onChange,
   valueFromDrag,
   valueFromKey,
+  getDragStartValue,
+  onDoubleClick,
   className = '',
   style,
 }: ResizeSashProps) {
@@ -1863,7 +1868,7 @@ function ResizeSash({
           pointerId: event.pointerId,
           startX: event.clientX,
           startY: event.clientY,
-          startValue: clampedValue,
+          startValue: clamp(getDragStartValue?.() ?? clampedValue, min, max),
         };
       }}
       onPointerMove={(event) => {
@@ -1891,6 +1896,11 @@ function ResizeSash({
         if (nextValue === undefined) return;
         event.preventDefault();
         commitValue(nextValue);
+      }}
+      onDoubleClick={(event) => {
+        if (!onDoubleClick) return;
+        event.preventDefault();
+        onDoubleClick();
       }}
     >
       <span
@@ -1934,7 +1944,7 @@ function ZoneShell({
   onViewStateChange?: (zone: WorkbenchZoneId, viewState: DockviewViewState) => void;
   graphBoardLayout?: GraphBoardLayout;
   onGraphBoardLayoutChange?: (layout: GraphBoardLayout | undefined) => void;
-  addPanel: (type: PanelType, zone?: WorkbenchZoneId) => void;
+  addPanel: (type: PanelType, zone?: WorkbenchZoneId) => PanelDef | undefined;
   duplicatePanel: (panelId: string) => PanelDef | undefined;
   removePanel: (id: string) => void;
   updatePanelTitle: (id: string, newTitle: string) => void;
@@ -2215,8 +2225,37 @@ export function PanelGrid({
   const metricsSashGridColumn = metricsGridColumn;
   const scenarioListMaxRatio = clamp(layoutState.scenarioListMaxRatio ?? 0.4, 0.25, 0.65);
   const scenarioListExpandedMinHeight = 36 + 16 + 32;
-  const showScenarioListResize = !layoutState.scenarioListCollapsed;
+  const scenarioInspectorMinHeight = 160;
   const rightRailRef = useRef<HTMLDivElement | null>(null);
+  const scenarioListTierRef = useRef<HTMLDivElement | null>(null);
+  const rightRailHeight = rightRailRef.current?.getBoundingClientRect().height;
+  const scenarioListExplicitMaxHeight = rightRailHeight
+    ? Math.max(scenarioListExpandedMinHeight, rightRailHeight - scenarioInspectorMinHeight)
+    : undefined;
+  const scenarioListExplicitHeight = layoutState.scenarioListHeightPx === undefined
+    ? undefined
+    : clamp(
+      layoutState.scenarioListHeightPx,
+      scenarioListExpandedMinHeight,
+      scenarioListExplicitMaxHeight ?? Math.max(layoutState.scenarioListHeightPx, scenarioListExpandedMinHeight),
+    );
+  const scenarioListTierStyle: React.CSSProperties = layoutState.scenarioListCollapsed
+    ? { height: 36, minHeight: 36, maxHeight: 36 }
+    : scenarioListExplicitHeight === undefined
+      ? {
+          minHeight: scenarioListExpandedMinHeight,
+          maxHeight: `calc(100% * ${scenarioListMaxRatio})`,
+        }
+      : {
+          height: scenarioListExplicitHeight,
+          minHeight: scenarioListExpandedMinHeight,
+          maxHeight: scenarioListExplicitMaxHeight,
+          flex: '0 0 auto',
+        };
+  const scenarioListResizeMax = scenarioListExplicitMaxHeight ?? 10000;
+  const scenarioListResizeValue = scenarioListExplicitHeight
+    ?? scenarioListTierRef.current?.getBoundingClientRect().height
+    ?? scenarioListExpandedMinHeight;
   const activeInstance = instances.find((instance) => instance.id === activeInstanceId);
   const inspectorInstances = instances.map((instance) => (
     instance.id === activeInstanceId ? { ...instance, isVisible: true } : instance
@@ -2421,11 +2460,9 @@ export function PanelGrid({
               aria-label={t('workbench.panelGrid.railAria')}
             >
               <div
+                ref={scenarioListTierRef}
                 className="flex min-h-0 shrink-0 flex-col overflow-hidden"
-                style={{
-                  minHeight: layoutState.scenarioListCollapsed ? 36 : scenarioListExpandedMinHeight,
-                  maxHeight: layoutState.scenarioListCollapsed ? 36 : `calc(100% * ${scenarioListMaxRatio})`,
-                }}
+                style={scenarioListTierStyle}
               >
                 <div className="group flex h-9 shrink-0 items-center bg-wb-strip px-2 text-xs font-bold text-wb-muted transition-colors hover:bg-wb-input hover:text-wb-text">
                   <button
@@ -2474,27 +2511,36 @@ export function PanelGrid({
                   </div>
                 )}
               </div>
-              {showScenarioListResize && (
+              {!layoutState.scenarioListCollapsed && (
                 <ResizeSash
                   orientation="horizontal"
                   label={t('workbench.panelGrid.resizeScenarioList')}
-                  value={scenarioListMaxRatio * 100}
-                  min={25}
-                  max={65}
-                  onChange={(scenarioListMaxPercent) => onLayoutStateChange((prev) => ({
-                    ...prev,
-                    scenarioListCollapsed: false,
-                    scenarioListMaxRatio: scenarioListMaxPercent / 100,
-                  }))}
-                  valueFromDrag={(startValue, deltaPx) => {
-                    const railHeight = Math.max(1, rightRailRef.current?.getBoundingClientRect().height ?? 1);
-                    return startValue + (deltaPx / railHeight) * 100;
-                  }}
+                  value={scenarioListResizeValue}
+                  min={scenarioListExpandedMinHeight}
+                  max={scenarioListResizeMax}
+                  onChange={(scenarioListHeightPx) => onLayoutStateChange((prev) => {
+                    const railHeight = rightRailRef.current?.getBoundingClientRect().height;
+                    const maxHeight = railHeight
+                      ? Math.max(scenarioListExpandedMinHeight, railHeight - scenarioInspectorMinHeight)
+                      : Math.max(scenarioListHeightPx, scenarioListExpandedMinHeight);
+                    return {
+                      ...prev,
+                      scenarioListCollapsed: false,
+                      scenarioListHeightPx: clamp(scenarioListHeightPx, scenarioListExpandedMinHeight, maxHeight),
+                    };
+                  })}
+                  valueFromDrag={(startValue, deltaPx) => startValue + deltaPx}
                   valueFromKey={(key, currentValue) => {
-                    if (key === 'ArrowUp') return currentValue - 5;
-                    if (key === 'ArrowDown') return currentValue + 5;
+                    if (key === 'ArrowUp') return currentValue - 10;
+                    if (key === 'ArrowDown') return currentValue + 10;
                     return undefined;
                   }}
+                  getDragStartValue={() => scenarioListTierRef.current?.getBoundingClientRect().height}
+                  onDoubleClick={() => onLayoutStateChange((prev) => ({
+                    ...prev,
+                    scenarioListCollapsed: false,
+                    scenarioListHeightPx: undefined,
+                  }))}
                   className="h-2"
                 />
               )}
@@ -2682,7 +2728,7 @@ export function PanelGrid({
               style={{ gridColumn: metricsGridColumn, gridRow: '3' }}
               aria-label={t('workbench.panelGrid.metricsHost')}
             >
-              <div className="flex h-9 shrink-0 items-center gap-1 overflow-x-auto border-b border-wb-line bg-wb-strip px-2 custom-scrollbar">
+              <div className="wb-tabstrip shrink-0 gap-1 overflow-x-auto px-2 custom-scrollbar">
 	                {fixedMetricsTabs.map((tab) => {
 	                  const isRenaming = renamingViewId === tab.id;
 	                  return (
@@ -2722,10 +2768,10 @@ export function PanelGrid({
 	                            event.preventDefault();
 	                            setMetricsMenuViewId((current) => current === tab.id ? null : tab.id);
 	                          }}
-	                          className={`inline-flex h-7 shrink-0 items-center rounded px-2 text-xs font-bold transition-colors ${WB_FOCUS_RING} ${
+	                          className={`wb-tab inline-flex h-full shrink-0 items-center px-2.5 text-xs transition-colors ${WB_FOCUS_RING} ${
 	                            activeMetricsTab?.id === tab.id
-	                              ? 'bg-wb-active text-wb-text'
-	                              : 'text-wb-subtle hover:bg-wb-hover hover:text-wb-muted'
+	                              ? 'wb-tab-active'
+	                              : ''
 	                          }`}
 	                        >
 	                          {metricsTabLabel(t, tab)}
@@ -2764,7 +2810,7 @@ export function PanelGrid({
                 <button
                   type="button"
                   onClick={() => setViewEditor({ mode: 'create', kind: 'metrics' })}
-                  className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border border-wb-line text-wb-muted transition-colors hover:border-wb-line-strong hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`}
+                  className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`}
                   aria-label={t('workbench.viewManagement.newMetrics')}
                   title={t('workbench.viewManagement.newMetrics')}
                 >

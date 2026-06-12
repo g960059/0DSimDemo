@@ -132,7 +132,7 @@ function createPanelGrid(
     setTimeScale: noop,
     isPlaying: true,
     togglePlay: noop,
-    addPanel: noop,
+    addPanel: () => undefined,
     duplicatePanel: () => undefined,
     removePanel: noop,
     updatePanelTitle: noop,
@@ -501,6 +501,18 @@ describe("PanelGrid Dockview layout", () => {
     expect(css).toContain("overflow: visible;");
   });
 
+  it("keeps metrics and Dockview tab strips on the same strip grammar", () => {
+    const css = readFileSync(resolve(process.cwd(), "index.css"), "utf8");
+    const panelGridSource = readFileSync(resolve(process.cwd(), "components/workbench/PanelGrid.tsx"), "utf8");
+
+    expect(panelGridSource).toContain("wb-tabstrip shrink-0 gap-1 overflow-x-auto px-2 custom-scrollbar");
+    expect(panelGridSource).toContain("wb-tab inline-flex h-full shrink-0 items-center px-2.5");
+    expect(css).toContain(".wb-tabstrip");
+    expect(css).toContain("height: 32px;");
+    expect(css).toContain("box-shadow: inset 0 -1px 0 var(--wb-border);");
+    expect(css).toContain("min-width: 0;");
+  });
+
   it("renders pane settings as a modal for editable Dockview panes", () => {
     const html = renderPanelGrid("sandbox", [{ ...pvLoopPanel, isSettingsOpen: true }], [normalInstance]);
 
@@ -604,7 +616,25 @@ describe("PanelGrid Dockview layout", () => {
 
     expect(html).toContain("min-height:84px");
     expect(html).toContain("max-height:calc(100% * 0.5)");
+    expect(html).not.toContain("height:220px");
     expect(html).not.toContain("flex-basis:calc(100% * 0.5)");
+  });
+
+  it("uses an explicit scenario list height after resize while collapsed state still wins", () => {
+    const explicitHtml = renderPanelGrid("sandbox", [], [normalInstance], [], {}, false, {
+      scenarioListHeightPx: 220,
+    });
+    const collapsedHtml = renderPanelGrid("sandbox", [], [normalInstance], [], {}, false, {
+      scenarioListCollapsed: true,
+      scenarioListHeightPx: 220,
+    });
+
+    expect(explicitHtml).toContain("height:220px");
+    expect(explicitHtml).toContain("min-height:84px");
+    expect(explicitHtml).toContain("flex:0 0 auto");
+    expect(explicitHtml).not.toContain("max-height:calc(100% * 0.4)");
+    expect(collapsedHtml).toContain("height:36px");
+    expect(collapsedHtml).toContain("max-height:36px");
   });
 
   it("does not render pane-local controller settings for the fixed inspector", () => {
@@ -725,9 +755,9 @@ describe("PanelGrid Dockview layout", () => {
     });
 
     expect(expandedHtml).toContain("role=\"separator\"");
-    expect(expandedHtml).toContain("aria-label=\"Resize scenario list\"");
+    expect(expandedHtml).toContain("aria-label=\"Resize scenario list (double-click to reset)\"");
     expect(expandedHtml).toContain("cursor-row-resize");
-    expect(collapsedHtml).not.toContain("aria-label=\"Resize scenario list\"");
+    expect(collapsedHtml).not.toContain("aria-label=\"Resize scenario list (double-click to reset)\"");
   });
 
   it("renders keyboard-addressable sashes for note, right rail, metrics, and scenario tiers", () => {
@@ -741,7 +771,7 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).toContain("aria-label=\"Resize note drawer\"");
     expect(html).toContain("aria-label=\"Resize right rail\"");
     expect(html).toContain("aria-label=\"Resize metrics host\"");
-    expect(html).toContain("aria-label=\"Resize scenario list\"");
+    expect(html).toContain("aria-label=\"Resize scenario list (double-click to reset)\"");
     expect(html.match(/role=\"separator\"/g)?.length ?? 0).toBeGreaterThanOrEqual(4);
     expect(html).toContain("tabindex=\"0\"");
     expect(html).toContain("aria-valuenow=\"400\"");
@@ -806,6 +836,16 @@ describe("WorkbenchDockview layout reapply guard", () => {
     expect(shouldReapplyDockviewLayout({
       livePanelIds: ["pv", "wave"],
       statePanelIds: ["wave", "pv"],
+      layoutIdentityChanged: false,
+      imperativePanelChangePending: true,
+      forceGraphBoardLayout: false,
+    })).toBe(false);
+  });
+
+  it("skips stale serialized-layout replay after an imperative add has already added the pane", () => {
+    expect(shouldReapplyDockviewLayout({
+      livePanelIds: ["pv", "wave", "metrics"],
+      statePanelIds: ["metrics", "wave", "pv"],
       layoutIdentityChanged: false,
       imperativePanelChangePending: true,
       forceGraphBoardLayout: false,

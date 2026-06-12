@@ -97,8 +97,10 @@ export const DEFAULT_MODEL_LIMITATIONS = [
   'Active-stress single-fibre ventricles; parameters are not yet calibrated (M12).',
 ];
 export const WORKBENCH_THEME_STORAGE_KEY = 'hemosim.workbench.theme';
-export const DEFAULT_WORKBENCH_THEME: WorkbenchThemeId = 'midnight';
-export const WORKBENCH_THEMES = new Set<WorkbenchThemeId>(['midnight', 'graphite', 'clinical', 'light']);
+export const DEFAULT_WORKBENCH_THEME: WorkbenchThemeId = 'dark';
+export const WORKBENCH_THEMES = new Set<WorkbenchThemeId>(['dark', 'light']);
+// Legacy stored ids (pre two-theme reduction) collapse onto 'dark'.
+const LEGACY_DARK_THEME_IDS = new Set(['midnight', 'graphite', 'clinical']);
 export const LOCAL_COPY_AUTHOR = 'Local copy';
 export const EMPTY_NOTE_SPINE: NoteContent = [
   { type: 'paragraph', content: [{ type: 'text', text: '', styles: {} }] },
@@ -147,6 +149,7 @@ export const DEFAULT_WORKBENCH_LAYOUT: WorkbenchLayoutState = {
   selectedControllerViewId: undefined,
   scenarioListCollapsed: false,
   scenarioListMaxRatio: 0.4,
+  scenarioListHeightPx: undefined,
   metricsSpan: 'main',
 };
 
@@ -163,6 +166,7 @@ export function layoutStateFromWorkspace(workspace?: WorkbenchWorkspace): Workbe
     selectedControllerViewId: DEFAULT_WORKBENCH_LAYOUT.selectedControllerViewId,
     scenarioListCollapsed: DEFAULT_WORKBENCH_LAYOUT.scenarioListCollapsed,
     scenarioListMaxRatio: DEFAULT_WORKBENCH_LAYOUT.scenarioListMaxRatio,
+    scenarioListHeightPx: DEFAULT_WORKBENCH_LAYOUT.scenarioListHeightPx,
     metricsSpan: DEFAULT_WORKBENCH_LAYOUT.metricsSpan,
   };
 }
@@ -170,6 +174,7 @@ export function layoutStateFromWorkspace(workspace?: WorkbenchWorkspace): Workbe
 export function getStoredWorkbenchTheme(): WorkbenchThemeId {
   if (typeof localStorage === 'undefined') return DEFAULT_WORKBENCH_THEME;
   const stored = localStorage.getItem(WORKBENCH_THEME_STORAGE_KEY);
+  if (stored && LEGACY_DARK_THEME_IDS.has(stored)) return 'dark';
   return WORKBENCH_THEMES.has(stored as WorkbenchThemeId) ? (stored as WorkbenchThemeId) : DEFAULT_WORKBENCH_THEME;
 }
 

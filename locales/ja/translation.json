@@ -495,7 +495,7 @@
         "resizeNoteDrawer": "ノートドロワーのサイズを変更",
         "resizeRightRail": "右レールのサイズを変更",
         "resizeMetricsHost": "指標ホストのサイズを変更",
-        "resizeScenarioList": "シナリオリストのサイズを変更",
+        "resizeScenarioList": "シナリオリストのサイズを変更（ダブルクリックでリセット）",
         "editingScenario": "編集中:",
         "rail": {
           "scenarios": "シナリオ",

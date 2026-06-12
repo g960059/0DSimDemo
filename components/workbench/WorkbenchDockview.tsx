@@ -38,7 +38,7 @@ type WorkbenchDockviewContextValue = {
   onRenamePanel?: (panelId: string, title: string) => void;
   zone: WorkbenchZoneId;
   getPanelTitle: (panel: PanelDef) => string;
-  onAddPanel?: (type: PanelType, zone?: WorkbenchZoneId) => void;
+  onAddPanel?: (type: PanelType, zone?: WorkbenchZoneId) => PanelDef | undefined;
   requestClosePanel: (panelId: string) => void;
   requestAddPanel: (type: PanelType, groupId?: string) => void;
   requestSplitPanel: (panelId: string, groupId: string, direction: GraphBoardSplitDirection) => void;
@@ -57,7 +57,7 @@ interface WorkbenchDockviewProps {
   onRemovePanel?: (panelId: string) => void;
   onToggleSettings?: (panelId: string) => void;
   onRenamePanel?: (panelId: string, title: string) => void;
-  onAddPanel?: (type: PanelType, zone?: WorkbenchZoneId) => void;
+  onAddPanel?: (type: PanelType, zone?: WorkbenchZoneId) => PanelDef | undefined;
   onDuplicatePanel?: (panelId: string) => PanelDef | undefined;
   getPanelTitle?: (panel: PanelDef) => string;
   className?: string;
@@ -778,9 +778,21 @@ export function WorkbenchDockview({
         onRemovePanel?.(panelId);
       },
       requestAddPanel: (type, groupId) => {
-        pendingAddGroupIdRef.current = groupId ?? null;
         pendingDirectSplitRef.current = null;
-        onAddPanel?.(type, zone);
+        const api = apiRef.current;
+        const referenceGroup = groupId ? api?.getGroup(groupId) : undefined;
+        const newPanel = onAddPanel?.(type, zone);
+        if (!api || !referenceGroup || !newPanel) {
+          pendingAddGroupIdRef.current = groupId ?? null;
+          return;
+        }
+        pendingAddGroupIdRef.current = groupId ?? null;
+        pendingImperativePanelChangeRef.current = true;
+        addPanelToDockview(api, newPanel, undefined, {
+          referenceGroup: referenceGroup as DockviewGroupPanel,
+          direction: 'within',
+        });
+        syncDockviewPanelMetadata(api, [...panelsRef.current, newPanel]);
       },
       requestSplitPanel: (panelId, groupId, direction) => {
         const api = apiRef.current;
