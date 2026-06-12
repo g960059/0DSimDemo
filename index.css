@@ -246,6 +246,7 @@ body[data-workbench-theme="light"] {
 .workbench-dockview .dv-tabs-and-actions-container .dv-void-container {
   flex: 1 1 auto;
   min-width: 0;
+  pointer-events: none;
 }
 
 .workbench-dockview .dv-tabs-and-actions-container .dv-right-actions-container {
@@ -264,11 +265,20 @@ body[data-workbench-theme="light"] {
 }
 
 .workbench-dockview .dv-tab {
+  display: flex;
+  align-items: stretch;
   flex: 0 0 auto !important;
+  height: 32px;
   min-width: 0;
   max-width: 12rem;
   width: auto !important;
   padding: 0;
+}
+
+.workbench-dockview .dv-tab > .dv-react-part {
+  display: flex;
+  height: 100%;
+  width: 100%;
 }
 
 /*
@@ -296,10 +306,12 @@ body[data-workbench-theme="light"] {
 .workbench-dockview .dv-tab .workbench-dock-tab {
   min-width: 0;
   max-width: 12rem;
+  width: 100%;
   background: transparent;
   border: 0;
   border-radius: 0;
   color: var(--wb-text-subtle);
+  cursor: grab;
 }
 
 .workbench-dockview .dv-tab.dv-active-tab .workbench-dock-tab {
@@ -367,7 +379,7 @@ body[data-workbench-theme="light"] {
 .workbench-dockview.wb-tab-dragging .workbench-dock-header-actions,
 .workbench-dockview.wb-tab-dragging .workbench-dock-tab-menu-button,
 .workbench-dockview.wb-tab-dragging .workbench-dock-tab-close-button {
-  display: none !important;
+  visibility: hidden !important;
   opacity: 0 !important;
   pointer-events: none !important;
 }

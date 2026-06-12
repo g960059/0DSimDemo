@@ -2375,11 +2375,13 @@ export function PanelGrid({
       );
     }
     return (
-      <MetricsPanel
-        physicsRefs={physicsRefs}
-        instances={instances}
-        config={effectiveGlobalConfig(metricsViewConfig(view, instances), instances)}
-      />
+      <div className="relative h-full min-h-0 overflow-hidden">
+        <MetricsPanel
+          physicsRefs={physicsRefs}
+          instances={instances}
+          config={effectiveGlobalConfig(metricsViewConfig(view, instances), instances)}
+        />
+      </div>
     );
   };
 

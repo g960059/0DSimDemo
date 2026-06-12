@@ -422,6 +422,10 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
   return (
     <div
       className={`workbench-dock-tab flex h-full min-w-0 items-center justify-between gap-2 px-2.5 text-xs font-semibold ${isActive ? 'text-wb-text' : 'text-wb-subtle'}`}
+      onClick={() => props.api.setActive()}
+      onDoubleClick={() => {
+        if (!isRenaming && canRename) beginRenamePanel();
+      }}
       onContextMenu={(event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -456,10 +460,13 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
           aria-label={t('common.rename')}
         />
       ) : (
-        <span className="min-w-0 flex-1 truncate" onDoubleClick={beginRenamePanel}>{title}</span>
+        <span className="min-w-0 flex-1 truncate">{title}</span>
       )}
-      <div className="workbench-dock-tab-actions relative flex h-5 shrink-0 items-center justify-center gap-0.5">
-        {canClose && !isMetricsHost && (
+      <div
+        className="workbench-dock-tab-actions relative flex h-5 shrink-0 items-center justify-center gap-0.5"
+        onDoubleClick={(event) => event.stopPropagation()}
+      >
+        {canClose && (
           <button
             type="button"
             draggable={false}
@@ -723,7 +730,11 @@ function WorkbenchDockHeaderRightActions(props: IDockviewHeaderActionsProps) {
   const context = useContext(WorkbenchDockviewContext);
   if (!context || context.mode === 'learner') return null;
   const activePanelId = props.activePanel?.id;
-  const canSplit = context.variant === 'graph' && context.zone === 'main' && Boolean(activePanelId) && Boolean(activePanelId && context.panelsById.get(activePanelId));
+  const activePanel = activePanelId ? context.panelsById.get(activePanelId) : undefined;
+  const canSplit = Boolean(activePanel) && (
+    (context.variant === 'graph' && context.zone === 'main') ||
+    (context.variant === 'metrics' && Boolean(context.onDuplicatePanel))
+  );
 
   return (
     <div className="workbench-dock-header-actions flex h-full items-center">
