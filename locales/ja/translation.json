@@ -105,14 +105,14 @@
     "controls": {
       "changed": "変更",
       "reset": "リセット",
-      "resetClinicalBaseline": "臨床ノブを基準値にリセット",
-      "customReplaceDefault": "カスタムコントロールが標準の臨床ノブを置き換えます",
+      "resetClinicalBaseline": "臨床パラメータを基準値にリセット",
+      "customReplaceDefault": "カスタムコントロールが標準の臨床パラメータを置き換えます",
       "customControls": "カスタムコントロール",
       "baselineValue": "基準値 {{value}}{{unit}}",
       "resetTo": "{{value}}{{unit}} にリセット",
       "resetAria": "{{label}}をリセット",
       "groups": {
-        "clinical": "臨床ノブ",
+        "clinical": "臨床パラメータ",
         "global": "全身生理",
         "ventricles": "心室メカニクス",
         "atria": "心房メカニクス",
@@ -272,14 +272,14 @@
       }
     },
     "controllerBuilder": {
-      "description": "カスタムコントロールが標準の臨床ノブを置き換えます (読者にはボタンとして表示)。",
-      "empty": "カスタムコントロールはまだありません。読者には標準の臨床ノブが表示されます。",
+      "description": "カスタムコントロールが標準の臨床パラメータを置き換えます (読者にはボタンとして表示)。",
+      "empty": "カスタムコントロールはまだありません。読者には標準の臨床パラメータが表示されます。",
       "slider": "スライダー",
       "button": "ボタン",
       "optionNumber": "オプション {{number}}",
       "addOption": "オプションを追加",
       "needsDistinctValues": "2つ以上の異なる値が必要です。スライダーとして表示されます",
-      "clinicalKnobs": "臨床ノブ",
+      "clinicalKnobs": "臨床パラメータ",
       "searchControls": "コントロールを検索",
       "selectedControls": "選択中のコントロール",
       "addFromLeft": "左からコントロールを追加してください。",
@@ -295,7 +295,7 @@
       "controlType": "コントロール種別"
     },
     "viewManagement": {
-      "builtInInspector": "インスペクタ (すべての項目)",
+      "builtInInspector": "臨床パラメータ（標準）",
       "newController": "新規コントローラー",
       "newMetrics": "新規指標ビュー",
       "rename": "名前を変更",
@@ -417,7 +417,7 @@
       "changeColor": "シナリオ色を変更",
       "colorAria": "{{name}}の色",
       "scenarioName": "シナリオ名",
-      "reset": "ノブをリセット",
+      "reset": "パラメータをリセット",
       "actions": "シナリオ操作",
       "actionsAria": "{{name}}の操作",
       "showScenario": "シナリオを表示",
@@ -425,8 +425,7 @@
       "hiddenHint": "非表示",
       "showScenarioAria": "{{name}}をグラフに表示",
       "hideScenarioAria": "{{name}}をグラフで非表示",
-      "addFromPreset": "プリセットからシナリオを追加",
-      "addFromPresetShort": "プリセットから追加"
+      "addScenario": "シナリオを追加"
     },
       "panelGrid": {
       "panelTitle": "パネルタイトル",
@@ -489,6 +488,7 @@
         "resizeMetricsHost": "指標ホストのサイズを変更",
         "resizeScenarioList": "シナリオリストのサイズを変更",
         "editingScenario": "編集中:",
+        "standardSetNotEditable": "標準セットは編集できません",
         "rail": {
           "scenarios": "シナリオ",
           "inspector": "インスペクタ"
@@ -574,7 +574,7 @@
         },
         "controlGroups": {
           "clinical": {
-            "label": "臨床ノブ",
+            "label": "臨床パラメータ",
             "description": "初学者向けの収縮性、負荷、拍動、弁病変コントロールです。"
           },
           "global": {
@@ -653,11 +653,11 @@
     "reveal": "表示",
     "revealLabel": "表示ラベル",
     "predictionPrompt": "予測プロンプト",
-    "exposedKnobs": "公開ノブ",
+    "exposedKnobs": "公開パラメータ",
     "maxKnobs": "最大{{count}}",
     "targetInstance": "対象シナリオ",
     "target": "対象: {{target}}",
-    "startFromCurrentKnobValues": "現在のノブ値から開始",
+    "startFromCurrentKnobValues": "現在のパラメータ値から開始",
     "capturedSteps": "記録済みステップ",
     "finalPredictWarning": "最後のステップが予測です。保存前に表示ステップを追加してください。",
     "noStepsCaptured": "記録済みステップはありません。",
@@ -672,7 +672,7 @@
     "row": {
       "shows": "表示: {{names}}",
       "showsNone": "表示: なし",
-      "knobs": "ノブ: {{knobs}} -> {{target}}",
+      "knobs": "パラメータ: {{knobs}} -> {{target}}",
       "stale": "古い参照: {{ids}}"
     }
   },

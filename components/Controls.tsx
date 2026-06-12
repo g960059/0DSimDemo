@@ -233,6 +233,29 @@ export const Controls: React.FC<ControlsProps> = ({
     }
     return true;
   };
+  const clinicalGroupVisible = !hasAuthored && (isReadingMode || showGroup('clinical'));
+  const globalGroupVisible = !hasAuthored && isStudioMode && showGroup('global');
+  const ventriclesGroupVisible = !hasAuthored && isStudioMode && showGroup('ventricles');
+  const atriaGroupVisible = !hasAuthored && isStudioMode && showGroup('atria');
+  const vascularGroupVisible = !hasAuthored && isStudioMode && showGroup('vascular');
+  const coronaryGroupVisible = !hasAuthored && isStudioMode && showGroup('coronary');
+  const fluidsGroupVisible = !hasAuthored && isStudioMode && showGroup('fluids');
+  const valvesGroupVisible = !hasAuthored && isStudioMode && showGroup('valves');
+  const respGroupVisible = !hasAuthored && isStudioMode && showGroup('resp');
+  const advancedGroupVisible = !hasAuthored && isStudioMode && showGroup('advanced');
+  const visibleGroupCount = [
+    clinicalGroupVisible,
+    globalGroupVisible,
+    ventriclesGroupVisible,
+    atriaGroupVisible,
+    vascularGroupVisible,
+    coronaryGroupVisible,
+    fluidsGroupVisible,
+    valvesGroupVisible,
+    respGroupVisible,
+    advancedGroupVisible,
+  ].filter(Boolean).length;
+  const flattenSingleClinicalGroup = clinicalGroupVisible && visibleGroupCount === 1;
 
   const authoredControls = hasAuthored ? (
     <div className="grid gap-1.5">
@@ -291,11 +314,11 @@ export const Controls: React.FC<ControlsProps> = ({
 
           {hasAuthored && authoredControls}
 
-          {!hasAuthored && (isReadingMode || showGroup('clinical')) && (
+          {clinicalGroupVisible && (
             <>
-              <GroupHeader title={t('workbench.controls.groups.clinical')} isOpen={openGroups.clinical} toggle={() => toggleGroup('clinical')} tone="clinical" changedCount={changedClinicalCount} summary={changedClinicalSummary} onReset={resetClinicalKnobs} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} resetTitle={t('workbench.controls.resetClinicalBaseline')} />
-              {openGroups.clinical && (
-                  <div className={clinicalBodyClass}>
+              {!flattenSingleClinicalGroup && <GroupHeader title={t('workbench.controls.groups.clinical')} isOpen={openGroups.clinical} toggle={() => toggleGroup('clinical')} tone="clinical" changedCount={changedClinicalCount} summary={changedClinicalSummary} onReset={resetClinicalKnobs} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} resetTitle={t('workbench.controls.resetClinicalBaseline')} />}
+              {(flattenSingleClinicalGroup || openGroups.clinical) && (
+                  <div className={flattenSingleClinicalGroup ? "mb-2" : clinicalBodyClass}>
                       {clinicalSections.map(section => {
                           const visibleControls = isReadingMode
                             ? section.controls
@@ -344,7 +367,7 @@ export const Controls: React.FC<ControlsProps> = ({
             </>
           )}
 
-          {!hasAuthored && isStudioMode && showGroup('global') && (
+          {globalGroupVisible && (
             <>
               <GroupHeader title={t('workbench.controls.groups.global')} isOpen={openGroups.global} toggle={() => toggleGroup('global')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.global && (
@@ -362,7 +385,7 @@ export const Controls: React.FC<ControlsProps> = ({
           </>
       )}
 
-          {!hasAuthored && isStudioMode && showGroup('ventricles') && (
+          {ventriclesGroupVisible && (
             <>
               <GroupHeader title={t('workbench.controls.groups.ventricles')} isOpen={openGroups.ventricles} toggle={() => toggleGroup('ventricles')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.ventricles && (
@@ -419,7 +442,7 @@ export const Controls: React.FC<ControlsProps> = ({
             </>
           )}
 
-          {!hasAuthored && isStudioMode && showGroup('atria') && (
+          {atriaGroupVisible && (
             <>
               <GroupHeader title={t('workbench.controls.groups.atria')} isOpen={openGroups.atria} toggle={() => toggleGroup('atria')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.atria && (
@@ -438,7 +461,7 @@ export const Controls: React.FC<ControlsProps> = ({
             </>
           )}
 
-          {!hasAuthored && isStudioMode && showGroup('vascular') && (
+          {vascularGroupVisible && (
             <>
               <GroupHeader title={t('workbench.controls.groups.vascular')} isOpen={openGroups.vascular} toggle={() => toggleGroup('vascular')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.vascular && (
@@ -469,7 +492,7 @@ export const Controls: React.FC<ControlsProps> = ({
             </>
           )}
 
-          {!hasAuthored && isStudioMode && showGroup('coronary') && (
+          {coronaryGroupVisible && (
             <>
               <GroupHeader title={t('workbench.controls.groups.coronary')} isOpen={openGroups.coronary} toggle={() => toggleGroup('coronary')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.coronary && (
@@ -492,7 +515,7 @@ export const Controls: React.FC<ControlsProps> = ({
             </>
           )}
 
-          {!hasAuthored && isStudioMode && showGroup('fluids') && (
+          {fluidsGroupVisible && (
             <>
               <GroupHeader title={t('workbench.controls.groups.fluids')} isOpen={openGroups.fluids} toggle={() => toggleGroup('fluids')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.fluids && (
@@ -507,7 +530,7 @@ export const Controls: React.FC<ControlsProps> = ({
             </>
           )}
 
-          {!hasAuthored && isStudioMode && showGroup('valves') && (
+          {valvesGroupVisible && (
             <>
               <GroupHeader title={t('workbench.controls.groups.valves')} isOpen={openGroups.valves} toggle={() => toggleGroup('valves')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.valves && (
@@ -533,7 +556,7 @@ export const Controls: React.FC<ControlsProps> = ({
             </>
           )}
 
-          {!hasAuthored && isStudioMode && showGroup('resp') && (
+          {respGroupVisible && (
             <>
               <GroupHeader title={t('workbench.controls.groups.resp')} isOpen={openGroups.resp} toggle={() => toggleGroup('resp')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.resp && (
@@ -550,7 +573,7 @@ export const Controls: React.FC<ControlsProps> = ({
             </>
           )}
 
-          {!hasAuthored && isStudioMode && showGroup('advanced') && (
+          {advancedGroupVisible && (
             <>
               <GroupHeader title={t('workbench.controls.groups.advanced')} isOpen={openGroups.advanced} toggle={() => toggleGroup('advanced')} changedLabel={t('workbench.controls.changed')} resetLabel={t('workbench.controls.reset')} />
               {openGroups.advanced && (

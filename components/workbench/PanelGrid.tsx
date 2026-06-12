@@ -7,7 +7,7 @@ import WorkbenchDockview from './WorkbenchDockview';
 import WorkbenchMobile from './WorkbenchMobile';
 import { renderPaneBody } from './renderPaneBody';
 import { ControllerItemsBuilder } from './ControllerItemsBuilder';
-import { ScenarioPane } from './ScenarioPane';
+import { getScenarioPresetMenuPosition, ScenarioPane, ScenarioPresetMenu } from './ScenarioPane';
 import { Controls } from '../Controls';
 import { MetricsPanel } from '../Charts';
 import { type ClinicalKnobs } from '../../engine/knobs';
@@ -2036,6 +2036,7 @@ export function PanelGrid({
   const [renamingViewId, setRenamingViewId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const [viewEditor, setViewEditor] = useState<ViewEditorState | null>(null);
+  const [scenarioAddMenuPosition, setScenarioAddMenuPosition] = useState<{ x: number; y: number } | null>(null);
   useEffect(() => {
     if (fixedMetricsTabs.some((tab) => tab.id === activeMetricsTabId)) return;
     setActiveMetricsTabId(fixedMetricsTabs[0]?.id ?? '');
@@ -2237,6 +2238,16 @@ export function PanelGrid({
     setOpenControllerMenu(false);
   };
 
+  const openScenarioAddMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    const rect = event.currentTarget.getBoundingClientRect();
+    setScenarioAddMenuPosition((position) => (
+      position
+        ? null
+        : getScenarioPresetMenuPosition(rect.right - 208, rect.bottom + 4)
+    ));
+  };
+
   const beginRenameView = (view: AuthoredViewSpec) => {
     setRenamingViewId(view.id);
     setRenameDraft(view.title ?? '');
@@ -2406,18 +2417,39 @@ export function PanelGrid({
               <div
                 className="flex min-h-0 shrink-0 flex-col overflow-hidden"
                 style={{
-                  maxHeight: layoutState.scenarioListCollapsed ? 36 : `calc(100% * ${scenarioListMaxRatio})`,
+                  flexBasis: layoutState.scenarioListCollapsed ? 36 : `calc(100% * ${scenarioListMaxRatio})`,
                 }}
               >
-                <button
-                  type="button"
-                  onClick={() => onLayoutStateChange((prev) => ({ ...prev, scenarioListCollapsed: !prev.scenarioListCollapsed }))}
-                  className="flex h-9 shrink-0 items-center gap-2 bg-slate-950/35 px-2 text-left text-xs font-bold text-slate-300 transition-colors hover:bg-slate-900/70 hover:text-slate-100"
-                  aria-expanded={!layoutState.scenarioListCollapsed}
-                >
-                  {layoutState.scenarioListCollapsed ? <ChevronRight className="h-3.5 w-3.5 text-slate-500" /> : <ChevronDown className="h-3.5 w-3.5 text-slate-500" />}
-                  <span className="min-w-0 flex-1 truncate">{t('workbench.panelGrid.scenariosCount', { count: instances.length })}</span>
-                </button>
+                <div className="group flex h-9 shrink-0 items-center bg-slate-950/35 px-2 text-xs font-bold text-slate-300 transition-colors hover:bg-slate-900/70 hover:text-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => onLayoutStateChange((prev) => ({ ...prev, scenarioListCollapsed: !prev.scenarioListCollapsed }))}
+                    className="flex h-full min-w-0 flex-1 items-center gap-2 text-left"
+                    aria-expanded={!layoutState.scenarioListCollapsed}
+                  >
+                    {layoutState.scenarioListCollapsed ? <ChevronRight className="h-3.5 w-3.5 text-slate-500" /> : <ChevronDown className="h-3.5 w-3.5 text-slate-500" />}
+                    <span className="min-w-0 flex-1 truncate">{t('workbench.panelGrid.scenariosCount', { count: instances.length })}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={openScenarioAddMenu}
+                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-slate-500 opacity-70 transition-colors hover:bg-slate-800 hover:text-slate-100 group-hover:opacity-100"
+                    title={t('workbench.scenarioPane.addScenario')}
+                    aria-label={t('workbench.scenarioPane.addScenario')}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                  {scenarioAddMenuPosition && (
+                    <ScenarioPresetMenu
+                      position={scenarioAddMenuPosition}
+                      onClose={() => setScenarioAddMenuPosition(null)}
+                      onSelect={(presetId) => {
+                        addInstance(undefined, presetId);
+                        setScenarioAddMenuPosition(null);
+                      }}
+                    />
+                  )}
+                </div>
                 {!layoutState.scenarioListCollapsed && (
                   <div className="min-h-0 overflow-hidden">
                     <ScenarioPane
@@ -2472,8 +2504,23 @@ export function PanelGrid({
                     </span>
                     <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-500" />
                   </button>
-                  {activeInstance && (
-                    <span className="ml-auto inline-flex min-w-0 items-center gap-1.5 rounded border border-slate-700 bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-slate-400">
+                  {activeInstance && selectedControllerView && (
+                    <button
+                      type="button"
+                      onClick={() => setViewEditor({ mode: 'edit', view: selectedControllerView })}
+                      className="ml-auto inline-flex min-w-0 cursor-pointer items-center gap-1.5 rounded border border-slate-700 bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-slate-400 transition-colors hover:border-sky-500/50 hover:bg-slate-800 hover:text-slate-200"
+                      title={t('common.edit')}
+                    >
+                      {t('workbench.panelGrid.editingScenario')}
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: activeInstance.color }} />
+                      <span className="min-w-0 max-w-28 truncate text-slate-200">{activeInstance.name}</span>
+                    </button>
+                  )}
+                  {activeInstance && !selectedControllerView && (
+                    <span
+                      className="ml-auto inline-flex min-w-0 cursor-default items-center gap-1.5 rounded border border-slate-700 bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-slate-400"
+                      title={t('workbench.panelGrid.standardSetNotEditable')}
+                    >
                       {t('workbench.panelGrid.editingScenario')}
                       <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: activeInstance.color }} />
                       <span className="min-w-0 max-w-28 truncate text-slate-200">{activeInstance.name}</span>

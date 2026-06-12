@@ -105,14 +105,14 @@
     "controls": {
       "changed": "changed",
       "reset": "Reset",
-      "resetClinicalBaseline": "Reset clinical knobs to baseline",
-      "customReplaceDefault": "Custom controls replace the default Clinical Knobs",
+      "resetClinicalBaseline": "Reset clinical parameters to baseline",
+      "customReplaceDefault": "Custom controls replace the default clinical parameters",
       "customControls": "Custom controls",
       "baselineValue": "Baseline {{value}}{{unit}}",
       "resetTo": "Reset to {{value}}{{unit}}",
       "resetAria": "Reset {{label}}",
       "groups": {
-        "clinical": "Clinical Knobs",
+        "clinical": "Clinical parameters",
         "global": "Global Physiology",
         "ventricles": "Ventricular Mechanics",
         "atria": "Atrial Mechanics",
@@ -272,14 +272,14 @@
       }
     },
     "controllerBuilder": {
-      "description": "Custom controls replace the default Clinical Knobs (shown to readers as buttons).",
-      "empty": "No custom controls yet - readers see the default Clinical Knobs.",
+      "description": "Custom controls replace the default clinical parameters (shown to readers as buttons).",
+      "empty": "No custom controls yet - readers see the default clinical parameters.",
       "slider": "Slider",
       "button": "Button",
       "optionNumber": "Option {{number}}",
       "addOption": "Add option",
       "needsDistinctValues": "Needs >=2 distinct values - will show as a slider",
-      "clinicalKnobs": "Clinical knobs",
+      "clinicalKnobs": "Clinical parameters",
       "searchControls": "Search controls",
       "selectedControls": "Selected controls",
       "addFromLeft": "Add controls from the left.",
@@ -295,7 +295,7 @@
       "controlType": "Control type"
     },
     "viewManagement": {
-      "builtInInspector": "Inspector (all items)",
+      "builtInInspector": "Clinical parameters (standard)",
       "newController": "New controller",
       "newMetrics": "New metrics view",
       "rename": "Rename",
@@ -417,7 +417,7 @@
       "changeColor": "Change scenario color",
       "colorAria": "{{name}} color",
       "scenarioName": "Scenario name",
-      "reset": "Reset knobs",
+      "reset": "Reset parameters",
       "actions": "Scenario actions",
       "actionsAria": "{{name}} actions",
       "showScenario": "Show scenario",
@@ -425,8 +425,7 @@
       "hiddenHint": "hidden",
       "showScenarioAria": "Show {{name}} on graphs",
       "hideScenarioAria": "Hide {{name}} on graphs",
-      "addFromPreset": "Add scenario from preset",
-      "addFromPresetShort": "Add from preset"
+      "addScenario": "Add scenario"
     },
       "panelGrid": {
         "panelTitle": "Panel Title",
@@ -489,6 +488,7 @@
         "resizeMetricsHost": "Resize metrics host",
         "resizeScenarioList": "Resize scenario list",
         "editingScenario": "Editing:",
+        "standardSetNotEditable": "The standard set isn't editable",
         "rail": {
           "scenarios": "Scenarios",
           "inspector": "Inspector"
@@ -574,7 +574,7 @@
         },
         "controlGroups": {
           "clinical": {
-            "label": "Clinical knobs",
+            "label": "Clinical parameters",
             "description": "Beginner-facing contractility, loading, rate, and valve-lesion controls."
           },
           "global": {
@@ -653,11 +653,11 @@
     "reveal": "Reveal",
     "revealLabel": "Reveal label",
     "predictionPrompt": "Prediction prompt",
-    "exposedKnobs": "Exposed knobs",
+    "exposedKnobs": "Exposed parameters",
     "maxKnobs": "max {{count}}",
     "targetInstance": "Target scenario",
     "target": "Target: {{target}}",
-    "startFromCurrentKnobValues": "Start from current knob values",
+    "startFromCurrentKnobValues": "Start from current parameter values",
     "capturedSteps": "Captured steps",
     "finalPredictWarning": "Final step is predict. Add a reveal step before saving.",
     "noStepsCaptured": "No steps captured.",
@@ -672,7 +672,7 @@
     "row": {
       "shows": "shows: {{names}}",
       "showsNone": "shows: none",
-      "knobs": "knobs: {{knobs}} -> {{target}}",
+      "knobs": "parameters: {{knobs}} -> {{target}}",
       "stale": "stale: {{ids}}"
     }
   },

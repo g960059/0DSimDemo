@@ -120,7 +120,7 @@ describe("Controls", () => {
       presentationMode: "reading",
     }));
 
-    expect(html).toContain(i18n.t("workbench.controls.groups.clinical"));
+    expect(html).not.toContain(i18n.t("workbench.controls.groups.clinical"));
     expect(html).toContain(i18n.t("workbench.controls.knobs.contractility"));
     expect(html).toContain(i18n.t("workbench.controls.options.low"));
     expect(html).toContain(i18n.t("workbench.controls.options.normal"));

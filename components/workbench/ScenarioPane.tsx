@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
-import { Check, Eye, EyeOff, LoaderCircle, MoreVertical, Plus, TriangleAlert } from 'lucide-react';
+import { Check, Eye, EyeOff, LoaderCircle, MoreVertical, TriangleAlert } from 'lucide-react';
 import { OFFICIAL_BASELINES } from '../../engine/caseBaselines';
 import type { SteadyUpdateStatus, SteadyUpdateStatusMap } from '../../engine/previewController';
 import type { SimInstance } from '../../types';
@@ -24,6 +24,45 @@ const scenarioPresets = Object.entries(OFFICIAL_BASELINES).map(([id, preset]) =>
   label: preset.label.replace(/\s*\([^)]*\)\s*$/, ''),
   detail: preset.label,
 }));
+
+export const getScenarioPresetMenuPosition = (x: number, y: number, width = 208, height = 180) => ({
+  x: Math.max(8, Math.min(x, window.innerWidth - width)),
+  y: Math.max(8, Math.min(y, window.innerHeight - height)),
+});
+
+export function ScenarioPresetMenu({
+  position,
+  onClose,
+  onSelect,
+}: {
+  position: { x: number; y: number };
+  onClose: () => void;
+  onSelect: (presetId: string) => void;
+}) {
+  return typeof document !== 'undefined' ? createPortal(
+    <>
+      <div className="fixed inset-0 z-[80]" onClick={onClose} />
+      <div
+        className="workbench-popover-menu fixed z-[90] w-52 rounded-md border py-1 shadow-xl"
+        style={{ left: position.x, top: position.y }}
+        onClick={(event) => event.stopPropagation()}
+      >
+        {scenarioPresets.map((preset) => (
+          <button
+            key={preset.id}
+            type="button"
+            onClick={() => onSelect(preset.id)}
+            className="workbench-popover-menu-item block w-full px-3 py-2 text-left"
+          >
+            <span className="block truncate text-xs font-semibold text-slate-200">{preset.label}</span>
+            <span className="block truncate text-[10px] text-slate-500">{preset.detail}</span>
+          </button>
+        ))}
+      </div>
+    </>,
+    document.body,
+  ) : null;
+}
 
 function SteadyStatusIndicator({ status }: { status?: SteadyUpdateStatus }) {
   const { t } = useTranslation();
@@ -84,7 +123,6 @@ export function ScenarioPane({
     x: number;
     y: number;
   } | null>(null);
-  const [addMenuPosition, setAddMenuPosition] = React.useState<{ x: number; y: number } | null>(null);
 
   const getMenuPosition = (x: number, y: number, width = 152, height = 120) => ({
     x: Math.max(8, Math.min(x, window.innerWidth - width)),
@@ -127,26 +165,13 @@ export function ScenarioPane({
   const openMenuAtCursor = (event: React.MouseEvent, instance: SimInstance) => {
     event.preventDefault();
     event.stopPropagation();
-    setAddMenuPosition(null);
     setMenuState({ instanceId: instance.id, ...getMenuPosition(event.clientX, event.clientY) });
   };
 
   const openMenuForButton = (event: React.MouseEvent<HTMLButtonElement>, instance: SimInstance) => {
     event.stopPropagation();
     const rect = event.currentTarget.getBoundingClientRect();
-    setAddMenuPosition(null);
     setMenuState({ instanceId: instance.id, ...getMenuPosition(rect.right - 144, rect.bottom + 4) });
-  };
-
-  const openAddMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    const rect = event.currentTarget.getBoundingClientRect();
-    setMenuState(null);
-    setAddMenuPosition((value) => (
-      value
-        ? null
-        : getMenuPosition(rect.left, rect.bottom + 4, 208, 180)
-    ));
   };
 
   return (
@@ -295,44 +320,6 @@ export function ScenarioPane({
             </div>
           );
         })}
-        <button
-          type="button"
-          onClick={openAddMenu}
-          className="group mt-1 flex h-8 w-full items-center gap-2 rounded px-2 text-left text-xs font-medium text-slate-500 transition-colors hover:bg-slate-900/80 hover:text-slate-200"
-          aria-label={t('workbench.scenarioPane.addFromPreset')}
-          title={t('workbench.scenarioPane.addFromPreset')}
-        >
-          <span className="inline-flex h-2.5 w-2.5 shrink-0 items-center justify-center rounded-full border border-dashed border-slate-600 text-slate-500 group-hover:border-slate-400 group-hover:text-slate-300">
-            <Plus className="h-2 w-2" />
-          </span>
-          <span className="min-w-0 flex-1 truncate">{t('workbench.scenarioPane.addFromPresetShort')}</span>
-        </button>
-        {addMenuPosition && typeof document !== 'undefined' && createPortal(
-          <>
-            <div className="fixed inset-0 z-[80]" onClick={() => setAddMenuPosition(null)} />
-            <div
-              className="workbench-popover-menu fixed z-[90] w-52 rounded-md border py-1 shadow-xl"
-              style={{ left: addMenuPosition.x, top: addMenuPosition.y }}
-              onClick={(event) => event.stopPropagation()}
-            >
-              {scenarioPresets.map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  onClick={() => {
-                    addInstance(undefined, preset.id);
-                    setAddMenuPosition(null);
-                  }}
-                  className="workbench-popover-menu-item block w-full px-3 py-2 text-left"
-                >
-                  <span className="block truncate text-xs font-semibold text-slate-200">{preset.label}</span>
-                  <span className="block truncate text-[10px] text-slate-500">{preset.detail}</span>
-                </button>
-              ))}
-            </div>
-          </>,
-          document.body,
-        )}
       </div>
     </div>
   );

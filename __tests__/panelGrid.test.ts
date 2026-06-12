@@ -616,7 +616,7 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).not.toContain("Pane settings");
     expect(html).not.toContain("Controls · Controller pane");
     expect(html).toContain("Scenarios");
-    expect(html).toContain("Inspector");
+    expect(html).toContain("Clinical parameters (standard)");
     expect(html).not.toContain("Back to Controls");
     // Unnecessary count-meta badges removed from controller settings.
     expect(html).not.toContain("Controller scope");
@@ -657,7 +657,8 @@ describe("PanelGrid Dockview layout", () => {
       rightRailView: "inspector",
     });
 
-    expect(html).toContain("Clinical Knobs");
+    expect(html).toContain("Cardiac Function");
+    expect(html).not.toContain("Clinical Knobs");
     expect(html).not.toContain("Advanced");
     expect(html).not.toContain("Advanced engine");
   });
