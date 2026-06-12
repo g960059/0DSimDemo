@@ -366,3 +366,49 @@ Review questions:
 1. Does any plausible `AoV_B` reduce QAo cap proximity and branch amplitude without producing implausible normal or HR100 aortic gradients?
 2. Do AS sanity cases behave monotonically with smaller `AoV_Amax` while preserving the distinction between `Aref` and `Amax`?
 3. If plausible `AoV_B` values do not materially change the branch envelope, should the next root-fix effort return to active-stress low-stretch gain rather than further QAo cap tuning?
+
+## AoV_B x activeReserveCap bundle comparison
+
+Current interpretation from the model-review discussion:
+
+- `AoV_B` / orifice loss is a strong control axis for the low-preload alternans loop.
+- `AoV_B` alone suppresses the branch but can fail normal / HR waveform gates, so it is not a default fix by itself.
+- `activeReserveCap` remains a leading mitigator. Combining modest valve-loss recalibration with low-stretch active-reserve suppression is worth testing as a stabilization bundle.
+- Passing this bundle would not prove a single root mechanism. Treat it as an off-by-default candidate bundle until broader validation and clean return-map coverage support adoption.
+
+The matrix report now includes AoV gradient decomposition for the waveform gates:
+
+- flow-weighted total `LVP - AoP`
+- flow-weighted orifice `Rq + Bq|q|`
+- resistive `Rq`
+- Bernoulli `Bq|q|`
+- inertial `L dq/dt`
+- residual
+
+AS-like conclusions should primarily use the orifice/quasi-steady columns. The total transient gradient can be high because of inertial or residual terms and should be interpreted separately.
+
+Suggested handoff artifact command:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/aov-active-bundle-smoke \
+  --deltas=0,-1250,-1300 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --aortic-flow-clamp=hard \
+  --aov-b=0.000001,0.000003,0.00001 \
+  --low-stretch-limiter=none,activeReserveCap \
+  --low-stretch-limiter-scope=lv \
+  --active-reserve-preset=directMild,directMedium \
+  --max-return-map-points=2 \
+  --trace-beats=4 \
+  --sample-hz=60
+```
+
+Review questions:
+
+1. Does a modest `AoV_B` plus `directMild` or `directMedium` reduce CO/ESV/QAo branch fractions more than either axis alone?
+2. Does QAo/cap move away from the hard cap without making normal / HR100 orifice gradients implausible?
+3. Are failures driven by quasi-steady orifice loss, inertial loss, or residual transient pressure?
+4. If a combination looks good, is it best described as a stabilization bundle, or is there enough evidence for a more focused model change?

@@ -4,7 +4,7 @@ import { DEFAULT_PARAMS } from "@/constants";
 import { ModelCore, type AorticFlowClampMode } from "@/engine/ModelCore";
 import type { LambdaActTerms, LowStretchLimiterMode } from "@/engine/chambers";
 import { DYNAMIC_FLOW_CLAMP_ML_PER_S } from "@/engine/core/topology";
-import type { HeartModelMode, SimSample } from "@/engine/protocol";
+import type { CoreRuntimeParams, HeartModelMode, SimSample } from "@/engine/protocol";
 import { PREVIEW_SETTLE_POLICY } from "@/engine/settling";
 import {
   paramsWithLambdaActTau,
@@ -66,6 +66,15 @@ type WaveformGateMetrics = {
   QAoLocalCapActiveFraction: number;
   AoVMeanGradient: number;
   AoVPeakGradient: number;
+  AoVFlowWeightedTotalGradient: number;
+  AoVFlowWeightedOrificeGradient: number;
+  AoVFlowWeightedResistiveGradient: number;
+  AoVFlowWeightedBernoulliGradient: number;
+  AoVFlowWeightedInertialGradient: number;
+  AoVFlowWeightedResidualGradient: number;
+  AoVPeakOrificeGradient: number;
+  AoVPeakInertialGradient: number;
+  AoVPeakResidualGradient: number;
   QAoPeakMeanRatio: number;
   ejectionDurationMs: number;
   maxDpdtLVP: number;
@@ -87,6 +96,10 @@ type WaveformGateComparison = {
     | "QAoMax"
     | "AoVMeanGradient"
     | "AoVPeakGradient"
+    | "AoVFlowWeightedTotalGradient"
+    | "AoVFlowWeightedOrificeGradient"
+    | "AoVFlowWeightedBernoulliGradient"
+    | "AoVFlowWeightedInertialGradient"
     | "QAoPeakMeanRatio"
     | "ejectionDurationMs"
     | "maxDpdtLVP"
@@ -245,7 +258,7 @@ type ShapeSummary = {
 };
 
 type MatrixReport = {
-  schemaVersion: 14;
+  schemaVersion: 15;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -281,6 +294,10 @@ type MatrixReport = {
     maxQAoLocalCapActiveFraction: number;
     maxAoVMeanGradient: number;
     maxAoVPeakGradient: number;
+    maxAoVFlowWeightedTotalGradient: number;
+    maxAoVFlowWeightedOrificeGradient: number;
+    maxAoVFlowWeightedBernoulliGradient: number;
+    maxAoVFlowWeightedInertialGradient: number;
     maxQAoPeakMeanRatio: number;
     minEjectionDurationMs: number;
     maxCleanAbsOneBeatESVSlope: number | null;
@@ -480,9 +497,9 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
       { fraction: 0, metric: null },
     );
   return {
-    schemaVersion: 14,
+    schemaVersion: 15,
     generatedAt: new Date().toISOString(),
-    measurementMode: "branch-only broad low-preload matrix followed by selected EDV-section return-map diagnostics with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap comparator axes, and off-by-default AoV_B/AoV_Amax physical-loss comparator axes; LA/MV filling-regime and MV event-count morphology diagnostics with last-two-beat filling branch amplitudes and primary event-count alternation; optional TBV correction on/off/low contamination axis; activeStress/elastance heart-model comparison axis; off-by-default low-stretch limiter and AoV soft-flow-clamp comparator axes",
+    measurementMode: "branch-only broad low-preload matrix followed by selected EDV-section return-map diagnostics with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap comparator axes, and off-by-default AoV_B/AoV_Amax physical-loss comparator axes with decomposed resistive/Bernoulli/inertial AoV gradient reporting; LA/MV filling-regime and MV event-count morphology diagnostics with last-two-beat filling branch amplitudes and primary event-count alternation; optional TBV correction on/off/low contamination axis; activeStress/elastance heart-model comparison axis; off-by-default low-stretch limiter and AoV soft-flow-clamp comparator axes",
     targetVolumeMl: opts.targetVolumeMl,
     heartModels: opts.heartModels,
     deltasMl: opts.deltasMl,
@@ -516,6 +533,10 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
       maxQAoLocalCapActiveFraction: Math.max(0, ...scenarios.map((s) => s.returnMapSummary.maxQAoLocalCapActiveFraction)),
       maxAoVMeanGradient: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.AoVMeanGradient)))),
       maxAoVPeakGradient: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.AoVPeakGradient)))),
+      maxAoVFlowWeightedTotalGradient: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.AoVFlowWeightedTotalGradient)))),
+      maxAoVFlowWeightedOrificeGradient: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.AoVFlowWeightedOrificeGradient)))),
+      maxAoVFlowWeightedBernoulliGradient: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.AoVFlowWeightedBernoulliGradient)))),
+      maxAoVFlowWeightedInertialGradient: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.AoVFlowWeightedInertialGradient)))),
       maxQAoPeakMeanRatio: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.QAoPeakMeanRatio)))),
       minEjectionDurationMs: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.ejectionDurationMs))),
       maxCleanAbsOneBeatESVSlope: finiteMaxOrNull(scenarios.map((s) => s.evaluation.maxCleanAbsOneBeatESVSlope ?? Number.NaN)),
@@ -1071,6 +1092,10 @@ function waveformGateComparison(
     QAoMax: candidate.QAoMax - baseline.QAoMax,
     AoVMeanGradient: candidate.AoVMeanGradient - baseline.AoVMeanGradient,
     AoVPeakGradient: candidate.AoVPeakGradient - baseline.AoVPeakGradient,
+    AoVFlowWeightedTotalGradient: candidate.AoVFlowWeightedTotalGradient - baseline.AoVFlowWeightedTotalGradient,
+    AoVFlowWeightedOrificeGradient: candidate.AoVFlowWeightedOrificeGradient - baseline.AoVFlowWeightedOrificeGradient,
+    AoVFlowWeightedBernoulliGradient: candidate.AoVFlowWeightedBernoulliGradient - baseline.AoVFlowWeightedBernoulliGradient,
+    AoVFlowWeightedInertialGradient: candidate.AoVFlowWeightedInertialGradient - baseline.AoVFlowWeightedInertialGradient,
     QAoPeakMeanRatio: candidate.QAoPeakMeanRatio - baseline.QAoPeakMeanRatio,
     ejectionDurationMs: candidate.ejectionDurationMs - baseline.ejectionDurationMs,
     maxDpdtLVP: candidate.maxDpdtLVP - baseline.maxDpdtLVP,
@@ -1165,6 +1190,7 @@ function measureWaveformGateImpl(
   const aovEjection = samples.filter((sample) => sample.QAo > 50 && sample.xiAoV > 0.8);
   const qAoMeanDuringEjection = meanNumbers(aovEjection.map((sample) => sample.QAo));
   const qAoProximity = qAoCapProximity(qao, aorticFlowClampMode);
+  const aovGradient = aovGradientDecomposition(samples, params);
   return {
     settled: settle.settled,
     settleReason: settle.reason,
@@ -1179,6 +1205,7 @@ function measureWaveformGateImpl(
     ...qAoProximity,
     AoVMeanGradient: metrics.AoVMeanGradient,
     AoVPeakGradient: metrics.AoVPeakGradient,
+    ...aovGradient,
     QAoPeakMeanRatio: Number.isFinite(qAoMeanDuringEjection) && qAoMeanDuringEjection > 1e-9
       ? Math.max(...qao) / qAoMeanDuringEjection
       : Number.NaN,
@@ -1187,6 +1214,94 @@ function measureWaveformGateImpl(
     clampHitCount: core.debugClampDiagnostics().totalClampHits,
     valveReverseVolumeMl: valveReverseVolumeMl(samples),
   };
+}
+
+function aovGradientDecomposition(samples: SimSample[], params: CoreRuntimeParams): Pick<WaveformGateMetrics,
+  "AoVFlowWeightedTotalGradient"
+  | "AoVFlowWeightedOrificeGradient"
+  | "AoVFlowWeightedResistiveGradient"
+  | "AoVFlowWeightedBernoulliGradient"
+  | "AoVFlowWeightedInertialGradient"
+  | "AoVFlowWeightedResidualGradient"
+  | "AoVPeakOrificeGradient"
+  | "AoVPeakInertialGradient"
+  | "AoVPeakResidualGradient"
+> {
+  const ejection = samples
+    .map((sample, index) => ({ sample, index }))
+    .filter(({ sample }) => Number.isFinite(sample.QAo) && sample.QAo > 50 && sample.xiAoV > 0.8);
+  if (ejection.length === 0) {
+    return {
+      AoVFlowWeightedTotalGradient: Number.NaN,
+      AoVFlowWeightedOrificeGradient: Number.NaN,
+      AoVFlowWeightedResistiveGradient: Number.NaN,
+      AoVFlowWeightedBernoulliGradient: Number.NaN,
+      AoVFlowWeightedInertialGradient: Number.NaN,
+      AoVFlowWeightedResidualGradient: Number.NaN,
+      AoVPeakOrificeGradient: Number.NaN,
+      AoVPeakInertialGradient: Number.NaN,
+      AoVPeakResidualGradient: Number.NaN,
+    };
+  }
+  let qWeight = 0;
+  let totalWeighted = 0;
+  let orificeWeighted = 0;
+  let resistiveWeighted = 0;
+  let bernoulliWeighted = 0;
+  let inertialWeighted = 0;
+  let residualWeighted = 0;
+  let peakOrifice = Number.NEGATIVE_INFINITY;
+  let peakInertial = Number.NEGATIVE_INFINITY;
+  let peakResidual = Number.NEGATIVE_INFINITY;
+  for (const { sample, index } of ejection) {
+    const q = Math.max(0, sample.QAo);
+    const total = sample.LVP - sample.AoP;
+    // Use the engine-sampled effective valve losses. They already include
+    // Aref/Amax/xi area scaling, so AS comparator reports match runtime physics.
+    const resistive = sample.AoV_loss_R;
+    const bernoulli = sample.AoV_loss_B;
+    const inertial = params.AoV_L * qDerivative(samples, index, "QAo");
+    const orifice = resistive + bernoulli;
+    const residual = total - orifice - inertial;
+    qWeight += q;
+    totalWeighted += total * q;
+    orificeWeighted += orifice * q;
+    resistiveWeighted += resistive * q;
+    bernoulliWeighted += bernoulli * q;
+    inertialWeighted += inertial * q;
+    residualWeighted += residual * q;
+    peakOrifice = Math.max(peakOrifice, orifice);
+    peakInertial = Math.max(peakInertial, inertial);
+    peakResidual = Math.max(peakResidual, residual);
+  }
+  const denom = Math.max(qWeight, 1e-9);
+  return {
+    AoVFlowWeightedTotalGradient: totalWeighted / denom,
+    AoVFlowWeightedOrificeGradient: orificeWeighted / denom,
+    AoVFlowWeightedResistiveGradient: resistiveWeighted / denom,
+    AoVFlowWeightedBernoulliGradient: bernoulliWeighted / denom,
+    AoVFlowWeightedInertialGradient: inertialWeighted / denom,
+    AoVFlowWeightedResidualGradient: residualWeighted / denom,
+    AoVPeakOrificeGradient: Number.isFinite(peakOrifice) ? peakOrifice : Number.NaN,
+    AoVPeakInertialGradient: Number.isFinite(peakInertial) ? peakInertial : Number.NaN,
+    AoVPeakResidualGradient: Number.isFinite(peakResidual) ? peakResidual : Number.NaN,
+  };
+}
+
+function qDerivative(samples: SimSample[], index: number, key: keyof SimSample): number {
+  const previous = samples[index - 1];
+  const current = samples[index];
+  const next = samples[index + 1];
+  if (previous && next && next.t > previous.t) {
+    return (Number(next[key]) - Number(previous[key])) / (next.t - previous.t);
+  }
+  if (previous && current.t > previous.t) {
+    return (Number(current[key]) - Number(previous[key])) / (current.t - previous.t);
+  }
+  if (next && next.t > current.t) {
+    return (Number(next[key]) - Number(current[key])) / (next.t - current.t);
+  }
+  return 0;
 }
 
 function qAoCapProximity(values: number[], aorticFlowClampMode: AorticFlowClampMode): Pick<WaveformGateMetrics,
@@ -1559,8 +1674,8 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("## Normal / HR100 waveform gates");
   lines.push("");
-  lines.push("| scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | AoV B | AoV Amax | case | dCO_L | dESV_L | dEF_L | dLVPmax | dQAoMax | candidate QAo/cap | candidate near cap >95% | candidate local cap active | AoV mean grad | AoV peak grad | QAo peak/mean | ejection ms | baseline QAo/cap | dMax dP/dt | dClamp hits | worst metric | worst frac |");
-  lines.push("| --- | --- | ---: | --- | --- | --- | ---: | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: |");
+  lines.push("| scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | AoV B | AoV Amax | case | dCO_L | dESV_L | dEF_L | dLVPmax | dQAoMax | candidate QAo/cap | candidate near cap >95% | candidate local cap active | AoV mean grad | AoV peak grad | orifice mean | Bq2 mean | inertial mean | residual mean | QAo peak/mean | ejection ms | baseline QAo/cap | dMax dP/dt | dClamp hits | worst metric | worst frac |");
+  lines.push("| --- | --- | ---: | --- | --- | --- | ---: | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: |");
   for (const scenario of report.scenarios) {
     for (const gate of scenario.waveformGates) {
       lines.push([
@@ -1585,6 +1700,10 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         round(gate.candidate.QAoLocalCapActiveFraction, 4),
         round(gate.candidate.AoVMeanGradient, 4),
         round(gate.candidate.AoVPeakGradient, 4),
+        round(gate.candidate.AoVFlowWeightedOrificeGradient, 4),
+        round(gate.candidate.AoVFlowWeightedBernoulliGradient, 4),
+        round(gate.candidate.AoVFlowWeightedInertialGradient, 4),
+        round(gate.candidate.AoVFlowWeightedResidualGradient, 4),
         round(gate.candidate.QAoPeakMeanRatio, 4),
         round(gate.candidate.ejectionDurationMs, 2),
         round(gate.baseline.QAoCapRatioMax, 4),
@@ -1596,10 +1715,41 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
     }
   }
   lines.push("");
+  lines.push("## AoV gradient decomposition");
+  lines.push("");
+  lines.push("These values split the normal/HR waveform AoV pressure loss into total transient gradient, quasi-steady orifice loss (`Rq + Bq|q|`), Bernoulli loss, inertial loss, and residual. Use the orifice columns for AS-like sanity; the total gradient also contains inertial/transient effects.");
+  lines.push("");
+  lines.push("| heart model | dt | TBV correction | AoV clamp | limiter | preset | AoV B | AoV Amax | case | total mean | orifice mean | Rq mean | Bq2 mean | inertial mean | residual mean | peak orifice | peak inertial | peak residual |");
+  lines.push("| --- | ---: | --- | --- | --- | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  for (const scenario of report.scenarios) {
+    for (const gate of scenario.waveformGates) {
+      lines.push([
+        scenario.heartModel,
+        round(scenario.dt, 5),
+        scenario.tbvCorrectionMode,
+        scenario.aorticFlowClampMode,
+        scenario.lowStretchLimiterMode,
+        scenario.activeReservePreset,
+        scenario.aovB,
+        scenario.aovAmax,
+        gate.label,
+        round(gate.candidate.AoVFlowWeightedTotalGradient, 4),
+        round(gate.candidate.AoVFlowWeightedOrificeGradient, 4),
+        round(gate.candidate.AoVFlowWeightedResistiveGradient, 4),
+        round(gate.candidate.AoVFlowWeightedBernoulliGradient, 4),
+        round(gate.candidate.AoVFlowWeightedInertialGradient, 4),
+        round(gate.candidate.AoVFlowWeightedResidualGradient, 4),
+        round(gate.candidate.AoVPeakOrificeGradient, 4),
+        round(gate.candidate.AoVPeakInertialGradient, 4),
+        round(gate.candidate.AoVPeakResidualGradient, 4),
+      ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
+    }
+  }
+  lines.push("");
   lines.push("## AoV_B / AS sanity");
   lines.push("");
-  lines.push("| heart model | dt | TBV correction | AoV clamp | AoV B | AoV Aref | AoV Amax | case | AoV mean grad | AoV peak grad | QAo peak/mean | ejection ms | QAo/cap | branch CO frac | branch ESV frac | waveform worst frac |");
-  lines.push("| --- | ---: | --- | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| heart model | dt | TBV correction | AoV clamp | AoV B | AoV Aref | AoV Amax | case | AoV mean grad | AoV peak grad | orifice mean | inertial mean | QAo peak/mean | ejection ms | QAo/cap | branch CO frac | branch ESV frac | waveform worst frac |");
+  lines.push("| --- | ---: | --- | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
   for (const scenario of report.scenarios) {
     for (const gate of scenario.waveformGates) {
       lines.push([
@@ -1613,6 +1763,8 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         gate.label,
         round(gate.candidate.AoVMeanGradient, 4),
         round(gate.candidate.AoVPeakGradient, 4),
+        round(gate.candidate.AoVFlowWeightedOrificeGradient, 4),
+        round(gate.candidate.AoVFlowWeightedInertialGradient, 4),
         round(gate.candidate.QAoPeakMeanRatio, 4),
         round(gate.candidate.ejectionDurationMs, 2),
         round(gate.candidate.QAoCapRatioMax, 4),
@@ -1719,6 +1871,15 @@ export function matrixReportToCsv(report: MatrixReport): string {
     "scenarioMaxQAoLocalCapActiveFraction",
     "normalAoVMeanGradient",
     "normalAoVPeakGradient",
+    "normalAoVFlowWeightedTotalGradient",
+    "normalAoVFlowWeightedOrificeGradient",
+    "normalAoVFlowWeightedResistiveGradient",
+    "normalAoVFlowWeightedBernoulliGradient",
+    "normalAoVFlowWeightedInertialGradient",
+    "normalAoVFlowWeightedResidualGradient",
+    "normalAoVPeakOrificeGradient",
+    "normalAoVPeakInertialGradient",
+    "normalAoVPeakResidualGradient",
     "normalQAoPeakMeanRatio",
     "normalEjectionDurationMs",
     "perDeltaBranchEnvelopeClass",
@@ -1835,6 +1996,15 @@ export function matrixReportToCsv(report: MatrixReport): string {
         scenario.returnMapSummary.maxQAoLocalCapActiveFraction,
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVMeanGradient ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVPeakGradient ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVFlowWeightedTotalGradient ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVFlowWeightedOrificeGradient ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVFlowWeightedResistiveGradient ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVFlowWeightedBernoulliGradient ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVFlowWeightedInertialGradient ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVFlowWeightedResidualGradient ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVPeakOrificeGradient ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVPeakInertialGradient ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVPeakResidualGradient ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.QAoPeakMeanRatio ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.ejectionDurationMs ?? "",
         perDelta?.branchEnvelopeClass ?? "",

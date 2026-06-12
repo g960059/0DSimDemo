@@ -475,3 +475,43 @@ Interpretation guardrails:
 - Treat `as-aov-amax` values as disease sanity checks. They should not be mixed into normal-valve calibration conclusions.
 - If increasing `AoV_B` removes branch amplitude while normal / HR100 gradients remain plausible, the next model discussion should include valve-loss calibration before further active-stress gain tuning.
 - If branch amplitude persists across plausible `AoV_B` values, the active-stress low-stretch gain hypothesis remains the stronger root-fix path.
+
+## AoV_B x activeReserveCap stabilization bundle check
+
+The follow-up axis combines normal-valve loss calibration probes with the current leading low-stretch active-reserve mitigator. This is still off-by-default and should be framed as a stabilization-bundle comparison, not a single-mechanism root fix. The question is whether a modest `AoV_B` increase can restore quasi-steady valve loss while `activeReserveCap` reduces low-volume over-ejection enough to avoid AS-like normal/HR waveform distortion.
+
+The matrix report now decomposes normal / HR100 / HR100-rearm AoV gradients into:
+
+- total transient `LVP - AoP`
+- quasi-steady orifice loss `Rq + Bq|q|`
+- resistive `Rq`
+- Bernoulli/orifice `Bq|q|`
+- inertial `L dq/dt`
+- residual
+
+Use the orifice/quasi-steady columns for AS-like sanity. The total gradient also includes inertial and transient pressure effects and should not be interpreted as pure valve-area obstruction.
+
+Suggested combo smoke:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/aov-active-bundle-smoke \
+  --deltas=0,-1250,-1300 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --aortic-flow-clamp=hard \
+  --aov-b=0.000001,0.000003,0.00001 \
+  --low-stretch-limiter=none,activeReserveCap \
+  --low-stretch-limiter-scope=lv \
+  --active-reserve-preset=directMild,directMedium \
+  --max-return-map-points=2 \
+  --trace-beats=4 \
+  --sample-hz=60
+```
+
+Readout:
+
+- A useful bundle should reduce CO/ESV/QAo branch fractions and QAo/cap proximity without increasing sanitize/TBV contamination, valve reverse volume, or normal/HR100 waveform deltas.
+- If the orifice gradient remains plausible but total gradient is high, inspect the inertial and residual columns before labeling the result AS-like.
+- If a combination passes branch and waveform gates, keep the label as `stabilization bundle` until broader validation and clean return-map slope coverage support stronger claims.
