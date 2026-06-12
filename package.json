@@ -8,6 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run --exclude __tests__/firestoreRules.emulator.test.ts",
+    "test:all": "CIRCLEHEART_HEAVY_TESTS=1 vitest run --exclude __tests__/firestoreRules.emulator.test.ts",
+    "test:heavy": "CIRCLEHEART_HEAVY_TESTS=1 vitest run --exclude __tests__/firestoreRules.emulator.test.ts engine/__tests__/guytonStarlingWorkerCore.test.ts engine/__tests__/starlingLowPreloadDebug.test.ts",
     "test:rules": "vitest run __tests__/firestoreRules.emulator.test.ts",
     "test:watch": "vitest",
     "verify:baseline": "vite-node tools/verifyBaseline.ts",

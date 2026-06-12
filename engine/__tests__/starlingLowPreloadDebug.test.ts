@@ -16,6 +16,11 @@ import {
   runLowPreloadMatrix,
 } from "@/tools/verifyStarlingLowPreloadMatrix";
 
+const runHeavyTests = process.env.CIRCLEHEART_HEAVY_TESTS === "1";
+const heavyIt = (name: string, fn: () => void | Promise<void>) => {
+  return runHeavyTests ? it(name, fn) : it.skip(name, fn);
+};
+
 describe("low-preload Starling debug diagnostics", () => {
   it("exposes finite active-stress diagnostic terms", () => {
     const core = new ModelCore(DEFAULT_PARAMS);
@@ -476,7 +481,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(selected.length).toBeLessThanOrEqual(2);
   });
 
-  it("builds a low-preload matrix report with branch pass and selected return maps", () => {
+  heavyIt("builds a low-preload matrix report with branch pass and selected return maps", () => {
     const opts = parseLowPreloadMatrixArgs([
       "--out=unused",
       "--deltas=0",
@@ -608,7 +613,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToCsv(report)).toContain("returnMapEvidenceLevel");
   });
 
-  it("supports branch-only matrix runs without selected return-map points", () => {
+  heavyIt("supports branch-only matrix runs without selected return-map points", () => {
     const opts = parseLowPreloadMatrixArgs([
       "--out=unused",
       "--deltas=0",
@@ -627,7 +632,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.scenarios[0].points.every((point) => point.returnMap.status === "skipped")).toBe(true);
   });
 
-  it("supports activeStress vs elastance heart-model matrix comparison", () => {
+  heavyIt("supports activeStress vs elastance heart-model matrix comparison", () => {
     const opts = parseLowPreloadMatrixArgs([
       "--out=unused",
       "--heart-model=activeStress,elastance",

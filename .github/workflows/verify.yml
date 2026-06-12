@@ -5,6 +5,10 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+  schedule:
+    # Nightly heavy verification at 03:17 JST.
+    - cron: "17 18 * * *"
 
 permissions:
   contents: read
@@ -36,9 +40,9 @@ jobs:
         run: npm run build
 
   test:
-    name: Test (${{ matrix.shard }})
+    name: Fast test (${{ matrix.shard }})
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -62,6 +66,28 @@ jobs:
 
       - name: Test
         run: npm run test -- --shard=${{ matrix.shard }}
+
+  heavy_tests:
+    name: Heavy verification tests
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run heavy tests
+        run: npm run test:heavy
 
   verify_baseline:
     name: Verify baseline
@@ -147,8 +173,10 @@ jobs:
             git diff --check "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}"
           elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
             git diff --check "${{ github.sha }}^" "${{ github.sha }}"
-          else
+          elif [ -n "${{ github.event.before }}" ]; then
             git diff --check "${{ github.event.before }}" "${{ github.sha }}"
+          else
+            git diff --check "${{ github.sha }}^" "${{ github.sha }}"
           fi
 
   verify:

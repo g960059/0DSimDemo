@@ -34,6 +34,11 @@ import type {
   GuytonChainWorkerRequest,
 } from "@/engine/guytonStarlingChainProtocol";
 
+const runHeavyTests = process.env.CIRCLEHEART_HEAVY_TESTS === "1";
+const heavyIt = (name: string, fn: () => void | Promise<void>) => {
+  return runHeavyTests ? it(name, fn) : it.skip(name, fn);
+};
+
 describe("Guyton / Starling worker helpers", () => {
   it("builds an exact volume-constrained base map for both sides", () => {
     const req = request();
@@ -87,7 +92,7 @@ describe("Guyton / Starling worker helpers", () => {
     }
   });
 
-  it("builds the default adaptive Starling sweep message with pressure-sorted exploration points", () => {
+  heavyIt("builds the default adaptive Starling sweep message with pressure-sorted exploration points", () => {
     const req = request();
     const response = buildStarlingSweepResponse(req);
 
@@ -127,7 +132,7 @@ describe("Guyton / Starling worker helpers", () => {
     expectSweepTiming(response);
   });
 
-  it("does not build a post-final audit for the default adaptive sweep", () => {
+  heavyIt("does not build a post-final audit for the default adaptive sweep", () => {
     const req = request();
     const baseline = buildWorkerBaseline(req);
     const response = buildStarlingSweepResponse(req, baseline);
@@ -137,7 +142,7 @@ describe("Guyton / Starling worker helpers", () => {
     expect(audit).toBeUndefined();
   });
 
-  it("does not build a full7 audit for custom sweeps or full7 fallback responses", () => {
+  heavyIt("does not build a full7 audit for custom sweeps or full7 fallback responses", () => {
     const req = request({ deltasMl: [-300, 0, 300] });
     const baseline = buildWorkerBaseline(req);
     const response = buildStarlingSweepResponse(req, baseline);
@@ -149,7 +154,7 @@ describe("Guyton / Starling worker helpers", () => {
     expect(buildStarlingSweepAuditMessage(request(), fallbackBaseline, fallback)).toBeUndefined();
   });
 
-  it("keeps adaptive Starling display even when committed Guyton residual diagnostics exceed threshold", () => {
+  heavyIt("keeps adaptive Starling display even when committed Guyton residual diagnostics exceed threshold", () => {
     const req = request();
     const baseline = buildWorkerBaseline(req);
     buildGuytonBaseMapResponse(req, baseline);
@@ -184,7 +189,7 @@ describe("Guyton / Starling worker helpers", () => {
     })).toEqual([-100, 0, 250]);
   });
 
-  it("keeps warm-start sweep close to the cold reference helper", () => {
+  heavyIt("keeps warm-start sweep close to the cold reference helper", () => {
     const req = request({ deltasMl: [-600, -300, 0, 300, 600] });
     const warm = buildStarlingSweepResponse(req);
     const cold = buildColdStarlingSweepResponse(req);
@@ -205,7 +210,7 @@ describe("Guyton / Starling worker helpers", () => {
     expectSweepTiming(warm);
   });
 
-  it("falls back to the cold retarget path when warm retarget reports failure", () => {
+  heavyIt("falls back to the cold retarget path when warm retarget reports failure", () => {
     const spy = vi.spyOn(ModelCore.prototype, "retargetTBVFromCurrentState").mockReturnValue({
       ok: false,
       targetTBVMl: 0,
@@ -344,7 +349,7 @@ describe("Guyton / Starling worker helpers", () => {
     ]);
   });
 
-  it("posts the base map before progressive adaptive sweep points", async () => {
+  heavyIt("posts the base map before progressive adaptive sweep points", async () => {
     const req = request();
     const events: string[] = [];
     const messages: StarlingSweepWorkerMessage[] = [];
