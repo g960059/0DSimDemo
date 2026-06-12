@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "@/i18n";
 import { ChartLegend, shouldEnableLegendInteractions } from "@/components/Charts";
-import { PanelGrid, getActiveSettingsSectionId, getDockviewPaneTitle, metricsViewsToDockviewPanels, openPanelSettingsIfClosed, type PanelGridMode, type WorkbenchLayoutState } from "@/components/workbench/PanelGrid";
+import { PanelGrid, getActiveSettingsSectionId, getDockviewPaneTitle, metricsBindingsToDockviewPanels, metricsViewsToDockviewPanels, openPanelSettingsIfClosed, syncMetricsDockviewPanelBindings, type PanelGridMode, type WorkbenchLayoutState } from "@/components/workbench/PanelGrid";
 import { ScenarioPane } from "@/components/workbench/ScenarioPane";
 import { getDockviewStructureSignature, getDockviewTabMenuPosition, isDockviewHorizontalOnlyDropAllowed, shouldReapplyDockviewLayout } from "@/components/workbench/WorkbenchDockview";
 import { standardAuthoredViews } from "@/features/workbench/authoredViews";
@@ -479,6 +479,9 @@ describe("PanelGrid Dockview layout", () => {
     expect(css).toContain(".workbench-dock-tab-close-button");
     expect(css).toContain(".workbench-dock-tab:hover .workbench-dock-tab-menu-button");
     expect(css).toContain(".workbench-dockview.wb-tab-dragging .workbench-dock-tab-actions");
+    expect(css).toContain(".dv-tabs-and-actions-container.wb-tab-insertion-target::before");
+    expect(css).toContain("width: 2px;");
+    expect(css).toContain("background: var(--wb-accent);");
     expect(css).toContain("@media (hover: none)");
     expect(css).toContain(".dv-tab.dv-active-tab .workbench-dock-tab-menu-button");
   });
@@ -790,8 +793,31 @@ describe("PanelGrid Dockview layout", () => {
     ];
 
     expect(metricsViewsToDockviewPanels(views)).toEqual([
-      expect.objectContaining({ id: "metrics-a", title: "Pressures", type: "METRICS", role: "output", zone: "bottomPanel" }),
-      expect.objectContaining({ id: "metrics-b", title: "Flow", type: "METRICS", role: "output", zone: "bottomPanel" }),
+      expect.objectContaining({ id: "metrics-a", sourceViewId: "metrics-a", title: "Pressures", type: "METRICS", role: "output", zone: "bottomPanel" }),
+      expect.objectContaining({ id: "metrics-b", sourceViewId: "metrics-b", title: "Flow", type: "METRICS", role: "output", zone: "bottomPanel" }),
+    ]);
+  });
+
+  it("keeps metrics mirror panel bindings separate from document views", () => {
+    const views: MetricsViewSpec[] = [
+      { id: "metrics-a", kind: "metrics", title: "Pressures renamed", metrics: ["ABP"], membership: {} },
+      { id: "metrics-b", kind: "metrics", title: "Flow", metrics: ["CO"], membership: {} },
+    ];
+    const bindings = syncMetricsDockviewPanelBindings([
+      { panelId: "metrics-a", viewId: "metrics-a" },
+      { panelId: "metrics-a#2", viewId: "metrics-a" },
+      { panelId: "metrics-deleted#2", viewId: "metrics-deleted" },
+    ], views);
+
+    expect(bindings).toEqual([
+      { panelId: "metrics-a", viewId: "metrics-a" },
+      { panelId: "metrics-a#2", viewId: "metrics-a" },
+      { panelId: "metrics-b", viewId: "metrics-b" },
+    ]);
+    expect(metricsBindingsToDockviewPanels(bindings, views)).toEqual([
+      expect.objectContaining({ id: "metrics-a", sourceViewId: "metrics-a", title: "Pressures renamed" }),
+      expect.objectContaining({ id: "metrics-a#2", sourceViewId: "metrics-a", title: "Pressures renamed" }),
+      expect.objectContaining({ id: "metrics-b", sourceViewId: "metrics-b", title: "Flow" }),
     ]);
   });
 

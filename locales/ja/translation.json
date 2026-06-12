@@ -307,6 +307,7 @@
       "rename": "名前を変更",
       "duplicate": "複製",
       "renamePrompt": "ビュー名を変更",
+      "deleteModalTitle": "ビューを削除",
       "deleteConfirm": "「{{title}}」を削除しますか?",
       "deleteReferencedConfirm": "「{{title}}」を削除しますか? {{noteCount}}件のノート参照と{{readingCount}}件のリーディング参照はプレースホルダーになります。"
     },

@@ -170,6 +170,7 @@ export interface WorkbenchWorkspace {
 
 export interface PanelDef {
     id: string;
+    sourceViewId?: string;
     type: PanelType;
     title: string;
     role?: PanelRole;

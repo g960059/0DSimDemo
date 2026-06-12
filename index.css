@@ -299,8 +299,21 @@ body[data-workbench-theme="light"] {
 .workbench-dockview .dv-tabs-and-actions-container {
   display: flex;
   align-items: stretch;
+  position: relative;
   height: 32px;
   box-shadow: inset 0 -1px 0 var(--wb-border);
+}
+
+.workbench-dockview .dv-tabs-and-actions-container.wb-tab-insertion-target::before {
+  content: "";
+  position: absolute;
+  left: var(--wb-tab-insertion-x, 0);
+  top: 0;
+  bottom: 0;
+  z-index: 20;
+  width: 2px;
+  background: var(--wb-accent);
+  pointer-events: none;
 }
 
 .workbench-dockview .dv-tab .workbench-dock-tab {

@@ -152,9 +152,46 @@ export function getDockviewPaneTitle(panel: PanelDef): string {
   return panel.title;
 }
 
-export function metricsViewToDockviewPanel(view: MetricsViewSpec): PanelDef {
+export interface MetricsDockviewPanelBinding {
+  panelId: string;
+  viewId: string;
+}
+
+function metricsPanelBindingSignature(bindings: readonly MetricsDockviewPanelBinding[]): string {
+  return bindings.map((binding) => `${binding.panelId}:${binding.viewId}`).join('|');
+}
+
+function nextMetricsMirrorPanelId(viewId: string, usedPanelIds: ReadonlySet<string>): string {
+  let index = 2;
+  while (usedPanelIds.has(`${viewId}#${index}`)) index += 1;
+  return `${viewId}#${index}`;
+}
+
+export function syncMetricsDockviewPanelBindings(
+  currentBindings: readonly MetricsDockviewPanelBinding[],
+  views: readonly MetricsViewSpec[],
+): MetricsDockviewPanelBinding[] {
+  const viewIds = new Set(views.map((view) => view.id));
+  const usedPanelIds = new Set<string>();
+  const next = currentBindings.filter((binding) => {
+    if (!viewIds.has(binding.viewId) || usedPanelIds.has(binding.panelId)) return false;
+    usedPanelIds.add(binding.panelId);
+    return true;
+  });
+  const representedViewIds = new Set(next.map((binding) => binding.viewId));
+  for (const view of views) {
+    if (representedViewIds.has(view.id)) continue;
+    const panelId = usedPanelIds.has(view.id) ? nextMetricsMirrorPanelId(view.id, usedPanelIds) : view.id;
+    usedPanelIds.add(panelId);
+    next.push({ panelId, viewId: view.id });
+  }
+  return next;
+}
+
+export function metricsViewToDockviewPanel(view: MetricsViewSpec, panelId = view.id): PanelDef {
   return {
-    id: view.id,
+    id: panelId,
+    sourceViewId: view.id,
     type: 'METRICS',
     title: view.title ?? 'Metrics view',
     role: 'output',
@@ -166,8 +203,21 @@ export function metricsViewToDockviewPanel(view: MetricsViewSpec): PanelDef {
   };
 }
 
+export function metricsBindingsToDockviewPanels(
+  bindings: readonly MetricsDockviewPanelBinding[],
+  views: readonly MetricsViewSpec[],
+): PanelDef[] {
+  const viewsById = new Map(views.map((view) => [view.id, view]));
+  return bindings
+    .map((binding) => {
+      const view = viewsById.get(binding.viewId);
+      return view ? metricsViewToDockviewPanel(view, binding.panelId) : undefined;
+    })
+    .filter((panel): panel is PanelDef => Boolean(panel));
+}
+
 export function metricsViewsToDockviewPanels(views: readonly MetricsViewSpec[]): PanelDef[] {
-  return views.map(metricsViewToDockviewPanel);
+  return metricsBindingsToDockviewPanels(syncMetricsDockviewPanelBindings([], views), views);
 }
 
 export function openPanelSettingsIfClosed(
@@ -1595,6 +1645,127 @@ function ViewSpecEditorModal({
   return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal;
 }
 
+type DeleteViewConfirmState = {
+  view: AuthoredViewSpec;
+  usage: ReturnType<typeof viewRefUsageForDeletion>;
+};
+
+function DeleteViewConfirmModal({
+  state,
+  onCancel,
+  onConfirm,
+}: {
+  state: DeleteViewConfirmState;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const { t } = useTranslation();
+  const titleId = `view-delete-title-${state.view.id}`;
+  const bodyId = `view-delete-body-${state.view.id}`;
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const hasRefs = hasViewRefUsage(state.usage);
+  const body = t(hasRefs ? 'workbench.viewManagement.deleteReferencedConfirm' : 'workbench.viewManagement.deleteConfirm', {
+    title: state.view.title ?? '',
+    noteCount: state.usage.notes.length,
+    readingCount: state.usage.reading ? 1 : 0,
+  });
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    window.setTimeout(() => cancelButtonRef.current?.focus({ preventScroll: true }), 0);
+    return () => {
+      if (previousFocusRef.current?.isConnected) previousFocusRef.current.focus({ preventScroll: true });
+    };
+  }, [state.view.id]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      onCancel();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onCancel]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
+  const trapFocus = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Tab') return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    )).filter((node) => !node.hasAttribute('disabled') && node.tabIndex !== -1);
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const activeElement = document.activeElement;
+    if (!focusable.includes(activeElement as HTMLElement)) {
+      event.preventDefault();
+      (event.shiftKey ? last : first).focus();
+    } else if (event.shiftKey && activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
+  const modal = (
+    <div
+      className="fixed inset-0 z-[97] flex items-center justify-center bg-black/65 p-4 text-wb-text backdrop-blur-sm"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onCancel();
+      }}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={bodyId}
+        tabIndex={-1}
+        onKeyDown={trapFocus}
+        className="w-full max-w-md rounded-lg border border-wb-line bg-wb-panel p-4 shadow-2xl"
+      >
+        <h2 id={titleId} className="text-sm font-bold text-wb-text">{t('workbench.viewManagement.deleteModalTitle')}</h2>
+        <p id={bodyId} className="mt-2 text-sm leading-6 text-wb-muted">{body}</p>
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            ref={cancelButtonRef}
+            type="button"
+            onClick={onCancel}
+            className="inline-flex h-8 items-center justify-center rounded px-3 text-xs font-bold text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent"
+          >
+            {t('common.cancel')}
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="inline-flex h-8 items-center justify-center rounded bg-wb-danger px-3 text-xs font-bold text-white transition-colors hover:brightness-110 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent"
+          >
+            {t('common.delete')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal;
+}
+
 interface PanelCardProps {
   panel: PanelDef;
   isEditor: boolean;
@@ -2073,13 +2244,24 @@ export function PanelGrid({
   const notePanel = useMemo(() => firstPanelOfType(presenterPanels, 'NOTE'), [presenterPanels]);
   const authoredControllerViews = useMemo(() => controllerViews(authoredViews), [authoredViews]);
   const authoredMetricViews = useMemo(() => metricsViews(authoredViews), [authoredViews]);
-  const metricsDockviewPanels = useMemo(() => metricsViewsToDockviewPanels(authoredMetricViews), [authoredMetricViews]);
   const metricsViewsById = useMemo(() => new Map(authoredMetricViews.map((view) => [view.id, view])), [authoredMetricViews]);
+  const [metricsPanelBindings, setMetricsPanelBindings] = useState<MetricsDockviewPanelBinding[]>([]);
+  const syncedMetricsPanelBindings = useMemo(
+    () => syncMetricsDockviewPanelBindings(metricsPanelBindings, authoredMetricViews),
+    [authoredMetricViews, metricsPanelBindings],
+  );
+  const syncedMetricsPanelBindingSignature = metricsPanelBindingSignature(syncedMetricsPanelBindings);
+  const metricsDockviewPanels = useMemo(
+    () => metricsBindingsToDockviewPanels(syncedMetricsPanelBindings, authoredMetricViews),
+    [authoredMetricViews, syncedMetricsPanelBindingSignature],
+  );
+  const metricsDockviewPanelsById = useMemo(() => new Map(metricsDockviewPanels.map((panel) => [panel.id, panel])), [metricsDockviewPanels]);
   const [metricsDockviewViewState, setMetricsDockviewViewState] = useState<DockviewViewState | undefined>(undefined);
   const [openControllerMenu, setOpenControllerMenu] = useState(false);
   const [renamingViewId, setRenamingViewId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const [viewEditor, setViewEditor] = useState<ViewEditorState | null>(null);
+  const [deleteViewConfirm, setDeleteViewConfirm] = useState<DeleteViewConfirmState | null>(null);
   const [scenarioAddMenuPosition, setScenarioAddMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const requestedControllerViewId = layoutState.selectedControllerViewId;
   const selectedControllerView = authoredControllerViews.find((view) => view.id === requestedControllerViewId) ?? authoredControllerViews[0];
@@ -2088,6 +2270,11 @@ export function PanelGrid({
     if (!requestedControllerViewId || authoredControllerViews.some((view) => view.id === requestedControllerViewId)) return;
     onLayoutStateChange((prev) => ({ ...prev, selectedControllerViewId: undefined }));
   }, [authoredControllerViews, onLayoutStateChange, requestedControllerViewId]);
+  useEffect(() => {
+    setMetricsPanelBindings((prev) => (
+      metricsPanelBindingSignature(prev) === syncedMetricsPanelBindingSignature ? prev : syncedMetricsPanelBindings
+    ));
+  }, [syncedMetricsPanelBindingSignature, syncedMetricsPanelBindings]);
   useEffect(() => {
     if (!renamingViewId || authoredViews.some((view) => view.id === renamingViewId)) return;
     setRenamingViewId(null);
@@ -2214,6 +2401,13 @@ export function PanelGrid({
       }}
     />
   ) : null;
+  const deleteViewConfirmModal = deleteViewConfirm ? (
+    <DeleteViewConfirmModal
+      state={deleteViewConfirm}
+      onCancel={() => setDeleteViewConfirm(null)}
+      onConfirm={confirmDeleteView}
+    />
+  ) : null;
 
   const rightRailWidth = clamp(layoutState.controlsWidth, 280, 460);
   const noteWidth = hasCaseRail ? clamp(layoutState.caseRailWidth, 280, 560) : 0;
@@ -2333,40 +2527,72 @@ export function PanelGrid({
     }
   };
 
-  const deleteView = (view: AuthoredViewSpec): boolean => {
+  const requestDeleteView = (view: AuthoredViewSpec): boolean => {
     const usage = viewRefUsageForDeletion(view.id, notes, reading);
-    const confirmKey = hasViewRefUsage(usage)
-      ? 'workbench.viewManagement.deleteReferencedConfirm'
-      : 'workbench.viewManagement.deleteConfirm';
-    if (!window.confirm(t(confirmKey, {
-      title: view.title ?? '',
-      noteCount: usage.notes.length,
-      readingCount: usage.reading ? 1 : 0,
-    }))) return false;
-    deleteAuthoredView(view.id);
-    if (view.kind === 'controller' && selectedControllerEntryId === view.id) {
-      onLayoutStateChange((prev) => ({ ...prev, selectedControllerViewId: undefined }));
-    }
-    return true;
+    setDeleteViewConfirm({ view, usage });
+    return false;
   };
 
+  function confirmDeleteView() {
+    if (!deleteViewConfirm) return;
+    const { view } = deleteViewConfirm;
+    deleteAuthoredView(view.id);
+    if (view.kind === 'metrics') {
+      setMetricsPanelBindings((prev) => prev.filter((binding) => binding.viewId !== view.id));
+    } else if (view.kind === 'controller' && selectedControllerEntryId === view.id) {
+      onLayoutStateChange((prev) => ({ ...prev, selectedControllerViewId: undefined }));
+    }
+    setDeleteViewConfirm(null);
+    setOpenControllerMenu(false);
+  }
+
+  const metricsSourceViewIdForPanelId = (panelId: string): string => metricsDockviewPanelsById.get(panelId)?.sourceViewId ?? panelId;
+
   const editMetricsPanel = (panelId: string) => {
-    const view = metricsViewsById.get(panelId);
+    const view = metricsViewsById.get(metricsSourceViewIdForPanelId(panelId));
     if (view) setViewEditor({ mode: 'edit', view });
   };
 
+  const renameMetricsPanel = (panelId: string, title: string) => {
+    renameAuthoredView(metricsSourceViewIdForPanelId(panelId), title);
+  };
+
   const duplicateMetricsPanel = (panelId: string): PanelDef | undefined => {
-    const copy = duplicateAuthoredView(panelId);
-    return copy?.kind === 'metrics' ? metricsViewToDockviewPanel(copy) : undefined;
+    const copy = duplicateAuthoredView(metricsSourceViewIdForPanelId(panelId));
+    if (copy?.kind !== 'metrics') return undefined;
+    setMetricsPanelBindings((prev) => [...prev, { panelId: copy.id, viewId: copy.id }]);
+    return metricsViewToDockviewPanel(copy);
+  };
+
+  const mirrorMetricsPanel = (panelId: string): PanelDef | undefined => {
+    const viewId = metricsSourceViewIdForPanelId(panelId);
+    const view = metricsViewsById.get(viewId);
+    if (!view) return undefined;
+    const usedPanelIds = new Set(metricsDockviewPanels.map((panel) => panel.id));
+    const mirrorPanelId = nextMetricsMirrorPanelId(viewId, usedPanelIds);
+    setMetricsPanelBindings((prev) => [...prev, { panelId: mirrorPanelId, viewId }]);
+    return metricsViewToDockviewPanel(view, mirrorPanelId);
   };
 
   const deleteMetricsPanel = (panelId: string): boolean => {
-    const view = metricsViewsById.get(panelId);
-    return view ? deleteView(view) : false;
+    const viewId = metricsSourceViewIdForPanelId(panelId);
+    const view = metricsViewsById.get(viewId);
+    if (!view) return false;
+    const panelsForView = metricsDockviewPanels.filter((panel) => panel.sourceViewId === viewId);
+    if (panelsForView.length > 1) {
+      setMetricsPanelBindings((prev) => prev.filter((binding) => binding.panelId !== panelId));
+      return true;
+    }
+    return requestDeleteView(view);
+  };
+
+  const getMetricsPanelCloseBehavior = (panelId: string): 'close' | 'delete' => {
+    const viewId = metricsSourceViewIdForPanelId(panelId);
+    return metricsDockviewPanels.filter((panel) => panel.sourceViewId === viewId).length > 1 ? 'close' : 'delete';
   };
 
   const renderMetricsDockviewPanel = (panel: PanelDef) => {
-    const view = metricsViewsById.get(panel.id);
+    const view = metricsViewsById.get(panel.sourceViewId ?? panel.id);
     if (!view) {
       return (
         <WorkbenchEmptyState
@@ -2415,6 +2641,7 @@ export function PanelGrid({
         />
         {paneSettingsModal}
         {viewEditorModal}
+        {deleteViewConfirmModal}
       </main>
     );
   }
@@ -2700,7 +2927,7 @@ export function PanelGrid({
 	                            <button type="button" onClick={() => duplicateView(view)} className={`inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`} aria-label={t('workbench.viewManagement.duplicate')}>
 	                              <Copy className="h-3.5 w-3.5" />
 	                            </button>
-	                            <button type="button" onClick={() => deleteView(view)} className={`inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-danger ${WB_FOCUS_RING}`} aria-label={t('common.delete')}>
+	                            <button type="button" onClick={() => requestDeleteView(view)} className={`inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-danger ${WB_FOCUS_RING}`} aria-label={t('common.delete')}>
 	                              <Trash2 className="h-3.5 w-3.5" />
 	                            </button>
 	                          </div>
@@ -2803,9 +3030,11 @@ export function PanelGrid({
                   return undefined;
                 }}
                 onEditPanel={editMetricsPanel}
-                onRenamePanel={renameAuthoredView}
+                onRenamePanel={renameMetricsPanel}
                 onDuplicatePanel={duplicateMetricsPanel}
+                onSplitPanel={mirrorMetricsPanel}
                 onRemovePanel={deleteMetricsPanel}
+                getPanelCloseBehavior={getMetricsPanelCloseBehavior}
                 getPanelTitle={getPanelTitle}
                 renderPanel={renderMetricsDockviewPanel}
                 renderEmptyState={renderMetricsEmptyState}
@@ -2817,6 +3046,7 @@ export function PanelGrid({
         </div>
         {paneSettingsModal}
         {viewEditorModal}
+        {deleteViewConfirmModal}
     </main>
   );
 }

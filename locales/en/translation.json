@@ -307,6 +307,7 @@
       "rename": "Rename",
       "duplicate": "Duplicate",
       "renamePrompt": "Rename view",
+      "deleteModalTitle": "Delete view",
       "deleteConfirm": "Delete \"{{title}}\"?",
       "deleteReferencedConfirm": "Delete \"{{title}}\"? {{noteCount}} note reference(s) and {{readingCount}} reading reference(s) will become placeholders."
     },

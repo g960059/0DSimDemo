@@ -39,6 +39,8 @@ type WorkbenchDockviewContextValue = {
   onToggleSettings?: (panelId: string) => void;
   onRenamePanel?: (panelId: string, title: string) => void;
   onDuplicatePanel?: (panelId: string) => PanelDef | undefined;
+  onSplitPanel?: (panelId: string) => PanelDef | undefined;
+  getPanelCloseBehavior?: (panelId: string) => 'close' | 'delete';
   zone: WorkbenchZoneId;
   getPanelTitle: (panel: PanelDef) => string;
   onAddPanel?: (type: PanelType, zone?: WorkbenchZoneId) => PanelDef | undefined;
@@ -68,6 +70,8 @@ interface WorkbenchDockviewProps {
   onAddPanel?: (type: PanelType, zone?: WorkbenchZoneId) => PanelDef | undefined;
   onCreatePanel?: (groupId?: string) => PanelDef | undefined;
   onDuplicatePanel?: (panelId: string) => PanelDef | undefined;
+  onSplitPanel?: (panelId: string) => PanelDef | undefined;
+  getPanelCloseBehavior?: (panelId: string) => 'close' | 'delete';
   getPanelTitle?: (panel: PanelDef) => string;
   renderEmptyState?: () => React.ReactNode;
   splitAxis?: 'both' | 'horizontal-only';
@@ -370,6 +374,7 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
   const canRename = context?.mode !== 'learner' && Boolean(panel) && Boolean(context?.onRenamePanel);
   const canDuplicate = context?.mode !== 'learner' && Boolean(panel) && isMetricsHost && Boolean(context?.onDuplicatePanel);
   const canClose = context?.mode !== 'learner' && Boolean(panel) && Boolean(context?.onRemovePanel);
+  const closeBehavior = panel && context ? (context.getPanelCloseBehavior?.(panel.id) ?? (isMetricsHost ? 'delete' : 'close')) : 'close';
   const canSplit = context?.mode !== 'learner' && context?.zone === 'main' && !isMetricsHost && Boolean(panel);
   const hasMenu = canEdit || canConfigure || canRename || canDuplicate || canClose || canSplit;
 
@@ -612,8 +617,8 @@ function WorkbenchDockTab(props: IDockviewPanelHeaderProps<DockPanelParams>) {
                       role="menuitem"
                       className="workbench-popover-menu-item-danger flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs font-medium"
                     >
-                      {isMetricsHost && <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />}
-                      <span>{isMetricsHost ? t('common.delete') : t('workbench.dockview.closePane')}</span>
+                      {isMetricsHost && closeBehavior === 'delete' && <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />}
+                      <span>{isMetricsHost && closeBehavior === 'delete' ? t('common.delete') : t('workbench.dockview.closePane')}</span>
                     </button>
                   )}
                 </div>
@@ -733,7 +738,7 @@ function WorkbenchDockHeaderRightActions(props: IDockviewHeaderActionsProps) {
   const activePanel = activePanelId ? context.panelsById.get(activePanelId) : undefined;
   const canSplit = Boolean(activePanel) && (
     (context.variant === 'graph' && context.zone === 'main') ||
-    (context.variant === 'metrics' && Boolean(context.onDuplicatePanel))
+    (context.variant === 'metrics' && Boolean(context.onSplitPanel))
   );
 
   return (
@@ -816,6 +821,8 @@ export function WorkbenchDockview({
   onAddPanel,
   onCreatePanel,
   onDuplicatePanel,
+  onSplitPanel,
+  getPanelCloseBehavior,
   getPanelTitle = defaultPanelTitle,
   renderEmptyState,
   splitAxis = 'both',
@@ -852,6 +859,8 @@ export function WorkbenchDockview({
       onToggleSettings,
       onRenamePanel,
       onDuplicatePanel,
+      onSplitPanel,
+      getPanelCloseBehavior,
       zone,
       getPanelTitle,
       onAddPanel,
@@ -925,7 +934,7 @@ export function WorkbenchDockview({
       requestSplitPanel: (panelId, groupId, direction) => {
         const api = apiRef.current;
         const referenceGroup = api?.getGroup(groupId);
-        const newPanel = onDuplicatePanel?.(panelId);
+        const newPanel = (onSplitPanel ?? onDuplicatePanel)?.(panelId);
         if (!api || !referenceGroup || !newPanel) return;
         pendingAddGroupIdRef.current = null;
         pendingDirectSplitRef.current = { panelId: newPanel.id, groupId, direction };
@@ -937,7 +946,7 @@ export function WorkbenchDockview({
         syncDockviewPanelMetadata(api, [...panelsRef.current, newPanel]);
       },
     }),
-    [getPanelTitle, mode, onAddPanel, onCreatePanel, onDuplicatePanel, onEditPanel, onRemovePanel, onRenamePanel, onToggleSettings, panelsById, renderPanel, variant, zone],
+    [getPanelCloseBehavior, getPanelTitle, mode, onAddPanel, onCreatePanel, onDuplicatePanel, onEditPanel, onRemovePanel, onRenamePanel, onSplitPanel, onToggleSettings, panelsById, renderPanel, variant, zone],
   );
   const components = useMemo(() => ({ 'workbench-panel': WorkbenchDockPanel }), []);
   useEffect(() => {
@@ -960,14 +969,65 @@ export function WorkbenchDockview({
   useEffect(() => {
     const root = dockviewRootRef.current;
     if (!root || typeof window === 'undefined') return;
+    const clearInsertionIndicators = () => {
+      root.querySelectorAll<HTMLElement>('.wb-tab-insertion-target').forEach((node) => {
+        node.classList.remove('wb-tab-insertion-target');
+        node.style.removeProperty('--wb-tab-insertion-x');
+      });
+    };
     const startDragging = () => root.classList.add('wb-tab-dragging');
-    const stopDragging = () => root.classList.remove('wb-tab-dragging');
+    const stopDragging = () => {
+      root.classList.remove('wb-tab-dragging');
+      clearInsertionIndicators();
+    };
+    const updateInsertionIndicator = (event: DragEvent) => {
+      if (!root.classList.contains('wb-tab-dragging')) return;
+      const target = event.target instanceof Element ? event.target : null;
+      const header = target?.closest('.dv-tabs-and-actions-container') as HTMLElement | null;
+      if (!header || !root.contains(header)) {
+        clearInsertionIndicators();
+        return;
+      }
+      const tabsContainer = header.querySelector<HTMLElement>('.dv-tabs-container');
+      if (!tabsContainer) {
+        clearInsertionIndicators();
+        return;
+      }
+      const headerRect = header.getBoundingClientRect();
+      const tabs = Array.from(tabsContainer.querySelectorAll<HTMLElement>('.dv-tab:not(.dv-tab--dragging)'))
+        .filter((tab) => tab.offsetParent !== null);
+      let insertionClientX = tabs.length > 0 ? tabs[0].getBoundingClientRect().left : tabsContainer.getBoundingClientRect().left;
+      for (const tab of tabs) {
+        const rect = tab.getBoundingClientRect();
+        if (event.clientX < rect.left + rect.width / 2) {
+          insertionClientX = rect.left;
+          break;
+        }
+        insertionClientX = rect.right;
+      }
+      const insertionX = Math.max(0, Math.min(insertionClientX - headerRect.left, Math.max(0, headerRect.width - 2)));
+      root.querySelectorAll<HTMLElement>('.wb-tab-insertion-target').forEach((node) => {
+        if (node === header) return;
+        node.classList.remove('wb-tab-insertion-target');
+        node.style.removeProperty('--wb-tab-insertion-x');
+      });
+      header.classList.add('wb-tab-insertion-target');
+      header.style.setProperty('--wb-tab-insertion-x', `${insertionX}px`);
+    };
+    const leaveRoot = (event: DragEvent) => {
+      const relatedTarget = event.relatedTarget instanceof Node ? event.relatedTarget : null;
+      if (!relatedTarget || !root.contains(relatedTarget)) clearInsertionIndicators();
+    };
     root.addEventListener('dragstart', startDragging, true);
+    root.addEventListener('dragover', updateInsertionIndicator, true);
+    root.addEventListener('dragleave', leaveRoot, true);
     root.addEventListener('dragend', stopDragging, true);
     window.addEventListener('dragend', stopDragging, true);
     window.addEventListener('drop', stopDragging, true);
     return () => {
       root.removeEventListener('dragstart', startDragging, true);
+      root.removeEventListener('dragover', updateInsertionIndicator, true);
+      root.removeEventListener('dragleave', leaveRoot, true);
       root.removeEventListener('dragend', stopDragging, true);
       window.removeEventListener('dragend', stopDragging, true);
       window.removeEventListener('drop', stopDragging, true);
