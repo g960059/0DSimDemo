@@ -352,7 +352,7 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).toContain("pointer-events-auto");
     expect(html).toContain("cursor-grab");
     expect(html).toContain("hover:ring-1");
-    expect(html).toContain("hover:ring-sky-400/40");
+    expect(html).toContain("hover:ring-wb-accent");
     expect(html).toContain("title=\"Drag to move · double-click to edit\"");
     expect(html).not.toContain("<button");
     expect(html).not.toContain("aria-label=\"Open pane settings\"");
