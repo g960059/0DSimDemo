@@ -1,4 +1,5 @@
 import type { MetricType, PanelDef, PanelInstanceConfig, PanelType, SimInstance, WorkbenchWorkspace } from "@/types";
+import { effectiveVisibility, type ViewMembership } from "@/features/workbench/viewSpec";
 
 const GRAPH_PANEL_TYPES = new Set<PanelType>(["PVLOOP", "WAVEFORM", "GUYTON_RIGHT", "GUYTON_LEFT", "GUYTON_3D"]);
 
@@ -64,13 +65,22 @@ export function effectiveGlobalConfig(
   config: Record<string, PanelInstanceConfig>,
   instances: readonly SimInstance[],
 ): Record<string, PanelInstanceConfig> {
-  const visibleById = new Map(instances.map((instance) => [instance.id, instance.isVisible !== false]));
+  const membership: ViewMembership = Object.fromEntries(
+    Object.entries(config)
+      .filter(([, instanceConfig]) => instanceConfig.visible)
+      .map(([instanceId, instanceConfig]) => [instanceId, instanceConfig.selectedSignals]),
+  );
+  const globallyVisibleIds = instances
+    .filter((instance) => instance.isVisible !== false)
+    .map((instance) => instance.id);
+  const visibleMembership = effectiveVisibility(membership, globallyVisibleIds);
+
   return Object.fromEntries(
     Object.entries(config).map(([instanceId, instanceConfig]) => [
       instanceId,
       {
         ...instanceConfig,
-        visible: instanceConfig.visible && visibleById.get(instanceId) === true,
+        visible: Boolean(visibleMembership[instanceId]),
       },
     ]),
   );

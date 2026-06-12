@@ -4,11 +4,66 @@ import {
   deriveGraphBoardLayoutFromDockviewState,
   graphBoardLayoutToDockviewInstructions,
 } from "@/features/workbench/graphBoardLayout";
-import type { GraphBoardLayout } from "@/features/workbench/viewSpec";
+import { normalizeGraphBoardLayout, type GraphBoardLayout } from "@/features/workbench/viewSpec";
+import { deriveGraphBoardLayoutChange } from "@/components/workbench/WorkbenchDockview";
 import type { PanelDef } from "@/types";
 
 function panel(id: string): Pick<PanelDef, "id"> {
   return { id };
+}
+
+function roundedLayout(layout: GraphBoardLayout | undefined): GraphBoardLayout | undefined {
+  if (!layout || layout.type === "leaf") return layout;
+  return {
+    ...layout,
+    sizes: layout.sizes.map((size) => Number(size.toFixed(12))),
+    children: layout.children.map((child) => roundedLayout(child)!),
+  };
+}
+
+type SimNode = {
+  type: "leaf" | "branch";
+  size?: number;
+  data?: { views: string[]; activeView: string } | SimNode[];
+};
+
+function simulateInstructionApplication(layout: GraphBoardLayout, panels: Pick<PanelDef, "id">[]) {
+  const instructions = graphBoardLayoutToDockviewInstructions(layout, panels);
+  let root: SimNode | undefined;
+
+  function splitLeaf(node: SimNode, referencePanelId: string, nextPanelId: string, sizeRatio: number): SimNode {
+    if (node.type === "leaf" && (node.data as { activeView?: string }).activeView === referencePanelId) {
+      return {
+        type: "branch",
+        size: node.size,
+        data: [
+          { ...node, size: 1 - sizeRatio },
+          { type: "leaf", size: sizeRatio, data: { views: [nextPanelId], activeView: nextPanelId } },
+        ],
+      };
+    }
+    if (node.type !== "branch" || !Array.isArray(node.data)) return node;
+    return { ...node, data: node.data.map((child) => splitLeaf(child, referencePanelId, nextPanelId, sizeRatio)) };
+  }
+
+  for (const instruction of instructions) {
+    if (!root || instruction.placement === "first") {
+      root = { type: "leaf", size: 1, data: { views: [instruction.panelId], activeView: instruction.panelId } };
+      continue;
+    }
+    if (instruction.placement === "within") continue;
+    root = splitLeaf(root, instruction.referencePanelId!, instruction.panelId, instruction.sizeRatio ?? 0.5);
+  }
+
+  return {
+    grid: {
+      orientation: instructions.find((instruction) => instruction.placement === "split")?.direction === "below"
+        ? "VERTICAL"
+        : "HORIZONTAL",
+      root,
+    },
+    panels: {},
+  };
 }
 
 describe("GraphBoardLayout Dockview wiring helpers", () => {
@@ -74,6 +129,23 @@ describe("GraphBoardLayout Dockview wiring helpers", () => {
     expect(deriveGraphBoardLayoutFromDockviewState(state, ["pv", "wave"])).toEqual({ type: "leaf", graphViewId: "wave" });
   });
 
+  it("does not produce a canonical layout change when Dockview re-derivation is temporarily invalid", () => {
+    const viewState = {
+      library: "dockview" as const,
+      schemaVersion: 1 as const,
+      zone: "main" as const,
+      state: {
+        grid: {
+          orientation: "HORIZONTAL",
+          root: { type: "leaf", size: 500, data: { id: "group-a", views: ["missing"], activeView: "missing" } },
+        },
+        panels: {},
+      },
+    };
+
+    expect(deriveGraphBoardLayoutChange(viewState, ["pv"])).toBeUndefined();
+  });
+
   it("normalizes multi-child splits into pairwise Dockview add-panel instructions", () => {
     const layout: GraphBoardLayout = {
       type: "split",
@@ -108,6 +180,50 @@ describe("GraphBoardLayout Dockview wiring helpers", () => {
       { panelId: "a", placement: "first" },
       { panelId: "b", placement: "within", referencePanelId: "a" },
     ]);
+  });
+
+  it("keeps representative rebuild and re-derive trees at a normalized fixpoint", () => {
+    const layout: GraphBoardLayout = {
+      type: "split",
+      direction: "row",
+      children: [
+        { type: "leaf", graphViewId: "a" },
+        {
+          type: "split",
+          direction: "column",
+          children: [
+            { type: "leaf", graphViewId: "b" },
+            { type: "leaf", graphViewId: "c" },
+          ],
+          sizes: [1, 2],
+        },
+      ],
+      sizes: [3, 7],
+    };
+    const panels = [panel("a"), panel("b"), panel("c")];
+    const normalized = normalizeGraphBoardLayout(layout, { graphViewIds: panels.map((p) => p.id) }).layout;
+    const rebuiltState = simulateInstructionApplication(layout, panels);
+    const derived = deriveGraphBoardLayoutFromDockviewState(rebuiltState, panels.map((p) => p.id));
+
+    expect(roundedLayout(derived)).toEqual(roundedLayout(normalized));
+    expect(normalizeGraphBoardLayout(derived, { graphViewIds: panels.map((p) => p.id) }).layout).toEqual(derived);
+    expect(graphBoardLayoutToDockviewInstructions(normalized, panels)).toEqual(graphBoardLayoutToDockviewInstructions(normalized, panels));
+  });
+
+  it("emits deterministic Dockview instructions from a normalized graph board layout", () => {
+    const layout: GraphBoardLayout = {
+      type: "split",
+      direction: "column",
+      children: [
+        { type: "leaf", graphViewId: "a" },
+        { type: "leaf", graphViewId: "b" },
+      ],
+      sizes: [4, 6],
+    };
+    const panels = [panel("a"), panel("b")];
+    const normalized = normalizeGraphBoardLayout(layout, { graphViewIds: panels.map((p) => p.id) }).layout;
+
+    expect(graphBoardLayoutToDockviewInstructions(normalized, panels)).toEqual(graphBoardLayoutToDockviewInstructions(normalized, panels));
   });
 
   it("generates Arrange command trees from current graph panes without creating panes", () => {

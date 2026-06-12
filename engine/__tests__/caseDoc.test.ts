@@ -77,7 +77,7 @@ describe("CaseDocument bridge round-trip (#3-b)", () => {
     expect(round.panels).toEqual(panels);
   });
 
-  it("preserves reading, exposed controllers, and ViewSpec fields through save rebuilds", () => {
+  it("preserves live P0 fields through save rebuilds while leaving dormant views out", () => {
     const migrated = migratePanelsToViewSpecs(panels);
     const reading = {
       schemaVersion: 1 as const,
@@ -111,14 +111,13 @@ describe("CaseDocument bridge round-trip (#3-b)", () => {
       workspace: parsed.workspace,
       reading: parsed.reading,
       exposedControllers: parsed.exposedControllers,
-      views: parsed.views,
       graphBoardLayout: parsed.graphBoardLayout,
       initialActiveScenarioId: parsed.initialActiveScenarioId,
     });
 
     expect(rebuilt.reading).toEqual(reading);
     expect(rebuilt.exposedControllers).toEqual(exposedControllers);
-    expect(rebuilt.views).toEqual(migrated.views);
+    expect(rebuilt.views).toBeUndefined();
     expect(rebuilt.graphBoardLayout).toEqual(migrated.graphBoardLayout);
     expect(rebuilt.initialActiveScenarioId).toBe("1");
   });

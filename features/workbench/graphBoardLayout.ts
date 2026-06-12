@@ -185,6 +185,8 @@ export function graphBoardLayoutToDockviewInstructions(
   return instructions;
 }
 
+// UI-unwired by design in P1c. Keep this pure helper for future MCP/LLM layout
+// commands and regression coverage without exposing an Arrange menu.
 export function arrangeGraphBoardLayout(
   panels: readonly Pick<PanelDef, "id">[],
   arrangement: "2x2" | "sideBySide" | "stacked",

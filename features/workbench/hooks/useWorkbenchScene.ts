@@ -3,7 +3,7 @@ import { DEFAULT_PARAMS } from "@/constants";
 import type { CaseDocument, CaseI18nContent, CaseSource } from "@/caseDoc";
 import type { GraphBoardLayout, ViewSpec } from "@/features/workbench/viewSpec";
 import { OFFICIAL_BASELINES } from "@/engine/caseBaselines";
-import { type ClinicalKnobs } from "@/engine/knobs";
+import { applyKnobs, KNOB_MAPPING_VERSION, neutralKnobs, type ClinicalKnobs } from "@/engine/knobs";
 import { resolveKnobEdit, resolveRawEdit } from "@/engine/instanceKnobs";
 import type { SimulationParams, SimInstance } from "@/types";
 import type { WorkbenchHeaderMode, WorkbenchSceneMeta } from "@/components/workbench/WorkbenchSidePanel";
@@ -150,12 +150,31 @@ export function useWorkbenchScene({
     )));
   }, [markUserEdited]);
 
-  const toggleInstanceVisibility = useCallback((id: string) => {
+  const toggleScenarioGlobalVisibility = useCallback((id: string) => {
     markUserEdited();
     setInstances((prev) => prev.map((instance) => (
       instance.id === id ? { ...instance, isVisible: instance.isVisible === false } : instance
     )));
   }, [markUserEdited]);
+
+  const resetInstanceKnobs = useCallback((id: string) => {
+    markUserEdited();
+    setInstances((prev) => {
+      let changed = false;
+      const next = prev.map((instance) => {
+        if (instance.id !== id || !instance.knobBaseline) return instance;
+        changed = true;
+        const knobs = neutralKnobs(instance.knobBaseline);
+        return {
+          ...instance,
+          knobs,
+          params: applyKnobs(instance.knobBaseline, knobs, KNOB_MAPPING_VERSION),
+        };
+      });
+      if (changed) requestSteadyTransitionRef.current(id, next);
+      return next;
+    });
+  }, [markUserEdited, requestSteadyTransitionRef]);
 
   const updateGraphBoardLayout = useCallback((layout: GraphBoardLayout | undefined) => {
     setCurrentCaseGraphBoardLayout(layout);
@@ -305,7 +324,8 @@ export function useWorkbenchScene({
     updateInstanceVolume,
     updateInstanceColor,
     updateInstanceName,
-    toggleInstanceVisibility,
+    toggleScenarioGlobalVisibility,
+    resetInstanceKnobs,
     addInstance,
     removeInstance,
     replaceSceneFromDoc,

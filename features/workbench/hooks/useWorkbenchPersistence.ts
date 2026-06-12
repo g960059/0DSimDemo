@@ -121,7 +121,9 @@ export function useWorkbenchPersistence({
       notes: overrides.includeNotes === false ? undefined : panels.notes,
       reading: scene.currentCaseReading,
       exposedControllers: scene.currentCaseExposedControllers,
-      views: scene.currentCaseViews,
+      // ViewSpec loading stays tolerant, but authored-reading consumers are not
+      // live yet. Avoid re-saving the dormant blob because it is not derived
+      // from current PanelDef state and would become stale as panes change.
       graphBoardLayout: normalizedGraphBoardLayout,
       initialActiveScenarioId: scene.currentCaseInitialActiveScenarioId,
       defaultLocale: scene.currentCaseDefaultLocale ?? locale,
@@ -142,7 +144,6 @@ export function useWorkbenchPersistence({
     scene.currentCaseI18n,
     scene.currentCaseReading,
     scene.currentCaseExposedControllers,
-    scene.currentCaseViews,
     scene.currentCaseGraphBoardLayout,
     scene.currentCaseInitialActiveScenarioId,
     scene.currentCaseOwnerId,
