@@ -682,7 +682,7 @@ describe("low-preload Starling debug diagnostics", () => {
     ]);
     const report = runLowPreloadMatrix(opts);
 
-    expect(report.schemaVersion).toBe(18);
+    expect(report.schemaVersion).toBe(19);
     expect(report.heartModels).toEqual(["activeStress"]);
     expect(report.aorticFlowClampModes).toEqual(["hard"]);
     expect(report.aovBValues).toEqual([DEFAULT_PARAMS.AoV_B]);
@@ -721,11 +721,14 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.summary.maxAoVFlowWeightedInertialGradient).toEqual(expect.any(Number));
     expect(report.summary.maxAoVFlowWeightedAreaLossExtraGradient).toEqual(expect.any(Number));
     expect(report.summary.maxAoVFlowWeightedClosureResidual).toEqual(expect.any(Number));
+    expect(report.summary.maxAoVFlowWeightedSolverClosureResidual).toEqual(expect.any(Number));
     expect(report.summary.maxAoVClosureResidualSV5To95Mean).toEqual(expect.any(Number));
     expect(report.summary.maxAoVFlowWeightedClosureResidualSV5To95).toEqual(expect.any(Number));
+    expect(report.summary.maxAoVFlowWeightedQDotClampImpulseGradient).toEqual(expect.any(Number));
     expect(report.summary.maxQAoMeanPositive).toEqual(expect.any(Number));
     expect(report.summary.minQAoTimeToPeakMs).toEqual(expect.any(Number));
     expect(report.summary.maxDQAoDt).toEqual(expect.any(Number));
+    expect(report.summary.maxAoVQDotClampHitFractionCleanCandidate).toEqual(expect.any(Number));
     expect(report.summary.minEjectionPositiveDurationMs).toEqual(expect.any(Number));
     expect(report.summary.minEjectionFivePercentPeakDurationMs).toEqual(expect.any(Number));
     expect(report.summary.minEjectionSV5To95DurationMs).toEqual(expect.any(Number));

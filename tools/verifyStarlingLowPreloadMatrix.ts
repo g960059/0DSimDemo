@@ -102,11 +102,20 @@ type WaveformGateMetrics = {
   AoVClosureResidualAtQAoMax: number;
   AoVClosureResidualSV5To95Mean: number;
   AoVFlowWeightedClosureResidualSV5To95: number;
+  AoVSolverClosureResidualMean: number;
+  AoVFlowWeightedSolverClosureResidual: number;
   AoVDiscreteClosureResidualMean: number;
   AoVFlowWeightedDiscreteClosureResidual: number;
   AoVCleanClosureResidualMean: number;
   AoVFlowWeightedCleanClosureResidual: number;
+  AoVCleanCandidateSampleCount: number;
   AoVCleanClosureSampleCount: number;
+  AoVDiodeImpulseGradientMean: number;
+  AoVFlowWeightedDiodeImpulseGradient: number;
+  AoVFlowClampImpulseGradientMean: number;
+  AoVFlowWeightedFlowClampImpulseGradient: number;
+  AoVQDotClampImpulseGradientMean: number;
+  AoVFlowWeightedQDotClampImpulseGradient: number;
   AoVQDotRawMaxAbs: number;
   AoVQDotPostMaxAbs: number;
   AoVQDotClampImpulseMaxAbs: number;
@@ -114,6 +123,8 @@ type WaveformGateMetrics = {
   AoVQDotClampHitFractionPositive: number;
   AoVQDotClampHitFractionSV5To95: number;
   AoVQDotClampHitFractionFivePercentPeak: number;
+  AoVQDotClampHitFractionNearFullOpen: number;
+  AoVQDotClampHitFractionCleanCandidate: number;
   QAoPeakMeanRatio: number;
   QAoMeanPositive: number;
   QAoTimeToPeakMs: number;
@@ -323,7 +334,7 @@ type ShapeSummary = {
 };
 
 type MatrixReport = {
-  schemaVersion: 18;
+  schemaVersion: 19;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -373,12 +384,15 @@ type MatrixReport = {
     maxAoVFlowWeightedAreaLossExtraGradient: number;
     maxAoVFlowWeightedResidualGradient: number;
     maxAoVFlowWeightedClosureResidual: number;
+    maxAoVFlowWeightedSolverClosureResidual: number;
     maxAoVClosureResidualSV5To95Mean: number;
     maxAoVFlowWeightedClosureResidualSV5To95: number;
     maxAoVFlowWeightedCleanClosureResidual: number;
+    maxAoVFlowWeightedQDotClampImpulseGradient: number;
     maxAoVQDotRawMaxAbs: number;
     maxAoVQDotClampHitFraction: number;
     maxAoVQDotClampHitFractionSV5To95: number;
+    maxAoVQDotClampHitFractionCleanCandidate: number;
     maxQAoPeakMeanRatio: number;
     maxQAoMeanPositive: number;
     minQAoTimeToPeakMs: number;
@@ -648,7 +662,7 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
       { fraction: 0, metric: null },
     );
   return {
-    schemaVersion: 18,
+    schemaVersion: 19,
     generatedAt: new Date().toISOString(),
     measurementMode: "branch-only broad low-preload matrix followed by selected EDV-section return-map diagnostics with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap comparator axes, off-by-default AoV_B/AoV_Amax/AoV_L/AoV_tau/systemicResistance/arterialStiffness ejection-dynamics comparator axes, off-by-default tension-rise and AoV qDot-clamp comparator axes, and fIsoSlopeRelax low-stretch active-force comparator; AoV gradient is decomposed into full-open orifice, area-loss extra, inertial, residual, direct ODE closure residual, solver qDot clamp audit, and clean-window closure residual terms; ejection duration is reported as QAo>0, QAo>5% peak, SV 5-95%, and historical high-flow windows; optional TBV correction on/off/low contamination axis; activeStress/elastance heart-model comparison axis",
     targetVolumeMl: opts.targetVolumeMl,
@@ -698,12 +712,15 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
         maxAoVFlowWeightedAreaLossExtraGradient: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.AoVFlowWeightedAreaLossExtraGradient)))),
         maxAoVFlowWeightedResidualGradient: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.AoVFlowWeightedResidualGradient)))),
         maxAoVFlowWeightedClosureResidual: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => Math.abs(finiteOrZero(gate.candidate.AoVFlowWeightedClosureResidual))))),
+        maxAoVFlowWeightedSolverClosureResidual: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => Math.abs(finiteOrZero(gate.candidate.AoVFlowWeightedSolverClosureResidual))))),
         maxAoVClosureResidualSV5To95Mean: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => Math.abs(finiteOrZero(gate.candidate.AoVClosureResidualSV5To95Mean))))),
         maxAoVFlowWeightedClosureResidualSV5To95: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => Math.abs(finiteOrZero(gate.candidate.AoVFlowWeightedClosureResidualSV5To95))))),
         maxAoVFlowWeightedCleanClosureResidual: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => Math.abs(finiteOrZero(gate.candidate.AoVFlowWeightedCleanClosureResidual))))),
+        maxAoVFlowWeightedQDotClampImpulseGradient: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => Math.abs(finiteOrZero(gate.candidate.AoVFlowWeightedQDotClampImpulseGradient))))),
         maxAoVQDotRawMaxAbs: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.AoVQDotRawMaxAbs)))),
         maxAoVQDotClampHitFraction: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.AoVQDotClampHitFraction)))),
         maxAoVQDotClampHitFractionSV5To95: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.AoVQDotClampHitFractionSV5To95)))),
+        maxAoVQDotClampHitFractionCleanCandidate: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.AoVQDotClampHitFractionCleanCandidate)))),
         maxQAoPeakMeanRatio: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.QAoPeakMeanRatio)))),
         maxQAoMeanPositive: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.QAoMeanPositive)))),
         minQAoTimeToPeakMs: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.QAoTimeToPeakMs))),
@@ -1626,11 +1643,20 @@ function aovClosureAudit(samples: SimSample[], params: CoreRuntimeParams): Pick<
   | "AoVClosureResidualAtQAoMax"
   | "AoVClosureResidualSV5To95Mean"
   | "AoVFlowWeightedClosureResidualSV5To95"
+  | "AoVSolverClosureResidualMean"
+  | "AoVFlowWeightedSolverClosureResidual"
   | "AoVDiscreteClosureResidualMean"
   | "AoVFlowWeightedDiscreteClosureResidual"
   | "AoVCleanClosureResidualMean"
   | "AoVFlowWeightedCleanClosureResidual"
+  | "AoVCleanCandidateSampleCount"
   | "AoVCleanClosureSampleCount"
+  | "AoVDiodeImpulseGradientMean"
+  | "AoVFlowWeightedDiodeImpulseGradient"
+  | "AoVFlowClampImpulseGradientMean"
+  | "AoVFlowWeightedFlowClampImpulseGradient"
+  | "AoVQDotClampImpulseGradientMean"
+  | "AoVFlowWeightedQDotClampImpulseGradient"
   | "AoVQDotRawMaxAbs"
   | "AoVQDotPostMaxAbs"
   | "AoVQDotClampImpulseMaxAbs"
@@ -1638,6 +1664,8 @@ function aovClosureAudit(samples: SimSample[], params: CoreRuntimeParams): Pick<
   | "AoVQDotClampHitFractionPositive"
   | "AoVQDotClampHitFractionSV5To95"
   | "AoVQDotClampHitFractionFivePercentPeak"
+  | "AoVQDotClampHitFractionNearFullOpen"
+  | "AoVQDotClampHitFractionCleanCandidate"
 > {
   const positive = samples
     .map((sample, index) => ({ sample, index }))
@@ -1649,11 +1677,20 @@ function aovClosureAudit(samples: SimSample[], params: CoreRuntimeParams): Pick<
       AoVClosureResidualAtQAoMax: Number.NaN,
       AoVClosureResidualSV5To95Mean: Number.NaN,
       AoVFlowWeightedClosureResidualSV5To95: Number.NaN,
+      AoVSolverClosureResidualMean: Number.NaN,
+      AoVFlowWeightedSolverClosureResidual: Number.NaN,
       AoVDiscreteClosureResidualMean: Number.NaN,
       AoVFlowWeightedDiscreteClosureResidual: Number.NaN,
       AoVCleanClosureResidualMean: Number.NaN,
       AoVFlowWeightedCleanClosureResidual: Number.NaN,
+      AoVCleanCandidateSampleCount: 0,
       AoVCleanClosureSampleCount: 0,
+      AoVDiodeImpulseGradientMean: Number.NaN,
+      AoVFlowWeightedDiodeImpulseGradient: Number.NaN,
+      AoVFlowClampImpulseGradientMean: Number.NaN,
+      AoVFlowWeightedFlowClampImpulseGradient: Number.NaN,
+      AoVQDotClampImpulseGradientMean: Number.NaN,
+      AoVFlowWeightedQDotClampImpulseGradient: Number.NaN,
       AoVQDotRawMaxAbs: Number.NaN,
       AoVQDotPostMaxAbs: Number.NaN,
       AoVQDotClampImpulseMaxAbs: Number.NaN,
@@ -1661,16 +1698,13 @@ function aovClosureAudit(samples: SimSample[], params: CoreRuntimeParams): Pick<
       AoVQDotClampHitFractionPositive: Number.NaN,
       AoVQDotClampHitFractionSV5To95: Number.NaN,
       AoVQDotClampHitFractionFivePercentPeak: Number.NaN,
+      AoVQDotClampHitFractionNearFullOpen: Number.NaN,
+      AoVQDotClampHitFractionCleanCandidate: Number.NaN,
     };
   }
   const maxQ = Math.max(0, ...samples.map((sample) => Number.isFinite(sample.QAo) ? sample.QAo : 0));
   const svWindows = sv5To95Windows(samples);
   const inSvWindow = (sample: SimSample) => svWindows.some((window) => sample.t >= window.t5 && sample.t <= window.t95);
-  let residualSum = 0;
-  let qWeight = 0;
-  let residualWeighted = 0;
-  let discreteSum = 0;
-  let discreteWeighted = 0;
   let peakQ = Number.NEGATIVE_INFINITY;
   let residualAtPeak = Number.NaN;
   let rawMax = 0;
@@ -1679,12 +1713,6 @@ function aovClosureAudit(samples: SimSample[], params: CoreRuntimeParams): Pick<
   for (const { sample, index } of positive) {
     const q = Math.max(0, sample.QAo);
     const residual = aovClosureResidual(samples, index, params, "post");
-    const discreteResidual = aovClosureResidual(samples, index, params, "raw-discrete");
-    residualSum += residual;
-    discreteSum += discreteResidual;
-    qWeight += q;
-    residualWeighted += residual * q;
-    discreteWeighted += discreteResidual * q;
     rawMax = Math.max(rawMax, Math.abs(sample.AoV_qDotRaw));
     postMax = Math.max(postMax, Math.abs(sample.AoV_qDotPost));
     impulseMax = Math.max(impulseMax, Math.abs(sample.AoV_qDotClampImpulse));
@@ -1695,49 +1723,81 @@ function aovClosureAudit(samples: SimSample[], params: CoreRuntimeParams): Pick<
   }
   const svSamples = positive.filter(({ sample }) => inSvWindow(sample));
   const fivePercentPeakSamples = positive.filter(({ sample }) => sample.QAo > maxQ * 0.05);
-  const cleanSamples = positive.filter(({ sample }) =>
+  const nearFullSamples = positive.filter(({ sample }) => sample.xiAoV > 0.95 && sample.QAo > maxQ * 0.05);
+  const cleanCandidateSamples = positive.filter(({ sample }) =>
     sample.xiAoV > 0.95
     && sample.QAo > maxQ * 0.05
     && inSvWindow(sample)
-    && sample.AoV_qDotClampHit01 === 0
     && Math.abs(sample.AoV_diodeImpulse) < 1e-9
     && Math.abs(sample.AoV_flowClampImpulse) < 1e-9
   );
-  let svResidualSum = 0;
-  let svQWeight = 0;
-  let svResidualWeighted = 0;
-  for (const { sample, index } of svSamples) {
-    const q = Math.max(0, sample.QAo);
-    const residual = aovClosureResidual(samples, index, params, "post");
-    svResidualSum += residual;
-    svQWeight += q;
-    svResidualWeighted += residual * q;
-  }
-  let cleanResidualSum = 0;
-  let cleanQWeight = 0;
-  let cleanResidualWeighted = 0;
-  for (const { sample, index } of cleanSamples) {
-    const q = Math.max(0, sample.QAo);
-    const residual = aovClosureResidual(samples, index, params, "post");
-    cleanResidualSum += residual;
-    cleanQWeight += q;
-    cleanResidualWeighted += residual * q;
-  }
+  const cleanSamples = cleanCandidateSamples.filter(({ sample }) => sample.AoV_qDotClampHit01 === 0);
+  const residualStats = (entries: Array<{ sample: SimSample; index: number }>, mode: "post" | "raw-discrete" | "solver-pre-events") => {
+    if (entries.length === 0) return { mean: Number.NaN, flowWeighted: Number.NaN };
+    let sum = 0;
+    let weighted = 0;
+    let weight = 0;
+    for (const { sample, index } of entries) {
+      const q = Math.max(0, sample.QAo);
+      const residual = aovClosureResidual(samples, index, params, mode);
+      sum += residual;
+      weighted += residual * q;
+      weight += q;
+    }
+    return {
+      mean: sum / entries.length,
+      flowWeighted: weight > 0 ? weighted / weight : Number.NaN,
+    };
+  };
+  const impulseStats = (entries: Array<{ sample: SimSample }>, value: (sample: SimSample) => number) => {
+    if (entries.length === 0) return { mean: Number.NaN, flowWeighted: Number.NaN };
+    let sum = 0;
+    let weighted = 0;
+    let weight = 0;
+    for (const { sample } of entries) {
+      const q = Math.max(0, sample.QAo);
+      const impulse = value(sample);
+      sum += impulse;
+      weighted += impulse * q;
+      weight += q;
+    }
+    return {
+      mean: sum / entries.length,
+      flowWeighted: weight > 0 ? weighted / weight : Number.NaN,
+    };
+  };
+  const post = residualStats(positive, "post");
+  const solver = residualStats(positive, "solver-pre-events");
+  const discrete = residualStats(positive, "raw-discrete");
+  const svPost = residualStats(svSamples, "post");
+  const cleanPost = residualStats(cleanSamples, "post");
+  const diodeImpulse = impulseStats(positive, (sample) => params.AoV_L * (sample.AoV_qDotPostDiode - sample.AoV_qDotPreDiode));
+  const flowImpulse = impulseStats(positive, (sample) => params.AoV_L * (sample.AoV_qDotRaw - sample.AoV_qDotPreFlowClamp));
+  const qDotImpulse = impulseStats(positive, (sample) => params.AoV_L * sample.AoV_qDotClampImpulse);
   const hitFraction = (entries: Array<{ sample: SimSample }>) =>
     entries.length > 0
       ? entries.filter(({ sample }) => sample.AoV_qDotClampHit01 > 0).length / entries.length
       : Number.NaN;
   return {
-    AoVClosureResidualMean: residualSum / Math.max(positive.length, 1),
-    AoVFlowWeightedClosureResidual: residualWeighted / Math.max(qWeight, 1e-9),
+    AoVClosureResidualMean: post.mean,
+    AoVFlowWeightedClosureResidual: post.flowWeighted,
     AoVClosureResidualAtQAoMax: residualAtPeak,
-    AoVClosureResidualSV5To95Mean: svSamples.length > 0 ? svResidualSum / svSamples.length : Number.NaN,
-    AoVFlowWeightedClosureResidualSV5To95: svQWeight > 0 ? svResidualWeighted / svQWeight : Number.NaN,
-    AoVDiscreteClosureResidualMean: discreteSum / Math.max(positive.length, 1),
-    AoVFlowWeightedDiscreteClosureResidual: discreteWeighted / Math.max(qWeight, 1e-9),
-    AoVCleanClosureResidualMean: cleanSamples.length > 0 ? cleanResidualSum / cleanSamples.length : Number.NaN,
-    AoVFlowWeightedCleanClosureResidual: cleanQWeight > 0 ? cleanResidualWeighted / cleanQWeight : Number.NaN,
+    AoVClosureResidualSV5To95Mean: svPost.mean,
+    AoVFlowWeightedClosureResidualSV5To95: svPost.flowWeighted,
+    AoVSolverClosureResidualMean: solver.mean,
+    AoVFlowWeightedSolverClosureResidual: solver.flowWeighted,
+    AoVDiscreteClosureResidualMean: discrete.mean,
+    AoVFlowWeightedDiscreteClosureResidual: discrete.flowWeighted,
+    AoVCleanClosureResidualMean: cleanPost.mean,
+    AoVFlowWeightedCleanClosureResidual: cleanPost.flowWeighted,
+    AoVCleanCandidateSampleCount: cleanCandidateSamples.length,
     AoVCleanClosureSampleCount: cleanSamples.length,
+    AoVDiodeImpulseGradientMean: diodeImpulse.mean,
+    AoVFlowWeightedDiodeImpulseGradient: diodeImpulse.flowWeighted,
+    AoVFlowClampImpulseGradientMean: flowImpulse.mean,
+    AoVFlowWeightedFlowClampImpulseGradient: flowImpulse.flowWeighted,
+    AoVQDotClampImpulseGradientMean: qDotImpulse.mean,
+    AoVFlowWeightedQDotClampImpulseGradient: qDotImpulse.flowWeighted,
     AoVQDotRawMaxAbs: rawMax,
     AoVQDotPostMaxAbs: postMax,
     AoVQDotClampImpulseMaxAbs: impulseMax,
@@ -1745,10 +1805,12 @@ function aovClosureAudit(samples: SimSample[], params: CoreRuntimeParams): Pick<
     AoVQDotClampHitFractionPositive: hitFraction(positive),
     AoVQDotClampHitFractionSV5To95: hitFraction(svSamples),
     AoVQDotClampHitFractionFivePercentPeak: hitFraction(fivePercentPeakSamples),
+    AoVQDotClampHitFractionNearFullOpen: hitFraction(nearFullSamples),
+    AoVQDotClampHitFractionCleanCandidate: hitFraction(cleanCandidateSamples),
   };
 }
 
-function aovClosureResidual(samples: SimSample[], index: number, params: CoreRuntimeParams, mode: "post" | "raw-discrete"): number {
+function aovClosureResidual(samples: SimSample[], index: number, params: CoreRuntimeParams, mode: "post" | "raw-discrete" | "solver-pre-events"): number {
   const sample = samples[index];
   const total = sample.LVP - sample.AoP;
   if (mode === "post") {
@@ -1757,10 +1819,15 @@ function aovClosureResidual(samples: SimSample[], index: number, params: CoreRun
     return total - orifice - inertial;
   }
   const q = sample.QAo;
-  const qNext = sample.AoV_qNextPostFlowClamp;
   const effectiveLossPerFlow = Math.abs(q) > 1e-9
     ? (sample.AoV_loss_R + sample.AoV_loss_B) / Math.max(Math.abs(q), 1e-9)
     : params.AoV_R;
+  if (mode === "solver-pre-events") {
+    const solverOrifice = effectiveLossPerFlow * sample.AoV_qNextPreDiode;
+    const solverInertial = params.AoV_L * sample.AoV_qDotPreDiode;
+    return total - solverOrifice - solverInertial;
+  }
+  const qNext = sample.AoV_qNextPostFlowClamp;
   const discreteOrifice = effectiveLossPerFlow * qNext;
   const discreteInertial = params.AoV_L * sample.AoV_qDotRaw;
   return total - discreteOrifice - discreteInertial;
@@ -2329,7 +2396,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("## Normal / HR100 waveform gates");
   lines.push("");
-  lines.push("| scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | AoV B | AoV Amax | AoV L | tau open | tau close | SVR | art stiff | tension rise | qDot clamp | case | dCO_L | dESV_L | dEF_L | dLVPmax | dQAoMax | candidate QAo/cap | near cap >95% | local cap active | AoV total mean | AoV peak total | orifice mean | full-open orifice | area-loss extra | Bq2 mean | inertial mean | residual mean | closure mean | closure fw | closure at QAoMax | closure SV5-95 | closure SV5-95 fw | discrete closure fw | clean closure fw | clean n | qDot raw max | qDot post max | qDot hit frac | qDot hit SV5-95 | qDot hit >5%peak | QAo mean+ | QAo t-peak ms | max dQAo/dt | AoV open01 mean | open01 at QAoMax | near-full-open ms | QAo peak/mean | eject QAo>0 ms | eject >5%peak ms | eject SV5-95 ms | high-flow ms | baseline QAo/cap | dMax dP/dt | dClamp hits | worst metric | worst frac |");
+  lines.push("| scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | AoV B | AoV Amax | AoV L | tau open | tau close | SVR | art stiff | tension rise | qDot clamp | case | dCO_L | dESV_L | dEF_L | dLVPmax | dQAoMax | candidate QAo/cap | near cap >95% | local cap active | AoV total mean | AoV peak total | orifice mean | full-open orifice | area-loss extra | Bq2 mean | inertial mean | residual mean | closure mean | closure fw | solver closure fw | closure at QAoMax | closure SV5-95 | closure SV5-95 fw | discrete closure fw | diode imp fw | flow imp fw | qDot imp fw | clean closure fw | clean cand n | clean n | qDot raw max | qDot post max | qDot hit frac | qDot hit SV5-95 | qDot hit >5%peak | qDot hit open01 | qDot hit clean cand | QAo mean+ | QAo t-peak ms | max dQAo/dt | AoV open01 mean | open01 at QAoMax | near-full-open ms | QAo peak/mean | eject QAo>0 ms | eject >5%peak ms | eject SV5-95 ms | high-flow ms | baseline QAo/cap | dMax dP/dt | dClamp hits | worst metric | worst frac |");
   lines.push(markdownSeparator(lines[lines.length - 1]));
   for (const scenario of report.scenarios) {
     for (const gate of scenario.waveformGates) {
@@ -2370,17 +2437,24 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         round(gate.candidate.AoVFlowWeightedResidualGradient, 4),
         round(gate.candidate.AoVClosureResidualMean, 4),
         round(gate.candidate.AoVFlowWeightedClosureResidual, 4),
+        round(gate.candidate.AoVFlowWeightedSolverClosureResidual, 4),
         round(gate.candidate.AoVClosureResidualAtQAoMax, 4),
         round(gate.candidate.AoVClosureResidualSV5To95Mean, 4),
         round(gate.candidate.AoVFlowWeightedClosureResidualSV5To95, 4),
         round(gate.candidate.AoVFlowWeightedDiscreteClosureResidual, 4),
+        round(gate.candidate.AoVFlowWeightedDiodeImpulseGradient, 4),
+        round(gate.candidate.AoVFlowWeightedFlowClampImpulseGradient, 4),
+        round(gate.candidate.AoVFlowWeightedQDotClampImpulseGradient, 4),
         round(gate.candidate.AoVFlowWeightedCleanClosureResidual, 4),
+        gate.candidate.AoVCleanCandidateSampleCount,
         gate.candidate.AoVCleanClosureSampleCount,
         round(gate.candidate.AoVQDotRawMaxAbs, 4),
         round(gate.candidate.AoVQDotPostMaxAbs, 4),
         round(gate.candidate.AoVQDotClampHitFraction, 4),
         round(gate.candidate.AoVQDotClampHitFractionSV5To95, 4),
         round(gate.candidate.AoVQDotClampHitFractionFivePercentPeak, 4),
+        round(gate.candidate.AoVQDotClampHitFractionNearFullOpen, 4),
+        round(gate.candidate.AoVQDotClampHitFractionCleanCandidate, 4),
         round(gate.candidate.QAoMeanPositive, 4),
         round(gate.candidate.QAoTimeToPeakMs, 2),
         round(gate.candidate.maxDQAoDt, 4),
@@ -2403,9 +2477,9 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("## AoV gradient decomposition");
   lines.push("");
-  lines.push("These values split the normal/HR waveform AoV pressure loss into total transient gradient, quasi-steady orifice loss (`Rq + Bq|q|` using the sampled effective valve loss), full-open orifice loss, area-loss extra while the valve is not fully open, inertial loss, and residual. Use the full-open/orifice columns for AS-like sanity; the total gradient also contains inertial/transient effects and residual model/coupling terms.");
+  lines.push("These values split the normal/HR waveform AoV pressure loss into total transient gradient, quasi-steady orifice loss (`Rq + Bq|q|` using the sampled effective valve loss), full-open orifice loss, area-loss extra while the valve is not fully open, inertial loss, clamp/event impulses, and residual. Use the full-open/orifice columns for AS-like sanity; the total gradient also contains inertial/transient effects and residual model/coupling terms. `solver closure` is evaluated before diode/flow/qDot clamps; `clean closure` is evaluated only in near-full-open, SV 5-95%, no-event samples.");
   lines.push("");
-  lines.push("| heart model | dt | TBV correction | AoV clamp | limiter | preset | AoV B | AoV Amax | AoV L | tau open | tau close | SVR | art stiff | tension rise | qDot clamp | case | total mean | sampled orifice mean | full-open orifice mean | area-loss extra mean | Rq mean | Bq2 mean | inertial mean | residual mean | closure fw | clean closure fw | qDot raw max | qDot hit SV5-95 | open01 mean | open01 at QAoMax | near-full-open ms | peak orifice | peak area-loss extra | peak inertial | peak residual |");
+  lines.push("| heart model | dt | TBV correction | AoV clamp | limiter | preset | AoV B | AoV Amax | AoV L | tau open | tau close | SVR | art stiff | tension rise | qDot clamp | case | total mean | sampled orifice mean | full-open orifice mean | area-loss extra mean | Rq mean | Bq2 mean | inertial mean | residual mean | closure fw | solver closure fw | diode imp fw | flow imp fw | qDot imp fw | clean closure fw | clean cand n | clean n | qDot raw max | qDot hit SV5-95 | qDot hit clean cand | open01 mean | open01 at QAoMax | near-full-open ms | peak orifice | peak area-loss extra | peak inertial | peak residual |");
   lines.push(markdownSeparator(lines[lines.length - 1]));
   for (const scenario of report.scenarios) {
     for (const gate of scenario.waveformGates) {
@@ -2435,9 +2509,16 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         round(gate.candidate.AoVFlowWeightedInertialGradient, 4),
         round(gate.candidate.AoVFlowWeightedResidualGradient, 4),
         round(gate.candidate.AoVFlowWeightedClosureResidual, 4),
+        round(gate.candidate.AoVFlowWeightedSolverClosureResidual, 4),
+        round(gate.candidate.AoVFlowWeightedDiodeImpulseGradient, 4),
+        round(gate.candidate.AoVFlowWeightedFlowClampImpulseGradient, 4),
+        round(gate.candidate.AoVFlowWeightedQDotClampImpulseGradient, 4),
         round(gate.candidate.AoVFlowWeightedCleanClosureResidual, 4),
+        gate.candidate.AoVCleanCandidateSampleCount,
+        gate.candidate.AoVCleanClosureSampleCount,
         round(gate.candidate.AoVQDotRawMaxAbs, 4),
         round(gate.candidate.AoVQDotClampHitFractionSV5To95, 4),
+        round(gate.candidate.AoVQDotClampHitFractionCleanCandidate, 4),
         round(gate.candidate.AoVFlowWeightedOpen01, 4),
         round(gate.candidate.AoVOpen01AtQAoMax, 4),
         round(gate.candidate.AoVTimeToNearFullOpenMs, 2),

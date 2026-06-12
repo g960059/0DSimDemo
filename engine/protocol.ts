@@ -422,6 +422,9 @@ export type SimSample = {
   AoV_qNextPostDiode: number;
   AoV_qNextPreFlowClamp: number;
   AoV_qNextPostFlowClamp: number;
+  AoV_qDotPreDiode: number;
+  AoV_qDotPostDiode: number;
+  AoV_qDotPreFlowClamp: number;
   AoV_qDotRaw: number;
   AoV_qDotPost: number;
   AoV_qDotClampHit01: number;

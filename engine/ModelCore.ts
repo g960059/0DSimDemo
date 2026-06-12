@@ -350,6 +350,9 @@ type AorticFlowStepDiagnostics = {
   qNextPostDiode: number;
   qNextPreFlowClamp: number;
   qNextPostFlowClamp: number;
+  qDotPreDiode: number;
+  qDotPostDiode: number;
+  qDotPreFlowClamp: number;
   qDotRaw: number;
   qDotPost: number;
   qDotClampHit01: number;
@@ -364,6 +367,9 @@ function emptyAorticFlowStepDiagnostics(): AorticFlowStepDiagnostics {
     qNextPostDiode: 0,
     qNextPreFlowClamp: 0,
     qNextPostFlowClamp: 0,
+    qDotPreDiode: 0,
+    qDotPostDiode: 0,
+    qDotPreFlowClamp: 0,
     qDotRaw: 0,
     qDotPost: 0,
     qDotClampHit01: 0,
@@ -980,6 +986,9 @@ export class ModelCore {
       AoV_qNextPostDiode: aovStep.qNextPostDiode,
       AoV_qNextPreFlowClamp: aovStep.qNextPreFlowClamp,
       AoV_qNextPostFlowClamp: aovStep.qNextPostFlowClamp,
+      AoV_qDotPreDiode: aovStep.qDotPreDiode,
+      AoV_qDotPostDiode: aovStep.qDotPostDiode,
+      AoV_qDotPreFlowClamp: aovStep.qDotPreFlowClamp,
       AoV_qDotRaw: aovStep.qDotRaw,
       AoV_qDotPost: aovStep.qDotPost,
       AoV_qDotClampHit01: aovStep.qDotClampHit01,
@@ -1528,6 +1537,9 @@ export class ModelCore {
       if (e.name === "AoV") qNext = this.applyAorticFlowClamp(qNext);
       const qNextPostFlowClamp = qNext;
 
+      const qDotPreDiode = (qNextPreDiode - q) / h;
+      const qDotPostDiode = (qNextPostDiode - q) / h;
+      const qDotPreFlowClamp = (qNextPreFlowClamp - q) / h;
       const qDotRaw = (qNext - q) / h;
       const qDotLimit = e.name === "AoV"
         ? Math.max(this.aorticFlowDerivativeClampMlPerS2, 1)
@@ -1543,6 +1555,9 @@ export class ModelCore {
           qNextPostDiode,
           qNextPreFlowClamp,
           qNextPostFlowClamp,
+          qDotPreDiode,
+          qDotPostDiode,
+          qDotPreFlowClamp,
           qDotRaw,
           qDotPost,
           qDotClampHit01: Math.abs(qDotPost - qDotRaw) > 1e-9 ? 1 : 0,
