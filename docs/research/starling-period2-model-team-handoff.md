@@ -805,3 +805,35 @@ Primary readout order:
 5. normal / HR `minDpdtLVP` relaxation dP/dt and waveform gates
 
 Classification guidance: a promising physical comparator must reduce negative qDot / closure-deceleration pathology with the default negative clamp unchanged. If it only works by relaxing the qDot clamp, it remains a positive control. If it reduces branch but damages normal / HR waveform gates, classify it as a mitigator or negative comparator rather than a root fix.
+
+## 2026-06-13 update: per-edge qDot / flow clamp audit
+
+The next report-only gate broadens the qDot audit beyond AoV. The low-preload branch remains AoV/ejection-dominant in the current evidence, but q-state clamps are implemented on dynamic edges, so MV/TV/PV and vascular dynamic edges must be audited before deciding whether a fix should be AoV-specific, valve-common, or dynamic-edge-common.
+
+New JSON/Markdown fields:
+
+- `debugClampDiagnostics.dynamicQDotLastStep/currentBeat/lastBeat`: per-edge qDot raw/post/impulse audit for every `dynamicEdgeNames` entry.
+- Matrix `perEdgeQDotSummary`: scenario-level maxima for `MV`, `AoV`, `TV`, `PV`, `Ao_SA`, `PA_PArt`, and `PVein_LA`.
+- Markdown section: `Per-edge dynamic qDot clamp audit`.
+
+Recommended combined low-preload + hypervolume handoff artifact:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/per-edge-qdot-audit \
+  --deltas=0,-1250,-1300,-1400,400,800 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --max-return-map-points=2 \
+  --trace-beats=2 \
+  --sample-hz=40 \
+  --quiet-progress
+```
+
+Interpretation discipline:
+
+- If low-preload is AoV-dominant but hypervolume is MV-dominant, the likely target is shared valve q-state/event handling exposed in different regimes.
+- If AoV dominates across regimes, prioritize an AoV/ejection-path targeted comparator.
+- If several dynamic vascular edges show large qDot clamp involvement in normal/HR gates, treat this as a dynamic-edge solver issue rather than a valve-only issue.
+- Do not relax qDot clamps globally as a fix from this report alone. Clamp relaxation remains a positive control; the audit is for attribution and scope selection.
