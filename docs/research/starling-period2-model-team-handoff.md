@@ -837,3 +837,84 @@ Interpretation discipline:
 - If AoV dominates across regimes, prioritize an AoV/ejection-path targeted comparator.
 - If several dynamic vascular edges show large qDot clamp involvement in normal/HR gates, treat this as a dynamic-edge solver issue rather than a valve-only issue.
 - Do not relax qDot clamps globally as a fix from this report alone. Clamp relaxation remains a positive control; the audit is for attribution and scope selection.
+
+## 2026-06-13 update: regime point-level per-edge qDot audit
+
+The scenario-level per-edge summary can hide whether a qDot signal came from
+low-preload, baseline, or hypervolume deltas. The next report-only layer adds a
+regime-aware audit:
+
+- Matrix schema v27.
+- `--regime-audit=low-hyper` preset.
+- JSON `summary.regimePerEdgeQDot`.
+- Per-scenario `pointEdgeQDotSummary[]`, with `regime`, `deltaVolumeMl`,
+  `targetVolumeMl`, `edge`, per-edge qDot raw/impulse/hit maxima, valve flow
+  volumes where applicable, and branch readouts from the last two beat traces.
+- Markdown sections:
+  - `Regime aggregate per-edge qDot audit`
+  - `Regime point-level per-edge qDot audit`
+
+Recommended artifact for model-team review:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/regime-per-edge-audit \
+  --regime-audit=low-hyper \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --max-return-map-points=2 \
+  --trace-beats=2 \
+  --sample-hz=40 \
+  --quiet-progress
+```
+
+This preset runs:
+
+```text
+0,-1600,-1500,-1450,-1400,-1350,-1300,-1250,-1200,+200,+400,+600,+800
+```
+
+Read it as localization data:
+
+- Low-preload AoV dominance keeps the outlet-side pressure-reversal /
+  deceleration hypothesis alive for the low-preload branch.
+- PV involvement should be tracked as a semilunar/outlet-side cofactor, not
+  discarded.
+- Hypervolume MV involvement would point toward valve-common q-state / event
+  handling exposed in a different regime.
+- Hypervolume MV morphology without MV qDot hits should not be forced into the
+  qDot-clamp explanation.
+- Do not infer a global all-edge fix from low-preload data alone.
+
+Model-team readout from the first `low-hyper` smoke:
+
+- qDot clamp impulse is concentrated on AoV and PV across low-preload,
+  baseline, and hypervolume rows.
+- AoV is the primary signal; PV is a secondary semilunar/outlet-side signal.
+- MV/TV/raw vascular dynamic edges do not show qDot clamp hits in this audit,
+  even when MV morphology columns change in hypervolume rows.
+- Therefore, the current best scope label is
+  `semilunar / outlet-side qDot deceleration`, not AoV-only and not all-valve.
+- Hypervolume MV morphology remains a separate question unless a targeted
+  overlay shows MV qDot hits or pressure-crossing events co-localizing with the
+  morphology change.
+
+Recommended next PR direction:
+
+1. Add AoV/PV beat-level branch readouts:
+   - high-output beat qDot impulse
+   - low-output beat qDot impulse
+   - impulse branch fraction
+   - event sign and phase
+   - pressure-reversal / forward-coast classification
+2. Add RV/PV coupling rows:
+   - `CO_R`, `SV_R`, RV EDV/ESV
+   - `QPV`, PAP/PArt branch
+   - QPV phase relative to QAo
+3. Re-run targeted hypervolume MV checks at `+400,+600,+800` with MV
+   morphology, near-zero / reopen / LAP-LVP crossing, and per-edge qDot audit
+   in the same artifact.
+
+Fix-scope decision should wait for those rows. Candidate scopes remain:
+AoV-only, semilunar-common (AoV+PV), valve-common, and dynamic-edge-common.

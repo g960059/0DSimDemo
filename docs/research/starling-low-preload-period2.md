@@ -791,3 +791,78 @@ Readout logic:
 - Broad multi-edge normal/HR signal would argue for dynamic-edge solver/event handling review before any targeted physiological parameter change.
 
 This PR is diagnostic only and keeps default dynamics unchanged.
+
+### 2026-06-13 update: regime point-level per-edge qDot audit
+
+The scenario-level `Per-edge dynamic qDot clamp audit` is useful as a broad smoke,
+but it can mix low-preload and hypervolume regimes. The matrix runner now has a
+report-only preset that records point-level per-edge qDot audit rows and then
+aggregates them by regime:
+
+- `baseline`: delta near 0
+- `low-preload`: negative TBV delta
+- `hypervolume`: positive TBV delta
+
+Recommended handoff artifact:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/regime-per-edge-audit \
+  --regime-audit=low-hyper \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --max-return-map-points=2 \
+  --trace-beats=2 \
+  --sample-hz=40 \
+  --quiet-progress
+```
+
+This expands deltas to:
+
+```text
+0,-1600,-1500,-1450,-1400,-1350,-1300,-1250,-1200,+200,+400,+600,+800
+```
+
+New report sections:
+
+- `Regime aggregate per-edge qDot audit`
+- `Regime point-level per-edge qDot audit`
+
+Interpretation discipline:
+
+- This is localization data, not a model-fix decision.
+- A low-preload AoV/PV signal supports an outlet-side hypothesis for that
+  regime, but it does not justify an all-edge qDot handling change.
+- A hypervolume MV signal would indicate that the same qDot/event-surface
+  pathology may surface as filling morphology in a different regime.
+- If hypervolume MV morphology alternates without MV qDot hits, treat that
+  morphology as a different mechanism until proven otherwise.
+- Keep qDot clamp relaxation as a positive control only. The regime audit
+  should decide fix scope before any physical or solver-side comparator is
+  promoted.
+
+Initial smoke readout:
+
+- In the current low/hyper audit, qDot clamp impulse localizes primarily to
+  semilunar/outlet-side edges: AoV is primary and PV is secondary.
+- MV/TV show raw qDot activity but no qDot clamp hit in this audit, including
+  the hypervolume deltas. This weakens the hypothesis that hypervolume MV
+  morphology is caused by MV qDot clamp binding.
+- qDot hits also appear at baseline, so a hit by itself is not equivalent to
+  period-2 causality. The next localization layer should compare high-output
+  versus low-output beat qDot impulse, event sign, event phase, and
+  pressure-reversal / forward-coast class for AoV and PV.
+- The likely next scope question is AoV-only versus semilunar-common
+  (AoV+PV). Do not promote valve-common or all-dynamic-edge changes from this
+  audit alone.
+
+Suggested next diagnostic after this PR:
+
+- AoV/PV beat-level qDot branch rows: high-output beat impulse, low-output
+  beat impulse, branch fraction, event sign, event phase, pressure-reversal /
+  forward-coast classification.
+- RV/PV coupling rows: `CO_R`, `SV_R`, RV EDV/ESV, `QPV`, PAP/PArt branch, and
+  QPV phase relative to QAo.
+- Targeted hypervolume MV overlay at `+400,+600,+800`: MV morphology,
+  near-zero / reopen / LAP-LVP crossing, and MV qDot audit together.

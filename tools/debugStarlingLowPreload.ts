@@ -109,7 +109,12 @@ type BeatTraceRow = {
   LVPMax: number;
   AoPMean: number;
   AoPMax: number;
+  PAPMean: number;
+  PAPMax: number;
   QAoMax: number;
+  QMVMax: number;
+  QTVMax: number;
+  QPVMax: number;
   QAoCapRatioMax: number;
   QAoNearCap90Fraction: number;
   QAoNearCap95Fraction: number;
@@ -2492,7 +2497,12 @@ function summarizeBeat(beat: number, entries: TraceSample[], HR: number, aorticF
     LVPMax: max("LVP"),
     AoPMean: mean("AoP"),
     AoPMax: max("AoP"),
+    PAPMean: mean("PAP"),
+    PAPMax: max("PAP"),
     QAoMax: max("QAo"),
+    QMVMax: max("QMV"),
+    QTVMax: max("QTV"),
+    QPVMax: max("QPV"),
     ...qAoProximity,
     filling: fillingRegimeSummary(samples),
     active: summarizeActive(entries),
