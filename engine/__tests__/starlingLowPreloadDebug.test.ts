@@ -99,7 +99,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(Object.keys(diagnostics.tbvProjectionLastStep.byNodeAbsMl).length).toBeGreaterThan(0);
   });
 
-  it("builds a schema-v21 low-preload report with active, valve, clamp, TBV audit, qDot target, return-map, filling morphology, and tau/dt fields", () => {
+  it("builds a schema-v22 low-preload report with active, valve, clamp, TBV audit, qDot target, return-map, filling morphology, and tau/dt fields", () => {
     const report = runLowPreloadDebug({
       outDir: "unused",
       targetVolumeMl: 5600,
@@ -113,7 +113,7 @@ describe("low-preload Starling debug diagnostics", () => {
       quietClampLog: true,
     });
 
-    expect(report.schemaVersion).toBe(21);
+    expect(report.schemaVersion).toBe(22);
     expect(report.heartModel).toBe("activeStress");
     expect(report.returnMapMode).toBe("both");
     expect(report.beatPairOverlay).toBe(false);
@@ -121,6 +121,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.aorticFlowClampMode).toBe("hard");
     expect(report.tensionRiseSec).toBe(0);
     expect(report.aovQDotClamp).toBe(40000);
+    expect(report.aovQDotClampNegative).toBe(40000);
     expect(report.aovQUpdateMode).toBe("current-loss");
     expect(report.aovB).toBeCloseTo(DEFAULT_PARAMS.AoV_B, 12);
     expect(report.aovAmax).toBeCloseTo(DEFAULT_PARAMS.AoV_Amax, 12);
@@ -254,7 +255,7 @@ describe("low-preload Starling debug diagnostics", () => {
       quietClampLog: true,
     });
 
-    expect(report.schemaVersion).toBe(21);
+    expect(report.schemaVersion).toBe(22);
     expect(report.beatPairOverlay).toBe(true);
     const overlay = report.points[0].beatPairOverlay;
     expect(overlay).toBeDefined();
@@ -502,6 +503,7 @@ describe("low-preload Starling debug diagnostics", () => {
       "--arterial-stiffness=0.75,0.9",
       "--tension-rise=0,0.02",
       "--aov-qdot-clamp=40000,80000",
+      "--aov-qdot-clamp-pair=+40000/-80000,+80000/-40000",
       "--aov-q-update=current-loss,qnext-loss,substep-2",
     ]);
     expect(axisOpts.aovLValues).toEqual([DEFAULT_PARAMS.AoV_L, 0.0005]);
@@ -511,6 +513,10 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(axisOpts.arterialStiffnessValues).toEqual([DEFAULT_PARAMS.arterialStiffness, 0.9]);
     expect(axisOpts.tensionRiseSecValues).toEqual([0, 0.02]);
     expect(axisOpts.aovQDotClampValues).toEqual([40000, 80000]);
+    expect(axisOpts.aovQDotClampPairs).toEqual([
+      { positive: 40000, negative: 80000 },
+      { positive: 80000, negative: 40000 },
+    ]);
     expect(axisOpts.aovQUpdateModes).toEqual(["current-loss", "qnext-loss", "substep-2"]);
   });
 
@@ -700,7 +706,7 @@ describe("low-preload Starling debug diagnostics", () => {
     ]);
     const report = runLowPreloadMatrix(opts);
 
-    expect(report.schemaVersion).toBe(22);
+    expect(report.schemaVersion).toBe(23);
     expect(report.heartModels).toEqual(["activeStress"]);
     expect(report.aorticFlowClampModes).toEqual(["hard"]);
     expect(report.aovBValues).toEqual([DEFAULT_PARAMS.AoV_B]);
@@ -712,6 +718,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.arterialStiffnessValues).toEqual([DEFAULT_PARAMS.arterialStiffness]);
     expect(report.tensionRiseSecValues).toEqual([0]);
     expect(report.aovQDotClampValues).toEqual([40000]);
+    expect(report.aovQDotClampPairs).toEqual([{ positive: 40000, negative: 40000 }]);
     expect(report.aovQUpdateModes).toEqual(["current-loss"]);
     expect(report.scenarios).toHaveLength(8);
     expect(report.scenarios[0].heartModel).toBe("activeStress");
