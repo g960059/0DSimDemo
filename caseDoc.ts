@@ -184,12 +184,11 @@ function panelsForRole(panels: PanelDef[], role: PanelRole): string[] {
 export function defaultWorkspaceForPanels(
   panels: PanelDef[],
 ): WorkbenchWorkspace {
-  const notePanelIds = panelsForRole(panels, "note");
   const outputPanelIds = panelsForRole(panels, "output");
   return {
     schemaVersion: WORKSPACE_SCHEMA_VERSION,
     hosts: {
-      note: { open: notePanelIds.length > 0 },
+      note: { open: false },
       rightRail: { open: true },
       metrics: { open: outputPanelIds.length > 0 },
       main: {},

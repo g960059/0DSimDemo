@@ -308,8 +308,6 @@ const AFTERLOAD_NOTE_ID = "p_note";
 const AFTERLOAD_NORMAL_INSTANCE_ID = "1";
 const AFTERLOAD_HYPERTENSIVE_INSTANCE_ID = "2";
 const AFTERLOAD_SCENARIO_IDS = [AFTERLOAD_NORMAL_INSTANCE_ID, AFTERLOAD_HYPERTENSIVE_INSTANCE_ID];
-const AFTERLOAD_PV_MEMBERSHIP = Object.fromEntries(AFTERLOAD_SCENARIO_IDS.map((id) => [id, ["LV"]]));
-const AFTERLOAD_WAVEFORM_MEMBERSHIP = Object.fromEntries(AFTERLOAD_SCENARIO_IDS.map((id) => [id, ["LVP", "AoP", "LAP"]]));
 const AFTERLOAD_METRIC_MEMBERSHIP = Object.fromEntries(AFTERLOAD_SCENARIO_IDS.map((id) => [id, ["ABP", "CO", "SV", "PCWP"]]));
 
 const AFTERLOAD_CASE_VIEWS: ViewSpec[] = [
@@ -330,23 +328,6 @@ const AFTERLOAD_CASE_VIEWS: ViewSpec[] = [
     metrics: ["ABP", "CO", "SV", "PCWP"],
     membership: AFTERLOAD_METRIC_MEMBERSHIP,
   },
-  {
-    id: AFTERLOAD_PV_LOOP_VIEW_ID,
-    title: "PV Loop",
-    kind: "graph",
-    graphType: "pvloop",
-    membership: AFTERLOAD_PV_MEMBERSHIP,
-    aspect: { ratio: 1, fit: "lock" },
-    presentation: { showGuides: true },
-  },
-  {
-    id: AFTERLOAD_WAVEFORMS_VIEW_ID,
-    title: "Waveforms",
-    kind: "graph",
-    graphType: "waveform",
-    membership: AFTERLOAD_WAVEFORM_MEMBERSHIP,
-    presentation: { timeWindow: 5000 },
-  },
 ];
 
 const AFTERLOAD_GRAPH_BOARD_LAYOUT: GraphBoardLayout = {
@@ -363,7 +344,6 @@ const AFTERLOAD_READING: CaseReadingManifest = {
   schemaVersion: 1,
   column: [
     { kind: "noteRef", noteId: AFTERLOAD_NOTE_ID },
-    { kind: "viewRef", viewId: AFTERLOAD_CONTROL_VIEW_ID },
     { kind: "paneRef", panelId: AFTERLOAD_PV_LOOP_VIEW_ID },
   ],
 };

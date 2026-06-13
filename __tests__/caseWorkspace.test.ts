@@ -20,7 +20,7 @@ describe("semantic workspace", () => {
     expect("mode" in workspace).toBe(false);
     expect("regions" in workspace).toBe(false);
     expect(workspace.hosts).toEqual({
-      note: { open: true },
+      note: { open: false },
       rightRail: { open: true },
       metrics: { open: true },
       main: {},

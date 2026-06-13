@@ -5,6 +5,7 @@ import { collectNoteViewRefIds } from "@/features/workbench/noteViewRefs";
 import { deriveReadExploreEntryMode } from "@/features/workbench/readExplore";
 import { workspaceForPanelStateReplacement } from "@/features/workbench/hooks/useWorkbenchPanels";
 import { validateGraphBoardLayout, type GraphBoardLayout, type ViewSpec } from "@/features/workbench/viewSpec";
+import { graphPanelsOnly } from "@/features/workbench/p1aStructuralHosts";
 import { officialCaseById } from "@/officialCases";
 import type { DockviewViewState, SimInstance, WorkbenchWorkspace } from "@/types";
 
@@ -18,7 +19,10 @@ function expectInternalReferencesToResolve(doc: CaseDocument): void {
   const panelIds = new Set(doc.panels.map((panel) => panel.id));
   const noteIds = new Set(Object.keys(doc.notes ?? {}));
   const viewIds = new Set((doc.views ?? []).map((view) => view.id));
-  const graphViewIds = new Set((doc.views ?? []).filter((view) => view.kind === "graph").map((view) => view.id));
+  // Graph board leaves resolve against graph PANEL ids (the runtime drops graph
+  // ViewSpecs via authoredViewsOnly; useWorkbenchPersistence normalizes the layout
+  // against graphPanelsOnly(panels)), not against persisted graph ViewSpecs.
+  const graphViewIds = new Set(graphPanelsOnly(doc.panels).map((panel) => panel.id));
   const instanceIds = new Set(doc.instances.map((instance) => instance.id));
 
   for (const entry of doc.reading?.column ?? []) {
@@ -62,12 +66,9 @@ describe("Afterload official dogfood case", () => {
     expect(doc?.views?.map((view) => [view.id, view.kind])).toEqual([
       ["v_afterload_demo_controls", "controller"],
       ["v_afterload_pressure_output", "metrics"],
-      ["p2", "graph"],
-      ["p1", "graph"],
     ]);
     expect(doc?.reading?.column).toEqual([
       { kind: "noteRef", noteId: "p_note" },
-      { kind: "viewRef", viewId: "v_afterload_demo_controls" },
       { kind: "paneRef", panelId: "p2" },
     ]);
     expect(doc?.graphBoardLayout).toEqual({
@@ -83,7 +84,7 @@ describe("Afterload official dogfood case", () => {
     expect(doc?.workspace).toEqual({
       schemaVersion: 2,
       hosts: {
-        note: { open: true },
+        note: { open: false },
         rightRail: { open: true },
         metrics: { open: true },
         main: {},

@@ -127,7 +127,7 @@ describe("content i18n helpers", () => {
     expect(sourceWithLayout.workspace).toEqual({
       schemaVersion: 2,
       hosts: {
-        note: { open: true },
+        note: { open: false },
         rightRail: { open: true },
         metrics: { open: false },
         main: {},
