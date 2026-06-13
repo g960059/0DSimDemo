@@ -457,6 +457,8 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrix.summary.maxCleanClosureResidualAbs).toEqual(expect.any(Number));
     expect(matrix.summary.perEdgeQDot.AoV.maxRawAbsMlPerS2).toEqual(expect.any(Number));
     expect(matrix.summary.perEdgeQDot.MV.maxRawAbsMlPerS2).toEqual(expect.any(Number));
+    expect(matrix.summary.regimePerEdgeQDot["low-preload"].AoV.maxRawAbsMlPerS2).toEqual(expect.any(Number));
+    expect(matrix.summary.regimePerEdgeQDot.hypervolume.MV.maxRawAbsMlPerS2).toEqual(expect.any(Number));
     expect(matrix.summary.maxAoVClosureResidualSV5To95Mean).toEqual(expect.any(Number));
     expect(matrix.summary.maxQAoMeanPositive).toEqual(expect.any(Number));
     expect(matrix.summary.minQAoTimeToPeakMs).toEqual(expect.any(Number));
@@ -500,6 +502,8 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToMarkdown(matrix)).toContain("AoV qDot open01-bin target estimator");
     expect(matrixReportToMarkdown(matrix)).toContain("Negative qDot closure-deceleration primary readouts");
     expect(matrixReportToMarkdown(matrix)).toContain("Per-edge dynamic qDot clamp audit");
+    expect(matrixReportToMarkdown(matrix)).toContain("Regime aggregate per-edge qDot audit");
+    expect(matrixReportToMarkdown(matrix)).toContain("Regime point-level per-edge qDot audit");
     expect(matrixReportToMarkdown(matrix)).toContain("q update");
     expect(matrixReportToMarkdown(matrix)).toContain("closure fw");
     expect(matrixReportToMarkdown(matrix)).toContain("clean closure fw");
@@ -533,6 +537,10 @@ describe("low-preload Starling debug diagnostics", () => {
       { positive: 80000, negative: 40000 },
     ]);
     expect(axisOpts.aovQUpdateModes).toEqual(["current-loss", "qnext-loss", "substep-2"]);
+
+    const regimeAuditOpts = parseLowPreloadMatrixArgs(["--regime-audit=low-hyper"]);
+    expect(regimeAuditOpts.regimeAuditPreset).toBe("low-hyper");
+    expect(regimeAuditOpts.deltasMl).toEqual([0, -1600, -1500, -1450, -1400, -1350, -1300, -1250, -1200, 200, 400, 600, 800]);
   });
 
   it("can skip return-map diagnostics while preserving branch amplitude fields", () => {
@@ -721,7 +729,7 @@ describe("low-preload Starling debug diagnostics", () => {
     ]);
     const report = runLowPreloadMatrix(opts);
 
-    expect(report.schemaVersion).toBe(26);
+    expect(report.schemaVersion).toBe(27);
     expect(report.heartModels).toEqual(["activeStress"]);
     expect(report.aorticFlowClampModes).toEqual(["hard"]);
     expect(report.aovBValues).toEqual([DEFAULT_PARAMS.AoV_B]);
@@ -774,6 +782,8 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.summary.maxAoVQDotEquivalentExtraBAtMaxExcess).toEqual(expect.any(Number));
     expect(report.summary.perEdgeQDot.AoV.maxRawAbsMlPerS2).toEqual(expect.any(Number));
     expect(report.summary.perEdgeQDot.MV.maxRawAbsMlPerS2).toEqual(expect.any(Number));
+    expect(report.summary.regimePerEdgeQDot["low-preload"].AoV.maxRawAbsMlPerS2).toEqual(expect.any(Number));
+    expect(report.summary.regimePerEdgeQDot.hypervolume.MV.maxRawAbsMlPerS2).toEqual(expect.any(Number));
     expect(report.summary.maxQAoMeanPositive).toEqual(expect.any(Number));
     expect(report.summary.minQAoTimeToPeakMs).toEqual(expect.any(Number));
     expect(report.summary.maxDQAoDt).toEqual(expect.any(Number));
@@ -836,6 +846,10 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.scenarios[0].perDeltaEvaluation[0].fillingBranch?.interwaveXiMinAbs).toEqual(expect.any(Number));
     expect(report.scenarios[0].perDeltaEvaluation[0].fillingBranch?.morphologyClassA).toEqual(expect.any(String));
     expect(report.scenarios[0].perDeltaEvaluation[0].fillingBranch?.morphologyClassB).toEqual(expect.any(String));
+    expect(report.scenarios[0].pointEdgeQDotSummary[0].regime).toEqual(expect.any(String));
+    expect(report.scenarios[0].pointEdgeQDotSummary[0].edge).toEqual(expect.any(String));
+    expect(report.scenarios[0].pointEdgeQDotSummary[0].maxRawAbsMlPerS2).toEqual(expect.any(Number));
+    expect(report.scenarios[0].pointEdgeQDotSummary[0].branchAmplitudeFractionQMVMax).toEqual(expect.any(Number));
     expect(report.scenarios[0].perDeltaEvaluation[0].LA_A_loop_fraction).toEqual(expect.any(Number));
     expect(report.scenarios[0].perDeltaEvaluation[0].atrialSystoleMVOpenFraction).toEqual(expect.any(Number));
     expect(report.scenarios[0].perDeltaEvaluation[0].cleanForReturnMapSlope).toEqual(expect.any(Boolean));
@@ -855,6 +869,8 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToMarkdown(report)).toContain("AoV low-open event-direction qDot estimator");
     expect(matrixReportToMarkdown(report)).toContain("Negative qDot closure-deceleration primary readouts");
     expect(matrixReportToMarkdown(report)).toContain("Per-edge dynamic qDot clamp audit");
+    expect(matrixReportToMarkdown(report)).toContain("Regime aggregate per-edge qDot audit");
+    expect(matrixReportToMarkdown(report)).toContain("Regime point-level per-edge qDot audit");
     expect(matrixReportToMarkdown(report)).toContain("orifice mean");
     expect(matrixReportToMarkdown(report)).toContain("closure fw");
     expect(matrixReportToMarkdown(report)).toContain("Bq2 mean");

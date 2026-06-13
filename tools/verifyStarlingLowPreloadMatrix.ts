@@ -33,6 +33,7 @@ type DebugPoint = DebugReport["points"][number];
 
 type MatrixOptions = {
   outDir: string;
+  regimeAuditPreset?: RegimeAuditPreset;
   targetVolumeMl: number;
   heartModels: HeartModelMode[];
   deltasMl: number[];
@@ -64,6 +65,10 @@ type MatrixOptions = {
   progress?: boolean;
   partialWrite?: (report: MatrixReport) => void;
 };
+
+type RegimeAuditPreset = "low-hyper";
+
+type RegimeClass = "baseline" | "low-preload" | "hypervolume";
 
 type AovQDotClampConfig = {
   positive: number;
@@ -210,6 +215,35 @@ type PerEdgeQDotSummary = Record<DynamicEdgeName, {
   maxImpulseAbsMlPerS2: number;
   maxHitCount: number;
 }>;
+
+type RegimePerEdgeQDotSummary = Record<RegimeClass, PerEdgeQDotSummary>;
+
+type PointEdgeQDotSummary = {
+  regime: RegimeClass;
+  deltaVolumeMl: number;
+  targetVolumeMl: number;
+  periodBeats: number;
+  edge: DynamicEdgeName;
+  maxRawAbsMlPerS2: number;
+  maxPositiveRawMlPerS2: number;
+  maxNegativeRawAbsMlPerS2: number;
+  maxImpulseAbsMlPerS2: number;
+  maxHitCount: number;
+  valveForwardMl: number | null;
+  valveReverseMl: number | null;
+  valveMinQ: number | null;
+  valveMaxQ: number | null;
+  branchAmplitudeFractionCOL: number;
+  branchAmplitudeFractionCOR: number;
+  branchAmplitudeFractionQAoMax: number;
+  branchAmplitudeFractionQPVMax: number;
+  branchAmplitudeFractionQMVMax: number;
+  branchAmplitudeFractionPAPMean: number;
+  fillingMorphologyClass: FillingMorphologyClass | null;
+  qmvNearZeroReturnCount: number | null;
+  mvReopenCount: number | null;
+};
+
 type WaveformGateComparison = {
   label: WaveformGateLabel;
   HR: number;
@@ -296,6 +330,7 @@ type MatrixScenario = {
   returnMapSummary: DebugReport["summary"];
   negativeQDotSummary: NegativeQDotSummary;
   perEdgeQDotSummary: PerEdgeQDotSummary;
+  pointEdgeQDotSummary: PointEdgeQDotSummary[];
   waveformGates: WaveformGateComparison[];
   perDeltaEvaluation: PerDeltaEvaluation[];
   points: DebugPoint[];
@@ -425,9 +460,10 @@ type ShapeSummary = {
 };
 
 type MatrixReport = {
-  schemaVersion: 26;
+  schemaVersion: 27;
   generatedAt: string;
   measurementMode: string;
+  regimeAuditPreset?: RegimeAuditPreset;
   targetVolumeMl: number;
   heartModels: HeartModelMode[];
   deltasMl: number[];
@@ -500,6 +536,7 @@ type MatrixReport = {
     maxSV5To95QDotHitFraction: number;
     maxQDotClampImpulseAbs: number;
     perEdgeQDot: PerEdgeQDotSummary;
+    regimePerEdgeQDot: RegimePerEdgeQDotSummary;
     maxQAoPeakMeanRatio: number;
     maxQAoMeanPositive: number;
     minQAoTimeToPeakMs: number;
@@ -552,6 +589,7 @@ type MatrixReport = {
 type BranchLocalizationClass = "edv-dominant" | "esv/ejection-dominant" | "mixed";
 
 const DEFAULT_DELTAS = [0, -900, -1000, -1100, -1200, -1250, -1300, -1400, -1500, -1600];
+const LOW_HYPER_REGIME_AUDIT_DELTAS = [0, -1600, -1500, -1450, -1400, -1350, -1300, -1250, -1200, 200, 400, 600, 800];
 const DEFAULT_DT_VALUES = [0.001, 0.0005];
 const DEFAULT_HEART_MODELS: HeartModelMode[] = ["activeStress"];
 const DEFAULT_TAU_VALUES = [0, 0.05, 0.1, 0.15, 0.2, 0.4];
@@ -798,6 +836,7 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
       returnMapSummary: returnMapReport.summary,
       negativeQDotSummary,
       perEdgeQDotSummary: buildPerEdgeQDotSummary(waveformGates),
+      pointEdgeQDotSummary: buildPointEdgeQDotSummary(returnMapReport.points),
       waveformGates,
       perDeltaEvaluation,
       points: returnMapReport.points,
@@ -857,6 +896,103 @@ function mergePerEdgeQDotSummaries(scenarios: MatrixScenario[]): PerEdgeQDotSumm
   return out;
 }
 
+function buildPointEdgeQDotSummary(points: DebugPoint[]): PointEdgeQDotSummary[] {
+  const rows: PointEdgeQDotSummary[] = [];
+  for (const point of points) {
+    const regime = regimeForDelta(point.deltaVolumeMl);
+    const coLBranch = finiteOrZero(point.returnMap.branchAmplitudeFraction.CO_L ?? NaN);
+    const coRBranch = beatTraceBranchFraction(point, "CO_R", 0.05);
+    const qAoBranch = finiteOrZero(point.returnMap.branchAmplitudeFraction.QAoMax ?? NaN);
+    const qPvBranch = beatTraceBranchFraction(point, "QPVMax", 1);
+    const qMvBranch = beatTraceBranchFraction(point, "QMVMax", 1);
+    const papMeanBranch = beatTraceBranchFraction(point, "PAPMean", 0.1);
+    const lastFilling = point.beatTrace.at(-1)?.filling;
+    for (const edge of dynamicEdgeNames) {
+      const audit = pointEdgeAudit(point, edge);
+      const valveTrace = valveTraceForEdge(point, edge);
+      rows.push({
+        regime,
+        deltaVolumeMl: point.deltaVolumeMl,
+        targetVolumeMl: point.targetVolumeMl,
+        periodBeats: point.settle.periodBeats ?? 1,
+        edge,
+        ...audit,
+        valveForwardMl: valveTrace?.forwardVolumeMl ?? null,
+        valveReverseMl: valveTrace?.reverseVolumeMl ?? null,
+        valveMinQ: valveTrace?.minQ ?? null,
+        valveMaxQ: valveTrace?.maxQ ?? null,
+        branchAmplitudeFractionCOL: coLBranch,
+        branchAmplitudeFractionCOR: coRBranch,
+        branchAmplitudeFractionQAoMax: qAoBranch,
+        branchAmplitudeFractionQPVMax: qPvBranch,
+        branchAmplitudeFractionQMVMax: qMvBranch,
+        branchAmplitudeFractionPAPMean: papMeanBranch,
+        fillingMorphologyClass: lastFilling?.fillingMorphologyClass ?? null,
+        qmvNearZeroReturnCount: lastFilling?.QMV_near_zero_return_count ?? null,
+        mvReopenCount: lastFilling?.MV_open_close_reopen_count ?? null,
+      });
+    }
+  }
+  return rows;
+}
+
+function mergeRegimePerEdgeQDotSummaries(scenarios: MatrixScenario[]): RegimePerEdgeQDotSummary {
+  return {
+    baseline: mergePointEdgeRows(scenarios, "baseline"),
+    "low-preload": mergePointEdgeRows(scenarios, "low-preload"),
+    hypervolume: mergePointEdgeRows(scenarios, "hypervolume"),
+  };
+}
+
+function mergePointEdgeRows(scenarios: MatrixScenario[], regime: RegimeClass): PerEdgeQDotSummary {
+  const out = {} as PerEdgeQDotSummary;
+  for (const edge of dynamicEdgeNames) {
+    const rows = scenarios.flatMap((scenario) => scenario.pointEdgeQDotSummary)
+      .filter((row) => row.regime === regime && row.edge === edge);
+    out[edge] = {
+      maxRawAbsMlPerS2: Math.max(0, ...rows.map((row) => finiteOrZero(row.maxRawAbsMlPerS2))),
+      maxPositiveRawMlPerS2: Math.max(0, ...rows.map((row) => finiteOrZero(row.maxPositiveRawMlPerS2))),
+      maxNegativeRawAbsMlPerS2: Math.max(0, ...rows.map((row) => finiteOrZero(row.maxNegativeRawAbsMlPerS2))),
+      maxImpulseAbsMlPerS2: Math.max(0, ...rows.map((row) => finiteOrZero(row.maxImpulseAbsMlPerS2))),
+      maxHitCount: Math.max(0, ...rows.map((row) => finiteOrZero(row.maxHitCount))),
+    };
+  }
+  return out;
+}
+
+function regimeForDelta(deltaVolumeMl: number): RegimeClass {
+  if (deltaVolumeMl <= -50) return "low-preload";
+  if (deltaVolumeMl >= 50) return "hypervolume";
+  return "baseline";
+}
+
+function pointEdgeAudit(point: DebugPoint, edge: DynamicEdgeName): PerEdgeQDotSummary[DynamicEdgeName] {
+  const audits = [
+    point.clampDiagnostics.dynamicQDotLastBeat[edge],
+    point.clampDiagnostics.dynamicQDotCurrentBeat[edge],
+  ].filter((audit): audit is ModelCoreDynamicQDotAudit => audit != null);
+  return {
+    maxRawAbsMlPerS2: Math.max(0, ...audits.map((audit) => finiteOrZero(audit.maxRawAbsMlPerS2))),
+    maxPositiveRawMlPerS2: Math.max(0, ...audits.map((audit) => finiteOrZero(audit.maxPositiveRawMlPerS2))),
+    maxNegativeRawAbsMlPerS2: Math.max(0, ...audits.map((audit) => Math.abs(Math.min(0, finiteOrZero(audit.minNegativeRawMlPerS2))))),
+    maxImpulseAbsMlPerS2: Math.max(0, ...audits.map((audit) => finiteOrZero(audit.maxImpulseAbsMlPerS2))),
+    maxHitCount: Math.max(0, ...audits.map((audit) => finiteOrZero(audit.hitCount))),
+  };
+}
+
+function valveTraceForEdge(point: DebugPoint, edge: DynamicEdgeName): DebugPoint["valveTrace"][keyof DebugPoint["valveTrace"]] | null {
+  if (edge === "MV" || edge === "AoV" || edge === "TV" || edge === "PV") return point.valveTrace[edge];
+  return null;
+}
+
+function beatTraceBranchFraction(point: DebugPoint, key: keyof DebugPoint["beatTrace"][number], floor: number): number {
+  const beats = point.beatTrace.slice(-2);
+  if (beats.length < 2) return 0;
+  const a = Number(beats[0][key]);
+  const b = Number(beats[1][key]);
+  return symmetricFractionalDifference(a, b, floor);
+}
+
 function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenarios: MatrixScenario[]): MatrixReport {
   const maxWaveformGate = scenarios
     .flatMap((scenario) => scenario.waveformGates)
@@ -867,9 +1003,10 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
       { fraction: 0, metric: null },
     );
   return {
-    schemaVersion: 26,
+    schemaVersion: 27,
     generatedAt: new Date().toISOString(),
-    measurementMode: "branch-only broad low-preload matrix followed by selected EDV-section return-map diagnostics with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap comparator axes, off-by-default AoV_B/AoV_Amax/AoV_L/AoV_tau/systemicResistance/arterialStiffness ejection-dynamics comparator axes, off-by-default tension-rise/fall comparators, asymmetric AoV qDot positive/negative clamp, and AoV q-state update comparator axes, and fIsoSlopeRelax low-stretch active-force comparator; AoV gradient is decomposed into full-open orifice, area-loss extra, inertial, residual, direct ODE closure residual, solver qDot clamp audit, clean-window closure residual terms, report-only sign-aware qDot target-estimator terms, open01-bin qDot target-estimator terms, low-open event-direction qDot target-estimator terms, negative qDot closure-deceleration primary readouts, and per-edge dynamic qDot clamp audit for all valve/dynamic edges; ejection duration is reported as QAo>0, QAo>5% peak, SV 5-95%, and historical high-flow windows; optional TBV correction on/off/low contamination axis; activeStress/elastance heart-model comparison axis",
+    measurementMode: "branch-only broad low-preload/hypervolume matrix followed by selected EDV-section return-map diagnostics with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap comparator axes, off-by-default AoV_B/AoV_Amax/AoV_L/AoV_tau/systemicResistance/arterialStiffness ejection-dynamics comparator axes, off-by-default tension-rise/fall comparators, asymmetric AoV qDot positive/negative clamp, and AoV q-state update comparator axes, and fIsoSlopeRelax low-stretch active-force comparator; AoV gradient is decomposed into full-open orifice, area-loss extra, inertial, residual, direct ODE closure residual, solver qDot clamp audit, clean-window closure residual terms, report-only sign-aware qDot target-estimator terms, open01-bin qDot target-estimator terms, low-open event-direction qDot target-estimator terms, negative qDot closure-deceleration primary readouts, scenario-level per-edge qDot audit, and point/regime-level per-edge dynamic qDot clamp audit for all valve/dynamic edges; ejection duration is reported as QAo>0, QAo>5% peak, SV 5-95%, and historical high-flow windows; optional TBV correction on/off/low contamination axis; activeStress/elastance heart-model comparison axis",
+    regimeAuditPreset: opts.regimeAuditPreset,
     targetVolumeMl: opts.targetVolumeMl,
     heartModels: opts.heartModels,
     deltasMl: opts.deltasMl,
@@ -942,6 +1079,7 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
         maxSV5To95QDotHitFraction: Math.max(0, ...scenarios.map((s) => finiteOrZero(s.negativeQDotSummary.sv5To95QDotHitFractionMax))),
         maxQDotClampImpulseAbs: Math.max(0, ...scenarios.map((s) => finiteOrZero(s.negativeQDotSummary.qDotClampImpulseAbsMax))),
         perEdgeQDot: mergePerEdgeQDotSummaries(scenarios),
+        regimePerEdgeQDot: mergeRegimePerEdgeQDotSummaries(scenarios),
         maxQAoPeakMeanRatio: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.QAoPeakMeanRatio)))),
         maxQAoMeanPositive: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.QAoMeanPositive)))),
         minQAoTimeToPeakMs: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.QAoTimeToPeakMs))),
@@ -2824,8 +2962,71 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
     }
   }
   lines.push("");
+  lines.push("## Regime aggregate per-edge qDot audit");
+  lines.push("");
+  lines.push("These maxima come from the actual Starling delta points, grouped by `delta<0` low-preload, `delta=0` baseline, and `delta>0` hypervolume. Use this table for AoV-only vs semilunar/common-valve localization; the previous section remains waveform-gate context.");
+  lines.push("");
+  lines.push("| regime | edge | raw abs max | +qDot max | -qDot abs max | impulse abs max | hit count max |");
+  lines.push(markdownSeparator(lines[lines.length - 1]));
+  for (const regime of ["low-preload", "baseline", "hypervolume"] as RegimeClass[]) {
+    for (const edge of dynamicEdgeNames) {
+      const summary = report.summary.regimePerEdgeQDot[regime][edge];
+      lines.push([
+        regime,
+        edge,
+        round(summary.maxRawAbsMlPerS2, 4),
+        round(summary.maxPositiveRawMlPerS2, 4),
+        round(summary.maxNegativeRawAbsMlPerS2, 4),
+        round(summary.maxImpulseAbsMlPerS2, 4),
+        summary.maxHitCount,
+      ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
+    }
+  }
+  lines.push("");
+  lines.push("## Regime point-level per-edge qDot audit");
+  lines.push("");
+  lines.push("Point-level rows keep the delta/regime context needed to test whether low-preload is AoV/PV outlet-side while hypervolume exposes MV/filling-side qDot events. MV morphology columns are repeated on every edge row for that point so qDot hits can be compared with near-zero/reopen/pressure-crossing markers.");
+  lines.push("");
+  lines.push("| scenario class | heart model | dt | TBV correction | regime | delta | target TBV | period | edge | raw abs max | +qDot max | -qDot abs max | impulse abs max | hit count | valve fwd mL | valve rev mL | min Q | max Q | CO_L branch | CO_R branch | QAo branch | QPV branch | QMV branch | PAP mean branch | MV morphology | QMV zero returns | MV reopen count |");
+  lines.push(markdownSeparator(lines[lines.length - 1]));
+  for (const scenario of report.scenarios) {
+    for (const row of scenario.pointEdgeQDotSummary) {
+      lines.push([
+        scenario.evaluation.classification,
+        scenario.heartModel,
+        round(scenario.dt, 5),
+        scenario.tbvCorrectionMode,
+        row.regime,
+        row.deltaVolumeMl,
+        row.targetVolumeMl,
+        row.periodBeats,
+        row.edge,
+        round(row.maxRawAbsMlPerS2, 4),
+        round(row.maxPositiveRawMlPerS2, 4),
+        round(row.maxNegativeRawAbsMlPerS2, 4),
+        round(row.maxImpulseAbsMlPerS2, 4),
+        row.maxHitCount,
+        row.valveForwardMl == null ? "" : round(row.valveForwardMl, 4),
+        row.valveReverseMl == null ? "" : round(row.valveReverseMl, 4),
+        row.valveMinQ == null ? "" : round(row.valveMinQ, 4),
+        row.valveMaxQ == null ? "" : round(row.valveMaxQ, 4),
+        round(row.branchAmplitudeFractionCOL, 4),
+        round(row.branchAmplitudeFractionCOR, 4),
+        round(row.branchAmplitudeFractionQAoMax, 4),
+        round(row.branchAmplitudeFractionQPVMax, 4),
+        round(row.branchAmplitudeFractionQMVMax, 4),
+        round(row.branchAmplitudeFractionPAPMean, 4),
+        row.fillingMorphologyClass ?? "",
+        row.qmvNearZeroReturnCount ?? "",
+        row.mvReopenCount ?? "",
+      ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
+    }
+  }
+  lines.push("");
   lines.push("## Interpretation notes");
   lines.push("");
+  lines.push("- Per-edge qDot audit is localization data, not a model-fix decision. Do not infer an all-edge qDot/valve fix from one low-preload smoke.");
+  lines.push("- Low-preload and hypervolume regimes must be read separately. Low-preload AoV/PV dominance argues against MV/filling-side being the low-preload primary mechanism, but it does not rule out MV involvement in hypervolume.");
   lines.push("- `root-fix-candidate` requires the worst branch delta to have clean scalar EDV return-map slope coverage. If the worst delta is nonsmooth, clamp-crossing, contaminated, or otherwise unmeasured, the scenario remains a mitigator/inconclusive even when the branch envelope is small.");
   lines.push("- `scalar-edv-clean` evidence is not a full-state Floquet/Jacobian result. Any root-fix candidate remains provisional until broader validation, and ideally full-state Poincare Jacobian confirmation, is available.");
   lines.push("- Avoid stacking multiple mitigators just to satisfy the classifier. Multiple-lever tuning should be labeled as a stabilization bundle, not a single-mechanism root fix.");
@@ -3800,6 +4001,10 @@ export function parseLowPreloadMatrixArgs(args: string[]): MatrixOptions {
   for (const arg of args) {
     const [key, value] = arg.split("=", 2);
     if (key === "--out" && value) opts.outDir = value;
+    else if (key === "--regime-audit" && value) {
+      opts.regimeAuditPreset = parseRegimeAuditPreset(value);
+      if (opts.regimeAuditPreset === "low-hyper") opts.deltasMl = LOW_HYPER_REGIME_AUDIT_DELTAS;
+    }
     else if (key === "--target-volume" && value) opts.targetVolumeMl = Number(value);
     else if (key === "--heart-model" && value) opts.heartModels = parseHeartModels(value);
     else if (key === "--deltas" && value) opts.deltasMl = parseNumberList(value);
@@ -3846,6 +4051,11 @@ function parseTBVCorrectionModes(value: string): TBVCorrectionMode[] {
     if (mode !== "on" && mode !== "off" && mode !== "low") throw new Error(`Invalid TBV correction mode: ${mode}`);
   }
   return modes as TBVCorrectionMode[];
+}
+
+function parseRegimeAuditPreset(value: string): RegimeAuditPreset {
+  if (value !== "low-hyper") throw new Error(`Invalid regime audit preset: ${value}`);
+  return value;
 }
 
 function parseAorticFlowClampModes(value: string): AorticFlowClampMode[] {
@@ -3995,6 +4205,11 @@ function fractionalAbsDelta(value: number, baseline: number, floor: number): num
   return Math.abs(value - baseline) / Math.max(Math.abs(baseline), floor);
 }
 
+function symmetricFractionalDifference(a: number, b: number, floor: number): number {
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 0;
+  return Math.abs(a - b) / Math.max(Math.abs(a), Math.abs(b), floor);
+}
+
 function finiteOrZero(value: number): number {
   return Number.isFinite(value) ? value : 0;
 }
@@ -4045,6 +4260,7 @@ function printHelp(): void {
     "       [--systemic-resistance=1,1.2] [--arterial-stiffness=0.75,1.0]",
     "       [--tension-rise=0,0.02,0.04] [--tension-fall=0,0.04,0.08] [--aov-qdot-clamp=40000,80000]",
     "       [--aov-qdot-clamp-pair=+40000/-80000,+80000/-40000] [--aov-q-update=current-loss,qnext-loss,substep-2,substep-4]",
+    "       [--regime-audit=low-hyper]",
     "       [--include-all-scope] [--branch-only] [--max-return-map-points=6]",
     "       [--quiet-progress]",
     "",
