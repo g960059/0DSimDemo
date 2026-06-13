@@ -723,3 +723,44 @@ npm run verify:starling-low-preload-matrix -- \
   --sample-hz=40 \
   --quiet-progress
 ```
+
+### 2026-06-13 update: tension-fall comparator for closure deceleration
+
+The negative-qDot localization points to closure-side deceleration rather than opening acceleration. `forwardCoast` is not the primary suspect: in the model it only applies for small adverse gradients (`-3 < LVP-AoP <= 0` mmHg), while the problematic samples show much larger adverse gradients. The current working hypothesis is that LV active-stress relaxation is too abrupt relative to AoV closure, so LVP falls below AoP before forward flow has decelerated smoothly.
+
+The debug and matrix runners now expose an off-by-default tension-fall comparator:
+
+```bash
+--tension-fall=0,0.04,0.08,0.12
+```
+
+When `--tension-fall` is used without `--tension-rise`, the rise side is held near-instant and only the fall / relaxation path is filtered. Default runtime dynamics are unchanged.
+
+Recommended short sweep with the default negative qDot clamp left fixed:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/tension-fall-negative-decel-smoke \
+  --deltas=0,-1250 \
+  --dt=0.001,0.0005 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --tension-rise=0 \
+  --tension-fall=0,0.04,0.08,0.12 \
+  --aov-tau-close=0.008,0.012 \
+  --aov-qdot-clamp-pair=+40000/-40000 \
+  --max-return-map-points=1 \
+  --trace-beats=2 \
+  --sample-hz=40 \
+  --quiet-progress
+```
+
+Primary readouts:
+
+- pressure-reversal / forward-coast negative qDot ratio
+- SV 5-95% and clean-candidate qDot hit fraction
+- clean-window closure residual
+- branch envelope and selected ESV-section slope
+- normal / HR candidate `minDpdtLVP` as the relaxation downstroke readout
+
+Acceptance discipline: this is still a comparator. A physical fix would reduce adverse-gradient deceleration and qDot-clamp involvement while keeping the default `+40000/-40000` clamp, preserving mean CO/SV, and avoiding normal / HR waveform regression.

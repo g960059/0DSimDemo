@@ -762,3 +762,46 @@ npm run verify:starling-low-preload-matrix -- \
   --sample-hz=40 \
   --quiet-progress
 ```
+
+## 2026-06-13 update: tension-fall closure-deceleration comparator
+
+The latest interpretation from the negative qDot readouts is that the low-preload event surface is closure-side deceleration. Relaxing the negative qDot clamp is a positive control, not a model fix. The physical question is now whether the default clamp can stay fixed while LV relaxation is slowed enough for AoV closure/deceleration to remain ODE-dominated.
+
+Important guardrail: `forwardCoast` is not expected to explain the large adverse-gradient samples. It only applies for small adverse gradients (`-3 < LVP-AoP <= 0` mmHg). The problematic samples are much more adverse and should be read as rapid relaxation / closure-deceleration pathology.
+
+New report-only axis:
+
+```bash
+--tension-fall=0,0.04,0.08,0.12
+```
+
+If `--tension-fall` is set while `--tension-rise=0`, the active-stress rise path is held near-instant and only the fall path is filtered. Default runtime behavior is unchanged.
+
+Recommended handoff artifact:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/tension-fall-negative-decel-smoke \
+  --deltas=0,-1250 \
+  --dt=0.001,0.0005 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --tension-rise=0 \
+  --tension-fall=0,0.04,0.08,0.12 \
+  --aov-tau-close=0.008,0.012 \
+  --aov-qdot-clamp-pair=+40000/-40000 \
+  --max-return-map-points=1 \
+  --trace-beats=2 \
+  --sample-hz=40 \
+  --quiet-progress
+```
+
+Primary readout order:
+
+1. pressure-reversal / forward-coast negative qDot ratio
+2. SV 5-95% and clean-candidate qDot hit fraction
+3. clean-window closure residual
+4. branch envelope and selected ESV-section slope
+5. normal / HR `minDpdtLVP` relaxation dP/dt and waveform gates
+
+Classification guidance: a promising physical comparator must reduce negative qDot / closure-deceleration pathology with the default negative clamp unchanged. If it only works by relaxing the qDot clamp, it remains a positive control. If it reduces branch but damages normal / HR waveform gates, classify it as a mitigator or negative comparator rather than a root fix.
