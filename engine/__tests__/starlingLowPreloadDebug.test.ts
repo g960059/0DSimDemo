@@ -99,7 +99,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(Object.keys(diagnostics.tbvProjectionLastStep.byNodeAbsMl).length).toBeGreaterThan(0);
   });
 
-  it("builds a schema-v19 low-preload report with active, valve, clamp, TBV audit, return-map, filling morphology, and tau/dt fields", () => {
+  it("builds a schema-v20 low-preload report with active, valve, clamp, TBV audit, qDot target, return-map, filling morphology, and tau/dt fields", () => {
     const report = runLowPreloadDebug({
       outDir: "unused",
       targetVolumeMl: 5600,
@@ -440,6 +440,10 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrix.summary.maxAoVQDotRawMaxAbs).toEqual(expect.any(Number));
     expect(matrix.summary.maxAoVQDotClampHitFraction).toEqual(expect.any(Number));
     expect(matrix.summary.maxAoVQDotClampHitFractionSV5To95).toEqual(expect.any(Number));
+    expect(matrix.summary.maxAoVQDotRawToClampRatioMax).toEqual(expect.any(Number));
+    expect(matrix.summary.maxAoVQDotRequiredReductionFractionMax).toEqual(expect.any(Number));
+    expect(matrix.summary.maxAoVQDotPressureExcessOverClampMaxMmHg).toEqual(expect.any(Number));
+    expect(matrix.summary.maxAoVQDotEquivalentExtraBAtMaxExcess).toEqual(expect.any(Number));
     expect(matrix.summary.maxAoVClosureResidualSV5To95Mean).toEqual(expect.any(Number));
     expect(matrix.summary.maxQAoMeanPositive).toEqual(expect.any(Number));
     expect(matrix.summary.minQAoTimeToPeakMs).toEqual(expect.any(Number));
@@ -465,12 +469,16 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(Number.isFinite(normalGate?.candidate.AoVQDotRawMaxAbs)).toBe(true);
     expect(Number.isFinite(normalGate?.candidate.AoVQDotPostMaxAbs)).toBe(true);
     expect(Number.isFinite(normalGate?.candidate.AoVQDotClampHitFraction)).toBe(true);
+    expect(Number.isFinite(normalGate?.candidate.AoVQDotRawToClampRatioMax)).toBe(true);
+    expect(Number.isFinite(normalGate?.candidate.AoVQDotRequiredReductionFractionMax)).toBe(true);
+    expect(Number.isFinite(normalGate?.candidate.AoVQDotPressureExcessOverClampMaxMmHg)).toBe(true);
     expect(Number.isFinite(normalGate?.candidate.AoVClosureResidualAtQAoMax)).toBe(true);
     expect(Number.isFinite(normalGate?.candidate.QAoMeanPositive)).toBe(true);
     expect(Number.isFinite(normalGate?.candidate.QAoTimeToPeakMs)).toBe(true);
     expect(Number.isFinite(normalGate?.candidate.maxDQAoDt)).toBe(true);
     expect(matrixReportToMarkdown(matrix)).toContain("AoV_B / AS sanity");
     expect(matrixReportToMarkdown(matrix)).toContain("AoV gradient decomposition");
+    expect(matrixReportToMarkdown(matrix)).toContain("AoV qDot target estimator");
     expect(matrixReportToMarkdown(matrix)).toContain("closure fw");
     expect(matrixReportToMarkdown(matrix)).toContain("clean closure fw");
     expect(matrixReportToMarkdown(matrix)).toContain("qDot hit SV5-95");
@@ -682,7 +690,7 @@ describe("low-preload Starling debug diagnostics", () => {
     ]);
     const report = runLowPreloadMatrix(opts);
 
-    expect(report.schemaVersion).toBe(19);
+    expect(report.schemaVersion).toBe(20);
     expect(report.heartModels).toEqual(["activeStress"]);
     expect(report.aorticFlowClampModes).toEqual(["hard"]);
     expect(report.aovBValues).toEqual([DEFAULT_PARAMS.AoV_B]);
@@ -725,6 +733,10 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.summary.maxAoVClosureResidualSV5To95Mean).toEqual(expect.any(Number));
     expect(report.summary.maxAoVFlowWeightedClosureResidualSV5To95).toEqual(expect.any(Number));
     expect(report.summary.maxAoVFlowWeightedQDotClampImpulseGradient).toEqual(expect.any(Number));
+    expect(report.summary.maxAoVQDotRawToClampRatioMax).toEqual(expect.any(Number));
+    expect(report.summary.maxAoVQDotRequiredReductionFractionMax).toEqual(expect.any(Number));
+    expect(report.summary.maxAoVQDotPressureExcessOverClampMaxMmHg).toEqual(expect.any(Number));
+    expect(report.summary.maxAoVQDotEquivalentExtraBAtMaxExcess).toEqual(expect.any(Number));
     expect(report.summary.maxQAoMeanPositive).toEqual(expect.any(Number));
     expect(report.summary.minQAoTimeToPeakMs).toEqual(expect.any(Number));
     expect(report.summary.maxDQAoDt).toEqual(expect.any(Number));
@@ -801,6 +813,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToMarkdown(report)).toContain("MV reopen count");
     expect(matrixReportToMarkdown(report)).toContain("Normal / HR100 waveform gates");
     expect(matrixReportToMarkdown(report)).toContain("AoV gradient decomposition");
+    expect(matrixReportToMarkdown(report)).toContain("AoV qDot target estimator");
     expect(matrixReportToMarkdown(report)).toContain("orifice mean");
     expect(matrixReportToMarkdown(report)).toContain("closure fw");
     expect(matrixReportToMarkdown(report)).toContain("Bq2 mean");

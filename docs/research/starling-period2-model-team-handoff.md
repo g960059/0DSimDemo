@@ -621,6 +621,20 @@ Primary readouts for the staged sweeps:
 - `AoVFlowWeightedCleanClosureResidual`
 - `AoVFlowWeightedSolverClosureResidual`
 
+PR #134 now also reports a qDot target estimator. This is report-only range-finding for the next tension/B sweep, not a model change:
+
+- `AoVQDotRawToClampRatioMax`
+- `AoVQDotRawToClampRatioSV5To95Max`
+- `AoVQDotRawToClampRatioCleanCandidateMax`
+- `AoVQDotRequiredReductionFractionMax`
+- `AoVQDotRequiredReductionFractionSV5To95Max`
+- `AoVQDotPressureExcessOverClampMaxMmHg`
+- `AoVQDotPressureExcessOverClampSV5To95MaxMmHg`
+- `AoVQDotEquivalentExtraBAtMaxExcess`
+- `AoVQDotEquivalentExtraBAtSV5To95MaxExcess`
+
+Interpretation: if raw qDot is, for example, `10x` the configured clamp, a physical comparator should be judged by whether it reduces that ratio and qDot-clamp impulse in the SV 5-95% / clean-candidate windows while preserving normal / HR waveform gates. `equiv extra B` is only a scale estimate for how much additional Bernoulli loss would create the same instantaneous pressure excess at the sampled QAo; it is not a recommended default parameter.
+
 Secondary / safety readouts:
 
 - CO / ESV / QAo branch fractions and selected ESV-section slopes
