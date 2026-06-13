@@ -99,7 +99,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(Object.keys(diagnostics.tbvProjectionLastStep.byNodeAbsMl).length).toBeGreaterThan(0);
   });
 
-  it("builds a schema-v22 low-preload report with active, valve, clamp, TBV audit, qDot target, return-map, filling morphology, and tau/dt fields", () => {
+  it("builds a schema-v23 low-preload report with active, valve, clamp, TBV audit, qDot target, return-map, filling morphology, and tau/dt fields", () => {
     const report = runLowPreloadDebug({
       outDir: "unused",
       targetVolumeMl: 5600,
@@ -113,13 +113,14 @@ describe("low-preload Starling debug diagnostics", () => {
       quietClampLog: true,
     });
 
-    expect(report.schemaVersion).toBe(22);
+    expect(report.schemaVersion).toBe(23);
     expect(report.heartModel).toBe("activeStress");
     expect(report.returnMapMode).toBe("both");
     expect(report.beatPairOverlay).toBe(false);
     expect(report.tbvCorrectionMode).toBe("on");
     expect(report.aorticFlowClampMode).toBe("hard");
     expect(report.tensionRiseSec).toBe(0);
+    expect(report.tensionFallSec).toBe(0);
     expect(report.aovQDotClamp).toBe(40000);
     expect(report.aovQDotClampNegative).toBe(40000);
     expect(report.aovQUpdateMode).toBe("current-loss");
@@ -255,7 +256,7 @@ describe("low-preload Starling debug diagnostics", () => {
       quietClampLog: true,
     });
 
-    expect(report.schemaVersion).toBe(22);
+    expect(report.schemaVersion).toBe(23);
     expect(report.beatPairOverlay).toBe(true);
     const overlay = report.points[0].beatPairOverlay;
     expect(overlay).toBeDefined();
@@ -509,6 +510,7 @@ describe("low-preload Starling debug diagnostics", () => {
       "--systemic-resistance=1,1.25",
       "--arterial-stiffness=0.75,0.9",
       "--tension-rise=0,0.02",
+      "--tension-fall=0,0.08",
       "--aov-qdot-clamp=40000,80000",
       "--aov-qdot-clamp-pair=+40000/-80000,+80000/-40000",
       "--aov-q-update=current-loss,qnext-loss,substep-2",
@@ -519,6 +521,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(axisOpts.systemicResistanceValues).toEqual([DEFAULT_PARAMS.systemicResistance, 1.25]);
     expect(axisOpts.arterialStiffnessValues).toEqual([DEFAULT_PARAMS.arterialStiffness, 0.9]);
     expect(axisOpts.tensionRiseSecValues).toEqual([0, 0.02]);
+    expect(axisOpts.tensionFallSecValues).toEqual([0, 0.08]);
     expect(axisOpts.aovQDotClampValues).toEqual([40000, 80000]);
     expect(axisOpts.aovQDotClampPairs).toEqual([
       { positive: 40000, negative: 80000 },
@@ -713,7 +716,7 @@ describe("low-preload Starling debug diagnostics", () => {
     ]);
     const report = runLowPreloadMatrix(opts);
 
-    expect(report.schemaVersion).toBe(24);
+    expect(report.schemaVersion).toBe(25);
     expect(report.heartModels).toEqual(["activeStress"]);
     expect(report.aorticFlowClampModes).toEqual(["hard"]);
     expect(report.aovBValues).toEqual([DEFAULT_PARAMS.AoV_B]);
@@ -724,6 +727,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.systemicResistanceValues).toEqual([DEFAULT_PARAMS.systemicResistance]);
     expect(report.arterialStiffnessValues).toEqual([DEFAULT_PARAMS.arterialStiffness]);
     expect(report.tensionRiseSecValues).toEqual([0]);
+    expect(report.tensionFallSecValues).toEqual([0]);
     expect(report.aovQDotClampValues).toEqual([40000]);
     expect(report.aovQDotClampPairs).toEqual([{ positive: 40000, negative: 40000 }]);
     expect(report.aovQUpdateModes).toEqual(["current-loss"]);
@@ -895,6 +899,8 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToCsv(report)).toContain("normalQAoMeanPositive");
     expect(matrixReportToCsv(report)).toContain("normalQAoTimeToPeakMs");
     expect(matrixReportToCsv(report)).toContain("normalMaxDQAoDt");
+    expect(matrixReportToCsv(report)).toContain("normalMinDpdtLVP");
+    expect(matrixReportToCsv(report)).toContain("tensionFallSec");
     expect(matrixReportToCsv(report)).toContain("normalEjectionPositiveDurationMs");
     expect(matrixReportToCsv(report)).toContain("normalEjectionSV5To95DurationMs");
   });
