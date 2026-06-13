@@ -841,3 +841,28 @@ Interpretation discipline:
 - Keep qDot clamp relaxation as a positive control only. The regime audit
   should decide fix scope before any physical or solver-side comparator is
   promoted.
+
+Initial smoke readout:
+
+- In the current low/hyper audit, qDot clamp impulse localizes primarily to
+  semilunar/outlet-side edges: AoV is primary and PV is secondary.
+- MV/TV show raw qDot activity but no qDot clamp hit in this audit, including
+  the hypervolume deltas. This weakens the hypothesis that hypervolume MV
+  morphology is caused by MV qDot clamp binding.
+- qDot hits also appear at baseline, so a hit by itself is not equivalent to
+  period-2 causality. The next localization layer should compare high-output
+  versus low-output beat qDot impulse, event sign, event phase, and
+  pressure-reversal / forward-coast class for AoV and PV.
+- The likely next scope question is AoV-only versus semilunar-common
+  (AoV+PV). Do not promote valve-common or all-dynamic-edge changes from this
+  audit alone.
+
+Suggested next diagnostic after this PR:
+
+- AoV/PV beat-level qDot branch rows: high-output beat impulse, low-output
+  beat impulse, branch fraction, event sign, event phase, pressure-reversal /
+  forward-coast classification.
+- RV/PV coupling rows: `CO_R`, `SV_R`, RV EDV/ESV, `QPV`, PAP/PArt branch, and
+  QPV phase relative to QAo.
+- Targeted hypervolume MV overlay at `+400,+600,+800`: MV morphology,
+  near-zero / reopen / LAP-LVP crossing, and MV qDot audit together.

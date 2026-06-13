@@ -886,3 +886,35 @@ Read it as localization data:
 - Hypervolume MV morphology without MV qDot hits should not be forced into the
   qDot-clamp explanation.
 - Do not infer a global all-edge fix from low-preload data alone.
+
+Model-team readout from the first `low-hyper` smoke:
+
+- qDot clamp impulse is concentrated on AoV and PV across low-preload,
+  baseline, and hypervolume rows.
+- AoV is the primary signal; PV is a secondary semilunar/outlet-side signal.
+- MV/TV/raw vascular dynamic edges do not show qDot clamp hits in this audit,
+  even when MV morphology columns change in hypervolume rows.
+- Therefore, the current best scope label is
+  `semilunar / outlet-side qDot deceleration`, not AoV-only and not all-valve.
+- Hypervolume MV morphology remains a separate question unless a targeted
+  overlay shows MV qDot hits or pressure-crossing events co-localizing with the
+  morphology change.
+
+Recommended next PR direction:
+
+1. Add AoV/PV beat-level branch readouts:
+   - high-output beat qDot impulse
+   - low-output beat qDot impulse
+   - impulse branch fraction
+   - event sign and phase
+   - pressure-reversal / forward-coast classification
+2. Add RV/PV coupling rows:
+   - `CO_R`, `SV_R`, RV EDV/ESV
+   - `QPV`, PAP/PArt branch
+   - QPV phase relative to QAo
+3. Re-run targeted hypervolume MV checks at `+400,+600,+800` with MV
+   morphology, near-zero / reopen / LAP-LVP crossing, and per-edge qDot audit
+   in the same artifact.
+
+Fix-scope decision should wait for those rows. Candidate scopes remain:
+AoV-only, semilunar-common (AoV+PV), valve-common, and dynamic-edge-common.
