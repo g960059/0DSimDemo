@@ -655,3 +655,28 @@ Readout discipline:
 - Do not read whole-window closure residual as an AS or valve-loss metric. It includes diode-closed and clamp-overridden intervals by construction.
 - Prefer `clean closure fw`, qDot hit fractions, and `SV 5-95%` / `>5% peak` ejection windows when judging whether ejection is ODE-dominated.
 - If a candidate improves branch amplitude only by changing qDot clamp behavior or by damaging normal/HR waveform gates, classify it as a diagnostic comparator rather than a model-fix candidate.
+
+### 2026-06-13 update: AoV opening-bin qDot estimator and q-state update comparator
+
+The qDot target estimator is now split by AoV opening fraction:
+
+- `open-lt-0.2`
+- `open-0.2-0.8`
+- `open-0.8-0.95`
+- `open-gte-0.95`
+
+This is report-only. The goal is to separate brief low-open-fraction AoV opening transients from the near-full-open ejection body. A large whole-window `raw/clamp max` should not be read as a required ejection-body correction until the open01-bin rows show where that maximum occurred.
+
+The matrix runner also has an off-by-default `--aov-q-update` comparator:
+
+```bash
+--aov-q-update=current-loss,qnext-loss,substep-2,substep-4
+```
+
+Interpretation:
+
+- `current-loss` is the current default and remains the only runtime behavior unless the debug/matrix runner explicitly asks for another mode.
+- `qnext-loss` is a qNext-consistent quadratic-loss comparator for testing whether current-q loss under-damps AoV opening acceleration.
+- `substep-2` and `substep-4` are small AoV q-state substep comparators with the pressure/opening state frozen within the outer model step.
+
+Use these modes as attribution tools, not as default candidates. A useful signal is a reduction in `open-lt-0.2` raw/clamp, qDot clamp impulse, and clean-window closure residual without damaging normal / HR waveform gates. `qDotClamp=80000` remains a positive control for event-surface dominance, not a root fix.

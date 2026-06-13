@@ -111,6 +111,12 @@ export type AorticFlowClampMode =
   | "local-c2-0.95"
   | "local-c2-0.98";
 
+export type AorticValveQUpdateMode =
+  | "current-loss"
+  | "qnext-loss"
+  | "substep-2"
+  | "substep-4";
+
 type BeatWindow = {
   data: SimSample[];
   beatCount: 1 | 2;
@@ -448,6 +454,7 @@ export class ModelCore {
   } | null = null;
   private aorticFlowClampMode: AorticFlowClampMode = "hard";
   private aorticFlowDerivativeClampMlPerS2 = DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
+  private aorticValveQUpdateMode: AorticValveQUpdateMode = "current-loss";
   private aorticFlowStepDiagnostics = emptyAorticFlowStepDiagnostics();
 
   // Steady-state detection (engine/settling.ts). The detector keeps its OWN
@@ -861,6 +868,10 @@ export class ModelCore {
     this.aorticFlowDerivativeClampMlPerS2 = Number.isFinite(limitMlPerS2) && limitMlPerS2 > 0
       ? limitMlPerS2
       : DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
+  }
+
+  setAorticValveQUpdateMode(mode: AorticValveQUpdateMode): void {
+    this.aorticValveQUpdateMode = mode;
   }
 
   private resetClampDiagnostics(): void {
@@ -1522,8 +1533,9 @@ export class ModelCore {
         L = L / Math.max(areaRatio, 1e-6);
       }
       const h = Math.max(this.rhsDt, 1e-6);
-      const Reff = R + B * Math.abs(q);
-      let qNext = (q + (h / L) * (Pu - PdEff)) / (1 + (h * Reff) / L);
+      let qNext = e.name === "AoV"
+        ? this.aorticValveQNext(q, Pu - PdEff, R, B, L, h)
+        : this.currentLossQNext(q, Pu - PdEff, R, B, L, h);
       const qNextPreDiode = qNext;
       if (e.kind === "valve") {
         const vName = e.name as ValveName;
@@ -2240,6 +2252,38 @@ export class ModelCore {
     return local
       ? this.applyLocalizedAorticFlowClamp(value, local)
       : this.applyAorticFlowClamp(value);
+  }
+
+  private currentLossQNext(q: number, dP: number, R: number, B: number, L: number, h: number): number {
+    const Reff = R + B * Math.abs(q);
+    return (q + (h / L) * dP) / (1 + (h * Reff) / L);
+  }
+
+  private qNextConsistentLossQNext(q: number, dP: number, R: number, B: number, L: number, h: number): number {
+    const a = Math.max(B, 0);
+    const b = Math.max(R + L / h, 1e-9);
+    const c = -((L / h) * q + dP);
+    if (a < 1e-12) return -c / b;
+    const disc = Math.max(0, b * b - 4 * a * c);
+    return (-b + Math.sqrt(disc)) / (2 * a);
+  }
+
+  private aorticValveQNext(q: number, dP: number, R: number, B: number, L: number, h: number): number {
+    if (this.aorticValveQUpdateMode === "qnext-loss") {
+      return this.qNextConsistentLossQNext(q, dP, R, B, L, h);
+    }
+    const substeps = this.aorticValveQUpdateMode === "substep-2"
+      ? 2
+      : this.aorticValveQUpdateMode === "substep-4"
+        ? 4
+        : 1;
+    if (substeps <= 1) return this.currentLossQNext(q, dP, R, B, L, h);
+    let qSub = q;
+    const hs = h / substeps;
+    for (let i = 0; i < substeps; i++) {
+      qSub = this.currentLossQNext(qSub, dP, R, B, L, hs);
+    }
+    return qSub;
   }
 
   private applyAorticFlowClamp(value: number): number {
