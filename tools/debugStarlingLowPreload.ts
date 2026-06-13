@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { DEFAULT_PARAMS } from "@/constants";
-import { ModelCore, type AorticFlowClampMode, type AorticValveQUpdateMode, type ModelCoreActiveStressDiagnostics, type ModelCoreClampDiagnostics } from "@/engine/ModelCore";
+import { ModelCore, type AorticFlowClampMode, type AorticValveQUpdateMode, type DynamicQDotClampScope, type ModelCoreActiveStressDiagnostics, type ModelCoreClampDiagnostics } from "@/engine/ModelCore";
 import { DYNAMIC_FLOW_CLAMP_ML_PER_S } from "@/engine/core/topology";
 import { makeIndex } from "@/engine/core/stateLayout";
 import type { StarlingSweepRequest } from "@/engine/guytonStarling";
@@ -21,6 +21,7 @@ type DebugOptions = {
   lambdaActTerms?: LambdaActTerms;
   lowStretchLimiterMode?: LowStretchLimiterMode;
   lowStretchLimiterScope?: LambdaActScope;
+  tensionScope?: LambdaActScope;
   activeReservePreset?: ActiveReservePreset;
   traceBeats: number;
   sampleHz: number;
@@ -42,6 +43,7 @@ type DebugOptions = {
   tensionFallSec?: number;
   aovQDotClamp?: number;
   aovQDotClampNegative?: number;
+  qDotClampScope?: DynamicQDotClampScope;
   aovQUpdateMode?: AorticValveQUpdateMode;
 };
 
@@ -448,7 +450,7 @@ type DebugSummary = {
 };
 
 type DebugReport = {
-  schemaVersion: 24;
+  schemaVersion: 25;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -460,6 +462,7 @@ type DebugReport = {
   lambdaActTerms: LambdaActTerms;
   lowStretchLimiterMode: LowStretchLimiterMode;
   lowStretchLimiterScope: LambdaActScope;
+  tensionScope: LambdaActScope;
   activeReservePreset: ActiveReservePreset;
   traceBeats: number;
   sampleHz: number;
@@ -481,6 +484,7 @@ type DebugReport = {
   tensionFallSec: number;
   aovQDotClamp: number;
   aovQDotClampNegative: number;
+  qDotClampScope: DynamicQDotClampScope;
   aovQUpdateMode: AorticValveQUpdateMode;
   beatPairOverlay: boolean;
   points: DebugPoint[];
@@ -518,6 +522,7 @@ const DEFAULT_LAMBDA_ACT_SCOPE: LambdaActScope = "all";
 const DEFAULT_LAMBDA_ACT_TERMS: LambdaActTerms = "kd+fiso";
 const DEFAULT_LOW_STRETCH_LIMITER_MODE: LowStretchLimiterMode = "none";
 const DEFAULT_LOW_STRETCH_LIMITER_SCOPE: LambdaActScope = "lv";
+const DEFAULT_TENSION_SCOPE: LambdaActScope = "all";
 const DEFAULT_ACTIVE_RESERVE_PRESET: ActiveReservePreset = "directMedium";
 const DEFAULT_SAMPLE_HZ = 120;
 const DEFAULT_RETURN_MAP_MODE: ReturnMapModeOption = "both";
@@ -532,6 +537,7 @@ export const DEFAULT_AOV_TAU_CLOSE = DEFAULT_PARAMS.AoV_tauClose;
 export const DEFAULT_SYSTEMIC_RESISTANCE = DEFAULT_PARAMS.systemicResistance;
 export const DEFAULT_ARTERIAL_STIFFNESS = DEFAULT_PARAMS.arterialStiffness;
 export const DEFAULT_AOV_Q_DOT_CLAMP = 40000;
+const DEFAULT_Q_DOT_CLAMP_SCOPE: DynamicQDotClampScope = "aov";
 const TBV_AUDIT_CONTAMINATION_THRESHOLD_ML = 0.05;
 const LOW_TBV_CORRECTION_OPTIONS = {
   gain: 0.035,
@@ -575,9 +581,11 @@ const CSV_COLUMNS = [
   "lambdaActTerms",
   "lowStretchLimiter",
   "lowStretchLimiterScope",
+  "tensionScope",
   "activeReservePreset",
   "tbvCorrectionMode",
   "aorticFlowClampMode",
+  "qDotClampScope",
   "AoV_B",
   "AoV_Amax",
   "AoV_Aref",
@@ -793,13 +801,15 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
   const lambdaActTerms = opts.lambdaActTerms ?? DEFAULT_LAMBDA_ACT_TERMS;
   const lowStretchLimiterMode = opts.lowStretchLimiterMode ?? DEFAULT_LOW_STRETCH_LIMITER_MODE;
   const lowStretchLimiterScope = opts.lowStretchLimiterScope ?? DEFAULT_LOW_STRETCH_LIMITER_SCOPE;
+  const tensionScope = opts.tensionScope ?? opts.lambdaActScope ?? DEFAULT_TENSION_SCOPE;
+  const qDotClampScope = opts.qDotClampScope ?? DEFAULT_Q_DOT_CLAMP_SCOPE;
   const activeReservePreset = effectiveActiveReservePreset(lowStretchLimiterMode, opts.activeReservePreset);
   const dtScenarios = lambdaActTauSecValues.flatMap((tau) => dtValues.map((dt) => runDtScenario(opts, dt, tau)));
   const primary = dtScenarios[0] ?? runDtScenario(opts, 0.001, 0);
   return {
-    schemaVersion: 24,
+    schemaVersion: 25,
     generatedAt: new Date().toISOString(),
-    measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve/TBV-projection diagnostics; branch-amplitude primary gate; EDV-section volume-preserving LV/PVein one-beat/two-beat return-map slopes with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap sensitivity, off-by-default AoV_B/AoV_Amax physical-loss comparators, off-by-default tension-rise/fall comparators, asymmetric AoV qDot positive/negative clamp sensitivity, and AoV q-state update comparator; LA/MV filling-regime and MV event-count morphology diagnostics; optional phase-aligned last-two-beat active/ejection/MV overlay diagnostics with high-low divergence summary; dt, off-by-default lambdaAct, and off-by-default AoV flow-clamp sensitivity",
+    measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve/TBV-projection diagnostics; branch-amplitude primary gate; EDV-section volume-preserving LV/PVein one-beat/two-beat return-map slopes with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap sensitivity, off-by-default AoV_B/AoV_Amax physical-loss comparators, off-by-default tension-rise/fall comparators with explicit chamber scope, asymmetric dynamic qDot positive/negative clamp sensitivity with explicit edge scope, and AoV q-state update comparator; LA/MV filling-regime and MV event-count morphology diagnostics; optional phase-aligned last-two-beat active/ejection/MV overlay diagnostics with high-low divergence summary; dt, off-by-default lambdaAct, and off-by-default AoV flow-clamp sensitivity",
     targetVolumeMl: opts.targetVolumeMl,
     heartModel: opts.heartModel ?? DEFAULT_HEART_MODEL,
     deltasMl: opts.deltasMl,
@@ -809,6 +819,7 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
     lambdaActTerms,
     lowStretchLimiterMode,
     lowStretchLimiterScope,
+    tensionScope,
     activeReservePreset,
     traceBeats: opts.traceBeats,
     sampleHz: opts.sampleHz,
@@ -830,6 +841,7 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
     tensionFallSec,
     aovQDotClamp,
     aovQDotClampNegative,
+    qDotClampScope,
     aovQUpdateMode,
     beatPairOverlay: opts.beatPairOverlay === true,
     points: primary.points,
@@ -868,13 +880,14 @@ export function reportToMarkdown(report: DebugReport): string {
   lines.push(`lambdaAct terms: ${report.lambdaActTerms}`);
   lines.push(`low-stretch limiter: ${report.lowStretchLimiterMode}`);
   lines.push(`low-stretch limiter scope: ${report.lowStretchLimiterScope}`);
+  lines.push(`tension scope: ${report.tensionScope}`);
   lines.push(`active reserve preset: ${report.activeReservePreset}`);
   lines.push(`return-map mode: ${report.returnMapMode}`);
   lines.push(`TBV correction mode: ${report.tbvCorrectionMode}`);
   lines.push(`AoV flow clamp mode: ${report.aorticFlowClampMode}`);
   lines.push(`AoV_B: ${report.aovB}; AoV_L: ${report.aovL}; AoV_tauOpen: ${report.aovTauOpen}; AoV_tauClose: ${report.aovTauClose}; AoV_Amax: ${report.aovAmax}; AoV_Aref: ${report.aovAref}`);
   lines.push(`systemicResistance: ${report.systemicResistance}; arterialStiffness: ${report.arterialStiffness}`);
-  lines.push(`tensionRiseSec: ${report.tensionRiseSec}; tensionFallSec: ${report.tensionFallSec}; AoV qDot clamp: +${report.aovQDotClamp}/-${report.aovQDotClampNegative} mL/s^2`);
+  lines.push(`tensionRiseSec: ${report.tensionRiseSec}; tensionFallSec: ${report.tensionFallSec}; qDot clamp: +${report.aovQDotClamp}/-${report.aovQDotClampNegative} mL/s^2; qDot clamp scope: ${report.qDotClampScope}`);
   lines.push(`beat-pair overlay: ${report.beatPairOverlay ? "enabled" : "disabled"}`);
   if (report.maxReturnMapPoints != null) lines.push(`max return-map points: ${report.maxReturnMapPoints}`);
   lines.push("");
@@ -1125,9 +1138,11 @@ export function reportToCsv(report: DebugReport): string {
           scenario.lambdaActTerms,
           report.lowStretchLimiterMode,
           report.lowStretchLimiterScope,
+          report.tensionScope,
           report.activeReservePreset,
           point.tbvAudit.correctionMode,
           report.aorticFlowClampMode,
+          report.qDotClampScope,
           report.aovB,
           report.aovAmax,
           report.aovAref,
@@ -1376,8 +1391,10 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
   const tbvCorrectionMode = opts.tbvCorrectionMode ?? DEFAULT_TBV_CORRECTION_MODE;
   const aorticFlowClampMode = opts.aorticFlowClampMode ?? DEFAULT_AORTIC_FLOW_CLAMP_MODE;
   const aovQUpdateMode = opts.aovQUpdateMode ?? "current-loss";
+  const qDotClampScope = opts.qDotClampScope ?? DEFAULT_Q_DOT_CLAMP_SCOPE;
   const lowStretchLimiterMode = opts.lowStretchLimiterMode ?? DEFAULT_LOW_STRETCH_LIMITER_MODE;
   const lowStretchLimiterScope = opts.lowStretchLimiterScope ?? DEFAULT_LOW_STRETCH_LIMITER_SCOPE;
+  const tensionScope = opts.tensionScope ?? opts.lambdaActScope ?? DEFAULT_TENSION_SCOPE;
   const activeReservePreset = effectiveActiveReservePreset(lowStretchLimiterMode, opts.activeReservePreset);
   const params = paramsWithTensionComparator(
     paramsWithLowStretchLimiter(
@@ -1402,7 +1419,7 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
     ),
     opts.tensionRiseSec,
     opts.tensionFallSec,
-    opts.lambdaActScope,
+    tensionScope,
   );
   const req: StarlingSweepRequest = {
     requestId: "debug-starling-low-preload",
@@ -1418,10 +1435,10 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
   let seedState: SerializedModelState | undefined;
   let seededFromDeltaMl = 0;
   for (const delta of opts.deltasMl) {
-    const run = settleDebugCore(req.params, opts.targetVolumeMl + delta, dt, opts.sampleHz, tbvCorrectionMode, aorticFlowClampMode, opts.aovQDotClamp, aovQUpdateMode, seedState, opts.aovQDotClampNegative);
+    const run = settleDebugCore(req.params, opts.targetVolumeMl + delta, dt, opts.sampleHz, tbvCorrectionMode, aorticFlowClampMode, opts.aovQDotClamp, aovQUpdateMode, seedState, opts.aovQDotClampNegative, qDotClampScope);
     const traceCore = new ModelCore(req.params);
     traceCore.unpackState(run.state);
-    configureDebugCore(traceCore, tbvCorrectionMode, aorticFlowClampMode, opts.aovQDotClamp, aovQUpdateMode, opts.aovQDotClampNegative);
+    configureDebugCore(traceCore, tbvCorrectionMode, aorticFlowClampMode, opts.aovQDotClamp, aovQUpdateMode, opts.aovQDotClampNegative, qDotClampScope);
     const traceSamples = collectTraceSamples(traceCore, opts.traceBeats, dt, opts.sampleHz);
     const beatTrace = summarizeBeatTrace(traceSamples, req.params.HR, opts.traceBeats, aorticFlowClampMode);
     const beatPairOverlay = opts.beatPairOverlay === true ? buildBeatPairOverlay(traceSamples, req.params.HR, aorticFlowClampMode) : undefined;
@@ -1514,6 +1531,7 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
       opts.aovQDotClamp,
       aovQUpdateMode,
       opts.aovQDotClampNegative,
+      qDotClampScope,
       point.returnMap.branchAmplitude,
       point.returnMap.branchAmplitudeFraction,
     );
@@ -1735,12 +1753,13 @@ function configureDebugCore(
   aovQDotClamp?: number,
   aovQUpdateMode: AorticValveQUpdateMode = "current-loss",
   aovQDotClampNegative?: number,
+  qDotClampScope: DynamicQDotClampScope = DEFAULT_Q_DOT_CLAMP_SCOPE,
 ): void {
   applyTBVCorrectionMode(core, tbvCorrectionMode);
   core.setAorticFlowClampMode(aorticFlowClampMode);
   const positiveClamp = finitePositiveOrDefault(aovQDotClamp, DEFAULT_AOV_Q_DOT_CLAMP);
   const negativeClamp = finitePositiveOrDefault(aovQDotClampNegative, positiveClamp);
-  core.setAorticFlowDerivativeClampLimits(positiveClamp, negativeClamp);
+  core.setDynamicFlowDerivativeClampLimits(positiveClamp, negativeClamp, qDotClampScope);
   core.setAorticValveQUpdateMode(aovQUpdateMode);
 }
 
@@ -1795,6 +1814,7 @@ function settleDebugCore(
   aovQUpdateMode: AorticValveQUpdateMode = "current-loss",
   seedState?: SerializedModelState,
   aovQDotClampNegative?: number,
+  qDotClampScope: DynamicQDotClampScope = DEFAULT_Q_DOT_CLAMP_SCOPE,
 ): DebugRun {
   const started = performance.now();
   const core = new ModelCore(params);
@@ -1805,7 +1825,7 @@ function settleDebugCore(
   } else {
     core.initializeVenousPressuresForTargetTBV(targetVolumeMl);
   }
-  configureDebugCore(core, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative);
+  configureDebugCore(core, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative, qDotClampScope);
   core.resetDebugDiagnostics();
   const settle = core.settleToSteady(SETTLE_POLICY, dt, sampleHz, RUN_OPTIONS);
   const periodBeats = settle.periodBeats ?? 1;
@@ -1853,6 +1873,7 @@ function estimateReturnMapDiagnostic(
   aovQDotClamp: number | undefined,
   aovQUpdateMode: AorticValveQUpdateMode,
   aovQDotClampNegative: number | undefined,
+  qDotClampScope: DynamicQDotClampScope,
   branchAmplitude: Partial<Record<ReturnMapFeatureKey, number>>,
   branchAmplitudeFraction: Partial<Record<ReturnMapFeatureKey, number>>,
 ): ReturnMapDiagnostic {
@@ -1860,11 +1881,11 @@ function estimateReturnMapDiagnostic(
     return skippedReturnMapDiagnostic(state, branchAmplitude, branchAmplitudeFraction, "return-map disabled");
   }
   try {
-    const section = findNextLvEdvSection(state, params, dt, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative);
+    const section = findNextLvEdvSection(state, params, dt, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative, qDotClampScope);
     const includeFixed = returnMapMode === "fixed" || returnMapMode === "both";
     const includeReset = returnMapMode === "reset" || returnMapMode === "both";
-    const fixedMode = includeFixed ? returnMapModeDiagnostic(section.state, params, dt, sampleHz, "volumeLambdaActFixed", tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative) : undefined;
-    const resetMode = includeReset ? returnMapModeDiagnostic(section.state, params, dt, sampleHz, "volumeLambdaActReset", tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative) : undefined;
+    const fixedMode = includeFixed ? returnMapModeDiagnostic(section.state, params, dt, sampleHz, "volumeLambdaActFixed", tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative, qDotClampScope) : undefined;
+    const resetMode = includeReset ? returnMapModeDiagnostic(section.state, params, dt, sampleHz, "volumeLambdaActReset", tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative, qDotClampScope) : undefined;
     const primaryMode: ReturnMapModeKey = includeFixed ? "volumeLambdaActFixed" : "volumeLambdaActReset";
     const primary = includeFixed ? fixedMode : resetMode;
     if (!primary) throw new Error(`unsupported return-map mode: ${returnMapMode}`);
@@ -1974,6 +1995,7 @@ function returnMapModeDiagnostic(
   aovQDotClamp: number | undefined,
   aovQUpdateMode: AorticValveQUpdateMode,
   aovQDotClampNegative: number | undefined,
+  qDotClampScope: DynamicQDotClampScope,
 ): { oneBeat: ReturnMapPhaseDiagnostic; twoBeatSamePhase: ReturnMapPhaseDiagnostic } {
   let plusState = perturbLvAgainstPVein(sectionState, RETURN_MAP_PERTURBATION_ML);
   let minusState = perturbLvAgainstPVein(sectionState, -RETURN_MAP_PERTURBATION_ML);
@@ -1981,8 +2003,8 @@ function returnMapModeDiagnostic(
     plusState = resetLvLambdaActToRaw(plusState, params);
     minusState = resetLvLambdaActToRaw(minusState, params);
   }
-  const plus = postPerturbationBeats(plusState, params, dt, sampleHz, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative);
-  const minus = postPerturbationBeats(minusState, params, dt, sampleHz, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative);
+  const plus = postPerturbationBeats(plusState, params, dt, sampleHz, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative, qDotClampScope);
+  const minus = postPerturbationBeats(minusState, params, dt, sampleHz, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative, qDotClampScope);
   return {
     oneBeat: phaseDiagnostic(plus.oneBeat, minus.oneBeat, plus.clampHits, minus.clampHits),
     twoBeatSamePhase: phaseDiagnostic(plus.twoBeat, minus.twoBeat, plus.clampHits, minus.clampHits),
@@ -1998,10 +2020,11 @@ function findNextLvEdvSection(
   aovQDotClamp?: number,
   aovQUpdateMode: AorticValveQUpdateMode = "current-loss",
   aovQDotClampNegative?: number,
+  qDotClampScope: DynamicQDotClampScope = DEFAULT_Q_DOT_CLAMP_SCOPE,
 ): { state: SerializedModelState; beat: number; vlvMl: number } {
   const core = new ModelCore(params);
   core.unpackState(state);
-  configureDebugCore(core, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative);
+  configureDebugCore(core, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative, qDotClampScope);
   const targetBeat = Math.floor(core.sample().phi) + 1;
   const maxSeconds = (60 / Math.max(core.p.HR, 1)) * 3.5;
   const tEnd = core.t + maxSeconds;
@@ -2067,9 +2090,10 @@ function postPerturbationBeats(
   aovQDotClamp?: number,
   aovQUpdateMode: AorticValveQUpdateMode = "current-loss",
   aovQDotClampNegative?: number,
+  qDotClampScope: DynamicQDotClampScope = DEFAULT_Q_DOT_CLAMP_SCOPE,
 ): { oneBeat: BeatTraceRow; twoBeat: BeatTraceRow; clampHits: number } {
   const core = newCoreFromState(state, params);
-  configureDebugCore(core, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative);
+  configureDebugCore(core, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative, qDotClampScope);
   core.resetDebugDiagnostics();
   void sampleHz;
   const firstTargetBeat = Math.floor(core.sample().phi) + 1;
@@ -2960,6 +2984,7 @@ export function parseLowPreloadDebugArgs(args: string[]): DebugOptions {
     lambdaActTerms: DEFAULT_LAMBDA_ACT_TERMS,
     lowStretchLimiterMode: DEFAULT_LOW_STRETCH_LIMITER_MODE,
     lowStretchLimiterScope: DEFAULT_LOW_STRETCH_LIMITER_SCOPE,
+    tensionScope: DEFAULT_TENSION_SCOPE,
     activeReservePreset: DEFAULT_ACTIVE_RESERVE_PRESET,
     traceBeats: 10,
     sampleHz: DEFAULT_SAMPLE_HZ,
@@ -2972,6 +2997,7 @@ export function parseLowPreloadDebugArgs(args: string[]): DebugOptions {
     tensionFallSec: 0,
     aovQDotClamp: DEFAULT_AOV_Q_DOT_CLAMP,
     aovQDotClampNegative: DEFAULT_AOV_Q_DOT_CLAMP,
+    qDotClampScope: DEFAULT_Q_DOT_CLAMP_SCOPE,
     aovQUpdateMode: "current-loss",
   };
   for (const arg of args) {
@@ -2986,6 +3012,7 @@ export function parseLowPreloadDebugArgs(args: string[]): DebugOptions {
     else if (key === "--lambda-act-terms" && value) opts.lambdaActTerms = parseLambdaActTerms(value);
     else if (key === "--low-stretch-limiter" && value) opts.lowStretchLimiterMode = parseLowStretchLimiterMode(value);
     else if (key === "--low-stretch-limiter-scope" && value) opts.lowStretchLimiterScope = parseLambdaActScope(value);
+    else if (key === "--tension-scope" && value) opts.tensionScope = parseLambdaActScope(value);
     else if (key === "--active-reserve-preset" && value) opts.activeReservePreset = parseActiveReservePreset(value);
     else if (key === "--return-map-mode" && value) opts.returnMapMode = parseReturnMapMode(value);
     else if (key === "--branch-only") opts.returnMapMode = "none";
@@ -3005,6 +3032,7 @@ export function parseLowPreloadDebugArgs(args: string[]): DebugOptions {
     else if (key === "--tension-fall" && value) opts.tensionFallSec = Math.max(0, Number(value));
     else if (key === "--aov-qdot-clamp" && value) opts.aovQDotClamp = finitePositiveOrDefault(Number(value), DEFAULT_AOV_Q_DOT_CLAMP);
     else if (key === "--aov-qdot-clamp-negative" && value) opts.aovQDotClampNegative = finitePositiveOrDefault(Number(value), opts.aovQDotClamp ?? DEFAULT_AOV_Q_DOT_CLAMP);
+    else if (key === "--qdot-clamp-scope" && value) opts.qDotClampScope = parseDynamicQDotClampScope(value);
     else if (key === "--aov-q-update" && value) opts.aovQUpdateMode = parseAorticValveQUpdateMode(value);
     else if (key === "--quiet-clamp-log") opts.quietClampLog = true;
     else if (key === "--trace-beats" && value) opts.traceBeats = Math.max(2, Math.floor(Number(value)));
@@ -3055,6 +3083,11 @@ function parseLambdaActScope(value: string): LambdaActScope {
   throw new Error(`Invalid lambdaAct scope: ${value}`);
 }
 
+function parseDynamicQDotClampScope(value: string): DynamicQDotClampScope {
+  if (value === "aov" || value === "pv" || value === "semilunar" || value === "all-valves" || value === "all-dynamic") return value;
+  throw new Error(`Invalid qDot clamp scope: ${value}`);
+}
+
 function parseLambdaActTerms(value: string): LambdaActTerms {
   if (value === "kd" || value === "fiso" || value === "kd+fiso") return value;
   throw new Error(`Invalid lambdaAct terms: ${value}`);
@@ -3097,7 +3130,7 @@ function printHelp(): void {
     "Usage: npm run debug:starling-low-preload -- [--out=DIR] [--target-volume=5600]",
     "       [--heart-model=activeStress|elastance]",
     "       [--deltas=0,-900,-1000,-1100] [--dt=0.001,0.0005,0.002] [--lambda-act-tau=0,0.15,0.25,0.4]",
-    "       [--lambda-act-scope=lv|ventricles|all] [--lambda-act-terms=kd|fiso|kd+fiso]",
+    "       [--lambda-act-scope=lv|ventricles|all] [--lambda-act-terms=kd|fiso|kd+fiso] [--tension-scope=lv|ventricles|all]",
     "       [--low-stretch-limiter=none|aInfCap|activeReserveCap|fIsoSlopeRelax] [--low-stretch-limiter-scope=lv|ventricles|all]",
     "       [--active-reserve-preset=directMild|directMedium|thresholdMild|thresholdMedium]",
     "       [--return-map-mode=none|fixed|reset|both] [--branch-only]",
@@ -3106,7 +3139,7 @@ function printHelp(): void {
     "       [--aortic-flow-clamp=hard|soft-tanh|soft-rational|local-c1-0.95|local-c2-0.98]",
     "       [--aov-b=0.000001] [--as-aov-amax=1.5] [--aov-l=0.00025]",
     "       [--aov-tau-open=0.006] [--aov-tau-close=0.008] [--systemic-resistance=1] [--arterial-stiffness=0.75]",
-    "       [--tension-rise=0.02] [--tension-fall=0.08] [--aov-qdot-clamp=40000] [--aov-qdot-clamp-negative=80000] [--aov-q-update=current-loss|qnext-loss|substep-2|substep-4]",
+    "       [--tension-rise=0.02] [--tension-fall=0.08] [--aov-qdot-clamp=40000] [--aov-qdot-clamp-negative=80000] [--qdot-clamp-scope=aov|pv|semilunar|all-valves|all-dynamic] [--aov-q-update=current-loss|qnext-loss|substep-2|substep-4]",
     "       [--max-return-map-points=4] [--quiet-clamp-log] [--trace-beats=10] [--sample-hz=120]",
     "",
     "Examples:",
