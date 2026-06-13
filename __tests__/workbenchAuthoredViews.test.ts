@@ -84,6 +84,7 @@ describe("P2a authored view helpers", () => {
       { paramKey: "HR", kind: "slider", label: "Duplicate" },
     ]);
     expect(controller.items).toHaveLength(1);
+    expect(controller.binding).toEqual({ kind: "active" });
 
     const metrics = createMetricsViewSpec("metrics-a", "Metrics A", ["ABP", "ABP", "CO"], instances);
     expect(metrics.metrics).toEqual(["ABP", "CO"]);
@@ -116,6 +117,8 @@ describe("P2a authored view helpers", () => {
       ["controller", "Curated controls"],
       ["metrics", "Teaching metrics"],
     ]);
+    expect(loaded.filter((view) => view.kind === "controller").map((view) => view.binding))
+      .toEqual([{ kind: "active" }, { kind: "active" }]);
   });
 
   it("respects doc.views arrays exactly, including legacy panels and empty arrays", () => {
@@ -148,7 +151,11 @@ describe("P2a authored view helpers", () => {
       ["metrics-3", "metrics", "機能"],
       ["metrics-4", "metrics", "冠循環"],
     ]);
-    expect(views[0]).toMatchObject({ kind: "controller", items: expect.arrayContaining([expect.objectContaining({ paramKey: "contractility", labelKey: "contractility" })]) });
+    expect(views[0]).toMatchObject({
+      kind: "controller",
+      binding: { kind: "active" },
+      items: expect.arrayContaining([expect.objectContaining({ paramKey: "contractility", labelKey: "contractility" })]),
+    });
   });
 
   it("derives a metrics render config from view membership", () => {

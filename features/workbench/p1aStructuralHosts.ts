@@ -1,4 +1,4 @@
-import type { MetricType, PanelDef, PanelInstanceConfig, PanelType, SimInstance, WorkbenchRegionState, WorkbenchWorkspace } from "@/types";
+import type { MetricType, PanelDef, PanelInstanceConfig, PanelType, SimInstance } from "@/types";
 import { effectiveVisibility, type MetricsViewSpec, type ViewMembership } from "@/features/workbench/viewSpec";
 
 const GRAPH_PANEL_TYPES = new Set<PanelType>(["PVLOOP", "WAVEFORM", "GUYTON_RIGHT", "GUYTON_LEFT", "GUYTON_3D"]);
@@ -84,28 +84,4 @@ export function effectiveGlobalConfig(
       },
     ]),
   );
-}
-
-export function visibleFromRegion(region: WorkbenchRegionState | undefined, defaultValue: boolean): boolean {
-  const visible = region?.visible;
-  return visible === undefined ? defaultValue : visible === true || visible === "compact";
-}
-
-export function noteOpenFromWorkspace(workspace?: WorkbenchWorkspace): boolean {
-  return visibleFromRegion(workspace?.regions.note, false);
-}
-
-export function metricsOpenFromWorkspace(workspace?: WorkbenchWorkspace): boolean {
-  return visibleFromRegion(workspace?.regions.output, true);
-}
-
-export function rightRailVisibleFromWorkspace(workspace?: WorkbenchWorkspace): boolean {
-  return visibleFromRegion(workspace?.regions.control, true);
-}
-
-export function mainDockviewViewStatesOnly(workspace: WorkbenchWorkspace): WorkbenchWorkspace {
-  const main = workspace.viewStates?.main ?? workspace.viewState;
-  const { viewStates: _viewStates, ...withoutViewStates } = workspace;
-  const { viewState: _viewState, ...withoutLegacyViewState } = withoutViewStates;
-  return main ? { ...withoutLegacyViewState, viewStates: { main } } : withoutLegacyViewState;
 }

@@ -26,7 +26,6 @@ import {
   mergePanelLegendPosition,
   type AddedInstanceConfig,
 } from "@/features/workbench/workbenchDefaults";
-import { mainDockviewViewStatesOnly } from "@/features/workbench/p1aStructuralHosts";
 import {
   createDefaultPanelConfig,
   createPanelDef,
@@ -38,6 +37,13 @@ import {
   workspaceAfterPanelsChanged,
 } from "@/features/workbench/panelModel";
 import { defaultZoneOf } from "@/paneZone";
+
+export function workspaceForPanelStateReplacement(next: {
+  panels: PanelDef[];
+  workspace?: WorkbenchWorkspace;
+}): WorkbenchWorkspace {
+  return workspaceForPanels(next.panels, next.workspace);
+}
 
 export function useWorkbenchPanels({
   instances,
@@ -65,30 +71,28 @@ export function useWorkbenchPanels({
       const workspaceVisibilityChanged = resolved.rightRailVisible !== prevLayout.rightRailVisible
         || resolved.noteOpen !== prevLayout.noteOpen
         || resolved.metricsOpen !== prevLayout.metricsOpen;
-      if (workspaceVisibilityChanged) {
+      const workspaceHostStateChanged = workspaceVisibilityChanged
+        || resolved.metricsSpan !== prevLayout.metricsSpan
+        || resolved.scenarioListCollapsed !== prevLayout.scenarioListCollapsed;
+      if (workspaceHostStateChanged) {
         setWorkspace((prevWorkspace) => {
-          const { size: _controlSize, ...controlRegion } = prevWorkspace.regions.control ?? {};
-          const { size: _noteSize, ...noteRegion } = prevWorkspace.regions.note ?? {};
-          const { size: _outputSize, ...outputRegion } = prevWorkspace.regions.output ?? {};
-          return {
+          const nextWorkspace = workspaceForPanels(panels, {
             ...prevWorkspace,
-            regions: {
-              ...prevWorkspace.regions,
-              control: {
-                ...controlRegion,
-                position: "right",
-                visible: resolved.rightRailVisible,
+            hosts: {
+              ...prevWorkspace.hosts,
+              note: { open: resolved.noteOpen },
+              rightRail: {
+                open: resolved.rightRailVisible,
+                ...(resolved.scenarioListCollapsed ? { scenarioListCollapsed: true } : {}),
               },
-              note: {
-                ...noteRegion,
-                visible: resolved.noteOpen,
+              metrics: {
+                open: resolved.metricsOpen,
+                ...(resolved.metricsSpan === "full" ? { span: "full" as const } : {}),
               },
-              output: {
-                ...outputRegion,
-                visible: resolved.metricsOpen ? "compact" : false,
-              },
+              main: prevWorkspace.hosts.main,
             },
-          };
+          });
+          return nextWorkspace;
         });
       }
       const selectedLocalOnly = Object.entries(resolved).every(([key, value]) => (
@@ -97,13 +101,16 @@ export function useWorkbenchPanels({
       if (!selectedLocalOnly && headerMode !== "learner") markUserEdited();
       return resolved;
     });
-  }, [headerMode, markUserEdited]);
+  }, [headerMode, markUserEdited, panels]);
 
   const updateDockviewViewState = useCallback((zone: WorkbenchZoneId, viewState: DockviewViewState) => {
     if (zone !== "main") return;
     setWorkspace((prev) => workspaceForPanels(panels, {
       ...prev,
-      viewStates: { main: viewState },
+      hosts: {
+        ...prev.hosts,
+        main: { dockviewState: viewState },
+      },
     }));
     if (headerMode !== "learner") markUserEdited();
   }, [headerMode, markUserEdited, panels]);
@@ -119,7 +126,7 @@ export function useWorkbenchPanels({
     noteCaseKey: string;
   }) => {
     setPanels(next.panels);
-    const nextWorkspace = mainDockviewViewStatesOnly(workspaceForPanels(next.panels, next.workspace));
+    const nextWorkspace = workspaceForPanelStateReplacement(next);
     setWorkspace(nextWorkspace);
     setWorkbenchLayoutState(layoutStateFromWorkspace(nextWorkspace));
     setDockviewLayoutVersion((value) => value + 1);
@@ -331,25 +338,15 @@ export function useWorkbenchPanels({
   const resetWorkbenchLayout = useCallback(() => {
     setWorkbenchLayout(DEFAULT_WORKBENCH_LAYOUT);
     setWorkspace((prev) => {
-      const { size: _controlSize, ...controlRegion } = prev.regions.control ?? {};
-      const { size: _noteSize, ...noteRegion } = prev.regions.note ?? {};
-      const { size: _outputSize, ...outputRegion } = prev.regions.output ?? {};
-      const nextWorkspace = workspaceForPanels(panels, {
+      return workspaceForPanels(panels, {
         ...prev,
-        regions: {
-          ...prev.regions,
-          control: {
-            ...controlRegion,
-            position: DEFAULT_WORKBENCH_LAYOUT.controlsSide,
-            visible: DEFAULT_WORKBENCH_LAYOUT.rightRailVisible,
-          },
-          note: { ...noteRegion, visible: DEFAULT_WORKBENCH_LAYOUT.noteOpen },
-          output: { ...outputRegion, visible: DEFAULT_WORKBENCH_LAYOUT.metricsOpen ? "compact" : false },
+        hosts: {
+          note: { open: DEFAULT_WORKBENCH_LAYOUT.noteOpen },
+          rightRail: { open: DEFAULT_WORKBENCH_LAYOUT.rightRailVisible },
+          metrics: { open: DEFAULT_WORKBENCH_LAYOUT.metricsOpen },
+          main: {},
         },
-        viewStates: undefined,
       });
-      const { viewStates: _viewStates, ...withoutViewStates } = nextWorkspace;
-      return withoutViewStates;
     });
     setDockviewLayoutVersion((value) => value + 1);
   }, [panels, setWorkbenchLayout]);

@@ -83,7 +83,7 @@ describe("CaseDocument bridge round-trip (#3-b)", () => {
     const authoredViews: ViewSpec[] = [
       { id: "graph-view", kind: "graph" as const, graphType: "waveform" as const, membership: { "1": ["LVP"] } },
       { id: "metrics-view", kind: "metrics" as const, title: "Teaching metrics", metrics: ["ABP", "CO"], membership: { "1": ["ABP", "CO"] } },
-      { id: "controller-view", kind: "controller" as const, title: "Teaching controls", items: [{ paramKey: "contractility", kind: "slider" as const, label: "Contractility" }], binding: { slot: "active" as const } },
+      { id: "controller-view", kind: "controller" as const, title: "Teaching controls", items: [{ paramKey: "contractility", kind: "slider" as const, label: "Contractility" }], binding: { kind: "active" as const } },
     ];
     const reading = {
       schemaVersion: 1 as const,

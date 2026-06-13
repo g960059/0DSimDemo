@@ -3,7 +3,7 @@
 // "share") plus a localStorage working draft. Firestore publishing is a later,
 // sensitive, admin-gated milestone.
 
-import type { CaseDocument } from "@/caseDoc";
+import { WORKSPACE_SCHEMA_VERSION, type CaseDocument } from "@/caseDoc";
 import { normalizeCaseI18n } from "@/contentI18n";
 
 export const DRAFT_KEY = "circleheart:workbench-draft";
@@ -26,6 +26,27 @@ export function parseCaseDocument(text: string): CaseDocument {
   if (!Array.isArray(d.instances)) throw new Error("Case file has no instances.");
   if (d.instances.length === 0) throw new Error("Case file has no instances (would wipe the scene).");
   if (!Array.isArray(d.panels)) throw new Error("Case file has no panels.");
+  if (d.workspace !== undefined) {
+    const workspace = d.workspace as Record<string, unknown> | null;
+    const hosts = workspace && typeof workspace === "object" ? (workspace as Record<string, unknown>).hosts as Record<string, unknown> | undefined : undefined;
+    const hostOpen = (h: unknown) => !!h && typeof h === "object" && typeof (h as { open?: unknown }).open === "boolean";
+    if (
+      !workspace
+      || typeof workspace !== "object"
+      || Array.isArray(workspace)
+      || workspace.schemaVersion !== WORKSPACE_SCHEMA_VERSION
+      || !hosts
+      || typeof hosts !== "object"
+      || Array.isArray(hosts)
+      || !hostOpen(hosts.note)
+      || !hostOpen(hosts.rightRail)
+      || !hostOpen(hosts.metrics)
+      || !hosts.main
+      || typeof hosts.main !== "object"
+    ) {
+      delete d.workspace;
+    }
+  }
   if (d.notes !== undefined) {
     if (!d.notes || typeof d.notes !== "object" || Array.isArray(d.notes)) {
       delete d.notes;

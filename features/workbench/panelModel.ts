@@ -3,7 +3,6 @@ import { addPane } from "@/layoutOps";
 import type { NoteContent } from "@/noteTypes";
 import { defaultZoneOf } from "@/paneZone";
 import type { PanelDef, PanelInstanceConfig, PanelType, SimInstance, WorkbenchWorkspace, WorkbenchZoneId } from "@/types";
-import { mainDockviewViewStatesOnly } from "@/features/workbench/p1aStructuralHosts";
 import { EMPTY_NOTE_SPINE, defaultSignalsForPanelType } from "./workbenchDefaults";
 
 export function createDefaultPanelConfig(
@@ -52,7 +51,7 @@ export function workspaceAfterPanelsChanged(
   panels: PanelDef[],
   workspace: WorkbenchWorkspace,
 ): WorkbenchWorkspace {
-  return mainDockviewViewStatesOnly(workspaceForPanels(panels, workspace));
+  return workspaceForPanels(panels, workspace);
 }
 
 export function notesAfterPanelAdded(

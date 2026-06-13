@@ -51,12 +51,10 @@ import type { WorkbenchThemeId } from './WorkbenchSidePanel';
 import { Activity, Brush, Check, ChevronDown, ChevronRight, Copy, Eye, EyeOff, FileText, Layers, Pencil, Plus, RotateCcw, Search, Settings, SlidersHorizontal, Tags, Trash2, Type as TypeIcon, X } from 'lucide-react';
 
 export type PanelGridMode = 'learner' | 'sandbox';
-export type WorkbenchControlsSide = 'left' | 'right';
 export type RightRailView = 'scenarios' | 'inspector';
 export type MetricsSpanMode = 'main' | 'full';
 
 export interface WorkbenchLayoutState {
-  controlsSide: WorkbenchControlsSide;
   controlsWidth: number;
   caseRailWidth: number;
   outputHeight: number;
@@ -77,7 +75,7 @@ interface PanelGridProps {
   layoutState: WorkbenchLayoutState;
   onLayoutStateChange: React.Dispatch<React.SetStateAction<WorkbenchLayoutState>>;
   dockviewLayoutKey?: string;
-  dockviewViewStates?: Partial<Record<WorkbenchZoneId, DockviewViewState>>;
+  mainDockviewViewState?: DockviewViewState;
   onDockviewViewStateChange?: (zone: WorkbenchZoneId, viewState: DockviewViewState) => void;
   graphBoardLayout?: GraphBoardLayout;
   onGraphBoardLayoutChange?: (layout: GraphBoardLayout | undefined) => void;
@@ -2173,7 +2171,7 @@ export function PanelGrid({
   layoutState,
   onLayoutStateChange,
   dockviewLayoutKey,
-  dockviewViewStates,
+  mainDockviewViewState,
   onDockviewViewStateChange,
   graphBoardLayout,
   onGraphBoardLayoutChange,
@@ -2705,7 +2703,7 @@ export function PanelGrid({
             panels={mainGraphPanels}
             mode={mode}
             layoutKey={dockviewLayoutKey}
-            viewState={dockviewViewStates?.main}
+            viewState={mainDockviewViewState}
             onViewStateChange={onDockviewViewStateChange}
             graphBoardLayout={graphBoardLayout}
             onGraphBoardLayoutChange={onGraphBoardLayoutChange}

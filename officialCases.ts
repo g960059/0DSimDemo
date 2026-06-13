@@ -10,12 +10,15 @@
 // physiology is identical; only the intervention provenance is lost. That is by
 // design for #3 — intervention-preserving editing is a later milestone.
 
-import type { CaseDocument, CaseInstance } from "@/caseDoc";
-import { CASE_SCHEMA_VERSION, ENGINE_VERSION, DEFAULT_SOLVER } from "@/caseDoc";
+import type { CaseDocument, CaseExposedController, CaseInstance, CaseReadingManifest } from "@/caseDoc";
+import { CASE_SCHEMA_VERSION, ENGINE_VERSION, DEFAULT_SOLVER, defaultWorkspaceForPanels } from "@/caseDoc";
 import type { ExpectedFinding, StructuredModelLimitation } from "@/caseValidation";
+import { buttonOptionsFromRange } from "@/controllerItems";
 import { KNOB_MAPPING_VERSION } from "@/engine/knobs";
+import type { GraphBoardLayout, ViewSpec } from "@/features/workbench/viewSpec";
+import { defaultControllerItemFor } from "@/knobMetadata";
 import type { NoteContent } from "@/noteTypes";
-import type { PanelDef } from "@/types";
+import type { ControllerItem, PanelDef } from "@/types";
 
 const COLORS = ["#a855f7", "#f472b6", "#22c55e", "#38bdf8", "#fbbf24"];
 
@@ -42,6 +45,11 @@ type CaseAuthor = {
   modelLimitations: string[];
   instances: InstanceAuthor[];
   notes?: Record<string, NoteContent>;
+  views?: ViewSpec[];
+  graphBoardLayout?: GraphBoardLayout;
+  initialActiveScenarioId?: string;
+  reading?: CaseReadingManifest;
+  exposedControllers?: CaseExposedController[];
   expectedFindings?: ExpectedFinding[];
   structuredLimitations?: StructuredModelLimitation[];
   validationProfileId?: string;
@@ -63,6 +71,7 @@ function instance(i: number, a: InstanceAuthor): CaseInstance {
 
 function makeCase(p: CaseAuthor): CaseDocument {
   const instances = p.instances.map((a, i) => instance(i, a));
+  const panels = buildPanels(instances.map((x) => x.id));
   return {
     schemaVersion: CASE_SCHEMA_VERSION,
     defaultLocale: "en",
@@ -80,15 +89,21 @@ function makeCase(p: CaseAuthor): CaseDocument {
       ...(p.validationProfileId ? { validationProfileId: p.validationProfileId } : {}),
     },
     instances,
-    panels: buildPanels(instances.map((x) => x.id)),
+    panels,
+    workspace: defaultWorkspaceForPanels(panels),
+    ...(p.views ? { views: p.views } : {}),
+    ...(p.graphBoardLayout ? { graphBoardLayout: p.graphBoardLayout } : {}),
+    ...(p.initialActiveScenarioId ? { initialActiveScenarioId: p.initialActiveScenarioId } : {}),
     ...(p.notes ? { notes: p.notes } : {}),
+    ...(p.reading ? { reading: p.reading } : {}),
+    ...(p.exposedControllers ? { exposedControllers: p.exposedControllers } : {}),
     i18n: {
       en: {
         title: p.title,
         description: p.description,
         modelLimitations: p.modelLimitations,
         ...(p.notes ? { notes: p.notes } : {}),
-        panels: Object.fromEntries(buildPanels(instances.map((x) => x.id)).map((panel) => [panel.id, { title: panel.title }])),
+        panels: Object.fromEntries(panels.map((panel) => [panel.id, { title: panel.title }])),
         instances: Object.fromEntries(instances.map((item) => [item.id, { name: item.name }])),
       },
     },
@@ -131,6 +146,12 @@ const p = (text: string): Record<string, unknown> => ({ type: "paragraph", conte
 const li = (text: string): Record<string, unknown> => ({ type: "bulletListItem", content: [{ type: "text", text, styles: {} }] });
 const eq = (tex: string): Record<string, unknown> => ({ type: "equation", props: { tex } });
 const quiz = (question: string, options: string, answerIndex: string): Record<string, unknown> => ({ type: "quiz", props: { question, options, answerIndex } });
+const viewRef = (viewId: string): Record<string, unknown> => ({ type: "view_ref", props: { viewId } });
+
+function buttonGroupItem(paramKey: string): ControllerItem {
+  const item: ControllerItem = { ...defaultControllerItemFor(paramKey), kind: "buttonGroup" };
+  return { ...item, options: buttonOptionsFromRange(item) };
+}
 
 const NORMAL_REFERENCE_NOTE: NoteContent = [
   h("The normal operating point"),
@@ -279,7 +300,86 @@ const HYPOVOLEMIC_SHOCK_NOTE: NoteContent = [
   p("Hypovolemic shock is a preload problem. Less circulating volume means less filling, a smaller and left-shifted PV loop, lower stroke volume and cardiac output, and low filling pressures (low CVP/LAP) together with low blood pressure. The first-line fix mirrors the cause: restore volume."),
 ];
 
+const AFTERLOAD_CONTROL_VIEW_ID = "v_afterload_demo_controls";
+const AFTERLOAD_METRICS_VIEW_ID = "v_afterload_pressure_output";
+const AFTERLOAD_PV_LOOP_VIEW_ID = "p2";
+const AFTERLOAD_WAVEFORMS_VIEW_ID = "p1";
+const AFTERLOAD_NOTE_ID = "p_note";
+const AFTERLOAD_NORMAL_INSTANCE_ID = "1";
+const AFTERLOAD_HYPERTENSIVE_INSTANCE_ID = "2";
+const AFTERLOAD_SCENARIO_IDS = [AFTERLOAD_NORMAL_INSTANCE_ID, AFTERLOAD_HYPERTENSIVE_INSTANCE_ID];
+const AFTERLOAD_METRIC_MEMBERSHIP = Object.fromEntries(AFTERLOAD_SCENARIO_IDS.map((id) => [id, ["ABP", "CO", "SV", "PCWP"]]));
+
+const AFTERLOAD_CASE_VIEWS: ViewSpec[] = [
+  {
+    id: AFTERLOAD_CONTROL_VIEW_ID,
+    title: "Afterload demo",
+    kind: "controller",
+    binding: { kind: "active" },
+    items: [
+      buttonGroupItem("afterload"),
+      buttonGroupItem("contractility"),
+    ],
+  },
+  {
+    id: AFTERLOAD_METRICS_VIEW_ID,
+    title: "Pressure & output",
+    kind: "metrics",
+    metrics: ["ABP", "CO", "SV", "PCWP"],
+    membership: AFTERLOAD_METRIC_MEMBERSHIP,
+  },
+];
+
+const AFTERLOAD_GRAPH_BOARD_LAYOUT: GraphBoardLayout = {
+  type: "split",
+  direction: "row",
+  children: [
+    { type: "leaf", graphViewId: AFTERLOAD_PV_LOOP_VIEW_ID },
+    { type: "leaf", graphViewId: AFTERLOAD_WAVEFORMS_VIEW_ID },
+  ],
+  sizes: [1, 1],
+};
+
+const AFTERLOAD_READING: CaseReadingManifest = {
+  schemaVersion: 1,
+  column: [
+    { kind: "noteRef", noteId: AFTERLOAD_NOTE_ID },
+    { kind: "paneRef", panelId: AFTERLOAD_PV_LOOP_VIEW_ID },
+  ],
+};
+
+const AFTERLOAD_ACUTE_HYPERTENSION_NOTE: NoteContent = [
+  h("Afterload: normal vs acute hypertension"),
+  p("Afterload is the pressure load the left ventricle must overcome to eject blood. In acute hypertension, systemic resistance is higher, so the ventricle has to generate more pressure before and during ejection."),
+  p("Compare the Normal and Hypertensive scenarios on the PV loop. The hypertensive loop becomes taller and narrower: pressure rises, end-systolic volume tends to increase, and stroke volume falls because ejection is harder."),
+  p("Use the curated control below to change one lever at a time. Raise Afterload to reproduce the hypertensive shape; raise Contractility to see how a stronger ventricle can partly defend stroke volume against the higher load."),
+  viewRef(AFTERLOAD_CONTROL_VIEW_ID),
+  p("Then return to the PV loop and read the loop width as stroke volume. A narrower loop at a higher pressure is the visual signature of acute afterload stress in this teaching model."),
+];
+
 export const OFFICIAL_CASES: CaseDocument[] = [
+  makeCase({
+    id: "afterload-acute-hypertension",
+    title: "Afterload — normal vs acute hypertension",
+    description: "A PV-loop-first teaching case comparing normal afterload with acute hypertension. Higher afterload makes ejection harder, raising pressure while narrowing the loop and reducing stroke volume.",
+    modelLimitations: [LIMIT_GENERAL, LIMIT_NOREFLEX, LIMIT_CALIB],
+    expectedFindings: [
+      metricRange("afterload-normal-co", "CO_L", "1", { min: 4.5, max: 6.5 }, "Normal afterload keeps resting cardiac output in the teaching reference range."),
+      metricRange("afterload-normal-sys", "AoPSys", "1", { min: 110, max: 130 }, "Normal afterload keeps systolic aortic pressure in the reference range."),
+      metricRange("afterload-htn-sys", "AoPSys", "2", { min: 130, max: 150 }, "Acute hypertension raises systolic aortic pressure above the normal range."),
+      metricRange("afterload-htn-co", "CO_L", "2", { min: 3.8, max: 5.2 }, "Higher afterload makes ejection harder, lowering cardiac output below the normal scenario."),
+      metricRange("afterload-htn-sv", "SV_L", "2", { min: 52, max: 68 }, "Higher afterload reduces stroke volume relative to the normal scenario."),
+    ],
+    instances: [
+      { name: "Normal", knobs: {}, interventions: [], targetVolume: 5600 },
+      { name: "Hypertensive", knobs: { afterload: 1.6 }, interventions: [], targetVolume: 5600 },
+    ],
+    views: AFTERLOAD_CASE_VIEWS,
+    graphBoardLayout: AFTERLOAD_GRAPH_BOARD_LAYOUT,
+    initialActiveScenarioId: AFTERLOAD_NORMAL_INSTANCE_ID,
+    reading: AFTERLOAD_READING,
+    notes: { [AFTERLOAD_NOTE_ID]: AFTERLOAD_ACUTE_HYPERTENSION_NOTE },
+  }),
   makeCase({
     id: "normal-sinus",
     title: "Normal physiology",

@@ -52,6 +52,25 @@ type GraphBoardLayout =
 
 Dockview JSON remains non-canonical display state. Presets such as "Arrange as 2x2" are commands that generate this tree; only the resulting tree is saved. Ratios are accepted as the degradation strategy across screen sizes.
 
+`WorkbenchWorkspace` is host-based document state:
+
+```ts
+type WorkbenchMetricsSpan = "main" | "full";
+
+interface WorkbenchWorkspace {
+  schemaVersion: 2;
+  hosts: {
+    note: { open: boolean };
+    rightRail: { open: boolean; scenarioListCollapsed?: boolean };
+    metrics: { open: boolean; span?: WorkbenchMetricsSpan };
+    main: { dockviewState?: DockviewViewState };
+  };
+  learnerLocked?: boolean;
+}
+```
+
+Region positions, `controlsSide`, and side/bottom Dockview state are not document state. The right rail defaults open independent of panel existence. Saves omit default `metrics.span: "main"` and `rightRail.scenarioListCollapsed: false`; loads supply those defaults.
+
 ### ViewSpec and aspect
 Every zone is a view host whose tabs are derived from document ViewSpecs. Standard controller and metrics sets are official factory seeds, not a separate built-in runtime mode. Authored controller and metrics views are saved ViewSpecs and participate in document ops.
 
@@ -90,7 +109,7 @@ PV loops use `{ ratio: 1, fit: "lock" }`. Waveforms have no aspect constraint.
   reference the view and degrades those references to the established
   dangling-placeholder pattern; deletion is never hard-blocked.
 - **Note embedding** generalizes `pane_ref` to `view_ref` (viewSpecId).
-  Binding stays VIEW-level — `{ slot: "active" }` by default, explicit pin
+  Binding stays VIEW-level — `{ kind: "active" }` by default, explicit pin
   later; per-item binding is rejected.
 
 **Terminology update 2026-06-12:** UI strings say "clinical parameters" (ja
@@ -126,10 +145,10 @@ Compare mode is removed. Comparison is a state produced by the visible scenario 
 Bindings use:
 
 ```ts
-type ScenarioBinding = { slot: "active" } | { scenarioId: string };
+type ScenarioBinding = { kind: "active" } | { kind: "scenario"; scenarioId: string };
 ```
 
-The default is `{ slot: "active" }`. Pinning is explicit with `{ scenarioId }`. Publish does not freeze-resolve active bindings. Reproducibility comes from `initialActiveScenarioId` plus the authored runtime snapshot; "Reset to author's state" restores that snapshot. Pins are only for deliberate fixed lesson steps.
+The default is `{ kind: "active" }`. Pinning is explicit with `{ kind: "scenario"; scenarioId }`. Publish does not freeze-resolve active bindings. Reproducibility stays in the document's own scenario state: `instances` params/knobs, `initialActiveScenarioId`, and per-scenario visibility. There is no separate `publication.initialRuntime` or `PublishedRuntimeSnapshot` envelope; that would duplicate `instances` and recreate semi-canonical runtime state. "Reset to author's state" derives its snapshot from the loaded document. Pins are only for deliberate fixed lesson steps.
 
 ### Reading / Explore / Fork
 "Reading mode" replaces "lesson mode" vocabulary. A solo case, note-attached shared case, and lesson are one document spectrum. One reader renderer handles them.
@@ -161,7 +180,7 @@ Mobile remaps roles to form-factor conventions: scenario chips at the top, graph
 - **P0:** ADR, supersede markers, new pure type layer, one-way PanelDef migration, additive CaseDocument fields, save-path preservation, tests, and roadmap rewrite. No runtime UI behavior change.
 - **P1:** main-only Dockview, fixed right rail and metrics host, push note drawer, GraphBoardLayout wiring, compare cleanup, and pane-local visibility removal.
 - **P2 (redefined 2026-06-12, reader-traffic-first):** P2a authored view management in the Workbench (live ControllerViewSpec / MetricsViewSpec, rail dropdown, shared modal editor, views persistence re-enabled); P2b note `view_ref` + reader curation (reader consumes authored views only); P2c read-only interactive operation blocking, runtime operation allowance, reset to author state, and Read/Explore state carry-over.
-- **P3:** binding and publish flow: active-slot default, explicit pinning, `initialActiveScenarioId`, and author snapshot persistence.
+- **P3:** publish flow: visibility, ownership, default-entry transitions, and any explicit author override for Read/Explore entry. No parallel runtime snapshot envelope.
 - **P4:** aspect rendering at the pane-content layer.
 
 ## Alternatives

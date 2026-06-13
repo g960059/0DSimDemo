@@ -33,4 +33,16 @@ describe("casePersist parse/serialize (#3-c)", () => {
   it("rejects an empty-instances doc (would silently wipe the scene)", () => {
     expect(() => parseCaseDocument(JSON.stringify({ schemaVersion: 1, knobMappingVersion: "x", instances: [], panels: [] }))).toThrow(/no instances/);
   });
+
+  it("drops old-shaped workspace blobs without rejecting the case document", () => {
+    const parsed = parseCaseDocument(serializeCaseDocument({
+      ...doc,
+      workspace: {
+        schemaVersion: 1,
+        regions: { control: { visible: false, position: "left" } },
+      } as unknown as typeof doc.workspace,
+    }));
+
+    expect(parsed.workspace).toBeUndefined();
+  });
 });

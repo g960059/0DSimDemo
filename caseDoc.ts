@@ -9,7 +9,7 @@
 //   load: CaseDocument -> SimInstance[]   (resolves knobs->params; verifies the
 //                                          knobMappingVersion, no silent fallback)
 
-import type { SimInstance, PanelDef, PanelRole, WorkbenchRegionId, WorkbenchRegionPosition, WorkbenchWorkspace, ControllerItem } from "@/types";
+import type { SimInstance, PanelDef, PanelRole, WorkbenchWorkspace, ControllerItem } from "@/types";
 import type { NoteContent } from "@/noteTypes";
 import type { ExpectedFinding, StructuredModelLimitation } from "@/caseValidation";
 import type { CoreRuntimeParams, ParameterPatch } from "@/engine/protocol";
@@ -25,7 +25,7 @@ import { type ClinicalKnobs, type KnobKey, neutralKnobs, resolveKnobMappingVersi
 import { roleOf } from "@/paneRole";
 
 export const CASE_SCHEMA_VERSION = 2;
-export const WORKSPACE_SCHEMA_VERSION = 1;
+export const WORKSPACE_SCHEMA_VERSION = 2;
 export const ENGINE_VERSION = "circleheart@0.0.0";
 
 /** Deterministic replay config; travels in the document. */
@@ -181,83 +181,38 @@ function panelsForRole(panels: PanelDef[], role: PanelRole): string[] {
   return panels.filter((panel) => roleForPanel(panel) === role).map((panel) => panel.id);
 }
 
-function scenarioPanelIds(panels: PanelDef[]): string[] {
-  return panels.filter((panel) => panel.type === "SCENARIOS").map((panel) => panel.id);
-}
-
-function mergeRegionState(
-  next: WorkbenchWorkspace["regions"][WorkbenchRegionId],
-  previous: WorkbenchWorkspace["regions"][WorkbenchRegionId],
-): WorkbenchWorkspace["regions"][WorkbenchRegionId] {
-  if (!next) return previous;
-  if (!previous) return next;
-
-  const nextPanelIds = next.panelIds;
-  const hasPanels = (nextPanelIds?.length ?? 0) > 0;
-  const activePanelId = nextPanelIds?.includes(previous.activePanelId ?? "")
-    ? previous.activePanelId
-    : next.activePanelId;
-
-  const merged = {
-    ...next,
-    ...previous,
-    visible: hasPanels ? previous.visible : next.visible,
-    ...(nextPanelIds ? { panelIds: nextPanelIds } : {}),
-    ...(activePanelId ? { activePanelId } : {}),
-  };
-
-  if (!activePanelId) delete merged.activePanelId;
-
-  return merged;
-}
-
 export function defaultWorkspaceForPanels(
   panels: PanelDef[],
 ): WorkbenchWorkspace {
-  const graphPanelIds = panelsForRole(panels, "graph");
-  const notePanelIds = panelsForRole(panels, "note");
   const outputPanelIds = panelsForRole(panels, "output");
-  const scenariosPanelIds = scenarioPanelIds(panels);
-  const controlPanelIds = panels
-    .filter((panel) => roleForPanel(panel) === "control" && panel.type !== "SCENARIOS")
-    .map((panel) => panel.id);
-  const regions: WorkbenchWorkspace["regions"] = {
-    scenarios: {
-      visible: scenariosPanelIds.length > 0,
-      position: "right",
-      panelIds: scenariosPanelIds,
-      activePanelId: scenariosPanelIds[0],
+  return {
+    schemaVersion: WORKSPACE_SCHEMA_VERSION,
+    hosts: {
+      note: { open: false },
+      rightRail: { open: true },
+      metrics: { open: outputPanelIds.length > 0 },
+      main: {},
     },
-    graph: { visible: true, position: "center", panelIds: graphPanelIds, activePanelId: graphPanelIds[0], split: "single" },
-    note: { visible: notePanelIds.length > 0, position: "left", panelIds: notePanelIds, activePanelId: notePanelIds[0] },
-    output: { visible: outputPanelIds.length > 0 ? "compact" : false, position: "bottom", panelIds: outputPanelIds, activePanelId: outputPanelIds[0] },
-    control: { visible: controlPanelIds.length > 0, position: "right", panelIds: controlPanelIds, activePanelId: controlPanelIds[0] },
+    learnerLocked: true,
   };
-  return { schemaVersion: WORKSPACE_SCHEMA_VERSION, regions, learnerLocked: true };
 }
 
-export function normalizeWorkspaceForAdr0007(workspace: WorkbenchWorkspace): WorkbenchWorkspace {
-  const regions: WorkbenchWorkspace["regions"] = { ...workspace.regions };
-  const legacyPositions: Partial<Record<WorkbenchRegionId, WorkbenchRegionPosition>> = {
-    scenarios: "left",
-    control: "left",
-    note: "right",
-  };
-  const adr0007Positions: Partial<Record<WorkbenchRegionId, WorkbenchRegionPosition>> = {
-    scenarios: "right",
-    control: "right",
-    note: "left",
-    graph: "center",
-    output: "bottom",
-  };
+function isHostOpen(host: unknown): boolean {
+  return !!host && typeof host === "object" && typeof (host as { open?: unknown }).open === "boolean";
+}
 
-  for (const region of ["scenarios", "control", "note"] as const) {
-    const current = regions[region];
-    if (!current || current.position !== legacyPositions[region]) continue;
-    regions[region] = { ...current, position: adr0007Positions[region] };
-  }
-
-  return { ...workspace, regions };
+function isWorkbenchWorkspaceV2(value: unknown): value is WorkbenchWorkspace {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const workspace = value as Partial<WorkbenchWorkspace>;
+  const hosts = workspace.hosts;
+  return workspace.schemaVersion === WORKSPACE_SCHEMA_VERSION
+    && !!hosts
+    && typeof hosts === "object"
+    && isHostOpen(hosts.note)
+    && isHostOpen(hosts.rightRail)
+    && isHostOpen(hosts.metrics)
+    && !!hosts.main
+    && typeof hosts.main === "object";
 }
 
 export function workspaceForPanels(
@@ -265,21 +220,30 @@ export function workspaceForPanels(
   previous?: WorkbenchWorkspace,
 ): WorkbenchWorkspace {
   const defaults = defaultWorkspaceForPanels(panels);
-  if (!previous) return defaults;
-  const normalizedPrevious = normalizeWorkspaceForAdr0007(previous);
+  if (!isWorkbenchWorkspaceV2(previous)) return defaults;
 
-  const regions: WorkbenchWorkspace["regions"] = {};
-  for (const region of ["scenarios", "control", "graph", "output", "note"] as const) {
-    const merged = mergeRegionState(defaults.regions[region], normalizedPrevious.regions?.[region]);
-    if (merged) regions[region] = merged;
-  }
+  const hasNotePanels = panelsForRole(panels, "note").length > 0;
+  const hasMetricPanels = panelsForRole(panels, "output").length > 0;
+  const metricsSpan = previous.hosts.metrics.span === "full" ? "full" : undefined;
+  const scenarioListCollapsed = previous.hosts.rightRail.scenarioListCollapsed === true ? true : undefined;
 
   return {
     ...defaults,
-    regions,
-    learnerLocked: normalizedPrevious.learnerLocked ?? defaults.learnerLocked,
-    ...(normalizedPrevious.viewState ? { viewState: normalizedPrevious.viewState } : {}),
-    ...(normalizedPrevious.viewStates ? { viewStates: normalizedPrevious.viewStates } : {}),
+    hosts: {
+      note: { open: hasNotePanels ? previous.hosts.note.open : defaults.hosts.note.open },
+      rightRail: {
+        open: previous.hosts.rightRail.open ?? defaults.hosts.rightRail.open,
+        ...(scenarioListCollapsed ? { scenarioListCollapsed } : {}),
+      },
+      metrics: {
+        open: hasMetricPanels ? previous.hosts.metrics.open : defaults.hosts.metrics.open,
+        ...(metricsSpan ? { span: metricsSpan } : {}),
+      },
+      main: {
+        ...(previous.hosts.main.dockviewState ? { dockviewState: previous.hosts.main.dockviewState } : {}),
+      },
+    },
+    learnerLocked: previous.learnerLocked ?? defaults.learnerLocked,
   };
 }
 
@@ -408,7 +372,7 @@ export function simInstancesToCaseDocument(
     spec: opts.spec,
     instances: caseInstances,
     panels,
-    workspace: opts.workspace ?? defaultWorkspaceForPanels(panels),
+    workspace: workspaceForPanels(panels, opts.workspace),
     ...(opts.views ? { views: opts.views } : {}),
     ...(opts.graphBoardLayout ? { graphBoardLayout: opts.graphBoardLayout } : {}),
     ...(opts.initialActiveScenarioId ? { initialActiveScenarioId: opts.initialActiveScenarioId } : {}),

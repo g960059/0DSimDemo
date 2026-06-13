@@ -181,7 +181,7 @@ export function WorkbenchRoute() {
         layoutState={panels.workbenchLayout}
         onLayoutStateChange={panels.setWorkbenchLayout}
         dockviewLayoutKey={`${panels.noteCaseKey}:${panels.dockviewLayoutVersion}`}
-        dockviewViewStates={panels.workspace.viewStates}
+        mainDockviewViewState={panels.workspace.hosts.main.dockviewState}
         onDockviewViewStateChange={panels.updateDockviewViewState}
         graphBoardLayout={scene.currentCaseGraphBoardLayout}
         onGraphBoardLayoutChange={scene.updateGraphBoardLayout}

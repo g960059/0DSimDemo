@@ -44,7 +44,7 @@ describe("note view_ref helpers", () => {
       panels: [],
       notes: { intro: [viewRef("old-view")] },
       reading: { schemaVersion: 1, column: [{ kind: "viewRef", viewId: "old-view" }] },
-      views: [{ id: "old-view", title: "Old", kind: "controller", items: [], binding: { slot: "active" } }],
+      views: [{ id: "old-view", title: "Old", kind: "controller", items: [], binding: { kind: "active" } }],
     };
     const viewIdMap = new Map([["old-view", "new-view"]]);
 
