@@ -239,6 +239,19 @@ type WaveformGateComparison = {
   maxDeltaFraction: number;
 };
 
+type NegativeQDotSummary = {
+  pressureReversalSampleCountMax: number;
+  pressureReversalNegativeRatioMax: number;
+  pressureReversalPressureExcessMaxMmHg: number;
+  forwardCoastSampleCountMax: number;
+  forwardCoastNegativeRatioMax: number;
+  forwardCoastPressureExcessMaxMmHg: number;
+  cleanQDotHitFractionMax: number;
+  cleanClosureResidualAbsMax: number;
+  sv5To95QDotHitFractionMax: number;
+  qDotClampImpulseAbsMax: number;
+};
+
 type MatrixScenario = {
   heartModel: HeartModelMode;
   dt: number;
@@ -267,6 +280,7 @@ type MatrixScenario = {
   shapeSummary: ShapeSummary;
   branchSummary: DebugReport["summary"];
   returnMapSummary: DebugReport["summary"];
+  negativeQDotSummary: NegativeQDotSummary;
   waveformGates: WaveformGateComparison[];
   perDeltaEvaluation: PerDeltaEvaluation[];
   points: DebugPoint[];
@@ -396,7 +410,7 @@ type ShapeSummary = {
 };
 
 type MatrixReport = {
-  schemaVersion: 23;
+  schemaVersion: 24;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -461,6 +475,14 @@ type MatrixReport = {
     maxAoVQDotRequiredReductionFractionMax: number;
     maxAoVQDotPressureExcessOverClampMaxMmHg: number;
     maxAoVQDotEquivalentExtraBAtMaxExcess: number;
+    maxLowOpenPressureReversalNegativeRatio: number;
+    maxLowOpenPressureReversalPressureExcessMmHg: number;
+    maxLowOpenForwardCoastNegativeRatio: number;
+    maxLowOpenForwardCoastPressureExcessMmHg: number;
+    maxCleanQDotHitFraction: number;
+    maxCleanClosureResidualAbs: number;
+    maxSV5To95QDotHitFraction: number;
+    maxQDotClampImpulseAbs: number;
     maxQAoPeakMeanRatio: number;
     maxQAoMeanPositive: number;
     minQAoTimeToPeakMs: number;
@@ -700,7 +722,8 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
       waveformBaselineCache,
     );
     const shapeSummary = buildShapeSummary(branchReport.points, baselinePoints);
-const evaluation = buildScenarioEvaluation({
+    const negativeQDotSummary = buildNegativeQDotSummary(waveformGates);
+    const evaluation = buildScenarioEvaluation({
       lowStretchLimiterMode,
       lambdaActTauSec,
       aorticFlowClampMode,
@@ -748,6 +771,7 @@ const evaluation = buildScenarioEvaluation({
       shapeSummary,
       branchSummary: branchReport.summary,
       returnMapSummary: returnMapReport.summary,
+      negativeQDotSummary,
       waveformGates,
       perDeltaEvaluation,
       points: returnMapReport.points,
@@ -755,6 +779,23 @@ const evaluation = buildScenarioEvaluation({
     opts.partialWrite?.(buildMatrixReport(opts, scopes, scenarios));
   });
   return buildMatrixReport(opts, scopes, scenarios);
+}
+
+function buildNegativeQDotSummary(waveformGates: WaveformGateComparison[]): NegativeQDotSummary {
+  const pressureReversalBins = waveformGates.map((gate) => gate.candidate.AoVQDotEventDirectionBins["low-open-pressure-reversal-decel"]);
+  const forwardCoastBins = waveformGates.map((gate) => gate.candidate.AoVQDotEventDirectionBins["low-open-forward-coast-adverse"]);
+  return {
+    pressureReversalSampleCountMax: Math.max(0, ...pressureReversalBins.map((bin) => finiteOrZero(bin.sampleCount))),
+    pressureReversalNegativeRatioMax: Math.max(0, ...pressureReversalBins.map((bin) => finiteOrZero(bin.rawToClampRatioNegativeMax))),
+    pressureReversalPressureExcessMaxMmHg: Math.max(0, ...pressureReversalBins.map((bin) => finiteOrZero(bin.pressureExcessOverClampMaxMmHg))),
+    forwardCoastSampleCountMax: Math.max(0, ...forwardCoastBins.map((bin) => finiteOrZero(bin.sampleCount))),
+    forwardCoastNegativeRatioMax: Math.max(0, ...forwardCoastBins.map((bin) => finiteOrZero(bin.rawToClampRatioNegativeMax))),
+    forwardCoastPressureExcessMaxMmHg: Math.max(0, ...forwardCoastBins.map((bin) => finiteOrZero(bin.pressureExcessOverClampMaxMmHg))),
+    cleanQDotHitFractionMax: Math.max(0, ...waveformGates.map((gate) => finiteOrZero(gate.candidate.AoVQDotClampHitFractionCleanCandidate))),
+    cleanClosureResidualAbsMax: Math.max(0, ...waveformGates.map((gate) => Math.abs(finiteOrZero(gate.candidate.AoVFlowWeightedCleanClosureResidual)))),
+    sv5To95QDotHitFractionMax: Math.max(0, ...waveformGates.map((gate) => finiteOrZero(gate.candidate.AoVQDotClampHitFractionSV5To95))),
+    qDotClampImpulseAbsMax: Math.max(0, ...waveformGates.map((gate) => Math.abs(finiteOrZero(gate.candidate.AoVFlowWeightedQDotClampImpulseGradient)))),
+  };
 }
 
 function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenarios: MatrixScenario[]): MatrixReport {
@@ -767,9 +808,9 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
       { fraction: 0, metric: null },
     );
   return {
-    schemaVersion: 23,
+    schemaVersion: 24,
     generatedAt: new Date().toISOString(),
-    measurementMode: "branch-only broad low-preload matrix followed by selected EDV-section return-map diagnostics with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap comparator axes, off-by-default AoV_B/AoV_Amax/AoV_L/AoV_tau/systemicResistance/arterialStiffness ejection-dynamics comparator axes, off-by-default tension-rise, asymmetric AoV qDot positive/negative clamp, and AoV q-state update comparator axes, and fIsoSlopeRelax low-stretch active-force comparator; AoV gradient is decomposed into full-open orifice, area-loss extra, inertial, residual, direct ODE closure residual, solver qDot clamp audit, clean-window closure residual terms, report-only sign-aware qDot target-estimator terms, open01-bin qDot target-estimator terms, and low-open event-direction qDot target-estimator terms for sweep range selection; ejection duration is reported as QAo>0, QAo>5% peak, SV 5-95%, and historical high-flow windows; optional TBV correction on/off/low contamination axis; activeStress/elastance heart-model comparison axis",
+    measurementMode: "branch-only broad low-preload matrix followed by selected EDV-section return-map diagnostics with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap comparator axes, off-by-default AoV_B/AoV_Amax/AoV_L/AoV_tau/systemicResistance/arterialStiffness ejection-dynamics comparator axes, off-by-default tension-rise, asymmetric AoV qDot positive/negative clamp, and AoV q-state update comparator axes, and fIsoSlopeRelax low-stretch active-force comparator; AoV gradient is decomposed into full-open orifice, area-loss extra, inertial, residual, direct ODE closure residual, solver qDot clamp audit, clean-window closure residual terms, report-only sign-aware qDot target-estimator terms, open01-bin qDot target-estimator terms, low-open event-direction qDot target-estimator terms, and negative qDot closure-deceleration primary readouts for sweep range selection; ejection duration is reported as QAo>0, QAo>5% peak, SV 5-95%, and historical high-flow windows; optional TBV correction on/off/low contamination axis; activeStress/elastance heart-model comparison axis",
     targetVolumeMl: opts.targetVolumeMl,
     heartModels: opts.heartModels,
     deltasMl: opts.deltasMl,
@@ -832,6 +873,14 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
         maxAoVQDotRequiredReductionFractionMax: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.AoVQDotRequiredReductionFractionMax)))),
         maxAoVQDotPressureExcessOverClampMaxMmHg: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.AoVQDotPressureExcessOverClampMaxMmHg)))),
         maxAoVQDotEquivalentExtraBAtMaxExcess: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.AoVQDotEquivalentExtraBAtMaxExcess)))),
+        maxLowOpenPressureReversalNegativeRatio: Math.max(0, ...scenarios.map((s) => finiteOrZero(s.negativeQDotSummary.pressureReversalNegativeRatioMax))),
+        maxLowOpenPressureReversalPressureExcessMmHg: Math.max(0, ...scenarios.map((s) => finiteOrZero(s.negativeQDotSummary.pressureReversalPressureExcessMaxMmHg))),
+        maxLowOpenForwardCoastNegativeRatio: Math.max(0, ...scenarios.map((s) => finiteOrZero(s.negativeQDotSummary.forwardCoastNegativeRatioMax))),
+        maxLowOpenForwardCoastPressureExcessMmHg: Math.max(0, ...scenarios.map((s) => finiteOrZero(s.negativeQDotSummary.forwardCoastPressureExcessMaxMmHg))),
+        maxCleanQDotHitFraction: Math.max(0, ...scenarios.map((s) => finiteOrZero(s.negativeQDotSummary.cleanQDotHitFractionMax))),
+        maxCleanClosureResidualAbs: Math.max(0, ...scenarios.map((s) => finiteOrZero(s.negativeQDotSummary.cleanClosureResidualAbsMax))),
+        maxSV5To95QDotHitFraction: Math.max(0, ...scenarios.map((s) => finiteOrZero(s.negativeQDotSummary.sv5To95QDotHitFractionMax))),
+        maxQDotClampImpulseAbs: Math.max(0, ...scenarios.map((s) => finiteOrZero(s.negativeQDotSummary.qDotClampImpulseAbsMax))),
         maxQAoPeakMeanRatio: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.QAoPeakMeanRatio)))),
         maxQAoMeanPositive: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.QAoMeanPositive)))),
         minQAoTimeToPeakMs: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.QAoTimeToPeakMs))),
@@ -2615,6 +2664,41 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
     ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
   }
   lines.push("");
+  lines.push("## Negative qDot closure-deceleration primary readouts");
+  lines.push("");
+  lines.push("These scenario-level maxima promote the low-open negative-qDot readouts that localized the low-preload branch to pressure-reversal / forward-coast deceleration. `qDotClamp=80000` or asymmetric negative-clamp relaxation remains a positive control, not a default model fix.");
+  lines.push("");
+  lines.push("| class | heart model | dt | TBV correction | AoV B | AoV L | tau open | tau close | tension rise | qDot clamp | q update | pressure-reversal n | pressure-reversal -qDot/clamp | pressure-reversal pressure excess | forward-coast n | forward-coast -qDot/clamp | forward-coast pressure excess | clean qDot hit frac | clean closure abs | SV5-95 qDot hit frac | qDot impulse abs | max CO branch frac | max ESV branch frac | waveform worst frac |");
+  lines.push(markdownSeparator(lines[lines.length - 1]));
+  for (const scenario of report.scenarios) {
+    lines.push([
+      scenario.evaluation.classification,
+      scenario.heartModel,
+      round(scenario.dt, 5),
+      scenario.tbvCorrectionMode,
+      scenario.aovB,
+      scenario.aovL,
+      scenario.aovTauOpen,
+      scenario.aovTauClose,
+      scenario.tensionRiseSec,
+      aovQDotClampLabel(scenario.aovQDotClamp, scenario.aovQDotClampNegative),
+      scenario.aovQUpdateMode,
+      scenario.negativeQDotSummary.pressureReversalSampleCountMax,
+      round(scenario.negativeQDotSummary.pressureReversalNegativeRatioMax, 4),
+      round(scenario.negativeQDotSummary.pressureReversalPressureExcessMaxMmHg, 4),
+      scenario.negativeQDotSummary.forwardCoastSampleCountMax,
+      round(scenario.negativeQDotSummary.forwardCoastNegativeRatioMax, 4),
+      round(scenario.negativeQDotSummary.forwardCoastPressureExcessMaxMmHg, 4),
+      round(scenario.negativeQDotSummary.cleanQDotHitFractionMax, 4),
+      round(scenario.negativeQDotSummary.cleanClosureResidualAbsMax, 4),
+      round(scenario.negativeQDotSummary.sv5To95QDotHitFractionMax, 4),
+      round(scenario.negativeQDotSummary.qDotClampImpulseAbsMax, 4),
+      round(scenario.evaluation.maxPerDeltaBranchFractionCOL, 4),
+      round(scenario.evaluation.maxPerDeltaBranchFractionESVL, 4),
+      round(maxWaveformGateFractionForScenario(scenario), 4),
+    ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
+  }
+  lines.push("");
   lines.push("## Interpretation notes");
   lines.push("");
   lines.push("- `root-fix-candidate` requires the worst branch delta to have clean scalar EDV return-map slope coverage. If the worst delta is nonsmooth, clamp-crossing, contaminated, or otherwise unmeasured, the scenario remains a mitigator/inconclusive even when the branch envelope is small.");
@@ -3161,6 +3245,16 @@ export function matrixReportToCsv(report: MatrixReport): string {
     "aovQDotClamp",
     "aovQDotClampNegative",
     "aovQUpdateMode",
+    "scenarioPressureReversalSampleCountMax",
+    "scenarioPressureReversalNegativeRatioMax",
+    "scenarioPressureReversalPressureExcessMaxMmHg",
+    "scenarioForwardCoastSampleCountMax",
+    "scenarioForwardCoastNegativeRatioMax",
+    "scenarioForwardCoastPressureExcessMaxMmHg",
+    "scenarioCleanQDotHitFractionMax",
+    "scenarioCleanClosureResidualAbsMax",
+    "scenarioSV5To95QDotHitFractionMax",
+    "scenarioQDotClampImpulseAbsMax",
     "deltaVolumeMl",
     "periodBeats",
     "CO_L",
@@ -3364,6 +3458,16 @@ export function matrixReportToCsv(report: MatrixReport): string {
         scenario.aovQDotClamp,
         scenario.aovQDotClampNegative,
         scenario.aovQUpdateMode,
+        scenario.negativeQDotSummary.pressureReversalSampleCountMax,
+        scenario.negativeQDotSummary.pressureReversalNegativeRatioMax,
+        scenario.negativeQDotSummary.pressureReversalPressureExcessMaxMmHg,
+        scenario.negativeQDotSummary.forwardCoastSampleCountMax,
+        scenario.negativeQDotSummary.forwardCoastNegativeRatioMax,
+        scenario.negativeQDotSummary.forwardCoastPressureExcessMaxMmHg,
+        scenario.negativeQDotSummary.cleanQDotHitFractionMax,
+        scenario.negativeQDotSummary.cleanClosureResidualAbsMax,
+        scenario.negativeQDotSummary.sv5To95QDotHitFractionMax,
+        scenario.negativeQDotSummary.qDotClampImpulseAbsMax,
         point.deltaVolumeMl,
         point.settle.periodBeats ?? 1,
         point.periodMetrics.CO_L,

@@ -448,6 +448,10 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrix.summary.maxAoVQDotRequiredReductionFractionMax).toEqual(expect.any(Number));
     expect(matrix.summary.maxAoVQDotPressureExcessOverClampMaxMmHg).toEqual(expect.any(Number));
     expect(matrix.summary.maxAoVQDotEquivalentExtraBAtMaxExcess).toEqual(expect.any(Number));
+    expect(matrix.summary.maxLowOpenPressureReversalNegativeRatio).toEqual(expect.any(Number));
+    expect(matrix.summary.maxLowOpenForwardCoastNegativeRatio).toEqual(expect.any(Number));
+    expect(matrix.summary.maxCleanQDotHitFraction).toEqual(expect.any(Number));
+    expect(matrix.summary.maxCleanClosureResidualAbs).toEqual(expect.any(Number));
     expect(matrix.summary.maxAoVClosureResidualSV5To95Mean).toEqual(expect.any(Number));
     expect(matrix.summary.maxQAoMeanPositive).toEqual(expect.any(Number));
     expect(matrix.summary.minQAoTimeToPeakMs).toEqual(expect.any(Number));
@@ -477,6 +481,8 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(normalGate?.candidate.AoVQDotOpen01Bins["open-lt-0.2"].sampleCount).toEqual(expect.any(Number));
     expect(normalGate?.candidate.AoVQDotOpen01Bins["open-lt-0.2"].rawToClampRatioMax).toEqual(expect.any(Number));
     expect(normalGate?.candidate.AoVQDotOpen01Bins["open-gte-0.95"].sampleCount).toEqual(expect.any(Number));
+    expect(defaultValveScenario?.negativeQDotSummary.pressureReversalNegativeRatioMax).toEqual(expect.any(Number));
+    expect(defaultValveScenario?.negativeQDotSummary.cleanClosureResidualAbsMax).toEqual(expect.any(Number));
     expect(Number.isFinite(normalGate?.candidate.AoVQDotRequiredReductionFractionMax)).toBe(true);
     expect(Number.isFinite(normalGate?.candidate.AoVQDotPressureExcessOverClampMaxMmHg)).toBe(true);
     expect(Number.isFinite(normalGate?.candidate.AoVClosureResidualAtQAoMax)).toBe(true);
@@ -487,6 +493,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToMarkdown(matrix)).toContain("AoV gradient decomposition");
     expect(matrixReportToMarkdown(matrix)).toContain("AoV qDot target estimator");
     expect(matrixReportToMarkdown(matrix)).toContain("AoV qDot open01-bin target estimator");
+    expect(matrixReportToMarkdown(matrix)).toContain("Negative qDot closure-deceleration primary readouts");
     expect(matrixReportToMarkdown(matrix)).toContain("q update");
     expect(matrixReportToMarkdown(matrix)).toContain("closure fw");
     expect(matrixReportToMarkdown(matrix)).toContain("clean closure fw");
@@ -706,7 +713,7 @@ describe("low-preload Starling debug diagnostics", () => {
     ]);
     const report = runLowPreloadMatrix(opts);
 
-    expect(report.schemaVersion).toBe(23);
+    expect(report.schemaVersion).toBe(24);
     expect(report.heartModels).toEqual(["activeStress"]);
     expect(report.aorticFlowClampModes).toEqual(["hard"]);
     expect(report.aovBValues).toEqual([DEFAULT_PARAMS.AoV_B]);
@@ -835,6 +842,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToMarkdown(report)).toContain("AoV qDot target estimator");
     expect(matrixReportToMarkdown(report)).toContain("AoV qDot open01-bin target estimator");
     expect(matrixReportToMarkdown(report)).toContain("AoV low-open event-direction qDot estimator");
+    expect(matrixReportToMarkdown(report)).toContain("Negative qDot closure-deceleration primary readouts");
     expect(matrixReportToMarkdown(report)).toContain("orifice mean");
     expect(matrixReportToMarkdown(report)).toContain("closure fw");
     expect(matrixReportToMarkdown(report)).toContain("Bq2 mean");
@@ -871,6 +879,8 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToCsv(report)).toContain("AoV_L");
     expect(matrixReportToCsv(report)).toContain("AoV_tauOpen");
     expect(matrixReportToCsv(report)).toContain("aovQUpdateMode");
+    expect(matrixReportToCsv(report)).toContain("scenarioPressureReversalNegativeRatioMax");
+    expect(matrixReportToCsv(report)).toContain("scenarioCleanClosureResidualAbsMax");
     expect(matrixReportToCsv(report)).toContain("normalAoVOpenLt02RawToClampRatioMax");
     expect(matrixReportToCsv(report)).toContain("normalAoVOpenGte095RawToClampRatioMax");
     expect(matrixReportToCsv(report)).toContain("normalAoVLowOpenOpeningAccelRawToClampRatioMax");

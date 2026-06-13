@@ -689,3 +689,37 @@ Interpretation:
 - `substep-2` and `substep-4` are small AoV q-state substep comparators with the pressure/opening state frozen within the outer model step.
 
 Use these modes as attribution tools, not as default candidates. A useful signal is a reduction in `open-lt-0.2` raw/clamp, qDot clamp impulse, and clean-window closure residual without damaging normal / HR waveform gates. `qDotClamp=80000` remains a positive control for event-surface dominance, not a root fix. `equiv extra B` is range-finding only; it is not a recommended parameter.
+
+### 2026-06-13 update: asymmetric qDot clamp and negative deceleration primary readouts
+
+The matrix runner can now use asymmetric AoV qDot clamp pairs:
+
+```bash
+--aov-qdot-clamp-pair=+40000/-40000,+40000/-80000,+80000/-40000,+80000/-80000
+```
+
+The low-preload smoke localized the dominant event surface to negative qDot / deceleration:
+
+- Relaxing the negative clamp only (`+40000/-80000`) collapses the branch in the smoke case.
+- Relaxing the positive clamp only (`+80000/-40000`) does not.
+- The report promotes low-open `pressure-reversal-decel`, `forward-coast-adverse`, clean qDot hit fraction, clean closure residual, SV 5-95% qDot hit fraction, and qDot clamp impulse as primary readouts.
+
+This remains a diagnostic positive control. Negative-clamp relaxation is not a model fix and should not be interpreted as a default candidate. The next physical candidates should reduce negative qDot / closure-deceleration pathology while leaving the default clamp unchanged.
+
+Recommended short sweep:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/negative-decel-smoke \
+  --deltas=0,-1250 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --aov-qdot-clamp-pair=+40000/-40000,+40000/-60000,+40000/-80000,+80000/-40000 \
+  --aov-tau-close=0.008,0.012 \
+  --aov-q-update=current-loss,qnext-loss \
+  --max-return-map-points=1 \
+  --trace-beats=2 \
+  --sample-hz=40 \
+  --quiet-progress
+```
