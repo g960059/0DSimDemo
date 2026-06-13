@@ -764,3 +764,30 @@ Primary readouts:
 - normal / HR candidate `minDpdtLVP` as the relaxation downstroke readout
 
 Acceptance discipline: this is still a comparator. A physical fix would reduce adverse-gradient deceleration and qDot-clamp involvement while keeping the default `+40000/-40000` clamp, preserving mean CO/SV, and avoiding normal / HR waveform regression.
+
+### 2026-06-13 update: per-edge qDot / flow clamp audit
+
+AoV negative qDot localization is strong for the representative low-preload branch, but it does not prove AoV is the only edge exposing event-surface pathology. The matrix report now carries per-edge dynamic qDot audit maps from `ModelCore.debugClampDiagnostics()` and renders them in `Per-edge dynamic qDot clamp audit`.
+
+Use this before choosing fix scope:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/per-edge-qdot-audit \
+  --deltas=0,-1250,-1300,-1400,400,800 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --max-return-map-points=2 \
+  --trace-beats=2 \
+  --sample-hz=40 \
+  --quiet-progress
+```
+
+Readout logic:
+
+- Lowpreload AoV-only signal keeps the current AoV/ejection hypothesis alive.
+- Hypervolume MV signal would suggest the same qDot/event-surface mechanism appears as filling morphology in a different regime.
+- Broad multi-edge normal/HR signal would argue for dynamic-edge solver/event handling review before any targeted physiological parameter change.
+
+This PR is diagnostic only and keeps default dynamics unchanged.

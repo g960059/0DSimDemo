@@ -443,7 +443,7 @@ type DebugSummary = {
 };
 
 type DebugReport = {
-  schemaVersion: 23;
+  schemaVersion: 24;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -792,7 +792,7 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
   const dtScenarios = lambdaActTauSecValues.flatMap((tau) => dtValues.map((dt) => runDtScenario(opts, dt, tau)));
   const primary = dtScenarios[0] ?? runDtScenario(opts, 0.001, 0);
   return {
-    schemaVersion: 23,
+    schemaVersion: 24,
     generatedAt: new Date().toISOString(),
     measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve/TBV-projection diagnostics; branch-amplitude primary gate; EDV-section volume-preserving LV/PVein one-beat/two-beat return-map slopes with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap sensitivity, off-by-default AoV_B/AoV_Amax physical-loss comparators, off-by-default tension-rise/fall comparators, asymmetric AoV qDot positive/negative clamp sensitivity, and AoV q-state update comparator; LA/MV filling-regime and MV event-count morphology diagnostics; optional phase-aligned last-two-beat active/ejection/MV overlay diagnostics with high-low divergence summary; dt, off-by-default lambdaAct, and off-by-default AoV flow-clamp sensitivity",
     targetVolumeMl: opts.targetVolumeMl,
@@ -833,7 +833,7 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
     interpretation: {
       dtSensitivity: "If period-2 disappears or strongly changes at smaller dt, numerical coupling is implicated; if it persists, active-stress model dynamics are implicated.",
       activeStressFields: ["lambdaRaw", "lambdaAct", "lambdaForKd", "lambdaForFIso", "lambdaActTerms", "tauLambdaActSec", "lambdaActMinusRaw", "Kd", "aInf", "aInfRaw", "aInfCap", "aInfLimiterDelta", "activeTargetLimiter", "sigmaActTargetRaw", "tauA", "c", "a", "sigmaActTarget", "sigmaAct", "sigmaPas", "fIso", "fIsoRaw", "fIsoLimiter", "fIsoLimiterDelta", "gOver", "forceVelocityScale", "lowStretchLimiter", "lowStretchLimiterGate", "lowStretchLimiterStrength", "dLogAInf_dLambdaAct", "dLogFIso_dLambdaAct", "dLogGOver_dLambdaRaw", "dLogCompositeActive_dLambdaAct"],
-      clampFields: ["nodeClampHits", "dynamicFlowClampHits", "valveDiodeClampHits", "sanitizeSignedMl", "sanitizeAbsMl", "projectionRequestedMl", "projectionAppliedMl", "tbvErrorBeforeProjectionMl", "tbvErrorAfterProjectionMl", "aorticQDotLastStep", "aorticQDotCurrentBeat", "aorticQDotLastBeat"],
+      clampFields: ["nodeClampHits", "dynamicFlowClampHits", "valveDiodeClampHits", "sanitizeSignedMl", "sanitizeAbsMl", "projectionRequestedMl", "projectionAppliedMl", "tbvErrorBeforeProjectionMl", "tbvErrorAfterProjectionMl", "aorticQDotLastStep", "aorticQDotCurrentBeat", "aorticQDotLastBeat", "dynamicQDotLastStep", "dynamicQDotCurrentBeat", "dynamicQDotLastBeat"],
       beatPairOverlay: "When enabled, phase-aligned last-two-beat rows expose QMV/MV xi/LAP-LVP/VLV, LV c/a/sigmaActTarget/sigmaAct, and QAo/AoV/AoP signals to test whether MV event switching precedes ejection alternans or follows prior-beat active/ejection state.",
     },
   };

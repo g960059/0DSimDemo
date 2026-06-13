@@ -161,6 +161,9 @@ export type ModelCoreClampDiagnostics = {
   aorticQDotLastStep: ModelCoreAorticQDotAudit;
   aorticQDotCurrentBeat: ModelCoreAorticQDotAudit;
   aorticQDotLastBeat: ModelCoreAorticQDotAudit;
+  dynamicQDotLastStep: Partial<Record<DynamicEdgeName, ModelCoreDynamicQDotAudit>>;
+  dynamicQDotCurrentBeat: Partial<Record<DynamicEdgeName, ModelCoreDynamicQDotAudit>>;
+  dynamicQDotLastBeat: Partial<Record<DynamicEdgeName, ModelCoreDynamicQDotAudit>>;
 };
 
 export type ModelCoreActiveStressDiagnostics = Partial<Record<Chamber, ActiveStressDebugTerms>>;
@@ -193,6 +196,8 @@ export type ModelCoreAorticQDotAudit = {
   minNegativeRawMlPerS2: number;
   maxImpulseAbsMlPerS2: number;
 };
+
+export type ModelCoreDynamicQDotAudit = ModelCoreAorticQDotAudit;
 
 function emptyVolumeDeltaAudit(): ModelCoreVolumeDeltaAudit {
   return { signedMl: 0, absMl: 0, byNodeSignedMl: {}, byNodeAbsMl: {} };
@@ -252,6 +257,17 @@ function cloneAorticQDotAudit(audit: ModelCoreAorticQDotAudit): ModelCoreAorticQ
   return { ...audit };
 }
 
+function cloneDynamicQDotAuditRecord(
+  audits: Partial<Record<DynamicEdgeName, ModelCoreDynamicQDotAudit>>,
+): Partial<Record<DynamicEdgeName, ModelCoreDynamicQDotAudit>> {
+  const out: Partial<Record<DynamicEdgeName, ModelCoreDynamicQDotAudit>> = {};
+  for (const edge of dynamicEdgeNames) {
+    const audit = audits[edge];
+    if (audit) out[edge] = cloneAorticQDotAudit(audit);
+  }
+  return out;
+}
+
 function addAorticQDotAudit(
   audit: ModelCoreAorticQDotAudit,
   qDotRaw: number,
@@ -265,6 +281,20 @@ function addAorticQDotAudit(
   audit.maxPositiveRawMlPerS2 = Math.max(audit.maxPositiveRawMlPerS2, qDotRaw);
   audit.minNegativeRawMlPerS2 = Math.min(audit.minNegativeRawMlPerS2, qDotRaw);
   audit.maxImpulseAbsMlPerS2 = Math.max(audit.maxImpulseAbsMlPerS2, Math.abs(impulse));
+}
+
+function addDynamicQDotAudit(
+  audits: Partial<Record<DynamicEdgeName, ModelCoreDynamicQDotAudit>>,
+  edge: DynamicEdgeName,
+  qDotRaw: number,
+  qDotPost: number,
+): void {
+  let audit = audits[edge];
+  if (!audit) {
+    audit = emptyAorticQDotAudit();
+    audits[edge] = audit;
+  }
+  addAorticQDotAudit(audit, qDotRaw, qDotPost);
 }
 
 function addNodeVolumeDelta(
@@ -443,6 +473,9 @@ export class ModelCore {
   private aorticQDotLastStepAudit = emptyAorticQDotAudit();
   private aorticQDotCurrentBeatAudit = emptyAorticQDotAudit();
   private aorticQDotLastBeatAudit = emptyAorticQDotAudit();
+  private dynamicQDotLastStepAudit: Partial<Record<DynamicEdgeName, ModelCoreDynamicQDotAudit>> = {};
+  private dynamicQDotCurrentBeatAudit: Partial<Record<DynamicEdgeName, ModelCoreDynamicQDotAudit>> = {};
+  private dynamicQDotLastBeatAudit: Partial<Record<DynamicEdgeName, ModelCoreDynamicQDotAudit>> = {};
   private tbvCorrectionMagThisBeat = 0;
   private tbvCorrectionMagLastBeat = 0;
   private tbvCorrectionLastStepMl = 0;
@@ -844,6 +877,9 @@ export class ModelCore {
     this.aorticQDotLastStepAudit = emptyAorticQDotAudit();
     this.aorticQDotCurrentBeatAudit = emptyAorticQDotAudit();
     this.aorticQDotLastBeatAudit = emptyAorticQDotAudit();
+    this.dynamicQDotLastStepAudit = {};
+    this.dynamicQDotCurrentBeatAudit = {};
+    this.dynamicQDotLastBeatAudit = {};
     this.aorticFlowStepDiagnostics = emptyAorticFlowStepDiagnostics();
   }
 
@@ -899,6 +935,9 @@ export class ModelCore {
     this.aorticQDotLastStepAudit = emptyAorticQDotAudit();
     this.aorticQDotCurrentBeatAudit = emptyAorticQDotAudit();
     this.aorticQDotLastBeatAudit = emptyAorticQDotAudit();
+    this.dynamicQDotLastStepAudit = {};
+    this.dynamicQDotCurrentBeatAudit = {};
+    this.dynamicQDotLastBeatAudit = {};
   }
 
   runFor(seconds: number, dt = 0.001, sampleHz = 60, options: RunForOptions = {}): SimSample[] {
@@ -1086,6 +1125,9 @@ export class ModelCore {
       aorticQDotLastStep: cloneAorticQDotAudit(this.aorticQDotLastStepAudit),
       aorticQDotCurrentBeat: cloneAorticQDotAudit(this.aorticQDotCurrentBeatAudit),
       aorticQDotLastBeat: cloneAorticQDotAudit(this.aorticQDotLastBeatAudit),
+      dynamicQDotLastStep: cloneDynamicQDotAuditRecord(this.dynamicQDotLastStepAudit),
+      dynamicQDotCurrentBeat: cloneDynamicQDotAuditRecord(this.dynamicQDotCurrentBeatAudit),
+      dynamicQDotLastBeat: cloneDynamicQDotAuditRecord(this.dynamicQDotLastBeatAudit),
     };
   }
 
@@ -1113,6 +1155,8 @@ export class ModelCore {
       this.tbvProjectionCurrentBeatAudit = emptyTBVProjectionAudit();
       this.aorticQDotLastBeatAudit = cloneAorticQDotAudit(this.aorticQDotCurrentBeatAudit);
       this.aorticQDotCurrentBeatAudit = emptyAorticQDotAudit();
+      this.dynamicQDotLastBeatAudit = cloneDynamicQDotAuditRecord(this.dynamicQDotCurrentBeatAudit);
+      this.dynamicQDotCurrentBeatAudit = {};
       this.beatAccum = this.newBeatAccum(beat, s);
     }
     const a = this.beatAccum;
@@ -1512,6 +1556,7 @@ export class ModelCore {
     const pack = this.computePressures(x);
     const flows = this.computeFlows(x, pack);
     const balance = new Float64Array(nodeNames.length);
+    this.dynamicQDotLastStepAudit = {};
 
     for (let ei = 0; ei < this.edges.length; ei++) {
       const e = this.edges[ei];
@@ -1573,6 +1618,9 @@ export class ModelCore {
         : DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
       const qDotPost = clamp(qDotRaw, -qDotNegativeLimit, qDotPositiveLimit);
       dy[qi] = qDotPost;
+      const dynamicEdge = e.name as DynamicEdgeName;
+      addDynamicQDotAudit(this.dynamicQDotLastStepAudit, dynamicEdge, qDotRaw, qDotPost);
+      addDynamicQDotAudit(this.dynamicQDotCurrentBeatAudit, dynamicEdge, qDotRaw, qDotPost);
       if (e.name === "AoV") {
         this.aorticQDotLastStepAudit = emptyAorticQDotAudit();
         addAorticQDotAudit(this.aorticQDotLastStepAudit, qDotRaw, qDotPost);
