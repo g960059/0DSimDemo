@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { DEFAULT_PARAMS } from "@/constants";
-import { ModelCore, type AorticFlowClampMode, type ModelCoreActiveStressDiagnostics, type ModelCoreClampDiagnostics } from "@/engine/ModelCore";
+import { ModelCore, type AorticFlowClampMode, type AorticValveQUpdateMode, type ModelCoreActiveStressDiagnostics, type ModelCoreClampDiagnostics } from "@/engine/ModelCore";
 import { DYNAMIC_FLOW_CLAMP_ML_PER_S } from "@/engine/core/topology";
 import { makeIndex } from "@/engine/core/stateLayout";
 import type { StarlingSweepRequest } from "@/engine/guytonStarling";
@@ -40,6 +40,7 @@ type DebugOptions = {
   arterialStiffness?: number;
   tensionRiseSec?: number;
   aovQDotClamp?: number;
+  aovQUpdateMode?: AorticValveQUpdateMode;
 };
 
 type ActiveBeatSummary = {
@@ -440,7 +441,7 @@ type DebugSummary = {
 };
 
 type DebugReport = {
-  schemaVersion: 20;
+  schemaVersion: 21;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -471,6 +472,7 @@ type DebugReport = {
   arterialStiffness: number;
   tensionRiseSec: number;
   aovQDotClamp: number;
+  aovQUpdateMode: AorticValveQUpdateMode;
   beatPairOverlay: boolean;
   points: DebugPoint[];
   summary: DebugSummary;
@@ -772,6 +774,7 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
   const arterialStiffness = finitePositiveOrDefault(opts.arterialStiffness, DEFAULT_ARTERIAL_STIFFNESS);
   const tensionRiseSec = Math.max(Number.isFinite(opts.tensionRiseSec) ? Number(opts.tensionRiseSec) : 0, 0);
   const aovQDotClamp = finitePositiveOrDefault(opts.aovQDotClamp, DEFAULT_AOV_Q_DOT_CLAMP);
+  const aovQUpdateMode = opts.aovQUpdateMode ?? "current-loss";
   const dtValues = opts.dtValues.length > 0 ? opts.dtValues : DEFAULT_DT_VALUES;
   const lambdaActTauSecValues = opts.lambdaActTauSecValues.length > 0
     ? opts.lambdaActTauSecValues
@@ -783,9 +786,9 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
   const dtScenarios = lambdaActTauSecValues.flatMap((tau) => dtValues.map((dt) => runDtScenario(opts, dt, tau)));
   const primary = dtScenarios[0] ?? runDtScenario(opts, 0.001, 0);
   return {
-    schemaVersion: 20,
+    schemaVersion: 21,
     generatedAt: new Date().toISOString(),
-    measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve/TBV-projection diagnostics; branch-amplitude primary gate; EDV-section volume-preserving LV/PVein one-beat/two-beat return-map slopes with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap sensitivity, off-by-default AoV_B/AoV_Amax physical-loss comparators, off-by-default tension-rise comparator, and AoV qDot clamp sensitivity; LA/MV filling-regime and MV event-count morphology diagnostics; optional phase-aligned last-two-beat active/ejection/MV overlay diagnostics with high-low divergence summary; dt, off-by-default lambdaAct, and off-by-default AoV flow-clamp sensitivity",
+    measurementMode: "continuous low-preload march; period-aware metrics; active-stress/clamp/valve/TBV-projection diagnostics; branch-amplitude primary gate; EDV-section volume-preserving LV/PVein one-beat/two-beat return-map slopes with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap sensitivity, off-by-default AoV_B/AoV_Amax physical-loss comparators, off-by-default tension-rise comparator, AoV qDot clamp sensitivity, and AoV q-state update comparator; LA/MV filling-regime and MV event-count morphology diagnostics; optional phase-aligned last-two-beat active/ejection/MV overlay diagnostics with high-low divergence summary; dt, off-by-default lambdaAct, and off-by-default AoV flow-clamp sensitivity",
     targetVolumeMl: opts.targetVolumeMl,
     heartModel: opts.heartModel ?? DEFAULT_HEART_MODEL,
     deltasMl: opts.deltasMl,
@@ -814,6 +817,7 @@ function runLowPreloadDebugImpl(opts: DebugOptions): DebugReport {
     arterialStiffness,
     tensionRiseSec,
     aovQDotClamp,
+    aovQUpdateMode,
     beatPairOverlay: opts.beatPairOverlay === true,
     points: primary.points,
     summary: primary.summary,
@@ -1358,6 +1362,7 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
   const lambdaActTerms = opts.lambdaActTerms ?? DEFAULT_LAMBDA_ACT_TERMS;
   const tbvCorrectionMode = opts.tbvCorrectionMode ?? DEFAULT_TBV_CORRECTION_MODE;
   const aorticFlowClampMode = opts.aorticFlowClampMode ?? DEFAULT_AORTIC_FLOW_CLAMP_MODE;
+  const aovQUpdateMode = opts.aovQUpdateMode ?? "current-loss";
   const lowStretchLimiterMode = opts.lowStretchLimiterMode ?? DEFAULT_LOW_STRETCH_LIMITER_MODE;
   const lowStretchLimiterScope = opts.lowStretchLimiterScope ?? DEFAULT_LOW_STRETCH_LIMITER_SCOPE;
   const activeReservePreset = effectiveActiveReservePreset(lowStretchLimiterMode, opts.activeReservePreset);
@@ -1399,10 +1404,10 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
   let seedState: SerializedModelState | undefined;
   let seededFromDeltaMl = 0;
   for (const delta of opts.deltasMl) {
-    const run = settleDebugCore(req.params, opts.targetVolumeMl + delta, dt, opts.sampleHz, tbvCorrectionMode, aorticFlowClampMode, opts.aovQDotClamp, seedState);
+    const run = settleDebugCore(req.params, opts.targetVolumeMl + delta, dt, opts.sampleHz, tbvCorrectionMode, aorticFlowClampMode, opts.aovQDotClamp, aovQUpdateMode, seedState);
     const traceCore = new ModelCore(req.params);
     traceCore.unpackState(run.state);
-    configureDebugCore(traceCore, tbvCorrectionMode, aorticFlowClampMode, opts.aovQDotClamp);
+    configureDebugCore(traceCore, tbvCorrectionMode, aorticFlowClampMode, opts.aovQDotClamp, aovQUpdateMode);
     const traceSamples = collectTraceSamples(traceCore, opts.traceBeats, dt, opts.sampleHz);
     const beatTrace = summarizeBeatTrace(traceSamples, req.params.HR, opts.traceBeats, aorticFlowClampMode);
     const beatPairOverlay = opts.beatPairOverlay === true ? buildBeatPairOverlay(traceSamples, req.params.HR, aorticFlowClampMode) : undefined;
@@ -1493,6 +1498,7 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
       tbvCorrectionMode,
       aorticFlowClampMode,
       opts.aovQDotClamp,
+      aovQUpdateMode,
       point.returnMap.branchAmplitude,
       point.returnMap.branchAmplitudeFraction,
     );
@@ -1700,10 +1706,12 @@ function configureDebugCore(
   tbvCorrectionMode: TBVCorrectionMode,
   aorticFlowClampMode: AorticFlowClampMode,
   aovQDotClamp?: number,
+  aovQUpdateMode: AorticValveQUpdateMode = "current-loss",
 ): void {
   applyTBVCorrectionMode(core, tbvCorrectionMode);
   core.setAorticFlowClampMode(aorticFlowClampMode);
   core.setAorticFlowDerivativeClamp(finitePositiveOrDefault(aovQDotClamp, DEFAULT_AOV_Q_DOT_CLAMP));
+  core.setAorticValveQUpdateMode(aovQUpdateMode);
 }
 
 function tbvAuditFromClampDiagnostics(
@@ -1754,6 +1762,7 @@ function settleDebugCore(
   tbvCorrectionMode: TBVCorrectionMode,
   aorticFlowClampMode: AorticFlowClampMode,
   aovQDotClamp?: number,
+  aovQUpdateMode: AorticValveQUpdateMode = "current-loss",
   seedState?: SerializedModelState,
 ): DebugRun {
   const started = performance.now();
@@ -1765,7 +1774,7 @@ function settleDebugCore(
   } else {
     core.initializeVenousPressuresForTargetTBV(targetVolumeMl);
   }
-  configureDebugCore(core, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp);
+  configureDebugCore(core, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode);
   core.resetDebugDiagnostics();
   const settle = core.settleToSteady(SETTLE_POLICY, dt, sampleHz, RUN_OPTIONS);
   const periodBeats = settle.periodBeats ?? 1;
@@ -1811,6 +1820,7 @@ function estimateReturnMapDiagnostic(
   tbvCorrectionMode: TBVCorrectionMode,
   aorticFlowClampMode: AorticFlowClampMode,
   aovQDotClamp: number | undefined,
+  aovQUpdateMode: AorticValveQUpdateMode,
   branchAmplitude: Partial<Record<ReturnMapFeatureKey, number>>,
   branchAmplitudeFraction: Partial<Record<ReturnMapFeatureKey, number>>,
 ): ReturnMapDiagnostic {
@@ -1818,11 +1828,11 @@ function estimateReturnMapDiagnostic(
     return skippedReturnMapDiagnostic(state, branchAmplitude, branchAmplitudeFraction, "return-map disabled");
   }
   try {
-    const section = findNextLvEdvSection(state, params, dt, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp);
+    const section = findNextLvEdvSection(state, params, dt, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode);
     const includeFixed = returnMapMode === "fixed" || returnMapMode === "both";
     const includeReset = returnMapMode === "reset" || returnMapMode === "both";
-    const fixedMode = includeFixed ? returnMapModeDiagnostic(section.state, params, dt, sampleHz, "volumeLambdaActFixed", tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp) : undefined;
-    const resetMode = includeReset ? returnMapModeDiagnostic(section.state, params, dt, sampleHz, "volumeLambdaActReset", tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp) : undefined;
+    const fixedMode = includeFixed ? returnMapModeDiagnostic(section.state, params, dt, sampleHz, "volumeLambdaActFixed", tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode) : undefined;
+    const resetMode = includeReset ? returnMapModeDiagnostic(section.state, params, dt, sampleHz, "volumeLambdaActReset", tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode) : undefined;
     const primaryMode: ReturnMapModeKey = includeFixed ? "volumeLambdaActFixed" : "volumeLambdaActReset";
     const primary = includeFixed ? fixedMode : resetMode;
     if (!primary) throw new Error(`unsupported return-map mode: ${returnMapMode}`);
@@ -1930,6 +1940,7 @@ function returnMapModeDiagnostic(
   tbvCorrectionMode: TBVCorrectionMode,
   aorticFlowClampMode: AorticFlowClampMode,
   aovQDotClamp: number | undefined,
+  aovQUpdateMode: AorticValveQUpdateMode,
 ): { oneBeat: ReturnMapPhaseDiagnostic; twoBeatSamePhase: ReturnMapPhaseDiagnostic } {
   let plusState = perturbLvAgainstPVein(sectionState, RETURN_MAP_PERTURBATION_ML);
   let minusState = perturbLvAgainstPVein(sectionState, -RETURN_MAP_PERTURBATION_ML);
@@ -1937,8 +1948,8 @@ function returnMapModeDiagnostic(
     plusState = resetLvLambdaActToRaw(plusState, params);
     minusState = resetLvLambdaActToRaw(minusState, params);
   }
-  const plus = postPerturbationBeats(plusState, params, dt, sampleHz, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp);
-  const minus = postPerturbationBeats(minusState, params, dt, sampleHz, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp);
+  const plus = postPerturbationBeats(plusState, params, dt, sampleHz, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode);
+  const minus = postPerturbationBeats(minusState, params, dt, sampleHz, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode);
   return {
     oneBeat: phaseDiagnostic(plus.oneBeat, minus.oneBeat, plus.clampHits, minus.clampHits),
     twoBeatSamePhase: phaseDiagnostic(plus.twoBeat, minus.twoBeat, plus.clampHits, minus.clampHits),
@@ -1952,10 +1963,11 @@ function findNextLvEdvSection(
   tbvCorrectionMode: TBVCorrectionMode,
   aorticFlowClampMode: AorticFlowClampMode,
   aovQDotClamp?: number,
+  aovQUpdateMode: AorticValveQUpdateMode = "current-loss",
 ): { state: SerializedModelState; beat: number; vlvMl: number } {
   const core = new ModelCore(params);
   core.unpackState(state);
-  configureDebugCore(core, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp);
+  configureDebugCore(core, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode);
   const targetBeat = Math.floor(core.sample().phi) + 1;
   const maxSeconds = (60 / Math.max(core.p.HR, 1)) * 3.5;
   const tEnd = core.t + maxSeconds;
@@ -2019,9 +2031,10 @@ function postPerturbationBeats(
   tbvCorrectionMode: TBVCorrectionMode,
   aorticFlowClampMode: AorticFlowClampMode,
   aovQDotClamp?: number,
+  aovQUpdateMode: AorticValveQUpdateMode = "current-loss",
 ): { oneBeat: BeatTraceRow; twoBeat: BeatTraceRow; clampHits: number } {
   const core = newCoreFromState(state, params);
-  configureDebugCore(core, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp);
+  configureDebugCore(core, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode);
   core.resetDebugDiagnostics();
   void sampleHz;
   const firstTargetBeat = Math.floor(core.sample().phi) + 1;
@@ -2917,6 +2930,7 @@ export function parseLowPreloadDebugArgs(args: string[]): DebugOptions {
     aorticFlowClampMode: DEFAULT_AORTIC_FLOW_CLAMP_MODE,
     tensionRiseSec: 0,
     aovQDotClamp: DEFAULT_AOV_Q_DOT_CLAMP,
+    aovQUpdateMode: "current-loss",
   };
   for (const arg of args) {
     const [key, value] = arg.split("=", 2);
@@ -2947,6 +2961,7 @@ export function parseLowPreloadDebugArgs(args: string[]): DebugOptions {
     else if (key === "--arterial-stiffness" && value) opts.arterialStiffness = finitePositiveOrDefault(Number(value), DEFAULT_ARTERIAL_STIFFNESS);
     else if (key === "--tension-rise" && value) opts.tensionRiseSec = Math.max(0, Number(value));
     else if (key === "--aov-qdot-clamp" && value) opts.aovQDotClamp = finitePositiveOrDefault(Number(value), DEFAULT_AOV_Q_DOT_CLAMP);
+    else if (key === "--aov-q-update" && value) opts.aovQUpdateMode = parseAorticValveQUpdateMode(value);
     else if (key === "--quiet-clamp-log") opts.quietClampLog = true;
     else if (key === "--trace-beats" && value) opts.traceBeats = Math.max(2, Math.floor(Number(value)));
     else if (key === "--sample-hz" && value) opts.sampleHz = Math.max(20, Math.floor(Number(value)));
@@ -3027,6 +3042,11 @@ function finitePositiveOrDefault(value: number | undefined, fallback: number): n
   return value != null && Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
+function parseAorticValveQUpdateMode(value: string): AorticValveQUpdateMode {
+  if (value === "current-loss" || value === "qnext-loss" || value === "substep-2" || value === "substep-4") return value;
+  throw new Error(`Invalid AoV q-update mode: ${value}`);
+}
+
 function printHelp(): void {
   // eslint-disable-next-line no-console
   console.log([
@@ -3042,7 +3062,7 @@ function printHelp(): void {
     "       [--aortic-flow-clamp=hard|soft-tanh|soft-rational|local-c1-0.95|local-c2-0.98]",
     "       [--aov-b=0.000001] [--as-aov-amax=1.5] [--aov-l=0.00025]",
     "       [--aov-tau-open=0.006] [--aov-tau-close=0.008] [--systemic-resistance=1] [--arterial-stiffness=0.75]",
-    "       [--tension-rise=0.02] [--aov-qdot-clamp=40000]",
+    "       [--tension-rise=0.02] [--aov-qdot-clamp=40000] [--aov-q-update=current-loss|qnext-loss|substep-2|substep-4]",
     "       [--max-return-map-points=4] [--quiet-clamp-log] [--trace-beats=10] [--sample-hz=120]",
     "",
     "Examples:",

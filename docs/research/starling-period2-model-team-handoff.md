@@ -654,3 +654,58 @@ Questions for the model team:
 1. Is qDot clamp activity in normal / low-preload ejection acceptable as a numerical stabilizer, or should default ejection be required to have low qDot clamp hit fraction in the SV 5-95% window?
 2. If qDot clamp suppression improves branch but damages waveform gates, should the next comparison target the upstream upstroke shape, the valve update scheme, or afterload memory?
 3. Should clean-window closure residual become a hard acceptance gate for future AoV/ejection comparator branches?
+
+## 2026-06-13 update: AoV low-open qDot split and q-state update comparators
+
+The newest report-only layer separates the qDot target estimator by AoV opening fraction:
+
+- `open-lt-0.2`
+- `open-0.2-0.8`
+- `open-0.8-0.95`
+- `open-gte-0.95`
+
+This addresses a key interpretation problem from the qDot target estimator: the headline maximum can be dominated by a low-open-fraction AoV event when `open01` is very low. Do not assume that this is always an opening-side acceleration spike. In the current smoke artifact, the largest normal sample is low-open, adverse-gradient, and negative-qDot, which is more consistent with a closing-side / pressure-reversal deceleration transient than a true opening-from-rest spike. The near-full-open bin is the better first readout for the ejection body; the low-open bin is only the first localization layer.
+
+The matrix runner now also accepts:
+
+```bash
+--aov-q-update=current-loss,qnext-loss,substep-2,substep-4
+```
+
+`current-loss` is the current model and remains the default. `qnext-loss` uses a qNext-consistent quadratic loss for AoV, while `substep-2` and `substep-4` substep the AoV q-state update within the outer model step. These are comparator modes only. They are intended to test whether the current-q loss update or coarse q-state integration materially changes low-open qDot pathology. They are diagnostic comparators, not root-fix or default candidates.
+
+Recommended smoke for the next handoff artifact:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/opening-qdot-comparator-smoke \
+  --deltas=0,-1250 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --aov-b=0.000001,0.000002 \
+  --aov-tau-open=0.006,0.012 \
+  --aov-q-update=current-loss,qnext-loss,substep-2 \
+  --aov-qdot-clamp=40000 \
+  --max-return-map-points=2 \
+  --trace-beats=4 \
+  --sample-hz=60 \
+  --quiet-progress
+```
+
+Primary readout discipline:
+
+- Low-open event: `open-lt-0.2` raw/clamp, pressure excess, qCurrent, qNext pre-diode, and qDot pre-clamp. Interpret this only after checking the sign of dP and qDot; it may represent opening acceleration, closing deceleration, or forward-flow coast against adverse pressure.
+- Ejection body: `open-gte-0.95`, SV 5-95, and clean-candidate raw/clamp plus clean-window closure residual.
+- Safety: normal / HR100 / HR100-rearm waveform gates, full-open/sampled orifice gradient, QAo peak/mean, and ejection duration definitions.
+
+Next diagnostic refinement should split low-open samples by event direction:
+
+- `open01 < 0.2 && dP > 0 && qDot > 0`: opening acceleration.
+- `open01 < 0.2 && dP < 0 && qDot < 0`: pressure-reversal / closing-side deceleration.
+- `open01 < 0.2 && q > 0 && dP < 0`: forward-flow coast against adverse pressure.
+- `open01 < 0.2 && q ~= 0`: true opening from rest.
+
+It should also report max positive and max negative qDot separately, plus open01 derivative / xiDot or equivalent phase labels when available. `equiv extra B` remains range-finding only; it is not a recommended parameter.
+
+Do not interpret a successful q-state update comparator as a model fix by itself. It is evidence about q-update ordering and low-open event numerics. Default adoption would require a later model-design PR and broad validation.
