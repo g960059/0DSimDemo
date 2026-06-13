@@ -2919,18 +2919,18 @@ export function PanelGrid({
 	                            )}
                               {!isReadOnly && (
                                 <>
-  	                            <button type="button" onClick={() => setViewEditor({ mode: 'edit', view })} className={`inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`} aria-label={t('common.edit')}>
-  	                              <Pencil className="h-3.5 w-3.5" />
-  	                            </button>
-  	                            <button type="button" onClick={() => beginRenameView(view)} className={`inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`} aria-label={t('workbench.viewManagement.rename')}>
-  	                              <TypeIcon className="h-3.5 w-3.5" />
-  	                            </button>
-  	                            <button type="button" onClick={() => duplicateView(view)} className={`inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`} aria-label={t('workbench.viewManagement.duplicate')}>
-  	                              <Copy className="h-3.5 w-3.5" />
-  	                            </button>
-  	                            <button type="button" onClick={() => requestDeleteView(view)} className={`inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-danger ${WB_FOCUS_RING}`} aria-label={t('common.delete')}>
-  	                              <Trash2 className="h-3.5 w-3.5" />
-  	                            </button>
+                                  <button type="button" onClick={() => setViewEditor({ mode: 'edit', view })} className={`inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`} aria-label={t('common.edit')}>
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button type="button" onClick={() => beginRenameView(view)} className={`inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`} aria-label={t('workbench.viewManagement.rename')}>
+                                    <TypeIcon className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button type="button" onClick={() => duplicateView(view)} className={`inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`} aria-label={t('workbench.viewManagement.duplicate')}>
+                                    <Copy className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button type="button" onClick={() => requestDeleteView(view)} className={`inline-flex h-6 w-6 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-danger ${WB_FOCUS_RING}`} aria-label={t('common.delete')}>
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
                                 </>
                               )}
 	                          </div>
