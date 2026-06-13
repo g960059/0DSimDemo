@@ -383,6 +383,13 @@ export const OFFICIAL_CASES: CaseDocument[] = [
     title: "Afterload — normal vs acute hypertension",
     description: "A PV-loop-first teaching case comparing normal afterload with acute hypertension. Higher afterload makes ejection harder, raising pressure while narrowing the loop and reducing stroke volume.",
     modelLimitations: [LIMIT_GENERAL, LIMIT_NOREFLEX, LIMIT_CALIB],
+    expectedFindings: [
+      metricRange("afterload-normal-co", "CO_L", "1", { min: 4.5, max: 6.5 }, "Normal afterload keeps resting cardiac output in the teaching reference range."),
+      metricRange("afterload-normal-sys", "AoPSys", "1", { min: 110, max: 130 }, "Normal afterload keeps systolic aortic pressure in the reference range."),
+      metricRange("afterload-htn-sys", "AoPSys", "2", { min: 130, max: 150 }, "Acute hypertension raises systolic aortic pressure above the normal range."),
+      metricRange("afterload-htn-co", "CO_L", "2", { min: 3.8, max: 5.2 }, "Higher afterload makes ejection harder, lowering cardiac output below the normal scenario."),
+      metricRange("afterload-htn-sv", "SV_L", "2", { min: 52, max: 68 }, "Higher afterload reduces stroke volume relative to the normal scenario."),
+    ],
     instances: [
       { name: "Normal", knobs: {}, interventions: [], targetVolume: 5600 },
       { name: "Hypertensive", knobs: { afterload: 1.6 }, interventions: [], targetVolume: 5600 },
