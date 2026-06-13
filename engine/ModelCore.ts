@@ -453,7 +453,8 @@ export class ModelCore {
     maxNodeVolumeMl?: number;
   } | null = null;
   private aorticFlowClampMode: AorticFlowClampMode = "hard";
-  private aorticFlowDerivativeClampMlPerS2 = DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
+  private aorticFlowDerivativeClampPositiveMlPerS2 = DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
+  private aorticFlowDerivativeClampNegativeMlPerS2 = DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
   private aorticValveQUpdateMode: AorticValveQUpdateMode = "current-loss";
   private aorticFlowStepDiagnostics = emptyAorticFlowStepDiagnostics();
 
@@ -865,9 +866,20 @@ export class ModelCore {
   }
 
   setAorticFlowDerivativeClamp(limitMlPerS2: number): void {
-    this.aorticFlowDerivativeClampMlPerS2 = Number.isFinite(limitMlPerS2) && limitMlPerS2 > 0
+    const limit = Number.isFinite(limitMlPerS2) && limitMlPerS2 > 0
       ? limitMlPerS2
       : DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
+    this.aorticFlowDerivativeClampPositiveMlPerS2 = limit;
+    this.aorticFlowDerivativeClampNegativeMlPerS2 = limit;
+  }
+
+  setAorticFlowDerivativeClampLimits(positiveMlPerS2: number, negativeMlPerS2: number): void {
+    this.aorticFlowDerivativeClampPositiveMlPerS2 = Number.isFinite(positiveMlPerS2) && positiveMlPerS2 > 0
+      ? positiveMlPerS2
+      : DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
+    this.aorticFlowDerivativeClampNegativeMlPerS2 = Number.isFinite(negativeMlPerS2) && negativeMlPerS2 > 0
+      ? negativeMlPerS2
+      : this.aorticFlowDerivativeClampPositiveMlPerS2;
   }
 
   setAorticValveQUpdateMode(mode: AorticValveQUpdateMode): void {
@@ -1553,10 +1565,13 @@ export class ModelCore {
       const qDotPostDiode = (qNextPostDiode - q) / h;
       const qDotPreFlowClamp = (qNextPreFlowClamp - q) / h;
       const qDotRaw = (qNext - q) / h;
-      const qDotLimit = e.name === "AoV"
-        ? Math.max(this.aorticFlowDerivativeClampMlPerS2, 1)
+      const qDotPositiveLimit = e.name === "AoV"
+        ? Math.max(this.aorticFlowDerivativeClampPositiveMlPerS2, 1)
         : DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
-      const qDotPost = clamp(qDotRaw, -qDotLimit, qDotLimit);
+      const qDotNegativeLimit = e.name === "AoV"
+        ? Math.max(this.aorticFlowDerivativeClampNegativeMlPerS2, 1)
+        : DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
+      const qDotPost = clamp(qDotRaw, -qDotNegativeLimit, qDotPositiveLimit);
       dy[qi] = qDotPost;
       if (e.name === "AoV") {
         this.aorticQDotLastStepAudit = emptyAorticQDotAudit();
