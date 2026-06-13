@@ -61,7 +61,8 @@ export function WorkbenchRoute() {
     panels: panels.panels,
     notes: panels.notes,
     reading: scene.currentCaseReading,
-  }), [panels.notes, panels.panels, scene.currentCaseReading]);
+    defaultEntry: scene.currentCaseDefaultEntry,
+  }), [panels.notes, panels.panels, scene.currentCaseDefaultEntry, scene.currentCaseReading]);
   const readExploreAvailable = scene.headerMode === "learner" && canUseReadExplore(readExploreDoc);
   const resolvedReadingColumn = useMemo(() => resolveReadingColumn(readExploreDoc), [readExploreDoc]);
   const readingColumn = "column" in resolvedReadingColumn ? resolvedReadingColumn.column : undefined;
@@ -76,11 +77,11 @@ export function WorkbenchRoute() {
       return;
     }
     if (!scene.currentCaseId) return;
-    const entryKey = `${scene.currentCaseId}:${panels.noteCaseKey}`;
+    const entryKey = `${scene.currentCaseId}:${panels.noteCaseKey}:${scene.currentCaseDefaultEntry ?? "derive"}`;
     if (entryPresentationKeyRef.current === entryKey) return;
     entryPresentationKeyRef.current = entryKey;
     setReadExploreMode(deriveReadExploreEntryMode(readExploreDoc, { readOnly: true }));
-  }, [panels.noteCaseKey, readExploreDoc, scene.currentCaseId, scene.headerMode, setReadExploreMode]);
+  }, [panels.noteCaseKey, readExploreDoc, scene.currentCaseDefaultEntry, scene.currentCaseId, scene.headerMode, setReadExploreMode]);
 
   useEffect(() => {
     if (!readExploreAvailable && readExploreState.presentation === "read") setReadExploreMode("explore");

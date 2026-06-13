@@ -65,6 +65,46 @@ describe("Read/Explore entry derivation", () => {
     expect(deriveReadExploreEntryMode(doc, { readOnly: true })).toBe("explore");
     expect(deriveReadExploreEntryMode(caseDoc({ reading: { schemaVersion: 1, column: [{ kind: "paneRef", panelId: "wave" }] } }), { readOnly: false })).toBe("explore");
   });
+
+  it("honors defaultEntry read when reading is available", () => {
+    const doc = caseDoc({
+      defaultEntry: "read",
+      notes: { intro: note("Intro") },
+      reading: { schemaVersion: 1, column: [{ kind: "noteRef", noteId: "intro" }] },
+    });
+
+    expect(deriveReadExploreEntryMode(doc, { readOnly: true })).toBe("read");
+  });
+
+  it("falls back to Explore for defaultEntry read when reading is unavailable", () => {
+    const doc = caseDoc({
+      defaultEntry: "read",
+      notes: { empty: note("   ") },
+    });
+
+    expect(deriveReadExploreEntryMode(doc, { readOnly: true })).toBe("explore");
+  });
+
+  it("honors defaultEntry explore even when reading is available", () => {
+    const doc = caseDoc({
+      defaultEntry: "explore",
+      notes: { intro: note("Intro") },
+      reading: { schemaVersion: 1, column: [{ kind: "noteRef", noteId: "intro" }] },
+    });
+
+    expect(deriveReadExploreEntryMode(doc, { readOnly: true })).toBe("explore");
+  });
+
+  it("keeps undefined defaultEntry behavior derived from reading availability", () => {
+    const readable = caseDoc({
+      notes: { intro: note("Intro") },
+      reading: { schemaVersion: 1, column: [{ kind: "noteRef", noteId: "intro" }] },
+    });
+    const unreadable = caseDoc({ notes: { empty: note("   ") } });
+
+    expect(deriveReadExploreEntryMode(readable, { readOnly: true })).toBe("read");
+    expect(deriveReadExploreEntryMode(unreadable, { readOnly: true })).toBe("explore");
+  });
 });
 
 describe("Read/Explore runtime carry", () => {

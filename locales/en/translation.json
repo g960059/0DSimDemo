@@ -772,5 +772,24 @@
       "title": "Hypovolemia",
       "description": "Reduced circulating volume (e.g. haemorrhage): preload falls, so stroke volume and cardiac output drop while the heart itself is normal - a preload, not a pump, problem."
     }
+  },
+  "publish": {
+    "blocker": {
+      "missing-title": "Add a title before publishing.",
+      "no-scenarios": "Add at least one scenario.",
+      "dangling-initial-active": "The initial active scenario no longer exists.",
+      "invalid-graph-layout": "The graph board layout is invalid or references a panel that no longer exists.",
+      "dangling-reading-ref": "A reading column reference no longer exists.",
+      "dangling-note-view-ref": "A note embeds a view that no longer exists.",
+      "dangling-controller-pin": "A pinned controller scenario no longer exists.",
+      "dangling-membership": "A view references a scenario that no longer exists."
+    },
+    "warning": {
+      "no-reading-content": "No reading content is available; readers will open Explore.",
+      "active-scenario-hidden": "The initial scenario is hidden for readers.",
+      "empty-view": "An authored view has no visible content.",
+      "model-limitations-empty": "Model limitations are empty.",
+      "pinned-binding-used": "A controller is pinned to one scenario."
+    }
   }
 }
