@@ -221,16 +221,16 @@ Verification commands:
 
 ### Commit Sequencing
 
-1. **D1/D2 default-entry schema and entry derivation**  
+1. **D1/D2 default-entry schema and entry derivation**
    Change `caseDoc.ts`, `readExplore.ts`, minimal route/scene carry for `defaultEntry`, and `readExplore.test.ts`. Green: `npx tsc --noEmit && npm test`.
 
-2. **D2b/D3 publish validator**  
+2. **D2b/D3 publish validator**
    Add `features/workbench/casePublish.ts` with `derivePublishDefaultEntry`, issue types, `validatePublishableCase`, `isPublishable`, and validator truth-table tests. Green: `npx tsc --noEmit && npm test`.
 
-3. **D4 publish draft transition**  
+3. **D4 publish draft transition**
    Add `PublishDraft` and `applyPublishDraft`, plus idempotence/no-mutation tests. Green: `npx tsc --noEmit && npm test`.
 
-4. **D5/D6 persistence, i18n, ADR**  
+4. **D5/D6 persistence, i18n, ADR**
    Add round-trip coverage, workbench current-doc preservation, locale keys, and ADR update. Green: `npx tsc --noEmit && npm test`; final PR verification also `npm run build && npm run verify:cases`.
 
 ### Risks And Ambiguities
