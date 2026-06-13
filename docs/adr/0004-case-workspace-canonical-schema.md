@@ -4,6 +4,8 @@
 
 Accepted.
 
+> **Status note (2026-06-11):** Partially superseded by [ADR-0007](0007-workbench-ia-redesign.md). Save responsibilities now explicitly include Reading, exposed controllers, `ViewSpec`, `GraphBoardLayout`, author runtime snapshot, and active-slot/pinned binding semantics.
+
 ## Context
 
 The product goal is to let a user or MCP/API/LLM prompt create an educational scene such as "explain the difference between normal and AMI", producing a physiology comparison, PV loop, output strip, and generated note. That requires a durable document model that is meaningful without a particular UI layout library.

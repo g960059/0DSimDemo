@@ -4,23 +4,26 @@ import {
   Check,
   ChevronDown,
   ChevronLeft,
+  Copy,
   Edit3,
-  LayoutPanelLeft,
+  MoreHorizontal,
+  PanelBottom,
   PanelLeft,
   PanelRight,
-  MoreHorizontal,
   Pause,
   Play,
   RotateCcw,
   Save,
-  Share2,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { SimInstance } from '../../types';
 import { SimulationHealth } from '../../engine/protocol';
 import { HealthBadge } from '../HealthIndicators';
 import { ModelLimitations } from '../ModelLimitations';
 import { WorkbenchHeaderMode, WorkbenchSceneMeta, WorkbenchSidePanel, type WorkbenchThemeId } from './WorkbenchSidePanel';
-import type { WorkbenchControlsSide } from './PanelGrid';
+import type { MetricsSpanMode } from './PanelGrid';
+import { ReadExploreSwitcher } from './ReadExploreSwitcher';
+import type { ReadExploreMode } from '../../features/workbench/readExplore';
 
 interface WorkbenchHeaderProps {
   mode: WorkbenchHeaderMode;
@@ -29,34 +32,32 @@ interface WorkbenchHeaderProps {
   sceneMeta: WorkbenchSceneMeta;
   onSceneMetaChange: (meta: WorkbenchSceneMeta) => void;
   onPrimaryAction: () => void | Promise<void>;
+  onResetToAuthorState?: () => void;
   instances: SimInstance[];
   instanceHealth: Record<string, SimulationHealth>;
   getLiveHealth: (id: string) => SimulationHealth | undefined;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onImportFile: (file: File) => void;
   onExport: () => void;
-  authoringMode: boolean;
-  setAuthoringMode: React.Dispatch<React.SetStateAction<boolean>>;
-  stepsDraftLength: number;
-  openLessonDialog: () => void;
-  onExitAuthoring: () => void;
-  user: unknown;
-  isAdmin: boolean;
-  publishCurrentLesson: () => void;
-  isPublishingLesson: boolean;
   isSavingCase?: boolean;
-  savedLesson: { id: string; title: string } | null;
-  publishedLesson: { id: string; title: string; url: string } | null;
-  copyShareUrl: () => void;
   isPlaying: boolean;
   togglePlay: () => void;
   timeScale: number;
   setTimeScale: React.Dispatch<React.SetStateAction<number>>;
-  controlsSide: WorkbenchControlsSide;
-  onControlsSideChange: (side: WorkbenchControlsSide) => void;
-  onResetLayout: () => void;
+  noteOpen: boolean;
+  metricsOpen: boolean;
+  rightRailVisible: boolean;
+  metricsSpan: MetricsSpanMode;
+  hasNotePanel: boolean;
+  onToggleNote: () => void;
+  onToggleMetrics: () => void;
+  onToggleRightRail: () => void;
+  onMetricsSpanChange: (span: MetricsSpanMode) => void;
   theme: WorkbenchThemeId;
   onThemeChange: (theme: WorkbenchThemeId) => void;
+  showReadExploreSwitcher?: boolean;
+  readExploreMode?: ReadExploreMode;
+  onReadExploreModeChange?: (mode: ReadExploreMode) => void;
 }
 
 const SPEEDS = [0.5, 1, 2, 5];
@@ -72,34 +73,32 @@ export function WorkbenchHeader({
   sceneMeta,
   onSceneMetaChange,
   onPrimaryAction,
+  onResetToAuthorState,
   instances,
   instanceHealth,
   getLiveHealth,
   fileInputRef,
   onImportFile,
   onExport,
-  authoringMode,
-  setAuthoringMode,
-  stepsDraftLength,
-  openLessonDialog,
-  onExitAuthoring,
-  user,
-  isAdmin,
-  publishCurrentLesson,
-  isPublishingLesson,
   isSavingCase = false,
-  savedLesson,
-  publishedLesson,
-  copyShareUrl,
   isPlaying,
   togglePlay,
   timeScale,
   setTimeScale,
-  controlsSide,
-  onControlsSideChange,
-  onResetLayout,
+  noteOpen,
+  metricsOpen,
+  rightRailVisible,
+  metricsSpan,
+  hasNotePanel,
+  onToggleNote,
+  onToggleMetrics,
+  onToggleRightRail,
+  onMetricsSpanChange,
   theme,
   onThemeChange,
+  showReadExploreSwitcher = false,
+  readExploreMode,
+  onReadExploreModeChange,
 }: WorkbenchHeaderProps) {
   const { t } = useTranslation();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -109,7 +108,15 @@ export function WorkbenchHeader({
   const [draftMeta, setDraftMeta] = useState(sceneMeta);
 
   const isLearner = mode === 'learner';
-  const primaryLabel = isLearner ? t('workbench.header.editCopy') : authoringMode ? t('workbench.header.share') : t('workbench.header.saveCase');
+  const showNoteToggle = !isLearner || hasNotePanel;
+  const primaryLabel = isLearner ? t('workbench.header.fork') : t('workbench.header.saveCase');
+  const visibilityButtonClass = (pressed: boolean) => (
+    `inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors ${
+      pressed
+        ? 'bg-wb-active text-wb-text'
+        : 'text-wb-subtle hover:bg-wb-hover hover:text-wb-muted'
+    }`
+  );
 
   const openMetaEditor = () => {
     setDraftMeta(sceneMeta);
@@ -125,30 +132,30 @@ export function WorkbenchHeader({
     setIsMetaOpen(false);
   };
 
-  const runPrimaryAction = () => {
-    if (authoringMode) publishCurrentLesson();
-    else onPrimaryAction();
-  };
-
   return (
     <>
-      <header className="workbench-header h-14 bg-slate-950 z-50 flex items-center gap-2 px-3 sm:px-4 shrink-0">
-        <a href={backHref} className="inline-flex h-9 items-center gap-1 rounded-md px-2 text-xs font-bold text-slate-400 hover:bg-slate-900 hover:text-slate-100">
+      <header className="workbench-header h-14 z-50 flex items-center gap-2 px-3 sm:px-4 shrink-0">
+        <a href={backHref} className="inline-flex h-9 items-center gap-1 rounded-md px-2 text-xs font-medium text-wb-muted hover:bg-wb-hover hover:text-wb-text">
           <ChevronLeft className="h-4 w-4" />
           <span className="hidden sm:inline">{backLabel}</span>
         </a>
 
         <div className="flex min-w-0 flex-1 items-center gap-2">
           {isLearner ? (
-            <div className="flex min-w-0 items-center gap-1">
-              <h1 className="truncate text-sm font-bold text-slate-100">{sceneMeta.title}</h1>
+            <div className="flex min-w-0 items-center gap-2">
+              <h1 className="truncate text-sm font-bold text-wb-text">{sceneMeta.title}</h1>
+              <span className="hidden shrink-0 rounded border border-wb-line bg-wb-strip px-2 py-0.5 text-[11px] font-semibold text-wb-subtle sm:inline">
+                {t('workbench.header.readOnlyBadge')}
+              </span>
               <ModelLimitations compact limitations={sceneMeta.modelLimitations} />
+              {showReadExploreSwitcher && readExploreMode && onReadExploreModeChange && (
+                <ReadExploreSwitcher mode={readExploreMode} onModeChange={onReadExploreModeChange} className="ml-1" />
+              )}
             </div>
           ) : (
-            <button onClick={openMetaEditor} className="flex min-w-0 items-center gap-1 rounded-md px-2 py-1 text-left hover:bg-slate-900">
-              <Edit3 className="h-3.5 w-3.5 shrink-0 text-slate-500" />
-              <span className="truncate text-sm font-bold text-slate-100">{sceneMeta.title || t('workbench.header.untitledScene')}</span>
-              {authoringMode && stepsDraftLength > 0 && <span className="h-1.5 w-1.5 rounded-full bg-amber-300" title={t('workbench.header.unsavedAuthoringChanges')} />}
+            <button onClick={openMetaEditor} className="flex min-w-0 items-center gap-1 rounded-md px-2 py-1 text-left hover:bg-wb-hover">
+              <Edit3 className="h-3.5 w-3.5 shrink-0 text-wb-subtle" />
+              <span className="truncate text-sm font-bold text-wb-text">{sceneMeta.title || t('workbench.header.untitledScene')}</span>
             </button>
           )}
 
@@ -156,85 +163,101 @@ export function WorkbenchHeader({
 
         <div className="flex shrink-0 items-center gap-1.5">
           <HealthBadge items={instances.filter(i => instanceHealth[i.id]).map(i => ({ id: i.id, name: i.name, color: i.color, health: instanceHealth[i.id] }))} getLiveHealth={getLiveHealth} />
+          {showNoteToggle && (
+            <button
+              type="button"
+              onClick={onToggleNote}
+              className={visibilityButtonClass(noteOpen)}
+              title={t('workbench.header.toggleNoteDrawer')}
+              aria-label={t('workbench.header.toggleNoteDrawer')}
+              aria-pressed={noteOpen}
+            >
+              <PanelLeft className="h-4.5 w-4.5" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onToggleMetrics}
+            className={visibilityButtonClass(metricsOpen)}
+            title={t('workbench.header.toggleMetricsHost')}
+            aria-label={t('workbench.header.toggleMetricsHost')}
+            aria-pressed={metricsOpen}
+          >
+            <PanelBottom className="h-4.5 w-4.5" />
+          </button>
+          <button
+            type="button"
+            onClick={onToggleRightRail}
+            className={visibilityButtonClass(rightRailVisible)}
+            title={t('workbench.header.toggleRightRail')}
+            aria-label={t('workbench.header.toggleRightRail')}
+            aria-pressed={rightRailVisible}
+          >
+            <PanelRight className="h-4.5 w-4.5" />
+          </button>
           <div className="relative">
             <button
               type="button"
               onClick={() => setIsLayoutOpen((open) => !open)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-slate-900 hover:text-slate-100"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md text-wb-muted hover:bg-wb-hover hover:text-wb-text"
               title={t('workbench.header.customizeLayout')}
               aria-label={t('workbench.header.customizeLayout')}
             >
-              <LayoutPanelLeft className="h-4.5 w-4.5" />
+              <SlidersHorizontal className="h-4.5 w-4.5" />
             </button>
             {isLayoutOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setIsLayoutOpen(false)} />
-                <div className="absolute right-0 top-full z-50 mt-1 w-64 rounded-md border border-slate-700 bg-slate-900 p-3 shadow-xl">
-                  <div className="mb-3 text-[10px] font-bold uppercase tracking-wide text-slate-500">{t('workbench.header.customizeLayout')}</div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => onControlsSideChange('left')}
-                      className={`inline-flex items-center justify-center gap-2 rounded border px-3 py-2 text-xs font-bold transition-colors ${
-                        controlsSide === 'left'
-                          ? 'border-blue-500/60 bg-blue-500/15 text-blue-100'
-                          : 'border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800'
-                      }`}
-                    >
-                      <PanelLeft className="h-4 w-4" />
-                      {t('workbench.header.left')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onControlsSideChange('right')}
-                      className={`inline-flex items-center justify-center gap-2 rounded border px-3 py-2 text-xs font-bold transition-colors ${
-                        controlsSide === 'right'
-                          ? 'border-blue-500/60 bg-blue-500/15 text-blue-100'
-                          : 'border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800'
-                      }`}
-                    >
-                      <PanelRight className="h-4 w-4" />
-                      {t('workbench.header.right')}
-                    </button>
+                <div className="absolute right-0 top-full z-50 mt-1 w-60 rounded-md border border-wb-line bg-wb-panel p-2 shadow-xl">
+                  <div className="mb-3 text-[11px] font-medium text-wb-subtle">{t('workbench.header.customizeLayout')}</div>
+                  <div className="px-2 pb-1 text-xs font-medium text-wb-muted">{t('workbench.header.metricsSpanLabel')}</div>
+                  <div className="grid gap-1">
+                    {(['main', 'full'] as const).map((span) => (
+                      <button
+                        key={span}
+                        type="button"
+                        onClick={() => {
+                          onMetricsSpanChange(span);
+                          setIsLayoutOpen(false);
+                        }}
+                        className={`flex w-full items-center justify-between rounded px-2 py-2 text-xs font-bold transition-colors ${
+                          metricsSpan === span
+                            ? 'bg-wb-active text-wb-text'
+                            : 'text-wb-muted hover:bg-wb-hover hover:text-wb-text'
+                        }`}
+                      >
+                        <span>{t(`workbench.header.metricsSpan${span === 'main' ? 'Main' : 'Full'}`)}</span>
+                        {metricsSpan === span && <Check className="h-3.5 w-3.5" />}
+                      </button>
+                    ))}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onResetLayout();
-                      setIsLayoutOpen(false);
-                    }}
-                    className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-300 transition-colors hover:bg-slate-800"
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                    {t('workbench.header.resetLayout')}
-                  </button>
                 </div>
               </>
             )}
           </div>
-          <div className="flex items-center rounded-md border border-slate-800 bg-slate-900">
+          <div className="flex items-center rounded-md border border-wb-line bg-wb-panel">
             <button
               onClick={togglePlay}
-              className="inline-flex h-9 w-9 items-center justify-center text-slate-200 hover:bg-slate-800"
+              className="inline-flex h-9 w-9 items-center justify-center text-wb-text hover:bg-wb-hover"
               title={isPlaying ? t('workbench.header.pause') : t('workbench.header.play')}
               aria-label={isPlaying ? t('workbench.header.pause') : t('workbench.header.play')}
             >
               {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
             </button>
-            <div className="relative border-l border-slate-800">
-              <button onClick={() => setIsSpeedOpen((open) => !open)} className="inline-flex h-9 items-center gap-1 px-2 text-xs font-bold text-slate-300 hover:bg-slate-800">
+            <div className="relative border-l border-wb-line">
+              <button onClick={() => setIsSpeedOpen((open) => !open)} className="inline-flex h-9 items-center gap-1 px-2 text-xs font-medium text-wb-muted hover:bg-wb-hover">
                 {speedLabel(timeScale)}
                 <ChevronDown className="h-3 w-3" />
               </button>
               {isSpeedOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setIsSpeedOpen(false)} />
-                  <div className="absolute right-0 top-full z-50 mt-1 w-24 rounded-md border border-slate-700 bg-slate-900 p-1 shadow-xl">
+                  <div className="absolute right-0 top-full z-50 mt-1 w-24 rounded-md border border-wb-line bg-wb-panel p-1 shadow-xl">
                     {SPEEDS.map((speed) => (
                       <button
                         key={speed}
                         onClick={() => { setTimeScale(speed); setIsSpeedOpen(false); }}
-                        className="flex w-full items-center justify-between rounded px-2 py-1.5 text-xs font-bold text-slate-300 hover:bg-slate-800"
+                        className="flex w-full items-center justify-between rounded px-2 py-1.5 text-xs font-medium text-wb-muted hover:bg-wb-hover"
                       >
                         {speedLabel(speed)}
                         {timeScale === speed && <Check className="h-3 w-3" />}
@@ -246,16 +269,27 @@ export function WorkbenchHeader({
             </div>
           </div>
 
+          {isLearner && onResetToAuthorState && (
+            <button
+              type="button"
+              onClick={onResetToAuthorState}
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-wb-line bg-transparent px-2.5 text-xs font-bold text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">{t('workbench.header.resetToAuthorState')}</span>
+            </button>
+          )}
+
           <button
-            onClick={runPrimaryAction}
-            disabled={(authoringMode && isPublishingLesson) || isSavingCase}
-            className="inline-flex h-9 items-center gap-1.5 rounded-md bg-blue-600 px-3 text-xs font-bold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={onPrimaryAction}
+            disabled={isSavingCase}
+            className={`inline-flex h-9 items-center gap-1.5 rounded-md bg-wb-primary px-3 text-xs font-bold text-white hover:bg-wb-primary-hover disabled:cursor-not-allowed disabled:opacity-60 ${isLearner ? 'ml-2' : ''}`}
           >
-            {authoringMode ? <Share2 className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
-            <span className="hidden sm:inline">{authoringMode && isPublishingLesson ? t('workbench.header.publishing') : isSavingCase ? t('workbench.header.saving') : primaryLabel}</span>
+            {isLearner ? <Copy className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
+            <span className="hidden sm:inline">{isSavingCase ? t('workbench.header.saving') : primaryLabel}</span>
           </button>
 
-          <button onClick={() => setIsPanelOpen(true)} className="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-slate-900 hover:text-slate-100" aria-label={t('workbench.header.openPanel')}>
+          <button onClick={() => setIsPanelOpen(true)} className="inline-flex h-9 w-9 items-center justify-center rounded-md text-wb-muted hover:bg-wb-hover hover:text-wb-text" aria-label={t('workbench.header.openPanel')}>
             <MoreHorizontal className="h-5 w-5" />
           </button>
         </div>
@@ -263,31 +297,31 @@ export function WorkbenchHeader({
 
       {isMetaOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4">
-          <div role="dialog" aria-modal="true" className="w-full max-w-lg rounded-lg border border-slate-700 bg-slate-900 shadow-2xl">
-            <div className="border-b border-slate-800 px-5 py-3">
-              <h2 className="text-sm font-bold text-slate-100">{t('workbench.header.sceneDetails')}</h2>
+          <div role="dialog" aria-modal="true" className="w-full max-w-lg rounded-lg border border-wb-line bg-wb-panel shadow-2xl">
+            <div className="border-b border-wb-line px-5 py-3">
+              <h2 className="text-sm font-bold text-wb-text">{t('workbench.header.sceneDetails')}</h2>
             </div>
             <div className="space-y-4 p-5">
               <label className="block">
-                <span className="mb-1 block text-xs font-bold text-slate-400">{t('common.title')}</span>
-                <input value={draftMeta.title} onChange={(e) => setDraftMeta((prev) => ({ ...prev, title: e.target.value }))} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-blue-500" />
+                <span className="mb-1 block text-xs font-medium text-wb-muted">{t('common.title')}</span>
+                <input value={draftMeta.title} onChange={(e) => setDraftMeta((prev) => ({ ...prev, title: e.target.value }))} className="w-full rounded border border-wb-line bg-wb-input px-3 py-2 text-sm text-wb-text outline-none focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent" />
               </label>
               <label className="block">
-                <span className="mb-1 block text-xs font-bold text-slate-400">{t('common.description')}</span>
-                <textarea value={draftMeta.description} onChange={(e) => setDraftMeta((prev) => ({ ...prev, description: e.target.value }))} className="h-24 w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-blue-500" />
+                <span className="mb-1 block text-xs font-medium text-wb-muted">{t('common.description')}</span>
+                <textarea value={draftMeta.description} onChange={(e) => setDraftMeta((prev) => ({ ...prev, description: e.target.value }))} className="h-24 w-full rounded border border-wb-line bg-wb-input px-3 py-2 text-sm text-wb-text outline-none focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent" />
               </label>
               <label className="block">
-                <span className="mb-1 block text-xs font-bold text-slate-400">{t('modelLimitations.titleShort')}</span>
+                <span className="mb-1 block text-xs font-medium text-wb-muted">{t('modelLimitations.titleShort')}</span>
                 <textarea
                   value={draftMeta.modelLimitations.join('\n')}
                   onChange={(e) => setDraftMeta((prev) => ({ ...prev, modelLimitations: e.target.value.split('\n') }))}
-                  className="h-28 w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-blue-500"
+                  className="h-28 w-full rounded border border-wb-line bg-wb-input px-3 py-2 text-sm text-wb-text outline-none focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
                 />
               </label>
             </div>
-            <div className="flex justify-end gap-2 border-t border-slate-800 px-5 py-3">
-              <button onClick={() => setIsMetaOpen(false)} className="rounded px-3 py-1.5 text-sm font-bold text-slate-400 hover:text-slate-100">{t('common.cancel')}</button>
-              <button onClick={saveMeta} className="rounded bg-blue-600 px-4 py-1.5 text-sm font-bold text-white hover:bg-blue-500">{t('common.save')}</button>
+            <div className="flex justify-end gap-2 border-t border-wb-line px-5 py-3">
+              <button onClick={() => setIsMetaOpen(false)} className="rounded px-3 py-1.5 text-sm font-bold text-wb-muted hover:text-wb-text">{t('common.cancel')}</button>
+              <button onClick={saveMeta} className="rounded bg-wb-primary px-4 py-1.5 text-sm font-bold text-white hover:bg-wb-primary-hover">{t('common.save')}</button>
             </div>
           </div>
         </div>
@@ -301,13 +335,6 @@ export function WorkbenchHeader({
         fileInputRef={fileInputRef}
         onImportFile={onImportFile}
         onExport={onExport}
-        onCreateLesson={() => setAuthoringMode(true)}
-        onSaveLesson={openLessonDialog}
-        onExitAuthoring={onExitAuthoring}
-        authoringMode={authoringMode}
-        savedLesson={savedLesson}
-        publishedLesson={publishedLesson}
-        copyShareUrl={copyShareUrl}
         theme={theme}
         onThemeChange={onThemeChange}
       />

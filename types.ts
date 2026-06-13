@@ -162,7 +162,6 @@ export interface DockviewViewState {
 
 export interface WorkbenchWorkspace {
     schemaVersion: 1;
-    mode?: 'learn' | 'compare' | 'tune' | 'research' | 'custom';
     regions: Partial<Record<WorkbenchRegionId, WorkbenchRegionState>>;
     learnerLocked?: boolean;
     viewState?: DockviewViewState;
@@ -171,6 +170,7 @@ export interface WorkbenchWorkspace {
 
 export interface PanelDef {
     id: string;
+    sourceViewId?: string;
     type: PanelType;
     title: string;
     role?: PanelRole;

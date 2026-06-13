@@ -45,6 +45,15 @@ What is **canonical** (must travel with the doc, expresses authored pedagogy): t
 - A compact editor to pick the `kind` and edit its config: label→value rows for a `buttonGroup`, min/max/step for a `slider`/`knob`.
 - Lives in studio settings; reading consumes the result.
 
+## Update (2026-06-12) — raw engine scalar parameters
+
+`ControllerItem.paramKey` now also accepts entries from `rawParameterCatalog`,
+not only curated clinical knobs. Raw controller items are researcher-facing
+scalars bounded by the engine hard range (`HARD_CLAMP`). Author min/max/step
+settings override catalog defaults but are clamped to that hard engine range.
+The authoring editor shows translated catalog labels until the author edits the
+label; if untouched, `labelKey` is preserved so localization continues to apply.
+
 ## Consequences
 - Beginners get **meaningful, tappable** controls; mobile UX improves markedly (big targets, no fiddly drag).
 - Reading/lesson **exposed knobs render as button groups inline** — and the live note pane-ref (ADR-0005) can host a button-group controller in prose ("try **Low / Normal / High** contractility").

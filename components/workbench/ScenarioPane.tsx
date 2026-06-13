@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
-import { Check, LoaderCircle, MoreVertical, Plus, TriangleAlert } from 'lucide-react';
+import { Check, Eye, EyeOff, LoaderCircle, MoreVertical, TriangleAlert } from 'lucide-react';
 import { OFFICIAL_BASELINES } from '../../engine/caseBaselines';
 import type { SteadyUpdateStatus, SteadyUpdateStatusMap } from '../../engine/previewController';
 import type { SimInstance } from '../../types';
@@ -12,7 +12,12 @@ interface ScenarioPaneProps {
   removeInstance: (id: string) => void;
   updateInstanceName: (id: string, name: string) => void;
   updateInstanceColor: (id: string, color: string) => void;
+  activeInstanceId?: string;
+  setActiveInstanceId?: (id: string) => void;
+  toggleScenarioGlobalVisibility?: (id: string) => void;
+  resetInstanceKnobs?: (id: string) => void;
   steadyUpdateStatuses?: SteadyUpdateStatusMap;
+  readOnly?: boolean;
 }
 
 const scenarioPresets = Object.entries(OFFICIAL_BASELINES).map(([id, preset]) => ({
@@ -21,13 +26,52 @@ const scenarioPresets = Object.entries(OFFICIAL_BASELINES).map(([id, preset]) =>
   detail: preset.label,
 }));
 
+export const getScenarioPresetMenuPosition = (x: number, y: number, width = 208, height = 180) => ({
+  x: Math.max(8, Math.min(x, window.innerWidth - width)),
+  y: Math.max(8, Math.min(y, window.innerHeight - height)),
+});
+
+export function ScenarioPresetMenu({
+  position,
+  onClose,
+  onSelect,
+}: {
+  position: { x: number; y: number };
+  onClose: () => void;
+  onSelect: (presetId: string) => void;
+}) {
+  return typeof document !== 'undefined' ? createPortal(
+    <>
+      <div className="fixed inset-0 z-[80]" onClick={onClose} />
+      <div
+        className="workbench-popover-menu fixed z-[90] w-52 rounded-md border py-1 shadow-xl"
+        style={{ left: position.x, top: position.y }}
+        onClick={(event) => event.stopPropagation()}
+      >
+        {scenarioPresets.map((preset) => (
+          <button
+            key={preset.id}
+            type="button"
+            onClick={() => onSelect(preset.id)}
+            className="workbench-popover-menu-item block w-full px-3 py-2 text-left"
+          >
+            <span className="block truncate text-xs font-semibold text-wb-text">{preset.label}</span>
+            <span className="block truncate text-[10px] text-wb-subtle">{preset.detail}</span>
+          </button>
+        ))}
+      </div>
+    </>,
+    document.body,
+  ) : null;
+}
+
 function SteadyStatusIndicator({ status }: { status?: SteadyUpdateStatus }) {
   const { t } = useTranslation();
   if (!status) return null;
   if (status === 'computing') {
     return (
       <span
-        className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-sky-300"
+        className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-wb-accent"
         title={t('workbench.scenarioPane.steadyComputing')}
         aria-label={t('workbench.scenarioPane.steadyComputing')}
         role="status"
@@ -66,7 +110,12 @@ export function ScenarioPane({
   removeInstance,
   updateInstanceName,
   updateInstanceColor,
+  activeInstanceId,
+  setActiveInstanceId,
+  toggleScenarioGlobalVisibility,
+  resetInstanceKnobs,
   steadyUpdateStatuses = {},
+  readOnly = false,
 }: ScenarioPaneProps) {
   const { t } = useTranslation();
   const [editingId, setEditingId] = React.useState<string | null>(null);
@@ -76,7 +125,6 @@ export function ScenarioPane({
     x: number;
     y: number;
   } | null>(null);
-  const [addMenuPosition, setAddMenuPosition] = React.useState<{ x: number; y: number } | null>(null);
 
   const getMenuPosition = (x: number, y: number, width = 152, height = 120) => ({
     x: Math.max(8, Math.min(x, window.innerWidth - width)),
@@ -97,6 +145,7 @@ export function ScenarioPane({
   }, [instances, menuState]);
 
   const beginRename = (instance: SimInstance) => {
+    if (readOnly) return;
     setMenuState(null);
     setEditingId(instance.id);
     setDraftName(instance.name);
@@ -119,65 +168,67 @@ export function ScenarioPane({
   const openMenuAtCursor = (event: React.MouseEvent, instance: SimInstance) => {
     event.preventDefault();
     event.stopPropagation();
-    setAddMenuPosition(null);
     setMenuState({ instanceId: instance.id, ...getMenuPosition(event.clientX, event.clientY) });
   };
 
   const openMenuForButton = (event: React.MouseEvent<HTMLButtonElement>, instance: SimInstance) => {
     event.stopPropagation();
     const rect = event.currentTarget.getBoundingClientRect();
-    setAddMenuPosition(null);
     setMenuState({ instanceId: instance.id, ...getMenuPosition(rect.right - 144, rect.bottom + 4) });
   };
 
-  const openAddMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    const rect = event.currentTarget.getBoundingClientRect();
-    setMenuState(null);
-    setAddMenuPosition((value) => (
-      value
-        ? null
-        : getMenuPosition(rect.left, rect.bottom + 4, 208, 180)
-    ));
-  };
-
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[#0B1120]">
+    <div className="flex h-full min-h-0 flex-col bg-wb-aux">
       <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-2 custom-scrollbar">
         {instances.map((instance) => {
           const isEditing = instance.id === editingId;
           const isMenuOpen = menuState?.instanceId === instance.id;
+          const isActive = instance.id === activeInstanceId;
+          const isHidden = instance.isVisible === false;
           return (
             <div
               key={instance.id}
-              className={`group relative flex h-8 items-center gap-2 rounded px-2 text-xs transition-colors ${
-                isMenuOpen
-                  ? 'bg-slate-900/90 text-slate-200'
-                  : 'text-slate-400 hover:bg-slate-900/80 hover:text-slate-200'
+              role="button"
+              tabIndex={isEditing ? -1 : 0}
+              className={`group relative flex min-h-8 items-center gap-2 rounded-sm px-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent ${
+                isActive
+                  ? 'bg-wb-active text-wb-text'
+                  : isMenuOpen
+                    ? 'text-wb-text'
+                    : 'text-wb-muted hover:bg-wb-hover hover:text-wb-text'
               }`}
+              onClick={() => setActiveInstanceId?.(instance.id)}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                setActiveInstanceId?.(instance.id);
+              }}
               onContextMenu={(event) => openMenuAtCursor(event, instance)}
               onDoubleClick={() => beginRename(instance)}
             >
               <label
-                className="relative h-2.5 w-2.5 shrink-0 overflow-hidden rounded-full ring-1 ring-slate-900/80"
-                title={t('workbench.scenarioPane.changeColor')}
+                className={`relative h-2.5 w-2.5 shrink-0 overflow-hidden rounded-full ring-1 ring-wb-line-strong ${readOnly ? '' : 'cursor-pointer'}`}
+                title={readOnly ? instance.name : t('workbench.scenarioPane.changeColor')}
                 onClick={(event) => event.stopPropagation()}
               >
                 <span className="absolute inset-0" style={{ backgroundColor: instance.color }} />
-                <input
-                  type="color"
-                  value={instance.color}
-                  onChange={(event) => updateInstanceColor(instance.id, event.target.value)}
-                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                  aria-label={t('workbench.scenarioPane.colorAria', { name: instance.name })}
-                />
+                {!readOnly && (
+                  <input
+                    type="color"
+                    value={instance.color}
+                    onChange={(event) => updateInstanceColor(instance.id, event.target.value)}
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent"
+                    aria-label={t('workbench.scenarioPane.colorAria', { name: instance.name })}
+                  />
+                )}
               </label>
               {isEditing ? (
                 <input
                   type="text"
-                  value={draftName}
-                  autoFocus
-                  onClick={(event) => event.stopPropagation()}
+	                  value={draftName}
+	                  autoFocus
+                    onFocus={(event) => event.currentTarget.select()}
+	                  onClick={(event) => event.stopPropagation()}
                   onDoubleClick={(event) => event.stopPropagation()}
                   onBlur={() => commitRename(instance)}
                   onChange={(event) => setDraftName(event.target.value)}
@@ -185,25 +236,49 @@ export function ScenarioPane({
                     if (event.key === 'Enter') commitRename(instance);
                     if (event.key === 'Escape') cancelRename();
                   }}
-                  className="h-6 min-w-0 flex-1 rounded border border-blue-400/60 bg-blue-950/40 px-1.5 text-xs font-semibold text-slate-100 outline-none"
+                  className="h-6 min-w-0 flex-1 rounded border border-wb-accent bg-wb-input px-1.5 text-xs font-semibold text-wb-text outline-none focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
                   placeholder={t('workbench.scenarioPane.scenarioName')}
                 />
               ) : (
-                <span className="min-w-0 flex-1 truncate font-medium">{instance.name}</span>
+                <span className="min-w-0 flex-1 truncate font-medium">
+                  {instance.name}
+                  {isActive && isHidden && <span className="ml-1 text-[10px] font-bold text-wb-subtle">{t('workbench.scenarioPane.hiddenHint')}</span>}
+                </span>
               )}
               <SteadyStatusIndicator status={steadyUpdateStatuses[instance.id]} />
               {!isEditing && (
-                <button
-                  type="button"
-                  onClick={(event) => openMenuForButton(event, instance)}
-                  className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-slate-500 transition-opacity hover:bg-slate-800 hover:text-slate-100 ${
-                    isMenuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                  }`}
-                  title={t('workbench.scenarioPane.actions')}
-                  aria-label={t('workbench.scenarioPane.actionsAria', { name: instance.name })}
-                >
-                  <MoreVertical className="h-3.5 w-3.5" />
-                </button>
+                <div className="ml-auto flex shrink-0 items-center gap-1">
+                  {toggleScenarioGlobalVisibility && (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        toggleScenarioGlobalVisibility(instance.id);
+                      }}
+                      className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent ${
+                        isHidden
+                          ? 'text-wb-subtle hover:bg-wb-hover hover:text-wb-muted'
+                          : 'text-wb-muted hover:bg-wb-hover hover:text-wb-text'
+                      }`}
+                      title={isHidden ? t('workbench.scenarioPane.showScenario') : t('workbench.scenarioPane.hideScenario')}
+                      aria-label={isHidden ? t('workbench.scenarioPane.showScenarioAria', { name: instance.name }) : t('workbench.scenarioPane.hideScenarioAria', { name: instance.name })}
+                      aria-pressed={!isHidden}
+                    >
+                      {isHidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={(event) => openMenuForButton(event, instance)}
+                    className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-wb-subtle transition-opacity hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent ${
+                      isMenuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                    }`}
+                    title={t('workbench.scenarioPane.actions')}
+                    aria-label={t('workbench.scenarioPane.actionsAria', { name: instance.name })}
+                  >
+                    <MoreVertical className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               )}
               {isMenuOpen && typeof document !== 'undefined' && createPortal(
                 <>
@@ -213,34 +288,51 @@ export function ScenarioPane({
                     style={{ left: menuState.x, top: menuState.y }}
                     onClick={(event) => event.stopPropagation()}
                   >
-                    <button
-                      type="button"
-                      onClick={() => beginRename(instance)}
-                      className="workbench-popover-menu-item block w-full px-3 py-1.5 text-left text-xs font-medium"
-                    >
-                      {t('common.rename')}
-                    </button>
+                    {!readOnly && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => beginRename(instance)}
+                          className="workbench-popover-menu-item block w-full px-3 py-1.5 text-left text-xs font-medium"
+                        >
+                          {t('common.rename')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            addInstance(instance.id);
+                            setMenuState(null);
+                          }}
+                          className="workbench-popover-menu-item block w-full px-3 py-1.5 text-left text-xs font-medium"
+                        >
+                          {t('common.duplicate')}
+                        </button>
+                      </>
+                    )}
                     <button
                       type="button"
                       onClick={() => {
-                        addInstance(instance.id);
+                        resetInstanceKnobs?.(instance.id);
                         setMenuState(null);
                       }}
-                      className="workbench-popover-menu-item block w-full px-3 py-1.5 text-left text-xs font-medium"
+                      disabled={!resetInstanceKnobs || !instance.knobBaseline}
+                      className="workbench-popover-menu-item block w-full px-3 py-1.5 text-left text-xs font-medium disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent"
                     >
-                      {t('common.duplicate')}
+                      {t('workbench.scenarioPane.reset')}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        removeInstance(instance.id);
-                        setMenuState(null);
-                      }}
-                      disabled={instances.length <= 1}
-                      className="workbench-popover-menu-item-danger block w-full px-3 py-1.5 text-left text-xs font-medium disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent"
-                    >
-                      {t('common.delete')}
-                    </button>
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          removeInstance(instance.id);
+                          setMenuState(null);
+                        }}
+                        disabled={instances.length <= 1}
+                        className="workbench-popover-menu-item-danger block w-full px-3 py-1.5 text-left text-xs font-medium disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent"
+                      >
+                        {t('common.delete')}
+                      </button>
+                    )}
                   </div>
                 </>,
                 document.body,
@@ -248,44 +340,6 @@ export function ScenarioPane({
             </div>
           );
         })}
-        <button
-          type="button"
-          onClick={openAddMenu}
-          className="group mt-1 flex h-8 w-full items-center gap-2 rounded px-2 text-left text-xs font-medium text-slate-500 transition-colors hover:bg-slate-900/80 hover:text-slate-200"
-          aria-label={t('workbench.scenarioPane.addFromPreset')}
-          title={t('workbench.scenarioPane.addFromPreset')}
-        >
-          <span className="inline-flex h-2.5 w-2.5 shrink-0 items-center justify-center rounded-full border border-dashed border-slate-600 text-slate-500 group-hover:border-slate-400 group-hover:text-slate-300">
-            <Plus className="h-2 w-2" />
-          </span>
-          <span className="min-w-0 flex-1 truncate">{t('workbench.scenarioPane.addFromPresetShort')}</span>
-        </button>
-        {addMenuPosition && typeof document !== 'undefined' && createPortal(
-          <>
-            <div className="fixed inset-0 z-[80]" onClick={() => setAddMenuPosition(null)} />
-            <div
-              className="workbench-popover-menu fixed z-[90] w-52 rounded-md border py-1 shadow-xl"
-              style={{ left: addMenuPosition.x, top: addMenuPosition.y }}
-              onClick={(event) => event.stopPropagation()}
-            >
-              {scenarioPresets.map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  onClick={() => {
-                    addInstance(undefined, preset.id);
-                    setAddMenuPosition(null);
-                  }}
-                  className="workbench-popover-menu-item block w-full px-3 py-2 text-left"
-                >
-                  <span className="block truncate text-xs font-semibold text-slate-200">{preset.label}</span>
-                  <span className="block truncate text-[10px] text-slate-500">{preset.detail}</span>
-                </button>
-              ))}
-            </div>
-          </>,
-          document.body,
-        )}
       </div>
     </div>
   );

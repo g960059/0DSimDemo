@@ -1,6 +1,7 @@
 import React from "react";
 import { NotePanel } from "../NotePanel";
 import { renderPaneBody, type PaneBodyContext } from "../workbench/renderPaneBody";
+import { AuthoredViewEmbed } from "../workbench/AuthoredViewEmbed";
 import type { ReadingColumnEntry } from "../../caseDoc";
 import type { NoteContent } from "../../noteTypes";
 import type { PanelDef } from "../../types";
@@ -37,7 +38,45 @@ export const ReadingColumn: React.FC<{
           headingCursor += headingCount;
           return (
             <div key={`note:${entry.noteId}:${index}`} className="mx-auto w-full max-w-[68ch]">
-              <NotePanel mode="read" content={content} bare headingAnchorIds={noteHeadingIds} />
+              <NotePanel
+                mode="read"
+                content={content}
+                bare
+                headingAnchorIds={noteHeadingIds}
+                authoredViews={paneCtx.authoredViews}
+                viewRuntime={{
+                  instances: paneCtx.instances,
+                  physicsRefs: paneCtx.physicsRefs,
+                  instanceHealth: paneCtx.instanceHealth,
+                  activeInstanceId: paneCtx.activeInstanceId,
+                  updateInstanceParams: paneCtx.updateInstanceParams,
+                  updateInstanceKnobs: paneCtx.updateInstanceKnobs,
+                  updateInstanceVolume: paneCtx.updateInstanceVolume,
+                  presentationMode: "reading",
+                }}
+              />
+            </div>
+          );
+        }
+
+        if (entry.kind === "viewRef") {
+          return (
+            <div key={`view:${entry.viewId}:${index}`} className="mx-auto w-full max-w-[68ch]">
+              <AuthoredViewEmbed
+                viewId={entry.viewId}
+                authoredViews={paneCtx.authoredViews ?? []}
+                runtime={{
+                  instances: paneCtx.instances,
+                  physicsRefs: paneCtx.physicsRefs,
+                  instanceHealth: paneCtx.instanceHealth,
+                  activeInstanceId: paneCtx.activeInstanceId,
+                  updateInstanceParams: paneCtx.updateInstanceParams,
+                  updateInstanceKnobs: paneCtx.updateInstanceKnobs,
+                  updateInstanceVolume: paneCtx.updateInstanceVolume,
+                  presentationMode: "reading",
+                }}
+                className="sm:-mx-8"
+              />
             </div>
           );
         }

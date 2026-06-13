@@ -1,7 +1,9 @@
 import { workspaceForPanels } from "@/caseDoc";
+import { addPane } from "@/layoutOps";
 import type { NoteContent } from "@/noteTypes";
 import { defaultZoneOf } from "@/paneZone";
 import type { PanelDef, PanelInstanceConfig, PanelType, SimInstance, WorkbenchWorkspace, WorkbenchZoneId } from "@/types";
+import { mainDockviewViewStatesOnly } from "@/features/workbench/p1aStructuralHosts";
 import { EMPTY_NOTE_SPINE, defaultSignalsForPanelType } from "./workbenchDefaults";
 
 export function createDefaultPanelConfig(
@@ -50,7 +52,7 @@ export function workspaceAfterPanelsChanged(
   panels: PanelDef[],
   workspace: WorkbenchWorkspace,
 ): WorkbenchWorkspace {
-  return workspaceForPanels(panels, workspace);
+  return mainDockviewViewStatesOnly(workspaceForPanels(panels, workspace));
 }
 
 export function notesAfterPanelAdded(
@@ -85,4 +87,39 @@ export function noteModesAfterPanelRemoved(
   const next = { ...noteModes };
   delete next[panelId];
   return next;
+}
+
+export function ensureNotePanelForDrawer({
+  panels,
+  instances,
+  notes,
+  noteModes,
+  id = Date.now().toString(),
+}: {
+  panels: PanelDef[];
+  instances: SimInstance[];
+  notes: Record<string, NoteContent>;
+  noteModes: Record<string, "read" | "edit">;
+  id?: string;
+}): {
+  panels: PanelDef[];
+  notes: Record<string, NoteContent>;
+  noteModes: Record<string, "read" | "edit">;
+  panel: PanelDef;
+  created: boolean;
+} {
+  const existing = panels.find((panel) => panel.type === "NOTE");
+  if (existing) {
+    return { panels, notes, noteModes, panel: existing, created: false };
+  }
+
+  const panel = createPanelDef("NOTE", createDefaultPanelConfig("NOTE", instances), "caseRail", id);
+  const nextPanels = addPane(panels, panel);
+  return {
+    panels: nextPanels,
+    notes: notesAfterPanelAdded(notes, panel),
+    noteModes: noteModesAfterPanelAdded(noteModes, panel),
+    panel,
+    created: true,
+  };
 }

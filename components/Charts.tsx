@@ -55,6 +55,7 @@ interface ChartPanelProps {
   config: Record<string, PanelInstanceConfig>;
   showGuides?: boolean;
   showLegend?: boolean;
+  activeInstanceId?: string;
   panelId?: string;
   legendInteractive?: boolean;
   onOpenSettings?: (panelId: string) => void;
@@ -258,6 +259,40 @@ const firstSampleIndexAtOrAfter = (buf: SimSample[], t: number): number => {
 
 type CanvasPoint = { x: number; y: number };
 
+const CHART_PLOT_PADDING = {
+    left: 48,
+    right: 16,
+    top: 24,
+    bottom: 32,
+};
+
+type CanvasThemeColors = {
+    background: string;
+    grid: string;
+    tick: string;
+    label: string;
+    shade: string;
+};
+
+const cssVar = (style: CSSStyleDeclaration, name: string, fallback: string): string => {
+    const value = style.getPropertyValue(name).trim();
+    return value || fallback;
+};
+
+const canvasThemeColors = (container: HTMLElement | null): CanvasThemeColors => {
+    if (!container || typeof getComputedStyle === 'undefined') {
+        return { background: '#08111f', grid: '#334155', tick: '#64748b', label: '#94a3b8', shade: 'rgba(56, 189, 248, 0.16)' };
+    }
+    const style = getComputedStyle(container);
+    return {
+        background: cssVar(style, '--wb-app-bg', '#08111f'),
+        grid: cssVar(style, '--wb-border', '#334155'),
+        tick: cssVar(style, '--wb-text-subtle', '#64748b'),
+        label: cssVar(style, '--wb-text-muted', '#94a3b8'),
+        shade: cssVar(style, '--wb-accent-soft', 'rgba(56, 189, 248, 0.16)'),
+    };
+};
+
 const chartInstanceKey = (instances: SimInstance[]): string => (
     instances
         .map((inst) => `${inst.id}:${inst.name}:${inst.color}:${inst.isVisible !== false}`)
@@ -414,6 +449,7 @@ type ChartLegendProps = {
     instances: SimInstance[];
     config: Record<string, PanelInstanceConfig>;
     showLegend?: boolean;
+    activeInstanceId?: string;
     extraClasses?: string;
     panelId?: string;
     legendInteractive?: boolean;
@@ -451,6 +487,7 @@ export const ChartLegend = ({
     instances,
     config,
     showLegend,
+    activeInstanceId,
     extraClasses = '',
     panelId,
     legendInteractive = false,
@@ -458,6 +495,7 @@ export const ChartLegend = ({
     legendPosition,
     onLegendPositionChange,
 }: ChartLegendProps) => {
+    const { t } = useTranslation();
     const legendRef = useRef<HTMLDivElement>(null);
     const dragRef = useRef<LegendDragState | null>(null);
     const movedRef = useRef(false);
@@ -511,18 +549,24 @@ export const ChartLegend = ({
     };
     const legendItems = instances.flatMap(inst => {
         const cfg = config[inst.id];
-        if (!cfg || !cfg.visible || cfg.selectedSignals.length === 0) return [];
+        const isHiddenActive = inst.id === activeInstanceId && cfg && !cfg.visible;
+        if (!cfg || (!cfg.visible && !isHiddenActive) || cfg.selectedSignals.length === 0) return [];
         const activeName = cfg.customName || inst.name;
 
         return cfg.selectedSignals.map(sig => {
             const color = getColor(inst.color, sig, cfg.customBaseColor, cfg.customSignalColors);
             const signalName = (cfg.customSignalNames && cfg.customSignalNames[sig]) || sig;
             return (
-                <div key={`${inst.id}-${sig}`} className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{backgroundColor: color, boxShadow: `0 0 4px ${color}`}}></span>
-                    <span className="text-[9px] font-medium text-slate-300 drop-shadow-md tracking-wide">
+                <div key={`${inst.id}-${sig}`} className={`flex items-center gap-1.5 ${isHiddenActive ? 'opacity-55' : ''}`}>
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{backgroundColor: color, boxShadow: isHiddenActive ? undefined : `0 0 4px ${color}`}}></span>
+                    <span className={`text-[9px] font-medium tracking-wide ${isHiddenActive ? 'text-wb-subtle' : 'text-wb-muted'}`}>
                         {activeName} ({signalName})
                     </span>
+                    {isHiddenActive && (
+                        <span className="rounded border border-wb-line-strong px-1 py-0 text-[8px] font-bold uppercase leading-3 text-wb-subtle">
+                            {t('common.hidden')}
+                        </span>
+                    )}
                 </div>
             );
         });
@@ -541,8 +585,8 @@ export const ChartLegend = ({
     const placementClassName = effectivePosition ? '' : 'top-2 right-2';
     const settleTransitionClassName = isDragging ? '' : 'transition-[left,top] duration-150';
     const legendClassName = canOpenSettings
-        ? `absolute ${placementClassName} ${settleTransitionClassName} flex flex-col gap-1 z-30 pointer-events-auto p-1.5 bg-slate-900/80 rounded border border-slate-700/50 backdrop-blur-sm hover:bg-slate-900/90 hover:ring-1 hover:ring-sky-400/40 ${isDragging ? 'cursor-grabbing bg-slate-900/90 ring-1 ring-sky-400/50' : 'cursor-grab'} ${extraClasses}`
-        : `absolute ${placementClassName} ${settleTransitionClassName} flex flex-col gap-1 z-30 pointer-events-none p-1.5 bg-slate-900/80 rounded border border-slate-700/50 backdrop-blur-sm ${extraClasses}`;
+        ? `absolute ${placementClassName} ${settleTransitionClassName} flex flex-col gap-1 z-30 pointer-events-auto p-1.5 bg-wb-panel rounded border border-wb-line backdrop-blur-sm hover:bg-wb-panel/90 hover:ring-1 hover:ring-wb-accent ${isDragging ? 'cursor-grabbing bg-wb-panel/90 ring-1 ring-wb-accent' : 'cursor-grab'} ${extraClasses}`
+        : `absolute ${placementClassName} ${settleTransitionClassName} flex flex-col gap-1 z-30 pointer-events-none p-1.5 bg-wb-panel rounded border border-wb-line backdrop-blur-sm ${extraClasses}`;
 
     const stopSuppressedClick = (event: React.MouseEvent<HTMLDivElement>) => {
         if (suppressClickRef.current) {
@@ -662,13 +706,12 @@ export const ChartLegend = ({
     );
 };
 
-export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances, config, showGuides, showLegend, panelId, legendInteractive, onOpenSettings, legendPosition, onLegendPositionChange }) => {
+export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances, config, showGuides, showLegend, activeInstanceId, panelId, legendInteractive, onOpenSettings, legendPosition, onLegendPositionChange }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scaleRef = useRef({ maxV: 300, maxP: 200 });
-  const isOnscreen = useOnscreen(containerRef);
   const isDocumentVisible = useDocumentVisible();
-  const canAnimate = isOnscreen && isDocumentVisible;
+  const canAnimate = isDocumentVisible;
   const instanceKey = useMemo(() => chartInstanceKey(instances), [instances]);
 
   useEffect(() => {
@@ -678,15 +721,18 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let width = containerRef.current.clientWidth;
-    let height = containerRef.current.clientHeight;
+    let width = 0;
+    let height = 0;
     const dpr = window.devicePixelRatio || 1;
     
     const resize = () => {
-        width = containerRef.current!.clientWidth;
-        height = containerRef.current!.clientHeight;
-        canvas.width = width * dpr;
-        canvas.height = height * dpr;
+        const container = containerRef.current;
+        if (!container) return;
+        const rect = container.getBoundingClientRect();
+        width = Math.max(0, Math.floor(rect.width || container.clientWidth));
+        height = Math.max(0, Math.floor(rect.height || container.clientHeight));
+        canvas.width = Math.max(1, Math.round(width * dpr));
+        canvas.height = Math.max(1, Math.round(height * dpr));
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         canvas.style.width = `${width}px`;
         canvas.style.height = `${height}px`;
@@ -698,8 +744,20 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
 
     const render = () => {
       if (stopped) return;
-      const xScale = d3.scaleLinear().domain([0, 300]).range([50, width - 15]);
-      const yScale = d3.scaleLinear().domain([0, 200]).range([height - 35, 25]);
+      if (width <= 0 || height <= 0) {
+        resize();
+        animationFrameId = requestAnimationFrame(render);
+        return;
+      }
+      const plot = {
+          left: CHART_PLOT_PADDING.left,
+          right: Math.max(CHART_PLOT_PADDING.left + 1, width - CHART_PLOT_PADDING.right),
+          top: CHART_PLOT_PADDING.top,
+          bottom: Math.max(CHART_PLOT_PADDING.top + 1, height - CHART_PLOT_PADDING.bottom),
+      };
+      const colors = canvasThemeColors(containerRef.current);
+      const xScale = d3.scaleLinear().domain([0, 300]).range([plot.left, plot.right]);
+      const yScale = d3.scaleLinear().domain([0, 200]).range([plot.bottom, plot.top]);
 
       ctx.clearRect(0, 0, width, height);
 
@@ -770,29 +828,32 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
           scaleRef.current.maxP = rp.max;
       }
 
-      xScale.domain([0, scaleRef.current.maxV]).range([50, width - 15]);
-      yScale.domain([0, scaleRef.current.maxP]).range([height - 35, 10]);
+      xScale.domain([0, scaleRef.current.maxV]).range([plot.left, plot.right]);
+      yScale.domain([0, scaleRef.current.maxP]).range([plot.bottom, plot.top]);
 
-      ctx.strokeStyle = '#334155';
+      ctx.strokeStyle = colors.grid;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      xScale.ticks(6).forEach(t => { ctx.moveTo(xScale(t), height-35); ctx.lineTo(xScale(t), 10); });
-      yScale.ticks(6).forEach(t => { ctx.moveTo(50, yScale(t)); ctx.lineTo(width-15, yScale(t)); });
+      xScale.ticks(6).forEach(t => { ctx.moveTo(xScale(t), plot.bottom); ctx.lineTo(xScale(t), plot.top); });
+      yScale.ticks(6).forEach(t => { ctx.moveTo(plot.left, yScale(t)); ctx.lineTo(plot.right, yScale(t)); });
       ctx.stroke();
 
-      ctx.fillStyle = '#94a3b8';
+      ctx.fillStyle = colors.tick;
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'center';
-      xScale.ticks(6).forEach(t => ctx.fillText(t.toString(), xScale(t), height - 20));
+      ctx.textBaseline = 'top';
+      xScale.ticks(6).forEach(t => ctx.fillText(t.toString(), xScale(t), plot.bottom + 7));
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
-      yScale.ticks(6).forEach(t => ctx.fillText(t.toString(), 42, yScale(t)));
+      yScale.ticks(6).forEach(t => ctx.fillText(t.toString(), plot.left - 8, yScale(t)));
 
+      ctx.fillStyle = colors.label;
       ctx.font = '11px sans-serif';
       ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
       ctx.fillText("Volume (mL)", width / 2, height - 4);
       ctx.save();
-      ctx.translate(15, height / 2);
+      ctx.translate(14, height / 2);
       ctx.rotate(-Math.PI / 2);
       ctx.fillText("Pressure (mmHg)", 0, 0);
       ctx.restore();
@@ -960,19 +1021,18 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
 
   return (
       <div ref={containerRef} className="absolute inset-0 rounded-b-xl overflow-hidden pointer-events-none">
-         <ChartLegend instances={instances} config={config} showLegend={showLegend} panelId={panelId} legendInteractive={legendInteractive} onOpenSettings={onOpenSettings} legendPosition={legendPosition} onLegendPositionChange={onLegendPositionChange} />
+         <ChartLegend instances={instances} config={config} showLegend={showLegend} activeInstanceId={activeInstanceId} panelId={panelId} legendInteractive={legendInteractive} onOpenSettings={onOpenSettings} legendPosition={legendPosition} onLegendPositionChange={onLegendPositionChange} />
          <canvas ref={canvasRef} className="block pointer-events-auto" />
       </div>
   );
 };
 
-export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances, timeWindow, config, showLegend, panelId, legendInteractive, onOpenSettings, legendPosition, onLegendPositionChange }) => {
+export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances, timeWindow, config, showLegend, activeInstanceId, panelId, legendInteractive, onOpenSettings, legendPosition, onLegendPositionChange }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const scaleRef = useRef({ yMin: 0, yMax: 160 });
-    const isOnscreen = useOnscreen(containerRef);
     const isDocumentVisible = useDocumentVisible();
-    const canAnimate = isOnscreen && isDocumentVisible;
+    const canAnimate = isDocumentVisible;
     const instanceKey = useMemo(() => chartInstanceKey(instances), [instances]);
 
     useEffect(() => {
@@ -982,15 +1042,18 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        let width = containerRef.current.clientWidth;
-        let height = containerRef.current.clientHeight;
+        let width = 0;
+        let height = 0;
         const dpr = window.devicePixelRatio || 1;
         
         const resize = () => {
-            width = containerRef.current!.clientWidth;
-            height = containerRef.current!.clientHeight;
-            canvas.width = width * dpr;
-            canvas.height = height * dpr;
+            const container = containerRef.current;
+            if (!container) return;
+            const rect = container.getBoundingClientRect();
+            width = Math.max(0, Math.floor(rect.width || container.clientWidth));
+            height = Math.max(0, Math.floor(rect.height || container.clientHeight));
+            canvas.width = Math.max(1, Math.round(width * dpr));
+            canvas.height = Math.max(1, Math.round(height * dpr));
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             canvas.style.width = `${width}px`;
             canvas.style.height = `${height}px`;
@@ -1002,6 +1065,11 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
 
         const render = () => {
             if (stopped) return;
+            if (width <= 0 || height <= 0) {
+                resize();
+                animationFrameId = requestAnimationFrame(render);
+                return;
+            }
             ctx.clearRect(0, 0, width, height);
             
             let currentGlobalTime = 0;
@@ -1079,24 +1147,31 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
                 scaleRef.current.yMax = r.max;
             }
 
-            const xScale = d3.scaleLinear().domain([0, timeSec]).range([30, width - 5]);
-            const yScale = d3.scaleLinear().domain([scaleRef.current.yMin, scaleRef.current.yMax]).range([height - 25, 10]);
+            const plot = {
+                left: CHART_PLOT_PADDING.left,
+                right: Math.max(CHART_PLOT_PADDING.left + 1, width - CHART_PLOT_PADDING.right),
+                top: CHART_PLOT_PADDING.top,
+                bottom: Math.max(CHART_PLOT_PADDING.top + 1, height - CHART_PLOT_PADDING.bottom),
+            };
+            const colors = canvasThemeColors(containerRef.current);
+            const xScale = d3.scaleLinear().domain([0, timeSec]).range([plot.left, plot.right]);
+            const yScale = d3.scaleLinear().domain([scaleRef.current.yMin, scaleRef.current.yMax]).range([plot.bottom, plot.top]);
 
-            ctx.strokeStyle = '#334155';
+            ctx.strokeStyle = colors.grid;
             ctx.lineWidth = 1;
             ctx.beginPath();
-            yScale.ticks(4).forEach(t => { ctx.moveTo(30, yScale(t)); ctx.lineTo(width-5, yScale(t)); });
+            yScale.ticks(4).forEach(t => { ctx.moveTo(plot.left, yScale(t)); ctx.lineTo(plot.right, yScale(t)); });
             ctx.stroke();
 
-            ctx.fillStyle = '#94a3b8';
+            ctx.fillStyle = colors.tick;
             ctx.font = '10px sans-serif';
             ctx.textAlign = 'right';
             ctx.textBaseline = 'middle';
-            yScale.ticks(4).forEach(t => ctx.fillText(t.toString(), 28, yScale(t)));
+            yScale.ticks(4).forEach(t => ctx.fillText(t.toString(), plot.left - 8, yScale(t)));
 
             ctx.textAlign = 'left';
             ctx.textBaseline = 'top';
-            xScale.ticks(5).forEach(t => ctx.fillText(t.toFixed(1) + 's', xScale(t) + 2, height - 20));
+            xScale.ticks(5).forEach(t => ctx.fillText(t.toFixed(1) + 's', xScale(t) + 2, plot.bottom + 7));
 
             instances.forEach(inst => {
                 const cfg = (config as any)[inst.id];
@@ -1229,7 +1304,7 @@ export const WaveformPanel: React.FC<WaveformProps> = ({ physicsRefs, instances,
 
     return (
         <div ref={containerRef} className="absolute inset-0 rounded-b-xl overflow-hidden pointer-events-none">
-            <ChartLegend instances={instances} config={config} showLegend={showLegend} panelId={panelId} legendInteractive={legendInteractive} onOpenSettings={onOpenSettings} legendPosition={legendPosition} onLegendPositionChange={onLegendPositionChange} />
+            <ChartLegend instances={instances} config={config} showLegend={showLegend} activeInstanceId={activeInstanceId} panelId={panelId} legendInteractive={legendInteractive} onOpenSettings={onOpenSettings} legendPosition={legendPosition} onLegendPositionChange={onLegendPositionChange} />
             <canvas ref={canvasRef} className="block pointer-events-auto" />
         </div>
     );
@@ -1305,17 +1380,17 @@ export const MetricsPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances
                     <div key={inst.id} className="flex flex-col gap-1 pb-2">
                          <div className="flex items-center gap-2 pb-1 pt-1">
                              <div className="w-2 h-2 rounded-full shadow-sm" style={{backgroundColor: activeColor, boxShadow: `0 0 6px ${activeColor}`}}></div>
-                             <span className="font-medium text-[13px] text-slate-200">{activeName}</span>
+                             <span className="font-medium text-[13px] text-wb-text">{activeName}</span>
                          </div>
                          <div className="flex flex-wrap gap-x-8 gap-y-2.5 px-2">
                              {cfg.selectedSignals.map((sig: string) => {
                                  const signalName = (cfg.customSignalNames && cfg.customSignalNames[sig]) || sig;
                                  return metricsMap[sig] ? (
                                      <div key={sig} className="flex items-baseline gap-2">
-                                         <span className="text-[11px] text-slate-400 font-medium tracking-wide uppercase">{signalName}</span>
+                                         <span className="text-[11px] text-wb-muted font-medium tracking-wide uppercase">{signalName}</span>
                                          <div className="flex items-baseline gap-1">
-                                            <span className="text-sm font-mono text-slate-100 font-medium">{metricsMap[sig]}</span>
-                                            {unitsMap[sig] && <span className="text-[10px] text-slate-500">{unitsMap[sig]}</span>}
+                                            <span className="text-sm font-mono text-wb-text font-medium">{metricsMap[sig]}</span>
+                                            {unitsMap[sig] && <span className="text-[10px] text-wb-subtle">{unitsMap[sig]}</span>}
                                          </div>
                                      </div>
                                  ) : null;
@@ -1555,7 +1630,7 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
         canvas.style.width = `${width}px`;
         canvas.style.height = `${height}px`;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        drawGuytonCanvas(ctx, width, height, series, side);
+        drawGuytonCanvas(ctx, width, height, series, side, canvasThemeColors(containerRef.current));
     }, [canAnimate, series, side]);
 
     const hasRenderableMap = series.some((item) => item.current || item.preview || item.ghost);
@@ -1570,7 +1645,7 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
     const calibrationDetail = series.map((item) => item.calibrationDetail).find(Boolean);
 
     return (
-        <div ref={containerRef} className="absolute inset-0 bg-[#0B1120] rounded-b-xl overflow-hidden">
+        <div ref={containerRef} className="absolute inset-0 rounded-b-xl bg-wb-app overflow-hidden">
             <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
             {visibleInstances.length > 0 && (chrome.showSpinner || chrome.hasWarnings || calibrationDetail) && (
                 <div className="absolute right-3 top-2 flex items-center gap-1.5 pointer-events-auto">
@@ -1584,7 +1659,7 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
                         >
                             <button
                                 type="button"
-                                className="inline-flex h-7 items-center rounded border border-slate-800/70 bg-slate-950/55 px-2 text-[10px] font-medium text-slate-400 transition-colors hover:border-slate-600 hover:text-slate-200"
+                                className="inline-flex h-7 items-center rounded border border-wb-line bg-wb-input px-2 text-[10px] font-medium text-wb-muted transition-colors hover:border-wb-line-strong hover:text-wb-text"
                                 aria-label={t('workbench.guyton.calibration.detailsAria')}
                                 aria-expanded={calibrationOpen}
                                 onClick={() => setCalibrationOpen((open) => !open)}
@@ -1592,12 +1667,12 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
                                 {calibrationDetail.label}
                             </button>
                             {calibrationOpen && (
-                                <div className="absolute right-0 top-8 z-20 w-72 rounded border border-slate-700/70 bg-slate-950/95 p-2 text-[10px] leading-snug text-slate-200 shadow-xl">
-                                    <div className="mb-1 font-semibold text-slate-300">{calibrationDetail.label}</div>
+                                <div className="absolute right-0 top-8 z-20 w-72 rounded border border-wb-line bg-wb-panel p-2 text-[10px] leading-snug text-wb-text shadow-xl">
+                                    <div className="mb-1 font-semibold text-wb-muted">{calibrationDetail.label}</div>
                                     {calibrationDetail.rows.map((row) => (
-                                        <div key={row.label} className="grid grid-cols-[6.5rem_1fr] gap-2 border-t border-slate-800/70 py-1 first:border-t-0">
-                                            <span className="text-slate-500">{row.label}</span>
-                                            <span className="text-slate-300">{row.value}</span>
+                                        <div key={row.label} className="grid grid-cols-[6.5rem_1fr] gap-2 border-t border-wb-line py-1 first:border-t-0">
+                                            <span className="text-wb-subtle">{row.label}</span>
+                                            <span className="text-wb-muted">{row.value}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -1605,7 +1680,7 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
                         </div>
                     )}
                     {chrome.showSpinner && (
-                        <span className="inline-flex h-7 w-7 items-center justify-center rounded border border-slate-800/70 bg-slate-950/65 text-slate-400" title="Computing Starling sweep" aria-label="Computing Starling sweep">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded border border-wb-line bg-wb-input text-wb-muted" title="Computing Starling sweep" aria-label="Computing Starling sweep">
                             <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
                         </span>
                     )}
@@ -1627,12 +1702,12 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
                                 <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
                             </button>
                             {warningsOpen && (
-                                <div className="absolute right-0 top-8 z-20 w-72 max-h-52 overflow-y-auto rounded border border-amber-500/30 bg-slate-950/95 p-2 text-[10px] leading-snug text-amber-100 shadow-xl">
+                                <div className="absolute right-0 top-8 z-20 w-72 max-h-52 overflow-y-auto rounded border border-amber-500/30 bg-wb-panel p-2 text-[10px] leading-snug text-amber-100 shadow-xl">
                                     {chrome.warnings.map((warning) => (
                                         <div key={warning} className="border-b border-amber-500/10 py-1 last:border-b-0">{warning}</div>
                                     ))}
                                     {chrome.notes.length > 0 && (
-                                        <div className="mt-1 border-t border-slate-700/60 pt-1 text-slate-400">
+                                        <div className="mt-1 border-t border-wb-line pt-1 text-wb-muted">
                                             {chrome.notes.map((note) => (
                                                 <div key={note} className="py-0.5">{note.replace('sweep point did not fully settle', 'stress endpoint did not fully settle')}</div>
                                             ))}
@@ -1646,14 +1721,14 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
             )}
             {!hasRenderableMap && visibleInstances.length > 0 && (
                 <div className="absolute inset-0 flex items-center justify-center text-center pointer-events-none">
-                    <div className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-700/70 bg-slate-950/70 text-slate-400">
+                    <div className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-wb-line bg-wb-input text-wb-muted">
                         <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
                     </div>
                 </div>
             )}
             {series.length === 0 && (
                 <div className="absolute inset-0 flex items-center justify-center text-center">
-                    <div className="text-xs text-slate-500">No visible instance</div>
+                    <div className="text-xs text-wb-subtle">No visible instance</div>
                 </div>
             )}
         </div>
@@ -1666,9 +1741,10 @@ function drawGuytonCanvas(
     height: number,
     series: GuytonSeries[],
     side: GuytonSide,
+    colors: CanvasThemeColors,
 ) {
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = '#0B1120';
+    ctx.fillStyle = colors.background;
     ctx.fillRect(0, 0, width, height);
 
     const plot = {
@@ -1698,18 +1774,18 @@ function drawGuytonCanvas(
     const first = series.find((item) => item.current || item.preview || item.ghost);
     const firstPane = first?.current?.pane ?? first?.preview?.pane ?? first?.ghost?.pane;
     if (firstPane && firstPane.collapsePressure > xAxis.min && firstPane.collapsePressure < xAxis.max) {
-        ctx.fillStyle = 'rgba(51, 65, 85, 0.24)';
+        ctx.fillStyle = colors.shade;
         ctx.fillRect(plot.left, plot.top, x(firstPane.collapsePressure) - plot.left, plot.bottom - plot.top);
     }
 
-    ctx.strokeStyle = '#243244';
+    ctx.strokeStyle = colors.grid;
     ctx.lineWidth = 1;
     ctx.beginPath();
     x.ticks(7).forEach((t) => { ctx.moveTo(x(t), plot.top); ctx.lineTo(x(t), plot.bottom); });
     y.ticks(6).forEach((t) => { ctx.moveTo(plot.left, y(t)); ctx.lineTo(plot.right, y(t)); });
     ctx.stroke();
 
-    ctx.strokeStyle = '#475569';
+    ctx.strokeStyle = colors.tick;
     ctx.beginPath();
     ctx.moveTo(plot.left, plot.bottom);
     ctx.lineTo(plot.right, plot.bottom);
@@ -1717,7 +1793,7 @@ function drawGuytonCanvas(
     ctx.lineTo(plot.left, plot.bottom);
     ctx.stroke();
 
-    ctx.fillStyle = '#94a3b8';
+    ctx.fillStyle = colors.tick;
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
@@ -1729,6 +1805,7 @@ function drawGuytonCanvas(
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.font = '11px sans-serif';
+    ctx.fillStyle = colors.label;
     ctx.fillText(side === 'right' ? 'RAP / CVP (mmHg)' : 'LAP / PCWP (mmHg)', (plot.left + plot.right) / 2, height - 34);
     ctx.save();
     ctx.translate(14, (plot.top + plot.bottom) / 2);

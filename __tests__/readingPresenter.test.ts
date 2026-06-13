@@ -89,6 +89,17 @@ function lesson(extras: Partial<Lesson> = {}): Lesson {
   };
 }
 
+function readingRuntime() {
+  return {
+    instances: [],
+    physicsRefs: { current: new Map() },
+    activeInstanceId: "",
+    updateInstanceParams: () => {},
+    updateInstanceKnobs: () => {},
+    updateInstanceVolume: () => {},
+  };
+}
+
 describe("resolveReadingColumn", () => {
   it("preserves explicit reading column order", () => {
     const doc = caseDoc({
@@ -208,6 +219,32 @@ describe("ReadingColumn", () => {
     expect(html).toContain("Hide controls");
     expect(html).toContain("Adjust the model");
   });
+
+  it("renders reading manifest view refs through authored views and dangling placeholders", () => {
+    const html = renderToString(React.createElement(ReadingColumn, {
+      column: [
+        { kind: "viewRef", viewId: "controller-a" },
+        { kind: "viewRef", viewId: "missing-view" },
+      ],
+      panels: [],
+      notes: {},
+      paneCtx: {
+        instances: [],
+        physicsRefs: { current: new Map() },
+        activeInstanceId: "",
+        updateInstanceParams: () => {},
+        updateInstanceKnobs: () => {},
+        updateInstanceVolume: () => {},
+        authoredViews: [
+          { id: "controller-a", title: "Curated Controller", kind: "controller", items: [], binding: { slot: "active" } },
+        ],
+      },
+    }));
+
+    expect(html).toContain("Curated Controller");
+    expect(html).toContain(i18n.t("notes.viewRef.missingTitle"));
+    expect(html).toContain("missing-view");
+  });
 });
 
 describe("ReadingPaneCard", () => {
@@ -256,17 +293,18 @@ describe("ReadingPresenter chrome", () => {
       objective: "Read the figures.",
       caseDoc: doc,
       column: doc.reading!.column,
+      runtime: readingRuntime(),
     })));
 
     expect(html).toContain("max-w-[860px]");
-    expect(html).toContain("text-3xl font-bold text-slate-50 sm:text-[34px]");
+    expect(html).toContain("text-3xl font-bold text-wb-text sm:text-[34px]");
     expect(html).toContain("Beginner");
     expect(html).toContain("min read");
     expect(html).toContain(i18n.t("reading.interactive"));
     expect(html).toContain(i18n.t("reading.tableOfContents"));
     expect(html).toContain('href="#first-heading"');
     expect(html).toContain('href="#first-heading-2"');
-    expect(html).toContain("h-0.5 bg-sky-400");
+    expect(html).toContain("h-0.5 bg-wb-accent");
   });
 });
 
@@ -286,7 +324,7 @@ describe("NotePanel bare read rendering", () => {
 
     expect(bareHtml).not.toContain("bg-[#0B1120]");
     expect(bareHtml).not.toContain("rounded-b-xl");
-    expect(boxedHtml).toContain("bg-[#0B1120]");
+    expect(boxedHtml).toContain("bg-wb-aux");
     expect(boxedHtml).toContain("rounded-b-xl");
   });
 });

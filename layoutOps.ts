@@ -24,10 +24,6 @@ function clonePanel(panel: PanelDef): PanelDef {
   };
 }
 
-export function applyPreset(_panels: PanelDef[], preset: PanelDef[]): PanelDef[] {
-  return flowPack(preset.map(clonePanel));
-}
-
 export function addPane(panels: PanelDef[], pane: PanelDef): PanelDef[] {
   return flowPack([...panels.map(clonePanel), clonePanel(pane)]);
 }

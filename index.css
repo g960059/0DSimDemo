@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+/*
+ * Workbench design tokens — the single source of visual truth.
+ * Components consume these ONLY through the bg-wb-* / text-wb-* / border-wb-*
+ * utilities defined in the @theme block below; raw slate-* literals are
+ * reserved for non-workbench surfaces. Adding a theme (e.g. light) means
+ * remapping this block, nothing else.
+ *
+ * Surface model (3 levels):
+ *   surface-0 = app background + graph interiors   (--wb-app-bg)
+ *   surface-1 = chrome: rail, metrics host, strips  (--wb-zone-aux-bg)
+ *   surface-2 = floating: popover, modal, dropdown  (--wb-panel-bg)
+ * One hairline (--wb-border), one hover (--wb-hover-bg), one selection
+ * treatment (--wb-active-bg), one primary action (--wb-primary).
+ */
 .workbench-root,
 body[data-workbench-theme] {
   --wb-app-bg: #08111f;
@@ -12,6 +26,9 @@ body[data-workbench-theme] {
   --wb-tab-active-bg: var(--wb-zone-aux-bg);
   --wb-tab-inactive-bg: rgba(15, 23, 42, 0.44);
   --wb-tab-hover-bg: rgba(30, 41, 59, 0.72);
+  --wb-hover-bg: rgba(30, 41, 59, 0.55);
+  --wb-active-bg: rgba(56, 189, 248, 0.14);
+  --wb-input-bg: rgba(30, 41, 59, 0.42);
   --wb-border: rgba(51, 65, 85, 0.56);
   --wb-border-strong: rgba(100, 116, 139, 0.62);
   --wb-text: #e2e8f0;
@@ -19,53 +36,69 @@ body[data-workbench-theme] {
   --wb-text-subtle: #64748b;
   --wb-accent: #38bdf8;
   --wb-accent-soft: rgba(56, 189, 248, 0.16);
+  --wb-primary: #2563eb;
+  --wb-primary-hover: #3b82f6;
+  --wb-danger: #f87171;
   --wb-sash: #08111f;
   background: var(--wb-app-bg);
   color: var(--wb-text);
 }
 
-.workbench-root[data-workbench-theme="graphite"],
-body[data-workbench-theme="graphite"] {
-  --wb-app-bg: #111315;
-  --wb-header-bg: #0a0c0d;
-  --wb-panel-bg: #171a1d;
-  --wb-panel-bg-soft: #20252a;
-  --wb-zone-main-bg: #14181b;
-  --wb-zone-aux-bg: #191d21;
-  --wb-tab-strip-bg: rgba(10, 12, 13, 0.54);
-  --wb-tab-active-bg: #191d21;
-  --wb-tab-inactive-bg: rgba(32, 37, 42, 0.78);
-  --wb-tab-hover-bg: #252b30;
-  --wb-border: rgba(91, 103, 112, 0.52);
-  --wb-border-strong: rgba(129, 145, 155, 0.68);
-  --wb-text: #e6edf0;
-  --wb-text-muted: #a5b1b8;
-  --wb-text-subtle: #7b878e;
-  --wb-accent: #14b8a6;
-  --wb-accent-soft: rgba(20, 184, 166, 0.16);
-  --wb-sash: #111315;
+@theme inline {
+  --color-wb-app: var(--wb-app-bg);
+  --color-wb-aux: var(--wb-zone-aux-bg);
+  --color-wb-panel: var(--wb-panel-bg);
+  --color-wb-soft: var(--wb-panel-bg-soft);
+  --color-wb-strip: var(--wb-tab-strip-bg);
+  --color-wb-hover: var(--wb-hover-bg);
+  --color-wb-active: var(--wb-active-bg);
+  --color-wb-input: var(--wb-input-bg);
+  --color-wb-line: var(--wb-border);
+  --color-wb-line-strong: var(--wb-border-strong);
+  --color-wb-text: var(--wb-text);
+  --color-wb-muted: var(--wb-text-muted);
+  --color-wb-subtle: var(--wb-text-subtle);
+  --color-wb-accent: var(--wb-accent);
+  --color-wb-accent-soft: var(--wb-accent-soft);
+  --color-wb-primary: var(--wb-primary);
+  --color-wb-primary-hover: var(--wb-primary-hover);
+  --color-wb-danger: var(--wb-danger);
 }
 
-.workbench-root[data-workbench-theme="clinical"],
-body[data-workbench-theme="clinical"] {
-  --wb-app-bg: #071312;
-  --wb-header-bg: #03100f;
-  --wb-panel-bg: #0a1b19;
-  --wb-panel-bg-soft: #102823;
-  --wb-zone-main-bg: #081614;
-  --wb-zone-aux-bg: #0b1d1b;
-  --wb-tab-strip-bg: rgba(3, 16, 15, 0.52);
-  --wb-tab-active-bg: #0b1d1b;
-  --wb-tab-inactive-bg: rgba(16, 40, 35, 0.74);
-  --wb-tab-hover-bg: #16352f;
-  --wb-border: rgba(71, 114, 105, 0.48);
-  --wb-border-strong: rgba(110, 154, 145, 0.66);
-  --wb-text: #e4f2ef;
-  --wb-text-muted: #9fb8b2;
-  --wb-text-subtle: #6f8d86;
-  --wb-accent: #22c55e;
-  --wb-accent-soft: rgba(34, 197, 94, 0.14);
-  --wb-sash: #071312;
+.workbench-root[data-workbench-theme="light"],
+body[data-workbench-theme="light"] {
+  --wb-app-bg: #f5f7fa;
+  --wb-header-bg: #ffffff;
+  --wb-panel-bg: #ffffff;
+  --wb-panel-bg-soft: #eef1f5;
+  --wb-zone-main-bg: #f5f7fa;
+  --wb-zone-aux-bg: #fbfcfe;
+  --wb-tab-strip-bg: transparent;
+  --wb-tab-active-bg: transparent;
+  --wb-tab-inactive-bg: transparent;
+  --wb-tab-hover-bg: rgba(15, 23, 42, 0.06);
+  --wb-hover-bg: rgba(15, 23, 42, 0.05);
+  --wb-active-bg: rgba(2, 132, 199, 0.10);
+  --wb-input-bg: rgba(15, 23, 42, 0.045);
+  --wb-border: rgba(15, 23, 42, 0.12);
+  --wb-border-strong: rgba(15, 23, 42, 0.24);
+  --wb-text: #0f172a;
+  --wb-text-muted: #475569;
+  --wb-text-subtle: #8a94a6;
+  --wb-accent: #0284c7;
+  --wb-accent-soft: rgba(2, 132, 199, 0.12);
+  --wb-primary: #2563eb;
+  --wb-primary-hover: #1d4ed8;
+  --wb-danger: #dc2626;
+  --wb-sash: #e2e8f0;
+}
+
+.workbench-root[data-workbench-theme="light"] .workbench-dockview.dockview-theme-dark,
+.workbench-dockview .dockview-theme-dark,
+.workbench-root .workbench-dockview .dv-dockview {
+  color-scheme: light;
+  background: var(--wb-zone-aux-bg);
+  color: var(--wb-text);
 }
 
 .workbench-header {
@@ -109,15 +142,11 @@ body[data-workbench-theme="clinical"] {
 }
 
 .workbench-zone-main {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--wb-panel-bg-soft) 34%, transparent), transparent 56%),
-    var(--wb-zone-main-bg);
+  background: var(--wb-zone-main-bg);
 }
 
 .workbench-zone-aux {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--wb-panel-bg-soft) 60%, transparent), color-mix(in srgb, var(--wb-zone-aux-bg) 88%, transparent)),
-    var(--wb-zone-aux-bg);
+  background: var(--wb-zone-aux-bg);
   border-color: var(--wb-border);
 }
 
@@ -126,7 +155,7 @@ body[data-workbench-theme="clinical"] {
   --workbench-surface-soft: var(--wb-panel-bg-soft);
   --workbench-divider: var(--wb-border);
   --dv-group-view-background-color: var(--workbench-surface);
-  --dv-tabs-and-actions-container-background-color: var(--wb-tab-strip-bg);
+  --dv-tabs-and-actions-container-background-color: transparent;
   --dv-activegroup-visiblepanel-tab-background-color: transparent;
   --dv-activegroup-hiddenpanel-tab-background-color: transparent;
   --dv-inactivegroup-visiblepanel-tab-background-color: transparent;
@@ -144,9 +173,32 @@ body[data-workbench-theme="clinical"] {
   --dv-scrollbar-background-color: color-mix(in srgb, var(--wb-border-strong) 72%, transparent);
 }
 
-.workbench-dockview-main.dockview-theme-dark {
+.workbench-dockview-main.dockview-theme-dark,
+.workbench-dockview-main .dockview-theme-dark,
+.workbench-root .workbench-dockview-main .dv-dockview {
   --workbench-surface: var(--wb-zone-main-bg);
-  --dv-tabs-and-actions-container-background-color: color-mix(in srgb, var(--wb-tab-strip-bg) 76%, transparent);
+  --dv-tabs-and-actions-container-background-color: transparent;
+}
+
+/* Library hard-overrides: dockview ships dark-theme literals (#000c18 grid,
+   #10192c tabs) that win by stylesheet order — pin every dockview surface to
+   our tokens with raised specificity so Light works end to end. */
+.workbench-root .workbench-dockview.dockview-theme-dark,
+.workbench-root .workbench-dockview .dockview-theme-dark,
+.workbench-root .workbench-dockview .dv-grid-view,
+.workbench-root .workbench-dockview .dv-dockview {
+  background: var(--workbench-surface);
+}
+
+.workbench-root .workbench-dockview .dv-groupview > .dv-tabs-and-actions-container .dv-tabs-container > .dv-tab,
+.workbench-root .workbench-dockview .dv-groupview.dv-active-group > .dv-tabs-and-actions-container .dv-tabs-container > .dv-tab.dv-inactive-tab,
+.workbench-root .workbench-dockview .dv-groupview.dv-active-group > .dv-tabs-and-actions-container .dv-tabs-container > .dv-tab.dv-active-tab,
+.workbench-root .workbench-dockview .dv-groupview.dv-inactive-group > .dv-tabs-and-actions-container .dv-tabs-container > .dv-tab.dv-inactive-tab,
+.workbench-root .workbench-dockview .dv-groupview.dv-inactive-group > .dv-tabs-and-actions-container .dv-tabs-container > .dv-tab.dv-active-tab,
+.workbench-root .workbench-dockview .dv-tabs-and-actions-container .dv-tab,
+.workbench-root .workbench-dockview .dv-tabs-and-actions-container .dv-tab.dv-active-tab,
+.workbench-root .workbench-dockview .dv-tabs-and-actions-container .dv-tab.dv-inactive-tab {
+  background: transparent;
 }
 
 .workbench-dockview .dv-groupview,
@@ -159,15 +211,25 @@ body[data-workbench-theme="clinical"] {
 }
 
 .workbench-dockview .dv-tabs-and-actions-container {
+  /* hard transparent: dockview's own theme re-defines the var on inner
+     nodes (#1c1c2a default), so var() indirection leaks library color */
   border-bottom: 0;
   padding: 0;
-  background: var(--dv-tabs-and-actions-container-background-color);
+  background: transparent;
 }
 
 .workbench-dockview .dv-scrollable {
   flex: 0 1 auto;
   min-width: 0;
-  max-width: calc(100% - 2rem);
+  max-width: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.workbench-dockview .dv-scrollable::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .workbench-dockview .dv-tabs-container {
@@ -177,14 +239,19 @@ body[data-workbench-theme="clinical"] {
   max-width: none;
 }
 
+.workbench-dockview .dv-scrollable > .dv-tabs-container {
+  overflow: visible;
+}
+
 .workbench-dockview .dv-tabs-and-actions-container .dv-void-container {
-  flex: 0 0 0;
+  flex: 1 1 auto;
   min-width: 0;
+  pointer-events: none;
 }
 
 .workbench-dockview .dv-tabs-and-actions-container .dv-right-actions-container {
   flex: 0 0 auto;
-  margin-left: 0;
+  margin-left: auto;
   min-width: 1.75rem;
 }
 
@@ -198,34 +265,103 @@ body[data-workbench-theme="clinical"] {
 }
 
 .workbench-dockview .dv-tab {
+  display: flex;
+  align-items: stretch;
   flex: 0 0 auto !important;
+  height: 32px;
   min-width: 0;
   max-width: 12rem;
   width: auto !important;
   padding: 0;
 }
 
+.workbench-dockview .dv-tab > .dv-react-part {
+  display: flex;
+  height: 100%;
+  width: 100%;
+}
+
+/*
+ * Tab grammar (applies to every tab strip in the workbench):
+ * tabs are plain text on the zone surface — no boxes, no strip band.
+ * Active = 2px accent underline + full text color; the whole strip
+ * carries one hairline underneath. Selection in LISTS uses the tint
+ * (--wb-active-bg); tabs and lists are the only two selection idioms.
+ */
+.wb-tabstrip {
+  display: flex;
+  align-items: stretch;
+  height: 32px;
+  box-shadow: inset 0 -1px 0 var(--wb-border);
+  background: transparent;
+}
+
+.workbench-dockview .dv-tabs-and-actions-container {
+  display: flex;
+  align-items: stretch;
+  position: relative;
+  height: 32px;
+  box-shadow: inset 0 -1px 0 var(--wb-border);
+}
+
+.workbench-dockview .dv-tabs-and-actions-container.wb-tab-insertion-target::before {
+  content: "";
+  position: absolute;
+  left: var(--wb-tab-insertion-x, 0);
+  top: 0;
+  bottom: 0;
+  z-index: 20;
+  width: 2px;
+  background: var(--wb-accent);
+  pointer-events: none;
+}
+
+/* Native grey drop visuals inside ANY tab strip are replaced by our accent
+   insertion line. The dropzone attaches to the individual .dv-tab (verified
+   in-DOM), so suppress every selection rendered within the strip; content-
+   area split overlays (under dv-content-container) keep their visuals. */
+.workbench-root .workbench-dockview .dv-tabs-and-actions-container .dv-drop-target-selection,
+.workbench-dockview .dv-drop-target-anchor.wb-tab-drop-target-overlay {
+  background-color: transparent !important;
+  border-color: transparent !important;
+  outline-color: transparent !important;
+}
+
 .workbench-dockview .dv-tab .workbench-dock-tab {
-  min-width: 8.25rem;
+  min-width: 0;
   max-width: 12rem;
-  background: var(--wb-tab-inactive-bg);
-  border: 1px solid var(--workbench-divider);
-  border-left-color: color-mix(in srgb, var(--workbench-divider) 76%, transparent);
-  border-bottom-color: var(--workbench-divider);
+  width: 100%;
+  background: transparent;
+  border: 0;
   border-radius: 0;
-  color: var(--wb-text-muted);
+  color: var(--wb-text-subtle);
+  cursor: grab;
 }
 
 .workbench-dockview .dv-tab.dv-active-tab .workbench-dock-tab {
   position: relative;
   z-index: 1;
-  background: var(--workbench-surface);
+  background: transparent;
   border: 0;
-  box-shadow: none;
+  box-shadow: inset 0 -2px 0 var(--wb-accent);
   outline: 0;
   transform: none;
   color: var(--wb-text);
-  font-weight: 700;
+  font-weight: 600;
+}
+
+.workbench-dockview.wb-tab-dragging .dv-tab.dv-tab--dragging,
+.workbench-dockview.wb-tab-dragging .dv-tab.wb-dragged-tab,
+.workbench-dockview.wb-tab-dragging .dv-tab.dv-tab-dragging {
+  opacity: 0.4 !important;
+}
+
+.workbench-dockview.wb-tab-dragging .dv-tab.dv-tab--dragging .workbench-dock-tab,
+.workbench-dockview.wb-tab-dragging .dv-tab.wb-dragged-tab .workbench-dock-tab,
+.workbench-dockview.wb-tab-dragging .dv-tab.dv-tab-dragging .workbench-dock-tab {
+  box-shadow: none;
+  color: var(--wb-text-subtle);
+  font-weight: 500;
 }
 
 .workbench-dockview .dv-tab.dv-active-tab .workbench-dock-tab::after {
@@ -233,8 +369,27 @@ body[data-workbench-theme="clinical"] {
 }
 
 .workbench-dockview .dv-tab.dv-inactive-tab .workbench-dock-tab:hover {
-  background: var(--wb-tab-hover-bg);
+  background: transparent;
   color: var(--wb-text);
+}
+
+.wb-tab {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: var(--wb-text-subtle);
+  font-weight: 500;
+  transition: color 120ms ease;
+}
+
+.wb-tab:hover {
+  color: var(--wb-text);
+}
+
+.wb-tab-active {
+  color: var(--wb-text);
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--wb-accent);
 }
 
 .workbench-dockview .workbench-dock-tab-menu-button {
@@ -242,16 +397,34 @@ body[data-workbench-theme="clinical"] {
   pointer-events: none;
 }
 
+.workbench-dockview .workbench-dock-tab-close-button {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .workbench-dockview .dv-tab.dv-active-tab .workbench-dock-tab-menu-button,
+.workbench-dockview .dv-tab.dv-active-tab .workbench-dock-tab-close-button,
 .workbench-dockview .workbench-dock-tab:hover .workbench-dock-tab-menu-button,
+.workbench-dockview .workbench-dock-tab:hover .workbench-dock-tab-close-button,
 .workbench-dockview .workbench-dock-tab-menu-button[aria-expanded="true"],
-.workbench-dockview .workbench-dock-tab-menu-button:focus-visible {
+.workbench-dockview .workbench-dock-tab-menu-button:focus-visible,
+.workbench-dockview .workbench-dock-tab-close-button:focus-visible {
   opacity: 1;
   pointer-events: auto;
 }
 
+.workbench-dockview.wb-tab-dragging .workbench-dock-tab-actions,
+.workbench-dockview.wb-tab-dragging .workbench-dock-header-actions,
+.workbench-dockview.wb-tab-dragging .workbench-dock-tab-menu-button,
+.workbench-dockview.wb-tab-dragging .workbench-dock-tab-close-button {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 @media (hover: none) {
-  .workbench-dockview .workbench-dock-tab-menu-button {
+  .workbench-dockview .workbench-dock-tab-menu-button,
+  .workbench-dockview .workbench-dock-tab-close-button {
     opacity: 1;
     pointer-events: auto;
   }
@@ -273,6 +446,24 @@ body[data-workbench-theme="clinical"] {
 .workbench-dockview .dv-tab.dv-active-tab:focus-within::after {
   outline-color: transparent !important;
   outline-width: 0 !important;
+}
+
+.workbench-root input[type="range"]:focus-visible {
+  outline: none;
+}
+
+.workbench-root input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 1px var(--wb-accent);
+}
+
+.workbench-root input[type="range"]:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 1px var(--wb-accent);
+}
+
+.bn-block-outer:has(.workbench-authored-view-embed),
+.bn-block-content:has(.workbench-authored-view-embed) {
+  width: 100%;
+  max-width: 100%;
 }
 
 .workbench-dockview .dv-split-view-container.dv-separator-border .dv-view:not(:first-child)::before {

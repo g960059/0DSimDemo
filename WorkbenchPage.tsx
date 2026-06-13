@@ -1,5 +1,5 @@
 export {
-  addHiddenInstanceConfigsToPanels,
+  addVisibleInstanceConfigsToPanels,
   defaultSignalsForPanelType,
   mergePanelControllerItems,
   mergePanelLegendPosition,

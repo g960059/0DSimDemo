@@ -4,6 +4,19 @@ import { defaultControllerItemFor, KNOB_STEPS, readingButtonOptionsFor, roundToS
 import type { NumericKnobKey } from "@/lessonDoc";
 
 describe("knobMetadata controller defaults", () => {
+  it("returns ranged slider defaults for raw catalog parameters", () => {
+    const item = defaultControllerItemFor("pericardialFluidMl");
+
+    expect(item).toMatchObject({
+      paramKey: "pericardialFluidMl",
+      kind: "slider",
+      label: "Pericardial fluid",
+      min: 0,
+      max: 1000,
+      step: 10,
+    });
+  });
+
   it("returns plain slider defaults for contractility knobs", () => {
     for (const key of ["contractility", "contractilityRV"]) {
       const item = defaultControllerItemFor(key);

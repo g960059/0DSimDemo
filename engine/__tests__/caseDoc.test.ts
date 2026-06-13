@@ -7,6 +7,8 @@ import {
   simInstancesToCaseDocument,
   type CaseInstance,
 } from "@/caseDoc";
+import { serializableAuthoredViews } from "@/features/workbench/authoredViews";
+import { migratePanelsToViewSpecs, type ViewSpec } from "@/features/workbench/viewSpec";
 import { applyKnobs, KNOB_MAPPING_VERSION, neutralKnobs } from "@/engine/knobs";
 import { defaultParams } from "@/engine/ModelCore";
 
@@ -74,6 +76,60 @@ describe("CaseDocument bridge round-trip (#3-b)", () => {
     const doc = buildDoc([knobPrimary]);
     const round = JSON.parse(JSON.stringify(doc));
     expect(round.panels).toEqual(panels);
+  });
+
+  it("preserves live document fields through save rebuilds and round-trips authored views", () => {
+    const migrated = migratePanelsToViewSpecs(panels);
+    const authoredViews: ViewSpec[] = [
+      { id: "graph-view", kind: "graph" as const, graphType: "waveform" as const, membership: { "1": ["LVP"] } },
+      { id: "metrics-view", kind: "metrics" as const, title: "Teaching metrics", metrics: ["ABP", "CO"], membership: { "1": ["ABP", "CO"] } },
+      { id: "controller-view", kind: "controller" as const, title: "Teaching controls", items: [{ paramKey: "contractility", kind: "slider" as const, label: "Contractility" }], binding: { slot: "active" as const } },
+    ];
+    const reading = {
+      schemaVersion: 1 as const,
+      column: [{ kind: "paneRef" as const, panelId: "p1" }],
+    };
+    const exposedControllers = [{
+      items: [{ paramKey: "contractility", kind: "slider" as const, label: "Contractility" }],
+      targetPolicy: "fixedInstance" as const,
+      instanceId: "1",
+      defaultOpen: true,
+    }];
+    const doc = simInstancesToCaseDocument([knobPrimary], panels, {
+      id: "case-1",
+      title: "Round-trip",
+      createdAt: 1000,
+      updatedAt: 2000,
+      spec: { title: "Round-trip", modelLimitations: ["0D lumped model; no regional wall motion."] },
+      reading,
+      exposedControllers,
+      views: authoredViews,
+      graphBoardLayout: migrated.graphBoardLayout,
+      initialActiveScenarioId: "1",
+    });
+    const parsed = JSON.parse(JSON.stringify(doc));
+    const rebuilt = simInstancesToCaseDocument(caseDocumentToSimInstances(parsed), parsed.panels, {
+      id: parsed.meta.id,
+      title: parsed.meta.title,
+      createdAt: parsed.meta.createdAt,
+      updatedAt: parsed.meta.updatedAt,
+      spec: parsed.spec,
+      workspace: parsed.workspace,
+      reading: parsed.reading,
+      exposedControllers: parsed.exposedControllers,
+      views: serializableAuthoredViews(parsed.views),
+      graphBoardLayout: parsed.graphBoardLayout,
+      initialActiveScenarioId: parsed.initialActiveScenarioId,
+    });
+
+    expect(rebuilt.reading).toEqual(reading);
+    expect(rebuilt.exposedControllers).toEqual(exposedControllers);
+    expect(rebuilt.views?.map((view) => [view.id, view.kind])).toEqual([
+      ["metrics-view", "metrics"],
+      ["controller-view", "controller"],
+    ]);
+    expect(rebuilt.graphBoardLayout).toEqual(migrated.graphBoardLayout);
+    expect(rebuilt.initialActiveScenarioId).toBe("1");
   });
 
   it("refuses to load a case stamped with an unknown knobMappingVersion (no silent fallback)", () => {

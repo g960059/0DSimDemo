@@ -35,7 +35,7 @@ describe("official lesson registry (stepless reading articles)", () => {
       expect("column" in resolved).toBe(true);
       if ("column" in resolved) {
         // Role-sorted derived order: note -> waveform -> pvloop -> metrics -> controls.
-        const ids = resolved.column.map((e) => (e.kind === "noteRef" ? e.noteId : e.panelId));
+        const ids = resolved.column.map((e) => (e.kind === "noteRef" ? e.noteId : e.kind === "paneRef" ? e.panelId : e.viewId));
         expect(ids).toEqual(["p_note", "p1", "p2", "p3", "p4"]);
       }
     });

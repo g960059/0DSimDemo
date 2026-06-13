@@ -105,14 +105,14 @@
     "controls": {
       "changed": "変更",
       "reset": "リセット",
-      "resetClinicalBaseline": "臨床ノブを基準値にリセット",
-      "customReplaceDefault": "カスタムコントロールが標準の臨床ノブを置き換えます",
+      "resetClinicalBaseline": "臨床パラメータを基準値にリセット",
+      "customReplaceDefault": "カスタムコントロールが標準の臨床パラメータを置き換えます",
       "customControls": "カスタムコントロール",
       "baselineValue": "基準値 {{value}}{{unit}}",
       "resetTo": "{{value}}{{unit}} にリセット",
       "resetAria": "{{label}}をリセット",
       "groups": {
-        "clinical": "臨床ノブ",
+        "clinical": "臨床パラメータ",
         "global": "全身生理",
         "ventricles": "心室メカニクス",
         "atria": "心房メカニクス",
@@ -126,7 +126,18 @@
       "categories": {
         "cardiacFunction": "心機能",
         "loadRate": "負荷と拍動",
-        "valveLesions": "弁病変"
+        "valveLesions": "弁病変",
+        "other": "その他"
+      },
+      "rawCategories": {
+        "electricalTiming": "電気/タイミング",
+        "respiratory": "呼吸",
+        "fluids": "輸液",
+        "contractilityScaling": "収縮性スケーリング",
+        "geometry": "形状",
+        "pericardium": "心膜",
+        "septalCoupling": "中隔連成",
+        "coronary": "冠循環"
       },
       "knobs": {
         "HR": "心拍数",
@@ -145,6 +156,42 @@
         "mitralRegurgitation": "僧帽弁逆流",
         "tricuspidRegurgitation": "三尖弁逆流",
         "pulmonicStenosis": "肺動脈弁狭窄"
+      },
+      "rawParams": {
+        "avDelaySec": "AV遅延",
+        "atrialElectromechanicalDelaySec": "心房電気機械遅延",
+        "ventricularElectromechanicalDelaySec": "心室電気機械遅延",
+        "Pth0": "基礎胸腔内圧",
+        "respAmpTh": "胸腔内圧の呼吸振幅",
+        "respAmpAlv": "肺胞圧の呼吸振幅",
+        "respRate": "呼吸数",
+        "bleedRate": "出血速度",
+        "fluidRate": "輸液/輸血速度",
+        "lvTmaxScale": "LV Tmaxスケール",
+        "rvTmaxScale": "RV Tmaxスケール",
+        "caReleaseScale": "LVカルシウム放出スケール",
+        "rvCaReleaseScale": "RVカルシウム放出スケール",
+        "lvGeomScale": "LV形状スケール",
+        "rvGeomScale": "RV形状スケール",
+        "pericardialPressureScaleMmHg": "心膜圧スケール",
+        "pericardialSlackVolumeMl": "心膜余裕容量",
+        "pericardialVolumeScaleMl": "心膜容量スケール",
+        "pericardialSoftnessMl": "心膜柔軟性",
+        "pericardialBiasMmHg": "心膜圧バイアス",
+        "pericardialFluidMl": "心膜液量",
+        "septalStiffnessScale": "中隔スティフネススケール",
+        "septalK1MmHgPerMl": "中隔線形スティフネス",
+        "septalK3MmHgPerMl3": "中隔三次スティフネス",
+        "septalDampingMmHgSecPerMl": "中隔ダンピング",
+        "septalMaxShiftMl": "中隔最大シフト",
+        "septalLvPressureWeight": "中隔LV圧重み",
+        "coronaryResistanceScale": "冠血管抵抗スケール",
+        "coronaryCompressionScale": "心筋圧迫スケール",
+        "coronaryVasodilator": "冠血管拡張",
+        "coronaryReserveMax": "冠予備能最大値",
+        "LADStenosis": "LAD狭窄",
+        "LCxStenosis": "LCx狭窄",
+        "RCAStenosis": "RCA狭窄"
       },
       "options": {
         "low": "低",
@@ -226,23 +273,64 @@
       }
     },
     "controllerBuilder": {
-      "description": "カスタムコントロールが標準の臨床ノブを置き換えます (読者にはボタンとして表示)。",
-      "empty": "カスタムコントロールはまだありません。読者には標準の臨床ノブが表示されます。",
+      "description": "カスタムコントロールが標準の臨床パラメータを置き換えます (読者にはボタンとして表示)。",
+      "empty": "カスタムコントロールはまだありません。読者には標準の臨床パラメータが表示されます。",
       "slider": "スライダー",
       "button": "ボタン",
       "optionNumber": "オプション {{number}}",
       "addOption": "オプションを追加",
-      "needsDistinctValues": "2つ以上の異なる値が必要です。スライダーとして表示されます"
+      "needsDistinctValues": "2つ以上の異なる値が必要です。スライダーとして表示されます",
+      "clinicalKnobs": "臨床パラメータ",
+      "searchControls": "コントロールを検索",
+      "selectedControls": "選択中のコントロール",
+      "addFromLeft": "左からコントロールを追加してください。",
+      "advancedRange": "詳細レンジ",
+      "engineRange": "エンジン範囲 {{min}}-{{max}}",
+      "min": "最小",
+      "max": "最大",
+      "step": "ステップ",
+      "preview": "プレビュー",
+      "expand": "コントロール詳細を展開",
+      "collapse": "コントロール詳細を折りたたむ",
+      "removeControl": "コントロールを削除",
+      "controlType": "コントロール種別"
+    },
+    "viewManagement": {
+      "standardControllerTitle": "臨床パラメータ（標準）",
+      "newController": "新規コントローラー",
+      "newMetrics": "新規指標ビュー",
+      "newMetricsShort": "新規指標",
+      "restoreStandard": "標準セットを復元",
+      "noControllerViews": "コントローラービューなし",
+      "controllerEmptyHint": "このドキュメントにはコントローラービューがありません。",
+      "metricsEmptyHint": "このドキュメントには指標ビューがありません。",
+      "rename": "名前を変更",
+      "duplicate": "複製",
+      "renamePrompt": "ビュー名を変更",
+      "deleteModalTitle": "ビューを削除",
+      "deleteConfirm": "「{{title}}」を削除しますか?",
+      "deleteReferencedConfirm": "「{{title}}」を削除しますか? {{noteCount}}件のノート参照と{{readingCount}}件のリーディング参照はプレースホルダーになります。"
+    },
+    "viewEditor": {
+      "controllerTitle": "コントローラービュー",
+      "metricsTitle": "指標ビュー",
+      "newControllerTitle": "コントローラービュー",
+      "newMetricsTitle": "指標ビュー",
+      "createMode": "作成",
+      "editMode": "編集",
+      "close": "ビューエディタを閉じる",
+      "name": "名前",
+      "searchMetrics": "指標を検索",
+      "searchControls": "コントロールを検索",
+      "selectedMetrics": "選択中の指標",
+      "selectedControls": "選択中のコントロール",
+      "noMetrics": "指標が選択されていません。",
+      "noControls": "左からコントロールを追加してください。",
+      "moveUp": "上へ移動",
+      "moveDown": "下へ移動",
+      "removeMetric": "指標を削除"
     },
     "dialogs": {
-      "saveLesson": {
-        "title": "レッスンとして保存",
-        "lessonTitle": "タイトル",
-        "noteSpine": "ノート本文",
-        "capturedSteps": "記録済みステップ",
-        "stepsCount_one": "{{count}}ステップ",
-        "stepsCount_other": "{{count}}ステップ"
-      },
       "addPanel": {
         "title": "{{panelType}}パネルを設定",
         "confirm": "パネルを追加"
@@ -250,17 +338,32 @@
     },
     "header": {
       "editCopy": "コピーを編集",
-      "share": "共有",
+      "fork": "フォーク",
+      "readOnlyBadge": "変更は保存されません",
+      "resetToAuthorState": "作者の状態に戻す",
+      "read": "読む",
+      "explore": "探索",
+      "readExploreSwitcher": "読む／探索",
       "saveCase": "ケースを保存",
       "untitledScene": "無題のケース",
-      "unsavedAuthoringChanges": "未保存のオーサリング変更",
       "customizeLayout": "レイアウトを調整",
+      "noteDrawer": "ノートドロワー",
+      "metricsHost": "指標ホスト",
+      "toggleNoteDrawer": "ノートドロワーの表示を切り替え",
+      "toggleMetricsHost": "指標ホストの表示を切り替え",
+      "toggleRightRail": "右レールの表示を切り替え",
+      "metricsSpanLabel": "指標の幅",
+      "metricsSpanMain": "メイン幅",
+      "metricsSpanFull": "全幅",
+      "arrange": "配置",
+      "arrange2x2": "2x2",
+      "arrangeSideBySide": "左右に並べる",
+      "arrangeStacked": "上下に重ねる",
       "left": "左",
       "right": "右",
       "resetLayout": "レイアウトをリセット",
       "pause": "一時停止",
       "play": "再生",
-      "publishing": "公開中...",
       "saving": "保存中...",
       "openPanel": "ワークベンチパネルを開く",
       "sceneDetails": "ケース詳細"
@@ -269,7 +372,6 @@
       "aria": "ワークベンチ詳細",
       "closePanel": "パネルを閉じる",
       "learningScene": "学習ケース",
-      "authorWorkspace": "作成ワークスペース",
       "sandboxScene": "サンドボックスケース",
       "tabs": {
         "share": "共有",
@@ -280,8 +382,6 @@
       "share": {
         "title": "共有",
         "description": "利用できる場合は公開済みレッスンリンクを使います。保存と共有は別です。",
-        "copyLink": "リンクをコピー",
-        "openSavedLesson": "保存済みレッスンを開く",
         "noLink": "共有リンクはまだありません。"
       },
       "files": {
@@ -297,15 +397,11 @@
         "title": "設定",
         "description": "低頻度で使うワークベンチ設定です。",
         "appearance": "外観",
-        "theme": "テーマ",
-        "saveAsLesson": "レッスンとして保存",
-        "exitAuthoring": "オーサリングを終了",
-        "createLesson": "レッスンを作成"
+        "theme": "テーマ"
       },
       "themes": {
-        "midnight": "ミッドナイト",
-        "graphite": "グラファイト",
-        "clinical": "クリニカル"
+        "dark": "ダーク",
+        "light": "ライト"
       }
     },
     "scenarioPane": {
@@ -315,10 +411,15 @@
       "changeColor": "シナリオ色を変更",
       "colorAria": "{{name}}の色",
       "scenarioName": "シナリオ名",
+      "reset": "パラメータをリセット",
       "actions": "シナリオ操作",
       "actionsAria": "{{name}}の操作",
-      "addFromPreset": "プリセットからシナリオを追加",
-      "addFromPresetShort": "プリセットから追加"
+      "showScenario": "シナリオを表示",
+      "hideScenario": "シナリオを非表示",
+      "hiddenHint": "非表示",
+      "showScenarioAria": "{{name}}をグラフに表示",
+      "hideScenarioAria": "{{name}}をグラフで非表示",
+      "addScenario": "シナリオを追加"
     },
       "panelGrid": {
       "panelTitle": "パネルタイトル",
@@ -351,8 +452,13 @@
       "label": "ラベル",
       "settingsCategories": "設定カテゴリ",
       "controllerSettingsCategories": "コントローラ設定カテゴリ",
+      "included": "含める",
+      "excluded": "除外",
+      "toggleScenarioMembership": "{{name}}をこのペインに含める",
       "visibleCount_one": "{{count}}表示",
       "visibleCount_other": "{{count}}表示",
+      "includedCount_one": "{{count}}件含む",
+      "includedCount_other": "{{count}}件含む",
       "selectedCount_one": "{{count}}選択",
       "selectedCount_other": "{{count}}選択",
       "paneSettings": "ペイン設定",
@@ -364,7 +470,29 @@
       "closePanel": "パネルを閉じる",
       "closePanelAria": "{{title}}を閉じる",
       "zoneAria": "{{zone}}ゾーン",
-        "shareUrl": "共有URL",
+        "noteDrawer": "ノートドロワー",
+        "metricsHost": "指標ホスト",
+        "note": "ノート",
+        "switchToPreview": "プレビューに切り替え",
+        "switchToEdit": "編集に切り替え",
+        "railAria": "シナリオレール",
+        "scenariosCount_one": "シナリオ（{{count}}）",
+        "scenariosCount_other": "シナリオ（{{count}}）",
+        "resizeNoteDrawer": "ノートドロワーのサイズを変更",
+        "resizeRightRail": "右レールのサイズを変更",
+        "resizeMetricsHost": "指標ホストのサイズを変更",
+        "resizeScenarioList": "シナリオリストのサイズを変更（ダブルクリックでリセット）",
+        "editingScenario": "編集中:",
+        "rail": {
+          "scenarios": "シナリオ",
+          "inspector": "インスペクタ"
+        },
+        "metricsTabs": {
+          "pressure": "圧",
+          "flowVolume": "流量 / 容積",
+          "function": "機能",
+          "coronary": "冠循環"
+        },
         "sources": {
           "chambers": {
             "title": "心腔",
@@ -440,7 +568,7 @@
         },
         "controlGroups": {
           "clinical": {
-            "label": "臨床ノブ",
+            "label": "臨床パラメータ",
             "description": "初学者向けの収縮性、負荷、拍動、弁病変コントロールです。"
           },
           "global": {
@@ -500,44 +628,12 @@
       "renamePanePrompt": "ペイン名を変更",
       "paneMenuAria": "{{title}}のペインメニュー",
       "paneMenu": "ペインメニュー",
+      "splitRight": "右に分割",
+      "splitDown": "下に分割",
       "closePane": "ペインを閉じる",
       "addPaneAria": "{{zone}}ペインを追加",
+      "addPane": "ペインを追加",
       "noPanels": "パネルがありません"
-    }
-  },
-  "lessonAuthoring": {
-    "title": "レッスン作成",
-    "stepsCount_one": "{{count}}ステップ",
-    "stepsCount_other": "{{count}}ステップ",
-    "captureStep": "ステップを記録",
-    "stepTitle": "ステップタイトル",
-    "stepPlaceholder": "ステップ {{number}}",
-    "visibleInstances": "表示シナリオ",
-    "predictBeforeReveal": "表示前に予測",
-    "reveal": "表示",
-    "revealLabel": "表示ラベル",
-    "predictionPrompt": "予測プロンプト",
-    "exposedKnobs": "公開ノブ",
-    "maxKnobs": "最大{{count}}",
-    "targetInstance": "対象シナリオ",
-    "target": "対象: {{target}}",
-    "startFromCurrentKnobValues": "現在のノブ値から開始",
-    "capturedSteps": "記録済みステップ",
-    "finalPredictWarning": "最後のステップが予測です。保存前に表示ステップを追加してください。",
-    "noStepsCaptured": "記録済みステップはありません。",
-    "predictBadge": "予測",
-    "moveStepUp": "ステップを上へ移動",
-    "moveStepDown": "ステップを下へ移動",
-    "moveUpAria": "{{title}}を上へ移動",
-    "moveDownAria": "{{title}}を下へ移動",
-    "validation": {
-      "visibleInstanceRequired": "ステップを記録する前に少なくとも1つの表示シナリオを選択してください。"
-    },
-    "row": {
-      "shows": "表示: {{names}}",
-      "showsNone": "表示: なし",
-      "knobs": "ノブ: {{knobs}} -> {{target}}",
-      "stale": "古い参照: {{ids}}"
     }
   },
   "scenarioManager": {
@@ -571,6 +667,14 @@
   },
   "notes": {
     "empty": "このケースのノートはまだありません。",
+    "viewRef": {
+      "menuTitle": "ビュー",
+      "menuGroup": "ビュー",
+      "controllerKind": "コントローラービュー",
+      "metricsKind": "指標ビュー",
+      "missingTitle": "参照先ビューを利用できません",
+      "unknownView": "不明なビュー"
+    },
     "quiz": {
       "correct": "正解です",
       "tryAgain": "もう一度試してください"

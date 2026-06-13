@@ -19,7 +19,7 @@ const PresetChips = ({ item, value, unit, onChange }: Pick<ControllerItemControl
   const options = item.options ?? [];
 
   return (
-    <div className="flex gap-1 bg-slate-950 rounded p-0.5 border border-slate-800" role="group" aria-label={item.label}>
+    <div className="flex gap-1 bg-wb-input rounded p-0.5 border border-wb-line" role="group" aria-label={item.label}>
       {options.map((option) => {
         const active = isActiveOption(value, option.value, item.step);
         return (
@@ -29,7 +29,7 @@ const PresetChips = ({ item, value, unit, onChange }: Pick<ControllerItemControl
             aria-pressed={active}
             title={`${option.value}${unit ? ` ${unit}` : ""}`}
             onClick={() => onChange(option.value)}
-            className={`min-h-7 flex flex-1 items-center justify-center rounded px-2 py-1 text-[11px] font-semibold transition-colors ${active ? 'bg-blue-500/20 text-blue-300 ring-1 ring-blue-400/40' : 'text-slate-500 hover:text-slate-300'}`}
+            className={`min-h-7 flex flex-1 items-center justify-center rounded px-2 py-1 text-[11px] font-semibold transition-colors ${active ? 'bg-wb-active text-wb-accent ring-1 ring-wb-accent' : 'text-wb-subtle hover:text-wb-muted'}`}
           >
             {option.label}
           </button>
@@ -49,7 +49,7 @@ export const ControllerItemControl = ({ item, value, baseline, unit, onChange, o
   if (item.kind === "buttonGroup" && options.length > 0) {
     return (
       <div className="space-y-1">
-        <span className="block text-[11px] font-semibold text-slate-300">{label}</span>
+        <span className="block text-[11px] font-semibold text-wb-muted">{label}</span>
         <PresetChips item={item} value={value} unit={unit} onChange={onChange} />
       </div>
     );

@@ -1,7 +1,8 @@
 import React from "react";
 import { renderToString } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import i18n from "@/i18n";
 import { CASE_SCHEMA_VERSION, DEFAULT_SOLVER, ENGINE_VERSION, type CaseDocument } from "@/caseDoc";
 import { KNOB_MAPPING_VERSION } from "@/engine/knobs";
 import { deriveHeadingAnchors } from "@/components/NotePanel";
@@ -17,6 +18,8 @@ vi.mock("@blocknote/mantine", async () => {
 
 vi.mock("@blocknote/react", () => ({
   createReactBlockSpec: () => () => ({}),
+  getDefaultReactSlashMenuItems: () => [],
+  SuggestionMenuController: () => null,
   useCreateBlockNote: () => ({ document: [] }),
 }));
 
@@ -24,6 +27,15 @@ vi.mock("@blocknote/core", () => ({
   BlockNoteSchema: { create: () => ({}) },
   defaultBlockSpecs: {},
 }));
+
+vi.mock("@blocknote/core/extensions", () => ({
+  filterSuggestionItems: (items: unknown[]) => items,
+  insertOrUpdateBlockForSlashMenu: () => ({}),
+}));
+
+beforeAll(async () => {
+  await i18n.changeLanguage("en");
+});
 
 function heading(text: string, children: NoteContent = []): Record<string, unknown> {
   return {
@@ -51,6 +63,17 @@ function matches(pattern: RegExp, html: string): string[] {
   return [...html.matchAll(pattern)].map((match) => match[1]);
 }
 
+function readingRuntime() {
+  return {
+    instances: [],
+    physicsRefs: { current: new Map() },
+    activeInstanceId: "",
+    updateInstanceParams: () => {},
+    updateInstanceKnobs: () => {},
+    updateInstanceVolume: () => {},
+  };
+}
+
 describe("ReadingPresenter with the real NotePanel static renderer", () => {
   it("renders every TOC href with a matching article heading id, including nested duplicates", () => {
     const note: NoteContent = [
@@ -70,6 +93,7 @@ describe("ReadingPresenter with the real NotePanel static renderer", () => {
       lessonTitle: "Real TOC",
       caseDoc: doc,
       column: [{ kind: "noteRef", noteId: "intro" }],
+      runtime: readingRuntime(),
     })));
 
     const expectedIds = deriveHeadingAnchors(note).map((anchor) => anchor.id);
@@ -80,5 +104,30 @@ describe("ReadingPresenter with the real NotePanel static renderer", () => {
     expect(tocIds).toEqual(expectedIds);
     expect(renderedHeadingIds).toEqual(expectedIds);
     expect(tocIds.every((id) => renderedHeadingIds.includes(id))).toBe(true);
+  });
+
+  it("renders note view_ref blocks against authored views and leaves dangling refs as placeholders", () => {
+    const doc = {
+      ...caseDoc({
+        intro: [
+          { type: "view_ref", props: { viewId: "controller-a" } },
+          { type: "view_ref", props: { viewId: "missing-view" } },
+        ],
+      }),
+      views: [
+        { id: "controller-a", title: "Inline Controller", kind: "controller" as const, items: [], binding: { slot: "active" as const } },
+      ],
+    };
+
+    const html = renderToString(React.createElement(MemoryRouter, null, React.createElement(ReadingPresenter, {
+      lessonTitle: "View refs",
+      caseDoc: doc,
+      column: [{ kind: "noteRef", noteId: "intro" }],
+      runtime: readingRuntime(),
+    })));
+
+    expect(html).toContain("Inline Controller");
+    expect(html).toContain("Referenced view unavailable");
+    expect(html).toContain("missing-view");
   });
 });

@@ -11,13 +11,13 @@ export const ReadingControllerSection: React.FC<{
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <figure className="my-10 overflow-hidden rounded-lg border border-slate-800/90 bg-slate-950/60">
-      <figcaption className="flex items-center justify-between gap-3 border-b border-slate-800/80 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+    <figure className="my-10 overflow-hidden rounded-lg border border-wb-line bg-wb-input">
+      <figcaption className="flex items-center justify-between gap-3 border-b border-wb-line px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-wb-subtle">
         <span className="truncate">{panel.title}</span>
         <button
           type="button"
           onClick={() => setOpen((current) => !current)}
-          className="rounded border border-slate-700 px-2 py-1 text-[11px] font-bold normal-case tracking-normal text-slate-200 transition-colors hover:bg-slate-800"
+          className="rounded border border-wb-line px-2 py-1 text-[11px] font-bold normal-case tracking-normal text-wb-text transition-colors hover:bg-wb-hover"
           aria-expanded={open}
         >
           {open ? t("reading.hideControls") : t("reading.adjustModel")}

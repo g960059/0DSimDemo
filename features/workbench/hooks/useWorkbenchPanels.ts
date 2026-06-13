@@ -19,15 +19,18 @@ import {
   DEFAULT_WORKBENCH_LAYOUT,
   EMPTY_NOTE_SPINE,
   INITIAL_PANELS,
-  addHiddenInstanceConfigsToPanels,
+  addVisibleInstanceConfigsToPanels,
   cloneInitialPanels,
   layoutStateFromWorkspace,
   mergePanelControllerItems,
   mergePanelLegendPosition,
+  type AddedInstanceConfig,
 } from "@/features/workbench/workbenchDefaults";
+import { mainDockviewViewStatesOnly } from "@/features/workbench/p1aStructuralHosts";
 import {
   createDefaultPanelConfig,
   createPanelDef,
+  ensureNotePanelForDrawer,
   noteModesAfterPanelAdded,
   noteModesAfterPanelRemoved,
   notesAfterPanelAdded,
@@ -59,40 +62,54 @@ export function useWorkbenchPanels({
   const setWorkbenchLayout: Dispatch<SetStateAction<WorkbenchLayoutState>> = useCallback((next) => {
     setWorkbenchLayoutState((prevLayout) => {
       const resolved = typeof next === "function" ? next(prevLayout) : next;
-      setWorkspace((prevWorkspace) => ({
-        ...prevWorkspace,
-        regions: {
-          ...prevWorkspace.regions,
-          control: {
-            ...prevWorkspace.regions.control,
-            position: resolved.controlsSide,
-            size: resolved.controlsWidth,
-          },
-          note: {
-            ...prevWorkspace.regions.note,
-            size: resolved.caseRailWidth,
-          },
-          output: {
-            ...prevWorkspace.regions.output,
-            size: resolved.outputHeight,
-          },
-        },
-      }));
+      const workspaceVisibilityChanged = resolved.rightRailVisible !== prevLayout.rightRailVisible
+        || resolved.noteOpen !== prevLayout.noteOpen
+        || resolved.metricsOpen !== prevLayout.metricsOpen;
+      if (workspaceVisibilityChanged) {
+        setWorkspace((prevWorkspace) => {
+          const { size: _controlSize, ...controlRegion } = prevWorkspace.regions.control ?? {};
+          const { size: _noteSize, ...noteRegion } = prevWorkspace.regions.note ?? {};
+          const { size: _outputSize, ...outputRegion } = prevWorkspace.regions.output ?? {};
+          return {
+            ...prevWorkspace,
+            regions: {
+              ...prevWorkspace.regions,
+              control: {
+                ...controlRegion,
+                position: "right",
+                visible: resolved.rightRailVisible,
+              },
+              note: {
+                ...noteRegion,
+                visible: resolved.noteOpen,
+              },
+              output: {
+                ...outputRegion,
+                visible: resolved.metricsOpen ? "compact" : false,
+              },
+            },
+          };
+        });
+      }
+      const selectedLocalOnly = Object.entries(resolved).every(([key, value]) => (
+        key === "selectedControllerViewId" || value === prevLayout[key as keyof WorkbenchLayoutState]
+      ));
+      if (!selectedLocalOnly && headerMode !== "learner") markUserEdited();
       return resolved;
     });
-    if (headerMode !== "learner") markUserEdited();
   }, [headerMode, markUserEdited]);
 
   const updateDockviewViewState = useCallback((zone: WorkbenchZoneId, viewState: DockviewViewState) => {
+    if (zone !== "main") return;
     setWorkspace((prev) => workspaceForPanels(panels, {
       ...prev,
-      viewStates: { ...(prev.viewStates ?? {}), [zone]: viewState },
+      viewStates: { main: viewState },
     }));
     if (headerMode !== "learner") markUserEdited();
   }, [headerMode, markUserEdited, panels]);
 
-  const addHiddenInstanceConfigs = useCallback((ids: string[]) => {
-    setPanels((prev) => addHiddenInstanceConfigsToPanels(prev, ids));
+  const addVisibleInstanceConfigs = useCallback((additions: AddedInstanceConfig[]) => {
+    setPanels((prev) => addVisibleInstanceConfigsToPanels(prev, additions));
   }, []);
 
   const replacePanelState = useCallback((next: {
@@ -102,7 +119,7 @@ export function useWorkbenchPanels({
     noteCaseKey: string;
   }) => {
     setPanels(next.panels);
-    const nextWorkspace = workspaceForPanels(next.panels, next.workspace);
+    const nextWorkspace = mainDockviewViewStatesOnly(workspaceForPanels(next.panels, next.workspace));
     setWorkspace(nextWorkspace);
     setWorkbenchLayoutState(layoutStateFromWorkspace(nextWorkspace));
     setDockviewLayoutVersion((value) => value + 1);
@@ -120,20 +137,36 @@ export function useWorkbenchPanels({
     });
     setNotes((prev) => notesAfterPanelAdded(prev, newPanel));
     setNoteModes((prev) => noteModesAfterPanelAdded(prev, newPanel));
+    return newPanel;
   }, [markUserEdited]);
 
-  const addPanel = useCallback((type: PanelType, zone?: WorkbenchZoneId) => {
+  const addPanel = useCallback((type: PanelType, zone?: WorkbenchZoneId): PanelDef => {
     const newConfig = createDefaultPanelConfig(type, instances);
-    if (type === "NOTE" || type === "SCENARIOS") {
-      appendPanel(createPanelDef(type, newConfig, zone));
-      return;
-    }
-    setAddingPanelConfig(newConfig);
-    setAddingPanelType(type);
-    setAddingPanelZone(zone ?? defaultZoneOf(type));
+    const newPanel = createPanelDef(type, newConfig, zone ?? defaultZoneOf(type));
+    return appendPanel(newPanel);
   }, [appendPanel, instances]);
 
+  const duplicatePanel = useCallback((panelId: string): PanelDef | undefined => {
+    const source = panels.find((panel) => panel.id === panelId);
+    if (!source) return undefined;
+    markUserEdited();
+    const newPanel: PanelDef = JSON.parse(JSON.stringify({
+      ...source,
+      id: `${source.id}-${Date.now().toString(36)}`,
+      isSettingsOpen: false,
+    }));
+    setPanels((prev) => {
+      const nextPanels = addPane(prev, newPanel);
+      setWorkspace((prevWorkspace) => workspaceAfterPanelsChanged(nextPanels, prevWorkspace));
+      return nextPanels;
+    });
+    setNotes((prev) => notesAfterPanelAdded(prev, newPanel));
+    setNoteModes((prev) => noteModesAfterPanelAdded(prev, newPanel));
+    return newPanel;
+  }, [markUserEdited, panels]);
+
   const confirmAddPanel = useCallback(() => {
+    if (headerMode === "learner") return;
     if (!addingPanelType) return;
     appendPanel(createPanelDef(addingPanelType, addingPanelConfig, addingPanelZone ?? defaultZoneOf(addingPanelType)));
     setAddingPanelType(null);
@@ -216,7 +249,7 @@ export function useWorkbenchPanels({
     )));
   }, []);
 
-  const toggleInstanceVisibility = useCallback((panelId: string, instId: string) => {
+  const togglePaneMembership = useCallback((panelId: string, instId: string) => {
     markUserEdited();
     setPanels((prev) => prev.map((panel) => panel.id === panelId ? {
       ...panel,
@@ -266,16 +299,52 @@ export function useWorkbenchPanels({
     markUserEdited();
   }, [markUserEdited]);
 
+  const ensureNoteDrawerPanel = useCallback(() => {
+    setPanels((prev) => {
+      const result = ensureNotePanelForDrawer({
+        panels: prev,
+        instances,
+        notes: {},
+        noteModes: {},
+      });
+      if (!result.created) return prev;
+      setWorkspace((prevWorkspace) => workspaceAfterPanelsChanged(result.panels, prevWorkspace));
+      setNotes((prevNotes) => notesAfterPanelAdded(prevNotes, result.panel));
+      setNoteModes((prevModes) => noteModesAfterPanelAdded(prevModes, result.panel));
+      return result.panels;
+    });
+  }, [instances]);
+
+  const toggleNoteDrawer = useCallback(() => {
+    const hasNotePanel = panels.some((panel) => panel.type === "NOTE");
+    if (workbenchLayout.noteOpen) {
+      setWorkbenchLayout((prev) => ({ ...prev, noteOpen: false }));
+      return;
+    }
+    if (!hasNotePanel) {
+      if (headerMode === "learner") return;
+      ensureNoteDrawerPanel();
+    }
+    setWorkbenchLayout((prev) => ({ ...prev, noteOpen: true }));
+  }, [ensureNoteDrawerPanel, headerMode, panels, setWorkbenchLayout, workbenchLayout.noteOpen]);
+
   const resetWorkbenchLayout = useCallback(() => {
     setWorkbenchLayout(DEFAULT_WORKBENCH_LAYOUT);
     setWorkspace((prev) => {
+      const { size: _controlSize, ...controlRegion } = prev.regions.control ?? {};
+      const { size: _noteSize, ...noteRegion } = prev.regions.note ?? {};
+      const { size: _outputSize, ...outputRegion } = prev.regions.output ?? {};
       const nextWorkspace = workspaceForPanels(panels, {
         ...prev,
         regions: {
           ...prev.regions,
-          control: { ...prev.regions.control, position: DEFAULT_WORKBENCH_LAYOUT.controlsSide, size: DEFAULT_WORKBENCH_LAYOUT.controlsWidth },
-          note: { ...prev.regions.note, size: DEFAULT_WORKBENCH_LAYOUT.caseRailWidth },
-          output: { ...prev.regions.output, size: DEFAULT_WORKBENCH_LAYOUT.outputHeight },
+          control: {
+            ...controlRegion,
+            position: DEFAULT_WORKBENCH_LAYOUT.controlsSide,
+            visible: DEFAULT_WORKBENCH_LAYOUT.rightRailVisible,
+          },
+          note: { ...noteRegion, visible: DEFAULT_WORKBENCH_LAYOUT.noteOpen },
+          output: { ...outputRegion, visible: DEFAULT_WORKBENCH_LAYOUT.metricsOpen ? "compact" : false },
         },
         viewStates: undefined,
       });
@@ -300,10 +369,11 @@ export function useWorkbenchPanels({
     addingPanelType,
     addingPanelConfig,
     setAddingPanelConfig,
-    addHiddenInstanceConfigs,
+    addVisibleInstanceConfigs,
     replacePanelState,
     updateDockviewViewState,
     addPanel,
+    duplicatePanel,
     confirmAddPanel,
     cancelAddPanel,
     removePanel,
@@ -314,13 +384,14 @@ export function useWorkbenchPanels({
     updatePanelSignalColor,
     updatePanelSignalName,
     toggleSettings,
-    toggleInstanceVisibility,
+    togglePaneMembership,
     updateInstanceSignals,
     toggleGuides,
     updateTimeWindow,
     updatePanelControllerItems,
     updatePanelLegendPosition,
     onNoteChange,
+    toggleNoteDrawer,
     resetWorkbenchLayout,
     emptyNoteSpine: EMPTY_NOTE_SPINE,
   };

@@ -9,10 +9,11 @@
 //   load: CaseDocument -> SimInstance[]   (resolves knobs->params; verifies the
 //                                          knobMappingVersion, no silent fallback)
 
-import type { SimInstance, PanelDef, PanelRole, WorkbenchRegionId, WorkbenchWorkspace, ControllerItem } from "@/types";
+import type { SimInstance, PanelDef, PanelRole, WorkbenchRegionId, WorkbenchRegionPosition, WorkbenchWorkspace, ControllerItem } from "@/types";
 import type { NoteContent } from "@/noteTypes";
 import type { ExpectedFinding, StructuredModelLimitation } from "@/caseValidation";
 import type { CoreRuntimeParams, ParameterPatch } from "@/engine/protocol";
+import type { GraphBoardLayout, ViewSpec } from "@/features/workbench/viewSpec";
 import {
   type BaselineDef,
   type CaseInstanceSpec,
@@ -100,7 +101,8 @@ export interface CaseLessonLayer {
 
 export type ReadingColumnEntry =
   | { kind: "paneRef"; panelId: string; generated?: boolean }
-  | { kind: "noteRef"; noteId: string };
+  | { kind: "noteRef"; noteId: string }
+  | { kind: "viewRef"; viewId: string };
 
 export interface CaseReadingManifest {
   schemaVersion: 1;
@@ -150,6 +152,9 @@ export interface CaseDocument {
   instances: CaseInstance[];
   panels: PanelDef[];
   workspace?: WorkbenchWorkspace;
+  views?: ViewSpec[];
+  graphBoardLayout?: GraphBoardLayout;
+  initialActiveScenarioId?: string;
   notes?: Record<string, NoteContent>;
   reading?: CaseReadingManifest;
   exposedControllers?: CaseExposedController[];
@@ -208,7 +213,6 @@ function mergeRegionState(
 
 export function defaultWorkspaceForPanels(
   panels: PanelDef[],
-  mode: WorkbenchWorkspace["mode"] = "learn",
 ): WorkbenchWorkspace {
   const graphPanelIds = panelsForRole(panels, "graph");
   const notePanelIds = panelsForRole(panels, "note");
@@ -220,39 +224,62 @@ export function defaultWorkspaceForPanels(
   const regions: WorkbenchWorkspace["regions"] = {
     scenarios: {
       visible: scenariosPanelIds.length > 0,
-      position: "left",
+      position: "right",
       panelIds: scenariosPanelIds,
       activePanelId: scenariosPanelIds[0],
     },
     graph: { visible: true, position: "center", panelIds: graphPanelIds, activePanelId: graphPanelIds[0], split: "single" },
-    note: { visible: notePanelIds.length > 0, position: "right", panelIds: notePanelIds, activePanelId: notePanelIds[0] },
+    note: { visible: notePanelIds.length > 0, position: "left", panelIds: notePanelIds, activePanelId: notePanelIds[0] },
     output: { visible: outputPanelIds.length > 0 ? "compact" : false, position: "bottom", panelIds: outputPanelIds, activePanelId: outputPanelIds[0] },
-    control: { visible: controlPanelIds.length > 0, position: "left", panelIds: controlPanelIds, activePanelId: controlPanelIds[0] },
+    control: { visible: controlPanelIds.length > 0, position: "right", panelIds: controlPanelIds, activePanelId: controlPanelIds[0] },
   };
-  return { schemaVersion: WORKSPACE_SCHEMA_VERSION, mode, regions, learnerLocked: mode === "learn" };
+  return { schemaVersion: WORKSPACE_SCHEMA_VERSION, regions, learnerLocked: true };
+}
+
+export function normalizeWorkspaceForAdr0007(workspace: WorkbenchWorkspace): WorkbenchWorkspace {
+  const regions: WorkbenchWorkspace["regions"] = { ...workspace.regions };
+  const legacyPositions: Partial<Record<WorkbenchRegionId, WorkbenchRegionPosition>> = {
+    scenarios: "left",
+    control: "left",
+    note: "right",
+  };
+  const adr0007Positions: Partial<Record<WorkbenchRegionId, WorkbenchRegionPosition>> = {
+    scenarios: "right",
+    control: "right",
+    note: "left",
+    graph: "center",
+    output: "bottom",
+  };
+
+  for (const region of ["scenarios", "control", "note"] as const) {
+    const current = regions[region];
+    if (!current || current.position !== legacyPositions[region]) continue;
+    regions[region] = { ...current, position: adr0007Positions[region] };
+  }
+
+  return { ...workspace, regions };
 }
 
 export function workspaceForPanels(
   panels: PanelDef[],
   previous?: WorkbenchWorkspace,
-  mode: WorkbenchWorkspace["mode"] = previous?.mode ?? "learn",
 ): WorkbenchWorkspace {
-  const defaults = defaultWorkspaceForPanels(panels, mode);
+  const defaults = defaultWorkspaceForPanels(panels);
   if (!previous) return defaults;
+  const normalizedPrevious = normalizeWorkspaceForAdr0007(previous);
 
   const regions: WorkbenchWorkspace["regions"] = {};
   for (const region of ["scenarios", "control", "graph", "output", "note"] as const) {
-    const merged = mergeRegionState(defaults.regions[region], previous.regions?.[region]);
+    const merged = mergeRegionState(defaults.regions[region], normalizedPrevious.regions?.[region]);
     if (merged) regions[region] = merged;
   }
 
   return {
     ...defaults,
-    mode,
     regions,
-    learnerLocked: previous.learnerLocked ?? defaults.learnerLocked,
-    ...(previous.viewState ? { viewState: previous.viewState } : {}),
-    ...(previous.viewStates ? { viewStates: previous.viewStates } : {}),
+    learnerLocked: normalizedPrevious.learnerLocked ?? defaults.learnerLocked,
+    ...(normalizedPrevious.viewState ? { viewState: normalizedPrevious.viewState } : {}),
+    ...(normalizedPrevious.viewStates ? { viewStates: normalizedPrevious.viewStates } : {}),
   };
 }
 
@@ -335,7 +362,12 @@ export function simInstancesToCaseDocument(
     spec: CaseSpec;
     solver?: SolverConfig;
     workspace?: WorkbenchWorkspace;
+    views?: ViewSpec[];
+    graphBoardLayout?: GraphBoardLayout;
+    initialActiveScenarioId?: string;
     notes?: Record<string, NoteContent>;
+    reading?: CaseReadingManifest;
+    exposedControllers?: CaseExposedController[];
     lesson?: CaseLessonLayer;
     defaultLocale?: string;
     availableLocales?: string[];
@@ -377,7 +409,12 @@ export function simInstancesToCaseDocument(
     instances: caseInstances,
     panels,
     workspace: opts.workspace ?? defaultWorkspaceForPanels(panels),
+    ...(opts.views ? { views: opts.views } : {}),
+    ...(opts.graphBoardLayout ? { graphBoardLayout: opts.graphBoardLayout } : {}),
+    ...(opts.initialActiveScenarioId ? { initialActiveScenarioId: opts.initialActiveScenarioId } : {}),
     ...(notes ? { notes } : {}),
+    ...(opts.reading ? { reading: opts.reading } : {}),
+    ...(opts.exposedControllers ? { exposedControllers: opts.exposedControllers } : {}),
     ...(opts.lesson ? { lesson: opts.lesson } : {}),
   };
 }

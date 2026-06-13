@@ -4,6 +4,8 @@
 - Date: 2026-06-01
 - Updated: 2026-06-02; **2026-06-05 scoped to Studio**
 
+> **Status note (2026-06-11):** Partially superseded by [ADR-0007](0007-workbench-ia-redesign.md). The four-zone Dockview direction is narrowed: Dockview is now main Graph Board only; note, right rail, and metrics are fixed hosts.
+
 > **Update (2026-06-05):** "the Dockview shell is **always** the desktop renderer" below is now **scoped to the Studio presentation only**. The Reading presentation (lesson / official / community case) is a single-column article and is **not** Dockview on any form factor. See [ADR-0005](0005-case-presentation-modes.md).
 
 ## Context

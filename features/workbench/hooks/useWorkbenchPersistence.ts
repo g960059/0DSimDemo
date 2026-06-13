@@ -13,11 +13,13 @@ import { createUserCaseId, fetchCase, isValidCaseId, saveCase } from "@/caseClou
 import { exportCaseFile, readCaseFile, saveDraft } from "@/casePersist";
 import { resolveLocalizedCaseDocument, upsertCaseLocaleContent } from "@/contentI18n";
 import { officialCaseById } from "@/officialCases";
-import { remapCaseI18nContentIds, remapWorkbenchLoadIds } from "@/workbenchLoad";
+import { remapCaseDocumentViewIds, remapCaseI18nContentIds, remapWorkbenchLoadIds } from "@/workbenchLoad";
 import { DEFAULT_MODEL_LIMITATIONS } from "@/features/workbench/workbenchDefaults";
+import { graphPanelsOnly, mainDockviewViewStatesOnly } from "@/features/workbench/p1aStructuralHosts";
+import { graphBoardLayoutFromPanels, normalizeGraphBoardLayout } from "@/features/workbench/viewSpec";
+import { serializableAuthoredViews } from "@/features/workbench/authoredViews";
 import type { WorkbenchSceneState } from "@/features/workbench/hooks/useWorkbenchScene";
 import type { WorkbenchPanelsState } from "@/features/workbench/hooks/useWorkbenchPanels";
-import type { LessonAuthoringState } from "@/features/workbench/hooks/useLessonAuthoring";
 import { allCasesHref, caseHref, homeHref } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
 
@@ -39,6 +41,7 @@ export type BuildCurrentDocOverrides = {
   createdAt?: number;
   updatedAt?: number;
   includeNotes?: boolean;
+  initialActiveScenarioId?: string;
 };
 
 export type BuildCurrentDoc = (overrides?: BuildCurrentDocOverrides) => CaseDocument;
@@ -49,7 +52,6 @@ export function useWorkbenchPersistence({
   signIn,
   scene,
   panels,
-  lesson,
   userEditedRef,
   buildCurrentDocRef,
   pushWarningToast,
@@ -59,7 +61,6 @@ export function useWorkbenchPersistence({
   signIn: () => Promise<AuthUser>;
   scene: WorkbenchSceneState;
   panels: WorkbenchPanelsState;
-  lesson: LessonAuthoringState;
   userEditedRef: MutableRefObject<boolean>;
   buildCurrentDocRef: MutableRefObject<BuildCurrentDoc | null>;
   pushWarningToast: (name: string, message: string) => void;
@@ -75,12 +76,9 @@ export function useWorkbenchPersistence({
   const loadNonceRef = useRef(0);
   const routeLoadCaseId = routeCaseId ?? searchParams.get("case");
   const routeLoadKey = routeLoadCaseId ? `${locale}:${routeLoadCaseId}` : undefined;
-  const stepsDraftLengthRef = useRef(lesson.stepsDraft.length);
-  stepsDraftLengthRef.current = lesson.stepsDraft.length;
 
   const { replaceSceneFromDoc } = scene;
   const { replacePanelState } = panels;
-  const { resetLessonState } = lesson;
 
   const defaultSceneTitle = useCallback(() => (
     scene.sceneMeta.title.trim() || (scene.instances[0] ? `${scene.instances[0].name} case` : "Workbench case")
@@ -92,6 +90,10 @@ export function useWorkbenchPersistence({
     const modelLimitations = scene.sceneMeta.modelLimitations.length > 0
       ? scene.sceneMeta.modelLimitations
       : DEFAULT_MODEL_LIMITATIONS;
+    const graphPanels = graphPanelsOnly(panels.panels);
+    const graphPanelIds = graphPanels.map((panel) => panel.id);
+    const normalizedGraphBoardLayout = normalizeGraphBoardLayout(scene.currentCaseGraphBoardLayout, { graphViewIds: graphPanelIds }).layout
+      ?? graphBoardLayoutFromPanels(graphPanels);
     const doc = simInstancesToCaseDocument(scene.instances, panels.panels, {
       id: overrides.id ?? `wb-${now}`,
       title,
@@ -108,8 +110,19 @@ export function useWorkbenchPersistence({
         ...(scene.sceneMeta.description.trim() ? { description: scene.sceneMeta.description.trim() } : {}),
         modelLimitations,
       },
-      workspace: workspaceForPanels(panels.panels, panels.workspace),
+      // P1a keeps legacy PanelDef hosts for document compatibility, but Dockview
+      // display state is live only for the main Graph Board. Older documents may
+      // load side/bottom/caseRail viewStates; saves intentionally drop them.
+      workspace: mainDockviewViewStatesOnly(workspaceForPanels(panels.panels, panels.workspace)),
       notes: overrides.includeNotes === false ? undefined : panels.notes,
+      reading: scene.currentCaseReading,
+      exposedControllers: scene.currentCaseExposedControllers,
+      // P2a re-enables ViewSpec persistence for authored controller/metrics
+      // views because they are now live Workbench document content. Graph views
+      // remain represented by graphBoardLayout + legacy graph panels here.
+      views: serializableAuthoredViews(scene.currentCaseViews),
+      graphBoardLayout: normalizedGraphBoardLayout,
+      initialActiveScenarioId: overrides.initialActiveScenarioId ?? scene.activeInstanceId,
       defaultLocale: scene.currentCaseDefaultLocale ?? locale,
       availableLocales: scene.currentCaseAvailableLocales,
       i18n: scene.currentCaseI18n,
@@ -126,6 +139,11 @@ export function useWorkbenchPersistence({
     scene.currentCaseDerivedFrom,
     scene.currentCaseDefaultLocale,
     scene.currentCaseI18n,
+    scene.currentCaseReading,
+    scene.currentCaseExposedControllers,
+    scene.currentCaseViews,
+    scene.currentCaseGraphBoardLayout,
+    scene.activeInstanceId,
     scene.currentCaseOwnerId,
     scene.currentCaseSource,
     scene.instances,
@@ -143,34 +161,37 @@ export function useWorkbenchPersistence({
       const nonce = `${Date.now().toString(36)}${(loadNonceRef.current++).toString(36)}`;
       const remapped = remapWorkbenchLoadIds(loaded, localized.panels, nonce);
       const panelIdMap = new Map(localized.panels.map((panel, index) => [panel.id, remapped.panels[index]?.id ?? panel.id]));
-      const retainedDoc: CaseDocument = {
+      const retainedDoc: CaseDocument = remapCaseDocumentViewIds({
         ...localized,
         i18n: remapCaseI18nContentIds(localized.i18n, {
           instanceIdMap: remapped.idMap,
           panelIdMap,
         }),
-      };
+      }, {
+        instanceIdMap: remapped.idMap,
+        panelIdMap,
+      });
 
       replaceSceneFromDoc({
         doc: retainedDoc,
         instances: remapped.instances,
         activeInstanceId: remapped.activeInstanceId,
+        panels: remapped.panels,
         trustedOfficial: opts.trustedOfficial,
       });
       replacePanelState({
         panels: remapped.panels,
         workspace: localized.workspace,
-        notes: localized.notes ?? {},
+        notes: retainedDoc.notes ?? {},
         noteCaseKey: `${localized.meta.id}:${nonce}`,
       });
-      resetLessonState();
       userEditedRef.current = false;
       return true;
     } catch (err) {
       pushWarningToast("Case load", (err as Error).message);
       return false;
     }
-  }, [locale, pushWarningToast, replacePanelState, replaceSceneFromDoc, resetLessonState, userEditedRef]);
+  }, [locale, pushWarningToast, replacePanelState, replaceSceneFromDoc, userEditedRef]);
 
   const replaceWorkbenchDocRef = useRef(replaceWorkbenchDoc);
   replaceWorkbenchDocRef.current = replaceWorkbenchDoc;
@@ -196,7 +217,7 @@ export function useWorkbenchPersistence({
       }
 
       if (replaceWorkbenchDocRef.current(loaded.doc, {
-        confirm: userEditedRef.current || stepsDraftLengthRef.current > 0,
+        confirm: userEditedRef.current,
         trustedOfficial: loaded.trustedOfficial,
       })) {
         lastLoadedCaseIdRef.current = routeLoadKey ?? routeLoadCaseId;
@@ -218,11 +239,11 @@ export function useWorkbenchPersistence({
 
   const handleImportFile = useCallback(async (file: File) => {
     try {
-      replaceWorkbenchDoc(await readCaseFile(file), { confirm: userEditedRef.current || lesson.stepsDraft.length > 0 });
+      replaceWorkbenchDoc(await readCaseFile(file), { confirm: userEditedRef.current });
     } catch (err) {
       window.alert(`Import failed: ${(err as Error).message}`);
     }
-  }, [lesson.stepsDraft.length, replaceWorkbenchDoc, userEditedRef]);
+  }, [replaceWorkbenchDoc, userEditedRef]);
 
   const cacheCurrentDraft = useCallback((doc: CaseDocument) => {
     saveDraft(doc);
@@ -274,6 +295,9 @@ export function useWorkbenchPersistence({
     const caseDoc = buildCurrentDoc({
       id: caseId,
       title,
+      // Fork seeds the copy from the VIEWER's current runtime state — the
+      // active scenario is part of that state (ADR-0007).
+      ...(opts.copy ? { initialActiveScenarioId: scene.activeInstanceId } : {}),
       author: userDisplayName(activeUser),
       ownerId: activeUser.uid,
       status: "draft",
@@ -321,9 +345,12 @@ export function useWorkbenchPersistence({
         defaultLocale: nextDoc.defaultLocale,
         availableLocales: nextDoc.availableLocales,
         i18n: nextDoc.i18n,
+        reading: nextDoc.reading,
+        exposedControllers: nextDoc.exposedControllers,
+        views: serializableAuthoredViews(nextDoc.views),
+        graphBoardLayout: nextDoc.graphBoardLayout,
+        initialActiveScenarioId: nextDoc.initialActiveScenarioId,
       });
-      lesson.setSavedLesson(null);
-      lesson.setPublishedLesson(null);
       lastLoadedCaseIdRef.current = `${locale}:${caseId}`;
       navigate(caseHref(caseId, locale), { replace: true });
       pushWarningToast("Case save", opts.copy ? "Created an editable copy." : "Saved case.");
@@ -335,7 +362,6 @@ export function useWorkbenchPersistence({
     cacheCurrentDraft,
     defaultSceneTitle,
     isSavingCase,
-    lesson,
     locale,
     navigate,
     pushWarningToast,

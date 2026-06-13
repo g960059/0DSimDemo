@@ -3,6 +3,7 @@ import { DEFAULT_PARAMS } from "@/constants";
 import {
   createDefaultPanelConfig,
   createPanelDef,
+  ensureNotePanelForDrawer,
   noteModesAfterPanelAdded,
   noteModesAfterPanelRemoved,
   notesAfterPanelAdded,
@@ -81,5 +82,34 @@ describe("workbench panel model", () => {
     expect(noteModesAfterPanelAdded(modes, graphPanel)).toBe(modes);
     expect(notesAfterPanelRemoved(notes, "note")).toEqual({});
     expect(noteModesAfterPanelRemoved(modes, "note")).toEqual({});
+  });
+
+  it("creates a drawer note with note content and edit mode when missing", () => {
+    const graphPanel: PanelDef = createPanelDef("PVLOOP", {}, "main", "pv");
+    const result = ensureNotePanelForDrawer({
+      panels: [graphPanel],
+      instances: [instance("1")],
+      notes: {},
+      noteModes: {},
+      id: "drawer-note",
+    });
+
+    expect(result.created).toBe(true);
+    expect(result.panel).toMatchObject({ id: "drawer-note", type: "NOTE", zone: "caseRail" });
+    expect(result.panels.some((panel) => panel.id === "drawer-note")).toBe(true);
+    expect(result.notes).toEqual({ "drawer-note": EMPTY_NOTE_SPINE });
+    expect(result.noteModes).toEqual({ "drawer-note": "edit" });
+
+    const second = ensureNotePanelForDrawer({
+      panels: result.panels,
+      instances: [instance("1")],
+      notes: result.notes,
+      noteModes: result.noteModes,
+      id: "other",
+    });
+
+    expect(second.created).toBe(false);
+    expect(second.panel.id).toBe("drawer-note");
+    expect(second.panels).toBe(result.panels);
   });
 });

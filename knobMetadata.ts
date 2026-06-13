@@ -1,5 +1,6 @@
 import { KNOB_RANGES, KNOB_TEACHING_SAFE, type KnobKey } from "./engine/knobs";
 import type { NumericKnobKey } from "./lessonDoc";
+import { rawParamCatalogEntry } from "./rawParameterCatalog";
 import type { ControllerItem } from "./types";
 
 // Canonical single source of numeric-knob labels/steps.
@@ -63,6 +64,20 @@ export function knobControllerMetadata(
   };
 }
 
+export function rawParamControllerMetadata(
+  paramKey: string,
+): { label?: string; min?: number; max?: number; step?: number; unit?: string } | undefined {
+  const entry = rawParamCatalogEntry(paramKey);
+  if (!entry) return undefined;
+  return {
+    label: entry.label,
+    min: entry.min,
+    max: entry.max,
+    step: entry.step,
+    ...(entry.unit ? { unit: entry.unit } : {}),
+  };
+}
+
 // relaxation/diastolicStiffness will gain presets once teaching-safe bands are
 // defined in a physiology pass; do not derive presets from the hard clamp.
 const VALVE_LESION_SEVERITY_KEYS = new Set<string>([
@@ -101,7 +116,7 @@ function dedupeReadingOptionsByValue(options: { label: string; value: number }[]
 }
 
 export function defaultControllerItemFor(paramKey: string): ControllerItem {
-  const m = knobControllerMetadata(paramKey);
+  const m = knobControllerMetadata(paramKey) ?? rawParamControllerMetadata(paramKey);
   return {
     paramKey,
     kind: "slider",

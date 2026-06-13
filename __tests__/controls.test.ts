@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "@/i18n";
 import { Controls, getChangedClinicalControls, resetClinicalKnobsToBaseline } from "@/components/Controls";
+import { CONTROLLER_CATALOG } from "@/controllerCatalog";
 import { DEFAULT_PARAMS } from "@/constants";
 import { neutralKnobs } from "@/engine/knobs";
 import { defaultControllerItemFor, readingButtonOptionsFor } from "@/knobMetadata";
@@ -120,7 +121,7 @@ describe("Controls", () => {
       presentationMode: "reading",
     }));
 
-    expect(html).toContain(i18n.t("workbench.controls.groups.clinical"));
+    expect(html).not.toContain(i18n.t("workbench.controls.groups.clinical"));
     expect(html).toContain(i18n.t("workbench.controls.knobs.contractility"));
     expect(html).toContain(i18n.t("workbench.controls.options.low"));
     expect(html).toContain(i18n.t("workbench.controls.options.normal"));
@@ -154,9 +155,44 @@ describe("Controls", () => {
     expect(html).toContain("LV Focus");
     expect(html).not.toContain(i18n.t("workbench.controls.knobs.contractilityRV"));
     expect(html).not.toContain(i18n.t("workbench.controls.knobs.afterload"));
-    expect(html).toContain("1 changed");
-    expect(html).toContain(`aria-label="${i18n.t("workbench.controls.resetClinicalBaseline")}"`);
-    expect(html).toContain(i18n.t("workbench.controls.customReplaceDefault"));
+    expect(html).not.toContain(i18n.t("workbench.controls.groups.clinical"));
+    expect(html).not.toContain(i18n.t("workbench.controls.customReplaceDefault"));
+    expect(html).not.toContain(i18n.t("workbench.controls.customControls"));
+  });
+
+  it("renders category labels for long authored controller views only", () => {
+    const instance: SimInstance = {
+      id: "normal",
+      name: "Normal",
+      color: "#3b82f6",
+      params: { ...DEFAULT_PARAMS },
+      targetVolume: 5000,
+      isVisible: true,
+      knobs: neutralKnobs(DEFAULT_PARAMS),
+      knobBaseline: { ...DEFAULT_PARAMS },
+    };
+    const renderAuthored = (controllerItems: React.ComponentProps<typeof Controls>["controllerItems"]) => renderToStaticMarkup(React.createElement(Controls, {
+      instances: [instance],
+      activeInstanceId: instance.id,
+      updateInstanceParams: vi.fn(),
+      updateInstanceKnobs: vi.fn(),
+      updateInstanceVolume: vi.fn(),
+      controllerItems,
+    }));
+
+    const smallHtml = renderAuthored([
+      { paramKey: "contractility", kind: "slider" },
+      { paramKey: "HR", kind: "slider" },
+      { paramKey: "aorticStenosis", kind: "slider" },
+    ]);
+    expect(smallHtml).not.toContain(i18n.t("workbench.controls.categories.cardiacFunction"));
+    expect(smallHtml).not.toContain(i18n.t("workbench.controls.categories.loadRate"));
+    expect(smallHtml).not.toContain(i18n.t("workbench.controls.categories.valveLesions"));
+
+    const standardHtml = renderAuthored(CONTROLLER_CATALOG.map((entry) => ({ paramKey: entry.key, kind: "slider" as const })));
+    expect(standardHtml).toContain(i18n.t("workbench.controls.categories.cardiacFunction"));
+    expect(standardHtml).toContain(i18n.t("workbench.controls.categories.loadRate").replace("&", "&amp;"));
+    expect(standardHtml).toContain(i18n.t("workbench.controls.categories.valveLesions"));
   });
 
   it("localizes default authored controller labels and options at display time", async () => {
@@ -323,7 +359,8 @@ describe("Controls", () => {
     expect(changed).toEqual(authoredControls);
     expect(reset.contractility).toBe(baseline.contractility);
     expect(reset.afterload).toBe(knobs.afterload);
-    expect(html).toContain("1 changed");
-    expect(html).not.toContain("2 changed");
+    expect(html).toContain("LV Focus");
+    expect(html).not.toContain(i18n.t("workbench.controls.groups.clinical"));
+    expect(html).not.toContain(i18n.t("workbench.controls.groups.global"));
   });
 });

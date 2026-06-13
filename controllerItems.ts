@@ -1,10 +1,17 @@
 import { CONTROLLER_CATALOG } from "./controllerCatalog";
 import { KNOB_RANGES, type KnobKey } from "./engine/knobs";
 import { KNOB_STEPS, roundToStep } from "./knobMetadata";
+import { rawParamCatalogEntry } from "./rawParameterCatalog";
 import type { ControllerItem } from "./types";
 
 const VALID_KINDS = new Set<ControllerItem["kind"]>(["slider", "buttonGroup", "knob", "custom"]);
-const catalogByKey = new Map(CONTROLLER_CATALOG.map((entry) => [entry.key, entry]));
+const catalogByKey = new Map<string, (typeof CONTROLLER_CATALOG)[number]>(CONTROLLER_CATALOG.map((entry) => [entry.key, entry]));
+const AUTHORED_CATEGORY_LABEL_MIN_ITEMS = 7;
+
+export type ControllerItemGroup = {
+  category: string;
+  items: ControllerItem[];
+};
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -14,9 +21,63 @@ function finiteOr(value: number | undefined, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
+function catalogDefaultsFor(paramKey: string): { label: string; rangeMin: number; rangeMax: number; step: number } | undefined {
+  const clinical = catalogByKey.get(paramKey);
+  if (clinical) {
+    const range = KNOB_RANGES[paramKey as KnobKey];
+    return {
+      label: clinical.label,
+      rangeMin: range?.[0] ?? 0,
+      rangeMax: range?.[1] ?? 1,
+      step: clinical.step ?? KNOB_STEPS[paramKey as keyof typeof KNOB_STEPS] ?? 0.01,
+    };
+  }
+
+  const raw = rawParamCatalogEntry(paramKey);
+  if (!raw) return undefined;
+  return {
+    label: raw.label,
+    rangeMin: raw.min,
+    rangeMax: raw.max,
+    step: raw.step,
+  };
+}
+
+export function controllerItemCategory(item: Pick<ControllerItem, "paramKey">): string {
+  return catalogByKey.get(item.paramKey)?.category
+    ?? rawParamCatalogEntry(item.paramKey)?.category
+    ?? "other";
+}
+
+export function groupControllerItemsByCategory(items: ControllerItem[]): ControllerItemGroup[] {
+  if (items.length === 0) return [];
+
+  const categories = items.map(controllerItemCategory);
+  const shouldGroup = items.length >= AUTHORED_CATEGORY_LABEL_MIN_ITEMS && new Set(categories).size > 1;
+  if (!shouldGroup) {
+    return [{ category: categories[0] ?? "other", items: [...items] }];
+  }
+
+  const groups: ControllerItemGroup[] = [];
+  for (let index = 0; index < items.length; index += 1) {
+    const item = items[index];
+    const category = categories[index] ?? "other";
+    const currentGroup = groups[groups.length - 1];
+    if (currentGroup?.category === category) {
+      currentGroup.items.push(item);
+    } else {
+      groups.push({ category, items: [item] });
+    }
+  }
+  return groups;
+}
+
 function stepFor(paramKey: string): number {
-  const catalogStep = catalogByKey.get(paramKey as keyof typeof KNOB_STEPS)?.step;
-  return catalogStep ?? KNOB_STEPS[paramKey as keyof typeof KNOB_STEPS] ?? 0.01;
+  return catalogDefaultsFor(paramKey)?.step ?? 0.01;
+}
+
+function normalizedStep(value: number | undefined, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
 function normalizedLabel(value: unknown, fallback: string): string {
@@ -29,10 +90,10 @@ function normalizedLabelKey(value: unknown): string | undefined {
 }
 
 export function buttonOptionsFromRange(item: ControllerItem): { label: string; value: number }[] {
-  const range = KNOB_RANGES[item.paramKey as KnobKey];
-  const min = finiteOr(item.min, range?.[0] ?? 0);
-  const max = finiteOr(item.max, range?.[1] ?? 1);
-  const step = finiteOr(item.step, stepFor(item.paramKey));
+  const defaults = catalogDefaultsFor(item.paramKey);
+  const min = finiteOr(item.min, defaults?.rangeMin ?? 0);
+  const max = finiteOr(item.max, defaults?.rangeMax ?? 1);
+  const step = normalizedStep(item.step, defaults?.step ?? stepFor(item.paramKey));
   const mid = roundToStep((min + max) / 2, step);
   return [
     { label: "Low", value: roundToStep(min, step) },
@@ -47,8 +108,8 @@ export function normalizeControllerItems(items: ControllerItem[]): { items: Cont
   const normalized: ControllerItem[] = [];
 
   for (const item of items) {
-    const catalog = catalogByKey.get(item.paramKey as keyof typeof KNOB_STEPS);
-    if (!catalog) {
+    const defaults = catalogDefaultsFor(item.paramKey);
+    if (!defaults) {
       warnings.push(`Dropped unknown controller item "${item.paramKey}".`);
       continue;
     }
@@ -58,24 +119,22 @@ export function normalizeControllerItems(items: ControllerItem[]): { items: Cont
     }
     seenItems.add(item.paramKey);
 
-    const range = KNOB_RANGES[item.paramKey as KnobKey];
-    const rangeMin = range?.[0] ?? 0;
-    const rangeMax = range?.[1] ?? 1;
-    const step = stepFor(item.paramKey);
+    const { rangeMin, rangeMax } = defaults;
+    const step = normalizedStep(item.step, defaults.step);
     const rawMin = finiteOr(item.min, rangeMin);
     const rawMax = finiteOr(item.max, rangeMax);
     let min = roundToStep(clamp(rawMin, rangeMin, rangeMax), step);
     let max = roundToStep(clamp(rawMax, rangeMin, rangeMax), step);
     if (min > max) {
       warnings.push(`Reset inverted range for "${item.paramKey}".`);
-      min = rangeMin;
-      max = rangeMax;
+      min = roundToStep(rangeMin, step);
+      max = roundToStep(rangeMax, step);
     }
 
     let kind: ControllerItem["kind"] = VALID_KINDS.has(item.kind) ? item.kind : "slider";
     if (kind !== item.kind) warnings.push(`Coerced invalid kind for "${item.paramKey}" to slider.`);
 
-    const label = normalizedLabel(item.label, catalog.label);
+    const label = normalizedLabel(item.label, defaults.label);
     const next: ControllerItem = {
       paramKey: item.paramKey,
       kind,

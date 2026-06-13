@@ -6,12 +6,15 @@ import { resolve } from "node:path";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "@/i18n";
 import { ChartLegend, shouldEnableLegendInteractions } from "@/components/Charts";
-import { PanelGrid, getActiveSettingsSectionId, getDockviewPaneTitle, openPanelSettingsIfClosed, type PanelGridMode } from "@/components/workbench/PanelGrid";
+import { PanelGrid, getActiveSettingsSectionId, getDockviewPaneTitle, metricsBindingsToDockviewPanels, metricsViewsToDockviewPanels, openPanelSettingsIfClosed, syncMetricsDockviewPanelBindings, type PanelGridMode, type WorkbenchLayoutState } from "@/components/workbench/PanelGrid";
 import { ScenarioPane } from "@/components/workbench/ScenarioPane";
-import { getDockviewStructureSignature, getDockviewTabMenuPosition } from "@/components/workbench/WorkbenchDockview";
-import { addHiddenInstanceConfigsToPanels } from "@/WorkbenchPage";
+import { getDockviewStructureSignature, getDockviewTabMenuPosition, isDockviewHorizontalOnlyDropAllowed, shouldReapplyDockviewLayout } from "@/components/workbench/WorkbenchDockview";
+import { standardAuthoredViews } from "@/features/workbench/authoredViews";
+import { createAuthorRuntimeSnapshot, resolveAuthorActiveInstanceId } from "@/features/workbench/hooks/useWorkbenchScene";
+import { addVisibleInstanceConfigsToPanels } from "@/WorkbenchPage";
 import { DEFAULT_PARAMS } from "@/constants";
 import type { SteadyUpdateStatusMap } from "@/engine/previewController";
+import type { MetricsViewSpec } from "@/features/workbench/viewSpec";
 import type { PanelDef, SimInstance } from "@/types";
 
 // These tests cover layout shell behavior, not BlockNote behavior. Keeping NotePanel
@@ -46,9 +49,10 @@ function renderPanelGrid(
   controlGroups: string[] = [],
   steadyUpdateStatuses: SteadyUpdateStatusMap = {},
   isMobile = false,
+  layoutOverrides: Partial<WorkbenchLayoutState> = {},
 ) {
   return renderToStaticMarkup(
-    createPanelGrid(mode, panels, instances, controlGroups, steadyUpdateStatuses, isMobile),
+    createPanelGrid(mode, panels, instances, controlGroups, steadyUpdateStatuses, isMobile, layoutOverrides),
   );
 }
 
@@ -59,25 +63,50 @@ function createPanelGrid(
   controlGroups: string[] = [],
   steadyUpdateStatuses: SteadyUpdateStatusMap = {},
   isMobile = false,
+  layoutOverrides: Partial<WorkbenchLayoutState> = {},
 ) {
+  let nextViewId = 0;
   return React.createElement(PanelGrid, {
-    authoringMode: false,
-    publishedLesson: null,
-    copyShareUrl: noop,
     instances,
-    stepsDraft: [],
-    setStepsDraft: noop,
     panels,
     layoutState: {
-      controlsSide: "left",
+      controlsSide: "right",
       controlsWidth: 320,
-      caseRailWidth: 260,
+      caseRailWidth: 400,
       outputHeight: 190,
+      noteOpen: false,
+      metricsOpen: false,
+      rightRailVisible: true,
+      rightRailView: "scenarios",
+      scenarioListCollapsed: false,
+      scenarioListMaxRatio: 0.4,
+      metricsSpan: "main",
+      ...layoutOverrides,
     },
     onLayoutStateChange: noop,
     dockviewLayoutKey: "test",
     dockviewViewStates: undefined,
     onDockviewViewStateChange: noop,
+    authoredViews: standardAuthoredViews((kind) => `${kind}-${nextViewId++}`, instances, "en"),
+    createControllerView: (title: string, items = []) => ({
+      id: "controller-test",
+      title,
+      kind: "controller" as const,
+      items,
+      binding: { slot: "active" as const },
+    }),
+    createMetricsView: (title: string, metrics = []) => ({
+      id: "metrics-test",
+      title,
+      kind: "metrics" as const,
+      metrics,
+      membership: {},
+    }),
+    updateAuthoredView: noop,
+    renameAuthoredView: noop,
+    restoreStandardViews: noop,
+    duplicateAuthoredView: () => undefined,
+    deleteAuthoredView: noop,
     mode,
     isMobile,
     noteModes: {},
@@ -85,20 +114,23 @@ function createPanelGrid(
     physicsRefs: { current: new Map() },
     instanceHealth: {},
     steadyUpdateStatuses,
-    activeInstanceId: "",
+    activeInstanceId: instances[0]?.id ?? "",
     setActiveInstanceId: noop,
     updateInstanceParams: noop,
     updateInstanceKnobs: noop,
     updateInstanceVolume: noop,
     updateInstanceColor: noop,
     updateInstanceName: noop,
+    toggleScenarioGlobalVisibility: noop,
+    resetInstanceKnobs: noop,
     addInstance: noop,
     removeInstance: noop,
     timeScale: 1,
     setTimeScale: noop,
     isPlaying: true,
     togglePlay: noop,
-    addPanel: noop,
+    addPanel: () => undefined,
+    duplicatePanel: () => undefined,
     removePanel: noop,
     updatePanelTitle: noop,
     toggleShowLegend: noop,
@@ -107,7 +139,7 @@ function createPanelGrid(
     updatePanelSignalColor: noop,
     updatePanelSignalName: noop,
     toggleSettings: noop,
-    toggleInstanceVisibility: noop,
+    togglePaneMembership: noop,
     updateInstanceSignals: noop,
     toggleGuides: noop,
     updateTimeWindow: noop,
@@ -118,7 +150,7 @@ function createPanelGrid(
     onNoteChange: noop,
     chambers: [],
     signals: [],
-    metrics: [],
+    metrics: ["ABP"],
     controlGroups,
   });
 }
@@ -171,7 +203,7 @@ const normalInstance: SimInstance = {
   id: "normal",
   name: "Normal",
   color: "#a855f7",
-  params: {} as SimInstance["params"],
+  params: { ...DEFAULT_PARAMS },
   targetVolume: 5000,
   isVisible: true,
 };
@@ -229,8 +261,30 @@ const scenariosPanel: PanelDef = {
   isSettingsOpen: false,
 };
 
+const notePanel: PanelDef = {
+  id: "note",
+  type: "NOTE",
+  title: "Note",
+  zone: "caseRail",
+  w: 6,
+  h: 10,
+  config: { normal: { visible: false, selectedSignals: [] } },
+  isSettingsOpen: false,
+};
+
+const metricsPanel: PanelDef = {
+  id: "metrics",
+  type: "METRICS",
+  title: "Metrics",
+  zone: "bottomPanel",
+  w: 4,
+  h: 4,
+  config: { normal: { visible: true, selectedSignals: ["ABP"] } },
+  isSettingsOpen: false,
+};
+
 describe("PanelGrid Dockview layout", () => {
-  it.each(["learner", "author", "sandbox"] as const)("does not render a separate layout edit toolbar in %s mode", (mode) => {
+  it.each(["learner", "sandbox"] as const)("does not render a separate layout edit toolbar in %s mode", (mode) => {
     const html = renderPanelGrid(mode);
 
     expect(html).not.toContain("Edit layout");
@@ -239,18 +293,18 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).not.toContain("panel-grid-editor");
   });
 
-  it.each(["learner", "author", "sandbox"] as const)("renders the workbench layout for %s mode", async (mode) => {
+  it.each(["learner", "sandbox"] as const)("renders the workbench layout for %s mode", async (mode) => {
     const html = await renderPanelGridAllReady(mode);
 
     expect(html).toContain("No panels");
   });
 
-  it("keeps add controls available in empty editable zones", () => {
+  it("keeps add controls available only in the main graph board", () => {
     const html = renderPanelGrid("sandbox");
 
     expect(html).toContain("Add Main pane");
-    expect(html).toContain("Add Controls pane");
-    expect(html).toContain("Add Outputs pane");
+    expect(html).not.toContain("Add Controls pane");
+    expect(html).not.toContain("Add Outputs pane");
   });
 
   it("hides add and pane settings chrome for learner mode", () => {
@@ -295,7 +349,7 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).toContain("pointer-events-auto");
     expect(html).toContain("cursor-grab");
     expect(html).toContain("hover:ring-1");
-    expect(html).toContain("hover:ring-sky-400/40");
+    expect(html).toContain("hover:ring-wb-accent");
     expect(html).toContain("title=\"Drag to move · double-click to edit\"");
     expect(html).not.toContain("<button");
     expect(html).not.toContain("aria-label=\"Open pane settings\"");
@@ -412,11 +466,56 @@ describe("PanelGrid Dockview layout", () => {
     const dockviewSource = readFileSync(resolve(process.cwd(), "components/workbench/WorkbenchDockview.tsx"), "utf8");
 
     expect(dockviewSource).toContain("workbench-dock-tab-menu-button inline-flex h-5 w-5");
+    expect(dockviewSource).toContain("workbench-dock-tab-close-button inline-flex h-5 w-5");
+    expect(dockviewSource).toContain("workbench.panelGrid.closePanelAria");
     expect(dockviewSource).toContain("event.stopPropagation();");
+    expect(dockviewSource).toContain("draggable={false}");
+    expect(dockviewSource).toContain("wb-tab-dragging");
     expect(css).toContain(".workbench-dock-tab-menu-button");
+    expect(css).toContain(".workbench-dock-tab-close-button");
     expect(css).toContain(".workbench-dock-tab:hover .workbench-dock-tab-menu-button");
+    expect(css).toContain(".workbench-dockview.wb-tab-dragging .workbench-dock-tab-actions");
+    expect(css).toContain(".dv-tabs-and-actions-container.wb-tab-insertion-target::before");
+    expect(css).toContain("width: 2px;");
+    expect(css).toContain("background: var(--wb-accent);");
     expect(css).toContain("@media (hover: none)");
     expect(css).toContain(".dv-tab.dv-active-tab .workbench-dock-tab-menu-button");
+  });
+
+  it("keeps the add-pane action next to tabs and the split action at the far header edge", () => {
+    const css = readFileSync(resolve(process.cwd(), "index.css"), "utf8");
+    const dockviewSource = readFileSync(resolve(process.cwd(), "components/workbench/WorkbenchDockview.tsx"), "utf8");
+
+    expect(dockviewSource).toContain("leftHeaderActionsComponent={WorkbenchDockHeaderLeftActions}");
+    expect(dockviewSource).toContain("rightHeaderActionsComponent={WorkbenchDockHeaderRightActions}");
+    expect(dockviewSource).toContain("<Columns2 className=\"h-3.5 w-3.5\"");
+    expect(dockviewSource).toContain("<Rows2 className=\"h-3.5 w-3.5\"");
+    expect(dockviewSource).not.toContain("Split } from 'lucide-react'");
+    expect(css).toContain("margin-left: auto;");
+    expect(css).toContain("flex: 1 1 auto;");
+  });
+
+  it("lets Dockview tabs scroll horizontally while header actions stay outside the scroll area", () => {
+    const css = readFileSync(resolve(process.cwd(), "index.css"), "utf8");
+
+    expect(css).toContain(".workbench-dockview .dv-scrollable");
+    expect(css).toContain("overflow-x: auto;");
+    expect(css).toContain(".workbench-dockview .dv-scrollable > .dv-tabs-container");
+    expect(css).toContain("overflow: visible;");
+  });
+
+  it("uses the shared Dockview tab grammar for the metrics host", () => {
+    const css = readFileSync(resolve(process.cwd(), "index.css"), "utf8");
+    const panelGridSource = readFileSync(resolve(process.cwd(), "components/workbench/PanelGrid.tsx"), "utf8");
+
+    expect(panelGridSource).toContain('variant="metrics"');
+    expect(panelGridSource).toContain('splitAxis="horizontal-only"');
+    expect(panelGridSource).toContain("workbench-dockview workbench-dockview-metrics flex-1");
+    expect(panelGridSource).not.toContain("workbench-metrics-tab");
+    expect(css).toContain(".wb-tabstrip");
+    expect(css).toContain("height: 32px;");
+    expect(css).toContain("box-shadow: inset 0 -1px 0 var(--wb-border);");
+    expect(css).toContain("min-width: 0;");
   });
 
   it("renders pane settings as a modal for editable Dockview panes", () => {
@@ -441,6 +540,25 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).not.toContain("Instance keys");
   });
 
+  it("hides document operation affordances in learner mode while keeping runtime controls visible", () => {
+    const html = renderPanelGrid("learner", [notePanel, pvLoopPanel], [normalInstance, copiedInstance], [], {}, false, {
+      noteOpen: true,
+      metricsOpen: true,
+      rightRailVisible: true,
+    });
+
+    expect(html).not.toContain("aria-label=\"Add scenario\"");
+    expect(html).not.toContain("Switch to edit");
+    expect(html).not.toContain("Editing");
+    expect(html).not.toContain("New controller");
+    expect(html).not.toContain("Restore standard views");
+    expect(html).not.toContain("New metrics");
+    expect(html).not.toContain("Pane settings");
+    expect(html).toContain("aria-label=\"Hide Normal on graphs\"");
+    expect(html).toContain("aria-label=\"Resize metrics host\"");
+    expect(html).toContain("aria-label=\"Resize scenario list (double-click to reset)\"");
+  });
+
   it("keeps pane settings modal focus and scroll behavior explicit", () => {
     const panelGridSource = readFileSync(resolve(process.cwd(), "components/workbench/PanelGrid.tsx"), "utf8");
 
@@ -457,15 +575,16 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).not.toContain("Customizations");
   });
 
-  it("shows custom controls settings for authorable controller panes", () => {
-    const html = renderPanelGrid("sandbox", [controlsPanel], [{ ...normalInstance, params: { ...DEFAULT_PARAMS } }]);
+  it("renders the fixed inspector from seeded standard clinical controls", () => {
+    const html = renderPanelGrid("sandbox", [controlsPanel], [{ ...normalInstance, params: { ...DEFAULT_PARAMS } }], [], {}, false, {
+      rightRailView: "inspector",
+    });
 
-    expect(html).toContain("Custom controls");
-    expect(html).toContain("Custom controls replace the default Clinical Knobs");
-    expect(html).toContain("LV Focus");
-    expect(html).toContain("Cardiac Function");
-    expect(html).toContain("Preview");
+    expect(html).toContain("Clinical parameters (standard)");
+    expect(html).toContain("LV contractility");
     expect(html).toContain("type=\"range\"");
+    expect(html).not.toContain("Custom controls replace the default Clinical Knobs");
+    expect(html).not.toContain("LV Focus");
   });
 
   it("hides custom controls settings in learner mode", () => {
@@ -493,8 +612,8 @@ describe("PanelGrid Dockview layout", () => {
       .toBe(getDockviewStructureSignature([{ ...pvLoopPanel, title: "Renamed PV" }]));
   });
 
-  it("adds new instances to existing pane configs as hidden by default", () => {
-    const panels = addHiddenInstanceConfigsToPanels([
+  it("adds new instances to existing pane configs as visible with source signals", () => {
+    const panels = addVisibleInstanceConfigsToPanels([
       pvLoopPanel,
       {
         id: "controls",
@@ -506,15 +625,43 @@ describe("PanelGrid Dockview layout", () => {
         config: { normal: { visible: true, selectedSignals: ["clinical"] } },
         isSettingsOpen: false,
       },
-    ], ["copy"]);
+    ], [{ id: "copy", sourceId: "normal" }]);
 
     expect(panels[0].config.normal.visible).toBe(true);
-    expect(panels[0].config.copy).toEqual({ visible: false, selectedSignals: ["LV"] });
+    expect(panels[0].config.copy).toEqual({ visible: true, selectedSignals: ["LV"] });
     expect(panels[1].config.normal.visible).toBe(true);
-    expect(panels[1].config.copy).toEqual({ visible: false, selectedSignals: ["clinical", "Global", "ventricles", "fluids"] });
+    expect(panels[1].config.copy).toEqual({ visible: true, selectedSignals: ["clinical"] });
   });
 
-  it("renders controller settings as modal target and item bindings", () => {
+  it("caps the scenario list height instead of assigning a fixed ratio height", () => {
+    const html = renderPanelGrid("sandbox", [], [normalInstance], [], {}, false, {
+      scenarioListMaxRatio: 0.5,
+    });
+
+    expect(html).toContain("min-height:84px");
+    expect(html).toContain("max-height:calc(100% * 0.5)");
+    expect(html).not.toContain("height:220px");
+    expect(html).not.toContain("flex-basis:calc(100% * 0.5)");
+  });
+
+  it("uses an explicit scenario list height after resize while collapsed state still wins", () => {
+    const explicitHtml = renderPanelGrid("sandbox", [], [normalInstance], [], {}, false, {
+      scenarioListHeightPx: 220,
+    });
+    const collapsedHtml = renderPanelGrid("sandbox", [], [normalInstance], [], {}, false, {
+      scenarioListCollapsed: true,
+      scenarioListHeightPx: 220,
+    });
+
+    expect(explicitHtml).toContain("height:220px");
+    expect(explicitHtml).toContain("min-height:84px");
+    expect(explicitHtml).toContain("flex:0 0 auto");
+    expect(explicitHtml).not.toContain("max-height:calc(100% * 0.4)");
+    expect(collapsedHtml).toContain("height:36px");
+    expect(collapsedHtml).toContain("max-height:36px");
+  });
+
+  it("does not render pane-local controller settings for the fixed inspector", () => {
     const controlsPanel: PanelDef = {
       id: "controls",
       type: "CONTROLS",
@@ -534,17 +681,11 @@ describe("PanelGrid Dockview layout", () => {
       { ...copiedInstance, params: { ...DEFAULT_PARAMS } },
     ]);
 
-    expect(html).toContain("role=\"dialog\"");
-    expect(html).toContain("Pane settings");
-    expect(html).toContain("Controls · Controller pane");
-    expect(html).toContain("Targets");
-    expect(html).toContain("Sections");
-    expect(html).toContain("Display");
-    expect(html).toContain("Clinical knobs");
-    expect(html).toContain("Pane title");
-    expect(html).toContain("@min-[760px]:grid");
-    expect(html).toContain("sticky top-0");
-    expect(html).toContain("overflow-hidden p-3");
+    expect(html).not.toContain("role=\"dialog\"");
+    expect(html).not.toContain("Pane settings");
+    expect(html).not.toContain("Controls · Controller pane");
+    expect(html).toContain("Scenarios");
+    expect(html).toContain("Clinical parameters (standard)");
     expect(html).not.toContain("Back to Controls");
     // Unnecessary count-meta badges removed from controller settings.
     expect(html).not.toContain("Controller scope");
@@ -567,7 +708,7 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).not.toContain("w-[min(42rem,calc(100vw-2rem))]");
   });
 
-  it("keeps advanced controller groups out of pane-local settings", () => {
+  it("keeps the fixed inspector on seeded standard clinical controls even when legacy controller panes select advanced groups", () => {
     const controlsPanel: PanelDef = {
       id: "controls",
       type: "CONTROLS",
@@ -581,16 +722,18 @@ describe("PanelGrid Dockview layout", () => {
       isSettingsOpen: true,
     };
 
-    const html = renderPanelGrid("sandbox", [controlsPanel], [{ ...normalInstance, params: { ...DEFAULT_PARAMS } }], ["clinical", "advanced", "ventricles"]);
-    const modalHtml = html.slice(html.indexOf("Pane settings"));
+    const html = renderPanelGrid("sandbox", [controlsPanel], [{ ...normalInstance, params: { ...DEFAULT_PARAMS } }], ["clinical", "advanced", "ventricles"], {}, false, {
+      rightRailView: "inspector",
+    });
 
-    expect(modalHtml).toContain("Clinical knobs");
-    expect(modalHtml).toContain("Ventricular mechanics");
-    expect(modalHtml).not.toContain("Advanced");
-    expect(modalHtml).not.toContain("Advanced engine");
+    expect(html).toContain("Clinical parameters (standard)");
+    expect(html).toContain("LV contractility");
+    expect(html).not.toContain("Clinical Knobs");
+    expect(html).not.toContain("Advanced");
+    expect(html).not.toContain("Advanced engine");
   });
 
-  it("renders controller target shortcuts only for pane-enabled targets", () => {
+  it("shows hidden scenarios above the fixed inspector while the inspector targets the active scenario only", () => {
     const controlsPanel: PanelDef = {
       id: "controls",
       type: "CONTROLS",
@@ -606,16 +749,135 @@ describe("PanelGrid Dockview layout", () => {
       isSettingsOpen: false,
     };
 
-    const html = renderPanelGrid("sandbox", [controlsPanel], [
+    const scenarioHtml = renderPanelGrid("sandbox", [controlsPanel], [
       { ...normalInstance, params: { ...DEFAULT_PARAMS } },
       { ...copiedInstance, params: { ...DEFAULT_PARAMS } },
       { ...hiddenInstance, params: { ...DEFAULT_PARAMS } },
     ]);
 
-    expect(html).toContain("Heart B");
-    expect(html).not.toContain("Heart C");
-    expect(html).not.toContain("Pause simulation");
-    expect(html).not.toContain("0.5x");
+    expect(scenarioHtml).toContain("Heart B");
+    expect(scenarioHtml).toContain("Heart C");
+
+    const inspectorHtml = renderPanelGrid("sandbox", [controlsPanel], [
+      { ...normalInstance, params: { ...DEFAULT_PARAMS } },
+      { ...copiedInstance, params: { ...DEFAULT_PARAMS } },
+      { ...hiddenInstance, params: { ...DEFAULT_PARAMS } },
+    ], [], {}, false, { rightRailView: "inspector" });
+
+    expect(inspectorHtml).toContain("Scenarios (3)");
+    expect(inspectorHtml).toContain("Heart B");
+    expect(inspectorHtml).toContain("Heart C");
+    expect(inspectorHtml).toContain("Editing:");
+    expect(inspectorHtml).not.toContain("Pause simulation");
+    expect(inspectorHtml).not.toContain("0.5x");
+  });
+
+  it("renders the scenario-list resize sash whenever the list is expanded", () => {
+    const expandedHtml = renderPanelGrid("sandbox", [], [normalInstance, copiedInstance]);
+    const collapsedHtml = renderPanelGrid("sandbox", [], [normalInstance, copiedInstance], [], {}, false, {
+      scenarioListCollapsed: true,
+    });
+
+    expect(expandedHtml).toContain("role=\"separator\"");
+    expect(expandedHtml).toContain("aria-label=\"Resize scenario list (double-click to reset)\"");
+    expect(expandedHtml).toContain("cursor-row-resize");
+    expect(collapsedHtml).not.toContain("aria-label=\"Resize scenario list (double-click to reset)\"");
+  });
+
+  it("renders keyboard-addressable sashes for note, right rail, metrics, and scenario tiers", () => {
+    const html = renderPanelGrid("sandbox", [notePanel, pvLoopPanel, metricsPanel], [normalInstance, copiedInstance], [], {}, false, {
+      noteOpen: true,
+      metricsOpen: true,
+      rightRailVisible: true,
+      metricsSpan: "main",
+    });
+
+    expect(html).toContain("aria-label=\"Resize note drawer\"");
+    expect(html).toContain("aria-label=\"Resize right rail\"");
+    expect(html).toContain("aria-label=\"Resize metrics host\"");
+    expect(html).toContain("aria-label=\"Resize scenario list (double-click to reset)\"");
+    expect(html.match(/role=\"separator\"/g)?.length ?? 0).toBeGreaterThanOrEqual(4);
+    expect(html).toContain("tabindex=\"0\"");
+    expect(html).toContain("aria-valuenow=\"400\"");
+  });
+
+  it("maps metrics views to dockview panels without persisting split columns", () => {
+    const views: MetricsViewSpec[] = [
+      { id: "metrics-a", kind: "metrics", title: "Pressures", metrics: ["ABP"], membership: {} },
+      { id: "metrics-b", kind: "metrics", title: "Flow", metrics: ["CO"], membership: {} },
+    ];
+
+    expect(metricsViewsToDockviewPanels(views)).toEqual([
+      expect.objectContaining({ id: "metrics-a", sourceViewId: "metrics-a", title: "Pressures", type: "METRICS", role: "output", zone: "bottomPanel" }),
+      expect.objectContaining({ id: "metrics-b", sourceViewId: "metrics-b", title: "Flow", type: "METRICS", role: "output", zone: "bottomPanel" }),
+    ]);
+  });
+
+  it("keeps metrics mirror panel bindings separate from document views", () => {
+    const views: MetricsViewSpec[] = [
+      { id: "metrics-a", kind: "metrics", title: "Pressures renamed", metrics: ["ABP"], membership: {} },
+      { id: "metrics-b", kind: "metrics", title: "Flow", metrics: ["CO"], membership: {} },
+    ];
+    const bindings = syncMetricsDockviewPanelBindings([
+      { panelId: "metrics-a", viewId: "metrics-a" },
+      { panelId: "metrics-a#2", viewId: "metrics-a" },
+      { panelId: "metrics-deleted#2", viewId: "metrics-deleted" },
+    ], views);
+
+    expect(bindings).toEqual([
+      { panelId: "metrics-a", viewId: "metrics-a" },
+      { panelId: "metrics-a#2", viewId: "metrics-a" },
+      { panelId: "metrics-b", viewId: "metrics-b" },
+    ]);
+    expect(metricsBindingsToDockviewPanels(bindings, views)).toEqual([
+      expect.objectContaining({ id: "metrics-a", sourceViewId: "metrics-a", title: "Pressures renamed" }),
+      expect.objectContaining({ id: "metrics-a#2", sourceViewId: "metrics-a", title: "Pressures renamed" }),
+      expect.objectContaining({ id: "metrics-b", sourceViewId: "metrics-b", title: "Flow" }),
+    ]);
+  });
+
+  it("rejects vertical metrics dockview drop targets", () => {
+    expect(isDockviewHorizontalOnlyDropAllowed("left")).toBe(true);
+    expect(isDockviewHorizontalOnlyDropAllowed("right")).toBe(true);
+    expect(isDockviewHorizontalOnlyDropAllowed("center")).toBe(true);
+    expect(isDockviewHorizontalOnlyDropAllowed("top")).toBe(false);
+    expect(isDockviewHorizontalOnlyDropAllowed("bottom")).toBe(false);
+  });
+
+  it("keeps scenario deletion available only when a second scenario exists", () => {
+    const scenarioPaneSource = readFileSync(resolve(process.cwd(), "components/workbench/ScenarioPane.tsx"), "utf8");
+
+    expect(scenarioPaneSource).toContain("removeInstance(instance.id)");
+    expect(scenarioPaneSource).toContain("disabled={instances.length <= 1}");
+    expect(scenarioPaneSource).toContain("{t('common.delete')}");
+    expect(scenarioPaneSource).toContain("{!readOnly && (");
+    expect(scenarioPaneSource).toContain("resetInstanceKnobs?.(instance.id)");
+  });
+
+  it("keeps Dockview document operations and tab dragging gated in learner mode", () => {
+    const dockviewSource = readFileSync(resolve(process.cwd(), "components/workbench/WorkbenchDockview.tsx"), "utf8");
+
+    expect(dockviewSource).toContain("const isLearnerMode = mode === 'learner';");
+    expect(dockviewSource).toContain("disableDnd={isLearnerMode}");
+    expect(dockviewSource.match(/context\.mode === 'learner'/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+  });
+
+  it("builds a reset-to-author runtime snapshot with initial active scenario and deep-cloned instances", () => {
+    const authored = [
+      { ...normalInstance, id: "a", isVisible: true, params: { ...DEFAULT_PARAMS, HR: 72 } },
+      { ...copiedInstance, id: "b", isVisible: false, params: { ...DEFAULT_PARAMS, HR: 88 } },
+    ];
+    const activeId = resolveAuthorActiveInstanceId(authored, "a", "b");
+    const snapshot = createAuthorRuntimeSnapshot(authored, activeId);
+
+    authored[1].isVisible = true;
+    authored[1].params.HR = 120;
+
+    expect(activeId).toBe("b");
+    expect(resolveAuthorActiveInstanceId(authored, "a", "missing")).toBe("a");
+    expect(snapshot.activeInstanceId).toBe("b");
+    expect(snapshot.instances[1].isVisible).toBe(false);
+    expect(snapshot.instances[1].params.HR).toBe(88);
   });
 });
 
@@ -661,5 +923,61 @@ describe("WorkbenchDockview tab menu positioning", () => {
       viewportWidth: 1200,
       viewportHeight: 800,
     })).toEqual({ x: 1048, y: 672 });
+  });
+});
+
+describe("WorkbenchDockview layout reapply guard", () => {
+  it("skips stale serialized-layout replay after an imperative split has already added the pane", () => {
+    expect(shouldReapplyDockviewLayout({
+      livePanelIds: ["pv", "wave"],
+      statePanelIds: ["wave", "pv"],
+      layoutIdentityChanged: false,
+      imperativePanelChangePending: true,
+      forceGraphBoardLayout: false,
+    })).toBe(false);
+  });
+
+  it("skips stale serialized-layout replay after an imperative add has already added the pane", () => {
+    expect(shouldReapplyDockviewLayout({
+      livePanelIds: ["pv", "wave", "metrics"],
+      statePanelIds: ["metrics", "wave", "pv"],
+      layoutIdentityChanged: false,
+      imperativePanelChangePending: true,
+      forceGraphBoardLayout: false,
+    })).toBe(false);
+  });
+
+  it("lets an imperative split guard win over a stale forced graph-board layout prop", () => {
+    expect(shouldReapplyDockviewLayout({
+      livePanelIds: ["pv", "wave"],
+      statePanelIds: ["wave", "pv"],
+      layoutIdentityChanged: false,
+      imperativePanelChangePending: true,
+      forceGraphBoardLayout: true,
+    })).toBe(false);
+  });
+
+  it("reapplies when panes diverge, a case or locale key changes, or an explicit layout command arrives", () => {
+    expect(shouldReapplyDockviewLayout({
+      livePanelIds: ["pv"],
+      statePanelIds: ["pv", "wave"],
+      layoutIdentityChanged: false,
+      imperativePanelChangePending: true,
+      forceGraphBoardLayout: false,
+    })).toBe(true);
+    expect(shouldReapplyDockviewLayout({
+      livePanelIds: ["pv", "wave"],
+      statePanelIds: ["pv", "wave"],
+      layoutIdentityChanged: true,
+      imperativePanelChangePending: true,
+      forceGraphBoardLayout: false,
+    })).toBe(true);
+    expect(shouldReapplyDockviewLayout({
+      livePanelIds: ["pv", "wave"],
+      statePanelIds: ["pv", "wave"],
+      layoutIdentityChanged: false,
+      imperativePanelChangePending: false,
+      forceGraphBoardLayout: true,
+    })).toBe(true);
   });
 });

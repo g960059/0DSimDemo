@@ -3,8 +3,6 @@ import { roleOf } from "./paneRole";
 
 export const GRID_COLUMNS = 12;
 
-export type LayoutPresetName = "Read" | "Compare" | "Tweak" | "Focus";
-
 function pane(
   id: string,
   type: PanelType,
@@ -101,33 +99,3 @@ export const READ_PRESET: PanelDef[] = flowPack([
   pane("read-pv", "PVLOOP", "PV Loop", 4, 7, 5, 5, {}, { showGuides: true }),
   pane("read-controls", "CONTROLS", "Controls", 9, 4, 3, 8),
 ]);
-
-export const COMPARE_PRESET: PanelDef[] = flowPack([
-  pane("compare-waveform", "WAVEFORM", "Waveforms", 0, 0, 6, 7, {}, { timeWindow: 5000 }),
-  pane("compare-pv", "PVLOOP", "PV Loop", 6, 0, 3, 7, {}, { showGuides: true }),
-  pane("compare-output", "METRICS", "Metrics", 9, 0, 3, 4),
-  pane("compare-note", "NOTE", "Notes", 9, 4, 3, 5),
-  pane("compare-controls", "CONTROLS", "Controls", 0, 9, 12, 4),
-]);
-
-export const TWEAK_PRESET: PanelDef[] = flowPack([
-  pane("tweak-controls", "CONTROLS", "Controls", 0, 0, 4, 10),
-  pane("tweak-waveform", "WAVEFORM", "Waveforms", 4, 0, 5, 6, {}, { timeWindow: 5000 }),
-  pane("tweak-pv", "PVLOOP", "PV Loop", 9, 0, 3, 6, {}, { showGuides: true }),
-  pane("tweak-output", "METRICS", "Metrics", 4, 6, 4, 4),
-  pane("tweak-note", "NOTE", "Notes", 8, 6, 4, 4),
-]);
-
-export const FOCUS_PRESET: PanelDef[] = flowPack([
-  pane("focus-waveform", "WAVEFORM", "Focus Waveform", 0, 0, 8, 8, {}, { timeWindow: 5000 }),
-  pane("focus-output", "METRICS", "Output", 8, 0, 4, 4),
-  pane("focus-controls", "CONTROLS", "Controls", 8, 4, 4, 4),
-  pane("focus-note", "NOTE", "Notes", 0, 8, 12, 4),
-]);
-
-export const LAYOUT_PRESETS: Record<LayoutPresetName, PanelDef[]> = {
-  Read: READ_PRESET,
-  Compare: COMPARE_PRESET,
-  Tweak: TWEAK_PRESET,
-  Focus: FOCUS_PRESET,
-};

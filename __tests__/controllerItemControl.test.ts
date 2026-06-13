@@ -77,7 +77,7 @@ describe("ControllerItemControl", () => {
     expect(buttons.map((button) => button.props["aria-pressed"]).filter((pressed) => pressed !== undefined)).toEqual([false, true, false]);
     const activeClassName = (buttons[1].props as { className: string }).className;
     expect(activeClassName).toContain("ring-1");
-    expect(activeClassName).toContain("ring-blue-400/40");
+    expect(activeClassName).toContain("ring-wb-accent");
   });
 
   it("leaves all chips inactive off preset while retaining the slider", () => {

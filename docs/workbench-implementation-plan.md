@@ -1,46 +1,41 @@
-# Workbench Header + Layout — Implementation Plan (parallel)
+# Workbench IA/UX Redesign — Current Implementation Pointer
 
-Derived from [ADR-0002](adr/0002-workbench-header-ia.md) + [ADR-0003](adr/0003-workbench-layout-engine.md).
-Team: `uiux` — lead `UIUXlead2`; implementers `codexUX1..4`.
-Process per increment: lead spec → (plan-gate optional, decisions already triple-vetted) → codex implements on a branch off `origin/main` → **2-reviewer post-impl gate** (opus subagent + codex CLI, always ask for improvement proposals, 1/2 OK, adoption = lead) → lead merges via `gh pr merge <n> --merge`.
-Verify: `npx vitest run --exclude '**/.claude/**'` + `tsc --noEmit` + `vite build`. Pre-merge: `git diff --name-only origin/main <branch>` (no forbidden/out-of-stream files).
+Canonical references:
 
-## Strategy
-`WorkbenchPage.tsx` is the contention hotspot. **Wave 1** parallelizes only **file-disjoint** work, and includes a behavior-preserving **component extraction** that unblocks **Wave 2** parallelism (header vs grid become separate files).
+- [ADR-0007](adr/0007-workbench-ia-redesign.md) is the decision record.
+- [Detailed plan](plans/workbench-ia-redesign-plan.md) is the phase/commit ledger.
 
-Shared type contract (fix now, so all streams build to it): `PanelDef.role: 'graph'|'output'|'control'|'note'` and optional `x?,y?:number` (ADR-0003).
+Status as of 2026-06-12: P0, P1a-P1d, P2a, and P2b are done on
+`ux/workbench-ia-redesign`. P2c remains: read-only interactive behavior, runtime
+operation allowance, reset to author state, and Read/Explore runtime carry-over.
 
-## Wave 1 — parallel, file-disjoint (start now)
+## Current Shape
 
-### codexUX1 — Charts visibility / rAF gate
-- Gate `requestAnimationFrame` in `PVLoopPanel` & `WaveformPanel` ([components/Charts.tsx](../components/Charts.tsx)) on an `isOnscreen` signal (IntersectionObserver) + pause on `document.hidden`; resume cleanly.
-- Files: `components/Charts.tsx` (+ optional `hooks/useOnscreen.ts`). Tests where feasible.
-- Disjoint. Battery/perf win for long sessions and prerequisite for mobile unmount.
+- The main Graph Board is the only Dockview surface.
+- Left note drawer, right scenario/inspector rail, and bottom metrics host are
+  fixed hosts with local sizing in `WorkbenchLayoutState`.
+- Header controls are inline visibility toggles plus a trimmed customize popover
+  with metrics span.
+- Controller and metrics views are live document `ViewSpec` content. Standard
+  clinical-parameters and metrics sets are official seeds, editable/deletable,
+  and restorable; saves always write `views`, including `[]`.
+- View authoring uses the shared modal editor and supports curated clinical
+  parameters plus raw scalar parameters from `rawParameterCatalog`.
+- Notes and the reader support `view_ref` blocks against authored views.
 
-### codexUX2 — Layout doc model + op-stack + presets (the spine)
-- `types.ts`: add `role` + optional `x,y` to `PanelDef` (additive, no break).
-- New `layoutOps.ts`: pure named ops `applyPreset/addPane/removePane/movePane/resizePane/setPaneSignals` as `(panels)=>panels'`.
-- New `layoutPresets.ts`: `Read/Compare/Tweak/Focus` as role-tagged `PanelDef[]` geometry + `flowPack(panels)` legacy x/y seeding.
-- New `paneRole.ts`: `roleOf(type): Role`.
-- Vitest for ops + presets + flow-pack. **No `WorkbenchPage.tsx` wiring yet.**
-- Files: `types.ts` + 3 new modules + tests. Disjoint from UX1.
+## Main Code Map
 
-### codexUX3 — `WorkbenchPage.tsx` component extraction (Wave-2 enabler)
-- Behavior-preserving refactor: extract `components/workbench/WorkbenchHeader.tsx` (current header JSX, props-threaded) and `components/workbench/PanelGrid.tsx` (current `panels.map` grid + existing drag/resize) out of `WorkbenchPage.tsx`. **No behavior change.**
-- Files: `WorkbenchPage.tsx` + 2 new component files. Disjoint from UX1 (Charts) and UX2 (types/new layout modules).
+- `features/workbench/WorkbenchRoute.tsx` composes the feature.
+- `features/workbench/hooks/useWorkbenchScene.ts` owns scenarios, retained case
+  metadata, authored views, graph board layout, and standard-view restore.
+- `features/workbench/hooks/useWorkbenchPanels.ts` owns legacy panels, notes,
+  local workspace state, and fixed-host layout state.
+- `features/workbench/hooks/useWorkbenchPersistence.ts` owns load/save/export,
+  id remapping, and current `CaseDocument` construction.
+- `features/workbench/viewSpec.ts` holds the ViewSpec/GraphBoardLayout model.
+- `features/workbench/authoredViews.ts` holds authored-view helpers, standard
+  factories, seeding, migration, and serialization rules.
+- `components/workbench/PanelGrid.tsx` is the desktop shell for the Graph Board,
+  note drawer, two-tier right rail, and metrics host.
 
-### codexUX4 — Mobile role-flatten renderer (new file, contract-based)
-- New `components/workbench/WorkbenchMobile.tsx` consuming `PanelDef[]` + `role` (ADR contract): sticky output strip (output-role) + chart segmented-tabs (graph-role, only active mounted) + Controls bottom-sheet (control-role) + Notes tab (note-role). Built standalone; **not wired into `WorkbenchPage.tsx` yet**.
-- Files: new component(s) under `components/workbench/`. Soft-dep on UX2's `role` type → land UX2's `types.ts` first, others rebase.
-
-## Wave 2 — after Wave 1 merges (now file-disjoint via extraction)
-- **Header IA** (ADR-0002) on `WorkbenchHeader.tsx` + `Layout.tsx` global-chrome suppression on `/workbench`,`/lesson` + right `WorkbenchSidePanel.tsx`. (UX3)
-- **Dockview desktop shell** (ADR-0003) on `PanelGrid.tsx`/`WorkbenchDockview.tsx`; no separate layout edit mode, constrained zones with zone-local add actions, semantic `PanelDef[]` as the source of truth. (UX4 + UX1)
-- **Op-stack wiring**: route `Workbench` pane mutations through `layoutOps`; Dockview serialized state is stored only as zone-specific `workspace.viewStates`. (UX2)
-- **Mobile wiring**: mount `WorkbenchMobile` on the phone branch; delete the `span 12` stack. (UX4)
-- **Presets UI**: future compact case/workspace selector; keep pane creation zone-local rather than global header chrome. (UX3)
-
-## Notes / risks
-- Drift guard: Author Preview renders through the learner presenter (ADR-0003).
-- Learner default = Compare; mode inferred from provenance, ambiguous → Learner.
-- codex implementers do **not** auto-poll agmsg — the human wakes them after assignment.
+Quality gates remain `npm test` and `npm run build`.
