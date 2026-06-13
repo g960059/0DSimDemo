@@ -782,13 +782,13 @@
       "dangling-reading-ref": "Reading列の参照が存在しません。",
       "dangling-note-view-ref": "ノート内の埋め込みビューが存在しません。",
       "dangling-controller-pin": "ピン留めされたコントローラのシナリオが存在しません。",
-      "dangling-membership": "ビューが存在しないシナリオを参照しています。"
+      "dangling-membership": "ビューが存在しないシナリオを参照しています。",
+      "model-limitations-empty": "公開前にモデルの制約を入力してください。"
     },
     "warning": {
       "no-reading-content": "Readingコンテンツがないため、読者はExploreで開きます。",
       "active-scenario-hidden": "初期シナリオが読者には非表示です。",
       "empty-view": "作成済みビューに表示内容がありません。",
-      "model-limitations-empty": "モデルの制約が空です。",
       "pinned-binding-used": "コントローラが1つのシナリオにピン留めされています。"
     }
   }

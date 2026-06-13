@@ -782,13 +782,13 @@
       "dangling-reading-ref": "A reading column reference no longer exists.",
       "dangling-note-view-ref": "A note embeds a view that no longer exists.",
       "dangling-controller-pin": "A pinned controller scenario no longer exists.",
-      "dangling-membership": "A view references a scenario that no longer exists."
+      "dangling-membership": "A view references a scenario that no longer exists.",
+      "model-limitations-empty": "Add model limitations before publishing."
     },
     "warning": {
       "no-reading-content": "No reading content is available; readers will open Explore.",
       "active-scenario-hidden": "The initial scenario is hidden for readers.",
       "empty-view": "An authored view has no visible content.",
-      "model-limitations-empty": "Model limitations are empty.",
       "pinned-binding-used": "A controller is pinned to one scenario."
     }
   }

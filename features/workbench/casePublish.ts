@@ -34,7 +34,9 @@ export function validatePublishableCase(doc: CaseDocument): PublishIssue[] {
   const graphPanelIds = graphPanelsOnly(doc.panels).map((panel) => panel.id);
   const instanceIds = new Set(doc.instances.map((instance) => instance.id));
 
-  if (doc.meta.title.trim().length === 0) {
+  // The saved title falls back to spec.title || meta.title (cloud summary), so validate
+  // against the same effective value to avoid a false-positive on docs that only set spec.title.
+  if ((doc.spec.title || doc.meta.title || "").trim().length === 0) {
     issues.push(issue("blocker", "publish.blocker.missing-title", "meta.title"));
   }
 
@@ -111,8 +113,10 @@ export function validatePublishableCase(doc: CaseDocument): PublishIssue[] {
     }
   }
 
-  if (doc.spec.modelLimitations.length === 0 || doc.spec.modelLimitations.every((value) => value.trim().length === 0)) {
-    issues.push(issue("warning", "publish.warning.model-limitations-empty", "spec.modelLimitations"));
+  // BLOCKER, not warning: isCaseDisplayable gates display on modelLimitations.length > 0
+  // (caseDoc.ts), so a published doc without them would be publishable-but-undisplayable.
+  if (!doc.spec?.modelLimitations?.length || doc.spec.modelLimitations.every((value) => value.trim().length === 0)) {
+    issues.push(issue("blocker", "publish.blocker.model-limitations-empty", "spec.modelLimitations"));
   }
 
   return issues;

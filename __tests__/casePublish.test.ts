@@ -110,7 +110,11 @@ describe("validatePublishableCase", () => {
   });
 
   it("reports missing title", () => {
-    expectBlockers(cleanDoc({ meta: { ...cleanDoc().meta, title: "   " } }), ["publish.blocker.missing-title"]);
+    // title validates against the saved-title fallback spec.title || meta.title, so clear both
+    expectBlockers(
+      cleanDoc({ meta: { ...cleanDoc().meta, title: "   " }, spec: { title: "", modelLimitations: ["0D model."] } }),
+      ["publish.blocker.missing-title"],
+    );
   });
 
   it("reports missing scenarios", () => {
@@ -225,8 +229,10 @@ describe("validatePublishableCase", () => {
     }), "publish.warning.empty-view");
   });
 
-  it("reports empty model limitations as a warning", () => {
-    expectWarningOnly(cleanDoc({ spec: { title: "Publishable case", modelLimitations: ["  "] } }), "publish.warning.model-limitations-empty");
+  it("reports empty model limitations as a blocker", () => {
+    // isCaseDisplayable gates display on modelLimitations.length > 0, so an empty-limitations
+    // doc must not be publishable (it would be publishable-but-undisplayable).
+    expectBlockers(cleanDoc({ spec: { title: "Publishable case", modelLimitations: ["  "] } }), ["publish.blocker.model-limitations-empty"]);
   });
 
   it("reports pinned controller bindings as a warning", () => {
@@ -242,7 +248,7 @@ describe("validatePublishableCase", () => {
   });
 
   it("treats blockers as unpublishable and warnings-only as publishable", () => {
-    expect(isPublishable(validatePublishableCase(cleanDoc({ meta: { ...cleanDoc().meta, title: "" } })))).toBe(false);
+    expect(isPublishable(validatePublishableCase(cleanDoc({ meta: { ...cleanDoc().meta, title: "" }, spec: { title: "", modelLimitations: ["0D model."] } })))).toBe(false);
     expect(isPublishable(validatePublishableCase(cleanDoc({ notes: undefined, reading: undefined })))).toBe(true);
   });
 });
