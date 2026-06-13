@@ -735,7 +735,7 @@ describe("low-preload Starling debug diagnostics", () => {
     ]);
     const report = runLowPreloadMatrix(opts);
 
-    expect(report.schemaVersion).toBe(28);
+    expect(report.schemaVersion).toBe(29);
     expect(report.heartModels).toEqual(["activeStress"]);
     expect(report.aorticFlowClampModes).toEqual(["hard"]);
     expect(report.aovBValues).toEqual([DEFAULT_PARAMS.AoV_B]);
@@ -797,6 +797,15 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.summary.maxQAoMeanPositive).toEqual(expect.any(Number));
     expect(report.summary.minQAoTimeToPeakMs).toEqual(expect.any(Number));
     expect(report.summary.maxDQAoDt).toEqual(expect.any(Number));
+    expect(report.summary.maxBranchAmplitudeFractionCOR).toEqual(expect.any(Number));
+    expect(report.summary.maxBranchAmplitudeFractionQPVMax).toEqual(expect.any(Number));
+    expect(report.summary.maxBranchAmplitudeFractionPAPMean).toEqual(expect.any(Number));
+    expect(report.summary.maxQPVMax).toEqual(expect.any(Number));
+    expect(report.summary.maxQPVMeanPositive).toEqual(expect.any(Number));
+    expect(report.summary.minQPVTimeToPeakMs).toEqual(expect.any(Number));
+    expect(report.summary.maxDQPVdt).toEqual(expect.any(Number));
+    expect(report.summary.maxRVPMax).toEqual(expect.any(Number));
+    expect(report.summary.maxPVMeanGradient).toEqual(expect.any(Number));
     expect(report.summary.maxAoVQDotClampHitFractionCleanCandidate).toEqual(expect.any(Number));
     expect(report.summary.minEjectionPositiveDurationMs).toEqual(expect.any(Number));
     expect(report.summary.minEjectionFivePercentPeakDurationMs).toEqual(expect.any(Number));
@@ -841,6 +850,13 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.scenarios[0].perDeltaEvaluation[0].branchLocalizationClass).toEqual(expect.any(String));
     expect(report.scenarios[0].perDeltaEvaluation[0].oneBeatESVSlope).toEqual(expect.any(Number));
     expect(report.scenarios[0].perDeltaEvaluation[0].maxAbsOneBeatVolumeFeatureSlope).toEqual(expect.any(Number));
+    expect(report.scenarios[0].perDeltaEvaluation[0].CO_R).toEqual(expect.any(Number));
+    expect(report.scenarios[0].perDeltaEvaluation[0].lastBeatCO_R).toEqual(expect.any(Number));
+    expect(report.scenarios[0].perDeltaEvaluation[0].branchAmplitudeFractionCOR).toEqual(expect.any(Number));
+    expect(report.scenarios[0].perDeltaEvaluation[0].branchAmplitudeFractionEDVR).toEqual(expect.any(Number));
+    expect(report.scenarios[0].perDeltaEvaluation[0].branchAmplitudeFractionESVR).toEqual(expect.any(Number));
+    expect(report.scenarios[0].perDeltaEvaluation[0].branchAmplitudeFractionQPVMax).toEqual(expect.any(Number));
+    expect(report.scenarios[0].perDeltaEvaluation[0].branchAmplitudeFractionPAPMean).toEqual(expect.any(Number));
     expect(report.scenarios[0].perDeltaEvaluation[0].MV_A_forward_mL).toEqual(expect.any(Number));
     expect(report.scenarios[0].perDeltaEvaluation[0].MV_A_fraction).toEqual(expect.any(Number));
     expect(report.scenarios[0].perDeltaEvaluation[0].MV_mid_forward_mL).toEqual(expect.any(Number));
@@ -878,6 +894,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToMarkdown(report)).toContain("AoV qDot open01-bin target estimator");
     expect(matrixReportToMarkdown(report)).toContain("AoV low-open event-direction qDot estimator");
     expect(matrixReportToMarkdown(report)).toContain("Negative qDot closure-deceleration primary readouts");
+    expect(matrixReportToMarkdown(report)).toContain("Right-heart / PV branch readout");
     expect(matrixReportToMarkdown(report)).toContain("Per-edge dynamic qDot clamp audit");
     expect(matrixReportToMarkdown(report)).toContain("Regime aggregate per-edge qDot audit");
     expect(matrixReportToMarkdown(report)).toContain("Regime point-level per-edge qDot audit");
@@ -899,6 +916,12 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToCsv(report)).toContain("activeReservePreset");
     expect(matrixReportToCsv(report)).toContain("meanCOLErrorFractionVsBaseline");
     expect(matrixReportToCsv(report)).toContain("branchAmplitudeFractionESV_L");
+    expect(matrixReportToCsv(report)).toContain("branchAmplitudeFractionCO_R");
+    expect(matrixReportToCsv(report)).toContain("branchAmplitudeFractionQPVMax");
+    expect(matrixReportToCsv(report)).toContain("normalRVPMax");
+    expect(matrixReportToCsv(report)).toContain("normalQPVMax");
+    expect(matrixReportToCsv(report)).toContain("normalPVMeanGradient");
+    expect(matrixReportToCsv(report)).toContain("normalMaxDQPVdt");
     expect(matrixReportToCsv(report)).toContain("scenarioBranchLocalizationClass");
     expect(matrixReportToCsv(report)).toContain("perDeltaBranchLocalizationClass");
     expect(matrixReportToCsv(report)).toContain("oneBeatESVSlope");

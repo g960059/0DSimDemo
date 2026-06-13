@@ -915,3 +915,52 @@ This remains diagnostic. qDot clamp relaxation is a positive control for event
 surface dominance, not a model fix. A physical candidate still needs to reduce
 negative-qDot / closure-deceleration pathology with the default clamp unchanged
 and without normal / HR waveform regression.
+
+### 2026-06-14 update: tension-scope shape audit / RV-PV readout
+
+The scope-controlled qDot audit resolved most of the low-preload qDot scope
+confounding for the left-heart branch: AoV is the primary signal, PV is a
+secondary semilunar / outlet-side cofactor, and negative qDot relaxation remains
+a positive control rather than a root fix. The unresolved comparator axis is now
+tension scope.
+
+The matrix schema is now v29 and adds report-only readouts for interpreting
+scope-controlled tension filters:
+
+- right-heart branch rows: `CO_R`, RV EDV/ESV, `QPV`, PAP mean/max branch
+  fractions
+- RV/PV waveform gates: `RVPMax`, `QPVMax`, positive-QPV mean, QPV
+  time-to-peak, `max dQPV/dt`, `max/min dRVP/dt`
+- pulmonary valve gradients: `PVMeanGradient`, `PVPeakGradient`
+
+Use these rows to read tension sweeps. Do not treat period-2 suppression by
+itself as success. The primary interpretation should be:
+
+- LVP/RVP peak shape and relaxation shape
+- AoV/PV negative qDot impulse and clean-window closure residual
+- normal / HR100 / HR100-rearm waveform preservation
+- RV/PV branch coupling, especially whether PV changes are secondary to AoV or
+  independent outlet-side behavior
+
+Suggested tension-scope artifact:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/tension-scope-shape-audit \
+  --regime-audit=low-hyper \
+  --dt=0.001,0.0005 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --tension-rise=0,0.005,0.01 \
+  --tension-fall=0,0.01,0.02 \
+  --tension-scope=lv,ventricles,all \
+  --qdot-clamp-scope=aov,semilunar \
+  --max-return-map-points=4 \
+  --trace-beats=4 \
+  --sample-hz=80 \
+  --quiet-progress
+```
+
+This is still diagnostic. A future physical candidate must keep qDot clamp
+defaults, reduce closure-deceleration pathology, and preserve normal / HR
+waveforms.

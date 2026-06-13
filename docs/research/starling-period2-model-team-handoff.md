@@ -972,3 +972,52 @@ Interpretation:
 This remains localization and attribution data. Clamp relaxation is still a
 positive control. A model fix must keep the default qDot clamp, reduce
 closure-deceleration pathology, and pass normal / HR waveform gates.
+
+## 2026-06-14 update: RV/PV readout for tension-scope audits
+
+The #143 scope-controlled qDot result should be read as localization data:
+
+- low-preload left-heart branch is AoV-primary
+- PV is a secondary semilunar / outlet-side cofactor
+- MV/TV/filling-side qDot clamp is not primary in the low-preload smoke
+- negative qDot relaxation is a positive control, not a root fix or default
+  candidate
+
+The unresolved comparator axis is tension scope. Matrix schema v29 adds the
+right-heart / PV and shape rows needed to interpret that axis:
+
+- per-delta `CO_R`, RV EDV/ESV, `QPV`, PAP mean/max branch fractions
+- normal / HR waveform `RVPMax`, `QPVMax`, QPV mean-positive, QPV time-to-peak,
+  `max dQPV/dt`, and `max/min dRVP/dt`
+- pulmonary valve mean/peak gradient rows
+
+Read tension-scope candidates by shape and closure, not by branch suppression
+alone. Primary readouts:
+
+- LVP/RVP peak and relaxation shape
+- AoV/PV negative-qDot impulse
+- clean-window closure residual
+- normal / HR100 / HR100-rearm waveform preservation
+
+Suggested artifact for the model team:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/tension-scope-shape-audit \
+  --regime-audit=low-hyper \
+  --dt=0.001,0.0005 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --tension-rise=0,0.005,0.01 \
+  --tension-fall=0,0.01,0.02 \
+  --tension-scope=lv,ventricles,all \
+  --qdot-clamp-scope=aov,semilunar \
+  --max-return-map-points=4 \
+  --trace-beats=4 \
+  --sample-hz=80 \
+  --quiet-progress
+```
+
+This remains diagnostic. A physical model candidate must reduce
+closure-deceleration pathology with the default qDot clamp unchanged and must
+not rely on qDot clamp relaxation for stability.
