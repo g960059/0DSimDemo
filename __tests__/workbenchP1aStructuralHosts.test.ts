@@ -3,10 +3,9 @@ import {
   deriveBuiltInMetricsTabs,
   effectiveGlobalConfig,
   graphPanelsOnly,
-  mainDockviewViewStatesOnly,
   metricsHostTabs,
 } from "@/features/workbench/p1aStructuralHosts";
-import type { DockviewViewState, PanelDef, SimInstance, WorkbenchWorkspace } from "@/types";
+import type { PanelDef, SimInstance } from "@/types";
 import type { MetricsViewSpec } from "@/features/workbench/viewSpec";
 
 const wave: PanelDef = { id: "wave", type: "WAVEFORM", title: "Wave", zone: "main", w: 4, h: 4, config: {}, isSettingsOpen: false };
@@ -69,32 +68,5 @@ describe("P1a structural host helpers", () => {
     expect(config.visible.visible).toBe(true);
     expect(config.hidden.visible).toBe(false);
     expect(config.hidden.selectedSignals).toEqual(["ABP"]);
-  });
-
-  it("keeps only main Dockview viewState when saving P1a workspace state", () => {
-    const main: DockviewViewState = { library: "dockview", schemaVersion: 1, zone: "main", state: { panels: {}, grid: {} } };
-    const side: DockviewViewState = { library: "dockview", schemaVersion: 1, zone: "sideRail", state: { panels: {}, grid: {} } };
-    const workspace: WorkbenchWorkspace = {
-      schemaVersion: 1,
-      regions: {},
-      viewStates: { main, sideRail: side },
-    };
-
-    expect(mainDockviewViewStatesOnly(workspace).viewStates).toEqual({ main });
-  });
-
-  it("converts legacy singular Dockview viewState into the main cache", () => {
-    const main: DockviewViewState = { library: "dockview", schemaVersion: 1, zone: "main", state: { panels: {}, grid: {} } };
-    const workspace: WorkbenchWorkspace = {
-      schemaVersion: 1,
-      regions: {},
-      viewState: main,
-    };
-
-    expect(mainDockviewViewStatesOnly(workspace)).toEqual({
-      schemaVersion: 1,
-      regions: {},
-      viewStates: { main },
-    });
   });
 });

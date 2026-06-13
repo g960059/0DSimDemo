@@ -10,7 +10,7 @@ export function resolveControllerTargetId(
     ? activeInstanceId!
     : instances[0]?.id ?? "";
 
-  if (binding && "scenarioId" in binding && instances.some((instance) => instance.id === binding.scenarioId)) {
+  if (binding?.kind === "scenario" && instances.some((instance) => instance.id === binding.scenarioId)) {
     return binding.scenarioId;
   }
 

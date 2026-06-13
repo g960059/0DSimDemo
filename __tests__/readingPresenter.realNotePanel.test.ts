@@ -115,7 +115,7 @@ describe("ReadingPresenter with the real NotePanel static renderer", () => {
         ],
       }),
       views: [
-        { id: "controller-a", title: "Inline Controller", kind: "controller" as const, items: [], binding: { slot: "active" as const } },
+        { id: "controller-a", title: "Inline Controller", kind: "controller" as const, items: [], binding: { kind: "active" as const } },
       ],
     };
 

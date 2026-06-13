@@ -9,19 +9,19 @@ const instances = [
 
 describe("resolveControllerTargetId", () => {
   it("keeps active-slot controller views bound to the active scenario", () => {
-    expect(resolveControllerTargetId({ slot: "active" }, "b", instances)).toBe("b");
+    expect(resolveControllerTargetId({ kind: "active" }, "b", instances)).toBe("b");
   });
 
   it("uses an explicit scenario binding when the scenario exists", () => {
-    expect(resolveControllerTargetId({ scenarioId: "a" }, "b", instances)).toBe("a");
+    expect(resolveControllerTargetId({ kind: "scenario", scenarioId: "a" }, "b", instances)).toBe("a");
   });
 
   it("falls back to active when an explicit scenario binding is missing or absent", () => {
-    expect(resolveControllerTargetId({ scenarioId: "missing" }, "b", instances)).toBe("b");
+    expect(resolveControllerTargetId({ kind: "scenario", scenarioId: "missing" }, "b", instances)).toBe("b");
     expect(resolveControllerTargetId(undefined, "b", instances)).toBe("b");
   });
 
   it("falls back to the first scenario when the active id is not present", () => {
-    expect(resolveControllerTargetId({ slot: "active" }, "missing", instances)).toBe("a");
+    expect(resolveControllerTargetId({ kind: "active" }, "missing", instances)).toBe("a");
   });
 });

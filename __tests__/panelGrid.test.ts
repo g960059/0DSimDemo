@@ -70,7 +70,6 @@ function createPanelGrid(
     instances,
     panels,
     layoutState: {
-      controlsSide: "right",
       controlsWidth: 320,
       caseRailWidth: 400,
       outputHeight: 190,
@@ -85,7 +84,7 @@ function createPanelGrid(
     },
     onLayoutStateChange: noop,
     dockviewLayoutKey: "test",
-    dockviewViewStates: undefined,
+    mainDockviewViewState: undefined,
     onDockviewViewStateChange: noop,
     authoredViews: standardAuthoredViews((kind) => `${kind}-${nextViewId++}`, instances, "en"),
     createControllerView: (title: string, items = []) => ({
@@ -93,7 +92,7 @@ function createPanelGrid(
       title,
       kind: "controller" as const,
       items,
-      binding: { slot: "active" as const },
+      binding: { kind: "active" as const },
     }),
     createMetricsView: (title: string, metrics = []) => ({
       id: "metrics-test",

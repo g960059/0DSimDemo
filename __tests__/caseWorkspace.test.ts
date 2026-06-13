@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { defaultWorkspaceForPanels, normalizeWorkspaceForAdr0007, workspaceForPanels } from "@/caseDoc";
+import { defaultWorkspaceForPanels, workspaceForPanels } from "@/caseDoc";
 import { LESSONS, lessonToCaseDocument } from "@/lessonDoc";
-import type { PanelDef } from "@/types";
+import type { DockviewViewState, PanelDef, WorkbenchWorkspace } from "@/types";
 
 const panels: PanelDef[] = [
   { id: "note", type: "NOTE", title: "Note", w: 4, h: 8, config: {}, isSettingsOpen: false },
@@ -13,24 +13,18 @@ const panels: PanelDef[] = [
 ];
 
 describe("semantic workspace", () => {
-  it("groups panels into deterministic role regions", () => {
+  it("derives deterministic v2 host state", () => {
     const workspace = defaultWorkspaceForPanels(panels);
 
-    expect(workspace.schemaVersion).toBe(1);
+    expect(workspace.schemaVersion).toBe(2);
     expect("mode" in workspace).toBe(false);
-    expect(workspace.regions.graph?.panelIds).toEqual(["pv", "wave"]);
-    expect(workspace.regions.graph?.activePanelId).toBe("pv");
-    expect(workspace.regions.output?.visible).toBe("compact");
-    expect(workspace.regions.output?.position).toBe("bottom");
-    expect(workspace.regions.graph?.position).toBe("center");
-    expect(workspace.regions.control?.position).toBe("right");
-    expect(workspace.regions.control?.panelIds).toEqual(["controls"]);
-    expect(workspace.regions.control?.activePanelId).toBe("controls");
-    expect(workspace.regions.note?.position).toBe("left");
-    expect(workspace.regions.scenarios?.visible).toBe(true);
-    expect(workspace.regions.scenarios?.position).toBe("right");
-    expect(workspace.regions.scenarios?.panelIds).toEqual(["scenarios"]);
-    expect(workspace.regions.scenarios?.activePanelId).toBe("scenarios");
+    expect("regions" in workspace).toBe(false);
+    expect(workspace.hosts).toEqual({
+      note: { open: true },
+      rightRail: { open: true },
+      metrics: { open: true },
+      main: {},
+    });
   });
 
   it("embeds a lesson layer into a canonical case document", () => {
@@ -43,66 +37,69 @@ describe("semantic workspace", () => {
     expect(doc?.instances.length).toBeGreaterThan(0);
   });
 
-  it("preserves Dockview state while recalculating semantic panel regions", () => {
-    const viewState = {
+  it("preserves main Dockview state while stripping default host fields", () => {
+    const dockviewState: DockviewViewState = {
       library: "dockview" as const,
       schemaVersion: 1 as const,
       state: { panels: { pv: {} }, grid: { root: {}, height: 100, width: 100, orientation: "HORIZONTAL" } },
       updatedAt: 10,
     };
-    const previous = {
-      ...defaultWorkspaceForPanels(panels),
-      mode: "custom",
-      regions: {
-        ...defaultWorkspaceForPanels(panels).regions,
-        graph: { visible: true, position: "center" as const, panelIds: ["pv", "wave"], activePanelId: "wave" },
+    const previous: WorkbenchWorkspace = {
+      schemaVersion: 2,
+      hosts: {
+        note: { open: true },
+        rightRail: { open: false, scenarioListCollapsed: false },
+        metrics: { open: true, span: "main" },
+        main: { dockviewState },
       },
-      viewState,
-    } as ReturnType<typeof defaultWorkspaceForPanels> & { mode: string };
+      learnerLocked: false,
+    };
     const next = workspaceForPanels(panels.filter((panel) => panel.id !== "wave"), previous);
 
-    expect(next.viewState).toBe(viewState);
-    expect(next.regions.graph?.panelIds).toEqual(["pv"]);
-    expect(next.regions.graph?.activePanelId).toBe("pv");
+    expect(next.hosts.main.dockviewState).toBe(dockviewState);
+    expect(next.hosts.rightRail).toEqual({ open: false });
+    expect(next.hosts.metrics).toEqual({ open: true });
+    expect(next.learnerLocked).toBe(false);
     expect("mode" in next).toBe(false);
   });
 
-  it("clears stale region visibility and active panel when the region has no panels", () => {
-    const previous = {
-      ...defaultWorkspaceForPanels(panels),
-      mode: "custom",
-      regions: {
-        ...defaultWorkspaceForPanels(panels).regions,
-        scenarios: { visible: true, position: "right" as const, panelIds: ["scenarios"], activePanelId: "scenarios" },
+  it("clamps note and metrics hosts to defaults when backing panels disappear", () => {
+    const previous: WorkbenchWorkspace = {
+      schemaVersion: 2,
+      hosts: {
+        note: { open: true },
+        rightRail: { open: false, scenarioListCollapsed: true },
+        metrics: { open: true, span: "full" },
+        main: {},
       },
-    } as ReturnType<typeof defaultWorkspaceForPanels> & { mode: string };
-    const next = workspaceForPanels(panels.filter((panel) => panel.id !== "scenarios"), previous);
+      learnerLocked: true,
+    };
+    const next = workspaceForPanels(panels.filter((panel) => panel.id !== "note" && panel.id !== "metrics"), previous);
 
-    expect(next.regions.scenarios?.visible).toBe(false);
-    expect(next.regions.scenarios?.panelIds).toEqual([]);
-    expect(next.regions.scenarios?.activePanelId).toBeUndefined();
+    expect(next.hosts.note.open).toBe(false);
+    expect(next.hosts.metrics).toEqual({ open: false, span: "full" });
+    expect(next.hosts.rightRail).toEqual({ open: false, scenarioListCollapsed: true });
   });
 
-  it("normalizes legacy stored rail positions onto ADR-0007 semantics while loading", () => {
+  it("rebuilds a default v2 workspace for old-shaped workspace blobs", () => {
     const oldDocWorkspace = {
-      ...defaultWorkspaceForPanels(panels),
+      schemaVersion: 1,
       regions: {
-        ...defaultWorkspaceForPanels(panels).regions,
-        scenarios: { visible: true, position: "left" as const, panelIds: ["scenarios"], activePanelId: "scenarios" },
-        control: { visible: true, position: "left" as const, panelIds: ["controls"], activePanelId: "controls" },
-        note: { visible: true, position: "right" as const, panelIds: ["note"], activePanelId: "note" },
+        control: { visible: false, position: "left", panelIds: ["controls"] },
+        note: { visible: false, position: "right", panelIds: ["note"] },
+        output: { visible: false, position: "bottom", panelIds: ["metrics"] },
       },
     };
 
-    expect(normalizeWorkspaceForAdr0007(oldDocWorkspace).regions).toMatchObject({
-      scenarios: { position: "right" },
-      control: { position: "right" },
-      note: { position: "left" },
-    });
+    expect(workspaceForPanels(panels, oldDocWorkspace as unknown as WorkbenchWorkspace)).toEqual(defaultWorkspaceForPanels(panels));
+  });
 
-    const loaded = workspaceForPanels(panels, oldDocWorkspace);
-    expect(loaded.regions.scenarios?.position).toBe("right");
-    expect(loaded.regions.control?.position).toBe("right");
-    expect(loaded.regions.note?.position).toBe("left");
+  it("rebuilds a default v2 workspace for a malformed v2 workspace (hosts without boolean open)", () => {
+    const malformed = {
+      schemaVersion: 2,
+      hosts: { note: {}, rightRail: {}, metrics: {}, main: {} },
+    };
+
+    expect(workspaceForPanels(panels, malformed as unknown as WorkbenchWorkspace)).toEqual(defaultWorkspaceForPanels(panels));
   });
 });

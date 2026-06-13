@@ -143,20 +143,6 @@ export interface NotePanelView {
 
 export type PanelViewConfig = GraphPanelView | OutputPanelView | ControlPanelView | ScenarioPanelView | NotePanelView;
 
-export type WorkbenchRegionId = 'scenarios' | 'control' | 'graph' | 'output' | 'note';
-export type WorkbenchRegionPosition = 'left' | 'right' | 'top' | 'bottom' | 'center' | 'hidden';
-export type WorkbenchRegionVisibility = boolean | 'compact';
-export type WorkbenchSplitMode = 'single' | 'two-up' | 'four-up' | 'custom';
-
-export interface WorkbenchRegionState {
-    visible?: WorkbenchRegionVisibility;
-    position?: WorkbenchRegionPosition;
-    panelIds?: string[];
-    activePanelId?: string;
-    split?: WorkbenchSplitMode;
-    size?: number;
-}
-
 export interface DockviewViewState {
     library: 'dockview';
     schemaVersion: 1;
@@ -165,12 +151,37 @@ export interface DockviewViewState {
     updatedAt?: number;
 }
 
+export type WorkbenchMetricsSpan = 'main' | 'full';
+
+export interface WorkbenchNoteHostState {
+    open: boolean;
+}
+
+export interface WorkbenchRightRailHostState {
+    open: boolean;
+    scenarioListCollapsed?: boolean;
+}
+
+export interface WorkbenchMetricsHostState {
+    open: boolean;
+    span?: WorkbenchMetricsSpan;
+}
+
+export interface WorkbenchMainHostState {
+    dockviewState?: DockviewViewState;
+}
+
+export interface WorkbenchWorkspaceHosts {
+    note: WorkbenchNoteHostState;
+    rightRail: WorkbenchRightRailHostState;
+    metrics: WorkbenchMetricsHostState;
+    main: WorkbenchMainHostState;
+}
+
 export interface WorkbenchWorkspace {
-    schemaVersion: 1;
-    regions: Partial<Record<WorkbenchRegionId, WorkbenchRegionState>>;
+    schemaVersion: 2;
+    hosts: WorkbenchWorkspaceHosts;
     learnerLocked?: boolean;
-    viewState?: DockviewViewState;
-    viewStates?: Partial<Record<WorkbenchZoneId, DockviewViewState>>;
 }
 
 export interface PanelDef {

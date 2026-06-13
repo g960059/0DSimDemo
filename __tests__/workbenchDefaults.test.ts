@@ -15,15 +15,23 @@ function workspaceWithVisibility(visibility: {
   noteOpen: boolean;
   metricsOpen: boolean;
   rightRailVisible: boolean;
+  scenarioListCollapsed?: boolean;
+  metricsSpan?: "main" | "full";
 }): WorkbenchWorkspace {
   const workspace = workspaceForPanels(panels);
   return workspaceForPanels(panels, {
     ...workspace,
-    regions: {
-      ...workspace.regions,
-      note: { ...workspace.regions.note, visible: visibility.noteOpen },
-      output: { ...workspace.regions.output, visible: visibility.metricsOpen ? "compact" : false },
-      control: { ...workspace.regions.control, visible: visibility.rightRailVisible },
+    hosts: {
+      ...workspace.hosts,
+      note: { open: visibility.noteOpen },
+      metrics: {
+        open: visibility.metricsOpen,
+        ...(visibility.metricsSpan === "full" ? { span: "full" } : {}),
+      },
+      rightRail: {
+        open: visibility.rightRailVisible,
+        ...(visibility.scenarioListCollapsed ? { scenarioListCollapsed: true } : {}),
+      },
     },
   });
 }
@@ -40,25 +48,34 @@ describe("workbench defaults", () => {
     expect(restored.rightRailVisible).toBe(visibility.rightRailVisible);
   });
 
-  it("defaults missing right rail visibility to visible", () => {
-    const workspace = workspaceForPanels(panels);
-    const { visible: _visible, ...control } = workspace.regions.control ?? {};
+  it("reads optional host state and supplies defaults when absent", () => {
+    const restored = layoutStateFromWorkspace(workspaceWithVisibility({
+      noteOpen: true,
+      metricsOpen: true,
+      rightRailVisible: true,
+      scenarioListCollapsed: true,
+      metricsSpan: "full",
+    }));
 
-    expect(layoutStateFromWorkspace({
-      ...workspace,
-      regions: { ...workspace.regions, control },
-    }).rightRailVisible).toBe(true);
+    expect(restored.scenarioListCollapsed).toBe(true);
+    expect(restored.metricsSpan).toBe("full");
+    expect(layoutStateFromWorkspace(undefined).rightRailVisible).toBe(true);
+    expect(layoutStateFromWorkspace(undefined).scenarioListCollapsed).toBe(false);
+    expect(layoutStateFromWorkspace(undefined).metricsSpan).toBe("main");
   });
 
-  it("treats compact right rail visibility as visible", () => {
-    const workspace = workspaceForPanels(panels);
+  it("strips default optional host values before layout restore", () => {
+    const workspace = workspaceWithVisibility({
+      noteOpen: true,
+      metricsOpen: true,
+      rightRailVisible: true,
+      scenarioListCollapsed: false,
+      metricsSpan: "main",
+    });
 
-    expect(layoutStateFromWorkspace({
-      ...workspace,
-      regions: {
-        ...workspace.regions,
-        control: { ...workspace.regions.control, visible: "compact" },
-      },
-    }).rightRailVisible).toBe(true);
+    expect(workspace.hosts.rightRail).toEqual({ open: true });
+    expect(workspace.hosts.metrics).toEqual({ open: true });
+    expect(layoutStateFromWorkspace(workspace).scenarioListCollapsed).toBe(false);
+    expect(layoutStateFromWorkspace(workspace).metricsSpan).toBe("main");
   });
 });

@@ -124,6 +124,16 @@ describe("content i18n helpers", () => {
       panels: sourcePanels,
       workspace: workspaceForPanels(sourcePanels),
     };
+    expect(sourceWithLayout.workspace).toEqual({
+      schemaVersion: 2,
+      hosts: {
+        note: { open: true },
+        rightRail: { open: true },
+        metrics: { open: false },
+        main: {},
+      },
+      learnerLocked: true,
+    });
     const twoLocale = upsertCaseLocaleContent({
       ...sourceWithLayout,
       meta: { ...sourceWithLayout.meta, title: "日本語ケース" },
@@ -195,6 +205,9 @@ describe("content i18n helpers", () => {
       source: instance.source,
     })));
     expect(saved.workspace).toEqual(workspaceForPanels(editedPanels, localized.workspace));
+    expect(saved.workspace?.schemaVersion).toBe(2);
+    expect(saved.workspace?.hosts.rightRail.open).toBe(true);
+    expect("regions" in saved.workspace!).toBe(false);
     expect(editedPanels.map(({ title, ...panel }) => panel)).toEqual(remapped.panels.map(({ title, ...panel }) => panel));
   });
 });

@@ -11,7 +11,7 @@
 // design for #3 — intervention-preserving editing is a later milestone.
 
 import type { CaseDocument, CaseExposedController, CaseInstance, CaseReadingManifest } from "@/caseDoc";
-import { CASE_SCHEMA_VERSION, ENGINE_VERSION, DEFAULT_SOLVER } from "@/caseDoc";
+import { CASE_SCHEMA_VERSION, ENGINE_VERSION, DEFAULT_SOLVER, defaultWorkspaceForPanels } from "@/caseDoc";
 import type { ExpectedFinding, StructuredModelLimitation } from "@/caseValidation";
 import { buttonOptionsFromRange } from "@/controllerItems";
 import { KNOB_MAPPING_VERSION } from "@/engine/knobs";
@@ -71,6 +71,7 @@ function instance(i: number, a: InstanceAuthor): CaseInstance {
 
 function makeCase(p: CaseAuthor): CaseDocument {
   const instances = p.instances.map((a, i) => instance(i, a));
+  const panels = buildPanels(instances.map((x) => x.id));
   return {
     schemaVersion: CASE_SCHEMA_VERSION,
     defaultLocale: "en",
@@ -88,7 +89,8 @@ function makeCase(p: CaseAuthor): CaseDocument {
       ...(p.validationProfileId ? { validationProfileId: p.validationProfileId } : {}),
     },
     instances,
-    panels: buildPanels(instances.map((x) => x.id)),
+    panels,
+    workspace: defaultWorkspaceForPanels(panels),
     ...(p.views ? { views: p.views } : {}),
     ...(p.graphBoardLayout ? { graphBoardLayout: p.graphBoardLayout } : {}),
     ...(p.initialActiveScenarioId ? { initialActiveScenarioId: p.initialActiveScenarioId } : {}),
@@ -101,7 +103,7 @@ function makeCase(p: CaseAuthor): CaseDocument {
         description: p.description,
         modelLimitations: p.modelLimitations,
         ...(p.notes ? { notes: p.notes } : {}),
-        panels: Object.fromEntries(buildPanels(instances.map((x) => x.id)).map((panel) => [panel.id, { title: panel.title }])),
+        panels: Object.fromEntries(panels.map((panel) => [panel.id, { title: panel.title }])),
         instances: Object.fromEntries(instances.map((item) => [item.id, { name: item.name }])),
       },
     },
@@ -315,7 +317,7 @@ const AFTERLOAD_CASE_VIEWS: ViewSpec[] = [
     id: AFTERLOAD_CONTROL_VIEW_ID,
     title: "Afterload demo",
     kind: "controller",
-    binding: { slot: "active" },
+    binding: { kind: "active" },
     items: [
       buttonGroupItem("afterload"),
       buttonGroupItem("contractility"),

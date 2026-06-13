@@ -129,7 +129,7 @@ describe("Workbench ViewSpec model", () => {
     const controls = migrated.views.find((view) => view.id === "controls");
     expect(controls).toMatchObject({
       kind: "controller",
-      binding: { slot: "active" },
+      binding: { kind: "active" },
       items: [{ paramKey: "contractility", kind: "slider", label: "Contractility" }],
     });
   });

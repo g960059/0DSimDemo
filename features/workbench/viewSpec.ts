@@ -1,6 +1,6 @@
 import type { ControllerItem, MetricType, PanelDef, PanelInstanceConfig, WorkbenchWorkspace } from "@/types";
 
-export type ScenarioBinding = { slot: "active" } | { scenarioId: string };
+export type ScenarioBinding = { kind: "active" } | { kind: "scenario"; scenarioId: string };
 
 export type GraphViewType = "pvloop" | "waveform" | "guyton-right" | "guyton-left" | "guyton-3d";
 
@@ -235,7 +235,7 @@ function controllerViewSpecFromPanel(panel: PanelDef): ControllerViewSpec {
     title: panel.title,
     kind: "controller",
     items,
-    binding: { slot: "active" },
+    binding: { kind: "active" },
   };
 }
 
@@ -378,8 +378,8 @@ export function remapViewSpecIds(
   return {
     ...view,
     id,
-    binding: "scenarioId" in view.binding
-      ? { scenarioId: maps.scenarioIdMap.get(view.binding.scenarioId) ?? view.binding.scenarioId }
+    binding: view.binding.kind === "scenario"
+      ? { kind: "scenario", scenarioId: maps.scenarioIdMap.get(view.binding.scenarioId) ?? view.binding.scenarioId }
       : view.binding,
   };
 }

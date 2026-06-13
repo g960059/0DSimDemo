@@ -109,7 +109,7 @@ export function createControllerViewSpec(id: string, title: string, items: Contr
     title: titleOrFallback(title, "Controller view"),
     kind: "controller",
     items: normalizeControllerItems(items).items,
-    binding: { slot: "active" },
+    binding: { kind: "active" },
   };
 }
 

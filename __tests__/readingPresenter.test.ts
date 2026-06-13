@@ -236,7 +236,7 @@ describe("ReadingColumn", () => {
         updateInstanceKnobs: () => {},
         updateInstanceVolume: () => {},
         authoredViews: [
-          { id: "controller-a", title: "Curated Controller", kind: "controller", items: [], binding: { slot: "active" } },
+          { id: "controller-a", title: "Curated Controller", kind: "controller", items: [], binding: { kind: "active" } },
         ],
       },
     }));
