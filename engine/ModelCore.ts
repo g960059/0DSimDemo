@@ -199,6 +199,13 @@ export type ModelCoreAorticQDotAudit = {
 
 export type ModelCoreDynamicQDotAudit = ModelCoreAorticQDotAudit;
 
+export type DynamicQDotClampScope =
+  | "aov"
+  | "pv"
+  | "semilunar"
+  | "all-valves"
+  | "all-dynamic";
+
 function emptyVolumeDeltaAudit(): ModelCoreVolumeDeltaAudit {
   return { signedMl: 0, absMl: 0, byNodeSignedMl: {}, byNodeAbsMl: {} };
 }
@@ -488,6 +495,7 @@ export class ModelCore {
   private aorticFlowClampMode: AorticFlowClampMode = "hard";
   private aorticFlowDerivativeClampPositiveMlPerS2 = DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
   private aorticFlowDerivativeClampNegativeMlPerS2 = DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
+  private dynamicFlowDerivativeClampScope: DynamicQDotClampScope = "aov";
   private aorticValveQUpdateMode: AorticValveQUpdateMode = "current-loss";
   private aorticFlowStepDiagnostics = emptyAorticFlowStepDiagnostics();
 
@@ -907,6 +915,7 @@ export class ModelCore {
       : DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
     this.aorticFlowDerivativeClampPositiveMlPerS2 = limit;
     this.aorticFlowDerivativeClampNegativeMlPerS2 = limit;
+    this.dynamicFlowDerivativeClampScope = "aov";
   }
 
   setAorticFlowDerivativeClampLimits(positiveMlPerS2: number, negativeMlPerS2: number): void {
@@ -916,6 +925,16 @@ export class ModelCore {
     this.aorticFlowDerivativeClampNegativeMlPerS2 = Number.isFinite(negativeMlPerS2) && negativeMlPerS2 > 0
       ? negativeMlPerS2
       : this.aorticFlowDerivativeClampPositiveMlPerS2;
+    this.dynamicFlowDerivativeClampScope = "aov";
+  }
+
+  setDynamicFlowDerivativeClampLimits(
+    positiveMlPerS2: number,
+    negativeMlPerS2: number,
+    scope: DynamicQDotClampScope = "aov",
+  ): void {
+    this.setAorticFlowDerivativeClampLimits(positiveMlPerS2, negativeMlPerS2);
+    this.dynamicFlowDerivativeClampScope = scope;
   }
 
   setAorticValveQUpdateMode(mode: AorticValveQUpdateMode): void {
@@ -1610,10 +1629,11 @@ export class ModelCore {
       const qDotPostDiode = (qNextPostDiode - q) / h;
       const qDotPreFlowClamp = (qNextPreFlowClamp - q) / h;
       const qDotRaw = (qNext - q) / h;
-      const qDotPositiveLimit = e.name === "AoV"
+      const useCustomQDotClamp = this.usesCustomDynamicQDotClamp(e);
+      const qDotPositiveLimit = useCustomQDotClamp
         ? Math.max(this.aorticFlowDerivativeClampPositiveMlPerS2, 1)
         : DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
-      const qDotNegativeLimit = e.name === "AoV"
+      const qDotNegativeLimit = useCustomQDotClamp
         ? Math.max(this.aorticFlowDerivativeClampNegativeMlPerS2, 1)
         : DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
       const qDotPost = clamp(qDotRaw, -qDotNegativeLimit, qDotPositiveLimit);
@@ -1694,6 +1714,14 @@ export class ModelCore {
     }, this.septumParams()), -400, 400);
 
     return dy;
+  }
+
+  private usesCustomDynamicQDotClamp(edge: EdgeSpec): boolean {
+    if (this.dynamicFlowDerivativeClampScope === "aov") return edge.name === "AoV";
+    if (this.dynamicFlowDerivativeClampScope === "pv") return edge.name === "PV";
+    if (this.dynamicFlowDerivativeClampScope === "semilunar") return edge.name === "AoV" || edge.name === "PV";
+    if (this.dynamicFlowDerivativeClampScope === "all-valves") return edge.kind === "valve";
+    return true;
   }
 
   private computePressures(x: Float64Array): PressurePack {

@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { DEFAULT_PARAMS } from "@/constants";
-import { ModelCore, type AorticFlowClampMode, type AorticValveQUpdateMode, type ModelCoreDynamicQDotAudit } from "@/engine/ModelCore";
+import { ModelCore, type AorticFlowClampMode, type AorticValveQUpdateMode, type DynamicQDotClampScope, type ModelCoreDynamicQDotAudit } from "@/engine/ModelCore";
 import type { LambdaActTerms, LowStretchLimiterMode } from "@/engine/chambers";
 import { DYNAMIC_FLOW_CLAMP_ML_PER_S, dynamicEdgeNames, type DynamicEdgeName } from "@/engine/core/topology";
 import { clamp } from "@/engine/math";
@@ -43,6 +43,7 @@ type MatrixOptions = {
   lambdaActTermsValues: LambdaActTerms[];
   lowStretchLimiterModes: LowStretchLimiterMode[];
   lowStretchLimiterScopes: LambdaActScope[];
+  tensionScopes: LambdaActScope[];
   activeReservePresets: ActiveReservePreset[];
   tbvCorrectionModes: TBVCorrectionMode[];
   aorticFlowClampModes: AorticFlowClampMode[];
@@ -57,6 +58,7 @@ type MatrixOptions = {
   tensionFallSecValues: number[];
   aovQDotClampValues: number[];
   aovQDotClampPairs: AovQDotClampConfig[];
+  qDotClampScopes: DynamicQDotClampScope[];
   aovQUpdateModes: AorticValveQUpdateMode[];
   maxReturnMapPoints: number;
   traceBeats: number;
@@ -307,6 +309,7 @@ type MatrixScenario = {
   lambdaActTerms: LambdaActTerms;
   lowStretchLimiterMode: LowStretchLimiterMode;
   lowStretchLimiterScope: LambdaActScope;
+  tensionScope: LambdaActScope;
   activeReservePreset: ActiveReservePreset;
   tbvCorrectionMode: TBVCorrectionMode;
   aorticFlowClampMode: AorticFlowClampMode;
@@ -322,6 +325,7 @@ type MatrixScenario = {
   tensionFallSec: number;
   aovQDotClamp: number;
   aovQDotClampNegative: number;
+  qDotClampScope: DynamicQDotClampScope;
   aovQUpdateMode: AorticValveQUpdateMode;
   selectedDeltasMl: number[];
   evaluation: ScenarioEvaluation;
@@ -460,7 +464,7 @@ type ShapeSummary = {
 };
 
 type MatrixReport = {
-  schemaVersion: 27;
+  schemaVersion: 28;
   generatedAt: string;
   measurementMode: string;
   regimeAuditPreset?: RegimeAuditPreset;
@@ -473,6 +477,7 @@ type MatrixReport = {
   lambdaActTermsValues: LambdaActTerms[];
   lowStretchLimiterModes: LowStretchLimiterMode[];
   lowStretchLimiterScopes: LambdaActScope[];
+  tensionScopes: LambdaActScope[];
   activeReservePresets: ActiveReservePreset[];
   tbvCorrectionModes: TBVCorrectionMode[];
   aorticFlowClampModes: AorticFlowClampMode[];
@@ -487,6 +492,7 @@ type MatrixReport = {
   tensionFallSecValues: number[];
   aovQDotClampValues: number[];
   aovQDotClampPairs: AovQDotClampConfig[];
+  qDotClampScopes: DynamicQDotClampScope[];
   aovQUpdateModes: AorticValveQUpdateMode[];
   maxReturnMapPoints: number;
   traceBeats: number;
@@ -597,6 +603,7 @@ const DEFAULT_SCOPES: LambdaActScope[] = ["lv", "ventricles"];
 const DEFAULT_TERMS: LambdaActTerms[] = ["kd", "fiso", "kd+fiso"];
 const DEFAULT_LOW_STRETCH_LIMITERS: LowStretchLimiterMode[] = ["none"];
 const DEFAULT_LOW_STRETCH_LIMITER_SCOPES: LambdaActScope[] = ["lv"];
+const DEFAULT_TENSION_SCOPES: LambdaActScope[] = ["all"];
 const DEFAULT_ACTIVE_RESERVE_PRESETS: ActiveReservePreset[] = ["directMild", "directMedium", "thresholdMild", "thresholdMedium"];
 const DEFAULT_TBV_CORRECTION_MODES: TBVCorrectionMode[] = ["on"];
 const DEFAULT_AORTIC_FLOW_CLAMP_MODES: AorticFlowClampMode[] = ["hard"];
@@ -611,6 +618,7 @@ const DEFAULT_TENSION_RISE_SEC_VALUES = [0];
 const DEFAULT_TENSION_FALL_SEC_VALUES = [0];
 const DEFAULT_AOV_Q_DOT_CLAMP_VALUES = [DEFAULT_AOV_Q_DOT_CLAMP];
 const DEFAULT_AOV_Q_DOT_CLAMP_PAIRS: AovQDotClampConfig[] = [];
+const DEFAULT_Q_DOT_CLAMP_SCOPES: DynamicQDotClampScope[] = ["aov"];
 const DEFAULT_AOV_Q_UPDATE_MODES: AorticValveQUpdateMode[] = ["current-loss"];
 const WAVEFORM_RUN_OPTIONS = { collectSamples: false, recordHistory: true, historyLimit: 720 };
 const WAVEFORM_SETTLE_POLICY = { ...PREVIEW_SETTLE_POLICY, capSeconds: 45 };
@@ -652,6 +660,7 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
       lambdaActTerms,
       lowStretchLimiterMode,
       lowStretchLimiterScope,
+      tensionScope,
       activeReservePreset,
       tbvCorrectionMode,
       aorticFlowClampMode,
@@ -666,13 +675,14 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
       tensionFallSec,
       aovQDotClamp,
       aovQDotClampNegative,
+      qDotClampScope,
       aovQUpdateMode,
       dt,
     } = spec;
     if (opts.progress) {
       // eslint-disable-next-line no-console
       console.log(
-        `[matrix] ${index + 1}/${specs.length} heart=${heartModel} dt=${dt} tau=${lambdaActTauSec} scope=${lambdaActScope} terms=${lambdaActTerms} limiter=${lowStretchLimiterMode}/${lowStretchLimiterScope} preset=${activeReservePreset} tbv=${tbvCorrectionMode} aovClamp=${aorticFlowClampMode} AoV_B=${aovB} AoV_L=${aovL} AoV_tau=${aovTauOpen}/${aovTauClose} AoV_Amax=${aovAmax} SVR=${systemicResistance} artStiff=${arterialStiffness} tensionRise=${tensionRiseSec} tensionFall=${tensionFallSec} qDotClamp=${aovQDotClampLabel(aovQDotClamp, aovQDotClampNegative)} qUpdate=${aovQUpdateMode}`,
+        `[matrix] ${index + 1}/${specs.length} heart=${heartModel} dt=${dt} tau=${lambdaActTauSec} scope=${lambdaActScope} terms=${lambdaActTerms} limiter=${lowStretchLimiterMode}/${lowStretchLimiterScope} preset=${activeReservePreset} tbv=${tbvCorrectionMode} aovClamp=${aorticFlowClampMode} AoV_B=${aovB} AoV_L=${aovL} AoV_tau=${aovTauOpen}/${aovTauClose} AoV_Amax=${aovAmax} SVR=${systemicResistance} artStiff=${arterialStiffness} tensionRise=${tensionRiseSec} tensionFall=${tensionFallSec} tensionScope=${tensionScope} qDotClamp=${aovQDotClampLabel(aovQDotClamp, aovQDotClampNegative)} qDotScope=${qDotClampScope} qUpdate=${aovQUpdateMode}`,
       );
     }
     const branchReport = runLowPreloadDebug({
@@ -686,6 +696,7 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
       lambdaActTerms,
       lowStretchLimiterMode,
       lowStretchLimiterScope,
+      tensionScope,
       activeReservePreset,
       tbvCorrectionMode,
       aorticFlowClampMode,
@@ -700,6 +711,7 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
       tensionFallSec,
       aovQDotClamp,
       aovQDotClampNegative,
+      qDotClampScope,
       aovQUpdateMode,
       traceBeats: opts.traceBeats,
       sampleHz: opts.sampleHz,
@@ -721,6 +733,7 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
         lambdaActTerms,
         lowStretchLimiterMode,
         lowStretchLimiterScope,
+        tensionScope,
         activeReservePreset,
         tbvCorrectionMode,
         aorticFlowClampMode,
@@ -735,6 +748,7 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
         tensionFallSec,
         aovQDotClamp,
         aovQDotClampNegative,
+        qDotClampScope,
         aovQUpdateMode,
         traceBeats: opts.traceBeats,
         sampleHz: opts.sampleHz,
@@ -749,8 +763,10 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
       && aorticFlowClampMode === "hard"
       && tensionRiseSec <= 0
       && tensionFallSec <= 0
+      && tensionScope === "all"
       && aovQDotClamp === DEFAULT_AOV_Q_DOT_CLAMP
       && aovQDotClampNegative === DEFAULT_AOV_Q_DOT_CLAMP
+      && qDotClampScope === "aov"
       && aovQUpdateMode === "current-loss") {
       branchBaselineCache.set(baselineKey, branchReport.points);
     }
@@ -777,8 +793,10 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
       arterialStiffness,
       tensionRiseSec,
       tensionFallSec,
+      tensionScope,
       aovQDotClamp,
       aovQDotClampNegative,
+      qDotClampScope,
       aovQUpdateMode,
       waveformBaselineCache,
     );
@@ -797,8 +815,10 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
       arterialStiffness,
       tensionRiseSec,
       tensionFallSec,
+      tensionScope,
       aovQDotClamp,
       aovQDotClampNegative,
+      qDotClampScope,
       aovQUpdateMode,
       returnMapSummary: returnMapReport.summary,
       shapeSummary,
@@ -813,6 +833,7 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
       lambdaActTerms,
       lowStretchLimiterMode,
       lowStretchLimiterScope,
+      tensionScope,
       activeReservePreset,
       tbvCorrectionMode,
       aorticFlowClampMode,
@@ -828,6 +849,7 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
       tensionFallSec,
       aovQDotClamp,
       aovQDotClampNegative,
+      qDotClampScope,
       aovQUpdateMode,
       selectedDeltasMl,
       evaluation,
@@ -1003,9 +1025,9 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
       { fraction: 0, metric: null },
     );
   return {
-    schemaVersion: 27,
+    schemaVersion: 28,
     generatedAt: new Date().toISOString(),
-    measurementMode: "branch-only broad low-preload/hypervolume matrix followed by selected EDV-section return-map diagnostics with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap comparator axes, off-by-default AoV_B/AoV_Amax/AoV_L/AoV_tau/systemicResistance/arterialStiffness ejection-dynamics comparator axes, off-by-default tension-rise/fall comparators, asymmetric AoV qDot positive/negative clamp, and AoV q-state update comparator axes, and fIsoSlopeRelax low-stretch active-force comparator; AoV gradient is decomposed into full-open orifice, area-loss extra, inertial, residual, direct ODE closure residual, solver qDot clamp audit, clean-window closure residual terms, report-only sign-aware qDot target-estimator terms, open01-bin qDot target-estimator terms, low-open event-direction qDot target-estimator terms, negative qDot closure-deceleration primary readouts, scenario-level per-edge qDot audit, and point/regime-level per-edge dynamic qDot clamp audit for all valve/dynamic edges; ejection duration is reported as QAo>0, QAo>5% peak, SV 5-95%, and historical high-flow windows; optional TBV correction on/off/low contamination axis; activeStress/elastance heart-model comparison axis",
+    measurementMode: "branch-only broad low-preload/hypervolume matrix followed by selected EDV-section return-map diagnostics with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap comparator axes, off-by-default AoV_B/AoV_Amax/AoV_L/AoV_tau/systemicResistance/arterialStiffness ejection-dynamics comparator axes, off-by-default tension-rise/fall comparators with independent chamber scope, asymmetric dynamic qDot positive/negative clamp with independent edge scope, AoV q-state update comparator axes, and fIsoSlopeRelax low-stretch active-force comparator; AoV gradient is decomposed into full-open orifice, area-loss extra, inertial, residual, direct ODE closure residual, solver qDot clamp audit, clean-window closure residual terms, report-only sign-aware qDot target-estimator terms, open01-bin qDot target-estimator terms, low-open event-direction qDot target-estimator terms, negative qDot closure-deceleration primary readouts, scenario-level per-edge qDot audit, and point/regime-level per-edge dynamic qDot clamp audit for all valve/dynamic edges; ejection duration is reported as QAo>0, QAo>5% peak, SV 5-95%, and historical high-flow windows; optional TBV correction on/off/low contamination axis; activeStress/elastance heart-model comparison axis",
     regimeAuditPreset: opts.regimeAuditPreset,
     targetVolumeMl: opts.targetVolumeMl,
     heartModels: opts.heartModels,
@@ -1016,6 +1038,7 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
     lambdaActTermsValues: opts.lambdaActTermsValues,
     lowStretchLimiterModes: Array.from(new Set(["none" as LowStretchLimiterMode, ...opts.lowStretchLimiterModes])),
     lowStretchLimiterScopes: opts.lowStretchLimiterScopes,
+    tensionScopes: opts.tensionScopes,
     activeReservePresets: opts.activeReservePresets,
     tbvCorrectionModes: opts.tbvCorrectionModes,
     aorticFlowClampModes: opts.aorticFlowClampModes,
@@ -1030,6 +1053,7 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
     tensionFallSecValues: opts.tensionFallSecValues,
     aovQDotClampValues: opts.aovQDotClampValues,
     aovQDotClampPairs: effectiveAovQDotClampConfigs(opts),
+    qDotClampScopes: opts.qDotClampScopes,
     aovQUpdateModes: opts.aovQUpdateModes,
     maxReturnMapPoints: opts.maxReturnMapPoints,
     traceBeats: opts.traceBeats,
@@ -1141,6 +1165,7 @@ function matrixScenarioSpecs(
   lambdaActTerms: LambdaActTerms;
   lowStretchLimiterMode: LowStretchLimiterMode;
   lowStretchLimiterScope: LambdaActScope;
+  tensionScope: LambdaActScope;
   activeReservePreset: ActiveReservePreset;
   tbvCorrectionMode: TBVCorrectionMode;
   aorticFlowClampMode: AorticFlowClampMode;
@@ -1155,6 +1180,7 @@ function matrixScenarioSpecs(
   tensionFallSec: number;
   aovQDotClamp: number;
   aovQDotClampNegative: number;
+  qDotClampScope: DynamicQDotClampScope;
   aovQUpdateMode: AorticValveQUpdateMode;
 }> {
   const specs: Array<{
@@ -1165,6 +1191,7 @@ function matrixScenarioSpecs(
     lambdaActTerms: LambdaActTerms;
     lowStretchLimiterMode: LowStretchLimiterMode;
     lowStretchLimiterScope: LambdaActScope;
+    tensionScope: LambdaActScope;
     activeReservePreset: ActiveReservePreset;
     tbvCorrectionMode: TBVCorrectionMode;
     aorticFlowClampMode: AorticFlowClampMode;
@@ -1179,6 +1206,7 @@ function matrixScenarioSpecs(
     tensionFallSec: number;
     aovQDotClamp: number;
     aovQDotClampNegative: number;
+    qDotClampScope: DynamicQDotClampScope;
     aovQUpdateMode: AorticValveQUpdateMode;
   }> = [];
   const aovQDotClampConfigs = effectiveAovQDotClampConfigs(opts);
@@ -1195,7 +1223,9 @@ function matrixScenarioSpecs(
                       for (const arterialStiffness of opts.arterialStiffnessValues) {
                         for (const tensionRiseSec of opts.tensionRiseSecValues) {
                           for (const tensionFallSec of opts.tensionFallSecValues) {
+                          for (const tensionScope of opts.tensionScopes) {
                           for (const { positive: aovQDotClamp, negative: aovQDotClampNegative } of aovQDotClampConfigs) {
+                            for (const qDotClampScope of opts.qDotClampScopes) {
                             for (const aovQUpdateMode of opts.aovQUpdateModes) {
                               specs.push({
                                 heartModel,
@@ -1205,6 +1235,7 @@ function matrixScenarioSpecs(
                                 lambdaActTerms: "kd+fiso",
                                 lowStretchLimiterMode: "none",
                                 lowStretchLimiterScope: "lv",
+                                tensionScope,
                                 activeReservePreset: "none",
                                 tbvCorrectionMode,
                                 aorticFlowClampMode,
@@ -1219,6 +1250,7 @@ function matrixScenarioSpecs(
                                 tensionFallSec,
                                 aovQDotClamp,
                                 aovQDotClampNegative,
+                                qDotClampScope,
                                 aovQUpdateMode,
                               });
                               for (const lowStretchLimiterMode of opts.lowStretchLimiterModes.filter((mode) => mode !== "none")) {
@@ -1233,6 +1265,7 @@ function matrixScenarioSpecs(
                                       lambdaActTerms: "kd+fiso",
                                       lowStretchLimiterMode,
                                       lowStretchLimiterScope,
+                                      tensionScope,
                                       activeReservePreset,
                                       tbvCorrectionMode,
                                       aorticFlowClampMode,
@@ -1245,8 +1278,9 @@ function matrixScenarioSpecs(
                                      arterialStiffness,
                                      tensionRiseSec,
                                       tensionFallSec,
-                                     aovQDotClamp,
+                                      aovQDotClamp,
                                       aovQDotClampNegative,
+                                      qDotClampScope,
                                       aovQUpdateMode,
                                     });
                                   }
@@ -1263,6 +1297,7 @@ function matrixScenarioSpecs(
                                       lambdaActTerms,
                                       lowStretchLimiterMode: "none",
                                       lowStretchLimiterScope: "lv",
+                                      tensionScope,
                                       activeReservePreset: "none",
                                       tbvCorrectionMode,
                                       aorticFlowClampMode,
@@ -1277,12 +1312,15 @@ function matrixScenarioSpecs(
                                       tensionFallSec,
                                       aovQDotClamp,
                                       aovQDotClampNegative,
+                                      qDotClampScope,
                                       aovQUpdateMode,
                                     });
                                   }
                                 }
                               }
                             }
+                            }
+                          }
                           }
                           }
                         }
@@ -1452,8 +1490,10 @@ function buildScenarioEvaluation(input: {
   arterialStiffness: number;
   tensionRiseSec: number;
   tensionFallSec: number;
+  tensionScope: LambdaActScope;
   aovQDotClamp: number;
   aovQDotClampNegative: number;
+  qDotClampScope: DynamicQDotClampScope;
   aovQUpdateMode: AorticValveQUpdateMode;
   returnMapSummary: DebugReport["summary"];
   shapeSummary: ShapeSummary;
@@ -1501,8 +1541,10 @@ function buildScenarioEvaluation(input: {
     && input.aorticFlowClampMode === "hard"
     && input.tensionRiseSec <= 0
     && input.tensionFallSec <= 0
+    && input.tensionScope === "all"
     && input.aovQDotClamp === DEFAULT_AOV_Q_DOT_CLAMP
     && input.aovQDotClampNegative === DEFAULT_AOV_Q_DOT_CLAMP
+    && input.qDotClampScope === "aov"
     && input.aovQUpdateMode === "current-loss"
     && isDefaultAorticValveComparator(
       input.aovB,
@@ -1700,15 +1742,17 @@ function buildWaveformGateComparisons(
   arterialStiffness: number,
   tensionRiseSec: number,
   tensionFallSec: number,
+  tensionScope: LambdaActScope,
   aovQDotClamp: number,
   aovQDotClampNegative: number,
+  qDotClampScope: DynamicQDotClampScope,
   aovQUpdateMode: AorticValveQUpdateMode,
   baselineCache: Map<string, WaveformGateMetrics>,
 ): WaveformGateComparison[] {
   return [
-    waveformGateComparison("normal", DEFAULT_PARAMS.HR, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness, tensionRiseSec, tensionFallSec, aovQDotClamp, aovQDotClampNegative, aovQUpdateMode, baselineCache),
-    waveformGateComparison("HR100", 100, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness, tensionRiseSec, tensionFallSec, aovQDotClamp, aovQDotClampNegative, aovQUpdateMode, baselineCache),
-    waveformGateComparison("HR100-rearm", 100, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness, tensionRiseSec, tensionFallSec, aovQDotClamp, aovQDotClampNegative, aovQUpdateMode, baselineCache),
+    waveformGateComparison("normal", DEFAULT_PARAMS.HR, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness, tensionRiseSec, tensionFallSec, tensionScope, aovQDotClamp, aovQDotClampNegative, qDotClampScope, aovQUpdateMode, baselineCache),
+    waveformGateComparison("HR100", 100, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness, tensionRiseSec, tensionFallSec, tensionScope, aovQDotClamp, aovQDotClampNegative, qDotClampScope, aovQUpdateMode, baselineCache),
+    waveformGateComparison("HR100-rearm", 100, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness, tensionRiseSec, tensionFallSec, tensionScope, aovQDotClamp, aovQDotClampNegative, qDotClampScope, aovQUpdateMode, baselineCache),
   ];
 }
 
@@ -1735,20 +1779,22 @@ function waveformGateComparison(
   arterialStiffness: number,
   tensionRiseSec: number,
   tensionFallSec: number,
+  tensionScope: LambdaActScope,
   aovQDotClamp: number,
   aovQDotClampNegative: number,
+  qDotClampScope: DynamicQDotClampScope,
   aovQUpdateMode: AorticValveQUpdateMode,
   baselineCache: Map<string, WaveformGateMetrics>,
 ): WaveformGateComparison {
   const baselineKey = `${heartModel}|${label}|${HR}|${targetVolumeMl}|${dt}|${sampleHz}`;
   let baseline = baselineCache.get(baselineKey);
   if (!baseline) {
-    baseline = measureWaveformGate(label, HR, targetVolumeMl, heartModel, dt, sampleHz, "all", 0, "kd+fiso", "none", "lv", "none", "hard", DEFAULT_AOV_B, DEFAULT_AOV_AMAX, DEFAULT_AOV_L, DEFAULT_AOV_TAU_OPEN, DEFAULT_AOV_TAU_CLOSE, DEFAULT_SYSTEMIC_RESISTANCE, DEFAULT_ARTERIAL_STIFFNESS, 0, 0, DEFAULT_AOV_Q_DOT_CLAMP, DEFAULT_AOV_Q_DOT_CLAMP);
+    baseline = measureWaveformGate(label, HR, targetVolumeMl, heartModel, dt, sampleHz, "all", 0, "kd+fiso", "none", "lv", "none", "hard", DEFAULT_AOV_B, DEFAULT_AOV_AMAX, DEFAULT_AOV_L, DEFAULT_AOV_TAU_OPEN, DEFAULT_AOV_TAU_CLOSE, DEFAULT_SYSTEMIC_RESISTANCE, DEFAULT_ARTERIAL_STIFFNESS, 0, 0, "all", DEFAULT_AOV_Q_DOT_CLAMP, DEFAULT_AOV_Q_DOT_CLAMP, "aov");
     baselineCache.set(baselineKey, baseline);
   }
-  const candidate = tauSec <= 0 && lowStretchLimiterMode === "none" && aorticFlowClampMode === "hard" && tensionRiseSec <= 0 && tensionFallSec <= 0 && aovQDotClamp === DEFAULT_AOV_Q_DOT_CLAMP && aovQDotClampNegative === DEFAULT_AOV_Q_DOT_CLAMP && aovQUpdateMode === "current-loss" && isDefaultAorticValveComparator(aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness)
+  const candidate = tauSec <= 0 && lowStretchLimiterMode === "none" && aorticFlowClampMode === "hard" && tensionRiseSec <= 0 && tensionFallSec <= 0 && tensionScope === "all" && aovQDotClamp === DEFAULT_AOV_Q_DOT_CLAMP && aovQDotClampNegative === DEFAULT_AOV_Q_DOT_CLAMP && qDotClampScope === "aov" && aovQUpdateMode === "current-loss" && isDefaultAorticValveComparator(aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness)
     ? baseline
-    : measureWaveformGate(label, HR, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness, tensionRiseSec, tensionFallSec, aovQDotClamp, aovQDotClampNegative, aovQUpdateMode);
+    : measureWaveformGate(label, HR, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness, tensionRiseSec, tensionFallSec, tensionScope, aovQDotClamp, aovQDotClampNegative, qDotClampScope, aovQUpdateMode);
   const delta = {
     CO_L: candidate.CO_L - baseline.CO_L,
     CO_R: candidate.CO_R - baseline.CO_R,
@@ -1817,11 +1863,13 @@ function measureWaveformGate(
   arterialStiffness: number = DEFAULT_ARTERIAL_STIFFNESS,
   tensionRiseSec: number = 0,
   tensionFallSec: number = 0,
+  tensionScope: LambdaActScope = "all",
   aovQDotClamp: number = DEFAULT_AOV_Q_DOT_CLAMP,
   aovQDotClampNegative: number = aovQDotClamp,
+  qDotClampScope: DynamicQDotClampScope = "aov",
   aovQUpdateMode: AorticValveQUpdateMode = "current-loss",
 ): WaveformGateMetrics {
-  return withQuietClampLogs(() => measureWaveformGateImpl(label, HR, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness, tensionRiseSec, tensionFallSec, aovQDotClamp, aovQDotClampNegative, aovQUpdateMode));
+  return withQuietClampLogs(() => measureWaveformGateImpl(label, HR, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness, tensionRiseSec, tensionFallSec, tensionScope, aovQDotClamp, aovQDotClampNegative, qDotClampScope, aovQUpdateMode));
 }
 
 function measureWaveformGateImpl(
@@ -1847,8 +1895,10 @@ function measureWaveformGateImpl(
   arterialStiffness: number = DEFAULT_ARTERIAL_STIFFNESS,
   tensionRiseSec: number = 0,
   tensionFallSec: number = 0,
+  tensionScope: LambdaActScope = "all",
   aovQDotClamp: number = DEFAULT_AOV_Q_DOT_CLAMP,
   aovQDotClampNegative: number = aovQDotClamp,
+  qDotClampScope: DynamicQDotClampScope = "aov",
   aovQUpdateMode: AorticValveQUpdateMode = "current-loss",
 ): WaveformGateMetrics {
   const params = paramsWithTensionComparator(
@@ -1874,11 +1924,11 @@ function measureWaveformGateImpl(
     ),
     tensionRiseSec,
     tensionFallSec,
-    scope,
+    tensionScope,
   );
   const core = new ModelCore(params);
   core.setAorticFlowClampMode(aorticFlowClampMode);
-  core.setAorticFlowDerivativeClampLimits(aovQDotClamp, aovQDotClampNegative);
+  core.setDynamicFlowDerivativeClampLimits(aovQDotClamp, aovQDotClampNegative, qDotClampScope);
   core.setAorticValveQUpdateMode(aovQUpdateMode);
   core.initializeVenousPressuresForTargetTBV(targetVolumeMl);
   if (label === "HR100-rearm") {
@@ -2818,7 +2868,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("## Scenario summary");
   lines.push("");
-  lines.push("| class | branch class | localization | reasons | heart model | scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | AoV clamp | AoV B | AoV Amax | AoV L | tau open | tau close | SVR | art stiff | tension rise | tension fall | qDot clamp | selected deltas | period-2 | worst delta | worst covered | coverage | evidence | needs Jacobian | max CO branch frac | max EDV branch frac | max ESV branch frac | max QAo branch frac | max AoP branch frac | max QAo/cap | near cap >95% | at cap | local cap active | clean slopes | clean one-beat EDV slope | clean two-beat EDV slope | clean one-beat ESV slope | clean two-beat ESV slope | clean one-beat volume max slope | clean two-beat volume max slope | min MV A mL | min MV A frac | min LA A-loop frac | mean CO err | mean SV err | monotonicity breaks | dip/re-rise | slope ratio | active hit frac | min active scale | target reduction | max clamp hits | max sanitize abs mL | max projection applied mL | contaminated | max waveform gate frac | worst waveform metric |");
+  lines.push("| class | branch class | localization | reasons | heart model | scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | AoV clamp | AoV B | AoV Amax | AoV L | tau open | tau close | SVR | art stiff | tension rise | tension fall | tension scope | qDot clamp | qDot scope | selected deltas | period-2 | worst delta | worst covered | coverage | evidence | needs Jacobian | max CO branch frac | max EDV branch frac | max ESV branch frac | max QAo branch frac | max AoP branch frac | max QAo/cap | near cap >95% | at cap | local cap active | clean slopes | clean one-beat EDV slope | clean two-beat EDV slope | clean one-beat ESV slope | clean two-beat ESV slope | clean one-beat volume max slope | clean two-beat volume max slope | min MV A mL | min MV A frac | min LA A-loop frac | mean CO err | mean SV err | monotonicity breaks | dip/re-rise | slope ratio | active hit frac | min active scale | target reduction | max clamp hits | max sanitize abs mL | max projection applied mL | contaminated | max waveform gate frac | worst waveform metric |");
   lines.push(markdownSeparator(lines[lines.length - 1]));
   for (const scenario of report.scenarios) {
     const worstWaveform = scenario.waveformGates.reduce<{ label: string; metric: string; fraction: number }>(
@@ -2851,7 +2901,9 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
       scenario.arterialStiffness,
       scenario.tensionRiseSec,
       scenario.tensionFallSec,
+      scenario.tensionScope,
       aovQDotClampLabel(scenario.aovQDotClamp, scenario.aovQDotClampNegative),
+      scenario.qDotClampScope,
       scenario.selectedDeltasMl.join(", "),
       scenario.returnMapSummary.period2Count,
       scenario.evaluation.worstDeltaVolumeMl ?? "",
@@ -2899,7 +2951,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("These scenario-level maxima promote the low-open negative-qDot readouts that localized the low-preload branch to pressure-reversal / forward-coast deceleration. `qDotClamp=80000` or asymmetric negative-clamp relaxation remains a positive control, not a default model fix.");
   lines.push("");
-  lines.push("| class | heart model | dt | TBV correction | AoV B | AoV L | tau open | tau close | tension rise | tension fall | qDot clamp | q update | pressure-reversal n | pressure-reversal -qDot/clamp | pressure-reversal pressure excess | forward-coast n | forward-coast -qDot/clamp | forward-coast pressure excess | clean qDot hit frac | clean closure abs | SV5-95 qDot hit frac | qDot impulse abs | max CO branch frac | max ESV branch frac | waveform worst frac |");
+  lines.push("| class | heart model | dt | TBV correction | AoV B | AoV L | tau open | tau close | tension rise | tension fall | tension scope | qDot clamp | qDot scope | q update | pressure-reversal n | pressure-reversal -qDot/clamp | pressure-reversal pressure excess | forward-coast n | forward-coast -qDot/clamp | forward-coast pressure excess | clean qDot hit frac | clean closure abs | SV5-95 qDot hit frac | qDot impulse abs | max CO branch frac | max ESV branch frac | waveform worst frac |");
   lines.push(markdownSeparator(lines[lines.length - 1]));
   for (const scenario of report.scenarios) {
     lines.push([
@@ -2913,7 +2965,9 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
       scenario.aovTauClose,
       scenario.tensionRiseSec,
       scenario.tensionFallSec,
+      scenario.tensionScope,
       aovQDotClampLabel(scenario.aovQDotClamp, scenario.aovQDotClampNegative),
+      scenario.qDotClampScope,
       scenario.aovQUpdateMode,
       scenario.negativeQDotSummary.pressureReversalSampleCountMax,
       round(scenario.negativeQDotSummary.pressureReversalNegativeRatioMax, 4),
@@ -2935,7 +2989,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("These are scenario-level maxima from engine `debugClampDiagnostics().dynamicQDot*` for every valve/dynamic edge. Use this to distinguish AoV-specific low-preload ejection events from MV/filling or vascular dynamic-edge regimes before choosing an AoV-only, valve-common, or dynamic-edge-common fix.");
   lines.push("");
-  lines.push("| class | heart model | dt | TBV correction | delta set | AoV B | tau open | tau close | tension rise | tension fall | qDot clamp | edge | raw abs max | +qDot max | -qDot abs max | impulse abs max | hit count max |");
+  lines.push("| class | heart model | dt | TBV correction | delta set | AoV B | tau open | tau close | tension rise | tension fall | tension scope | qDot clamp | qDot scope | edge | raw abs max | +qDot max | -qDot abs max | impulse abs max | hit count max |");
   lines.push(markdownSeparator(lines[lines.length - 1]));
   for (const scenario of report.scenarios) {
     for (const edge of dynamicEdgeNames) {
@@ -2951,7 +3005,9 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         scenario.aovTauClose,
         scenario.tensionRiseSec,
         scenario.tensionFallSec,
+        scenario.tensionScope,
         aovQDotClampLabel(scenario.aovQDotClamp, scenario.aovQDotClampNegative),
+        scenario.qDotClampScope,
         edge,
         round(summary.maxRawAbsMlPerS2, 4),
         round(summary.maxPositiveRawMlPerS2, 4),
@@ -3175,7 +3231,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("## Normal / HR100 waveform gates");
   lines.push("");
-  lines.push("| scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | AoV B | AoV Amax | AoV L | tau open | tau close | SVR | art stiff | tension rise | tension fall | qDot clamp | q update | case | dCO_L | dESV_L | dEF_L | dLVPmax | dQAoMax | candidate QAo/cap | near cap >95% | local cap active | AoV total mean | AoV peak total | orifice mean | full-open orifice | area-loss extra | Bq2 mean | inertial mean | residual mean | closure mean | closure fw | solver closure fw | closure at QAoMax | closure SV5-95 | closure SV5-95 fw | discrete closure fw | diode imp fw | flow imp fw | qDot imp fw | clean closure fw | clean cand n | clean n | qDot raw max | qDot post max | qDot hit frac | qDot hit SV5-95 | qDot hit >5%peak | qDot hit open01 | qDot hit clean cand | QAo mean+ | QAo t-peak ms | max dQAo/dt | AoV open01 mean | open01 at QAoMax | near-full-open ms | QAo peak/mean | eject QAo>0 ms | eject >5%peak ms | eject SV5-95 ms | high-flow ms | baseline QAo/cap | dMax dP/dt | candidate min dP/dt | dMin dP/dt | dClamp hits | worst metric | worst frac |");
+  lines.push("| scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | AoV B | AoV Amax | AoV L | tau open | tau close | SVR | art stiff | tension rise | tension fall | tension scope | qDot clamp | qDot scope | q update | case | dCO_L | dESV_L | dEF_L | dLVPmax | dQAoMax | candidate QAo/cap | near cap >95% | local cap active | AoV total mean | AoV peak total | orifice mean | full-open orifice | area-loss extra | Bq2 mean | inertial mean | residual mean | closure mean | closure fw | solver closure fw | closure at QAoMax | closure SV5-95 | closure SV5-95 fw | discrete closure fw | diode imp fw | flow imp fw | qDot imp fw | clean closure fw | clean cand n | clean n | qDot raw max | qDot post max | qDot hit frac | qDot hit SV5-95 | qDot hit >5%peak | qDot hit open01 | qDot hit clean cand | QAo mean+ | QAo t-peak ms | max dQAo/dt | AoV open01 mean | open01 at QAoMax | near-full-open ms | QAo peak/mean | eject QAo>0 ms | eject >5%peak ms | eject SV5-95 ms | high-flow ms | baseline QAo/cap | dMax dP/dt | candidate min dP/dt | dMin dP/dt | dClamp hits | worst metric | worst frac |");
   lines.push(markdownSeparator(lines[lines.length - 1]));
   for (const scenario of report.scenarios) {
     for (const gate of scenario.waveformGates) {
@@ -3197,7 +3253,9 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         scenario.arterialStiffness,
         scenario.tensionRiseSec,
         scenario.tensionFallSec,
+        scenario.tensionScope,
         aovQDotClampLabel(scenario.aovQDotClamp, scenario.aovQDotClampNegative),
+        scenario.qDotClampScope,
         scenario.aovQUpdateMode,
         gate.label,
         round(gate.delta.CO_L, 4),
@@ -3262,7 +3320,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("These values split the normal/HR waveform AoV pressure loss into total transient gradient, quasi-steady orifice loss (`Rq + Bq|q|` using the sampled effective valve loss), full-open orifice loss, area-loss extra while the valve is not fully open, inertial loss, clamp/event impulses, and residual. Use the full-open/orifice columns for AS-like sanity; the total gradient also contains inertial/transient effects and residual model/coupling terms. `solver closure` is evaluated before diode/flow/qDot clamps; `clean closure` is evaluated only in near-full-open, SV 5-95%, no-event samples.");
   lines.push("");
-  lines.push("| heart model | dt | TBV correction | AoV clamp | limiter | preset | AoV B | AoV Amax | AoV L | tau open | tau close | SVR | art stiff | tension rise | qDot clamp | q update | case | total mean | sampled orifice mean | full-open orifice mean | area-loss extra mean | Rq mean | Bq2 mean | inertial mean | residual mean | closure fw | solver closure fw | diode imp fw | flow imp fw | qDot imp fw | clean closure fw | clean cand n | clean n | qDot raw max | qDot hit SV5-95 | qDot hit clean cand | open01 mean | open01 at QAoMax | near-full-open ms | peak orifice | peak area-loss extra | peak inertial | peak residual |");
+  lines.push("| heart model | dt | TBV correction | AoV clamp | limiter | preset | AoV B | AoV Amax | AoV L | tau open | tau close | SVR | art stiff | tension rise | tension scope | qDot clamp | qDot scope | q update | case | total mean | sampled orifice mean | full-open orifice mean | area-loss extra mean | Rq mean | Bq2 mean | inertial mean | residual mean | closure fw | solver closure fw | diode imp fw | flow imp fw | qDot imp fw | clean closure fw | clean cand n | clean n | qDot raw max | qDot hit SV5-95 | qDot hit clean cand | open01 mean | open01 at QAoMax | near-full-open ms | peak orifice | peak area-loss extra | peak inertial | peak residual |");
   lines.push(markdownSeparator(lines[lines.length - 1]));
   for (const scenario of report.scenarios) {
     for (const gate of scenario.waveformGates) {
@@ -3281,7 +3339,9 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         scenario.systemicResistance,
         scenario.arterialStiffness,
         scenario.tensionRiseSec,
+        scenario.tensionScope,
         aovQDotClampLabel(scenario.aovQDotClamp, scenario.aovQDotClampNegative),
+        scenario.qDotClampScope,
         scenario.aovQUpdateMode,
         gate.label,
         round(gate.candidate.AoVFlowWeightedTotalGradient, 4),
@@ -3318,7 +3378,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("Report-only estimate of how far the sampled raw AoV flow acceleration is above the configured qDot clamp. `req reduction` is the fractional raw-qDot reduction needed to fit under the current clamp. `pressure excess` is `AoV_L * max(raw|qDot|-clamp, 0)`. `equiv extra B` is the additional Bernoulli coefficient that would create the same pressure excess at the sample's QAo; it is a range-finding aid, not a recommended parameter change. `q update` is an off-by-default comparator for the AoV q-state update ordering/integration.");
   lines.push("");
-  lines.push("| heart model | dt | TBV correction | limiter | preset | AoV B | AoV L | tension rise | qDot clamp | q update | case | raw/clamp max | req reduction max | pressure excess max | equiv extra B | QAo at max | open01 at max | SV5-95 raw/clamp | SV5-95 req reduction | SV5-95 pressure excess | SV5-95 equiv extra B | clean raw/clamp | clean req reduction | clean pressure excess | clean equiv extra B |");
+  lines.push("| heart model | dt | TBV correction | limiter | preset | AoV B | AoV L | tension rise | tension scope | qDot clamp | qDot scope | q update | case | raw/clamp max | req reduction max | pressure excess max | equiv extra B | QAo at max | open01 at max | SV5-95 raw/clamp | SV5-95 req reduction | SV5-95 pressure excess | SV5-95 equiv extra B | clean raw/clamp | clean req reduction | clean pressure excess | clean equiv extra B |");
   lines.push(markdownSeparator(lines[lines.length - 1]));
   for (const scenario of report.scenarios) {
     for (const gate of scenario.waveformGates) {
@@ -3331,7 +3391,9 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         scenario.aovB,
         scenario.aovL,
         scenario.tensionRiseSec,
+        scenario.tensionScope,
         aovQDotClampLabel(scenario.aovQDotClamp, scenario.aovQDotClampNegative),
+        scenario.qDotClampScope,
         scenario.aovQUpdateMode,
         gate.label,
         round(gate.candidate.AoVQDotRawToClampRatioMax, 4),
@@ -3356,7 +3418,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("The max qDot target estimate is split by AoV opening fraction so low-open events do not get conflated with near-full-open ejection. `open<0.2` is not necessarily opening acceleration; inspect dP/qDot signs and the event-direction table below before choosing a tauOpen/tauClose/q-update lever. Use `open>=0.95` for near-full-open ejection-body behavior.");
   lines.push("");
-  lines.push("| heart model | dt | TBV correction | limiter | preset | AoV B | AoV L | tau open | tension rise | qDot clamp | q update | case | open bin | n | raw/clamp max | +qDot/clamp max | -qDot/clamp max | req reduction | pressure excess | equiv extra B | QAo at max | dP at max | q current | qNext pre diode | qNext pre flow clamp | qDot pre clamp | qDot raw | +qDot max | -qDot min | open01 at max | d open01 at max |");
+  lines.push("| heart model | dt | TBV correction | limiter | preset | AoV B | AoV L | tau open | tension rise | tension scope | qDot clamp | qDot scope | q update | case | open bin | n | raw/clamp max | +qDot/clamp max | -qDot/clamp max | req reduction | pressure excess | equiv extra B | QAo at max | dP at max | q current | qNext pre diode | qNext pre flow clamp | qDot pre clamp | qDot raw | +qDot max | -qDot min | open01 at max | d open01 at max |");
   lines.push(markdownSeparator(lines[lines.length - 1]));
   for (const scenario of report.scenarios) {
     for (const gate of scenario.waveformGates) {
@@ -3371,7 +3433,9 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
           scenario.aovL,
           scenario.aovTauOpen,
           scenario.tensionRiseSec,
+          scenario.tensionScope,
           aovQDotClampLabel(scenario.aovQDotClamp, scenario.aovQDotClampNegative),
+          scenario.qDotClampScope,
           scenario.aovQUpdateMode,
           gate.label,
           bin,
@@ -3402,7 +3466,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("Low-open samples are split by sign/phase proxies. Bins may overlap; they are attribution readouts, not mutually exclusive classes.");
   lines.push("");
-  lines.push("| heart model | dt | TBV correction | limiter | preset | AoV B | AoV L | tau open | tau close | tension rise | qDot clamp | q update | case | event bin | n | raw/clamp max | +qDot/clamp max | -qDot/clamp max | pressure excess | QAo at max | dP at max | q current | qNext pre diode | qDot raw | +qDot max | -qDot min | open01 at max | d open01 at max |");
+  lines.push("| heart model | dt | TBV correction | limiter | preset | AoV B | AoV L | tau open | tau close | tension rise | tension scope | qDot clamp | qDot scope | q update | case | event bin | n | raw/clamp max | +qDot/clamp max | -qDot/clamp max | pressure excess | QAo at max | dP at max | q current | qNext pre diode | qDot raw | +qDot max | -qDot min | open01 at max | d open01 at max |");
   lines.push(markdownSeparator(lines[lines.length - 1]));
   for (const scenario of report.scenarios) {
     for (const gate of scenario.waveformGates) {
@@ -3418,7 +3482,9 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
           scenario.aovTauOpen,
           scenario.aovTauClose,
           scenario.tensionRiseSec,
+          scenario.tensionScope,
           aovQDotClampLabel(scenario.aovQDotClamp, scenario.aovQDotClampNegative),
+          scenario.qDotClampScope,
           scenario.aovQUpdateMode,
           gate.label,
           bin,
@@ -3558,6 +3624,7 @@ export function matrixReportToCsv(report: MatrixReport): string {
     "lambdaActTauSec",
     "lowStretchLimiterMode",
     "lowStretchLimiterScope",
+    "tensionScope",
     "activeReservePreset",
     "dt",
     "tbvCorrectionMode",
@@ -3574,6 +3641,7 @@ export function matrixReportToCsv(report: MatrixReport): string {
     "tensionFallSec",
     "aovQDotClamp",
     "aovQDotClampNegative",
+    "qDotClampScope",
     "aovQUpdateMode",
     "scenarioPressureReversalSampleCountMax",
     "scenarioPressureReversalNegativeRatioMax",
@@ -3773,6 +3841,7 @@ export function matrixReportToCsv(report: MatrixReport): string {
         scenario.lambdaActTauSec,
         scenario.lowStretchLimiterMode,
         scenario.lowStretchLimiterScope,
+        scenario.tensionScope,
         scenario.activeReservePreset,
         scenario.dt,
         scenario.tbvCorrectionMode,
@@ -3789,6 +3858,7 @@ export function matrixReportToCsv(report: MatrixReport): string {
         scenario.tensionFallSec,
         scenario.aovQDotClamp,
         scenario.aovQDotClampNegative,
+        scenario.qDotClampScope,
         scenario.aovQUpdateMode,
         scenario.negativeQDotSummary.pressureReversalSampleCountMax,
         scenario.negativeQDotSummary.pressureReversalNegativeRatioMax,
@@ -3977,6 +4047,7 @@ export function parseLowPreloadMatrixArgs(args: string[]): MatrixOptions {
     lambdaActTermsValues: DEFAULT_TERMS,
     lowStretchLimiterModes: DEFAULT_LOW_STRETCH_LIMITERS,
     lowStretchLimiterScopes: DEFAULT_LOW_STRETCH_LIMITER_SCOPES,
+    tensionScopes: DEFAULT_TENSION_SCOPES,
     activeReservePresets: DEFAULT_ACTIVE_RESERVE_PRESETS,
     tbvCorrectionModes: DEFAULT_TBV_CORRECTION_MODES,
     aorticFlowClampModes: DEFAULT_AORTIC_FLOW_CLAMP_MODES,
@@ -3991,6 +4062,7 @@ export function parseLowPreloadMatrixArgs(args: string[]): MatrixOptions {
     tensionFallSecValues: DEFAULT_TENSION_FALL_SEC_VALUES,
     aovQDotClampValues: DEFAULT_AOV_Q_DOT_CLAMP_VALUES,
     aovQDotClampPairs: DEFAULT_AOV_Q_DOT_CLAMP_PAIRS,
+    qDotClampScopes: DEFAULT_Q_DOT_CLAMP_SCOPES,
     aovQUpdateModes: DEFAULT_AOV_Q_UPDATE_MODES,
     includeAllScope: false,
     maxReturnMapPoints: 6,
@@ -4014,6 +4086,7 @@ export function parseLowPreloadMatrixArgs(args: string[]): MatrixOptions {
     else if (key === "--lambda-act-terms" && value) opts.lambdaActTermsValues = parseTerms(value);
     else if (key === "--low-stretch-limiter" && value) opts.lowStretchLimiterModes = parseLowStretchLimiterModes(value);
     else if (key === "--low-stretch-limiter-scope" && value) opts.lowStretchLimiterScopes = parseScopes(value);
+    else if (key === "--tension-scope" && value) opts.tensionScopes = parseScopes(value);
     else if (key === "--active-reserve-preset" && value) opts.activeReservePresets = parseActiveReservePresets(value);
     else if (key === "--tbv-correction" && value) opts.tbvCorrectionModes = parseTBVCorrectionModes(value);
     else if (key === "--aortic-flow-clamp" && value) opts.aorticFlowClampModes = parseAorticFlowClampModes(value);
@@ -4028,6 +4101,7 @@ export function parseLowPreloadMatrixArgs(args: string[]): MatrixOptions {
     else if (key === "--tension-fall" && value) opts.tensionFallSecValues = normalizeAxisValues(parseNumberList(value), 0);
     else if (key === "--aov-qdot-clamp" && value) opts.aovQDotClampValues = normalizeAovValues(parseNumberList(value), DEFAULT_AOV_Q_DOT_CLAMP);
     else if (key === "--aov-qdot-clamp-pair" && value) opts.aovQDotClampPairs = parseAovQDotClampPairs(value);
+    else if (key === "--qdot-clamp-scope" && value) opts.qDotClampScopes = parseDynamicQDotClampScopes(value);
     else if (key === "--aov-q-update" && value) opts.aovQUpdateModes = parseAorticValveQUpdateModes(value);
     else if (key === "--include-all-scope") opts.includeAllScope = true;
     else if (key === "--branch-only") opts.maxReturnMapPoints = 0;
@@ -4144,6 +4218,16 @@ function parseScopes(value: string): LambdaActScope[] {
   return scopes as LambdaActScope[];
 }
 
+function parseDynamicQDotClampScopes(value: string): DynamicQDotClampScope[] {
+  const scopes = value.split(",").map((entry) => entry.trim()).filter(Boolean);
+  for (const scope of scopes) {
+    if (scope !== "aov" && scope !== "pv" && scope !== "semilunar" && scope !== "all-valves" && scope !== "all-dynamic") {
+      throw new Error(`Invalid qDot clamp scope: ${scope}`);
+    }
+  }
+  return Array.from(new Set(scopes)) as DynamicQDotClampScope[];
+}
+
 function parseNumberList(value: string): number[] {
   return value.split(",").map((v) => Number(v.trim())).filter(Number.isFinite);
 }
@@ -4250,7 +4334,7 @@ function printHelp(): void {
     "Usage: npm run verify:starling-low-preload-matrix -- [--out=DIR]",
     "       [--heart-model=activeStress,elastance]",
     "       [--deltas=0,-900,-1250] [--dt=0.001,0.0005] [--lambda-act-tau=0,0.15]",
-    "       [--lambda-act-scope=lv,ventricles] [--lambda-act-terms=kd,fiso,kd+fiso]",
+    "       [--lambda-act-scope=lv,ventricles] [--lambda-act-terms=kd,fiso,kd+fiso] [--tension-scope=lv,ventricles,all]",
     "       [--low-stretch-limiter=none,aInfCap,activeReserveCap,fIsoSlopeRelax] [--low-stretch-limiter-scope=lv,ventricles]",
     "       [--active-reserve-preset=directMild,directMedium,thresholdMild,thresholdMedium]",
     "       [--tbv-correction=on,off,low]",
@@ -4259,7 +4343,7 @@ function printHelp(): void {
     "       [--aov-l=0.00025,0.0005] [--aov-tau-open=0.006,0.012] [--aov-tau-close=0.008,0.016]",
     "       [--systemic-resistance=1,1.2] [--arterial-stiffness=0.75,1.0]",
     "       [--tension-rise=0,0.02,0.04] [--tension-fall=0,0.04,0.08] [--aov-qdot-clamp=40000,80000]",
-    "       [--aov-qdot-clamp-pair=+40000/-80000,+80000/-40000] [--aov-q-update=current-loss,qnext-loss,substep-2,substep-4]",
+    "       [--aov-qdot-clamp-pair=+40000/-80000,+80000/-40000] [--qdot-clamp-scope=aov,pv,semilunar,all-valves,all-dynamic] [--aov-q-update=current-loss,qnext-loss,substep-2,substep-4]",
     "       [--regime-audit=low-hyper]",
     "       [--include-all-scope] [--branch-only] [--max-return-map-points=6]",
     "       [--quiet-progress]",

@@ -866,3 +866,52 @@ Suggested next diagnostic after this PR:
   QPV phase relative to QAo.
 - Targeted hypervolume MV overlay at `+400,+600,+800`: MV morphology,
   near-zero / reopen / LAP-LVP crossing, and MV qDot audit together.
+
+### 2026-06-13 update: scope-controlled qDot / tension comparators
+
+The per-edge audit identified AoV as primary and PV as secondary in the current
+low/hyper smoke, but the earlier asymmetric qDot clamp comparator was AoV-only.
+The debug and matrix runners now expose independent report-only scope axes:
+
+- `--qdot-clamp-scope=aov|pv|semilunar|all-valves|all-dynamic`
+- `--tension-scope=lv|ventricles|all`
+
+`semilunar` means AoV+PV. Existing commands default to `qDotClampScope=aov` and
+`tensionScope=all`, so default behavior and previous AoV-only comparator
+semantics are preserved.
+
+Recommended scope smoke:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/scope-controlled-qdot-smoke \
+  --regime-audit=low-hyper \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --aov-qdot-clamp-pair=+40000/-80000 \
+  --qdot-clamp-scope=aov,pv,semilunar \
+  --tension-fall=0,0.04 \
+  --tension-scope=lv,ventricles,all \
+  --max-return-map-points=2 \
+  --trace-beats=2 \
+  --sample-hz=40 \
+  --quiet-progress
+```
+
+Readout discipline:
+
+- `qDotClampScope=aov` reproduces the old AoV-only positive-control question.
+- `pv` tests whether PV-only negative-qDot relaxation can move the same branch.
+- `semilunar` tests the current best scope label without jumping to all valves
+  or all dynamic edges.
+- `all-valves` and `all-dynamic` are stress comparators only. Do not promote a
+  global qDot handling change from low-preload data alone.
+- `tensionScope` is intentionally independent from `lambdaActScope`; use it to
+  distinguish LV-only relaxation smoothing from biventricular or all-chamber
+  active-tension smoothing.
+
+This remains diagnostic. qDot clamp relaxation is a positive control for event
+surface dominance, not a model fix. A physical candidate still needs to reduce
+negative-qDot / closure-deceleration pathology with the default clamp unchanged
+and without normal / HR waveform regression.

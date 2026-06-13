@@ -844,7 +844,7 @@ The scenario-level per-edge summary can hide whether a qDot signal came from
 low-preload, baseline, or hypervolume deltas. The next report-only layer adds a
 regime-aware audit:
 
-- Matrix schema v27.
+- Matrix schema v28.
 - `--regime-audit=low-hyper` preset.
 - JSON `summary.regimePerEdgeQDot`.
 - Per-scenario `pointEdgeQDotSummary[]`, with `regime`, `deltaVolumeMl`,
@@ -918,3 +918,57 @@ Recommended next PR direction:
 
 Fix-scope decision should wait for those rows. Candidate scopes remain:
 AoV-only, semilunar-common (AoV+PV), valve-common, and dynamic-edge-common.
+
+## 2026-06-13 update: scope-controlled qDot / tension audit
+
+The next PR converts those candidate labels into explicit comparator axes. The
+matrix schema is now v28 and carries:
+
+- `tensionScopes`
+- `qDotClampScopes`
+- per-scenario `tensionScope`
+- per-scenario `qDotClampScope`
+
+New CLI options:
+
+```text
+--qdot-clamp-scope=aov|pv|semilunar|all-valves|all-dynamic
+--tension-scope=lv|ventricles|all
+```
+
+Defaults preserve previous behavior: `qDotClampScope=aov` and
+`tensionScope=all`. `semilunar` means AoV+PV.
+
+Suggested handoff artifact:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/scope-controlled-qdot-smoke \
+  --regime-audit=low-hyper \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --aov-qdot-clamp-pair=+40000/-80000 \
+  --qdot-clamp-scope=aov,pv,semilunar \
+  --tension-fall=0,0.04 \
+  --tension-scope=lv,ventricles,all \
+  --max-return-map-points=2 \
+  --trace-beats=2 \
+  --sample-hz=40 \
+  --quiet-progress
+```
+
+Interpretation:
+
+- AoV-only scope answers whether the old asymmetric-clamp positive control is
+  sufficient by itself.
+- PV-only scope tests whether the secondary pulmonary valve signal can move the
+  branch independently.
+- Semilunar scope is the current leading localization label.
+- All-valves / all-dynamic are stress comparators, not default candidates.
+- Tension scope is independent from `lambdaActScope`; use it to separate
+  LV-only relaxation smoothing from biventricular or all-chamber smoothing.
+
+This remains localization and attribution data. Clamp relaxation is still a
+positive control. A model fix must keep the default qDot clamp, reduce
+closure-deceleration pathology, and pass normal / HR waveform gates.
