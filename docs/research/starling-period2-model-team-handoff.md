@@ -709,3 +709,56 @@ The matrix report now also splits low-open samples by event direction:
 These bins may overlap. They are attribution readouts, not mutually exclusive physiology classes. The report also includes max positive and max negative qDot separately, plus local open01 delta at the max-excess sample. `equiv extra B` remains range-finding only; it is not a recommended parameter.
 
 Do not interpret a successful q-state update comparator as a model fix by itself. It is evidence about q-update ordering and low-open event numerics. Default adoption would require a later model-design PR and broad validation.
+
+## 2026-06-13 update: asymmetric qDot clamp localization
+
+The asymmetric qDot clamp comparator separates acceleration and deceleration event surfaces:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/asymmetric-qdot-smoke \
+  --deltas=0,-1250 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --aov-qdot-clamp-pair=+40000/-40000,+40000/-80000,+80000/-40000,+80000/-80000 \
+  --max-return-map-points=1 \
+  --trace-beats=2 \
+  --sample-hz=40 \
+  --quiet-progress
+```
+
+Interpretation discipline:
+
+- `+40000/-80000` is a positive control for negative-qDot / deceleration event-surface dominance.
+- `+80000/-40000` tests positive-qDot / acceleration relaxation and should not be expected to help if the mechanism is closure-side deceleration.
+- A branch collapse under negative-clamp relaxation is not a model fix. It means the next candidate should reduce negative qDot / closure-deceleration pathology while keeping the default clamp.
+
+Matrix schema v24 now promotes scenario-level negative qDot readouts:
+
+- `pressureReversalNegativeRatioMax`
+- `pressureReversalPressureExcessMaxMmHg`
+- `forwardCoastNegativeRatioMax`
+- `forwardCoastPressureExcessMaxMmHg`
+- `cleanQDotHitFractionMax`
+- `cleanClosureResidualAbsMax`
+- `sv5To95QDotHitFractionMax`
+- `qDotClampImpulseAbsMax`
+
+Recommended next handoff sweep:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/negative-decel-smoke \
+  --deltas=0,-1250 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --aov-qdot-clamp-pair=+40000/-40000,+40000/-60000,+40000/-80000,+80000/-40000 \
+  --aov-tau-close=0.008,0.012 \
+  --aov-q-update=current-loss,qnext-loss \
+  --max-return-map-points=1 \
+  --trace-beats=2 \
+  --sample-hz=40 \
+  --quiet-progress
+```
