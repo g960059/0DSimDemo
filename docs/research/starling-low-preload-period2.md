@@ -665,7 +665,7 @@ The qDot target estimator is now split by AoV opening fraction:
 - `open-0.8-0.95`
 - `open-gte-0.95`
 
-This is report-only. The goal is to separate brief low-open-fraction AoV opening transients from the near-full-open ejection body. A large whole-window `raw/clamp max` should not be read as a required ejection-body correction until the open01-bin rows show where that maximum occurred.
+This is report-only. The goal is to separate low-open-fraction AoV qDot events from the near-full-open ejection body. A large whole-window `raw/clamp max` should not be read as a required ejection-body correction until the open01-bin rows show where that maximum occurred. The low-open bin is not necessarily an opening spike: it can also include pressure-reversal / closing-side deceleration or forward-flow coast against adverse pressure, so the next diagnostic layer should split by dP sign, qDot sign, q sign, and valve-opening phase.
 
 The matrix runner also has an off-by-default `--aov-q-update` comparator:
 
@@ -676,7 +676,7 @@ The matrix runner also has an off-by-default `--aov-q-update` comparator:
 Interpretation:
 
 - `current-loss` is the current default and remains the only runtime behavior unless the debug/matrix runner explicitly asks for another mode.
-- `qnext-loss` is a qNext-consistent quadratic-loss comparator for testing whether current-q loss under-damps AoV opening acceleration.
+- `qnext-loss` is a qNext-consistent quadratic-loss comparator for testing whether current-q loss under-damps low-open AoV qDot events.
 - `substep-2` and `substep-4` are small AoV q-state substep comparators with the pressure/opening state frozen within the outer model step.
 
-Use these modes as attribution tools, not as default candidates. A useful signal is a reduction in `open-lt-0.2` raw/clamp, qDot clamp impulse, and clean-window closure residual without damaging normal / HR waveform gates. `qDotClamp=80000` remains a positive control for event-surface dominance, not a root fix.
+Use these modes as attribution tools, not as default candidates. A useful signal is a reduction in `open-lt-0.2` raw/clamp, qDot clamp impulse, and clean-window closure residual without damaging normal / HR waveform gates. `qDotClamp=80000` remains a positive control for event-surface dominance, not a root fix. `equiv extra B` is range-finding only; it is not a recommended parameter.
