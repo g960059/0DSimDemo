@@ -13,6 +13,7 @@ import type { SimInstance, PanelDef, PanelRole, WorkbenchWorkspace, ControllerIt
 import type { NoteContent } from "@/noteTypes";
 import type { ExpectedFinding, StructuredModelLimitation } from "@/caseValidation";
 import type { CoreRuntimeParams, ParameterPatch } from "@/engine/protocol";
+import type { ReadExploreMode } from "@/features/workbench/readExplore";
 import type { GraphBoardLayout, ViewSpec } from "@/features/workbench/viewSpec";
 import {
   type BaselineDef,
@@ -148,6 +149,7 @@ export interface CaseDocument {
   ownerId?: string;
   source?: CaseSource;
   derivedFrom?: string;
+  defaultEntry?: ReadExploreMode;
   spec: CaseSpec;
   instances: CaseInstance[];
   panels: PanelDef[];
@@ -321,6 +323,7 @@ export function simInstancesToCaseDocument(
     visibility?: CaseVisibility;
     source?: CaseSource;
     derivedFrom?: string;
+    defaultEntry?: ReadExploreMode;
     createdAt: number;
     updatedAt: number;
     spec: CaseSpec;
@@ -369,6 +372,7 @@ export function simInstancesToCaseDocument(
     ...(opts.ownerId ? { ownerId: opts.ownerId } : {}),
     ...(opts.source ? { source: opts.source } : {}),
     ...(opts.derivedFrom ? { derivedFrom: opts.derivedFrom } : {}),
+    ...(opts.defaultEntry ? { defaultEntry: opts.defaultEntry } : {}),
     spec: opts.spec,
     instances: caseInstances,
     panels,

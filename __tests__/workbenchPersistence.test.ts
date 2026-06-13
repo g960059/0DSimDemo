@@ -50,6 +50,7 @@ function captureBuildCurrentDoc(sceneOverrides: Partial<WorkbenchSceneState> = {
     currentCaseI18n: undefined,
     currentCaseReading: undefined,
     currentCaseExposedControllers: undefined,
+    currentCaseDefaultEntry: "explore",
     currentCaseViews: [],
     currentCaseGraphBoardLayout: undefined,
     replaceSceneFromDoc: () => {},
@@ -103,5 +104,15 @@ describe("useWorkbenchPersistence", () => {
     });
 
     expect(doc.initialActiveScenarioId).toBe("a");
+  });
+
+  it("preserves the current default entry on current-doc builds", () => {
+    const doc = captureBuildCurrentDoc()({
+      id: "case-default-entry",
+      createdAt: 1,
+      updatedAt: 2,
+    });
+
+    expect(doc.defaultEntry).toBe("explore");
   });
 });

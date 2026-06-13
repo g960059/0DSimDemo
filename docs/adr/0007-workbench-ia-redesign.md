@@ -180,7 +180,7 @@ Mobile remaps roles to form-factor conventions: scenario chips at the top, graph
 - **P0:** ADR, supersede markers, new pure type layer, one-way PanelDef migration, additive CaseDocument fields, save-path preservation, tests, and roadmap rewrite. No runtime UI behavior change.
 - **P1:** main-only Dockview, fixed right rail and metrics host, push note drawer, GraphBoardLayout wiring, compare cleanup, and pane-local visibility removal.
 - **P2 (redefined 2026-06-12, reader-traffic-first):** P2a authored view management in the Workbench (live ControllerViewSpec / MetricsViewSpec, rail dropdown, shared modal editor, views persistence re-enabled); P2b note `view_ref` + reader curation (reader consumes authored views only); P2c read-only interactive operation blocking, runtime operation allowance, reset to author state, and Read/Explore state carry-over.
-- **P3:** publish flow: visibility, ownership, default-entry transitions, and any explicit author override for Read/Explore entry. No parallel runtime snapshot envelope.
+- **P3:** publish flow split into P3a domain/validator, P3b dialog/review-as-reader, and P3c cloud/public-route polish. P3a adds top-level `CaseDocument.defaultEntry?: "read" | "explore"`, pure `validatePublishableCase` referential-integrity checks, and a conservative `active-scenario-hidden` warning based on `isVisible === false`. No parallel runtime snapshot envelope.
 - **P4:** aspect rendering at the pane-content layer.
 
 ## Alternatives

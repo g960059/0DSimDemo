@@ -42,6 +42,7 @@ export type BuildCurrentDocOverrides = {
   updatedAt?: number;
   includeNotes?: boolean;
   initialActiveScenarioId?: string;
+  defaultEntry?: CaseDocument["defaultEntry"];
 };
 
 export type BuildCurrentDoc = (overrides?: BuildCurrentDocOverrides) => CaseDocument;
@@ -94,6 +95,7 @@ export function useWorkbenchPersistence({
     const graphPanelIds = graphPanels.map((panel) => panel.id);
     const normalizedGraphBoardLayout = normalizeGraphBoardLayout(scene.currentCaseGraphBoardLayout, { graphViewIds: graphPanelIds }).layout
       ?? graphBoardLayoutFromPanels(graphPanels);
+    const nextDefaultEntry = "defaultEntry" in overrides ? overrides.defaultEntry : scene.currentCaseDefaultEntry;
     const doc = simInstancesToCaseDocument(scene.instances, panels.panels, {
       id: overrides.id ?? `wb-${now}`,
       title,
@@ -120,6 +122,7 @@ export function useWorkbenchPersistence({
       views: serializableAuthoredViews(scene.currentCaseViews),
       graphBoardLayout: normalizedGraphBoardLayout,
       initialActiveScenarioId: overrides.initialActiveScenarioId ?? scene.activeInstanceId,
+      defaultEntry: nextDefaultEntry,
       defaultLocale: scene.currentCaseDefaultLocale ?? locale,
       availableLocales: scene.currentCaseAvailableLocales,
       i18n: scene.currentCaseI18n,
@@ -138,6 +141,7 @@ export function useWorkbenchPersistence({
     scene.currentCaseI18n,
     scene.currentCaseReading,
     scene.currentCaseExposedControllers,
+    scene.currentCaseDefaultEntry,
     scene.currentCaseViews,
     scene.currentCaseGraphBoardLayout,
     scene.activeInstanceId,
@@ -344,6 +348,7 @@ export function useWorkbenchPersistence({
         i18n: nextDoc.i18n,
         reading: nextDoc.reading,
         exposedControllers: nextDoc.exposedControllers,
+        defaultEntry: nextDoc.defaultEntry,
         views: serializableAuthoredViews(nextDoc.views),
         graphBoardLayout: nextDoc.graphBoardLayout,
         initialActiveScenarioId: nextDoc.initialActiveScenarioId,

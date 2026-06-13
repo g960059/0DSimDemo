@@ -772,5 +772,24 @@
       "title": "循環血液量低下",
       "description": "出血などによる循環血液量低下。心臓自体は正常でもpreloadが下がり、SVとCOが低下します。"
     }
+  },
+  "publish": {
+    "blocker": {
+      "missing-title": "公開前にタイトルを入力してください。",
+      "no-scenarios": "シナリオを1つ以上追加してください。",
+      "dangling-initial-active": "初期アクティブシナリオが存在しません。",
+      "invalid-graph-layout": "グラフボードのレイアウトが無効か、存在しないパネルを参照しています。",
+      "dangling-reading-ref": "Reading列の参照が存在しません。",
+      "dangling-note-view-ref": "ノート内の埋め込みビューが存在しません。",
+      "dangling-controller-pin": "ピン留めされたコントローラのシナリオが存在しません。",
+      "dangling-membership": "ビューが存在しないシナリオを参照しています。",
+      "model-limitations-empty": "公開前にモデルの制約を入力してください。"
+    },
+    "warning": {
+      "no-reading-content": "Readingコンテンツがないため、読者はExploreで開きます。",
+      "active-scenario-hidden": "初期シナリオが読者には非表示です。",
+      "empty-view": "作成済みビューに表示内容がありません。",
+      "pinned-binding-used": "コントローラが1つのシナリオにピン留めされています。"
+    }
   }
 }

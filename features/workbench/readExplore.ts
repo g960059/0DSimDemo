@@ -3,7 +3,7 @@ import { resolveReadingColumn } from "@/readingConversion";
 
 export type ReadExploreMode = "read" | "explore";
 
-type ReadExploreDoc = Pick<CaseDocument, "panels" | "notes" | "reading">;
+type ReadExploreDoc = Pick<CaseDocument, "panels" | "notes" | "reading" | "defaultEntry">;
 
 function hasTextContent(value: unknown): boolean {
   if (typeof value === "string") return value.trim().length > 0;
@@ -27,7 +27,10 @@ export function canUseReadExplore(doc: ReadExploreDoc): boolean {
 
 export function deriveReadExploreEntryMode(doc: ReadExploreDoc, opts: { readOnly: boolean }): ReadExploreMode {
   if (!opts.readOnly) return "explore";
-  return canUseReadExplore(doc) ? "read" : "explore";
+  const canRead = canUseReadExplore(doc);
+  if (doc.defaultEntry === "explore") return "explore";
+  if (doc.defaultEntry === "read") return canRead ? "read" : "explore";
+  return canRead ? "read" : "explore";
 }
 
 export function switchReadExplorePresentation<TState extends { presentation: ReadExploreMode }>(

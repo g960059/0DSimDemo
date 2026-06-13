@@ -61,6 +61,7 @@ type SavedCasePayload = {
   views?: AuthoredViewSpec[];
   graphBoardLayout?: GraphBoardLayout;
   initialActiveScenarioId?: string;
+  defaultEntry?: CaseDocument["defaultEntry"];
 };
 
 export type AuthorRuntimeSnapshot = {
@@ -138,6 +139,7 @@ export function useWorkbenchScene({
   const [currentCaseI18n, setCurrentCaseI18n] = useState<Record<string, CaseI18nContent> | undefined>(undefined);
   const [currentCaseReading, setCurrentCaseReading] = useState<CaseDocument["reading"] | undefined>(undefined);
   const [currentCaseExposedControllers, setCurrentCaseExposedControllers] = useState<CaseDocument["exposedControllers"] | undefined>(undefined);
+  const [currentCaseDefaultEntry, setCurrentCaseDefaultEntry] = useState<CaseDocument["defaultEntry"] | undefined>(undefined);
   const [currentCaseViews, setCurrentCaseViews] = useState<AuthoredViewSpec[]>(() => standardAuthoredViews(nextViewId));
   const [currentCaseGraphBoardLayout, setCurrentCaseGraphBoardLayout] = useState<GraphBoardLayout | undefined>(undefined);
   const [currentCaseInitialActiveScenarioId, setCurrentCaseInitialActiveScenarioId] = useState<string | undefined>(undefined);
@@ -373,6 +375,7 @@ export function useWorkbenchScene({
     setCurrentCaseI18n(doc.i18n);
     setCurrentCaseReading(doc.reading);
     setCurrentCaseExposedControllers(doc.exposedControllers);
+    setCurrentCaseDefaultEntry(doc.defaultEntry);
     setCurrentCaseViews(authoredViewsForLoad(doc.views, payload.panels, {
       idFactory: nextViewId,
       instances: payload.instances,
@@ -401,6 +404,7 @@ export function useWorkbenchScene({
     setCurrentCaseI18n(payload.i18n);
     setCurrentCaseReading(payload.reading);
     setCurrentCaseExposedControllers(payload.exposedControllers);
+    setCurrentCaseDefaultEntry(payload.defaultEntry);
     setCurrentCaseViews(serializableAuthoredViews(payload.views));
     setCurrentCaseGraphBoardLayout(payload.graphBoardLayout);
     setCurrentCaseInitialActiveScenarioId(payload.initialActiveScenarioId);
@@ -426,6 +430,7 @@ export function useWorkbenchScene({
     currentCaseI18n,
     currentCaseReading,
     currentCaseExposedControllers,
+    currentCaseDefaultEntry,
     currentCaseViews,
     createControllerView,
     createMetricsView,
