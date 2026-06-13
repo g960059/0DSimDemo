@@ -448,8 +448,7 @@ export class ActiveStressChamberModel implements ChamberModel {
 
   private usesTensionFilter(ctx: ChamberCtx): boolean {
     return (ctx.chamber === "LV" || ctx.chamber === "RV")
-      && (this.ap.tauTensionRiseSec ?? 0) > 0
-      && (this.ap.tauTensionFallSec ?? 0) > 0;
+      && ((this.ap.tauTensionRiseSec ?? 0) > 0 || (this.ap.tauTensionFallSec ?? 0) > 0);
   }
 
   private lambdaForActivation(lambdaRaw: number, internal: ChamberInternal): number {

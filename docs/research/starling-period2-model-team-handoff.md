@@ -460,3 +460,197 @@ Review questions:
 3. Does it reduce QAo/cap and branch amplitude without moving normal / HR100 waveform gates?
 4. Is the remaining AoV gradient driven by full-open orifice loss, valve-opening area-loss extra, inertial loss, or residual?
 5. If `fIsoSlopeRelax` helps but does not fully stabilize, should the next comparator be a refined force-length gate, a Kd/aInf gain limiter with level guard, or an ejection-path regularization?
+
+## 2026-06-12 update: fIso negative comparator and AoV/ejection physicality
+
+The 2026-06-12 matrix weakens the simple `fIsoSlopeRelax` hypothesis. It is useful negative evidence, but not a root-fix candidate: branch fractions remain close to baseline while mean CO/SV shifts substantially. The next question is whether the remaining ESV/ejection alternans is controlled by dynamic ejection/afterload coupling rather than static active-stress level.
+
+New report-only axes and columns:
+
+- `--aov-l=...`
+- `--aov-tau-open=...`
+- `--aov-tau-close=...`
+- `--systemic-resistance=...`
+- `--arterial-stiffness=...`
+- AoV ODE closure residual: `LVP-AoP-(Rq+Bq|q|+LqDot)`
+- QAo physicality: positive-flow mean, time-to-peak, and max dQAo/dt
+
+Recommended handoff artifact commands:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/aov-closure-smoke \
+  --deltas=0,-1250,-1300 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --aortic-flow-clamp=hard \
+  --aov-b=0.000001,0.0000015,0.000002,0.0000025,0.000003,0.000005 \
+  --max-return-map-points=2 \
+  --trace-beats=4 \
+  --sample-hz=60
+```
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/aov-l-smoke \
+  --deltas=0,-1250,-1300 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --aortic-flow-clamp=hard \
+  --aov-l=0.00025,0.000375,0.0005 \
+  --max-return-map-points=2 \
+  --trace-beats=4 \
+  --sample-hz=60
+```
+
+Readout discipline:
+
+- Primary stabilization evidence is clean ESV-section slope, not branch amplitude alone.
+- AS-like sanity should use sampled/full-open orifice loss, not total transient `LVP-AoP`.
+- Large closure residual means the valve/coupling accounting is not closed and should be investigated before making stenosis-like claims.
+- Run AoV_B, AoV_L, tauOpen/tauClose, systemicResistance, and arterialStiffness as separate single-axis sweeps before trying bundles. Bundles remain stabilization comparators, not single-mechanism root fixes.
+
+## 2026-06-12 update: qDot clamp audit and tension-rise negative comparator
+
+The latest diagnostic branch adds report-only AoV flow-update accounting:
+
+- solver pre-event / post-event / post-clamp AoV `qDot`
+- qDot clamp hit fraction and clamp impulse
+- diode and flow-clamp impulses
+- continuous closure residual using post-clamp `qDot`
+- solver closure residual before diode / flow / qDot clamps
+- discrete closure residual using raw solver `qDot` after diode and flow clamp but before qDot clamp
+- clean-window closure residual restricted to near-full-open, positive-flow, SV 5-95% samples without diode, flow, or qDot clamp activity
+
+Default runtime behavior is unchanged. The qDot clamp remains 40000 mL/s^2 unless a debug runner passes `--aov-qdot-clamp`, and tension filtering remains off unless a debug runner passes `--tension-rise`.
+
+Current artifact to share:
+
+- `artifacts/starling-low-preload-debug/aov-closure-pr134-smoke/matrix-report.json`
+- `artifacts/starling-low-preload-debug/aov-closure-pr134-smoke/matrix-report.md`
+- `artifacts/starling-low-preload-debug/aov-closure-pr134-smoke/branch-table.csv`
+
+Command:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/aov-closure-pr134-smoke \
+  --deltas=0,-1250 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --tension-rise=0,0.02 \
+  --aov-qdot-clamp=40000,80000 \
+  --max-return-map-points=2 \
+  --trace-beats=4 \
+  --sample-hz=60 \
+  --quiet-progress
+```
+
+Smoke interpretation:
+
+- Baseline low-preload raw AoV qDot demand is far above the default qDot clamp, and the qDot clamp is active across the sampled SV 5-95% window.
+- Raising the qDot clamp to 80000 mL/s^2 strongly changes branch behavior. Treat this as a positive control showing that the qDot clamp is a dominant event surface in this low-preload smoke, not as a default-safe model fix.
+- A 20 ms tension-rise comparator is not a root-fix candidate in this smoke. With the default qDot clamp it worsens branch/waveform gates; with the higher qDot clamp it can create clean closure samples but still fails waveform gates.
+- Large whole-window closure residual should be read as a non-clean/clamp-dominated interval signal. Clean-window closure residual is the better check for whether the fully open AoV equation is internally consistent.
+- Pre-event solver closure can be small while clean-window samples are absent. That should be read as "the solver-side equation is internally consistent before events, but the realized ejection waveform is event-surface dominated", not as proof that the full ejection waveform is ODE-clean.
+
+Current interpretation:
+
+- `qDotClamp=80000` is a positive control, not a root fix.
+- `tensionRise=0.02` is a negative / weak comparator, not a root fix.
+- The current best localization is "qDot clamp / acceleration limiting is a dominant event surface in the low-preload period-2 branch".
+- The next diagnostic objective is not simply to remove period-2; it is to reduce qDot clamp hit fraction and qDot clamp impulse while preserving normal / HR100 / HR100-rearm waveform gates.
+
+Recommended staged sweeps:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/qdot-threshold-dt-smoke \
+  --deltas=0,-1250 \
+  --dt=0.001,0.0005 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --tension-rise=0 \
+  --aov-qdot-clamp=40000,80000 \
+  --max-return-map-points=2 \
+  --trace-beats=4 \
+  --sample-hz=60 \
+  --quiet-progress
+```
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/tension-rise-qdot-primary-smoke \
+  --deltas=0,-1250 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --tension-rise=0,0.005,0.01,0.015,0.02 \
+  --aov-qdot-clamp=40000 \
+  --max-return-map-points=2 \
+  --trace-beats=4 \
+  --sample-hz=60 \
+  --quiet-progress
+```
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/modest-aov-b-qdot-primary-smoke \
+  --deltas=0,-1250 \
+  --dt=0.001 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --aov-b=0.000001,0.0000015,0.000002,0.000003 \
+  --aov-qdot-clamp=40000 \
+  --max-return-map-points=2 \
+  --trace-beats=4 \
+  --sample-hz=60 \
+  --quiet-progress
+```
+
+Primary readouts for the staged sweeps:
+
+- `AoVQDotClampHitFractionSV5To95`
+- `AoVQDotClampHitFractionCleanCandidate`
+- `AoVQDotRawMaxAbs`
+- `AoVQDotPostMaxAbs`
+- `AoVFlowWeightedQDotClampImpulseGradient`
+- `AoVFlowWeightedCleanClosureResidual`
+- `AoVFlowWeightedSolverClosureResidual`
+
+PR #134 now also reports a qDot target estimator. This is report-only range-finding for the next tension/B sweep, not a model change:
+
+- `AoVQDotRawToClampRatioMax`
+- `AoVQDotRawToClampRatioSV5To95Max`
+- `AoVQDotRawToClampRatioCleanCandidateMax`
+- `AoVQDotRequiredReductionFractionMax`
+- `AoVQDotRequiredReductionFractionSV5To95Max`
+- `AoVQDotPressureExcessOverClampMaxMmHg`
+- `AoVQDotPressureExcessOverClampSV5To95MaxMmHg`
+- `AoVQDotEquivalentExtraBAtMaxExcess`
+- `AoVQDotEquivalentExtraBAtSV5To95MaxExcess`
+
+Interpretation: if raw qDot is, for example, `10x` the configured clamp, a physical comparator should be judged by whether it reduces that ratio and qDot-clamp impulse in the SV 5-95% / clean-candidate windows while preserving normal / HR waveform gates. `equiv extra B` is only a scale estimate for how much additional Bernoulli loss would create the same instantaneous pressure excess at the sampled QAo; it is not a recommended default parameter.
+
+Secondary / safety readouts:
+
+- CO / ESV / QAo branch fractions and selected ESV-section slopes
+- normal / HR100 / HR100-rearm waveform gates
+- period-mean CO/SV preservation
+- sampled/full-open AoV orifice gradient, not total transient gradient
+- QAo peak/mean and ejection duration definitions
+
+Local staged smoke observations from the current PR branch:
+
+- `qdot-threshold-dt-smoke`: raising qDot clamp from `40000` to `80000` collapses the low-preload branch at both `dt=0.001` and `dt=0.0005`, so the result is not an obvious single-dt artifact. It remains a positive control, not a fix, because waveform gates still fail.
+- `tension-rise-qdot-primary-smoke`: small tension-rise values (`0.005` to `0.02` s) do not reliably reduce qDot clamp involvement at the default clamp. The `0.02` s case worsens the CO/ESV branch envelope in this smoke, so tension-rise should remain a weak / negative comparator until a different formulation is justified.
+- `modest-aov-b-qdot-primary-smoke`: increasing `AoV_B` from `1e-6` to `1.5e-6` / `2e-6` / `3e-6` reduces branch amplitude, but qDot clamp hit fraction in clean-candidate / SV5-95 windows can remain high. This is consistent with AoV_B acting as a stabilizing/clip axis without proving that the realized waveform is qDot-event-clean.
+
+Questions for the model team:
+
+1. Is qDot clamp activity in normal / low-preload ejection acceptable as a numerical stabilizer, or should default ejection be required to have low qDot clamp hit fraction in the SV 5-95% window?
+2. If qDot clamp suppression improves branch but damages waveform gates, should the next comparison target the upstream upstroke shape, the valve update scheme, or afterload memory?
+3. Should clean-window closure residual become a hard acceptance gate for future AoV/ejection comparator branches?

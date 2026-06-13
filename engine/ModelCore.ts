@@ -152,6 +152,9 @@ export type ModelCoreClampDiagnostics = {
   tbvProjectionLastStep: ModelCoreTBVProjectionAudit;
   tbvProjectionCurrentBeat: ModelCoreTBVProjectionAudit;
   tbvProjectionLastBeat: ModelCoreTBVProjectionAudit;
+  aorticQDotLastStep: ModelCoreAorticQDotAudit;
+  aorticQDotCurrentBeat: ModelCoreAorticQDotAudit;
+  aorticQDotLastBeat: ModelCoreAorticQDotAudit;
 };
 
 export type ModelCoreActiveStressDiagnostics = Partial<Record<Chamber, ActiveStressDebugTerms>>;
@@ -174,6 +177,15 @@ export type ModelCoreTBVProjectionAudit = {
   lastErrorAfterMl: number;
   byNodeSignedMl: Partial<Record<NodeName, number>>;
   byNodeAbsMl: Partial<Record<NodeName, number>>;
+};
+
+export type ModelCoreAorticQDotAudit = {
+  hitCount: number;
+  maxRawAbsMlPerS2: number;
+  maxPostAbsMlPerS2: number;
+  maxPositiveRawMlPerS2: number;
+  minNegativeRawMlPerS2: number;
+  maxImpulseAbsMlPerS2: number;
 };
 
 function emptyVolumeDeltaAudit(): ModelCoreVolumeDeltaAudit {
@@ -217,6 +229,36 @@ function cloneTBVProjectionAudit(audit: ModelCoreTBVProjectionAudit): ModelCoreT
     byNodeSignedMl: { ...audit.byNodeSignedMl },
     byNodeAbsMl: { ...audit.byNodeAbsMl },
   };
+}
+
+function emptyAorticQDotAudit(): ModelCoreAorticQDotAudit {
+  return {
+    hitCount: 0,
+    maxRawAbsMlPerS2: 0,
+    maxPostAbsMlPerS2: 0,
+    maxPositiveRawMlPerS2: 0,
+    minNegativeRawMlPerS2: 0,
+    maxImpulseAbsMlPerS2: 0,
+  };
+}
+
+function cloneAorticQDotAudit(audit: ModelCoreAorticQDotAudit): ModelCoreAorticQDotAudit {
+  return { ...audit };
+}
+
+function addAorticQDotAudit(
+  audit: ModelCoreAorticQDotAudit,
+  qDotRaw: number,
+  qDotPost: number,
+): void {
+  if (!Number.isFinite(qDotRaw) || !Number.isFinite(qDotPost)) return;
+  const impulse = qDotPost - qDotRaw;
+  if (Math.abs(impulse) > 1e-9) audit.hitCount++;
+  audit.maxRawAbsMlPerS2 = Math.max(audit.maxRawAbsMlPerS2, Math.abs(qDotRaw));
+  audit.maxPostAbsMlPerS2 = Math.max(audit.maxPostAbsMlPerS2, Math.abs(qDotPost));
+  audit.maxPositiveRawMlPerS2 = Math.max(audit.maxPositiveRawMlPerS2, qDotRaw);
+  audit.minNegativeRawMlPerS2 = Math.min(audit.minNegativeRawMlPerS2, qDotRaw);
+  audit.maxImpulseAbsMlPerS2 = Math.max(audit.maxImpulseAbsMlPerS2, Math.abs(impulse));
 }
 
 function addNodeVolumeDelta(
@@ -301,6 +343,42 @@ type LocalAorticFlowClampShape = {
   smoothness: "c1" | "c2";
 };
 
+const DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2 = 40000;
+
+type AorticFlowStepDiagnostics = {
+  qNextPreDiode: number;
+  qNextPostDiode: number;
+  qNextPreFlowClamp: number;
+  qNextPostFlowClamp: number;
+  qDotPreDiode: number;
+  qDotPostDiode: number;
+  qDotPreFlowClamp: number;
+  qDotRaw: number;
+  qDotPost: number;
+  qDotClampHit01: number;
+  qDotClampImpulse: number;
+  diodeImpulse: number;
+  flowClampImpulse: number;
+};
+
+function emptyAorticFlowStepDiagnostics(): AorticFlowStepDiagnostics {
+  return {
+    qNextPreDiode: 0,
+    qNextPostDiode: 0,
+    qNextPreFlowClamp: 0,
+    qNextPostFlowClamp: 0,
+    qDotPreDiode: 0,
+    qDotPostDiode: 0,
+    qDotPreFlowClamp: 0,
+    qDotRaw: 0,
+    qDotPost: 0,
+    qDotClampHit01: 0,
+    qDotClampImpulse: 0,
+    diodeImpulse: 0,
+    flowClampImpulse: 0,
+  };
+}
+
 function localAorticFlowClampShape(mode: AorticFlowClampMode): LocalAorticFlowClampShape | undefined {
   if (mode === "local-c1-0.90") return { identityFraction: 0.9, smoothness: "c1" };
   if (mode === "local-c1-0.95") return { identityFraction: 0.95, smoothness: "c1" };
@@ -356,6 +434,9 @@ export class ModelCore {
   private tbvProjectionLastStepAudit = emptyTBVProjectionAudit();
   private tbvProjectionCurrentBeatAudit = emptyTBVProjectionAudit();
   private tbvProjectionLastBeatAudit = emptyTBVProjectionAudit();
+  private aorticQDotLastStepAudit = emptyAorticQDotAudit();
+  private aorticQDotCurrentBeatAudit = emptyAorticQDotAudit();
+  private aorticQDotLastBeatAudit = emptyAorticQDotAudit();
   private tbvCorrectionMagThisBeat = 0;
   private tbvCorrectionMagLastBeat = 0;
   private tbvCorrectionLastStepMl = 0;
@@ -366,6 +447,8 @@ export class ModelCore {
     maxNodeVolumeMl?: number;
   } | null = null;
   private aorticFlowClampMode: AorticFlowClampMode = "hard";
+  private aorticFlowDerivativeClampMlPerS2 = DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
+  private aorticFlowStepDiagnostics = emptyAorticFlowStepDiagnostics();
 
   // Steady-state detection (engine/settling.ts). The detector keeps its OWN
   // small ring of per-beat fingerprints, independent of the 1200-sample raw
@@ -750,6 +833,10 @@ export class ModelCore {
     this.tbvProjectionLastStepAudit = emptyTBVProjectionAudit();
     this.tbvProjectionCurrentBeatAudit = emptyTBVProjectionAudit();
     this.tbvProjectionLastBeatAudit = emptyTBVProjectionAudit();
+    this.aorticQDotLastStepAudit = emptyAorticQDotAudit();
+    this.aorticQDotCurrentBeatAudit = emptyAorticQDotAudit();
+    this.aorticQDotLastBeatAudit = emptyAorticQDotAudit();
+    this.aorticFlowStepDiagnostics = emptyAorticFlowStepDiagnostics();
   }
 
   resetDebugDiagnostics(): void {
@@ -770,6 +857,12 @@ export class ModelCore {
     this.aorticFlowClampMode = mode;
   }
 
+  setAorticFlowDerivativeClamp(limitMlPerS2: number): void {
+    this.aorticFlowDerivativeClampMlPerS2 = Number.isFinite(limitMlPerS2) && limitMlPerS2 > 0
+      ? limitMlPerS2
+      : DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
+  }
+
   private resetClampDiagnostics(): void {
     this.nodeClampHits = {};
     this.dynamicFlowClampHits = {};
@@ -780,6 +873,9 @@ export class ModelCore {
     this.tbvProjectionLastStepAudit = emptyTBVProjectionAudit();
     this.tbvProjectionCurrentBeatAudit = emptyTBVProjectionAudit();
     this.tbvProjectionLastBeatAudit = emptyTBVProjectionAudit();
+    this.aorticQDotLastStepAudit = emptyAorticQDotAudit();
+    this.aorticQDotCurrentBeatAudit = emptyAorticQDotAudit();
+    this.aorticQDotLastBeatAudit = emptyAorticQDotAudit();
   }
 
   runFor(seconds: number, dt = 0.001, sampleHz = 60, options: RunForOptions = {}): SimSample[] {
@@ -818,6 +914,7 @@ export class ModelCore {
     const pvFlow = flows[this.edgeIndex("PV")];
     const pLv = pack.P[this.nodeIndex.get("LV")!];
     const pAo = pack.P[this.nodeIndex.get("Ao")!];
+    const aovStep = this.aorticFlowStepDiagnostics;
     const lap = pack.P[this.nodeIndex.get("LA")!];
     const qLAD = flows[this.edgeIndex("Ao_LAD")];
     const qLCx = flows[this.edgeIndex("Ao_LCx")];
@@ -885,6 +982,19 @@ export class ModelCore {
       AoV_loss_R: aovResistiveDrop,
       AoV_loss_B: aovQuadraticDrop,
       AoV_loss_residual: (pLv - pAo) - aovResistiveDrop - aovQuadraticDrop,
+      AoV_qNextPreDiode: aovStep.qNextPreDiode,
+      AoV_qNextPostDiode: aovStep.qNextPostDiode,
+      AoV_qNextPreFlowClamp: aovStep.qNextPreFlowClamp,
+      AoV_qNextPostFlowClamp: aovStep.qNextPostFlowClamp,
+      AoV_qDotPreDiode: aovStep.qDotPreDiode,
+      AoV_qDotPostDiode: aovStep.qDotPostDiode,
+      AoV_qDotPreFlowClamp: aovStep.qDotPreFlowClamp,
+      AoV_qDotRaw: aovStep.qDotRaw,
+      AoV_qDotPost: aovStep.qDotPost,
+      AoV_qDotClampHit01: aovStep.qDotClampHit01,
+      AoV_qDotClampImpulse: aovStep.qDotClampImpulse,
+      AoV_diodeImpulse: aovStep.diodeImpulse,
+      AoV_flowClampImpulse: aovStep.flowClampImpulse,
       LVPressureFloorHit01: lvPressureTerms?.pressureFloorHit01 ?? 0,
       RVPressureFloorHit01: rvPressureTerms?.pressureFloorHit01 ?? 0,
       ELV_active: lvElastance.active,
@@ -950,6 +1060,9 @@ export class ModelCore {
       tbvProjectionLastStep: cloneTBVProjectionAudit(this.tbvProjectionLastStepAudit),
       tbvProjectionCurrentBeat: cloneTBVProjectionAudit(this.tbvProjectionCurrentBeatAudit),
       tbvProjectionLastBeat: cloneTBVProjectionAudit(this.tbvProjectionLastBeatAudit),
+      aorticQDotLastStep: cloneAorticQDotAudit(this.aorticQDotLastStepAudit),
+      aorticQDotCurrentBeat: cloneAorticQDotAudit(this.aorticQDotCurrentBeatAudit),
+      aorticQDotLastBeat: cloneAorticQDotAudit(this.aorticQDotLastBeatAudit),
     };
   }
 
@@ -975,6 +1088,8 @@ export class ModelCore {
       this.sanitizeCurrentBeatAudit = emptyVolumeDeltaAudit();
       this.tbvProjectionLastBeatAudit = cloneTBVProjectionAudit(this.tbvProjectionCurrentBeatAudit);
       this.tbvProjectionCurrentBeatAudit = emptyTBVProjectionAudit();
+      this.aorticQDotLastBeatAudit = cloneAorticQDotAudit(this.aorticQDotCurrentBeatAudit);
+      this.aorticQDotCurrentBeatAudit = emptyAorticQDotAudit();
       this.beatAccum = this.newBeatAccum(beat, s);
     }
     const a = this.beatAccum;
@@ -1409,6 +1524,7 @@ export class ModelCore {
       const h = Math.max(this.rhsDt, 1e-6);
       const Reff = R + B * Math.abs(q);
       let qNext = (q + (h / L) * (Pu - PdEff)) / (1 + (h * Reff) / L);
+      const qNextPreDiode = qNext;
       if (e.kind === "valve") {
         const vName = e.name as ValveName;
         if (this.valveLeakArea(vName, e) <= 1e-9 && qNext < 0) {
@@ -1416,9 +1532,40 @@ export class ModelCore {
           qNext = 0;
         }
       }
+      const qNextPostDiode = qNext;
+      const qNextPreFlowClamp = qNext;
       if (e.name === "AoV") qNext = this.applyAorticFlowClamp(qNext);
-      
-      dy[qi] = clamp((qNext - q) / h, -40000, 40000);
+      const qNextPostFlowClamp = qNext;
+
+      const qDotPreDiode = (qNextPreDiode - q) / h;
+      const qDotPostDiode = (qNextPostDiode - q) / h;
+      const qDotPreFlowClamp = (qNextPreFlowClamp - q) / h;
+      const qDotRaw = (qNext - q) / h;
+      const qDotLimit = e.name === "AoV"
+        ? Math.max(this.aorticFlowDerivativeClampMlPerS2, 1)
+        : DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
+      const qDotPost = clamp(qDotRaw, -qDotLimit, qDotLimit);
+      dy[qi] = qDotPost;
+      if (e.name === "AoV") {
+        this.aorticQDotLastStepAudit = emptyAorticQDotAudit();
+        addAorticQDotAudit(this.aorticQDotLastStepAudit, qDotRaw, qDotPost);
+        addAorticQDotAudit(this.aorticQDotCurrentBeatAudit, qDotRaw, qDotPost);
+        this.aorticFlowStepDiagnostics = {
+          qNextPreDiode,
+          qNextPostDiode,
+          qNextPreFlowClamp,
+          qNextPostFlowClamp,
+          qDotPreDiode,
+          qDotPostDiode,
+          qDotPreFlowClamp,
+          qDotRaw,
+          qDotPost,
+          qDotClampHit01: Math.abs(qDotPost - qDotRaw) > 1e-9 ? 1 : 0,
+          qDotClampImpulse: qDotPost - qDotRaw,
+          diodeImpulse: qNextPostDiode - qNextPreDiode,
+          flowClampImpulse: qNextPostFlowClamp - qNextPreFlowClamp,
+        };
+      }
     }
 
     for (const vName of valveNames) {
