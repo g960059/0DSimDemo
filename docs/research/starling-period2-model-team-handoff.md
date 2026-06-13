@@ -678,7 +678,7 @@ Recommended smoke for the next handoff artifact:
 
 ```bash
 npm run verify:starling-low-preload-matrix -- \
-  --out=artifacts/starling-low-preload-debug/opening-qdot-comparator-smoke \
+  --out=artifacts/starling-low-preload-debug/low-open-event-direction-smoke \
   --deltas=0,-1250 \
   --dt=0.001 \
   --lambda-act-tau=0 \
@@ -699,13 +699,13 @@ Primary readout discipline:
 - Ejection body: `open-gte-0.95`, SV 5-95, and clean-candidate raw/clamp plus clean-window closure residual.
 - Safety: normal / HR100 / HR100-rearm waveform gates, full-open/sampled orifice gradient, QAo peak/mean, and ejection duration definitions.
 
-Next diagnostic refinement should split low-open samples by event direction:
+The matrix report now also splits low-open samples by event direction:
 
 - `open01 < 0.2 && dP > 0 && qDot > 0`: opening acceleration.
 - `open01 < 0.2 && dP < 0 && qDot < 0`: pressure-reversal / closing-side deceleration.
 - `open01 < 0.2 && q > 0 && dP < 0`: forward-flow coast against adverse pressure.
-- `open01 < 0.2 && q ~= 0`: true opening from rest.
+- `open01 < 0.2 && q ~= 0 && dP > 0`: true opening from rest.
 
-It should also report max positive and max negative qDot separately, plus open01 derivative / xiDot or equivalent phase labels when available. `equiv extra B` remains range-finding only; it is not a recommended parameter.
+These bins may overlap. They are attribution readouts, not mutually exclusive physiology classes. The report also includes max positive and max negative qDot separately, plus local open01 delta at the max-excess sample. `equiv extra B` remains range-finding only; it is not a recommended parameter.
 
 Do not interpret a successful q-state update comparator as a model fix by itself. It is evidence about q-update ordering and low-open event numerics. Default adoption would require a later model-design PR and broad validation.

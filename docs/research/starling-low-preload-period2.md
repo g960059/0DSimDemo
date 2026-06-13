@@ -665,7 +665,16 @@ The qDot target estimator is now split by AoV opening fraction:
 - `open-0.8-0.95`
 - `open-gte-0.95`
 
-This is report-only. The goal is to separate low-open-fraction AoV qDot events from the near-full-open ejection body. A large whole-window `raw/clamp max` should not be read as a required ejection-body correction until the open01-bin rows show where that maximum occurred. The low-open bin is not necessarily an opening spike: it can also include pressure-reversal / closing-side deceleration or forward-flow coast against adverse pressure, so the next diagnostic layer should split by dP sign, qDot sign, q sign, and valve-opening phase.
+This is report-only. The goal is to separate low-open-fraction AoV qDot events from the near-full-open ejection body. A large whole-window `raw/clamp max` should not be read as a required ejection-body correction until the open01-bin rows show where that maximum occurred. The low-open bin is not necessarily an opening spike: it can also include pressure-reversal / closing-side deceleration or forward-flow coast against adverse pressure.
+
+The matrix report now also splits low-open samples by event-direction proxies:
+
+- `low-open-opening-accel`: `open01 < 0.2 && dP > 0 && qDot > 0`
+- `low-open-pressure-reversal-decel`: `open01 < 0.2 && dP < 0 && qDot < 0`
+- `low-open-forward-coast-adverse`: `open01 < 0.2 && q > 0 && dP < 0`
+- `low-open-true-opening-rest`: `open01 < 0.2 && q ~= 0 && dP > 0`
+
+These bins may overlap. They are attribution readouts, not mutually exclusive physiology classes. The report includes signed positive/negative qDot maxima and the local open01 delta at the max-excess sample.
 
 The matrix runner also has an off-by-default `--aov-q-update` comparator:
 

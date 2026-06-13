@@ -71,9 +71,17 @@ type AoVOpen01BinKey =
   | "open-0.8-0.95"
   | "open-gte-0.95";
 
+type AoVQDotEventDirectionKey =
+  | "low-open-opening-accel"
+  | "low-open-pressure-reversal-decel"
+  | "low-open-forward-coast-adverse"
+  | "low-open-true-opening-rest";
+
 type AoVQDotTargetBinStats = {
   sampleCount: number;
   rawToClampRatioMax: number;
+  rawToClampRatioPositiveMax: number;
+  rawToClampRatioNegativeMax: number;
   requiredReductionFractionMax: number;
   pressureExcessOverClampMaxMmHg: number;
   equivalentExtraBAtMaxExcess: number;
@@ -84,7 +92,10 @@ type AoVQDotTargetBinStats = {
   qNextPreFlowClampAtMaxExcess: number;
   qDotPreClampAtMaxExcess: number;
   qDotRawAtMaxExcess: number;
+  qDotRawPositiveMax: number;
+  qDotRawNegativeMin: number;
   open01AtMaxExcess: number;
+  open01DeltaAtMaxExcess: number;
 };
 
 type WaveformGateMetrics = {
@@ -165,6 +176,7 @@ type WaveformGateMetrics = {
   AoVQDotMaxExcessSampleQAo: number;
   AoVQDotMaxExcessSampleOpen01: number;
   AoVQDotOpen01Bins: Record<AoVOpen01BinKey, AoVQDotTargetBinStats>;
+  AoVQDotEventDirectionBins: Record<AoVQDotEventDirectionKey, AoVQDotTargetBinStats>;
   QAoPeakMeanRatio: number;
   QAoMeanPositive: number;
   QAoTimeToPeakMs: number;
@@ -375,7 +387,7 @@ type ShapeSummary = {
 };
 
 type MatrixReport = {
-  schemaVersion: 21;
+  schemaVersion: 22;
   generatedAt: string;
   measurementMode: string;
   targetVolumeMl: number;
@@ -716,9 +728,9 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
       { fraction: 0, metric: null },
     );
   return {
-    schemaVersion: 21,
+    schemaVersion: 22,
     generatedAt: new Date().toISOString(),
-    measurementMode: "branch-only broad low-preload matrix followed by selected EDV-section return-map diagnostics with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap comparator axes, off-by-default AoV_B/AoV_Amax/AoV_L/AoV_tau/systemicResistance/arterialStiffness ejection-dynamics comparator axes, off-by-default tension-rise, AoV qDot-clamp, and AoV q-state update comparator axes, and fIsoSlopeRelax low-stretch active-force comparator; AoV gradient is decomposed into full-open orifice, area-loss extra, inertial, residual, direct ODE closure residual, solver qDot clamp audit, clean-window closure residual terms, report-only qDot target-estimator terms, and open01-bin qDot target-estimator terms for sweep range selection; ejection duration is reported as QAo>0, QAo>5% peak, SV 5-95%, and historical high-flow windows; optional TBV correction on/off/low contamination axis; activeStress/elastance heart-model comparison axis",
+    measurementMode: "branch-only broad low-preload matrix followed by selected EDV-section return-map diagnostics with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap comparator axes, off-by-default AoV_B/AoV_Amax/AoV_L/AoV_tau/systemicResistance/arterialStiffness ejection-dynamics comparator axes, off-by-default tension-rise, AoV qDot-clamp, and AoV q-state update comparator axes, and fIsoSlopeRelax low-stretch active-force comparator; AoV gradient is decomposed into full-open orifice, area-loss extra, inertial, residual, direct ODE closure residual, solver qDot clamp audit, clean-window closure residual terms, report-only qDot target-estimator terms, open01-bin qDot target-estimator terms, and low-open event-direction qDot target-estimator terms for sweep range selection; ejection duration is reported as QAo>0, QAo>5% peak, SV 5-95%, and historical high-flow windows; optional TBV correction on/off/low contamination axis; activeStress/elastance heart-model comparison axis",
     targetVolumeMl: opts.targetVolumeMl,
     heartModels: opts.heartModels,
     deltasMl: opts.deltasMl,
@@ -1755,6 +1767,7 @@ function aovClosureAudit(samples: SimSample[], params: CoreRuntimeParams, aovQDo
   | "AoVQDotMaxExcessSampleQAo"
   | "AoVQDotMaxExcessSampleOpen01"
   | "AoVQDotOpen01Bins"
+  | "AoVQDotEventDirectionBins"
 > {
   const positive = samples
     .map((sample, index) => ({ sample, index }))
@@ -1805,6 +1818,7 @@ function aovClosureAudit(samples: SimSample[], params: CoreRuntimeParams, aovQDo
       AoVQDotMaxExcessSampleQAo: Number.NaN,
       AoVQDotMaxExcessSampleOpen01: Number.NaN,
       AoVQDotOpen01Bins: emptyAoVOpen01Bins(),
+      AoVQDotEventDirectionBins: emptyAoVQDotEventDirectionBins(),
     };
   }
   const maxQ = Math.max(0, ...samples.map((sample) => Number.isFinite(sample.QAo) ? sample.QAo : 0));
@@ -1884,41 +1898,59 @@ function aovClosureAudit(samples: SimSample[], params: CoreRuntimeParams, aovQDo
       ? entries.filter(({ sample }) => sample.AoV_qDotClampHit01 > 0).length / entries.length
       : Number.NaN;
   const qDotTarget = Math.max(1, aovQDotClamp);
-  const qDotTargetStats = (entries: Array<{ sample: SimSample }>) => {
+  const qDotTargetStats = (entries: Array<{ sample: SimSample; index?: number }>) => {
     if (entries.length === 0) {
       return {
         sampleCount: 0,
         ratioMax: Number.NaN,
+        positiveRatioMax: Number.NaN,
+        negativeRatioMax: Number.NaN,
         reductionFractionMax: Number.NaN,
         pressureExcessMax: Number.NaN,
         equivalentExtraBAtMaxExcess: Number.NaN,
         excessSampleQAo: Number.NaN,
         excessSampleOpen01: Number.NaN,
+        excessSampleOpen01Delta: Number.NaN,
         dPAtMaxExcess: Number.NaN,
         qCurrentAtMaxExcess: Number.NaN,
         qNextPreDiodeAtMaxExcess: Number.NaN,
         qNextPreFlowClampAtMaxExcess: Number.NaN,
         qDotPreClampAtMaxExcess: Number.NaN,
         qDotRawAtMaxExcess: Number.NaN,
+        qDotRawPositiveMax: Number.NaN,
+        qDotRawNegativeMin: Number.NaN,
       };
     }
     let ratioMax = 0;
+    let positiveRatioMax = 0;
+    let negativeRatioMax = 0;
     let reductionFractionMax = 0;
     let pressureExcessMax = 0;
     let equivalentExtraBAtMaxExcess = Number.NaN;
     let excessSampleQAo = Number.NaN;
     let excessSampleOpen01 = Number.NaN;
+    let excessSampleOpen01Delta = Number.NaN;
     let dPAtMaxExcess = Number.NaN;
     let qCurrentAtMaxExcess = Number.NaN;
     let qNextPreDiodeAtMaxExcess = Number.NaN;
     let qNextPreFlowClampAtMaxExcess = Number.NaN;
     let qDotPreClampAtMaxExcess = Number.NaN;
     let qDotRawAtMaxExcess = Number.NaN;
-    for (const { sample } of entries) {
+    let qDotRawPositiveMax = Number.NEGATIVE_INFINITY;
+    let qDotRawNegativeMin = Number.POSITIVE_INFINITY;
+    for (const { sample, index } of entries) {
       const rawAbs = Math.abs(sample.AoV_qDotRaw);
       if (!Number.isFinite(rawAbs)) continue;
       const ratio = rawAbs / qDotTarget;
       ratioMax = Math.max(ratioMax, ratio);
+      if (sample.AoV_qDotRaw > 0) {
+        qDotRawPositiveMax = Math.max(qDotRawPositiveMax, sample.AoV_qDotRaw);
+        positiveRatioMax = Math.max(positiveRatioMax, sample.AoV_qDotRaw / qDotTarget);
+      }
+      if (sample.AoV_qDotRaw < 0) {
+        qDotRawNegativeMin = Math.min(qDotRawNegativeMin, sample.AoV_qDotRaw);
+        negativeRatioMax = Math.max(negativeRatioMax, -sample.AoV_qDotRaw / qDotTarget);
+      }
       const excess = Math.max(0, rawAbs - qDotTarget);
       const reductionFraction = rawAbs > 0 ? excess / rawAbs : 0;
       reductionFractionMax = Math.max(reductionFractionMax, reductionFraction);
@@ -1929,6 +1961,9 @@ function aovClosureAudit(samples: SimSample[], params: CoreRuntimeParams, aovQDo
         equivalentExtraBAtMaxExcess = q > 1e-9 ? pressureExcess / (q * q) : Number.NaN;
         excessSampleQAo = q;
         excessSampleOpen01 = sample.xiAoV;
+        excessSampleOpen01Delta = typeof index === "number" && index > 0
+          ? sample.xiAoV - samples[index - 1].xiAoV
+          : Number.NaN;
         dPAtMaxExcess = sample.LVP - sample.AoP;
         qCurrentAtMaxExcess = sample.QAo;
         qNextPreDiodeAtMaxExcess = sample.AoV_qNextPreDiode;
@@ -1940,22 +1975,29 @@ function aovClosureAudit(samples: SimSample[], params: CoreRuntimeParams, aovQDo
     return {
       sampleCount: entries.length,
       ratioMax,
+      positiveRatioMax: positiveRatioMax > 0 ? positiveRatioMax : Number.NaN,
+      negativeRatioMax: negativeRatioMax > 0 ? negativeRatioMax : Number.NaN,
       reductionFractionMax,
       pressureExcessMax,
       equivalentExtraBAtMaxExcess,
       excessSampleQAo,
       excessSampleOpen01,
+      excessSampleOpen01Delta,
       dPAtMaxExcess,
       qCurrentAtMaxExcess,
       qNextPreDiodeAtMaxExcess,
       qNextPreFlowClampAtMaxExcess,
       qDotPreClampAtMaxExcess,
       qDotRawAtMaxExcess,
+      qDotRawPositiveMax: Number.isFinite(qDotRawPositiveMax) ? qDotRawPositiveMax : Number.NaN,
+      qDotRawNegativeMin: Number.isFinite(qDotRawNegativeMin) ? qDotRawNegativeMin : Number.NaN,
     };
   };
   const toBinStats = (stats: ReturnType<typeof qDotTargetStats>): AoVQDotTargetBinStats => ({
     sampleCount: stats.sampleCount,
     rawToClampRatioMax: stats.ratioMax,
+    rawToClampRatioPositiveMax: stats.positiveRatioMax,
+    rawToClampRatioNegativeMax: stats.negativeRatioMax,
     requiredReductionFractionMax: stats.reductionFractionMax,
     pressureExcessOverClampMaxMmHg: stats.pressureExcessMax,
     equivalentExtraBAtMaxExcess: stats.equivalentExtraBAtMaxExcess,
@@ -1966,7 +2008,10 @@ function aovClosureAudit(samples: SimSample[], params: CoreRuntimeParams, aovQDo
     qNextPreFlowClampAtMaxExcess: stats.qNextPreFlowClampAtMaxExcess,
     qDotPreClampAtMaxExcess: stats.qDotPreClampAtMaxExcess,
     qDotRawAtMaxExcess: stats.qDotRawAtMaxExcess,
+    qDotRawPositiveMax: stats.qDotRawPositiveMax,
+    qDotRawNegativeMin: stats.qDotRawNegativeMin,
     open01AtMaxExcess: stats.excessSampleOpen01,
+    open01DeltaAtMaxExcess: stats.excessSampleOpen01Delta,
   });
   const qDotTargetAll = qDotTargetStats(positive);
   const qDotTargetSv = qDotTargetStats(svSamples);
@@ -1976,6 +2021,14 @@ function aovClosureAudit(samples: SimSample[], params: CoreRuntimeParams, aovQDo
     "open-0.2-0.8": toBinStats(qDotTargetStats(positive.filter(({ sample }) => sample.xiAoV >= 0.2 && sample.xiAoV < 0.8))),
     "open-0.8-0.95": toBinStats(qDotTargetStats(positive.filter(({ sample }) => sample.xiAoV >= 0.8 && sample.xiAoV < 0.95))),
     "open-gte-0.95": toBinStats(qDotTargetStats(positive.filter(({ sample }) => sample.xiAoV >= 0.95))),
+  };
+  const lowOpen = positive.filter(({ sample }) => sample.xiAoV < 0.2);
+  const restFlowThreshold = Math.max(1, maxQ * 0.01);
+  const qDotEventDirectionBins: Record<AoVQDotEventDirectionKey, AoVQDotTargetBinStats> = {
+    "low-open-opening-accel": toBinStats(qDotTargetStats(lowOpen.filter(({ sample }) => (sample.LVP - sample.AoP) > 0 && sample.AoV_qDotRaw > 0))),
+    "low-open-pressure-reversal-decel": toBinStats(qDotTargetStats(lowOpen.filter(({ sample }) => (sample.LVP - sample.AoP) < 0 && sample.AoV_qDotRaw < 0))),
+    "low-open-forward-coast-adverse": toBinStats(qDotTargetStats(lowOpen.filter(({ sample }) => sample.QAo > restFlowThreshold && (sample.LVP - sample.AoP) < 0))),
+    "low-open-true-opening-rest": toBinStats(qDotTargetStats(lowOpen.filter(({ sample }) => sample.QAo <= restFlowThreshold && (sample.LVP - sample.AoP) > 0))),
   };
   return {
     AoVClosureResidualMean: post.mean,
@@ -2022,6 +2075,7 @@ function aovClosureAudit(samples: SimSample[], params: CoreRuntimeParams, aovQDo
     AoVQDotMaxExcessSampleQAo: qDotTargetAll.excessSampleQAo,
     AoVQDotMaxExcessSampleOpen01: qDotTargetAll.excessSampleOpen01,
     AoVQDotOpen01Bins: qDotOpen01Bins,
+    AoVQDotEventDirectionBins: qDotEventDirectionBins,
   };
 }
 
@@ -2029,6 +2083,8 @@ function emptyAoVOpen01Bins(): Record<AoVOpen01BinKey, AoVQDotTargetBinStats> {
   const empty = (): AoVQDotTargetBinStats => ({
     sampleCount: 0,
     rawToClampRatioMax: Number.NaN,
+    rawToClampRatioPositiveMax: Number.NaN,
+    rawToClampRatioNegativeMax: Number.NaN,
     requiredReductionFractionMax: Number.NaN,
     pressureExcessOverClampMaxMmHg: Number.NaN,
     equivalentExtraBAtMaxExcess: Number.NaN,
@@ -2039,13 +2095,26 @@ function emptyAoVOpen01Bins(): Record<AoVOpen01BinKey, AoVQDotTargetBinStats> {
     qNextPreFlowClampAtMaxExcess: Number.NaN,
     qDotPreClampAtMaxExcess: Number.NaN,
     qDotRawAtMaxExcess: Number.NaN,
+    qDotRawPositiveMax: Number.NaN,
+    qDotRawNegativeMin: Number.NaN,
     open01AtMaxExcess: Number.NaN,
+    open01DeltaAtMaxExcess: Number.NaN,
   });
   return {
     "open-lt-0.2": empty(),
     "open-0.2-0.8": empty(),
     "open-0.8-0.95": empty(),
     "open-gte-0.95": empty(),
+  };
+}
+
+function emptyAoVQDotEventDirectionBins(): Record<AoVQDotEventDirectionKey, AoVQDotTargetBinStats> {
+  const empty = emptyAoVOpen01Bins()["open-lt-0.2"];
+  return {
+    "low-open-opening-accel": { ...empty },
+    "low-open-pressure-reversal-decel": { ...empty },
+    "low-open-forward-coast-adverse": { ...empty },
+    "low-open-true-opening-rest": { ...empty },
   };
 }
 
@@ -2811,9 +2880,9 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("## AoV qDot open01-bin target estimator");
   lines.push("");
-  lines.push("The max qDot target estimate is split by AoV opening fraction so opening transients do not get conflated with near-full-open ejection. Use `open<0.2` to inspect early opening spikes and `open>=0.95` for near-full-open ejection-body behavior.");
+  lines.push("The max qDot target estimate is split by AoV opening fraction so low-open events do not get conflated with near-full-open ejection. `open<0.2` is not necessarily opening acceleration; inspect dP/qDot signs and the event-direction table below before choosing a tauOpen/tauClose/q-update lever. Use `open>=0.95` for near-full-open ejection-body behavior.");
   lines.push("");
-  lines.push("| heart model | dt | TBV correction | limiter | preset | AoV B | AoV L | tau open | tension rise | qDot clamp | q update | case | open bin | n | raw/clamp max | req reduction | pressure excess | equiv extra B | QAo at max | dP at max | q current | qNext pre diode | qNext pre flow clamp | qDot pre clamp | qDot raw | open01 at max |");
+  lines.push("| heart model | dt | TBV correction | limiter | preset | AoV B | AoV L | tau open | tension rise | qDot clamp | q update | case | open bin | n | raw/clamp max | +qDot/clamp max | -qDot/clamp max | req reduction | pressure excess | equiv extra B | QAo at max | dP at max | q current | qNext pre diode | qNext pre flow clamp | qDot pre clamp | qDot raw | +qDot max | -qDot min | open01 at max | d open01 at max |");
   lines.push(markdownSeparator(lines[lines.length - 1]));
   for (const scenario of report.scenarios) {
     for (const gate of scenario.waveformGates) {
@@ -2834,6 +2903,8 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
           bin,
           stats.sampleCount,
           round(stats.rawToClampRatioMax, 4),
+          round(stats.rawToClampRatioPositiveMax, 4),
+          round(stats.rawToClampRatioNegativeMax, 4),
           round(stats.requiredReductionFractionMax, 4),
           round(stats.pressureExcessOverClampMaxMmHg, 4),
           round(stats.equivalentExtraBAtMaxExcess, 8),
@@ -2844,7 +2915,53 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
           round(stats.qNextPreFlowClampAtMaxExcess, 4),
           round(stats.qDotPreClampAtMaxExcess, 4),
           round(stats.qDotRawAtMaxExcess, 4),
+          round(stats.qDotRawPositiveMax, 4),
+          round(stats.qDotRawNegativeMin, 4),
           round(stats.open01AtMaxExcess, 4),
+          round(stats.open01DeltaAtMaxExcess, 5),
+        ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
+      }
+    }
+  }
+  lines.push("");
+  lines.push("## AoV low-open event-direction qDot estimator");
+  lines.push("");
+  lines.push("Low-open samples are split by sign/phase proxies. Bins may overlap; they are attribution readouts, not mutually exclusive classes.");
+  lines.push("");
+  lines.push("| heart model | dt | TBV correction | limiter | preset | AoV B | AoV L | tau open | tau close | tension rise | qDot clamp | q update | case | event bin | n | raw/clamp max | +qDot/clamp max | -qDot/clamp max | pressure excess | QAo at max | dP at max | q current | qNext pre diode | qDot raw | +qDot max | -qDot min | open01 at max | d open01 at max |");
+  lines.push(markdownSeparator(lines[lines.length - 1]));
+  for (const scenario of report.scenarios) {
+    for (const gate of scenario.waveformGates) {
+      for (const [bin, stats] of Object.entries(gate.candidate.AoVQDotEventDirectionBins) as Array<[AoVQDotEventDirectionKey, AoVQDotTargetBinStats]>) {
+        lines.push([
+          scenario.heartModel,
+          round(scenario.dt, 5),
+          scenario.tbvCorrectionMode,
+          scenario.lowStretchLimiterMode,
+          scenario.activeReservePreset,
+          scenario.aovB,
+          scenario.aovL,
+          scenario.aovTauOpen,
+          scenario.aovTauClose,
+          scenario.tensionRiseSec,
+          scenario.aovQDotClamp,
+          scenario.aovQUpdateMode,
+          gate.label,
+          bin,
+          stats.sampleCount,
+          round(stats.rawToClampRatioMax, 4),
+          round(stats.rawToClampRatioPositiveMax, 4),
+          round(stats.rawToClampRatioNegativeMax, 4),
+          round(stats.pressureExcessOverClampMaxMmHg, 4),
+          round(stats.qAoAtMaxExcess, 4),
+          round(stats.dPAtMaxExcess, 4),
+          round(stats.qCurrentAtMaxExcess, 4),
+          round(stats.qNextPreDiodeAtMaxExcess, 4),
+          round(stats.qDotRawAtMaxExcess, 4),
+          round(stats.qDotRawPositiveMax, 4),
+          round(stats.qDotRawNegativeMin, 4),
+          round(stats.open01AtMaxExcess, 4),
+          round(stats.open01DeltaAtMaxExcess, 5),
         ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
       }
     }
@@ -3039,6 +3156,20 @@ export function matrixReportToCsv(report: MatrixReport): string {
     "normalAoVOpenGte095QNextPreDiodeAtMaxExcess",
     "normalAoVOpenGte095QDotPreClampAtMaxExcess",
     "normalAoVOpenGte095Open01AtMaxExcess",
+    "normalAoVLowOpenOpeningAccelSampleCount",
+    "normalAoVLowOpenOpeningAccelRawToClampRatioMax",
+    "normalAoVLowOpenOpeningAccelPositiveRatioMax",
+    "normalAoVLowOpenOpeningAccelNegativeRatioMax",
+    "normalAoVLowOpenOpeningAccelDPatMaxExcess",
+    "normalAoVLowOpenOpeningAccelQDotRawAtMaxExcess",
+    "normalAoVLowOpenOpeningAccelOpen01DeltaAtMaxExcess",
+    "normalAoVLowOpenPressureReversalSampleCount",
+    "normalAoVLowOpenPressureReversalRawToClampRatioMax",
+    "normalAoVLowOpenPressureReversalPositiveRatioMax",
+    "normalAoVLowOpenPressureReversalNegativeRatioMax",
+    "normalAoVLowOpenPressureReversalDPatMaxExcess",
+    "normalAoVLowOpenPressureReversalQDotRawAtMaxExcess",
+    "normalAoVLowOpenPressureReversalOpen01DeltaAtMaxExcess",
     "normalAoVFlowWeightedFullOpenOrificeGradient",
     "normalAoVFlowWeightedAreaLossExtraGradient",
     "normalAoVFlowWeightedOpen01",
@@ -3135,6 +3266,8 @@ export function matrixReportToCsv(report: MatrixReport): string {
       const normalCandidate = scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate;
       const normalOpenLt02 = normalCandidate?.AoVQDotOpen01Bins["open-lt-0.2"];
       const normalOpenGte095 = normalCandidate?.AoVQDotOpen01Bins["open-gte-0.95"];
+      const normalOpeningAccel = normalCandidate?.AoVQDotEventDirectionBins["low-open-opening-accel"];
+      const normalPressureReversal = normalCandidate?.AoVQDotEventDirectionBins["low-open-pressure-reversal-decel"];
       rows.push([
         scenario.evaluation.classification,
         scenario.evaluation.branchEnvelopeClass,
@@ -3225,6 +3358,20 @@ export function matrixReportToCsv(report: MatrixReport): string {
         normalOpenGte095?.qNextPreDiodeAtMaxExcess ?? "",
         normalOpenGte095?.qDotPreClampAtMaxExcess ?? "",
         normalOpenGte095?.open01AtMaxExcess ?? "",
+        normalOpeningAccel?.sampleCount ?? "",
+        normalOpeningAccel?.rawToClampRatioMax ?? "",
+        normalOpeningAccel?.rawToClampRatioPositiveMax ?? "",
+        normalOpeningAccel?.rawToClampRatioNegativeMax ?? "",
+        normalOpeningAccel?.dPAtMaxExcess ?? "",
+        normalOpeningAccel?.qDotRawAtMaxExcess ?? "",
+        normalOpeningAccel?.open01DeltaAtMaxExcess ?? "",
+        normalPressureReversal?.sampleCount ?? "",
+        normalPressureReversal?.rawToClampRatioMax ?? "",
+        normalPressureReversal?.rawToClampRatioPositiveMax ?? "",
+        normalPressureReversal?.rawToClampRatioNegativeMax ?? "",
+        normalPressureReversal?.dPAtMaxExcess ?? "",
+        normalPressureReversal?.qDotRawAtMaxExcess ?? "",
+        normalPressureReversal?.open01DeltaAtMaxExcess ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVFlowWeightedFullOpenOrificeGradient ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVFlowWeightedAreaLossExtraGradient ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVFlowWeightedOpen01 ?? "",

@@ -700,7 +700,7 @@ describe("low-preload Starling debug diagnostics", () => {
     ]);
     const report = runLowPreloadMatrix(opts);
 
-    expect(report.schemaVersion).toBe(21);
+    expect(report.schemaVersion).toBe(22);
     expect(report.heartModels).toEqual(["activeStress"]);
     expect(report.aorticFlowClampModes).toEqual(["hard"]);
     expect(report.aovBValues).toEqual([DEFAULT_PARAMS.AoV_B]);
@@ -827,6 +827,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToMarkdown(report)).toContain("AoV gradient decomposition");
     expect(matrixReportToMarkdown(report)).toContain("AoV qDot target estimator");
     expect(matrixReportToMarkdown(report)).toContain("AoV qDot open01-bin target estimator");
+    expect(matrixReportToMarkdown(report)).toContain("AoV low-open event-direction qDot estimator");
     expect(matrixReportToMarkdown(report)).toContain("orifice mean");
     expect(matrixReportToMarkdown(report)).toContain("closure fw");
     expect(matrixReportToMarkdown(report)).toContain("Bq2 mean");
@@ -865,6 +866,8 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToCsv(report)).toContain("aovQUpdateMode");
     expect(matrixReportToCsv(report)).toContain("normalAoVOpenLt02RawToClampRatioMax");
     expect(matrixReportToCsv(report)).toContain("normalAoVOpenGte095RawToClampRatioMax");
+    expect(matrixReportToCsv(report)).toContain("normalAoVLowOpenOpeningAccelRawToClampRatioMax");
+    expect(matrixReportToCsv(report)).toContain("normalAoVLowOpenPressureReversalRawToClampRatioMax");
     expect(matrixReportToCsv(report)).toContain("systemicResistance");
     expect(matrixReportToCsv(report)).toContain("normalAoVPeakGradient");
     expect(matrixReportToCsv(report)).toContain("normalAoVFlowWeightedOrificeGradient");
