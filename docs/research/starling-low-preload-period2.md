@@ -964,3 +964,54 @@ npm run verify:starling-low-preload-matrix -- \
 This is still diagnostic. A future physical candidate must keep qDot clamp
 defaults, reduce closure-deceleration pathology, and preserve normal / HR
 waveforms.
+
+### 2026-06-14 update: pressure morphology audit
+
+Alternans suppression is no longer sufficient by itself. The default active
+stress waveform also needs to avoid spike-like LVP/RVP morphology. Matrix schema
+v30 therefore adds report-only LV/RV pressure morphology metrics to the normal /
+HR waveform gates:
+
+- peak timing: `LVPTimeToPeakMs`, `RVPTimeToPeakMs`
+- peak width: `LVPWidthAt90Ms`, `LVPWidthAt80Ms`, `RVPWidthAt90Ms`,
+  `RVPWidthAt80Ms`
+- pressure support / dome shape: `LVPPressureDomeRatio90`,
+  `LVPPressureSupportRatio`, `RVPPressureDomeRatio90`,
+  `RVPPressureSupportRatio`
+- relaxation diagnostics: `LVPRelaxationTauMs`, `LVPRelaxationTauR2`,
+  `LVPIVRTLikeMs`, and RV analogs
+- existing `max/min dP/dt` fields remain the first derivative readout
+
+The Markdown report now has `LV/RV pressure morphology gates`, and the CSV
+exports normal-gate columns such as `normalLVPWidthAt90Ms`,
+`normalLVPPressureSupportRatio`, and `normalLVPRelaxationTauMs`.
+
+Use these as candidate-screening readouts:
+
+- a candidate that removes period-2 but leaves narrow pressure peaks, excessive
+  `max/min dP/dt`, or implausible IVRT-like tau should not be promoted as a
+  root fix
+- a candidate that improves LVP/RVP peak width and relaxation shape but does not
+  fully eliminate branch amplitude can remain a useful waveform-quality
+  comparator
+- the tau fit is diagnostic only; it is fit over the valve-closed relaxation
+  segment and is not a calibrated clinical tau estimator
+
+Suggested pressure morphology smoke:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/pressure-morphology-smoke \
+  --regime-audit=low-hyper \
+  --dt=0.001,0.0005 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --tension-rise=0,0.005,0.01 \
+  --tension-fall=0,0.005,0.01 \
+  --tension-scope=lv,ventricles,all \
+  --qdot-clamp-scope=aov,semilunar \
+  --max-return-map-points=2 \
+  --trace-beats=4 \
+  --sample-hz=120 \
+  --quiet-progress
+```

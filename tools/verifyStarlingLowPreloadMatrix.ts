@@ -206,6 +206,28 @@ type WaveformGateMetrics = {
   QPVPeakMeanRatio: number;
   QPVMeanPositive: number;
   QPVTimeToPeakMs: number;
+  LVPTimeToPeakMs: number;
+  LVPWidthAt90Ms: number;
+  LVPWidthAt80Ms: number;
+  LVPTimeAbove90Ms: number;
+  LVPTimeAbove80Ms: number;
+  LVPFwhmMs: number;
+  LVPPressureDomeRatio90: number;
+  LVPPressureSupportRatio: number;
+  LVPRelaxationTauMs: number;
+  LVPRelaxationTauR2: number;
+  LVPIVRTLikeMs: number;
+  RVPTimeToPeakMs: number;
+  RVPWidthAt90Ms: number;
+  RVPWidthAt80Ms: number;
+  RVPTimeAbove90Ms: number;
+  RVPTimeAbove80Ms: number;
+  RVPFwhmMs: number;
+  RVPPressureDomeRatio90: number;
+  RVPPressureSupportRatio: number;
+  RVPRelaxationTauMs: number;
+  RVPRelaxationTauR2: number;
+  RVPIVRTLikeMs: number;
   maxDQAoDt: number;
   maxDQPVdt: number;
   ejectionDurationMs: number;
@@ -297,6 +319,28 @@ type WaveformGateComparison = {
     | "QPVPeakMeanRatio"
     | "QPVMeanPositive"
     | "QPVTimeToPeakMs"
+    | "LVPTimeToPeakMs"
+    | "LVPWidthAt90Ms"
+    | "LVPWidthAt80Ms"
+    | "LVPTimeAbove90Ms"
+    | "LVPTimeAbove80Ms"
+    | "LVPFwhmMs"
+    | "LVPPressureDomeRatio90"
+    | "LVPPressureSupportRatio"
+    | "LVPRelaxationTauMs"
+    | "LVPRelaxationTauR2"
+    | "LVPIVRTLikeMs"
+    | "RVPTimeToPeakMs"
+    | "RVPWidthAt90Ms"
+    | "RVPWidthAt80Ms"
+    | "RVPTimeAbove90Ms"
+    | "RVPTimeAbove80Ms"
+    | "RVPFwhmMs"
+    | "RVPPressureDomeRatio90"
+    | "RVPPressureSupportRatio"
+    | "RVPRelaxationTauMs"
+    | "RVPRelaxationTauR2"
+    | "RVPIVRTLikeMs"
     | "maxDQAoDt"
     | "maxDQPVdt"
     | "ejectionDurationMs"
@@ -498,7 +542,7 @@ type ShapeSummary = {
 };
 
 type MatrixReport = {
-  schemaVersion: 29;
+  schemaVersion: 30;
   generatedAt: string;
   measurementMode: string;
   regimeAuditPreset?: RegimeAuditPreset;
@@ -591,7 +635,22 @@ type MatrixReport = {
     maxQPVMeanPositive: number;
     minQPVTimeToPeakMs: number;
     maxDQPVdt: number;
+    maxLVPMax: number;
     maxRVPMax: number;
+    maxDpdtLVP: number;
+    minDpdtLVP: number;
+    minLVPWidthAt90Ms: number;
+    minLVPWidthAt80Ms: number;
+    minLVPPressureDomeRatio90: number;
+    minLVPPressureSupportRatio: number;
+    maxLVPRelaxationTauMs: number;
+    maxLVPIVRTLikeMs: number;
+    minRVPWidthAt90Ms: number;
+    minRVPWidthAt80Ms: number;
+    minRVPPressureDomeRatio90: number;
+    minRVPPressureSupportRatio: number;
+    maxRVPRelaxationTauMs: number;
+    maxRVPIVRTLikeMs: number;
     maxDpdtRVP: number;
     minDpdtRVP: number;
     maxPVMeanGradient: number;
@@ -1074,9 +1133,9 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
       { fraction: 0, metric: null },
     );
   return {
-    schemaVersion: 29,
+    schemaVersion: 30,
     generatedAt: new Date().toISOString(),
-    measurementMode: "branch-only broad low-preload/hypervolume matrix followed by selected EDV-section return-map diagnostics with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap comparator axes, off-by-default AoV_B/AoV_Amax/AoV_L/AoV_tau/systemicResistance/arterialStiffness ejection-dynamics comparator axes, off-by-default tension-rise/fall comparators with independent chamber scope, asymmetric dynamic qDot positive/negative clamp with independent edge scope, AoV q-state update comparator axes, and fIsoSlopeRelax low-stretch active-force comparator; AoV gradient is decomposed into full-open orifice, area-loss extra, inertial, residual, direct ODE closure residual, solver qDot clamp audit, clean-window closure residual terms, report-only sign-aware qDot target-estimator terms, open01-bin qDot target-estimator terms, low-open event-direction qDot target-estimator terms, negative qDot closure-deceleration primary readouts, scenario-level per-edge qDot audit, and point/regime-level per-edge dynamic qDot clamp audit for all valve/dynamic edges; ejection duration is reported as QAo>0, QAo>5% peak, SV 5-95%, and historical high-flow windows; optional TBV correction on/off/low contamination axis; activeStress/elastance heart-model comparison axis",
+    measurementMode: "branch-only broad low-preload/hypervolume matrix followed by selected EDV-section return-map diagnostics with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap comparator axes, off-by-default AoV_B/AoV_Amax/AoV_L/AoV_tau/systemicResistance/arterialStiffness ejection-dynamics comparator axes, off-by-default tension-rise/fall comparators with independent chamber scope, asymmetric dynamic qDot positive/negative clamp with independent edge scope, AoV q-state update comparator axes, and fIsoSlopeRelax low-stretch active-force comparator; AoV gradient is decomposed into full-open orifice, area-loss extra, inertial, residual, direct ODE closure residual, solver qDot clamp audit, clean-window closure residual terms, report-only sign-aware qDot target-estimator terms, open01-bin qDot target-estimator terms, low-open event-direction qDot target-estimator terms, negative qDot closure-deceleration primary readouts, scenario-level per-edge qDot audit, and point/regime-level per-edge dynamic qDot clamp audit for all valve/dynamic edges; ejection duration is reported as QAo>0, QAo>5% peak, SV 5-95%, and historical high-flow windows; LV/RV pressure morphology audit reports peak timing, width-at-90/80%, pressure support, IVRT-like tau, and max/min dP/dt so pressure-shape realism is evaluated separately from alternans suppression; optional TBV correction on/off/low contamination axis; activeStress/elastance heart-model comparison axis",
     regimeAuditPreset: opts.regimeAuditPreset,
     targetVolumeMl: opts.targetVolumeMl,
     heartModels: opts.heartModels,
@@ -1167,7 +1226,22 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
         maxQPVMeanPositive: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.QPVMeanPositive)))),
         minQPVTimeToPeakMs: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.QPVTimeToPeakMs))),
         maxDQPVdt: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.maxDQPVdt)))),
+        maxLVPMax: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.LVPMax)))),
         maxRVPMax: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.RVPMax)))),
+        maxDpdtLVP: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.maxDpdtLVP)))),
+        minDpdtLVP: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.minDpdtLVP))),
+        minLVPWidthAt90Ms: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.LVPWidthAt90Ms))),
+        minLVPWidthAt80Ms: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.LVPWidthAt80Ms))),
+        minLVPPressureDomeRatio90: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.LVPPressureDomeRatio90))),
+        minLVPPressureSupportRatio: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.LVPPressureSupportRatio))),
+        maxLVPRelaxationTauMs: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.LVPRelaxationTauMs)))),
+        maxLVPIVRTLikeMs: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.LVPIVRTLikeMs)))),
+        minRVPWidthAt90Ms: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.RVPWidthAt90Ms))),
+        minRVPWidthAt80Ms: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.RVPWidthAt80Ms))),
+        minRVPPressureDomeRatio90: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.RVPPressureDomeRatio90))),
+        minRVPPressureSupportRatio: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.RVPPressureSupportRatio))),
+        maxRVPRelaxationTauMs: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.RVPRelaxationTauMs)))),
+        maxRVPIVRTLikeMs: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.RVPIVRTLikeMs)))),
         maxDpdtRVP: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.maxDpdtRVP)))),
         minDpdtRVP: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.minDpdtRVP))),
         maxPVMeanGradient: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.PVMeanGradient)))),
@@ -1906,6 +1980,28 @@ function waveformGateComparison(
       QPVPeakMeanRatio: candidate.QPVPeakMeanRatio - baseline.QPVPeakMeanRatio,
       QPVMeanPositive: candidate.QPVMeanPositive - baseline.QPVMeanPositive,
       QPVTimeToPeakMs: candidate.QPVTimeToPeakMs - baseline.QPVTimeToPeakMs,
+      LVPTimeToPeakMs: candidate.LVPTimeToPeakMs - baseline.LVPTimeToPeakMs,
+      LVPWidthAt90Ms: candidate.LVPWidthAt90Ms - baseline.LVPWidthAt90Ms,
+      LVPWidthAt80Ms: candidate.LVPWidthAt80Ms - baseline.LVPWidthAt80Ms,
+      LVPTimeAbove90Ms: candidate.LVPTimeAbove90Ms - baseline.LVPTimeAbove90Ms,
+      LVPTimeAbove80Ms: candidate.LVPTimeAbove80Ms - baseline.LVPTimeAbove80Ms,
+      LVPFwhmMs: candidate.LVPFwhmMs - baseline.LVPFwhmMs,
+      LVPPressureDomeRatio90: candidate.LVPPressureDomeRatio90 - baseline.LVPPressureDomeRatio90,
+      LVPPressureSupportRatio: candidate.LVPPressureSupportRatio - baseline.LVPPressureSupportRatio,
+      LVPRelaxationTauMs: candidate.LVPRelaxationTauMs - baseline.LVPRelaxationTauMs,
+      LVPRelaxationTauR2: candidate.LVPRelaxationTauR2 - baseline.LVPRelaxationTauR2,
+      LVPIVRTLikeMs: candidate.LVPIVRTLikeMs - baseline.LVPIVRTLikeMs,
+      RVPTimeToPeakMs: candidate.RVPTimeToPeakMs - baseline.RVPTimeToPeakMs,
+      RVPWidthAt90Ms: candidate.RVPWidthAt90Ms - baseline.RVPWidthAt90Ms,
+      RVPWidthAt80Ms: candidate.RVPWidthAt80Ms - baseline.RVPWidthAt80Ms,
+      RVPTimeAbove90Ms: candidate.RVPTimeAbove90Ms - baseline.RVPTimeAbove90Ms,
+      RVPTimeAbove80Ms: candidate.RVPTimeAbove80Ms - baseline.RVPTimeAbove80Ms,
+      RVPFwhmMs: candidate.RVPFwhmMs - baseline.RVPFwhmMs,
+      RVPPressureDomeRatio90: candidate.RVPPressureDomeRatio90 - baseline.RVPPressureDomeRatio90,
+      RVPPressureSupportRatio: candidate.RVPPressureSupportRatio - baseline.RVPPressureSupportRatio,
+      RVPRelaxationTauMs: candidate.RVPRelaxationTauMs - baseline.RVPRelaxationTauMs,
+      RVPRelaxationTauR2: candidate.RVPRelaxationTauR2 - baseline.RVPRelaxationTauR2,
+      RVPIVRTLikeMs: candidate.RVPIVRTLikeMs - baseline.RVPIVRTLikeMs,
       maxDQAoDt: candidate.maxDQAoDt - baseline.maxDQAoDt,
       maxDQPVdt: candidate.maxDQPVdt - baseline.maxDQPVdt,
       ejectionDurationMs: candidate.ejectionDurationMs - baseline.ejectionDurationMs,
@@ -2059,6 +2155,8 @@ function measureWaveformGateImpl(
   const qPvShape = valveFlowShapeSummary(samples, measuredBeatCount, "QPV");
   const ejectionDurations = aorticEjectionDurations(samples, measuredBeatCount);
   const opening = aorticOpeningSummary(samples, measuredBeatCount);
+  const lvpMorphology = pressureMorphologySummary(samples, measuredBeatCount, "LVP", "QAo", "xiAoV", "QMV", "xiMV");
+  const rvpMorphology = pressureMorphologySummary(samples, measuredBeatCount, "RVP", "QPV", "xiPV", "QTV", "xiTV");
   const clampDiagnostics = core.debugClampDiagnostics();
   return {
     settled: settle.settled,
@@ -2093,6 +2191,28 @@ function measureWaveformGateImpl(
       : Number.NaN,
     QPVMeanPositive: meanNumbers(qPvPositive),
     QPVTimeToPeakMs: qPvShape.timeToPeakMs,
+    LVPTimeToPeakMs: lvpMorphology.timeToPeakMs,
+    LVPWidthAt90Ms: lvpMorphology.widthAt90Ms,
+    LVPWidthAt80Ms: lvpMorphology.widthAt80Ms,
+    LVPTimeAbove90Ms: lvpMorphology.timeAbove90Ms,
+    LVPTimeAbove80Ms: lvpMorphology.timeAbove80Ms,
+    LVPFwhmMs: lvpMorphology.fwhmMs,
+    LVPPressureDomeRatio90: lvpMorphology.pressureDomeRatio90,
+    LVPPressureSupportRatio: lvpMorphology.pressureSupportRatio,
+    LVPRelaxationTauMs: lvpMorphology.relaxationTauMs,
+    LVPRelaxationTauR2: lvpMorphology.relaxationTauR2,
+    LVPIVRTLikeMs: lvpMorphology.ivrtLikeMs,
+    RVPTimeToPeakMs: rvpMorphology.timeToPeakMs,
+    RVPWidthAt90Ms: rvpMorphology.widthAt90Ms,
+    RVPWidthAt80Ms: rvpMorphology.widthAt80Ms,
+    RVPTimeAbove90Ms: rvpMorphology.timeAbove90Ms,
+    RVPTimeAbove80Ms: rvpMorphology.timeAbove80Ms,
+    RVPFwhmMs: rvpMorphology.fwhmMs,
+    RVPPressureDomeRatio90: rvpMorphology.pressureDomeRatio90,
+    RVPPressureSupportRatio: rvpMorphology.pressureSupportRatio,
+    RVPRelaxationTauMs: rvpMorphology.relaxationTauMs,
+    RVPRelaxationTauR2: rvpMorphology.relaxationTauR2,
+    RVPIVRTLikeMs: rvpMorphology.ivrtLikeMs,
     maxDQPVdt: qPvShape.maxAbsDerivative,
     ejectionDurationMs: ejectionDurations.positiveMs,
     ejectionPositiveDurationMs: ejectionDurations.positiveMs,
@@ -2777,6 +2897,158 @@ function aorticEjectionDurations(
   };
 }
 
+type PressureMorphologySummary = {
+  timeToPeakMs: number;
+  widthAt90Ms: number;
+  widthAt80Ms: number;
+  timeAbove90Ms: number;
+  timeAbove80Ms: number;
+  fwhmMs: number;
+  pressureDomeRatio90: number;
+  pressureSupportRatio: number;
+  relaxationTauMs: number;
+  relaxationTauR2: number;
+  ivrtLikeMs: number;
+};
+
+function pressureMorphologySummary(
+  samples: SimSample[],
+  measuredBeatCount: number,
+  pressureKey: "LVP" | "RVP",
+  outletFlowKey: "QAo" | "QPV",
+  outletXiKey: "xiAoV" | "xiPV",
+  inletFlowKey: "QMV" | "QTV",
+  inletXiKey: "xiMV" | "xiTV",
+): PressureMorphologySummary {
+  const beats = Array.from(groupSamplesByBeat(samples).values()).slice(-Math.max(1, measuredBeatCount));
+  const sampleHz = Math.max(samplesPerSecond(samples), 1);
+  const timeToPeakMs: number[] = [];
+  const widthAt90Ms: number[] = [];
+  const widthAt80Ms: number[] = [];
+  const timeAbove90Ms: number[] = [];
+  const timeAbove80Ms: number[] = [];
+  const fwhmMs: number[] = [];
+  const domeRatio90: number[] = [];
+  const supportRatio: number[] = [];
+  const relaxationTauMs: number[] = [];
+  const relaxationTauR2: number[] = [];
+  const ivrtLikeMs: number[] = [];
+
+  for (const beat of beats) {
+    const finitePressure = beat.filter((sample) => Number.isFinite(Number(sample[pressureKey])));
+    if (finitePressure.length === 0) continue;
+    const pressureValues = finitePressure.map((sample) => Number(sample[pressureKey]));
+    const pMax = Math.max(...pressureValues);
+    const pMin = Math.min(...pressureValues);
+    const peak = finitePressure.reduce((best, sample) => Number(sample[pressureKey]) > Number(best[pressureKey]) ? sample : best, finitePressure[0]);
+    const beatStart = finitePressure[0].t;
+    timeToPeakMs.push((peak.t - beatStart) * 1000);
+
+    const durationForThreshold = (threshold: number) =>
+      finitePressure.filter((sample) => Number(sample[pressureKey]) >= threshold).length / sampleHz * 1000;
+    const threshold90 = pMax * 0.9;
+    const threshold80 = pMax * 0.8;
+    const thresholdHalf = pMin + 0.5 * (pMax - pMin);
+    const width90 = durationForThreshold(threshold90);
+    const width80 = durationForThreshold(threshold80);
+    widthAt90Ms.push(width90);
+    widthAt80Ms.push(width80);
+    timeAbove90Ms.push(width90);
+    timeAbove80Ms.push(width80);
+    fwhmMs.push(durationForThreshold(thresholdHalf));
+
+    const flowValues = beat.map((sample) => Math.max(0, Number(sample[outletFlowKey]))).filter(Number.isFinite);
+    const peakFlow = flowValues.length > 0 ? Math.max(...flowValues) : Number.NaN;
+    const ejectionSamples = Number.isFinite(peakFlow) && peakFlow > 0
+      ? beat.filter((sample) => Number(sample[outletFlowKey]) > peakFlow * 0.05)
+      : [];
+    const meanEjectionPressure = meanNumbers(ejectionSamples.map((sample) => Number(sample[pressureKey])));
+    if (Number.isFinite(meanEjectionPressure) && Math.abs(pMax) > 1e-9) {
+      supportRatio.push(meanEjectionPressure / pMax);
+    }
+    const svWindow = sv5To95WindowForBeatByFlow(beat, outletFlowKey);
+    const svDurationMs = svWindow ? (svWindow.t95 - svWindow.t5) * 1000 : Number.NaN;
+    if (Number.isFinite(svDurationMs) && svDurationMs > 1e-9) {
+      domeRatio90.push(width90 / svDurationMs);
+    }
+
+    const ivrtSamples = ivrtLikeSamplesForBeat(beat, pressureKey, outletFlowKey, outletXiKey, inletFlowKey, inletXiKey, peak.t);
+    if (ivrtSamples.length > 1) {
+      ivrtLikeMs.push((ivrtSamples.at(-1)!.t - ivrtSamples[0].t) * 1000);
+    }
+    const tau = relaxationTauFit(ivrtSamples, pressureKey);
+    if (Number.isFinite(tau.tauMs)) relaxationTauMs.push(tau.tauMs);
+    if (Number.isFinite(tau.r2)) relaxationTauR2.push(tau.r2);
+  }
+
+  return {
+    timeToPeakMs: meanNumbers(timeToPeakMs),
+    widthAt90Ms: meanNumbers(widthAt90Ms),
+    widthAt80Ms: meanNumbers(widthAt80Ms),
+    timeAbove90Ms: meanNumbers(timeAbove90Ms),
+    timeAbove80Ms: meanNumbers(timeAbove80Ms),
+    fwhmMs: meanNumbers(fwhmMs),
+    pressureDomeRatio90: meanNumbers(domeRatio90),
+    pressureSupportRatio: meanNumbers(supportRatio),
+    relaxationTauMs: meanNumbers(relaxationTauMs),
+    relaxationTauR2: meanNumbers(relaxationTauR2),
+    ivrtLikeMs: meanNumbers(ivrtLikeMs),
+  };
+}
+
+function ivrtLikeSamplesForBeat(
+  beat: SimSample[],
+  pressureKey: "LVP" | "RVP",
+  outletFlowKey: "QAo" | "QPV",
+  outletXiKey: "xiAoV" | "xiPV",
+  inletFlowKey: "QMV" | "QTV",
+  inletXiKey: "xiMV" | "xiTV",
+  peakTime: number,
+): SimSample[] {
+  const afterPeak = beat.filter((sample) => sample.t >= peakTime && Number.isFinite(Number(sample[pressureKey])));
+  const startIndex = afterPeak.findIndex((sample) =>
+    Number(sample[outletXiKey]) < 0.2
+    && Math.max(0, Number(sample[outletFlowKey])) < 5
+  );
+  if (startIndex < 0) return [];
+  const out: SimSample[] = [];
+  for (const sample of afterPeak.slice(startIndex)) {
+    const inletOpening = Number(sample[inletXiKey]) > 0.2 || Math.max(0, Number(sample[inletFlowKey])) > 5;
+    if (inletOpening) break;
+    if (Number(sample[outletXiKey]) > 0.25 || Math.max(0, Number(sample[outletFlowKey])) > 10) break;
+    out.push(sample);
+  }
+  return out;
+}
+
+function relaxationTauFit(samples: SimSample[], pressureKey: "LVP" | "RVP"): { tauMs: number; r2: number } {
+  if (samples.length < 3) return { tauMs: Number.NaN, r2: Number.NaN };
+  const pressures = samples.map((sample) => Number(sample[pressureKey])).filter(Number.isFinite);
+  if (pressures.length < 3) return { tauMs: Number.NaN, r2: Number.NaN };
+  const pInf = Math.min(...pressures) - 1;
+  const points = samples
+    .map((sample) => ({ x: sample.t - samples[0].t, y: Math.log(Math.max(Number(sample[pressureKey]) - pInf, 1e-9)) }))
+    .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
+  if (points.length < 3) return { tauMs: Number.NaN, r2: Number.NaN };
+  const meanX = meanNumbers(points.map((point) => point.x));
+  const meanY = meanNumbers(points.map((point) => point.y));
+  let ssXX = 0;
+  let ssXY = 0;
+  let ssYY = 0;
+  for (const point of points) {
+    const dx = point.x - meanX;
+    const dy = point.y - meanY;
+    ssXX += dx * dx;
+    ssXY += dx * dy;
+    ssYY += dy * dy;
+  }
+  if (ssXX <= 1e-12 || ssYY <= 1e-12) return { tauMs: Number.NaN, r2: Number.NaN };
+  const slope = ssXY / ssXX;
+  if (!(slope < -1e-9)) return { tauMs: Number.NaN, r2: Number.NaN };
+  const r2 = clamp((ssXY * ssXY) / Math.max(ssXX * ssYY, 1e-12), 0, 1);
+  return { tauMs: -1000 / slope, r2 };
+}
+
 function samplesPerSecond(samples: SimSample[]): number {
   if (samples.length < 2) return Number.NaN;
   const duration = samples.at(-1)!.t - samples[0].t;
@@ -2806,13 +3078,17 @@ function sv5To95Windows(samples: SimSample[]): Array<{ t5: number; t95: number }
 }
 
 function sv5To95WindowForBeat(samples: SimSample[]): { t5: number; t95: number } | undefined {
+  return sv5To95WindowForBeatByFlow(samples, "QAo");
+}
+
+function sv5To95WindowForBeatByFlow(samples: SimSample[], flowKey: "QAo" | "QPV"): { t5: number; t95: number } | undefined {
   if (samples.length < 2) return undefined;
   const increments: Array<{ t: number; cumulative: number }> = [{ t: samples[0].t, cumulative: 0 }];
   let total = 0;
   for (let i = 1; i < samples.length; i++) {
     const dt = samples[i].t - samples[i - 1].t;
     if (dt <= 0) continue;
-    const flow = 0.5 * (Math.max(0, samples[i - 1].QAo) + Math.max(0, samples[i].QAo));
+    const flow = 0.5 * (Math.max(0, Number(samples[i - 1][flowKey])) + Math.max(0, Number(samples[i][flowKey])));
     total += flow * dt;
     increments.push({ t: samples[i].t, cumulative: total });
   }
@@ -2942,6 +3218,20 @@ function maxWaveformDelta(
     "QPVPeakMeanRatio",
     "QPVMeanPositive",
     "QPVTimeToPeakMs",
+    "LVPTimeToPeakMs",
+    "LVPWidthAt90Ms",
+    "LVPWidthAt80Ms",
+    "LVPPressureDomeRatio90",
+    "LVPPressureSupportRatio",
+    "LVPRelaxationTauMs",
+    "LVPIVRTLikeMs",
+    "RVPTimeToPeakMs",
+    "RVPWidthAt90Ms",
+    "RVPWidthAt80Ms",
+    "RVPPressureDomeRatio90",
+    "RVPPressureSupportRatio",
+    "RVPRelaxationTauMs",
+    "RVPIVRTLikeMs",
     "maxDQAoDt",
     "maxDQPVdt",
     "AoVFlowWeightedClosureResidual",
@@ -3156,6 +3446,52 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
       round(Math.max(0, ...scenario.waveformGates.map((gate) => finiteOrZero(gate.candidate.PVMeanGradient))), 4),
       round(Math.max(0, ...scenario.waveformGates.map((gate) => finiteOrZero(gate.candidate.PVPeakGradient))), 4),
     ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
+  }
+  lines.push("");
+  lines.push("## LV/RV pressure morphology gates");
+  lines.push("");
+  lines.push("These report-only waveform metrics treat pressure shape as a first-class objective. `width90/80` and `dome90` expose spike-like peaks; `support` is mean ejection pressure divided by peak pressure; `tau` is an IVRT-like exponential fit over the valve-closed relaxation segment and is diagnostic rather than a clinical tau estimate.");
+  lines.push("");
+  lines.push("| class | heart model | dt | tension rise | tension fall | tension scope | qDot clamp | qDot scope | case | LVP max | LVP t-peak ms | LVP width90 ms | LVP width80 ms | LVP dome90 | LVP support | LVP tau ms | LVP tau r2 | LVP IVRT ms | max dP/dt LVP | min dP/dt LVP | RVP max | RVP t-peak ms | RVP width90 ms | RVP width80 ms | RVP dome90 | RVP support | RVP tau ms | RVP tau r2 | RVP IVRT ms | max dP/dt RVP | min dP/dt RVP | worst metric | worst frac |");
+  lines.push(markdownSeparator(lines[lines.length - 1]));
+  for (const scenario of report.scenarios) {
+    for (const gate of scenario.waveformGates) {
+      lines.push([
+        scenario.evaluation.classification,
+        scenario.heartModel,
+        round(scenario.dt, 5),
+        scenario.tensionRiseSec,
+        scenario.tensionFallSec,
+        scenario.tensionScope,
+        aovQDotClampLabel(scenario.aovQDotClamp, scenario.aovQDotClampNegative),
+        scenario.qDotClampScope,
+        gate.label,
+        round(gate.candidate.LVPMax, 4),
+        round(gate.candidate.LVPTimeToPeakMs, 2),
+        round(gate.candidate.LVPWidthAt90Ms, 2),
+        round(gate.candidate.LVPWidthAt80Ms, 2),
+        round(gate.candidate.LVPPressureDomeRatio90, 4),
+        round(gate.candidate.LVPPressureSupportRatio, 4),
+        round(gate.candidate.LVPRelaxationTauMs, 2),
+        round(gate.candidate.LVPRelaxationTauR2, 4),
+        round(gate.candidate.LVPIVRTLikeMs, 2),
+        round(gate.candidate.maxDpdtLVP, 4),
+        round(gate.candidate.minDpdtLVP, 4),
+        round(gate.candidate.RVPMax, 4),
+        round(gate.candidate.RVPTimeToPeakMs, 2),
+        round(gate.candidate.RVPWidthAt90Ms, 2),
+        round(gate.candidate.RVPWidthAt80Ms, 2),
+        round(gate.candidate.RVPPressureDomeRatio90, 4),
+        round(gate.candidate.RVPPressureSupportRatio, 4),
+        round(gate.candidate.RVPRelaxationTauMs, 2),
+        round(gate.candidate.RVPRelaxationTauR2, 4),
+        round(gate.candidate.RVPIVRTLikeMs, 2),
+        round(gate.candidate.maxDpdtRVP, 4),
+        round(gate.candidate.minDpdtRVP, 4),
+        gate.maxDeltaMetric,
+        round(gate.maxDeltaFraction, 4),
+      ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
+    }
   }
   lines.push("");
   lines.push("## Negative qDot closure-deceleration primary readouts");
@@ -3450,7 +3786,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("## Normal / HR100 waveform gates");
   lines.push("");
-  lines.push("| scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | AoV B | AoV Amax | AoV L | tau open | tau close | SVR | art stiff | tension rise | tension fall | tension scope | qDot clamp | qDot scope | q update | case | dCO_L | dCO_R | dESV_L | dESV_R | dEF_L | dEF_R | dLVPmax | dRVPmax | dQAoMax | dQPVMax | candidate QAo/cap | near cap >95% | local cap active | AoV total mean | AoV peak total | orifice mean | full-open orifice | area-loss extra | Bq2 mean | inertial mean | residual mean | PV mean gradient | PV peak gradient | closure mean | closure fw | solver closure fw | closure at QAoMax | closure SV5-95 | closure SV5-95 fw | discrete closure fw | diode imp fw | flow imp fw | qDot imp fw | clean closure fw | clean cand n | clean n | qDot raw max | qDot post max | qDot hit frac | qDot hit SV5-95 | qDot hit >5%peak | qDot hit open01 | qDot hit clean cand | QAo mean+ | QAo t-peak ms | max dQAo/dt | QPV mean+ | QPV t-peak ms | max dQPV/dt | AoV open01 mean | open01 at QAoMax | near-full-open ms | QAo peak/mean | QPV peak/mean | eject QAo>0 ms | eject >5%peak ms | eject SV5-95 ms | high-flow ms | baseline QAo/cap | dMax dP/dt | candidate min dP/dt | dMin dP/dt | dMax dRVP/dt | candidate min dRVP/dt | dMin dRVP/dt | dClamp hits | worst metric | worst frac |");
+  lines.push("| scope | terms | tau s | limiter | limiter scope | preset | dt | TBV correction | AoV B | AoV Amax | AoV L | tau open | tau close | SVR | art stiff | tension rise | tension fall | tension scope | qDot clamp | qDot scope | q update | case | dCO_L | dCO_R | dESV_L | dESV_R | dEF_L | dEF_R | dLVPmax | dRVPmax | dQAoMax | dQPVMax | candidate QAo/cap | near cap >95% | local cap active | AoV total mean | AoV peak total | orifice mean | full-open orifice | area-loss extra | Bq2 mean | inertial mean | residual mean | PV mean gradient | PV peak gradient | closure mean | closure fw | solver closure fw | closure at QAoMax | closure SV5-95 | closure SV5-95 fw | discrete closure fw | diode imp fw | flow imp fw | qDot imp fw | clean closure fw | clean cand n | clean n | qDot raw max | qDot post max | qDot hit frac | qDot hit SV5-95 | qDot hit >5%peak | qDot hit open01 | qDot hit clean cand | QAo mean+ | QAo t-peak ms | max dQAo/dt | QPV mean+ | QPV t-peak ms | max dQPV/dt | LVP width90 ms | LVP width80 ms | LVP dome90 | LVP support | LVP tau ms | LVP IVRT ms | RVP width90 ms | RVP width80 ms | RVP dome90 | RVP support | RVP tau ms | RVP IVRT ms | AoV open01 mean | open01 at QAoMax | near-full-open ms | QAo peak/mean | QPV peak/mean | eject QAo>0 ms | eject >5%peak ms | eject SV5-95 ms | high-flow ms | baseline QAo/cap | dMax dP/dt | candidate min dP/dt | dMin dP/dt | dMax dRVP/dt | candidate min dRVP/dt | dMin dRVP/dt | dClamp hits | worst metric | worst frac |");
   lines.push(markdownSeparator(lines[lines.length - 1]));
   for (const scenario of report.scenarios) {
     for (const gate of scenario.waveformGates) {
@@ -3526,6 +3862,18 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         round(gate.candidate.QPVMeanPositive, 4),
         round(gate.candidate.QPVTimeToPeakMs, 2),
         round(gate.candidate.maxDQPVdt, 4),
+        round(gate.candidate.LVPWidthAt90Ms, 2),
+        round(gate.candidate.LVPWidthAt80Ms, 2),
+        round(gate.candidate.LVPPressureDomeRatio90, 4),
+        round(gate.candidate.LVPPressureSupportRatio, 4),
+        round(gate.candidate.LVPRelaxationTauMs, 2),
+        round(gate.candidate.LVPIVRTLikeMs, 2),
+        round(gate.candidate.RVPWidthAt90Ms, 2),
+        round(gate.candidate.RVPWidthAt80Ms, 2),
+        round(gate.candidate.RVPPressureDomeRatio90, 4),
+        round(gate.candidate.RVPPressureSupportRatio, 4),
+        round(gate.candidate.RVPRelaxationTauMs, 2),
+        round(gate.candidate.RVPIVRTLikeMs, 2),
         round(gate.candidate.AoVFlowWeightedOpen01, 4),
         round(gate.candidate.AoVOpen01AtQAoMax, 4),
         round(gate.candidate.AoVTimeToNearFullOpenMs, 2),
@@ -3976,6 +4324,7 @@ export function matrixReportToCsv(report: MatrixReport): string {
     "normalAoVOpen01AtQAoMax",
     "normalAoVMeanOpen01DuringEjection",
     "normalAoVTimeToNearFullOpenMs",
+    "normalLVPMax",
     "normalQAoMeanPositive",
     "normalQAoTimeToPeakMs",
     "normalMaxDQAoDt",
@@ -3986,8 +4335,27 @@ export function matrixReportToCsv(report: MatrixReport): string {
     "normalQPVMeanPositive",
     "normalQPVTimeToPeakMs",
     "normalMaxDQPVdt",
+    "normalLVPTimeToPeakMs",
+    "normalLVPWidthAt90Ms",
+    "normalLVPWidthAt80Ms",
+    "normalLVPFwhmMs",
+    "normalLVPPressureDomeRatio90",
+    "normalLVPPressureSupportRatio",
+    "normalLVPRelaxationTauMs",
+    "normalLVPRelaxationTauR2",
+    "normalLVPIVRTLikeMs",
+    "normalRVPTimeToPeakMs",
+    "normalRVPWidthAt90Ms",
+    "normalRVPWidthAt80Ms",
+    "normalRVPFwhmMs",
+    "normalRVPPressureDomeRatio90",
+    "normalRVPPressureSupportRatio",
+    "normalRVPRelaxationTauMs",
+    "normalRVPRelaxationTauR2",
+    "normalRVPIVRTLikeMs",
     "normalMaxDpdtRVP",
     "normalMinDpdtRVP",
+    "normalMaxDpdtLVP",
     "normalMinDpdtLVP",
     "normalQAoPeakMeanRatio",
     "normalEjectionDurationMs",
@@ -4210,6 +4578,7 @@ export function matrixReportToCsv(report: MatrixReport): string {
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVOpen01AtQAoMax ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVMeanOpen01DuringEjection ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.AoVTimeToNearFullOpenMs ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.LVPMax ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.QAoMeanPositive ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.QAoTimeToPeakMs ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.maxDQAoDt ?? "",
@@ -4220,8 +4589,27 @@ export function matrixReportToCsv(report: MatrixReport): string {
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.QPVMeanPositive ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.QPVTimeToPeakMs ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.maxDQPVdt ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.LVPTimeToPeakMs ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.LVPWidthAt90Ms ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.LVPWidthAt80Ms ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.LVPFwhmMs ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.LVPPressureDomeRatio90 ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.LVPPressureSupportRatio ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.LVPRelaxationTauMs ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.LVPRelaxationTauR2 ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.LVPIVRTLikeMs ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.RVPTimeToPeakMs ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.RVPWidthAt90Ms ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.RVPWidthAt80Ms ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.RVPFwhmMs ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.RVPPressureDomeRatio90 ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.RVPPressureSupportRatio ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.RVPRelaxationTauMs ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.RVPRelaxationTauR2 ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.RVPIVRTLikeMs ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.maxDpdtRVP ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.minDpdtRVP ?? "",
+        scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.maxDpdtLVP ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.minDpdtLVP ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.QAoPeakMeanRatio ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.ejectionDurationMs ?? "",
