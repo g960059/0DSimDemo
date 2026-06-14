@@ -60,6 +60,7 @@ type MatrixOptions = {
   aovQDotClampPairs: AovQDotClampConfig[];
   qDotClampScopes: DynamicQDotClampScope[];
   aovQUpdateModes: AorticValveQUpdateMode[];
+  waveformOverlay: boolean;
   maxReturnMapPoints: number;
   traceBeats: number;
   sampleHz: number;
@@ -110,6 +111,50 @@ type AoVQDotTargetBinStats = {
   qDotRawNegativeMin: number;
   open01AtMaxExcess: number;
   open01DeltaAtMaxExcess: number;
+};
+
+type PressureMorphologyClassification = "target" | "warning" | "fail" | "unknown";
+
+type PressureMorphologyMetricStatus = {
+  metric: string;
+  value: number | null;
+  classification: PressureMorphologyClassification;
+  target: string;
+  warning: string;
+  note?: string;
+};
+
+type PressureMorphologyGate = {
+  classification: PressureMorphologyClassification;
+  worstMetric: string | null;
+  failCount: number;
+  warningCount: number;
+  unknownCount: number;
+  statuses: PressureMorphologyMetricStatus[];
+  notes: string[];
+};
+
+type PressureWaveformOverlaySample = {
+  tMs: number;
+  beatIndex: number;
+  phase: number;
+  phaseMs: number;
+  LVP: number;
+  RVP: number;
+  AoP: number;
+  PAP: number;
+  LAP: number;
+  RAP: number;
+  QAo: number;
+  QPV: number;
+  QMV: number;
+  QTV: number;
+  VLV: number;
+  VRV: number;
+  xiAoV: number;
+  xiPV: number;
+  xiMV: number;
+  xiTV: number;
 };
 
 type WaveformGateMetrics = {
@@ -243,6 +288,7 @@ type WaveformGateMetrics = {
   valveReverseVolumeMl: number;
   dynamicQDotCurrentBeat: Partial<Record<DynamicEdgeName, ModelCoreDynamicQDotAudit>>;
   dynamicQDotLastBeat: Partial<Record<DynamicEdgeName, ModelCoreDynamicQDotAudit>>;
+  pressureWaveformOverlay?: PressureWaveformOverlaySample[];
 };
 
 type PerEdgeQDotSummary = Record<DynamicEdgeName, {
@@ -354,6 +400,10 @@ type WaveformGateComparison = {
     | "clampHitCount"
     | "valveReverseVolumeMl"
   >;
+  pressureMorphologyGate: {
+    baseline: PressureMorphologyGate;
+    candidate: PressureMorphologyGate;
+  };
   maxDeltaMetric: keyof WaveformGateComparison["delta"];
   maxDeltaFraction: number;
 };
@@ -542,7 +592,7 @@ type ShapeSummary = {
 };
 
 type MatrixReport = {
-  schemaVersion: 30;
+  schemaVersion: 31;
   generatedAt: string;
   measurementMode: string;
   regimeAuditPreset?: RegimeAuditPreset;
@@ -572,6 +622,7 @@ type MatrixReport = {
   aovQDotClampPairs: AovQDotClampConfig[];
   qDotClampScopes: DynamicQDotClampScope[];
   aovQUpdateModes: AorticValveQUpdateMode[];
+  waveformOverlay: boolean;
   maxReturnMapPoints: number;
   traceBeats: number;
   sampleHz: number;
@@ -639,6 +690,9 @@ type MatrixReport = {
     maxRVPMax: number;
     maxDpdtLVP: number;
     minDpdtLVP: number;
+    pressureMorphologyClassificationCounts: Record<PressureMorphologyClassification, number>;
+    maxPressureMorphologyFailCount: number;
+    maxPressureMorphologyWarningCount: number;
     minLVPWidthAt90Ms: number;
     minLVPWidthAt80Ms: number;
     minLVPPressureDomeRatio90: number;
@@ -906,6 +960,7 @@ export function runLowPreloadMatrix(opts: MatrixOptions): MatrixReport {
       aovQDotClampNegative,
       qDotClampScope,
       aovQUpdateMode,
+      opts.waveformOverlay,
       waveformBaselineCache,
     );
     const shapeSummary = buildShapeSummary(branchReport.points, baselinePoints);
@@ -991,6 +1046,15 @@ function buildNegativeQDotSummary(waveformGates: WaveformGateComparison[]): Nega
     sv5To95QDotHitFractionMax: Math.max(0, ...waveformGates.map((gate) => finiteOrZero(gate.candidate.AoVQDotClampHitFractionSV5To95))),
     qDotClampImpulseAbsMax: Math.max(0, ...waveformGates.map((gate) => Math.abs(finiteOrZero(gate.candidate.AoVFlowWeightedQDotClampImpulseGradient)))),
   };
+}
+
+function pressureMorphologyClassificationCounts(scenarios: MatrixScenario[]): Record<PressureMorphologyClassification, number> {
+  return scenarios
+    .flatMap((scenario) => scenario.waveformGates.map((gate) => gate.pressureMorphologyGate.candidate.classification))
+    .reduce<Record<PressureMorphologyClassification, number>>((counts, classification) => {
+      counts[classification]++;
+      return counts;
+    }, { target: 0, warning: 0, fail: 0, unknown: 0 });
 }
 
 function buildPerEdgeQDotSummary(waveformGates: WaveformGateComparison[]): PerEdgeQDotSummary {
@@ -1133,7 +1197,7 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
       { fraction: 0, metric: null },
     );
   return {
-    schemaVersion: 30,
+    schemaVersion: 31,
     generatedAt: new Date().toISOString(),
     measurementMode: "branch-only broad low-preload/hypervolume matrix followed by selected EDV-section return-map diagnostics with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap comparator axes, off-by-default AoV_B/AoV_Amax/AoV_L/AoV_tau/systemicResistance/arterialStiffness ejection-dynamics comparator axes, off-by-default tension-rise/fall comparators with independent chamber scope, asymmetric dynamic qDot positive/negative clamp with independent edge scope, AoV q-state update comparator axes, and fIsoSlopeRelax low-stretch active-force comparator; AoV gradient is decomposed into full-open orifice, area-loss extra, inertial, residual, direct ODE closure residual, solver qDot clamp audit, clean-window closure residual terms, report-only sign-aware qDot target-estimator terms, open01-bin qDot target-estimator terms, low-open event-direction qDot target-estimator terms, negative qDot closure-deceleration primary readouts, scenario-level per-edge qDot audit, and point/regime-level per-edge dynamic qDot clamp audit for all valve/dynamic edges; ejection duration is reported as QAo>0, QAo>5% peak, SV 5-95%, and historical high-flow windows; LV/RV pressure morphology audit reports peak timing, width-at-90/80%, pressure support, IVRT-like tau, and max/min dP/dt so pressure-shape realism is evaluated separately from alternans suppression; optional TBV correction on/off/low contamination axis; activeStress/elastance heart-model comparison axis",
     regimeAuditPreset: opts.regimeAuditPreset,
@@ -1163,6 +1227,7 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
     aovQDotClampPairs: effectiveAovQDotClampConfigs(opts),
     qDotClampScopes: opts.qDotClampScopes,
     aovQUpdateModes: opts.aovQUpdateModes,
+    waveformOverlay: opts.waveformOverlay,
     maxReturnMapPoints: opts.maxReturnMapPoints,
     traceBeats: opts.traceBeats,
     sampleHz: opts.sampleHz,
@@ -1230,6 +1295,9 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
         maxRVPMax: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.RVPMax)))),
         maxDpdtLVP: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.maxDpdtLVP)))),
         minDpdtLVP: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.minDpdtLVP))),
+        pressureMorphologyClassificationCounts: pressureMorphologyClassificationCounts(scenarios),
+        maxPressureMorphologyFailCount: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.pressureMorphologyGate.candidate.failCount))),
+        maxPressureMorphologyWarningCount: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.pressureMorphologyGate.candidate.warningCount))),
         minLVPWidthAt90Ms: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.LVPWidthAt90Ms))),
         minLVPWidthAt80Ms: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.LVPWidthAt80Ms))),
         minLVPPressureDomeRatio90: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.LVPPressureDomeRatio90))),
@@ -1827,6 +1895,156 @@ function safeSlopeRatio(candidateSlope: number, baselineSlope: number): number {
   return candidateSlope / baselineSlope;
 }
 
+function pressureMorphologyGateForMetrics(metrics: WaveformGateMetrics): PressureMorphologyGate {
+  const statuses: PressureMorphologyMetricStatus[] = [
+    rangeStatus("LV max dP/dt", metrics.maxDpdtLVP, 1000, 2000, 600, 3500, 600, 4500, "mmHg/s"),
+    rangeStatus("LV min dP/dt", metrics.minDpdtLVP, -2500, -1200, -3500, -600, -4500, -600, "mmHg/s"),
+    rangeStatus("RV max dP/dt", metrics.maxDpdtRVP, 600, 1500, 400, 2400, 300, 3000, "mmHg/s"),
+    rangeStatus("RV min dP/dt", metrics.minDpdtRVP, -900, -300, -1400, -150, -1800, -150, "mmHg/s"),
+    rangeStatus("QAo >5% peak ejection", metrics.ejectionFivePercentPeakDurationMs, 250, 330, 220, 370, 200, 420, "ms"),
+    rangeStatus("QAo SV5-95 ejection", metrics.ejectionSV5To95DurationMs, 160, 280, 120, 340, 80, 420, "ms", "Internal flow-window guard; not clinical LVET."),
+    rangeStatus("LV IVRT-like", metrics.LVPIVRTLikeMs, 60, 110, 45, 140, 35, 160, "ms", "Model-derived valve-closed relaxation interval."),
+    tauStatus("LV tau-like", metrics.LVPRelaxationTauMs, metrics.LVPRelaxationTauR2, 30, 55, 20, 75, 10, 85),
+    tauStatus("RV tau-like", metrics.RVPRelaxationTauMs, metrics.RVPRelaxationTauR2, 25, 45, 20, 65, 10, 80),
+    rangeStatus("QAo peak/mean", metrics.QAoPeakMeanRatio, 1.2, 1.7, 1.0, 2.2, 1.0, 2.5, "ratio"),
+    rangeStatus("QPV peak/mean", metrics.QPVPeakMeanRatio, 1.2, 1.8, 1.0, 2.3, 1.0, 2.7, "ratio"),
+    ratioStatus("LV width90 / ejection", safeRatio(metrics.LVPWidthAt90Ms, metrics.ejectionFivePercentPeakDurationMs), 0.15, 0.55, 0.08, 0.80, 0.08, 0.90, "Internal anti-spike pressure-shape guard."),
+    ratioStatus("LV width80 / ejection", safeRatio(metrics.LVPWidthAt80Ms, metrics.ejectionFivePercentPeakDurationMs), 0.35, 0.75, 0.20, 0.95, 0.20, 1.00, "Internal anti-spike pressure-shape guard."),
+    lowerBoundStatus("LV pressure support", metrics.LVPPressureSupportRatio, 0.55, 0.40, 0.25, "ratio", "Mean ejection pressure / peak pressure."),
+    lowerBoundStatus("RV pressure support", metrics.RVPPressureSupportRatio, 0.55, 0.40, 0.25, "ratio", "Mean ejection pressure / peak pressure."),
+    lowerBoundStatus("LV dome90", metrics.LVPPressureDomeRatio90, 0.15, 0.08, 0.03, "ratio", "Fraction of beat spent above 90% peak pressure."),
+    lowerBoundStatus("RV dome90", metrics.RVPPressureDomeRatio90, 0.15, 0.08, 0.03, "ratio", "Fraction of beat spent above 90% peak pressure."),
+  ];
+  const failCount = statuses.filter((status) => status.classification === "fail").length;
+  const warningCount = statuses.filter((status) => status.classification === "warning").length;
+  const unknownCount = statuses.filter((status) => status.classification === "unknown").length;
+  const classification: PressureMorphologyClassification = failCount > 0
+    ? "fail"
+    : warningCount > 0
+      ? "warning"
+      : statuses.length === unknownCount
+        ? "unknown"
+        : "target";
+  const worstMetric = statuses.find((status) => status.classification === "fail")?.metric
+    ?? statuses.find((status) => status.classification === "warning")?.metric
+    ?? statuses.find((status) => status.classification === "unknown")?.metric
+    ?? null;
+  return {
+    classification,
+    worstMetric,
+    failCount,
+    warningCount,
+    unknownCount,
+    statuses,
+    notes: [
+      "Report-only morphology sanity gate; not a clinical diagnostic classifier.",
+      "width90/80, dome90, and pressure support are internal anti-spike guards.",
+      "Tau/IVRT-like fits depend on the modeled valve-closed relaxation window and should be read with waveform overlays.",
+    ],
+  };
+}
+
+function safeRatio(numerator: number, denominator: number): number {
+  return Number.isFinite(numerator) && Number.isFinite(denominator) && Math.abs(denominator) > 1e-9
+    ? numerator / denominator
+    : Number.NaN;
+}
+
+function rangeStatus(
+  metric: string,
+  value: number,
+  targetLow: number,
+  targetHigh: number,
+  warningLow: number,
+  warningHigh: number,
+  failLow: number,
+  failHigh: number,
+  unit: string,
+  note?: string,
+): PressureMorphologyMetricStatus {
+  if (!Number.isFinite(value)) return unknownStatus(metric, `target ${targetLow}-${targetHigh} ${unit}`, `warning outside ${warningLow}-${warningHigh} ${unit}`, note);
+  const classification: PressureMorphologyClassification = value < failLow || value > failHigh
+    ? "fail"
+    : value >= targetLow && value <= targetHigh
+      ? "target"
+      : "warning";
+  return {
+    metric,
+    value,
+    classification,
+    target: `${targetLow}-${targetHigh} ${unit}`,
+    warning: `${warningLow}-${warningHigh} ${unit}; fail outside ${failLow}-${failHigh}`,
+    note,
+  };
+}
+
+function ratioStatus(
+  metric: string,
+  value: number,
+  targetLow: number,
+  targetHigh: number,
+  warningLow: number,
+  warningHigh: number,
+  failLow: number,
+  failHigh: number,
+  note?: string,
+): PressureMorphologyMetricStatus {
+  return rangeStatus(metric, value, targetLow, targetHigh, warningLow, warningHigh, failLow, failHigh, "ratio", note);
+}
+
+function lowerBoundStatus(
+  metric: string,
+  value: number,
+  targetMin: number,
+  warningMin: number,
+  failMin: number,
+  unit: string,
+  note?: string,
+): PressureMorphologyMetricStatus {
+  if (!Number.isFinite(value)) return unknownStatus(metric, `>=${targetMin} ${unit}`, `warning ${warningMin}-${targetMin} ${unit}; fail <${failMin}`, note);
+  const classification: PressureMorphologyClassification = value >= targetMin
+    ? "target"
+    : value < failMin
+      ? "fail"
+      : "warning";
+  return {
+    metric,
+    value,
+    classification,
+    target: `>=${targetMin} ${unit}`,
+    warning: `${warningMin}-${targetMin} ${unit}; fail <${failMin}`,
+    note,
+  };
+}
+
+function tauStatus(
+  metric: string,
+  value: number,
+  r2: number,
+  targetLow: number,
+  targetHigh: number,
+  warningLow: number,
+  warningHigh: number,
+  failLow: number,
+  failHigh: number,
+): PressureMorphologyMetricStatus {
+  if (!Number.isFinite(r2) || r2 < 0.6) {
+    return unknownStatus(metric, `${targetLow}-${targetHigh} ms`, `warning outside ${warningLow}-${warningHigh} ms`, "Fit R2 below 0.6; inspect waveform overlay.");
+  }
+  return rangeStatus(metric, value, targetLow, targetHigh, warningLow, warningHigh, failLow, failHigh, "ms");
+}
+
+function unknownStatus(metric: string, target: string, warning: string, note?: string): PressureMorphologyMetricStatus {
+  return {
+    metric,
+    value: null,
+    classification: "unknown",
+    target,
+    warning,
+    note,
+  };
+}
+
 function activeReserveStats(points: DebugPoint[]): {
   maxHitFraction: number;
   minScale: number;
@@ -1899,12 +2117,13 @@ function buildWaveformGateComparisons(
   aovQDotClampNegative: number,
   qDotClampScope: DynamicQDotClampScope,
   aovQUpdateMode: AorticValveQUpdateMode,
+  captureWaveformOverlay: boolean,
   baselineCache: Map<string, WaveformGateMetrics>,
 ): WaveformGateComparison[] {
   return [
-    waveformGateComparison("normal", DEFAULT_PARAMS.HR, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness, tensionRiseSec, tensionFallSec, tensionScope, aovQDotClamp, aovQDotClampNegative, qDotClampScope, aovQUpdateMode, baselineCache),
-    waveformGateComparison("HR100", 100, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness, tensionRiseSec, tensionFallSec, tensionScope, aovQDotClamp, aovQDotClampNegative, qDotClampScope, aovQUpdateMode, baselineCache),
-    waveformGateComparison("HR100-rearm", 100, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness, tensionRiseSec, tensionFallSec, tensionScope, aovQDotClamp, aovQDotClampNegative, qDotClampScope, aovQUpdateMode, baselineCache),
+    waveformGateComparison("normal", DEFAULT_PARAMS.HR, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness, tensionRiseSec, tensionFallSec, tensionScope, aovQDotClamp, aovQDotClampNegative, qDotClampScope, aovQUpdateMode, captureWaveformOverlay, baselineCache),
+    waveformGateComparison("HR100", 100, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness, tensionRiseSec, tensionFallSec, tensionScope, aovQDotClamp, aovQDotClampNegative, qDotClampScope, aovQUpdateMode, captureWaveformOverlay, baselineCache),
+    waveformGateComparison("HR100-rearm", 100, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness, tensionRiseSec, tensionFallSec, tensionScope, aovQDotClamp, aovQDotClampNegative, qDotClampScope, aovQUpdateMode, captureWaveformOverlay, baselineCache),
   ];
 }
 
@@ -1936,17 +2155,18 @@ function waveformGateComparison(
   aovQDotClampNegative: number,
   qDotClampScope: DynamicQDotClampScope,
   aovQUpdateMode: AorticValveQUpdateMode,
+  captureWaveformOverlay: boolean,
   baselineCache: Map<string, WaveformGateMetrics>,
 ): WaveformGateComparison {
   const baselineKey = `${heartModel}|${label}|${HR}|${targetVolumeMl}|${dt}|${sampleHz}`;
   let baseline = baselineCache.get(baselineKey);
   if (!baseline) {
-    baseline = measureWaveformGate(label, HR, targetVolumeMl, heartModel, dt, sampleHz, "all", 0, "kd+fiso", "none", "lv", "none", "hard", DEFAULT_AOV_B, DEFAULT_AOV_AMAX, DEFAULT_AOV_L, DEFAULT_AOV_TAU_OPEN, DEFAULT_AOV_TAU_CLOSE, DEFAULT_SYSTEMIC_RESISTANCE, DEFAULT_ARTERIAL_STIFFNESS, 0, 0, "all", DEFAULT_AOV_Q_DOT_CLAMP, DEFAULT_AOV_Q_DOT_CLAMP, "aov");
+    baseline = measureWaveformGate(label, HR, targetVolumeMl, heartModel, dt, sampleHz, "all", 0, "kd+fiso", "none", "lv", "none", "hard", DEFAULT_AOV_B, DEFAULT_AOV_AMAX, DEFAULT_AOV_L, DEFAULT_AOV_TAU_OPEN, DEFAULT_AOV_TAU_CLOSE, DEFAULT_SYSTEMIC_RESISTANCE, DEFAULT_ARTERIAL_STIFFNESS, 0, 0, "all", DEFAULT_AOV_Q_DOT_CLAMP, DEFAULT_AOV_Q_DOT_CLAMP, "aov", "current-loss", captureWaveformOverlay);
     baselineCache.set(baselineKey, baseline);
   }
   const candidate = tauSec <= 0 && lowStretchLimiterMode === "none" && aorticFlowClampMode === "hard" && tensionRiseSec <= 0 && tensionFallSec <= 0 && tensionScope === "all" && aovQDotClamp === DEFAULT_AOV_Q_DOT_CLAMP && aovQDotClampNegative === DEFAULT_AOV_Q_DOT_CLAMP && qDotClampScope === "aov" && aovQUpdateMode === "current-loss" && isDefaultAorticValveComparator(aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness)
     ? baseline
-    : measureWaveformGate(label, HR, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness, tensionRiseSec, tensionFallSec, tensionScope, aovQDotClamp, aovQDotClampNegative, qDotClampScope, aovQUpdateMode);
+    : measureWaveformGate(label, HR, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness, tensionRiseSec, tensionFallSec, tensionScope, aovQDotClamp, aovQDotClampNegative, qDotClampScope, aovQUpdateMode, captureWaveformOverlay);
   const delta = {
     CO_L: candidate.CO_L - baseline.CO_L,
     CO_R: candidate.CO_R - baseline.CO_R,
@@ -2022,6 +2242,10 @@ function waveformGateComparison(
     baseline,
     candidate,
     delta,
+    pressureMorphologyGate: {
+      baseline: pressureMorphologyGateForMetrics(baseline),
+      candidate: pressureMorphologyGateForMetrics(candidate),
+    },
     maxDeltaMetric: maxDelta.metric,
     maxDeltaFraction: maxDelta.fraction,
   };
@@ -2055,8 +2279,9 @@ function measureWaveformGate(
   aovQDotClampNegative: number = aovQDotClamp,
   qDotClampScope: DynamicQDotClampScope = "aov",
   aovQUpdateMode: AorticValveQUpdateMode = "current-loss",
+  captureWaveformOverlay = false,
 ): WaveformGateMetrics {
-  return withQuietClampLogs(() => measureWaveformGateImpl(label, HR, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness, tensionRiseSec, tensionFallSec, tensionScope, aovQDotClamp, aovQDotClampNegative, qDotClampScope, aovQUpdateMode));
+  return withQuietClampLogs(() => measureWaveformGateImpl(label, HR, targetVolumeMl, heartModel, dt, sampleHz, scope, tauSec, terms, lowStretchLimiterMode, lowStretchLimiterScope, activeReservePreset, aorticFlowClampMode, aovB, aovAmax, aovL, aovTauOpen, aovTauClose, systemicResistance, arterialStiffness, tensionRiseSec, tensionFallSec, tensionScope, aovQDotClamp, aovQDotClampNegative, qDotClampScope, aovQUpdateMode, captureWaveformOverlay));
 }
 
 function measureWaveformGateImpl(
@@ -2087,6 +2312,7 @@ function measureWaveformGateImpl(
   aovQDotClampNegative: number = aovQDotClamp,
   qDotClampScope: DynamicQDotClampScope = "aov",
   aovQUpdateMode: AorticValveQUpdateMode = "current-loss",
+  captureWaveformOverlay = false,
 ): WaveformGateMetrics {
   const params = paramsWithTensionComparator(
     paramsWithLowStretchLimiter(
@@ -2227,7 +2453,48 @@ function measureWaveformGateImpl(
     valveReverseVolumeMl: valveReverseVolumeMl(samples),
     dynamicQDotCurrentBeat: clampDiagnostics.dynamicQDotCurrentBeat,
     dynamicQDotLastBeat: clampDiagnostics.dynamicQDotLastBeat,
+    pressureWaveformOverlay: captureWaveformOverlay
+      ? pressureWaveformOverlaySamples(samples, beatSeconds, sampleHz, measuredBeatCount)
+      : undefined,
   };
+}
+
+function pressureWaveformOverlaySamples(
+  samples: SimSample[],
+  beatSeconds: number,
+  sampleHz: number,
+  measuredBeatCount: number,
+): PressureWaveformOverlaySample[] {
+  const sampleCount = Math.max(1, Math.ceil(beatSeconds * sampleHz * Math.max(1, measuredBeatCount)));
+  const selected = samples.slice(Math.max(0, samples.length - sampleCount));
+  return selected.map((sample) => {
+    const beatIndex = Math.floor(sample.t / Math.max(beatSeconds, 1e-9));
+    const phase = Number.isFinite(sample.phi)
+      ? sample.phi - Math.floor(sample.phi)
+      : ((sample.t / Math.max(beatSeconds, 1e-9)) % 1 + 1) % 1;
+    return {
+      tMs: sample.t * 1000,
+      beatIndex,
+      phase,
+      phaseMs: phase * beatSeconds * 1000,
+      LVP: sample.LVP,
+      RVP: sample.RVP,
+      AoP: sample.AoP,
+      PAP: sample.PAP,
+      LAP: sample.LAP,
+      RAP: sample.RAP,
+      QAo: sample.QAo,
+      QPV: sample.QPV,
+      QMV: sample.QMV,
+      QTV: sample.QTV,
+      VLV: sample.VLV,
+      VRV: sample.VRV,
+      xiAoV: sample.xiAoV,
+      xiPV: sample.xiPV,
+      xiMV: sample.xiMV,
+      xiTV: sample.xiTV,
+    };
+  });
 }
 
 function aovGradientDecomposition(samples: SimSample[], params: CoreRuntimeParams): Pick<WaveformGateMetrics,
@@ -3304,6 +3571,19 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
     report.summary.branchLocalizationCounts.mixed,
   ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
   lines.push("");
+  lines.push("## Pressure morphology classification counts");
+  lines.push("");
+  lines.push("| target | warning | fail | unknown | max fails per gate | max warnings per gate |");
+  lines.push(markdownSeparator(lines[lines.length - 1]));
+  lines.push([
+    report.summary.pressureMorphologyClassificationCounts.target,
+    report.summary.pressureMorphologyClassificationCounts.warning,
+    report.summary.pressureMorphologyClassificationCounts.fail,
+    report.summary.pressureMorphologyClassificationCounts.unknown,
+    report.summary.maxPressureMorphologyFailCount,
+    report.summary.maxPressureMorphologyWarningCount,
+  ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
+  lines.push("");
   lines.push("## Filling morphology alternation counts");
   lines.push("");
   lines.push("| morphology alternation | peak-count alternation | max MV A branch frac | max MV mid branch frac | max LA A-loop branch frac |");
@@ -3452,10 +3732,25 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push("These report-only waveform metrics treat pressure shape as a first-class objective. `width90/80` and `dome90` expose spike-like peaks; `support` is mean ejection pressure divided by peak pressure; `tau` is an IVRT-like exponential fit over the valve-closed relaxation segment and is diagnostic rather than a clinical tau estimate.");
   lines.push("");
-  lines.push("| class | heart model | dt | tension rise | tension fall | tension scope | qDot clamp | qDot scope | case | LVP max | LVP t-peak ms | LVP width90 ms | LVP width80 ms | LVP dome90 | LVP support | LVP tau ms | LVP tau r2 | LVP IVRT ms | max dP/dt LVP | min dP/dt LVP | RVP max | RVP t-peak ms | RVP width90 ms | RVP width80 ms | RVP dome90 | RVP support | RVP tau ms | RVP tau r2 | RVP IVRT ms | max dP/dt RVP | min dP/dt RVP | worst metric | worst frac |");
+  lines.push("### Pressure morphology target bands");
+  lines.push("");
+  lines.push("Target bands are internal adult-rest sanity ranges compiled from physiology references and model-team review. They are not clinical diagnostic criteria. Derivative and tau gates should be interpreted with pressure overlay CSVs when available.");
+  lines.push("");
+  lines.push("| metric | target | warning | fail | note |");
+  lines.push(markdownSeparator(lines[lines.length - 1]));
+  lines.push("| LV max dP/dt | 1000-2000 mmHg/s | 600-1000 or 2000-3500 | <600 or >4500 | BSE-type low cutoff plus anti-spike high guard |");
+  lines.push("| LV min dP/dt | -2500 to -1200 mmHg/s | -3500 to -2500 or -1200 to -600 | <-4500 or >-600 | relaxation/downstroke sanity |");
+  lines.push("| QAo >5% peak ejection | 250-330 ms | 220-250 or 330-370 | <200 or >420 | LVET-like modeled flow window |");
+  lines.push("| LV IVRT-like | 60-110 ms | 45-60 or 110-140 | <35 or >160 | valve-closed relaxation interval |");
+  lines.push("| LV tau-like | 30-55 ms | 20-30 or 55-75 | <10 or >85 | only classified when fit R2 >= 0.6 |");
+  lines.push("| pressure width90/ejection | 0.15-0.55 | 0.08-0.15 or 0.55-0.80 | <0.08 or >0.90 | internal anti-spike metric |");
+  lines.push("| pressure support | >=0.55 | 0.40-0.55 | <0.25 | mean ejection pressure / peak pressure |");
+  lines.push("");
+  lines.push("| class | heart model | dt | tension rise | tension fall | tension scope | qDot clamp | qDot scope | case | morph class | morph worst | morph fails | morph warnings | LVP max | LVP t-peak ms | LVP width90 ms | LVP width80 ms | LVP dome90 | LVP support | LVP tau ms | LVP tau r2 | LVP IVRT ms | max dP/dt LVP | min dP/dt LVP | RVP max | RVP t-peak ms | RVP width90 ms | RVP width80 ms | RVP dome90 | RVP support | RVP tau ms | RVP tau r2 | RVP IVRT ms | max dP/dt RVP | min dP/dt RVP | worst metric | worst frac |");
   lines.push(markdownSeparator(lines[lines.length - 1]));
   for (const scenario of report.scenarios) {
     for (const gate of scenario.waveformGates) {
+      const morphology = gate.pressureMorphologyGate.candidate;
       lines.push([
         scenario.evaluation.classification,
         scenario.heartModel,
@@ -3466,6 +3761,10 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         aovQDotClampLabel(scenario.aovQDotClamp, scenario.aovQDotClampNegative),
         scenario.qDotClampScope,
         gate.label,
+        morphology.classification,
+        morphology.worstMetric ?? "",
+        morphology.failCount,
+        morphology.warningCount,
         round(gate.candidate.LVPMax, 4),
         round(gate.candidate.LVPTimeToPeakMs, 2),
         round(gate.candidate.LVPWidthAt90Ms, 2),
@@ -4357,6 +4656,10 @@ export function matrixReportToCsv(report: MatrixReport): string {
     "normalMinDpdtRVP",
     "normalMaxDpdtLVP",
     "normalMinDpdtLVP",
+    "normalPressureMorphologyClass",
+    "normalPressureMorphologyWorstMetric",
+    "normalPressureMorphologyFailCount",
+    "normalPressureMorphologyWarningCount",
     "normalQAoPeakMeanRatio",
     "normalEjectionDurationMs",
     "normalEjectionPositiveDurationMs",
@@ -4437,7 +4740,8 @@ export function matrixReportToCsv(report: MatrixReport): string {
     const perDeltaByDelta = new Map(scenario.perDeltaEvaluation.map((entry) => [String(entry.deltaVolumeMl), entry]));
     for (const point of scenario.points) {
       const perDelta = perDeltaByDelta.get(String(point.deltaVolumeMl));
-      const normalCandidate = scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate;
+      const normalGate = scenario.waveformGates.find((gate) => gate.label === "normal");
+      const normalCandidate = normalGate?.candidate;
       const normalOpenLt02 = normalCandidate?.AoVQDotOpen01Bins["open-lt-0.2"];
       const normalOpenGte095 = normalCandidate?.AoVQDotOpen01Bins["open-gte-0.95"];
       const normalOpeningAccel = normalCandidate?.AoVQDotEventDirectionBins["low-open-opening-accel"];
@@ -4611,6 +4915,10 @@ export function matrixReportToCsv(report: MatrixReport): string {
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.minDpdtRVP ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.maxDpdtLVP ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.minDpdtLVP ?? "",
+        normalGate?.pressureMorphologyGate.candidate.classification ?? "",
+        normalGate?.pressureMorphologyGate.candidate.worstMetric ?? "",
+        normalGate?.pressureMorphologyGate.candidate.failCount ?? "",
+        normalGate?.pressureMorphologyGate.candidate.warningCount ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.QAoPeakMeanRatio ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.ejectionDurationMs ?? "",
         scenario.waveformGates.find((gate) => gate.label === "normal")?.candidate.ejectionPositiveDurationMs ?? "",
@@ -4690,6 +4998,97 @@ export function matrixReportToCsv(report: MatrixReport): string {
   return `${rows.join("\n")}\n`;
 }
 
+export function matrixReportToWaveformOverlayCsv(report: MatrixReport): string {
+  const columns = [
+    "scenarioIndex",
+    "scenarioClassification",
+    "heartModel",
+    "dt",
+    "tensionRiseSec",
+    "tensionFallSec",
+    "tensionScope",
+    "aovQDotClamp",
+    "aovQDotClampNegative",
+    "qDotClampScope",
+    "aovQUpdateMode",
+    "gate",
+    "series",
+    "morphologyClass",
+    "morphologyWorstMetric",
+    "tMs",
+    "beatIndex",
+    "phase",
+    "phaseMs",
+    "LVP",
+    "RVP",
+    "AoP",
+    "PAP",
+    "LAP",
+    "RAP",
+    "QAo",
+    "QPV",
+    "QMV",
+    "QTV",
+    "VLV",
+    "VRV",
+    "xiAoV",
+    "xiPV",
+    "xiMV",
+    "xiTV",
+  ];
+  const rows = [columns.join(",")];
+  report.scenarios.forEach((scenario, scenarioIndex) => {
+    for (const gate of scenario.waveformGates) {
+      const seriesEntries: Array<["baseline" | "candidate", WaveformGateMetrics, PressureMorphologyGate]> = [
+        ["baseline", gate.baseline, gate.pressureMorphologyGate.baseline],
+        ["candidate", gate.candidate, gate.pressureMorphologyGate.candidate],
+      ];
+      for (const [series, metrics, morphology] of seriesEntries) {
+        for (const sample of metrics.pressureWaveformOverlay ?? []) {
+          rows.push([
+            scenarioIndex,
+            scenario.evaluation.classification,
+            scenario.heartModel,
+            scenario.dt,
+            scenario.tensionRiseSec,
+            scenario.tensionFallSec,
+            scenario.tensionScope,
+            scenario.aovQDotClamp,
+            scenario.aovQDotClampNegative,
+            scenario.qDotClampScope,
+            scenario.aovQUpdateMode,
+            gate.label,
+            series,
+            morphology.classification,
+            morphology.worstMetric ?? "",
+            sample.tMs,
+            sample.beatIndex,
+            sample.phase,
+            sample.phaseMs,
+            sample.LVP,
+            sample.RVP,
+            sample.AoP,
+            sample.PAP,
+            sample.LAP,
+            sample.RAP,
+            sample.QAo,
+            sample.QPV,
+            sample.QMV,
+            sample.QTV,
+            sample.VLV,
+            sample.VRV,
+            sample.xiAoV,
+            sample.xiPV,
+            sample.xiMV,
+            sample.xiTV,
+          ].map(csvCell).join(","));
+        }
+      }
+    }
+  });
+  return `${rows.join("\n")}\n`;
+}
+
 export function parseLowPreloadMatrixArgs(args: string[]): MatrixOptions {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const opts: MatrixOptions = {
@@ -4724,6 +5123,7 @@ export function parseLowPreloadMatrixArgs(args: string[]): MatrixOptions {
     maxReturnMapPoints: 6,
     traceBeats: 10,
     sampleHz: 120,
+    waveformOverlay: false,
     progress: true,
   };
   for (const arg of args) {
@@ -4764,6 +5164,7 @@ export function parseLowPreloadMatrixArgs(args: string[]): MatrixOptions {
     else if (key === "--max-return-map-points" && value) opts.maxReturnMapPoints = Math.max(0, Math.floor(Number(value)));
     else if (key === "--trace-beats" && value) opts.traceBeats = Math.max(2, Math.floor(Number(value)));
     else if (key === "--sample-hz" && value) opts.sampleHz = Math.max(20, Math.floor(Number(value)));
+    else if (key === "--waveform-overlay") opts.waveformOverlay = true;
     else if (key === "--quiet-progress") opts.progress = false;
     else if (key === "--help") {
       printHelp();
@@ -5002,6 +5403,7 @@ function printHelp(): void {
     "       [--aov-qdot-clamp-pair=+40000/-80000,+80000/-40000] [--qdot-clamp-scope=aov,pv,semilunar,all-valves,all-dynamic] [--aov-q-update=current-loss,qnext-loss,substep-2,substep-4]",
     "       [--regime-audit=low-hyper]",
     "       [--include-all-scope] [--branch-only] [--max-return-map-points=6]",
+    "       [--waveform-overlay]",
     "       [--quiet-progress]",
     "",
     "Example:",
@@ -5032,6 +5434,9 @@ function writeMatrixReport(outDir: string, report: MatrixReport, prefix = ""): v
   writeFileSync(path.join(outDir, `${prefix}matrix-report.json`), `${JSON.stringify(report, null, 2)}\n`);
   writeFileSync(path.join(outDir, `${prefix}matrix-report.md`), matrixReportToMarkdown(report));
   writeFileSync(path.join(outDir, `${prefix}branch-table.csv`), matrixReportToCsv(report));
+  if (report.waveformOverlay) {
+    writeFileSync(path.join(outDir, `${prefix}waveform-overlay.csv`), matrixReportToWaveformOverlayCsv(report));
+  }
 }
 
 if (process.env.STARLING_LOW_PRELOAD_MATRIX_MAIN === "1") main();

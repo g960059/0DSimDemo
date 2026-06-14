@@ -13,6 +13,7 @@ import {
 import {
   matrixReportToCsv,
   matrixReportToMarkdown,
+  matrixReportToWaveformOverlayCsv,
   parseLowPreloadMatrixArgs,
   runLowPreloadMatrix,
 } from "@/tools/verifyStarlingLowPreloadMatrix";
@@ -735,7 +736,7 @@ describe("low-preload Starling debug diagnostics", () => {
     ]);
     const report = runLowPreloadMatrix(opts);
 
-    expect(report.schemaVersion).toBe(30);
+    expect(report.schemaVersion).toBe(31);
     expect(report.heartModels).toEqual(["activeStress"]);
     expect(report.aorticFlowClampModes).toEqual(["hard"]);
     expect(report.aovBValues).toEqual([DEFAULT_PARAMS.AoV_B]);
@@ -779,6 +780,8 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.scenarios[0].waveformGates[0].candidate.RVPWidthAt90Ms).toEqual(expect.any(Number));
     expect(report.scenarios[0].waveformGates[0].candidate.RVPPressureSupportRatio).toEqual(expect.any(Number));
     expect(report.scenarios[0].waveformGates[0].candidate.RVPRelaxationTauMs).toEqual(expect.any(Number));
+    expect(report.scenarios[0].waveformGates[0].pressureMorphologyGate.candidate.classification).toEqual(expect.any(String));
+    expect(report.scenarios[0].waveformGates[0].pressureMorphologyGate.candidate.statuses.length).toBeGreaterThan(0);
     expect(report.summary.maxWaveformGateDeltaMetric).toEqual(expect.any(String));
     expect(report.summary.maxAoVMeanGradient).toEqual(expect.any(Number));
     expect(report.summary.maxAoVPeakGradient).toEqual(expect.any(Number));
@@ -813,6 +816,11 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.summary.maxLVPMax).toEqual(expect.any(Number));
     expect(report.summary.maxDpdtLVP).toEqual(expect.any(Number));
     expect(report.summary.minDpdtLVP).toEqual(expect.any(Number));
+    expect(report.summary.pressureMorphologyClassificationCounts.target).toEqual(expect.any(Number));
+    expect(report.summary.pressureMorphologyClassificationCounts.warning).toEqual(expect.any(Number));
+    expect(report.summary.pressureMorphologyClassificationCounts.fail).toEqual(expect.any(Number));
+    expect(report.summary.maxPressureMorphologyFailCount).toEqual(expect.any(Number));
+    expect(report.summary.maxPressureMorphologyWarningCount).toEqual(expect.any(Number));
     expect(report.summary.minLVPWidthAt90Ms).toEqual(expect.any(Number));
     expect(report.summary.minLVPPressureDomeRatio90).toEqual(expect.any(Number));
     expect(report.summary.minLVPPressureSupportRatio).toEqual(expect.any(Number));
@@ -915,6 +923,8 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToMarkdown(report)).toContain("Negative qDot closure-deceleration primary readouts");
     expect(matrixReportToMarkdown(report)).toContain("Right-heart / PV branch readout");
     expect(matrixReportToMarkdown(report)).toContain("LV/RV pressure morphology gates");
+    expect(matrixReportToMarkdown(report)).toContain("Pressure morphology classification counts");
+    expect(matrixReportToMarkdown(report)).toContain("Pressure morphology target bands");
     expect(matrixReportToMarkdown(report)).toContain("LVP width90 ms");
     expect(matrixReportToMarkdown(report)).toContain("LVP tau ms");
     expect(matrixReportToMarkdown(report)).toContain("Per-edge dynamic qDot clamp audit");
@@ -986,10 +996,36 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToCsv(report)).toContain("normalRVPWidthAt90Ms");
     expect(matrixReportToCsv(report)).toContain("normalRVPPressureSupportRatio");
     expect(matrixReportToCsv(report)).toContain("normalRVPRelaxationTauMs");
+    expect(matrixReportToCsv(report)).toContain("normalPressureMorphologyClass");
+    expect(matrixReportToCsv(report)).toContain("normalPressureMorphologyWorstMetric");
     expect(matrixReportToCsv(report)).toContain("normalMinDpdtLVP");
     expect(matrixReportToCsv(report)).toContain("tensionFallSec");
     expect(matrixReportToCsv(report)).toContain("normalEjectionPositiveDurationMs");
     expect(matrixReportToCsv(report)).toContain("normalEjectionSV5To95DurationMs");
+  });
+
+  heavyIt("can emit pressure waveform overlay CSV rows for matrix gates", () => {
+    const opts = parseLowPreloadMatrixArgs([
+      "--out=unused",
+      "--deltas=0",
+      "--dt=0.002",
+      "--lambda-act-tau=0",
+      "--branch-only",
+      "--trace-beats=2",
+      "--sample-hz=40",
+      "--waveform-overlay",
+      "--quiet-progress",
+    ]);
+    const report = runLowPreloadMatrix(opts);
+    const overlayCsv = matrixReportToWaveformOverlayCsv(report);
+
+    expect(opts.waveformOverlay).toBe(true);
+    expect(report.waveformOverlay).toBe(true);
+    expect(report.scenarios[0].waveformGates[0].candidate.pressureWaveformOverlay?.length).toBeGreaterThan(0);
+    expect(overlayCsv).toContain("phaseMs");
+    expect(overlayCsv).toContain("LVP");
+    expect(overlayCsv).toContain("QAo");
+    expect(overlayCsv).toContain("morphologyClass");
   });
 
   heavyIt("supports branch-only matrix runs without selected return-map points", () => {
