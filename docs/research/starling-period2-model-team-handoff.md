@@ -1021,3 +1021,49 @@ npm run verify:starling-low-preload-matrix -- \
 This remains diagnostic. A physical model candidate must reduce
 closure-deceleration pathology with the default qDot clamp unchanged and must
 not rely on qDot clamp relaxation for stability.
+
+## 2026-06-14 update: pressure morphology audit
+
+The next report-only layer treats LVP/RVP shape as a first-class acceptance
+axis. The user-facing concern is not only low-preload alternans, but also the
+overly sharp ventricular pressure waveform. Matrix schema v30 adds LV/RV
+pressure morphology metrics to the normal / HR waveform gates:
+
+- `LVPWidthAt90Ms`, `LVPWidthAt80Ms`, `LVPFwhmMs`
+- `LVPPressureDomeRatio90` and `LVPPressureSupportRatio`
+- `LVPRelaxationTauMs`, `LVPRelaxationTauR2`, `LVPIVRTLikeMs`
+- analogous `RVP*` fields
+- existing `maxDpdtLVP`, `minDpdtLVP`, `maxDpdtRVP`, `minDpdtRVP`
+
+The Markdown section is `LV/RV pressure morphology gates`; the CSV exports
+normal-gate columns such as `normalLVPWidthAt90Ms` and
+`normalLVPRelaxationTauMs`.
+
+Interpretation discipline:
+
+- Branch suppression alone is not a root-fix signal if pressure peaks remain
+  narrow or `max/min dP/dt` remains nonphysiologic.
+- Pressure morphology improvement alone is still valuable even if period-2 is
+  only partially reduced; classify it as waveform-quality evidence, not a full
+  dynamics fix.
+- The reported tau is an IVRT-like diagnostic fit over valve-closed relaxation,
+  not a calibrated clinical tau measurement.
+
+Suggested artifact for review:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/pressure-morphology-smoke \
+  --regime-audit=low-hyper \
+  --dt=0.001,0.0005 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --tension-rise=0,0.005,0.01 \
+  --tension-fall=0,0.005,0.01 \
+  --tension-scope=lv,ventricles,all \
+  --qdot-clamp-scope=aov,semilunar \
+  --max-return-map-points=2 \
+  --trace-beats=4 \
+  --sample-hz=120 \
+  --quiet-progress
+```

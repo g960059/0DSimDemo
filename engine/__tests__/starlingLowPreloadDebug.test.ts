@@ -735,7 +735,7 @@ describe("low-preload Starling debug diagnostics", () => {
     ]);
     const report = runLowPreloadMatrix(opts);
 
-    expect(report.schemaVersion).toBe(29);
+    expect(report.schemaVersion).toBe(30);
     expect(report.heartModels).toEqual(["activeStress"]);
     expect(report.aorticFlowClampModes).toEqual(["hard"]);
     expect(report.aovBValues).toEqual([DEFAULT_PARAMS.AoV_B]);
@@ -773,6 +773,12 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.scenarios[0].shapeSummary.lowPreloadMonotonicityViolations).toEqual(expect.any(Number));
     expect(report.scenarios[0].waveformGates.map((gate) => gate.label)).toEqual(["normal", "HR100", "HR100-rearm"]);
     expect(report.scenarios[0].waveformGates[0].maxDeltaMetric).toEqual(expect.any(String));
+    expect(report.scenarios[0].waveformGates[0].candidate.LVPWidthAt90Ms).toEqual(expect.any(Number));
+    expect(report.scenarios[0].waveformGates[0].candidate.LVPPressureSupportRatio).toEqual(expect.any(Number));
+    expect(report.scenarios[0].waveformGates[0].candidate.LVPRelaxationTauMs).toEqual(expect.any(Number));
+    expect(report.scenarios[0].waveformGates[0].candidate.RVPWidthAt90Ms).toEqual(expect.any(Number));
+    expect(report.scenarios[0].waveformGates[0].candidate.RVPPressureSupportRatio).toEqual(expect.any(Number));
+    expect(report.scenarios[0].waveformGates[0].candidate.RVPRelaxationTauMs).toEqual(expect.any(Number));
     expect(report.summary.maxWaveformGateDeltaMetric).toEqual(expect.any(String));
     expect(report.summary.maxAoVMeanGradient).toEqual(expect.any(Number));
     expect(report.summary.maxAoVPeakGradient).toEqual(expect.any(Number));
@@ -804,7 +810,20 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.summary.maxQPVMeanPositive).toEqual(expect.any(Number));
     expect(report.summary.minQPVTimeToPeakMs).toEqual(expect.any(Number));
     expect(report.summary.maxDQPVdt).toEqual(expect.any(Number));
+    expect(report.summary.maxLVPMax).toEqual(expect.any(Number));
+    expect(report.summary.maxDpdtLVP).toEqual(expect.any(Number));
+    expect(report.summary.minDpdtLVP).toEqual(expect.any(Number));
+    expect(report.summary.minLVPWidthAt90Ms).toEqual(expect.any(Number));
+    expect(report.summary.minLVPPressureDomeRatio90).toEqual(expect.any(Number));
+    expect(report.summary.minLVPPressureSupportRatio).toEqual(expect.any(Number));
+    expect(report.summary.maxLVPRelaxationTauMs).toEqual(expect.any(Number));
+    expect(report.summary.maxLVPIVRTLikeMs).toEqual(expect.any(Number));
     expect(report.summary.maxRVPMax).toEqual(expect.any(Number));
+    expect(report.summary.minRVPWidthAt90Ms).toEqual(expect.any(Number));
+    expect(report.summary.minRVPPressureDomeRatio90).toEqual(expect.any(Number));
+    expect(report.summary.minRVPPressureSupportRatio).toEqual(expect.any(Number));
+    expect(report.summary.maxRVPRelaxationTauMs).toEqual(expect.any(Number));
+    expect(report.summary.maxRVPIVRTLikeMs).toEqual(expect.any(Number));
     expect(report.summary.maxPVMeanGradient).toEqual(expect.any(Number));
     expect(report.summary.maxAoVQDotClampHitFractionCleanCandidate).toEqual(expect.any(Number));
     expect(report.summary.minEjectionPositiveDurationMs).toEqual(expect.any(Number));
@@ -895,6 +914,9 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToMarkdown(report)).toContain("AoV low-open event-direction qDot estimator");
     expect(matrixReportToMarkdown(report)).toContain("Negative qDot closure-deceleration primary readouts");
     expect(matrixReportToMarkdown(report)).toContain("Right-heart / PV branch readout");
+    expect(matrixReportToMarkdown(report)).toContain("LV/RV pressure morphology gates");
+    expect(matrixReportToMarkdown(report)).toContain("LVP width90 ms");
+    expect(matrixReportToMarkdown(report)).toContain("LVP tau ms");
     expect(matrixReportToMarkdown(report)).toContain("Per-edge dynamic qDot clamp audit");
     expect(matrixReportToMarkdown(report)).toContain("Regime aggregate per-edge qDot audit");
     expect(matrixReportToMarkdown(report)).toContain("Regime point-level per-edge qDot audit");
@@ -958,6 +980,12 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToCsv(report)).toContain("normalQAoMeanPositive");
     expect(matrixReportToCsv(report)).toContain("normalQAoTimeToPeakMs");
     expect(matrixReportToCsv(report)).toContain("normalMaxDQAoDt");
+    expect(matrixReportToCsv(report)).toContain("normalLVPWidthAt90Ms");
+    expect(matrixReportToCsv(report)).toContain("normalLVPPressureSupportRatio");
+    expect(matrixReportToCsv(report)).toContain("normalLVPRelaxationTauMs");
+    expect(matrixReportToCsv(report)).toContain("normalRVPWidthAt90Ms");
+    expect(matrixReportToCsv(report)).toContain("normalRVPPressureSupportRatio");
+    expect(matrixReportToCsv(report)).toContain("normalRVPRelaxationTauMs");
     expect(matrixReportToCsv(report)).toContain("normalMinDpdtLVP");
     expect(matrixReportToCsv(report)).toContain("tensionFallSec");
     expect(matrixReportToCsv(report)).toContain("normalEjectionPositiveDurationMs");
