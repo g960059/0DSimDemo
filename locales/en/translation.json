@@ -774,6 +774,34 @@
     }
   },
   "publish": {
+    "badge": {
+      "draft": "Draft",
+      "unlisted": "Unlisted",
+      "public": "Public",
+      "tooltip": "Publish settings"
+    },
+    "dialog": {
+      "title": "Review for publishing",
+      "subtitle": "Check how readers will see this.",
+      "visibility": "Visibility",
+      "unlisted": "Unlisted",
+      "public": "Public",
+      "visibilityHint": "Applies when publishing is enabled.",
+      "openingView": "Opening view",
+      "readHelp": "Recommended when the case has a reading note",
+      "exploreHelp": "Start directly in the Workbench",
+      "readDisabled": "Read is available after adding reading content.",
+      "checks": "Checks",
+      "cannotPublish": "Cannot publish yet",
+      "warnings": "Warnings",
+      "ready": "Ready to publish",
+      "reviewAsReader": "Review as reader"
+    },
+    "review": {
+      "title": "Preview: reader view",
+      "reset": "Reset",
+      "exit": "Exit"
+    },
     "blocker": {
       "missing-title": "Add a title before publishing.",
       "no-scenarios": "Add at least one scenario.",

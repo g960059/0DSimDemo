@@ -349,6 +349,8 @@ export function useWorkbenchPersistence({
         reading: nextDoc.reading,
         exposedControllers: nextDoc.exposedControllers,
         defaultEntry: nextDoc.defaultEntry,
+        status: nextDoc.status,
+        visibility: nextDoc.visibility,
         views: serializableAuthoredViews(nextDoc.views),
         graphBoardLayout: nextDoc.graphBoardLayout,
         initialActiveScenarioId: nextDoc.initialActiveScenarioId,

@@ -4,6 +4,7 @@ import { ReadingPresenter } from "@/components/reading/ReadingPresenter";
 import { PanelGrid } from "@/components/workbench/PanelGrid";
 import { WorkbenchHeader } from "@/components/workbench/WorkbenchHeader";
 import { useAuth } from "@/contexts/AuthContext";
+import type { CaseDocument } from "@/caseDoc";
 import type { SimInstance } from "@/types";
 import { AddPanelDialog } from "@/features/workbench/dialogs/AddPanelDialog";
 import { useIsMobile } from "@/features/workbench/hooks/useIsMobile";
@@ -13,6 +14,8 @@ import { useWorkbenchScene } from "@/features/workbench/hooks/useWorkbenchScene"
 import { useWorkbenchSimulation } from "@/features/workbench/hooks/useWorkbenchSimulation";
 import { useWorkbenchTheme } from "@/features/workbench/hooks/useWorkbenchTheme";
 import { canUseReadExplore, deriveReadExploreEntryMode, switchReadExplorePresentation, type ReadExploreMode } from "@/features/workbench/readExplore";
+import { PublishDialog } from "@/features/workbench/publish/PublishDialog";
+import { PublishReviewOverlay } from "@/features/workbench/publish/PublishReviewOverlay";
 import {
   ALL_CHAMBERS,
   ALL_CONTROL_GROUPS,
@@ -29,6 +32,8 @@ export function WorkbenchRoute() {
   const userEditedRef = useRef(false);
   const entryPresentationKeyRef = useRef<string | null>(null);
   const [readExploreState, setReadExploreState] = useState<{ presentation: ReadExploreMode }>({ presentation: "explore" });
+  const [isPublishDialogOpen, setPublishDialogOpen] = useState(false);
+  const [reviewOverlay, setReviewOverlay] = useState<{ reviewDoc: CaseDocument; entry: ReadExploreMode } | null>(null);
   const buildCurrentDocRef = useRef<BuildCurrentDoc | null>(null);
   const requestSteadyTransitionRef = useRef<(id: string, nextInstances: SimInstance[]) => void>(() => {});
   const addVisibleInstanceConfigsRef = useRef<(additions: AddedInstanceConfig[]) => void>(() => {});
@@ -99,6 +104,7 @@ export function WorkbenchRoute() {
   });
 
   const showReadingPresentation = readExploreAvailable && readExploreState.presentation === "read" && Boolean(readingColumn);
+  const showPublishDialog = scene.headerMode !== "learner" && isPublishDialogOpen;
 
   return (
     <div
@@ -174,6 +180,9 @@ export function WorkbenchRoute() {
         showReadExploreSwitcher={readExploreAvailable}
         readExploreMode={readExploreState.presentation}
         onReadExploreModeChange={setReadExploreMode}
+        publishStatus={scene.currentCaseStatus}
+        publishVisibility={scene.currentCaseVisibility}
+        onOpenPublishDialog={() => setPublishDialogOpen(true)}
       />
 
       <PanelGrid
@@ -254,6 +263,26 @@ export function WorkbenchRoute() {
       />
 
       <HealthToasts toasts={simulation.healthToasts} onDismiss={simulation.dismissToast} />
+      {showPublishDialog && (
+        <PublishDialog
+          buildCurrentDoc={persistence.buildCurrentDoc}
+          currentStatus={scene.currentCaseStatus}
+          currentVisibility={scene.currentCaseVisibility}
+          onCancel={() => setPublishDialogOpen(false)}
+          onReview={(reviewDoc, entry) => {
+            setPublishDialogOpen(false);
+            setReviewOverlay({ reviewDoc, entry });
+          }}
+        />
+      )}
+      {reviewOverlay && (
+        <PublishReviewOverlay
+          reviewDoc={reviewOverlay.reviewDoc}
+          initialEntry={reviewOverlay.entry}
+          workbenchTheme={workbenchTheme}
+          onExit={() => setReviewOverlay(null)}
+        />
+      )}
     </div>
   );
 }

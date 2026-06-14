@@ -1,6 +1,6 @@
 import { useCallback, useState, type MutableRefObject } from "react";
 import { DEFAULT_PARAMS } from "@/constants";
-import type { CaseDocument, CaseI18nContent, CaseSource } from "@/caseDoc";
+import type { CaseDocument, CaseI18nContent, CaseSource, CaseStatus, CaseVisibility } from "@/caseDoc";
 import {
   authoredViewsForLoad,
   addVisibleScenariosToMetricsViews,
@@ -16,8 +16,14 @@ import {
 } from "@/features/workbench/authoredViews";
 import type { GraphBoardLayout } from "@/features/workbench/viewSpec";
 import { OFFICIAL_BASELINES } from "@/engine/caseBaselines";
-import { applyKnobs, KNOB_MAPPING_VERSION, neutralKnobs, type ClinicalKnobs } from "@/engine/knobs";
-import { resolveKnobEdit, resolveRawEdit } from "@/engine/instanceKnobs";
+import type { ClinicalKnobs } from "@/engine/knobs";
+import {
+  resetRuntimeInstanceKnobs,
+  toggleRuntimeScenarioGlobalVisibility,
+  updateRuntimeInstanceKnobs,
+  updateRuntimeInstanceParams,
+  updateRuntimeInstanceVolume,
+} from "@/features/workbench/instanceRuntime";
 import type { ControllerItem, MetricType, PanelDef, SimulationParams, SimInstance } from "@/types";
 import type { WorkbenchHeaderMode, WorkbenchSceneMeta } from "@/components/workbench/WorkbenchSidePanel";
 import {
@@ -62,6 +68,8 @@ type SavedCasePayload = {
   graphBoardLayout?: GraphBoardLayout;
   initialActiveScenarioId?: string;
   defaultEntry?: CaseDocument["defaultEntry"];
+  status?: CaseStatus;
+  visibility?: CaseVisibility;
 };
 
 export type AuthorRuntimeSnapshot = {
@@ -140,6 +148,8 @@ export function useWorkbenchScene({
   const [currentCaseReading, setCurrentCaseReading] = useState<CaseDocument["reading"] | undefined>(undefined);
   const [currentCaseExposedControllers, setCurrentCaseExposedControllers] = useState<CaseDocument["exposedControllers"] | undefined>(undefined);
   const [currentCaseDefaultEntry, setCurrentCaseDefaultEntry] = useState<CaseDocument["defaultEntry"] | undefined>(undefined);
+  const [currentCaseStatus, setCurrentCaseStatus] = useState<CaseStatus | undefined>(undefined);
+  const [currentCaseVisibility, setCurrentCaseVisibility] = useState<CaseVisibility | undefined>(undefined);
   const [currentCaseViews, setCurrentCaseViews] = useState<AuthoredViewSpec[]>(() => standardAuthoredViews(nextViewId));
   const [currentCaseGraphBoardLayout, setCurrentCaseGraphBoardLayout] = useState<GraphBoardLayout | undefined>(undefined);
   const [currentCaseInitialActiveScenarioId, setCurrentCaseInitialActiveScenarioId] = useState<string | undefined>(undefined);
@@ -161,35 +171,17 @@ export function useWorkbenchScene({
 
   const updateInstanceParams = useCallback((id: string, newParams: Partial<SimulationParams>) => {
     markDocumentEdited();
-    setInstances((prev) => prev.map((instance) =>
-      instance.id === id
-        ? { ...instance, ...resolveRawEdit({ params: instance.params, knobs: instance.knobs, knobBaseline: instance.knobBaseline }, newParams) }
-        : instance
-    ));
+    setInstances((prev) => updateRuntimeInstanceParams(prev, id, newParams));
   }, [markDocumentEdited]);
 
   const updateInstanceKnobs = useCallback((id: string, newKnobs: ClinicalKnobs) => {
     markDocumentEdited();
-    setInstances((prev) => {
-      const next = prev.map((instance) =>
-        instance.id === id
-          ? { ...instance, ...resolveKnobEdit({ params: instance.params, knobs: instance.knobs, knobBaseline: instance.knobBaseline }, newKnobs) }
-          : instance
-      );
-      requestSteadyTransitionRef.current(id, next);
-      return next;
-    });
+    setInstances((prev) => updateRuntimeInstanceKnobs(prev, id, newKnobs, requestSteadyTransitionRef.current));
   }, [markDocumentEdited, requestSteadyTransitionRef]);
 
   const updateInstanceVolume = useCallback((id: string, vol: number) => {
     markDocumentEdited();
-    setInstances((prev) => {
-      const next = prev.map((instance) => (
-        instance.id === id ? { ...instance, targetVolume: vol } : instance
-      ));
-      requestSteadyTransitionRef.current(id, next);
-      return next;
-    });
+    setInstances((prev) => updateRuntimeInstanceVolume(prev, id, vol, requestSteadyTransitionRef.current));
   }, [markDocumentEdited, requestSteadyTransitionRef]);
 
   const updateInstanceColor = useCallback((id: string, color: string) => {
@@ -210,28 +202,12 @@ export function useWorkbenchScene({
 
   const toggleScenarioGlobalVisibility = useCallback((id: string) => {
     markDocumentEdited();
-    setInstances((prev) => prev.map((instance) => (
-      instance.id === id ? { ...instance, isVisible: instance.isVisible === false } : instance
-    )));
+    setInstances((prev) => toggleRuntimeScenarioGlobalVisibility(prev, id));
   }, [markDocumentEdited]);
 
   const resetInstanceKnobs = useCallback((id: string) => {
     markDocumentEdited();
-    setInstances((prev) => {
-      let changed = false;
-      const next = prev.map((instance) => {
-        if (instance.id !== id || !instance.knobBaseline) return instance;
-        changed = true;
-        const knobs = neutralKnobs(instance.knobBaseline);
-        return {
-          ...instance,
-          knobs,
-          params: applyKnobs(instance.knobBaseline, knobs, KNOB_MAPPING_VERSION),
-        };
-      });
-      if (changed) requestSteadyTransitionRef.current(id, next);
-      return next;
-    });
+    setInstances((prev) => resetRuntimeInstanceKnobs(prev, id, requestSteadyTransitionRef.current));
   }, [markDocumentEdited, requestSteadyTransitionRef]);
 
   const updateGraphBoardLayout = useCallback((layout: GraphBoardLayout | undefined) => {
@@ -376,6 +352,8 @@ export function useWorkbenchScene({
     setCurrentCaseReading(doc.reading);
     setCurrentCaseExposedControllers(doc.exposedControllers);
     setCurrentCaseDefaultEntry(doc.defaultEntry);
+    setCurrentCaseStatus(doc.status);
+    setCurrentCaseVisibility(doc.visibility);
     setCurrentCaseViews(authoredViewsForLoad(doc.views, payload.panels, {
       idFactory: nextViewId,
       instances: payload.instances,
@@ -405,6 +383,8 @@ export function useWorkbenchScene({
     setCurrentCaseReading(payload.reading);
     setCurrentCaseExposedControllers(payload.exposedControllers);
     setCurrentCaseDefaultEntry(payload.defaultEntry);
+    setCurrentCaseStatus(payload.status);
+    setCurrentCaseVisibility(payload.visibility);
     setCurrentCaseViews(serializableAuthoredViews(payload.views));
     setCurrentCaseGraphBoardLayout(payload.graphBoardLayout);
     setCurrentCaseInitialActiveScenarioId(payload.initialActiveScenarioId);
@@ -431,6 +411,8 @@ export function useWorkbenchScene({
     currentCaseReading,
     currentCaseExposedControllers,
     currentCaseDefaultEntry,
+    currentCaseStatus,
+    currentCaseVisibility,
     currentCaseViews,
     createControllerView,
     createMetricsView,

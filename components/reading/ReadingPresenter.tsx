@@ -62,6 +62,7 @@ export const ReadingPresenter: React.FC<{
     updateInstanceVolume: (id: string, vol: number) => void;
   };
   chrome?: {
+    hideHeader?: boolean;
     backHref?: string;
     backLabel?: string;
     showReadExploreSwitcher?: boolean;
@@ -110,7 +111,7 @@ export const ReadingPresenter: React.FC<{
   // height so nothing scrolls (the reading-article scroll bug).
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-wb-app text-wb-text">
-      <div className="workbench-header relative z-20 h-14 shrink-0">
+      {!chrome?.hideHeader && <div className="workbench-header relative z-20 h-14 shrink-0">
         <div className="flex h-14 items-center gap-2 px-3 sm:px-4">
           <Link to={chrome?.backHref ?? homeHref(locale)} className="inline-flex h-9 items-center gap-1 rounded-md px-2 text-xs font-medium text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text" aria-label={chrome?.backLabel ?? t("lessonPlayer.backToHome")}>
             <ArrowLeft className="h-4 w-4" />
@@ -148,7 +149,7 @@ export const ReadingPresenter: React.FC<{
           )}
         </div>
         <div className="absolute bottom-0 left-0 h-0.5 bg-wb-accent" style={{ width: `${readingProgress * 100}%` }} />
-      </div>
+      </div>}
 
       <div ref={scrollportRef} onScroll={updateReadingProgress} className="min-h-0 flex-1 overflow-y-auto">
       <article className="mx-auto w-full max-w-[860px] px-4 pb-16 pt-8 sm:px-6 sm:pt-10">
