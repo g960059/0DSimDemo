@@ -1067,3 +1067,40 @@ npm run verify:starling-low-preload-matrix -- \
   --sample-hz=120 \
   --quiet-progress
 ```
+
+## 2026-06-14 update: pressure morphology target bands and overlay artifact
+
+Matrix schema v31 adds a report-only morphology classifier around the pressure
+shape metrics:
+
+- `pressureMorphologyGate` on each normal / HR100 / HR100-rearm waveform gate
+- `pressureMorphologyClassificationCounts` in summary
+- CSV columns for `normalPressureMorphologyClass`,
+  `normalPressureMorphologyWorstMetric`, fail count, and warning count
+- `--waveform-overlay`, which writes `waveform-overlay.csv` with
+  baseline/candidate LVP/RVP/AoP/PAP/LAP/RAP/QAo/QPV/QMV/QTV/valve-state rows
+
+Use the classifier as an internal adult-rest sanity gate. It is not a clinical
+diagnosis layer. Initial target ranges are intentionally broad:
+
+- LV max dP/dt 1000-2000 mmHg/s, fail <600 or >4500.
+- LV min dP/dt -2500 to -1200 mmHg/s, fail <-4500 or >-600.
+- QAo >5% peak ejection 250-330 ms, fail <200 or >420.
+- IVRT-like 60-110 ms, fail <35 or >160.
+- LV tau-like 30-55 ms only when relaxation-fit R2 >= 0.6.
+- width90/ejection, width80/ejection, dome90, and pressure support are internal
+  anti-spike / anti-flatline morphology guards.
+
+Reference anchors used for these internal bands include BSE dP/dt guidance,
+Copenhagen City Heart Study LVET/IVRT intervals, invasive/Doppler tau
+validation literature, and normal heart/great-vessel pressure tables. The
+important review discipline is to inspect `waveform-overlay.csv` whenever a
+candidate passes branch/qDot gates but fails morphology, because derivative and
+tau readouts are interval- and sampling-sensitive.
+
+Recommended handoff artifact set:
+
+- `matrix-report.md`
+- `matrix-report.json`
+- `branch-table.csv`
+- `waveform-overlay.csv` when `--waveform-overlay` is used

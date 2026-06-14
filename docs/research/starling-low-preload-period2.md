@@ -969,7 +969,7 @@ waveforms.
 
 Alternans suppression is no longer sufficient by itself. The default active
 stress waveform also needs to avoid spike-like LVP/RVP morphology. Matrix schema
-v30 therefore adds report-only LV/RV pressure morphology metrics to the normal /
+v30 therefore added report-only LV/RV pressure morphology metrics to the normal /
 HR waveform gates:
 
 - peak timing: `LVPTimeToPeakMs`, `RVPTimeToPeakMs`
@@ -1013,5 +1013,65 @@ npm run verify:starling-low-preload-matrix -- \
   --max-return-map-points=2 \
   --trace-beats=4 \
   --sample-hz=120 \
+  --quiet-progress
+```
+
+### 2026-06-14 update: pressure morphology target bands and waveform overlay
+
+Matrix schema v31 adds report-only pressure morphology classifications and an
+optional waveform overlay artifact:
+
+- `pressureMorphologyClassificationCounts` in `summary`
+- per-waveform `pressureMorphologyGate` with `target | warning | fail |
+  unknown`, worst metric, warning count, and fail count
+- Markdown `Pressure morphology classification counts` and target-band rows
+- CSV columns `normalPressureMorphologyClass`,
+  `normalPressureMorphologyWorstMetric`, `normalPressureMorphologyFailCount`,
+  and `normalPressureMorphologyWarningCount`
+- `--waveform-overlay`, which writes `waveform-overlay.csv` with
+  baseline/candidate samples for normal / HR100 / HR100-rearm gates
+
+The target bands are internal adult-rest sanity gates, not clinical diagnostic
+criteria. The initial ranges are intentionally conservative and should be
+reviewed alongside waveform overlays:
+
+- LV max dP/dt target 1000-2000 mmHg/s; fail below 600 or above 4500.
+- LV min dP/dt target -2500 to -1200 mmHg/s; fail below -4500 or above -600.
+- QAo >5% peak ejection target 250-330 ms; fail below 200 or above 420.
+- IVRT-like target 60-110 ms; fail below 35 or above 160.
+- LV tau-like target 30-55 ms when fit R2 >= 0.6; otherwise classify unknown.
+- pressure width90/ejection and width80/ejection are internal anti-spike guards.
+
+Reference anchors used for the initial bands:
+
+- British Society of Echocardiography DCM guidance gives normal-ish LV dP/dt
+  around 1000-1200 mmHg/s and treats <600 mmHg/s as adverse:
+  https://researchonline.ljmu.ac.uk/id/eprint/7299/
+- Copenhagen City Heart Study reports LVET about 292 +/- 23 ms and IVRT about
+  96 +/- 19 ms in adults:
+  https://link.springer.com/article/10.1007/s00392-023-02269-2
+- Invasive/Doppler tau validation studies commonly use relaxation tau around
+  50 ms as a normal-order reference:
+  https://www.ahajournals.org/doi/10.1161/01.cir.95.1.151
+- Normal chamber pressure ranges remain a separate plausibility check:
+  https://www.merckmanuals.com/professional/multimedia/table/normal-pressures-in-the-heart-and-great-vessels
+
+Example artifact with overlay:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/pressure-morphology-targets \
+  --regime-audit=low-hyper \
+  --dt=0.001,0.0005 \
+  --lambda-act-tau=0 \
+  --tbv-correction=on \
+  --tension-rise=0,0.005,0.01 \
+  --tension-fall=0,0.005,0.01,0.02 \
+  --tension-scope=lv,ventricles,all \
+  --qdot-clamp-scope=aov,semilunar \
+  --max-return-map-points=4 \
+  --trace-beats=4 \
+  --sample-hz=120 \
+  --waveform-overlay \
   --quiet-progress
 ```
