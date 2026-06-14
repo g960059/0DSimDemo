@@ -24,6 +24,8 @@ import { WorkbenchHeaderMode, WorkbenchSceneMeta, WorkbenchSidePanel, type Workb
 import type { MetricsSpanMode } from './PanelGrid';
 import { ReadExploreSwitcher } from './ReadExploreSwitcher';
 import type { ReadExploreMode } from '../../features/workbench/readExplore';
+import { PublishStatusBadge } from './PublishStatusBadge';
+import type { CaseStatus, CaseVisibility } from '../../caseDoc';
 
 interface WorkbenchHeaderProps {
   mode: WorkbenchHeaderMode;
@@ -58,6 +60,9 @@ interface WorkbenchHeaderProps {
   showReadExploreSwitcher?: boolean;
   readExploreMode?: ReadExploreMode;
   onReadExploreModeChange?: (mode: ReadExploreMode) => void;
+  publishStatus?: CaseStatus;
+  publishVisibility?: CaseVisibility;
+  onOpenPublishDialog?: () => void;
 }
 
 const SPEEDS = [0.5, 1, 2, 5];
@@ -99,6 +104,9 @@ export function WorkbenchHeader({
   showReadExploreSwitcher = false,
   readExploreMode,
   onReadExploreModeChange,
+  publishStatus,
+  publishVisibility,
+  onOpenPublishDialog,
 }: WorkbenchHeaderProps) {
   const { t } = useTranslation();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -268,6 +276,14 @@ export function WorkbenchHeader({
               )}
             </div>
           </div>
+
+          {!isLearner && onOpenPublishDialog && (
+            <PublishStatusBadge
+              status={publishStatus}
+              visibility={publishVisibility}
+              onClick={onOpenPublishDialog}
+            />
+          )}
 
           {isLearner && onResetToAuthorState && (
             <button

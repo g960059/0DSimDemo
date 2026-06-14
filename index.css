@@ -39,6 +39,9 @@ body[data-workbench-theme] {
   --wb-primary: #2563eb;
   --wb-primary-hover: #3b82f6;
   --wb-danger: #f87171;
+  --wb-danger-soft: rgba(248, 113, 113, 0.14);
+  --wb-warning: #fbbf24;
+  --wb-warning-soft: rgba(251, 191, 36, 0.16);
   --wb-sash: #08111f;
   background: var(--wb-app-bg);
   color: var(--wb-text);
@@ -63,6 +66,9 @@ body[data-workbench-theme] {
   --color-wb-primary: var(--wb-primary);
   --color-wb-primary-hover: var(--wb-primary-hover);
   --color-wb-danger: var(--wb-danger);
+  --color-wb-danger-soft: var(--wb-danger-soft);
+  --color-wb-warning: var(--wb-warning);
+  --color-wb-warning-soft: var(--wb-warning-soft);
 }
 
 .workbench-root[data-workbench-theme="light"],
@@ -90,6 +96,9 @@ body[data-workbench-theme="light"] {
   --wb-primary: #2563eb;
   --wb-primary-hover: #1d4ed8;
   --wb-danger: #dc2626;
+  --wb-danger-soft: rgba(220, 38, 38, 0.10);
+  --wb-warning: #92400e;
+  --wb-warning-soft: rgba(146, 64, 14, 0.12);
   --wb-sash: #e2e8f0;
 }
 

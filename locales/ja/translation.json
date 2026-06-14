@@ -774,6 +774,34 @@
     }
   },
   "publish": {
+    "badge": {
+      "draft": "下書き",
+      "unlisted": "限定公開",
+      "public": "公開",
+      "tooltip": "公開設定"
+    },
+    "dialog": {
+      "title": "公開前の確認",
+      "subtitle": "読者にどう見えるかを確認します。",
+      "visibility": "公開範囲",
+      "unlisted": "限定公開",
+      "public": "公開",
+      "visibilityHint": "公開処理を有効にしたときに適用されます。",
+      "openingView": "読者の最初の画面",
+      "readHelp": "読み物ノートがある場合に推奨",
+      "exploreHelp": "Workbench から直接開始",
+      "readDisabled": "読み物コンテンツを追加すると Read を選べます。",
+      "checks": "チェック",
+      "cannotPublish": "公開できません",
+      "warnings": "警告",
+      "ready": "公開できます",
+      "reviewAsReader": "読者として確認"
+    },
+    "review": {
+      "title": "プレビュー中：読者ビュー",
+      "reset": "リセット",
+      "exit": "編集に戻る"
+    },
     "blocker": {
       "missing-title": "公開前にタイトルを入力してください。",
       "no-scenarios": "シナリオを1つ以上追加してください。",

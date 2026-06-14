@@ -45,21 +45,30 @@ export function workspaceForPanelStateReplacement(next: {
   return workspaceForPanels(next.panels, next.workspace);
 }
 
+export type WorkbenchPanelStateInitializer = {
+  panels: PanelDef[];
+  workspace?: WorkbenchWorkspace;
+  notes: Record<string, NoteContent>;
+  noteCaseKey: string;
+};
+
 export function useWorkbenchPanels({
   instances,
   headerMode,
   markUserEdited,
+  initialPanelState,
 }: {
   instances: SimInstance[];
   headerMode: WorkbenchHeaderMode;
   markUserEdited: () => void;
+  initialPanelState?: WorkbenchPanelStateInitializer;
 }) {
-  const [panels, setPanels] = useState<PanelDef[]>(cloneInitialPanels);
-  const [workspace, setWorkspace] = useState<WorkbenchWorkspace>(() => workspaceForPanels(INITIAL_PANELS));
-  const [workbenchLayout, setWorkbenchLayoutState] = useState<WorkbenchLayoutState>(DEFAULT_WORKBENCH_LAYOUT);
+  const [panels, setPanels] = useState<PanelDef[]>(() => initialPanelState?.panels ?? cloneInitialPanels());
+  const [workspace, setWorkspace] = useState<WorkbenchWorkspace>(() => initialPanelState ? workspaceForPanelStateReplacement(initialPanelState) : workspaceForPanels(INITIAL_PANELS));
+  const [workbenchLayout, setWorkbenchLayoutState] = useState<WorkbenchLayoutState>(() => initialPanelState ? layoutStateFromWorkspace(workspaceForPanelStateReplacement(initialPanelState)) : DEFAULT_WORKBENCH_LAYOUT);
   const [dockviewLayoutVersion, setDockviewLayoutVersion] = useState(0);
-  const [noteCaseKey, setNoteCaseKey] = useState("draft");
-  const [notes, setNotes] = useState<Record<string, NoteContent>>({});
+  const [noteCaseKey, setNoteCaseKey] = useState(initialPanelState?.noteCaseKey ?? "draft");
+  const [notes, setNotes] = useState<Record<string, NoteContent>>(() => initialPanelState?.notes ?? {});
   const [noteModes, setNoteModes] = useState<Record<string, "read" | "edit">>({});
   const [addingPanelType, setAddingPanelType] = useState<PanelType | null>(null);
   const [addingPanelZone, setAddingPanelZone] = useState<WorkbenchZoneId | null>(null);
