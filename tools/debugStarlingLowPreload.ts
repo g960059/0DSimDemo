@@ -171,7 +171,7 @@ type ReturnMapFeature = {
 type ReturnMapFeatureKey = "EDV_L" | "ESV_L" | "CO_L" | "LAPMean" | "QAoMax" | "AoPMax" | "AoPMean" | "LVPMax" | "sigmaActTargetMax" | "sigmaActMean";
 type ReturnMapModeKey = "volumeLambdaActFixed" | "volumeLambdaActReset";
 export type ReturnMapModeOption = "none" | "fixed" | "reset" | "both";
-export type LambdaActScope = "lv" | "ventricles" | "all";
+export type LambdaActScope = "lv" | "rv" | "ventricles" | "all";
 export type TBVCorrectionMode = "on" | "off" | "low";
 export type ActiveReservePreset = "none" | "directMild" | "directMedium" | "thresholdMild" | "thresholdMedium";
 
@@ -1621,14 +1621,9 @@ export function paramsWithLambdaActTau(
   const tau = Math.max(Number.isFinite(tauSec) ? tauSec : 0, 0);
   if (tau <= 0) return params;
   const activeOverride = { tauLambdaActSec: tau, lambdaActTerms: terms };
-  const apply = (chamber: "LV" | "RV" | "LA" | "RA") => {
-    if (scope === "lv") return chamber === "LV";
-    if (scope === "ventricles") return chamber === "LV" || chamber === "RV";
-    return true;
-  };
   const nodeOverrides = { ...(params.nodeOverrides ?? {}) };
   for (const chamber of ["LV", "RV", "LA", "RA"] as const) {
-    if (!apply(chamber)) continue;
+    if (!chamberInScope(chamber, scope)) continue;
     nodeOverrides[chamber] = {
       ...(nodeOverrides[chamber] ?? {}),
       active: { ...((nodeOverrides[chamber]?.active as Partial<ActiveChamberParams> | undefined) ?? {}), ...activeOverride },
@@ -1648,14 +1643,9 @@ export function paramsWithLowStretchLimiter(
 ): CoreRuntimeParams {
   const limiter = mode === "aInfCap" || mode === "activeReserveCap" || mode === "fIsoSlopeRelax" ? mode : "none";
   if (limiter === "none") return params;
-  const apply = (chamber: "LV" | "RV" | "LA" | "RA") => {
-    if (scope === "lv") return chamber === "LV";
-    if (scope === "ventricles") return chamber === "LV" || chamber === "RV";
-    return true;
-  };
   const nodeOverrides = { ...(params.nodeOverrides ?? {}) };
   for (const chamber of ["LV", "RV", "LA", "RA"] as const) {
-    if (!apply(chamber)) continue;
+    if (!chamberInScope(chamber, scope)) continue;
     nodeOverrides[chamber] = {
       ...(nodeOverrides[chamber] ?? {}),
       active: {
@@ -1690,14 +1680,9 @@ export function paramsWithTensionComparator(
   if (tauRise <= 0 && tauFall <= 0) return params;
   const effectiveTauRise = tauRise > 0 ? tauRise : 1e-4;
   const effectiveTauFall = tauFall > 0 ? tauFall : 1e-4;
-  const apply = (chamber: "LV" | "RV" | "LA" | "RA") => {
-    if (scope === "lv") return chamber === "LV";
-    if (scope === "ventricles") return chamber === "LV" || chamber === "RV";
-    return true;
-  };
   const nodeOverrides = { ...(params.nodeOverrides ?? {}) };
   for (const chamber of ["LV", "RV", "LA", "RA"] as const) {
-    if (!apply(chamber)) continue;
+    if (!chamberInScope(chamber, scope)) continue;
     nodeOverrides[chamber] = {
       ...(nodeOverrides[chamber] ?? {}),
       active: {
@@ -1712,6 +1697,13 @@ export function paramsWithTensionComparator(
     ...params,
     nodeOverrides,
   };
+}
+
+function chamberInScope(chamber: "LV" | "RV" | "LA" | "RA", scope: LambdaActScope): boolean {
+  if (scope === "lv") return chamber === "LV";
+  if (scope === "rv") return chamber === "RV";
+  if (scope === "ventricles") return chamber === "LV" || chamber === "RV";
+  return true;
 }
 
 function activeReservePresetOverrides(
@@ -3079,7 +3071,7 @@ function parseReturnMapMode(value: string): ReturnMapModeOption {
 }
 
 function parseLambdaActScope(value: string): LambdaActScope {
-  if (value === "lv" || value === "ventricles" || value === "all") return value;
+  if (value === "lv" || value === "rv" || value === "ventricles" || value === "all") return value;
   throw new Error(`Invalid lambdaAct scope: ${value}`);
 }
 

@@ -1103,4 +1103,45 @@ Recommended handoff artifact set:
 - `matrix-report.md`
 - `matrix-report.json`
 - `branch-table.csv`
+- `pressure-morphology-attribution.csv`
 - `waveform-overlay.csv` when `--waveform-overlay` is used
+
+## 2026-06-14 update: pressure morphology attribution layer
+
+Schema v32 adds report-only attribution fields on top of the morphology gate:
+
+- grouped morphology failure counts in summary
+- top failing morphology metrics in summary
+- per-gate fail/warning metric lists
+- `pressure-morphology-attribution.csv`
+- `--morphology-audit=tension-shape`
+
+This is an evaluation-layer PR, not a model-fix PR. The purpose is to make the
+review distinction explicit:
+
+- branch stability improved but morphology failed: stabilizer / positive
+  control, not root fix
+- morphology improved but branch remains: waveform-quality comparator
+- both fail: coupled ejection/qDot/pressure timing issue
+- both pass: candidate for broader validation
+
+Group labels are deliberately descriptive rather than causal. In particular,
+`ejection-timing` means QAo/QPV ejection-window metrics failed, and
+`relaxation-timing` means IVRT-like or tau-like metrics failed. Do not infer a
+mechanism without checking `waveform-overlay.csv`.
+
+Recommended tension morphology audit:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/tension-shape-morphology \
+  --morphology-audit=tension-shape \
+  --dt=0.001 \
+  --max-return-map-points=2 \
+  --quiet-progress
+```
+
+Read `pressure-morphology-attribution.csv` first for the branch/morphology
+cross-product, then inspect `waveform-overlay.csv` for any candidate whose
+classification is driven by QAo/QPV ejection duration, IVRT-like interval, or
+pressure-support/width guards.
