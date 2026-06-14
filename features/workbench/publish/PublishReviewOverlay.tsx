@@ -18,7 +18,7 @@ import {
 } from "@/features/workbench/workbenchDefaults";
 import { resolveReadingColumn } from "@/readingConversion";
 import type { WorkbenchThemeId } from "@/components/workbench/WorkbenchSidePanel";
-import type { ControllerItem, MetricType, PanelDef } from "@/types";
+import type { ControllerItem, MetricType } from "@/types";
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -168,7 +168,10 @@ export function PublishReviewOverlay({
             exposedControllers: reviewDoc.exposedControllers,
           }}
           column={readingColumn}
-          fallbackLocale={reviewDoc.defaultLocale}
+          // No fallbackLocale: ReadingPresenter shows the locale-fallback notice whenever
+          // fallbackLocale is truthy, and defaultLocale does NOT mean a fallback occurred.
+          // The real workbench reader (WorkbenchRoute) omits it too, so the review must match
+          // — otherwise every Read preview shows a spurious "available in X only" notice.
           runtime={{
             instances: preview.instances,
             physicsRefs: preview.simulation.physicsRefs,
