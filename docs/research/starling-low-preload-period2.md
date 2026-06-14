@@ -1075,3 +1075,57 @@ npm run verify:starling-low-preload-matrix -- \
   --waveform-overlay \
   --quiet-progress
 ```
+
+### 2026-06-14 update: pressure morphology failure attribution
+
+Matrix schema v32 keeps #147 as a report-only morphology gate and adds
+attribution/readout layers so model-team reviews do not have to infer the
+failure mode from a single `worstMetric`.
+
+New artifacts and fields:
+
+- `summary.pressureMorphologyFailureGroupCounts`
+- `summary.pressureMorphologyWarningGroupCounts`
+- `summary.topPressureMorphologyFailureMetrics`
+- per-gate `failMetrics`, `warningMetrics`, and grouped failure summaries
+- Markdown `Pressure morphology failure attribution`
+- Markdown `Branch stability vs pressure morphology attribution`
+- `pressure-morphology-attribution.csv`
+- `--morphology-audit=tension-shape`
+
+Failure groups are descriptive, not causal:
+
+- `ejection-timing`: QAo/QPV flow-window duration failures.
+- `relaxation-timing`: IVRT-like and tau-like interval failures.
+- `pressure-shape`: pressure width/dome/support guards.
+- `flow-shape`: peak/mean flow-shape guards.
+- `ventricular-derivative`: max/min dP/dt guards.
+
+Use the v32 attribution rows to keep two acceptance axes separate:
+
+- Stability: branch amplitude, qDot impulse, closure residual, return-map
+  coverage.
+- Morphology: LVP/RVP dP/dt, width90/80, pressure support, IVRT/tau-like
+  intervals, QAo/QPV ejection duration, and flow peak/mean.
+
+A candidate that suppresses period-2 but fails pressure morphology is a
+stabilizer or positive control, not a root fix. A candidate that improves
+pressure/flow morphology but leaves branch residual can still be retained as a
+waveform-quality comparator.
+
+The `tension-shape` preset is a convenience for waveform-shaping audits; it
+does not change default model behavior:
+
+```bash
+npm run verify:starling-low-preload-matrix -- \
+  --out=artifacts/starling-low-preload-debug/tension-shape-morphology \
+  --morphology-audit=tension-shape \
+  --dt=0.001 \
+  --max-return-map-points=2 \
+  --quiet-progress
+```
+
+The preset expands to low/hyper representative deltas, tension rise/fall
+0-20 ms, LV/RV/ventricles/all scopes, AoV/semilunar qDot scope, and
+`--waveform-overlay`. Override any axis explicitly after the preset when a
+smaller matrix is needed.

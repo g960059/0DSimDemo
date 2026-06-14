@@ -34,6 +34,7 @@ type DebugPoint = DebugReport["points"][number];
 type MatrixOptions = {
   outDir: string;
   regimeAuditPreset?: RegimeAuditPreset;
+  morphologyAuditPreset?: MorphologyAuditPreset;
   targetVolumeMl: number;
   heartModels: HeartModelMode[];
   deltasMl: number[];
@@ -70,6 +71,7 @@ type MatrixOptions = {
 };
 
 type RegimeAuditPreset = "low-hyper";
+type MorphologyAuditPreset = "tension-shape";
 
 type RegimeClass = "baseline" | "low-preload" | "hypervolume";
 
@@ -114,6 +116,13 @@ type AoVQDotTargetBinStats = {
 };
 
 type PressureMorphologyClassification = "target" | "warning" | "fail" | "unknown";
+type PressureMorphologyFailureGroup =
+  | "ventricular-derivative"
+  | "ejection-timing"
+  | "relaxation-timing"
+  | "pressure-shape"
+  | "flow-shape"
+  | "unknown";
 
 type PressureMorphologyMetricStatus = {
   metric: string;
@@ -130,8 +139,28 @@ type PressureMorphologyGate = {
   failCount: number;
   warningCount: number;
   unknownCount: number;
+  failMetrics: string[];
+  warningMetrics: string[];
+  failureGroups: PressureMorphologyFailureGroupSummary[];
   statuses: PressureMorphologyMetricStatus[];
   notes: string[];
+};
+
+type PressureMorphologyFailureGroupSummary = {
+  group: PressureMorphologyFailureGroup;
+  failCount: number;
+  warningCount: number;
+  unknownCount: number;
+  metrics: string[];
+};
+
+type PressureMorphologyFailureMetricSummary = {
+  metric: string;
+  group: PressureMorphologyFailureGroup;
+  failCount: number;
+  warningCount: number;
+  unknownCount: number;
+  labels: string[];
 };
 
 type PressureWaveformOverlaySample = {
@@ -592,10 +621,11 @@ type ShapeSummary = {
 };
 
 type MatrixReport = {
-  schemaVersion: 31;
+  schemaVersion: 32;
   generatedAt: string;
   measurementMode: string;
   regimeAuditPreset?: RegimeAuditPreset;
+  morphologyAuditPreset?: MorphologyAuditPreset;
   targetVolumeMl: number;
   heartModels: HeartModelMode[];
   deltasMl: number[];
@@ -691,6 +721,9 @@ type MatrixReport = {
     maxDpdtLVP: number;
     minDpdtLVP: number;
     pressureMorphologyClassificationCounts: Record<PressureMorphologyClassification, number>;
+    pressureMorphologyFailureGroupCounts: Record<PressureMorphologyFailureGroup, number>;
+    pressureMorphologyWarningGroupCounts: Record<PressureMorphologyFailureGroup, number>;
+    topPressureMorphologyFailureMetrics: PressureMorphologyFailureMetricSummary[];
     maxPressureMorphologyFailCount: number;
     maxPressureMorphologyWarningCount: number;
     minLVPWidthAt90Ms: number;
@@ -758,6 +791,7 @@ type BranchLocalizationClass = "edv-dominant" | "esv/ejection-dominant" | "mixed
 
 const DEFAULT_DELTAS = [0, -900, -1000, -1100, -1200, -1250, -1300, -1400, -1500, -1600];
 const LOW_HYPER_REGIME_AUDIT_DELTAS = [0, -1600, -1500, -1450, -1400, -1350, -1300, -1250, -1200, 200, 400, 600, 800];
+const TENSION_SHAPE_AUDIT_DELTAS = [0, -1250, -1300, -1400, 400, 800];
 const DEFAULT_DT_VALUES = [0.001, 0.0005];
 const DEFAULT_HEART_MODELS: HeartModelMode[] = ["activeStress"];
 const DEFAULT_TAU_VALUES = [0, 0.05, 0.1, 0.15, 0.2, 0.4];
@@ -782,6 +816,8 @@ const DEFAULT_AOV_Q_DOT_CLAMP_VALUES = [DEFAULT_AOV_Q_DOT_CLAMP];
 const DEFAULT_AOV_Q_DOT_CLAMP_PAIRS: AovQDotClampConfig[] = [];
 const DEFAULT_Q_DOT_CLAMP_SCOPES: DynamicQDotClampScope[] = ["aov"];
 const DEFAULT_AOV_Q_UPDATE_MODES: AorticValveQUpdateMode[] = ["current-loss"];
+const TENSION_SHAPE_AUDIT_TAUS = [0, 0.005, 0.01, 0.015, 0.02];
+const TENSION_SHAPE_AUDIT_SCOPES: LambdaActScope[] = ["lv", "rv", "ventricles", "all"];
 const WAVEFORM_RUN_OPTIONS = { collectSamples: false, recordHistory: true, historyLimit: 720 };
 const WAVEFORM_SETTLE_POLICY = { ...PREVIEW_SETTLE_POLICY, capSeconds: 45 };
 
@@ -1057,6 +1093,61 @@ function pressureMorphologyClassificationCounts(scenarios: MatrixScenario[]): Re
     }, { target: 0, warning: 0, fail: 0, unknown: 0 });
 }
 
+function pressureMorphologyGroupCounts(
+  scenarios: MatrixScenario[],
+  status: "fail" | "warning",
+): Record<PressureMorphologyFailureGroup, number> {
+  const out: Record<PressureMorphologyFailureGroup, number> = {
+    "ventricular-derivative": 0,
+    "ejection-timing": 0,
+    "relaxation-timing": 0,
+    "pressure-shape": 0,
+    "flow-shape": 0,
+    unknown: 0,
+  };
+  for (const gate of scenarios.flatMap((scenario) => scenario.waveformGates)) {
+    for (const group of gate.pressureMorphologyGate.candidate.failureGroups) {
+      out[group.group] += status === "fail" ? group.failCount : group.warningCount;
+    }
+  }
+  return out;
+}
+
+function topPressureMorphologyFailureMetrics(scenarios: MatrixScenario[], limit = 8): PressureMorphologyFailureMetricSummary[] {
+  const byMetric = new Map<string, PressureMorphologyFailureMetricSummary>();
+  for (const scenario of scenarios) {
+    for (const gate of scenario.waveformGates) {
+      for (const status of gate.pressureMorphologyGate.candidate.statuses) {
+        if (status.classification === "target") continue;
+        const group = pressureMorphologyFailureGroupForMetric(status.metric);
+        const current = byMetric.get(status.metric) ?? {
+          metric: status.metric,
+          group,
+          failCount: 0,
+          warningCount: 0,
+          unknownCount: 0,
+          labels: [],
+        };
+        if (status.classification === "fail") current.failCount++;
+        else if (status.classification === "warning") current.warningCount++;
+        else if (status.classification === "unknown") current.unknownCount++;
+        current.labels.push(`${scenario.heartModel}/${gate.label}/dt=${scenario.dt}/rise=${scenario.tensionRiseSec}/fall=${scenario.tensionFallSec}/scope=${scenario.tensionScope}`);
+        byMetric.set(status.metric, current);
+      }
+    }
+  }
+  return Array.from(byMetric.values())
+    .sort((a, b) => (b.failCount - a.failCount)
+      || (b.warningCount - a.warningCount)
+      || (b.unknownCount - a.unknownCount)
+      || a.metric.localeCompare(b.metric))
+    .slice(0, limit)
+    .map((entry) => ({
+      ...entry,
+      labels: entry.labels.slice(0, 6),
+    }));
+}
+
 function buildPerEdgeQDotSummary(waveformGates: WaveformGateComparison[]): PerEdgeQDotSummary {
   const out = {} as PerEdgeQDotSummary;
   for (const edge of dynamicEdgeNames) {
@@ -1197,10 +1288,11 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
       { fraction: 0, metric: null },
     );
   return {
-    schemaVersion: 31,
+    schemaVersion: 32,
     generatedAt: new Date().toISOString(),
     measurementMode: "branch-only broad low-preload/hypervolume matrix followed by selected EDV-section return-map diagnostics with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap comparator axes, off-by-default AoV_B/AoV_Amax/AoV_L/AoV_tau/systemicResistance/arterialStiffness ejection-dynamics comparator axes, off-by-default tension-rise/fall comparators with independent chamber scope, asymmetric dynamic qDot positive/negative clamp with independent edge scope, AoV q-state update comparator axes, and fIsoSlopeRelax low-stretch active-force comparator; AoV gradient is decomposed into full-open orifice, area-loss extra, inertial, residual, direct ODE closure residual, solver qDot clamp audit, clean-window closure residual terms, report-only sign-aware qDot target-estimator terms, open01-bin qDot target-estimator terms, low-open event-direction qDot target-estimator terms, negative qDot closure-deceleration primary readouts, scenario-level per-edge qDot audit, and point/regime-level per-edge dynamic qDot clamp audit for all valve/dynamic edges; ejection duration is reported as QAo>0, QAo>5% peak, SV 5-95%, and historical high-flow windows; LV/RV pressure morphology audit reports peak timing, width-at-90/80%, pressure support, IVRT-like tau, and max/min dP/dt so pressure-shape realism is evaluated separately from alternans suppression; optional TBV correction on/off/low contamination axis; activeStress/elastance heart-model comparison axis",
     regimeAuditPreset: opts.regimeAuditPreset,
+    morphologyAuditPreset: opts.morphologyAuditPreset,
     targetVolumeMl: opts.targetVolumeMl,
     heartModels: opts.heartModels,
     deltasMl: opts.deltasMl,
@@ -1296,6 +1388,9 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
         maxDpdtLVP: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.maxDpdtLVP)))),
         minDpdtLVP: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.minDpdtLVP))),
         pressureMorphologyClassificationCounts: pressureMorphologyClassificationCounts(scenarios),
+        pressureMorphologyFailureGroupCounts: pressureMorphologyGroupCounts(scenarios, "fail"),
+        pressureMorphologyWarningGroupCounts: pressureMorphologyGroupCounts(scenarios, "warning"),
+        topPressureMorphologyFailureMetrics: topPressureMorphologyFailureMetrics(scenarios),
         maxPressureMorphologyFailCount: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.pressureMorphologyGate.candidate.failCount))),
         maxPressureMorphologyWarningCount: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.pressureMorphologyGate.candidate.warningCount))),
         minLVPWidthAt90Ms: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.LVPWidthAt90Ms))),
@@ -1918,6 +2013,9 @@ function pressureMorphologyGateForMetrics(metrics: WaveformGateMetrics): Pressur
   const failCount = statuses.filter((status) => status.classification === "fail").length;
   const warningCount = statuses.filter((status) => status.classification === "warning").length;
   const unknownCount = statuses.filter((status) => status.classification === "unknown").length;
+  const failMetrics = statuses.filter((status) => status.classification === "fail").map((status) => status.metric);
+  const warningMetrics = statuses.filter((status) => status.classification === "warning").map((status) => status.metric);
+  const failureGroups = pressureMorphologyFailureGroups(statuses);
   const classification: PressureMorphologyClassification = failCount > 0
     ? "fail"
     : warningCount > 0
@@ -1935,6 +2033,9 @@ function pressureMorphologyGateForMetrics(metrics: WaveformGateMetrics): Pressur
     failCount,
     warningCount,
     unknownCount,
+    failMetrics,
+    warningMetrics,
+    failureGroups,
     statuses,
     notes: [
       "Report-only morphology sanity gate; not a clinical diagnostic classifier.",
@@ -1942,6 +2043,62 @@ function pressureMorphologyGateForMetrics(metrics: WaveformGateMetrics): Pressur
       "Tau/IVRT-like fits depend on the modeled valve-closed relaxation window and should be read with waveform overlays.",
     ],
   };
+}
+
+function pressureMorphologyFailureGroups(statuses: PressureMorphologyMetricStatus[]): PressureMorphologyFailureGroupSummary[] {
+  const byGroup = new Map<PressureMorphologyFailureGroup, PressureMorphologyFailureGroupSummary>();
+  for (const status of statuses) {
+    if (status.classification === "target") continue;
+    const group = pressureMorphologyFailureGroupForMetric(status.metric);
+    const current = byGroup.get(group) ?? {
+      group,
+      failCount: 0,
+      warningCount: 0,
+      unknownCount: 0,
+      metrics: [],
+    };
+    if (status.classification === "fail") current.failCount++;
+    else if (status.classification === "warning") current.warningCount++;
+    else if (status.classification === "unknown") current.unknownCount++;
+    current.metrics.push(status.metric);
+    byGroup.set(group, current);
+  }
+  return Array.from(byGroup.values())
+    .sort((a, b) => (b.failCount - a.failCount)
+      || (b.warningCount - a.warningCount)
+      || (b.unknownCount - a.unknownCount)
+      || a.group.localeCompare(b.group));
+}
+
+function pressureMorphologyFailureGroupForMetric(metric: string): PressureMorphologyFailureGroup {
+  if (metric.includes("dP/dt")) return "ventricular-derivative";
+  if (metric.includes("IVRT") || metric.includes("tau")) return "relaxation-timing";
+  if (metric.includes("ejection")) return "ejection-timing";
+  if (metric.includes("peak/mean")) return "flow-shape";
+  if (metric.includes("width") || metric.includes("dome") || metric.includes("support")) return "pressure-shape";
+  return "unknown";
+}
+
+function pressureMorphologyGroupList(gate: PressureMorphologyGate, status: "fail" | "warning" = "fail"): string {
+  return gate.failureGroups
+    .filter((group) => status === "fail" ? group.failCount > 0 : group.warningCount > 0)
+    .map((group) => `${group.group}:${status === "fail" ? group.failCount : group.warningCount}`)
+    .join("; ");
+}
+
+function pressureMorphologyMetricList(gate: PressureMorphologyGate, status: "fail" | "warning" = "fail"): string {
+  return (status === "fail" ? gate.failMetrics : gate.warningMetrics).join("; ");
+}
+
+function pressureMorphologyFailureGroupOrder(): PressureMorphologyFailureGroup[] {
+  return [
+    "ejection-timing",
+    "relaxation-timing",
+    "pressure-shape",
+    "flow-shape",
+    "ventricular-derivative",
+    "unknown",
+  ];
 }
 
 function safeRatio(numerator: number, denominator: number): number {
@@ -3549,6 +3706,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("");
   lines.push(`Generated: ${report.generatedAt}`);
   lines.push(`Measurement: ${report.measurementMode}`);
+  if (report.morphologyAuditPreset) lines.push(`Morphology audit preset: ${report.morphologyAuditPreset}`);
   lines.push("");
   lines.push("## Classification counts");
   lines.push("");
@@ -3583,6 +3741,71 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
     report.summary.maxPressureMorphologyFailCount,
     report.summary.maxPressureMorphologyWarningCount,
   ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
+  lines.push("");
+  lines.push("## Pressure morphology failure attribution");
+  lines.push("");
+  lines.push("Failure groups are descriptive readouts for report triage, not causal labels. Use waveform overlays before changing target bands.");
+  lines.push("");
+  lines.push("| group | fail count | warning count |");
+  lines.push(markdownSeparator(lines[lines.length - 1]));
+  for (const group of pressureMorphologyFailureGroupOrder()) {
+    lines.push([
+      group,
+      report.summary.pressureMorphologyFailureGroupCounts[group],
+      report.summary.pressureMorphologyWarningGroupCounts[group],
+    ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
+  }
+  lines.push("");
+  lines.push("| metric | group | fails | warnings | unknown | examples |");
+  lines.push(markdownSeparator(lines[lines.length - 1]));
+  for (const metric of report.summary.topPressureMorphologyFailureMetrics) {
+    lines.push([
+      metric.metric,
+      metric.group,
+      metric.failCount,
+      metric.warningCount,
+      metric.unknownCount,
+      metric.labels.join("; "),
+    ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
+  }
+  lines.push("");
+  lines.push("## Branch stability vs pressure morphology attribution");
+  lines.push("");
+  lines.push("Use this table to separate stability improvements from pressure/flow timing realism. A candidate can suppress branch amplitude while still failing morphology.");
+  lines.push("");
+  lines.push("| class | branch class | localization | heart model | dt | tension rise | tension fall | tension scope | qDot scope | gate | morphology | fail groups | worst morphology metric | CO_L branch | ESV_L branch | QAo branch | LVP-QAo peak lag ms | width90/ejection | QAo SV5-95 ms | qDot reversal ratio | clean qDot hit | clean closure abs | waveform worst |");
+  lines.push(markdownSeparator(lines[lines.length - 1]));
+  for (const scenario of report.scenarios) {
+    for (const gate of scenario.waveformGates) {
+      const morphology = gate.pressureMorphologyGate.candidate;
+      const candidate = gate.candidate;
+      lines.push([
+        scenario.evaluation.classification,
+        scenario.evaluation.branchEnvelopeClass,
+        scenario.evaluation.branchLocalizationClass,
+        scenario.heartModel,
+        round(scenario.dt, 5),
+        scenario.tensionRiseSec,
+        scenario.tensionFallSec,
+        scenario.tensionScope,
+        scenario.qDotClampScope,
+        gate.label,
+        morphology.classification,
+        pressureMorphologyGroupList(morphology, "fail"),
+        morphology.worstMetric ?? "",
+        round(scenario.evaluation.maxPerDeltaBranchFractionCOL, 4),
+        round(scenario.evaluation.maxPerDeltaBranchFractionESVL, 4),
+        round(scenario.returnMapSummary.maxBranchAmplitudeFractionQAoMax, 4),
+        round(candidate.LVPTimeToPeakMs - candidate.QAoTimeToPeakMs, 2),
+        round(safeRatio(candidate.LVPWidthAt90Ms, candidate.ejectionFivePercentPeakDurationMs), 4),
+        round(candidate.ejectionSV5To95DurationMs, 2),
+        round(scenario.negativeQDotSummary.pressureReversalNegativeRatioMax, 4),
+        round(scenario.negativeQDotSummary.cleanQDotHitFractionMax, 4),
+        round(scenario.negativeQDotSummary.cleanClosureResidualAbsMax, 4),
+        `${gate.label}:${gate.maxDeltaMetric} ${round(gate.maxDeltaFraction, 4)}`,
+      ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
+    }
+  }
   lines.push("");
   lines.push("## Filling morphology alternation counts");
   lines.push("");
@@ -3746,7 +3969,7 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("| pressure width90/ejection | 0.15-0.55 | 0.08-0.15 or 0.55-0.80 | <0.08 or >0.90 | internal anti-spike metric |");
   lines.push("| pressure support | >=0.55 | 0.40-0.55 | <0.25 | mean ejection pressure / peak pressure |");
   lines.push("");
-  lines.push("| class | heart model | dt | tension rise | tension fall | tension scope | qDot clamp | qDot scope | case | morph class | morph worst | morph fails | morph warnings | LVP max | LVP t-peak ms | LVP width90 ms | LVP width80 ms | LVP dome90 | LVP support | LVP tau ms | LVP tau r2 | LVP IVRT ms | max dP/dt LVP | min dP/dt LVP | RVP max | RVP t-peak ms | RVP width90 ms | RVP width80 ms | RVP dome90 | RVP support | RVP tau ms | RVP tau r2 | RVP IVRT ms | max dP/dt RVP | min dP/dt RVP | worst metric | worst frac |");
+  lines.push("| class | heart model | dt | tension rise | tension fall | tension scope | qDot clamp | qDot scope | case | morph class | morph worst | fail groups | fail metrics | warning groups | morph fails | morph warnings | LVP max | LVP t-peak ms | LVP width90 ms | LVP width80 ms | LVP dome90 | LVP support | LVP tau ms | LVP tau r2 | LVP IVRT ms | max dP/dt LVP | min dP/dt LVP | RVP max | RVP t-peak ms | RVP width90 ms | RVP width80 ms | RVP dome90 | RVP support | RVP tau ms | RVP tau r2 | RVP IVRT ms | max dP/dt RVP | min dP/dt RVP | worst metric | worst frac |");
   lines.push(markdownSeparator(lines[lines.length - 1]));
   for (const scenario of report.scenarios) {
     for (const gate of scenario.waveformGates) {
@@ -3763,6 +3986,9 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         gate.label,
         morphology.classification,
         morphology.worstMetric ?? "",
+        pressureMorphologyGroupList(morphology, "fail"),
+        pressureMorphologyMetricList(morphology, "fail"),
+        pressureMorphologyGroupList(morphology, "warning"),
         morphology.failCount,
         morphology.warningCount,
         round(gate.candidate.LVPMax, 4),
@@ -4998,6 +5224,136 @@ export function matrixReportToCsv(report: MatrixReport): string {
   return `${rows.join("\n")}\n`;
 }
 
+export function matrixReportToPressureMorphologyAttributionCsv(report: MatrixReport): string {
+  const columns = [
+    "scenarioIndex",
+    "scenarioClassification",
+    "branchEnvelopeClass",
+    "branchLocalizationClass",
+    "heartModel",
+    "dt",
+    "tensionRiseSec",
+    "tensionFallSec",
+    "tensionScope",
+    "qDotClamp",
+    "qDotClampNegative",
+    "qDotClampScope",
+    "gate",
+    "morphologyClass",
+    "morphologyWorstMetric",
+    "morphologyFailGroups",
+    "morphologyFailMetrics",
+    "morphologyWarningGroups",
+    "morphologyWarningMetrics",
+    "morphologyFailCount",
+    "morphologyWarningCount",
+    "maxCO_LBranchFraction",
+    "maxESV_LBranchFraction",
+    "maxQAoBranchFraction",
+    "worstDeltaMl",
+    "worstDeltaCleanSlopeCovered",
+    "returnMapEvidenceLevel",
+    "LVP_QAo_peakLagMs",
+    "RVP_QPV_peakLagMs",
+    "LVP_width90_ejectionRatio",
+    "LVP_width80_ejectionRatio",
+    "RVP_width90_PV_ejectionRatio",
+    "RVP_width80_PV_ejectionRatio",
+    "candidateMaxDpdtLVP",
+    "candidateMinDpdtLVP",
+    "candidateMaxDpdtRVP",
+    "candidateMinDpdtRVP",
+    "deltaMaxDpdtLVP",
+    "deltaMinDpdtLVP",
+    "deltaQAoTimeToPeakMs",
+    "deltaQAoPeakMeanRatio",
+    "QAoFivePercentEjectionMs",
+    "QAoSV5To95EjectionMs",
+    "QAoPeakMeanRatio",
+    "QAoTimeToPeakMs",
+    "LVPTimeToPeakMs",
+    "LVPIVRTLikeMs",
+    "LVPRelaxationTauMs",
+    "LVPRelaxationTauR2",
+    "LVPPressureSupportRatio",
+    "LVPPressureDomeRatio90",
+    "AoVPressureReversalNegativeRatio",
+    "AoVCleanQDotHitFraction",
+    "AoVCleanClosureResidualAbs",
+    "AoVQDotClampImpulseAbs",
+    "maxWaveformGateDeltaFraction",
+    "worstWaveformMetric",
+  ];
+  const rows = [columns.join(",")];
+  report.scenarios.forEach((scenario, scenarioIndex) => {
+    const maxQAoBranch = scenario.returnMapSummary.maxBranchAmplitudeFractionQAoMax;
+    for (const gate of scenario.waveformGates) {
+      const morphology = gate.pressureMorphologyGate.candidate;
+      const candidate = gate.candidate;
+      rows.push([
+        scenarioIndex,
+        scenario.evaluation.classification,
+        scenario.evaluation.branchEnvelopeClass,
+        scenario.evaluation.branchLocalizationClass,
+        scenario.heartModel,
+        scenario.dt,
+        scenario.tensionRiseSec,
+        scenario.tensionFallSec,
+        scenario.tensionScope,
+        scenario.aovQDotClamp,
+        scenario.aovQDotClampNegative,
+        scenario.qDotClampScope,
+        gate.label,
+        morphology.classification,
+        morphology.worstMetric ?? "",
+        pressureMorphologyGroupList(morphology, "fail"),
+        pressureMorphologyMetricList(morphology, "fail"),
+        pressureMorphologyGroupList(morphology, "warning"),
+        pressureMorphologyMetricList(morphology, "warning"),
+        morphology.failCount,
+        morphology.warningCount,
+        scenario.evaluation.maxPerDeltaBranchFractionCOL,
+        scenario.evaluation.maxPerDeltaBranchFractionESVL,
+        maxQAoBranch,
+        scenario.evaluation.worstDeltaVolumeMl ?? "",
+        scenario.evaluation.worstDeltaCleanSlopeCovered ? "yes" : "no",
+        scenario.evaluation.returnMapEvidenceLevel,
+        candidate.LVPTimeToPeakMs - candidate.QAoTimeToPeakMs,
+        candidate.RVPTimeToPeakMs - candidate.QPVTimeToPeakMs,
+        safeRatio(candidate.LVPWidthAt90Ms, candidate.ejectionFivePercentPeakDurationMs),
+        safeRatio(candidate.LVPWidthAt80Ms, candidate.ejectionFivePercentPeakDurationMs),
+        safeRatio(candidate.RVPWidthAt90Ms, candidate.ejectionFivePercentPeakDurationMs),
+        safeRatio(candidate.RVPWidthAt80Ms, candidate.ejectionFivePercentPeakDurationMs),
+        candidate.maxDpdtLVP,
+        candidate.minDpdtLVP,
+        candidate.maxDpdtRVP,
+        candidate.minDpdtRVP,
+        gate.delta.maxDpdtLVP,
+        gate.delta.minDpdtLVP,
+        gate.delta.QAoTimeToPeakMs,
+        gate.delta.QAoPeakMeanRatio,
+        candidate.ejectionFivePercentPeakDurationMs,
+        candidate.ejectionSV5To95DurationMs,
+        candidate.QAoPeakMeanRatio,
+        candidate.QAoTimeToPeakMs,
+        candidate.LVPTimeToPeakMs,
+        candidate.LVPIVRTLikeMs,
+        candidate.LVPRelaxationTauMs,
+        candidate.LVPRelaxationTauR2,
+        candidate.LVPPressureSupportRatio,
+        candidate.LVPPressureDomeRatio90,
+        scenario.negativeQDotSummary.pressureReversalNegativeRatioMax,
+        scenario.negativeQDotSummary.cleanQDotHitFractionMax,
+        scenario.negativeQDotSummary.cleanClosureResidualAbsMax,
+        scenario.negativeQDotSummary.qDotClampImpulseAbsMax,
+        gate.maxDeltaFraction,
+        gate.maxDeltaMetric,
+      ].map(csvCell).join(","));
+    }
+  });
+  return `${rows.join("\n")}\n`;
+}
+
 export function matrixReportToWaveformOverlayCsv(report: MatrixReport): string {
   const columns = [
     "scenarioIndex",
@@ -5129,6 +5485,7 @@ export function parseLowPreloadMatrixArgs(args: string[]): MatrixOptions {
   for (const arg of args) {
     const [key, value] = arg.split("=", 2);
     if (key === "--out" && value) opts.outDir = value;
+    else if (key === "--morphology-audit" && value) applyMorphologyAuditPreset(opts, parseMorphologyAuditPreset(value));
     else if (key === "--regime-audit" && value) {
       opts.regimeAuditPreset = parseRegimeAuditPreset(value);
       if (opts.regimeAuditPreset === "low-hyper") opts.deltasMl = LOW_HYPER_REGIME_AUDIT_DELTAS;
@@ -5174,6 +5531,33 @@ export function parseLowPreloadMatrixArgs(args: string[]): MatrixOptions {
     }
   }
   return opts;
+}
+
+function applyMorphologyAuditPreset(opts: MatrixOptions, preset: MorphologyAuditPreset): void {
+  opts.morphologyAuditPreset = preset;
+  if (preset === "tension-shape") {
+    opts.deltasMl = TENSION_SHAPE_AUDIT_DELTAS;
+    opts.lambdaActTauSecValues = [0];
+    opts.lambdaActScopes = ["all"];
+    opts.lambdaActTermsValues = ["kd+fiso"];
+    opts.lowStretchLimiterModes = ["none"];
+    opts.lowStretchLimiterScopes = ["lv"];
+    opts.activeReservePresets = ["none"];
+    opts.tensionRiseSecValues = TENSION_SHAPE_AUDIT_TAUS;
+    opts.tensionFallSecValues = TENSION_SHAPE_AUDIT_TAUS;
+    opts.tensionScopes = TENSION_SHAPE_AUDIT_SCOPES;
+    opts.tbvCorrectionModes = ["on"];
+    opts.qDotClampScopes = ["aov", "semilunar"];
+    opts.maxReturnMapPoints = 3;
+    opts.traceBeats = Math.max(opts.traceBeats, 6);
+    opts.sampleHz = Math.max(opts.sampleHz, 120);
+    opts.waveformOverlay = true;
+  }
+}
+
+function parseMorphologyAuditPreset(value: string): MorphologyAuditPreset {
+  if (value !== "tension-shape") throw new Error(`Invalid morphology audit preset: ${value}`);
+  return value;
 }
 
 function parseTBVCorrectionModes(value: string): TBVCorrectionMode[] {
@@ -5270,7 +5654,7 @@ function parseActiveReservePresets(value: string): ActiveReservePreset[] {
 function parseScopes(value: string): LambdaActScope[] {
   const scopes = value.split(",").map((entry) => entry.trim()).filter(Boolean);
   for (const scope of scopes) {
-    if (scope !== "lv" && scope !== "ventricles" && scope !== "all") throw new Error(`Invalid lambdaAct scope: ${scope}`);
+    if (scope !== "lv" && scope !== "rv" && scope !== "ventricles" && scope !== "all") throw new Error(`Invalid lambdaAct scope: ${scope}`);
   }
   return scopes as LambdaActScope[];
 }
@@ -5390,6 +5774,7 @@ function printHelp(): void {
   console.log([
     "Usage: npm run verify:starling-low-preload-matrix -- [--out=DIR]",
     "       [--heart-model=activeStress,elastance]",
+    "       [--morphology-audit=tension-shape]",
     "       [--deltas=0,-900,-1250] [--dt=0.001,0.0005] [--lambda-act-tau=0,0.15]",
     "       [--lambda-act-scope=lv,ventricles] [--lambda-act-terms=kd,fiso,kd+fiso] [--tension-scope=lv,ventricles,all]",
     "       [--low-stretch-limiter=none,aInfCap,activeReserveCap,fIsoSlopeRelax] [--low-stretch-limiter-scope=lv,ventricles]",
@@ -5407,6 +5792,7 @@ function printHelp(): void {
     "       [--quiet-progress]",
     "",
     "Example:",
+    "  npm run verify:starling-low-preload-matrix -- --morphology-audit=tension-shape --dt=0.001 --max-return-map-points=1",
     "  npm run verify:starling-low-preload-matrix -- --deltas=0,-1250,-1400 --dt=0.001 --lambda-act-tau=0 --aov-b=0.000001,0.000002 --aov-l=0.00025,0.0005 --aov-tau-open=0.006,0.012 --tbv-correction=on --max-return-map-points=2",
     "  npm run verify:starling-low-preload-matrix -- --deltas=0,-1250,-1300,-1400,400,800 --dt=0.001 --lambda-act-tau=0 --tbv-correction=on --max-return-map-points=2 --trace-beats=2 --sample-hz=40",
   ].join("\n"));
@@ -5434,6 +5820,7 @@ function writeMatrixReport(outDir: string, report: MatrixReport, prefix = ""): v
   writeFileSync(path.join(outDir, `${prefix}matrix-report.json`), `${JSON.stringify(report, null, 2)}\n`);
   writeFileSync(path.join(outDir, `${prefix}matrix-report.md`), matrixReportToMarkdown(report));
   writeFileSync(path.join(outDir, `${prefix}branch-table.csv`), matrixReportToCsv(report));
+  writeFileSync(path.join(outDir, `${prefix}pressure-morphology-attribution.csv`), matrixReportToPressureMorphologyAttributionCsv(report));
   if (report.waveformOverlay) {
     writeFileSync(path.join(outDir, `${prefix}waveform-overlay.csv`), matrixReportToWaveformOverlayCsv(report));
   }

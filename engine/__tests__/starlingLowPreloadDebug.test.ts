@@ -13,6 +13,7 @@ import {
 import {
   matrixReportToCsv,
   matrixReportToMarkdown,
+  matrixReportToPressureMorphologyAttributionCsv,
   matrixReportToWaveformOverlayCsv,
   parseLowPreloadMatrixArgs,
   runLowPreloadMatrix,
@@ -736,7 +737,7 @@ describe("low-preload Starling debug diagnostics", () => {
     ]);
     const report = runLowPreloadMatrix(opts);
 
-    expect(report.schemaVersion).toBe(31);
+    expect(report.schemaVersion).toBe(32);
     expect(report.heartModels).toEqual(["activeStress"]);
     expect(report.aorticFlowClampModes).toEqual(["hard"]);
     expect(report.aovBValues).toEqual([DEFAULT_PARAMS.AoV_B]);
@@ -819,6 +820,11 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.summary.pressureMorphologyClassificationCounts.target).toEqual(expect.any(Number));
     expect(report.summary.pressureMorphologyClassificationCounts.warning).toEqual(expect.any(Number));
     expect(report.summary.pressureMorphologyClassificationCounts.fail).toEqual(expect.any(Number));
+    expect(report.summary.pressureMorphologyFailureGroupCounts["ejection-timing"]).toEqual(expect.any(Number));
+    expect(report.summary.pressureMorphologyWarningGroupCounts["pressure-shape"]).toEqual(expect.any(Number));
+    expect(Array.isArray(report.summary.topPressureMorphologyFailureMetrics)).toBe(true);
+    expect(report.scenarios[0].waveformGates[0].pressureMorphologyGate.candidate.failMetrics).toEqual(expect.any(Array));
+    expect(report.scenarios[0].waveformGates[0].pressureMorphologyGate.candidate.failureGroups).toEqual(expect.any(Array));
     expect(report.summary.maxPressureMorphologyFailCount).toEqual(expect.any(Number));
     expect(report.summary.maxPressureMorphologyWarningCount).toEqual(expect.any(Number));
     expect(report.summary.minLVPWidthAt90Ms).toEqual(expect.any(Number));
@@ -1002,6 +1008,35 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToCsv(report)).toContain("tensionFallSec");
     expect(matrixReportToCsv(report)).toContain("normalEjectionPositiveDurationMs");
     expect(matrixReportToCsv(report)).toContain("normalEjectionSV5To95DurationMs");
+    expect(matrixReportToMarkdown(report)).toContain("Pressure morphology failure attribution");
+    expect(matrixReportToMarkdown(report)).toContain("Branch stability vs pressure morphology attribution");
+    const attributionCsv = matrixReportToPressureMorphologyAttributionCsv(report);
+    expect(attributionCsv).toContain("morphologyFailGroups");
+    expect(attributionCsv).toContain("LVP_QAo_peakLagMs");
+    expect(attributionCsv).toContain("LVP_width90_ejectionRatio");
+    expect(attributionCsv).toContain("normal");
+    expect(attributionCsv).toContain("HR100");
+    expect(attributionCsv).toContain("HR100-rearm");
+  });
+
+  it("expands the pressure morphology tension-shape audit preset without changing model defaults", () => {
+    const opts = parseLowPreloadMatrixArgs([
+      "--out=unused",
+      "--morphology-audit=tension-shape",
+      "--dt=0.002",
+      "--max-return-map-points=1",
+      "--quiet-progress",
+    ]);
+
+    expect(opts.morphologyAuditPreset).toBe("tension-shape");
+    expect(opts.lambdaActTauSecValues).toEqual([0]);
+    expect(opts.lowStretchLimiterModes).toEqual(["none"]);
+    expect(opts.activeReservePresets).toEqual(["none"]);
+    expect(opts.tensionRiseSecValues).toEqual([0, 0.005, 0.01, 0.015, 0.02]);
+    expect(opts.tensionFallSecValues).toEqual([0, 0.005, 0.01, 0.015, 0.02]);
+    expect(opts.tensionScopes).toEqual(["lv", "rv", "ventricles", "all"]);
+    expect(opts.qDotClampScopes).toEqual(["aov", "semilunar"]);
+    expect(opts.waveformOverlay).toBe(true);
   });
 
   heavyIt("can emit pressure waveform overlay CSV rows for matrix gates", () => {
