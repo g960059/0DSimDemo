@@ -163,6 +163,26 @@ type PressureMorphologyFailureMetricSummary = {
   labels: string[];
 };
 
+type PressureWaveformOverlaySummary = {
+  LVPQAoPeakLagMs: number;
+  RVPQPVPeakLagMs: number;
+  LVPWidth90Ms: number;
+  LVPWidth80Ms: number;
+  LVPFwhmMs: number;
+  RVPWidth90Ms: number;
+  RVPWidth80Ms: number;
+  RVPFwhmMs: number;
+  LVPWidth90ToQAoFivePercentRatio: number;
+  LVPWidth80ToQAoFivePercentRatio: number;
+  LVPTimeAbove90ToQAoSVRatio: number;
+  QAoFivePercentEjectionMs: number;
+  QAoSV5To95EjectionMs: number;
+  AoVOpen01AtQAoMax: number;
+  AoVMeanOpen01DuringEjection: number;
+  QAoPeakMeanRatio: number;
+  QPVPeakMeanRatio: number;
+};
+
 type PressureWaveformOverlaySample = {
   tMs: number;
   beatIndex: number;
@@ -433,6 +453,11 @@ type WaveformGateComparison = {
     baseline: PressureMorphologyGate;
     candidate: PressureMorphologyGate;
   };
+  pressureWaveformOverlaySummary: {
+    baseline: PressureWaveformOverlaySummary;
+    candidate: PressureWaveformOverlaySummary;
+    delta: PressureWaveformOverlaySummary;
+  };
   maxDeltaMetric: keyof WaveformGateComparison["delta"];
   maxDeltaFraction: number;
 };
@@ -621,7 +646,7 @@ type ShapeSummary = {
 };
 
 type MatrixReport = {
-  schemaVersion: 32;
+  schemaVersion: 33;
   generatedAt: string;
   measurementMode: string;
   regimeAuditPreset?: RegimeAuditPreset;
@@ -726,8 +751,14 @@ type MatrixReport = {
     topPressureMorphologyFailureMetrics: PressureMorphologyFailureMetricSummary[];
     maxPressureMorphologyFailCount: number;
     maxPressureMorphologyWarningCount: number;
+    minLVPAbsoluteWidth90Ms: number;
+    minLVPAbsoluteWidth80Ms: number;
+    minLVPAbsoluteFwhmMs: number;
     minLVPWidthAt90Ms: number;
     minLVPWidthAt80Ms: number;
+    minRVPAbsoluteWidth90Ms: number;
+    minRVPAbsoluteWidth80Ms: number;
+    minRVPAbsoluteFwhmMs: number;
     minLVPPressureDomeRatio90: number;
     minLVPPressureSupportRatio: number;
     maxLVPRelaxationTauMs: number;
@@ -1288,9 +1319,9 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
       { fraction: 0, metric: null },
     );
   return {
-    schemaVersion: 32,
+    schemaVersion: 33,
     generatedAt: new Date().toISOString(),
-    measurementMode: "branch-only broad low-preload/hypervolume matrix followed by selected EDV-section return-map diagnostics with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap comparator axes, off-by-default AoV_B/AoV_Amax/AoV_L/AoV_tau/systemicResistance/arterialStiffness ejection-dynamics comparator axes, off-by-default tension-rise/fall comparators with independent chamber scope, asymmetric dynamic qDot positive/negative clamp with independent edge scope, AoV q-state update comparator axes, and fIsoSlopeRelax low-stretch active-force comparator; AoV gradient is decomposed into full-open orifice, area-loss extra, inertial, residual, direct ODE closure residual, solver qDot clamp audit, clean-window closure residual terms, report-only sign-aware qDot target-estimator terms, open01-bin qDot target-estimator terms, low-open event-direction qDot target-estimator terms, negative qDot closure-deceleration primary readouts, scenario-level per-edge qDot audit, and point/regime-level per-edge dynamic qDot clamp audit for all valve/dynamic edges; ejection duration is reported as QAo>0, QAo>5% peak, SV 5-95%, and historical high-flow windows; LV/RV pressure morphology audit reports peak timing, width-at-90/80%, pressure support, IVRT-like tau, and max/min dP/dt so pressure-shape realism is evaluated separately from alternans suppression; optional TBV correction on/off/low contamination axis; activeStress/elastance heart-model comparison axis",
+    measurementMode: "branch-only broad low-preload/hypervolume matrix followed by selected EDV-section return-map diagnostics with EDV/ESV/CO/afterload/ejection features; QAo cap proximity, localized AoV soft-cap comparator axes, off-by-default AoV_B/AoV_Amax/AoV_L/AoV_tau/systemicResistance/arterialStiffness ejection-dynamics comparator axes, off-by-default tension-rise/fall comparators with independent chamber scope, asymmetric dynamic qDot positive/negative clamp with independent edge scope, AoV q-state update comparator axes, and fIsoSlopeRelax low-stretch active-force comparator; AoV gradient is decomposed into full-open orifice, area-loss extra, inertial, residual, direct ODE closure residual, solver qDot clamp audit, clean-window closure residual terms, report-only sign-aware qDot target-estimator terms, open01-bin qDot target-estimator terms, low-open event-direction qDot target-estimator terms, negative qDot closure-deceleration primary readouts, scenario-level per-edge qDot audit, and point/regime-level per-edge dynamic qDot clamp audit for all valve/dynamic edges; ejection duration is reported as QAo>0, QAo>5% peak, SV 5-95%, and historical high-flow windows; LV/RV pressure morphology audit reports peak timing, absolute width-at-90/80/FWHM, width/ejection ratios, pressure support, IVRT-like tau, and max/min dP/dt so pressure-shape realism is evaluated separately from alternans suppression; waveform overlay summaries report pressure-flow peak lags, absolute pressure widths, QAo ejection windows, AoV open01 at QAo peak, and peak/mean ratios; optional TBV correction on/off/low contamination axis; activeStress/elastance heart-model comparison axis",
     regimeAuditPreset: opts.regimeAuditPreset,
     morphologyAuditPreset: opts.morphologyAuditPreset,
     targetVolumeMl: opts.targetVolumeMl,
@@ -1393,8 +1424,14 @@ function buildMatrixReport(opts: MatrixOptions, scopes: LambdaActScope[], scenar
         topPressureMorphologyFailureMetrics: topPressureMorphologyFailureMetrics(scenarios),
         maxPressureMorphologyFailCount: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.pressureMorphologyGate.candidate.failCount))),
         maxPressureMorphologyWarningCount: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.pressureMorphologyGate.candidate.warningCount))),
+        minLVPAbsoluteWidth90Ms: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.LVPWidthAt90Ms))),
+        minLVPAbsoluteWidth80Ms: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.LVPWidthAt80Ms))),
+        minLVPAbsoluteFwhmMs: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.LVPFwhmMs))),
         minLVPWidthAt90Ms: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.LVPWidthAt90Ms))),
         minLVPWidthAt80Ms: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.LVPWidthAt80Ms))),
+        minRVPAbsoluteWidth90Ms: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.RVPWidthAt90Ms))),
+        minRVPAbsoluteWidth80Ms: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.RVPWidthAt80Ms))),
+        minRVPAbsoluteFwhmMs: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.RVPFwhmMs))),
         minLVPPressureDomeRatio90: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.LVPPressureDomeRatio90))),
         minLVPPressureSupportRatio: finiteMin(scenarios.flatMap((s) => s.waveformGates.map((gate) => gate.candidate.LVPPressureSupportRatio))),
         maxLVPRelaxationTauMs: Math.max(0, ...scenarios.flatMap((s) => s.waveformGates.map((gate) => finiteOrZero(gate.candidate.LVPRelaxationTauMs)))),
@@ -2005,6 +2042,12 @@ function pressureMorphologyGateForMetrics(metrics: WaveformGateMetrics): Pressur
     rangeStatus("QPV peak/mean", metrics.QPVPeakMeanRatio, 1.2, 1.8, 1.0, 2.3, 1.0, 2.7, "ratio"),
     ratioStatus("LV width90 / ejection", safeRatio(metrics.LVPWidthAt90Ms, metrics.ejectionFivePercentPeakDurationMs), 0.15, 0.55, 0.08, 0.80, 0.08, 0.90, "Internal anti-spike pressure-shape guard."),
     ratioStatus("LV width80 / ejection", safeRatio(metrics.LVPWidthAt80Ms, metrics.ejectionFivePercentPeakDurationMs), 0.35, 0.75, 0.20, 0.95, 0.20, 1.00, "Internal anti-spike pressure-shape guard."),
+    rangeStatus("LV absolute width90", metrics.LVPWidthAt90Ms, 40, 150, 25, 190, 15, 240, "ms", "Absolute high-pressure width; complements width/ejection ratios."),
+    rangeStatus("LV absolute width80", metrics.LVPWidthAt80Ms, 80, 240, 50, 300, 30, 380, "ms", "Absolute high-pressure width; complements width/ejection ratios."),
+    rangeStatus("LV absolute FWHM", metrics.LVPFwhmMs, 100, 280, 70, 360, 45, 450, "ms", "Absolute pressure half-height width."),
+    rangeStatus("RV absolute width90", metrics.RVPWidthAt90Ms, 40, 170, 25, 220, 15, 280, "ms", "Absolute high-pressure width; complements width/ejection ratios."),
+    rangeStatus("RV absolute width80", metrics.RVPWidthAt80Ms, 80, 260, 50, 330, 30, 420, "ms", "Absolute high-pressure width; complements width/ejection ratios."),
+    rangeStatus("RV absolute FWHM", metrics.RVPFwhmMs, 100, 320, 70, 400, 45, 500, "ms", "Absolute pressure half-height width."),
     lowerBoundStatus("LV pressure support", metrics.LVPPressureSupportRatio, 0.55, 0.40, 0.25, "ratio", "Mean ejection pressure / peak pressure."),
     lowerBoundStatus("RV pressure support", metrics.RVPPressureSupportRatio, 0.55, 0.40, 0.25, "ratio", "Mean ejection pressure / peak pressure."),
     lowerBoundStatus("LV dome90", metrics.LVPPressureDomeRatio90, 0.15, 0.08, 0.03, "ratio", "Fraction of beat spent above 90% peak pressure."),
@@ -2039,7 +2082,7 @@ function pressureMorphologyGateForMetrics(metrics: WaveformGateMetrics): Pressur
     statuses,
     notes: [
       "Report-only morphology sanity gate; not a clinical diagnostic classifier.",
-      "width90/80, dome90, and pressure support are internal anti-spike guards.",
+      "Absolute width, width/ejection, dome90, and pressure support are internal anti-spike guards.",
       "Tau/IVRT-like fits depend on the modeled valve-closed relaxation window and should be read with waveform overlays.",
     ],
   };
@@ -2105,6 +2148,36 @@ function safeRatio(numerator: number, denominator: number): number {
   return Number.isFinite(numerator) && Number.isFinite(denominator) && Math.abs(denominator) > 1e-9
     ? numerator / denominator
     : Number.NaN;
+}
+
+function pressureWaveformOverlaySummaryForMetrics(metrics: WaveformGateMetrics): PressureWaveformOverlaySummary {
+  return {
+    LVPQAoPeakLagMs: metrics.LVPTimeToPeakMs - metrics.QAoTimeToPeakMs,
+    RVPQPVPeakLagMs: metrics.RVPTimeToPeakMs - metrics.QPVTimeToPeakMs,
+    LVPWidth90Ms: metrics.LVPWidthAt90Ms,
+    LVPWidth80Ms: metrics.LVPWidthAt80Ms,
+    LVPFwhmMs: metrics.LVPFwhmMs,
+    RVPWidth90Ms: metrics.RVPWidthAt90Ms,
+    RVPWidth80Ms: metrics.RVPWidthAt80Ms,
+    RVPFwhmMs: metrics.RVPFwhmMs,
+    LVPWidth90ToQAoFivePercentRatio: safeRatio(metrics.LVPWidthAt90Ms, metrics.ejectionFivePercentPeakDurationMs),
+    LVPWidth80ToQAoFivePercentRatio: safeRatio(metrics.LVPWidthAt80Ms, metrics.ejectionFivePercentPeakDurationMs),
+    LVPTimeAbove90ToQAoSVRatio: safeRatio(metrics.LVPTimeAbove90Ms, metrics.ejectionSV5To95DurationMs),
+    QAoFivePercentEjectionMs: metrics.ejectionFivePercentPeakDurationMs,
+    QAoSV5To95EjectionMs: metrics.ejectionSV5To95DurationMs,
+    AoVOpen01AtQAoMax: metrics.AoVOpen01AtQAoMax,
+    AoVMeanOpen01DuringEjection: metrics.AoVMeanOpen01DuringEjection,
+    QAoPeakMeanRatio: metrics.QAoPeakMeanRatio,
+    QPVPeakMeanRatio: metrics.QPVPeakMeanRatio,
+  };
+}
+
+function pressureWaveformOverlaySummaryDelta(candidate: PressureWaveformOverlaySummary, baseline: PressureWaveformOverlaySummary): PressureWaveformOverlaySummary {
+  const out = {} as PressureWaveformOverlaySummary;
+  for (const key of Object.keys(candidate) as Array<keyof PressureWaveformOverlaySummary>) {
+    out[key] = candidate[key] - baseline[key];
+  }
+  return out;
 }
 
 function rangeStatus(
@@ -2393,6 +2466,8 @@ function waveformGateComparison(
     valveReverseVolumeMl: candidate.valveReverseVolumeMl - baseline.valveReverseVolumeMl,
   };
   const maxDelta = maxWaveformDelta(delta, baseline);
+  const baselineOverlaySummary = pressureWaveformOverlaySummaryForMetrics(baseline);
+  const candidateOverlaySummary = pressureWaveformOverlaySummaryForMetrics(candidate);
   return {
     label,
     HR,
@@ -2402,6 +2477,11 @@ function waveformGateComparison(
     pressureMorphologyGate: {
       baseline: pressureMorphologyGateForMetrics(baseline),
       candidate: pressureMorphologyGateForMetrics(candidate),
+    },
+    pressureWaveformOverlaySummary: {
+      baseline: baselineOverlaySummary,
+      candidate: candidateOverlaySummary,
+      delta: pressureWaveformOverlaySummaryDelta(candidateOverlaySummary, baselineOverlaySummary),
     },
     maxDeltaMetric: maxDelta.metric,
     maxDeltaFraction: maxDelta.fraction,
@@ -3769,11 +3849,51 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
     ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
   }
   lines.push("");
+  lines.push("## Pressure waveform overlay summary");
+  lines.push("");
+  lines.push("This compact summary highlights the overlay rows reviewers should inspect. Absolute pressure widths are pressure-shape readouts; width/ejection ratios remain coupled timing readouts and can fail when the flow window is very short.");
+  lines.push("");
+  lines.push("| class | branch class | heart model | dt | tension rise | tension fall | tension scope | qDot scope | gate | morph class | LVP-QAo peak lag ms | RVP-QPV peak lag ms | LVP width90 ms | LVP width80 ms | LVP FWHM ms | QAo >5% ms | QAo SV5-95 ms | LVP width90/QAo5% | LVP above90/QAoSV | AoV open at QAo max | AoV mean open ejection | QAo peak/mean | RVP width90 ms | RVP width80 ms | RVP FWHM ms | QPV peak/mean |");
+  lines.push(markdownSeparator(lines[lines.length - 1]));
+  for (const scenario of report.scenarios) {
+    for (const gate of scenario.waveformGates) {
+      const summary = gate.pressureWaveformOverlaySummary.candidate;
+      lines.push([
+        scenario.evaluation.classification,
+        scenario.evaluation.branchEnvelopeClass,
+        scenario.heartModel,
+        round(scenario.dt, 5),
+        scenario.tensionRiseSec,
+        scenario.tensionFallSec,
+        scenario.tensionScope,
+        scenario.qDotClampScope,
+        gate.label,
+        gate.pressureMorphologyGate.candidate.classification,
+        round(summary.LVPQAoPeakLagMs, 2),
+        round(summary.RVPQPVPeakLagMs, 2),
+        round(summary.LVPWidth90Ms, 2),
+        round(summary.LVPWidth80Ms, 2),
+        round(summary.LVPFwhmMs, 2),
+        round(summary.QAoFivePercentEjectionMs, 2),
+        round(summary.QAoSV5To95EjectionMs, 2),
+        round(summary.LVPWidth90ToQAoFivePercentRatio, 4),
+        round(summary.LVPTimeAbove90ToQAoSVRatio, 4),
+        round(summary.AoVOpen01AtQAoMax, 4),
+        round(summary.AoVMeanOpen01DuringEjection, 4),
+        round(summary.QAoPeakMeanRatio, 4),
+        round(summary.RVPWidth90Ms, 2),
+        round(summary.RVPWidth80Ms, 2),
+        round(summary.RVPFwhmMs, 2),
+        round(summary.QPVPeakMeanRatio, 4),
+      ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
+    }
+  }
+  lines.push("");
   lines.push("## Branch stability vs pressure morphology attribution");
   lines.push("");
   lines.push("Use this table to separate stability improvements from pressure/flow timing realism. A candidate can suppress branch amplitude while still failing morphology.");
   lines.push("");
-  lines.push("| class | branch class | localization | heart model | dt | tension rise | tension fall | tension scope | qDot scope | gate | morphology | fail groups | worst morphology metric | CO_L branch | ESV_L branch | QAo branch | LVP-QAo peak lag ms | width90/ejection | QAo SV5-95 ms | qDot reversal ratio | clean qDot hit | clean closure abs | waveform worst |");
+  lines.push("| class | branch class | localization | heart model | dt | tension rise | tension fall | tension scope | qDot scope | gate | morphology | fail groups | worst morphology metric | CO_L branch | ESV_L branch | QAo branch | LVP-QAo peak lag ms | LVP width90 ms | LVP FWHM ms | width90/ejection | QAo SV5-95 ms | qDot reversal ratio | clean qDot hit | clean closure abs | waveform worst |");
   lines.push(markdownSeparator(lines[lines.length - 1]));
   for (const scenario of report.scenarios) {
     for (const gate of scenario.waveformGates) {
@@ -3797,6 +3917,8 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
         round(scenario.evaluation.maxPerDeltaBranchFractionESVL, 4),
         round(scenario.returnMapSummary.maxBranchAmplitudeFractionQAoMax, 4),
         round(candidate.LVPTimeToPeakMs - candidate.QAoTimeToPeakMs, 2),
+        round(candidate.LVPWidthAt90Ms, 2),
+        round(candidate.LVPFwhmMs, 2),
         round(safeRatio(candidate.LVPWidthAt90Ms, candidate.ejectionFivePercentPeakDurationMs), 4),
         round(candidate.ejectionSV5To95DurationMs, 2),
         round(scenario.negativeQDotSummary.pressureReversalNegativeRatioMax, 4),
@@ -3967,6 +4089,9 @@ export function matrixReportToMarkdown(report: MatrixReport): string {
   lines.push("| LV IVRT-like | 60-110 ms | 45-60 or 110-140 | <35 or >160 | valve-closed relaxation interval |");
   lines.push("| LV tau-like | 30-55 ms | 20-30 or 55-75 | <10 or >85 | only classified when fit R2 >= 0.6 |");
   lines.push("| pressure width90/ejection | 0.15-0.55 | 0.08-0.15 or 0.55-0.80 | <0.08 or >0.90 | internal anti-spike metric |");
+  lines.push("| LV absolute width90 | 40-150 ms | 25-40 or 150-190 | <15 or >240 | absolute pressure-shape width |");
+  lines.push("| LV absolute width80 | 80-240 ms | 50-80 or 240-300 | <30 or >380 | absolute pressure-shape width |");
+  lines.push("| LV absolute FWHM | 100-280 ms | 70-100 or 280-360 | <45 or >450 | absolute pressure half-height width |");
   lines.push("| pressure support | >=0.55 | 0.40-0.55 | <0.25 | mean ejection pressure / peak pressure |");
   lines.push("");
   lines.push("| class | heart model | dt | tension rise | tension fall | tension scope | qDot clamp | qDot scope | case | morph class | morph worst | fail groups | fail metrics | warning groups | morph fails | morph warnings | LVP max | LVP t-peak ms | LVP width90 ms | LVP width80 ms | LVP dome90 | LVP support | LVP tau ms | LVP tau r2 | LVP IVRT ms | max dP/dt LVP | min dP/dt LVP | RVP max | RVP t-peak ms | RVP width90 ms | RVP width80 ms | RVP dome90 | RVP support | RVP tau ms | RVP tau r2 | RVP IVRT ms | max dP/dt RVP | min dP/dt RVP | worst metric | worst frac |");
@@ -5255,6 +5380,12 @@ export function matrixReportToPressureMorphologyAttributionCsv(report: MatrixRep
     "returnMapEvidenceLevel",
     "LVP_QAo_peakLagMs",
     "RVP_QPV_peakLagMs",
+    "LVP_absoluteWidth90Ms",
+    "LVP_absoluteWidth80Ms",
+    "LVP_absoluteFwhmMs",
+    "RVP_absoluteWidth90Ms",
+    "RVP_absoluteWidth80Ms",
+    "RVP_absoluteFwhmMs",
     "LVP_width90_ejectionRatio",
     "LVP_width80_ejectionRatio",
     "RVP_width90_PV_ejectionRatio",
@@ -5320,6 +5451,12 @@ export function matrixReportToPressureMorphologyAttributionCsv(report: MatrixRep
         scenario.evaluation.returnMapEvidenceLevel,
         candidate.LVPTimeToPeakMs - candidate.QAoTimeToPeakMs,
         candidate.RVPTimeToPeakMs - candidate.QPVTimeToPeakMs,
+        candidate.LVPWidthAt90Ms,
+        candidate.LVPWidthAt80Ms,
+        candidate.LVPFwhmMs,
+        candidate.RVPWidthAt90Ms,
+        candidate.RVPWidthAt80Ms,
+        candidate.RVPFwhmMs,
         safeRatio(candidate.LVPWidthAt90Ms, candidate.ejectionFivePercentPeakDurationMs),
         safeRatio(candidate.LVPWidthAt80Ms, candidate.ejectionFivePercentPeakDurationMs),
         safeRatio(candidate.RVPWidthAt90Ms, candidate.ejectionFivePercentPeakDurationMs),
@@ -5349,6 +5486,90 @@ export function matrixReportToPressureMorphologyAttributionCsv(report: MatrixRep
         gate.maxDeltaFraction,
         gate.maxDeltaMetric,
       ].map(csvCell).join(","));
+    }
+  });
+  return `${rows.join("\n")}\n`;
+}
+
+export function matrixReportToPressureWaveformOverlaySummaryCsv(report: MatrixReport): string {
+  const columns = [
+    "scenarioIndex",
+    "scenarioClassification",
+    "branchEnvelopeClass",
+    "heartModel",
+    "dt",
+    "tensionRiseSec",
+    "tensionFallSec",
+    "tensionScope",
+    "qDotClamp",
+    "qDotClampNegative",
+    "qDotClampScope",
+    "gate",
+    "series",
+    "morphologyClass",
+    "morphologyWorstMetric",
+    "LVP_QAo_peakLagMs",
+    "RVP_QPV_peakLagMs",
+    "LVP_width90Ms",
+    "LVP_width80Ms",
+    "LVP_fwhmMs",
+    "RVP_width90Ms",
+    "RVP_width80Ms",
+    "RVP_fwhmMs",
+    "QAoFivePercentEjectionMs",
+    "QAoSV5To95EjectionMs",
+    "LVPWidth90ToQAoFivePercentRatio",
+    "LVPWidth80ToQAoFivePercentRatio",
+    "LVPTimeAbove90ToQAoSVRatio",
+    "AoVOpen01AtQAoMax",
+    "AoVMeanOpen01DuringEjection",
+    "QAoPeakMeanRatio",
+    "QPVPeakMeanRatio",
+  ];
+  const rows = [columns.join(",")];
+  report.scenarios.forEach((scenario, scenarioIndex) => {
+    for (const gate of scenario.waveformGates) {
+      const entries: Array<["baseline" | "candidate" | "delta", PressureWaveformOverlaySummary, PressureMorphologyGate]> = [
+        ["baseline", gate.pressureWaveformOverlaySummary.baseline, gate.pressureMorphologyGate.baseline],
+        ["candidate", gate.pressureWaveformOverlaySummary.candidate, gate.pressureMorphologyGate.candidate],
+        ["delta", gate.pressureWaveformOverlaySummary.delta, gate.pressureMorphologyGate.candidate],
+      ];
+      for (const [series, summary, morphology] of entries) {
+        rows.push([
+          scenarioIndex,
+          scenario.evaluation.classification,
+          scenario.evaluation.branchEnvelopeClass,
+          scenario.heartModel,
+          scenario.dt,
+          scenario.tensionRiseSec,
+          scenario.tensionFallSec,
+          scenario.tensionScope,
+          scenario.aovQDotClamp,
+          scenario.aovQDotClampNegative,
+          scenario.qDotClampScope,
+          gate.label,
+          series,
+          morphology.classification,
+          morphology.worstMetric ?? "",
+          summary.LVPQAoPeakLagMs,
+          summary.RVPQPVPeakLagMs,
+          summary.LVPWidth90Ms,
+          summary.LVPWidth80Ms,
+          summary.LVPFwhmMs,
+          summary.RVPWidth90Ms,
+          summary.RVPWidth80Ms,
+          summary.RVPFwhmMs,
+          summary.QAoFivePercentEjectionMs,
+          summary.QAoSV5To95EjectionMs,
+          summary.LVPWidth90ToQAoFivePercentRatio,
+          summary.LVPWidth80ToQAoFivePercentRatio,
+          summary.LVPTimeAbove90ToQAoSVRatio,
+          summary.AoVOpen01AtQAoMax,
+          summary.AoVMeanOpen01DuringEjection,
+          summary.QAoPeakMeanRatio,
+          summary.QPVPeakMeanRatio,
+        ].map(csvCell).join(","));
+      }
     }
   });
   return `${rows.join("\n")}\n`;
@@ -5821,6 +6042,7 @@ function writeMatrixReport(outDir: string, report: MatrixReport, prefix = ""): v
   writeFileSync(path.join(outDir, `${prefix}matrix-report.md`), matrixReportToMarkdown(report));
   writeFileSync(path.join(outDir, `${prefix}branch-table.csv`), matrixReportToCsv(report));
   writeFileSync(path.join(outDir, `${prefix}pressure-morphology-attribution.csv`), matrixReportToPressureMorphologyAttributionCsv(report));
+  writeFileSync(path.join(outDir, `${prefix}pressure-waveform-overlay-summary.csv`), matrixReportToPressureWaveformOverlaySummaryCsv(report));
   if (report.waveformOverlay) {
     writeFileSync(path.join(outDir, `${prefix}waveform-overlay.csv`), matrixReportToWaveformOverlayCsv(report));
   }

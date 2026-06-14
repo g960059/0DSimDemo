@@ -1129,3 +1129,39 @@ The preset expands to low/hyper representative deltas, tension rise/fall
 0-20 ms, LV/RV/ventricles/all scopes, AoV/semilunar qDot scope, and
 `--waveform-overlay`. Override any axis explicitly after the preset when a
 smaller matrix is needed.
+
+### 2026-06-14 update: absolute pressure width and overlay summary
+
+Matrix schema v33 keeps the morphology layer report-only and adds the two
+readouts reviewers asked for after v32:
+
+- absolute pressure width guards in the `pressure-shape` group:
+  `LV/RV absolute width90`, `LV/RV absolute width80`, and `LV/RV absolute
+  FWHM`.
+- compact overlay summaries in Markdown and
+  `pressure-waveform-overlay-summary.csv`.
+
+The v32 attribution showed many current failures in `ejection-timing` and
+`relaxation-timing`, while `pressure-shape` failures were often absent. That
+does **not** prove the visual spike concern is absent; it means the previous
+gate mainly saw the issue through flow-window duration and IVRT-like timing.
+The v33 absolute-width rows let reviewers check whether the pressure peak
+itself is too narrow even when width/ejection ratios are confounded by a short
+QAo window.
+
+Use the compact overlay summary before scanning raw `waveform-overlay.csv`:
+
+- LVP peak timing vs QAo peak timing.
+- RVP peak timing vs QPV peak timing.
+- absolute LVP/RVP width90/80/FWHM.
+- QAo >5% and SV 5-95 ejection duration.
+- AoV open01 at QAo max and mean open01 during ejection.
+- QAo/QPV peak-to-mean ratios.
+
+Recommended artifact set for morphology handoff:
+
+- `matrix-report.md`
+- `matrix-report.json`
+- `pressure-morphology-attribution.csv`
+- `pressure-waveform-overlay-summary.csv`
+- `waveform-overlay.csv` when `--waveform-overlay` is enabled

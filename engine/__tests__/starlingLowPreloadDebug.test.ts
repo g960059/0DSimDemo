@@ -14,6 +14,7 @@ import {
   matrixReportToCsv,
   matrixReportToMarkdown,
   matrixReportToPressureMorphologyAttributionCsv,
+  matrixReportToPressureWaveformOverlaySummaryCsv,
   matrixReportToWaveformOverlayCsv,
   parseLowPreloadMatrixArgs,
   runLowPreloadMatrix,
@@ -737,7 +738,7 @@ describe("low-preload Starling debug diagnostics", () => {
     ]);
     const report = runLowPreloadMatrix(opts);
 
-    expect(report.schemaVersion).toBe(32);
+    expect(report.schemaVersion).toBe(33);
     expect(report.heartModels).toEqual(["activeStress"]);
     expect(report.aorticFlowClampModes).toEqual(["hard"]);
     expect(report.aovBValues).toEqual([DEFAULT_PARAMS.AoV_B]);
@@ -827,6 +828,12 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.scenarios[0].waveformGates[0].pressureMorphologyGate.candidate.failureGroups).toEqual(expect.any(Array));
     expect(report.summary.maxPressureMorphologyFailCount).toEqual(expect.any(Number));
     expect(report.summary.maxPressureMorphologyWarningCount).toEqual(expect.any(Number));
+    expect(report.summary.minLVPAbsoluteWidth90Ms).toEqual(expect.any(Number));
+    expect(report.summary.minLVPAbsoluteWidth80Ms).toEqual(expect.any(Number));
+    expect(report.summary.minLVPAbsoluteFwhmMs).toEqual(expect.any(Number));
+    expect(report.summary.minRVPAbsoluteWidth90Ms).toEqual(expect.any(Number));
+    expect(report.summary.minRVPAbsoluteWidth80Ms).toEqual(expect.any(Number));
+    expect(report.summary.minRVPAbsoluteFwhmMs).toEqual(expect.any(Number));
     expect(report.summary.minLVPWidthAt90Ms).toEqual(expect.any(Number));
     expect(report.summary.minLVPPressureDomeRatio90).toEqual(expect.any(Number));
     expect(report.summary.minLVPPressureSupportRatio).toEqual(expect.any(Number));
@@ -852,6 +859,9 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(report.summary.branchLocalizationCounts["esv/ejection-dominant"]).toEqual(expect.any(Number));
     expect(report.summary.maxCleanAbsOneBeatESVSlope).toEqual(expect.any(Number));
     expect(report.summary.maxCleanAbsOneBeatVolumeFeatureSlope).toEqual(expect.any(Number));
+    expect(report.scenarios[0].waveformGates[0].pressureWaveformOverlaySummary.candidate.LVPQAoPeakLagMs).toEqual(expect.any(Number));
+    expect(report.scenarios[0].waveformGates[0].pressureWaveformOverlaySummary.candidate.LVPWidth90Ms).toEqual(expect.any(Number));
+    expect(report.scenarios[0].waveformGates[0].pressureWaveformOverlaySummary.delta.QAoSV5To95EjectionMs).toEqual(expect.any(Number));
     expect(report.summary.minMVAForwardMl).toEqual(expect.any(Number));
     expect(report.summary.minMVAFraction).toEqual(expect.any(Number));
     expect(report.summary.minLAAloopFraction).toEqual(expect.any(Number));
@@ -1009,14 +1019,20 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(matrixReportToCsv(report)).toContain("normalEjectionPositiveDurationMs");
     expect(matrixReportToCsv(report)).toContain("normalEjectionSV5To95DurationMs");
     expect(matrixReportToMarkdown(report)).toContain("Pressure morphology failure attribution");
+    expect(matrixReportToMarkdown(report)).toContain("Pressure waveform overlay summary");
     expect(matrixReportToMarkdown(report)).toContain("Branch stability vs pressure morphology attribution");
     const attributionCsv = matrixReportToPressureMorphologyAttributionCsv(report);
     expect(attributionCsv).toContain("morphologyFailGroups");
     expect(attributionCsv).toContain("LVP_QAo_peakLagMs");
+    expect(attributionCsv).toContain("LVP_absoluteWidth90Ms");
     expect(attributionCsv).toContain("LVP_width90_ejectionRatio");
     expect(attributionCsv).toContain("normal");
     expect(attributionCsv).toContain("HR100");
     expect(attributionCsv).toContain("HR100-rearm");
+    const overlaySummaryCsv = matrixReportToPressureWaveformOverlaySummaryCsv(report);
+    expect(overlaySummaryCsv).toContain("LVP_width90Ms");
+    expect(overlaySummaryCsv).toContain("QAoSV5To95EjectionMs");
+    expect(overlaySummaryCsv).toContain("candidate");
   });
 
   it("expands the pressure morphology tension-shape audit preset without changing model defaults", () => {
@@ -1057,6 +1073,7 @@ describe("low-preload Starling debug diagnostics", () => {
     expect(opts.waveformOverlay).toBe(true);
     expect(report.waveformOverlay).toBe(true);
     expect(report.scenarios[0].waveformGates[0].candidate.pressureWaveformOverlay?.length).toBeGreaterThan(0);
+    expect(matrixReportToPressureWaveformOverlaySummaryCsv(report)).toContain("AoVOpen01AtQAoMax");
     expect(overlayCsv).toContain("phaseMs");
     expect(overlayCsv).toContain("LVP");
     expect(overlayCsv).toContain("QAo");

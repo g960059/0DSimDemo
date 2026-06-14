@@ -1145,3 +1145,28 @@ Read `pressure-morphology-attribution.csv` first for the branch/morphology
 cross-product, then inspect `waveform-overlay.csv` for any candidate whose
 classification is driven by QAo/QPV ejection duration, IVRT-like interval, or
 pressure-support/width guards.
+
+## 2026-06-14 update: absolute pressure width and overlay summary
+
+Schema v33 adds another diagnostic-only layer on top of the v32 attribution:
+
+- absolute `LV/RV width90`, `LV/RV width80`, and `LV/RV FWHM` morphology
+  statuses in the `pressure-shape` group
+- a Markdown `Pressure waveform overlay summary`
+- `pressure-waveform-overlay-summary.csv`
+
+This addresses the review caveat from v32: a `pressure-shape` fail count of
+zero should not be read as "no sharp pressure morphology problem." The earlier
+classification often detected the visual concern indirectly as short QAo/QPV
+ejection windows or long IVRT-like timing. The absolute-width rows keep that
+separate from width/ejection ratios, which can be hard to interpret when the
+flow window itself is too short.
+
+The compact overlay summary is the first-pass triage table before manually
+opening `waveform-overlay.csv`. It reports pressure/flow peak lags, absolute
+pressure widths, QAo ejection durations, AoV open01 at QAo peak, and
+peak-to-mean flow ratios. Use it to decide whether a candidate is improving
+branch stability, pressure shape, flow timing, or only one of those axes.
+
+This remains an evaluation-layer PR. It does not change active-stress
+dynamics, valve dynamics, qDot clamps, settle policy, Starling rendering, or UI.
