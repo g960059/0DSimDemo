@@ -29,7 +29,6 @@ import type { WorkbenchHeaderMode, WorkbenchSceneMeta } from "@/components/workb
 import {
   DEFAULT_MODEL_LIMITATIONS,
   INSTANCE_COLORS,
-  LOCAL_COPY_AUTHOR,
   UNTITLED_CASE_TITLE,
   type AddedInstanceConfig,
   inferCaseSource,
@@ -109,6 +108,22 @@ export function createAuthorRuntimeSnapshot(
   };
 }
 
+export function resolveWorkbenchHeaderMode({
+  userUid,
+  currentCaseOwnerId,
+  caseAuthor,
+  currentCaseSource,
+}: {
+  userUid?: string;
+  currentCaseOwnerId?: string;
+  caseAuthor?: string;
+  currentCaseSource?: CaseSource;
+}): WorkbenchHeaderMode {
+  if (currentCaseSource?.kind === "official") return "learner";
+  if (currentCaseOwnerId) return userUid && currentCaseOwnerId === userUid ? "sandbox" : "learner";
+  return resolveHeaderModeFromAuthor(caseAuthor, currentCaseSource);
+}
+
 export function useWorkbenchScene({
   user,
   markUserEdited,
@@ -156,9 +171,12 @@ export function useWorkbenchScene({
   const [authorRuntimeSnapshot, setAuthorRuntimeSnapshot] = useState<AuthorRuntimeSnapshot | undefined>(undefined);
 
   const ownsCurrentCase = Boolean(user && currentCaseOwnerId === user.uid);
-  const headerMode: WorkbenchHeaderMode = ownsCurrentCase || caseAuthor === LOCAL_COPY_AUTHOR
-    ? "sandbox"
-    : resolveHeaderModeFromAuthor(caseAuthor, currentCaseSource);
+  const headerMode = resolveWorkbenchHeaderMode({
+    userUid: user?.uid,
+    currentCaseOwnerId,
+    caseAuthor,
+    currentCaseSource,
+  });
   const markDocumentEdited = useCallback(() => {
     if (headerMode !== "learner") markUserEdited();
   }, [headerMode, markUserEdited]);

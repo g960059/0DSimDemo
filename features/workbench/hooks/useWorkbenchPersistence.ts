@@ -18,8 +18,10 @@ import { DEFAULT_MODEL_LIMITATIONS } from "@/features/workbench/workbenchDefault
 import { graphPanelsOnly } from "@/features/workbench/p1aStructuralHosts";
 import { graphBoardLayoutFromPanels, normalizeGraphBoardLayout } from "@/features/workbench/viewSpec";
 import { serializableAuthoredViews } from "@/features/workbench/authoredViews";
+import { applyPublishDraft, isPublishable, validatePublishableCase, type PublishIssue } from "@/features/workbench/casePublish";
 import type { WorkbenchSceneState } from "@/features/workbench/hooks/useWorkbenchScene";
 import type { WorkbenchPanelsState } from "@/features/workbench/hooks/useWorkbenchPanels";
+import type { PublishDialogDraft } from "@/features/workbench/publish/publishDialogState";
 import { allCasesHref, caseHref, homeHref } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
 
@@ -46,6 +48,10 @@ export type BuildCurrentDocOverrides = {
 };
 
 export type BuildCurrentDoc = (overrides?: BuildCurrentDocOverrides) => CaseDocument;
+
+type PersistCaseResult =
+  | { ok: true; caseId: string; doc: CaseDocument }
+  | { ok: false; issues?: PublishIssue[] };
 
 export function useWorkbenchPersistence({
   user,
@@ -265,15 +271,32 @@ export function useWorkbenchPersistence({
     activeUser.displayName?.trim() || activeUser.email?.trim() || "User case"
   ), []);
 
-  const saveCurrentCaseToCloud = useCallback(async (opts: { copy: boolean }) => {
-    if (isSavingCase) return;
+  const persistCaseToCloud = useCallback(async (opts: {
+    copy: boolean;
+    status: CaseStatus;
+    visibility: CaseVisibility;
+    buildStatus?: CaseStatus;
+    buildVisibility?: CaseVisibility;
+    defaultEntry?: CaseDocument["defaultEntry"];
+    applyDraft?: (doc: CaseDocument) => CaseDocument;
+    validateBeforeSave?: (doc: CaseDocument) => PublishIssue[];
+    saveOptions: { publish?: boolean; visibility?: CaseVisibility; kind: "case" };
+    requireExistingOwned?: boolean;
+    savedDefaultEntry?: CaseDocument["defaultEntry"];
+    successToast?: string;
+  }): Promise<PersistCaseResult> => {
+    if (isSavingCase) return { ok: false };
 
     const activeUser = await signedInUserForCaseSave();
-    if (!activeUser) return;
+    if (!activeUser) return { ok: false };
 
     const now = Date.now();
     const canUpdateCurrentCase = !opts.copy &&
       Boolean(scene.currentCaseId && isValidCaseId(scene.currentCaseId) && scene.currentCaseOwnerId === activeUser.uid);
+    if (opts.requireExistingOwned && !canUpdateCurrentCase) {
+      pushWarningToast("Case save", "Only the owner can update this cloud case.");
+      return { ok: false };
+    }
     const rawSourceCaseId = !canUpdateCurrentCase
       ? (scene.currentCaseId ?? routeCaseId)
       : undefined;
@@ -301,12 +324,18 @@ export function useWorkbenchPersistence({
       ...(opts.copy ? { initialActiveScenarioId: scene.activeInstanceId } : {}),
       author: userDisplayName(activeUser),
       ownerId: activeUser.uid,
-      status: "draft",
-      visibility: "private",
+      status: opts.buildStatus,
+      visibility: opts.buildVisibility,
       source,
       derivedFrom,
       createdAt: canUpdateCurrentCase ? (scene.currentCaseCreatedAt ?? now) : now,
       updatedAt: now,
+      // Only override defaultEntry when a caller explicitly provides one (publish). For
+      // Save/Fork/Unpublish, OMIT the key so buildCurrentDoc's `"defaultEntry" in overrides`
+      // presence-check preserves scene.currentCaseDefaultEntry (passing `undefined` would be a
+      // present key = an explicit override that drops the case's chosen entry — e.g. an
+      // "explore" published case silently reverting on a normal Save).
+      ...(opts.defaultEntry !== undefined ? { defaultEntry: opts.defaultEntry } : {}),
     });
     const nextDocBase: CaseDocument = {
       ...caseDoc,
@@ -321,15 +350,20 @@ export function useWorkbenchPersistence({
         ...(description ? { description } : {}),
       },
     };
-    const nextDoc = upsertCaseLocaleContent(nextDocBase, locale);
+    const localizedDoc = upsertCaseLocaleContent(nextDocBase, locale);
+    const nextDoc = opts.applyDraft ? opts.applyDraft(localizedDoc) : localizedDoc;
+    const issues = opts.validateBeforeSave?.(nextDoc) ?? [];
+    if (issues.length > 0 && !isPublishable(issues)) {
+      return { ok: false, issues };
+    }
 
     setIsSavingCase(true);
     try {
-      const result = await saveCase(nextDoc, activeUser.uid, { visibility: "private", kind: "case" });
+      const result = await saveCase(nextDoc, activeUser.uid, opts.saveOptions);
       if (result.ok === false) {
         const details = [result.code, result.message].filter(Boolean).join(": ");
         pushWarningToast("Case save", details || "Case save failed.");
-        return;
+        return { ok: false };
       }
 
       cacheCurrentDraft(nextDoc);
@@ -348,16 +382,17 @@ export function useWorkbenchPersistence({
         i18n: nextDoc.i18n,
         reading: nextDoc.reading,
         exposedControllers: nextDoc.exposedControllers,
-        defaultEntry: nextDoc.defaultEntry,
-        status: nextDoc.status,
-        visibility: nextDoc.visibility,
+        defaultEntry: opts.savedDefaultEntry ?? nextDoc.defaultEntry,
+        status: nextDoc.status ?? opts.status,
+        visibility: nextDoc.visibility ?? opts.visibility,
         views: serializableAuthoredViews(nextDoc.views),
         graphBoardLayout: nextDoc.graphBoardLayout,
         initialActiveScenarioId: nextDoc.initialActiveScenarioId,
       });
       lastLoadedCaseIdRef.current = `${locale}:${caseId}`;
       navigate(caseHref(caseId, locale), { replace: true });
-      pushWarningToast("Case save", opts.copy ? "Created an editable copy." : "Saved case.");
+      if (opts.successToast) pushWarningToast("Case save", opts.successToast);
+      return { ok: true, caseId, doc: nextDoc };
     } finally {
       setIsSavingCase(false);
     }
@@ -374,6 +409,53 @@ export function useWorkbenchPersistence({
     signedInUserForCaseSave,
     userDisplayName,
   ]);
+
+  const saveCurrentCaseToCloud = useCallback(async (opts: { copy: boolean }) => {
+    const status: CaseStatus = opts.copy ? "draft" : (scene.currentCaseStatus ?? "draft");
+    const visibility: CaseVisibility = opts.copy ? "private" : (scene.currentCaseVisibility ?? "private");
+    await persistCaseToCloud({
+      copy: opts.copy,
+      status,
+      visibility,
+      buildStatus: status,
+      buildVisibility: visibility,
+      saveOptions: { visibility, kind: "case" },
+      successToast: opts.copy ? "Created an editable copy." : "Saved case.",
+    });
+  }, [persistCaseToCloud, scene.currentCaseStatus, scene.currentCaseVisibility]);
+
+  const publishCurrentCase = useCallback(async (draft: PublishDialogDraft): Promise<PersistCaseResult> => {
+    const defaultEntry = draft.defaultEntry;
+    return persistCaseToCloud({
+      copy: false,
+      status: "published",
+      visibility: draft.visibility,
+      defaultEntry,
+      applyDraft: (doc) => applyPublishDraft(doc, {
+        status: "published",
+        visibility: draft.visibility,
+        defaultEntry,
+      }),
+      validateBeforeSave: validatePublishableCase,
+      saveOptions: { publish: true, visibility: draft.visibility, kind: "case" },
+      savedDefaultEntry: defaultEntry,
+    });
+  }, [persistCaseToCloud]);
+
+  const unpublishCurrentCase = useCallback(async (): Promise<PersistCaseResult> => {
+    const visibility: CaseVisibility = scene.currentCaseVisibility === "public" || scene.currentCaseVisibility === "unlisted"
+      ? scene.currentCaseVisibility
+      : "unlisted";
+    return persistCaseToCloud({
+      copy: false,
+      status: "draft",
+      visibility,
+      buildStatus: "draft",
+      buildVisibility: visibility,
+      saveOptions: { visibility, kind: "case" },
+      requireExistingOwned: true,
+    });
+  }, [persistCaseToCloud, scene.currentCaseVisibility]);
 
   const runHeaderPrimaryAction = useCallback(() => {
     if (scene.headerMode === "learner") {
@@ -399,6 +481,8 @@ export function useWorkbenchPersistence({
     handleExport,
     handleImportFile,
     saveCurrentCaseToCloud,
+    publishCurrentCase,
+    unpublishCurrentCase,
     runHeaderPrimaryAction,
     isSavingCase,
     backTarget,

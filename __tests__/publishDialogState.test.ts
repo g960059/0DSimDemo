@@ -85,6 +85,16 @@ describe("publishDialogState", () => {
     expect(state.reviewEnabled).toBe(true);
     expect(state.reviewDoc.status).toBe("published");
     expect(state.reviewDoc.visibility).toBe("public");
+    expect(state.canPublish).toBe(false);
     expect(state.blockers.map((issue) => issue.code)).toContain("publish.blocker.missing-title");
+  });
+
+  it("reports canPublish when the draft-applied doc has no blockers", () => {
+    const state = derivePublishDialogState(doc(), {
+      visibility: "unlisted",
+      defaultEntry: "read",
+    });
+
+    expect(state.canPublish).toBe(true);
   });
 });

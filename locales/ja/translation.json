@@ -795,7 +795,18 @@
       "cannotPublish": "公開できません",
       "warnings": "警告",
       "ready": "公開できます",
-      "reviewAsReader": "読者として確認"
+      "reviewAsReader": "読者として確認",
+      "publish": "公開",
+      "update": "更新",
+      "publishing": "公開中...",
+      "updating": "更新中...",
+      "unpublish": "公開を停止"
+    },
+    "success": {
+      "title": "公開済み",
+      "shareUrlLabel": "共有URL",
+      "copyLink": "リンクをコピー",
+      "copied": "コピー済み"
     },
     "review": {
       "title": "プレビュー中：読者ビュー",

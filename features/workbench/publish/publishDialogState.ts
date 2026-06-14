@@ -2,6 +2,7 @@ import type { CaseDocument, CaseStatus, CaseVisibility } from "@/caseDoc";
 import {
   applyPublishDraft,
   derivePublishDefaultEntry,
+  isPublishable,
   validatePublishableCase,
   type PublishIssue,
 } from "@/features/workbench/casePublish";
@@ -23,6 +24,7 @@ export type PublishDialogState = {
   blockers: PublishIssue[];
   warnings: PublishIssue[];
   issues: PublishIssue[];
+  canPublish: boolean;
 };
 
 export function deriveInitialPublishDialogDraft(
@@ -56,5 +58,6 @@ export function derivePublishDialogState(baseDoc: CaseDocument, draft: PublishDi
     blockers: issues.filter((issue) => issue.severity === "blocker"),
     warnings: issues.filter((issue) => issue.severity === "warning"),
     issues,
+    canPublish: isPublishable(issues),
   };
 }

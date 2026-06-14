@@ -795,7 +795,18 @@
       "cannotPublish": "Cannot publish yet",
       "warnings": "Warnings",
       "ready": "Ready to publish",
-      "reviewAsReader": "Review as reader"
+      "reviewAsReader": "Review as reader",
+      "publish": "Publish",
+      "update": "Update",
+      "publishing": "Publishing...",
+      "updating": "Updating...",
+      "unpublish": "Unpublish"
+    },
+    "success": {
+      "title": "Published",
+      "shareUrlLabel": "Share URL",
+      "copyLink": "Copy link",
+      "copied": "Copied"
     },
     "review": {
       "title": "Preview: reader view",

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { HealthToasts } from "@/components/HealthIndicators";
 import { ReadingPresenter } from "@/components/reading/ReadingPresenter";
 import { PanelGrid } from "@/components/workbench/PanelGrid";
@@ -16,6 +17,8 @@ import { useWorkbenchTheme } from "@/features/workbench/hooks/useWorkbenchTheme"
 import { canUseReadExplore, deriveReadExploreEntryMode, switchReadExplorePresentation, type ReadExploreMode } from "@/features/workbench/readExplore";
 import { PublishDialog } from "@/features/workbench/publish/PublishDialog";
 import { PublishReviewOverlay } from "@/features/workbench/publish/PublishReviewOverlay";
+import { buildShareUrl, copyTextToClipboard } from "@/features/workbench/publish/publishShareLink";
+import type { PublishDialogDraft, PublishDialogVisibility } from "@/features/workbench/publish/publishDialogState";
 import {
   ALL_CHAMBERS,
   ALL_CONTROL_GROUPS,
@@ -24,15 +27,20 @@ import {
   type AddedInstanceConfig,
 } from "@/features/workbench/workbenchDefaults";
 import { resolveReadingColumn } from "@/readingConversion";
+import { localeFromPathname } from "@/localeRouting";
 
 export function WorkbenchRoute() {
   const { user, signIn, loading: authLoading } = useAuth();
+  const location = useLocation();
+  const locale = localeFromPathname(location.pathname);
   const isMobile = useIsMobile();
   const { workbenchTheme, setWorkbenchTheme } = useWorkbenchTheme();
   const userEditedRef = useRef(false);
   const entryPresentationKeyRef = useRef<string | null>(null);
   const [readExploreState, setReadExploreState] = useState<{ presentation: ReadExploreMode }>({ presentation: "explore" });
   const [isPublishDialogOpen, setPublishDialogOpen] = useState(false);
+  const [publishSuccess, setPublishSuccess] = useState<{ visibility: PublishDialogVisibility; shareUrl: string } | null>(null);
+  const [publishCopyState, setPublishCopyState] = useState<"idle" | "copied">("idle");
   const [reviewOverlay, setReviewOverlay] = useState<{ reviewDoc: CaseDocument; entry: ReadExploreMode } | null>(null);
   const buildCurrentDocRef = useRef<BuildCurrentDoc | null>(null);
   const requestSteadyTransitionRef = useRef<(id: string, nextInstances: SimInstance[]) => void>(() => {});
@@ -105,6 +113,34 @@ export function WorkbenchRoute() {
 
   const showReadingPresentation = readExploreAvailable && readExploreState.presentation === "read" && Boolean(readingColumn);
   const showPublishDialog = scene.headerMode !== "learner" && isPublishDialogOpen;
+  const openPublishDialog = useCallback(() => {
+    setPublishSuccess(null);
+    setPublishCopyState("idle");
+    setPublishDialogOpen(true);
+  }, []);
+  const closePublishDialog = useCallback(() => {
+    setPublishDialogOpen(false);
+    setPublishSuccess(null);
+    setPublishCopyState("idle");
+  }, []);
+  const handlePublishDraft = useCallback(async (draft: PublishDialogDraft) => {
+    setPublishCopyState("idle");
+    const result = await persistence.publishCurrentCase(draft);
+    if (!result.ok) return;
+    setPublishSuccess({
+      visibility: draft.visibility,
+      shareUrl: buildShareUrl(result.caseId, locale),
+    });
+  }, [locale, persistence]);
+  const handleUnpublish = useCallback(async () => {
+    setPublishCopyState("idle");
+    const result = await persistence.unpublishCurrentCase();
+    if (result.ok) setPublishSuccess(null);
+  }, [persistence]);
+  const handleCopyShareLink = useCallback(async () => {
+    if (!publishSuccess) return;
+    if (await copyTextToClipboard(publishSuccess.shareUrl)) setPublishCopyState("copied");
+  }, [publishSuccess]);
 
   return (
     <div
@@ -182,7 +218,7 @@ export function WorkbenchRoute() {
         onReadExploreModeChange={setReadExploreMode}
         publishStatus={scene.currentCaseStatus}
         publishVisibility={scene.currentCaseVisibility}
-        onOpenPublishDialog={() => setPublishDialogOpen(true)}
+        onOpenPublishDialog={openPublishDialog}
       />
 
       <PanelGrid
@@ -268,11 +304,20 @@ export function WorkbenchRoute() {
           buildCurrentDoc={persistence.buildCurrentDoc}
           currentStatus={scene.currentCaseStatus}
           currentVisibility={scene.currentCaseVisibility}
-          onCancel={() => setPublishDialogOpen(false)}
+          isPublishing={persistence.isSavingCase}
+          publishSuccess={publishSuccess}
+          copyState={publishCopyState}
+          onCancel={closePublishDialog}
+          onDone={closePublishDialog}
           onReview={(reviewDoc, entry) => {
+            setPublishSuccess(null);
+            setPublishCopyState("idle");
             setPublishDialogOpen(false);
             setReviewOverlay({ reviewDoc, entry });
           }}
+          onConfirmDraft={handlePublishDraft}
+          onUnpublish={handleUnpublish}
+          onCopyShareLink={handleCopyShareLink}
         />
       )}
       {reviewOverlay && (
