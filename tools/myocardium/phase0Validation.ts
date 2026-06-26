@@ -59,6 +59,8 @@ type SourceRecord = {
   roles: string[];
 };
 
+type AdrDocumentStatus = "Proposed" | "Accepted";
+
 type SourceRegistryValidation = {
   sourceMap: Map<string, SourceRecord>;
   sourceCount: number;
@@ -67,6 +69,7 @@ type SourceRegistryValidation = {
 const VERIFIED = "verified";
 const ACCEPTED_DECISION_STATUS = "accepted";
 const PENDING_DECISION_STATUS = "pending-owner";
+const allowedAdrDocumentStatuses = new Set(["Proposed", "Accepted"]);
 
 // These are the Phase A source-reference uses that can carry implementation,
 // target-pack, or acceptance-threshold authority in the current artifacts.
@@ -81,6 +84,28 @@ const guardedSourceUses = new Set([
   "target-pack",
   "thresholds",
 ]);
+
+const compatibleSourceRolesByUse: Record<string, readonly string[]> = {
+  "acceptance-threshold": ["acceptance-threshold", "acceptance-thresholds", "target-pack", "targets"],
+  "acceptance-thresholds": ["acceptance-threshold", "acceptance-thresholds", "target-pack", "targets"],
+  equations: ["equations"],
+  implementation: [
+    "cell-tissue-protocols",
+    "closed-loop-coupling",
+    "energy-accounting",
+    "equations",
+    "partitioned-coupling",
+    "reference-configuration-context",
+    "reference-solver-comparison",
+    "source-parameters",
+    "stabilization",
+  ],
+  parameters: ["parameters", "source-parameters"],
+  "source-parameters": ["parameters", "source-parameters"],
+  target: ["cell-tissue-protocols", "target-pack", "targets"],
+  "target-pack": ["cell-tissue-protocols", "target-pack", "targets"],
+  thresholds: ["acceptance-threshold", "acceptance-thresholds", "target-pack", "targets"],
+};
 
 export function validatePhase0Artifacts(input: Phase0ValidationInput): Phase0ValidationReport {
   const issues: ValidationIssue[] = [];
@@ -210,6 +235,9 @@ export function validateSourcesRegistry(
         `Normative Phase A source ${id} must have verificationStatus "${VERIFIED}".`,
       );
     }
+    if (sourceRecord.normativeForPhaseA) {
+      validateNormativeSourceBibliography(source, path, id, issues);
+    }
   });
 
   return { sourceMap, sourceCount: sourceMap.size };
@@ -221,6 +249,7 @@ function validateDecisionsArtifact(
   pendingDecisions: PendingDecision[],
 ): { acceptedDecisionCount: number } {
   let acceptedDecisionCount = 0;
+  let artifactStatus: string | undefined;
   if (!isRecord(artifact)) {
     addIssue(
       issues,
@@ -260,14 +289,14 @@ function validateDecisionsArtifact(
         "Decision artifact must be derived from ADR-MYO-001.",
       );
     }
-    const artifactStatus = stringField(artifact.artifact, "status");
-    if (artifactStatus !== PENDING_DECISION_STATUS) {
+    artifactStatus = stringField(artifact.artifact, "status");
+    if (artifactStatus !== PENDING_DECISION_STATUS && artifactStatus !== ACCEPTED_DECISION_STATUS) {
       addIssue(
         issues,
         "error",
         "decisions_artifact_status",
         "phase0Decisions.artifact.status",
-        `Decision artifact status must be "${PENDING_DECISION_STATUS}" until owner acceptance is recorded per decision.`,
+        `Decision artifact status must be "${PENDING_DECISION_STATUS}" or "${ACCEPTED_DECISION_STATUS}".`,
       );
     }
     const purpose = stringField(artifact.artifact, "purpose");
@@ -282,7 +311,7 @@ function validateDecisionsArtifact(
     }
   }
 
-  validateDecisionSourceDocuments(artifact.sourceDocuments, issues);
+  const adrStatus = validateDecisionSourceDocuments(artifact.sourceDocuments, issues);
   validateRequiredDecisionGate(artifact.gate, issues);
 
   if (!Array.isArray(artifact.decisions)) {
@@ -353,10 +382,45 @@ function validateDecisionsArtifact(
     }
   }
 
+  if (adrStatus === "Proposed" && artifactStatus === ACCEPTED_DECISION_STATUS) {
+    addIssue(
+      issues,
+      "error",
+      "decisions_artifact_status",
+      "phase0Decisions.artifact.status",
+      "Decision artifact cannot claim accepted while ADR-MYO-001 remains Proposed.",
+    );
+  }
+
+  if (adrStatus === "Accepted") {
+    if (artifactStatus !== ACCEPTED_DECISION_STATUS) {
+      addIssue(
+        issues,
+        "error",
+        "decisions_artifact_status",
+        "phase0Decisions.artifact.status",
+        "Decision artifact must be accepted once ADR-MYO-001 is Accepted.",
+      );
+    }
+    for (const requiredId of REQUIRED_PHASE0_DECISION_IDS) {
+      const decision = byId.get(requiredId);
+      if (!decision) continue;
+      if (stringField(decision, "status") !== ACCEPTED_DECISION_STATUS) {
+        addIssue(
+          issues,
+          "error",
+          "adr_accepted_decision_not_accepted",
+          `phase0Decisions.decisions[#${requiredId}].status`,
+          `Decision ${requiredId} must be accepted when ADR-MYO-001 is Accepted.`,
+        );
+      }
+    }
+  }
+
   return { acceptedDecisionCount };
 }
 
-function validateDecisionSourceDocuments(sourceDocuments: unknown, issues: ValidationIssue[]): void {
+function validateDecisionSourceDocuments(sourceDocuments: unknown, issues: ValidationIssue[]): AdrDocumentStatus | null {
   if (!Array.isArray(sourceDocuments)) {
     addIssue(
       issues,
@@ -365,7 +429,7 @@ function validateDecisionSourceDocuments(sourceDocuments: unknown, issues: Valid
       "phase0Decisions.sourceDocuments",
       "Decision artifact must cite ADR-MYO-001 as its source document.",
     );
-    return;
+    return null;
   }
 
   const adrDocs = sourceDocuments.filter((document): document is JsonRecord => {
@@ -381,6 +445,7 @@ function validateDecisionSourceDocuments(sourceDocuments: unknown, issues: Valid
     );
   }
 
+  let adrStatus: AdrDocumentStatus | null = null;
   sourceDocuments.forEach((document, index) => {
     const path = `phase0Decisions.sourceDocuments[${index}]`;
     if (!isRecord(document)) {
@@ -396,16 +461,21 @@ function validateDecisionSourceDocuments(sourceDocuments: unknown, issues: Valid
         "Decision artifact must not introduce a competing normative source document.",
       );
     }
-    if (stringField(document, "status") !== "Proposed") {
+    const status = stringField(document, "status");
+    if (!isAllowedAdrDocumentStatus(status)) {
       addIssue(
         issues,
         "error",
-        "decisions_adr_status_not_proposed",
+        "decisions_adr_status_invalid",
         `${path}.status`,
-        "ADR-MYO-001 source document status must remain Proposed for this artifact gate.",
+        "ADR-MYO-001 source document status must be Proposed or Accepted.",
       );
     }
+    if (stringField(document, "id") === "ADR-MYO-001" && isAllowedAdrDocumentStatus(status)) {
+      adrStatus = status;
+    }
   });
+  return adrStatus;
 }
 
 function validateRequiredDecisionGate(gate: unknown, issues: ValidationIssue[]): void {
@@ -468,15 +538,7 @@ function validateRequiredDecisionRecord(
     return;
   }
 
-  if (status === ACCEPTED_DECISION_STATUS && !hasAcceptanceMetadata(decision)) {
-    addIssue(
-      issues,
-      "error",
-      "decision_accepted_missing_owner_metadata",
-      path,
-      `Decision ${id} is accepted but lacks acceptedBy, acceptedAt, and acceptedSource metadata.`,
-    );
-  }
+  if (status === ACCEPTED_DECISION_STATUS) validateAcceptanceMetadata(id, decision, path, issues);
 }
 
 function validateClaimFreezeArtifact(artifact: unknown, issues: ValidationIssue[]): number {
@@ -532,6 +594,8 @@ function validateClaimFreezeArtifact(artifact: unknown, issues: ValidationIssue[
       "Claim-freeze metadata must not claim owner acceptance.",
     );
   }
+
+  validateClaimFreezeSourceDocuments(artifact.sourceDocuments, issues);
 
   if (!Array.isArray(artifact.categories)) {
     addIssue(
@@ -696,6 +760,15 @@ function validateArtifactSourceReferences(
             `Artifact references unverified source ${sourceId} for Phase A ${use}.`,
           );
         }
+        if (use && guardedSourceUses.has(use) && !isSourceRoleCompatible(use, source.roles)) {
+          addIssue(
+            issues,
+            "error",
+            "artifact_source_role_incompatible",
+            refPath,
+            `Artifact references source ${sourceId} for Phase A ${use}, but source roles are ${source.roles.join(", ") || "empty"}.`,
+          );
+        }
       });
     }
   });
@@ -729,12 +802,145 @@ function validateNoClaimFreezeResults(value: unknown, rootPath: string, issues: 
   });
 }
 
-function hasAcceptanceMetadata(decision: JsonRecord): boolean {
+function validateNormativeSourceBibliography(
+  source: JsonRecord,
+  path: string,
+  sourceId: string,
+  issues: ValidationIssue[],
+): void {
+  if (typeof source.year !== "number" || !Number.isInteger(source.year)) {
+    addIssue(
+      issues,
+      "error",
+      "phasea_normative_source_missing_year",
+      `${path}.year`,
+      `Normative Phase A source ${sourceId} must include an integer year.`,
+    );
+  }
+  const authors = source.authors;
+  if (!Array.isArray(authors) || authors.some((author) => typeof author !== "string" || author.trim() === "")) {
+    addIssue(
+      issues,
+      "error",
+      "phasea_normative_source_missing_authors",
+      `${path}.authors`,
+      `Normative Phase A source ${sourceId} must include a non-empty authors array.`,
+    );
+  }
+
+  const doi = stringField(source, "doi");
+  const persistentId = stringField(source, "persistentId");
+  const url = stringField(source, "url");
+  if (!doi && !persistentId && !url) {
+    addIssue(
+      issues,
+      "error",
+      "phasea_normative_source_missing_persistent_identifier",
+      path,
+      `Normative Phase A source ${sourceId} must include doi, persistentId, or url.`,
+    );
+  }
+  if (!doi && !url && persistentId && /^pmid:?/i.test(persistentId.trim())) {
+    addIssue(
+      issues,
+      "error",
+      "phasea_normative_source_pmid_only",
+      `${path}.persistentId`,
+      `Normative Phase A source ${sourceId} must not use a PMID-only persistent identifier.`,
+    );
+  }
+}
+
+function validateClaimFreezeSourceDocuments(sourceDocuments: unknown, issues: ValidationIssue[]): void {
+  if (!Array.isArray(sourceDocuments)) {
+    addIssue(
+      issues,
+      "error",
+      "claim_freeze_source_documents_missing",
+      "claimFreeze.sourceDocuments",
+      "Claim-freeze artifact must cite ADR-MYO-001 and the verification plan.",
+    );
+    return;
+  }
+
+  const requiredDocuments = new Set(["ADR-MYO-001", "myocardium-v1-verification"]);
+  const seen = new Set<string>();
+  sourceDocuments.forEach((document, index) => {
+    const path = `claimFreeze.sourceDocuments[${index}]`;
+    if (!isRecord(document)) {
+      addIssue(issues, "error", "claim_freeze_source_document_shape", path, "Source document must be an object.");
+      return;
+    }
+    const id = stringField(document, "id");
+    if (id) seen.add(id);
+    const status = stringField(document, "status");
+    if (!isAllowedAdrDocumentStatus(status)) {
+      addIssue(
+        issues,
+        "error",
+        "claim_freeze_source_document_status_invalid",
+        `${path}.status`,
+        "Claim-freeze source document status must be Proposed or Accepted.",
+      );
+    }
+  });
+
+  for (const requiredId of requiredDocuments) {
+    if (!seen.has(requiredId)) {
+      addIssue(
+        issues,
+        "error",
+        "claim_freeze_source_document_missing",
+        "claimFreeze.sourceDocuments",
+        `Claim-freeze artifact must cite ${requiredId}.`,
+      );
+    }
+  }
+}
+
+function validateAcceptanceMetadata(
+  id: RequiredPhase0DecisionId,
+  decision: JsonRecord,
+  path: string,
+  issues: ValidationIssue[],
+): void {
   const acceptance = isRecord(decision.acceptance) ? decision.acceptance : {};
   const acceptedBy = stringField(decision, "acceptedBy") ?? stringField(acceptance, "acceptedBy");
   const acceptedAt = stringField(decision, "acceptedAt") ?? stringField(acceptance, "acceptedAt");
   const acceptedSource = stringField(decision, "acceptedSource") ?? stringField(acceptance, "acceptedSource");
-  return Boolean(acceptedBy && acceptedAt && acceptedSource);
+  if (!acceptedBy || !acceptedAt || !acceptedSource) {
+    addIssue(
+      issues,
+      "error",
+      "decision_accepted_missing_owner_metadata",
+      path,
+      `Decision ${id} is accepted but lacks acceptedBy, acceptedAt, and acceptedSource metadata.`,
+    );
+    return;
+  }
+  if (!isIsoDateLike(acceptedAt)) {
+    addIssue(
+      issues,
+      "error",
+      "decision_accepted_invalid_date",
+      `${path}.acceptedAt`,
+      `Decision ${id} acceptedAt must be an ISO date or timestamp.`,
+    );
+  }
+}
+
+function isSourceRoleCompatible(use: string, roles: readonly string[]): boolean {
+  const compatibleRoles = compatibleSourceRolesByUse[use];
+  if (!compatibleRoles) return true;
+  return compatibleRoles.some((role) => roles.includes(role));
+}
+
+function isAllowedAdrDocumentStatus(status: string | undefined): status is AdrDocumentStatus {
+  return Boolean(status && allowedAdrDocumentStatuses.has(status));
+}
+
+function isIsoDateLike(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}(?:T.+)?$/.test(value) && !Number.isNaN(Date.parse(value));
 }
 
 function walk(value: unknown, path: string, visit: (value: unknown, path: string) => void): void {

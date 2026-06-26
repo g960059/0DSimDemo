@@ -66,6 +66,18 @@ describe("myocardium Phase 0 artifact validation", () => {
     expect(report.errors.some((issue) => issue.code === "claim_freeze_category_missing")).toBe(true);
   });
 
+  it("fails when claim-freeze source documents do not cite the verification plan", () => {
+    const input = fixture();
+    input.claimFreezeArtifact.sourceDocuments = input.claimFreezeArtifact.sourceDocuments.filter(
+      (document) => document.id !== "myocardium-v1-verification",
+    );
+
+    const report = validatePhase0Artifacts(input);
+
+    expect(report.pass).toBe(false);
+    expect(report.errors.some((issue) => issue.code === "claim_freeze_source_document_missing")).toBe(true);
+  });
+
   it("fails when claim-freeze metadata contains fitted results or acceptance claims", () => {
     const input = fixture();
     input.claimFreezeArtifact.categories[0].measurementDefinition.kind = "result";
@@ -82,12 +94,29 @@ describe("myocardium Phase 0 artifact validation", () => {
 
   it("fails when a Phase A normative source is not verified", () => {
     const input = fixture();
-    input.sourcesRegistry.sources[0].verificationStatus = "bibliography-pending-persistent-id";
+    firstNormativeSource(input).verificationStatus = "bibliography-pending-persistent-id";
 
     const report = validatePhase0Artifacts(input);
 
     expect(report.pass).toBe(false);
     expect(report.errors.some((issue) => issue.code === "phasea_normative_source_unverified")).toBe(true);
+  });
+
+  it("fails when a Phase A normative source lacks source-policy bibliography fields", () => {
+    const input = fixture();
+    const source = firstNormativeSource(input);
+    delete source.authors;
+    delete source.doi;
+    delete source.persistentId;
+    delete source.url;
+
+    const report = validatePhase0Artifacts(input);
+
+    expect(report.pass).toBe(false);
+    expect(report.errors.some((issue) => issue.code === "phasea_normative_source_missing_authors")).toBe(true);
+    expect(
+      report.errors.some((issue) => issue.code === "phasea_normative_source_missing_persistent_identifier"),
+    ).toBe(true);
   });
 
   it("fails when an artifact references an unverified source for Phase A target or implementation use", () => {
@@ -104,6 +133,22 @@ describe("myocardium Phase 0 artifact validation", () => {
     expect(report.errors.some((issue) => issue.code === "artifact_source_unverified_for_phasea_use")).toBe(true);
   });
 
+  it("fails when an artifact source reference use is incompatible with source roles", () => {
+    const input = fixture();
+    input.decisionsArtifact.decisions[1].sourceReferences = [
+      {
+        sourceId: "regazzoni-quarteroni2020-active-stiffness",
+        use: "equations",
+        detail: "Invalid equation reference for test coverage.",
+      },
+    ];
+
+    const report = validatePhase0Artifacts(input);
+
+    expect(report.pass).toBe(false);
+    expect(report.errors.some((issue) => issue.code === "artifact_source_role_incompatible")).toBe(true);
+  });
+
   it("fails when an accepted owner decision lacks owner provenance metadata", () => {
     const input = fixture();
     input.decisionsArtifact.decisions[0].status = "accepted";
@@ -112,6 +157,31 @@ describe("myocardium Phase 0 artifact validation", () => {
 
     expect(report.pass).toBe(false);
     expect(report.errors.some((issue) => issue.code === "decision_accepted_missing_owner_metadata")).toBe(true);
+  });
+
+  it("fails when accepted owner decision metadata has an invalid date", () => {
+    const input = fixture();
+    const decision = input.decisionsArtifact.decisions[0] as Record<string, unknown>;
+    decision.status = "accepted";
+    decision.acceptedBy = "owner";
+    decision.acceptedAt = "not-a-date";
+    decision.acceptedSource = "ADR-MYO-001";
+
+    const report = validatePhase0Artifacts(input);
+
+    expect(report.pass).toBe(false);
+    expect(report.errors.some((issue) => issue.code === "decision_accepted_invalid_date")).toBe(true);
+  });
+
+  it("fails when ADR-MYO-001 is accepted but required decisions remain pending", () => {
+    const input = fixture();
+    input.decisionsArtifact.sourceDocuments[0].status = "Accepted";
+
+    const report = validatePhase0Artifacts(input);
+
+    expect(report.pass).toBe(false);
+    expect(report.errors.some((issue) => issue.code === "adr_accepted_decision_not_accepted")).toBe(true);
+    expect(report.errors.some((issue) => issue.code === "decisions_adr_status_invalid")).toBe(false);
   });
 });
 
@@ -129,4 +199,10 @@ function fixture(): Phase0ValidationInput & {
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function firstNormativeSource(input: Phase0ValidationInput & { sourcesRegistry: typeof sourcesRegistry }) {
+  const source = input.sourcesRegistry.sources.find((candidate) => candidate.normativeForPhaseA);
+  expect(source).toBeDefined();
+  return source as Record<string, unknown> & { verificationStatus: string };
 }
