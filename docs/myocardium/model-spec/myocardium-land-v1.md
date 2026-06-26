@@ -1399,32 +1399,32 @@ myocardial-performance-reference-hardware-v1
 
 ## 28.1 Phase A normative sources
 
-1. Land S, Park-Holohan SJ, Smith NP, dos Remedios CG, Kentish JC, Niederer SA. **A model of cardiac contraction based on novel measurements of tension development in human cardiomyocytes.** *Journal of Molecular and Cellular Cardiology*. 2017;106:68–83. DOI: `10.1016/j.yjmcc.2017.03.008`.  
+1. Land S, Park-Holohan SJ, Smith NP, dos Remedios CG, Kentish JC, Niederer SA. **A model of cardiac contraction based on novel measurements of tension development in human cardiomyocytes.** *Journal of Molecular and Cellular Cardiology*. 2017;106:68–83. DOI: `10.1016/j.yjmcc.2017.03.008`.
    **Role:** Land equations、source parameter variants、cell/tissue protocol definitions.
 
-2. Regazzoni F, Quarteroni A. **An oscillation-free fully partitioned scheme for the numerical modeling of cardiac active mechanics.** arXiv:`2007.15714`, 2020.  
+2. Regazzoni F, Quarteroni A. **An oscillation-free fully partitioned scheme for the numerical modeling of cardiac active mechanics.** arXiv:`2007.15714`, 2020.
    **Role:** stabilization coefficient、partitioned coupling、monolithic/reference comparison.
 
-3. Regazzoni F, Salvador M, Africa PC, Fedele M, Dedè L, Quarteroni A. **A cardiac electromechanical model coupled with a lumped-parameter model for closed-loop blood circulation.** *Journal of Computational Physics*. 2022;457:111083. DOI: `10.1016/j.jcp.2022.111083`.  
+3. Regazzoni F, Salvador M, Africa PC, Fedele M, Dedè L, Quarteroni A. **A cardiac electromechanical model coupled with a lumped-parameter model for closed-loop blood circulation.** *Journal of Computational Physics*. 2022;457:111083. DOI: `10.1016/j.jcp.2022.111083`.
    **Role:** closed-loop energy accounting、model-layer separation、reference configuration and coupling context.
 
 ## 28.2 Verified comparison and future-backend sources
 
-4. Marchesseau S, Delingette H, Sermesant M, Sorine M, Rhode K, Duckett SG, Rinaldi CA, Razavi R, Ayache N. **Preliminary Specificity Study of the Bestel-Clément-Sorine Electromechanical Model of the Heart using Parameter Calibration from Medical Images.** *Journal of the Mechanical Behavior of Biomedical Materials*. 2013;20:259–271. DOI: `10.1016/j.jmbbm.2012.11.021`.  
+4. Marchesseau S, Delingette H, Sermesant M, Sorine M, Rhode K, Duckett SG, Rinaldi CA, Razavi R, Ayache N. **Preliminary Specificity Study of the Bestel-Clément-Sorine Electromechanical Model of the Heart using Parameter Calibration from Medical Images.** *Journal of the Mechanical Behavior of Biomedical Materials*. 2013;20:259–271. DOI: `10.1016/j.jmbbm.2012.11.021`.
    **Role:** future BCS comparison、organ-level calibration and identifiability context. It is not a Phase A Land equation source.
 
-5. Caruel M, Chabiniok R, Moireau P, Lecarpentier Y, Chapelle D. **Dimensional reductions of a cardiac model for effective validation and calibration.** *Biomechanics and Modeling in Mechanobiology*. 2014;13(4):897–914. DOI: `10.1007/s10237-013-0544-6`.  
+5. Caruel M, Chabiniok R, Moireau P, Lecarpentier Y, Chapelle D. **Dimensional reductions of a cardiac model for effective validation and calibration.** *Biomechanics and Modeling in Mechanobiology*. 2014;13(4):897–914. DOI: `10.1007/s10237-013-0544-6`.
    **Role:** model reduction、validation/calibration methodology、cross-scale interpretation.
 
-6. Regazzoni F, Dedè L, Quarteroni A. **Biophysically detailed mathematical models of multiscale cardiac active mechanics.** arXiv:`2004.07910`, 2020.  
+6. Regazzoni F, Dedè L, Quarteroni A. **Biophysically detailed mathematical models of multiscale cardiac active mechanics.** arXiv:`2004.07910`, 2020.
    **Role:** RDQ20-MF research comparison and future high-fidelity backend evaluation. It is not a Phase A runtime dependency.
 
-7. Chapelle D, Le Tallec P, Moireau P, Sorine M. **An energy-preserving muscle tissue model: formulation and compatible discretizations.** *International Journal for Multiscale Computational Engineering*. 2012;10(2):189–211.  
+7. Chapelle D, Le Tallec P, Moireau P, Sorine M. **An energy-preserving muscle tissue model: formulation and compatible discretizations.** *International Journal for Multiscale Computational Engineering*. 2012;10(2):189–211.
    **Role:** BCS energy structure. Before a BCS implementation PR, the exact publisher record and persistent identifier MUST be verified and locked in `sources.json`.
 
 ## 28.3 Ventricular-mechanics candidate source
 
-8. CircAdapt Framework documentation. **TriSeg — ventricles including interaction.** Documentation version 2407.  
+8. CircAdapt Framework documentation. **TriSeg — ventricles including interaction.** Documentation version 2407.
    **Role:** Phase 4 candidate definition and comparison criteria only. Citing this source does not adopt TriSeg automatically.
 
 ## 28.4 Explicitly excluded unresolved shorthand

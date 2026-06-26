@@ -1,7 +1,7 @@
 # Myocardium Revision 3
 
-Status: Proposed Phase 0  
-Bundle source: `/Users/hirakawa/Downloads/0DSimDemo_myocardium_revision3`  
+Status: Proposed Phase 0
+Bundle source: local import, path redacted
 Baseline repository commit: `228bef96e5f522de2cfe352de5d6d4d2f017c550`
 
 Revision 3 is the current planning namespace for the myocardial contraction
@@ -46,9 +46,9 @@ The supporting source-registry note is
 ## Imported bundle checks
 
 Revision 3's original markdown hashes are preserved in
-[revision3-validation.json](revision3-validation.json). Files listed in
-[import-manifest.json](import-manifest.json) under `adaptations` have intentional
-path-rebasing edits so they do not point at removed local docs.
+[revision3-validation.json](revision3-validation.json). The repository import
+status, source hashes, and adapted repository hashes are recorded in
+[import-manifest.json](import-manifest.json).
 
 [CHANGELOG-REV3.md](CHANGELOG-REV3.md) records the Revision 3 changes from the
 source bundle.
