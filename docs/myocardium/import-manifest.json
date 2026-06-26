@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "0dsim-myocardium-revision3-2026-06-26",
+  "revision": 3,
+  "status": "proposed",
+  "sourceRoot": "/Users/hirakawa/Downloads/0DSimDemo_myocardium_revision3",
+  "repositoryBaseline": "228bef96e5f522de2cfe352de5d6d4d2f017c550",
+  "adaptations": [
+    {
+      "repoPath": "docs/myocardium/model-spec/myocardium-land-v1.md",
+      "reason": "historical baseline docs/research references were rewritten to avoid pointing at removed local docs"
+    },
+    {
+      "repoPath": "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
+      "reason": "internal document paths were rebased from docs/* to docs/myocardium/*"
+    },
+    {
+      "repoPath": "docs/myocardium/research/myocardial-contraction-rebuild-design-record.md",
+      "reason": "internal document paths were rebased from docs/* to docs/myocardium/* and historical baseline docs/research references were rewritten"
+    },
+    {
+      "repoPath": "docs/myocardium/references/myocardium-source-registry.md",
+      "reason": "frontmatter source_of_truth was rebased from docs/references to docs/myocardium/references"
+    }
+  ],
+  "priority": [
+    {
+      "role": "adr",
+      "sourcePath": "docs/adr/ADR-MYO-001.md",
+      "repoPath": "docs/myocardium/adr/ADR-MYO-001.md"
+    },
+    {
+      "role": "model-spec",
+      "sourcePath": "docs/model-spec/myocardium-land-v1.md",
+      "repoPath": "docs/myocardium/model-spec/myocardium-land-v1.md"
+    },
+    {
+      "role": "verification",
+      "sourcePath": "docs/verification/myocardium-v1-verification.md",
+      "repoPath": "docs/myocardium/verification/myocardium-v1-verification.md"
+    },
+    {
+      "role": "roadmap",
+      "sourcePath": "docs/roadmap/myocardium-rebuild-roadmap.md",
+      "repoPath": "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md"
+    },
+    {
+      "role": "design-record",
+      "sourcePath": "docs/research/myocardial-contraction-rebuild-design-record.md",
+      "repoPath": "docs/myocardium/research/myocardial-contraction-rebuild-design-record.md"
+    }
+  ],
+  "supporting": [
+    {
+      "role": "source-registry-note",
+      "sourcePath": "docs/references/myocardium-source-registry.md",
+      "repoPath": "docs/myocardium/references/myocardium-source-registry.md"
+    },
+    {
+      "role": "source-registry",
+      "sourcePath": "data/myocardium/sources.json",
+      "repoPath": "data/myocardium/sources.json"
+    },
+    {
+      "role": "revision-changelog",
+      "sourcePath": "CHANGELOG-REV3.md",
+      "repoPath": "docs/myocardium/CHANGELOG-REV3.md"
+    },
+    {
+      "role": "source-validation",
+      "sourcePath": "VALIDATION.json",
+      "repoPath": "docs/myocardium/revision3-validation.json"
+    }
+  ]
+}

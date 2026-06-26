@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-26",
+  "masterMatchesDesignRecord": true,
+  "markdownFiles": [
+    {
+      "path": "CHANGELOG-REV3.md",
+      "bytes": 1220,
+      "lines": 32,
+      "codeFenceMarkers": 0,
+      "codeFencesBalanced": true,
+      "sha256": "1117ab1ae18bbe44a6ba1f2cbd4640cae7e530b4fddebe3dd80a777c01ad8fb4"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1560,
+      "lines": 26,
+      "codeFenceMarkers": 0,
+      "codeFencesBalanced": true,
+      "sha256": "d6384e75a399b56e853ea1bae8c9ee1b9290c88227acef77a05b606ec85c5684"
+    },
+    {
+      "path": "docs/adr/ADR-MYO-001.md",
+      "bytes": 6018,
+      "lines": 81,
+      "codeFenceMarkers": 0,
+      "codeFencesBalanced": true,
+      "sha256": "140f0bf859a5da48919e5de008a3ee44a240867279af9c83cce8bb2af59321e6"
+    },
+    {
+      "path": "docs/model-spec/myocardium-land-v1.md",
+      "bytes": 44103,
+      "lines": 1445,
+      "codeFenceMarkers": 82,
+      "codeFencesBalanced": true,
+      "sha256": "1197e906ff0bf1404126775b09e6d34a1a61bf879dd75ab2418752fb9397122c"
+    },
+    {
+      "path": "docs/references/myocardium-source-registry.md",
+      "bytes": 1651,
+      "lines": 34,
+      "codeFenceMarkers": 0,
+      "codeFencesBalanced": true,
+      "sha256": "21d0866a8142400cbc9e5aa3cb1253ac78fa511183e742005cdbf2d89648898f"
+    },
+    {
+      "path": "docs/research/myocardial-contraction-rebuild-design-record.md",
+      "bytes": 102286,
+      "lines": 2904,
+      "codeFenceMarkers": 134,
+      "codeFencesBalanced": true,
+      "sha256": "1219b9aa7235dcbd3cdd22dbcb4b9f002e0f9f44660e4b362509b84db3b64a04"
+    },
+    {
+      "path": "docs/roadmap/myocardium-rebuild-roadmap.md",
+      "bytes": 17465,
+      "lines": 530,
+      "codeFenceMarkers": 18,
+      "codeFencesBalanced": true,
+      "sha256": "9cdf3306fcb896d994834be0b84481b384c8cbdecbebb4cb16a3e440927bbeea"
+    },
+    {
+      "path": "docs/verification/myocardium-v1-verification.md",
+      "bytes": 15297,
+      "lines": 429,
+      "codeFenceMarkers": 10,
+      "codeFencesBalanced": true,
+      "sha256": "7a33e5ca1d880e4e70fd00f29bf38d82b672185418370aae4a1d81b198903a79"
+    }
+  ],
+  "allCodeFencesBalanced": true
+}

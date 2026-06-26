@@ -1,0 +1,194 @@
+{
+  "schemaVersion": 1,
+  "registryId": "myocardium-sources-rev3-2026-06-26",
+  "policy": {
+    "normativeUseRequires": "verificationStatus=verified",
+    "prohibited": [
+      "PMID-only or shorthand citations",
+      "secondary citations without verification",
+      "unresolved version or parameter provenance"
+    ]
+  },
+  "sources": [
+    {
+      "id": "land2017-human-contraction",
+      "verificationStatus": "verified",
+      "normativeForPhaseA": true,
+      "authors": [
+        "Land S",
+        "Park-Holohan SJ",
+        "Smith NP",
+        "dos Remedios CG",
+        "Kentish JC",
+        "Niederer SA"
+      ],
+      "title": "A model of cardiac contraction based on novel measurements of tension development in human cardiomyocytes",
+      "venue": "Journal of Molecular and Cellular Cardiology",
+      "year": 2017,
+      "volume": "106",
+      "pages": "68-83",
+      "doi": "10.1016/j.yjmcc.2017.03.008",
+      "roles": [
+        "equations",
+        "source-parameters",
+        "cell-tissue-protocols"
+      ]
+    },
+    {
+      "id": "regazzoni-quarteroni2020-active-stiffness",
+      "verificationStatus": "verified",
+      "normativeForPhaseA": true,
+      "authors": [
+        "Regazzoni F",
+        "Quarteroni A"
+      ],
+      "title": "An oscillation-free fully partitioned scheme for the numerical modeling of cardiac active mechanics",
+      "venue": "arXiv",
+      "year": 2020,
+      "persistentId": "arXiv:2007.15714",
+      "roles": [
+        "stabilization",
+        "partitioned-coupling",
+        "reference-solver-comparison"
+      ]
+    },
+    {
+      "id": "regazzoni-et-al2022-closed-loop",
+      "verificationStatus": "verified",
+      "normativeForPhaseA": true,
+      "authors": [
+        "Regazzoni F",
+        "Salvador M",
+        "Africa PC",
+        "Fedele M",
+        "Dedè L",
+        "Quarteroni A"
+      ],
+      "title": "A cardiac electromechanical model coupled with a lumped-parameter model for closed-loop blood circulation",
+      "venue": "Journal of Computational Physics",
+      "year": 2022,
+      "volume": "457",
+      "pages": "111083",
+      "doi": "10.1016/j.jcp.2022.111083",
+      "roles": [
+        "energy-accounting",
+        "closed-loop-coupling",
+        "reference-configuration-context"
+      ]
+    },
+    {
+      "id": "marchesseau-et-al2013-bcs-calibration",
+      "verificationStatus": "verified",
+      "normativeForPhaseA": false,
+      "authors": [
+        "Marchesseau S",
+        "Delingette H",
+        "Sermesant M",
+        "Sorine M",
+        "Rhode K",
+        "Duckett SG",
+        "Rinaldi CA",
+        "Razavi R",
+        "Ayache N"
+      ],
+      "title": "Preliminary Specificity Study of the Bestel-Clément-Sorine Electromechanical Model of the Heart using Parameter Calibration from Medical Images",
+      "venue": "Journal of the Mechanical Behavior of Biomedical Materials",
+      "year": 2013,
+      "volume": "20",
+      "pages": "259-271",
+      "doi": "10.1016/j.jmbbm.2012.11.021",
+      "roles": [
+        "future-bcs-comparison",
+        "calibration-identifiability-context"
+      ]
+    },
+    {
+      "id": "caruel-et-al2014-dimensional-reduction",
+      "verificationStatus": "verified",
+      "normativeForPhaseA": false,
+      "authors": [
+        "Caruel M",
+        "Chabiniok R",
+        "Moireau P",
+        "Lecarpentier Y",
+        "Chapelle D"
+      ],
+      "title": "Dimensional reductions of a cardiac model for effective validation and calibration",
+      "venue": "Biomechanics and Modeling in Mechanobiology",
+      "year": 2014,
+      "volume": "13",
+      "issue": "4",
+      "pages": "897-914",
+      "doi": "10.1007/s10237-013-0544-6",
+      "roles": [
+        "model-reduction",
+        "validation-calibration-methodology"
+      ]
+    },
+    {
+      "id": "regazzoni-dede-quarteroni2020-rdq20",
+      "verificationStatus": "verified",
+      "normativeForPhaseA": false,
+      "authors": [
+        "Regazzoni F",
+        "Dedè L",
+        "Quarteroni A"
+      ],
+      "title": "Biophysically detailed mathematical models of multiscale cardiac active mechanics",
+      "venue": "arXiv",
+      "year": 2020,
+      "persistentId": "arXiv:2004.07910",
+      "roles": [
+        "future-rdq20-comparison"
+      ]
+    },
+    {
+      "id": "chapelle-et-al2012-energy-preserving-bcs",
+      "verificationStatus": "bibliography-pending-persistent-id",
+      "normativeForPhaseA": false,
+      "authors": [
+        "Chapelle D",
+        "Le Tallec P",
+        "Moireau P",
+        "Sorine M"
+      ],
+      "title": "An energy-preserving muscle tissue model: formulation and compatible discretizations",
+      "venue": "International Journal for Multiscale Computational Engineering",
+      "year": 2012,
+      "volume": "10",
+      "issue": "2",
+      "pages": "189-211",
+      "roles": [
+        "future-bcs-energy-structure"
+      ],
+      "restriction": "Do not use for implementation until publisher record and persistent identifier are verified."
+    },
+    {
+      "id": "circadapt-triseg-docs-2407",
+      "verificationStatus": "verified",
+      "normativeForPhaseA": false,
+      "title": "TriSeg — ventricles including interaction",
+      "venue": "CircAdapt Framework documentation",
+      "year": 2024,
+      "version": "2407",
+      "roles": [
+        "phase4-mechanics-candidate-definition"
+      ]
+    }
+  ],
+  "excludedUnresolvedLeads": [
+    {
+      "label": "Caruel–Moireau–Chapelle 2019 / PMID 30607642",
+      "status": "excluded-unresolved",
+      "reason": "Exact bibliographic identity and intended equation relationship were not reliably established.",
+      "mayRestoreWhen": [
+        "full title",
+        "authors",
+        "venue",
+        "DOI or persistent ID",
+        "version",
+        "implementation role"
+      ]
+    }
+  ]
+}
