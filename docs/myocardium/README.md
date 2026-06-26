@@ -33,8 +33,9 @@ accepted ADR
 its acceptance clause. Phase 1A contract work, Phase 1B standalone Land source
 equations, Phase 1C Land protocol closure, and Phase 2A standalone prescribed
 calcium work may proceed. Phase 2B standalone isometric Ca+Land source-stress
-coupling may also proceed, but ModelCore integration, loaded mechanics
-coupling, and runtime schema migration still require their later phase gates.
+coupling and Phase 2C standalone prescribed-shortening Ca+Land transfer may
+also proceed, but ModelCore integration, loaded mechanics coupling, and runtime
+schema migration still require their later phase gates.
 The owner acceptance record carries `acceptedSourceType` and `acceptedSourceRef`
 metadata so future decisions can trace the durable approval source.
 
@@ -115,6 +116,20 @@ Land output `health.finite=true` for every sample and
 `evidenceStatus=synthetic-coupling-smoke-only`; LVP targets, pressure
 morphology, valve/qDot behavior, loaded mechanics, and experimental pass/fail
 remain out of scope.
+
+## Phase 2C prescribed shortening Ca plus Land
+
+Run `npm run verify:myocardium-prescribed-shortening` to check the standalone
+prescribed-shortening transfer gate. This gate reuses the Phase 2A synthetic
+prescribed-Ca backend and Land BE substep solver, then runs a neutral
+trajectory family covering zero-rate isometric comparison, low/physiologic/high
+shortening, lengthening, and a constant-velocity shortening control. Land input
+rates are derived only from previous strain, stage strain, and `dtSec`; the
+report audits that derivation for every sample. It reports
+`claimBoundary=standalone-prescribed-shortening-ca-land-only` and
+`evidenceStatus=synthetic-prescribed-shortening-transfer-only`; experimental
+target acceptance, pressure/valve/qDot claims, homogenization, and
+generalized-force mapping remain out of scope.
 
 ## Imported bundle checks
 

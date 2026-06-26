@@ -76,6 +76,8 @@ owner sign-off:
 - consistent rate derivation
 - morphology transfer
 - no pressure/valve/qDot
+- gate script: `npm run verify:myocardium-prescribed-shortening`
+- standalone descriptor/report only; no generalized-force mapper
 
 ## Phase 3 — early thick-sphere loaded spike
 
@@ -227,7 +229,7 @@ tools/myocardium/*
     "verify:myocardium-land-protocols": "vite-node tools/myocardium/verifyLandProtocols.ts",
     "verify:myocardium-prescribed-calcium": "vite-node tools/myocardium/verifyPrescribedCalcium.ts",
     "verify:myocardium-calcium-land-isometric": "vite-node tools/myocardium/verifyCalciumLandIsometric.ts",
-    "verify:prescribed-shortening": "vite-node tools/myocardium/verifyPrescribedShortening.ts",
+    "verify:myocardium-prescribed-shortening": "vite-node tools/myocardium/verifyPrescribedShortening.ts",
     "verify:minimal-loaded-chamber": "vite-node tools/myocardium/verifyMinimalLoadedChamber.ts",
     "verify:generalized-forces": "vite-node tools/myocardium/verifyGeneralizedForces.ts",
     "verify:single-chamber": "vite-node tools/myocardium/verifySingleChamber.ts",
@@ -430,7 +432,7 @@ state schemaはwall/region/patch-readyとするが、MultiPatch runtime、region
 [ ] HR knot table validated
 [ ] Ca/Land hierarchical fit tooling available
 [ ] isometric twitch gate passing
-[ ] prescribed-shortening transfer report passing
+[x] prescribed-shortening transfer report passing (`verify:myocardium-prescribed-shortening`)
 [ ] kinematics/sarcomere bridge derivation reviewed
 [ ] minimal loaded chamber spike completed
 [ ] Phase 3 owner GO/REVISE/NO-GO recorded
