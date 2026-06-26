@@ -30,6 +30,7 @@ export type ModelInstancePath = {
 
 export const ACTIVATION_SCHEDULER_FAMILY_ID = "activation-scheduler-v1";
 export const PERIODIC_ACTIVATION_SCHEDULER_V1_ID = "periodic-activation-scheduler-v1";
+export const PRESCRIBED_CALCIUM_TRANSIENT_V1_ID = "prescribed-calcium-transient-v1";
 
 export type StateBlockDescriptor = {
   blockId: string;
@@ -71,6 +72,39 @@ export interface ActivationScheduler<Params> {
   readonly id: typeof PERIODIC_ACTIVATION_SCHEDULER_V1_ID | string;
   reset(timeSec: number, params: Params): void;
   advance(previousTimeSec: number, nextTimeSec: number, params: Params): ActivationSchedulerOutput;
+}
+
+export type PrescribedCalciumInput = ActivationEventInput & {
+  dtSec: number;
+};
+
+export type PrescribedCalciumOutput = {
+  freeCalciumUM: number;
+  riseState01: number;
+  decayState01: number;
+  releaseDriveUMPerSec?: number;
+  clearanceDriveUMPerSec?: number;
+};
+
+export interface PrescribedCalciumTransient<Params> {
+  readonly id: typeof PRESCRIBED_CALCIUM_TRANSIENT_V1_ID | string;
+  readonly state: StateBlockDescriptor;
+
+  initialState(params: Params, out: Float64Array): void;
+
+  residual(
+    next: Float64Array,
+    previous: Float64Array,
+    input: PrescribedCalciumInput,
+    params: Params,
+    outResidual: Float64Array,
+  ): void;
+
+  evaluate(
+    state: Float64Array,
+    input: PrescribedCalciumInput,
+    params: Params,
+  ): PrescribedCalciumOutput;
 }
 
 export type MyocardiumInstanceSpec = {

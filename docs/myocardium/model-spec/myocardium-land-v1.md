@@ -768,6 +768,14 @@ export type PrescribedCalciumParams = {
 
 HRはcycle lengthから導出し、APIへ重複入力しない。knot外の外挿方針を明示する。
 
+Phase 2A standalone実装では、Decision 10がowner-acceptedになるまで数値knotを
+`synthetic-smoke-only` として扱う。`riseTimeSec` はCa release開始後の
+zero-initial single-pulse BE waveform peak timeへ決定的に合わせるための
+synthetic descriptorであり、
+`decayHalfTimeSec` は `tau_d = decayHalfTimeSec / ln(2)` へ写像する。
+normalization `N` はinterpolated effective targetごとに再計算し、実験target
+pass/failやaccepted HR targetを主張しない。
+
 ## 9.4 Target strategy
 
 1. `ca-land2017-intact-paired-v1`: intact-human Landと組み合わせてintact twitchを再現するpaired target。

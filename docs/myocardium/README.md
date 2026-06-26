@@ -30,8 +30,9 @@ accepted ADR
 ```
 
 `ADR-MYO-001` is Accepted for the required Phase 0 owner decisions listed in
-its acceptance clause. Phase 1A contract work and Phase 1B standalone Land
-source equations may proceed, but ModelCore integration, calcium backends,
+its acceptance clause. Phase 1A contract work, Phase 1B standalone Land source
+equations, Phase 1C Land protocol closure, and Phase 2A standalone prescribed
+calcium work may proceed, but ModelCore integration, Land/Ca coupling,
 mechanics coupling, and runtime schema migration still require their later phase
 gates.
 The owner acceptance record carries `acceptedSourceType` and `acceptedSourceRef`
@@ -89,6 +90,17 @@ stiffness provenance, re-solved algorithmic tangent, synthetic protocol metrics,
 dt self-consistency, and deterministic reproducibility. This gate reports
 `claimBoundary=algorithmic-source-closure-only`; digitized experimental target
 pass/fail remains deferred to later target-pack work.
+
+## Phase 2A prescribed calcium
+
+Run `npm run verify:myocardium-prescribed-calcium` to check the standalone
+`PrescribedCalciumTransientV1` backend. This gate covers ActivationEvent-only
+input semantics, synthetic cycle-length knot interpolation, C1 release pulse
+timing, BE residual/update consistency, event-boundary continuity, nonnegative
+free calcium, deterministic replay, and claim-boundary metadata. It reports
+`claimBoundary=prescribed-calcium-waveform-only` and
+`evidenceStatus=synthetic-smoke-only`; Decision 10 target/HR acceptance and
+experimental Ca target pass/fail remain deferred.
 
 ## Imported bundle checks
 
