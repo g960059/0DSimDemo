@@ -9,6 +9,7 @@ const REQUIRED_STRING_FIELDS = [
   "equationsVersion",
   "parameterSetId",
   "parameterSetSha256",
+  "activationSchedulerFamilyId",
   "activationModelId",
   "calciumModelId",
   "homogenizationModelId",

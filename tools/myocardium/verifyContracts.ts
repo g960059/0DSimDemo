@@ -1,5 +1,7 @@
 import {
+  ACTIVATION_SCHEDULER_FAMILY_ID,
   MYOCARDIUM_PHASE1A_CONTRACT_SCOPE,
+  PERIODIC_ACTIVATION_SCHEDULER_V1_ID,
   type ModelProvenance,
   type MyocardiumInstanceSpec,
   type StateBlockDescriptor,
@@ -24,10 +26,14 @@ check("Phase 1A scope is standalone", () => {
   assert(MYOCARDIUM_STATE_LAYOUT_SCOPE.wiredToLegacyStateLayout === false);
 });
 
-check("literal activation IDs preserve spec divergence", () => {
+check("literal activation IDs separate scheduler family and concrete model", () => {
   const spec: MyocardiumInstanceSpec = {
     path: { chamber: "LV", moduleId: "myocardium", instanceId: "lv-reference" },
-    activation: { modelId: "activation-scheduler-v1", parameterSetId: "activation-reference-v1" },
+    activation: {
+      schedulerFamilyId: ACTIVATION_SCHEDULER_FAMILY_ID,
+      schedulerModelId: PERIODIC_ACTIVATION_SCHEDULER_V1_ID,
+      parameterSetId: "activation-reference-v1",
+    },
     kinematics: { modelId: "prescribed-fiber-kinematics-v1", parameterSetId: "kinematics-reference-v1" },
     passiveMaterial: { modelId: "passive-exponential-energy-v1", parameterSetId: "passive-reference-v1" },
     generalizedForceMapper: { modelId: "virtual-power-generalized-force-v1" },
@@ -36,9 +42,9 @@ check("literal activation IDs preserve spec divergence", () => {
   };
   const scheduler = new PeriodicActivationSchedulerV1();
   const schedulerId: string = scheduler.id;
-  assert(spec.activation.modelId !== schedulerId);
-  assert(spec.activation.modelId === "activation-scheduler-v1");
-  assert(schedulerId === "periodic-activation-scheduler-v1");
+  assert(spec.activation.schedulerFamilyId !== schedulerId);
+  assert(spec.activation.schedulerFamilyId === ACTIVATION_SCHEDULER_FAMILY_ID);
+  assert(spec.activation.schedulerModelId === schedulerId);
 });
 
 check("instance paths round-trip with escaped separators", () => {
@@ -67,6 +73,12 @@ check("dynamic layout offsets and hash are deterministic", () => {
     { ...descriptors[1], blockId: "z.calcium" },
   ]);
   assertDeepEqual(unicodeLayout.blocks.map((block) => block.descriptor.blockId), ["z.calcium", "ä.activation"]);
+
+  assertThrows(() =>
+    buildDynamicStateLayout([
+      { ...descriptors[0], labels: ["activationClockSec", "activationClockSec"] },
+    ]),
+  );
 });
 
 check("periodic scheduler emits canonical activation events", () => {
@@ -117,7 +129,8 @@ check("model provenance rejects missing source references", () => {
     equationsVersion: "equations-v1",
     parameterSetId: "params-v1",
     parameterSetSha256: "sha256-reference",
-    activationModelId: "activation-scheduler-v1",
+    activationSchedulerFamilyId: ACTIVATION_SCHEDULER_FAMILY_ID,
+    activationModelId: PERIODIC_ACTIVATION_SCHEDULER_V1_ID,
     calciumModelId: "prescribed-calcium-transient-v1",
     homogenizationModelId: "homogenization-v1",
     mechanicsModelId: "mechanics-v1",
@@ -192,4 +205,13 @@ function assertDeepEqual(left: unknown, right: unknown): void {
   if (leftJson !== rightJson) {
     throw new Error(`expected ${rightJson}, got ${leftJson}`);
   }
+}
+
+function assertThrows(fn: () => void): void {
+  try {
+    fn();
+  } catch {
+    return;
+  }
+  throw new Error("expected function to throw");
 }

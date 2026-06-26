@@ -8,7 +8,9 @@
     "derivedFrom": "ADR-MYO-001",
     "acceptedBy": "g960059",
     "acceptedAt": "2026-06-26",
-    "acceptedSource": "Codex thread owner instruction: recommended defaults OK"
+    "acceptedSource": "Codex thread owner instruction: recommended defaults OK",
+    "acceptedSourceType": "codex-thread",
+    "acceptedSourceRef": "https://github.com/g960059/0DSimDemo/pull/154"
   },
   "baseline": {
     "createdAt": "2026-06-26",
@@ -79,7 +81,9 @@
       ],
       "acceptedBy": "g960059",
       "acceptedAt": "2026-06-26",
-      "acceptedSource": "Codex thread owner instruction: recommended defaults OK"
+      "acceptedSource": "Codex thread owner instruction: recommended defaults OK",
+      "acceptedSourceType": "codex-thread",
+      "acceptedSourceRef": "https://github.com/g960059/0DSimDemo/pull/154"
     },
     {
       "id": 2,
@@ -105,7 +109,9 @@
       ],
       "acceptedBy": "g960059",
       "acceptedAt": "2026-06-26",
-      "acceptedSource": "Codex thread owner instruction: recommended defaults OK"
+      "acceptedSource": "Codex thread owner instruction: recommended defaults OK",
+      "acceptedSourceType": "codex-thread",
+      "acceptedSourceRef": "https://github.com/g960059/0DSimDemo/pull/154"
     },
     {
       "id": 3,
@@ -124,7 +130,9 @@
       ],
       "acceptedBy": "g960059",
       "acceptedAt": "2026-06-26",
-      "acceptedSource": "Codex thread owner instruction: recommended defaults OK"
+      "acceptedSource": "Codex thread owner instruction: recommended defaults OK",
+      "acceptedSourceType": "codex-thread",
+      "acceptedSourceRef": "https://github.com/g960059/0DSimDemo/pull/154"
     },
     {
       "id": 9,
@@ -143,7 +151,9 @@
       ],
       "acceptedBy": "g960059",
       "acceptedAt": "2026-06-26",
-      "acceptedSource": "Codex thread owner instruction: recommended defaults OK"
+      "acceptedSource": "Codex thread owner instruction: recommended defaults OK",
+      "acceptedSourceType": "codex-thread",
+      "acceptedSourceRef": "https://github.com/g960059/0DSimDemo/pull/154"
     },
     {
       "id": 11,
@@ -162,7 +172,9 @@
       ],
       "acceptedBy": "g960059",
       "acceptedAt": "2026-06-26",
-      "acceptedSource": "Codex thread owner instruction: recommended defaults OK"
+      "acceptedSource": "Codex thread owner instruction: recommended defaults OK",
+      "acceptedSourceType": "codex-thread",
+      "acceptedSourceRef": "https://github.com/g960059/0DSimDemo/pull/154"
     },
     {
       "id": 14,
@@ -181,7 +193,9 @@
       ],
       "acceptedBy": "g960059",
       "acceptedAt": "2026-06-26",
-      "acceptedSource": "Codex thread owner instruction: recommended defaults OK"
+      "acceptedSource": "Codex thread owner instruction: recommended defaults OK",
+      "acceptedSourceType": "codex-thread",
+      "acceptedSourceRef": "https://github.com/g960059/0DSimDemo/pull/154"
     },
     {
       "id": 15,
@@ -200,7 +214,9 @@
       ],
       "acceptedBy": "g960059",
       "acceptedAt": "2026-06-26",
-      "acceptedSource": "Codex thread owner instruction: recommended defaults OK"
+      "acceptedSource": "Codex thread owner instruction: recommended defaults OK",
+      "acceptedSourceType": "codex-thread",
+      "acceptedSourceRef": "https://github.com/g960059/0DSimDemo/pull/154"
     },
     {
       "id": 17,
@@ -226,7 +242,9 @@
       ],
       "acceptedBy": "g960059",
       "acceptedAt": "2026-06-26",
-      "acceptedSource": "Codex thread owner instruction: recommended defaults OK"
+      "acceptedSource": "Codex thread owner instruction: recommended defaults OK",
+      "acceptedSourceType": "codex-thread",
+      "acceptedSourceRef": "https://github.com/g960059/0DSimDemo/pull/154"
     },
     {
       "id": 20,
@@ -245,7 +263,9 @@
       ],
       "acceptedBy": "g960059",
       "acceptedAt": "2026-06-26",
-      "acceptedSource": "Codex thread owner instruction: recommended defaults OK"
+      "acceptedSource": "Codex thread owner instruction: recommended defaults OK",
+      "acceptedSourceType": "codex-thread",
+      "acceptedSourceRef": "https://github.com/g960059/0DSimDemo/pull/154"
     }
   ]
 }

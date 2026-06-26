@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  ACTIVATION_SCHEDULER_FAMILY_ID,
   MYOCARDIUM_PHASE1A_CONTRACT_SCOPE,
+  PERIODIC_ACTIVATION_SCHEDULER_V1_ID,
   type ModelProvenance,
   type MyocardiumInstanceSpec,
   type StateBlockDescriptor,
@@ -18,10 +20,14 @@ import {
 } from "@/engine/myocardium/state/StateLayoutBuilder";
 
 describe("myocardium Phase 1A contracts", () => {
-  it("pins activation instance and scheduler literal ID divergence", () => {
+  it("separates activation scheduler family and concrete model IDs", () => {
     const spec: MyocardiumInstanceSpec = {
       path: { chamber: "LV", moduleId: "myocardium", instanceId: "lv-reference" },
-      activation: { modelId: "activation-scheduler-v1", parameterSetId: "activation-reference-v1" },
+      activation: {
+        schedulerFamilyId: ACTIVATION_SCHEDULER_FAMILY_ID,
+        schedulerModelId: PERIODIC_ACTIVATION_SCHEDULER_V1_ID,
+        parameterSetId: "activation-reference-v1",
+      },
       kinematics: { modelId: "prescribed-fiber-kinematics-v1", parameterSetId: "kinematics-reference-v1" },
       passiveMaterial: { modelId: "passive-exponential-energy-v1", parameterSetId: "passive-reference-v1" },
       generalizedForceMapper: { modelId: "virtual-power-generalized-force-v1" },
@@ -30,9 +36,10 @@ describe("myocardium Phase 1A contracts", () => {
     };
     const scheduler = new PeriodicActivationSchedulerV1();
 
-    expect(spec.activation.modelId).toBe("activation-scheduler-v1");
-    expect(scheduler.id).toBe("periodic-activation-scheduler-v1");
-    expect(scheduler.id).not.toBe(spec.activation.modelId);
+    expect(spec.activation.schedulerFamilyId).toBe("activation-scheduler-v1");
+    expect(spec.activation.schedulerModelId).toBe("periodic-activation-scheduler-v1");
+    expect(scheduler.id).toBe(spec.activation.schedulerModelId);
+    expect(spec.activation.schedulerFamilyId).not.toBe(spec.activation.schedulerModelId);
   });
 
   it("documents deferred schema-breaking state adoption items", () => {
@@ -117,7 +124,7 @@ describe("myocardium Phase 1A contracts", () => {
     ]);
   });
 
-  it("rejects duplicate state block IDs and label-size mismatches", () => {
+  it("rejects duplicate state block IDs, label-size mismatches, and duplicate labels", () => {
     const [activationBlock, calciumBlock] = phase1LayoutDescriptors();
 
     expect(() => buildDynamicStateLayout([activationBlock, { ...calciumBlock, blockId: "activation.lv" }])).toThrow(
@@ -126,6 +133,9 @@ describe("myocardium Phase 1A contracts", () => {
     expect(() => buildDynamicStateLayout([{ ...activationBlock, labels: ["activationClockSec"] }])).toThrow(
       /labels length must match size/,
     );
+    expect(() =>
+      buildDynamicStateLayout([{ ...activationBlock, labels: ["activationClockSec", "activationClockSec"] }]),
+    ).toThrow(/labels must be unique/);
   });
 
   it("emits canonical periodic activation events across interval boundaries", () => {
@@ -244,7 +254,8 @@ function modelProvenanceFixture(): ModelProvenance {
     equationsVersion: "equations-v1",
     parameterSetId: "params-v1",
     parameterSetSha256: "sha256-reference",
-    activationModelId: "activation-scheduler-v1",
+    activationSchedulerFamilyId: ACTIVATION_SCHEDULER_FAMILY_ID,
+    activationModelId: PERIODIC_ACTIVATION_SCHEDULER_V1_ID,
     calciumModelId: "prescribed-calcium-transient-v1",
     homogenizationModelId: "homogenization-v1",
     mechanicsModelId: "mechanics-v1",

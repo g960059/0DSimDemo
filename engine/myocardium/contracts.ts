@@ -2,6 +2,7 @@ export type ModelProvenance = {
   equationsVersion: string;
   parameterSetId: string;
   parameterSetSha256: string;
+  activationSchedulerFamilyId: typeof ACTIVATION_SCHEDULER_FAMILY_ID;
   activationModelId: string;
   calciumModelId: string;
   homogenizationModelId: string;
@@ -26,6 +27,9 @@ export type ModelInstancePath = {
   moduleId: string;
   instanceId: string;
 };
+
+export const ACTIVATION_SCHEDULER_FAMILY_ID = "activation-scheduler-v1";
+export const PERIODIC_ACTIVATION_SCHEDULER_V1_ID = "periodic-activation-scheduler-v1";
 
 export type StateBlockDescriptor = {
   blockId: string;
@@ -64,7 +68,7 @@ export type ActivationSchedulerOutput = {
 };
 
 export interface ActivationScheduler<Params> {
-  readonly id: "periodic-activation-scheduler-v1" | string;
+  readonly id: typeof PERIODIC_ACTIVATION_SCHEDULER_V1_ID | string;
   reset(timeSec: number, params: Params): void;
   advance(previousTimeSec: number, nextTimeSec: number, params: Params): ActivationSchedulerOutput;
 }
@@ -73,7 +77,8 @@ export type MyocardiumInstanceSpec = {
   path: ModelInstancePath;
 
   activation: {
-    modelId: "activation-scheduler-v1";
+    schedulerFamilyId: typeof ACTIVATION_SCHEDULER_FAMILY_ID;
+    schedulerModelId: typeof PERIODIC_ACTIVATION_SCHEDULER_V1_ID;
     parameterSetId: string;
   };
 

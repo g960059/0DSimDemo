@@ -68,6 +68,20 @@ describe("myocardium Phase 0 artifact validation", () => {
     delete (input.decisionsArtifact.artifact as Record<string, unknown>).acceptedBy;
     delete (input.decisionsArtifact.artifact as Record<string, unknown>).acceptedAt;
     delete (input.decisionsArtifact.artifact as Record<string, unknown>).acceptedSource;
+    delete (input.decisionsArtifact.artifact as Record<string, unknown>).acceptedSourceType;
+    delete (input.decisionsArtifact.artifact as Record<string, unknown>).acceptedSourceRef;
+
+    const report = validatePhase0Artifacts(input);
+
+    expect(report.pass).toBe(false);
+    expect(
+      report.errors.some((issue) => issue.code === "decisions_artifact_accepted_missing_owner_metadata"),
+    ).toBe(true);
+  });
+
+  it("fails when an accepted decision artifact lacks structured source provenance", () => {
+    const input = fixture();
+    delete (input.decisionsArtifact.artifact as Record<string, unknown>).acceptedSourceRef;
 
     const report = validatePhase0Artifacts(input);
 
@@ -187,6 +201,18 @@ describe("myocardium Phase 0 artifact validation", () => {
     delete (input.decisionsArtifact.decisions[0] as Record<string, unknown>).acceptedBy;
     delete (input.decisionsArtifact.decisions[0] as Record<string, unknown>).acceptedAt;
     delete (input.decisionsArtifact.decisions[0] as Record<string, unknown>).acceptedSource;
+    delete (input.decisionsArtifact.decisions[0] as Record<string, unknown>).acceptedSourceType;
+    delete (input.decisionsArtifact.decisions[0] as Record<string, unknown>).acceptedSourceRef;
+
+    const report = validatePhase0Artifacts(input);
+
+    expect(report.pass).toBe(false);
+    expect(report.errors.some((issue) => issue.code === "decision_accepted_missing_owner_metadata")).toBe(true);
+  });
+
+  it("fails when an accepted owner decision lacks structured source provenance", () => {
+    const input = fixture();
+    delete (input.decisionsArtifact.decisions[0] as Record<string, unknown>).acceptedSourceRef;
 
     const report = validatePhase0Artifacts(input);
 
@@ -240,6 +266,8 @@ function pendingFixture(): ReturnType<typeof fixture> {
   delete (input.decisionsArtifact.artifact as Record<string, unknown>).acceptedBy;
   delete (input.decisionsArtifact.artifact as Record<string, unknown>).acceptedAt;
   delete (input.decisionsArtifact.artifact as Record<string, unknown>).acceptedSource;
+  delete (input.decisionsArtifact.artifact as Record<string, unknown>).acceptedSourceType;
+  delete (input.decisionsArtifact.artifact as Record<string, unknown>).acceptedSourceRef;
   input.decisionsArtifact.sourceDocuments[0].status = "Proposed";
   input.claimFreezeArtifact.sourceDocuments[0].status = "Proposed";
   for (const decision of input.decisionsArtifact.decisions) {
@@ -247,6 +275,8 @@ function pendingFixture(): ReturnType<typeof fixture> {
     delete (decision as Record<string, unknown>).acceptedBy;
     delete (decision as Record<string, unknown>).acceptedAt;
     delete (decision as Record<string, unknown>).acceptedSource;
+    delete (decision as Record<string, unknown>).acceptedSourceType;
+    delete (decision as Record<string, unknown>).acceptedSourceRef;
   }
   return input;
 }

@@ -80,10 +80,14 @@ export function validateStateBlockDescriptor(descriptor: StateBlockDescriptor): 
   if (!Number.isInteger(descriptor.size) || descriptor.size <= 0) {
     throw new Error(`StateBlockDescriptor(${descriptor.blockId}).size must be a positive integer`);
   }
+  // Modules with no dynamic state must omit a block instead of emitting a zero-size block.
   if (!Array.isArray(descriptor.labels) || descriptor.labels.length !== descriptor.size) {
     throw new Error(
       `StateBlockDescriptor(${descriptor.blockId}).labels length must match size ${descriptor.size}`,
     );
+  }
+  if (new Set(descriptor.labels).size !== descriptor.labels.length) {
+    throw new Error(`StateBlockDescriptor(${descriptor.blockId}).labels must be unique within the block`);
   }
   descriptor.labels.forEach((label, index) => {
     requireNonEmptyString(label, `StateBlockDescriptor(${descriptor.blockId}).labels[${index}]`);

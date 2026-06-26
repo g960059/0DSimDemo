@@ -33,6 +33,8 @@ accepted ADR
 its acceptance clause. Phase 1A contract work may proceed, but ModelCore
 integration, Land equations, calcium backends, mechanics coupling, and runtime
 schema migration still require their later phase gates.
+The owner acceptance record carries `acceptedSourceType` and `acceptedSourceRef`
+metadata so future decisions can trace the durable approval source.
 
 ## Source registry
 
@@ -67,6 +69,9 @@ contracts live under `engine/myocardium/*`; the new
 schema/loaders. The spec §7.2 schema-breaking items, including
 `MODEL_STATE_SCHEMA_VERSION` changes and old-loader rejection, are deferred to
 later adoption/integration phases.
+The activation contract distinguishes the scheduler family
+`activation-scheduler-v1` from the concrete scheduler model
+`periodic-activation-scheduler-v1`.
 
 ## Imported bundle checks
 

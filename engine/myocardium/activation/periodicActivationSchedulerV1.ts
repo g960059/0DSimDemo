@@ -1,3 +1,4 @@
+import { PERIODIC_ACTIVATION_SCHEDULER_V1_ID } from "@/engine/myocardium/contracts";
 import type {
   ActivationEventInput,
   ActivationScheduler,
@@ -11,8 +12,6 @@ import {
   requirePositiveFiniteSeconds,
   requireUnitInterval01,
 } from "@/engine/myocardium/units";
-
-export const PERIODIC_ACTIVATION_SCHEDULER_V1_ID = "periodic-activation-scheduler-v1";
 
 export type PeriodicActivationSchedulerV1Params = {
   targetIds: readonly ActivationTargetId[];
@@ -34,7 +33,6 @@ type NormalizedPeriodicActivationParams = {
 type ResetState = {
   timeSec: number;
   paramsKey: string;
-  eventCountersByTargetId: Readonly<Record<ActivationTargetId, number>>;
 };
 
 type PendingActivationEvent = {
@@ -54,7 +52,6 @@ export class PeriodicActivationSchedulerV1 implements ActivationScheduler<Period
     this.resetState = {
       timeSec: resetTimeSec,
       paramsKey: normalized.paramsKey,
-      eventCountersByTargetId: activationEventCountersAtOrBefore(resetTimeSec, normalized),
     };
   }
 
@@ -82,7 +79,6 @@ export class PeriodicActivationSchedulerV1 implements ActivationScheduler<Period
     this.resetState = {
       timeSec: nextSec,
       paramsKey: normalized.paramsKey,
-      eventCountersByTargetId: activationEventCountersAtOrBefore(nextSec, normalized),
     };
 
     return {
@@ -164,18 +160,6 @@ function collectPendingEvents(
     if (timeOrder !== 0) return timeOrder;
     return compareCanonicalStrings(left.targetId, right.targetId);
   });
-}
-
-function activationEventCountersAtOrBefore(
-  timeSec: number,
-  params: NormalizedPeriodicActivationParams,
-): Readonly<Record<ActivationTargetId, number>> {
-  const counters: Record<ActivationTargetId, number> = {};
-  for (const targetId of params.targetIds) {
-    const delaySec = params.delayByTargetIdSec[targetId] ?? params.defaultActivationDelaySec;
-    counters[targetId] = Math.max(0, Math.floor((timeSec - delaySec) / params.cycleLengthSec) + 1);
-  }
-  return counters;
 }
 
 function activationEventIdForCycle(cycleIndex: number): number {

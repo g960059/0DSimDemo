@@ -915,13 +915,17 @@ function validateAcceptanceMetadata(
   const acceptedBy = stringField(decision, "acceptedBy") ?? stringField(acceptance, "acceptedBy");
   const acceptedAt = stringField(decision, "acceptedAt") ?? stringField(acceptance, "acceptedAt");
   const acceptedSource = stringField(decision, "acceptedSource") ?? stringField(acceptance, "acceptedSource");
-  if (!acceptedBy || !acceptedAt || !acceptedSource) {
+  const acceptedSourceType =
+    stringField(decision, "acceptedSourceType") ?? stringField(acceptance, "acceptedSourceType");
+  const acceptedSourceRef =
+    stringField(decision, "acceptedSourceRef") ?? stringField(acceptance, "acceptedSourceRef");
+  if (!acceptedBy || !acceptedAt || !acceptedSource || !acceptedSourceType || !acceptedSourceRef) {
     addIssue(
       issues,
       "error",
       "decision_accepted_missing_owner_metadata",
       path,
-      `Decision ${id} is accepted but lacks acceptedBy, acceptedAt, and acceptedSource metadata.`,
+      `Decision ${id} is accepted but lacks acceptedBy, acceptedAt, acceptedSource, acceptedSourceType, and acceptedSourceRef metadata.`,
     );
     return;
   }
@@ -941,13 +945,17 @@ function validateAcceptedArtifactMetadata(artifact: JsonRecord, path: string, is
   const acceptedBy = stringField(artifact, "acceptedBy") ?? stringField(acceptance, "acceptedBy");
   const acceptedAt = stringField(artifact, "acceptedAt") ?? stringField(acceptance, "acceptedAt");
   const acceptedSource = stringField(artifact, "acceptedSource") ?? stringField(acceptance, "acceptedSource");
-  if (!acceptedBy || !acceptedAt || !acceptedSource) {
+  const acceptedSourceType =
+    stringField(artifact, "acceptedSourceType") ?? stringField(acceptance, "acceptedSourceType");
+  const acceptedSourceRef =
+    stringField(artifact, "acceptedSourceRef") ?? stringField(acceptance, "acceptedSourceRef");
+  if (!acceptedBy || !acceptedAt || !acceptedSource || !acceptedSourceType || !acceptedSourceRef) {
     addIssue(
       issues,
       "error",
       "decisions_artifact_accepted_missing_owner_metadata",
       path,
-      "Accepted decision artifact lacks acceptedBy, acceptedAt, and acceptedSource metadata.",
+      "Accepted decision artifact lacks acceptedBy, acceptedAt, acceptedSource, acceptedSourceType, and acceptedSourceRef metadata.",
     );
     return;
   }
