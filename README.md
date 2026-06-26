@@ -9,6 +9,12 @@
 
 主な対象読者は、循環動態モデル・0D シミュレーション・医用工学・麻酔/循環器領域の研究者です。後期研修医・初期研修医・臨床工学技士など、循環動態を学びたい臨床ユーザーも、公式レッスンと公式ケースから入って使い始められます。
 
+## ドキュメントの現在地
+
+現行コードは、legacy `ActiveStressChamberModel` を中核にした実働プロトタイプです。一方で、次の心筋収縮サブシステムは Revision 3 として全面置換方針を整理中です。心筋刷新の正典候補は [`docs/myocardium/`](docs/myocardium/) にあります。
+
+旧 ADR、旧ロードマップ、旧研究メモは、古い前提を正典のように読ませないためローカルの `docs/` から削除しました。必要な場合は git 履歴から参照してください。
+
 ---
 
 ## 重要: 研究・教育目的のみ
@@ -40,7 +46,7 @@ CircleHeart は、現在おおまかに次の 5 つの層で構成されてい�
 | **Official Cases** | 正常、AMI、HFrEF、HFpEF、AS、低容量性ショックなどの公式症例 |
 | **Lessons** | 公式ケースを題材に、波形や PV ループの読み方を段階的に学ぶ対話的レッスン |
 | **Simulation engine** | 0D 閉ループ循環モデル本体。React から分離され、`PreviewController` / harness から駆動される |
-| **Research docs / tests** | 文献根拠、パラメータ妥当性、波形 morphology gate、baseline freeze、steady-state 検証の記録 |
+| **Docs / tests** | Revision 3 心筋刷新仕様、source registry、baseline freeze、steady-state 検証の記録 |
 
 ---
 
@@ -266,15 +272,15 @@ Workbench の状態は、[`caseDoc.ts`](caseDoc.ts) で定義される `CaseDocu
 
 `baseline.test.ts` の baseline freeze は、現行挙動の change detector です。これは「生理学的に完全に妥当」という主張ではなく、意図しない挙動変化を検出するための固定点です。
 
-研究上の妥当性は、`docs/research/` 以下の文献ベースの記録と、今後の calibration / validation / UQ によって更新していきます。
+研究上の妥当性は、Revision 3 の心筋刷新文書、source registry、今後の calibration / validation / UQ によって更新していきます。
 
 ---
 
 ## 文献・妥当性ドキュメント
 
-[`docs/research/README.md`](docs/research/README.md) が、パラメータ妥当性・文献根拠・校正記録の入口です。
+[`docs/README.md`](docs/README.md) が現在の文書入口です。心筋収縮サブシステム刷新については [`docs/myocardium/README.md`](docs/myocardium/README.md) から読んでください。
 
-このディレクトリでは、次のルールを採用しています。
+Revision 3 では、次のルールを採用しています。
 
 - 実在する文献のみを引用する
 - DOI、ページ番号、引用を捏造しない
@@ -283,7 +289,7 @@ Workbench の状態は、[`caseDoc.ts`](caseDoc.ts) で定義される `CaseDocu
 - 単位を明示する
 - 絶対値よりも、波形形状と変化方向を優先する
 
-主要な対象は、EDPVR、active-stress、動脈・静脈コンパートメント、弁、心膜・中隔、Guyton/Starling pane、冠循環、波形 morphology、症例妥当性などです。モデルの幾何・EDPVR の導出は [`docs/research/derivations-geometry-and-edpvr.md`](docs/research/derivations-geometry-and-edpvr.md) にまとめています。
+心筋刷新のmachine-readable source registryは [`data/myocardium/sources.json`](data/myocardium/sources.json) です。Phase A の方程式、parameter fixture、target pack、acceptance threshold には、`verificationStatus: "verified"` のsourceだけを使います。
 
 ---
 
@@ -392,7 +398,9 @@ lessonDoc.ts                official lesson definitions
 officialCases.ts            official case definitions
 constants.ts                app-level default params
 
-docs/research/              parameter validity, calibration, morphology docs
+docs/                       current documentation entry point
+docs/myocardium/            Revision 3 myocardium replacement docs
+data/myocardium/            machine-readable source registry
 __tests__/                  app / case / reading tests
 engine/__tests__/           engine regression and morphology tests
 tools/                      verification / fitting scripts
@@ -426,9 +434,11 @@ npm run test
 
 ## 現在の位置づけ
 
-CircleHeart は、すでに単なる UI モックではなく、active-stress 型心腔、動的弁、体循環・肺循環ネットワーク、心膜・中隔連成、冠循環、TBV 台帳、公式ケース、レッスン、Workbench、case persistence、health / morphology tests を備えた実働プロトタイプです。
+CircleHeart は、すでに単なる UI モックではなく、legacy active-stress 型心腔、動的弁、体循環・肺循環ネットワーク、心膜・中隔連成、冠循環、TBV 台帳、公式ケース、レッスン、Workbench、case persistence、health / morphology tests を備えた実働プロトタイプです。
 
 一方で、まだ validated simulator ではありません。
+
+心筋収縮サブシステムは Revision 3 で全面置換方針を整理中です。Revision 3 は現行runtimeを説明する文書ではなく、Phase 0 のowner decisions後に進める次期実装契約です。
 
 今後の重要テーマは、機能追加そのものよりも、以下です。
 

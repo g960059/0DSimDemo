@@ -9,6 +9,17 @@ It models active-stress cardiac chambers, dynamically opening/closing valves, sy
 
 The primary audience is researchers in cardiovascular modeling, 0D simulation, biomedical engineering, and anesthesia/cardiology. Clinical users who want to learn hemodynamics — residents, clinical engineers, and others — can start from the official lessons and official cases.
 
+## Documentation status
+
+The current codebase is a working prototype centered on the legacy
+`ActiveStressChamberModel`. The next myocardial contraction subsystem is being
+planned as a Revision 3 full replacement. The candidate canonical documents for
+that work live under [`docs/myocardium/`](docs/myocardium/).
+
+Older ADRs, roadmaps, and research notes were removed from the local `docs/`
+tree so stale assumptions do not read like current canon. Use git history when
+you need them for archaeology.
+
 ---
 
 ## Important: research & education only
@@ -40,7 +51,7 @@ CircleHeart is currently organized roughly into the following five layers.
 | **Official Cases** | Official cases such as normal, AMI, HFrEF, HFpEF, AS, and hypovolemic shock |
 | **Lessons** | Interactive lessons that teach how to read waveforms and PV loops step by step, using the official cases |
 | **Simulation engine** | The 0D closed-loop circulation model itself — decoupled from React and driven by the `PreviewController` / harness |
-| **Research docs / tests** | Records of literature grounding, parameter validity, waveform morphology gates, baseline freezes, and steady-state verification |
+| **Docs / tests** | Revision 3 myocardium specifications, source registry, baseline freezes, and steady-state verification |
 
 ---
 
@@ -266,15 +277,15 @@ This repository does not try to "prove the model correct all at once." Instead i
 
 The baseline freeze in `baseline.test.ts` is a change detector for current behavior. It is not a claim of "fully physiologically valid" — it is a fixed point for catching unintended behavioral changes.
 
-Research-level validity is updated through the literature-based records under `docs/research/` and through future calibration / validation / UQ.
+Research-level validity is updated through the Revision 3 myocardium documents, source registry, and future calibration / validation / UQ.
 
 ---
 
 ## Literature & validity documentation
 
-[`docs/research/README.md`](docs/research/README.md) is the entry point for parameter validity, literature grounding, and calibration records.
+[`docs/README.md`](docs/README.md) is the current documentation entry point. For the myocardial contraction subsystem rebuild, start with [`docs/myocardium/README.md`](docs/myocardium/README.md).
 
-This directory follows these rules:
+Revision 3 follows these rules:
 
 - cite only real literature
 - do not fabricate DOIs, page numbers, or quotations
@@ -283,7 +294,7 @@ This directory follows these rules:
 - state units explicitly
 - prioritize waveform shape and direction of change over absolute values
 
-The main subjects are EDPVR, active stress, arterial/venous compartments, valves, pericardium/septum, the Guyton/Starling pane, the coronary circulation, waveform morphology, and case validity. The model geometry and EDPVR derivations are collected in [`docs/research/derivations-geometry-and-edpvr.md`](docs/research/derivations-geometry-and-edpvr.md).
+The machine-readable source registry for the myocardium rebuild is [`data/myocardium/sources.json`](data/myocardium/sources.json). Phase A equations, parameter fixtures, target packs, and acceptance thresholds may use only sources with `verificationStatus: "verified"`.
 
 ---
 
@@ -392,7 +403,9 @@ lessonDoc.ts                official lesson definitions
 officialCases.ts            official case definitions
 constants.ts                app-level default params
 
-docs/research/              parameter validity, calibration, morphology docs
+docs/                       current documentation entry point
+docs/myocardium/            Revision 3 myocardium replacement docs
+data/myocardium/            machine-readable source registry
 __tests__/                  app / case / reading tests
 engine/__tests__/           engine regression and morphology tests
 tools/                      verification / fitting scripts
@@ -426,9 +439,11 @@ When adding cases or lessons, always write model limitations. The more clinical 
 
 ## Current status
 
-CircleHeart is no longer a mere UI mock: it is a working prototype with active-stress chambers, dynamic valves, systemic/pulmonary networks, pericardial/septal coupling, the coronary circulation, a TBV ledger, official cases, lessons, the Workbench, case persistence, and health / morphology tests.
+CircleHeart is no longer a mere UI mock: it is a working prototype with legacy active-stress chambers, dynamic valves, systemic/pulmonary networks, pericardial/septal coupling, the coronary circulation, a TBV ledger, official cases, lessons, the Workbench, case persistence, and health / morphology tests.
 
 At the same time, it is not yet a validated simulator.
+
+The myocardial contraction subsystem is being reorganized under Revision 3 as a full replacement plan. Revision 3 does not describe the current runtime; it is the next implementation contract after Phase 0 owner decisions are accepted.
 
 The key themes going forward are not feature additions per se, but:
 

@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "sourceBundle": {
+    "id": "0dsim-myocardium-revision3-2026-06-26",
+    "revision": 3,
+    "origin": "local-import",
+    "localPathRedacted": true
+  },
+  "status": "proposed",
+  "repositoryBaseline": "228bef96e5f522de2cfe352de5d6d4d2f017c550",
+  "adaptations": [
+    {
+      "repoPath": "docs/myocardium/model-spec/myocardium-land-v1.md",
+      "reason": "historical baseline docs/research references were rewritten to avoid pointing at removed local docs"
+    },
+    {
+      "repoPath": "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
+      "reason": "internal document paths were rebased from docs/* to docs/myocardium/*"
+    },
+    {
+      "repoPath": "docs/myocardium/research/myocardial-contraction-rebuild-design-record.md",
+      "reason": "internal document paths were rebased from docs/* to docs/myocardium/* and historical baseline docs/research references were rewritten"
+    },
+    {
+      "repoPath": "docs/myocardium/references/myocardium-source-registry.md",
+      "reason": "frontmatter source_of_truth was rebased from docs/references to docs/myocardium/references"
+    }
+  ],
+  "priority": [
+    {
+      "role": "adr",
+      "sourcePath": "docs/adr/ADR-MYO-001.md",
+      "repoPath": "docs/myocardium/adr/ADR-MYO-001.md",
+      "sourceSha256": "140f0bf859a5da48919e5de008a3ee44a240867279af9c83cce8bb2af59321e6",
+      "repoSha256": "140f0bf859a5da48919e5de008a3ee44a240867279af9c83cce8bb2af59321e6",
+      "importStatus": "exact"
+    },
+    {
+      "role": "model-spec",
+      "sourcePath": "docs/model-spec/myocardium-land-v1.md",
+      "repoPath": "docs/myocardium/model-spec/myocardium-land-v1.md",
+      "sourceSha256": "1197e906ff0bf1404126775b09e6d34a1a61bf879dd75ab2418752fb9397122c",
+      "repoSha256": "78cb9317d6dde8415d56664af37918a09282fd27c2c27d276cbf6b65adafb941",
+      "importStatus": "adapted"
+    },
+    {
+      "role": "verification",
+      "sourcePath": "docs/verification/myocardium-v1-verification.md",
+      "repoPath": "docs/myocardium/verification/myocardium-v1-verification.md",
+      "sourceSha256": "7a33e5ca1d880e4e70fd00f29bf38d82b672185418370aae4a1d81b198903a79",
+      "repoSha256": "7a33e5ca1d880e4e70fd00f29bf38d82b672185418370aae4a1d81b198903a79",
+      "importStatus": "exact"
+    },
+    {
+      "role": "roadmap",
+      "sourcePath": "docs/roadmap/myocardium-rebuild-roadmap.md",
+      "repoPath": "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
+      "sourceSha256": "9cdf3306fcb896d994834be0b84481b384c8cbdecbebb4cb16a3e440927bbeea",
+      "repoSha256": "dc610d0dd2bfbf11561ca5086e9784f2e690bebd93a0c19134eb5736fb4acf5b",
+      "importStatus": "adapted"
+    },
+    {
+      "role": "design-record",
+      "sourcePath": "docs/research/myocardial-contraction-rebuild-design-record.md",
+      "repoPath": "docs/myocardium/research/myocardial-contraction-rebuild-design-record.md",
+      "sourceSha256": "1219b9aa7235dcbd3cdd22dbcb4b9f002e0f9f44660e4b362509b84db3b64a04",
+      "repoSha256": "7b5da969052aa916f6833ceb123709f602691128a08595d87d9abc5d1dd7682c",
+      "importStatus": "adapted"
+    }
+  ],
+  "supporting": [
+    {
+      "role": "source-registry-note",
+      "sourcePath": "docs/references/myocardium-source-registry.md",
+      "repoPath": "docs/myocardium/references/myocardium-source-registry.md",
+      "sourceSha256": "21d0866a8142400cbc9e5aa3cb1253ac78fa511183e742005cdbf2d89648898f",
+      "repoSha256": "7a15ff80e2cb8d504a4422ae2d12fcad2b7689bbc31fec11a72e14aeb80b39e8",
+      "importStatus": "adapted"
+    },
+    {
+      "role": "source-registry",
+      "sourcePath": "data/myocardium/sources.json",
+      "repoPath": "data/myocardium/sources.json",
+      "sourceSha256": "d432fd0750c911ec34f7af7df1291a30d78fa18551d2a78b8b1838b027cb8a3c",
+      "repoSha256": "d432fd0750c911ec34f7af7df1291a30d78fa18551d2a78b8b1838b027cb8a3c",
+      "importStatus": "exact"
+    },
+    {
+      "role": "revision-changelog",
+      "sourcePath": "CHANGELOG-REV3.md",
+      "repoPath": "docs/myocardium/CHANGELOG-REV3.md",
+      "sourceSha256": "1117ab1ae18bbe44a6ba1f2cbd4640cae7e530b4fddebe3dd80a777c01ad8fb4",
+      "repoSha256": "1117ab1ae18bbe44a6ba1f2cbd4640cae7e530b4fddebe3dd80a777c01ad8fb4",
+      "importStatus": "exact"
+    },
+    {
+      "role": "source-validation",
+      "sourcePath": "VALIDATION.json",
+      "repoPath": "docs/myocardium/revision3-validation.json",
+      "sourceSha256": "5aad4176d4041d863f21789fdd74b4176c99680d0574192a1affd15ae0b6d135",
+      "repoSha256": "5aad4176d4041d863f21789fdd74b4176c99680d0574192a1affd15ae0b6d135",
+      "importStatus": "exact"
+    }
+  ]
+}
