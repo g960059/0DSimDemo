@@ -199,6 +199,7 @@ describe("myocardium Phase 2A prescribed calcium transient", () => {
       "/data/myocardium/protocols/prescribed-calcium-phase2a-synthetic-protocols.json",
       "/docs/myocardium/",
       "/engine/myocardium/calcium/",
+      "/engine/myocardium/protocols/calciumLandIsometric.ts",
       "/engine/myocardium/contracts.ts",
       "/tools/myocardium/verifyPrescribedCalcium.ts",
     ];

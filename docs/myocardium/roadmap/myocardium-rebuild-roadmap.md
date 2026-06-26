@@ -224,8 +224,9 @@ tools/myocardium/*
 {
   "scripts": {
     "verify:myocardium-contracts": "vite-node tools/myocardium/verifyContracts.ts",
-    "verify:land-protocols": "vite-node tools/myocardium/verifyLandProtocols.ts",
+    "verify:myocardium-land-protocols": "vite-node tools/myocardium/verifyLandProtocols.ts",
     "verify:myocardium-prescribed-calcium": "vite-node tools/myocardium/verifyPrescribedCalcium.ts",
+    "verify:myocardium-calcium-land-isometric": "vite-node tools/myocardium/verifyCalciumLandIsometric.ts",
     "verify:prescribed-shortening": "vite-node tools/myocardium/verifyPrescribedShortening.ts",
     "verify:minimal-loaded-chamber": "vite-node tools/myocardium/verifyMinimalLoadedChamber.ts",
     "verify:generalized-forces": "vite-node tools/myocardium/verifyGeneralizedForces.ts",
