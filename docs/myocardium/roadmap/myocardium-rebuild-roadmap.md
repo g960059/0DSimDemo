@@ -105,6 +105,19 @@ family or accept production homogenization/passive mechanics.
 
 ### PR 3C — low/normal/high afterload family
 
+Scope: standalone D0 minimal loaded afterload-family smoke gate for
+low/normal/high synthetic afterload members. The artifact uses prescribed
+synthetic Ca, the Land source solver, Phase 3A fixed thick-sphere kinematics,
+Phase 3B identity homogenization/generalized force, and a bidirectional
+linear resistor afterload pressure state: `flow=(P_internal-P_afterload)/R`,
+`V -= flow*dt`, and `P_afterload += flow*dt/C`. Family members differ only in
+resistance, compliance, and initial afterload pressure; any loaded update that
+leaves the Phase 3A volume domain is a closure failure.
+
+- gate script: `npm run verify:myocardium-minimal-loaded-chamber`
+- artifact: `data/myocardium/protocols/minimal-loaded-phase3c-afterload-protocols.json`
+- boundary: synthetic D0 smoke only; no ModelCore/chamber runtime wiring, schema/official-case wiring, production single-chamber solver, passive material-law acceptance, dynamic valve, qDot clamp, TBV projection, septal/pericardial coupling, closed-loop steady state, downstream pass claim, or Phase 3 owner GO
+
 ### Phase 3 owner gate
 
 `GO / REVISE / NO-GO`。GOなしでPhase 4へ進まない。
@@ -250,7 +263,7 @@ tools/myocardium/*
     "verify:myocardium-prescribed-shortening": "vite-node tools/myocardium/verifyPrescribedShortening.ts",
     "verify:myocardium-thick-sphere-kinematics": "vite-node tools/myocardium/verifyThickSphereKinematics.ts",
     "verify:myocardium-generalized-forces": "vite-node tools/myocardium/verifyGeneralizedForces.ts",
-    "verify:minimal-loaded-chamber": "vite-node tools/myocardium/verifyMinimalLoadedChamber.ts",
+    "verify:myocardium-minimal-loaded-chamber": "vite-node tools/myocardium/verifyMinimalLoadedChamber.ts",
     "verify:generalized-forces": "vite-node tools/myocardium/verifyGeneralizedForces.ts",
     "verify:single-chamber": "vite-node tools/myocardium/verifySingleChamber.ts",
     "verify:myocardial-coupling": "vite-node tools/myocardium/compareCouplingSolvers.ts",
@@ -332,8 +345,8 @@ Phase 3 gate artifactにはparameter/provenance、joint-feasibility summary、mo
 | 11 | production Ca claim boundary | SERCA/RyR/SR-loadは保存型Caまで禁止 | Phase 0 | PENDING OWNER |
 | 12 | closed-loop targets | versioned fit/validation/holdout packs | Phase 0 | PENDING OWNER |
 | 13 | atrial progression gate | ventricular gates後 | Phase 6/7 | PENDING OWNER |
-| 14 | loaded morphology target | composite pack、same measurement code | Phase 0 | PENDING OWNER |
-| 15 | early kill gate | joint feasibility後GO/REVISE/NO-GO | Phase 0/3 | PENDING OWNER |
+| 14 | loaded morphology target | composite pack、same measurement code | Phase 0 | ACCEPTED 2026-06-26 |
+| 15 | early kill gate | joint feasibility後GO/REVISE/NO-GO | Phase 0/3 | ACCEPTED 2026-06-26 |
 | 16 | realtime budget | 10× realtime等の暫定値 | Phase 0/5 | PENDING OWNER |
 | 17 | temperature | fixed 310.15 K | Phase 0 | PENDING OWNER |
 | 18 | first release atria | Land ventricles＋documented atrial bridge案 | release | PENDING OWNER |
@@ -456,7 +469,7 @@ state schemaはwall/region/patch-readyとするが、MultiPatch runtime、region
 [x] fixed thick-sphere kinematics report passing (`verify:myocardium-thick-sphere-kinematics`)
 [x] identity homogenization/generalized-force report passing (`verify:myocardium-generalized-forces`)
 [ ] kinematics/sarcomere bridge derivation reviewed for production mechanics
-[ ] minimal loaded chamber spike completed
+[x] minimal loaded chamber spike completed (`verify:myocardium-minimal-loaded-chamber`)
 [ ] Phase 3 owner GO/REVISE/NO-GO recorded
 [ ] geometry identifiability rank gate passing
 [ ] virtual-power tests passing

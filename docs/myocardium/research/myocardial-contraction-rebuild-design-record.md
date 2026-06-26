@@ -2329,7 +2329,7 @@ tools/myocardium/*
     "verify:land-protocols": "vite-node tools/myocardium/verifyLandProtocols.ts",
     "verify:prescribed-calcium": "vite-node tools/myocardium/verifyPrescribedCalcium.ts",
     "verify:prescribed-shortening": "vite-node tools/myocardium/verifyPrescribedShortening.ts",
-    "verify:minimal-loaded-chamber": "vite-node tools/myocardium/verifyMinimalLoadedChamber.ts",
+    "verify:myocardium-minimal-loaded-chamber": "vite-node tools/myocardium/verifyMinimalLoadedChamber.ts",
     "verify:generalized-forces": "vite-node tools/myocardium/verifyGeneralizedForces.ts",
     "verify:single-chamber": "vite-node tools/myocardium/verifySingleChamber.ts",
     "verify:myocardial-coupling": "vite-node tools/myocardium/compareCouplingSolvers.ts",
@@ -2511,8 +2511,8 @@ candidate結果を見てtargetをin-place変更しない。論文図digitization
 | 11 | production Ca claim boundary | SERCA/RyR/SR-loadは保存型Caまで禁止 | Phase 0 | PENDING OWNER |
 | 12 | closed-loop targets | versioned fit/validation/holdout packs | Phase 0 | PENDING OWNER |
 | 13 | atrial progression gate | ventricular gates後 | Phase 6/7 | PENDING OWNER |
-| 14 | loaded morphology target | composite pack、same measurement code | Phase 0 | PENDING OWNER |
-| 15 | early kill gate | joint feasibility後GO/REVISE/NO-GO | Phase 0/3 | PENDING OWNER |
+| 14 | loaded morphology target | composite pack、same measurement code | Phase 0 | ACCEPTED 2026-06-26 |
+| 15 | early kill gate | joint feasibility後GO/REVISE/NO-GO | Phase 0/3 | ACCEPTED 2026-06-26 |
 | 16 | realtime budget | 10× realtime等の暫定値 | Phase 0/5 | PENDING OWNER |
 | 17 | temperature | fixed 310.15 K | Phase 0 | PENDING OWNER |
 | 18 | first release atria | Land ventricles＋documented atrial bridge案 | release | PENDING OWNER |
