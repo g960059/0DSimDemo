@@ -593,6 +593,7 @@ land2017-whole-organ-source-v1
 ```
 
 初期候補は `land2017-intact-human-37c-source-v1` とする。値を1つでも変更した場合はsource setを上書きせず、派生IDとmachine-readable patchを発行する。
+PR 1Bのdefault source setは、whole-organ refined `Tref = 120 kPa` を含めない。whole-organ source setは別IDで扱い、homogenizationやproduction mechanicsへ先回りで混入しない。
 
 state labels:
 
@@ -614,13 +615,14 @@ zetaS
 - skinned、intact、whole-organ parameterを混ぜない。
 - LV/RVは初期段階で同じintact-human kineticsを共有する。
 - source page/table/equationをparameter metadataへ残す。
+- Eq. 48の `CaTRPN^(-nTm/2)` numerical limitはsource equation termとして明示的に実装する。これはpopulation/stress projectionではなく、`projectionUsed` を立てない。
 - silent population clampを禁止する。
 - positivity違反はline search、step rejection、substepで扱う。
 - projectionはdebug fallbackに限定し、production acceptanceでは `projectionUsed=false` を要求する。
 
 ## 8.3 Source stress conventionとwall stressを分ける
 
-**RECOMMENDED / PENDING OWNER SIGN-OFF**
+**ACCEPTED - ADR-MYO-001 decision 2**
 
 Land `T_a` はsource model内で、engineering fiber strainに共役なfiber nominal / first-Piola scalar stressとして解釈する。この決定はequations、active-stiffness、tangentの内部整合を固定する。
 
@@ -655,12 +657,15 @@ SDIRK2ではButcher tableauとstage historyからstage rateを導出する。alg
 ```text
 stabilizationStiffnessPa
     partitioned stabilization用のmodel-defined coefficient。
+    PR 1Bでは未使用placeholderとして必ず0 Paを返す。実係数はPR 1Cでsourceと検証を固定する。
 
 algorithmicTangentPa
     discrete implicit mapの dT[n+1]/dE[n+1]。
+    PR 1B outputでは未定義にする。実装とre-solved FD検証はPR 1Cで行う。
 
 frozenStateTangentPa
     state固定の診断用偏微分。
+    PR 1B outputでは未定義にする。実装と用途固定はPR 1Cで行う。
 ```
 
 stabilization coefficientをalgorithmic tangentへ一致させることは要求しない。

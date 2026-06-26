@@ -30,9 +30,10 @@ accepted ADR
 ```
 
 `ADR-MYO-001` is Accepted for the required Phase 0 owner decisions listed in
-its acceptance clause. Phase 1A contract work may proceed, but ModelCore
-integration, Land equations, calcium backends, mechanics coupling, and runtime
-schema migration still require their later phase gates.
+its acceptance clause. Phase 1A contract work and Phase 1B standalone Land
+source equations may proceed, but ModelCore integration, calcium backends,
+mechanics coupling, and runtime schema migration still require their later phase
+gates.
 The owner acceptance record carries `acceptedSourceType` and `acceptedSourceRef`
 metadata so future decisions can trace the durable approval source.
 
@@ -72,6 +73,13 @@ later adoption/integration phases.
 The activation contract distinguishes the scheduler family
 `activation-scheduler-v1` from the concrete scheduler model
 `periodic-activation-scheduler-v1`.
+
+## Phase 1B Land source
+
+Run `npm run verify:myocardium-land-source` to check the standalone Land 2017
+source parameter provenance, BE residual/Jacobian smoke, no-projection output
+semantics, PR 1B zero stabilization placeholder, absent PR 1C tangents, and
+module import boundary.
 
 ## Imported bundle checks
 
