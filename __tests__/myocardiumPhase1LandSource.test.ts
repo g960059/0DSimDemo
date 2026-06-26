@@ -10,10 +10,10 @@ import {
   LAND2017_LOCAL_JACOBIAN_SIZE,
   LAND2017_SOURCE_DOI,
   LAND2017_SOURCE_ID,
-  LAND2017_STABILIZATION_STIFFNESS_PLACEHOLDER_PA,
   LAND2017_STATE_INDEX,
   LAND2017_STATE_LABELS,
   LAND2017_STATE_SIZE,
+  computeLand2017ActiveStiffnessPa,
   deriveLand2017StepKinematics,
   evaluateLand2017StepOutput,
   land2017CaTRPNUnblockingFactor,
@@ -194,16 +194,21 @@ describe("myocardium Phase 1B Land 2017 source", () => {
     expect(evaluateLand2017StepOutput(cappedState, input).health.projectionUsed).toBe(false);
   });
 
-  it("emits valid source output semantics without projection or PR 1C tangents", () => {
-    const output = evaluateLand2017StepOutput(representativeState(), representativeStepInput());
+  it("emits valid source output semantics without projection and with source-grounded stabilization", () => {
+    const state = representativeState();
+    const input = representativeStepInput();
+    const output = evaluateLand2017StepOutput(state, input);
 
     expect(Number.isFinite(output.sourceActiveFiberStressPa)).toBe(true);
     expect(output.sourceStressConvention).toBe("land2017-Ta");
     expect(Number.isFinite(output.sourceActivePowerDensityWPerM3)).toBe(true);
     expect(output.health.finite).toBe(true);
     expect(output.health.projectionUsed).toBe(false);
-    expect(output.stabilizationStiffnessPa).toBe(LAND2017_STABILIZATION_STIFFNESS_PLACEHOLDER_PA);
-    expect(output.stabilizationStiffnessPa).toBe(0);
+    expect(output.stabilizationStiffnessPa).toBeCloseTo(
+      computeLand2017ActiveStiffnessPa(state, { fiberEngineeringStrain: input.stageFiberEngineeringStrain }),
+      12,
+    );
+    expect(output.stabilizationStiffnessPa).toBeGreaterThan(0);
     expect(Object.hasOwn(output, "algorithmicTangentPa")).toBe(false);
     expect(Object.hasOwn(output, "frozenStateTangentPa")).toBe(false);
   });
@@ -293,6 +298,8 @@ function importSpecifiers(source: string): string[] {
 
 function isDisallowedLandImport(specifier: string): boolean {
   if (specifier === "react" || specifier.startsWith("react/")) return true;
+  if (specifier.includes("/myofilament/land2017/protocols")) return false;
+  if (specifier.includes("/data/myocardium/protocols/")) return false;
   const disallowedFragments = [
     "/ModelCore",
     "/chambers",

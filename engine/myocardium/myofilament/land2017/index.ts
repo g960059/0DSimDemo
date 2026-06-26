@@ -49,11 +49,38 @@ export {
 } from "@/engine/myocardium/myofilament/land2017/equations";
 export { writeLand2017BackwardEulerResidual } from "@/engine/myocardium/myofilament/land2017/residual";
 export {
+  solveLand2017BackwardEulerStep,
+  solveLand2017BackwardEulerSubsteps,
+  type Land2017SolveFailureReason,
+  type Land2017StepSolveOptions,
+  type Land2017StepSolveResult,
+  type Land2017SubstepSolveOptions,
+} from "@/engine/myocardium/myofilament/land2017/solver";
+export {
+  LAND2017_ACTIVE_STIFFNESS_PERSISTENT_ID,
+  LAND2017_ACTIVE_STIFFNESS_PROVENANCE,
+  LAND2017_ACTIVE_STIFFNESS_SOURCE_ID,
+  computeLand2017ActiveStiffnessPa,
+} from "@/engine/myocardium/myofilament/land2017/stabilization";
+export {
   LAND2017_LOCAL_JACOBIAN_SIZE,
   writeLand2017BackwardEulerResidualJacobian,
 } from "@/engine/myocardium/myofilament/land2017/jacobian";
 export {
-  LAND2017_STABILIZATION_STIFFNESS_PLACEHOLDER_PA,
+  computeLand2017AlgorithmicTangentPa,
+  computeLand2017FrozenStateTangentByFiniteDifferencePa,
+  computeLand2017FrozenStateTangentPa,
+  evaluateLand2017SolvedStepWithTangents,
+  land2017LengthFactorDerivative,
+  type Land2017TangentOptions,
+} from "@/engine/myocardium/myofilament/land2017/tangents";
+export {
+  runLand2017Phase1CProtocolReport,
+  type Land2017ProtocolReport,
+  type Land2017ProtocolSection,
+  type Land2017ProtocolStatus,
+} from "@/engine/myocardium/myofilament/land2017/protocols";
+export {
   evaluateLand2017ContinuousOutput,
   evaluateLand2017StepOutput,
 } from "@/engine/myocardium/myofilament/land2017/outputs";

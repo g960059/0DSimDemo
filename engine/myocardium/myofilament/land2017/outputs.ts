@@ -7,6 +7,7 @@ import {
   type Land2017EquationParameters,
 } from "@/engine/myocardium/myofilament/land2017/equations";
 import { LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET } from "@/engine/myocardium/myofilament/land2017/parameterSets";
+import { computeLand2017ActiveStiffnessPa } from "@/engine/myocardium/myofilament/land2017/stabilization";
 import {
   LAND2017_STATE_INDEX,
   assertLand2017StateVectorLength,
@@ -15,8 +16,6 @@ import {
   type LandSourceOutput,
   type LandStepInput,
 } from "@/engine/myocardium/myofilament/land2017/types";
-
-export const LAND2017_STABILIZATION_STIFFNESS_PLACEHOLDER_PA = 0;
 
 export function evaluateLand2017ContinuousOutput(
   state: ArrayLike<number>,
@@ -48,6 +47,7 @@ export function evaluateLand2017ContinuousOutput(
   const sourceActiveFiberStressPa = (terms.h * p.Tref * (S * (zetaS + 1) + W * zetaW)) / p.rs;
   const sourceActivePowerDensityWPerM3 =
     sourceActiveFiberStressPa * input.fiberEngineeringStrainRatePerSec;
+  const stabilizationStiffnessPa = computeLand2017ActiveStiffnessPa(state, input, parameterSet);
   const stateConservationResidual = land2017StateConservationResidual(state);
   const minimumPopulation = land2017StateMinimumPopulation(state);
   const finite =
@@ -62,6 +62,7 @@ export function evaluateLand2017ContinuousOutput(
       input.fiberEngineeringStrain,
       input.fiberEngineeringStrainRatePerSec,
       sourceActiveFiberStressPa,
+      stabilizationStiffnessPa,
       sourceActivePowerDensityWPerM3,
       stateConservationResidual,
       minimumPopulation,
@@ -70,7 +71,7 @@ export function evaluateLand2017ContinuousOutput(
   return {
     sourceActiveFiberStressPa,
     sourceStressConvention: "land2017-Ta",
-    stabilizationStiffnessPa: LAND2017_STABILIZATION_STIFFNESS_PLACEHOLDER_PA,
+    stabilizationStiffnessPa,
     sourceActivePowerDensityWPerM3,
     health: {
       finite,
