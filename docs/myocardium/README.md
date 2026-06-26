@@ -43,6 +43,19 @@ equations, parameter fixtures, target packs, or acceptance thresholds.
 The supporting source-registry note is
 [references/myocardium-source-registry.md](references/myocardium-source-registry.md).
 
+## Phase 0 artifact gate
+
+Phase 0 artifact integrity is recorded in
+[`../../data/myocardium/phase0-decisions.json`](../../data/myocardium/phase0-decisions.json)
+and
+[`../../data/myocardium/targets/claim-freeze-v1.json`](../../data/myocardium/targets/claim-freeze-v1.json).
+Run `npm run verify:myocardium-phase0` to check the source registry, required
+ADR-MYO-001 decision records, target/claim freeze categories, and pending owner
+decisions. Passing this gate is not owner acceptance and does not authorize
+engine implementation while `ADR-MYO-001` remains Proposed.
+After `ADR-MYO-001` is marked Accepted, this gate expects the required Phase 0
+decisions to be individually accepted with owner provenance metadata.
+
 ## Imported bundle checks
 
 Revision 3's original markdown hashes are preserved in
