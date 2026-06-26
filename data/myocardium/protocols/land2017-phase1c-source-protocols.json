@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "protocolSetId": "land2017-phase1c-source-protocols-v1",
+  "claimBoundary": "algorithmic-source-closure-only",
+  "sourceDocuments": [
+    {
+      "sourceId": "land2017-human-contraction",
+      "doi": "10.1016/j.yjmcc.2017.03.008",
+      "uses": [
+        "equations",
+        "source-parameters",
+        "cell-tissue-protocol-structure"
+      ]
+    },
+    {
+      "sourceId": "regazzoni-quarteroni2020-active-stiffness",
+      "persistentId": "arXiv:2007.15714",
+      "uses": [
+        "stabilization",
+        "reference-solver-comparison"
+      ]
+    }
+  ],
+  "deferredExperimentalTargets": [
+    {
+      "target": "digitized Land 2017 force-Ca curves",
+      "reason": "Phase 1C verifies algorithmic source closure only; digitized experimental acceptance belongs to later target-pack work."
+    },
+    {
+      "target": "digitized Land 2017 twitch traces",
+      "reason": "Synthetic twitch shape metrics are reported but not treated as experimental pass/fail."
+    },
+    {
+      "target": "digitized length-step and force-velocity traces",
+      "reason": "Protocol harnesses exercise source equations and solver closure without claiming data fit."
+    }
+  ],
+  "units": {
+    "time": "s",
+    "calcium": "uM",
+    "strain": "engineering strain",
+    "stress": "Pa",
+    "stiffness": "Pa"
+  },
+  "toleranceRationale": {
+    "solverResidualInfNorm": "Numerical closure tolerance for six-state BE residual only.",
+    "dtConvergence": "BE self-consistency across 1.0, 0.5, and 0.25 ms synthetic source trajectories; not an experimental target.",
+    "determinism": "Stable source-protocol summary hash must reproduce exactly for the same fixture descriptor."
+  },
+  "protocols": [
+    { "id": "force-ca-multistrain-smoke", "kind": "steady-force-ca", "claim": "closure" },
+    { "id": "synthetic-isometric-twitch-shape", "kind": "isometric-twitch", "claim": "metrics-only" },
+    { "id": "rapid-length-step-positive-negative", "kind": "length-step", "claim": "closure" },
+    { "id": "constant-velocity-shortening-family", "kind": "constant-velocity", "claim": "closure" },
+    { "id": "force-velocity-sweep-report", "kind": "force-velocity", "claim": "curve-report" },
+    { "id": "length-dependent-twitch-prolongation-smoke", "kind": "length-dependent-twitch", "claim": "metrics-only" },
+    { "id": "prescribed-shortening-replay-synthetic-v1", "kind": "prescribed-shortening-replay", "claim": "closure" },
+    { "id": "dt-convergence-be-source-v1", "kind": "dt-convergence", "claim": "self-consistency" },
+    { "id": "active-stiffness-provenance-v1", "kind": "stabilization-source-check", "claim": "source-provenance" },
+    { "id": "algorithmic-tangent-resolved-fd-v1", "kind": "algorithmic-tangent", "claim": "source-closure" },
+    { "id": "deterministic-reproducibility-v1", "kind": "determinism", "claim": "source-closure" }
+  ]
+}

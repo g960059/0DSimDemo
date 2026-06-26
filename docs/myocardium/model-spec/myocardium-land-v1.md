@@ -657,15 +657,15 @@ SDIRK2ではButcher tableauとstage historyからstage rateを導出する。alg
 ```text
 stabilizationStiffnessPa
     partitioned stabilization用のmodel-defined coefficient。
-    PR 1Bでは未使用placeholderとして必ず0 Paを返す。実係数はPR 1Cでsourceと検証を固定する。
+    PR 1C以降はRegazzoni-Quarteroni 2020のL17 active stiffnessとしてsource-groundする。
 
 algorithmicTangentPa
     discrete implicit mapの dT[n+1]/dE[n+1]。
-    PR 1B outputでは未定義にする。実装とre-solved FD検証はPR 1Cで行う。
+    direct source outputでは未定義にする。solved-step diagnosticsでre-solved FDにより計算する。
 
 frozenStateTangentPa
     state固定の診断用偏微分。
-    PR 1B outputでは未定義にする。実装と用途固定はPR 1Cで行う。
+    direct source outputでは未定義にする。solved-step diagnosticsでstate固定の診断値として計算する。
 ```
 
 stabilization coefficientをalgorithmic tangentへ一致させることは要求しない。

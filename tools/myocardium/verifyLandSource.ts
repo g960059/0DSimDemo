@@ -8,9 +8,9 @@ import {
   LAND2017_LOCAL_JACOBIAN_SIZE,
   LAND2017_SOURCE_DOI,
   LAND2017_SOURCE_ID,
-  LAND2017_STABILIZATION_STIFFNESS_PLACEHOLDER_PA,
   LAND2017_STATE_INDEX,
   LAND2017_STATE_SIZE,
+  computeLand2017ActiveStiffnessPa,
   deriveLand2017StepKinematics,
   evaluateLand2017StepOutput,
   land2017CaTRPNUnblockingFactor,
@@ -97,14 +97,20 @@ check("residual Jacobian matches finite-difference smoke", () => {
   }
 });
 
-check("source output has no projection, placeholder stabilization, and no PR 1C tangents", () => {
-  const output = evaluateLand2017StepOutput(representativeState(), representativeStepInput());
+check("source output has no projection, source-grounded stabilization, and direct-output tangents absent", () => {
+  const state = representativeState();
+  const input = representativeStepInput();
+  const output = evaluateLand2017StepOutput(state, input);
   assert(Number.isFinite(output.sourceActiveFiberStressPa));
   assert(output.sourceStressConvention === "land2017-Ta");
   assert(output.health.finite);
   assert(output.health.projectionUsed === false);
-  assert(output.stabilizationStiffnessPa === LAND2017_STABILIZATION_STIFFNESS_PLACEHOLDER_PA);
-  assert(output.stabilizationStiffnessPa === 0);
+  assertClose(
+    output.stabilizationStiffnessPa,
+    computeLand2017ActiveStiffnessPa(state, { fiberEngineeringStrain: input.stageFiberEngineeringStrain }),
+    1e-12,
+  );
+  assert(output.stabilizationStiffnessPa > 0);
   assert(!Object.hasOwn(output, "algorithmicTangentPa"));
   assert(!Object.hasOwn(output, "frozenStateTangentPa"));
 });
@@ -135,7 +141,7 @@ if (errors.length > 0) {
   console.log(
     `myocardium Phase 1B Land source PASS checks=${checks.length}; ` +
       "source metadata grounded; BE residual/Jacobian smoke passed; projection disabled; " +
-      "stabilizationStiffnessPa=0 placeholder; PR 1C tangents absent",
+      "stabilizationStiffnessPa source-grounded; direct-output tangents absent",
   );
 }
 
@@ -177,6 +183,8 @@ function importSpecifiers(source: string): string[] {
 
 function isDisallowedLandImport(specifier: string): boolean {
   if (specifier === "react" || specifier.startsWith("react/")) return true;
+  if (specifier.includes("/myofilament/land2017/protocols")) return false;
+  if (specifier.includes("/data/myocardium/protocols/")) return false;
   const disallowedFragments = [
     "/ModelCore",
     "/chambers",

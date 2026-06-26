@@ -78,8 +78,17 @@ The activation contract distinguishes the scheduler family
 
 Run `npm run verify:myocardium-land-source` to check the standalone Land 2017
 source parameter provenance, BE residual/Jacobian smoke, no-projection output
-semantics, PR 1B zero stabilization placeholder, absent PR 1C tangents, and
-module import boundary.
+semantics, source-grounded stabilization stiffness, absent direct-output
+tangents, and module import boundary.
+
+## Phase 1C Land protocols
+
+Run `npm run verify:myocardium-land-protocols` to check standalone Land source
+protocol closure: BE solver failure reporting, Regazzoni-Quarteroni active
+stiffness provenance, re-solved algorithmic tangent, synthetic protocol metrics,
+dt self-consistency, and deterministic reproducibility. This gate reports
+`claimBoundary=algorithmic-source-closure-only`; digitized experimental target
+pass/fail remains deferred to later target-pack work.
 
 ## Imported bundle checks
 
