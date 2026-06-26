@@ -105,10 +105,12 @@ experimental Ca target pass/fail remain deferred.
 ## Phase 2B isometric Ca plus Land
 
 Run `npm run verify:myocardium-calcium-land-isometric` to check the standalone
-fixed-strain prescribed-Ca plus Land source-stress gate. This gate reports Tier
-C1-style synthetic coupling metrics such as time to peak, FWHM, width80/90,
-relaxation tau/R2, dT/dt, and peak/mean ratio for Land
-`sourceActiveFiberStressPa` only. It reports
+fixed-strain prescribed-Ca plus Land source-stress gate. This gate reports
+synthetic isometric source-stress metrics such as time to peak, FWHM,
+width80/90, relaxation tau/R2, dT/dt, and peak/mean ratio for Land
+`sourceActiveFiberStressPa` only. The twitch metrics closure also requires
+Land output `health.finite=true` for every sample and
+`maxConservationResidual <= 1e-12`. It reports
 `claimBoundary=standalone-isometric-ca-land-only` and
 `evidenceStatus=synthetic-coupling-smoke-only`; LVP targets, pressure
 morphology, valve/qDot behavior, loaded mechanics, and experimental pass/fail

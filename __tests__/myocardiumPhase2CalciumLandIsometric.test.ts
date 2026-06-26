@@ -37,7 +37,7 @@ describe("myocardium Phase 2B isometric prescribed Ca plus Land", () => {
     expect(trajectory.samples.some((sample) => sample.projectionUsed)).toBe(false);
   });
 
-  it("reports every required Tier C1 synthetic isometric metric", () => {
+  it("reports every required synthetic isometric source-stress metric", () => {
     const report = runCalciumLandIsometricPhase2BReport();
     const metrics = report.sections.find((section) => section.id === "isometric-ca-land-twitch-metrics-v1")?.metrics;
 
@@ -46,6 +46,7 @@ describe("myocardium Phase 2B isometric prescribed Ca plus Land", () => {
       sourceStressOnly: true,
       trajectoryComplete: true,
       projectionUsed: false,
+      allLandHealthFinite: true,
       solverFailureCount: 0,
     });
     for (const key of [
@@ -59,12 +60,16 @@ describe("myocardium Phase 2B isometric prescribed Ca plus Land", () => {
       "maxUpstrokePaPerSec",
       "maxRelaxationPaPerSec",
       "peakMeanRatio",
+      "maxConservationResidual",
+      "sourceHealthConservationTolerance",
     ]) {
       expect(metrics?.[key]).toEqual(expect.any(Number));
       expect(Number.isFinite(metrics?.[key])).toBe(true);
     }
     expect(metrics?.maxUpstrokePaPerSec as number).toBeGreaterThan(0);
     expect(metrics?.maxRelaxationPaPerSec as number).toBeLessThan(0);
+    expect(metrics?.sourceHealthConservationTolerance).toBe(1e-12);
+    expect(metrics?.maxConservationResidual as number).toBeLessThanOrEqual(1e-12);
   });
 
   it("changes Land source stress directionally when prescribed Ca amplitude changes", () => {
@@ -96,6 +101,10 @@ describe("myocardium Phase 2B isometric prescribed Ca plus Land", () => {
     const first = runCalciumLandIsometricPhase2BReport();
     const second = runCalciumLandIsometricPhase2BReport();
     const text = JSON.stringify(first);
+    const protocolSource = readFileSync(
+      path.join(process.cwd(), "engine/myocardium/protocols/calciumLandIsometric.ts"),
+      "utf8",
+    );
 
     expect(first.stableSummaryHash).toBe(second.stableSummaryHash);
     expect(first.claimBoundary).toBe(CALCIUM_LAND_ISOMETRIC_PHASE2B_CLAIM_BOUNDARY);
@@ -103,8 +112,56 @@ describe("myocardium Phase 2B isometric prescribed Ca plus Land", () => {
     expect(first.experimentalTargets).toBe("deferred");
     expect(first.ownerAcceptanceStatus).toBe("not-owner-acceptance");
     expect(first.closurePass).toBe(true);
-    expect(text).not.toMatch(/experimentalPass|LVP|loadedPressure|valve|qDot|generalizedForces/i);
+    expect(text).not.toMatch(forbiddenReportClaimPattern);
     expect(text).not.toMatch(/tierC1Pass|targetPass|acceptedTarget|acceptedThreshold|acceptancePass|validationPass|fitPass/i);
+    expect(protocolSource).toContain("standalone-isometric-ca-land-source");
+    expect(protocolSource).not.toMatch(/targetId:\s*["'](?:lv|rv)-free-wall["']/i);
+  });
+
+  it("requires Land source health and conservation residual tolerance for twitch closure", () => {
+    const report = runCalciumLandIsometricPhase2BReport();
+    const section = requiredSection(report, "isometric-ca-land-twitch-metrics-v1");
+    const invalidLandState = Float64Array.from([0.18, 0.22, 0.04, 0.02, 0, 0]);
+    invalidLandState[LAND2017_STATE_INDEX.CaTRPN] = 0;
+    const failedReport = runCalciumLandIsometricPhase2BReport({ initialLandState: invalidLandState });
+    const failedSection = requiredSection(failedReport, "isometric-ca-land-twitch-metrics-v1");
+
+    expect(section.status).toBe("closure-pass");
+    expect(sourceHealthMetricsPass(section.metrics)).toBe(true);
+    expect(failedReport.closurePass).toBe(false);
+    expect(failedSection.status).toBe("closure-fail");
+    expect(failedSection.metrics.allLandHealthFinite).toBe(false);
+    expect(sourceHealthMetricsPass({
+      ...section.metrics,
+      allLandHealthFinite: false,
+    })).toBe(false);
+    expect(sourceHealthMetricsPass({
+      ...section.metrics,
+      maxConservationResidual: 1e-11,
+    })).toBe(false);
+  });
+
+  it("keeps substep Land solves deterministic and source-stress-only", () => {
+    const options = { landSolveOptions: { substeps: 4 } };
+    const trajectory = runCalciumLandIsometricTrajectory(options);
+    const first = runCalciumLandIsometricPhase2BReport(options);
+    const second = runCalciumLandIsometricPhase2BReport(options);
+    const metrics = requiredSection(first, "isometric-ca-land-twitch-metrics-v1").metrics;
+
+    expect(trajectory.ok).toBe(true);
+    expect(trajectory.samples.length).toBeGreaterThan(100);
+    expect(first.closurePass).toBe(true);
+    expect(first.stableSummaryHash).toBe(second.stableSummaryHash);
+    expect(first.claimBoundary).toBe(CALCIUM_LAND_ISOMETRIC_PHASE2B_CLAIM_BOUNDARY);
+    expect(first.evidenceStatus).toBe(CALCIUM_LAND_ISOMETRIC_PHASE2B_EVIDENCE_STATUS);
+    expect(metrics).toMatchObject({
+      sourceStressOnly: true,
+      trajectoryComplete: true,
+      allLandHealthFinite: true,
+      projectionUsed: false,
+      solverFailureCount: 0,
+    });
+    expect(JSON.stringify(first)).not.toMatch(forbiddenReportClaimPattern);
   });
 
   it("keeps Ca+Land orchestration out of pure Land source and runtime integration code", () => {
@@ -147,4 +204,29 @@ function listFiles(root: string): string[] {
     }
   }
   return out;
+}
+
+const forbiddenReportClaimPattern =
+  /\b(?:LV|RV|chamber|loaded|loadedPressure|pressure|valve|qDot|homogenization|generalizedForces?)\b|free-wall|(?:lv|rv)?freeWall/i;
+
+function requiredSection(
+  report: ReturnType<typeof runCalciumLandIsometricPhase2BReport>,
+  id: string,
+) {
+  const section = report.sections.find((candidate) => candidate.id === id);
+  expect(section).toBeDefined();
+  return section!;
+}
+
+function sourceHealthMetricsPass(metrics: Record<string, number | string | boolean | readonly number[]>): boolean {
+  const maxConservationResidual = metrics.maxConservationResidual;
+  const tolerance = metrics.sourceHealthConservationTolerance;
+  return (
+    metrics.allLandHealthFinite === true
+    && typeof maxConservationResidual === "number"
+    && typeof tolerance === "number"
+    && Number.isFinite(maxConservationResidual)
+    && Number.isFinite(tolerance)
+    && maxConservationResidual <= tolerance
+  );
 }

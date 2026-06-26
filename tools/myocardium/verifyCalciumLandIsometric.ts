@@ -40,8 +40,11 @@ if (/experimentalPass/.test(reportText)) {
 if (/(tierC1Pass|targetPass|acceptedTarget|acceptedThreshold|acceptancePass|validationPass|fitPass)/i.test(reportText)) {
   errors.push("Report must not contain Tier C1 pass or target-acceptance fields");
 }
-if (/(LVP|pressure|valve|qDot|loadedPressure|generalizedForces)/i.test(reportText)) {
-  errors.push("Report must not contain loaded pressure, valve, qDot, or generalized-force fields");
+if (
+  /\b(?:LV|RV|chamber|loaded|loadedPressure|pressure|valve|qDot|homogenization|generalizedForces?)\b|free-wall|(?:lv|rv)?freeWall/i
+    .test(reportText)
+) {
+  errors.push("Report must not contain chamber, loaded pressure, valve, qDot, homogenization, or generalized-force fields");
 }
 
 if (errors.length > 0) {

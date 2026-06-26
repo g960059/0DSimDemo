@@ -1,7 +1,9 @@
 import protocolDescriptor from "@/data/myocardium/protocols/calcium-land-phase2b-isometric-protocols.json";
 import {
   PRESCRIBED_CALCIUM_SYNTHETIC_SMOKE_PARAMETER_SET,
+  evaluatePrescribedCalciumOutput,
   stepPrescribedCalciumTransientV1,
+  type PrescribedCalciumInput,
   type PrescribedCalciumParams,
 } from "@/engine/myocardium/calcium";
 import {
@@ -15,6 +17,10 @@ export const CALCIUM_LAND_ISOMETRIC_PHASE2B_CLAIM_BOUNDARY =
   "standalone-isometric-ca-land-only";
 export const CALCIUM_LAND_ISOMETRIC_PHASE2B_EVIDENCE_STATUS =
   "synthetic-coupling-smoke-only";
+
+const STANDALONE_ISOMETRIC_CA_LAND_SOURCE_TARGET_ID =
+  "standalone-isometric-ca-land-source";
+const LAND_SOURCE_HEALTH_CONSERVATION_TOLERANCE = 1e-12;
 
 export type CalciumLandIsometricProtocolStatus =
   | "closure-pass"
@@ -55,6 +61,7 @@ type CalciumLandSample = {
   readonly sourceActiveFiberStressPa: number;
   readonly minimumPopulation: number;
   readonly stateConservationResidual: number;
+  readonly landHealthFinite: boolean;
   readonly projectionUsed: boolean;
   readonly solverIterations: number;
   readonly solverResidualNorm: number;
@@ -83,6 +90,8 @@ type IsometricMetrics = {
   readonly maxRelaxationPaPerSec: number;
   readonly minimumPopulation: number;
   readonly maxConservationResidual: number;
+  readonly sourceHealthConservationTolerance: number;
+  readonly allLandHealthFinite: boolean;
   readonly projectionUsed: boolean;
   readonly solverFailureCount: number;
 };
@@ -144,7 +153,7 @@ export function runCalciumLandIsometricTrajectory(
   let calciumState = Float64Array.from(options.initialCalciumState ?? DEFAULT_INITIAL_CALCIUM_STATE);
   let landState = Float64Array.from(options.initialLandState ?? DEFAULT_INITIAL_LAND_STATE);
   const landSolveOptions = { ...DEFAULT_LAND_SOLVE_OPTIONS, ...options.landSolveOptions };
-  let previousFreeCalciumUM = params.rateTargets[0]?.diastolicCalciumUM ?? 0.12;
+  let previousFreeCalciumUM = initialPrescribedFreeCalciumUM(calciumState, params, cycleLengthSec, dtSec);
   const samples: CalciumLandSample[] = [];
   const steps = Math.max(1, Math.round(durationSec / dtSec));
 
@@ -154,14 +163,7 @@ export function runCalciumLandIsometricTrajectory(
     const timeSinceActivationSec = Math.max(0, timeSec - cycleIndex * cycleLengthSec);
     const calciumStep = stepPrescribedCalciumTransientV1(
       calciumState,
-      {
-        targetId: "lv-free-wall",
-        activationEventId: cycleIndex + 1,
-        timeSinceActivationSec,
-        cycleLengthSec,
-        activationStrength01: 1,
-        dtSec,
-      },
+      prescribedCalciumInput(cycleIndex + 1, timeSinceActivationSec, cycleLengthSec, dtSec),
       params,
     );
     calciumState = calciumStep.nextState;
@@ -195,6 +197,7 @@ export function runCalciumLandIsometricTrajectory(
       sourceActiveFiberStressPa: solved.output.sourceActiveFiberStressPa,
       minimumPopulation: solved.output.health.minimumPopulation,
       stateConservationResidual: solved.output.health.stateConservationResidual,
+      landHealthFinite: solved.output.health.finite,
       projectionUsed: solved.output.health.projectionUsed,
       solverIterations: solved.iterations,
       solverResidualNorm: solved.residualNorm,
@@ -237,6 +240,8 @@ function runIsometricTwitchMetricsSection(
     && metrics.maxUpstrokePaPerSec > 0
     && metrics.maxRelaxationPaPerSec < 0
     && metrics.minimumPopulation >= -1e-10
+    && metrics.allLandHealthFinite
+    && metrics.maxConservationResidual <= LAND_SOURCE_HEALTH_CONSERVATION_TOLERANCE
     && !metrics.projectionUsed;
   return section("isometric-ca-land-twitch-metrics-v1", ok, {
     ...metrics,
@@ -304,7 +309,8 @@ function runClaimBoundarySection(): CalciumLandIsometricProtocolSection {
     && protocolDescriptor.experimentalTargets === "deferred"
     && protocolDescriptor.ownerAcceptanceStatus === "not-owner-acceptance";
   const reportKeys = Object.keys(computeIsometricMetrics(runCalciumLandIsometricTrajectory()));
-  const forbiddenPattern = /(LVP|pressure|valve|qDot|loaded|generalizedForce|homogenization)/i;
+  const forbiddenPattern =
+    /\b(?:LV|RV|chamber|LVP|loaded|loadedPressure|pressure|valve|qDot|generalizedForces?|homogenization)\b|free-wall|(?:lv|rv)?freeWall/i;
   const forbiddenFieldCount = reportKeys.filter((key) => forbiddenPattern.test(key)).length;
   return section("isometric-claim-boundary-v1", descriptorOk && forbiddenFieldCount === 0, {
     claimBoundary: protocolDescriptor.claimBoundary,
@@ -347,6 +353,7 @@ function computeIsometricMetrics(trajectory: CalciumLandTrajectory): IsometricMe
   const maxConservationResidual = Math.max(
     ...samples.map((sample) => Math.abs(sample.stateConservationResidual)),
   );
+  const allLandHealthFinite = samples.every((sample) => sample.landHealthFinite);
   return {
     peakStressPa: peak,
     meanStressPa: mean,
@@ -361,6 +368,8 @@ function computeIsometricMetrics(trajectory: CalciumLandTrajectory): IsometricMe
     maxRelaxationPaPerSec: Math.min(...derivatives),
     minimumPopulation,
     maxConservationResidual,
+    sourceHealthConservationTolerance: LAND_SOURCE_HEALTH_CONSERVATION_TOLERANCE,
+    allLandHealthFinite,
     projectionUsed: samples.some((sample) => sample.projectionUsed),
     solverFailureCount: trajectory.ok ? 0 : 1,
   };
@@ -381,6 +390,8 @@ function emptyMetrics(trajectory: CalciumLandTrajectory): IsometricMetrics {
     maxRelaxationPaPerSec: Number.NaN,
     minimumPopulation: Number.NaN,
     maxConservationResidual: Number.NaN,
+    sourceHealthConservationTolerance: LAND_SOURCE_HEALTH_CONSERVATION_TOLERANCE,
+    allLandHealthFinite: false,
     projectionUsed: false,
     solverFailureCount: trajectory.ok ? 0 : 1,
   };
@@ -474,6 +485,7 @@ function compactTrajectory(trajectory: CalciumLandTrajectory): unknown {
       sourceActiveFiberStressPa: round(sample.sourceActiveFiberStressPa),
       minimumPopulation: round(sample.minimumPopulation),
       stateConservationResidual: round(sample.stateConservationResidual),
+      landHealthFinite: sample.landHealthFinite,
       projectionUsed: sample.projectionUsed,
     })),
     finalLandState: Array.from(trajectory.finalLandState).map(round),
@@ -516,4 +528,33 @@ function sanitizeForStableHash(value: unknown): unknown {
 
 function round(value: number): number {
   return Math.round(value * 1e12) / 1e12;
+}
+
+function initialPrescribedFreeCalciumUM(
+  calciumState: ArrayLike<number>,
+  params: PrescribedCalciumParams,
+  cycleLengthSec: number,
+  dtSec: number,
+): number {
+  return evaluatePrescribedCalciumOutput(
+    calciumState,
+    prescribedCalciumInput(1, 0, cycleLengthSec, dtSec),
+    params,
+  ).freeCalciumUM;
+}
+
+function prescribedCalciumInput(
+  activationEventId: number,
+  timeSinceActivationSec: number,
+  cycleLengthSec: number,
+  dtSec: number,
+): PrescribedCalciumInput {
+  return {
+    targetId: STANDALONE_ISOMETRIC_CA_LAND_SOURCE_TARGET_ID,
+    activationEventId,
+    timeSinceActivationSec,
+    cycleLengthSec,
+    activationStrength01: 1,
+    dtSec,
+  };
 }
