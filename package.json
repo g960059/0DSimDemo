@@ -22,6 +22,7 @@
     "verify:myocardium-prescribed-calcium": "vite-node tools/myocardium/verifyPrescribedCalcium.ts",
     "verify:myocardium-calcium-land-isometric": "vite-node tools/myocardium/verifyCalciumLandIsometric.ts",
     "verify:myocardium-prescribed-shortening": "vite-node tools/myocardium/verifyPrescribedShortening.ts",
+    "verify:myocardium-thick-sphere-kinematics": "vite-node tools/myocardium/verifyThickSphereKinematics.ts",
     "verify:starling-low-preload-matrix": "STARLING_LOW_PRELOAD_MATRIX_MAIN=1 vite-node tools/verifyStarlingLowPreloadMatrix.ts",
     "debug:starling-low-preload": "STARLING_LOW_PRELOAD_DEBUG_MAIN=1 vite-node tools/debugStarlingLowPreload.ts",
     "fit:left-filling": "vite-node tools/fitLeftFilling.ts",

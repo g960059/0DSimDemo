@@ -83,6 +83,15 @@ owner sign-off:
 
 ### PR 3A — fixed early kinematics
 
+Scope: kinematics-only fixed thick-sphere harness for the single
+`cavity-volume` coordinate, arithmetic-mean midwall convention, analytic
+`dE_f/dV`, coordinate-rate-derived strain-rate diagnostic, and candidate
+parameter provenance.
+
+- gate script: `npm run verify:myocardium-thick-sphere-kinematics`
+- artifact: `data/myocardium/protocols/thick-sphere-phase3a-kinematics-protocols.json`
+- boundary: does not decide production ventricular mechanics or owner acceptance
+
 ### PR 3B — identity/fixed homogenization + single-coordinate generalized force
 
 ### PR 3C — low/normal/high afterload family
@@ -230,6 +239,7 @@ tools/myocardium/*
     "verify:myocardium-prescribed-calcium": "vite-node tools/myocardium/verifyPrescribedCalcium.ts",
     "verify:myocardium-calcium-land-isometric": "vite-node tools/myocardium/verifyCalciumLandIsometric.ts",
     "verify:myocardium-prescribed-shortening": "vite-node tools/myocardium/verifyPrescribedShortening.ts",
+    "verify:myocardium-thick-sphere-kinematics": "vite-node tools/myocardium/verifyThickSphereKinematics.ts",
     "verify:minimal-loaded-chamber": "vite-node tools/myocardium/verifyMinimalLoadedChamber.ts",
     "verify:generalized-forces": "vite-node tools/myocardium/verifyGeneralizedForces.ts",
     "verify:single-chamber": "vite-node tools/myocardium/verifySingleChamber.ts",
@@ -433,7 +443,8 @@ state schemaはwall/region/patch-readyとするが、MultiPatch runtime、region
 [ ] Ca/Land hierarchical fit tooling available
 [ ] isometric twitch gate passing
 [x] prescribed-shortening transfer report passing (`verify:myocardium-prescribed-shortening`)
-[ ] kinematics/sarcomere bridge derivation reviewed
+[x] fixed thick-sphere kinematics report passing (`verify:myocardium-thick-sphere-kinematics`)
+[ ] kinematics/sarcomere bridge derivation reviewed for production mechanics
 [ ] minimal loaded chamber spike completed
 [ ] Phase 3 owner GO/REVISE/NO-GO recorded
 [ ] geometry identifiability rank gate passing
