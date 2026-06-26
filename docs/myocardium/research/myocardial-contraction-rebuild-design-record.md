@@ -2329,7 +2329,7 @@ tools/myocardium/*
     "verify:land-protocols": "vite-node tools/myocardium/verifyLandProtocols.ts",
     "verify:prescribed-calcium": "vite-node tools/myocardium/verifyPrescribedCalcium.ts",
     "verify:prescribed-shortening": "vite-node tools/myocardium/verifyPrescribedShortening.ts",
-    "verify:minimal-loaded-chamber": "vite-node tools/myocardium/verifyMinimalLoadedChamber.ts",
+    "verify:myocardium-minimal-loaded-chamber": "vite-node tools/myocardium/verifyMinimalLoadedChamber.ts",
     "verify:generalized-forces": "vite-node tools/myocardium/verifyGeneralizedForces.ts",
     "verify:single-chamber": "vite-node tools/myocardium/verifySingleChamber.ts",
     "verify:myocardial-coupling": "vite-node tools/myocardium/compareCouplingSolvers.ts",

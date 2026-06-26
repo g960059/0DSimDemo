@@ -160,6 +160,25 @@ coordinate. It reports
 homogenization, passive-law acceptance, loaded afterload behavior, runtime
 chamber integration, and owner acceptance remain deferred.
 
+## Phase 3C minimal loaded afterload family
+
+Run `npm run verify:myocardium-minimal-loaded-chamber` to check the standalone
+D0 low/normal/high afterload-family smoke gate. This gate reuses the Phase 3A
+fixed thick-sphere coordinate, Phase 3B identity generalized-force path, Phase
+2A prescribed calcium, and Phase 1C Land source solver, then advances only a
+synthetic afterload pressure state with the bidirectional linear resistor
+`flow=(P_internal-P_afterload)/R`, `V -= flow*dt`, and
+`P_afterload += flow*dt/C`. The three members differ only in resistance,
+compliance, and initial afterload pressure, and the run fails if the loaded
+volume update leaves the Phase 3A sweep domain.
+
+It reports `claimBoundary=minimal-loaded-afterload-family-smoke-only` and
+`evidenceStatus=synthetic-d0-afterload-family-only`; production single-chamber
+solvers, passive-law acceptance, dynamic valve behavior, qDot clamps, TBV
+projection, septal/pericardial coupling, closed-loop steady state, ModelCore or
+chamber runtime wiring, schema/official-case wiring, owner GO, and downstream
+pass claims remain out of scope.
+
 ## Imported bundle checks
 
 Revision 3's original markdown hashes are preserved in

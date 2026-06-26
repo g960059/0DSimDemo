@@ -201,6 +201,7 @@ describe("myocardium Phase 2A prescribed calcium transient", () => {
       "/engine/myocardium/calcium/",
       "/engine/myocardium/protocols/calciumLandIsometric.ts",
       "/engine/myocardium/protocols/calciumLandPrescribedShortening.ts",
+      "/engine/myocardium/protocols/minimalLoadedAfterloadFamily.ts",
       "/engine/myocardium/contracts.ts",
       "/tools/myocardium/verifyPrescribedCalcium.ts",
       "/tools/myocardium/verifyPrescribedShortening.ts",
