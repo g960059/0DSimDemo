@@ -36,6 +36,9 @@ calcium work may proceed. Phase 2B standalone isometric Ca+Land source-stress
 coupling and Phase 2C standalone prescribed-shortening Ca+Land transfer may
 also proceed, but ModelCore integration, loaded mechanics coupling, and runtime
 schema migration still require their later phase gates.
+Phase 3A fixed thick-sphere kinematics may proceed as a standalone
+kinematics-only artifact gate; it does not decide production ventricular
+mechanics or owner acceptance.
 The owner acceptance record carries `acceptedSourceType` and `acceptedSourceRef`
 metadata so future decisions can trace the durable approval source.
 
@@ -130,6 +133,19 @@ report audits that derivation for every sample. It reports
 `evidenceStatus=synthetic-prescribed-shortening-transfer-only`; experimental
 target acceptance, pressure/valve/qDot claims, homogenization, and
 generalized-force mapping remain out of scope.
+
+## Phase 3A fixed thick-sphere kinematics
+
+Run `npm run verify:myocardium-thick-sphere-kinematics` to check the standalone
+fixed early thick-sphere kinematics harness. This gate evaluates the single
+`cavity-volume` generalized coordinate, arithmetic-mean midwall convention,
+analytic strain derivative, coordinate-rate-derived strain-rate diagnostic,
+candidate parameter provenance, and descriptor claim boundary. It reports
+`claimBoundary=fixed-thick-sphere-kinematics-only` and
+`evidenceStatus=synthetic-geometry-closure-only`; production ventricular
+mechanics, owner acceptance, fit/validation pass claims, and loaded-system
+behavior remain deferred. Phase 3B/C still cover homogenization, generalized
+force, and the minimal loaded afterload family.
 
 ## Imported bundle checks
 
