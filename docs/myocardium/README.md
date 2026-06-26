@@ -32,9 +32,9 @@ accepted ADR
 `ADR-MYO-001` is Accepted for the required Phase 0 owner decisions listed in
 its acceptance clause. Phase 1A contract work, Phase 1B standalone Land source
 equations, Phase 1C Land protocol closure, and Phase 2A standalone prescribed
-calcium work may proceed, but ModelCore integration, Land/Ca coupling,
-mechanics coupling, and runtime schema migration still require their later phase
-gates.
+calcium work may proceed. Phase 2B standalone isometric Ca+Land source-stress
+coupling may also proceed, but ModelCore integration, loaded mechanics
+coupling, and runtime schema migration still require their later phase gates.
 The owner acceptance record carries `acceptedSourceType` and `acceptedSourceRef`
 metadata so future decisions can trace the durable approval source.
 
@@ -101,6 +101,18 @@ free calcium, deterministic replay, and claim-boundary metadata. It reports
 `claimBoundary=prescribed-calcium-waveform-only` and
 `evidenceStatus=synthetic-smoke-only`; Decision 10 target/HR acceptance and
 experimental Ca target pass/fail remain deferred.
+
+## Phase 2B isometric Ca plus Land
+
+Run `npm run verify:myocardium-calcium-land-isometric` to check the standalone
+fixed-strain prescribed-Ca plus Land source-stress gate. This gate reports Tier
+C1-style synthetic coupling metrics such as time to peak, FWHM, width80/90,
+relaxation tau/R2, dT/dt, and peak/mean ratio for Land
+`sourceActiveFiberStressPa` only. It reports
+`claimBoundary=standalone-isometric-ca-land-only` and
+`evidenceStatus=synthetic-coupling-smoke-only`; LVP targets, pressure
+morphology, valve/qDot behavior, loaded mechanics, and experimental pass/fail
+remain out of scope.
 
 ## Imported bundle checks
 
