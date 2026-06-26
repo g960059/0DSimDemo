@@ -300,7 +300,11 @@ function validateDecisionsArtifact(
       );
     }
     const purpose = stringField(artifact.artifact, "purpose");
-    if (purpose && !purpose.toLowerCase().includes("not owner sign-off")) {
+    if (
+      artifactStatus === PENDING_DECISION_STATUS
+      && purpose
+      && !purpose.toLowerCase().includes("not owner sign-off")
+    ) {
       addIssue(
         issues,
         "warning",
@@ -308,6 +312,9 @@ function validateDecisionsArtifact(
         "phase0Decisions.artifact.purpose",
         "Decision artifact purpose should clearly state that the artifact is not owner sign-off.",
       );
+    }
+    if (artifactStatus === ACCEPTED_DECISION_STATUS) {
+      validateAcceptedArtifactMetadata(artifact.artifact, "phase0Decisions.artifact", issues);
     }
   }
 
@@ -908,13 +915,17 @@ function validateAcceptanceMetadata(
   const acceptedBy = stringField(decision, "acceptedBy") ?? stringField(acceptance, "acceptedBy");
   const acceptedAt = stringField(decision, "acceptedAt") ?? stringField(acceptance, "acceptedAt");
   const acceptedSource = stringField(decision, "acceptedSource") ?? stringField(acceptance, "acceptedSource");
-  if (!acceptedBy || !acceptedAt || !acceptedSource) {
+  const acceptedSourceType =
+    stringField(decision, "acceptedSourceType") ?? stringField(acceptance, "acceptedSourceType");
+  const acceptedSourceRef =
+    stringField(decision, "acceptedSourceRef") ?? stringField(acceptance, "acceptedSourceRef");
+  if (!acceptedBy || !acceptedAt || !acceptedSource || !acceptedSourceType || !acceptedSourceRef) {
     addIssue(
       issues,
       "error",
       "decision_accepted_missing_owner_metadata",
       path,
-      `Decision ${id} is accepted but lacks acceptedBy, acceptedAt, and acceptedSource metadata.`,
+      `Decision ${id} is accepted but lacks acceptedBy, acceptedAt, acceptedSource, acceptedSourceType, and acceptedSourceRef metadata.`,
     );
     return;
   }
@@ -925,6 +936,36 @@ function validateAcceptanceMetadata(
       "decision_accepted_invalid_date",
       `${path}.acceptedAt`,
       `Decision ${id} acceptedAt must be an ISO date or timestamp.`,
+    );
+  }
+}
+
+function validateAcceptedArtifactMetadata(artifact: JsonRecord, path: string, issues: ValidationIssue[]): void {
+  const acceptance = isRecord(artifact.acceptance) ? artifact.acceptance : {};
+  const acceptedBy = stringField(artifact, "acceptedBy") ?? stringField(acceptance, "acceptedBy");
+  const acceptedAt = stringField(artifact, "acceptedAt") ?? stringField(acceptance, "acceptedAt");
+  const acceptedSource = stringField(artifact, "acceptedSource") ?? stringField(acceptance, "acceptedSource");
+  const acceptedSourceType =
+    stringField(artifact, "acceptedSourceType") ?? stringField(acceptance, "acceptedSourceType");
+  const acceptedSourceRef =
+    stringField(artifact, "acceptedSourceRef") ?? stringField(acceptance, "acceptedSourceRef");
+  if (!acceptedBy || !acceptedAt || !acceptedSource || !acceptedSourceType || !acceptedSourceRef) {
+    addIssue(
+      issues,
+      "error",
+      "decisions_artifact_accepted_missing_owner_metadata",
+      path,
+      "Accepted decision artifact lacks acceptedBy, acceptedAt, acceptedSource, acceptedSourceType, and acceptedSourceRef metadata.",
+    );
+    return;
+  }
+  if (!isIsoDateLike(acceptedAt)) {
+    addIssue(
+      issues,
+      "error",
+      "decisions_artifact_accepted_invalid_date",
+      `${path}.acceptedAt`,
+      "Accepted decision artifact acceptedAt must be an ISO date or timestamp.",
     );
   }
 }
