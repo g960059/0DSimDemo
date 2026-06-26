@@ -147,6 +147,19 @@ mechanics, owner acceptance, fit/validation pass claims, and loaded-system
 behavior remain deferred. Phase 3B/C still cover homogenization, generalized
 force, and the minimal loaded afterload family.
 
+## Phase 3B identity homogenization and generalized force
+
+Run `npm run verify:myocardium-generalized-forces` to check the standalone
+identity/fixed homogenization plus single-coordinate generalized-force gate.
+This gate passes Land source active fiber stress through
+`identity-fiber-nominal-v1`, uses an explicit zero passive/viscous fixture, and
+checks `virtual-power-nominal-engineering-v1` for the single `cavity-volume`
+coordinate. It reports
+`claimBoundary=identity-homogenization-single-coordinate-force-only` and
+`evidenceStatus=synthetic-virtual-power-closure-only`; production
+homogenization, passive-law acceptance, loaded afterload behavior, runtime
+chamber integration, and owner acceptance remain deferred.
+
 ## Imported bundle checks
 
 Revision 3's original markdown hashes are preserved in
