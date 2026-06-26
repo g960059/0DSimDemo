@@ -1,10 +1,13 @@
 ---
 title: "ADR-MYO-001 — Full replacement of the myocardial contraction subsystem, Phase A"
-status: "Proposed"
+status: "Accepted"
 date: "2026-06-26"
 repository: "g960059/0DSimDemo"
 supersedes: "Legacy ActiveStressChamberModel semantics"
 source_design_record: "../research/myocardial-contraction-rebuild-design-record.md"
+accepted_by: "g960059"
+accepted_at: "2026-06-26"
+accepted_source: "Codex thread owner instruction: recommended defaults OK"
 ---
 
 # ADR-MYO-001 — Full replacement of the myocardial contraction subsystem, Phase A
@@ -53,26 +56,35 @@ source_design_record: "../research/myocardial-contraction-rebuild-design-record.
 
 | # | Decision | Recommended default | Decide by | Status |
 |---:|---|---|---|---|
-| 1 | Land parameter variant | intact-human-37°C source set | Phase 0/1 | PENDING OWNER |
-| 2 | Land source stress convention | fiber nominal / first-Piola scalar | Phase 0 | PENDING OWNER |
-| 3 | fiber strain coordinate | engineering strain | Phase 0 | PENDING OWNER |
+| 1 | Land parameter variant | intact-human-37°C source set | Phase 0/1 | ACCEPTED 2026-06-26 |
+| 2 | Land source stress convention | fiber nominal / first-Piola scalar | Phase 0 | ACCEPTED 2026-06-26 |
+| 3 | fiber strain coordinate | engineering strain | Phase 0 | ACCEPTED 2026-06-26 |
 | 4 | source→wall homogenization | explicit adapter、fixed/independently constrained | Phase 4 | PENDING OWNER |
 | 5 | sarcomere reference/anchor | source `Ls0` fixed、anchor fixed/narrow prior | Phase 3/4 | PENDING OWNER |
 | 6 | passive law | convex exponential energy family | Phase 4 | PENDING OWNER |
 | 7 | time integrator | BE bring-up、SDIRK2 reference、production benchmark | Phase 5 | PENDING OWNER |
 | 8 | stiffness/tangent semantics | stabilization/algorithmic/frozenの3分離 | Phase 0/1 | PENDING OWNER |
-| 9 | ActivationEvent contract | event ID＋time since event＋cycle length | Phase 0 | PENDING OWNER |
+| 9 | ActivationEvent contract | event ID＋time since event＋cycle length | Phase 0 | ACCEPTED 2026-06-26 |
 | 10 | prescribed Ca target/HR | paired Land＋human target、cycle-length knots | Phase 2 | PENDING OWNER |
-| 11 | production Ca claim boundary | SERCA/RyR/SR-loadは保存型Caまで禁止 | Phase 0 | PENDING OWNER |
+| 11 | production Ca claim boundary | SERCA/RyR/SR-loadは保存型Caまで禁止 | Phase 0 | ACCEPTED 2026-06-26 |
 | 12 | closed-loop targets | versioned fit/validation/holdout packs | Phase 0 | PENDING OWNER |
 | 13 | atrial progression gate | ventricular gates後 | Phase 6/7 | PENDING OWNER |
-| 14 | loaded morphology target | composite pack、same measurement code | Phase 0 | PENDING OWNER |
-| 15 | early kill gate | joint feasibility後GO/REVISE/NO-GO | Phase 0/3 | PENDING OWNER |
+| 14 | loaded morphology target | composite pack、same measurement code | Phase 0 | ACCEPTED 2026-06-26 |
+| 15 | early kill gate | joint feasibility後GO/REVISE/NO-GO | Phase 0/3 | ACCEPTED 2026-06-26 |
 | 16 | realtime budget | 10× realtime等の暫定値 | Phase 0/5 | PENDING OWNER |
-| 17 | temperature | fixed 310.15 K | Phase 0 | PENDING OWNER |
+| 17 | temperature | fixed 310.15 K | Phase 0 | ACCEPTED 2026-06-26 |
 | 18 | first release atria | Land ventricles＋documented atrial bridge案 | release | PENDING OWNER |
 | 19 | production ventricular mechanics | thick-sphere / TriSeg-lite / TriSeg-compatible | before Phase 4 | PENDING OWNER |
-| 20 | regional runtime scope | schema only、MultiPatch runtimeは別ADR | Phase 0 | PENDING OWNER |
+| 20 | regional runtime scope | schema only、MultiPatch runtimeは別ADR | Phase 0 | ACCEPTED 2026-06-26 |
+
+### Phase 0 acceptance record
+
+Owner `g960059` accepted the recommended defaults for decisions 1–3, 9, 11,
+14, 15, 17, and 20 on 2026-06-26 via Codex thread instruction. The
+machine-readable record is
+[`../../../data/myocardium/phase0-decisions.json`](../../../data/myocardium/phase0-decisions.json).
+Owner decisions not listed in the ADR acceptance clause remain pending or
+deferred to their stated phases.
 
 ## Acceptance
 

@@ -1,6 +1,6 @@
 # Myocardium Revision 3
 
-Status: Proposed Phase 0
+Status: Phase 0 owner decisions accepted
 Bundle source: local import, path redacted
 Baseline repository commit: `228bef96e5f522de2cfe352de5d6d4d2f017c550`
 
@@ -29,9 +29,10 @@ accepted ADR
 > design record
 ```
 
-`ADR-MYO-001` is still `Proposed`. Until the required Phase 0 owner decisions
-are recorded as accepted, engine implementation should not proceed beyond
-document and target/claim freeze work.
+`ADR-MYO-001` is Accepted for the required Phase 0 owner decisions listed in
+its acceptance clause. Phase 1A contract work may proceed, but ModelCore
+integration, Land equations, calcium backends, mechanics coupling, and runtime
+schema migration still require their later phase gates.
 
 ## Source registry
 
@@ -51,10 +52,21 @@ and
 [`../../data/myocardium/targets/claim-freeze-v1.json`](../../data/myocardium/targets/claim-freeze-v1.json).
 Run `npm run verify:myocardium-phase0` to check the source registry, required
 ADR-MYO-001 decision records, target/claim freeze categories, and pending owner
-decisions. Passing this gate is not owner acceptance and does not authorize
-engine implementation while `ADR-MYO-001` remains Proposed.
-After `ADR-MYO-001` is marked Accepted, this gate expects the required Phase 0
-decisions to be individually accepted with owner provenance metadata.
+decisions. After `ADR-MYO-001` is marked Accepted, this gate expects the
+required Phase 0 decisions to be individually accepted with owner provenance
+metadata.
+
+## Phase 1A contracts
+
+Run `npm run verify:myocardium-contracts` to check the standalone Phase 1A
+activation, provenance, instance-path, and dynamic-state-layout contracts. These
+contracts live under `engine/myocardium/*`; the new
+`engine/myocardium/state/StateLayoutBuilder.ts` reuses the existing
+`engine/stateContract.ts` stable-hash helper only; it is not wired to legacy
+`engine/core/stateLayout.ts`, ModelCore, chamber code, or runtime
+schema/loaders. The spec §7.2 schema-breaking items, including
+`MODEL_STATE_SCHEMA_VERSION` changes and old-loader rejection, are deferred to
+later adoption/integration phases.
 
 ## Imported bundle checks
 

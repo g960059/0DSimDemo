@@ -300,7 +300,11 @@ function validateDecisionsArtifact(
       );
     }
     const purpose = stringField(artifact.artifact, "purpose");
-    if (purpose && !purpose.toLowerCase().includes("not owner sign-off")) {
+    if (
+      artifactStatus === PENDING_DECISION_STATUS
+      && purpose
+      && !purpose.toLowerCase().includes("not owner sign-off")
+    ) {
       addIssue(
         issues,
         "warning",
@@ -308,6 +312,9 @@ function validateDecisionsArtifact(
         "phase0Decisions.artifact.purpose",
         "Decision artifact purpose should clearly state that the artifact is not owner sign-off.",
       );
+    }
+    if (artifactStatus === ACCEPTED_DECISION_STATUS) {
+      validateAcceptedArtifactMetadata(artifact.artifact, "phase0Decisions.artifact", issues);
     }
   }
 
@@ -925,6 +932,32 @@ function validateAcceptanceMetadata(
       "decision_accepted_invalid_date",
       `${path}.acceptedAt`,
       `Decision ${id} acceptedAt must be an ISO date or timestamp.`,
+    );
+  }
+}
+
+function validateAcceptedArtifactMetadata(artifact: JsonRecord, path: string, issues: ValidationIssue[]): void {
+  const acceptance = isRecord(artifact.acceptance) ? artifact.acceptance : {};
+  const acceptedBy = stringField(artifact, "acceptedBy") ?? stringField(acceptance, "acceptedBy");
+  const acceptedAt = stringField(artifact, "acceptedAt") ?? stringField(acceptance, "acceptedAt");
+  const acceptedSource = stringField(artifact, "acceptedSource") ?? stringField(acceptance, "acceptedSource");
+  if (!acceptedBy || !acceptedAt || !acceptedSource) {
+    addIssue(
+      issues,
+      "error",
+      "decisions_artifact_accepted_missing_owner_metadata",
+      path,
+      "Accepted decision artifact lacks acceptedBy, acceptedAt, and acceptedSource metadata.",
+    );
+    return;
+  }
+  if (!isIsoDateLike(acceptedAt)) {
+    addIssue(
+      issues,
+      "error",
+      "decisions_artifact_accepted_invalid_date",
+      `${path}.acceptedAt`,
+      "Accepted decision artifact acceptedAt must be an ISO date or timestamp.",
     );
   }
 }

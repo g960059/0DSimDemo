@@ -19,7 +19,7 @@
     {
       "id": "ADR-MYO-001",
       "path": "docs/myocardium/adr/ADR-MYO-001.md",
-      "status": "Proposed",
+      "status": "Accepted",
       "sections": [
         "Acceptance",
         "Required owner decisions"

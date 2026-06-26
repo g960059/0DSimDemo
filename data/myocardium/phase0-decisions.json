@@ -3,9 +3,12 @@
   "artifact": {
     "id": "myocardium-phase0-decisions",
     "version": "1.0.0",
-    "status": "pending-owner",
-    "purpose": "Artifact-integrity record for ADR-MYO-001 Phase 0 acceptance decisions. This artifact is not owner sign-off and does not authorize engine implementation.",
-    "derivedFrom": "ADR-MYO-001"
+    "status": "accepted",
+    "purpose": "Owner-accepted record for ADR-MYO-001 Phase 0 acceptance decisions. This artifact records owner sign-off for the required recommended defaults and unlocks Phase 1A contract work without authorizing later runtime integration gates.",
+    "derivedFrom": "ADR-MYO-001",
+    "acceptedBy": "g960059",
+    "acceptedAt": "2026-06-26",
+    "acceptedSource": "Codex thread owner instruction: recommended defaults OK"
   },
   "baseline": {
     "createdAt": "2026-06-26",
@@ -16,7 +19,7 @@
     {
       "id": "ADR-MYO-001",
       "path": "docs/myocardium/adr/ADR-MYO-001.md",
-      "status": "Proposed",
+      "status": "Accepted",
       "sections": [
         "Required owner decisions",
         "Acceptance"
@@ -58,7 +61,7 @@
       "decision": "Select the Land parameter variant for the Phase A source set.",
       "recommendedDefault": "intact-human-37 C source set",
       "decideBy": "Phase 0/1",
-      "status": "pending-owner",
+      "status": "accepted",
       "documentReferences": [
         {
           "documentId": "ADR-MYO-001",
@@ -73,7 +76,10 @@
           "use": "parameters",
           "detail": "Candidate source parameter set named by the ADR recommended default."
         }
-      ]
+      ],
+      "acceptedBy": "g960059",
+      "acceptedAt": "2026-06-26",
+      "acceptedSource": "Codex thread owner instruction: recommended defaults OK"
     },
     {
       "id": 2,
@@ -81,7 +87,7 @@
       "decision": "Fix the source stress convention used for Land source active fiber stress.",
       "recommendedDefault": "fiber nominal / first-Piola scalar",
       "decideBy": "Phase 0",
-      "status": "pending-owner",
+      "status": "accepted",
       "documentReferences": [
         {
           "documentId": "ADR-MYO-001",
@@ -96,7 +102,10 @@
           "use": "equations",
           "detail": "Source stress convention candidate for Land active fiber stress."
         }
-      ]
+      ],
+      "acceptedBy": "g960059",
+      "acceptedAt": "2026-06-26",
+      "acceptedSource": "Codex thread owner instruction: recommended defaults OK"
     },
     {
       "id": 3,
@@ -104,7 +113,7 @@
       "decision": "Fix the fiber strain coordinate for source-model interpretation.",
       "recommendedDefault": "engineering strain",
       "decideBy": "Phase 0",
-      "status": "pending-owner",
+      "status": "accepted",
       "documentReferences": [
         {
           "documentId": "ADR-MYO-001",
@@ -112,7 +121,10 @@
           "section": "Required owner decisions",
           "row": "Decision summary #3"
         }
-      ]
+      ],
+      "acceptedBy": "g960059",
+      "acceptedAt": "2026-06-26",
+      "acceptedSource": "Codex thread owner instruction: recommended defaults OK"
     },
     {
       "id": 9,
@@ -120,7 +132,7 @@
       "decision": "Fix the event contract passed from activation scheduling into calcium generation.",
       "recommendedDefault": "event ID plus time since event plus cycle length",
       "decideBy": "Phase 0",
-      "status": "pending-owner",
+      "status": "accepted",
       "documentReferences": [
         {
           "documentId": "ADR-MYO-001",
@@ -128,7 +140,10 @@
           "section": "Required owner decisions",
           "row": "Decision summary #9"
         }
-      ]
+      ],
+      "acceptedBy": "g960059",
+      "acceptedAt": "2026-06-26",
+      "acceptedSource": "Codex thread owner instruction: recommended defaults OK"
     },
     {
       "id": 11,
@@ -136,7 +151,7 @@
       "decision": "Forbid mechanistic SR-load, RyR, and SERCA claims in production cases until a conserved-Ca backend exists.",
       "recommendedDefault": "SERCA/RyR/SR-load claims prohibited until conserved-Ca backend",
       "decideBy": "Phase 0",
-      "status": "pending-owner",
+      "status": "accepted",
       "documentReferences": [
         {
           "documentId": "ADR-MYO-001",
@@ -144,7 +159,10 @@
           "section": "Required owner decisions",
           "row": "Decision summary #11"
         }
-      ]
+      ],
+      "acceptedBy": "g960059",
+      "acceptedAt": "2026-06-26",
+      "acceptedSource": "Codex thread owner instruction: recommended defaults OK"
     },
     {
       "id": 14,
@@ -152,7 +170,7 @@
       "decision": "Fix the loaded morphology target as a composite pack using shared measurement code.",
       "recommendedDefault": "composite pack with same measurement code",
       "decideBy": "Phase 0",
-      "status": "pending-owner",
+      "status": "accepted",
       "documentReferences": [
         {
           "documentId": "ADR-MYO-001",
@@ -160,7 +178,10 @@
           "section": "Required owner decisions",
           "row": "Decision summary #14"
         }
-      ]
+      ],
+      "acceptedBy": "g960059",
+      "acceptedAt": "2026-06-26",
+      "acceptedSource": "Codex thread owner instruction: recommended defaults OK"
     },
     {
       "id": 15,
@@ -168,7 +189,7 @@
       "decision": "Require GO, REVISE, or NO-GO owner direction after joint feasibility evidence is available.",
       "recommendedDefault": "joint feasibility before GO/REVISE/NO-GO",
       "decideBy": "Phase 0/3",
-      "status": "pending-owner",
+      "status": "accepted",
       "documentReferences": [
         {
           "documentId": "ADR-MYO-001",
@@ -176,7 +197,10 @@
           "section": "Required owner decisions",
           "row": "Decision summary #15"
         }
-      ]
+      ],
+      "acceptedBy": "g960059",
+      "acceptedAt": "2026-06-26",
+      "acceptedSource": "Codex thread owner instruction: recommended defaults OK"
     },
     {
       "id": 17,
@@ -184,7 +208,7 @@
       "decision": "Fix the temperature used for the early Land source interpretation.",
       "recommendedDefault": "310.15 K",
       "decideBy": "Phase 0",
-      "status": "pending-owner",
+      "status": "accepted",
       "documentReferences": [
         {
           "documentId": "ADR-MYO-001",
@@ -199,7 +223,10 @@
           "use": "parameters",
           "detail": "Temperature-related source parameter interpretation candidate."
         }
-      ]
+      ],
+      "acceptedBy": "g960059",
+      "acceptedAt": "2026-06-26",
+      "acceptedSource": "Codex thread owner instruction: recommended defaults OK"
     },
     {
       "id": 20,
@@ -207,7 +234,7 @@
       "decision": "Limit regional myocardium work to schema scope in Phase 0; MultiPatch runtime remains outside this ADR acceptance gate.",
       "recommendedDefault": "schema only; MultiPatch runtime requires a separate ADR",
       "decideBy": "Phase 0",
-      "status": "pending-owner",
+      "status": "accepted",
       "documentReferences": [
         {
           "documentId": "ADR-MYO-001",
@@ -215,7 +242,10 @@
           "section": "Required owner decisions",
           "row": "Decision summary #20"
         }
-      ]
+      ],
+      "acceptedBy": "g960059",
+      "acceptedAt": "2026-06-26",
+      "acceptedSource": "Codex thread owner instruction: recommended defaults OK"
     }
   ]
 }

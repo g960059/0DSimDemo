@@ -9,8 +9,17 @@ import {
 } from "@/tools/myocardium/phase0Validation";
 
 describe("myocardium Phase 0 artifact validation", () => {
-  it("passes current artifacts and reports pending owner decisions", () => {
+  it("passes current accepted artifacts without pending owner decisions", () => {
     const report = validatePhase0Artifacts(fixture());
+
+    expect(report.pass).toBe(true);
+    expect(report.errors).toEqual([]);
+    expect(report.pendingDecisions).toEqual([]);
+    expect(report.summary.acceptedDecisionCount).toBe(REQUIRED_PHASE0_DECISION_IDS.length);
+  });
+
+  it("passes pending artifacts and reports pending owner decisions", () => {
+    const report = validatePhase0Artifacts(pendingFixture());
 
     expect(report.pass).toBe(true);
     expect(report.errors).toEqual([]);
@@ -45,13 +54,37 @@ describe("myocardium Phase 0 artifact validation", () => {
   });
 
   it("fails when the decision artifact itself claims acceptance", () => {
-    const input = fixture();
+    const input = pendingFixture();
     input.decisionsArtifact.artifact.status = "accepted";
 
     const report = validatePhase0Artifacts(input);
 
     expect(report.pass).toBe(false);
     expect(report.errors.some((issue) => issue.code === "decisions_artifact_status")).toBe(true);
+  });
+
+  it("fails when an accepted decision artifact lacks owner provenance metadata", () => {
+    const input = fixture();
+    delete (input.decisionsArtifact.artifact as Record<string, unknown>).acceptedBy;
+    delete (input.decisionsArtifact.artifact as Record<string, unknown>).acceptedAt;
+    delete (input.decisionsArtifact.artifact as Record<string, unknown>).acceptedSource;
+
+    const report = validatePhase0Artifacts(input);
+
+    expect(report.pass).toBe(false);
+    expect(
+      report.errors.some((issue) => issue.code === "decisions_artifact_accepted_missing_owner_metadata"),
+    ).toBe(true);
+  });
+
+  it("fails when accepted decision artifact metadata has an invalid date", () => {
+    const input = fixture();
+    (input.decisionsArtifact.artifact as Record<string, unknown>).acceptedAt = "not-a-date";
+
+    const report = validatePhase0Artifacts(input);
+
+    expect(report.pass).toBe(false);
+    expect(report.errors.some((issue) => issue.code === "decisions_artifact_accepted_invalid_date")).toBe(true);
   });
 
   it("fails when a required claim-freeze category is missing", () => {
@@ -151,7 +184,9 @@ describe("myocardium Phase 0 artifact validation", () => {
 
   it("fails when an accepted owner decision lacks owner provenance metadata", () => {
     const input = fixture();
-    input.decisionsArtifact.decisions[0].status = "accepted";
+    delete (input.decisionsArtifact.decisions[0] as Record<string, unknown>).acceptedBy;
+    delete (input.decisionsArtifact.decisions[0] as Record<string, unknown>).acceptedAt;
+    delete (input.decisionsArtifact.decisions[0] as Record<string, unknown>).acceptedSource;
 
     const report = validatePhase0Artifacts(input);
 
@@ -162,10 +197,7 @@ describe("myocardium Phase 0 artifact validation", () => {
   it("fails when accepted owner decision metadata has an invalid date", () => {
     const input = fixture();
     const decision = input.decisionsArtifact.decisions[0] as Record<string, unknown>;
-    decision.status = "accepted";
-    decision.acceptedBy = "owner";
     decision.acceptedAt = "not-a-date";
-    decision.acceptedSource = "ADR-MYO-001";
 
     const report = validatePhase0Artifacts(input);
 
@@ -174,7 +206,7 @@ describe("myocardium Phase 0 artifact validation", () => {
   });
 
   it("fails when ADR-MYO-001 is accepted but required decisions remain pending", () => {
-    const input = fixture();
+    const input = pendingFixture();
     input.decisionsArtifact.sourceDocuments[0].status = "Accepted";
 
     const report = validatePhase0Artifacts(input);
@@ -199,6 +231,24 @@ function fixture(): Phase0ValidationInput & {
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function pendingFixture(): ReturnType<typeof fixture> {
+  const input = fixture();
+  input.decisionsArtifact.artifact.status = "pending-owner";
+  input.decisionsArtifact.artifact.purpose = "Artifact-integrity record for ADR-MYO-001 Phase 0 acceptance decisions. This artifact is not owner sign-off and does not authorize engine implementation.";
+  delete (input.decisionsArtifact.artifact as Record<string, unknown>).acceptedBy;
+  delete (input.decisionsArtifact.artifact as Record<string, unknown>).acceptedAt;
+  delete (input.decisionsArtifact.artifact as Record<string, unknown>).acceptedSource;
+  input.decisionsArtifact.sourceDocuments[0].status = "Proposed";
+  input.claimFreezeArtifact.sourceDocuments[0].status = "Proposed";
+  for (const decision of input.decisionsArtifact.decisions) {
+    decision.status = "pending-owner";
+    delete (decision as Record<string, unknown>).acceptedBy;
+    delete (decision as Record<string, unknown>).acceptedAt;
+    delete (decision as Record<string, unknown>).acceptedSource;
+  }
+  return input;
 }
 
 function firstNormativeSource(input: Phase0ValidationInput & { sourcesRegistry: typeof sourcesRegistry }) {
