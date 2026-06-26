@@ -53,6 +53,8 @@ Run `npm run verify:myocardium-phase0` to check the source registry, required
 ADR-MYO-001 decision records, target/claim freeze categories, and pending owner
 decisions. Passing this gate is not owner acceptance and does not authorize
 engine implementation while `ADR-MYO-001` remains Proposed.
+After `ADR-MYO-001` is marked Accepted, this gate expects the required Phase 0
+decisions to be individually accepted with owner provenance metadata.
 
 ## Imported bundle checks
 
