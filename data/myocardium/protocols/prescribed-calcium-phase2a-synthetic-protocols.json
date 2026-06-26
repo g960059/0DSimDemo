@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "artifact": {
+    "id": "prescribed-calcium-phase2a-synthetic-protocols-v1",
+    "version": "1.0.0",
+    "status": "candidate",
+    "purpose": "Synthetic smoke-only protocol descriptor for the standalone Phase 2A PrescribedCalciumTransientV1 gate."
+  },
+  "protocolSetId": "prescribed-calcium-phase2a-synthetic-protocols-v1",
+  "phase": "Phase 2A",
+  "claimBoundary": "prescribed-calcium-waveform-only",
+  "evidenceStatus": "synthetic-smoke-only",
+  "experimentalTargets": "deferred",
+  "ownerAcceptanceStatus": "not-owner-acceptance",
+  "sourceDocuments": [
+    {
+      "documentId": "ADR-MYO-001",
+      "path": "docs/myocardium/adr/ADR-MYO-001.md",
+      "status": "Accepted",
+      "sections": [
+        "Required owner decisions"
+      ]
+    },
+    {
+      "documentId": "myocardium-land-v1",
+      "path": "docs/myocardium/model-spec/myocardium-land-v1.md",
+      "status": "Proposed",
+      "sections": [
+        "7.4 Prescribed calcium transient",
+        "9. PrescribedCalciumTransientV1"
+      ]
+    }
+  ],
+  "pendingOwnerDecisions": [
+    {
+      "decisionId": 10,
+      "decision": "prescribed Ca target/HR",
+      "status": "PENDING OWNER",
+      "effect": "Numeric knots in this artifact are synthetic smoke-only and are not accepted target-pack thresholds."
+    }
+  ],
+  "deferredExperimentalTargets": [
+    {
+      "targetId": "ca-land2017-intact-paired-v1",
+      "reason": "Paired Land plus calcium acceptance belongs to Phase 2B or later owner/source-grounded target work."
+    },
+    {
+      "targetId": "ca-human-ventricular-37c-rate-v1",
+      "reason": "Human ventricular rate-target acceptance is deferred until Decision 10 and source-grounded target packs are accepted."
+    }
+  ],
+  "units": {
+    "time": "s",
+    "calcium": "uM",
+    "strength": "0..1"
+  },
+  "syntheticParameterization": {
+    "releasePulse": "C1 raised-cosine pulse generated from canonical ActivationEvent plus activationDelaySec.",
+    "riseMapping": "tauRiseSec is solved deterministically so a zero-initial single-pulse BE waveform peaks at the synthetic riseTimeSec descriptor.",
+    "decayMapping": "tauDecaySec = decayHalfTimeSec / ln(2).",
+    "normalization": "N is recomputed for each interpolated effective target from a zero-initial single-pulse BE simulation."
+  },
+  "protocols": [
+    { "id": "synthetic-waveform-shape-v1", "kind": "peak-time-decay-smoke", "claim": "synthetic-smoke" },
+    { "id": "event-cycle-continuity-v1", "kind": "activation-event-continuity", "claim": "contract-closure" },
+    { "id": "cycle-length-knot-policy-v1", "kind": "interpolation-extrapolation", "claim": "contract-closure" },
+    { "id": "dt-self-consistency-v1", "kind": "dt-convergence", "claim": "self-consistency" },
+    { "id": "nonnegative-calcium-v1", "kind": "nonnegative-output", "claim": "contract-closure" },
+    { "id": "claim-boundary-v1", "kind": "boundary-check", "claim": "no-experimental-pass" },
+    { "id": "deterministic-replay-v1", "kind": "determinism", "claim": "contract-closure" }
+  ]
+}
