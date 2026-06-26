@@ -94,6 +94,15 @@ parameter provenance.
 
 ### PR 3B — identity/fixed homogenization + single-coordinate generalized force
 
+Scope: standalone identity/fixed homogenization plus single-coordinate
+virtual-power closure for the Phase 3A `cavity-volume` coordinate. Uses an
+explicit zero passive/viscous fixture and does not run a loaded afterload
+family or accept production homogenization/passive mechanics.
+
+- gate script: `npm run verify:myocardium-generalized-forces`
+- artifact: `data/myocardium/protocols/identity-force-phase3b-protocols.json`
+- boundary: no ModelCore/chamber runtime wiring, afterload family, valve/qDot, or owner acceptance
+
 ### PR 3C — low/normal/high afterload family
 
 ### Phase 3 owner gate
@@ -240,6 +249,7 @@ tools/myocardium/*
     "verify:myocardium-calcium-land-isometric": "vite-node tools/myocardium/verifyCalciumLandIsometric.ts",
     "verify:myocardium-prescribed-shortening": "vite-node tools/myocardium/verifyPrescribedShortening.ts",
     "verify:myocardium-thick-sphere-kinematics": "vite-node tools/myocardium/verifyThickSphereKinematics.ts",
+    "verify:myocardium-generalized-forces": "vite-node tools/myocardium/verifyGeneralizedForces.ts",
     "verify:minimal-loaded-chamber": "vite-node tools/myocardium/verifyMinimalLoadedChamber.ts",
     "verify:generalized-forces": "vite-node tools/myocardium/verifyGeneralizedForces.ts",
     "verify:single-chamber": "vite-node tools/myocardium/verifySingleChamber.ts",
@@ -444,6 +454,7 @@ state schemaはwall/region/patch-readyとするが、MultiPatch runtime、region
 [ ] isometric twitch gate passing
 [x] prescribed-shortening transfer report passing (`verify:myocardium-prescribed-shortening`)
 [x] fixed thick-sphere kinematics report passing (`verify:myocardium-thick-sphere-kinematics`)
+[x] identity homogenization/generalized-force report passing (`verify:myocardium-generalized-forces`)
 [ ] kinematics/sarcomere bridge derivation reviewed for production mechanics
 [ ] minimal loaded chamber spike completed
 [ ] Phase 3 owner GO/REVISE/NO-GO recorded
