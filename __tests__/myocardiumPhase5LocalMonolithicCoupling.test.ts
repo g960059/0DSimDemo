@@ -23,7 +23,7 @@ import {
   validateLocalMonolithicCouplingReadiness,
 } from "@/tools/myocardium/verifyLocalMonolithicCouplingReadiness";
 
-const acceptedPhase4DStableSummaryHashes = ["62304684", "a39922fa"] as const;
+const acceptedPhase4DStableSummaryHashes = ["dba128b8", "3e3adeb4"] as const;
 const baseValidationInput =
   loadLocalMonolithicCouplingReadinessValidationInput(process.cwd());
 
@@ -111,7 +111,7 @@ describe("myocardium Phase 5A local monolithic coupling readiness", () => {
   it("pins Phase 4D read-only evidence and fails if those hashes drift", () => {
     const report = runLocalMonolithicCouplingReadinessReport();
 
-    expect(report.phase4DReadOnlyEvidence.expectedStableSummaryHash).toBe("62304684");
+    expect(report.phase4DReadOnlyEvidence.expectedStableSummaryHash).toBe("dba128b8");
     expect(report.phase4DReadOnlyEvidence.acceptedStableSummaryHashes).toEqual(
       acceptedPhase4DStableSummaryHashes,
     );

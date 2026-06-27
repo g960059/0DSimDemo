@@ -484,6 +484,15 @@ function runLandFeedforwardReplay(
   const allSamplesInCalibrationDomain =
     sampleMetrics.length > 0
     && sampleMetrics.every((sample) => sample.inCalibrationDomain);
+  const fixedLegacyVlvEnvelopeInsideSelectedLvDomain =
+    beats.length > 0
+    && beats.every((beat) =>
+      beat.finiteHealth.inCalibrationDomain
+      && beat.minPrescribedLegacyVlvM3
+        >= THICK_SPHERE_V2_SELECTED_LV_PARAMETER_SET.sweepCavityVolumeMinM3 - selectedLvDomainTolerance()
+      && beat.maxPrescribedLegacyVlvM3
+        <= THICK_SPHERE_V2_SELECTED_LV_PARAMETER_SET.sweepCavityVolumeMaxM3 + selectedLvDomainTolerance()
+    );
   const projectionUsedAny = sampleMetrics.some((sample) => sample.projectionUsed);
   const maxLandSolverResidualNorm = maxOrNaN(sampleMetrics.map((sample) => sample.solverResidualNorm));
   const relativeBranchDelta = branchRelativeDelta(beats.map((beat) => beat.peakSourceActiveFiberStressPa));
@@ -538,6 +547,7 @@ function runLandFeedforwardReplay(
       beats.length === LAND_SHADOW_FIXED_LEGACY_PROTOCOL.traceBeats
       && allFiniteHealth
       && allSamplesInCalibrationDomain
+      && fixedLegacyVlvEnvelopeInsideSelectedLvDomain
       && !projectionUsedAny
       && beats.every((beat) => /^[0-9a-f]{8}$/.test(beat.deterministicHash)),
   } satisfies Omit<LandShadowFeedforwardReplayEvidence, "replayStableHash">;
@@ -546,6 +556,14 @@ function runLandFeedforwardReplay(
     ...replayWithoutHash,
     replayStableHash: stableHash(sanitizeForStableHash(replayWithoutHash)),
   };
+}
+
+function selectedLvDomainTolerance(): number {
+  return Math.max(
+    Math.abs(THICK_SPHERE_V2_SELECTED_LV_PARAMETER_SET.sweepCavityVolumeMinM3),
+    Math.abs(THICK_SPHERE_V2_SELECTED_LV_PARAMETER_SET.sweepCavityVolumeMaxM3),
+    1,
+  ) * 1e-12;
 }
 
 function buildBeatMetrics(

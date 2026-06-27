@@ -14,27 +14,25 @@ const baseValidationInput =
   loadLandShadowAlternansComparatorValidationInput(process.cwd());
 
 describe("myocardium Phase 5C-A Land shadow alternans comparator readiness", () => {
-  it("validates the harness while preserving the current artifactGate failure instead of claiming a Land alternans verdict", () => {
+  it("validates domain-covered shadow replay readiness without claiming a Land alternans verdict", () => {
     const input = fixture();
     const validation = validateLandShadowAlternansComparatorReadiness(input);
     const report = input.report;
 
     expect(validation.errors).toEqual([]);
     expect(validation.pass).toBe(true);
-    expect(validation.artifactGatePass).toBe(false);
-    expect(validation.artifactGateStatus).toBe("land-shadow-comparator-review");
-    expect(validation.artifactGateFindings.join("\n")).toMatch(
-      /selected-v2 LV calibration-domain coverage failed/,
-    );
+    expect(validation.artifactGatePass).toBe(true);
+    expect(validation.artifactGateStatus).toBe("land-shadow-comparator-ready");
+    expect(validation.artifactGateFindings).toEqual([]);
     expect(report.protocolSetId).toBe(LAND_SHADOW_ALTERNANS_COMPARATOR_PHASE5C_A_PROTOCOL_SET_ID);
     expect(report.phase).toBe(LAND_SHADOW_ALTERNANS_COMPARATOR_PHASE5C_A_PHASE);
     expect(report.claimBoundary).toBe(LAND_SHADOW_ALTERNANS_COMPARATOR_PHASE5C_A_CLAIM_BOUNDARY);
     expect(report.productionRuntimeStatus).toBe("not-live-runtime-replacement");
     expect(report.officialMorphologyPass).toBe("not-claimed");
     expect(report.finalNoAlternansClaim).toBe("not-claimed");
-    expect(report.readinessPass).toBe(false);
+    expect(report.readinessPass).toBe(true);
     expect(report.sections.find((section) => section.id === "land-feedforward-shadow-replay-v1")?.status)
-      .toBe("readiness-fail");
+      .toBe("readiness-pass");
   });
 
   it("reproduces the fixed legacy activeStress low-preload period-2 protocol before feeding the prescribed VLV trajectory to Land", () => {
@@ -62,7 +60,7 @@ describe("myocardium Phase 5C-A Land shadow alternans comparator readiness", () 
     expect(legacy.maxValveReverseMl).toBeLessThanOrEqual(0.05);
   });
 
-  it("keeps the Land replay feedforward-only and exposes the selected-v2 calibration-domain blocker", () => {
+  it("keeps the Land replay feedforward-only and verifies selected-v2 LV domain coverage", () => {
     const replay = fixture().report.landFeedforwardReplay;
 
     expect(replay.replayStatus).toBe("feedforward-shadow-replay-complete");
@@ -83,16 +81,21 @@ describe("myocardium Phase 5C-A Land shadow alternans comparator readiness", () 
     expect(replay.trajectorySampleCount).toBeGreaterThan(0);
     expect(replay.allFiniteHealth).toBe(true);
     expect(replay.projectionUsedAny).toBe(false);
-    expect(replay.allSamplesInCalibrationDomain).toBe(false);
-    expect(replay.replayPass).toBe(false);
+    expect(replay.allSamplesInCalibrationDomain).toBe(true);
+    expect(replay.replayPass).toBe(true);
     expect(replay.replayStableHash).toMatch(/^[0-9a-f]{8}$/);
-    expect(replay.beats.some((beat) =>
-      beat.minPrescribedLegacyVlvM3 < replay.selectedLvCalibrationDomainM3.min,
+    const minLegacyVlvM3 = Math.min(...replay.beats.map((beat) => beat.minPrescribedLegacyVlvM3));
+    expect(minLegacyVlvM3).toBeGreaterThan(replay.selectedLvCalibrationDomainM3.min + 1.0e-6);
+    expect(replay.beats.every((beat) =>
+      beat.minPrescribedLegacyVlvM3 >= replay.selectedLvCalibrationDomainM3.min
+      && beat.maxPrescribedLegacyVlvM3 <= replay.selectedLvCalibrationDomainM3.max,
     )).toBe(true);
+    expect(replay.selectedLvCalibrationDomainM3.min).toBe(3.0e-5);
     for (const beat of replay.beats) {
       expect(beat.sampleCount).toBeGreaterThan(0);
       expect(beat.peakSourceActiveFiberStressPa).toBeGreaterThan(0);
       expect(beat.finiteHealth.pass).toBe(true);
+      expect(beat.finiteHealth.inCalibrationDomain).toBe(true);
       expect(beat.projectionUsed).toBe(false);
       expect(beat.deterministicHash).toMatch(/^[0-9a-f]{8}$/);
     }
@@ -125,6 +128,21 @@ describe("myocardium Phase 5C-A Land shadow alternans comparator readiness", () 
     expect(codes).toContain("phase5c_legacy_reproduction");
     expect(codes).toContain("phase5c_policy_boundary");
     expect(codes).toContain("phase5c_forbidden_claim");
+  });
+
+  it("fails validation if artifactGate pass is forced while legacy VLV leaves the selected LV domain", () => {
+    const input = fixture();
+    const replay = input.report.landFeedforwardReplay;
+    replay.beats[0].minPrescribedLegacyVlvM3 =
+      replay.selectedLvCalibrationDomainM3.min - 1e-8;
+    replay.beats[0].finiteHealth.inCalibrationDomain = false;
+
+    const validation = validateLandShadowAlternansComparatorReadiness(input);
+    const codes = validation.errors.map((issue) => issue.code);
+
+    expect(validation.pass).toBe(false);
+    expect(codes).toContain("phase5c_land_beat_metrics");
+    expect(codes).toContain("phase5c_land_replay_consistency");
   });
 
   it("fails validation when Phase 5C-A tokens leak into runtime integration targets", () => {
