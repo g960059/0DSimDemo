@@ -226,18 +226,18 @@ describe("myocardium Phase 4A mechanics decision dossier validation", () => {
     expect(report.errors.some((issue) => issue.code === "mechanics_dossier_runtime_leak")).toBe(true);
   });
 
-  it("fails when Decision 19 table rows are marked accepted", () => {
+  it("allows Decision 19 docs to record accepted owner-selection prose", () => {
     const input = fixture();
     input.decisionDocs[0].text = input.decisionDocs[0].text.replace(
       "| 19 | production ventricular mechanics | thick-sphere / TriSeg-lite / TriSeg-compatible | before Phase 4B+ | PENDING OWNER |",
       "| 19 | production ventricular mechanics | thick-sphere / TriSeg-lite / TriSeg-compatible | before Phase 4B+ | ACCEPTED 2026-06-27 |",
     );
+    input.decisionDocs[0].text += "\nDecision 19 owner selection recorded for thick-sphere-v2.";
 
     const report = validateMechanicsDecisionDossier(input);
 
-    expect(report.pass).toBe(false);
-    expect(report.errors.some((issue) => issue.code === "decision19_row_not_pending")).toBe(true);
-    expect(report.errors.some((issue) => issue.code === "decision19_prose_owner_acceptance_claim")).toBe(true);
+    expect(report.pass).toBe(true);
+    expect(report.errors).toEqual([]);
   });
 });
 

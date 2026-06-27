@@ -76,8 +76,21 @@ accepted_source_ref: "https://github.com/g960059/0DSimDemo/pull/154"
 | 16 | realtime budget | 10× realtime等の暫定値 | Phase 0/5 | PENDING OWNER |
 | 17 | temperature | fixed 310.15 K | Phase 0 | ACCEPTED 2026-06-26 |
 | 18 | first release atria | Land ventricles＋documented atrial bridge案 | release | PENDING OWNER |
-| 19 | production ventricular mechanics | thick-sphere / TriSeg-lite / TriSeg-compatible | before Phase 4B+ | PENDING OWNER |
+| 19 | production ventricular mechanics | thick-sphere-v2-explicit-external-septal-coupling (initial thick-sphere-v2 backend) | before Phase 4B+ | ACCEPTED 2026-06-27 |
 | 20 | regional runtime scope | schema only、MultiPatch runtimeは別ADR | Phase 0 | ACCEPTED 2026-06-26 |
+
+Decision 19 owner selection is recorded separately in
+`data/myocardium/decisions/production-mechanics-decision19-owner-selection-v1.json`.
+The selected initial backend is
+`thick-sphere-v2-explicit-external-septal-coupling`
+(`thick-sphere-v2`) for limited-scope immediate work: replace current active
+stress with Land active stress, morphology gate pass/fail, and
+beat-stability/no-alternans. The Phase 4A dossier remains historical
+recommendation-only and keeps `selectedCandidateId: null`. This initial backend
+does not cover RV pressure overload, septal bowing, ventricular
+interdependence, or right-heart failure as primary/final scope. The future
+TriSeg path preserves `triseg-lite-compatible`, `full-triseg-compatible`, and
+full TriSeg escalation before those mechanisms are claimed.
 
 ### Phase 0 acceptance record
 

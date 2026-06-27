@@ -2204,6 +2204,19 @@ full TriSeg-compatible candidate when justified
 
 比較項目はscientific scope、validation data、rank、virtual power、performance。
 
+Decision 19 owner selection is recorded separately in
+`data/myocardium/decisions/production-mechanics-decision19-owner-selection-v1.json`.
+The accepted initial backend is
+`thick-sphere-v2-explicit-external-septal-coupling`
+(`thick-sphere-v2`) for limited-scope immediate work: replace current active
+stress with Land active stress, morphology gate pass/fail, and
+beat-stability/no-alternans. The Phase 4A dossier remains historical
+recommendation-only with `selectedCandidateId: null`. This initial backend does
+not cover RV pressure overload, septal bowing, ventricular interdependence, or
+right-heart failure as primary/final scope. The future TriSeg path preserves
+`triseg-lite-compatible`, `full-triseg-compatible`, and full TriSeg escalation
+before those mechanisms are claimed.
+
 ### PR 4B — tissue homogenization
 
 - source→wall adapter
@@ -2516,7 +2529,7 @@ candidate結果を見てtargetをin-place変更しない。論文図digitization
 | 16 | realtime budget | 10× realtime等の暫定値 | Phase 0/5 | PENDING OWNER |
 | 17 | temperature | fixed 310.15 K | Phase 0 | PENDING OWNER |
 | 18 | first release atria | Land ventricles＋documented atrial bridge案 | release | PENDING OWNER |
-| 19 | production ventricular mechanics | thick-sphere / TriSeg-lite / TriSeg-compatible | before Phase 4B+ | PENDING OWNER |
+| 19 | production ventricular mechanics | thick-sphere-v2-explicit-external-septal-coupling (initial thick-sphere-v2 backend) | before Phase 4B+ | ACCEPTED 2026-06-27 |
 | 20 | regional runtime scope | schema only、MultiPatch runtimeは別ADR | Phase 0 | PENDING OWNER |
 
 ## 26.2 Recommended decisions
@@ -2597,7 +2610,7 @@ cell/tissue＋prescribed shortening＋複数loaded protocolのjoint feasible reg
 
 ### Decision 19 — production ventricular mechanics
 
-Phase 3 spikeではthick-sphereを固定利用する。Phase 4A dossier後、Phase 4B+ production integration前にofficial case scope、data、rank、virtual-power、performanceからA/B/Cを選ぶ。TriSegを自動的な必須条件にしない。
+Phase 3 spikeではthick-sphereを固定利用する。Decision 19 owner selectionは`thick-sphere-v2-explicit-external-septal-coupling`（initial `thick-sphere-v2` backend）をACCEPTED 2026-06-27として別artifactに記録する。Phase 4A dossierはhistorical recommendation-onlyで、`selectedCandidateId: null`のまま保持する。limited-scope immediate priorityはcurrent active stressをLand active stressへreplaceし、morphology gate pass/failとbeat-stability/no-alternansを確認することに限る。RV pressure overload、septal bowing、ventricular interdependence、right-heart failureはprimary/final scopeとしてcoveredではない。future TriSeg pathとして`triseg-lite-compatible`、`full-triseg-compatible`、full TriSeg escalationを、これらのmechanismをclaimする前に保持する。TriSegを自動的な必須条件にしない。
 
 ### Decision 20 — regional runtime
 
