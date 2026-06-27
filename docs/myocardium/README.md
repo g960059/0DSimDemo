@@ -415,6 +415,54 @@ this Phase 4C-B gate. The future TriSeg path preserves
 `triseg-lite-compatible`, `full-triseg-compatible`, and full TriSeg escalation
 before those mechanisms are claimed.
 
+## Phase 4D selected-mechanics calibration readiness
+
+Run `npm run verify:myocardium-selected-mechanics-calibration-readiness` to
+check the Phase 4D selected-mechanics calibration-readiness gate. The
+descriptor is
+[`../../data/myocardium/protocols/selected-mechanics-calibration-phase4d-protocols.json`](../../data/myocardium/protocols/selected-mechanics-calibration-phase4d-protocols.json),
+and the selected calibration candidate implementation is
+[`../../engine/myocardium/kinematics/thickSphereV2SelectedBackend.ts`](../../engine/myocardium/kinematics/thickSphereV2SelectedBackend.ts).
+
+This gate audits the selected `thick-sphere-v2` calibration candidate for
+synthetic executability only. It introduces v2-owned LV/RV parameter set ids
+(`kinematics-lv-thick-sphere-v2-calibration-candidate-v1` and
+`kinematics-rv-thick-sphere-v2-calibration-candidate-v1`) and stable hashes
+that are distinct from the Phase 3 `thick-sphere-spike-v1` parameter set. It
+checks finite-strain thick-sphere geometry closure, analytic
+`dE_f/dV` agreement against finite difference, in-domain LV/RV calibration
+samples, and deterministic replay.
+
+The gate reports
+`claimBoundary=selected-mechanics-calibration-readiness-only`,
+`selectedThickSphereV2CalibrationCandidateExecutableStatus=selected-thick-sphere-v2-calibration-candidate-executable`,
+`ownerAcceptanceStatus=not-owner-acceptance`,
+`decision4Status=PENDING OWNER`, `decision5Status=PENDING OWNER`,
+`decision6Status=PENDING OWNER`, and `decision8Status=PENDING OWNER`. It
+reuses the accepted Decision 19 owner selection and frozen Phase 4A dossier
+read-only. It also preserves Phase 4B-A evidence that the prior executable path
+was `thick-sphere-spike-v1`; that evidence is not the current selected v2
+candidate identity.
+
+The calibration freedom matrix fixes the Land source `Tref`, forbids free
+homogenization gain, forbids free pressure or geometry gain, and keeps target
+packs as measurement hooks only. The mechanics-composition smoke combines
+Land-style active source stress, the Phase 4C-A passive candidate output, and
+the Phase 4C-B generalized-force mapper on synthetic selected-backend samples,
+then checks virtual-power residual and finite `m3` pressure maps.
+
+Phase 4B-A, Phase 4B-B, Phase 4C-A, and Phase 4C-B evidence is reused
+read-only with pass/hash evidence. The Phase 4B-A beat-stability smoke is also
+reused read-only as a measurement-hook context only. Official morphology pass,
+robust calcium-cycling no-alternans validation, production mechanics,
+production validation, live runtime replacement,
+ModelCore/chamber/state-schema/official-case wiring, workbench wiring, septal
+coordinate implementation, septal coupling implementation, RV pressure
+overload, septal bowing, ventricular interdependence, and right-heart failure
+are not claimed by this Phase 4D gate. The future TriSeg path preserves
+`triseg-lite-compatible`, `full-triseg-compatible`, and full TriSeg escalation
+before those mechanisms are claimed.
+
 ## Imported bundle checks
 
 Revision 3's original markdown hashes are preserved in
