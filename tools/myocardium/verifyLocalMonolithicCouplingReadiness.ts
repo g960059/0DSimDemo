@@ -67,10 +67,10 @@ export type LocalMonolithicCouplingReadinessValidationReport = {
 type JsonRecord = Record<string, unknown>;
 
 const PINNED_PHASE4D = {
-  canonicalStableSummaryHash: "62304684",
-  acceptedStableSummaryHashes: ["62304684", "a39922fa"],
-  selectedCandidateStableHash: "8faff83b",
-  lvParameterSetStableHash: "6fa31380",
+  canonicalStableSummaryHash: "dba128b8",
+  acceptedStableSummaryHashes: ["dba128b8", "3e3adeb4"],
+  selectedCandidateStableHash: "b58fd93a",
+  lvParameterSetStableHash: "bca71969",
   rvParameterSetStableHash: "6ae46df8",
 } as const;
 

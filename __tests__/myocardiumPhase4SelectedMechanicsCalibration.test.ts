@@ -93,6 +93,22 @@ describe("myocardium Phase 4D selected-mechanics calibration readiness", () => {
     expect(THICK_SPHERE_V2_SELECTED_RV_PARAMETER_SET.parameterSetId).toBe(
       KINEMATICS_RV_THICK_SPHERE_V2_CALIBRATION_CANDIDATE_PARAMETER_SET_ID,
     );
+    expect(THICK_SPHERE_V2_SELECTED_LV_PARAMETER_SET.sweepCavityVolumeMinM3).toBe(3.0e-5);
+    expect(THICK_SPHERE_V2_SELECTED_LV_PARAMETER_SET.anchorCavityVolumeM3).toBe(1.1e-4);
+    expect(THICK_SPHERE_V2_SELECTED_LV_PARAMETER_SET.sweepCavityVolumeMaxM3).toBe(1.7e-4);
+    expect(THICK_SPHERE_V2_SELECTED_RV_PARAMETER_SET.sweepCavityVolumeMinM3).toBe(3.0e-5);
+    expect(THICK_SPHERE_V2_SELECTED_RV_PARAMETER_SET.anchorCavityVolumeM3).toBe(8.5e-5);
+    expect(THICK_SPHERE_V2_SELECTED_RV_PARAMETER_SET.sweepCavityVolumeMaxM3).toBe(1.45e-4);
+    expect(THICK_SPHERE_V2_SELECTED_LV_PARAMETER_SET.provenance.lowPreloadDomainExtension)
+      .toMatchObject({
+        phase: "Phase 5C-B",
+        lowerSweepFloorSource:
+          "Phase 5C-A fixed low-preload legacy VLV envelope plus RV-domain parity",
+        calibrationReadinessScope: "calibration-readiness-only",
+        runtimeReplacementStatus: "not-runtime-wired",
+        officialMorphologyPass: "not-claimed",
+        finalNoAlternansClaim: "not-claimed",
+      });
     expect(THICK_SPHERE_V2_SELECTED_LV_PARAMETER_SET.parameterSetId).not.toBe(
       THICK_SPHERE_SPIKE_PHASE3A_CANDIDATE_PARAMETER_SET_ID,
     );
@@ -163,6 +179,45 @@ describe("myocardium Phase 4D selected-mechanics calibration readiness", () => {
       expect(output.fiberEngineeringStrainRatePerSec).toBeCloseTo(output.dStrainDCoordinate[0] * rate, 14);
       expect(output.dStrainDCoordinate[0]).toBeCloseTo(finiteDifference, 4);
     }
+  });
+
+  it("covers the LV 30 mL low-preload floor with finite geometry, derivative closure, and pressure composition smoke", () => {
+    const report = runSelectedMechanicsCalibrationReadinessReport();
+    const floor = THICK_SPHERE_V2_SELECTED_LV_PARAMETER_SET.sweepCavityVolumeMinM3;
+    const lowEnvelope = evaluateThickSphereV2SelectedBackend(
+      {
+        coordinates: [
+          {
+            id: THICK_SPHERE_V2_SELECTED_LV_PARAMETER_SET.coordinateId,
+            valueSI: floor,
+            previousValueSI: floor,
+            rateSI: -8e-8,
+            unit: "m3",
+          },
+        ],
+        instance: { moduleId: "kinematics", instanceId: "phase4d-lv-low-envelope-test" },
+      },
+      THICK_SPHERE_V2_SELECTED_LV_PARAMETER_SET,
+    );
+    const lowDerivative = report.geometryClosure.finiteDifferenceSamples.find((sample) =>
+      sample.ventricle === "LV" && sample.cavityVolumeM3 === floor
+    );
+    const lowComposition = report.mechanicsCompositionSmoke.samples.find((sample) =>
+      sample.ventricle === "LV" && sample.cavityVolumeM3 === floor
+    );
+
+    expect(lowEnvelope.geometryHealth.finite).toBe(true);
+    expect(lowEnvelope.geometryHealth.inCalibrationDomain).toBe(true);
+    expect(Number.isFinite(lowEnvelope.dStrainDCoordinate[0])).toBe(true);
+    expect(lowDerivative).toBeDefined();
+    expect(lowDerivative?.finiteDifferenceScheme).toBe("forward-in-domain");
+    expect(lowDerivative?.residualAbs).toBeLessThanOrEqual(
+      report.geometryClosure.finiteDifferenceTolerance,
+    );
+    expect(lowComposition).toBeDefined();
+    expect(lowComposition?.finite).toBe(true);
+    expect(lowComposition?.pressureMapFinite).toBe(true);
+    expect(Number.isFinite(lowComposition?.pressureMapPa)).toBe(true);
   });
 
   it("rejects external septal/RV coverage mutations on candidate params", () => {

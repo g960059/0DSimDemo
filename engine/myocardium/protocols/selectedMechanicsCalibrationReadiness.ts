@@ -90,6 +90,10 @@ export type SelectedMechanicsGeometrySample = {
 export type SelectedMechanicsFiniteDifferenceSample = {
   readonly ventricle: "LV" | "RV";
   readonly cavityVolumeM3: number;
+  readonly finiteDifferenceScheme:
+    | "central-in-domain"
+    | "forward-in-domain"
+    | "backward-in-domain";
   readonly analyticDStrainDVolume: number;
   readonly finiteDifferenceDStrainDVolume: number;
   readonly residualAbs: number;
@@ -635,6 +639,12 @@ function calibrationFreedomMatrixSection(
 function mechanicsCompositionSmokeSummary(): SelectedMechanicsCompositionSmoke {
   const samples = [
     compositionSmokeSample(THICK_SPHERE_V2_SELECTED_LV_PARAMETER_SET, 0.55, -1.0e-7),
+    compositionSmokeSample(
+      THICK_SPHERE_V2_SELECTED_LV_PARAMETER_SET,
+      0.35,
+      -8.0e-8,
+      THICK_SPHERE_V2_SELECTED_LV_PARAMETER_SET.sweepCavityVolumeMinM3,
+    ),
     compositionSmokeSample(THICK_SPHERE_V2_SELECTED_RV_PARAMETER_SET, 0.42, 8.0e-8),
   ] as const;
   const maxVirtualPowerResidualAbsW = Math.max(
@@ -659,9 +669,10 @@ function compositionSmokeSample(
   parameterSet: ThickSphereV2SelectedParameterSet,
   activeFractionOfTref: number,
   coordinateRateM3PerSec: number,
+  cavityVolumeM3 = parameterSet.anchorCavityVolumeM3,
 ): SelectedMechanicsCompositionSmokeSample {
   const kinematics = evaluateThickSphereV2SelectedBackend(
-    inputAtVolume(parameterSet, parameterSet.anchorCavityVolumeM3, coordinateRateM3PerSec),
+    inputAtVolume(parameterSet, cavityVolumeM3, coordinateRateM3PerSec),
     parameterSet,
   );
   const source = syntheticLandSource(kinematics, activeFractionOfTref);
@@ -686,7 +697,7 @@ function compositionSmokeSample(
     ventricle: parameterSet.ventricle,
     coordinateId: parameterSet.coordinateId,
     coordinateUnit: "m3",
-    cavityVolumeM3: parameterSet.anchorCavityVolumeM3,
+    cavityVolumeM3,
     coordinateRateM3PerSec,
     fiberEngineeringStrain: kinematics.fiberEngineeringStrain,
     fiberEngineeringStrainRatePerSec: kinematics.fiberEngineeringStrainRatePerSec,
@@ -876,6 +887,7 @@ function finiteDifferenceVolumes(
   parameterSet: ThickSphereV2SelectedParameterSet,
 ): readonly number[] {
   return [
+    parameterSet.sweepCavityVolumeMinM3,
     parameterSet.anchorCavityVolumeM3,
     (parameterSet.sweepCavityVolumeMinM3 + parameterSet.sweepCavityVolumeMaxM3) / 2,
   ];
@@ -912,24 +924,52 @@ function finiteDifferenceSample(
     inputAtVolume(parameterSet, cavityVolumeM3, 0),
     parameterSet,
   );
-  const plus = evaluateThickSphereV2SelectedBackend(
-    inputAtVolume(parameterSet, cavityVolumeM3 + h, 0),
-    parameterSet,
-  );
-  const minus = evaluateThickSphereV2SelectedBackend(
-    inputAtVolume(parameterSet, cavityVolumeM3 - h, 0),
-    parameterSet,
-  );
+  const canCentral =
+    cavityVolumeM3 - h >= parameterSet.sweepCavityVolumeMinM3
+    && cavityVolumeM3 + h <= parameterSet.sweepCavityVolumeMaxM3;
+  const canForward = cavityVolumeM3 + 2 * h <= parameterSet.sweepCavityVolumeMaxM3;
+  const finiteDifferenceScheme =
+    canCentral
+      ? "central-in-domain"
+      : canForward
+        ? "forward-in-domain"
+        : "backward-in-domain";
   const finiteDifferenceDStrainDVolume =
-    (plus.fiberEngineeringStrain - minus.fiberEngineeringStrain) / (2 * h);
+    finiteDifferenceScheme === "central-in-domain"
+      ? (
+        strainAtVolume(parameterSet, cavityVolumeM3 + h)
+        - strainAtVolume(parameterSet, cavityVolumeM3 - h)
+      ) / (2 * h)
+      : finiteDifferenceScheme === "forward-in-domain"
+        ? (
+          -3 * center.fiberEngineeringStrain
+          + 4 * strainAtVolume(parameterSet, cavityVolumeM3 + h)
+          - strainAtVolume(parameterSet, cavityVolumeM3 + 2 * h)
+        ) / (2 * h)
+        : (
+          3 * center.fiberEngineeringStrain
+          - 4 * strainAtVolume(parameterSet, cavityVolumeM3 - h)
+          + strainAtVolume(parameterSet, cavityVolumeM3 - 2 * h)
+        ) / (2 * h);
   const analyticDStrainDVolume = center.dStrainDCoordinate[0];
   return {
     ventricle: parameterSet.ventricle,
     cavityVolumeM3,
+    finiteDifferenceScheme,
     analyticDStrainDVolume,
     finiteDifferenceDStrainDVolume,
     residualAbs: Math.abs(analyticDStrainDVolume - finiteDifferenceDStrainDVolume),
   };
+}
+
+function strainAtVolume(
+  parameterSet: ThickSphereV2SelectedParameterSet,
+  cavityVolumeM3: number,
+): number {
+  return evaluateThickSphereV2SelectedBackend(
+    inputAtVolume(parameterSet, cavityVolumeM3, 0),
+    parameterSet,
+  ).fiberEngineeringStrain;
 }
 
 function inputAtVolume(

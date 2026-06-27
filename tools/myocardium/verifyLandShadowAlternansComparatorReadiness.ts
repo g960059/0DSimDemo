@@ -74,7 +74,7 @@ const PINNED_PHASE4BA = {
 
 const PINNED_PHASE5B = {
   readinessPass: true,
-  stableSummaryHashes: ["2a5902be", "bbe61513"] as readonly string[],
+  stableSummaryHashes: ["4ee994da", "e65e299b"] as readonly string[],
   localReferenceStableSummaryHashes: ["cd70fd47", "49c5be0d"] as readonly string[],
   beFallbackStableSummaryHashes: ["93a70fc0", "d896d783"] as readonly string[],
 } as const;
@@ -437,11 +437,28 @@ function validateLandReplay(
   ) {
     addIssue(issues, "error", "phase5c_land_replay_metrics", "report.landFeedforwardReplay", "Land replay must report finite per-beat metrics, branch delta interpretation, and no official morphology or robust no-alternans claim.");
   }
+  const domainTolerance =
+    Math.max(
+      Math.abs(replay.selectedLvCalibrationDomainM3.min),
+      Math.abs(replay.selectedLvCalibrationDomainM3.max),
+      1,
+    ) * 1e-12;
+  const isBeatInsideSelectedLvDomain = (
+    beat: LandShadowAlternansComparatorReadinessReport["landFeedforwardReplay"]["beats"][number],
+  ) =>
+    beat.finiteHealth.inCalibrationDomain
+    && beat.minPrescribedLegacyVlvM3
+      >= replay.selectedLvCalibrationDomainM3.min - domainTolerance
+    && beat.maxPrescribedLegacyVlvM3
+      <= replay.selectedLvCalibrationDomainM3.max + domainTolerance;
   for (const beat of replay.beats) {
+    const beatInsideSelectedLvDomain =
+      isBeatInsideSelectedLvDomain(beat);
     if (
       !Number.isFinite(beat.peakSourceActiveFiberStressPa)
       || !Number.isFinite(beat.minPrescribedLegacyVlvM3)
       || !Number.isFinite(beat.maxPrescribedLegacyVlvM3)
+      || !beatInsideSelectedLvDomain
       || beat.sampleCount <= 0
       || beat.projectionUsed !== false
       || !/^[0-9a-f]{8}$/.test(beat.deterministicHash)
@@ -455,11 +472,15 @@ function validateLandReplay(
     }
   }
   const replaySection = report.sections.find((section) => section.id === "land-feedforward-shadow-replay-v1");
+  const fixedLegacyVlvEnvelopeInsideSelectedLvDomain =
+    replay.beats.length > 0
+    && replay.beats.every((beat) => isBeatInsideSelectedLvDomain(beat));
   if (
     replay.replayPass
     !== (
       replay.allFiniteHealth
       && replay.allSamplesInCalibrationDomain
+      && fixedLegacyVlvEnvelopeInsideSelectedLvDomain
       && !replay.projectionUsedAny
       && replay.beats.length === 4
     )

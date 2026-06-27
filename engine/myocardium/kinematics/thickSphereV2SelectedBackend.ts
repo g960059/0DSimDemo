@@ -69,6 +69,15 @@ export type ThickSphereV2SelectedParameterSet = ThickSphereV2SelectedParams & {
     readonly geometryFamily: "analytic-thick-sphere-formula-reuse";
     readonly strainMeasure: "finite-engineering-strain-from-midwall-radius";
     readonly couplingBoundary: "external-septal-interface-provenance-only";
+    readonly lowPreloadDomainExtension?: {
+      readonly phase: "Phase 5C-B";
+      readonly lowerSweepFloorSource:
+        "Phase 5C-A fixed low-preload legacy VLV envelope plus RV-domain parity";
+      readonly calibrationReadinessScope: "calibration-readiness-only";
+      readonly runtimeReplacementStatus: "not-runtime-wired";
+      readonly officialMorphologyPass: "not-claimed";
+      readonly finalNoAlternansClaim: "not-claimed";
+    };
   };
 };
 
@@ -117,7 +126,7 @@ const LV_PARAMETER_SET_BODY =
     anchorCavityVolumeM3: 1.1e-4,
     slackSarcomereLengthM: 1.9e-6,
     anchorSarcomereLengthM: 2.16e-6,
-    sweepCavityVolumeMinM3: 5.0e-5,
+    sweepCavityVolumeMinM3: 3.0e-5,
     sweepCavityVolumeMaxM3: 1.7e-4,
     externalSeptalCoupling: EXTERNAL_SEPTAL_COUPLING_BOUNDARY,
     provenance: {
@@ -128,10 +137,21 @@ const LV_PARAMETER_SET_BODY =
         "data/myocardium/decisions/production-mechanics-decision19-owner-selection-v1.json",
         "data/myocardium/protocols/selected-mechanics-calibration-phase4d-protocols.json",
         "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md#phase-4d",
+        "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md#phase-5c-a",
+        "docs/myocardium/roadmap/phase5c-low-preload-domain-plan.md",
       ],
       geometryFamily: "analytic-thick-sphere-formula-reuse",
       strainMeasure: "finite-engineering-strain-from-midwall-radius",
       couplingBoundary: "external-septal-interface-provenance-only",
+      lowPreloadDomainExtension: {
+        phase: "Phase 5C-B",
+        lowerSweepFloorSource:
+          "Phase 5C-A fixed low-preload legacy VLV envelope plus RV-domain parity",
+        calibrationReadinessScope: "calibration-readiness-only",
+        runtimeReplacementStatus: "not-runtime-wired",
+        officialMorphologyPass: "not-claimed",
+        finalNoAlternansClaim: "not-claimed",
+      },
     },
   } satisfies Omit<ThickSphereV2SelectedParameterSet, "parameterSetStableHash">);
 
