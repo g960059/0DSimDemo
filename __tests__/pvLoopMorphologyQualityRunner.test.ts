@@ -216,6 +216,58 @@ describe("PV-loop morphology quality runner helpers", () => {
     ))).toBe(false);
   });
 
+  it("does not emit filling event-window correlation from split aggregate evidence groups", () => {
+    const evidence = buildMorphologyEvidenceSummaryForTest([
+      metricRow({
+        beatIndex: 1,
+        chamber: "LV",
+        metricId: "mvOpenLowerLimbRoughness",
+        value: 3,
+        classificationLabels: ["filling-limb-artifact"],
+      }),
+      metricRow({
+        beatIndex: 2,
+        chamber: "LV",
+        metricId: "eventCorrelationWindowHitFraction",
+        value: 0.8,
+        classificationLabels: ["event-window-correlation", "event-sensitive"],
+      }),
+    ]);
+
+    expect(evidence.observations.map((observation) => observation.id)).toEqual(expect.arrayContaining([
+      "filling-limb-roughness",
+      "event-window-correlation",
+    ]));
+    expect(evidence.evidenceGaps.map((gap) => gap.id)).toContain("filling-limb-root-cause-signal-gap");
+    expect(evidence.rootCauseHypotheses.some((hypothesis) => (
+      hypothesis.id === "filling-event-window-correlation"
+    ))).toBe(false);
+  });
+
+  it("does not emit RV filling chatter correlation from split beats", () => {
+    const evidence = buildMorphologyEvidenceSummaryForTest([
+      metricRow({
+        beatIndex: 1,
+        chamber: "RV",
+        metricId: "tvOpenLowerLimbRoughness",
+        value: 3,
+        classificationLabels: ["filling-limb-artifact"],
+      }),
+      metricRow({
+        beatIndex: 2,
+        chamber: "RV",
+        metricId: "valveOpenCloseChatterCount",
+        value: 2,
+      }),
+    ]);
+
+    expect(evidence.observations.map((observation) => observation.id)).toContain("filling-limb-roughness");
+    expect(evidence.evidenceGaps.map((gap) => gap.id)).toContain("filling-limb-root-cause-signal-gap");
+    expect(evidence.rootCauseHypotheses.some((hypothesis) => (
+      hypothesis.id === "rv-filling-valve-chatter-correlation"
+    ))).toBe(false);
+  });
+
   it("emits the RV filling chatter hypothesis only when RV roughness and chatter evidence are present", () => {
     const evidence = buildMorphologyEvidenceSummaryForTest([
       metricRow({

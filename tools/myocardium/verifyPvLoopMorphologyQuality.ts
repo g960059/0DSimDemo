@@ -1848,25 +1848,28 @@ function buildMorphologyEvidenceSummary(
   if (byId.has("filling-limb-roughness") && byId.has("event-window-correlation")) {
     const roughness = byId.get("filling-limb-roughness")!;
     const event = byId.get("event-window-correlation")!;
-    rootCauseHypotheses.push({
-      id: "filling-event-window-correlation",
-      lane: "filling-limb",
-      hypothesis: "Filling-limb roughness is temporally correlated with valve, clamp, pressure-floor, or transition windows.",
-      evidenceStatus: fillingMissing.length > 0 ? "insufficient-evidence" : "supported-correlation",
-      confidence: fillingMissing.length > 0 ? "low" : "medium",
-      score: Math.min(1, 0.5 * roughness.score + 0.5 * event.score),
-      observations: [roughness.id, event.id],
-      supportingSignals: uniqueSorted([...roughness.supportingSignals, ...event.supportingSignals]),
-      missingSignals: fillingMissing,
-      nextEvidence: fillingMissing.length > 0
-        ? [
-            "Expose or capture MV/TV qDot and per-sample clamp signals before assigning this to a valve/qDot policy.",
-            "Inspect debug overlay marker timing against raw filling-limb kinks.",
-          ]
-        : [
-            "Run an off-by-default valve/qDot diagnostic comparator with unchanged official defaults.",
-          ],
-    });
+    const coLocatedEvidence = fillingEventWindowCoLocatedEvidence(metricRows);
+    if (coLocatedEvidence) {
+      rootCauseHypotheses.push({
+        id: "filling-event-window-correlation",
+        lane: "filling-limb",
+        hypothesis: "Filling-limb roughness is temporally correlated with valve, clamp, pressure-floor, or transition windows in the same raw metric group.",
+        evidenceStatus: fillingMissing.length > 0 ? "insufficient-evidence" : "supported-correlation",
+        confidence: fillingMissing.length > 0 ? "low" : "medium",
+        score: coLocatedEvidence.score,
+        observations: [roughness.id, event.id],
+        supportingSignals: uniqueSorted([...roughness.supportingSignals, ...event.supportingSignals]),
+        missingSignals: fillingMissing,
+        nextEvidence: fillingMissing.length > 0
+          ? [
+              "Expose or capture MV/TV qDot and per-sample clamp signals before assigning this to a valve/qDot policy.",
+              "Inspect debug overlay marker timing against raw filling-limb kinks in the same case, branch, beat, chamber, sampling mode, and transition policy.",
+            ]
+          : [
+              "Run an off-by-default valve/qDot diagnostic comparator with unchanged official defaults.",
+            ],
+      });
+    }
   }
 
   if (byId.has("aov-qdot-clamp-activity")) {
@@ -1888,29 +1891,24 @@ function buildMorphologyEvidenceSummary(
     });
   }
 
-  const rvFillingChatterScore = maxRawCoreMetric(metricRows, ["valveOpenCloseChatterCount"], "RV");
-  const rvFillingRoughnessScore = Math.max(
-    maxRawCoreMetric(metricRows, ["tvOpenLowerLimbRoughness"], "RV") / ROOT_CAUSE_SCORING_PROFILE.fillingRoughnessMin,
-    Math.min(1, maxRawCoreMetric(metricRows, ["lowerLimbKinkCount"], "RV") / 10),
-  );
+  const coLocatedRvEvidence = rvFillingValveChatterCoLocatedEvidence(metricRows);
   if (
     byId.has("filling-limb-roughness")
-    && rvFillingChatterScore >= ROOT_CAUSE_SCORING_PROFILE.valveChatterCountMin
-    && rvFillingRoughnessScore > 0
+    && coLocatedRvEvidence
   ) {
     const observation = byId.get("filling-limb-roughness")!;
     rootCauseHypotheses.push({
       id: "rv-filling-valve-chatter-correlation",
       lane: "filling-limb",
-      hypothesis: "RV filling roughness is correlated with inlet valve open01 chatter in raw transition-excluded samples.",
+      hypothesis: "RV filling roughness is correlated with inlet valve open01 chatter in the same raw transition-excluded metric group.",
       evidenceStatus: fillingMissing.length > 0 ? "insufficient-evidence" : "supported-correlation",
       confidence: fillingMissing.length > 0 ? "low" : "medium",
-      score: Math.min(1, 0.5 * rvFillingRoughnessScore + 0.5 * Math.min(1, rvFillingChatterScore / 10)),
+      score: coLocatedRvEvidence.score,
       observations: [observation.id],
       supportingSignals: uniqueSorted([...observation.supportingSignals, "tricuspidValveOpen01"]),
       missingSignals: fillingMissing,
       nextEvidence: [
-        "Check TV marker density in the debug overlay for the same beat.",
+        "Check TV marker density in the debug overlay for the same case, branch, beat, chamber, sampling mode, and transition policy.",
         "Add per-sample dynamic clamp evidence before changing valve dynamics.",
       ],
     });
@@ -2121,13 +2119,135 @@ function rawCoreRows(metricRows: MetricRow[], metricIdsToSelect: string[]): Metr
   ));
 }
 
-function maxRawCoreMetric(
-  metricRows: MetricRow[],
+type CoLocatedEvidence = {
+  score: number;
+  rows: MetricRow[];
+};
+
+function fillingEventWindowCoLocatedEvidence(metricRows: MetricRow[]): CoLocatedEvidence | null {
+  const rows = rawCoreRows(metricRows, [
+    "mvOpenLowerLimbRoughness",
+    "tvOpenLowerLimbRoughness",
+    "lowerLimbKinkCount",
+    "valveOpenCloseChatterCount",
+    "eventCorrelationWindowHitFraction",
+  ]);
+  const evidence = [...metricRowGroups(rows).values()]
+    .map((groupRows) => {
+      const roughnessScore = maxMetricScore(
+        groupRows,
+        ["mvOpenLowerLimbRoughness", "tvOpenLowerLimbRoughness"],
+        ROOT_CAUSE_SCORING_PROFILE.fillingRoughnessMin,
+        (value) => value > ROOT_CAUSE_SCORING_PROFILE.fillingRoughnessMin,
+      );
+      const kinkScore = maxMetricScore(
+        groupRows,
+        ["lowerLimbKinkCount"],
+        10,
+        (value) => value >= PV_LOOP_CLASSIFICATION_PROFILE.kinkArtifactMinCount,
+      );
+      const chatterScore = maxMetricScore(
+        groupRows,
+        ["valveOpenCloseChatterCount"],
+        10,
+        (value) => value >= ROOT_CAUSE_SCORING_PROFILE.valveChatterCountMin,
+      );
+      const eventScore = maxMetricScore(
+        groupRows,
+        ["eventCorrelationWindowHitFraction"],
+        1,
+        (value) => value >= ROOT_CAUSE_SCORING_PROFILE.eventCorrelationMin,
+      );
+      const fillingScore = Math.max(roughnessScore, kinkScore, chatterScore);
+      if (fillingScore <= 0 || eventScore <= 0) return null;
+      return {
+        score: Math.min(1, 0.5 * fillingScore + 0.5 * eventScore),
+        rows: groupRows,
+      };
+    })
+    .filter((candidate): candidate is CoLocatedEvidence => Boolean(candidate))
+    .sort((a, b) => b.score - a.score || metricGroupKey(a.rows[0]).localeCompare(metricGroupKey(b.rows[0])));
+  return evidence[0] ?? null;
+}
+
+function rvFillingValveChatterCoLocatedEvidence(metricRows: MetricRow[]): CoLocatedEvidence | null {
+  const rows = rawCoreRows(metricRows, [
+    "tvOpenLowerLimbRoughness",
+    "lowerLimbKinkCount",
+    "valveOpenCloseChatterCount",
+  ]).filter((row) => row.chamber === "RV");
+  const evidence = [...metricRowGroups(rows).values()]
+    .map((groupRows) => {
+      const roughnessScore = maxMetricScore(
+        groupRows,
+        ["tvOpenLowerLimbRoughness"],
+        ROOT_CAUSE_SCORING_PROFILE.fillingRoughnessMin,
+        (value) => value > ROOT_CAUSE_SCORING_PROFILE.fillingRoughnessMin,
+      );
+      const kinkScore = maxMetricScore(
+        groupRows,
+        ["lowerLimbKinkCount"],
+        10,
+        (value) => value >= PV_LOOP_CLASSIFICATION_PROFILE.kinkArtifactMinCount,
+      );
+      const chatterScore = maxMetricScore(
+        groupRows,
+        ["valveOpenCloseChatterCount"],
+        10,
+        (value) => value >= ROOT_CAUSE_SCORING_PROFILE.valveChatterCountMin,
+      );
+      const fillingScore = Math.max(roughnessScore, kinkScore);
+      if (fillingScore <= 0 || chatterScore <= 0) return null;
+      return {
+        score: Math.min(1, 0.5 * fillingScore + 0.5 * chatterScore),
+        rows: groupRows,
+      };
+    })
+    .filter((candidate): candidate is CoLocatedEvidence => Boolean(candidate))
+    .sort((a, b) => b.score - a.score || metricGroupKey(a.rows[0]).localeCompare(metricGroupKey(b.rows[0])));
+  return evidence[0] ?? null;
+}
+
+function metricRowGroups(rows: MetricRow[]): Map<string, MetricRow[]> {
+  const groups = new Map<string, MetricRow[]>();
+  for (const row of rows) {
+    const key = metricGroupKey(row);
+    const groupRows = groups.get(key);
+    if (groupRows) {
+      groupRows.push(row);
+    } else {
+      groups.set(key, [row]);
+    }
+  }
+  return groups;
+}
+
+function metricGroupKey(row: MetricRow): string {
+  return [
+    row.caseId,
+    row.branchId,
+    row.beatIndex,
+    row.chamber,
+    row.samplingMode,
+    row.transitionPolicy,
+  ].join("\t");
+}
+
+function maxMetricScore(
+  rows: MetricRow[],
   metricIdsToSelect: string[],
-  chamber?: MetricChamber,
+  scoreDivisor: number,
+  qualifies: (value: number) => boolean,
 ): number {
-  const rows = rawCoreRows(metricRows, metricIdsToSelect);
-  return maxValue(chamber ? rows.filter((row) => row.chamber === chamber) : rows);
+  const selected = new Set(metricIdsToSelect);
+  return clampUnitPositive(
+    Math.max(
+      0,
+      ...rows
+        .filter((row) => selected.has(row.metricId) && row.value != null && qualifies(row.value))
+        .map((row) => scoreDivisor > 0 ? (row.value ?? 0) / scoreDivisor : 0),
+    ),
+  );
 }
 
 function maxValue(rows: MetricRow[]): number {
