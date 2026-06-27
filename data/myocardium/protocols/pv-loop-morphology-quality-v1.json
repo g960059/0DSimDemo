@@ -187,6 +187,8 @@
       "qDotClampActive",
       "dynamicFlowClampHits",
       "valveDiodeClampHits",
+      "perSampleDynamicFlowClampHits",
+      "perSampleValveDiodeClampHits",
       "pressureFloorActive",
       "pressureFloorHit01",
       "activeStressPa",

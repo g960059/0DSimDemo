@@ -7,11 +7,13 @@ import {
   buildMorphologyEvidenceSummaryForTest,
   buildInitialSummary,
   classifyPvLoopPhaseForTest,
+  clampEventRowsForTest,
   metricRowsForSamplesForTest,
   metricRowsToCsv,
   PV_LOOP_CLASSIFICATION_PROFILE,
   runPvLoopMorphologyDiagnosticForTest,
   summaryToMarkdownForTest,
+  traceRowsForBeatForTest,
   type AnalysisSample,
   type ClampEventRow,
   type MetricRow,
@@ -45,12 +47,32 @@ function sample(overrides: Partial<AnalysisSample>): AnalysisSample {
     ERV_active: 0,
     LVPressureFloorHit01: 0,
     RVPressureFloorHit01: 0,
+    MV_qDotRaw: 0,
+    MV_qDotPost: 0,
+    MV_qDotClampHit01: 0,
+    MV_qDotClampImpulse: 0,
+    MV_diodeImpulse: 0,
+    MV_flowClampImpulse: 0,
     AoV_qDotRaw: 0,
     AoV_qDotPost: 0,
     AoV_qDotClampHit01: 0,
     AoV_qDotClampImpulse: 0,
     AoV_diodeImpulse: 0,
     AoV_flowClampImpulse: 0,
+    TV_qDotRaw: 0,
+    TV_qDotPost: 0,
+    TV_qDotClampHit01: 0,
+    TV_qDotClampImpulse: 0,
+    TV_diodeImpulse: 0,
+    TV_flowClampImpulse: 0,
+    PV_qDotRaw: 0,
+    PV_qDotPost: 0,
+    PV_qDotClampHit01: 0,
+    PV_qDotClampImpulse: 0,
+    PV_diodeImpulse: 0,
+    PV_flowClampImpulse: 0,
+    perSampleValveDiodeClampHits: 0,
+    perSampleDynamicFlowClampHits: 0,
     dLVPdt: 0,
     dRVPdt: 0,
     dVLVdt: 10,
@@ -134,10 +156,14 @@ describe("PV-loop morphology quality runner helpers", () => {
     expect(summary.classificationProfile).toEqual(PV_LOOP_CLASSIFICATION_PROFILE);
     expect(summary.inputArtifactHashes["data/myocardium/targets/pv-loop-morphology-quality-v1.json"]).toMatch(/^[a-f0-9]{64}$/);
     expect(summary.signalAvailability.aovQDotRawM3PerSec2).toBe(true);
-    expect(summary.signalAvailability.mvQDotRawM3PerSec2).toBe(false);
+    expect(summary.signalAvailability.mvQDotRawM3PerSec2).toBe(true);
+    expect(summary.signalAvailability.tvQDotRawM3PerSec2).toBe(true);
+    expect(summary.signalAvailability.pvQDotRawM3PerSec2).toBe(true);
+    expect(summary.signalAvailability.perSampleValveDiodeClampHits).toBe(true);
+    expect(summary.signalAvailability.perSampleDynamicFlowClampHits).toBe(true);
     expect(summary.guardrailResults.map((result) => result.id)).toContain("package-scripts-no-change");
     expect(summary.morphologyEvidence.scoringProfile.maxConfidence).toBe("medium");
-    expect(summary.morphologyEvidence.evidenceGaps.map((gap) => gap.id)).toContain("filling-limb-root-cause-signal-gap");
+    expect(summary.morphologyEvidence.evidenceGaps.map((gap) => gap.id)).not.toContain("filling-limb-root-cause-signal-gap");
   });
 
   it("summarizes root-cause hypotheses as correlations with explicit evidence gaps", () => {
@@ -177,13 +203,10 @@ describe("PV-loop morphology quality runner helpers", () => {
 
     const filling = evidence.rootCauseHypotheses.find((hypothesis) => hypothesis.id === "filling-event-window-correlation");
     expect(filling).toMatchObject({
-      evidenceStatus: "insufficient-evidence",
-      confidence: "low",
+      evidenceStatus: "supported-correlation",
+      confidence: "medium",
     });
-    expect(filling?.missingSignals).toEqual(expect.arrayContaining([
-      "mvQDotRawM3PerSec2",
-      "perSampleDynamicFlowClampHits",
-    ]));
+    expect(filling?.missingSignals).toEqual([]);
 
     const aov = evidence.rootCauseHypotheses.find((hypothesis) => hypothesis.id === "aov-qdot-clamp-correlation");
     expect(aov).toMatchObject({
@@ -191,7 +214,6 @@ describe("PV-loop morphology quality runner helpers", () => {
       confidence: "medium",
     });
     expect(evidence.evidenceGaps.map((gap) => gap.id)).toEqual(expect.arrayContaining([
-      "filling-limb-root-cause-signal-gap",
       "ejection-limb-arterial-load-signal-gap",
     ]));
   });
@@ -238,7 +260,7 @@ describe("PV-loop morphology quality runner helpers", () => {
       "filling-limb-roughness",
       "event-window-correlation",
     ]));
-    expect(evidence.evidenceGaps.map((gap) => gap.id)).toContain("filling-limb-root-cause-signal-gap");
+    expect(evidence.evidenceGaps.map((gap) => gap.id)).not.toContain("filling-limb-root-cause-signal-gap");
     expect(evidence.rootCauseHypotheses.some((hypothesis) => (
       hypothesis.id === "filling-event-window-correlation"
     ))).toBe(false);
@@ -263,7 +285,7 @@ describe("PV-loop morphology quality runner helpers", () => {
     ]);
 
     expect(evidence.observations.map((observation) => observation.id)).toContain("filling-limb-roughness");
-    expect(evidence.evidenceGaps.map((gap) => gap.id)).toContain("filling-limb-root-cause-signal-gap");
+    expect(evidence.evidenceGaps.map((gap) => gap.id)).not.toContain("filling-limb-root-cause-signal-gap");
     expect(evidence.rootCauseHypotheses.some((hypothesis) => (
       hypothesis.id === "filling-event-window-correlation"
     ))).toBe(false);
@@ -287,7 +309,7 @@ describe("PV-loop morphology quality runner helpers", () => {
     ]);
 
     expect(evidence.observations.map((observation) => observation.id)).toContain("filling-limb-roughness");
-    expect(evidence.evidenceGaps.map((gap) => gap.id)).toContain("filling-limb-root-cause-signal-gap");
+    expect(evidence.evidenceGaps.map((gap) => gap.id)).not.toContain("filling-limb-root-cause-signal-gap");
     expect(evidence.rootCauseHypotheses.some((hypothesis) => (
       hypothesis.id === "rv-filling-valve-chatter-correlation"
     ))).toBe(false);
@@ -313,8 +335,8 @@ describe("PV-loop morphology quality runner helpers", () => {
     ));
 
     expect(hypothesis).toMatchObject({
-      evidenceStatus: "insufficient-evidence",
-      confidence: "low",
+      evidenceStatus: "supported-correlation",
+      confidence: "medium",
     });
     expect(hypothesis?.supportingSignals).toContain("tricuspidValveOpen01");
   });
@@ -327,6 +349,30 @@ describe("PV-loop morphology quality runner helpers", () => {
     expect(evidence.observations.map((observation) => observation.id)).toContain("aov-qdot-clamp-activity");
     expect(evidence.rootCauseHypotheses.some((hypothesis) => (
       hypothesis.id === "aov-qdot-clamp-correlation"
+    ))).toBe(false);
+  });
+
+  it("does not promote per-sample clamp markers to filling hypotheses without raw-core metric evidence", () => {
+    const evidence = buildMorphologyEvidenceSummaryForTest([], [
+      clampRow({
+        chamber: "both",
+        signalId: "perSampleValveDiodeClampHits",
+        eventType: "hit-count",
+        value: 1,
+      }),
+      clampRow({
+        chamber: "both",
+        signalId: "perSampleDynamicFlowClampHits",
+        eventType: "hit-count",
+        value: 1,
+      }),
+    ]);
+
+    expect(evidence.rootCauseHypotheses.some((hypothesis) => (
+      hypothesis.id === "filling-event-window-correlation"
+    ))).toBe(false);
+    expect(evidence.rootCauseHypotheses.some((hypothesis) => (
+      hypothesis.id === "rv-filling-valve-chatter-correlation"
     ))).toBe(false);
   });
 
@@ -387,8 +433,8 @@ describe("PV-loop morphology quality runner helpers", () => {
 
     expect(markdown).toContain("## Morphology Evidence");
     expect(markdown).toContain("filling-event-window-correlation");
-    expect(markdown).toContain("insufficient-evidence");
-    expect(markdown).toContain("filling-limb-root-cause-signal-gap");
+    expect(markdown).toContain("supported-correlation");
+    expect(markdown).not.toContain("filling-limb-root-cause-signal-gap");
   });
 
   it("emits metricId-granular CSV with samplingInvarianceDelta", () => {
@@ -474,6 +520,8 @@ describe("PV-loop morphology quality runner helpers", () => {
       const metricHeader = readFileSync(path.join(outDir, "per-case-metrics.csv"), "utf8")
         .split("\n")[0].split(",");
       const runSummary = JSON.parse(readFileSync(path.join(outDir, "summary.json"), "utf8"));
+      const traceHeader = readFileSync(path.join(outDir, runSummary.branches[0].traceFile), "utf8")
+        .split("\n")[0].split(",");
 
       expect(phaseHeader).toEqual(expect.arrayContaining(
         targetPack.artifactSchemas.phaseSegmentationSeries.requiredFields,
@@ -484,9 +532,75 @@ describe("PV-loop morphology quality runner helpers", () => {
       ));
       expect(runSummary.measurementProfile.resolvedRawSampleHz).toBe(1000);
       expect(runSummary.classificationProfile).toEqual(PV_LOOP_CLASSIFICATION_PROFILE);
+      expect(traceHeader).toEqual(expect.arrayContaining([
+        "mvQDotRawM3PerSec2",
+        "tvQDotRawM3PerSec2",
+        "pvQDotRawM3PerSec2",
+        "perSampleValveDiodeClampHits",
+        "perSampleDynamicFlowClampHits",
+      ]));
     } finally {
       rmSync(outDir, { recursive: true, force: true });
     }
+  });
+
+  it("emits normalized qDot trace columns and available clamp marker rows", () => {
+    const rows = [
+      sample({
+        MV_qDotRaw: 2_000_000,
+        MV_qDotPost: 1_000_000,
+        MV_qDotClampHit01: 1,
+        MV_qDotClampImpulse: -1_000_000,
+        TV_diodeImpulse: -3,
+        PV_flowClampImpulse: 4,
+      }),
+    ];
+
+    const trace = traceRowsForBeatForTest(rows)[0];
+    expect(trace).toMatchObject({
+      mvQDotRawM3PerSec2: 2,
+      mvQDotPostM3PerSec2: 1,
+      mvQDotClampImpulseM3PerSec2: -1,
+      tvValveDiodeImpulseM3PerSec: -0.000003,
+      pvDynamicFlowClampImpulseM3PerSec: 0.000004,
+      perSampleValveDiodeClampHits: 1,
+      perSampleDynamicFlowClampHits: 1,
+    });
+
+    const clampRows = clampEventRowsForTest(rows);
+    expect(clampRows).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        signalId: "mvQDotRawPostDivergenceM3PerSec2",
+        value: 1,
+        granularity: "per-sample",
+        availability: "available",
+      }),
+      expect.objectContaining({
+        signalId: "tvValveDiodeImpulseM3PerSec",
+        value: -0.000003,
+        granularity: "per-sample",
+        availability: "available",
+      }),
+      expect.objectContaining({
+        signalId: "pvDynamicFlowClampImpulseM3PerSec",
+        value: 0.000004,
+        granularity: "per-sample",
+        availability: "available",
+      }),
+      expect.objectContaining({
+        signalId: "perSampleValveDiodeClampHits",
+        value: 1,
+        granularity: "per-sample",
+        availability: "available",
+      }),
+      expect.objectContaining({
+        signalId: "perSampleDynamicFlowClampHits",
+        value: 1,
+        granularity: "per-sample",
+        availability: "available",
+      }),
+    ]));
+    expect(clampRows.some((row) => row.availability === "unavailable")).toBe(false);
   });
 
   it("correlates morphology outliers to event or artifact windows rather than transition density", () => {
@@ -506,12 +620,50 @@ describe("PV-loop morphology quality runner helpers", () => {
     const nearRows = metricRowsForSamplesForTest(baseSamples.map((row, index) => (
       index === 4 ? { ...row, AoV_qDotClampHit01: 1 } : row
     )));
+    const mvNearRows = metricRowsForSamplesForTest(baseSamples.map((row, index) => (
+      index === 4 ? { ...row, MV_qDotClampHit01: 1 } : row
+    )));
+    const lvWithRvOnlyMarkerRows = metricRowsForSamplesForTest(baseSamples.map((row, index) => (
+      index === 4 ? { ...row, TV_diodeImpulse: -2, PV_flowClampImpulse: 2, RVPressureFloorHit01: 1 } : row
+    )));
     const transitionRows = metricRowsForSamplesForTest(baseSamples.map((row, index) => (
       index === 4 ? { ...row, xiMV: 0.5 } : row
     )));
+    const rvFillingSamples = pressures.map((pressure, index) => sample({
+      sourceIndex: index,
+      tSec: index * 0.01,
+      theta: 0.12 + index * 0.05,
+      RVP: pressure,
+      VRV: 100 + index * 10,
+      QTV: 100,
+      xiTV: 1,
+      xiPV: 0,
+      dVRVdt: 20,
+    }));
+    const tvNearRows = metricRowsForSamplesForTest(rvFillingSamples.map((row, index) => (
+      index === 4 ? { ...row, TV_diodeImpulse: -2 } : row
+    )));
+    const rvWithLvOnlyMarkerRows = metricRowsForSamplesForTest(rvFillingSamples.map((row, index) => (
+      index === 4 ? { ...row, MV_qDotClampHit01: 1, AoV_qDotClampHit01: 1, LVPressureFloorHit01: 1 } : row
+    )));
+    const rvEjectionSamples = pressures.map((pressure, index) => sample({
+      sourceIndex: index,
+      tSec: index * 0.01,
+      theta: 0.12 + index * 0.05,
+      RVP: pressure,
+      VRV: 180 - index * 6,
+      QTV: 0,
+      QPV: 100,
+      xiTV: 0,
+      xiPV: 1,
+      dVRVdt: -20,
+    }));
+    const pvNearRows = metricRowsForSamplesForTest(rvEjectionSamples.map((row, index) => (
+      index === 4 ? { ...row, PV_flowClampImpulse: 2 } : row
+    )));
 
-    const eventMetric = (rows: MetricRow[], transitionPolicy = "transition-inclusive") => rows.find((row) => (
-      row.chamber === "LV"
+    const eventMetric = (rows: MetricRow[], chamber: "LV" | "RV" = "LV", transitionPolicy = "transition-inclusive") => rows.find((row) => (
+      row.chamber === chamber
       && row.metricId === "eventCorrelationWindowHitFraction"
       && row.samplingMode === "raw"
       && row.transitionPolicy === transitionPolicy
@@ -519,8 +671,13 @@ describe("PV-loop morphology quality runner helpers", () => {
 
     expect(eventMetric(farRows)?.value).toBe(0);
     expect(eventMetric(nearRows)?.value).toBeGreaterThan(0);
+    expect(eventMetric(mvNearRows)?.value).toBeGreaterThan(0);
+    expect(eventMetric(lvWithRvOnlyMarkerRows)?.value).toBe(0);
+    expect(eventMetric(tvNearRows, "RV")?.value).toBeGreaterThan(0);
+    expect(eventMetric(rvWithLvOnlyMarkerRows, "RV")?.value).toBe(0);
+    expect(eventMetric(pvNearRows, "RV")?.value).toBeGreaterThan(0);
     expect(eventMetric(transitionRows)?.value).toBeGreaterThan(0);
-    expect(eventMetric(transitionRows, "transition-excluded-core")?.value ?? 0).toBeLessThan(
+    expect(eventMetric(transitionRows, "LV", "transition-excluded-core")?.value ?? 0).toBeLessThan(
       PV_LOOP_CLASSIFICATION_PROFILE.eventSensitiveHitFractionMin,
     );
   });
