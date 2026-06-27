@@ -245,8 +245,15 @@ production tissue homogenization.
 
 ### PR 4C-B — generalized-force mapper extension
 
-- multi-coordinate contract
-- active/passive/viscous contribution tests
+- gate script: `npm run verify:myocardium-generalized-force-mapper-readiness`
+- descriptor: `data/myocardium/protocols/generalized-force-mapper-phase4c-protocols.json`
+- mapper implementation: `engine/myocardium/mechanics/virtualPowerGeneralizedForceV1.ts`
+- scope: synthetic multi-coordinate virtual-power closure artifact only, with no runtime/official-case/workbench wiring
+- checks: active/passive/viscous contribution decomposition per coordinate as `Vw0*S*dE_f/dq_i`, explicit coordinate-rate virtual-power closure, scalar Phase 3B-compatible derived rate, zero-derivative exact zero contribution, m3-only `volumeCoordinatePressurePa`, deterministic summary hash, runtime leak scan, forbidden positive-claim scan, and mapper isolation from concrete kinematics engines or Land implementation
+- boundary: Decisions 4, 5, 6, and 8 remain `PENDING OWNER`; accepted Decision 19 owner selection is reused read-only; `ownerAcceptanceStatus=not-owner-acceptance`; `evidenceStatus=synthetic-multi-coordinate-virtual-power-closure-only`; no production mechanics, production homogenization, production passive-law acceptance, official morphology outcome, atrial bridge selection, live runtime replacement, ModelCore/chamber/schema/official-case wiring, or workbench wiring
+- prior gates: Phase 3B, Phase 4B-A, Phase 4B-B, and Phase 4C-A reused read-only with pass/hash evidence; Phase 4C-A must still have `enableMultiCoordinateGeneralizedForceMapper=false`
+- non-coverage: official morphology, atrial bridge selection, RV pressure overload, septal bowing, ventricular interdependence, and right-heart failure are not covered by this gate
+- future TriSeg path: preserve `triseg-lite-compatible`, `full-triseg-compatible`, and full TriSeg escalation before those mechanisms are claimed
 
 ### PR 4D — selected production mechanics calibration
 
