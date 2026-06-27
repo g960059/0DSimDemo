@@ -28,6 +28,10 @@ const SHADOW_PROTOCOL_SCAN_EXCLUSIONS = new Set([
   // surfaces. Their own verifier scans runtime/case surfaces for Phase 4B-B
   // references and live identity-adapter imports.
   "engine/myocardium/protocols/tissueHomogenizationReadiness.ts",
+  // Phase 4C-A passive-energy audit artifacts are not runtime integration
+  // surfaces. Their own verifier scans runtime/case surfaces for passive
+  // candidate references and live passive-law enabling.
+  "engine/myocardium/protocols/passiveEnergyReadiness.ts",
 ]);
 
 export const REQUIRED_PHASE4A_CRITERION_IDS = [

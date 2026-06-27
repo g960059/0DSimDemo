@@ -347,6 +347,37 @@ right-heart failure are not covered by this Phase 4B-B gate. The future TriSeg
 path preserves `triseg-lite-compatible`, `full-triseg-compatible`, and full
 TriSeg escalation before those mechanisms are claimed.
 
+## Phase 4C-A passive energy readiness candidate
+
+Run `npm run verify:myocardium-passive-energy-readiness` to check the Phase
+4C-A passive energy readiness candidate. The descriptor is
+[`../../data/myocardium/protocols/passive-energy-phase4c-protocols.json`](../../data/myocardium/protocols/passive-energy-phase4c-protocols.json),
+and the audited candidate implementation is
+[`../../engine/myocardium/mechanics/passiveExponentialEnergyV1.ts`](../../engine/myocardium/mechanics/passiveExponentialEnergyV1.ts).
+
+This gate audits `passive-exponential-energy-v1` /
+`passive-exponential-energy-phase4c-a-readiness-candidate-v1` as a
+recommended candidate pending Decision 6. It checks that passive stress is the
+energy derivative, passive tangent is the passive-stress derivative, the
+exponential energy sweep is nonnegative across compression/near-hinge/high
+extension samples, the positive-part hinge is C1-continuous, compression at or
+below slack has zero passive stored energy/stress/tangent, and the viscous
+dashpot satisfies `S_viscous*Edot >= 0` for positive and negative rates.
+
+The gate reports
+`claimBoundary=passive-energy-readiness-candidate-only`,
+`ownerAcceptanceStatus=not-owner-acceptance`, `decision5Status=PENDING OWNER`,
+`decision6Status=PENDING OWNER`, and `decision8Status=PENDING OWNER`. It does
+not accept a production passive law, official morphology outcome, live runtime
+replacement, ModelCore/chamber/state-schema/official-case wiring, pressure
+floor, stress clamp, or multi-coordinate generalized-force mapper. Phase 3B,
+Phase 4B-A, and Phase 4B-B evidence is reused read-only.
+
+RV pressure overload, septal bowing, ventricular interdependence, and
+right-heart failure are not covered by this Phase 4C-A gate. The future TriSeg
+path preserves `triseg-lite-compatible`, `full-triseg-compatible`, and full
+TriSeg escalation before those mechanisms are claimed.
+
 ## Imported bundle checks
 
 Revision 3's original markdown hashes are preserved in

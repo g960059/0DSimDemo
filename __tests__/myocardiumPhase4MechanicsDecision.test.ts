@@ -32,6 +32,11 @@ describe("myocardium Phase 4A mechanics decision dossier validation", () => {
         (file) => file.path === "engine/myocardium/protocols/tissueHomogenizationReadiness.ts",
       ),
     ).toBe(false);
+    expect(
+      input.integrationFiles.some(
+        (file) => file.path === "engine/myocardium/protocols/passiveEnergyReadiness.ts",
+      ),
+    ).toBe(false);
   });
 
   it("fails when the Phase 3 owner GO is missing or not GO", () => {
