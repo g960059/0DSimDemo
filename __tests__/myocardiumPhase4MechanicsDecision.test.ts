@@ -22,6 +22,11 @@ describe("myocardium Phase 4A mechanics decision dossier validation", () => {
     expect(report.summary.criterionCount).toBeGreaterThanOrEqual(6);
     expect(input.integrationFiles.some((file) => file.path.startsWith("engine/myocardium/"))).toBe(true);
     expect(input.integrationFiles.some((file) => file.path.startsWith("engine/mechanics/"))).toBe(true);
+    expect(
+      input.integrationFiles.some(
+        (file) => file.path === "engine/myocardium/protocols/landActiveStressReplacementReadiness.ts",
+      ),
+    ).toBe(false);
   });
 
   it("fails when the Phase 3 owner GO is missing or not GO", () => {

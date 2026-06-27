@@ -20,6 +20,12 @@ export const REQUIRED_PHASE4A_CANDIDATES = [
   },
 ] as const;
 
+const SHADOW_PROTOCOL_SCAN_EXCLUSIONS = new Set([
+  // Phase 4B-A shadow protocol artifacts are not runtime integration surfaces.
+  // Their own verifier scans runtime/case surfaces for Phase 4B-A references.
+  "engine/myocardium/protocols/landActiveStressReplacementReadiness.ts",
+]);
+
 export const REQUIRED_PHASE4A_CRITERION_IDS = [
   "official-case-scope",
   "validation-data",
@@ -981,9 +987,9 @@ function loadIntegrationFiles(rootDir: string): TextFileInput[] {
 }
 
 function isRuntimeScanFile(rootDir: string, filePath: string): boolean {
-  const relativePath = path.relative(rootDir, filePath);
-  const segments = relativePath.split(path.sep);
-  return !segments.includes("__tests__");
+  const relativePath = path.relative(rootDir, filePath).split(path.sep).join("/");
+  const segments = relativePath.split("/");
+  return !segments.includes("__tests__") && !SHADOW_PROTOCOL_SCAN_EXCLUSIONS.has(relativePath);
 }
 
 function listFiles(target: string): string[] {

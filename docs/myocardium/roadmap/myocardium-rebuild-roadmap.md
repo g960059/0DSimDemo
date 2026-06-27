@@ -158,6 +158,23 @@ primary/final scope. The future TriSeg path preserves
 `triseg-lite-compatible`, `full-triseg-compatible`, and full TriSeg escalation
 before those mechanisms are claimed.
 
+### PR 4B-A — Land active-stress replacement shadow readiness
+
+Scope: first shadow readiness gate for the accepted Decision 19 Land
+active-stress replacement path. Reuses Phase 3C minimal loaded afterload family
+outputs to report Land pipeline finite/health/virtual-power readiness,
+internal pressure/stroke/work/afterload ordering proxies, and a prescribed-Ca
+beat-stability/no-alternans smoke with six state-carry preconditioning cycles
+followed by one warm-up plus three evaluated cycles, with 5% drift tolerance
+and a separate 1% alternans-pattern tolerance.
+
+- gate script: `npm run verify:myocardium-land-active-stress-replacement`
+- artifact: `data/myocardium/protocols/land-active-stress-replacement-phase4b-protocols.json`
+- selected Decision 19 backend: `thick-sphere-v2-explicit-external-septal-coupling` / `thick-sphere-v2`
+- executable coordinate path today: Phase 3 coordinate-family shadow readiness using `thick-sphere-spike-v1`, not completion of the selected v2 backend
+- boundary: shadow readiness only; no live runtime replacement, no production validation, no official morphology acceptance, no completed Phase 4B tissue homogenization, no ModelCore/chamber/schema/official-case wiring, no RV pressure-overload/interdependence coverage, and no calcium-cycling alternans validation
+- future TriSeg path remains preserved before RV pressure overload, septal bowing, ventricular interdependence, or right-heart failure are claimed
+
 ### PR 4B — tissue homogenization
 
 - source→wall adapter
@@ -286,6 +303,7 @@ tools/myocardium/*
     "verify:myocardium-thick-sphere-kinematics": "vite-node tools/myocardium/verifyThickSphereKinematics.ts",
     "verify:myocardium-generalized-forces": "vite-node tools/myocardium/verifyGeneralizedForces.ts",
     "verify:myocardium-minimal-loaded-chamber": "vite-node tools/myocardium/verifyMinimalLoadedChamber.ts",
+    "verify:myocardium-land-active-stress-replacement": "vite-node tools/myocardium/verifyLandActiveStressReplacement.ts",
     "verify:generalized-forces": "vite-node tools/myocardium/verifyGeneralizedForces.ts",
     "verify:single-chamber": "vite-node tools/myocardium/verifySingleChamber.ts",
     "verify:myocardial-coupling": "vite-node tools/myocardium/compareCouplingSolvers.ts",
