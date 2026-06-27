@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "gateId": "phase3-owner-go-v1",
+  "phase": "Phase 3",
+  "outcome": "GO",
+  "acceptedBy": "g960059",
+  "acceptedAt": "2026-06-27",
+  "acceptedSource": "Owner Codex thread instruction: GOでよいです。引き続き、お願いします。",
+  "acceptedSourceType": "codex-thread",
+  "acceptedSourceRef": "codex-thread:019f03b3-a60b-7921-b0b2-ae7809ec90f3#turn=019f0681-728f-7963-8099-e0ee81b86320",
+  "evidenceRefs": [
+    {
+      "type": "pull-request",
+      "ref": "https://github.com/g960059/0DSimDemo/pull/162",
+      "label": "PR #162",
+      "role": "Phase 3C minimal loaded afterload-family evidence"
+    },
+    {
+      "type": "artifact",
+      "path": "data/myocardium/protocols/minimal-loaded-phase3c-afterload-protocols.json",
+      "role": "Phase 3C D0 minimal loaded afterload-family descriptor"
+    }
+  ],
+  "decisionBoundary": {
+    "decision19Status": "PENDING OWNER",
+    "productionMechanicsOwnerAcceptance": "not-authorized",
+    "triSegAdoption": "not-authorized"
+  },
+  "scope": {
+    "unlocks": [
+      {
+        "phase": "Phase 4A",
+        "work": "Decision 19 production mechanics decision dossier only"
+      }
+    ],
+    "doesNotAuthorize": [
+      "Phase 4B+ work",
+      "production mechanics integration",
+      "runtime, ModelCore, chamber, schema, or official-case wiring",
+      "passive law acceptance",
+      "TriSeg adoption",
+      "Decision 19 acceptance"
+    ],
+    "nonMutationBoundary": [
+      "Do not mutate Phase 3A/3B/3C protocol artifacts to owner GO.",
+      "Do not convert Phase 3 descriptor ownerAcceptanceStatus fields to owner acceptance.",
+      "Do not promote any Phase 3 synthetic smoke result to production validation."
+    ]
+  }
+}

@@ -35,7 +35,7 @@ accepted_source_ref: "https://github.com/g960059/0DSimDemo/pull/154"
 11. stabilization stiffness、algorithmic tangent、frozen-state tangentを別fieldにする。
 12. local monolithic referenceとactive-stiffness-stabilized production solverを保持する。
 13. cell/tissue、prescribed shortening、low/normal/high-afterload minimal chamberのjoint feasibility後にowner GOを要求する。
-14. Phase 3 spikeはfixed `thick-sphere-v2`を使う。production ventricular mechanicsはPhase 4前に別途選ぶ。
+14. Phase 3 spikeはfixed `thick-sphere-v2`を使う。production ventricular mechanicsはPhase 4A dossier後、Phase 4B+ production integration前に別途選ぶ。
 15. TriSegはcandidateであり自動的な必須backendではない。
 16. SERCA/RyR/SR-load等のofficial mechanistic caseは保存型Ca backend実装前には禁止する。
 17. Phase 6ではLand LV/RVとclean atrial elastance bridgeを使い、legacy atrial active-stressを混入させない。
@@ -76,7 +76,7 @@ accepted_source_ref: "https://github.com/g960059/0DSimDemo/pull/154"
 | 16 | realtime budget | 10× realtime等の暫定値 | Phase 0/5 | PENDING OWNER |
 | 17 | temperature | fixed 310.15 K | Phase 0 | ACCEPTED 2026-06-26 |
 | 18 | first release atria | Land ventricles＋documented atrial bridge案 | release | PENDING OWNER |
-| 19 | production ventricular mechanics | thick-sphere / TriSeg-lite / TriSeg-compatible | before Phase 4 | PENDING OWNER |
+| 19 | production ventricular mechanics | thick-sphere / TriSeg-lite / TriSeg-compatible | before Phase 4B+ | PENDING OWNER |
 | 20 | regional runtime scope | schema only、MultiPatch runtimeは別ADR | Phase 0 | ACCEPTED 2026-06-26 |
 
 ### Phase 0 acceptance record

@@ -11,7 +11,7 @@
 - Generalized coordinate / generalized force virtual-power contract
 - Discrete strain-stage input and consistent strain-rate derivation
 - Patch-ready ModelInstancePath state schema
-- Production ventricular mechanics decision before Phase 4
+- Production ventricular mechanics decision before Phase 4B+ production integration
 - Source registry completeness gate
 - Split normative documentation bundle
 

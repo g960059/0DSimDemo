@@ -1,6 +1,6 @@
 # Myocardium Revision 3
 
-Status: Phase 0 owner decisions accepted
+Status: Phase 0 owner decisions accepted; Phase 3 owner GO recorded for Phase 4A dossier work only
 Bundle source: local import, path redacted
 Baseline repository commit: `228bef96e5f522de2cfe352de5d6d4d2f017c550`
 
@@ -39,6 +39,9 @@ schema migration still require their later phase gates.
 Phase 3A fixed thick-sphere kinematics may proceed as a standalone
 kinematics-only artifact gate; it does not decide production ventricular
 mechanics or owner acceptance.
+Phase 3 owner GO is recorded separately for Phase 4A decision-dossier work
+only. It does not authorize Phase 4B+, runtime/schema/official-case wiring,
+passive law acceptance, TriSeg adoption, or Decision 19 owner selection.
 The owner acceptance record carries `acceptedSourceType` and `acceptedSourceRef`
 metadata so future decisions can trace the durable approval source.
 
@@ -178,6 +181,25 @@ solvers, passive-law acceptance, dynamic valve behavior, qDot clamps, TBV
 projection, septal/pericardial coupling, closed-loop steady state, ModelCore or
 chamber runtime wiring, schema/official-case wiring, owner GO, and downstream
 pass claims remain out of scope.
+
+## Phase 3 owner GO and Phase 4A mechanics decision dossier
+
+Phase 3 owner GO is recorded in
+[`../../data/myocardium/gates/phase3-owner-go-v1.json`](../../data/myocardium/gates/phase3-owner-go-v1.json)
+with owner provenance and evidence references to PR #162 and the Phase 3C
+minimal-loaded descriptor. This gate unlocks only the Phase 4A mechanics
+decision dossier. Its conditional recommendation assumes that RV pressure
+overload, septal bowing, and ventricular interdependence are not primary
+first-integration mechanisms.
+
+The Phase 4A Decision 19 dossier is
+[`../../data/myocardium/decisions/production-mechanics-phase4a-dossier-v1.json`](../../data/myocardium/decisions/production-mechanics-phase4a-dossier-v1.json).
+Run `npm run verify:myocardium-mechanics-decision` to check the Phase 3 GO
+boundary, candidate set, criteria, conditional recommendation, TriSeg
+source/no-auto-adopt boundary, prior Phase 3 descriptor non-acceptance,
+Decision 19 pending rows, and absence of runtime/official-case dossier wiring.
+The dossier is a conditional recommendation only; Decision 19 remains pending
+owner selection before Phase 4B+.
 
 ## Imported bundle checks
 

@@ -122,19 +122,29 @@ leaves the Phase 3A volume domain is a closure failure.
 
 `GO / REVISE / NO-GO`。GOなしでPhase 4へ進まない。
 
+- recorded GO artifact: `data/myocardium/gates/phase3-owner-go-v1.json`
+- unlocks: Phase 4A Decision 19 decision-dossier work only
+- boundary: does not authorize Phase 4B+, production mechanics integration, runtime/schema/official-case wiring, passive law acceptance, TriSeg adoption, or Decision 19 acceptance
+
 ## Phase 4 — production mechanics selection and integration
 
-### PR 4A — owner decision 19 artifact
+### PR 4A — production mechanics Decision 19 dossier
 
 比較:
 
 ```text
-thick-sphere-v2
-TriSeg-lite candidate
-full TriSeg-compatible candidate when justified
+thick-sphere-v2 + explicit external septal coupling
+TriSeg-lite compatible backend
+full TriSeg-compatible backend
 ```
 
 比較項目はscientific scope、validation data、rank、virtual power、performance。
+
+- gate script: `npm run verify:myocardium-mechanics-decision`
+- artifact: `data/myocardium/decisions/production-mechanics-phase4a-dossier-v1.json`
+- recommendation: conditional only; assumes first integration scope is global preload/afterload or normal/global LV/RV failure without RV pressure overload, septal bowing, or ventricular interdependence as the primary mechanism
+- contingency: if RV pressure overload, septal bowing, or ventricular interdependence is primary, TriSeg-lite/full TriSeg becomes preferred
+- boundary: not owner acceptance, not production validation, not Phase 4B+ authorization, and not runtime/schema/official-case wiring
 
 ### PR 4B — tissue homogenization
 
@@ -350,7 +360,7 @@ Phase 3 gate artifactにはparameter/provenance、joint-feasibility summary、mo
 | 16 | realtime budget | 10× realtime等の暫定値 | Phase 0/5 | PENDING OWNER |
 | 17 | temperature | fixed 310.15 K | Phase 0 | PENDING OWNER |
 | 18 | first release atria | Land ventricles＋documented atrial bridge案 | release | PENDING OWNER |
-| 19 | production ventricular mechanics | thick-sphere / TriSeg-lite / TriSeg-compatible | before Phase 4 | PENDING OWNER |
+| 19 | production ventricular mechanics | thick-sphere / TriSeg-lite / TriSeg-compatible | before Phase 4B+ | PENDING OWNER |
 | 20 | regional runtime scope | schema only、MultiPatch runtimeは別ADR | Phase 0 | PENDING OWNER |
 
 ## 26.2 Recommended decisions
@@ -431,7 +441,7 @@ cell/tissue＋prescribed shortening＋複数loaded protocolのjoint feasible reg
 
 ### Decision 19 — production ventricular mechanics
 
-Phase 3 spikeではthick-sphereを固定利用する。Phase 4前にofficial case scope、data、rank、virtual-power、performanceからA/B/Cを選ぶ。TriSegを自動的な必須条件にしない。
+Phase 3 spikeではthick-sphereを固定利用する。Phase 4A dossier後、Phase 4B+ production integration前にofficial case scope、data、rank、virtual-power、performanceからA/B/Cを選ぶ。TriSegを自動的な必須条件にしない。
 
 ### Decision 20 — regional runtime
 
@@ -470,7 +480,8 @@ state schemaはwall/region/patch-readyとするが、MultiPatch runtime、region
 [x] identity homogenization/generalized-force report passing (`verify:myocardium-generalized-forces`)
 [ ] kinematics/sarcomere bridge derivation reviewed for production mechanics
 [x] minimal loaded chamber spike completed (`verify:myocardium-minimal-loaded-chamber`)
-[ ] Phase 3 owner GO/REVISE/NO-GO recorded
+[x] Phase 3 owner GO/REVISE/NO-GO recorded (`data/myocardium/gates/phase3-owner-go-v1.json`)
+[x] Phase 4A mechanics decision dossier created (`verify:myocardium-mechanics-decision`)
 [ ] geometry identifiability rank gate passing
 [ ] virtual-power tests passing
 [ ] passive energy law passing
