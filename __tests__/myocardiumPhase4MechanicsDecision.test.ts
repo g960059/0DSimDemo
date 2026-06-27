@@ -100,6 +100,17 @@ describe("myocardium Phase 4A mechanics decision dossier validation", () => {
     expect(report.errors.some((issue) => issue.code === "dossier_recommendation_contingency")).toBe(true);
   });
 
+  it("fails when the thick-sphere recommendation scope omits RV pressure overload", () => {
+    const input = fixture();
+    input.dossier.recommendation.scopeAssumption =
+      "The first integration scope is assumed to be global preload/afterload or normal/global LV/RV failure without septal bowing or ventricular interdependence as the primary mechanism.";
+
+    const report = validateMechanicsDecisionDossier(input);
+
+    expect(report.pass).toBe(false);
+    expect(report.errors.some((issue) => issue.code === "dossier_recommendation_scope")).toBe(true);
+  });
+
   it("fails when selectedCandidateId is set without owner provenance or dossier claims acceptance", () => {
     const input = fixture();
     input.dossier.selectedCandidateId = "thick-sphere-v2-explicit-external-septal-coupling";
@@ -129,6 +140,34 @@ describe("myocardium Phase 4A mechanics decision dossier validation", () => {
     expect(report.errors.some((issue) => issue.code === "triseg_source_unverified")).toBe(true);
     expect(report.errors.some((issue) => issue.code === "triseg_source_wrong_role")).toBe(true);
     expect(report.errors.some((issue) => issue.code === "dossier_no_auto_adopt")).toBe(true);
+  });
+
+  it("fails when the TriSeg dossier reference escalates use, role, or boundary independently", () => {
+    for (const mutate of [
+      (input: ReturnType<typeof fixture>) => {
+        input.dossier.sourceReferences[0].use = "implementation";
+      },
+      (input: ReturnType<typeof fixture>) => {
+        input.dossier.sourceReferences[0].role = "implementation";
+      },
+      (input: ReturnType<typeof fixture>) => {
+        input.dossier.sourceReferences[0].boundary = "candidate-definition";
+      },
+    ]) {
+      const input = fixture();
+      mutate(input);
+
+      const report = validateMechanicsDecisionDossier(input);
+
+      expect(report.pass).toBe(false);
+      expect(
+        report.errors.some(
+          (issue) =>
+            issue.code === "triseg_dossier_source_ref_wrong_role"
+            || issue.code === "dossier_no_auto_adopt",
+        ),
+      ).toBe(true);
+    }
   });
 
   it("fails when prior Phase 3 descriptors are mutated to owner acceptance or production mechanics", () => {
@@ -170,6 +209,14 @@ describe("myocardium Phase 4A mechanics decision dossier validation", () => {
       {
         path: "engine/ModelCore.ts",
         text: "const dossier = 'production-mechanics-phase4a-dossier-v1';",
+      },
+      {
+        path: "engine/core/stateLayout.ts",
+        text: "const selectedCandidateId = 'thick-sphere-v2';",
+      },
+      {
+        path: "engine/myocardium/mechanics/index.ts",
+        text: "const label = 'TriSeg-lite';",
       },
     ];
 

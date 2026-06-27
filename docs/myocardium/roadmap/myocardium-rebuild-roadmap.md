@@ -142,7 +142,7 @@ full TriSeg-compatible backend
 
 - gate script: `npm run verify:myocardium-mechanics-decision`
 - artifact: `data/myocardium/decisions/production-mechanics-phase4a-dossier-v1.json`
-- recommendation: conditional only; assumes first integration scope is global preload/afterload or normal/global LV/RV failure without septal bowing or ventricular interdependence as the primary mechanism
+- recommendation: conditional only; assumes first integration scope is global preload/afterload or normal/global LV/RV failure without RV pressure overload, septal bowing, or ventricular interdependence as the primary mechanism
 - contingency: if RV pressure overload, septal bowing, or ventricular interdependence is primary, TriSeg-lite/full TriSeg becomes preferred
 - boundary: not owner acceptance, not production validation, not Phase 4B+ authorization, and not runtime/schema/official-case wiring
 

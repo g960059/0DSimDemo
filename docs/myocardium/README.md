@@ -188,7 +188,9 @@ Phase 3 owner GO is recorded in
 [`../../data/myocardium/gates/phase3-owner-go-v1.json`](../../data/myocardium/gates/phase3-owner-go-v1.json)
 with owner provenance and evidence references to PR #162 and the Phase 3C
 minimal-loaded descriptor. This gate unlocks only the Phase 4A mechanics
-decision dossier.
+decision dossier. Its conditional recommendation assumes that RV pressure
+overload, septal bowing, and ventricular interdependence are not primary
+first-integration mechanisms.
 
 The Phase 4A Decision 19 dossier is
 [`../../data/myocardium/decisions/production-mechanics-phase4a-dossier-v1.json`](../../data/myocardium/decisions/production-mechanics-phase4a-dossier-v1.json).

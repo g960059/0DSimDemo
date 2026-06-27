@@ -595,8 +595,7 @@ function validateRecommendation(recommendation: unknown, dossier: JsonRecord, is
   if (
     !/global preload\/afterload/i.test(scopeAssumption)
     || !/normal\/global LV\/RV failure/i.test(scopeAssumption)
-    || !/without septal bowing/i.test(scopeAssumption)
-    || !/ventricular interdependence/i.test(scopeAssumption)
+    || !/without RV pressure overload, septal bowing, or ventricular interdependence/i.test(scopeAssumption)
     || !/primary mechanism/i.test(scopeAssumption)
   ) {
     addIssue(
@@ -760,7 +759,7 @@ function validateTriSegSource(sourcesRegistry: unknown, dossier: unknown, issues
     );
   } else if (
     stringField(dossierRef, "role") !== TRISEG_SOURCE_ROLE
-    && stringField(dossierRef, "use") !== TRISEG_SOURCE_ROLE
+    || stringField(dossierRef, "use") !== TRISEG_SOURCE_ROLE
   ) {
     addIssue(
       issues,
@@ -773,7 +772,11 @@ function validateTriSegSource(sourcesRegistry: unknown, dossier: unknown, issues
 
   const refBoundary = dossierRef ? `${stringField(dossierRef, "boundary") ?? ""} ${stringField(dossierRef, "detail") ?? ""}` : "";
   const recommendation = isRecord(dossierRecord.recommendation) ? dossierRecord.recommendation : {};
-  if (!/no-auto-adopt/i.test(refBoundary) || recommendation.noAutoAdoptTriSeg !== true) {
+  if (
+    (dossierRef && stringField(dossierRef, "boundary") !== "no-auto-adopt")
+    || !/no-auto-adopt/i.test(refBoundary)
+    || recommendation.noAutoAdoptTriSeg !== true
+  ) {
     addIssue(
       issues,
       "error",
@@ -935,6 +938,13 @@ function validateNoIntegrationLeak(integrationFiles: readonly TextFileInput[], i
     "production-mechanics-phase4a-dossier-v1",
     ...REQUIRED_PHASE4A_CANDIDATES.map((candidate) => candidate.id),
   ];
+  const forbiddenSelectionTokens = [
+    "thick-sphere-v2",
+    "TriSeg-lite",
+    "full TriSeg",
+    "recommendedCandidateId",
+    "selectedCandidateId",
+  ];
 
   for (const file of integrationFiles) {
     for (const forbiddenId of forbiddenIds) {
@@ -945,6 +955,17 @@ function validateNoIntegrationLeak(integrationFiles: readonly TextFileInput[], i
           "mechanics_dossier_runtime_leak",
           file.path,
           `Runtime/official-case integration file must not reference ${forbiddenId}.`,
+        );
+      }
+    }
+    for (const forbiddenToken of forbiddenSelectionTokens) {
+      if (file.text.includes(forbiddenToken)) {
+        addIssue(
+          issues,
+          "error",
+          "mechanics_dossier_runtime_leak",
+          file.path,
+          `Runtime/official-case integration file must not reference mechanics-selection token ${forbiddenToken}.`,
         );
       }
     }
@@ -962,26 +983,33 @@ function hasOwnerSelectionProvenance(record: JsonRecord): boolean {
 
 function loadIntegrationFiles(rootDir: string): TextFileInput[] {
   const targets = [
-    "engine/ModelCore.ts",
-    "engine/chambers.ts",
-    "engine/mechanics",
-    "engine/myocardium",
-    "engine/harness.ts",
-    "engine/protocol.ts",
-    "engine/stateContract.ts",
+    "components",
+    "contexts",
+    "engine",
+    "features",
+    "hooks",
     "officialCases.ts",
     "data/cases",
     "public/cases",
+    "utils",
   ];
 
   return targets.flatMap((target) => {
     const fullPath = path.join(rootDir, target);
     if (!existsSync(fullPath)) return [];
-    return listFiles(fullPath).map((filePath) => ({
-      path: path.relative(rootDir, filePath),
-      text: readFileSync(filePath, "utf8"),
-    }));
+    return listFiles(fullPath)
+      .filter((filePath) => isRuntimeScanFile(rootDir, filePath))
+      .map((filePath) => ({
+        path: path.relative(rootDir, filePath),
+        text: readFileSync(filePath, "utf8"),
+      }));
   });
+}
+
+function isRuntimeScanFile(rootDir: string, filePath: string): boolean {
+  const relativePath = path.relative(rootDir, filePath);
+  const segments = relativePath.split(path.sep);
+  return !segments.includes("__tests__");
 }
 
 function listFiles(target: string): string[] {

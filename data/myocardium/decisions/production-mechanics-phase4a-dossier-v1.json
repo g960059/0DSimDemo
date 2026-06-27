@@ -71,7 +71,7 @@
     {
       "candidateId": "thick-sphere-v2-explicit-external-septal-coupling",
       "criterionNotes": {
-        "official-case-scope": "Best fit only if first integration scope is global preload/afterload or normal/global LV/RV failure where septal bowing and ventricular interdependence are not the primary mechanism.",
+        "official-case-scope": "Best fit only if first integration scope is global preload/afterload or normal/global LV/RV failure where RV pressure overload, septal bowing, and ventricular interdependence are not the primary mechanism.",
         "validation-data": "Can reuse Phase 3 arithmetic and add independent morphology/hemodynamic target packs, but Phase 3 evidence is not production validation.",
         "identifiability-rank-readiness": "Lowest immediate parameter rank risk if geometry and homogenization freedoms remain fixed or independently constrained.",
         "virtual-power-closure-readiness": "Closest continuation from the Phase 3 single-coordinate virtual-power closure; multi-coordinate extensions still need Phase 4B+ work.",
@@ -106,7 +106,7 @@
     "recommendedCandidateId": "thick-sphere-v2-explicit-external-septal-coupling",
     "status": "conditional-recommendation-only",
     "notProductionValidation": true,
-    "scopeAssumption": "The first integration scope is assumed to be global preload/afterload or normal/global LV/RV failure without septal bowing or ventricular interdependence as the primary mechanism.",
+    "scopeAssumption": "The first integration scope is assumed to be global preload/afterload or normal/global LV/RV failure without RV pressure overload, septal bowing, or ventricular interdependence as the primary mechanism.",
     "contingency": "If RV pressure overload, septal bowing, or ventricular interdependence is primary, TriSeg-lite or full TriSeg becomes preferred over thick-sphere-v2.",
     "officialCasePendingBoundary": "If official-case scope remains pending, this recommendation cannot be promoted to owner selection.",
     "canPromoteWithoutOfficialCaseScope": false,
