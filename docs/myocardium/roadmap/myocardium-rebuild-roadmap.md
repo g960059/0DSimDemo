@@ -288,9 +288,22 @@ production tissue homogenization.
 - boundary: Phase 5A is not Phase 5 completion. SDIRK2 reference completion is Phase 5B work because current `deriveLand2017StepKinematics()` throws for SDIRK2. Production solver comparison is not claimed, performance acceptance is not claimed, active-stiffness production coupling is not claimed, active-stiffness partitioned production coupling is not claimed, runtime replacement, ModelCore wiring, chamber wiring, case wiring, official-case wiring, and workbench wiring are not claimed, official morphology pass and robust no-alternans are not claimed, septal coordinate/coupling implementation, RV pressure overload, septal bowing, ventricular interdependence, and right-heart failure coverage are not claimed, and TriSeg adoption is not claimed.
 - future TriSeg path: preserve `triseg-lite-compatible`, `full-triseg-compatible`, and full TriSeg escalation before RV pressure overload, septal bowing, ventricular interdependence, or right-heart failure are claimed
 
-### Phase 5B+ — deferred stable-coupling work
+### Phase 5B — local monolithic SDIRK2 reference readiness
 
-- SDIRK2 reference completion
+- gate script: `npm run verify:myocardium-local-monolithic-sdirk2-readiness`
+- descriptor: `data/myocardium/protocols/local-monolithic-coupling-phase5b-sdirk2-protocols.json`
+- dedicated Land entrypoint: `engine/myocardium/myofilament/land2017/sdirk2.ts`
+- reference implementation: `engine/myocardium/coupling/localMonolithicSdirk2V1.ts`
+- reference model id: `local-monolithic-sdirk2-v1`
+- scope: pure local monolithic SDIRK2 synthetic reference only, side-effect-free and not wired to runtime
+- tableau: fixed `gamma = 1 - 1 / Math.sqrt(2)`, two-stage stiffly accurate SDIRK2, `a00=gamma`, `a10=1-gamma`, `a11=gamma`, `c0=gamma`, `c1=1`, final state `Y1`
+- stage policy: solve stage0 then stage1 as sequential 7-unknown systems over cavity volume plus Land state; do not use a 14-unknown simultaneous solve
+- checks: stage0/stage1 strain-rate formulas, stage0/stage1 cavity coordinate-rate formulas, selected v2 kinematics/passive/generalized-force `coordinateRatesSI`, sequential stage-increment prescribed-calcium `dtSec` semantics, Land SDIRK2 residual convergence, local force-balance residual, Newton finite-difference Jacobian evidence, line-search evidence, finite state health, BE-vs-SDIRK2 finite bounded discrepancy, deterministic hash, and pinned Phase 4D read-only hash evidence
+- boundary: Phase 5B SDIRK2 reference completion is limited to the local monolithic synthetic reference. Phase 5 completion, production solver comparison, performance acceptance, active-stiffness production coupling, active-stiffness partitioned production coupling, runtime replacement, ModelCore wiring, chamber wiring, case wiring, official-case wiring, workbench wiring, official morphology pass, robust no-alternans, calcium-cycling alternans acceptance, septal coordinate/coupling implementation, RV pressure overload, septal bowing, ventricular interdependence, right-heart failure coverage, and TriSeg adoption are not claimed.
+- future TriSeg path: preserve `triseg-lite-compatible`, `full-triseg-compatible`, and full TriSeg escalation before RV pressure overload, septal bowing, ventricular interdependence, or right-heart failure are claimed
+
+### Phase 5C+ — deferred stable-coupling work
+
 - production solver comparison
 - active-stiffness partitioned production coupling
 - performance smoke and acceptance

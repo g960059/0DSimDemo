@@ -44,6 +44,9 @@ const SHADOW_PROTOCOL_SCAN_EXCLUSIONS = new Set([
   // Phase 5A local-monolithic coupling readiness is a protocol artifact, not
   // runtime integration. Its own verifier scans runtime/case/workbench surfaces.
   "engine/myocardium/protocols/localMonolithicCouplingReadiness.ts",
+  // Phase 5B local-monolithic SDIRK2 readiness is a protocol artifact, not
+  // runtime integration. Its own verifier scans runtime/case/workbench surfaces.
+  "engine/myocardium/protocols/localMonolithicSdirk2Readiness.ts",
 ]);
 
 export const REQUIRED_PHASE4A_CRITERION_IDS = [

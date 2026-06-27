@@ -49,6 +49,16 @@ describe("myocardium Phase 4A mechanics decision dossier validation", () => {
     ).toBe(false);
     expect(
       input.integrationFiles.some(
+        (file) => file.path === "engine/myocardium/protocols/localMonolithicCouplingReadiness.ts",
+      ),
+    ).toBe(false);
+    expect(
+      input.integrationFiles.some(
+        (file) => file.path === "engine/myocardium/protocols/localMonolithicSdirk2Readiness.ts",
+      ),
+    ).toBe(false);
+    expect(
+      input.integrationFiles.some(
         (file) => file.path === "engine/myocardium/kinematics/thickSphereV2SelectedBackend.ts",
       ),
     ).toBe(false);
