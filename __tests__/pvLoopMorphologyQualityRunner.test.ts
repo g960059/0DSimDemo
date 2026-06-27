@@ -319,6 +319,55 @@ describe("PV-loop morphology quality runner helpers", () => {
     expect(hypothesis?.supportingSignals).toContain("tricuspidValveOpen01");
   });
 
+  it("does not promote clamp-only AoV markers to qDot clamp correlation hypotheses", () => {
+    const evidence = buildMorphologyEvidenceSummaryForTest([], [
+      clampRow({ signalId: "AoV_qDotClampHit01", value: 1 }),
+    ]);
+
+    expect(evidence.observations.map((observation) => observation.id)).toContain("aov-qdot-clamp-activity");
+    expect(evidence.rootCauseHypotheses.some((hypothesis) => (
+      hypothesis.id === "aov-qdot-clamp-correlation"
+    ))).toBe(false);
+  });
+
+  it("does not promote pressure-floor clamp markers to overlap hypotheses without raw-core floor evidence", () => {
+    const evidence = buildMorphologyEvidenceSummaryForTest([], [
+      clampRow({ signalId: "LVPressureFloorHit01", value: 1 }),
+    ]);
+
+    expect(evidence.observations.map((observation) => observation.id)).toContain("pressure-floor-activity");
+    expect(evidence.rootCauseHypotheses.some((hypothesis) => (
+      hypothesis.id === "pressure-floor-correlation"
+    ))).toBe(false);
+  });
+
+  it("does not report missing-incisura alerts from generated rows without ejection samples", () => {
+    const rows = metricRowsForSamplesForTest([
+      sample({ sourceIndex: 0, tSec: 0.00, theta: 0.20, VLV: 100, dVLVdt: 20 }),
+      sample({ sourceIndex: 1, tSec: 0.01, theta: 0.30, VLV: 110, dVLVdt: 20 }),
+      sample({ sourceIndex: 2, tSec: 0.02, theta: 0.40, VLV: 120, dVLVdt: 20 }),
+      sample({ sourceIndex: 3, tSec: 0.03, theta: 0.50, VLV: 130, dVLVdt: 20 }),
+    ]);
+    const incisura = rows.find((row) => (
+      row.chamber === "LV"
+      && row.metricId === "incisuraPresenceScore"
+      && row.samplingMode === "raw"
+      && row.transitionPolicy === "transition-excluded-core"
+    ));
+    const evidence = buildMorphologyEvidenceSummaryForTest(rows);
+
+    expect(incisura).toMatchObject({
+      value: null,
+      classificationLabels: ["no-ejection-evidence"],
+    });
+    expect(evidence.observations.some((observation) => (
+      observation.id === "ejection-shape-alert"
+    ))).toBe(false);
+    expect(evidence.rootCauseHypotheses.some((hypothesis) => (
+      hypothesis.id === "arterial-load-structure-hypothesis"
+    ))).toBe(false);
+  });
+
   it("renders morphology evidence status and gaps in summary markdown", () => {
     const summary = buildInitialSummary();
     summary.morphologyEvidence = buildMorphologyEvidenceSummaryForTest([

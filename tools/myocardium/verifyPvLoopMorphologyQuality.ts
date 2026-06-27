@@ -1021,9 +1021,7 @@ function metricRowsForBeat(
     add("cornerSharpnessAtOpen", ejectionShape.cornerOpen, "dimensionless");
     add("cornerSharpnessAtClose", ejectionShape.cornerClose, "dimensionless");
     add("arterialPressureIncisuraDepth", ejectionShape.incisuraDepthPa, "Pa");
-    add("incisuraPresenceScore", ejectionShape.incisuraScore, "dimensionless", ejectionShape.incisuraScore <= PV_LOOP_CLASSIFICATION_PROFILE.incisuraPresenceScoreMax ? [
-      chamber === "LV" ? "aop-lacks-incisura" : "pap-lacks-incisura",
-    ] : ["incisura-present"]);
+    add("incisuraPresenceScore", ejectionShape.incisuraScore, "dimensionless", incisuraLabels(ejectionShape.incisuraScore, chamber));
     add(chamber === "LV" ? "aovOpenAoPIncisuraScore" : "pvOpenPAPIncisuraScore", ejectionShape.incisuraScore, "dimensionless");
     add("peakPressureTimingAsFractionOfEjection", ejectionShape.peakPressureTimingFraction, "dimensionless");
     add("qDotClampHitFraction", chamber === "LV" ? fraction(ejection, (sample) => sample.AoV_qDotClampHit01 > 0) : null, "dimensionless");
@@ -1100,10 +1098,17 @@ function ejectionLabels(shape: ReturnType<typeof ejectionShapeMetrics>, chamber:
   ) {
     labels.push("sharp-corner");
   }
-  if (shape.incisuraScore <= PV_LOOP_CLASSIFICATION_PROFILE.incisuraPresenceScoreMax) {
+  if (shape.incisuraScore != null && shape.incisuraScore <= PV_LOOP_CLASSIFICATION_PROFILE.incisuraPresenceScoreMax) {
     labels.push(chamber === "LV" ? "aop-lacks-incisura" : "pap-lacks-incisura");
   }
   return labels;
+}
+
+function incisuraLabels(score: number | null, chamber: Chamber): string[] {
+  if (score == null) return ["no-ejection-evidence"];
+  return score <= PV_LOOP_CLASSIFICATION_PROFILE.incisuraPresenceScoreMax
+    ? [chamber === "LV" ? "aop-lacks-incisura" : "pap-lacks-incisura"]
+    : ["incisura-present"];
 }
 
 function limbShapeMetrics(samples: ClassifiedSample[]): {
@@ -1179,7 +1184,7 @@ function ejectionShapeMetrics(samples: ClassifiedSample[]): {
   cornerOpen: number;
   cornerClose: number;
   incisuraDepthPa: number;
-  incisuraScore: number;
+  incisuraScore: number | null;
   peakPressureTimingFraction: number | null;
 } {
   if (samples.length < 4) {
@@ -1190,7 +1195,7 @@ function ejectionShapeMetrics(samples: ClassifiedSample[]): {
       cornerOpen: 0,
       cornerClose: 0,
       incisuraDepthPa: 0,
-      incisuraScore: 0,
+      incisuraScore: null,
       peakPressureTimingFraction: null,
     };
   }
@@ -1872,7 +1877,7 @@ function buildMorphologyEvidenceSummary(
     }
   }
 
-  if (byId.has("aov-qdot-clamp-activity")) {
+  if (byId.has("aov-qdot-clamp-activity") && hasAovQDotRawCoreEvidence(metricRows)) {
     const observation = byId.get("aov-qdot-clamp-activity")!;
     rootCauseHypotheses.push({
       id: "aov-qdot-clamp-correlation",
@@ -1936,7 +1941,7 @@ function buildMorphologyEvidenceSummary(
     });
   }
 
-  if (byId.has("pressure-floor-activity")) {
+  if (byId.has("pressure-floor-activity") && hasPressureFloorRawCoreEvidence(metricRows)) {
     const observation = byId.get("pressure-floor-activity")!;
     rootCauseHypotheses.push({
       id: "pressure-floor-correlation",
@@ -2206,6 +2211,19 @@ function rvFillingValveChatterCoLocatedEvidence(metricRows: MetricRow[]): CoLoca
     .filter((candidate): candidate is CoLocatedEvidence => Boolean(candidate))
     .sort((a, b) => b.score - a.score || metricGroupKey(a.rows[0]).localeCompare(metricGroupKey(b.rows[0])));
   return evidence[0] ?? null;
+}
+
+function hasAovQDotRawCoreEvidence(metricRows: MetricRow[]): boolean {
+  return rawCoreRows(metricRows, ["qDotClampHitFraction"])
+    .some((row) => (
+      row.chamber === "LV"
+      && (row.value ?? 0) >= ROOT_CAUSE_SCORING_PROFILE.qDotClampHitFractionMin
+    ));
+}
+
+function hasPressureFloorRawCoreEvidence(metricRows: MetricRow[]): boolean {
+  return rawCoreRows(metricRows, ["pressureFloorHitFraction"])
+    .some((row) => (row.value ?? 0) >= ROOT_CAUSE_SCORING_PROFILE.pressureFloorHitFractionMin);
 }
 
 function metricRowGroups(rows: MetricRow[]): Map<string, MetricRow[]> {
