@@ -255,7 +255,24 @@ production tissue homogenization.
 - non-coverage: official morphology, atrial bridge selection, RV pressure overload, septal bowing, ventricular interdependence, and right-heart failure are not covered by this gate
 - future TriSeg path: preserve `triseg-lite-compatible`, `full-triseg-compatible`, and full TriSeg escalation before those mechanisms are claimed
 
-### PR 4D — selected production mechanics calibration
+### PR 4D — selected-mechanics calibration readiness
+
+- gate script: `npm run verify:myocardium-selected-mechanics-calibration-readiness`
+- descriptor: `data/myocardium/protocols/selected-mechanics-calibration-phase4d-protocols.json`
+- selected candidate implementation: `engine/myocardium/kinematics/thickSphereV2SelectedBackend.ts`
+- scope: `selected-mechanics-calibration-readiness-only`; this is a descriptor/report/verifier/test/docs gate and not runtime wiring
+- selected candidate: `thick-sphere-v2-explicit-external-septal-coupling` / `thick-sphere-v2`
+- candidate executable claim: `selected-thick-sphere-v2-calibration-candidate-executable`
+- candidate identity: v2-owned LV/RV parameter set ids `kinematics-lv-thick-sphere-v2-calibration-candidate-v1` and `kinematics-rv-thick-sphere-v2-calibration-candidate-v1`, with stable hashes distinct from Phase 3 `thick-sphere-spike-v1`
+- geometry checks: finite-strain LV/RV thick-sphere samples, calibration-domain coverage, analytic `dE_f/dV` vs finite difference, deterministic replay
+- calibration freedom matrix: fixed Land source `Tref`, no free homogenization gain, no free pressure gain, no free geometry gain, target packs and measurement hooks only
+- composition smoke: Land-style active source stress, Phase 4C-A passive candidate output, and Phase 4C-B generalized-force mapper are combined on synthetic selected-backend samples; virtual-power residual and `m3` pressure maps must be finite
+- source boundary: Decisions 4, 5, 6, and 8 remain `PENDING OWNER`; accepted Decision 19 owner selection is reused read-only; Phase 4A dossier remains frozen/read-only
+- prior evidence: Phase 4B-A, Phase 4B-B, Phase 4C-A, and Phase 4C-B pass/hash evidence reused read-only
+- frozen Phase 4B-A evidence: the prior executable coordinate path was `thick-sphere-spike-v1`; PR 4D must not treat `thick-sphere-spike-v1` as the current selected v2 candidate identity
+- morphology/no-alternans boundary: measurement hooks only; Phase 4B-A beat-stability smoke reused read-only; no official morphology pass, no robust calcium-cycling no-alternans validation
+- non-coverage: no production mechanics completion, no production validation, no live runtime replacement, no ModelCore/chamber/schema/official-case/workbench wiring, no septal coordinate implementation, no septal coupling implementation, no RV pressure overload coverage, no septal bowing coverage, no ventricular interdependence coverage, and no right-heart failure coverage
+- future TriSeg path: preserve `triseg-lite-compatible`, `full-triseg-compatible`, and full TriSeg escalation before RV pressure overload, septal bowing, ventricular interdependence, or right-heart failure are claimed
 
 ## Phase 5 — stable local coupling and performance
 

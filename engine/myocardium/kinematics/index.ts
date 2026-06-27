@@ -20,6 +20,28 @@ export {
   type ThickSphereSpikeV1Params,
 } from "@/engine/myocardium/kinematics/thickSphereSpikeV1";
 export {
+  KINEMATICS_LV_THICK_SPHERE_V2_CALIBRATION_CANDIDATE_PARAMETER_SET_ID,
+  KINEMATICS_RV_THICK_SPHERE_V2_CALIBRATION_CANDIDATE_PARAMETER_SET_ID,
+  THICK_SPHERE_V2_LV_CAVITY_VOLUME_COORDINATE_ID,
+  THICK_SPHERE_V2_RV_CAVITY_VOLUME_COORDINATE_ID,
+  THICK_SPHERE_V2_SELECTED_BACKEND_ID,
+  THICK_SPHERE_V2_SELECTED_CALIBRATION_CANDIDATE,
+  THICK_SPHERE_V2_SELECTED_CALIBRATION_CANDIDATE_ID,
+  THICK_SPHERE_V2_SELECTED_LV_PARAMETER_SET,
+  THICK_SPHERE_V2_SELECTED_PARAMETER_SETS,
+  THICK_SPHERE_V2_SELECTED_RV_PARAMETER_SET,
+  ThickSphereV2SelectedBackend,
+  assertValidThickSphereV2SelectedParams,
+  computeThickSphereV2SelectedCandidateStableHash,
+  computeThickSphereV2SelectedParameterSetStableHash,
+  evaluateThickSphereV2SelectedBackend,
+  type ThickSphereV2SelectedCalibrationCandidate,
+  type ThickSphereV2SelectedExternalSeptalCouplingBoundary,
+  type ThickSphereV2SelectedParameterSet,
+  type ThickSphereV2SelectedParams,
+  type ThickSphereV2SelectedVentricle,
+} from "@/engine/myocardium/kinematics/thickSphereV2SelectedBackend";
+export {
   THICK_SPHERE_PHASE3A_CLAIM_BOUNDARY,
   THICK_SPHERE_PHASE3A_EVIDENCE_STATUS,
   runThickSpherePhase3AKinematicsReport,

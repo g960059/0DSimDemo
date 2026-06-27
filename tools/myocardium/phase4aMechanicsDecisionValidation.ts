@@ -36,6 +36,11 @@ const SHADOW_PROTOCOL_SCAN_EXCLUSIONS = new Set([
   // integration surfaces. Their own verifier scans runtime/case/workbench
   // surfaces for mapper references and live generalized-force wiring.
   "engine/myocardium/protocols/generalizedForceMapperReadiness.ts",
+  // Phase 4D selected-mechanics calibration-readiness artifacts are not
+  // runtime integration surfaces. Their own verifier scans runtime/case/
+  // workbench surfaces for selected v2 candidate references and live wiring.
+  "engine/myocardium/protocols/selectedMechanicsCalibrationReadiness.ts",
+  "engine/myocardium/kinematics/thickSphereV2SelectedBackend.ts",
 ]);
 
 export const REQUIRED_PHASE4A_CRITERION_IDS = [
