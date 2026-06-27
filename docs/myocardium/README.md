@@ -220,6 +220,32 @@ as primary/final scope remain non-covered by this initial backend; the future
 TriSeg path preserves `triseg-lite-compatible`, `full-triseg-compatible`, and
 full TriSeg escalation before those mechanisms are claimed.
 
+## Phase 4B-A Land active-stress replacement shadow readiness
+
+Run `npm run verify:myocardium-land-active-stress-replacement` to check the
+first Phase 4B-A shadow readiness gate for Land active-stress replacement. The
+descriptor is
+[`../../data/myocardium/protocols/land-active-stress-replacement-phase4b-protocols.json`](../../data/myocardium/protocols/land-active-stress-replacement-phase4b-protocols.json).
+It references the accepted Decision 19 owner selection, the frozen Phase 4A
+dossier, Phase 3C minimal loaded afterload family, Phase 2C prescribed
+shortening, Land source protocols, model spec, verification plan, and roadmap.
+
+This gate reports only `claimBoundary=shadow-replacement-readiness-only`. The
+selected Decision 19 backend remains
+`thick-sphere-v2-explicit-external-septal-coupling` / `thick-sphere-v2`, while
+the executable coordinate path is still Phase 3 coordinate-family shadow
+readiness using `thick-sphere-spike-v1`; this is not completion of the selected
+v2 backend. The checks cover Land pipeline finite/health/virtual-power
+readiness from Phase 3C, internal pressure/stroke/work/afterload ordering
+proxies with `morphologyProxyOutcome`, and prescribed-Ca beat-stability/no-
+alternans smoke using six state-carry preconditioning cycles followed by one
+warm-up plus three evaluated cycles, with a 5% drift tolerance and a separate
+1% alternans-pattern tolerance. It does not complete tissue homogenization, live runtime
+replacement, production validation, official morphology acceptance, runtime
+schema/state layout work, ModelCore/chamber wiring, official-case wiring, RV
+pressure-overload/interdependence coverage, or calcium-cycling alternans
+validation.
+
 ## Imported bundle checks
 
 Revision 3's original markdown hashes are preserved in

@@ -27,6 +27,7 @@
     "verify:myocardium-minimal-loaded-chamber": "vite-node tools/myocardium/verifyMinimalLoadedChamber.ts",
     "verify:myocardium-mechanics-decision": "vite-node tools/myocardium/verifyMechanicsDecisionDossier.ts",
     "verify:myocardium-mechanics-selection": "vite-node tools/myocardium/verifyMechanicsOwnerSelection.ts",
+    "verify:myocardium-land-active-stress-replacement": "vite-node tools/myocardium/verifyLandActiveStressReplacement.ts",
     "verify:starling-low-preload-matrix": "STARLING_LOW_PRELOAD_MATRIX_MAIN=1 vite-node tools/verifyStarlingLowPreloadMatrix.ts",
     "debug:starling-low-preload": "STARLING_LOW_PRELOAD_DEBUG_MAIN=1 vite-node tools/debugStarlingLowPreload.ts",
     "fit:left-filling": "vite-node tools/fitLeftFilling.ts",

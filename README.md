@@ -13,6 +13,8 @@
 
 現行コードは、legacy `ActiveStressChamberModel` を中核にした実働プロトタイプです。一方で、次の心筋収縮サブシステムは Revision 3 として全面置換方針を整理中です。心筋刷新の正典候補は [`docs/myocardium/`](docs/myocardium/) にあります。
 
+Phase 4B-A では、Land active-stress 置換に向けた最初の shadow readiness gate を追加しています。これは Phase 3C minimal loaded afterload family の出力を再利用した descriptor/report/verifier であり、live runtime replacement、公式 morphology pass、production validation、Phase 4B tissue homogenization 完了は主張しません。
+
 旧 ADR、旧ロードマップ、旧研究メモは、古い前提を正典のように読ませないためローカルの `docs/` から削除しました。必要な場合は git 履歴から参照してください。
 
 ---

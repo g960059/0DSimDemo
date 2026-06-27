@@ -135,6 +135,9 @@ describe("myocardium Phase 2C prescribed shortening Ca plus Land", () => {
       "/docs/myocardium/",
       "/engine/myocardium/protocols/calciumLandPrescribedShortening.ts",
       "/package.json",
+      "/data/myocardium/protocols/land-active-stress-replacement-phase4b-protocols.json",
+      "/engine/myocardium/protocols/landActiveStressReplacementReadiness.ts",
+      "/tools/myocardium/verifyLandActiveStressReplacement.ts",
       "/tools/myocardium/verifyPrescribedShortening.ts",
     ];
 
