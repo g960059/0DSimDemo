@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "registryId": "atrial-bridge-sources-v1",
+  "status": "supplemental-proposed",
+  "policy": {
+    "normativeUseRequires": "verificationStatus=verified",
+    "purpose": "Atrial bridge shootout and future atrial model bibliography. Does not replace data/myocardium/sources.json."
+  },
+  "sources": [
+    {
+      "id": "circadapt-chamber-docs-2407",
+      "verificationStatus": "verified-documentation",
+      "normativeForPhaseA": false,
+      "title": "Chamber — CircAdapt cavity component documentation",
+      "venue": "CircAdapt Framework documentation",
+      "year": 2024,
+      "version": "2407",
+      "url": "https://framework.circadapt.org/2407/userguide/components/node/cavity/Chamber.html",
+      "roles": [
+        "atrial-chamber-concept-reference",
+        "future-circadapt-lite-comparison"
+      ]
+    },
+    {
+      "id": "circadapt-components-docs-2407",
+      "verificationStatus": "verified-documentation",
+      "normativeForPhaseA": false,
+      "title": "CircAdapt Framework component overview",
+      "venue": "CircAdapt Framework documentation",
+      "year": 2024,
+      "version": "2407",
+      "url": "https://framework.circadapt.org/2407/userguide/components.html",
+      "roles": [
+        "module-boundary-context",
+        "future-patch-wall-cavity-comparison"
+      ]
+    },
+    {
+      "id": "fedele2022-whole-heart-electromechanics",
+      "verificationStatus": "research-context-pending-publisher-record",
+      "normativeForPhaseA": false,
+      "title": "A comprehensive and biophysically detailed computational model of the whole human heart electromechanics",
+      "venue": "arXiv / journal record to verify before normative use",
+      "year": 2022,
+      "persistentId": "arXiv:2207.12460",
+      "roles": [
+        "atrial-pv-loop-context",
+        "future-land-rdq-atrial-reference",
+        "not-phase6-bridge-equation-source"
+      ],
+      "restriction": "Do not use as equation or parameter source until exact publisher version and extracted equations/targets are verified."
+    }
+  ]
+}

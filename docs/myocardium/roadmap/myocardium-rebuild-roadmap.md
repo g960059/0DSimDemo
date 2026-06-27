@@ -13,6 +13,15 @@ source_design_record: "../research/myocardial-contraction-rebuild-design-record.
 
 > **Traceability note:** 以下の節番号はdesign recordとの相互参照を保つため、元文書の番号を維持する。
 
+## PR #166 review deltas
+
+PR #166 proposes two additive roadmap changes:
+
+1. Add **Phase 5.5 — atrial bridge shootout** before Phase 6. See [ADR-MYO-002](../adr/ADR-MYO-002-atrial-bridge.md) and [atrial-bridge-shootout-roadmap.md](atrial-bridge-shootout-roadmap.md).
+2. Carry Phase 2B/Level 3 review deltas into future scripts and gates. See [phase2b-level3-review-deltas.md](../review-notes/phase2b-level3-review-deltas.md).
+
+Until ADR-MYO-002 is accepted, existing `clean atrial elastance bridge` wording is treated as pending review rather than an active default.
+
 # 19. 実装PhaseとPR分割
 
 ## Phase 0 — ADR、document split、target/claim freeze
@@ -71,6 +80,11 @@ owner sign-off:
 
 ### PR 2B — isometric Ca + Land
 
+- report source-stress timing, FWHM, TTP, relaxation, dT/dt
+- additionally report the mechanistic fields in `data/myocardium/protocols/phase2b-mechanistic-report-fields-v1.json`
+- clarify Ca amplitude vs absolute peak Ca: `peakAmplitudeUM=0.9` with `diastolicCaUM=0.12` implies `targetAbsolutePeakCaUM≈1.02 uM`
+- report `CaT50AtFixedStrainUM` and `CaAtStressPeakUM`
+
 ### PR 2C — prescribed shortening
 
 - consistent rate derivation
@@ -126,6 +140,26 @@ leaves the Phase 3A volume domain is a closure failure.
 - unlocks: Phase 4A Decision 19 decision-dossier work only
 - boundary: does not authorize Phase 4B+, production mechanics integration, runtime/schema/official-case wiring, passive law acceptance, TriSeg adoption, or Decision 19 acceptance
 
+### Level 3 source-stress transfer entry gate proposed in PR #166
+
+Before treating Phase 3C/Level 3 as scale-consistent, verify:
+
+```text
+Phase 2B source stress peak around 37 kPa
+→ chamber-realized stress around expected 10–16 kPa
+→ approximately 120 mmHg-class loaded morphology
+```
+
+This gate must not rely on:
+
+- `Tref` rescaling;
+- free homogenization gain;
+- geomChi-like pressure gain;
+- arbitrary tension filter;
+- morphology-only viscosity.
+
+Artifact: `data/myocardium/protocols/level3-source-stress-transfer-gate-v1.json`.
+
 ## Phase 4 — production mechanics selection and integration
 
 ### PR 4A — production mechanics Decision 19 dossier
@@ -157,6 +191,10 @@ overload, septal bowing, ventricular interdependence, or right-heart failure as
 primary/final scope. The future TriSeg path preserves
 `triseg-lite-compatible`, `full-triseg-compatible`, and full TriSeg escalation
 before those mechanisms are claimed.
+
+Decision table row retained for owner-decision traceability:
+
+| 19 | production ventricular mechanics | thick-sphere-v2-explicit-external-septal-coupling (initial thick-sphere-v2 backend) | before Phase 4B+ | ACCEPTED 2026-06-27 |
 
 ### PR 4B-A — Land active-stress replacement shadow readiness
 
@@ -208,21 +246,69 @@ production tissue homogenization.
 - performance smoke
 - ModelCore registry integration
 
-## Phase 6 — LV/RV closed loop with temporary atrial bridge
+### Layer consistency and alternans policy proposed in PR #166
+
+Future Phase 5/6 reports must recheck Phase 2B shape/timing through later layers:
+
+```text
+FWHM
+time-to-peak
+relaxation tau
+Ca-to-stress peak delay
+```
+
+They must also reproduce legacy activeStress alternans under a fixed protocol and check the new myocardium under the same protocol. Final no-alternans interpretation must not rely on BE alone; SDIRK2 or an equivalent second-order reference is required.
+
+Artifact: `data/myocardium/protocols/layer-consistency-and-alternans-policy-v1.json`.
+
+## Phase 5.5 — atrial bridge shootout proposed in PR #166
+
+See:
+
+```text
+docs/myocardium/adr/ADR-MYO-002-atrial-bridge.md
+docs/myocardium/model-spec/atrial-bridge-v1.md
+docs/myocardium/verification/atrial-bridge-v1-verification.md
+docs/myocardium/roadmap/atrial-bridge-shootout-roadmap.md
+```
+
+Candidates:
+
+```text
+E0: atrial-elastance-negative-control-v0
+A0: legacy-atrial-active-bridge-v0
+A1: atrial-reservoir-booster-bridge-v1
+```
+
+This phase must run before Phase 6 if ADR-MYO-002 is accepted.
+
+## Phase 6 — LV/RV closed loop with selected atrial bridge
+
+Previous text assumed:
 
 ```text
 LV/RV: new Land-based myocardium
 LA/RA: clean atrial elastance bridge
 ```
 
+PR #166 proposes replacing that assumption with:
+
+```text
+LV/RV: new Land-based myocardium
+LA/RA: selected validated atrial bridge from Phase 5.5
+```
+
 - closed-loop validation
 - morphology transfer
 - qDot/valve controls
 - claim-boundary validation
+- atrial bridge contamination report
 
 ## Phase 7 — atrial research phase
 
 human atrial data、activation timing、AV-plane、reservoir/conduit/boosterを専用に扱う。LV parameter縮小コピーは禁止する。
+
+Land/RDQ atrial work should be judged against the frozen legacy atrial-active baseline and AtrialReservoirBoosterBridgeV1, not adopted only because it is more mechanistic.
 
 ## Phase 8 — legacy removal and case re-authoring
 
@@ -239,6 +325,7 @@ TriSeg upgrade when not selected in Phase 4
 MultiPatch/regional heterogeneity
 regional activation / pacing / dyssynchrony
 RDQ20 research backend
+LandAtrialV1 / RDQAtrialV1
 ```
 
 これらを一つのPhaseとしてまとめて実装しない。
@@ -268,354 +355,18 @@ RDQ20 research backend
 
 - legacy `HeartModelMode`とscale fieldsを廃止。
 - typed myocardium instance specs、claim level、solver/provenanceを追加。
+- Phase 6 atrial bridge selection is read from the accepted Decision 21 artifact if ADR-MYO-002 is accepted.
 
 ## `engine/core/params.ts` / `engine/knobs.ts`
 
-- legacy scale knobs削除。
-- prescribed Ca、myofilament、passive、viable fractionのversioned recipeへ変更。
-- SERCA/RyR等のrecipeは保存型Ca backendなしに追加しない。
+- old active-stress resolverをnew runtimeで使用しない。
+- mechanism-based intervention resolverを追加。
+- prescribed-Ca claim boundaryをUI/recipeへ伝播。
 
-## `engine/stateContract.ts`
-
-- state instance path、block metadata、model IDs、target/claim/temperatureをserialize。
-- old snapshotを明示拒否。
-
-## Existing low-preload tools
-
-- pressure morphology、qDot、event diagnosticsを保持。
-- legacy `c/a/Kd/fIso/gOver/lambdaAct`を新diagnosticsへ置換。
-- source stress、wall stress、generalized forces、activation event、solver residualを追加。
-
-## New files
+## New tools expected later
 
 ```text
-engine/myocardium/activation/*
-engine/myocardium/state/*
-engine/myocardium/calcium/*
-engine/myocardium/myofilament/land2017/*
-engine/myocardium/homogenization/*
-engine/myocardium/kinematics/*
-engine/myocardium/material/*
-engine/myocardium/mechanics/*
-engine/myocardium/coupling/*
-engine/chambers/atrialElastanceBridge.ts
-tools/myocardium/*
-```
-
-# 21. Suggested package scripts
-
-```json
-{
-  "scripts": {
-    "verify:myocardium-contracts": "vite-node tools/myocardium/verifyContracts.ts",
-    "verify:myocardium-land-protocols": "vite-node tools/myocardium/verifyLandProtocols.ts",
-    "verify:myocardium-prescribed-calcium": "vite-node tools/myocardium/verifyPrescribedCalcium.ts",
-    "verify:myocardium-calcium-land-isometric": "vite-node tools/myocardium/verifyCalciumLandIsometric.ts",
-    "verify:myocardium-prescribed-shortening": "vite-node tools/myocardium/verifyPrescribedShortening.ts",
-    "verify:myocardium-thick-sphere-kinematics": "vite-node tools/myocardium/verifyThickSphereKinematics.ts",
-    "verify:myocardium-generalized-forces": "vite-node tools/myocardium/verifyGeneralizedForces.ts",
-    "verify:myocardium-minimal-loaded-chamber": "vite-node tools/myocardium/verifyMinimalLoadedChamber.ts",
-    "verify:myocardium-land-active-stress-replacement": "vite-node tools/myocardium/verifyLandActiveStressReplacement.ts",
-    "verify:generalized-forces": "vite-node tools/myocardium/verifyGeneralizedForces.ts",
-    "verify:single-chamber": "vite-node tools/myocardium/verifySingleChamber.ts",
-    "verify:myocardial-coupling": "vite-node tools/myocardium/compareCouplingSolvers.ts",
-    "verify:morphology-transfer": "vite-node tools/myocardium/reportMorphologyTransfer.ts",
-    "verify:claim-boundary": "vite-node tools/myocardium/verifyClaimBoundary.ts",
-    "benchmark:myocardium-runtime": "vite-node tools/myocardium/benchmarkRuntime.ts",
-    "report:myocardial-identifiability": "vite-node tools/myocardium/identifiabilityReport.ts"
-  }
-}
-```
-
-CI:
-
-```text
-fast PR: contracts + selected Land/Ca tests
-hypothesis PR: isometric + prescribed shortening + afterload family
-mechanics PR: generalized force + rank + single chamber
-nightly: closed-loop + bifurcation + performance + claim-boundary
-```
-
-Phase 3 gate artifactにはparameter/provenance、joint-feasibility summary、morphology transfer、commandsを含める。
-
-# 25. Definition of Done
-
-## Scientific
-
-- Land source protocolsがversioned targetに合格。
-- activation、prescribed Ca、Land、homogenization、mechanicsの責務が分離。
-- prescribed shorteningと複数afterload loaded protocolにjoint feasible regionがある。
-- loaded morphology targetを、SV/peak/ejection/clamp artifactなしに通過。
-- source stress→wall stress→generalized forceの仮定とprovenanceが明示。
-- selected production mechanics backendの適用範囲とlimitationsが明示。
-- prescribed-Ca版がSR/RyR/SERCAをmechanisticに主張しない。
-
-## Numerical
-
-- BE/2次local referenceとproduction couplingが存在。
-- strain/rate consistency、stabilization、algorithmic tangentを検証。
-- multi-coordinate virtual-power test pass。
-- silent clamp/projectionなし。
-
-## Closed loop
-
-- normal/HR/preload/afterload、TBV/LV-RV balance、morphology pass。
-- qDot/valve event contaminationを分類。
-- atrial configurationが明示。
-
-## Performance
-
-- approved realtime budgetを満たし、main threadをblockしない。
-
-## Software/governance
-
-- hierarchical patch-ready state layout。
-- model/parameter/solver/target/claim/temperature provenance。
-- legacy runtime/state/caseをsilent migrationしない。
-- official casesをclaim-aware recipeで再authoring。
-- ADR、model spec、verification plan、roadmap、design recordが同期。
-- source registryの完全書誌がmerge gateを通る。
-
-# 26. Open decisions requiring model-team sign-off
-
-本節の推奨はowner判断用baselineである。
-
-## 26.1 Decision summary
-
-| # | Decision | Recommended default | Decide by | Status |
-|---:|---|---|---|---|
-| 1 | Land parameter variant | intact-human-37°C source set | Phase 0/1 | PENDING OWNER |
-| 2 | Land source stress convention | fiber nominal / first-Piola scalar | Phase 0 | PENDING OWNER |
-| 3 | fiber strain coordinate | engineering strain | Phase 0 | PENDING OWNER |
-| 4 | source→wall homogenization | explicit adapter、fixed/independently constrained | Phase 4 | PENDING OWNER |
-| 5 | sarcomere reference/anchor | source `Ls0` fixed、anchor fixed/narrow prior | Phase 3/4 | PENDING OWNER |
-| 6 | passive law | convex exponential energy family | Phase 4 | PENDING OWNER |
-| 7 | time integrator | BE bring-up、SDIRK2 reference、production benchmark | Phase 5 | PENDING OWNER |
-| 8 | stiffness/tangent semantics | stabilization/algorithmic/frozenの3分離 | Phase 0/1 | PENDING OWNER |
-| 9 | ActivationEvent contract | event ID＋time since event＋cycle length | Phase 0 | PENDING OWNER |
-| 10 | prescribed Ca target/HR | paired Land＋human target、cycle-length knots | Phase 2 | PENDING OWNER |
-| 11 | production Ca claim boundary | SERCA/RyR/SR-loadは保存型Caまで禁止 | Phase 0 | PENDING OWNER |
-| 12 | closed-loop targets | versioned fit/validation/holdout packs | Phase 0 | PENDING OWNER |
-| 13 | atrial progression gate | ventricular gates後 | Phase 6/7 | PENDING OWNER |
-| 14 | loaded morphology target | composite pack、same measurement code | Phase 0 | ACCEPTED 2026-06-26 |
-| 15 | early kill gate | joint feasibility後GO/REVISE/NO-GO | Phase 0/3 | ACCEPTED 2026-06-26 |
-| 16 | realtime budget | 10× realtime等の暫定値 | Phase 0/5 | PENDING OWNER |
-| 17 | temperature | fixed 310.15 K | Phase 0 | PENDING OWNER |
-| 18 | first release atria | Land ventricles＋documented atrial bridge案 | release | PENDING OWNER |
-| 19 | production ventricular mechanics | thick-sphere-v2-explicit-external-septal-coupling (initial thick-sphere-v2 backend) | before Phase 4B+ | ACCEPTED 2026-06-27 |
-| 20 | regional runtime scope | schema only、MultiPatch runtimeは別ADR | Phase 0 | PENDING OWNER |
-
-## 26.2 Recommended decisions
-
-### Decision 1 — Land variant
-
-`land2017-intact-human-37c-source-v1`から開始し、source setをimmutableに保つ。
-
-### Decision 2 — source stress convention
-
-Land `T_a`をengineering strainに共役なfiber nominal/first-Piola scalar stressと解釈する。
-
-### Decision 3 — strain coordinate
-
-\[
-E_f=L_s/L_{s,0}-1
-\]
-
-### Decision 4 — homogenization
-
-source Land outputをwall stressへ直結せず、active tissue fractionとorientation ruleを持つadapterを使う。初期値は固定/独立拘束し、PV loopだけでfitしない。
-
-### Decision 5 — sarcomere anchor
-
-`Ls0`はsource固定、`Ls,anchor`と`Vanchor`は独立data/狭いprior。rankが不足する場合は自由度を減らす。
-
-### Decision 6 — passive law
-
-旧parameterを移植せず、engineering strainに対するconvex exponential energy family。
-
-### Decision 7 — integrator
-
-BE bring-up、SDIRK2 release reference、productionはaccuracy/performanceで選ぶ。
-
-### Decision 8 — tangent semantics
-
-`stabilizationStiffnessPa`、`algorithmicTangentPa`、`frozenStateTangentPa`を別fieldにする。
-
-### Decision 9 — ActivationEvent
-
-`activationEventId`、`timeSinceActivationSec`、`cycleLengthSec`をsingle source of truthとし、HR/phase/event flagを重複させない。
-
-### Decision 10 — prescribed Ca
-
-Land paired target＋human experimental target、cycle-length knot table。backend名は `PrescribedCalciumTransientV1`。
-
-### Decision 11 — Ca claim boundary
-
-保存型Ca backendなしにSERCA/RyR/SR-loadをofficial mechanistic interventionとして出さない。
-
-### Decision 12 — closed-loop targets
-
-anatomy、hemodynamics、morphology、dynamic responseを分け、fit/validation/holdout/sanity roleを持たせる。
-
-### Decision 13 — atrial progression
-
-ventricular scientific/numerical/performance/identifiability gateとatrial data policy承認後。
-
-### Decision 14 — morphology
-
-FWHM単独でなくwidth、time-to-peak、relaxation、ejection、dP/dt、pressure-flow phase、peak/SV/COを一つのpackで扱う。
-
-### Decision 15 — early kill
-
-cell/tissue＋prescribed shortening＋複数loaded protocolのjoint feasible regionで判断する。
-
-### Decision 16 — performance
-
-暫定 `>=10x realtime`、`60 s <= 6 wall s`、first sample `<=150 ms`、no main-thread simulation。
-
-### Decision 17 — temperature
-
-`fixed-310.15K-v1`。低体温はQ10等を含む別ADR。
-
-### Decision 18 — first release atria
-
-推奨案AはLand LV/RV＋clean atrial elastance bridge。hybrid limitationをUI/provenanceへ表示する。
-
-### Decision 19 — production ventricular mechanics
-
-Phase 3 spikeではthick-sphereを固定利用する。Decision 19 owner selectionは`thick-sphere-v2-explicit-external-septal-coupling`（initial `thick-sphere-v2` backend）をACCEPTED 2026-06-27として別artifactに記録する。Phase 4A dossierはhistorical recommendation-onlyで、`selectedCandidateId: null`のまま保持する。limited-scope immediate priorityはcurrent active stressをLand active stressへreplaceし、morphology gate pass/failとbeat-stability/no-alternansを確認することに限る。RV pressure overload、septal bowing、ventricular interdependence、right-heart failureはprimary/final scopeとしてcoveredではない。future TriSeg pathとして`triseg-lite-compatible`、`full-triseg-compatible`、full TriSeg escalationを、これらのmechanismをclaimする前に保持する。TriSegを自動的な必須条件にしない。
-
-### Decision 20 — regional runtime
-
-state schemaはwall/region/patch-readyとするが、MultiPatch runtime、regional activation、AMI/LBBB/CRTは別ADRまで初期scopeへ含めない。
-
-## Initial checklist
-
-# Appendix A — Initial implementation checklist
-
-```text
-[ ] legacy tag created
-[ ] ADR merged
-[ ] owner decision log created
-[ ] stress measure accepted
-[ ] strain coordinate accepted
-[ ] Land source variant policy accepted
-[ ] morphology measurement definition frozen
-[ ] current ~92 ms baseline artifact archived
-[ ] human morphology target pack versioned
-[ ] performance reference hardware benchmarked
-[ ] model IDs fixed
-[ ] units contract merged
-[ ] dynamic state block merged
-[ ] Land equations transcribed with equation references
-[ ] source parameter sets immutable
-[ ] Land parameter provenance checked
-[ ] Land protocol fixtures committed
-[ ] stabilization/tangent semantics fixed
-[ ] algorithmic tangent re-solved FD test passing
-[ ] prescribed Ca backend implemented and validated
-[ ] HR knot table validated
-[ ] Ca/Land hierarchical fit tooling available
-[ ] isometric twitch gate passing
-[x] prescribed-shortening transfer report passing (`verify:myocardium-prescribed-shortening`)
-[x] fixed thick-sphere kinematics report passing (`verify:myocardium-thick-sphere-kinematics`)
-[x] identity homogenization/generalized-force report passing (`verify:myocardium-generalized-forces`)
-[ ] kinematics/sarcomere bridge derivation reviewed for production mechanics
-[x] minimal loaded chamber spike completed (`verify:myocardium-minimal-loaded-chamber`)
-[x] Phase 3 owner GO/REVISE/NO-GO recorded (`data/myocardium/gates/phase3-owner-go-v1.json`)
-[x] Phase 4A mechanics decision dossier created (`verify:myocardium-mechanics-decision`)
-[ ] geometry identifiability rank gate passing
-[ ] virtual-power tests passing
-[ ] passive energy law passing
-[ ] local monolithic BE reference passing
-[ ] local monolithic SDIRK2 reference passing
-[ ] partitioned solver converges to reference
-[ ] production performance gate passing
-[ ] temporary atrial elastance bridge isolated
-[ ] LV closed-loop matrix passing
-[ ] RV closed-loop matrix passing
-[ ] loaded LVP/RVP morphology target passing
-[ ] morphology transfer report attached
-[ ] qDot/valve confounder report attached
-[ ] state schema broken intentionally
-[ ] old loader rejects explicitly
-[ ] official cases re-authored
-[ ] final atrial release policy recorded
-[ ] legacy active-stress code removed
-[ ] model limitations shown in result/UI
-```
-
-## PR review template
-
-# Appendix B — PR review template
-
-```markdown
-## Scientific scope
-- Model/equations version:
-- Parameter set:
-- Data/fixture provenance:
-- Target pack IDs:
-- Decision baseline ID:
-- Which assumptions changed:
-- Which assumptions did not change:
-
-## Central hypothesis
-- Current gate: C1 / C2 / D0 / D1 / closed loop
-- Does this PR move the loaded morphology hypothesis toward GO, REVISE, or NO-GO?
-- Is the same parameter set used across levels?
-- Could improvement be explained by pressure/SV/ejection suppression?
-
-## Numerical method
-- Solver/coupling:
-- dt matrix:
-- Reference comparison:
-- Stabilization stiffness definition:
-- Algorithmic tangent test:
-- Failure policy:
-
-## Validation
-- Cell protocol result:
-- Isometric morphology:
-- Prescribed-shortening result:
-- Minimal loaded chamber result:
-- Production single-chamber result:
-- Closed-loop result:
-- Morphology transfer summary:
-- qDot/valve/clamp contamination:
-- Known failures:
-
-## Identifiability
-- Free parameters:
-- Fixed parameters:
-- Priors/anchors:
-- Numerical rank:
-- Condition/correlation result:
-- Multi-start result:
-- Profile likelihood result:
-
-## Performance
-- Reference hardware:
-- Simulated seconds / wall second:
-- First sample latency:
-- Median / p95:
-- Main-thread long tasks:
-- Allocation / GC:
-
-## Compatibility
-- State schema impact:
-- Case impact:
-- Snapshot impact:
-- Silent fallback present: MUST be no
-
-## Owner decisions
-- Decision(s) required:
-- Recommended option:
-- Alternatives:
-- Owner outcome:
-
-## Artifacts
-- JSON:
-- CSV:
-- plots:
-- command:
+tools/myocardium/verifyAtrialBridgeShootout.ts
+tools/myocardium/verifyLayerConsistency.ts
+tools/myocardium/verifyAlternansPolicy.ts
 ```

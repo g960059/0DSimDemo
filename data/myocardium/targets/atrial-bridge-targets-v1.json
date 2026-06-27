@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "id": "atrial-bridge-targets-v1",
+  "status": "proposed",
+  "claimBoundary": "temporary-atrial-bridge-selection-only",
+  "measurementDefinitions": {
+    "pvLoopRoughness": {
+      "description": "Discrete approximation of integral(abs(d2P/dV2)) divided by integral(abs(dP/dV)) plus epsilon; exact implementation must be recorded by the verification script.",
+      "unit": "dimensionless",
+      "role": "selection-comparison",
+      "samplingSensitivityPolicy": "Must be computed under at least two sampling rates or resampling grids. Candidate ordering must be reported and should be stable before roughness is used for selection."
+    },
+    "pressureHighFrequencyEnergy": {
+      "description": "Fraction of beat-aligned atrial pressure energy above the configured high-frequency band.",
+      "unit": "dimensionless",
+      "role": "selection-comparison"
+    },
+    "dPdtSpikeCount": {
+      "description": "Number of dP/dt spikes exceeding the configured robust threshold per beat.",
+      "unit": "countPerBeat",
+      "role": "selection-comparison"
+    },
+    "aLoopAreaProxy": {
+      "description": "Area proxy for the booster-pump loop in atrial PV space. Used with a lower-bound policy so roughness cannot be improved by suppressing atrial kick.",
+      "unit": "Pa*m3",
+      "role": "anti-overdamping"
+    },
+    "vLoopAreaProxy": {
+      "description": "Area proxy for the reservoir/conduit loop in atrial PV space.",
+      "unit": "Pa*m3",
+      "role": "sanity"
+    },
+    "aOverVLoopRatio": {
+      "description": "A-loop area proxy divided by V-loop area proxy plus epsilon. Used to detect booster suppression or pathological overdominance.",
+      "unit": "dimensionless",
+      "role": "anti-overdamping"
+    },
+    "boosterContributionLowerBound": {
+      "description": "Candidate-specific lower-bound check for booster/A-loop contribution. Exact absolute or comparator-relative threshold must be fixed before implementation.",
+      "unit": "policy",
+      "role": "anti-overdamping"
+    },
+    "preloadStabilityIndex": {
+      "description": "Beat-to-beat stability of downstream ventricular preload under the atrial bridge candidate.",
+      "unit": "dimensionless",
+      "role": "selection-comparison"
+    },
+    "qDotClampHitFraction": {
+      "description": "Fraction of relevant valve-flow samples affected by qDot clamp/event surfaces.",
+      "unit": "dimensionless",
+      "role": "hard-contamination"
+    }
+  },
+  "candidateComparisonPolicy": {
+    "negativeControlCandidateId": "atrial-elastance-negative-control-v0",
+    "legacyComparatorCandidateId": "legacy-atrial-active-bridge-v0",
+    "preferredCandidateId": "atrial-reservoir-booster-bridge-v1",
+    "rules": [
+      "Preferred candidate must improve PV-loop roughness relative to the negative control.",
+      "Preferred candidate should be no worse than the legacy comparator on roughness or pass a predeclared absolute smoothness target; merely beating E0 is not enough.",
+      "PV-loop roughness ranking must be reported under multiple sampling rates or resampling grids.",
+      "Preferred candidate must not win by overdamping: A-loop or booster contribution must satisfy the configured lower-bound policy.",
+      "Preferred candidate should not worsen qDot/valve contamination relative to legacy comparator.",
+      "Fallback to legacy comparator is allowed only with owner acceptance and legacyComparator provenance.",
+      "Negative control cannot be selected by default if it exhibits jagged PV loops, pressure high-frequency energy, or preload instability."
+    ]
+  },
+  "notes": [
+    "This target pack intentionally uses relative and sanity targets first. Absolute atrial clinical targets require a separate data audit.",
+    "Passing this pack does not validate atrial Land/RDQ, AF, atrial myopathy, or atrial calcium cycling.",
+    "Roughness is useful only when paired with booster/A-loop preservation and contamination checks."
+  ]
+}

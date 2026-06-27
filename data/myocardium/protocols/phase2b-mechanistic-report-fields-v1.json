@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "id": "phase2b-mechanistic-report-fields-v1",
+  "status": "proposed",
+  "phase": "2B",
+  "claimBoundary": "standalone-isometric-ca-land-source-stress-only",
+  "purpose": "Require mechanistic Ca/Land source-stress fields in Phase 2B reports so peak Ca amplitude, absolute Ca, strain, lambda and stress timing are not misread before Level 3 transfer.",
+  "requiredFields": [
+    {
+      "name": "fixedFiberEngineeringStrain",
+      "unit": "dimensionless",
+      "description": "Fixed engineering strain used by the isometric Phase 2B twitch."
+    },
+    {
+      "name": "lambda",
+      "unit": "dimensionless",
+      "description": "Fiber stretch ratio corresponding to fixedFiberEngineeringStrain."
+    },
+    {
+      "name": "hLambda",
+      "unit": "dimensionless",
+      "description": "Land length-dependent factor h(lambda), reported for mechanistic traceability."
+    },
+    {
+      "name": "diastolicCaUM",
+      "unit": "uM",
+      "description": "Diastolic free Ca baseline used by the prescribed transient."
+    },
+    {
+      "name": "targetPeakAmplitudeUM",
+      "unit": "uM",
+      "description": "Peak amplitude above diastolic Ca, not the absolute target peak."
+    },
+    {
+      "name": "targetAbsolutePeakCaUM",
+      "unit": "uM",
+      "description": "Absolute target peak Ca = diastolicCaUM + targetPeakAmplitudeUM."
+    },
+    {
+      "name": "measuredPeakCaUM",
+      "unit": "uM",
+      "description": "Measured absolute peak free Ca in the Phase 2B trace."
+    },
+    {
+      "name": "caPeakTimeMs",
+      "unit": "ms",
+      "description": "Time of measured peak free Ca."
+    },
+    {
+      "name": "stressPeakTimeMs",
+      "unit": "ms",
+      "description": "Time of sourceActiveFiberStressPa peak."
+    },
+    {
+      "name": "caToStressPeakDelayMs",
+      "unit": "ms",
+      "description": "stressPeakTimeMs - caPeakTimeMs."
+    },
+    {
+      "name": "CaT50AtFixedStrainUM",
+      "unit": "uM",
+      "description": "CaT50 evaluated at the fixed Phase 2B strain, using the accepted Land source parameterization."
+    },
+    {
+      "name": "CaAtStressPeakUM",
+      "unit": "uM",
+      "description": "Free Ca value at sourceActiveFiberStressPa peak."
+    }
+  ],
+  "clarifications": [
+    "targetPeakAmplitudeUM is an amplitude above diastolic Ca, not an absolute Ca target.",
+    "For the current Phase 2B review example, peakAmplitudeUM=0.9 with diastolicCaUM=0.12 implies targetAbsolutePeakCaUM≈1.02 uM; a measuredPeakCaUM≈1.016 uM is close to the absolute target and must not be interpreted as a 13% overshoot.",
+    "Reports should include both targetPeakAmplitudeUM and targetAbsolutePeakCaUM whenever prescribed Ca peak behavior is discussed."
+  ],
+  "exampleReviewedValues": {
+    "diastolicCaUM": 0.12,
+    "targetPeakAmplitudeUM": 0.9,
+    "targetAbsolutePeakCaUMApprox": 1.02,
+    "measuredPeakCaUMApprox": 1.016,
+    "caPeakTimeMsApprox": 94,
+    "stressPeakTimeMsApprox": 187,
+    "caToStressPeakDelayMsApprox": 93,
+    "sourceTwitchFwhmMsApprox": 234,
+    "sourceTwitchTimeToPeakMsApprox": 187
+  },
+  "reportConsumers": [
+    "tools/myocardium/verifyCalciumLandIsometric.ts",
+    "tools/myocardium/verifyMinimalLoadedChamber.ts",
+    "docs/myocardium/verification/myocardium-v1-verification.md"
+  ]
+}

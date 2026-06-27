@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "id": "atrial-bridge-decision21-phase6-selection-v1",
+  "decisionNumber": 21,
+  "title": "Phase 6 atrial bridge selection",
+  "status": "PENDING_OWNER",
+  "phase": "5.5",
+  "createdAt": "2026-06-27",
+  "relatedAdr": "docs/myocardium/adr/ADR-MYO-002-atrial-bridge.md",
+  "relatedVerificationPlan": "docs/myocardium/verification/atrial-bridge-v1-verification.md",
+  "relatedProtocol": "data/myocardium/protocols/atrial-bridge-shootout-phase5p5-protocols.json",
+  "relatedTargets": "data/myocardium/targets/atrial-bridge-targets-v1.json",
+  "candidates": [
+    {
+      "id": "atrial-elastance-negative-control-v0",
+      "role": "negative-control",
+      "selectableByDefault": false
+    },
+    {
+      "id": "legacy-atrial-active-bridge-v0",
+      "role": "quarantined-comparator-or-fallback",
+      "selectableByDefault": false,
+      "requiresOwnerOverride": true,
+      "requiredProvenance": {
+        "legacyComparator": true,
+        "laRaOnly": true,
+        "frozenParameters": true,
+        "noLegacyLvRvActiveStress": true,
+        "noFinalModelClaim": true
+      }
+    },
+    {
+      "id": "atrial-reservoir-booster-bridge-v1",
+      "role": "preferred-new-bridge-candidate",
+      "selectableByDefault": true
+    }
+  ],
+  "selection": {
+    "selectedCandidateId": null,
+    "owner": null,
+    "acceptedAt": null,
+    "acceptedSourceType": null,
+    "acceptedSourceRef": null
+  },
+  "gatesRequiredBeforeSelection": [
+    "isolated-la-v1",
+    "isolated-ra-v1",
+    "paired-filling-la-lv-v1",
+    "paired-filling-ra-rv-v1",
+    "closed-loop-smoke-v1"
+  ],
+  "notes": [
+    "This decision supersedes the unqualified clean atrial elastance bridge assumption for Phase 6.",
+    "A script may recommend a candidate, but owner selection remains explicit and separate.",
+    "Selecting the legacy comparator does not restore runtime backward compatibility."
+  ]
+}

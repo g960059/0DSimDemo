@@ -6,18 +6,24 @@ Baseline repository commit: `228bef96e5f522de2cfe352de5d6d4d2f017c550`
 
 Revision 3 is the current planning namespace for the myocardial contraction
 subsystem replacement. It is not a patch plan for the existing
-`ActiveStressChamberModel`, and it does not change runtime TypeScript behavior
-until Phase 0 owner decisions are accepted.
+`ActiveStressChamberModel`. This docs/data update does not change runtime
+TypeScript behavior; runtime integration still requires the later phase gates
+called out below.
 
 ## Read order
 
 | Priority | Document | Purpose |
 |---:|---|---|
 | 1 | [adr/ADR-MYO-001.md](adr/ADR-MYO-001.md) | Scope, decision, consequences, required owner decisions |
+| 1a | [adr/ADR-MYO-002-atrial-bridge.md](adr/ADR-MYO-002-atrial-bridge.md) | Proposed superseding/additive Phase 6 atrial bridge plan |
 | 2 | [model-spec/myocardium-land-v1.md](model-spec/myocardium-land-v1.md) | Normative model/API/units/state/solver contracts |
+| 2a | [model-spec/atrial-bridge-v1.md](model-spec/atrial-bridge-v1.md) | Proposed atrial bridge model contracts |
 | 3 | [verification/myocardium-v1-verification.md](verification/myocardium-v1-verification.md) | Target freeze, verification tiers, GO/REVISE/NO-GO gates |
+| 3a | [verification/atrial-bridge-v1-verification.md](verification/atrial-bridge-v1-verification.md) | Proposed Phase 5.5 atrial bridge shootout gate |
 | 4 | [roadmap/myocardium-rebuild-roadmap.md](roadmap/myocardium-rebuild-roadmap.md) | Phase and PR sequencing |
+| 4a | [roadmap/atrial-bridge-shootout-roadmap.md](roadmap/atrial-bridge-shootout-roadmap.md) | Proposed Phase 5.5 roadmap before Phase 6 |
 | 5 | [research/myocardial-contraction-rebuild-design-record.md](research/myocardial-contraction-rebuild-design-record.md) | Background rationale and design discussion |
+| 6 | [review-notes/phase2b-level3-review-deltas.md](review-notes/phase2b-level3-review-deltas.md) | PR #166 Phase 2B/Level 3 review deltas |
 
 When these documents disagree, use this precedence:
 
@@ -48,6 +54,50 @@ the Phase 4A dossier remains historical recommendation-only evidence with
 `acceptedSourceType` and `acceptedSourceRef` metadata so future decisions can
 trace the durable approval source.
 
+## Atrial bridge update proposed in PR #166
+
+`ADR-MYO-002` is proposed to supersede the unqualified Phase 6 assumption that
+LA/RA should use a clean time-varying elastance bridge. Until it is accepted,
+read any existing `clean atrial elastance bridge` wording as pending review.
+The proposed path is:
+
+```text
+Phase 5.5: atrial bridge shootout
+Phase 6: LV/RV Land closed loop with selected validated atrial bridge
+```
+
+Candidate framing:
+
+```text
+E0: atrial-elastance-negative-control-v0
+A0: legacy-atrial-active-bridge-v0
+A1: atrial-reservoir-booster-bridge-v1
+```
+
+`E0` is a negative control. `A0` is a quarantined comparator or conditional
+fallback, not backward compatibility. `A1` is the preferred new bridge
+candidate.
+
+## Phase 2B / Level 3 review deltas proposed in PR #166
+
+The PR #166 review also requested that the accepted Phase 2B/Level 3 planning
+deltas be visible in this docs/data PR. See
+[review-notes/phase2b-level3-review-deltas.md](review-notes/phase2b-level3-review-deltas.md).
+
+Machine-readable additions:
+
+```text
+data/myocardium/protocols/phase2b-mechanistic-report-fields-v1.json
+data/myocardium/protocols/level3-source-stress-transfer-gate-v1.json
+data/myocardium/protocols/layer-consistency-and-alternans-policy-v1.json
+data/myocardium/decisions/phase2b-level3-review-deltas-v1.json
+```
+
+Important clarification: `targetPeakAmplitudeUM` is amplitude above diastolic
+Ca, not absolute Ca. For the reviewed Phase 2B example, `peakAmplitudeUM=0.9`
+with `diastolicCaUM=0.12` implies `targetAbsolutePeakCaUM≈1.02 uM`, so a
+measured peak near `1.016 uM` is not a 13% Ca overshoot.
+
 ## Source registry
 
 The machine-readable source registry is
@@ -57,6 +107,9 @@ equations, parameter fixtures, target packs, or acceptance thresholds.
 
 The supporting source-registry note is
 [references/myocardium-source-registry.md](references/myocardium-source-registry.md).
+
+A supplemental proposed atrial bridge source note is
+[`../../data/myocardium/sources-atrial-bridge-v1.json`](../../data/myocardium/sources-atrial-bridge-v1.json).
 
 ## Phase 0 artifact gate
 
@@ -70,7 +123,12 @@ decisions. After `ADR-MYO-001` is marked Accepted, this gate expects the
 required Phase 0 decisions to be individually accepted with owner provenance
 metadata.
 
-## Phase 1A contracts
+## Existing phase gates
+
+The existing phase-gate sections below remain unchanged by PR #166. This PR is
+docs/data-only and does not alter runtime TypeScript behavior.
+
+### Phase 1A contracts
 
 Run `npm run verify:myocardium-contracts` to check the standalone Phase 1A
 activation, provenance, instance-path, and dynamic-state-layout contracts. These
@@ -85,14 +143,14 @@ The activation contract distinguishes the scheduler family
 `activation-scheduler-v1` from the concrete scheduler model
 `periodic-activation-scheduler-v1`.
 
-## Phase 1B Land source
+### Phase 1B Land source
 
 Run `npm run verify:myocardium-land-source` to check the standalone Land 2017
 source parameter provenance, BE residual/Jacobian smoke, no-projection output
 semantics, source-grounded stabilization stiffness, absent direct-output
 tangents, and module import boundary.
 
-## Phase 1C Land protocols
+### Phase 1C Land protocols
 
 Run `npm run verify:myocardium-land-protocols` to check standalone Land source
 protocol closure: BE solver failure reporting, Regazzoni-Quarteroni active
@@ -101,7 +159,7 @@ dt self-consistency, and deterministic reproducibility. This gate reports
 `claimBoundary=algorithmic-source-closure-only`; digitized experimental target
 pass/fail remains deferred to later target-pack work.
 
-## Phase 2A prescribed calcium
+### Phase 2A prescribed calcium
 
 Run `npm run verify:myocardium-prescribed-calcium` to check the standalone
 `PrescribedCalciumTransientV1` backend. This gate covers ActivationEvent-only
@@ -112,7 +170,7 @@ free calcium, deterministic replay, and claim-boundary metadata. It reports
 `evidenceStatus=synthetic-smoke-only`; Decision 10 target/HR acceptance and
 experimental Ca target pass/fail remain deferred.
 
-## Phase 2B isometric Ca plus Land
+### Phase 2B isometric Ca plus Land
 
 Run `npm run verify:myocardium-calcium-land-isometric` to check the standalone
 fixed-strain prescribed-Ca plus Land source-stress gate. This gate reports
@@ -126,7 +184,10 @@ Land output `health.finite=true` for every sample and
 morphology, valve/qDot behavior, loaded mechanics, and experimental pass/fail
 remain out of scope.
 
-## Phase 2C prescribed shortening Ca plus Land
+PR #166 proposes extra required Phase 2B mechanistic report fields in
+[`../../data/myocardium/protocols/phase2b-mechanistic-report-fields-v1.json`](../../data/myocardium/protocols/phase2b-mechanistic-report-fields-v1.json).
+
+### Phase 2C prescribed shortening Ca plus Land
 
 Run `npm run verify:myocardium-prescribed-shortening` to check the standalone
 prescribed-shortening transfer gate. This gate reuses the Phase 2A synthetic
@@ -140,7 +201,7 @@ report audits that derivation for every sample. It reports
 target acceptance, pressure/valve/qDot claims, homogenization, and
 generalized-force mapping remain out of scope.
 
-## Phase 3A fixed thick-sphere kinematics
+### Phase 3A fixed thick-sphere kinematics
 
 Run `npm run verify:myocardium-thick-sphere-kinematics` to check the standalone
 fixed early thick-sphere kinematics harness. This gate evaluates the single
@@ -153,7 +214,7 @@ mechanics, owner acceptance, fit/validation pass claims, and loaded-system
 behavior remain deferred. Phase 3B/C still cover homogenization, generalized
 force, and the minimal loaded afterload family.
 
-## Phase 3B identity homogenization and generalized force
+### Phase 3B identity homogenization and generalized force
 
 Run `npm run verify:myocardium-generalized-forces` to check the standalone
 identity/fixed homogenization plus single-coordinate generalized-force gate.
@@ -166,7 +227,7 @@ coordinate. It reports
 homogenization, passive-law acceptance, loaded afterload behavior, runtime
 chamber integration, and owner acceptance remain deferred.
 
-## Phase 3C minimal loaded afterload family
+### Phase 3C minimal loaded afterload family
 
 Run `npm run verify:myocardium-minimal-loaded-chamber` to check the standalone
 D0 low/normal/high afterload-family smoke gate. This gate reuses the Phase 3A
@@ -185,7 +246,10 @@ projection, septal/pericardial coupling, closed-loop steady state, ModelCore or
 chamber runtime wiring, schema/official-case wiring, owner GO, and downstream
 pass claims remain out of scope.
 
-## Phase 3 owner GO and Phase 4A mechanics decision records
+PR #166 proposes an additional Level 3 source-stress transfer gate in
+[`../../data/myocardium/protocols/level3-source-stress-transfer-gate-v1.json`](../../data/myocardium/protocols/level3-source-stress-transfer-gate-v1.json).
+
+### Phase 3 owner GO and Phase 4A mechanics decision records
 
 Phase 3 owner GO is recorded in
 [`../../data/myocardium/gates/phase3-owner-go-v1.json`](../../data/myocardium/gates/phase3-owner-go-v1.json)
@@ -220,7 +284,7 @@ as primary/final scope remain non-covered by this initial backend; the future
 TriSeg path preserves `triseg-lite-compatible`, `full-triseg-compatible`, and
 full TriSeg escalation before those mechanisms are claimed.
 
-## Phase 4B-A Land active-stress replacement shadow readiness
+### Phase 4B-A Land active-stress replacement shadow readiness
 
 Run `npm run verify:myocardium-land-active-stress-replacement` to check the
 first Phase 4B-A shadow readiness gate for Land active-stress replacement. The
@@ -245,6 +309,9 @@ replacement, production validation, official morphology acceptance, runtime
 schema/state layout work, ModelCore/chamber wiring, official-case wiring, RV
 pressure-overload/interdependence coverage, or calcium-cycling alternans
 validation.
+
+PR #166 proposes the alternans interpretation policy in
+[`../../data/myocardium/protocols/layer-consistency-and-alternans-policy-v1.json`](../../data/myocardium/protocols/layer-consistency-and-alternans-policy-v1.json).
 
 ## Phase 4B-B tissue homogenization readiness audit
 

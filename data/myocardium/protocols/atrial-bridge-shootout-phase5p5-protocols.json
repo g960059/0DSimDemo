@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "id": "atrial-bridge-shootout-phase5p5-protocols-v1",
+  "status": "proposed",
+  "phase": "5.5",
+  "claimBoundary": "temporary-atrial-bridge-selection-only",
+  "relatedDocs": [
+    "docs/myocardium/adr/ADR-MYO-002-atrial-bridge.md",
+    "docs/myocardium/model-spec/atrial-bridge-v1.md",
+    "docs/myocardium/verification/atrial-bridge-v1-verification.md",
+    "docs/myocardium/roadmap/atrial-bridge-shootout-roadmap.md"
+  ],
+  "candidateIds": [
+    "atrial-elastance-negative-control-v0",
+    "legacy-atrial-active-bridge-v0",
+    "atrial-reservoir-booster-bridge-v1"
+  ],
+  "globalPolicies": {
+    "sameBoundaryForAllCandidates": true,
+    "sameSamplingGridsForAllCandidates": true,
+    "roughnessSamplingInvarianceRequired": true,
+    "roughnessMustBePairedWithBoosterLowerBound": true,
+    "closedLoopSmokeMustUseFixedVentricularFixture": true
+  },
+  "protocols": [
+    {
+      "id": "isolated-la-v1",
+      "chamber": "LA",
+      "description": "Prescribed pulmonary venous boundary and prescribed LV/mitral boundary; no LV/RV Land state dependency.",
+      "readouts": [
+        "meanAtrialPressurePa",
+        "aWaveTimingSec",
+        "vWaveTimingSec",
+        "pvLoopRoughness",
+        "pvLoopRoughnessRankingBySamplingGrid",
+        "pressureHighFrequencyEnergy",
+        "dPdtSpikeCount",
+        "boosterPressureFraction",
+        "aLoopAreaProxy",
+        "aOverVLoopRatio",
+        "valveEventContamination"
+      ]
+    },
+    {
+      "id": "isolated-ra-v1",
+      "chamber": "RA",
+      "description": "Prescribed systemic venous boundary and prescribed RV/tricuspid boundary; no LV/RV Land state dependency.",
+      "readouts": [
+        "meanAtrialPressurePa",
+        "aWaveTimingSec",
+        "vWaveTimingSec",
+        "pvLoopRoughness",
+        "pvLoopRoughnessRankingBySamplingGrid",
+        "pressureHighFrequencyEnergy",
+        "dPdtSpikeCount",
+        "boosterPressureFraction",
+        "aLoopAreaProxy",
+        "aOverVLoopRatio",
+        "valveEventContamination"
+      ]
+    },
+    {
+      "id": "paired-filling-la-lv-v1",
+      "chamber": "LA",
+      "description": "LA plus prescribed LV filling/relaxation boundary to evaluate mitral inflow and preload stability. The LV boundary is fixed across all candidates.",
+      "readouts": [
+        "eOverAProxy",
+        "preloadStabilityIndex",
+        "pvLoopRoughness",
+        "pvLoopRoughnessRankingBySamplingGrid",
+        "qDotClampHitFraction",
+        "reverseFlowVolumeM3",
+        "beatToBeatRepeatability",
+        "boosterContributionLowerBound"
+      ]
+    },
+    {
+      "id": "paired-filling-ra-rv-v1",
+      "chamber": "RA",
+      "description": "RA plus prescribed RV filling/relaxation boundary to evaluate tricuspid inflow and preload stability. The RV boundary is fixed across all candidates.",
+      "readouts": [
+        "eOverAProxy",
+        "preloadStabilityIndex",
+        "pvLoopRoughness",
+        "pvLoopRoughnessRankingBySamplingGrid",
+        "qDotClampHitFraction",
+        "reverseFlowVolumeM3",
+        "beatToBeatRepeatability",
+        "boosterContributionLowerBound"
+      ]
+    },
+    {
+      "id": "closed-loop-smoke-v1",
+      "description": "Short closed-loop smoke set for normal, high HR, low preload, and high preload cases. The ventricular side must be a fixed accepted fixture or prescribed boundary shared by all candidates; unverified LV/RV Land closed-loop state must not be introduced as a variable in this atrial bridge shootout.",
+      "ventricularBoundaryPolicy": "fixed-identical-across-candidates",
+      "readouts": [
+        "lvPreloadStabilityIndex",
+        "rvPreloadStabilityIndex",
+        "atrialPressureHighFrequencyEnergy",
+        "atrialPVLoopRoughness",
+        "pvLoopRoughnessRankingBySamplingGrid",
+        "aLoopAreaProxy",
+        "aOverVLoopRatio",
+        "qDotClampHitFraction",
+        "valveEventContamination",
+        "beatToBeatRepeatability",
+        "boosterContributionLowerBound"
+      ]
+    }
+  ],
+  "selectionRule": {
+    "defaultDisallowed": [
+      "atrial-elastance-negative-control-v0"
+    ],
+    "preferredCandidate": "atrial-reservoir-booster-bridge-v1",
+    "fallbackCandidate": "legacy-atrial-active-bridge-v0",
+    "requiresOwnerSelection": true,
+    "roughnessFloor": "legacy-comparator-or-predeclared-absolute-target",
+    "antiOverdampingRequired": true
+  }
+}
