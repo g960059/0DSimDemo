@@ -276,10 +276,24 @@ production tissue homogenization.
 
 ## Phase 5 — stable local coupling and performance
 
-- local monolithic BE
-- SDIRK2 reference
-- active-stiffness partitioned
-- performance smoke
+### Phase 5A — local monolithic BE reference readiness
+
+- gate script: `npm run verify:myocardium-local-monolithic-coupling-readiness`
+- descriptor: `data/myocardium/protocols/local-monolithic-coupling-phase5a-protocols.json`
+- reference implementation: `engine/myocardium/coupling/localMonolithicBeV1.ts`
+- reference model id: `local-monolithic-be-v1`
+- scope: pure local monolithic BE reference only, side-effect-free and not wired to runtime
+- checks: selected v2 LV/RV samples, prescribed calcium, Land BE residual convergence for the six Land states, identity homogenization, passive exponential energy, generalized-force pressure map, coupled 7-unknown Newton residual over cavity volume plus Land state, Newton finite-difference Jacobian evidence, line-search evidence, finite state health, derived Land strain-rate consistency, deterministic hash, and pinned Phase 4D read-only hash evidence
+- pinned Phase 4D evidence: current recomputed `stableSummaryHash` must be in the descriptor's accepted runner hash set, and selected candidate hash, LV parameter hash, and RV parameter hash must match the descriptor pins or the verifier fails
+- boundary: Phase 5A is not Phase 5 completion. SDIRK2 reference completion is Phase 5B work because current `deriveLand2017StepKinematics()` throws for SDIRK2. Production solver comparison is not claimed, performance acceptance is not claimed, active-stiffness production coupling is not claimed, active-stiffness partitioned production coupling is not claimed, runtime replacement, ModelCore wiring, chamber wiring, case wiring, official-case wiring, and workbench wiring are not claimed, official morphology pass and robust no-alternans are not claimed, septal coordinate/coupling implementation, RV pressure overload, septal bowing, ventricular interdependence, and right-heart failure coverage are not claimed, and TriSeg adoption is not claimed.
+- future TriSeg path: preserve `triseg-lite-compatible`, `full-triseg-compatible`, and full TriSeg escalation before RV pressure overload, septal bowing, ventricular interdependence, or right-heart failure are claimed
+
+### Phase 5B+ — deferred stable-coupling work
+
+- SDIRK2 reference completion
+- production solver comparison
+- active-stiffness partitioned production coupling
+- performance smoke and acceptance
 - ModelCore registry integration
 
 ### Layer consistency and alternans policy proposed in PR #166

@@ -32,6 +32,7 @@
     "verify:myocardium-passive-energy-readiness": "vite-node tools/myocardium/verifyPassiveEnergyReadiness.ts",
     "verify:myocardium-generalized-force-mapper-readiness": "vite-node tools/myocardium/verifyGeneralizedForceMapperReadiness.ts",
     "verify:myocardium-selected-mechanics-calibration-readiness": "vite-node tools/myocardium/verifySelectedMechanicsCalibrationReadiness.ts",
+    "verify:myocardium-local-monolithic-coupling-readiness": "vite-node tools/myocardium/verifyLocalMonolithicCouplingReadiness.ts",
     "verify:starling-low-preload-matrix": "STARLING_LOW_PRELOAD_MATRIX_MAIN=1 vite-node tools/verifyStarlingLowPreloadMatrix.ts",
     "debug:starling-low-preload": "STARLING_LOW_PRELOAD_DEBUG_MAIN=1 vite-node tools/debugStarlingLowPreload.ts",
     "fit:left-filling": "vite-node tools/fitLeftFilling.ts",

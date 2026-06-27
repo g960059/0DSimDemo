@@ -463,6 +463,42 @@ are not claimed by this Phase 4D gate. The future TriSeg path preserves
 `triseg-lite-compatible`, `full-triseg-compatible`, and full TriSeg escalation
 before those mechanisms are claimed.
 
+## Phase 5A local monolithic coupling readiness
+
+Run `npm run verify:myocardium-local-monolithic-coupling-readiness` to check
+the Phase 5A local monolithic BE reference-readiness gate. The descriptor is
+[`../../data/myocardium/protocols/local-monolithic-coupling-phase5a-protocols.json`](../../data/myocardium/protocols/local-monolithic-coupling-phase5a-protocols.json),
+and the pure reference implementation is
+[`../../engine/myocardium/coupling/localMonolithicBeV1.ts`](../../engine/myocardium/coupling/localMonolithicBeV1.ts).
+
+This gate uses the contract id `local-monolithic-be-v1`. It combines selected
+v2 LV/RV kinematics, prescribed calcium, Land BE residuals for the six Land
+states, identity homogenization, passive exponential energy, and
+`virtual-power-generalized-force-v1` pressure maps inside a synthetic coupled
+7-unknown Newton solve over cavity volume plus Land state. The pass condition
+requires Land BE residual convergence, local force-balance residual closure,
+Newton iteration and finite-difference Jacobian evidence, line-search
+evidence, finite state health, derived Land strain-rate consistency from
+previous/stage strain history, and deterministic hash evidence. Phase 4D
+selected-mechanics
+`stableSummaryHash` runner allowlist, selected candidate hash, and LV/RV
+parameter hashes are pinned read-only and drift outside those pins is a
+verifier failure.
+
+Phase 5A is not Phase 5 completion. SDIRK2 reference completion is Phase 5B
+work because current `deriveLand2017StepKinematics()` throws for SDIRK2.
+Production solver comparison is not claimed, performance acceptance is not
+claimed, active-stiffness production coupling is not claimed,
+active-stiffness partitioned production coupling is not claimed, runtime
+replacement, ModelCore wiring, chamber wiring, case wiring, official-case
+wiring, and workbench wiring are not claimed, official morphology pass and
+robust no-alternans are not claimed, septal coordinate/coupling
+implementation, RV pressure overload, septal bowing, ventricular
+interdependence, and right-heart failure coverage are not claimed, and TriSeg
+adoption is not claimed. The future TriSeg path preserves
+`triseg-lite-compatible`, `full-triseg-compatible`, and full TriSeg
+escalation.
+
 ## Imported bundle checks
 
 Revision 3's original markdown hashes are preserved in
