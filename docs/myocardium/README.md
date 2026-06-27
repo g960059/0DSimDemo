@@ -26,6 +26,7 @@ called out below.
 | 4 | [roadmap/myocardium-rebuild-roadmap.md](roadmap/myocardium-rebuild-roadmap.md) | Phase and PR sequencing |
 | 4a | [roadmap/atrial-bridge-shootout-roadmap.md](roadmap/atrial-bridge-shootout-roadmap.md) | Proposed Phase 5.5 roadmap before Phase 6 |
 | 4b | [roadmap/phase5c-low-preload-domain-plan.md](roadmap/phase5c-low-preload-domain-plan.md) | Phase 5C-B selected-v2 low-preload domain extension plan |
+| 4c | [roadmap/phase5c-new-myocardium-check-plan.md](roadmap/phase5c-new-myocardium-check-plan.md) | Phase 5C-C new-myocardium low-preload check plan |
 | 5 | [research/myocardial-contraction-rebuild-design-record.md](research/myocardial-contraction-rebuild-design-record.md) | Background rationale and design discussion |
 | 6 | [review-notes/phase2b-level3-review-deltas.md](review-notes/phase2b-level3-review-deltas.md) | PR #166 Phase 2B/Level 3 review deltas |
 

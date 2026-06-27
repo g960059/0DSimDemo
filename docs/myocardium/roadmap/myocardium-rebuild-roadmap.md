@@ -321,6 +321,14 @@ production tissue homogenization.
 - outcome: Phase 5C-A artifactGate can pass for domain-covered feedforward shadow replay evidence only
 - boundary: no runtime replacement, no official morphology pass, no final robust no-alternans, no calcium-cycling alternans acceptance, no RV pressure overload/interdependence/RHF coverage, and no TriSeg adoption
 
+### Phase 5C-C — new-myocardium low-preload check
+
+- plan: [phase5c-new-myocardium-check-plan.md](phase5c-new-myocardium-check-plan.md)
+- scope: add a standalone selected-v2 + Land low-preload artifact that generates its own LV trajectory with a declared preload/afterload surrogate, rather than replaying the Phase 5C-A legacy VLV trace
+- positive control: the same surrogate closure must reproduce period-2 branch behavior with a state-dependent legacy activeStress source provider before the Land run can be interpreted as BE smoke evidence
+- morphology: report named LVP/AoP/QAo pressure morphology metrics as `reported-not-official`; do not call or claim the full ModelCore official morphology gate
+- boundary: no ModelCore/chamber/case/workbench wiring, no official morphology pass, `newMyocardiumCheckRequiredSatisfied=false`, `secondOrderSameProtocolStatus=not-performed`, no final robust no-alternans, no RV pressure overload/interdependence/RHF coverage, and no TriSeg adoption
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison
