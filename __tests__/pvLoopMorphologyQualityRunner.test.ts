@@ -244,6 +244,31 @@ describe("PV-loop morphology quality runner helpers", () => {
     ))).toBe(false);
   });
 
+  it("does not emit raw-core filling event-window correlation from transition-inclusive-only event evidence", () => {
+    const evidence = buildMorphologyEvidenceSummaryForTest([
+      metricRow({
+        chamber: "LV",
+        metricId: "mvOpenLowerLimbRoughness",
+        transitionPolicy: "transition-excluded-core",
+        value: 3,
+        classificationLabels: ["filling-limb-artifact"],
+      }),
+      metricRow({
+        chamber: "LV",
+        metricId: "eventCorrelationWindowHitFraction",
+        transitionPolicy: "transition-inclusive",
+        value: 0.8,
+        classificationLabels: ["event-window-correlation", "event-sensitive"],
+      }),
+    ]);
+
+    expect(evidence.observations.map((observation) => observation.id)).toContain("filling-limb-roughness");
+    expect(evidence.evidenceGaps.map((gap) => gap.id)).toContain("filling-limb-root-cause-signal-gap");
+    expect(evidence.rootCauseHypotheses.some((hypothesis) => (
+      hypothesis.id === "filling-event-window-correlation"
+    ))).toBe(false);
+  });
+
   it("does not emit RV filling chatter correlation from split beats", () => {
     const evidence = buildMorphologyEvidenceSummaryForTest([
       metricRow({
@@ -436,16 +461,19 @@ describe("PV-loop morphology quality runner helpers", () => {
       index === 4 ? { ...row, xiMV: 0.5 } : row
     )));
 
-    const eventMetric = (rows: MetricRow[]) => rows.find((row) => (
+    const eventMetric = (rows: MetricRow[], transitionPolicy = "transition-inclusive") => rows.find((row) => (
       row.chamber === "LV"
       && row.metricId === "eventCorrelationWindowHitFraction"
       && row.samplingMode === "raw"
-      && row.transitionPolicy === "transition-inclusive"
+      && row.transitionPolicy === transitionPolicy
     ));
 
     expect(eventMetric(farRows)?.value).toBe(0);
     expect(eventMetric(nearRows)?.value).toBeGreaterThan(0);
     expect(eventMetric(transitionRows)?.value).toBeGreaterThan(0);
+    expect(eventMetric(transitionRows, "transition-excluded-core")?.value ?? 0).toBeLessThan(
+      PV_LOOP_CLASSIFICATION_PROFILE.eventSensitiveHitFractionMin,
+    );
   });
 
   it("reports EAInflowProxy as E over A, not A over E", () => {

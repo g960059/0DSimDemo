@@ -929,7 +929,6 @@ function metricRowsForBeat(
   hr: number,
 ): MetricRow[] {
   const rows: MetricRow[] = [];
-  const fullMorphologyOutlierSamples = morphologyOutlierSamples(samples);
   for (const transitionPolicy of TRANSITION_POLICIES) {
     const add = (metricId: string, value: number | null, unit: string, labels: string[] = []) => {
       rows.push({
@@ -946,6 +945,7 @@ function metricRowsForBeat(
       });
     };
     const policySamples = applyTransitionPolicy(samples, transitionPolicy);
+    const policyOutlierSamples = morphologyOutlierSamples(policySamples);
     const filling = policySamples.filter((sample) => sample.phase === "filling" || sample.phase === "atrial-kick");
     const ejection = policySamples.filter((sample) => sample.phase === "ejection");
     const all = samples;
@@ -969,7 +969,7 @@ function metricRowsForBeat(
     const ejectionLimbShape = limbShapeMetrics(ejection);
     const phaseNormalizedRoughness = Math.max(fillingShape.roughness, ejectionLimbShape.roughness);
     const phaseKinkCount = fillingShape.kinkCount + ejectionLimbShape.kinkCount;
-    const eventCorrelation = eventCorrelationWindowHitFraction(fullMorphologyOutlierSamples);
+    const eventCorrelation = eventCorrelationWindowHitFraction(policyOutlierSamples);
     add(
       "phaseNormalizedRoughness",
       phaseNormalizedRoughness,
