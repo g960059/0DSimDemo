@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "id": "atrial-bridge-shootout-phase5p5-protocols-v1",
+  "status": "proposed",
+  "phase": "5.5",
+  "claimBoundary": "temporary-atrial-bridge-selection-only",
+  "relatedDocs": [
+    "docs/myocardium/adr/ADR-MYO-002-atrial-bridge.md",
+    "docs/myocardium/model-spec/atrial-bridge-v1.md",
+    "docs/myocardium/verification/atrial-bridge-v1-verification.md",
+    "docs/myocardium/roadmap/atrial-bridge-shootout-roadmap.md"
+  ],
+  "candidateIds": [
+    "atrial-elastance-negative-control-v0",
+    "legacy-atrial-active-bridge-v0",
+    "atrial-reservoir-booster-bridge-v1"
+  ],
+  "protocols": [
+    {
+      "id": "isolated-la-v1",
+      "chamber": "LA",
+      "description": "Prescribed pulmonary venous boundary and prescribed LV/mitral boundary; no LV/RV Land state dependency.",
+      "readouts": [
+        "meanAtrialPressurePa",
+        "aWaveTimingSec",
+        "vWaveTimingSec",
+        "pvLoopRoughness",
+        "pressureHighFrequencyEnergy",
+        "dPdtSpikeCount",
+        "boosterPressureFraction",
+        "valveEventContamination"
+      ]
+    },
+    {
+      "id": "isolated-ra-v1",
+      "chamber": "RA",
+      "description": "Prescribed systemic venous boundary and prescribed RV/tricuspid boundary; no LV/RV Land state dependency.",
+      "readouts": [
+        "meanAtrialPressurePa",
+        "aWaveTimingSec",
+        "vWaveTimingSec",
+        "pvLoopRoughness",
+        "pressureHighFrequencyEnergy",
+        "dPdtSpikeCount",
+        "boosterPressureFraction",
+        "valveEventContamination"
+      ]
+    },
+    {
+      "id": "paired-filling-la-lv-v1",
+      "chamber": "LA",
+      "description": "LA plus prescribed LV filling/relaxation boundary to evaluate mitral inflow and preload stability.",
+      "readouts": [
+        "eOverAProxy",
+        "preloadStabilityIndex",
+        "pvLoopRoughness",
+        "qDotClampHitFraction",
+        "reverseFlowVolumeM3",
+        "beatToBeatRepeatability"
+      ]
+    },
+    {
+      "id": "paired-filling-ra-rv-v1",
+      "chamber": "RA",
+      "description": "RA plus prescribed RV filling/relaxation boundary to evaluate tricuspid inflow and preload stability.",
+      "readouts": [
+        "eOverAProxy",
+        "preloadStabilityIndex",
+        "pvLoopRoughness",
+        "qDotClampHitFraction",
+        "reverseFlowVolumeM3",
+        "beatToBeatRepeatability"
+      ]
+    },
+    {
+      "id": "closed-loop-smoke-v1",
+      "description": "Short closed-loop smoke set for normal, high HR, low preload, and high preload cases.",
+      "readouts": [
+        "lvPreloadStabilityIndex",
+        "rvPreloadStabilityIndex",
+        "atrialPressureHighFrequencyEnergy",
+        "atrialPVLoopRoughness",
+        "qDotClampHitFraction",
+        "valveEventContamination",
+        "beatToBeatRepeatability"
+      ]
+    }
+  ],
+  "selectionRule": {
+    "defaultDisallowed": [
+      "atrial-elastance-negative-control-v0"
+    ],
+    "preferredCandidate": "atrial-reservoir-booster-bridge-v1",
+    "fallbackCandidate": "legacy-atrial-active-bridge-v0",
+    "requiresOwnerSelection": true
+  }
+}
