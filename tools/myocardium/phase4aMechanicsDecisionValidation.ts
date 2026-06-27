@@ -41,6 +41,9 @@ const SHADOW_PROTOCOL_SCAN_EXCLUSIONS = new Set([
   // workbench surfaces for selected v2 candidate references and live wiring.
   "engine/myocardium/protocols/selectedMechanicsCalibrationReadiness.ts",
   "engine/myocardium/kinematics/thickSphereV2SelectedBackend.ts",
+  // Phase 5A local-monolithic coupling readiness is a protocol artifact, not
+  // runtime integration. Its own verifier scans runtime/case/workbench surfaces.
+  "engine/myocardium/protocols/localMonolithicCouplingReadiness.ts",
 ]);
 
 export const REQUIRED_PHASE4A_CRITERION_IDS = [

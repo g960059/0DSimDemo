@@ -1,0 +1,263 @@
+{
+  "schemaVersion": 1,
+  "artifact": {
+    "id": "local-monolithic-coupling-phase5a-protocols-v1",
+    "version": "1.0.0",
+    "status": "local-monolithic-be-reference-readiness-only",
+    "purpose": "Phase 5A local monolithic BE reference-readiness gate. Phase 5A is not Phase 5 completion: it records a pure, synthetic LV/RV local backward-Euler reference solve whose unknown vector couples cavity volume with the six Land states, and does not claim SDIRK2 completion, production solver comparison, performance acceptance, active-stiffness production coupling, runtime wiring, morphology pass, robust no-alternans, septal/RV overload/interdependence/RHF coverage, or TriSeg adoption."
+  },
+  "protocolSetId": "local-monolithic-coupling-phase5a-protocols-v1",
+  "phase": "Phase 5A",
+  "phaseCompletionStatus": "not-phase5-completion",
+  "status": "local-monolithic-be-reference-readiness-only",
+  "statusBoundary": "local-monolithic-be-reference-readiness-only",
+  "claimBoundary": "local-monolithic-be-reference-readiness-only",
+  "referenceModelId": "local-monolithic-be-v1",
+  "referenceModelContract": "local-monolithic-be-v1",
+  "referenceModelStatus": "pure-reference-not-runtime-wired",
+  "sdirk2ReferenceCompletion": "deferred-to-phase5b",
+  "sdirk2DeferralReason": "Current deriveLand2017StepKinematics() throws for SDIRK2, so Phase 5A must not claim SDIRK2 reference completion. SDIRK2 belongs to explicit Phase 5B.",
+  "phase5BRequiredFor": [
+    "SDIRK2 reference completion",
+    "robust no-alternans interpretation",
+    "second-order reference comparison"
+  ],
+  "sourceDocuments": [
+    {
+      "documentId": "myocardium-rebuild-roadmap",
+      "path": "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
+      "status": "Proposed",
+      "uses": [
+        "Phase 5A sequencing",
+        "Phase 5A is not Phase 5 completion",
+        "Phase 5B SDIRK2 deferral boundary"
+      ]
+    },
+    {
+      "documentId": "myocardium-readme",
+      "path": "docs/myocardium/README.md",
+      "status": "Proposed",
+      "uses": [
+        "user-facing Phase 5A verifier and claim boundary",
+        "non-runtime wiring statement"
+      ]
+    },
+    {
+      "documentId": "selected-mechanics-calibration-phase4d-protocols-v1",
+      "path": "data/myocardium/protocols/selected-mechanics-calibration-phase4d-protocols.json",
+      "status": "selected-mechanics-calibration-readiness-only",
+      "uses": [
+        "pinned read-only selected-v2 candidate evidence",
+        "LV/RV selected candidate hashes",
+        "prior runtime non-wiring boundary"
+      ]
+    },
+    {
+      "documentId": "local-monolithic-be-v1",
+      "path": "engine/myocardium/coupling/localMonolithicBeV1.ts",
+      "status": "pure-reference-not-runtime-wired",
+      "uses": [
+        "selected v2 kinematics",
+        "prescribed calcium",
+        "Land BE residual as monolithic unknowns",
+        "identity homogenization",
+        "passive exponential energy",
+        "generalized-force pressure map",
+        "local force-balance Newton residual"
+      ]
+    },
+    {
+      "documentId": "local-monolithic-coupling-readiness-report",
+      "path": "engine/myocardium/protocols/localMonolithicCouplingReadiness.ts",
+      "status": "descriptor-report-verifier-only",
+      "uses": [
+        "Phase 5A report orchestration",
+        "Phase 4D pin drift check",
+        "deterministic summary hash"
+      ]
+    }
+  ],
+  "phase4DReadOnlyEvidence": {
+    "reusePolicy": "read-only",
+    "protocolSetId": "selected-mechanics-calibration-phase4d-protocols-v1",
+    "stableSummaryHash": "62304684",
+    "acceptedStableSummaryHashes": ["62304684", "a39922fa"],
+    "selectedCandidateStableHash": "8faff83b",
+    "lvParameterSetStableHash": "6fa31380",
+    "rvParameterSetStableHash": "6ae46df8",
+    "selectedCandidateId": "thick-sphere-v2-explicit-external-septal-coupling",
+    "selectedBackendId": "thick-sphere-v2",
+    "lvCoordinateId": "lv-cavity-volume",
+    "rvCoordinateId": "rv-cavity-volume",
+    "driftPolicy": "fail-if-current-recomputed-values-differ"
+  },
+  "modelIds": {
+    "referenceModelId": "local-monolithic-be-v1",
+    "selectedBackendId": "thick-sphere-v2",
+    "selectedCandidateId": "thick-sphere-v2-explicit-external-septal-coupling",
+    "lvCoordinateId": "lv-cavity-volume",
+    "rvCoordinateId": "rv-cavity-volume",
+    "prescribedCalciumParameterSetId": "prescribed-calcium-synthetic-smoke-v1",
+    "landSourceParameterSetId": "land2017-intact-human-37c-source-v1",
+    "homogenizationModelId": "identity-fiber-nominal-v1",
+    "passiveModelId": "passive-exponential-energy-v1",
+    "generalizedForceMapperId": "virtual-power-generalized-force-v1"
+  },
+  "localReferenceAcceptance": {
+    "sampleIds": [
+      "phase5a-lv-local-be-reference",
+      "phase5a-rv-local-be-reference"
+    ],
+    "requiredVentricles": ["LV", "RV"],
+    "landStage": { "scheme": "BE", "stageIndex": 0 },
+    "landSolverMethods": [
+      "writeLand2017BackwardEulerResidual",
+      "evaluateLand2017StepOutput"
+    ],
+    "coupledUnknowns": ["cavityVolumeM3", "CaTRPN", "B", "W", "S", "zetaW", "zetaS"],
+    "unknownVectorDimension": 7,
+    "maxLocalForceBalanceResidualAbsPa": 1e-7,
+    "maxLandResidualNorm": 1e-9,
+    "requireNewtonIterationCountGreaterThanZero": true,
+    "requireLineSearchEvidence": true,
+    "requireFiniteStateHealth": true,
+    "requireDerivedLandStrainRateConsistency": true,
+    "requireDeterministicHash": true
+  },
+  "protocolSettings": {
+    "runLocalMonolithicBeReference": true,
+    "useBackwardEulerReference": true,
+    "useSDIRK2ReferenceCompletion": false,
+    "useProductionSolverComparison": false,
+    "usePerformanceAcceptance": false,
+    "useActiveStiffnessProductionCoupling": false,
+    "useRuntimeReplacement": false,
+    "useModelCoreRuntimeWiring": false,
+    "useChamberRuntimeWiring": false,
+    "useCaseRuntimeWiring": false,
+    "useStateSchemaWiring": false,
+    "useOfficialCaseWiring": false,
+    "useWorkbenchRuntimeWiring": false,
+    "useOfficialMorphologyAcceptance": false,
+    "useRobustNoAlternansAcceptance": false,
+    "useCalciumCyclingAlternansValidation": false,
+    "implementSeptalCoordinate": false,
+    "implementBiventricularCoupling": false,
+    "validateSeptalCoupling": false,
+    "validateRVPressureOverload": false,
+    "validateVentricularInterdependence": false,
+    "validateRightHeartFailure": false,
+    "adoptTriSeg": false,
+    "phase4DReusePolicy": "read-only"
+  },
+  "claimExclusions": {
+    "phase5Completion": "not-claimed",
+    "sdirk2ReferenceCompletion": "not-claimed",
+    "productionSolverComparison": "not-claimed",
+    "performanceAcceptance": "not-claimed",
+    "activeStiffnessProductionCoupling": "not-claimed",
+    "activeStiffnessPartitionedProductionCoupling": "not-claimed",
+    "productionMechanics": "not-claimed",
+    "productionHomogenization": "not-claimed",
+    "productionPassiveLaw": "not-claimed",
+    "productionValidation": "not-claimed",
+    "officialMorphologyOutcome": "not-claimed",
+    "morphologyPass": "not-claimed",
+    "robustNoAlternans": "not-claimed",
+    "calciumCyclingAlternansValidation": "not-claimed",
+    "liveRuntimeReplacement": "not-claimed",
+    "runtimeSchemaStateLayoutChange": "not-claimed",
+    "ModelCoreChamberWiring": "not-claimed",
+    "chamberWiring": "not-claimed",
+    "caseWiring": "not-claimed",
+    "officialCaseWiring": "not-claimed",
+    "workbenchWiring": "not-claimed",
+    "septalCoordinateImplementation": "not-claimed",
+    "septalCouplingImplementation": "not-claimed",
+    "RVPressureOverloadCoverage": "not-claimed",
+    "septalBowingCoverage": "not-claimed",
+    "ventricularInterdependenceCoverage": "not-claimed",
+    "rightHeartFailureCoverage": "not-claimed",
+    "TriSegAdoption": "not-claimed"
+  },
+  "runtimeIsolation": {
+    "status": "no-runtime-wiring",
+    "scanPolicy": "mirror-phase4d-runtime-target-set",
+    "targetSet": [
+      "caseCloud.ts",
+      "caseDoc.ts",
+      "casePersist.ts",
+      "caseValidation.ts",
+      "components/Cases.tsx",
+      "components/workbench",
+      "engine/ModelCore.ts",
+      "engine/caseBaselines.ts",
+      "engine/caseResolve.ts",
+      "engine/chambers.ts",
+      "engine/guytonStarlingChainWorker.ts",
+      "engine/guytonStarlingChainWorkerCore.ts",
+      "engine/guytonStarlingChainProtocol.ts",
+      "engine/guytonStarlingWorker.ts",
+      "engine/guytonStarlingWorkerCore.ts",
+      "engine/harness.ts",
+      "engine/previewController.ts",
+      "engine/previewWorker.ts",
+      "engine/previewWorkerProtocol.ts",
+      "engine/protocol.ts",
+      "engine/stateContract.ts",
+      "engine/steadyJob.ts",
+      "engine/transitionSteadyProtocol.ts",
+      "engine/transitionSteadyWorker.ts",
+      "engine/core/stateLayout.ts",
+      "features/workbench",
+      "officialCases.ts",
+      "tools/verifyCases.ts",
+      "data/cases",
+      "public/cases"
+    ]
+  },
+  "nonCoverage": [
+    "Phase 5A is not Phase 5 completion.",
+    "SDIRK2 reference completion is deferred to explicit Phase 5B because deriveLand2017StepKinematics() currently throws for SDIRK2.",
+    "Robust no-alternans validation is not claimed by this Phase 5A local monolithic BE reference gate.",
+    "Production solver comparison is not claimed by this Phase 5A local monolithic BE reference gate.",
+    "Performance acceptance is not claimed by this Phase 5A local monolithic BE reference gate.",
+    "Active-stiffness production coupling and active-stiffness partitioned production coupling are not claimed by this Phase 5A gate.",
+    "Runtime replacement, ModelCore wiring, chamber wiring, case wiring, official-case wiring, and workbench wiring are not covered by this Phase 5A gate.",
+    "Official morphology pass or production validation is not claimed by this Phase 5A gate.",
+    "A septal coordinate and biventricular coupling law are not implemented by this Phase 5A gate.",
+    "RV pressure overload as a primary or final mechanism is not covered by this Phase 5A gate.",
+    "Septal bowing as a primary or final mechanism is not covered by this Phase 5A gate.",
+    "Ventricular interdependence as a primary or final mechanism is not covered by this Phase 5A gate.",
+    "Right-heart failure as the primary or final official-case scope is not covered by this Phase 5A gate.",
+    "TriSeg adoption is not claimed by this Phase 5A gate."
+  ],
+  "futureTriSegPath": {
+    "trisegLiteCandidateId": "triseg-lite-compatible",
+    "fullTrisegCompatibleCandidateId": "full-triseg-compatible",
+    "fullTriSegPath": "A full TriSeg escalation path remains preserved before RV pressure overload, septal bowing, ventricular interdependence, or right-heart failure are claimed as covered primary mechanisms.",
+    "adoptionStatus": "not-claimed"
+  },
+  "requiredVerificationScripts": [
+    "verify:myocardium-local-monolithic-coupling-readiness",
+    "verify:myocardium-selected-mechanics-calibration-readiness",
+    "verify:myocardium-land-protocols",
+    "verify:myocardium-generalized-force-mapper-readiness",
+    "verify:myocardium-passive-energy-readiness",
+    "verify:myocardium-tissue-homogenization-readiness",
+    "verify:myocardium-land-active-stress-replacement"
+  ],
+  "protocols": [
+    { "id": "phase5a-boundary-v1", "kind": "boundary-check", "claim": "not-phase5-completion" },
+    { "id": "phase4d-read-only-pin-v1", "kind": "drift-check", "claim": "pinned-phase4d-hashes" },
+    { "id": "local-monolithic-be-reference-identity-v1", "kind": "model-identity", "claim": "local-monolithic-be-v1" },
+    { "id": "land-be-convergence-v1", "kind": "solver-evidence", "claim": "actual-land-be-convergence" },
+    { "id": "local-force-balance-residual-v1", "kind": "newton-residual", "claim": "synthetic-lv-rv-local-balance" },
+    { "id": "newton-line-search-evidence-v1", "kind": "newton-evidence", "claim": "iteration-derivative-line-search-report" },
+    { "id": "finite-state-health-v1", "kind": "finite-health", "claim": "finite-stack-state" },
+    { "id": "derived-land-strain-rate-consistency-v1", "kind": "rate-derivation", "claim": "land-rate-from-strain-history" },
+    { "id": "runtime-isolation-v1", "kind": "source-scan", "claim": "no-runtime-wiring" },
+    { "id": "noncoverage-sdirk2-triseg-boundary-v1", "kind": "boundary-check", "claim": "sdirk2-phase5b-and-triseg-future" },
+    { "id": "deterministic-replay-v1", "kind": "determinism", "claim": "stable-reference-hash" }
+  ]
+}
