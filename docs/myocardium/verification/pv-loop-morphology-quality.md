@@ -11,11 +11,12 @@ claim_boundary: "diagnostic-only-no-model-change"
 Define the common LV/RV PV-loop phase segmentation and morphology-quality
 readouts used by the filling-limb and arterial-load audits.
 
-This is a docs/data-only diagnostic plan. It does not change model equations,
+This audit contract was established as a docs/data-only diagnostic plan. The
+runner implementation remains tooling-only: it does not change model equations,
 solver behavior, official case parameters, UI display smoothing, package
 scripts, runtime wiring, or official morphology acceptance.
 
-The future runner should use the canonical official case ids below as read-only
+The runner should use the canonical official case ids below as read-only
 diagnostic subjects:
 
 ```text
@@ -28,7 +29,32 @@ lv-failure-dobutamine
 Those ids identify the cases to inspect. They are not permission to re-author
 case parameters or to add official-case wiring.
 
-## 2. Common phase labels
+## 2. Runner entrypoint
+
+The diagnostic runner is invoked directly rather than through a package script:
+
+```bash
+npx vite-node tools/myocardium/verifyPvLoopMorphologyQuality.ts
+```
+
+By default it writes the following files under
+`artifacts/myocardium/pv-loop-morphology/<timestamp>/`:
+
+```text
+summary.md
+summary.json
+per-case-metrics.csv
+per-beat-phase-samples.csv
+valve-event-markers.csv
+clamp-event-markers.csv
+command.txt
+traces/*.csv
+```
+
+Use `--out=DIR` for a stable artifact directory and `--cases=id,id` for focused
+debugging.
+
+## 3. Common phase labels
 
 Each beat and chamber uses the same labels:
 
@@ -67,7 +93,7 @@ artifact-correlation fields include valve event ids, qDot, qDot clamp state,
 pressure-floor state, active stress, activation events, and solver substep
 counts.
 
-The normalized names above are the future runner contract. Current ModelCore
+The normalized names above are the runner contract. Current ModelCore
 evidence should be mapped without changing runtime semantics. Useful current
 aliases include `xiMV`, `xiAoV`, `xiTV`, `xiPV`, `QMV`, `QAo`, `QTV`, `QPV`,
 `LVPressureFloorHit01`, `RVPressureFloorHit01`, `AoV_qDotRaw`,
@@ -76,14 +102,14 @@ aliases include `xiMV`, `xiAoV`, `xiTV`, `xiPV`, `QMV`, `QAo`, `QTV`, `QPV`,
 `debugClampDiagnostics()` fields such as `dynamicFlowClampHits` and
 `valveDiodeClampHits`.
 
-The future per-sample phase artifact should include pressure, volume,
+The per-sample phase artifact should include pressure, volume,
 `caseId`, `branchId`, `dPressurePaPerSec`, `dVolumeM3PerSec`, inlet/outlet
 valve open01 values, and inlet/outlet flow values. `branchId` identifies the
 official-case instance or comparator branch inside multi-instance cases such as
 `acute-anterior-mi` and `lv-failure-dobutamine`. The derivative method is not
 prescribed here, but the runner must record the stencil and units it used.
 
-## 3. Transition reporting policy
+## 4. Transition reporting policy
 
 Every primary morphology metric must be reported twice:
 
@@ -101,9 +127,9 @@ This policy prevents valve-event artifacts from being hidden by a single smooth
 summary number and prevents aggressive transition-window widening from making a
 problem disappear without being visible in the report.
 
-## 4. Required common readouts
+## 5. Required common readouts
 
-The future runner should emit:
+The runner emits:
 
 - phase coverage fraction for each label;
 - transition and uncertain sample fractions;
@@ -118,7 +144,7 @@ Exact derivative stencils and robust thresholds are runner details, but the
 runner must record them in the output artifact. Raw-sample metrics are
 mandatory. Resampled metrics are sensitivity reports only.
 
-## 5. Sampling modes
+## 6. Sampling modes
 
 The common sampling modes are:
 
@@ -134,7 +160,7 @@ expose derivative and sampling sensitivity. `eventAlignedCore` excludes the
 configured transition guard windows so the report can separate core morphology
 from valve-event artifacts.
 
-## 6. Guardrails
+## 7. Guardrails
 
 The guardrails are intentionally stronger than the metrics:
 
@@ -147,7 +173,7 @@ The guardrails are intentionally stronger than the metrics:
 - input artifact hashes and signal availability must be recorded before metric
   computation.
 
-## 7. Machine-readable artifacts
+## 8. Machine-readable artifacts
 
 ```text
 data/myocardium/protocols/pv-loop-morphology-quality-v1.json
@@ -157,5 +183,9 @@ data/myocardium/targets/pv-loop-morphology-quality-v1.json
 Both artifacts use `schemaVersion=1`, `status=proposed`, and
 `claimBoundary=diagnostic-only-no-model-change`.
 
-The follow-up runner remains explicitly queued for a later PR. This document
-only fixes vocabulary, required evidence, sampling policy, and artifact shape.
+The tooling-only runner for this contract is implemented at
+`tools/myocardium/verifyPvLoopMorphologyQuality.ts`. It consumes the artifacts
+above as read-only inputs, records their hashes in `summary.json`, and emits
+diagnostic evidence without changing model equations, solver behavior, official
+case parameters, package scripts, runtime wiring, UI smoothing, or official
+morphology acceptance.
