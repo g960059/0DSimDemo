@@ -51,6 +51,10 @@ const SHADOW_PROTOCOL_SCAN_EXCLUSIONS = new Set([
   // artifact, not runtime integration. Its own verifier scans runtime/case/
   // workbench surfaces for Phase 5C-A references.
   "engine/myocardium/protocols/landShadowAlternansComparatorReadiness.ts",
+  // Phase 5C-C new-myocardium low-preload check is a protocol artifact, not
+  // runtime integration. Its own verifier scans runtime/case/workbench surfaces
+  // for Phase 5C-C references and live wiring.
+  "engine/myocardium/protocols/landNewMyocardiumLowPreloadCheck.ts",
 ]);
 
 export const REQUIRED_PHASE4A_CRITERION_IDS = [
