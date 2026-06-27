@@ -388,7 +388,7 @@ type LocalAorticFlowClampShape = {
 
 const DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2 = 40000;
 
-type AorticFlowStepDiagnostics = {
+type ValveFlowStepDiagnostics = {
   qNextPreDiode: number;
   qNextPostDiode: number;
   qNextPreFlowClamp: number;
@@ -404,7 +404,7 @@ type AorticFlowStepDiagnostics = {
   flowClampImpulse: number;
 };
 
-function emptyAorticFlowStepDiagnostics(): AorticFlowStepDiagnostics {
+function emptyValveFlowStepDiagnostics(): ValveFlowStepDiagnostics {
   return {
     qNextPreDiode: 0,
     qNextPostDiode: 0,
@@ -419,6 +419,15 @@ function emptyAorticFlowStepDiagnostics(): AorticFlowStepDiagnostics {
     qDotClampImpulse: 0,
     diodeImpulse: 0,
     flowClampImpulse: 0,
+  };
+}
+
+function emptyValveFlowStepDiagnosticsByValve(): Record<ValveName, ValveFlowStepDiagnostics> {
+  return {
+    MV: emptyValveFlowStepDiagnostics(),
+    AoV: emptyValveFlowStepDiagnostics(),
+    TV: emptyValveFlowStepDiagnostics(),
+    PV: emptyValveFlowStepDiagnostics(),
   };
 }
 
@@ -497,7 +506,7 @@ export class ModelCore {
   private aorticFlowDerivativeClampNegativeMlPerS2 = DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
   private dynamicFlowDerivativeClampScope: DynamicQDotClampScope = "aov";
   private aorticValveQUpdateMode: AorticValveQUpdateMode = "current-loss";
-  private aorticFlowStepDiagnostics = emptyAorticFlowStepDiagnostics();
+  private valveFlowStepDiagnostics = emptyValveFlowStepDiagnosticsByValve();
 
   // Steady-state detection (engine/settling.ts). The detector keeps its OWN
   // small ring of per-beat fingerprints, independent of the 1200-sample raw
@@ -888,7 +897,7 @@ export class ModelCore {
     this.dynamicQDotLastStepAudit = {};
     this.dynamicQDotCurrentBeatAudit = {};
     this.dynamicQDotLastBeatAudit = {};
-    this.aorticFlowStepDiagnostics = emptyAorticFlowStepDiagnostics();
+    this.valveFlowStepDiagnostics = emptyValveFlowStepDiagnosticsByValve();
   }
 
   resetDebugDiagnostics(): void {
@@ -957,6 +966,7 @@ export class ModelCore {
     this.dynamicQDotLastStepAudit = {};
     this.dynamicQDotCurrentBeatAudit = {};
     this.dynamicQDotLastBeatAudit = {};
+    this.valveFlowStepDiagnostics = emptyValveFlowStepDiagnosticsByValve();
   }
 
   runFor(seconds: number, dt = 0.001, sampleHz = 60, options: RunForOptions = {}): SimSample[] {
@@ -995,7 +1005,10 @@ export class ModelCore {
     const pvFlow = flows[this.edgeIndex("PV")];
     const pLv = pack.P[this.nodeIndex.get("LV")!];
     const pAo = pack.P[this.nodeIndex.get("Ao")!];
-    const aovStep = this.aorticFlowStepDiagnostics;
+    const mvStep = this.valveFlowStepDiagnostics.MV;
+    const aovStep = this.valveFlowStepDiagnostics.AoV;
+    const tvStep = this.valveFlowStepDiagnostics.TV;
+    const pvStep = this.valveFlowStepDiagnostics.PV;
     const lap = pack.P[this.nodeIndex.get("LA")!];
     const qLAD = flows[this.edgeIndex("Ao_LAD")];
     const qLCx = flows[this.edgeIndex("Ao_LCx")];
@@ -1059,6 +1072,19 @@ export class ModelCore {
       dP_AoV: pLv - pAo,
       dP_TV: rap - rvp,
       dP_PV: rvp - pap,
+      MV_qNextPreDiode: mvStep.qNextPreDiode,
+      MV_qNextPostDiode: mvStep.qNextPostDiode,
+      MV_qNextPreFlowClamp: mvStep.qNextPreFlowClamp,
+      MV_qNextPostFlowClamp: mvStep.qNextPostFlowClamp,
+      MV_qDotPreDiode: mvStep.qDotPreDiode,
+      MV_qDotPostDiode: mvStep.qDotPostDiode,
+      MV_qDotPreFlowClamp: mvStep.qDotPreFlowClamp,
+      MV_qDotRaw: mvStep.qDotRaw,
+      MV_qDotPost: mvStep.qDotPost,
+      MV_qDotClampHit01: mvStep.qDotClampHit01,
+      MV_qDotClampImpulse: mvStep.qDotClampImpulse,
+      MV_diodeImpulse: mvStep.diodeImpulse,
+      MV_flowClampImpulse: mvStep.flowClampImpulse,
       AoV_areaRatio: aovLoss.areaRatio,
       AoV_loss_R: aovResistiveDrop,
       AoV_loss_B: aovQuadraticDrop,
@@ -1076,6 +1102,32 @@ export class ModelCore {
       AoV_qDotClampImpulse: aovStep.qDotClampImpulse,
       AoV_diodeImpulse: aovStep.diodeImpulse,
       AoV_flowClampImpulse: aovStep.flowClampImpulse,
+      TV_qNextPreDiode: tvStep.qNextPreDiode,
+      TV_qNextPostDiode: tvStep.qNextPostDiode,
+      TV_qNextPreFlowClamp: tvStep.qNextPreFlowClamp,
+      TV_qNextPostFlowClamp: tvStep.qNextPostFlowClamp,
+      TV_qDotPreDiode: tvStep.qDotPreDiode,
+      TV_qDotPostDiode: tvStep.qDotPostDiode,
+      TV_qDotPreFlowClamp: tvStep.qDotPreFlowClamp,
+      TV_qDotRaw: tvStep.qDotRaw,
+      TV_qDotPost: tvStep.qDotPost,
+      TV_qDotClampHit01: tvStep.qDotClampHit01,
+      TV_qDotClampImpulse: tvStep.qDotClampImpulse,
+      TV_diodeImpulse: tvStep.diodeImpulse,
+      TV_flowClampImpulse: tvStep.flowClampImpulse,
+      PV_qNextPreDiode: pvStep.qNextPreDiode,
+      PV_qNextPostDiode: pvStep.qNextPostDiode,
+      PV_qNextPreFlowClamp: pvStep.qNextPreFlowClamp,
+      PV_qNextPostFlowClamp: pvStep.qNextPostFlowClamp,
+      PV_qDotPreDiode: pvStep.qDotPreDiode,
+      PV_qDotPostDiode: pvStep.qDotPostDiode,
+      PV_qDotPreFlowClamp: pvStep.qDotPreFlowClamp,
+      PV_qDotRaw: pvStep.qDotRaw,
+      PV_qDotPost: pvStep.qDotPost,
+      PV_qDotClampHit01: pvStep.qDotClampHit01,
+      PV_qDotClampImpulse: pvStep.qDotClampImpulse,
+      PV_diodeImpulse: pvStep.diodeImpulse,
+      PV_flowClampImpulse: pvStep.flowClampImpulse,
       LVPressureFloorHit01: lvPressureTerms?.pressureFloorHit01 ?? 0,
       RVPressureFloorHit01: rvPressureTerms?.pressureFloorHit01 ?? 0,
       ELV_active: lvElastance.active,
@@ -1609,14 +1661,14 @@ export class ModelCore {
         L = L / Math.max(areaRatio, 1e-6);
       }
       const h = Math.max(this.rhsDt, 1e-6);
+      const valveName = e.kind === "valve" ? e.name as ValveName : null;
       let qNext = e.name === "AoV"
         ? this.aorticValveQNext(q, Pu - PdEff, R, B, L, h)
         : this.currentLossQNext(q, Pu - PdEff, R, B, L, h);
       const qNextPreDiode = qNext;
-      if (e.kind === "valve") {
-        const vName = e.name as ValveName;
-        if (this.valveLeakArea(vName, e) <= 1e-9 && qNext < 0) {
-          this.valveDiodeClampHits[vName] = (this.valveDiodeClampHits[vName] ?? 0) + 1;
+      if (valveName) {
+        if (this.valveLeakArea(valveName, e) <= 1e-9 && qNext < 0) {
+          this.valveDiodeClampHits[valveName] = (this.valveDiodeClampHits[valveName] ?? 0) + 1;
           qNext = 0;
         }
       }
@@ -1641,25 +1693,28 @@ export class ModelCore {
       const dynamicEdge = e.name as DynamicEdgeName;
       addDynamicQDotAudit(this.dynamicQDotLastStepAudit, dynamicEdge, qDotRaw, qDotPost);
       addDynamicQDotAudit(this.dynamicQDotCurrentBeatAudit, dynamicEdge, qDotRaw, qDotPost);
+      const stepDiagnostics: ValveFlowStepDiagnostics = {
+        qNextPreDiode,
+        qNextPostDiode,
+        qNextPreFlowClamp,
+        qNextPostFlowClamp,
+        qDotPreDiode,
+        qDotPostDiode,
+        qDotPreFlowClamp,
+        qDotRaw,
+        qDotPost,
+        qDotClampHit01: Math.abs(qDotPost - qDotRaw) > 1e-9 ? 1 : 0,
+        qDotClampImpulse: qDotPost - qDotRaw,
+        diodeImpulse: qNextPostDiode - qNextPreDiode,
+        flowClampImpulse: qNextPostFlowClamp - qNextPreFlowClamp,
+      };
+      if (valveName) {
+        this.valveFlowStepDiagnostics[valveName] = stepDiagnostics;
+      }
       if (e.name === "AoV") {
         this.aorticQDotLastStepAudit = emptyAorticQDotAudit();
         addAorticQDotAudit(this.aorticQDotLastStepAudit, qDotRaw, qDotPost);
         addAorticQDotAudit(this.aorticQDotCurrentBeatAudit, qDotRaw, qDotPost);
-        this.aorticFlowStepDiagnostics = {
-          qNextPreDiode,
-          qNextPostDiode,
-          qNextPreFlowClamp,
-          qNextPostFlowClamp,
-          qDotPreDiode,
-          qDotPostDiode,
-          qDotPreFlowClamp,
-          qDotRaw,
-          qDotPost,
-          qDotClampHit01: Math.abs(qDotPost - qDotRaw) > 1e-9 ? 1 : 0,
-          qDotClampImpulse: qDotPost - qDotRaw,
-          diodeImpulse: qNextPostDiode - qNextPreDiode,
-          flowClampImpulse: qNextPostFlowClamp - qNextPreFlowClamp,
-        };
       }
     }
 

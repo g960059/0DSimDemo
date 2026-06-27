@@ -59,12 +59,32 @@ export type AnalysisSample = {
   ERV_active: number;
   LVPressureFloorHit01: number;
   RVPressureFloorHit01: number;
+  MV_qDotRaw: number;
+  MV_qDotPost: number;
+  MV_qDotClampHit01: number;
+  MV_qDotClampImpulse: number;
+  MV_diodeImpulse: number;
+  MV_flowClampImpulse: number;
   AoV_qDotRaw: number;
   AoV_qDotPost: number;
   AoV_qDotClampHit01: number;
   AoV_qDotClampImpulse: number;
   AoV_diodeImpulse: number;
   AoV_flowClampImpulse: number;
+  TV_qDotRaw: number;
+  TV_qDotPost: number;
+  TV_qDotClampHit01: number;
+  TV_qDotClampImpulse: number;
+  TV_diodeImpulse: number;
+  TV_flowClampImpulse: number;
+  PV_qDotRaw: number;
+  PV_qDotPost: number;
+  PV_qDotClampHit01: number;
+  PV_qDotClampImpulse: number;
+  PV_diodeImpulse: number;
+  PV_flowClampImpulse: number;
+  perSampleValveDiodeClampHits: number;
+  perSampleDynamicFlowClampHits: number;
   dLVPdt: number;
   dRVPdt: number;
   dVLVdt: number;
@@ -270,6 +290,7 @@ const TRANSITION_POLICIES: TransitionPolicy[] = ["transition-inclusive", "transi
 const MMHG_TO_PA = 133.322387415;
 const ML_TO_M3 = 1e-6;
 const ML_PER_SEC_TO_M3_PER_SEC = 1e-6;
+const ML_PER_SEC2_TO_M3_PER_SEC2 = 1e-6;
 const TRANSITION_GUARD_SEC = 0.012;
 const OPEN_THRESHOLD = 0.5;
 const PARTIAL_OPEN_EPS = 0.05;
@@ -343,6 +364,65 @@ const DEFAULT_OUT_DIR = path.join(
   "pv-loop-morphology",
   new Date().toISOString().replace(/[:.]/g, "-"),
 );
+
+type ValveDiagnosticSpec = {
+  valve: ValveName;
+  chamber: Chamber;
+  signalPrefix: "mv" | "aov" | "tv" | "pv";
+  rawKey: keyof AnalysisSample;
+  postKey: keyof AnalysisSample;
+  clampHitKey: keyof AnalysisSample;
+  clampImpulseKey: keyof AnalysisSample;
+  diodeImpulseKey: keyof AnalysisSample;
+  flowClampImpulseKey: keyof AnalysisSample;
+};
+
+const VALVE_DIAGNOSTIC_SPECS: ValveDiagnosticSpec[] = [
+  {
+    valve: "MV",
+    chamber: "LV",
+    signalPrefix: "mv",
+    rawKey: "MV_qDotRaw",
+    postKey: "MV_qDotPost",
+    clampHitKey: "MV_qDotClampHit01",
+    clampImpulseKey: "MV_qDotClampImpulse",
+    diodeImpulseKey: "MV_diodeImpulse",
+    flowClampImpulseKey: "MV_flowClampImpulse",
+  },
+  {
+    valve: "AoV",
+    chamber: "LV",
+    signalPrefix: "aov",
+    rawKey: "AoV_qDotRaw",
+    postKey: "AoV_qDotPost",
+    clampHitKey: "AoV_qDotClampHit01",
+    clampImpulseKey: "AoV_qDotClampImpulse",
+    diodeImpulseKey: "AoV_diodeImpulse",
+    flowClampImpulseKey: "AoV_flowClampImpulse",
+  },
+  {
+    valve: "TV",
+    chamber: "RV",
+    signalPrefix: "tv",
+    rawKey: "TV_qDotRaw",
+    postKey: "TV_qDotPost",
+    clampHitKey: "TV_qDotClampHit01",
+    clampImpulseKey: "TV_qDotClampImpulse",
+    diodeImpulseKey: "TV_diodeImpulse",
+    flowClampImpulseKey: "TV_flowClampImpulse",
+  },
+  {
+    valve: "PV",
+    chamber: "RV",
+    signalPrefix: "pv",
+    rawKey: "PV_qDotRaw",
+    postKey: "PV_qDotPost",
+    clampHitKey: "PV_qDotClampHit01",
+    clampImpulseKey: "PV_qDotClampImpulse",
+    diodeImpulseKey: "PV_diodeImpulse",
+    flowClampImpulseKey: "PV_flowClampImpulse",
+  },
+];
 
 function parseArgs(args: string[]): CliOptions {
   const outArg = args.find((arg) => arg.startsWith("--out="));
@@ -446,7 +526,7 @@ export function buildInitialSummary(caseIds = CASE_IDS): RunnerSummary {
       {
         id: "diagnostic-only-no-model-change",
         status: "pass",
-        note: "Runner reads official cases and emitted samples only; it does not write runtime, solver, case, package-script, or UI surfaces.",
+        note: "Runner reads official cases and emitted samples only; the diagnostic signal export exposes existing flow/qDot readouts without changing equations, solver behavior, case parameters, package scripts, or UI surfaces.",
       },
       {
         id: "package-scripts-no-change",
@@ -524,13 +604,29 @@ function signalAvailability(): Record<string, boolean> {
     aovQDotRawM3PerSec2: true,
     aovQDotPostM3PerSec2: true,
     aovQDotClampHit01: true,
-    aovDiodeImpulse: true,
-    aovFlowClampImpulse: true,
-    mvQDotRawM3PerSec2: false,
-    tvQDotRawM3PerSec2: false,
-    pvQDotRawM3PerSec2: false,
-    perSampleValveDiodeClampHits: false,
-    perSampleDynamicFlowClampHits: false,
+    aovQDotClampImpulseM3PerSec2: true,
+    aovValveDiodeImpulseM3PerSec: true,
+    aovDynamicFlowClampImpulseM3PerSec: true,
+    mvQDotRawM3PerSec2: true,
+    mvQDotPostM3PerSec2: true,
+    mvQDotClampHit01: true,
+    mvQDotClampImpulseM3PerSec2: true,
+    mvValveDiodeImpulseM3PerSec: true,
+    mvDynamicFlowClampImpulseM3PerSec: true,
+    tvQDotRawM3PerSec2: true,
+    tvQDotPostM3PerSec2: true,
+    tvQDotClampHit01: true,
+    tvQDotClampImpulseM3PerSec2: true,
+    tvValveDiodeImpulseM3PerSec: true,
+    tvDynamicFlowClampImpulseM3PerSec: true,
+    pvQDotRawM3PerSec2: true,
+    pvQDotPostM3PerSec2: true,
+    pvQDotClampHit01: true,
+    pvQDotClampImpulseM3PerSec2: true,
+    pvValveDiodeImpulseM3PerSec: true,
+    pvDynamicFlowClampImpulseM3PerSec: true,
+    perSampleValveDiodeClampHits: true,
+    perSampleDynamicFlowClampHits: true,
     systemicArterialPressurePa: false,
     downstreamPulmonaryArterialPressurePa: false,
     characteristicImpedancePaSecPerM3: false,
@@ -703,12 +799,42 @@ function toAnalysisSamples(samples: SimSample[], beatIndex: number): AnalysisSam
     ERV_active: sample.ERV_active,
     LVPressureFloorHit01: sample.LVPressureFloorHit01,
     RVPressureFloorHit01: sample.RVPressureFloorHit01,
+    MV_qDotRaw: sample.MV_qDotRaw ?? 0,
+    MV_qDotPost: sample.MV_qDotPost ?? 0,
+    MV_qDotClampHit01: sample.MV_qDotClampHit01 ?? 0,
+    MV_qDotClampImpulse: sample.MV_qDotClampImpulse ?? 0,
+    MV_diodeImpulse: sample.MV_diodeImpulse ?? 0,
+    MV_flowClampImpulse: sample.MV_flowClampImpulse ?? 0,
     AoV_qDotRaw: sample.AoV_qDotRaw,
     AoV_qDotPost: sample.AoV_qDotPost,
     AoV_qDotClampHit01: sample.AoV_qDotClampHit01,
     AoV_qDotClampImpulse: sample.AoV_qDotClampImpulse,
     AoV_diodeImpulse: sample.AoV_diodeImpulse,
     AoV_flowClampImpulse: sample.AoV_flowClampImpulse,
+    TV_qDotRaw: sample.TV_qDotRaw ?? 0,
+    TV_qDotPost: sample.TV_qDotPost ?? 0,
+    TV_qDotClampHit01: sample.TV_qDotClampHit01 ?? 0,
+    TV_qDotClampImpulse: sample.TV_qDotClampImpulse ?? 0,
+    TV_diodeImpulse: sample.TV_diodeImpulse ?? 0,
+    TV_flowClampImpulse: sample.TV_flowClampImpulse ?? 0,
+    PV_qDotRaw: sample.PV_qDotRaw ?? 0,
+    PV_qDotPost: sample.PV_qDotPost ?? 0,
+    PV_qDotClampHit01: sample.PV_qDotClampHit01 ?? 0,
+    PV_qDotClampImpulse: sample.PV_qDotClampImpulse ?? 0,
+    PV_diodeImpulse: sample.PV_diodeImpulse ?? 0,
+    PV_flowClampImpulse: sample.PV_flowClampImpulse ?? 0,
+    perSampleValveDiodeClampHits: [
+      sample.MV_diodeImpulse ?? 0,
+      sample.AoV_diodeImpulse,
+      sample.TV_diodeImpulse ?? 0,
+      sample.PV_diodeImpulse ?? 0,
+    ].filter((value) => Math.abs(value) > PV_LOOP_CLASSIFICATION_PROFILE.clampImpulseAbsMin).length,
+    perSampleDynamicFlowClampHits: [
+      sample.MV_flowClampImpulse ?? 0,
+      sample.AoV_flowClampImpulse,
+      sample.TV_flowClampImpulse ?? 0,
+      sample.PV_flowClampImpulse ?? 0,
+    ].filter((value) => Math.abs(value) > PV_LOOP_CLASSIFICATION_PROFILE.clampImpulseAbsMin).length,
     dLVPdt: 0,
     dRVPdt: 0,
     dVLVdt: 0,
@@ -738,8 +864,16 @@ function resampleBeat(samples: AnalysisSample[], beatIndex: number, count: numbe
     "tSec", "theta", "LVP", "RVP", "LAP", "RAP", "AoP", "PAP", "VLV", "VRV",
     "QMV", "QAo", "QTV", "QPV", "xiMV", "xiAoV", "xiTV", "xiPV", "aLA", "aRA",
     "ELV_active", "ERV_active", "LVPressureFloorHit01", "RVPressureFloorHit01",
+    "MV_qDotRaw", "MV_qDotPost", "MV_qDotClampHit01", "MV_qDotClampImpulse",
+    "MV_diodeImpulse", "MV_flowClampImpulse",
     "AoV_qDotRaw", "AoV_qDotPost", "AoV_qDotClampHit01", "AoV_qDotClampImpulse",
-    "AoV_diodeImpulse", "AoV_flowClampImpulse", "dLVPdt", "dRVPdt", "dVLVdt", "dVRVdt",
+    "AoV_diodeImpulse", "AoV_flowClampImpulse",
+    "TV_qDotRaw", "TV_qDotPost", "TV_qDotClampHit01", "TV_qDotClampImpulse",
+    "TV_diodeImpulse", "TV_flowClampImpulse",
+    "PV_qDotRaw", "PV_qDotPost", "PV_qDotClampHit01", "PV_qDotClampImpulse",
+    "PV_diodeImpulse", "PV_flowClampImpulse",
+    "perSampleValveDiodeClampHits", "perSampleDynamicFlowClampHits",
+    "dLVPdt", "dRVPdt", "dVLVdt", "dVRVdt",
   ];
   const phaseSamples = [...samples].sort((a, b) => a.theta - b.theta);
   const out: AnalysisSample[] = [];
@@ -917,8 +1051,8 @@ function phaseSampleRow(
 
 function sourceSignalMask(chamber: Chamber): string {
   return chamber === "LV"
-    ? "LVP,VLV,LAP,AoP,xiMV,xiAoV,QMV,QAo,LVPressureFloorHit01,AoV_qDot*"
-    : "RVP,VRV,RAP,PAP,xiTV,xiPV,QTV,QPV,RVPressureFloorHit01";
+    ? "LVP,VLV,LAP,AoP,xiMV,xiAoV,QMV,QAo,LVPressureFloorHit01,MV_qDot*,AoV_qDot*,perSampleValveDiodeClampHits,perSampleDynamicFlowClampHits"
+    : "RVP,VRV,RAP,PAP,xiTV,xiPV,QTV,QPV,RVPressureFloorHit01,TV_qDot*,PV_qDot*,perSampleValveDiodeClampHits,perSampleDynamicFlowClampHits";
 }
 
 function metricRowsForBeat(
@@ -1024,7 +1158,8 @@ function metricRowsForBeat(
     add("incisuraPresenceScore", ejectionShape.incisuraScore, "dimensionless", incisuraLabels(ejectionShape.incisuraScore, chamber));
     add(chamber === "LV" ? "aovOpenAoPIncisuraScore" : "pvOpenPAPIncisuraScore", ejectionShape.incisuraScore, "dimensionless");
     add("peakPressureTimingAsFractionOfEjection", ejectionShape.peakPressureTimingFraction, "dimensionless");
-    add("qDotClampHitFraction", chamber === "LV" ? fraction(ejection, (sample) => sample.AoV_qDotClampHit01 > 0) : null, "dimensionless");
+    const outletQDotSpec = valveDiagnosticSpec(chamber === "LV" ? "AoV" : "PV");
+    add("qDotClampHitFraction", fraction(ejection, (sample) => valveQDotClampHit(sample, outletQDotSpec)), "dimensionless");
     add("semilunarForwardVolume", integrateClassifiedFlow(ejection, outletFlowMlPerSec, (flow) => Math.max(0, flow)), "mL");
     add("semilunarReverseVolume", integrateClassifiedFlow(ejection, outletFlowMlPerSec, (flow) => Math.max(0, -flow)), "mL");
     add("strokeWork", pvLoopAreaJ(policySamples), "J");
@@ -1065,12 +1200,46 @@ function isEventArtifactWindowSample(sample: ClassifiedSample): boolean {
   return sample.phase === "transition"
     || sample.transitionReason.includes("-within-")
     || sample.transitionReason === "partial-valve-open01"
-    || sample.LVPressureFloorHit01 > 0
-    || sample.RVPressureFloorHit01 > 0
-    || sample.AoV_qDotClampHit01 > 0
-    || Math.abs(sample.AoV_qDotRaw - sample.AoV_qDotPost) > PV_LOOP_CLASSIFICATION_PROFILE.qDotRawPostDivergenceMin
-    || Math.abs(sample.AoV_diodeImpulse) > PV_LOOP_CLASSIFICATION_PROFILE.clampImpulseAbsMin
-    || Math.abs(sample.AoV_flowClampImpulse) > PV_LOOP_CLASSIFICATION_PROFILE.clampImpulseAbsMin;
+    || pressureFloorHit(sample)
+    || VALVE_DIAGNOSTIC_SPECS.some((spec) => spec.chamber === sample.chamber && valveDiagnosticEventHit(sample, spec));
+}
+
+function valveDiagnosticSpec(valve: ValveName): ValveDiagnosticSpec {
+  const spec = VALVE_DIAGNOSTIC_SPECS.find((candidate) => candidate.valve === valve);
+  if (!spec) throw new Error(`Unknown valve diagnostic spec: ${valve}`);
+  return spec;
+}
+
+function valveQDotClampHit(sample: AnalysisSample, spec: ValveDiagnosticSpec): boolean {
+  return Number(sample[spec.clampHitKey]) > 0
+    || Math.abs(Number(sample[spec.rawKey]) - Number(sample[spec.postKey])) > PV_LOOP_CLASSIFICATION_PROFILE.qDotRawPostDivergenceMin;
+}
+
+function valveDiagnosticEventHit(sample: AnalysisSample, spec: ValveDiagnosticSpec): boolean {
+  return valveQDotClampHit(sample, spec)
+    || Math.abs(Number(sample[spec.clampImpulseKey])) > PV_LOOP_CLASSIFICATION_PROFILE.qDotRawPostDivergenceMin
+    || Math.abs(Number(sample[spec.diodeImpulseKey])) > PV_LOOP_CLASSIFICATION_PROFILE.clampImpulseAbsMin
+    || Math.abs(Number(sample[spec.flowClampImpulseKey])) > PV_LOOP_CLASSIFICATION_PROFILE.clampImpulseAbsMin;
+}
+
+function valveDiodeClampHitCount(sample: AnalysisSample): number {
+  return VALVE_DIAGNOSTIC_SPECS.filter((spec) => (
+    Math.abs(Number(sample[spec.diodeImpulseKey])) > PV_LOOP_CLASSIFICATION_PROFILE.clampImpulseAbsMin
+  )).length;
+}
+
+function dynamicFlowClampHitCount(sample: AnalysisSample): number {
+  return VALVE_DIAGNOSTIC_SPECS.filter((spec) => (
+    Math.abs(Number(sample[spec.flowClampImpulseKey])) > PV_LOOP_CLASSIFICATION_PROFILE.clampImpulseAbsMin
+  )).length;
+}
+
+function qDotMlPerSec2ToM3PerSec2(value: number): number {
+  return value * ML_PER_SEC2_TO_M3_PER_SEC2;
+}
+
+function flowMlPerSecToM3PerSec(value: number): number {
+  return value * ML_PER_SEC_TO_M3_PER_SEC;
 }
 
 function fillingLabels(
@@ -1349,17 +1518,76 @@ function clampEventRows(
 ): ClampEventRow[] {
   const rows: ClampEventRow[] = [];
   for (const sample of samples) {
-    if (sample.AoV_qDotClampHit01 > 0) {
-      rows.push(clampRow(base, beatIndex, "LV", "AoV_qDotClampHit01", "hit", sample, sample.AoV_qDotClampHit01));
+    for (const spec of VALVE_DIAGNOSTIC_SPECS) {
+      const raw = Number(sample[spec.rawKey]);
+      const post = Number(sample[spec.postKey]);
+      const rawPostDivergence = raw - post;
+      const clampImpulse = Number(sample[spec.clampImpulseKey]);
+      const diodeImpulse = Number(sample[spec.diodeImpulseKey]);
+      const flowClampImpulse = Number(sample[spec.flowClampImpulseKey]);
+      if (Number(sample[spec.clampHitKey]) > 0) {
+        rows.push(clampRow(
+          base,
+          beatIndex,
+          spec.chamber,
+          `${spec.signalPrefix}QDotClampHit01`,
+          "hit",
+          sample,
+          Number(sample[spec.clampHitKey]),
+        ));
+      }
+      if (Math.abs(rawPostDivergence) > PV_LOOP_CLASSIFICATION_PROFILE.qDotRawPostDivergenceMin) {
+        rows.push(clampRow(
+          base,
+          beatIndex,
+          spec.chamber,
+          `${spec.signalPrefix}QDotRawPostDivergenceM3PerSec2`,
+          "raw-post-divergence",
+          sample,
+          qDotMlPerSec2ToM3PerSec2(rawPostDivergence),
+        ));
+      }
+      if (Math.abs(clampImpulse) > PV_LOOP_CLASSIFICATION_PROFILE.qDotRawPostDivergenceMin) {
+        rows.push(clampRow(
+          base,
+          beatIndex,
+          spec.chamber,
+          `${spec.signalPrefix}QDotClampImpulseM3PerSec2`,
+          "qdot-impulse",
+          sample,
+          qDotMlPerSec2ToM3PerSec2(clampImpulse),
+        ));
+      }
+      if (Math.abs(diodeImpulse) > PV_LOOP_CLASSIFICATION_PROFILE.clampImpulseAbsMin) {
+        rows.push(clampRow(
+          base,
+          beatIndex,
+          spec.chamber,
+          `${spec.signalPrefix}ValveDiodeImpulseM3PerSec`,
+          "valve-diode-impulse",
+          sample,
+          flowMlPerSecToM3PerSec(diodeImpulse),
+        ));
+      }
+      if (Math.abs(flowClampImpulse) > PV_LOOP_CLASSIFICATION_PROFILE.clampImpulseAbsMin) {
+        rows.push(clampRow(
+          base,
+          beatIndex,
+          spec.chamber,
+          `${spec.signalPrefix}DynamicFlowClampImpulseM3PerSec`,
+          "dynamic-flow-impulse",
+          sample,
+          flowMlPerSecToM3PerSec(flowClampImpulse),
+        ));
+      }
     }
-    if (Math.abs(sample.AoV_qDotRaw - sample.AoV_qDotPost) > PV_LOOP_CLASSIFICATION_PROFILE.qDotRawPostDivergenceMin) {
-      rows.push(clampRow(base, beatIndex, "LV", "AoV_qDotRawPostDivergence", "raw-post-divergence", sample, sample.AoV_qDotRaw - sample.AoV_qDotPost));
+    const valveDiodeHits = valveDiodeClampHitCount(sample);
+    if (valveDiodeHits > 0) {
+      rows.push(clampAvailabilityRow(base, beatIndex, "perSampleValveDiodeClampHits", sample, valveDiodeHits));
     }
-    if (Math.abs(sample.AoV_diodeImpulse) > PV_LOOP_CLASSIFICATION_PROFILE.clampImpulseAbsMin) {
-      rows.push(clampRow(base, beatIndex, "LV", "AoV_diodeImpulse", "impulse", sample, sample.AoV_diodeImpulse));
-    }
-    if (Math.abs(sample.AoV_flowClampImpulse) > PV_LOOP_CLASSIFICATION_PROFILE.clampImpulseAbsMin) {
-      rows.push(clampRow(base, beatIndex, "LV", "AoV_flowClampImpulse", "impulse", sample, sample.AoV_flowClampImpulse));
+    const dynamicFlowHits = dynamicFlowClampHitCount(sample);
+    if (dynamicFlowHits > 0) {
+      rows.push(clampAvailabilityRow(base, beatIndex, "perSampleDynamicFlowClampHits", sample, dynamicFlowHits));
     }
     if (sample.LVPressureFloorHit01 > 0) {
       rows.push(clampRow(base, beatIndex, "LV", "LVPressureFloorHit01", "hit", sample, sample.LVPressureFloorHit01));
@@ -1367,21 +1595,6 @@ function clampEventRows(
     if (sample.RVPressureFloorHit01 > 0) {
       rows.push(clampRow(base, beatIndex, "RV", "RVPressureFloorHit01", "hit", sample, sample.RVPressureFloorHit01));
     }
-  }
-  for (const signalId of ["MV_qDotRaw", "TV_qDotRaw", "PV_qDotRaw", "perSampleValveDiodeClampHits", "perSampleDynamicFlowClampHits"]) {
-    rows.push({
-      ...base,
-      beatIndex,
-      chamber: "both",
-      signalId,
-      eventType: "unavailable-in-SimSample",
-      timeSec: null,
-      theta: null,
-      value: null,
-      granularity: "per-beat-availability",
-      availability: "unavailable",
-      note: "Current emitted SimSample does not expose this per-step signal; no runtime signal was added by this diagnostic runner.",
-    });
   }
   return rows;
 }
@@ -1401,6 +1614,28 @@ function clampRow(
     chamber,
     signalId,
     eventType,
+    timeSec: sample.tSec,
+    theta: sample.theta,
+    value,
+    granularity: "per-sample",
+    availability: "available",
+    note: "",
+  };
+}
+
+function clampAvailabilityRow(
+  base: { caseId: string; branchId: string; branchName: string },
+  beatIndex: number,
+  signalId: "perSampleValveDiodeClampHits" | "perSampleDynamicFlowClampHits",
+  sample: AnalysisSample,
+  value: number,
+): ClampEventRow {
+  return {
+    ...base,
+    beatIndex,
+    chamber: "both",
+    signalId,
+    eventType: "hit-count",
     timeSec: sample.tSec,
     theta: sample.theta,
     value,
@@ -1448,8 +1683,42 @@ function traceRowsForBeat(
       AoV_qDotRaw: sample.AoV_qDotRaw,
       AoV_qDotPost: sample.AoV_qDotPost,
       AoV_qDotClampHit01: sample.AoV_qDotClampHit01,
+      mvQDotRawM3PerSec2: qDotMlPerSec2ToM3PerSec2(sample.MV_qDotRaw),
+      mvQDotPostM3PerSec2: qDotMlPerSec2ToM3PerSec2(sample.MV_qDotPost),
+      mvQDotClampHit01: sample.MV_qDotClampHit01,
+      mvQDotClampImpulseM3PerSec2: qDotMlPerSec2ToM3PerSec2(sample.MV_qDotClampImpulse),
+      mvValveDiodeImpulseM3PerSec: flowMlPerSecToM3PerSec(sample.MV_diodeImpulse),
+      mvDynamicFlowClampImpulseM3PerSec: flowMlPerSecToM3PerSec(sample.MV_flowClampImpulse),
+      aovQDotRawM3PerSec2: qDotMlPerSec2ToM3PerSec2(sample.AoV_qDotRaw),
+      aovQDotPostM3PerSec2: qDotMlPerSec2ToM3PerSec2(sample.AoV_qDotPost),
+      aovQDotClampHit01: sample.AoV_qDotClampHit01,
+      aovQDotClampImpulseM3PerSec2: qDotMlPerSec2ToM3PerSec2(sample.AoV_qDotClampImpulse),
+      aovValveDiodeImpulseM3PerSec: flowMlPerSecToM3PerSec(sample.AoV_diodeImpulse),
+      aovDynamicFlowClampImpulseM3PerSec: flowMlPerSecToM3PerSec(sample.AoV_flowClampImpulse),
+      tvQDotRawM3PerSec2: qDotMlPerSec2ToM3PerSec2(sample.TV_qDotRaw),
+      tvQDotPostM3PerSec2: qDotMlPerSec2ToM3PerSec2(sample.TV_qDotPost),
+      tvQDotClampHit01: sample.TV_qDotClampHit01,
+      tvQDotClampImpulseM3PerSec2: qDotMlPerSec2ToM3PerSec2(sample.TV_qDotClampImpulse),
+      tvValveDiodeImpulseM3PerSec: flowMlPerSecToM3PerSec(sample.TV_diodeImpulse),
+      tvDynamicFlowClampImpulseM3PerSec: flowMlPerSecToM3PerSec(sample.TV_flowClampImpulse),
+      pvQDotRawM3PerSec2: qDotMlPerSec2ToM3PerSec2(sample.PV_qDotRaw),
+      pvQDotPostM3PerSec2: qDotMlPerSec2ToM3PerSec2(sample.PV_qDotPost),
+      pvQDotClampHit01: sample.PV_qDotClampHit01,
+      pvQDotClampImpulseM3PerSec2: qDotMlPerSec2ToM3PerSec2(sample.PV_qDotClampImpulse),
+      pvValveDiodeImpulseM3PerSec: flowMlPerSecToM3PerSec(sample.PV_diodeImpulse),
+      pvDynamicFlowClampImpulseM3PerSec: flowMlPerSecToM3PerSec(sample.PV_flowClampImpulse),
+      perSampleValveDiodeClampHits: valveDiodeClampHitCount(sample),
+      perSampleDynamicFlowClampHits: dynamicFlowClampHitCount(sample),
     };
   });
+}
+
+export function clampEventRowsForTest(samples: AnalysisSample[], beatIndex = 1): ClampEventRow[] {
+  return clampEventRows({ caseId: "test-case", branchId: "test-branch", branchName: "Test branch" }, samples, beatIndex);
+}
+
+export function traceRowsForBeatForTest(samples: AnalysisSample[], beatIndex = 1): Record<string, unknown>[] {
+  return traceRowsForBeat({ caseId: "test-case", branchId: "test-branch", branchName: "Test branch" }, samples, [], beatIndex);
 }
 
 function pressureOf(sample: Pick<ClassifiedSample, "chamber" | "LVP" | "RVP">): number {
@@ -1771,6 +2040,10 @@ const FILLING_EVIDENCE_SIGNALS = [
   "rightAtrialPressurePa",
   "lvPressureFloorHit01",
   "rvPressureFloorHit01",
+  "mvQDotRawM3PerSec2",
+  "tvQDotRawM3PerSec2",
+  "perSampleValveDiodeClampHits",
+  "perSampleDynamicFlowClampHits",
 ];
 
 const FILLING_MISSING_ROOT_CAUSE_SIGNALS = [
@@ -1790,8 +2063,15 @@ const EJECTION_EVIDENCE_SIGNALS = [
   "aovQDotRawM3PerSec2",
   "aovQDotPostM3PerSec2",
   "aovQDotClampHit01",
-  "aovDiodeImpulse",
-  "aovFlowClampImpulse",
+  "aovQDotClampImpulseM3PerSec2",
+  "aovValveDiodeImpulseM3PerSec",
+  "aovDynamicFlowClampImpulseM3PerSec",
+  "pvQDotRawM3PerSec2",
+  "pvQDotPostM3PerSec2",
+  "pvQDotClampHit01",
+  "pvQDotClampImpulseM3PerSec2",
+  "pvValveDiodeImpulseM3PerSec",
+  "pvDynamicFlowClampImpulseM3PerSec",
 ];
 
 const EJECTION_MISSING_ROOT_CAUSE_SIGNALS = [
@@ -2006,7 +2286,15 @@ function eventWindowObservation(metricRows: MetricRow[]): MorphologyObservation 
     score: clampUnitPositive(maxValue(rows)),
     supportCount: rows.length,
     metricIds: metricIds(rows),
-    supportingSignals: ["valveOpen01", "transitionReason", "AoV_qDot*", "pressureFloorHit01"],
+    supportingSignals: [
+      "valveOpen01",
+      "transitionReason",
+      "qDotRawM3PerSec2",
+      "qDotClampHit01",
+      "perSampleValveDiodeClampHits",
+      "perSampleDynamicFlowClampHits",
+      "pressureFloorHit01",
+    ],
     missingSignals: [],
     classificationLabels: classificationLabels(rows),
   };
@@ -2023,6 +2311,11 @@ function aovQDotClampObservation(metricRows: MetricRow[], clampRows: ClampEventR
       || row.signalId === "AoV_qDotRawPostDivergence"
       || row.signalId === "AoV_diodeImpulse"
       || row.signalId === "AoV_flowClampImpulse"
+      || row.signalId === "aovQDotClampHit01"
+      || row.signalId === "aovQDotRawPostDivergenceM3PerSec2"
+      || row.signalId === "aovQDotClampImpulseM3PerSec2"
+      || row.signalId === "aovValveDiodeImpulseM3PerSec"
+      || row.signalId === "aovDynamicFlowClampImpulseM3PerSec"
     )
   )).length;
   if (qDotRows.length === 0 && clampCount === 0) return null;
@@ -2033,7 +2326,14 @@ function aovQDotClampObservation(metricRows: MetricRow[], clampRows: ClampEventR
     score: clampUnitPositive(Math.max(maxValue(qDotRows), Math.min(1, clampCount / 100))),
     supportCount: qDotRows.length + clampCount,
     metricIds: metricIds(qDotRows),
-    supportingSignals: ["aovQDotRawM3PerSec2", "aovQDotPostM3PerSec2", "aovQDotClampHit01", "aovDiodeImpulse", "aovFlowClampImpulse"],
+    supportingSignals: [
+      "aovQDotRawM3PerSec2",
+      "aovQDotPostM3PerSec2",
+      "aovQDotClampHit01",
+      "aovQDotClampImpulseM3PerSec2",
+      "aovValveDiodeImpulseM3PerSec",
+      "aovDynamicFlowClampImpulseM3PerSec",
+    ],
     missingSignals: [],
     classificationLabels: classificationLabels(qDotRows),
   };
@@ -2305,7 +2605,9 @@ function evidenceGaps(availability: Record<string, boolean>): EvidenceGap[] {
       id: "ejection-limb-arterial-load-signal-gap",
       lane: "ejection-limb",
       missingSignals: ejectionMissing,
-      note: "Arterial/load hypotheses remain insufficient without proximal arterial, root compliance, Zc, reflection, and PV qDot evidence.",
+      note: ejectionMissing.includes("pvQDotRawM3PerSec2")
+        ? "Arterial/load hypotheses remain insufficient without proximal arterial, root compliance, Zc, reflection, and PV qDot evidence."
+        : "Arterial/load hypotheses remain insufficient without proximal arterial, root compliance, Zc, and reflection evidence.",
     });
   }
   return gaps;

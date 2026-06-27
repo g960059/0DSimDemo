@@ -96,10 +96,13 @@ counts.
 The normalized names above are the runner contract. Current ModelCore
 evidence should be mapped without changing runtime semantics. Useful current
 aliases include `xiMV`, `xiAoV`, `xiTV`, `xiPV`, `QMV`, `QAo`, `QTV`, `QPV`,
-`LVPressureFloorHit01`, `RVPressureFloorHit01`, `AoV_qDotRaw`,
-`AoV_qDotPost`, `AoV_qDotClampHit01`, `AoV_qDotClampImpulse`,
-`AoV_diodeImpulse`, `AoV_flowClampImpulse`, and
-`debugClampDiagnostics()` fields such as `dynamicFlowClampHits` and
+`LVPressureFloorHit01`, `RVPressureFloorHit01`, and valve-prefixed qDot
+diagnostics such as `MV_qDotRaw`, `AoV_qDotPost`, `TV_qDotClampHit01`,
+`PV_qDotClampImpulse`, `*_diodeImpulse`, and `*_flowClampImpulse`. The
+runner-derived `perSampleValveDiodeClampHits` and
+`perSampleDynamicFlowClampHits` markers are last-step sample readouts derived
+from emitted valve impulse fields; they are separate from cumulative
+`debugClampDiagnostics()` counters such as `dynamicFlowClampHits` and
 `valveDiodeClampHits`.
 
 The per-sample phase artifact should include pressure, volume,

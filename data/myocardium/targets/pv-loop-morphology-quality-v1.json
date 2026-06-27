@@ -120,6 +120,18 @@
       { "name": "qDotClampActive", "unit": "boolean", "required": false },
       { "name": "dynamicFlowClampHits", "unit": "count", "required": false },
       { "name": "valveDiodeClampHits", "unit": "count", "required": false },
+      {
+        "name": "perSampleDynamicFlowClampHits",
+        "unit": "count",
+        "required": false,
+        "description": "Runner-derived last-step sample marker count from emitted valve flow-clamp impulse fields; separate from cumulative debugClampDiagnostics counters."
+      },
+      {
+        "name": "perSampleValveDiodeClampHits",
+        "unit": "count",
+        "required": false,
+        "description": "Runner-derived last-step sample marker count from emitted valve diode impulse fields; separate from cumulative debugClampDiagnostics counters."
+      },
       { "name": "pressureFloorActive", "unit": "boolean", "required": false },
       { "name": "pressureFloorHit01", "unit": "dimensionless", "required": false },
       { "name": "activeStressPa", "unit": "Pa", "required": false },
