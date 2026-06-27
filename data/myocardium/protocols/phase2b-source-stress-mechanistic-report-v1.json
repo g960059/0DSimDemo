@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "id": "phase2b-source-stress-mechanistic-report-v1",
+  "status": "proposed",
+  "phase": "2B",
+  "claimBoundary": "standalone-isometric-ca-land-source-stress-only",
+  "purpose": "Prevent misinterpretation of prescribed-Ca amplitude, record mechanistic Ca-to-stress timing, and preserve source-stress fields needed for Level 3 transfer checks.",
+  "requiredReportFields": [
+    "fixedFiberEngineeringStrain",
+    "lambda",
+    "hLambda",
+    "diastolicCaUM",
+    "targetPeakAmplitudeUM",
+    "targetAbsolutePeakCaUM",
+    "measuredPeakCaUM",
+    "caPeakTimeMs",
+    "stressPeakTimeMs",
+    "caToStressPeakDelayMs",
+    "CaT50AtFixedStrainUM",
+    "CaAtStressPeakUM",
+    "sourceStressPeakPa",
+    "sourceStressFwhmMs",
+    "sourceStressTimeToPeakMs",
+    "sourceStressRelaxationTauMs"
+  ],
+  "calciumAmplitudeClarification": {
+    "example": {
+      "diastolicCaUM": 0.12,
+      "targetPeakAmplitudeUM": 0.9,
+      "targetAbsolutePeakCaUM": 1.02,
+      "measuredPeakCaUMApprox": 1.016
+    },
+    "rule": "targetPeakAmplitudeUM is an amplitude above diastolic Ca, not the absolute Ca target. Absolute peak target is diastolicCaUM + targetPeakAmplitudeUM unless the target pack explicitly defines otherwise.",
+    "antiMisread": "Do not label a measured peak near 1.016 uM as a 13% overshoot when the configured absolute target is approximately 1.02 uM."
+  },
+  "knownEncouragingPhase2BReference": {
+    "status": "review-context-not-final-target",
+    "sourceStressFwhmMs": 234,
+    "sourceStressTimeToPeakMs": 187,
+    "caPeakTimeMs": 94,
+    "stressPeakTimeMs": 187,
+    "caToStressPeakDelayMs": 93,
+    "notes": "These values are recorded as review context for Level 3 entry gating; they are not a replacement for target-pack acceptance."
+  }
+}
