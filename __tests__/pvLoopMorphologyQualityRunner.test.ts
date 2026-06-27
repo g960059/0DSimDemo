@@ -196,6 +196,52 @@ describe("PV-loop morphology quality runner helpers", () => {
     ]));
   });
 
+  it("does not emit the RV filling chatter hypothesis from LV-only chatter evidence", () => {
+    const evidence = buildMorphologyEvidenceSummaryForTest([
+      metricRow({
+        chamber: "LV",
+        metricId: "mvOpenLowerLimbRoughness",
+        value: 3,
+        classificationLabels: ["filling-limb-artifact"],
+      }),
+      metricRow({
+        chamber: "LV",
+        metricId: "valveOpenCloseChatterCount",
+        value: 2,
+      }),
+    ]);
+
+    expect(evidence.rootCauseHypotheses.some((hypothesis) => (
+      hypothesis.id === "rv-filling-valve-chatter-correlation"
+    ))).toBe(false);
+  });
+
+  it("emits the RV filling chatter hypothesis only when RV roughness and chatter evidence are present", () => {
+    const evidence = buildMorphologyEvidenceSummaryForTest([
+      metricRow({
+        chamber: "RV",
+        metricId: "tvOpenLowerLimbRoughness",
+        value: 3,
+        classificationLabels: ["filling-limb-artifact"],
+      }),
+      metricRow({
+        chamber: "RV",
+        metricId: "valveOpenCloseChatterCount",
+        value: 2,
+      }),
+    ]);
+
+    const hypothesis = evidence.rootCauseHypotheses.find((candidate) => (
+      candidate.id === "rv-filling-valve-chatter-correlation"
+    ));
+
+    expect(hypothesis).toMatchObject({
+      evidenceStatus: "insufficient-evidence",
+      confidence: "low",
+    });
+    expect(hypothesis?.supportingSignals).toContain("tricuspidValveOpen01");
+  });
+
   it("renders morphology evidence status and gaps in summary markdown", () => {
     const summary = buildInitialSummary();
     summary.morphologyEvidence = buildMorphologyEvidenceSummaryForTest([

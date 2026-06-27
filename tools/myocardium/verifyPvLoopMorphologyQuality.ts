@@ -1888,7 +1888,16 @@ function buildMorphologyEvidenceSummary(
     });
   }
 
-  if (byId.has("filling-limb-roughness") && maxRawCoreMetric(metricRows, ["valveOpenCloseChatterCount"]) >= ROOT_CAUSE_SCORING_PROFILE.valveChatterCountMin) {
+  const rvFillingChatterScore = maxRawCoreMetric(metricRows, ["valveOpenCloseChatterCount"], "RV");
+  const rvFillingRoughnessScore = Math.max(
+    maxRawCoreMetric(metricRows, ["tvOpenLowerLimbRoughness"], "RV") / ROOT_CAUSE_SCORING_PROFILE.fillingRoughnessMin,
+    Math.min(1, maxRawCoreMetric(metricRows, ["lowerLimbKinkCount"], "RV") / 10),
+  );
+  if (
+    byId.has("filling-limb-roughness")
+    && rvFillingChatterScore >= ROOT_CAUSE_SCORING_PROFILE.valveChatterCountMin
+    && rvFillingRoughnessScore > 0
+  ) {
     const observation = byId.get("filling-limb-roughness")!;
     rootCauseHypotheses.push({
       id: "rv-filling-valve-chatter-correlation",
@@ -1896,7 +1905,7 @@ function buildMorphologyEvidenceSummary(
       hypothesis: "RV filling roughness is correlated with inlet valve open01 chatter in raw transition-excluded samples.",
       evidenceStatus: fillingMissing.length > 0 ? "insufficient-evidence" : "supported-correlation",
       confidence: fillingMissing.length > 0 ? "low" : "medium",
-      score: Math.min(1, maxRawCoreMetric(metricRows, ["valveOpenCloseChatterCount"]) / 10),
+      score: Math.min(1, 0.5 * rvFillingRoughnessScore + 0.5 * Math.min(1, rvFillingChatterScore / 10)),
       observations: [observation.id],
       supportingSignals: uniqueSorted([...observation.supportingSignals, "tricuspidValveOpen01"]),
       missingSignals: fillingMissing,
@@ -2112,8 +2121,13 @@ function rawCoreRows(metricRows: MetricRow[], metricIdsToSelect: string[]): Metr
   ));
 }
 
-function maxRawCoreMetric(metricRows: MetricRow[], metricIdsToSelect: string[]): number {
-  return maxValue(rawCoreRows(metricRows, metricIdsToSelect));
+function maxRawCoreMetric(
+  metricRows: MetricRow[],
+  metricIdsToSelect: string[],
+  chamber?: MetricChamber,
+): number {
+  const rows = rawCoreRows(metricRows, metricIdsToSelect);
+  return maxValue(chamber ? rows.filter((row) => row.chamber === chamber) : rows);
 }
 
 function maxValue(rows: MetricRow[]): number {
