@@ -30,6 +30,7 @@
     "verify:myocardium-land-active-stress-replacement": "vite-node tools/myocardium/verifyLandActiveStressReplacement.ts",
     "verify:myocardium-tissue-homogenization-readiness": "vite-node tools/myocardium/verifyTissueHomogenizationReadiness.ts",
     "verify:myocardium-passive-energy-readiness": "vite-node tools/myocardium/verifyPassiveEnergyReadiness.ts",
+    "verify:myocardium-generalized-force-mapper-readiness": "vite-node tools/myocardium/verifyGeneralizedForceMapperReadiness.ts",
     "verify:starling-low-preload-matrix": "STARLING_LOW_PRELOAD_MATRIX_MAIN=1 vite-node tools/verifyStarlingLowPreloadMatrix.ts",
     "debug:starling-low-preload": "STARLING_LOW_PRELOAD_DEBUG_MAIN=1 vite-node tools/debugStarlingLowPreload.ts",
     "fit:left-filling": "vite-node tools/fitLeftFilling.ts",

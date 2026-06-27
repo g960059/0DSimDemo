@@ -23,3 +23,10 @@ export {
   assertValidSingleCoordinateForceInput,
   evaluateVirtualPowerNominalEngineeringV1,
 } from "@/engine/myocardium/mechanics/virtualPowerNominalEngineeringV1";
+export {
+  VIRTUAL_POWER_GENERALIZED_FORCE_V1_ID,
+  VirtualPowerGeneralizedForceV1,
+  assertValidGeneralizedForceInput,
+  evaluateVirtualPowerGeneralizedForceV1,
+  type VirtualPowerGeneralizedForceV1Input,
+} from "@/engine/myocardium/mechanics/virtualPowerGeneralizedForceV1";

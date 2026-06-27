@@ -32,6 +32,10 @@ const SHADOW_PROTOCOL_SCAN_EXCLUSIONS = new Set([
   // surfaces. Their own verifier scans runtime/case surfaces for passive
   // candidate references and live passive-law enabling.
   "engine/myocardium/protocols/passiveEnergyReadiness.ts",
+  // Phase 4C-B generalized-force mapper audit artifacts are not runtime
+  // integration surfaces. Their own verifier scans runtime/case/workbench
+  // surfaces for mapper references and live generalized-force wiring.
+  "engine/myocardium/protocols/generalizedForceMapperReadiness.ts",
 ]);
 
 export const REQUIRED_PHASE4A_CRITERION_IDS = [

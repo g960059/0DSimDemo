@@ -378,6 +378,43 @@ right-heart failure are not covered by this Phase 4C-A gate. The future TriSeg
 path preserves `triseg-lite-compatible`, `full-triseg-compatible`, and full
 TriSeg escalation before those mechanisms are claimed.
 
+## Phase 4C-B generalized-force mapper readiness artifact
+
+Run `npm run verify:myocardium-generalized-force-mapper-readiness` to check
+the Phase 4C-B generalized-force mapper readiness artifact. The descriptor is
+[`../../data/myocardium/protocols/generalized-force-mapper-phase4c-protocols.json`](../../data/myocardium/protocols/generalized-force-mapper-phase4c-protocols.json),
+and the mapper implementation is
+[`../../engine/myocardium/mechanics/virtualPowerGeneralizedForceV1.ts`](../../engine/myocardium/mechanics/virtualPowerGeneralizedForceV1.ts).
+
+This gate audits `virtual-power-generalized-force-v1` with synthetic
+multi-coordinate virtual-power closure only. It computes active, passive, and
+viscous contributions per coordinate as `Vw0*S*dE_f/dq_i`, checks the total
+conjugate force sum, requires explicit coordinate rates for multi-coordinate
+closure, preserves Phase 3B-compatible scalar rate derivation, and emits
+`volumeCoordinatePressurePa` only for coordinates whose unit is `m3`.
+Displacement coordinates with unit `m` remain force components only.
+
+The gate reports
+`claimBoundary=generalized-force-mapper-readiness-artifact-only`,
+`evidenceStatus=synthetic-multi-coordinate-virtual-power-closure-only`,
+`ownerAcceptanceStatus=not-owner-acceptance`,
+`decision4Status=PENDING OWNER`, `decision5Status=PENDING OWNER`,
+`decision6Status=PENDING OWNER`, and `decision8Status=PENDING OWNER`. It
+reuses the accepted Decision 19 owner-selection artifact read-only with
+`decision19Status=ACCEPTED`; it does not add production runtime acceptance,
+production homogenization, a production passive law, official morphology
+outcome, atrial bridge selection, live runtime replacement,
+ModelCore/chamber/state-schema/official-case wiring, or workbench wiring.
+Phase 3B, Phase 4B-A, Phase 4B-B, and Phase 4C-A evidence is reused read-only,
+and the Phase 4C-A descriptor remains checked with
+`enableMultiCoordinateGeneralizedForceMapper=false`.
+
+Official morphology, atrial bridge selection, RV pressure overload, septal
+bowing, ventricular interdependence, and right-heart failure are not covered by
+this Phase 4C-B gate. The future TriSeg path preserves
+`triseg-lite-compatible`, `full-triseg-compatible`, and full TriSeg escalation
+before those mechanisms are claimed.
+
 ## Imported bundle checks
 
 Revision 3's original markdown hashes are preserved in
