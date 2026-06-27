@@ -1,0 +1,193 @@
+{
+  "schemaVersion": 1,
+  "artifact": {
+    "id": "land-tissue-homogenization-phase4b-protocols-v1",
+    "version": "1.0.0",
+    "status": "tissue-homogenization-readiness-audit-only",
+    "purpose": "Phase 4B-B readiness gate for tissue homogenization. This audits the locked shadow adapter candidate and does not graduate, accept, or validate production homogenization."
+  },
+  "protocolSetId": "land-tissue-homogenization-phase4b-protocols-v1",
+  "phase": "Phase 4B-B",
+  "statusBoundary": "tissue-homogenization-readiness-audit-only",
+  "claimBoundary": "tissue-homogenization-readiness-audit-only",
+  "readinessStatus": "readiness-audit-only",
+  "auditedAdapterCandidateId": "identity-fiber-nominal-v1",
+  "adapterAuditScope": "audits the locked shadow adapter candidate",
+  "ownerAcceptanceStatus": "not-owner-acceptance",
+  "decision4Status": "PENDING OWNER",
+  "productionHomogenization": "not-claimed",
+  "identifiabilityRankStatus": "not-run",
+  "sourceDocuments": [
+    {
+      "documentId": "identity-force-phase3b-protocols-v1",
+      "path": "data/myocardium/protocols/identity-force-phase3b-protocols.json",
+      "status": "candidate",
+      "uses": [
+        "direct identity adapter provenance",
+        "identity homogenization contract",
+        "fixed no-free-gain parameters",
+        "single-coordinate generalized-force closure"
+      ]
+    },
+    {
+      "documentId": "minimal-loaded-phase3c-afterload-protocols-v1",
+      "path": "data/myocardium/protocols/minimal-loaded-phase3c-afterload-protocols.json",
+      "status": "candidate",
+      "uses": [
+        "direct loaded-shadow reuse provenance",
+        "identity adapter use in minimal loaded afterload family",
+        "Land source health and virtual-power readiness"
+      ]
+    },
+    {
+      "documentId": "land-active-stress-replacement-phase4b-protocols-v1",
+      "path": "data/myocardium/protocols/land-active-stress-replacement-phase4b-protocols.json",
+      "status": "shadow-replacement-readiness-only",
+      "uses": [
+        "read-only Phase 4B-A report reuse",
+        "Land active-stress replacement shadow readiness boundary",
+        "non-production morphology proxy and beat-stability smoke context"
+      ]
+    },
+    {
+      "documentId": "myocardium-land-v1",
+      "path": "docs/myocardium/model-spec/myocardium-land-v1.md",
+      "status": "Proposed",
+      "uses": [
+        "tissue homogenization adapter contract",
+        "active tissue fraction and orientation rule fields",
+        "stabilization and algorithmic tangent field separation"
+      ]
+    },
+    {
+      "documentId": "myocardium-v1-verification",
+      "path": "docs/myocardium/verification/myocardium-v1-verification.md",
+      "status": "Proposed",
+      "uses": [
+        "homogenization and identifiability gate planning",
+        "claim-boundary language",
+        "future target-pack requirements"
+      ]
+    },
+    {
+      "documentId": "myocardium-rebuild-roadmap",
+      "path": "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
+      "status": "Proposed",
+      "uses": [
+        "Phase 4B sequencing",
+        "Decision 4 PENDING OWNER boundary",
+        "future TriSeg path"
+      ]
+    }
+  ],
+  "pendingOwnerDecisions": [
+    {
+      "decisionId": 4,
+      "decision": "source to wall homogenization",
+      "status": "PENDING OWNER",
+      "effect": "Phase 4B-B audits the locked identity shadow adapter candidate only and does not accept production source-to-wall homogenization."
+    }
+  ],
+  "modelIds": {
+    "homogenizationModelId": "identity-fiber-nominal-v1",
+    "phase3BProtocolSetId": "identity-force-phase3b-protocols-v1",
+    "phase3CProtocolSetId": "minimal-loaded-phase3c-afterload-protocols-v1",
+    "phase4BAProtocolSetId": "land-active-stress-replacement-phase4b-protocols-v1"
+  },
+  "identityAdapterCandidate": {
+    "homogenizationModelId": "identity-fiber-nominal-v1",
+    "parameters": {
+      "activeTissueFraction": 1,
+      "orientationRuleId": "identity-fiber-nominal-v1",
+      "allowFreeGain": false,
+      "fitToPVLoop": false
+    },
+    "parameterSource": "engine/myocardium/homogenization/identityFiberNominalV1.ts",
+    "claim": "locked-shadow-adapter-candidate-only"
+  },
+  "scientificLimitations": {
+    "activeTissueFraction": 1,
+    "orientationRuleId": "identity-fiber-nominal-v1",
+    "identityOrientationOnly": true,
+    "fiberOrientationStatus": "not-modeled",
+    "dispersionStatus": "not-modeled",
+    "transmuralVariationStatus": "not-modeled",
+    "fractionLessThanOneStatus": "not-supported",
+    "independentDataStatus": "not-run",
+    "identifiabilityRankStatus": "not-run",
+    "limitationText": "The current identity adapter has activeTissueFraction=1 and identity orientation only: no fiber orientation model, no dispersion model, no transmural variation, no active tissue fraction<1 behavior, no independent data fit, and no independent identifiability rank run."
+  },
+  "currentChecks": [
+    "audits the locked shadow adapter candidate",
+    "direct Phase 3B identity adapter provenance",
+    "direct Phase 3C minimal loaded provenance",
+    "Decision 4 remains PENDING OWNER",
+    "identity adapter limitation text: activeTissueFraction=1, identity orientation, no fiber orientation, no dispersion, no transmural variation, no fraction<1 behavior, no independent data, no identifiability rank run",
+    "stabilizationStiffnessPa and optional algorithmic tangent stay distinct",
+    "runtime and official-case targets remain unwired"
+  ],
+  "protocolSettings": {
+    "allowFreeHomogenizationGain": false,
+    "fitToPVLoop": false,
+    "useProductionHomogenization": false,
+    "useProductionMechanics": false,
+    "useRuntimeReplacement": false,
+    "useModelCoreRuntimeWiring": false,
+    "useOfficialCaseWiring": false,
+    "useOfficialMorphologyAcceptance": false,
+    "useCalciumCyclingAlternansValidation": false,
+    "runIndependentIdentifiabilityRank": false,
+    "phase4BAReusePolicy": "read-only"
+  },
+  "claimExclusions": {
+    "ownerAcceptance": "not-claimed",
+    "decision4Acceptance": "not-claimed",
+    "productionHomogenization": "not-claimed",
+    "productionValidation": "not-claimed",
+    "officialMorphologyOutcome": "not-claimed",
+    "liveRuntimeReplacement": "not-claimed",
+    "runtimeSchemaStateLayoutChange": "not-claimed",
+    "ModelCoreChamberWiring": "not-claimed",
+    "officialCaseWiring": "not-claimed",
+    "calciumCyclingAlternansValidation": "not-claimed",
+    "RVPressureOverloadCoverage": "not-claimed",
+    "septalBowingCoverage": "not-claimed",
+    "ventricularInterdependenceCoverage": "not-claimed",
+    "rightHeartFailureCoverage": "not-claimed",
+    "independentDataFit": "not-claimed",
+    "identifiabilityRankOutcome": "not-claimed"
+  },
+  "nonCoverage": [
+    "RV pressure overload as a primary or final mechanism is not covered by this Phase 4B-B tissue homogenization readiness audit.",
+    "Septal bowing as a primary or final mechanism is not covered by this Phase 4B-B tissue homogenization readiness audit.",
+    "Ventricular interdependence as a primary or final mechanism is not covered by this Phase 4B-B tissue homogenization readiness audit.",
+    "Right-heart failure as the primary or final official-case scope is not covered by this Phase 4B-B tissue homogenization readiness audit."
+  ],
+  "futureTriSegPath": {
+    "trisegLiteCandidateId": "triseg-lite-compatible",
+    "fullTrisegCompatibleCandidateId": "full-triseg-compatible",
+    "fullTriSegPath": "A full TriSeg escalation path remains preserved before RV pressure overload, septal bowing, ventricular interdependence, or right-heart failure are claimed as covered primary mechanisms.",
+    "requiredBeforeClaimingThoseMechanisms": [
+      "triseg-lite-compatible review when interdependence is visible but bounded",
+      "full-triseg-compatible review when RV pressure overload, septal bowing, or ventricular interdependence is central",
+      "full TriSeg escalation before claiming those mechanisms as covered by production mechanics"
+    ]
+  },
+  "requiredVerificationScripts": [
+    "verify:myocardium-tissue-homogenization-readiness",
+    "verify:myocardium-generalized-forces",
+    "verify:myocardium-minimal-loaded-chamber",
+    "verify:myocardium-land-active-stress-replacement",
+    "verify:myocardium-mechanics-selection",
+    "verify:myocardium-mechanics-decision"
+  ],
+  "protocols": [
+    { "id": "descriptor-direct-provenance-v1", "kind": "boundary-check", "claim": "direct-phase3b-phase3c-provenance" },
+    { "id": "decision4-owner-boundary-v1", "kind": "owner-boundary", "claim": "decision4-pending-owner" },
+    { "id": "identity-adapter-constant-match-v1", "kind": "constant-match", "claim": "runtime-constant-audit" },
+    { "id": "identity-adapter-limitation-text-v1", "kind": "limitation-audit", "claim": "scientific-limitation-disclosure" },
+    { "id": "identity-mapping-tangent-separation-v1", "kind": "smoke-test", "claim": "field-separation-only" },
+    { "id": "future-triseg-noncoverage-v1", "kind": "boundary-check", "claim": "future-path-preserved" },
+    { "id": "deterministic-replay-v1", "kind": "determinism", "claim": "readiness-audit-replay" }
+  ]
+}

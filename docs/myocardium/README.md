@@ -6,8 +6,9 @@ Baseline repository commit: `228bef96e5f522de2cfe352de5d6d4d2f017c550`
 
 Revision 3 is the current planning namespace for the myocardial contraction
 subsystem replacement. It is not a patch plan for the existing
-`ActiveStressChamberModel`, and it does not change runtime TypeScript behavior
-until Phase 0 owner decisions are accepted.
+`ActiveStressChamberModel`. This docs/data update does not change runtime
+TypeScript behavior; runtime integration still requires the later phase gates
+called out below.
 
 ## Read order
 
@@ -311,3 +312,47 @@ validation.
 
 PR #166 proposes the alternans interpretation policy in
 [`../../data/myocardium/protocols/layer-consistency-and-alternans-policy-v1.json`](../../data/myocardium/protocols/layer-consistency-and-alternans-policy-v1.json).
+
+## Phase 4B-B tissue homogenization readiness audit
+
+Run `npm run verify:myocardium-tissue-homogenization-readiness` to check the
+Phase 4B-B tissue homogenization readiness audit. The descriptor is
+[`../../data/myocardium/protocols/land-tissue-homogenization-phase4b-protocols.json`](../../data/myocardium/protocols/land-tissue-homogenization-phase4b-protocols.json).
+This gate audits the locked shadow adapter candidate only. It uses direct
+adapter provenance from Phase 3B
+[`../../data/myocardium/protocols/identity-force-phase3b-protocols.json`](../../data/myocardium/protocols/identity-force-phase3b-protocols.json)
+and direct loaded-shadow provenance from Phase 3C
+[`../../data/myocardium/protocols/minimal-loaded-phase3c-afterload-protocols.json`](../../data/myocardium/protocols/minimal-loaded-phase3c-afterload-protocols.json),
+with Phase 4B-A reuse kept read-only.
+
+The gate reports
+`claimBoundary=tissue-homogenization-readiness-audit-only`,
+`ownerAcceptanceStatus=not-owner-acceptance`,
+`decision4Status=PENDING OWNER`,
+`productionHomogenization=not-claimed`, and
+`identifiabilityRankStatus=not-run`. It does not graduate, accept, or validate
+production tissue homogenization, official morphology, live runtime
+replacement, calcium-cycling alternans validation, ModelCore/chamber wiring,
+state schema changes, or official-case wiring.
+
+The current identity adapter has activeTissueFraction=1 and identity
+orientation only: no fiber orientation model, no dispersion model, no
+transmural variation, no active tissue fraction<1 behavior, no independent
+data fit, and no independent identifiability rank run. The audit also checks
+that `stabilizationStiffnessPa` and optional `algorithmicTangentPa` remain
+distinct fields.
+
+RV pressure overload, septal bowing, ventricular interdependence, and
+right-heart failure are not covered by this Phase 4B-B gate. The future TriSeg
+path preserves `triseg-lite-compatible`, `full-triseg-compatible`, and full
+TriSeg escalation before those mechanisms are claimed.
+
+## Imported bundle checks
+
+Revision 3's original markdown hashes are preserved in
+[revision3-validation.json](revision3-validation.json). The repository import
+status, source hashes, and adapted repository hashes are recorded in
+[import-manifest.json](import-manifest.json).
+
+[CHANGELOG-REV3.md](CHANGELOG-REV3.md) records the Revision 3 changes from the
+source bundle.
