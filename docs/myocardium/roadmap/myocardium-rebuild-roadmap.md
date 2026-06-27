@@ -175,11 +175,23 @@ and a separate 1% alternans-pattern tolerance.
 - boundary: shadow readiness only; no live runtime replacement, no production validation, no official morphology acceptance, no completed Phase 4B tissue homogenization, no ModelCore/chamber/schema/official-case wiring, no RV pressure-overload/interdependence coverage, and no calcium-cycling alternans validation
 - future TriSeg path remains preserved before RV pressure overload, septal bowing, ventricular interdependence, or right-heart failure are claimed
 
-### PR 4B — tissue homogenization
+### PR 4B-B — tissue homogenization readiness audit
 
-- source→wall adapter
-- independent parameter sources
-- identifiability
+Scope: descriptor/report/verifier/test/docs gate only for tissue homogenization
+readiness. This audits the locked shadow adapter candidate
+`identity-fiber-nominal-v1`; it does not graduate, accept, or validate
+production tissue homogenization.
+
+- gate script: `npm run verify:myocardium-tissue-homogenization-readiness`
+- artifact: `data/myocardium/protocols/land-tissue-homogenization-phase4b-protocols.json`
+- direct adapter provenance: `data/myocardium/protocols/identity-force-phase3b-protocols.json`
+- direct loaded-shadow provenance: `data/myocardium/protocols/minimal-loaded-phase3c-afterload-protocols.json`
+- Phase 4B-A reuse: read-only context from `data/myocardium/protocols/land-active-stress-replacement-phase4b-protocols.json`
+- boundary: `ownerAcceptanceStatus=not-owner-acceptance`, Decision 4 remains `PENDING OWNER`, `productionHomogenization=not-claimed`, `identifiabilityRankStatus=not-run`, no live runtime replacement, no official morphology acceptance, no calcium-cycling alternans validation, no ModelCore/chamber/schema/official-case wiring
+- identity limitation: current identity adapter has activeTissueFraction=1 and identity orientation only; no fiber orientation, no dispersion, no transmural variation, no active tissue fraction<1 behavior, no independent data, and no independent identifiability rank run
+- tangent boundary: `stabilizationStiffnessPa` and optional `algorithmicTangentPa` stay distinct fields
+- non-coverage: RV pressure overload, septal bowing, ventricular interdependence, and right-heart failure are not covered by this gate
+- future TriSeg path: preserve `triseg-lite-compatible`, `full-triseg-compatible`, and full TriSeg escalation before those mechanisms are claimed
 
 ### PR 4C — passive energy + generalized-force mapper
 

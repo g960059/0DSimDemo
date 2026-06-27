@@ -24,6 +24,10 @@ const SHADOW_PROTOCOL_SCAN_EXCLUSIONS = new Set([
   // Phase 4B-A shadow protocol artifacts are not runtime integration surfaces.
   // Their own verifier scans runtime/case surfaces for Phase 4B-A references.
   "engine/myocardium/protocols/landActiveStressReplacementReadiness.ts",
+  // Phase 4B-B tissue-homogenization audit artifacts are not runtime integration
+  // surfaces. Their own verifier scans runtime/case surfaces for Phase 4B-B
+  // references and live identity-adapter imports.
+  "engine/myocardium/protocols/tissueHomogenizationReadiness.ts",
 ]);
 
 export const REQUIRED_PHASE4A_CRITERION_IDS = [
