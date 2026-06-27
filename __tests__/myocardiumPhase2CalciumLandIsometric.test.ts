@@ -177,6 +177,7 @@ describe("myocardium Phase 2B isometric prescribed Ca plus Land", () => {
     const allowedFragments = [
       "/__tests__/myocardiumPhase2CalciumLandIsometric.test.ts",
       "/__tests__/myocardiumPhase2PrescribedCalcium.test.ts",
+      "/data/myocardium/protocols/phase2b-mechanistic-report-fields-v1.json",
       "/docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
       "/engine/myocardium/protocols/calciumLandIsometric.ts",
       "/package.json",
