@@ -49,6 +49,20 @@ export {
 } from "@/engine/myocardium/myofilament/land2017/equations";
 export { writeLand2017BackwardEulerResidual } from "@/engine/myocardium/myofilament/land2017/residual";
 export {
+  LAND2017_SDIRK2_GAMMA,
+  LAND2017_SDIRK2_TABLEAU,
+  deriveLand2017Sdirk2StageKinematics,
+  evaluateLand2017Sdirk2StageOutput,
+  land2017Sdirk2Stage0ContinuousInput,
+  land2017Sdirk2StageContinuousInput,
+  writeLand2017Sdirk2StageResidual,
+  type Land2017Sdirk2Stage0History,
+  type Land2017Sdirk2Stage0Input,
+  type Land2017Sdirk2Stage1Input,
+  type Land2017Sdirk2StageInput,
+  type Land2017Sdirk2StageKinematics,
+} from "@/engine/myocardium/myofilament/land2017/sdirk2";
+export {
   solveLand2017BackwardEulerStep,
   solveLand2017BackwardEulerSubsteps,
   type Land2017SolveFailureReason,

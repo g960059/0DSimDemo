@@ -1,0 +1,313 @@
+{
+  "schemaVersion": 1,
+  "artifact": {
+    "id": "local-monolithic-coupling-phase5b-sdirk2-protocols-v1",
+    "version": "1.0.0",
+    "status": "local-monolithic-sdirk2-reference-readiness-only",
+    "purpose": "Phase 5B local monolithic SDIRK2 reference-readiness gate. It records only a pure, synthetic LV/RV local-monolithic-sdirk2-v1 reference solve with two sequential 7-unknown stage solves, and does not claim Phase 5 completion, production solver comparison, performance acceptance, runtime wiring, morphology pass, robust no-alternans, calcium-cycling alternans validation, septal/RV overload/interdependence/RHF coverage, or TriSeg adoption."
+  },
+  "protocolSetId": "local-monolithic-coupling-phase5b-sdirk2-protocols-v1",
+  "phase": "Phase 5B",
+  "phaseCompletionStatus": "not-phase5-completion",
+  "status": "local-monolithic-sdirk2-reference-readiness-only",
+  "statusBoundary": "local-monolithic-sdirk2-reference-readiness-only",
+  "claimBoundary": "local-monolithic-sdirk2-reference-readiness-only",
+  "referenceModelId": "local-monolithic-sdirk2-v1",
+  "referenceModelContract": "local-monolithic-sdirk2-v1",
+  "referenceModelStatus": "pure-reference-not-runtime-wired",
+  "sdirk2ReferenceCompletion": "local-monolithic-synthetic-reference-complete",
+  "sdirk2ReferenceScope": "local-monolithic-sdirk2-v1 synthetic LV/RV reference only",
+  "phase5BUnblocks": [
+    "later robust no-alternans work required by PR #166"
+  ],
+  "sourceDocuments": [
+    {
+      "documentId": "myocardium-rebuild-roadmap",
+      "path": "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
+      "status": "Proposed",
+      "uses": [
+        "Phase 5B SDIRK2 reference scope",
+        "Phase 5A is not Phase 5 completion preservation",
+        "non-runtime wiring statement"
+      ]
+    },
+    {
+      "documentId": "myocardium-readme",
+      "path": "docs/myocardium/README.md",
+      "status": "Proposed",
+      "uses": [
+        "user-facing Phase 5B verifier and claim boundary",
+        "local synthetic reference only"
+      ]
+    },
+    {
+      "documentId": "land2017-sdirk2-entrypoint",
+      "path": "engine/myocardium/myofilament/land2017/sdirk2.ts",
+      "status": "reference-entrypoint-not-shared-be-entrypoint",
+      "uses": [
+        "fixed SDIRK2 gamma and tableau",
+        "stage0 and stage1 rate derivation",
+        "stage1 internal RHS0 reconstruction",
+        "independent rate and RHS injection rejection"
+      ]
+    },
+    {
+      "documentId": "local-monolithic-sdirk2-v1",
+      "path": "engine/myocardium/coupling/localMonolithicSdirk2V1.ts",
+      "status": "pure-reference-not-runtime-wired",
+      "uses": [
+        "selected v2 kinematics",
+        "prescribed calcium with sequential stage-increment dtSec semantics",
+        "Land SDIRK2 stage residuals",
+        "identity homogenization",
+        "passive exponential energy",
+        "generalized-force pressure map",
+        "local force-balance Newton residual"
+      ]
+    },
+    {
+      "documentId": "local-monolithic-sdirk2-readiness-report",
+      "path": "engine/myocardium/protocols/localMonolithicSdirk2Readiness.ts",
+      "status": "descriptor-report-verifier-only",
+      "uses": [
+        "Phase 5B report orchestration",
+        "BE-vs-SDIRK2 bounded discrepancy",
+        "deterministic summary hash"
+      ]
+    }
+  ],
+  "phase4DReadOnlyEvidence": {
+    "reusePolicy": "read-only",
+    "protocolSetId": "selected-mechanics-calibration-phase4d-protocols-v1",
+    "stableSummaryHash": "62304684",
+    "acceptedStableSummaryHashes": ["62304684", "a39922fa"],
+    "selectedCandidateStableHash": "8faff83b",
+    "lvParameterSetStableHash": "6fa31380",
+    "rvParameterSetStableHash": "6ae46df8",
+    "selectedCandidateId": "thick-sphere-v2-explicit-external-septal-coupling",
+    "selectedBackendId": "thick-sphere-v2",
+    "lvCoordinateId": "lv-cavity-volume",
+    "rvCoordinateId": "rv-cavity-volume",
+    "driftPolicy": "fail-if-current-recomputed-values-differ"
+  },
+  "modelIds": {
+    "referenceModelId": "local-monolithic-sdirk2-v1",
+    "beFallbackReferenceModelId": "local-monolithic-be-v1",
+    "selectedBackendId": "thick-sphere-v2",
+    "selectedCandidateId": "thick-sphere-v2-explicit-external-septal-coupling",
+    "lvCoordinateId": "lv-cavity-volume",
+    "rvCoordinateId": "rv-cavity-volume",
+    "prescribedCalciumParameterSetId": "prescribed-calcium-synthetic-smoke-v1",
+    "landSourceParameterSetId": "land2017-intact-human-37c-source-v1",
+    "homogenizationModelId": "identity-fiber-nominal-v1",
+    "passiveModelId": "passive-exponential-energy-v1",
+    "generalizedForceMapperId": "virtual-power-generalized-force-v1"
+  },
+  "sdirk2Tableau": {
+    "gammaExpression": "1 - 1 / Math.sqrt(2)",
+    "stageCount": 2,
+    "a00": "gamma",
+    "a10": "1-gamma",
+    "a11": "gamma",
+    "c0": "gamma",
+    "c1": 1,
+    "finalStateSource": "Y1",
+    "stifflyAccurate": true
+  },
+  "stageSemantics": {
+    "stageSolvePolicy": "sequential-7-unknown-stage-solves",
+    "simultaneous14UnknownSolve": false,
+    "stage0Residual": "Y0 - Yn - dt*gamma*f(Y0,input0)",
+    "stage1Residual": "Y1 - Yn - dt*((1-gamma)*f(Y0,input0)+gamma*f(Y1,input1))",
+    "stage0StrainRate": "(E0 - En) / (gamma * dt)",
+    "stage1StrainRate": "(E1 - En - dt * (1 - gamma) * strainRate0) / (gamma * dt)",
+    "stage0CoordinateRateSI": "(q0 - qn) / (gamma * dt)",
+    "stage1CoordinateRateSI": "(q1 - qn - dt * (1 - gamma) * qdot0) / (gamma * dt)",
+    "calciumDtSecSemantics": "sequential-stage-increment",
+    "calciumStage0DtSec": "gamma * dt",
+    "calciumStage1DtSec": "(1 - gamma) * dt",
+    "stage1HistoryContract": [
+      "stage0State",
+      "stage0FiberEngineeringStrain",
+      "stage0CavityVolumeM3",
+      "stage0FreeCalciumUM",
+      "stage0CoordinateRateSI"
+    ],
+    "rejectIndependentInputs": [
+      "fiberEngineeringStrainRatePerSec",
+      "stageFiberEngineeringStrainRatePerSec",
+      "coordinateRateSI",
+      "stageCoordinateRateSI",
+      "rhs0",
+      "stage0Rhs",
+      "stage0RhsVector",
+      "landRhs0",
+      "stage0LandRhs",
+      "f0"
+    ]
+  },
+  "localReferenceAcceptance": {
+    "sampleIds": [
+      "phase5b-lv-local-sdirk2-reference",
+      "phase5b-rv-local-sdirk2-reference"
+    ],
+    "requiredVentricles": ["LV", "RV"],
+    "landStage": { "scheme": "SDIRK2", "stageCount": 2, "finalStateSource": "Y1" },
+    "landSolverMethods": [
+      "writeLand2017Sdirk2StageResidual",
+      "evaluateLand2017Sdirk2StageOutput"
+    ],
+    "coupledUnknowns": ["cavityVolumeM3", "CaTRPN", "B", "W", "S", "zetaW", "zetaS"],
+    "unknownVectorDimensionPerStage": 7,
+    "simultaneousUnknownVectorDimension": "not-used",
+    "maxLocalForceBalanceResidualAbsPa": 1e-7,
+    "maxLandResidualNorm": 1e-9,
+    "maxBeVsSdirk2CavityVolumeAbsDiffM3": 0.0001,
+    "maxBeVsSdirk2LandStateLinf": 1,
+    "requireBeVsSdirk2NotIdentical": true,
+    "requireNewtonIterationCountGreaterThanZero": true,
+    "requireLineSearchEvidence": true,
+    "requireFiniteDifferenceJacobianEvidence": true,
+    "requireFiniteStateHealth": true,
+    "requireStageRateDerivationConsistency": true,
+    "requireDeterministicHash": true
+  },
+  "protocolSettings": {
+    "runLocalMonolithicSdirk2Reference": true,
+    "useLocalMonolithicSdirk2ReferenceCompletion": true,
+    "phase4DReusePolicy": "read-only",
+    "useBackwardEulerFallbackComparison": true,
+    "useProductionSolverComparison": false,
+    "usePerformanceAcceptance": false,
+    "useActiveStiffnessProductionCoupling": false,
+    "useRuntimeReplacement": false,
+    "useModelCoreRuntimeWiring": false,
+    "useChamberRuntimeWiring": false,
+    "useCaseRuntimeWiring": false,
+    "useStateSchemaWiring": false,
+    "useOfficialCaseWiring": false,
+    "useWorkbenchRuntimeWiring": false,
+    "useOfficialMorphologyAcceptance": false,
+    "useRobustNoAlternansAcceptance": false,
+    "useCalciumCyclingAlternansValidation": false,
+    "implementSeptalCoordinate": false,
+    "implementBiventricularCoupling": false,
+    "validateSeptalCoupling": false,
+    "validateRVPressureOverload": false,
+    "validateVentricularInterdependence": false,
+    "validateRightHeartFailure": false,
+    "adoptTriSeg": false
+  },
+  "claimScope": {
+    "localMonolithicSdirk2ReferenceCompletion": "claimed",
+    "phase5Completion": "not-claimed",
+    "productionSolverComparison": "not-claimed",
+    "performanceAcceptance": "not-claimed",
+    "activeStiffnessProductionCoupling": "not-claimed",
+    "activeStiffnessPartitionedProductionCoupling": "not-claimed",
+    "productionMechanics": "not-claimed",
+    "productionHomogenization": "not-claimed",
+    "productionPassiveLaw": "not-claimed",
+    "productionValidation": "not-claimed",
+    "officialMorphologyOutcome": "not-claimed",
+    "morphologyPass": "not-claimed",
+    "robustNoAlternans": "not-claimed",
+    "calciumCyclingAlternansValidation": "not-claimed",
+    "liveRuntimeReplacement": "not-claimed",
+    "runtimeSchemaStateLayoutChange": "not-claimed",
+    "ModelCoreChamberWiring": "not-claimed",
+    "chamberWiring": "not-claimed",
+    "caseWiring": "not-claimed",
+    "officialCaseWiring": "not-claimed",
+    "workbenchWiring": "not-claimed",
+    "septalCoordinateImplementation": "not-claimed",
+    "septalCouplingImplementation": "not-claimed",
+    "RVPressureOverloadCoverage": "not-claimed",
+    "septalBowingCoverage": "not-claimed",
+    "ventricularInterdependenceCoverage": "not-claimed",
+    "rightHeartFailureCoverage": "not-claimed",
+    "TriSegAdoption": "not-claimed"
+  },
+  "runtimeIsolation": {
+    "status": "no-runtime-wiring",
+    "scanPolicy": "mirror-phase4d-runtime-target-set",
+    "targetSet": [
+      "caseCloud.ts",
+      "caseDoc.ts",
+      "casePersist.ts",
+      "caseValidation.ts",
+      "components/Cases.tsx",
+      "components/workbench",
+      "engine/ModelCore.ts",
+      "engine/caseBaselines.ts",
+      "engine/caseResolve.ts",
+      "engine/chambers.ts",
+      "engine/guytonStarlingChainWorker.ts",
+      "engine/guytonStarlingChainWorkerCore.ts",
+      "engine/guytonStarlingChainProtocol.ts",
+      "engine/guytonStarlingWorker.ts",
+      "engine/guytonStarlingWorkerCore.ts",
+      "engine/harness.ts",
+      "engine/previewController.ts",
+      "engine/previewWorker.ts",
+      "engine/previewWorkerProtocol.ts",
+      "engine/protocol.ts",
+      "engine/stateContract.ts",
+      "engine/steadyJob.ts",
+      "engine/transitionSteadyProtocol.ts",
+      "engine/transitionSteadyWorker.ts",
+      "engine/core/stateLayout.ts",
+      "features/workbench",
+      "officialCases.ts",
+      "tools/verifyCases.ts",
+      "data/cases",
+      "public/cases"
+    ]
+  },
+  "nonCoverage": [
+    "Phase 5B local-monolithic-sdirk2-v1 reference readiness is not Phase 5 completion.",
+    "Production solver comparison is not claimed by this Phase 5B local monolithic SDIRK2 reference gate.",
+    "Performance acceptance is not claimed by this Phase 5B gate.",
+    "Active-stiffness production coupling and active-stiffness partitioned production coupling are not claimed by this Phase 5B gate.",
+    "Runtime replacement, ModelCore wiring, chamber wiring, case wiring, official-case wiring, and workbench wiring are not covered by this Phase 5B gate.",
+    "Official morphology pass or production validation is not claimed by this Phase 5B gate.",
+    "Robust no-alternans validation and calcium-cycling alternans validation are not claimed by this Phase 5B gate.",
+    "A septal coordinate and biventricular coupling law are not implemented by this Phase 5B gate.",
+    "RV pressure overload as a primary or final mechanism is not covered by this Phase 5B gate.",
+    "Septal bowing as a primary or final mechanism is not covered by this Phase 5B gate.",
+    "Ventricular interdependence as a primary or final mechanism is not covered by this Phase 5B gate.",
+    "Right-heart failure as the primary or final official-case scope is not covered by this Phase 5B gate.",
+    "TriSeg adoption is not claimed by this Phase 5B gate."
+  ],
+  "futureTriSegPath": {
+    "trisegLiteCandidateId": "triseg-lite-compatible",
+    "fullTrisegCompatibleCandidateId": "full-triseg-compatible",
+    "fullTriSegPath": "A full TriSeg escalation path remains preserved before RV pressure overload, septal bowing, ventricular interdependence, or right-heart failure are claimed as covered primary mechanisms.",
+    "adoptionStatus": "not-claimed"
+  },
+  "requiredVerificationScripts": [
+    "verify:myocardium-local-monolithic-sdirk2-readiness",
+    "verify:myocardium-local-monolithic-coupling-readiness",
+    "verify:myocardium-selected-mechanics-calibration-readiness",
+    "verify:myocardium-land-protocols",
+    "verify:myocardium-generalized-force-mapper-readiness",
+    "verify:myocardium-passive-energy-readiness",
+    "verify:myocardium-tissue-homogenization-readiness",
+    "verify:myocardium-land-active-stress-replacement"
+  ],
+  "protocols": [
+    { "id": "phase5b-boundary-v1", "kind": "boundary-check", "claim": "local-sdirk2-reference-only" },
+    { "id": "phase4d-read-only-pin-v1", "kind": "drift-check", "claim": "pinned-phase4d-hashes" },
+    { "id": "sdirk2-tableau-v1", "kind": "tableau-check", "claim": "fixed-gamma-stiffly-accurate-y1" },
+    { "id": "land-sdirk2-entrypoint-v1", "kind": "entrypoint-check", "claim": "dedicated-entrypoint-shared-be-rejects-sdirk2" },
+    { "id": "stage-rate-derivation-v1", "kind": "rate-derivation", "claim": "strain-and-coordinate-rates-from-stage-history" },
+    { "id": "stage-land-convergence-v1", "kind": "solver-evidence", "claim": "stage0-stage1-land-convergence" },
+    { "id": "local-force-balance-residual-v1", "kind": "newton-residual", "claim": "synthetic-lv-rv-local-balance" },
+    { "id": "newton-fd-line-search-evidence-v1", "kind": "newton-evidence", "claim": "per-stage-iteration-derivative-line-search-report" },
+    { "id": "finite-state-health-v1", "kind": "finite-health", "claim": "finite-stack-state" },
+    { "id": "be-vs-sdirk2-discrepancy-v1", "kind": "bounded-difference", "claim": "finite-not-identical-reference-difference" },
+    { "id": "runtime-isolation-v1", "kind": "source-scan", "claim": "no-runtime-wiring" },
+    { "id": "noncoverage-boundary-v1", "kind": "boundary-check", "claim": "not-phase5-production-runtime-morphology-noalternans-triseg" },
+    { "id": "deterministic-replay-v1", "kind": "determinism", "claim": "stable-reference-hash" }
+  ]
+}

@@ -499,6 +499,37 @@ adoption is not claimed. The future TriSeg path preserves
 `triseg-lite-compatible`, `full-triseg-compatible`, and full TriSeg
 escalation.
 
+## Phase 5B local monolithic SDIRK2 reference readiness
+
+Run `npm run verify:myocardium-local-monolithic-sdirk2-readiness` to check
+the Phase 5B `local-monolithic-sdirk2-v1` reference-only gate. The descriptor
+is
+[`../../data/myocardium/protocols/local-monolithic-coupling-phase5b-sdirk2-protocols.json`](../../data/myocardium/protocols/local-monolithic-coupling-phase5b-sdirk2-protocols.json),
+the dedicated Land entrypoint is
+[`../../engine/myocardium/myofilament/land2017/sdirk2.ts`](../../engine/myocardium/myofilament/land2017/sdirk2.ts),
+and the pure reference implementation is
+[`../../engine/myocardium/coupling/localMonolithicSdirk2V1.ts`](../../engine/myocardium/coupling/localMonolithicSdirk2V1.ts).
+
+This gate fixes `gamma = 1 - 1 / Math.sqrt(2)` and uses a two-stage stiffly
+accurate SDIRK2 tableau with final state `Y1`. Stage0 and stage1 are solved as
+sequential 7-unknown local systems over cavity volume plus the six Land states;
+the 14-unknown simultaneous solve is not used. The verifier checks the stage
+strain-rate formulas, the matching cavity coordinate-rate formulas used by
+selected v2 kinematics/passive/generalized-force `coordinateRatesSI`,
+sequential stage-increment prescribed-calcium `dtSec` semantics, Land SDIRK2
+residual convergence, local force-balance residual closure, Newton iteration,
+finite-difference Jacobian, line-search evidence, finite health, deterministic
+hashes, and finite bounded BE-vs-SDIRK2 discrepancy.
+
+Phase 5B SDIRK2 reference completion is scoped only to this local monolithic
+synthetic reference. Phase 5 completion, production solver comparison,
+performance acceptance, active-stiffness production coupling, runtime
+replacement, ModelCore/chamber/case/official-case/workbench wiring, official
+morphology pass, robust no-alternans, calcium-cycling alternans validation,
+septal coordinate/coupling implementation, RV pressure overload, septal
+bowing, ventricular interdependence, right-heart failure coverage, and TriSeg
+adoption are not claimed by this gate.
+
 ## Imported bundle checks
 
 Revision 3's original markdown hashes are preserved in
