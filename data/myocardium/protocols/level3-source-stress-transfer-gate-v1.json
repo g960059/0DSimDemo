@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "id": "level3-source-stress-transfer-gate-v1",
+  "status": "proposed",
+  "phase": "Level 3 / Phase 3C",
+  "claimBoundary": "source-stress-to-chamber-realized-stress-transfer-only",
+  "purpose": "Require Level 3 to verify that the encouraging Phase 2B source twitch transfers to chamber-realized stress and pressure morphology without hiding scale errors behind Tref rescaling or free gain.",
+  "phase2bContext": {
+    "sourceTwitchFwhmMsApprox": 234,
+    "sourceTwitchTimeToPeakMsApprox": 187,
+    "caPeakTimeMsApprox": 94,
+    "stressPeakTimeMsApprox": 187,
+    "sourceStressPeakKPaApprox": 37,
+    "interpretation": "Encouraging source-stress timing and width, but not yet evidence that chamber-realized stress/pressure scale is correct."
+  },
+  "requiredLevel3Checks": [
+    {
+      "id": "source-to-wall-scale-transfer",
+      "description": "Compare Phase 2B source stress around 37 kPa with chamber-realized stress expected around 10-16 kPa under the accepted kinematics/homogenization path."
+    },
+    {
+      "id": "pressure-morphology-transfer",
+      "description": "Verify that the same source-stress trace can produce approximately 120 mmHg-class loaded pressure morphology under the Level 3 minimal chamber without Tref rescaling or free pressure gain."
+    },
+    {
+      "id": "no-free-gain",
+      "description": "Reject any Level 3 pass that requires Tref rescaling, hidden homogenization multiplier, geomChi-like pressure gain, arbitrary tension filter, or morphology-only viscosity."
+    },
+    {
+      "id": "absolute-scale-check",
+      "description": "Compare the Phase 2B source twitch peak to the Land 2017 intact-human reference/expected scale at the same lambda/Ca condition to catch nominal/Cauchy or constant-factor mistakes before calibration can hide them."
+    }
+  ],
+  "targetRangesProposedForReview": {
+    "chamberRealizedStressKPa": [10, 16],
+    "loadedPressureClassMmHgApprox": 120
+  },
+  "notes": [
+    "The 10-16 kPa and 120 mmHg-class values are planning targets and must be finalized in versioned target packs before becoming acceptance thresholds.",
+    "This gate is not a request to tune Tref. It is a transfer and scale-consistency check."
+  ]
+}
