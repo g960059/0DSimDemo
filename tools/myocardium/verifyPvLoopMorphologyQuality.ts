@@ -136,7 +136,7 @@ type ValveEventRow = {
   samplingMode: SamplingMode;
 };
 
-type ClampEventRow = {
+export type ClampEventRow = {
   caseId: string;
   branchId: string;
   branchName: string;
@@ -191,6 +191,7 @@ type RunnerSummary = {
   inputArtifactHashes: Record<string, string>;
   signalAvailability: Record<string, boolean>;
   guardrailResults: Array<{ id: string; status: "pass" | "warning"; note: string }>;
+  morphologyEvidence: MorphologyEvidenceSummary;
   samplingInvarianceDelta: {
     max: number | null;
     rowCount: number;
@@ -199,6 +200,60 @@ type RunnerSummary = {
   branches: BranchSummary[];
   warnings: string[];
   errors: string[];
+};
+
+type EvidenceLane = "filling-limb" | "ejection-limb" | "sampling" | "signal-coverage";
+type EvidenceStatus = "supported-correlation" | "insufficient-evidence";
+type EvidenceConfidence = "low" | "medium";
+
+export type MorphologyObservation = {
+  id: string;
+  lane: EvidenceLane;
+  description: string;
+  score: number;
+  supportCount: number;
+  metricIds: string[];
+  supportingSignals: string[];
+  missingSignals: string[];
+  classificationLabels: string[];
+};
+
+export type RootCauseHypothesis = {
+  id: string;
+  lane: EvidenceLane;
+  hypothesis: string;
+  evidenceStatus: EvidenceStatus;
+  confidence: EvidenceConfidence;
+  score: number;
+  observations: string[];
+  supportingSignals: string[];
+  missingSignals: string[];
+  nextEvidence: string[];
+};
+
+type EvidenceGap = {
+  id: string;
+  lane: EvidenceLane;
+  missingSignals: string[];
+  note: string;
+};
+
+export type MorphologyEvidenceSummary = {
+  scoringProfile: {
+    fillingRoughnessMin: number;
+    eventCorrelationMin: number;
+    qDotClampHitFractionMin: number;
+    valveChatterCountMin: number;
+    pressureFloorHitFractionMin: number;
+    ejectionSquarenessMin: number;
+    ejectionPlateauFractionMin: number;
+    incisuraPresenceScoreMax: number;
+    samplingSensitiveDeltaMin: number;
+    maxConfidence: EvidenceConfidence;
+  };
+  observations: MorphologyObservation[];
+  rootCauseHypotheses: RootCauseHypothesis[];
+  evidenceGaps: EvidenceGap[];
 };
 
 const RUNNER_VERSION = "pv-loop-morphology-quality-runner-v1";
@@ -269,6 +324,19 @@ export const PV_LOOP_CLASSIFICATION_PROFILE = {
   },
 } as const;
 
+const ROOT_CAUSE_SCORING_PROFILE = {
+  fillingRoughnessMin: PV_LOOP_CLASSIFICATION_PROFILE.roughnessArtifactMin,
+  eventCorrelationMin: PV_LOOP_CLASSIFICATION_PROFILE.eventSensitiveHitFractionMin,
+  qDotClampHitFractionMin: PV_LOOP_CLASSIFICATION_PROFILE.eventSensitiveHitFractionMin,
+  valveChatterCountMin: 1,
+  pressureFloorHitFractionMin: 0.01,
+  ejectionSquarenessMin: PV_LOOP_CLASSIFICATION_PROFILE.ejectionSquarenessMin,
+  ejectionPlateauFractionMin: PV_LOOP_CLASSIFICATION_PROFILE.ejectionPlateauFractionMin,
+  incisuraPresenceScoreMax: PV_LOOP_CLASSIFICATION_PROFILE.incisuraPresenceScoreMax,
+  samplingSensitiveDeltaMin: PV_LOOP_CLASSIFICATION_PROFILE.samplingSensitiveDeltaMin,
+  maxConfidence: "medium" as const,
+};
+
 const DEFAULT_OUT_DIR = path.join(
   "artifacts",
   "myocardium",
@@ -324,6 +392,7 @@ function officialMeasureOptions(caseId: string, targetTBV: number): MeasureOptio
 }
 
 export function buildInitialSummary(caseIds = CASE_IDS): RunnerSummary {
+  const availability = signalAvailability();
   return {
     schemaVersion: 1,
     targetPackId: TARGET_PACK_ID,
@@ -372,7 +441,7 @@ export function buildInitialSummary(caseIds = CASE_IDS): RunnerSummary {
     samplingModes: SAMPLING_MODES,
     transitionPolicies: TRANSITION_POLICIES,
     inputArtifactHashes: inputArtifactHashes(),
-    signalAvailability: signalAvailability(),
+    signalAvailability: availability,
     guardrailResults: [
       {
         id: "diagnostic-only-no-model-change",
@@ -400,6 +469,7 @@ export function buildInitialSummary(caseIds = CASE_IDS): RunnerSummary {
         note: "Morphology values are diagnostic readouts only; only runner/measurement failures set a non-zero exit code.",
       },
     ],
+    morphologyEvidence: buildMorphologyEvidenceSummary([], [], availability),
     samplingInvarianceDelta: {
       max: null,
       rowCount: 0,
@@ -859,7 +929,6 @@ function metricRowsForBeat(
   hr: number,
 ): MetricRow[] {
   const rows: MetricRow[] = [];
-  const fullMorphologyOutlierSamples = morphologyOutlierSamples(samples);
   for (const transitionPolicy of TRANSITION_POLICIES) {
     const add = (metricId: string, value: number | null, unit: string, labels: string[] = []) => {
       rows.push({
@@ -876,6 +945,7 @@ function metricRowsForBeat(
       });
     };
     const policySamples = applyTransitionPolicy(samples, transitionPolicy);
+    const policyOutlierSamples = morphologyOutlierSamples(policySamples);
     const filling = policySamples.filter((sample) => sample.phase === "filling" || sample.phase === "atrial-kick");
     const ejection = policySamples.filter((sample) => sample.phase === "ejection");
     const all = samples;
@@ -899,7 +969,7 @@ function metricRowsForBeat(
     const ejectionLimbShape = limbShapeMetrics(ejection);
     const phaseNormalizedRoughness = Math.max(fillingShape.roughness, ejectionLimbShape.roughness);
     const phaseKinkCount = fillingShape.kinkCount + ejectionLimbShape.kinkCount;
-    const eventCorrelation = eventCorrelationWindowHitFraction(fullMorphologyOutlierSamples);
+    const eventCorrelation = eventCorrelationWindowHitFraction(policyOutlierSamples);
     add(
       "phaseNormalizedRoughness",
       phaseNormalizedRoughness,
@@ -951,9 +1021,7 @@ function metricRowsForBeat(
     add("cornerSharpnessAtOpen", ejectionShape.cornerOpen, "dimensionless");
     add("cornerSharpnessAtClose", ejectionShape.cornerClose, "dimensionless");
     add("arterialPressureIncisuraDepth", ejectionShape.incisuraDepthPa, "Pa");
-    add("incisuraPresenceScore", ejectionShape.incisuraScore, "dimensionless", ejectionShape.incisuraScore <= PV_LOOP_CLASSIFICATION_PROFILE.incisuraPresenceScoreMax ? [
-      chamber === "LV" ? "aop-lacks-incisura" : "pap-lacks-incisura",
-    ] : ["incisura-present"]);
+    add("incisuraPresenceScore", ejectionShape.incisuraScore, "dimensionless", incisuraLabels(ejectionShape.incisuraScore, chamber));
     add(chamber === "LV" ? "aovOpenAoPIncisuraScore" : "pvOpenPAPIncisuraScore", ejectionShape.incisuraScore, "dimensionless");
     add("peakPressureTimingAsFractionOfEjection", ejectionShape.peakPressureTimingFraction, "dimensionless");
     add("qDotClampHitFraction", chamber === "LV" ? fraction(ejection, (sample) => sample.AoV_qDotClampHit01 > 0) : null, "dimensionless");
@@ -1030,10 +1098,17 @@ function ejectionLabels(shape: ReturnType<typeof ejectionShapeMetrics>, chamber:
   ) {
     labels.push("sharp-corner");
   }
-  if (shape.incisuraScore <= PV_LOOP_CLASSIFICATION_PROFILE.incisuraPresenceScoreMax) {
+  if (shape.incisuraScore != null && shape.incisuraScore <= PV_LOOP_CLASSIFICATION_PROFILE.incisuraPresenceScoreMax) {
     labels.push(chamber === "LV" ? "aop-lacks-incisura" : "pap-lacks-incisura");
   }
   return labels;
+}
+
+function incisuraLabels(score: number | null, chamber: Chamber): string[] {
+  if (score == null) return ["no-ejection-evidence"];
+  return score <= PV_LOOP_CLASSIFICATION_PROFILE.incisuraPresenceScoreMax
+    ? [chamber === "LV" ? "aop-lacks-incisura" : "pap-lacks-incisura"]
+    : ["incisura-present"];
 }
 
 function limbShapeMetrics(samples: ClassifiedSample[]): {
@@ -1109,7 +1184,7 @@ function ejectionShapeMetrics(samples: ClassifiedSample[]): {
   cornerOpen: number;
   cornerClose: number;
   incisuraDepthPa: number;
-  incisuraScore: number;
+  incisuraScore: number | null;
   peakPressureTimingFraction: number | null;
 } {
   if (samples.length < 4) {
@@ -1120,7 +1195,7 @@ function ejectionShapeMetrics(samples: ClassifiedSample[]): {
       cornerOpen: 0,
       cornerClose: 0,
       incisuraDepthPa: 0,
-      incisuraScore: 0,
+      incisuraScore: null,
       peakPressureTimingFraction: null,
     };
   }
@@ -1596,6 +1671,37 @@ function summaryToMarkdown(summary: RunnerSummary): string {
     `- max samplingInvarianceDelta: ${summary.samplingInvarianceDelta.max ?? "n/a"}`,
     `- rows with delta: ${summary.samplingInvarianceDelta.rowCount}`,
     "",
+    "## Morphology Evidence",
+    "",
+    "These entries are diagnostic observations and hypotheses, not accepted root causes.",
+    "",
+    "### Observations",
+    "",
+    summary.morphologyEvidence.observations.length > 0
+      ? "| id | lane | score | support | metricIds | missingSignals |\n| --- | --- | ---: | ---: | --- | --- |"
+      : "_No morphology observations crossed the diagnostic thresholds._",
+    ...summary.morphologyEvidence.observations.map((observation) => (
+      `| ${observation.id} | ${observation.lane} | ${formatEvidenceNumber(observation.score)} | ${observation.supportCount} | ${observation.metricIds.join("; ")} | ${observation.missingSignals.join("; ")} |`
+    )),
+    "",
+    "### Root-Cause Hypotheses",
+    "",
+    summary.morphologyEvidence.rootCauseHypotheses.length > 0
+      ? "| id | lane | evidenceStatus | confidence | score | observations | missingSignals |\n| --- | --- | --- | --- | ---: | --- | --- |"
+      : "_No root-cause hypothesis is currently supported by the diagnostic thresholds._",
+    ...summary.morphologyEvidence.rootCauseHypotheses.map((hypothesis) => (
+      `| ${hypothesis.id} | ${hypothesis.lane} | ${hypothesis.evidenceStatus} | ${hypothesis.confidence} | ${formatEvidenceNumber(hypothesis.score)} | ${hypothesis.observations.join("; ")} | ${hypothesis.missingSignals.join("; ")} |`
+    )),
+    "",
+    "### Evidence Gaps",
+    "",
+    summary.morphologyEvidence.evidenceGaps.length > 0
+      ? "| id | lane | missingSignals | note |\n| --- | --- | --- | --- |"
+      : "_No signal coverage gaps were recorded._",
+    ...summary.morphologyEvidence.evidenceGaps.map((gap) => (
+      `| ${gap.id} | ${gap.lane} | ${gap.missingSignals.join("; ")} | ${gap.note} |`
+    )),
+    "",
     "## Signal Availability",
     "",
     ...Object.entries(summary.signalAvailability).map(([signal, available]) => `- ${signal}: ${available ? "available" : "unavailable"}`),
@@ -1607,6 +1713,14 @@ function summaryToMarkdown(summary: RunnerSummary): string {
     lines.push("", "## Errors", "", ...summary.errors.map((error) => `- ${error}`));
   }
   return lines.join("\n") + "\n";
+}
+
+function formatEvidenceNumber(value: number): string {
+  return Number.isFinite(value) ? value.toFixed(3) : "n/a";
+}
+
+export function summaryToMarkdownForTest(summary: RunnerSummary): string {
+  return summaryToMarkdown(summary);
 }
 
 function writeArtifacts(
@@ -1646,6 +1760,567 @@ function updateSamplingInvarianceSummary(summary: RunnerSummary, metricRows: Met
     rowCount: deltas.length,
     metricIds: [...metricIds].sort(),
   };
+}
+
+const FILLING_EVIDENCE_SIGNALS = [
+  "mitralValveOpen01",
+  "tricuspidValveOpen01",
+  "mitralFlowM3PerSec",
+  "tricuspidFlowM3PerSec",
+  "leftAtrialPressurePa",
+  "rightAtrialPressurePa",
+  "lvPressureFloorHit01",
+  "rvPressureFloorHit01",
+];
+
+const FILLING_MISSING_ROOT_CAUSE_SIGNALS = [
+  "mvQDotRawM3PerSec2",
+  "tvQDotRawM3PerSec2",
+  "perSampleValveDiodeClampHits",
+  "perSampleDynamicFlowClampHits",
+];
+
+const EJECTION_EVIDENCE_SIGNALS = [
+  "aorticValveOpen01",
+  "pulmonaryValveOpen01",
+  "aorticFlowM3PerSec",
+  "pulmonaryFlowM3PerSec",
+  "aorticPressurePa",
+  "pulmonaryArteryPressurePa",
+  "aovQDotRawM3PerSec2",
+  "aovQDotPostM3PerSec2",
+  "aovQDotClampHit01",
+  "aovDiodeImpulse",
+  "aovFlowClampImpulse",
+];
+
+const EJECTION_MISSING_ROOT_CAUSE_SIGNALS = [
+  "pvQDotRawM3PerSec2",
+  "systemicArterialPressurePa",
+  "downstreamPulmonaryArterialPressurePa",
+  "characteristicImpedancePaSecPerM3",
+  "arterialReflectionCoefficient",
+  "aorticRootComplianceM3PerPa",
+  "pulmonaryRootComplianceM3PerPa",
+];
+
+function updateMorphologyEvidenceSummary(
+  summary: RunnerSummary,
+  metricRows: MetricRow[],
+  clampRows: ClampEventRow[],
+): void {
+  summary.morphologyEvidence = buildMorphologyEvidenceSummary(metricRows, clampRows, summary.signalAvailability);
+}
+
+function buildMorphologyEvidenceSummary(
+  metricRows: MetricRow[],
+  clampRows: ClampEventRow[],
+  availability: Record<string, boolean>,
+): MorphologyEvidenceSummary {
+  const observations = [
+    fillingLimbObservation(metricRows, availability),
+    eventWindowObservation(metricRows),
+    aovQDotClampObservation(metricRows, clampRows),
+    pressureFloorObservation(metricRows, clampRows, availability),
+    ejectionShapeObservation(metricRows, availability),
+    samplingSensitivityObservation(metricRows),
+  ].filter((observation): observation is MorphologyObservation => Boolean(observation));
+
+  const byId = new Map(observations.map((observation) => [observation.id, observation]));
+  const fillingMissing = missingSignals(availability, FILLING_MISSING_ROOT_CAUSE_SIGNALS);
+  const ejectionMissing = missingSignals(availability, EJECTION_MISSING_ROOT_CAUSE_SIGNALS);
+  const rootCauseHypotheses: RootCauseHypothesis[] = [];
+
+  if (byId.has("sampling-sensitive-metrics")) {
+    const observation = byId.get("sampling-sensitive-metrics")!;
+    rootCauseHypotheses.push({
+      id: "sampling-or-display-sensitivity",
+      lane: "sampling",
+      hypothesis: "Some morphology readouts change under resampling; use raw traces as the authority before proposing model fixes.",
+      evidenceStatus: "supported-correlation",
+      confidence: "medium",
+      score: observation.score,
+      observations: [observation.id],
+      supportingSignals: observation.supportingSignals,
+      missingSignals: [],
+      nextEvidence: [
+        "Compare raw trace, display trace, and standardized beat-grid trace at the same beat/sample indices.",
+        "Do not use display smoothing as morphology pass/fail evidence.",
+      ],
+    });
+  }
+
+  if (byId.has("filling-limb-roughness") && byId.has("event-window-correlation")) {
+    const roughness = byId.get("filling-limb-roughness")!;
+    const event = byId.get("event-window-correlation")!;
+    const coLocatedEvidence = fillingEventWindowCoLocatedEvidence(metricRows);
+    if (coLocatedEvidence) {
+      rootCauseHypotheses.push({
+        id: "filling-event-window-correlation",
+        lane: "filling-limb",
+        hypothesis: "Filling-limb roughness is temporally correlated with valve, clamp, pressure-floor, or transition windows in the same raw metric group.",
+        evidenceStatus: fillingMissing.length > 0 ? "insufficient-evidence" : "supported-correlation",
+        confidence: fillingMissing.length > 0 ? "low" : "medium",
+        score: coLocatedEvidence.score,
+        observations: [roughness.id, event.id],
+        supportingSignals: uniqueSorted([...roughness.supportingSignals, ...event.supportingSignals]),
+        missingSignals: fillingMissing,
+        nextEvidence: fillingMissing.length > 0
+          ? [
+              "Expose or capture MV/TV qDot and per-sample clamp signals before assigning this to a valve/qDot policy.",
+              "Inspect debug overlay marker timing against raw filling-limb kinks in the same case, branch, beat, chamber, sampling mode, and transition policy.",
+            ]
+          : [
+              "Run an off-by-default valve/qDot diagnostic comparator with unchanged official defaults.",
+            ],
+      });
+    }
+  }
+
+  if (byId.has("aov-qdot-clamp-activity") && hasAovQDotRawCoreEvidence(metricRows)) {
+    const observation = byId.get("aov-qdot-clamp-activity")!;
+    rootCauseHypotheses.push({
+      id: "aov-qdot-clamp-correlation",
+      lane: "ejection-limb",
+      hypothesis: "LV ejection morphology has AoV qDot/clamp activity correlated with ejection samples.",
+      evidenceStatus: "supported-correlation",
+      confidence: "medium",
+      score: observation.score,
+      observations: [observation.id],
+      supportingSignals: observation.supportingSignals,
+      missingSignals: [],
+      nextEvidence: [
+        "Compare AoV qDot raw/post divergence and clamp impulses against ejection-limb corners in the debug overlay.",
+        "Keep this as a diagnostic correlation until an off-by-default comparator shows improved morphology without output suppression.",
+      ],
+    });
+  }
+
+  const coLocatedRvEvidence = rvFillingValveChatterCoLocatedEvidence(metricRows);
+  if (
+    byId.has("filling-limb-roughness")
+    && coLocatedRvEvidence
+  ) {
+    const observation = byId.get("filling-limb-roughness")!;
+    rootCauseHypotheses.push({
+      id: "rv-filling-valve-chatter-correlation",
+      lane: "filling-limb",
+      hypothesis: "RV filling roughness is correlated with inlet valve open01 chatter in the same raw transition-excluded metric group.",
+      evidenceStatus: fillingMissing.length > 0 ? "insufficient-evidence" : "supported-correlation",
+      confidence: fillingMissing.length > 0 ? "low" : "medium",
+      score: coLocatedRvEvidence.score,
+      observations: [observation.id],
+      supportingSignals: uniqueSorted([...observation.supportingSignals, "tricuspidValveOpen01"]),
+      missingSignals: fillingMissing,
+      nextEvidence: [
+        "Check TV marker density in the debug overlay for the same case, branch, beat, chamber, sampling mode, and transition policy.",
+        "Add per-sample dynamic clamp evidence before changing valve dynamics.",
+      ],
+    });
+  }
+
+  if (byId.has("ejection-shape-alert")) {
+    const observation = byId.get("ejection-shape-alert")!;
+    rootCauseHypotheses.push({
+      id: "arterial-load-structure-hypothesis",
+      lane: "ejection-limb",
+      hypothesis: "Ejection-limb shape readouts suggest a proximal arterial/load morphology question, but structural arterial signals are not yet emitted.",
+      evidenceStatus: ejectionMissing.length > 0 ? "insufficient-evidence" : "supported-correlation",
+      confidence: ejectionMissing.length > 0 ? "low" : "medium",
+      score: observation.score,
+      observations: [observation.id],
+      supportingSignals: observation.supportingSignals,
+      missingSignals: ejectionMissing,
+      nextEvidence: ejectionMissing.length > 0
+        ? [
+            "Emit or derive proximal arterial/root/Zc/reflection diagnostics before proposing an arterial-load model change.",
+          ]
+        : [
+            "Run an off-by-default arterial-load comparator with anti-gaming guard metrics.",
+          ],
+    });
+  }
+
+  if (byId.has("pressure-floor-activity") && hasPressureFloorRawCoreEvidence(metricRows)) {
+    const observation = byId.get("pressure-floor-activity")!;
+    rootCauseHypotheses.push({
+      id: "pressure-floor-correlation",
+      lane: "filling-limb",
+      hypothesis: "Pressure-floor activity overlaps morphology windows.",
+      evidenceStatus: "supported-correlation",
+      confidence: "medium",
+      score: observation.score,
+      observations: [observation.id],
+      supportingSignals: observation.supportingSignals,
+      missingSignals: [],
+      nextEvidence: [
+        "Confirm pressure-floor markers align with the visible kink before changing floor policy.",
+      ],
+    });
+  }
+
+  return {
+    scoringProfile: ROOT_CAUSE_SCORING_PROFILE,
+    observations,
+    rootCauseHypotheses: rootCauseHypotheses.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id)),
+    evidenceGaps: evidenceGaps(availability),
+  };
+}
+
+function fillingLimbObservation(
+  metricRows: MetricRow[],
+  availability: Record<string, boolean>,
+): MorphologyObservation | null {
+  const roughnessRows = rawCoreRows(metricRows, ["mvOpenLowerLimbRoughness", "tvOpenLowerLimbRoughness"])
+    .filter((row) => (row.value ?? 0) > ROOT_CAUSE_SCORING_PROFILE.fillingRoughnessMin);
+  const kinkRows = rawCoreRows(metricRows, ["lowerLimbKinkCount"])
+    .filter((row) => (row.value ?? 0) >= PV_LOOP_CLASSIFICATION_PROFILE.kinkArtifactMinCount);
+  const chatterRows = rawCoreRows(metricRows, ["valveOpenCloseChatterCount"])
+    .filter((row) => (row.value ?? 0) >= ROOT_CAUSE_SCORING_PROFILE.valveChatterCountMin);
+  const rows = [...roughnessRows, ...kinkRows, ...chatterRows];
+  if (rows.length === 0) return null;
+  const roughnessScore = maxValue(roughnessRows) / ROOT_CAUSE_SCORING_PROFILE.fillingRoughnessMin;
+  const kinkScore = Math.min(1, maxValue(kinkRows) / 10);
+  const chatterScore = Math.min(1, maxValue(chatterRows) / 10);
+  return {
+    id: "filling-limb-roughness",
+    lane: "filling-limb",
+    description: "Raw transition-excluded filling-limb metrics show roughness, kinks, or inlet valve chatter.",
+    score: clampUnitPositive(Math.max(roughnessScore, kinkScore, chatterScore)),
+    supportCount: rows.length,
+    metricIds: metricIds(rows),
+    supportingSignals: availableSignals(availability, FILLING_EVIDENCE_SIGNALS),
+    missingSignals: missingSignals(availability, FILLING_MISSING_ROOT_CAUSE_SIGNALS),
+    classificationLabels: classificationLabels(rows),
+  };
+}
+
+function eventWindowObservation(metricRows: MetricRow[]): MorphologyObservation | null {
+  const rows = rawCoreRows(metricRows, ["eventCorrelationWindowHitFraction"])
+    .filter((row) => (row.value ?? 0) >= ROOT_CAUSE_SCORING_PROFILE.eventCorrelationMin);
+  if (rows.length === 0) return null;
+  return {
+    id: "event-window-correlation",
+    lane: "filling-limb",
+    description: "Morphology outlier samples fall inside transition, qDot/clamp, or pressure-floor event windows.",
+    score: clampUnitPositive(maxValue(rows)),
+    supportCount: rows.length,
+    metricIds: metricIds(rows),
+    supportingSignals: ["valveOpen01", "transitionReason", "AoV_qDot*", "pressureFloorHit01"],
+    missingSignals: [],
+    classificationLabels: classificationLabels(rows),
+  };
+}
+
+function aovQDotClampObservation(metricRows: MetricRow[], clampRows: ClampEventRow[]): MorphologyObservation | null {
+  const qDotRows = rawCoreRows(metricRows, ["qDotClampHitFraction"])
+    .filter((row) => row.chamber === "LV" && (row.value ?? 0) >= ROOT_CAUSE_SCORING_PROFILE.qDotClampHitFractionMin);
+  const clampCount = clampRows.filter((row) => (
+    row.availability === "available"
+    && row.chamber === "LV"
+    && (
+      row.signalId === "AoV_qDotClampHit01"
+      || row.signalId === "AoV_qDotRawPostDivergence"
+      || row.signalId === "AoV_diodeImpulse"
+      || row.signalId === "AoV_flowClampImpulse"
+    )
+  )).length;
+  if (qDotRows.length === 0 && clampCount === 0) return null;
+  return {
+    id: "aov-qdot-clamp-activity",
+    lane: "ejection-limb",
+    description: "AoV qDot/clamp markers are present in LV ejection diagnostics.",
+    score: clampUnitPositive(Math.max(maxValue(qDotRows), Math.min(1, clampCount / 100))),
+    supportCount: qDotRows.length + clampCount,
+    metricIds: metricIds(qDotRows),
+    supportingSignals: ["aovQDotRawM3PerSec2", "aovQDotPostM3PerSec2", "aovQDotClampHit01", "aovDiodeImpulse", "aovFlowClampImpulse"],
+    missingSignals: [],
+    classificationLabels: classificationLabels(qDotRows),
+  };
+}
+
+function pressureFloorObservation(
+  metricRows: MetricRow[],
+  clampRows: ClampEventRow[],
+  availability: Record<string, boolean>,
+): MorphologyObservation | null {
+  const floorRows = rawCoreRows(metricRows, ["pressureFloorHitFraction"])
+    .filter((row) => (row.value ?? 0) >= ROOT_CAUSE_SCORING_PROFILE.pressureFloorHitFractionMin);
+  const clampCount = clampRows.filter((row) => (
+    row.availability === "available" && (
+      row.signalId === "LVPressureFloorHit01" || row.signalId === "RVPressureFloorHit01"
+    )
+  )).length;
+  if (floorRows.length === 0 && clampCount === 0) return null;
+  return {
+    id: "pressure-floor-activity",
+    lane: "filling-limb",
+    description: "Pressure-floor markers are present in morphology diagnostic windows.",
+    score: clampUnitPositive(Math.max(maxValue(floorRows), Math.min(1, clampCount / 20))),
+    supportCount: floorRows.length + clampCount,
+    metricIds: metricIds(floorRows),
+    supportingSignals: availableSignals(availability, ["lvPressureFloorHit01", "rvPressureFloorHit01"]),
+    missingSignals: [],
+    classificationLabels: classificationLabels(floorRows),
+  };
+}
+
+function ejectionShapeObservation(
+  metricRows: MetricRow[],
+  availability: Record<string, boolean>,
+): MorphologyObservation | null {
+  const squarenessRows = rawCoreRows(metricRows, ["semilunarOpenEjectionSquareness", "aovOpenEjectionSquareness", "pvOpenEjectionSquareness"])
+    .filter((row) => (row.value ?? 0) > ROOT_CAUSE_SCORING_PROFILE.ejectionSquarenessMin);
+  const plateauRows = rawCoreRows(metricRows, ["ejectionPlateauFraction"])
+    .filter((row) => (row.value ?? 0) > ROOT_CAUSE_SCORING_PROFILE.ejectionPlateauFractionMin);
+  const incisuraRows = rawCoreRows(metricRows, ["incisuraPresenceScore", "aovOpenAoPIncisuraScore", "pvOpenPAPIncisuraScore"])
+    .filter((row) => row.value != null && row.value <= ROOT_CAUSE_SCORING_PROFILE.incisuraPresenceScoreMax);
+  const rows = [...squarenessRows, ...plateauRows, ...incisuraRows];
+  if (rows.length === 0) return null;
+  const squarenessScore = maxValue(squarenessRows) / ROOT_CAUSE_SCORING_PROFILE.ejectionSquarenessMin;
+  const plateauScore = maxValue(plateauRows) / ROOT_CAUSE_SCORING_PROFILE.ejectionPlateauFractionMin;
+  const incisuraScore = incisuraRows.length > 0 ? 1 : 0;
+  return {
+    id: "ejection-shape-alert",
+    lane: "ejection-limb",
+    description: "Raw transition-excluded ejection metrics show squareness, plateau, or missing-incisura alerts.",
+    score: clampUnitPositive(Math.max(squarenessScore, plateauScore, incisuraScore)),
+    supportCount: rows.length,
+    metricIds: metricIds(rows),
+    supportingSignals: availableSignals(availability, EJECTION_EVIDENCE_SIGNALS),
+    missingSignals: missingSignals(availability, EJECTION_MISSING_ROOT_CAUSE_SIGNALS),
+    classificationLabels: classificationLabels(rows),
+  };
+}
+
+function samplingSensitivityObservation(metricRows: MetricRow[]): MorphologyObservation | null {
+  const rows = metricRows.filter((row) => (
+    row.samplingMode !== "raw"
+    && row.samplingInvarianceDelta != null
+    && row.samplingInvarianceDelta > ROOT_CAUSE_SCORING_PROFILE.samplingSensitiveDeltaMin
+  ));
+  if (rows.length === 0) return null;
+  return {
+    id: "sampling-sensitive-metrics",
+    lane: "sampling",
+    description: "Some metric values are sensitive to standardized resampling versus raw samples.",
+    score: clampUnitPositive(Math.max(...rows.map((row) => row.samplingInvarianceDelta ?? 0))),
+    supportCount: rows.length,
+    metricIds: metricIds(rows).slice(0, 24),
+    supportingSignals: ["raw", "uniformBeatGrid", "coarseSensitivity", "samplingInvarianceDelta"],
+    missingSignals: [],
+    classificationLabels: classificationLabels(rows),
+  };
+}
+
+function rawCoreRows(metricRows: MetricRow[], metricIdsToSelect: string[]): MetricRow[] {
+  const selected = new Set(metricIdsToSelect);
+  return metricRows.filter((row) => (
+    selected.has(row.metricId)
+    && row.samplingMode === "raw"
+    && row.transitionPolicy === "transition-excluded-core"
+    && row.value != null
+    && Number.isFinite(row.value)
+  ));
+}
+
+type CoLocatedEvidence = {
+  score: number;
+  rows: MetricRow[];
+};
+
+function fillingEventWindowCoLocatedEvidence(metricRows: MetricRow[]): CoLocatedEvidence | null {
+  const rows = rawCoreRows(metricRows, [
+    "mvOpenLowerLimbRoughness",
+    "tvOpenLowerLimbRoughness",
+    "lowerLimbKinkCount",
+    "valveOpenCloseChatterCount",
+    "eventCorrelationWindowHitFraction",
+  ]);
+  const evidence = [...metricRowGroups(rows).values()]
+    .map((groupRows) => {
+      const roughnessScore = maxMetricScore(
+        groupRows,
+        ["mvOpenLowerLimbRoughness", "tvOpenLowerLimbRoughness"],
+        ROOT_CAUSE_SCORING_PROFILE.fillingRoughnessMin,
+        (value) => value > ROOT_CAUSE_SCORING_PROFILE.fillingRoughnessMin,
+      );
+      const kinkScore = maxMetricScore(
+        groupRows,
+        ["lowerLimbKinkCount"],
+        10,
+        (value) => value >= PV_LOOP_CLASSIFICATION_PROFILE.kinkArtifactMinCount,
+      );
+      const chatterScore = maxMetricScore(
+        groupRows,
+        ["valveOpenCloseChatterCount"],
+        10,
+        (value) => value >= ROOT_CAUSE_SCORING_PROFILE.valveChatterCountMin,
+      );
+      const eventScore = maxMetricScore(
+        groupRows,
+        ["eventCorrelationWindowHitFraction"],
+        1,
+        (value) => value >= ROOT_CAUSE_SCORING_PROFILE.eventCorrelationMin,
+      );
+      const fillingScore = Math.max(roughnessScore, kinkScore, chatterScore);
+      if (fillingScore <= 0 || eventScore <= 0) return null;
+      return {
+        score: Math.min(1, 0.5 * fillingScore + 0.5 * eventScore),
+        rows: groupRows,
+      };
+    })
+    .filter((candidate): candidate is CoLocatedEvidence => Boolean(candidate))
+    .sort((a, b) => b.score - a.score || metricGroupKey(a.rows[0]).localeCompare(metricGroupKey(b.rows[0])));
+  return evidence[0] ?? null;
+}
+
+function rvFillingValveChatterCoLocatedEvidence(metricRows: MetricRow[]): CoLocatedEvidence | null {
+  const rows = rawCoreRows(metricRows, [
+    "tvOpenLowerLimbRoughness",
+    "lowerLimbKinkCount",
+    "valveOpenCloseChatterCount",
+  ]).filter((row) => row.chamber === "RV");
+  const evidence = [...metricRowGroups(rows).values()]
+    .map((groupRows) => {
+      const roughnessScore = maxMetricScore(
+        groupRows,
+        ["tvOpenLowerLimbRoughness"],
+        ROOT_CAUSE_SCORING_PROFILE.fillingRoughnessMin,
+        (value) => value > ROOT_CAUSE_SCORING_PROFILE.fillingRoughnessMin,
+      );
+      const kinkScore = maxMetricScore(
+        groupRows,
+        ["lowerLimbKinkCount"],
+        10,
+        (value) => value >= PV_LOOP_CLASSIFICATION_PROFILE.kinkArtifactMinCount,
+      );
+      const chatterScore = maxMetricScore(
+        groupRows,
+        ["valveOpenCloseChatterCount"],
+        10,
+        (value) => value >= ROOT_CAUSE_SCORING_PROFILE.valveChatterCountMin,
+      );
+      const fillingScore = Math.max(roughnessScore, kinkScore);
+      if (fillingScore <= 0 || chatterScore <= 0) return null;
+      return {
+        score: Math.min(1, 0.5 * fillingScore + 0.5 * chatterScore),
+        rows: groupRows,
+      };
+    })
+    .filter((candidate): candidate is CoLocatedEvidence => Boolean(candidate))
+    .sort((a, b) => b.score - a.score || metricGroupKey(a.rows[0]).localeCompare(metricGroupKey(b.rows[0])));
+  return evidence[0] ?? null;
+}
+
+function hasAovQDotRawCoreEvidence(metricRows: MetricRow[]): boolean {
+  return rawCoreRows(metricRows, ["qDotClampHitFraction"])
+    .some((row) => (
+      row.chamber === "LV"
+      && (row.value ?? 0) >= ROOT_CAUSE_SCORING_PROFILE.qDotClampHitFractionMin
+    ));
+}
+
+function hasPressureFloorRawCoreEvidence(metricRows: MetricRow[]): boolean {
+  return rawCoreRows(metricRows, ["pressureFloorHitFraction"])
+    .some((row) => (row.value ?? 0) >= ROOT_CAUSE_SCORING_PROFILE.pressureFloorHitFractionMin);
+}
+
+function metricRowGroups(rows: MetricRow[]): Map<string, MetricRow[]> {
+  const groups = new Map<string, MetricRow[]>();
+  for (const row of rows) {
+    const key = metricGroupKey(row);
+    const groupRows = groups.get(key);
+    if (groupRows) {
+      groupRows.push(row);
+    } else {
+      groups.set(key, [row]);
+    }
+  }
+  return groups;
+}
+
+function metricGroupKey(row: MetricRow): string {
+  return [
+    row.caseId,
+    row.branchId,
+    row.beatIndex,
+    row.chamber,
+    row.samplingMode,
+    row.transitionPolicy,
+  ].join("\t");
+}
+
+function maxMetricScore(
+  rows: MetricRow[],
+  metricIdsToSelect: string[],
+  scoreDivisor: number,
+  qualifies: (value: number) => boolean,
+): number {
+  const selected = new Set(metricIdsToSelect);
+  return clampUnitPositive(
+    Math.max(
+      0,
+      ...rows
+        .filter((row) => selected.has(row.metricId) && row.value != null && qualifies(row.value))
+        .map((row) => scoreDivisor > 0 ? (row.value ?? 0) / scoreDivisor : 0),
+    ),
+  );
+}
+
+function maxValue(rows: MetricRow[]): number {
+  return rows.reduce((max, row) => Math.max(max, row.value ?? 0), 0);
+}
+
+function metricIds(rows: MetricRow[]): string[] {
+  return uniqueSorted(rows.map((row) => row.metricId));
+}
+
+function classificationLabels(rows: MetricRow[]): string[] {
+  return uniqueSorted(rows.flatMap((row) => row.classificationLabels));
+}
+
+function availableSignals(availability: Record<string, boolean>, signals: readonly string[]): string[] {
+  return signals.filter((signal) => availability[signal] === true);
+}
+
+function missingSignals(availability: Record<string, boolean>, signals: readonly string[]): string[] {
+  return signals.filter((signal) => availability[signal] !== true);
+}
+
+function evidenceGaps(availability: Record<string, boolean>): EvidenceGap[] {
+  const fillingMissing = missingSignals(availability, FILLING_MISSING_ROOT_CAUSE_SIGNALS);
+  const ejectionMissing = missingSignals(availability, EJECTION_MISSING_ROOT_CAUSE_SIGNALS);
+  const gaps: EvidenceGap[] = [];
+  if (fillingMissing.length > 0) {
+    gaps.push({
+      id: "filling-limb-root-cause-signal-gap",
+      lane: "filling-limb",
+      missingSignals: fillingMissing,
+      note: "Filling-limb correlations cannot distinguish valve diode, dynamic flow clamp, and MV/TV qDot mechanisms until these signals are emitted per sample.",
+    });
+  }
+  if (ejectionMissing.length > 0) {
+    gaps.push({
+      id: "ejection-limb-arterial-load-signal-gap",
+      lane: "ejection-limb",
+      missingSignals: ejectionMissing,
+      note: "Arterial/load hypotheses remain insufficient without proximal arterial, root compliance, Zc, reflection, and PV qDot evidence.",
+    });
+  }
+  return gaps;
+}
+
+function uniqueSorted(values: readonly string[]): string[] {
+  return [...new Set(values.filter((value) => value.length > 0))].sort();
+}
+
+export function buildMorphologyEvidenceSummaryForTest(
+  metricRows: MetricRow[],
+  clampRows: ClampEventRow[] = [],
+  availability: Record<string, boolean> = signalAvailability(),
+): MorphologyEvidenceSummary {
+  return buildMorphologyEvidenceSummary(metricRows, clampRows, availability);
 }
 
 function runDiagnostic(options: CliOptions): DiagnosticRunResult {
@@ -1692,6 +2367,7 @@ function runDiagnostic(options: CliOptions): DiagnosticRunResult {
     summary.errors.push("No metric rows were produced.");
   }
   updateSamplingInvarianceSummary(summary, metricRows);
+  updateMorphologyEvidenceSummary(summary, metricRows, clampRows);
   writeArtifacts(options.outDir, summary, metricRows, phaseRows, valveRows, clampRows, traceFiles);
   return { summary, metricRows, phaseRows };
 }
