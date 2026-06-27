@@ -122,6 +122,10 @@ type BeatWindow = {
   beatCount: 1 | 2;
 };
 
+const MMHG_TO_PA = 133.322387415;
+const ML_TO_M3 = 1e-6;
+const ML_PER_MMHG_TO_M3_PER_PA = ML_TO_M3 / MMHG_TO_PA;
+
 type PressurePack = {
   P: Float64Array;
   Ptm: Float64Array;
@@ -1016,6 +1020,10 @@ export class ModelCore {
     const rap = pack.P[this.nodeIndex.get("RA")!];
     const rvp = pack.P[this.nodeIndex.get("RV")!];
     const pap = pack.P[this.nodeIndex.get("PA")!];
+    const saIndex = this.nodeIndex.get("SA")!;
+    const pArtIndex = this.nodeIndex.get("PArt")!;
+    const aoIndex = this.nodeIndex.get("Ao")!;
+    const paIndex = this.nodeIndex.get("PA")!;
     const aovLoss = this.effectiveLosses(this.edges[this.edgeIndex("AoV")], pLv, pAo, this.x);
     const aovResistiveDrop = aovLoss.R * qAo;
     const aovQuadraticDrop = aovLoss.B * qAo * Math.abs(qAo);
@@ -1031,6 +1039,8 @@ export class ModelCore {
       t: this.t,
       AoP: pack.P[this.nodeIndex.get("Ao")!],
       PAP: pap,
+      systemicArterialPressurePa: pack.P[saIndex] * MMHG_TO_PA,
+      downstreamPulmonaryArterialPressurePa: pack.P[pArtIndex] * MMHG_TO_PA,
       LAP: lap,
       RAP: rap,
       LVP: pLv,
@@ -1044,11 +1054,17 @@ export class ModelCore {
       SVF: flows[this.edgeIndex("VC_RA")],
       QCapSV: flows[this.edgeIndex("Cap_SV")],
       QPArtPCap: flows[this.edgeIndex("PArt_PCap")],
+      aorticRootToSystemicArteryFlowM3PerSec: flows[this.edgeIndex("Ao_SA")] * ML_TO_M3,
+      proximalPulmonaryArterialFlowM3PerSec: flows[this.edgeIndex("PA_PArt")] * ML_TO_M3,
       QCorLAD: qLAD,
       QCorLCx: qLCx,
       QCorRCA: qRCA,
       QCorTotal: qLAD + qLCx + qRCA,
       QCS: flows[this.edgeIndex("CS_RA")],
+      aorticRootComplianceM3PerPa: complianceFromPtm(this.vascularPvLaw(this.nodes[aoIndex]), pack.Ptm[aoIndex])
+        * ML_PER_MMHG_TO_M3_PER_PA,
+      pulmonaryRootComplianceM3PerPa: complianceFromPtm(this.vascularPvLaw(this.nodes[paIndex]), pack.Ptm[paIndex])
+        * ML_PER_MMHG_TO_M3_PER_PA,
       VLV: pack.Vphys[this.nodeIndex.get("LV")!],
       VRV: pack.Vphys[this.nodeIndex.get("RV")!],
       VLA: pack.Vphys[this.nodeIndex.get("LA")!],

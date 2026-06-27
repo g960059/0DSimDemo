@@ -105,6 +105,18 @@ from emitted valve impulse fields; they are separate from cumulative
 `debugClampDiagnostics()` counters such as `dynamicFlowClampHits` and
 `valveDiodeClampHits`.
 
+The runner also exports diagnostic-only arterial-load signals from existing
+ModelCore topology and state: `systemicArterialPressurePa` from the `SA` node,
+`downstreamPulmonaryArterialPressurePa` from the `PArt` node,
+`aorticRootToSystemicArteryFlowM3PerSec` from the `Ao_SA` dynamic edge,
+`proximalPulmonaryArterialFlowM3PerSec` from the `PA_PArt` dynamic edge, and
+`aorticRootComplianceM3PerPa` / `pulmonaryRootComplianceM3PerPa` from the
+current arterial PV-law derivative at the `Ao` and `PA` transmural pressures.
+These are exported evidence signals only. `characteristicImpedancePaSecPerM3`
+and `arterialReflectionCoefficient` remain unavailable because the current
+model does not explicitly model them; the runner must not infer proxies from
+resistance, inertance, compliance, or flow.
+
 The per-sample phase artifact should include pressure, volume,
 `caseId`, `branchId`, `dPressurePaPerSec`, `dVolumeM3PerSec`, inlet/outlet
 valve open01 values, and inlet/outlet flow values. `branchId` identifies the

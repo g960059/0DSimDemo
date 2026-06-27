@@ -31,12 +31,18 @@ function sample(overrides: Partial<AnalysisSample>): AnalysisSample {
     RAP: 5,
     AoP: 90,
     PAP: 15,
+    systemicArterialPressurePa: 11_000,
+    downstreamPulmonaryArterialPressurePa: 1_800,
     VLV: 120,
     VRV: 120,
     QMV: 80,
     QAo: 0,
     QTV: 80,
     QPV: 0,
+    aorticRootToSystemicArteryFlowM3PerSec: 0.00008,
+    proximalPulmonaryArterialFlowM3PerSec: 0.00007,
+    aorticRootComplianceM3PerPa: 1.5e-8,
+    pulmonaryRootComplianceM3PerPa: 2.2e-8,
     xiMV: 1,
     xiAoV: 0,
     xiTV: 1,
@@ -161,6 +167,14 @@ describe("PV-loop morphology quality runner helpers", () => {
     expect(summary.signalAvailability.pvQDotRawM3PerSec2).toBe(true);
     expect(summary.signalAvailability.perSampleValveDiodeClampHits).toBe(true);
     expect(summary.signalAvailability.perSampleDynamicFlowClampHits).toBe(true);
+    expect(summary.signalAvailability.systemicArterialPressurePa).toBe(true);
+    expect(summary.signalAvailability.downstreamPulmonaryArterialPressurePa).toBe(true);
+    expect(summary.signalAvailability.aorticRootToSystemicArteryFlowM3PerSec).toBe(true);
+    expect(summary.signalAvailability.proximalPulmonaryArterialFlowM3PerSec).toBe(true);
+    expect(summary.signalAvailability.aorticRootComplianceM3PerPa).toBe(true);
+    expect(summary.signalAvailability.pulmonaryRootComplianceM3PerPa).toBe(true);
+    expect(summary.signalAvailability.characteristicImpedancePaSecPerM3).toBe(false);
+    expect(summary.signalAvailability.arterialReflectionCoefficient).toBe(false);
     expect(summary.guardrailResults.map((result) => result.id)).toContain("package-scripts-no-change");
     expect(summary.morphologyEvidence.scoringProfile.maxConfidence).toBe("medium");
     expect(summary.morphologyEvidence.evidenceGaps.map((gap) => gap.id)).not.toContain("filling-limb-root-cause-signal-gap");
@@ -216,6 +230,56 @@ describe("PV-loop morphology quality runner helpers", () => {
     expect(evidence.evidenceGaps.map((gap) => gap.id)).toEqual(expect.arrayContaining([
       "ejection-limb-arterial-load-signal-gap",
     ]));
+  });
+
+  it("keeps arterial-load evidence insufficient only for missing Zc and reflection", () => {
+    const evidence = buildMorphologyEvidenceSummaryForTest([
+      metricRow({
+        metricId: "semilunarOpenEjectionSquareness",
+        value: 0.9,
+        classificationLabels: ["excessive-squareness"],
+      }),
+      metricRow({
+        metricId: "ejectionPlateauFraction",
+        value: 0.7,
+        classificationLabels: ["flat-aop-during-ejection"],
+      }),
+    ]);
+
+    const observation = evidence.observations.find((candidate) => candidate.id === "ejection-shape-alert");
+    expect(observation?.supportingSignals).toEqual(expect.arrayContaining([
+      "systemicArterialPressurePa",
+      "downstreamPulmonaryArterialPressurePa",
+      "aorticRootToSystemicArteryFlowM3PerSec",
+      "proximalPulmonaryArterialFlowM3PerSec",
+      "aorticRootComplianceM3PerPa",
+      "pulmonaryRootComplianceM3PerPa",
+    ]));
+    expect(observation?.missingSignals).toEqual([
+      "characteristicImpedancePaSecPerM3",
+      "arterialReflectionCoefficient",
+    ]);
+
+    const hypothesis = evidence.rootCauseHypotheses.find((candidate) => (
+      candidate.id === "arterial-load-structure-hypothesis"
+    ));
+    expect(hypothesis).toMatchObject({
+      evidenceStatus: "insufficient-evidence",
+      confidence: "low",
+      missingSignals: [
+        "characteristicImpedancePaSecPerM3",
+        "arterialReflectionCoefficient",
+      ],
+    });
+
+    const gap = evidence.evidenceGaps.find((candidate) => candidate.id === "ejection-limb-arterial-load-signal-gap");
+    expect(gap).toMatchObject({
+      missingSignals: [
+        "characteristicImpedancePaSecPerM3",
+        "arterialReflectionCoefficient",
+      ],
+      note: "Proximal arterial pressure/flow/root-compliance evidence is available; arterial/load hypotheses remain insufficient while Zc/reflection evidence is not modeled.",
+    });
   });
 
   it("does not emit the RV filling chatter hypothesis from LV-only chatter evidence", () => {
@@ -536,6 +600,12 @@ describe("PV-loop morphology quality runner helpers", () => {
         "mvQDotRawM3PerSec2",
         "tvQDotRawM3PerSec2",
         "pvQDotRawM3PerSec2",
+        "systemicArterialPressurePa",
+        "downstreamPulmonaryArterialPressurePa",
+        "aorticRootToSystemicArteryFlowM3PerSec",
+        "proximalPulmonaryArterialFlowM3PerSec",
+        "aorticRootComplianceM3PerPa",
+        "pulmonaryRootComplianceM3PerPa",
         "perSampleValveDiodeClampHits",
         "perSampleDynamicFlowClampHits",
       ]));
@@ -553,6 +623,12 @@ describe("PV-loop morphology quality runner helpers", () => {
         MV_qDotClampImpulse: -1_000_000,
         TV_diodeImpulse: -3,
         PV_flowClampImpulse: 4,
+        systemicArterialPressurePa: 12_345,
+        downstreamPulmonaryArterialPressurePa: 2_345,
+        aorticRootToSystemicArteryFlowM3PerSec: 0.000123,
+        proximalPulmonaryArterialFlowM3PerSec: 0.000045,
+        aorticRootComplianceM3PerPa: 1.23e-8,
+        pulmonaryRootComplianceM3PerPa: 4.56e-8,
       }),
     ];
 
@@ -563,6 +639,12 @@ describe("PV-loop morphology quality runner helpers", () => {
       mvQDotClampImpulseM3PerSec2: -1,
       tvValveDiodeImpulseM3PerSec: -0.000003,
       pvDynamicFlowClampImpulseM3PerSec: 0.000004,
+      systemicArterialPressurePa: 12_345,
+      downstreamPulmonaryArterialPressurePa: 2_345,
+      aorticRootToSystemicArteryFlowM3PerSec: 0.000123,
+      proximalPulmonaryArterialFlowM3PerSec: 0.000045,
+      aorticRootComplianceM3PerPa: 1.23e-8,
+      pulmonaryRootComplianceM3PerPa: 4.56e-8,
       perSampleValveDiodeClampHits: 1,
       perSampleDynamicFlowClampHits: 1,
     });

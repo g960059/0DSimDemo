@@ -43,12 +43,18 @@ export type AnalysisSample = {
   RAP: number;
   AoP: number;
   PAP: number;
+  systemicArterialPressurePa: number;
+  downstreamPulmonaryArterialPressurePa: number;
   VLV: number;
   VRV: number;
   QMV: number;
   QAo: number;
   QTV: number;
   QPV: number;
+  aorticRootToSystemicArteryFlowM3PerSec: number;
+  proximalPulmonaryArterialFlowM3PerSec: number;
+  aorticRootComplianceM3PerPa: number;
+  pulmonaryRootComplianceM3PerPa: number;
   xiMV: number;
   xiAoV: number;
   xiTV: number;
@@ -591,6 +597,8 @@ function signalAvailability(): Record<string, boolean> {
     rightAtrialPressurePa: true,
     aorticPressurePa: true,
     pulmonaryArteryPressurePa: true,
+    systemicArterialPressurePa: true,
+    downstreamPulmonaryArterialPressurePa: true,
     mitralValveOpen01: true,
     aorticValveOpen01: true,
     tricuspidValveOpen01: true,
@@ -599,6 +607,8 @@ function signalAvailability(): Record<string, boolean> {
     aorticFlowM3PerSec: true,
     tricuspidFlowM3PerSec: true,
     pulmonaryFlowM3PerSec: true,
+    aorticRootToSystemicArteryFlowM3PerSec: true,
+    proximalPulmonaryArterialFlowM3PerSec: true,
     lvPressureFloorHit01: true,
     rvPressureFloorHit01: true,
     aovQDotRawM3PerSec2: true,
@@ -627,12 +637,10 @@ function signalAvailability(): Record<string, boolean> {
     pvDynamicFlowClampImpulseM3PerSec: true,
     perSampleValveDiodeClampHits: true,
     perSampleDynamicFlowClampHits: true,
-    systemicArterialPressurePa: false,
-    downstreamPulmonaryArterialPressurePa: false,
+    aorticRootComplianceM3PerPa: true,
+    pulmonaryRootComplianceM3PerPa: true,
     characteristicImpedancePaSecPerM3: false,
     arterialReflectionCoefficient: false,
-    aorticRootComplianceM3PerPa: false,
-    pulmonaryRootComplianceM3PerPa: false,
   };
 }
 
@@ -783,12 +791,18 @@ function toAnalysisSamples(samples: SimSample[], beatIndex: number): AnalysisSam
     RAP: sample.RAP,
     AoP: sample.AoP,
     PAP: sample.PAP,
+    systemicArterialPressurePa: sample.systemicArterialPressurePa,
+    downstreamPulmonaryArterialPressurePa: sample.downstreamPulmonaryArterialPressurePa,
     VLV: sample.VLV,
     VRV: sample.VRV,
     QMV: sample.QMV,
     QAo: sample.QAo,
     QTV: sample.QTV,
     QPV: sample.QPV,
+    aorticRootToSystemicArteryFlowM3PerSec: sample.aorticRootToSystemicArteryFlowM3PerSec,
+    proximalPulmonaryArterialFlowM3PerSec: sample.proximalPulmonaryArterialFlowM3PerSec,
+    aorticRootComplianceM3PerPa: sample.aorticRootComplianceM3PerPa,
+    pulmonaryRootComplianceM3PerPa: sample.pulmonaryRootComplianceM3PerPa,
     xiMV: sample.xiMV,
     xiAoV: sample.xiAoV,
     xiTV: sample.xiTV,
@@ -863,6 +877,9 @@ function resampleBeat(samples: AnalysisSample[], beatIndex: number, count: numbe
   const fields: (keyof Omit<AnalysisSample, "sourceIndex" | "beatIndex">)[] = [
     "tSec", "theta", "LVP", "RVP", "LAP", "RAP", "AoP", "PAP", "VLV", "VRV",
     "QMV", "QAo", "QTV", "QPV", "xiMV", "xiAoV", "xiTV", "xiPV", "aLA", "aRA",
+    "systemicArterialPressurePa", "downstreamPulmonaryArterialPressurePa",
+    "aorticRootToSystemicArteryFlowM3PerSec", "proximalPulmonaryArterialFlowM3PerSec",
+    "aorticRootComplianceM3PerPa", "pulmonaryRootComplianceM3PerPa",
     "ELV_active", "ERV_active", "LVPressureFloorHit01", "RVPressureFloorHit01",
     "MV_qDotRaw", "MV_qDotPost", "MV_qDotClampHit01", "MV_qDotClampImpulse",
     "MV_diodeImpulse", "MV_flowClampImpulse",
@@ -1051,8 +1068,8 @@ function phaseSampleRow(
 
 function sourceSignalMask(chamber: Chamber): string {
   return chamber === "LV"
-    ? "LVP,VLV,LAP,AoP,xiMV,xiAoV,QMV,QAo,LVPressureFloorHit01,MV_qDot*,AoV_qDot*,perSampleValveDiodeClampHits,perSampleDynamicFlowClampHits"
-    : "RVP,VRV,RAP,PAP,xiTV,xiPV,QTV,QPV,RVPressureFloorHit01,TV_qDot*,PV_qDot*,perSampleValveDiodeClampHits,perSampleDynamicFlowClampHits";
+    ? "LVP,VLV,LAP,AoP,systemicArterialPressurePa,aorticRootToSystemicArteryFlowM3PerSec,aorticRootComplianceM3PerPa,xiMV,xiAoV,QMV,QAo,LVPressureFloorHit01,MV_qDot*,AoV_qDot*,perSampleValveDiodeClampHits,perSampleDynamicFlowClampHits"
+    : "RVP,VRV,RAP,PAP,downstreamPulmonaryArterialPressurePa,proximalPulmonaryArterialFlowM3PerSec,pulmonaryRootComplianceM3PerPa,xiTV,xiPV,QTV,QPV,RVPressureFloorHit01,TV_qDot*,PV_qDot*,perSampleValveDiodeClampHits,perSampleDynamicFlowClampHits";
 }
 
 function metricRowsForBeat(
@@ -1666,12 +1683,18 @@ function traceRowsForBeat(
       RAP: sample.RAP,
       AoP: sample.AoP,
       PAP: sample.PAP,
+      systemicArterialPressurePa: sample.systemicArterialPressurePa,
+      downstreamPulmonaryArterialPressurePa: sample.downstreamPulmonaryArterialPressurePa,
       VLV: sample.VLV,
       VRV: sample.VRV,
       QMV: sample.QMV,
       QAo: sample.QAo,
       QTV: sample.QTV,
       QPV: sample.QPV,
+      aorticRootToSystemicArteryFlowM3PerSec: sample.aorticRootToSystemicArteryFlowM3PerSec,
+      proximalPulmonaryArterialFlowM3PerSec: sample.proximalPulmonaryArterialFlowM3PerSec,
+      aorticRootComplianceM3PerPa: sample.aorticRootComplianceM3PerPa,
+      pulmonaryRootComplianceM3PerPa: sample.pulmonaryRootComplianceM3PerPa,
       xiMV: sample.xiMV,
       xiAoV: sample.xiAoV,
       xiTV: sample.xiTV,
@@ -2060,6 +2083,12 @@ const EJECTION_EVIDENCE_SIGNALS = [
   "pulmonaryFlowM3PerSec",
   "aorticPressurePa",
   "pulmonaryArteryPressurePa",
+  "systemicArterialPressurePa",
+  "downstreamPulmonaryArterialPressurePa",
+  "aorticRootToSystemicArteryFlowM3PerSec",
+  "proximalPulmonaryArterialFlowM3PerSec",
+  "aorticRootComplianceM3PerPa",
+  "pulmonaryRootComplianceM3PerPa",
   "aovQDotRawM3PerSec2",
   "aovQDotPostM3PerSec2",
   "aovQDotClampHit01",
@@ -2078,10 +2107,12 @@ const EJECTION_MISSING_ROOT_CAUSE_SIGNALS = [
   "pvQDotRawM3PerSec2",
   "systemicArterialPressurePa",
   "downstreamPulmonaryArterialPressurePa",
-  "characteristicImpedancePaSecPerM3",
-  "arterialReflectionCoefficient",
+  "aorticRootToSystemicArteryFlowM3PerSec",
+  "proximalPulmonaryArterialFlowM3PerSec",
   "aorticRootComplianceM3PerPa",
   "pulmonaryRootComplianceM3PerPa",
+  "characteristicImpedancePaSecPerM3",
+  "arterialReflectionCoefficient",
 ];
 
 function updateMorphologyEvidenceSummary(
@@ -2204,7 +2235,7 @@ function buildMorphologyEvidenceSummary(
     rootCauseHypotheses.push({
       id: "arterial-load-structure-hypothesis",
       lane: "ejection-limb",
-      hypothesis: "Ejection-limb shape readouts suggest a proximal arterial/load morphology question, but structural arterial signals are not yet emitted.",
+      hypothesis: "Ejection-limb shape readouts suggest a proximal arterial/load morphology question; proximal pressure, flow, and root-compliance signals are emitted, but Zc/reflection are not modeled.",
       evidenceStatus: ejectionMissing.length > 0 ? "insufficient-evidence" : "supported-correlation",
       confidence: ejectionMissing.length > 0 ? "low" : "medium",
       score: observation.score,
@@ -2213,7 +2244,7 @@ function buildMorphologyEvidenceSummary(
       missingSignals: ejectionMissing,
       nextEvidence: ejectionMissing.length > 0
         ? [
-            "Emit or derive proximal arterial/root/Zc/reflection diagnostics before proposing an arterial-load model change.",
+            "Add explicitly modeled Zc/reflection diagnostics before proposing an arterial-load model change.",
           ]
         : [
             "Run an off-by-default arterial-load comparator with anti-gaming guard metrics.",
@@ -2605,9 +2636,7 @@ function evidenceGaps(availability: Record<string, boolean>): EvidenceGap[] {
       id: "ejection-limb-arterial-load-signal-gap",
       lane: "ejection-limb",
       missingSignals: ejectionMissing,
-      note: ejectionMissing.includes("pvQDotRawM3PerSec2")
-        ? "Arterial/load hypotheses remain insufficient without proximal arterial, root compliance, Zc, reflection, and PV qDot evidence."
-        : "Arterial/load hypotheses remain insufficient without proximal arterial, root compliance, Zc, and reflection evidence.",
+      note: "Proximal arterial pressure/flow/root-compliance evidence is available; arterial/load hypotheses remain insufficient while Zc/reflection evidence is not modeled.",
     });
   }
   return gaps;

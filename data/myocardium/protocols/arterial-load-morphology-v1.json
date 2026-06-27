@@ -70,9 +70,27 @@
       { "name": "tricuspidValveOpen01", "unit": "dimensionless", "required": true }
     ],
     "arterialLoadAndArtifact": [
-      { "name": "characteristicImpedancePaSecPerM3", "unit": "Pa*s/m3", "required": false },
-      { "name": "arterialReflectionCoefficient", "unit": "dimensionless", "required": false },
-      { "name": "arterialReflectionDelaySec", "unit": "s", "required": false },
+      {
+        "name": "characteristicImpedancePaSecPerM3",
+        "unit": "Pa*s/m3",
+        "required": false,
+        "boundary": "unavailable-no-proxy-current-runtime",
+        "description": "Not explicitly modeled by the current runtime; do not infer from resistance, inertance, compliance, pressure, or flow."
+      },
+      {
+        "name": "arterialReflectionCoefficient",
+        "unit": "dimensionless",
+        "required": false,
+        "boundary": "unavailable-no-proxy-current-runtime",
+        "description": "Not explicitly modeled by the current runtime; do not infer from pressure or flow shape."
+      },
+      {
+        "name": "arterialReflectionDelaySec",
+        "unit": "s",
+        "required": false,
+        "boundary": "unavailable-no-proxy-current-runtime",
+        "description": "No explicit reflection path/delay is modeled by the current runtime."
+      },
       { "name": "aorticRootComplianceM3PerPa", "unit": "m3/Pa", "required": false },
       { "name": "pulmonaryRootComplianceM3PerPa", "unit": "m3/Pa", "required": false },
       { "name": "semilunarValveOpenEventTimeSec", "unit": "s", "required": false },
