@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "level3-source-stress-transfer-entry-gate-v1",
+  "status": "proposed",
+  "phase": "Level 3 / Phase 3C entry",
+  "claimBoundary": "source-stress-to-chamber-transfer-entry-gate-only",
+  "purpose": "Ensure encouraging Phase 2B source-stress morphology is not lost or hidden by source-to-wall mapping, chamber kinematics, afterload, or free gains before Level 3 loaded protocols are interpreted.",
+  "entryRequirements": [
+    {
+      "id": "phase2b-mechanistic-report-present",
+      "description": "The Phase 2B report includes the required mechanistic fields from phase2b-source-stress-mechanistic-report-v1."
+    },
+    {
+      "id": "absolute-ca-target-clarified",
+      "description": "The report distinguishes targetPeakAmplitudeUM from targetAbsolutePeakCaUM and shows measuredPeakCaUM relative to the absolute target."
+    },
+    {
+      "id": "land-absolute-scale-check",
+      "description": "The Phase 2B source-stress peak is compared against the Land 2017 intact-human reference or expected scale at the same lambda/Ca condition. This check is intended to catch nominal/Cauchy or constant-factor mistakes before calibration can hide them."
+    },
+    {
+      "id": "source-to-chamber-scale-check",
+      "description": "Level 3 must verify that Phase 2B source stress around 37 kPa transfers to chamber-realized stress in the expected approximate 10-16 kPa range and approximately 120 mmHg morphology without Tref rescaling or free gain. Exact thresholds must come from the target pack and source-to-wall mapping decision."
+    },
+    {
+      "id": "no-free-gain",
+      "description": "No hidden Tref rescale, geomChi-style pressure multiplier, or homogenization gain may be introduced to force Level 3 agreement."
+    },
+    {
+      "id": "layer-consistency-report",
+      "description": "FWHM, time-to-peak, relaxation tau, and Ca-to-stress delay from Phase 2B are carried forward for recheck after loaded single-chamber, partitioned coupling, and closed-loop integration."
+    }
+  ],
+  "alternansPolicy": {
+    "legacyProtocol": "Legacy activeStress alternans should be reproduced under a fixed protocol before claiming improvement.",
+    "newProtocol": "New myocardium should be checked under the same protocol.",
+    "referenceRequirement": "Final no-alternans interpretation must not rely on BE alone; SDIRK2 or an equivalent second-order reference is required before treating alternans disappearance as robust."
+  }
+}
