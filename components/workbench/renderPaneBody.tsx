@@ -53,6 +53,8 @@ export function renderPaneBody(panel: PanelDef, ctx: PaneBodyContext): React.Rea
         config={effectiveGlobalConfig(panel.config, ctx.instances)}
         showGuides={panel.showGuides}
         showLegend={panel.showLegend}
+        pvDebugOverlay={panel.pvDebugOverlay}
+        pvDebugTraceMode={panel.pvDebugTraceMode}
         activeInstanceId={ctx.activeInstanceId}
         panelId={panel.id}
         legendInteractive={shouldEnableLegendInteractions({ canConfigure: ctx.canConfigure, presentationMode: ctx.presentationMode })}

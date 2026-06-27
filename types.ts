@@ -64,6 +64,7 @@ export interface PanelInstanceConfig {
 export type PanelType = 'PVLOOP' | 'WAVEFORM' | 'METRICS' | 'GUYTON_RIGHT' | 'GUYTON_LEFT' | 'GUYTON_3D' | 'SCENARIOS' | 'CONTROLS' | 'NOTE';
 export type PanelRole = 'graph' | 'output' | 'control' | 'note';
 export type WorkbenchZoneId = 'caseRail' | 'main' | 'sideRail' | 'bottomPanel';
+export type PvLoopDebugTraceMode = 'raw' | 'resampled' | 'both';
 
 export type PanelItemId = ChamberId | SignalType | MetricType | KnobKey | string;
 
@@ -97,6 +98,8 @@ export interface GraphPanelView {
     showGuides?: boolean;
     showLegend?: boolean;
     legendPosition?: LegendPosition;
+    pvDebugOverlay?: boolean;
+    pvDebugTraceMode?: PvLoopDebugTraceMode;
 }
 
 export interface OutputPanelView {
@@ -201,6 +204,8 @@ export interface PanelDef {
     showGuides?: boolean;
     timeWindow?: number;
     showLegend?: boolean;
+    pvDebugOverlay?: boolean;
+    pvDebugTraceMode?: PvLoopDebugTraceMode;
 }
 
 export interface PreviewCoreFacade {
