@@ -142,7 +142,9 @@ A more mechanics-consistent implementation may instead maintain a booster tensio
 P_booster = Vw_A * T_A * dE_A/dV_A
 ```
 
-The pressure-state version is acceptable for the Phase 5.5 bridge shootout if it passes the smoothness and preload-stability gates.
+The pressure-state version is acceptable for the Phase 5.5 bridge shootout if it passes the smoothness, anti-overdamping, and preload-stability gates.
+
+The pressure-state booster is not an atrial twitch-shape model. If future work targets detailed a-wave morphology, AF mechanical remodeling, atrial myopathy, or atrial myofilament physiology, the bridge must be upgraded to a work-conjugate tension/state formulation or replaced by LandAtrial/RDQAtrial rather than fitting the first-order pressure filter harder.
 
 ## 6. E0 — atrial-elastance-negative-control-v0
 
@@ -207,7 +209,13 @@ It must not claim:
 - regional atrial activation/scar/fibrosis;
 - definitive atrial disease modeling.
 
-## 10. Future path
+## 10. AF-forward-compatible substrate note
+
+The additive reservoir/conduit/booster decomposition is intentionally compatible with future AF-oriented modeling because atrial kick loss can be represented structurally by disabling or attenuating the booster component while preserving reservoir and conduit behavior.
+
+This is only an architectural affordance. It is not a validation claim for AF, atrial myopathy, or ablation physiology.
+
+## 11. Future path
 
 The recommended future sequence is:
 
