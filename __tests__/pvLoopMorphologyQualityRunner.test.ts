@@ -4,13 +4,16 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import targetPack from "@/data/myocardium/targets/pv-loop-morphology-quality-v1.json";
 import {
+  buildMorphologyEvidenceSummaryForTest,
   buildInitialSummary,
   classifyPvLoopPhaseForTest,
   metricRowsForSamplesForTest,
   metricRowsToCsv,
   PV_LOOP_CLASSIFICATION_PROFILE,
   runPvLoopMorphologyDiagnosticForTest,
+  summaryToMarkdownForTest,
   type AnalysisSample,
+  type ClampEventRow,
   type MetricRow,
 } from "@/tools/myocardium/verifyPvLoopMorphologyQuality";
 
@@ -56,6 +59,43 @@ function sample(overrides: Partial<AnalysisSample>): AnalysisSample {
   };
 }
 
+function metricRow(overrides: Partial<MetricRow>): MetricRow {
+  return {
+    caseId: "normal-sinus",
+    branchId: "1",
+    branchName: "Normal",
+    beatIndex: 1,
+    chamber: "LV",
+    metricId: "mvOpenLowerLimbRoughness",
+    samplingMode: "raw",
+    transitionPolicy: "transition-excluded-core",
+    value: 0,
+    unit: "dimensionless",
+    samplingInvarianceDelta: 0,
+    classificationLabels: [],
+    ...overrides,
+  };
+}
+
+function clampRow(overrides: Partial<ClampEventRow>): ClampEventRow {
+  return {
+    caseId: "normal-sinus",
+    branchId: "1",
+    branchName: "Normal",
+    beatIndex: 1,
+    chamber: "LV",
+    signalId: "AoV_qDotClampHit01",
+    eventType: "hit",
+    timeSec: 12.1,
+    theta: 0.2,
+    value: 1,
+    granularity: "per-sample",
+    availability: "available",
+    note: "",
+    ...overrides,
+  };
+}
+
 describe("PV-loop morphology quality runner helpers", () => {
   it("classifies core filling and ejection samples without forcing transitions", () => {
     expect(classifyPvLoopPhaseForTest(sample({}), "LV")).toBe("filling");
@@ -96,6 +136,87 @@ describe("PV-loop morphology quality runner helpers", () => {
     expect(summary.signalAvailability.aovQDotRawM3PerSec2).toBe(true);
     expect(summary.signalAvailability.mvQDotRawM3PerSec2).toBe(false);
     expect(summary.guardrailResults.map((result) => result.id)).toContain("package-scripts-no-change");
+    expect(summary.morphologyEvidence.scoringProfile.maxConfidence).toBe("medium");
+    expect(summary.morphologyEvidence.evidenceGaps.map((gap) => gap.id)).toContain("filling-limb-root-cause-signal-gap");
+  });
+
+  it("summarizes root-cause hypotheses as correlations with explicit evidence gaps", () => {
+    const evidence = buildMorphologyEvidenceSummaryForTest([
+      metricRow({
+        metricId: "mvOpenLowerLimbRoughness",
+        value: 3,
+        classificationLabels: ["filling-limb-artifact"],
+      }),
+      metricRow({
+        metricId: "eventCorrelationWindowHitFraction",
+        value: 0.8,
+        classificationLabels: ["event-window-correlation", "event-sensitive"],
+      }),
+      metricRow({
+        metricId: "qDotClampHitFraction",
+        chamber: "LV",
+        value: 0.75,
+      }),
+      metricRow({
+        metricId: "lowerLimbKinkCount",
+        samplingMode: "uniformBeatGrid",
+        value: 4,
+        samplingInvarianceDelta: 0.5,
+        classificationLabels: ["sampling-sensitive"],
+      }),
+    ], [
+      clampRow({ signalId: "AoV_qDotClampHit01", value: 1 }),
+    ]);
+
+    expect(evidence.observations.map((observation) => observation.id)).toEqual(expect.arrayContaining([
+      "filling-limb-roughness",
+      "event-window-correlation",
+      "aov-qdot-clamp-activity",
+      "sampling-sensitive-metrics",
+    ]));
+
+    const filling = evidence.rootCauseHypotheses.find((hypothesis) => hypothesis.id === "filling-event-window-correlation");
+    expect(filling).toMatchObject({
+      evidenceStatus: "insufficient-evidence",
+      confidence: "low",
+    });
+    expect(filling?.missingSignals).toEqual(expect.arrayContaining([
+      "mvQDotRawM3PerSec2",
+      "perSampleDynamicFlowClampHits",
+    ]));
+
+    const aov = evidence.rootCauseHypotheses.find((hypothesis) => hypothesis.id === "aov-qdot-clamp-correlation");
+    expect(aov).toMatchObject({
+      evidenceStatus: "supported-correlation",
+      confidence: "medium",
+    });
+    expect(evidence.evidenceGaps.map((gap) => gap.id)).toEqual(expect.arrayContaining([
+      "filling-limb-root-cause-signal-gap",
+      "ejection-limb-arterial-load-signal-gap",
+    ]));
+  });
+
+  it("renders morphology evidence status and gaps in summary markdown", () => {
+    const summary = buildInitialSummary();
+    summary.morphologyEvidence = buildMorphologyEvidenceSummaryForTest([
+      metricRow({
+        metricId: "mvOpenLowerLimbRoughness",
+        value: 3,
+        classificationLabels: ["filling-limb-artifact"],
+      }),
+      metricRow({
+        metricId: "eventCorrelationWindowHitFraction",
+        value: 0.8,
+        classificationLabels: ["event-window-correlation", "event-sensitive"],
+      }),
+    ]);
+
+    const markdown = summaryToMarkdownForTest(summary);
+
+    expect(markdown).toContain("## Morphology Evidence");
+    expect(markdown).toContain("filling-event-window-correlation");
+    expect(markdown).toContain("insufficient-evidence");
+    expect(markdown).toContain("filling-limb-root-cause-signal-gap");
   });
 
   it("emits metricId-granular CSV with samplingInvarianceDelta", () => {
