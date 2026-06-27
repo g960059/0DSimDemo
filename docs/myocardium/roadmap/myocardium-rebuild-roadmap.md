@@ -231,7 +231,19 @@ production tissue homogenization.
 - non-coverage: RV pressure overload, septal bowing, ventricular interdependence, and right-heart failure are not covered by this gate
 - future TriSeg path: preserve `triseg-lite-compatible`, `full-triseg-compatible`, and full TriSeg escalation before those mechanisms are claimed
 
-### PR 4C — passive energy + generalized-force mapper
+### PR 4C-A — passive energy readiness candidate
+
+- gate script: `npm run verify:myocardium-passive-energy-readiness`
+- descriptor: `data/myocardium/protocols/passive-energy-phase4c-protocols.json`
+- candidate implementation: `engine/myocardium/mechanics/passiveExponentialEnergyV1.ts`
+- scope: engineering-strain convex exponential energy readiness candidate only
+- checks: energy-derived passive stress, passive-stress-derived tangent, convexity sweep, smooth positive hinge continuity, slack/compression behavior, viscous dashpot dissipation sign, legacy passive parameter exclusion, and no pressure floor or stress clamp in the candidate implementation
+- boundary: Decision 5, Decision 6, and Decision 8 remain `PENDING OWNER`; no production passive-law acceptance, no official morphology outcome, no live runtime replacement, no ModelCore/chamber/schema/official-case wiring, and no multi-coordinate generalized-force mapper
+- prior gates: Phase 3B, Phase 4B-A, and Phase 4B-B reused read-only with pass/hash evidence
+- non-coverage: RV pressure overload, septal bowing, ventricular interdependence, and right-heart failure are not covered by this gate
+- future TriSeg path: preserve `triseg-lite-compatible`, `full-triseg-compatible`, and full TriSeg escalation before those mechanisms are claimed
+
+### PR 4C-B — generalized-force mapper extension
 
 - multi-coordinate contract
 - active/passive/viscous contribution tests
@@ -369,4 +381,5 @@ LandAtrialV1 / RDQAtrialV1
 tools/myocardium/verifyAtrialBridgeShootout.ts
 tools/myocardium/verifyLayerConsistency.ts
 tools/myocardium/verifyAlternansPolicy.ts
+tools/myocardium/verifyPassiveEnergyReadiness.ts
 ```

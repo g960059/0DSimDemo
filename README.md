@@ -17,6 +17,8 @@ Phase 4B-A では、Land active-stress 置換に向けた最初の shadow readin
 
 Phase 4B-B では、tissue homogenization readiness gate として locked shadow adapter candidate を監査します。これは `identity-fiber-nominal-v1` の descriptor/report/verifier/test/docs gate だけであり、Decision 4 は `PENDING OWNER`、`productionHomogenization=not-claimed`、`ownerAcceptanceStatus=not-owner-acceptance`、`identifiabilityRankStatus=not-run` のままです。現在の identity adapter は activeTissueFraction=1 と identity orientation のみで、no fiber orientation、no dispersion、no transmural variation、no active tissue fraction<1 behavior、no independent data、no independent identifiability rank run です。RV pressure overload、septal bowing、ventricular interdependence、right-heart failure はこの gate では covered ではありません。future TriSeg path として `triseg-lite-compatible`、`full-triseg-compatible`、full TriSeg escalation を、before claiming those mechanisms に保持します。
 
+Phase 4C-A では、`passive-exponential-energy-v1` を passive energy readiness candidate として監査します。これは `verify:myocardium-passive-energy-readiness` で derivative/tangent、convexity、smooth hinge、compression behavior、viscous dissipation sign、legacy passive parameter exclusion、runtime/case non-wiring を確認する gate です。Decision 5、Decision 6、Decision 8 は `PENDING OWNER` のままで、production passive law、official morphology outcome、live runtime replacement、multi-coordinate generalized-force mapper は claim しません。RV pressure overload、septal bowing、ventricular interdependence、right-heart failure はこの gate では covered ではなく、future TriSeg path として `triseg-lite-compatible`、`full-triseg-compatible`、full TriSeg escalation を保持します。
+
 旧 ADR、旧ロードマップ、旧研究メモは、古い前提を正典のように読ませないためローカルの `docs/` から削除しました。必要な場合は git 履歴から参照してください。
 
 ---
