@@ -127,6 +127,14 @@ type BeatTraceRow = {
   active: Partial<Record<Chamber, ActiveBeatSummary>>;
 };
 
+export type VlvTraceRow = {
+  beat: number;
+  sampleIndex: number;
+  tSec: number;
+  phase: number;
+  VLV: number;
+};
+
 type ValveTraceSummary = {
   minQ: number;
   maxQ: number;
@@ -244,6 +252,7 @@ type DebugPoint = {
   tbvAudit: TBVAuditSummary;
   activeStressTerminal: ModelCoreActiveStressDiagnostics;
   beatTrace: BeatTraceRow[];
+  vlvTrace: VlvTraceRow[];
   beatPairOverlay?: BeatPairOverlay;
   returnMap: ReturnMapDiagnostic;
   observables: Pick<SimObservables, "P_PVein" | "Pperi" | "Ppc" | "VLVeff" | "VRVeff" | "PLVfw" | "PVI_LV" | "septumShiftMl">;
@@ -1441,6 +1450,7 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
     configureDebugCore(traceCore, tbvCorrectionMode, aorticFlowClampMode, opts.aovQDotClamp, aovQUpdateMode, opts.aovQDotClampNegative, qDotClampScope);
     const traceSamples = collectTraceSamples(traceCore, opts.traceBeats, dt, opts.sampleHz);
     const beatTrace = summarizeBeatTrace(traceSamples, req.params.HR, opts.traceBeats, aorticFlowClampMode);
+    const vlvTrace = summarizeVlvTrace(traceSamples, opts.traceBeats);
     const beatPairOverlay = opts.beatPairOverlay === true ? buildBeatPairOverlay(traceSamples, req.params.HR, aorticFlowClampMode) : undefined;
     const branchAmplitude = branchAmplitudeFromTrace(traceSamples, req.params.HR, aorticFlowClampMode);
     const branchAmplitudeFraction = branchAmplitudeFractionFromTrace(traceSamples, req.params.HR, aorticFlowClampMode);
@@ -1499,6 +1509,7 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
       tbvAudit,
       activeStressTerminal: run.core.debugActiveStressDiagnostics(),
       beatTrace,
+      vlvTrace,
       beatPairOverlay,
       returnMap,
       observables: {
@@ -2215,6 +2226,24 @@ function summarizeBeatTrace(traceSamples: TraceSample[], HR: number, traceBeats:
   const beatIds = Array.from(groups.keys()).sort((a, b) => a - b);
   const completeIds = beatIds.slice(1, -1).filter((beat) => (groups.get(beat)?.length ?? 0) >= 5);
   return completeIds.slice(-traceBeats).map((beat) => summarizeBeat(beat, groups.get(beat) ?? [], HR, aorticFlowClampMode));
+}
+
+function summarizeVlvTrace(traceSamples: TraceSample[], traceBeats: number): VlvTraceRow[] {
+  const groups = groupTraceSamplesByBeat(traceSamples);
+  const beatIds = Array.from(groups.keys()).sort((a, b) => a - b);
+  const completeIds = beatIds.slice(1, -1).filter((beat) => (groups.get(beat)?.length ?? 0) >= 5);
+  return completeIds.slice(-traceBeats).flatMap((beat) =>
+    (groups.get(beat) ?? []).map((entry, sampleIndex) => {
+      const sample = entry.sample;
+      return {
+        beat,
+        sampleIndex,
+        tSec: sample.t,
+        phase: sample.phi - Math.floor(sample.phi),
+        VLV: sample.VLV,
+      };
+    }),
+  );
 }
 
 function buildBeatPairOverlay(traceSamples: TraceSample[], HR: number, aorticFlowClampMode: AorticFlowClampMode): BeatPairOverlay {

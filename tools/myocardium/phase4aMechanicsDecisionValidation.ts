@@ -47,6 +47,10 @@ const SHADOW_PROTOCOL_SCAN_EXCLUSIONS = new Set([
   // Phase 5B local-monolithic SDIRK2 readiness is a protocol artifact, not
   // runtime integration. Its own verifier scans runtime/case/workbench surfaces.
   "engine/myocardium/protocols/localMonolithicSdirk2Readiness.ts",
+  // Phase 5C-A Land shadow alternans comparator readiness is a protocol
+  // artifact, not runtime integration. Its own verifier scans runtime/case/
+  // workbench surfaces for Phase 5C-A references.
+  "engine/myocardium/protocols/landShadowAlternansComparatorReadiness.ts",
 ]);
 
 export const REQUIRED_PHASE4A_CRITERION_IDS = [
