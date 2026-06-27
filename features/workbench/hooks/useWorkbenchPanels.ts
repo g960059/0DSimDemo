@@ -9,6 +9,7 @@ import type {
   PanelDef,
   PanelInstanceConfig,
   PanelType,
+  PvLoopDebugTraceMode,
   SimInstance,
   WorkbenchWorkspace,
   WorkbenchZoneId,
@@ -300,6 +301,20 @@ export function useWorkbenchPanels({
     setPanels((prev) => prev.map((panel) => panel.id === panelId ? { ...panel, timeWindow: val } : panel));
   }, [markUserEdited]);
 
+  const togglePvDebugOverlay = useCallback((panelId: string) => {
+    markUserEdited();
+    setPanels((prev) => prev.map((panel) => (
+      panel.id === panelId ? { ...panel, pvDebugOverlay: !panel.pvDebugOverlay } : panel
+    )));
+  }, [markUserEdited]);
+
+  const updatePvDebugTraceMode = useCallback((panelId: string, mode: PvLoopDebugTraceMode) => {
+    markUserEdited();
+    setPanels((prev) => prev.map((panel) => (
+      panel.id === panelId ? { ...panel, pvDebugTraceMode: mode } : panel
+    )));
+  }, [markUserEdited]);
+
   const updatePanelControllerItems = useCallback((panelId: string, items: ControllerItem[]) => {
     markUserEdited();
     setPanels((prev) => prev.map((panel) => panel.id === panelId ? mergePanelControllerItems(panel, items) : panel));
@@ -394,6 +409,8 @@ export function useWorkbenchPanels({
     updateInstanceSignals,
     toggleGuides,
     updateTimeWindow,
+    togglePvDebugOverlay,
+    updatePvDebugTraceMode,
     updatePanelControllerItems,
     updatePanelLegendPosition,
     onNoteChange,

@@ -440,6 +440,14 @@
       "showGraphLabels": "Show graph labels.",
       "pvLoopGuides": "PV loop guides",
       "referenceOverlays": "Reference overlays.",
+      "pvDebugOverlay": "PV debug overlay",
+      "pvDebugOverlayDescription": "Phase colors, valve events, and clamp/floor markers.",
+      "pvDebugTraceMode": "Debug trace mode",
+      "pvDebugTraceModes": {
+        "raw": "Raw",
+        "resampled": "Resampled",
+        "both": "Both"
+      },
       "waveformTimeWindow": "Waveform time window",
       "adjacentSectionsConfigurable": "Scenario visibility and labels are still configurable in the adjacent sections.",
       "selectInstanceForStyle": "Select a scenario to edit labels and colors.",

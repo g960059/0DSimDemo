@@ -78,6 +78,8 @@ export function toTypedPanelView(panel: PanelDef): PanelViewConfig {
       ...(panel.timeWindow ? { timeWindow: panel.timeWindow } : {}),
       ...(panel.showGuides !== undefined ? { showGuides: panel.showGuides } : {}),
       ...(panel.showLegend !== undefined ? { showLegend: panel.showLegend } : {}),
+      ...(panel.pvDebugOverlay !== undefined ? { pvDebugOverlay: panel.pvDebugOverlay } : {}),
+      ...(panel.pvDebugTraceMode !== undefined ? { pvDebugTraceMode: panel.pvDebugTraceMode } : {}),
     };
     return view;
   }

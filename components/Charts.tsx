@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { LoaderCircle, TriangleAlert } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { SimInstance, PhysicsRefState, PanelInstanceConfig, type LegendPosition } from '../types';
+import { SimInstance, PhysicsRefState, PanelInstanceConfig, type LegendPosition, type PvLoopDebugTraceMode } from '../types';
 import type { SimSample } from '../engine/protocol';
 import { clampLegendFraction, exceededDragThreshold, fractionToPx, isNearDefaultLegendCorner, pxToFraction } from './legendPosition';
 import { useDocumentVisible, useOnscreen } from '../hooks/useOnscreen';
@@ -19,6 +19,17 @@ import {
     pvLoopEndSystolicPoint,
     type PvLoopBeatData,
 } from './pvLoopPoints';
+import {
+    buildPvLoopDebugSamples,
+    nearestPvLoopDebugCanvasPoint,
+    pvLoopDebugOptionsFromInputs,
+    resamplePvLoopDebugSamples,
+    summarizePvLoopDebugSamples,
+    type PvLoopDebugCanvasPoint,
+    type PvLoopDebugPhase,
+    type PvLoopDebugPoint,
+    type PvLoopDebugSample,
+} from './pvLoopDebugOverlay';
 import {
     classifyStarlingSweepPoint,
     focusedGuytonDisplayAxis,
@@ -55,6 +66,8 @@ interface ChartPanelProps {
   config: Record<string, PanelInstanceConfig>;
   showGuides?: boolean;
   showLegend?: boolean;
+  pvDebugOverlay?: boolean;
+  pvDebugTraceMode?: PvLoopDebugTraceMode;
   activeInstanceId?: string;
   panelId?: string;
   legendInteractive?: boolean;
@@ -299,13 +312,24 @@ const chartInstanceKey = (instances: SimInstance[]): string => (
         .join('|')
 );
 
-const isPvLoopDebugEnabled = (): boolean => {
-    if (typeof window === 'undefined') return false;
+const pvLoopDebugOptionsFromWindow = (
+    panelEnabled?: boolean,
+    panelTraceMode?: PvLoopDebugTraceMode,
+) => {
     try {
-        return new URLSearchParams(window.location.search).has('pvDebug')
-            || window.localStorage.getItem('hemo:pvDebug') === '1';
+        if (typeof window === 'undefined') {
+            return pvLoopDebugOptionsFromInputs({ panelEnabled, panelTraceMode });
+        }
+        return pvLoopDebugOptionsFromInputs({
+            panelEnabled,
+            panelTraceMode,
+            search: window.location.search,
+            storageEnabled: window.localStorage.getItem('hemo:pvDebug'),
+            storageTraceMode: window.localStorage.getItem('hemo:pvDebugTraceMode'),
+            storageLegacyTraceMode: window.localStorage.getItem('hemo:pvDebugMode'),
+        });
     } catch {
-        return false;
+        return pvLoopDebugOptionsFromInputs({ panelEnabled, panelTraceMode });
     }
 };
 
@@ -379,6 +403,143 @@ const drawRawDots = (ctx: CanvasRenderingContext2D, points: CanvasPoint[], color
     for (const point of points) {
         ctx.fillRect(point.x - 1, point.y - 1, 2, 2);
     }
+    ctx.restore();
+};
+
+const PV_DEBUG_PHASE_COLORS: Record<PvLoopDebugPhase, string> = {
+    filling: '#38bdf8',
+    'atrial-kick': '#22c55e',
+    'isovolumic-contraction': '#f59e0b',
+    ejection: '#f43f5e',
+    'isovolumic-relaxation': '#a78bfa',
+    transition: '#facc15',
+    uncertain: '#94a3b8',
+    unsupported: '#64748b',
+};
+
+const pvLoopDebugCanvasPoints = <T extends PvLoopDebugPoint>(
+    points: readonly T[],
+    xScale: d3.ScaleLinear<number, number>,
+    yScale: d3.ScaleLinear<number, number>,
+    label: string,
+): PvLoopDebugCanvasPoint<T>[] => points.map((point) => ({
+    ...point,
+    x: xScale(point.point.v),
+    y: yScale(point.point.p),
+    label,
+}));
+
+const drawStraightDebugTrace = (
+    ctx: CanvasRenderingContext2D,
+    points: readonly PvLoopDebugCanvasPoint[],
+    alpha: number,
+    lineWidth: number,
+    dashed = false,
+): void => {
+    if (points.length < 2) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    if (dashed) ctx.setLineDash([4, 4]);
+    for (let i = 1; i < points.length; i++) {
+        const prev = points[i - 1];
+        const cur = points[i];
+        if (!Number.isFinite(prev.x) || !Number.isFinite(prev.y) || !Number.isFinite(cur.x) || !Number.isFinite(cur.y)) continue;
+        ctx.strokeStyle = PV_DEBUG_PHASE_COLORS[cur.phase] ?? '#cbd5e1';
+        ctx.beginPath();
+        ctx.moveTo(prev.x, prev.y);
+        ctx.lineTo(cur.x, cur.y);
+        ctx.stroke();
+    }
+    ctx.restore();
+};
+
+const drawPvDebugMarkers = (
+    ctx: CanvasRenderingContext2D,
+    points: readonly PvLoopDebugCanvasPoint<PvLoopDebugSample>[],
+): void => {
+    ctx.save();
+    points.forEach((point) => {
+        if (point.markers.length === 0) return;
+        point.markers.forEach((marker, markerIndex) => {
+            const offset = (markerIndex - (point.markers.length - 1) / 2) * 5;
+            const x = point.x + offset;
+            const y = point.y - 5;
+            ctx.save();
+            ctx.lineWidth = 1.4;
+            if (marker.kind === 'valve') {
+                ctx.strokeStyle = '#e0f2fe';
+                ctx.fillStyle = 'rgba(14, 165, 233, 0.55)';
+                ctx.beginPath();
+                ctx.moveTo(x, y - 4);
+                ctx.lineTo(x + 4, y);
+                ctx.lineTo(x, y + 4);
+                ctx.lineTo(x - 4, y);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            } else if (marker.kind === 'qdot-clamp') {
+                ctx.strokeStyle = '#fde68a';
+                ctx.fillStyle = 'rgba(245, 158, 11, 0.62)';
+                ctx.fillRect(x - 3.5, y - 3.5, 7, 7);
+                ctx.strokeRect(x - 3.5, y - 3.5, 7, 7);
+            } else {
+                ctx.strokeStyle = '#fecaca';
+                ctx.beginPath();
+                ctx.moveTo(x - 4, y - 4);
+                ctx.lineTo(x + 4, y + 4);
+                ctx.moveTo(x + 4, y - 4);
+                ctx.lineTo(x - 4, y + 4);
+                ctx.stroke();
+            }
+            ctx.restore();
+        });
+    });
+    ctx.restore();
+};
+
+const pvDebugTooltipLines = (point: PvLoopDebugCanvasPoint): string[] => {
+    const sourceLine = point.source === 'raw'
+        ? `raw sample ${point.sourceIndex} · beat ${point.beatIndex} · beat sample ${point.beatSampleIndex}`
+        : `resampled ${point.beatSampleIndex} · beat ${point.beatIndex} · src ${point.leftSourceIndex}-${point.rightSourceIndex}`;
+    const markerLine = point.markers.length > 0
+        ? `markers: ${point.markers.map((marker) => marker.label).join(', ')}`
+        : '';
+    return [
+        `${point.label} ${point.chamber}`,
+        sourceLine,
+        `phase: ${point.phase}${point.transitionReason ? ` (${point.transitionReason})` : ''}`,
+        markerLine,
+    ].filter(Boolean);
+};
+
+const drawPvDebugTooltip = (
+    ctx: CanvasRenderingContext2D,
+    pointer: { x: number; y: number },
+    lines: readonly string[],
+    width: number,
+    height: number,
+): void => {
+    if (lines.length === 0) return;
+    ctx.save();
+    ctx.font = '11px sans-serif';
+    const lineHeight = 14;
+    const padding = 6;
+    const boxWidth = Math.max(...lines.map((line) => ctx.measureText(line).width)) + padding * 2;
+    const boxHeight = lines.length * lineHeight + padding * 2;
+    const x = Math.min(Math.max(4, pointer.x + 12), Math.max(4, width - boxWidth - 4));
+    const y = Math.min(Math.max(4, pointer.y + 12), Math.max(4, height - boxHeight - 4));
+    ctx.fillStyle = 'rgba(2, 6, 23, 0.9)';
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.75)';
+    ctx.lineWidth = 1;
+    ctx.fillRect(x, y, boxWidth, boxHeight);
+    ctx.strokeRect(x, y, boxWidth, boxHeight);
+    ctx.fillStyle = '#e2e8f0';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    lines.forEach((line, i) => ctx.fillText(line, x + padding, y + padding + i * lineHeight));
     ctx.restore();
 };
 
@@ -706,9 +867,10 @@ export const ChartLegend = ({
     );
 };
 
-export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances, config, showGuides, showLegend, activeInstanceId, panelId, legendInteractive, onOpenSettings, legendPosition, onLegendPositionChange }) => {
+export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances, config, showGuides, showLegend, pvDebugOverlay, pvDebugTraceMode, activeInstanceId, panelId, legendInteractive, onOpenSettings, legendPosition, onLegendPositionChange }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pointerRef = useRef<{ x: number; y: number } | null>(null);
   const scaleRef = useRef({ maxV: 300, maxP: 200 });
   const isDocumentVisible = useDocumentVisible();
   const canAnimate = isDocumentVisible;
@@ -858,8 +1020,9 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
       ctx.fillText("Pressure (mmHg)", 0, 0);
       ctx.restore();
 
-	      const pvDebug = isPvLoopDebugEnabled();
+	      const pvDebug = pvLoopDebugOptionsFromWindow(pvDebugOverlay, pvDebugTraceMode);
 	      const debugLines: string[] = [];
+	      const debugHitPoints: PvLoopDebugCanvasPoint[] = [];
 	      const pvLoopItems: Array<{
 	          inst: SimInstance;
 	          cfg: PanelInstanceConfig;
@@ -976,11 +1139,43 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
 	          if (esPoint) drawEndSystolicMarker(ctx, esPoint, xScale, yScale, color, drawPlan.currentAlpha);
 	      });
 
-	      if (pvDebug) {
-	          pvLoopItems.forEach(({ inst, cfg, chamber, color, currentPoints }) => {
-	              drawRawDots(ctx, currentPoints, color);
+	      if (pvDebug.enabled) {
+	          pvLoopItems.forEach(({ inst, cfg, chamber, color, buf, currentBeatData }) => {
 	              const activeName = cfg.customName || inst.name;
-	              debugLines.push(`${activeName} ${chamber}: ${currentPoints.length} pts`);
+	              const debugSamples = buildPvLoopDebugSamples(buf, currentBeatData.beatRange, chamber);
+	              const rawDebugPoints = pvLoopDebugCanvasPoints(debugSamples, xScale, yScale, activeName);
+	              const drawRaw = pvDebug.traceMode === 'raw' || pvDebug.traceMode === 'both';
+	              const drawResampled = pvDebug.traceMode === 'resampled' || pvDebug.traceMode === 'both';
+	              const resampledDebugPoints = drawResampled
+	                  ? pvLoopDebugCanvasPoints(
+	                      resamplePvLoopDebugSamples(debugSamples, Math.max(24, Math.min(180, debugSamples.length * 2))),
+	                      xScale,
+	                      yScale,
+	                      activeName,
+	                  )
+	                  : [];
+	              if (drawRaw) {
+	                  drawStraightDebugTrace(ctx, rawDebugPoints, 0.78, 1.35);
+	                  drawRawDots(ctx, rawDebugPoints, color);
+	              }
+	              if (drawResampled) {
+	                  drawStraightDebugTrace(ctx, resampledDebugPoints, 0.68, 1.2, true);
+	              }
+	              drawPvDebugMarkers(ctx, rawDebugPoints);
+	              if (drawRaw) debugHitPoints.push(...rawDebugPoints);
+	              else debugHitPoints.push(...rawDebugPoints.filter((point) => point.markers.length > 0));
+	              if (drawResampled) debugHitPoints.push(...resampledDebugPoints);
+
+	              const summary = summarizePvLoopDebugSamples(debugSamples);
+	              const beatLabel = summary.beatIndexMin === summary.beatIndexMax
+	                  ? `${summary.beatIndexMin ?? '-'}`
+	                  : `${summary.beatIndexMin ?? '-'}-${summary.beatIndexMax ?? '-'}`;
+	              debugLines.push(`${activeName} ${chamber}: ${summary.sampleCount} raw · beat ${beatLabel} · ${pvDebug.traceMode}`);
+	              if (summary.supported) {
+	                  debugLines.push(`  phase F${summary.phaseCounts.filling}/${summary.phaseCounts.ejection} T${summary.phaseCounts.transition} · markers V${summary.markerCounts.valve} Q${summary.markerCounts.qdotClamp} P${summary.markerCounts.pressureFloor}`);
+	              } else {
+	                  debugLines.push('  phase/marker scope: LV/RV only; raw index overlay only');
+	              }
 	          });
 	      }
 
@@ -1000,7 +1195,17 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
 	          ctx.restore();
 	      });
 
-	      if (pvDebug) drawPvDebugOverlay(ctx, debugLines);
+	      if (pvDebug.enabled) {
+	          drawPvDebugOverlay(ctx, debugLines);
+	          const pointer = pointerRef.current;
+	          const hitPoint = nearestPvLoopDebugCanvasPoint(debugHitPoints, pointer, 14);
+	          const tooltipLines = hitPoint ? pvDebugTooltipLines(hitPoint) : [];
+	          const nextTitle = tooltipLines.join(' | ');
+	          if (canvas.title !== nextTitle) canvas.title = nextTitle;
+	          if (hitPoint && pointer) drawPvDebugTooltip(ctx, pointer, tooltipLines, width, height);
+	      } else if (canvas.title) {
+	          canvas.title = '';
+	      }
 
       animationFrameId = requestAnimationFrame(render);
     };
@@ -1017,12 +1222,23 @@ export const PVLoopPanel: React.FC<ChartPanelProps> = ({ physicsRefs, instances,
       if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
       ro.disconnect();
     };
-  }, [instanceKey, config, showGuides, canAnimate]);
+  }, [instanceKey, config, showGuides, pvDebugOverlay, pvDebugTraceMode, canAnimate]);
 
   return (
       <div ref={containerRef} className="absolute inset-0 rounded-b-xl overflow-hidden pointer-events-none">
          <ChartLegend instances={instances} config={config} showLegend={showLegend} activeInstanceId={activeInstanceId} panelId={panelId} legendInteractive={legendInteractive} onOpenSettings={onOpenSettings} legendPosition={legendPosition} onLegendPositionChange={onLegendPositionChange} />
-         <canvas ref={canvasRef} className="block pointer-events-auto" />
+         <canvas
+            ref={canvasRef}
+            className="block pointer-events-auto"
+            onPointerMove={(event) => {
+                const rect = event.currentTarget.getBoundingClientRect();
+                pointerRef.current = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+            }}
+            onPointerLeave={() => {
+                pointerRef.current = null;
+                if (canvasRef.current) canvasRef.current.title = '';
+            }}
+         />
       </div>
   );
 };

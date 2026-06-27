@@ -22,6 +22,7 @@ import {
   PanelInstanceConfig,
   PanelType,
   PhysicsRefState,
+  PvLoopDebugTraceMode,
   type LegendPosition,
   SignalType,
   SimInstance,
@@ -48,7 +49,7 @@ import { resolveControllerTargetId } from '../../features/workbench/controllerBi
 import { hasViewRefUsage, viewRefUsageForDeletion } from '../../features/workbench/noteViewRefs';
 import type { ControllerViewSpec, GraphBoardLayout, MetricsViewSpec } from '../../features/workbench/viewSpec';
 import type { WorkbenchThemeId } from './WorkbenchSidePanel';
-import { Activity, Brush, Check, ChevronDown, ChevronRight, Copy, Eye, EyeOff, FileText, Layers, Pencil, Plus, RotateCcw, Search, Settings, SlidersHorizontal, Tags, Trash2, Type as TypeIcon, X } from 'lucide-react';
+import { Activity, Brush, Bug, Check, ChevronDown, ChevronRight, Copy, Eye, EyeOff, FileText, Layers, Pencil, Plus, RotateCcw, Search, Settings, SlidersHorizontal, Tags, Trash2, Type as TypeIcon, X } from 'lucide-react';
 
 export type PanelGridMode = 'learner' | 'sandbox';
 export type RightRailView = 'scenarios' | 'inspector';
@@ -125,6 +126,8 @@ interface PanelGridProps {
   updateInstanceSignals: (panelId: string, instId: string, signal: string) => void;
   toggleGuides: (panelId: string) => void;
   updateTimeWindow: (panelId: string, val: number) => void;
+  togglePvDebugOverlay: (panelId: string) => void;
+  updatePvDebugTraceMode: (panelId: string, mode: PvLoopDebugTraceMode) => void;
   updatePanelControllerItems: (panelId: string, items: ControllerItem[]) => void;
   updatePanelLegendPosition: (panelId: string, pos?: LegendPosition) => void;
   noteCaseKey: string;
@@ -235,6 +238,8 @@ interface PanelSettingsControlsProps {
   updateInstanceSignals: (panelId: string, instId: string, signal: string) => void;
   toggleGuides: (panelId: string) => void;
   updateTimeWindow: (panelId: string, val: number) => void;
+  togglePvDebugOverlay: (panelId: string) => void;
+  updatePvDebugTraceMode: (panelId: string, mode: PvLoopDebugTraceMode) => void;
   updatePanelControllerItems: (panelId: string, items: ControllerItem[]) => void;
   chambers: ChamberId[];
   signals: SignalType[];
@@ -279,6 +284,7 @@ const CONTROL_SETTINGS_SECTIONS: Array<{
 ];
 const GRAPH_SETTINGS_SECTION_IDS = GRAPH_SETTINGS_SECTIONS.map((section) => section.id);
 const CONTROL_SETTINGS_SECTION_IDS = CONTROL_SETTINGS_SECTIONS.map((section) => section.id);
+const PV_DEBUG_TRACE_MODES: PvLoopDebugTraceMode[] = ['raw', 'resampled', 'both'];
 const DEFAULT_CHAMBER_OPTIONS: ChamberId[] = ['LV', 'LA', 'RV', 'RA'];
 const DEFAULT_WAVEFORM_OPTIONS: SignalType[] = [
   'LVP', 'AoP', 'LAP', 'RVP', 'PAP', 'RAP',
@@ -592,6 +598,8 @@ function GraphPanelSettingsBoard({
   updateInstanceSignals,
   toggleGuides,
   updateTimeWindow,
+  togglePvDebugOverlay,
+  updatePvDebugTraceMode,
   chambers,
   signals,
   metrics,
@@ -840,7 +848,9 @@ function GraphPanelSettingsBoard({
   const renderDisplay = () => {
     const hasLegend = panel.type === 'PVLOOP' || panel.type === 'WAVEFORM';
     const hasGuides = panel.type === 'PVLOOP';
+    const hasPvDebug = panel.type === 'PVLOOP';
     const hasWindow = panel.type === 'WAVEFORM';
+    const debugTraceMode = panel.pvDebugTraceMode ?? 'raw';
     return (
       <div className="space-y-2">
         <label className="grid gap-2 rounded bg-wb-strip p-2 sm:grid-cols-[8rem_minmax(0,1fr)] sm:items-center">
@@ -882,6 +892,38 @@ function GraphPanelSettingsBoard({
               </span>
             </button>
           )}
+          {hasPvDebug && (
+            <button
+              type="button"
+              onClick={() => togglePvDebugOverlay(panel.id)}
+              className={`flex w-full items-center gap-3 px-2 py-2 text-left transition-colors ${panel.pvDebugOverlay ? 'text-amber-100' : 'text-wb-muted hover:text-wb-text'}`}
+              aria-pressed={Boolean(panel.pvDebugOverlay)}
+            >
+              <Bug className="h-4 w-4 flex-none" />
+              <span>
+                <span className="block text-sm font-bold">{t('workbench.panelGrid.pvDebugOverlay')}</span>
+                <span className="block text-xs font-medium text-wb-subtle">{t('workbench.panelGrid.pvDebugOverlayDescription')}</span>
+              </span>
+            </button>
+          )}
+          {hasPvDebug && panel.pvDebugOverlay && (
+            <div className="px-2 py-2">
+              <div className="text-[11px] font-medium text-wb-subtle">{t('workbench.panelGrid.pvDebugTraceMode')}</div>
+              <div className="mt-2 grid grid-cols-3 gap-1">
+                {PV_DEBUG_TRACE_MODES.map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => updatePvDebugTraceMode(panel.id, mode)}
+                    className={`h-8 rounded border px-2 text-xs font-bold transition-colors ${debugTraceMode === mode ? 'border-wb-line-strong bg-wb-active text-wb-text' : 'border-wb-line bg-wb-input text-wb-subtle hover:text-wb-text'}`}
+                    aria-pressed={debugTraceMode === mode}
+                  >
+                    {t(`workbench.panelGrid.pvDebugTraceModes.${mode}`)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {hasWindow && (
             <label className="block px-2 py-2">
               <span className="flex items-center justify-between gap-3">
@@ -900,7 +942,7 @@ function GraphPanelSettingsBoard({
             </label>
           )}
         </div>
-        {!hasLegend && !hasGuides && !hasWindow && (
+        {!hasLegend && !hasGuides && !hasPvDebug && !hasWindow && (
           <div className="px-1 text-xs font-semibold text-wb-subtle">
             {t('workbench.panelGrid.adjacentSectionsConfigurable')}
           </div>
@@ -1797,6 +1839,8 @@ interface PanelCardProps {
   updateInstanceSignals: (panelId: string, instId: string, signal: string) => void;
   toggleGuides: (panelId: string) => void;
   updateTimeWindow: (panelId: string, val: number) => void;
+  togglePvDebugOverlay: (panelId: string) => void;
+  updatePvDebugTraceMode: (panelId: string, mode: PvLoopDebugTraceMode) => void;
   updatePanelControllerItems: (panelId: string, items: ControllerItem[]) => void;
   updatePanelLegendPosition: (panelId: string, pos?: LegendPosition) => void;
   noteCaseKey: string;
@@ -1879,6 +1923,8 @@ function PanelCard({
   updateInstanceSignals,
   toggleGuides,
   updateTimeWindow,
+  togglePvDebugOverlay,
+  updatePvDebugTraceMode,
   updatePanelControllerItems,
   updatePanelLegendPosition,
   noteCaseKey,
@@ -2221,6 +2267,8 @@ export function PanelGrid({
   updateInstanceSignals,
   toggleGuides,
   updateTimeWindow,
+  togglePvDebugOverlay,
+  updatePvDebugTraceMode,
   updatePanelControllerItems,
   updatePanelLegendPosition,
   noteCaseKey,
@@ -2318,6 +2366,8 @@ export function PanelGrid({
       updateInstanceSignals={updateInstanceSignals}
       toggleGuides={toggleGuides}
       updateTimeWindow={updateTimeWindow}
+      togglePvDebugOverlay={togglePvDebugOverlay}
+      updatePvDebugTraceMode={updatePvDebugTraceMode}
       updatePanelControllerItems={updatePanelControllerItems}
       updatePanelLegendPosition={updatePanelLegendPosition}
       noteCaseKey={noteCaseKey}
@@ -2353,6 +2403,8 @@ export function PanelGrid({
       updateInstanceSignals={updateInstanceSignals}
       toggleGuides={toggleGuides}
       updateTimeWindow={updateTimeWindow}
+      togglePvDebugOverlay={togglePvDebugOverlay}
+      updatePvDebugTraceMode={updatePvDebugTraceMode}
       updatePanelControllerItems={updatePanelControllerItems}
       chambers={chambers}
       signals={signals}

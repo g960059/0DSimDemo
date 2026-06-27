@@ -440,6 +440,14 @@
       "showGraphLabels": "グラフラベルを表示します。",
       "pvLoopGuides": "PVループガイド",
       "referenceOverlays": "参照オーバーレイです。",
+      "pvDebugOverlay": "PVデバッグオーバーレイ",
+      "pvDebugOverlayDescription": "相カラー、弁イベント、clamp/floorマーカーを表示します。",
+      "pvDebugTraceMode": "デバッグトレース",
+      "pvDebugTraceModes": {
+        "raw": "Raw",
+        "resampled": "Resampled",
+        "both": "Both"
+      },
       "waveformTimeWindow": "波形時間ウィンドウ",
       "adjacentSectionsConfigurable": "シナリオ表示とラベルは隣のセクションでも設定できます。",
       "selectInstanceForStyle": "ラベルと色を編集するシナリオを選択してください。",

@@ -241,6 +241,8 @@ export function WorkbenchRoute() {
         updateInstanceSignals={panels.updateInstanceSignals}
         toggleGuides={panels.toggleGuides}
         updateTimeWindow={panels.updateTimeWindow}
+        togglePvDebugOverlay={panels.togglePvDebugOverlay}
+        updatePvDebugTraceMode={panels.updatePvDebugTraceMode}
         updatePanelControllerItems={panels.updatePanelControllerItems}
         updatePanelLegendPosition={panels.updatePanelLegendPosition}
         noteCaseKey={panels.noteCaseKey}

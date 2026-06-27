@@ -33,6 +33,34 @@ describe("panel view compatibility adapter", () => {
     expect(view.instances?.normal?.items?.AoP?.color).toBe("#38bdf8");
   });
 
+  it("keeps PV debug overlay presentation fields in typed graph views", () => {
+    const panel: PanelDef = {
+      id: "pv",
+      type: "PVLOOP",
+      title: "PV Loop",
+      w: 6,
+      h: 8,
+      showGuides: true,
+      pvDebugOverlay: true,
+      pvDebugTraceMode: "both",
+      isSettingsOpen: false,
+      config: {
+        normal: {
+          visible: true,
+          selectedSignals: ["LV"],
+        },
+      },
+    };
+
+    const view = toTypedPanelView(panel);
+
+    expect(view.kind).toBe("graph");
+    if (view.kind !== "graph") throw new Error("expected graph view");
+    expect(view.graphType).toBe("pvloop");
+    expect(view.pvDebugOverlay).toBe(true);
+    expect(view.pvDebugTraceMode).toBe("both");
+  });
+
   it("can emit legacy config from a typed output view", () => {
     const config = toLegacyPanelConfig(["normal", "ami"], {
       kind: "output",

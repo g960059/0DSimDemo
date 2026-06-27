@@ -142,6 +142,8 @@ function createPanelGrid(
     updateInstanceSignals: noop,
     toggleGuides: noop,
     updateTimeWindow: noop,
+    togglePvDebugOverlay: noop,
+    updatePvDebugTraceMode: noop,
     updatePanelControllerItems: noop,
     updatePanelLegendPosition: noop,
     noteCaseKey: "test",
