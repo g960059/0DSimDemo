@@ -20,6 +20,9 @@ called out below.
 | 2a | [model-spec/atrial-bridge-v1.md](model-spec/atrial-bridge-v1.md) | Proposed atrial bridge model contracts |
 | 3 | [verification/myocardium-v1-verification.md](verification/myocardium-v1-verification.md) | Target freeze, verification tiers, GO/REVISE/NO-GO gates |
 | 3a | [verification/atrial-bridge-v1-verification.md](verification/atrial-bridge-v1-verification.md) | Proposed Phase 5.5 atrial bridge shootout gate |
+| 3b | [verification/pv-loop-morphology-quality.md](verification/pv-loop-morphology-quality.md) | Proposed diagnostic-only common LV/RV PV-loop phase segmentation and quality readouts |
+| 3c | [verification/filling-limb-artifact-audit-v1.md](verification/filling-limb-artifact-audit-v1.md) | Proposed diagnostic-only MV/TV open filling-limb artifact audit |
+| 3d | [verification/arterial-load-morphology-v1.md](verification/arterial-load-morphology-v1.md) | Proposed diagnostic-only AoV/PV open ejection and arterial-load morphology audit |
 | 4 | [roadmap/myocardium-rebuild-roadmap.md](roadmap/myocardium-rebuild-roadmap.md) | Phase and PR sequencing |
 | 4a | [roadmap/atrial-bridge-shootout-roadmap.md](roadmap/atrial-bridge-shootout-roadmap.md) | Proposed Phase 5.5 roadmap before Phase 6 |
 | 4b | [roadmap/phase5c-low-preload-domain-plan.md](roadmap/phase5c-low-preload-domain-plan.md) | Phase 5C-B selected-v2 low-preload domain extension plan |
@@ -93,6 +96,20 @@ data/myocardium/protocols/level3-source-stress-transfer-gate-v1.json
 data/myocardium/protocols/layer-consistency-and-alternans-policy-v1.json
 data/myocardium/decisions/phase2b-level3-review-deltas-v1.json
 ```
+
+Diagnostic-only PV-loop morphology audit additions:
+
+```text
+data/myocardium/protocols/pv-loop-morphology-quality-v1.json
+data/myocardium/protocols/filling-limb-artifact-audit-v1.json
+data/myocardium/protocols/arterial-load-morphology-v1.json
+data/myocardium/targets/pv-loop-morphology-quality-v1.json
+```
+
+These proposed audit descriptors use
+`claimBoundary=diagnostic-only-no-model-change`; they do not authorize runtime
+behavior, solver, official-case-parameter, UI smoothing, or package-script
+changes.
 
 Important clarification: `targetPeakAmplitudeUM` is amplitude above diastolic
 Ca, not absolute Ca. For the reviewed Phase 2B example, `peakAmplitudeUM=0.9`

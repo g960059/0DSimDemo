@@ -1,0 +1,311 @@
+{
+  "schemaVersion": 1,
+  "id": "pv-loop-morphology-quality-v1",
+  "status": "proposed",
+  "phase": "diagnostic-audit",
+  "claimBoundary": "diagnostic-only-no-model-change",
+  "purpose": "Protocol descriptor for common LV/RV PV-loop phase segmentation and morphology-quality reporting. This is a data-only audit contract for a future runner.",
+  "relatedDocs": [
+    "docs/myocardium/verification/pv-loop-morphology-quality.md"
+  ],
+  "targetPack": "data/myocardium/targets/pv-loop-morphology-quality-v1.json",
+  "officialCaseSet": {
+    "ids": [
+      "normal-sinus",
+      "acute-anterior-mi",
+      "systolic-heart-failure",
+      "lv-failure-dobutamine"
+    ],
+    "role": "Canonical diagnostic subject ids for future reports only.",
+    "parameterPolicy": "read-only-no-parameter-change",
+    "caseWiring": "not-claimed"
+  },
+  "protocols": [
+    {
+      "id": "phase-segmentation-lv-v1",
+      "chamber": "LV",
+      "kind": "phase-segmentation",
+      "inputSignals": [
+        "lvPressurePa",
+        "lvVolumeM3",
+        "mitralValveOpen",
+        "mitralValveOpen01",
+        "aorticValveOpen",
+        "aorticValveOpen01",
+        "mitralFlowM3PerSec",
+        "aorticFlowM3PerSec",
+        "leftAtrialPressurePa",
+        "aorticPressurePa"
+      ],
+      "outputs": [
+        "phaseSegmentationSeries",
+        "phaseCoverageFraction",
+        "transitionSampleFraction",
+        "uncertainSampleFraction"
+      ]
+    },
+    {
+      "id": "phase-segmentation-rv-v1",
+      "chamber": "RV",
+      "kind": "phase-segmentation",
+      "inputSignals": [
+        "rvPressurePa",
+        "rvVolumeM3",
+        "tricuspidValveOpen",
+        "tricuspidValveOpen01",
+        "pulmonaryValveOpen",
+        "pulmonaryValveOpen01",
+        "tricuspidFlowM3PerSec",
+        "pulmonaryFlowM3PerSec",
+        "rightAtrialPressurePa",
+        "pulmonaryArteryPressurePa"
+      ],
+      "outputs": [
+        "phaseSegmentationSeries",
+        "phaseCoverageFraction",
+        "transitionSampleFraction",
+        "uncertainSampleFraction"
+      ]
+    },
+    {
+      "id": "common-pv-loop-quality-lv-v1",
+      "chamber": "LV",
+      "kind": "metric-report",
+      "phaseLabels": [
+        "filling",
+        "atrial-kick",
+        "isovolumic-contraction",
+        "ejection",
+        "isovolumic-relaxation",
+        "transition",
+        "uncertain"
+      ],
+      "transitionPolicies": [
+        "transition-inclusive",
+        "transition-excluded-core"
+      ],
+      "outputs": [
+        "pvLoopArea",
+        "phaseNormalizedRoughness",
+        "phaseKinkCount",
+        "samplingInvarianceDelta",
+        "eventCorrelationWindowHitFraction"
+      ]
+    },
+    {
+      "id": "common-pv-loop-quality-rv-v1",
+      "chamber": "RV",
+      "kind": "metric-report",
+      "phaseLabels": [
+        "filling",
+        "atrial-kick",
+        "isovolumic-contraction",
+        "ejection",
+        "isovolumic-relaxation",
+        "transition",
+        "uncertain"
+      ],
+      "transitionPolicies": [
+        "transition-inclusive",
+        "transition-excluded-core"
+      ],
+      "outputs": [
+        "pvLoopArea",
+        "phaseNormalizedRoughness",
+        "phaseKinkCount",
+        "samplingInvarianceDelta",
+        "eventCorrelationWindowHitFraction"
+      ]
+    },
+    {
+      "id": "lv-rv-cross-check-v1",
+      "kind": "paired-chamber-summary",
+      "chambers": ["LV", "RV"],
+      "outputs": [
+        "lvRvAsymmetryIndex",
+        "signalAvailability",
+        "guardrailResults"
+      ]
+    }
+  ],
+  "phaseSegmentation": {
+    "labels": [
+      "filling",
+      "atrial-kick",
+      "isovolumic-contraction",
+      "ejection",
+      "isovolumic-relaxation",
+      "transition",
+      "uncertain"
+    ],
+    "transitionGuardBandSecPolicy": "runner-configured-and-reported",
+    "rules": [
+      "Use valve-state evidence first when available.",
+      "Use pressure/volume derivatives only as supporting evidence or fallback.",
+      "Label event-adjacent samples as transition before assigning core morphology phases.",
+      "Label missing or contradictory evidence as uncertain rather than forcing a phase."
+    ],
+    "reportingPolicy": [
+      "Report all primary metrics with transition samples included.",
+      "Report all primary metrics again with transition samples excluded.",
+      "Report transitionSampleFraction and uncertainSampleFraction for each chamber and beat."
+    ]
+  },
+  "requiredSignals": {
+    "common": ["timeSec", "dtSec", "beatIndex"],
+    "LV": [
+      "lvPressurePa",
+      "lvVolumeM3",
+      "mitralValveOpen",
+      "mitralValveOpen01",
+      "aorticValveOpen",
+      "aorticValveOpen01",
+      "mitralFlowM3PerSec",
+      "aorticFlowM3PerSec",
+      "leftAtrialPressurePa",
+      "aorticPressurePa"
+    ],
+    "RV": [
+      "rvPressurePa",
+      "rvVolumeM3",
+      "tricuspidValveOpen",
+      "tricuspidValveOpen01",
+      "pulmonaryValveOpen",
+      "pulmonaryValveOpen01",
+      "tricuspidFlowM3PerSec",
+      "pulmonaryFlowM3PerSec",
+      "rightAtrialPressurePa",
+      "pulmonaryArteryPressurePa"
+    ],
+    "recommendedArtifactSignals": [
+      "valveEventId",
+      "qDotM3PerSec2",
+      "qDotRawM3PerSec2",
+      "qDotPostM3PerSec2",
+      "qDotClampHit01",
+      "qDotClampImpulseM3PerSec2",
+      "qDotClampActive",
+      "dynamicFlowClampHits",
+      "valveDiodeClampHits",
+      "pressureFloorActive",
+      "pressureFloorHit01",
+      "activeStressPa",
+      "activationEventId",
+      "solverSubstepCount"
+    ]
+  },
+  "metricDefinitions": {
+    "phaseCoverageFraction": {
+      "unit": "dimensionless",
+      "formulaStatus": "runner-defined",
+      "description": "Per-beat sample fraction for each phase label."
+    },
+    "transitionSampleFraction": {
+      "unit": "dimensionless",
+      "formulaStatus": "runner-defined",
+      "description": "Per-beat sample fraction inside the event guard band or mixed-evidence transition state."
+    },
+    "uncertainSampleFraction": {
+      "unit": "dimensionless",
+      "formulaStatus": "runner-defined",
+      "description": "Per-beat sample fraction with missing, contradictory, or non-finite evidence."
+    },
+    "pvLoopArea": {
+      "unit": "Pa*m3",
+      "formulaStatus": "runner-defined",
+      "description": "Signed pressure-volume loop area per beat."
+    },
+    "phaseNormalizedRoughness": {
+      "unit": "dimensionless",
+      "formulaStatus": "runner-defined-and-recorded",
+      "description": "Curvature-like roughness inside a phase, normalized by first-derivative variation plus epsilon."
+    },
+    "phaseKinkCount": {
+      "unit": "countPerBeat",
+      "formulaStatus": "runner-defined-and-recorded",
+      "description": "Robust count of slope/curvature outliers inside a phase."
+    },
+    "samplingInvarianceDelta": {
+      "unit": "dimensionless",
+      "formulaStatus": "runner-defined-and-recorded",
+      "description": "Relative metric change across configured sampling modes."
+    },
+    "eventCorrelationWindowHitFraction": {
+      "unit": "dimensionless",
+      "formulaStatus": "runner-defined-and-recorded",
+      "description": "Fraction of metric outliers aligned to valve, clamp, solver, or artifact event windows."
+    },
+    "lvRvAsymmetryIndex": {
+      "unit": "dimensionless",
+      "formulaStatus": "runner-defined-and-recorded",
+      "description": "LV/RV difference for paired metrics, normalized by paired mean plus epsilon."
+    }
+  },
+  "classificationLabels": {
+    "diagnostic-only": "Metric is a report-only finding.",
+    "stable-under-sampling": "Metric interpretation is stable across sampling modes.",
+    "sampling-sensitive": "Metric interpretation changes across sampling modes.",
+    "event-sensitive": "Metric is dominated by transition/event-window samples.",
+    "lv-rv-asymmetric": "Finding is materially different between LV and RV.",
+    "unclassified": "The runner cannot classify from available evidence."
+  },
+  "artifactSchemas": {
+    "phaseSegmentationSeries": {
+      "requiredFields": [
+        "caseId",
+        "branchId",
+        "beatIndex",
+        "timeSec",
+        "chamber",
+        "pressurePa",
+        "volumeM3",
+        "dPressurePaPerSec",
+        "dVolumeM3PerSec",
+        "inletValveOpen01",
+        "outletValveOpen01",
+        "inletFlowM3PerSec",
+        "outletFlowM3PerSec",
+        "phaseLabel",
+        "transitionReason",
+        "sourceSignalMask"
+      ]
+    },
+    "perBeatMetricSummary": {
+      "requiredFields": [
+        "caseId",
+        "branchId",
+        "beatIndex",
+        "chamber",
+        "metricId",
+        "samplingMode",
+        "transitionPolicy",
+        "value",
+        "unit",
+        "classificationLabels"
+      ]
+    },
+    "runSummary": {
+      "requiredFields": [
+        "schemaVersion",
+        "protocolId",
+        "claimBoundary",
+        "inputArtifactHashes",
+        "runnerVersion",
+        "guardrailResults"
+      ]
+    }
+  },
+  "samplingModes": {
+    "raw": "Use emitted samples without interpolation.",
+    "uniformBeatGrid": "Beat-normalized uniform resampling, with interpolation recorded.",
+    "eventAlignedCore": "Event-aligned core phase samples excluding transition guard windows.",
+    "coarseSensitivity": "Coarser grid sensitivity report for sampling-only artifact detection."
+  },
+  "guardrails": [
+    "Do not change model equations, solver behavior, official case parameters, UI display smoothing, or package scripts.",
+    "Do not use resampling or smoothing as the primary evidence source.",
+    "Do not hide event artifacts by widening transition windows without reporting transitionSampleFraction.",
+    "Do not compare LV and RV with different formulas or sampling modes.",
+    "Do not convert diagnostic findings into official morphology pass/fail claims."
+  ]
+}
