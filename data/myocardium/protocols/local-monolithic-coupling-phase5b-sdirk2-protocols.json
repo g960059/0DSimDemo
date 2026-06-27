@@ -4,7 +4,7 @@
     "id": "local-monolithic-coupling-phase5b-sdirk2-protocols-v1",
     "version": "1.0.0",
     "status": "local-monolithic-sdirk2-reference-readiness-only",
-    "purpose": "Phase 5B local monolithic SDIRK2 reference-readiness gate. It records only a pure, synthetic LV/RV local-monolithic-sdirk2-v1 reference solve with two sequential 7-unknown stage solves, and does not claim Phase 5 completion, production solver comparison, performance acceptance, runtime wiring, morphology pass, robust no-alternans, calcium-cycling alternans validation, septal/RV overload/interdependence/RHF coverage, or TriSeg adoption."
+    "purpose": "Phase 5B local monolithic SDIRK2 reference-readiness gate. It records only a pure, synthetic LV/RV local-monolithic-sdirk2-v1 reference solve with two sequential 7-unknown stage solves, and does not claim Phase 5 completion, production solver comparison, performance acceptance, runtime wiring, morphology pass, robust no-alternans, calcium-cycling alternans acceptance, septal/RV overload/interdependence/RHF coverage, or TriSeg adoption."
   },
   "protocolSetId": "local-monolithic-coupling-phase5b-sdirk2-protocols-v1",
   "phase": "Phase 5B",
@@ -271,7 +271,7 @@
     "Active-stiffness production coupling and active-stiffness partitioned production coupling are not claimed by this Phase 5B gate.",
     "Runtime replacement, ModelCore wiring, chamber wiring, case wiring, official-case wiring, and workbench wiring are not covered by this Phase 5B gate.",
     "Official morphology pass or production validation is not claimed by this Phase 5B gate.",
-    "Robust no-alternans validation and calcium-cycling alternans validation are not claimed by this Phase 5B gate.",
+    "Robust no-alternans validation and calcium-cycling alternans acceptance are not claimed by this Phase 5B gate.",
     "A septal coordinate and biventricular coupling law are not implemented by this Phase 5B gate.",
     "RV pressure overload as a primary or final mechanism is not covered by this Phase 5B gate.",
     "Septal bowing as a primary or final mechanism is not covered by this Phase 5B gate.",

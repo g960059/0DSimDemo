@@ -525,7 +525,7 @@ Phase 5B SDIRK2 reference completion is scoped only to this local monolithic
 synthetic reference. Phase 5 completion, production solver comparison,
 performance acceptance, active-stiffness production coupling, runtime
 replacement, ModelCore/chamber/case/official-case/workbench wiring, official
-morphology pass, robust no-alternans, calcium-cycling alternans validation,
+morphology pass, robust no-alternans, calcium-cycling alternans acceptance,
 septal coordinate/coupling implementation, RV pressure overload, septal
 bowing, ventricular interdependence, right-heart failure coverage, and TriSeg
 adoption are not claimed by this gate.

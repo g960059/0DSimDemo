@@ -935,7 +935,7 @@ function printHelp(): void {
     "Usage: npm run verify:myocardium-local-monolithic-sdirk2-readiness -- [--root=DIR]",
     "",
     "Validates the Phase 5B local-monolithic-sdirk2-v1 reference-readiness gate.",
-    "This verifier allows only the local synthetic SDIRK2 reference completion claim and rejects Phase 5 completion, production solver comparison, performance acceptance, active-stiffness production coupling, runtime/case/workbench leaks, morphology or robust no-alternans claims, calcium-cycling alternans validation, septal/RV/interdependence/RHF coverage claims, and TriSeg adoption.",
+    "This verifier allows only the local synthetic SDIRK2 reference completion claim and rejects Phase 5 completion, production solver comparison, performance acceptance, active-stiffness production coupling, runtime/case/workbench leaks, morphology or robust no-alternans claims, calcium-cycling alternans acceptance, septal/RV/interdependence/RHF coverage claims, and TriSeg adoption.",
   ].join("\n"));
 }
 
