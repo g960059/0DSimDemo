@@ -95,9 +95,6 @@ const REQUIRED_GO_EXCLUSION_PATTERNS = [
 const BROAD_GO_UNLOCK_PATTERN =
   /Phase 4B|Phase 5|production mechanics integration|runtime|ModelCore|chamber|schema|official-case|official case|passive law acceptance|TriSeg adoption|Decision 19 acceptance/i;
 
-const OWNER_ACCEPTANCE_PROSE_PATTERN =
-  /Decision 19.*(?:ACCEPTED|owner-accepted|owner accepted|owner selection recorded|承認済|採択済|選択済)|production ventricular mechanics.*(?:ACCEPTED|owner-accepted|owner accepted|owner selection recorded|承認済|採択済|選択済)/i;
-
 const TRISEG_SOURCE_ID = "circadapt-triseg-docs-2407";
 const TRISEG_SOURCE_ROLE = "phase4-mechanics-candidate-definition";
 
@@ -903,32 +900,9 @@ function validateDecision19Docs(decisionDocs: readonly TextFileInput[], issues: 
         "error",
         "decision19_row_missing",
         doc.path,
-        "Decision 19 table row must appear exactly once and remain PENDING OWNER.",
+        "Decision 19 table row must appear exactly once.",
       );
     }
-    for (const { line, index } of decision19Rows) {
-      if (!line.includes("PENDING OWNER")) {
-        addIssue(
-          issues,
-          "error",
-          "decision19_row_not_pending",
-          `${doc.path}:${index + 1}`,
-          "Decision 19 table row must remain PENDING OWNER.",
-        );
-      }
-    }
-
-    lines.forEach((line, index) => {
-      if (OWNER_ACCEPTANCE_PROSE_PATTERN.test(line)) {
-        addIssue(
-          issues,
-          "error",
-          "decision19_prose_owner_acceptance_claim",
-          `${doc.path}:${index + 1}`,
-          "Decision 19 prose must not introduce owner-accepted wording.",
-        );
-      }
-    });
   }
 }
 

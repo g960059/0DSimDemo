@@ -1,6 +1,6 @@
 # Myocardium Revision 3
 
-Status: Phase 0 owner decisions accepted; Phase 3 owner GO recorded for Phase 4A dossier work only
+Status: Phase 0 owner decisions accepted; Phase 3 owner GO recorded for Phase 4A dossier work only; Decision 19 owner selection recorded separately
 Bundle source: local import, path redacted
 Baseline repository commit: `228bef96e5f522de2cfe352de5d6d4d2f017c550`
 
@@ -42,8 +42,11 @@ mechanics or owner acceptance.
 Phase 3 owner GO is recorded separately for Phase 4A decision-dossier work
 only. It does not authorize Phase 4B+, runtime/schema/official-case wiring,
 passive law acceptance, TriSeg adoption, or Decision 19 owner selection.
-The owner acceptance record carries `acceptedSourceType` and `acceptedSourceRef`
-metadata so future decisions can trace the durable approval source.
+Decision 19 owner selection is now recorded in a separate Phase 4A artifact;
+the Phase 4A dossier remains historical recommendation-only evidence with
+`selectedCandidateId: null`. The owner acceptance records carry
+`acceptedSourceType` and `acceptedSourceRef` metadata so future decisions can
+trace the durable approval source.
 
 ## Source registry
 
@@ -182,7 +185,7 @@ projection, septal/pericardial coupling, closed-loop steady state, ModelCore or
 chamber runtime wiring, schema/official-case wiring, owner GO, and downstream
 pass claims remain out of scope.
 
-## Phase 3 owner GO and Phase 4A mechanics decision dossier
+## Phase 3 owner GO and Phase 4A mechanics decision records
 
 Phase 3 owner GO is recorded in
 [`../../data/myocardium/gates/phase3-owner-go-v1.json`](../../data/myocardium/gates/phase3-owner-go-v1.json)
@@ -197,9 +200,25 @@ The Phase 4A Decision 19 dossier is
 Run `npm run verify:myocardium-mechanics-decision` to check the Phase 3 GO
 boundary, candidate set, criteria, conditional recommendation, TriSeg
 source/no-auto-adopt boundary, prior Phase 3 descriptor non-acceptance,
-Decision 19 pending rows, and absence of runtime/official-case dossier wiring.
-The dossier is a conditional recommendation only; Decision 19 remains pending
-owner selection before Phase 4B+.
+Decision 19 row presence, and absence of runtime/official-case dossier wiring.
+The dossier is a conditional recommendation only and remains
+`PENDING OWNER`/`selectedCandidateId: null`.
+
+The separate Decision 19 owner-selection artifact is
+[`../../data/myocardium/decisions/production-mechanics-decision19-owner-selection-v1.json`](../../data/myocardium/decisions/production-mechanics-decision19-owner-selection-v1.json).
+It records `ACCEPTED 2026-06-27` for
+`thick-sphere-v2-explicit-external-septal-coupling` as the initial
+`thick-sphere-v2` backend. Run
+`npm run verify:myocardium-mechanics-selection` to check the owner provenance,
+selected-candidate consistency with the dossier recommendation, accepted
+Decision 19 rows in ADR/roadmap/research docs, and absence of runtime or
+official-case selection wiring. The immediate limited-scope priority is to
+replace the current active stress with Land active stress, evaluate morphology
+gate pass/fail, and run a beat-stability/no-alternans check. RV pressure
+overload, septal bowing, ventricular interdependence, and right-heart failure
+as primary/final scope remain non-covered by this initial backend; the future
+TriSeg path preserves `triseg-lite-compatible`, `full-triseg-compatible`, and
+full TriSeg escalation before those mechanisms are claimed.
 
 ## Imported bundle checks
 
