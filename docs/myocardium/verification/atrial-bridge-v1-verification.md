@@ -90,6 +90,8 @@ preload high
 HR high
 ```
 
+The ventricular side must be fixed and identical across bridge candidates. Until LV/RV Land is validated for this purpose, this smoke test should use a prescribed or previously accepted ventricular boundary/fixture rather than an unvalidated Land closed-loop state. This prevents the atrial bridge shootout from reintroducing the LV/RV interaction confounder that Tier F0 is intended to remove.
+
 No candidate receives special tuning not allowed by its provenance.
 
 ## 5. Metrics
@@ -104,9 +106,11 @@ PVLoopRoughness = integral(abs(d2P/dV2)) / (integral(abs(dP/dV)) + epsilon)
 
 Implementation may use a numerically stable discrete approximation. The exact formula must be recorded in the target pack.
 
+Because this metric uses a curvature-like quantity, it is sampling-sensitive. The verification script must compute it under at least two sampling rates or resampling grids and report whether candidate ordering is preserved. A candidate cannot be selected solely from a roughness advantage that disappears under the configured sampling-invariance check.
+
 ### 5.2 Pressure high-frequency energy
 
-Compute the fraction of atrial pressure energy above a configured frequency band after beat alignment.
+Compute the fraction of beat-aligned atrial pressure energy above a configured frequency band after beat alignment.
 
 This detects the observed failure mode where time-varying elastance produces pressure wobble or jagged PV loops.
 
@@ -121,6 +125,8 @@ At minimum:
 - loop self-intersection / kink count.
 
 The metrics do not need to be perfect clinical measurements in v1, but they must be deterministic and applied consistently to all candidates.
+
+A smooth bridge is not necessarily a good bridge. A-loop or booster contribution lower bounds must accompany roughness metrics so that an over-damped candidate cannot win by suppressing the atrial kick. The target pack should record either absolute lower bounds or a comparator-based rule relative to A0.
 
 ### 5.4 Valve and qDot contamination
 
@@ -140,7 +146,9 @@ A candidate that looks smooth only by increasing clamp or valve-event contaminat
 
 A candidate can be selected when it satisfies all of:
 
-- better PV roughness than E0;
+- PV roughness is no worse than A0 or passes a predeclared absolute smoothness target; merely being better than E0 is not enough;
+- PV roughness candidate ranking is stable under the configured sampling-invariance check;
+- A-loop/booster contribution is not suppressed below the configured lower bound;
 - no worse LV/RV preload stability than A0;
 - no increase in qDot/valve contamination vs A0;
 - beat-to-beat repeatability in all smoke protocols;
@@ -167,6 +175,8 @@ E0 cannot be selected by default if it shows any of:
 - valve/qDot contamination;
 - poor a/v wave timing.
 
+Any A1-like candidate also fails if its apparent smoothness is achieved primarily by overdamping and loss of booster/A-loop structure.
+
 ## 7. Required artifacts
 
 ```text
@@ -175,7 +185,7 @@ data/myocardium/targets/atrial-bridge-targets-v1.json
 data/myocardium/decisions/atrial-bridge-decision21-phase6-selection-v1.json
 ```
 
-The decision artifact remains `PENDING OWNER` until the shootout is run.
+The decision artifact remains `PENDING_OWNER` until the shootout is run.
 
 ## 8. Script expectation
 
@@ -189,6 +199,8 @@ The script should emit:
 
 - per-candidate metrics;
 - per-protocol pass/fail;
+- sampling-invariance results for roughness metrics;
+- booster/A-loop lower-bound results;
 - provenance;
 - recommendation only, not automatic owner selection.
 
@@ -206,3 +218,7 @@ It does not mean:
 - AF/atrial myopathy validated;
 - atrial SR calcium cycling validated;
 - regional atrial disease validated.
+
+## 10. Forward-compatible AF substrate note
+
+The reservoir/conduit/booster decomposition is intentionally compatible with future AF work, because loss of atrial kick can be represented by disabling or attenuating the booster component while preserving reservoir and conduit behavior. This is a structural benefit only. It is not an AF validation claim.
