@@ -34,7 +34,7 @@ Revision 3では、外部レビューとモデルチーム議論を反映し、R
 - implicit myofilament APIで、strainとstrain rateを独立に渡さず、previous/stage strainとintegration stageから離散rateを一意に生成する契約へ変更した。
 - state layoutを「一心腔一unit」に固定せず、wall/region/patchを将来追加できるhierarchical instance pathへ変更した。ただしMultiPatch runtimeは初期スコープ外である。
 - BCSをLand向けinterfaceへ先回りで押し込まず、Phase 9で専用activation adapterを設計してから追加する方針へ変更した。
-- thick-sphereはearly spikeで使用する一方、production ventricular mechanicsはPhase 4前に `thick-sphere-v2 / TriSeg-lite / TriSeg-compatible` からownerが選ぶdecision gateとした。TriSegを自動的な必須要件にはしない。
+- thick-sphereはearly spikeで使用する一方、production ventricular mechanicsはPhase 4A dossier後、Phase 4B+ production integration前に `thick-sphere-v2 / TriSeg-lite / TriSeg-compatible` からownerが選ぶdecision gateとした。TriSegを自動的な必須要件にはしない。
 - prescribed Caで主張できる機序を制限し、SERCA、RyR、SR load、Ca alternans等をofficial caseで扱う前には保存型Ca modelを必須とした。
 - Referencesを正式書誌へ更新し、特定できない曖昧な引用をnormative sourceから外す規律を追加した。
 - 長大な本書をdesign recordとして残し、ADR、model spec、verification plan、roadmapを別のnormative companion documentとして生成する構成へ変更した。
@@ -147,7 +147,7 @@ Existing closed-loop circulation and valves
 | 標準myofilament候補 | Land 2017, intact-human, 37°C | MUST、early falsification gateを通過すること |
 | source→wall変換 | versioned homogenization adapter | MUST。隠れた自由倍率を禁止 |
 | early geometry | thick-sphere minimal harness | MUST、使い捨てde-risking用 |
-| production ventricular mechanics | owner-selected backend | Phase 4前decision。TriSegを自動必須にしない |
+| production ventricular mechanics | owner-selected backend | Phase 4A dossier後、Phase 4B+ production integration前decision。TriSegを自動必須にしない |
 | generalized-force mapping | multi-coordinate virtual-power map | MUST |
 | 数値対照 | 局所monolithic reference | MUST |
 | Phase 6心房bridge | clean time-varying elastance | 開発・検証専用MUST |
@@ -236,7 +236,7 @@ early spikeはproduction shortcutではない。自由な `geomScale`、homogeni
 3. source parameter variantと派生parameter setの命名規則。
 4. activation eventのsingle source of truth。
 5. early morphology/loaded protocol target packの測定定義。
-6. Phase 4前にproduction mechanics backendを選ぶ手順。
+6. Phase 4A dossier後、Phase 4B+ production integration前にproduction mechanics backendを選ぶ手順。
 
 # 2. 現行実装の診断
 
@@ -1355,7 +1355,7 @@ MUST:
 
 ## 10.6 Production ventricular mechanics backend
 
-Phase 4前にownerが次を選ぶ。
+Phase 4A dossier後、Phase 4B+ production integration前にownerが次を選ぶ。
 
 ```text
 A. thick-sphere-v2 + explicit external septal coupling
@@ -2516,7 +2516,7 @@ candidate結果を見てtargetをin-place変更しない。論文図digitization
 | 16 | realtime budget | 10× realtime等の暫定値 | Phase 0/5 | PENDING OWNER |
 | 17 | temperature | fixed 310.15 K | Phase 0 | PENDING OWNER |
 | 18 | first release atria | Land ventricles＋documented atrial bridge案 | release | PENDING OWNER |
-| 19 | production ventricular mechanics | thick-sphere / TriSeg-lite / TriSeg-compatible | before Phase 4 | PENDING OWNER |
+| 19 | production ventricular mechanics | thick-sphere / TriSeg-lite / TriSeg-compatible | before Phase 4B+ | PENDING OWNER |
 | 20 | regional runtime scope | schema only、MultiPatch runtimeは別ADR | Phase 0 | PENDING OWNER |
 
 ## 26.2 Recommended decisions
@@ -2597,7 +2597,7 @@ cell/tissue＋prescribed shortening＋複数loaded protocolのjoint feasible reg
 
 ### Decision 19 — production ventricular mechanics
 
-Phase 3 spikeではthick-sphereを固定利用する。Phase 4前にofficial case scope、data、rank、virtual-power、performanceからA/B/Cを選ぶ。TriSegを自動的な必須条件にしない。
+Phase 3 spikeではthick-sphereを固定利用する。Phase 4A dossier後、Phase 4B+ production integration前にofficial case scope、data、rank、virtual-power、performanceからA/B/Cを選ぶ。TriSegを自動的な必須条件にしない。
 
 ### Decision 20 — regional runtime
 
@@ -2629,7 +2629,7 @@ Decision:
     low/normal/high-afterload minimal chamber family. Require owner GO before
     production mechanics integration.
 11. Use thick-sphere-v2 for the early spike. Select the production ventricular
-    mechanics backend before Phase 4; TriSeg is an option, not an automatic mandate.
+    mechanics backend before Phase 4B+; TriSeg is an option, not an automatic mandate.
 12. Keep qDot/valve defaults unchanged during structural replacement, while retaining
     them as mandatory confounder diagnostics.
 13. Use a temporary clean atrial elastance bridge during ventricular integration.

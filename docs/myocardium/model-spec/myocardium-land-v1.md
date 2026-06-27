@@ -901,7 +901,7 @@ MUST:
 
 ## 10.6 Production ventricular mechanics backend
 
-Phase 4前にownerが次を選ぶ。
+Phase 4A dossier後、Phase 4B+ production integration前にownerが次を選ぶ。
 
 ```text
 A. thick-sphere-v2 + explicit external septal coupling
