@@ -256,6 +256,10 @@ describe("PV-loop filling-limb correlation readiness boundary", () => {
       "This is root-cause acceptance; official morphology pass is not claimed.",
       "This comparator is official-case ready whereas fix acceptance is not claimed.",
       "This comparator is production ready / root-cause acceptance is not claimed.",
+      "This is an official morphology pass; future work may broaden it.",
+      "This is production ready and future work will improve it.",
+      "This is root-cause acceptance / future work may broaden it.",
+      "This is default ready and out of scope for this gate.",
     ]) {
       const input = fixture();
       input.docs = input.docs.map((doc) => (
@@ -281,7 +285,7 @@ describe("PV-loop filling-limb correlation readiness boundary", () => {
       doc.path.endsWith("filling-limb-correlation-readiness-v1.md")
         ? {
             ...doc,
-            text: `${doc.text}\n\nThis is not root-cause acceptance. Root-cause acceptance is not claimed. Fix acceptance remains not claimed.\n`,
+            text: `${doc.text}\n\nThis is not root-cause acceptance. Root-cause acceptance is not claimed. Fix acceptance remains not claimed. Root-cause acceptance is future work. Official morphology pass is out of scope.\n`,
           }
         : doc
     ));

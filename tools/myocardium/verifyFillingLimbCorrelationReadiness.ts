@@ -182,7 +182,7 @@ const SENTENCE_BOUNDARY_PATTERN = /[.!?]/g;
 const CLAIM_PREFIX_SCOPE_BOUNDARY_PATTERN =
   /[.!?,;:()[\]\/\u2013\u2014]|\b(?:and|but|however|yet|nevertheless|nonetheless|while|whereas|although)\b/gi;
 const CLAIM_SUFFIX_SCOPE_BOUNDARY_PATTERN =
-  /[.!?,;:()[\]\/\u2013\u2014]|\b(?:but|however|yet|nevertheless|nonetheless|while|whereas|although)\b/i;
+  /[.!?,;:()[\]\/\u2013\u2014]|\b(?:and|but|however|yet|nevertheless|nonetheless|while|whereas|although)\b/i;
 const CLAIM_NEGATION_CONTEXT_CHARS = 120;
 
 export function loadFillingLimbCorrelationReadinessValidationInput(
