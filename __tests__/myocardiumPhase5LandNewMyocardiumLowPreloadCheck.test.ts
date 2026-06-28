@@ -6,6 +6,7 @@ import {
   PHASE5C_C_STANDALONE_CLOSURE_MODEL_ID,
 } from "@/engine/myocardium/protocols/landNewMyocardiumLowPreloadCheck";
 import {
+  LAND_NEW_MYOCARDIUM_PHASE5C_D_FIDELITY_AUDIT_EVIDENCE_PATH,
   loadLandNewMyocardiumLowPreloadValidationInput,
   validateLandNewMyocardiumLowPreloadCheck,
   type LandNewMyocardiumLowPreloadValidationInput,
@@ -24,7 +25,7 @@ describe("myocardium Phase 5C-C Land new-myocardium low-preload check", () => {
     expect(validation.pass).toBe(true);
     expect(validation.artifactGatePass).toBe(false);
     expect(validation.artifactGateStatus).toBe("land-new-myocardium-low-preload-check-review");
-    expect(validation.summary.sourceFileCount).toBe(5);
+    expect(validation.summary.sourceFileCount).toBe(6);
     expect(validation.artifactGateFindings).toContain(
       "legacy-activeStress-positive-control-v1: status=readiness-fail.",
     );
@@ -101,6 +102,29 @@ describe("myocardium Phase 5C-C Land new-myocardium low-preload check", () => {
       expect(beat.selectedDomainCoverage).toBe(true);
       expect(beat.deterministicHash).toMatch(/^[0-9a-f]{8}$/);
     }
+  });
+
+  it("pins Phase 5C-D fidelity audit evidence to the live no-go outcome", () => {
+    const input = fixture();
+    const evidence = input.fidelityAuditEvidence;
+
+    expect(evidence.id).toBe("land-new-myocardium-low-preload-phase5c-fidelity-audit-v1");
+    expect(evidence.auditOutcome.legacyPositiveControlStatus)
+      .toBe(input.report.policyBoundary.legacyPositiveControlStatus);
+    expect(evidence.auditOutcome.positiveControlBranchStatus)
+      .toBe(input.report.legacyPositiveControl.branchBehavior.settlingStatus);
+    expect(evidence.auditOutcome.positiveControlObservedPeriodBeats)
+      .toBe(input.report.legacyPositiveControl.branchBehavior.periodBeats);
+    expect(evidence.auditOutcome.artifactGateExpectedPass).toBe(input.report.readinessPass);
+    expect(evidence.auditOutcome.artifactGateStatus).toBe(input.report.readinessStatus);
+    expect(evidence.auditOutcome.landRunInterpretation)
+      .toBe("not-interpretable-positive-control-failed");
+    expect(evidence.auditOutcome.sameProtocolSecondOrderAdvancementStatus)
+      .toBe("blocked-until-positive-control-period2");
+    expect(evidence.auditOutcome.finalNoAlternansClaim).toBe("not-claimed");
+    expect(evidence.nonClaims.triSegAdoption).toBe(false);
+    expect(evidence.interpretation.landRunInterpretation)
+      .toContain("not interpretable as no-alternans evidence");
   });
 
   it("runs Land as a generated trajectory and reports morphology without wiring the official gate", () => {
@@ -201,6 +225,52 @@ describe("myocardium Phase 5C-C Land new-myocardium low-preload check", () => {
     expect(validation.pass).toBe(false);
     expect(validation.errors.map((issue) => issue.code))
       .toContain("phase5c_c_advancement_block");
+  });
+
+  it("fails validation if the Phase 5C-D audit evidence claims the artifact gate can pass", () => {
+    const input = fixture();
+    input.fidelityAuditEvidence.auditOutcome.artifactGateExpectedPass = true;
+    input.fidelityAuditEvidence.auditOutcome.landRunInterpretation = "interpretable-no-alternans";
+
+    const validation = validateLandNewMyocardiumLowPreloadCheck(input);
+
+    expect(validation.pass).toBe(false);
+    expect(validation.errors.map((issue) => issue.code))
+      .toContain("phase5c_d_fidelity_audit_evidence");
+  });
+
+  it("fails validation if the Phase 5C-D audit evidence enables a forbidden claim", () => {
+    const input = fixture();
+    input.fidelityAuditEvidence.nonClaims.triSegAdoption = true;
+
+    const validation = validateLandNewMyocardiumLowPreloadCheck(input);
+
+    expect(validation.pass).toBe(false);
+    expect(validation.errors.map((issue) => issue.code))
+      .toContain("phase5c_d_fidelity_audit_evidence");
+  });
+
+  it("fails validation if the Phase 5C-D audit evidence adds an unknown overclaim field", () => {
+    const input = fixture();
+    input.fidelityAuditEvidence.auditOutcome.finalNoAlternansEvidence = "claimed";
+
+    const validation = validateLandNewMyocardiumLowPreloadCheck(input);
+
+    expect(validation.pass).toBe(false);
+    expect(validation.errors.map((issue) => issue.code))
+      .toContain("phase5c_d_fidelity_audit_evidence");
+  });
+
+  it("fails validation if the Phase 5C-D audit evidence source file is missing", () => {
+    const input = fixture();
+    input.sourceFiles = input.sourceFiles.filter((file) =>
+      file.path !== LAND_NEW_MYOCARDIUM_PHASE5C_D_FIDELITY_AUDIT_EVIDENCE_PATH
+    );
+
+    const validation = validateLandNewMyocardiumLowPreloadCheck(input);
+
+    expect(validation.pass).toBe(false);
+    expect(validation.errors.map((issue) => issue.code)).toContain("phase5c_c_source_scan");
   });
 
   it("fails validation if the Phase 5C-D audit plan drops the no-go boundary", () => {
@@ -480,6 +550,7 @@ function replaceFidelityAuditPlanText(
 
 type MutableValidationInput = LandNewMyocardiumLowPreloadValidationInput & {
   descriptor: any;
+  fidelityAuditEvidence: any;
   report: any;
   sourceFiles: any[];
   runtimeIntegrationFiles: any[];

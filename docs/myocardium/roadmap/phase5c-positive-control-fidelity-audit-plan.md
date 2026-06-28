@@ -25,6 +25,11 @@ the canonical command:
 npm run verify:myocardium-land-new-myocardium-low-preload-check
 ```
 
+The machine-readable audit evidence is
+`data/myocardium/protocols/land-new-myocardium-low-preload-phase5c-fidelity-audit-v1.json`.
+The verifier reads that evidence as an audit snapshot and compares it against the
+live Phase 5C-C report and descriptor; the JSON is not a second source of truth.
+
 The audit should make the current branch explicit and machine-checkable:
 
 - Phase 5C-A read-only legacy reproduction remains period-2 and pinned.

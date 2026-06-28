@@ -1,0 +1,54 @@
+{
+  "id": "land-new-myocardium-low-preload-phase5c-fidelity-audit-v1",
+  "phase": "Phase 5C-D",
+  "kind": "positive-control-fidelity-audit",
+  "protocolSetId": "land-new-myocardium-low-preload-phase5c-protocols-v1",
+  "closureModelId": "phase5c-c-standalone-preload-afterload-surrogate-v1",
+  "sourceArtifact": {
+    "descriptorPath": "data/myocardium/protocols/land-new-myocardium-low-preload-phase5c-protocols.json",
+    "verifierScript": "verify:myocardium-land-new-myocardium-low-preload-check",
+    "auditPlanPath": "docs/myocardium/roadmap/phase5c-positive-control-fidelity-audit-plan.md",
+    "reportImplementationPath": "engine/myocardium/protocols/landNewMyocardiumLowPreloadCheck.ts"
+  },
+  "auditOutcome": {
+    "legacyReproductionStatus": "read-only-present-pinned",
+    "phase5AReadOnlyProtocolSetId": "local-monolithic-coupling-phase5a-protocols-v1",
+    "phase5AReadOnlyReadinessPass": true,
+    "phase5BReadOnlyProtocolSetId": "local-monolithic-coupling-phase5b-sdirk2-protocols-v1",
+    "phase5BReadOnlySdirk2Status": "solver-reference-available-not-same-protocol",
+    "phase5BSameProtocolAgreementClaim": "not-claimed",
+    "legacyPositiveControlStatus": "positive-control-failed",
+    "positiveControlBranchStatus": "settled-period-1",
+    "positiveControlObservedPeriodBeats": 1,
+    "artifactGateExpectedPass": false,
+    "artifactGateStatus": "land-new-myocardium-low-preload-check-review",
+    "artifactGateFailureFinding": "legacy-activeStress-positive-control-v1",
+    "landRunInterpretation": "not-interpretable-positive-control-failed",
+    "newMyocardiumCheckRequiredSatisfied": false,
+    "secondOrderSameProtocolStatus": "not-performed",
+    "sameProtocolSecondOrderAdvancementStatus": "blocked-until-positive-control-period2",
+    "finalNoAlternansClaim": "not-claimed",
+    "replacementCriterionStatus": "owner-approved-replacement-required"
+  },
+  "nonClaims": {
+    "runtimeReplacement": false,
+    "modelCoreRuntimeWiring": false,
+    "chamberRuntimeWiring": false,
+    "caseRuntimeWiring": false,
+    "stateSchemaWiring": false,
+    "officialCaseWiring": false,
+    "workbenchRuntimeWiring": false,
+    "officialMorphologyAcceptance": false,
+    "robustNoAlternansAcceptance": false,
+    "calciumCyclingAlternansValidation": false,
+    "rvPressureOverloadCoverage": false,
+    "ventricularInterdependenceCoverage": false,
+    "rightHeartFailureCoverage": false,
+    "triSegAdoption": false
+  },
+  "interpretation": {
+    "summary": "Phase 5C-C validation passes structurally but artifactGate remains failed because the same-closure legacy activeStress positive control settles to period-1 instead of reproducing the fixed Phase 5C-A period-2 branch.",
+    "landRunInterpretation": "The Land generated trajectory is not interpretable as no-alternans evidence while the positive control fails.",
+    "advancementBlock": "Same-protocol second-order advancement remains blocked until the same closure reproduces the legacy period-2 positive control or a later owner-approved replacement criterion supersedes it."
+  }
+}

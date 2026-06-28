@@ -333,6 +333,7 @@ production tissue homogenization.
 ### Phase 5C-D — positive-control fidelity audit
 
 - plan: [phase5c-positive-control-fidelity-audit-plan.md](phase5c-positive-control-fidelity-audit-plan.md)
+- audit evidence: `data/myocardium/protocols/land-new-myocardium-low-preload-phase5c-fidelity-audit-v1.json`
 - scope: encode the Phase 5C-C positive-control no-go as a fidelity audit over the existing artifact, not as a duplicated surrogate or parallel verifier
 - gate script: `npm run verify:myocardium-land-new-myocardium-low-preload-check`
 - current branch: Phase 5C-A read-only legacy reproduction remains period-2 and pinned; Phase 5C-C same-closure legacy activeStress positive control remains `settled-period-1`; Phase 5C-C artifactGate is expected to remain failed while that positive control fails period-2 thresholds
