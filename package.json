@@ -36,6 +36,7 @@
     "verify:myocardium-local-monolithic-sdirk2-readiness": "vite-node tools/myocardium/verifyLocalMonolithicSdirk2Readiness.ts",
     "verify:myocardium-land-shadow-alternans-comparator-readiness": "vite-node tools/myocardium/verifyLandShadowAlternansComparatorReadiness.ts",
     "verify:myocardium-land-new-myocardium-low-preload-check": "vite-node tools/myocardium/verifyLandNewMyocardiumLowPreloadCheck.ts",
+    "verify:myocardium-phase5c-post-fidelity-entry-gate": "vite-node tools/myocardium/verifyPhase5CPostFidelityEntryGate.ts",
     "verify:starling-low-preload-matrix": "STARLING_LOW_PRELOAD_MATRIX_MAIN=1 vite-node tools/verifyStarlingLowPreloadMatrix.ts",
     "debug:starling-low-preload": "STARLING_LOW_PRELOAD_DEBUG_MAIN=1 vite-node tools/debugStarlingLowPreload.ts",
     "fit:left-filling": "vite-node tools/fitLeftFilling.ts",
