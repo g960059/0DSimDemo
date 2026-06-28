@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "id": "modelcore-equivalent-positive-control-closure-v1",
+  "status": "proposed",
+  "phase": "Phase 5C-F",
+  "claimBoundary": "positive-control-closure-fidelity-only",
+  "purpose": "Define the next admissible route after the Phase 5C-D no-go: build or identify a closure that can reproduce the pinned legacy activeStress low-preload period-2 branch before interpreting Land no-alternans behavior.",
+  "dependsOn": [
+    "data/myocardium/gates/phase5c-post-fidelity-entry-gate-v1.json",
+    "data/myocardium/protocols/land-new-myocardium-low-preload-phase5c-fidelity-audit-v1.json"
+  ],
+  "requiredEvidence": {
+    "legacyPositiveControlStatus": "period-2-positive-control-pass",
+    "positiveControlObservedPeriodBeats": 2,
+    "sameProtocolOrExplicitEquivalence": true,
+    "eventSurfacePreservationRequired": true,
+    "sourceProviderDifferenceOnly": true,
+    "secondOrderReferenceStillRequired": true
+  },
+  "eventSurfacesToPreserveOrMatch": [
+    "valveOpenCloseTiming",
+    "qDotRawPostBehavior",
+    "qDotClampEvents",
+    "dynamicFlowClampEvents",
+    "arterialAfterloadLoop",
+    "venousPreloadLoop",
+    "tbvProjectionBehaviorWhenRelevant",
+    "pressureFloorBehavior",
+    "beatSelectionAndSamplingPolicy"
+  ],
+  "doesNotUnlock": [
+    "runtimeReplacement",
+    "officialMorphologyAcceptance",
+    "finalNoAlternans",
+    "qDotTuning",
+    "valveThresholdTuning",
+    "arterialLoadTuning",
+    "landParameterTuning",
+    "TriSegAdoption"
+  ],
+  "allowedFailureInterpretation": "If this route cannot reproduce the legacy period-2 positive control, the result remains an assay-fidelity failure unless an owner-approved replacement criterion supersedes the legacy positive-control requirement."
+}
