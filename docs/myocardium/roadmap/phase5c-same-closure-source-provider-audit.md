@@ -52,7 +52,9 @@ The audit records:
 The verifier compares these fields against the live
 `verify:myocardium-land-new-myocardium-low-preload-check` report and fails if
 the audit drifts into period-2, pass, interpretable, or final no-alternans
-claims.
+claims. Platform-sensitive generated trajectory hashes, beat hashes, and peak
+source-stress exact values are recorded as audit context, not cross-platform
+acceptance pins.
 
 ## Non-Goals
 

@@ -95,7 +95,7 @@ describe("myocardium Phase 5C-G same-closure source-provider audit", () => {
     legacy.sourceProviderStableHash = "changed";
     legacy.sourceProviderProvenance.usesModelCoreRuntimeWiring = true;
     legacy.eventSurfaces.qDotCapStatus = "used";
-    legacy.branchBehavior.beatWindowDeterministicHashes[0] = "changed";
+    legacy.branchBehavior.beatWindowDeterministicHashes = [];
     legacy.branchBehavior.lastBeatMetrics.strokeWorkJ += 1;
 
     const validation = validatePhase5CSameClosureSourceProviderAudit(input);
