@@ -1,6 +1,6 @@
 # Morphology-to-myocardium handshake
 
-Status: proposed integration contract  
+Status: proposed integration contract
 Scope: evidence handoff only; no runtime/model/solver change
 
 ## Objective

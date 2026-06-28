@@ -1,6 +1,6 @@
 # Myocardium morphology lane
 
-Status: proposed lane index  
+Status: proposed lane index
 Scope: PV-loop and waveform morphology diagnostics; no myocardium runtime replacement authority
 
 ## Purpose

@@ -1,6 +1,6 @@
 # AI-native physiology studio MVP roadmap
 
-Status: proposed  
+Status: proposed
 Scope: product/studio planning only; no runtime/model validation change
 
 ## MVP goal

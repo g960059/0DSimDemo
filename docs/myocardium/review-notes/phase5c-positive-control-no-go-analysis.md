@@ -1,6 +1,6 @@
 # Phase 5C positive-control no-go analysis
 
-Status: proposed review note  
+Status: proposed review note
 Scope: interpretation only; no runtime/model/solver/official-case change
 
 ## Summary

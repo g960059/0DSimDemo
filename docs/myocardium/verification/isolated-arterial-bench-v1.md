@@ -1,6 +1,6 @@
 # Isolated arterial bench v1
 
-Status: proposed morphology next-evidence plan  
+Status: proposed morphology next-evidence plan
 Scope: arterial-load signal generation and comparison only; no production adoption
 
 ## Motivation

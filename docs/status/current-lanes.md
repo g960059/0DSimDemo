@@ -1,6 +1,6 @@
 # Current development lanes
 
-Status: proposed coordination note  
+Status: proposed coordination note
 Scope: coordination only; no runtime/model claim
 
 ## Purpose
