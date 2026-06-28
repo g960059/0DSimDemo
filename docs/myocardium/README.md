@@ -27,6 +27,7 @@ called out below.
 | 4a | [roadmap/atrial-bridge-shootout-roadmap.md](roadmap/atrial-bridge-shootout-roadmap.md) | Proposed Phase 5.5 roadmap before Phase 6 |
 | 4b | [roadmap/phase5c-low-preload-domain-plan.md](roadmap/phase5c-low-preload-domain-plan.md) | Phase 5C-B selected-v2 low-preload domain extension plan |
 | 4c | [roadmap/phase5c-new-myocardium-check-plan.md](roadmap/phase5c-new-myocardium-check-plan.md) | Phase 5C-C new-myocardium low-preload check plan |
+| 4d | [roadmap/phase5c-positive-control-fidelity-audit-plan.md](roadmap/phase5c-positive-control-fidelity-audit-plan.md) | Phase 5C-D positive-control fidelity audit over the Phase 5C-C no-go result |
 | 5 | [research/myocardial-contraction-rebuild-design-record.md](research/myocardial-contraction-rebuild-design-record.md) | Background rationale and design discussion |
 | 6 | [review-notes/phase2b-level3-review-deltas.md](review-notes/phase2b-level3-review-deltas.md) | PR #166 Phase 2B/Level 3 review deltas |
 
@@ -577,6 +578,35 @@ Phase 5C-B selected-v2 LV 30 mL lower-domain extension now covers all fixed
 legacy VLV samples inside the selected LV calibration domain. RV pressure
 overload not covered, ventricular interdependence not covered, right-heart
 failure not covered, and TriSeg future not covered by this gate.
+
+## Phase 5C-C new-myocardium low-preload check and Phase 5C-D fidelity audit
+
+Run `npm run verify:myocardium-land-new-myocardium-low-preload-check` to check
+the Phase 5C-C standalone selected-v2 + Land low-preload artifact. The
+descriptor is
+[`../../data/myocardium/protocols/land-new-myocardium-low-preload-phase5c-protocols.json`](../../data/myocardium/protocols/land-new-myocardium-low-preload-phase5c-protocols.json),
+and the implementation is
+[`../../engine/myocardium/protocols/landNewMyocardiumLowPreloadCheck.ts`](../../engine/myocardium/protocols/landNewMyocardiumLowPreloadCheck.ts).
+
+The artifact generates its own LV trajectory under
+`phase5c-c-standalone-preload-afterload-surrogate-v1` and compares two source
+providers under the same closure: a legacy
+`ActiveStressChamberModel/defaultActiveLV` positive control and a Land 2017
+new-myocardium run. The current outcome is validation PASS / artifactGate FAIL:
+the positive control is finite and same-closure, but settles to period-1 rather
+than reproducing the fixed Phase 5C-A period-2 branch. This is the expected
+no-go interpretation for this artifact state, not a Land no-alternans result.
+
+Phase 5C-D records the fidelity audit for that no-go result in
+[roadmap/phase5c-positive-control-fidelity-audit-plan.md](roadmap/phase5c-positive-control-fidelity-audit-plan.md).
+It does not add a parallel engine or verifier. Instead, the Phase 5C-C
+descriptor and verifier make the advancement block explicit: the Land generated
+run is not interpretable as no-alternans evidence, same-protocol second-order
+advancement remains blocked, `newMyocardiumCheckRequiredSatisfied=false`,
+`secondOrderSameProtocolStatus=not-performed`, and
+`finalNoAlternansClaim=not-claimed` until the same closure can reproduce the
+legacy period-2 positive control or a later owner-approved replacement
+criterion supersedes it.
 
 ## Imported bundle checks
 

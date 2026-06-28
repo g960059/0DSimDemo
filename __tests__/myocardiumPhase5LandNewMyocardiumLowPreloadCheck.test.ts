@@ -62,7 +62,8 @@ describe("myocardium Phase 5C-C Land new-myocardium low-preload check", () => {
   });
 
   it("uses a faithful legacy activeStress positive-control adapter and records the no-go result", () => {
-    const report = fixture().report;
+    const input = fixture();
+    const report = input.report;
     const run = report.legacyPositiveControl;
 
     expect(run.generatedTrajectoryStatus).toBe("generated-own-trajectory-finite");
@@ -80,6 +81,16 @@ describe("myocardium Phase 5C-C Land new-myocardium low-preload check", () => {
     expect(report.policyBoundary.legacyPositiveControlStatus).toBe("positive-control-failed");
     expect(report.policyBoundary.newMyocardiumCheckStatus)
       .toBe("not-performed-positive-control-failed");
+    expect(report.readinessPass).toBe(false);
+    expect(input.descriptor.policyStatuses.legacyPositiveControlStatus)
+      .toBe("positive-control-failed");
+    expect(input.descriptor.policyStatuses.positiveControlBranchStatus)
+      .toBe("settled-period-1");
+    expect(input.descriptor.policyStatuses.artifactGateExpectedPass).toBe(false);
+    expect(input.descriptor.policyStatuses.landRunInterpretation)
+      .toBe("not-interpretable-positive-control-failed");
+    expect(input.descriptor.policyStatuses.sameProtocolSecondOrderAdvancementStatus)
+      .toBe("blocked-until-positive-control-period2");
     expect(run.eventSurfaces.tbvProjectionEquivalentMl).toBeLessThanOrEqual(0.05);
     expect(run.eventSurfaces.maxReverseVolumeEquivalentMl).toBeLessThanOrEqual(0.05);
     expect(run.eventSurfaces.pressureFloorUse).toBe(false);
@@ -178,6 +189,19 @@ describe("myocardium Phase 5C-C Land new-myocardium low-preload check", () => {
     expect(codes).toContain("phase5c_c_morphology_boundary");
   });
 
+  it("fails validation if the descriptor allows advancement while the positive control is period-1", () => {
+    const input = fixture();
+    input.descriptor.policyStatuses.artifactGateExpectedPass = true;
+    input.descriptor.policyStatuses.landRunInterpretation = "interpretable-no-alternans";
+    input.descriptor.policyStatuses.sameProtocolSecondOrderAdvancementStatus = "ready";
+
+    const validation = validateLandNewMyocardiumLowPreloadCheck(input);
+
+    expect(validation.pass).toBe(false);
+    expect(validation.errors.map((issue) => issue.code))
+      .toContain("phase5c_c_advancement_block");
+  });
+
   it("fails validation when Phase 5C-C tokens leak into runtime integration targets", () => {
     const input = fixture();
     input.runtimeIntegrationFiles = [
@@ -200,6 +224,7 @@ function fixture(): MutableValidationInput {
 }
 
 type MutableValidationInput = LandNewMyocardiumLowPreloadValidationInput & {
+  descriptor: any;
   report: any;
   runtimeIntegrationFiles: any[];
 };
