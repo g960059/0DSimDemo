@@ -1,11 +1,14 @@
 # Myocardium morphology lane
 
 Status: proposed lane index
-Scope: PV-loop and waveform morphology diagnostics; no myocardium runtime replacement authority
+Scope: PV-loop and waveform morphology diagnostics; no runtime replacement authority
 
 ## Purpose
 
-The morphology lane owns PV-loop and waveform evidence. It measures what the user sees and classifies likely artifact sources, but it does not by itself accept a myocardial model, official morphology pass, no-alternans result, or runtime replacement.
+The morphology lane owns PV-loop and waveform evidence. It measures what the
+user sees and classifies likely artifact sources. It makes no official
+morphology pass claim and no runtime replacement claim; no-alternans remains
+outside this lane.
 
 This separation exists to prevent PV-loop appearance problems from being pushed into Land parameters or myocardial source-stress decisions.
 
@@ -83,17 +86,21 @@ Morphology lane must not claim or change:
 - Land equation correctness;
 - source stress scale acceptance;
 - myocardial homogenization acceptance;
-- runtime replacement;
+- no runtime replacement;
 - official case acceptance;
-- final no-alternans;
+- no final no-alternans;
 - qDot/valve/afterload fixes;
 - parameter tuning as a hidden morphology fix.
 
 ## Current next actions
 
-1. Freeze the latest post-PR morphology baseline artifact.
-2. Run off-by-default filling-limb comparator experiments.
-3. Define and run an isolated arterial bench for Zc/reflection signal generation.
+1. Use the current-main baseline snapshot in
+   [`pv-loop-current-main-baseline-snapshot-v1.md`](../verification/pv-loop-current-main-baseline-snapshot-v1.md)
+   as the post-PR #196 morphology reference.
+2. Add or derive the missing diagnostic-only E/A-like inflow proxy before
+   interpreting current LV filling comparator groups as fully interpretable.
+3. Define and run an isolated arterial bench for direct Zc/reflection signal
+   generation.
 4. Feed BLOCKER/ADVISORY/OUT-OF-SCOPE results to the myocardium roadmap.
 
 ## Handoff rule

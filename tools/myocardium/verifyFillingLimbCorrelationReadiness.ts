@@ -72,6 +72,7 @@ const ALLOWED_COMPARATOR_TOKEN_PATHS = new Set([
   FILLING_LIMB_CORRELATION_READINESS_DOC_PATH,
   "tools/myocardium/buildFillingLimbDiagnosticComparator.ts",
   "tools/myocardium/verifyFillingLimbCorrelationReadiness.ts",
+  "tools/myocardium/verifyPvLoopCurrentMainBaselineSnapshot.ts",
   "__tests__/pvLoopFillingLimbDiagnosticComparator.test.ts",
   "__tests__/pvLoopFillingLimbCorrelationReadiness.test.ts",
 ]);

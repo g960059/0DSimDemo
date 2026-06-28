@@ -1,0 +1,235 @@
+{
+  "schemaVersion": 1,
+  "id": "pv-loop-current-main-baseline-snapshot-v1",
+  "status": "current-main-baseline-snapshot",
+  "claimBoundary": "diagnostic-only-current-baseline-no-acceptance",
+  "purpose": "Record the post-PR #196 current-main PV-loop morphology baseline as lightweight provenance and summary facts. The large artifact files remain generated outputs and are not committed.",
+  "baseCommit": "5aecda2d1b494aa74fe6c336dde13e8a585c8bf3",
+  "generatedAt": "2026-06-28T05:31:19.322Z",
+  "artifactRoot": "artifacts/myocardium/pv-loop-morphology/current-main-baseline-2026-06-28",
+  "runnerSnapshot": {
+    "runnerId": "pv-loop-morphology-quality-runner-v1",
+    "targetPackId": "pv-loop-morphology-quality-v1",
+    "protocolId": "pv-loop-morphology-quality-v1",
+    "claimBoundary": "diagnostic-only-no-model-change",
+    "command": "npx vite-node tools/myocardium/verifyPvLoopMorphologyQuality.ts --out=artifacts/myocardium/pv-loop-morphology/current-main-baseline-2026-06-28",
+    "summaryArtifactPath": "artifacts/myocardium/pv-loop-morphology/current-main-baseline-2026-06-28/summary.json",
+    "summarySha256": "054ab09984fb8b966bfd02941d8f5c7665ccfb6963c70133b660f8f9c8cc6de2",
+    "caseIds": [
+      "normal-sinus",
+      "acute-anterior-mi",
+      "systolic-heart-failure",
+      "lv-failure-dobutamine"
+    ],
+    "branchCount": 7,
+    "metricRowCount": 17304,
+    "sampleRowCount": 60572
+  },
+  "morphologyEvidenceSnapshot": {
+    "snapshotRole": "current-baseline-diagnostic-context",
+    "acceptanceStatus": "non-acceptance-context",
+    "observations": [
+      {
+        "id": "filling-limb-roughness",
+        "lane": "filling-limb",
+        "score": 1,
+        "supportCount": 45,
+        "metricIds": [
+          "lowerLimbKinkCount",
+          "tvOpenLowerLimbRoughness",
+          "valveOpenCloseChatterCount"
+        ],
+        "missingSignals": []
+      },
+      {
+        "id": "event-window-correlation",
+        "lane": "filling-limb",
+        "score": 1,
+        "supportCount": 42,
+        "metricIds": [
+          "eventCorrelationWindowHitFraction"
+        ],
+        "missingSignals": []
+      },
+      {
+        "id": "aov-qdot-clamp-activity",
+        "lane": "ejection-limb",
+        "score": 1,
+        "supportCount": 16635,
+        "metricIds": [
+          "qDotClampHitFraction"
+        ],
+        "missingSignals": []
+      },
+      {
+        "id": "sampling-sensitive-metrics",
+        "lane": "sampling",
+        "score": 1,
+        "supportCount": 2788,
+        "metricIds": [
+          "aovOpenAoPIncisuraScore",
+          "aovOpenEjectionSquareness",
+          "arterialPressureIncisuraDepth",
+          "cornerSharpnessAtClose",
+          "cornerSharpnessAtOpen",
+          "ejectionDuration",
+          "ejectionPlateauFraction",
+          "ejectionTopCurvature",
+          "flowChatterCount",
+          "incisuraPresenceScore",
+          "inletForwardVolume",
+          "lowerLimbD2PDV2Integral",
+          "lowerLimbDPDVSignChangeCount",
+          "lowerLimbKinkCount",
+          "lvRvAsymmetryIndex",
+          "mvOpenLowerLimbRoughness",
+          "openAvLowerLimbRoughness",
+          "peakPressureTimingAsFractionOfEjection",
+          "phaseCoverageFraction.atrial-kick",
+          "phaseCoverageFraction.ejection",
+          "phaseCoverageFraction.filling",
+          "phaseCoverageFraction.isovolumic-contraction",
+          "phaseCoverageFraction.isovolumic-relaxation",
+          "phaseCoverageFraction.transition"
+        ],
+        "missingSignals": []
+      }
+    ],
+    "hypotheses": [
+      {
+        "id": "aov-qdot-clamp-correlation",
+        "lane": "ejection-limb",
+        "evidenceStatus": "supported-correlation",
+        "confidence": "medium",
+        "score": 1,
+        "observationIds": [
+          "aov-qdot-clamp-activity"
+        ],
+        "missingSignals": []
+      },
+      {
+        "id": "filling-event-window-correlation",
+        "lane": "filling-limb",
+        "evidenceStatus": "supported-correlation",
+        "confidence": "medium",
+        "score": 1,
+        "observationIds": [
+          "filling-limb-roughness",
+          "event-window-correlation"
+        ],
+        "missingSignals": []
+      },
+      {
+        "id": "rv-filling-valve-chatter-correlation",
+        "lane": "filling-limb",
+        "evidenceStatus": "supported-correlation",
+        "confidence": "medium",
+        "score": 1,
+        "observationIds": [
+          "filling-limb-roughness"
+        ],
+        "missingSignals": []
+      },
+      {
+        "id": "sampling-or-display-sensitivity",
+        "lane": "sampling",
+        "evidenceStatus": "supported-correlation",
+        "confidence": "medium",
+        "score": 1,
+        "observationIds": [
+          "sampling-sensitive-metrics"
+        ],
+        "missingSignals": []
+      }
+    ],
+    "evidenceGaps": [
+      {
+        "id": "ejection-limb-arterial-load-signal-gap",
+        "lane": "ejection-limb",
+        "missingSignals": [
+          "characteristicImpedancePaSecPerM3",
+          "arterialReflectionCoefficient"
+        ],
+        "note": "Proximal arterial pressure/flow/root-compliance evidence is available; arterial/load hypotheses remain insufficient while Zc/reflection evidence is not modeled."
+      }
+    ],
+    "signalAvailability": {
+      "aorticRootComplianceM3PerPa": true,
+      "pulmonaryRootComplianceM3PerPa": true,
+      "characteristicImpedancePaSecPerM3": false,
+      "arterialReflectionCoefficient": false
+    }
+  },
+  "comparatorSnapshots": {
+    "fillingLimbDiagnosticComparator": {
+      "comparatorId": "filling-limb-diagnostic-comparator-v1",
+      "claimBoundary": "off-by-default-diagnostic-comparison-only",
+      "command": "npx vite-node tools/myocardium/buildFillingLimbDiagnosticComparator.ts --input=artifacts/myocardium/pv-loop-morphology/current-main-baseline-2026-06-28 --out=artifacts/myocardium/pv-loop-morphology/current-main-baseline-2026-06-28/filling-limb-diagnostic-comparator",
+      "summaryArtifactPath": "artifacts/myocardium/pv-loop-morphology/current-main-baseline-2026-06-28/filling-limb-diagnostic-comparator/summary.json",
+      "summarySha256": "d8864a70e6f00c29971c59a3003cbdf312f424169b1d718322b2a25ba69f4b9e",
+      "groupCount": 42,
+      "interpretableGroupCount": 12,
+      "missingAntiGamingReadouts": [
+        "eaLikeInflowProxy"
+      ],
+      "interpretation": "Current baseline filling groups remain partially uninterpretable because the E/A-like inflow proxy is unavailable for many groups. This is missing diagnostic evidence, not root-cause or fix acceptance."
+    },
+    "arterialLoadZcReflectionDiagnosticComparator": {
+      "comparatorId": "arterial-load-zc-reflection-diagnostic-comparator-v1",
+      "claimBoundary": "off-by-default-diagnostic-comparison-only",
+      "command": "npx vite-node tools/myocardium/buildArterialLoadZcReflectionDiagnosticComparator.ts --input=artifacts/myocardium/pv-loop-morphology/current-main-baseline-2026-06-28 --out=artifacts/myocardium/pv-loop-morphology/current-main-baseline-2026-06-28/arterial-load-zc-reflection-diagnostic-comparator",
+      "summaryArtifactPath": "artifacts/myocardium/pv-loop-morphology/current-main-baseline-2026-06-28/arterial-load-zc-reflection-diagnostic-comparator/summary.json",
+      "summarySha256": "c484b5d6d4445863a2066b459ec6012967c591adbdb28273b08f55fd8e5471c5",
+      "groupCount": 42,
+      "interpretableGroupCount": 42,
+      "missingNoProxySignals": [
+        {
+          "name": "characteristicImpedancePaSecPerM3",
+          "status": "missing-no-proxy",
+          "proxyPolicy": "forbidden"
+        },
+        {
+          "name": "arterialReflectionCoefficient",
+          "status": "missing-no-proxy",
+          "proxyPolicy": "forbidden"
+        },
+        {
+          "name": "arterialReflectionDelaySec",
+          "status": "missing-no-proxy",
+          "proxyPolicy": "forbidden"
+        }
+      ],
+      "interpretation": "Current baseline arterial groups are comparator-interpretable, but Zc/reflection remain unavailable no-proxy signals and do not promote an arterial-load root-cause hypothesis."
+    }
+  },
+  "claimExclusions": {
+    "rootCauseAccepted": false,
+    "fixAccepted": false,
+    "officialMorphologyAcceptance": false,
+    "runtimeReplacement": false,
+    "officialCaseWiring": false,
+    "qDotTuning": false,
+    "valveTuning": false,
+    "arterialLoadTuning": false,
+    "landParameterTuning": false,
+    "finalNoAlternans": false,
+    "TriSegAdoption": false
+  },
+  "nextRecommendedExperiments": [
+    "Add or derive a diagnostic-only E/A-like inflow proxy before interpreting current LV filling comparator groups as fully interpretable.",
+    "Define and run an isolated arterial bench that emits direct Zc/reflection evidence rather than inferring those values from pressure, flow, resistance, inertance, compliance, or waveform shape.",
+    "Feed only BLOCKER, ADVISORY, or OUT-OF-SCOPE-FOR-MYOCARDIUM morphology results to the myocardium roadmap."
+  ],
+  "doesNotUnlock": [
+    "runtimeReplacement",
+    "officialMorphologyAcceptance",
+    "rootCauseAcceptance",
+    "fixAcceptance",
+    "finalNoAlternans",
+    "qDotTuning",
+    "valveThresholdTuning",
+    "arterialLoadTuning",
+    "landParameterTuning",
+    "TriSegAdoption"
+  ]
+}
