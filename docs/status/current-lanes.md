@@ -22,7 +22,7 @@ them.
 
 | Lane | Current state | Current blocker | Next experiment | Must not claim |
 |---|---|---|---|---|
-| myocardium | Phase 5C-L runs the paired LV source-provider experiment under the same experimental ModelCore closure: legacy source-only positive control remains period-2, Land source-only is finite period-1, and `sourceProviderDifferenceOnly=true` is satisfied for this experimental pair | no final no-alternans claim; second-order/reference robustness and interpretation still required | interpret paired result and run same-closure robustness checks without tuning qDot, valves, afterload, preload, or Land parameters | no final no-alternans acceptance, no runtime replacement, no official morphology pass |
+| myocardium | Phase 5C-M records same-closure qDot clamp-threshold attribution for the Phase 5C-L paired Land source-provider run, the paired LV source-provider experiment under the same experimental ModelCore closure (`sourceProviderDifferenceOnly=true`): legacy trace AoV qDot clamp hit fraction is 0.0521, Land trace hit fraction is 0, and Land QAo cap ratio/output are much lower | clamp-threshold avoidance risk is supported, so structural alternans removal is not established; SDIRK2 and output-matched checks still required | run an output-matched paired Land/legacy check and SDIRK2 reference before any structural no-alternans interpretation | no final no-alternans acceptance, no runtime replacement, no official morphology pass |
 | morphology | PV-loop diagnostics plus diagnostic E/A-like inflow proxy exist; current-main baseline snapshot remains historical | filling comparator retains residual E/A-like missingness in dobutamine RV groups; arterial Zc/reflection remains signal-gap limited | classify residual dobutamine RV E/A missingness; isolated arterial bench | no root-cause acceptance, no fix acceptance, no official morphology pass |
 | atrial bridge | Phase 5.5 shootout plan exists | no shootout runner/candidate results yet | E0/A0/A1 shootout runner | final atrial physiology, AF validation |
 | arterial load | Zc/reflection comparator readiness exists | no isolated bench or direct Zc/reflection signal | isolated arterial bench | production/default Zc adoption |
@@ -38,7 +38,7 @@ them.
 
 ## Current top priorities
 
-1. Interpret the Phase 5C-L paired Land source-provider result and add same-closure robustness evidence without changing closure or Land parameters.
+1. Run output-matched paired Land/legacy evidence and SDIRK2 reference for the Phase 5C-M qDot clamp-threshold attribution result without changing closure or Land parameters.
 2. Classify residual dobutamine RV E/A-like missingness after the diagnostic inflow proxy.
 3. Define/run an isolated arterial bench.
 4. Keep morphology evidence diagnostic-only when feeding myocardium decisions.

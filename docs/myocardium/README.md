@@ -651,7 +651,9 @@ Run `npm run verify:myocardium-modelcore-active-source-pressure-adapter` to
 check the Phase 5C-K source-only pressure adapter precondition used by that
 pairing. Run
 `npm run verify:myocardium-modelcore-paired-land-source-provider` to run and
-check the Phase 5C-L paired Land source-provider experiment.
+check the Phase 5C-L paired Land source-provider experiment. Run
+`npm run verify:myocardium-modelcore-paired-land-qdot-clamp-attribution` to
+check the Phase 5C-M same-closure qDot clamp-threshold attribution diagnostic.
 The entry route ids recorded in the gate are
 `same-closure-period2-positive-control`,
 `modelcore-equivalent-closure-positive-control`, and
@@ -684,6 +686,18 @@ not official morphology acceptance. This gate keeps no runtime replacement, no
 qDot/valve/afterload/preload tuning, no Land parameter tuning, no official
 morphology acceptance, no final no-alternans, and no TriSeg adoption as the
 current boundary.
+
+Phase 5C-M interprets the Phase 5C-L result by measuring trace-derived AoV qDot
+clamp-threshold engagement under the same closure. The recorded result is
+[`../../data/myocardium/protocols/modelcore-paired-land-qdot-clamp-attribution-result-v1.json`](../../data/myocardium/protocols/modelcore-paired-land-qdot-clamp-attribution-result-v1.json).
+The legacy source-only positive control has AoV qDot clamp hit fraction 0.0521
+with peak raw qDot 404765 mL/s^2, while the Land source-only run has hit
+fraction 0 and peak raw qDot 9600 mL/s^2. Land also has much lower QAo cap
+ratio and lower output. The diagnostic classification is
+`clamp-threshold-avoidance-risk-supported`: Land period-1 remains a positive
+interpretable signal, but structural alternans removal is not established.
+Output-matched paired evidence, SDIRK2 reference evidence, and preload-domain
+sweep evidence remain required before any final no-alternans or domain claim.
 
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
@@ -732,8 +746,10 @@ adapter preconditions for Land pairing. Phase 5C-L performs the paired Land
 run, records the result artifact at
 [`../../data/myocardium/protocols/modelcore-paired-land-source-provider-run-result-v1.json`](../../data/myocardium/protocols/modelcore-paired-land-source-provider-run-result-v1.json),
 and evaluates `sourceProviderDifferenceOnly=true` for the experimental LV
-source-only pair; second-order/reference robustness and interpretation remain
-future work, with no final no-alternans claim.
+source-only pair. Phase 5C-M adds same-closure qDot clamp-threshold attribution
+and records that Land avoids AoV qDot clamp engagement at a lower-output
+operating point; second-order/reference, output-matched, and preload-domain
+robustness remain future work, with no final no-alternans claim.
 
 ## Imported bundle checks
 
