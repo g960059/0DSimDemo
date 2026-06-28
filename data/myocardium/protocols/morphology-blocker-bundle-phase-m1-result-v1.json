@@ -1,0 +1,376 @@
+{
+  "schemaVersion": 1,
+  "id": "morphology-blocker-bundle-phase-m1-result-v1",
+  "phase": "Phase M1",
+  "claimBoundary": "diagnostic-only-current-main-morphology-blocker-classification-no-acceptance",
+  "baseCommit": "503d6555f4ff46cf677abcc620dd939580efa238",
+  "upstreamPhase5WArtifactId": "myocardium-developer-only-lv-land-envelope-phase5w-result-v1",
+  "verifierScript": "verify:myocardium-morphology-blocker-bundle",
+  "scope": {
+    "name": "post-pr219-current-main-morphology-blocker-classification",
+    "doesNotResolveFullMorphologyBlockerSet": true,
+    "doesNotRunPairedLvLandVsStockMorphologyMatrix": true,
+    "doesNotRunIsolatedArterialBench": true
+  },
+  "runner": {
+    "runnerVersion": "pv-loop-morphology-quality-runner-v1",
+    "targetPackId": "pv-loop-morphology-quality-v1",
+    "protocolId": "pv-loop-morphology-quality-v1",
+    "claimBoundary": "diagnostic-only-no-model-change",
+    "reproducibleCommand": "npx vite-node --script tools/myocardium/verifyPvLoopMorphologyQuality.ts --out=artifacts/myocardium/pv-loop-morphology/morphology-blocker-bundle-phase-m1",
+    "referenceArtifactRoot": "artifacts/myocardium/pv-loop-morphology/morphology-blocker-bundle-phase-m1",
+    "artifactRetention": "large-runner-artifacts-generated-in-temp-and-not-committed",
+    "normalizedSummarySha256": "5376599878a5dd1ecdb15062da1dc10748e4b183b184427dc92bc595862c0d59",
+    "inputArtifactHashes": {
+      "docs/myocardium/verification/pv-loop-morphology-quality.md": "a4eeeccd6f71745e3c0dc1debeb115b80dbf19ba1ebfc19cddfef4db56bd2261",
+      "docs/myocardium/verification/filling-limb-artifact-audit-v1.md": "b5a0fdbd42120e607b828dcfc9df28e8d6f317f362d6370b2620902845300974",
+      "docs/myocardium/verification/arterial-load-morphology-v1.md": "f1e4beddfe59d25d8f6853d985b3e52805cf3a34b35f2fdd4eaa05df50dc7f6f",
+      "data/myocardium/protocols/pv-loop-morphology-quality-v1.json": "c3e7a436668b6078ce127e750467a0fb83d50937fa7502379b0e02714920013d",
+      "data/myocardium/protocols/filling-limb-artifact-audit-v1.json": "85a5b9c173c37741d419e7e5c6b800d1aada24481eae74cd8ccfad03456dd098",
+      "data/myocardium/protocols/arterial-load-morphology-v1.json": "aed088e9934064ba9542a4cd2d5e4b213cf84bd8b0883cefbe0b6ddf709b3833",
+      "data/myocardium/targets/pv-loop-morphology-quality-v1.json": "4bf1619aa7562f7d5a9aca4de38bc32ff56c8974e331efabec8230d82b35f3b0"
+    },
+    "caseIds": [
+      "normal-sinus",
+      "acute-anterior-mi",
+      "systolic-heart-failure",
+      "lv-failure-dobutamine"
+    ],
+    "branchCount": 7,
+    "metricRowCount": 17304,
+    "sampleRowCount": 60572,
+    "warningCount": 0,
+    "errorCount": 0
+  },
+  "morphologyEvidenceSnapshot": {
+    "observations": [
+      {
+        "id": "filling-limb-roughness",
+        "lane": "filling-limb",
+        "score": 1,
+        "supportCount": 45,
+        "metricIds": [
+          "lowerLimbKinkCount",
+          "tvOpenLowerLimbRoughness",
+          "valveOpenCloseChatterCount"
+        ],
+        "missingSignals": []
+      },
+      {
+        "id": "event-window-correlation",
+        "lane": "filling-limb",
+        "score": 1,
+        "supportCount": 42,
+        "metricIds": [
+          "eventCorrelationWindowHitFraction"
+        ],
+        "missingSignals": []
+      },
+      {
+        "id": "aov-qdot-clamp-activity",
+        "lane": "ejection-limb",
+        "score": 1,
+        "supportCount": 16635,
+        "metricIds": [
+          "qDotClampHitFraction"
+        ],
+        "missingSignals": []
+      },
+      {
+        "id": "sampling-sensitive-metrics",
+        "lane": "sampling",
+        "score": 1,
+        "supportCount": 2797,
+        "metricIds": [
+          "EAInflowProxy",
+          "aovOpenAoPIncisuraScore",
+          "aovOpenEjectionSquareness",
+          "arterialPressureIncisuraDepth",
+          "cornerSharpnessAtClose",
+          "cornerSharpnessAtOpen",
+          "ejectionDuration",
+          "ejectionPlateauFraction",
+          "ejectionTopCurvature",
+          "flowChatterCount",
+          "incisuraPresenceScore",
+          "inletForwardVolume",
+          "lowerLimbD2PDV2Integral",
+          "lowerLimbDPDVSignChangeCount",
+          "lowerLimbKinkCount",
+          "lvRvAsymmetryIndex",
+          "mvOpenLowerLimbRoughness",
+          "openAvLowerLimbRoughness",
+          "peakPressureTimingAsFractionOfEjection",
+          "phaseCoverageFraction.atrial-kick",
+          "phaseCoverageFraction.ejection",
+          "phaseCoverageFraction.filling",
+          "phaseCoverageFraction.isovolumic-contraction",
+          "phaseCoverageFraction.isovolumic-relaxation"
+        ],
+        "missingSignals": []
+      }
+    ],
+    "hypotheses": [
+      {
+        "id": "aov-qdot-clamp-correlation",
+        "lane": "ejection-limb",
+        "evidenceStatus": "supported-correlation",
+        "confidence": "medium",
+        "score": 1,
+        "observations": [
+          "aov-qdot-clamp-activity"
+        ],
+        "missingSignals": []
+      },
+      {
+        "id": "filling-event-window-correlation",
+        "lane": "filling-limb",
+        "evidenceStatus": "supported-correlation",
+        "confidence": "medium",
+        "score": 1,
+        "observations": [
+          "filling-limb-roughness",
+          "event-window-correlation"
+        ],
+        "missingSignals": []
+      },
+      {
+        "id": "rv-filling-valve-chatter-correlation",
+        "lane": "filling-limb",
+        "evidenceStatus": "supported-correlation",
+        "confidence": "medium",
+        "score": 1,
+        "observations": [
+          "filling-limb-roughness"
+        ],
+        "missingSignals": []
+      },
+      {
+        "id": "sampling-or-display-sensitivity",
+        "lane": "sampling",
+        "evidenceStatus": "supported-correlation",
+        "confidence": "medium",
+        "score": 1,
+        "observations": [
+          "sampling-sensitive-metrics"
+        ],
+        "missingSignals": []
+      }
+    ],
+    "evidenceGaps": [
+      {
+        "id": "ejection-limb-arterial-load-signal-gap",
+        "lane": "ejection-limb",
+        "missingSignals": [
+          "characteristicImpedancePaSecPerM3",
+          "arterialReflectionCoefficient"
+        ],
+        "note": "Proximal arterial pressure/flow/root-compliance evidence is available; arterial/load hypotheses remain insufficient while Zc/reflection evidence is not modeled."
+      }
+    ]
+  },
+  "filling": {
+    "comparatorId": "filling-limb-diagnostic-comparator-v1",
+    "claimBoundary": "off-by-default-diagnostic-comparison-only",
+    "reproducibleCommand": "npx vite-node --script tools/myocardium/buildFillingLimbDiagnosticComparator.ts --input=artifacts/myocardium/pv-loop-morphology/morphology-blocker-bundle-phase-m1 --out=artifacts/myocardium/pv-loop-morphology/morphology-blocker-bundle-phase-m1/filling-limb-diagnostic-comparator",
+    "normalizedSummarySha256": "5c2bf7ee0a5e437e551b5d7a5a43d02203b5caa2cac0ebdf8f530cd86408bf58",
+    "groupCount": 42,
+    "interpretableGroupCount": 39,
+    "uninterpretableGroupCount": 3,
+    "residualClassification": "ea-like-proxy-specific-missingness",
+    "residualGroups": [
+      {
+        "caseId": "lv-failure-dobutamine",
+        "branchId": "1",
+        "branchName": "LV failure",
+        "beatIndex": 1,
+        "chamber": "RV",
+        "uninterpretableReasons": [
+          "missing anti-gaming readouts: eaLikeInflowProxy"
+        ],
+        "missingReadouts": [
+          "eaLikeInflowProxy"
+        ],
+        "availableAntiGamingReadouts": [
+          "endDiastolicVolumeM3",
+          "strokeVolumeM3",
+          "cardiacOutputM3PerSec",
+          "meanLeftAtrialPressurePa",
+          "meanRightAtrialPressurePa",
+          "inletForwardVolumeM3",
+          "inletReverseVolumeM3",
+          "qDotClampHitFraction",
+          "valveDiodeClampHitFraction",
+          "dynamicFlowClampHitFraction",
+          "pressureFloorHitFraction",
+          "atrialKickBoosterPreservation"
+        ],
+        "missingOnlyEaLikeInflowProxy": true
+      },
+      {
+        "caseId": "lv-failure-dobutamine",
+        "branchId": "1",
+        "branchName": "LV failure",
+        "beatIndex": 2,
+        "chamber": "RV",
+        "uninterpretableReasons": [
+          "missing anti-gaming readouts: eaLikeInflowProxy"
+        ],
+        "missingReadouts": [
+          "eaLikeInflowProxy"
+        ],
+        "availableAntiGamingReadouts": [
+          "endDiastolicVolumeM3",
+          "strokeVolumeM3",
+          "cardiacOutputM3PerSec",
+          "meanLeftAtrialPressurePa",
+          "meanRightAtrialPressurePa",
+          "inletForwardVolumeM3",
+          "inletReverseVolumeM3",
+          "qDotClampHitFraction",
+          "valveDiodeClampHitFraction",
+          "dynamicFlowClampHitFraction",
+          "pressureFloorHitFraction",
+          "atrialKickBoosterPreservation"
+        ],
+        "missingOnlyEaLikeInflowProxy": true
+      },
+      {
+        "caseId": "lv-failure-dobutamine",
+        "branchId": "1",
+        "branchName": "LV failure",
+        "beatIndex": 3,
+        "chamber": "RV",
+        "uninterpretableReasons": [
+          "missing anti-gaming readouts: eaLikeInflowProxy"
+        ],
+        "missingReadouts": [
+          "eaLikeInflowProxy"
+        ],
+        "availableAntiGamingReadouts": [
+          "endDiastolicVolumeM3",
+          "strokeVolumeM3",
+          "cardiacOutputM3PerSec",
+          "meanLeftAtrialPressurePa",
+          "meanRightAtrialPressurePa",
+          "inletForwardVolumeM3",
+          "inletReverseVolumeM3",
+          "qDotClampHitFraction",
+          "valveDiodeClampHitFraction",
+          "dynamicFlowClampHitFraction",
+          "pressureFloorHitFraction",
+          "atrialKickBoosterPreservation"
+        ],
+        "missingOnlyEaLikeInflowProxy": true
+      }
+    ],
+    "allOtherAntiGamingReadoutsAvailableForResidualGroups": true
+  },
+  "arterial": {
+    "comparatorId": "arterial-load-zc-reflection-diagnostic-comparator-v1",
+    "claimBoundary": "off-by-default-diagnostic-comparison-only",
+    "reproducibleCommand": "npx vite-node --script tools/myocardium/buildArterialLoadZcReflectionDiagnosticComparator.ts --input=artifacts/myocardium/pv-loop-morphology/morphology-blocker-bundle-phase-m1 --out=artifacts/myocardium/pv-loop-morphology/morphology-blocker-bundle-phase-m1/arterial-load-zc-reflection-diagnostic-comparator",
+    "normalizedSummarySha256": "71e92aa23c2f3d10332ba2cc333030dd94782cad5c1adf5b7511ed6918dbfe0a",
+    "groupCount": 42,
+    "interpretableGroupCount": 42,
+    "missingNoProxySignals": [
+      {
+        "name": "arterialReflectionCoefficient",
+        "status": "missing-no-proxy",
+        "proxyPolicy": "forbidden",
+        "promotesHypothesis": false
+      },
+      {
+        "name": "arterialReflectionDelaySec",
+        "status": "missing-no-proxy",
+        "proxyPolicy": "forbidden",
+        "promotesHypothesis": false
+      },
+      {
+        "name": "characteristicImpedancePaSecPerM3",
+        "status": "missing-no-proxy",
+        "proxyPolicy": "forbidden",
+        "promotesHypothesis": false
+      }
+    ],
+    "noProxySignalsAllForbidden": true,
+    "hypothesisPromotion": "not-promoted-no-proxy",
+    "directZcReflectionEvidenceStatus": "missing-no-proxy"
+  },
+  "blockerClassifications": [
+    {
+      "id": "rv-dobutamine-filling-ea-proxy-gap",
+      "lane": "filling-limb",
+      "resultClass": "BLOCKER",
+      "status": "residual-ea-like-proxy-specific-missingness",
+      "interpretation": "Only lv-failure-dobutamine branch 1 RV beats 1-3 remain filling-comparator uninterpretable, because eaLikeInflowProxy is missing while the other anti-gaming readouts are available.",
+      "blocks": [
+        "official RV filling morphology interpretation for the dobutamine LV-failure branch",
+        "using the residual filling result as a myocardium source acceptance argument"
+      ]
+    },
+    {
+      "id": "arterial-zc-reflection-no-proxy-gap",
+      "lane": "arterial-load",
+      "resultClass": "OUT-OF-SCOPE-FOR-MYOCARDIUM",
+      "status": "direct-zc-reflection-signal-gap",
+      "interpretation": "Arterial comparator groups are internally interpretable, but characteristic impedance and reflection signals are explicitly missing with proxy use forbidden.",
+      "blocks": [
+        "arterial-load root-cause acceptance",
+        "Zc/reflection fix acceptance",
+        "myocardium parameter tuning to buy ejection morphology"
+      ]
+    },
+    {
+      "id": "sampling-sensitive-morphology-metrics",
+      "lane": "sampling",
+      "resultClass": "ADVISORY",
+      "status": "sampling-sensitive-metrics-present",
+      "interpretation": "Sampling-sensitive PV-loop metrics remain diagnostic context and must not be converted into a model fix without raw-trace confirmation.",
+      "blocks": [
+        "display-only morphology pass claims"
+      ]
+    }
+  ],
+  "boundary": {
+    "noRuntimeReplacement": true,
+    "noOfficialCaseWiring": true,
+    "noWorkbenchRuntimeWiring": true,
+    "noProductionRegistryIntegration": true,
+    "noStateSchemaMigration": true,
+    "noRootCauseAcceptance": true,
+    "noFixAcceptance": true,
+    "noOfficialMorphologyAcceptance": true,
+    "noFinalNoAlternansAcceptance": true,
+    "noQDotTuning": true,
+    "noValveTuning": true,
+    "noArterialLoadTuning": true,
+    "noPreloadTuning": true,
+    "noLandParameterTuning": true,
+    "noSourceStressScaling": true
+  },
+  "doesNotUnlock": [
+    "runtimeReplacement",
+    "officialCaseWiring",
+    "workbenchRuntimeWiring",
+    "productionRegistryIntegration",
+    "stateSchemaMigration",
+    "rootCauseAcceptance",
+    "fixAcceptance",
+    "officialMorphologyAcceptance",
+    "finalNoAlternans",
+    "qDotTuning",
+    "valveTuning",
+    "arterialLoadTuning",
+    "preloadTuning",
+    "landParameterTuning",
+    "sourceStressScaling",
+    "pairedLvLandVsStockMorphologyAcceptance",
+    "isolatedArterialBenchAcceptance"
+  ],
+  "nextRecommendedExperiments": [
+    "run a paired stock-active versus developer-only LV Land morphology matrix under the same official-case diagnostic runner",
+    "run an isolated arterial bench that emits direct Zc/reflection evidence rather than proxying from waveform shape",
+    "derive or emit the missing dobutamine RV eaLikeInflowProxy for the three residual filling groups"
+  ]
+}

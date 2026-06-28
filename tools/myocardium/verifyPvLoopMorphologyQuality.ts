@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import morphologyProtocol from "@/data/myocardium/protocols/pv-loop-morphology-quality-v1.json";
 import morphologyTargets from "@/data/myocardium/targets/pv-loop-morphology-quality-v1.json";
 import { caseDocumentToSimInstances } from "@/caseDoc";
@@ -2698,7 +2699,7 @@ export function buildMorphologyEvidenceSummaryForTest(
   return buildMorphologyEvidenceSummary(metricRows, clampRows, availability);
 }
 
-function runDiagnostic(options: CliOptions): DiagnosticRunResult {
+export function runPvLoopMorphologyDiagnostic(options: CliOptions): DiagnosticRunResult {
   const summary = buildInitialSummary(options.caseIds);
   const metricRows: MetricRow[] = [];
   const phaseRows: PhaseSampleRow[] = [];
@@ -2748,12 +2749,12 @@ function runDiagnostic(options: CliOptions): DiagnosticRunResult {
 }
 
 export function runPvLoopMorphologyDiagnosticForTest(outDir: string, caseIds = ["normal-sinus"]): RunnerSummary {
-  return runDiagnostic({ outDir, caseIds }).summary;
+  return runPvLoopMorphologyDiagnostic({ outDir, caseIds }).summary;
 }
 
 function main(): void {
   const options = parseArgs(process.argv.slice(2));
-  const result = runDiagnostic(options);
+  const result = runPvLoopMorphologyDiagnostic(options);
   const { summary } = result;
   // eslint-disable-next-line no-console
   console.log(
@@ -2769,8 +2770,13 @@ function main(): void {
   }
 }
 
-const runningUnderVitest =
-  process.env.VITEST === "true" || process.argv.some((arg) => /vitest(?:\.mjs)?$/.test(arg));
-if (!runningUnderVitest) {
+function isDirectExecution(): boolean {
+  const entrypoint = process.argv[1];
+  if (entrypoint && import.meta.url === pathToFileURL(path.resolve(entrypoint)).href) return true;
+  const normalizedScriptPath = path.normalize("tools/myocardium/verifyPvLoopMorphologyQuality.ts");
+  return process.argv.some((arg) => path.normalize(arg).endsWith(normalizedScriptPath));
+}
+
+if (isDirectExecution()) {
   main();
 }

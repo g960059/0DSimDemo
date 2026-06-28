@@ -29,6 +29,7 @@ phase gates called out below.
 | 3g | [verification/filling-limb-diagnostic-comparator-v1.md](verification/filling-limb-diagnostic-comparator-v1.md) | Proposed explicit-CLI filling-limb diagnostic comparator artifact contract |
 | 3h | [verification/arterial-load-zc-reflection-diagnostic-comparator-v1.md](verification/arterial-load-zc-reflection-diagnostic-comparator-v1.md) | Proposed explicit-CLI arterial-load Zc/reflection diagnostic comparator artifact contract |
 | 3i | [verification/pv-loop-current-main-baseline-snapshot-v1.md](verification/pv-loop-current-main-baseline-snapshot-v1.md) | Current-main diagnostic-only PV-loop morphology baseline snapshot |
+| 3j | [morphology/README.md](morphology/README.md) | Morphology lane status, including Phase M1 current-main residual blocker classification |
 | 4 | [roadmap/myocardium-rebuild-roadmap.md](roadmap/myocardium-rebuild-roadmap.md) | Phase and PR sequencing |
 | 4a | [roadmap/atrial-bridge-shootout-roadmap.md](roadmap/atrial-bridge-shootout-roadmap.md) | Proposed Phase 5.5 roadmap before Phase 6 |
 | 4b | [roadmap/phase5c-low-preload-domain-plan.md](roadmap/phase5c-low-preload-domain-plan.md) | Phase 5C-B selected-v2 low-preload domain extension plan |
@@ -214,6 +215,24 @@ Current-main morphology baseline snapshot addition:
 ```text
 data/myocardium/protocols/pv-loop-current-main-baseline-snapshot-v1.json
 ```
+
+Phase M1 current-main residual morphology blocker classification addition:
+
+```text
+data/myocardium/protocols/morphology-blocker-bundle-phase-m1-result-v1.json
+```
+
+Run `npm run verify:myocardium-morphology-blocker-bundle` to check the compact
+post-PR #219 diagnostic bundle. Phase M1 reruns the PV-loop morphology runner
+and the filling and arterial-load diagnostic comparators, then commits only a
+compact result. It classifies the remaining filling gap as
+`lv-failure-dobutamine` branch 1 RV beats 1-3 missing only
+`eaLikeInflowProxy`; all other residual anti-gaming readouts are available.
+The arterial comparator remains internally interpretable, but direct
+Zc/reflection signals remain explicit `missing-no-proxy` records with proxy use
+forbidden. Phase M1 does not clear the full morphology blocker set and does not
+run either the paired LV Land-vs-stock morphology matrix or the isolated
+arterial bench.
 
 Important clarification: `targetPeakAmplitudeUM` is amplitude above diastolic
 Ca, not absolute Ca. For the reviewed Phase 2B example, `peakAmplitudeUM=0.9`
