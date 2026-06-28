@@ -118,6 +118,34 @@ Result boundary:
 
 Decision 21 remains `PENDING_OWNER` with `selectedCandidateId: null`.
 
+## Phase 5.5B atrial bridge blocker localization result
+
+`data/myocardium/protocols/atrial-bridge-blocker-localization-phase5p5b-result-v1.json`
+records a measured blocker-localization pass after the Phase 5.5 shootout. It
+keeps the same experimental-only LA/RA provider boundary and does not select a
+Phase 6 bridge.
+
+Result boundary:
+
+- HR105/min at normal TBV remains a common non-settle boundary for E0/A0/A1,
+  with cap-tail LA/RA loop metrics and normalized valve attribution recorded;
+- HR90/min is not a common boundary: A0 settles while E0 and A1 cap;
+- A1 valve diode contamination remains supported after beat/second
+  normalization against A0 across normal, low-preload, high-preload, and
+  high-HR source points;
+- the prior A1 repeatability blocker is not supported after full-beat
+  phase-resampled repeatability, so that blocker is treated as instrumentation
+  artifact rather than candidate failure;
+- A1 isolated roughness ordering remains not sampling-invariant across
+  120/240/480/960 Hz in LA and RA;
+- diagnostic A1 variants are measured only as non-selectable localization
+  probes.
+
+Decision 21 remains `PENDING_OWNER`; production atrial bridge wiring, official
+case reauthoring, Workbench/runtime wiring, state schema migration, atrial
+Land/RDQ validation, AF validation, and final atrial physiology claims remain
+blocked.
+
 ## Phase 2B / Level 3 review deltas proposed in PR #166
 
 The PR #166 review also requested that the accepted Phase 2B/Level 3 planning
