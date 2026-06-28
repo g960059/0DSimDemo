@@ -438,6 +438,15 @@ production tissue homogenization.
 - boundary: no runtime replacement, no official morphology acceptance, no final no-alternans, no structural alternans removal claim, no qDot/valve/afterload/preload tuning, no Land parameter tuning, no chamber/case/workbench/state-schema production adoption, and no TriSeg adoption.
 - next: run calcium input scale/unit audit and an explicit source/output-forcing bracket, plus SDIRK2 reference evidence before any structural attribution.
 
+### Phase 5C-P — Land calcium/source forcing bracket
+
+- result artifact: `data/myocardium/protocols/modelcore-land-calcium-source-forcing-bracket-result-v1.json`
+- verifier: `npm run verify:myocardium-modelcore-land-calcium-source-forcing-bracket`
+- current outcome: the pinned low-preload point and the Phase 5C-N best-Land point are rerun with predeclared calcium-input and source-stress forcing scenarios inside the experimental source provider only. All 18 forced points converge, have zero Land solve failures, and record source/commit/forcing audit samples.
+- interpretation: `calcium-input-scaling-reaches-legacy-regime`. The best calcium-input forcing candidate (`calcium-scale-30` at `delta=-1250`) matches the legacy output regime and recovers AoV qDot clamp engagement while remaining period-1. This weakens the pure clamp-avoidance explanation, but remains explicit forcing attribution evidence and a calcium-unit/source-interface audit target.
+- boundary: no runtime replacement, no official morphology acceptance, no final no-alternans, no structural alternans removal claim, no qDot/valve/afterload/preload tuning, no Land parameter tuning, no chamber/case/workbench/state-schema production adoption, and no TriSeg adoption.
+- next: audit the legacy active internal `c` to Land free-calcium unit/source mapping, then run SDIRK2 reference evidence before any final no-alternans interpretation.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison

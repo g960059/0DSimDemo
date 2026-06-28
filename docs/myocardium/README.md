@@ -37,7 +37,7 @@ phase gates called out below.
 | 4e | [roadmap/phase5c-post-fidelity-entry-gate.md](roadmap/phase5c-post-fidelity-entry-gate.md) | Phase 5C-E entry gate after the Phase 5C-D no-go result |
 | 4f | [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md) | Phase 5C-F triage audit plan while the Phase 5C-E entry gate remains blocked |
 | 4g | [roadmap/phase5c-same-closure-source-provider-audit.md](roadmap/phase5c-same-closure-source-provider-audit.md) | Phase 5C-G same-closure source-provider audit snapshot after the PR #193 lane handoff |
-| 4h | [roadmap/phase5c-modelcore-equivalent-route-gate.md](roadmap/phase5c-modelcore-equivalent-route-gate.md) | Phase 5C-H/I/J/K/L/M/N ModelCore-equivalent route, experimental source-provider hook, provider-state lifecycle, source-only pressure adapter, paired Land source-provider run, qDot attribution, and output-match diagnostic |
+| 4h | [roadmap/phase5c-modelcore-equivalent-route-gate.md](roadmap/phase5c-modelcore-equivalent-route-gate.md) | Phase 5C-H/I/J/K/L/M/N/O/P ModelCore-equivalent route, experimental source-provider hook, provider-state lifecycle, source-only pressure adapter, paired Land source-provider run, qDot attribution, output-match diagnostic, activation/source-interface audit, and calcium/source forcing bracket |
 | 5 | [research/myocardial-contraction-rebuild-design-record.md](research/myocardial-contraction-rebuild-design-record.md) | Background rationale and design discussion |
 | 6 | [review-notes/phase2b-level3-review-deltas.md](review-notes/phase2b-level3-review-deltas.md) | PR #166 Phase 2B/Level 3 review deltas |
 
@@ -725,6 +725,19 @@ transient source stress during the full run, so the result localizes the output
 gap to the settled activation/source interface and requires calcium/source-scale
 and explicit matched-regime checks before any structural alternans claim.
 
+Phase 5C-P runs the calcium/source-scale forcing bracket recommended after
+Phase 5C-O. The recorded result is
+[`../../data/myocardium/protocols/modelcore-land-calcium-source-forcing-bracket-result-v1.json`](../../data/myocardium/protocols/modelcore-land-calcium-source-forcing-bracket-result-v1.json).
+It reruns the pinned low-preload point and the Phase 5C-N best-Land point with
+predeclared calcium-input and source-stress forcing scenarios. All 18 forced
+points converge with zero Land solve failures. The best calcium-input forcing
+candidate (`calcium-scale-30` at `delta=-1250`) reaches the legacy output and
+AoV qDot clamp regime while remaining period-1. This is the predeclared coarse
+output/qDot regime, not waveform or morphology acceptance. The result is a
+forcing attribution signal and a calcium-unit/source-interface audit target; it
+is not runtime replacement, final no-alternans acceptance, or official
+morphology acceptance.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and
@@ -779,7 +792,10 @@ and records output-match not-overlapped; second-order/reference, explicit output
 forcing or another owner-approved match axis, and preload-domain robustness
 remain future work. Phase 5C-O adds activation/source-interface evidence and
 records a settled-trace Land stress gap; calcium/source-scale and explicit
-matched-regime diagnostics now precede any structural alternans claim.
+matched-regime diagnostics now precede any structural alternans claim. Phase
+5C-P adds that explicit forcing bracket and records that calcium-input scaling
+placed Land in the legacy output/qDot regime while Land remains period-1,
+but this remains attribution evidence only.
 
 ## Imported bundle checks
 
