@@ -892,6 +892,22 @@ blocked, as do official case wiring, Workbench runtime wiring, state schema
 migration, runtime UI, production registries, official morphology acceptance,
 final no-alternans, and structural alternans-removal claims.
 
+Phase 5W expands that developer-only LV Land envelope without production wiring.
+The recorded result is
+[`../../data/myocardium/protocols/myocardium-developer-only-lv-land-envelope-phase5w-result-v1.json`](../../data/myocardium/protocols/myocardium-developer-only-lv-land-envelope-phase5w-result-v1.json).
+Run `npm run verify:myocardium-developer-only-lv-land-envelope` to check the
+HR75/90 x TBV 4350/5600/6600 stock-active vs developer-only LV Land matrix.
+The matrix uses independent initialization, same closure invariants,
+period-aware metric windows, and 1000 Hz measurement windows after 240 Hz
+settling. Main-domain Land runs are settled with health ok, source/commit path
+calls present, and Land solve failure count zero, but HR90 main-domain Land
+settles as period-2 and stock active HR90/TBV5600 caps.
+Low-preload results remain report-only edge evidence. Phase 5W is diagnostic
+envelope evidence only; production runtime replacement, official cases,
+Workbench runtime wiring, state schema migration, runtime UI, production
+registry integration, Level 3/4 acceptance, official morphology acceptance,
+final no-alternans, and structural alternans-removal claims remain blocked.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and
