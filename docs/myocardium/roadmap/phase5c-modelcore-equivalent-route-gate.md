@@ -240,6 +240,15 @@ design. Further SDIRK2 solver hardening should stay narrow and should not
 extend alternans-mechanism subphases unless final no-alternans acceptance is
 explicitly in scope.
 
+Phase 5S runs that operating-point calibration diagnostic as a separate
+diagnostic-only handoff. The Phase 5C-Q calcium-mapped Land BE provider runs
+cleanly at fixed `-1250`, `0`, and `1000` mL points. The `0` and `1000` mL
+main-domain points are a coarse legacy output/stress signal and the education
+DoD checkpoint is ready for owner review, while low preload remains report-only
+edge evidence. This does not change the Phase 5C boundary: no Level 3/4
+acceptance, no runtime replacement, no official morphology acceptance, no final
+no-alternans, and no structural alternans removal are claimed.
+
 Evidence fields required for the ModelCore-equivalent paired route include:
 
 ```text

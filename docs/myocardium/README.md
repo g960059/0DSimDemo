@@ -753,8 +753,8 @@ means Phase 5C-P scale 30 is a positive-control reference, not a required scale.
 The result is source-interface evidence only; it is not runtime replacement,
 final no-alternans acceptance, structural alternans removal, or official
 morphology acceptance. SDIRK2 reference evidence remains required before final
-interpretation, and Level 1-4 operating-point calibration remains required
-before runtime design.
+interpretation, and Level 1-4 operating-point calibration remains the next
+runtime-design prerequisite.
 
 Phase 5C-R runs the provider-local Land SDIRK2 commit-solver reference check.
 The recorded result is
@@ -770,6 +770,21 @@ coarse output/qDot signal and period-1 result, but SDIRK2 stage1 solve failures
 remain high, so the classification is `sdirk2-reference-inconclusive`. This does
 not unlock final no-alternans, structural alternans removal, runtime replacement,
 or official morphology acceptance.
+
+Phase 5S runs the closed-loop operating-point calibration diagnostic. The
+recorded result is
+[`../../data/myocardium/protocols/modelcore-land-operating-point-calibration-result-v1.json`](../../data/myocardium/protocols/modelcore-land-operating-point-calibration-result-v1.json).
+Run `npm run verify:myocardium-modelcore-land-operating-point-calibration` to
+check the artifact against the live experiment. It compares legacy LV
+source-only and Phase 5C-Q `phase2b-absolute-peak-ca` Land BE source-only at
+fixed diagnostic points `-1250`, `0`, and `1000` mL. These are fixed
+operating-domain points, not preload tuning. Land has zero BE solve failures.
+The `0` and `1000` mL main-domain points sit in a coarse legacy output/stress
+regime and remain period-1, while the low-preload point remains report-only edge
+evidence. The education-tool DoD checkpoint is
+`draft-do-d-ready-for-owner-review`; this is not Level 3/4 acceptance, runtime
+replacement, final no-alternans, structural alternans removal, or official
+morphology acceptance.
 
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)

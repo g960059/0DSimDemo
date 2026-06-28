@@ -465,6 +465,15 @@ production tissue homogenization.
 - boundary: no global ModelCore SDIRK2 claim, no runtime replacement, no official morphology acceptance, no final no-alternans, no structural alternans removal claim, no qDot/valve/afterload/preload tuning, no Land parameter tuning, no source-stress scaling, no chamber/case/workbench/state-schema production adoption, and no TriSeg adoption.
 - next: move the myocardium lane toward Level 1-4 operating-point calibration and an education-tool Definition of Done checkpoint. Treat further SDIRK2 solver hardening as a narrow technical blocker only if final no-alternans acceptance becomes explicit scope.
 
+### Phase 5S — closed-loop operating-point calibration diagnostic
+
+- result artifact: `data/myocardium/protocols/modelcore-land-operating-point-calibration-result-v1.json`
+- verifier: `npm run verify:myocardium-modelcore-land-operating-point-calibration`
+- current outcome: legacy LV source-only and Phase 5C-Q `phase2b-absolute-peak-ca` Land BE source-only are rerun at fixed diagnostic points `-1250`, `0`, and `1000` mL. All points settle with clean health. Land has zero BE solve failures and source/commit/calcium audit samples are present.
+- interpretation: `main-domain-calibration-signal-low-preload-edge-report-only`. The main-domain points `0` and `1000` mL sit in a coarse legacy output/stress regime and remain period-1. The pinned low-preload point remains report-only edge evidence. The education-tool DoD checkpoint is `draft-do-d-ready-for-owner-review`, not accepted.
+- boundary: operating-point-calibration-diagnostic-only; no Level 3/4 acceptance, no global ModelCore SDIRK2 claim, no runtime replacement, no official morphology acceptance, no final no-alternans, no structural alternans removal claim, no qDot/valve/afterload/preload tuning, no Land parameter tuning, no source-stress scaling, no chamber/case/workbench/state-schema production adoption, and no TriSeg adoption.
+- next: owner-review the education-tool Definition of Done checkpoint, then decide whether a developer-only LV Land runtime flag design is warranted before any case/workbench/official runtime wiring.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison

@@ -49,6 +49,7 @@
     "verify:myocardium-modelcore-land-calcium-source-forcing-bracket": "vite-node tools/myocardium/verifyModelCoreLandCalciumSourceForcingBracket.ts",
     "verify:myocardium-modelcore-land-calcium-unit-interface-audit": "vite-node tools/myocardium/verifyModelCoreLandCalciumUnitInterfaceAudit.ts",
     "verify:myocardium-modelcore-land-sdirk2-reference": "vite-node tools/myocardium/verifyModelCoreLandSdirk2Reference.ts",
+    "verify:myocardium-modelcore-land-operating-point-calibration": "vite-node tools/myocardium/verifyModelCoreLandOperatingPointCalibration.ts",
     "verify:starling-low-preload-matrix": "STARLING_LOW_PRELOAD_MATRIX_MAIN=1 vite-node tools/verifyStarlingLowPreloadMatrix.ts",
     "debug:starling-low-preload": "STARLING_LOW_PRELOAD_DEBUG_MAIN=1 vite-node tools/debugStarlingLowPreload.ts",
     "fit:left-filling": "vite-node tools/fitLeftFilling.ts",

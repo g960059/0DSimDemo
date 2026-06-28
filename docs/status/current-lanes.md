@@ -28,7 +28,7 @@ oracle interactions per PR/session if a PR-specific escalation is still needed.
 
 | Lane | Current state | Current blocker | Next experiment | Must not claim |
 |---|---|---|---|---|
-| myocardium | Phase 5C-R records provider-local Land SDIRK2 commit-solver evidence after the Phase 5C-Q calcium unit/source-interface audit. At the pinned point, `phase2b-calcium-mapped-sdirk2` preserves the coarse legacy output/qDot regime and remains period-1 with score delta 0.0017 vs BE, but provider-local SDIRK2 stage1 solve failures remain high. The robustness status is `sdirk2-reference-inconclusive`, not an acceptance. The paired LV source-provider experiment under the same experimental ModelCore closure remains the historical same-closure evidence with `sourceProviderDifferenceOnly=true` | Final no-alternans and structural alternans removal remain blocked because the SDIRK2 reference is provider-local, not global ModelCore SDIRK2, and the SDIRK2 commit solver reports failures. The practical next focus is Level 1-4 operating-point calibration and education-tool Definition of Done; further SDIRK2 hardening should be treated as a narrow technical blocker, not another broad alternans-mechanism subphase | shift myocardium work toward Level 1-4 operating-point calibration plus an education-tool Definition of Done checkpoint; only revisit provider-local SDIRK2 solver hardening if final no-alternans acceptance is explicitly in scope | no final no-alternans acceptance, no runtime replacement, no official morphology pass |
+| myocardium | Phase 5S records closed-loop operating-point calibration diagnostics after Phase 5C-R. The Phase 5C-Q `phase2b-absolute-peak-ca` Land BE provider runs cleanly at fixed diagnostic points `-1250`, `0`, and `1000` mL with zero Land solve failures. Main-domain points `0` and `1000` sit in a coarse legacy output/stress regime and remain period-1; the low-preload point remains report-only edge evidence. The paired LV source-provider experiment under the same experimental ModelCore closure remains the historical same-closure evidence with `sourceProviderDifferenceOnly=true`. The education-tool DoD checkpoint is `draft-do-d-ready-for-owner-review`, not accepted | Runtime replacement, Level 3/4 acceptance, official morphology, structural alternans removal, and final no-alternans remain blocked. The next decision is owner review of the education-tool Definition of Done and a developer-only runtime-flag design boundary; morphology Zc/filling lanes remain separate | owner-review the education-tool Definition of Done, then decide whether a developer-only LV Land runtime flag design is warranted before any case/workbench/official runtime wiring | no final no-alternans acceptance, no runtime replacement, no official morphology pass |
 | morphology | PV-loop diagnostics plus diagnostic E/A-like inflow proxy exist; current-main baseline snapshot remains historical | filling comparator retains residual E/A-like missingness in dobutamine RV groups; arterial Zc/reflection remains signal-gap limited | classify residual dobutamine RV E/A missingness; isolated arterial bench | no root-cause acceptance, no fix acceptance, no official morphology pass |
 | atrial bridge | Phase 5.5 shootout plan exists | no shootout runner/candidate results yet | E0/A0/A1 shootout runner | final atrial physiology, AF validation |
 | arterial load | Zc/reflection comparator readiness exists | no isolated bench or direct Zc/reflection signal | isolated arterial bench | production/default Zc adoption |
@@ -44,9 +44,10 @@ oracle interactions per PR/session if a PR-specific escalation is still needed.
 
 ## Current top priorities
 
-1. Shift myocardium work toward Level 1-4 operating-point calibration and an education-tool Definition of Done checkpoint.
-2. Keep provider-local SDIRK2 solver hardening narrow; Phase 5C-R did not unlock final no-alternans.
-3. Classify residual dobutamine RV E/A-like missingness after the diagnostic inflow proxy.
-4. Define/run an isolated arterial bench.
-5. Keep morphology evidence diagnostic-only when feeding myocardium decisions.
-6. Keep studio MVP narrow and separate from scientific acceptance.
+1. Owner-review the Phase 5S education-tool Definition of Done checkpoint.
+2. Decide whether a developer-only LV Land runtime flag design is warranted before any case/workbench/official runtime wiring.
+3. Keep provider-local SDIRK2 solver hardening narrow; Phase 5C-R did not unlock final no-alternans.
+4. Classify residual dobutamine RV E/A-like missingness after the diagnostic inflow proxy.
+5. Define/run an isolated arterial bench.
+6. Keep morphology evidence diagnostic-only when feeding myocardium decisions.
+7. Keep studio MVP narrow and separate from scientific acceptance.
