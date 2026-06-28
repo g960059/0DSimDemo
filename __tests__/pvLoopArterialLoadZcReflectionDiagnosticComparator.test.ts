@@ -109,7 +109,12 @@ describe("PV-loop arterial-load Zc/reflection diagnostic comparator", () => {
     expect(group.antiGamingReadouts.find((readout) => readout.name === "peakPressurePa"))
       .toMatchObject({ status: "available", value: 120 * 133.322, unit: "Pa" });
     expect(group.antiGamingReadouts.find((readout) => readout.name === "ejectionDurationSec"))
-      .toMatchObject({ status: "available", value: 0.24, unit: "sec" });
+      .toMatchObject({
+        status: "available",
+        value: 0.24,
+        unit: "sec",
+        note: "Direct runner metric for observed ejection core sample span; not a physiologic valve-open duration claim.",
+      });
     expect(group.antiGamingReadouts.find((readout) => readout.name === "semilunarForwardVolumeM3"))
       .toMatchObject({ status: "available", value: 72e-6, unit: "m3" });
     expect(group.antiGamingReadouts.find((readout) => readout.name === "semilunarReverseVolumeM3"))
@@ -203,6 +208,25 @@ describe("PV-loop arterial-load Zc/reflection diagnostic comparator", () => {
       });
     expect(group.interpretable).toBe(false);
     expect(group.uninterpretableReasons.join(" ")).toContain("qDotClampHitFraction");
+  });
+
+  it("does not convert anti-gaming readouts when source units drift", () => {
+    const metricRows = rowsWithComparableEvidence().map((candidate) => (
+      candidate.metricId === "peakPressure"
+        ? { ...candidate, unit: "Pa" }
+        : candidate
+    ));
+    const summary = buildArterialLoadZcReflectionDiagnosticComparison(metricRows);
+    const group = summary.groups[0];
+
+    expect(group.antiGamingReadouts.find((readout) => readout.name === "peakPressurePa"))
+      .toMatchObject({
+        status: "missing",
+        sourceMetricId: null,
+        note: "Source metric peakPressure unit Pa does not match expected mmHg.",
+      });
+    expect(group.interpretable).toBe(false);
+    expect(group.uninterpretableReasons.join(" ")).toContain("peakPressurePa");
   });
 
   it("parses morphology metric CSV rows and writes comparator artifacts", () => {
