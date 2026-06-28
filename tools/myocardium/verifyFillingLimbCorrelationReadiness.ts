@@ -70,12 +70,16 @@ const RUNTIME_SCAN_EXCLUDED_DIR_NAMES = new Set([
 const ALLOWED_COMPARATOR_TOKEN_PATHS = new Set([
   FILLING_LIMB_CORRELATION_READINESS_PROTOCOL_PATH,
   FILLING_LIMB_CORRELATION_READINESS_DOC_PATH,
+  "tools/myocardium/buildFillingLimbDiagnosticComparator.ts",
   "tools/myocardium/verifyFillingLimbCorrelationReadiness.ts",
+  "__tests__/pvLoopFillingLimbDiagnosticComparator.test.ts",
   "__tests__/pvLoopFillingLimbCorrelationReadiness.test.ts",
 ]);
 
 const COMPARATOR_RUNTIME_TOKENS = [
   PROTOCOL_ID,
+  "filling-limb-diagnostic-comparator-v1",
+  "buildFillingLimbDiagnosticComparator",
   "fillingLimbCorrelationComparator",
   "FillingLimbCorrelationComparator",
   "runFillingLimbCorrelationComparator",
@@ -83,6 +87,8 @@ const COMPARATOR_RUNTIME_TOKENS = [
 ] as const;
 
 const PACKAGE_SCRIPT_TOKENS = [
+  "tools/myocardium/buildFillingLimbDiagnosticComparator.ts",
+  "filling-limb-diagnostic-comparator-v1",
   "verify:myocardium-filling-limb-correlation-readiness",
   "tools/myocardium/verifyFillingLimbCorrelationReadiness.ts",
   ...COMPARATOR_RUNTIME_TOKENS,
