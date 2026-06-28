@@ -153,6 +153,13 @@ const ALLOWED_CHANGED_FILE_PATHS = [
   "package.json",
 ] as const;
 
+const PHASE5C_F_CHANGED_FILE_SCOPE_TRIGGER_PATHS = [
+  PHASE5C_F_TRIAGE_AUDIT_PATH,
+  PHASE5C_F_TRIAGE_AUDIT_PLAN_PATH,
+  PHASE5C_F_TRIAGE_AUDIT_VERIFIER_PATH,
+  PHASE5C_F_TRIAGE_AUDIT_TEST_PATH,
+] as const;
+
 const RUNTIME_INTEGRATION_TARGETS = [
   "WorkbenchPage.tsx",
   "caseCloud.ts",
@@ -603,6 +610,9 @@ function validateRuntimeIntegrationScan(
 }
 
 function validateChangedFileScope(changedFilePaths: readonly string[], issues: ValidationIssue[]): void {
+  const triggerPaths = new Set<string>(PHASE5C_F_CHANGED_FILE_SCOPE_TRIGGER_PATHS);
+  if (!changedFilePaths.some((filePath) => triggerPaths.has(filePath))) return;
+
   const allowedPaths = new Set<string>(ALLOWED_CHANGED_FILE_PATHS);
   for (const filePath of changedFilePaths) {
     if (allowedPaths.has(filePath)) continue;
