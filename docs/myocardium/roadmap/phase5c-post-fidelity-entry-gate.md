@@ -45,6 +45,16 @@ the same Phase 5C-C closure model to reproduce the legacy positive control as
 no pressure floor use, finite selected-domain coverage, and source-provider
 difference only.
 
+`modelcore-equivalent-closure-positive-control` is the PR #193 route now
+recorded in this gate as `defined-not-satisfied`. It references
+`modelcore-equivalent-positive-control-closure-v1`, keeps
+`closureImplementationStatus=not-implemented` and
+`routeSatisfactionStatus=not-satisfied`, and preserves
+`blocked-until-positive-control-period2`. Its evidence list records period-2
+legacy activeStress positive-control reproduction, same protocol or explicit
+equivalence, event-surface preservation or explicit matching, source-provider
+difference only, and second-order reference evidence.
+
 `owner-approved-replacement-criterion` is the alternative route. It requires a
 later owner approval artifact that explicitly references the superseded
 positive-control criterion and describes the replacement acceptance criterion.

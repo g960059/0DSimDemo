@@ -31,10 +31,11 @@ not claimed.
 
 PR #193 defines `modelcore-equivalent-closure-positive-control` as the proposed
 next route. Phase 5C-G records that handoff as
-`proposed-next-route-not-implemented`. This audit does not add that route to
-the Phase 5C-E gate, does not implement a ModelCore-equivalent closure, and
-does not satisfy the PR #193 patch-plan route. It only snapshots why the
-existing surrogate closure remains an assay-fidelity no-go.
+`proposed-next-route-not-implemented` for this historical snapshot. This audit
+does not implement a ModelCore-equivalent closure and does not satisfy the PR
+#193 patch-plan route. Phase 5C-H later records the route as
+`defined-not-satisfied` in the Phase 5C-E gate. Phase 5C-G only snapshots why
+the existing surrogate closure remains an assay-fidelity no-go.
 
 ## Audit Contents
 
