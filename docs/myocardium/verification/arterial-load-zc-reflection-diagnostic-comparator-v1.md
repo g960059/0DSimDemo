@@ -103,9 +103,15 @@ Required readouts:
 - `dynamicFlowClampHitFraction`
 
 Conversions are fixed at artifact build time: mL to m3, L/min to m3/s, and
-mmHg to Pa. `strokeWork` is already emitted in J. Older morphology artifacts
-may not emit every readout needed for a fully interpretable group; missingness
-remains expected diagnostic output, not a value to fill by proxy.
+mmHg to Pa. `strokeWork` is already emitted in J. The comparator must assert
+the source unit before converting a readout; a unit mismatch is reported as a
+missing readout, not silently converted.
+
+`ejectionDurationSec` is the observed ejection-core sample span from raw-core
+diagnostic rows. It is not a physiologic semilunar valve-open duration claim.
+Older morphology artifacts may not emit every readout needed for a fully
+interpretable group; missingness remains expected diagnostic output, not a
+value to fill by proxy.
 
 ## 7. Readiness Boundary Reference
 

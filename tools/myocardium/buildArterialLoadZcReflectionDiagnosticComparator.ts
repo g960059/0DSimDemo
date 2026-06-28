@@ -325,6 +325,12 @@ function antiGamingReadout(
   if (!row || row.value == null) {
     return missingReadout(name, `Source metric ${metric.metricId} is unavailable from the raw transition-excluded-core row.`);
   }
+  if (row.unit !== metric.expectedInputUnit) {
+    return missingReadout(
+      name,
+      `Source metric ${metric.metricId} unit ${row.unit} does not match expected ${metric.expectedInputUnit}.`,
+    );
+  }
   return {
     name,
     status: "available",
@@ -339,31 +345,38 @@ function metricForReadout(
   name: typeof REQUIRED_ANTI_GAMING_READOUTS[number],
 ): {
   readonly metricId: string;
+  readonly expectedInputUnit: string;
   readonly unit: string;
   readonly note: string;
   readonly convert: (value: number) => number;
 } {
   switch (name) {
     case "strokeVolumeM3":
-      return { metricId: "SV", unit: "m3", note: "Converted from SV mL.", convert: mlToM3 };
+      return { metricId: "SV", expectedInputUnit: "mL", unit: "m3", note: "Converted from SV mL.", convert: mlToM3 };
     case "cardiacOutputM3PerSec":
-      return { metricId: "CO", unit: "m3/s", note: "Converted from CO L/min.", convert: litersPerMinToM3PerSec };
+      return { metricId: "CO", expectedInputUnit: "L/min", unit: "m3/s", note: "Converted from CO L/min.", convert: litersPerMinToM3PerSec };
     case "strokeWorkJ":
-      return { metricId: "strokeWork", unit: "J", note: "Direct runner metric; strokeWork is already J.", convert: identity };
+      return { metricId: "strokeWork", expectedInputUnit: "J", unit: "J", note: "Direct runner metric; strokeWork is already J.", convert: identity };
     case "peakPressurePa":
-      return { metricId: "peakPressure", unit: "Pa", note: "Converted from peakPressure mmHg.", convert: mmHgToPa };
+      return { metricId: "peakPressure", expectedInputUnit: "mmHg", unit: "Pa", note: "Converted from peakPressure mmHg.", convert: mmHgToPa };
     case "ejectionDurationSec":
-      return { metricId: "ejectionDuration", unit: "sec", note: "Direct ejection duration runner metric.", convert: identity };
+      return {
+        metricId: "ejectionDuration",
+        expectedInputUnit: "sec",
+        unit: "sec",
+        note: "Direct runner metric for observed ejection core sample span; not a physiologic valve-open duration claim.",
+        convert: identity,
+      };
     case "semilunarForwardVolumeM3":
-      return { metricId: "semilunarForwardVolume", unit: "m3", note: "Converted from semilunarForwardVolume mL.", convert: mlToM3 };
+      return { metricId: "semilunarForwardVolume", expectedInputUnit: "mL", unit: "m3", note: "Converted from semilunarForwardVolume mL.", convert: mlToM3 };
     case "semilunarReverseVolumeM3":
-      return { metricId: "semilunarReverseVolume", unit: "m3", note: "Converted from semilunarReverseVolume mL.", convert: mlToM3 };
+      return { metricId: "semilunarReverseVolume", expectedInputUnit: "mL", unit: "m3", note: "Converted from semilunarReverseVolume mL.", convert: mlToM3 };
     case "qDotClampHitFraction":
-      return { metricId: "qDotClampHitFraction", unit: "dimensionless", note: "Direct semilunar outlet runner metric.", convert: identity };
+      return { metricId: "qDotClampHitFraction", expectedInputUnit: "dimensionless", unit: "dimensionless", note: "Direct semilunar outlet runner metric.", convert: identity };
     case "valveDiodeClampHitFraction":
-      return { metricId: "semilunarValveDiodeClampHitFraction", unit: "dimensionless", note: "Direct semilunar outlet runner metric.", convert: identity };
+      return { metricId: "semilunarValveDiodeClampHitFraction", expectedInputUnit: "dimensionless", unit: "dimensionless", note: "Direct semilunar outlet runner metric.", convert: identity };
     case "dynamicFlowClampHitFraction":
-      return { metricId: "semilunarDynamicFlowClampHitFraction", unit: "dimensionless", note: "Direct semilunar outlet runner metric.", convert: identity };
+      return { metricId: "semilunarDynamicFlowClampHitFraction", expectedInputUnit: "dimensionless", unit: "dimensionless", note: "Direct semilunar outlet runner metric.", convert: identity };
   }
 }
 

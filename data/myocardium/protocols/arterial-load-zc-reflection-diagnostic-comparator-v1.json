@@ -104,10 +104,26 @@
     "dynamicFlowClampHitFraction"
   ],
   "conversionPolicy": {
-    "mL": "m3",
-    "L/min": "m3/s",
-    "mmHg": "Pa",
-    "strokeWork": "already-J"
+    "unitAssertion": "required-before-conversion",
+    "sourceMetricUnits": {
+      "SV": "mL",
+      "CO": "L/min",
+      "strokeWork": "J",
+      "peakPressure": "mmHg",
+      "ejectionDuration": "sec",
+      "semilunarForwardVolume": "mL",
+      "semilunarReverseVolume": "mL",
+      "qDotClampHitFraction": "dimensionless",
+      "semilunarValveDiodeClampHitFraction": "dimensionless",
+      "semilunarDynamicFlowClampHitFraction": "dimensionless"
+    },
+    "outputConversions": {
+      "mL": "m3",
+      "L/min": "m3/s",
+      "mmHg": "Pa",
+      "strokeWork": "already-J",
+      "ejectionDuration": "observed-ejection-core-sample-span-sec"
+    }
   },
   "interpretabilityRule": "A comparator group is interpretable only when raw-before-resampled evidence, matched resampled evidence, transition-inclusive and transition-excluded-core evidence, explicit missing/no-proxy Zc/reflection records, and all anti-gaming readouts are available for the same caseId, branchId, beatIndex, chamber, samplingMode, and transitionPolicy identity. Missing Zc/reflection values must be reported as missing/no-proxy rather than inferred.",
   "claimExclusions": {
