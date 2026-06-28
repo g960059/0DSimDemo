@@ -456,6 +456,15 @@ production tissue homogenization.
 - boundary: no runtime replacement, no official morphology acceptance, no final no-alternans, no structural alternans removal claim, no qDot/valve/afterload/preload tuning, no Land parameter tuning, no source-stress scaling, no chamber/case/workbench/state-schema production adoption, and no TriSeg adoption.
 - next: run SDIRK2 reference evidence for the legacy pinned/raw Land/audited calcium mapping candidate before final no-alternans interpretation, then stop extending alternans mechanism subphases and move toward Level 1-4 operating-point calibration plus an education-tool Definition of Done checkpoint.
 
+### Phase 5C-R — Land provider-local SDIRK2 commit-solver reference
+
+- result artifact: `data/myocardium/protocols/modelcore-land-sdirk2-reference-result-v1.json`
+- verifier: `npm run verify:myocardium-modelcore-land-sdirk2-reference`
+- current outcome: the pinned low-preload point and the Phase 5C-N best-Land point are rerun with legacy source-only, raw Land BE/SDIRK2, and Phase 5C-Q `phase2b-absolute-peak-ca` Land BE/SDIRK2 cells. All points settle with clean health and source/commit audit samples. This is provider-local commit-solver evidence only; ModelCore's global stepper and non-provider closure are unchanged.
+- interpretation: `sdirk2-reference-inconclusive`. At the pinned mapped point, provider-local SDIRK2 preserves period-1 and the coarse legacy output/qDot regime with score delta 0.0017 vs BE. However SDIRK2 stage1 solve failures remain high, so this cannot be used as final no-alternans or structural alternans-removal evidence.
+- boundary: no global ModelCore SDIRK2 claim, no runtime replacement, no official morphology acceptance, no final no-alternans, no structural alternans removal claim, no qDot/valve/afterload/preload tuning, no Land parameter tuning, no source-stress scaling, no chamber/case/workbench/state-schema production adoption, and no TriSeg adoption.
+- next: move the myocardium lane toward Level 1-4 operating-point calibration and an education-tool Definition of Done checkpoint. Treat further SDIRK2 solver hardening as a narrow technical blocker only if final no-alternans acceptance becomes explicit scope.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison

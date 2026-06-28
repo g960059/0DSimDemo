@@ -756,6 +756,21 @@ morphology acceptance. SDIRK2 reference evidence remains required before final
 interpretation, and Level 1-4 operating-point calibration remains required
 before runtime design.
 
+Phase 5C-R runs the provider-local Land SDIRK2 commit-solver reference check.
+The recorded result is
+[`../../data/myocardium/protocols/modelcore-land-sdirk2-reference-result-v1.json`](../../data/myocardium/protocols/modelcore-land-sdirk2-reference-result-v1.json).
+Run `npm run verify:myocardium-modelcore-land-sdirk2-reference` to check the
+artifact against the live experiment. It reruns only the pinned low-preload
+point and the Phase 5C-N best-Land point: legacy source-only, raw Land BE/SDIRK2,
+and Phase 5C-Q `phase2b-absolute-peak-ca` Land BE/SDIRK2. This is not a global
+ModelCore SDIRK2 run; ModelCore's non-provider closure and current stepper stay
+unchanged, and the SDIRK2 stage inputs are provider-local interpolation from
+before/after commit snapshots. At the pinned mapped point, SDIRK2 preserves the
+coarse output/qDot signal and period-1 result, but SDIRK2 stage1 solve failures
+remain high, so the classification is `sdirk2-reference-inconclusive`. This does
+not unlock final no-alternans, structural alternans removal, runtime replacement,
+or official morphology acceptance.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and
@@ -816,7 +831,9 @@ placed Land in the legacy output/qDot regime while Land remains period-1,
 but this remains attribution evidence only. Phase 5C-Q records that a Phase 2B
 absolute peak simple unit-style calcium mapping reaches the coarse legacy
 output/qDot regime at the pinned point while Land remains period-1; scale 30 is
-therefore positive-control evidence, not a required runtime scale.
+therefore positive-control evidence, not a required runtime scale. Phase 5C-R
+adds provider-local SDIRK2 evidence: the pinned mapped signal is preserved, but
+stage1 solve failures keep the SDIRK2 reference inconclusive.
 
 ## Imported bundle checks
 

@@ -1,6 +1,6 @@
-# Phase 5C-H/I/J/K/L/M/N/O/P/Q ModelCore-equivalent Route Gate
+# Phase 5C-H/I/J/K/L/M/N/O/P/Q/R ModelCore-equivalent Route Gate
 
-Status: paired experimental LV source-provider evidence recorded through Phase 5C-L; qDot clamp-threshold attribution recorded through Phase 5C-M; output-match not-overlapped diagnostic recorded through Phase 5C-N; activation/source-interface audit recorded through Phase 5C-O; calcium/source forcing bracket recorded through Phase 5C-P; calcium unit/source-interface audit recorded through Phase 5C-Q; final no-alternans remains unclaimed
+Status: paired experimental LV source-provider evidence recorded through Phase 5C-L; qDot clamp-threshold attribution recorded through Phase 5C-M; output-match not-overlapped diagnostic recorded through Phase 5C-N; activation/source-interface audit recorded through Phase 5C-O; calcium/source forcing bracket recorded through Phase 5C-P; calcium unit/source-interface audit recorded through Phase 5C-Q; provider-local Land SDIRK2 commit-solver evidence recorded through Phase 5C-R; final no-alternans remains unclaimed
 
 This route was recorded as `modelcore-equivalent-closure-positive-control` in
 `phase5c-post-fidelity-entry-gate-v1` before implementation evidence existed.
@@ -91,6 +91,19 @@ scale-30 result therefore stays a positive control rather than a required scale.
 This is source-interface evidence only: structural alternans removal, final
 no-alternans, runtime replacement, and morphology acceptance remain unclaimed.
 
+Phase 5C-R runs the provider-local Land SDIRK2 commit-solver reference check.
+It reruns the pinned low-preload point and the Phase 5C-N best-Land point with
+legacy source-only, raw Land BE/SDIRK2, and Phase 5C-Q
+`phase2b-absolute-peak-ca` Land BE/SDIRK2 cells. ModelCore's global stepper and
+non-provider closure are unchanged; SDIRK2 stage inputs are provider-local
+interpolation from before/after ModelCore snapshots, not true global ModelCore
+stage states. At the pinned mapped point, provider-local SDIRK2 preserves
+period-1 and the coarse legacy output/qDot regime with score delta 0.0017 vs
+BE, but SDIRK2 stage1 solve failures remain high. The robustness status is
+`sdirk2-reference-inconclusive`, so Phase 5C-R cannot be used as final
+no-alternans, structural alternans-removal, or global ModelCore SDIRK2 evidence.
+It is not a global ModelCore SDIRK2 reference.
+
 Machine-readable gate:
 
 ```text
@@ -109,6 +122,7 @@ npm run verify:myocardium-modelcore-paired-land-output-matched-qdot-attribution
 npm run verify:myocardium-modelcore-land-activation-interface-audit
 npm run verify:myocardium-modelcore-land-calcium-source-forcing-bracket
 npm run verify:myocardium-modelcore-land-calcium-unit-interface-audit
+npm run verify:myocardium-modelcore-land-sdirk2-reference
 ```
 
 Source no-go evidence:
@@ -178,6 +192,12 @@ Land calcium unit/source-interface evidence:
 data/myocardium/protocols/modelcore-land-calcium-unit-interface-audit-result-v1.json
 ```
 
+Land provider-local SDIRK2 commit-solver evidence:
+
+```text
+data/myocardium/protocols/modelcore-land-sdirk2-reference-result-v1.json
+```
+
 ## Route Set
 
 Entry route ids recorded in the gate:
@@ -211,9 +231,14 @@ rather than acceptance. Phase 5C-P runs that diagnostic and records that
 calcium-input scaling recovered the legacy output/qDot regime while Land
 remains period-1. Phase 5C-Q records that a simple unit-style calcium mapping,
 anchored to the Phase 2B absolute peak calcium target, reaches the coarse legacy
-output/qDot regime at the pinned point while Land remains period-1. The
-immediate next work is SDIRK2 reference evidence before final interpretation,
-then Level 1-4 operating-point calibration before runtime design.
+output/qDot regime at the pinned point while Land remains period-1. The Phase
+5C-R provider-local SDIRK2 commit-solver reference preserves that pinned mapped
+output/qDot and period-1 signal, but remains inconclusive because SDIRK2 stage1
+commit solves fail. The immediate next work is Level 1-4 operating-point
+calibration and an education-tool Definition of Done checkpoint before runtime
+design. Further SDIRK2 solver hardening should stay narrow and should not
+extend alternans-mechanism subphases unless final no-alternans acceptance is
+explicitly in scope.
 
 Evidence fields required for the ModelCore-equivalent paired route include:
 
@@ -256,17 +281,20 @@ legacy output/qDot regime while Land remains period-1, so pure low-output
 clamp-avoidance is weakened but final structural interpretation still waits for
 calcium-unit audit and SDIRK2. Phase 5C-Q records that the Phase 2B absolute
 peak calcium mapping is already sufficient to enter that coarse regime at the
-pinned point, while scale 30 remains a positive-control reference only.
+pinned point, while scale 30 remains a positive-control reference only. Phase
+5C-R records provider-local SDIRK2 commit-solver evidence, not global ModelCore
+SDIRK2 evidence; its stage1 solve failures keep second-order robustness
+inconclusive.
 
 ## Boundary
 
 This phase has no runtime replacement, no chamber/case/official-case/Workbench/
 state-schema wiring, no production ModelCore adoption beyond the artifact-only
-constructor hook, no qDot/valve/afterload tuning, no Land parameter tuning, no
-official morphology acceptance, no final no-alternans, no calcium-cycling
-alternans acceptance, no RV pressure-overload coverage, no ventricular
-interdependence coverage, no right-heart failure coverage, and no TriSeg
-adoption.
+constructor hook, no global ModelCore SDIRK2 claim, no qDot/valve/afterload
+tuning, no Land parameter tuning, no official morphology acceptance, no final
+no-alternans, no calcium-cycling alternans acceptance, no RV pressure-overload
+coverage, no ventricular interdependence coverage, no right-heart failure
+coverage, and no TriSeg adoption.
 
 ## PR Granularity
 

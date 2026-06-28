@@ -284,6 +284,33 @@ describe("myocardium Phase 5C-F positive-control triage audit", () => {
     expect(validation.errors.map((issue) => issue.code)).not.toContain("phase5c_f_changed_file_scope");
   });
 
+  it("allows the Phase 5C-R Land provider-local SDIRK2 reference diff", () => {
+    const input = fixture();
+    input.changedFilePaths = [
+      "__tests__/myocardiumPhase5CPositiveControlTriageAudit.test.ts",
+      "__tests__/myocardiumPhase5CSameClosureSourceProviderAudit.test.ts",
+      "__tests__/myocardiumPhase5RModelCoreLandSdirk2Reference.test.ts",
+      "data/myocardium/protocols/modelcore-land-sdirk2-reference-result-v1.json",
+      "docs/myocardium/README.md",
+      "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
+      "docs/myocardium/roadmap/phase5c-modelcore-equivalent-route-gate.md",
+      "docs/status/current-lanes.md",
+      "engine/myocardium/myofilament/land2017/index.ts",
+      "engine/myocardium/myofilament/land2017/solver.ts",
+      "package.json",
+      "tools/myocardium/buildModelCoreLandSdirk2ReferenceEvidence.ts",
+      "tools/myocardium/modelCoreLand2017LvSourceProvider.ts",
+      "tools/myocardium/verifyModelCoreLandSdirk2Reference.ts",
+      "tools/myocardium/verifyPhase5CSameClosureSourceProviderAudit.ts",
+      "tools/myocardium/verifyPhase5CPositiveControlTriageAudit.ts",
+    ];
+
+    const validation = validatePhase5CPositiveControlTriageAudit(input);
+
+    expect(validation.pass).toBe(true);
+    expect(validation.errors.map((issue) => issue.code)).not.toContain("phase5c_f_changed_file_scope");
+  });
+
   it("fails validation if source prose self-authorizes entry or runtime adoption", () => {
     const input = fixture();
     appendSourceText(
