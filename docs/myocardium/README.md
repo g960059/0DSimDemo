@@ -34,6 +34,7 @@ called out below.
 | 4d | [roadmap/phase5c-positive-control-fidelity-audit-plan.md](roadmap/phase5c-positive-control-fidelity-audit-plan.md) | Phase 5C-D positive-control fidelity audit over the Phase 5C-C no-go result |
 | 4e | [roadmap/phase5c-post-fidelity-entry-gate.md](roadmap/phase5c-post-fidelity-entry-gate.md) | Phase 5C-E entry gate after the Phase 5C-D no-go result |
 | 4f | [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md) | Phase 5C-F triage audit plan while the Phase 5C-E entry gate remains blocked |
+| 4g | [roadmap/phase5c-same-closure-source-provider-audit.md](roadmap/phase5c-same-closure-source-provider-audit.md) | Phase 5C-G same-closure source-provider audit snapshot after the PR #193 lane handoff |
 | 5 | [research/myocardial-contraction-rebuild-design-record.md](research/myocardial-contraction-rebuild-design-record.md) | Background rationale and design discussion |
 | 6 | [review-notes/phase2b-level3-review-deltas.md](review-notes/phase2b-level3-review-deltas.md) | PR #166 Phase 2B/Level 3 review deltas |
 
@@ -654,6 +655,23 @@ replacement, no qDot/valve/afterload tuning, no official morphology acceptance,
 no final no-alternans, no RV pressure-overload coverage, no ventricular
 interdependence coverage, no right-heart failure coverage, and no TriSeg
 adoption.
+
+Phase 5C-G records the `same-closure-source-provider-audit` snapshot in
+[roadmap/phase5c-same-closure-source-provider-audit.md](roadmap/phase5c-same-closure-source-provider-audit.md)
+and
+[`../../data/myocardium/gates/phase5c-same-closure-source-provider-audit-v1.json`](../../data/myocardium/gates/phase5c-same-closure-source-provider-audit-v1.json).
+Run `npm run verify:myocardium-phase5c-same-closure-source-provider-audit` to
+check the audit against the live Phase 5C-C report. This phase keeps the
+PR #193 `modelcore-equivalent-closure-positive-control` handoff as
+`proposed-next-route-not-implemented`; it does not add that route to the Phase
+5C-E gate, does not implement a ModelCore-equivalent closure, and does not
+satisfy an entry route. The current outcome remains
+`positive-control-failed`, `settled-period-1`, and
+`blocked-until-positive-control-period2`. This phase has no runtime
+replacement, no qDot/valve/afterload tuning, no official morphology
+acceptance, no final no-alternans, no RV pressure-overload coverage, no
+ventricular interdependence coverage, no right-heart failure coverage, and no
+TriSeg adoption.
 
 ## Imported bundle checks
 

@@ -360,6 +360,16 @@ production tissue homogenization.
 - diagnostic lanes: `same-closure-source-provider-audit`, `closure-event-surface-diagnostic`, and `owner-replacement-criterion-prep`
 - boundary: report-only or owner-pending triage; no runtime replacement, no ModelCore/chamber/case/workbench/state-schema wiring, no qDot/valve/afterload tuning, no official morphology acceptance, no final no-alternans, no RV pressure-overload coverage, no ventricular interdependence coverage, no right-heart failure coverage, and no TriSeg adoption
 
+### Phase 5C-G — same-closure source-provider audit
+
+- plan: [phase5c-same-closure-source-provider-audit.md](phase5c-same-closure-source-provider-audit.md)
+- audit snapshot: `data/myocardium/gates/phase5c-same-closure-source-provider-audit-v1.json`
+- gate script: `npm run verify:myocardium-phase5c-same-closure-source-provider-audit`
+- source triage gate: `phase5c-positive-control-triage-audit-v1`
+- current outcome: source-provider audit only; Phase 5C-E entry remains `entry-blocked-until-route-satisfied`, with the positive control still `positive-control-failed`, `settled-period-1`, and `blocked-until-positive-control-period2`
+- PR #193 handoff: `modelcore-equivalent-closure-positive-control` remains `proposed-next-route-not-implemented`; Phase 5C-G does not add or satisfy that route
+- boundary: report-only same-closure provenance snapshot; no runtime replacement, no ModelCore/chamber/case/workbench/state-schema wiring, no ModelCore-equivalent closure implementation, no qDot/valve/afterload tuning, no official morphology acceptance, no final no-alternans, no RV pressure-overload coverage, no ventricular interdependence coverage, no right-heart failure coverage, and no TriSeg adoption
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison
