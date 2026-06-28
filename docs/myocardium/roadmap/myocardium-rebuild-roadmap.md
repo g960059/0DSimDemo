@@ -474,6 +474,14 @@ production tissue homogenization.
 - boundary: operating-point-calibration-diagnostic-only; no Level 3/4 acceptance, no global ModelCore SDIRK2 claim, no runtime replacement, no official morphology acceptance, no final no-alternans, no structural alternans removal claim, no qDot/valve/afterload/preload tuning, no Land parameter tuning, no source-stress scaling, no chamber/case/workbench/state-schema production adoption, and no TriSeg adoption.
 - next: owner-review the education-tool Definition of Done checkpoint, then decide whether a developer-only LV Land runtime flag design is warranted before any case/workbench/official runtime wiring.
 
+### Phase 5T — education-tool Definition of Done checkpoint
+
+- result artifact: `data/myocardium/protocols/myocardium-education-tool-dod-checkpoint-v1.json`
+- verifier: `npm run verify:myocardium-education-tool-dod-checkpoint`
+- current outcome: Phase 5S evidence plus official-case teaching metadata and Studio MVP surface requirements classify the education-tool DoD as `owner-review-ready-not-accepted`. The artifact records `accepted: false`, `runtimeWiring: absent`, `caseWiring: absent`, and `workbenchWiring: absent`.
+- boundary: education-tool-report-only; no runtime replacement, no official case wiring, no Workbench runtime wiring, no Level 3/4 acceptance, no official morphology acceptance, no final no-alternans, no structural alternans removal, and no qDot/valve/afterload/preload/Land-parameter tuning.
+- next: decide whether this checkpoint is sufficient to authorize a developer-only LV Land runtime-flag design RFC before any case/workbench/official runtime wiring.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison
