@@ -359,11 +359,10 @@ function validateLiveReportSnapshot(
   const sameClosureSnapshot = isRecord(snapshot.sameClosureEvidence) ? snapshot.sameClosureEvidence : {};
   const sameClosureLive = isRecord(liveReport.sameClosureEvidence) ? liveReport.sameClosureEvidence : {};
 
-  if (typeof snapshot.reportStableSummaryHash !== "string"
-    || snapshot.reportStableSummaryHash === ""
+  if (!isStableHash(snapshot.reportStableSummaryHash)
     || snapshot.readinessPass !== false
     || liveReport.readinessPass !== false) {
-    addIssue(issues, "error", "phase5c_g_live_report_snapshot", "liveReportSnapshot", "Phase 5C-G snapshot must record a summary hash and keep readinessPass=false.");
+    addIssue(issues, "error", "phase5c_g_live_report_snapshot", "liveReportSnapshot", "Phase 5C-G snapshot must record an 8-hex summary hash and keep readinessPass=false.");
   }
 
   for (const key of [
@@ -433,10 +432,8 @@ function validateProviderAudit(
     || snapshotProvider.selectedDomainCoverageFinite !== true
     || snapshotProvider.selectedDomainCoverageFinite !== liveProvider.selectedDomainCoverageFinite
     || snapshotProvider.sourceProviderStableHash !== liveProvider.sourceProviderStableHash
-    || typeof snapshotProvider.trajectoryStableHash !== "string"
-    || snapshotProvider.trajectoryStableHash === ""
-    || typeof liveProvider.trajectoryStableHash !== "string"
-    || liveProvider.trajectoryStableHash === "") {
+    || !isStableHash(snapshotProvider.trajectoryStableHash)
+    || !isStableHash(liveProvider.trajectoryStableHash)) {
     addIssue(issues, "error", "phase5c_g_provider_snapshot", issueBase, `Provider snapshot drifted for ${expectedProviderId}.`);
   }
 
@@ -547,8 +544,8 @@ function validateBranchBehavior(
   );
   if (!Array.isArray(snapshot.beatWindowDeterministicHashes)
     || snapshot.beatWindowDeterministicHashes.length !== liveHashes.length
-    || snapshot.beatWindowDeterministicHashes.some((value) => typeof value !== "string" || value === "")
-    || liveHashes.some((value) => value === "")) {
+    || snapshot.beatWindowDeterministicHashes.some((value) => !isStableHash(value))
+    || liveHashes.some((value) => !isStableHash(value))) {
     addIssue(issues, "error", "phase5c_g_beat_hashes", `providerAudits.${expectedProviderId}.branchBehavior.beatWindowDeterministicHashes`, `Beat window hash audit context is incomplete for ${expectedProviderId}.`);
   }
 
@@ -579,16 +576,10 @@ function validateLastBeatMetrics(
       addIssue(issues, "error", "phase5c_g_last_beat_metric", `providerAudits.${expectedProviderId}.branchBehavior.lastBeatMetrics.${key}`, `Last beat metric drifted for ${expectedProviderId}.${key}.`);
     }
   }
-  if (typeof snapshot.peakSourceActiveFiberStressPa !== "number"
-    || typeof live.peakSourceActiveFiberStressPa !== "number"
-    || !Number.isFinite(snapshot.peakSourceActiveFiberStressPa)
-    || !Number.isFinite(live.peakSourceActiveFiberStressPa)) {
-    addIssue(issues, "error", "phase5c_g_last_beat_metric", `providerAudits.${expectedProviderId}.branchBehavior.lastBeatMetrics.peakSourceActiveFiberStressPa`, `Last beat peak source stress audit context is incomplete for ${expectedProviderId}.`);
+  if (!positiveNumbersBroadlyClose(snapshot.peakSourceActiveFiberStressPa, live.peakSourceActiveFiberStressPa)) {
+    addIssue(issues, "error", "phase5c_g_last_beat_metric", `providerAudits.${expectedProviderId}.branchBehavior.lastBeatMetrics.peakSourceActiveFiberStressPa`, `Last beat peak source stress audit context drifted outside the portable tolerance for ${expectedProviderId}.`);
   }
-  if (typeof snapshot.deterministicHash !== "string"
-    || snapshot.deterministicHash === ""
-    || typeof live.deterministicHash !== "string"
-    || live.deterministicHash === "") {
+  if (!isStableHash(snapshot.deterministicHash) || !isStableHash(live.deterministicHash)) {
     addIssue(issues, "error", "phase5c_g_last_beat_hash", `providerAudits.${expectedProviderId}.branchBehavior.lastBeatMetrics.deterministicHash`, `Last beat deterministic hash audit context is incomplete for ${expectedProviderId}.`);
   }
 }
@@ -915,6 +906,23 @@ function numbersClose(actual: unknown, expected: unknown): boolean {
   return typeof actual === "number"
     && typeof expected === "number"
     && Math.abs(actual - expected) <= 1e-12;
+}
+
+function positiveNumbersBroadlyClose(actual: unknown, expected: unknown): boolean {
+  if (typeof actual !== "number"
+    || typeof expected !== "number"
+    || !Number.isFinite(actual)
+    || !Number.isFinite(expected)
+    || actual <= 0
+    || expected <= 0) {
+    return false;
+  }
+  const scale = Math.max(Math.abs(actual), Math.abs(expected), 1);
+  return Math.abs(actual - expected) / scale <= 0.25;
+}
+
+function isStableHash(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{8}$/.test(value);
 }
 
 function isRecord(value: unknown): value is JsonRecord {

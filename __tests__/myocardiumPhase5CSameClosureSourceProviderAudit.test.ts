@@ -55,6 +55,23 @@ describe("myocardium Phase 5C-G same-closure source-provider audit", () => {
     expect(land.branchBehavior.lastBeatMetrics.deterministicHash).toBe("cbff51ee");
   });
 
+  it("allows platform-sensitive trajectory hashes to differ when audit context shape remains valid", () => {
+    const input = fixture();
+    input.audit.liveReportSnapshot.reportStableSummaryHash = "deadbeef";
+    for (const providerAudit of input.audit.providerAudits) {
+      providerAudit.trajectoryStableHash = "abcdef12";
+      providerAudit.branchBehavior.beatWindowDeterministicHashes =
+        providerAudit.branchBehavior.beatWindowDeterministicHashes.map(() => "1234abcd");
+      providerAudit.branchBehavior.lastBeatMetrics.deterministicHash = "bead1234";
+      providerAudit.branchBehavior.lastBeatMetrics.peakSourceActiveFiberStressPa *= 0.9;
+    }
+
+    const validation = validatePhase5CSameClosureSourceProviderAudit(input);
+
+    expect(validation.errors).toEqual([]);
+    expect(validation.pass).toBe(true);
+  });
+
   it("fails validation if the audit turns into a period-2 or interpretable route", () => {
     const input = fixture();
     input.audit.inheritedNoGo.positiveControlBranchStatus = "settled-period-2";
@@ -93,10 +110,13 @@ describe("myocardium Phase 5C-G same-closure source-provider audit", () => {
     const input = fixture();
     const legacy = provider(input, "legacy-activeStress-positive-control");
     legacy.sourceProviderStableHash = "changed";
+    legacy.trajectoryStableHash = "not-a-hash";
     legacy.sourceProviderProvenance.usesModelCoreRuntimeWiring = true;
     legacy.eventSurfaces.qDotCapStatus = "used";
-    legacy.branchBehavior.beatWindowDeterministicHashes = [];
+    legacy.branchBehavior.beatWindowDeterministicHashes[0] = "bad-hash";
     legacy.branchBehavior.lastBeatMetrics.strokeWorkJ += 1;
+    legacy.branchBehavior.lastBeatMetrics.peakSourceActiveFiberStressPa = 0;
+    legacy.branchBehavior.lastBeatMetrics.deterministicHash = "bad-hash";
 
     const validation = validatePhase5CSameClosureSourceProviderAudit(input);
 
