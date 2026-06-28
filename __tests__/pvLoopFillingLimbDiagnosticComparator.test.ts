@@ -42,7 +42,7 @@ function rowsWithComparableEvidence(): ComparatorMetricRow[] {
     row({ metricId: "CO", value: 5.2, unit: "L/min", classificationLabels: [] }),
     row({ metricId: "meanAtrialPressure", value: 9, unit: "mmHg", classificationLabels: [] }),
     row({ chamber: "RV", metricId: "meanAtrialPressure", value: 4, unit: "mmHg", classificationLabels: [] }),
-    row({ metricId: "EAInflowProxy", value: 1.1, classificationLabels: [] }),
+    row({ metricId: "EAInflowProxy", transitionPolicy: "transition-inclusive", value: 1.1, classificationLabels: [] }),
     row({ metricId: "inletForwardVolume", value: 72, unit: "mL", classificationLabels: [] }),
     row({ metricId: "inletReverseVolume", value: 0.2, unit: "mL", classificationLabels: [] }),
     row({ metricId: "fillingInletQDotClampHitFraction", value: 0.1, classificationLabels: [] }),
@@ -133,6 +133,32 @@ describe("PV-loop filling-limb diagnostic comparator", () => {
     const summary = buildFillingLimbDiagnosticComparison(metricRows);
     const group = summary.groups[0];
 
+    expect(group.antiGamingReadouts.find((readout) => readout.name === "endDiastolicVolumeM3"))
+      .toMatchObject({
+        status: "missing",
+        sourceMetricId: null,
+      });
+    expect(group.interpretable).toBe(false);
+    expect(group.uninterpretableReasons.join(" ")).toContain("endDiastolicVolumeM3");
+  });
+
+  it("uses transition-inclusive EAInflowProxy without relaxing other readout identities", () => {
+    const metricRows = rowsWithComparableEvidence().map((candidate) => (
+      candidate.metricId === "EAInflowProxy"
+        ? { ...candidate, transitionPolicy: "transition-inclusive" as const, value: 1.25 }
+        : candidate.metricId === "EDV"
+        ? { ...candidate, transitionPolicy: "transition-inclusive" as const }
+        : candidate
+    ));
+    const summary = buildFillingLimbDiagnosticComparison(metricRows);
+    const group = summary.groups[0];
+
+    expect(group.antiGamingReadouts.find((readout) => readout.name === "eaLikeInflowProxy"))
+      .toMatchObject({
+        status: "available",
+        value: 1.25,
+        sourceMetricId: "EAInflowProxy",
+      });
     expect(group.antiGamingReadouts.find((readout) => readout.name === "endDiastolicVolumeM3"))
       .toMatchObject({
         status: "missing",

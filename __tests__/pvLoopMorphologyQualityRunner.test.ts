@@ -915,4 +915,22 @@ describe("PV-loop morphology quality runner helpers", () => {
 
     expect(row?.value).toBeCloseTo(2);
   });
+
+  it("reports transition-inclusive EAInflowProxy for partial-open late A-wave inflow", () => {
+    const rows = metricRowsForSamplesForTest([
+      sample({ sourceIndex: 0, tSec: 0.00, theta: 0.20, QMV: 120, xiMV: 1, VLV: 100, dVLVdt: 20 }),
+      sample({ sourceIndex: 1, tSec: 0.01, theta: 0.30, QMV: 100, xiMV: 1, VLV: 110, dVLVdt: 20 }),
+      sample({ sourceIndex: 2, tSec: 0.02, theta: 0.82, QMV: 60, xiMV: 0.3, VLV: 120, dVLVdt: 20 }),
+      sample({ sourceIndex: 3, tSec: 0.03, theta: 0.90, QMV: 50, xiMV: 0.3, VLV: 130, dVLVdt: 20 }),
+    ]);
+    const eaRow = (transitionPolicy: "transition-inclusive" | "transition-excluded-core") => rows.find((candidate) => (
+      candidate.chamber === "LV"
+      && candidate.metricId === "EAInflowProxy"
+      && candidate.samplingMode === "raw"
+      && candidate.transitionPolicy === transitionPolicy
+    ));
+
+    expect(eaRow("transition-inclusive")?.value).toBeCloseTo(2);
+    expect(eaRow("transition-excluded-core")?.value).toBeNull();
+  });
 });

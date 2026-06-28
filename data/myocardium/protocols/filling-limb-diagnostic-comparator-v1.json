@@ -71,7 +71,38 @@
     "pressureFloorHitFraction",
     "atrialKickBoosterPreservation"
   ],
-  "interpretabilityRule": "A comparator group is interpretable only when raw-before-resampled evidence, matched resampled evidence, transition-inclusive and transition-excluded-core evidence, and all anti-gaming readouts are available for the same caseId, branchId, beatIndex, samplingMode, and transitionPolicy identity. Chamber-local readouts must come from the same chamber. LA/RA pressure readouts may use the paired LV/RV raw-core chamber row for the same caseId, branchId, and beatIndex. Missing fields must be reported as missing rather than inferred.",
+  "antiGamingReadoutSourcePolicy": {
+    "default": {
+      "samplingMode": "raw",
+      "transitionPolicy": "transition-excluded-core",
+      "chamberPolicy": "same-chamber"
+    },
+    "exceptions": [
+      {
+        "name": "meanLeftAtrialPressurePa",
+        "metricId": "meanAtrialPressure",
+        "samplingMode": "raw",
+        "transitionPolicy": "transition-excluded-core",
+        "chamberPolicy": "LV chamber source for LA pressure"
+      },
+      {
+        "name": "meanRightAtrialPressurePa",
+        "metricId": "meanAtrialPressure",
+        "samplingMode": "raw",
+        "transitionPolicy": "transition-excluded-core",
+        "chamberPolicy": "RV chamber source for RA pressure"
+      },
+      {
+        "name": "eaLikeInflowProxy",
+        "metricId": "EAInflowProxy",
+        "samplingMode": "raw",
+        "transitionPolicy": "transition-inclusive",
+        "chamberPolicy": "same-chamber",
+        "reason": "Late A-wave inlet flow may be partial-open transition evidence; this exception is limited to the E/A-like anti-gaming readout."
+      }
+    ]
+  },
+  "interpretabilityRule": "A comparator group is interpretable only when raw-before-resampled evidence, matched resampled evidence, transition-inclusive and transition-excluded-core primary filling-limb evidence, and all anti-gaming readouts are available for the same caseId, branchId, beatIndex, and chamber identity. The primary evidence identity rule remains same samplingMode/transitionPolicy for the compared primary rows. Chamber-local readouts must come from the same chamber. LA/RA pressure readouts may use the paired LV/RV raw-core chamber row for the same caseId, branchId, and beatIndex. The eaLikeInflowProxy readout alone may source raw transition-inclusive EAInflowProxy because late A-wave inflow can occur in partial-open transition samples. Missing fields must be reported as missing rather than inferred.",
   "claimExclusions": {
     "acceptedRootCause": "not-claimed",
     "fixAcceptance": "not-claimed",

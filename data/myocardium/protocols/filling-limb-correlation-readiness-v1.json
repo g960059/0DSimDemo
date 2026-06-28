@@ -119,6 +119,18 @@
       "comparativeRawVsResampledRequired": true,
       "transitionInclusiveAndExcludedRequired": true,
       "sameCaseBranchBeatChamberSamplingTransitionPolicyIdentityRequired": true,
+      "antiGamingReadoutSourcePolicy": {
+        "default": {
+          "samplingMode": "raw",
+          "transitionPolicy": "transition-excluded-core"
+        },
+        "eaLikeInflowProxyException": {
+          "metricId": "EAInflowProxy",
+          "samplingMode": "raw",
+          "transitionPolicy": "transition-inclusive",
+          "reason": "Late A-wave inlet flow may be partial-open transition evidence; the exception is limited to this anti-gaming readout and does not relax primary comparator evidence identity."
+        }
+      },
       "requiredIdentityFields": [
         "caseId",
         "branchId",
@@ -127,7 +139,7 @@
         "samplingMode",
         "transitionPolicy"
       ],
-      "interpretabilityRule": "Only raw-before-resampled, comparative raw-vs-resampled, transition-inclusive and transition-excluded-core evidence with identical case/branch/beatIndex/chamber/samplingMode/transition policy identity can make a future filling-limb comparator interpretable."
+      "interpretabilityRule": "Only raw-before-resampled, comparative raw-vs-resampled, transition-inclusive and transition-excluded-core primary evidence with identical case/branch/beatIndex/chamber/samplingMode/transition policy identity can make a future filling-limb comparator interpretable. The eaLikeInflowProxy anti-gaming readout alone may source raw transition-inclusive EAInflowProxy because late A-wave inlet flow can be partial-open transition evidence."
     },
     "antiGamingReadouts": [
       { "name": "endDiastolicVolumeM3", "label": "EDV", "required": true },
