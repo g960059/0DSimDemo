@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "id": "modelcore-active-source-pressure-adapter-v1",
+  "phase": "Phase 5C-K",
+  "claimBoundary": "experimental-source-only-pressure-adapter-readiness",
+  "ownerDecision": {
+    "status": "accepted-experimental-branch-only",
+    "acceptedAt": "2026-06-28",
+    "acceptedSourceType": "chat-owner-decision",
+    "decision": "Allow source-provider-limited ModelCore wiring on an experimental branch; add a source-only active-stress pressure adapter before paired Land evaluation."
+  },
+  "dependsOn": [
+    "data/myocardium/gates/phase5c-post-fidelity-entry-gate-v1.json",
+    "data/myocardium/protocols/modelcore-equivalent-positive-control-closure-v1.json",
+    "data/myocardium/protocols/modelcore-equivalent-positive-control-closure-evidence-v1.json",
+    "data/myocardium/protocols/modelcore-active-provider-state-lifecycle-v1.json"
+  ],
+  "sourceOnlyPressureAdapterContract": {
+    "sourceProviderScope": "LV-only-legacy-positive-control",
+    "providerSuppliesSourceActiveFiberStressPa": true,
+    "providerDoesNotSupplyPressureMethod": true,
+    "providerDoesNotSupplyPassivePressureMethod": true,
+    "providerDoesNotSupplyDebugPressureTermsMethod": true,
+    "providerSuppliesSourceSpecificDebugActiveStressTerms": true,
+    "modelCoreUsesExistingActiveStressPressureAssembly": true,
+    "legacyFullPressureProviderComparatorRequired": true,
+    "legacySourceOnlyAdapterPeriod2Required": true,
+    "legacyFullPressureEquivalenceRequired": true,
+    "providerObjectMutableSolverStateAllowed": false,
+    "mutableSolverStateMustLiveInProviderState": true,
+    "instrumentationCountersMayLiveOutsideProviderState": true,
+    "landProviderPairingRun": false,
+    "productionRuntimeReplacement": false,
+    "caseWorkbenchOfficialRuntimeWiring": false
+  },
+  "requiredCodeSymbols": [
+    "sourceActiveStressPa",
+    "pressureFromActiveFiberStress",
+    "debugPressureTermsFromActiveFiberStress",
+    "validateExperimentalActiveSourceProviders",
+    "modelCoreActiveSourcePressureAdapterProvider",
+    "legacyActiveStressLvSourceOnlyProvider"
+  ],
+  "routeAssessment": {
+    "routeId": "modelcore-equivalent-closure-positive-control",
+    "adapterStatus": "source-only-pressure-adapter-implemented",
+    "routeSatisfactionStatus": "partial-legacy-positive-control-pass-land-pairing-not-run",
+    "sourceProviderDifferenceOnlyStatus": "adapter-ready-land-not-yet-evaluated",
+    "secondOrderReferenceStillRequired": true,
+    "finalNoAlternansClaim": "not-claimed"
+  },
+  "doesNotUnlock": [
+    "runtimeReplacement",
+    "officialMorphologyAcceptance",
+    "finalNoAlternans",
+    "qDotTuning",
+    "valveThresholdTuning",
+    "arterialLoadTuning",
+    "landParameterTuning",
+    "TriSegAdoption"
+  ]
+}

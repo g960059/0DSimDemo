@@ -187,6 +187,22 @@ describe("myocardium Phase 5C-G same-closure source-provider audit", () => {
     expect(validation.errors.map((issue) => issue.code)).toContain("phase5c_g_changed_file_scope");
   });
 
+  it("does not apply the Phase 5C-K exact diff exemption to a partial file subset", () => {
+    const input = fixture();
+    input.changedFilePaths = [
+      "docs/myocardium/README.md",
+      "engine/ModelCore.ts",
+      "engine/chambers.ts",
+      "tools/myocardium/verifyModelCoreActiveSourcePressureAdapter.ts",
+      "data/myocardium/protocols/modelcore-active-source-pressure-adapter-v1.json",
+    ];
+
+    const validation = validatePhase5CSameClosureSourceProviderAudit(input);
+
+    expect(validation.pass).toBe(false);
+    expect(validation.errors.map((issue) => issue.code)).toContain("phase5c_g_changed_file_scope");
+  });
+
   it("fails validation if a Phase 5C-G PR diff includes runtime or workbench changes", () => {
     const input = fixture();
     input.changedFilePaths = [
