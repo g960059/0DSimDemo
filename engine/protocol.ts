@@ -368,6 +368,8 @@ export type SimSample = {
   // Pressures
   AoP: number;
   PAP: number;
+  systemicArterialPressurePa: number; // SA node pressure, converted from mmHg to Pa
+  downstreamPulmonaryArterialPressurePa: number; // PArt node pressure, converted from mmHg to Pa
   LAP: number;
   RAP: number;
   LVP: number;
@@ -383,11 +385,15 @@ export type SimSample = {
   SVF: number; // systemic venous return to RA (VC->RA edge)
   QCapSV: number; // systemic venous reservoir inflow (Cap->SV)
   QPArtPCap: number; // pulmonary venous group inflow (PArt->PCap)
+  aorticRootToSystemicArteryFlowM3PerSec: number; // Ao_SA dynamic edge flow
+  proximalPulmonaryArterialFlowM3PerSec: number; // PA_PArt dynamic edge flow
   QCorLAD: number;
   QCorLCx: number;
   QCorRCA: number;
   QCorTotal: number;
   QCS: number;
+  aorticRootComplianceM3PerPa: number; // Ao arterial-node dV/dPtm
+  pulmonaryRootComplianceM3PerPa: number; // PA arterial-node dV/dPtm
 
   // Volumes
   VLV: number;

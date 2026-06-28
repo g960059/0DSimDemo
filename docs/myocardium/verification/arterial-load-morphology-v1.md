@@ -61,24 +61,24 @@ Core LV/AoV/aortic signals:
 
 - `lvPressurePa`, `lvVolumeM3`
 - `aorticValveOpen`, `aorticFlowM3PerSec`
-- `aorticPressurePa`, downstream systemic arterial pressures when available
-- aortic-root/proximal arterial flow such as `Ao_SA` when available
+- `aorticPressurePa`, `systemicArterialPressurePa`
+- `aorticRootToSystemicArteryFlowM3PerSec`
+- `aorticRootComplianceM3PerPa`
 - `mitralValveOpen`
 
 Core RV/PV/pulmonary signals:
 
 - `rvPressurePa`, `rvVolumeM3`
 - `pulmonaryValveOpen`, `pulmonaryFlowM3PerSec`
-- `pulmonaryArteryPressurePa`, downstream pulmonary arterial pressures when
-  available
-- pulmonary proximal arterial flow when available
+- `pulmonaryArteryPressurePa`, `downstreamPulmonaryArterialPressurePa`
+- `proximalPulmonaryArterialFlowM3PerSec`
+- `pulmonaryRootComplianceM3PerPa`
 - `tricuspidValveOpen`
 
 Attribution signals:
 
-- characteristic impedance (`Zc`) when available;
-- arterial reflection coefficient and delay when available;
-- aortic and pulmonary root compliance when available;
+- aortic and pulmonary root compliance from the current arterial PV-law
+  derivative at transmural pressure;
 - semilunar valve open/close event time and valve residuals;
 - qDot raw/post values, qDot clamp hit01, and qDot clamp impulse when available;
 - valve diode and dynamic flow clamp hits when available;
@@ -90,6 +90,13 @@ Attribution signals:
 Optional signals are not required to exist in the current runtime. If absent,
 the future runner should mark the corresponding classification evidence as
 `unavailable`.
+
+Explicit not-modeled boundary:
+
+- `characteristicImpedancePaSecPerM3` is unavailable;
+- `arterialReflectionCoefficient` is unavailable;
+- the runner must not infer either value from resistance, inertance,
+  compliance, pressure, or flow proxies.
 
 ## 4. Metrics
 
@@ -180,6 +187,10 @@ when raw pressure evidence is absent.
 Incisura reporting is especially sensitive to event timing, root compliance,
 wave reflection, and sampling. The audit therefore requires classification
 evidence rather than a single pass/fail notch score.
+
+The current diagnostic export now provides proximal arterial pressure, proximal
+arterial flow, and root-compliance evidence. Arterial-load structure hypotheses
+remain insufficient until explicitly modeled Zc/reflection evidence exists.
 
 ## 7. Anti-gaming guards
 

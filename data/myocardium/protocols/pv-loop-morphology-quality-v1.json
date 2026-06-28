@@ -189,11 +189,29 @@
       "valveDiodeClampHits",
       "perSampleDynamicFlowClampHits",
       "perSampleValveDiodeClampHits",
+      "systemicArterialPressurePa",
+      "downstreamPulmonaryArterialPressurePa",
+      "aorticRootToSystemicArteryFlowM3PerSec",
+      "proximalPulmonaryArterialFlowM3PerSec",
+      "aorticRootComplianceM3PerPa",
+      "pulmonaryRootComplianceM3PerPa",
       "pressureFloorActive",
       "pressureFloorHit01",
       "activeStressPa",
       "activationEventId",
       "solverSubstepCount"
+    ],
+    "notModeledSignals": [
+      {
+        "name": "characteristicImpedancePaSecPerM3",
+        "boundary": "unavailable-no-proxy",
+        "description": "Characteristic impedance is not explicitly modeled by the current runtime and must not be inferred from R/L/C/flow."
+      },
+      {
+        "name": "arterialReflectionCoefficient",
+        "boundary": "unavailable-no-proxy",
+        "description": "Arterial reflection coefficient is not explicitly modeled by the current runtime and must not be inferred from pressure or flow shape."
+      }
     ]
   },
   "metricDefinitions": {

@@ -137,6 +137,56 @@
       { "name": "activeStressPa", "unit": "Pa", "required": false },
       { "name": "activationEventId", "unit": "string", "required": false },
       { "name": "solverSubstepCount", "unit": "count", "required": false }
+    ],
+    "arterialLoadDiagnostic": [
+      {
+        "name": "systemicArterialPressurePa",
+        "unit": "Pa",
+        "required": false,
+        "description": "SA node pressure converted from current mmHg sample units to Pa."
+      },
+      {
+        "name": "downstreamPulmonaryArterialPressurePa",
+        "unit": "Pa",
+        "required": false,
+        "description": "PArt node pressure converted from current mmHg sample units to Pa."
+      },
+      {
+        "name": "aorticRootToSystemicArteryFlowM3PerSec",
+        "unit": "m3/s",
+        "required": false,
+        "description": "Ao_SA dynamic edge flow converted from mL/s to m3/s."
+      },
+      {
+        "name": "proximalPulmonaryArterialFlowM3PerSec",
+        "unit": "m3/s",
+        "required": false,
+        "description": "PA_PArt dynamic edge flow converted from mL/s to m3/s."
+      },
+      {
+        "name": "aorticRootComplianceM3PerPa",
+        "unit": "m3/Pa",
+        "required": false,
+        "description": "Ao arterial-node derivative compliance from the current arterial PV law at transmural pressure."
+      },
+      {
+        "name": "pulmonaryRootComplianceM3PerPa",
+        "unit": "m3/Pa",
+        "required": false,
+        "description": "PA arterial-node derivative compliance from the current arterial PV law at transmural pressure."
+      }
+    ],
+    "notModeled": [
+      {
+        "name": "characteristicImpedancePaSecPerM3",
+        "boundary": "unavailable-no-proxy",
+        "description": "The current model does not explicitly model characteristic impedance; the runner must not infer a proxy from R/L/C/flow."
+      },
+      {
+        "name": "arterialReflectionCoefficient",
+        "boundary": "unavailable-no-proxy",
+        "description": "The current model does not explicitly model arterial reflection; the runner must not infer a proxy from pressure or flow shape."
+      }
     ]
   },
   "metricDefinitions": {
