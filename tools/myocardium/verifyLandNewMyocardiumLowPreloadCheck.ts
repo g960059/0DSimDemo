@@ -21,6 +21,8 @@ export const LAND_NEW_MYOCARDIUM_PHASE5C_C_REPORT_SOURCE_PATH =
   "engine/myocardium/protocols/landNewMyocardiumLowPreloadCheck.ts";
 export const LAND_NEW_MYOCARDIUM_PHASE5C_C_VERIFIER_SOURCE_PATH =
   "tools/myocardium/verifyLandNewMyocardiumLowPreloadCheck.ts";
+export const LAND_NEW_MYOCARDIUM_PHASE5C_D_FIDELITY_AUDIT_PLAN_PATH =
+  "docs/myocardium/roadmap/phase5c-positive-control-fidelity-audit-plan.md";
 
 export type ValidationSeverity = "error" | "warning";
 
@@ -139,6 +141,79 @@ const PHASE5C_C_RUNTIME_REFERENCE_TOKENS = [
 const PRODUCTION_ENABLING_PATTERN =
   /["']?(?:useRuntimeReplacement|useModelCoreRuntimeWiring|useChamberRuntimeWiring|useCaseRuntimeWiring|useStateSchemaWiring|useOfficialCaseWiring|useWorkbenchRuntimeWiring|useOfficialMorphologyAcceptance|useRobustNoAlternansAcceptance|useCalciumCyclingAlternansValidation|implementSeptalCoordinate|implementBiventricularCoupling|validateSeptalCoupling|validateRVPressureOverload|validateVentricularInterdependence|validateRightHeartFailure|adoptTriSeg|phase5Completed|runtimeReplacement|officialMorphologyPass|robustNoAlternans|finalNoAlternans)["']?\s*[:=]\s*true/i;
 
+const FIDELITY_AUDIT_PLAN_REQUIRED_BOUNDARY_TEXT = [
+  PHASE5C_C_STANDALONE_CLOSURE_MODEL_ID,
+  "cannot be interpreted as evidence that alternans disappeared",
+  "Phase 5C-D as a fidelity audit over the existing Phase 5C-C artifact",
+  "not as a new standalone engine or duplicated verifier",
+  "Do not duplicate Phase 5C-C branch metrics in a parallel verifier",
+  "Same-protocol second-order advancement is blocked",
+  "The Land generated run is not interpretable as no-alternans evidence while the positive control fails",
+  "The descriptor and verifier should reject any strengthened advancement claim that attempts to treat Phase 5B read-only SDIRK2 pins, Phase 5C-C BE smoke, or report-only morphology as final no-alternans evidence",
+  "Do not wire ModelCore, chambers, cases, official cases, Workbench, or runtime schema",
+  "Do not tune qDot, valve thresholds, arterial compliance, characteristic impedance, reflections, Land parameters, or preload/afterload closure settings in this audit phase",
+  "Do not claim official morphology acceptance, final robust no-alternans, calcium-cycling alternans validation, RV pressure-overload coverage, ventricular interdependence, right-heart failure coverage, or TriSeg adoption",
+] as const;
+
+const FIDELITY_AUDIT_PLAN_EXCLUSIVE_BOUNDARY_TOKENS = [
+  "standalone engine",
+  "duplicated verifier",
+  "parallel verifier",
+  "official morphology acceptance",
+  "final robust no-alternans",
+  "calcium-cycling alternans validation",
+  "RV pressure-overload coverage",
+  "ventricular interdependence",
+  "right-heart failure coverage",
+  "TriSeg adoption",
+] as const;
+
+const FIDELITY_AUDIT_PLAN_FORBIDDEN_PROSE_OBJECTS = [
+  "standalone engine",
+  "duplicated verifier",
+  "parallel verifier",
+  "ModelCore",
+  "chambers",
+  "cases",
+  "official cases",
+  "Workbench",
+  "runtime schema",
+  "qDot",
+  "valve thresholds",
+  "arterial compliance",
+  "characteristic impedance",
+  "reflections",
+  "Land parameters",
+  "preload/afterload closure",
+  "same-protocol",
+  "second-order advancement",
+  "SDIRK2",
+  "Phase 5B",
+  "official morphology",
+  "official morphology acceptance",
+  "morphology acceptance",
+  "morphology pass",
+  "morphology gate",
+  "alternans disappeared",
+  "Land generated run",
+  "Land generated trajectory",
+  "no-alternans evidence",
+  "no alternans evidence",
+  "robust no-alternans",
+  "final robust no-alternans",
+  "calcium-cycling alternans",
+  "calcium-cycling alternans validation",
+  "RV pressure-overload",
+  "RV pressure-overload coverage",
+  "ventricular interdependence",
+  "right-heart failure",
+  "right-heart failure coverage",
+  "TriSeg",
+] as const;
+
+const FIDELITY_AUDIT_PLAN_AFFIRMATIVE_PATTERN =
+  /\b(?:accepts?|accepted|adopts?|adopted|allows?|allowed|approves?|approved|are|claims?|claimed|completes?|completed|covers?|covered|duplicates?|duplicated|enables?|enabled|implements?|implemented|interpretable|is|permits?|permitted|proves?|proved|ready|replaces?|replaced|tunes?|tuned|validates?|validated|wires?|wired|can|may|must|should|will|in scope)\b/i;
+
 export function loadLandNewMyocardiumLowPreloadValidationInput(
   rootDir = process.cwd(),
 ): LandNewMyocardiumLowPreloadValidationInput {
@@ -159,6 +234,7 @@ export function loadLandNewMyocardiumLowPreloadValidationInput(
       readTextFile(rootDir, LAND_NEW_MYOCARDIUM_PHASE5C_C_VERIFIER_SOURCE_PATH),
       readTextFile(rootDir, LAND_NEW_MYOCARDIUM_PHASE5C_C_PROTOCOL_DESCRIPTOR_PATH),
       readTextFile(rootDir, "docs/myocardium/roadmap/phase5c-new-myocardium-check-plan.md"),
+      readTextFile(rootDir, LAND_NEW_MYOCARDIUM_PHASE5C_D_FIDELITY_AUDIT_PLAN_PATH),
     ],
     runtimeIntegrationFiles: loadRuntimeIntegrationFiles(rootDir),
   };
@@ -684,8 +760,11 @@ function validateSourceFiles(
   const verifier = sourceFiles.find((file) => file.path === LAND_NEW_MYOCARDIUM_PHASE5C_C_VERIFIER_SOURCE_PATH);
   const descriptor = sourceFiles.find((file) => file.path === LAND_NEW_MYOCARDIUM_PHASE5C_C_PROTOCOL_DESCRIPTOR_PATH);
   const plan = sourceFiles.find((file) => file.path === "docs/myocardium/roadmap/phase5c-new-myocardium-check-plan.md");
-  if (!report || !verifier || !descriptor || !plan) {
-    addIssue(issues, "error", "phase5c_c_source_scan", "sourceFiles", "Phase 5C-C report, verifier, descriptor, and accepted plan must be present.");
+  const fidelityAuditPlan = sourceFiles.find((file) =>
+    file.path === LAND_NEW_MYOCARDIUM_PHASE5C_D_FIDELITY_AUDIT_PLAN_PATH
+  );
+  if (!report || !verifier || !descriptor || !plan || !fidelityAuditPlan) {
+    addIssue(issues, "error", "phase5c_c_source_scan", "sourceFiles", "Phase 5C-C report, verifier, descriptor, accepted plan, and Phase 5C-D fidelity audit plan must be present.");
     return;
   }
   for (const token of [
@@ -738,6 +817,70 @@ function validateSourceFiles(
   }
   if (!plan.text.includes(PHASE5C_C_STANDALONE_CLOSURE_MODEL_ID)) {
     addIssue(issues, "error", "phase5c_c_plan_boundary", plan.path, "Accepted plan must include the standalone closure id.");
+  }
+  validateFidelityAuditPlan(fidelityAuditPlan, issues);
+}
+
+function validateFidelityAuditPlan(
+  plan: TextFileInput,
+  issues: ValidationIssue[],
+): void {
+  const normalizedText = plan.text.replace(/\s+/g, " ");
+  for (const token of FIDELITY_AUDIT_PLAN_REQUIRED_BOUNDARY_TEXT) {
+    if (!normalizedText.includes(token)) {
+      addIssue(issues, "error", "phase5c_c_fidelity_plan_boundary", plan.path, `Phase 5C-D fidelity audit plan must preserve boundary text: ${token}.`);
+    }
+  }
+  for (const token of FIDELITY_AUDIT_PLAN_EXCLUSIVE_BOUNDARY_TOKENS) {
+    if (countOccurrences(normalizedText, token) !== 1) {
+      addIssue(issues, "error", "phase5c_c_fidelity_plan_boundary", plan.path, `Phase 5C-D fidelity audit plan must mention ${token} only in canonical no-go/non-goal boundary text.`);
+    }
+  }
+  validateNoFidelityAuditPlanContradictions(
+    plan.path,
+    removeCanonicalFidelityAuditPlanBoundaryText(normalizedText),
+    issues,
+  );
+  validateNoProductionClaims(plan.path, plan.text, issues);
+}
+
+function removeCanonicalFidelityAuditPlanBoundaryText(normalizedText: string): string {
+  let residualText = normalizedText;
+  for (const token of FIDELITY_AUDIT_PLAN_REQUIRED_BOUNDARY_TEXT) {
+    residualText = residualText.split(token).join(" ");
+  }
+  return residualText;
+}
+
+function validateNoFidelityAuditPlanContradictions(
+  label: string,
+  normalizedResidualText: string,
+  issues: ValidationIssue[],
+): void {
+  for (const clause of normalizedResidualText.split(/(?<=[.!?;])\s+|\b(?:and|but|however|nevertheless|yet)\b/i)) {
+    const normalizedClause = clause.trim();
+    if (normalizedClause === "") {
+      continue;
+    }
+    const mentionsBoundaryObject = FIDELITY_AUDIT_PLAN_FORBIDDEN_PROSE_OBJECTS.some((token) =>
+      normalizedClause.toLowerCase().includes(token.toLowerCase())
+    );
+    if (mentionsBoundaryObject && FIDELITY_AUDIT_PLAN_AFFIRMATIVE_PATTERN.test(normalizedClause)) {
+      addIssue(issues, "error", "phase5c_c_fidelity_plan_boundary", label, `Phase 5C-D fidelity audit plan must not add affirmative boundary prose: ${normalizedClause}.`);
+    }
+  }
+}
+
+function countOccurrences(text: string, token: string): number {
+  const normalizedText = text.toLowerCase();
+  const normalizedToken = token.toLowerCase();
+  let count = 0;
+  let searchIndex = 0;
+  while (true) {
+    const foundIndex = normalizedText.indexOf(normalizedToken, searchIndex);
+    if (foundIndex === -1) return count;
+    count += 1;
+    searchIndex = foundIndex + normalizedToken.length;
   }
 }
 
