@@ -498,6 +498,14 @@ production tissue homogenization.
 - boundary: developer-only-runtime-flag-implementation-diagnostic-only; no runtime replacement, no production registry integration, no official case wiring, no Workbench runtime wiring, no runtime flag UI, no state-schema migration, no qDot/valve/afterload/preload/Land-parameter/source-stress tuning, no Level 3/4 acceptance, no official morphology acceptance, no final no-alternans, and no structural alternans-removal claim.
 - next: move to an education Studio static/mock MVP and/or developer-only envelope expansion. Keep official cases, Workbench runtime wiring, production registries, and state schema blocked until separately accepted.
 
+### Phase 5W — developer-only LV Land envelope expansion
+
+- result artifact: `data/myocardium/protocols/myocardium-developer-only-lv-land-envelope-phase5w-result-v1.json`
+- verifier: `npm run verify:myocardium-developer-only-lv-land-envelope`
+- current outcome: the non-production helper now measures stock active and developer-only LV Land under the same direct ModelCore protocol at HR75/90 x TBV 4350/5600/6600. Runs use independent initialization, no warm start, same closure invariants, period-aware 1000 Hz metric windows after 240 Hz settling, and diagnostic output/qDot/valve/filling proxies. Main-domain Land runs are settled and health ok with source/commit calls present and zero Land solve failures; HR90 main-domain Land settles as period-2, and stock active HR90/TBV5600 caps. Low-preload evidence remains report-only.
+- boundary: developer-only-lv-land-envelope-expansion-diagnostic-only; no runtime replacement, no production registry integration, no official case wiring, no Workbench runtime wiring, no runtime flag UI, no state-schema migration, no qDot/valve/afterload/preload/Land-parameter/source-stress tuning, no Level 3/4 acceptance, no official morphology acceptance, no final no-alternans, and no structural alternans-removal claim.
+- next: interpret whether Phase 5W is sufficient for a production-shadow dry-run or whether morphology blocker experiments should run first. Do not default-replace the active model from Phase 5W alone.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison

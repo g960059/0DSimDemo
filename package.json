@@ -53,6 +53,7 @@
     "verify:myocardium-education-tool-dod-checkpoint": "vite-node tools/myocardium/verifyEducationToolDefinitionOfDoneCheckpoint.ts",
     "verify:myocardium-developer-only-lv-land-runtime-flag-rfc": "vite-node tools/myocardium/verifyDeveloperOnlyLvLandRuntimeFlagRfc.ts",
     "verify:myocardium-developer-only-lv-land-runtime-flag-suite": "vite-node tools/myocardium/verifyDeveloperOnlyLvLandRuntimeFlagSuite.ts",
+    "verify:myocardium-developer-only-lv-land-envelope": "vite-node tools/myocardium/verifyDeveloperOnlyLvLandEnvelopePhase5W.ts",
     "verify:myocardium-atrial-bridge-shootout": "vite-node --script tools/myocardium/verifyAtrialBridgeShootout.ts",
     "verify:myocardium-atrial-bridge-localization": "vite-node --script tools/myocardium/verifyAtrialBridgeBlockerLocalization.ts",
     "verify:myocardium-atrial-bridge-runtime-baseline": "vite-node --script tools/myocardium/verifyAtrialBridgeHighHrRuntimeBaseline.ts",
