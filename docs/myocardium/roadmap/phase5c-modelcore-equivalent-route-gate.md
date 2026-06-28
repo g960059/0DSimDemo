@@ -1,6 +1,6 @@
-# Phase 5C-H ModelCore-equivalent Route Gate
+# Phase 5C-H/I/J ModelCore-equivalent Route Gate
 
-Status: proposed route-definition gate after Phase 5C-G
+Status: defined-but-unsatisfied route plus partial experimental evidence through Phase 5C-J
 
 This phase records `modelcore-equivalent-closure-positive-control` as a
 defined-but-unsatisfied route in
@@ -9,6 +9,16 @@ experimental source-provider-limited ModelCore wiring and legacy activeStress
 positive-control evidence. The route remains partial because the paired Land
 source-provider run under the same closure has not been performed, so this does
 not satisfy an entry route or change the inherited no-go.
+
+Phase 5C-J adds the missing state lifecycle boundary needed before Land can be
+paired through that hook. ModelCore owns experimental provider state, passes
+cloned state snapshots into RHS/pressure/debug calls, restores independent
+provider state into read-only measurement clones, and commits provider state
+only through an explicit once-per-step lifecycle callback. Public
+`unpackState()` resets experimental provider state because provider state is not
+part of the production serialized state schema; read-only measurement clones use
+a private provider-state snapshot restore. This is a
+prerequisite for stateful Land wiring, not a Land result.
 
 Machine-readable gate:
 
@@ -20,6 +30,7 @@ Required verifier:
 
 ```text
 npm run verify:myocardium-phase5c-post-fidelity-entry-gate
+npm run verify:myocardium-modelcore-active-provider-state-lifecycle
 ```
 
 Source no-go evidence:
@@ -38,6 +49,12 @@ Current partial evidence:
 
 ```text
 data/myocardium/protocols/modelcore-equivalent-positive-control-closure-evidence-v1.json
+```
+
+Provider-state lifecycle evidence:
+
+```text
+data/myocardium/protocols/modelcore-active-provider-state-lifecycle-v1.json
 ```
 
 ## Route Set
@@ -71,9 +88,11 @@ secondOrderReferenceStillRequired=true
 Event-surface evidence list: qDot, valve timing, afterload, preload,
 TBV/projection, pressure-floor, beat-selection, and sampling behavior preserved
 or explicitly matched. Phase 5C-I shows the legacy positive control through the
-experimental ModelCore source-provider hook. The route remains unsatisfied until
-Land is run through the same hook and `sourceProviderDifferenceOnly=true` is
-actually evaluated under that closure.
+experimental ModelCore source-provider hook. Phase 5C-J makes stateful provider
+wiring possible without hidden mutable provider state, but it still does not run
+Land and does not evaluate `sourceProviderDifferenceOnly=true`. The route
+remains unsatisfied until Land is run through the same closure and
+`sourceProviderDifferenceOnly=true` is actually evaluated under that closure.
 
 ## Boundary
 

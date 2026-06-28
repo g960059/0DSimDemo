@@ -126,6 +126,8 @@ export type ModelCoreActiveSourceProviderCall = {
   readonly volumeMl: number;
   readonly internal: ChamberInternal;
   readonly chamberCtx: ChamberCtx;
+  readonly providerState: unknown;
+  readonly providerStateVersion: number;
 };
 
 export type ModelCoreActiveSourceProviderInitCall = {
@@ -133,15 +135,44 @@ export type ModelCoreActiveSourceProviderInitCall = {
   readonly activeModel: ActiveStressChamberModel;
 };
 
+export type ModelCoreActiveSourceProviderStepSnapshot = {
+  readonly tSec: number;
+  readonly phi: number;
+  readonly rawVolumeMl: number;
+  readonly effectiveVolumeMl: number;
+  readonly internal: ChamberInternal;
+  readonly chamberCtx: ChamberCtx;
+};
+
+export type ModelCoreActiveSourceProviderStateCommitCall = {
+  readonly chamber: Chamber;
+  readonly activeModel: ActiveStressChamberModel;
+  readonly stepDtSec: number;
+  readonly previousProviderState: unknown;
+  readonly previousProviderStateVersion: number;
+  readonly beforeStep: ModelCoreActiveSourceProviderStepSnapshot;
+  readonly afterStep: ModelCoreActiveSourceProviderStepSnapshot;
+};
+
 export type ModelCoreExperimentalActiveSourceProvider = {
   readonly sourceProviderId: string;
   initialInternal(input: ModelCoreActiveSourceProviderInitCall): ChamberInternal;
+  initialProviderState?(input: ModelCoreActiveSourceProviderInitCall): unknown;
+  cloneProviderState?(state: unknown): unknown;
+  commitProviderStateAfterStep?(input: ModelCoreActiveSourceProviderStateCommitCall): unknown;
+  debugProviderState?(state: unknown): unknown;
   pressure(input: ModelCoreActiveSourceProviderCall): number;
   passivePressure?(input: ModelCoreActiveSourceProviderCall): number;
   internalDerivatives(input: ModelCoreActiveSourceProviderCall): ChamberInternalDerivatives;
   debugPressureTerms?(input: ModelCoreActiveSourceProviderCall): ChamberPressureTerms;
   debugActiveStressTerms?(input: ModelCoreActiveSourceProviderCall): ActiveStressDebugTerms;
 };
+
+export type ModelCoreExperimentalActiveSourceProviderStateDiagnostics = Partial<Record<Chamber, {
+  readonly sourceProviderId: string;
+  readonly stateVersion: number;
+  readonly stateSnapshot: unknown;
+}>>;
 
 export type ModelCoreExperimentalOptions = {
   readonly activeSourceProviders?: Partial<Record<Chamber, ModelCoreExperimentalActiveSourceProvider>>;
@@ -498,6 +529,8 @@ export class ModelCore {
   // Heart chamber models (ROADMAP S2). Active models track node.active params.
   private readonly activeModels: Partial<Record<Chamber, ActiveStressChamberModel>> = {};
   private readonly experimentalActiveSourceProviders: Partial<Record<Chamber, ModelCoreExperimentalActiveSourceProvider>>;
+  private readonly experimentalActiveSourceProviderStates: Partial<Record<Chamber, unknown>> = {};
+  private readonly experimentalActiveSourceProviderStateVersions: Partial<Record<Chamber, number>> = {};
   private elastanceModels = new Map<string, ElastanceChamberModel>();
 
   t = 0;
@@ -598,6 +631,7 @@ export class ModelCore {
       this.x[internalIndex.tensionPa] = initial.tensionPa ?? 0;
       this.x[internalIndex.lambdaAct] = initial.lambdaAct ?? 1;
     }
+    this.resetExperimentalActiveProviderStates();
     this.t = 0;
     this.history = [];
     this.lastSample = this.sample();
@@ -672,6 +706,7 @@ export class ModelCore {
     this.tbvCorrectionLastStepMl = 0;
     this.clampHitCount = 0;
     this.resetClampDiagnostics();
+    this.resetExperimentalActiveProviderStates();
     this.history = [];
     this.lastSample = null;
     this.lastSample = this.sample();
@@ -895,6 +930,9 @@ export class ModelCore {
     this.sanitizeLastStepAudit = emptyVolumeDeltaAudit();
     this.tbvProjectionLastStepAudit = emptyTBVProjectionAudit();
     this.smoothParams(dt);
+    const shouldCommitProviderState = this.hasExperimentalActiveProviderStateCommit();
+    const beforeProviderCommitT = shouldCommitProviderState ? this.t : 0;
+    const beforeProviderCommitX = shouldCommitProviderState ? Float64Array.from(this.x) : null;
 
     // Hemorrhage / fluid ledger (M5a): mL/min -> mL/s. Clamped to a safe range.
     // Only advances when projectTBV is on, since the projector is the only thing
@@ -914,6 +952,9 @@ export class ModelCore {
     this.t += dt;
     this.sanitizeState(this.x);
     if (this.p.projectTBV && this.tbvCorrectionEnabled) this.correctVenousPressuresToExpectedTBV();
+    if (beforeProviderCommitX) {
+      this.commitExperimentalActiveProviderStates(dt, beforeProviderCommitT, beforeProviderCommitX);
+    }
   }
 
   setTBVCorrectionEnabled(enabled: boolean): void {
@@ -1231,6 +1272,23 @@ export class ModelCore {
       if (provider) ids[chamber] = provider.sourceProviderId;
     }
     return ids;
+  }
+
+  debugExperimentalActiveSourceProviderStates(): ModelCoreExperimentalActiveSourceProviderStateDiagnostics {
+    const out: ModelCoreExperimentalActiveSourceProviderStateDiagnostics = {};
+    for (const [chamber, provider] of Object.entries(this.experimentalActiveSourceProviders) as Array<[Chamber, ModelCoreExperimentalActiveSourceProvider | undefined]>) {
+      if (!provider) continue;
+      const state = this.experimentalActiveSourceProviderStates[chamber];
+      const stateSnapshot = provider.debugProviderState
+        ? provider.debugProviderState(this.cloneExperimentalActiveProviderState(provider, state, `${chamber}.debugProviderState`))
+        : this.cloneExperimentalActiveProviderState(provider, state, `${chamber}.debugProviderState`);
+      out[chamber] = {
+        sourceProviderId: provider.sourceProviderId,
+        stateVersion: this.experimentalActiveSourceProviderStateVersions[chamber] ?? 0,
+        stateSnapshot,
+      };
+    }
+    return out;
   }
 
   debugClampDiagnostics(): ModelCoreClampDiagnostics {
@@ -2133,13 +2191,30 @@ export class ModelCore {
     return this.experimentalActiveSourceProviders[chamber];
   }
 
+  private activeProviderStateForCall(chamber: Chamber, provider: ModelCoreExperimentalActiveSourceProvider): unknown {
+    return this.cloneExperimentalActiveProviderState(
+      provider,
+      this.experimentalActiveSourceProviderStates[chamber],
+      `${chamber}.providerStateForCall`,
+    );
+  }
+
   private activeCall(
     chamber: Chamber,
     volumeMl: number,
     internal: ChamberInternal,
     chamberCtx: ChamberCtx,
   ): ModelCoreActiveSourceProviderCall {
-    return { chamber, activeModel: this.activeModel(chamber), volumeMl, internal, chamberCtx };
+    const provider = this.activeProvider(chamber);
+    return {
+      chamber,
+      activeModel: this.activeModel(chamber),
+      volumeMl,
+      internal,
+      chamberCtx,
+      providerState: provider ? this.activeProviderStateForCall(chamber, provider) : undefined,
+      providerStateVersion: this.experimentalActiveSourceProviderStateVersions[chamber] ?? 0,
+    };
   }
 
   private activeInitialInternal(chamber: Chamber): ChamberInternal {
@@ -2211,6 +2286,146 @@ export class ModelCore {
       return provider.debugActiveStressTerms(this.activeCall(chamber, volumeMl, internal, chamberCtx));
     }
     return this.activeModel(chamber).debugActiveStressTerms(volumeMl, internal, chamberCtx);
+  }
+
+  private resetExperimentalActiveProviderStates(): void {
+    for (const chamber of Object.keys(this.experimentalActiveSourceProviderStates) as Chamber[]) {
+      delete this.experimentalActiveSourceProviderStates[chamber];
+      delete this.experimentalActiveSourceProviderStateVersions[chamber];
+    }
+    for (const [chamber, provider] of Object.entries(this.experimentalActiveSourceProviders) as Array<[Chamber, ModelCoreExperimentalActiveSourceProvider | undefined]>) {
+      if (!provider) continue;
+      const initialState = provider.initialProviderState
+        ? provider.initialProviderState({ chamber, activeModel: this.activeModel(chamber) })
+        : undefined;
+      this.experimentalActiveSourceProviderStates[chamber] = this.cloneExperimentalActiveProviderState(
+        provider,
+        initialState,
+        `${chamber}.initialProviderState`,
+      );
+      this.experimentalActiveSourceProviderStateVersions[chamber] = 0;
+    }
+  }
+
+  private cloneExperimentalActiveProviderState(
+    provider: ModelCoreExperimentalActiveSourceProvider,
+    state: unknown,
+    label: string,
+  ): unknown {
+    if (state === null || state === undefined) return state;
+    const stateType = typeof state;
+    if (stateType !== "object") return state;
+    if (provider.cloneProviderState) return provider.cloneProviderState(state);
+    if (state instanceof Float64Array) return Float64Array.from(state);
+    if (Array.isArray(state)) {
+      return state.map((value, index) => this.cloneExperimentalActiveProviderState(provider, value, `${label}[${index}]`));
+    }
+    if (Object.getPrototypeOf(state) === Object.prototype) {
+      const out: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(state as Record<string, unknown>)) {
+        out[key] = this.cloneExperimentalActiveProviderState(provider, value, `${label}.${key}`);
+      }
+      return out;
+    }
+    throw new Error(`Stateful active source provider ${provider.sourceProviderId} must define cloneProviderState for ${label}`);
+  }
+
+  private snapshotExperimentalActiveProviderStates(): Partial<Record<Chamber, { state: unknown; version: number }>> {
+    const out: Partial<Record<Chamber, { state: unknown; version: number }>> = {};
+    for (const [chamber, provider] of Object.entries(this.experimentalActiveSourceProviders) as Array<[Chamber, ModelCoreExperimentalActiveSourceProvider | undefined]>) {
+      if (!provider) continue;
+      out[chamber] = {
+        state: this.cloneExperimentalActiveProviderState(
+          provider,
+          this.experimentalActiveSourceProviderStates[chamber],
+          `${chamber}.snapshotProviderState`,
+        ),
+        version: this.experimentalActiveSourceProviderStateVersions[chamber] ?? 0,
+      };
+    }
+    return out;
+  }
+
+  private restoreExperimentalActiveProviderStates(snapshot: Partial<Record<Chamber, { state: unknown; version: number }>>): void {
+    for (const chamber of Object.keys(this.experimentalActiveSourceProviderStates) as Chamber[]) {
+      delete this.experimentalActiveSourceProviderStates[chamber];
+      delete this.experimentalActiveSourceProviderStateVersions[chamber];
+    }
+    for (const [chamber, provider] of Object.entries(this.experimentalActiveSourceProviders) as Array<[Chamber, ModelCoreExperimentalActiveSourceProvider | undefined]>) {
+      if (!provider) continue;
+      const entry = snapshot[chamber];
+      this.experimentalActiveSourceProviderStates[chamber] = entry
+        ? this.cloneExperimentalActiveProviderState(provider, entry.state, `${chamber}.restoreProviderState`)
+        : undefined;
+      this.experimentalActiveSourceProviderStateVersions[chamber] = entry?.version ?? 0;
+    }
+  }
+
+  private hasExperimentalActiveProviderStateCommit(): boolean {
+    return Object.values(this.experimentalActiveSourceProviders)
+      .some((provider) => provider?.commitProviderStateAfterStep !== undefined);
+  }
+
+  private commitExperimentalActiveProviderStates(
+    stepDtSec: number,
+    beforeT: number,
+    beforeX: Float64Array,
+  ): void {
+    const providerStateSnapshot = this.snapshotExperimentalActiveProviderStates();
+    const pendingStates: Array<{ chamber: Chamber; state: unknown; version: number }> = [];
+    for (const [chamber, provider] of Object.entries(this.experimentalActiveSourceProviders) as Array<[Chamber, ModelCoreExperimentalActiveSourceProvider | undefined]>) {
+      if (!provider?.commitProviderStateAfterStep) continue;
+      const previousSnapshot = providerStateSnapshot[chamber];
+      const previousProviderState = previousSnapshot
+        ? this.cloneExperimentalActiveProviderState(provider, previousSnapshot.state, `${chamber}.commitProviderState`)
+        : undefined;
+      const previousProviderStateVersion = previousSnapshot?.version ?? 0;
+      const nextProviderState = provider.commitProviderStateAfterStep({
+        chamber,
+        activeModel: this.activeModel(chamber),
+        stepDtSec,
+        previousProviderState,
+        previousProviderStateVersion,
+        beforeStep: this.activeProviderStepSnapshot(chamber, beforeX, beforeT),
+        afterStep: this.activeProviderStepSnapshot(chamber, this.x, this.t),
+      });
+      pendingStates.push({
+        chamber,
+        state: this.cloneExperimentalActiveProviderState(
+          provider,
+          nextProviderState,
+          `${chamber}.committedProviderState`,
+        ),
+        version: previousProviderStateVersion + 1,
+      });
+    }
+    for (const pending of pendingStates) {
+      this.experimentalActiveSourceProviderStates[pending.chamber] = pending.state;
+      this.experimentalActiveSourceProviderStateVersions[pending.chamber] = pending.version;
+    }
+  }
+
+  private activeProviderStepSnapshot(
+    chamber: Chamber,
+    x: Float64Array,
+    tSec: number,
+  ): ModelCoreActiveSourceProviderStepSnapshot {
+    const pack = this.computePressures(x);
+    const nodeIndex = this.nodeIndex.get(chamber)!;
+    const rawVolumeMl = pack.Vphys[nodeIndex];
+    const effectiveVolumeMl = chamber === "LV"
+      ? pack.VLVeff
+      : chamber === "RV"
+        ? pack.VRVeff
+        : rawVolumeMl;
+    return {
+      tSec,
+      phi: x[this.idx.phi],
+      rawVolumeMl,
+      effectiveVolumeMl,
+      internal: this.activeInternalFromState(chamber, x),
+      chamberCtx: this.chamberCtx(chamber, x),
+    };
   }
 
   private ventricularElastanceSignals(
@@ -2757,6 +2972,7 @@ export class ModelCore {
     const clone = new ModelCore(this.p, { activeSourceProviders: this.experimentalActiveSourceProviders });
     clone.pTarget = { ...this.pTarget };
     clone.unpackState(this.packState());
+    clone.restoreExperimentalActiveProviderStates(this.snapshotExperimentalActiveProviderStates());
     return clone;
   }
 
