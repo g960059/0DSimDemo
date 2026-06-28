@@ -65,7 +65,10 @@ export {
 export {
   solveLand2017BackwardEulerStep,
   solveLand2017BackwardEulerSubsteps,
+  solveLand2017Sdirk2Step,
   type Land2017SolveFailureReason,
+  type Land2017Sdirk2StepSolveOptions,
+  type Land2017Sdirk2StageSolveSummary,
   type Land2017StepSolveOptions,
   type Land2017StepSolveResult,
   type Land2017SubstepSolveOptions,

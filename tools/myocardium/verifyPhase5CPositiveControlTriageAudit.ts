@@ -287,6 +287,25 @@ const PHASE5C_Q_MODELCORE_LAND_CALCIUM_UNIT_INTERFACE_AUDIT_ALLOWED_CHANGED_FILE
   PHASE5C_F_TRIAGE_AUDIT_VERIFIER_PATH,
 ] as const;
 
+const PHASE5C_R_MODELCORE_LAND_SDIRK2_REFERENCE_ALLOWED_CHANGED_FILE_PATHS = [
+  "__tests__/myocardiumPhase5CPositiveControlTriageAudit.test.ts",
+  "__tests__/myocardiumPhase5CSameClosureSourceProviderAudit.test.ts",
+  "__tests__/myocardiumPhase5RModelCoreLandSdirk2Reference.test.ts",
+  "data/myocardium/protocols/modelcore-land-sdirk2-reference-result-v1.json",
+  "docs/myocardium/README.md",
+  "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
+  PHASE5C_H_MODELCORE_EQUIVALENT_ROUTE_PLAN_PATH,
+  "docs/status/current-lanes.md",
+  "engine/myocardium/myofilament/land2017/index.ts",
+  "engine/myocardium/myofilament/land2017/solver.ts",
+  "package.json",
+  "tools/myocardium/buildModelCoreLandSdirk2ReferenceEvidence.ts",
+  "tools/myocardium/modelCoreLand2017LvSourceProvider.ts",
+  "tools/myocardium/verifyModelCoreLandSdirk2Reference.ts",
+  PHASE5C_G_SOURCE_PROVIDER_AUDIT_VERIFIER_PATH,
+  PHASE5C_F_TRIAGE_AUDIT_VERIFIER_PATH,
+] as const;
+
 const RUNTIME_INTEGRATION_TARGETS = [
   "WorkbenchPage.tsx",
   "caseCloud.ts",
@@ -751,6 +770,7 @@ function validateChangedFileScope(changedFilePaths: readonly string[], issues: V
   if (isPhase5OModelCoreLandActivationInterfaceAuditDiff(changedFilePaths)) return;
   if (isPhase5PModelCoreLandCalciumSourceForcingBracketDiff(changedFilePaths)) return;
   if (isPhase5QModelCoreLandCalciumUnitInterfaceAuditDiff(changedFilePaths)) return;
+  if (isPhase5RModelCoreLandSdirk2ReferenceDiff(changedFilePaths)) return;
 
   const triggerPaths = new Set<string>(PHASE5C_F_CHANGED_FILE_SCOPE_TRIGGER_PATHS);
   if (!changedFilePaths.some((filePath) => triggerPaths.has(filePath))) return;
@@ -820,6 +840,16 @@ function isPhase5PModelCoreLandCalciumSourceForcingBracketDiff(changedFilePaths:
 
 function isPhase5QModelCoreLandCalciumUnitInterfaceAuditDiff(changedFilePaths: readonly string[]): boolean {
   const allowedPaths = new Set<string>(PHASE5C_Q_MODELCORE_LAND_CALCIUM_UNIT_INTERFACE_AUDIT_ALLOWED_CHANGED_FILE_PATHS);
+  const changedPaths = new Set(changedFilePaths);
+  if (changedPaths.size !== allowedPaths.size) return false;
+  for (const allowedPath of allowedPaths) {
+    if (!changedPaths.has(allowedPath)) return false;
+  }
+  return true;
+}
+
+function isPhase5RModelCoreLandSdirk2ReferenceDiff(changedFilePaths: readonly string[]): boolean {
+  const allowedPaths = new Set<string>(PHASE5C_R_MODELCORE_LAND_SDIRK2_REFERENCE_ALLOWED_CHANGED_FILE_PATHS);
   const changedPaths = new Set(changedFilePaths);
   if (changedPaths.size !== allowedPaths.size) return false;
   for (const allowedPath of allowedPaths) {

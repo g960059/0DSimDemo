@@ -8,14 +8,23 @@ import {
   LAND2017_STATE_INDEX,
   evaluateLand2017ContinuousOutput,
   solveLand2017BackwardEulerSubsteps,
+  solveLand2017Sdirk2Step,
   type LandSourceOutput,
   type LandStepInput,
+  type Land2017StepSolveResult,
 } from "@/engine/myocardium/myofilament/land2017";
 
 export const MODELCORE_EXPERIMENTAL_LAND2017_LV_SOURCE_ONLY_PROVIDER_ID =
   "modelcore-experimental-land2017-lv-source-only-provider-v1";
 
 const DEFAULT_INITIAL_LAND_STATE = [0.18, 0.22, 0.04, 0.02, 0, 0] as const;
+
+export type ModelCoreLand2017LvCommitScheme = "BE" | "SDIRK2";
+
+export type ModelCoreLand2017LvSourceProviderOptions = {
+  readonly commitScheme?: ModelCoreLand2017LvCommitScheme;
+  readonly sourceProviderId?: string;
+};
 
 export type ModelCoreLand2017LvSourceProviderInstrumentation = {
   initialInternal: number;
@@ -28,6 +37,17 @@ export type ModelCoreLand2017LvSourceProviderInstrumentation = {
   landSolveOkCount: number;
   landSolveFailureCount: number;
   maxSolverResidualNorm: number;
+  sdirk2Stage0SolveCount: number;
+  sdirk2Stage1SolveCount: number;
+  sdirk2Stage0FailureCount: number;
+  sdirk2Stage1FailureCount: number;
+  maxSdirk2Stage0ResidualNorm: number;
+  maxSdirk2Stage1ResidualNorm: number;
+  maxSdirk2Stage0Iterations: number;
+  maxSdirk2Stage1Iterations: number;
+  maxSdirk2Stage0LineSearchSteps: number;
+  maxSdirk2Stage1LineSearchSteps: number;
+  maxPreviousFreeCalciumMismatchUM: number;
   maxSourceDebugStressDifferencePa: number;
   lastFailureReason: string | null;
   sourcePathAudit: ModelCoreLand2017LvSignalAudit;
@@ -85,6 +105,17 @@ ModelCoreLand2017LvSourceProviderInstrumentation {
     landSolveOkCount: 0,
     landSolveFailureCount: 0,
     maxSolverResidualNorm: 0,
+    sdirk2Stage0SolveCount: 0,
+    sdirk2Stage1SolveCount: 0,
+    sdirk2Stage0FailureCount: 0,
+    sdirk2Stage1FailureCount: 0,
+    maxSdirk2Stage0ResidualNorm: 0,
+    maxSdirk2Stage1ResidualNorm: 0,
+    maxSdirk2Stage0Iterations: 0,
+    maxSdirk2Stage1Iterations: 0,
+    maxSdirk2Stage0LineSearchSteps: 0,
+    maxSdirk2Stage1LineSearchSteps: 0,
+    maxPreviousFreeCalciumMismatchUM: 0,
     maxSourceDebugStressDifferencePa: 0,
     lastFailureReason: null,
     sourcePathAudit: createLandSignalAudit(),
@@ -95,9 +126,17 @@ ModelCoreLand2017LvSourceProviderInstrumentation {
 export function land2017LvSourceOnlyProvider(
   instrumentation: ModelCoreLand2017LvSourceProviderInstrumentation =
     createModelCoreLand2017LvSourceProviderInstrumentation(),
+  options: ModelCoreLand2017LvSourceProviderOptions = {},
 ): ModelCoreExperimentalActiveSourceProvider {
+  const commitScheme = options.commitScheme ?? "BE";
   return {
-    sourceProviderId: MODELCORE_EXPERIMENTAL_LAND2017_LV_SOURCE_ONLY_PROVIDER_ID,
+    sourceProviderId:
+      options.sourceProviderId
+      ?? (
+        commitScheme === "BE"
+          ? MODELCORE_EXPERIMENTAL_LAND2017_LV_SOURCE_ONLY_PROVIDER_ID
+          : `${MODELCORE_EXPERIMENTAL_LAND2017_LV_SOURCE_ONLY_PROVIDER_ID}:sdirk2-commit`
+      ),
     initialInternal: ({ activeModel }) => {
       instrumentation.initialInternal += 1;
       return activeModel.initialInternal();
@@ -159,17 +198,29 @@ export function land2017LvSourceOnlyProvider(
         dtSec: stepDtSec,
         stage: { scheme: "BE", stageIndex: 0 },
       };
-      const solved = solveLand2017BackwardEulerSubsteps(
-        previous.landState,
-        landInput,
-        {
-          maxIterations: 16,
-          residualTolerance: 1e-8,
-          lineSearchMinStep: 1 / 2048,
-          substeps: 1,
-          previousFreeCalciumUM: previous.previousFreeCalciumUM ?? undefined,
-        },
+      const previousFreeCalciumUM =
+        previous.previousFreeCalciumUM
+        ?? freeCalciumUMFromInternal(beforeStep.internal.c);
+      instrumentation.maxPreviousFreeCalciumMismatchUM = Math.max(
+        instrumentation.maxPreviousFreeCalciumMismatchUM,
+        Math.abs(previousFreeCalciumUM - freeCalciumUMFromInternal(beforeStep.internal.c)),
       );
+      const solveOptions = {
+        maxIterations: commitScheme === "BE" ? 16 : 20,
+        residualTolerance: 1e-8,
+        lineSearchMinStep: 1 / 2048,
+        previousFreeCalciumUM,
+      } as const;
+      const solved =
+        commitScheme === "BE"
+          ? solveLand2017BackwardEulerSubsteps(previous.landState, landInput, {
+            ...solveOptions,
+            substeps: 1,
+          })
+          : solveLand2017Sdirk2Step(previous.landState, landInput, solveOptions);
+      if (commitScheme === "SDIRK2") {
+        recordSdirk2SolveInstrumentation(instrumentation, solved);
+      }
       instrumentation.maxSolverResidualNorm = Math.max(
         instrumentation.maxSolverResidualNorm,
         finiteOrZero(solved.residualNorm),
@@ -215,7 +266,7 @@ export function modelCoreLand2017LvSourceProviderIdentity() {
     initialState: DEFAULT_INITIAL_LAND_STATE,
     calciumInput: "ModelCore legacy active chamber internal.c interpreted as freeCalciumUM without tuning",
     kinematicsInput: "ModelCore LV activeModel debug lambdaRaw under the same closure",
-    stateLifecycle: "ModelCore providerState with once-per-step BE commit",
+    stateLifecycle: "ModelCore providerState with once-per-step BE commit by default; SDIRK2 commit is experimental evidence-only",
     pressurePath: "sourceActiveStressPa through ActiveStressChamberModel.pressureFromActiveFiberStress",
   } as const;
 }
@@ -350,6 +401,44 @@ function clamp01(value: number): number {
 
 function finiteOrZero(value: number): number {
   return Number.isFinite(value) ? value : 0;
+}
+
+function recordSdirk2SolveInstrumentation(
+  instrumentation: ModelCoreLand2017LvSourceProviderInstrumentation,
+  solved: Land2017StepSolveResult,
+): void {
+  if (solved.sdirk2Stage0) {
+    instrumentation.sdirk2Stage0SolveCount += 1;
+    if (!solved.sdirk2Stage0.ok) instrumentation.sdirk2Stage0FailureCount += 1;
+    instrumentation.maxSdirk2Stage0ResidualNorm = Math.max(
+      instrumentation.maxSdirk2Stage0ResidualNorm,
+      finiteOrZero(solved.sdirk2Stage0.residualNorm),
+    );
+    instrumentation.maxSdirk2Stage0Iterations = Math.max(
+      instrumentation.maxSdirk2Stage0Iterations,
+      solved.sdirk2Stage0.iterations,
+    );
+    instrumentation.maxSdirk2Stage0LineSearchSteps = Math.max(
+      instrumentation.maxSdirk2Stage0LineSearchSteps,
+      solved.sdirk2Stage0.lineSearchSteps,
+    );
+  }
+  if (solved.sdirk2Stage1) {
+    instrumentation.sdirk2Stage1SolveCount += 1;
+    if (!solved.sdirk2Stage1.ok) instrumentation.sdirk2Stage1FailureCount += 1;
+    instrumentation.maxSdirk2Stage1ResidualNorm = Math.max(
+      instrumentation.maxSdirk2Stage1ResidualNorm,
+      finiteOrZero(solved.sdirk2Stage1.residualNorm),
+    );
+    instrumentation.maxSdirk2Stage1Iterations = Math.max(
+      instrumentation.maxSdirk2Stage1Iterations,
+      solved.sdirk2Stage1.iterations,
+    );
+    instrumentation.maxSdirk2Stage1LineSearchSteps = Math.max(
+      instrumentation.maxSdirk2Stage1LineSearchSteps,
+      solved.sdirk2Stage1.lineSearchSteps,
+    );
+  }
 }
 
 function createLandSignalAudit(): ModelCoreLand2017LvSignalAudit {
