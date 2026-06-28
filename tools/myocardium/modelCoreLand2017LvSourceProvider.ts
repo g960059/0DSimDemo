@@ -30,6 +30,8 @@ export type ModelCoreLand2017LvSourceProviderInstrumentation = {
   maxSolverResidualNorm: number;
   maxSourceDebugStressDifferencePa: number;
   lastFailureReason: string | null;
+  sourcePathAudit: ModelCoreLand2017LvSignalAudit;
+  commitPathAudit: ModelCoreLand2017LvSignalAudit;
 };
 
 export type ModelCoreLand2017LvProviderState = {
@@ -50,6 +52,26 @@ type LandCallInput = {
   readonly fiberEngineeringStrainRatePerSec: number;
 };
 
+export type ModelCoreLand2017LvRangeAudit = {
+  min: number | null;
+  max: number | null;
+};
+
+export type ModelCoreLand2017LvSignalAudit = {
+  sampleCount: number;
+  freeCalciumUM: ModelCoreLand2017LvRangeAudit;
+  fiberEngineeringStrain: ModelCoreLand2017LvRangeAudit;
+  fiberEngineeringStrainRatePerSec: ModelCoreLand2017LvRangeAudit;
+  sourceActiveFiberStressPa: ModelCoreLand2017LvRangeAudit;
+  stabilizationStiffnessPa: ModelCoreLand2017LvRangeAudit;
+  sourceActivePowerDensityWPerM3: ModelCoreLand2017LvRangeAudit;
+  boundFraction: ModelCoreLand2017LvRangeAudit;
+  minimumPopulation: ModelCoreLand2017LvRangeAudit;
+  stateConservationResidual: ModelCoreLand2017LvRangeAudit;
+  finiteHealthAllSamples: boolean;
+  stateRanges: Record<string, ModelCoreLand2017LvRangeAudit>;
+};
+
 export function createModelCoreLand2017LvSourceProviderInstrumentation():
 ModelCoreLand2017LvSourceProviderInstrumentation {
   return {
@@ -65,6 +87,8 @@ ModelCoreLand2017LvSourceProviderInstrumentation {
     maxSolverResidualNorm: 0,
     maxSourceDebugStressDifferencePa: 0,
     lastFailureReason: null,
+    sourcePathAudit: createLandSignalAudit(),
+    commitPathAudit: createLandSignalAudit(),
   };
 }
 
@@ -89,7 +113,10 @@ export function land2017LvSourceOnlyProvider(
     debugProviderState: (state) => debugLandProviderState(asLandProviderState(state, "debugProviderState")),
     sourceActiveStressPa: (call) => {
       instrumentation.sourceActiveStressPa += 1;
-      const output = evaluateLandOutputForCall(call, asLandProviderState(call.providerState, "sourceActiveStressPa"));
+      const state = asLandProviderState(call.providerState, "sourceActiveStressPa");
+      const input = landContinuousInputForCall(call, state);
+      const output = evaluateLandOutputForInput(state, input);
+      recordLandSignalAuditSample(instrumentation.sourcePathAudit, state.landState, input, output);
       return output.sourceActiveFiberStressPa;
     },
     internalDerivatives: ({ activeModel, volumeMl, internal, chamberCtx }) => {
@@ -159,6 +186,13 @@ export function land2017LvSourceOnlyProvider(
         } satisfies ModelCoreLand2017LvProviderState;
       }
       instrumentation.landSolveOkCount += 1;
+      recordLandSignalAuditSample(instrumentation.commitPathAudit, solved.nextState, {
+        freeCalciumUM: landInput.freeCalciumUM,
+        fiberEngineeringStrain: landInput.stageFiberEngineeringStrain,
+        fiberEngineeringStrainRatePerSec:
+          (landInput.stageFiberEngineeringStrain - landInput.previousFiberEngineeringStrain)
+          / landInput.dtSec,
+      }, solved.output);
       return {
         landState: solved.nextState,
         previousFreeCalciumUM: landInput.freeCalciumUM,
@@ -236,6 +270,13 @@ function evaluateLandOutputForCall(
   state: ModelCoreLand2017LvProviderState,
 ): LandSourceOutput {
   const input = landContinuousInputForCall(call, state);
+  return evaluateLandOutputForInput(state, input);
+}
+
+function evaluateLandOutputForInput(
+  state: ModelCoreLand2017LvProviderState,
+  input: LandCallInput,
+): LandSourceOutput {
   return evaluateLand2017ContinuousOutput(state.landState, input);
 }
 
@@ -309,4 +350,63 @@ function clamp01(value: number): number {
 
 function finiteOrZero(value: number): number {
   return Number.isFinite(value) ? value : 0;
+}
+
+function createLandSignalAudit(): ModelCoreLand2017LvSignalAudit {
+  return {
+    sampleCount: 0,
+    freeCalciumUM: emptyRangeAudit(),
+    fiberEngineeringStrain: emptyRangeAudit(),
+    fiberEngineeringStrainRatePerSec: emptyRangeAudit(),
+    sourceActiveFiberStressPa: emptyRangeAudit(),
+    stabilizationStiffnessPa: emptyRangeAudit(),
+    sourceActivePowerDensityWPerM3: emptyRangeAudit(),
+    boundFraction: emptyRangeAudit(),
+    minimumPopulation: emptyRangeAudit(),
+    stateConservationResidual: emptyRangeAudit(),
+    finiteHealthAllSamples: true,
+    stateRanges: Object.fromEntries(
+      Object.keys(LAND2017_STATE_INDEX).map((label) => [label, emptyRangeAudit()]),
+    ),
+  };
+}
+
+function emptyRangeAudit(): ModelCoreLand2017LvRangeAudit {
+  return { min: null, max: null };
+}
+
+function recordLandSignalAuditSample(
+  audit: ModelCoreLand2017LvSignalAudit,
+  state: ArrayLike<number>,
+  input: LandCallInput,
+  output: LandSourceOutput,
+): void {
+  audit.sampleCount += 1;
+  updateRange(audit.freeCalciumUM, input.freeCalciumUM);
+  updateRange(audit.fiberEngineeringStrain, input.fiberEngineeringStrain);
+  updateRange(audit.fiberEngineeringStrainRatePerSec, input.fiberEngineeringStrainRatePerSec);
+  updateRange(audit.sourceActiveFiberStressPa, output.sourceActiveFiberStressPa);
+  updateRange(audit.stabilizationStiffnessPa, output.stabilizationStiffnessPa);
+  updateRange(audit.sourceActivePowerDensityWPerM3, output.sourceActivePowerDensityWPerM3);
+  updateRange(audit.boundFraction, landBoundFractionFromStateLike(state));
+  updateRange(audit.minimumPopulation, output.health.minimumPopulation);
+  updateRange(audit.stateConservationResidual, output.health.stateConservationResidual);
+  audit.finiteHealthAllSamples = audit.finiteHealthAllSamples && output.health.finite;
+  for (const [label, index] of Object.entries(LAND2017_STATE_INDEX)) {
+    updateRange(audit.stateRanges[label] ?? (audit.stateRanges[label] = emptyRangeAudit()), state[index]);
+  }
+}
+
+function updateRange(range: ModelCoreLand2017LvRangeAudit, value: number): void {
+  if (!Number.isFinite(value)) return;
+  range.min = range.min == null ? value : Math.min(range.min, value);
+  range.max = range.max == null ? value : Math.max(range.max, value);
+}
+
+function landBoundFractionFromStateLike(state: ArrayLike<number>): number {
+  return clamp01(
+    state[LAND2017_STATE_INDEX.B]
+    + state[LAND2017_STATE_INDEX.W]
+    + state[LAND2017_STATE_INDEX.S],
+  );
 }

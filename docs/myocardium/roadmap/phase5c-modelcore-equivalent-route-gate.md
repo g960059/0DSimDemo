@@ -1,6 +1,6 @@
-# Phase 5C-H/I/J/K/L/M/N ModelCore-equivalent Route Gate
+# Phase 5C-H/I/J/K/L/M/N/O ModelCore-equivalent Route Gate
 
-Status: paired experimental LV source-provider evidence recorded through Phase 5C-L; qDot clamp-threshold attribution recorded through Phase 5C-M; output-match not-overlapped diagnostic recorded through Phase 5C-N; final no-alternans remains unclaimed
+Status: paired experimental LV source-provider evidence recorded through Phase 5C-L; qDot clamp-threshold attribution recorded through Phase 5C-M; output-match not-overlapped diagnostic recorded through Phase 5C-N; activation/source-interface audit recorded through Phase 5C-O; final no-alternans remains unclaimed
 
 This route was recorded as `modelcore-equivalent-closure-positive-control` in
 `phase5c-post-fidelity-entry-gate-v1` before implementation evidence existed.
@@ -63,6 +63,15 @@ and 0.091 of pinned legacy QAo peak. Therefore the preload/TBV axis did not move
 Land into the pinned legacy qDot clamp-engaged output regime; clamp-threshold
 avoidance remains unresolved and structural alternans removal is not established.
 
+Phase 5C-O audits the activation/source interface at the pinned low-preload point
+and the Phase 5C-N best-Land point. Both points preserve same-closure
+source-provider-only pairing within point and converge with zero Land solve
+failures. The result records `land-source-interface-underactivation-gap-observed`:
+the settled Land trace active-stress target is orders of magnitude below legacy
+at both diagnostic points, even though provider source/commit path transients can
+be higher during the full run. This redirects the next experiment to calcium
+input scale/unit audit and explicit matched-regime forcing, not to acceptance.
+
 Machine-readable gate:
 
 ```text
@@ -78,6 +87,7 @@ npm run verify:myocardium-modelcore-active-source-pressure-adapter
 npm run verify:myocardium-modelcore-paired-land-source-provider
 npm run verify:myocardium-modelcore-paired-land-qdot-clamp-attribution
 npm run verify:myocardium-modelcore-paired-land-output-matched-qdot-attribution
+npm run verify:myocardium-modelcore-land-activation-interface-audit
 ```
 
 Source no-go evidence:
@@ -129,6 +139,12 @@ Paired Land output-match qDot attribution evidence:
 data/myocardium/protocols/modelcore-paired-land-output-matched-qdot-attribution-result-v1.json
 ```
 
+Land activation/source-interface evidence:
+
+```text
+data/myocardium/protocols/modelcore-land-activation-interface-audit-result-v1.json
+```
+
 ## Route Set
 
 Entry route ids recorded in the gate:
@@ -155,6 +171,10 @@ supported attribution risk until output-matched paired evidence is run. Phase
 5C-N records that the predeclared TBV-axis output-match diagnostic is
 not-overlapped, so structural attribution still requires SDIRK2 reference
 evidence and either explicit output forcing or another owner-approved match axis.
+Phase 5C-O records that the settled Land trace active-stress target is orders
+below legacy at the pinned and best-Land diagnostic points, so the immediate next
+attribution work is calcium/source-scale and explicit matched-regime diagnostics
+rather than acceptance.
 
 Evidence fields required for the ModelCore-equivalent paired route include:
 
@@ -190,7 +210,8 @@ Land avoids AoV qDot clamp engagement at a lower-output operating point; that
 narrows the next experiment to output matching rather than acceptance. Phase
 5C-N runs that first output-match diagnostic and records output-match
 not-overlapped, which keeps clamp-threshold avoidance unresolved rather than
-accepting structural alternans removal.
+accepting structural alternans removal. Phase 5C-O records the activation/source
+interface gap that explains why the TBV-axis output-match route did not overlap.
 
 ## Boundary
 
@@ -211,3 +232,7 @@ route, a normal phase PR should include the implementation needed to run the
 experiment, the experiment result, focused verifier/test coverage, and only the
 docs needed to preserve the claim boundary. If an experiment can be run in the
 same PR, it should be run in that PR.
+
+Oracle GPT Pro/extended PR review is optional per PR but should be used at
+least roughly once every three Phase 5C PRs for direction and next-plan review,
+with at most two oracle PR reviews on any single PR.
