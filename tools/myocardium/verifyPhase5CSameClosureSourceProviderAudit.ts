@@ -135,6 +135,7 @@ const PHASE5C_G_CHANGED_FILE_SCOPE_TRIGGER_PATHS = [
 const PHASE5C_I_MODELCORE_SOURCE_PROVIDER_ALLOWED_CHANGED_FILE_PATHS = [
   "__tests__/myocardiumPhase5CModelCoreEquivalentPositiveControlClosure.test.ts",
   "__tests__/myocardiumPhase5CPostFidelityEntryGate.test.ts",
+  PHASE5C_G_TEST_PATH,
   PHASE5C_E_ENTRY_GATE_PATH,
   "data/myocardium/protocols/modelcore-equivalent-positive-control-closure-evidence-v1.json",
   MODELCORE_EQUIVALENT_CLOSURE_PATH,
@@ -795,10 +796,12 @@ function validateChangedFileScope(changedFilePaths: readonly string[], issues: V
 
 function isPhase5IModelCoreSourceProviderDiff(changedFilePaths: readonly string[]): boolean {
   const allowedPaths = new Set<string>(PHASE5C_I_MODELCORE_SOURCE_PROVIDER_ALLOWED_CHANGED_FILE_PATHS);
-  return changedFilePaths.includes("engine/ModelCore.ts")
-    && changedFilePaths.includes("tools/myocardium/verifyModelCoreEquivalentPositiveControlClosure.ts")
-    && changedFilePaths.includes("data/myocardium/protocols/modelcore-equivalent-positive-control-closure-evidence-v1.json")
-    && changedFilePaths.every((filePath) => allowedPaths.has(filePath));
+  const changedPaths = new Set(changedFilePaths);
+  if (changedPaths.size !== allowedPaths.size) return false;
+  for (const allowedPath of allowedPaths) {
+    if (!changedPaths.has(allowedPath)) return false;
+  }
+  return true;
 }
 
 function validateNoProductionClaims(label: string, text: string, issues: ValidationIssue[]): void {
