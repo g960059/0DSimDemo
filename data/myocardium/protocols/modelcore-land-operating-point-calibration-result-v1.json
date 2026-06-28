@@ -1,0 +1,1024 @@
+{
+  "schemaVersion": 1,
+  "id": "modelcore-land-operating-point-calibration-result-v1",
+  "phase": "Phase 5S",
+  "claimBoundary": "operating-point-calibration-diagnostic-only",
+  "upstreamPhase2BArtifactId": "calcium-land-phase2b-isometric-protocols-v1",
+  "upstreamPhase2BMechanisticFieldsId": "phase2b-mechanistic-report-fields-v1",
+  "upstreamLevel3SourceStressTransferGateId": "level3-source-stress-transfer-gate-v1",
+  "upstreamPhase4DArtifactId": "selected-mechanics-calibration-phase4d-protocols-v1",
+  "upstreamPhase5QArtifactId": "modelcore-land-calcium-unit-interface-audit-result-v1",
+  "upstreamPhase5RArtifactId": "modelcore-land-sdirk2-reference-result-v1",
+  "verifierScript": "verify:myocardium-modelcore-land-operating-point-calibration",
+  "diagnosticProtocol": {
+    "diagnosticDeltasMl": [
+      -1250,
+      0,
+      1000
+    ],
+    "mainDomainDeltasMl": [
+      0,
+      1000
+    ],
+    "phase5QCalciumMappingScenario": "phase2b-absolute-peak-ca",
+    "phase5QCalciumScale": 6.695183401029768,
+    "providerCommitScheme": "BE",
+    "preloadAxisMode": "fixed-diagnostic-operating-points-not-tuning",
+    "pointInitialization": "independent-from-target-tbv-no-cross-point-warm-start",
+    "closureInvariant": "ModelCore closure, qDot, valves, afterload, preload, sampling, and beat selection unchanged within each delta",
+    "educationDoDScope": "report-only-checkpoint-not-acceptance"
+  },
+  "boundary": {
+    "noModelCoreGlobalIntegratorChange": true,
+    "noSdirk2RobustnessClaim": true,
+    "noQDotTuning": true,
+    "noValveTuning": true,
+    "noAfterloadTuning": true,
+    "noPreloadTuning": true,
+    "noLandParameterTuning": true,
+    "noSourceStressScaling": true,
+    "noRuntimeReplacement": true,
+    "noOfficialMorphologyAcceptance": true
+  },
+  "runHealth": {
+    "legacyPointCount": 3,
+    "landPointCount": 3,
+    "legacyPointsSettledByConvergence": 3,
+    "landPointsSettledByConvergence": 3,
+    "landPointsCapOrNonOk": 0,
+    "landSolveFailureCount": 0,
+    "sourceAuditSamplesPresent": true,
+    "commitAuditSamplesPresent": true,
+    "calciumScaleAuditSamplesPresent": true
+  },
+  "levelEvidence": {
+    "level1CalciumInterface": {
+      "status": "phase5q-fixed-unit-mapping-reused",
+      "pinnedLegacyCPeak": 0.1523483284779199,
+      "phase2BAbsolutePeakCaUM": 1.02,
+      "phase5QCalciumScale": 6.695183401029768,
+      "mappedPinnedOverlayPeakCaUM": 1.0200000000055454,
+      "pinnedPeakRelativeError": 5.436609768036992e-12,
+      "pass": true
+    },
+    "level2SourceStressTransfer": {
+      "status": "closed-loop-source-stress-transfer-measured",
+      "sourceTwitchFwhmMsApprox": 234,
+      "sourceStressPeakKPaApprox": null,
+      "mainDomainPeakSigmaActRatios": [
+        0.9957749572800171,
+        0.9409395191894552
+      ],
+      "allLandSolvesOk": true,
+      "stressRatiosInCoarseLegacyClass": true
+    },
+    "level3_4ClosedLoopOperatingPoint": {
+      "status": "main-domain-calibration-signal",
+      "mainDomainOutputScoreMax": 0.1404074696209277,
+      "mainDomainQAoPeakRatioMin": 0.8274628962177673,
+      "mainDomainAllPeriod1": true,
+      "lowPreloadEdgeStillReportOnly": true
+    }
+  },
+  "pairs": [
+    {
+      "deltaVolumeMl": -1250,
+      "pointRole": "pinned-low-preload-edge",
+      "legacy": {
+        "sourceProviderId": "modelcore-experimental-legacy-active-stress-lv-source-only-provider-v1",
+        "providerKind": "legacy-activeStress-source-only",
+        "deltaVolumeMl": -1250,
+        "effectiveTotalBloodVolumeMl": 4350,
+        "closureStableHash": "47046f94",
+        "independentlyInitializedPoint": true,
+        "commitScheme": "legacy",
+        "calciumScale": null,
+        "settled": true,
+        "settleReason": "converged",
+        "settleActualSeconds": 26.600000000009526,
+        "periodBeats": 2,
+        "adjacentDelta": 0.5745146104493377,
+        "periodDelta": 0.007893685508913251,
+        "healthStatus": "ok",
+        "healthMessages": [],
+        "tbvClassification": "clean",
+        "maxValveReverseMl": 0,
+        "CO_L": 3.8054129718253815,
+        "SV_L": 50.738839624338425,
+        "EDV_L": 102.33863638878441,
+        "ESV_L": 31.52539621222751,
+        "LVPMax": 82.49396367448583,
+        "AoPMean": 59.64631190808615,
+        "AoPMax": 88.50429004013691,
+        "QAoPeakMlPerSec": 1495.9427664033947,
+        "peakSigmaActPa": 11361.352547159444,
+        "qAoCapRatioMax": 0.9972974131618831,
+        "aovQDotClampHitFraction": 0.052083333333333336,
+        "mvAForwardMl": 56.25391487476337,
+        "mvAFraction": 0.7885864882423992,
+        "fillingMorphologyClass": "E+A",
+        "activeTraceAudit": {
+          "beatTraceCount": 4,
+          "overlaySampleCount": 192,
+          "overlayLV_c": {
+            "min": 0.0026799227125731896,
+            "max": 0.1523483284779199
+          },
+          "overlayLV_sigmaActTarget": {
+            "min": 4.896807454813714,
+            "max": 11361.352547159444
+          }
+        },
+        "providerInstrumentation": {
+          "sourceActiveStressCallCount": 200799,
+          "commitProviderStateAfterStepCount": 0,
+          "landSolveFailureCount": 0,
+          "landSolveOkCount": 0,
+          "maxSolverResidualNorm": 0,
+          "debugActiveStressTermsCallCount": 577
+        }
+      },
+      "land": {
+        "sourceProviderId": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5s-phase2b-calcium-mapped-be",
+        "providerKind": "land2017-phase2b-calcium-mapped-source-only",
+        "deltaVolumeMl": -1250,
+        "effectiveTotalBloodVolumeMl": 4350,
+        "closureStableHash": "47046f94",
+        "independentlyInitializedPoint": true,
+        "commitScheme": "BE",
+        "calciumScale": 6.695183401029768,
+        "settled": true,
+        "settleReason": "converged",
+        "settleActualSeconds": 22.550000000004577,
+        "periodBeats": 1,
+        "adjacentDelta": 0.004748659879026093,
+        "periodDelta": 0.004748659879026093,
+        "healthStatus": "ok",
+        "healthMessages": [],
+        "tbvClassification": "clean",
+        "maxValveReverseMl": 0,
+        "CO_L": 3.7639249936982826,
+        "SV_L": 50.18566658264376,
+        "EDV_L": 103.30519300482396,
+        "ESV_L": 52.84980547691876,
+        "LVPMax": 89.17731055654353,
+        "AoPMean": 59.400465199476606,
+        "AoPMax": 76.61383923462408,
+        "QAoPeakMlPerSec": 1183.2060122780063,
+        "peakSigmaActPa": 12750.755540121883,
+        "qAoCapRatioMax": 0.7888040081853375,
+        "aovQDotClampHitFraction": 0.08333333333333333,
+        "mvAForwardMl": 36.62625110861178,
+        "mvAFraction": 0.6529046802950864,
+        "fillingMorphologyClass": "E+A",
+        "activeTraceAudit": {
+          "beatTraceCount": 4,
+          "overlaySampleCount": 192,
+          "overlayLV_c": {
+            "min": 0.01794257406090051,
+            "max": 1.0200000000055454
+          },
+          "overlayLV_sigmaActTarget": {
+            "min": 0.16455349386406765,
+            "max": 12750.755540121883
+          }
+        },
+        "providerInstrumentation": {
+          "sourceActiveStressCallCount": 284431,
+          "commitProviderStateAfterStepCount": 27350,
+          "landSolveFailureCount": 0,
+          "landSolveOkCount": 27350,
+          "maxSolverResidualNorm": 9.998470208808516e-9,
+          "debugActiveStressTermsCallCount": 577,
+          "maxSourceDebugStressDifferencePa": 0,
+          "sourcePathAudit": {
+            "sampleCount": 284431,
+            "freeCalciumUM": {
+              "min": 0,
+              "max": 1.021567786044394
+            },
+            "fiberEngineeringStrain": {
+              "min": -0.171021239306963,
+              "max": 0.0198501493064398
+            },
+            "fiberEngineeringStrainRatePerSec": {
+              "min": -3.408265305948621,
+              "max": 2.7690334452569187
+            },
+            "sourceActiveFiberStressPa": {
+              "min": 0.15471990490730878,
+              "max": 14779.30888403447
+            },
+            "stabilizationStiffnessPa": {
+              "min": 1.7265972189175793,
+              "max": 850375.629730088
+            },
+            "sourceActivePowerDensityWPerM3": {
+              "min": -36826.186449758694,
+              "max": 19818.5314081441
+            },
+            "boundFraction": {
+              "min": 0.28,
+              "max": 0.999999979512803
+            },
+            "minimumPopulation": {
+              "min": 2.0487197000231548e-8,
+              "max": 0.16384599451470216
+            },
+            "stateConservationResidual": {
+              "min": 0,
+              "max": 2.220446049250313e-16
+            },
+            "finiteHealthAllSamples": true,
+            "stateRanges": {
+              "CaTRPN": {
+                "min": 0.0004394507936196504,
+                "max": 0.6327631599493525
+              },
+              "B": {
+                "min": 0.06279616390471936,
+                "max": 0.9999987716096768
+              },
+              "W": {
+                "min": 2.193729138849505e-8,
+                "max": 0.4176132227376821
+              },
+              "S": {
+                "min": 0.0000010348782851113918,
+                "max": 0.16384599451470216
+              },
+              "zetaW": {
+                "min": -0.07752237710602655,
+                "max": 0.022268934365386957
+              },
+              "zetaS": {
+                "min": -0.5020713966055953,
+                "max": 0.19444140856491704
+              }
+            }
+          },
+          "commitPathAudit": {
+            "sampleCount": 27350,
+            "freeCalciumUM": {
+              "min": 0,
+              "max": 1.0211018444097997
+            },
+            "fiberEngineeringStrain": {
+              "min": -0.171021239306963,
+              "max": 0.019847501381401678
+            },
+            "fiberEngineeringStrainRatePerSec": {
+              "min": -3.245399831314555,
+              "max": 0.9058323269748314
+            },
+            "sourceActiveFiberStressPa": {
+              "min": 0.15471990490730878,
+              "max": 14772.523896090293
+            },
+            "stabilizationStiffnessPa": {
+              "min": 1.7265972189175793,
+              "max": 850012.1957246707
+            },
+            "sourceActivePowerDensityWPerM3": {
+              "min": -34070.42915297728,
+              "max": 211.13442794070818
+            },
+            "boundFraction": {
+              "min": 0.5590825802972278,
+              "max": 0.999999979512803
+            },
+            "minimumPopulation": {
+              "min": 2.0487197000231548e-8,
+              "max": 0.16384599451470216
+            },
+            "stateConservationResidual": {
+              "min": 0,
+              "max": 2.220446049250313e-16
+            },
+            "finiteHealthAllSamples": true,
+            "stateRanges": {
+              "CaTRPN": {
+                "min": 0.0004394507936196504,
+                "max": 0.6327631599493525
+              },
+              "B": {
+                "min": 0.06279616390471936,
+                "max": 0.9999987716096768
+              },
+              "W": {
+                "min": 2.193729138849505e-8,
+                "max": 0.4176132227376821
+              },
+              "S": {
+                "min": 0.0000010348782851113918,
+                "max": 0.16384599451470216
+              },
+              "zetaW": {
+                "min": -0.07752237710602655,
+                "max": 0.022268934365386957
+              },
+              "zetaS": {
+                "min": -0.5020713966055953,
+                "max": 0.19444140856491704
+              }
+            }
+          },
+          "calciumScaleAudit": {
+            "sourceCallCount": 284431,
+            "debugCallCount": 577,
+            "commitCallCount": 27350,
+            "scale": 6.695183401029768,
+            "rawSourceInternalC": {
+              "min": 0,
+              "max": 0.15258249473603208
+            },
+            "mappedSourceFreeCalciumUM": {
+              "min": 0,
+              "max": 1.021567786044394
+            },
+            "rawDebugInternalC": {
+              "min": 0.0026799227124866217,
+              "max": 0.15234832847924448
+            },
+            "mappedDebugFreeCalciumUM": {
+              "min": 0.0179425740606831,
+              "max": 1.0200000000088683
+            },
+            "rawCommitBeforeInternalC": {
+              "min": 0,
+              "max": 0.15251290117799413
+            },
+            "mappedCommitBeforeFreeCalciumUM": {
+              "min": 0,
+              "max": 1.0211018444097997
+            },
+            "rawCommitAfterInternalC": {
+              "min": 0,
+              "max": 0.15251290117799413
+            },
+            "mappedCommitAfterFreeCalciumUM": {
+              "min": 0,
+              "max": 1.0211018444097997
+            }
+          }
+        }
+      },
+      "sameClosureStableHash": true,
+      "sourceProviderDifferenceOnlyWithinPoint": true,
+      "comparison": {
+        "landVsLegacyCOLRatio": 0.9890976410617537,
+        "landVsLegacySVRatio": 0.9890976410617535,
+        "landVsLegacyQAoPeakRatio": 0.7909433695265745,
+        "landVsLegacyPeakSigmaActRatio": 1.1222920411276047,
+        "landVsLegacyLVPMaxRatio": 1.0810161929960067,
+        "landVsLegacyAoPMaxRatio": 0.8656511362316959,
+        "meanOutputMatchScore": 0.08924528102284583,
+        "mainDomainOutputRegimeReasonable": false,
+        "landPeriod1": true,
+        "legacyPeriod2": true,
+        "landClampEngaged": true
+      }
+    },
+    {
+      "deltaVolumeMl": 0,
+      "pointRole": "baseline-operating-point",
+      "legacy": {
+        "sourceProviderId": "modelcore-experimental-legacy-active-stress-lv-source-only-provider-v1",
+        "providerKind": "legacy-activeStress-source-only",
+        "deltaVolumeMl": 0,
+        "effectiveTotalBloodVolumeMl": 5600,
+        "closureStableHash": "97137265",
+        "independentlyInitializedPoint": true,
+        "commitScheme": "legacy",
+        "calciumScale": null,
+        "settled": true,
+        "settleReason": "converged",
+        "settleActualSeconds": 9.800000000000008,
+        "periodBeats": 1,
+        "adjacentDelta": 0.013424885879127244,
+        "periodDelta": 0.013424885879127244,
+        "healthStatus": "ok",
+        "healthMessages": [],
+        "tbvClassification": "clean",
+        "maxValveReverseMl": 0,
+        "CO_L": 5.449144379664438,
+        "SV_L": 72.65525839552583,
+        "EDV_L": 122.30182369453571,
+        "ESV_L": 50.09596878853434,
+        "LVPMax": 114.04320759005431,
+        "AoPMean": 86.70191067711035,
+        "AoPMax": 120.62708138218659,
+        "QAoPeakMlPerSec": 1499.6686951422973,
+        "peakSigmaActPa": 16697.16267212061,
+        "qAoCapRatioMax": 0.9997985664140333,
+        "aovQDotClampHitFraction": 0.09375,
+        "mvAForwardMl": 40.88624312568002,
+        "mvAFraction": 0.4714971850174872,
+        "fillingMorphologyClass": "E+A",
+        "activeTraceAudit": {
+          "beatTraceCount": 4,
+          "overlaySampleCount": 192,
+          "overlayLV_c": {
+            "min": 0.002668543609240377,
+            "max": 0.15234832848140567
+          },
+          "overlayLV_sigmaActTarget": {
+            "min": 9.603348883309641,
+            "max": 16697.16267212061
+          }
+        },
+        "providerInstrumentation": {
+          "sourceActiveStressCallCount": 94012,
+          "commitProviderStateAfterStepCount": 0,
+          "landSolveFailureCount": 0,
+          "landSolveOkCount": 0,
+          "maxSolverResidualNorm": 0,
+          "debugActiveStressTermsCallCount": 576
+        }
+      },
+      "land": {
+        "sourceProviderId": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5s-phase2b-calcium-mapped-be",
+        "providerKind": "land2017-phase2b-calcium-mapped-source-only",
+        "deltaVolumeMl": 0,
+        "effectiveTotalBloodVolumeMl": 5600,
+        "closureStableHash": "97137265",
+        "independentlyInitializedPoint": true,
+        "commitScheme": "BE",
+        "calciumScale": 6.695183401029768,
+        "settled": true,
+        "settleReason": "converged",
+        "settleActualSeconds": 9.800000000000008,
+        "periodBeats": 1,
+        "adjacentDelta": 0.013189459381440304,
+        "periodDelta": 0.013189459381440304,
+        "healthStatus": "ok",
+        "healthMessages": [],
+        "tbvClassification": "clean",
+        "maxValveReverseMl": 0,
+        "CO_L": 4.826810447904914,
+        "SV_L": 64.35747263873219,
+        "EDV_L": 130.56102848998043,
+        "ESV_L": 66.67590864803466,
+        "LVPMax": 108.13504908353848,
+        "AoPMean": 77.58254038080968,
+        "AoPMax": 99.75562791809534,
+        "QAoPeakMlPerSec": 1272.289684528117,
+        "peakSigmaActPa": 16626.616446528395,
+        "qAoCapRatioMax": 0.8510224334486824,
+        "aovQDotClampHitFraction": 0.07291666666666667,
+        "mvAForwardMl": 23.903807951655473,
+        "mvAFraction": 0.3227537597239002,
+        "fillingMorphologyClass": "E+mid+A",
+        "activeTraceAudit": {
+          "beatTraceCount": 4,
+          "overlaySampleCount": 192,
+          "overlayLV_c": {
+            "min": 0.01786638887751024,
+            "max": 1.0200000000233378
+          },
+          "overlayLV_sigmaActTarget": {
+            "min": 0.2840430303272244,
+            "max": 16626.616446528395
+          }
+        },
+        "providerInstrumentation": {
+          "sourceActiveStressCallCount": 152412,
+          "commitProviderStateAfterStepCount": 14600,
+          "landSolveFailureCount": 0,
+          "landSolveOkCount": 14600,
+          "maxSolverResidualNorm": 9.999324093832185e-9,
+          "debugActiveStressTermsCallCount": 576,
+          "maxSourceDebugStressDifferencePa": 0,
+          "sourcePathAudit": {
+            "sampleCount": 152412,
+            "freeCalciumUM": {
+              "min": 0,
+              "max": 1.0215677860395496
+            },
+            "fiberEngineeringStrain": {
+              "min": -0.1488992416905247,
+              "max": 0.030742861294168033
+            },
+            "fiberEngineeringStrainRatePerSec": {
+              "min": -6.042202719170331,
+              "max": 1.3867538137779523
+            },
+            "sourceActiveFiberStressPa": {
+              "min": 0.23335595637812162,
+              "max": 16671.644095639364
+            },
+            "stabilizationStiffnessPa": {
+              "min": 2.6235019335373435,
+              "max": 879688.0842300111
+            },
+            "sourceActivePowerDensityWPerM3": {
+              "min": -77839.3955049399,
+              "max": 2966.396054458881
+            },
+            "boundFraction": {
+              "min": 0.28,
+              "max": 0.9999999699963081
+            },
+            "minimumPopulation": {
+              "min": 3.000369181237265e-8,
+              "max": 0.17099386166527125
+            },
+            "stateConservationResidual": {
+              "min": 0,
+              "max": 2.220446049250313e-16
+            },
+            "finiteHealthAllSamples": true,
+            "stateRanges": {
+              "CaTRPN": {
+                "min": 0.0006228199812105138,
+                "max": 0.6545226145046628
+              },
+              "B": {
+                "min": 0.05304729206416425,
+                "max": 0.999998397372787
+              },
+              "W": {
+                "min": 3.227101269096837e-8,
+                "max": 0.4256296350188832
+              },
+              "S": {
+                "min": 0.0000013455398310516936,
+                "max": 0.17099386166527125
+              },
+              "zetaW": {
+                "min": -0.07509022894268418,
+                "max": 0.034104754529491486
+              },
+              "zetaS": {
+                "min": -0.5007237362632968,
+                "max": 0.30398038150041357
+              }
+            }
+          },
+          "commitPathAudit": {
+            "sampleCount": 14600,
+            "freeCalciumUM": {
+              "min": 0,
+              "max": 1.021101844405271
+            },
+            "fiberEngineeringStrain": {
+              "min": -0.1485397991177314,
+              "max": 0.030739512685648673
+            },
+            "fiberEngineeringStrainRatePerSec": {
+              "min": -3.135713692926534,
+              "max": 1.3867538137779523
+            },
+            "sourceActiveFiberStressPa": {
+              "min": 0.23360758579753632,
+              "max": 16671.644095639364
+            },
+            "stabilizationStiffnessPa": {
+              "min": 2.6263468989846843,
+              "max": 879688.0842300111
+            },
+            "sourceActivePowerDensityWPerM3": {
+              "min": -36166.457912388476,
+              "max": 1606.9063384828685
+            },
+            "boundFraction": {
+              "min": 0.5512004551130112,
+              "max": 0.9999999699963081
+            },
+            "minimumPopulation": {
+              "min": 3.000369181237265e-8,
+              "max": 0.17099386166527125
+            },
+            "stateConservationResidual": {
+              "min": 0,
+              "max": 2.220446049250313e-16
+            },
+            "finiteHealthAllSamples": true,
+            "stateRanges": {
+              "CaTRPN": {
+                "min": 0.0006228199812105138,
+                "max": 0.6545226145046628
+              },
+              "B": {
+                "min": 0.05304729206416425,
+                "max": 0.999998397372787
+              },
+              "W": {
+                "min": 3.227101269096837e-8,
+                "max": 0.4256296350188832
+              },
+              "S": {
+                "min": 0.0000013455398310516936,
+                "max": 0.17099386166527125
+              },
+              "zetaW": {
+                "min": -0.07509022894268418,
+                "max": 0.034104754529491486
+              },
+              "zetaS": {
+                "min": -0.5007237362632968,
+                "max": 0.30398038150041357
+              }
+            }
+          },
+          "calciumScaleAudit": {
+            "sourceCallCount": 152412,
+            "debugCallCount": 576,
+            "commitCallCount": 14600,
+            "scale": 6.695183401029768,
+            "rawSourceInternalC": {
+              "min": 0,
+              "max": 0.15258249473530852
+            },
+            "mappedSourceFreeCalciumUM": {
+              "min": 0,
+              "max": 1.0215677860395496
+            },
+            "rawDebugInternalC": {
+              "min": 0.002668543609240377,
+              "max": 0.15234832848140567
+            },
+            "mappedDebugFreeCalciumUM": {
+              "min": 0.01786638887751024,
+              "max": 1.0200000000233378
+            },
+            "rawCommitBeforeInternalC": {
+              "min": 0,
+              "max": 0.15251290117731775
+            },
+            "mappedCommitBeforeFreeCalciumUM": {
+              "min": 0,
+              "max": 1.021101844405271
+            },
+            "rawCommitAfterInternalC": {
+              "min": 0,
+              "max": 0.15251290117731775
+            },
+            "mappedCommitAfterFreeCalciumUM": {
+              "min": 0,
+              "max": 1.021101844405271
+            }
+          }
+        }
+      },
+      "sameClosureStableHash": true,
+      "sourceProviderDifferenceOnlyWithinPoint": true,
+      "comparison": {
+        "landVsLegacyCOLRatio": 0.8857923577723503,
+        "landVsLegacySVRatio": 0.8857923577723504,
+        "landVsLegacyQAoPeakRatio": 0.8483805047403452,
+        "landVsLegacyPeakSigmaActRatio": 0.9957749572800171,
+        "landVsLegacyLVPMaxRatio": 0.9481936835049957,
+        "landVsLegacyAoPMaxRatio": 0.8269753920517768,
+        "meanOutputMatchScore": 0.12097314083163631,
+        "mainDomainOutputRegimeReasonable": true,
+        "landPeriod1": true,
+        "legacyPeriod2": false,
+        "landClampEngaged": true
+      }
+    },
+    {
+      "deltaVolumeMl": 1000,
+      "pointRole": "high-volume-diagnostic-point",
+      "legacy": {
+        "sourceProviderId": "modelcore-experimental-legacy-active-stress-lv-source-only-provider-v1",
+        "providerKind": "legacy-activeStress-source-only",
+        "deltaVolumeMl": 1000,
+        "effectiveTotalBloodVolumeMl": 6600,
+        "closureStableHash": "a0df57dc",
+        "independentlyInitializedPoint": true,
+        "commitScheme": "legacy",
+        "calciumScale": null,
+        "settled": true,
+        "settleReason": "converged",
+        "settleActualSeconds": 17.79999999999877,
+        "periodBeats": 1,
+        "adjacentDelta": 0.006367359496088779,
+        "periodDelta": 0.006367359496088779,
+        "healthStatus": "ok",
+        "healthMessages": [],
+        "tbvClassification": "clean",
+        "maxValveReverseMl": 0,
+        "CO_L": 5.4287516286594135,
+        "SV_L": 72.38335504879218,
+        "EDV_L": 124.79604435935698,
+        "ESV_L": 52.39749866705775,
+        "LVPMax": 119.38767264886823,
+        "AoPMean": 93.01838628992563,
+        "AoPMax": 128.26762028771782,
+        "QAoPeakMlPerSec": 1499.7624644201858,
+        "peakSigmaActPa": 17660.051943063627,
+        "qAoCapRatioMax": 0.9998587513040188,
+        "aovQDotClampHitFraction": 0.08333333333333333,
+        "mvAForwardMl": 14.328590183367867,
+        "mvAFraction": 0.20973026851756255,
+        "fillingMorphologyClass": "E+mid+A",
+        "activeTraceAudit": {
+          "beatTraceCount": 4,
+          "overlaySampleCount": 192,
+          "overlayLV_c": {
+            "min": 0.0026799227124541403,
+            "max": 0.1523483284797413
+          },
+          "overlayLV_sigmaActTarget": {
+            "min": 10.969441326324084,
+            "max": 17660.051943063627
+          }
+        },
+        "providerInstrumentation": {
+          "sourceActiveStressCallCount": 144827,
+          "commitProviderStateAfterStepCount": 0,
+          "landSolveFailureCount": 0,
+          "landSolveOkCount": 0,
+          "maxSolverResidualNorm": 0,
+          "debugActiveStressTermsCallCount": 577
+        }
+      },
+      "land": {
+        "sourceProviderId": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5s-phase2b-calcium-mapped-be",
+        "providerKind": "land2017-phase2b-calcium-mapped-source-only",
+        "deltaVolumeMl": 1000,
+        "effectiveTotalBloodVolumeMl": 6600,
+        "closureStableHash": "a0df57dc",
+        "independentlyInitializedPoint": true,
+        "commitScheme": "BE",
+        "calciumScale": 6.695183401029768,
+        "settled": true,
+        "settleReason": "converged",
+        "settleActualSeconds": 10.549999999999592,
+        "periodBeats": 1,
+        "adjacentDelta": 0.010243077361905828,
+        "periodDelta": 0.010243077361905828,
+        "healthStatus": "ok",
+        "healthMessages": [],
+        "tbvClassification": "clean",
+        "maxValveReverseMl": 0,
+        "CO_L": 4.679112884206055,
+        "SV_L": 62.388171789414066,
+        "EDV_L": 128.03278413621248,
+        "ESV_L": 66.29114077221857,
+        "LVPMax": 112.35969295863153,
+        "AoPMean": 81.58328724762065,
+        "AoPMax": 103.32471969992505,
+        "QAoPeakMlPerSec": 1240.997792447823,
+        "peakSigmaActPa": 16617.040784167093,
+        "qAoCapRatioMax": 0.830296313689797,
+        "aovQDotClampHitFraction": 0.08333333333333333,
+        "mvAForwardMl": 10.501525931446528,
+        "mvAFraction": 0.1699189869793938,
+        "fillingMorphologyClass": "E+mid+A",
+        "activeTraceAudit": {
+          "beatTraceCount": 4,
+          "overlaySampleCount": 192,
+          "overlayLV_c": {
+            "min": 0.01786638887751024,
+            "max": 1.0200000000221776
+          },
+          "overlayLV_sigmaActTarget": {
+            "min": 0.30250654146495065,
+            "max": 16617.040784167093
+          }
+        },
+        "providerInstrumentation": {
+          "sourceActiveStressCallCount": 160181,
+          "commitProviderStateAfterStepCount": 15350,
+          "landSolveFailureCount": 0,
+          "landSolveOkCount": 15350,
+          "maxSolverResidualNorm": 9.99953849656007e-9,
+          "debugActiveStressTermsCallCount": 576,
+          "maxSourceDebugStressDifferencePa": 0,
+          "sourcePathAudit": {
+            "sampleCount": 160181,
+            "freeCalciumUM": {
+              "min": 0,
+              "max": 1.021567786039762
+            },
+            "fiberEngineeringStrain": {
+              "min": -0.1443400511125299,
+              "max": 0.031109539665733932
+            },
+            "fiberEngineeringStrainRatePerSec": {
+              "min": -12.150722610541175,
+              "max": 1.4151812179360457
+            },
+            "sourceActiveFiberStressPa": {
+              "min": 0.2444927856738913,
+              "max": 16662.909514170424
+            },
+            "stabilizationStiffnessPa": {
+              "min": 2.748327406849701,
+              "max": 878631.0822663254
+            },
+            "sourceActivePowerDensityWPerM3": {
+              "min": -158688.68166186797,
+              "max": 3293.08479967525
+            },
+            "boundFraction": {
+              "min": 0.28,
+              "max": 0.9999999688683351
+            },
+            "minimumPopulation": {
+              "min": 3.113166487016911e-8,
+              "max": 0.1716945511325846
+            },
+            "stateConservationResidual": {
+              "min": 0,
+              "max": 2.220446049250313e-16
+            },
+            "finiteHealthAllSamples": true,
+            "stateRanges": {
+              "CaTRPN": {
+                "min": 0.0006157138732376326,
+                "max": 0.6545694243359135
+              },
+              "B": {
+                "min": 0.05321096306698457,
+                "max": 0.9999983220660359
+              },
+              "W": {
+                "min": 3.346139775922852e-8,
+                "max": 0.4256200693665696
+              },
+              "S": {
+                "min": 0.0000014090917311882662,
+                "max": 0.1716945511325846
+              },
+              "zetaW": {
+                "min": -0.07521804389648204,
+                "max": 0.03480047858430429
+              },
+              "zetaS": {
+                "min": -0.5005844575357924,
+                "max": 0.3090523305329209
+              }
+            }
+          },
+          "commitPathAudit": {
+            "sampleCount": 15350,
+            "freeCalciumUM": {
+              "min": 0,
+              "max": 1.0211018444055109
+            },
+            "fiberEngineeringStrain": {
+              "min": -0.1440563193569645,
+              "max": 0.031109539665733932
+            },
+            "fiberEngineeringStrainRatePerSec": {
+              "min": -3.1409770414904115,
+              "max": 1.4151812179360457
+            },
+            "sourceActiveFiberStressPa": {
+              "min": 0.2448959251741994,
+              "max": 16662.909514170424
+            },
+            "stabilizationStiffnessPa": {
+              "min": 2.752845602787926,
+              "max": 878631.0822663254
+            },
+            "sourceActivePowerDensityWPerM3": {
+              "min": -35809.82315019941,
+              "max": 1844.6449039994623
+            },
+            "boundFraction": {
+              "min": 0.5509930290346522,
+              "max": 0.9999999688683351
+            },
+            "minimumPopulation": {
+              "min": 3.113166487016911e-8,
+              "max": 0.1716945511325846
+            },
+            "stateConservationResidual": {
+              "min": 0,
+              "max": 2.220446049250313e-16
+            },
+            "finiteHealthAllSamples": true,
+            "stateRanges": {
+              "CaTRPN": {
+                "min": 0.0006157138732376326,
+                "max": 0.6545694243359135
+              },
+              "B": {
+                "min": 0.05321096306698457,
+                "max": 0.9999983220660359
+              },
+              "W": {
+                "min": 3.346139775922852e-8,
+                "max": 0.4256200693665696
+              },
+              "S": {
+                "min": 0.0000014090917311882662,
+                "max": 0.1716945511325846
+              },
+              "zetaW": {
+                "min": -0.07521804389648204,
+                "max": 0.03480047858430429
+              },
+              "zetaS": {
+                "min": -0.5005844575357924,
+                "max": 0.3090523305329209
+              }
+            }
+          },
+          "calciumScaleAudit": {
+            "sourceCallCount": 160181,
+            "debugCallCount": 576,
+            "commitCallCount": 15350,
+            "scale": 6.695183401029768,
+            "rawSourceInternalC": {
+              "min": 0,
+              "max": 0.15258249473534027
+            },
+            "mappedSourceFreeCalciumUM": {
+              "min": 0,
+              "max": 1.021567786039762
+            },
+            "rawDebugInternalC": {
+              "min": 0.002668543609240377,
+              "max": 0.15234832848140567
+            },
+            "mappedDebugFreeCalciumUM": {
+              "min": 0.01786638887751024,
+              "max": 1.0200000000233378
+            },
+            "rawCommitBeforeInternalC": {
+              "min": 0,
+              "max": 0.15251290117735355
+            },
+            "mappedCommitBeforeFreeCalciumUM": {
+              "min": 0,
+              "max": 1.0211018444055109
+            },
+            "rawCommitAfterInternalC": {
+              "min": 0,
+              "max": 0.15251290117735355
+            },
+            "mappedCommitAfterFreeCalciumUM": {
+              "min": 0,
+              "max": 1.0211018444055109
+            }
+          }
+        }
+      },
+      "sameClosureStableHash": true,
+      "sourceProviderDifferenceOnlyWithinPoint": true,
+      "comparison": {
+        "landVsLegacyCOLRatio": 0.8619132360935665,
+        "landVsLegacySVRatio": 0.8619132360935665,
+        "landVsLegacyQAoPeakRatio": 0.8274628962177673,
+        "landVsLegacyPeakSigmaActRatio": 0.9409395191894552,
+        "landVsLegacyLVPMaxRatio": 0.941133120913524,
+        "landVsLegacyAoPMaxRatio": 0.8055401625769372,
+        "meanOutputMatchScore": 0.1404074696209277,
+        "mainDomainOutputRegimeReasonable": true,
+        "landPeriod1": true,
+        "legacyPeriod2": false,
+        "landClampEngaged": true
+      }
+    }
+  ],
+  "educationDoDCheckpoint": {
+    "status": "draft-do-d-ready-for-owner-review",
+    "scope": "education-tool-report-only-not-runtime-acceptance",
+    "satisfiedNow": false,
+    "criteria": {
+      "mainDomainFinite": true,
+      "mainDomainOutputRegimeReasonable": true,
+      "mainDomainBeatStability": true,
+      "landSolverClean": true,
+      "morphologyStillDiagnosticOnly": true,
+      "officialCasesNeedReauthoringBeforeRuntime": true
+    }
+  },
+  "analysis": {
+    "operatingPointStatus": "main-domain-calibration-signal-low-preload-edge-report-only",
+    "finalNoAlternansClaim": "not-claimed",
+    "structuralAlternansRemovalClaim": "not-established",
+    "level3Acceptance": "not-claimed",
+    "level4Acceptance": "not-claimed",
+    "officialMorphologyAcceptance": "not-claimed",
+    "runtimeReplacement": "not-claimed",
+    "summary": "The Phase 5C-Q calcium-mapped Land provider runs cleanly at the fixed closed-loop operating points and the main-domain points sit in a coarse legacy output/stress regime. Treat this as an operating-point calibration signal and draft-do-d-ready-for-owner-review, not runtime acceptance.",
+    "requiredNextChecks": [
+      "owner-review-education-tool-definition-of-done",
+      "developer-only-runtime-flag-design-before-case-wiring",
+      "official-case-reauthoring-before-runtime-replacement",
+      "morphology-zc-and-filling-lanes-remain-separate",
+      "do-not-extend-alternans-subphases-without-explicit-final-no-alternans-scope"
+    ]
+  },
+  "doesNotUnlock": [
+    "runtimeReplacement",
+    "officialMorphologyAcceptance",
+    "finalNoAlternans",
+    "structuralAlternansRemoval",
+    "ModelCoreGlobalSecondOrderIntegration",
+    "qDotTuning",
+    "valveThresholdTuning",
+    "arterialLoadTuning",
+    "preloadTuning",
+    "landParameterTuning",
+    "sourceStressScaling",
+    "TriSegAdoption",
+    "StudioScientificValidityClaim"
+  ]
+}
