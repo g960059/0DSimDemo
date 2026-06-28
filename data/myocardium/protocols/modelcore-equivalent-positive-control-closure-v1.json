@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "modelcore-equivalent-positive-control-closure-v1",
-  "status": "proposed",
+  "status": "experimental-source-provider-hook-implemented",
   "phase": "Phase 5C-F",
   "claimBoundary": "positive-control-closure-fidelity-only",
   "purpose": "Define the next admissible route after the Phase 5C-D no-go: build or identify a closure that can reproduce the pinned legacy activeStress low-preload period-2 branch before interpreting Land no-alternans behavior.",
@@ -38,5 +38,7 @@
     "landParameterTuning",
     "TriSegAdoption"
   ],
-  "allowedFailureInterpretation": "If this route cannot reproduce the legacy period-2 positive control, the result remains an assay-fidelity failure unless an owner-approved replacement criterion supersedes the legacy positive-control requirement."
+  "currentEvidencePath": "data/myocardium/protocols/modelcore-equivalent-positive-control-closure-evidence-v1.json",
+  "currentEvidenceStatus": "partial-legacy-positive-control-pass-land-pairing-not-run",
+  "allowedFailureInterpretation": "If this route cannot reproduce the legacy period-2 positive control, the result remains an assay-fidelity failure unless an owner-approved replacement criterion supersedes the legacy positive-control requirement. Current partial evidence only covers the owner-approved experimental ModelCore source-provider hook and legacy positive-control period-2 reproduction; it does not yet satisfy sourceProviderDifferenceOnly for Land pairing."
 }

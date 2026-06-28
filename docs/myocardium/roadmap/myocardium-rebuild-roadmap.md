@@ -348,7 +348,8 @@ production tissue homogenization.
 - source audit evidence: `land-new-myocardium-low-preload-phase5c-fidelity-audit-v1`
 - current outcome: entry remains blocked by `blocked-until-positive-control-period2`, with the Land run `not-interpretable-positive-control-failed` and final no-alternans not claimed
 - entry route ids: `same-closure-period2-positive-control`, requiring period-2 positive-control reproduction under the pinned Phase 5C-C same-closure thresholds; `modelcore-equivalent-closure-positive-control`, with `status=defined-not-satisfied`; or `owner-approved-replacement-criterion`, requiring a later owner approval artifact with explicit owner provenance that supersedes the current criterion
-- boundary: no runtime replacement, no ModelCore/chamber/case/workbench/state-schema wiring, no qDot/valve/afterload tuning, no official morphology acceptance, no final no-alternans, no RV pressure-overload/interdependence/RHF coverage, and no TriSeg adoption
+- Phase 5C-I owner decision: no production ModelCore wiring is authorized. Current partial evidence uses an artifact-only source-provider constructor hook and reproduces the legacy activeStress period-2 positive control through that hook, but Land pairing has not yet run and the route remains unsatisfied.
+- boundary: no runtime replacement, no chamber/case/workbench/state-schema wiring, no production ModelCore adoption beyond the artifact-only constructor hook, no qDot/valve/afterload tuning, no official morphology acceptance, no final no-alternans, no RV pressure-overload/interdependence/RHF coverage, and no TriSeg adoption
 
 ### Phase 5C-F — positive-control triage audit
 
@@ -376,9 +377,9 @@ production tissue homogenization.
 - route id: `modelcore-equivalent-closure-positive-control`
 - closure protocol descriptor: `data/myocardium/protocols/modelcore-equivalent-positive-control-closure-v1.json`
 - gate script: `npm run verify:myocardium-phase5c-post-fidelity-entry-gate`
-- current outcome: route definition only; the route remains `defined-not-satisfied`, with `closureImplementationStatus=not-implemented`, `routeSatisfactionStatus=not-satisfied`, and advancement still `blocked-until-positive-control-period2`
-- evidence boundary: period-2 legacy activeStress positive-control reproduction is still required, event-surface preservation or explicit matching is still required, source-provider-difference-only is still required, and second-order reference evidence is still required before interpretation can advance
-- boundary: no runtime replacement, no ModelCore/chamber/case/workbench/state-schema wiring, no ModelCore-equivalent closure implementation, no qDot/valve/afterload tuning, no official morphology acceptance, no final no-alternans, no RV pressure-overload coverage, no ventricular interdependence coverage, no right-heart failure coverage, and no TriSeg adoption
+- current outcome: route definition plus Phase 5C-I partial evidence; the route remains `defined-not-satisfied`, with `closureImplementationStatus=experimental-source-provider-hook-implemented`, `routeSatisfactionStatus=partial-legacy-positive-control-pass-land-pairing-not-run`, and advancement still `blocked-until-positive-control-period2`
+- evidence boundary: paired Land source-provider evidence is still required, event-surface preservation or explicit matching is still required, source-provider-difference-only is still required, and second-order reference evidence is still required before interpretation can advance
+- boundary: no runtime replacement, no chamber/case/workbench/state-schema wiring, no production ModelCore adoption beyond the artifact-only constructor hook, no qDot/valve/afterload tuning, no official morphology acceptance, no final no-alternans, no RV pressure-overload coverage, no ventricular interdependence coverage, no right-heart failure coverage, and no TriSeg adoption
 
 ### Phase 5C+ — deferred stable-coupling work
 

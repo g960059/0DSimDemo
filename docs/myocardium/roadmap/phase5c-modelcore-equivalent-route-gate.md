@@ -4,9 +4,11 @@ Status: proposed route-definition gate after Phase 5C-G
 
 This phase records `modelcore-equivalent-closure-positive-control` as a
 defined-but-unsatisfied route in
-`phase5c-post-fidelity-entry-gate-v1`. It incorporates the PR #193 handoff into
-the normative gate without implementing a closure, satisfying an entry route,
-or changing the inherited no-go.
+`phase5c-post-fidelity-entry-gate-v1`. Phase 5C-I adds owner-approved
+experimental source-provider-limited ModelCore wiring and legacy activeStress
+positive-control evidence. The route remains partial because the paired Land
+source-provider run under the same closure has not been performed, so this does
+not satisfy an entry route or change the inherited no-go.
 
 Machine-readable gate:
 
@@ -32,6 +34,12 @@ Closure protocol descriptor:
 data/myocardium/protocols/modelcore-equivalent-positive-control-closure-v1.json
 ```
 
+Current partial evidence:
+
+```text
+data/myocardium/protocols/modelcore-equivalent-positive-control-closure-evidence-v1.json
+```
+
 ## Route Set
 
 Entry route ids recorded in the gate:
@@ -43,14 +51,15 @@ owner-approved-replacement-criterion
 ```
 
 The new route has `status=defined-not-satisfied`. It keeps
-`blocked-until-positive-control-period2` as the active advancement state.
+`blocked-until-positive-control-period2` as the active advancement state until
+the paired source-provider evidence is complete.
 
 Evidence fields for the ModelCore-equivalent route include:
 
 ```text
 closureProtocolId=modelcore-equivalent-positive-control-closure-v1
-closureImplementationStatus=not-implemented
-routeSatisfactionStatus=not-satisfied
+closureImplementationStatus=experimental-source-provider-hook-implemented
+routeSatisfactionStatus=partial-legacy-positive-control-pass-land-pairing-not-run
 legacyPositiveControlStatus=period-2-positive-control-pass
 positiveControlObservedPeriodBeats=2
 sameProtocolOrExplicitEquivalence=true
@@ -61,13 +70,17 @@ secondOrderReferenceStillRequired=true
 
 Event-surface evidence list: qDot, valve timing, afterload, preload,
 TBV/projection, pressure-floor, beat-selection, and sampling behavior preserved
-or explicitly matched. The route remains unsatisfied until that evidence exists.
+or explicitly matched. Phase 5C-I shows the legacy positive control through the
+experimental ModelCore source-provider hook. The route remains unsatisfied until
+Land is run through the same hook and `sourceProviderDifferenceOnly=true` is
+actually evaluated under that closure.
 
 ## Boundary
 
-This phase has no runtime replacement, no ModelCore/chamber/case/official-case/
-Workbench/state-schema wiring, no qDot/valve/afterload tuning, no Land
-parameter tuning, no official morphology acceptance, no final no-alternans, no
-calcium-cycling alternans acceptance, no RV pressure-overload coverage, no
-ventricular interdependence coverage, no right-heart failure coverage, and no
-TriSeg adoption.
+This phase has no runtime replacement, no chamber/case/official-case/Workbench/
+state-schema wiring, no production ModelCore adoption beyond the artifact-only
+constructor hook, no qDot/valve/afterload tuning, no Land parameter tuning, no
+official morphology acceptance, no final no-alternans, no calcium-cycling
+alternans acceptance, no RV pressure-overload coverage, no ventricular
+interdependence coverage, no right-heart failure coverage, and no TriSeg
+adoption.

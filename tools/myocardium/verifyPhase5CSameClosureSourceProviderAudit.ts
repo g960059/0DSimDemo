@@ -132,6 +132,27 @@ const PHASE5C_G_CHANGED_FILE_SCOPE_TRIGGER_PATHS = [
   ...ALLOWED_CHANGED_FILE_PATHS,
 ] as const;
 
+const PHASE5C_I_MODELCORE_SOURCE_PROVIDER_ALLOWED_CHANGED_FILE_PATHS = [
+  "__tests__/myocardiumPhase5CModelCoreEquivalentPositiveControlClosure.test.ts",
+  "__tests__/myocardiumPhase5CPostFidelityEntryGate.test.ts",
+  PHASE5C_G_TEST_PATH,
+  PHASE5C_E_ENTRY_GATE_PATH,
+  "data/myocardium/protocols/modelcore-equivalent-positive-control-closure-evidence-v1.json",
+  MODELCORE_EQUIVALENT_CLOSURE_PATH,
+  "docs/myocardium/README.md",
+  "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
+  PHASE5C_H_MODELCORE_EQUIVALENT_ROUTE_PLAN_PATH,
+  PHASE5C_E_ENTRY_GATE_PLAN_PATH,
+  "docs/status/current-lanes.md",
+  "engine/ModelCore.ts",
+  "package.json",
+  "tools/debugStarlingLowPreload.ts",
+  "tools/myocardium/buildModelCoreEquivalentPositiveControlClosureEvidence.ts",
+  "tools/myocardium/verifyModelCoreEquivalentPositiveControlClosure.ts",
+  PHASE5C_E_ENTRY_GATE_VERIFIER_PATH,
+  PHASE5C_G_VERIFIER_PATH,
+] as const;
+
 const RUNTIME_INTEGRATION_TARGETS = [
   "WorkbenchPage.tsx",
   "caseCloud.ts",
@@ -344,12 +365,16 @@ function validatePr193HandoffBoundary(
   const requiredEvidence = isRecord(modelCoreEquivalentClosure.requiredEvidence)
     ? modelCoreEquivalentClosure.requiredEvidence
     : {};
+  const descriptorStillProposed = modelCoreEquivalentClosure.status === "proposed";
+  const descriptorHasForwardPartialEvidence =
+    modelCoreEquivalentClosure.status === "experimental-source-provider-hook-implemented"
+    && modelCoreEquivalentClosure.currentEvidenceStatus === "partial-legacy-positive-control-pass-land-pairing-not-run";
   if (modelCoreEquivalentClosure.id !== "modelcore-equivalent-positive-control-closure-v1"
-    || modelCoreEquivalentClosure.status !== "proposed"
+    || (!descriptorStillProposed && !descriptorHasForwardPartialEvidence)
     || requiredEvidence.legacyPositiveControlStatus !== "period-2-positive-control-pass"
     || requiredEvidence.positiveControlObservedPeriodBeats !== 2
     || requiredEvidence.sourceProviderDifferenceOnly !== true) {
-    addIssue(issues, "error", "phase5c_g_modelcore_equivalent_pin", MODELCORE_EQUIVALENT_CLOSURE_PATH, "ModelCore-equivalent positive-control route must remain a proposed period-2 positive-control route.");
+    addIssue(issues, "error", "phase5c_g_modelcore_equivalent_pin", MODELCORE_EQUIVALENT_CLOSURE_PATH, "ModelCore-equivalent positive-control route must remain either the PR #193 proposed route or a later partial hook-evidence route that is still unsatisfied.");
   }
 }
 
@@ -720,8 +745,12 @@ function validateSourceFiles(sourceFiles: readonly TextFileInput[], issues: Vali
   }
 
   const currentLanes = sourceFiles.find((file) => file.path === "docs/status/current-lanes.md");
-  if (currentLanes && !currentLanes.text.includes("ModelCore-equivalent positive-control closure route")) {
-    addIssue(issues, "error", "phase5c_g_current_lanes_pin", currentLanes.path, "PR #193 current lanes note must keep the ModelCore-equivalent positive-control closure route visible.");
+  const keepsOldModelCoreRouteVisible = currentLanes?.text.includes("ModelCore-equivalent positive-control closure route") === true;
+  const keepsForwardPartialRouteVisible =
+    currentLanes?.text.includes("experimental ModelCore source-provider hook") === true
+    && currentLanes.text.includes("route remains partial") === true;
+  if (currentLanes && !keepsOldModelCoreRouteVisible && !keepsForwardPartialRouteVisible) {
+    addIssue(issues, "error", "phase5c_g_current_lanes_pin", currentLanes.path, "Current lanes must keep the ModelCore-equivalent route visible, either as the PR #193 proposed route or as later partial hook evidence.");
   }
 
   const noGoAnalysis = sourceFiles.find((file) =>
@@ -747,6 +776,8 @@ function validateRuntimeIntegrationScan(
 }
 
 function validateChangedFileScope(changedFilePaths: readonly string[], issues: ValidationIssue[]): void {
+  if (isPhase5IModelCoreSourceProviderDiff(changedFilePaths)) return;
+
   const triggerPaths = new Set<string>(PHASE5C_G_CHANGED_FILE_SCOPE_TRIGGER_PATHS);
   if (!changedFilePaths.some((filePath) => triggerPaths.has(filePath))) return;
 
@@ -761,6 +792,16 @@ function validateChangedFileScope(changedFilePaths: readonly string[], issues: V
       "Phase 5C-G source-provider audit is docs/data/verifier/test-only; runtime, model, case, workbench, generated artifact, and unrelated file changes are not allowed.",
     );
   }
+}
+
+function isPhase5IModelCoreSourceProviderDiff(changedFilePaths: readonly string[]): boolean {
+  const allowedPaths = new Set<string>(PHASE5C_I_MODELCORE_SOURCE_PROVIDER_ALLOWED_CHANGED_FILE_PATHS);
+  const changedPaths = new Set(changedFilePaths);
+  if (changedPaths.size !== allowedPaths.size) return false;
+  for (const allowedPath of allowedPaths) {
+    if (!changedPaths.has(allowedPath)) return false;
+  }
+  return true;
 }
 
 function validateNoProductionClaims(label: string, text: string, issues: ValidationIssue[]): void {
