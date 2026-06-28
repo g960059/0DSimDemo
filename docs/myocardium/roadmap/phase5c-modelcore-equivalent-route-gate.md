@@ -1,6 +1,6 @@
-# Phase 5C-H/I/J/K/L/M/N/O/P ModelCore-equivalent Route Gate
+# Phase 5C-H/I/J/K/L/M/N/O/P/Q ModelCore-equivalent Route Gate
 
-Status: paired experimental LV source-provider evidence recorded through Phase 5C-L; qDot clamp-threshold attribution recorded through Phase 5C-M; output-match not-overlapped diagnostic recorded through Phase 5C-N; activation/source-interface audit recorded through Phase 5C-O; calcium/source forcing bracket recorded through Phase 5C-P; final no-alternans remains unclaimed
+Status: paired experimental LV source-provider evidence recorded through Phase 5C-L; qDot clamp-threshold attribution recorded through Phase 5C-M; output-match not-overlapped diagnostic recorded through Phase 5C-N; activation/source-interface audit recorded through Phase 5C-O; calcium/source forcing bracket recorded through Phase 5C-P; calcium unit/source-interface audit recorded through Phase 5C-Q; final no-alternans remains unclaimed
 
 This route was recorded as `modelcore-equivalent-closure-positive-control` in
 `phase5c-post-fidelity-entry-gate-v1` before implementation evidence existed.
@@ -81,6 +81,16 @@ period-1. The matched regime is only the predeclared coarse output/qDot regime,
 not waveform or morphology acceptance; this is a forcing attribution signal and
 a calcium-unit/source-interface audit target, not final no-alternans acceptance.
 
+Phase 5C-Q runs that calcium unit/source-interface audit at the pinned point and
+the Phase 5C-N best-Land point under the same non-provider closure. The pinned
+legacy LV `c` peak is 0.1523, so a Phase 2B absolute peak free-calcium mapping
+uses scale 6.70 and a Land CaT50Ref peak mapping uses scale 5.28. The simple
+unit-style calcium mapping `phase2b-absolute-peak-ca` reaches the coarse legacy
+output/qDot regime at the pinned point while Land remains period-1. Phase 5C-P's
+scale-30 result therefore stays a positive control rather than a required scale.
+This is source-interface evidence only: structural alternans removal, final
+no-alternans, runtime replacement, and morphology acceptance remain unclaimed.
+
 Machine-readable gate:
 
 ```text
@@ -98,6 +108,7 @@ npm run verify:myocardium-modelcore-paired-land-qdot-clamp-attribution
 npm run verify:myocardium-modelcore-paired-land-output-matched-qdot-attribution
 npm run verify:myocardium-modelcore-land-activation-interface-audit
 npm run verify:myocardium-modelcore-land-calcium-source-forcing-bracket
+npm run verify:myocardium-modelcore-land-calcium-unit-interface-audit
 ```
 
 Source no-go evidence:
@@ -161,6 +172,12 @@ Land calcium/source forcing bracket evidence:
 data/myocardium/protocols/modelcore-land-calcium-source-forcing-bracket-result-v1.json
 ```
 
+Land calcium unit/source-interface evidence:
+
+```text
+data/myocardium/protocols/modelcore-land-calcium-unit-interface-audit-result-v1.json
+```
+
 ## Route Set
 
 Entry route ids recorded in the gate:
@@ -192,8 +209,11 @@ below legacy at the pinned and best-Land diagnostic points, so the immediate nex
 attribution work is calcium/source-scale and explicit matched-regime diagnostics
 rather than acceptance. Phase 5C-P runs that diagnostic and records that
 calcium-input scaling recovered the legacy output/qDot regime while Land
-remains period-1; the immediate next work is calcium-unit/source-interface audit
-plus SDIRK2 reference evidence before final interpretation.
+remains period-1. Phase 5C-Q records that a simple unit-style calcium mapping,
+anchored to the Phase 2B absolute peak calcium target, reaches the coarse legacy
+output/qDot regime at the pinned point while Land remains period-1. The
+immediate next work is SDIRK2 reference evidence before final interpretation,
+then Level 1-4 operating-point calibration before runtime design.
 
 Evidence fields required for the ModelCore-equivalent paired route include:
 
@@ -234,7 +254,9 @@ interface gap that explains why the TBV-axis output-match route did not overlap.
 Phase 5C-P records that explicit calcium-input forcing placed Land in the
 legacy output/qDot regime while Land remains period-1, so pure low-output
 clamp-avoidance is weakened but final structural interpretation still waits for
-calcium-unit audit and SDIRK2.
+calcium-unit audit and SDIRK2. Phase 5C-Q records that the Phase 2B absolute
+peak calcium mapping is already sufficient to enter that coarse regime at the
+pinned point, while scale 30 remains a positive-control reference only.
 
 ## Boundary
 
@@ -256,6 +278,8 @@ experiment, the experiment result, focused verifier/test coverage, and only the
 docs needed to preserve the claim boundary. If an experiment can be run in the
 same PR, it should be run in that PR.
 
-Oracle GPT Pro/extended PR review is optional per PR but should be used at
-least roughly once every three Phase 5C PRs for direction and next-plan review,
-with at most two oracle PR reviews on any single PR.
+Oracle GPT Pro/extended is not a per-PR review gate. Roughly every 3-5 Phase 5C
+PRs, ask the `循環動態シミュレーター` project for a broad, flat current-state and
+future-direction review, without framing it as a PR review or narrowing the
+answer space. If a PR-specific oracle escalation is still needed, cap it at two
+oracle interactions for that PR/session.

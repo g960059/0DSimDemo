@@ -738,6 +738,24 @@ forcing attribution signal and a calcium-unit/source-interface audit target; it
 is not runtime replacement, final no-alternans acceptance, or official
 morphology acceptance.
 
+Phase 5C-Q runs that calcium unit/source-interface audit. The recorded result is
+[`../../data/myocardium/protocols/modelcore-land-calcium-unit-interface-audit-result-v1.json`](../../data/myocardium/protocols/modelcore-land-calcium-unit-interface-audit-result-v1.json).
+Run `npm run verify:myocardium-modelcore-land-calcium-unit-interface-audit` to
+check the artifact against the live experiment. It reruns the pinned point and
+the Phase 5C-N best-Land point under the same non-provider closure and maps
+legacy active internal `c` into Land free calcium through direct, fixed
+unit-style, activation-equivalent diagnostic, and Phase 5C-P reference mappings.
+The pinned legacy LV `c` peak is 0.1523, giving a Phase 2B absolute peak
+free-calcium scale of 6.70 and a Land CaT50Ref peak scale of 5.28. The
+`phase2b-absolute-peak-ca` simple unit-style calcium mapping reaches the coarse
+legacy output/qDot regime at the pinned point while Land remains period-1. This
+means Phase 5C-P scale 30 is a positive-control reference, not a required scale.
+The result is source-interface evidence only; it is not runtime replacement,
+final no-alternans acceptance, structural alternans removal, or official
+morphology acceptance. SDIRK2 reference evidence remains required before final
+interpretation, and Level 1-4 operating-point calibration remains required
+before runtime design.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and
@@ -795,7 +813,10 @@ records a settled-trace Land stress gap; calcium/source-scale and explicit
 matched-regime diagnostics now precede any structural alternans claim. Phase
 5C-P adds that explicit forcing bracket and records that calcium-input scaling
 placed Land in the legacy output/qDot regime while Land remains period-1,
-but this remains attribution evidence only.
+but this remains attribution evidence only. Phase 5C-Q records that a Phase 2B
+absolute peak simple unit-style calcium mapping reaches the coarse legacy
+output/qDot regime at the pinned point while Land remains period-1; scale 30 is
+therefore positive-control evidence, not a required runtime scale.
 
 ## Imported bundle checks
 
