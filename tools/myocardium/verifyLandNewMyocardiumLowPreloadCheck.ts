@@ -23,6 +23,8 @@ export const LAND_NEW_MYOCARDIUM_PHASE5C_C_VERIFIER_SOURCE_PATH =
   "tools/myocardium/verifyLandNewMyocardiumLowPreloadCheck.ts";
 export const LAND_NEW_MYOCARDIUM_PHASE5C_D_FIDELITY_AUDIT_PLAN_PATH =
   "docs/myocardium/roadmap/phase5c-positive-control-fidelity-audit-plan.md";
+export const LAND_NEW_MYOCARDIUM_PHASE5C_D_FIDELITY_AUDIT_EVIDENCE_PATH =
+  "data/myocardium/protocols/land-new-myocardium-low-preload-phase5c-fidelity-audit-v1.json";
 
 export type ValidationSeverity = "error" | "warning";
 
@@ -41,6 +43,7 @@ export type TextFileInput = {
 export type LandNewMyocardiumLowPreloadValidationInput = {
   readonly descriptor: unknown;
   readonly alternansPolicyDescriptor: unknown;
+  readonly fidelityAuditEvidence: unknown;
   readonly report: LandNewMyocardiumLowPreloadCheckReport;
   readonly sourceFiles: readonly TextFileInput[];
   readonly runtimeIntegrationFiles: readonly TextFileInput[];
@@ -220,6 +223,8 @@ export function loadLandNewMyocardiumLowPreloadValidationInput(
   const descriptor = readJson(path.join(rootDir, LAND_NEW_MYOCARDIUM_PHASE5C_C_PROTOCOL_DESCRIPTOR_PATH));
   const alternansPolicyDescriptor =
     readJson(path.join(rootDir, LAND_NEW_MYOCARDIUM_PHASE5C_C_ALTERNANS_POLICY_PATH));
+  const fidelityAuditEvidence =
+    readJson(path.join(rootDir, LAND_NEW_MYOCARDIUM_PHASE5C_D_FIDELITY_AUDIT_EVIDENCE_PATH));
   const legacyProtocol = loadFixedLowPreloadLegacyEvidence();
   const report = runLandNewMyocardiumLowPreloadCheckReport({
     legacyProtocol,
@@ -228,6 +233,7 @@ export function loadLandNewMyocardiumLowPreloadValidationInput(
   return {
     descriptor,
     alternansPolicyDescriptor,
+    fidelityAuditEvidence,
     report,
     sourceFiles: [
       readTextFile(rootDir, LAND_NEW_MYOCARDIUM_PHASE5C_C_REPORT_SOURCE_PATH),
@@ -235,6 +241,7 @@ export function loadLandNewMyocardiumLowPreloadValidationInput(
       readTextFile(rootDir, LAND_NEW_MYOCARDIUM_PHASE5C_C_PROTOCOL_DESCRIPTOR_PATH),
       readTextFile(rootDir, "docs/myocardium/roadmap/phase5c-new-myocardium-check-plan.md"),
       readTextFile(rootDir, LAND_NEW_MYOCARDIUM_PHASE5C_D_FIDELITY_AUDIT_PLAN_PATH),
+      readTextFile(rootDir, LAND_NEW_MYOCARDIUM_PHASE5C_D_FIDELITY_AUDIT_EVIDENCE_PATH),
     ],
     runtimeIntegrationFiles: loadRuntimeIntegrationFiles(rootDir),
   };
@@ -248,6 +255,7 @@ export function validateLandNewMyocardiumLowPreloadCheck(
   validateReport(input.report, issues);
   validateDescriptor(input.descriptor, input.report, issues);
   validateAlternansPolicy(input.alternansPolicyDescriptor, issues);
+  validateFidelityAuditEvidence(input.fidelityAuditEvidence, input.descriptor, input.report, issues);
   validateSourceFiles(input.sourceFiles, issues);
   validateRuntimeIntegrationScan(input.runtimeIntegrationFiles, issues);
 
@@ -752,6 +760,196 @@ function validateAlternansPolicy(
   }
 }
 
+function validateFidelityAuditEvidence(
+  evidence: unknown,
+  descriptor: unknown,
+  report: LandNewMyocardiumLowPreloadCheckReport,
+  issues: ValidationIssue[],
+): void {
+  if (!isRecord(evidence)) {
+    addIssue(issues, "error", "phase5c_d_fidelity_audit_evidence", LAND_NEW_MYOCARDIUM_PHASE5C_D_FIDELITY_AUDIT_EVIDENCE_PATH, "Phase 5C-D fidelity audit evidence must be an object.");
+    return;
+  }
+  const sourceArtifact = isRecord(evidence.sourceArtifact) ? evidence.sourceArtifact : {};
+  const outcome = isRecord(evidence.auditOutcome) ? evidence.auditOutcome : {};
+  const nonClaims = isRecord(evidence.nonClaims) ? evidence.nonClaims : {};
+  const interpretation = isRecord(evidence.interpretation) ? evidence.interpretation : {};
+  const descriptorStatuses = isRecord(descriptor)
+    && isRecord(descriptor.policyStatuses)
+    ? descriptor.policyStatuses
+    : {};
+
+  validateExactKeys(
+    evidence,
+    ["id", "phase", "kind", "protocolSetId", "closureModelId", "sourceArtifact", "auditOutcome", "nonClaims", "interpretation"],
+    LAND_NEW_MYOCARDIUM_PHASE5C_D_FIDELITY_AUDIT_EVIDENCE_PATH,
+    issues,
+  );
+  validateExactKeys(
+    sourceArtifact,
+    ["descriptorPath", "verifierScript", "auditPlanPath", "reportImplementationPath"],
+    "fidelityAuditEvidence.sourceArtifact",
+    issues,
+  );
+  validateExactKeys(
+    outcome,
+    [
+      "legacyReproductionStatus",
+      "phase5AReadOnlyProtocolSetId",
+      "phase5AReadOnlyReadinessPass",
+      "phase5BReadOnlyProtocolSetId",
+      "phase5BReadOnlySdirk2Status",
+      "phase5BSameProtocolAgreementClaim",
+      "legacyPositiveControlStatus",
+      "positiveControlBranchStatus",
+      "positiveControlObservedPeriodBeats",
+      "artifactGateExpectedPass",
+      "artifactGateStatus",
+      "artifactGateFailureFinding",
+      "landRunInterpretation",
+      "newMyocardiumCheckRequiredSatisfied",
+      "secondOrderSameProtocolStatus",
+      "sameProtocolSecondOrderAdvancementStatus",
+      "finalNoAlternansClaim",
+      "replacementCriterionStatus",
+    ],
+    "fidelityAuditEvidence.auditOutcome",
+    issues,
+  );
+  validateExactKeys(
+    nonClaims,
+    [
+      "runtimeReplacement",
+      "modelCoreRuntimeWiring",
+      "chamberRuntimeWiring",
+      "caseRuntimeWiring",
+      "stateSchemaWiring",
+      "officialCaseWiring",
+      "workbenchRuntimeWiring",
+      "officialMorphologyAcceptance",
+      "robustNoAlternansAcceptance",
+      "calciumCyclingAlternansValidation",
+      "rvPressureOverloadCoverage",
+      "ventricularInterdependenceCoverage",
+      "rightHeartFailureCoverage",
+      "triSegAdoption",
+    ],
+    "fidelityAuditEvidence.nonClaims",
+    issues,
+  );
+  validateExactKeys(
+    interpretation,
+    ["summary", "landRunInterpretation", "advancementBlock"],
+    "fidelityAuditEvidence.interpretation",
+    issues,
+  );
+
+  if (
+    evidence.id !== "land-new-myocardium-low-preload-phase5c-fidelity-audit-v1"
+    || evidence.phase !== "Phase 5C-D"
+    || evidence.kind !== "positive-control-fidelity-audit"
+    || evidence.protocolSetId !== LAND_NEW_MYOCARDIUM_LOW_PRELOAD_PHASE5C_PROTOCOL_SET_ID
+    || evidence.closureModelId !== PHASE5C_C_STANDALONE_CLOSURE_MODEL_ID
+  ) {
+    addIssue(issues, "error", "phase5c_d_fidelity_audit_evidence", LAND_NEW_MYOCARDIUM_PHASE5C_D_FIDELITY_AUDIT_EVIDENCE_PATH, "Phase 5C-D fidelity audit evidence must pin the audit id, phase, protocol set, and closure model.");
+  }
+
+  if (
+    sourceArtifact.descriptorPath !== LAND_NEW_MYOCARDIUM_PHASE5C_C_PROTOCOL_DESCRIPTOR_PATH
+    || sourceArtifact.verifierScript !== "verify:myocardium-land-new-myocardium-low-preload-check"
+    || sourceArtifact.auditPlanPath !== LAND_NEW_MYOCARDIUM_PHASE5C_D_FIDELITY_AUDIT_PLAN_PATH
+    || sourceArtifact.reportImplementationPath !== LAND_NEW_MYOCARDIUM_PHASE5C_C_REPORT_SOURCE_PATH
+  ) {
+    addIssue(issues, "error", "phase5c_d_fidelity_audit_evidence", "fidelityAuditEvidence.sourceArtifact", "Phase 5C-D fidelity audit evidence must reference the canonical descriptor, verifier, audit plan, and report implementation.");
+  }
+
+  if (
+    outcome.legacyReproductionStatus !== report.policyBoundary.legacyReproductionStatus
+    || outcome.legacyReproductionStatus !== descriptorStatuses.legacyReproductionStatus
+    || outcome.phase5AReadOnlyProtocolSetId !== report.readOnlyPins.phase5A.protocolSetId
+    || outcome.phase5AReadOnlyReadinessPass !== report.readOnlyPins.phase5A.readinessPass
+    || outcome.phase5BReadOnlyProtocolSetId !== report.readOnlyPins.phase5B.protocolSetId
+    || outcome.phase5BReadOnlySdirk2Status !== report.phase5BReadOnlySdirk2Status
+    || outcome.phase5BReadOnlySdirk2Status !== descriptorStatuses.phase5BReadOnlySdirk2Status
+    || outcome.phase5BSameProtocolAgreementClaim !== report.readOnlyPins.phase5B.sameProtocolAgreementClaim
+    || outcome.legacyPositiveControlStatus !== report.policyBoundary.legacyPositiveControlStatus
+    || outcome.legacyPositiveControlStatus !== descriptorStatuses.legacyPositiveControlStatus
+    || outcome.positiveControlBranchStatus !== report.legacyPositiveControl.branchBehavior.settlingStatus
+    || outcome.positiveControlBranchStatus !== descriptorStatuses.positiveControlBranchStatus
+    || outcome.positiveControlObservedPeriodBeats !== report.legacyPositiveControl.branchBehavior.periodBeats
+    || outcome.positiveControlObservedPeriodBeats !== descriptorStatuses.positiveControlObservedPeriodBeats
+    || outcome.artifactGateExpectedPass !== report.readinessPass
+    || outcome.artifactGateExpectedPass !== descriptorStatuses.artifactGateExpectedPass
+    || outcome.artifactGateStatus !== report.readinessStatus
+    || outcome.artifactGateFailureFinding !== "legacy-activeStress-positive-control-v1"
+    || outcome.artifactGateFailureFinding !== descriptorStatuses.artifactGateFailureFinding
+    || outcome.landRunInterpretation !== "not-interpretable-positive-control-failed"
+    || outcome.landRunInterpretation !== descriptorStatuses.landRunInterpretation
+    || outcome.newMyocardiumCheckRequiredSatisfied !== false
+    || outcome.newMyocardiumCheckRequiredSatisfied !== report.newMyocardiumCheckRequiredSatisfied
+    || outcome.newMyocardiumCheckRequiredSatisfied !== descriptorStatuses.newMyocardiumCheckRequiredSatisfied
+    || outcome.secondOrderSameProtocolStatus !== "not-performed"
+    || outcome.secondOrderSameProtocolStatus !== report.secondOrderSameProtocolStatus
+    || outcome.secondOrderSameProtocolStatus !== descriptorStatuses.secondOrderSameProtocolStatus
+    || outcome.sameProtocolSecondOrderAdvancementStatus !== "blocked-until-positive-control-period2"
+    || outcome.sameProtocolSecondOrderAdvancementStatus !== descriptorStatuses.sameProtocolSecondOrderAdvancementStatus
+    || outcome.finalNoAlternansClaim !== "not-claimed"
+    || outcome.finalNoAlternansClaim !== report.finalNoAlternansClaim
+    || outcome.finalNoAlternansClaim !== descriptorStatuses.finalNoAlternansClaim
+    || outcome.replacementCriterionStatus !== "owner-approved-replacement-required"
+  ) {
+    addIssue(issues, "error", "phase5c_d_fidelity_audit_evidence", "fidelityAuditEvidence.auditOutcome", "Phase 5C-D fidelity audit evidence must match the live report and descriptor no-go/advancement-block outcome.");
+  }
+
+  for (const field of [
+    "runtimeReplacement",
+    "modelCoreRuntimeWiring",
+    "chamberRuntimeWiring",
+    "caseRuntimeWiring",
+    "stateSchemaWiring",
+    "officialCaseWiring",
+    "workbenchRuntimeWiring",
+    "officialMorphologyAcceptance",
+    "robustNoAlternansAcceptance",
+    "calciumCyclingAlternansValidation",
+    "rvPressureOverloadCoverage",
+    "ventricularInterdependenceCoverage",
+    "rightHeartFailureCoverage",
+    "triSegAdoption",
+  ] as const) {
+    if (nonClaims[field] !== false) {
+      addIssue(issues, "error", "phase5c_d_fidelity_audit_evidence", `fidelityAuditEvidence.nonClaims.${field}`, `${field} must remain false in Phase 5C-D fidelity audit evidence.`);
+    }
+  }
+
+  if (
+    typeof interpretation.summary !== "string"
+    || !/artifactGate remains failed/i.test(interpretation.summary)
+    || typeof interpretation.landRunInterpretation !== "string"
+    || !/not interpretable as no-alternans evidence/i.test(interpretation.landRunInterpretation)
+    || typeof interpretation.advancementBlock !== "string"
+    || !/Same-protocol second-order advancement remains blocked/i.test(interpretation.advancementBlock)
+  ) {
+    addIssue(issues, "error", "phase5c_d_fidelity_audit_evidence", "fidelityAuditEvidence.interpretation", "Phase 5C-D fidelity audit evidence must preserve the no-go interpretation and same-protocol advancement block.");
+  }
+}
+
+function validateExactKeys(
+  record: JsonRecord,
+  expectedKeys: readonly string[],
+  issuePath: string,
+  issues: ValidationIssue[],
+): void {
+  const actualKeys = Object.keys(record).sort();
+  const sortedExpectedKeys = [...expectedKeys].sort();
+  if (
+    actualKeys.length !== sortedExpectedKeys.length
+    || actualKeys.some((key, index) => key !== sortedExpectedKeys[index])
+  ) {
+    addIssue(issues, "error", "phase5c_d_fidelity_audit_evidence", issuePath, `Phase 5C-D fidelity audit evidence must use the closed key set: ${sortedExpectedKeys.join(", ")}.`);
+  }
+}
+
 function validateSourceFiles(
   sourceFiles: readonly TextFileInput[],
   issues: ValidationIssue[],
@@ -763,8 +961,11 @@ function validateSourceFiles(
   const fidelityAuditPlan = sourceFiles.find((file) =>
     file.path === LAND_NEW_MYOCARDIUM_PHASE5C_D_FIDELITY_AUDIT_PLAN_PATH
   );
-  if (!report || !verifier || !descriptor || !plan || !fidelityAuditPlan) {
-    addIssue(issues, "error", "phase5c_c_source_scan", "sourceFiles", "Phase 5C-C report, verifier, descriptor, accepted plan, and Phase 5C-D fidelity audit plan must be present.");
+  const fidelityAuditEvidence = sourceFiles.find((file) =>
+    file.path === LAND_NEW_MYOCARDIUM_PHASE5C_D_FIDELITY_AUDIT_EVIDENCE_PATH
+  );
+  if (!report || !verifier || !descriptor || !plan || !fidelityAuditPlan || !fidelityAuditEvidence) {
+    addIssue(issues, "error", "phase5c_c_source_scan", "sourceFiles", "Phase 5C-C report, verifier, descriptor, accepted plan, Phase 5C-D fidelity audit plan, and Phase 5C-D audit evidence must be present.");
     return;
   }
   for (const token of [
@@ -819,6 +1020,7 @@ function validateSourceFiles(
     addIssue(issues, "error", "phase5c_c_plan_boundary", plan.path, "Accepted plan must include the standalone closure id.");
   }
   validateFidelityAuditPlan(fidelityAuditPlan, issues);
+  validateFidelityAuditEvidenceSource(fidelityAuditEvidence, issues);
 }
 
 function validateFidelityAuditPlan(
@@ -842,6 +1044,29 @@ function validateFidelityAuditPlan(
     issues,
   );
   validateNoProductionClaims(plan.path, plan.text, issues);
+}
+
+function validateFidelityAuditEvidenceSource(
+  evidence: TextFileInput,
+  issues: ValidationIssue[],
+): void {
+  for (const token of [
+    "land-new-myocardium-low-preload-phase5c-fidelity-audit-v1",
+    LAND_NEW_MYOCARDIUM_LOW_PRELOAD_PHASE5C_PROTOCOL_SET_ID,
+    PHASE5C_C_STANDALONE_CLOSURE_MODEL_ID,
+    "positive-control-failed",
+    "settled-period-1",
+    "artifactGateExpectedPass",
+    "not-interpretable-positive-control-failed",
+    "blocked-until-positive-control-period2",
+    "owner-approved-replacement-required",
+    "The Land generated trajectory is not interpretable as no-alternans evidence while the positive control fails.",
+  ] as const) {
+    if (!evidence.text.includes(token)) {
+      addIssue(issues, "error", "phase5c_d_fidelity_audit_evidence", evidence.path, `Phase 5C-D fidelity audit evidence source must include ${token}.`);
+    }
+  }
+  validateNoProductionClaims(evidence.path, evidence.text, issues);
 }
 
 function removeCanonicalFidelityAuditPlanBoundaryText(normalizedText: string): string {

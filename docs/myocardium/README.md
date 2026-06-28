@@ -609,14 +609,13 @@ no-go interpretation for this artifact state, not a Land no-alternans result.
 
 Phase 5C-D records the fidelity audit for that no-go result in
 [roadmap/phase5c-positive-control-fidelity-audit-plan.md](roadmap/phase5c-positive-control-fidelity-audit-plan.md).
-It does not add a parallel engine or verifier. Instead, the Phase 5C-C
-descriptor and verifier make the advancement block explicit: the Land generated
-run is not interpretable as no-alternans evidence, same-protocol second-order
-advancement remains blocked, `newMyocardiumCheckRequiredSatisfied=false`,
-`secondOrderSameProtocolStatus=not-performed`, and
-`finalNoAlternansClaim=not-claimed` until the same closure can reproduce the
-legacy period-2 positive control or a later owner-approved replacement
-criterion supersedes it.
+The machine-readable audit snapshot is
+[`../../data/myocardium/protocols/land-new-myocardium-low-preload-phase5c-fidelity-audit-v1.json`](../../data/myocardium/protocols/land-new-myocardium-low-preload-phase5c-fidelity-audit-v1.json).
+It does not add a parallel engine or verifier. Instead, the Phase 5C-C verifier
+compares that snapshot against the live report and descriptor to keep the
+advancement block explicit until the same closure can reproduce the legacy
+period-2 positive control or a later owner-approved replacement criterion
+supersedes it.
 
 ## Imported bundle checks
 
