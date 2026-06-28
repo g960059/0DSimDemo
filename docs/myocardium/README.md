@@ -31,6 +31,7 @@ called out below.
 | 4b | [roadmap/phase5c-low-preload-domain-plan.md](roadmap/phase5c-low-preload-domain-plan.md) | Phase 5C-B selected-v2 low-preload domain extension plan |
 | 4c | [roadmap/phase5c-new-myocardium-check-plan.md](roadmap/phase5c-new-myocardium-check-plan.md) | Phase 5C-C new-myocardium low-preload check plan |
 | 4d | [roadmap/phase5c-positive-control-fidelity-audit-plan.md](roadmap/phase5c-positive-control-fidelity-audit-plan.md) | Phase 5C-D positive-control fidelity audit over the Phase 5C-C no-go result |
+| 4e | [roadmap/phase5c-post-fidelity-entry-gate.md](roadmap/phase5c-post-fidelity-entry-gate.md) | Phase 5C-E entry gate after the Phase 5C-D no-go result |
 | 5 | [research/myocardial-contraction-rebuild-design-record.md](research/myocardial-contraction-rebuild-design-record.md) | Background rationale and design discussion |
 | 6 | [review-notes/phase2b-level3-review-deltas.md](review-notes/phase2b-level3-review-deltas.md) | PR #166 Phase 2B/Level 3 review deltas |
 
@@ -623,6 +624,19 @@ compares that snapshot against the live report and descriptor to keep the
 advancement block explicit until the same closure can reproduce the legacy
 period-2 positive control or a later owner-approved replacement criterion
 supersedes it.
+
+Phase 5C-E records that post-fidelity entry gate in
+[roadmap/phase5c-post-fidelity-entry-gate.md](roadmap/phase5c-post-fidelity-entry-gate.md)
+and
+[`../../data/myocardium/gates/phase5c-post-fidelity-entry-gate-v1.json`](../../data/myocardium/gates/phase5c-post-fidelity-entry-gate-v1.json).
+Run `npm run verify:myocardium-phase5c-post-fidelity-entry-gate` to check the
+gate. The only allowed entry routes are
+`same-closure-period2-positive-control` and
+`owner-approved-replacement-criterion`. This gate keeps
+`land-new-myocardium-low-preload-phase5c-fidelity-audit-v1`,
+`blocked-until-positive-control-period2`, no runtime replacement, no
+qDot/valve/afterload tuning, no official morphology acceptance, no final
+no-alternans, and no TriSeg adoption as the current boundary.
 
 ## Imported bundle checks
 

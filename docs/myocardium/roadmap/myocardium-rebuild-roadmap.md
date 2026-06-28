@@ -340,6 +340,16 @@ production tissue homogenization.
 - advancement block: the Land generated run is not interpretable as no-alternans evidence, same-protocol second-order advancement remains blocked, and final no-alternans remains not claimed until the same closure reproduces the legacy period-2 positive control or a later owner-approved replacement criterion supersedes it
 - boundary: no new engine closure, no ModelCore/chamber/case/workbench wiring, no qDot/valve/arterial-load tuning, no official morphology pass, no robust no-alternans, no RV pressure overload/interdependence/RHF coverage, and no TriSeg adoption
 
+### Phase 5C-E — post-fidelity entry gate
+
+- plan: [phase5c-post-fidelity-entry-gate.md](phase5c-post-fidelity-entry-gate.md)
+- entry gate: `data/myocardium/gates/phase5c-post-fidelity-entry-gate-v1.json`
+- gate script: `npm run verify:myocardium-phase5c-post-fidelity-entry-gate`
+- source audit evidence: `land-new-myocardium-low-preload-phase5c-fidelity-audit-v1`
+- current outcome: entry remains blocked by `blocked-until-positive-control-period2`, with the Land run `not-interpretable-positive-control-failed` and final no-alternans not claimed
+- allowed entry routes: `same-closure-period2-positive-control`, requiring period-2 positive-control reproduction under the pinned Phase 5C-C same-closure thresholds, or `owner-approved-replacement-criterion`, requiring a later owner approval artifact with explicit owner provenance that supersedes the current criterion
+- boundary: no runtime replacement, no ModelCore/chamber/case/workbench/state-schema wiring, no qDot/valve/afterload tuning, no official morphology acceptance, no final no-alternans, no RV pressure-overload/interdependence/RHF coverage, and no TriSeg adoption
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison
