@@ -5,7 +5,7 @@
   "kind": "post-fidelity-entry-gate",
   "sourceAuditEvidencePath": "data/myocardium/protocols/land-new-myocardium-low-preload-phase5c-fidelity-audit-v1.json",
   "sourceAuditEvidenceId": "land-new-myocardium-low-preload-phase5c-fidelity-audit-v1",
-  "gateStatus": "entry-blocked-until-route-satisfied",
+  "gateStatus": "entry-route-satisfied-interpretation-pending",
   "currentNoGo": {
     "legacyPositiveControlStatus": "positive-control-failed",
     "positiveControlBranchStatus": "settled-period-1",
@@ -59,13 +59,13 @@
     },
     {
       "routeId": "modelcore-equivalent-closure-positive-control",
-      "status": "defined-not-satisfied",
+      "status": "satisfied-experimental-paired-land-run",
       "requiredEvidence": {
         "closureProtocolId": "modelcore-equivalent-positive-control-closure-v1",
         "closureImplementationStatus": "experimental-source-provider-hook-implemented",
-        "routeSatisfactionStatus": "partial-legacy-positive-control-pass-land-pairing-not-run",
-        "sourceProviderRole": "legacy-activeStress-positive-control",
-        "closureEquivalenceToModelCore": "required-not-yet-demonstrated",
+        "routeSatisfactionStatus": "satisfied-paired-land-provider-run-finite",
+        "sourceProviderRole": "legacy-source-only-positive-control-and-land2017-lv-source-only",
+        "closureEquivalenceToModelCore": "experimental-source-provider-closure-evidence-recorded",
         "legacyPositiveControlStatus": "period-2-positive-control-pass",
         "positiveControlObservedPeriodBeats": 2,
         "sameProtocolOrExplicitEquivalence": true,
@@ -87,7 +87,7 @@
         "doesNotSatisfyCurrentNoGo": true
       },
       "mayUnlock": [
-        "Phase 5C-C positive-control rerun under explicitly equivalent ModelCore event-surface closure only"
+        "Phase 5C-L paired-result interpretation and same-closure robustness checks only"
       ],
       "doesNotUnlock": [
         "runtime replacement",
@@ -154,8 +154,8 @@
   "blockedUntil": {
     "artifactGateExpectedPass": false,
     "newMyocardiumCheckRequiredSatisfied": false,
-    "landRunInterpretation": "not-interpretable-positive-control-failed",
-    "sameProtocolSecondOrderAdvancementStatus": "blocked-until-positive-control-period2",
+    "landRunInterpretation": "modelcore-paired-land-finite-period1-positive-signal",
+    "sameProtocolSecondOrderAdvancementStatus": "second-order-reference-required",
     "finalNoAlternansClaim": "not-claimed",
     "officialMorphologyAcceptance": false,
     "runtimeReplacement": false
@@ -184,6 +184,7 @@
   "requiredVerificationScripts": [
     "verify:myocardium-land-new-myocardium-low-preload-check",
     "verify:myocardium-modelcore-equivalent-positive-control-closure",
+    "verify:myocardium-modelcore-paired-land-source-provider",
     "verify:myocardium-phase5c-post-fidelity-entry-gate"
   ]
 }

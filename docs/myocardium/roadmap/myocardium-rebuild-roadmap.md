@@ -400,6 +400,17 @@ production tissue homogenization.
 - route status: adapter prerequisite recorded, but `modelcore-equivalent-closure-positive-control` remains unsatisfied with `routeSatisfactionStatus=partial-legacy-positive-control-pass-land-pairing-not-run`; paired Land evidence and `sourceProviderDifferenceOnly=true` are still not evaluated
 - boundary: no runtime replacement, no official morphology acceptance, no final no-alternans, no qDot/valve/afterload tuning, no Land parameter tuning, no chamber/case/workbench/state-schema production adoption, and no TriSeg adoption
 
+### Phase 5C-L — paired Land source-provider run under ModelCore closure
+
+- plan: [phase5c-modelcore-equivalent-route-gate.md](phase5c-modelcore-equivalent-route-gate.md)
+- paired run descriptor: `data/myocardium/protocols/modelcore-paired-land-source-provider-run-v1.json`
+- paired run result artifact: `data/myocardium/protocols/modelcore-paired-land-source-provider-run-result-v1.json`
+- verifier: `npm run verify:myocardium-modelcore-paired-land-source-provider`
+- current outcome: the paired LV source-provider experiment runs under the same pinned low-preload ModelCore closure. The legacy source-only positive control remains period-2, the Land 2017 LV source-only provider runs finite with zero Land solver failures and settles to period-1, and `sourceProviderDifferenceOnly=true` is satisfied for the experimental LV source-only pair.
+- interpretation: Phase 5C-L records outcome class A, a positive interpretable signal for this experimental closure. It is not final no-alternans acceptance and not official morphology acceptance.
+- boundary: no runtime replacement, no official morphology acceptance, no final no-alternans, no qDot/valve/afterload/preload tuning, no Land parameter tuning, no chamber/case/workbench/state-schema production adoption, and no TriSeg adoption.
+- next: interpret the paired result and add same-closure second-order/reference robustness evidence without changing the closure or source parameters.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison

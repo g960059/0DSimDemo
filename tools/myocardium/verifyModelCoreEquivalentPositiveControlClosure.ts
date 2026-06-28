@@ -48,14 +48,14 @@ export function validateModelCoreEquivalentPositiveControlClosure(rootDir = proc
   const route = gate.allowedEntryRoutes.find((candidate) => candidate.routeId === "modelcore-equivalent-closure-positive-control");
   if (
     !route
-    || route.status !== "defined-not-satisfied"
+    || route.status !== "satisfied-experimental-paired-land-run"
     || route.requiredEvidence.closureImplementationStatus !== "experimental-source-provider-hook-implemented"
-    || route.requiredEvidence.routeSatisfactionStatus !== "partial-legacy-positive-control-pass-land-pairing-not-run"
+    || route.requiredEvidence.routeSatisfactionStatus !== "satisfied-paired-land-provider-run-finite"
     || route.requiredEvidence.doesNotSatisfyCurrentNoGo !== true
-    || gate.gateStatus !== "entry-blocked-until-route-satisfied"
+    || gate.gateStatus !== "entry-route-satisfied-interpretation-pending"
     || gate.blockedUntil.runtimeReplacement !== false
   ) {
-    addIssue(errors, "modelcore_equivalent_gate_boundary", GATE_PATH, "Gate must record the experimental hook as partial evidence while keeping the route not satisfied and runtime replacement blocked.");
+    addIssue(errors, "modelcore_equivalent_gate_boundary", GATE_PATH, "Gate must record the experimental hook as the historical positive-control prerequisite and the later paired Land route as satisfied while keeping runtime replacement blocked.");
   }
 
   if (
