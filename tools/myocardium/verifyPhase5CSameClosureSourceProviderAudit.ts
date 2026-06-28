@@ -186,6 +186,29 @@ const PHASE5C_K_MODELCORE_SOURCE_PRESSURE_ADAPTER_ALLOWED_CHANGED_FILE_PATHS = [
   PHASE5C_G_VERIFIER_PATH,
 ] as const;
 
+const PHASE5C_L_MODELCORE_PAIRED_LAND_ALLOWED_CHANGED_FILE_PATHS = [
+  "__tests__/myocardiumPhase5CModelCoreEquivalentPositiveControlClosure.test.ts",
+  "__tests__/myocardiumPhase5CPostFidelityEntryGate.test.ts",
+  "__tests__/myocardiumPhase5CSameClosureSourceProviderAudit.test.ts",
+  "__tests__/myocardiumPhase5LModelCorePairedLandSourceProvider.test.ts",
+  PHASE5C_E_ENTRY_GATE_PATH,
+  MODELCORE_EQUIVALENT_CLOSURE_PATH,
+  "data/myocardium/protocols/modelcore-paired-land-source-provider-run-v1.json",
+  "data/myocardium/protocols/modelcore-paired-land-source-provider-run-result-v1.json",
+  "docs/myocardium/README.md",
+  "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
+  PHASE5C_H_MODELCORE_EQUIVALENT_ROUTE_PLAN_PATH,
+  "docs/status/current-lanes.md",
+  "package.json",
+  "tools/myocardium/buildModelCorePairedLandSourceProviderEvidence.ts",
+  "tools/myocardium/modelCoreLand2017LvSourceProvider.ts",
+  "tools/myocardium/verifyModelCoreEquivalentPositiveControlClosure.ts",
+  "tools/myocardium/verifyModelCorePairedLandSourceProvider.ts",
+  PHASE5C_E_ENTRY_GATE_VERIFIER_PATH,
+  "tools/myocardium/verifyPhase5CPositiveControlTriageAudit.ts",
+  PHASE5C_G_VERIFIER_PATH,
+] as const;
+
 const RUNTIME_INTEGRATION_TARGETS = [
   "WorkbenchPage.tsx",
   "caseCloud.ts",
@@ -402,12 +425,15 @@ function validatePr193HandoffBoundary(
   const descriptorHasForwardPartialEvidence =
     modelCoreEquivalentClosure.status === "experimental-source-provider-hook-implemented"
     && modelCoreEquivalentClosure.currentEvidenceStatus === "partial-legacy-positive-control-pass-land-pairing-not-run";
+  const descriptorHasPairedLandEvidence =
+    modelCoreEquivalentClosure.status === "experimental-source-provider-hook-implemented"
+    && modelCoreEquivalentClosure.currentEvidenceStatus === "satisfied-paired-land-provider-run-finite-period1-outcome-a";
   if (modelCoreEquivalentClosure.id !== "modelcore-equivalent-positive-control-closure-v1"
-    || (!descriptorStillProposed && !descriptorHasForwardPartialEvidence)
+    || (!descriptorStillProposed && !descriptorHasForwardPartialEvidence && !descriptorHasPairedLandEvidence)
     || requiredEvidence.legacyPositiveControlStatus !== "period-2-positive-control-pass"
     || requiredEvidence.positiveControlObservedPeriodBeats !== 2
     || requiredEvidence.sourceProviderDifferenceOnly !== true) {
-    addIssue(issues, "error", "phase5c_g_modelcore_equivalent_pin", MODELCORE_EQUIVALENT_CLOSURE_PATH, "ModelCore-equivalent positive-control route must remain either the PR #193 proposed route or a later partial hook-evidence route that is still unsatisfied.");
+    addIssue(issues, "error", "phase5c_g_modelcore_equivalent_pin", MODELCORE_EQUIVALENT_CLOSURE_PATH, "ModelCore-equivalent positive-control route must remain either the PR #193 proposed route, a later partial hook-evidence route, or the Phase 5C-L paired Land evidence route.");
   }
 }
 
@@ -731,8 +757,11 @@ function validateSourceGatePins(
     addIssue(issues, "error", "phase5c_g_triage_gate_pin", PHASE5C_F_TRIAGE_AUDIT_PATH, "Phase 5C-G must pin the Phase 5C-F triage gate as still blocked.");
   }
   if (entryGate.gateId !== EXPECTED_ENTRY_GATE_ID
-    || entryGate.gateStatus !== "entry-blocked-until-route-satisfied") {
-    addIssue(issues, "error", "phase5c_g_entry_gate_pin", PHASE5C_E_ENTRY_GATE_PATH, "Phase 5C-G must keep the Phase 5C-E gate blocked.");
+    || (
+      entryGate.gateStatus !== "entry-blocked-until-route-satisfied"
+      && entryGate.gateStatus !== "entry-route-satisfied-interpretation-pending"
+    )) {
+    addIssue(issues, "error", "phase5c_g_entry_gate_pin", PHASE5C_E_ENTRY_GATE_PATH, "Phase 5C-G must keep the Phase 5C-E gate visible as either the original blocked gate or the later paired-run route-satisfied interpretation-pending gate.");
   }
 }
 
@@ -782,8 +811,16 @@ function validateSourceFiles(sourceFiles: readonly TextFileInput[], issues: Vali
   const keepsForwardPartialRouteVisible =
     currentLanes?.text.includes("experimental ModelCore source-provider hook") === true
     && currentLanes.text.includes("route remains partial") === true;
-  if (currentLanes && !keepsOldModelCoreRouteVisible && !keepsForwardPartialRouteVisible) {
-    addIssue(issues, "error", "phase5c_g_current_lanes_pin", currentLanes.path, "Current lanes must keep the ModelCore-equivalent route visible, either as the PR #193 proposed route or as later partial hook evidence.");
+  const keepsPairedLandRouteVisible =
+    currentLanes?.text.includes("paired LV source-provider experiment under the same experimental ModelCore closure") === true
+    && currentLanes.text.includes("sourceProviderDifferenceOnly=true") === true;
+  if (
+    currentLanes
+    && !keepsOldModelCoreRouteVisible
+    && !keepsForwardPartialRouteVisible
+    && !keepsPairedLandRouteVisible
+  ) {
+    addIssue(issues, "error", "phase5c_g_current_lanes_pin", currentLanes.path, "Current lanes must keep the ModelCore-equivalent route visible as the PR #193 proposed route, later partial hook evidence, or paired Land source-provider evidence.");
   }
 
   const noGoAnalysis = sourceFiles.find((file) =>
@@ -812,6 +849,7 @@ function validateChangedFileScope(changedFilePaths: readonly string[], issues: V
   if (isPhase5IModelCoreSourceProviderDiff(changedFilePaths)) return;
   if (isPhase5JModelCoreProviderStateLifecycleDiff(changedFilePaths)) return;
   if (isPhase5KModelCoreSourcePressureAdapterDiff(changedFilePaths)) return;
+  if (isPhase5LModelCorePairedLandDiff(changedFilePaths)) return;
 
   const triggerPaths = new Set<string>(PHASE5C_G_CHANGED_FILE_SCOPE_TRIGGER_PATHS);
   if (!changedFilePaths.some((filePath) => triggerPaths.has(filePath))) return;
@@ -851,6 +889,16 @@ function isPhase5JModelCoreProviderStateLifecycleDiff(changedFilePaths: readonly
 
 function isPhase5KModelCoreSourcePressureAdapterDiff(changedFilePaths: readonly string[]): boolean {
   const allowedPaths = new Set<string>(PHASE5C_K_MODELCORE_SOURCE_PRESSURE_ADAPTER_ALLOWED_CHANGED_FILE_PATHS);
+  const changedPaths = new Set(changedFilePaths);
+  if (changedPaths.size !== allowedPaths.size) return false;
+  for (const allowedPath of allowedPaths) {
+    if (!changedPaths.has(allowedPath)) return false;
+  }
+  return true;
+}
+
+function isPhase5LModelCorePairedLandDiff(changedFilePaths: readonly string[]): boolean {
+  const allowedPaths = new Set<string>(PHASE5C_L_MODELCORE_PAIRED_LAND_ALLOWED_CHANGED_FILE_PATHS);
   const changedPaths = new Set(changedFilePaths);
   if (changedPaths.size !== allowedPaths.size) return false;
   for (const allowedPath of allowedPaths) {

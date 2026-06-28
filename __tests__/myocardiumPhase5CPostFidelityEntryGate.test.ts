@@ -17,7 +17,7 @@ describe("myocardium Phase 5C-E post-fidelity entry gate", () => {
 
     expect(validation.errors).toEqual([]);
     expect(validation.pass).toBe(true);
-    expect(validation.gateStatus).toBe("entry-blocked-until-route-satisfied");
+    expect(validation.gateStatus).toBe("entry-route-satisfied-interpretation-pending");
     expect(validation.allowedEntryRouteIds).toEqual([
       "same-closure-period2-positive-control",
       "modelcore-equivalent-closure-positive-control",
@@ -27,6 +27,10 @@ describe("myocardium Phase 5C-E post-fidelity entry gate", () => {
     expect(validation.summary.runtimeIntegrationFileCount).toBeGreaterThan(0);
     expect(validation.summary.entryRouteCount).toBe(3);
     expect(input.gate.currentNoGo.artifactGateExpectedPass).toBe(false);
+    expect(input.gate.blockedUntil.landRunInterpretation)
+      .toBe("modelcore-paired-land-finite-period1-positive-signal");
+    expect(input.gate.blockedUntil.sameProtocolSecondOrderAdvancementStatus)
+      .toBe("second-order-reference-required");
     expect(input.gate.currentNoGo.finalNoAlternansClaim).toBe("not-claimed");
     expect(input.gate.nonGoals.runtimeReplacement).toBe(false);
     expect(input.gate.nonGoals.qDotTuning).toBe(false);
@@ -85,24 +89,26 @@ describe("myocardium Phase 5C-E post-fidelity entry gate", () => {
       .toContain("phase5c_e_same_closure_route");
   });
 
-  it("records the ModelCore-equivalent experimental hook without satisfying the route", () => {
+  it("records the ModelCore-equivalent paired Land route as satisfied without final acceptance", () => {
     const input = fixture();
     const route = modelCoreEquivalentRoute(input);
 
-    expect(route.status).toBe("defined-not-satisfied");
+    expect(route.status).toBe("satisfied-experimental-paired-land-run");
     expect(route.requiredEvidence.closureImplementationStatus)
       .toBe("experimental-source-provider-hook-implemented");
     expect(route.requiredEvidence.routeSatisfactionStatus)
-      .toBe("partial-legacy-positive-control-pass-land-pairing-not-run");
+      .toBe("satisfied-paired-land-provider-run-finite");
+    expect(route.requiredEvidence.sourceProviderDifferenceOnly).toBe(true);
+    expect(route.requiredEvidence.secondOrderReferenceStillRequired).toBe(true);
     expect(route.requiredEvidence.doesNotSatisfyCurrentNoGo).toBe(true);
   });
 
-  it("fails validation if the ModelCore-equivalent route is treated as satisfied", () => {
+  it("fails validation if the ModelCore-equivalent route is treated as final acceptance", () => {
     const input = fixture();
     const route = modelCoreEquivalentRoute(input);
-    route.status = "satisfied";
-    route.requiredEvidence.routeSatisfactionStatus = "satisfied";
-    route.requiredEvidence.closureEquivalenceToModelCore = "demonstrated";
+    route.status = "accepted-final-no-alternans";
+    route.requiredEvidence.routeSatisfactionStatus = "final-no-alternans";
+    route.requiredEvidence.secondOrderReferenceStillRequired = false;
     route.requiredEvidence.doesNotSatisfyCurrentNoGo = false;
 
     const validation = validatePhase5CPostFidelityEntryGate(input);

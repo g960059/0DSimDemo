@@ -8,7 +8,7 @@ import {
 } from "@/tools/myocardium/verifyModelCoreEquivalentPositiveControlClosure";
 
 describe("myocardium Phase 5C-I ModelCore-equivalent positive-control closure", () => {
-  it("validates owner-approved experimental source-provider evidence without satisfying the route", () => {
+  it("validates owner-approved experimental source-provider prerequisite evidence", () => {
     const validation = validateModelCoreEquivalentPositiveControlClosure();
 
     expect(validation.errors).toEqual([]);

@@ -1,14 +1,12 @@
-# Phase 5C-H/I/J/K ModelCore-equivalent Route Gate
+# Phase 5C-H/I/J/K/L ModelCore-equivalent Route Gate
 
-Status: defined-but-unsatisfied route plus partial experimental evidence through Phase 5C-K
+Status: paired experimental LV source-provider evidence recorded through Phase 5C-L; final no-alternans remains unclaimed
 
-This phase records `modelcore-equivalent-closure-positive-control` as a
-defined-but-unsatisfied route in
-`phase5c-post-fidelity-entry-gate-v1`. Phase 5C-I adds owner-approved
+This route was recorded as `modelcore-equivalent-closure-positive-control` in
+`phase5c-post-fidelity-entry-gate-v1` before implementation evidence existed.
+Phase 5C-I adds owner-approved
 experimental source-provider-limited ModelCore wiring and legacy activeStress
-positive-control evidence. The route remains partial because the paired Land
-source-provider run under the same closure has not been performed, so this does
-not satisfy an entry route or change the inherited no-go.
+positive-control evidence.
 
 Phase 5C-J adds the missing state lifecycle boundary needed before Land can be
 paired through that hook. ModelCore owns experimental provider state, passes
@@ -34,6 +32,17 @@ diagnostics by accident. Future Land providers must keep mutable solver state in
 `providerState`, not provider-object closures shared with read-only clones. This
 is adapter readiness only: the paired Land run has not been performed, and
 `sourceProviderDifferenceOnly=true` has not been evaluated for Land.
+
+Phase 5C-L runs the paired experiment that Phase 5C-I/J/K were built to enable.
+Under the same pinned low-preload ModelCore closure, the legacy LV source-only
+provider reproduces the period-2 positive control, while the Land 2017 LV
+source-only provider runs finite and settles to period-1. The live evidence
+records `outcomeClass=A`: a positive interpretable signal for this experimental
+closure, not official morphology acceptance and not final no-alternans. The
+paired evidence also records `sourceProviderDifferenceOnly=true` for the
+experimental LV source-only pair. The next requirement is robustness and
+interpretation under the same closure, including second-order/reference checks,
+without tuning qDot, valves, afterload, preload, or Land parameters.
 
 Machine-readable gate:
 
@@ -79,6 +88,13 @@ Source-only pressure adapter evidence:
 data/myocardium/protocols/modelcore-active-source-pressure-adapter-v1.json
 ```
 
+Paired Land source-provider evidence:
+
+```text
+data/myocardium/protocols/modelcore-paired-land-source-provider-run-v1.json
+data/myocardium/protocols/modelcore-paired-land-source-provider-run-result-v1.json
+```
+
 ## Route Set
 
 Entry route ids recorded in the gate:
@@ -98,7 +114,7 @@ Future evidence fields required for the ModelCore-equivalent route include:
 ```text
 closureProtocolId=modelcore-equivalent-positive-control-closure-v1
 closureImplementationStatus=experimental-source-provider-hook-implemented
-routeSatisfactionStatus=partial-legacy-positive-control-pass-land-pairing-not-run
+routeSatisfactionStatus=satisfied-paired-land-provider-run-finite
 legacyPositiveControlStatus=period-2-positive-control-pass
 positiveControlObservedPeriodBeats=2
 sameProtocolOrExplicitEquivalence=true
@@ -116,9 +132,12 @@ Land and does not evaluate `sourceProviderDifferenceOnly=true`. Phase 5C-K shows
 that the legacy source-only adapter is pressure-equivalent to the legacy
 full-pressure provider through ModelCore's pressure assembly for the LV legacy
 positive control, but it still does not run Land and does not evaluate
-`sourceProviderDifferenceOnly=true`. The route
-remains unsatisfied until Land is run through the same closure and
-`sourceProviderDifferenceOnly=true` is actually evaluated under that closure.
+`sourceProviderDifferenceOnly=true`. Phase 5C-L runs Land through that same
+closure, records finite period-1 behavior with zero Land solver failures, and
+evaluates `sourceProviderDifferenceOnly=true` for the experimental LV
+source-only pair. This advances the route from readiness to first
+interpretable paired measurement, but second-order/reference robustness and
+result interpretation remain required before any final no-alternans claim.
 
 ## Boundary
 
@@ -129,3 +148,13 @@ official morphology acceptance, no final no-alternans, no calcium-cycling
 alternans acceptance, no RV pressure-overload coverage, no ventricular
 interdependence coverage, no right-heart failure coverage, and no TriSeg
 adoption.
+
+## PR Granularity
+
+Phase 5C PRs should not become documentation or audit preparation work by
+default. The review gate is large enough that excessively small PRs create a
+process bias toward readiness artifacts and away from measurement. For this
+route, a normal phase PR should include the implementation needed to run the
+experiment, the experiment result, focused verifier/test coverage, and only the
+docs needed to preserve the claim boundary. If an experiment can be run in the
+same PR, it should be run in that PR.

@@ -60,6 +60,7 @@ const EXPECTED_MODELCORE_CLOSURE_PROTOCOL_ID = "modelcore-equivalent-positive-co
 const EXPECTED_VERIFIER_SCRIPT = "verify:myocardium-phase5c-post-fidelity-entry-gate";
 const SOURCE_AUDIT_VERIFIER_SCRIPT = "verify:myocardium-land-new-myocardium-low-preload-check";
 const MODELCORE_EQUIVALENT_VERIFIER_SCRIPT = "verify:myocardium-modelcore-equivalent-positive-control-closure";
+const MODELCORE_PAIRED_LAND_VERIFIER_SCRIPT = "verify:myocardium-modelcore-paired-land-source-provider";
 
 const CURRENT_NO_GO_KEYS = [
   "legacyPositiveControlStatus",
@@ -108,7 +109,7 @@ const MAY_UNLOCK_BY_ROUTE = {
     "Phase 5C-C BE smoke rerun under the same-protocol policy only",
   ],
   [MODELCORE_EQUIVALENT_ENTRY_ROUTE_ID]: [
-    "Phase 5C-C positive-control rerun under explicitly equivalent ModelCore event-surface closure only",
+    "Phase 5C-L paired-result interpretation and same-closure robustness checks only",
   ],
   [OWNER_REPLACEMENT_ENTRY_ROUTE_ID]: [
     "a later owner-approved criterion rewrite plan",
@@ -338,9 +339,9 @@ function validateGate(
     || gate.kind !== "post-fidelity-entry-gate"
     || gate.sourceAuditEvidencePath !== PHASE5C_D_FIDELITY_AUDIT_EVIDENCE_PATH
     || gate.sourceAuditEvidenceId !== EXPECTED_AUDIT_ID
-    || gate.gateStatus !== "entry-blocked-until-route-satisfied"
+    || gate.gateStatus !== "entry-route-satisfied-interpretation-pending"
   ) {
-    addIssue(issues, "error", "phase5c_e_entry_gate_identity", PHASE5C_POST_FIDELITY_ENTRY_GATE_PATH, "Phase 5C-E entry gate identity, source audit pin, and blocked status must remain fixed.");
+    addIssue(issues, "error", "phase5c_e_entry_gate_identity", PHASE5C_POST_FIDELITY_ENTRY_GATE_PATH, "Phase 5C-E entry gate identity, source audit pin, and route-satisfied interpretation-pending status must remain fixed.");
   }
   if (fidelityAuditEvidence.id !== EXPECTED_AUDIT_ID) {
     addIssue(issues, "error", "phase5c_e_source_audit_identity", PHASE5C_D_FIDELITY_AUDIT_EVIDENCE_PATH, "Phase 5C-E entry gate must reference the Phase 5C-D fidelity audit evidence.");
@@ -406,7 +407,7 @@ function validateAllowedEntryRoutes(
   }
   validateRouteShell(sameClosureRoute, SAME_CLOSURE_ENTRY_ROUTE_ID, "not-satisfied", issues);
   validateSameClosureRoute(sameClosureRoute.requiredEvidence, issues);
-  validateRouteShell(modelCoreEquivalentRoute, MODELCORE_EQUIVALENT_ENTRY_ROUTE_ID, "defined-not-satisfied", issues);
+  validateRouteShell(modelCoreEquivalentRoute, MODELCORE_EQUIVALENT_ENTRY_ROUTE_ID, "satisfied-experimental-paired-land-run", issues);
   validateModelCoreEquivalentRoute(modelCoreEquivalentRoute.requiredEvidence, issues);
   validateRouteShell(ownerRoute, OWNER_REPLACEMENT_ENTRY_ROUTE_ID, "owner-approval-required", issues);
   validateOwnerReplacementRoute(ownerRoute.requiredEvidence, issues);
@@ -520,9 +521,9 @@ function validateModelCoreEquivalentRoute(
   if (
     requiredEvidence.closureProtocolId !== EXPECTED_MODELCORE_CLOSURE_PROTOCOL_ID
     || requiredEvidence.closureImplementationStatus !== "experimental-source-provider-hook-implemented"
-    || requiredEvidence.routeSatisfactionStatus !== "partial-legacy-positive-control-pass-land-pairing-not-run"
-    || requiredEvidence.sourceProviderRole !== "legacy-activeStress-positive-control"
-    || requiredEvidence.closureEquivalenceToModelCore !== "required-not-yet-demonstrated"
+    || requiredEvidence.routeSatisfactionStatus !== "satisfied-paired-land-provider-run-finite"
+    || requiredEvidence.sourceProviderRole !== "legacy-source-only-positive-control-and-land2017-lv-source-only"
+    || requiredEvidence.closureEquivalenceToModelCore !== "experimental-source-provider-closure-evidence-recorded"
     || requiredEvidence.legacyPositiveControlStatus !== "period-2-positive-control-pass"
     || requiredEvidence.positiveControlObservedPeriodBeats !== 2
     || requiredEvidence.sameProtocolOrExplicitEquivalence !== true
@@ -533,7 +534,7 @@ function validateModelCoreEquivalentRoute(
     || requiredEvidence.closureEquivalenceEvidence !== "qDot, valve, afterload, preload, TBV/projection, pressure-floor, beat-selection, and sampling behavior preserved or explicitly matched"
     || requiredEvidence.doesNotSatisfyCurrentNoGo !== true
   ) {
-    addIssue(issues, "error", "phase5c_e_modelcore_equivalent_route", "gate.allowedEntryRoutes.modelcore-equivalent-closure-positive-control.requiredEvidence", "ModelCore-equivalent route must record the experimental source-provider hook while keeping the route partial and the current no-go unsatisfied.");
+    addIssue(issues, "error", "phase5c_e_modelcore_equivalent_route", "gate.allowedEntryRoutes.modelcore-equivalent-closure-positive-control.requiredEvidence", "ModelCore-equivalent route must record the paired finite Land source-provider run while keeping runtime, official morphology, and final no-alternans blocked.");
   }
 }
 
@@ -631,13 +632,13 @@ function validateBlockedUntil(
   if (
     blockedUntil.artifactGateExpectedPass !== false
     || blockedUntil.newMyocardiumCheckRequiredSatisfied !== false
-    || blockedUntil.landRunInterpretation !== "not-interpretable-positive-control-failed"
-    || blockedUntil.sameProtocolSecondOrderAdvancementStatus !== "blocked-until-positive-control-period2"
+    || blockedUntil.landRunInterpretation !== "modelcore-paired-land-finite-period1-positive-signal"
+    || blockedUntil.sameProtocolSecondOrderAdvancementStatus !== "second-order-reference-required"
     || blockedUntil.finalNoAlternansClaim !== "not-claimed"
     || blockedUntil.officialMorphologyAcceptance !== false
     || blockedUntil.runtimeReplacement !== false
   ) {
-    addIssue(issues, "error", "phase5c_e_blocked_until", "gate.blockedUntil", "Blocked-until fields must keep artifactGate, Land interpretation, same-protocol advancement, final no-alternans, official morphology, and runtime adoption blocked.");
+    addIssue(issues, "error", "phase5c_e_blocked_until", "gate.blockedUntil", "Blocked-until fields must record the paired Land signal while keeping second-order reference, final no-alternans, official morphology, and runtime adoption blocked.");
   }
 }
 
@@ -663,12 +664,13 @@ function validateRequiredScripts(
 ): void {
   if (
     !Array.isArray(requiredVerificationScripts)
-    || requiredVerificationScripts.length !== 3
+    || requiredVerificationScripts.length !== 4
     || !requiredVerificationScripts.includes(SOURCE_AUDIT_VERIFIER_SCRIPT)
     || !requiredVerificationScripts.includes(MODELCORE_EQUIVALENT_VERIFIER_SCRIPT)
+    || !requiredVerificationScripts.includes(MODELCORE_PAIRED_LAND_VERIFIER_SCRIPT)
     || !requiredVerificationScripts.includes(EXPECTED_VERIFIER_SCRIPT)
   ) {
-    addIssue(issues, "error", "phase5c_e_required_scripts", "gate.requiredVerificationScripts", "Phase 5C-E entry gate must require the source audit verifier, ModelCore-equivalent evidence verifier, and this gate verifier.");
+    addIssue(issues, "error", "phase5c_e_required_scripts", "gate.requiredVerificationScripts", "Phase 5C-E entry gate must require the source audit verifier, ModelCore-equivalent positive-control verifier, paired Land verifier, and this gate verifier.");
   }
 }
 
@@ -702,7 +704,7 @@ function validateSourceFiles(
     const normalizedText = file.text.replace(/\s+/g, " ");
     validateNoAffirmativeBoundaryProse(
       file.path,
-      phase5CEntryGateBoundaryText(file, issues).replace(/\s+/g, " "),
+      stripMarkdownFencedBlocks(phase5CEntryGateBoundaryText(file, issues)).replace(/\s+/g, " "),
       issues,
     );
     for (const token of REQUIRED_DOCUMENT_BOUNDARY_TOKENS) {
@@ -821,6 +823,10 @@ function validateNoAffirmativeBoundaryProse(
       addIssue(issues, "error", "phase5c_e_forbidden_claim", label, `Phase 5C-E sources must not add affirmative boundary prose: ${normalizedClause}.`);
     }
   }
+}
+
+function stripMarkdownFencedBlocks(text: string): string {
+  return text.replace(/```[\s\S]*?```/g, "");
 }
 
 function findRoute(routes: readonly unknown[], routeId: string): JsonRecord | undefined {

@@ -203,6 +203,53 @@ describe("myocardium Phase 5C-G same-closure source-provider audit", () => {
     expect(validation.errors.map((issue) => issue.code)).toContain("phase5c_g_changed_file_scope");
   });
 
+  it("allows the Phase 5C-L paired Land experiment exact diff", () => {
+    const input = fixture();
+    input.changedFilePaths = [
+      "__tests__/myocardiumPhase5CModelCoreEquivalentPositiveControlClosure.test.ts",
+      "__tests__/myocardiumPhase5CSameClosureSourceProviderAudit.test.ts",
+      "__tests__/myocardiumPhase5CPostFidelityEntryGate.test.ts",
+      "__tests__/myocardiumPhase5LModelCorePairedLandSourceProvider.test.ts",
+      "data/myocardium/gates/phase5c-post-fidelity-entry-gate-v1.json",
+      "data/myocardium/protocols/modelcore-equivalent-positive-control-closure-v1.json",
+      "data/myocardium/protocols/modelcore-paired-land-source-provider-run-v1.json",
+      "data/myocardium/protocols/modelcore-paired-land-source-provider-run-result-v1.json",
+      "docs/myocardium/README.md",
+      "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
+      "docs/myocardium/roadmap/phase5c-modelcore-equivalent-route-gate.md",
+      "docs/status/current-lanes.md",
+      "package.json",
+      "tools/myocardium/buildModelCorePairedLandSourceProviderEvidence.ts",
+      "tools/myocardium/modelCoreLand2017LvSourceProvider.ts",
+      "tools/myocardium/verifyModelCoreEquivalentPositiveControlClosure.ts",
+      "tools/myocardium/verifyModelCorePairedLandSourceProvider.ts",
+      "tools/myocardium/verifyPhase5CPostFidelityEntryGate.ts",
+      "tools/myocardium/verifyPhase5CPositiveControlTriageAudit.ts",
+      "tools/myocardium/verifyPhase5CSameClosureSourceProviderAudit.ts",
+    ];
+
+    const validation = validatePhase5CSameClosureSourceProviderAudit(input);
+
+    expect(validation.pass).toBe(true);
+    expect(validation.errors.map((issue) => issue.code)).not.toContain("phase5c_g_changed_file_scope");
+  });
+
+  it("does not apply the Phase 5C-L exact diff exemption to a partial file subset", () => {
+    const input = fixture();
+    input.changedFilePaths = [
+      "docs/myocardium/README.md",
+      "docs/status/current-lanes.md",
+      "tools/myocardium/modelCoreLand2017LvSourceProvider.ts",
+      "tools/myocardium/verifyModelCorePairedLandSourceProvider.ts",
+      "data/myocardium/protocols/modelcore-paired-land-source-provider-run-v1.json",
+    ];
+
+    const validation = validatePhase5CSameClosureSourceProviderAudit(input);
+
+    expect(validation.pass).toBe(false);
+    expect(validation.errors.map((issue) => issue.code)).toContain("phase5c_g_changed_file_scope");
+  });
+
   it("fails validation if a Phase 5C-G PR diff includes runtime or workbench changes", () => {
     const input = fixture();
     input.changedFilePaths = [

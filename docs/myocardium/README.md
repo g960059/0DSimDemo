@@ -37,7 +37,7 @@ phase gates called out below.
 | 4e | [roadmap/phase5c-post-fidelity-entry-gate.md](roadmap/phase5c-post-fidelity-entry-gate.md) | Phase 5C-E entry gate after the Phase 5C-D no-go result |
 | 4f | [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md) | Phase 5C-F triage audit plan while the Phase 5C-E entry gate remains blocked |
 | 4g | [roadmap/phase5c-same-closure-source-provider-audit.md](roadmap/phase5c-same-closure-source-provider-audit.md) | Phase 5C-G same-closure source-provider audit snapshot after the PR #193 lane handoff |
-| 4h | [roadmap/phase5c-modelcore-equivalent-route-gate.md](roadmap/phase5c-modelcore-equivalent-route-gate.md) | Phase 5C-H/I/J/K ModelCore-equivalent route, experimental source-provider hook, provider-state lifecycle, and source-only pressure adapter while entry remains blocked |
+| 4h | [roadmap/phase5c-modelcore-equivalent-route-gate.md](roadmap/phase5c-modelcore-equivalent-route-gate.md) | Phase 5C-H/I/J/K/L ModelCore-equivalent route, experimental source-provider hook, provider-state lifecycle, source-only pressure adapter, and paired Land source-provider run |
 | 5 | [research/myocardial-contraction-rebuild-design-record.md](research/myocardial-contraction-rebuild-design-record.md) | Background rationale and design discussion |
 | 6 | [review-notes/phase2b-level3-review-deltas.md](review-notes/phase2b-level3-review-deltas.md) | PR #166 Phase 2B/Level 3 review deltas |
 
@@ -649,7 +649,9 @@ check the gate and the current partial ModelCore-equivalent evidence. Run
 the Phase 5C-J provider-state lifecycle precondition for future Land pairing.
 Run `npm run verify:myocardium-modelcore-active-source-pressure-adapter` to
 check the Phase 5C-K source-only pressure adapter precondition for the same
-future Land pairing.
+future Land pairing. Run
+`npm run verify:myocardium-modelcore-paired-land-source-provider` to run and
+check the Phase 5C-L paired Land source-provider experiment.
 The entry route ids recorded in the gate are
 `same-closure-period2-positive-control`,
 `modelcore-equivalent-closure-positive-control`, and
@@ -661,16 +663,19 @@ precondition evidence for the experimental hook; it does not change runtime
 replacement, official morphology acceptance, final no-alternans, or the blocked
 route state. Phase 5C-K records a source-only pressure adapter precondition:
 the legacy LV source-only adapter matches the legacy full-pressure provider
-under the pinned low-preload protocol, but the paired Land source-provider run
-is still pending. Source-only providers are mutually exclusive with pressure
-overrides and must provide source-specific debug terms; future Land providers
-must keep mutable solver state in `providerState`. The route remains partial
-until a paired Land source-provider run evaluates
-`sourceProviderDifferenceOnly=true` under the same closure. This gate keeps
-`land-new-myocardium-low-preload-phase5c-fidelity-audit-v1`,
-`blocked-until-positive-control-period2`, no runtime replacement, no
-qDot/valve/afterload tuning, no official morphology acceptance, no final
-no-alternans, and no TriSeg adoption as the current boundary.
+under the pinned low-preload protocol. Source-only providers are mutually
+exclusive with pressure overrides and must provide source-specific debug terms;
+future Land providers must keep mutable solver state in `providerState`.
+Phase 5C-L runs the paired Land source-provider experiment under the same
+ModelCore closure. The legacy source-only positive control remains period-2,
+the Land 2017 LV source-only provider runs finite with zero Land solver
+failures and settles to period-1, and `sourceProviderDifferenceOnly=true` is
+satisfied for this experimental LV source-only pair. This is outcome class A:
+a positive interpretable signal for this closure, not final no-alternans and
+not official morphology acceptance. This gate keeps no runtime replacement, no
+qDot/valve/afterload/preload tuning, no Land parameter tuning, no official
+morphology acceptance, no final no-alternans, and no TriSeg adoption as the
+current boundary.
 
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
@@ -707,15 +712,20 @@ Phase 5C-H records the
 `modelcore-equivalent-closure-positive-control` route definition in
 [roadmap/phase5c-modelcore-equivalent-route-gate.md](roadmap/phase5c-modelcore-equivalent-route-gate.md)
 and the same Phase 5C-E gate. Phase 5C-I updates the route with experimental
-source-provider hook evidence. The route remains `defined-not-satisfied` with
+source-provider hook evidence. Through Phase 5C-I, the route remained
+`defined-not-satisfied` with
 `closureImplementationStatus=experimental-source-provider-hook-implemented`,
 `routeSatisfactionStatus=partial-legacy-positive-control-pass-land-pairing-not-run`,
 and no runtime replacement, no chamber/case/workbench/state-schema wiring, no
 production ModelCore adoption beyond the artifact-only constructor hook, no
 official morphology acceptance, no final no-alternans, and no TriSeg adoption.
 Phase 5C-J and Phase 5C-K add provider-state lifecycle and source-only pressure
-adapter preconditions for future Land pairing; neither phase performs the
-paired Land run or evaluates `sourceProviderDifferenceOnly=true` for Land.
+adapter preconditions for Land pairing. Phase 5C-L performs the paired Land
+run, records the result artifact at
+[`../../data/myocardium/protocols/modelcore-paired-land-source-provider-run-result-v1.json`](../../data/myocardium/protocols/modelcore-paired-land-source-provider-run-result-v1.json),
+and evaluates `sourceProviderDifferenceOnly=true` for the experimental LV
+source-only pair; second-order/reference robustness and interpretation remain
+future work, with no final no-alternans claim.
 
 ## Imported bundle checks
 

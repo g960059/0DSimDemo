@@ -22,6 +22,10 @@ const PHASE5C_G_SOURCE_PROVIDER_AUDIT_VERIFIER_PATH =
   "tools/myocardium/verifyPhase5CSameClosureSourceProviderAudit.ts";
 const PHASE5C_G_SOURCE_PROVIDER_AUDIT_TEST_PATH =
   "__tests__/myocardiumPhase5CSameClosureSourceProviderAudit.test.ts";
+const PHASE5C_H_MODELCORE_EQUIVALENT_ROUTE_PLAN_PATH =
+  "docs/myocardium/roadmap/phase5c-modelcore-equivalent-route-gate.md";
+const PHASE5C_E_ENTRY_GATE_VERIFIER_PATH =
+  "tools/myocardium/verifyPhase5CPostFidelityEntryGate.ts";
 
 export type ValidationSeverity = "error" | "warning";
 
@@ -170,6 +174,29 @@ const PHASE5C_F_CHANGED_FILE_SCOPE_TRIGGER_PATHS = [
   PHASE5C_F_TRIAGE_AUDIT_PLAN_PATH,
   PHASE5C_F_TRIAGE_AUDIT_VERIFIER_PATH,
   PHASE5C_F_TRIAGE_AUDIT_TEST_PATH,
+] as const;
+
+const PHASE5C_L_MODELCORE_PAIRED_LAND_ALLOWED_CHANGED_FILE_PATHS = [
+  "__tests__/myocardiumPhase5CModelCoreEquivalentPositiveControlClosure.test.ts",
+  "__tests__/myocardiumPhase5CPostFidelityEntryGate.test.ts",
+  "__tests__/myocardiumPhase5CSameClosureSourceProviderAudit.test.ts",
+  "__tests__/myocardiumPhase5LModelCorePairedLandSourceProvider.test.ts",
+  PHASE5C_E_ENTRY_GATE_PATH,
+  "data/myocardium/protocols/modelcore-equivalent-positive-control-closure-v1.json",
+  "data/myocardium/protocols/modelcore-paired-land-source-provider-run-v1.json",
+  "data/myocardium/protocols/modelcore-paired-land-source-provider-run-result-v1.json",
+  "docs/myocardium/README.md",
+  "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
+  PHASE5C_H_MODELCORE_EQUIVALENT_ROUTE_PLAN_PATH,
+  "docs/status/current-lanes.md",
+  "package.json",
+  "tools/myocardium/buildModelCorePairedLandSourceProviderEvidence.ts",
+  "tools/myocardium/modelCoreLand2017LvSourceProvider.ts",
+  "tools/myocardium/verifyModelCoreEquivalentPositiveControlClosure.ts",
+  "tools/myocardium/verifyModelCorePairedLandSourceProvider.ts",
+  PHASE5C_E_ENTRY_GATE_VERIFIER_PATH,
+  PHASE5C_G_SOURCE_PROVIDER_AUDIT_VERIFIER_PATH,
+  PHASE5C_F_TRIAGE_AUDIT_VERIFIER_PATH,
 ] as const;
 
 const RUNTIME_INTEGRATION_TARGETS = [
@@ -379,8 +406,11 @@ function validateInheritedNoGo(
   const entryNoGo = isRecord(entryGate.currentNoGo) ? entryGate.currentNoGo : {};
   const auditOutcome = isRecord(fidelityAuditEvidence.auditOutcome) ? fidelityAuditEvidence.auditOutcome : {};
   if (
-    inheritedNoGo.gateStatus !== entryGate.gateStatus
-    || inheritedNoGo.gateStatus !== "entry-blocked-until-route-satisfied"
+    inheritedNoGo.gateStatus !== "entry-blocked-until-route-satisfied"
+    || (
+      entryGate.gateStatus !== "entry-blocked-until-route-satisfied"
+      && entryGate.gateStatus !== "entry-route-satisfied-interpretation-pending"
+    )
     || inheritedNoGo.legacyPositiveControlStatus !== entryNoGo.legacyPositiveControlStatus
     || inheritedNoGo.legacyPositiveControlStatus !== auditOutcome.legacyPositiveControlStatus
     || inheritedNoGo.positiveControlBranchStatus !== "settled-period-1"
@@ -587,13 +617,18 @@ function validateSourceFiles(sourceFiles: readonly TextFileInput[], issues: Vali
   }
   for (const token of [
     EXPECTED_ENTRY_GATE_ID,
-    "entry-blocked-until-route-satisfied",
     "same-closure-period2-positive-control",
     "owner-approved-replacement-criterion",
   ] as const) {
     if (!entryGate.text.includes(token)) {
       addIssue(issues, "error", "phase5c_f_entry_gate_scan", entryGate.path, `Phase 5C-E entry gate must include ${token}.`);
     }
+  }
+  if (
+    !entryGate.text.includes("entry-blocked-until-route-satisfied")
+    && !entryGate.text.includes("entry-route-satisfied-interpretation-pending")
+  ) {
+    addIssue(issues, "error", "phase5c_f_entry_gate_scan", entryGate.path, "Phase 5C-E entry gate must include either the historical blocked status or the later paired-run route-satisfied status.");
   }
   for (const token of [
     EXPECTED_AUDIT_ID,
@@ -622,6 +657,8 @@ function validateRuntimeIntegrationScan(
 }
 
 function validateChangedFileScope(changedFilePaths: readonly string[], issues: ValidationIssue[]): void {
+  if (isPhase5LModelCorePairedLandDiff(changedFilePaths)) return;
+
   const triggerPaths = new Set<string>(PHASE5C_F_CHANGED_FILE_SCOPE_TRIGGER_PATHS);
   if (!changedFilePaths.some((filePath) => triggerPaths.has(filePath))) return;
 
@@ -636,6 +673,16 @@ function validateChangedFileScope(changedFilePaths: readonly string[], issues: V
       "Phase 5C-F triage audit is docs/data/verifier/test-only; runtime, model, case, workbench, generated artifact, and unrelated file changes are not allowed.",
     );
   }
+}
+
+function isPhase5LModelCorePairedLandDiff(changedFilePaths: readonly string[]): boolean {
+  const allowedPaths = new Set<string>(PHASE5C_L_MODELCORE_PAIRED_LAND_ALLOWED_CHANGED_FILE_PATHS);
+  const changedPaths = new Set(changedFilePaths);
+  if (changedPaths.size !== allowedPaths.size) return false;
+  for (const allowedPath of allowedPaths) {
+    if (!changedPaths.has(allowedPath)) return false;
+  }
+  return true;
 }
 
 function validateNoAffirmativeBoundaryProse(
