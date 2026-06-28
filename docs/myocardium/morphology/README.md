@@ -1,6 +1,6 @@
 # Myocardium morphology lane
 
-Status: proposed lane index
+Status: diagnostic lane; Phase M1 current-main residual blocker classification recorded
 Scope: PV-loop and waveform morphology diagnostics; no runtime replacement authority
 
 ## Purpose
@@ -94,14 +94,33 @@ Morphology lane must not claim or change:
 
 ## Current next actions
 
+Phase M1 records the compact post-PR #219 current-main blocker bundle in
+[`../../../data/myocardium/protocols/morphology-blocker-bundle-phase-m1-result-v1.json`](../../../data/myocardium/protocols/morphology-blocker-bundle-phase-m1-result-v1.json).
+Run `npm run verify:myocardium-morphology-blocker-bundle` to verify it.
+
+The Phase M1 bundle reruns the PV-loop morphology diagnostic and both existing
+diagnostic comparators. It records 7 branches, 17,304 metric rows, and 60,572
+sample rows. The filling comparator is now 39/42 interpretable; the only
+remaining uninterpretable groups are `lv-failure-dobutamine` branch 1 RV beats
+1-3, each missing only `eaLikeInflowProxy` while all other residual
+anti-gaming readouts are available. The arterial-load comparator remains 42/42
+internally interpretable, but direct Zc/reflection signals remain
+`missing-no-proxy` with proxy use forbidden and no hypothesis promotion.
+
+Phase M1 is a current-main residual blocker classification. It does not clear
+the full morphology blocker set, does not run a paired LV Land-vs-stock
+morphology matrix, and does not run an isolated arterial bench.
+
 1. Use the current-main baseline snapshot in
    [`pv-loop-current-main-baseline-snapshot-v1.md`](../verification/pv-loop-current-main-baseline-snapshot-v1.md)
    as the post-PR #196 morphology reference.
-2. Add or derive the missing diagnostic-only E/A-like inflow proxy before
-   interpreting current LV filling comparator groups as fully interpretable.
-3. Define and run an isolated arterial bench for direct Zc/reflection signal
+2. Derive or emit the missing diagnostic-only E/A-like inflow proxy for the
+   three residual dobutamine RV filling groups.
+3. Run a paired stock-active versus developer-only LV Land morphology matrix
+   under the same official-case diagnostic runner.
+4. Define and run an isolated arterial bench for direct Zc/reflection signal
    generation.
-4. Feed BLOCKER/ADVISORY/OUT-OF-SCOPE results to the myocardium roadmap.
+5. Feed BLOCKER/ADVISORY/OUT-OF-SCOPE results to the myocardium roadmap.
 
 ## Handoff rule
 
