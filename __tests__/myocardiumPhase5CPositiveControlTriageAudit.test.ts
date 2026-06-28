@@ -141,6 +141,21 @@ describe("myocardium Phase 5C-F positive-control triage audit", () => {
     expect(validation.errors.map((issue) => issue.code)).toContain("phase5c_f_runtime_leak");
   });
 
+  it("does not apply the Phase 5C-F diff allowlist to unrelated PR diffs", () => {
+    const input = fixture();
+    input.changedFilePaths = [
+      "__tests__/pvLoopArterialLoadZcReflectionDiagnosticComparator.test.ts",
+      "data/myocardium/protocols/arterial-load-zc-reflection-diagnostic-comparator-v1.json",
+      "docs/myocardium/verification/arterial-load-zc-reflection-diagnostic-comparator-v1.md",
+      "tools/myocardium/buildArterialLoadZcReflectionDiagnosticComparator.ts",
+    ];
+
+    const validation = validatePhase5CPositiveControlTriageAudit(input);
+
+    expect(validation.pass).toBe(true);
+    expect(validation.errors.map((issue) => issue.code)).not.toContain("phase5c_f_changed_file_scope");
+  });
+
   it("fails validation if source prose self-authorizes entry or runtime adoption", () => {
     const input = fixture();
     appendSourceText(
@@ -155,10 +170,10 @@ describe("myocardium Phase 5C-F positive-control triage audit", () => {
     expect(validation.errors.map((issue) => issue.code)).toContain("phase5c_f_forbidden_claim");
   });
 
-  it("fails validation if the diff includes runtime or workbench changes", () => {
+  it("fails validation if a Phase 5C-F PR diff includes runtime or workbench changes", () => {
     const input = fixture();
     input.changedFilePaths = [
-      ...input.changedFilePaths,
+      PHASE5C_F_TRIAGE_AUDIT_PLAN_PATH,
       "engine/myocardium/protocols/landNewMyocardiumLowPreloadCheck.ts",
       "WorkbenchPage.tsx",
     ];
