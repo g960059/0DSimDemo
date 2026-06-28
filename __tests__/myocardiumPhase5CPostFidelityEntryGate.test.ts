@@ -85,11 +85,22 @@ describe("myocardium Phase 5C-E post-fidelity entry gate", () => {
       .toContain("phase5c_e_same_closure_route");
   });
 
-  it("fails validation if the ModelCore-equivalent route is treated as implemented or satisfied", () => {
+  it("records the ModelCore-equivalent experimental hook without satisfying the route", () => {
+    const input = fixture();
+    const route = modelCoreEquivalentRoute(input);
+
+    expect(route.status).toBe("defined-not-satisfied");
+    expect(route.requiredEvidence.closureImplementationStatus)
+      .toBe("experimental-source-provider-hook-implemented");
+    expect(route.requiredEvidence.routeSatisfactionStatus)
+      .toBe("partial-legacy-positive-control-pass-land-pairing-not-run");
+    expect(route.requiredEvidence.doesNotSatisfyCurrentNoGo).toBe(true);
+  });
+
+  it("fails validation if the ModelCore-equivalent route is treated as satisfied", () => {
     const input = fixture();
     const route = modelCoreEquivalentRoute(input);
     route.status = "satisfied";
-    route.requiredEvidence.closureImplementationStatus = "implemented";
     route.requiredEvidence.routeSatisfactionStatus = "satisfied";
     route.requiredEvidence.closureEquivalenceToModelCore = "demonstrated";
     route.requiredEvidence.doesNotSatisfyCurrentNoGo = false;

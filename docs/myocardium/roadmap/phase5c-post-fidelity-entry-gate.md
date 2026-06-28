@@ -47,13 +47,16 @@ difference only.
 
 `modelcore-equivalent-closure-positive-control` is the PR #193 route now
 recorded in this gate as `defined-not-satisfied`. It references
-`modelcore-equivalent-positive-control-closure-v1`, keeps
-`closureImplementationStatus=not-implemented` and
-`routeSatisfactionStatus=not-satisfied`, and preserves
-`blocked-until-positive-control-period2`. Its evidence list records period-2
-legacy activeStress positive-control reproduction, same protocol or explicit
-equivalence, event-surface preservation or explicit matching, source-provider
-difference only, and second-order reference evidence.
+`modelcore-equivalent-positive-control-closure-v1`. Phase 5C-I updates that
+route to `closureImplementationStatus=experimental-source-provider-hook-implemented`
+and
+`routeSatisfactionStatus=partial-legacy-positive-control-pass-land-pairing-not-run`,
+while preserving `blocked-until-positive-control-period2`. Its current partial
+evidence records legacy activeStress period-2 positive-control reproduction
+through the owner-approved experimental ModelCore source-provider hook. It still
+requires the paired Land source-provider run, same protocol or explicit
+equivalence, event-surface preservation or explicit matching,
+source-provider-difference only, and second-order reference evidence.
 
 `owner-approved-replacement-criterion` is the alternative route. It requires a
 later owner approval artifact that explicitly references the superseded
@@ -66,9 +69,10 @@ decision boundary. The gate itself records
 
 ## Non-Goals
 
-This phase has no runtime replacement, no ModelCore/chamber/case/official-case/
-Workbench/state-schema wiring, no qDot/valve/afterload tuning, no Land parameter
-tuning, no official morphology acceptance, no final no-alternans, no
-calcium-cycling alternans acceptance, no RV pressure-overload coverage, no
-ventricular interdependence coverage, no right-heart failure coverage, and no
-TriSeg adoption.
+This phase has no runtime replacement, no chamber/case/official-case/Workbench/
+state-schema wiring, no production ModelCore adoption beyond the artifact-only
+constructor hook, no qDot/valve/afterload tuning, no Land parameter tuning, no
+official morphology acceptance, no final no-alternans, no calcium-cycling
+alternans acceptance, no RV pressure-overload coverage, no ventricular
+interdependence coverage, no right-heart failure coverage, and no TriSeg
+adoption.

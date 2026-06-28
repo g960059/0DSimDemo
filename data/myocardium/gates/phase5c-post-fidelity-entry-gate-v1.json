@@ -62,8 +62,8 @@
       "status": "defined-not-satisfied",
       "requiredEvidence": {
         "closureProtocolId": "modelcore-equivalent-positive-control-closure-v1",
-        "closureImplementationStatus": "not-implemented",
-        "routeSatisfactionStatus": "not-satisfied",
+        "closureImplementationStatus": "experimental-source-provider-hook-implemented",
+        "routeSatisfactionStatus": "partial-legacy-positive-control-pass-land-pairing-not-run",
         "sourceProviderRole": "legacy-activeStress-positive-control",
         "closureEquivalenceToModelCore": "required-not-yet-demonstrated",
         "legacyPositiveControlStatus": "period-2-positive-control-pass",
@@ -183,6 +183,7 @@
   },
   "requiredVerificationScripts": [
     "verify:myocardium-land-new-myocardium-low-preload-check",
+    "verify:myocardium-modelcore-equivalent-positive-control-closure",
     "verify:myocardium-phase5c-post-fidelity-entry-gate"
   ]
 }

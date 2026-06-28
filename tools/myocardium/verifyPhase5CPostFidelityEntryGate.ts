@@ -59,6 +59,7 @@ const EXPECTED_CLOSURE_MODEL_ID = "phase5c-c-standalone-preload-afterload-surrog
 const EXPECTED_MODELCORE_CLOSURE_PROTOCOL_ID = "modelcore-equivalent-positive-control-closure-v1";
 const EXPECTED_VERIFIER_SCRIPT = "verify:myocardium-phase5c-post-fidelity-entry-gate";
 const SOURCE_AUDIT_VERIFIER_SCRIPT = "verify:myocardium-land-new-myocardium-low-preload-check";
+const MODELCORE_EQUIVALENT_VERIFIER_SCRIPT = "verify:myocardium-modelcore-equivalent-positive-control-closure";
 
 const CURRENT_NO_GO_KEYS = [
   "legacyPositiveControlStatus",
@@ -518,8 +519,8 @@ function validateModelCoreEquivalentRoute(
   );
   if (
     requiredEvidence.closureProtocolId !== EXPECTED_MODELCORE_CLOSURE_PROTOCOL_ID
-    || requiredEvidence.closureImplementationStatus !== "not-implemented"
-    || requiredEvidence.routeSatisfactionStatus !== "not-satisfied"
+    || requiredEvidence.closureImplementationStatus !== "experimental-source-provider-hook-implemented"
+    || requiredEvidence.routeSatisfactionStatus !== "partial-legacy-positive-control-pass-land-pairing-not-run"
     || requiredEvidence.sourceProviderRole !== "legacy-activeStress-positive-control"
     || requiredEvidence.closureEquivalenceToModelCore !== "required-not-yet-demonstrated"
     || requiredEvidence.legacyPositiveControlStatus !== "period-2-positive-control-pass"
@@ -532,7 +533,7 @@ function validateModelCoreEquivalentRoute(
     || requiredEvidence.closureEquivalenceEvidence !== "qDot, valve, afterload, preload, TBV/projection, pressure-floor, beat-selection, and sampling behavior preserved or explicitly matched"
     || requiredEvidence.doesNotSatisfyCurrentNoGo !== true
   ) {
-    addIssue(issues, "error", "phase5c_e_modelcore_equivalent_route", "gate.allowedEntryRoutes.modelcore-equivalent-closure-positive-control.requiredEvidence", "ModelCore-equivalent route must define required period-2 positive-control evidence without implementing or satisfying the current no-go.");
+    addIssue(issues, "error", "phase5c_e_modelcore_equivalent_route", "gate.allowedEntryRoutes.modelcore-equivalent-closure-positive-control.requiredEvidence", "ModelCore-equivalent route must record the experimental source-provider hook while keeping the route partial and the current no-go unsatisfied.");
   }
 }
 
@@ -662,11 +663,12 @@ function validateRequiredScripts(
 ): void {
   if (
     !Array.isArray(requiredVerificationScripts)
-    || requiredVerificationScripts.length !== 2
+    || requiredVerificationScripts.length !== 3
     || !requiredVerificationScripts.includes(SOURCE_AUDIT_VERIFIER_SCRIPT)
+    || !requiredVerificationScripts.includes(MODELCORE_EQUIVALENT_VERIFIER_SCRIPT)
     || !requiredVerificationScripts.includes(EXPECTED_VERIFIER_SCRIPT)
   ) {
-    addIssue(issues, "error", "phase5c_e_required_scripts", "gate.requiredVerificationScripts", "Phase 5C-E entry gate must require both the source audit verifier and this gate verifier.");
+    addIssue(issues, "error", "phase5c_e_required_scripts", "gate.requiredVerificationScripts", "Phase 5C-E entry gate must require the source audit verifier, ModelCore-equivalent evidence verifier, and this gate verifier.");
   }
 }
 

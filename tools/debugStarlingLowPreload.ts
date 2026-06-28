@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { DEFAULT_PARAMS } from "@/constants";
-import { ModelCore, type AorticFlowClampMode, type AorticValveQUpdateMode, type DynamicQDotClampScope, type ModelCoreActiveStressDiagnostics, type ModelCoreClampDiagnostics } from "@/engine/ModelCore";
+import { ModelCore, type AorticFlowClampMode, type AorticValveQUpdateMode, type DynamicQDotClampScope, type ModelCoreActiveStressDiagnostics, type ModelCoreClampDiagnostics, type ModelCoreExperimentalOptions } from "@/engine/ModelCore";
 import { DYNAMIC_FLOW_CLAMP_ML_PER_S } from "@/engine/core/topology";
 import { makeIndex } from "@/engine/core/stateLayout";
 import type { StarlingSweepRequest } from "@/engine/guytonStarling";
@@ -45,6 +45,7 @@ type DebugOptions = {
   aovQDotClampNegative?: number;
   qDotClampScope?: DynamicQDotClampScope;
   aovQUpdateMode?: AorticValveQUpdateMode;
+  experimentalModelCoreOptions?: ModelCoreExperimentalOptions;
 };
 
 type ActiveBeatSummary = {
@@ -1444,8 +1445,8 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
   let seedState: SerializedModelState | undefined;
   let seededFromDeltaMl = 0;
   for (const delta of opts.deltasMl) {
-    const run = settleDebugCore(req.params, opts.targetVolumeMl + delta, dt, opts.sampleHz, tbvCorrectionMode, aorticFlowClampMode, opts.aovQDotClamp, aovQUpdateMode, seedState, opts.aovQDotClampNegative, qDotClampScope);
-    const traceCore = new ModelCore(req.params);
+    const run = settleDebugCore(req.params, opts.targetVolumeMl + delta, dt, opts.sampleHz, tbvCorrectionMode, aorticFlowClampMode, opts.aovQDotClamp, aovQUpdateMode, seedState, opts.aovQDotClampNegative, qDotClampScope, opts.experimentalModelCoreOptions);
+    const traceCore = new ModelCore(req.params, opts.experimentalModelCoreOptions);
     traceCore.unpackState(run.state);
     configureDebugCore(traceCore, tbvCorrectionMode, aorticFlowClampMode, opts.aovQDotClamp, aovQUpdateMode, opts.aovQDotClampNegative, qDotClampScope);
     const traceSamples = collectTraceSamples(traceCore, opts.traceBeats, dt, opts.sampleHz);
@@ -1543,6 +1544,7 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
       aovQUpdateMode,
       opts.aovQDotClampNegative,
       qDotClampScope,
+      opts.experimentalModelCoreOptions,
       point.returnMap.branchAmplitude,
       point.returnMap.branchAmplitudeFraction,
     );
@@ -1818,9 +1820,10 @@ function settleDebugCore(
   seedState?: SerializedModelState,
   aovQDotClampNegative?: number,
   qDotClampScope: DynamicQDotClampScope = DEFAULT_Q_DOT_CLAMP_SCOPE,
+  experimentalModelCoreOptions?: ModelCoreExperimentalOptions,
 ): DebugRun {
   const started = performance.now();
-  const core = new ModelCore(params);
+  const core = new ModelCore(params, experimentalModelCoreOptions);
   if (seedState) {
     core.unpackState(seedState);
     const retarget = core.retargetTBVFromCurrentState(targetVolumeMl);
@@ -1877,6 +1880,7 @@ function estimateReturnMapDiagnostic(
   aovQUpdateMode: AorticValveQUpdateMode,
   aovQDotClampNegative: number | undefined,
   qDotClampScope: DynamicQDotClampScope,
+  experimentalModelCoreOptions: ModelCoreExperimentalOptions | undefined,
   branchAmplitude: Partial<Record<ReturnMapFeatureKey, number>>,
   branchAmplitudeFraction: Partial<Record<ReturnMapFeatureKey, number>>,
 ): ReturnMapDiagnostic {
@@ -1884,11 +1888,11 @@ function estimateReturnMapDiagnostic(
     return skippedReturnMapDiagnostic(state, branchAmplitude, branchAmplitudeFraction, "return-map disabled");
   }
   try {
-    const section = findNextLvEdvSection(state, params, dt, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative, qDotClampScope);
+    const section = findNextLvEdvSection(state, params, dt, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative, qDotClampScope, experimentalModelCoreOptions);
     const includeFixed = returnMapMode === "fixed" || returnMapMode === "both";
     const includeReset = returnMapMode === "reset" || returnMapMode === "both";
-    const fixedMode = includeFixed ? returnMapModeDiagnostic(section.state, params, dt, sampleHz, "volumeLambdaActFixed", tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative, qDotClampScope) : undefined;
-    const resetMode = includeReset ? returnMapModeDiagnostic(section.state, params, dt, sampleHz, "volumeLambdaActReset", tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative, qDotClampScope) : undefined;
+    const fixedMode = includeFixed ? returnMapModeDiagnostic(section.state, params, dt, sampleHz, "volumeLambdaActFixed", tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative, qDotClampScope, experimentalModelCoreOptions) : undefined;
+    const resetMode = includeReset ? returnMapModeDiagnostic(section.state, params, dt, sampleHz, "volumeLambdaActReset", tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative, qDotClampScope, experimentalModelCoreOptions) : undefined;
     const primaryMode: ReturnMapModeKey = includeFixed ? "volumeLambdaActFixed" : "volumeLambdaActReset";
     const primary = includeFixed ? fixedMode : resetMode;
     if (!primary) throw new Error(`unsupported return-map mode: ${returnMapMode}`);
@@ -1999,15 +2003,16 @@ function returnMapModeDiagnostic(
   aovQUpdateMode: AorticValveQUpdateMode,
   aovQDotClampNegative: number | undefined,
   qDotClampScope: DynamicQDotClampScope,
+  experimentalModelCoreOptions?: ModelCoreExperimentalOptions,
 ): { oneBeat: ReturnMapPhaseDiagnostic; twoBeatSamePhase: ReturnMapPhaseDiagnostic } {
   let plusState = perturbLvAgainstPVein(sectionState, RETURN_MAP_PERTURBATION_ML);
   let minusState = perturbLvAgainstPVein(sectionState, -RETURN_MAP_PERTURBATION_ML);
   if (mode === "volumeLambdaActReset") {
-    plusState = resetLvLambdaActToRaw(plusState, params);
-    minusState = resetLvLambdaActToRaw(minusState, params);
+    plusState = resetLvLambdaActToRaw(plusState, params, experimentalModelCoreOptions);
+    minusState = resetLvLambdaActToRaw(minusState, params, experimentalModelCoreOptions);
   }
-  const plus = postPerturbationBeats(plusState, params, dt, sampleHz, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative, qDotClampScope);
-  const minus = postPerturbationBeats(minusState, params, dt, sampleHz, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative, qDotClampScope);
+  const plus = postPerturbationBeats(plusState, params, dt, sampleHz, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative, qDotClampScope, experimentalModelCoreOptions);
+  const minus = postPerturbationBeats(minusState, params, dt, sampleHz, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative, qDotClampScope, experimentalModelCoreOptions);
   return {
     oneBeat: phaseDiagnostic(plus.oneBeat, minus.oneBeat, plus.clampHits, minus.clampHits),
     twoBeatSamePhase: phaseDiagnostic(plus.twoBeat, minus.twoBeat, plus.clampHits, minus.clampHits),
@@ -2024,8 +2029,9 @@ function findNextLvEdvSection(
   aovQUpdateMode: AorticValveQUpdateMode = "current-loss",
   aovQDotClampNegative?: number,
   qDotClampScope: DynamicQDotClampScope = DEFAULT_Q_DOT_CLAMP_SCOPE,
+  experimentalModelCoreOptions?: ModelCoreExperimentalOptions,
 ): { state: SerializedModelState; beat: number; vlvMl: number } {
-  const core = new ModelCore(params);
+  const core = new ModelCore(params, experimentalModelCoreOptions);
   core.unpackState(state);
   configureDebugCore(core, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative, qDotClampScope);
   const targetBeat = Math.floor(core.sample().phi) + 1;
@@ -2064,8 +2070,12 @@ function perturbLvAgainstPVein(state: SerializedModelState, lvDeltaMl: number): 
   return { ...state, x };
 }
 
-function resetLvLambdaActToRaw(state: SerializedModelState, params: CoreRuntimeParams): SerializedModelState {
-  const core = new ModelCore(params);
+function resetLvLambdaActToRaw(
+  state: SerializedModelState,
+  params: CoreRuntimeParams,
+  experimentalModelCoreOptions?: ModelCoreExperimentalOptions,
+): SerializedModelState {
+  const core = new ModelCore(params, experimentalModelCoreOptions);
   core.unpackState(state);
   const lambdaRaw = core.debugActiveStressDiagnostics().LV?.lambdaRaw;
   if (!Number.isFinite(lambdaRaw)) return state;
@@ -2077,8 +2087,12 @@ function resetLvLambdaActToRaw(state: SerializedModelState, params: CoreRuntimeP
   return { ...state, x };
 }
 
-function newCoreFromState(state: SerializedModelState, params: CoreRuntimeParams): ModelCore {
-  const core = new ModelCore(params);
+function newCoreFromState(
+  state: SerializedModelState,
+  params: CoreRuntimeParams,
+  experimentalModelCoreOptions?: ModelCoreExperimentalOptions,
+): ModelCore {
+  const core = new ModelCore(params, experimentalModelCoreOptions);
   core.unpackState(state);
   return core;
 }
@@ -2094,8 +2108,9 @@ function postPerturbationBeats(
   aovQUpdateMode: AorticValveQUpdateMode = "current-loss",
   aovQDotClampNegative?: number,
   qDotClampScope: DynamicQDotClampScope = DEFAULT_Q_DOT_CLAMP_SCOPE,
+  experimentalModelCoreOptions?: ModelCoreExperimentalOptions,
 ): { oneBeat: BeatTraceRow; twoBeat: BeatTraceRow; clampHits: number } {
-  const core = newCoreFromState(state, params);
+  const core = newCoreFromState(state, params, experimentalModelCoreOptions);
   configureDebugCore(core, tbvCorrectionMode, aorticFlowClampMode, aovQDotClamp, aovQUpdateMode, aovQDotClampNegative, qDotClampScope);
   core.resetDebugDiagnostics();
   void sampleHz;

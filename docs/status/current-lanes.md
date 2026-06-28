@@ -11,7 +11,7 @@ Track what each active team lane owns, what it may claim, what is blocked, and w
 
 | Lane | Current state | Current blocker | Next experiment | Must not claim |
 |---|---|---|---|---|
-| myocardium | Phase 5C-H ModelCore-equivalent positive-control closure route recorded as defined-not-satisfied | same-closure legacy activeStress positive control settles to period-1 | ModelCore-equivalent positive-control closure experiment/evidence | no Land no-alternans acceptance, no runtime replacement, no official morphology pass |
+| myocardium | Phase 5C-I experimental ModelCore source-provider hook records legacy activeStress period-2 positive-control evidence; route remains partial until Land pairing | Land source-provider has not yet been run under the same ModelCore closure | paired Land source-provider run under the owner-approved experimental ModelCore hook | no Land no-alternans acceptance, no runtime replacement, no official morphology pass |
 | morphology | PV-loop diagnostics plus diagnostic E/A-like inflow proxy exist; current-main baseline snapshot remains historical | filling comparator retains residual E/A-like missingness in dobutamine RV groups; arterial Zc/reflection remains signal-gap limited | classify residual dobutamine RV E/A missingness; isolated arterial bench | no root-cause acceptance, no fix acceptance, no official morphology pass |
 | atrial bridge | Phase 5.5 shootout plan exists | no shootout runner/candidate results yet | E0/A0/A1 shootout runner | final atrial physiology, AF validation |
 | arterial load | Zc/reflection comparator readiness exists | no isolated bench or direct Zc/reflection signal | isolated arterial bench | production/default Zc adoption |
@@ -27,7 +27,7 @@ Track what each active team lane owns, what it may claim, what is blocked, and w
 
 ## Current top priorities
 
-1. Produce evidence for the Phase 5C ModelCore-equivalent positive-control closure route or replace the Phase 5C positive-control requirement.
+1. Run the paired Land source-provider under the owner-approved experimental ModelCore hook, preserving source-provider-difference-only evidence.
 2. Classify residual dobutamine RV E/A-like missingness after the diagnostic inflow proxy.
 3. Define/run an isolated arterial bench.
 4. Keep morphology evidence diagnostic-only when feeding myocardium decisions.

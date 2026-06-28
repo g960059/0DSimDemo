@@ -5,6 +5,9 @@ import {
   type ActiveStressDebugTerms,
   type Chamber,
   type ChamberCtx,
+  type ChamberInternal,
+  type ChamberInternalDerivatives,
+  type ChamberPressureTerms,
 } from "@/engine/chambers";
 import type {
   CoreRuntimeParams,
@@ -116,6 +119,33 @@ export type AorticValveQUpdateMode =
   | "qnext-loss"
   | "substep-2"
   | "substep-4";
+
+export type ModelCoreActiveSourceProviderCall = {
+  readonly chamber: Chamber;
+  readonly activeModel: ActiveStressChamberModel;
+  readonly volumeMl: number;
+  readonly internal: ChamberInternal;
+  readonly chamberCtx: ChamberCtx;
+};
+
+export type ModelCoreActiveSourceProviderInitCall = {
+  readonly chamber: Chamber;
+  readonly activeModel: ActiveStressChamberModel;
+};
+
+export type ModelCoreExperimentalActiveSourceProvider = {
+  readonly sourceProviderId: string;
+  initialInternal(input: ModelCoreActiveSourceProviderInitCall): ChamberInternal;
+  pressure(input: ModelCoreActiveSourceProviderCall): number;
+  passivePressure?(input: ModelCoreActiveSourceProviderCall): number;
+  internalDerivatives(input: ModelCoreActiveSourceProviderCall): ChamberInternalDerivatives;
+  debugPressureTerms?(input: ModelCoreActiveSourceProviderCall): ChamberPressureTerms;
+  debugActiveStressTerms?(input: ModelCoreActiveSourceProviderCall): ActiveStressDebugTerms;
+};
+
+export type ModelCoreExperimentalOptions = {
+  readonly activeSourceProviders?: Partial<Record<Chamber, ModelCoreExperimentalActiveSourceProvider>>;
+};
 
 type BeatWindow = {
   data: SimSample[];
@@ -467,6 +497,7 @@ export class ModelCore {
 
   // Heart chamber models (ROADMAP S2). Active models track node.active params.
   private readonly activeModels: Partial<Record<Chamber, ActiveStressChamberModel>> = {};
+  private readonly experimentalActiveSourceProviders: Partial<Record<Chamber, ModelCoreExperimentalActiveSourceProvider>>;
   private elastanceModels = new Map<string, ElastanceChamberModel>();
 
   t = 0;
@@ -524,7 +555,8 @@ export class ModelCore {
   // like the rest of the metrics, rather than sampled at an arbitrary stop phase.
   private lastBeatObs: SimObservables | null = null;
 
-  constructor(initial?: Partial<CoreRuntimeParams>) {
+  constructor(initial?: Partial<CoreRuntimeParams>, experimentalOptions: ModelCoreExperimentalOptions = {}) {
+    this.experimentalActiveSourceProviders = { ...(experimentalOptions.activeSourceProviders ?? {}) };
     this.p = { ...defaultParams() };
     this.pTarget = { ...this.p };
     this.x = new Float64Array(this.idx.size);
@@ -559,7 +591,7 @@ export class ModelCore {
     for (const n of this.activeChamberNodes()) {
       const ch = n.chamber!;
       const internalIndex = this.activeInternalIndex(ch);
-      const initial = this.activeModel(ch).initialInternal();
+      const initial = this.activeInitialInternal(ch);
       this.x[internalIndex.c] = initial.c;
       this.x[internalIndex.a] = initial.a;
       this.x[internalIndex.r] = initial.r;
@@ -1028,10 +1060,10 @@ export class ModelCore {
     const aovResistiveDrop = aovLoss.R * qAo;
     const aovQuadraticDrop = aovLoss.B * qAo * Math.abs(qAo);
     const lvPressureTerms = this.p.heartModel === "activeStress"
-      ? this.activeModel("LV").debugPressureTerms(pack.VLVeff, this.activeInternalFromState("LV", this.x), this.chamberCtx("LV", this.x))
+      ? this.activeDebugPressureTerms("LV", pack.VLVeff, this.activeInternalFromState("LV", this.x), this.chamberCtx("LV", this.x))
       : undefined;
     const rvPressureTerms = this.p.heartModel === "activeStress"
-      ? this.activeModel("RV").debugPressureTerms(pack.VRVeff, this.activeInternalFromState("RV", this.x), this.chamberCtx("RV", this.x))
+      ? this.activeDebugPressureTerms("RV", pack.VRVeff, this.activeInternalFromState("RV", this.x), this.chamberCtx("RV", this.x))
       : undefined;
     const lvElastance = this.ventricularElastanceSignals("LV", pack.VLVeff, pack.PLVfw, this.x);
     const rvElastance = this.ventricularElastanceSignals("RV", pack.VRVeff, pack.PRVfw, this.x);
@@ -1188,13 +1220,17 @@ export class ModelCore {
         : ch === "RV"
           ? pack.VRVeff
           : pack.Vphys[this.nodeIndex.get(n.name)!];
-      out[ch] = this.activeModel(ch).debugActiveStressTerms(
-        chamberVolume,
-        this.activeInternalFromState(ch, this.x),
-        this.chamberCtx(ch, this.x),
-      );
+      out[ch] = this.activeDebugStressTerms(ch, chamberVolume, this.activeInternalFromState(ch, this.x), this.chamberCtx(ch, this.x));
     }
     return out;
+  }
+
+  debugExperimentalActiveSourceProviderIds(): Partial<Record<Chamber, string>> {
+    const ids: Partial<Record<Chamber, string>> = {};
+    for (const [chamber, provider] of Object.entries(this.experimentalActiveSourceProviders) as Array<[Chamber, ModelCoreExperimentalActiveSourceProvider | undefined]>) {
+      if (provider) ids[chamber] = provider.sourceProviderId;
+    }
+    return ids;
   }
 
   debugClampDiagnostics(): ModelCoreClampDiagnostics {
@@ -1532,7 +1568,7 @@ export class ModelCore {
   passivePressureAt(chamber: Chamber, volumeMl: number): number {
     if (this.p.heartModel !== "activeStress") return 0;
     const pack = this.computePressures(this.x);
-    return pack.Pperi + this.activeModel(chamber).passivePressure(volumeMl, this.chamberCtx(chamber, this.x));
+    return pack.Pperi + this.activePassivePressure(chamber, volumeMl, this.activeInternalFromState(chamber, this.x), this.chamberCtx(chamber, this.x));
   }
 
   passivePressureVolumeCurve(
@@ -1767,7 +1803,7 @@ export class ModelCore {
         : ch === "RV"
           ? pack.VRVeff
           : x[nodeIndex];
-      const dInternal = this.activeModel(ch).internalDerivatives(chamberVolume, internal, this.chamberCtx(ch, x));
+      const dInternal = this.activeInternalDerivatives(ch, chamberVolume, internal, this.chamberCtx(ch, x));
       dy[internalIndex.c] = dInternal.cDot;
       dy[internalIndex.a] = dInternal.aDot;
       dy[internalIndex.r] = dInternal.rDot;
@@ -1925,7 +1961,7 @@ export class ModelCore {
     if (n.kind !== "heartActive") throw new Error(`Node ${n.name} is not a heart chamber`);
     const internalIndex = this.activeInternalIndex(n.chamber);
     const internal = this.activeInternalFromState(n.chamber, x);
-    return this.activeModel(n.chamber).pressure(volumeMl, internal, this.chamberCtx(n.chamber, x));
+    return this.activePressure(n.chamber, volumeMl, internal, this.chamberCtx(n.chamber, x));
   }
 
   private useElastancePressure(n: NodeSpec): boolean {
@@ -2091,6 +2127,90 @@ export class ModelCore {
     const model = this.activeModels[chamber];
     if (!model) throw new Error(`Missing active chamber model for ${chamber}`);
     return model;
+  }
+
+  private activeProvider(chamber: Chamber): ModelCoreExperimentalActiveSourceProvider | undefined {
+    return this.experimentalActiveSourceProviders[chamber];
+  }
+
+  private activeCall(
+    chamber: Chamber,
+    volumeMl: number,
+    internal: ChamberInternal,
+    chamberCtx: ChamberCtx,
+  ): ModelCoreActiveSourceProviderCall {
+    return { chamber, activeModel: this.activeModel(chamber), volumeMl, internal, chamberCtx };
+  }
+
+  private activeInitialInternal(chamber: Chamber): ChamberInternal {
+    const activeModel = this.activeModel(chamber);
+    const provider = this.activeProvider(chamber);
+    return provider
+      ? provider.initialInternal({ chamber, activeModel })
+      : activeModel.initialInternal();
+  }
+
+  private activePressure(
+    chamber: Chamber,
+    volumeMl: number,
+    internal: ChamberInternal,
+    chamberCtx: ChamberCtx,
+  ): number {
+    const provider = this.activeProvider(chamber);
+    return provider
+      ? provider.pressure(this.activeCall(chamber, volumeMl, internal, chamberCtx))
+      : this.activeModel(chamber).pressure(volumeMl, internal, chamberCtx);
+  }
+
+  private activePassivePressure(
+    chamber: Chamber,
+    volumeMl: number,
+    internal: ChamberInternal,
+    chamberCtx: ChamberCtx,
+  ): number {
+    const provider = this.activeProvider(chamber);
+    if (provider?.passivePressure) {
+      return provider.passivePressure(this.activeCall(chamber, volumeMl, internal, chamberCtx));
+    }
+    return this.activeModel(chamber).passivePressure(volumeMl, chamberCtx);
+  }
+
+  private activeInternalDerivatives(
+    chamber: Chamber,
+    volumeMl: number,
+    internal: ChamberInternal,
+    chamberCtx: ChamberCtx,
+  ): ChamberInternalDerivatives {
+    const provider = this.activeProvider(chamber);
+    return provider
+      ? provider.internalDerivatives(this.activeCall(chamber, volumeMl, internal, chamberCtx))
+      : this.activeModel(chamber).internalDerivatives(volumeMl, internal, chamberCtx);
+  }
+
+  private activeDebugPressureTerms(
+    chamber: Chamber,
+    volumeMl: number,
+    internal: ChamberInternal,
+    chamberCtx: ChamberCtx,
+  ): ChamberPressureTerms {
+    const provider = this.activeProvider(chamber);
+    if (provider?.debugPressureTerms) {
+      return provider.debugPressureTerms(this.activeCall(chamber, volumeMl, internal, chamberCtx));
+    }
+    return this.activeModel(chamber).debugPressureTerms(volumeMl, internal, chamberCtx);
+  }
+
+  private activeDebugStressTerms(
+    chamber: Chamber,
+    volumeMl: number,
+    internal: ChamberInternal,
+    chamberCtx: ChamberCtx,
+  ): ActiveStressDebugTerms {
+    const provider = this.activeProvider(chamber);
+    if (provider?.debugActiveStressTerms) {
+      return provider.debugActiveStressTerms(this.activeCall(chamber, volumeMl, internal, chamberCtx));
+    }
+    return this.activeModel(chamber).debugActiveStressTerms(volumeMl, internal, chamberCtx);
   }
 
   private ventricularElastanceSignals(
@@ -2634,7 +2754,7 @@ export class ModelCore {
   }
 
   private cloneForReadOnlyMeasurement(): ModelCore {
-    const clone = new ModelCore(this.p);
+    const clone = new ModelCore(this.p, { activeSourceProviders: this.experimentalActiveSourceProviders });
     clone.pTarget = { ...this.pTarget };
     clone.unpackState(this.packState());
     return clone;

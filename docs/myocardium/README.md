@@ -36,7 +36,7 @@ called out below.
 | 4e | [roadmap/phase5c-post-fidelity-entry-gate.md](roadmap/phase5c-post-fidelity-entry-gate.md) | Phase 5C-E entry gate after the Phase 5C-D no-go result |
 | 4f | [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md) | Phase 5C-F triage audit plan while the Phase 5C-E entry gate remains blocked |
 | 4g | [roadmap/phase5c-same-closure-source-provider-audit.md](roadmap/phase5c-same-closure-source-provider-audit.md) | Phase 5C-G same-closure source-provider audit snapshot after the PR #193 lane handoff |
-| 4h | [roadmap/phase5c-modelcore-equivalent-route-gate.md](roadmap/phase5c-modelcore-equivalent-route-gate.md) | Phase 5C-H ModelCore-equivalent positive-control route definition while entry remains blocked |
+| 4h | [roadmap/phase5c-modelcore-equivalent-route-gate.md](roadmap/phase5c-modelcore-equivalent-route-gate.md) | Phase 5C-H/I ModelCore-equivalent positive-control route and experimental source-provider hook while entry remains blocked |
 | 5 | [research/myocardial-contraction-rebuild-design-record.md](research/myocardial-contraction-rebuild-design-record.md) | Background rationale and design discussion |
 | 6 | [review-notes/phase2b-level3-review-deltas.md](review-notes/phase2b-level3-review-deltas.md) | PR #166 Phase 2B/Level 3 review deltas |
 
@@ -641,12 +641,18 @@ Phase 5C-E records that post-fidelity entry gate in
 [roadmap/phase5c-post-fidelity-entry-gate.md](roadmap/phase5c-post-fidelity-entry-gate.md)
 and
 [`../../data/myocardium/gates/phase5c-post-fidelity-entry-gate-v1.json`](../../data/myocardium/gates/phase5c-post-fidelity-entry-gate-v1.json).
-Run `npm run verify:myocardium-phase5c-post-fidelity-entry-gate` to check the
-gate. The entry route ids recorded in the gate are
+Run `npm run verify:myocardium-phase5c-post-fidelity-entry-gate` and
+`npm run verify:myocardium-modelcore-equivalent-positive-control-closure` to
+check the gate and the current partial ModelCore-equivalent evidence. The entry
+route ids recorded in the gate are
 `same-closure-period2-positive-control`,
 `modelcore-equivalent-closure-positive-control`, and
 `owner-approved-replacement-criterion`. The ModelCore-equivalent route has
-`status=defined-not-satisfied`. This gate keeps
+`status=defined-not-satisfied`. Phase 5C-I records owner-approved experimental
+source-provider-limited ModelCore wiring and legacy activeStress period-2
+positive-control evidence, but the route remains partial until a paired Land
+source-provider run evaluates `sourceProviderDifferenceOnly=true` under the
+same closure. This gate keeps
 `land-new-myocardium-low-preload-phase5c-fidelity-audit-v1`,
 `blocked-until-positive-control-period2`, no runtime replacement, no
 qDot/valve/afterload tuning, no official morphology acceptance, no final
@@ -686,15 +692,13 @@ TriSeg adoption.
 Phase 5C-H records the
 `modelcore-equivalent-closure-positive-control` route definition in
 [roadmap/phase5c-modelcore-equivalent-route-gate.md](roadmap/phase5c-modelcore-equivalent-route-gate.md)
-and the same Phase 5C-E gate. The route remains `defined-not-satisfied` with
-`closureImplementationStatus=not-implemented`,
-`routeSatisfactionStatus=not-satisfied`, and
-`blocked-until-positive-control-period2`. This phase has no runtime
-replacement, no ModelCore/chamber/case/official-case/Workbench/state-schema
-wiring, no qDot/valve/afterload tuning, no official morphology acceptance, no
-final no-alternans, no RV pressure-overload coverage, no ventricular
-interdependence coverage, no right-heart failure coverage, and no TriSeg
-adoption.
+and the same Phase 5C-E gate. Phase 5C-I updates the route with experimental
+source-provider hook evidence. The route remains `defined-not-satisfied` with
+`closureImplementationStatus=experimental-source-provider-hook-implemented`,
+`routeSatisfactionStatus=partial-legacy-positive-control-pass-land-pairing-not-run`,
+and no runtime replacement, no chamber/case/workbench/state-schema wiring, no
+production ModelCore adoption beyond the artifact-only constructor hook, no
+official morphology acceptance, no final no-alternans, and no TriSeg adoption.
 
 ## Imported bundle checks
 
