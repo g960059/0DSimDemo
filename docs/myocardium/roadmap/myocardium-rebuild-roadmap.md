@@ -490,6 +490,14 @@ production tissue homogenization.
 - boundary: developer-only-runtime-flag-rfc-no-runtime-wiring; no runtime replacement, no production registry integration, no official case wiring, no Workbench runtime wiring, no runtime flag UI, no state-schema migration, no Level 3/4 acceptance, no official morphology acceptance, no final no-alternans, and no structural alternans-removal claim.
 - next: owner GO/NO-GO on implementing a non-production developer-only LV Land runtime flag. A GO still must keep official cases, Workbench, production registries, and state schema blocked until separately accepted.
 
+### Phase 5V — developer-only LV Land runtime flag measured suite
+
+- result artifact: `data/myocardium/protocols/myocardium-developer-only-lv-land-runtime-flag-suite-result-v1.json`
+- verifier: `npm run verify:myocardium-developer-only-lv-land-runtime-flag-suite`
+- current outcome: the non-production developer-only flag path is implemented through the Phase 5U helper and reruns the fixed Phase 5S operating suite. All three points converge with health ok; source and commit calls are present at every point; Land solve failures are zero; the main-domain points remain period-1; and all measured outputs exactly reproduce the Phase 5S Land operating-suite results.
+- boundary: developer-only-runtime-flag-implementation-diagnostic-only; no runtime replacement, no production registry integration, no official case wiring, no Workbench runtime wiring, no runtime flag UI, no state-schema migration, no qDot/valve/afterload/preload/Land-parameter/source-stress tuning, no Level 3/4 acceptance, no official morphology acceptance, no final no-alternans, and no structural alternans-removal claim.
+- next: move to an education Studio static/mock MVP and/or developer-only envelope expansion. Keep official cases, Workbench runtime wiring, production registries, and state schema blocked until separately accepted.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison

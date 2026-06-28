@@ -808,6 +808,18 @@ state schema, runtime UI, or production registries. The artifact remains
 `rfc-draft-owner-decision-needed`, `accepted: false`, and owner decision is still
 required before any developer-only implementation beyond the tools helper.
 
+Phase 5V implements that developer-only LV Land runtime flag path only for
+non-production measurement. The recorded result is
+[`../../data/myocardium/protocols/myocardium-developer-only-lv-land-runtime-flag-suite-result-v1.json`](../../data/myocardium/protocols/myocardium-developer-only-lv-land-runtime-flag-suite-result-v1.json).
+Run `npm run verify:myocardium-developer-only-lv-land-runtime-flag-suite` to
+rerun the fixed Phase 5S operating suite through the Phase 5U helper. All three
+diagnostic points converge with health ok, Land solve failure count zero,
+source/commit path calls present, and exact Phase 5S Land output reproduction.
+This is developer-only measured evidence; production runtime replacement remains
+blocked, as do official case wiring, Workbench runtime wiring, state schema
+migration, runtime UI, production registries, official morphology acceptance,
+final no-alternans, and structural alternans-removal claims.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and
