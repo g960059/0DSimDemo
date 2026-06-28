@@ -1,6 +1,6 @@
-# Phase 5C-H/I/J/K/L/M ModelCore-equivalent Route Gate
+# Phase 5C-H/I/J/K/L/M/N ModelCore-equivalent Route Gate
 
-Status: paired experimental LV source-provider evidence recorded through Phase 5C-L; qDot clamp-threshold attribution recorded through Phase 5C-M; final no-alternans remains unclaimed
+Status: paired experimental LV source-provider evidence recorded through Phase 5C-L; qDot clamp-threshold attribution recorded through Phase 5C-M; output-match not-overlapped diagnostic recorded through Phase 5C-N; final no-alternans remains unclaimed
 
 This route was recorded as `modelcore-equivalent-closure-positive-control` in
 `phase5c-post-fidelity-entry-gate-v1` before implementation evidence existed.
@@ -53,6 +53,16 @@ positive interpretable signal, but structural alternans removal is not
 established. Output-matched paired evidence, SDIRK2 reference evidence, and a
 preload-domain sweep remain required before any stronger no-alternans claim.
 
+Phase 5C-N runs the output-match diagnostic as a predeclared TBV-axis matrix,
+not as preload tuning. Each same effective-TBV point is independently
+initialized, settles by convergence before the 45s cap, and preserves
+`sourceProviderDifferenceOnly=true` within that point. The cross-TBV output-match
+analysis is explicitly not source-provider-only. The diagnostic status is
+`not-overlapped`: the best Land point reaches only 0.376 of pinned legacy CO/SV
+and 0.091 of pinned legacy QAo peak. Therefore the preload/TBV axis did not move
+Land into the pinned legacy qDot clamp-engaged output regime; clamp-threshold
+avoidance remains unresolved and structural alternans removal is not established.
+
 Machine-readable gate:
 
 ```text
@@ -67,6 +77,7 @@ npm run verify:myocardium-modelcore-active-provider-state-lifecycle
 npm run verify:myocardium-modelcore-active-source-pressure-adapter
 npm run verify:myocardium-modelcore-paired-land-source-provider
 npm run verify:myocardium-modelcore-paired-land-qdot-clamp-attribution
+npm run verify:myocardium-modelcore-paired-land-output-matched-qdot-attribution
 ```
 
 Source no-go evidence:
@@ -112,6 +123,12 @@ Paired Land qDot clamp attribution evidence:
 data/myocardium/protocols/modelcore-paired-land-qdot-clamp-attribution-result-v1.json
 ```
 
+Paired Land output-match qDot attribution evidence:
+
+```text
+data/myocardium/protocols/modelcore-paired-land-output-matched-qdot-attribution-result-v1.json
+```
+
 ## Route Set
 
 Entry route ids recorded in the gate:
@@ -134,7 +151,10 @@ wiring. It supersedes the earlier `blocked-until-positive-control-period2`
 advancement block for this route; advancement is now constrained by
 `second-order-reference-required` before any stronger physiology claim. Phase
 5C-M further constrains interpretation: qDot clamp-threshold avoidance is a
-supported attribution risk until output-matched paired evidence is run.
+supported attribution risk until output-matched paired evidence is run. Phase
+5C-N records that the predeclared TBV-axis output-match diagnostic is
+not-overlapped, so structural attribution still requires SDIRK2 reference
+evidence and either explicit output forcing or another owner-approved match axis.
 
 Evidence fields required for the ModelCore-equivalent paired route include:
 
@@ -167,7 +187,10 @@ interpretable paired measurement, but second-order/reference robustness and
 result interpretation remain required before any final no-alternans claim.
 Phase 5C-M records the first same-closure attribution measurement and shows that
 Land avoids AoV qDot clamp engagement at a lower-output operating point; that
-narrows the next experiment to output matching rather than acceptance.
+narrows the next experiment to output matching rather than acceptance. Phase
+5C-N runs that first output-match diagnostic and records output-match
+not-overlapped, which keeps clamp-threshold avoidance unresolved rather than
+accepting structural alternans removal.
 
 ## Boundary
 

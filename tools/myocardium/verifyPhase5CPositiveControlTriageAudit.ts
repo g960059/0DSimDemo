@@ -217,6 +217,27 @@ const PHASE5C_M_MODELCORE_PAIRED_LAND_QDOT_ATTRIBUTION_ALLOWED_CHANGED_FILE_PATH
   PHASE5C_F_TRIAGE_AUDIT_VERIFIER_PATH,
 ] as const;
 
+const PHASE5C_N_MODELCORE_PAIRED_LAND_OUTPUT_MATCHED_QDOT_ALLOWED_CHANGED_FILE_PATHS = [
+  "__tests__/myocardiumPhase5CPositiveControlTriageAudit.test.ts",
+  "__tests__/myocardiumPhase5CSameClosureSourceProviderAudit.test.ts",
+  "__tests__/myocardiumPhase5NModelCorePairedLandOutputMatchedQDotAttribution.test.ts",
+  "data/myocardium/protocols/modelcore-paired-land-source-provider-run-result-v1.json",
+  "data/myocardium/protocols/modelcore-paired-land-qdot-clamp-attribution-result-v1.json",
+  "data/myocardium/protocols/modelcore-paired-land-output-matched-qdot-attribution-result-v1.json",
+  "docs/myocardium/README.md",
+  "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
+  PHASE5C_H_MODELCORE_EQUIVALENT_ROUTE_PLAN_PATH,
+  "docs/status/current-lanes.md",
+  "engine/ModelCore.ts",
+  "engine/__tests__/modelCoreExperimentalActiveProviderState.test.ts",
+  "package.json",
+  "tools/debugStarlingLowPreload.ts",
+  "tools/myocardium/buildModelCorePairedLandOutputMatchedQDotAttributionEvidence.ts",
+  "tools/myocardium/verifyModelCorePairedLandOutputMatchedQDotAttribution.ts",
+  PHASE5C_G_SOURCE_PROVIDER_AUDIT_VERIFIER_PATH,
+  PHASE5C_F_TRIAGE_AUDIT_VERIFIER_PATH,
+] as const;
+
 const RUNTIME_INTEGRATION_TARGETS = [
   "WorkbenchPage.tsx",
   "caseCloud.ts",
@@ -677,6 +698,7 @@ function validateRuntimeIntegrationScan(
 function validateChangedFileScope(changedFilePaths: readonly string[], issues: ValidationIssue[]): void {
   if (isPhase5LModelCorePairedLandDiff(changedFilePaths)) return;
   if (isPhase5MModelCorePairedLandQDotAttributionDiff(changedFilePaths)) return;
+  if (isPhase5NModelCorePairedLandOutputMatchedQDotAttributionDiff(changedFilePaths)) return;
 
   const triggerPaths = new Set<string>(PHASE5C_F_CHANGED_FILE_SCOPE_TRIGGER_PATHS);
   if (!changedFilePaths.some((filePath) => triggerPaths.has(filePath))) return;
@@ -706,6 +728,16 @@ function isPhase5LModelCorePairedLandDiff(changedFilePaths: readonly string[]): 
 
 function isPhase5MModelCorePairedLandQDotAttributionDiff(changedFilePaths: readonly string[]): boolean {
   const allowedPaths = new Set<string>(PHASE5C_M_MODELCORE_PAIRED_LAND_QDOT_ATTRIBUTION_ALLOWED_CHANGED_FILE_PATHS);
+  const changedPaths = new Set(changedFilePaths);
+  if (changedPaths.size !== allowedPaths.size) return false;
+  for (const allowedPath of allowedPaths) {
+    if (!changedPaths.has(allowedPath)) return false;
+  }
+  return true;
+}
+
+function isPhase5NModelCorePairedLandOutputMatchedQDotAttributionDiff(changedFilePaths: readonly string[]): boolean {
+  const allowedPaths = new Set<string>(PHASE5C_N_MODELCORE_PAIRED_LAND_OUTPUT_MATCHED_QDOT_ALLOWED_CHANGED_FILE_PATHS);
   const changedPaths = new Set(changedFilePaths);
   if (changedPaths.size !== allowedPaths.size) return false;
   for (const allowedPath of allowedPaths) {

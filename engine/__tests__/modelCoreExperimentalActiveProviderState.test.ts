@@ -169,6 +169,24 @@ describe("ModelCore experimental active source-provider state lifecycle", () => 
     expect(lvState(core).afterT).toBeCloseTo((before?.stateSnapshot as TestProviderState).afterT, 12);
   });
 
+  it("clones provider state for read-only measurements without resetting it", () => {
+    const core = new ModelCore(DEFAULT_PARAMS, { activeSourceProviders: { LV: testStateProvider() } });
+    core.step(0.001);
+    core.step(0.001);
+    const before = core.debugExperimentalActiveSourceProviderStates().LV;
+
+    const clone = core.cloneForReadOnlyMeasurement();
+
+    expect(clone.debugExperimentalActiveSourceProviderStates().LV?.stateVersion).toBe(before?.stateVersion);
+    expect(lvState(clone).commits).toBe((before?.stateSnapshot as TestProviderState).commits);
+
+    clone.step(0.001);
+
+    expect(lvState(clone).commits).toBe((before?.stateSnapshot as TestProviderState).commits + 1);
+    expect(core.debugExperimentalActiveSourceProviderStates().LV?.stateVersion).toBe(before?.stateVersion);
+    expect(lvState(core).commits).toBe((before?.stateSnapshot as TestProviderState).commits);
+  });
+
   it("commits multiple provider states from the same old-state snapshot", () => {
     const observedVersions: number[] = [];
     const core = new ModelCore(DEFAULT_PARAMS, {

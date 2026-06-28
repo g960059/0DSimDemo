@@ -3013,7 +3013,7 @@ export class ModelCore {
     return meanVascularReturnSnapshot(side, snapshots, seconds);
   }
 
-  private cloneForReadOnlyMeasurement(): ModelCore {
+  cloneForReadOnlyMeasurement(): ModelCore {
     const clone = new ModelCore(this.p, { activeSourceProviders: this.experimentalActiveSourceProviders });
     clone.pTarget = { ...this.pTarget };
     clone.unpackState(this.packState());

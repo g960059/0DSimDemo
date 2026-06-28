@@ -37,7 +37,7 @@ phase gates called out below.
 | 4e | [roadmap/phase5c-post-fidelity-entry-gate.md](roadmap/phase5c-post-fidelity-entry-gate.md) | Phase 5C-E entry gate after the Phase 5C-D no-go result |
 | 4f | [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md) | Phase 5C-F triage audit plan while the Phase 5C-E entry gate remains blocked |
 | 4g | [roadmap/phase5c-same-closure-source-provider-audit.md](roadmap/phase5c-same-closure-source-provider-audit.md) | Phase 5C-G same-closure source-provider audit snapshot after the PR #193 lane handoff |
-| 4h | [roadmap/phase5c-modelcore-equivalent-route-gate.md](roadmap/phase5c-modelcore-equivalent-route-gate.md) | Phase 5C-H/I/J/K/L ModelCore-equivalent route, experimental source-provider hook, provider-state lifecycle, source-only pressure adapter, and paired Land source-provider run |
+| 4h | [roadmap/phase5c-modelcore-equivalent-route-gate.md](roadmap/phase5c-modelcore-equivalent-route-gate.md) | Phase 5C-H/I/J/K/L/M/N ModelCore-equivalent route, experimental source-provider hook, provider-state lifecycle, source-only pressure adapter, paired Land source-provider run, qDot attribution, and output-match diagnostic |
 | 5 | [research/myocardial-contraction-rebuild-design-record.md](research/myocardial-contraction-rebuild-design-record.md) | Background rationale and design discussion |
 | 6 | [review-notes/phase2b-level3-review-deltas.md](review-notes/phase2b-level3-review-deltas.md) | PR #166 Phase 2B/Level 3 review deltas |
 
@@ -699,6 +699,19 @@ interpretable signal, but structural alternans removal is not established.
 Output-matched paired evidence, SDIRK2 reference evidence, and preload-domain
 sweep evidence remain required before any final no-alternans or domain claim.
 
+Phase 5C-N runs the first output-match diagnostic as a predeclared TBV-axis
+matrix, not as preload tuning. The recorded result is
+[`../../data/myocardium/protocols/modelcore-paired-land-output-matched-qdot-attribution-result-v1.json`](../../data/myocardium/protocols/modelcore-paired-land-output-matched-qdot-attribution-result-v1.json).
+Every matrix point is independently initialized, settles by convergence before
+the 45s cap, and preserves `sourceProviderDifferenceOnly=true` within each same
+effective-TBV pair. Cross-TBV output matching is explicitly not a
+source-provider-only comparison. The diagnostic status is
+`not-overlapped`: the best Land point reaches only 0.376 of pinned legacy CO/SV
+and 0.091 of pinned legacy QAo peak. This means the predeclared preload/TBV axis
+does not push Land into the legacy qDot clamp-engaged output regime; clamp
+threshold avoidance remains unresolved and structural alternans removal remains
+unclaimed.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and
@@ -748,8 +761,10 @@ run, records the result artifact at
 and evaluates `sourceProviderDifferenceOnly=true` for the experimental LV
 source-only pair. Phase 5C-M adds same-closure qDot clamp-threshold attribution
 and records that Land avoids AoV qDot clamp engagement at a lower-output
-operating point; second-order/reference, output-matched, and preload-domain
-robustness remain future work, with no final no-alternans claim.
+operating point. Phase 5C-N adds a predeclared TBV-axis output-match diagnostic
+and records output-match not-overlapped; second-order/reference, explicit output
+forcing or another owner-approved match axis, and preload-domain robustness
+remain future work, with no final no-alternans claim.
 
 ## Imported bundle checks
 

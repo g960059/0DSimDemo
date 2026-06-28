@@ -420,6 +420,15 @@ production tissue homogenization.
 - boundary: no runtime replacement, no official morphology acceptance, no final no-alternans, no qDot/valve/afterload/preload tuning, no Land parameter tuning, no chamber/case/workbench/state-schema production adoption, and no TriSeg adoption.
 - next: run output-matched paired evidence, SDIRK2 reference evidence, and a preload-domain sweep before any structural no-alternans interpretation.
 
+### Phase 5C-N — paired Land output-match qDot attribution diagnostic
+
+- result artifact: `data/myocardium/protocols/modelcore-paired-land-output-matched-qdot-attribution-result-v1.json`
+- verifier: `npm run verify:myocardium-modelcore-paired-land-output-matched-qdot-attribution`
+- current outcome: a predeclared TBV-axis matrix `[-1250, -1000, -750, -500, 0, 500, 1000]` runs legacy and Land source-only providers at each same effective-TBV point. Every point is independently initialized, converges before the 45s cap, has clean TBV/health, and preserves source-provider-only comparison within the point.
+- interpretation: output-match `not-overlapped`. The best Land diagnostic point reaches only 0.376 of pinned legacy CO/SV and 0.091 of pinned legacy QAo peak, so the predeclared preload/TBV axis does not place Land into the pinned legacy qDot clamp-engaged regime. Clamp-threshold avoidance remains unresolved; structural alternans removal is not established.
+- boundary: no runtime replacement, no official morphology acceptance, no final no-alternans, no qDot/valve/afterload/preload tuning, no Land parameter tuning, no chamber/case/workbench/state-schema production adoption, and no TriSeg adoption.
+- next: run SDIRK2 reference evidence and decide whether an explicit output-forcing or other owner-approved match axis is scientifically warranted before structural attribution.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison
