@@ -293,13 +293,16 @@ function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
   ) {
     addIssue(errors, "phase5u_roadmap", ROADMAP_PATH, "Roadmap must record Phase 5U and keep runtime replacement blocked.");
   }
-  if (
-    lanesText
-    && (!lanesText.includes("Phase 5U")
-      || !lanesText.includes("rfc-draft-owner-decision-needed")
-      || !lanesText.includes("owner GO/NO-GO"))
-  ) {
-    addIssue(errors, "phase5u_current_lanes", CURRENT_LANES_PATH, "Current lanes must point from Phase 5U to owner GO/NO-GO, not runtime adoption.");
+  const lanesKeepPhase5UOwnerDecision =
+    lanesText?.includes("Phase 5U") === true
+    && lanesText.includes("rfc-draft-owner-decision-needed")
+    && lanesText.includes("owner GO/NO-GO");
+  const lanesRecordPhase5VFollowOn =
+    lanesText?.includes("Phase 5V") === true
+    && lanesText.includes("developer-only measured operating suite")
+    && lanesText.includes("No official case, Workbench, state-schema, runtime UI, production registry, or production runtime wiring exists");
+  if (lanesText && !lanesKeepPhase5UOwnerDecision && !lanesRecordPhase5VFollowOn) {
+    addIssue(errors, "phase5u_current_lanes", CURRENT_LANES_PATH, "Current lanes must either point from Phase 5U to owner GO/NO-GO or record a later developer-only-only follow-on without runtime adoption.");
   }
   if (packageText && !packageText.includes("verify:myocardium-developer-only-lv-land-runtime-flag-rfc")) {
     addIssue(errors, "phase5u_package_script", "package.json", "package.json must expose the Phase 5U verifier script.");
