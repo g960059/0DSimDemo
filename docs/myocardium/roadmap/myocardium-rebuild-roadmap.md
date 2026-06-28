@@ -390,6 +390,16 @@ production tissue homogenization.
 - route status: prerequisite implemented, but `modelcore-equivalent-closure-positive-control` remains unsatisfied with `routeSatisfactionStatus=partial-legacy-positive-control-pass-land-pairing-not-run`; paired Land evidence and `sourceProviderDifferenceOnly=true` are still not evaluated
 - boundary: no runtime replacement, no official morphology acceptance, no final no-alternans, no qDot/valve/afterload tuning, no Land parameter tuning, no chamber/case/workbench/state-schema production adoption, and no TriSeg adoption
 
+### Phase 5C-K — ModelCore source-only pressure adapter
+
+- plan: [phase5c-modelcore-equivalent-route-gate.md](phase5c-modelcore-equivalent-route-gate.md)
+- adapter descriptor: `data/myocardium/protocols/modelcore-active-source-pressure-adapter-v1.json`
+- verifier: `npm run verify:myocardium-modelcore-active-source-pressure-adapter`
+- current outcome: the legacy LV source-only adapter supplies `sourceActiveStressPa` only, while ModelCore routes that source stress through the existing active-stress pressure assembly; selected low-preload trace/metric evidence matches the legacy full-pressure provider with zero numeric difference
+- source-provider contract: source-only providers cannot also define pressure overrides, must provide source-specific debug active-stress terms, and must keep mutable solver state in `providerState` rather than provider-object closures
+- route status: adapter prerequisite recorded, but `modelcore-equivalent-closure-positive-control` remains unsatisfied with `routeSatisfactionStatus=partial-legacy-positive-control-pass-land-pairing-not-run`; paired Land evidence and `sourceProviderDifferenceOnly=true` are still not evaluated
+- boundary: no runtime replacement, no official morphology acceptance, no final no-alternans, no qDot/valve/afterload tuning, no Land parameter tuning, no chamber/case/workbench/state-schema production adoption, and no TriSeg adoption
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison

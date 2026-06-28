@@ -161,7 +161,8 @@ export type ModelCoreExperimentalActiveSourceProvider = {
   cloneProviderState?(state: unknown): unknown;
   commitProviderStateAfterStep?(input: ModelCoreActiveSourceProviderStateCommitCall): unknown;
   debugProviderState?(state: unknown): unknown;
-  pressure(input: ModelCoreActiveSourceProviderCall): number;
+  sourceActiveStressPa?(input: ModelCoreActiveSourceProviderCall): number;
+  pressure?(input: ModelCoreActiveSourceProviderCall): number;
   passivePressure?(input: ModelCoreActiveSourceProviderCall): number;
   internalDerivatives(input: ModelCoreActiveSourceProviderCall): ChamberInternalDerivatives;
   debugPressureTerms?(input: ModelCoreActiveSourceProviderCall): ChamberPressureTerms;
@@ -590,6 +591,7 @@ export class ModelCore {
 
   constructor(initial?: Partial<CoreRuntimeParams>, experimentalOptions: ModelCoreExperimentalOptions = {}) {
     this.experimentalActiveSourceProviders = { ...(experimentalOptions.activeSourceProviders ?? {}) };
+    this.validateExperimentalActiveSourceProviders();
     this.p = { ...defaultParams() };
     this.pTarget = { ...this.p };
     this.x = new Float64Array(this.idx.size);
@@ -2232,9 +2234,20 @@ export class ModelCore {
     chamberCtx: ChamberCtx,
   ): number {
     const provider = this.activeProvider(chamber);
-    return provider
-      ? provider.pressure(this.activeCall(chamber, volumeMl, internal, chamberCtx))
-      : this.activeModel(chamber).pressure(volumeMl, internal, chamberCtx);
+    if (!provider) {
+      return this.activeModel(chamber).pressure(volumeMl, internal, chamberCtx);
+    }
+    const call = this.activeCall(chamber, volumeMl, internal, chamberCtx);
+    if (provider.sourceActiveStressPa) {
+      return call.activeModel.pressureFromActiveFiberStress(
+        volumeMl,
+        internal,
+        chamberCtx,
+        provider.sourceActiveStressPa(call),
+      );
+    }
+    if (provider.pressure) return provider.pressure(call);
+    throw new Error(`Experimental active source provider ${provider.sourceProviderId} must define pressure or sourceActiveStressPa.`);
   }
 
   private activePassivePressure(
@@ -2269,8 +2282,17 @@ export class ModelCore {
     chamberCtx: ChamberCtx,
   ): ChamberPressureTerms {
     const provider = this.activeProvider(chamber);
+    const call = provider ? this.activeCall(chamber, volumeMl, internal, chamberCtx) : undefined;
     if (provider?.debugPressureTerms) {
-      return provider.debugPressureTerms(this.activeCall(chamber, volumeMl, internal, chamberCtx));
+      return provider.debugPressureTerms(call!);
+    }
+    if (provider?.sourceActiveStressPa) {
+      return this.activeModel(chamber).debugPressureTermsFromActiveFiberStress(
+        volumeMl,
+        internal,
+        chamberCtx,
+        provider.sourceActiveStressPa(call!),
+      );
     }
     return this.activeModel(chamber).debugPressureTerms(volumeMl, internal, chamberCtx);
   }
@@ -2285,7 +2307,30 @@ export class ModelCore {
     if (provider?.debugActiveStressTerms) {
       return provider.debugActiveStressTerms(this.activeCall(chamber, volumeMl, internal, chamberCtx));
     }
+    if (provider?.sourceActiveStressPa) {
+      throw new Error(`Experimental source-only provider ${provider.sourceProviderId} must define source-specific debugActiveStressTerms.`);
+    }
     return this.activeModel(chamber).debugActiveStressTerms(volumeMl, internal, chamberCtx);
+  }
+
+  private validateExperimentalActiveSourceProviders(): void {
+    for (const [chamber, provider] of Object.entries(this.experimentalActiveSourceProviders) as Array<[Chamber, ModelCoreExperimentalActiveSourceProvider | undefined]>) {
+      if (!provider?.sourceActiveStressPa) continue;
+      const forbiddenMethods = [
+        provider.pressure ? "pressure" : "",
+        provider.passivePressure ? "passivePressure" : "",
+        provider.debugPressureTerms ? "debugPressureTerms" : "",
+      ].filter(Boolean);
+      if (forbiddenMethods.length > 0) {
+        throw new Error(
+          `Experimental source-only provider ${provider.sourceProviderId} for ${chamber} must not define `
+          + `${forbiddenMethods.join(", ")} when sourceActiveStressPa is present.`,
+        );
+      }
+      if (!provider.debugActiveStressTerms) {
+        throw new Error(`Experimental source-only provider ${provider.sourceProviderId} for ${chamber} must define source-specific debugActiveStressTerms.`);
+      }
+    }
   }
 
   private resetExperimentalActiveProviderStates(): void {

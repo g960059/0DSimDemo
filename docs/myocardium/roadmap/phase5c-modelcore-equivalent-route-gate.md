@@ -1,6 +1,6 @@
-# Phase 5C-H/I/J ModelCore-equivalent Route Gate
+# Phase 5C-H/I/J/K ModelCore-equivalent Route Gate
 
-Status: defined-but-unsatisfied route plus partial experimental evidence through Phase 5C-J
+Status: defined-but-unsatisfied route plus partial experimental evidence through Phase 5C-K
 
 This phase records `modelcore-equivalent-closure-positive-control` as a
 defined-but-unsatisfied route in
@@ -20,6 +20,21 @@ part of the production serialized state schema; read-only measurement clones use
 a private provider-state snapshot restore. This is a
 prerequisite for stateful Land wiring, not a Land result.
 
+Phase 5C-K adds the source-only pressure adapter needed before paired Land
+evaluation. The adapter provider supplies only `sourceActiveStressPa`; ModelCore
+then routes that source stress through the existing active-stress geometry,
+passive pressure, pressure-floor, and clamp path. The Phase 5C-K evidence is
+LV-only legacy positive-control readiness: it compares the legacy full-pressure
+provider against the legacy LV source-only adapter under the pinned low-preload
+protocol and records zero selected trace/metric difference. ModelCore rejects
+source-only providers that also define `pressure`, `passivePressure`, or
+`debugPressureTerms`; source-only providers must supply source-specific
+`debugActiveStressTerms` so later Land evidence cannot inherit legacy
+diagnostics by accident. Future Land providers must keep mutable solver state in
+`providerState`, not provider-object closures shared with read-only clones. This
+is adapter readiness only: the paired Land run has not been performed, and
+`sourceProviderDifferenceOnly=true` has not been evaluated for Land.
+
 Machine-readable gate:
 
 ```text
@@ -31,6 +46,7 @@ Required verifier:
 ```text
 npm run verify:myocardium-phase5c-post-fidelity-entry-gate
 npm run verify:myocardium-modelcore-active-provider-state-lifecycle
+npm run verify:myocardium-modelcore-active-source-pressure-adapter
 ```
 
 Source no-go evidence:
@@ -57,6 +73,12 @@ Provider-state lifecycle evidence:
 data/myocardium/protocols/modelcore-active-provider-state-lifecycle-v1.json
 ```
 
+Source-only pressure adapter evidence:
+
+```text
+data/myocardium/protocols/modelcore-active-source-pressure-adapter-v1.json
+```
+
 ## Route Set
 
 Entry route ids recorded in the gate:
@@ -71,7 +93,7 @@ The new route has `status=defined-not-satisfied`. It keeps
 `blocked-until-positive-control-period2` as the active advancement state until
 the paired source-provider evidence is complete.
 
-Evidence fields for the ModelCore-equivalent route include:
+Future evidence fields required for the ModelCore-equivalent route include:
 
 ```text
 closureProtocolId=modelcore-equivalent-positive-control-closure-v1
@@ -90,7 +112,11 @@ TBV/projection, pressure-floor, beat-selection, and sampling behavior preserved
 or explicitly matched. Phase 5C-I shows the legacy positive control through the
 experimental ModelCore source-provider hook. Phase 5C-J makes stateful provider
 wiring possible without hidden mutable provider state, but it still does not run
-Land and does not evaluate `sourceProviderDifferenceOnly=true`. The route
+Land and does not evaluate `sourceProviderDifferenceOnly=true`. Phase 5C-K shows
+that the legacy source-only adapter is pressure-equivalent to the legacy
+full-pressure provider through ModelCore's pressure assembly for the LV legacy
+positive control, but it still does not run Land and does not evaluate
+`sourceProviderDifferenceOnly=true`. The route
 remains unsatisfied until Land is run through the same closure and
 `sourceProviderDifferenceOnly=true` is actually evaluated under that closure.
 

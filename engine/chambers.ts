@@ -605,15 +605,22 @@ export class ActiveStressChamberModel implements ChamberModel {
     return clamp(shorteningScale * lengtheningScale, ap.forceVelocityMin ?? 0.85, ap.forceVelocityMax ?? 1.05);
   }
 
-  private bodyPressureTerms(V: number, internal: ChamberInternal, ctx: ChamberCtx): ChamberPressureTerms {
+  private bodyPressureTerms(
+    V: number,
+    internal: ChamberInternal,
+    ctx: ChamberCtx,
+    sourceActiveFiberStressPa?: number,
+  ): ChamberPressureTerms {
     const ap = this.ap;
     const a = clamp(internal.a, 0, 1);
     const { lambda, h, rm } = this.geometry(V);
     const lambdaForFIso = this.lambdaForTerm(lambda, internal, "fiso");
     const stretch = smoothPositiveHinge(lambda - ap.lambdaPas0, ap.passiveHingeWidth ?? 0.015);
     const sigmaPas = ap.sigmaPas0 * (expClamped(ap.bPas * stretch) - 1);
-    const sigmaActTarget = this.activeStressTargetPa(a, lambda, lambdaForFIso, ctx);
-    const sigmaAct = this.usesTensionFilter(ctx)
+    const sigmaActTarget = sourceActiveFiberStressPa == null
+      ? this.activeStressTargetPa(a, lambda, lambdaForFIso, ctx)
+      : this.finiteExternalActiveFiberStress(sourceActiveFiberStressPa);
+    const sigmaAct = sourceActiveFiberStressPa == null && this.usesTensionFilter(ctx)
       ? clamp(
         (internal.tensionPa ?? sigmaActTarget)
           + clamp(ap.tensionInstantMix ?? 0, 0, 1) * (sigmaActTarget - (internal.tensionPa ?? sigmaActTarget)),
@@ -643,6 +650,42 @@ export class ActiveStressChamberModel implements ChamberModel {
 
   debugPressureTerms(V: number, internal: ChamberInternal, ctx: ChamberCtx): ChamberPressureTerms {
     return this.bodyPressureTerms(this.wallVolume(V, ctx), internal, ctx);
+  }
+
+  pressureFromActiveFiberStress(
+    V: number,
+    internal: ChamberInternal,
+    ctx: ChamberCtx,
+    sourceActiveFiberStressPa: number,
+  ): number {
+    return this.debugPressureTermsFromActiveFiberStress(V, internal, ctx, sourceActiveFiberStressPa).pressureMmHg;
+  }
+
+  debugPressureTermsFromActiveFiberStress(
+    V: number,
+    internal: ChamberInternal,
+    ctx: ChamberCtx,
+    sourceActiveFiberStressPa: number,
+  ): ChamberPressureTerms {
+    if (this.twoBranchEnabled()) {
+      throw new Error("source active-fiber stress pressure adapter does not support two-branch chamber models");
+    }
+    return this.bodyPressureTerms(
+      this.wallVolume(V, ctx),
+      internal,
+      ctx,
+      sourceActiveFiberStressPa,
+    );
+  }
+
+  private finiteExternalActiveFiberStress(sourceActiveFiberStressPa: number): number {
+    if (!Number.isFinite(sourceActiveFiberStressPa)) {
+      throw new Error("source active-fiber stress must be finite");
+    }
+    if (sourceActiveFiberStressPa < 0) {
+      throw new Error("source active-fiber stress must be nonnegative");
+    }
+    return sourceActiveFiberStressPa;
   }
 
   debugActiveStressTerms(V: number, internal: ChamberInternal, ctx: ChamberCtx): ActiveStressDebugTerms {
