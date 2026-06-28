@@ -153,6 +153,21 @@ const PHASE5C_I_MODELCORE_SOURCE_PROVIDER_ALLOWED_CHANGED_FILE_PATHS = [
   PHASE5C_G_VERIFIER_PATH,
 ] as const;
 
+const PHASE5C_J_MODELCORE_PROVIDER_STATE_LIFECYCLE_ALLOWED_CHANGED_FILE_PATHS = [
+  "__tests__/myocardiumPhase5JModelCoreActiveProviderStateLifecycle.test.ts",
+  PHASE5C_G_TEST_PATH,
+  "data/myocardium/protocols/modelcore-active-provider-state-lifecycle-v1.json",
+  "docs/myocardium/README.md",
+  "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
+  PHASE5C_H_MODELCORE_EQUIVALENT_ROUTE_PLAN_PATH,
+  "engine/ModelCore.ts",
+  "engine/__tests__/modelCoreExperimentalActiveProviderState.test.ts",
+  "package.json",
+  "tools/myocardium/buildModelCoreActiveProviderStateLifecycleEvidence.ts",
+  "tools/myocardium/verifyModelCoreActiveProviderStateLifecycle.ts",
+  PHASE5C_G_VERIFIER_PATH,
+] as const;
+
 const RUNTIME_INTEGRATION_TARGETS = [
   "WorkbenchPage.tsx",
   "caseCloud.ts",
@@ -777,6 +792,7 @@ function validateRuntimeIntegrationScan(
 
 function validateChangedFileScope(changedFilePaths: readonly string[], issues: ValidationIssue[]): void {
   if (isPhase5IModelCoreSourceProviderDiff(changedFilePaths)) return;
+  if (isPhase5JModelCoreProviderStateLifecycleDiff(changedFilePaths)) return;
 
   const triggerPaths = new Set<string>(PHASE5C_G_CHANGED_FILE_SCOPE_TRIGGER_PATHS);
   if (!changedFilePaths.some((filePath) => triggerPaths.has(filePath))) return;
@@ -796,6 +812,16 @@ function validateChangedFileScope(changedFilePaths: readonly string[], issues: V
 
 function isPhase5IModelCoreSourceProviderDiff(changedFilePaths: readonly string[]): boolean {
   const allowedPaths = new Set<string>(PHASE5C_I_MODELCORE_SOURCE_PROVIDER_ALLOWED_CHANGED_FILE_PATHS);
+  const changedPaths = new Set(changedFilePaths);
+  if (changedPaths.size !== allowedPaths.size) return false;
+  for (const allowedPath of allowedPaths) {
+    if (!changedPaths.has(allowedPath)) return false;
+  }
+  return true;
+}
+
+function isPhase5JModelCoreProviderStateLifecycleDiff(changedFilePaths: readonly string[]): boolean {
+  const allowedPaths = new Set<string>(PHASE5C_J_MODELCORE_PROVIDER_STATE_LIFECYCLE_ALLOWED_CHANGED_FILE_PATHS);
   const changedPaths = new Set(changedFilePaths);
   if (changedPaths.size !== allowedPaths.size) return false;
   for (const allowedPath of allowedPaths) {

@@ -6,9 +6,10 @@ Baseline repository commit: `228bef96e5f522de2cfe352de5d6d4d2f017c550`
 
 Revision 3 is the current planning namespace for the myocardial contraction
 subsystem replacement. It is not a patch plan for the existing
-`ActiveStressChamberModel`. This docs/data update does not change runtime
-TypeScript behavior; runtime integration still requires the later phase gates
-called out below.
+`ActiveStressChamberModel`. Current Phase 5C work includes experimental
+ModelCore source-provider hooks for artifact evidence, but it does not authorize
+production runtime replacement; runtime integration still requires the later
+phase gates called out below.
 
 ## Read order
 
@@ -36,7 +37,7 @@ called out below.
 | 4e | [roadmap/phase5c-post-fidelity-entry-gate.md](roadmap/phase5c-post-fidelity-entry-gate.md) | Phase 5C-E entry gate after the Phase 5C-D no-go result |
 | 4f | [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md) | Phase 5C-F triage audit plan while the Phase 5C-E entry gate remains blocked |
 | 4g | [roadmap/phase5c-same-closure-source-provider-audit.md](roadmap/phase5c-same-closure-source-provider-audit.md) | Phase 5C-G same-closure source-provider audit snapshot after the PR #193 lane handoff |
-| 4h | [roadmap/phase5c-modelcore-equivalent-route-gate.md](roadmap/phase5c-modelcore-equivalent-route-gate.md) | Phase 5C-H/I ModelCore-equivalent positive-control route and experimental source-provider hook while entry remains blocked |
+| 4h | [roadmap/phase5c-modelcore-equivalent-route-gate.md](roadmap/phase5c-modelcore-equivalent-route-gate.md) | Phase 5C-H/I/J ModelCore-equivalent positive-control route, experimental source-provider hook, and provider-state lifecycle while entry remains blocked |
 | 5 | [research/myocardial-contraction-rebuild-design-record.md](research/myocardial-contraction-rebuild-design-record.md) | Background rationale and design discussion |
 | 6 | [review-notes/phase2b-level3-review-deltas.md](review-notes/phase2b-level3-review-deltas.md) | PR #166 Phase 2B/Level 3 review deltas |
 
@@ -643,16 +644,20 @@ and
 [`../../data/myocardium/gates/phase5c-post-fidelity-entry-gate-v1.json`](../../data/myocardium/gates/phase5c-post-fidelity-entry-gate-v1.json).
 Run `npm run verify:myocardium-phase5c-post-fidelity-entry-gate` and
 `npm run verify:myocardium-modelcore-equivalent-positive-control-closure` to
-check the gate and the current partial ModelCore-equivalent evidence. The entry
-route ids recorded in the gate are
+check the gate and the current partial ModelCore-equivalent evidence. Run
+`npm run verify:myocardium-modelcore-active-provider-state-lifecycle` to check
+the Phase 5C-J provider-state lifecycle precondition for future Land pairing.
+The entry route ids recorded in the gate are
 `same-closure-period2-positive-control`,
 `modelcore-equivalent-closure-positive-control`, and
 `owner-approved-replacement-criterion`. The ModelCore-equivalent route has
 `status=defined-not-satisfied`. Phase 5C-I records owner-approved experimental
 source-provider-limited ModelCore wiring and legacy activeStress period-2
-positive-control evidence, but the route remains partial until a paired Land
-source-provider run evaluates `sourceProviderDifferenceOnly=true` under the
-same closure. This gate keeps
+positive-control evidence. Phase 5C-J records provider-state lifecycle
+precondition evidence for the experimental hook; it does not change runtime
+replacement, official morphology acceptance, final no-alternans, or the blocked
+route state. The route remains partial until a paired Land source-provider run
+evaluates `sourceProviderDifferenceOnly=true` under the same closure. This gate keeps
 `land-new-myocardium-low-preload-phase5c-fidelity-audit-v1`,
 `blocked-until-positive-control-period2`, no runtime replacement, no
 qDot/valve/afterload tuning, no official morphology acceptance, no final

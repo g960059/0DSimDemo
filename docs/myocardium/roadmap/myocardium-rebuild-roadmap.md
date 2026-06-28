@@ -381,6 +381,15 @@ production tissue homogenization.
 - evidence boundary: paired Land source-provider evidence is still required, event-surface preservation or explicit matching is still required, source-provider-difference-only is still required, and second-order reference evidence is still required before interpretation can advance
 - boundary: no runtime replacement, no chamber/case/workbench/state-schema wiring, no production ModelCore adoption beyond the artifact-only constructor hook, no qDot/valve/afterload tuning, no official morphology acceptance, no final no-alternans, no RV pressure-overload coverage, no ventricular interdependence coverage, no right-heart failure coverage, and no TriSeg adoption
 
+### Phase 5C-J — ModelCore active-provider state lifecycle
+
+- plan: [phase5c-modelcore-equivalent-route-gate.md](phase5c-modelcore-equivalent-route-gate.md)
+- lifecycle descriptor: `data/myocardium/protocols/modelcore-active-provider-state-lifecycle-v1.json`
+- verifier: `npm run verify:myocardium-modelcore-active-provider-state-lifecycle`
+- current outcome: experimental provider state is owned by ModelCore, cloned before RHS/pressure/debug calls, restored into read-only measurement clones, and committed only through `commitProviderStateAfterStep` once per `step()`
+- route status: prerequisite implemented, but `modelcore-equivalent-closure-positive-control` remains unsatisfied with `routeSatisfactionStatus=partial-legacy-positive-control-pass-land-pairing-not-run`; paired Land evidence and `sourceProviderDifferenceOnly=true` are still not evaluated
+- boundary: no runtime replacement, no official morphology acceptance, no final no-alternans, no qDot/valve/afterload tuning, no Land parameter tuning, no chamber/case/workbench/state-schema production adoption, and no TriSeg adoption
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison
