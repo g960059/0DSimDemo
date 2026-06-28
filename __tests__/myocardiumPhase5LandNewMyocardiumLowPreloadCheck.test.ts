@@ -24,6 +24,7 @@ describe("myocardium Phase 5C-C Land new-myocardium low-preload check", () => {
     expect(validation.pass).toBe(true);
     expect(validation.artifactGatePass).toBe(false);
     expect(validation.artifactGateStatus).toBe("land-new-myocardium-low-preload-check-review");
+    expect(validation.summary.sourceFileCount).toBe(5);
     expect(validation.artifactGateFindings).toContain(
       "legacy-activeStress-positive-control-v1: status=readiness-fail.",
     );
@@ -202,6 +203,231 @@ describe("myocardium Phase 5C-C Land new-myocardium low-preload check", () => {
       .toContain("phase5c_c_advancement_block");
   });
 
+  it("fails validation if the Phase 5C-D audit plan drops the no-go boundary", () => {
+    const input = fixture();
+    replaceFidelityAuditPlanText(
+      input,
+      /cannot be interpreted as evidence that alternans\s+disappeared/,
+      "can be interpreted as evidence that alternans disappeared",
+    );
+
+    const validation = validateLandNewMyocardiumLowPreloadCheck(input);
+
+    expect(validation.pass).toBe(false);
+    expect(validation.errors.map((issue) => issue.code))
+      .toContain("phase5c_c_fidelity_plan_boundary");
+  });
+
+  it("fails validation if the Phase 5C-D audit plan flips the no-parallel-engine boundary", () => {
+    const input = fixture();
+    replaceFidelityAuditPlanText(
+      input,
+      /not\s+as a new standalone engine or duplicated verifier/,
+      "as a new standalone engine or duplicated verifier",
+    );
+
+    const validation = validateLandNewMyocardiumLowPreloadCheck(input);
+
+    expect(validation.pass).toBe(false);
+    expect(validation.errors.map((issue) => issue.code))
+      .toContain("phase5c_c_fidelity_plan_boundary");
+  });
+
+  it("fails validation if the Phase 5C-D audit plan drops the parallel-verifier no-go", () => {
+    const input = fixture();
+    replaceFidelityAuditPlanText(
+      input,
+      "Do not duplicate Phase 5C-C branch metrics in a parallel verifier.",
+      "Do not duplicate Phase 5C-C branch metrics.",
+    );
+
+    const validation = validateLandNewMyocardiumLowPreloadCheck(input);
+
+    expect(validation.pass).toBe(false);
+    expect(validation.errors.map((issue) => issue.code))
+      .toContain("phase5c_c_fidelity_plan_boundary");
+  });
+
+  it("fails validation if the Phase 5C-D audit plan drops the TriSeg no-claim boundary", () => {
+    const input = fixture();
+    replaceFidelityAuditPlanText(
+      input,
+      "Do not claim official morphology acceptance, final robust no-alternans,\n  calcium-cycling alternans validation, RV pressure-overload coverage,\n  ventricular interdependence, right-heart failure coverage, or TriSeg adoption.",
+      "Do not claim official morphology acceptance, final robust no-alternans,\n  calcium-cycling alternans validation, RV pressure-overload coverage,\n  ventricular interdependence, or right-heart failure coverage.",
+    );
+
+    const validation = validateLandNewMyocardiumLowPreloadCheck(input);
+
+    expect(validation.pass).toBe(false);
+    expect(validation.errors.map((issue) => issue.code))
+      .toContain("phase5c_c_fidelity_plan_boundary");
+  });
+
+  it("fails validation if the Phase 5C-D audit plan adds a contradictory adoption claim", () => {
+    const input = fixture();
+    appendFidelityAuditPlanText(
+      input,
+      "\nThis audit may now be implemented as a new standalone engine, duplicate Phase 5C-C branch metrics in a parallel verifier, and claim TriSeg adoption.\n",
+    );
+
+    const validation = validateLandNewMyocardiumLowPreloadCheck(input);
+
+    expect(validation.pass).toBe(false);
+    expect(validation.errors.map((issue) => issue.code))
+      .toContain("phase5c_c_fidelity_plan_boundary");
+  });
+
+  it("fails validation if the Phase 5C-D audit plan adds affirmative TriSeg adoption prose", () => {
+    const input = fixture();
+    appendFidelityAuditPlanText(input, "\nThis audit may now adopt TriSeg.\n");
+
+    const validation = validateLandNewMyocardiumLowPreloadCheck(input);
+
+    expect(validation.pass).toBe(false);
+    expect(validation.errors.map((issue) => issue.code))
+      .toContain("phase5c_c_fidelity_plan_boundary");
+  });
+
+  it("fails validation if the Phase 5C-D audit plan adds affirmative ModelCore wiring prose", () => {
+    const input = fixture();
+    appendFidelityAuditPlanText(input, "\nThis audit may now wire ModelCore.\n");
+
+    const validation = validateLandNewMyocardiumLowPreloadCheck(input);
+
+    expect(validation.pass).toBe(false);
+    expect(validation.errors.map((issue) => issue.code))
+      .toContain("phase5c_c_fidelity_plan_boundary");
+  });
+
+  it("fails validation if the Phase 5C-D audit plan hides adoption prose behind an unrelated negation", () => {
+    const input = fixture();
+    appendFidelityAuditPlanText(
+      input,
+      "\nThis is not a runtime change, but this audit may now adopt TriSeg.\n",
+    );
+
+    const validation = validateLandNewMyocardiumLowPreloadCheck(input);
+
+    expect(validation.pass).toBe(false);
+    expect(validation.errors.map((issue) => issue.code))
+      .toContain("phase5c_c_fidelity_plan_boundary");
+  });
+
+  it("fails validation if the Phase 5C-D audit plan adds an official morphology prose claim", () => {
+    const input = fixture();
+    appendFidelityAuditPlanText(input, "\nThis audit may now claim official morphology pass.\n");
+
+    const validation = validateLandNewMyocardiumLowPreloadCheck(input);
+
+    expect(validation.pass).toBe(false);
+    expect(validation.errors.map((issue) => issue.code))
+      .toContain("phase5c_c_fidelity_plan_boundary");
+  });
+
+  it("fails validation if the Phase 5C-D audit plan adds inflected affirmative adoption prose", () => {
+    const input = fixture();
+    appendFidelityAuditPlanText(input, "\nThis audit adopts TriSeg.\nThe audit wires ModelCore.\n");
+
+    const validation = validateLandNewMyocardiumLowPreloadCheck(input);
+
+    expect(validation.pass).toBe(false);
+    expect(validation.errors.map((issue) => issue.code))
+      .toContain("phase5c_c_fidelity_plan_boundary");
+  });
+
+  it("fails validation if the Phase 5C-D audit plan permits official morphology prose", () => {
+    const input = fixture();
+    appendFidelityAuditPlanText(input, "\nThis plan permits official morphology pass.\n");
+
+    const validation = validateLandNewMyocardiumLowPreloadCheck(input);
+
+    expect(validation.pass).toBe(false);
+    expect(validation.errors.map((issue) => issue.code))
+      .toContain("phase5c_c_fidelity_plan_boundary");
+  });
+
+  it("fails validation if the Phase 5C-D audit plan hides adoption prose with without or and", () => {
+    const input = fixture();
+    appendFidelityAuditPlanText(
+      input,
+      "\nThis audit may now adopt TriSeg without runtime changes. This is not a runtime change and this audit may now wire ModelCore.\n",
+    );
+
+    const validation = validateLandNewMyocardiumLowPreloadCheck(input);
+
+    expect(validation.pass).toBe(false);
+    expect(validation.errors.map((issue) => issue.code))
+      .toContain("phase5c_c_fidelity_plan_boundary");
+  });
+
+  it("fails validation if the Phase 5C-D audit plan adds a no-alternans evidence claim", () => {
+    const input = fixture();
+    appendFidelityAuditPlanText(
+      input,
+      "\nThe Land generated run can now be interpreted as no-alternans evidence. This result can now be interpreted as evidence that alternans disappeared.\n",
+    );
+
+    const validation = validateLandNewMyocardiumLowPreloadCheck(input);
+
+    expect(validation.pass).toBe(false);
+    expect(validation.errors.map((issue) => issue.code))
+      .toContain("phase5c_c_fidelity_plan_boundary");
+  });
+
+  it("fails validation if the Phase 5C-D audit plan says the Land run is interpretable evidence", () => {
+    const input = fixture();
+    replaceFidelityAuditPlanText(
+      input,
+      "The Land generated run is not interpretable as no-alternans evidence while\n  the positive control fails.",
+      "The Land generated run is interpretable as no-alternans evidence while\n  the positive control fails.",
+    );
+
+    const validation = validateLandNewMyocardiumLowPreloadCheck(input);
+
+    expect(validation.pass).toBe(false);
+    expect(validation.errors.map((issue) => issue.code))
+      .toContain("phase5c_c_fidelity_plan_boundary");
+  });
+
+  it("fails validation if the Phase 5C-D audit plan adds runtime wiring prose beyond ModelCore", () => {
+    const input = fixture();
+    appendFidelityAuditPlanText(
+      input,
+      "\nDo not wire ModelCore, but this audit may now wire Workbench and runtime schema.\n",
+    );
+
+    const validation = validateLandNewMyocardiumLowPreloadCheck(input);
+
+    expect(validation.pass).toBe(false);
+    expect(validation.errors.map((issue) => issue.code))
+      .toContain("phase5c_c_fidelity_plan_boundary");
+  });
+
+  it("fails validation if the Phase 5C-D audit plan adds tuning prose beyond qDot", () => {
+    const input = fixture();
+    appendFidelityAuditPlanText(
+      input,
+      "\nDo not tune qDot, but this audit may now tune valve thresholds and preload/afterload closure settings.\n",
+    );
+
+    const validation = validateLandNewMyocardiumLowPreloadCheck(input);
+
+    expect(validation.pass).toBe(false);
+    expect(validation.errors.map((issue) => issue.code))
+      .toContain("phase5c_c_fidelity_plan_boundary");
+  });
+
+  it("fails validation if the Phase 5C-D audit plan adds same-protocol advancement prose", () => {
+    const input = fixture();
+    appendFidelityAuditPlanText(input, "\nSame-protocol second-order advancement can now proceed.\n");
+
+    const validation = validateLandNewMyocardiumLowPreloadCheck(input);
+
+    expect(validation.pass).toBe(false);
+    expect(validation.errors.map((issue) => issue.code))
+      .toContain("phase5c_c_fidelity_plan_boundary");
+  });
+
   it("fails validation when Phase 5C-C tokens leak into runtime integration targets", () => {
     const input = fixture();
     input.runtimeIntegrationFiles = [
@@ -223,8 +449,38 @@ function fixture(): MutableValidationInput {
   return structuredClone(baseValidationInput) as MutableValidationInput;
 }
 
+function appendFidelityAuditPlanText(
+  input: MutableValidationInput,
+  suffix: string,
+): void {
+  const planIndex = input.sourceFiles.findIndex((file) =>
+    file.path === "docs/myocardium/roadmap/phase5c-positive-control-fidelity-audit-plan.md"
+  );
+  expect(planIndex).toBeGreaterThanOrEqual(0);
+  input.sourceFiles[planIndex] = {
+    ...input.sourceFiles[planIndex],
+    text: `${input.sourceFiles[planIndex].text}${suffix}`,
+  };
+}
+
+function replaceFidelityAuditPlanText(
+  input: MutableValidationInput,
+  search: string | RegExp,
+  replacement: string,
+): void {
+  const planIndex = input.sourceFiles.findIndex((file) =>
+    file.path === "docs/myocardium/roadmap/phase5c-positive-control-fidelity-audit-plan.md"
+  );
+  expect(planIndex).toBeGreaterThanOrEqual(0);
+  input.sourceFiles[planIndex] = {
+    ...input.sourceFiles[planIndex],
+    text: input.sourceFiles[planIndex].text.replace(search, replacement),
+  };
+}
+
 type MutableValidationInput = LandNewMyocardiumLowPreloadValidationInput & {
   descriptor: any;
   report: any;
+  sourceFiles: any[];
   runtimeIntegrationFiles: any[];
 };
