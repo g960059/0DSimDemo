@@ -34,7 +34,17 @@ export type AtrialBridgeCandidateId =
 
 type AtrialChamber = "LA" | "RA";
 
-type AtrialBridgeRuntime = {
+export type AtrialBridgeDiagnosticVariantId =
+  | "none"
+  | "a1-reservoir-off"
+  | "a1-recoil-slower"
+  | "a1-valve-threshold-higher";
+
+export type AtrialBridgeProviderOptions = {
+  readonly diagnosticVariantId?: AtrialBridgeDiagnosticVariantId;
+};
+
+export type AtrialBridgeRuntime = {
   readonly candidateId: AtrialBridgeCandidateId;
   readonly chamber: AtrialChamber;
   readonly role: "negative-control" | "quarantined-comparator" | "preferred-new-bridge-candidate";
@@ -225,10 +235,11 @@ const ATRIAL_LOOP_REPEATABILITY_THRESHOLD = 0.05;
 
 export function createAtrialBridgeProviders(
   candidateId: AtrialBridgeCandidateId,
+  options: AtrialBridgeProviderOptions = {},
 ): Partial<Record<Chamber, ModelCoreExperimentalActiveSourceProvider>> {
   return {
-    LA: modelCoreAtrialProvider(candidateId, "LA"),
-    RA: modelCoreAtrialProvider(candidateId, "RA"),
+    LA: modelCoreAtrialProvider(candidateId, "LA", options),
+    RA: modelCoreAtrialProvider(candidateId, "RA", options),
   };
 }
 
@@ -333,10 +344,11 @@ export function buildAtrialBridgeShootoutEvidence(): AtrialBridgeShootoutEvidenc
 function modelCoreAtrialProvider(
   candidateId: AtrialBridgeCandidateId,
   chamber: AtrialChamber,
+  options: AtrialBridgeProviderOptions = {},
 ): ModelCoreExperimentalActiveSourceProvider {
   let runtime: AtrialBridgeRuntime | null = null;
   const resolve = (activeModel: ActiveStressChamberModel): AtrialBridgeRuntime => {
-    runtime ??= createAtrialBridgeRuntime(candidateId, chamber, activeModel.ap);
+    runtime ??= createAtrialBridgeRuntime(candidateId, chamber, activeModel.ap, options);
     return runtime;
   };
   return {
@@ -351,10 +363,11 @@ function modelCoreAtrialProvider(
   };
 }
 
-function createAtrialBridgeRuntime(
+export function createAtrialBridgeRuntime(
   candidateId: AtrialBridgeCandidateId,
   chamber: AtrialChamber,
   baseParams = chamber === "LA" ? defaultActiveLA : defaultActiveRA,
+  options: AtrialBridgeProviderOptions = {},
 ): AtrialBridgeRuntime {
   if (candidateId === "atrial-elastance-negative-control-v0") {
     const ep = elastanceParamsFor(chamber);
@@ -375,7 +388,7 @@ function createAtrialBridgeRuntime(
     : "preferred-new-bridge-candidate";
   const params = candidateId === "legacy-atrial-active-bridge-v0"
     ? frozenLegacyAtrialParams(baseParams)
-    : reservoirBoosterAtrialParams(baseParams, chamber);
+    : reservoirBoosterAtrialParams(baseParams, chamber, options.diagnosticVariantId ?? "none");
   const model = new ActiveStressChamberModel(params);
   return {
     candidateId,
@@ -396,8 +409,12 @@ function frozenLegacyAtrialParams(base: ActiveChamberParams): ActiveChamberParam
   };
 }
 
-function reservoirBoosterAtrialParams(base: ActiveChamberParams, chamber: AtrialChamber): ActiveChamberParams {
-  return {
+function reservoirBoosterAtrialParams(
+  base: ActiveChamberParams,
+  chamber: AtrialChamber,
+  diagnosticVariantId: AtrialBridgeDiagnosticVariantId = "none",
+): ActiveChamberParams {
+  const params: ActiveChamberParams = {
     ...base,
     reservoirBranchGain: 1,
     reservoirStrokeMl: chamber === "LA" ? 12 : 14,
@@ -413,6 +430,26 @@ function reservoirBoosterAtrialParams(base: ActiveChamberParams, chamber: Atrial
     reservoirTauRecoilIVR: 0.035,
     reservoirValveThreshold: 0.15,
   };
+  if (diagnosticVariantId === "a1-reservoir-off") {
+    return {
+      ...params,
+      reservoirBranchGain: 0,
+      reservoirStrokeMl: 0,
+    };
+  }
+  if (diagnosticVariantId === "a1-recoil-slower") {
+    return {
+      ...params,
+      reservoirTauRecoilIVR: 0.07,
+    };
+  }
+  if (diagnosticVariantId === "a1-valve-threshold-higher") {
+    return {
+      ...params,
+      reservoirValveThreshold: 0.30,
+    };
+  }
+  return params;
 }
 
 function elastanceParamsFor(chamber: AtrialChamber) {
