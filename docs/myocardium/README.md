@@ -520,8 +520,8 @@ Production solver comparison is not claimed, performance acceptance is not
 claimed, active-stiffness production coupling is not claimed,
 active-stiffness partitioned production coupling is not claimed, runtime
 replacement, ModelCore wiring, chamber wiring, case wiring, official-case
-wiring, and workbench wiring are not claimed, official morphology pass and
-robust no-alternans are not claimed, septal coordinate/coupling
+wiring, and workbench wiring are not claimed. Official morphology pass is not
+claimed, robust no-alternans is not claimed, septal coordinate/coupling
 implementation, RV pressure overload, septal bowing, ventricular
 interdependence, and right-heart failure coverage are not claimed, and TriSeg
 adoption is not claimed. The future TriSeg path preserves
