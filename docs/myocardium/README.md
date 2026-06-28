@@ -24,6 +24,7 @@ called out below.
 | 3c | [verification/filling-limb-artifact-audit-v1.md](verification/filling-limb-artifact-audit-v1.md) | Proposed diagnostic-only MV/TV open filling-limb artifact audit |
 | 3d | [verification/arterial-load-morphology-v1.md](verification/arterial-load-morphology-v1.md) | Proposed diagnostic-only AoV/PV open ejection and arterial-load morphology audit |
 | 3e | [verification/arterial-load-zc-reflection-comparator-v1.md](verification/arterial-load-zc-reflection-comparator-v1.md) | Proposed off-by-default readiness boundary for a future Zc/reflection arterial-load comparator |
+| 3f | [verification/filling-limb-correlation-readiness-v1.md](verification/filling-limb-correlation-readiness-v1.md) | Proposed docs/data/verifier/test-only boundary for a future off-by-default filling-limb valve/qDot diagnostic comparator |
 | 4 | [roadmap/myocardium-rebuild-roadmap.md](roadmap/myocardium-rebuild-roadmap.md) | Phase and PR sequencing |
 | 4a | [roadmap/atrial-bridge-shootout-roadmap.md](roadmap/atrial-bridge-shootout-roadmap.md) | Proposed Phase 5.5 roadmap before Phase 6 |
 | 4b | [roadmap/phase5c-low-preload-domain-plan.md](roadmap/phase5c-low-preload-domain-plan.md) | Phase 5C-B selected-v2 low-preload domain extension plan |
@@ -114,6 +115,12 @@ These proposed audit descriptors use
 `claimBoundary=diagnostic-only-no-model-change`; they do not authorize runtime
 behavior, solver, official-case-parameter, UI smoothing, or package-script
 changes.
+
+Readiness-boundary addition:
+
+```text
+data/myocardium/protocols/filling-limb-correlation-readiness-v1.json
+```
 
 Important clarification: `targetPeakAmplitudeUM` is amplitude above diastolic
 Ca, not absolute Ca. For the reviewed Phase 2B example, `peakAmplitudeUM=0.9`
@@ -475,13 +482,13 @@ then checks virtual-power residual and finite `m3` pressure maps.
 
 Phase 4B-A, Phase 4B-B, Phase 4C-A, and Phase 4C-B evidence is reused
 read-only with pass/hash evidence. The Phase 4B-A beat-stability smoke is also
-reused read-only as a measurement-hook context only. Official morphology pass,
-robust calcium-cycling no-alternans validation, production mechanics,
-production validation, live runtime replacement,
-ModelCore/chamber/state-schema/official-case wiring, workbench wiring, septal
-coordinate implementation, septal coupling implementation, RV pressure
-overload, septal bowing, ventricular interdependence, and right-heart failure
-are not claimed by this Phase 4D gate. The future TriSeg path preserves
+reused read-only as a measurement-hook context only. Official morphology pass is
+not claimed by this Phase 4D gate. Robust calcium-cycling no-alternans
+validation, production mechanics, production validation, live runtime
+replacement, ModelCore/chamber/state-schema/official-case wiring, workbench
+wiring, septal coordinate implementation, septal coupling implementation, RV
+pressure overload, septal bowing, ventricular interdependence, and right-heart
+failure are not claimed by this Phase 4D gate. The future TriSeg path preserves
 `triseg-lite-compatible`, `full-triseg-compatible`, and full TriSeg escalation
 before those mechanisms are claimed.
 
@@ -546,11 +553,12 @@ hashes, and finite bounded BE-vs-SDIRK2 discrepancy.
 Phase 5B SDIRK2 reference completion is scoped only to this local monolithic
 synthetic reference. Phase 5 completion, production solver comparison,
 performance acceptance, active-stiffness production coupling, runtime
-replacement, ModelCore/chamber/case/official-case/workbench wiring, official
-morphology pass, robust no-alternans, calcium-cycling alternans acceptance,
-septal coordinate/coupling implementation, RV pressure overload, septal
-bowing, ventricular interdependence, right-heart failure coverage, and TriSeg
-adoption are not claimed by this gate.
+replacement, and ModelCore/chamber/case/official-case/workbench wiring are not
+claimed by this gate. Official morphology pass is not claimed by this gate.
+Robust no-alternans, calcium-cycling alternans acceptance, septal
+coordinate/coupling implementation, RV pressure overload, septal bowing,
+ventricular interdependence, right-heart failure coverage, and TriSeg adoption
+are not claimed by this gate.
 
 ## Phase 5C-A Land shadow alternans comparator readiness
 
