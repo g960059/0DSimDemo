@@ -27,6 +27,7 @@ called out below.
 | 3f | [verification/filling-limb-correlation-readiness-v1.md](verification/filling-limb-correlation-readiness-v1.md) | Proposed docs/data/verifier/test-only boundary for a future off-by-default filling-limb valve/qDot diagnostic comparator |
 | 3g | [verification/filling-limb-diagnostic-comparator-v1.md](verification/filling-limb-diagnostic-comparator-v1.md) | Proposed explicit-CLI filling-limb diagnostic comparator artifact contract |
 | 3h | [verification/arterial-load-zc-reflection-diagnostic-comparator-v1.md](verification/arterial-load-zc-reflection-diagnostic-comparator-v1.md) | Proposed explicit-CLI arterial-load Zc/reflection diagnostic comparator artifact contract |
+| 3i | [verification/pv-loop-current-main-baseline-snapshot-v1.md](verification/pv-loop-current-main-baseline-snapshot-v1.md) | Current-main diagnostic-only PV-loop morphology baseline snapshot |
 | 4 | [roadmap/myocardium-rebuild-roadmap.md](roadmap/myocardium-rebuild-roadmap.md) | Phase and PR sequencing |
 | 4a | [roadmap/atrial-bridge-shootout-roadmap.md](roadmap/atrial-bridge-shootout-roadmap.md) | Proposed Phase 5.5 roadmap before Phase 6 |
 | 4b | [roadmap/phase5c-low-preload-domain-plan.md](roadmap/phase5c-low-preload-domain-plan.md) | Phase 5C-B selected-v2 low-preload domain extension plan |
@@ -132,6 +133,12 @@ Explicit-CLI comparator artifact addition:
 ```text
 data/myocardium/protocols/filling-limb-diagnostic-comparator-v1.json
 data/myocardium/protocols/arterial-load-zc-reflection-diagnostic-comparator-v1.json
+```
+
+Current-main morphology baseline snapshot addition:
+
+```text
+data/myocardium/protocols/pv-loop-current-main-baseline-snapshot-v1.json
 ```
 
 Important clarification: `targetPeakAmplitudeUM` is amplitude above diastolic
