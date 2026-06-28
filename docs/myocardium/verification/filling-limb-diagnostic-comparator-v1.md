@@ -56,7 +56,8 @@ A group is interpretable only when all of the following are true:
 - raw transition-excluded filling-limb evidence exists before resampling;
 - matched resampled filling-limb evidence exists;
 - transition-inclusive and transition-excluded-core evidence both exist;
-- all required anti-gaming readouts are available from raw-core rows.
+- all required anti-gaming readouts are available from the documented source
+  rows.
 
 Missing readouts are reported as missing. The comparator must not infer qDot,
 valve-diode, dynamic-flow, or atrial-booster readouts from unrelated pressure,
@@ -65,6 +66,14 @@ flow, or shape metrics.
 LA/RA pressure readouts are the only cross-chamber readouts. They may use the
 paired LV/RV raw-core chamber row for the same caseId, branchId, and beatIndex;
 other readouts remain chamber-local.
+
+By default, anti-gaming readouts source raw `transition-excluded-core` rows.
+The only transition-policy exception is `eaLikeInflowProxy`, which sources the
+raw `transition-inclusive` `EAInflowProxy` runner metric because late A-wave
+inlet flow may occur in partial-open transition samples. This exception does
+not relax the primary filling-limb evidence identity rule and does not apply to
+EDV, SV, CO, atrial pressures, inlet volumes, clamp hit fractions, pressure
+floor hit fraction, or atrial-kick/booster preservation.
 
 ## 5. Anti-Gaming Readouts
 

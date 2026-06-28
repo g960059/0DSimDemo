@@ -1863,8 +1863,18 @@ function pvLoopAreaJ(samples: ClassifiedSample[]): number {
 }
 
 function eOverAProxy(samples: ClassifiedSample[]): number | null {
-  const early = samples.filter((sample) => sample.phase === "filling");
-  const atrial = samples.filter((sample) => sample.phase === "atrial-kick");
+  const candidates = samples.filter((sample) => (
+    inletOpen01(sample) > PV_LOOP_CLASSIFICATION_PROFILE.partialOpenEps
+    && inletFlowMlPerSec(sample) > PV_LOOP_CLASSIFICATION_PROFILE.eOverAProxyDenominatorEps
+  ));
+  const early = candidates.filter((sample) => (
+    sample.theta > PV_LOOP_CLASSIFICATION_PROFILE.atrialKickThetaEarlyMax
+    && sample.theta < PV_LOOP_CLASSIFICATION_PROFILE.atrialKickThetaLateMin
+  ));
+  const atrial = candidates.filter((sample) => (
+    sample.theta >= PV_LOOP_CLASSIFICATION_PROFILE.atrialKickThetaLateMin
+    || sample.theta <= PV_LOOP_CLASSIFICATION_PROFILE.atrialKickThetaEarlyMax
+  ));
   const e = maxOf(early, inletFlowMlPerSec);
   const a = maxOf(atrial, inletFlowMlPerSec);
   return e != null && a != null && Math.abs(a) > PV_LOOP_CLASSIFICATION_PROFILE.eOverAProxyDenominatorEps

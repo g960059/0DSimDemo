@@ -93,8 +93,12 @@ Minimum future evidence must include:
 
 A candidate result is interpretable only when raw-before-resampled evidence,
 comparative raw-vs-resampled evidence, and transition-inclusive plus
-transition-excluded-core evidence point to the same effect under the same
-case/branch/beatIndex/chamber/samplingMode/transition policy identity.
+transition-excluded-core primary evidence point to the same effect under the
+same case/branch/beatIndex/chamber/samplingMode/transition policy identity.
+The E/A-like inflow proxy is the only anti-gaming readout exception: it may
+source raw transition-inclusive `EAInflowProxy` because late A-wave inlet flow
+can be partial-open transition evidence. This exception does not relax the
+primary comparator evidence identity rule.
 
 ## 5. Anti-gaming readouts
 

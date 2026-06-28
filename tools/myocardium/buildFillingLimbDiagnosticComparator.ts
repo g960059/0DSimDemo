@@ -303,7 +303,9 @@ function antiGamingReadout(
   const sourceRows = metric.sourceChamber == null
     ? rows
     : contextRows.filter((row) => row.chamber === metric.sourceChamber);
-  const row = bestMetricRow(sourceRows, metric.metricId);
+  const row = name === "eaLikeInflowProxy"
+    ? bestEaLikeInflowProxyRow(sourceRows)
+    : bestMetricRow(sourceRows, metric.metricId);
   if (!row || row.value == null) {
     return missingReadout(name, `Source metric ${metric.metricId} is unavailable.`);
   }
@@ -338,7 +340,7 @@ function metricForReadout(
     case "meanRightAtrialPressurePa":
       return { metricId: "meanAtrialPressure", unit: "Pa", note: "Uses the RV raw-core row as the RA pressure source.", sourceChamber: "RV", convert: mmHgToPa };
     case "eaLikeInflowProxy":
-      return { metricId: "EAInflowProxy", unit: "dimensionless", note: "Direct runner metric.", convert: identity };
+      return { metricId: "EAInflowProxy", unit: "dimensionless", note: "Uses the raw transition-inclusive runner metric because late A-wave inflow may occur in partial-open transition samples.", convert: identity };
     case "inletForwardVolumeM3":
       return { metricId: "inletForwardVolume", unit: "m3", note: "Converted from inletForwardVolume mL.", convert: mlToM3 };
     case "inletReverseVolumeM3":
@@ -361,6 +363,15 @@ function bestMetricRow(rows: readonly ComparatorMetricRow[], metricId: string): 
     row.metricId === metricId
     && row.samplingMode === "raw"
     && row.transitionPolicy === "transition-excluded-core"
+    && row.value != null
+  ));
+}
+
+function bestEaLikeInflowProxyRow(rows: readonly ComparatorMetricRow[]): ComparatorMetricRow | undefined {
+  return rows.find((row) => (
+    row.metricId === "EAInflowProxy"
+    && row.samplingMode === "raw"
+    && row.transitionPolicy === "transition-inclusive"
     && row.value != null
   ));
 }
