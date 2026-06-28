@@ -786,6 +786,16 @@ evidence. The education-tool DoD checkpoint is
 replacement, final no-alternans, structural alternans removal, or official
 morphology acceptance.
 
+Phase 5T converts that Phase 5S checkpoint into a generated education-tool
+Definition of Done checkpoint. The recorded result is
+[`../../data/myocardium/protocols/myocardium-education-tool-dod-checkpoint-v1.json`](../../data/myocardium/protocols/myocardium-education-tool-dod-checkpoint-v1.json).
+Run `npm run verify:myocardium-education-tool-dod-checkpoint` to check the
+artifact against Phase 5S evidence, official-case teaching metadata, and the
+Studio MVP surface policy. The classification is `owner-review-ready-not-accepted`
+and `accepted: false`; runtime, case, and Workbench wiring are absent. The next
+allowed step is a developer-only LV Land runtime-flag design RFC before any
+official case/workbench/runtime wiring.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and

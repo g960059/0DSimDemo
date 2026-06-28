@@ -429,6 +429,27 @@ describe("myocardium Phase 5C-G same-closure source-provider audit", () => {
     expect(validation.errors.map((issue) => issue.code)).not.toContain("phase5c_g_changed_file_scope");
   });
 
+  it("allows the Phase 5T education-tool DoD checkpoint diff", () => {
+    const input = fixture();
+    input.changedFilePaths = [
+      "__tests__/myocardiumPhase5CSameClosureSourceProviderAudit.test.ts",
+      "__tests__/myocardiumPhase5TEducationToolDoDCheckpoint.test.ts",
+      "data/myocardium/protocols/myocardium-education-tool-dod-checkpoint-v1.json",
+      "docs/myocardium/README.md",
+      "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
+      "docs/status/current-lanes.md",
+      "package.json",
+      "tools/myocardium/buildEducationToolDefinitionOfDoneCheckpoint.ts",
+      "tools/myocardium/verifyEducationToolDefinitionOfDoneCheckpoint.ts",
+      "tools/myocardium/verifyPhase5CSameClosureSourceProviderAudit.ts",
+    ];
+
+    const validation = validatePhase5CSameClosureSourceProviderAudit(input);
+
+    expect(validation.pass).toBe(true);
+    expect(validation.errors.map((issue) => issue.code)).not.toContain("phase5c_g_changed_file_scope");
+  });
+
   it("fails validation if a Phase 5C-G PR diff includes runtime or workbench changes", () => {
     const input = fixture();
     input.changedFilePaths = [

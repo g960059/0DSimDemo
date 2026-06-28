@@ -332,6 +332,19 @@ const PHASE5S_MODELCORE_LAND_OPERATING_POINT_CALIBRATION_ALLOWED_CHANGED_FILE_PA
   PHASE5C_G_VERIFIER_PATH,
 ] as const;
 
+const PHASE5T_EDUCATION_TOOL_DOD_CHECKPOINT_ALLOWED_CHANGED_FILE_PATHS = [
+  "__tests__/myocardiumPhase5CSameClosureSourceProviderAudit.test.ts",
+  "__tests__/myocardiumPhase5TEducationToolDoDCheckpoint.test.ts",
+  "data/myocardium/protocols/myocardium-education-tool-dod-checkpoint-v1.json",
+  "docs/myocardium/README.md",
+  "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
+  "docs/status/current-lanes.md",
+  "package.json",
+  "tools/myocardium/buildEducationToolDefinitionOfDoneCheckpoint.ts",
+  "tools/myocardium/verifyEducationToolDefinitionOfDoneCheckpoint.ts",
+  PHASE5C_G_VERIFIER_PATH,
+] as const;
+
 const RUNTIME_INTEGRATION_TARGETS = [
   "WorkbenchPage.tsx",
   "caseCloud.ts",
@@ -980,6 +993,7 @@ function validateChangedFileScope(changedFilePaths: readonly string[], issues: V
   if (isPhase5QModelCoreLandCalciumUnitInterfaceAuditDiff(changedFilePaths)) return;
   if (isPhase5RModelCoreLandSdirk2ReferenceDiff(changedFilePaths)) return;
   if (isPhase5SModelCoreLandOperatingPointCalibrationDiff(changedFilePaths)) return;
+  if (isPhase5TEducationToolDoDCheckpointDiff(changedFilePaths)) return;
 
   const triggerPaths = new Set<string>(PHASE5C_G_CHANGED_FILE_SCOPE_TRIGGER_PATHS);
   if (!changedFilePaths.some((filePath) => triggerPaths.has(filePath))) return;
@@ -1099,6 +1113,16 @@ function isPhase5RModelCoreLandSdirk2ReferenceDiff(changedFilePaths: readonly st
 
 function isPhase5SModelCoreLandOperatingPointCalibrationDiff(changedFilePaths: readonly string[]): boolean {
   const allowedPaths = new Set<string>(PHASE5S_MODELCORE_LAND_OPERATING_POINT_CALIBRATION_ALLOWED_CHANGED_FILE_PATHS);
+  const changedPaths = new Set(changedFilePaths);
+  if (changedPaths.size !== allowedPaths.size) return false;
+  for (const allowedPath of allowedPaths) {
+    if (!changedPaths.has(allowedPath)) return false;
+  }
+  return true;
+}
+
+function isPhase5TEducationToolDoDCheckpointDiff(changedFilePaths: readonly string[]): boolean {
+  const allowedPaths = new Set<string>(PHASE5T_EDUCATION_TOOL_DOD_CHECKPOINT_ALLOWED_CHANGED_FILE_PATHS);
   const changedPaths = new Set(changedFilePaths);
   if (changedPaths.size !== allowedPaths.size) return false;
   for (const allowedPath of allowedPaths) {
