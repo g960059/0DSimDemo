@@ -32,6 +32,7 @@ called out below.
 | 4c | [roadmap/phase5c-new-myocardium-check-plan.md](roadmap/phase5c-new-myocardium-check-plan.md) | Phase 5C-C new-myocardium low-preload check plan |
 | 4d | [roadmap/phase5c-positive-control-fidelity-audit-plan.md](roadmap/phase5c-positive-control-fidelity-audit-plan.md) | Phase 5C-D positive-control fidelity audit over the Phase 5C-C no-go result |
 | 4e | [roadmap/phase5c-post-fidelity-entry-gate.md](roadmap/phase5c-post-fidelity-entry-gate.md) | Phase 5C-E entry gate after the Phase 5C-D no-go result |
+| 4f | [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md) | Phase 5C-F triage audit plan while the Phase 5C-E entry gate remains blocked |
 | 5 | [research/myocardial-contraction-rebuild-design-record.md](research/myocardial-contraction-rebuild-design-record.md) | Background rationale and design discussion |
 | 6 | [review-notes/phase2b-level3-review-deltas.md](review-notes/phase2b-level3-review-deltas.md) | PR #166 Phase 2B/Level 3 review deltas |
 
@@ -637,6 +638,20 @@ gate. The only allowed entry routes are
 `blocked-until-positive-control-period2`, no runtime replacement, no
 qDot/valve/afterload tuning, no official morphology acceptance, no final
 no-alternans, and no TriSeg adoption as the current boundary.
+
+Phase 5C-F records the triage audit plan in
+[roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
+and
+[`../../data/myocardium/gates/phase5c-positive-control-triage-audit-v1.json`](../../data/myocardium/gates/phase5c-positive-control-triage-audit-v1.json).
+Run `npm run verify:myocardium-phase5c-positive-control-triage-audit` to
+check the gate. The diagnostic lanes are
+`same-closure-source-provider-audit`, `closure-event-surface-diagnostic`, and
+`owner-replacement-criterion-prep`; all are report-only or owner-pending and
+keep `blocked-until-positive-control-period2`. This phase has no runtime
+replacement, no qDot/valve/afterload tuning, no official morphology acceptance,
+no final no-alternans, no RV pressure-overload coverage, no ventricular
+interdependence coverage, no right-heart failure coverage, and no TriSeg
+adoption.
 
 ## Imported bundle checks
 

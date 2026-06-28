@@ -350,6 +350,16 @@ production tissue homogenization.
 - allowed entry routes: `same-closure-period2-positive-control`, requiring period-2 positive-control reproduction under the pinned Phase 5C-C same-closure thresholds, or `owner-approved-replacement-criterion`, requiring a later owner approval artifact with explicit owner provenance that supersedes the current criterion
 - boundary: no runtime replacement, no ModelCore/chamber/case/workbench/state-schema wiring, no qDot/valve/afterload tuning, no official morphology acceptance, no final no-alternans, no RV pressure-overload/interdependence/RHF coverage, and no TriSeg adoption
 
+### Phase 5C-F — positive-control triage audit
+
+- plan: [phase5c-positive-control-triage-audit.md](phase5c-positive-control-triage-audit.md)
+- triage gate: `data/myocardium/gates/phase5c-positive-control-triage-audit-v1.json`
+- gate script: `npm run verify:myocardium-phase5c-positive-control-triage-audit`
+- source entry gate: `phase5c-post-fidelity-entry-gate-v1`
+- current outcome: plan-only triage; Phase 5C-E entry remains `entry-blocked-until-route-satisfied`, with same-closure advancement still `blocked-until-positive-control-period2`
+- diagnostic lanes: `same-closure-source-provider-audit`, `closure-event-surface-diagnostic`, and `owner-replacement-criterion-prep`
+- boundary: report-only or owner-pending triage; no runtime replacement, no ModelCore/chamber/case/workbench/state-schema wiring, no qDot/valve/afterload tuning, no official morphology acceptance, no final no-alternans, no RV pressure-overload coverage, no ventricular interdependence coverage, no right-heart failure coverage, and no TriSeg adoption
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison
