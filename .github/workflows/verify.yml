@@ -41,6 +41,11 @@ jobs:
 
   test:
     name: Fast test (${{ matrix.shard }})
+    # Full Vitest shards are intentionally off the default PR path. They are
+    # still required on main, and can be run through workflow_dispatch while a
+    # PR is open. PR authors should run targeted local tests/verifiers for the
+    # files they touch.
+    if: ${{ github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -195,6 +200,7 @@ jobs:
       - name: Check required jobs
         shell: bash
         env:
+          EVENT_NAME: ${{ github.event_name }}
           BUILD_RESULT: ${{ needs.build.result }}
           TEST_RESULT: ${{ needs.test.result }}
           VERIFY_BASELINE_RESULT: ${{ needs.verify_baseline.result }}
@@ -212,6 +218,9 @@ jobs:
             name="${item%%:*}"
             result="${item#*:}"
             echo "$name: $result"
+            if [ "$name" = "Test" ] && [ "$EVENT_NAME" = "pull_request" ] && [ "$result" = "skipped" ]; then
+              continue
+            fi
             if [ "$result" != "success" ]; then
               failed=1
             fi
