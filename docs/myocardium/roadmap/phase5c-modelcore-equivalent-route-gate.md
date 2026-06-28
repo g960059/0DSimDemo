@@ -1,6 +1,6 @@
-# Phase 5C-H/I/J/K/L/M/N/O ModelCore-equivalent Route Gate
+# Phase 5C-H/I/J/K/L/M/N/O/P ModelCore-equivalent Route Gate
 
-Status: paired experimental LV source-provider evidence recorded through Phase 5C-L; qDot clamp-threshold attribution recorded through Phase 5C-M; output-match not-overlapped diagnostic recorded through Phase 5C-N; activation/source-interface audit recorded through Phase 5C-O; final no-alternans remains unclaimed
+Status: paired experimental LV source-provider evidence recorded through Phase 5C-L; qDot clamp-threshold attribution recorded through Phase 5C-M; output-match not-overlapped diagnostic recorded through Phase 5C-N; activation/source-interface audit recorded through Phase 5C-O; calcium/source forcing bracket recorded through Phase 5C-P; final no-alternans remains unclaimed
 
 This route was recorded as `modelcore-equivalent-closure-positive-control` in
 `phase5c-post-fidelity-entry-gate-v1` before implementation evidence existed.
@@ -72,6 +72,15 @@ at both diagnostic points, even though provider source/commit path transients ca
 be higher during the full run. This redirects the next experiment to calcium
 input scale/unit audit and explicit matched-regime forcing, not to acceptance.
 
+Phase 5C-P runs that calcium/source forcing bracket under the same non-provider
+closure. The explicit source-provider forcing scenarios are not runtime tuning:
+qDot, valves, afterload, preload, sampling, and beat selection remain unchanged
+within each diagnostic point. All 18 forced Land points converge. Calcium-input
+forcing reaches the legacy output and AoV qDot clamp regime while Land remains
+period-1. The matched regime is only the predeclared coarse output/qDot regime,
+not waveform or morphology acceptance; this is a forcing attribution signal and
+a calcium-unit/source-interface audit target, not final no-alternans acceptance.
+
 Machine-readable gate:
 
 ```text
@@ -88,6 +97,7 @@ npm run verify:myocardium-modelcore-paired-land-source-provider
 npm run verify:myocardium-modelcore-paired-land-qdot-clamp-attribution
 npm run verify:myocardium-modelcore-paired-land-output-matched-qdot-attribution
 npm run verify:myocardium-modelcore-land-activation-interface-audit
+npm run verify:myocardium-modelcore-land-calcium-source-forcing-bracket
 ```
 
 Source no-go evidence:
@@ -145,6 +155,12 @@ Land activation/source-interface evidence:
 data/myocardium/protocols/modelcore-land-activation-interface-audit-result-v1.json
 ```
 
+Land calcium/source forcing bracket evidence:
+
+```text
+data/myocardium/protocols/modelcore-land-calcium-source-forcing-bracket-result-v1.json
+```
+
 ## Route Set
 
 Entry route ids recorded in the gate:
@@ -174,7 +190,10 @@ evidence and either explicit output forcing or another owner-approved match axis
 Phase 5C-O records that the settled Land trace active-stress target is orders
 below legacy at the pinned and best-Land diagnostic points, so the immediate next
 attribution work is calcium/source-scale and explicit matched-regime diagnostics
-rather than acceptance.
+rather than acceptance. Phase 5C-P runs that diagnostic and records that
+calcium-input scaling recovered the legacy output/qDot regime while Land
+remains period-1; the immediate next work is calcium-unit/source-interface audit
+plus SDIRK2 reference evidence before final interpretation.
 
 Evidence fields required for the ModelCore-equivalent paired route include:
 
@@ -212,6 +231,10 @@ narrows the next experiment to output matching rather than acceptance. Phase
 not-overlapped, which keeps clamp-threshold avoidance unresolved rather than
 accepting structural alternans removal. Phase 5C-O records the activation/source
 interface gap that explains why the TBV-axis output-match route did not overlap.
+Phase 5C-P records that explicit calcium-input forcing placed Land in the
+legacy output/qDot regime while Land remains period-1, so pure low-output
+clamp-avoidance is weakened but final structural interpretation still waits for
+calcium-unit audit and SDIRK2.
 
 ## Boundary
 

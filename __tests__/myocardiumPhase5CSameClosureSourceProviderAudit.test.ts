@@ -330,6 +330,30 @@ describe("myocardium Phase 5C-G same-closure source-provider audit", () => {
     expect(validation.errors.map((issue) => issue.code)).not.toContain("phase5c_g_changed_file_scope");
   });
 
+  it("allows the Phase 5C-P Land calcium/source forcing bracket diff", () => {
+    const input = fixture();
+    input.changedFilePaths = [
+      "__tests__/myocardiumPhase5CPositiveControlTriageAudit.test.ts",
+      "__tests__/myocardiumPhase5CSameClosureSourceProviderAudit.test.ts",
+      "__tests__/myocardiumPhase5PModelCoreLandCalciumSourceForcingBracket.test.ts",
+      "data/myocardium/protocols/modelcore-land-calcium-source-forcing-bracket-result-v1.json",
+      "docs/myocardium/README.md",
+      "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
+      "docs/myocardium/roadmap/phase5c-modelcore-equivalent-route-gate.md",
+      "docs/status/current-lanes.md",
+      "package.json",
+      "tools/myocardium/buildModelCoreLandCalciumSourceForcingBracketEvidence.ts",
+      "tools/myocardium/verifyModelCoreLandCalciumSourceForcingBracket.ts",
+      "tools/myocardium/verifyPhase5CPositiveControlTriageAudit.ts",
+      "tools/myocardium/verifyPhase5CSameClosureSourceProviderAudit.ts",
+    ];
+
+    const validation = validatePhase5CSameClosureSourceProviderAudit(input);
+
+    expect(validation.pass).toBe(true);
+    expect(validation.errors.map((issue) => issue.code)).not.toContain("phase5c_g_changed_file_scope");
+  });
+
   it("fails validation if a Phase 5C-G PR diff includes runtime or workbench changes", () => {
     const input = fixture();
     input.changedFilePaths = [
