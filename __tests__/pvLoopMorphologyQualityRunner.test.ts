@@ -565,8 +565,46 @@ describe("PV-loop morphology quality runner helpers", () => {
       "phaseNormalizedRoughness",
       "phaseKinkCount",
       "eventCorrelationWindowHitFraction",
+      "fillingInletQDotClampHitFraction",
+      "fillingInletValveDiodeClampHitFraction",
+      "fillingInletDynamicFlowClampHitFraction",
+      "atrialKickBoosterPreservation",
       "lvRvAsymmetryIndex",
     ]));
+  });
+
+  it("emits filling-inlet anti-gaming readout metrics from raw-core samples", () => {
+    const rows = metricRowsForSamplesForTest([
+      sample({
+        sourceIndex: 0,
+        tSec: 0.00,
+        theta: 0.10,
+        MV_qDotClampHit01: 1,
+        MV_diodeImpulse: 3,
+        MV_flowClampImpulse: 4,
+        TV_qDotClampHit01: 1,
+        TV_diodeImpulse: 2,
+        TV_flowClampImpulse: 5,
+      }),
+      sample({ sourceIndex: 1, tSec: 0.01, theta: 0.20, VLV: 122, VRV: 123 }),
+      sample({ sourceIndex: 2, tSec: 0.02, theta: 0.84, VLV: 126, VRV: 127, aLA: 0.8, aRA: 0.7 }),
+      sample({ sourceIndex: 3, tSec: 0.03, theta: 0.88, VLV: 130, VRV: 131, aLA: 1.0, aRA: 1.0 }),
+    ]);
+    const rawCore = (chamber: "LV" | "RV", metricId: string) => rows.find((row) => (
+      row.chamber === chamber
+      && row.metricId === metricId
+      && row.samplingMode === "raw"
+      && row.transitionPolicy === "transition-excluded-core"
+    ));
+
+    expect(rawCore("LV", "fillingInletQDotClampHitFraction")?.value).toBeGreaterThan(0);
+    expect(rawCore("LV", "fillingInletValveDiodeClampHitFraction")?.value).toBeGreaterThan(0);
+    expect(rawCore("LV", "fillingInletDynamicFlowClampHitFraction")?.value).toBeGreaterThan(0);
+    expect(rawCore("RV", "fillingInletQDotClampHitFraction")?.value).toBeGreaterThan(0);
+    expect(rawCore("RV", "fillingInletValveDiodeClampHitFraction")?.value).toBeGreaterThan(0);
+    expect(rawCore("RV", "fillingInletDynamicFlowClampHitFraction")?.value).toBeGreaterThan(0);
+    expect(rawCore("LV", "atrialKickBoosterPreservation")?.value).toBe(1);
+    expect(rawCore("RV", "atrialKickBoosterPreservation")?.value).toBe(1);
   });
 
   it("writes artifact headers that include the target-pack required fields", () => {

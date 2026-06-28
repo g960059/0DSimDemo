@@ -56,11 +56,15 @@ A group is interpretable only when all of the following are true:
 - raw transition-excluded filling-limb evidence exists before resampling;
 - matched resampled filling-limb evidence exists;
 - transition-inclusive and transition-excluded-core evidence both exist;
-- all required anti-gaming readouts are available.
+- all required anti-gaming readouts are available from raw-core rows.
 
 Missing readouts are reported as missing. The comparator must not infer qDot,
 valve-diode, dynamic-flow, or atrial-booster readouts from unrelated pressure,
 flow, or shape metrics.
+
+LA/RA pressure readouts are the only cross-chamber readouts. They may use the
+paired LV/RV raw-core chamber row for the same caseId, branchId, and beatIndex;
+other readouts remain chamber-local.
 
 ## 5. Anti-Gaming Readouts
 
@@ -74,14 +78,14 @@ Required readouts:
 - `eaLikeInflowProxy`
 - `inletForwardVolumeM3`
 - `inletReverseVolumeM3`
-- `qDotClampHitFraction`
-- `valveDiodeClampHitFraction`
-- `dynamicFlowClampHitFraction`
+- `qDotClampHitFraction` from `fillingInletQDotClampHitFraction`
+- `valveDiodeClampHitFraction` from `fillingInletValveDiodeClampHitFraction`
+- `dynamicFlowClampHitFraction` from `fillingInletDynamicFlowClampHitFraction`
 - `pressureFloorHitFraction`
 - `atrialKickBoosterPreservation`
 
-The current morphology runner does not emit every readout needed for a fully
-interpretable group. That missingness is expected diagnostic output, not a
+Older morphology artifacts may not emit every readout needed for a fully
+interpretable group. That missingness remains expected diagnostic output, not a
 failure to be hidden.
 
 ## 6. Claim Boundary

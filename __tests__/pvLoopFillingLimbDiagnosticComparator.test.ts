@@ -41,15 +41,20 @@ function rowsWithComparableEvidence(): ComparatorMetricRow[] {
     row({ metricId: "SV", value: 70, unit: "mL", classificationLabels: [] }),
     row({ metricId: "CO", value: 5.2, unit: "L/min", classificationLabels: [] }),
     row({ metricId: "meanAtrialPressure", value: 9, unit: "mmHg", classificationLabels: [] }),
+    row({ chamber: "RV", metricId: "meanAtrialPressure", value: 4, unit: "mmHg", classificationLabels: [] }),
     row({ metricId: "EAInflowProxy", value: 1.1, classificationLabels: [] }),
     row({ metricId: "inletForwardVolume", value: 72, unit: "mL", classificationLabels: [] }),
     row({ metricId: "inletReverseVolume", value: 0.2, unit: "mL", classificationLabels: [] }),
+    row({ metricId: "fillingInletQDotClampHitFraction", value: 0.1, classificationLabels: [] }),
+    row({ metricId: "fillingInletValveDiodeClampHitFraction", value: 0.05, classificationLabels: [] }),
+    row({ metricId: "fillingInletDynamicFlowClampHitFraction", value: 0, classificationLabels: [] }),
     row({ metricId: "pressureFloorHitFraction", value: 0, classificationLabels: [] }),
+    row({ metricId: "atrialKickBoosterPreservation", value: 1, classificationLabels: [] }),
   ];
 }
 
 describe("PV-loop filling-limb diagnostic comparator", () => {
-  it("builds identity-stable comparison groups without inferring missing anti-gaming readouts", () => {
+  it("builds identity-stable comparison groups from emitted anti-gaming readouts", () => {
     const summary = buildFillingLimbDiagnosticComparison(rowsWithComparableEvidence(), {
       inputDir: "artifacts/myocardium/pv-loop-morphology/example",
       sourceSummary: {
@@ -80,19 +85,19 @@ describe("PV-loop filling-limb diagnostic comparator", () => {
       .toMatchObject({ status: "available", value: 70e-6, unit: "m3" });
     expect(group.antiGamingReadouts.find((readout) => readout.name === "meanLeftAtrialPressurePa"))
       .toMatchObject({ status: "available", value: 9 * 133.322, unit: "Pa" });
+    expect(group.antiGamingReadouts.find((readout) => readout.name === "meanRightAtrialPressurePa"))
+      .toMatchObject({ status: "available", value: 4 * 133.322, unit: "Pa" });
+    expect(group.antiGamingReadouts.find((readout) => readout.name === "qDotClampHitFraction"))
+      .toMatchObject({ status: "available", value: 0.1, sourceMetricId: "fillingInletQDotClampHitFraction" });
+    expect(group.antiGamingReadouts.find((readout) => readout.name === "atrialKickBoosterPreservation"))
+      .toMatchObject({ status: "available", value: 1 });
 
     const missing = group.antiGamingReadouts
       .filter((readout) => readout.status === "missing")
       .map((readout) => readout.name);
-    expect(missing).toEqual(expect.arrayContaining([
-      "meanRightAtrialPressurePa",
-      "qDotClampHitFraction",
-      "valveDiodeClampHitFraction",
-      "dynamicFlowClampHitFraction",
-      "atrialKickBoosterPreservation",
-    ]));
-    expect(group.interpretable).toBe(false);
-    expect(group.uninterpretableReasons.join(" ")).toContain("missing anti-gaming readouts");
+    expect(missing).toEqual([]);
+    expect(group.interpretable).toBe(true);
+    expect(group.uninterpretableReasons).toEqual([]);
   });
 
   it("parses morphology metric CSV rows and writes comparator artifacts", () => {
@@ -135,6 +140,24 @@ describe("PV-loop filling-limb diagnostic comparator", () => {
       });
     expect(group.interpretable).toBe(false);
     expect(group.uninterpretableReasons.join(" ")).toContain("endDiastolicVolumeM3");
+  });
+
+  it("does not borrow non-pressure anti-gaming readouts from paired chambers", () => {
+    const metricRows = rowsWithComparableEvidence()
+      .filter((candidate) => !(candidate.chamber === "LV" && candidate.metricId === "EDV"));
+    metricRows.push(row({ chamber: "RV", metricId: "EDV", value: 999, unit: "mL", classificationLabels: [] }));
+
+    const summary = buildFillingLimbDiagnosticComparison(metricRows);
+    const group = summary.groups.find((candidate) => candidate.chamber === "LV");
+
+    expect(group?.antiGamingReadouts.find((readout) => readout.name === "meanRightAtrialPressurePa"))
+      .toMatchObject({ status: "available", value: 4 * 133.322, unit: "Pa" });
+    expect(group?.antiGamingReadouts.find((readout) => readout.name === "endDiastolicVolumeM3"))
+      .toMatchObject({
+        status: "missing",
+        sourceMetricId: null,
+      });
+    expect(group?.uninterpretableReasons.join(" ")).toContain("endDiastolicVolumeM3");
   });
 
   it("keeps the readiness verifier green and package scripts unwired", () => {

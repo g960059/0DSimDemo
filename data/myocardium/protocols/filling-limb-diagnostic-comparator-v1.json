@@ -71,7 +71,7 @@
     "pressureFloorHitFraction",
     "atrialKickBoosterPreservation"
   ],
-  "interpretabilityRule": "A comparator group is interpretable only when raw-before-resampled evidence, matched resampled evidence, transition-inclusive and transition-excluded-core evidence, and all anti-gaming readouts are available for the same caseId, branchId, beatIndex, chamber, samplingMode, and transitionPolicy identity. Missing fields must be reported as missing rather than inferred.",
+  "interpretabilityRule": "A comparator group is interpretable only when raw-before-resampled evidence, matched resampled evidence, transition-inclusive and transition-excluded-core evidence, and all anti-gaming readouts are available for the same caseId, branchId, beatIndex, samplingMode, and transitionPolicy identity. Chamber-local readouts must come from the same chamber. LA/RA pressure readouts may use the paired LV/RV raw-core chamber row for the same caseId, branchId, and beatIndex. Missing fields must be reported as missing rather than inferred.",
   "claimExclusions": {
     "acceptedRootCause": "not-claimed",
     "fixAcceptance": "not-claimed",
