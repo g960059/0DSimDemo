@@ -23,6 +23,7 @@ called out below.
 | 3b | [verification/pv-loop-morphology-quality.md](verification/pv-loop-morphology-quality.md) | Proposed diagnostic-only common LV/RV PV-loop phase segmentation and quality readouts |
 | 3c | [verification/filling-limb-artifact-audit-v1.md](verification/filling-limb-artifact-audit-v1.md) | Proposed diagnostic-only MV/TV open filling-limb artifact audit |
 | 3d | [verification/arterial-load-morphology-v1.md](verification/arterial-load-morphology-v1.md) | Proposed diagnostic-only AoV/PV open ejection and arterial-load morphology audit |
+| 3e | [verification/arterial-load-zc-reflection-comparator-v1.md](verification/arterial-load-zc-reflection-comparator-v1.md) | Proposed off-by-default readiness boundary for a future Zc/reflection arterial-load comparator |
 | 4 | [roadmap/myocardium-rebuild-roadmap.md](roadmap/myocardium-rebuild-roadmap.md) | Phase and PR sequencing |
 | 4a | [roadmap/atrial-bridge-shootout-roadmap.md](roadmap/atrial-bridge-shootout-roadmap.md) | Proposed Phase 5.5 roadmap before Phase 6 |
 | 4b | [roadmap/phase5c-low-preload-domain-plan.md](roadmap/phase5c-low-preload-domain-plan.md) | Phase 5C-B selected-v2 low-preload domain extension plan |
@@ -104,6 +105,7 @@ Diagnostic-only PV-loop morphology audit additions:
 data/myocardium/protocols/pv-loop-morphology-quality-v1.json
 data/myocardium/protocols/filling-limb-artifact-audit-v1.json
 data/myocardium/protocols/arterial-load-morphology-v1.json
+data/myocardium/protocols/arterial-load-zc-reflection-comparator-v1.json
 data/myocardium/targets/pv-loop-morphology-quality-v1.json
 ```
 
