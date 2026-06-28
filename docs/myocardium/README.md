@@ -644,28 +644,36 @@ and
 [`../../data/myocardium/gates/phase5c-post-fidelity-entry-gate-v1.json`](../../data/myocardium/gates/phase5c-post-fidelity-entry-gate-v1.json).
 Run `npm run verify:myocardium-phase5c-post-fidelity-entry-gate` and
 `npm run verify:myocardium-modelcore-equivalent-positive-control-closure` to
-check the gate and the current partial ModelCore-equivalent evidence. Run
+check the gate and the ModelCore-equivalent positive-control evidence. Run
 `npm run verify:myocardium-modelcore-active-provider-state-lifecycle` to check
-the Phase 5C-J provider-state lifecycle precondition for future Land pairing.
+the Phase 5C-J provider-state lifecycle precondition used by Land pairing.
 Run `npm run verify:myocardium-modelcore-active-source-pressure-adapter` to
-check the Phase 5C-K source-only pressure adapter precondition for the same
-future Land pairing. Run
+check the Phase 5C-K source-only pressure adapter precondition used by that
+pairing. Run
 `npm run verify:myocardium-modelcore-paired-land-source-provider` to run and
 check the Phase 5C-L paired Land source-provider experiment.
 The entry route ids recorded in the gate are
 `same-closure-period2-positive-control`,
 `modelcore-equivalent-closure-positive-control`, and
-`owner-approved-replacement-criterion`. The ModelCore-equivalent route has
-`status=defined-not-satisfied`. Phase 5C-I records owner-approved experimental
-source-provider-limited ModelCore wiring and legacy activeStress period-2
-positive-control evidence. Phase 5C-J records provider-state lifecycle
-precondition evidence for the experimental hook; it does not change runtime
-replacement, official morphology acceptance, final no-alternans, or the blocked
-route state. Phase 5C-K records a source-only pressure adapter precondition:
-the legacy LV source-only adapter matches the legacy full-pressure provider
-under the pinned low-preload protocol. Source-only providers are mutually
-exclusive with pressure overrides and must provide source-specific debug terms;
-future Land providers must keep mutable solver state in `providerState`.
+`owner-approved-replacement-criterion`. Phase 5C-I records owner-approved
+experimental source-provider-limited ModelCore wiring and legacy activeStress
+period-2 positive-control evidence. Phase 5C-J records provider-state lifecycle
+precondition evidence for the experimental hook. Phase 5C-K records a
+source-only pressure adapter precondition: the legacy LV source-only adapter
+matches the legacy full-pressure provider under the pinned low-preload protocol.
+Source-only providers are mutually exclusive with pressure overrides and must
+provide source-specific debug terms; Land providers must keep mutable solver
+state in `providerState`. Phase 5C-L records the paired-result route state:
+
+```text
+status=satisfied-experimental-paired-land-run
+routeSatisfactionStatus=satisfied-paired-land-provider-run-finite
+```
+
+This state is for paired result interpretation only. It does not change runtime
+replacement, official morphology acceptance, final no-alternans, schema
+migration, case/workbench wiring, or tuning boundaries;
+`second-order-reference-required` remains the next robustness constraint.
 Phase 5C-L runs the paired Land source-provider experiment under the same
 ModelCore closure. The legacy source-only positive control remains period-2,
 the Land 2017 LV source-only provider runs finite with zero Land solver
