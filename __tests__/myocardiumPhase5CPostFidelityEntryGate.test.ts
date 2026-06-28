@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  PHASE5C_MODELCORE_EQUIVALENT_ROUTE_GATE_PLAN_PATH,
   PHASE5C_POST_FIDELITY_ENTRY_GATE_PLAN_PATH,
   loadPhase5CPostFidelityEntryGateValidationInput,
   validatePhase5CPostFidelityEntryGate,
@@ -19,11 +20,12 @@ describe("myocardium Phase 5C-E post-fidelity entry gate", () => {
     expect(validation.gateStatus).toBe("entry-blocked-until-route-satisfied");
     expect(validation.allowedEntryRouteIds).toEqual([
       "same-closure-period2-positive-control",
+      "modelcore-equivalent-closure-positive-control",
       "owner-approved-replacement-criterion",
     ]);
-    expect(validation.summary.sourceFileCount).toBe(5);
+    expect(validation.summary.sourceFileCount).toBe(7);
     expect(validation.summary.runtimeIntegrationFileCount).toBeGreaterThan(0);
-    expect(validation.summary.entryRouteCount).toBe(2);
+    expect(validation.summary.entryRouteCount).toBe(3);
     expect(input.gate.currentNoGo.artifactGateExpectedPass).toBe(false);
     expect(input.gate.currentNoGo.finalNoAlternansClaim).toBe("not-claimed");
     expect(input.gate.nonGoals.runtimeReplacement).toBe(false);
@@ -81,6 +83,37 @@ describe("myocardium Phase 5C-E post-fidelity entry gate", () => {
     expect(validation.pass).toBe(false);
     expect(validation.errors.map((issue) => issue.code))
       .toContain("phase5c_e_same_closure_route");
+  });
+
+  it("fails validation if the ModelCore-equivalent route is treated as implemented or satisfied", () => {
+    const input = fixture();
+    const route = modelCoreEquivalentRoute(input);
+    route.status = "satisfied";
+    route.requiredEvidence.closureImplementationStatus = "implemented";
+    route.requiredEvidence.routeSatisfactionStatus = "satisfied";
+    route.requiredEvidence.closureEquivalenceToModelCore = "demonstrated";
+    route.requiredEvidence.doesNotSatisfyCurrentNoGo = false;
+
+    const validation = validatePhase5CPostFidelityEntryGate(input);
+    const codes = validation.errors.map((issue) => issue.code);
+
+    expect(validation.pass).toBe(false);
+    expect(codes).toContain("phase5c_e_entry_routes");
+    expect(codes).toContain("phase5c_e_modelcore_equivalent_route");
+  });
+
+  it("fails validation if the ModelCore-equivalent route drops event-surface evidence", () => {
+    const input = fixture();
+    const route = modelCoreEquivalentRoute(input);
+    route.requiredEvidence.requiredEventSurfaces = ["valveOpenCloseTiming"];
+    route.requiredEvidence.eventSurfacePreservationRequired = false;
+    route.requiredEvidence.secondOrderReferenceStillRequired = false;
+
+    const validation = validatePhase5CPostFidelityEntryGate(input);
+
+    expect(validation.pass).toBe(false);
+    expect(validation.errors.map((issue) => issue.code))
+      .toContain("phase5c_e_modelcore_equivalent_route");
   });
 
   it("fails validation if route mayUnlock authorizes runtime, morphology, or TriSeg", () => {
@@ -196,6 +229,7 @@ describe("myocardium Phase 5C-E post-fidelity entry gate", () => {
   it("fails validation if gate docs add affirmative runtime or TriSeg prose", () => {
     for (const sourcePath of [
       PHASE5C_POST_FIDELITY_ENTRY_GATE_PLAN_PATH,
+      PHASE5C_MODELCORE_EQUIVALENT_ROUTE_GATE_PLAN_PATH,
       "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
       "docs/myocardium/README.md",
     ]) {
@@ -216,6 +250,7 @@ describe("myocardium Phase 5C-E post-fidelity entry gate", () => {
   it("fails validation if gate docs self-authorize the owner replacement route", () => {
     for (const sourcePath of [
       PHASE5C_POST_FIDELITY_ENTRY_GATE_PLAN_PATH,
+      PHASE5C_MODELCORE_EQUIVALENT_ROUTE_GATE_PLAN_PATH,
       "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
       "docs/myocardium/README.md",
     ]) {
@@ -233,13 +268,13 @@ describe("myocardium Phase 5C-E post-fidelity entry gate", () => {
     }
   });
 
-  it("fails validation if the plan drops one of the two allowed entry routes", () => {
+  it("fails validation if the plan drops one of the three entry routes", () => {
     const input = fixture();
     replaceSourceText(
       input,
       PHASE5C_POST_FIDELITY_ENTRY_GATE_PLAN_PATH,
-      "owner-approved-replacement-criterion",
-      "owner-approved-criterion",
+      "modelcore-equivalent-closure-positive-control",
+      "modelcore-equivalent-closure-route",
     );
 
     const validation = validatePhase5CPostFidelityEntryGate(input);
@@ -256,6 +291,12 @@ function fixture(): MutableValidationInput {
 function sameClosureRoute(input: MutableValidationInput): any {
   return input.gate.allowedEntryRoutes.find((route: any) =>
     route.routeId === "same-closure-period2-positive-control"
+  );
+}
+
+function modelCoreEquivalentRoute(input: MutableValidationInput): any {
+  return input.gate.allowedEntryRoutes.find((route: any) =>
+    route.routeId === "modelcore-equivalent-closure-positive-control"
   );
 }
 
@@ -303,6 +344,8 @@ function appendPhase5CEntryGateSourceText(
   }
   const marker = sourcePath === "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md"
     ? "### Phase 5C-E"
+    : sourcePath === PHASE5C_MODELCORE_EQUIVALENT_ROUTE_GATE_PLAN_PATH
+      ? "## Boundary"
     : "Phase 5C-E records that post-fidelity entry gate";
   replaceSourceText(input, sourcePath, marker, `${marker}${suffix}`);
 }

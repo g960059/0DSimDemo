@@ -21,6 +21,14 @@ const PHASE5C_G_VERIFIER_PATH =
   "tools/myocardium/verifyPhase5CSameClosureSourceProviderAudit.ts";
 const PHASE5C_G_TEST_PATH =
   "__tests__/myocardiumPhase5CSameClosureSourceProviderAudit.test.ts";
+const PHASE5C_E_ENTRY_GATE_PLAN_PATH =
+  "docs/myocardium/roadmap/phase5c-post-fidelity-entry-gate.md";
+const PHASE5C_H_MODELCORE_EQUIVALENT_ROUTE_PLAN_PATH =
+  "docs/myocardium/roadmap/phase5c-modelcore-equivalent-route-gate.md";
+const PHASE5C_E_ENTRY_GATE_VERIFIER_PATH =
+  "tools/myocardium/verifyPhase5CPostFidelityEntryGate.ts";
+const PHASE5C_E_ENTRY_GATE_TEST_PATH =
+  "__tests__/myocardiumPhase5CPostFidelityEntryGate.test.ts";
 
 export type ValidationSeverity = "error" | "warning";
 
@@ -108,9 +116,15 @@ const ALLOWED_CHANGED_FILE_PATHS = [
   PHASE5C_G_SOURCE_PROVIDER_AUDIT_PLAN_PATH,
   PHASE5C_G_VERIFIER_PATH,
   PHASE5C_G_TEST_PATH,
+  PHASE5C_E_ENTRY_GATE_PATH,
+  PHASE5C_E_ENTRY_GATE_PLAN_PATH,
+  PHASE5C_H_MODELCORE_EQUIVALENT_ROUTE_PLAN_PATH,
+  PHASE5C_E_ENTRY_GATE_VERIFIER_PATH,
+  PHASE5C_E_ENTRY_GATE_TEST_PATH,
   "tools/myocardium/verifyPhase5CPositiveControlTriageAudit.ts",
   "docs/myocardium/README.md",
   "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
+  "docs/status/current-lanes.md",
   "package.json",
 ] as const;
 

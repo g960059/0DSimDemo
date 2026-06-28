@@ -58,6 +58,50 @@
       ]
     },
     {
+      "routeId": "modelcore-equivalent-closure-positive-control",
+      "status": "defined-not-satisfied",
+      "requiredEvidence": {
+        "closureProtocolId": "modelcore-equivalent-positive-control-closure-v1",
+        "closureImplementationStatus": "not-implemented",
+        "routeSatisfactionStatus": "not-satisfied",
+        "sourceProviderRole": "legacy-activeStress-positive-control",
+        "closureEquivalenceToModelCore": "required-not-yet-demonstrated",
+        "legacyPositiveControlStatus": "period-2-positive-control-pass",
+        "positiveControlObservedPeriodBeats": 2,
+        "sameProtocolOrExplicitEquivalence": true,
+        "eventSurfacePreservationRequired": true,
+        "sourceProviderDifferenceOnly": true,
+        "secondOrderReferenceStillRequired": true,
+        "requiredEventSurfaces": [
+          "valveOpenCloseTiming",
+          "qDotRawPostBehavior",
+          "qDotClampEvents",
+          "dynamicFlowClampEvents",
+          "arterialAfterloadLoop",
+          "venousPreloadLoop",
+          "tbvProjectionBehaviorWhenRelevant",
+          "pressureFloorBehavior",
+          "beatSelectionAndSamplingPolicy"
+        ],
+        "closureEquivalenceEvidence": "qDot, valve, afterload, preload, TBV/projection, pressure-floor, beat-selection, and sampling behavior preserved or explicitly matched",
+        "doesNotSatisfyCurrentNoGo": true
+      },
+      "mayUnlock": [
+        "Phase 5C-C positive-control rerun under explicitly equivalent ModelCore event-surface closure only"
+      ],
+      "doesNotUnlock": [
+        "runtime replacement",
+        "ModelCore, chamber, case, official-case, Workbench, or state-schema wiring",
+        "official morphology acceptance",
+        "final robust no-alternans",
+        "calcium-cycling alternans acceptance",
+        "RV pressure-overload coverage",
+        "ventricular interdependence coverage",
+        "right-heart failure coverage",
+        "TriSeg adoption"
+      ]
+    },
+    {
       "routeId": "owner-approved-replacement-criterion",
       "status": "owner-approval-required",
       "requiredEvidence": {

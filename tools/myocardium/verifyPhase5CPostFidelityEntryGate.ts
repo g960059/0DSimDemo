@@ -7,6 +7,10 @@ export const PHASE5C_D_FIDELITY_AUDIT_EVIDENCE_PATH =
   "data/myocardium/protocols/land-new-myocardium-low-preload-phase5c-fidelity-audit-v1.json";
 export const PHASE5C_POST_FIDELITY_ENTRY_GATE_PLAN_PATH =
   "docs/myocardium/roadmap/phase5c-post-fidelity-entry-gate.md";
+export const PHASE5C_MODELCORE_EQUIVALENT_ROUTE_GATE_PLAN_PATH =
+  "docs/myocardium/roadmap/phase5c-modelcore-equivalent-route-gate.md";
+export const MODELCORE_EQUIVALENT_CLOSURE_PROTOCOL_PATH =
+  "data/myocardium/protocols/modelcore-equivalent-positive-control-closure-v1.json";
 
 export type ValidationSeverity = "error" | "warning";
 
@@ -49,8 +53,10 @@ type JsonRecord = Record<string, unknown>;
 const EXPECTED_GATE_ID = "phase5c-post-fidelity-entry-gate-v1";
 const EXPECTED_AUDIT_ID = "land-new-myocardium-low-preload-phase5c-fidelity-audit-v1";
 const SAME_CLOSURE_ENTRY_ROUTE_ID = "same-closure-period2-positive-control";
+const MODELCORE_EQUIVALENT_ENTRY_ROUTE_ID = "modelcore-equivalent-closure-positive-control";
 const OWNER_REPLACEMENT_ENTRY_ROUTE_ID = "owner-approved-replacement-criterion";
 const EXPECTED_CLOSURE_MODEL_ID = "phase5c-c-standalone-preload-afterload-surrogate-v1";
+const EXPECTED_MODELCORE_CLOSURE_PROTOCOL_ID = "modelcore-equivalent-positive-control-closure-v1";
 const EXPECTED_VERIFIER_SCRIPT = "verify:myocardium-phase5c-post-fidelity-entry-gate";
 const SOURCE_AUDIT_VERIFIER_SCRIPT = "verify:myocardium-land-new-myocardium-low-preload-check";
 
@@ -100,10 +106,25 @@ const MAY_UNLOCK_BY_ROUTE = {
   [SAME_CLOSURE_ENTRY_ROUTE_ID]: [
     "Phase 5C-C BE smoke rerun under the same-protocol policy only",
   ],
+  [MODELCORE_EQUIVALENT_ENTRY_ROUTE_ID]: [
+    "Phase 5C-C positive-control rerun under explicitly equivalent ModelCore event-surface closure only",
+  ],
   [OWNER_REPLACEMENT_ENTRY_ROUTE_ID]: [
     "a later owner-approved criterion rewrite plan",
   ],
 } as const;
+
+const MODELCORE_EQUIVALENT_EVENT_SURFACES = [
+  "valveOpenCloseTiming",
+  "qDotRawPostBehavior",
+  "qDotClampEvents",
+  "dynamicFlowClampEvents",
+  "arterialAfterloadLoop",
+  "venousPreloadLoop",
+  "tbvProjectionBehaviorWhenRelevant",
+  "pressureFloorBehavior",
+  "beatSelectionAndSamplingPolicy",
+] as const;
 
 const NON_GOAL_KEYS = [
   "runtimeReplacement",
@@ -131,6 +152,7 @@ const REQUIRED_SOURCE_TOKENS = [
   EXPECTED_GATE_ID,
   EXPECTED_AUDIT_ID,
   SAME_CLOSURE_ENTRY_ROUTE_ID,
+  MODELCORE_EQUIVALENT_ENTRY_ROUTE_ID,
   OWNER_REPLACEMENT_ENTRY_ROUTE_ID,
   "blocked-until-positive-control-period2",
 ] as const;
@@ -182,6 +204,7 @@ const RUNTIME_INTEGRATION_TARGETS = [
 const PHASE5C_E_RUNTIME_REFERENCE_TOKENS = [
   EXPECTED_GATE_ID,
   SAME_CLOSURE_ENTRY_ROUTE_ID,
+  MODELCORE_EQUIVALENT_ENTRY_ROUTE_ID,
   OWNER_REPLACEMENT_ENTRY_ROUTE_ID,
   EXPECTED_VERIFIER_SCRIPT,
   "Phase 5C-E",
@@ -233,6 +256,8 @@ export function loadPhase5CPostFidelityEntryGateValidationInput(
       readTextFile(rootDir, PHASE5C_POST_FIDELITY_ENTRY_GATE_PATH),
       readTextFile(rootDir, PHASE5C_D_FIDELITY_AUDIT_EVIDENCE_PATH),
       readTextFile(rootDir, PHASE5C_POST_FIDELITY_ENTRY_GATE_PLAN_PATH),
+      readTextFile(rootDir, PHASE5C_MODELCORE_EQUIVALENT_ROUTE_GATE_PLAN_PATH),
+      readTextFile(rootDir, MODELCORE_EQUIVALENT_CLOSURE_PROTOCOL_PATH),
       readTextFile(rootDir, "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md"),
       readTextFile(rootDir, "docs/myocardium/README.md"),
     ],
@@ -367,18 +392,21 @@ function validateAllowedEntryRoutes(
   allowedEntryRoutes: unknown,
   issues: ValidationIssue[],
 ): void {
-  if (!Array.isArray(allowedEntryRoutes) || allowedEntryRoutes.length !== 2) {
-    addIssue(issues, "error", "phase5c_e_entry_routes", "gate.allowedEntryRoutes", "Exactly two entry routes are allowed: same-closure period-2 reproduction or owner-approved replacement criterion.");
+  if (!Array.isArray(allowedEntryRoutes) || allowedEntryRoutes.length !== 3) {
+    addIssue(issues, "error", "phase5c_e_entry_routes", "gate.allowedEntryRoutes", "Exactly three entry routes are allowed: same-closure period-2 reproduction, ModelCore-equivalent positive-control closure, or owner-approved replacement criterion.");
     return;
   }
   const sameClosureRoute = findRoute(allowedEntryRoutes, SAME_CLOSURE_ENTRY_ROUTE_ID);
+  const modelCoreEquivalentRoute = findRoute(allowedEntryRoutes, MODELCORE_EQUIVALENT_ENTRY_ROUTE_ID);
   const ownerRoute = findRoute(allowedEntryRoutes, OWNER_REPLACEMENT_ENTRY_ROUTE_ID);
-  if (!sameClosureRoute || !ownerRoute) {
+  if (!sameClosureRoute || !modelCoreEquivalentRoute || !ownerRoute) {
     addIssue(issues, "error", "phase5c_e_entry_routes", "gate.allowedEntryRoutes", "Required entry routes are missing.");
     return;
   }
   validateRouteShell(sameClosureRoute, SAME_CLOSURE_ENTRY_ROUTE_ID, "not-satisfied", issues);
   validateSameClosureRoute(sameClosureRoute.requiredEvidence, issues);
+  validateRouteShell(modelCoreEquivalentRoute, MODELCORE_EQUIVALENT_ENTRY_ROUTE_ID, "defined-not-satisfied", issues);
+  validateModelCoreEquivalentRoute(modelCoreEquivalentRoute.requiredEvidence, issues);
   validateRouteShell(ownerRoute, OWNER_REPLACEMENT_ENTRY_ROUTE_ID, "owner-approval-required", issues);
   validateOwnerReplacementRoute(ownerRoute.requiredEvidence, issues);
 }
@@ -456,6 +484,55 @@ function validateSameClosureRoute(
     || requiredEvidence.sourceProviderDifferenceOnly !== true
   ) {
     addIssue(issues, "error", "phase5c_e_same_closure_route", "gate.allowedEntryRoutes.same-closure-period2-positive-control.requiredEvidence", "Same-closure entry route must require period-2 positive-control reproduction under pinned Phase 5C-C thresholds and clean event surfaces.");
+  }
+}
+
+function validateModelCoreEquivalentRoute(
+  requiredEvidence: unknown,
+  issues: ValidationIssue[],
+): void {
+  if (!isRecord(requiredEvidence)) {
+    addIssue(issues, "error", "phase5c_e_modelcore_equivalent_route", "gate.allowedEntryRoutes.modelcore-equivalent-closure-positive-control.requiredEvidence", "ModelCore-equivalent route evidence must be an object.");
+    return;
+  }
+  validateExactKeys(
+    requiredEvidence,
+    [
+      "closureProtocolId",
+      "closureImplementationStatus",
+      "routeSatisfactionStatus",
+      "sourceProviderRole",
+      "closureEquivalenceToModelCore",
+      "legacyPositiveControlStatus",
+      "positiveControlObservedPeriodBeats",
+      "sameProtocolOrExplicitEquivalence",
+      "eventSurfacePreservationRequired",
+      "sourceProviderDifferenceOnly",
+      "secondOrderReferenceStillRequired",
+      "requiredEventSurfaces",
+      "closureEquivalenceEvidence",
+      "doesNotSatisfyCurrentNoGo",
+    ],
+    "gate.allowedEntryRoutes.modelcore-equivalent-closure-positive-control.requiredEvidence",
+    issues,
+  );
+  if (
+    requiredEvidence.closureProtocolId !== EXPECTED_MODELCORE_CLOSURE_PROTOCOL_ID
+    || requiredEvidence.closureImplementationStatus !== "not-implemented"
+    || requiredEvidence.routeSatisfactionStatus !== "not-satisfied"
+    || requiredEvidence.sourceProviderRole !== "legacy-activeStress-positive-control"
+    || requiredEvidence.closureEquivalenceToModelCore !== "required-not-yet-demonstrated"
+    || requiredEvidence.legacyPositiveControlStatus !== "period-2-positive-control-pass"
+    || requiredEvidence.positiveControlObservedPeriodBeats !== 2
+    || requiredEvidence.sameProtocolOrExplicitEquivalence !== true
+    || requiredEvidence.eventSurfacePreservationRequired !== true
+    || requiredEvidence.sourceProviderDifferenceOnly !== true
+    || requiredEvidence.secondOrderReferenceStillRequired !== true
+    || !arrayEquals(requiredEvidence.requiredEventSurfaces, MODELCORE_EQUIVALENT_EVENT_SURFACES)
+    || requiredEvidence.closureEquivalenceEvidence !== "qDot, valve, afterload, preload, TBV/projection, pressure-floor, beat-selection, and sampling behavior preserved or explicitly matched"
+    || requiredEvidence.doesNotSatisfyCurrentNoGo !== true
+  ) {
+    addIssue(issues, "error", "phase5c_e_modelcore_equivalent_route", "gate.allowedEntryRoutes.modelcore-equivalent-closure-positive-control.requiredEvidence", "ModelCore-equivalent route must define required period-2 positive-control evidence without implementing or satisfying the current no-go.");
   }
 }
 
@@ -600,13 +677,15 @@ function validateSourceFiles(
   const gate = sourceFiles.find((file) => file.path === PHASE5C_POST_FIDELITY_ENTRY_GATE_PATH);
   const auditEvidence = sourceFiles.find((file) => file.path === PHASE5C_D_FIDELITY_AUDIT_EVIDENCE_PATH);
   const plan = sourceFiles.find((file) => file.path === PHASE5C_POST_FIDELITY_ENTRY_GATE_PLAN_PATH);
+  const modelCorePlan = sourceFiles.find((file) => file.path === PHASE5C_MODELCORE_EQUIVALENT_ROUTE_GATE_PLAN_PATH);
+  const modelCoreProtocol = sourceFiles.find((file) => file.path === MODELCORE_EQUIVALENT_CLOSURE_PROTOCOL_PATH);
   const roadmap = sourceFiles.find((file) => file.path === "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md");
   const readme = sourceFiles.find((file) => file.path === "docs/myocardium/README.md");
-  if (!gate || !auditEvidence || !plan || !roadmap || !readme) {
-    addIssue(issues, "error", "phase5c_e_source_scan", "sourceFiles", "Phase 5C-E gate, Phase 5C-D audit evidence, plan, roadmap, and README must be present.");
+  if (!gate || !auditEvidence || !plan || !modelCorePlan || !modelCoreProtocol || !roadmap || !readme) {
+    addIssue(issues, "error", "phase5c_e_source_scan", "sourceFiles", "Phase 5C-E gate, Phase 5C-D audit evidence, plans, ModelCore-equivalent protocol, roadmap, and README must be present.");
     return;
   }
-  for (const file of [gate, plan, roadmap, readme]) {
+  for (const file of [gate, plan, modelCorePlan, roadmap, readme]) {
     const normalizedText = file.text.replace(/\s+/g, " ");
     for (const token of REQUIRED_SOURCE_TOKENS) {
       if (!normalizedText.includes(token)) {
@@ -617,7 +696,7 @@ function validateSourceFiles(
       validateNoProductionClaims(file.path, file.text, issues);
     }
   }
-  for (const file of [plan, roadmap, readme]) {
+  for (const file of [plan, modelCorePlan, roadmap, readme]) {
     const normalizedText = file.text.replace(/\s+/g, " ");
     validateNoAffirmativeBoundaryProse(
       file.path,
@@ -628,6 +707,15 @@ function validateSourceFiles(
       if (!normalizedText.includes(token)) {
         addIssue(issues, "error", "phase5c_e_source_scan", file.path, `${file.path} must include ${token}.`);
       }
+    }
+  }
+  for (const token of [
+    EXPECTED_MODELCORE_CLOSURE_PROTOCOL_ID,
+    "period-2-positive-control-pass",
+    "sourceProviderDifferenceOnly",
+  ] as const) {
+    if (!modelCoreProtocol.text.includes(token)) {
+      addIssue(issues, "error", "phase5c_e_modelcore_protocol_scan", modelCoreProtocol.path, `ModelCore-equivalent protocol must include ${token}.`);
     }
   }
   for (const token of [
@@ -660,6 +748,7 @@ function phase5CEntryGateBoundaryText(
   issues: ValidationIssue[],
 ): string {
   if (file.path === PHASE5C_POST_FIDELITY_ENTRY_GATE_PLAN_PATH) return file.text;
+  if (file.path === PHASE5C_MODELCORE_EQUIVALENT_ROUTE_GATE_PLAN_PATH) return file.text;
   if (file.path === "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md") {
     return extractRequiredSlice(
       file,

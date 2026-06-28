@@ -11,7 +11,7 @@ Track what each active team lane owns, what it may claim, what is blocked, and w
 
 | Lane | Current state | Current blocker | Next experiment | Must not claim |
 |---|---|---|---|---|
-| myocardium | Phase 5C-D positive-control no-go recorded | same-closure legacy activeStress positive control settles to period-1 | ModelCore-equivalent positive-control closure route | no Land no-alternans acceptance, no runtime replacement, no official morphology pass |
+| myocardium | Phase 5C-H ModelCore-equivalent positive-control closure route recorded as defined-not-satisfied | same-closure legacy activeStress positive control settles to period-1 | ModelCore-equivalent positive-control closure experiment/evidence | no Land no-alternans acceptance, no runtime replacement, no official morphology pass |
 | morphology | PV-loop diagnostics plus current-main baseline snapshot exist | filling comparator is partly uninterpretable due missing E/A-like inflow proxy; arterial Zc/reflection remains signal-gap limited | diagnostic E/A-like inflow proxy; isolated arterial bench | no root-cause acceptance, no fix acceptance, no official morphology pass |
 | atrial bridge | Phase 5.5 shootout plan exists | no shootout runner/candidate results yet | E0/A0/A1 shootout runner | final atrial physiology, AF validation |
 | arterial load | Zc/reflection comparator readiness exists | no isolated bench or direct Zc/reflection signal | isolated arterial bench | production/default Zc adoption |
@@ -27,7 +27,7 @@ Track what each active team lane owns, what it may claim, what is blocked, and w
 
 ## Current top priorities
 
-1. Resolve or replace the Phase 5C positive-control requirement.
+1. Produce evidence for the Phase 5C ModelCore-equivalent positive-control closure route or replace the Phase 5C positive-control requirement.
 2. Add the missing diagnostic E/A-like inflow proxy for filling comparator interpretability.
 3. Define/run an isolated arterial bench.
 4. Keep morphology evidence diagnostic-only when feeding myocardium decisions.
