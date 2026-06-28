@@ -1182,6 +1182,9 @@ function metricRowsForBeat(
     add("peakPressureTimingAsFractionOfEjection", ejectionShape.peakPressureTimingFraction, "dimensionless");
     const outletQDotSpec = valveDiagnosticSpec(chamber === "LV" ? "AoV" : "PV");
     add("qDotClampHitFraction", fraction(ejection, (sample) => valveQDotClampHit(sample, outletQDotSpec)), "dimensionless");
+    add("ejectionDuration", durationSec(ejection), "sec");
+    add("semilunarValveDiodeClampHitFraction", fraction(ejection, (sample) => valveDiodeClampHit(sample, outletQDotSpec)), "dimensionless");
+    add("semilunarDynamicFlowClampHitFraction", fraction(ejection, (sample) => dynamicFlowClampHit(sample, outletQDotSpec)), "dimensionless");
     add("semilunarForwardVolume", integrateClassifiedFlow(ejection, outletFlowMlPerSec, (flow) => Math.max(0, flow)), "mL");
     add("semilunarReverseVolume", integrateClassifiedFlow(ejection, outletFlowMlPerSec, (flow) => Math.max(0, -flow)), "mL");
     add("strokeWork", pvLoopAreaJ(policySamples), "J");
@@ -1825,6 +1828,13 @@ function strokeVolumeMl(samples: ClassifiedSample[]): number {
   if (samples.length === 0) return 0;
   const volumes = samples.map(volumeOf);
   return Math.max(...volumes) - Math.min(...volumes);
+}
+
+function durationSec(samples: ClassifiedSample[]): number {
+  if (samples.length < 2) return 0;
+  const times = samples.map((sample) => sample.tSec).filter(Number.isFinite);
+  if (times.length < 2) return 0;
+  return Math.max(...times) - Math.min(...times);
 }
 
 function integrateClassifiedFlow(

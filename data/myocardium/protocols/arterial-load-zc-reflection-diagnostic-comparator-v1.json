@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "id": "arterial-load-zc-reflection-diagnostic-comparator-v1",
+  "status": "proposed",
+  "claimBoundary": "off-by-default-diagnostic-comparison-only",
+  "purpose": "Define the explicit-CLI artifact contract for comparing existing PV-loop morphology arterial-load ejection-limb diagnostic rows without changing model equations, solver behavior, official cases, default runtime behavior, UI/runtime wiring, package scripts, or Zc/reflection signal availability.",
+  "relatedDocs": [
+    "docs/myocardium/verification/arterial-load-zc-reflection-diagnostic-comparator-v1.md",
+    "docs/myocardium/verification/arterial-load-zc-reflection-comparator-v1.md",
+    "docs/myocardium/verification/arterial-load-morphology-v1.md",
+    "docs/myocardium/verification/pv-loop-morphology-quality.md"
+  ],
+  "dependsOn": [
+    "data/myocardium/protocols/arterial-load-zc-reflection-comparator-v1.json",
+    "data/myocardium/protocols/arterial-load-morphology-v1.json",
+    "data/myocardium/protocols/pv-loop-morphology-quality-v1.json"
+  ],
+  "tool": {
+    "path": "tools/myocardium/buildArterialLoadZcReflectionDiagnosticComparator.ts",
+    "invocation": "npx vite-node tools/myocardium/buildArterialLoadZcReflectionDiagnosticComparator.ts -- --input=artifacts/myocardium/pv-loop-morphology/latest --out=artifacts/myocardium/pv-loop-morphology/latest/arterial-load-zc-reflection-diagnostic-comparator",
+    "packageScriptWiring": "forbidden",
+    "defaultRuntimeWiring": "forbidden",
+    "officialCaseWiring": "forbidden",
+    "uiRuntimeWiring": "forbidden",
+    "modelEquationChange": "forbidden",
+    "solverBehaviorChange": "forbidden",
+    "officialCaseParameterChange": "forbidden",
+    "signalAvailabilityChange": "forbidden"
+  },
+  "inputArtifacts": [
+    "summary.json",
+    "per-case-metrics.csv"
+  ],
+  "outputArtifacts": [
+    "summary.json",
+    "summary.md",
+    "arterial-load-zc-reflection-comparator-groups.csv",
+    "command.txt"
+  ],
+  "readinessBoundaryReference": {
+    "id": "arterial-load-zc-reflection-comparator-v1",
+    "role": "future-readiness-reference-only",
+    "satisfiesReadinessBoundary": false
+  },
+  "identityRequirements": {
+    "requiredFields": [
+      "caseId",
+      "branchId",
+      "beatIndex",
+      "chamber",
+      "samplingMode",
+      "transitionPolicy"
+    ],
+    "rawBeforeResampled": true,
+    "comparativeRawVsResampledRequired": true,
+    "transitionInclusiveAndExcludedRequired": true,
+    "requiredResampledModes": [
+      "uniformBeatGrid",
+      "eventAlignedCore",
+      "coarseSensitivity"
+    ]
+  },
+  "primaryEjectionMetricIds": [
+    "semilunarOpenEjectionSquareness",
+    "ejectionPlateauFraction",
+    "ejectionTopCurvature",
+    "cornerSharpnessAtOpen",
+    "cornerSharpnessAtClose",
+    "incisuraPresenceScore",
+    "arterialPressureIncisuraDepth",
+    "peakPressureTimingAsFractionOfEjection",
+    "eventCorrelationWindowHitFraction"
+  ],
+  "missingNoProxySignals": [
+    {
+      "name": "characteristicImpedancePaSecPerM3",
+      "status": "missing-no-proxy",
+      "proxyPolicy": "forbidden",
+      "promotesHypothesis": false
+    },
+    {
+      "name": "arterialReflectionCoefficient",
+      "status": "missing-no-proxy",
+      "proxyPolicy": "forbidden",
+      "promotesHypothesis": false
+    },
+    {
+      "name": "arterialReflectionDelaySec",
+      "status": "missing-no-proxy",
+      "proxyPolicy": "forbidden",
+      "promotesHypothesis": false
+    }
+  ],
+  "antiGamingReadouts": [
+    "strokeVolumeM3",
+    "cardiacOutputM3PerSec",
+    "strokeWorkJ",
+    "peakPressurePa",
+    "ejectionDurationSec",
+    "semilunarForwardVolumeM3",
+    "semilunarReverseVolumeM3",
+    "qDotClampHitFraction",
+    "valveDiodeClampHitFraction",
+    "dynamicFlowClampHitFraction"
+  ],
+  "conversionPolicy": {
+    "mL": "m3",
+    "L/min": "m3/s",
+    "mmHg": "Pa",
+    "strokeWork": "already-J"
+  },
+  "interpretabilityRule": "A comparator group is interpretable only when raw-before-resampled evidence, matched resampled evidence, transition-inclusive and transition-excluded-core evidence, explicit missing/no-proxy Zc/reflection records, and all anti-gaming readouts are available for the same caseId, branchId, beatIndex, chamber, samplingMode, and transitionPolicy identity. Missing Zc/reflection values must be reported as missing/no-proxy rather than inferred.",
+  "claimExclusions": {
+    "acceptedRootCause": "not-claimed",
+    "fixAcceptance": "not-claimed",
+    "officialMorphologyPass": "not-claimed",
+    "productionRuntimeReadiness": "not-claimed",
+    "defaultRuntimeAdoption": "not-claimed",
+    "officialCaseWiring": "not-claimed",
+    "zcReflectionProxyInference": "forbidden"
+  }
+}

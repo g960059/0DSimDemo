@@ -568,6 +568,9 @@ describe("PV-loop morphology quality runner helpers", () => {
       "fillingInletQDotClampHitFraction",
       "fillingInletValveDiodeClampHitFraction",
       "fillingInletDynamicFlowClampHitFraction",
+      "ejectionDuration",
+      "semilunarValveDiodeClampHitFraction",
+      "semilunarDynamicFlowClampHitFraction",
       "atrialKickBoosterPreservation",
       "lvRvAsymmetryIndex",
     ]));
@@ -605,6 +608,100 @@ describe("PV-loop morphology quality runner helpers", () => {
     expect(rawCore("RV", "fillingInletDynamicFlowClampHitFraction")?.value).toBeGreaterThan(0);
     expect(rawCore("LV", "atrialKickBoosterPreservation")?.value).toBe(1);
     expect(rawCore("RV", "atrialKickBoosterPreservation")?.value).toBe(1);
+  });
+
+  it("emits semilunar ejection anti-gaming readout metrics from raw-core samples", () => {
+    const rows = metricRowsForSamplesForTest([
+      sample({
+        sourceIndex: 0,
+        tSec: 0.00,
+        theta: 0.30,
+        xiMV: 0,
+        xiAoV: 1,
+        xiTV: 0,
+        xiPV: 1,
+        QMV: 0,
+        QAo: 120,
+        QTV: 0,
+        QPV: 110,
+        VLV: 130,
+        VRV: 128,
+        dVLVdt: -30,
+        dVRVdt: -28,
+        AoV_qDotClampHit01: 1,
+        AoV_diodeImpulse: 3,
+        AoV_flowClampImpulse: 4,
+        PV_qDotClampHit01: 1,
+        PV_diodeImpulse: 2,
+        PV_flowClampImpulse: 5,
+      }),
+      sample({
+        sourceIndex: 1,
+        tSec: 0.01,
+        theta: 0.36,
+        xiMV: 0,
+        xiAoV: 1,
+        xiTV: 0,
+        xiPV: 1,
+        QMV: 0,
+        QAo: 100,
+        QTV: 0,
+        QPV: 96,
+        VLV: 124,
+        VRV: 122,
+        dVLVdt: -24,
+        dVRVdt: -22,
+      }),
+      sample({
+        sourceIndex: 2,
+        tSec: 0.02,
+        theta: 0.42,
+        xiMV: 0,
+        xiAoV: 1,
+        xiTV: 0,
+        xiPV: 1,
+        QMV: 0,
+        QAo: 90,
+        QTV: 0,
+        QPV: 86,
+        VLV: 118,
+        VRV: 116,
+        dVLVdt: -22,
+        dVRVdt: -20,
+      }),
+      sample({
+        sourceIndex: 3,
+        tSec: 0.03,
+        theta: 0.48,
+        xiMV: 0,
+        xiAoV: 1,
+        xiTV: 0,
+        xiPV: 1,
+        QMV: 0,
+        QAo: 70,
+        QTV: 0,
+        QPV: 66,
+        VLV: 112,
+        VRV: 110,
+        dVLVdt: -20,
+        dVRVdt: -18,
+      }),
+    ]);
+    const rawCore = (chamber: "LV" | "RV", metricId: string) => rows.find((row) => (
+      row.chamber === chamber
+      && row.metricId === metricId
+      && row.samplingMode === "raw"
+      && row.transitionPolicy === "transition-excluded-core"
+    ));
+
+    expect(rawCore("LV", "ejectionDuration")?.value).toBeCloseTo(0.03);
+    expect(rawCore("RV", "ejectionDuration")?.value).toBeCloseTo(0.03);
+    expect(rawCore("LV", "qDotClampHitFraction")?.value).toBeGreaterThan(0);
+    expect(rawCore("LV", "semilunarValveDiodeClampHitFraction")?.value).toBeGreaterThan(0);
+    expect(rawCore("LV", "semilunarDynamicFlowClampHitFraction")?.value).toBeGreaterThan(0);
+    expect(rawCore("RV", "qDotClampHitFraction")?.value).toBeGreaterThan(0);
+    expect(rawCore("RV", "semilunarValveDiodeClampHitFraction")?.value).toBeGreaterThan(0);
+    expect(rawCore("RV", "semilunarDynamicFlowClampHitFraction")?.value).toBeGreaterThan(0);
   });
 
   it("writes artifact headers that include the target-pack required fields", () => {
