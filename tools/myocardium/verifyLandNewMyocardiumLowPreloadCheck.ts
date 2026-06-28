@@ -170,7 +170,7 @@ export function validateLandNewMyocardiumLowPreloadCheck(
   const issues: ValidationIssue[] = [];
 
   validateReport(input.report, issues);
-  validateDescriptor(input.descriptor, issues);
+  validateDescriptor(input.descriptor, input.report, issues);
   validateAlternansPolicy(input.alternansPolicyDescriptor, issues);
   validateSourceFiles(input.sourceFiles, issues);
   validateRuntimeIntegrationScan(input.runtimeIntegrationFiles, issues);
@@ -282,6 +282,7 @@ function validateReport(
   validateLandRun(report.landNewMyocardiumRun, report.legacyPositiveControl, issues);
   validateMorphology(report.landNewMyocardiumRun.morphology, issues);
   validatePolicyBoundary(report, issues);
+  validateAdvancementBlock(report, issues);
   validateReadOnlyPins(report, issues);
   validateNonClaims(report, issues);
   validateNoProductionClaims("report", JSON.stringify(report), issues);
@@ -509,6 +510,26 @@ function validatePolicyBoundary(
   }
 }
 
+function validateAdvancementBlock(
+  report: LandNewMyocardiumLowPreloadCheckReport,
+  issues: ValidationIssue[],
+): void {
+  if (report.policyBoundary.legacyPositiveControlStatus !== "positive-control-failed") return;
+  if (
+    report.readinessPass !== false
+    || report.readinessStatus !== "land-new-myocardium-low-preload-check-review"
+    || report.legacyPositiveControl.branchBehavior.settlingStatus !== "settled-period-1"
+    || report.legacyPositiveControl.branchBehavior.periodBeats !== 1
+    || report.legacyPositiveControl.branchBehavior.adjacentDelta > 0.1
+    || report.policyBoundary.newMyocardiumCheckStatus !== "not-performed-positive-control-failed"
+    || report.newMyocardiumCheckRequiredSatisfied !== false
+    || report.secondOrderSameProtocolStatus !== "not-performed"
+    || report.finalNoAlternansClaim !== "not-claimed"
+  ) {
+    addIssue(issues, "error", "phase5c_c_advancement_block", "report", "When the same-closure legacy positive control fails period-2, artifactGate must remain failed and Land/no-alternans/second-order advancement must remain blocked.");
+  }
+}
+
 function validateReadOnlyPins(
   report: LandNewMyocardiumLowPreloadCheckReport,
   issues: ValidationIssue[],
@@ -553,6 +574,7 @@ function validateNonClaims(
 
 function validateDescriptor(
   descriptor: unknown,
+  report: LandNewMyocardiumLowPreloadCheckReport,
   issues: ValidationIssue[],
 ): void {
   if (!isRecord(descriptor)) {
@@ -594,13 +616,25 @@ function validateDescriptor(
   }
   const status = isRecord(descriptor.policyStatuses) ? descriptor.policyStatuses : {};
   if (
-    status.newMyocardiumCheckRequiredSatisfied !== false
+    status.legacyReproductionStatus !== report.policyBoundary.legacyReproductionStatus
+    || status.legacyPositiveControlStatus !== report.policyBoundary.legacyPositiveControlStatus
+    || status.positiveControlBranchStatus !== report.legacyPositiveControl.branchBehavior.settlingStatus
+    || status.positiveControlObservedPeriodBeats !== report.legacyPositiveControl.branchBehavior.periodBeats
+    || status.artifactGateExpectedPass !== report.readinessPass
+    || status.artifactGateFailureFinding !== "legacy-activeStress-positive-control-v1"
+    || status.landRunInterpretation !== "not-interpretable-positive-control-failed"
+    || status.newMyocardiumCheckRequiredSatisfied !== false
     || status.secondOrderSameProtocolStatus !== "not-performed"
+    || status.sameProtocolSecondOrderAdvancementStatus !== "blocked-until-positive-control-period2"
     || status.phase5BReadOnlySdirk2Status
       !== "solver-reference-available-not-same-protocol"
     || status.finalNoAlternansClaim !== "not-claimed"
+    || typeof status.advancementBlockReason !== "string"
+    || !/positive control/i.test(status.advancementBlockReason)
+    || !/period-1/i.test(status.advancementBlockReason)
+    || !/period-2/i.test(status.advancementBlockReason)
   ) {
-    addIssue(issues, "error", "phase5c_c_descriptor_policy_status", "descriptor.policyStatuses", "Descriptor must keep the policy-required final check unsatisfied.");
+    addIssue(issues, "error", "phase5c_c_advancement_block", "descriptor.policyStatuses", "Descriptor must encode the current positive-control failure and block Land/no-alternans/second-order advancement while artifactGate is failed.");
   }
   const requiredScripts = Array.isArray(descriptor.requiredVerificationScripts)
     ? descriptor.requiredVerificationScripts

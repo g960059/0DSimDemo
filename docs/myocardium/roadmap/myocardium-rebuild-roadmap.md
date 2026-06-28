@@ -327,7 +327,17 @@ production tissue homogenization.
 - scope: add a standalone selected-v2 + Land low-preload artifact that generates its own LV trajectory with a declared preload/afterload surrogate, rather than replaying the Phase 5C-A legacy VLV trace
 - positive control: the same surrogate closure must reproduce period-2 branch behavior with a state-dependent legacy activeStress source provider before the Land run can be interpreted as BE smoke evidence
 - morphology: report named LVP/AoP/QAo pressure morphology metrics as `reported-not-official`; do not call or claim the full ModelCore official morphology gate
+- current outcome: validation PASS / artifactGate FAIL because the faithful same-closure legacy activeStress positive control is finite but settles to period-1, so the Land generated trajectory is not interpretable as no-alternans evidence
 - boundary: no ModelCore/chamber/case/workbench wiring, no official morphology pass, `newMyocardiumCheckRequiredSatisfied=false`, `secondOrderSameProtocolStatus=not-performed`, no final robust no-alternans, no RV pressure overload/interdependence/RHF coverage, and no TriSeg adoption
+
+### Phase 5C-D — positive-control fidelity audit
+
+- plan: [phase5c-positive-control-fidelity-audit-plan.md](phase5c-positive-control-fidelity-audit-plan.md)
+- scope: encode the Phase 5C-C positive-control no-go as a fidelity audit over the existing artifact, not as a duplicated surrogate or parallel verifier
+- gate script: `npm run verify:myocardium-land-new-myocardium-low-preload-check`
+- current branch: Phase 5C-A read-only legacy reproduction remains period-2 and pinned; Phase 5C-C same-closure legacy activeStress positive control remains `settled-period-1`; Phase 5C-C artifactGate is expected to remain failed while that positive control fails period-2 thresholds
+- advancement block: the Land generated run is not interpretable as no-alternans evidence, same-protocol second-order advancement remains blocked, and final no-alternans remains not claimed until the same closure reproduces the legacy period-2 positive control or a later owner-approved replacement criterion supersedes it
+- boundary: no new engine closure, no ModelCore/chamber/case/workbench wiring, no qDot/valve/arterial-load tuning, no official morphology pass, no robust no-alternans, no RV pressure overload/interdependence/RHF coverage, and no TriSeg adoption
 
 ### Phase 5C+ — deferred stable-coupling work
 

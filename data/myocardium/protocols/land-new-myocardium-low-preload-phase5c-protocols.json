@@ -186,10 +186,18 @@
   },
   "policyStatuses": {
     "legacyReproductionStatus": "read-only-present-pinned",
+    "legacyPositiveControlStatus": "positive-control-failed",
+    "positiveControlBranchStatus": "settled-period-1",
+    "positiveControlObservedPeriodBeats": 1,
+    "artifactGateExpectedPass": false,
+    "artifactGateFailureFinding": "legacy-activeStress-positive-control-v1",
+    "landRunInterpretation": "not-interpretable-positive-control-failed",
     "newMyocardiumCheckRequiredSatisfied": false,
     "secondOrderSameProtocolStatus": "not-performed",
+    "sameProtocolSecondOrderAdvancementStatus": "blocked-until-positive-control-period2",
     "phase5BReadOnlySdirk2Status": "solver-reference-available-not-same-protocol",
-    "finalNoAlternansClaim": "not-claimed"
+    "finalNoAlternansClaim": "not-claimed",
+    "advancementBlockReason": "The same-closure legacy activeStress positive control currently settles to period-1 instead of reproducing the fixed Phase 5C-A period-2 branch, so the Land generated trajectory cannot be interpreted as no-alternans evidence."
   },
   "protocolSettings": {
     "useRuntimeReplacement": false,
