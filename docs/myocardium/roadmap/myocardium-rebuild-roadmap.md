@@ -482,6 +482,14 @@ production tissue homogenization.
 - boundary: education-tool-report-only; no runtime replacement, no official case wiring, no Workbench runtime wiring, no Level 3/4 acceptance, no official morphology acceptance, no final no-alternans, no structural alternans removal, and no qDot/valve/afterload/preload/Land-parameter tuning.
 - next: decide whether this checkpoint is sufficient to authorize a developer-only LV Land runtime-flag design RFC before any case/workbench/official runtime wiring.
 
+### Phase 5U — developer-only LV Land runtime-flag RFC
+
+- result artifact: `data/myocardium/protocols/myocardium-developer-only-lv-land-runtime-flag-rfc-v1.json`
+- verifier: `npm run verify:myocardium-developer-only-lv-land-runtime-flag-rfc`
+- current outcome: the RFC defines a tool-only helper that creates LV-only experimental ModelCore active-source provider options from the Phase 5C-Q `phase2b-absolute-peak-ca` mapping after an explicit developer-only acknowledgement, then smoke-checks that ModelCore exposes the provider through debug state. The artifact is `rfc-draft-owner-decision-needed` and `accepted: false`.
+- boundary: developer-only-runtime-flag-rfc-no-runtime-wiring; no runtime replacement, no production registry integration, no official case wiring, no Workbench runtime wiring, no runtime flag UI, no state-schema migration, no Level 3/4 acceptance, no official morphology acceptance, no final no-alternans, and no structural alternans-removal claim.
+- next: owner GO/NO-GO on implementing a non-production developer-only LV Land runtime flag. A GO still must keep official cases, Workbench, production registries, and state schema blocked until separately accepted.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison
