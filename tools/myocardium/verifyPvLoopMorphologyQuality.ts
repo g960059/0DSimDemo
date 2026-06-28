@@ -1155,6 +1155,10 @@ function metricRowsForBeat(
     add("lowerLimbMonotonicityViolationFraction", monotonicityViolationFraction(filling), "dimensionless");
     add("flowChatterCount", chatterCount(filling.map(inletFlowMlPerSec)), "countPerBeat");
     add("valveOpenCloseChatterCount", chatterCount(filling.map(inletOpen01)), "countPerBeat");
+    const inletQDotSpec = valveDiagnosticSpec(chamber === "LV" ? "MV" : "TV");
+    add("fillingInletQDotClampHitFraction", fraction(filling, (sample) => valveQDotClampHit(sample, inletQDotSpec)), "dimensionless");
+    add("fillingInletValveDiodeClampHitFraction", fraction(filling, (sample) => valveDiodeClampHit(sample, inletQDotSpec)), "dimensionless");
+    add("fillingInletDynamicFlowClampHitFraction", fraction(filling, (sample) => dynamicFlowClampHit(sample, inletQDotSpec)), "dimensionless");
     add("pressureFloorHitFraction", fraction(filling, pressureFloorHit), "dimensionless");
     add("inletForwardVolume", integrateClassifiedFlow(filling, inletFlowMlPerSec, (flow) => Math.max(0, flow)), "mL");
     add("inletReverseVolume", integrateClassifiedFlow(filling, inletFlowMlPerSec, (flow) => Math.max(0, -flow)), "mL");
@@ -1163,6 +1167,7 @@ function metricRowsForBeat(
     add("CO", strokeVolumeMl(policySamples) * hr / 1000, "L/min");
     add("meanAtrialPressure", meanOf(policySamples, atrialPressureOf), "mmHg");
     add("EAInflowProxy", eOverAProxy(policySamples), "dimensionless");
+    add("atrialKickBoosterPreservation", atrialKickBoosterPreservation(policySamples, chamber), "dimensionless");
 
     const ejectionShape = ejectionShapeMetrics(ejection);
     add("semilunarOpenEjectionSquareness", ejectionShape.squareness, "dimensionless", ejectionLabels(ejectionShape, chamber));
@@ -1232,11 +1237,19 @@ function valveQDotClampHit(sample: AnalysisSample, spec: ValveDiagnosticSpec): b
     || Math.abs(Number(sample[spec.rawKey]) - Number(sample[spec.postKey])) > PV_LOOP_CLASSIFICATION_PROFILE.qDotRawPostDivergenceMin;
 }
 
+function valveDiodeClampHit(sample: AnalysisSample, spec: ValveDiagnosticSpec): boolean {
+  return Math.abs(Number(sample[spec.diodeImpulseKey])) > PV_LOOP_CLASSIFICATION_PROFILE.clampImpulseAbsMin;
+}
+
+function dynamicFlowClampHit(sample: AnalysisSample, spec: ValveDiagnosticSpec): boolean {
+  return Math.abs(Number(sample[spec.flowClampImpulseKey])) > PV_LOOP_CLASSIFICATION_PROFILE.clampImpulseAbsMin;
+}
+
 function valveDiagnosticEventHit(sample: AnalysisSample, spec: ValveDiagnosticSpec): boolean {
   return valveQDotClampHit(sample, spec)
     || Math.abs(Number(sample[spec.clampImpulseKey])) > PV_LOOP_CLASSIFICATION_PROFILE.qDotRawPostDivergenceMin
-    || Math.abs(Number(sample[spec.diodeImpulseKey])) > PV_LOOP_CLASSIFICATION_PROFILE.clampImpulseAbsMin
-    || Math.abs(Number(sample[spec.flowClampImpulseKey])) > PV_LOOP_CLASSIFICATION_PROFILE.clampImpulseAbsMin;
+    || valveDiodeClampHit(sample, spec)
+    || dynamicFlowClampHit(sample, spec);
 }
 
 function valveDiodeClampHitCount(sample: AnalysisSample): number {
@@ -1847,6 +1860,17 @@ function eOverAProxy(samples: ClassifiedSample[]): number | null {
   return e != null && a != null && Math.abs(a) > PV_LOOP_CLASSIFICATION_PROFILE.eOverAProxyDenominatorEps
     ? e / a
     : null;
+}
+
+function atrialKickBoosterPreservation(samples: ClassifiedSample[], chamber: Chamber): number | null {
+  const atrialPeak = maxOf(samples.filter((sample) => sample.phase === "atrial-kick"), (sample) => atrialActivationOf(sample, chamber));
+  const beatPeak = maxOf(samples, (sample) => atrialActivationOf(sample, chamber));
+  if (beatPeak == null || beatPeak <= 0) return null;
+  return Math.max(0, Math.min(1, (atrialPeak ?? 0) / beatPeak));
+}
+
+function atrialActivationOf(sample: ClassifiedSample, chamber: Chamber): number {
+  return chamber === "LV" ? sample.aLA : sample.aRA;
 }
 
 function chatterCount(values: number[]): number {

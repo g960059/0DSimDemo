@@ -159,6 +159,7 @@ export function buildFillingLimbDiagnosticComparison(
   const groups = groupKeys.map((key) => buildGroup(
     key,
     metricRows.filter((row) => groupKey(row) === key),
+    metricRows,
   ));
   const warnings: string[] = [];
   if (groups.length === 0) {
@@ -224,7 +225,11 @@ export function writeFillingLimbDiagnosticComparisonArtifacts(
   writeFileSync(path.join(outDir, "command.txt"), `${process.argv.join(" ")}\n`);
 }
 
-function buildGroup(key: string, rows: readonly ComparatorMetricRow[]): ComparatorGroup {
+function buildGroup(
+  key: string,
+  rows: readonly ComparatorMetricRow[],
+  allRows: readonly ComparatorMetricRow[],
+): ComparatorGroup {
   const [caseId, branchId, beatIndexText, chamberText] = key.split("\t");
   const chamberCandidate = chamberValue(chamberText);
   if (chamberCandidate === "LV/RV") {
@@ -241,7 +246,13 @@ function buildGroup(key: string, rows: readonly ComparatorMetricRow[]): Comparat
   const resampledModes = RESAMPLED_MODES.filter((mode) => (
     hasSharedFiniteMetric(rawTransitionExcludedCore, resampled[mode])
   ));
-  const readouts = REQUIRED_ANTI_GAMING_READOUTS.map((name) => antiGamingReadout(name, rows, chamber));
+  const contextRows = allRows.filter((row) => (
+    row.caseId === caseId
+    && row.branchId === branchId
+    && row.beatIndex === Number(beatIndexText)
+    && (row.chamber === "LV" || row.chamber === "RV")
+  ));
+  const readouts = REQUIRED_ANTI_GAMING_READOUTS.map((name) => antiGamingReadout(name, rows, contextRows, chamber));
   const identity = {
     requiredFields: REQUIRED_IDENTITY_FIELDS,
     rowsHaveRequiredIdentity: rows.every(rowHasRequiredIdentity),
@@ -285,13 +296,14 @@ function buildGroup(key: string, rows: readonly ComparatorMetricRow[]): Comparat
 function antiGamingReadout(
   name: typeof REQUIRED_ANTI_GAMING_READOUTS[number],
   rows: readonly ComparatorMetricRow[],
+  contextRows: readonly ComparatorMetricRow[],
   chamber: Chamber,
 ): ComparatorReadout {
-  const metric = metricForReadout(name, chamber);
-  if (!metric) {
-    return missingReadout(name, "No chamber-local source metric is emitted by the morphology runner.");
-  }
-  const row = bestMetricRow(rows, metric.metricId);
+  const metric = metricForReadout(name);
+  const sourceRows = metric.sourceChamber == null
+    ? rows
+    : contextRows.filter((row) => row.chamber === metric.sourceChamber);
+  const row = bestMetricRow(sourceRows, metric.metricId);
   if (!row || row.value == null) {
     return missingReadout(name, `Source metric ${metric.metricId} is unavailable.`);
   }
@@ -307,13 +319,13 @@ function antiGamingReadout(
 
 function metricForReadout(
   name: typeof REQUIRED_ANTI_GAMING_READOUTS[number],
-  chamber: Chamber,
 ): {
   readonly metricId: string;
   readonly unit: string;
   readonly note: string;
+  readonly sourceChamber?: Chamber;
   readonly convert: (value: number) => number;
-} | null {
+} {
   switch (name) {
     case "endDiastolicVolumeM3":
       return { metricId: "EDV", unit: "m3", note: "Converted from EDV mL.", convert: mlToM3 };
@@ -322,13 +334,9 @@ function metricForReadout(
     case "cardiacOutputM3PerSec":
       return { metricId: "CO", unit: "m3/s", note: "Converted from CO L/min.", convert: litersPerMinToM3PerSec };
     case "meanLeftAtrialPressurePa":
-      return chamber === "LV"
-        ? { metricId: "meanAtrialPressure", unit: "Pa", note: "LV chamber row uses LA pressure.", convert: mmHgToPa }
-        : null;
+      return { metricId: "meanAtrialPressure", unit: "Pa", note: "Uses the LV raw-core row as the LA pressure source.", sourceChamber: "LV", convert: mmHgToPa };
     case "meanRightAtrialPressurePa":
-      return chamber === "RV"
-        ? { metricId: "meanAtrialPressure", unit: "Pa", note: "RV chamber row uses RA pressure.", convert: mmHgToPa }
-        : null;
+      return { metricId: "meanAtrialPressure", unit: "Pa", note: "Uses the RV raw-core row as the RA pressure source.", sourceChamber: "RV", convert: mmHgToPa };
     case "eaLikeInflowProxy":
       return { metricId: "EAInflowProxy", unit: "dimensionless", note: "Direct runner metric.", convert: identity };
     case "inletForwardVolumeM3":
@@ -338,10 +346,13 @@ function metricForReadout(
     case "pressureFloorHitFraction":
       return { metricId: "pressureFloorHitFraction", unit: "dimensionless", note: "Direct runner metric.", convert: identity };
     case "qDotClampHitFraction":
+      return { metricId: "fillingInletQDotClampHitFraction", unit: "dimensionless", note: "Direct filling-inlet runner metric.", convert: identity };
     case "valveDiodeClampHitFraction":
+      return { metricId: "fillingInletValveDiodeClampHitFraction", unit: "dimensionless", note: "Direct filling-inlet runner metric.", convert: identity };
     case "dynamicFlowClampHitFraction":
+      return { metricId: "fillingInletDynamicFlowClampHitFraction", unit: "dimensionless", note: "Direct filling-inlet runner metric.", convert: identity };
     case "atrialKickBoosterPreservation":
-      return null;
+      return { metricId: "atrialKickBoosterPreservation", unit: "dimensionless", note: "Direct runner metric from atrial activation during atrial-kick samples.", convert: identity };
   }
 }
 
