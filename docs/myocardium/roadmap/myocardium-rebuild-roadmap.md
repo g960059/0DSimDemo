@@ -447,6 +447,15 @@ production tissue homogenization.
 - boundary: no runtime replacement, no official morphology acceptance, no final no-alternans, no structural alternans removal claim, no qDot/valve/afterload/preload tuning, no Land parameter tuning, no chamber/case/workbench/state-schema production adoption, and no TriSeg adoption.
 - next: audit the legacy active internal `c` to Land free-calcium unit/source mapping, then run SDIRK2 reference evidence before any final no-alternans interpretation.
 
+### Phase 5C-Q — Land calcium unit/source-interface audit
+
+- result artifact: `data/myocardium/protocols/modelcore-land-calcium-unit-interface-audit-result-v1.json`
+- verifier: `npm run verify:myocardium-modelcore-land-calcium-unit-interface-audit`
+- current outcome: the pinned low-preload point and the Phase 5C-N best-Land point are rerun under the same non-provider closure with direct, fixed unit-style, activation-equivalent diagnostic, and Phase 5C-P reference calcium mappings. All 14 mapped Land points converge, have zero Land solve failures, and record source/commit/calcium mapping audit samples.
+- interpretation: `simple-unit-mapping-sufficient`. The pinned legacy LV `c` peak is 0.1523, so the Phase 2B absolute peak free-calcium mapping uses scale 6.70 and the Land CaT50Ref peak mapping uses scale 5.28. The `phase2b-absolute-peak-ca` simple unit-style calcium mapping reaches the coarse legacy output/qDot regime at `delta=-1250` while Land remains period-1. Phase 5C-P scale 30 remains a positive-control reference, not a required scale.
+- boundary: no runtime replacement, no official morphology acceptance, no final no-alternans, no structural alternans removal claim, no qDot/valve/afterload/preload tuning, no Land parameter tuning, no source-stress scaling, no chamber/case/workbench/state-schema production adoption, and no TriSeg adoption.
+- next: run SDIRK2 reference evidence for the legacy pinned/raw Land/audited calcium mapping candidate before final no-alternans interpretation, then stop extending alternans mechanism subphases and move toward Level 1-4 operating-point calibration plus an education-tool Definition of Done checkpoint.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison
