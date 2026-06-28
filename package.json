@@ -51,6 +51,7 @@
     "verify:myocardium-modelcore-land-sdirk2-reference": "vite-node tools/myocardium/verifyModelCoreLandSdirk2Reference.ts",
     "verify:myocardium-modelcore-land-operating-point-calibration": "vite-node tools/myocardium/verifyModelCoreLandOperatingPointCalibration.ts",
     "verify:myocardium-education-tool-dod-checkpoint": "vite-node tools/myocardium/verifyEducationToolDefinitionOfDoneCheckpoint.ts",
+    "verify:myocardium-developer-only-lv-land-runtime-flag-rfc": "vite-node tools/myocardium/verifyDeveloperOnlyLvLandRuntimeFlagRfc.ts",
     "verify:starling-low-preload-matrix": "STARLING_LOW_PRELOAD_MATRIX_MAIN=1 vite-node tools/verifyStarlingLowPreloadMatrix.ts",
     "debug:starling-low-preload": "STARLING_LOW_PRELOAD_DEBUG_MAIN=1 vite-node tools/debugStarlingLowPreload.ts",
     "fit:left-filling": "vite-node tools/fitLeftFilling.ts",

@@ -796,6 +796,18 @@ and `accepted: false`; runtime, case, and Workbench wiring are absent. The next
 allowed step is a developer-only LV Land runtime-flag design RFC before any
 official case/workbench/runtime wiring.
 
+Phase 5U records that developer-only LV Land runtime-flag RFC. The recorded
+result is
+[`../../data/myocardium/protocols/myocardium-developer-only-lv-land-runtime-flag-rfc-v1.json`](../../data/myocardium/protocols/myocardium-developer-only-lv-land-runtime-flag-rfc-v1.json).
+Run `npm run verify:myocardium-developer-only-lv-land-runtime-flag-rfc` to check
+the artifact against the live helper and a ModelCore smoke construction. The
+helper builds LV-only experimental provider options from the Phase 5C-Q
+`phase2b-absolute-peak-ca` calcium mapping and requires the explicit
+developer-only acknowledgement; it does not wire official cases, Workbench,
+state schema, runtime UI, or production registries. The artifact remains
+`rfc-draft-owner-decision-needed`, `accepted: false`, and owner decision is still
+required before any developer-only implementation beyond the tools helper.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and
