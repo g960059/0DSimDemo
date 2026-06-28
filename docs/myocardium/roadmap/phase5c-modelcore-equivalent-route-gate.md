@@ -56,6 +56,7 @@ Required verifier:
 npm run verify:myocardium-phase5c-post-fidelity-entry-gate
 npm run verify:myocardium-modelcore-active-provider-state-lifecycle
 npm run verify:myocardium-modelcore-active-source-pressure-adapter
+npm run verify:myocardium-modelcore-paired-land-source-provider
 ```
 
 Source no-go evidence:
@@ -105,11 +106,19 @@ modelcore-equivalent-closure-positive-control
 owner-approved-replacement-criterion
 ```
 
-The new route has `status=defined-not-satisfied`. It keeps
-`blocked-until-positive-control-period2` as the active advancement state until
-the paired source-provider evidence is complete.
+The ModelCore-equivalent route was `defined-not-satisfied` through Phase 5C-H
+and remained partial through Phase 5C-I/K while the experimental hook and
+source-only adapter preconditions were built. Phase 5C-L now records
+`status=satisfied-experimental-paired-land-run` and
+`routeSatisfactionStatus=satisfied-paired-land-provider-run-finite` for the
+paired-result interpretation route only. This unlocks interpretation of the
+paired evidence; it does not unlock final no-alternans acceptance, official
+morphology acceptance, runtime replacement, schema migration, or case/workbench
+wiring. It supersedes the earlier `blocked-until-positive-control-period2`
+advancement block for this route; advancement is now constrained by
+`second-order-reference-required` before any stronger physiology claim.
 
-Future evidence fields required for the ModelCore-equivalent route include:
+Evidence fields required for the ModelCore-equivalent paired route include:
 
 ```text
 closureProtocolId=modelcore-equivalent-positive-control-closure-v1
