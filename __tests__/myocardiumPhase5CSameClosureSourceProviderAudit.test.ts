@@ -142,10 +142,25 @@ describe("myocardium Phase 5C-G same-closure source-provider audit", () => {
     expect(validation.errors.map((issue) => issue.code)).toContain("phase5c_g_forbidden_claim");
   });
 
-  it("fails validation if the diff includes runtime or workbench changes", () => {
+  it("does not apply the Phase 5C-G diff allowlist to unrelated PR diffs", () => {
     const input = fixture();
     input.changedFilePaths = [
-      ...input.changedFilePaths,
+      "__tests__/pvLoopFillingLimbDiagnosticComparator.test.ts",
+      "data/myocardium/protocols/filling-limb-diagnostic-comparator-v1.json",
+      "docs/myocardium/verification/filling-limb-diagnostic-comparator-v1.md",
+      "tools/myocardium/buildFillingLimbDiagnosticComparator.ts",
+    ];
+
+    const validation = validatePhase5CSameClosureSourceProviderAudit(input);
+
+    expect(validation.pass).toBe(true);
+    expect(validation.errors.map((issue) => issue.code)).not.toContain("phase5c_g_changed_file_scope");
+  });
+
+  it("fails validation if a Phase 5C-G PR diff includes runtime or workbench changes", () => {
+    const input = fixture();
+    input.changedFilePaths = [
+      PHASE5C_G_SOURCE_PROVIDER_AUDIT_PLAN_PATH,
       "engine/myocardium/protocols/landNewMyocardiumLowPreloadCheck.ts",
       "WorkbenchPage.tsx",
     ];
@@ -154,6 +169,25 @@ describe("myocardium Phase 5C-G same-closure source-provider audit", () => {
 
     expect(validation.pass).toBe(false);
     expect(validation.errors.map((issue) => issue.code)).toContain("phase5c_g_changed_file_scope");
+  });
+
+  it("fails validation if Phase 5C-G companion-file diffs include runtime or workbench changes", () => {
+    for (const companionPath of [
+      "docs/myocardium/README.md",
+      "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
+      "package.json",
+    ]) {
+      const input = fixture();
+      input.changedFilePaths = [
+        companionPath,
+        "WorkbenchPage.tsx",
+      ];
+
+      const validation = validatePhase5CSameClosureSourceProviderAudit(input);
+
+      expect(validation.pass).toBe(false);
+      expect(validation.errors.map((issue) => issue.code)).toContain("phase5c_g_changed_file_scope");
+    }
   });
 
   it("loads deleted runtime files from git changed paths", () => {
