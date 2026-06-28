@@ -56,6 +56,9 @@ npm run verify:myocardium-atrial-bridge-shootout
 
 The script emits metrics only. It does not auto-select the bridge.
 
+Status: implemented as part of the measured Phase 5.5 shootout result in
+`data/myocardium/protocols/atrial-bridge-shootout-phase5p5-result-v1.json`.
+
 ### PR 5.5D — candidate implementation or wrappers
 
 Implement or wrap:
@@ -67,6 +70,26 @@ A1: atrial-reservoir-booster-bridge-v1
 ```
 
 A0 must be quarantined and cannot reintroduce old LV/RV active-stress behavior.
+
+Status: implemented for the Phase 5.5 experiment as experimental LA/RA
+provider wrappers only. No production atrial bridge wiring, official case
+reauthoring, Workbench runtime wiring, state schema migration, atrial Land/RDQ
+implementation, AF validation, or final atrial physiology claim is unlocked.
+
+Measured result summary:
+
+- E0/A0/A1 all ran under the same isolated LA/RA protocols and the same
+  closed-loop smoke points.
+- Normal, low-preload, and high-preload closed-loop smoke points settled for
+  all candidates.
+- High-HR reached the 120 s cap for all candidates.
+- A1 preserved booster/A-loop structure and did not worsen qDot clamp fraction
+  relative to A0, but it worsened valve diode hit counts versus A0 in at least
+  one smoke point, did not pass the settled-point atrial loop repeatability
+  gate, and did not show sampling-invariant isolated roughness ordering.
+- No recommendation is made while the high-HR common non-settle gap and A1
+  blocker set remain.
+- The result is recommendation-only; owner selection remains separate.
 
 ### PR 5.5E — owner decision
 
@@ -114,3 +137,12 @@ Phase 5.5 is complete when:
 - qDot/valve event contamination is reported;
 - a Phase 6 bridge recommendation is produced;
 - owner selection remains explicit and separate from the script output.
+
+Current completion status:
+
+- metrics, roughness, high-frequency energy, qDot/valve contamination, and
+  settle status are reported;
+- Phase 6 bridge recommendation is intentionally withheld because high-HR does
+  not settle for any candidate and A1 has valve-event contamination,
+  repeatability, and sampling-invariance blockers;
+- Decision 21 remains `PENDING_OWNER`.

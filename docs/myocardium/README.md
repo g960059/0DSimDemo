@@ -94,6 +94,30 @@ A1: atrial-reservoir-booster-bridge-v1
 fallback, not backward compatibility. `A1` is the preferred new bridge
 candidate.
 
+## Phase 5.5 atrial bridge shootout result
+
+`data/myocardium/protocols/atrial-bridge-shootout-phase5p5-result-v1.json`
+records the first measured E0/A0/A1 shootout. The runner uses experimental
+LA/RA providers only and keeps official cases, Workbench/runtime wiring, state
+schema, atrial Land/RDQ, AF validation, and final atrial physiology claims
+blocked.
+
+Result boundary:
+
+- normal, low-preload, and high-preload closed-loop smoke points settled for
+  all E0/A0/A1 candidates;
+- the high-HR smoke point reached the 120 s cap for all candidates;
+- A1 preserved booster/A-loop structure and did not worsen qDot clamp fraction
+  relative to A0;
+- A1 worsened valve diode hit counts versus A0 in at least one smoke point,
+  did not pass the settled-point atrial loop repeatability gate, and did not
+  show sampling-invariant isolated roughness ordering;
+- no Phase 6 bridge is selected or recommended yet because the high-HR common
+  non-settle gap and A1 blocker set must be resolved or explicitly bounded
+  first.
+
+Decision 21 remains `PENDING_OWNER` with `selectedCandidateId: null`.
+
 ## Phase 2B / Level 3 review deltas proposed in PR #166
 
 The PR #166 review also requested that the accepted Phase 2B/Level 3 planning
