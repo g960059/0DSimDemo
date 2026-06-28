@@ -712,6 +712,19 @@ does not push Land into the legacy qDot clamp-engaged output regime; clamp
 threshold avoidance remains unresolved and structural alternans removal remains
 unclaimed.
 
+Phase 5C-O runs the activation/source-interface audit recommended after the
+Phase 5C-N `not-overlapped` result. The recorded result is
+[`../../data/myocardium/protocols/modelcore-land-activation-interface-audit-result-v1.json`](../../data/myocardium/protocols/modelcore-land-activation-interface-audit-result-v1.json).
+It audits the pinned low-preload point and the Phase 5C-N best-Land point under
+the same source-provider-only closure. Both points converge with zero Land solve
+failures and source/commit audit samples. The classification is
+`land-source-interface-underactivation-gap-observed`: the settled Land trace
+active-stress target is only 0.00119 of pinned legacy at `delta=-1250` and
+0.000892 at `delta=1000`. The provider source/commit paths can show higher
+transient source stress during the full run, so the result localizes the output
+gap to the settled activation/source interface and requires calcium/source-scale
+and explicit matched-regime checks before any structural alternans claim.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and
@@ -764,7 +777,9 @@ and records that Land avoids AoV qDot clamp engagement at a lower-output
 operating point. Phase 5C-N adds a predeclared TBV-axis output-match diagnostic
 and records output-match not-overlapped; second-order/reference, explicit output
 forcing or another owner-approved match axis, and preload-domain robustness
-remain future work, with no final no-alternans claim.
+remain future work. Phase 5C-O adds activation/source-interface evidence and
+records a settled-trace Land stress gap; calcium/source-scale and explicit
+matched-regime diagnostics now precede any structural alternans claim.
 
 ## Imported bundle checks
 

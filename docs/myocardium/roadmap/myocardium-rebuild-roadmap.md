@@ -429,6 +429,15 @@ production tissue homogenization.
 - boundary: no runtime replacement, no official morphology acceptance, no final no-alternans, no qDot/valve/afterload/preload tuning, no Land parameter tuning, no chamber/case/workbench/state-schema production adoption, and no TriSeg adoption.
 - next: run SDIRK2 reference evidence and decide whether an explicit output-forcing or other owner-approved match axis is scientifically warranted before structural attribution.
 
+### Phase 5C-O — Land activation/source-interface audit
+
+- result artifact: `data/myocardium/protocols/modelcore-land-activation-interface-audit-result-v1.json`
+- verifier: `npm run verify:myocardium-modelcore-land-activation-interface-audit`
+- current outcome: the pinned low-preload point and the Phase 5C-N best-Land point are rerun under the same source-provider-only closure. All points converge, Land has zero solve failures, and source/commit path audit samples are recorded.
+- interpretation: `land-source-interface-underactivation-gap-observed`. The settled Land trace active-stress target is only 0.00119 of pinned legacy at `delta=-1250` and 0.000892 at `delta=1000`. Provider source/commit path transients can be higher, so the next question is the settled activation/source interface rather than a larger TBV sweep.
+- boundary: no runtime replacement, no official morphology acceptance, no final no-alternans, no structural alternans removal claim, no qDot/valve/afterload/preload tuning, no Land parameter tuning, no chamber/case/workbench/state-schema production adoption, and no TriSeg adoption.
+- next: run calcium input scale/unit audit and an explicit source/output-forcing bracket, plus SDIRK2 reference evidence before any structural attribution.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison

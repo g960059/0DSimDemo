@@ -238,6 +238,23 @@ const PHASE5C_N_MODELCORE_PAIRED_LAND_OUTPUT_MATCHED_QDOT_ALLOWED_CHANGED_FILE_P
   PHASE5C_F_TRIAGE_AUDIT_VERIFIER_PATH,
 ] as const;
 
+const PHASE5C_O_MODELCORE_LAND_ACTIVATION_INTERFACE_AUDIT_ALLOWED_CHANGED_FILE_PATHS = [
+  "__tests__/myocardiumPhase5CPositiveControlTriageAudit.test.ts",
+  "__tests__/myocardiumPhase5CSameClosureSourceProviderAudit.test.ts",
+  "__tests__/myocardiumPhase5OModelCoreLandActivationInterfaceAudit.test.ts",
+  "data/myocardium/protocols/modelcore-land-activation-interface-audit-result-v1.json",
+  "docs/myocardium/README.md",
+  "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
+  PHASE5C_H_MODELCORE_EQUIVALENT_ROUTE_PLAN_PATH,
+  "docs/status/current-lanes.md",
+  "package.json",
+  "tools/myocardium/buildModelCoreLandActivationInterfaceAuditEvidence.ts",
+  "tools/myocardium/modelCoreLand2017LvSourceProvider.ts",
+  "tools/myocardium/verifyModelCoreLandActivationInterfaceAudit.ts",
+  PHASE5C_G_SOURCE_PROVIDER_AUDIT_VERIFIER_PATH,
+  PHASE5C_F_TRIAGE_AUDIT_VERIFIER_PATH,
+] as const;
+
 const RUNTIME_INTEGRATION_TARGETS = [
   "WorkbenchPage.tsx",
   "caseCloud.ts",
@@ -699,6 +716,7 @@ function validateChangedFileScope(changedFilePaths: readonly string[], issues: V
   if (isPhase5LModelCorePairedLandDiff(changedFilePaths)) return;
   if (isPhase5MModelCorePairedLandQDotAttributionDiff(changedFilePaths)) return;
   if (isPhase5NModelCorePairedLandOutputMatchedQDotAttributionDiff(changedFilePaths)) return;
+  if (isPhase5OModelCoreLandActivationInterfaceAuditDiff(changedFilePaths)) return;
 
   const triggerPaths = new Set<string>(PHASE5C_F_CHANGED_FILE_SCOPE_TRIGGER_PATHS);
   if (!changedFilePaths.some((filePath) => triggerPaths.has(filePath))) return;
@@ -738,6 +756,16 @@ function isPhase5MModelCorePairedLandQDotAttributionDiff(changedFilePaths: reado
 
 function isPhase5NModelCorePairedLandOutputMatchedQDotAttributionDiff(changedFilePaths: readonly string[]): boolean {
   const allowedPaths = new Set<string>(PHASE5C_N_MODELCORE_PAIRED_LAND_OUTPUT_MATCHED_QDOT_ALLOWED_CHANGED_FILE_PATHS);
+  const changedPaths = new Set(changedFilePaths);
+  if (changedPaths.size !== allowedPaths.size) return false;
+  for (const allowedPath of allowedPaths) {
+    if (!changedPaths.has(allowedPath)) return false;
+  }
+  return true;
+}
+
+function isPhase5OModelCoreLandActivationInterfaceAuditDiff(changedFilePaths: readonly string[]): boolean {
+  const allowedPaths = new Set<string>(PHASE5C_O_MODELCORE_LAND_ACTIVATION_INTERFACE_AUDIT_ALLOWED_CHANGED_FILE_PATHS);
   const changedPaths = new Set(changedFilePaths);
   if (changedPaths.size !== allowedPaths.size) return false;
   for (const allowedPath of allowedPaths) {

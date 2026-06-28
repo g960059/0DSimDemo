@@ -211,6 +211,31 @@ describe("myocardium Phase 5C-F positive-control triage audit", () => {
     expect(validation.errors.map((issue) => issue.code)).not.toContain("phase5c_f_changed_file_scope");
   });
 
+  it("allows the Phase 5C-O Land activation/source-interface audit diff", () => {
+    const input = fixture();
+    input.changedFilePaths = [
+      "__tests__/myocardiumPhase5CPositiveControlTriageAudit.test.ts",
+      "__tests__/myocardiumPhase5CSameClosureSourceProviderAudit.test.ts",
+      "__tests__/myocardiumPhase5OModelCoreLandActivationInterfaceAudit.test.ts",
+      "data/myocardium/protocols/modelcore-land-activation-interface-audit-result-v1.json",
+      "docs/myocardium/README.md",
+      "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
+      "docs/myocardium/roadmap/phase5c-modelcore-equivalent-route-gate.md",
+      "docs/status/current-lanes.md",
+      "package.json",
+      "tools/myocardium/buildModelCoreLandActivationInterfaceAuditEvidence.ts",
+      "tools/myocardium/modelCoreLand2017LvSourceProvider.ts",
+      "tools/myocardium/verifyModelCoreLandActivationInterfaceAudit.ts",
+      "tools/myocardium/verifyPhase5CSameClosureSourceProviderAudit.ts",
+      "tools/myocardium/verifyPhase5CPositiveControlTriageAudit.ts",
+    ];
+
+    const validation = validatePhase5CPositiveControlTriageAudit(input);
+
+    expect(validation.pass).toBe(true);
+    expect(validation.errors.map((issue) => issue.code)).not.toContain("phase5c_f_changed_file_scope");
+  });
+
   it("fails validation if source prose self-authorizes entry or runtime adoption", () => {
     const input = fixture();
     appendSourceText(
