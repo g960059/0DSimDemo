@@ -144,9 +144,12 @@ Current completion status:
   settle status are reported;
 - Phase 5.5B blocker localization is recorded in
   `data/myocardium/protocols/atrial-bridge-blocker-localization-phase5p5b-result-v1.json`;
+- Phase 5.5C stock-runtime baseline is recorded in
+  `data/myocardium/protocols/atrial-bridge-high-hr-runtime-baseline-phase5p5c-result-v1.json`;
 - Phase 6 bridge recommendation is intentionally withheld because HR105 remains
-  a common non-settle boundary and A1 still has beat/second-normalized
-  valve-event contamination plus sampling-invariance blockers;
+  a runtime/settling boundary in stock active no-provider ModelCore and A1
+  still has beat/second-normalized valve-event contamination plus
+  sampling-invariance blockers;
 - the prior A1 repeatability blocker is not supported after full-beat
   phase-resampled repeatability and is treated as instrumentation artifact;
 - Decision 21 remains `PENDING_OWNER`.

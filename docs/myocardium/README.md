@@ -146,6 +146,26 @@ case reauthoring, Workbench/runtime wiring, state schema migration, atrial
 Land/RDQ validation, AF validation, and final atrial physiology claims remain
 blocked.
 
+## Phase 5.5C atrial bridge high-HR runtime baseline result
+
+`data/myocardium/protocols/atrial-bridge-high-hr-runtime-baseline-phase5p5c-result-v1.json`
+compares the Phase 5.5B high-HR boundary against stock ModelCore runtimes with
+no experimental atrial provider.
+
+Result boundary:
+
+- stock active no-provider ModelCore settles at HR75/min and HR90/min but caps
+  at HR105/min;
+- the experimental A0 comparator also caps at HR105/min, so the current
+  evidence supports `runtime-boundary-likely` rather than an
+  atrial-provider-specific HR105 failure;
+- global elastance mode is measured as a whole-heart reference only and cannot
+  justify bridge selection;
+- no Phase 6 bridge is selected or recommended;
+- this result does not tune atrial candidates, relax settling criteria, wire
+  production runtime, reauthor official cases, or make final atrial physiology
+  claims.
+
 ## Phase 2B / Level 3 review deltas proposed in PR #166
 
 The PR #166 review also requested that the accepted Phase 2B/Level 3 planning

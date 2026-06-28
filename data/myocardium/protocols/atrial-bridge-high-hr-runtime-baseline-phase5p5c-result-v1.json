@@ -1,0 +1,502 @@
+{
+  "schemaVersion": 1,
+  "id": "atrial-bridge-high-hr-runtime-baseline-phase5p5c-result-v1",
+  "phase": "Phase 5.5C",
+  "claimBoundary": "diagnostic-runtime-boundary-baseline-only",
+  "sourceLocalization": "data/myocardium/protocols/atrial-bridge-blocker-localization-phase5p5b-result-v1.json",
+  "verifierScript": "verify:myocardium-atrial-bridge-runtime-baseline",
+  "protocol": {
+    "baselineIds": [
+      "stock-active-no-provider-v0",
+      "global-elastance-mode-v0"
+    ],
+    "highHrSweepPoints": [
+      {
+        "id": "normal-hr75-reference",
+        "targetTBVMl": 5600,
+        "HR": 75
+      },
+      {
+        "id": "normal-hr90",
+        "targetTBVMl": 5600,
+        "HR": 90
+      },
+      {
+        "id": "normal-hr105",
+        "targetTBVMl": 5600,
+        "HR": 105
+      }
+    ],
+    "dtSec": 0.001,
+    "sampleHz": 480,
+    "tailWindowBeats": 4,
+    "measureBeats": 3,
+    "settlePolicy": {
+      "tolPrimary": 0.005,
+      "tolShape": 0.01,
+      "consecutiveBeats": 3,
+      "minBeats": 8,
+      "capSeconds": 120,
+      "postSettleBeats": 2
+    },
+    "noExperimentalAtrialProviderForStockActive": true,
+    "globalElastanceChangesWholeHeart": true
+  },
+  "baselineRuns": [
+    {
+      "protocolId": "runtime-baseline-high-hr-sweep-v1",
+      "baselineId": "stock-active-no-provider-v0",
+      "heartModel": "activeStress",
+      "experimentalAtrialProvider": false,
+      "targetTBVMl": 5600,
+      "HR": 75,
+      "sweepPointId": "normal-hr75-reference",
+      "settled": true,
+      "settleReason": "converged",
+      "settleActualSeconds": 12.1,
+      "settleBeats": 13,
+      "periodBeats": 1,
+      "worstSignal": "esvL",
+      "worstDelta": 0.008444,
+      "adjacentDelta": 0.008444,
+      "periodDelta": 0.008444,
+      "healthStatus": "ok",
+      "healthMessages": [],
+      "window": {
+        "windowKind": "settled-measure-window",
+        "windowBeats": 3,
+        "sampleCount": 2400,
+        "simulatedSeconds": 2.4,
+        "forwardCO_L": 5.414003,
+        "forwardCO_R": 5.418518,
+        "LAPMean": 6.853804,
+        "RAPMean": 3.46984,
+        "LA": {
+          "pressureMeanMmHg": 6.853804,
+          "pressureMinMmHg": 3.437142,
+          "pressureMaxMmHg": 13.197019,
+          "volumeMinMl": 24.268767,
+          "volumeMaxMl": 56.850283,
+          "beatRepeatabilityDelta": 0.003774
+        },
+        "RA": {
+          "pressureMeanMmHg": 3.46984,
+          "pressureMinMmHg": 1.733329,
+          "pressureMaxMmHg": 6.778973,
+          "volumeMinMl": 37.260073,
+          "volumeMaxMl": 79.068332,
+          "beatRepeatabilityDelta": 0.000821
+        },
+        "valveAttribution": {
+          "MV": {
+            "hitSamples": 1274,
+            "hitFraction": 0.530833,
+            "hitsPerBeat": 424.666667,
+            "hitsPerSecond": 530.833333,
+            "diodeImpulseSum": 359.558718,
+            "diodeImpulseMax": 5.782291,
+            "qDotClampHitFraction": 0
+          },
+          "TV": {
+            "hitSamples": 1106,
+            "hitFraction": 0.460833,
+            "hitsPerBeat": 368.666667,
+            "hitsPerSecond": 460.833333,
+            "diodeImpulseSum": 14.332022,
+            "diodeImpulseMax": 0.562721,
+            "qDotClampHitFraction": 0
+          }
+        }
+      }
+    },
+    {
+      "protocolId": "runtime-baseline-high-hr-sweep-v1",
+      "baselineId": "stock-active-no-provider-v0",
+      "heartModel": "activeStress",
+      "experimentalAtrialProvider": false,
+      "targetTBVMl": 5600,
+      "HR": 90,
+      "sweepPointId": "normal-hr90",
+      "settled": true,
+      "settleReason": "converged",
+      "settleActualSeconds": 16.167,
+      "settleBeats": 20,
+      "periodBeats": 2,
+      "worstSignal": "lvEdp",
+      "worstDelta": 0.009028,
+      "adjacentDelta": 0.019584,
+      "periodDelta": 0.009028,
+      "healthStatus": "ok",
+      "healthMessages": [],
+      "window": {
+        "windowKind": "settled-measure-window",
+        "windowBeats": 3,
+        "sampleCount": 2000,
+        "simulatedSeconds": 2,
+        "forwardCO_L": 5.780015,
+        "forwardCO_R": 5.780688,
+        "LAPMean": 6.1468,
+        "RAPMean": 2.845628,
+        "LA": {
+          "pressureMeanMmHg": 6.1468,
+          "pressureMinMmHg": 3.100659,
+          "pressureMaxMmHg": 12.395187,
+          "volumeMinMl": 17.812516,
+          "volumeMaxMl": 55.580488,
+          "beatRepeatabilityDelta": 0.004445
+        },
+        "RA": {
+          "pressureMeanMmHg": 2.845628,
+          "pressureMinMmHg": 1.067936,
+          "pressureMaxMmHg": 5.922196,
+          "volumeMinMl": 23.664694,
+          "volumeMaxMl": 74.371436,
+          "beatRepeatabilityDelta": 0.001952
+        },
+        "valveAttribution": {
+          "MV": {
+            "hitSamples": 1257,
+            "hitFraction": 0.6285,
+            "hitsPerBeat": 419,
+            "hitsPerSecond": 628.5,
+            "diodeImpulseSum": 350.377715,
+            "diodeImpulseMax": 6.362646,
+            "qDotClampHitFraction": 0
+          },
+          "TV": {
+            "hitSamples": 1167,
+            "hitFraction": 0.5835,
+            "hitsPerBeat": 389,
+            "hitsPerSecond": 583.5,
+            "diodeImpulseSum": 13.862504,
+            "diodeImpulseMax": 0.574599,
+            "qDotClampHitFraction": 0
+          }
+        }
+      }
+    },
+    {
+      "protocolId": "runtime-baseline-high-hr-sweep-v1",
+      "baselineId": "stock-active-no-provider-v0",
+      "heartModel": "activeStress",
+      "experimentalAtrialProvider": false,
+      "targetTBVMl": 5600,
+      "HR": 105,
+      "sweepPointId": "normal-hr105",
+      "settled": false,
+      "settleReason": "cap",
+      "settleActualSeconds": 120,
+      "settleBeats": 209,
+      "periodBeats": 1,
+      "worstSignal": "svL",
+      "worstDelta": 0.454447,
+      "adjacentDelta": 0.454447,
+      "periodDelta": 0.454447,
+      "healthStatus": "warning",
+      "healthMessages": [
+        "Left/right CO mismatch warning 1.68 L/min."
+      ],
+      "window": {
+        "windowKind": "cap-tail-window",
+        "windowBeats": 4,
+        "sampleCount": 1097,
+        "simulatedSeconds": 2.283,
+        "forwardCO_L": null,
+        "forwardCO_R": null,
+        "LAPMean": 5.687198,
+        "RAPMean": 3.526649,
+        "LA": {
+          "pressureMeanMmHg": 5.687198,
+          "pressureMinMmHg": 0.000017,
+          "pressureMaxMmHg": 12.688472,
+          "volumeMinMl": 8.221544,
+          "volumeMaxMl": 54.582786,
+          "beatRepeatabilityDelta": 0.161426
+        },
+        "RA": {
+          "pressureMeanMmHg": 3.526649,
+          "pressureMinMmHg": 1.563205,
+          "pressureMaxMmHg": 8.580835,
+          "volumeMinMl": 28.708514,
+          "volumeMaxMl": 76.232023,
+          "beatRepeatabilityDelta": 0.009242
+        },
+        "valveAttribution": {
+          "MV": {
+            "hitSamples": 820,
+            "hitFraction": 0.747493,
+            "hitsPerBeat": 205,
+            "hitsPerSecond": 358.75,
+            "diodeImpulseSum": 186.617465,
+            "diodeImpulseMax": 8.149045,
+            "qDotClampHitFraction": 0
+          },
+          "TV": {
+            "hitSamples": 703,
+            "hitFraction": 0.640839,
+            "hitsPerBeat": 175.75,
+            "hitsPerSecond": 307.5625,
+            "diodeImpulseSum": 8.812433,
+            "diodeImpulseMax": 0.559241,
+            "qDotClampHitFraction": 0
+          }
+        }
+      }
+    },
+    {
+      "protocolId": "runtime-baseline-high-hr-sweep-v1",
+      "baselineId": "global-elastance-mode-v0",
+      "heartModel": "elastance",
+      "experimentalAtrialProvider": false,
+      "targetTBVMl": 5600,
+      "HR": 75,
+      "sweepPointId": "normal-hr75-reference",
+      "settled": true,
+      "settleReason": "converged",
+      "settleActualSeconds": 14.6,
+      "settleBeats": 16,
+      "periodBeats": 1,
+      "worstSignal": "esvR",
+      "worstDelta": 0.00632,
+      "adjacentDelta": 0.00632,
+      "periodDelta": 0.00632,
+      "healthStatus": "ok",
+      "healthMessages": [],
+      "window": {
+        "windowKind": "settled-measure-window",
+        "windowBeats": 3,
+        "sampleCount": 2400,
+        "simulatedSeconds": 2.4,
+        "forwardCO_L": 5.408903,
+        "forwardCO_R": 5.400114,
+        "LAPMean": 7.399725,
+        "RAPMean": 3.42173,
+        "LA": {
+          "pressureMeanMmHg": 7.399725,
+          "pressureMinMmHg": 3.617678,
+          "pressureMaxMmHg": 12.2381,
+          "volumeMinMl": 42.381886,
+          "volumeMaxMl": 74.060133,
+          "beatRepeatabilityDelta": 0.001306
+        },
+        "RA": {
+          "pressureMeanMmHg": 3.42173,
+          "pressureMinMmHg": 0.813882,
+          "pressureMaxMmHg": 6.269079,
+          "volumeMinMl": 22.47305,
+          "volumeMaxMl": 63.795566,
+          "beatRepeatabilityDelta": 0.000619
+        },
+        "valveAttribution": {
+          "MV": {
+            "hitSamples": 1595,
+            "hitFraction": 0.664583,
+            "hitsPerBeat": 531.666667,
+            "hitsPerSecond": 664.583333,
+            "diodeImpulseSum": 87.735018,
+            "diodeImpulseMax": 1.895194,
+            "qDotClampHitFraction": 0
+          },
+          "TV": {
+            "hitSamples": 1310,
+            "hitFraction": 0.545833,
+            "hitsPerBeat": 436.666667,
+            "hitsPerSecond": 545.833333,
+            "diodeImpulseSum": 29.285049,
+            "diodeImpulseMax": 0.453699,
+            "qDotClampHitFraction": 0
+          }
+        }
+      }
+    },
+    {
+      "protocolId": "runtime-baseline-high-hr-sweep-v1",
+      "baselineId": "global-elastance-mode-v0",
+      "heartModel": "elastance",
+      "experimentalAtrialProvider": false,
+      "targetTBVMl": 5600,
+      "HR": 90,
+      "sweepPointId": "normal-hr90",
+      "settled": false,
+      "settleReason": "cap",
+      "settleActualSeconds": 120,
+      "settleBeats": 179,
+      "periodBeats": 1,
+      "worstSignal": "lvEdp",
+      "worstDelta": 0.042862,
+      "adjacentDelta": 0.042862,
+      "periodDelta": 0.042862,
+      "healthStatus": "ok",
+      "healthMessages": [],
+      "window": {
+        "windowKind": "cap-tail-window",
+        "windowBeats": 4,
+        "sampleCount": 1280,
+        "simulatedSeconds": 2.664,
+        "forwardCO_L": null,
+        "forwardCO_R": null,
+        "LAPMean": 7.724333,
+        "RAPMean": 3.671789,
+        "LA": {
+          "pressureMeanMmHg": 7.724333,
+          "pressureMinMmHg": 2.830745,
+          "pressureMaxMmHg": 12.279072,
+          "volumeMinMl": 40.60458,
+          "volumeMaxMl": 73.557082,
+          "beatRepeatabilityDelta": 0.000989
+        },
+        "RA": {
+          "pressureMeanMmHg": 3.671789,
+          "pressureMinMmHg": 0.718561,
+          "pressureMaxMmHg": 6.32748,
+          "volumeMinMl": 24.067123,
+          "volumeMaxMl": 63.971252,
+          "beatRepeatabilityDelta": 0.000891
+        },
+        "valveAttribution": {
+          "MV": {
+            "hitSamples": 825,
+            "hitFraction": 0.644531,
+            "hitsPerBeat": 206.25,
+            "hitsPerSecond": 309.375,
+            "diodeImpulseSum": 654.997385,
+            "diodeImpulseMax": 9.678436,
+            "qDotClampHitFraction": 0
+          },
+          "TV": {
+            "hitSamples": 684,
+            "hitFraction": 0.534375,
+            "hitsPerBeat": 171,
+            "hitsPerSecond": 256.5,
+            "diodeImpulseSum": 36.350176,
+            "diodeImpulseMax": 1.044782,
+            "qDotClampHitFraction": 0
+          }
+        }
+      }
+    },
+    {
+      "protocolId": "runtime-baseline-high-hr-sweep-v1",
+      "baselineId": "global-elastance-mode-v0",
+      "heartModel": "elastance",
+      "experimentalAtrialProvider": false,
+      "targetTBVMl": 5600,
+      "HR": 105,
+      "sweepPointId": "normal-hr105",
+      "settled": false,
+      "settleReason": "cap",
+      "settleActualSeconds": 120,
+      "settleBeats": 209,
+      "periodBeats": 1,
+      "worstSignal": "lvEdp",
+      "worstDelta": 0.064641,
+      "adjacentDelta": 0.064641,
+      "periodDelta": 0.064641,
+      "healthStatus": "ok",
+      "healthMessages": [],
+      "window": {
+        "windowKind": "cap-tail-window",
+        "windowBeats": 4,
+        "sampleCount": 1097,
+        "simulatedSeconds": 2.283,
+        "forwardCO_L": null,
+        "forwardCO_R": null,
+        "LAPMean": 7.043228,
+        "RAPMean": 3.499578,
+        "LA": {
+          "pressureMeanMmHg": 7.043228,
+          "pressureMinMmHg": 2.566687,
+          "pressureMaxMmHg": 11.495395,
+          "volumeMinMl": 42.832541,
+          "volumeMaxMl": 69.80737,
+          "beatRepeatabilityDelta": 0.006512
+        },
+        "RA": {
+          "pressureMeanMmHg": 3.499578,
+          "pressureMinMmHg": 0.765253,
+          "pressureMaxMmHg": 7.262497,
+          "volumeMinMl": 27.13804,
+          "volumeMaxMl": 62.587544,
+          "beatRepeatabilityDelta": 0.012141
+        },
+        "valveAttribution": {
+          "MV": {
+            "hitSamples": 663,
+            "hitFraction": 0.604376,
+            "hitsPerBeat": 165.75,
+            "hitsPerSecond": 290.0625,
+            "diodeImpulseSum": 750.13907,
+            "diodeImpulseMax": 11.543591,
+            "qDotClampHitFraction": 0
+          },
+          "TV": {
+            "hitSamples": 584,
+            "hitFraction": 0.532361,
+            "hitsPerBeat": 146,
+            "hitsPerSecond": 255.5,
+            "diodeImpulseSum": 43.010593,
+            "diodeImpulseMax": 1.181512,
+            "qDotClampHitFraction": 0
+          }
+        }
+      }
+    }
+  ],
+  "comparisonToPhase5p5b": {
+    "sourceLocalizationEvidenceId": "atrial-bridge-blocker-localization-phase5p5b-result-v1",
+    "sourceLocalizationPhase": "Phase 5.5B",
+    "a0ExperimentalHr90Settled": true,
+    "a0ExperimentalHr90SettleReason": "converged",
+    "a0ExperimentalHr105Settled": false,
+    "a0ExperimentalHr105SettleReason": "cap",
+    "stockActiveHr90Settled": true,
+    "stockActiveHr105Settled": false,
+    "hr105BoundaryInterpretation": "shared-stock-active-runtime-boundary-supported"
+  },
+  "summary": {
+    "stockActiveNoProviderHr105Status": "cap",
+    "stockActiveNoProviderHr90Status": "settled",
+    "globalElastanceHr105Status": "cap",
+    "highHrBoundaryAttribution": "runtime-boundary-likely",
+    "selectedCandidateId": null,
+    "recommendedCandidateId": null,
+    "rationale": [
+      "Phase 5.5C compares the experimental-provider high-HR boundary against stock ModelCore runtimes without selecting a bridge.",
+      "Stock active no-provider ModelCore also capped at HR105/min, supporting a shared runtime/settling boundary rather than an atrial-bridge-specific failure.",
+      "Stock active no-provider ModelCore settled at HR90/min.",
+      "Global elastance mode did not settle at HR105/min; because it changes the whole-heart model, this is reference-only."
+    ],
+    "blockers": [
+      "Phase 6 bridge selection remains owner/oracle gated.",
+      "This baseline does not tune atrial candidates or relax settling criteria.",
+      "Global elastance mode is a whole-heart comparator and cannot justify atrial bridge selection.",
+      "Production/runtime/official case/Workbench/state schema wiring remain blocked."
+    ]
+  },
+  "boundary": {
+    "noProductionRuntimeWiring": true,
+    "noOfficialCaseReauthoring": true,
+    "noWorkbenchRuntimeWiring": true,
+    "noStateSchemaMigration": true,
+    "noAtrialLandRdqClaim": true,
+    "noAfValidationClaim": true,
+    "noFinalAtrialPhysiologyClaim": true,
+    "noMorphologyAcceptance": true
+  },
+  "nextAllowedWork": [
+    "use oracle broad direction review after this PR group before Phase 6 bridge selection",
+    "if stock-active no-provider also caps at HR105, treat HR105 as a shared runtime/settling boundary before tuning atrial bridge candidates",
+    "if stock-active no-provider settles at HR105, localize experimental-provider lifecycle or candidate-specific causes before Phase 6 selection",
+    "keep morphology diagnostics separate and diagnostic-only until morphology lane timing is appropriate"
+  ],
+  "doesNotUnlock": [
+    "Phase 6 bridge selection",
+    "production atrial bridge wiring",
+    "official case reauthoring",
+    "Workbench runtime wiring",
+    "state schema migration",
+    "atrial Land/RDQ validation",
+    "AF validation",
+    "final atrial physiology acceptance"
+  ]
+}
