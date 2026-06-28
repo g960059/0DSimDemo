@@ -409,7 +409,16 @@ production tissue homogenization.
 - current outcome: the paired LV source-provider experiment runs under the same pinned low-preload ModelCore closure. The legacy source-only positive control remains period-2, the Land 2017 LV source-only provider runs finite with zero Land solver failures and settles to period-1, and `sourceProviderDifferenceOnly=true` is satisfied for the experimental LV source-only pair.
 - interpretation: Phase 5C-L records outcome class A, a positive interpretable signal for this experimental closure. It is not final no-alternans acceptance and not official morphology acceptance.
 - boundary: no runtime replacement, no official morphology acceptance, no final no-alternans, no qDot/valve/afterload/preload tuning, no Land parameter tuning, no chamber/case/workbench/state-schema production adoption, and no TriSeg adoption.
-- next: interpret the paired result and add same-closure second-order/reference robustness evidence without changing the closure or source parameters.
+- next: interpret qDot clamp-threshold attribution, then add output-matched and second-order/reference robustness evidence without changing the closure or source parameters.
+
+### Phase 5C-M — paired Land qDot clamp-threshold attribution
+
+- result artifact: `data/myocardium/protocols/modelcore-paired-land-qdot-clamp-attribution-result-v1.json`
+- verifier: `npm run verify:myocardium-modelcore-paired-land-qdot-clamp-attribution`
+- current outcome: the same Phase 5C-L paired closure is reused. The legacy trace records AoV qDot clamp hit fraction 0.0521, peak raw qDot 404765 mL/s^2, and QAo cap ratio 0.997. The Land trace records AoV qDot clamp hit fraction 0, peak raw qDot 9600 mL/s^2, and QAo cap ratio 0.112 while also running with lower SV/CO/QAo peak.
+- interpretation: `clamp-threshold-avoidance-risk-supported`. Land period-1 remains a positive interpretable signal, but the evidence does not establish that Land structurally removed alternans; the measured Land trace is below the AoV qDot clamp-engaged regime.
+- boundary: no runtime replacement, no official morphology acceptance, no final no-alternans, no qDot/valve/afterload/preload tuning, no Land parameter tuning, no chamber/case/workbench/state-schema production adoption, and no TriSeg adoption.
+- next: run output-matched paired evidence, SDIRK2 reference evidence, and a preload-domain sweep before any structural no-alternans interpretation.
 
 ### Phase 5C+ — deferred stable-coupling work
 

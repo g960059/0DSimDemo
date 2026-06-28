@@ -1,6 +1,6 @@
-# Phase 5C-H/I/J/K/L ModelCore-equivalent Route Gate
+# Phase 5C-H/I/J/K/L/M ModelCore-equivalent Route Gate
 
-Status: paired experimental LV source-provider evidence recorded through Phase 5C-L; final no-alternans remains unclaimed
+Status: paired experimental LV source-provider evidence recorded through Phase 5C-L; qDot clamp-threshold attribution recorded through Phase 5C-M; final no-alternans remains unclaimed
 
 This route was recorded as `modelcore-equivalent-closure-positive-control` in
 `phase5c-post-fidelity-entry-gate-v1` before implementation evidence existed.
@@ -44,6 +44,15 @@ experimental LV source-only pair. The next requirement is robustness and
 interpretation under the same closure, including second-order/reference checks,
 without tuning qDot, valves, afterload, preload, or Land parameters.
 
+Phase 5C-M adds same-closure qDot clamp-threshold attribution for that paired
+result. It records that the legacy trace engages the AoV qDot clamp
+(`hitFraction=0.0521`, `qAoCapRatioMax=0.997`), while the Land trace does not
+(`hitFraction=0`, `qAoCapRatioMax=0.112`) and also runs at lower output. This
+supports `clamp-threshold-avoidance-risk-supported`: Land period-1 is still a
+positive interpretable signal, but structural alternans removal is not
+established. Output-matched paired evidence, SDIRK2 reference evidence, and a
+preload-domain sweep remain required before any stronger no-alternans claim.
+
 Machine-readable gate:
 
 ```text
@@ -57,6 +66,7 @@ npm run verify:myocardium-phase5c-post-fidelity-entry-gate
 npm run verify:myocardium-modelcore-active-provider-state-lifecycle
 npm run verify:myocardium-modelcore-active-source-pressure-adapter
 npm run verify:myocardium-modelcore-paired-land-source-provider
+npm run verify:myocardium-modelcore-paired-land-qdot-clamp-attribution
 ```
 
 Source no-go evidence:
@@ -96,6 +106,12 @@ data/myocardium/protocols/modelcore-paired-land-source-provider-run-v1.json
 data/myocardium/protocols/modelcore-paired-land-source-provider-run-result-v1.json
 ```
 
+Paired Land qDot clamp attribution evidence:
+
+```text
+data/myocardium/protocols/modelcore-paired-land-qdot-clamp-attribution-result-v1.json
+```
+
 ## Route Set
 
 Entry route ids recorded in the gate:
@@ -116,7 +132,9 @@ paired evidence; it does not unlock final no-alternans acceptance, official
 morphology acceptance, runtime replacement, schema migration, or case/workbench
 wiring. It supersedes the earlier `blocked-until-positive-control-period2`
 advancement block for this route; advancement is now constrained by
-`second-order-reference-required` before any stronger physiology claim.
+`second-order-reference-required` before any stronger physiology claim. Phase
+5C-M further constrains interpretation: qDot clamp-threshold avoidance is a
+supported attribution risk until output-matched paired evidence is run.
 
 Evidence fields required for the ModelCore-equivalent paired route include:
 
@@ -147,6 +165,9 @@ evaluates `sourceProviderDifferenceOnly=true` for the experimental LV
 source-only pair. This advances the route from readiness to first
 interpretable paired measurement, but second-order/reference robustness and
 result interpretation remain required before any final no-alternans claim.
+Phase 5C-M records the first same-closure attribution measurement and shows that
+Land avoids AoV qDot clamp engagement at a lower-output operating point; that
+narrows the next experiment to output matching rather than acceptance.
 
 ## Boundary
 

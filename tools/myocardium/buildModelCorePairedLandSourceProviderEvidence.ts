@@ -23,6 +23,27 @@ export const MODELCORE_PAIRED_LAND_SOURCE_PROVIDER_EVIDENCE_ID =
   "modelcore-paired-land-source-provider-run-v1";
 
 type LowPreloadDebugPoint = ReturnType<typeof runLowPreloadDebug>["points"][number];
+type LowPreloadBeatTraceRow = LowPreloadDebugPoint["beatTrace"][number];
+
+export type ModelCorePairedLandClampAttributionTrace = {
+  readonly traceBeatCount: number;
+  readonly sampleCount: number;
+  readonly aovQDotClampHitCount: number;
+  readonly aovQDotClampHitFraction: number;
+  readonly aovQDotMaxRawAbsMlPerS2: number;
+  readonly aovQDotMaxPostAbsMlPerS2: number;
+  readonly aovQDotMaxPositiveRawMlPerS2: number;
+  readonly aovQDotMinNegativeRawMlPerS2: number;
+  readonly aovQDotMaxImpulseAbsMlPerS2: number;
+  readonly qAoCapRatioMax: number;
+  readonly qAoNearCap90Fraction: number;
+  readonly qAoNearCap95Fraction: number;
+  readonly qAoNearCap98Fraction: number;
+  readonly qAoAtCapFraction: number;
+  readonly qAoLocalCapActiveFraction: number;
+  readonly dynamicFlowClampHitsAoV: number;
+  readonly valveDiodeClampHitsAoV: number;
+};
 
 type ProviderRunSummary = {
   readonly sourceProviderId: string;
@@ -38,6 +59,7 @@ type ProviderRunSummary = {
   readonly healthMessages: readonly string[];
   readonly finiteTracePayload: boolean;
   readonly payloadStableHash: string;
+  readonly clampAttributionTrace: ModelCorePairedLandClampAttributionTrace;
 };
 
 export type ModelCorePairedLandOutcomeClass = "A" | "B" | "C";
@@ -187,7 +209,52 @@ function summarizeRun(point: LowPreloadDebugPoint, sourceProviderId: string): Pr
     healthMessages: point.health.messages,
     finiteTracePayload: allFiniteNumbers(payload),
     payloadStableHash: stableHash(sanitizeForStableHash(payload)),
+    clampAttributionTrace: clampAttributionTrace(point),
   };
+}
+
+function clampAttributionTrace(point: LowPreloadDebugPoint): ModelCorePairedLandClampAttributionTrace {
+  const beatTrace = point.beatTrace;
+  const sampleCount = sum(beatTrace.map((beat) => beat.AoVQDotClampSampleCount));
+  const hitCount = sum(beatTrace.map((beat) => beat.AoVQDotClampHitCount));
+  return {
+    traceBeatCount: beatTrace.length,
+    sampleCount,
+    aovQDotClampHitCount: hitCount,
+    aovQDotClampHitFraction: sampleCount > 0 ? hitCount / sampleCount : 0,
+    aovQDotMaxRawAbsMlPerS2: maxBeat(beatTrace, (beat) => beat.AoVQDotMaxRawAbsMlPerS2),
+    aovQDotMaxPostAbsMlPerS2: maxBeat(beatTrace, (beat) => beat.AoVQDotMaxPostAbsMlPerS2),
+    aovQDotMaxPositiveRawMlPerS2: maxBeat(beatTrace, (beat) => beat.AoVQDotMaxPositiveRawMlPerS2),
+    aovQDotMinNegativeRawMlPerS2: minBeat(beatTrace, (beat) => beat.AoVQDotMinNegativeRawMlPerS2),
+    aovQDotMaxImpulseAbsMlPerS2: maxBeat(beatTrace, (beat) => beat.AoVQDotMaxImpulseAbsMlPerS2),
+    qAoCapRatioMax: maxBeat(beatTrace, (beat) => beat.QAoCapRatioMax),
+    qAoNearCap90Fraction: weightedMean(beatTrace, (beat) => beat.QAoNearCap90Fraction),
+    qAoNearCap95Fraction: weightedMean(beatTrace, (beat) => beat.QAoNearCap95Fraction),
+    qAoNearCap98Fraction: weightedMean(beatTrace, (beat) => beat.QAoNearCap98Fraction),
+    qAoAtCapFraction: weightedMean(beatTrace, (beat) => beat.QAoAtCapFraction),
+    qAoLocalCapActiveFraction: weightedMean(beatTrace, (beat) => beat.QAoLocalCapActiveFraction),
+    dynamicFlowClampHitsAoV: point.clampDiagnostics.dynamicFlowClampHits.AoV ?? 0,
+    valveDiodeClampHitsAoV: point.clampDiagnostics.valveDiodeClampHits.AoV ?? 0,
+  };
+}
+
+function maxBeat(beatTrace: readonly LowPreloadBeatTraceRow[], value: (beat: LowPreloadBeatTraceRow) => number): number {
+  return Math.max(0, ...beatTrace.map(value).filter(Number.isFinite));
+}
+
+function minBeat(beatTrace: readonly LowPreloadBeatTraceRow[], value: (beat: LowPreloadBeatTraceRow) => number): number {
+  const finite = beatTrace.map(value).filter(Number.isFinite);
+  return finite.length > 0 ? Math.min(...finite) : 0;
+}
+
+function weightedMean(beatTrace: readonly LowPreloadBeatTraceRow[], value: (beat: LowPreloadBeatTraceRow) => number): number {
+  const totalWeight = sum(beatTrace.map((beat) => beat.AoVQDotClampSampleCount));
+  if (totalWeight <= 0) return 0;
+  return sum(beatTrace.map((beat) => value(beat) * beat.AoVQDotClampSampleCount)) / totalWeight;
+}
+
+function sum(values: readonly number[]): number {
+  return values.filter(Number.isFinite).reduce((acc, value) => acc + value, 0);
 }
 
 function tracePayload(point: LowPreloadDebugPoint): unknown {

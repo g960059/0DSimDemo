@@ -124,6 +124,14 @@ type BeatTraceRow = {
   QAoNearCap98Fraction: number;
   QAoAtCapFraction: number;
   QAoLocalCapActiveFraction: number;
+  AoVQDotClampSampleCount: number;
+  AoVQDotClampHitCount: number;
+  AoVQDotClampHitFraction: number;
+  AoVQDotMaxRawAbsMlPerS2: number;
+  AoVQDotMaxPostAbsMlPerS2: number;
+  AoVQDotMaxPositiveRawMlPerS2: number;
+  AoVQDotMinNegativeRawMlPerS2: number;
+  AoVQDotMaxImpulseAbsMlPerS2: number;
   filling: FillingRegimeSummary;
   active: Partial<Record<Chamber, ActiveBeatSummary>>;
 };
@@ -2541,6 +2549,7 @@ function summarizeBeat(beat: number, entries: TraceSample[], HR: number, aorticF
   const svR = integratePositive(samples, "QPA");
   const qAoValues = samples.map((sample) => Number(sample.QAo)).filter(Number.isFinite);
   const qAoProximity = qAoCapProximity(qAoValues, aorticFlowClampMode);
+  const aovQDot = aovQDotClampSummary(samples);
   return {
     beat,
     sampleCount: samples.length,
@@ -2564,8 +2573,44 @@ function summarizeBeat(beat: number, entries: TraceSample[], HR: number, aorticF
     QTVMax: max("QTV"),
     QPVMax: max("QPV"),
     ...qAoProximity,
+    ...aovQDot,
     filling: fillingRegimeSummary(samples),
     active: summarizeActive(entries),
+  };
+}
+
+function aovQDotClampSummary(samples: SimSample[]): Pick<BeatTraceRow,
+  "AoVQDotClampSampleCount"
+  | "AoVQDotClampHitCount"
+  | "AoVQDotClampHitFraction"
+  | "AoVQDotMaxRawAbsMlPerS2"
+  | "AoVQDotMaxPostAbsMlPerS2"
+  | "AoVQDotMaxPositiveRawMlPerS2"
+  | "AoVQDotMinNegativeRawMlPerS2"
+  | "AoVQDotMaxImpulseAbsMlPerS2"
+> {
+  const finite = samples.filter((sample) =>
+    Number.isFinite(sample.AoV_qDotRaw)
+    && Number.isFinite(sample.AoV_qDotPost)
+    && Number.isFinite(sample.AoV_qDotClampImpulse)
+  );
+  const hitCount = finite.filter((sample) =>
+    sample.AoV_qDotClampHit01 > 0.5
+    || Math.abs(sample.AoV_qDotPost - sample.AoV_qDotRaw) > 1e-9
+  ).length;
+  const rawValues = finite.map((sample) => sample.AoV_qDotRaw);
+  const postValues = finite.map((sample) => sample.AoV_qDotPost);
+  const impulses = finite.map((sample) => sample.AoV_qDotClampImpulse);
+  const denom = Math.max(finite.length, 1);
+  return {
+    AoVQDotClampSampleCount: finite.length,
+    AoVQDotClampHitCount: hitCount,
+    AoVQDotClampHitFraction: hitCount / denom,
+    AoVQDotMaxRawAbsMlPerS2: finiteMaxOrNull(rawValues.map(Math.abs)) ?? 0,
+    AoVQDotMaxPostAbsMlPerS2: finiteMaxOrNull(postValues.map(Math.abs)) ?? 0,
+    AoVQDotMaxPositiveRawMlPerS2: finiteMaxOrNull(rawValues) ?? 0,
+    AoVQDotMinNegativeRawMlPerS2: finiteMin(rawValues),
+    AoVQDotMaxImpulseAbsMlPerS2: finiteMaxOrNull(impulses.map(Math.abs)) ?? 0,
   };
 }
 
