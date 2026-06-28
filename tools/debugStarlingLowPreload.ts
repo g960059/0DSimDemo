@@ -1454,8 +1454,7 @@ function runDtScenario(opts: DebugOptions, dt: number, lambdaActTauSec: number):
   let seededFromDeltaMl = 0;
   for (const delta of opts.deltasMl) {
     const run = settleDebugCore(req.params, opts.targetVolumeMl + delta, dt, opts.sampleHz, tbvCorrectionMode, aorticFlowClampMode, opts.aovQDotClamp, aovQUpdateMode, seedState, opts.aovQDotClampNegative, qDotClampScope, opts.experimentalModelCoreOptions);
-    const traceCore = new ModelCore(req.params, opts.experimentalModelCoreOptions);
-    traceCore.unpackState(run.state);
+    const traceCore = run.core.cloneForReadOnlyMeasurement();
     configureDebugCore(traceCore, tbvCorrectionMode, aorticFlowClampMode, opts.aovQDotClamp, aovQUpdateMode, opts.aovQDotClampNegative, qDotClampScope);
     const traceSamples = collectTraceSamples(traceCore, opts.traceBeats, dt, opts.sampleHz);
     const beatTrace = summarizeBeatTrace(traceSamples, req.params.HR, opts.traceBeats, aorticFlowClampMode);

@@ -39,7 +39,7 @@
     "maxValveReverseMl": 0,
     "healthStatus": "ok",
     "finiteTracePayload": true,
-    "payloadStableHash": "3688241c"
+    "payloadStableHash": "ed32fe29"
   },
   "landRun": {
     "sourceProviderId": "modelcore-experimental-land2017-lv-source-only-provider-v1",
@@ -54,7 +54,7 @@
     "maxValveReverseMl": 0,
     "healthStatus": "ok",
     "finiteTracePayload": true,
-    "payloadStableHash": "271622c6"
+    "payloadStableHash": "04514dd2"
   },
   "landSourceProviderInstrumentation": {
     "sourceActiveStressPa": 276659,
@@ -69,8 +69,8 @@
     "landVsLegacyPeriodBeatsDelta": -1,
     "landVsLegacyCOLDeltaLMin": -2.483236230836037,
     "landVsLegacySVDeltaMl": -33.109816411147165,
-    "landVsLegacyQAoPeakDeltaMlPerSec": -1327.605754686954,
-    "landVsLegacyPeakSigmaActDeltaPa": -11347.802741245572,
+    "landVsLegacyQAoPeakDeltaMlPerSec": -1327.3689642045924,
+    "landVsLegacyPeakSigmaActDeltaPa": -11347.836253669779,
     "morphologyAcceptance": "not-claimed"
   },
   "outcomeInterpretation": {
