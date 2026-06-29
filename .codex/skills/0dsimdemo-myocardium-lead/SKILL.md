@@ -1,6 +1,6 @@
 ---
 name: 0dsimdemo-myocardium-lead
-description: Lead/orchestrator workflow for 0DSimDemo myocardium, atrial model, morphology, and staged Land replacement phases. Use when working in this repo on docs/myocardium, engine myocardium/runtime experiments, atrial bridge or refined atrial model work, PV-loop morphology lanes, PR phase orchestration, delegated plan/code/review gates, oracle direction checks, CI/merge/cleanup, or context handoff across compaction.
+description: Lead/orchestrator workflow for 0DSimDemo myocardium, atria, morphology, and Land-related phase work. Use for repo-local phase orchestration, experiment-first PR scope, delegated review gates, oracle direction checks, CI/merge/cleanup, and compaction-safe context handoff; read docs/status/current-lanes.md for live state and current reviewer/oracle policy.
 ---
 
 # 0DSimDemo Myocardium Lead
@@ -27,12 +27,10 @@ and carry work through PR, CI, merge, and cleanup.
   artifact, focused verifier/tests, and only necessary docs.
 - Use plan, plan review, coding, and code review only at the granularity that
   pays for itself. Skip lightweight gates for small coordination edits.
-- Delegate coding by default when a suitable high-speed Codex worker is
-  available, but take over quickly if the task is bounded or a delegate stalls.
-- Use 1/2 review gates for high-risk plan/code: Claude Opus 4.8 xhigh and Codex
-  5.5 xhigh where available; the lead makes the adoption decision.
-- Use oracle broad direction review every 3-5 PRs or at major scientific/product
-  checkpoints. Do not make oracle a default per-PR reviewer.
+- Delegate coding when it pays off, but take over quickly if the task is bounded
+  or a delegate stalls.
+- Use the current review/oracle policy from `docs/status/current-lanes.md` for
+  high-risk plan/code and major direction checkpoints.
 
 ## Scope Guard
 

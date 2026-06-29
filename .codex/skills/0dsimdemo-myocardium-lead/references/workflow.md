@@ -12,10 +12,9 @@ when useful, to the user:
 - Included: implementation, runner, artifact, verifier/test, minimal docs.
 - Excluded: runtime wiring, schema changes, tuning, acceptance claims, UI work,
   or other lanes that are not part of the phase.
-- Measurement validity: warmup, settling criteria, cap handling, beat selection,
-  period-aware windows, sampling rate, and steady-state evidence.
+- Measurement validity: use the checklist below.
 - Success classes: pass, partial, fail, nonfinite/cap, uninterpretable.
-- Claim boundary: what this PR can and cannot unlock.
+- Claim boundary: use the checklist below.
 - Delegation: coding delegate, review gate, oracle use, and timeout.
 
 If the charter only says "prepare", "audit", or "document" while a measured
@@ -33,9 +32,10 @@ experiment can reasonably run in the same PR, enlarge the PR.
 
 ## Delegation And Review Gates
 
-- Default coding delegate: Codex 5.5 xhigh, high-speed/priority if available.
-- Default plan/code review gate for high-risk work: 1/2 approval from Claude Opus
-  4.8 xhigh and Codex 5.5 xhigh, with the lead deciding which feedback to adopt.
+- Read `docs/status/current-lanes.md` for the current reviewer model names,
+  oracle cadence, and escalation policy.
+- Use a 1/2 gate for high-risk plan/code when the current policy calls for it;
+  the lead decides which feedback to adopt.
 - Skip plan review for small, mechanical, or already-chartered changes.
 - Skip code review for low-risk docs/coordination edits after local verification.
 - Set an informal delegate TTL. If a delegate stalls on a bounded task, continue
@@ -45,52 +45,23 @@ experiment can reasonably run in the same PR, enlarge the PR.
 
 Use the `oracle` skill/tool when available.
 
-- Broad direction cadence: at least about once every 3 PRs and normally every
-  3-5 PRs, ask the ChatGPT Pro Extended oracle in the `循環動態シミュレーター`
-  project for a flat current-state and future-direction review.
+- Use the current broad-review cadence from `docs/status/current-lanes.md`.
 - Keep broad prompts short and non-leading. Example:
 
 ```text
 この repo の現状をフラットに見て、今後の方針を率直に教えてください。PR review ではありません。
 ```
 
-- PR-specific oracle review is optional and reserved for major scientific,
-  runtime, or product-direction risk. Limit it to at most 2 oracle interactions
-  per PR.
-- Do not reject only because a PR is draft or CI is still running; those are
-  lead-managed states.
-- Use manual login / engine browser for oracle when required. Do not rely on
-  Chrome cookies if the user has forbidden that.
+- Keep any PR-specific oracle review bounded and reserve it for major
+  scientific, runtime, or product-direction risk.
 
 ## Experiment-First Guard
 
-For myocardium, atria, and morphology phases, prefer work that measures reality:
-
-- implement the runner or model path;
-- run the experiment long enough to establish settling or cap status;
-- record compact machine-readable artifacts;
-- include focused verifier/tests;
-- update docs only to state evidence boundaries.
-
-Avoid PRs that only add readiness scans, wording guards, or audit scaffolding
-unless the user explicitly asks or the next experiment is genuinely impossible.
-
-## Current Owner Posture
-
-Re-read `docs/status/current-lanes.md` for exact wording. Preserve these
-standing assumptions unless the owner updates them:
-
-- Production is unpublished with zero users, so internal staged replacement can
-  move faster than a public clinical-product rollout.
-- Land is ultimately intended to replace the current active model.
-- Faster staged replacement does not imply clinical/scientific validation,
-  official morphology acceptance, or final no-alternans acceptance.
-- Atrial bridge work can be provisional, but the target is a refined atrial
-  model that can reproduce correct atrial figure-eight PV loops.
-- Studio/Workbench mock work is owner-led; focus on foundational math/model and
-  engine evidence.
-- Morphology issues are first-class model problems; do not tune myocardium
-  parameters to hide arterial/filling/PV-loop artifacts.
+For model phases, prefer work that measures reality: implement the path, run the
+experiment long enough to establish status, record compact artifacts, add focused
+verification, and update only the docs needed to state evidence boundaries.
+Avoid readiness-only PRs unless the next experiment is genuinely impossible or
+the user explicitly asks for coordination-only work.
 
 ## Measurement Validity Checklist
 
@@ -111,13 +82,13 @@ Before interpreting results, confirm:
 
 Do not claim more than the artifact earns:
 
-- Developer-only or shadow evidence is not production replacement.
-- Production/default wiring is not clinical/scientific validation.
-- Morphology diagnostics are not official morphology acceptance.
-- Low-preload alternans edge evidence should not block education-visible
-  improvement indefinitely, but final no-alternans requires its own gate.
-- A provisional atrial bridge is not final atrial physiology, AF validation, or
-  atrial Land/RDQ validation.
+- Separate runtime adoption, product usefulness, and scientific/clinical
+  validation.
+- Separate diagnostic evidence from acceptance.
+- Separate provisional integration paths from final physiology claims.
+- Treat edge-case evidence as bounded evidence; do not let it silently become a
+  global pass or a global blocker.
+- State explicitly what the PR unlocks and what remains blocked.
 
 ## CI, PR, Merge, Cleanup
 
