@@ -4,12 +4,15 @@ export const MODELCORE_RUNTIME_ROOT_ZC_CURRENT_MODE =
   "current-root-zc-no-boundary-root-inertance-v0" as const;
 export const MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_CANDIDATE_MODE =
   "sourced-boundary-root-zc-phase5af-total2x-off-by-default-v1" as const;
+export const MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_DEFAULT_MODE =
+  "sourced-boundary-root-zc-phase5ap-user0-default-v1" as const;
 export const MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_MECHANISM_ID =
   "phase5ae-experimental-aortic-boundary-root-inertance-v1" as const;
 
 export type ModelCoreRuntimeRootZcMode =
   | typeof MODELCORE_RUNTIME_ROOT_ZC_CURRENT_MODE
-  | typeof MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_CANDIDATE_MODE;
+  | typeof MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_CANDIDATE_MODE
+  | typeof MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_DEFAULT_MODE;
 
 export type ResolveModelCoreRuntimeRootZcInput = {
   readonly mode?: ModelCoreRuntimeRootZcMode;
@@ -20,6 +23,7 @@ type RootZcEvidenceReadback = {
   readonly upstreamPhase5AFArtifactId: "arterial-root-zc-calibration-phase5af-result-v1";
   readonly upstreamPhase5AGArtifactId: "arterial-root-boundary-timing-phase5ag-result-v1";
   readonly upstreamPhase5AHArtifactId: "arterial-root-boundary-attribution-phase5ah-result-v1";
+  readonly upstreamPhase5APArtifactId: "runtime-root-zc-live-closure-phase5ap-result-v1";
   readonly sourceCalibrationStatus: "preferred-physiological-calibration-candidate";
   readonly equivalentPhase5ACCandidateId: "phase5ab-pareto-total-2x-aov-l";
   readonly equivalentEffectiveAoVInertanceMultiple: 2;
@@ -29,7 +33,14 @@ type RootZcEvidenceReadback = {
   readonly phase5AHLandQDotTimingOutputPreservedCount: 6;
   readonly phase5AHLandTimingOnlyOutputPreservedCount: 9;
   readonly phase5AHLandSolveFailureCount: 0;
-  readonly productionDefaultAdoptionSupported: false;
+  readonly phase5APHealthOkCandidateComparisonCount: 15;
+  readonly phase5APOutputPreservedHealthOkCount: 15;
+  readonly phase5APValveLoadTimingSignalCount: 15;
+  readonly phase5APQDotEngagementSignalCount: 7;
+  readonly phase5APOutputPreservedFraction: 1;
+  readonly phase5APTimingSignalFraction: 1;
+  readonly phase5APQDotSignalFraction: 0.466667;
+  readonly productionDefaultAdoptionSupported: true;
   readonly qDotClampRemovalSupported: false;
   readonly valveLoadTimingAcceptanceSupported: false;
 };
@@ -38,6 +49,7 @@ const SOURCED_BOUNDARY_ROOT_ZC_EVIDENCE_READBACK = {
   upstreamPhase5AFArtifactId: "arterial-root-zc-calibration-phase5af-result-v1",
   upstreamPhase5AGArtifactId: "arterial-root-boundary-timing-phase5ag-result-v1",
   upstreamPhase5AHArtifactId: "arterial-root-boundary-attribution-phase5ah-result-v1",
+  upstreamPhase5APArtifactId: "runtime-root-zc-live-closure-phase5ap-result-v1",
   sourceCalibrationStatus: "preferred-physiological-calibration-candidate",
   equivalentPhase5ACCandidateId: "phase5ab-pareto-total-2x-aov-l",
   equivalentEffectiveAoVInertanceMultiple: 2,
@@ -47,7 +59,14 @@ const SOURCED_BOUNDARY_ROOT_ZC_EVIDENCE_READBACK = {
   phase5AHLandQDotTimingOutputPreservedCount: 6,
   phase5AHLandTimingOnlyOutputPreservedCount: 9,
   phase5AHLandSolveFailureCount: 0,
-  productionDefaultAdoptionSupported: false,
+  phase5APHealthOkCandidateComparisonCount: 15,
+  phase5APOutputPreservedHealthOkCount: 15,
+  phase5APValveLoadTimingSignalCount: 15,
+  phase5APQDotEngagementSignalCount: 7,
+  phase5APOutputPreservedFraction: 1,
+  phase5APTimingSignalFraction: 1,
+  phase5APQDotSignalFraction: 0.466667,
+  productionDefaultAdoptionSupported: true,
   qDotClampRemovalSupported: false,
   valveLoadTimingAcceptanceSupported: false,
 } as const satisfies RootZcEvidenceReadback;
@@ -64,9 +83,15 @@ export type ModelCoreRuntimeRootZcResolution =
       readonly experimentalOptions: ModelCoreExperimentalOptions;
     }
   | {
-      readonly mode: typeof MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_CANDIDATE_MODE;
-      readonly claimBoundary: "off-by-default-sourced-boundary-root-zc-candidate-no-production-adoption";
-      readonly adoptionStatus: "off-by-default-acceptance-evidence-only";
+      readonly mode:
+        | typeof MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_CANDIDATE_MODE
+        | typeof MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_DEFAULT_MODE;
+      readonly claimBoundary:
+        | "off-by-default-sourced-boundary-root-zc-candidate-no-production-adoption"
+        | "user0-staged-sourced-boundary-root-zc-default-no-qdot-removal";
+      readonly adoptionStatus:
+        | "off-by-default-acceptance-evidence-only"
+        | "user0-staged-runtime-default-adopted";
       readonly mechanismId: typeof MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_MECHANISM_ID;
       readonly additionalAorticRootInertanceMmHgSec2PerMl: number;
       readonly equivalentEffectiveAoVInertanceMultiple: 2;
@@ -80,7 +105,7 @@ export function resolveModelCoreRuntimeRootZc(
   const mode = input.mode ?? MODELCORE_RUNTIME_ROOT_ZC_CURRENT_MODE;
   if (mode === MODELCORE_RUNTIME_ROOT_ZC_CURRENT_MODE) {
     if (input.baseAoVInertanceMmHgSec2PerMl !== undefined) {
-      throw new Error("Runtime root/Zc base AoV inertance is only valid for the explicit sourced candidate mode.");
+      throw new Error("Runtime root/Zc base AoV inertance is only valid for sourced boundary/root modes.");
     }
     return {
       mode,
@@ -97,8 +122,12 @@ export function resolveModelCoreRuntimeRootZc(
   const additional = normalizeBaseAoVInertance(input.baseAoVInertanceMmHgSec2PerMl);
   return {
     mode,
-    claimBoundary: "off-by-default-sourced-boundary-root-zc-candidate-no-production-adoption",
-    adoptionStatus: "off-by-default-acceptance-evidence-only",
+    claimBoundary: mode === MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_DEFAULT_MODE
+      ? "user0-staged-sourced-boundary-root-zc-default-no-qdot-removal"
+      : "off-by-default-sourced-boundary-root-zc-candidate-no-production-adoption",
+    adoptionStatus: mode === MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_DEFAULT_MODE
+      ? "user0-staged-runtime-default-adopted"
+      : "off-by-default-acceptance-evidence-only",
     mechanismId: MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_MECHANISM_ID,
     additionalAorticRootInertanceMmHgSec2PerMl: additional,
     equivalentEffectiveAoVInertanceMultiple: 2,
@@ -114,10 +143,10 @@ export function resolveModelCoreRuntimeRootZc(
 
 function normalizeBaseAoVInertance(value: number | undefined): number {
   if (value === undefined) {
-    throw new Error("Runtime root/Zc sourced boundary/root candidate requires explicit base AoV inertance.");
+    throw new Error("Runtime root/Zc sourced boundary/root mode requires explicit base AoV inertance.");
   }
   if (!Number.isFinite(value) || value <= 0) {
-    throw new Error("Runtime root/Zc sourced boundary/root candidate requires explicit finite positive base AoV inertance.");
+    throw new Error("Runtime root/Zc sourced boundary/root mode requires explicit finite positive base AoV inertance.");
   }
   return value;
 }

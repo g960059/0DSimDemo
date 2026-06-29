@@ -37,7 +37,10 @@ export function runToPeriodicSteadyInternal(
   const measureOptions: MeasureOptions = {
     ...measureInput,
     ...(runtimeActiveSourceMode
-      ? { experimentalOptions: createModelCoreRuntimeExperimentalOptions({ mode: runtimeActiveSourceMode }) }
+      ? { experimentalOptions: createModelCoreRuntimeExperimentalOptions({
+        mode: runtimeActiveSourceMode,
+        runtimeParams: params,
+      }) }
       : {}),
   };
   const settled = settleToSteadyState(params, measureOptions);

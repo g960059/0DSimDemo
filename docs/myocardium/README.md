@@ -1250,6 +1250,27 @@ figure-eight model, tune official cases, remove qDot clamps, claim official
 morphology, claim final no-alternans, or claim clinical/scientific validation.
 RA/LA replacement remains a separate chamber lane.
 
+Phase 5AP adopts the sourced total 2x root/Zc boundary/root mechanism for the
+user-0 staged LV+RV runtime default after live-closure evidence in
+[`../../data/myocardium/protocols/runtime-root-zc-live-closure-phase5ap-result-v1.json`](../../data/myocardium/protocols/runtime-root-zc-live-closure-phase5ap-result-v1.json).
+Regenerate it with
+`npx vite-node --script tools/myocardium/buildRuntimeRootZcLiveClosurePhase5AP.ts`;
+no permanent npm verifier is added for this decision diagnostic. The experiment
+reruns the synthetic user-knob matrix plus one frozen low-preload edge in the
+current LV+RV Land default closure, with qDot clamps, valve thresholds, valve
+losses, load/preload, Tref, source-stress scale, and Land parameters fixed. It
+records 15/15 health-ok candidate comparisons, output-preserved fraction `1`,
+valve/load timing-signal fraction `1`, qDot-signal fraction `0.466667`, zero
+output/timing-cost points, and zero LV/RV Land solve failures. Runtime preview,
+transition-steady, and Guyton/Starling surfaces now compose LV+RV Land with the
+adopted sourced root/Zc mechanism by default through closure-local `AoV_L`;
+explicit current root/Zc and the off-by-default candidate mode remain available,
+and frozen legacy rollback remains fenced from root/Zc composition. Phase 5AP
+does not remove qDot clamps, accept valve/load timing, claim official
+morphology, claim reflection coefficients, tune default parameters or valves, or
+claim clinical/scientific validation. RA/LA chamber replacement and atrial
+figure-eight readability remain separate lanes.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and

@@ -55,6 +55,7 @@ function snapshotFromSteady(
 ): PreviewCoreSnapshot {
   const core = new ModelCore(request.params, createModelCoreRuntimeExperimentalOptions({
     mode: request.options.runtimeActiveSourceMode ?? MODELCORE_RUNTIME_USER0_STAGED_DEFAULT_MODE,
+    runtimeParams: request.params,
   }));
   core.initializeVenousPressuresForTargetTBV(request.targetVolume);
   core.unpackState(run.result.state);

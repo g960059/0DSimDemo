@@ -657,6 +657,16 @@ production tissue homogenization.
 - boundary: off-by-default-sourced-boundary-root-zc-candidate-no-production-adoption; no default parameter, topology, state-layout, production registry, official case, Workbench, qDot clamp, valve threshold/loss, load/preload, Tref, source-stress, Land parameter, direct `Ao_SA`, AoV-boundary carrier, reflection-coefficient, official morphology, final no-alternans, or clinical/scientific validation claim.
 - next: use the explicit `rootZcMode` plus closure-local base `AoV_L` only for a later live closure acceptance experiment with qDot clamps, valve thresholds, valve loss terms, load/preload, Tref, source-stress scale, and Land parameters fixed.
 
+### Phase 5AP — live-closure root/Zc user-0 default adoption
+
+- result artifact: `data/myocardium/protocols/runtime-root-zc-live-closure-phase5ap-result-v1.json`
+- builder: `npx vite-node --script tools/myocardium/buildRuntimeRootZcLiveClosurePhase5AP.ts`
+- implementation: `engine/myocardium/runtimeRootZc.ts` adds `MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_DEFAULT_MODE`; `engine/myocardium/runtimeActiveSource.ts` now composes this sourced total 2x boundary/root mechanism with the LV+RV Land user-0 runtime default. Runtime surfaces that call `createModelCoreRuntimeExperimentalOptions()` pass their executed `params` so the added series inertance is closure-local to `AoV_L`. Explicit current root/Zc mode and the Phase 5AM off-by-default candidate remain reachable, and frozen legacy rollback rejects root/Zc composition.
+- current outcome: Phase 5AP reruns the synthetic Phase 5X user-knob matrix plus one frozen low-preload edge in the current LV+RV Land default closure with qDot clamps, valve thresholds, valve losses, load/preload, Tref, source-stress scale, and Land parameters fixed. The artifact records 15/15 health-ok candidate comparisons, output-preserved fraction `1`, valve/load timing-signal fraction `1`, qDot-signal fraction `0.466667`, zero output/timing-cost points, and zero LV/RV Land solve failures.
+- interpretation: the sourced root/Zc mechanism is now adopted for the unpublished user-0 LV+RV runtime default because live-closure evidence supports output-preserved timing improvement without solve regression. This is discharge-path infrastructure, not official morphology acceptance.
+- boundary: user0-staged-sourced-boundary-root-zc-default-no-qdot-removal; qDot clamp removal, valve/load timing acceptance, valve-threshold/loss tuning, direct `Ao_SA` adoption, reflection-coefficient claim, official morphology, official case tuning, RA/LA chamber replacement, final no-alternans, and clinical/scientific validation are not claimed.
+- next: continue RA/LA Land provider candidate evidence and atrial figure-eight refinement in separate lanes; keep qDot clamp retirement and valve/load timing acceptance as explicit future gates rather than implicit consequences of root/Zc adoption.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison

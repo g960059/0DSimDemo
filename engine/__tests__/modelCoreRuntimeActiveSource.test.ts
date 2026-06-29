@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import phase5AFArtifact from "@/data/myocardium/protocols/arterial-root-zc-calibration-phase5af-result-v1.json";
 import phase5AGArtifact from "@/data/myocardium/protocols/arterial-root-boundary-timing-phase5ag-result-v1.json";
 import phase5AHArtifact from "@/data/myocardium/protocols/arterial-root-boundary-attribution-phase5ah-result-v1.json";
+import phase5APArtifact from "@/data/myocardium/protocols/runtime-root-zc-live-closure-phase5ap-result-v1.json";
 import { DEFAULT_PARAMS } from "@/constants";
 import { ModelCore } from "@/engine/ModelCore";
 import { runScenario } from "@/engine/harness";
@@ -24,6 +25,7 @@ import {
 import {
   MODELCORE_RUNTIME_ROOT_ZC_CURRENT_MODE,
   MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_CANDIDATE_MODE,
+  MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_DEFAULT_MODE,
   MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_MECHANISM_ID,
   resolveModelCoreRuntimeRootZc,
 } from "@/engine/myocardium/runtimeRootZc";
@@ -45,6 +47,11 @@ describe("ModelCore runtime active source default", () => {
       .toBe(MODELCORE_RUNTIME_LV_LAND_SOURCE_PROVIDER_ID);
     expect(resolved.experimentalOptions.activeSourceProviders?.RV?.sourceProviderId)
       .toBe(MODELCORE_RUNTIME_RV_LAND_SOURCE_PROVIDER_ID);
+    expect(resolved.rootZc.mode).toBe(MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_DEFAULT_MODE);
+    expect(resolved.experimentalOptions.boundaryRootInertance).toMatchObject({
+      mechanismId: MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_MECHANISM_ID,
+      additionalAorticRootInertanceMmHgSec2PerMl: DEFAULT_PARAMS.AoV_L,
+    });
   });
 
   it("keeps one-call legacy active-stress rollback reachable", () => {
@@ -162,10 +169,14 @@ describe("ModelCore runtime active source default", () => {
     expect(restored.packState()).toEqual(serialized);
   });
 
-  it("keeps root/Zc current by default while exposing the sourced candidate only on explicit opt-in", () => {
+  it("adopts sourced root/Zc for LV+RV runtime default while keeping current mode explicit", () => {
     const currentRootZc = resolveModelCoreRuntimeRootZc();
     const defaultRuntime = resolveModelCoreRuntimeActiveSource({
       mode: MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE,
+    });
+    const explicitCurrentRuntime = resolveModelCoreRuntimeActiveSource({
+      mode: MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE,
+      rootZcMode: MODELCORE_RUNTIME_ROOT_ZC_CURRENT_MODE,
     });
     const candidateRuntime = resolveModelCoreRuntimeActiveSource({
       mode: MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE,
@@ -176,8 +187,16 @@ describe("ModelCore runtime active source default", () => {
     expect(currentRootZc.mode).toBe(MODELCORE_RUNTIME_ROOT_ZC_CURRENT_MODE);
     expect(currentRootZc.claimBoundary).toBe("current-root-zc-no-boundary-root-adoption");
     expect(currentRootZc.experimentalOptions.boundaryRootInertance).toBeUndefined();
-    expect(defaultRuntime.experimentalOptions.boundaryRootInertance).toBeUndefined();
-    expect(defaultRuntime.rootZc.mode).toBe(MODELCORE_RUNTIME_ROOT_ZC_CURRENT_MODE);
+    expect(defaultRuntime.rootZc.mode).toBe(MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_DEFAULT_MODE);
+    expect(defaultRuntime.rootZc.claimBoundary)
+      .toBe("user0-staged-sourced-boundary-root-zc-default-no-qdot-removal");
+    expect(defaultRuntime.rootZc.adoptionStatus).toBe("user0-staged-runtime-default-adopted");
+    expect(defaultRuntime.experimentalOptions.boundaryRootInertance).toMatchObject({
+      mechanismId: MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_MECHANISM_ID,
+      additionalAorticRootInertanceMmHgSec2PerMl: DEFAULT_PARAMS.AoV_L,
+    });
+    expect(explicitCurrentRuntime.rootZc.mode).toBe(MODELCORE_RUNTIME_ROOT_ZC_CURRENT_MODE);
+    expect(explicitCurrentRuntime.experimentalOptions.boundaryRootInertance).toBeUndefined();
     expect(candidateRuntime.experimentalOptions.activeSourceProviders?.LV).toBeDefined();
     expect(candidateRuntime.experimentalOptions.boundaryRootInertance).toMatchObject({
       mechanismId: MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_MECHANISM_ID,
@@ -197,7 +216,41 @@ describe("ModelCore runtime active source default", () => {
       resolveModelCoreRuntimeRootZc({
         baseAoVInertanceMmHgSec2PerMl: DEFAULT_PARAMS.AoV_L,
       })
-    ).toThrow("only valid for the explicit sourced candidate mode");
+    ).toThrow("only valid for sourced boundary/root modes");
+  });
+
+  it("uses the executed closure AoV inertance when adopting runtime root/Zc", () => {
+    const customAoVL = DEFAULT_PARAMS.AoV_L * 3;
+    const resolved = resolveModelCoreRuntimeActiveSource({
+      mode: MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE,
+      runtimeParams: { AoV_L: customAoVL },
+    });
+
+    expect(resolved.rootZc.mode).toBe(MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_DEFAULT_MODE);
+    expect(resolved.rootZc.additionalAorticRootInertanceMmHgSec2PerMl).toBe(customAoVL);
+    expect(resolved.experimentalOptions.boundaryRootInertance).toMatchObject({
+      additionalAorticRootInertanceMmHgSec2PerMl: customAoVL,
+    });
+  });
+
+  it("passes the executed closure AoV inertance through the regression harness explicit runtime path", () => {
+    const customAoVL = DEFAULT_PARAMS.AoV_L * 2.5;
+    const result = runScenario(
+      { ...DEFAULT_PARAMS, AoV_L: customAoVL },
+      {
+        settleSeconds: 0.01,
+        measureSeconds: 0.01,
+        runtimeActiveSourceMode: MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE,
+      },
+    );
+
+    expect(result.core.debugExperimentalBoundaryRootInertance()).toMatchObject({
+      mechanismId: MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_MECHANISM_ID,
+      targetValve: "AoV",
+      baseAoVInertanceMmHgSec2PerMl: customAoVL,
+      additionalAorticRootInertanceMmHgSec2PerMl: customAoVL,
+      effectiveAoVBoundaryRootInertanceMmHgSec2PerMl: customAoVL * 2,
+    });
   });
 
   it("keeps legacy active-stress rollback fenced from root/Zc opt-in", () => {
@@ -234,7 +287,7 @@ describe("ModelCore runtime active source default", () => {
     expect(core.debugExperimentalActiveSourceProviderIds()).toEqual({});
   });
 
-  it("readbacks Phase 5AF/5AG/5AH as off-by-default acceptance evidence only", () => {
+  it("readbacks Phase 5AF/5AG/5AH/5AP evidence without drifting from artifacts", () => {
     const rootZc = resolveModelCoreRuntimeRootZc({
       mode: MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_CANDIDATE_MODE,
       baseAoVInertanceMmHgSec2PerMl: DEFAULT_PARAMS.AoV_L,
@@ -244,6 +297,7 @@ describe("ModelCore runtime active source default", () => {
       upstreamPhase5AFArtifactId: phase5AFArtifact.id,
       upstreamPhase5AGArtifactId: phase5AGArtifact.id,
       upstreamPhase5AHArtifactId: phase5AHArtifact.id,
+      upstreamPhase5APArtifactId: phase5APArtifact.id,
       sourceCalibrationStatus: phase5AFArtifact.phase5aeBoundaryRootMechanismCalibration.calibrationStatus,
       equivalentPhase5ACCandidateId:
         phase5AFArtifact.phase5aeBoundaryRootMechanismCalibration.equivalentPhase5ACCandidateId,
@@ -255,7 +309,14 @@ describe("ModelCore runtime active source default", () => {
       phase5AHLandQDotTimingOutputPreservedCount: phase5AHArtifact.summary.landQDotTimingOutputPreservedCount,
       phase5AHLandTimingOnlyOutputPreservedCount: phase5AHArtifact.summary.landTimingOnlyOutputPreservedCount,
       phase5AHLandSolveFailureCount: phase5AHArtifact.summary.landSolveFailureCount,
-      productionDefaultAdoptionSupported: false,
+      phase5APHealthOkCandidateComparisonCount: phase5APArtifact.summary.healthOkCandidateComparisonCount,
+      phase5APOutputPreservedHealthOkCount: phase5APArtifact.summary.outputPreservedHealthOkCount,
+      phase5APValveLoadTimingSignalCount: phase5APArtifact.summary.valveLoadTimingSignalCount,
+      phase5APQDotEngagementSignalCount: phase5APArtifact.summary.qDotEngagementSignalCount,
+      phase5APOutputPreservedFraction: phase5APArtifact.summary.outputPreservedFraction,
+      phase5APTimingSignalFraction: phase5APArtifact.summary.timingSignalFraction,
+      phase5APQDotSignalFraction: phase5APArtifact.summary.qDotSignalFraction,
+      productionDefaultAdoptionSupported: phase5APArtifact.summary.adoptionSupport === "supported",
       qDotClampRemovalSupported: false,
       valveLoadTimingAcceptanceSupported: false,
     });
