@@ -603,6 +603,15 @@ production tissue homogenization.
 - boundary: phase5ag-boundary-root-response-attribution-diagnostic-only; no fresh model rerun, ModelCore equation change, topology change, state-layout change, default parameter change, runtime default flip, production registry integration, official case wiring/reauthoring, Workbench runtime wiring, state-schema migration, qDot tuning or qDot clamp removal, valve threshold/loss tuning, afterload/preload/Land-parameter/source-stress tuning, Tref fudge, direct Ao_SA adoption, AoV-boundary carrier adoption, boundary/root production adoption, valve/load timing acceptance, reflection-coefficient claim, root-cause/fix acceptance, official morphology acceptance, final no-alternans, Land default flip unlock, or clinical/scientific validation claim.
 - next: move the LV migration path to Land normal-floor LVEDP attribution before any default flip; keep the boundary/root mechanism off by default unless later live closure acceptance evidence supports adoption.
 
+### Phase 5AI — Land normal-floor LVEDP attribution diagnostic
+
+- result artifact: `data/myocardium/protocols/land-normal-floor-lvedp-attribution-phase5ai-result-v1.json`
+- verifier: `npm run verify:myocardium-land-normal-floor-lvedp-attribution`
+- current outcome: Phase 5AI independently measures 16 normal-floor single-axis probes with qDot clamps, valves, root/Zc, Tref, source-stress scale, and Land parameters fixed. Stock current normal has LVEDP `11.811228` mmHg and no floor failures. Developer-only LV Land current normal reproduces the Phase 5X floor blocker at LVEDP `17.276729` mmHg, only `1.276729` mmHg above the `16` mmHg bound, with no other floor failures and zero Land solve failures across Land probes. Preload/TBV, venous tone, geometry, and pericardium probes do not produce an output-preserved resolved run. The output-preserved diagnostic runs that resolve LVEDP are `land-lv-bpas-0p90`, `land-lv-bpas-0p85`, and `land-ca-release-1p10`.
+- interpretation: the normal-floor LVEDP blocker is bounded as a small passive-proxy/source-calcium sensitivity rather than a broad preload, venous-tone, geometry, or pericardial blocker. This supports moving toward a user-0 LV Land default-flip RFC if the owner accepts the bounded operating-point excess, but it is not accepted tuning and does not itself flip the default.
+- boundary: land-normal-floor-lvedp-attribution-diagnostic-only; no runtime default flip, legacy active-stress deletion, production registry integration, official case wiring/reauthoring, Workbench runtime wiring, state-schema migration, per-case tuning, accepted preload/venous-tone/passive/geometry/source-calcium tuning, Tref fudge, Land-parameter tuning, qDot/valve tuning, source-stress scaling, official morphology acceptance, or clinical/scientific validation claim.
+- next: draft a user-0 staged LV Land default-flip RFC with frozen legacy rollback and no root/Zc or atrial gating, unless the owner requires a separate explicit passive/geometry calibration before default.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison
