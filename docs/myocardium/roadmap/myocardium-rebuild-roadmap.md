@@ -677,6 +677,16 @@ production tissue homogenization.
 - boundary: atrial-land-default-candidate-evidence-no-runtime-flip; runtime default flip, all-chamber replacement acceptance, legacy deletion, official case tuning, atrial figure-eight finality, atrial Land physiology acceptance, qDot clamp removal, valve/load timing acceptance, and clinical/scientific validation are not claimed.
 - next: attribute the low-preload HR90 negative atrial source-stress path before any all-chamber default flip; continue atrial figure-eight refinement separately without tuning Land/Tref/source-stress/qDot/valves to force support.
 
+### Phase 5AR — RA/LA Land source-stress attribution
+
+- result artifact: `data/myocardium/protocols/atrial-land-source-stress-attribution-phase5ar-result-v1.json`
+- builder: `npx vite-node --script tools/myocardium/buildAtrialLandSourceStressAttributionPhase5AR.ts`
+- implementation: no runtime default or model-equation change. The disposable runner reuses explicit candidate providers and filters them into current LV+RV default, LA-only Land, RA-only Land, and all-chamber Land variants for attribution.
+- current outcome: Phase 5AR runs 24 HR75/90 normal, low-preload, and high-preload comparisons. Current LV+RV default and LA-only Land measure health-ok in 6/6 points. RA-only Land and all-chamber Land measure health-ok in 5/6 points and fail only at `low-preload-hr90` with the pressure-adapter nonnegative invariant. The artifact records negative raw RA Land source stress before the adapter: `-1.490128` Pa for RA-only and `-1.64698` Pa for all-chamber, in both source and commit path audits.
+- interpretation: the Phase 5AQ blocker is not LA provider reachability, LA source stress, or Land solver failure. It is an RA raw source-stress sign-semantics blocker under low-preload HR90, exposed by the existing source-stress pressure adapter.
+- boundary: atrial-land-source-stress-attribution-no-runtime-flip; all-chamber default, legacy deletion, source-stress clamp/scale/tuning, Tref tuning, official case tuning, atrial figure-eight finality, atrial Land physiology acceptance, qDot clamp removal, valve/load timing acceptance, and clinical/scientific validation are not claimed.
+- next: design an explicit atrial source-stress convention or pressure-adapter candidate before any RA Land/default flip; keep atrial figure-eight bridge refinement as a separate HR75/90 morphology lane.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison

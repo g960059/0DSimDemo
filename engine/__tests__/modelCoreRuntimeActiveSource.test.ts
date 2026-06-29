@@ -3,6 +3,7 @@ import phase5AFArtifact from "@/data/myocardium/protocols/arterial-root-zc-calib
 import phase5AGArtifact from "@/data/myocardium/protocols/arterial-root-boundary-timing-phase5ag-result-v1.json";
 import phase5AHArtifact from "@/data/myocardium/protocols/arterial-root-boundary-attribution-phase5ah-result-v1.json";
 import phase5APArtifact from "@/data/myocardium/protocols/runtime-root-zc-live-closure-phase5ap-result-v1.json";
+import phase5ARArtifact from "@/data/myocardium/protocols/atrial-land-source-stress-attribution-phase5ar-result-v1.json";
 import { DEFAULT_PARAMS } from "@/constants";
 import { ModelCore } from "@/engine/ModelCore";
 import { runScenario } from "@/engine/harness";
@@ -369,5 +370,47 @@ describe("ModelCore runtime active source default", () => {
     expect(phase5AHArtifact.boundary.noBoundaryRootProductionAdoption).toBe(true);
     expect(phase5AHArtifact.boundary.noQDotClampRemoval).toBe(true);
     expect(phase5AHArtifact.boundary.noValveLoadTimingAcceptance).toBe(true);
+  });
+
+  it("readbacks Phase 5AR atrial source-stress attribution without drifting from artifacts", () => {
+    const lowHr90Runs = phase5ARArtifact.runs.filter((run) => run.pointId === "low-preload-hr90");
+    const laOnly = lowHr90Runs.find((run) => run.candidateId === "la-only-land-candidate");
+    const raOnly = lowHr90Runs.find((run) => run.candidateId === "ra-only-land-candidate");
+    const allChamber = lowHr90Runs.find((run) => run.candidateId === "all-chamber-land-candidate");
+
+    expect(phase5ARArtifact.summary.candidateSupport)
+      .toBe("attributed-negative-raw-land-source-stress");
+    expect(phase5ARArtifact.summary.pressureAdapterNonnegativeErrorCount).toBe(2);
+    expect(phase5ARArtifact.summary.negativeSourceStressFindingCount).toBe(2);
+    expect(phase5ARArtifact.summary.negativeCommitStressFindingCount).toBe(2);
+    expect(laOnly).toMatchObject({
+      status: "measured",
+      sourceStressAttribution: "measured-no-negative-source-stress",
+      negativeSourceStressChambers: [],
+    });
+    for (const run of [raOnly, allChamber]) {
+      expect(run).toMatchObject({
+        status: "runtime-error",
+        pressureAdapterNonnegativeError: true,
+        errorMessage: "source active-fiber stress must be nonnegative",
+        negativeSourceStressChambers: ["RA"],
+        negativeCommitStressChambers: ["RA"],
+        sourceStressAttribution: "runtime-error-negative-raw-land-source-stress-before-pressure-adapter",
+      });
+      expect(run?.providerInstrumentation.RA?.landSolveFailureCount).toBe(0);
+      expect(run?.providerInstrumentation.RA?.sourcePathAudit.sourceActiveFiberStressPa.min)
+        .toBeLessThan(0);
+      expect(run?.providerInstrumentation.RA?.commitPathAudit.sourceActiveFiberStressPa.min)
+        .toBeLessThan(0);
+    }
+    for (const run of phase5ARArtifact.runs) {
+      for (const chamber of ["LV", "RV", "LA"] as const) {
+        const min = run.providerInstrumentation[chamber]?.sourcePathAudit.sourceActiveFiberStressPa.min;
+        if (min != null) expect(min).toBeGreaterThanOrEqual(0);
+      }
+    }
+    expect(phase5ARArtifact.boundary.noAllChamberRuntimeDefaultFlip).toBe(true);
+    expect(phase5ARArtifact.boundary.noSourceStressClampOrTuning).toBe(true);
+    expect(phase5ARArtifact.boundary.noLegacyDeletion).toBe(true);
   });
 });

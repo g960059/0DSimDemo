@@ -1289,6 +1289,22 @@ chambers, delete legacy active-stress, accept atrial Land physiology, accept
 atrial figure-eight morphology, tune cases/valves/qDot/Tref/source-stress, or
 claim clinical/scientific validation.
 
+Phase 5AR attributes that Phase 5AQ failure in
+[`../../data/myocardium/protocols/atrial-land-source-stress-attribution-phase5ar-result-v1.json`](../../data/myocardium/protocols/atrial-land-source-stress-attribution-phase5ar-result-v1.json).
+Regenerate it with
+`npx vite-node --script tools/myocardium/buildAtrialLandSourceStressAttributionPhase5AR.ts`;
+this remains a disposable diagnostic with no permanent npm verifier. The
+HR75/90 normal, low-preload, and high-preload envelope compares the current
+LV+RV default, LA-only Land, RA-only Land, and all-chamber Land. Current and
+LA-only candidates measure health-ok in 6/6 points; RA-only and all-chamber
+measure health-ok in 5/6 points and both fail only at `low-preload-hr90`.
+The failure is attributed to raw RA Land source-stress sign behavior before the
+pressure adapter: RA-only records minimum source/commit stress `-1.490128` Pa
+and all-chamber records `-1.64698` Pa, then the existing pressure-adapter
+nonnegative invariant throws. Phase 5AR does not clamp, scale, retune, or accept
+source stress; it keeps all-chamber Land off by default and leaves atrial
+figure-eight selection separate.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and
