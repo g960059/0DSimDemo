@@ -130,14 +130,27 @@ morphology-classified ejection core relative to the broader AoV-open window.
 This is diagnostic-only blocker localization, not qDot/valve tuning or
 official morphology acceptance.
 
+Phase 5Z then localizes the short ejection-window denominator:
+[`../../../data/myocardium/protocols/lv-land-ejection-window-localization-phase5z-result-v1.json`](../../../data/myocardium/protocols/lv-land-ejection-window-localization-phase5z-result-v1.json).
+Run `npm run verify:myocardium-lv-land-ejection-window-localization` to check
+it. After per-beat normalization, 13/14 Land points classify as
+`no-phase5x-window-amplification` and only HR120 remains
+`classifier-window-denominator-amplification-dominant`; the physical high-flow
+core qDot fraction remains below the predeclared dominance threshold. This does
+not support a dominant short-window denominator explanation and points next to
+arterial root/Zc/inertance plus valve/load diagnostics before qDot, valve, load,
+or runtime-default changes. This is a next diagnostic hypothesis, not
+root-cause acceptance. Contractility-low/high Land branches match normal-floor
+in this artifact, so those points record matrix coverage rather than independent
+Land contractility sensitivity.
+
 1. Use the current-main baseline snapshot in
    [`pv-loop-current-main-baseline-snapshot-v1.md`](../verification/pv-loop-current-main-baseline-snapshot-v1.md)
    as the post-PR #196 morphology reference.
 2. Derive or emit the missing diagnostic-only E/A-like inflow proxy for the
    three residual dobutamine RV filling groups.
-3. Use Phase 5Y qDot localization to split classifier/window and operating
-   point work from arterial root/Zc/load morphology; do not tune qDot or valve
-   thresholds to hide the signal.
+3. Run arterial root/Zc/inertance and valve/load diagnostics before treating LV
+   `qDotClampHitFraction=1` as a qDot/valve-threshold blocker.
 4. Use Phase 5X style normal-floor and user-knob sweeps for LV Land default
    candidate decisions before detailed official-case tuning.
 5. Keep filling jaggedness/figure-eight work in the atrial A1/refined atrial

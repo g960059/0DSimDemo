@@ -961,6 +961,28 @@ only; it does not flip runtime default, delete legacy active-stress, accept
 official morphology, or authorize qDot/valve/afterload/preload/Land-parameter
 tuning.
 
+Phase 5Z localizes that short ejection-window denominator without changing the
+model. The recorded result is
+[`../../data/myocardium/protocols/lv-land-ejection-window-localization-phase5z-result-v1.json`](../../data/myocardium/protocols/lv-land-ejection-window-localization-phase5z-result-v1.json).
+Run `npm run verify:myocardium-lv-land-ejection-window-localization` to check
+the artifact. The same 14 synthetic user-knob points are rerun through stock
+active and developer-only LV Land. Land has health ok, all Land points settle,
+and Land solve failure count is zero. After aligning Phase 5Z physical-window
+durations and volumes to Phase 5X per-beat metric rows, 13/14 Land points
+classify as `no-phase5x-window-amplification` and only HR120 remains
+`classifier-window-denominator-amplification-dominant`: the median Phase 5X
+ejection-core/AoV-open duration ratio is `0.133333`, while the median
+high-flow-core qDot fraction is `0.542857`, below the predeclared high-core
+dominance threshold. This does not support a dominant short-window denominator
+explanation; treat the qDot signal as real AoV/root discharge evidence and run
+arterial root/Zc/inertance plus valve/load diagnostics before any qDot or valve
+threshold tuning. That discharge-path direction is the next diagnostic
+hypothesis, not Phase 5Z root-cause acceptance. Contractility-low/high Land
+branches match the normal-floor Land readout in this artifact, so the sweep is
+point coverage rather than independent Land contractility-sensitivity evidence.
+Runtime default flip, official morphology acceptance, final no-alternans, and
+clinical/scientific validation remain blocked.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and
