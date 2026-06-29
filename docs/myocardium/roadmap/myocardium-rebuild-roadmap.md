@@ -506,6 +506,14 @@ production tissue homogenization.
 - boundary: developer-only-lv-land-envelope-expansion-diagnostic-only; no runtime replacement, no production registry integration, no official case wiring, no Workbench runtime wiring, no runtime flag UI, no state-schema migration, no qDot/valve/afterload/preload/Land-parameter/source-stress tuning, no Level 3/4 acceptance, no official morphology acceptance, no final no-alternans, and no structural alternans-removal claim.
 - next: interpret whether Phase 5W is sufficient for a production-shadow dry-run or whether morphology blocker experiments should run first. Do not default-replace the active model from Phase 5W alone.
 
+### Phase 5X — LV Land default-candidate preflight
+
+- result artifact: `data/myocardium/protocols/lv-land-default-candidate-preflight-phase5x-result-v1.json`
+- verifier: `npm run verify:myocardium-lv-land-default-candidate-preflight`
+- current outcome: the users0 posture allows early default-candidate work, but this phase does not flip runtime default. It runs a normal-floor plus one-axis user-knob sweep using synthetic diagnostic cases, comparing stock active against developer-only LV Land through the PV-loop morphology runner. Land has health ok at all 14 points, all Land points settle, and Land solve failure count is zero. The preflight is blocked before default flip because the normal floor misses the LVEDP bound and absolute morphology blockers remain.
+- boundary: early-default-candidate-user-knob-morphology-preflight-diagnostic-only; no runtime default flip in this artifact, no legacy active-stress deletion, no official case reauthoring, no Workbench runtime wiring, no runtime flag UI, no state-schema migration, no production registry integration, no per-case tuning, no Tref fudge, no qDot/valve/afterload/preload/Land-parameter/source-stress tuning, no official morphology acceptance, no final no-alternans, and no clinical/scientific validation claim.
+- next: keep legacy active-stress frozen as the alternans positive-control reference; run SDIRK2 alternans closure in parallel rather than as the product migration gate; fix or explicitly bound the Phase 5X normal-floor and morphology blockers before a separate default-flip PR.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison

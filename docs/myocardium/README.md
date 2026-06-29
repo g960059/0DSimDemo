@@ -927,6 +927,25 @@ Workbench runtime wiring, state schema migration, runtime UI, production
 registry integration, Level 3/4 acceptance, official morphology acceptance,
 final no-alternans, and structural alternans-removal claims remain blocked.
 
+Phase 5X records an early-default-candidate preflight for the users0 posture
+without flipping runtime default or deleting legacy active-stress. The recorded
+result is
+[`../../data/myocardium/protocols/lv-land-default-candidate-preflight-phase5x-result-v1.json`](../../data/myocardium/protocols/lv-land-default-candidate-preflight-phase5x-result-v1.json).
+Run `npm run verify:myocardium-lv-land-default-candidate-preflight` to check
+the compact evidence. The preflight uses synthetic one-axis user-knob sweep
+points rather than official-case tuning: normal floor, preload, HR,
+contractility, afterload, arterial stiffness, and venous tone are each measured
+as stock active versus developer-only LV Land through the PV-loop morphology
+runner. The current measured result is blocked before default flip: Land has
+health ok and zero solve failures at all 14 points, but the normal floor misses
+the LVEDP bound and absolute morphology blockers remain. Legacy active-stress
+is kept as a frozen positive-control reference; SDIRK2 alternans closure remains
+parallel science work, not a product migration gate. Official case reauthoring,
+per-case tuning, Tref fudge, qDot/valve/afterload/preload/Land-parameter
+tuning, Workbench/runtime wiring, state schema migration, production registry
+integration, official morphology acceptance, final no-alternans, and
+clinical/scientific validation remain blocked.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and

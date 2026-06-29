@@ -8,8 +8,9 @@ import { caseDocumentToSimInstances } from "@/caseDoc";
 import type { CaseDocument } from "@/caseDoc";
 import { DEFAULT_SETTLE_POLICY } from "@/engine/settling";
 import { measureConverged } from "@/engine/measure";
+import type { ModelCoreExperimentalOptions } from "@/engine/ModelCore";
 import type { MeasureOptions, SteadyMeasurement } from "@/engine/measure";
-import type { SimSample } from "@/engine/protocol";
+import type { SimSample, SimulationHealth } from "@/engine/protocol";
 import { OFFICIAL_CASES } from "@/officialCases";
 import type { SimInstance } from "@/types";
 
@@ -28,9 +29,11 @@ type SamplingMode = "raw" | "uniformBeatGrid" | "eventAlignedCore" | "coarseSens
 type TransitionPolicy = "transition-inclusive" | "transition-excluded-core";
 type ValveName = "MV" | "AoV" | "TV" | "PV";
 
-type CliOptions = {
+export type CliOptions = {
   outDir: string;
   caseIds: string[];
+  caseDocuments?: readonly CaseDocument[];
+  experimentalOptions?: ModelCoreExperimentalOptions;
 };
 
 export type AnalysisSample = {
@@ -128,7 +131,7 @@ export type MetricRow = {
   classificationLabels: string[];
 };
 
-type PhaseSampleRow = {
+export type PhaseSampleRow = {
   caseId: string;
   branchId: string;
   branchName: string;
@@ -179,7 +182,7 @@ export type ClampEventRow = {
   note: string;
 };
 
-type BranchSummary = {
+export type BranchSummary = {
   caseId: string;
   caseTitle: string;
   branchId: string;
@@ -190,18 +193,19 @@ type BranchSummary = {
     beats: number;
     actualSeconds: number;
   };
+  health: SimulationHealth;
   metricCount: number;
   sampleCount: number;
   traceFile: string;
 };
 
-type DiagnosticRunResult = {
+export type DiagnosticRunResult = {
   summary: RunnerSummary;
   metricRows: MetricRow[];
   phaseRows: PhaseSampleRow[];
 };
 
-type RunnerSummary = {
+export type RunnerSummary = {
   schemaVersion: 1;
   targetPackId: string;
   protocolId: string;
@@ -645,7 +649,7 @@ function signalAvailability(): Record<string, boolean> {
   };
 }
 
-function runCase(doc: CaseDocument): {
+function runCase(doc: CaseDocument, experimentalOptions?: ModelCoreExperimentalOptions): {
   metricRows: MetricRow[];
   phaseRows: PhaseSampleRow[];
   valveRows: ValveEventRow[];
@@ -662,10 +666,9 @@ function runCase(doc: CaseDocument): {
   const traceFiles: Array<{ file: string; rows: Record<string, unknown>[] }> = [];
 
   for (const instance of instances) {
-    const measurement = measureConverged(
-      instance.params,
-      officialMeasureOptions(doc.meta.id, instance.targetVolume),
-    );
+    const measureOptions = officialMeasureOptions(doc.meta.id, instance.targetVolume);
+    if (experimentalOptions !== undefined) measureOptions.experimentalOptions = experimentalOptions;
+    const measurement = measureConverged(instance.params, measureOptions);
     const branch = analyzeBranch(doc, instance, measurement);
     metricRows.push(...branch.metricRows);
     phaseRows.push(...branch.phaseRows);
@@ -753,6 +756,7 @@ function analyzeBranch(
         beats: measurement.settleStatus.beats,
         actualSeconds: measurement.settleStatus.actualSeconds,
       },
+      health: measurement.health,
       metricCount: metricRows.length,
       sampleCount: measurement.samples.length,
       traceFile: path.join("traces", traceFile),
@@ -2700,7 +2704,12 @@ export function buildMorphologyEvidenceSummaryForTest(
 }
 
 export function runPvLoopMorphologyDiagnostic(options: CliOptions): DiagnosticRunResult {
-  const summary = buildInitialSummary(options.caseIds);
+  const docs = options.caseDocuments ?? options.caseIds.map((caseId) => {
+    const doc = OFFICIAL_CASES.find((candidate) => candidate.meta.id === caseId);
+    if (!doc) return null;
+    return doc;
+  }).filter((doc): doc is CaseDocument => doc != null);
+  const summary = buildInitialSummary(options.caseDocuments ? docs.map((doc) => doc.meta.id) : options.caseIds);
   const metricRows: MetricRow[] = [];
   const phaseRows: PhaseSampleRow[] = [];
   const valveRows: ValveEventRow[] = [];
@@ -2714,14 +2723,17 @@ export function runPvLoopMorphologyDiagnostic(options: CliOptions): DiagnosticRu
     summary.errors.push("Protocol/target claimBoundary mismatch.");
   }
 
-  for (const caseId of options.caseIds) {
-    const doc = OFFICIAL_CASES.find((candidate) => candidate.meta.id === caseId);
-    if (!doc) {
-      summary.errors.push(`Official case not found: ${caseId}`);
-      continue;
+  if (!options.caseDocuments) {
+    for (const caseId of options.caseIds) {
+      if (!OFFICIAL_CASES.some((candidate) => candidate.meta.id === caseId)) {
+        summary.errors.push(`Official case not found: ${caseId}`);
+      }
     }
+  }
+
+  for (const doc of docs) {
     try {
-      const result = runCase(doc);
+      const result = runCase(doc, options.experimentalOptions);
       metricRows.push(...result.metricRows);
       phaseRows.push(...result.phaseRows);
       valveRows.push(...result.valveRows);
@@ -2729,14 +2741,18 @@ export function runPvLoopMorphologyDiagnostic(options: CliOptions): DiagnosticRu
       summary.branches.push(...result.summaries);
       traceFiles.push(...result.traceFiles);
     } catch (err) {
-      summary.errors.push(`${caseId}: ${(err as Error).message}`);
+      summary.errors.push(`${doc.meta.id}: ${(err as Error).message}`);
     }
   }
 
   const expectedCases = new Set(CASE_IDS);
-  for (const caseId of options.caseIds) {
+  for (const caseId of summary.caseIds) {
     if (!expectedCases.has(caseId)) {
-      summary.warnings.push(`Non-canonical case requested via --cases: ${caseId}`);
+      summary.warnings.push(
+        options.caseDocuments
+          ? `Synthetic diagnostic document requested programmatically: ${caseId}`
+          : `Non-canonical case requested via --cases: ${caseId}`,
+      );
     }
   }
   if (metricRows.length === 0) {
@@ -2748,8 +2764,14 @@ export function runPvLoopMorphologyDiagnostic(options: CliOptions): DiagnosticRu
   return { summary, metricRows, phaseRows };
 }
 
-export function runPvLoopMorphologyDiagnosticForTest(outDir: string, caseIds = ["normal-sinus"]): RunnerSummary {
-  return runPvLoopMorphologyDiagnostic({ outDir, caseIds }).summary;
+export function runPvLoopMorphologyDiagnosticForTest(
+  outDir: string,
+  caseIds = ["normal-sinus"],
+  experimentalOptions?: ModelCoreExperimentalOptions,
+): RunnerSummary {
+  const options: CliOptions = { outDir, caseIds };
+  if (experimentalOptions !== undefined) options.experimentalOptions = experimentalOptions;
+  return runPvLoopMorphologyDiagnostic(options).summary;
 }
 
 function main(): void {
