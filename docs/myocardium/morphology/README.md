@@ -200,6 +200,21 @@ qDot clamp removal, not root-cause/fix acceptance, and not official morphology
 acceptance. The next morphology step is an off-by-default root/Zc prototype
 or a sourced calibration pass, not qDot/valve tuning.
 
+Phase 5AD records that off-by-default root/Zc prototype smoke:
+[`../../../data/myocardium/protocols/arterial-root-zc-prototype-smoke-phase5ad-result-v1.json`](../../../data/myocardium/protocols/arterial-root-zc-prototype-smoke-phase5ad-result-v1.json).
+Run `npm run verify:myocardium-arterial-root-zc-prototype-smoke` to check it.
+The selected stock/Land smoke points compare current closure, the Phase 5AB
+`AoV_L` 2x boundary carrier reference, direct `Ao_SA.L` 1.5x/2x edge overrides,
+and a combined `AoV_L` 2x + `Ao_SA.L` 1.5x candidate while keeping qDot,
+valves, load/preload, Tref, source-stress, and Land parameters fixed. The
+artifact records 5 measured-health-ok lower-clamp output-preserved comparisons
+for the AoV-boundary carrier reference, 0 for direct `Ao_SA.L`-only candidates,
+and 3 for the combined candidate, with the combined path classified as not
+robust.
+This blocks direct `Ao_SA.L` adoption as the root/Zc fix from this smoke
+evidence; it is a routing diagnostic, not root-cause/fix acceptance or official
+morphology acceptance.
+
 1. Use the current-main baseline snapshot in
    [`pv-loop-current-main-baseline-snapshot-v1.md`](../verification/pv-loop-current-main-baseline-snapshot-v1.md)
    as the post-PR #196 morphology reference.

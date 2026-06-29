@@ -1049,6 +1049,24 @@ reflection directly. This is not a closed-loop runtime change, not external
 physiological Zc calibration, not direct Ao_SA adoption, not qDot clamp removal,
 not root-cause/fix acceptance, and not official morphology acceptance.
 
+Phase 5AD carries that readout into an off-by-default root/Zc prototype smoke
+diagnostic. The recorded result is
+[`../../data/myocardium/protocols/arterial-root-zc-prototype-smoke-phase5ad-result-v1.json`](../../data/myocardium/protocols/arterial-root-zc-prototype-smoke-phase5ad-result-v1.json).
+Run `npm run verify:myocardium-arterial-root-zc-prototype-smoke` to check the
+artifact. The smoke test measures stock active and developer-only LV Land at
+normal-floor, HR90, arterial-stiffness-high, and the bounded low-preload edge
+across current closure, the Phase 5AB `AoV_L` 2x boundary-carrier reference,
+direct `Ao_SA.L` 1.5x/2x edge overrides, and a combined `AoV_L` 2x +
+`Ao_SA.L` 1.5x candidate. qDot clamps, valve thresholds, valve loss terms,
+load/preload, Tref, source-stress scale, and Land parameters remain fixed. The
+current result finds 5 measured-health-ok lower-clamp output-preserved
+comparisons for the AoV-boundary carrier reference, 0 for direct
+`Ao_SA.L`-only candidates, and 3 for the combined candidate while classifying
+the combined path as
+not-robust. Seven non-ok or unmeasured runs are boundary-tracked. This is a
+routing diagnostic: do not adopt direct `Ao_SA.L` as the root/Zc fix from this
+evidence, and do not adopt the AoV-boundary carrier as physical calibration.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and
