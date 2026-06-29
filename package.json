@@ -57,6 +57,7 @@
     "verify:myocardium-lv-land-default-candidate-preflight": "vite-node --script tools/myocardium/verifyLvLandDefaultCandidatePreflightPhase5X.ts",
     "verify:myocardium-lv-land-qdot-blocker-localization": "vite-node --script tools/myocardium/verifyLvLandQDotBlockerLocalizationPhase5Y.ts",
     "verify:myocardium-lv-land-ejection-window-localization": "vite-node --script tools/myocardium/verifyLvLandEjectionWindowLocalizationPhase5Z.ts",
+    "verify:myocardium-arterial-root-inertance-bench": "vite-node --script tools/myocardium/verifyArterialRootInertanceBenchPhase5AA.ts",
     "verify:myocardium-morphology-blocker-bundle": "vite-node --script tools/myocardium/verifyMorphologyBlockerBundlePhaseM1.ts",
     "verify:myocardium-atrial-bridge-shootout": "vite-node --script tools/myocardium/verifyAtrialBridgeShootout.ts",
     "verify:myocardium-atrial-bridge-localization": "vite-node --script tools/myocardium/verifyAtrialBridgeBlockerLocalization.ts",

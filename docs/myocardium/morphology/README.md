@@ -144,20 +144,41 @@ root-cause acceptance. Contractility-low/high Land branches match normal-floor
 in this artifact, so those points record matrix coverage rather than independent
 Land contractility sensitivity.
 
+Phase 5AA records the first arterial root inertance bench:
+[`../../../data/myocardium/protocols/arterial-root-inertance-bench-phase5aa-result-v1.json`](../../../data/myocardium/protocols/arterial-root-inertance-bench-phase5aa-result-v1.json).
+Run `npm run verify:myocardium-arterial-root-inertance-bench` to check it. The
+bench is an offline prescribed-pressure AoV/root replay over the Phase 5X
+synthetic user-knob matrix for stock active and developer-only LV Land. qDot
+and valve thresholds are fixed, no myocardium or load parameters are tuned, and
+no ModelCore equation is changed. Lower-clamp root inertance candidates are
+found without severe forward-volume or duration loss in 27/27 health-ok
+stock/Land runs, including 14/14 health-ok Land runs. The raw replay signal is
+28/28, but the failed-health stock HR120 run is tracked separately rather than
+used in the headline. Median current replay AoV-open clamp fraction is
+`0.518773`, and median best-candidate clamp reduction is `1`. This is a
+diagnostic signal for a narrower arterial root/Zc/inertance candidate, not
+closed-loop adoption, direct Ao_SA calibration, valve-timing evidence,
+Zc/reflection availability, root-cause acceptance, or official morphology
+acceptance. `bestCandidateId` is clamp-reduction prioritized diagnostic
+ranking, not a direct physical adoption choice; closed-loop follow-up should
+treat lower inertance values as a Pareto region against output preservation.
+
 1. Use the current-main baseline snapshot in
    [`pv-loop-current-main-baseline-snapshot-v1.md`](../verification/pv-loop-current-main-baseline-snapshot-v1.md)
    as the post-PR #196 morphology reference.
 2. Derive or emit the missing diagnostic-only E/A-like inflow proxy for the
    three residual dobutamine RV filling groups.
-3. Run arterial root/Zc/inertance and valve/load diagnostics before treating LV
-   `qDotClampHitFraction=1` as a qDot/valve-threshold blocker.
+3. Narrow the Phase 5AA root/Zc/inertance signal into a closed-loop or
+   off-by-default diagnostic candidate with qDot and valve thresholds still
+   fixed before treating LV `qDotClampHitFraction=1` as a qDot/valve-threshold
+   blocker.
 4. Use Phase 5X style normal-floor and user-knob sweeps for LV Land default
    candidate decisions before detailed official-case tuning.
 5. Keep filling jaggedness/figure-eight work in the atrial A1/refined atrial
    lane and ejection squareness/incisura work in the arterial Zc/root lane; do
    not tune myocardium parameters to hide those blockers.
-6. Define and run an isolated arterial bench for direct Zc/reflection signal
-   generation.
+6. Keep direct Zc/reflection signal generation separate; Phase 5AA does not
+   make Zc/reflection availability claims.
 7. Feed BLOCKER/ADVISORY/OUT-OF-SCOPE results to the myocardium roadmap.
 
 ## Handoff rule
