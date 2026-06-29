@@ -9,7 +9,8 @@ Before opening a substantive PR phase, write a compact charter for yourself and,
 when useful, to the user:
 
 - Objective: one concrete model or experiment outcome.
-- Included: implementation, runner, artifact, verifier/test, minimal docs.
+- Included: implementation, runner, measured artifact, focused check/test, and
+  minimal docs.
 - Excluded: runtime wiring, schema changes, tuning, acceptance claims, UI work,
   or other lanes that are not part of the phase.
 - Measurement validity: use the checklist below.
@@ -19,6 +20,9 @@ when useful, to the user:
 
 If the charter only says "prepare", "audit", or "document" while a measured
 experiment can reasonably run in the same PR, enlarge the PR.
+
+If the charter adds a new permanent verifier, npm script, or CI gate, name the
+forward invariant it protects. Historical explanation by itself is not enough.
 
 ## Worktree And Branch Protocol
 
@@ -87,6 +91,28 @@ experiment long enough to establish status, record compact artifacts, add focuse
 verification, and update only the docs needed to state evidence boundaries.
 Avoid readiness-only PRs unless the next experiment is genuinely impossible or
 the user explicitly asks for coordination-only work.
+
+## Verification Scope Guard
+
+Keep diagnostics and standing gates separate.
+
+- Default experiment PR shape: implementation, runner, measured result,
+  artifact/readback, focused local check, and only the docs needed for the claim
+  boundary.
+- Do not create a permanent verifier, npm script, or CI check for every
+  diagnostic artifact, historical no-go, route exploration, or result hash.
+- Promote a diagnostic to a standing gate only when it protects a forward
+  invariant that future PRs can break, such as runtime/default-mode safety,
+  rollback availability, solver/state health, work-conjugate contracts,
+  qDot/valve/load contamination, morphology red flags, or user-visible behavior.
+- Prefer a generic artifact/readback verifier over repeated per-phase scripts
+  when the check shape is artifact identity, summary consistency, claim
+  boundary, warning presence, or stale-result rejection.
+- Once a decision path is closed, keep its evidence readable and reproducible
+  when useful, but move it out of the normal development gate instead of
+  extending the diagnostic lineage.
+- If a PR adds a new standing gate, explain in the PR body what future behavior
+  it protects and why an existing generic gate is insufficient.
 
 ## Measurement Validity Checklist
 
