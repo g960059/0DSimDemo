@@ -1,0 +1,2854 @@
+{
+  "schemaVersion": 1,
+  "id": "atrial-figure-eight-ra-variant-sweep-phase5as-result-v1",
+  "phase": "Phase 5AS",
+  "claimBoundary": "atrial-figure-eight-ra-variant-sweep-no-selection",
+  "protocol": {
+    "pointSource": "hr75-hr90-normal-low-high-preload",
+    "variantIds": [
+      "refined-a1-v1-reference",
+      "ra-low-threshold-fast-recoil-v1",
+      "ra-strong-reservoir-v1",
+      "ra-soft-sleeve-v1",
+      "ra-soft-sleeve-stronger-v1",
+      "ra-soft-sleeve-slower-v1",
+      "ra-wide-sleeve-v1",
+      "ra-balanced-recoil-v1"
+    ],
+    "dtSec": 0.001,
+    "sampleHz": 1000,
+    "measureBeats": 3,
+    "noRuntimeDefaultFlip": true,
+    "noProductionBridgeSelection": true,
+    "noPermanentVerifierOrNpmScriptAdded": true
+  },
+  "points": [
+    {
+      "id": "normal-hr75",
+      "targetTBVMl": 5600,
+      "HR": 75
+    },
+    {
+      "id": "low-preload-hr75",
+      "targetTBVMl": 4800,
+      "HR": 75
+    },
+    {
+      "id": "high-preload-hr75",
+      "targetTBVMl": 6200,
+      "HR": 75
+    },
+    {
+      "id": "normal-hr90",
+      "targetTBVMl": 5600,
+      "HR": 90
+    },
+    {
+      "id": "low-preload-hr90",
+      "targetTBVMl": 4800,
+      "HR": 90
+    },
+    {
+      "id": "high-preload-hr90",
+      "targetTBVMl": 6200,
+      "HR": 90
+    }
+  ],
+  "runs": [
+    {
+      "variantId": "refined-a1-v1-reference",
+      "pointId": "normal-hr75",
+      "HR": 75,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 13,
+      "healthStatus": "ok",
+      "forwardCO_L": 5.359035,
+      "forwardCO_R": 5.366643,
+      "LVEDPApprox": 12.022056,
+      "RVEDPApprox": 5.472381,
+      "LA": {
+        "pressureRangeMmHg": 7.681272,
+        "volumeRangeMl": 37.822873,
+        "boosterLoopSignedArea": 747.34692,
+        "reservoirLoopSignedArea": -415.246541,
+        "lobeBalance": 0.555628,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 29,
+        "roughnessSamplingSpan": 0.53754,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 6.980144,
+        "volumeRangeMl": 49.93044,
+        "boosterLoopSignedArea": 482.644753,
+        "reservoirLoopSignedArea": 6.305426,
+        "lobeBalance": 0.013064,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 31,
+        "roughnessSamplingSpan": 0.382531,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.552206
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 490.333333,
+          "diodeImpulsePerBeat": 113.773159,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 404.666667,
+          "diodeImpulsePerBeat": 3.97125,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "refined-a1-v1-reference",
+      "pointId": "low-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 16,
+      "healthStatus": "ok",
+      "forwardCO_L": 4.394359,
+      "forwardCO_R": 4.388679,
+      "LVEDPApprox": 4.492193,
+      "RVEDPApprox": 2.140235,
+      "LA": {
+        "pressureRangeMmHg": 3.483689,
+        "volumeRangeMl": 34.823816,
+        "boosterLoopSignedArea": 134.257982,
+        "reservoirLoopSignedArea": -18.427221,
+        "lobeBalance": 0.137252,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 17,
+        "roughnessSamplingSpan": 0.519217,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 4.991014,
+        "volumeRangeMl": 42.640334,
+        "boosterLoopSignedArea": 271.637753,
+        "reservoirLoopSignedArea": 57.759997,
+        "lobeBalance": 0.212636,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 21,
+        "roughnessSamplingSpan": 0.552331,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 473.666667,
+          "diodeImpulsePerBeat": 35.965822,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 422,
+          "diodeImpulsePerBeat": 1.929141,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "refined-a1-v1-reference",
+      "pointId": "high-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 20,
+      "healthStatus": "ok",
+      "forwardCO_L": 5.314795,
+      "forwardCO_R": 5.321868,
+      "LVEDPApprox": 15.681624,
+      "RVEDPApprox": 10.026725,
+      "LA": {
+        "pressureRangeMmHg": 9.198284,
+        "volumeRangeMl": 43.96944,
+        "boosterLoopSignedArea": 795.552649,
+        "reservoirLoopSignedArea": -269.263352,
+        "lobeBalance": 0.338461,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 32,
+        "roughnessSamplingSpan": 0.805716,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 12.306922,
+        "volumeRangeMl": 59.308966,
+        "boosterLoopSignedArea": 847.027529,
+        "reservoirLoopSignedArea": 289.55731,
+        "lobeBalance": 0.341851,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 24,
+        "roughnessSamplingSpan": 0.333851,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.709685
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 511,
+          "diodeImpulsePerBeat": 128.046128,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 390,
+          "diodeImpulsePerBeat": 7.204659,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "refined-a1-v1-reference",
+      "pointId": "normal-hr90",
+      "HR": 90,
+      "targetTBVMl": 5600,
+      "settled": false,
+      "settleReason": "cap",
+      "settleBeats": 179,
+      "healthStatus": "ok",
+      "forwardCO_L": null,
+      "forwardCO_R": null,
+      "LVEDPApprox": null,
+      "RVEDPApprox": null,
+      "LA": {
+        "pressureRangeMmHg": 4.664648,
+        "volumeRangeMl": 44.336069,
+        "boosterLoopSignedArea": 327.421046,
+        "reservoirLoopSignedArea": -73.645432,
+        "lobeBalance": 0.224926,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 53,
+        "roughnessSamplingSpan": 0.475925,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 7.946652,
+        "volumeRangeMl": 53.470699,
+        "boosterLoopSignedArea": 654.35604,
+        "reservoirLoopSignedArea": 60.459033,
+        "lobeBalance": 0.092395,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 78,
+        "roughnessSamplingSpan": 0.456588,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 460.333333,
+          "diodeImpulsePerBeat": 99.306474,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 395,
+          "diodeImpulsePerBeat": 3.076244,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": false
+    },
+    {
+      "variantId": "refined-a1-v1-reference",
+      "pointId": "low-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 4800,
+      "settled": false,
+      "settleReason": "cap",
+      "settleBeats": 179,
+      "healthStatus": "ok",
+      "forwardCO_L": null,
+      "forwardCO_R": null,
+      "LVEDPApprox": null,
+      "RVEDPApprox": null,
+      "LA": {
+        "pressureRangeMmHg": 6.48804,
+        "volumeRangeMl": 39.51551,
+        "boosterLoopSignedArea": 305.729992,
+        "reservoirLoopSignedArea": -13.298597,
+        "lobeBalance": 0.043498,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 32,
+        "roughnessSamplingSpan": 0.654415,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.757287
+      },
+      "RA": {
+        "pressureRangeMmHg": 6.550166,
+        "volumeRangeMl": 44.214065,
+        "boosterLoopSignedArea": 450.531337,
+        "reservoirLoopSignedArea": 28.285888,
+        "lobeBalance": 0.062783,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 40,
+        "roughnessSamplingSpan": 0.232401,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.711391
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 466,
+          "diodeImpulsePerBeat": 39.994072,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 410,
+          "diodeImpulsePerBeat": 1.770233,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": false
+    },
+    {
+      "variantId": "refined-a1-v1-reference",
+      "pointId": "high-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 29,
+      "healthStatus": "ok",
+      "forwardCO_L": 6.013394,
+      "forwardCO_R": 6.01513,
+      "LVEDPApprox": 15.186851,
+      "RVEDPApprox": 7.641939,
+      "LA": {
+        "pressureRangeMmHg": 6.151035,
+        "volumeRangeMl": 42.568317,
+        "boosterLoopSignedArea": 731.955726,
+        "reservoirLoopSignedArea": -483.841304,
+        "lobeBalance": 0.661025,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 23,
+        "roughnessSamplingSpan": 0.349392,
+        "educationalFigureEightReadable": true,
+        "readabilityScore": 0.870596
+      },
+      "RA": {
+        "pressureRangeMmHg": 11.175278,
+        "volumeRangeMl": 60.496512,
+        "boosterLoopSignedArea": 1103.69677,
+        "reservoirLoopSignedArea": -20.519505,
+        "lobeBalance": 0.018592,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 28,
+        "roughnessSamplingSpan": 0.406436,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.721534
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 415.333333,
+          "diodeImpulsePerBeat": 40.078183,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 395.666667,
+          "diodeImpulsePerBeat": 4.820389,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-low-threshold-fast-recoil-v1",
+      "pointId": "normal-hr75",
+      "HR": 75,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 13,
+      "healthStatus": "ok",
+      "forwardCO_L": 5.359035,
+      "forwardCO_R": 5.366643,
+      "LVEDPApprox": 12.022056,
+      "RVEDPApprox": 5.472381,
+      "LA": {
+        "pressureRangeMmHg": 7.681272,
+        "volumeRangeMl": 37.822873,
+        "boosterLoopSignedArea": 747.34692,
+        "reservoirLoopSignedArea": -415.246541,
+        "lobeBalance": 0.555628,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 29,
+        "roughnessSamplingSpan": 0.53754,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 6.980144,
+        "volumeRangeMl": 49.93044,
+        "boosterLoopSignedArea": 482.644753,
+        "reservoirLoopSignedArea": 6.305426,
+        "lobeBalance": 0.013064,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 31,
+        "roughnessSamplingSpan": 0.382531,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.552206
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 490.333333,
+          "diodeImpulsePerBeat": 113.773159,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 404.666667,
+          "diodeImpulsePerBeat": 3.97125,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-low-threshold-fast-recoil-v1",
+      "pointId": "low-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 16,
+      "healthStatus": "ok",
+      "forwardCO_L": 4.394359,
+      "forwardCO_R": 4.388679,
+      "LVEDPApprox": 4.492193,
+      "RVEDPApprox": 2.140235,
+      "LA": {
+        "pressureRangeMmHg": 3.483689,
+        "volumeRangeMl": 34.823816,
+        "boosterLoopSignedArea": 134.257982,
+        "reservoirLoopSignedArea": -18.427221,
+        "lobeBalance": 0.137252,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 17,
+        "roughnessSamplingSpan": 0.519217,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 4.991014,
+        "volumeRangeMl": 42.640334,
+        "boosterLoopSignedArea": 271.637753,
+        "reservoirLoopSignedArea": 57.759997,
+        "lobeBalance": 0.212636,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 21,
+        "roughnessSamplingSpan": 0.552331,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 473.666667,
+          "diodeImpulsePerBeat": 35.965822,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 422,
+          "diodeImpulsePerBeat": 1.929141,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-low-threshold-fast-recoil-v1",
+      "pointId": "high-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 20,
+      "healthStatus": "ok",
+      "forwardCO_L": 5.314795,
+      "forwardCO_R": 5.321868,
+      "LVEDPApprox": 15.681624,
+      "RVEDPApprox": 10.026725,
+      "LA": {
+        "pressureRangeMmHg": 9.198284,
+        "volumeRangeMl": 43.96944,
+        "boosterLoopSignedArea": 795.552649,
+        "reservoirLoopSignedArea": -269.263352,
+        "lobeBalance": 0.338461,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 32,
+        "roughnessSamplingSpan": 0.805716,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 12.306922,
+        "volumeRangeMl": 59.308966,
+        "boosterLoopSignedArea": 847.027529,
+        "reservoirLoopSignedArea": 289.55731,
+        "lobeBalance": 0.341851,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 24,
+        "roughnessSamplingSpan": 0.333851,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.709685
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 511,
+          "diodeImpulsePerBeat": 128.046128,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 390,
+          "diodeImpulsePerBeat": 7.204659,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-low-threshold-fast-recoil-v1",
+      "pointId": "normal-hr90",
+      "HR": 90,
+      "targetTBVMl": 5600,
+      "settled": false,
+      "settleReason": "cap",
+      "settleBeats": 179,
+      "healthStatus": "ok",
+      "forwardCO_L": null,
+      "forwardCO_R": null,
+      "LVEDPApprox": null,
+      "RVEDPApprox": null,
+      "LA": {
+        "pressureRangeMmHg": 4.664648,
+        "volumeRangeMl": 44.336069,
+        "boosterLoopSignedArea": 327.421046,
+        "reservoirLoopSignedArea": -73.645432,
+        "lobeBalance": 0.224926,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 53,
+        "roughnessSamplingSpan": 0.475925,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 7.946652,
+        "volumeRangeMl": 53.470699,
+        "boosterLoopSignedArea": 654.35604,
+        "reservoirLoopSignedArea": 60.459033,
+        "lobeBalance": 0.092395,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 78,
+        "roughnessSamplingSpan": 0.456588,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 460.333333,
+          "diodeImpulsePerBeat": 99.306474,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 395,
+          "diodeImpulsePerBeat": 3.076244,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": false
+    },
+    {
+      "variantId": "ra-low-threshold-fast-recoil-v1",
+      "pointId": "low-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 4800,
+      "settled": false,
+      "settleReason": "cap",
+      "settleBeats": 179,
+      "healthStatus": "ok",
+      "forwardCO_L": null,
+      "forwardCO_R": null,
+      "LVEDPApprox": null,
+      "RVEDPApprox": null,
+      "LA": {
+        "pressureRangeMmHg": 6.48804,
+        "volumeRangeMl": 39.51551,
+        "boosterLoopSignedArea": 305.729992,
+        "reservoirLoopSignedArea": -13.298597,
+        "lobeBalance": 0.043498,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 32,
+        "roughnessSamplingSpan": 0.654415,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.757287
+      },
+      "RA": {
+        "pressureRangeMmHg": 6.550166,
+        "volumeRangeMl": 44.214065,
+        "boosterLoopSignedArea": 450.531337,
+        "reservoirLoopSignedArea": 28.285888,
+        "lobeBalance": 0.062783,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 40,
+        "roughnessSamplingSpan": 0.232401,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.711391
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 466,
+          "diodeImpulsePerBeat": 39.994072,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 410,
+          "diodeImpulsePerBeat": 1.770233,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": false
+    },
+    {
+      "variantId": "ra-low-threshold-fast-recoil-v1",
+      "pointId": "high-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 29,
+      "healthStatus": "ok",
+      "forwardCO_L": 6.013394,
+      "forwardCO_R": 6.01513,
+      "LVEDPApprox": 15.186851,
+      "RVEDPApprox": 7.641939,
+      "LA": {
+        "pressureRangeMmHg": 6.151035,
+        "volumeRangeMl": 42.568317,
+        "boosterLoopSignedArea": 731.955726,
+        "reservoirLoopSignedArea": -483.841304,
+        "lobeBalance": 0.661025,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 23,
+        "roughnessSamplingSpan": 0.349392,
+        "educationalFigureEightReadable": true,
+        "readabilityScore": 0.870596
+      },
+      "RA": {
+        "pressureRangeMmHg": 11.175278,
+        "volumeRangeMl": 60.496512,
+        "boosterLoopSignedArea": 1103.69677,
+        "reservoirLoopSignedArea": -20.519505,
+        "lobeBalance": 0.018592,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 28,
+        "roughnessSamplingSpan": 0.406436,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.721534
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 415.333333,
+          "diodeImpulsePerBeat": 40.078183,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 395.666667,
+          "diodeImpulsePerBeat": 4.820389,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-strong-reservoir-v1",
+      "pointId": "normal-hr75",
+      "HR": 75,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 13,
+      "healthStatus": "ok",
+      "forwardCO_L": 5.382626,
+      "forwardCO_R": 5.392757,
+      "LVEDPApprox": 12.132025,
+      "RVEDPApprox": 5.447069,
+      "LA": {
+        "pressureRangeMmHg": 7.725588,
+        "volumeRangeMl": 37.764976,
+        "boosterLoopSignedArea": 755.48375,
+        "reservoirLoopSignedArea": -421.04684,
+        "lobeBalance": 0.557321,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 26,
+        "roughnessSamplingSpan": 0.330601,
+        "educationalFigureEightReadable": true,
+        "readabilityScore": 0.877555
+      },
+      "RA": {
+        "pressureRangeMmHg": 7.183927,
+        "volumeRangeMl": 50.090471,
+        "boosterLoopSignedArea": 488.904778,
+        "reservoirLoopSignedArea": 18.204635,
+        "lobeBalance": 0.037236,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 66,
+        "roughnessSamplingSpan": 0.387759,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.600626
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 490,
+          "diodeImpulsePerBeat": 116.876816,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 402,
+          "diodeImpulsePerBeat": 4.886966,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-strong-reservoir-v1",
+      "pointId": "low-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 16,
+      "healthStatus": "ok",
+      "forwardCO_L": 4.409649,
+      "forwardCO_R": 4.399131,
+      "LVEDPApprox": 4.554716,
+      "RVEDPApprox": 2.154486,
+      "LA": {
+        "pressureRangeMmHg": 3.505321,
+        "volumeRangeMl": 34.897883,
+        "boosterLoopSignedArea": 135.189043,
+        "reservoirLoopSignedArea": -19.794836,
+        "lobeBalance": 0.146423,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 49,
+        "roughnessSamplingSpan": 0.673646,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 5.26467,
+        "volumeRangeMl": 43.109745,
+        "boosterLoopSignedArea": 289.314063,
+        "reservoirLoopSignedArea": 61.313343,
+        "lobeBalance": 0.211927,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 21,
+        "roughnessSamplingSpan": 0.575468,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 473.666667,
+          "diodeImpulsePerBeat": 36.603543,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 424,
+          "diodeImpulsePerBeat": 2.301486,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-strong-reservoir-v1",
+      "pointId": "high-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 18,
+      "healthStatus": "ok",
+      "forwardCO_L": 5.342249,
+      "forwardCO_R": 5.35307,
+      "LVEDPApprox": 15.853787,
+      "RVEDPApprox": 9.977793,
+      "LA": {
+        "pressureRangeMmHg": 9.113761,
+        "volumeRangeMl": 43.69918,
+        "boosterLoopSignedArea": 816.491847,
+        "reservoirLoopSignedArea": -303.135467,
+        "lobeBalance": 0.371266,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 40,
+        "roughnessSamplingSpan": 0.79505,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 12.300867,
+        "volumeRangeMl": 58.748644,
+        "boosterLoopSignedArea": 859.380361,
+        "reservoirLoopSignedArea": 268.306809,
+        "lobeBalance": 0.31221,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 16,
+        "roughnessSamplingSpan": 0.227017,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.749253
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 512.666667,
+          "diodeImpulsePerBeat": 130.7108,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 392,
+          "diodeImpulsePerBeat": 8.389611,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-strong-reservoir-v1",
+      "pointId": "normal-hr90",
+      "HR": 90,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 18,
+      "healthStatus": "ok",
+      "forwardCO_L": 5.667286,
+      "forwardCO_R": 5.678415,
+      "LVEDPApprox": 9.335423,
+      "RVEDPApprox": 3.575205,
+      "LA": {
+        "pressureRangeMmHg": 4.585244,
+        "volumeRangeMl": 44.191709,
+        "boosterLoopSignedArea": 323.232809,
+        "reservoirLoopSignedArea": -70.016765,
+        "lobeBalance": 0.216614,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 27,
+        "roughnessSamplingSpan": 0.686338,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 8.221582,
+        "volumeRangeMl": 54.12052,
+        "boosterLoopSignedArea": 679.399822,
+        "reservoirLoopSignedArea": 79.194285,
+        "lobeBalance": 0.116565,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 107,
+        "roughnessSamplingSpan": 0.491278,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 460,
+          "diodeImpulsePerBeat": 98.153512,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 397,
+          "diodeImpulsePerBeat": 3.599204,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-strong-reservoir-v1",
+      "pointId": "low-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 86,
+      "healthStatus": "ok",
+      "forwardCO_L": 4.388136,
+      "forwardCO_R": 4.37181,
+      "LVEDPApprox": 3.241778,
+      "RVEDPApprox": 1.894329,
+      "LA": {
+        "pressureRangeMmHg": 6.472037,
+        "volumeRangeMl": 39.403346,
+        "boosterLoopSignedArea": 305.172306,
+        "reservoirLoopSignedArea": -13.265497,
+        "lobeBalance": 0.043469,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 66,
+        "roughnessSamplingSpan": 0.720521,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.757227
+      },
+      "RA": {
+        "pressureRangeMmHg": 6.908472,
+        "volumeRangeMl": 44.868319,
+        "boosterLoopSignedArea": 485.781855,
+        "reservoirLoopSignedArea": 34.508695,
+        "lobeBalance": 0.071037,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 4,
+        "roughnessSamplingSpan": 0.404474,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.664856
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 466,
+          "diodeImpulsePerBeat": 40.78255,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 414,
+          "diodeImpulsePerBeat": 2.125914,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-strong-reservoir-v1",
+      "pointId": "high-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 25,
+      "healthStatus": "ok",
+      "forwardCO_L": 6.052051,
+      "forwardCO_R": 6.059831,
+      "LVEDPApprox": 15.333293,
+      "RVEDPApprox": 7.572249,
+      "LA": {
+        "pressureRangeMmHg": 6.182608,
+        "volumeRangeMl": 42.554095,
+        "boosterLoopSignedArea": 750.489466,
+        "reservoirLoopSignedArea": -506.485664,
+        "lobeBalance": 0.674874,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 21,
+        "roughnessSamplingSpan": 0.615869,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 11.256307,
+        "volumeRangeMl": 60.970818,
+        "boosterLoopSignedArea": 1096.841033,
+        "reservoirLoopSignedArea": 12.534949,
+        "lobeBalance": 0.011428,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 56,
+        "roughnessSamplingSpan": 0.350135,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.560796
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 412,
+          "diodeImpulsePerBeat": 42.103297,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 396.333333,
+          "diodeImpulsePerBeat": 5.69227,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-soft-sleeve-v1",
+      "pointId": "normal-hr75",
+      "HR": 75,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 14,
+      "healthStatus": "ok",
+      "forwardCO_L": 5.303128,
+      "forwardCO_R": 5.310766,
+      "LVEDPApprox": 11.84988,
+      "RVEDPApprox": 5.578684,
+      "LA": {
+        "pressureRangeMmHg": 7.516384,
+        "volumeRangeMl": 38.111002,
+        "boosterLoopSignedArea": 724.361345,
+        "reservoirLoopSignedArea": -394.595784,
+        "lobeBalance": 0.54475,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 30,
+        "roughnessSamplingSpan": 0.379515,
+        "educationalFigureEightReadable": true,
+        "readabilityScore": 0.859439
+      },
+      "RA": {
+        "pressureRangeMmHg": 6.173035,
+        "volumeRangeMl": 48.863566,
+        "boosterLoopSignedArea": 457.09523,
+        "reservoirLoopSignedArea": -24.265409,
+        "lobeBalance": 0.053086,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 10,
+        "roughnessSamplingSpan": 0.741177,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.777263
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 489.666667,
+          "diodeImpulsePerBeat": 111.403386,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 404,
+          "diodeImpulsePerBeat": 2.702851,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-soft-sleeve-v1",
+      "pointId": "low-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 17,
+      "healthStatus": "ok",
+      "forwardCO_L": 4.379486,
+      "forwardCO_R": 4.374107,
+      "LVEDPApprox": 4.422588,
+      "RVEDPApprox": 2.123234,
+      "LA": {
+        "pressureRangeMmHg": 3.454007,
+        "volumeRangeMl": 34.85067,
+        "boosterLoopSignedArea": 132.156104,
+        "reservoirLoopSignedArea": -16.191278,
+        "lobeBalance": 0.122516,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 25,
+        "roughnessSamplingSpan": 0.450606,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 4.236384,
+        "volumeRangeMl": 41.440636,
+        "boosterLoopSignedArea": 231.282566,
+        "reservoirLoopSignedArea": 49.469019,
+        "lobeBalance": 0.21389,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 21,
+        "roughnessSamplingSpan": 0.633671,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 474.666667,
+          "diodeImpulsePerBeat": 36.154127,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 416,
+          "diodeImpulsePerBeat": 1.370168,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-soft-sleeve-v1",
+      "pointId": "high-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 16,
+      "healthStatus": "ok",
+      "forwardCO_L": 5.259486,
+      "forwardCO_R": 5.278225,
+      "LVEDPApprox": 15.350643,
+      "RVEDPApprox": 10.087764,
+      "LA": {
+        "pressureRangeMmHg": 9.37123,
+        "volumeRangeMl": 44.329265,
+        "boosterLoopSignedArea": 757.586698,
+        "reservoirLoopSignedArea": -212.607798,
+        "lobeBalance": 0.280638,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 36,
+        "roughnessSamplingSpan": 0.657116,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 11.24768,
+        "volumeRangeMl": 58.330054,
+        "boosterLoopSignedArea": 751.703892,
+        "reservoirLoopSignedArea": 289.049874,
+        "lobeBalance": 0.384526,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 10,
+        "roughnessSamplingSpan": 0.338044,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.708132
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 508.666667,
+          "diodeImpulsePerBeat": 119.273448,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 381.666667,
+          "diodeImpulsePerBeat": 5.149037,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-soft-sleeve-v1",
+      "pointId": "normal-hr90",
+      "HR": 90,
+      "targetTBVMl": 5600,
+      "settled": false,
+      "settleReason": "cap",
+      "settleBeats": 179,
+      "healthStatus": "ok",
+      "forwardCO_L": null,
+      "forwardCO_R": null,
+      "LVEDPApprox": null,
+      "RVEDPApprox": null,
+      "LA": {
+        "pressureRangeMmHg": 4.780395,
+        "volumeRangeMl": 44.497255,
+        "boosterLoopSignedArea": 336.837233,
+        "reservoirLoopSignedArea": -82.783542,
+        "lobeBalance": 0.245767,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 59,
+        "roughnessSamplingSpan": 0.737777,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 6.761807,
+        "volumeRangeMl": 51.668321,
+        "boosterLoopSignedArea": 577.212244,
+        "reservoirLoopSignedArea": 17.46063,
+        "lobeBalance": 0.03025,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 86,
+        "roughnessSamplingSpan": 0.663641,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.563021
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 460,
+          "diodeImpulsePerBeat": 99.631513,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 388,
+          "diodeImpulsePerBeat": 2.298398,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": false
+    },
+    {
+      "variantId": "ra-soft-sleeve-v1",
+      "pointId": "low-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 4800,
+      "settled": false,
+      "settleReason": "cap",
+      "settleBeats": 179,
+      "healthStatus": "ok",
+      "forwardCO_L": null,
+      "forwardCO_R": null,
+      "LVEDPApprox": null,
+      "RVEDPApprox": null,
+      "LA": {
+        "pressureRangeMmHg": 6.494023,
+        "volumeRangeMl": 39.554935,
+        "boosterLoopSignedArea": 305.720303,
+        "reservoirLoopSignedArea": -13.269912,
+        "lobeBalance": 0.043405,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 44,
+        "roughnessSamplingSpan": 0.474733,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.757095
+      },
+      "RA": {
+        "pressureRangeMmHg": 5.472971,
+        "volumeRangeMl": 42.646228,
+        "boosterLoopSignedArea": 370.891843,
+        "reservoirLoopSignedArea": 15.447727,
+        "lobeBalance": 0.04165,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 106,
+        "roughnessSamplingSpan": 0.062593,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.730255
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 466,
+          "diodeImpulsePerBeat": 39.998626,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 399.666667,
+          "diodeImpulsePerBeat": 1.336874,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": false
+    },
+    {
+      "variantId": "ra-soft-sleeve-v1",
+      "pointId": "high-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 20,
+      "healthStatus": "ok",
+      "forwardCO_L": 5.998172,
+      "forwardCO_R": 6.013269,
+      "LVEDPApprox": 15.111955,
+      "RVEDPApprox": 7.729544,
+      "LA": {
+        "pressureRangeMmHg": 5.561228,
+        "volumeRangeMl": 43.965476,
+        "boosterLoopSignedArea": 665.012703,
+        "reservoirLoopSignedArea": -403.56611,
+        "lobeBalance": 0.606855,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 17,
+        "roughnessSamplingSpan": 0.418912,
+        "educationalFigureEightReadable": true,
+        "readabilityScore": 0.844847
+      },
+      "RA": {
+        "pressureRangeMmHg": 9.964657,
+        "volumeRangeMl": 59.059721,
+        "boosterLoopSignedArea": 1064.378971,
+        "reservoirLoopSignedArea": -100.401322,
+        "lobeBalance": 0.094329,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 30,
+        "roughnessSamplingSpan": 0.211785,
+        "educationalFigureEightReadable": true,
+        "readabilityScore": 0.921561
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 453,
+          "diodeImpulsePerBeat": 63.044808,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 389,
+          "diodeImpulsePerBeat": 3.489513,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-soft-sleeve-stronger-v1",
+      "pointId": "normal-hr75",
+      "HR": 75,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 13,
+      "healthStatus": "ok",
+      "forwardCO_L": 5.287434,
+      "forwardCO_R": 5.294716,
+      "LVEDPApprox": 11.662839,
+      "RVEDPApprox": 5.619032,
+      "LA": {
+        "pressureRangeMmHg": 7.468676,
+        "volumeRangeMl": 38.170466,
+        "boosterLoopSignedArea": 716.678307,
+        "reservoirLoopSignedArea": -387.049148,
+        "lobeBalance": 0.54006,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 31,
+        "roughnessSamplingSpan": 0.541065,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 5.846694,
+        "volumeRangeMl": 48.402916,
+        "boosterLoopSignedArea": 449.942422,
+        "reservoirLoopSignedArea": -37.423117,
+        "lobeBalance": 0.083173,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 7,
+        "roughnessSamplingSpan": 0.69584,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 488.666667,
+          "diodeImpulsePerBeat": 108.447514,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 402,
+          "diodeImpulsePerBeat": 2.376836,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-soft-sleeve-stronger-v1",
+      "pointId": "low-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 18,
+      "healthStatus": "ok",
+      "forwardCO_L": 4.37529,
+      "forwardCO_R": 4.371078,
+      "LVEDPApprox": 4.398151,
+      "RVEDPApprox": 2.122404,
+      "LA": {
+        "pressureRangeMmHg": 3.43704,
+        "volumeRangeMl": 34.848837,
+        "boosterLoopSignedArea": 131.002413,
+        "reservoirLoopSignedArea": -15.283568,
+        "lobeBalance": 0.116666,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 17,
+        "roughnessSamplingSpan": 0.408615,
+        "educationalFigureEightReadable": true,
+        "readabilityScore": 0.848661
+      },
+      "RA": {
+        "pressureRangeMmHg": 3.928264,
+        "volumeRangeMl": 40.923227,
+        "boosterLoopSignedArea": 216.428073,
+        "reservoirLoopSignedArea": 45.566893,
+        "lobeBalance": 0.210541,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 17,
+        "roughnessSamplingSpan": 0.891501,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 474.666667,
+          "diodeImpulsePerBeat": 36.188109,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 412.333333,
+          "diodeImpulsePerBeat": 1.222526,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-soft-sleeve-stronger-v1",
+      "pointId": "high-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 17,
+      "healthStatus": "ok",
+      "forwardCO_L": 5.238722,
+      "forwardCO_R": 5.245955,
+      "LVEDPApprox": 15.41486,
+      "RVEDPApprox": 10.103054,
+      "LA": {
+        "pressureRangeMmHg": 9.438699,
+        "volumeRangeMl": 44.519437,
+        "boosterLoopSignedArea": 742.956812,
+        "reservoirLoopSignedArea": -184.948104,
+        "lobeBalance": 0.248935,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 26,
+        "roughnessSamplingSpan": 0.388371,
+        "educationalFigureEightReadable": true,
+        "readabilityScore": 0.856159
+      },
+      "RA": {
+        "pressureRangeMmHg": 10.781087,
+        "volumeRangeMl": 57.633448,
+        "boosterLoopSignedArea": 715.708069,
+        "reservoirLoopSignedArea": 290.081716,
+        "lobeBalance": 0.405307,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 14,
+        "roughnessSamplingSpan": 0.757154,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 507.666667,
+          "diodeImpulsePerBeat": 120.34663,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 379,
+          "diodeImpulsePerBeat": 4.351182,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-soft-sleeve-stronger-v1",
+      "pointId": "normal-hr90",
+      "HR": 90,
+      "targetTBVMl": 5600,
+      "settled": false,
+      "settleReason": "cap",
+      "settleBeats": 179,
+      "healthStatus": "ok",
+      "forwardCO_L": null,
+      "forwardCO_R": null,
+      "LVEDPApprox": null,
+      "RVEDPApprox": null,
+      "LA": {
+        "pressureRangeMmHg": 4.813126,
+        "volumeRangeMl": 44.339164,
+        "boosterLoopSignedArea": 341.475361,
+        "reservoirLoopSignedArea": -86.688112,
+        "lobeBalance": 0.253863,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 26,
+        "roughnessSamplingSpan": 0.940334,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 6.260287,
+        "volumeRangeMl": 50.904624,
+        "boosterLoopSignedArea": 550.391991,
+        "reservoirLoopSignedArea": -1.550769,
+        "lobeBalance": 0.002818,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 38,
+        "roughnessSamplingSpan": 0.684708,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.672537
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 460.333333,
+          "diodeImpulsePerBeat": 99.230451,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 384,
+          "diodeImpulsePerBeat": 2.114855,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": false
+    },
+    {
+      "variantId": "ra-soft-sleeve-stronger-v1",
+      "pointId": "low-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 4800,
+      "settled": false,
+      "settleReason": "cap",
+      "settleBeats": 179,
+      "healthStatus": "ok",
+      "forwardCO_L": null,
+      "forwardCO_R": null,
+      "LVEDPApprox": null,
+      "RVEDPApprox": null,
+      "LA": {
+        "pressureRangeMmHg": 6.491926,
+        "volumeRangeMl": 39.532116,
+        "boosterLoopSignedArea": 305.730306,
+        "reservoirLoopSignedArea": -13.263221,
+        "lobeBalance": 0.043382,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 6,
+        "roughnessSamplingSpan": 0.530834,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.757046
+      },
+      "RA": {
+        "pressureRangeMmHg": 5.043479,
+        "volumeRangeMl": 41.968713,
+        "boosterLoopSignedArea": 342.748036,
+        "reservoirLoopSignedArea": 10.350592,
+        "lobeBalance": 0.030199,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 4,
+        "roughnessSamplingSpan": 0.601687,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.562914
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 466,
+          "diodeImpulsePerBeat": 39.97567,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 395,
+          "diodeImpulsePerBeat": 1.246335,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": false
+    },
+    {
+      "variantId": "ra-soft-sleeve-stronger-v1",
+      "pointId": "high-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 22,
+      "healthStatus": "ok",
+      "forwardCO_L": 5.975967,
+      "forwardCO_R": 5.981768,
+      "LVEDPApprox": 15.034196,
+      "RVEDPApprox": 7.84321,
+      "LA": {
+        "pressureRangeMmHg": 5.646923,
+        "volumeRangeMl": 44.188335,
+        "boosterLoopSignedArea": 660.207948,
+        "reservoirLoopSignedArea": -387.956559,
+        "lobeBalance": 0.587628,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 38,
+        "roughnessSamplingSpan": 0.198521,
+        "educationalFigureEightReadable": true,
+        "readabilityScore": 0.926474
+      },
+      "RA": {
+        "pressureRangeMmHg": 9.474475,
+        "volumeRangeMl": 58.275561,
+        "boosterLoopSignedArea": 1050.396823,
+        "reservoirLoopSignedArea": -131.452816,
+        "lobeBalance": 0.125146,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 22,
+        "roughnessSamplingSpan": 0.651445,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 453.333333,
+          "diodeImpulsePerBeat": 65.757833,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 386,
+          "diodeImpulsePerBeat": 3.085315,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-soft-sleeve-slower-v1",
+      "pointId": "normal-hr75",
+      "HR": 75,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 13,
+      "healthStatus": "ok",
+      "forwardCO_L": 5.257468,
+      "forwardCO_R": 5.268318,
+      "LVEDPApprox": 11.504424,
+      "RVEDPApprox": 5.662059,
+      "LA": {
+        "pressureRangeMmHg": 7.406165,
+        "volumeRangeMl": 38.304383,
+        "boosterLoopSignedArea": 706.237309,
+        "reservoirLoopSignedArea": -376.410934,
+        "lobeBalance": 0.532981,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 24,
+        "roughnessSamplingSpan": 0.717005,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 5.590903,
+        "volumeRangeMl": 47.987892,
+        "boosterLoopSignedArea": 450.819057,
+        "reservoirLoopSignedArea": -51.685188,
+        "lobeBalance": 0.114647,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 5,
+        "roughnessSamplingSpan": 0.56206,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 488.666667,
+          "diodeImpulsePerBeat": 103.46222,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 402,
+          "diodeImpulsePerBeat": 1.942726,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-soft-sleeve-slower-v1",
+      "pointId": "low-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 17,
+      "healthStatus": "ok",
+      "forwardCO_L": 4.368119,
+      "forwardCO_R": 4.363326,
+      "LVEDPApprox": 4.374772,
+      "RVEDPApprox": 2.126802,
+      "LA": {
+        "pressureRangeMmHg": 3.43571,
+        "volumeRangeMl": 34.857368,
+        "boosterLoopSignedArea": 130.897789,
+        "reservoirLoopSignedArea": -14.634404,
+        "lobeBalance": 0.1118,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 19,
+        "roughnessSamplingSpan": 0.643047,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 3.664562,
+        "volumeRangeMl": 40.457318,
+        "boosterLoopSignedArea": 206.033945,
+        "reservoirLoopSignedArea": 41.455756,
+        "lobeBalance": 0.201208,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 21,
+        "roughnessSamplingSpan": 0.54367,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 475.666667,
+          "diodeImpulsePerBeat": 36.12637,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 410,
+          "diodeImpulsePerBeat": 1.09788,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-soft-sleeve-slower-v1",
+      "pointId": "high-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 16,
+      "healthStatus": "ok",
+      "forwardCO_L": 5.20163,
+      "forwardCO_R": 5.214219,
+      "LVEDPApprox": 15.261328,
+      "RVEDPApprox": 10.160073,
+      "LA": {
+        "pressureRangeMmHg": 9.54306,
+        "volumeRangeMl": 44.659946,
+        "boosterLoopSignedArea": 725.548393,
+        "reservoirLoopSignedArea": -159.240593,
+        "lobeBalance": 0.219476,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 27,
+        "roughnessSamplingSpan": 0.289875,
+        "educationalFigureEightReadable": true,
+        "readabilityScore": 0.892639
+      },
+      "RA": {
+        "pressureRangeMmHg": 10.43431,
+        "volumeRangeMl": 57.12909,
+        "boosterLoopSignedArea": 694.384783,
+        "reservoirLoopSignedArea": 289.63191,
+        "lobeBalance": 0.417106,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 51,
+        "roughnessSamplingSpan": 0.710603,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 506.666667,
+          "diodeImpulsePerBeat": 116.353406,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 376.333333,
+          "diodeImpulsePerBeat": 3.594259,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-soft-sleeve-slower-v1",
+      "pointId": "normal-hr90",
+      "HR": 90,
+      "targetTBVMl": 5600,
+      "settled": false,
+      "settleReason": "cap",
+      "settleBeats": 179,
+      "healthStatus": "ok",
+      "forwardCO_L": null,
+      "forwardCO_R": null,
+      "LVEDPApprox": null,
+      "RVEDPApprox": null,
+      "LA": {
+        "pressureRangeMmHg": 4.818853,
+        "volumeRangeMl": 44.19626,
+        "boosterLoopSignedArea": 347.115777,
+        "reservoirLoopSignedArea": -93.514241,
+        "lobeBalance": 0.269404,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 91,
+        "roughnessSamplingSpan": 0.725159,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 5.828948,
+        "volumeRangeMl": 50.213399,
+        "boosterLoopSignedArea": 536.751961,
+        "reservoirLoopSignedArea": -24.612846,
+        "lobeBalance": 0.045855,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 28,
+        "roughnessSamplingSpan": 0.620136,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.762198
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 460.333333,
+          "diodeImpulsePerBeat": 97.005221,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 380.333333,
+          "diodeImpulsePerBeat": 1.936931,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": false
+    },
+    {
+      "variantId": "ra-soft-sleeve-slower-v1",
+      "pointId": "low-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 4800,
+      "settled": false,
+      "settleReason": "cap",
+      "settleBeats": 179,
+      "healthStatus": "ok",
+      "forwardCO_L": null,
+      "forwardCO_R": null,
+      "LVEDPApprox": null,
+      "RVEDPApprox": null,
+      "LA": {
+        "pressureRangeMmHg": 6.488371,
+        "volumeRangeMl": 39.51381,
+        "boosterLoopSignedArea": 305.640532,
+        "reservoirLoopSignedArea": -13.256091,
+        "lobeBalance": 0.043372,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 44,
+        "roughnessSamplingSpan": 0.593463,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.757024
+      },
+      "RA": {
+        "pressureRangeMmHg": 4.660628,
+        "volumeRangeMl": 41.251293,
+        "boosterLoopSignedArea": 319.586293,
+        "reservoirLoopSignedArea": 4.497365,
+        "lobeBalance": 0.014072,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 22,
+        "roughnessSamplingSpan": 0.540513,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.529318
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 466,
+          "diodeImpulsePerBeat": 39.892449,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 390,
+          "diodeImpulsePerBeat": 1.26726,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": false
+    },
+    {
+      "variantId": "ra-soft-sleeve-slower-v1",
+      "pointId": "high-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 21,
+      "healthStatus": "ok",
+      "forwardCO_L": 5.956237,
+      "forwardCO_R": 5.967779,
+      "LVEDPApprox": 14.986263,
+      "RVEDPApprox": 7.93801,
+      "LA": {
+        "pressureRangeMmHg": 5.804367,
+        "volumeRangeMl": 44.53989,
+        "boosterLoopSignedArea": 655.026983,
+        "reservoirLoopSignedArea": -366.892791,
+        "lobeBalance": 0.560119,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 60,
+        "roughnessSamplingSpan": 0.539514,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 9.053412,
+        "volumeRangeMl": 57.653657,
+        "boosterLoopSignedArea": 1049.984114,
+        "reservoirLoopSignedArea": -164.035225,
+        "lobeBalance": 0.156226,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 17,
+        "roughnessSamplingSpan": 0.530356,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 453.333333,
+          "diodeImpulsePerBeat": 70.626719,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 383,
+          "diodeImpulsePerBeat": 2.738208,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-wide-sleeve-v1",
+      "pointId": "normal-hr75",
+      "HR": 75,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 13,
+      "healthStatus": "ok",
+      "forwardCO_L": 5.308835,
+      "forwardCO_R": 5.324379,
+      "LVEDPApprox": 11.759803,
+      "RVEDPApprox": 5.524946,
+      "LA": {
+        "pressureRangeMmHg": 7.557503,
+        "volumeRangeMl": 37.997045,
+        "boosterLoopSignedArea": 729.101791,
+        "reservoirLoopSignedArea": -397.846745,
+        "lobeBalance": 0.545667,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 39,
+        "roughnessSamplingSpan": 0.297114,
+        "educationalFigureEightReadable": true,
+        "readabilityScore": 0.889958
+      },
+      "RA": {
+        "pressureRangeMmHg": 5.856569,
+        "volumeRangeMl": 48.340491,
+        "boosterLoopSignedArea": 431.107533,
+        "reservoirLoopSignedArea": -30.654643,
+        "lobeBalance": 0.071107,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 7,
+        "roughnessSamplingSpan": 0.51318,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.814806
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 489.333333,
+          "diodeImpulsePerBeat": 109.106611,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 401,
+          "diodeImpulsePerBeat": 2.729678,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-wide-sleeve-v1",
+      "pointId": "low-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 15,
+      "healthStatus": "ok",
+      "forwardCO_L": 4.383526,
+      "forwardCO_R": 4.375014,
+      "LVEDPApprox": 4.507107,
+      "RVEDPApprox": 2.127492,
+      "LA": {
+        "pressureRangeMmHg": 3.471598,
+        "volumeRangeMl": 34.886949,
+        "boosterLoopSignedArea": 132.021851,
+        "reservoirLoopSignedArea": -16.33771,
+        "lobeBalance": 0.12375,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 18,
+        "roughnessSamplingSpan": 0.52551,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 4.012526,
+        "volumeRangeMl": 41.024628,
+        "boosterLoopSignedArea": 215.458623,
+        "reservoirLoopSignedArea": 46.757366,
+        "lobeBalance": 0.217013,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 16,
+        "roughnessSamplingSpan": 0.856551,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 474.666667,
+          "diodeImpulsePerBeat": 36.570191,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 413,
+          "diodeImpulsePerBeat": 1.346216,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-wide-sleeve-v1",
+      "pointId": "high-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 17,
+      "healthStatus": "ok",
+      "forwardCO_L": 5.262594,
+      "forwardCO_R": 5.276824,
+      "LVEDPApprox": 15.392897,
+      "RVEDPApprox": 10.040556,
+      "LA": {
+        "pressureRangeMmHg": 9.336135,
+        "volumeRangeMl": 44.26645,
+        "boosterLoopSignedArea": 765.55966,
+        "reservoirLoopSignedArea": -220.41054,
+        "lobeBalance": 0.287908,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 29,
+        "roughnessSamplingSpan": 0.399399,
+        "educationalFigureEightReadable": true,
+        "readabilityScore": 0.852075
+      },
+      "RA": {
+        "pressureRangeMmHg": 10.845485,
+        "volumeRangeMl": 57.614929,
+        "boosterLoopSignedArea": 715.886884,
+        "reservoirLoopSignedArea": 268.483072,
+        "lobeBalance": 0.375036,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 8,
+        "roughnessSamplingSpan": 0.485882,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 509.666667,
+          "diodeImpulsePerBeat": 121.323129,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 379.666667,
+          "diodeImpulsePerBeat": 5.242766,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-wide-sleeve-v1",
+      "pointId": "normal-hr90",
+      "HR": 90,
+      "targetTBVMl": 5600,
+      "settled": false,
+      "settleReason": "cap",
+      "settleBeats": 179,
+      "healthStatus": "ok",
+      "forwardCO_L": null,
+      "forwardCO_R": null,
+      "LVEDPApprox": null,
+      "RVEDPApprox": null,
+      "LA": {
+        "pressureRangeMmHg": 4.750722,
+        "volumeRangeMl": 44.343778,
+        "boosterLoopSignedArea": 334.130183,
+        "reservoirLoopSignedArea": -79.410443,
+        "lobeBalance": 0.237663,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 15,
+        "roughnessSamplingSpan": 0.843919,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 6.446973,
+        "volumeRangeMl": 51.19436,
+        "boosterLoopSignedArea": 544.564337,
+        "reservoirLoopSignedArea": 17.269505,
+        "lobeBalance": 0.031713,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 60,
+        "roughnessSamplingSpan": 0.639332,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.566068
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 460.333333,
+          "diodeImpulsePerBeat": 99.853971,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 385,
+          "diodeImpulsePerBeat": 2.303211,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": false
+    },
+    {
+      "variantId": "ra-wide-sleeve-v1",
+      "pointId": "low-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 4800,
+      "settled": false,
+      "settleReason": "cap",
+      "settleBeats": 179,
+      "healthStatus": "ok",
+      "forwardCO_L": null,
+      "forwardCO_R": null,
+      "LVEDPApprox": null,
+      "RVEDPApprox": null,
+      "LA": {
+        "pressureRangeMmHg": 6.477058,
+        "volumeRangeMl": 39.511937,
+        "boosterLoopSignedArea": 305.90698,
+        "reservoirLoopSignedArea": -13.273143,
+        "lobeBalance": 0.043389,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 8,
+        "roughnessSamplingSpan": 0.361744,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.789749
+      },
+      "RA": {
+        "pressureRangeMmHg": 5.218922,
+        "volumeRangeMl": 42.210864,
+        "boosterLoopSignedArea": 351.13719,
+        "reservoirLoopSignedArea": 15.719692,
+        "lobeBalance": 0.044768,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 4,
+        "roughnessSamplingSpan": 0.302216,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.648001
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 466,
+          "diodeImpulsePerBeat": 40.288505,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 395.666667,
+          "diodeImpulsePerBeat": 1.338802,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": false
+    },
+    {
+      "variantId": "ra-wide-sleeve-v1",
+      "pointId": "high-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 20,
+      "healthStatus": "ok",
+      "forwardCO_L": 6.004219,
+      "forwardCO_R": 6.024953,
+      "LVEDPApprox": 15.115242,
+      "RVEDPApprox": 7.706431,
+      "LA": {
+        "pressureRangeMmHg": 5.537749,
+        "volumeRangeMl": 43.88537,
+        "boosterLoopSignedArea": 668.892239,
+        "reservoirLoopSignedArea": -412.434086,
+        "lobeBalance": 0.616593,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 54,
+        "roughnessSamplingSpan": 0.716985,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 9.583867,
+        "volumeRangeMl": 58.613371,
+        "boosterLoopSignedArea": 1030.927384,
+        "reservoirLoopSignedArea": -111.368393,
+        "lobeBalance": 0.108027,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 18,
+        "roughnessSamplingSpan": 0.449075,
+        "educationalFigureEightReadable": true,
+        "readabilityScore": 0.833676
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 453,
+          "diodeImpulsePerBeat": 61.081769,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 386.666667,
+          "diodeImpulsePerBeat": 3.47326,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-balanced-recoil-v1",
+      "pointId": "normal-hr75",
+      "HR": 75,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 13,
+      "healthStatus": "ok",
+      "forwardCO_L": 5.354648,
+      "forwardCO_R": 5.368671,
+      "LVEDPApprox": 12.103606,
+      "RVEDPApprox": 5.476286,
+      "LA": {
+        "pressureRangeMmHg": 7.683379,
+        "volumeRangeMl": 37.800723,
+        "boosterLoopSignedArea": 746.416197,
+        "reservoirLoopSignedArea": -414.283598,
+        "lobeBalance": 0.55503,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 46,
+        "roughnessSamplingSpan": 0.621396,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 6.822916,
+        "volumeRangeMl": 49.719101,
+        "boosterLoopSignedArea": 471.49813,
+        "reservoirLoopSignedArea": 2.859494,
+        "lobeBalance": 0.006065,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 24,
+        "roughnessSamplingSpan": 0.536888,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.512635
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 490.666667,
+          "diodeImpulsePerBeat": 113.597525,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 403.333333,
+          "diodeImpulsePerBeat": 3.980615,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-balanced-recoil-v1",
+      "pointId": "low-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 17,
+      "healthStatus": "ok",
+      "forwardCO_L": 4.391139,
+      "forwardCO_R": 4.391711,
+      "LVEDPApprox": 4.483059,
+      "RVEDPApprox": 2.14349,
+      "LA": {
+        "pressureRangeMmHg": 3.487053,
+        "volumeRangeMl": 34.813835,
+        "boosterLoopSignedArea": 134.730424,
+        "reservoirLoopSignedArea": -18.268949,
+        "lobeBalance": 0.135596,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 18,
+        "roughnessSamplingSpan": 0.502081,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 4.863983,
+        "volumeRangeMl": 42.447152,
+        "boosterLoopSignedArea": 262.947341,
+        "reservoirLoopSignedArea": 56.751689,
+        "lobeBalance": 0.215829,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 21,
+        "roughnessSamplingSpan": 0.774232,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 473.666667,
+          "diodeImpulsePerBeat": 36.310703,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 421,
+          "diodeImpulsePerBeat": 1.861682,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-balanced-recoil-v1",
+      "pointId": "high-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 18,
+      "healthStatus": "ok",
+      "forwardCO_L": 5.312848,
+      "forwardCO_R": 5.328208,
+      "LVEDPApprox": 15.613647,
+      "RVEDPApprox": 10.028081,
+      "LA": {
+        "pressureRangeMmHg": 9.191645,
+        "volumeRangeMl": 43.907896,
+        "boosterLoopSignedArea": 793.643407,
+        "reservoirLoopSignedArea": -268.594968,
+        "lobeBalance": 0.338433,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 32,
+        "roughnessSamplingSpan": 0.828271,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 12.135147,
+        "volumeRangeMl": 59.139548,
+        "boosterLoopSignedArea": 828.766666,
+        "reservoirLoopSignedArea": 283.642255,
+        "lobeBalance": 0.342246,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 12,
+        "roughnessSamplingSpan": 0.710546,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 511.666667,
+          "diodeImpulsePerBeat": 127.672032,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 387.666667,
+          "diodeImpulsePerBeat": 7.198818,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "variantId": "ra-balanced-recoil-v1",
+      "pointId": "normal-hr90",
+      "HR": 90,
+      "targetTBVMl": 5600,
+      "settled": false,
+      "settleReason": "cap",
+      "settleBeats": 179,
+      "healthStatus": "ok",
+      "forwardCO_L": null,
+      "forwardCO_R": null,
+      "LVEDPApprox": null,
+      "RVEDPApprox": null,
+      "LA": {
+        "pressureRangeMmHg": 4.664042,
+        "volumeRangeMl": 44.333748,
+        "boosterLoopSignedArea": 327.198813,
+        "reservoirLoopSignedArea": -73.353011,
+        "lobeBalance": 0.224185,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 59,
+        "roughnessSamplingSpan": 0.861849,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 7.777718,
+        "volumeRangeMl": 53.21306,
+        "boosterLoopSignedArea": 638.674016,
+        "reservoirLoopSignedArea": 57.515592,
+        "lobeBalance": 0.090055,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 78,
+        "roughnessSamplingSpan": 0.41071,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.681218
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 460.333333,
+          "diodeImpulsePerBeat": 99.265404,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 394,
+          "diodeImpulsePerBeat": 2.970733,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": false
+    },
+    {
+      "variantId": "ra-balanced-recoil-v1",
+      "pointId": "low-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 4800,
+      "settled": false,
+      "settleReason": "cap",
+      "settleBeats": 179,
+      "healthStatus": "ok",
+      "forwardCO_L": null,
+      "forwardCO_R": null,
+      "LVEDPApprox": null,
+      "RVEDPApprox": null,
+      "LA": {
+        "pressureRangeMmHg": 6.493198,
+        "volumeRangeMl": 39.597684,
+        "boosterLoopSignedArea": 306.051057,
+        "reservoirLoopSignedArea": -13.306879,
+        "lobeBalance": 0.043479,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 26,
+        "roughnessSamplingSpan": 0.454452,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.757248
+      },
+      "RA": {
+        "pressureRangeMmHg": 6.392726,
+        "volumeRangeMl": 43.996206,
+        "boosterLoopSignedArea": 437.213765,
+        "reservoirLoopSignedArea": 27.269012,
+        "lobeBalance": 0.06237,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 44,
+        "roughnessSamplingSpan": 0.652888,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.629937
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 466.333333,
+          "diodeImpulsePerBeat": 40.044375,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 408.666667,
+          "diodeImpulsePerBeat": 1.732833,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": false
+    },
+    {
+      "variantId": "ra-balanced-recoil-v1",
+      "pointId": "high-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 29,
+      "healthStatus": "ok",
+      "forwardCO_L": 6.009733,
+      "forwardCO_R": 6.011851,
+      "LVEDPApprox": 15.081801,
+      "RVEDPApprox": 7.612582,
+      "LA": {
+        "pressureRangeMmHg": 6.110469,
+        "volumeRangeMl": 42.547578,
+        "boosterLoopSignedArea": 731.087056,
+        "reservoirLoopSignedArea": -483.469924,
+        "lobeBalance": 0.661303,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 35,
+        "roughnessSamplingSpan": 0.419045,
+        "educationalFigureEightReadable": true,
+        "readabilityScore": 0.844798
+      },
+      "RA": {
+        "pressureRangeMmHg": 11.00104,
+        "volumeRangeMl": 60.255096,
+        "boosterLoopSignedArea": 1089.997356,
+        "reservoirLoopSignedArea": -28.61519,
+        "lobeBalance": 0.026253,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 33,
+        "roughnessSamplingSpan": 0.56287,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.721359
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 416,
+          "diodeImpulsePerBeat": 39.21416,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 395,
+          "diodeImpulsePerBeat": 4.677868,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    }
+  ],
+  "variantSummaries": [
+    {
+      "variantId": "refined-a1-v1-reference",
+      "settledPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "high-preload-hr90"
+      ],
+      "readableLaPointIds": [
+        "high-preload-hr90"
+      ],
+      "readableRaPointIds": [],
+      "readableBothPointIds": [],
+      "hr75BothReadable": false,
+      "hr90BothReadable": false,
+      "settledLvRvHealthOkPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "high-preload-hr90"
+      ],
+      "valveImpulsePerBeatMean": 79.989292,
+      "valveHitPerBeatMean": 872.333333,
+      "meanLaReadabilityScore": 0.826869,
+      "meanRaReadabilityScore": 0.671358,
+      "raOpposedPointIds": [
+        "high-preload-hr90"
+      ],
+      "raLobeBalancePassPointIds": [
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90"
+      ],
+      "selectableByThisArtifact": false
+    },
+    {
+      "variantId": "ra-low-threshold-fast-recoil-v1",
+      "settledPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "high-preload-hr90"
+      ],
+      "readableLaPointIds": [
+        "high-preload-hr90"
+      ],
+      "readableRaPointIds": [],
+      "readableBothPointIds": [],
+      "hr75BothReadable": false,
+      "hr90BothReadable": false,
+      "settledLvRvHealthOkPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "high-preload-hr90"
+      ],
+      "valveImpulsePerBeatMean": 79.989292,
+      "valveHitPerBeatMean": 872.333333,
+      "meanLaReadabilityScore": 0.826869,
+      "meanRaReadabilityScore": 0.671358,
+      "raOpposedPointIds": [
+        "high-preload-hr90"
+      ],
+      "raLobeBalancePassPointIds": [
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90"
+      ],
+      "selectableByThisArtifact": false
+    },
+    {
+      "variantId": "ra-strong-reservoir-v1",
+      "settledPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "readableLaPointIds": [
+        "normal-hr75"
+      ],
+      "readableRaPointIds": [],
+      "readableBothPointIds": [],
+      "hr75BothReadable": false,
+      "hr90BothReadable": false,
+      "settledLvRvHealthOkPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "valveImpulsePerBeatMean": 82.037661,
+      "valveHitPerBeatMean": 873.277778,
+      "meanLaReadabilityScore": 0.828019,
+      "meanRaReadabilityScore": 0.651477,
+      "raOpposedPointIds": [],
+      "raLobeBalancePassPointIds": [
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90"
+      ],
+      "selectableByThisArtifact": false
+    },
+    {
+      "variantId": "ra-soft-sleeve-v1",
+      "settledPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "high-preload-hr90"
+      ],
+      "readableLaPointIds": [
+        "normal-hr75",
+        "high-preload-hr90"
+      ],
+      "readableRaPointIds": [
+        "high-preload-hr90"
+      ],
+      "readableBothPointIds": [
+        "high-preload-hr90"
+      ],
+      "hr75BothReadable": false,
+      "hr90BothReadable": false,
+      "settledLvRvHealthOkPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "high-preload-hr90"
+      ],
+      "valveImpulsePerBeatMean": 80.975458,
+      "valveHitPerBeatMean": 871.722222,
+      "meanLaReadabilityScore": 0.826897,
+      "meanRaReadabilityScore": 0.727816,
+      "raOpposedPointIds": [
+        "normal-hr75",
+        "high-preload-hr90"
+      ],
+      "raLobeBalancePassPointIds": [
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "high-preload-hr90"
+      ],
+      "selectableByThisArtifact": false
+    },
+    {
+      "variantId": "ra-soft-sleeve-stronger-v1",
+      "settledPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "high-preload-hr90"
+      ],
+      "readableLaPointIds": [
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "high-preload-hr90"
+      ],
+      "readableRaPointIds": [],
+      "readableBothPointIds": [],
+      "hr75BothReadable": false,
+      "hr90BothReadable": false,
+      "settledLvRvHealthOkPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "high-preload-hr90"
+      ],
+      "valveImpulsePerBeatMean": 80.723876,
+      "valveHitPerBeatMean": 868.166667,
+      "meanLaReadabilityScore": 0.842501,
+      "meanRaReadabilityScore": 0.705909,
+      "raOpposedPointIds": [
+        "normal-hr75",
+        "normal-hr90",
+        "high-preload-hr90"
+      ],
+      "raLobeBalancePassPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "high-preload-hr90"
+      ],
+      "selectableByThisArtifact": false
+    },
+    {
+      "variantId": "ra-soft-sleeve-slower-v1",
+      "settledPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "high-preload-hr90"
+      ],
+      "readableLaPointIds": [
+        "high-preload-hr75"
+      ],
+      "readableRaPointIds": [],
+      "readableBothPointIds": [],
+      "hr75BothReadable": false,
+      "hr90BothReadable": false,
+      "settledLvRvHealthOkPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "high-preload-hr90"
+      ],
+      "valveImpulsePerBeatMean": 79.340608,
+      "valveHitPerBeatMean": 865.388889,
+      "meanLaReadabilityScore": 0.830499,
+      "meanRaReadabilityScore": 0.715253,
+      "raOpposedPointIds": [
+        "normal-hr75",
+        "normal-hr90",
+        "high-preload-hr90"
+      ],
+      "raLobeBalancePassPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "high-preload-hr90"
+      ],
+      "selectableByThisArtifact": false
+    },
+    {
+      "variantId": "ra-wide-sleeve-v1",
+      "settledPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "high-preload-hr90"
+      ],
+      "readableLaPointIds": [
+        "normal-hr75",
+        "high-preload-hr75"
+      ],
+      "readableRaPointIds": [
+        "high-preload-hr90"
+      ],
+      "readableBothPointIds": [],
+      "hr75BothReadable": false,
+      "hr90BothReadable": false,
+      "settledLvRvHealthOkPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "high-preload-hr90"
+      ],
+      "valveImpulsePerBeatMean": 80.776351,
+      "valveHitPerBeatMean": 869,
+      "meanLaReadabilityScore": 0.83863,
+      "meanRaReadabilityScore": 0.699314,
+      "raOpposedPointIds": [
+        "normal-hr75",
+        "high-preload-hr90"
+      ],
+      "raLobeBalancePassPointIds": [
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "high-preload-hr90"
+      ],
+      "selectableByThisArtifact": false
+    },
+    {
+      "variantId": "ra-balanced-recoil-v1",
+      "settledPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "high-preload-hr90"
+      ],
+      "readableLaPointIds": [
+        "high-preload-hr90"
+      ],
+      "readableRaPointIds": [],
+      "readableBothPointIds": [],
+      "hr75BothReadable": false,
+      "hr90BothReadable": false,
+      "settledLvRvHealthOkPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "high-preload-hr90"
+      ],
+      "valveImpulsePerBeatMean": 79.754458,
+      "valveHitPerBeatMean": 871.388889,
+      "meanLaReadabilityScore": 0.822563,
+      "meanRaReadabilityScore": 0.646414,
+      "raOpposedPointIds": [
+        "high-preload-hr90"
+      ],
+      "raLobeBalancePassPointIds": [
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90"
+      ],
+      "selectableByThisArtifact": false
+    }
+  ],
+  "summary": {
+    "bestVariantId": "ra-soft-sleeve-v1",
+    "bestVariantStatus": "candidate-local-signal",
+    "bestVariantReadableBothPointIds": [
+      "high-preload-hr90"
+    ],
+    "bestVariantRaOpposedPointIds": [
+      "normal-hr75",
+      "high-preload-hr90"
+    ],
+    "currentInterpretation": "ra-soft-sleeve-v1 produced the strongest RA-local figure-eight signal in this sweep. Both-chamber readable points: high-preload-hr90. RA opposed-lobe points: normal-hr75, high-preload-hr90. This is a parameter-space signal only, not a bridge selection.",
+    "recommendedNext": [
+      "if a RA variant shows candidate-local signal, promote only that parameter set into an explicit refined A1.1 provider candidate and rerun the Phase 5AN readability comparator",
+      "keep atrial figure-eight work separate from LV/RV Land default and RA Land source-stress sign-semantics work",
+      "do not select a production atrial bridge from this sweep alone"
+    ],
+    "blockers": [
+      "production atrial bridge selection remains blocked",
+      "official morphology acceptance remains blocked",
+      "atrial Land/RDQ validation remains blocked"
+    ]
+  },
+  "boundary": {
+    "noProductionRuntimeWiring": true,
+    "noOfficialCaseReauthoring": true,
+    "noWorkbenchRuntimeWiring": true,
+    "noStateSchemaMigration": true,
+    "noAtrialLandRdqClaim": true,
+    "noAfValidationClaim": true,
+    "noFinalAtrialPhysiologyClaim": true,
+    "noLvRvLandDefaultGate": true,
+    "noMorphologyAcceptance": true
+  },
+  "doesNotUnlock": [
+    "production atrial bridge wiring",
+    "official case reauthoring",
+    "Workbench runtime wiring",
+    "state schema migration",
+    "atrial Land/RDQ validation",
+    "AF validation",
+    "final atrial physiology acceptance",
+    "LV/RV Land default gating",
+    "official morphology acceptance"
+  ],
+  "normalizedSha256": "8cb5784d374df6d5709ed45e589587c58a7f3f6edc046930c198a9cd565254e7"
+}

@@ -687,6 +687,16 @@ production tissue homogenization.
 - boundary: atrial-land-source-stress-attribution-no-runtime-flip; all-chamber default, legacy deletion, source-stress clamp/scale/tuning, Tref tuning, official case tuning, atrial figure-eight finality, atrial Land physiology acceptance, qDot clamp removal, valve/load timing acceptance, and clinical/scientific validation are not claimed.
 - next: design an explicit atrial source-stress convention or pressure-adapter candidate before any RA Land/default flip; keep atrial figure-eight bridge refinement as a separate HR75/90 morphology lane.
 
+### Phase 5AS — RA-local atrial figure-eight variant sweep
+
+- result artifact: `data/myocardium/protocols/atrial-figure-eight-ra-variant-sweep-phase5as-result-v1.json`
+- builder: `npx vite-node --script tools/myocardium/buildAtrialFigureEightRaVariantSweepPhase5AS.ts`
+- implementation: no runtime default, production bridge wiring, or model-equation change. The disposable runner keeps LA at the Phase 5AN refined A1 settings and sweeps RA-only reservoir/booster sleeve variants over HR75/90 normal, low-preload, and high-preload points.
+- current outcome: eight variants are compared. `ra-soft-sleeve-v1` is the strongest signal: it produces both-chamber readable loops at `high-preload-hr90` and RA opposed-lobe signal at `normal-hr75` and `high-preload-hr90`. Stronger/slower/wider soft-sleeve variants increase some RA lobe-balance/opposition counts but do not expand both-chamber readability over the envelope.
+- interpretation: RA figure-eight morphology is sensitive to candidate-local reservoir timing/sleeve choices, but parameter-only bridge tuning is insufficient for selection. The next useful step is an explicit structural A1.1 candidate or phase-lobe design, not production bridge selection.
+- boundary: atrial-figure-eight-ra-variant-sweep-no-selection; production bridge selection, runtime wiring, official case reauthoring, Workbench wiring, state-schema migration, atrial Land/RDQ validation, AF validation, final atrial physiology, LV/RV default gating, and official morphology acceptance are not claimed.
+- next: promote only the best signal into an explicit refined A1.1 structural candidate if the next phase can change the bridge structure, then rerun the Phase 5AN readability comparator.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison

@@ -193,6 +193,20 @@ Result boundary:
   so valve contamination remains bounded evidence rather than acceptance;
 - refined A1 closed-loop sampling roughness was bounded except for
   high-preload HR75 LA;
+
+Phase 5AS adds a disposable RA-local parameter sweep in
+[`../../data/myocardium/protocols/atrial-figure-eight-ra-variant-sweep-phase5as-result-v1.json`](../../data/myocardium/protocols/atrial-figure-eight-ra-variant-sweep-phase5as-result-v1.json).
+Regenerate it with
+`npx vite-node --script tools/myocardium/buildAtrialFigureEightRaVariantSweepPhase5AS.ts`.
+The sweep keeps LA on the Phase 5AN refined A1 settings and varies only the RA
+reservoir/booster sleeve parameters across the same HR75/90 normal,
+low-preload, and high-preload envelope. It does not select a bridge or add a
+permanent verifier. The best parameter-space signal is `ra-soft-sleeve-v1`,
+which produces both-chamber readable loops only at `high-preload-hr90` and RA
+opposed-lobe signal at `normal-hr75` and `high-preload-hr90`. This shows RA
+lobe opposition can move with candidate-local reservoir timing/sleeve choices,
+but a parameter-only sweep is not enough for production bridge selection or
+official morphology acceptance.
 - no Phase 6 bridge is selected or recommended, and this does not wire
   production runtime, reauthor official cases, change Workbench/runtime state,
   validate AF physiology, or make final atrial physiology claims.
