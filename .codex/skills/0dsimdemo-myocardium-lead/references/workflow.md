@@ -30,6 +30,31 @@ experiment can reasonably run in the same PR, enlarge the PR.
 5. Do not touch unrelated dirty or untracked files unless the user explicitly
    asks to clean them.
 
+## Parallel Lane Protocol
+
+Use when 2-3 lanes run concurrently in separate worktrees/branches. Treat
+`docs/status/current-lanes.md` as the shared lane registry; this section is the
+procedure, not the lane list.
+
+- Lane capsule: each lane charter names its branch/worktree, objective, owned
+  files/artifacts, dependencies, claim boundary, and merge-order constraints.
+- Lane claim: each lane works only inside its own lane row and owned
+  files/artifacts. Do not edit another lane's row, blocker, or claim boundary.
+- Serialize shared-state edits: `current-lanes.md` is shared mutable state. Edit
+  only your own lane row, rebase on latest `origin/main` before pushing, and keep
+  the row change in your phase PR so concurrent lanes do not clobber it. For
+  shared sections such as policy, posture, and top priorities, ask the lead
+  instead of editing directly.
+- Closure assumptions stay lane-local: one lane's qDot, valve, load, preload, or
+  closure choice must not silently become another lane's baseline.
+- No cross-lane claim leakage: single-lane or edge-case evidence does not become
+  a global pass or a global blocker for another lane.
+- Lead owns merge order: lanes do not self-merge ahead of others. Propose ready
+  PRs to the lead; the lead sequences merges and signals when to rebase. After
+  any merge, other lanes refresh `origin/main` before continuing.
+- One lane per worktree/branch. Keep lanes file-disjoint where possible; never
+  reuse a worktree across lanes.
+
 ## Delegation And Review Gates
 
 - Read `docs/status/current-lanes.md` for the current reviewer model names,

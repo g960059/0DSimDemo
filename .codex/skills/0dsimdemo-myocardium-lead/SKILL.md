@@ -31,6 +31,9 @@ and carry work through PR, CI, merge, and cleanup.
   or a delegate stalls.
 - Use the current review/oracle policy from `docs/status/current-lanes.md` for
   high-risk plan/code and major direction checkpoints.
+- When 2-3 lanes run in parallel worktrees/branches, follow the Parallel Lane
+  Protocol in `references/workflow.md` and treat `docs/status/current-lanes.md`
+  as the shared lane registry.
 
 ## Scope Guard
 
