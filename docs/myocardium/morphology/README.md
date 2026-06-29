@@ -121,19 +121,31 @@ absolute morphology checks are not yet clear, while keeping legacy active-stress
 frozen as reference and keeping SDIRK2 alternans closure parallel to product
 migration.
 
+Phase 5Y localizes the Phase 5X LV qDot blocker:
+[`../../../data/myocardium/protocols/lv-land-qdot-blocker-localization-phase5y-result-v1.json`](../../../data/myocardium/protocols/lv-land-qdot-blocker-localization-phase5y-result-v1.json).
+Run `npm run verify:myocardium-lv-land-qdot-blocker-localization` to check it.
+All 14 Land points show direct AoV qDot raw/post clamp engagement, but the
+Phase 5X morphology `qDotClampHitFraction=1` signal is amplified by the short
+morphology-classified ejection core relative to the broader AoV-open window.
+This is diagnostic-only blocker localization, not qDot/valve tuning or
+official morphology acceptance.
+
 1. Use the current-main baseline snapshot in
    [`pv-loop-current-main-baseline-snapshot-v1.md`](../verification/pv-loop-current-main-baseline-snapshot-v1.md)
    as the post-PR #196 morphology reference.
 2. Derive or emit the missing diagnostic-only E/A-like inflow proxy for the
    three residual dobutamine RV filling groups.
-3. Use Phase 5X style normal-floor and user-knob sweeps for LV Land default
+3. Use Phase 5Y qDot localization to split classifier/window and operating
+   point work from arterial root/Zc/load morphology; do not tune qDot or valve
+   thresholds to hide the signal.
+4. Use Phase 5X style normal-floor and user-knob sweeps for LV Land default
    candidate decisions before detailed official-case tuning.
-4. Keep filling jaggedness/figure-eight work in the atrial A1/refined atrial
+5. Keep filling jaggedness/figure-eight work in the atrial A1/refined atrial
    lane and ejection squareness/incisura work in the arterial Zc/root lane; do
    not tune myocardium parameters to hide those blockers.
-5. Define and run an isolated arterial bench for direct Zc/reflection signal
+6. Define and run an isolated arterial bench for direct Zc/reflection signal
    generation.
-6. Feed BLOCKER/ADVISORY/OUT-OF-SCOPE results to the myocardium roadmap.
+7. Feed BLOCKER/ADVISORY/OUT-OF-SCOPE results to the myocardium roadmap.
 
 ## Handoff rule
 
