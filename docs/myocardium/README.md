@@ -1008,6 +1008,29 @@ prioritized diagnostic ranking, not a direct physical adoption choice; the next
 step should treat lower inertance values as a Pareto region against output
 preservation.
 
+Phase 5AB carries that lower-inertance Pareto region into a closed-loop
+diagnostic sweep without production wiring. The recorded result is
+[`../../data/myocardium/protocols/arterial-root-inertance-closed-loop-phase5ab-result-v1.json`](../../data/myocardium/protocols/arterial-root-inertance-closed-loop-phase5ab-result-v1.json).
+Run `npm run verify:myocardium-arterial-root-inertance-closed-loop` to check the
+artifact. The sweep covers the full Phase 5X synthetic user-knob matrix plus a
+bounded TBV 4350 low-preload edge, for stock active and developer-only LV Land,
+using the existing `AoV_L` carrier as an effective AoV/root-boundary inertance
+diagnostic. qDot clamps, valve thresholds, valve loss terms, afterload, preload,
+Tref, source-stress scale, and Land parameters are fixed. The current result
+finds 72/83 health-ok candidate comparisons with lower AoV-open qDot clamp
+engagement and preserved output, out of 90 total candidate comparisons,
+including 36 health-ok Land candidate comparisons. 67 health-ok candidate
+comparisons show at least one positive morphology proxy, with 70 raw morphology
+proxy signals tracked separately. Median Pareto clamp reduction is `0.829895`
+and median Pareto forward-volume ratio is `1.007398`. Non-ok or unmeasured runs
+are tracked separately rather than used in the health-ok headline. The
+low-preload edge is
+period-1 in current stock and Land under this closure, but remains bounded edge
+evidence and does not unlock final no-alternans acceptance. This is not direct
+Ao_SA adoption, physical Zc calibration, qDot clamp removal, valve-timing
+acceptance, official morphology acceptance, root-cause acceptance, fix
+acceptance, or runtime default flip.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and

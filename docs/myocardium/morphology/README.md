@@ -163,21 +163,41 @@ acceptance. `bestCandidateId` is clamp-reduction prioritized diagnostic
 ranking, not a direct physical adoption choice; closed-loop follow-up should
 treat lower inertance values as a Pareto region against output preservation.
 
+Phase 5AB records that closed-loop follow-up:
+[`../../../data/myocardium/protocols/arterial-root-inertance-closed-loop-phase5ab-result-v1.json`](../../../data/myocardium/protocols/arterial-root-inertance-closed-loop-phase5ab-result-v1.json).
+Run `npm run verify:myocardium-arterial-root-inertance-closed-loop` to check it.
+The diagnostic uses the existing `AoV_L` carrier as an effective AoV/root
+boundary inertance sweep over the full Phase 5X synthetic matrix plus a bounded
+low-preload edge, for stock active and developer-only LV Land. It keeps qDot
+clamps, valve thresholds, valve loss terms, load/preload, Tref,
+source-stress scale, and Land parameters fixed. The current result finds
+72/83 health-ok output-preserved candidate comparisons with lower AoV-open
+qDot clamp engagement, out of 90 total candidate comparisons, including 36
+health-ok Land comparisons. 67 health-ok candidate comparisons show at least
+one positive morphology proxy, with 70 raw morphology proxy signals tracked
+separately. Median Pareto clamp reduction is `0.829895`, and median Pareto
+forward-volume ratio is `1.007398`. This supports carrying a narrow effective
+root-inertance Pareto region into a separate off-by-default prototype or
+impedance bench, not qDot clamp removal, direct Ao_SA adoption, valve-timing
+acceptance, root-cause/fix acceptance, or official morphology acceptance. The
+low-preload edge remains bounded edge evidence and does not unlock final
+no-alternans.
+
 1. Use the current-main baseline snapshot in
    [`pv-loop-current-main-baseline-snapshot-v1.md`](../verification/pv-loop-current-main-baseline-snapshot-v1.md)
    as the post-PR #196 morphology reference.
 2. Derive or emit the missing diagnostic-only E/A-like inflow proxy for the
    three residual dobutamine RV filling groups.
-3. Narrow the Phase 5AA root/Zc/inertance signal into a closed-loop or
-   off-by-default diagnostic candidate with qDot and valve thresholds still
-   fixed before treating LV `qDotClampHitFraction=1` as a qDot/valve-threshold
-   blocker.
+3. Carry the Phase 5AB lower-output-preserving effective inertance region into
+   an off-by-default root/Zc prototype or direct impedance bench with qDot and
+   valve thresholds still fixed before treating LV `qDotClampHitFraction=1` as
+   a qDot/valve-threshold blocker.
 4. Use Phase 5X style normal-floor and user-knob sweeps for LV Land default
    candidate decisions before detailed official-case tuning.
 5. Keep filling jaggedness/figure-eight work in the atrial A1/refined atrial
    lane and ejection squareness/incisura work in the arterial Zc/root lane; do
    not tune myocardium parameters to hide those blockers.
-6. Keep direct Zc/reflection signal generation separate; Phase 5AA does not
+6. Keep direct Zc/reflection signal generation separate; Phase 5AB does not
    make Zc/reflection availability claims.
 7. Feed BLOCKER/ADVISORY/OUT-OF-SCOPE results to the myocardium roadmap.
 
