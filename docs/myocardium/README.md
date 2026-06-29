@@ -1081,6 +1081,21 @@ no production/default ModelCore equation change, topology change, state-layout
 change, qDot clamp removal, direct `Ao_SA.L` adoption, boundary/root production
 adoption, sourced Zc calibration, or official morphology acceptance is claimed.
 
+Phase 5AF calibrates the Phase 5AC direct root/Zc readout against an explicit
+sourced Zc anchor without changing runtime equations. The recorded result is
+[`../../data/myocardium/protocols/arterial-root-zc-calibration-phase5af-result-v1.json`](../../data/myocardium/protocols/arterial-root-zc-calibration-phase5af-result-v1.json).
+Run `npm run verify:myocardium-arterial-root-zc-calibration` to check the
+artifact. The source anchor is Bikia et al. 2021 `Zao` mean `0.056` with SD
+`0.012` mmHg*s/mL, yielding a preferred sourced Zc range of `0.044`-`0.068`
+and a broad range of `0.032`-`0.080` mmHg*s/mL. The current closure 20Hz
+readout is `0.025723` mmHg*s/mL and below the broad range; the total 2x
+AoV/root candidate equivalent to the Phase 5AE boundary/root mechanism is
+`0.057139` mmHg*s/mL and inside the preferred range; total 3x/4x candidates are
+above the broad range. This resolves the sourced calibration step for
+diagnostic candidate selection only. It does not adopt the mechanism, remove
+qDot clamps, tune valves or loads, claim reflection coefficient, pass official
+morphology, or unlock production/default root/Zc adoption.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and
