@@ -266,22 +266,38 @@ non-health-ok edge because current and candidate stock runs both fail health.
 This is attribution diagnostic evidence only, not boundary/root fix acceptance
 or qDot clamp removal.
 
+Phase 5AI records the normal-floor LVEDP attribution diagnostic for the Land
+default-candidate path:
+[`../../../data/myocardium/protocols/land-normal-floor-lvedp-attribution-phase5ai-result-v1.json`](../../../data/myocardium/protocols/land-normal-floor-lvedp-attribution-phase5ai-result-v1.json).
+Run `npm run verify:myocardium-land-normal-floor-lvedp-attribution` to check it.
+Land current normal has a small LVEDP excess (`17.276729` mmHg versus the
+`16` mmHg floor) with no other normal-floor failures. Preload/TBV and
+venous-tone probes remain unresolved; LV passive-proxy runs
+`land-lv-bpas-0p90` and `land-lv-bpas-0p85`, plus the source-calcium sensitivity
+probe `land-ca-release-1p10`, resolve LVEDP with output preserved. This bounds
+the operating-point blocker as passive-proxy/source-sensitivity evidence only,
+not morphology acceptance, accepted passive/source tuning, Tref fudge, or a
+runtime default flip.
+
 1. Use the current-main baseline snapshot in
    [`pv-loop-current-main-baseline-snapshot-v1.md`](../verification/pv-loop-current-main-baseline-snapshot-v1.md)
    as the post-PR #196 morphology reference.
 2. Derive or emit the missing diagnostic-only E/A-like inflow proxy for the
    three residual dobutamine RV filling groups.
-3. Keep the Phase 5AH weaker-Land-response attribution bounded: it supports
+3. Keep the Phase 5AI normal-floor LVEDP attribution bounded: it supports a
+   small passive-proxy/source-sensitivity operating-point explanation, not
+   accepted tuning or default flip.
+4. Keep the Phase 5AH weaker-Land-response attribution bounded: it supports
    output-preserved Land timing diagnostics, not qDot clamp retirement or
    production/default root/Zc adoption.
-4. Use Phase 5X style normal-floor and user-knob sweeps for LV Land default
+5. Use Phase 5X style normal-floor and user-knob sweeps for LV Land default
    candidate decisions before detailed official-case tuning.
-5. Keep filling jaggedness/figure-eight work in the atrial A1/refined atrial
+6. Keep filling jaggedness/figure-eight work in the atrial A1/refined atrial
    lane and ejection squareness/incisura work in the arterial Zc/root lane; do
    not tune myocardium parameters to hide those blockers.
-6. Keep direct Zc/reflection signal generation separate; Phase 5AB does not
+7. Keep direct Zc/reflection signal generation separate; Phase 5AB does not
    make Zc/reflection availability claims.
-7. Feed BLOCKER/ADVISORY/OUT-OF-SCOPE results to the myocardium roadmap.
+8. Feed BLOCKER/ADVISORY/OUT-OF-SCOPE results to the myocardium roadmap.
 
 ## Handoff rule
 

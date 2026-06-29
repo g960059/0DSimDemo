@@ -1130,6 +1130,24 @@ This remains an attribution diagnostic: no boundary/root production adoption,
 qDot clamp removal, valve/load timing acceptance, official morphology
 acceptance, Land default flip, or clinical/scientific validation is claimed.
 
+Phase 5AI records the Land normal-floor LVEDP attribution diagnostic in
+[`../../data/myocardium/protocols/land-normal-floor-lvedp-attribution-phase5ai-result-v1.json`](../../data/myocardium/protocols/land-normal-floor-lvedp-attribution-phase5ai-result-v1.json).
+Run `npm run verify:myocardium-land-normal-floor-lvedp-attribution` to check the
+artifact. It independently remeasures 16 normal-floor single-axis probes with
+qDot clamps, valves, root/Zc, Tref, source-stress scale, and Land parameters
+fixed. Land current normal reproduces the Phase 5X blocker at `17.276729` mmHg,
+only `1.276729` mmHg above the `16` mmHg normal-floor LVEDP bound, with no
+other floor failures. Preload/TBV and venous-tone probes lower LVEDP but do not
+resolve it. The output-preserved diagnostic runs that resolve LVEDP are
+`land-lv-bpas-0p90`, `land-lv-bpas-0p85`, and `land-ca-release-1p10`, so the
+artifact classifies the blocker as
+`bounded-small-lvedp-excess-diagnostic-only`. This is not accepted tuning: no
+runtime default flip, preload/venous/passive/geometry/source-calcium tuning,
+Tref fudge, official case reauthoring, official morphology acceptance, or
+clinical/scientific validation is claimed. In short, there is no runtime default flip
+in Phase 5AI. The next migration step is an owner default-flip RFC with frozen
+legacy rollback if this bounded blocker is acceptable.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and
