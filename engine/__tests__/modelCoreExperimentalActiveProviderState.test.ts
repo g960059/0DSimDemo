@@ -130,6 +130,28 @@ function aliasingStateProvider(retainedStates: TestProviderState[]): ModelCoreEx
   };
 }
 
+function volumeRateLoggingProvider(observed: number[]): ModelCoreExperimentalActiveSourceProvider {
+  const record = (value: number | undefined) => {
+    if (value !== undefined) observed.push(value);
+  };
+  return {
+    sourceProviderId: "test-volume-rate-ctx-provider-v1",
+    initialInternal: ({ activeModel }) => activeModel.initialInternal(),
+    pressure: ({ activeModel, volumeMl, internal, chamberCtx }) => {
+      record(chamberCtx.selfChamberVolumeRateMlPerSec);
+      return activeModel.pressure(volumeMl, internal, chamberCtx);
+    },
+    passivePressure: ({ activeModel, volumeMl, chamberCtx }) => {
+      record(chamberCtx.selfChamberVolumeRateMlPerSec);
+      return activeModel.passivePressure(volumeMl, chamberCtx);
+    },
+    internalDerivatives: ({ activeModel, volumeMl, internal, chamberCtx }) => {
+      record(chamberCtx.selfChamberVolumeRateMlPerSec);
+      return activeModel.internalDerivatives(volumeMl, internal, chamberCtx);
+    },
+  };
+}
+
 describe("ModelCore experimental active source-provider state lifecycle", () => {
   it("keeps provider state ModelCore-owned and commits it once per step", () => {
     const core = new ModelCore(DEFAULT_PARAMS, { activeSourceProviders: { LV: testStateProvider() } });
@@ -235,5 +257,26 @@ describe("ModelCore experimental active source-provider state lifecycle", () => 
     expect(core.debugExperimentalActiveSourceProviderStates().LV?.stateVersion).toBe(0);
     expect(lvState(core).commits).toBe(0);
     expect(core.packState().t).toBeCloseTo(snapshot.t, 12);
+  });
+
+  it("passes finite self chamber volume-rate context to atrial source providers", () => {
+    const laRates: number[] = [];
+    const raRates: number[] = [];
+    const core = new ModelCore(DEFAULT_PARAMS, {
+      activeSourceProviders: {
+        LA: volumeRateLoggingProvider(laRates),
+        RA: volumeRateLoggingProvider(raRates),
+      },
+    });
+
+    core.step(0.001);
+    const sample = core.sample();
+
+    expect(laRates.length).toBeGreaterThan(0);
+    expect(raRates.length).toBeGreaterThan(0);
+    expect(laRates.every(Number.isFinite)).toBe(true);
+    expect(raRates.every(Number.isFinite)).toBe(true);
+    expect(sample.dVLAdtMlPerSec).toBeCloseTo(sample.PVF - sample.QMV, 12);
+    expect(sample.dVRAdtMlPerSec).toBeCloseTo(sample.SVF + sample.QCS - sample.QTV, 12);
   });
 });

@@ -1,0 +1,312 @@
+{
+  "schemaVersion": 1,
+  "id": "atrial-a2-inputs-phase5aw-result-v1",
+  "phase": "Phase 5AW",
+  "claimBoundary": "atrial-a2-input-groundwork-no-a2-model-selection",
+  "protocol": {
+    "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+    "pointSource": "hr75-hr90-normal-low-high-preload",
+    "points": [
+      {
+        "id": "normal-hr75",
+        "targetTBVMl": 5600,
+        "HR": 75
+      },
+      {
+        "id": "low-preload-hr75",
+        "targetTBVMl": 4800,
+        "HR": 75
+      },
+      {
+        "id": "high-preload-hr75",
+        "targetTBVMl": 6200,
+        "HR": 75
+      },
+      {
+        "id": "normal-hr90",
+        "targetTBVMl": 5600,
+        "HR": 90
+      },
+      {
+        "id": "low-preload-hr90",
+        "targetTBVMl": 4800,
+        "HR": 90
+      },
+      {
+        "id": "high-preload-hr90",
+        "targetTBVMl": 6200,
+        "HR": 90
+      }
+    ],
+    "dtSec": 0.001,
+    "sampleHz": 1000,
+    "measureBeats": 3,
+    "providerCtxVolumeRateSemantics": "latest-resolved-flow-balance-explicit-estimate",
+    "sampleVolumeRateSemantics": "same-sample-flow-balance-readback",
+    "noA2Implementation": true,
+    "noAtrialBridgeSelection": true,
+    "noPermanentVerifierOrNpmScriptAdded": true
+  },
+  "runs": [
+    {
+      "pointId": "normal-hr75",
+      "HR": 75,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 15,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "LA": {
+        "providerCtxCallCount": 27109,
+        "providerCtxFiniteCallCount": 27109,
+        "providerCtxSelfVolumeRateMlPerSec": {
+          "min": -326.994062,
+          "max": 203.9231
+        },
+        "sampleSelfVolumeRateMlPerSec": {
+          "min": -326.743255,
+          "max": 203.22272
+        },
+        "sampleFlowBalanceMaxAbsErrorMlPerSec": 0
+      },
+      "RA": {
+        "providerCtxCallCount": 27109,
+        "providerCtxFiniteCallCount": 27109,
+        "providerCtxSelfVolumeRateMlPerSec": {
+          "min": -259.279552,
+          "max": 125.153431
+        },
+        "sampleSelfVolumeRateMlPerSec": {
+          "min": -259.222864,
+          "max": 125.14311
+        },
+        "sampleFlowBalanceMaxAbsErrorMlPerSec": 0
+      }
+    },
+    {
+      "pointId": "low-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 26,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "LA": {
+        "providerCtxCallCount": 27772,
+        "providerCtxFiniteCallCount": 27772,
+        "providerCtxSelfVolumeRateMlPerSec": {
+          "min": -384.910014,
+          "max": 104.257759
+        },
+        "sampleSelfVolumeRateMlPerSec": {
+          "min": -384.74151,
+          "max": 104.214744
+        },
+        "sampleFlowBalanceMaxAbsErrorMlPerSec": 0
+      },
+      "RA": {
+        "providerCtxCallCount": 27772,
+        "providerCtxFiniteCallCount": 27772,
+        "providerCtxSelfVolumeRateMlPerSec": {
+          "min": -259.49172,
+          "max": 107.916956
+        },
+        "sampleSelfVolumeRateMlPerSec": {
+          "min": -259.455504,
+          "max": 107.912491
+        },
+        "sampleFlowBalanceMaxAbsErrorMlPerSec": 0
+      }
+    },
+    {
+      "pointId": "high-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 14,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "LA": {
+        "providerCtxCallCount": 29109,
+        "providerCtxFiniteCallCount": 29109,
+        "providerCtxSelfVolumeRateMlPerSec": {
+          "min": -290.474849,
+          "max": 209.274855
+        },
+        "sampleSelfVolumeRateMlPerSec": {
+          "min": -290.228431,
+          "max": 208.509269
+        },
+        "sampleFlowBalanceMaxAbsErrorMlPerSec": 0
+      },
+      "RA": {
+        "providerCtxCallCount": 29109,
+        "providerCtxFiniteCallCount": 29109,
+        "providerCtxSelfVolumeRateMlPerSec": {
+          "min": -222.384121,
+          "max": 151.015586
+        },
+        "sampleSelfVolumeRateMlPerSec": {
+          "min": -222.322324,
+          "max": 150.982206
+        },
+        "sampleFlowBalanceMaxAbsErrorMlPerSec": 0
+      }
+    },
+    {
+      "pointId": "normal-hr90",
+      "HR": 90,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 17,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "LA": {
+        "providerCtxCallCount": 23010,
+        "providerCtxFiniteCallCount": 23010,
+        "providerCtxSelfVolumeRateMlPerSec": {
+          "min": -343.779983,
+          "max": 195.652341
+        },
+        "sampleSelfVolumeRateMlPerSec": {
+          "min": -343.485166,
+          "max": 195.054485
+        },
+        "sampleFlowBalanceMaxAbsErrorMlPerSec": 0
+      },
+      "RA": {
+        "providerCtxCallCount": 23010,
+        "providerCtxFiniteCallCount": 23010,
+        "providerCtxSelfVolumeRateMlPerSec": {
+          "min": -223.984315,
+          "max": 127.879989
+        },
+        "sampleSelfVolumeRateMlPerSec": {
+          "min": -223.93872,
+          "max": 127.871605
+        },
+        "sampleFlowBalanceMaxAbsErrorMlPerSec": 0
+      }
+    },
+    {
+      "pointId": "low-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 23,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "LA": {
+        "providerCtxCallCount": 23010,
+        "providerCtxFiniteCallCount": 23010,
+        "providerCtxSelfVolumeRateMlPerSec": {
+          "min": -359.238625,
+          "max": 109.924087
+        },
+        "sampleSelfVolumeRateMlPerSec": {
+          "min": -359.078684,
+          "max": 106.121853
+        },
+        "sampleFlowBalanceMaxAbsErrorMlPerSec": 0
+      },
+      "RA": {
+        "providerCtxCallCount": 23010,
+        "providerCtxFiniteCallCount": 23010,
+        "providerCtxSelfVolumeRateMlPerSec": {
+          "min": -353.785586,
+          "max": 108.23424
+        },
+        "sampleSelfVolumeRateMlPerSec": {
+          "min": -353.660846,
+          "max": 108.234067
+        },
+        "sampleFlowBalanceMaxAbsErrorMlPerSec": 0
+      }
+    },
+    {
+      "pointId": "high-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 24,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "LA": {
+        "providerCtxCallCount": 22210,
+        "providerCtxFiniteCallCount": 22210,
+        "providerCtxSelfVolumeRateMlPerSec": {
+          "min": -284.707231,
+          "max": 197.235627
+        },
+        "sampleSelfVolumeRateMlPerSec": {
+          "min": -284.440574,
+          "max": 196.647674
+        },
+        "sampleFlowBalanceMaxAbsErrorMlPerSec": 0
+      },
+      "RA": {
+        "providerCtxCallCount": 22210,
+        "providerCtxFiniteCallCount": 22210,
+        "providerCtxSelfVolumeRateMlPerSec": {
+          "min": -218.935932,
+          "max": 146.442632
+        },
+        "sampleSelfVolumeRateMlPerSec": {
+          "min": -218.884588,
+          "max": 146.431736
+        },
+        "sampleFlowBalanceMaxAbsErrorMlPerSec": 0
+      }
+    }
+  ],
+  "summary": {
+    "measuredPointCount": 6,
+    "healthOkPointCount": 6,
+    "ctxInputFinitePointCount": 6,
+    "sampleReadbackExactPointCount": 6,
+    "currentInterpretation": "Phase 5AW closes the A2 input API gap from Phase 5AU by exposing self chamber volumeRateMlPerSec to chamber/provider pressure calls. Provider context uses the latest resolved flow-balance estimate to avoid an implicit pressure-flow algebraic loop; SimSample exposes same-sample exact flow-balance readback for diagnostics.",
+    "recommendedNext": [
+      "add pressure-decomposition debug output for passive, viscous/conduit, booster, and external AV-plane terms",
+      "prototype AtrialPhysiologyBridgeV2/A2 with this input while keeping A1 as diagnostic bridge only",
+      "keep AV-plane reservoir coupling reusable for A2 and later LandAtrial parameter-pack shadow work"
+    ],
+    "blockers": [
+      "A2 implementation remains absent",
+      "absolute atrial waveform targets remain unsourced",
+      "production atrial bridge selection remains blocked"
+    ]
+  },
+  "boundary": {
+    "noAllChamberRuntimeDefaultFlip": true,
+    "noProductionAtrialBridgeWiring": true,
+    "noAtrialLandPhysiologyAcceptance": true,
+    "noAfValidationClaim": true,
+    "noLvRvLandDefaultGate": true,
+    "noOfficialMorphologyAcceptance": true
+  },
+  "normalizedSha256": "bd7153c524f815bd7d286221fc6168de5320685036b7f24070266ee5b1f877ef"
+}

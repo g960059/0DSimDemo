@@ -37,6 +37,10 @@ export type ChamberCtx = {
   pairedVentricleVolumeMl?: number;
   pairedVentricleShortening01?: number;
   pairedVentricleShorteningVelocity01PerSec?: number;
+  // Explicit flow-balance input for future atrial bridge/LandAtrial work.
+  // For resistive inlet edges this is an explicit latest-resolved estimate, not
+  // an implicit same-evaluation algebraic solve.
+  selfChamberVolumeRateMlPerSec?: number;
   inletValveOpen01?: number;
   outletValveOpen01?: number;
   side?: "left" | "right";
