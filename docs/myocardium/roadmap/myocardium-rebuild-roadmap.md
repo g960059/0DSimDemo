@@ -522,6 +522,15 @@ production tissue homogenization.
 - boundary: qdot-blocker-localization-diagnostic-only-no-tuning; no runtime default flip, no legacy active-stress deletion, no official case reauthoring, no Workbench runtime wiring, no runtime flag UI, no state-schema migration, no production registry integration, no Tref fudge, no qDot/valve/afterload/preload/Land-parameter/source-stress tuning, no official morphology acceptance, no final no-alternans, and no clinical/scientific validation claim.
 - next: split the remaining morphology work into classifier/window and operating-point analysis, arterial root/Zc/load morphology, and atrial/refined filling work; do not hide these blockers by tuning qDot or valve thresholds.
 
+### Phase 5Z — LV Land ejection-window localization
+
+- result artifact: `data/myocardium/protocols/lv-land-ejection-window-localization-phase5z-result-v1.json`
+- verifier: `npm run verify:myocardium-lv-land-ejection-window-localization`
+- current outcome: the same 14 synthetic user-knob points are rerun through stock active and developer-only LV Land with physical ejection windows (`aov-open`, `aov-open-forward`, `qao-high-core-50`, `qao-high-core-75`, and `qdot-hit-in-aov-open`) compared against Phase 5X morphology references. Land has health ok at all points, all Land points settle, and Land solve failure count is zero. After aligning physical-window durations and volumes to Phase 5X per-beat metric rows, 13/14 Land points classify as `no-phase5x-window-amplification` and only HR120 remains `classifier-window-denominator-amplification-dominant`: median Phase 5X ejection-core/AoV-open duration ratio is `0.133333`, and median high-flow-core qDot fraction is `0.542857`, below the high-core dominance threshold.
+- limitations: arterial root/Zc/inertance and valve/load are next diagnostic hypotheses, not Phase 5Z root-cause acceptance. Contractility-low/high Land branches match normal-floor in this artifact, so those points record matrix coverage rather than independent Land contractility-sensitivity evidence.
+- boundary: ejection-window-localization-diagnostic-only-no-tuning; no runtime default flip, no legacy active-stress deletion, no official case reauthoring, no Workbench runtime wiring, no runtime flag UI, no state-schema migration, no production registry integration, no Tref fudge, no qDot/valve/afterload/preload/Land-parameter/source-stress tuning, no official morphology acceptance, no final no-alternans, and no clinical/scientific validation claim.
+- next: treat the LV qDot morphology blocker as real AoV/root discharge evidence rather than a dominant denominator artifact; run isolated arterial root/Zc/inertance plus valve/load diagnostics before qDot/valve-threshold tuning, while keeping atrial filling work separate.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison
