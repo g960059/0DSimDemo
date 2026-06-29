@@ -514,6 +514,14 @@ production tissue homogenization.
 - boundary: early-default-candidate-user-knob-morphology-preflight-diagnostic-only; no runtime default flip in this artifact, no legacy active-stress deletion, no official case reauthoring, no Workbench runtime wiring, no runtime flag UI, no state-schema migration, no production registry integration, no per-case tuning, no Tref fudge, no qDot/valve/afterload/preload/Land-parameter/source-stress tuning, no official morphology acceptance, no final no-alternans, and no clinical/scientific validation claim.
 - next: keep legacy active-stress frozen as the alternans positive-control reference; run SDIRK2 alternans closure in parallel rather than as the product migration gate; fix or explicitly bound the Phase 5X normal-floor and morphology blockers before a separate default-flip PR.
 
+### Phase 5Y — LV Land qDot blocker localization
+
+- result artifact: `data/myocardium/protocols/lv-land-qdot-blocker-localization-phase5y-result-v1.json`
+- verifier: `npm run verify:myocardium-lv-land-qdot-blocker-localization`
+- current outcome: the Phase 5X LV qDot blocker is localized without tuning qDot, valves, load, preload, Land parameters, or source-stress scale. The same 14 synthetic user-knob points are rerun through stock active and developer-only LV Land. Land has health ok at all points, all Land points settle, and Land solve failure count is zero. All Land points show direct AoV qDot raw/post clamp engagement, while the Phase 5X morphology `qDotClampHitFraction=1` signal is amplified by a short morphology-classified ejection core relative to the broader AoV-open window. The normal-floor LVEDP blocker remains recorded.
+- boundary: qdot-blocker-localization-diagnostic-only-no-tuning; no runtime default flip, no legacy active-stress deletion, no official case reauthoring, no Workbench runtime wiring, no runtime flag UI, no state-schema migration, no production registry integration, no Tref fudge, no qDot/valve/afterload/preload/Land-parameter/source-stress tuning, no official morphology acceptance, no final no-alternans, and no clinical/scientific validation claim.
+- next: split the remaining morphology work into classifier/window and operating-point analysis, arterial root/Zc/load morphology, and atrial/refined filling work; do not hide these blockers by tuning qDot or valve thresholds.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison

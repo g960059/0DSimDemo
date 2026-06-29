@@ -946,6 +946,21 @@ tuning, Workbench/runtime wiring, state schema migration, production registry
 integration, official morphology acceptance, final no-alternans, and
 clinical/scientific validation remain blocked.
 
+Phase 5Y localizes the Phase 5X LV qDot morphology blocker without tuning qDot,
+valves, load, preload, Land parameters, or source-stress scale. The recorded
+result is
+[`../../data/myocardium/protocols/lv-land-qdot-blocker-localization-phase5y-result-v1.json`](../../data/myocardium/protocols/lv-land-qdot-blocker-localization-phase5y-result-v1.json).
+Run `npm run verify:myocardium-lv-land-qdot-blocker-localization` to check the
+artifact. The measured result covers the same 14 synthetic user-knob points:
+Land has health ok, all Land points settle, and Land solve failure count is
+zero. All 14 points show direct AoV qDot raw/post clamp engagement, while the
+Phase 5X morphology `qDotClampHitFraction=1` blocker is amplified by a short
+morphology-classified ejection core relative to the broader AoV-open window.
+The normal-floor LVEDP blocker remains recorded. This is diagnostic evidence
+only; it does not flip runtime default, delete legacy active-stress, accept
+official morphology, or authorize qDot/valve/afterload/preload/Land-parameter
+tuning.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and
