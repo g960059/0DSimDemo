@@ -91,10 +91,8 @@ jobs:
 
   test:
     name: Fast test (${{ matrix.shard }})
-    # Full Vitest shards are intentionally off the default PR path. They are
-    # still required on main, and can be run through workflow_dispatch while a
-    # PR is open. PR authors should run targeted local tests/verifiers for the
-    # files they touch.
+    # Diagnostic phase tests are intentionally off the default PR/main path.
+    # They run on demand or nightly through the diagnostic/heavy job.
     if: ${{ github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -120,10 +118,10 @@ jobs:
         run: npm ci
 
       - name: Test
-        run: npm run test -- --shard=${{ matrix.shard }}
+        run: npm run test:fast -- --shard=${{ matrix.shard }}
 
   heavy_tests:
-    name: Heavy verification tests
+    name: Diagnostic and heavy tests
     if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -140,6 +138,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Run regression tests
+        run: npm run test:regression
 
       - name: Run heavy tests
         run: npm run test:heavy

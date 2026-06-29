@@ -10,9 +10,12 @@ Pull requests run the checks needed to catch integration breakage quickly:
 - `Check diff whitespace`
 - aggregate `Build, test, and verify`
 
-The full Vitest shard matrix is skipped on the default PR path. This keeps
-experiment-heavy myocardium PRs moving while avoiding a long queue for every
-small iteration.
+The fast Vitest shard matrix is skipped on the default PR path but still runs on
+main and on demand. Historical myocardium/PV-loop research phase tests and slow
+engine convergence/regression tests are not part of the fast suite. Run
+historical research tests explicitly by file when reviving a phase; run slow
+engine regression tests with `test:regression`. The scheduled or manual
+diagnostic/heavy workflow path runs the regression and heavy suites.
 
 `Verify baseline` and `Verify official cases` are path-aware on pull requests.
 They skip only for explicitly safe `docs/**` and repo-local `.codex/skills/**`
@@ -28,14 +31,16 @@ the phase-specific verifier plus its focused Vitest file.
 
 ## Full Path
 
-The full Vitest shard matrix still runs on:
+The fast Vitest shard matrix still runs on:
 
 - `push` to `main`
 - `workflow_dispatch`
 - scheduled runs
 
-Heavy verification tests remain limited to `workflow_dispatch` and the nightly
-schedule.
+Slow engine regression tests and heavy verification tests remain limited to
+`workflow_dispatch` and the nightly schedule. Historical myocardium/PV-loop
+research phase tests are manual-only unless a phase PR explicitly opts into
+them.
 
 This is an intentional speed/safety tradeoff: PR CI is a fast integration
-screen, while full regression coverage is retained on main and on demand.
+screen, while slow regression coverage is retained on schedule and on demand.
