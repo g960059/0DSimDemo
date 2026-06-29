@@ -64,6 +64,7 @@
     "verify:myocardium-arterial-root-boundary-inertance": "vite-node --script tools/myocardium/verifyArterialRootBoundaryInertancePhase5AE.ts",
     "verify:myocardium-arterial-root-zc-calibration": "vite-node --script tools/myocardium/verifyArterialRootZcCalibrationPhase5AF.ts",
     "verify:myocardium-arterial-root-boundary-timing": "vite-node --script tools/myocardium/verifyArterialRootBoundaryTimingPhase5AG.ts",
+    "verify:myocardium-arterial-root-boundary-attribution": "vite-node --script tools/myocardium/verifyArterialRootBoundaryAttributionPhase5AH.ts",
     "verify:myocardium-morphology-blocker-bundle": "vite-node --script tools/myocardium/verifyMorphologyBlockerBundlePhaseM1.ts",
     "verify:myocardium-atrial-bridge-shootout": "vite-node --script tools/myocardium/verifyAtrialBridgeShootout.ts",
     "verify:myocardium-atrial-bridge-localization": "vite-node --script tools/myocardium/verifyAtrialBridgeBlockerLocalization.ts",

@@ -1115,6 +1115,21 @@ no root/Zc production adoption, qDot clamp removal, valve/load timing
 acceptance, reflection coefficient claim, official morphology acceptance, or
 runtime default flip is claimed.
 
+Phase 5AH records the attribution diagnostic for the Phase 5AG split in
+[`../../data/myocardium/protocols/arterial-root-boundary-attribution-phase5ah-result-v1.json`](../../data/myocardium/protocols/arterial-root-boundary-attribution-phase5ah-result-v1.json).
+Run `npm run verify:myocardium-arterial-root-boundary-attribution` to check the
+artifact. It reanalyzes the measured Phase 5AG artifact and does not rerun or
+modify the model. Stock has 12/13 measured-health-ok qDot+timing comparisons;
+Land has 6/15 qDot+timing and 9/15 timing-only output-preserved comparisons,
+with output preserved in 15/15 health-ok Land comparisons and zero Land solve
+failures. The weaker Land qDot headline is therefore attributed to
+below-threshold qDot reduction, not to a Land solve or output failure. HR120
+stock is non-health-ok in both current and candidate runs, so the output/timing
+cost is treated as bounded edge evidence and excluded from adoption signal.
+This remains an attribution diagnostic: no boundary/root production adoption,
+qDot clamp removal, valve/load timing acceptance, official morphology
+acceptance, Land default flip, or clinical/scientific validation is claimed.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and

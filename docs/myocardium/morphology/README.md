@@ -254,14 +254,26 @@ adoption, qDot clamp removal, valve/load timing acceptance, reflection
 coefficient, root-cause/fix acceptance, and official morphology acceptance
 blocked.
 
+Phase 5AH records the attribution diagnostic for that split:
+[`../../../data/myocardium/protocols/arterial-root-boundary-attribution-phase5ah-result-v1.json`](../../../data/myocardium/protocols/arterial-root-boundary-attribution-phase5ah-result-v1.json).
+Run `npm run verify:myocardium-arterial-root-boundary-attribution` to check it.
+It reanalyzes the measured Phase 5AG artifact and does not rerun the model.
+Stock has 12/13 measured-health-ok qDot+timing output-preserved comparisons.
+Land has 15/15 measured-health-ok output-preserved comparisons and zero Land
+solve failures, but only 6/15 qDot+timing comparisons; the other 9/15 are
+timing-only below-threshold qDot reductions. HR120 stock is a pre-existing
+non-health-ok edge because current and candidate stock runs both fail health.
+This is attribution diagnostic evidence only, not boundary/root fix acceptance
+or qDot clamp removal.
+
 1. Use the current-main baseline snapshot in
    [`pv-loop-current-main-baseline-snapshot-v1.md`](../verification/pv-loop-current-main-baseline-snapshot-v1.md)
    as the post-PR #196 morphology reference.
 2. Derive or emit the missing diagnostic-only E/A-like inflow proxy for the
    three residual dobutamine RV filling groups.
-3. Attribute why the sourced-calibrated boundary/root mechanism has strong stock
-   qDot+timing signal but weaker Land qDot signal before treating it as a
-   production/default root/Zc fix.
+3. Keep the Phase 5AH weaker-Land-response attribution bounded: it supports
+   output-preserved Land timing diagnostics, not qDot clamp retirement or
+   production/default root/Zc adoption.
 4. Use Phase 5X style normal-floor and user-knob sweeps for LV Land default
    candidate decisions before detailed official-case tuning.
 5. Keep filling jaggedness/figure-eight work in the atrial A1/refined atrial
