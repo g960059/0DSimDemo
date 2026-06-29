@@ -148,6 +148,12 @@ export function resolveModelCoreRuntimeActiveSource(
   input: ResolveModelCoreRuntimeActiveSourceInput = {},
 ): ModelCoreRuntimeActiveSourceResolution {
   const mode = input.mode ?? getModelCoreRuntimeActiveSourceModeForThisProcess();
+  if (
+    mode === MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE
+    && (input.rootZcMode !== undefined || input.rootZcBaseAoVInertanceMmHgSec2PerMl !== undefined)
+  ) {
+    throw new Error("Legacy active-stress rollback cannot be composed with experimental root/Zc options.");
+  }
   const rootZc = resolveModelCoreRuntimeRootZc({
     mode: input.rootZcMode,
     baseAoVInertanceMmHgSec2PerMl: input.rootZcBaseAoVInertanceMmHgSec2PerMl,

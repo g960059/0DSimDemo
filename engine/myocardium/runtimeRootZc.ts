@@ -1,4 +1,3 @@
-import { defaultParams } from "@/engine/core/params";
 import type { ModelCoreExperimentalOptions } from "@/engine/ModelCore";
 
 export const MODELCORE_RUNTIME_ROOT_ZC_CURRENT_MODE =
@@ -80,6 +79,9 @@ export function resolveModelCoreRuntimeRootZc(
 ): ModelCoreRuntimeRootZcResolution {
   const mode = input.mode ?? MODELCORE_RUNTIME_ROOT_ZC_CURRENT_MODE;
   if (mode === MODELCORE_RUNTIME_ROOT_ZC_CURRENT_MODE) {
+    if (input.baseAoVInertanceMmHgSec2PerMl !== undefined) {
+      throw new Error("Runtime root/Zc base AoV inertance is only valid for the explicit sourced candidate mode.");
+    }
     return {
       mode,
       claimBoundary: "current-root-zc-no-boundary-root-adoption",
@@ -111,9 +113,11 @@ export function resolveModelCoreRuntimeRootZc(
 }
 
 function normalizeBaseAoVInertance(value: number | undefined): number {
-  const baseAoVL = value ?? defaultParams().AoV_L;
-  if (!Number.isFinite(baseAoVL) || baseAoVL <= 0) {
-    throw new Error("Runtime root/Zc sourced boundary/root candidate requires a finite positive base AoV inertance.");
+  if (value === undefined) {
+    throw new Error("Runtime root/Zc sourced boundary/root candidate requires explicit base AoV inertance.");
   }
-  return baseAoVL;
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error("Runtime root/Zc sourced boundary/root candidate requires explicit finite positive base AoV inertance.");
+  }
+  return value;
 }

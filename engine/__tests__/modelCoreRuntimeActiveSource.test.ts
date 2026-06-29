@@ -161,6 +161,29 @@ describe("ModelCore runtime active source default", () => {
       .toBe(MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_CANDIDATE_MODE);
   });
 
+  it("requires explicit base AoV inertance for the sourced root/Zc candidate", () => {
+    expect(() =>
+      resolveModelCoreRuntimeRootZc({
+        mode: MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_CANDIDATE_MODE,
+      })
+    ).toThrow("requires explicit base AoV inertance");
+    expect(() =>
+      resolveModelCoreRuntimeRootZc({
+        baseAoVInertanceMmHgSec2PerMl: DEFAULT_PARAMS.AoV_L,
+      })
+    ).toThrow("only valid for the explicit sourced candidate mode");
+  });
+
+  it("keeps legacy active-stress rollback fenced from root/Zc opt-in", () => {
+    expect(() =>
+      resolveModelCoreRuntimeActiveSource({
+        mode: MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE,
+        rootZcMode: MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_CANDIDATE_MODE,
+        rootZcBaseAoVInertanceMmHgSec2PerMl: DEFAULT_PARAMS.AoV_L,
+      })
+    ).toThrow("Legacy active-stress rollback cannot be composed with experimental root/Zc options.");
+  });
+
   it("maps the Phase 5AF sourced total 2x candidate to the existing boundary/root hook", () => {
     const rootZc = resolveModelCoreRuntimeRootZc({
       mode: MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_CANDIDATE_MODE,
@@ -188,6 +211,7 @@ describe("ModelCore runtime active source default", () => {
   it("readbacks Phase 5AF/5AG/5AH as off-by-default acceptance evidence only", () => {
     const rootZc = resolveModelCoreRuntimeRootZc({
       mode: MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_CANDIDATE_MODE,
+      baseAoVInertanceMmHgSec2PerMl: DEFAULT_PARAMS.AoV_L,
     });
 
     expect(rootZc.evidenceReadback).toMatchObject({
