@@ -707,6 +707,16 @@ production tissue homogenization.
 - boundary: atrial-figure-eight-av-plane-structural-candidate-no-selection; production bridge selection, runtime wiring, official case reauthoring, Workbench wiring, state-schema migration, atrial Land/RDQ validation, AF validation, final atrial physiology, LV/RV default gating, and official morphology acceptance are not claimed.
 - next: stop parameter-only sleeve/AV-plane scale sweeps unless they are part of a named A2 design; define the A2 input/debug/target contract before production wiring.
 
+### Phase 5AU — AtrialPhysiologyBridgeV2/A2 readout contract
+
+- result artifact: `data/myocardium/protocols/atrial-physiology-bridge-v2-contract-phase5au-result-v1.json`
+- builder: `npx vite-node --script tools/myocardium/buildAtrialPhysiologyBridgeV2ContractPhase5AU.ts`
+- implementation: no A2 model implementation, runtime default, production bridge wiring, engine default parameter, state layout, official case, Workbench, npm script, or permanent verifier change. The disposable runner measures A2 input/debug/target readouts in the current LV+RV Land plus sourced root/Zc default closure.
+- current outcome: 6/6 HR75/90 normal, low-preload, and high-preload points are health-ok and expose LA/RA self dV/dt, a/v wave, reservoir/conduit/booster pressure swing, E/A-like inflow, and valve/qDot contamination readouts. Sample-derived finite-difference dV/dt and flow-balance dV/dt are close enough for diagnostic use.
+- interpretation: A2 implementation is now blocked by a narrow model API gap rather than by readout availability: `ChamberCtx`/provider pressure calls do not expose self `volumeRateMlPerSec`, and A2 still lacks sourced absolute waveform targets and decomposed pressure debug output.
+- boundary: atrial-physiology-bridge-v2-contract-readout-no-model-change; production bridge selection, runtime wiring, official case reauthoring, Workbench wiring, state-schema migration, atrial Land/RDQ validation, AF validation, final atrial physiology, LV/RV default gating, and official morphology acceptance are not claimed.
+- next: add self chamber volume-rate input and pressure-decomposition debug output before prototyping A2 viscous/conduit and tension-state booster terms; source absolute atrial waveform target ranges before parameter tuning.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison

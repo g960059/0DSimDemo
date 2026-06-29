@@ -1,0 +1,547 @@
+{
+  "schemaVersion": 1,
+  "id": "atrial-physiology-bridge-v2-contract-phase5au-result-v1",
+  "phase": "Phase 5AU",
+  "claimBoundary": "atrial-physiology-bridge-v2-contract-readout-no-model-change",
+  "sourceEvidence": [
+    "data/myocardium/protocols/atrial-figure-eight-av-plane-candidate-phase5at-result-v1.json"
+  ],
+  "protocol": {
+    "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+    "pointSource": "hr75-hr90-normal-low-high-preload",
+    "points": [
+      {
+        "id": "normal-hr75",
+        "targetTBVMl": 5600,
+        "HR": 75
+      },
+      {
+        "id": "low-preload-hr75",
+        "targetTBVMl": 4800,
+        "HR": 75
+      },
+      {
+        "id": "high-preload-hr75",
+        "targetTBVMl": 6200,
+        "HR": 75
+      },
+      {
+        "id": "normal-hr90",
+        "targetTBVMl": 5600,
+        "HR": 90
+      },
+      {
+        "id": "low-preload-hr90",
+        "targetTBVMl": 4800,
+        "HR": 90
+      },
+      {
+        "id": "high-preload-hr90",
+        "targetTBVMl": 6200,
+        "HR": 90
+      }
+    ],
+    "dtSec": 0.001,
+    "sampleHz": 1000,
+    "measureBeats": 3,
+    "noA2Implementation": true,
+    "noProductionBridgeSelection": true,
+    "noPermanentVerifierOrNpmScriptAdded": true
+  },
+  "a2Contract": {
+    "requiredInputs": [
+      "chamber volume",
+      "self chamber volumeRateMlPerSec",
+      "HR and beat phase",
+      "inlet/outlet valve opening signals",
+      "paired ventricular shortening and shortening velocity",
+      "pericardial/external coupling pressure or debug contribution"
+    ],
+    "requiredDebugOutputs": [
+      "passive pressure contribution",
+      "viscous/conduit pressure contribution",
+      "active booster tension and pressure contribution",
+      "external AV-plane/pericardial pressure contribution",
+      "reservoir/conduit/booster phase indices",
+      "a/v wave, x/y descent, and E/A-like inflow readouts"
+    ],
+    "requiredTargetFamilies": [
+      "absolute LAP/RAP mean and a/v wave ranges",
+      "absolute LA/RA volume range and emptying fractions",
+      "reservoir/conduit/booster or A/V loop balance",
+      "E/A-like AV-valve inflow ratio and atrial reversal bounds",
+      "sampling-invariant roughness and valve/qDot contamination",
+      "LV/RV preload and output preservation"
+    ],
+    "currentApiGaps": [
+      "ChamberCtx does not expose self chamber volumeRateMlPerSec to chamber/provider pressure calls",
+      "Atrial bridge debug output is not decomposed into passive, viscous, active, and external pressure contributions",
+      "absolute atrial waveform targets are not yet sourced or accepted"
+    ]
+  },
+  "runs": [
+    {
+      "pointId": "normal-hr75",
+      "HR": 75,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 15,
+      "healthStatus": "ok",
+      "forwardCO_L": 4.736071,
+      "forwardCO_R": 4.729553,
+      "LVEDPApprox": 15.421903,
+      "RVEDPApprox": 6.14828,
+      "LA": {
+        "volumeRate": {
+          "finiteDifferenceMaxAbsMlPerSec": 326.811376,
+          "flowBalanceMaxAbsMlPerSec": 326.743255,
+          "finiteVsFlowMaxAbsErrorMlPerSec": 6.745008,
+          "finiteVsFlowMedianAbsErrorMlPerSec": 0.64032
+        },
+        "waveform": {
+          "pressureMeanMmHg": 9.044012,
+          "pressureMinMmHg": 3.688418,
+          "pressureMaxMmHg": 13.919419,
+          "volumeMinMl": 29.123453,
+          "volumeMaxMl": 56.684736,
+          "aWavePeakMmHg": 13.919419,
+          "vWavePeakMmHg": 13.911645,
+          "reservoirPressureSwingMmHg": 10.223227,
+          "conduitPressureSwingMmHg": 10.223227,
+          "boosterPressureSwingMmHg": 7.077381,
+          "inflowEarlyPeakMlPerSec": 448.009121,
+          "inflowAtrialPeakMlPerSec": 244.949634,
+          "inflowEarlyToAtrialRatio": 1.828985
+        },
+        "valve": {
+          "hitsPerBeat": 415,
+          "diodeImpulsePerBeat": 176.623562,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "RA": {
+        "volumeRate": {
+          "finiteDifferenceMaxAbsMlPerSec": 259.234415,
+          "flowBalanceMaxAbsMlPerSec": 259.222864,
+          "finiteVsFlowMaxAbsErrorMlPerSec": 12.560085,
+          "finiteVsFlowMedianAbsErrorMlPerSec": 0.420363
+        },
+        "waveform": {
+          "pressureMeanMmHg": 4.519939,
+          "pressureMinMmHg": 2.711165,
+          "pressureMaxMmHg": 7.937287,
+          "volumeMinMl": 45.18952,
+          "volumeMaxMl": 80.735236,
+          "aWavePeakMmHg": 7.937287,
+          "vWavePeakMmHg": 6.523532,
+          "reservoirPressureSwingMmHg": 3.812368,
+          "conduitPressureSwingMmHg": 3.812368,
+          "boosterPressureSwingMmHg": 4.260482,
+          "inflowEarlyPeakMlPerSec": 272.283752,
+          "inflowAtrialPeakMlPerSec": 277.270453,
+          "inflowEarlyToAtrialRatio": 0.982015
+        },
+        "valve": {
+          "hitsPerBeat": 359,
+          "diodeImpulsePerBeat": 5.483444,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "pointId": "low-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 26,
+      "healthStatus": "ok",
+      "forwardCO_L": 4.297055,
+      "forwardCO_R": 4.291247,
+      "LVEDPApprox": 7.753745,
+      "RVEDPApprox": 2.809534,
+      "LA": {
+        "volumeRate": {
+          "finiteDifferenceMaxAbsMlPerSec": 384.82478,
+          "flowBalanceMaxAbsMlPerSec": 384.74151,
+          "finiteVsFlowMaxAbsErrorMlPerSec": 8.552835,
+          "finiteVsFlowMedianAbsErrorMlPerSec": 0.22597
+        },
+        "waveform": {
+          "pressureMeanMmHg": 2.638286,
+          "pressureMinMmHg": 0.712051,
+          "pressureMaxMmHg": 7.233123,
+          "volumeMinMl": 11.454757,
+          "volumeMaxMl": 45.9654,
+          "aWavePeakMmHg": 7.233123,
+          "vWavePeakMmHg": 6.352226,
+          "reservoirPressureSwingMmHg": 5.640174,
+          "conduitPressureSwingMmHg": 5.615704,
+          "boosterPressureSwingMmHg": 5.94927,
+          "inflowEarlyPeakMlPerSec": 298.815837,
+          "inflowAtrialPeakMlPerSec": 328.070361,
+          "inflowEarlyToAtrialRatio": 0.910829
+        },
+        "valve": {
+          "hitsPerBeat": 426,
+          "diodeImpulsePerBeat": 144.637809,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "RA": {
+        "volumeRate": {
+          "finiteDifferenceMaxAbsMlPerSec": 259.463606,
+          "flowBalanceMaxAbsMlPerSec": 259.455504,
+          "finiteVsFlowMaxAbsErrorMlPerSec": 7.997578,
+          "finiteVsFlowMedianAbsErrorMlPerSec": 0.200786
+        },
+        "waveform": {
+          "pressureMeanMmHg": 1.833675,
+          "pressureMinMmHg": 0.468543,
+          "pressureMaxMmHg": 5.286483,
+          "volumeMinMl": 26.943798,
+          "volumeMaxMl": 61.737703,
+          "aWavePeakMmHg": 5.286483,
+          "vWavePeakMmHg": 2.918035,
+          "reservoirPressureSwingMmHg": 2.449491,
+          "conduitPressureSwingMmHg": 2.114571,
+          "boosterPressureSwingMmHg": 4.55505,
+          "inflowEarlyPeakMlPerSec": 204.777875,
+          "inflowAtrialPeakMlPerSec": 275.235448,
+          "inflowEarlyToAtrialRatio": 0.74401
+        },
+        "valve": {
+          "hitsPerBeat": 382,
+          "diodeImpulsePerBeat": 4.210023,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "pointId": "high-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 14,
+      "healthStatus": "ok",
+      "forwardCO_L": 4.764312,
+      "forwardCO_R": 4.789268,
+      "LVEDPApprox": 20.037083,
+      "RVEDPApprox": 9.909199,
+      "LA": {
+        "volumeRate": {
+          "finiteDifferenceMaxAbsMlPerSec": 290.326615,
+          "flowBalanceMaxAbsMlPerSec": 290.228431,
+          "finiteVsFlowMaxAbsErrorMlPerSec": 6.605561,
+          "finiteVsFlowMedianAbsErrorMlPerSec": 0.68577
+        },
+        "waveform": {
+          "pressureMeanMmHg": 13.220613,
+          "pressureMinMmHg": 6.572885,
+          "pressureMaxMmHg": 18.337078,
+          "volumeMinMl": 33.572937,
+          "volumeMaxMl": 61.498347,
+          "aWavePeakMmHg": 18.230805,
+          "vWavePeakMmHg": 18.337078,
+          "reservoirPressureSwingMmHg": 11.764193,
+          "conduitPressureSwingMmHg": 11.764193,
+          "boosterPressureSwingMmHg": 5.514598,
+          "inflowEarlyPeakMlPerSec": 514.037678,
+          "inflowAtrialPeakMlPerSec": 207.929246,
+          "inflowEarlyToAtrialRatio": 2.472176
+        },
+        "valve": {
+          "hitsPerBeat": 410.666667,
+          "diodeImpulsePerBeat": 185.568825,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "RA": {
+        "volumeRate": {
+          "finiteDifferenceMaxAbsMlPerSec": 222.332566,
+          "flowBalanceMaxAbsMlPerSec": 222.322324,
+          "finiteVsFlowMaxAbsErrorMlPerSec": 7.655447,
+          "finiteVsFlowMedianAbsErrorMlPerSec": 0.462715
+        },
+        "waveform": {
+          "pressureMeanMmHg": 7.682346,
+          "pressureMinMmHg": 5.011448,
+          "pressureMaxMmHg": 11.14837,
+          "volumeMinMl": 56.844043,
+          "volumeMaxMl": 91.868865,
+          "aWavePeakMmHg": 11.14837,
+          "vWavePeakMmHg": 9.883977,
+          "reservoirPressureSwingMmHg": 4.872529,
+          "conduitPressureSwingMmHg": 4.507249,
+          "boosterPressureSwingMmHg": 3.555676,
+          "inflowEarlyPeakMlPerSec": 318.359026,
+          "inflowAtrialPeakMlPerSec": 236.674914,
+          "inflowEarlyToAtrialRatio": 1.345132
+        },
+        "valve": {
+          "hitsPerBeat": 359,
+          "diodeImpulsePerBeat": 6.204773,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "pointId": "normal-hr90",
+      "HR": 90,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 17,
+      "healthStatus": "ok",
+      "forwardCO_L": 5.287945,
+      "forwardCO_R": 5.294006,
+      "LVEDPApprox": 14.602559,
+      "RVEDPApprox": 4.443297,
+      "LA": {
+        "volumeRate": {
+          "finiteDifferenceMaxAbsMlPerSec": 343.103383,
+          "flowBalanceMaxAbsMlPerSec": 343.485166,
+          "finiteVsFlowMaxAbsErrorMlPerSec": 7.964131,
+          "finiteVsFlowMedianAbsErrorMlPerSec": 0.342634
+        },
+        "waveform": {
+          "pressureMeanMmHg": 9.134548,
+          "pressureMinMmHg": 4.290521,
+          "pressureMaxMmHg": 14.385111,
+          "volumeMinMl": 28.125938,
+          "volumeMaxMl": 56.91785,
+          "aWavePeakMmHg": 12.303761,
+          "vWavePeakMmHg": 14.385111,
+          "reservoirPressureSwingMmHg": 9.924276,
+          "conduitPressureSwingMmHg": 10.09459,
+          "boosterPressureSwingMmHg": 6.586468,
+          "inflowEarlyPeakMlPerSec": 445.337405,
+          "inflowAtrialPeakMlPerSec": 337.575628,
+          "inflowEarlyToAtrialRatio": 1.319223
+        },
+        "valve": {
+          "hitsPerBeat": 401.666667,
+          "diodeImpulsePerBeat": 154.874726,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "RA": {
+        "volumeRate": {
+          "finiteDifferenceMaxAbsMlPerSec": 223.944627,
+          "flowBalanceMaxAbsMlPerSec": 223.93872,
+          "finiteVsFlowMaxAbsErrorMlPerSec": 15.484791,
+          "finiteVsFlowMedianAbsErrorMlPerSec": 0.178996
+        },
+        "waveform": {
+          "pressureMeanMmHg": 3.457793,
+          "pressureMinMmHg": 1.921966,
+          "pressureMaxMmHg": 5.7583,
+          "volumeMinMl": 36.066594,
+          "volumeMaxMl": 76.504766,
+          "aWavePeakMmHg": 5.7583,
+          "vWavePeakMmHg": 5.529453,
+          "reservoirPressureSwingMmHg": 3.607487,
+          "conduitPressureSwingMmHg": 2.414332,
+          "boosterPressureSwingMmHg": 3.334709,
+          "inflowEarlyPeakMlPerSec": 264.165587,
+          "inflowAtrialPeakMlPerSec": 265.371769,
+          "inflowEarlyToAtrialRatio": 0.995455
+        },
+        "valve": {
+          "hitsPerBeat": 358.333333,
+          "diodeImpulsePerBeat": 4.687373,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "pointId": "low-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 23,
+      "healthStatus": "ok",
+      "forwardCO_L": 4.56176,
+      "forwardCO_R": 4.559284,
+      "LVEDPApprox": 5.572641,
+      "RVEDPApprox": 2.250781,
+      "LA": {
+        "volumeRate": {
+          "finiteDifferenceMaxAbsMlPerSec": 359.081061,
+          "flowBalanceMaxAbsMlPerSec": 359.078684,
+          "finiteVsFlowMaxAbsErrorMlPerSec": 9.218152,
+          "finiteVsFlowMedianAbsErrorMlPerSec": 0.187282
+        },
+        "waveform": {
+          "pressureMeanMmHg": 2.285486,
+          "pressureMinMmHg": 0.545649,
+          "pressureMaxMmHg": 6.113781,
+          "volumeMinMl": 9.974502,
+          "volumeMaxMl": 45.519428,
+          "aWavePeakMmHg": 6.062418,
+          "vWavePeakMmHg": 6.113781,
+          "reservoirPressureSwingMmHg": 5.568132,
+          "conduitPressureSwingMmHg": 5.553531,
+          "boosterPressureSwingMmHg": 5.239925,
+          "inflowEarlyPeakMlPerSec": 296.035024,
+          "inflowAtrialPeakMlPerSec": 363.247071,
+          "inflowEarlyToAtrialRatio": 0.814969
+        },
+        "valve": {
+          "hitsPerBeat": 426.333333,
+          "diodeImpulsePerBeat": 106.163792,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "RA": {
+        "volumeRate": {
+          "finiteDifferenceMaxAbsMlPerSec": 353.677271,
+          "flowBalanceMaxAbsMlPerSec": 353.660846,
+          "finiteVsFlowMaxAbsErrorMlPerSec": 9.997384,
+          "finiteVsFlowMedianAbsErrorMlPerSec": 0.089894
+        },
+        "waveform": {
+          "pressureMeanMmHg": 1.383355,
+          "pressureMinMmHg": 0.12565,
+          "pressureMaxMmHg": 4.99021,
+          "volumeMinMl": 13.566078,
+          "volumeMaxMl": 55.102204,
+          "aWavePeakMmHg": 4.99021,
+          "vWavePeakMmHg": 2.082399,
+          "reservoirPressureSwingMmHg": 1.956749,
+          "conduitPressureSwingMmHg": 1.897854,
+          "boosterPressureSwingMmHg": 4.249793,
+          "inflowEarlyPeakMlPerSec": 117.064395,
+          "inflowAtrialPeakMlPerSec": 360.878699,
+          "inflowEarlyToAtrialRatio": 0.324387
+        },
+        "valve": {
+          "hitsPerBeat": 384,
+          "diodeImpulsePerBeat": 4.337301,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "pointId": "high-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 24,
+      "healthStatus": "ok",
+      "forwardCO_L": 5.330886,
+      "forwardCO_R": 5.351045,
+      "LVEDPApprox": 19.544483,
+      "RVEDPApprox": 7.581339,
+      "LA": {
+        "volumeRate": {
+          "finiteDifferenceMaxAbsMlPerSec": 284.553318,
+          "flowBalanceMaxAbsMlPerSec": 284.440574,
+          "finiteVsFlowMaxAbsErrorMlPerSec": 6.716606,
+          "finiteVsFlowMedianAbsErrorMlPerSec": 0.557861
+        },
+        "waveform": {
+          "pressureMeanMmHg": 14.170017,
+          "pressureMinMmHg": 7.853446,
+          "pressureMaxMmHg": 20.095167,
+          "volumeMinMl": 37.588386,
+          "volumeMaxMl": 62.888386,
+          "aWavePeakMmHg": 17.712931,
+          "vWavePeakMmHg": 20.095167,
+          "reservoirPressureSwingMmHg": 12.241722,
+          "conduitPressureSwingMmHg": 12.241722,
+          "boosterPressureSwingMmHg": 5.35816,
+          "inflowEarlyPeakMlPerSec": 515.985318,
+          "inflowAtrialPeakMlPerSec": 184.054971,
+          "inflowEarlyToAtrialRatio": 2.80343
+        },
+        "valve": {
+          "hitsPerBeat": 382,
+          "diodeImpulsePerBeat": 109.680372,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "RA": {
+        "volumeRate": {
+          "finiteDifferenceMaxAbsMlPerSec": 218.908409,
+          "flowBalanceMaxAbsMlPerSec": 218.884588,
+          "finiteVsFlowMaxAbsErrorMlPerSec": 12.792268,
+          "finiteVsFlowMedianAbsErrorMlPerSec": 0.364534
+        },
+        "waveform": {
+          "pressureMeanMmHg": 6.420773,
+          "pressureMinMmHg": 4.233228,
+          "pressureMaxMmHg": 9.242927,
+          "volumeMinMl": 53.180051,
+          "volumeMaxMl": 89.305237,
+          "aWavePeakMmHg": 9.242927,
+          "vWavePeakMmHg": 8.928513,
+          "reservoirPressureSwingMmHg": 4.695285,
+          "conduitPressureSwingMmHg": 4.299071,
+          "boosterPressureSwingMmHg": 4.778972,
+          "inflowEarlyPeakMlPerSec": 322.173847,
+          "inflowAtrialPeakMlPerSec": 278.769701,
+          "inflowEarlyToAtrialRatio": 1.155699
+        },
+        "valve": {
+          "hitsPerBeat": 332.666667,
+          "diodeImpulsePerBeat": 4.39875,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    }
+  ],
+  "summary": {
+    "measuredPointCount": 6,
+    "healthOkPointCount": 6,
+    "volumeRateReadoutAvailablePoints": [
+      "normal-hr75",
+      "low-preload-hr75",
+      "high-preload-hr75",
+      "normal-hr90",
+      "low-preload-hr90",
+      "high-preload-hr90"
+    ],
+    "waveformReadoutAvailablePoints": [
+      "normal-hr75",
+      "low-preload-hr75",
+      "high-preload-hr75",
+      "normal-hr90",
+      "low-preload-hr90",
+      "high-preload-hr90"
+    ],
+    "currentInterpretation": "Phase 5AU defines and measures the readout contract needed before an AtrialPhysiologyBridgeV2/A2 implementation. It does not implement A2. The current runtime can derive self atrial dV/dt from closed-loop samples, but the chamber/provider pressure API does not yet expose that value as an input.",
+    "recommendedNext": [
+      "add a narrow provider/chamber input for self chamber volumeRateMlPerSec before implementing viscous/conduit A2 pressure",
+      "source and accept absolute atrial waveform targets before tuning A2 parameters",
+      "prototype A2 with pressure-decomposition debug output before any production bridge selection"
+    ],
+    "blockers": [
+      "production atrial bridge selection remains blocked",
+      "A2 implementation remains absent",
+      "absolute atrial waveform target source audit remains absent"
+    ]
+  },
+  "boundary": {
+    "noProductionRuntimeWiring": true,
+    "noOfficialCaseReauthoring": true,
+    "noWorkbenchRuntimeWiring": true,
+    "noStateSchemaMigration": true,
+    "noAtrialLandRdqClaim": true,
+    "noAfValidationClaim": true,
+    "noFinalAtrialPhysiologyClaim": true,
+    "noLvRvLandDefaultGate": true,
+    "noMorphologyAcceptance": true
+  },
+  "normalizedSha256": "bdad1271b95f6a2510d3057717ef2c5ac7e89a8b72e72355ea58045c88c2e801"
+}
