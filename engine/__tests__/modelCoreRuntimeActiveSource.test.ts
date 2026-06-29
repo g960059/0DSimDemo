@@ -9,9 +9,12 @@ import {
   MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE,
   MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE,
   MODELCORE_RUNTIME_LV_LAND_SOURCE_PROVIDER_ID,
+  MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_CANDIDATE_MODE,
+  MODELCORE_RUNTIME_RV_LAND_SOURCE_PROVIDER_ID,
   resolveModelCoreRuntimeActiveSource,
   useLegacyActiveStressForModelCoreRuntimeForThisProcess,
   useLvLandDefaultForModelCoreRuntimeForThisProcess,
+  useLvRvLandDefaultCandidateForModelCoreRuntimeForThisProcess,
 } from "@/engine/myocardium/runtimeActiveSource";
 
 describe("ModelCore runtime active source default", () => {
@@ -56,6 +59,39 @@ describe("ModelCore runtime active source default", () => {
     expect(instrumentation.commitProviderStateAfterStep).toBeGreaterThan(0);
     expect(instrumentation.landSolveOkCount).toBeGreaterThan(0);
     expect(instrumentation.landSolveFailureCount).toBe(0);
+  });
+
+  it("keeps LV+RV Land as an explicit default-candidate mode", () => {
+    useLvRvLandDefaultCandidateForModelCoreRuntimeForThisProcess();
+    const lvInstrumentation = createModelCoreLand2017LvSourceProviderInstrumentation();
+    const rvInstrumentation = createModelCoreLand2017LvSourceProviderInstrumentation();
+    const resolved = resolveModelCoreRuntimeActiveSource({
+      instrumentation: lvInstrumentation,
+      rvInstrumentation,
+    });
+    const core = new ModelCore(DEFAULT_PARAMS, resolved.experimentalOptions);
+
+    core.initializeVenousPressuresForTargetTBV(5600);
+    core.runFor(0.05, 0.001, 120);
+
+    expect(resolved.mode).toBe(MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_CANDIDATE_MODE);
+    expect(resolved.claimBoundary).toBe("lv-rv-land-default-candidate-evidence-no-runtime-flip");
+    expect(resolved.sourceProviderScope).toBe("LV+RV-candidate");
+    expect(resolved.experimentalOptions.activeSourceProviders?.LV?.sourceProviderId)
+      .toBe(MODELCORE_RUNTIME_LV_LAND_SOURCE_PROVIDER_ID);
+    expect(resolved.experimentalOptions.activeSourceProviders?.RV?.sourceProviderId)
+      .toBe(MODELCORE_RUNTIME_RV_LAND_SOURCE_PROVIDER_ID);
+    expect(core.debugExperimentalActiveSourceProviderIds()).toEqual({
+      LV: MODELCORE_RUNTIME_LV_LAND_SOURCE_PROVIDER_ID,
+      RV: MODELCORE_RUNTIME_RV_LAND_SOURCE_PROVIDER_ID,
+    });
+    expect(lvInstrumentation.sourceActiveStressPa).toBeGreaterThan(0);
+    expect(rvInstrumentation.sourceActiveStressPa).toBeGreaterThan(0);
+    expect(lvInstrumentation.landSolveFailureCount).toBe(0);
+    expect(rvInstrumentation.landSolveFailureCount).toBe(0);
+    const sidecar = core.packExperimentalActiveProviderRuntimeState();
+    expect(sidecar.LV?.sourceProviderId).toBe(MODELCORE_RUNTIME_LV_LAND_SOURCE_PROVIDER_ID);
+    expect(sidecar.RV?.sourceProviderId).toBe(MODELCORE_RUNTIME_RV_LAND_SOURCE_PROVIDER_ID);
   });
 
   it("keeps the regression harness on legacy by default but supports explicit LV Land", () => {

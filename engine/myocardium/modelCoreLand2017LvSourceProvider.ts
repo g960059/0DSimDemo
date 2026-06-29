@@ -18,6 +18,8 @@ import {
 
 export const MODELCORE_EXPERIMENTAL_LAND2017_LV_SOURCE_ONLY_PROVIDER_ID =
   "modelcore-experimental-land2017-lv-source-only-provider-v1";
+export const MODELCORE_EXPERIMENTAL_LAND2017_RV_SOURCE_ONLY_PROVIDER_ID =
+  "modelcore-experimental-land2017-rv-source-only-provider-v1";
 
 const DEFAULT_INITIAL_LAND_STATE = [0.18, 0.22, 0.04, 0.02, 0, 0] as const;
 
@@ -290,6 +292,17 @@ export function calciumScaledLand2017LvSourceOnlyProvider(
     commitProviderStateAfterStep: (call) =>
       base.commitProviderStateAfterStep?.(mapCommitCallCalcium(call, options)),
   };
+}
+
+export function calciumScaledLand2017RvSourceOnlyProvider(
+  instrumentation: ModelCoreLand2017LvSourceProviderInstrumentation =
+    createModelCoreLand2017LvSourceProviderInstrumentation(),
+  options: ModelCoreLand2017LvCalciumScaledSourceProviderOptions,
+): ModelCoreExperimentalActiveSourceProvider {
+  return calciumScaledLand2017LvSourceOnlyProvider(instrumentation, {
+    ...options,
+    sourceProviderId: options.sourceProviderId ?? MODELCORE_EXPERIMENTAL_LAND2017_RV_SOURCE_ONLY_PROVIDER_ID,
+  });
 }
 
 export function modelCoreLand2017LvSourceProviderIdentity() {

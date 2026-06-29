@@ -1185,6 +1185,22 @@ not part of this phase.
 Replacing RV/atria and eventually all chambers is a future lane, not part of
 this PR.
 
+Phase 5AL records the first all-chamber-replacement follow-up for RV in
+[`../../data/myocardium/protocols/rv-land-default-candidate-phase5al-result-v1.json`](../../data/myocardium/protocols/rv-land-default-candidate-phase5al-result-v1.json).
+Run
+`npx vite-node --script tools/myocardium/buildRvLandDefaultCandidatePhase5AL.ts`
+to regenerate it; no permanent npm verifier is added for this diagnostic. The
+runtime default remains the Phase 5AK LV-only Land mode, while
+`lv-rv-land-phase5al-default-candidate-v1` is an explicit candidate mode that
+wires both LV and RV through Land providers. The smoke matrix records 5/5
+candidate points settled and health-ok with zero LV/RV Land solve failures and
+both providers called at every candidate point; the current LV-only default
+remains RV-provider-free, and legacy rollback remains provider-free. Phase 5AL
+does not flip the runtime default to LV+RV, delete legacy active-stress, adopt
+root/Zc changes, select an atrial figure-eight model, tune official cases, or
+claim official morphology, final no-alternans, all-chamber replacement, or
+clinical/scientific validation.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and
