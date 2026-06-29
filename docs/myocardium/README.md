@@ -185,9 +185,9 @@ Result boundary:
   PV areas, lobe-balance ratio, PV self-intersections, roughness sampling span
   from 240/480/960 Hz downsampled windows, MV/TV diode hit and impulse rates
   versus A0, and settled LV/RV health readback;
-- refined A1 is `measured-partial-needs-follow-up`: it settled at HR75
-  normal/low/high and HR90 high-preload, but only HR75 low-preload had readable
-  LA and RA loops under the current boolean readability rule;
+- refined A1 is `not-supported`: it settled at HR75 normal/low/high and HR90
+  high-preload, but no point had both readable LA and RA loops after requiring
+  opposing booster/reservoir signed lobes for the figure-eight boolean rule;
 - refined A1 reduced MV/TV diode impulse per beat versus A0 across the measured
   envelope, but hit-sample rate still exceeded A0 at normal/high-preload points,
   so valve contamination remains bounded evidence rather than acceptance;

@@ -163,7 +163,7 @@
         "roughnessSamplingSpan": 0.165707,
         "pressureHighFrequencyEnergy": 0.002252,
         "dPdtSpikeCount": 116,
-        "educationalFigureEightReadable": true,
+        "educationalFigureEightReadable": false,
         "readabilityScore": 0.826352
       },
       "valveAttribution": {
@@ -239,7 +239,7 @@
         "roughnessSamplingSpan": 0.278509,
         "pressureHighFrequencyEnergy": 0.014197,
         "dPdtSpikeCount": 383,
-        "educationalFigureEightReadable": true,
+        "educationalFigureEightReadable": false,
         "readabilityScore": 0.776218
       },
       "RA": {
@@ -341,7 +341,7 @@
         "roughnessSamplingSpan": 0.443539,
         "pressureHighFrequencyEnergy": 0.005124,
         "dPdtSpikeCount": 138,
-        "educationalFigureEightReadable": true,
+        "educationalFigureEightReadable": false,
         "readabilityScore": 0.702872
       },
       "RA": {
@@ -443,7 +443,7 @@
         "roughnessSamplingSpan": 0.288037,
         "pressureHighFrequencyEnergy": 0.003986,
         "dPdtSpikeCount": 338,
-        "educationalFigureEightReadable": true,
+        "educationalFigureEightReadable": false,
         "readabilityScore": 0.771984
       },
       "RA": {
@@ -469,7 +469,7 @@
         "roughnessSamplingSpan": 0.161448,
         "pressureHighFrequencyEnergy": 0.003346,
         "dPdtSpikeCount": 46,
-        "educationalFigureEightReadable": true,
+        "educationalFigureEightReadable": false,
         "readabilityScore": 0.828245
       },
       "valveAttribution": {
@@ -547,7 +547,7 @@
         "roughnessSamplingSpan": 0.359354,
         "pressureHighFrequencyEnergy": 0.038077,
         "dPdtSpikeCount": 393,
-        "educationalFigureEightReadable": true,
+        "educationalFigureEightReadable": false,
         "readabilityScore": 0.740287
       },
       "RA": {
@@ -573,7 +573,7 @@
         "roughnessSamplingSpan": 0.032359,
         "pressureHighFrequencyEnergy": 0.003468,
         "dPdtSpikeCount": 516,
-        "educationalFigureEightReadable": true,
+        "educationalFigureEightReadable": false,
         "readabilityScore": 0.885618
       },
       "valveAttribution": {
@@ -675,7 +675,7 @@
         "roughnessSamplingSpan": 0.183083,
         "pressureHighFrequencyEnergy": 0.002452,
         "dPdtSpikeCount": 43,
-        "educationalFigureEightReadable": true,
+        "educationalFigureEightReadable": false,
         "readabilityScore": 0.81863
       },
       "valveAttribution": {
@@ -879,7 +879,7 @@
         "roughnessSamplingSpan": 0.180699,
         "pressureHighFrequencyEnergy": 0.003028,
         "dPdtSpikeCount": 377,
-        "educationalFigureEightReadable": true,
+        "educationalFigureEightReadable": false,
         "readabilityScore": 0.819689
       },
       "valveAttribution": {
@@ -981,7 +981,7 @@
         "roughnessSamplingSpan": 0.422192,
         "pressureHighFrequencyEnergy": 0.035467,
         "dPdtSpikeCount": 348,
-        "educationalFigureEightReadable": true,
+        "educationalFigureEightReadable": false,
         "readabilityScore": 0.712359
       },
       "valveAttribution": {
@@ -1057,7 +1057,7 @@
         "roughnessSamplingSpan": 0.106497,
         "pressureHighFrequencyEnergy": 0.006149,
         "dPdtSpikeCount": 292,
-        "educationalFigureEightReadable": true,
+        "educationalFigureEightReadable": false,
         "readabilityScore": 0.852668
       },
       "RA": {
@@ -1083,7 +1083,7 @@
         "roughnessSamplingSpan": 0.032963,
         "pressureHighFrequencyEnergy": 0.016861,
         "dPdtSpikeCount": 528,
-        "educationalFigureEightReadable": true,
+        "educationalFigureEightReadable": false,
         "readabilityScore": 0.88535
       },
       "valveAttribution": {
@@ -1491,7 +1491,7 @@
         "roughnessSamplingSpan": 0.064299,
         "pressureHighFrequencyEnergy": 0.002934,
         "dPdtSpikeCount": 383,
-        "educationalFigureEightReadable": true,
+        "educationalFigureEightReadable": false,
         "readabilityScore": 0.871423
       },
       "valveAttribution": {
@@ -1593,7 +1593,7 @@
         "roughnessSamplingSpan": 0.124623,
         "pressureHighFrequencyEnergy": 0.050839,
         "dPdtSpikeCount": 324,
-        "educationalFigureEightReadable": true,
+        "educationalFigureEightReadable": false,
         "readabilityScore": 0.844612
       },
       "valveAttribution": {
@@ -1695,7 +1695,7 @@
         "roughnessSamplingSpan": 0.076195,
         "pressureHighFrequencyEnergy": 0.020244,
         "dPdtSpikeCount": 533,
-        "educationalFigureEightReadable": true,
+        "educationalFigureEightReadable": false,
         "readabilityScore": 0.866136
       },
       "valveAttribution": {
@@ -2107,10 +2107,7 @@
         "normal-hr90",
         "high-preload-hr90"
       ],
-      "readablePointIds": [
-        "high-preload-hr75",
-        "normal-hr90"
-      ],
+      "readablePointIds": [],
       "readableHr75Envelope": false,
       "readableHr90Envelope": false,
       "settledLvRvHealthOkPointIds": [
@@ -2151,9 +2148,7 @@
         "low-preload-hr90",
         "high-preload-hr90"
       ],
-      "readablePointIds": [
-        "high-preload-hr75"
-      ],
+      "readablePointIds": [],
       "readableHr75Envelope": false,
       "readableHr90Envelope": false,
       "settledLvRvHealthOkPointIds": [
@@ -2200,9 +2195,7 @@
         "high-preload-hr75",
         "high-preload-hr90"
       ],
-      "readablePointIds": [
-        "low-preload-hr75"
-      ],
+      "readablePointIds": [],
       "readableHr75Envelope": false,
       "readableHr90Envelope": false,
       "settledLvRvHealthOkPointIds": [
@@ -2257,10 +2250,8 @@
       "MV/TV diode hit and impulse rates versus A0",
       "settled LV/RV health readback with forward CO and LVEDP/RVEDP"
     ],
-    "refinedA1Status": "measured-partial-needs-follow-up",
-    "refinedA1ReadablePointIds": [
-      "low-preload-hr75"
-    ],
+    "refinedA1Status": "not-supported",
+    "refinedA1ReadablePointIds": [],
     "refinedA1ValveWorsePointIds": [
       "normal-hr75",
       "high-preload-hr75",
@@ -2280,8 +2271,8 @@
     "recommendedCandidateId": null,
     "rationale": [
       "Phase 5AN compares A0, the existing A1 baseline, and a refined A1 reservoir/booster candidate under the same HR75/90 preload envelope.",
-      "Refined A1 status: measured-partial-needs-follow-up.",
-      "Refined A1 readable points: low-preload-hr75.",
+      "Refined A1 status: not-supported.",
+      "Refined A1 readable points: none.",
       "Refined A1 remains worse than A0 on normalized valve contamination at: normal-hr75, high-preload-hr75, normal-hr90, high-preload-hr90.",
       "Refined A1 sampling roughness remains unbounded at: high-preload-hr75:LA."
     ],

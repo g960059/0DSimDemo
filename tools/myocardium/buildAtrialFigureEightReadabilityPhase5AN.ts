@@ -480,6 +480,7 @@ function loopMetrics(samples: readonly SimSample[], chamber: AtrialChamber): Atr
     && volumeRange >= READABILITY_THRESHOLDS.minVolumeRangeMl;
   const educationalFigureEightReadable =
     pressureVolumeReadable
+    && signedLobesOpposed
     && lobeBalance >= READABILITY_THRESHOLDS.minLobeBalance
     && roughnessSamplingSpan <= READABILITY_THRESHOLDS.maxRoughnessSamplingSpan
     && intersections > 0;
