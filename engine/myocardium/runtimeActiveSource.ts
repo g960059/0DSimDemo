@@ -2,6 +2,11 @@ import phase5QArtifact from "@/data/myocardium/protocols/modelcore-land-calcium-
 import { defaultParams } from "@/engine/core/params";
 import type { ModelCoreExperimentalOptions } from "@/engine/ModelCore";
 import {
+  resolveModelCoreRuntimeRootZc,
+  type ModelCoreRuntimeRootZcMode,
+  type ModelCoreRuntimeRootZcResolution,
+} from "@/engine/myocardium/runtimeRootZc";
+import {
   MODELCORE_EXPERIMENTAL_LAND2017_LV_SOURCE_ONLY_PROVIDER_ID,
   MODELCORE_EXPERIMENTAL_LAND2017_RV_SOURCE_ONLY_PROVIDER_ID,
   calciumScaledLand2017LvSourceOnlyProvider,
@@ -51,6 +56,7 @@ export type ModelCoreRuntimeActiveSourceResolution =
       readonly experimentalOptions: ModelCoreExperimentalOptions;
       readonly instrumentation: ModelCoreLand2017LvSourceProviderInstrumentation;
       readonly instrumentationByChamber: { readonly LV: ModelCoreLand2017LvSourceProviderInstrumentation };
+      readonly rootZc: ModelCoreRuntimeRootZcResolution;
     }
   | {
       readonly mode: typeof MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_CANDIDATE_MODE;
@@ -79,6 +85,7 @@ export type ModelCoreRuntimeActiveSourceResolution =
         readonly LV: ModelCoreLand2017LvSourceProviderInstrumentation;
         readonly RV: ModelCoreLand2017LvSourceProviderInstrumentation;
       };
+      readonly rootZc: ModelCoreRuntimeRootZcResolution;
     }
   | {
       readonly mode: typeof MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE;
@@ -91,12 +98,15 @@ export type ModelCoreRuntimeActiveSourceResolution =
       readonly experimentalOptions: ModelCoreExperimentalOptions;
       readonly instrumentation: null;
       readonly instrumentationByChamber: {};
+      readonly rootZc: ModelCoreRuntimeRootZcResolution;
     };
 
 export type ResolveModelCoreRuntimeActiveSourceInput = {
   readonly mode?: ModelCoreRuntimeActiveSourceMode;
   readonly instrumentation?: ModelCoreLand2017LvSourceProviderInstrumentation;
   readonly rvInstrumentation?: ModelCoreLand2017LvSourceProviderInstrumentation;
+  readonly rootZcMode?: ModelCoreRuntimeRootZcMode;
+  readonly rootZcBaseAoVInertanceMmHgSec2PerMl?: number;
 };
 
 let modelCoreRuntimeActiveSourceModeForThisProcess: ModelCoreRuntimeActiveSourceMode =
@@ -138,6 +148,16 @@ export function resolveModelCoreRuntimeActiveSource(
   input: ResolveModelCoreRuntimeActiveSourceInput = {},
 ): ModelCoreRuntimeActiveSourceResolution {
   const mode = input.mode ?? getModelCoreRuntimeActiveSourceModeForThisProcess();
+  if (
+    mode === MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE
+    && (input.rootZcMode !== undefined || input.rootZcBaseAoVInertanceMmHgSec2PerMl !== undefined)
+  ) {
+    throw new Error("Legacy active-stress rollback cannot be composed with experimental root/Zc options.");
+  }
+  const rootZc = resolveModelCoreRuntimeRootZc({
+    mode: input.rootZcMode,
+    baseAoVInertanceMmHgSec2PerMl: input.rootZcBaseAoVInertanceMmHgSec2PerMl,
+  });
   if (mode === MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE) {
     return {
       mode,
@@ -147,9 +167,10 @@ export function resolveModelCoreRuntimeActiveSource(
       sourceProviderIds: {},
       commitScheme: null,
       calciumMapping: null,
-      experimentalOptions: {},
+      experimentalOptions: rootZc.experimentalOptions,
       instrumentation: null,
       instrumentationByChamber: {},
+      rootZc,
     };
   }
 
@@ -196,9 +217,13 @@ export function resolveModelCoreRuntimeActiveSource(
         },
         noTuningInRuntimeDefault: true,
       },
-      experimentalOptions: { activeSourceProviders: { LV: lvProvider, RV: rvProvider } },
+      experimentalOptions: {
+        ...rootZc.experimentalOptions,
+        activeSourceProviders: { LV: lvProvider, RV: rvProvider },
+      },
       instrumentation: lvInstrumentation,
       instrumentationByChamber: { LV: lvInstrumentation, RV: rvInstrumentation },
+      rootZc,
     };
   }
 
@@ -217,9 +242,13 @@ export function resolveModelCoreRuntimeActiveSource(
       runtimeUserControlReference: lvRuntimeUserControlReference,
       noTuningInRuntimeDefault: true,
     },
-    experimentalOptions: { activeSourceProviders: { LV: lvProvider } },
+    experimentalOptions: {
+      ...rootZc.experimentalOptions,
+      activeSourceProviders: { LV: lvProvider },
+    },
     instrumentation: lvInstrumentation,
     instrumentationByChamber: { LV: lvInstrumentation },
+    rootZc,
   };
 }
 
