@@ -1,0 +1,208 @@
+{
+  "schemaVersion": 1,
+  "id": "atrial-waveform-targets-v1",
+  "claimBoundary": "sourced-atrial-target-pack-no-model-selection",
+  "scope": {
+    "intendedUse": "absolute target pack for atrial figure-eight, reservoir, conduit, booster, and waveform diagnostics before further A1/A2 tuning or LandAtrial selection",
+    "notIntendedFor": [
+      "production atrial bridge selection",
+      "official morphology acceptance",
+      "AF validation",
+      "clinical validation"
+    ]
+  },
+  "sources": [
+    {
+      "id": "pironet-2013-plosone",
+      "url": "https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0065146",
+      "usedFor": [
+        "time-varying elastance negative-control rationale",
+        "left atrium reservoir-conduit-pump sequence",
+        "figure-eight loop interpretation",
+        "biphasic E/A inflow expectation"
+      ]
+    },
+    {
+      "id": "pathan-2017-jase-pubmed",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/28341032/",
+      "usedFor": [
+        "normal left atrial reservoir strain",
+        "normal left atrial conduit strain",
+        "normal left atrial contractile strain"
+      ]
+    },
+    {
+      "id": "casas-af-ncbi-bookshelf",
+      "url": "https://www.ncbi.nlm.nih.gov/books/NBK574890/",
+      "usedFor": [
+        "LAmax LAmin pre-A volume definitions",
+        "volume-derived reservoir conduit contractile function definitions"
+      ]
+    },
+    {
+      "id": "maceira-2016-cmr-pmc",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5056480/",
+      "usedFor": [
+        "CMR normal LA total passive active emptying fractions",
+        "CMR normal RA total passive active emptying fractions"
+      ]
+    },
+    {
+      "id": "norre-2018-eacvi",
+      "url": "https://academic.oup.com/ehjcimaging/article/19/6/630/4907935",
+      "usedFor": [
+        "left atrial function lower expected values"
+      ]
+    },
+    {
+      "id": "ra-strain-2025-j-echocardiography",
+      "url": "https://link.springer.com/article/10.1007/s12574-025-00689-9",
+      "usedFor": [
+        "normal right atrial strain reference ranges"
+      ]
+    },
+    {
+      "id": "foucha-2009-cath-lab-digest",
+      "url": "https://www.hmpgloballearningnetwork.com/site/cathlab/articles/the-abcs-a-v-right-atrial-left-atrial-pcw-pressures",
+      "usedFor": [
+        "a wave v wave x descent y descent timing",
+        "LA waveform similarity to RA with larger a/v waves"
+      ]
+    }
+  ],
+  "figureEightTargets": {
+    "leftAtrium": {
+      "requiredLobes": [
+        "v-loop at higher volumes representing passive reservoir/conduit behavior",
+        "a-loop at lower volumes caused by active atrial contraction"
+      ],
+      "qualitativeRequirements": [
+        "opposed signed lobes",
+        "visible self-intersection or narrow waist",
+        "v-loop not erased by overdamping",
+        "a-loop not produced by valve diode contamination alone"
+      ],
+      "sourceIds": [
+        "pironet-2013-plosone"
+      ]
+    },
+    "rightAtrium": {
+      "requiredLobes": [
+        "reservoir/conduit lobe",
+        "booster lobe"
+      ],
+      "qualitativeRequirements": [
+        "opposed signed lobes",
+        "visible booster contribution",
+        "bounded valve diode contamination"
+      ],
+      "sourceIds": [
+        "pironet-2013-plosone",
+        "foucha-2009-cath-lab-digest"
+      ]
+    }
+  },
+  "volumeDerivedFunctionTargets": {
+    "definitions": {
+      "maxVolume": "maximum atrial volume before AV-valve opening",
+      "minVolume": "minimum atrial volume near AV-valve closure / QRS",
+      "preAtrialContractionVolume": "atrial volume before active atrial contraction / P-wave onset",
+      "totalEmptyingFraction": "(maxVolume - minVolume) / maxVolume",
+      "passiveEmptyingFraction": "(maxVolume - preAtrialContractionVolume) / maxVolume",
+      "activeEmptyingFraction": "(preAtrialContractionVolume - minVolume) / preAtrialContractionVolume"
+    },
+    "leftAtrium": {
+      "totalEmptyingFraction": {
+        "preferredCenter": 0.59,
+        "broadRange": [0.47, 0.71],
+        "lowerExpectedValue": 0.487,
+        "sourceIds": ["maceira-2016-cmr-pmc", "norre-2018-eacvi"]
+      },
+      "passiveEmptyingFraction": {
+        "preferredCenter": 0.35,
+        "broadRange": [0.23, 0.47],
+        "lowerExpectedValue": 0.216,
+        "sourceIds": ["maceira-2016-cmr-pmc", "norre-2018-eacvi"]
+      },
+      "activeEmptyingFraction": {
+        "preferredCenter": 0.36,
+        "broadRange": [0.22, 0.5],
+        "lowerExpectedValue": 0.242,
+        "sourceIds": ["maceira-2016-cmr-pmc", "norre-2018-eacvi"]
+      }
+    },
+    "rightAtrium": {
+      "totalEmptyingFraction": {
+        "preferredCenter": 0.56,
+        "broadRange": [0.42, 0.7],
+        "sourceIds": ["maceira-2016-cmr-pmc"]
+      },
+      "passiveEmptyingFraction": {
+        "preferredCenter": 0.36,
+        "broadRange": [0.21, 0.51],
+        "sourceIds": ["maceira-2016-cmr-pmc"]
+      },
+      "activeEmptyingFraction": {
+        "preferredCenter": 0.3,
+        "broadRange": [0.13, 0.47],
+        "sourceIds": ["maceira-2016-cmr-pmc"]
+      }
+    }
+  },
+  "strainTargets": {
+    "leftAtrium": {
+      "reservoirStrain": {
+        "preferredCenter": 0.39,
+        "normalRange95Ci": [0.38, 0.41],
+        "sourceIds": ["pathan-2017-jase-pubmed"]
+      },
+      "conduitStrain": {
+        "preferredCenter": 0.23,
+        "normalRange95Ci": [0.21, 0.25],
+        "sourceIds": ["pathan-2017-jase-pubmed"]
+      },
+      "contractileStrain": {
+        "preferredCenter": 0.17,
+        "normalRange95Ci": [0.16, 0.19],
+        "sourceIds": ["pathan-2017-jase-pubmed"]
+      }
+    },
+    "rightAtrium": {
+      "reservoirStrain": {
+        "preferredCenter": 0.427,
+        "normalRange95Ci": [0.394, 0.459],
+        "sourceIds": ["ra-strain-2025-j-echocardiography"]
+      },
+      "conduitStrain": {
+        "preferredCenter": 0.236,
+        "normalRange95Ci": [0.207, 0.266],
+        "sourceIds": ["ra-strain-2025-j-echocardiography"]
+      },
+      "contractileStrain": {
+        "preferredCenter": 0.161,
+        "normalRange95Ci": [0.136, 0.186],
+        "sourceIds": ["ra-strain-2025-j-echocardiography"]
+      }
+    }
+  },
+  "pressureWaveTimingTargets": {
+    "sharedAtrialPressureWaves": {
+      "aWave": "atrial contraction / P-wave phase",
+      "xDescent": "atrial relaxation and AV-plane descent during ventricular systole",
+      "vWave": "passive atrial filling while the AV valve is closed, around ventricular repolarization / T-wave phase",
+      "yDescent": "rapid atrial emptying after AV-valve opening",
+      "doNotChase": [
+        "c-wave"
+      ],
+      "sourceIds": ["foucha-2009-cath-lab-digest"]
+    },
+    "leftAtrium": {
+      "expectedRelation": "v wave is usually greater than a wave or nearly equal in the normal left atrium",
+      "sourceIds": ["foucha-2009-cath-lab-digest"]
+    },
+    "rightAtrium": {
+      "expectedRelation": "a wave is usually higher than v wave in the normal right atrium",
+      "sourceIds": ["foucha-2009-cath-lab-digest"]
+    }
+  }
+}
