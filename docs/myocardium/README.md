@@ -1220,7 +1220,7 @@ Phase 5AL records the first all-chamber-replacement follow-up for RV in
 Run
 `npx vite-node --script tools/myocardium/buildRvLandDefaultCandidatePhase5AL.ts`
 to regenerate it; no permanent npm verifier is added for this diagnostic. The
-runtime default remains the Phase 5AK LV-only Land mode, while
+Phase 5AK runtime default remained the LV-only Land mode in that phase, while
 `lv-rv-land-phase5al-default-candidate-v1` is an explicit candidate mode that
 wires both LV and RV through Land providers. The smoke matrix records 5/5
 candidate points settled and health-ok with zero LV/RV Land solve failures and
@@ -1230,6 +1230,25 @@ does not flip the runtime default to LV+RV, delete legacy active-stress, adopt
 root/Zc changes, select an atrial figure-eight model, tune official cases, or
 claim official morphology, final no-alternans, all-chamber replacement, or
 clinical/scientific validation.
+
+Phase 5AO implements the next owner-directed chamber replacement step in
+[`../../data/myocardium/protocols/lv-rv-land-default-flip-phase5ao-result-v1.json`](../../data/myocardium/protocols/lv-rv-land-default-flip-phase5ao-result-v1.json).
+Regenerate it with
+`npx vite-node --script tools/myocardium/buildLvRvLandDefaultFlipPhase5AO.ts`;
+no permanent npm verifier is added for this diagnostic. Runtime preview,
+transition-steady, and Guyton/Starling surfaces now resolve the user-0 staged
+default as `lv-rv-land-phase5ao-user0-staged-default-v1`, wiring both LV and RV
+through Land providers. `runScenario`, `runToPeriodicSteady`, and bare
+`ModelCore` construction remain frozen legacy reference paths unless an
+explicit `runtimeActiveSourceMode` is passed. The smoke matrix records 5/5
+LV+RV default points settled and health-ok with zero LV/RV Land solve failures,
+both providers and runtime sidecars present at every default point, 5/5
+previous LV-only points still RV-provider-free when requested explicitly, and
+5/5 legacy rollback points provider-free and non-failed. Phase 5AO does not
+delete legacy active-stress, adopt root/Zc changes, select an atrial
+figure-eight model, tune official cases, remove qDot clamps, claim official
+morphology, claim final no-alternans, or claim clinical/scientific validation.
+RA/LA replacement remains a separate chamber lane.
 
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)

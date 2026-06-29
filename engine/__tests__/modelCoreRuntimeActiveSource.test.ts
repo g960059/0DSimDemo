@@ -12,11 +12,13 @@ import {
   MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE,
   MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE,
   MODELCORE_RUNTIME_LV_LAND_SOURCE_PROVIDER_ID,
+  MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE,
   MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_CANDIDATE_MODE,
   MODELCORE_RUNTIME_RV_LAND_SOURCE_PROVIDER_ID,
   resolveModelCoreRuntimeActiveSource,
   useLegacyActiveStressForModelCoreRuntimeForThisProcess,
   useLvLandDefaultForModelCoreRuntimeForThisProcess,
+  useLvRvLandDefaultForModelCoreRuntimeForThisProcess,
   useLvRvLandDefaultCandidateForModelCoreRuntimeForThisProcess,
 } from "@/engine/myocardium/runtimeActiveSource";
 import {
@@ -28,20 +30,21 @@ import {
 
 describe("ModelCore runtime active source default", () => {
   afterEach(() => {
-    useLvLandDefaultForModelCoreRuntimeForThisProcess();
+    useLvRvLandDefaultForModelCoreRuntimeForThisProcess();
   });
 
-  it("resolves LV Land as the user-0 staged runtime default", () => {
+  it("resolves LV+RV Land as the user-0 staged runtime default", () => {
     const resolved = resolveModelCoreRuntimeActiveSource();
 
-    expect(resolved.mode).toBe(MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE);
-    expect(resolved.claimBoundary).toBe("user0-staged-lv-land-default-no-clinical-validation");
-    expect(resolved.sourceProviderScope).toBe("LV-only");
-    expect(resolved.sourceProviderId).toBe(MODELCORE_RUNTIME_LV_LAND_SOURCE_PROVIDER_ID);
+    expect(resolved.mode).toBe(MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE);
+    expect(resolved.claimBoundary).toBe("user0-staged-lv-rv-land-default-no-clinical-validation");
+    expect(resolved.sourceProviderScope).toBe("LV+RV");
+    expect(resolved.sourceProviderId).toBeNull();
     expect(resolved.calciumMapping.noTuningInRuntimeDefault).toBe(true);
     expect(resolved.experimentalOptions.activeSourceProviders?.LV?.sourceProviderId)
       .toBe(MODELCORE_RUNTIME_LV_LAND_SOURCE_PROVIDER_ID);
-    expect(resolved.experimentalOptions.activeSourceProviders?.RV).toBeUndefined();
+    expect(resolved.experimentalOptions.activeSourceProviders?.RV?.sourceProviderId)
+      .toBe(MODELCORE_RUNTIME_RV_LAND_SOURCE_PROVIDER_ID);
   });
 
   it("keeps one-call legacy active-stress rollback reachable", () => {
@@ -55,19 +58,38 @@ describe("ModelCore runtime active source default", () => {
     expect(core.debugExperimentalActiveSourceProviderIds()).toEqual({});
   });
 
-  it("runs the default LV Land provider without solver failures", () => {
+  it("runs the default LV+RV Land providers without solver failures", () => {
     const instrumentation = createModelCoreLand2017LvSourceProviderInstrumentation();
-    const resolved = resolveModelCoreRuntimeActiveSource({ instrumentation });
+    const rvInstrumentation = createModelCoreLand2017LvSourceProviderInstrumentation();
+    const resolved = resolveModelCoreRuntimeActiveSource({ instrumentation, rvInstrumentation });
     const core = new ModelCore(DEFAULT_PARAMS, resolved.experimentalOptions);
 
     core.initializeVenousPressuresForTargetTBV(5600);
     core.runFor(0.05, 0.001, 120);
 
     expect(core.debugExperimentalActiveSourceProviderIds().LV).toBe(MODELCORE_RUNTIME_LV_LAND_SOURCE_PROVIDER_ID);
+    expect(core.debugExperimentalActiveSourceProviderIds().RV).toBe(MODELCORE_RUNTIME_RV_LAND_SOURCE_PROVIDER_ID);
     expect(instrumentation.sourceActiveStressPa).toBeGreaterThan(0);
+    expect(rvInstrumentation.sourceActiveStressPa).toBeGreaterThan(0);
     expect(instrumentation.commitProviderStateAfterStep).toBeGreaterThan(0);
+    expect(rvInstrumentation.commitProviderStateAfterStep).toBeGreaterThan(0);
     expect(instrumentation.landSolveOkCount).toBeGreaterThan(0);
+    expect(rvInstrumentation.landSolveOkCount).toBeGreaterThan(0);
     expect(instrumentation.landSolveFailureCount).toBe(0);
+    expect(rvInstrumentation.landSolveFailureCount).toBe(0);
+  });
+
+  it("keeps LV-only Land reachable as an explicit historical staged default mode", () => {
+    useLvLandDefaultForModelCoreRuntimeForThisProcess();
+    const resolved = resolveModelCoreRuntimeActiveSource();
+
+    expect(resolved.mode).toBe(MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE);
+    expect(resolved.claimBoundary).toBe("user0-staged-lv-land-default-no-clinical-validation");
+    expect(resolved.sourceProviderScope).toBe("LV-only");
+    expect(resolved.sourceProviderId).toBe(MODELCORE_RUNTIME_LV_LAND_SOURCE_PROVIDER_ID);
+    expect(resolved.experimentalOptions.activeSourceProviders?.LV?.sourceProviderId)
+      .toBe(MODELCORE_RUNTIME_LV_LAND_SOURCE_PROVIDER_ID);
+    expect(resolved.experimentalOptions.activeSourceProviders?.RV).toBeUndefined();
   });
 
   it("keeps LV+RV Land as an explicit default-candidate mode", () => {
@@ -111,11 +133,12 @@ describe("ModelCore runtime active source default", () => {
     const land = runScenario(DEFAULT_PARAMS, {
       settleSeconds: 0.02,
       measureSeconds: 0.02,
-      runtimeActiveSourceMode: MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE,
+      runtimeActiveSourceMode: MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE,
     });
 
     expect(legacy.core.debugExperimentalActiveSourceProviderIds()).toEqual({});
     expect(land.core.debugExperimentalActiveSourceProviderIds().LV).toBe(MODELCORE_RUNTIME_LV_LAND_SOURCE_PROVIDER_ID);
+    expect(land.core.debugExperimentalActiveSourceProviderIds().RV).toBe(MODELCORE_RUNTIME_RV_LAND_SOURCE_PROVIDER_ID);
   });
 
   it("restores Land provider state through the runtime sidecar without changing SerializedModelState", () => {
@@ -126,23 +149,26 @@ describe("ModelCore runtime active source default", () => {
     const serialized = core.packState();
     const sidecar = core.packExperimentalActiveProviderRuntimeState();
     const beforeVersion = sidecar.LV?.version ?? 0;
+    const beforeRvVersion = sidecar.RV?.version ?? 0;
 
     const restored = new ModelCore(DEFAULT_PARAMS, resolveModelCoreRuntimeActiveSource().experimentalOptions);
     restored.unpackState(serialized);
     expect(restored.debugExperimentalActiveSourceProviderStates().LV?.stateVersion).toBe(0);
+    expect(restored.debugExperimentalActiveSourceProviderStates().RV?.stateVersion).toBe(0);
 
     restored.restoreExperimentalActiveProviderRuntimeState(sidecar);
     expect(restored.debugExperimentalActiveSourceProviderStates().LV?.stateVersion).toBe(beforeVersion);
+    expect(restored.debugExperimentalActiveSourceProviderStates().RV?.stateVersion).toBe(beforeRvVersion);
     expect(restored.packState()).toEqual(serialized);
   });
 
   it("keeps root/Zc current by default while exposing the sourced candidate only on explicit opt-in", () => {
     const currentRootZc = resolveModelCoreRuntimeRootZc();
     const defaultRuntime = resolveModelCoreRuntimeActiveSource({
-      mode: MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE,
+      mode: MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE,
     });
     const candidateRuntime = resolveModelCoreRuntimeActiveSource({
-      mode: MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE,
+      mode: MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE,
       rootZcMode: MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_CANDIDATE_MODE,
       rootZcBaseAoVInertanceMmHgSec2PerMl: DEFAULT_PARAMS.AoV_L,
     });
