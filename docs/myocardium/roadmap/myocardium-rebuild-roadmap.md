@@ -697,6 +697,16 @@ production tissue homogenization.
 - boundary: atrial-figure-eight-ra-variant-sweep-no-selection; production bridge selection, runtime wiring, official case reauthoring, Workbench wiring, state-schema migration, atrial Land/RDQ validation, AF validation, final atrial physiology, LV/RV default gating, and official morphology acceptance are not claimed.
 - next: promote only the best signal into an explicit refined A1.1 structural candidate if the next phase can change the bridge structure, then rerun the Phase 5AN readability comparator.
 
+### Phase 5AT — AV-plane atrial figure-eight structural candidate
+
+- result artifact: `data/myocardium/protocols/atrial-figure-eight-av-plane-candidate-phase5at-result-v1.json`
+- builder: `npx vite-node --script tools/myocardium/buildAtrialFigureEightAvPlaneCandidatePhase5AT.ts`
+- implementation: no runtime default, production bridge wiring, engine default parameter, state layout, official case, Workbench, npm script, or permanent verifier change. The disposable runner compares refined A1, single-chamber AV-plane reference, and two-branch body-AV-plane candidates over HR75/90 normal, low-preload, and high-preload points.
+- current outcome: `single-chamber-av-plane-reference-v1` is the strongest local signal and produces RA opposed-lobe signal at `high-preload-hr75`, but no candidate produces both-chamber readable loops. The two-branch plus explicit body-AV-plane candidates do not expand the envelope enough for selection.
+- interpretation: AV-plane-driven reservoir mechanics remain a useful structural axis, but simply adding body AV-plane pressure composition to the current two-branch A1 path is insufficient. The next useful step is an AtrialPhysiologyBridgeV2/A2 design with explicit reservoir/conduit/booster coupling, self dV/dt/conduit damping, tension-state booster, external-coupling debug terms, and absolute atrial waveform targets.
+- boundary: atrial-figure-eight-av-plane-structural-candidate-no-selection; production bridge selection, runtime wiring, official case reauthoring, Workbench wiring, state-schema migration, atrial Land/RDQ validation, AF validation, final atrial physiology, LV/RV default gating, and official morphology acceptance are not claimed.
+- next: stop parameter-only sleeve/AV-plane scale sweeps unless they are part of a named A2 design; define the A2 input/debug/target contract before production wiring.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison
