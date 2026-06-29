@@ -39,6 +39,7 @@ import {
     type GuytonSide,
     type StarlingSweepResponse,
 } from '../engine/guytonStarling';
+import { getModelCoreRuntimeActiveSourceModeForThisProcess } from '../engine/myocardium/runtimeActiveSource';
 import {
     beginGuytonSteadyMapRequest,
     expireGuytonSteadyMapGhost,
@@ -1652,6 +1653,9 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
     const [workerError, setWorkerError] = useState<string | null>(null);
     const [warningsOpen, setWarningsOpen] = useState(false);
     const [calibrationOpen, setCalibrationOpen] = useState(false);
+    const [runtimeActiveSourceMode, setRuntimeActiveSourceMode] = useState(
+        () => getModelCoreRuntimeActiveSourceModeForThisProcess(),
+    );
     const steadyMapRef = useRef<Map<string, GuytonSteadyMapState>>(new Map());
     const calibrationLabels = useMemo(() => ({
         axis: t('workbench.guyton.calibration.axis'),
@@ -1673,12 +1677,15 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
         })
     ), [instances, config]);
 
-    const sweepInputs = useMemo(() => visibleInstances.map((inst) => ({
-        instanceId: inst.id,
-        params: inst.params,
-        targetVolumeMl: inst.targetVolume,
-        signature: starlingSweepSignature(side, inst.id, inst.params, inst.targetVolume),
-    })), [visibleInstances, side]);
+    const sweepInputs = useMemo(() => (
+        visibleInstances.map((inst) => ({
+            instanceId: inst.id,
+            params: inst.params,
+            targetVolumeMl: inst.targetVolume,
+            runtimeActiveSourceMode,
+            signature: starlingSweepSignature(side, inst.id, inst.params, inst.targetVolume, runtimeActiveSourceMode),
+        }))
+    ), [visibleInstances, side, runtimeActiveSourceMode]);
 
     const sweepKey = useMemo(() => JSON.stringify(sweepInputs.map((input) => ({
         id: input.instanceId,
@@ -1689,7 +1696,10 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
     const cacheKey = (inst: SimInstance): string => cacheKeyForId(inst.id);
 
     useEffect(() => {
-        const interval = window.setInterval(() => setTick((t) => t + 1), 500);
+        const interval = window.setInterval(() => {
+            setRuntimeActiveSourceMode(getModelCoreRuntimeActiveSourceModeForThisProcess());
+            setTick((t) => t + 1);
+        }, 500);
         return () => window.clearInterval(interval);
     }, []);
 
@@ -1744,6 +1754,7 @@ export const GuytonPanel: React.FC<ChartPanelProps & { type: string }> = ({ inst
                 instanceId: input.instanceId,
                 params: input.params,
                 targetVolumeMl: input.targetVolumeMl,
+                runtimeActiveSourceMode: input.runtimeActiveSourceMode,
             },
             {
                 onStart: () => {

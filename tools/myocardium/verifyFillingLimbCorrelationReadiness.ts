@@ -71,7 +71,10 @@ const ALLOWED_COMPARATOR_TOKEN_PATHS = new Set([
   FILLING_LIMB_CORRELATION_READINESS_PROTOCOL_PATH,
   FILLING_LIMB_CORRELATION_READINESS_DOC_PATH,
   "tools/myocardium/buildFillingLimbDiagnosticComparator.ts",
+  "tools/myocardium/buildMorphologyBlockerBundlePhaseM1.ts",
+  "tools/myocardium/verifyMorphologyBlockerBundlePhaseM1.ts",
   "tools/myocardium/verifyFillingLimbCorrelationReadiness.ts",
+  "tools/myocardium/verifyPhase5CSameClosureSourceProviderAudit.ts",
   "tools/myocardium/verifyPvLoopCurrentMainBaselineSnapshot.ts",
   "__tests__/pvLoopFillingLimbDiagnosticComparator.test.ts",
   "__tests__/pvLoopFillingLimbCorrelationReadiness.test.ts",
@@ -184,13 +187,13 @@ const FORBIDDEN_POSITIVE_CLAIM_PATTERN =
 const NEGATED_CLAIM_PREFIX_PATTERN =
   /\b(?:no|not|never|without|rejects?|forbid(?:s|den)?|must not|does not|do not|makes no)\b(?:[-\s]+(?:an?|the|any|this|that|claim(?:s|ed)?|accept(?:s|ed)?|promote(?:s|d)?|make(?:s)?|root[-\s]+cause|fix|official|morphology|case|production|runtime|default|accepted|acceptance|pass|ready|valve\/qdot|valve[-\s]+qdot|pressure[-\s]+floor|tuning|smoothing|or))*[-\s]*$/i;
 const NEGATED_CLAIM_SUFFIX_PATTERN =
-  /\b(?:(?:is|are|was|were|remains?|must remain)[-\s]+)?(?:not[-\s]+claimed|not[-\s]+covered|future[-\s]+work|out[-\s]+of[-\s]+scope)\b/i;
+  /\b(?:(?:is|are|was|were|remains?|must remain)[-\s]+)?(?:not[-\s]+claimed|not[-\s]+covered|blocked|unsupported|deferred|future[-\s]+work|out[-\s]+of[-\s]+scope)\b/i;
 const SENTENCE_BOUNDARY_PATTERN = /[.!?]/g;
 const CLAIM_PREFIX_SCOPE_BOUNDARY_PATTERN =
   /[.!?,;:()[\]\/\u2013\u2014]|\b(?:and|but|however|yet|nevertheless|nonetheless|while|whereas|although)\b/gi;
 const CLAIM_SUFFIX_SCOPE_BOUNDARY_PATTERN =
   /[.!?,;:()[\]\/\u2013\u2014]|\b(?:and|but|however|yet|nevertheless|nonetheless|while|whereas|although)\b/i;
-const CLAIM_NEGATION_CONTEXT_CHARS = 120;
+const CLAIM_NEGATION_CONTEXT_CHARS = 240;
 
 export function loadFillingLimbCorrelationReadinessValidationInput(
   rootDir = process.cwd(),
@@ -528,9 +531,30 @@ function validateNoForbiddenPositiveClaims(
   for (const match of text.matchAll(FORBIDDEN_POSITIVE_CLAIM_PATTERN)) {
     const index = match.index ?? 0;
     if (hasLocalClaimNegation(text, index, match[0].length)) continue;
-    addIssue(issues, "error", "filling_limb_forbidden_claim", label, "Forbidden accepted-root-cause/production/default/runtime/official-case/fix/tuning/smoothing wording detected.");
+    if (hasNearbyBoundaryNegation(text, index, match[0].length)) continue;
+    addIssue(issues, "error", "filling_limb_forbidden_claim", label, `Forbidden accepted-root-cause/production/default/runtime/official-case/fix/tuning/smoothing wording detected: ${match[0]}.`);
     return;
   }
+}
+
+function hasNearbyBoundaryNegation(text: string, matchIndex: number, matchLength: number): boolean {
+  const before = text.slice(0, matchIndex);
+  let sentenceStart = 0;
+  for (const match of before.matchAll(SENTENCE_BOUNDARY_PATTERN)) {
+    sentenceStart = (match.index ?? 0) + match[0].length;
+  }
+  const localPrefix = claimLocalPrefix(before.slice(sentenceStart))
+    .slice(-CLAIM_NEGATION_CONTEXT_CHARS);
+  const localSuffix = text
+    .slice(matchIndex + matchLength, matchIndex + matchLength + CLAIM_NEGATION_CONTEXT_CHARS);
+  const suffixBoundaryIndex = localSuffix.search(CLAIM_SUFFIX_SCOPE_BOUNDARY_PATTERN);
+  const claimLocalSuffix = localSuffix.slice(
+    0,
+    suffixBoundaryIndex === -1 ? localSuffix.length : suffixBoundaryIndex,
+  );
+  const window = `${localPrefix}${text.slice(matchIndex, matchIndex + matchLength)}${claimLocalSuffix}`
+    .toLowerCase();
+  return /\b(?:not claimed|not accepted|not authorized|not part of this phase|blocked|unsupported|deferred|does not claim|do not claim|cannot claim|must not claim)\b/.test(window);
 }
 
 function hasLocalClaimNegation(text: string, matchIndex: number, matchLength: number): boolean {
@@ -542,6 +566,17 @@ function hasLocalClaimNegation(text: string, matchIndex: number, matchLength: nu
   const localPrefix = claimLocalPrefix(before.slice(sentenceStart))
     .slice(-CLAIM_NEGATION_CONTEXT_CHARS);
   if (NEGATED_CLAIM_PREFIX_PATTERN.test(localPrefix)) return true;
+  const matchedClaim = text.slice(matchIndex, matchIndex + matchLength);
+  if (
+    /^(?:root[-\s]+cause[-\s]+acceptance|fix[-\s]+acceptance)$/i.test(matchedClaim)
+    && /\b(?:no|not|without)\b[^.!?,;:()[\]\/]{0,80}\bphase\b[^.!?,;:()[\]\/]{0,40}$/i.test(localPrefix)
+  ) {
+    return true;
+  }
+  const sentencePrefix = before.slice(sentenceStart).slice(-CLAIM_NEGATION_CONTEXT_CHARS);
+  if (/\b(?:no|not|without)\s+(?:root[-\s]+cause|fix|official[-\s]+morphology|valve\/qdot|valve[-\s]+qdot)\s*\/\s*$/i.test(sentencePrefix)) {
+    return true;
+  }
 
   const localSuffix = text
     .slice(matchIndex + matchLength, matchIndex + matchLength + CLAIM_NEGATION_CONTEXT_CHARS);

@@ -175,6 +175,12 @@ export type ModelCoreExperimentalActiveSourceProviderStateDiagnostics = Partial<
   readonly stateSnapshot: unknown;
 }>>;
 
+export type ModelCoreExperimentalActiveSourceProviderRuntimeState = Partial<Record<Chamber, {
+  readonly sourceProviderId: string;
+  readonly state: unknown;
+  readonly version: number;
+}>>;
+
 export type ModelCoreExperimentalBoundaryRootInertanceOptions = {
   readonly mechanismId: string;
   readonly additionalAorticRootInertanceMmHgSec2PerMl: number;
@@ -1327,6 +1333,41 @@ export class ModelCore {
       };
     }
     return out;
+  }
+
+  packExperimentalActiveProviderRuntimeState(): ModelCoreExperimentalActiveSourceProviderRuntimeState {
+    const snapshot = this.snapshotExperimentalActiveProviderStates();
+    const out: ModelCoreExperimentalActiveSourceProviderRuntimeState = {};
+    for (const [chamber, provider] of Object.entries(this.experimentalActiveSourceProviders) as Array<[Chamber, ModelCoreExperimentalActiveSourceProvider | undefined]>) {
+      if (!provider) continue;
+      const entry = snapshot[chamber];
+      out[chamber] = {
+        sourceProviderId: provider.sourceProviderId,
+        state: entry?.state,
+        version: entry?.version ?? 0,
+      };
+    }
+    return out;
+  }
+
+  restoreExperimentalActiveProviderRuntimeState(
+    snapshot: ModelCoreExperimentalActiveSourceProviderRuntimeState | undefined,
+  ): void {
+    if (!snapshot) return;
+    const restored: Partial<Record<Chamber, { state: unknown; version: number }>> = {};
+    for (const [chamber, entry] of Object.entries(snapshot) as Array<[Chamber, ModelCoreExperimentalActiveSourceProviderRuntimeState[Chamber]]>) {
+      if (!entry) continue;
+      const provider = this.experimentalActiveSourceProviders[chamber];
+      if (!provider) continue;
+      if (entry.sourceProviderId !== provider.sourceProviderId) {
+        throw new Error(
+          `Experimental active provider state source mismatch for ${chamber}: `
+          + `expected ${provider.sourceProviderId}, got ${entry.sourceProviderId}`,
+        );
+      }
+      restored[chamber] = { state: entry.state, version: entry.version };
+    }
+    this.restoreExperimentalActiveProviderStates(restored);
   }
 
   debugExperimentalBoundaryRootInertance(): ModelCoreExperimentalBoundaryRootInertanceDiagnostics | null {

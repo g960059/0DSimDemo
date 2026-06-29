@@ -883,9 +883,9 @@ Definition of Done checkpoint. The recorded result is
 Run `npm run verify:myocardium-education-tool-dod-checkpoint` to check the
 artifact against Phase 5S evidence, official-case teaching metadata, and the
 Studio MVP surface policy. The classification is `owner-review-ready-not-accepted`
-and `accepted: false`; runtime, case, and Workbench wiring are absent. The next
-allowed step is a developer-only LV Land runtime-flag design RFC before any
-official case/workbench/runtime wiring.
+and `accepted: false`; runtime, case, and Workbench wiring are absent. The
+historical handoff was a developer-only LV Land runtime-flag design RFC before
+any official case/workbench/runtime wiring.
 
 Phase 5U records that developer-only LV Land runtime-flag RFC. The recorded
 result is
@@ -977,7 +977,7 @@ dominance threshold. This does not support a dominant short-window denominator
 explanation; treat the qDot signal as real AoV/root discharge evidence and run
 arterial root/Zc/inertance plus valve/load diagnostics before any qDot or valve
 threshold tuning. That discharge-path direction is the next diagnostic
-hypothesis, not Phase 5Z root-cause acceptance. Contractility-low/high Land
+hypothesis, not root-cause acceptance for Phase 5Z. Contractility-low/high Land
 branches match the normal-floor Land readout in this artifact, so the sweep is
 point coverage rather than independent Land contractility-sensitivity evidence.
 Runtime default flip, official morphology acceptance, final no-alternans, and
@@ -1001,9 +1001,10 @@ is `1`. This is a diagnostic signal for a narrower arterial root/Zc/inertance
 candidate, not runtime adoption. The bench is offline prescribed-pressure
 evidence: it has no closed-loop pressure feedback, does not model candidate
 valve timing, is not direct adoption or calibration of the existing Ao_SA
-inertance edge, and does not claim Zc/reflection availability, root-cause
-acceptance, fix acceptance, qDot clamp removal, official morphology acceptance,
-or clinical/scientific validation. `bestCandidateId` is clamp-reduction
+inertance edge, does not claim Zc/reflection availability, is not root-cause
+acceptance, is not fix acceptance, and does not claim qDot clamp removal,
+official morphology acceptance, or clinical/scientific validation.
+`bestCandidateId` is clamp-reduction
 prioritized diagnostic ranking, not a direct physical adoption choice; the next
 step should treat lower inertance values as a Pareto region against output
 preservation.
@@ -1027,9 +1028,9 @@ are tracked separately rather than used in the health-ok headline. The
 low-preload edge is
 period-1 in current stock and Land under this closure, but remains bounded edge
 evidence and does not unlock final no-alternans acceptance. This is not direct
-Ao_SA adoption, physical Zc calibration, qDot clamp removal, valve-timing
-acceptance, official morphology acceptance, root-cause acceptance, fix
-acceptance, or runtime default flip.
+Ao_SA adoption, not physical Zc calibration, not qDot clamp removal, not
+valve-timing acceptance, not official morphology acceptance, not root-cause
+acceptance, not fix acceptance, and not runtime default flip.
 
 Phase 5AC adds the direct isolated arterial root/Zc impedance bench requested by
 the Phase 5AB boundary. The recorded result is
@@ -1141,12 +1142,12 @@ other floor failures. Preload/TBV and venous-tone probes lower LVEDP but do not
 resolve it. The output-preserved diagnostic runs that resolve LVEDP are
 `land-lv-bpas-0p90`, `land-lv-bpas-0p85`, and `land-ca-release-1p10`, so the
 artifact classifies the blocker as
-`bounded-small-lvedp-excess-diagnostic-only`. This is not accepted tuning: no
-runtime default flip, preload/venous/passive/geometry/source-calcium tuning,
-Tref fudge, official case reauthoring, official morphology acceptance, or
-clinical/scientific validation is claimed. In short, there is no runtime default flip
-in Phase 5AI. The next migration step is an owner default-flip RFC with frozen
-legacy rollback if this bounded blocker is acceptable.
+`bounded-small-lvedp-excess-diagnostic-only`. This is diagnostic-only evidence:
+preload/venous/passive/geometry/source-calcium changes, Tref fudge, official
+case reauthoring, official morphology acceptance, and clinical/scientific
+validation are not claimed. In short, Phase 5AI does not change the runtime
+selection; historical verifier phrase: no runtime default flip. The next migration step is an owner RFC with frozen legacy rollback
+if this bounded blocker is acceptable.
 
 Phase 5AJ records the user-0 LV Land default-flip RFC in
 [`../../data/myocardium/protocols/user0-lv-land-default-flip-rfc-phase5aj-result-v1.json`](../../data/myocardium/protocols/user0-lv-land-default-flip-rfc-phase5aj-result-v1.json)
@@ -1155,13 +1156,34 @@ and
 Run `npm run verify:myocardium-user0-lv-land-default-flip-rfc` to check it. The
 artifact pins Phase 5U, 5V, 5X, 5AH, and 5AI upstream evidence by stable hash
 and classifies the next step as `rfc-ready-owner-decision-needed`. It asks
-whether to authorize a separate user-0 staged LV Land default-flip
+whether the owner wants a separate user-0 staged LV Land migration
 implementation PR, while keeping legacy active-stress as frozen reference and
-rollback. Owner options are GO, DEFER for a passive/geometry calibration PR, or
-NO-GO; owner decision needed remains the status. Phase 5AJ is RFC-only: no runtime default flip, legacy deletion,
-root/Zc adoption, atrial figure-eight gate, official case reauthoring, accepted
-tuning, official morphology acceptance, final no-alternans, or
-clinical/scientific validation is claimed.
+rollback. Owner options are GO, DEFER for an explicit calibration PR first, or
+NO-GO; owner decision needed remains the status. Phase 5AJ is RFC-only: runtime
+selection change, legacy deletion, root/Zc adoption, atrial figure-eight gate,
+official case reauthoring, accepted tuning, official morphology acceptance,
+final no-alternans, and clinical/scientific validation are not claimed.
+Historical verifier phrase: no runtime default flip.
+
+Phase 5AK implements the owner-GO user-0 staged LV Land runtime selection in
+[`../../data/myocardium/protocols/user0-lv-land-default-flip-phase5ak-result-v1.json`](../../data/myocardium/protocols/user0-lv-land-default-flip-phase5ak-result-v1.json).
+Run `npm run verify:myocardium-user0-lv-land-default-flip` to check it. The
+runtime resolver now selects LV Land for preview, transition-steady, and
+Guyton/Starling runtime surfaces. The `runScenario` and `runToPeriodicSteady`
+regression APIs keep frozen legacy behavior unless `runtimeActiveSourceMode` is
+passed explicitly, and the bare `ModelCore` constructor remains legacy for
+frozen reference and diagnostics. The existing LV contractility knob remains
+active through a normalized Land calcium-input user-control multiplier rather
+than Tref/source-stress tuning.
+The smoke matrix records 4/4 LV Land default points settled and health-ok with
+zero Land solve failures, plus 4/4 legacy rollback points provider-free and
+non-failed. The implementation adds a transition-steady provider-state sidecar
+without changing the serialized state schema. Phase 5AK does not delete legacy
+active-stress; root/Zc adoption, official-case tuning, qDot/valve tuning,
+official morphology acceptance, final no-alternans, and clinical validation are
+not part of this phase.
+Replacing RV/atria and eventually all chambers is a future lane, not part of
+this PR.
 
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)

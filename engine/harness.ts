@@ -1,4 +1,9 @@
 import { ModelCore } from "@/engine/ModelCore";
+import {
+  MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE,
+  createModelCoreRuntimeExperimentalOptions,
+  type ModelCoreRuntimeActiveSourceMode,
+} from "@/engine/myocardium/runtimeActiveSource";
 import type { CoreRuntimeParams, SimMetrics, SimSample, SimulationHealth } from "@/engine/protocol";
 import type { SettleStatus } from "@/engine/settling";
 
@@ -24,6 +29,12 @@ export type ScenarioOptions = {
   dt?: number;
   /** Sampling rate (Hz) for the recorded waveform history. */
   sampleHz?: number;
+  /**
+   * Runtime active-source mode for explicit adoption tests. The regression
+   * harness defaults to the frozen legacy reference so historical physiology
+   * snapshots do not silently move when app/runtime defaults change.
+   */
+  runtimeActiveSourceMode?: ModelCoreRuntimeActiveSourceMode;
 };
 
 export type ScenarioResult = {
@@ -57,6 +68,7 @@ export const BASELINE_OPTIONS: Required<ScenarioOptions> = {
   measureSeconds: 30,
   dt: 0.001,
   sampleHz: 120,
+  runtimeActiveSourceMode: MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE,
 };
 
 export function runScenario(
@@ -64,7 +76,9 @@ export function runScenario(
   options: ScenarioOptions = {},
 ): ScenarioResult {
   const opt = { ...BASELINE_OPTIONS, ...options };
-  const core = new ModelCore(params);
+  const core = new ModelCore(params, createModelCoreRuntimeExperimentalOptions({
+    mode: opt.runtimeActiveSourceMode,
+  }));
   core.initializeVenousPressuresForTargetTBV(opt.targetTBV);
   let settleStatus: SettleStatus | undefined;
   if (opt.settleMode === "converge") {

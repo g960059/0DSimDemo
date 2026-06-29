@@ -22,12 +22,17 @@ import {
   postGuytonStarlingWorkerMessagesAsync,
   resolveStarlingSweepDeltas,
   calibratedAnchorDeltasForPolicy,
+  settleWorkerCore,
   STARLING_HIGH_PRELOAD_DELTAS_ML,
   STARLING_LOW_PRELOAD_DELTAS_ML,
   STARLING_NORMAL_PRELOAD_DELTAS_ML,
   type GuytonChainWorkerLike,
 } from "@/engine/guytonStarlingWorkerCore";
 import { postGuytonChainWorkerMessages } from "@/engine/guytonStarlingChainWorkerCore";
+import {
+  MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE,
+  MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE,
+} from "@/engine/myocardium/runtimeActiveSource";
 import type {
   GuytonChainId,
   GuytonChainWorkerMessage,
@@ -51,6 +56,20 @@ describe("Guyton / Starling worker helpers", () => {
     expectFiniteExactPane(response.right, "right");
     expectFiniteExactPane(response.left, "left");
     expectBaseMapTiming(response);
+  });
+
+  it("settles worker cores with the requested runtime active-source mode", () => {
+    const land = settleWorkerCore({
+      ...request(),
+      runtimeActiveSourceMode: MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE,
+    }, 5600);
+    const legacy = settleWorkerCore({
+      ...request(),
+      runtimeActiveSourceMode: MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE,
+    }, 5600);
+
+    expect(land.core.debugExperimentalActiveSourceProviderIds().LV).toContain("land2017");
+    expect(legacy.core.debugExperimentalActiveSourceProviderIds()).toEqual({});
   });
 
   it("requests cycle-mean snapshots for worker base maps", () => {

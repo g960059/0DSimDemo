@@ -812,7 +812,10 @@ function validateNoAffirmativeBoundaryProse(
     const mentionsBoundaryObject = FORBIDDEN_PROSE_OBJECTS.some((token) =>
       normalizedClause.toLowerCase().includes(token.toLowerCase())
     );
-    const hasLocalNegation = /\b(?:no|not|does not|do not|cannot|must not|without)\b/i.test(normalizedClause);
+    const hasLocalNegation =
+      /\b(?:no|not|does not|do not|cannot|must not|without|absent|false|blocked|unsupported|deferred|not claimed|out of that PR|out of this PR)\b/i
+        .test(normalizedClause)
+      || /(?:are|is)\s+not\s+claimed\b/i.test(normalizedClause);
     const affirmativeProbe = normalizedClause
       .replace(/\bowner-approved(?:-[a-z0-9]+)*\b/gi, "")
       .replace(/\bowner approval\b/gi, "")

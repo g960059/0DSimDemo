@@ -1,4 +1,5 @@
 import { ModelCore, type RetargetTBVStatus } from "@/engine/ModelCore";
+import { createModelCoreRuntimeExperimentalOptions } from "@/engine/myocardium/runtimeActiveSource";
 import {
   buildCommittedGuytonPaneData,
   type GuytonBaseMapResponse,
@@ -1257,7 +1258,9 @@ export function settleWorkerCore(
   seedInfo: SeedInfo = {},
 ): WorkerSettledCore {
   const started = performanceNow();
-  const core = new ModelCore(req.params);
+  const core = new ModelCore(req.params, createModelCoreRuntimeExperimentalOptions({
+    mode: req.runtimeActiveSourceMode,
+  }));
   let source: WorkerSettledCore["source"] = "cold";
   let retarget: RetargetTBVStatus | undefined;
   let retargetFallback = false;
@@ -1686,6 +1689,7 @@ function runChain(
     instanceId: req.instanceId,
     params: req.params,
     targetVolumeMl: req.targetVolumeMl,
+    runtimeActiveSourceMode: req.runtimeActiveSourceMode,
     baselineState,
     chainDeltas,
   };

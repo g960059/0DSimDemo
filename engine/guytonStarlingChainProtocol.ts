@@ -1,5 +1,6 @@
 import type { RetargetTBVStatus } from "@/engine/ModelCore";
 import type { StarlingPointReliability } from "@/engine/guytonStarling";
+import type { ModelCoreRuntimeActiveSourceMode } from "@/engine/myocardium/runtimeActiveSource";
 import type { CoreRuntimeParams, SimMetrics, SimObservables, SimulationHealth } from "@/engine/protocol";
 import type { SettleStatus } from "@/engine/settling";
 import type { SerializedModelState } from "@/engine/stateContract";
@@ -33,6 +34,7 @@ export type GuytonChainWorkerRequest = {
   instanceId: string;
   params: CoreRuntimeParams;
   targetVolumeMl: number;
+  runtimeActiveSourceMode?: ModelCoreRuntimeActiveSourceMode;
   baselineState: SerializedModelState;
   chainDeltas: number[];
 };

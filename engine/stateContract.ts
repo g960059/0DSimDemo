@@ -1,4 +1,5 @@
 import type { CoreRuntimeParams, SimMetrics, SimSample, SimulationHealth } from "@/engine/protocol";
+import type { ModelCoreRuntimeActiveSourceMode } from "@/engine/myocardium/runtimeActiveSource";
 import type { SettlePolicy, SignalKey } from "@/engine/settling";
 
 export const MODEL_STATE_SCHEMA_VERSION = 1;
@@ -81,6 +82,11 @@ export type RunToPeriodicSteadyOptions = {
   requireProjectorQuiet?: boolean;
   includeLastBeatSamples?: boolean;
   includeWallMs?: boolean;
+  /**
+   * Explicit active-source mode for runtime adoption tests and workers. Omitted
+   * steady jobs keep the historical legacy-active-stress reference behavior.
+   */
+  runtimeActiveSourceMode?: ModelCoreRuntimeActiveSourceMode;
 };
 
 export type SteadyResult = {

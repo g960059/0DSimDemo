@@ -31,6 +31,7 @@ export type ModelCorePairedLandSourceProviderValidationReport = {
 const DESCRIPTOR_PATH = "data/myocardium/protocols/modelcore-paired-land-source-provider-run-v1.json";
 const RESULT_ARTIFACT_PATH = "data/myocardium/protocols/modelcore-paired-land-source-provider-run-result-v1.json";
 const PROVIDER_PATH = "tools/myocardium/modelCoreLand2017LvSourceProvider.ts";
+const ENGINE_PROVIDER_PATH = "engine/myocardium/modelCoreLand2017LvSourceProvider.ts";
 const BUILDER_PATH = "tools/myocardium/buildModelCorePairedLandSourceProviderEvidence.ts";
 const ROUTE_DOC_PATH = "docs/myocardium/roadmap/phase5c-modelcore-equivalent-route-gate.md";
 const CURRENT_LANES_PATH = "docs/status/current-lanes.md";
@@ -285,7 +286,9 @@ function validateEvidence(
 }
 
 function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
-  const providerText = readFileSync(path.join(rootDir, PROVIDER_PATH), "utf8");
+  const engineProviderText = readOptionalText(rootDir, ENGINE_PROVIDER_PATH);
+  const providerIssuePath = engineProviderText ? ENGINE_PROVIDER_PATH : PROVIDER_PATH;
+  const providerText = engineProviderText ?? readFileSync(path.join(rootDir, PROVIDER_PATH), "utf8");
   const builderText = readFileSync(path.join(rootDir, BUILDER_PATH), "utf8");
   const routeDocText = readOptionalText(rootDir, ROUTE_DOC_PATH);
   const currentLanesText = readOptionalText(rootDir, CURRENT_LANES_PATH);
@@ -298,7 +301,7 @@ function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
     || providerText.includes("passivePressure: (")
     || providerText.includes("debugPressureTerms: (")
   ) {
-    addIssue(errors, "phase5l_land_provider_contract", PROVIDER_PATH, "Land provider must be source-only, stateful through providerState, and must not define pressure/passive/debugPressureTerms.");
+    addIssue(errors, "phase5l_land_provider_contract", providerIssuePath, "Land provider must be source-only, stateful through providerState, and must not define pressure/passive/debugPressureTerms.");
   }
   if (
     !builderText.includes("runLowPreloadDebug")
@@ -309,7 +312,7 @@ function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
     addIssue(errors, "phase5l_live_experiment_builder", BUILDER_PATH, "Builder must run paired legacy/Land providers through runLowPreloadDebug and classify the result.");
   }
   if (/finalNoAlternans\s*[:=]\s*true|officialMorphologyPass\s*[:=]\s*true|runtimeReplacement\s*[:=]\s*true/.test(`${providerText}\n${builderText}`)) {
-    addIssue(errors, "phase5l_forbidden_flags", `${PROVIDER_PATH}/${BUILDER_PATH}`, "Phase 5C-L sources must not enable runtime replacement, official morphology, or final no-alternans flags.");
+    addIssue(errors, "phase5l_forbidden_flags", `${providerIssuePath}/${BUILDER_PATH}`, "Phase 5C-L sources must not enable runtime replacement, official morphology, or final no-alternans flags.");
   }
   if (routeDocText && !routeDocText.includes("Phase 5C-L")) {
     addIssue(errors, "phase5l_route_doc", ROUTE_DOC_PATH, "Route doc must record the paired Land source-provider run result boundary.");
