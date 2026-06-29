@@ -1148,6 +1148,21 @@ clinical/scientific validation is claimed. In short, there is no runtime default
 in Phase 5AI. The next migration step is an owner default-flip RFC with frozen
 legacy rollback if this bounded blocker is acceptable.
 
+Phase 5AJ records the user-0 LV Land default-flip RFC in
+[`../../data/myocardium/protocols/user0-lv-land-default-flip-rfc-phase5aj-result-v1.json`](../../data/myocardium/protocols/user0-lv-land-default-flip-rfc-phase5aj-result-v1.json)
+and
+[roadmap/phase5aj-user0-lv-land-default-flip-rfc.md](roadmap/phase5aj-user0-lv-land-default-flip-rfc.md).
+Run `npm run verify:myocardium-user0-lv-land-default-flip-rfc` to check it. The
+artifact pins Phase 5U, 5V, 5X, 5AH, and 5AI upstream evidence by stable hash
+and classifies the next step as `rfc-ready-owner-decision-needed`. It asks
+whether to authorize a separate user-0 staged LV Land default-flip
+implementation PR, while keeping legacy active-stress as frozen reference and
+rollback. Owner options are GO, DEFER for a passive/geometry calibration PR, or
+NO-GO; owner decision needed remains the status. Phase 5AJ is RFC-only: no runtime default flip, legacy deletion,
+root/Zc adoption, atrial figure-eight gate, official case reauthoring, accepted
+tuning, official morphology acceptance, final no-alternans, or
+clinical/scientific validation is claimed.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and

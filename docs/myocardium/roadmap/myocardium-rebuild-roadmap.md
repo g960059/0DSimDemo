@@ -612,6 +612,16 @@ production tissue homogenization.
 - boundary: land-normal-floor-lvedp-attribution-diagnostic-only; no runtime default flip, legacy active-stress deletion, production registry integration, official case wiring/reauthoring, Workbench runtime wiring, state-schema migration, per-case tuning, accepted preload/venous-tone/passive/geometry/source-calcium tuning, Tref fudge, Land-parameter tuning, qDot/valve tuning, source-stress scaling, official morphology acceptance, or clinical/scientific validation claim.
 - next: draft a user-0 staged LV Land default-flip RFC with frozen legacy rollback and no root/Zc or atrial gating, unless the owner requires a separate explicit passive/geometry calibration before default.
 
+### Phase 5AJ — User-0 LV Land default-flip RFC
+
+- RFC doc: `docs/myocardium/roadmap/phase5aj-user0-lv-land-default-flip-rfc.md`
+- result artifact: `data/myocardium/protocols/user0-lv-land-default-flip-rfc-phase5aj-result-v1.json`
+- verifier: `npm run verify:myocardium-user0-lv-land-default-flip-rfc`
+- current outcome: Phase 5AJ pins Phase 5U, 5V, 5X, 5AH, and 5AI upstream evidence by stable hash and records a user-0 staged LV Land default-flip RFC. It classifies the next step as `rfc-ready-owner-decision-needed`: GO proceeds to a separate default-flip implementation PR, DEFER requires an explicit passive/geometry calibration PR first, and NO-GO keeps LV Land developer-only. The RFC preserves legacy active-stress as frozen reference/rollback.
+- interpretation: the default-flip direction is ready for owner decision because Phase 5AI bounds the only normal-floor blocker as a small LVEDP excess, while root/Zc, atrial figure-eight, official cases, and alternans remain separate lanes. This is not owner acceptance and not implementation.
+- boundary: user0-lv-land-default-flip-rfc-owner-decision-needed; no runtime default flip in this phase, no legacy active-stress deletion, no root/Zc adoption, no atrial figure-eight gate, no official case reauthoring, no Workbench runtime wiring, no state schema migration, no accepted preload/venous/passive/geometry/source-calcium tuning, no Tref fudge, no Land-parameter/qDot/valve tuning, no official morphology acceptance, no final no-alternans, and no clinical/scientific validation claim.
+- next: owner GO/DEFER/NO-GO. If GO, implement the staged LV Land default flip in a new PR with baseline smoke/readback and one-command legacy rollback; keep root/Zc, atria, official cases, and tuning out of that PR.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison
