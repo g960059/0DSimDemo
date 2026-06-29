@@ -1,0 +1,2319 @@
+{
+  "schemaVersion": 1,
+  "id": "atrial-a2-sensitivity-phase5ba-result-v1",
+  "phase": "Phase 5BA",
+  "claimBoundary": "a2-conduit-sensitivity-diagnostic-no-selection",
+  "targetPackId": "atrial-waveform-targets-v1",
+  "protocol": {
+    "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+    "pointSource": "hr75-hr90-normal-low-high-preload",
+    "variantIds": [
+      "runtime-default-atrial-active-reference",
+      "a1-refined-reference",
+      "a2-conduit-full",
+      "a2-conduit-no-viscous",
+      "a2-conduit-no-booster",
+      "a2-conduit-no-av-plane-extra"
+    ],
+    "dtSec": 0.001,
+    "sampleHz": 1000,
+    "measureBeats": 3,
+    "sensitivityAxis": [
+      "full-a2-conduit",
+      "remove-viscous-conduit-term",
+      "remove-tension-booster-term",
+      "remove-av-plane-extra-term"
+    ],
+    "noRuntimeDefaultFlip": true,
+    "noProductionBridgeSelection": true,
+    "noParameterTuning": true,
+    "noPermanentVerifierOrNpmScriptAdded": true
+  },
+  "points": [
+    {
+      "id": "normal-hr75",
+      "targetTBVMl": 5600,
+      "HR": 75
+    },
+    {
+      "id": "low-preload-hr75",
+      "targetTBVMl": 4800,
+      "HR": 75
+    },
+    {
+      "id": "high-preload-hr75",
+      "targetTBVMl": 6200,
+      "HR": 75
+    },
+    {
+      "id": "normal-hr90",
+      "targetTBVMl": 5600,
+      "HR": 90
+    },
+    {
+      "id": "low-preload-hr90",
+      "targetTBVMl": 4800,
+      "HR": 90
+    },
+    {
+      "id": "high-preload-hr90",
+      "targetTBVMl": 6200,
+      "HR": 90
+    }
+  ],
+  "runs": [
+    {
+      "variantId": "runtime-default-atrial-active-reference",
+      "pointId": "normal-hr75",
+      "HR": 75,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 15,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.736071,
+      "forwardCO_R": 4.729553,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.485875,
+          "passiveEmptyingFraction": 0.247823,
+          "activeEmptyingFraction": 0.316484,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 10.231002,
+          "volumeRangeMl": 27.561283,
+          "roughnessSamplingSpan": 0.608433
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.439882,
+          "passiveEmptyingFraction": 0.199486,
+          "activeEmptyingFraction": 0.300302,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.010514
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 5.226122,
+          "volumeRangeMl": 35.545716,
+          "roughnessSamplingSpan": 0.607657
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 415,
+          "diodeImpulsePerBeat": 176.623562,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 359,
+          "diodeImpulsePerBeat": 5.483444,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "runtime-default-atrial-active-reference",
+      "pointId": "low-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 26,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.297055,
+      "forwardCO_R": 4.291247,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.750612,
+          "passiveEmptyingFraction": 0.285212,
+          "activeEmptyingFraction": 0.651103,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.191715
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 6.521071,
+          "volumeRangeMl": 34.510644,
+          "roughnessSamplingSpan": 0.480399
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.562599,
+          "passiveEmptyingFraction": 0.272073,
+          "activeEmptyingFraction": 0.399115,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 4.81794,
+          "volumeRangeMl": 34.793905,
+          "roughnessSamplingSpan": 0.601078
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 426,
+          "diodeImpulsePerBeat": 144.637809,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 382,
+          "diodeImpulsePerBeat": 4.210023,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "runtime-default-atrial-active-reference",
+      "pointId": "high-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 14,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.764312,
+      "forwardCO_R": 4.789268,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.453313,
+          "passiveEmptyingFraction": 0.212561,
+          "activeEmptyingFraction": 0.30574,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.034126
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 11.764193,
+          "volumeRangeMl": 27.92541,
+          "roughnessSamplingSpan": 0.592473
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.380771,
+          "passiveEmptyingFraction": 0.187144,
+          "activeEmptyingFraction": 0.238205,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.062085
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 6.136922,
+          "volumeRangeMl": 35.024823,
+          "roughnessSamplingSpan": 0.573554
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 410.666667,
+          "diodeImpulsePerBeat": 185.568825,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 359,
+          "diodeImpulsePerBeat": 6.204773,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "runtime-default-atrial-active-reference",
+      "pointId": "normal-hr90",
+      "HR": 90,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 17,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 5.287945,
+      "forwardCO_R": 5.294006,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.50471,
+          "passiveEmptyingFraction": 0.258475,
+          "activeEmptyingFraction": 0.332064,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 10.09459,
+          "volumeRangeMl": 28.791912,
+          "roughnessSamplingSpan": 0.535066
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.527167,
+          "passiveEmptyingFraction": 0.189404,
+          "activeEmptyingFraction": 0.416684,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.020596
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 3.836334,
+          "volumeRangeMl": 40.438172,
+          "roughnessSamplingSpan": 0.731968
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 401.666667,
+          "diodeImpulsePerBeat": 154.874726,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 358.333333,
+          "diodeImpulsePerBeat": 4.687373,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "runtime-default-atrial-active-reference",
+      "pointId": "low-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 23,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.56176,
+      "forwardCO_R": 4.559284,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.780288,
+          "passiveEmptyingFraction": 0.231089,
+          "activeEmptyingFraction": 0.714255,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.284543
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 5.568132,
+          "volumeRangeMl": 35.544926,
+          "roughnessSamplingSpan": 0.240881
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.753258,
+          "passiveEmptyingFraction": 0.021256,
+          "activeEmptyingFraction": 0.747899,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.519901
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 4.864561,
+          "volumeRangeMl": 41.536126,
+          "roughnessSamplingSpan": 0.744231
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 426.333333,
+          "diodeImpulsePerBeat": 106.163792,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 384,
+          "diodeImpulsePerBeat": 4.337301,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "runtime-default-atrial-active-reference",
+      "pointId": "high-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 24,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 5.330886,
+      "forwardCO_R": 5.351045,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.401795,
+          "passiveEmptyingFraction": 0.200626,
+          "activeEmptyingFraction": 0.251659,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.097579
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 12.241722,
+          "volumeRangeMl": 25.299999,
+          "roughnessSamplingSpan": 0.517204
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.404287,
+          "passiveEmptyingFraction": 0.247151,
+          "activeEmptyingFraction": 0.208722,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.015713
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 5.009699,
+          "volumeRangeMl": 36.125186,
+          "roughnessSamplingSpan": 0.704266
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 382,
+          "diodeImpulsePerBeat": 109.680372,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 332.666667,
+          "diodeImpulsePerBeat": 4.39875,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a1-refined-reference",
+      "pointId": "normal-hr75",
+      "HR": 75,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 13,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.631417,
+      "forwardCO_R": 4.636658,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.34803,
+          "passiveEmptyingFraction": 0.199645,
+          "activeEmptyingFraction": 0.185398,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.186927
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 8.931298,
+          "volumeRangeMl": 33.183001,
+          "roughnessSamplingSpan": 0.738481
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.493309,
+          "passiveEmptyingFraction": 0.142543,
+          "activeEmptyingFraction": 0.409077,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.067457
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 9.949415,
+          "volumeRangeMl": 48.090653,
+          "roughnessSamplingSpan": 0.674251
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 525.333333,
+          "diodeImpulsePerBeat": 135.634745,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 385,
+          "diodeImpulsePerBeat": 5.445106,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a1-refined-reference",
+      "pointId": "low-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 19,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.214676,
+      "forwardCO_R": 4.206234,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.412617,
+          "passiveEmptyingFraction": 0.272832,
+          "activeEmptyingFraction": 0.192232,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.085151
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 5.869424,
+          "volumeRangeMl": 28.428936,
+          "roughnessSamplingSpan": 0.221668
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.495718,
+          "passiveEmptyingFraction": 0.092505,
+          "activeEmptyingFraction": 0.444314,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.117495
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 4.85088,
+          "volumeRangeMl": 36.298029,
+          "roughnessSamplingSpan": 0.730547
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 463.666667,
+          "diodeImpulsePerBeat": 80.453001,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 370.333333,
+          "diodeImpulsePerBeat": 2.339612,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a1-refined-reference",
+      "pointId": "high-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 14,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.609876,
+      "forwardCO_R": 4.636703,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.355243,
+          "passiveEmptyingFraction": 0.216182,
+          "activeEmptyingFraction": 0.177414,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.171161
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 10.521807,
+          "volumeRangeMl": 38.277074,
+          "roughnessSamplingSpan": 0.224196
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.503905,
+          "passiveEmptyingFraction": 0.189681,
+          "activeEmptyingFraction": 0.387778,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.020319
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 13.581303,
+          "volumeRangeMl": 56.968748,
+          "roughnessSamplingSpan": 0.513389
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 546.333333,
+          "diodeImpulsePerBeat": 143.172119,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 418,
+          "diodeImpulsePerBeat": 7.652874,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a1-refined-reference",
+      "pointId": "normal-hr90",
+      "HR": 90,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 20,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 5.181279,
+      "forwardCO_R": 5.187543,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.338442,
+          "passiveEmptyingFraction": 0.216217,
+          "activeEmptyingFraction": 0.155942,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.209399
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 6.903537,
+          "volumeRangeMl": 33.616044,
+          "roughnessSamplingSpan": 0.483225
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.540119,
+          "passiveEmptyingFraction": 0.016997,
+          "activeEmptyingFraction": 0.532167,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.25517
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 8.25339,
+          "volumeRangeMl": 48.567254,
+          "roughnessSamplingSpan": 0.510299
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 409.666667,
+          "diodeImpulsePerBeat": 93.60712,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 377.666667,
+          "diodeImpulsePerBeat": 3.934895,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a1-refined-reference",
+      "pointId": "low-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 23,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.391365,
+      "forwardCO_R": 4.384649,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.546026,
+          "passiveEmptyingFraction": 0.024996,
+          "activeEmptyingFraction": 0.534388,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.239392
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 3.830888,
+          "volumeRangeMl": 33.815359,
+          "roughnessSamplingSpan": 0.629301
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.565608,
+          "passiveEmptyingFraction": 0.001365,
+          "activeEmptyingFraction": 0.565014,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.303649
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 5.552221,
+          "volumeRangeMl": 39.236876,
+          "roughnessSamplingSpan": 0.435127
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 438.666667,
+          "diodeImpulsePerBeat": 54.338988,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 365,
+          "diodeImpulsePerBeat": 1.909264,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a1-refined-reference",
+      "pointId": "high-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 27,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 5.249564,
+      "forwardCO_R": 5.257682,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.324357,
+          "passiveEmptyingFraction": 0.251816,
+          "activeEmptyingFraction": 0.096956,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.268687
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 9.503185,
+          "volumeRangeMl": 37.84559,
+          "roughnessSamplingSpan": 0.279893
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.541746,
+          "passiveEmptyingFraction": 0.038488,
+          "activeEmptyingFraction": 0.523403,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.224915
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 12.114842,
+          "volumeRangeMl": 55.795351,
+          "roughnessSamplingSpan": 0.495141
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 428.666667,
+          "diodeImpulsePerBeat": 149.949491,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 383.333333,
+          "diodeImpulsePerBeat": 5.316423,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a2-conduit-full",
+      "pointId": "normal-hr75",
+      "HR": 75,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 15,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.841852,
+      "forwardCO_R": 4.848991,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.524658,
+          "passiveEmptyingFraction": 0.259108,
+          "activeEmptyingFraction": 0.35842,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 13.400233,
+          "volumeRangeMl": 31.671644,
+          "roughnessSamplingSpan": 0.440519
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.554336,
+          "passiveEmptyingFraction": 0.222002,
+          "activeEmptyingFraction": 0.427166,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 7.660737,
+          "volumeRangeMl": 43.683271,
+          "roughnessSamplingSpan": 0.678243
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 438.666667,
+          "diodeImpulsePerBeat": 315.985325,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 415,
+          "diodeImpulsePerBeat": 15.55352,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a2-conduit-full",
+      "pointId": "low-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 20,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.401928,
+      "forwardCO_R": 4.387508,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.783467,
+          "passiveEmptyingFraction": 0.220321,
+          "activeEmptyingFraction": 0.72228,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.305426
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 9.187145,
+          "volumeRangeMl": 38.864419,
+          "roughnessSamplingSpan": 0.088046
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.665237,
+          "passiveEmptyingFraction": 0.323576,
+          "activeEmptyingFraction": 0.505098,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.035098
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 5.636388,
+          "volumeRangeMl": 40.363871,
+          "roughnessSamplingSpan": 0.480699
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 487.666667,
+          "diodeImpulsePerBeat": 267.193987,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 418.333333,
+          "diodeImpulsePerBeat": 11.176042,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a2-conduit-full",
+      "pointId": "high-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 18,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.835145,
+      "forwardCO_R": 4.858019,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.495328,
+          "passiveEmptyingFraction": 0.225455,
+          "activeEmptyingFraction": 0.348428,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.004545
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 14.508987,
+          "volumeRangeMl": 32.00998,
+          "roughnessSamplingSpan": 0.473515
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.457787,
+          "passiveEmptyingFraction": 0.195517,
+          "activeEmptyingFraction": 0.32601,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.014483
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 8.343291,
+          "volumeRangeMl": 41.698452,
+          "roughnessSamplingSpan": 0.660873
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 435.666667,
+          "diodeImpulsePerBeat": 334.508278,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 397.666667,
+          "diodeImpulsePerBeat": 15.213979,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a2-conduit-full",
+      "pointId": "normal-hr90",
+      "HR": 90,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 30,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 5.375227,
+      "forwardCO_R": 5.404384,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.45987,
+          "passiveEmptyingFraction": 0.212687,
+          "activeEmptyingFraction": 0.313957,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.027443
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 13.891933,
+          "volumeRangeMl": 28.718212,
+          "roughnessSamplingSpan": 0.422995
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.687801,
+          "passiveEmptyingFraction": 0.132678,
+          "activeEmptyingFraction": 0.640041,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.247363
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 6.308717,
+          "volumeRangeMl": 50.627122,
+          "roughnessSamplingSpan": 0.165602
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 399,
+          "diodeImpulsePerBeat": 154.193943,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 392.666667,
+          "diodeImpulsePerBeat": 11.847445,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a2-conduit-full",
+      "pointId": "low-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 24,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.620043,
+      "forwardCO_R": 4.624426,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.827359,
+          "passiveEmptyingFraction": 0.314115,
+          "activeEmptyingFraction": 0.748292,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.365651
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 8.660991,
+          "volumeRangeMl": 40.077362,
+          "roughnessSamplingSpan": 0.099252
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.918451,
+          "passiveEmptyingFraction": 0.000212,
+          "activeEmptyingFraction": 0.918433,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.876672
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 7.801453,
+          "volumeRangeMl": 50.607308,
+          "roughnessSamplingSpan": 0.662517
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 420.666667,
+          "diodeImpulsePerBeat": 177.346715,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 434.666667,
+          "diodeImpulsePerBeat": 10.671646,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a2-conduit-full",
+      "pointId": "high-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 27,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 5.421519,
+      "forwardCO_R": 5.431529,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.470552,
+          "passiveEmptyingFraction": 0.205371,
+          "activeEmptyingFraction": 0.333717,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.024629
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 14.289475,
+          "volumeRangeMl": 30.578144,
+          "roughnessSamplingSpan": 0.205615
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.448905,
+          "passiveEmptyingFraction": 0.295227,
+          "activeEmptyingFraction": 0.218051,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 6.166563,
+          "volumeRangeMl": 40.255821,
+          "roughnessSamplingSpan": 0.380981
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 378.333333,
+          "diodeImpulsePerBeat": 273.880489,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 347.333333,
+          "diodeImpulsePerBeat": 10.58972,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a2-conduit-no-viscous",
+      "pointId": "normal-hr75",
+      "HR": 75,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 19,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.740905,
+      "forwardCO_R": 4.741342,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.506613,
+          "passiveEmptyingFraction": 0.27693,
+          "activeEmptyingFraction": 0.317649,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 11.141914,
+          "volumeRangeMl": 30.026463,
+          "roughnessSamplingSpan": 0.641837
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.453306,
+          "passiveEmptyingFraction": 0.203896,
+          "activeEmptyingFraction": 0.313288,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.006104
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 5.522835,
+          "volumeRangeMl": 36.968132,
+          "roughnessSamplingSpan": 0.539459
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 420.666667,
+          "diodeImpulsePerBeat": 173.497804,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 366,
+          "diodeImpulsePerBeat": 5.462539,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a2-conduit-no-viscous",
+      "pointId": "low-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 24,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.302861,
+      "forwardCO_R": 4.299228,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.726039,
+          "passiveEmptyingFraction": 0.211333,
+          "activeEmptyingFraction": 0.652628,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.187334
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 7.524552,
+          "volumeRangeMl": 35.933843,
+          "roughnessSamplingSpan": 0.435827
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.577003,
+          "passiveEmptyingFraction": 0.278631,
+          "activeEmptyingFraction": 0.413619,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 5.148318,
+          "volumeRangeMl": 36.239017,
+          "roughnessSamplingSpan": 0.699968
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 453.666667,
+          "diodeImpulsePerBeat": 129.530846,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 399,
+          "diodeImpulsePerBeat": 4.616748,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a2-conduit-no-viscous",
+      "pointId": "high-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 14,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.773467,
+      "forwardCO_R": 4.798459,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.477175,
+          "passiveEmptyingFraction": 0.237893,
+          "activeEmptyingFraction": 0.313974,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 12.537531,
+          "volumeRangeMl": 30.509082,
+          "roughnessSamplingSpan": 0.399522
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.388706,
+          "passiveEmptyingFraction": 0.193071,
+          "activeEmptyingFraction": 0.242444,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.048223
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 6.370229,
+          "volumeRangeMl": 36.008695,
+          "roughnessSamplingSpan": 0.667007
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 415.666667,
+          "diodeImpulsePerBeat": 191.958527,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 360.333333,
+          "diodeImpulsePerBeat": 5.762546,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a2-conduit-no-viscous",
+      "pointId": "normal-hr90",
+      "HR": 90,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 17,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 5.311615,
+      "forwardCO_R": 5.326756,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.521298,
+          "passiveEmptyingFraction": 0.265181,
+          "activeEmptyingFraction": 0.34854,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 10.899093,
+          "volumeRangeMl": 30.944119,
+          "roughnessSamplingSpan": 0.486507
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.542903,
+          "passiveEmptyingFraction": 0.19065,
+          "activeEmptyingFraction": 0.435228,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.01935
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 4.229359,
+          "volumeRangeMl": 42.079796,
+          "roughnessSamplingSpan": 0.719228
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 404.666667,
+          "diodeImpulsePerBeat": 165.317637,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 363.666667,
+          "diodeImpulsePerBeat": 4.572027,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a2-conduit-no-viscous",
+      "pointId": "low-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 23,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.584234,
+      "forwardCO_R": 4.58354,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.783995,
+          "passiveEmptyingFraction": 0.25819,
+          "activeEmptyingFraction": 0.708812,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.282807
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 7.165174,
+          "volumeRangeMl": 37.912752,
+          "roughnessSamplingSpan": 0.757746
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.77319,
+          "passiveEmptyingFraction": 0.014135,
+          "activeEmptyingFraction": 0.769937,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.568992
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 5.268324,
+          "volumeRangeMl": 43.301822,
+          "roughnessSamplingSpan": 0.868447
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 433.666667,
+          "diodeImpulsePerBeat": 106.22688,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 397.333333,
+          "diodeImpulsePerBeat": 5.260353,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a2-conduit-no-viscous",
+      "pointId": "high-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 24,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 5.350379,
+      "forwardCO_R": 5.368803,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.426631,
+          "passiveEmptyingFraction": 0.219706,
+          "activeEmptyingFraction": 0.265189,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.053663
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 12.792373,
+          "volumeRangeMl": 27.710036,
+          "roughnessSamplingSpan": 0.618147
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.415584,
+          "passiveEmptyingFraction": 0.254019,
+          "activeEmptyingFraction": 0.216581,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.004416
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 5.412249,
+          "volumeRangeMl": 37.467259,
+          "roughnessSamplingSpan": 0.293459
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 384,
+          "diodeImpulsePerBeat": 128.82119,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 335,
+          "diodeImpulsePerBeat": 4.3817,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a2-conduit-no-booster",
+      "pointId": "normal-hr75",
+      "HR": 75,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 15,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.825271,
+      "forwardCO_R": 4.835173,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.515855,
+          "passiveEmptyingFraction": 0.260551,
+          "activeEmptyingFraction": 0.345263,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 13.449581,
+          "volumeRangeMl": 31.137064,
+          "roughnessSamplingSpan": 0.406154
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.543674,
+          "passiveEmptyingFraction": 0.221973,
+          "activeEmptyingFraction": 0.413484,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 7.482329,
+          "volumeRangeMl": 43.126415,
+          "roughnessSamplingSpan": 0.394364
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 437.333333,
+          "diodeImpulsePerBeat": 291.174709,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 414,
+          "diodeImpulsePerBeat": 15.607406,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a2-conduit-no-booster",
+      "pointId": "low-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 20,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.391308,
+      "forwardCO_R": 4.376414,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.780038,
+          "passiveEmptyingFraction": 0.222188,
+          "activeEmptyingFraction": 0.717204,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.295054
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 8.985983,
+          "volumeRangeMl": 38.672942,
+          "roughnessSamplingSpan": 0.217107
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.650661,
+          "passiveEmptyingFraction": 0.33645,
+          "activeEmptyingFraction": 0.47353,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.00353
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 5.563317,
+          "volumeRangeMl": 39.855749,
+          "roughnessSamplingSpan": 0.566066
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 487.666667,
+          "diodeImpulsePerBeat": 265.442338,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 420.333333,
+          "diodeImpulsePerBeat": 11.029422,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a2-conduit-no-booster",
+      "pointId": "high-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 20,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.822028,
+      "forwardCO_R": 4.844041,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.488555,
+          "passiveEmptyingFraction": 0.22634,
+          "activeEmptyingFraction": 0.338928,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.00366
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 14.560453,
+          "volumeRangeMl": 31.599043,
+          "roughnessSamplingSpan": 0.054546
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.452028,
+          "passiveEmptyingFraction": 0.195921,
+          "activeEmptyingFraction": 0.31851,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.014079
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 8.152247,
+          "volumeRangeMl": 41.231508,
+          "roughnessSamplingSpan": 0.298777
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 434.666667,
+          "diodeImpulsePerBeat": 315.75331,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 397.333333,
+          "diodeImpulsePerBeat": 15.420271,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a2-conduit-no-booster",
+      "pointId": "normal-hr90",
+      "HR": 90,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 37,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 5.303219,
+      "forwardCO_R": 5.279639,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.700178,
+          "passiveEmptyingFraction": 0.288306,
+          "activeEmptyingFraction": 0.578723,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.078723
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 11.293944,
+          "volumeRangeMl": 39.129934,
+          "roughnessSamplingSpan": 0.606855
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.487134,
+          "passiveEmptyingFraction": 0.300749,
+          "activeEmptyingFraction": 0.266549,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 5.006522,
+          "volumeRangeMl": 38.959865,
+          "roughnessSamplingSpan": 0.18147
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 429,
+          "diodeImpulsePerBeat": 341.11402,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 327.666667,
+          "diodeImpulsePerBeat": 6.468783,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a2-conduit-no-booster",
+      "pointId": "low-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 24,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.621854,
+      "forwardCO_R": 4.626099,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.825703,
+          "passiveEmptyingFraction": 0.313775,
+          "activeEmptyingFraction": 0.746007,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.36171
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 8.565255,
+          "volumeRangeMl": 40.097486,
+          "roughnessSamplingSpan": 0.496082
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.914914,
+          "passiveEmptyingFraction": 0.00024,
+          "activeEmptyingFraction": 0.914893,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.869567
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 7.609789,
+          "volumeRangeMl": 50.380024,
+          "roughnessSamplingSpan": 0.545821
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 418,
+          "diodeImpulsePerBeat": 177.236891,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 433.333333,
+          "diodeImpulsePerBeat": 10.733826,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a2-conduit-no-booster",
+      "pointId": "high-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 24,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 5.409016,
+      "forwardCO_R": 5.424999,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.462314,
+          "passiveEmptyingFraction": 0.206616,
+          "activeEmptyingFraction": 0.322289,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.03107
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 14.395393,
+          "volumeRangeMl": 30.14141,
+          "roughnessSamplingSpan": 0.462946
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.442129,
+          "passiveEmptyingFraction": 0.298715,
+          "activeEmptyingFraction": 0.204501,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 5.974676,
+          "volumeRangeMl": 39.715884,
+          "roughnessSamplingSpan": 0.383484
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 377,
+          "diodeImpulsePerBeat": 249.34397,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 346.666667,
+          "diodeImpulsePerBeat": 10.612082,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a2-conduit-no-av-plane-extra",
+      "pointId": "normal-hr75",
+      "HR": 75,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 15,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.833245,
+      "forwardCO_R": 4.841088,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.503726,
+          "passiveEmptyingFraction": 0.232537,
+          "activeEmptyingFraction": 0.353359,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 12.975745,
+          "volumeRangeMl": 29.277413,
+          "roughnessSamplingSpan": 0.582853
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.551073,
+          "passiveEmptyingFraction": 0.213065,
+          "activeEmptyingFraction": 0.429524,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 7.5297,
+          "volumeRangeMl": 42.915548,
+          "roughnessSamplingSpan": 0.210191
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 429,
+          "diodeImpulsePerBeat": 295.9544,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 407,
+          "diodeImpulsePerBeat": 15.270089,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a2-conduit-no-av-plane-extra",
+      "pointId": "low-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 20,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.381799,
+      "forwardCO_R": 4.376862,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.775301,
+          "passiveEmptyingFraction": 0.175001,
+          "activeEmptyingFraction": 0.727637,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.347937
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 8.967568,
+          "volumeRangeMl": 36.252078,
+          "roughnessSamplingSpan": 0.631724
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.667384,
+          "passiveEmptyingFraction": 0.304704,
+          "activeEmptyingFraction": 0.521619,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.051619
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 5.512367,
+          "volumeRangeMl": 39.501472,
+          "roughnessSamplingSpan": 0.593174
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 465.333333,
+          "diodeImpulsePerBeat": 249.143682,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 409,
+          "diodeImpulsePerBeat": 10.56874,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a2-conduit-no-av-plane-extra",
+      "pointId": "high-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 18,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.831771,
+      "forwardCO_R": 4.855864,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.478383,
+          "passiveEmptyingFraction": 0.200327,
+          "activeEmptyingFraction": 0.347712,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.029673
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 14.039178,
+          "volumeRangeMl": 29.79282,
+          "roughnessSamplingSpan": 0.279833
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.454245,
+          "passiveEmptyingFraction": 0.189768,
+          "activeEmptyingFraction": 0.326421,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.020232
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 8.268056,
+          "volumeRangeMl": 41.099404,
+          "roughnessSamplingSpan": 0.62898
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 433,
+          "diodeImpulsePerBeat": 331.954485,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 395.666667,
+          "diodeImpulsePerBeat": 15.169445,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a2-conduit-no-av-plane-extra",
+      "pointId": "normal-hr90",
+      "HR": 90,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 30,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 5.371491,
+      "forwardCO_R": 5.399596,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.452091,
+          "passiveEmptyingFraction": 0.193784,
+          "activeEmptyingFraction": 0.320394,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.054125
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 12.808444,
+          "volumeRangeMl": 27.151893,
+          "roughnessSamplingSpan": 0.150473
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.684159,
+          "passiveEmptyingFraction": 0.129189,
+          "activeEmptyingFraction": 0.637302,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.248113
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 6.159462,
+          "volumeRangeMl": 49.629024,
+          "roughnessSamplingSpan": 0.283537
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 397.666667,
+          "diodeImpulsePerBeat": 167.156119,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 387.666667,
+          "diodeImpulsePerBeat": 11.72677,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a2-conduit-no-av-plane-extra",
+      "pointId": "low-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 23,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.610431,
+      "forwardCO_R": 4.613973,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.839742,
+          "passiveEmptyingFraction": 0.283301,
+          "activeEmptyingFraction": 0.776394,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.406136
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 8.995124,
+          "volumeRangeMl": 38.312267,
+          "roughnessSamplingSpan": 0.485657
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.910847,
+          "passiveEmptyingFraction": 0.000375,
+          "activeEmptyingFraction": 0.910813,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.861285
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 7.452939,
+          "volumeRangeMl": 49.032731,
+          "roughnessSamplingSpan": 0.423617
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 421,
+          "diodeImpulsePerBeat": 181.36929,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 421.666667,
+          "diodeImpulsePerBeat": 10.731691,
+          "qDotClampHitFraction": 0
+        }
+      }
+    },
+    {
+      "variantId": "a2-conduit-no-av-plane-extra",
+      "pointId": "high-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 27,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 5.410182,
+      "forwardCO_R": 5.421724,
+      "LA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.453105,
+          "passiveEmptyingFraction": 0.183744,
+          "activeEmptyingFraction": 0.329996,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.063151
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 13.509689,
+          "volumeRangeMl": 28.578084,
+          "roughnessSamplingSpan": 0.027871
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "totalEmptyingFraction": 0.443607,
+          "passiveEmptyingFraction": 0.285054,
+          "activeEmptyingFraction": 0.221768,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "loopShape": {
+          "pressureRangeMmHg": 5.982429,
+          "volumeRangeMl": 39.308824,
+          "roughnessSamplingSpan": 0.412792
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 377,
+          "diodeImpulsePerBeat": 261.592396,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 343.666667,
+          "diodeImpulsePerBeat": 10.205747,
+          "qDotClampHitFraction": 0
+        }
+      }
+    }
+  ],
+  "variantSummaries": [
+    {
+      "variantId": "runtime-default-atrial-active-reference",
+      "settledPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "healthOkPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "bothAtriaVolumePassPointIds": [],
+      "laVolumePassPointIds": [
+        "normal-hr75",
+        "normal-hr90"
+      ],
+      "raVolumePassPointIds": [
+        "low-preload-hr75"
+      ],
+      "meanLaDistance": 0.101327,
+      "meanRaDistance": 0.104801,
+      "meanValveHitsPerBeat": 772.777778,
+      "meanValveImpulsePerBeat": 151.145125,
+      "maxRoughnessSamplingSpan": 0.744231
+    },
+    {
+      "variantId": "a1-refined-reference",
+      "settledPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "healthOkPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "bothAtriaVolumePassPointIds": [],
+      "laVolumePassPointIds": [],
+      "raVolumePassPointIds": [],
+      "meanLaDistance": 0.193453,
+      "meanRaDistance": 0.164834,
+      "meanValveHitsPerBeat": 851.944444,
+      "meanValveImpulsePerBeat": 113.95894,
+      "maxRoughnessSamplingSpan": 0.738481
+    },
+    {
+      "variantId": "a2-conduit-full",
+      "settledPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "healthOkPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "bothAtriaVolumePassPointIds": [
+        "normal-hr75"
+      ],
+      "laVolumePassPointIds": [
+        "normal-hr75"
+      ],
+      "raVolumePassPointIds": [
+        "normal-hr75",
+        "high-preload-hr90"
+      ],
+      "meanLaDistance": 0.121282,
+      "meanRaDistance": 0.195603,
+      "meanValveHitsPerBeat": 827.611111,
+      "meanValveImpulsePerBeat": 266.360182,
+      "maxRoughnessSamplingSpan": 0.678243
+    },
+    {
+      "variantId": "a2-conduit-no-viscous",
+      "settledPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "healthOkPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "bothAtriaVolumePassPointIds": [],
+      "laVolumePassPointIds": [
+        "normal-hr75",
+        "high-preload-hr75",
+        "normal-hr90"
+      ],
+      "raVolumePassPointIds": [
+        "low-preload-hr75"
+      ],
+      "meanLaDistance": 0.087301,
+      "meanRaDistance": 0.107847,
+      "meanValveHitsPerBeat": 788.944445,
+      "meanValveImpulsePerBeat": 154.234799,
+      "maxRoughnessSamplingSpan": 0.868447
+    },
+    {
+      "variantId": "a2-conduit-no-booster",
+      "settledPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "healthOkPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "bothAtriaVolumePassPointIds": [
+        "normal-hr75"
+      ],
+      "laVolumePassPointIds": [
+        "normal-hr75"
+      ],
+      "raVolumePassPointIds": [
+        "normal-hr75",
+        "normal-hr90",
+        "high-preload-hr90"
+      ],
+      "meanLaDistance": 0.128369,
+      "meanRaDistance": 0.147863,
+      "meanValveHitsPerBeat": 820.5,
+      "meanValveImpulsePerBeat": 284.989505,
+      "maxRoughnessSamplingSpan": 0.606855
+    },
+    {
+      "variantId": "a2-conduit-no-av-plane-extra",
+      "settledPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "healthOkPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "bothAtriaVolumePassPointIds": [
+        "normal-hr75"
+      ],
+      "laVolumePassPointIds": [
+        "normal-hr75"
+      ],
+      "raVolumePassPointIds": [
+        "normal-hr75",
+        "high-preload-hr90"
+      ],
+      "meanLaDistance": 0.15017,
+      "meanRaDistance": 0.196875,
+      "meanValveHitsPerBeat": 814.611111,
+      "meanValveImpulsePerBeat": 260.140476,
+      "maxRoughnessSamplingSpan": 0.631724
+    }
+  ],
+  "termAttribution": {
+    "fullA2BothAtriaPassPointIds": [
+      "normal-hr75"
+    ],
+    "noViscousBothAtriaPassPointIds": [],
+    "noBoosterBothAtriaPassPointIds": [
+      "normal-hr75"
+    ],
+    "noAvPlaneExtraBothAtriaPassPointIds": [
+      "normal-hr75"
+    ],
+    "normalHr75FullSignalPreservedBy": [
+      "a2-conduit-full",
+      "a2-conduit-no-booster",
+      "a2-conduit-no-av-plane-extra"
+    ],
+    "currentInterpretation": "Phase 5BA tests whether the Phase 5AZ A2-conduit normal-hr75 volume-function signal depends on a single added term. The signal is preserved by: a2-conduit-full, a2-conduit-no-booster, a2-conduit-no-av-plane-extra. This is diagnostic term attribution only, not parameter tuning or bridge selection."
+  },
+  "summary": {
+    "bestVariantId": "a2-conduit-no-booster",
+    "bestVariantStatus": "limited-local-signal",
+    "recommendedNext": [
+      "if continuing A2, keep conduit-like viscous input explicit and evaluate valve contamination before any gain changes",
+      "do not promote A2 from the normal-hr75 volume-function signal alone; require envelope-wide function and figure-eight readability",
+      "use LandAtrial shadow work for final active mechanics once AV-plane reservoir coupling is factored into a reusable component"
+    ],
+    "blockers": [
+      "A2 remains off-by-default and unselected",
+      "no variant provides envelope-wide both-atria volume-function broad pass",
+      "figure-eight readability remains unaccepted"
+    ]
+  },
+  "boundary": {
+    "noAtrialBridgeSelection": true,
+    "noAtrialParameterTuning": true,
+    "noAllChamberRuntimeDefaultFlip": true,
+    "noOfficialMorphologyAcceptance": true,
+    "noAfValidationClaim": true
+  },
+  "normalizedSha256": "6b2df703210c7a6e6d9201f25d87b7c5117a8b2deae76833b02efc0da8989cad"
+}
