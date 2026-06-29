@@ -111,16 +111,29 @@ Phase M1 is a current-main residual blocker classification. It does not clear
 the full morphology blocker set, does not run a paired LV Land-vs-stock
 morphology matrix, and does not run an isolated arterial bench.
 
+Phase 5X adds the first user-knob robustness preflight for an early LV Land
+default-candidate posture:
+[`../../../data/myocardium/protocols/lv-land-default-candidate-preflight-phase5x-result-v1.json`](../../../data/myocardium/protocols/lv-land-default-candidate-preflight-phase5x-result-v1.json).
+Run `npm run verify:myocardium-lv-land-default-candidate-preflight` to check it.
+It uses synthetic one-axis sweep points instead of tuning official cases. The
+current result blocks default flip because the normal operating floor and
+absolute morphology checks are not yet clear, while keeping legacy active-stress
+frozen as reference and keeping SDIRK2 alternans closure parallel to product
+migration.
+
 1. Use the current-main baseline snapshot in
    [`pv-loop-current-main-baseline-snapshot-v1.md`](../verification/pv-loop-current-main-baseline-snapshot-v1.md)
    as the post-PR #196 morphology reference.
 2. Derive or emit the missing diagnostic-only E/A-like inflow proxy for the
    three residual dobutamine RV filling groups.
-3. Run a paired stock-active versus developer-only LV Land morphology matrix
-   under the same official-case diagnostic runner.
-4. Define and run an isolated arterial bench for direct Zc/reflection signal
+3. Use Phase 5X style normal-floor and user-knob sweeps for LV Land default
+   candidate decisions before detailed official-case tuning.
+4. Keep filling jaggedness/figure-eight work in the atrial A1/refined atrial
+   lane and ejection squareness/incisura work in the arterial Zc/root lane; do
+   not tune myocardium parameters to hide those blockers.
+5. Define and run an isolated arterial bench for direct Zc/reflection signal
    generation.
-5. Feed BLOCKER/ADVISORY/OUT-OF-SCOPE results to the myocardium roadmap.
+6. Feed BLOCKER/ADVISORY/OUT-OF-SCOPE results to the myocardium roadmap.
 
 ## Handoff rule
 

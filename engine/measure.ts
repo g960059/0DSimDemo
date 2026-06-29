@@ -1,4 +1,4 @@
-import { ModelCore, defaultParams } from "@/engine/ModelCore";
+import { ModelCore, defaultParams, type ModelCoreExperimentalOptions } from "@/engine/ModelCore";
 import type {
   CoreRuntimeParams,
   SimMetrics,
@@ -15,6 +15,7 @@ export type MeasureOptions = {
   settlePolicy?: SettlePolicy;
   measureBeats?: number;
   requireProjectorQuiet?: boolean;
+  experimentalOptions?: ModelCoreExperimentalOptions;
 };
 
 export type SteadySettleOk = {
@@ -97,10 +98,15 @@ const DEFAULT_OPTIONS: Required<MeasureOptions> = {
   settlePolicy: DEFAULT_SETTLE_POLICY,
   measureBeats: 3,
   requireProjectorQuiet: true,
+  experimentalOptions: {},
 };
 
 function resolveMeasureOptions(options: MeasureOptions = {}): Required<MeasureOptions> {
-  const opt = { ...DEFAULT_OPTIONS, ...options };
+  const opt = {
+    ...DEFAULT_OPTIONS,
+    ...options,
+    experimentalOptions: options.experimentalOptions ?? DEFAULT_OPTIONS.experimentalOptions,
+  };
   opt.sampleHz = Math.max(opt.sampleHz, Math.ceil(1 / Math.max(opt.dt, 1e-6)));
   return opt;
 }
@@ -110,7 +116,7 @@ export function settleToSteadyState(
   options: MeasureOptions = {},
 ): SteadySettleResult {
   const opt = resolveMeasureOptions(options);
-  const core = new ModelCore(params);
+  const core = new ModelCore(params, opt.experimentalOptions);
   core.initializeVenousPressuresForTargetTBV(opt.targetTBV);
   const settleStatus = core.settleToSteady(opt.settlePolicy, opt.dt, opt.sampleHz);
   if (!settleStatus.settled || settleStatus.actualSeconds == null) {

@@ -54,6 +54,7 @@
     "verify:myocardium-developer-only-lv-land-runtime-flag-rfc": "vite-node tools/myocardium/verifyDeveloperOnlyLvLandRuntimeFlagRfc.ts",
     "verify:myocardium-developer-only-lv-land-runtime-flag-suite": "vite-node tools/myocardium/verifyDeveloperOnlyLvLandRuntimeFlagSuite.ts",
     "verify:myocardium-developer-only-lv-land-envelope": "vite-node tools/myocardium/verifyDeveloperOnlyLvLandEnvelopePhase5W.ts",
+    "verify:myocardium-lv-land-default-candidate-preflight": "vite-node --script tools/myocardium/verifyLvLandDefaultCandidatePreflightPhase5X.ts",
     "verify:myocardium-morphology-blocker-bundle": "vite-node --script tools/myocardium/verifyMorphologyBlockerBundlePhaseM1.ts",
     "verify:myocardium-atrial-bridge-shootout": "vite-node --script tools/myocardium/verifyAtrialBridgeShootout.ts",
     "verify:myocardium-atrial-bridge-localization": "vite-node --script tools/myocardium/verifyAtrialBridgeBlockerLocalization.ts",
