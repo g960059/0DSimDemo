@@ -983,6 +983,31 @@ point coverage rather than independent Land contractility-sensitivity evidence.
 Runtime default flip, official morphology acceptance, final no-alternans, and
 clinical/scientific validation remain blocked.
 
+Phase 5AA records an isolated arterial root inertance bench without changing
+the model. The recorded result is
+[`../../data/myocardium/protocols/arterial-root-inertance-bench-phase5aa-result-v1.json`](../../data/myocardium/protocols/arterial-root-inertance-bench-phase5aa-result-v1.json).
+Run `npm run verify:myocardium-arterial-root-inertance-bench` to check the
+artifact. The bench reuses the Phase 5X synthetic user-knob matrix and measures
+stock active plus developer-only LV Land traces, then replays the AoV/root
+discharge equation offline with measured `LVP-AoP` and measured AoV opening as
+prescribed inputs. qDot and valve thresholds, load/preload, Land parameters,
+Tref, and source-stress scale are fixed. The current result finds
+lower-clamp inertance candidates without severe forward-volume or duration loss
+in 27/27 health-ok stock/Land runs, including 14/14 health-ok Land runs. The
+raw replay signal is 28/28, but the failed-health stock HR120 run is tracked
+separately rather than used in the headline. The median current replay AoV-open
+qDot clamp fraction is `0.518773`, and the median best-candidate clamp reduction
+is `1`. This is a diagnostic signal for a narrower arterial root/Zc/inertance
+candidate, not runtime adoption. The bench is offline prescribed-pressure
+evidence: it has no closed-loop pressure feedback, does not model candidate
+valve timing, is not direct adoption or calibration of the existing Ao_SA
+inertance edge, and does not claim Zc/reflection availability, root-cause
+acceptance, fix acceptance, qDot clamp removal, official morphology acceptance,
+or clinical/scientific validation. `bestCandidateId` is clamp-reduction
+prioritized diagnostic ranking, not a direct physical adoption choice; the next
+step should treat lower inertance values as a Pareto region against output
+preservation.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and

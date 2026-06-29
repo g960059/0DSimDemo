@@ -531,6 +531,15 @@ production tissue homogenization.
 - boundary: ejection-window-localization-diagnostic-only-no-tuning; no runtime default flip, no legacy active-stress deletion, no official case reauthoring, no Workbench runtime wiring, no runtime flag UI, no state-schema migration, no production registry integration, no Tref fudge, no qDot/valve/afterload/preload/Land-parameter/source-stress tuning, no official morphology acceptance, no final no-alternans, and no clinical/scientific validation claim.
 - next: treat the LV qDot morphology blocker as real AoV/root discharge evidence rather than a dominant denominator artifact; run isolated arterial root/Zc/inertance plus valve/load diagnostics before qDot/valve-threshold tuning, while keeping atrial filling work separate.
 
+### Phase 5AA — arterial root inertance bench
+
+- result artifact: `data/myocardium/protocols/arterial-root-inertance-bench-phase5aa-result-v1.json`
+- verifier: `npm run verify:myocardium-arterial-root-inertance-bench`
+- current outcome: the Phase 5X synthetic normal-floor plus one-axis user-knob matrix is measured for stock active and developer-only LV Land, then replayed through an offline prescribed-pressure AoV/root discharge bench. The replay keeps qDot and valve thresholds fixed and adds only diagnostic effective proximal root inertance candidates to the AoV/root boundary equation. The result finds lower-clamp candidates without severe forward-volume or duration loss in 27/27 health-ok stock/Land runs, including 14/14 health-ok Land runs. The raw replay signal is 28/28, but the failed-health stock HR120 run is tracked separately rather than used in the headline; median current replay AoV-open qDot clamp fraction is `0.518773`, and median best-candidate clamp reduction is `1`.
+- limitations: the bench has measured `LVP-AoP` and measured AoV opening prescribed from the current closure, so it does not include closed-loop pressure feedback or candidate valve timing. It is not direct adoption or calibration of the existing Ao_SA inertance edge and does not establish Zc/reflection availability, root-cause acceptance, or fix acceptance.
+- boundary: isolated-arterial-root-inertance-bench-diagnostic-only; no ModelCore equation change, no runtime default flip, no legacy active-stress deletion, no official case reauthoring, no Workbench runtime wiring, no runtime flag UI, no state-schema migration, no production registry integration, no Tref fudge, no qDot/valve/afterload/preload/Land-parameter/source-stress tuning, no qDot clamp removal, no official morphology acceptance, no final no-alternans, and no clinical/scientific validation claim.
+- next: use the Phase 5AA signal to choose a narrower arterial root/Zc/inertance candidate for a closed-loop or off-by-default diagnostic prototype with qDot and valve thresholds still fixed; do not treat `bestCandidateId` as a direct physical adoption choice, and carry lower inertance values forward as a Pareto region against output preservation. Separately attribute the Land normal-floor LVEDP blocker before any default flip.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison
