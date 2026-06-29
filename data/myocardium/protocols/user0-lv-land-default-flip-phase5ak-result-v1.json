@@ -1,0 +1,437 @@
+{
+  "schemaVersion": 1,
+  "id": "user0-lv-land-default-flip-phase5ak-result-v1",
+  "phase": "Phase 5AK",
+  "claimBoundary": "user0-staged-lv-land-runtime-default-implemented",
+  "verifierScript": "verify:myocardium-user0-lv-land-default-flip",
+  "ownerDecision": {
+    "sourceArtifactId": "user0-lv-land-default-flip-rfc-phase5aj-result-v1",
+    "acceptedOption": "GO",
+    "acceptedAt": "2026-06-29"
+  },
+  "implementation": {
+    "runtimeDefaultMode": "lv-land-phase5q-user0-staged-default-v1",
+    "rollbackMode": "legacy-active-stress-frozen-reference-rollback-v0",
+    "sourceProviderScope": "LV-only",
+    "sourceProviderId": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+    "legacyActiveStressRole": "frozen-reference-rollback-debug",
+    "constructorDefaultPreservedForResearchReference": true,
+    "stateSchemaMigration": "not-changed",
+    "providerStateRuntimeSidecar": "transition-steady-protocol-only",
+    "runtimeContractilityControl": "existing-tmax-contractility-knob-multiplies-land-calcium-input-normalized-to-default",
+    "regressionHarnessDefaultMode": "legacy-active-stress-frozen-reference-rollback-v0",
+    "regressionHarnessLandMode": "explicit-runtimeActiveSourceMode-only",
+    "allChamberReplacementTarget": "future-lane-not-in-this-pr"
+  },
+  "wiredRuntimeSurfaces": [
+    "engine/myocardium/runtimeActiveSource.ts",
+    "engine/harness.ts (explicit runtimeActiveSourceMode support; default frozen legacy regression reference)",
+    "engine/steadyJob.ts (explicit runtimeActiveSourceMode support; default frozen legacy regression reference)",
+    "engine/previewController.ts",
+    "engine/previewWorker.ts",
+    "engine/transitionSteadyProtocol.ts",
+    "engine/transitionSteadyWorker.ts",
+    "engine/guytonStarlingWorkerCore.ts",
+    "components/Charts.tsx (Guyton/Starling worker request mode propagation)"
+  ],
+  "smokeMatrix": [
+    {
+      "pointId": "normal-hr75-tbv5600",
+      "mode": "lv-land-phase5q-user0-staged-default-v1",
+      "targetTBV": 5600,
+      "HR": 75,
+      "providerIds": {
+        "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium"
+      },
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 11,
+        "periodBeats": 1,
+        "actualSeconds": 9.800000000000008,
+        "worstSignal": "rvEdp",
+        "worstDelta": 0.013189459381
+      },
+      "health": {
+        "status": "ok",
+        "clampHitCount": 0,
+        "leftRightFlowMismatchLMin": 0.006027,
+        "tbvDriftMl": 0
+      },
+      "metrics": {
+        "CO_L": 4.82681,
+        "CO_R": 4.832838,
+        "SV_L": 64.357473,
+        "AoPMean": 76.436759,
+        "LAPMean": 10.729831,
+        "RAPMean": 4.376011,
+        "LVEDPApprox": 17.220366,
+        "EF_LApprox": 0.493888
+      },
+      "landInstrumentation": {
+        "sourceActiveStressPa": 101515,
+        "commitProviderStateAfterStep": 9800,
+        "landSolveOkCount": 9800,
+        "landSolveFailureCount": 0,
+        "maxSolverResidualNorm": 9.999e-9,
+        "sourcePathFiniteHealthAllSamples": true,
+        "commitPathFiniteHealthAllSamples": true
+      },
+      "providerStateSidecar": {
+        "hasLV": true,
+        "sourceProviderId": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+        "stateVersion": 9800
+      }
+    },
+    {
+      "pointId": "normal-hr75-tbv5600",
+      "mode": "legacy-active-stress-frozen-reference-rollback-v0",
+      "targetTBV": 5600,
+      "HR": 75,
+      "providerIds": {},
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 11,
+        "periodBeats": 1,
+        "actualSeconds": 9.800000000000008,
+        "worstSignal": "esvL",
+        "worstDelta": 0.013424885879
+      },
+      "health": {
+        "status": "ok",
+        "clampHitCount": 0,
+        "leftRightFlowMismatchLMin": 0.013346,
+        "tbvDriftMl": 0
+      },
+      "metrics": {
+        "CO_L": 5.449144,
+        "CO_R": 5.46249,
+        "SV_L": 72.655258,
+        "AoPMean": 85.939688,
+        "LAPMean": 6.834391,
+        "RAPMean": 3.523923,
+        "LVEDPApprox": 11.770916,
+        "EF_LApprox": 0.597076
+      },
+      "landInstrumentation": null,
+      "providerStateSidecar": {
+        "hasLV": false,
+        "sourceProviderId": null,
+        "stateVersion": null
+      }
+    },
+    {
+      "pointId": "normal-hr90-tbv5600",
+      "mode": "lv-land-phase5q-user0-staged-default-v1",
+      "targetTBV": 5600,
+      "HR": 90,
+      "providerIds": {
+        "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium"
+      },
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 12,
+        "periodBeats": 1,
+        "actualSeconds": 8.667000000000636,
+        "worstSignal": "aopDia",
+        "worstDelta": 0.011427520096
+      },
+      "health": {
+        "status": "ok",
+        "clampHitCount": 0,
+        "leftRightFlowMismatchLMin": 0.00031,
+        "tbvDriftMl": 0
+      },
+      "metrics": {
+        "CO_L": 5.409716,
+        "CO_R": 5.409406,
+        "SV_L": 60.107957,
+        "AoPMean": 83.163241,
+        "LAPMean": 10.989112,
+        "RAPMean": 3.354648,
+        "LVEDPApprox": 16.412693,
+        "EF_LApprox": 0.463166
+      },
+      "landInstrumentation": {
+        "sourceActiveStressPa": 89779,
+        "commitProviderStateAfterStep": 8667,
+        "landSolveOkCount": 8667,
+        "landSolveFailureCount": 0,
+        "maxSolverResidualNorm": 9.978e-9,
+        "sourcePathFiniteHealthAllSamples": true,
+        "commitPathFiniteHealthAllSamples": true
+      },
+      "providerStateSidecar": {
+        "hasLV": true,
+        "sourceProviderId": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+        "stateVersion": 8667
+      }
+    },
+    {
+      "pointId": "normal-hr90-tbv5600",
+      "mode": "legacy-active-stress-frozen-reference-rollback-v0",
+      "targetTBV": 5600,
+      "HR": 90,
+      "providerIds": {},
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 13,
+        "periodBeats": 1,
+        "actualSeconds": 9.41700000000022,
+        "worstSignal": "esvL",
+        "worstDelta": 0.0117458569
+      },
+      "health": {
+        "status": "ok",
+        "clampHitCount": 0,
+        "leftRightFlowMismatchLMin": 0.006261,
+        "tbvDriftMl": 0
+      },
+      "metrics": {
+        "CO_L": 5.850858,
+        "CO_R": 5.844597,
+        "SV_L": 65.009538,
+        "AoPMean": 91.430591,
+        "LAPMean": 6.099751,
+        "RAPMean": 2.895146,
+        "LVEDPApprox": 9.904005,
+        "EF_LApprox": 0.553475
+      },
+      "landInstrumentation": null,
+      "providerStateSidecar": {
+        "hasLV": false,
+        "sourceProviderId": null,
+        "stateVersion": null
+      }
+    },
+    {
+      "pointId": "preload-low-hr75-tbv4350",
+      "mode": "lv-land-phase5q-user0-staged-default-v1",
+      "targetTBV": 4350,
+      "HR": 75,
+      "providerIds": {
+        "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium"
+      },
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 27,
+        "periodBeats": 1,
+        "actualSeconds": 22.550000000004577,
+        "worstSignal": "papSys",
+        "worstDelta": 0.004748659879
+      },
+      "health": {
+        "status": "ok",
+        "clampHitCount": 0,
+        "leftRightFlowMismatchLMin": 0.016645,
+        "tbvDriftMl": 0
+      },
+      "metrics": {
+        "CO_L": 3.763925,
+        "CO_R": 3.78057,
+        "SV_L": 50.185667,
+        "AoPMean": 59.414317,
+        "LAPMean": 1.219509,
+        "RAPMean": 0.874589,
+        "LVEDPApprox": 4.111512,
+        "EF_LApprox": 0.487912
+      },
+      "landInstrumentation": {
+        "sourceActiveStressPa": 233529,
+        "commitProviderStateAfterStep": 22550,
+        "landSolveOkCount": 22550,
+        "landSolveFailureCount": 0,
+        "maxSolverResidualNorm": 9.998e-9,
+        "sourcePathFiniteHealthAllSamples": true,
+        "commitPathFiniteHealthAllSamples": true
+      },
+      "providerStateSidecar": {
+        "hasLV": true,
+        "sourceProviderId": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+        "stateVersion": 22550
+      }
+    },
+    {
+      "pointId": "preload-low-hr75-tbv4350",
+      "mode": "legacy-active-stress-frozen-reference-rollback-v0",
+      "targetTBV": 4350,
+      "HR": 75,
+      "providerIds": {},
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 31,
+        "periodBeats": 2,
+        "actualSeconds": 26.600000000009526,
+        "worstSignal": "svL",
+        "worstDelta": 0.007893685509
+      },
+      "health": {
+        "status": "warning",
+        "clampHitCount": 0,
+        "leftRightFlowMismatchLMin": 1.515342,
+        "tbvDriftMl": 0
+      },
+      "metrics": {
+        "CO_L": 5.318733,
+        "CO_R": 3.803391,
+        "SV_L": 70.916443,
+        "AoPMean": 61.125327,
+        "LAPMean": 1.284511,
+        "RAPMean": 0.884109,
+        "LVEDPApprox": 4.050321,
+        "EF_LApprox": 0.692136
+      },
+      "landInstrumentation": null,
+      "providerStateSidecar": {
+        "hasLV": false,
+        "sourceProviderId": null,
+        "stateVersion": null
+      }
+    },
+    {
+      "pointId": "preload-high-hr75-tbv6600",
+      "mode": "lv-land-phase5q-user0-staged-default-v1",
+      "targetTBV": 6600,
+      "HR": 75,
+      "providerIds": {
+        "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium"
+      },
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 12,
+        "periodBeats": 1,
+        "actualSeconds": 10.549999999999592,
+        "worstSignal": "aopDia",
+        "worstDelta": 0.010243077362
+      },
+      "health": {
+        "status": "ok",
+        "clampHitCount": 0,
+        "leftRightFlowMismatchLMin": 0.028241,
+        "tbvDriftMl": 0
+      },
+      "metrics": {
+        "CO_L": 4.679113,
+        "CO_R": 4.707354,
+        "SV_L": 62.388172,
+        "AoPMean": 80.346789,
+        "LAPMean": 13.952371,
+        "RAPMean": 10.893438,
+        "LVEDPApprox": 20.895334,
+        "EF_LApprox": 0.488059
+      },
+      "landInstrumentation": {
+        "sourceActiveStressPa": 109284,
+        "commitProviderStateAfterStep": 10550,
+        "landSolveOkCount": 10550,
+        "landSolveFailureCount": 0,
+        "maxSolverResidualNorm": 9.983e-9,
+        "sourcePathFiniteHealthAllSamples": true,
+        "commitPathFiniteHealthAllSamples": true
+      },
+      "providerStateSidecar": {
+        "hasLV": true,
+        "sourceProviderId": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+        "stateVersion": 10550
+      }
+    },
+    {
+      "pointId": "preload-high-hr75-tbv6600",
+      "mode": "legacy-active-stress-frozen-reference-rollback-v0",
+      "targetTBV": 6600,
+      "HR": 75,
+      "providerIds": {},
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 21,
+        "periodBeats": 1,
+        "actualSeconds": 17.79999999999877,
+        "worstSignal": "lapMean",
+        "worstDelta": 0.006367359496
+      },
+      "health": {
+        "status": "ok",
+        "clampHitCount": 0,
+        "leftRightFlowMismatchLMin": 0.014357,
+        "tbvDriftMl": 0
+      },
+      "metrics": {
+        "CO_L": 5.428752,
+        "CO_R": 5.443109,
+        "SV_L": 72.383355,
+        "AoPMean": 92.399856,
+        "LAPMean": 11.498499,
+        "RAPMean": 9.263026,
+        "LVEDPApprox": 17.726392,
+        "EF_LApprox": 0.580482
+      },
+      "landInstrumentation": null,
+      "providerStateSidecar": {
+        "hasLV": false,
+        "sourceProviderId": null,
+        "stateVersion": null
+      }
+    }
+  ],
+  "summary": {
+    "defaultSmokeCount": 4,
+    "defaultSettledCount": 4,
+    "defaultHealthOkCount": 4,
+    "defaultLandSolveFailureCount": 0,
+    "defaultProviderCallPoints": 4,
+    "rollbackSmokeCount": 4,
+    "rollbackProviderFreeCount": 4,
+    "rollbackHealthNonFailedCount": 4
+  },
+  "boundary": {
+    "noLegacyActiveStressDeletion": true,
+    "noRootZcAdoption": true,
+    "noAtrialFigureEightGate": true,
+    "noOfficialCaseReauthoring": true,
+    "noOfficialCaseTuning": true,
+    "noAcceptedPreloadTuning": true,
+    "noAcceptedVenousToneTuning": true,
+    "noAcceptedPassiveTuning": true,
+    "noAcceptedGeometryTuning": true,
+    "noAcceptedSourceCalciumRecalibration": true,
+    "noTrefFudge": true,
+    "noLandParameterTuning": true,
+    "noQDotTuning": true,
+    "noValveTuning": true,
+    "noBoundaryRootInertanceDefault": true,
+    "noQDotClampRemoval": true,
+    "noOfficialMorphologyAcceptance": true,
+    "noFinalNoAlternansAcceptance": true,
+    "noClinicalScientificValidationClaim": true
+  },
+  "doesNotUnlock": [
+    "legacyActiveStressDeletion",
+    "rootZcAdoption",
+    "atrialFigureEightGate",
+    "officialCaseReauthoring",
+    "officialCaseTuning",
+    "acceptedPreloadTuning",
+    "acceptedVenousToneTuning",
+    "acceptedPassiveTuning",
+    "acceptedGeometryTuning",
+    "acceptedSourceCalciumRecalibration",
+    "TrefFudge",
+    "LandParameterTuning",
+    "qDotTuning",
+    "valveTuning",
+    "boundaryRootInertanceDefault",
+    "qDotClampRemoval",
+    "officialMorphologyAcceptance",
+    "finalNoAlternansAcceptance",
+    "clinicalScientificValidationClaim",
+    "allChamberLandReplacement"
+  ],
+  "normalizedSha256": "88c8abd0b3d2e1eee067d80b832edbc663114c825be36e3ca0fdddf3ae7b931d"
+}

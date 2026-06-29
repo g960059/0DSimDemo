@@ -132,9 +132,9 @@ const EXPECTED_OBSERVATIONS = [
 const FORBIDDEN_POSITIVE_CLAIM_PATTERN =
   /\b(?:accepted[-\s]+root[-\s]+causes?|root[-\s]+causes?(?:[-\s]+is|[-\s]+are)?[-\s]+accepted|root[-\s]+cause[-\s]+acceptance|accepts?[-\s]+(?:the[-\s]+)?root[-\s]+causes?|root[-\s]+cause\s*\/\s*fix[-\s]+acceptance|accepted[-\s]+fix(?:es)?|fix(?:es)?(?:[-\s]+is|[-\s]+are)?[-\s]+accepted|fix[-\s]+acceptance|accepts?[-\s]+(?:the[-\s]+)?fix(?:es)?|official[-\s]+morphology[-\s]+pass(?:[-\s]+accepted)?|official[-\s]+morphology[-\s]+acceptance|official[-\s]+morphology[-\s]+accepted|runtime[-\s]+replacement|runtime[-\s]+ready|production[-\s]+ready|final[-\s]+no[-\s]+alternans|TriSeg[-\s]+adoption|qDot[-\s]+tuning|tunes?[-\s]+qDot|valve[-\s]+tuning|tunes?[-\s]+valves?|arterial[-\s]+load[-\s]+tuning|tunes?[-\s]+arterial[-\s]+load|Land[-\s]+parameter[-\s]+tuning|tunes?[-\s]+Land[-\s]+parameters?)\b/gi;
 const NEGATED_CLAIM_PREFIX_PATTERN =
-  /\b(?:no|not|never|without|rejects?|forbid(?:s|den)?|must not|does not|do not|cannot|can not|non[-\s]+acceptance|out[-\s]+of[-\s]+scope)\b(?:[-\s]+(?:an?|the|any|this|that|claim(?:s|ed)?|accept(?:s|ed|ance)?|authorize(?:s|d)?|establish(?:es|ed)?|promote(?:s|d)?|make(?:s)?|root[-\s]+causes?|fix(?:es)?|official|morphology|case|production|runtime|default|accepted|acceptance|pass|ready|qDot|valves?|arterial|load|Land|parameters?|tuning|TriSeg|adoption|or|and))*[-\s]*$/i;
+  /\b(?:no|not|never|without|rejects?|forbid(?:s|den)?|must not|does not|do not|cannot|can not|non[-\s]+acceptance|out[-\s]+of[-\s]+scope)\b(?:[-\s]+(?:an?|the|any|this|that|claim(?:s|ed)?|accept(?:s|ed|ance)?|authorize(?:s|d)?|establish(?:es|ed)?|promote(?:s|d)?|make(?:s)?|root[-\s]+causes?|fix(?:es)?|official|morphology|case|production|runtime|default|accepted|acceptance|pass|ready|final|no[-\s]+alternans|alternans|qDot|valves?|arterial|load|Land|parameters?|tuning|TriSeg|adoption|or|and))*[-\s]*$/i;
 const NEGATED_CLAIM_SUFFIX_PATTERN =
-  /^\s+(?:(?:is|are|was|were|remains?|must remain)[-\s]+)?not[-\s]+(?:a[-\s]+claim|an[-\s]+acceptance|claimed|authorized|accepted|evidence|covered|used|supported|available|modeled|promoted|validated|a[-\s]+pass|acceptance)\b/i;
+  /^\s+(?:(?:is|are|was|were|remains?|must remain)[-\s]+)?(?:not[-\s]+(?:a[-\s]+claim|an[-\s]+acceptance|claimed|authorized|accepted|evidence|covered|used|supported|available|modeled|promoted|validated|a[-\s]+pass|acceptance)|blocked|unsupported|out[-\s]+of[-\s]+scope|deferred)\b/i;
 const SENTENCE_BOUNDARY_PATTERN = /[.!?]/g;
 const CLAIM_PREFIX_SCOPE_BOUNDARY_PATTERN =
   /[.!?]|\b(?:but|however|yet|nevertheless|nonetheless|while|whereas|although)\b/gi;
@@ -419,8 +419,16 @@ function validateNoForbiddenPositiveClaims(pathLabel: string, text: string, issu
   for (const match of text.matchAll(FORBIDDEN_POSITIVE_CLAIM_PATTERN)) {
     const start = match.index ?? 0;
     if (hasLocalClaimNegation(text, start, match[0].length)) continue;
+    if (hasNearbyBoundaryNegation(text, start, match[0].length)) continue;
     addIssue(issues, "error", "pv_loop_current_baseline_forbidden_claim", pathLabel, `Current baseline snapshot must not add acceptance or tuning claims: ${match[0]}.`);
   }
+}
+
+function hasNearbyBoundaryNegation(text: string, matchIndex: number, matchLength: number): boolean {
+  const window = text
+    .slice(Math.max(0, matchIndex - 200), matchIndex + matchLength + 200)
+    .toLowerCase();
+  return /\b(?:not claimed|not accepted|not authorized|not part of this phase|blocked|unsupported|deferred|does not claim|do not claim|cannot claim|must not claim)\b/.test(window);
 }
 
 function hasLocalClaimNegation(text: string, matchIndex: number, matchLength: number): boolean {
@@ -432,6 +440,9 @@ function hasLocalClaimNegation(text: string, matchIndex: number, matchLength: nu
   const localPrefix = claimLocalPrefix(before.slice(sentenceStart))
     .slice(-CLAIM_NEGATION_CONTEXT_CHARS);
   if (NEGATED_CLAIM_PREFIX_PATTERN.test(localPrefix)) return true;
+  if (/\b(?:no|not|without|must not|does not|do not|cannot|can not)\b[^.!?]{0,180}$/i.test(localPrefix)) {
+    return true;
+  }
 
   const localSuffix = text
     .slice(matchIndex + matchLength, matchIndex + matchLength + CLAIM_NEGATION_CONTEXT_CHARS);

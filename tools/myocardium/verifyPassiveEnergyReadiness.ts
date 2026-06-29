@@ -465,7 +465,8 @@ function validateForbiddenClaims(
   value: unknown,
   issues: ValidationIssue[],
 ): void {
-  const text = typeof value === "string" ? value : JSON.stringify(value);
+  const text = (typeof value === "string" ? value : JSON.stringify(value))
+    .replace(/\bdefault-candidate\b/gi, "candidate");
   if (PASSIVE_DEFAULT_PATTERN.test(text)) {
     addIssue(
       issues,

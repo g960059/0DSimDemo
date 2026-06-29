@@ -1,4 +1,6 @@
 import type { PreviewCoreSnapshot } from "@/engine/previewWorkerProtocol";
+import type { ModelCoreExperimentalActiveSourceProviderRuntimeState } from "@/engine/ModelCore";
+import type { ModelCoreRuntimeActiveSourceMode } from "@/engine/myocardium/runtimeActiveSource";
 import type { CoreRuntimeParams, SimSample } from "@/engine/protocol";
 import type { RunToPeriodicSteadyOptions, SteadyResult } from "@/engine/stateContract";
 import { simpleStableHash } from "@/engine/stateContract";
@@ -8,6 +10,7 @@ export type TransitionSteadyJobOutcome = "completed" | "stale" | "error";
 export type TransitionSteadyTarget = {
   params: CoreRuntimeParams;
   targetVolume: number;
+  runtimeActiveSourceMode?: ModelCoreRuntimeActiveSourceMode;
 };
 
 export type TransitionSteadyJobRequest = {
@@ -32,6 +35,8 @@ export type TransitionSteadyCompletedResult = {
   steady: SteadyResult;
   samples?: SimSample[];
   snapshot?: PreviewCoreSnapshot;
+  runtimeActiveSourceMode?: ModelCoreRuntimeActiveSourceMode;
+  experimentalActiveProviderStates?: ModelCoreExperimentalActiveSourceProviderRuntimeState;
 };
 
 export type TransitionSteadyStaleResult = {
@@ -75,6 +80,7 @@ export function makeTransitionTargetSignature(target: TransitionSteadyTarget): s
   return simpleStableHash({
     params: steadyParams,
     targetVolume: target.targetVolume,
+    ...(target.runtimeActiveSourceMode ? { runtimeActiveSourceMode: target.runtimeActiveSourceMode } : {}),
   });
 }
 

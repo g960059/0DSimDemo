@@ -1,4 +1,9 @@
-import { ModelCore } from "@/engine/ModelCore";
+import { ModelCore, type ModelCoreExperimentalActiveSourceProviderRuntimeState } from "@/engine/ModelCore";
+import {
+  createModelCoreRuntimeExperimentalOptions,
+  getModelCoreRuntimeActiveSourceModeForThisProcess,
+  type ModelCoreRuntimeActiveSourceMode,
+} from "@/engine/myocardium/runtimeActiveSource";
 import { PREVIEW_SETTLE_POLICY } from "@/engine/settling";
 import type {
   CoreRuntimeParams,
@@ -80,18 +85,32 @@ const STEADY_UPDATE_STATUS_MS = 1200;
 const TRANSITION_STEADY_DEBOUNCE_MS = 300;
 const TRANSITION_STEADY_WATCHDOG_MS = 20_000;
 
-const previewInstanceSignature = (inst: SimInstance): string => JSON.stringify({
+const previewInstanceSignature = (
+  inst: SimInstance,
+  runtimeActiveSourceMode: ModelCoreRuntimeActiveSourceMode =
+    getModelCoreRuntimeActiveSourceModeForThisProcess(),
+): string => JSON.stringify({
   params: inst.params,
   targetVolume: inst.targetVolume,
+  runtimeActiveSourceMode,
 });
 
-const previewInstanceListSignature = (instances: SimInstance[]): string => (
-  instances.map((inst) => `${inst.id}:${previewInstanceSignature(inst)}`).join("|")
+const previewInstanceListSignature = (
+  instances: SimInstance[],
+  runtimeActiveSourceMode: ModelCoreRuntimeActiveSourceMode =
+    getModelCoreRuntimeActiveSourceModeForThisProcess(),
+): string => (
+  instances.map((inst) => `${inst.id}:${previewInstanceSignature(inst, runtimeActiveSourceMode)}`).join("|")
 );
 
-const transitionTargetSignature = (inst: SimInstance): string => makeTransitionTargetSignature({
+const transitionTargetSignature = (
+  inst: SimInstance,
+  runtimeActiveSourceMode: ModelCoreRuntimeActiveSourceMode =
+    getModelCoreRuntimeActiveSourceModeForThisProcess(),
+): string => makeTransitionTargetSignature({
   params: inst.params,
   targetVolume: inst.targetVolume,
+  runtimeActiveSourceMode,
 });
 
 const phaseFraction = (phi: number): number => {
@@ -303,6 +322,7 @@ type TransitionPromotionPayload = {
   samples: SimSample[];
   snapshot: PreviewCoreSnapshot;
   state: SerializedModelState;
+  experimentalActiveProviderStates?: ModelCoreExperimentalActiveSourceProviderRuntimeState;
   waveformBreakT?: number;
 };
 
@@ -368,7 +388,12 @@ export class PreviewController {
       this.worker.onerror = () => {
         this.fallbackToSync();
       };
-      this.postWorker({ type: "configure", dt: this.dt, sampleHz: this.sampleHz });
+      this.postWorker({
+        type: "configure",
+        dt: this.dt,
+        sampleHz: this.sampleHz,
+        runtimeActiveSourceMode: this.runtimeActiveSourceMode(),
+      });
     } catch {
       this.worker = null;
       this.workerTickPending = false;
@@ -377,6 +402,10 @@ export class PreviewController {
 
   private postWorker(message: PreviewWorkerRequest): void {
     this.worker?.postMessage(message);
+  }
+
+  private runtimeActiveSourceMode(): ModelCoreRuntimeActiveSourceMode {
+    return getModelCoreRuntimeActiveSourceModeForThisProcess();
   }
 
   requestNextSteady(inst: SimInstance): TransitionSteadyPendingJob {
@@ -390,8 +419,10 @@ export class PreviewController {
       this.clearTransitionSteadyJob(inst.id);
       throw new Error(`Cannot request transition steady for untracked instance ${inst.id}`);
     }
-    const fromSignature = currentRef.steadySignature ?? transitionTargetSignature(currentInstance);
-    const toSignature = transitionTargetSignature(inst);
+    const runtimeActiveSourceMode = this.runtimeActiveSourceMode();
+    const fromSignature = currentRef.steadySignature
+      ?? transitionTargetSignature(currentInstance, runtimeActiveSourceMode);
+    const toSignature = transitionTargetSignature(inst, runtimeActiveSourceMode);
     const startedAtMs = this.nowMs();
     this.preparePendingTransition(currentRef, toSignature, startedAtMs);
     const pending: TransitionSteadyPendingJob = {
@@ -412,6 +443,7 @@ export class PreviewController {
           measureBeats: 1,
           includeLastBeatSamples: true,
           requireProjectorQuiet: false,
+          runtimeActiveSourceMode,
         },
       },
       startedAtMs,
@@ -577,22 +609,27 @@ export class PreviewController {
     const phys = this.refs.get(result.instanceId);
     const inst = this.instances.find((candidate) => candidate.id === result.instanceId);
     if (!phys || !inst) return false;
-    if (transitionTargetSignature(inst) !== result.toSignature) return false;
+    const runtimeActiveSourceMode = result.runtimeActiveSourceMode ?? this.runtimeActiveSourceMode();
+    if (transitionTargetSignature(inst, runtimeActiveSourceMode) !== result.toSignature) return false;
     this.liveInstancesById.set(inst.id, inst);
     const promotion = this.phaseAlignedTransitionPromotion(phys, inst, result)
       ?? {
         samples: result.samples,
         snapshot: result.snapshot,
         state: result.steady.state,
+        experimentalActiveProviderStates: result.experimentalActiveProviderStates,
       };
     if (!(phys.core instanceof RemotePreviewCore)) {
-      const core = new ModelCore(inst.params);
+      const core = new ModelCore(inst.params, createModelCoreRuntimeExperimentalOptions({
+        mode: runtimeActiveSourceMode,
+      }));
       core.unpackState(promotion.state);
+      core.restoreExperimentalActiveProviderRuntimeState(promotion.experimentalActiveProviderStates);
       phys.core = core;
     }
     this.promoteTransition(
       phys,
-      previewInstanceSignature(inst),
+      previewInstanceSignature(inst, runtimeActiveSourceMode),
       promotion.samples,
       promotion.snapshot,
       result.toSignature,
@@ -600,8 +637,18 @@ export class PreviewController {
     );
     if (this.worker) {
       const generation = this.bumpWorkerGeneration();
-      this.workerInstancesSignature = previewInstanceListSignature(this.liveInstancesFor(this.instances));
-      this.postWorker({ type: "promoteTransitionSteady", generation, instance: inst, state: promotion.state });
+      this.workerInstancesSignature = previewInstanceListSignature(
+        this.liveInstancesFor(this.instances),
+        runtimeActiveSourceMode,
+      );
+      this.postWorker({
+        type: "promoteTransitionSteady",
+        generation,
+        instance: inst,
+        state: promotion.state,
+        runtimeActiveSourceMode,
+        experimentalActiveProviderStates: promotion.experimentalActiveProviderStates,
+      });
     }
     return true;
   }
@@ -614,8 +661,11 @@ export class PreviewController {
     const anchor = phys.buffer.at(-1);
     if (!anchor || !Number.isFinite(anchor.t) || !Number.isFinite(anchor.phi)) return null;
     try {
-      const core = new ModelCore(inst.params);
+      const core = new ModelCore(inst.params, createModelCoreRuntimeExperimentalOptions({
+        mode: result.runtimeActiveSourceMode ?? this.runtimeActiveSourceMode(),
+      }));
       core.unpackState(result.steady.state);
+      core.restoreExperimentalActiveProviderRuntimeState(result.experimentalActiveProviderStates);
       const aligned = this.alignCoreToDisplayPhase(core, phaseFraction(anchor.phi), anchor.t);
       if (!aligned) return null;
       return {
@@ -629,6 +679,7 @@ export class PreviewController {
           settleStatus: result.snapshot.settleStatus,
         },
         state: aligned.state,
+        experimentalActiveProviderStates: core.packExperimentalActiveProviderRuntimeState(),
         waveformBreakT: aligned.sample.t,
       };
     } catch {
@@ -705,7 +756,9 @@ export class PreviewController {
   private shouldHoldLiveInstanceForSteadyTransition(inst: SimInstance, explicitHold: boolean): boolean {
     const pending = this.transitionSteadyPendingJobs.get(inst.id);
     if (!pending) return explicitHold;
-    const targetSignature = transitionTargetSignature(inst);
+    const runtimeActiveSourceMode = pending.request.options.runtimeActiveSourceMode
+      ?? this.runtimeActiveSourceMode();
+    const targetSignature = transitionTargetSignature(inst, runtimeActiveSourceMode);
     if (targetSignature !== pending.request.toSignature) {
       if (explicitHold && targetSignature === pending.request.fromSignature) return true;
       this.clearTransitionSteadyJob(inst.id);
@@ -826,11 +879,12 @@ export class PreviewController {
     }
     const transitionIds = new Set(options.transitionIds ?? []);
     const steadyTransitionIds = new Set(options.steadyTransitionIds ?? []);
+    const runtimeActiveSourceMode = this.runtimeActiveSourceMode();
     this.instances = instances;
     const added: string[] = [];
     let resetExisting = false;
     for (const inst of instances) {
-      const signature = previewInstanceSignature(inst);
+      const signature = previewInstanceSignature(inst, runtimeActiveSourceMode);
       const previousHeartModel = this.heartModelByInstance[inst.id];
       const heartModelChanged = previousHeartModel !== undefined && previousHeartModel !== inst.params.heartModel;
       this.heartModelByInstance[inst.id] = inst.params.heartModel;
@@ -874,7 +928,10 @@ export class PreviewController {
   }
 
   private createSettledRef(inst: SimInstance): PhysicsRefState {
-    const core = new ModelCore(inst.params);
+    const runtimeActiveSourceMode = this.runtimeActiveSourceMode();
+    const core = new ModelCore(inst.params, createModelCoreRuntimeExperimentalOptions({
+      mode: runtimeActiveSourceMode,
+    }));
     core.initializeVenousPressuresForTargetTBV(inst.targetVolume);
     // Settle to the limit cycle (capped) so the UI starts on steady state, not
     // a transient. Headless this is ~1s wall-clock; far better than the old
@@ -893,8 +950,8 @@ export class PreviewController {
       core,
       buffer: [],
       lastRenderX: 0,
-      displaySignature: previewInstanceSignature(inst),
-      steadySignature: transitionTargetSignature(inst),
+      displaySignature: previewInstanceSignature(inst, runtimeActiveSourceMode),
+      steadySignature: transitionTargetSignature(inst, runtimeActiveSourceMode),
       waveformBreakT: undefined,
     };
   }
@@ -905,9 +962,10 @@ export class PreviewController {
     const resetIds: string[] = [];
     const transitionIds = new Set(options.transitionIds ?? []);
     const steadyTransitionIds = new Set(options.steadyTransitionIds ?? []);
+    const runtimeActiveSourceMode = this.runtimeActiveSourceMode();
     for (const inst of instances) {
       const current = this.refs.get(inst.id);
-      const signature = previewInstanceSignature(inst);
+      const signature = previewInstanceSignature(inst, runtimeActiveSourceMode);
       const previousHeartModel = this.heartModelByInstance[inst.id];
       const heartModelChanged = previousHeartModel !== undefined && previousHeartModel !== inst.params.heartModel;
       this.heartModelByInstance[inst.id] = inst.params.heartModel;
@@ -921,7 +979,7 @@ export class PreviewController {
           current.lastRenderX = 0;
           current.isSettling = true;
           current.settleProgress = 0;
-          current.steadySignature = transitionTargetSignature(inst);
+          current.steadySignature = transitionTargetSignature(inst, runtimeActiveSourceMode);
           current.previousEpoch = undefined;
           current.waveformBreakT = undefined;
           current.transition = undefined;
@@ -948,7 +1006,7 @@ export class PreviewController {
         isSettling: true,
         settleProgress: 0,
         displaySignature: signature,
-        steadySignature: transitionTargetSignature(inst),
+        steadySignature: transitionTargetSignature(inst, runtimeActiveSourceMode),
         waveformBreakT: undefined,
       });
       added.push(inst.id);
@@ -965,16 +1023,16 @@ export class PreviewController {
       }
     }
     const workerInstances = this.liveInstancesFor(instances);
-    const nextListSignature = previewInstanceListSignature(workerInstances);
+    const nextListSignature = previewInstanceListSignature(workerInstances, runtimeActiveSourceMode);
     if (resetIds.length === 0 && nextListSignature === this.workerInstancesSignature) {
       if (added.length > 0) this.onInstancesAdded?.(added);
       return;
     }
     const generation = this.bumpWorkerGeneration();
     this.workerInstancesSignature = nextListSignature;
-    this.postWorker({ type: "setInstances", generation, instances: workerInstances });
+    this.postWorker({ type: "setInstances", generation, instances: workerInstances, runtimeActiveSourceMode });
     if (resetIds.length > 0) {
-      this.postWorker({ type: "resetInstances", generation, ids: resetIds });
+      this.postWorker({ type: "resetInstances", generation, ids: resetIds, runtimeActiveSourceMode });
       this.healthSig = "";
       this.lastFrameTime = 0;
     }
@@ -1034,7 +1092,10 @@ export class PreviewController {
   }
 
   private promoteSyncTransition(inst: SimInstance, current: PhysicsRefState, signature: string): void {
-    const core = new ModelCore(inst.params);
+    const runtimeActiveSourceMode = this.runtimeActiveSourceMode();
+    const core = new ModelCore(inst.params, createModelCoreRuntimeExperimentalOptions({
+      mode: runtimeActiveSourceMode,
+    }));
     core.initializeVenousPressuresForTargetTBV(inst.targetVolume);
     core.settleToSteady(PREVIEW_SETTLE_POLICY, this.dt, this.sampleHz);
     const sampleSeconds = 60 / Math.max(core.p.HR, 1);
@@ -1049,7 +1110,7 @@ export class PreviewController {
       isSettling: false,
       settleProgress: 1,
       displaySignature: signature,
-      steadySignature: transitionTargetSignature(inst),
+      steadySignature: transitionTargetSignature(inst, runtimeActiveSourceMode),
       waveformBreakT: undefined,
       previousEpoch: previous.length > 0
         ? {
@@ -1087,6 +1148,7 @@ export class PreviewController {
   resetInstances(ids: string[], options: PreviewResetOptions = {}) {
     if (ids.length === 0) return;
     const mode = options.mode ?? "replace";
+    const runtimeActiveSourceMode = this.runtimeActiveSourceMode();
     if (this.worker) {
       for (const id of ids) {
         this.clearTransitionSteadyJob(id);
@@ -1094,7 +1156,10 @@ export class PreviewController {
         if (!current) continue;
         if (mode === "transition") {
           const inst = this.instances.find((candidate) => candidate.id === id);
-          this.prepareTransition(current, inst ? previewInstanceSignature(inst) : current.displaySignature ?? id);
+          this.prepareTransition(
+            current,
+            inst ? previewInstanceSignature(inst, runtimeActiveSourceMode) : current.displaySignature ?? id,
+          );
         } else {
           current.buffer = [];
           current.lastRenderX = 0;
@@ -1106,7 +1171,12 @@ export class PreviewController {
         }
         delete this.prevStatus[id];
       }
-      this.postWorker({ type: "resetInstances", generation: this.bumpWorkerGeneration(), ids });
+      this.postWorker({
+        type: "resetInstances",
+        generation: this.bumpWorkerGeneration(),
+        ids,
+        runtimeActiveSourceMode,
+      });
       this.healthSig = "";
       this.lastFrameTime = 0;
       return;
@@ -1118,10 +1188,12 @@ export class PreviewController {
       const current = this.refs.get(inst.id);
       if (!current) continue;
       if (mode === "transition") {
-        this.promoteSyncTransition(inst, current, previewInstanceSignature(inst));
+        this.promoteSyncTransition(inst, current, previewInstanceSignature(inst, runtimeActiveSourceMode));
         continue;
       }
-      const core = new ModelCore(inst.params);
+      const core = new ModelCore(inst.params, createModelCoreRuntimeExperimentalOptions({
+        mode: runtimeActiveSourceMode,
+      }));
       core.initializeVenousPressuresForTargetTBV(inst.targetVolume);
       core.settleToSteady(PREVIEW_SETTLE_POLICY, this.dt, this.sampleHz);
       core.clearBeatTracking();
@@ -1129,8 +1201,8 @@ export class PreviewController {
         core,
         buffer: [],
         lastRenderX: 0,
-        displaySignature: previewInstanceSignature(inst),
-        steadySignature: transitionTargetSignature(inst),
+        displaySignature: previewInstanceSignature(inst, runtimeActiveSourceMode),
+        steadySignature: transitionTargetSignature(inst, runtimeActiveSourceMode),
         waveformBreakT: undefined,
       });
       delete this.prevStatus[inst.id];
@@ -1164,9 +1236,15 @@ export class PreviewController {
     if (!this.worker) {
       this.initWorker();
       if (this.worker && this.instances.length > 0) {
+        const runtimeActiveSourceMode = this.runtimeActiveSourceMode();
         const workerInstances = this.liveInstancesFor(this.instances);
-        this.workerInstancesSignature = previewInstanceListSignature(workerInstances);
-        this.postWorker({ type: "setInstances", generation: this.bumpWorkerGeneration(), instances: workerInstances });
+        this.workerInstancesSignature = previewInstanceListSignature(workerInstances, runtimeActiveSourceMode);
+        this.postWorker({
+          type: "setInstances",
+          generation: this.bumpWorkerGeneration(),
+          instances: workerInstances,
+          runtimeActiveSourceMode,
+        });
       }
     }
     this.running = true;
@@ -1328,12 +1406,13 @@ export class PreviewController {
       phys.settleProgress = Math.min(1, Math.max(0, message.actualSeconds / PREVIEW_SETTLE_POLICY.capSeconds));
       if (phys.transition?.status === "settling") {
         if (!message.settling && message.samples && message.samples.length > 0) {
+          const runtimeActiveSourceMode = this.runtimeActiveSourceMode();
           this.promoteTransition(
             phys,
             phys.transition.toSignature,
             message.samples,
             message.snapshot,
-            inst ? transitionTargetSignature(inst) : undefined,
+            inst ? transitionTargetSignature(inst, runtimeActiveSourceMode) : undefined,
           );
         }
         return;
@@ -1341,7 +1420,7 @@ export class PreviewController {
       if (phys.core instanceof RemotePreviewCore) phys.core.update(message.snapshot);
       if (!message.settling) {
         phys.buffer = [];
-        if (inst) phys.steadySignature = transitionTargetSignature(inst);
+        if (inst) phys.steadySignature = transitionTargetSignature(inst, this.runtimeActiveSourceMode());
       }
       return;
     }
@@ -1363,12 +1442,13 @@ export class PreviewController {
         phys.isSettling = item.settling;
         if (!item.settling && item.samples.length > 0) {
           const snapshot = item.snapshot;
+          const runtimeActiveSourceMode = this.runtimeActiveSourceMode();
           this.promoteTransition(
             phys,
             phys.transition.toSignature,
             item.samples,
             snapshot,
-            transitionTargetSignature(inst),
+            transitionTargetSignature(inst, runtimeActiveSourceMode),
           );
         }
         continue;

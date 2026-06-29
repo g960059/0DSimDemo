@@ -1,4 +1,9 @@
 import { ModelCore } from "@/engine/ModelCore";
+import {
+  MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE,
+  createModelCoreRuntimeExperimentalOptions,
+  type ModelCoreRuntimeActiveSourceMode,
+} from "@/engine/myocardium/runtimeActiveSource";
 import type { SimInstance } from "@/types";
 import { PREVIEW_SETTLE_POLICY } from "@/engine/settling";
 import type {
@@ -22,6 +27,7 @@ type TransitionSteadyPromotionState = Extract<PreviewWorkerRequest, { type: "pro
 let dt = 0.001;
 let sampleHz = 120;
 let generation = 0;
+let runtimeActiveSourceMode: ModelCoreRuntimeActiveSourceMode = MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE;
 let instances: SimInstance[] = [];
 const records = new Map<string, WorkerCoreRecord>();
 
@@ -37,6 +43,7 @@ const nowMs = () => {
 const instanceSignature = (inst: SimInstance): string => JSON.stringify({
   params: inst.params,
   targetVolume: inst.targetVolume,
+  runtimeActiveSourceMode,
 });
 
 const snapshotCore = (core: ModelCore): PreviewCoreSnapshot => ({
@@ -58,7 +65,9 @@ const maxSettledT = (excludeId?: string): number => {
 };
 
 const createRecord = (inst: SimInstance): WorkerCoreRecord => {
-  const core = new ModelCore(inst.params);
+  const core = new ModelCore(inst.params, createModelCoreRuntimeExperimentalOptions({
+    mode: runtimeActiveSourceMode,
+  }));
   core.initializeVenousPressuresForTargetTBV(inst.targetVolume);
   return {
     core,
@@ -161,13 +170,14 @@ const reconcileInstances = (nextInstances: SimInstance[]) => {
       continue;
     }
 
-    existing.inst = inst;
-    if (existing.settling && existing.settleSignature !== sig) {
+    if (existing.settleSignature !== sig) {
       existing.settleToken++;
       const record = createRecord(inst);
       records.set(inst.id, record);
       startIncrementalSettle(inst.id, record, generation);
+      continue;
     }
+    existing.inst = inst;
   }
 };
 
@@ -191,11 +201,26 @@ const setInstanceVolume = (id: string, volume: number) => {
   record.lastSnapshotNow = -Infinity;
 };
 
-const promoteTransitionSteady = (inst: SimInstance, state: TransitionSteadyPromotionState) => {
+const promoteTransitionSteady = (
+  inst: SimInstance,
+  state: TransitionSteadyPromotionState,
+  mode: Extract<
+    PreviewWorkerRequest,
+    { type: "promoteTransitionSteady" }
+  >["runtimeActiveSourceMode"],
+  experimentalActiveProviderStates?: Extract<
+    PreviewWorkerRequest,
+    { type: "promoteTransitionSteady" }
+  >["experimentalActiveProviderStates"],
+) => {
+  runtimeActiveSourceMode = mode;
   const existing = records.get(inst.id);
   if (existing) existing.settleToken++;
-  const core = new ModelCore(inst.params);
+  const core = new ModelCore(inst.params, createModelCoreRuntimeExperimentalOptions({
+    mode: runtimeActiveSourceMode,
+  }));
   core.unpackState(state);
+  core.restoreExperimentalActiveProviderRuntimeState(experimentalActiveProviderStates);
   records.set(inst.id, {
     core,
     inst,
@@ -270,13 +295,16 @@ self.onmessage = (event: MessageEvent<PreviewWorkerRequest>) => {
       case "configure":
         dt = message.dt;
         sampleHz = message.sampleHz;
+        runtimeActiveSourceMode = message.runtimeActiveSourceMode;
         break;
       case "setInstances":
         generation = message.generation;
+        runtimeActiveSourceMode = message.runtimeActiveSourceMode;
         reconcileInstances(message.instances);
         break;
       case "resetInstances":
         generation = message.generation;
+        runtimeActiveSourceMode = message.runtimeActiveSourceMode;
         resetInstances(message.ids);
         break;
       case "setInstanceVolume":
@@ -285,7 +313,12 @@ self.onmessage = (event: MessageEvent<PreviewWorkerRequest>) => {
         break;
       case "promoteTransitionSteady":
         generation = message.generation;
-        promoteTransitionSteady(message.instance, message.state);
+        promoteTransitionSteady(
+          message.instance,
+          message.state,
+          message.runtimeActiveSourceMode,
+          message.experimentalActiveProviderStates,
+        );
         break;
       case "tick":
         runTick(message.generation, message.requestId, message.now, message.simSeconds);

@@ -6,6 +6,12 @@ import {
   isCurrentTransitionSteadyResult,
   makeTransitionTargetSignature,
 } from "@/engine/transitionSteadyProtocol";
+import {
+  MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE,
+  MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE,
+  useLegacyActiveStressForModelCoreRuntimeForThisProcess,
+  useLvLandDefaultForModelCoreRuntimeForThisProcess,
+} from "@/engine/myocardium/runtimeActiveSource";
 import type { SerializedModelState, SteadyResult } from "@/engine/stateContract";
 import type { SimInstance } from "@/types";
 
@@ -150,6 +156,64 @@ const latestWorkerMessage = (worker: FakePreviewWorker, type: string) => {
 };
 
 describe("PreviewController (headless driver)", () => {
+  it("propagates legacy rollback mode to preview and transition workers", () => {
+    const workerHarness = withFakeWorker();
+    vi.useFakeTimers();
+    try {
+      useLegacyActiveStressForModelCoreRuntimeForThisProcess();
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
+      const target = inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 5 });
+      c.setInstances([target]);
+      const previewWorker = workerHarness.byScript("previewWorker");
+
+      expect(latestWorkerMessage(previewWorker, "configure").runtimeActiveSourceMode)
+        .toBe(MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE);
+      expect(latestWorkerMessage(previewWorker, "setInstances").runtimeActiveSourceMode)
+        .toBe(MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE);
+
+      const pending = c.requestNextSteady(target);
+      expect(pending.request.options.runtimeActiveSourceMode)
+        .toBe(MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE);
+      vi.advanceTimersByTime(0);
+      const transitionWorker = workerHarness.byScript("transitionSteadyWorker");
+      expect(transitionWorker.messages[0]?.options.runtimeActiveSourceMode)
+        .toBe(MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE);
+
+      c.resetInstances(["1"]);
+      expect(latestWorkerMessage(previewWorker, "resetInstances").runtimeActiveSourceMode)
+        .toBe(MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE);
+    } finally {
+      useLvLandDefaultForModelCoreRuntimeForThisProcess();
+      vi.useRealTimers();
+      workerHarness.restore();
+    }
+  });
+
+  it("reposts worker instances when process mode rolls back after mount", () => {
+    const workerHarness = withFakeWorker();
+    try {
+      useLvLandDefaultForModelCoreRuntimeForThisProcess();
+      const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
+      const target = inst("1");
+      c.setInstances([target]);
+      const previewWorker = workerHarness.byScript("previewWorker");
+      const initialSetInstancesCount = previewWorker.messages.filter((message) => message.type === "setInstances").length;
+      expect(latestWorkerMessage(previewWorker, "setInstances").runtimeActiveSourceMode)
+        .toBe(MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE);
+
+      useLegacyActiveStressForModelCoreRuntimeForThisProcess();
+      c.setInstances([target]);
+
+      const setInstancesMessages = previewWorker.messages.filter((message) => message.type === "setInstances");
+      expect(setInstancesMessages).toHaveLength(initialSetInstancesCount + 1);
+      expect(setInstancesMessages[setInstancesMessages.length - 1].runtimeActiveSourceMode)
+        .toBe(MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE);
+    } finally {
+      useLvLandDefaultForModelCoreRuntimeForThisProcess();
+      workerHarness.restore();
+    }
+  });
+
   it("debounces transition steady worker posts and status until the flush", () => {
     const workerHarness = withFakeWorker();
     vi.useFakeTimers();
@@ -375,6 +439,7 @@ describe("PreviewController (headless driver)", () => {
       const expectedToSignature = makeTransitionTargetSignature({
         params: target.params,
         targetVolume: target.targetVolume,
+        runtimeActiveSourceMode: MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE,
       });
 
       expect(previewWorker.messages.length).toBe(beforeMessages);
@@ -395,6 +460,7 @@ describe("PreviewController (headless driver)", () => {
         measureBeats: 1,
         includeLastBeatSamples: true,
         requireProjectorQuiet: false,
+        runtimeActiveSourceMode: MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE,
       });
       expect(request.options.settlePolicy).toBeDefined();
     } finally {
@@ -463,10 +529,12 @@ describe("PreviewController (headless driver)", () => {
       const expectedFromSignature = makeTransitionTargetSignature({
         params: current.params,
         targetVolume: current.targetVolume,
+        runtimeActiveSourceMode: MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE,
       });
       const expectedToSignature = makeTransitionTargetSignature({
         params: next.params,
         targetVolume: next.targetVolume,
+        runtimeActiveSourceMode: MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE,
       });
 
       expect(pending.request.fromSignature).toBe(expectedFromSignature);

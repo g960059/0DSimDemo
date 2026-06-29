@@ -1,5 +1,6 @@
-import { defaultParams } from "@/engine/ModelCore";
+import { defaultParams, type ModelCore } from "@/engine/ModelCore";
 import { measureSteady, settleToSteadyState, type MeasureOptions, type SteadyMeasurement } from "@/engine/measure";
+import { createModelCoreRuntimeExperimentalOptions } from "@/engine/myocardium/runtimeActiveSource";
 import type { CoreRuntimeParams, SimMetrics, SimSample, SimulationHealth } from "@/engine/protocol";
 import type { SettleStatus } from "@/engine/settling";
 import type {
@@ -17,6 +18,7 @@ export type PeriodicSteadyInternalRun = {
   result: SteadyResult;
   settleStatus: SettleStatus;
   measurement: SteadyMeasurement | null;
+  core: ModelCore;
 };
 
 export function runToPeriodicSteady(
@@ -31,7 +33,13 @@ export function runToPeriodicSteadyInternal(
   options: RunToPeriodicSteadyOptions = {},
 ): PeriodicSteadyInternalRun {
   const wallStart = options.includeWallMs ? performanceNow() : 0;
-  const measureOptions: MeasureOptions = options;
+  const { runtimeActiveSourceMode, ...measureInput } = options;
+  const measureOptions: MeasureOptions = {
+    ...measureInput,
+    ...(runtimeActiveSourceMode
+      ? { experimentalOptions: createModelCoreRuntimeExperimentalOptions({ mode: runtimeActiveSourceMode }) }
+      : {}),
+  };
   const settled = settleToSteadyState(params, measureOptions);
   const measurement = settled.ok ? measureSteady(settled.core, settled.settleStatus, measureOptions) : null;
   const core = measurement?.core ?? settled.core;
@@ -58,6 +66,7 @@ export function runToPeriodicSteadyInternal(
     result,
     settleStatus: settled.settleStatus,
     measurement,
+    core,
   };
 }
 

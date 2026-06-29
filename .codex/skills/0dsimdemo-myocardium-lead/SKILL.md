@@ -27,7 +27,8 @@ and carry work through PR, CI, merge, and cleanup.
   artifact, focused verifier/tests, and only necessary docs.
 - Do not convert every diagnostic artifact into a permanent verifier or npm
   script. Promote checks to standing gates only when they protect future model
-  behavior, rollback/default safety, or user-visible outputs.
+  behavior, rollback/default safety, user-visible outputs, or cross-phase
+  invariants. Use disposable diagnostics for one-off scientific questions.
 - Use plan, plan review, coding, and code review only at the granularity that
   pays for itself. Skip lightweight gates for small coordination edits.
 - Delegate coding when it pays off, but take over quickly if the task is bounded

@@ -6,6 +6,7 @@ import {
   structuralLinearGuyton,
   type VascularReturnSnapshot,
 } from "@/engine/guytonVascular";
+import type { ModelCoreRuntimeActiveSourceMode } from "@/engine/myocardium/runtimeActiveSource";
 import type {
   CoreRuntimeParams,
   SimMetrics,
@@ -178,6 +179,7 @@ export type StarlingSweepRequest = {
   instanceId: string;
   params: CoreRuntimeParams;
   targetVolumeMl: number;
+  runtimeActiveSourceMode?: ModelCoreRuntimeActiveSourceMode;
   deltasMl?: number[];
   sweepMode?: StarlingSweepMode;
 };
@@ -690,6 +692,7 @@ export function starlingSweepSignature(
   instanceId: string,
   params: CoreRuntimeParams,
   targetVolumeMl: number,
+  runtimeActiveSourceMode?: ModelCoreRuntimeActiveSourceMode,
 ): string {
   void side;
   const p = params as unknown as Record<string, unknown>;
@@ -710,6 +713,7 @@ export function starlingSweepSignature(
   return JSON.stringify({
     instanceId,
     targetVolumeMl: Math.round(targetVolumeMl),
+    ...(runtimeActiveSourceMode ? { runtimeActiveSourceMode } : {}),
     params: picked,
   });
 }

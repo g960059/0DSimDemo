@@ -1,17 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { recordValveExtremes, runScenario, summarize } from "@/engine/harness";
 import { DEFAULT_PARAMS } from "@/constants";
+import { MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE } from "@/engine/myocardium/runtimeActiveSource";
 import type { SimSample } from "@/engine/protocol";
 
 /**
  * S0 — Baseline freeze (M0).
  *
- * Captures the current `DEFAULT_PARAMS` (active-stress default) behavior as a
- * change-detector and asserts the §6 invariants. This freezes *current
- * behavior*, not physiological validity (that is M12). See docs/ROADMAP.md.
+ * Captures the frozen legacy active-stress reference behavior as a
+ * change-detector and asserts the §6 invariants. Runtime default is now LV Land;
+ * this suite intentionally exercises the rollback/reference path.
  */
-describe("baseline freeze (active-stress default)", () => {
-  const result = runScenario(DEFAULT_PARAMS);
+describe("baseline freeze (legacy active-stress rollback reference)", () => {
+  const legacyOptions = {
+    runtimeActiveSourceMode: MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE,
+  } as const;
+  const result = runScenario(DEFAULT_PARAMS, legacyOptions);
   const { metrics, health, samples } = result;
 
   it("produces only finite state across the run", () => {
@@ -30,7 +34,7 @@ describe("baseline freeze (active-stress default)", () => {
     // The default scenario re-pins TBV every step (projectTBV), which would make
     // a drift check vacuous. Turning the controller OFF exercises the raw
     // integrator's mass conservation — the actual §6 invariant.
-    const free = runScenario({ ...DEFAULT_PARAMS, projectTBV: false });
+    const free = runScenario({ ...DEFAULT_PARAMS, projectTBV: false }, legacyOptions);
     expect(Math.abs(free.driftPctPer60s)).toBeLessThan(0.1);
   });
 

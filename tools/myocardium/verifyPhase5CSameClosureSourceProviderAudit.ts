@@ -386,6 +386,46 @@ const PHASE5W_DEVELOPER_ONLY_LV_LAND_ENVELOPE_ALLOWED_CHANGED_FILE_PATHS = [
   PHASE5C_G_VERIFIER_PATH,
 ] as const;
 
+const PHASE5AK_USER0_LV_LAND_DEFAULT_FLIP_ALLOWED_CHANGED_FILE_PATHS = [
+  ".codex/skills/0dsimdemo-myocardium-lead/SKILL.md",
+  "components/Charts.tsx",
+  "data/myocardium/protocols/user0-lv-land-default-flip-phase5ak-result-v1.json",
+  "docs/myocardium/README.md",
+  "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
+  "docs/status/current-lanes.md",
+  "engine/ModelCore.ts",
+  "engine/__tests__/__snapshots__/baseline.test.ts.snap",
+  "engine/__tests__/baseline.test.ts",
+  "engine/__tests__/guytonStarlingWorkerCore.test.ts",
+  "engine/__tests__/modelCoreRuntimeActiveSource.test.ts",
+  "engine/__tests__/previewController.test.ts",
+  "engine/__tests__/transitionSteadyWorker.test.ts",
+  "engine/guytonStarling.ts",
+  "engine/guytonStarlingChainProtocol.ts",
+  "engine/guytonStarlingWorkerCore.ts",
+  "engine/harness.ts",
+  "engine/myocardium/modelCoreLand2017LvSourceProvider.ts",
+  "engine/myocardium/runtimeActiveSource.ts",
+  "engine/previewController.ts",
+  "engine/previewWorker.ts",
+  "engine/previewWorkerProtocol.ts",
+  "engine/stateContract.ts",
+  "engine/steadyJob.ts",
+  "engine/transitionSteadyProtocol.ts",
+  "engine/transitionSteadyWorker.ts",
+  "package.json",
+  "tools/myocardium/buildUser0LvLandDefaultFlipPhase5AK.ts",
+  "tools/myocardium/modelCoreDeveloperOnlyLandRuntimeFlag.ts",
+  "tools/myocardium/modelCoreLand2017LvSourceProvider.ts",
+  "tools/myocardium/verifyFillingLimbCorrelationReadiness.ts",
+  "tools/myocardium/verifyPassiveEnergyReadiness.ts",
+  "tools/myocardium/verifyPhase5CPostFidelityEntryGate.ts",
+  "tools/myocardium/verifyPvLoopCurrentMainBaselineSnapshot.ts",
+  "tools/myocardium/verifyModelCorePairedLandSourceProvider.ts",
+  "tools/myocardium/verifyPhase5CSameClosureSourceProviderAudit.ts",
+  "tools/myocardium/verifyUser0LvLandDefaultFlipPhase5AK.ts",
+] as const;
+
 const RUNTIME_INTEGRATION_TARGETS = [
   "WorkbenchPage.tsx",
   "caseCloud.ts",
@@ -1038,6 +1078,7 @@ function validateChangedFileScope(changedFilePaths: readonly string[], issues: V
   if (isPhase5UDeveloperOnlyLvLandRuntimeFlagRfcDiff(changedFilePaths)) return;
   if (isPhase5VDeveloperOnlyLvLandRuntimeFlagSuiteDiff(changedFilePaths)) return;
   if (isPhase5WDeveloperOnlyLvLandEnvelopeDiff(changedFilePaths)) return;
+  if (isPhase5AKUser0LvLandDefaultFlipDiff(changedFilePaths)) return;
 
   const triggerPaths = new Set<string>(PHASE5C_G_CHANGED_FILE_SCOPE_TRIGGER_PATHS);
   if (!changedFilePaths.some((filePath) => triggerPaths.has(filePath))) return;
@@ -1197,6 +1238,16 @@ function isPhase5VDeveloperOnlyLvLandRuntimeFlagSuiteDiff(changedFilePaths: read
 
 function isPhase5WDeveloperOnlyLvLandEnvelopeDiff(changedFilePaths: readonly string[]): boolean {
   const allowedPaths = new Set<string>(PHASE5W_DEVELOPER_ONLY_LV_LAND_ENVELOPE_ALLOWED_CHANGED_FILE_PATHS);
+  const changedPaths = new Set(changedFilePaths);
+  if (changedPaths.size !== allowedPaths.size) return false;
+  for (const allowedPath of allowedPaths) {
+    if (!changedPaths.has(allowedPath)) return false;
+  }
+  return true;
+}
+
+function isPhase5AKUser0LvLandDefaultFlipDiff(changedFilePaths: readonly string[]): boolean {
+  const allowedPaths = new Set<string>(PHASE5AK_USER0_LV_LAND_DEFAULT_FLIP_ALLOWED_CHANGED_FILE_PATHS);
   const changedPaths = new Set(changedFilePaths);
   if (changedPaths.size !== allowedPaths.size) return false;
   for (const allowedPath of allowedPaths) {
