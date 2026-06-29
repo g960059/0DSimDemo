@@ -1162,6 +1162,22 @@ export class ModelCore {
     const rvPressureTerms = this.p.heartModel === "activeStress"
       ? this.activeDebugPressureTerms("RV", pack.VRVeff, this.activeInternalFromState("RV", this.x), this.chamberCtx("RV", this.x))
       : undefined;
+    const laPressureDecomposition = this.p.heartModel === "activeStress"
+      ? this.atrialPressureDecompositionFields(
+        "LA",
+        pack.Vphys[this.nodeIndex.get("LA")!],
+        this.activeInternalFromState("LA", this.x),
+        this.chamberCtx("LA", this.x),
+      )
+      : {};
+    const raPressureDecomposition = this.p.heartModel === "activeStress"
+      ? this.atrialPressureDecompositionFields(
+        "RA",
+        pack.Vphys[this.nodeIndex.get("RA")!],
+        this.activeInternalFromState("RA", this.x),
+        this.chamberCtx("RA", this.x),
+      )
+      : {};
     const lvElastance = this.ventricularElastanceSignals("LV", pack.VLVeff, pack.PLVfw, this.x);
     const rvElastance = this.ventricularElastanceSignals("RV", pack.VRVeff, pack.PRVfw, this.x);
     const s: SimSample = {
@@ -1279,6 +1295,8 @@ export class ModelCore {
       PV_flowClampImpulse: pvStep.flowClampImpulse,
       LVPressureFloorHit01: lvPressureTerms?.pressureFloorHit01 ?? 0,
       RVPressureFloorHit01: rvPressureTerms?.pressureFloorHit01 ?? 0,
+      ...laPressureDecomposition,
+      ...raPressureDecomposition,
       ELV_active: lvElastance.active,
       ERV_active: rvElastance.active,
       ELV_timeVarying: lvElastance.timeVarying,
@@ -2226,6 +2244,43 @@ export class ModelCore {
       RV: qTV - qPV,
       LA: qPVeinLA - qMV,
       RA: qVC_RA + qCS_RA - qTV,
+    };
+  }
+
+  private atrialPressureDecompositionFields(
+    chamber: "LA" | "RA",
+    volumeMl: number,
+    internal: ChamberInternal,
+    chamberCtx: ChamberCtx,
+  ): Partial<SimSample> {
+    const terms = this.activeDebugPressureTerms(chamber, volumeMl, internal, chamberCtx);
+    const noAvPlaneTerms = this.activeDebugPressureTerms(chamber, volumeMl, internal, {
+      ...chamberCtx,
+      pairedVentricleShortening01: 0,
+      pairedVentricleShorteningVelocity01PerSec: 0,
+    });
+    const sigmaTotal = terms.sigmaPas + terms.sigmaAct;
+    const passivePressure = Math.abs(sigmaTotal) > 1e-12
+      ? terms.pressureUnclampedMmHg * terms.sigmaPas / sigmaTotal
+      : 0;
+    const activePressure = Math.abs(sigmaTotal) > 1e-12
+      ? terms.pressureUnclampedMmHg * terms.sigmaAct / sigmaTotal
+      : 0;
+    if (chamber === "LA") {
+      return {
+        LAPressureUnclampedMmHg: terms.pressureUnclampedMmHg,
+        LAPassivePressureMmHg: passivePressure,
+        LAActivePressureMmHg: activePressure,
+        LAAvPlanePressureDeltaMmHg: terms.pressureUnclampedMmHg - noAvPlaneTerms.pressureUnclampedMmHg,
+        LAPressureFloorHit01: terms.pressureFloorHit01,
+      };
+    }
+    return {
+      RAPressureUnclampedMmHg: terms.pressureUnclampedMmHg,
+      RAPassivePressureMmHg: passivePressure,
+      RAActivePressureMmHg: activePressure,
+      RAAvPlanePressureDeltaMmHg: terms.pressureUnclampedMmHg - noAvPlaneTerms.pressureUnclampedMmHg,
+      RAPressureFloorHit01: terms.pressureFloorHit01,
     };
   }
 

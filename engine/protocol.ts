@@ -404,6 +404,16 @@ export type SimSample = {
   dVRVdtMlPerSec?: number;
   dVLAdtMlPerSec?: number;
   dVRAdtMlPerSec?: number;
+  LAPressureUnclampedMmHg?: number;
+  LAPassivePressureMmHg?: number;
+  LAActivePressureMmHg?: number;
+  LAAvPlanePressureDeltaMmHg?: number;
+  LAPressureFloorHit01?: number;
+  RAPressureUnclampedMmHg?: number;
+  RAPassivePressureMmHg?: number;
+  RAActivePressureMmHg?: number;
+  RAAvPlanePressureDeltaMmHg?: number;
+  RAPressureFloorHit01?: number;
   VSystemicVenous: number;
   VPulmonaryVenous: number;
   P_PVein: number;
