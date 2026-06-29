@@ -231,6 +231,29 @@ Phase 5AT result boundary:
   damping input, tension-state booster, external-coupling debug fields, and
   absolute atrial waveform targets, rather than more parameter-only sleeve or
   AV-plane scale sweeps.
+
+Phase 5AU records the AtrialPhysiologyBridgeV2/A2 readout contract in
+[`../../data/myocardium/protocols/atrial-physiology-bridge-v2-contract-phase5au-result-v1.json`](../../data/myocardium/protocols/atrial-physiology-bridge-v2-contract-phase5au-result-v1.json).
+Regenerate it with
+`npx vite-node --script tools/myocardium/buildAtrialPhysiologyBridgeV2ContractPhase5AU.ts`.
+The runner uses the current LV+RV Land plus sourced root/Zc default closure and
+does not implement A2 or add a permanent verifier. It measures, over the same
+HR75/90 normal, low-preload, and high-preload envelope, the readouts A2 needs:
+self atrial dV/dt from flow balance and finite differences, a/v wave proxies,
+reservoir/conduit/booster pressure swings, E/A-like AV-valve inflow peaks, and
+MV/TV contamination.
+
+Phase 5AU result boundary:
+
+- 6/6 points are health-ok and expose both LA and RA volume-rate/waveform
+  readouts;
+- closed-loop samples already allow self atrial dV/dt derivation, but
+  `ChamberCtx`/provider pressure calls do not expose self `volumeRateMlPerSec`;
+- A2 still needs sourced absolute atrial waveform targets before parameter
+  tuning;
+- the next implementation step is a narrow provider/chamber input for self
+  volume rate plus pressure-decomposition debug output, not production bridge
+  selection.
 - no Phase 6 bridge is selected or recommended, and this does not wire
   production runtime, reauthor official cases, change Workbench/runtime state,
   validate AF physiology, or make final atrial physiology claims.
