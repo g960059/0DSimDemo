@@ -207,6 +207,30 @@ opposed-lobe signal at `normal-hr75` and `high-preload-hr90`. This shows RA
 lobe opposition can move with candidate-local reservoir timing/sleeve choices,
 but a parameter-only sweep is not enough for production bridge selection or
 official morphology acceptance.
+
+Phase 5AT then tests an explicit AV-plane/reservoir structural candidate in
+[`../../data/myocardium/protocols/atrial-figure-eight-av-plane-candidate-phase5at-result-v1.json`](../../data/myocardium/protocols/atrial-figure-eight-av-plane-candidate-phase5at-result-v1.json).
+Regenerate it with
+`npx vite-node --script tools/myocardium/buildAtrialFigureEightAvPlaneCandidatePhase5AT.ts`.
+The runner is disposable and provider-local: it does not change production
+runtime wiring, default parameters, state layout, official cases, or npm
+scripts. It compares the refined A1 reference, a single-chamber AV-plane
+reference, and two-branch body-AV-plane candidates across the same HR75/90
+normal, low-preload, and high-preload envelope.
+
+Phase 5AT result boundary:
+
+- the single-chamber AV-plane reference gives the strongest local RA signal
+  (`high-preload-hr75` opposed-lobe signal) and supports AV-plane-driven
+  reservoir mechanics as a useful axis;
+- no variant produces both-chamber readable loops over the envelope;
+- adding body-AV-plane pressure composition to the current two-branch A1 shape
+  is not enough for bridge selection;
+- the next atrial morphology work should be a named AtrialPhysiologyBridgeV2/A2
+  design with explicit reservoir/conduit/booster structure, self dV/dt/conduit
+  damping input, tension-state booster, external-coupling debug fields, and
+  absolute atrial waveform targets, rather than more parameter-only sleeve or
+  AV-plane scale sweeps.
 - no Phase 6 bridge is selected or recommended, and this does not wire
   production runtime, reauthor official cases, change Workbench/runtime state,
   validate AF physiology, or make final atrial physiology claims.
