@@ -400,6 +400,10 @@ export type SimSample = {
   VRV: number;
   VLA: number;
   VRA: number;
+  dVLVdtMlPerSec?: number;
+  dVRVdtMlPerSec?: number;
+  dVLAdtMlPerSec?: number;
+  dVRAdtMlPerSec?: number;
   VSystemicVenous: number;
   VPulmonaryVenous: number;
   P_PVein: number;

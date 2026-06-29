@@ -233,6 +233,8 @@ type PressurePack = {
   PimRCAVen: number;
 };
 
+type ChamberVolumeRateMlPerSec = Record<Chamber, number>;
+
 export type ModelCoreClampDiagnostics = {
   totalClampHits: number;
   nodeClampHits: Partial<Record<NodeName, number>>;
@@ -615,6 +617,12 @@ export class ModelCore {
   private dynamicFlowDerivativeClampScope: DynamicQDotClampScope = "aov";
   private aorticValveQUpdateMode: AorticValveQUpdateMode = "current-loss";
   private valveFlowStepDiagnostics = emptyValveFlowStepDiagnosticsByValve();
+  private lastResolvedChamberVolumeRatesMlPerSec: ChamberVolumeRateMlPerSec = {
+    LV: 0,
+    RV: 0,
+    LA: 0,
+    RA: 0,
+  };
 
   // Steady-state detection (engine/settling.ts). The detector keeps its OWN
   // small ring of per-beat fingerprints, independent of the 1200-sample raw
@@ -761,6 +769,7 @@ export class ModelCore {
   getComparableState(): ComparableState {
     const pack = this.computePressures(this.x);
     const flows = this.computeFlows(this.x, pack);
+    this.lastResolvedChamberVolumeRatesMlPerSec = this.chamberVolumeRatesFromFlows(flows);
     const values: Record<string, number> = {
       t: this.t,
       phi: this.x[this.idx.phi],
@@ -1116,6 +1125,8 @@ export class ModelCore {
   sample(): SimSample {
     const pack = this.computePressures(this.x);
     const flows = this.computeFlows(this.x, pack);
+    const chamberVolumeRates = this.chamberVolumeRatesFromFlows(flows);
+    this.lastResolvedChamberVolumeRatesMlPerSec = chamberVolumeRates;
     const laReservoir = this.laReservoirDebugFields(this.x, pack.Vphys[this.nodeIndex.get("LA")!]);
     const pvOstial = this.pvOstialDebugFields(this.x, pack, flows);
     const laInternal = this.activeInternalIndex("LA");
@@ -1134,6 +1145,7 @@ export class ModelCore {
     const qLAD = flows[this.edgeIndex("Ao_LAD")];
     const qLCx = flows[this.edgeIndex("Ao_LCx")];
     const qRCA = flows[this.edgeIndex("Ao_RCA")];
+    const qCS = flows[this.edgeIndex("CS_RA")];
     const rap = pack.P[this.nodeIndex.get("RA")!];
     const rvp = pack.P[this.nodeIndex.get("RV")!];
     const pap = pack.P[this.nodeIndex.get("PA")!];
@@ -1177,7 +1189,7 @@ export class ModelCore {
       QCorLCx: qLCx,
       QCorRCA: qRCA,
       QCorTotal: qLAD + qLCx + qRCA,
-      QCS: flows[this.edgeIndex("CS_RA")],
+      QCS: qCS,
       aorticRootComplianceM3PerPa: complianceFromPtm(this.vascularPvLaw(this.nodes[aoIndex]), pack.Ptm[aoIndex])
         * ML_PER_MMHG_TO_M3_PER_PA,
       pulmonaryRootComplianceM3PerPa: complianceFromPtm(this.vascularPvLaw(this.nodes[paIndex]), pack.Ptm[paIndex])
@@ -1186,6 +1198,10 @@ export class ModelCore {
       VRV: pack.Vphys[this.nodeIndex.get("RV")!],
       VLA: pack.Vphys[this.nodeIndex.get("LA")!],
       VRA: pack.Vphys[this.nodeIndex.get("RA")!],
+      dVLVdtMlPerSec: chamberVolumeRates.LV,
+      dVRVdtMlPerSec: chamberVolumeRates.RV,
+      dVLAdtMlPerSec: chamberVolumeRates.LA,
+      dVRAdtMlPerSec: chamberVolumeRates.RA,
       VSystemicVenous: pack.Vphys[this.nodeIndex.get("SV")!] + pack.Vphys[this.nodeIndex.get("VC")!],
       VPulmonaryVenous: pack.Vphys[this.nodeIndex.get("PCap")!] + pack.Vphys[this.nodeIndex.get("PVen")!] + pack.Vphys[this.nodeIndex.get("PVein")!],
       P_PVein: pack.P[this.nodeIndex.get("PVein")!],
@@ -1828,6 +1844,7 @@ export class ModelCore {
     const dy = new Float64Array(x.length);
     const pack = this.computePressures(x);
     const flows = this.computeFlows(x, pack);
+    this.lastResolvedChamberVolumeRatesMlPerSec = this.chamberVolumeRatesFromFlows(flows);
     const balance = new Float64Array(nodeNames.length);
     this.dynamicQDotLastStepAudit = {};
 
@@ -2161,6 +2178,13 @@ export class ModelCore {
     const dynamicFlow = (edge: DynamicEdgeName) => this.dynamicFlowValue(edge, x[this.idx.q[edge]]);
     const lvVolumeRateMlPerSec = dynamicFlow("MV") - dynamicFlow("AoV");
     const rvVolumeRateMlPerSec = dynamicFlow("TV") - dynamicFlow("PV");
+    const laVolumeRateMlPerSec = this.lastResolvedChamberVolumeRatesMlPerSec.LA;
+    const raVolumeRateMlPerSec = this.lastResolvedChamberVolumeRatesMlPerSec.RA;
+    const selfChamberVolumeRateMlPerSec =
+      chamber === "LV" ? lvVolumeRateMlPerSec
+        : chamber === "RV" ? rvVolumeRateMlPerSec
+          : chamber === "LA" ? laVolumeRateMlPerSec
+            : raVolumeRateMlPerSec;
     const pairedVolumeRateMlPerSec = side === "right" ? rvVolumeRateMlPerSec : lvVolumeRateMlPerSec;
     const pairedStrokeRefMl = Math.max(pairedEd - pairedEs, 1e-6);
     return {
@@ -2178,6 +2202,7 @@ export class ModelCore {
       pairedVentricleVolumeMl: pairedVentricleVolume,
       pairedVentricleShortening01: clamp((pairedEd - pairedVentricleVolume) / pairedStrokeRefMl, 0, 1),
       pairedVentricleShorteningVelocity01PerSec: clamp(-pairedVolumeRateMlPerSec / pairedStrokeRefMl, -6, 8),
+      selfChamberVolumeRateMlPerSec,
       inletValveOpen01: clamp(x[this.idx.xi[inletValve]], 0, 1),
       outletValveOpen01: clamp(x[this.idx.xi[outletValve]], 0, 1),
       side,
@@ -2185,6 +2210,22 @@ export class ModelCore {
       lvShortening01: clamp((lvEd - lvVolume) / Math.max(lvEd - lvEs, 1e-6), 0, 1),
       mvOpen01: clamp(x[this.idx.xi.MV], 0, 1),
       aovOpen01: clamp(x[this.idx.xi.AoV], 0, 1),
+    };
+  }
+
+  private chamberVolumeRatesFromFlows(flows: Float64Array): ChamberVolumeRateMlPerSec {
+    const qAo = flows[this.edgeIndex("AoV")];
+    const qMV = flows[this.edgeIndex("MV")];
+    const qTV = flows[this.edgeIndex("TV")];
+    const qPV = flows[this.edgeIndex("PV")];
+    const qPVeinLA = flows[this.edgeIndex("PVein_LA")];
+    const qVC_RA = flows[this.edgeIndex("VC_RA")];
+    const qCS_RA = flows[this.edgeIndex("CS_RA")];
+    return {
+      LV: qMV - qAo,
+      RV: qTV - qPV,
+      LA: qPVeinLA - qMV,
+      RA: qVC_RA + qCS_RA - qTV,
     };
   }
 
