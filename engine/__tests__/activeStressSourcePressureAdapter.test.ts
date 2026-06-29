@@ -10,10 +10,15 @@ import {
 } from "@/tools/myocardium/modelCoreActiveSourcePressureAdapter";
 import {
   ActiveStressChamberModel,
+  defaultActiveLA,
   defaultActiveLV,
   type ChamberCtx,
   type ChamberInternal,
 } from "@/engine/chambers";
+import {
+  calciumScaledLand2017LaSourceOnlyProvider,
+  createModelCoreLand2017LvSourceProviderInstrumentation,
+} from "@/engine/myocardium/modelCoreLand2017LvSourceProvider";
 
 function lvCtx(phi: number): ChamberCtx {
   return {
@@ -28,6 +33,27 @@ function lvCtx(phi: number): ChamberCtx {
     pairedVentricleVolumeMl: 100,
     pairedVentricleShortening01: 0.35,
     pairedVentricleShorteningVelocity01PerSec: 0.2,
+    inletValveOpen01: 0,
+    outletValveOpen01: 1,
+    side: "left",
+  };
+}
+
+function laCtx(phi: number): ChamberCtx {
+  return {
+    HR: 75,
+    contractility: 1,
+    relaxation: 1,
+    phi,
+    chamber: "LA",
+    avDelaySec: 0.16,
+    atrialElectromechanicalDelaySec: 0,
+    tmaxScale: 1,
+    geomScale: 1,
+    caReleaseScale: 1,
+    pairedVentricleVolumeMl: 70,
+    pairedVentricleShortening01: 0.6,
+    pairedVentricleShorteningVelocity01PerSec: 1.2,
     inletValveOpen01: 0,
     outletValveOpen01: 1,
     side: "left",
@@ -122,6 +148,43 @@ describe("ActiveStressChamberModel source active-fiber pressure adapter", () => 
     expect(() =>
       new ModelCore(DEFAULT_PARAMS, { activeSourceProviders: { LV: provider } })
     ).toThrow(/source-specific debugActiveStressTerms/);
+  });
+
+  it("uses the same AV-plane-adjusted atrial lambda for Land source input and pressure adaptation", () => {
+    const model = new ActiveStressChamberModel(defaultActiveLA);
+    const instrumentation = createModelCoreLand2017LvSourceProviderInstrumentation();
+    const provider = calciumScaledLand2017LaSourceOnlyProvider(instrumentation, {
+      calciumScale: 1,
+      calciumInputMultiplier: "none",
+    });
+    const internal: ChamberInternal = {
+      c: 0.42,
+      a: 0.34,
+      r: 0,
+      tensionPa: 0,
+      lambdaAct: 1,
+    };
+    const ctx = laCtx(0.24);
+    const volumeMl = 45;
+    const providerState = provider.initialProviderState?.({ chamber: "LA", activeModel: model });
+
+    provider.sourceActiveStressPa?.({
+      chamber: "LA",
+      activeModel: model,
+      volumeMl,
+      internal,
+      chamberCtx: ctx,
+      providerState,
+      providerStateVersion: 0,
+    });
+
+    const pressureAdapterStrain = model.debugPressureTerms(volumeMl, internal, ctx).lambda - 1;
+    const rawDebugStrain = model.debugActiveStressTerms(volumeMl, internal, ctx).lambdaRaw - 1;
+    expect(rawDebugStrain).not.toBeCloseTo(pressureAdapterStrain, 8);
+    expect(instrumentation.sourcePathAudit.fiberEngineeringStrain.min)
+      .toBeCloseTo(pressureAdapterStrain, 12);
+    expect(instrumentation.sourcePathAudit.fiberEngineeringStrain.max)
+      .toBeCloseTo(pressureAdapterStrain, 12);
   });
 
   it("source pressure adapter factory requires and invokes source-specific debug terms", () => {

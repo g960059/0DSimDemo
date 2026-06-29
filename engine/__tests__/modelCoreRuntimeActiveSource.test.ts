@@ -10,13 +10,17 @@ import {
   createModelCoreLand2017LvSourceProviderInstrumentation,
 } from "@/engine/myocardium/modelCoreLand2017LvSourceProvider";
 import {
+  MODELCORE_RUNTIME_ALL_CHAMBER_LAND_DEFAULT_CANDIDATE_MODE,
+  MODELCORE_RUNTIME_LA_LAND_SOURCE_PROVIDER_ID,
   MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE,
   MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE,
   MODELCORE_RUNTIME_LV_LAND_SOURCE_PROVIDER_ID,
   MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE,
   MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_CANDIDATE_MODE,
+  MODELCORE_RUNTIME_RA_LAND_SOURCE_PROVIDER_ID,
   MODELCORE_RUNTIME_RV_LAND_SOURCE_PROVIDER_ID,
   resolveModelCoreRuntimeActiveSource,
+  useAllChamberLandDefaultCandidateForModelCoreRuntimeForThisProcess,
   useLegacyActiveStressForModelCoreRuntimeForThisProcess,
   useLvLandDefaultForModelCoreRuntimeForThisProcess,
   useLvRvLandDefaultForModelCoreRuntimeForThisProcess,
@@ -47,6 +51,8 @@ describe("ModelCore runtime active source default", () => {
       .toBe(MODELCORE_RUNTIME_LV_LAND_SOURCE_PROVIDER_ID);
     expect(resolved.experimentalOptions.activeSourceProviders?.RV?.sourceProviderId)
       .toBe(MODELCORE_RUNTIME_RV_LAND_SOURCE_PROVIDER_ID);
+    expect(resolved.experimentalOptions.activeSourceProviders?.LA).toBeUndefined();
+    expect(resolved.experimentalOptions.activeSourceProviders?.RA).toBeUndefined();
     expect(resolved.rootZc.mode).toBe(MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_DEFAULT_MODE);
     expect(resolved.experimentalOptions.boundaryRootInertance).toMatchObject({
       mechanismId: MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_MECHANISM_ID,
@@ -130,6 +136,46 @@ describe("ModelCore runtime active source default", () => {
     const sidecar = core.packExperimentalActiveProviderRuntimeState();
     expect(sidecar.LV?.sourceProviderId).toBe(MODELCORE_RUNTIME_LV_LAND_SOURCE_PROVIDER_ID);
     expect(sidecar.RV?.sourceProviderId).toBe(MODELCORE_RUNTIME_RV_LAND_SOURCE_PROVIDER_ID);
+  });
+
+  it("keeps all-chamber Land reachable as an explicit candidate without changing the user-0 default", () => {
+    useAllChamberLandDefaultCandidateForModelCoreRuntimeForThisProcess();
+    const lvInstrumentation = createModelCoreLand2017LvSourceProviderInstrumentation();
+    const rvInstrumentation = createModelCoreLand2017LvSourceProviderInstrumentation();
+    const laInstrumentation = createModelCoreLand2017LvSourceProviderInstrumentation();
+    const raInstrumentation = createModelCoreLand2017LvSourceProviderInstrumentation();
+    const resolved = resolveModelCoreRuntimeActiveSource({
+      instrumentation: lvInstrumentation,
+      rvInstrumentation,
+      laInstrumentation,
+      raInstrumentation,
+    });
+    const core = new ModelCore(DEFAULT_PARAMS, resolved.experimentalOptions);
+
+    core.initializeVenousPressuresForTargetTBV(5600);
+    core.runFor(0.05, 0.001, 120);
+
+    expect(resolved.mode).toBe(MODELCORE_RUNTIME_ALL_CHAMBER_LAND_DEFAULT_CANDIDATE_MODE);
+    expect(resolved.claimBoundary).toBe("all-chamber-land-default-candidate-evidence-no-runtime-flip");
+    expect(resolved.sourceProviderScope).toBe("LV+RV+LA+RA-candidate");
+    expect(resolved.rootZc.mode).toBe(MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_DEFAULT_MODE);
+    expect(core.debugExperimentalActiveSourceProviderIds()).toEqual({
+      LV: MODELCORE_RUNTIME_LV_LAND_SOURCE_PROVIDER_ID,
+      RV: MODELCORE_RUNTIME_RV_LAND_SOURCE_PROVIDER_ID,
+      LA: MODELCORE_RUNTIME_LA_LAND_SOURCE_PROVIDER_ID,
+      RA: MODELCORE_RUNTIME_RA_LAND_SOURCE_PROVIDER_ID,
+    });
+    for (const instrumentation of [
+      lvInstrumentation,
+      rvInstrumentation,
+      laInstrumentation,
+      raInstrumentation,
+    ]) {
+      expect(instrumentation.sourceActiveStressPa).toBeGreaterThan(0);
+      expect(instrumentation.commitProviderStateAfterStep).toBeGreaterThan(0);
+      expect(instrumentation.landSolveOkCount).toBeGreaterThan(0);
+      expect(instrumentation.landSolveFailureCount).toBe(0);
+    }
   });
 
   it("keeps the regression harness on legacy by default but supports explicit LV Land", () => {

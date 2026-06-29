@@ -1271,6 +1271,24 @@ morphology, claim reflection coefficients, tune default parameters or valves, or
 claim clinical/scientific validation. RA/LA chamber replacement and atrial
 figure-eight readability remain separate lanes.
 
+Phase 5AQ adds the first explicit RA/LA Land chamber-replacement candidate in
+[`../../data/myocardium/protocols/atrial-land-default-candidate-phase5aq-result-v1.json`](../../data/myocardium/protocols/atrial-land-default-candidate-phase5aq-result-v1.json).
+Regenerate it with
+`npx vite-node --script tools/myocardium/buildAtrialLandDefaultCandidatePhase5AQ.ts`;
+no permanent npm verifier is added for this decision diagnostic. The runtime
+default remains LV+RV Land plus sourced root/Zc; `all-chamber-land-phase5aq-default-candidate-v1`
+is explicit only. The PR also aligns Land source-provider kinematics with the
+same AV-plane-adjusted pressure-adapter lambda used for atrial pressure
+assembly. The HR75/90 normal, low-preload, and high-preload envelope records
+LA/RA provider reachability in 6/6 candidate points, zero LA/RA Land solve
+failures, output preservation in 5/6 points, and basic LA/RA readable loop
+signals in 5/6 points. The candidate is still `not-supported` because
+`low-preload-hr90` hits a measurement error: `source active-fiber stress must
+be nonnegative`. Phase 5AQ does not flip the runtime default, replace all
+chambers, delete legacy active-stress, accept atrial Land physiology, accept
+atrial figure-eight morphology, tune cases/valves/qDot/Tref/source-stress, or
+claim clinical/scientific validation.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and

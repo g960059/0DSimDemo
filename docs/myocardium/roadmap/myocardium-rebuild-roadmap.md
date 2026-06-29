@@ -667,6 +667,16 @@ production tissue homogenization.
 - boundary: user0-staged-sourced-boundary-root-zc-default-no-qdot-removal; qDot clamp removal, valve/load timing acceptance, valve-threshold/loss tuning, direct `Ao_SA` adoption, reflection-coefficient claim, official morphology, official case tuning, RA/LA chamber replacement, final no-alternans, and clinical/scientific validation are not claimed.
 - next: continue RA/LA Land provider candidate evidence and atrial figure-eight refinement in separate lanes; keep qDot clamp retirement and valve/load timing acceptance as explicit future gates rather than implicit consequences of root/Zc adoption.
 
+### Phase 5AQ — explicit RA/LA Land chamber-replacement candidate
+
+- result artifact: `data/myocardium/protocols/atrial-land-default-candidate-phase5aq-result-v1.json`
+- builder: `npx vite-node --script tools/myocardium/buildAtrialLandDefaultCandidatePhase5AQ.ts`
+- implementation: `engine/myocardium/runtimeActiveSource.ts` adds explicit `all-chamber-land-phase5aq-default-candidate-v1` wiring for LV/RV/LA/RA Land providers while leaving the user-0 default at LV+RV Land plus sourced root/Zc. `engine/myocardium/modelCoreLand2017LvSourceProvider.ts` adds LA/RA provider IDs and aligns Land source-provider strain input with the same AV-plane-adjusted pressure-adapter lambda used for atrial pressure assembly.
+- current outcome: Phase 5AQ compares the current LV+RV default with the explicit all-chamber candidate over HR75/90 normal, low-preload, and high-preload points. The candidate reaches LA/RA providers in 6/6 points, records zero LA/RA Land solve failures, preserves output in 5/6 points, and has basic LA/RA readable loop signals in 5/6 points. It remains `not-supported` because `low-preload-hr90` fails with `source active-fiber stress must be nonnegative`.
+- interpretation: RA/LA Land provider plumbing is real and mostly reaches the model without solver failure, but all-chamber runtime default remains blocked by the low-preload HR90 negative source-stress path and by unaccepted atrial figure-eight morphology.
+- boundary: atrial-land-default-candidate-evidence-no-runtime-flip; runtime default flip, all-chamber replacement acceptance, legacy deletion, official case tuning, atrial figure-eight finality, atrial Land physiology acceptance, qDot clamp removal, valve/load timing acceptance, and clinical/scientific validation are not claimed.
+- next: attribute the low-preload HR90 negative atrial source-stress path before any all-chamber default flip; continue atrial figure-eight refinement separately without tuning Land/Tref/source-stress/qDot/valves to force support.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison
