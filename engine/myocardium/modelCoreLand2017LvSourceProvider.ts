@@ -20,6 +20,10 @@ export const MODELCORE_EXPERIMENTAL_LAND2017_LV_SOURCE_ONLY_PROVIDER_ID =
   "modelcore-experimental-land2017-lv-source-only-provider-v1";
 export const MODELCORE_EXPERIMENTAL_LAND2017_RV_SOURCE_ONLY_PROVIDER_ID =
   "modelcore-experimental-land2017-rv-source-only-provider-v1";
+export const MODELCORE_EXPERIMENTAL_LAND2017_LA_SOURCE_ONLY_PROVIDER_ID =
+  "modelcore-experimental-land2017-la-source-only-provider-v1";
+export const MODELCORE_EXPERIMENTAL_LAND2017_RA_SOURCE_ONLY_PROVIDER_ID =
+  "modelcore-experimental-land2017-ra-source-only-provider-v1";
 
 const DEFAULT_INITIAL_LAND_STATE = [0.18, 0.22, 0.04, 0.02, 0, 0] as const;
 
@@ -192,20 +196,20 @@ export function land2017LvSourceOnlyProvider(
     }) => {
       instrumentation.commitProviderStateAfterStep += 1;
       const previous = asLandProviderState(previousProviderState, "commitProviderStateAfterStep");
-      const beforeTerms = activeModel.debugActiveStressTerms(
+      const beforeTerms = activeModel.debugPressureTerms(
         beforeStep.effectiveVolumeMl,
         beforeStep.internal,
         beforeStep.chamberCtx,
       );
-      const afterTerms = activeModel.debugActiveStressTerms(
+      const afterTerms = activeModel.debugPressureTerms(
         afterStep.effectiveVolumeMl,
         afterStep.internal,
         afterStep.chamberCtx,
       );
       const landInput: LandStepInput = {
         freeCalciumUM: freeCalciumUMFromInternal(afterStep.internal.c),
-        previousFiberEngineeringStrain: beforeTerms.lambdaRaw - 1,
-        stageFiberEngineeringStrain: afterTerms.lambdaRaw - 1,
+        previousFiberEngineeringStrain: beforeTerms.lambda - 1,
+        stageFiberEngineeringStrain: afterTerms.lambda - 1,
         dtSec: stepDtSec,
         stage: { scheme: "BE", stageIndex: 0 },
       };
@@ -305,13 +309,35 @@ export function calciumScaledLand2017RvSourceOnlyProvider(
   });
 }
 
+export function calciumScaledLand2017LaSourceOnlyProvider(
+  instrumentation: ModelCoreLand2017LvSourceProviderInstrumentation =
+    createModelCoreLand2017LvSourceProviderInstrumentation(),
+  options: ModelCoreLand2017LvCalciumScaledSourceProviderOptions,
+): ModelCoreExperimentalActiveSourceProvider {
+  return calciumScaledLand2017LvSourceOnlyProvider(instrumentation, {
+    ...options,
+    sourceProviderId: options.sourceProviderId ?? MODELCORE_EXPERIMENTAL_LAND2017_LA_SOURCE_ONLY_PROVIDER_ID,
+  });
+}
+
+export function calciumScaledLand2017RaSourceOnlyProvider(
+  instrumentation: ModelCoreLand2017LvSourceProviderInstrumentation =
+    createModelCoreLand2017LvSourceProviderInstrumentation(),
+  options: ModelCoreLand2017LvCalciumScaledSourceProviderOptions,
+): ModelCoreExperimentalActiveSourceProvider {
+  return calciumScaledLand2017LvSourceOnlyProvider(instrumentation, {
+    ...options,
+    sourceProviderId: options.sourceProviderId ?? MODELCORE_EXPERIMENTAL_LAND2017_RA_SOURCE_ONLY_PROVIDER_ID,
+  });
+}
+
 export function modelCoreLand2017LvSourceProviderIdentity() {
   return {
     sourceProviderId: MODELCORE_EXPERIMENTAL_LAND2017_LV_SOURCE_ONLY_PROVIDER_ID,
     parameterSetId: LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET_ID,
     initialState: DEFAULT_INITIAL_LAND_STATE,
     calciumInput: "ModelCore legacy active chamber internal.c interpreted as freeCalciumUM without tuning",
-    kinematicsInput: "ModelCore LV activeModel debug lambdaRaw under the same closure",
+    kinematicsInput: "ModelCore activeModel pressure-adapter lambda under the same closure",
     stateLifecycle: "ModelCore providerState with once-per-step BE commit by default; SDIRK2 commit is experimental evidence-only",
     pressurePath: "sourceActiveStressPa through ActiveStressChamberModel.pressureFromActiveFiberStress",
   } as const;
@@ -443,8 +469,8 @@ function landContinuousInputForCall(
   call: ModelCoreActiveSourceProviderCall,
   state: ModelCoreLand2017LvProviderState,
 ): LandCallInput {
-  const legacyTerms = call.activeModel.debugActiveStressTerms(call.volumeMl, call.internal, call.chamberCtx);
-  const fiberEngineeringStrain = legacyTerms.lambdaRaw - 1;
+  const pressureTerms = call.activeModel.debugPressureTerms(call.volumeMl, call.internal, call.chamberCtx);
+  const fiberEngineeringStrain = pressureTerms.lambda - 1;
   const previousStrain = state.previousFiberEngineeringStrain ?? fiberEngineeringStrain;
   const dtSec = Math.max(state.previousDtSec ?? 0, 1e-6);
   return {

@@ -9,9 +9,13 @@ import {
   type ModelCoreRuntimeRootZcResolution,
 } from "@/engine/myocardium/runtimeRootZc";
 import {
+  MODELCORE_EXPERIMENTAL_LAND2017_LA_SOURCE_ONLY_PROVIDER_ID,
   MODELCORE_EXPERIMENTAL_LAND2017_LV_SOURCE_ONLY_PROVIDER_ID,
+  MODELCORE_EXPERIMENTAL_LAND2017_RA_SOURCE_ONLY_PROVIDER_ID,
   MODELCORE_EXPERIMENTAL_LAND2017_RV_SOURCE_ONLY_PROVIDER_ID,
+  calciumScaledLand2017LaSourceOnlyProvider,
   calciumScaledLand2017LvSourceOnlyProvider,
+  calciumScaledLand2017RaSourceOnlyProvider,
   calciumScaledLand2017RvSourceOnlyProvider,
   createModelCoreLand2017LvSourceProviderInstrumentation,
   type ModelCoreLand2017LvSourceProviderInstrumentation,
@@ -23,6 +27,8 @@ export const MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE =
   "lv-rv-land-phase5ao-user0-staged-default-v1" as const;
 export const MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_CANDIDATE_MODE =
   "lv-rv-land-phase5al-default-candidate-v1" as const;
+export const MODELCORE_RUNTIME_ALL_CHAMBER_LAND_DEFAULT_CANDIDATE_MODE =
+  "all-chamber-land-phase5aq-default-candidate-v1" as const;
 export const MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE =
   "legacy-active-stress-frozen-reference-rollback-v0" as const;
 
@@ -30,6 +36,7 @@ export type ModelCoreRuntimeActiveSourceMode =
   | typeof MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE
   | typeof MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE
   | typeof MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_CANDIDATE_MODE
+  | typeof MODELCORE_RUNTIME_ALL_CHAMBER_LAND_DEFAULT_CANDIDATE_MODE
   | typeof MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE;
 
 export const MODELCORE_RUNTIME_USER0_STAGED_DEFAULT_MODE =
@@ -39,10 +46,16 @@ export const MODELCORE_RUNTIME_LV_LAND_SOURCE_PROVIDER_ID =
   `${MODELCORE_EXPERIMENTAL_LAND2017_LV_SOURCE_ONLY_PROVIDER_ID}:phase5ak-user0-staged-default-be-phase5q-calcium`;
 export const MODELCORE_RUNTIME_RV_LAND_SOURCE_PROVIDER_ID =
   `${MODELCORE_EXPERIMENTAL_LAND2017_RV_SOURCE_ONLY_PROVIDER_ID}:phase5al-default-candidate-be-phase5q-calcium`;
+export const MODELCORE_RUNTIME_LA_LAND_SOURCE_PROVIDER_ID =
+  `${MODELCORE_EXPERIMENTAL_LAND2017_LA_SOURCE_ONLY_PROVIDER_ID}:phase5aq-default-candidate-be-phase5q-calcium`;
+export const MODELCORE_RUNTIME_RA_LAND_SOURCE_PROVIDER_ID =
+  `${MODELCORE_EXPERIMENTAL_LAND2017_RA_SOURCE_ONLY_PROVIDER_ID}:phase5aq-default-candidate-be-phase5q-calcium`;
 
 export type ModelCoreRuntimeLandInstrumentationByChamber = {
   readonly LV?: ModelCoreLand2017LvSourceProviderInstrumentation;
   readonly RV?: ModelCoreLand2017LvSourceProviderInstrumentation;
+  readonly LA?: ModelCoreLand2017LvSourceProviderInstrumentation;
+  readonly RA?: ModelCoreLand2017LvSourceProviderInstrumentation;
 };
 
 export type ModelCoreRuntimeActiveSourceResolution =
@@ -125,6 +138,41 @@ export type ModelCoreRuntimeActiveSourceResolution =
       readonly rootZc: ModelCoreRuntimeRootZcResolution;
     }
   | {
+      readonly mode: typeof MODELCORE_RUNTIME_ALL_CHAMBER_LAND_DEFAULT_CANDIDATE_MODE;
+      readonly claimBoundary: "all-chamber-land-default-candidate-evidence-no-runtime-flip";
+      readonly sourceProviderScope: "LV+RV+LA+RA-candidate";
+      readonly sourceProviderId: null;
+      readonly sourceProviderIds: {
+        readonly LV: typeof MODELCORE_RUNTIME_LV_LAND_SOURCE_PROVIDER_ID;
+        readonly RV: typeof MODELCORE_RUNTIME_RV_LAND_SOURCE_PROVIDER_ID;
+        readonly LA: typeof MODELCORE_RUNTIME_LA_LAND_SOURCE_PROVIDER_ID;
+        readonly RA: typeof MODELCORE_RUNTIME_RA_LAND_SOURCE_PROVIDER_ID;
+      };
+      readonly commitScheme: "BE";
+      readonly calciumMapping: {
+        readonly sourceArtifactId: typeof phase5QArtifact.id;
+        readonly scenarioId: "phase2b-absolute-peak-ca";
+        readonly calciumScale: number;
+        readonly runtimeUserControlMultiplier: "tmax-contractility-user-control";
+        readonly runtimeUserControlReferenceByChamber: {
+          readonly LV: number;
+          readonly RV: number;
+          readonly LA: number;
+          readonly RA: number;
+        };
+        readonly noTuningInRuntimeDefault: true;
+      };
+      readonly experimentalOptions: ModelCoreExperimentalOptions;
+      readonly instrumentation: ModelCoreLand2017LvSourceProviderInstrumentation;
+      readonly instrumentationByChamber: {
+        readonly LV: ModelCoreLand2017LvSourceProviderInstrumentation;
+        readonly RV: ModelCoreLand2017LvSourceProviderInstrumentation;
+        readonly LA: ModelCoreLand2017LvSourceProviderInstrumentation;
+        readonly RA: ModelCoreLand2017LvSourceProviderInstrumentation;
+      };
+      readonly rootZc: ModelCoreRuntimeRootZcResolution;
+    }
+  | {
       readonly mode: typeof MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE;
       readonly claimBoundary: "legacy-active-stress-frozen-reference-rollback";
       readonly sourceProviderScope: "none";
@@ -142,6 +190,8 @@ export type ResolveModelCoreRuntimeActiveSourceInput = {
   readonly mode?: ModelCoreRuntimeActiveSourceMode;
   readonly instrumentation?: ModelCoreLand2017LvSourceProviderInstrumentation;
   readonly rvInstrumentation?: ModelCoreLand2017LvSourceProviderInstrumentation;
+  readonly laInstrumentation?: ModelCoreLand2017LvSourceProviderInstrumentation;
+  readonly raInstrumentation?: ModelCoreLand2017LvSourceProviderInstrumentation;
   readonly rootZcMode?: ModelCoreRuntimeRootZcMode;
   readonly rootZcBaseAoVInertanceMmHgSec2PerMl?: number;
   readonly runtimeParams?: { readonly AoV_L?: number };
@@ -187,6 +237,13 @@ typeof MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_CANDIDATE_MODE {
   return setModelCoreRuntimeActiveSourceModeForThisProcess(
     MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_CANDIDATE_MODE,
   ) as typeof MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_CANDIDATE_MODE;
+}
+
+export function useAllChamberLandDefaultCandidateForModelCoreRuntimeForThisProcess():
+typeof MODELCORE_RUNTIME_ALL_CHAMBER_LAND_DEFAULT_CANDIDATE_MODE {
+  return setModelCoreRuntimeActiveSourceModeForThisProcess(
+    MODELCORE_RUNTIME_ALL_CHAMBER_LAND_DEFAULT_CANDIDATE_MODE,
+  ) as typeof MODELCORE_RUNTIME_ALL_CHAMBER_LAND_DEFAULT_CANDIDATE_MODE;
 }
 
 export function resolveModelCoreRuntimeActiveSource(
@@ -236,15 +293,33 @@ export function resolveModelCoreRuntimeActiveSource(
   if (
     mode === MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE
     || mode === MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_CANDIDATE_MODE
+    || mode === MODELCORE_RUNTIME_ALL_CHAMBER_LAND_DEFAULT_CANDIDATE_MODE
   ) {
     const rvInstrumentation = input.rvInstrumentation ?? createModelCoreLand2017LvSourceProviderInstrumentation();
+    const laInstrumentation = input.laInstrumentation ?? createModelCoreLand2017LvSourceProviderInstrumentation();
+    const raInstrumentation = input.raInstrumentation ?? createModelCoreLand2017LvSourceProviderInstrumentation();
     const rvRuntimeUserControlReference = defaultParams().rvTmaxScale * defaultParams().contractility;
+    const atrialRuntimeUserControlReference = defaultParams().contractility;
     const rvProvider = calciumScaledLand2017RvSourceOnlyProvider(rvInstrumentation, {
       commitScheme: "BE",
       sourceProviderId: MODELCORE_RUNTIME_RV_LAND_SOURCE_PROVIDER_ID,
       calciumScale,
       calciumInputMultiplier: "tmax-contractility-user-control",
       calciumInputMultiplierReference: rvRuntimeUserControlReference,
+    });
+    const laProvider = calciumScaledLand2017LaSourceOnlyProvider(laInstrumentation, {
+      commitScheme: "BE",
+      sourceProviderId: MODELCORE_RUNTIME_LA_LAND_SOURCE_PROVIDER_ID,
+      calciumScale,
+      calciumInputMultiplier: "tmax-contractility-user-control",
+      calciumInputMultiplierReference: atrialRuntimeUserControlReference,
+    });
+    const raProvider = calciumScaledLand2017RaSourceOnlyProvider(raInstrumentation, {
+      commitScheme: "BE",
+      sourceProviderId: MODELCORE_RUNTIME_RA_LAND_SOURCE_PROVIDER_ID,
+      calciumScale,
+      calciumInputMultiplier: "tmax-contractility-user-control",
+      calciumInputMultiplierReference: atrialRuntimeUserControlReference,
     });
 
     const shared = {
@@ -273,6 +348,39 @@ export function resolveModelCoreRuntimeActiveSource(
       instrumentationByChamber: { LV: lvInstrumentation, RV: rvInstrumentation },
       rootZc,
     } as const;
+    if (mode === MODELCORE_RUNTIME_ALL_CHAMBER_LAND_DEFAULT_CANDIDATE_MODE) {
+      return {
+        mode,
+        claimBoundary: "all-chamber-land-default-candidate-evidence-no-runtime-flip",
+        sourceProviderScope: "LV+RV+LA+RA-candidate",
+        ...shared,
+        sourceProviderIds: {
+          LV: MODELCORE_RUNTIME_LV_LAND_SOURCE_PROVIDER_ID,
+          RV: MODELCORE_RUNTIME_RV_LAND_SOURCE_PROVIDER_ID,
+          LA: MODELCORE_RUNTIME_LA_LAND_SOURCE_PROVIDER_ID,
+          RA: MODELCORE_RUNTIME_RA_LAND_SOURCE_PROVIDER_ID,
+        },
+        calciumMapping: {
+          ...shared.calciumMapping,
+          runtimeUserControlReferenceByChamber: {
+            LV: lvRuntimeUserControlReference,
+            RV: rvRuntimeUserControlReference,
+            LA: atrialRuntimeUserControlReference,
+            RA: atrialRuntimeUserControlReference,
+          },
+        },
+        experimentalOptions: {
+          ...rootZc.experimentalOptions,
+          activeSourceProviders: { LV: lvProvider, RV: rvProvider, LA: laProvider, RA: raProvider },
+        },
+        instrumentationByChamber: {
+          LV: lvInstrumentation,
+          RV: rvInstrumentation,
+          LA: laInstrumentation,
+          RA: raInstrumentation,
+        },
+      };
+    }
     if (mode === MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE) {
       return {
         mode,
@@ -324,6 +432,7 @@ function defaultRootZcModeFor(
   mode: ModelCoreRuntimeActiveSourceMode,
 ): ModelCoreRuntimeRootZcMode | undefined {
   return mode === MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE
+    || mode === MODELCORE_RUNTIME_ALL_CHAMBER_LAND_DEFAULT_CANDIDATE_MODE
     ? MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_DEFAULT_MODE
     : undefined;
 }
