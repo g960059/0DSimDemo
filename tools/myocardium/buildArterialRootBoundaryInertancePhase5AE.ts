@@ -99,17 +99,20 @@ const PROTOTYPE_CANDIDATES = [
   },
 ] as const;
 
-type ModelPathId = typeof MODEL_PATH_IDS[number];
-type Candidate = typeof PROTOTYPE_CANDIDATES[number];
+export type ArterialRootBoundaryInertancePhase5AEModelPathId = typeof MODEL_PATH_IDS[number];
+export type ArterialRootBoundaryInertancePhase5AECandidate = typeof PROTOTYPE_CANDIDATES[number];
+type ModelPathId = ArterialRootBoundaryInertancePhase5AEModelPathId;
+type Candidate = ArterialRootBoundaryInertancePhase5AECandidate;
 type CandidateId = Candidate["id"];
 type CandidateRole = Candidate["role"];
-type DiagnosticPoint = {
+export type ArterialRootBoundaryInertancePhase5AEDiagnosticPoint = {
   readonly id: string;
   readonly label: string;
   readonly role: string;
   readonly targetTBVMl: number;
   readonly knobs: Partial<ClinicalKnobs>;
 };
+type DiagnosticPoint = ArterialRootBoundaryInertancePhase5AEDiagnosticPoint;
 
 export type ArterialRootBoundaryInertancePhase5AEHealth = Pick<
   SimulationHealth,
@@ -524,15 +527,15 @@ function buildPoint(point: DiagnosticPoint): ArterialRootBoundaryInertancePhase5
     targetTBVMl: point.targetTBVMl,
     knobs: point.knobs,
     stock: runsWithComparisons(PROTOTYPE_CANDIDATES.map((candidate) =>
-      runPoint(point, "stock-active-no-provider-v0", candidate)
+      runArterialRootBoundaryInertancePoint(point, "stock-active-no-provider-v0", candidate)
     )),
     land: runsWithComparisons(PROTOTYPE_CANDIDATES.map((candidate) =>
-      runPoint(point, "developer-only-lv-land-v0", candidate)
+      runArterialRootBoundaryInertancePoint(point, "developer-only-lv-land-v0", candidate)
     )),
   };
 }
 
-function runPoint(
+export function runArterialRootBoundaryInertancePoint(
   point: DiagnosticPoint,
   modelPathId: ModelPathId,
   candidate: Candidate,
@@ -698,7 +701,7 @@ function syntheticCaseDocument(point: DiagnosticPoint): CaseDocument {
   };
 }
 
-function runsWithComparisons(
+export function runsWithComparisons(
   rawRuns: readonly Omit<ArterialRootBoundaryInertancePhase5AERun, "comparisonVsCurrent">[],
 ): readonly ArterialRootBoundaryInertancePhase5AERun[] {
   const current = rawRuns.find((run) => run.candidateId === "current-closure");
