@@ -640,6 +640,15 @@ production tissue homogenization.
 - boundary: rv-land-default-candidate-evidence-no-runtime-flip; LV+RV runtime default, legacy deletion, all-chamber replacement, root/Zc adoption, atrial figure-eight gate, official case tuning, accepted preload/venous/passive/geometry/source-calcium tuning, Tref fudge, Land-parameter/qDot/valve tuning, qDot clamp removal, official morphology, final no-alternans, and clinical/scientific validation are not claimed.
 - next: decide whether to stage LV+RV as the new default or continue chamber-local candidate evidence, keeping atrial figure-eight and root/Zc adoption separate.
 
+### Phase 5AO — User-0 staged LV+RV Land runtime selection
+
+- result artifact: `data/myocardium/protocols/lv-rv-land-default-flip-phase5ao-result-v1.json`
+- builder: `npx vite-node --script tools/myocardium/buildLvRvLandDefaultFlipPhase5AO.ts`
+- current outcome: Phase 5AO promotes the measured LV+RV path to the user-0 staged runtime default without deleting legacy active-stress. Preview, transition-steady, and Guyton/Starling runtime surfaces now default to `lv-rv-land-phase5ao-user0-staged-default-v1`, while `runScenario`, `runToPeriodicSteady`, and bare `ModelCore` construction remain frozen legacy references unless an explicit `runtimeActiveSourceMode` is passed. The artifact records 5/5 LV+RV default smoke points settled and health-ok, zero LV/RV Land solve failures, both providers and sidecars present at every default point, 5/5 previous LV-only smoke points still RV-provider-free when requested explicitly, and 5/5 legacy rollback smoke points provider-free and non-failed.
+- interpretation: this is the next chamber-replacement default step for the unpublished user-0 product. It uses the Phase 5Q calcium scale with normalized chamber-default calcium-input user-control references and does not use Tref/source-stress tuning.
+- boundary: user0-staged-lv-rv-land-runtime-default-implemented; legacy deletion, all-chamber replacement, root/Zc adoption, atrial figure-eight gate, official case reauthoring/tuning, accepted preload/venous/passive/geometry/source-calcium tuning, Tref fudge, Land-parameter/qDot/valve tuning, qDot clamp removal, official morphology, final no-alternans, and clinical/scientific validation are not claimed.
+- next: continue RA/LA chamber candidate evidence separately, and keep root/Zc live closure acceptance and atrial figure-eight refinement in their own lanes.
+
 ### Phase 5AM — root/Zc off-by-default runtime candidate
 
 - implementation: `engine/myocardium/runtimeRootZc.ts` adds `MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_CANDIDATE_MODE` and `resolveModelCoreRuntimeRootZc()`. `createModelCoreRuntimeExperimentalOptions()` composes this only when both `rootZcMode` and the executed closure's base `AoV_L` are passed; the default root/Zc path remains `current-root-zc-no-boundary-root-inertance-v0`, and frozen legacy rollback rejects experimental root/Zc composition.

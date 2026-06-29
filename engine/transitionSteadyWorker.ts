@@ -1,6 +1,6 @@
 import { ModelCore } from "@/engine/ModelCore";
 import {
-  MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE,
+  MODELCORE_RUNTIME_USER0_STAGED_DEFAULT_MODE,
   createModelCoreRuntimeExperimentalOptions,
 } from "@/engine/myocardium/runtimeActiveSource";
 import type { PreviewCoreSnapshot } from "@/engine/previewWorkerProtocol";
@@ -12,7 +12,7 @@ import type {
 } from "@/engine/transitionSteadyProtocol";
 
 export function computeTransitionSteadyJob(request: TransitionSteadyJobRequest): TransitionSteadyJobResult {
-  const runtimeActiveSourceMode = request.options.runtimeActiveSourceMode ?? MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE;
+  const runtimeActiveSourceMode = request.options.runtimeActiveSourceMode ?? MODELCORE_RUNTIME_USER0_STAGED_DEFAULT_MODE;
   const run = runToPeriodicSteadyInternal(request.params, {
     ...request.options,
     runtimeActiveSourceMode,
@@ -54,7 +54,7 @@ function snapshotFromSteady(
   run: ReturnType<typeof runToPeriodicSteadyInternal>,
 ): PreviewCoreSnapshot {
   const core = new ModelCore(request.params, createModelCoreRuntimeExperimentalOptions({
-    mode: request.options.runtimeActiveSourceMode ?? MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE,
+    mode: request.options.runtimeActiveSourceMode ?? MODELCORE_RUNTIME_USER0_STAGED_DEFAULT_MODE,
   }));
   core.initializeVenousPressuresForTargetTBV(request.targetVolume);
   core.unpackState(run.result.state);

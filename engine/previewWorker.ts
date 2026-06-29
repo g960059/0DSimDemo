@@ -1,6 +1,6 @@
 import { ModelCore } from "@/engine/ModelCore";
 import {
-  MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE,
+  MODELCORE_RUNTIME_USER0_STAGED_DEFAULT_MODE,
   createModelCoreRuntimeExperimentalOptions,
   type ModelCoreRuntimeActiveSourceMode,
 } from "@/engine/myocardium/runtimeActiveSource";
@@ -27,7 +27,7 @@ type TransitionSteadyPromotionState = Extract<PreviewWorkerRequest, { type: "pro
 let dt = 0.001;
 let sampleHz = 120;
 let generation = 0;
-let runtimeActiveSourceMode: ModelCoreRuntimeActiveSourceMode = MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE;
+let runtimeActiveSourceMode: ModelCoreRuntimeActiveSourceMode = MODELCORE_RUNTIME_USER0_STAGED_DEFAULT_MODE;
 let instances: SimInstance[] = [];
 const records = new Map<string, WorkerCoreRecord>();
 

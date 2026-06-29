@@ -31,7 +31,7 @@ import {
 import { postGuytonChainWorkerMessages } from "@/engine/guytonStarlingChainWorkerCore";
 import {
   MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE,
-  MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE,
+  MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE,
 } from "@/engine/myocardium/runtimeActiveSource";
 import type {
   GuytonChainId,
@@ -61,7 +61,7 @@ describe("Guyton / Starling worker helpers", () => {
   it("settles worker cores with the requested runtime active-source mode", () => {
     const land = settleWorkerCore({
       ...request(),
-      runtimeActiveSourceMode: MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE,
+      runtimeActiveSourceMode: MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE,
     }, 5600);
     const legacy = settleWorkerCore({
       ...request(),
@@ -69,6 +69,7 @@ describe("Guyton / Starling worker helpers", () => {
     }, 5600);
 
     expect(land.core.debugExperimentalActiveSourceProviderIds().LV).toContain("land2017");
+    expect(land.core.debugExperimentalActiveSourceProviderIds().RV).toContain("land2017");
     expect(legacy.core.debugExperimentalActiveSourceProviderIds()).toEqual({});
   });
 

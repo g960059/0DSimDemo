@@ -43,8 +43,6 @@ const REQUIRED_RUNTIME_SNIPPETS = [
   ["engine/previewWorker.ts", "runtimeActiveSourceMode = message.runtimeActiveSourceMode"],
   ["engine/previewWorker.ts", "if (existing.settleSignature !== sig)"],
   ["engine/previewWorkerProtocol.ts", "runtimeActiveSourceMode: ModelCoreRuntimeActiveSourceMode"],
-  ["engine/transitionSteadyWorker.ts", "MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE"],
-  ["engine/transitionSteadyWorker.ts", "request.options.runtimeActiveSourceMode ?? MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE"],
   ["engine/transitionSteadyWorker.ts", "createModelCoreRuntimeExperimentalOptions({"],
   ["engine/guytonStarlingWorkerCore.ts", "createModelCoreRuntimeExperimentalOptions({"],
   ["engine/guytonStarlingWorkerCore.ts", "mode: req.runtimeActiveSourceMode"],
