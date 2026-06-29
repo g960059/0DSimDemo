@@ -194,9 +194,17 @@ export type ModelCoreExperimentalBoundaryRootInertanceDiagnostics = {
   readonly effectiveAoVBoundaryRootInertanceMmHgSec2PerMl: number;
 };
 
+export type ModelCoreExperimentalValveDiodeSmoothingOptions = {
+  readonly mechanismId: string;
+  readonly targetValves: readonly ValveName[];
+  readonly reverseFlowLimitMlPerSec: number;
+  readonly smoothingEpsilonMlPerSec?: number;
+};
+
 export type ModelCoreExperimentalOptions = {
   readonly activeSourceProviders?: Partial<Record<Chamber, ModelCoreExperimentalActiveSourceProvider>>;
   readonly boundaryRootInertance?: ModelCoreExperimentalBoundaryRootInertanceOptions;
+  readonly valveDiodeSmoothing?: ModelCoreExperimentalValveDiodeSmoothingOptions;
 };
 
 type BeatWindow = {
@@ -559,6 +567,36 @@ function normalizeExperimentalBoundaryRootInertance(
   };
 }
 
+function normalizeExperimentalValveDiodeSmoothing(
+  options: ModelCoreExperimentalValveDiodeSmoothingOptions | undefined,
+): ModelCoreExperimentalValveDiodeSmoothingOptions | null {
+  if (!options) return null;
+  if (!options.mechanismId || typeof options.mechanismId !== "string") {
+    throw new Error("Experimental valve diode smoothing requires a mechanismId.");
+  }
+  const targetValves = Array.from(new Set(options.targetValves));
+  if (targetValves.length === 0) return null;
+  for (const valve of targetValves) {
+    if (!valveNames.includes(valve)) {
+      throw new Error(`Experimental valve diode smoothing received unknown valve '${valve}'.`);
+    }
+  }
+  const reverseFlowLimit = options.reverseFlowLimitMlPerSec;
+  if (!Number.isFinite(reverseFlowLimit) || reverseFlowLimit <= 0) {
+    throw new Error("Experimental valve diode smoothing reverse-flow limit must be finite and positive.");
+  }
+  const epsilon = options.smoothingEpsilonMlPerSec ?? Math.max(reverseFlowLimit * 0.1, 0.1);
+  if (!Number.isFinite(epsilon) || epsilon <= 0) {
+    throw new Error("Experimental valve diode smoothing epsilon must be finite and positive.");
+  }
+  return {
+    mechanismId: options.mechanismId,
+    targetValves,
+    reverseFlowLimitMlPerSec: reverseFlowLimit,
+    smoothingEpsilonMlPerSec: epsilon,
+  };
+}
+
 export class ModelCore {
   private readonly idx = makeIndex();
   private nodes = buildNodes();
@@ -571,6 +609,7 @@ export class ModelCore {
   private readonly activeModels: Partial<Record<Chamber, ActiveStressChamberModel>> = {};
   private readonly experimentalActiveSourceProviders: Partial<Record<Chamber, ModelCoreExperimentalActiveSourceProvider>>;
   private readonly experimentalBoundaryRootInertance: ModelCoreExperimentalBoundaryRootInertanceOptions | null;
+  private readonly experimentalValveDiodeSmoothing: ModelCoreExperimentalValveDiodeSmoothingOptions | null;
   private readonly experimentalActiveSourceProviderStates: Partial<Record<Chamber, unknown>> = {};
   private readonly experimentalActiveSourceProviderStateVersions: Partial<Record<Chamber, number>> = {};
   private elastanceModels = new Map<string, ElastanceChamberModel>();
@@ -640,6 +679,9 @@ export class ModelCore {
     this.experimentalActiveSourceProviders = { ...(experimentalOptions.activeSourceProviders ?? {}) };
     this.experimentalBoundaryRootInertance = normalizeExperimentalBoundaryRootInertance(
       experimentalOptions.boundaryRootInertance,
+    );
+    this.experimentalValveDiodeSmoothing = normalizeExperimentalValveDiodeSmoothing(
+      experimentalOptions.valveDiodeSmoothing,
     );
     this.validateExperimentalActiveSourceProviders();
     this.p = { ...defaultParams() };
@@ -1906,8 +1948,7 @@ export class ModelCore {
       const qNextPreDiode = qNext;
       if (valveName) {
         if (this.valveLeakArea(valveName, e) <= 1e-9 && qNext < 0) {
-          this.valveDiodeClampHits[valveName] = (this.valveDiodeClampHits[valveName] ?? 0) + 1;
-          qNext = 0;
+          qNext = this.applyValveDiodeConstraint(valveName, qNext);
         }
       }
       const qNextPostDiode = qNext;
@@ -2523,6 +2564,21 @@ export class ModelCore {
   private effectiveAorticBoundaryRootInertance(baseAoVL: number): number {
     const additional = this.experimentalBoundaryRootInertance?.additionalAorticRootInertanceMmHgSec2PerMl ?? 0;
     return Math.max(baseAoVL + additional, 1e-6);
+  }
+
+  private applyValveDiodeConstraint(valveName: ValveName, qNext: number): number {
+    const smoothing = this.experimentalValveDiodeSmoothing;
+    if (smoothing?.targetValves.includes(valveName)) {
+      const floor = -Math.max(smoothing.reverseFlowLimitMlPerSec, 1e-9);
+      const epsilon = Math.max(smoothing.smoothingEpsilonMlPerSec ?? 0.1, 1e-9);
+      const qLimited = smoothMax(qNext, floor, epsilon);
+      if (qLimited > qNext + 1e-9) {
+        this.valveDiodeClampHits[valveName] = (this.valveDiodeClampHits[valveName] ?? 0) + 1;
+      }
+      return qLimited;
+    }
+    this.valveDiodeClampHits[valveName] = (this.valveDiodeClampHits[valveName] ?? 0) + 1;
+    return 0;
   }
 
   private resetExperimentalActiveProviderStates(): void {
@@ -3210,6 +3266,9 @@ export class ModelCore {
       activeSourceProviders: this.experimentalActiveSourceProviders,
       ...(this.experimentalBoundaryRootInertance
         ? { boundaryRootInertance: this.experimentalBoundaryRootInertance }
+        : {}),
+      ...(this.experimentalValveDiodeSmoothing
+        ? { valveDiodeSmoothing: this.experimentalValveDiodeSmoothing }
         : {}),
     });
     clone.pTarget = { ...this.pTarget };
