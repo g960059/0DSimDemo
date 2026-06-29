@@ -631,6 +631,15 @@ production tissue homogenization.
 - boundary: user0-staged-lv-land-runtime-default-implemented; legacy active-stress deletion, all-chamber replacement, root/Zc adoption, atrial figure-eight gate, official case reauthoring/tuning, accepted preload/venous/passive/geometry/source-calcium tuning, Tref fudge, Land-parameter/qDot/valve tuning, qDot clamp removal, official morphology acceptance, final no-alternans, and clinical/scientific validation are not claimed.
 - next: start a fresh branch/worktree for all-chamber replacement, beginning with RV Land source-provider/default-candidate evidence while keeping atrial figure-eight, root/Zc, and official case tuning in separate lanes.
 
+### Phase 5AL — RV Land default-candidate evidence
+
+- result artifact: `data/myocardium/protocols/rv-land-default-candidate-phase5al-result-v1.json`
+- builder: `npx vite-node --script tools/myocardium/buildRvLandDefaultCandidatePhase5AL.ts`
+- current outcome: Phase 5AL adds an explicit LV+RV Land default-candidate mode without changing the Phase 5AK runtime default. The artifact records 5/5 candidate smoke points settled and health-ok, zero LV/RV Land solve failures, and both providers called at every candidate point. The current LV-only default remains RV-provider-free, and legacy rollback remains provider-free.
+- interpretation: RV Land is reachable as the next staged chamber-replacement candidate under the same Phase 5Q calcium scale, with normalized chamber-default calcium-input user-control references rather than Tref/source-stress tuning.
+- boundary: rv-land-default-candidate-evidence-no-runtime-flip; LV+RV runtime default, legacy deletion, all-chamber replacement, root/Zc adoption, atrial figure-eight gate, official case tuning, accepted preload/venous/passive/geometry/source-calcium tuning, Tref fudge, Land-parameter/qDot/valve tuning, qDot clamp removal, official morphology, final no-alternans, and clinical/scientific validation are not claimed.
+- next: decide whether to stage LV+RV as the new default or continue chamber-local candidate evidence, keeping atrial figure-eight and root/Zc adoption separate.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison
