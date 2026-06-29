@@ -610,6 +610,7 @@ export class ActiveStressChamberModel implements ChamberModel {
     internal: ChamberInternal,
     ctx: ChamberCtx,
     sourceActiveFiberStressPa?: number,
+    sourceActiveFiberStressMode: "nonnegative" | "signed" = "nonnegative",
   ): ChamberPressureTerms {
     const ap = this.ap;
     const a = clamp(internal.a, 0, 1);
@@ -619,7 +620,11 @@ export class ActiveStressChamberModel implements ChamberModel {
     const sigmaPas = ap.sigmaPas0 * (expClamped(ap.bPas * stretch) - 1);
     const sigmaActTarget = sourceActiveFiberStressPa == null
       ? this.activeStressTargetPa(a, lambda, lambdaForFIso, ctx)
-      : this.finiteExternalActiveFiberStress(sourceActiveFiberStressPa);
+      : (
+        sourceActiveFiberStressMode === "signed"
+          ? this.finiteSignedExternalActiveFiberStress(sourceActiveFiberStressPa)
+          : this.finiteExternalActiveFiberStress(sourceActiveFiberStressPa)
+      );
     const sigmaAct = sourceActiveFiberStressPa == null && this.usesTensionFilter(ctx)
       ? clamp(
         (internal.tensionPa ?? sigmaActTarget)
@@ -678,12 +683,46 @@ export class ActiveStressChamberModel implements ChamberModel {
     );
   }
 
+  pressureFromSignedActiveFiberStress(
+    V: number,
+    internal: ChamberInternal,
+    ctx: ChamberCtx,
+    sourceActiveFiberStressPa: number,
+  ): number {
+    return this.debugPressureTermsFromSignedActiveFiberStress(V, internal, ctx, sourceActiveFiberStressPa).pressureMmHg;
+  }
+
+  debugPressureTermsFromSignedActiveFiberStress(
+    V: number,
+    internal: ChamberInternal,
+    ctx: ChamberCtx,
+    sourceActiveFiberStressPa: number,
+  ): ChamberPressureTerms {
+    if (this.twoBranchEnabled()) {
+      throw new Error("signed source active-fiber stress pressure adapter does not support two-branch chamber models");
+    }
+    return this.bodyPressureTerms(
+      this.wallVolume(V, ctx),
+      internal,
+      ctx,
+      sourceActiveFiberStressPa,
+      "signed",
+    );
+  }
+
   private finiteExternalActiveFiberStress(sourceActiveFiberStressPa: number): number {
     if (!Number.isFinite(sourceActiveFiberStressPa)) {
       throw new Error("source active-fiber stress must be finite");
     }
     if (sourceActiveFiberStressPa < 0) {
       throw new Error("source active-fiber stress must be nonnegative");
+    }
+    return sourceActiveFiberStressPa;
+  }
+
+  private finiteSignedExternalActiveFiberStress(sourceActiveFiberStressPa: number): number {
+    if (!Number.isFinite(sourceActiveFiberStressPa)) {
+      throw new Error("signed source active-fiber stress must be finite");
     }
     return sourceActiveFiberStressPa;
   }

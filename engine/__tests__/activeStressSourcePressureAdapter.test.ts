@@ -112,6 +112,26 @@ describe("ActiveStressChamberModel source active-fiber pressure adapter", () => 
     ).toThrow(/nonnegative/);
   });
 
+  it("exposes an explicit signed source-stress adapter without changing the source-only invariant", () => {
+    const model = new ActiveStressChamberModel(defaultActiveLA);
+    const internal: ChamberInternal = {
+      c: 0.42,
+      a: 0.34,
+      r: 0,
+      tensionPa: 0,
+      lambdaAct: 1,
+    };
+    const ctx = laCtx(0.24);
+    const volumeMl = 45;
+    const signedTerms = model.debugPressureTermsFromSignedActiveFiberStress(volumeMl, internal, ctx, -1.5);
+
+    expect(signedTerms.sigmaAct).toBeCloseTo(-1.5, 12);
+    expect(Number.isFinite(signedTerms.pressureMmHg)).toBe(true);
+    expect(() =>
+      model.pressureFromActiveFiberStress(volumeMl, internal, ctx, -1.5)
+    ).toThrow(/nonnegative/);
+  });
+
   it("propagates negative source stress rejection through ModelCore pressure assembly", () => {
     expect(() =>
       new ModelCore(DEFAULT_PARAMS, {

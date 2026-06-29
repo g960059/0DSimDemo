@@ -717,6 +717,16 @@ production tissue homogenization.
 - boundary: atrial-physiology-bridge-v2-contract-readout-no-model-change; production bridge selection, runtime wiring, official case reauthoring, Workbench wiring, state-schema migration, atrial Land/RDQ validation, AF validation, final atrial physiology, LV/RV default gating, and official morphology acceptance are not claimed.
 - next: add self chamber volume-rate input and pressure-decomposition debug output before prototyping A2 viscous/conduit and tension-state booster terms; source absolute atrial waveform target ranges before parameter tuning.
 
+### Phase 5AV — RA signed source-stress pressure-adapter candidate
+
+- result artifact: `data/myocardium/protocols/atrial-land-ra-source-stress-convention-phase5av-result-v1.json`
+- builder: `npx vite-node --script tools/myocardium/buildAtrialLandRaSourceStressConventionPhase5AV.ts`
+- implementation: adds explicit signed active-fiber stress pressure-adapter APIs while leaving the existing source-only nonnegative adapter invariant intact. The signed path is used only in the disposable Phase 5AV runner for RA candidate evidence; no runtime default, root/Zc, valve/qDot/load, Tref/source-calcium, Land parameter, state-layout, official case, Workbench, npm script, or permanent verifier change is made.
+- current outcome: the current RA nonnegative source-only adapter control reproduces the `low-preload-hr90` runtime error with RA raw source stress `-1.490128` Pa. Signed RA adapter candidates remove runtime errors and reach 5/6 measured health-ok points for both RA-only and all-chamber runs, but both still cap at `low-preload-hr90` with health ok and negative RA raw source stress around `-20` to `-23` Pa.
+- interpretation: signed RA pressure adaptation partially supports the sign-semantics hypothesis by moving the blocker from adapter invariant failure to low-preload HR90 settling, but it is not enough to unlock all-chamber Land replacement.
+- boundary: ra-signed-source-stress-pressure-adapter-candidate-no-runtime-flip; all-chamber Land default, legacy deletion, official case tuning, atrial figure-eight selection, atrial Land/RDQ acceptance, AF validation, official morphology, qDot clamp removal, valve/load timing acceptance, Tref/source-stress/source-calcium tuning, and clinical/scientific validation are not claimed.
+- next: keep RA/LA chamber replacement separate from A2 figure-eight work; if continuing RA Land, inspect low-preload HR90 settling under signed adapter without source-stress clamping or tuning.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison

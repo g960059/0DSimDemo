@@ -1366,6 +1366,22 @@ nonnegative invariant throws. Phase 5AR does not clamp, scale, retune, or accept
 source stress; it keeps all-chamber Land off by default and leaves atrial
 figure-eight selection separate.
 
+Phase 5AV records a signed RA source-stress pressure-adapter candidate in
+[`../../data/myocardium/protocols/atrial-land-ra-source-stress-convention-phase5av-result-v1.json`](../../data/myocardium/protocols/atrial-land-ra-source-stress-convention-phase5av-result-v1.json).
+Regenerate it with
+`npx vite-node --script tools/myocardium/buildAtrialLandRaSourceStressConventionPhase5AV.ts`.
+The PR adds an explicit signed adapter API while keeping the existing
+source-only nonnegative invariant intact; the signed path is used only by the
+disposable Phase 5AV runner. Over the HR75/90 normal, low-preload, and
+high-preload envelope, the current nonnegative RA control reproduces the
+`low-preload-hr90` runtime error, while both signed RA candidates remove the
+runtime error and reach 5/6 measured health-ok points. They still cap at
+`low-preload-hr90`, so the result is
+`partial-signed-ra-adapter-support-settle-blocked`, not all-chamber support.
+No source-stress clamp, Tref/source-calcium tuning, qDot/valve/load tuning,
+runtime default flip, atrial physiology acceptance, or official morphology
+claim is made.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and
