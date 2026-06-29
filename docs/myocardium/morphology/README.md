@@ -226,15 +226,28 @@ matches. This is an experimental hook using the existing AoV flow state, not a
 new topology edge, production adoption, sourced Zc calibration, qDot clamp
 removal, root-cause/fix acceptance, or official morphology acceptance.
 
+Phase 5AF records the sourced Zc calibration pass:
+[`../../../data/myocardium/protocols/arterial-root-zc-calibration-phase5af-result-v1.json`](../../../data/myocardium/protocols/arterial-root-zc-calibration-phase5af-result-v1.json).
+Run `npm run verify:myocardium-arterial-root-zc-calibration` to check it. The
+artifact compares the Phase 5AC 20Hz direct high-frequency bench readouts
+against a sourced `Zao` anchor of mean `0.056` and SD `0.012` mmHg*s/mL
+(`0.044`-`0.068` preferred sourced Zc range; `0.032`-`0.080` broad range).
+Current closure is below the broad range, the total 2x AoV/root candidate that
+matches the Phase 5AE boundary/root mechanism is inside the preferred range,
+and total 3x/4x candidates are above the broad range. This is diagnostic
+calibration for the next closed-loop valve/load timing experiment, not
+production/default root/Zc adoption, qDot clamp removal, reflection coefficient
+claim, root-cause/fix acceptance, or official morphology acceptance.
+
 1. Use the current-main baseline snapshot in
    [`pv-loop-current-main-baseline-snapshot-v1.md`](../verification/pv-loop-current-main-baseline-snapshot-v1.md)
    as the post-PR #196 morphology reference.
 2. Derive or emit the missing diagnostic-only E/A-like inflow proxy for the
    three residual dobutamine RV filling groups.
-3. Carry the Phase 5AB lower-output-preserving effective inertance region into
-   an off-by-default root/Zc prototype or direct impedance bench with qDot and
-   valve thresholds still fixed before treating LV `qDotClampHitFraction=1` as
-   a qDot/valve-threshold blocker.
+3. Carry the sourced-calibrated total 2x boundary/root mechanism into a
+   closed-loop valve/load timing diagnostic with qDot and valve thresholds still
+   fixed before treating LV `qDotClampHitFraction=1` as a qDot/valve-threshold
+   blocker.
 4. Use Phase 5X style normal-floor and user-knob sweeps for LV Land default
    candidate decisions before detailed official-case tuning.
 5. Keep filling jaggedness/figure-eight work in the atrial A1/refined atrial

@@ -576,6 +576,15 @@ production tissue homogenization.
 - boundary: experimental-boundary-root-inertance-diagnostic-only; no production/default ModelCore equation change, no runtime default flip, no production registry integration, no official case wiring/reauthoring, no Workbench runtime wiring, no state-schema migration, no topology or state-layout change, no default parameter change, no qDot tuning or qDot clamp removal, no valve threshold/loss tuning, no afterload/preload/Land-parameter/source-stress tuning, no Tref fudge, no direct Ao_SA adoption, no AoV-boundary carrier adoption, no boundary/root production adoption, no physical Zc calibration claim, no reflection-coefficient claim, no root-cause/fix acceptance, no official morphology acceptance, no final no-alternans, and no clinical/scientific validation claim.
 - next: use the experimental boundary/root mechanism only as off-by-default routing evidence; run sourced physiological Zc calibration before any production/default root/Zc adoption.
 
+### Phase 5AF — sourced arterial root/Zc calibration
+
+- result artifact: `data/myocardium/protocols/arterial-root-zc-calibration-phase5af-result-v1.json`
+- verifier: `npm run verify:myocardium-arterial-root-zc-calibration`
+- current outcome: Phase 5AF compares the Phase 5AC 20Hz direct high-frequency root/Zc bench readouts with an explicit sourced `Zao` anchor from Bikia et al. 2021: mean `0.056` and SD `0.012` mmHg*s/mL. The preferred sourced Zc range is `0.044`-`0.068` mmHg*s/mL and the broad range is `0.032`-`0.080` mmHg*s/mL. The current closure readout is `0.025723` mmHg*s/mL and below the broad range. The total 2x AoV/root candidate, equivalent to the Phase 5AE boundary/root mechanism, is `0.057139` mmHg*s/mL and inside the preferred range. Total 3x/4x candidates are above the broad range.
+- interpretation: the Phase 5AE boundary/root mechanism has sourced-scale support as the next diagnostic candidate, while current closure is under-scaled and 3x/4x are over-scaled relative to this anchor. This resolves sourced Zc calibration for diagnostic candidate selection only; it is not production/default adoption or fix acceptance.
+- boundary: sourced-arterial-root-zc-calibration-diagnostic-only; no ModelCore equation change, topology change, state-layout change, default parameter change, runtime default flip, production registry integration, official case wiring/reauthoring, Workbench runtime wiring, state-schema migration, qDot tuning or qDot clamp removal, valve threshold/loss tuning, afterload/preload/Land-parameter/source-stress tuning, Tref fudge, direct Ao_SA adoption, AoV-boundary carrier adoption, boundary/root production adoption, reflection-coefficient claim, root-cause/fix acceptance, official morphology acceptance, final no-alternans, or clinical/scientific validation claim.
+- next: carry the sourced-calibrated total 2x boundary/root mechanism into a closed-loop valve/load timing and qDot-engagement experiment with qDot clamps, valves, load/preload, Tref, source-stress scale, and Land parameters fixed.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison

@@ -1,0 +1,209 @@
+{
+  "schemaVersion": 1,
+  "id": "arterial-root-zc-calibration-phase5af-result-v1",
+  "phase": "Phase 5AF",
+  "claimBoundary": "sourced-arterial-root-zc-calibration-diagnostic-only",
+  "upstreamPhase5ACArtifactId": "arterial-root-zc-impedance-bench-phase5ac-result-v1",
+  "upstreamPhase5AEArtifactId": "arterial-root-boundary-inertance-phase5ae-result-v1",
+  "verifierScript": "verify:myocardium-arterial-root-zc-calibration",
+  "protocol": {
+    "calibrationMode": "source-range-comparison-against-phase5ac-direct-linear-bench",
+    "sourceSelectionRule": "single-explicit-literature-anchor-no-proxy-synthesis",
+    "preferredRangeRule": "source-mean-plus-minus-1sd",
+    "broadRangeRule": "source-mean-plus-minus-2sd",
+    "benchReadoutSource": "phase5ac-20hz-high-frequency-input-impedance",
+    "phase5aeBoundaryRootEquivalentAovMultiple": 2
+  },
+  "sources": [
+    {
+      "id": "bikia-2021-virtual-aortic-impedance",
+      "citation": "Bikia et al. 2021, Frontiers in Bioengineering and Biotechnology, Table 2",
+      "url": "https://www.frontiersin.org/journals/bioengineering-and-biotechnology/articles/10.3389/fbioe.2021.649866/full",
+      "reportedQuantity": "Zao aortic characteristic/input impedance",
+      "reportedPopulation": "3818 healthy virtual subjects",
+      "meanMmHgSecPerMl": 0.056,
+      "sdMmHgSecPerMl": 0.012,
+      "note": "Used as a sourced physiological calibration anchor only; it is not a clinical acceptance criterion."
+    }
+  ],
+  "sourceRanges": {
+    "preferred": {
+      "id": "preferred-source-range",
+      "sourceId": "bikia-2021-virtual-aortic-impedance",
+      "sdMultiple": 1,
+      "minMmHgSecPerMl": 0.044,
+      "maxMmHgSecPerMl": 0.068,
+      "minPaSecPerM3": 5866168,
+      "maxPaSecPerM3": 9065896
+    },
+    "broad": {
+      "id": "broad-source-range",
+      "sourceId": "bikia-2021-virtual-aortic-impedance",
+      "sdMultiple": 2,
+      "minMmHgSecPerMl": 0.032,
+      "maxMmHgSecPerMl": 0.08,
+      "minPaSecPerM3": 4266304,
+      "maxPaSecPerM3": 10665760
+    }
+  },
+  "candidates": [
+    {
+      "candidateId": "current-aov-l",
+      "phase5ACSource": "phase5ab-current-closure",
+      "effectiveAoVInertanceMultiple": 1,
+      "effectiveAoVInertanceMmHgSec2PerMl": 0.00025,
+      "highFrequencyBenchReadoutMmHgSecPerMl": 0.025723,
+      "highFrequencyBenchReadoutPaSecPerM3": 3429400.81599,
+      "ratioToSourceMean": 0.459339,
+      "deltaVsSourceMeanMmHgSecPerMl": -0.030277,
+      "preferredRangeClassification": "below-preferred-source-range",
+      "broadRangeClassification": "below-broad-source-range",
+      "candidateCalibrationStatus": "below-physiological-calibration-range"
+    },
+    {
+      "candidateId": "phase5ab-pareto-total-2x-aov-l",
+      "phase5ACSource": "phase5ab-lower-output-preserving-region",
+      "effectiveAoVInertanceMultiple": 2,
+      "effectiveAoVInertanceMmHgSec2PerMl": 0.0005,
+      "highFrequencyBenchReadoutMmHgSecPerMl": 0.057139,
+      "highFrequencyBenchReadoutPaSecPerM3": 7617834.189257,
+      "ratioToSourceMean": 1.020339,
+      "deltaVsSourceMeanMmHgSecPerMl": 0.001139,
+      "preferredRangeClassification": "inside-preferred-source-range",
+      "broadRangeClassification": "inside-broad-source-range",
+      "candidateCalibrationStatus": "preferred-physiological-calibration-candidate"
+    },
+    {
+      "candidateId": "phase5ab-pareto-total-3x-aov-l",
+      "phase5ACSource": "phase5ab-lower-output-preserving-region",
+      "effectiveAoVInertanceMultiple": 3,
+      "effectiveAoVInertanceMmHgSec2PerMl": 0.00075,
+      "highFrequencyBenchReadoutMmHgSecPerMl": 0.088555,
+      "highFrequencyBenchReadoutPaSecPerM3": 11806268.119043,
+      "ratioToSourceMean": 1.581339,
+      "deltaVsSourceMeanMmHgSecPerMl": 0.032555,
+      "preferredRangeClassification": "above-preferred-source-range",
+      "broadRangeClassification": "above-broad-source-range",
+      "candidateCalibrationStatus": "above-physiological-calibration-range"
+    },
+    {
+      "candidateId": "phase5ab-pareto-total-4x-aov-l",
+      "phase5ACSource": "phase5ab-lower-output-preserving-region",
+      "effectiveAoVInertanceMultiple": 4,
+      "effectiveAoVInertanceMmHgSec2PerMl": 0.001,
+      "highFrequencyBenchReadoutMmHgSecPerMl": 0.11997,
+      "highFrequencyBenchReadoutPaSecPerM3": 15994702.168151,
+      "ratioToSourceMean": 2.142321,
+      "deltaVsSourceMeanMmHgSecPerMl": 0.06397,
+      "preferredRangeClassification": "above-preferred-source-range",
+      "broadRangeClassification": "above-broad-source-range",
+      "candidateCalibrationStatus": "above-physiological-calibration-range"
+    }
+  ],
+  "phase5aeBoundaryRootMechanismCalibration": {
+    "mechanismId": "phase5ae-experimental-aortic-boundary-root-inertance-v1",
+    "equivalentPhase5ACCandidateId": "phase5ab-pareto-total-2x-aov-l",
+    "equivalentEffectiveAoVInertanceMultiple": 2,
+    "phase5aeMechanismAssessment": "matches-carrier-diagnostic-only",
+    "calibrationStatus": "preferred-physiological-calibration-candidate",
+    "preferredRangeClassification": "inside-preferred-source-range",
+    "broadRangeClassification": "inside-broad-source-range"
+  },
+  "summary": {
+    "candidateCount": 4,
+    "sourceCount": 1,
+    "sourceMeanMmHgSecPerMl": 0.056,
+    "preferredRangeMmHgSecPerMl": {
+      "min": 0.044,
+      "max": 0.068
+    },
+    "broadRangeMmHgSecPerMl": {
+      "min": 0.032,
+      "max": 0.08
+    },
+    "currentCandidateId": "current-aov-l",
+    "currentStatus": "below-physiological-calibration-range",
+    "preferredCandidateIds": [
+      "phase5ab-pareto-total-2x-aov-l"
+    ],
+    "broadCandidateIds": [
+      "phase5ab-pareto-total-2x-aov-l"
+    ],
+    "phase5aeBoundaryRootEquivalentCandidateId": "phase5ab-pareto-total-2x-aov-l",
+    "phase5aeBoundaryRootCalibrationStatus": "preferred-physiological-calibration-candidate",
+    "currentInterpretation": "Phase 5AF compares the Phase 5AC direct 20Hz high-frequency impedance readouts against a sourced Zao calibration anchor. The current closure is below the broad source range, while the total 2x AoV/root candidate that corresponds to the Phase 5AE boundary/root mechanism falls inside the preferred source range. Total 3x/4x candidates are above the broad source range, so they are not the next diagnostic calibration target.",
+    "recommendedNext": [
+      "carry only the total 2x boundary/root mechanism as the sourced-Zc-calibrated diagnostic candidate into a closed-loop valve/load timing and qDot-engagement experiment",
+      "keep direct Ao_SA adoption blocked because Phase 5AE did not support direct Ao_SA-only candidates",
+      "keep qDot clamps, valve thresholds, valve loss terms, load/preload, Tref, source-stress scale, and Land parameters fixed",
+      "do not claim reflection coefficient, qDot clamp removal, official morphology acceptance, production/default adoption, or final no-alternans from this sourced calibration artifact"
+    ],
+    "limitations": [
+      "This calibration uses one explicit literature anchor and does not synthesize a population-specific clinical target.",
+      "The Phase 5AC value is an isolated linearized bench readout at 20Hz under prescribed flow, not a closed-loop runtime measurement.",
+      "The source comparison constrains candidate scale only; it does not validate wave reflection, valve timing, incisura morphology, or qDot clamp retirement.",
+      "The Phase 5AE boundary/root mechanism remains off by default and diagnostic-only."
+    ]
+  },
+  "boundary": {
+    "noModelCoreEquationChange": true,
+    "noTopologyChange": true,
+    "noStateLayoutChange": true,
+    "noDefaultParamChange": true,
+    "noRuntimeDefaultFlip": true,
+    "noProductionRegistryIntegration": true,
+    "noOfficialCaseWiring": true,
+    "noOfficialCaseReauthoring": true,
+    "noWorkbenchRuntimeWiring": true,
+    "noStateSchemaMigration": true,
+    "noQDotTuning": true,
+    "noQDotClampRemoval": true,
+    "noValveThresholdTuning": true,
+    "noValveLossTuning": true,
+    "noAfterloadTuning": true,
+    "noPreloadTuning": true,
+    "noLandParameterTuning": true,
+    "noTrefFudge": true,
+    "noSourceStressScaling": true,
+    "noDirectAoSAAdoption": true,
+    "noAoVBoundaryCarrierAdoption": true,
+    "noBoundaryRootProductionAdoption": true,
+    "noReflectionCoefficientClaim": true,
+    "noRootCauseAcceptance": true,
+    "noFixAcceptance": true,
+    "noOfficialMorphologyAcceptance": true,
+    "noFinalNoAlternansAcceptance": true,
+    "noClinicalScientificValidationClaim": true
+  },
+  "doesNotUnlock": [
+    "ModelCoreEquationChange",
+    "topologyChange",
+    "stateLayoutChange",
+    "defaultParamChange",
+    "runtimeDefaultFlip",
+    "productionRegistryIntegration",
+    "officialCaseWiring",
+    "officialCaseReauthoring",
+    "workbenchRuntimeWiring",
+    "stateSchemaMigration",
+    "qDotTuning",
+    "qDotClampRemoval",
+    "valveThresholdTuning",
+    "valveLossTuning",
+    "afterloadTuning",
+    "preloadTuning",
+    "LandParameterTuning",
+    "TrefFudge",
+    "sourceStressScaling",
+    "directAoSAAdoption",
+    "AoVBoundaryCarrierAdoption",
+    "boundaryRootProductionAdoption",
+    "reflectionCoefficientClaim",
+    "rootCauseAcceptance",
+    "fixAcceptance",
+    "officialMorphologyAcceptance",
+    "finalNoAlternansAcceptance",
+    "clinicalScientificValidationClaim"
+  ],
+  "normalizedSha256": "005a93b80495796b44b3e02ae28156275e20138a10f3acca30bbd6c7cb9c9afb"
+}
