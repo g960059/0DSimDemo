@@ -215,6 +215,17 @@ This blocks direct `Ao_SA.L` adoption as the root/Zc fix from this smoke
 evidence; it is a routing diagnostic, not root-cause/fix acceptance or official
 morphology acceptance.
 
+Phase 5AE records an experimental boundary/root inertance mechanism:
+[`../../../data/myocardium/protocols/arterial-root-boundary-inertance-phase5ae-result-v1.json`](../../../data/myocardium/protocols/arterial-root-boundary-inertance-phase5ae-result-v1.json).
+Run `npm run verify:myocardium-arterial-root-boundary-inertance` to check it.
+The mechanism keeps the same selected stock/Land smoke points and carries the
+Phase 5AD AoV-boundary signal without direct `Ao_SA.L` adoption: 5
+measured-health-ok signal comparisons for the boundary/root mechanism, 5 for
+the AoV-boundary carrier reference, and 7 measured-health-ok carrier/mechanism
+matches. This is an experimental hook using the existing AoV flow state, not a
+new topology edge, production adoption, sourced Zc calibration, qDot clamp
+removal, root-cause/fix acceptance, or official morphology acceptance.
+
 1. Use the current-main baseline snapshot in
    [`pv-loop-current-main-baseline-snapshot-v1.md`](../verification/pv-loop-current-main-baseline-snapshot-v1.md)
    as the post-PR #196 morphology reference.

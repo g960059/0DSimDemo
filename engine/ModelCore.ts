@@ -175,8 +175,22 @@ export type ModelCoreExperimentalActiveSourceProviderStateDiagnostics = Partial<
   readonly stateSnapshot: unknown;
 }>>;
 
+export type ModelCoreExperimentalBoundaryRootInertanceOptions = {
+  readonly mechanismId: string;
+  readonly additionalAorticRootInertanceMmHgSec2PerMl: number;
+};
+
+export type ModelCoreExperimentalBoundaryRootInertanceDiagnostics = {
+  readonly mechanismId: string;
+  readonly targetValve: "AoV";
+  readonly baseAoVInertanceMmHgSec2PerMl: number;
+  readonly additionalAorticRootInertanceMmHgSec2PerMl: number;
+  readonly effectiveAoVBoundaryRootInertanceMmHgSec2PerMl: number;
+};
+
 export type ModelCoreExperimentalOptions = {
   readonly activeSourceProviders?: Partial<Record<Chamber, ModelCoreExperimentalActiveSourceProvider>>;
+  readonly boundaryRootInertance?: ModelCoreExperimentalBoundaryRootInertanceOptions;
 };
 
 type BeatWindow = {
@@ -519,6 +533,24 @@ function localizedAorticFlowClamp(value: number, limit: number, identityFraction
   return threshold + span * shaped;
 }
 
+function normalizeExperimentalBoundaryRootInertance(
+  options: ModelCoreExperimentalBoundaryRootInertanceOptions | undefined,
+): ModelCoreExperimentalBoundaryRootInertanceOptions | null {
+  if (!options) return null;
+  if (!options.mechanismId || typeof options.mechanismId !== "string") {
+    throw new Error("Experimental boundary/root inertance requires a mechanismId.");
+  }
+  const additional = options.additionalAorticRootInertanceMmHgSec2PerMl;
+  if (!Number.isFinite(additional) || additional < 0) {
+    throw new Error("Experimental boundary/root inertance must be finite and non-negative.");
+  }
+  if (additional === 0) return null;
+  return {
+    mechanismId: options.mechanismId,
+    additionalAorticRootInertanceMmHgSec2PerMl: additional,
+  };
+}
+
 export class ModelCore {
   private readonly idx = makeIndex();
   private nodes = buildNodes();
@@ -530,6 +562,7 @@ export class ModelCore {
   // Heart chamber models (ROADMAP S2). Active models track node.active params.
   private readonly activeModels: Partial<Record<Chamber, ActiveStressChamberModel>> = {};
   private readonly experimentalActiveSourceProviders: Partial<Record<Chamber, ModelCoreExperimentalActiveSourceProvider>>;
+  private readonly experimentalBoundaryRootInertance: ModelCoreExperimentalBoundaryRootInertanceOptions | null;
   private readonly experimentalActiveSourceProviderStates: Partial<Record<Chamber, unknown>> = {};
   private readonly experimentalActiveSourceProviderStateVersions: Partial<Record<Chamber, number>> = {};
   private elastanceModels = new Map<string, ElastanceChamberModel>();
@@ -591,6 +624,9 @@ export class ModelCore {
 
   constructor(initial?: Partial<CoreRuntimeParams>, experimentalOptions: ModelCoreExperimentalOptions = {}) {
     this.experimentalActiveSourceProviders = { ...(experimentalOptions.activeSourceProviders ?? {}) };
+    this.experimentalBoundaryRootInertance = normalizeExperimentalBoundaryRootInertance(
+      experimentalOptions.boundaryRootInertance,
+    );
     this.validateExperimentalActiveSourceProviders();
     this.p = { ...defaultParams() };
     this.pTarget = { ...this.p };
@@ -1293,6 +1329,19 @@ export class ModelCore {
     return out;
   }
 
+  debugExperimentalBoundaryRootInertance(): ModelCoreExperimentalBoundaryRootInertanceDiagnostics | null {
+    if (!this.experimentalBoundaryRootInertance) return null;
+    const baseAoVL = Math.max(this.p.AoV_L ?? defaultParams().AoV_L, 1e-6);
+    const additional = this.experimentalBoundaryRootInertance.additionalAorticRootInertanceMmHgSec2PerMl;
+    return {
+      mechanismId: this.experimentalBoundaryRootInertance.mechanismId,
+      targetValve: "AoV",
+      baseAoVInertanceMmHgSec2PerMl: baseAoVL,
+      additionalAorticRootInertanceMmHgSec2PerMl: additional,
+      effectiveAoVBoundaryRootInertanceMmHgSec2PerMl: baseAoVL + additional,
+    };
+  }
+
   debugClampDiagnostics(): ModelCoreClampDiagnostics {
     return {
       totalClampHits: this.clampHitCount,
@@ -1769,6 +1818,7 @@ export class ModelCore {
       const q = x[qi];
       const { R, B, areaRatio } = this.effectiveLosses(e, Pu, Pd, x);
       let L = e.kind === "valve" ? Math.max((this.p as any)[`${e.name}_L`] ?? e.L ?? 0.001, 1e-6) : Math.max(e.L ?? 0.001, 1e-6);
+      if (e.name === "AoV") L = this.effectiveAorticBoundaryRootInertance(L);
       if (e.kind !== "valve" && e.useChiResistance) {
         L = L / Math.max(areaRatio, 1e-6);
       }
@@ -2331,6 +2381,11 @@ export class ModelCore {
         throw new Error(`Experimental source-only provider ${provider.sourceProviderId} for ${chamber} must define source-specific debugActiveStressTerms.`);
       }
     }
+  }
+
+  private effectiveAorticBoundaryRootInertance(baseAoVL: number): number {
+    const additional = this.experimentalBoundaryRootInertance?.additionalAorticRootInertanceMmHgSec2PerMl ?? 0;
+    return Math.max(baseAoVL + additional, 1e-6);
   }
 
   private resetExperimentalActiveProviderStates(): void {
@@ -3014,7 +3069,12 @@ export class ModelCore {
   }
 
   cloneForReadOnlyMeasurement(): ModelCore {
-    const clone = new ModelCore(this.p, { activeSourceProviders: this.experimentalActiveSourceProviders });
+    const clone = new ModelCore(this.p, {
+      activeSourceProviders: this.experimentalActiveSourceProviders,
+      ...(this.experimentalBoundaryRootInertance
+        ? { boundaryRootInertance: this.experimentalBoundaryRootInertance }
+        : {}),
+    });
     clone.pTarget = { ...this.pTarget };
     clone.unpackState(this.packState());
     clone.restoreExperimentalActiveProviderStates(this.snapshotExperimentalActiveProviderStates());

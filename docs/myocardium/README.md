@@ -1067,6 +1067,20 @@ not-robust. Seven non-ok or unmeasured runs are boundary-tracked. This is a
 routing diagnostic: do not adopt direct `Ao_SA.L` as the root/Zc fix from this
 evidence, and do not adopt the AoV-boundary carrier as physical calibration.
 
+Phase 5AE physicalizes the Phase 5AD AoV-boundary carrier signal behind an
+experimental boundary/root inertance hook. The recorded result is
+[`../../data/myocardium/protocols/arterial-root-boundary-inertance-phase5ae-result-v1.json`](../../data/myocardium/protocols/arterial-root-boundary-inertance-phase5ae-result-v1.json).
+Run `npm run verify:myocardium-arterial-root-boundary-inertance` to check the
+artifact. The selected stock/Land smoke keeps qDot clamps, valves, load/preload,
+Tref, source-stress scale, Land parameters, default params, topology, and state
+layout fixed. It records 48 runs: 46 measured, 40 measured health ok, and Land
+solve failure count zero. The experimental boundary/root mechanism carries 5
+measured-health-ok signal comparisons, matching the AoV-boundary carrier signal,
+with 7 measured-health-ok carrier/mechanism matches. This remains diagnostic:
+no production/default ModelCore equation change, topology change, state-layout
+change, qDot clamp removal, direct `Ao_SA.L` adoption, boundary/root production
+adoption, sourced Zc calibration, or official morphology acceptance is claimed.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and
