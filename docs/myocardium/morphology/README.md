@@ -183,6 +183,23 @@ acceptance, root-cause/fix acceptance, or official morphology acceptance. The
 low-preload edge remains bounded edge evidence and does not unlock final
 no-alternans.
 
+Phase 5AC records the direct isolated arterial root/Zc impedance bench:
+[`../../../data/myocardium/protocols/arterial-root-zc-impedance-bench-phase5ac-result-v1.json`](../../../data/myocardium/protocols/arterial-root-zc-impedance-bench-phase5ac-result-v1.json).
+Run `npm run verify:myocardium-arterial-root-zc-impedance-bench` to check it.
+The bench linearizes the current systemic arterial load and computes direct
+input impedance spectra for current `AoV_L` plus the Phase 5AB total 2x/3x/4x
+effective AoV/root inertance candidates under a prescribed 70mL/250ms ejection
+flow. DC resistance stays invariant at `0.875537` mmHg*s/mL, while the 20Hz
+direct high-frequency bench readout rises from `3429400.81599` Pa*s/m^3 to a
+candidate range of `7617834.189257`-`15994702.168151` Pa*s/m^3. This fills a
+direct isolated-bench input impedance readout for the root/Zc lane, but
+reflection coefficient remains `unavailable-no-proxy` because the 0D lumped
+bench does not model wave travel/reflection. Phase 5AC is not a closed-loop
+runtime change, not physical Zc calibration, not direct Ao_SA adoption, not
+qDot clamp removal, not root-cause/fix acceptance, and not official morphology
+acceptance. The next morphology step is an off-by-default root/Zc prototype
+or a sourced calibration pass, not qDot/valve tuning.
+
 1. Use the current-main baseline snapshot in
    [`pv-loop-current-main-baseline-snapshot-v1.md`](../verification/pv-loop-current-main-baseline-snapshot-v1.md)
    as the post-PR #196 morphology reference.
