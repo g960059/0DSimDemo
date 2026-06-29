@@ -1,0 +1,400 @@
+{
+  "schemaVersion": 1,
+  "id": "atrial-reservoir-conduit-coupling-phase5bb-result-v1",
+  "phase": "Phase 5BB",
+  "claimBoundary": "atrial-reservoir-conduit-coupling-componentization-smoke-no-selection",
+  "protocol": {
+    "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+    "pointSource": "hr75-hr90-normal-low-high-preload",
+    "candidateId": "atrial-a2-conduit-v1",
+    "dtSec": 0.001,
+    "sampleHz": 1000,
+    "measureBeats": 3,
+    "couplingModule": "engine/myocardium/atrialReservoirConduitCoupling.ts",
+    "noRuntimeDefaultFlip": true,
+    "noProductionBridgeSelection": true,
+    "noParameterTuning": true,
+    "noPermanentVerifierOrNpmScriptAdded": true
+  },
+  "runs": [
+    {
+      "pointId": "normal-hr75",
+      "HR": 75,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 15,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.841852,
+      "forwardCO_R": 4.848991,
+      "contribution": {
+        "LA": {
+          "sampleCount": 21209,
+          "finiteSampleCount": 21209,
+          "viscousConduitPressureMmHg": {
+            "min": -0.738175,
+            "max": 2.308606
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.382773
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -2.293092,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -2.380599,
+            "max": 2.668625
+          },
+          "boosterGateMean": 0.211367
+        },
+        "RA": {
+          "sampleCount": 21209,
+          "finiteSampleCount": 21209,
+          "viscousConduitPressureMmHg": {
+            "min": -0.227308,
+            "max": 1.52064
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.129483
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -0.320147,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -0.431011,
+            "max": 1.56991
+          },
+          "boosterGateMean": 0.211367
+        }
+      }
+    },
+    {
+      "pointId": "low-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 20,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.401928,
+      "forwardCO_R": 4.387508,
+      "contribution": {
+        "LA": {
+          "sampleCount": 21290,
+          "finiteSampleCount": 21290,
+          "viscousConduitPressureMmHg": {
+            "min": -0.530793,
+            "max": 2.367098
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.234436
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -1.865343,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -1.956379,
+            "max": 2.520814
+          },
+          "boosterGateMean": 0.213435
+        },
+        "RA": {
+          "sampleCount": 21290,
+          "finiteSampleCount": 21290,
+          "viscousConduitPressureMmHg": {
+            "min": -0.182999,
+            "max": 1.223272
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.107084
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -0.291973,
+            "max": 0.000203
+          },
+          "totalAddedPressureMmHg": {
+            "min": -0.420161,
+            "max": 1.269192
+          },
+          "boosterGateMean": 0.213435
+        }
+      }
+    },
+    {
+      "pointId": "high-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 18,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.835145,
+      "forwardCO_R": 4.858019,
+      "contribution": {
+        "LA": {
+          "sampleCount": 22490,
+          "finiteSampleCount": 22490,
+          "viscousConduitPressureMmHg": {
+            "min": -0.732091,
+            "max": 2.068365
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.430357
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -2.508859,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -2.610452,
+            "max": 2.427565
+          },
+          "boosterGateMean": 0.202126
+        },
+        "RA": {
+          "sampleCount": 22490,
+          "finiteSampleCount": 22490,
+          "viscousConduitPressureMmHg": {
+            "min": -0.261505,
+            "max": 1.352041
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.134616
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -0.306572,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -0.424431,
+            "max": 1.44402
+          },
+          "boosterGateMean": 0.202126
+        }
+      }
+    },
+    {
+      "pointId": "normal-hr90",
+      "HR": 90,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 30,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 5.375227,
+      "forwardCO_R": 5.404384,
+      "contribution": {
+        "LA": {
+          "sampleCount": 19438,
+          "finiteSampleCount": 19438,
+          "viscousConduitPressureMmHg": {
+            "min": -0.706889,
+            "max": 2.019697
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.452148
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -2.2358,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -2.329125,
+            "max": 1.877428
+          },
+          "boosterGateMean": 0.21742
+        },
+        "RA": {
+          "sampleCount": 19438,
+          "finiteSampleCount": 19438,
+          "viscousConduitPressureMmHg": {
+            "min": -0.224097,
+            "max": 1.568986
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.152534
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -0.310934,
+            "max": 0.000024
+          },
+          "totalAddedPressureMmHg": {
+            "min": -0.435354,
+            "max": 1.690216
+          },
+          "boosterGateMean": 0.21742
+        }
+      }
+    },
+    {
+      "pointId": "low-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 24,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.620043,
+      "forwardCO_R": 4.624426,
+      "contribution": {
+        "LA": {
+          "sampleCount": 17370,
+          "finiteSampleCount": 17370,
+          "viscousConduitPressureMmHg": {
+            "min": -0.524522,
+            "max": 2.507528
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.249409
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -1.815651,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -1.92586,
+            "max": 2.5672
+          },
+          "boosterGateMean": 0.216479
+        },
+        "RA": {
+          "sampleCount": 17370,
+          "finiteSampleCount": 17370,
+          "viscousConduitPressureMmHg": {
+            "min": -0.208777,
+            "max": 2.301232
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.154508
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -0.246371,
+            "max": 0.00011
+          },
+          "totalAddedPressureMmHg": {
+            "min": -0.39358,
+            "max": 2.375878
+          },
+          "boosterGateMean": 0.216479
+        }
+      }
+    },
+    {
+      "pointId": "high-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 27,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 5.421519,
+      "forwardCO_R": 5.431529,
+      "contribution": {
+        "LA": {
+          "sampleCount": 17413,
+          "finiteSampleCount": 17413,
+          "viscousConduitPressureMmHg": {
+            "min": -0.67495,
+            "max": 1.992938
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.458962
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -2.241037,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -2.340818,
+            "max": 2.184231
+          },
+          "boosterGateMean": 0.21649
+        },
+        "RA": {
+          "sampleCount": 17413,
+          "finiteSampleCount": 17413,
+          "viscousConduitPressureMmHg": {
+            "min": -0.248188,
+            "max": 1.188163
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.1449
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -0.422585,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -0.523263,
+            "max": 1.187295
+          },
+          "boosterGateMean": 0.21649
+        }
+      }
+    }
+  ],
+  "summary": {
+    "measuredPointCount": 6,
+    "healthOkPointCount": 6,
+    "finiteContributionPointCount": 6,
+    "boundedContributionPointCount": 6,
+    "currentInterpretation": "Phase 5BB factors A2 reservoir/conduit pressure terms into a reusable coupling module and confirms the A2 conduit provider still records finite, bounded contribution readbacks across the HR75/90 preload envelope.",
+    "recommendedNext": [
+      "use the reusable coupling module from LandAtrial shadow work instead of adding another A2-only path",
+      "keep A2 off-by-default and avoid gain tuning from the normal-hr75 local signal alone",
+      "add wall/AV-plane strain proxy before scoring stored strain targets"
+    ],
+    "blockers": [
+      "A2 remains unselected",
+      "LandAtrial shadow remains absent",
+      "strain targets remain stored but unscored"
+    ]
+  },
+  "boundary": {
+    "noAtrialBridgeSelection": true,
+    "noAtrialParameterTuning": true,
+    "noAllChamberRuntimeDefaultFlip": true,
+    "noOfficialMorphologyAcceptance": true,
+    "noAfValidationClaim": true
+  },
+  "normalizedSha256": "123f194572c0961a367a499758416fd5ba9421fb97478e08019f255d483af754"
+}

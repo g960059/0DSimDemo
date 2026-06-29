@@ -6,6 +6,7 @@ import {
   createAtrialPhysiologyBridgeV2SourceProvider,
   type AtrialPhysiologyBridgeV2ContributionSample,
 } from "@/engine/myocardium/atrialPhysiologyBridgeV2";
+import { computeAtrialReservoirConduitCoupling } from "@/engine/myocardium/atrialReservoirConduitCoupling";
 
 describe("AtrialPhysiologyBridgeV2", () => {
   it("adds finite diagnostic atrial pressure terms without changing blood-volume state layout", () => {
@@ -36,5 +37,25 @@ describe("AtrialPhysiologyBridgeV2", () => {
     expect(
       Math.max(...recorded.map((entry) => Math.abs(entry.totalAddedPressureMmHg))),
     ).toBeLessThanOrEqual(8);
+  });
+
+  it("computes bounded reusable reservoir/conduit coupling terms", () => {
+    const terms = computeAtrialReservoirConduitCoupling({
+      phi: 0.88,
+      selfVolumeRateMlPerSec: 300,
+      inletValveOpen01: 1,
+      activePressureMmHg: 4,
+      avPlanePressureDeltaMmHg: -2,
+      viscousConduitGainMmHgPerMlPerSec: 0.006,
+      activeBoosterGain: 0.05,
+      avPlaneDeltaGain: 0.35,
+      maxAbsAddedPressureMmHg: 8,
+    });
+
+    expect(terms.boosterGate01).toBeGreaterThan(0.9);
+    expect(terms.viscousConduitPressureMmHg).toBeLessThan(0);
+    expect(terms.tensionBoosterPressureMmHg).toBeGreaterThan(0);
+    expect(terms.avPlaneExtraPressureMmHg).toBeLessThan(0);
+    expect(Math.abs(terms.totalAddedPressureMmHg)).toBeLessThanOrEqual(8);
   });
 });
