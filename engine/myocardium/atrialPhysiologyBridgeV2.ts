@@ -1,9 +1,10 @@
-import { clamp, frac } from "@/engine/math";
+import { clamp } from "@/engine/math";
 import type { Chamber, ChamberCtx, ChamberInternal, ChamberInternalDerivatives } from "@/engine/chambers";
 import type {
   ModelCoreActiveSourceProviderCall,
   ModelCoreExperimentalActiveSourceProvider,
 } from "@/engine/ModelCore";
+import { computeAtrialReservoirConduitCoupling } from "@/engine/myocardium/atrialReservoirConduitCoupling";
 
 export type AtrialPhysiologyBridgeV2CandidateId =
   | "atrial-a2-light-v1"
@@ -113,14 +114,19 @@ function atrialPressure(
     : 0;
   const selfDvDt = finiteOrZero(chamberCtx.selfChamberVolumeRateMlPerSec);
   const inletOpen = clamp(finiteOrZero(chamberCtx.inletValveOpen01), 0, 1);
-  const boosterGate = atrialBoosterGate(chamberCtx);
   const avPlaneDelta = terms.pressureUnclampedMmHg - noAvPlaneTerms.pressureUnclampedMmHg;
-  const rawAdded =
-    viscousConduitPressure(selfDvDt, inletOpen, params)
-    + params.activeBoosterGain * Math.max(activePressure, 0) * boosterGate
-    + params.avPlaneDeltaGain * avPlaneDelta;
-  const totalAdded = clamp(rawAdded, -params.maxAbsAddedPressureMmHg, params.maxAbsAddedPressureMmHg);
-  const pressure = clamp(basePressure + totalAdded, -20, 80);
+  const coupling = computeAtrialReservoirConduitCoupling({
+    phi: chamberCtx.phi,
+    selfVolumeRateMlPerSec: selfDvDt,
+    inletValveOpen01: inletOpen,
+    activePressureMmHg: activePressure,
+    avPlanePressureDeltaMmHg: avPlaneDelta,
+    viscousConduitGainMmHgPerMlPerSec: params.viscousConduitGainMmHgPerMlPerSec,
+    activeBoosterGain: params.activeBoosterGain,
+    avPlaneDeltaGain: params.avPlaneDeltaGain,
+    maxAbsAddedPressureMmHg: params.maxAbsAddedPressureMmHg,
+  });
+  const pressure = clamp(basePressure + coupling.totalAddedPressureMmHg, -20, 80);
   instrumentation.record?.({
     chamber: params.chamber,
     candidateId: params.candidateId,
@@ -131,11 +137,11 @@ function atrialPressure(
     passivePressureMmHg: passivePressure,
     activePressureMmHg: activePressure,
     avPlanePressureDeltaMmHg: avPlaneDelta,
-    boosterGate01: boosterGate,
-    viscousConduitPressureMmHg: viscousConduitPressure(selfDvDt, inletOpen, params),
-    tensionBoosterPressureMmHg: params.activeBoosterGain * Math.max(activePressure, 0) * boosterGate,
-    avPlaneExtraPressureMmHg: params.avPlaneDeltaGain * avPlaneDelta,
-    totalAddedPressureMmHg: totalAdded,
+    boosterGate01: coupling.boosterGate01,
+    viscousConduitPressureMmHg: coupling.viscousConduitPressureMmHg,
+    tensionBoosterPressureMmHg: coupling.tensionBoosterPressureMmHg,
+    avPlaneExtraPressureMmHg: coupling.avPlaneExtraPressureMmHg,
+    totalAddedPressureMmHg: coupling.totalAddedPressureMmHg,
     pressureMmHg: pressure,
   });
   return pressure;
@@ -147,33 +153,6 @@ function noAvPlaneCtx(ctx: ChamberCtx): ChamberCtx {
     pairedVentricleShortening01: 0,
     pairedVentricleShorteningVelocity01PerSec: 0,
   };
-}
-
-function viscousConduitPressure(
-  selfVolumeRateMlPerSec: number,
-  inletValveOpen01: number,
-  params: AtrialPhysiologyBridgeV2Params,
-): number {
-  const conduitGate = 0.35 + 0.65 * inletValveOpen01;
-  return clamp(
-    -params.viscousConduitGainMmHgPerMlPerSec * selfVolumeRateMlPerSec * conduitGate,
-    -params.maxAbsAddedPressureMmHg,
-    params.maxAbsAddedPressureMmHg,
-  );
-}
-
-function atrialBoosterGate(ctx: ChamberCtx): number {
-  const theta = frac(ctx.phi);
-  return Math.max(
-    raisedCosineWindow(theta, 0.88, 0.12),
-    raisedCosineWindow(theta, 0.04, 0.10),
-  );
-}
-
-function raisedCosineWindow(theta: number, center: number, halfWidth: number): number {
-  const distance = Math.min(Math.abs(theta - center), 1 - Math.abs(theta - center));
-  if (distance >= halfWidth) return 0;
-  return 0.5 * (1 + Math.cos(Math.PI * distance / halfWidth));
 }
 
 function finiteOrZero(value: number | undefined): number {
