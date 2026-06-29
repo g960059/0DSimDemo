@@ -1031,6 +1031,24 @@ Ao_SA adoption, physical Zc calibration, qDot clamp removal, valve-timing
 acceptance, official morphology acceptance, root-cause acceptance, fix
 acceptance, or runtime default flip.
 
+Phase 5AC adds the direct isolated arterial root/Zc impedance bench requested by
+the Phase 5AB boundary. The recorded result is
+[`../../data/myocardium/protocols/arterial-root-zc-impedance-bench-phase5ac-result-v1.json`](../../data/myocardium/protocols/arterial-root-zc-impedance-bench-phase5ac-result-v1.json).
+Run `npm run verify:myocardium-arterial-root-zc-impedance-bench` to check the
+artifact. The bench linearizes the current systemic arterial load, prescribes a
+70mL half-sine ejection flow over 250ms, and computes direct input impedance
+spectra for current `AoV_L` plus the Phase 5AB lower-output-preserving total
+2x/3x/4x effective AoV/root inertance candidates. DC resistance remains
+invariant at `0.875537` mmHg*s/mL, while the 20Hz direct high-frequency bench
+readout rises from `3429400.81599` Pa*s/m^3 in the current closure to a
+candidate range of `7617834.189257`-`15994702.168151` Pa*s/m^3. This makes a
+direct characteristic-impedance-like bench readout available for anti-gaming and
+future sourced calibration. It still keeps reflection coefficient
+`unavailable-no-proxy`: the 0D lumped bench does not model wave travel or wave
+reflection directly. This is not a closed-loop runtime change, not external
+physiological Zc calibration, not direct Ao_SA adoption, not qDot clamp removal,
+not root-cause/fix acceptance, and not official morphology acceptance.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and

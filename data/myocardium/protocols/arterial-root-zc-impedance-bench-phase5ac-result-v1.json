@@ -1,0 +1,597 @@
+{
+  "schemaVersion": 1,
+  "id": "arterial-root-zc-impedance-bench-phase5ac-result-v1",
+  "phase": "Phase 5AC",
+  "claimBoundary": "isolated-arterial-root-zc-impedance-bench-diagnostic-only",
+  "upstreamPhase5ABArtifactId": "arterial-root-inertance-closed-loop-phase5ab-result-v1",
+  "verifierScript": "verify:myocardium-arterial-root-zc-impedance-bench",
+  "protocol": {
+    "benchMode": "linearized-current-systemic-arterial-load-with-prescribed-input-flow",
+    "inputFrequenciesHz": [
+      0.5,
+      1,
+      2,
+      3,
+      5,
+      8,
+      12,
+      16,
+      20
+    ],
+    "timeResponse": {
+      "dtSec": 0.0005,
+      "durationSec": 1.2,
+      "ejectionDurationSec": 0.25,
+      "strokeVolumeMl": 70
+    },
+    "candidateSet": [
+      {
+        "id": "current-aov-l",
+        "effectiveAoVInertanceMultiple": 1,
+        "source": "phase5ab-current-closure"
+      },
+      {
+        "id": "phase5ab-pareto-total-2x-aov-l",
+        "effectiveAoVInertanceMultiple": 2,
+        "source": "phase5ab-lower-output-preserving-region"
+      },
+      {
+        "id": "phase5ab-pareto-total-3x-aov-l",
+        "effectiveAoVInertanceMultiple": 3,
+        "source": "phase5ab-lower-output-preserving-region"
+      },
+      {
+        "id": "phase5ab-pareto-total-4x-aov-l",
+        "effectiveAoVInertanceMultiple": 4,
+        "source": "phase5ab-lower-output-preserving-region"
+      }
+    ]
+  },
+  "linearizedLoad": {
+    "source": "ModelCore-default-topology-linearized-systemic-arterial-load",
+    "arterialStiffness": 0.75,
+    "compliancesMlPerMmHg": {
+      "Ao": 1.428571,
+      "SA": 3.950617,
+      "Art": 1.391304,
+      "Cap": 15
+    },
+    "resistancesMmHgSecPerMl": {
+      "Ao_SA": 0.046509,
+      "SA_Art": 0.074414,
+      "Art_Cap": 0.604614,
+      "Cap_terminal": 0.15
+    },
+    "inertancesMmHgSec2PerMl": {
+      "Ao_SA": 0.002,
+      "baseAoV_L": 0.00025
+    },
+    "baselinePressuresMmHg": {
+      "Ao": 90,
+      "SA": 85,
+      "Art": 70,
+      "Cap": 25
+    }
+  },
+  "runs": [
+    {
+      "candidateId": "current-aov-l",
+      "source": "phase5ab-current-closure",
+      "effectiveAoVInertanceMultiple": 1,
+      "effectiveAoVInertanceMmHgSec2PerMl": 0.00025,
+      "lowFrequencyResistanceEstimateMmHgSecPerMl": 0.875537,
+      "lowFrequencyResistanceEstimatePaSecPerM3": 116728343.914,
+      "highFrequencyImpedanceEstimateMmHgSecPerMl": 0.025723,
+      "highFrequencyImpedanceEstimatePaSecPerM3": 3429400.81599,
+      "highFrequencyPhaseRad": 1.569884,
+      "candidateCharacteristicImpedanceStatus": "available-direct-linear-bench",
+      "candidateCharacteristicImpedancePaSecPerM3": 3429400.81599,
+      "candidateReflectionCoefficientStatus": "unavailable-no-proxy",
+      "candidateReflectionCoefficient": null,
+      "pressureWaveTravelOrDelayProxyStatus": "available-time-response-proxy",
+      "pressureWaveTravelOrDelayProxySec": 0.052,
+      "impedanceSpectrum": [
+        {
+          "frequencyHz": 0.5,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.061518,
+          "inputImpedanceMagnitudePaSecPerM3": 8201708.296806,
+          "inputImpedancePhaseRad": -0.976914,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.062171,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.000785
+        },
+        {
+          "frequencyHz": 1,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.042489,
+          "inputImpedanceMagnitudePaSecPerM3": 5664725.106618,
+          "inputImpedancePhaseRad": -0.716915,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.043537,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.001571
+        },
+        {
+          "frequencyHz": 2,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.038444,
+          "inputImpedanceMagnitudePaSecPerM3": 5125406.466009,
+          "inputImpedancePhaseRad": -0.57795,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.040246,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.003142
+        },
+        {
+          "frequencyHz": 3,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.037374,
+          "inputImpedanceMagnitudePaSecPerM3": 4982771.847301,
+          "inputImpedancePhaseRad": -0.762189,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.040771,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.004712
+        },
+        {
+          "frequencyHz": 5,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.020609,
+          "inputImpedanceMagnitudePaSecPerM3": 2747566.489985,
+          "inputImpedancePhaseRad": -1.219521,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.028113,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.007854
+        },
+        {
+          "frequencyHz": 8,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.00331,
+          "inputImpedanceMagnitudePaSecPerM3": 441259.623367,
+          "inputImpedancePhaseRad": -1.255919,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.015747,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.012566
+        },
+        {
+          "frequencyHz": 12,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.009008,
+          "inputImpedanceMagnitudePaSecPerM3": 1200905.9379,
+          "inputImpedancePhaseRad": 1.549806,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.009846,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.01885
+        },
+        {
+          "frequencyHz": 16,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.017931,
+          "inputImpedanceMagnitudePaSecPerM3": 2390580.383732,
+          "inputImpedancePhaseRad": 1.567556,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.007202,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.025133
+        },
+        {
+          "frequencyHz": 20,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.025723,
+          "inputImpedanceMagnitudePaSecPerM3": 3429400.81599,
+          "inputImpedancePhaseRad": 1.569884,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.005693,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.031416
+        }
+      ],
+      "timeResponse": {
+        "protocol": "half-sine-ejection-flow",
+        "durationSec": 1.2,
+        "dtSec": 0.0005,
+        "ejectionDurationSec": 0.25,
+        "strokeVolumeMl": 70,
+        "peakInputFlowMlPerSec": 439.822972,
+        "peakAoSaFlowMlPerSec": 339.049594,
+        "peakInputPressureMmHg": 21.877536,
+        "peakRootPressureMmHg": 22.747507,
+        "pressurePeakTimeSec": 0.177,
+        "flowPeakTimeSec": 0.125,
+        "aoSaFlowPeakTimeSec": 0.195,
+        "pressurePeakDelayVsFlowPeakSec": 0.052,
+        "pressureFwhmSec": 0.206,
+        "rootPressureFwhmSec": 0.196,
+        "seriesInertivePeakEnergyProxyMmHgMl": 24.180531,
+        "downstreamComplianceStoredEnergyProxyMmHgMl": 369.606372,
+        "downstreamAoSaDissipatedEnergyProxyMmHgMl": 683.335791
+      }
+    },
+    {
+      "candidateId": "phase5ab-pareto-total-2x-aov-l",
+      "source": "phase5ab-lower-output-preserving-region",
+      "effectiveAoVInertanceMultiple": 2,
+      "effectiveAoVInertanceMmHgSec2PerMl": 0.0005,
+      "lowFrequencyResistanceEstimateMmHgSecPerMl": 0.875537,
+      "lowFrequencyResistanceEstimatePaSecPerM3": 116728343.914,
+      "highFrequencyImpedanceEstimateMmHgSecPerMl": 0.057139,
+      "highFrequencyImpedanceEstimatePaSecPerM3": 7617834.189257,
+      "highFrequencyPhaseRad": 1.570386,
+      "candidateCharacteristicImpedanceStatus": "available-direct-linear-bench",
+      "candidateCharacteristicImpedancePaSecPerM3": 7617834.189257,
+      "candidateReflectionCoefficientStatus": "unavailable-no-proxy",
+      "candidateReflectionCoefficient": null,
+      "pressureWaveTravelOrDelayProxyStatus": "available-time-response-proxy",
+      "pressureWaveTravelOrDelayProxySec": 0.047,
+      "impedanceSpectrum": [
+        {
+          "frequencyHz": 0.5,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.060869,
+          "inputImpedanceMagnitudePaSecPerM3": 8115138.157431,
+          "inputImpedancePhaseRad": -0.969694,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.062171,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.001571
+        },
+        {
+          "frequencyHz": 1,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.041474,
+          "inputImpedanceMagnitudePaSecPerM3": 5529376.153436,
+          "inputImpedancePhaseRad": -0.68836,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.043537,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.003142
+        },
+        {
+          "frequencyHz": 2,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.036822,
+          "inputImpedanceMagnitudePaSecPerM3": 4909139.920163,
+          "inputImpedancePhaseRad": -0.506427,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.040246,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.006283
+        },
+        {
+          "frequencyHz": 3,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.03429,
+          "inputImpedanceMagnitudePaSecPerM3": 4571593.630843,
+          "inputImpedancePhaseRad": -0.662619,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.040771,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.009425
+        },
+        {
+          "frequencyHz": 5,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.013507,
+          "inputImpedanceMagnitudePaSecPerM3": 1800812.807409,
+          "inputImpedancePhaseRad": -1.018083,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.028113,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.015708
+        },
+        {
+          "frequencyHz": 8,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.009475,
+          "inputImpedanceMagnitudePaSecPerM3": 1263222.57233,
+          "inputImpedancePhaseRad": 1.462402,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.015747,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.025133
+        },
+        {
+          "frequencyHz": 12,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.027856,
+          "inputImpedanceMagnitudePaSecPerM3": 3713787.418965,
+          "inputImpedancePhaseRad": 1.564009,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.009846,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.037699
+        },
+        {
+          "frequencyHz": 16,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.043064,
+          "inputImpedanceMagnitudePaSecPerM3": 5741320.384707,
+          "inputImpedancePhaseRad": 1.569447,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.007202,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.050265
+        },
+        {
+          "frequencyHz": 20,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.057139,
+          "inputImpedanceMagnitudePaSecPerM3": 7617834.189257,
+          "inputImpedancePhaseRad": 1.570386,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.005693,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.062832
+        }
+      ],
+      "timeResponse": {
+        "protocol": "half-sine-ejection-flow",
+        "durationSec": 1.2,
+        "dtSec": 0.0005,
+        "ejectionDurationSec": 0.25,
+        "strokeVolumeMl": 70,
+        "peakInputFlowMlPerSec": 439.822972,
+        "peakAoSaFlowMlPerSec": 339.049594,
+        "peakInputPressureMmHg": 21.073011,
+        "peakRootPressureMmHg": 22.747507,
+        "pressurePeakTimeSec": 0.172,
+        "flowPeakTimeSec": 0.125,
+        "aoSaFlowPeakTimeSec": 0.195,
+        "pressurePeakDelayVsFlowPeakSec": 0.047,
+        "pressureFwhmSec": 0.2175,
+        "rootPressureFwhmSec": 0.196,
+        "seriesInertivePeakEnergyProxyMmHgMl": 48.361062,
+        "downstreamComplianceStoredEnergyProxyMmHgMl": 369.606372,
+        "downstreamAoSaDissipatedEnergyProxyMmHgMl": 683.335791
+      }
+    },
+    {
+      "candidateId": "phase5ab-pareto-total-3x-aov-l",
+      "source": "phase5ab-lower-output-preserving-region",
+      "effectiveAoVInertanceMultiple": 3,
+      "effectiveAoVInertanceMmHgSec2PerMl": 0.00075,
+      "lowFrequencyResistanceEstimateMmHgSecPerMl": 0.875537,
+      "lowFrequencyResistanceEstimatePaSecPerM3": 116728343.914,
+      "highFrequencyImpedanceEstimateMmHgSecPerMl": 0.088555,
+      "highFrequencyImpedanceEstimatePaSecPerM3": 11806268.119043,
+      "highFrequencyPhaseRad": 1.570531,
+      "candidateCharacteristicImpedanceStatus": "available-direct-linear-bench",
+      "candidateCharacteristicImpedancePaSecPerM3": 11806268.119043,
+      "candidateReflectionCoefficientStatus": "unavailable-no-proxy",
+      "candidateReflectionCoefficient": null,
+      "pressureWaveTravelOrDelayProxyStatus": "available-time-response-proxy",
+      "pressureWaveTravelOrDelayProxySec": 0.0415,
+      "impedanceSpectrum": [
+        {
+          "frequencyHz": 0.5,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.060223,
+          "inputImpedanceMagnitudePaSecPerM3": 8029000.209761,
+          "inputImpedancePhaseRad": -0.962318,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.062171,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.002356
+        },
+        {
+          "frequencyHz": 1,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.040494,
+          "inputImpedanceMagnitudePaSecPerM3": 5398759.641093,
+          "inputImpedancePhaseRad": -0.658398,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.043537,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.004712
+        },
+        {
+          "frequencyHz": 2,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.035405,
+          "inputImpedanceMagnitudePaSecPerM3": 4720209.495723,
+          "inputImpedancePhaseRad": -0.428753,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.040246,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.009425
+        },
+        {
+          "frequencyHz": 3,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.03161,
+          "inputImpedanceMagnitudePaSecPerM3": 4214303.679145,
+          "inputImpedancePhaseRad": -0.544816,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.040771,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.014137
+        },
+        {
+          "frequencyHz": 5,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.007972,
+          "inputImpedanceMagnitudePaSecPerM3": 1062828.539491,
+          "inputImpedancePhaseRad": -0.474467,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.028113,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.023562
+        },
+        {
+          "frequencyHz": 8,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.02201,
+          "inputImpedanceMagnitudePaSecPerM3": 2934366.422405,
+          "inputImpedancePhaseRad": 1.524208,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.015747,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.037699
+        },
+        {
+          "frequencyHz": 12,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.046705,
+          "inputImpedanceMagnitudePaSecPerM3": 6226813.391583,
+          "inputImpedancePhaseRad": 1.566748,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.009846,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.056549
+        },
+        {
+          "frequencyHz": 16,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.068196,
+          "inputImpedanceMagnitudePaSecPerM3": 9092065.784808,
+          "inputImpedancePhaseRad": 1.569944,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.007202,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.075398
+        },
+        {
+          "frequencyHz": 20,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.088555,
+          "inputImpedanceMagnitudePaSecPerM3": 11806268.119043,
+          "inputImpedancePhaseRad": 1.570531,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.005693,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.094248
+        }
+      ],
+      "timeResponse": {
+        "protocol": "half-sine-ejection-flow",
+        "durationSec": 1.2,
+        "dtSec": 0.0005,
+        "ejectionDurationSec": 0.25,
+        "strokeVolumeMl": 70,
+        "peakInputFlowMlPerSec": 439.822972,
+        "peakAoSaFlowMlPerSec": 339.049594,
+        "peakInputPressureMmHg": 20.343338,
+        "peakRootPressureMmHg": 22.747507,
+        "pressurePeakTimeSec": 0.1665,
+        "flowPeakTimeSec": 0.125,
+        "aoSaFlowPeakTimeSec": 0.195,
+        "pressurePeakDelayVsFlowPeakSec": 0.0415,
+        "pressureFwhmSec": 0.484,
+        "rootPressureFwhmSec": 0.196,
+        "seriesInertivePeakEnergyProxyMmHgMl": 72.541592,
+        "downstreamComplianceStoredEnergyProxyMmHgMl": 369.606372,
+        "downstreamAoSaDissipatedEnergyProxyMmHgMl": 683.335791
+      }
+    },
+    {
+      "candidateId": "phase5ab-pareto-total-4x-aov-l",
+      "source": "phase5ab-lower-output-preserving-region",
+      "effectiveAoVInertanceMultiple": 4,
+      "effectiveAoVInertanceMmHgSec2PerMl": 0.001,
+      "lowFrequencyResistanceEstimateMmHgSecPerMl": 0.875537,
+      "lowFrequencyResistanceEstimatePaSecPerM3": 116728343.914,
+      "highFrequencyImpedanceEstimateMmHgSecPerMl": 0.11997,
+      "highFrequencyImpedanceEstimatePaSecPerM3": 15994702.168151,
+      "highFrequencyPhaseRad": 1.570601,
+      "candidateCharacteristicImpedanceStatus": "available-direct-linear-bench",
+      "candidateCharacteristicImpedancePaSecPerM3": 15994702.168151,
+      "candidateReflectionCoefficientStatus": "unavailable-no-proxy",
+      "candidateReflectionCoefficient": null,
+      "pressureWaveTravelOrDelayProxyStatus": "available-time-response-proxy",
+      "pressureWaveTravelOrDelayProxySec": 0.0355,
+      "impedanceSpectrum": [
+        {
+          "frequencyHz": 0.5,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.05958,
+          "inputImpedanceMagnitudePaSecPerM3": 7943308.513986,
+          "inputImpedancePhaseRad": -0.954782,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.062171,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.003142
+        },
+        {
+          "frequencyHz": 1,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.039553,
+          "inputImpedanceMagnitudePaSecPerM3": 5273227.245421,
+          "inputImpedancePhaseRad": -0.62698,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.043537,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.006283
+        },
+        {
+          "frequencyHz": 2,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.034218,
+          "inputImpedanceMagnitudePaSecPerM3": 4562012.73838,
+          "inputImpedancePhaseRad": -0.345155,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.040246,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.012566
+        },
+        {
+          "frequencyHz": 3,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.029445,
+          "inputImpedanceMagnitudePaSecPerM3": 3925643.48938,
+          "inputImpedancePhaseRad": -0.407514,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.040771,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.01885
+        },
+        {
+          "frequencyHz": 5,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.008248,
+          "inputImpedanceMagnitudePaSecPerM3": 1099615.763789,
+          "inputImpedancePhaseRad": 0.535963,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.028113,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.031416
+        },
+        {
+          "frequencyHz": 8,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.034567,
+          "inputImpedanceMagnitudePaSecPerM3": 4608582.770907,
+          "inputImpedancePhaseRad": 1.541139,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.015747,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.050265
+        },
+        {
+          "frequencyHz": 12,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.065555,
+          "inputImpedanceMagnitudePaSecPerM3": 8739859.216983,
+          "inputImpedancePhaseRad": 1.567912,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.009846,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.075398
+        },
+        {
+          "frequencyHz": 16,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.093329,
+          "inputImpedanceMagnitudePaSecPerM3": 12442812.222218,
+          "inputImpedancePhaseRad": 1.570174,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.007202,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.100531
+        },
+        {
+          "frequencyHz": 20,
+          "inputImpedanceMagnitudeMmHgSecPerMl": 0.11997,
+          "inputImpedanceMagnitudePaSecPerM3": 15994702.168151,
+          "inputImpedancePhaseRad": 1.570601,
+          "treeImpedanceMagnitudeMmHgSecPerMl": 0.005693,
+          "seriesInertanceMagnitudeMmHgSecPerMl": 0.125664
+        }
+      ],
+      "timeResponse": {
+        "protocol": "half-sine-ejection-flow",
+        "durationSec": 1.2,
+        "dtSec": 0.0005,
+        "ejectionDurationSec": 0.25,
+        "strokeVolumeMl": 70,
+        "peakInputFlowMlPerSec": 439.822972,
+        "peakAoSaFlowMlPerSec": 339.049594,
+        "peakInputPressureMmHg": 19.698871,
+        "peakRootPressureMmHg": 22.747507,
+        "pressurePeakTimeSec": 0.1605,
+        "flowPeakTimeSec": 0.125,
+        "aoSaFlowPeakTimeSec": 0.195,
+        "pressurePeakDelayVsFlowPeakSec": 0.0355,
+        "pressureFwhmSec": 0.559,
+        "rootPressureFwhmSec": 0.196,
+        "seriesInertivePeakEnergyProxyMmHgMl": 96.722123,
+        "downstreamComplianceStoredEnergyProxyMmHgMl": 369.606372,
+        "downstreamAoSaDissipatedEnergyProxyMmHgMl": 683.335791
+      }
+    }
+  ],
+  "summary": {
+    "runCount": 4,
+    "allRunsFinite": true,
+    "currentLowFrequencyResistanceMmHgSecPerMl": 0.875537,
+    "currentHighFrequencyImpedancePaSecPerM3": 3429400.81599,
+    "paretoHighFrequencyImpedanceRangePaSecPerM3": {
+      "min": 7617834.189257,
+      "max": 15994702.168151
+    },
+    "reflectionCoefficientAvailability": "unavailable-no-proxy",
+    "currentInterpretation": "Phase 5AC provides direct isolated-bench input impedance spectra for the current systemic arterial load plus Phase 5AB effective AoV/root inertance candidates. It makes characteristic-impedance-like high-frequency bench readouts available, but keeps reflection coefficient unavailable/no-proxy and does not adopt Ao_SA/Zc or remove qDot clamps.",
+    "recommendedNext": [
+      "compare the Phase 5AC bench high-frequency impedance range against literature-informed physiological Zc ranges only in a separate sourced calibration PR",
+      "if a root/Zc prototype is implemented next, keep it off by default and use Phase 5AC readouts as anti-gaming diagnostics rather than acceptance",
+      "keep PVein_LA/filling inertance and atrial figure-eight work in a separate lane"
+    ],
+    "limitations": [
+      "This is a linearized isolated arterial bench, not a closed-loop runtime change.",
+      "The bench uses prescribed input flow and current topology-derived compliance/resistance values; it is not external physiological calibration.",
+      "Downstream root pressure, Ao_SA flow, and downstream energy controls are invariant across series inertance candidates by prescribed-flow construction; candidate sensitivity is carried by input pressure and series inertive energy.",
+      "candidateCharacteristicImpedancePaSecPerM3 is a direct high-frequency bench readout, not a clinical Zc validation claim.",
+      "candidateReflectionCoefficient remains unavailable-no-proxy because this 0D lumped bench does not model wave travel/reflection directly."
+    ]
+  },
+  "boundary": {
+    "noModelCoreEquationChange": true,
+    "noRuntimeDefaultFlip": true,
+    "noProductionRegistryIntegration": true,
+    "noOfficialCaseWiring": true,
+    "noOfficialCaseReauthoring": true,
+    "noWorkbenchRuntimeWiring": true,
+    "noStateSchemaMigration": true,
+    "noQDotTuning": true,
+    "noQDotClampRemoval": true,
+    "noValveThresholdTuning": true,
+    "noValveLossTuning": true,
+    "noAfterloadTuning": true,
+    "noPreloadTuning": true,
+    "noLandParameterTuning": true,
+    "noTrefFudge": true,
+    "noSourceStressScaling": true,
+    "noDirectAoSAAdoption": true,
+    "noReflectionCoefficientClaim": true,
+    "noRootCauseAcceptance": true,
+    "noFixAcceptance": true,
+    "noOfficialMorphologyAcceptance": true,
+    "noFinalNoAlternansAcceptance": true,
+    "noClinicalScientificValidationClaim": true
+  },
+  "doesNotUnlock": [
+    "ModelCoreEquationChange",
+    "runtimeDefaultFlip",
+    "productionRegistryIntegration",
+    "officialCaseWiring",
+    "officialCaseReauthoring",
+    "workbenchRuntimeWiring",
+    "stateSchemaMigration",
+    "qDotTuning",
+    "qDotClampRemoval",
+    "valveThresholdTuning",
+    "valveLossTuning",
+    "afterloadTuning",
+    "preloadTuning",
+    "LandParameterTuning",
+    "TrefFudge",
+    "sourceStressScaling",
+    "directAoSAAdoption",
+    "reflectionCoefficientClaim",
+    "rootCauseAcceptance",
+    "fixAcceptance",
+    "officialMorphologyAcceptance",
+    "finalNoAlternansAcceptance",
+    "clinicalScientificValidationClaim"
+  ],
+  "normalizedSha256": "50587bd8c93ce07e5919a7de631f579b105fbc922ffc70386fbe0b8d8deb1c68"
+}
