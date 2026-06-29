@@ -167,6 +167,36 @@ Result boundary:
   production runtime, reauthor official cases, or make final atrial physiology
   claims.
 
+## Phase 5AN atrial figure-eight readability result
+
+`data/myocardium/protocols/atrial-figure-eight-readability-phase5an-result-v1.json`
+starts the refined educational atrial figure-eight path without selecting a
+Phase 6 bridge. The runner compares A0, the existing A1 baseline, and a new
+experimental `atrial-refined-reservoir-booster-bridge-v1` provider at HR75/90
+normal, preload-low, and preload-high points. HR105/120 remain edge/runtime
+evidence and are not the main gate in this artifact.
+
+Result boundary:
+
+- existing A1 should be fixed around normalized valve diode contamination and
+  sampling-invariant loop readability; repeatability is not the primary blocker
+  after the Phase 5.5B full-beat localization;
+- the figure-eight metric set is LA/RA booster-loop and reservoir-loop signed
+  PV areas, lobe-balance ratio, PV self-intersections, roughness sampling span
+  from 240/480/960 Hz downsampled windows, MV/TV diode hit and impulse rates
+  versus A0, and settled LV/RV health readback;
+- refined A1 is `measured-partial-needs-follow-up`: it settled at HR75
+  normal/low/high and HR90 high-preload, but only HR75 low-preload had readable
+  LA and RA loops under the current boolean readability rule;
+- refined A1 reduced MV/TV diode impulse per beat versus A0 across the measured
+  envelope, but hit-sample rate still exceeded A0 at normal/high-preload points,
+  so valve contamination remains bounded evidence rather than acceptance;
+- refined A1 closed-loop sampling roughness was bounded except for
+  high-preload HR75 LA;
+- no Phase 6 bridge is selected or recommended, and this does not wire
+  production runtime, reauthor official cases, change Workbench/runtime state,
+  validate AF physiology, or make final atrial physiology claims.
+
 ## Phase 2B / Level 3 review deltas proposed in PR #166
 
 The PR #166 review also requested that the accepted Phase 2B/Level 3 planning

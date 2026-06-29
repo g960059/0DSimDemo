@@ -30,7 +30,8 @@ export const ATRIAL_BRIDGE_SHOOTOUT_RESULT_PATH =
 export type AtrialBridgeCandidateId =
   | "atrial-elastance-negative-control-v0"
   | "legacy-atrial-active-bridge-v0"
-  | "atrial-reservoir-booster-bridge-v1";
+  | "atrial-reservoir-booster-bridge-v1"
+  | "atrial-refined-reservoir-booster-bridge-v1";
 
 type AtrialChamber = "LA" | "RA";
 
@@ -388,7 +389,9 @@ export function createAtrialBridgeRuntime(
     : "preferred-new-bridge-candidate";
   const params = candidateId === "legacy-atrial-active-bridge-v0"
     ? frozenLegacyAtrialParams(baseParams)
-    : reservoirBoosterAtrialParams(baseParams, chamber, options.diagnosticVariantId ?? "none");
+    : candidateId === "atrial-refined-reservoir-booster-bridge-v1"
+      ? refinedReservoirBoosterAtrialParams(baseParams, chamber)
+      : reservoirBoosterAtrialParams(baseParams, chamber, options.diagnosticVariantId ?? "none");
   const model = new ActiveStressChamberModel(params);
   return {
     candidateId,
@@ -450,6 +453,26 @@ function reservoirBoosterAtrialParams(
     };
   }
   return params;
+}
+
+function refinedReservoirBoosterAtrialParams(
+  base: ActiveChamberParams,
+  chamber: AtrialChamber,
+): ActiveChamberParams {
+  const params = reservoirBoosterAtrialParams(base, chamber, "none");
+  return {
+    ...params,
+    reservoirBranchGain: chamber === "LA" ? 0.72 : 0.70,
+    reservoirStrokeMl: chamber === "LA" ? 8 : 10,
+    reservoirSleeveVuMl: chamber === "LA" ? 10 : 13,
+    reservoirSleeveCompliance: chamber === "LA" ? 4.5 : 5.25,
+    reservoirSleeveMaxVolumeMl: chamber === "LA" ? 30 : 36,
+    reservoirQPressureFloorGuard: 1,
+    reservoirSleeveMinPressureGuard: 1,
+    reservoirTauFill: chamber === "LA" ? 0.135 : 0.150,
+    reservoirTauRecoilIVR: chamber === "LA" ? 0.070 : 0.080,
+    reservoirValveThreshold: 0.28,
+  };
 }
 
 function elastanceParamsFor(chamber: AtrialChamber) {
