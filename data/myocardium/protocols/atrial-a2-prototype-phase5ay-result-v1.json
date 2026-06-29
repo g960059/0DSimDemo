@@ -1,0 +1,3076 @@
+{
+  "schemaVersion": 1,
+  "id": "atrial-a2-prototype-phase5ay-result-v1",
+  "phase": "Phase 5AY",
+  "claimBoundary": "atrial-a2-prototype-diagnostic-no-selection",
+  "protocol": {
+    "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+    "pointSource": "hr75-hr90-normal-low-high-preload",
+    "candidateIds": [
+      "a1-refined-reference",
+      "atrial-a2-light-v1",
+      "atrial-a2-conduit-v1",
+      "atrial-a2-booster-v1"
+    ],
+    "a1Comparator": "atrial-refined-reservoir-booster-bridge-v1",
+    "dtSec": 0.001,
+    "sampleHz": 1000,
+    "measureBeats": 3,
+    "noRuntimeDefaultFlip": true,
+    "noProductionBridgeSelection": true,
+    "noPermanentVerifierOrNpmScriptAdded": true
+  },
+  "points": [
+    {
+      "id": "normal-hr75",
+      "targetTBVMl": 5600,
+      "HR": 75
+    },
+    {
+      "id": "low-preload-hr75",
+      "targetTBVMl": 4800,
+      "HR": 75
+    },
+    {
+      "id": "high-preload-hr75",
+      "targetTBVMl": 6200,
+      "HR": 75
+    },
+    {
+      "id": "normal-hr90",
+      "targetTBVMl": 5600,
+      "HR": 90
+    },
+    {
+      "id": "low-preload-hr90",
+      "targetTBVMl": 4800,
+      "HR": 90
+    },
+    {
+      "id": "high-preload-hr90",
+      "targetTBVMl": 6200,
+      "HR": 90
+    }
+  ],
+  "runs": [
+    {
+      "candidateId": "a1-refined-reference",
+      "pointId": "normal-hr75",
+      "HR": 75,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 13,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.631417,
+      "forwardCO_R": 4.636658,
+      "LVEDPApprox": 14.61845,
+      "RVEDPApprox": 7.39042,
+      "LA": {
+        "pressureRangeMmHg": 8.931298,
+        "volumeRangeMl": 33.183001,
+        "boosterLoopSignedArea": 755.610841,
+        "reservoirLoopSignedArea": -319.679868,
+        "lobeBalance": 0.423075,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 62,
+        "roughnessSamplingSpan": 0.738481,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 9.949415,
+        "volumeRangeMl": 48.090653,
+        "boosterLoopSignedArea": 650.1869,
+        "reservoirLoopSignedArea": 181.719215,
+        "lobeBalance": 0.279488,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 8,
+        "roughnessSamplingSpan": 0.674251,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "contribution": {},
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 525.333333,
+          "diodeImpulsePerBeat": 135.634745,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 385,
+          "diodeImpulsePerBeat": 5.445106,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "candidateId": "a1-refined-reference",
+      "pointId": "low-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 19,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.214676,
+      "forwardCO_R": 4.206234,
+      "LVEDPApprox": 7.059101,
+      "RVEDPApprox": 2.839044,
+      "LA": {
+        "pressureRangeMmHg": 5.869424,
+        "volumeRangeMl": 28.428936,
+        "boosterLoopSignedArea": 414.748185,
+        "reservoirLoopSignedArea": -223.669642,
+        "lobeBalance": 0.53929,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 38,
+        "roughnessSamplingSpan": 0.221668,
+        "educationalFigureEightReadable": true,
+        "readabilityScore": 0.917901
+      },
+      "RA": {
+        "pressureRangeMmHg": 4.85088,
+        "volumeRangeMl": 36.298029,
+        "boosterLoopSignedArea": 246.4688,
+        "reservoirLoopSignedArea": 30.17578,
+        "lobeBalance": 0.122432,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 55,
+        "roughnessSamplingSpan": 0.730547,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "contribution": {},
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 463.666667,
+          "diodeImpulsePerBeat": 80.453001,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 370.333333,
+          "diodeImpulsePerBeat": 2.339612,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "candidateId": "a1-refined-reference",
+      "pointId": "high-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 14,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.609876,
+      "forwardCO_R": 4.636703,
+      "LVEDPApprox": 18.365319,
+      "RVEDPApprox": 11.481688,
+      "LA": {
+        "pressureRangeMmHg": 10.521807,
+        "volumeRangeMl": 38.277074,
+        "boosterLoopSignedArea": 764.001659,
+        "reservoirLoopSignedArea": 5.726672,
+        "lobeBalance": 0.007496,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 37,
+        "roughnessSamplingSpan": 0.224196,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.599247
+      },
+      "RA": {
+        "pressureRangeMmHg": 13.581303,
+        "volumeRangeMl": 56.968748,
+        "boosterLoopSignedArea": 764.931001,
+        "reservoirLoopSignedArea": 650.907941,
+        "lobeBalance": 0.850937,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 14,
+        "roughnessSamplingSpan": 0.513389,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "contribution": {},
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 546.333333,
+          "diodeImpulsePerBeat": 143.172119,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 418,
+          "diodeImpulsePerBeat": 7.652874,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "candidateId": "a1-refined-reference",
+      "pointId": "normal-hr90",
+      "HR": 90,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 20,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 5.181279,
+      "forwardCO_R": 5.187543,
+      "LVEDPApprox": 13.732286,
+      "RVEDPApprox": 5.535904,
+      "LA": {
+        "pressureRangeMmHg": 6.903537,
+        "volumeRangeMl": 33.616044,
+        "boosterLoopSignedArea": 709.506028,
+        "reservoirLoopSignedArea": -483.605284,
+        "lobeBalance": 0.681608,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 121,
+        "roughnessSamplingSpan": 0.483225,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 8.25339,
+        "volumeRangeMl": 48.567254,
+        "boosterLoopSignedArea": 670.945319,
+        "reservoirLoopSignedArea": -11.781822,
+        "lobeBalance": 0.01756,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 38,
+        "roughnessSamplingSpan": 0.510299,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.70325
+      },
+      "contribution": {},
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 409.666667,
+          "diodeImpulsePerBeat": 93.60712,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 377.666667,
+          "diodeImpulsePerBeat": 3.934895,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "candidateId": "a1-refined-reference",
+      "pointId": "low-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 23,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.391365,
+      "forwardCO_R": 4.384649,
+      "LVEDPApprox": 4.592417,
+      "RVEDPApprox": 2.015111,
+      "LA": {
+        "pressureRangeMmHg": 3.830888,
+        "volumeRangeMl": 33.815359,
+        "boosterLoopSignedArea": 175.064705,
+        "reservoirLoopSignedArea": -14.283901,
+        "lobeBalance": 0.081592,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 45,
+        "roughnessSamplingSpan": 0.629301,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 5.552221,
+        "volumeRangeMl": 39.236876,
+        "boosterLoopSignedArea": 347.018891,
+        "reservoirLoopSignedArea": 26.460025,
+        "lobeBalance": 0.07625,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 35,
+        "roughnessSamplingSpan": 0.435127,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.664362
+      },
+      "contribution": {},
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 438.666667,
+          "diodeImpulsePerBeat": 54.338988,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 365,
+          "diodeImpulsePerBeat": 1.909264,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "candidateId": "a1-refined-reference",
+      "pointId": "high-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 27,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 5.249564,
+      "forwardCO_R": 5.257682,
+      "LVEDPApprox": 19.705509,
+      "RVEDPApprox": 9.694273,
+      "LA": {
+        "pressureRangeMmHg": 9.503185,
+        "volumeRangeMl": 37.84559,
+        "boosterLoopSignedArea": 1025.812865,
+        "reservoirLoopSignedArea": -624.70125,
+        "lobeBalance": 0.608982,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 36,
+        "roughnessSamplingSpan": 0.279893,
+        "educationalFigureEightReadable": true,
+        "readabilityScore": 0.896336
+      },
+      "RA": {
+        "pressureRangeMmHg": 12.114842,
+        "volumeRangeMl": 55.795351,
+        "boosterLoopSignedArea": 971.363818,
+        "reservoirLoopSignedArea": 99.677573,
+        "lobeBalance": 0.102616,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 124,
+        "roughnessSamplingSpan": 0.495141,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "contribution": {},
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 428.666667,
+          "diodeImpulsePerBeat": 149.949491,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 383.333333,
+          "diodeImpulsePerBeat": 5.316423,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "candidateId": "atrial-a2-light-v1",
+      "pointId": "normal-hr75",
+      "HR": 75,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 19,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.799044,
+      "forwardCO_R": 4.803836,
+      "LVEDPApprox": 16.975437,
+      "RVEDPApprox": 6.551184,
+      "LA": {
+        "pressureRangeMmHg": 12.193303,
+        "volumeRangeMl": 30.531037,
+        "boosterLoopSignedArea": 463.171477,
+        "reservoirLoopSignedArea": 138.243135,
+        "lobeBalance": 0.298471,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 72,
+        "roughnessSamplingSpan": 0.19919,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.759559
+      },
+      "RA": {
+        "pressureRangeMmHg": 6.850714,
+        "volumeRangeMl": 40.864615,
+        "boosterLoopSignedArea": 438.519788,
+        "reservoirLoopSignedArea": 68.979528,
+        "lobeBalance": 0.157301,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 21,
+        "roughnessSamplingSpan": 0.23481,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.746367
+      },
+      "contribution": {
+        "LA": {
+          "sampleCount": 22890,
+          "finiteSampleCount": 22890,
+          "selfVolumeRateMlPerSec": {
+            "min": -382.02841,
+            "max": 243.20939
+          },
+          "basePressureMmHg": {
+            "min": 3.74088,
+            "max": 15.720427
+          },
+          "passivePressureMmHg": {
+            "min": 0.272428,
+            "max": 15.438862
+          },
+          "activePressureMmHg": {
+            "min": 0.039817,
+            "max": 10.817184
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -6.345281,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.381509,
+            "max": 1.279335
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.758571
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -1.58632,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -1.636235,
+            "max": 1.996389
+          },
+          "boosterGateMean": 0.206465
+        },
+        "RA": {
+          "sampleCount": 22890,
+          "finiteSampleCount": 22890,
+          "selfVolumeRateMlPerSec": {
+            "min": -323.31328,
+            "max": 141.168857
+          },
+          "basePressureMmHg": {
+            "min": 2.212719,
+            "max": 7.405894
+          },
+          "passivePressureMmHg": {
+            "min": 0.609866,
+            "max": 6.222386
+          },
+          "activePressureMmHg": {
+            "min": 0.001006,
+            "max": 4.537244
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -1.357615,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.14439,
+            "max": 0.813357
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.260579
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -0.244371,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -0.305617,
+            "max": 0.98114
+          },
+          "boosterGateMean": 0.206465
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 425.666667,
+          "diodeImpulsePerBeat": 249.933984,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 393,
+          "diodeImpulsePerBeat": 10.265787,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "candidateId": "atrial-a2-light-v1",
+      "pointId": "low-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 19,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.364006,
+      "forwardCO_R": 4.356064,
+      "LVEDPApprox": 8.368259,
+      "RVEDPApprox": 3.013246,
+      "LA": {
+        "pressureRangeMmHg": 8.276078,
+        "volumeRangeMl": 36.860259,
+        "boosterLoopSignedArea": 349.485152,
+        "reservoirLoopSignedArea": 143.753783,
+        "lobeBalance": 0.41133,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 95,
+        "roughnessSamplingSpan": 0.575718,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "RA": {
+        "pressureRangeMmHg": 5.563907,
+        "volumeRangeMl": 38.959048,
+        "boosterLoopSignedArea": 302.469375,
+        "reservoirLoopSignedArea": 139.961753,
+        "lobeBalance": 0.46273,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 29,
+        "roughnessSamplingSpan": 0.062979,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.810008
+      },
+      "contribution": {
+        "LA": {
+          "sampleCount": 22890,
+          "finiteSampleCount": 22890,
+          "selfVolumeRateMlPerSec": {
+            "min": -370.633769,
+            "max": 190.855816
+          },
+          "basePressureMmHg": {
+            "min": 0.207173,
+            "max": 7.741675
+          },
+          "passivePressureMmHg": {
+            "min": 0.000001,
+            "max": 7.615174
+          },
+          "activePressureMmHg": {
+            "min": 0.028571,
+            "max": 6.479175
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -5.230141,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.286603,
+            "max": 1.248809
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.479019
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -1.307535,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -1.361052,
+            "max": 1.604118
+          },
+          "boosterGateMean": 0.206465
+        },
+        "RA": {
+          "sampleCount": 22890,
+          "finiteSampleCount": 22890,
+          "selfVolumeRateMlPerSec": {
+            "min": -289.178085,
+            "max": 113.737023
+          },
+          "basePressureMmHg": {
+            "min": 0.268065,
+            "max": 4.967487
+          },
+          "passivePressureMmHg": {
+            "min": 0.000225,
+            "max": 2.731855
+          },
+          "activePressureMmHg": {
+            "min": 0.001062,
+            "max": 3.818487
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -1.156362,
+            "max": 0.000667
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.101184,
+            "max": 0.725603
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.221198
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -0.208145,
+            "max": 0.00012
+          },
+          "totalAddedPressureMmHg": {
+            "min": -0.281037,
+            "max": 0.821997
+          },
+          "boosterGateMean": 0.206465
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 464.666667,
+          "diodeImpulsePerBeat": 193.815095,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 409,
+          "diodeImpulsePerBeat": 7.948283,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "candidateId": "atrial-a2-light-v1",
+      "pointId": "high-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 17,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.815571,
+      "forwardCO_R": 4.83398,
+      "LVEDPApprox": 21.420997,
+      "RVEDPApprox": 10.13577,
+      "LA": {
+        "pressureRangeMmHg": 13.309927,
+        "volumeRangeMl": 30.980019,
+        "boosterLoopSignedArea": 445.70811,
+        "reservoirLoopSignedArea": 120.242853,
+        "lobeBalance": 0.269779,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 66,
+        "roughnessSamplingSpan": 0.712622,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "RA": {
+        "pressureRangeMmHg": 7.447003,
+        "volumeRangeMl": 39.111393,
+        "boosterLoopSignedArea": 385.519292,
+        "reservoirLoopSignedArea": 131.022525,
+        "lobeBalance": 0.33986,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 33,
+        "roughnessSamplingSpan": 0.778883,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "contribution": {
+        "LA": {
+          "sampleCount": 22090,
+          "finiteSampleCount": 22090,
+          "selfVolumeRateMlPerSec": {
+            "min": -351.848068,
+            "max": 243.226773
+          },
+          "basePressureMmHg": {
+            "min": 6.153716,
+            "max": 19.923574
+          },
+          "passivePressureMmHg": {
+            "min": 1.327871,
+            "max": 19.589718
+          },
+          "activePressureMmHg": {
+            "min": 0.042324,
+            "max": 12.024509
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -7.023407,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.384829,
+            "max": 1.153301
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.852749
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -1.755852,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -1.813758,
+            "max": 1.873685
+          },
+          "boosterGateMean": 0.205706
+        },
+        "RA": {
+          "sampleCount": 22090,
+          "finiteSampleCount": 22090,
+          "selfVolumeRateMlPerSec": {
+            "min": -277.845749,
+            "max": 163.831776
+          },
+          "basePressureMmHg": {
+            "min": 3.866663,
+            "max": 9.742504
+          },
+          "passivePressureMmHg": {
+            "min": 1.875435,
+            "max": 9.724768
+          },
+          "activePressureMmHg": {
+            "min": 0.001018,
+            "max": 4.626267
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -1.29932,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.148174,
+            "max": 0.698107
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.268204
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -0.233878,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -0.287103,
+            "max": 0.92047
+          },
+          "boosterGateMean": 0.205706
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 426.666667,
+          "diodeImpulsePerBeat": 273.419225,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 380,
+          "diodeImpulsePerBeat": 9.667329,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "candidateId": "atrial-a2-light-v1",
+      "pointId": "normal-hr90",
+      "HR": 90,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 20,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 5.367885,
+      "forwardCO_R": 5.39475,
+      "LVEDPApprox": 16.380261,
+      "RVEDPApprox": 4.784354,
+      "LA": {
+        "pressureRangeMmHg": 11.920433,
+        "volumeRangeMl": 30.522822,
+        "boosterLoopSignedArea": 333.015723,
+        "reservoirLoopSignedArea": -123.9095,
+        "lobeBalance": 0.372083,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 57,
+        "roughnessSamplingSpan": 0.62513,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 5.280836,
+        "volumeRangeMl": 46.595624,
+        "boosterLoopSignedArea": 201.618103,
+        "reservoirLoopSignedArea": 239.591878,
+        "lobeBalance": 0.841506,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 9,
+        "roughnessSamplingSpan": 0.628768,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "contribution": {
+        "LA": {
+          "sampleCount": 18010,
+          "finiteSampleCount": 18010,
+          "selfVolumeRateMlPerSec": {
+            "min": -351.21895,
+            "max": 231.519995
+          },
+          "basePressureMmHg": {
+            "min": 4.631081,
+            "max": 16.635825
+          },
+          "passivePressureMmHg": {
+            "min": 0.357974,
+            "max": 16.370226
+          },
+          "activePressureMmHg": {
+            "min": 0.103046,
+            "max": 10.197112
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -5.926895,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.362965,
+            "max": 1.195793
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.901346
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -1.481724,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -1.534682,
+            "max": 2.080979
+          },
+          "boosterGateMean": 0.207719
+        },
+        "RA": {
+          "sampleCount": 18010,
+          "finiteSampleCount": 18010,
+          "selfVolumeRateMlPerSec": {
+            "min": -299.26711,
+            "max": 140.991625
+          },
+          "basePressureMmHg": {
+            "min": 1.425387,
+            "max": 5.438917
+          },
+          "passivePressureMmHg": {
+            "min": 0.040068,
+            "max": 5.215232
+          },
+          "activePressureMmHg": {
+            "min": 0.003574,
+            "max": 4.416056
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -1.397543,
+            "max": 0.00013
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.124355,
+            "max": 0.75033
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.2967
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -0.251558,
+            "max": 0.000023
+          },
+          "totalAddedPressureMmHg": {
+            "min": -0.321377,
+            "max": 1.016562
+          },
+          "boosterGateMean": 0.207719
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 406.666667,
+          "diodeImpulsePerBeat": 212.498979,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 379,
+          "diodeImpulsePerBeat": 7.963729,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "candidateId": "atrial-a2-light-v1",
+      "pointId": "low-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 26,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.621759,
+      "forwardCO_R": 4.625781,
+      "LVEDPApprox": 5.869523,
+      "RVEDPApprox": 2.352096,
+      "LA": {
+        "pressureRangeMmHg": 8.524785,
+        "volumeRangeMl": 39.065704,
+        "boosterLoopSignedArea": 310.527317,
+        "reservoirLoopSignedArea": 371.28554,
+        "lobeBalance": 0.836357,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 94,
+        "roughnessSamplingSpan": 0.614753,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "RA": {
+        "pressureRangeMmHg": 6.723731,
+        "volumeRangeMl": 47.287986,
+        "boosterLoopSignedArea": 491.150668,
+        "reservoirLoopSignedArea": 106.813662,
+        "lobeBalance": 0.217476,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 170,
+        "roughnessSamplingSpan": 0.253449,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.739463
+      },
+      "contribution": {
+        "LA": {
+          "sampleCount": 18061,
+          "finiteSampleCount": 18061,
+          "selfVolumeRateMlPerSec": {
+            "min": -456.208183,
+            "max": 159.897389
+          },
+          "basePressureMmHg": {
+            "min": 0,
+            "max": 7.070153
+          },
+          "passivePressureMmHg": {
+            "min": 0,
+            "max": 6.959124
+          },
+          "activePressureMmHg": {
+            "min": 0,
+            "max": 6.352474
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -5.068561,
+            "max": -0.022775
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.268538,
+            "max": 1.525216
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.554143
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -1.26714,
+            "max": -0.005694
+          },
+          "totalAddedPressureMmHg": {
+            "min": -1.332622,
+            "max": 1.815104
+          },
+          "boosterGateMean": 0.20754
+        },
+        "RA": {
+          "sampleCount": 18061,
+          "finiteSampleCount": 18061,
+          "selfVolumeRateMlPerSec": {
+            "min": -458.517859,
+            "max": 112.635846
+          },
+          "basePressureMmHg": {
+            "min": 0,
+            "max": 5.127739
+          },
+          "passivePressureMmHg": {
+            "min": 0,
+            "max": 2.044548
+          },
+          "activePressureMmHg": {
+            "min": 0,
+            "max": 4.692823
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -0.973222,
+            "max": 0.000384
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.116928,
+            "max": 1.155143
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.304318
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -0.17518,
+            "max": 0.000069
+          },
+          "totalAddedPressureMmHg": {
+            "min": -0.256495,
+            "max": 1.402107
+          },
+          "boosterGateMean": 0.20754
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 423.666667,
+          "diodeImpulsePerBeat": 152.550676,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 416.333333,
+          "diodeImpulsePerBeat": 10.968135,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "candidateId": "atrial-a2-light-v1",
+      "pointId": "high-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 24,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 5.401558,
+      "forwardCO_R": 5.417031,
+      "LVEDPApprox": 21.198974,
+      "RVEDPApprox": 7.750432,
+      "LA": {
+        "pressureRangeMmHg": 13.318466,
+        "volumeRangeMl": 29.351132,
+        "boosterLoopSignedArea": 376.388778,
+        "reservoirLoopSignedArea": -132.59463,
+        "lobeBalance": 0.352281,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 67,
+        "roughnessSamplingSpan": 0.663799,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 6.023696,
+        "volumeRangeMl": 39.281373,
+        "boosterLoopSignedArea": 311.550691,
+        "reservoirLoopSignedArea": 0.818381,
+        "lobeBalance": 0.002627,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 57,
+        "roughnessSamplingSpan": 0.254788,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.577773
+      },
+      "contribution": {
+        "LA": {
+          "sampleCount": 17370,
+          "finiteSampleCount": 17370,
+          "selfVolumeRateMlPerSec": {
+            "min": -332.758519,
+            "max": 225.756592
+          },
+          "basePressureMmHg": {
+            "min": 7.560689,
+            "max": 21.35023
+          },
+          "passivePressureMmHg": {
+            "min": 2.449765,
+            "max": 21.005704
+          },
+          "activePressureMmHg": {
+            "min": 0.121282,
+            "max": 12.378864
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -6.364752,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.35692,
+            "max": 1.062653
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.917386
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -1.591188,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -1.648952,
+            "max": 1.806355
+          },
+          "boosterGateMean": 0.216479
+        },
+        "RA": {
+          "sampleCount": 17370,
+          "finiteSampleCount": 17370,
+          "selfVolumeRateMlPerSec": {
+            "min": -248.867686,
+            "max": 157.78869
+          },
+          "basePressureMmHg": {
+            "min": 3.260748,
+            "max": 8.903559
+          },
+          "passivePressureMmHg": {
+            "min": 1.61959,
+            "max": 8.886415
+          },
+          "activePressureMmHg": {
+            "min": 0.004964,
+            "max": 4.254969
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -1.675612,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.13917,
+            "max": 0.624951
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.292776
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -0.30161,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -0.359795,
+            "max": 0.730151
+          },
+          "boosterGateMean": 0.216479
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 379.333333,
+          "diodeImpulsePerBeat": 216.459666,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 338,
+          "diodeImpulsePerBeat": 6.95201,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "candidateId": "atrial-a2-conduit-v1",
+      "pointId": "normal-hr75",
+      "HR": 75,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 15,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.841852,
+      "forwardCO_R": 4.848991,
+      "LVEDPApprox": 17.788151,
+      "RVEDPApprox": 6.886859,
+      "LA": {
+        "pressureRangeMmHg": 13.400233,
+        "volumeRangeMl": 31.671644,
+        "boosterLoopSignedArea": 493.178894,
+        "reservoirLoopSignedArea": 210.165342,
+        "lobeBalance": 0.426144,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 74,
+        "roughnessSamplingSpan": 0.440519,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.670178
+      },
+      "RA": {
+        "pressureRangeMmHg": 7.660737,
+        "volumeRangeMl": 43.683271,
+        "boosterLoopSignedArea": 536.2328,
+        "reservoirLoopSignedArea": 108.613964,
+        "lobeBalance": 0.20255,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 21,
+        "roughnessSamplingSpan": 0.678243,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "contribution": {
+        "LA": {
+          "sampleCount": 21209,
+          "finiteSampleCount": 21209,
+          "selfVolumeRateMlPerSec": {
+            "min": -401.902835,
+            "max": 271.381304
+          },
+          "basePressureMmHg": {
+            "min": 3.643328,
+            "max": 16.693084
+          },
+          "passivePressureMmHg": {
+            "min": 0.288053,
+            "max": 16.408836
+          },
+          "activePressureMmHg": {
+            "min": 0.039754,
+            "max": 10.92824
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -6.55169,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.738175,
+            "max": 2.308606
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.382773
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -2.293092,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -2.380599,
+            "max": 2.668625
+          },
+          "boosterGateMean": 0.211367
+        },
+        "RA": {
+          "sampleCount": 21209,
+          "finiteSampleCount": 21209,
+          "selfVolumeRateMlPerSec": {
+            "min": -352.676473,
+            "max": 149.696473
+          },
+          "basePressureMmHg": {
+            "min": 1.937907,
+            "max": 7.457652
+          },
+          "passivePressureMmHg": {
+            "min": 0.357719,
+            "max": 6.067708
+          },
+          "activePressureMmHg": {
+            "min": 0.001028,
+            "max": 4.522235
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -1.270425,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.227308,
+            "max": 1.52064
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.129483
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -0.320147,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -0.431011,
+            "max": 1.56991
+          },
+          "boosterGateMean": 0.211367
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 438.666667,
+          "diodeImpulsePerBeat": 315.985325,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 415,
+          "diodeImpulsePerBeat": 15.55352,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "candidateId": "atrial-a2-conduit-v1",
+      "pointId": "low-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 20,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.401928,
+      "forwardCO_R": 4.387508,
+      "LVEDPApprox": 8.699221,
+      "RVEDPApprox": 3.088593,
+      "LA": {
+        "pressureRangeMmHg": 9.187145,
+        "volumeRangeMl": 38.864419,
+        "boosterLoopSignedArea": 445.52015,
+        "reservoirLoopSignedArea": 209.160831,
+        "lobeBalance": 0.469476,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 69,
+        "roughnessSamplingSpan": 0.088046,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.800724
+      },
+      "RA": {
+        "pressureRangeMmHg": 5.636388,
+        "volumeRangeMl": 40.363871,
+        "boosterLoopSignedArea": 289.801149,
+        "reservoirLoopSignedArea": 197.555864,
+        "lobeBalance": 0.681695,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 37,
+        "roughnessSamplingSpan": 0.480699,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "contribution": {
+        "LA": {
+          "sampleCount": 21290,
+          "finiteSampleCount": 21290,
+          "selfVolumeRateMlPerSec": {
+            "min": -412.855211,
+            "max": 204.564606
+          },
+          "basePressureMmHg": {
+            "min": 0.107673,
+            "max": 8.110149
+          },
+          "passivePressureMmHg": {
+            "min": 0,
+            "max": 7.991872
+          },
+          "activePressureMmHg": {
+            "min": 0.026251,
+            "max": 6.191876
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -5.329551,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.530793,
+            "max": 2.367098
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.234436
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -1.865343,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -1.956379,
+            "max": 2.520814
+          },
+          "boosterGateMean": 0.213435
+        },
+        "RA": {
+          "sampleCount": 21290,
+          "finiteSampleCount": 21290,
+          "selfVolumeRateMlPerSec": {
+            "min": -284.441722,
+            "max": 114.741843
+          },
+          "basePressureMmHg": {
+            "min": 0.233917,
+            "max": 4.717081
+          },
+          "passivePressureMmHg": {
+            "min": 0.000095,
+            "max": 2.751775
+          },
+          "activePressureMmHg": {
+            "min": 0.001063,
+            "max": 3.672589
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -1.158624,
+            "max": 0.000806
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.182999,
+            "max": 1.223272
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.107084
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -0.291973,
+            "max": 0.000203
+          },
+          "totalAddedPressureMmHg": {
+            "min": -0.420161,
+            "max": 1.269192
+          },
+          "boosterGateMean": 0.213435
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 487.666667,
+          "diodeImpulsePerBeat": 267.193987,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 418.333333,
+          "diodeImpulsePerBeat": 11.176042,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "candidateId": "atrial-a2-conduit-v1",
+      "pointId": "high-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 18,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.835145,
+      "forwardCO_R": 4.858019,
+      "LVEDPApprox": 22.178803,
+      "RVEDPApprox": 10.481286,
+      "LA": {
+        "pressureRangeMmHg": 14.508987,
+        "volumeRangeMl": 32.00998,
+        "boosterLoopSignedArea": 464.094925,
+        "reservoirLoopSignedArea": 205.844209,
+        "lobeBalance": 0.443539,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 102,
+        "roughnessSamplingSpan": 0.473515,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "RA": {
+        "pressureRangeMmHg": 8.343291,
+        "volumeRangeMl": 41.698452,
+        "boosterLoopSignedArea": 465.755489,
+        "reservoirLoopSignedArea": 200.345762,
+        "lobeBalance": 0.430152,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 38,
+        "roughnessSamplingSpan": 0.660873,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "contribution": {
+        "LA": {
+          "sampleCount": 22490,
+          "finiteSampleCount": 22490,
+          "selfVolumeRateMlPerSec": {
+            "min": -378.486949,
+            "max": 267.135842
+          },
+          "basePressureMmHg": {
+            "min": 6.148857,
+            "max": 20.929827
+          },
+          "passivePressureMmHg": {
+            "min": 1.366869,
+            "max": 20.591492
+          },
+          "activePressureMmHg": {
+            "min": 0.042519,
+            "max": 12.165069
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -7.16817,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.732091,
+            "max": 2.068365
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.430357
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -2.508859,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -2.610452,
+            "max": 2.427565
+          },
+          "boosterGateMean": 0.202126
+        },
+        "RA": {
+          "sampleCount": 22490,
+          "finiteSampleCount": 22490,
+          "selfVolumeRateMlPerSec": {
+            "min": -313.600321,
+            "max": 172.952783
+          },
+          "basePressureMmHg": {
+            "min": 3.521524,
+            "max": 9.603944
+          },
+          "passivePressureMmHg": {
+            "min": 1.54846,
+            "max": 9.58701
+          },
+          "activePressureMmHg": {
+            "min": 0.001016,
+            "max": 4.673561
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -1.216554,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.261505,
+            "max": 1.352041
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.134616
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -0.306572,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -0.424431,
+            "max": 1.44402
+          },
+          "boosterGateMean": 0.202126
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 435.666667,
+          "diodeImpulsePerBeat": 334.508278,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 397.666667,
+          "diodeImpulsePerBeat": 15.213979,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "candidateId": "atrial-a2-conduit-v1",
+      "pointId": "normal-hr90",
+      "HR": 90,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 30,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 5.375227,
+      "forwardCO_R": 5.404384,
+      "LVEDPApprox": 16.760455,
+      "RVEDPApprox": 5.170794,
+      "LA": {
+        "pressureRangeMmHg": 13.891933,
+        "volumeRangeMl": 28.718212,
+        "boosterLoopSignedArea": 233.019699,
+        "reservoirLoopSignedArea": -64.596318,
+        "lobeBalance": 0.277214,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 66,
+        "roughnessSamplingSpan": 0.422995,
+        "educationalFigureEightReadable": true,
+        "readabilityScore": 0.843335
+      },
+      "RA": {
+        "pressureRangeMmHg": 6.308717,
+        "volumeRangeMl": 50.627122,
+        "boosterLoopSignedArea": 280.700296,
+        "reservoirLoopSignedArea": 311.138382,
+        "lobeBalance": 0.902172,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 45,
+        "roughnessSamplingSpan": 0.165602,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.771999
+      },
+      "contribution": {
+        "LA": {
+          "sampleCount": 19438,
+          "finiteSampleCount": 19438,
+          "selfVolumeRateMlPerSec": {
+            "min": -369.659094,
+            "max": 259.631735
+          },
+          "basePressureMmHg": {
+            "min": 5.133792,
+            "max": 18.87034
+          },
+          "passivePressureMmHg": {
+            "min": 1.790718,
+            "max": 18.572444
+          },
+          "activePressureMmHg": {
+            "min": 0.110113,
+            "max": 10.855181
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -6.388001,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.706889,
+            "max": 2.019697
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.452148
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -2.2358,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -2.329125,
+            "max": 1.877428
+          },
+          "boosterGateMean": 0.21742
+        },
+        "RA": {
+          "sampleCount": 19438,
+          "finiteSampleCount": 19438,
+          "selfVolumeRateMlPerSec": {
+            "min": -363.860335,
+            "max": 148.212107
+          },
+          "basePressureMmHg": {
+            "min": 1.11599,
+            "max": 5.38237
+          },
+          "passivePressureMmHg": {
+            "min": 0.001347,
+            "max": 4.931151
+          },
+          "activePressureMmHg": {
+            "min": 0.003384,
+            "max": 4.675429
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -1.233866,
+            "max": 0.000096
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.224097,
+            "max": 1.568986
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.152534
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -0.310934,
+            "max": 0.000024
+          },
+          "totalAddedPressureMmHg": {
+            "min": -0.435354,
+            "max": 1.690216
+          },
+          "boosterGateMean": 0.21742
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 399,
+          "diodeImpulsePerBeat": 154.193943,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 392.666667,
+          "diodeImpulsePerBeat": 11.847445,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "candidateId": "atrial-a2-conduit-v1",
+      "pointId": "low-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 24,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.620043,
+      "forwardCO_R": 4.624426,
+      "LVEDPApprox": 5.828785,
+      "RVEDPApprox": 2.353247,
+      "LA": {
+        "pressureRangeMmHg": 8.660991,
+        "volumeRangeMl": 40.077362,
+        "boosterLoopSignedArea": 262.032077,
+        "reservoirLoopSignedArea": 473.664894,
+        "lobeBalance": 0.553201,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 47,
+        "roughnessSamplingSpan": 0.099252,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.796573
+      },
+      "RA": {
+        "pressureRangeMmHg": 7.801453,
+        "volumeRangeMl": 50.607308,
+        "boosterLoopSignedArea": 674.087618,
+        "reservoirLoopSignedArea": 86.737724,
+        "lobeBalance": 0.128674,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 102,
+        "roughnessSamplingSpan": 0.662517,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "contribution": {
+        "LA": {
+          "sampleCount": 17370,
+          "finiteSampleCount": 17370,
+          "selfVolumeRateMlPerSec": {
+            "min": -437.600198,
+            "max": 179.654718
+          },
+          "basePressureMmHg": {
+            "min": 0,
+            "max": 7.416309
+          },
+          "passivePressureMmHg": {
+            "min": 0,
+            "max": 7.314011
+          },
+          "activePressureMmHg": {
+            "min": 0,
+            "max": 5.85832
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -5.187576,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.524522,
+            "max": 2.507528
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.249409
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -1.815651,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -1.92586,
+            "max": 2.5672
+          },
+          "boosterGateMean": 0.216479
+        },
+        "RA": {
+          "sampleCount": 17370,
+          "finiteSampleCount": 17370,
+          "selfVolumeRateMlPerSec": {
+            "min": -532.799555,
+            "max": 113.664884
+          },
+          "basePressureMmHg": {
+            "min": 0,
+            "max": 5.230976
+          },
+          "passivePressureMmHg": {
+            "min": 0,
+            "max": 2.070254
+          },
+          "activePressureMmHg": {
+            "min": 0,
+            "max": 4.804452
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -0.977661,
+            "max": 0.000438
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.208777,
+            "max": 2.301232
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.154508
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -0.246371,
+            "max": 0.00011
+          },
+          "totalAddedPressureMmHg": {
+            "min": -0.39358,
+            "max": 2.375878
+          },
+          "boosterGateMean": 0.216479
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 420.666667,
+          "diodeImpulsePerBeat": 177.346715,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 434.666667,
+          "diodeImpulsePerBeat": 10.671646,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "candidateId": "atrial-a2-conduit-v1",
+      "pointId": "high-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 27,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 5.421519,
+      "forwardCO_R": 5.431529,
+      "LVEDPApprox": 21.90672,
+      "RVEDPApprox": 7.861993,
+      "LA": {
+        "pressureRangeMmHg": 14.289475,
+        "volumeRangeMl": 30.578144,
+        "boosterLoopSignedArea": 400.156347,
+        "reservoirLoopSignedArea": -47.648469,
+        "lobeBalance": 0.119075,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 95,
+        "roughnessSamplingSpan": 0.205615,
+        "educationalFigureEightReadable": true,
+        "readabilityScore": 0.923846
+      },
+      "RA": {
+        "pressureRangeMmHg": 6.166563,
+        "volumeRangeMl": 40.255821,
+        "boosterLoopSignedArea": 297.045512,
+        "reservoirLoopSignedArea": 89.883715,
+        "lobeBalance": 0.302592,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 41,
+        "roughnessSamplingSpan": 0.380981,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.692229
+      },
+      "contribution": {
+        "LA": {
+          "sampleCount": 17413,
+          "finiteSampleCount": 17413,
+          "selfVolumeRateMlPerSec": {
+            "min": -366.368666,
+            "max": 246.716542
+          },
+          "basePressureMmHg": {
+            "min": 7.378359,
+            "max": 21.900563
+          },
+          "passivePressureMmHg": {
+            "min": 2.152614,
+            "max": 21.553185
+          },
+          "activePressureMmHg": {
+            "min": 0.123402,
+            "max": 12.631698
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -6.402962,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.67495,
+            "max": 1.992938
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.458962
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -2.241037,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -2.340818,
+            "max": 2.184231
+          },
+          "boosterGateMean": 0.21649
+        },
+        "RA": {
+          "sampleCount": 17413,
+          "finiteSampleCount": 17413,
+          "selfVolumeRateMlPerSec": {
+            "min": -275.997148,
+            "max": 162.222343
+          },
+          "basePressureMmHg": {
+            "min": 2.984839,
+            "max": 8.944491
+          },
+          "passivePressureMmHg": {
+            "min": 1.5413,
+            "max": 8.927611
+          },
+          "activePressureMmHg": {
+            "min": 0.005047,
+            "max": 4.20579
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -1.676923,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.248188,
+            "max": 1.188163
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.1449
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -0.422585,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -0.523263,
+            "max": 1.187295
+          },
+          "boosterGateMean": 0.21649
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 378.333333,
+          "diodeImpulsePerBeat": 273.880489,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 347.333333,
+          "diodeImpulsePerBeat": 10.58972,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "candidateId": "atrial-a2-booster-v1",
+      "pointId": "normal-hr75",
+      "HR": 75,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 15,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.840718,
+      "forwardCO_R": 4.848089,
+      "LVEDPApprox": 17.743577,
+      "RVEDPApprox": 6.694661,
+      "LA": {
+        "pressureRangeMmHg": 12.89355,
+        "volumeRangeMl": 31.409514,
+        "boosterLoopSignedArea": 501.540855,
+        "reservoirLoopSignedArea": 135.313311,
+        "lobeBalance": 0.269795,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 72,
+        "roughnessSamplingSpan": 0.403909,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.683737
+      },
+      "RA": {
+        "pressureRangeMmHg": 7.407433,
+        "volumeRangeMl": 42.561482,
+        "boosterLoopSignedArea": 489.702396,
+        "reservoirLoopSignedArea": 74.794649,
+        "lobeBalance": 0.152735,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 28,
+        "roughnessSamplingSpan": 0.447291,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.66767
+      },
+      "contribution": {
+        "LA": {
+          "sampleCount": 21209,
+          "finiteSampleCount": 21209,
+          "selfVolumeRateMlPerSec": {
+            "min": -425.12237,
+            "max": 241.283159
+          },
+          "basePressureMmHg": {
+            "min": 3.885897,
+            "max": 15.582259
+          },
+          "passivePressureMmHg": {
+            "min": 0.142546,
+            "max": 15.306884
+          },
+          "activePressureMmHg": {
+            "min": 0.038653,
+            "max": 10.650832
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -6.235357,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.378433,
+            "max": 1.422985
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 1.853376
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -1.247071,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -1.297477,
+            "max": 3.257394
+          },
+          "boosterGateMean": 0.211367
+        },
+        "RA": {
+          "sampleCount": 21209,
+          "finiteSampleCount": 21209,
+          "selfVolumeRateMlPerSec": {
+            "min": -341.58452,
+            "max": 145.931652
+          },
+          "basePressureMmHg": {
+            "min": 1.967851,
+            "max": 7.335661
+          },
+          "passivePressureMmHg": {
+            "min": 0.405733,
+            "max": 5.988085
+          },
+          "activePressureMmHg": {
+            "min": 0.001,
+            "max": 4.571955
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -1.275923,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.141887,
+            "max": 0.859203
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.652529
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -0.183733,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -0.247197,
+            "max": 1.3722
+          },
+          "boosterGateMean": 0.211367
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 429.333333,
+          "diodeImpulsePerBeat": 275.476164,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 392,
+          "diodeImpulsePerBeat": 10.421982,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "candidateId": "atrial-a2-booster-v1",
+      "pointId": "low-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 20,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.386264,
+      "forwardCO_R": 4.379005,
+      "LVEDPApprox": 8.572365,
+      "RVEDPApprox": 3.077579,
+      "LA": {
+        "pressureRangeMmHg": 8.755033,
+        "volumeRangeMl": 37.245949,
+        "boosterLoopSignedArea": 368.740435,
+        "reservoirLoopSignedArea": 135.349429,
+        "lobeBalance": 0.367059,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 51,
+        "roughnessSamplingSpan": 0.690418,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "RA": {
+        "pressureRangeMmHg": 5.786039,
+        "volumeRangeMl": 40.145567,
+        "boosterLoopSignedArea": 316.714936,
+        "reservoirLoopSignedArea": 138.626855,
+        "lobeBalance": 0.437702,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 27,
+        "roughnessSamplingSpan": 0.586024,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "contribution": {
+        "LA": {
+          "sampleCount": 21290,
+          "finiteSampleCount": 21290,
+          "selfVolumeRateMlPerSec": {
+            "min": -409.209716,
+            "max": 188.820985
+          },
+          "basePressureMmHg": {
+            "min": 0.214304,
+            "max": 7.507471
+          },
+          "passivePressureMmHg": {
+            "min": 0,
+            "max": 7.385814
+          },
+          "activePressureMmHg": {
+            "min": 0.027638,
+            "max": 6.252026
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -5.143439,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.283338,
+            "max": 1.383879
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 1.180617
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -1.028688,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -1.082405,
+            "max": 2.386554
+          },
+          "boosterGateMean": 0.213435
+        },
+        "RA": {
+          "sampleCount": 21290,
+          "finiteSampleCount": 21290,
+          "selfVolumeRateMlPerSec": {
+            "min": -294.275651,
+            "max": 113.693475
+          },
+          "basePressureMmHg": {
+            "min": 0.207168,
+            "max": 4.829782
+          },
+          "passivePressureMmHg": {
+            "min": 0.000033,
+            "max": 2.560199
+          },
+          "activePressureMmHg": {
+            "min": 0.001049,
+            "max": 3.820446
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -1.095586,
+            "max": 0.001113
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.10235,
+            "max": 0.738214
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.549801
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -0.157764,
+            "max": 0.00016
+          },
+          "totalAddedPressureMmHg": {
+            "min": -0.23283,
+            "max": 1.023303
+          },
+          "boosterGateMean": 0.213435
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 466.666667,
+          "diodeImpulsePerBeat": 208.52907,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 406,
+          "diodeImpulsePerBeat": 8.159601,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "candidateId": "atrial-a2-booster-v1",
+      "pointId": "high-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 17,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.834426,
+      "forwardCO_R": 4.859699,
+      "LVEDPApprox": 22.123475,
+      "RVEDPApprox": 10.116309,
+      "LA": {
+        "pressureRangeMmHg": 13.890168,
+        "volumeRangeMl": 31.792701,
+        "boosterLoopSignedArea": 480.833256,
+        "reservoirLoopSignedArea": 122.709928,
+        "lobeBalance": 0.255203,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 56,
+        "roughnessSamplingSpan": 0.560499,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "RA": {
+        "pressureRangeMmHg": 7.935068,
+        "volumeRangeMl": 40.203644,
+        "boosterLoopSignedArea": 413.181324,
+        "reservoirLoopSignedArea": 141.505762,
+        "lobeBalance": 0.342479,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 31,
+        "roughnessSamplingSpan": 0.666921,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "contribution": {
+        "LA": {
+          "sampleCount": 22090,
+          "finiteSampleCount": 22090,
+          "selfVolumeRateMlPerSec": {
+            "min": -394.375305,
+            "max": 240.294367
+          },
+          "basePressureMmHg": {
+            "min": 6.232314,
+            "max": 19.601583
+          },
+          "passivePressureMmHg": {
+            "min": 0.869443,
+            "max": 19.27755
+          },
+          "activePressureMmHg": {
+            "min": 0.041136,
+            "max": 11.833464
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -6.84516,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.380205,
+            "max": 1.295795
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 2.083026
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -1.369032,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -1.427349,
+            "max": 3.135418
+          },
+          "boosterGateMean": 0.205706
+        },
+        "RA": {
+          "sampleCount": 22090,
+          "finiteSampleCount": 22090,
+          "selfVolumeRateMlPerSec": {
+            "min": -299.351465,
+            "max": 167.045972
+          },
+          "basePressureMmHg": {
+            "min": 3.680078,
+            "max": 9.592192
+          },
+          "passivePressureMmHg": {
+            "min": 1.702819,
+            "max": 9.574966
+          },
+          "activePressureMmHg": {
+            "min": 0.001009,
+            "max": 4.664351
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -1.259686,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.147335,
+            "max": 0.752373
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.6728
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -0.181395,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -0.247067,
+            "max": 1.358627
+          },
+          "boosterGateMean": 0.205706
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 429.666667,
+          "diodeImpulsePerBeat": 313.906002,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 382,
+          "diodeImpulsePerBeat": 9.346157,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "candidateId": "atrial-a2-booster-v1",
+      "pointId": "normal-hr90",
+      "HR": 90,
+      "targetTBVMl": 5600,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 22,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 5.420343,
+      "forwardCO_R": 5.445593,
+      "LVEDPApprox": 17.674564,
+      "RVEDPApprox": 4.849319,
+      "LA": {
+        "pressureRangeMmHg": 11.567523,
+        "volumeRangeMl": 32.331025,
+        "boosterLoopSignedArea": 387.087393,
+        "reservoirLoopSignedArea": -111.093333,
+        "lobeBalance": 0.286998,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 62,
+        "roughnessSamplingSpan": 0.331084,
+        "educationalFigureEightReadable": true,
+        "readabilityScore": 0.877376
+      },
+      "RA": {
+        "pressureRangeMmHg": 6.118881,
+        "volumeRangeMl": 48.788896,
+        "boosterLoopSignedArea": 281.525052,
+        "reservoirLoopSignedArea": 249.401827,
+        "lobeBalance": 0.885896,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 79,
+        "roughnessSamplingSpan": 0.081305,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.80322
+      },
+      "contribution": {
+        "LA": {
+          "sampleCount": 18730,
+          "finiteSampleCount": 18730,
+          "selfVolumeRateMlPerSec": {
+            "min": -408.881391,
+            "max": 227.002146
+          },
+          "basePressureMmHg": {
+            "min": 4.837055,
+            "max": 16.37665
+          },
+          "passivePressureMmHg": {
+            "min": 0.101137,
+            "max": 16.121973
+          },
+          "activePressureMmHg": {
+            "min": 0.09942,
+            "max": 10.027525
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -5.6794,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.355779,
+            "max": 1.404565
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 2.243049
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -1.13588,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -1.189112,
+            "max": 3.624235
+          },
+          "boosterGateMean": 0.201948
+        },
+        "RA": {
+          "sampleCount": 18730,
+          "finiteSampleCount": 18730,
+          "selfVolumeRateMlPerSec": {
+            "min": -355.37531,
+            "max": 145.218076
+          },
+          "basePressureMmHg": {
+            "min": 1.166336,
+            "max": 5.463237
+          },
+          "passivePressureMmHg": {
+            "min": 0.004195,
+            "max": 4.907879
+          },
+          "activePressureMmHg": {
+            "min": 0.003497,
+            "max": 4.619949
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -1.310036,
+            "max": 0.000138
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.128082,
+            "max": 0.893361
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.757575
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -0.188645,
+            "max": 0.00002
+          },
+          "totalAddedPressureMmHg": {
+            "min": -0.261359,
+            "max": 1.603219
+          },
+          "boosterGateMean": 0.201948
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 407.333333,
+          "diodeImpulsePerBeat": 280.099198,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 383.666667,
+          "diodeImpulsePerBeat": 7.459787,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "candidateId": "atrial-a2-booster-v1",
+      "pointId": "low-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 4800,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 26,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 4.614204,
+      "forwardCO_R": 4.615974,
+      "LVEDPApprox": 5.81855,
+      "RVEDPApprox": 2.340633,
+      "LA": {
+        "pressureRangeMmHg": 9.203449,
+        "volumeRangeMl": 39.226329,
+        "boosterLoopSignedArea": 345.620392,
+        "reservoirLoopSignedArea": 353.961094,
+        "lobeBalance": 0.976436,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 54,
+        "roughnessSamplingSpan": 0.598304,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "RA": {
+        "pressureRangeMmHg": 7.214871,
+        "volumeRangeMl": 47.759601,
+        "boosterLoopSignedArea": 535.363656,
+        "reservoirLoopSignedArea": 105.852633,
+        "lobeBalance": 0.197721,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 142,
+        "roughnessSamplingSpan": 0.513311,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.666667
+      },
+      "contribution": {
+        "LA": {
+          "sampleCount": 18061,
+          "finiteSampleCount": 18061,
+          "selfVolumeRateMlPerSec": {
+            "min": -486.982927,
+            "max": 183.150275
+          },
+          "basePressureMmHg": {
+            "min": 0,
+            "max": 6.8857
+          },
+          "passivePressureMmHg": {
+            "min": 0,
+            "max": 6.777132
+          },
+          "activePressureMmHg": {
+            "min": 0,
+            "max": 6.161428
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -5.018801,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.302311,
+            "max": 1.616527
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 1.373081
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -1.00376,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -1.068156,
+            "max": 2.616335
+          },
+          "boosterGateMean": 0.207644
+        },
+        "RA": {
+          "sampleCount": 18061,
+          "finiteSampleCount": 18061,
+          "selfVolumeRateMlPerSec": {
+            "min": -482.822572,
+            "max": 112.743209
+          },
+          "basePressureMmHg": {
+            "min": 0,
+            "max": 5.113707
+          },
+          "passivePressureMmHg": {
+            "min": 0,
+            "max": 2.019957
+          },
+          "activePressureMmHg": {
+            "min": 0,
+            "max": 4.705688
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -0.965689,
+            "max": 0.000439
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.117536,
+            "max": 1.21634
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.76749
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -0.139059,
+            "max": 0.000063
+          },
+          "totalAddedPressureMmHg": {
+            "min": -0.221911,
+            "max": 1.91278
+          },
+          "boosterGateMean": 0.207644
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 428.333333,
+          "diodeImpulsePerBeat": 155.089962,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 419,
+          "diodeImpulsePerBeat": 10.658983,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    },
+    {
+      "candidateId": "atrial-a2-booster-v1",
+      "pointId": "high-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 6200,
+      "settled": true,
+      "settleReason": "converged",
+      "settleBeats": 24,
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "forwardCO_L": 5.439696,
+      "forwardCO_R": 5.455546,
+      "LVEDPApprox": 22.204082,
+      "RVEDPApprox": 7.777162,
+      "LA": {
+        "pressureRangeMmHg": 13.039237,
+        "volumeRangeMl": 30.577323,
+        "boosterLoopSignedArea": 411.400749,
+        "reservoirLoopSignedArea": -125.296135,
+        "lobeBalance": 0.30456,
+        "signedLobesOpposed": true,
+        "pvSelfIntersections": 61,
+        "roughnessSamplingSpan": 0.477065,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.833333
+      },
+      "RA": {
+        "pressureRangeMmHg": 6.518147,
+        "volumeRangeMl": 40.634663,
+        "boosterLoopSignedArea": 321.480537,
+        "reservoirLoopSignedArea": 21.434071,
+        "lobeBalance": 0.066673,
+        "signedLobesOpposed": false,
+        "pvSelfIntersections": 27,
+        "roughnessSamplingSpan": 0.205041,
+        "educationalFigureEightReadable": false,
+        "readabilityScore": 0.729628
+      },
+      "contribution": {
+        "LA": {
+          "sampleCount": 17370,
+          "finiteSampleCount": 17370,
+          "selfVolumeRateMlPerSec": {
+            "min": -335.236824,
+            "max": 222.732755
+          },
+          "basePressureMmHg": {
+            "min": 7.703955,
+            "max": 21.075066
+          },
+          "passivePressureMmHg": {
+            "min": 1.706773,
+            "max": 20.741008
+          },
+          "activePressureMmHg": {
+            "min": 0.117126,
+            "max": 12.313381
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -6.164356,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.351962,
+            "max": 1.06538
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 2.34365
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -1.232871,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -1.290872,
+            "max": 3.394941
+          },
+          "boosterGateMean": 0.216479
+        },
+        "RA": {
+          "sampleCount": 17370,
+          "finiteSampleCount": 17370,
+          "selfVolumeRateMlPerSec": {
+            "min": -243.831959,
+            "max": 161.195656
+          },
+          "basePressureMmHg": {
+            "min": 3.228327,
+            "max": 8.704778
+          },
+          "passivePressureMmHg": {
+            "min": 1.414316,
+            "max": 8.688255
+          },
+          "activePressureMmHg": {
+            "min": 0.004878,
+            "max": 4.272829
+          },
+          "avPlanePressureDeltaMmHg": {
+            "min": -1.623615,
+            "max": 0
+          },
+          "viscousConduitPressureMmHg": {
+            "min": -0.142175,
+            "max": 0.612358
+          },
+          "tensionBoosterPressureMmHg": {
+            "min": 0,
+            "max": 0.733274
+          },
+          "avPlaneExtraPressureMmHg": {
+            "min": -0.233801,
+            "max": 0
+          },
+          "totalAddedPressureMmHg": {
+            "min": -0.293157,
+            "max": 1.172136
+          },
+          "boosterGateMean": 0.216479
+        }
+      },
+      "valveAttribution": {
+        "MV": {
+          "hitsPerBeat": 384,
+          "diodeImpulsePerBeat": 285.902198,
+          "qDotClampHitFraction": 0
+        },
+        "TV": {
+          "hitsPerBeat": 337,
+          "diodeImpulsePerBeat": 6.895808,
+          "qDotClampHitFraction": 0
+        }
+      },
+      "settledLvRvHealthInterpretable": true
+    }
+  ],
+  "candidateSummaries": [
+    {
+      "candidateId": "a1-refined-reference",
+      "role": "a1-diagnostic-bridge-comparator",
+      "settledPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "healthOkPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "readableLaPointIds": [
+        "low-preload-hr75",
+        "high-preload-hr90"
+      ],
+      "readableRaPointIds": [],
+      "readableBothPointIds": [],
+      "meanLaReadabilityScore": 0.818914,
+      "meanRaReadabilityScore": 0.67238,
+      "valveImpulsePerBeatMean": 113.95894,
+      "valveHitPerBeatMean": 851.944444,
+      "contributionFinitePointIds": [],
+      "selectableByThisArtifact": false
+    },
+    {
+      "candidateId": "atrial-a2-light-v1",
+      "role": "a2-prototype-diagnostic",
+      "settledPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "healthOkPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "readableLaPointIds": [],
+      "readableRaPointIds": [],
+      "readableBothPointIds": [],
+      "meanLaReadabilityScore": 0.737704,
+      "meanRaReadabilityScore": 0.701157,
+      "valveImpulsePerBeatMean": 225.40715,
+      "valveHitPerBeatMean": 807,
+      "contributionFinitePointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "selectableByThisArtifact": false
+    },
+    {
+      "candidateId": "atrial-a2-conduit-v1",
+      "role": "a2-prototype-diagnostic",
+      "settledPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "healthOkPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "readableLaPointIds": [
+        "normal-hr90",
+        "high-preload-hr90"
+      ],
+      "readableRaPointIds": [],
+      "readableBothPointIds": [],
+      "meanLaReadabilityScore": 0.783554,
+      "meanRaReadabilityScore": 0.688483,
+      "valveImpulsePerBeatMean": 266.360182,
+      "valveHitPerBeatMean": 827.611111,
+      "contributionFinitePointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "selectableByThisArtifact": false
+    },
+    {
+      "candidateId": "atrial-a2-booster-v1",
+      "role": "a2-prototype-diagnostic",
+      "settledPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "healthOkPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "readableLaPointIds": [
+        "normal-hr90"
+      ],
+      "readableRaPointIds": [],
+      "readableBothPointIds": [],
+      "meanLaReadabilityScore": 0.732408,
+      "meanRaReadabilityScore": 0.700086,
+      "valveImpulsePerBeatMean": 261.990819,
+      "valveHitPerBeatMean": 810.833333,
+      "contributionFinitePointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "selectableByThisArtifact": false
+    }
+  ],
+  "summary": {
+    "a1ReferenceCandidateId": "a1-refined-reference",
+    "bestA2CandidateId": "atrial-a2-conduit-v1",
+    "bestA2CandidateStatus": "measured-no-readable-improvement",
+    "bestA2ReadableBothPointIds": [],
+    "currentInterpretation": "The A2 prototypes were finite under the HR75/90 preload envelope but did not produce a readable-improvement signal over the A1 refined bridge comparator. The result is still useful as a live implementation/readback smoke for self dV/dt, tension-state booster, and AV-plane delta terms.",
+    "recommendedNext": [
+      "source absolute atrial waveform and reservoir/conduit/booster targets before parameter tuning or production selection",
+      "if A2 shows candidate-local signal, run a narrower A2-on/off sensitivity pass against valve contamination and sampling invariance",
+      "keep AV-plane reservoir coupling as shared mechanism for A2 and later LandAtrial shadow work"
+    ],
+    "blockers": [
+      "absolute atrial waveform targets remain unsourced",
+      "production atrial bridge selection remains blocked",
+      "LandAtrial remains shadow target rather than user-0 gate"
+    ]
+  },
+  "boundary": {
+    "noAllChamberRuntimeDefaultFlip": true,
+    "noProductionAtrialBridgeWiring": true,
+    "noAtrialLandPhysiologyAcceptance": true,
+    "noAfValidationClaim": true,
+    "noLvRvLandDefaultGate": true,
+    "noOfficialMorphologyAcceptance": true
+  },
+  "doesNotUnlock": [
+    "all-chamber Land runtime default",
+    "production atrial bridge wiring",
+    "atrial Land physiology acceptance",
+    "AF validation",
+    "LV/RV Land default gating",
+    "official morphology acceptance"
+  ],
+  "normalizedSha256": "b83723b4e5edacfee13390296d32f28a81ce0c518dcf082c9c916c8fbc2660c4"
+}
