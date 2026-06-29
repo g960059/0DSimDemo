@@ -239,15 +239,29 @@ calibration for the next closed-loop valve/load timing experiment, not
 production/default root/Zc adoption, qDot clamp removal, reflection coefficient
 claim, root-cause/fix acceptance, or official morphology acceptance.
 
+Phase 5AG records the closed-loop valve/load timing diagnostic for that
+sourced-calibrated candidate:
+[`../../../data/myocardium/protocols/arterial-root-boundary-timing-phase5ag-result-v1.json`](../../../data/myocardium/protocols/arterial-root-boundary-timing-phase5ag-result-v1.json).
+Run `npm run verify:myocardium-arterial-root-boundary-timing` to check it. The
+runner covers the full Phase 5X synthetic user-knob matrix plus the frozen
+low-preload edge, comparing only current closure with the total 2x
+boundary/root mechanism. It records 60 measured runs, 56 health ok, and zero
+Land solve failures. The boundary/root candidate gives qDot+timing+output
+signals in 18/28 measured-health-ok candidate comparisons: 12 stock and 6 Land.
+Normal-floor Land is timing-only, not qDot+timing, and HR120 stock has an
+output/timing-cost classification with failed health. The result keeps root/Zc
+adoption, qDot clamp removal, valve/load timing acceptance, reflection
+coefficient, root-cause/fix acceptance, and official morphology acceptance
+blocked.
+
 1. Use the current-main baseline snapshot in
    [`pv-loop-current-main-baseline-snapshot-v1.md`](../verification/pv-loop-current-main-baseline-snapshot-v1.md)
    as the post-PR #196 morphology reference.
 2. Derive or emit the missing diagnostic-only E/A-like inflow proxy for the
    three residual dobutamine RV filling groups.
-3. Carry the sourced-calibrated total 2x boundary/root mechanism into a
-   closed-loop valve/load timing diagnostic with qDot and valve thresholds still
-   fixed before treating LV `qDotClampHitFraction=1` as a qDot/valve-threshold
-   blocker.
+3. Attribute why the sourced-calibrated boundary/root mechanism has strong stock
+   qDot+timing signal but weaker Land qDot signal before treating it as a
+   production/default root/Zc fix.
 4. Use Phase 5X style normal-floor and user-knob sweeps for LV Land default
    candidate decisions before detailed official-case tuning.
 5. Keep filling jaggedness/figure-eight work in the atrial A1/refined atrial

@@ -585,6 +585,15 @@ production tissue homogenization.
 - boundary: sourced-arterial-root-zc-calibration-diagnostic-only; no ModelCore equation change, topology change, state-layout change, default parameter change, runtime default flip, production registry integration, official case wiring/reauthoring, Workbench runtime wiring, state-schema migration, qDot tuning or qDot clamp removal, valve threshold/loss tuning, afterload/preload/Land-parameter/source-stress tuning, Tref fudge, direct Ao_SA adoption, AoV-boundary carrier adoption, boundary/root production adoption, reflection-coefficient claim, root-cause/fix acceptance, official morphology acceptance, final no-alternans, or clinical/scientific validation claim.
 - next: carry the sourced-calibrated total 2x boundary/root mechanism into a closed-loop valve/load timing and qDot-engagement experiment with qDot clamps, valves, load/preload, Tref, source-stress scale, and Land parameters fixed.
 
+### Phase 5AG — closed-loop boundary/root valve-load timing diagnostic
+
+- result artifact: `data/myocardium/protocols/arterial-root-boundary-timing-phase5ag-result-v1.json`
+- verifier: `npm run verify:myocardium-arterial-root-boundary-timing`
+- current outcome: Phase 5AG compares current closure with the Phase 5AF sourced-calibrated total 2x boundary/root mechanism over the full Phase 5X synthetic matrix plus the frozen low-preload edge. It records 60 runs, all measured; 56 are health ok, and Land solve failure count is zero. Of 28 measured-health-ok candidate comparisons, 18 preserve output while showing both qDot-engagement and valve/load timing signals: 12 stock and 6 Land. Normal-floor Land is `candidate-timing-only-output-preserved`, not qDot+timing, and HR120 stock has one `candidate-output-or-timing-cost` comparison with failed health.
+- interpretation: the sourced-calibrated boundary/root mechanism is a real closed-loop timing/qDot diagnostic signal, especially for stock active-stress, but the Land path does not yet show matrix-wide qDot-engagement improvement. This keeps the mechanism useful as the next diagnostic route while blocking production/default root/Zc adoption and qDot clamp retirement.
+- boundary: closed-loop-sourced-boundary-root-timing-diagnostic-only; no ModelCore equation change, topology change, state-layout change, default parameter change, runtime default flip, production registry integration, official case wiring/reauthoring, Workbench runtime wiring, state-schema migration, qDot tuning or qDot clamp removal, valve threshold/loss tuning, afterload/preload/Land-parameter/source-stress tuning, Tref fudge, direct Ao_SA adoption, AoV-boundary carrier adoption, boundary/root production adoption, valve/load timing acceptance, reflection-coefficient claim, root-cause/fix acceptance, official morphology acceptance, final no-alternans, or clinical/scientific validation claim.
+- next: attribute the weaker Land qDot-engagement response and the HR120 stock output/timing-cost case before any production/default boundary/root adoption.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison

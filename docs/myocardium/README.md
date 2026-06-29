@@ -1096,6 +1096,25 @@ diagnostic candidate selection only. It does not adopt the mechanism, remove
 qDot clamps, tune valves or loads, claim reflection coefficient, pass official
 morphology, or unlock production/default root/Zc adoption.
 
+Phase 5AG carries the sourced-calibrated total 2x boundary/root mechanism into
+a closed-loop valve/load timing and qDot-engagement diagnostic over the full
+Phase 5X synthetic matrix plus the frozen low-preload edge. The recorded result
+is
+[`../../data/myocardium/protocols/arterial-root-boundary-timing-phase5ag-result-v1.json`](../../data/myocardium/protocols/arterial-root-boundary-timing-phase5ag-result-v1.json).
+Run `npm run verify:myocardium-arterial-root-boundary-timing` to check the
+artifact. The run compares only current closure and the Phase 5AF preferred
+boundary/root candidate, with qDot clamps, valves, load/preload, Tref,
+source-stress scale, Land parameters, default params, topology, and state
+layout fixed. It records 60/60 measured runs, 56 health ok runs, and zero Land
+solve failures. Of 28 measured-health-ok candidate comparisons, 18 preserve
+output while showing both qDot-engagement and valve/load timing signals: 12
+stock and 6 Land. Normal-floor Land is `candidate-timing-only-output-preserved`
+rather than qDot+timing, and one HR120 stock candidate is
+`candidate-output-or-timing-cost` with non-ok health. This remains diagnostic:
+no root/Zc production adoption, qDot clamp removal, valve/load timing
+acceptance, reflection coefficient claim, official morphology acceptance, or
+runtime default flip is claimed.
+
 Phase 5C-F records the triage audit plan in
 [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
 and
