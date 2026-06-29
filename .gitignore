@@ -27,5 +27,11 @@ artifacts/
 # machine-local Claude Code permissions (do not track)
 .claude/settings.local.json
 .claude/
-.codex/
+# machine-local Codex permissions/hooks (do not track), except repo-local skills
+!.codex/
+.codex/*
+!.codex/skills/
+.codex/skills/*
+!.codex/skills/0dsimdemo-myocardium-lead/
+!.codex/skills/0dsimdemo-myocardium-lead/**
 .firebase/
