@@ -78,6 +78,7 @@ export function runScenario(
   const opt = { ...BASELINE_OPTIONS, ...options };
   const core = new ModelCore(params, createModelCoreRuntimeExperimentalOptions({
     mode: opt.runtimeActiveSourceMode,
+    runtimeParams: params,
   }));
   core.initializeVenousPressuresForTargetTBV(opt.targetTBV);
   let settleStatus: SettleStatus | undefined;

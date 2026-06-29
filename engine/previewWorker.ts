@@ -67,6 +67,7 @@ const maxSettledT = (excludeId?: string): number => {
 const createRecord = (inst: SimInstance): WorkerCoreRecord => {
   const core = new ModelCore(inst.params, createModelCoreRuntimeExperimentalOptions({
     mode: runtimeActiveSourceMode,
+    runtimeParams: inst.params,
   }));
   core.initializeVenousPressuresForTargetTBV(inst.targetVolume);
   return {
@@ -218,6 +219,7 @@ const promoteTransitionSteady = (
   if (existing) existing.settleToken++;
   const core = new ModelCore(inst.params, createModelCoreRuntimeExperimentalOptions({
     mode: runtimeActiveSourceMode,
+    runtimeParams: inst.params,
   }));
   core.unpackState(state);
   core.restoreExperimentalActiveProviderRuntimeState(experimentalActiveProviderStates);

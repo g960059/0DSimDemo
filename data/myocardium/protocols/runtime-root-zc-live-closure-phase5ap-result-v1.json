@@ -1,0 +1,3129 @@
+{
+  "schemaVersion": 1,
+  "id": "runtime-root-zc-live-closure-phase5ap-result-v1",
+  "phase": "Phase 5AP",
+  "claimBoundary": "runtime-root-zc-live-closure-supports-default-adoption",
+  "upstreamPhase5AFArtifactId": "arterial-root-zc-calibration-phase5af-result-v1",
+  "upstreamPhase5AOArtifactId": "lv-rv-land-default-flip-phase5ao-result-v1",
+  "protocol": {
+    "pointSource": "phase5x-full-synthetic-matrix-plus-frozen-low-preload-edge",
+    "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+    "candidates": [
+      {
+        "id": "current-root-zc",
+        "rootZcMode": "current-root-zc-no-boundary-root-inertance-v0",
+        "mechanismId": null
+      },
+      {
+        "id": "sourced-total-2x-boundary-root-zc",
+        "rootZcMode": "sourced-boundary-root-zc-phase5af-total2x-off-by-default-v1",
+        "mechanismId": "phase5ae-experimental-aortic-boundary-root-inertance-v1"
+      }
+    ],
+    "sampleHz": 1000,
+    "dtSec": 0.001,
+    "measureBeats": 3,
+    "comparisonThresholds": {
+      "qDotReductionMin": 0.25,
+      "outputRatioMin": 0.75,
+      "outputRatioMax": 1.25,
+      "timingRatioMin": 0.75,
+      "timingRatioMax": 1.35,
+      "upstrokeRatioSignalMin": 1.05,
+      "peakFlowRatioSignalMax": 0.98,
+      "forwardDurationRatioSignalMin": 1.05
+    },
+    "acceptanceThresholds": {
+      "outputPreservedFractionMin": 0.95,
+      "timingSignalFractionMin": 0.6
+    },
+    "fixedInputs": {
+      "qDotClamp": true,
+      "valveThresholds": true,
+      "valveLossTerms": true,
+      "loadPreload": true,
+      "Tref": true,
+      "sourceStressScale": true,
+      "LandParameters": true
+    }
+  },
+  "points": [
+    {
+      "id": "normal-floor",
+      "label": "normal baseline floor",
+      "role": "normal-floor",
+      "targetTBVMl": 5600,
+      "knobs": {},
+      "runs": [
+        {
+          "pointId": "normal-floor",
+          "candidateId": "current-root-zc",
+          "rootZcMode": "current-root-zc-no-boundary-root-inertance-v0",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 5600,
+          "knobs": {},
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.00025,
+          "mechanismId": null,
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 15,
+          "settleActualSeconds": 12.8,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.006072,
+            "cycleMetricDelta": 0.000411,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2400,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2.4,
+            "CO_L": 4.687659,
+            "CO_R": 4.693731,
+            "AoPMean": 76.685145,
+            "PAPMean": 17.316132,
+            "LVEDPApprox": 15.771913,
+            "RVEDPApprox": 6.23742,
+            "EF_LApprox": 0.490588,
+            "EF_RApprox": 0.403912,
+            "SV_L": 62.502122,
+            "SV_R": 62.583086,
+            "aovOpenSampleCount": 222,
+            "aovOpenDurationSecPerBeat": 0.074,
+            "forwardDurationSecPerBeat": 0.074,
+            "forwardVolumeMlPerBeat": 62.493753,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1273.437658,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.028,
+            "qAoUpstrokeFractionOfForwardDuration": 0.378378,
+            "qDotRawAbsMaxMlPerS2": 262154.612619,
+            "qDotClampHitFractionAll": 0.08,
+            "qDotClampHitFractionAovOpen": 0.418919,
+            "qDotClampImpulseAbsSumMlPerS2": 14045983.710019,
+            "incisuraCandidateScore": 0.05872
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 267193,
+              "commitProviderStateAfterStepCount": 16000,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 16000
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 267193,
+              "commitProviderStateAfterStepCount": 16000,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 16000
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0,
+            "forwardVolumeRatioVsCurrent": 1,
+            "forwardDurationRatioVsCurrent": 1,
+            "coRatioVsCurrent": 1,
+            "qAoPeakRatioVsCurrent": 1,
+            "qAoUpstrokeRatioVsCurrent": 1,
+            "incisuraScoreDeltaVsCurrent": 0,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": false,
+            "qDotEngagementSignal": false,
+            "classification": "current-root-zc-reference"
+          }
+        },
+        {
+          "pointId": "normal-floor",
+          "candidateId": "sourced-total-2x-boundary-root-zc",
+          "rootZcMode": "sourced-boundary-root-zc-phase5af-total2x-off-by-default-v1",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 5600,
+          "knobs": {},
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0.00025,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.0005,
+          "mechanismId": "phase5ae-experimental-aortic-boundary-root-inertance-v1",
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 14,
+          "settleActualSeconds": 12.05,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.005178,
+            "cycleMetricDelta": 0.000291,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2400,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2.4,
+            "CO_L": 4.735076,
+            "CO_R": 4.729898,
+            "AoPMean": 77.276908,
+            "PAPMean": 17.055381,
+            "LVEDPApprox": 15.425513,
+            "RVEDPApprox": 6.153619,
+            "EF_LApprox": 0.49831,
+            "EF_RApprox": 0.407663,
+            "SV_L": 63.134346,
+            "SV_R": 63.065312,
+            "aovOpenSampleCount": 198,
+            "aovOpenDurationSecPerBeat": 0.066,
+            "forwardDurationSecPerBeat": 0.066,
+            "forwardVolumeMlPerBeat": 63.18965,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1223.27119,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.031,
+            "qAoUpstrokeFractionOfForwardDuration": 0.469697,
+            "qDotRawAbsMaxMlPerS2": 200773.223933,
+            "qDotClampHitFractionAll": 0.06,
+            "qDotClampHitFractionAovOpen": 0.363636,
+            "qDotClampImpulseAbsSumMlPerS2": 6910333.176038,
+            "incisuraCandidateScore": 0
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 253602,
+              "commitProviderStateAfterStepCount": 15200,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 15200
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 253602,
+              "commitProviderStateAfterStepCount": 15200,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 15200
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0.131966,
+            "forwardVolumeRatioVsCurrent": 1.011135,
+            "forwardDurationRatioVsCurrent": 0.891892,
+            "coRatioVsCurrent": 1.010115,
+            "qAoPeakRatioVsCurrent": 0.960605,
+            "qAoUpstrokeRatioVsCurrent": 1.107143,
+            "incisuraScoreDeltaVsCurrent": -0.05872,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": true,
+            "qDotEngagementSignal": false,
+            "classification": "candidate-timing-only-output-preserved"
+          }
+        }
+      ]
+    },
+    {
+      "id": "preload-low",
+      "label": "preload low",
+      "role": "user-preload",
+      "targetTBVMl": 4800,
+      "knobs": {},
+      "runs": [
+        {
+          "pointId": "preload-low",
+          "candidateId": "current-root-zc",
+          "rootZcMode": "current-root-zc-no-boundary-root-inertance-v0",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 4800,
+          "knobs": {},
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.00025,
+          "mechanismId": null,
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 43,
+          "settleActualSeconds": 36.1,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.016007,
+            "cycleMetricDelta": 0.000528,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2401,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2.4,
+            "CO_L": 4.291251,
+            "CO_R": 4.275244,
+            "AoPMean": 67.934717,
+            "PAPMean": 10.200224,
+            "LVEDPApprox": 8.272949,
+            "RVEDPApprox": 2.829751,
+            "EF_LApprox": 0.493071,
+            "EF_RApprox": 0.45826,
+            "SV_L": 57.21668,
+            "SV_R": 57.003254,
+            "aovOpenSampleCount": 168,
+            "aovOpenDurationSecPerBeat": 0.056,
+            "forwardDurationSecPerBeat": 0.056,
+            "forwardVolumeMlPerBeat": 57.083104,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1278.788934,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.029,
+            "qAoUpstrokeFractionOfForwardDuration": 0.517857,
+            "qDotRawAbsMaxMlPerS2": 265882.833296,
+            "qDotClampHitFractionAll": 0.0808,
+            "qDotClampHitFractionAovOpen": 0.553571,
+            "qDotClampImpulseAbsSumMlPerS2": 15117980.404859,
+            "incisuraCandidateScore": 0
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 661958,
+              "commitProviderStateAfterStepCount": 39210,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 39210
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 661958,
+              "commitProviderStateAfterStepCount": 39210,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 39210
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0,
+            "forwardVolumeRatioVsCurrent": 1,
+            "forwardDurationRatioVsCurrent": 1,
+            "coRatioVsCurrent": 1,
+            "qAoPeakRatioVsCurrent": 1,
+            "qAoUpstrokeRatioVsCurrent": 1,
+            "incisuraScoreDeltaVsCurrent": 0,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": false,
+            "qDotEngagementSignal": false,
+            "classification": "current-root-zc-reference"
+          }
+        },
+        {
+          "pointId": "preload-low",
+          "candidateId": "sourced-total-2x-boundary-root-zc",
+          "rootZcMode": "sourced-boundary-root-zc-phase5af-total2x-off-by-default-v1",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 4800,
+          "knobs": {},
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0.00025,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.0005,
+          "mechanismId": "phase5ae-experimental-aortic-boundary-root-inertance-v1",
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 26,
+          "settleActualSeconds": 21.8,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.006451,
+            "cycleMetricDelta": 0.000573,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2401,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2.4,
+            "CO_L": 4.296995,
+            "CO_R": 4.290543,
+            "AoPMean": 68.413818,
+            "PAPMean": 9.90378,
+            "LVEDPApprox": 7.759317,
+            "RVEDPApprox": 2.803518,
+            "EF_LApprox": 0.499381,
+            "EF_RApprox": 0.461232,
+            "SV_L": 57.293264,
+            "SV_R": 57.207246,
+            "aovOpenSampleCount": 186,
+            "aovOpenDurationSecPerBeat": 0.062,
+            "forwardDurationSecPerBeat": 0.062,
+            "forwardVolumeMlPerBeat": 57.299542,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1223.822506,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.031,
+            "qAoUpstrokeFractionOfForwardDuration": 0.5,
+            "qDotRawAbsMaxMlPerS2": 204010.995542,
+            "qDotClampHitFractionAll": 0.057476,
+            "qDotClampHitFractionAovOpen": 0.387097,
+            "qDotClampImpulseAbsSumMlPerS2": 7705693.589748,
+            "incisuraCandidateScore": 0
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 417092,
+              "commitProviderStateAfterStepCount": 24810,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 24810
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 417092,
+              "commitProviderStateAfterStepCount": 24810,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 24810
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0.300727,
+            "forwardVolumeRatioVsCurrent": 1.003792,
+            "forwardDurationRatioVsCurrent": 1.107143,
+            "coRatioVsCurrent": 1.001339,
+            "qAoPeakRatioVsCurrent": 0.957017,
+            "qAoUpstrokeRatioVsCurrent": 1.068966,
+            "incisuraScoreDeltaVsCurrent": 0,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": true,
+            "qDotEngagementSignal": true,
+            "classification": "candidate-qdot-timing-output-preserved"
+          }
+        }
+      ]
+    },
+    {
+      "id": "preload-high",
+      "label": "preload high",
+      "role": "user-preload",
+      "targetTBVMl": 6400,
+      "knobs": {},
+      "runs": [
+        {
+          "pointId": "preload-high",
+          "candidateId": "current-root-zc",
+          "rootZcMode": "current-root-zc-no-boundary-root-inertance-v0",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 6400,
+          "knobs": {},
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.00025,
+          "mechanismId": null,
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 15,
+          "settleActualSeconds": 12.8,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.021564,
+            "cycleMetricDelta": 0.000872,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2400,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2.4,
+            "CO_L": 4.750284,
+            "CO_R": 4.771847,
+            "AoPMean": 81.605499,
+            "PAPMean": 22.735621,
+            "LVEDPApprox": 21.590963,
+            "RVEDPApprox": 11.363423,
+            "EF_LApprox": 0.488207,
+            "EF_RApprox": 0.362626,
+            "SV_L": 63.337116,
+            "SV_R": 63.624633,
+            "aovOpenSampleCount": 223,
+            "aovOpenDurationSecPerBeat": 0.074333,
+            "forwardDurationSecPerBeat": 0.074333,
+            "forwardVolumeMlPerBeat": 63.339505,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1246.988144,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.028,
+            "qAoUpstrokeFractionOfForwardDuration": 0.376683,
+            "qDotRawAbsMaxMlPerS2": 244380.311279,
+            "qDotClampHitFractionAll": 0.0775,
+            "qDotClampHitFractionAovOpen": 0.430493,
+            "qDotClampImpulseAbsSumMlPerS2": 12488431.469779,
+            "incisuraCandidateScore": 0.076451
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 267193,
+              "commitProviderStateAfterStepCount": 16000,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 16000
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 267193,
+              "commitProviderStateAfterStepCount": 16000,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 16000
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0,
+            "forwardVolumeRatioVsCurrent": 1,
+            "forwardDurationRatioVsCurrent": 1,
+            "coRatioVsCurrent": 1,
+            "qAoPeakRatioVsCurrent": 1,
+            "qAoUpstrokeRatioVsCurrent": 1,
+            "incisuraScoreDeltaVsCurrent": 0,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": false,
+            "qDotEngagementSignal": false,
+            "classification": "current-root-zc-reference"
+          }
+        },
+        {
+          "pointId": "preload-high",
+          "candidateId": "sourced-total-2x-boundary-root-zc",
+          "rootZcMode": "sourced-boundary-root-zc-phase5af-total2x-off-by-default-v1",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 6400,
+          "knobs": {},
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0.00025,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.0005,
+          "mechanismId": "phase5ae-experimental-aortic-boundary-root-inertance-v1",
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 17,
+          "settleActualSeconds": 14.55,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.019125,
+            "cycleMetricDelta": 0.000649,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2400,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2.4,
+            "CO_L": 4.753826,
+            "CO_R": 4.77295,
+            "AoPMean": 81.9623,
+            "PAPMean": 22.696173,
+            "LVEDPApprox": 21.552214,
+            "RVEDPApprox": 11.335748,
+            "EF_LApprox": 0.48862,
+            "EF_RApprox": 0.363042,
+            "SV_L": 63.384343,
+            "SV_R": 63.63934,
+            "aovOpenSampleCount": 198,
+            "aovOpenDurationSecPerBeat": 0.066,
+            "forwardDurationSecPerBeat": 0.066,
+            "forwardVolumeMlPerBeat": 63.387419,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1202.82765,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.031,
+            "qAoUpstrokeFractionOfForwardDuration": 0.469697,
+            "qDotRawAbsMaxMlPerS2": 190416.030069,
+            "qDotClampHitFractionAll": 0.06,
+            "qDotClampHitFractionAovOpen": 0.348485,
+            "qDotClampImpulseAbsSumMlPerS2": 6501058.117189,
+            "incisuraCandidateScore": 0
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 294376,
+              "commitProviderStateAfterStepCount": 17600,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 17600
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 294376,
+              "commitProviderStateAfterStepCount": 17600,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 17600
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0.190498,
+            "forwardVolumeRatioVsCurrent": 1.000756,
+            "forwardDurationRatioVsCurrent": 0.887896,
+            "coRatioVsCurrent": 1.000746,
+            "qAoPeakRatioVsCurrent": 0.964586,
+            "qAoUpstrokeRatioVsCurrent": 1.107143,
+            "incisuraScoreDeltaVsCurrent": -0.076451,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": true,
+            "qDotEngagementSignal": false,
+            "classification": "candidate-timing-only-output-preserved"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hr60",
+      "label": "heart rate 60",
+      "role": "user-hr",
+      "targetTBVMl": 5600,
+      "knobs": {
+        "HR": 60
+      },
+      "runs": [
+        {
+          "pointId": "hr60",
+          "candidateId": "current-root-zc",
+          "rootZcMode": "current-root-zc-no-boundary-root-inertance-v0",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 5600,
+          "knobs": {
+            "HR": 60
+          },
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.00025,
+          "mechanismId": null,
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 16,
+          "settleActualSeconds": 17.25,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.008553,
+            "cycleMetricDelta": 0.000417,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 3000,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 3,
+            "CO_L": 4.061465,
+            "CO_R": 4.052912,
+            "AoPMean": 68.51735,
+            "PAPMean": 16.850515,
+            "LVEDPApprox": 17.377914,
+            "RVEDPApprox": 8.115094,
+            "EF_LApprox": 0.532203,
+            "EF_RApprox": 0.41003,
+            "SV_L": 67.691088,
+            "SV_R": 67.54853,
+            "aovOpenSampleCount": 228,
+            "aovOpenDurationSecPerBeat": 0.076,
+            "forwardDurationSecPerBeat": 0.076,
+            "forwardVolumeMlPerBeat": 67.704762,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1339.751797,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.03,
+            "qAoUpstrokeFractionOfForwardDuration": 0.394737,
+            "qDotRawAbsMaxMlPerS2": 302509.723738,
+            "qDotClampHitFractionAll": 0.066,
+            "qDotClampHitFractionAovOpen": 0.447368,
+            "qDotClampImpulseAbsSumMlPerS2": 16725917.757955,
+            "incisuraCandidateScore": 0.028933
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 351116,
+              "commitProviderStateAfterStepCount": 21010,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 21010
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 351116,
+              "commitProviderStateAfterStepCount": 21010,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 21010
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0,
+            "forwardVolumeRatioVsCurrent": 1,
+            "forwardDurationRatioVsCurrent": 1,
+            "coRatioVsCurrent": 1,
+            "qAoPeakRatioVsCurrent": 1,
+            "qAoUpstrokeRatioVsCurrent": 1,
+            "incisuraScoreDeltaVsCurrent": 0,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": false,
+            "qDotEngagementSignal": false,
+            "classification": "current-root-zc-reference"
+          }
+        },
+        {
+          "pointId": "hr60",
+          "candidateId": "sourced-total-2x-boundary-root-zc",
+          "rootZcMode": "sourced-boundary-root-zc-phase5af-total2x-off-by-default-v1",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 5600,
+          "knobs": {
+            "HR": 60
+          },
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0.00025,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.0005,
+          "mechanismId": "phase5ae-experimental-aortic-boundary-root-inertance-v1",
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 16,
+          "settleActualSeconds": 17.25,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.008266,
+            "cycleMetricDelta": 0.000416,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 3000,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 3,
+            "CO_L": 4.103981,
+            "CO_R": 4.095715,
+            "AoPMean": 69.127538,
+            "PAPMean": 16.531179,
+            "LVEDPApprox": 16.843287,
+            "RVEDPApprox": 8.042092,
+            "EF_LApprox": 0.540987,
+            "EF_RApprox": 0.413701,
+            "SV_L": 68.399686,
+            "SV_R": 68.261923,
+            "aovOpenSampleCount": 201,
+            "aovOpenDurationSecPerBeat": 0.067,
+            "forwardDurationSecPerBeat": 0.067,
+            "forwardVolumeMlPerBeat": 68.407219,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1294.54278,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.032,
+            "qAoUpstrokeFractionOfForwardDuration": 0.477612,
+            "qDotRawAbsMaxMlPerS2": 239647.579471,
+            "qDotClampHitFractionAll": 0.056,
+            "qDotClampHitFractionAovOpen": 0.38806,
+            "qDotClampImpulseAbsSumMlPerS2": 9331184.938296,
+            "incisuraCandidateScore": 0
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 351116,
+              "commitProviderStateAfterStepCount": 21010,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 21010
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 351116,
+              "commitProviderStateAfterStepCount": 21010,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 21010
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0.132571,
+            "forwardVolumeRatioVsCurrent": 1.010375,
+            "forwardDurationRatioVsCurrent": 0.881579,
+            "coRatioVsCurrent": 1.010468,
+            "qAoPeakRatioVsCurrent": 0.966256,
+            "qAoUpstrokeRatioVsCurrent": 1.066667,
+            "incisuraScoreDeltaVsCurrent": -0.028933,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": true,
+            "qDotEngagementSignal": false,
+            "classification": "candidate-timing-only-output-preserved"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hr90",
+      "label": "heart rate 90",
+      "role": "user-hr",
+      "targetTBVMl": 5600,
+      "knobs": {
+        "HR": 90
+      },
+      "runs": [
+        {
+          "pointId": "hr90",
+          "candidateId": "current-root-zc",
+          "rootZcMode": "current-root-zc-no-boundary-root-inertance-v0",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 5600,
+          "knobs": {
+            "HR": 90
+          },
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.00025,
+          "mechanismId": null,
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 16,
+          "settleActualSeconds": 11.417,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.007537,
+            "cycleMetricDelta": 0.00053,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2000,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2,
+            "CO_L": 5.24557,
+            "CO_R": 5.253107,
+            "AoPMean": 83.811359,
+            "PAPMean": 18.606127,
+            "LVEDPApprox": 15.168265,
+            "RVEDPApprox": 4.537084,
+            "EF_LApprox": 0.456208,
+            "EF_RApprox": 0.408764,
+            "SV_L": 58.284109,
+            "SV_R": 58.367854,
+            "aovOpenSampleCount": 214,
+            "aovOpenDurationSecPerBeat": 0.071333,
+            "forwardDurationSecPerBeat": 0.071333,
+            "forwardVolumeMlPerBeat": 58.334163,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1214.465632,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.027,
+            "qAoUpstrokeFractionOfForwardDuration": 0.378506,
+            "qDotRawAbsMaxMlPerS2": 228353.037507,
+            "qDotClampHitFractionAll": 0.088,
+            "qDotClampHitFractionAovOpen": 0.406542,
+            "qDotClampImpulseAbsSumMlPerS2": 11175487.218639,
+            "incisuraCandidateScore": 0.077303
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 234131,
+              "commitProviderStateAfterStepCount": 14007,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 14007
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 234131,
+              "commitProviderStateAfterStepCount": 14007,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 14007
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0,
+            "forwardVolumeRatioVsCurrent": 1,
+            "forwardDurationRatioVsCurrent": 1,
+            "coRatioVsCurrent": 1,
+            "qAoPeakRatioVsCurrent": 1,
+            "qAoUpstrokeRatioVsCurrent": 1,
+            "incisuraScoreDeltaVsCurrent": 0,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": false,
+            "qDotEngagementSignal": false,
+            "classification": "current-root-zc-reference"
+          }
+        },
+        {
+          "pointId": "hr90",
+          "candidateId": "sourced-total-2x-boundary-root-zc",
+          "rootZcMode": "sourced-boundary-root-zc-phase5af-total2x-off-by-default-v1",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 5600,
+          "knobs": {
+            "HR": 90
+          },
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0.00025,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.0005,
+          "mechanismId": "phase5ae-experimental-aortic-boundary-root-inertance-v1",
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 17,
+          "settleActualSeconds": 12.167,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.000704,
+            "cycleMetricDelta": 0.000438,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2000,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2,
+            "CO_L": 5.292927,
+            "CO_R": 5.293632,
+            "AoPMean": 84.615658,
+            "PAPMean": 18.087843,
+            "LVEDPApprox": 14.618976,
+            "RVEDPApprox": 4.448922,
+            "EF_LApprox": 0.463001,
+            "EF_RApprox": 0.413114,
+            "SV_L": 58.810301,
+            "SV_R": 58.818128,
+            "aovOpenSampleCount": 192,
+            "aovOpenDurationSecPerBeat": 0.064,
+            "forwardDurationSecPerBeat": 0.064,
+            "forwardVolumeMlPerBeat": 58.802536,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1161.721253,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.029,
+            "qAoUpstrokeFractionOfForwardDuration": 0.453125,
+            "qDotRawAbsMaxMlPerS2": 172248.733542,
+            "qDotClampHitFractionAll": 0.0625,
+            "qDotClampHitFractionAovOpen": 0.333333,
+            "qDotClampImpulseAbsSumMlPerS2": 5453180.954471,
+            "incisuraCandidateScore": 0
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 245344,
+              "commitProviderStateAfterStepCount": 14667,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 14667
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 245344,
+              "commitProviderStateAfterStepCount": 14667,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 14667
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0.180077,
+            "forwardVolumeRatioVsCurrent": 1.008029,
+            "forwardDurationRatioVsCurrent": 0.8972,
+            "coRatioVsCurrent": 1.009028,
+            "qAoPeakRatioVsCurrent": 0.95657,
+            "qAoUpstrokeRatioVsCurrent": 1.074074,
+            "incisuraScoreDeltaVsCurrent": -0.077303,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": true,
+            "qDotEngagementSignal": false,
+            "classification": "candidate-timing-only-output-preserved"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hr120",
+      "label": "heart rate 120",
+      "role": "user-hr",
+      "targetTBVMl": 5600,
+      "knobs": {
+        "HR": 120
+      },
+      "runs": [
+        {
+          "pointId": "hr120",
+          "candidateId": "current-root-zc",
+          "rootZcMode": "current-root-zc-no-boundary-root-inertance-v0",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 5600,
+          "knobs": {
+            "HR": 120
+          },
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.00025,
+          "mechanismId": null,
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 23,
+          "settleActualSeconds": 12.25,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.022678,
+            "cycleMetricDelta": 0.000926,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 1500,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 1.5,
+            "CO_L": 5.483494,
+            "CO_R": 5.460816,
+            "AoPMean": 88.223271,
+            "PAPMean": 15.32681,
+            "LVEDPApprox": 7.303585,
+            "RVEDPApprox": 5.019724,
+            "EF_LApprox": 0.417783,
+            "EF_RApprox": 0.322012,
+            "SV_L": 45.695786,
+            "SV_R": 45.506799,
+            "aovOpenSampleCount": 156,
+            "aovOpenDurationSecPerBeat": 0.052,
+            "forwardDurationSecPerBeat": 0.052,
+            "forwardVolumeMlPerBeat": 45.730404,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1095.814414,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.024,
+            "qAoUpstrokeFractionOfForwardDuration": 0.461538,
+            "qDotRawAbsMaxMlPerS2": 168689.382816,
+            "qDotClampHitFractionAll": 0.1,
+            "qDotClampHitFractionAovOpen": 0.461538,
+            "qDotClampImpulseAbsSumMlPerS2": 7609570.632069,
+            "incisuraCandidateScore": 0
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 235184,
+              "commitProviderStateAfterStepCount": 14010,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 14010
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 235184,
+              "commitProviderStateAfterStepCount": 14010,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 14010
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0,
+            "forwardVolumeRatioVsCurrent": 1,
+            "forwardDurationRatioVsCurrent": 1,
+            "coRatioVsCurrent": 1,
+            "qAoPeakRatioVsCurrent": 1,
+            "qAoUpstrokeRatioVsCurrent": 1,
+            "incisuraScoreDeltaVsCurrent": 0,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": false,
+            "qDotEngagementSignal": false,
+            "classification": "current-root-zc-reference"
+          }
+        },
+        {
+          "pointId": "hr120",
+          "candidateId": "sourced-total-2x-boundary-root-zc",
+          "rootZcMode": "sourced-boundary-root-zc-phase5af-total2x-off-by-default-v1",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 5600,
+          "knobs": {
+            "HR": 120
+          },
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0.00025,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.0005,
+          "mechanismId": "phase5ae-experimental-aortic-boundary-root-inertance-v1",
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 25,
+          "settleActualSeconds": 13.25,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.010307,
+            "cycleMetricDelta": 0.000597,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 1500,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 1.5,
+            "CO_L": 5.512401,
+            "CO_R": 5.502094,
+            "AoPMean": 88.741252,
+            "PAPMean": 15.082363,
+            "LVEDPApprox": 6.436622,
+            "RVEDPApprox": 5.471263,
+            "EF_LApprox": 0.430301,
+            "EF_RApprox": 0.323083,
+            "SV_L": 45.936672,
+            "SV_R": 45.85078,
+            "aovOpenSampleCount": 180,
+            "aovOpenDurationSecPerBeat": 0.06,
+            "forwardDurationSecPerBeat": 0.06,
+            "forwardVolumeMlPerBeat": 45.95207,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1029.721485,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.027,
+            "qAoUpstrokeFractionOfForwardDuration": 0.45,
+            "qDotRawAbsMaxMlPerS2": 119123.717885,
+            "qDotClampHitFractionAll": 0.07,
+            "qDotClampHitFractionAovOpen": 0.283333,
+            "qDotClampImpulseAbsSumMlPerS2": 3056890.788671,
+            "incisuraCandidateScore": 0
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 252176,
+              "commitProviderStateAfterStepCount": 15010,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 15010
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 252176,
+              "commitProviderStateAfterStepCount": 15010,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 15010
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0.386111,
+            "forwardVolumeRatioVsCurrent": 1.004847,
+            "forwardDurationRatioVsCurrent": 1.153846,
+            "coRatioVsCurrent": 1.005272,
+            "qAoPeakRatioVsCurrent": 0.939686,
+            "qAoUpstrokeRatioVsCurrent": 1.125,
+            "incisuraScoreDeltaVsCurrent": 0,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": true,
+            "qDotEngagementSignal": true,
+            "classification": "candidate-qdot-timing-output-preserved"
+          }
+        }
+      ]
+    },
+    {
+      "id": "contractility-low",
+      "label": "contractility low",
+      "role": "user-contractility",
+      "targetTBVMl": 5600,
+      "knobs": {
+        "contractility": 0.65
+      },
+      "runs": [
+        {
+          "pointId": "contractility-low",
+          "candidateId": "current-root-zc",
+          "rootZcMode": "current-root-zc-no-boundary-root-inertance-v0",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 5600,
+          "knobs": {
+            "contractility": 0.65
+          },
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.00025,
+          "mechanismId": null,
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 14,
+          "settleActualSeconds": 12.05,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.011627,
+            "cycleMetricDelta": 0.000471,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2400,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2.4,
+            "CO_L": 3.392939,
+            "CO_R": 3.404565,
+            "AoPMean": 58.870866,
+            "PAPMean": 26.181407,
+            "LVEDPApprox": 26.697718,
+            "RVEDPApprox": 8.397322,
+            "EF_LApprox": 0.330549,
+            "EF_RApprox": 0.286299,
+            "SV_L": 45.239184,
+            "SV_R": 45.394206,
+            "aovOpenSampleCount": 114,
+            "aovOpenDurationSecPerBeat": 0.038,
+            "forwardDurationSecPerBeat": 0.038,
+            "forwardVolumeMlPerBeat": 45.223279,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1254.767222,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.029,
+            "qAoUpstrokeFractionOfForwardDuration": 0.763158,
+            "qDotRawAbsMaxMlPerS2": 269688.562241,
+            "qDotClampHitFractionAll": 0.06875,
+            "qDotClampHitFractionAovOpen": 0.763158,
+            "qDotClampImpulseAbsSumMlPerS2": 13814954.119121,
+            "incisuraCandidateScore": 0
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 253602,
+              "commitProviderStateAfterStepCount": 15200,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 15200
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 253602,
+              "commitProviderStateAfterStepCount": 15200,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 15200
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0,
+            "forwardVolumeRatioVsCurrent": 1,
+            "forwardDurationRatioVsCurrent": 1,
+            "coRatioVsCurrent": 1,
+            "qAoPeakRatioVsCurrent": 1,
+            "qAoUpstrokeRatioVsCurrent": 1,
+            "incisuraScoreDeltaVsCurrent": 0,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": false,
+            "qDotEngagementSignal": false,
+            "classification": "current-root-zc-reference"
+          }
+        },
+        {
+          "pointId": "contractility-low",
+          "candidateId": "sourced-total-2x-boundary-root-zc",
+          "rootZcMode": "sourced-boundary-root-zc-phase5af-total2x-off-by-default-v1",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 5600,
+          "knobs": {
+            "contractility": 0.65
+          },
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0.00025,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.0005,
+          "mechanismId": "phase5ae-experimental-aortic-boundary-root-inertance-v1",
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 14,
+          "settleActualSeconds": 12.05,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.013333,
+            "cycleMetricDelta": 0.000536,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2400,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2.4,
+            "CO_L": 3.47685,
+            "CO_R": 3.490183,
+            "AoPMean": 60.017529,
+            "PAPMean": 25.498105,
+            "LVEDPApprox": 25.901997,
+            "RVEDPApprox": 8.25971,
+            "EF_LApprox": 0.340413,
+            "EF_RApprox": 0.293449,
+            "SV_L": 46.358004,
+            "SV_R": 46.53578,
+            "aovOpenSampleCount": 123,
+            "aovOpenDurationSecPerBeat": 0.041,
+            "forwardDurationSecPerBeat": 0.041,
+            "forwardVolumeMlPerBeat": 46.345537,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1188.605964,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.032,
+            "qAoUpstrokeFractionOfForwardDuration": 0.780488,
+            "qDotRawAbsMaxMlPerS2": 202960.974981,
+            "qDotClampHitFractionAll": 0.055,
+            "qDotClampHitFractionAovOpen": 0.463415,
+            "qDotClampImpulseAbsSumMlPerS2": 7347051.409868,
+            "incisuraCandidateScore": 0
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 253602,
+              "commitProviderStateAfterStepCount": 15200,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 15200
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 253602,
+              "commitProviderStateAfterStepCount": 15200,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 15200
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0.392767,
+            "forwardVolumeRatioVsCurrent": 1.024816,
+            "forwardDurationRatioVsCurrent": 1.078947,
+            "coRatioVsCurrent": 1.024731,
+            "qAoPeakRatioVsCurrent": 0.947272,
+            "qAoUpstrokeRatioVsCurrent": 1.103448,
+            "incisuraScoreDeltaVsCurrent": 0,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": true,
+            "qDotEngagementSignal": true,
+            "classification": "candidate-qdot-timing-output-preserved"
+          }
+        }
+      ]
+    },
+    {
+      "id": "contractility-high",
+      "label": "contractility high",
+      "role": "user-contractility",
+      "targetTBVMl": 5600,
+      "knobs": {
+        "contractility": 1.35
+      },
+      "runs": [
+        {
+          "pointId": "contractility-high",
+          "candidateId": "current-root-zc",
+          "rootZcMode": "current-root-zc-no-boundary-root-inertance-v0",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 5600,
+          "knobs": {
+            "contractility": 1.35
+          },
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.00025,
+          "mechanismId": null,
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 27,
+          "settleActualSeconds": 22.55,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.008347,
+            "cycleMetricDelta": 0.000511,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2401,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2.4,
+            "CO_L": 5.15573,
+            "CO_R": 5.147383,
+            "AoPMean": 83.768019,
+            "PAPMean": 13.785375,
+            "LVEDPApprox": 10.407795,
+            "RVEDPApprox": 5.274052,
+            "EF_LApprox": 0.573846,
+            "EF_RApprox": 0.453324,
+            "SV_L": 68.743068,
+            "SV_R": 68.631772,
+            "aovOpenSampleCount": 261,
+            "aovOpenDurationSecPerBeat": 0.087,
+            "forwardDurationSecPerBeat": 0.087,
+            "forwardVolumeMlPerBeat": 68.754728,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1213.271772,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.027,
+            "qAoUpstrokeFractionOfForwardDuration": 0.310345,
+            "qDotRawAbsMaxMlPerS2": 218744.470698,
+            "qDotClampHitFractionAll": 0.076218,
+            "qDotClampHitFractionAovOpen": 0.390805,
+            "qDotClampImpulseAbsSumMlPerS2": 10479716.928832,
+            "incisuraCandidateScore": 0.186612
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 430709,
+              "commitProviderStateAfterStepCount": 25610,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 25610
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 430709,
+              "commitProviderStateAfterStepCount": 25610,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 25610
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0,
+            "forwardVolumeRatioVsCurrent": 1,
+            "forwardDurationRatioVsCurrent": 1,
+            "coRatioVsCurrent": 1,
+            "qAoPeakRatioVsCurrent": 1,
+            "qAoUpstrokeRatioVsCurrent": 1,
+            "incisuraScoreDeltaVsCurrent": 0,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": false,
+            "qDotEngagementSignal": false,
+            "classification": "current-root-zc-reference"
+          }
+        },
+        {
+          "pointId": "contractility-high",
+          "candidateId": "sourced-total-2x-boundary-root-zc",
+          "rootZcMode": "sourced-boundary-root-zc-phase5af-total2x-off-by-default-v1",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 5600,
+          "knobs": {
+            "contractility": 1.35
+          },
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0.00025,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.0005,
+          "mechanismId": "phase5ae-experimental-aortic-boundary-root-inertance-v1",
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 25,
+          "settleActualSeconds": 21.05,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.011467,
+            "cycleMetricDelta": 0.000749,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2401,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2.4,
+            "CO_L": 5.180563,
+            "CO_R": 5.169096,
+            "AoPMean": 84.157649,
+            "PAPMean": 13.541262,
+            "LVEDPApprox": 10.079366,
+            "RVEDPApprox": 5.231424,
+            "EF_LApprox": 0.579927,
+            "EF_RApprox": 0.455575,
+            "SV_L": 69.074168,
+            "SV_R": 68.921273,
+            "aovOpenSampleCount": 255,
+            "aovOpenDurationSecPerBeat": 0.085,
+            "forwardDurationSecPerBeat": 0.085,
+            "forwardVolumeMlPerBeat": 69.086105,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1164.865264,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.029,
+            "qAoUpstrokeFractionOfForwardDuration": 0.341176,
+            "qDotRawAbsMaxMlPerS2": 169012.114714,
+            "qDotClampHitFractionAll": 0.062474,
+            "qDotClampHitFractionAovOpen": 0.258824,
+            "qDotClampImpulseAbsSumMlPerS2": 4865906.247803,
+            "incisuraCandidateScore": 0.106966
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 403475,
+              "commitProviderStateAfterStepCount": 24010,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 24010
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 403475,
+              "commitProviderStateAfterStepCount": 24010,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 24010
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0.337716,
+            "forwardVolumeRatioVsCurrent": 1.00482,
+            "forwardDurationRatioVsCurrent": 0.977011,
+            "coRatioVsCurrent": 1.004817,
+            "qAoPeakRatioVsCurrent": 0.960103,
+            "qAoUpstrokeRatioVsCurrent": 1.074074,
+            "incisuraScoreDeltaVsCurrent": -0.079646,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": true,
+            "qDotEngagementSignal": true,
+            "classification": "candidate-qdot-timing-output-preserved"
+          }
+        }
+      ]
+    },
+    {
+      "id": "afterload-low",
+      "label": "afterload low",
+      "role": "user-afterload",
+      "targetTBVMl": 5600,
+      "knobs": {
+        "afterload": 0.75
+      },
+      "runs": [
+        {
+          "pointId": "afterload-low",
+          "candidateId": "current-root-zc",
+          "rootZcMode": "current-root-zc-no-boundary-root-inertance-v0",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 5600,
+          "knobs": {
+            "afterload": 0.75
+          },
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.00025,
+          "mechanismId": null,
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 19,
+          "settleActualSeconds": 16.05,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.011816,
+            "cycleMetricDelta": 0.00056,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2400,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2.4,
+            "CO_L": 4.933352,
+            "CO_R": 4.921535,
+            "AoPMean": 67.117022,
+            "PAPMean": 16.398127,
+            "LVEDPApprox": 14.467352,
+            "RVEDPApprox": 6.282405,
+            "EF_LApprox": 0.526753,
+            "EF_RApprox": 0.41873,
+            "SV_L": 65.778025,
+            "SV_R": 65.620473,
+            "aovOpenSampleCount": 207,
+            "aovOpenDurationSecPerBeat": 0.069,
+            "forwardDurationSecPerBeat": 0.069,
+            "forwardVolumeMlPerBeat": 65.789566,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1345.268193,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.03,
+            "qAoUpstrokeFractionOfForwardDuration": 0.434783,
+            "qDotRawAbsMaxMlPerS2": 308518.630522,
+            "qDotClampHitFractionAll": 0.0875,
+            "qDotClampHitFractionAovOpen": 0.492754,
+            "qDotClampImpulseAbsSumMlPerS2": 17650301.661319,
+            "incisuraCandidateScore": 0.716527
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 321734,
+              "commitProviderStateAfterStepCount": 19210,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 19210
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 321734,
+              "commitProviderStateAfterStepCount": 19210,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 19210
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0,
+            "forwardVolumeRatioVsCurrent": 1,
+            "forwardDurationRatioVsCurrent": 1,
+            "coRatioVsCurrent": 1,
+            "qAoPeakRatioVsCurrent": 1,
+            "qAoUpstrokeRatioVsCurrent": 1,
+            "incisuraScoreDeltaVsCurrent": 0,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": false,
+            "qDotEngagementSignal": false,
+            "classification": "current-root-zc-reference"
+          }
+        },
+        {
+          "pointId": "afterload-low",
+          "candidateId": "sourced-total-2x-boundary-root-zc",
+          "rootZcMode": "sourced-boundary-root-zc-phase5af-total2x-off-by-default-v1",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 5600,
+          "knobs": {
+            "afterload": 0.75
+          },
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0.00025,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.0005,
+          "mechanismId": "phase5ae-experimental-aortic-boundary-root-inertance-v1",
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 20,
+          "settleActualSeconds": 17.05,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.0157,
+            "cycleMetricDelta": 0.00081,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2400,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2.4,
+            "CO_L": 5.021483,
+            "CO_R": 5.005783,
+            "AoPMean": 68.125528,
+            "PAPMean": 15.775595,
+            "LVEDPApprox": 13.686644,
+            "RVEDPApprox": 6.0887,
+            "EF_LApprox": 0.541132,
+            "EF_RApprox": 0.427098,
+            "SV_L": 66.953104,
+            "SV_R": 66.74377,
+            "aovOpenSampleCount": 204,
+            "aovOpenDurationSecPerBeat": 0.068,
+            "forwardDurationSecPerBeat": 0.068,
+            "forwardVolumeMlPerBeat": 66.968376,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1287.211839,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.032,
+            "qAoUpstrokeFractionOfForwardDuration": 0.470588,
+            "qDotRawAbsMaxMlPerS2": 234122.579931,
+            "qDotClampHitFractionAll": 0.06625,
+            "qDotClampHitFractionAovOpen": 0.382353,
+            "qDotClampImpulseAbsSumMlPerS2": 8893131.188712,
+            "incisuraCandidateScore": 0.134118
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 335324,
+              "commitProviderStateAfterStepCount": 20010,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 20010
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 335324,
+              "commitProviderStateAfterStepCount": 20010,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 20010
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0.224049,
+            "forwardVolumeRatioVsCurrent": 1.017918,
+            "forwardDurationRatioVsCurrent": 0.985507,
+            "coRatioVsCurrent": 1.017864,
+            "qAoPeakRatioVsCurrent": 0.956844,
+            "qAoUpstrokeRatioVsCurrent": 1.066667,
+            "incisuraScoreDeltaVsCurrent": -0.582409,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": true,
+            "qDotEngagementSignal": false,
+            "classification": "candidate-timing-only-output-preserved"
+          }
+        }
+      ]
+    },
+    {
+      "id": "afterload-high",
+      "label": "afterload high",
+      "role": "user-afterload",
+      "targetTBVMl": 5600,
+      "knobs": {
+        "afterload": 1.45
+      },
+      "runs": [
+        {
+          "pointId": "afterload-high",
+          "candidateId": "current-root-zc",
+          "rootZcMode": "current-root-zc-no-boundary-root-inertance-v0",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 5600,
+          "knobs": {
+            "afterload": 1.45
+          },
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.00025,
+          "mechanismId": null,
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 22,
+          "settleActualSeconds": 18.55,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.019183,
+            "cycleMetricDelta": 0.000853,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2401,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2.4,
+            "CO_L": 4.228741,
+            "CO_R": 4.247924,
+            "AoPMean": 90.299209,
+            "PAPMean": 19.425002,
+            "LVEDPApprox": 18.571862,
+            "RVEDPApprox": 6.268932,
+            "EF_LApprox": 0.428091,
+            "EF_RApprox": 0.371458,
+            "SV_L": 56.383217,
+            "SV_R": 56.638992,
+            "aovOpenSampleCount": 213,
+            "aovOpenDurationSecPerBeat": 0.071,
+            "forwardDurationSecPerBeat": 0.071,
+            "forwardVolumeMlPerBeat": 56.397979,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1169.796272,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.026,
+            "qAoUpstrokeFractionOfForwardDuration": 0.366197,
+            "qDotRawAbsMaxMlPerS2": 203418.432326,
+            "qDotClampHitFractionAll": 0.069138,
+            "qDotClampHitFractionAovOpen": 0.380282,
+            "qDotClampImpulseAbsSumMlPerS2": 9454773.939261,
+            "incisuraCandidateScore": 0
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 362633,
+              "commitProviderStateAfterStepCount": 21610,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 21610
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 362633,
+              "commitProviderStateAfterStepCount": 21610,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 21610
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0,
+            "forwardVolumeRatioVsCurrent": 1,
+            "forwardDurationRatioVsCurrent": 1,
+            "coRatioVsCurrent": 1,
+            "qAoPeakRatioVsCurrent": 1,
+            "qAoUpstrokeRatioVsCurrent": 1,
+            "incisuraScoreDeltaVsCurrent": 0,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": false,
+            "qDotEngagementSignal": false,
+            "classification": "current-root-zc-reference"
+          }
+        },
+        {
+          "pointId": "afterload-high",
+          "candidateId": "sourced-total-2x-boundary-root-zc",
+          "rootZcMode": "sourced-boundary-root-zc-phase5af-total2x-off-by-default-v1",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 5600,
+          "knobs": {
+            "afterload": 1.45
+          },
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0.00025,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.0005,
+          "mechanismId": "phase5ae-experimental-aortic-boundary-root-inertance-v1",
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 23,
+          "settleActualSeconds": 19.3,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.020763,
+            "cycleMetricDelta": 0.000903,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2401,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2.4,
+            "CO_L": 4.250887,
+            "CO_R": 4.27165,
+            "AoPMean": 90.900486,
+            "PAPMean": 19.229276,
+            "LVEDPApprox": 18.397732,
+            "RVEDPApprox": 6.205604,
+            "EF_LApprox": 0.431058,
+            "EF_RApprox": 0.374085,
+            "SV_L": 56.678491,
+            "SV_R": 56.955337,
+            "aovOpenSampleCount": 192,
+            "aovOpenDurationSecPerBeat": 0.064,
+            "forwardDurationSecPerBeat": 0.064,
+            "forwardVolumeMlPerBeat": 56.683623,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1119.586473,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.029,
+            "qAoUpstrokeFractionOfForwardDuration": 0.453125,
+            "qDotRawAbsMaxMlPerS2": 152801.618858,
+            "qDotClampHitFractionAll": 0.04748,
+            "qDotClampHitFractionAovOpen": 0.3125,
+            "qDotClampImpulseAbsSumMlPerS2": 4333978.29339,
+            "incisuraCandidateScore": 0
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 376319,
+              "commitProviderStateAfterStepCount": 22410,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 22410
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 376319,
+              "commitProviderStateAfterStepCount": 22410,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 22410
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0.178241,
+            "forwardVolumeRatioVsCurrent": 1.005065,
+            "forwardDurationRatioVsCurrent": 0.901408,
+            "coRatioVsCurrent": 1.005237,
+            "qAoPeakRatioVsCurrent": 0.957078,
+            "qAoUpstrokeRatioVsCurrent": 1.115385,
+            "incisuraScoreDeltaVsCurrent": 0,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": true,
+            "qDotEngagementSignal": false,
+            "classification": "candidate-timing-only-output-preserved"
+          }
+        }
+      ]
+    },
+    {
+      "id": "arterial-stiffness-low",
+      "label": "arterial stiffness low",
+      "role": "user-arterial-stiffness",
+      "targetTBVMl": 5600,
+      "knobs": {
+        "arterialStiffness": 0.7
+      },
+      "runs": [
+        {
+          "pointId": "arterial-stiffness-low",
+          "candidateId": "current-root-zc",
+          "rootZcMode": "current-root-zc-no-boundary-root-inertance-v0",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 5600,
+          "knobs": {
+            "arterialStiffness": 0.7
+          },
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.00025,
+          "mechanismId": null,
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 24,
+          "settleActualSeconds": 20.05,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.002227,
+            "cycleMetricDelta": 0.000617,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2401,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2.4,
+            "CO_L": 4.707329,
+            "CO_R": 4.705102,
+            "AoPMean": 74.498084,
+            "PAPMean": 14.483935,
+            "LVEDPApprox": 12.909965,
+            "RVEDPApprox": 4.039283,
+            "EF_LApprox": 0.502644,
+            "EF_RApprox": 0.450539,
+            "SV_L": 62.764388,
+            "SV_R": 62.73469,
+            "aovOpenSampleCount": 177,
+            "aovOpenDurationSecPerBeat": 0.059,
+            "forwardDurationSecPerBeat": 0.059,
+            "forwardVolumeMlPerBeat": 62.821034,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1317.98521,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.03,
+            "qAoUpstrokeFractionOfForwardDuration": 0.508475,
+            "qDotRawAbsMaxMlPerS2": 285971.152664,
+            "qDotClampHitFractionAll": 0.081216,
+            "qDotClampHitFractionAovOpen": 0.525424,
+            "qDotClampImpulseAbsSumMlPerS2": 15483228.61318,
+            "incisuraCandidateScore": 0
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 389933,
+              "commitProviderStateAfterStepCount": 23210,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 23210
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 389933,
+              "commitProviderStateAfterStepCount": 23210,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 23210
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0,
+            "forwardVolumeRatioVsCurrent": 1,
+            "forwardDurationRatioVsCurrent": 1,
+            "coRatioVsCurrent": 1,
+            "qAoPeakRatioVsCurrent": 1,
+            "qAoUpstrokeRatioVsCurrent": 1,
+            "incisuraScoreDeltaVsCurrent": 0,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": false,
+            "qDotEngagementSignal": false,
+            "classification": "current-root-zc-reference"
+          }
+        },
+        {
+          "pointId": "arterial-stiffness-low",
+          "candidateId": "sourced-total-2x-boundary-root-zc",
+          "rootZcMode": "sourced-boundary-root-zc-phase5af-total2x-off-by-default-v1",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 5600,
+          "knobs": {
+            "arterialStiffness": 0.7
+          },
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0.00025,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.0005,
+          "mechanismId": "phase5ae-experimental-aortic-boundary-root-inertance-v1",
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 24,
+          "settleActualSeconds": 20.05,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.019113,
+            "cycleMetricDelta": 0.000826,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2401,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2.4,
+            "CO_L": 4.765422,
+            "CO_R": 4.746309,
+            "AoPMean": 75.321003,
+            "PAPMean": 13.86827,
+            "LVEDPApprox": 12.119083,
+            "RVEDPApprox": 3.987407,
+            "EF_LApprox": 0.514804,
+            "EF_RApprox": 0.455311,
+            "SV_L": 63.538962,
+            "SV_R": 63.284125,
+            "aovOpenSampleCount": 198,
+            "aovOpenDurationSecPerBeat": 0.066,
+            "forwardDurationSecPerBeat": 0.066,
+            "forwardVolumeMlPerBeat": 63.60333,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1258.517223,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.032,
+            "qAoUpstrokeFractionOfForwardDuration": 0.484848,
+            "qDotRawAbsMaxMlPerS2": 222168.441152,
+            "qDotClampHitFractionAll": 0.059975,
+            "qDotClampHitFractionAovOpen": 0.363636,
+            "qDotClampImpulseAbsSumMlPerS2": 7838216.818538,
+            "incisuraCandidateScore": 0
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 389933,
+              "commitProviderStateAfterStepCount": 23210,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 23210
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 389933,
+              "commitProviderStateAfterStepCount": 23210,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 23210
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0.307919,
+            "forwardVolumeRatioVsCurrent": 1.012453,
+            "forwardDurationRatioVsCurrent": 1.118644,
+            "coRatioVsCurrent": 1.012341,
+            "qAoPeakRatioVsCurrent": 0.95488,
+            "qAoUpstrokeRatioVsCurrent": 1.066667,
+            "incisuraScoreDeltaVsCurrent": 0,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": true,
+            "qDotEngagementSignal": true,
+            "classification": "candidate-qdot-timing-output-preserved"
+          }
+        }
+      ]
+    },
+    {
+      "id": "arterial-stiffness-high",
+      "label": "arterial stiffness high",
+      "role": "user-arterial-stiffness",
+      "targetTBVMl": 5600,
+      "knobs": {
+        "arterialStiffness": 1.6
+      },
+      "runs": [
+        {
+          "pointId": "arterial-stiffness-high",
+          "candidateId": "current-root-zc",
+          "rootZcMode": "current-root-zc-no-boundary-root-inertance-v0",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 5600,
+          "knobs": {
+            "arterialStiffness": 1.6
+          },
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.00025,
+          "mechanismId": null,
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 19,
+          "settleActualSeconds": 16.05,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.012334,
+            "cycleMetricDelta": 0.000486,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2400,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2.4,
+            "CO_L": 4.815518,
+            "CO_R": 4.803184,
+            "AoPMean": 80.542713,
+            "PAPMean": 22.260266,
+            "LVEDPApprox": 21.19139,
+            "RVEDPApprox": 8.135193,
+            "EF_LApprox": 0.486193,
+            "EF_RApprox": 0.397205,
+            "SV_L": 64.2069,
+            "SV_R": 64.042449,
+            "aovOpenSampleCount": 228,
+            "aovOpenDurationSecPerBeat": 0.076,
+            "forwardDurationSecPerBeat": 0.076,
+            "forwardVolumeMlPerBeat": 64.205918,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1202.082853,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.026,
+            "qAoUpstrokeFractionOfForwardDuration": 0.342105,
+            "qDotRawAbsMaxMlPerS2": 223335.868178,
+            "qDotClampHitFractionAll": 0.0825,
+            "qDotClampHitFractionAovOpen": 0.460526,
+            "qDotClampImpulseAbsSumMlPerS2": 12126399.083647,
+            "incisuraCandidateScore": 1
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 321734,
+              "commitProviderStateAfterStepCount": 19210,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 19210
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 321734,
+              "commitProviderStateAfterStepCount": 19210,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 19210
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0,
+            "forwardVolumeRatioVsCurrent": 1,
+            "forwardDurationRatioVsCurrent": 1,
+            "coRatioVsCurrent": 1,
+            "qAoPeakRatioVsCurrent": 1,
+            "qAoUpstrokeRatioVsCurrent": 1,
+            "incisuraScoreDeltaVsCurrent": 0,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": false,
+            "qDotEngagementSignal": false,
+            "classification": "current-root-zc-reference"
+          }
+        },
+        {
+          "pointId": "arterial-stiffness-high",
+          "candidateId": "sourced-total-2x-boundary-root-zc",
+          "rootZcMode": "sourced-boundary-root-zc-phase5af-total2x-off-by-default-v1",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 5600,
+          "knobs": {
+            "arterialStiffness": 1.6
+          },
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0.00025,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.0005,
+          "mechanismId": "phase5ae-experimental-aortic-boundary-root-inertance-v1",
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 19,
+          "settleActualSeconds": 16.05,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.008553,
+            "cycleMetricDelta": 0.000421,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2400,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2.4,
+            "CO_L": 4.75639,
+            "CO_R": 4.747837,
+            "AoPMean": 79.742648,
+            "PAPMean": 22.626526,
+            "LVEDPApprox": 21.534563,
+            "RVEDPApprox": 8.238964,
+            "EF_LApprox": 0.478971,
+            "EF_RApprox": 0.392459,
+            "SV_L": 63.418527,
+            "SV_R": 63.304494,
+            "aovOpenSampleCount": 249,
+            "aovOpenDurationSecPerBeat": 0.083,
+            "forwardDurationSecPerBeat": 0.083,
+            "forwardVolumeMlPerBeat": 63.422681,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1168.694261,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.029,
+            "qAoUpstrokeFractionOfForwardDuration": 0.349398,
+            "qDotRawAbsMaxMlPerS2": 171512.77202,
+            "qDotClampHitFractionAll": 0.0625,
+            "qDotClampHitFractionAovOpen": 0.277108,
+            "qDotClampImpulseAbsSumMlPerS2": 5962297.518998,
+            "incisuraCandidateScore": 1
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 321734,
+              "commitProviderStateAfterStepCount": 19210,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 19210
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 321734,
+              "commitProviderStateAfterStepCount": 19210,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 19210
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0.398279,
+            "forwardVolumeRatioVsCurrent": 0.987801,
+            "forwardDurationRatioVsCurrent": 1.092105,
+            "coRatioVsCurrent": 0.987721,
+            "qAoPeakRatioVsCurrent": 0.972224,
+            "qAoUpstrokeRatioVsCurrent": 1.115385,
+            "incisuraScoreDeltaVsCurrent": 0,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": true,
+            "qDotEngagementSignal": true,
+            "classification": "candidate-qdot-timing-output-preserved"
+          }
+        }
+      ]
+    },
+    {
+      "id": "venous-tone-low",
+      "label": "venous tone low",
+      "role": "user-venous-tone",
+      "targetTBVMl": 5600,
+      "knobs": {
+        "venousTone": 0.08
+      },
+      "runs": [
+        {
+          "pointId": "venous-tone-low",
+          "candidateId": "current-root-zc",
+          "rootZcMode": "current-root-zc-no-boundary-root-inertance-v0",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 5600,
+          "knobs": {
+            "venousTone": 0.08
+          },
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.00025,
+          "mechanismId": null,
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 14,
+          "settleActualSeconds": 12.05,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.003471,
+            "cycleMetricDelta": 0.000255,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2400,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2.4,
+            "CO_L": 4.682825,
+            "CO_R": 4.679354,
+            "AoPMean": 76.426546,
+            "PAPMean": 17.129952,
+            "LVEDPApprox": 15.518306,
+            "RVEDPApprox": 6.059244,
+            "EF_LApprox": 0.491044,
+            "EF_RApprox": 0.405252,
+            "SV_L": 62.437671,
+            "SV_R": 62.391387,
+            "aovOpenSampleCount": 222,
+            "aovOpenDurationSecPerBeat": 0.074,
+            "forwardDurationSecPerBeat": 0.074,
+            "forwardVolumeMlPerBeat": 62.472643,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1274.774463,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.028,
+            "qAoUpstrokeFractionOfForwardDuration": 0.378378,
+            "qDotRawAbsMaxMlPerS2": 264002.310732,
+            "qDotClampHitFractionAll": 0.08,
+            "qDotClampHitFractionAovOpen": 0.418919,
+            "qDotClampImpulseAbsSumMlPerS2": 14079060.909482,
+            "incisuraCandidateScore": 0.05652
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 253602,
+              "commitProviderStateAfterStepCount": 15200,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 15200
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 253602,
+              "commitProviderStateAfterStepCount": 15200,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 15200
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0,
+            "forwardVolumeRatioVsCurrent": 1,
+            "forwardDurationRatioVsCurrent": 1,
+            "coRatioVsCurrent": 1,
+            "qAoPeakRatioVsCurrent": 1,
+            "qAoUpstrokeRatioVsCurrent": 1,
+            "incisuraScoreDeltaVsCurrent": 0,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": false,
+            "qDotEngagementSignal": false,
+            "classification": "current-root-zc-reference"
+          }
+        },
+        {
+          "pointId": "venous-tone-low",
+          "candidateId": "sourced-total-2x-boundary-root-zc",
+          "rootZcMode": "sourced-boundary-root-zc-phase5af-total2x-off-by-default-v1",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 5600,
+          "knobs": {
+            "venousTone": 0.08
+          },
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0.00025,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.0005,
+          "mechanismId": "phase5ae-experimental-aortic-boundary-root-inertance-v1",
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 19,
+          "settleActualSeconds": 16.05,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.000471,
+            "cycleMetricDelta": 0.000113,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2400,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2.4,
+            "CO_L": 4.722867,
+            "CO_R": 4.722396,
+            "AoPMean": 77.224062,
+            "PAPMean": 16.815499,
+            "LVEDPApprox": 15.108986,
+            "RVEDPApprox": 5.967126,
+            "EF_LApprox": 0.497258,
+            "EF_RApprox": 0.409786,
+            "SV_L": 62.971565,
+            "SV_R": 62.965285,
+            "aovOpenSampleCount": 198,
+            "aovOpenDurationSecPerBeat": 0.066,
+            "forwardDurationSecPerBeat": 0.066,
+            "forwardVolumeMlPerBeat": 62.983372,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1220.423837,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.031,
+            "qAoUpstrokeFractionOfForwardDuration": 0.469697,
+            "qDotRawAbsMaxMlPerS2": 199708.437116,
+            "qDotClampHitFractionAll": 0.05875,
+            "qDotClampHitFractionAovOpen": 0.363636,
+            "qDotClampImpulseAbsSumMlPerS2": 6847433.407063,
+            "incisuraCandidateScore": 0
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 321734,
+              "commitProviderStateAfterStepCount": 19210,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 19210
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 321734,
+              "commitProviderStateAfterStepCount": 19210,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 19210
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0.131966,
+            "forwardVolumeRatioVsCurrent": 1.008175,
+            "forwardDurationRatioVsCurrent": 0.891892,
+            "coRatioVsCurrent": 1.008551,
+            "qAoPeakRatioVsCurrent": 0.957365,
+            "qAoUpstrokeRatioVsCurrent": 1.107143,
+            "incisuraScoreDeltaVsCurrent": -0.05652,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": true,
+            "qDotEngagementSignal": false,
+            "classification": "candidate-timing-only-output-preserved"
+          }
+        }
+      ]
+    },
+    {
+      "id": "venous-tone-high",
+      "label": "venous tone high",
+      "role": "user-venous-tone",
+      "targetTBVMl": 5600,
+      "knobs": {
+        "venousTone": 0.28
+      },
+      "runs": [
+        {
+          "pointId": "venous-tone-high",
+          "candidateId": "current-root-zc",
+          "rootZcMode": "current-root-zc-no-boundary-root-inertance-v0",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 5600,
+          "knobs": {
+            "venousTone": 0.28
+          },
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.00025,
+          "mechanismId": null,
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 15,
+          "settleActualSeconds": 12.8,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.005264,
+            "cycleMetricDelta": 0.000233,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2400,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2.4,
+            "CO_L": 4.705542,
+            "CO_R": 4.700278,
+            "AoPMean": 77.094972,
+            "PAPMean": 17.715567,
+            "LVEDPApprox": 16.145967,
+            "RVEDPApprox": 6.528998,
+            "EF_LApprox": 0.491633,
+            "EF_RApprox": 0.400605,
+            "SV_L": 62.740562,
+            "SV_R": 62.670375,
+            "aovOpenSampleCount": 225,
+            "aovOpenDurationSecPerBeat": 0.075,
+            "forwardDurationSecPerBeat": 0.075,
+            "forwardVolumeMlPerBeat": 62.74979,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1266.195122,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.029,
+            "qAoUpstrokeFractionOfForwardDuration": 0.386667,
+            "qDotRawAbsMaxMlPerS2": 255548.734405,
+            "qDotClampHitFractionAll": 0.07875,
+            "qDotClampHitFractionAovOpen": 0.426667,
+            "qDotClampImpulseAbsSumMlPerS2": 13216418.340035,
+            "incisuraCandidateScore": 0.054912
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 267193,
+              "commitProviderStateAfterStepCount": 16000,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 16000
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 267193,
+              "commitProviderStateAfterStepCount": 16000,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 16000
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0,
+            "forwardVolumeRatioVsCurrent": 1,
+            "forwardDurationRatioVsCurrent": 1,
+            "coRatioVsCurrent": 1,
+            "qAoPeakRatioVsCurrent": 1,
+            "qAoUpstrokeRatioVsCurrent": 1,
+            "incisuraScoreDeltaVsCurrent": 0,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": false,
+            "qDotEngagementSignal": false,
+            "classification": "current-root-zc-reference"
+          }
+        },
+        {
+          "pointId": "venous-tone-high",
+          "candidateId": "sourced-total-2x-boundary-root-zc",
+          "rootZcMode": "sourced-boundary-root-zc-phase5af-total2x-off-by-default-v1",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 5600,
+          "knobs": {
+            "venousTone": 0.28
+          },
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0.00025,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.0005,
+          "mechanismId": "phase5ae-experimental-aortic-boundary-root-inertance-v1",
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 16,
+          "settleActualSeconds": 13.8,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.004162,
+            "cycleMetricDelta": 0.000221,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2400,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2.4,
+            "CO_L": 4.742032,
+            "CO_R": 4.73787,
+            "AoPMean": 77.696927,
+            "PAPMean": 17.437459,
+            "LVEDPApprox": 15.82848,
+            "RVEDPApprox": 6.445862,
+            "EF_LApprox": 0.496988,
+            "EF_RApprox": 0.404436,
+            "SV_L": 63.227094,
+            "SV_R": 63.171601,
+            "aovOpenSampleCount": 198,
+            "aovOpenDurationSecPerBeat": 0.066,
+            "forwardDurationSecPerBeat": 0.066,
+            "forwardVolumeMlPerBeat": 63.229043,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1220.671284,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.031,
+            "qAoUpstrokeFractionOfForwardDuration": 0.469697,
+            "qDotRawAbsMaxMlPerS2": 200108.353466,
+            "qDotClampHitFractionAll": 0.05875,
+            "qDotClampHitFractionAovOpen": 0.363636,
+            "qDotClampImpulseAbsSumMlPerS2": 6915134.066194,
+            "incisuraCandidateScore": 0
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 280783,
+              "commitProviderStateAfterStepCount": 16800,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 16800
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 280783,
+              "commitProviderStateAfterStepCount": 16800,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 16800
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0.147729,
+            "forwardVolumeRatioVsCurrent": 1.007638,
+            "forwardDurationRatioVsCurrent": 0.88,
+            "coRatioVsCurrent": 1.007755,
+            "qAoPeakRatioVsCurrent": 0.964047,
+            "qAoUpstrokeRatioVsCurrent": 1.068966,
+            "incisuraScoreDeltaVsCurrent": -0.054912,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": true,
+            "qDotEngagementSignal": false,
+            "classification": "candidate-timing-only-output-preserved"
+          }
+        }
+      ]
+    },
+    {
+      "id": "low-preload-alternans-edge",
+      "label": "low preload alternans edge",
+      "role": "frozen-low-preload-edge",
+      "targetTBVMl": 4350,
+      "knobs": {},
+      "runs": [
+        {
+          "pointId": "low-preload-alternans-edge",
+          "candidateId": "current-root-zc",
+          "rootZcMode": "current-root-zc-no-boundary-root-inertance-v0",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 4350,
+          "knobs": {},
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.00025,
+          "mechanismId": null,
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 19,
+          "settleActualSeconds": 16.05,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.010989,
+            "cycleMetricDelta": 0.002197,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2400,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2.4,
+            "CO_L": 3.728916,
+            "CO_R": 3.739905,
+            "AoPMean": 59.237762,
+            "PAPMean": 7.499916,
+            "LVEDPApprox": 3.903068,
+            "RVEDPApprox": 1.662493,
+            "EF_LApprox": 0.484893,
+            "EF_RApprox": 0.46511,
+            "SV_L": 49.718875,
+            "SV_R": 49.865401,
+            "aovOpenSampleCount": 162,
+            "aovOpenDurationSecPerBeat": 0.054,
+            "forwardDurationSecPerBeat": 0.054,
+            "forwardVolumeMlPerBeat": 49.666613,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1258.430324,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.028,
+            "qAoUpstrokeFractionOfForwardDuration": 0.518519,
+            "qDotRawAbsMaxMlPerS2": 266430.009801,
+            "qDotClampHitFractionAll": 0.07,
+            "qDotClampHitFractionAovOpen": 0.537037,
+            "qDotClampImpulseAbsSumMlPerS2": 15287902.690222,
+            "incisuraCandidateScore": 0
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 321734,
+              "commitProviderStateAfterStepCount": 19210,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 19210
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 321734,
+              "commitProviderStateAfterStepCount": 19210,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 19210
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0,
+            "forwardVolumeRatioVsCurrent": 1,
+            "forwardDurationRatioVsCurrent": 1,
+            "coRatioVsCurrent": 1,
+            "qAoPeakRatioVsCurrent": 1,
+            "qAoUpstrokeRatioVsCurrent": 1,
+            "incisuraScoreDeltaVsCurrent": 0,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": false,
+            "qDotEngagementSignal": false,
+            "classification": "current-root-zc-reference"
+          }
+        },
+        {
+          "pointId": "low-preload-alternans-edge",
+          "candidateId": "sourced-total-2x-boundary-root-zc",
+          "rootZcMode": "sourced-boundary-root-zc-phase5af-total2x-off-by-default-v1",
+          "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+          "providerIds": {
+            "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+            "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+          },
+          "targetTBVMl": 4350,
+          "knobs": {},
+          "baseAoVInertanceMmHgSec2PerMl": 0.00025,
+          "boundaryRootAdditionalInertanceMmHgSec2PerMl": 0.00025,
+          "effectiveAoVBoundaryRootInertanceMmHgSec2PerMl": 0.0005,
+          "mechanismId": "phase5ae-experimental-aortic-boundary-root-inertance-v1",
+          "status": "measured",
+          "settled": true,
+          "settleReason": "converged",
+          "settleBeats": 19,
+          "settleActualSeconds": 16.05,
+          "projectorQuiet": true,
+          "health": {
+            "status": "ok",
+            "periodBeats": 1,
+            "tbvDriftMl": 0,
+            "leftRightFlowMismatchLMin": 0.009803,
+            "cycleMetricDelta": 0.000798,
+            "clampHitCount": 0,
+            "numericalStability": "ok",
+            "massConservation": "ok",
+            "flowBalance": "ok",
+            "physiologicalRange": "ok",
+            "messages": []
+          },
+          "metrics": {
+            "sampleCount": 2400,
+            "resolvedSampleHz": 1000,
+            "sampleDtSec": 0.001,
+            "measureSeconds": 2.4,
+            "CO_L": 3.731444,
+            "CO_R": 3.741247,
+            "AoPMean": 59.168306,
+            "PAPMean": 7.516557,
+            "LVEDPApprox": 3.952974,
+            "RVEDPApprox": 1.665592,
+            "EF_LApprox": 0.483782,
+            "EF_RApprox": 0.465131,
+            "SV_L": 49.752588,
+            "SV_R": 49.883297,
+            "aovOpenSampleCount": 180,
+            "aovOpenDurationSecPerBeat": 0.06,
+            "forwardDurationSecPerBeat": 0.06,
+            "forwardVolumeMlPerBeat": 49.679259,
+            "reverseVolumeMlPerBeat": 0,
+            "qAoPeakMlPerSec": 1220.929418,
+            "qAoUpstrokeTimeToPeakSecPerBeat": 0.031,
+            "qAoUpstrokeFractionOfForwardDuration": 0.516667,
+            "qDotRawAbsMaxMlPerS2": 207876.856051,
+            "qDotClampHitFractionAll": 0.06125,
+            "qDotClampHitFractionAovOpen": 0.4,
+            "qDotClampImpulseAbsSumMlPerS2": 8385574.518786,
+            "incisuraCandidateScore": 0
+          },
+          "errorMessage": null,
+          "providerInstrumentation": {
+            "LV": {
+              "sourceActiveStressCallCount": 321734,
+              "commitProviderStateAfterStepCount": 19210,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 19210
+            },
+            "RV": {
+              "sourceActiveStressCallCount": 321734,
+              "commitProviderStateAfterStepCount": 19210,
+              "landSolveFailureCount": 0,
+              "landSolveOkCount": 19210
+            }
+          },
+          "comparisonVsCurrent": {
+            "qDotClampReductionVsCurrentAovOpen": 0.255172,
+            "forwardVolumeRatioVsCurrent": 1.000255,
+            "forwardDurationRatioVsCurrent": 1.111111,
+            "coRatioVsCurrent": 1.000678,
+            "qAoPeakRatioVsCurrent": 0.9702,
+            "qAoUpstrokeRatioVsCurrent": 1.107143,
+            "incisuraScoreDeltaVsCurrent": 0,
+            "outputPreserved": true,
+            "valveLoadTimingPreserved": true,
+            "valveLoadTimingSignal": true,
+            "qDotEngagementSignal": true,
+            "classification": "candidate-qdot-timing-output-preserved"
+          }
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "pointCount": 15,
+    "runCount": 30,
+    "measuredRunCount": 30,
+    "healthOkRunCount": 30,
+    "candidateComparisonCount": 15,
+    "healthOkCandidateComparisonCount": 15,
+    "candidateHealthOkCount": 15,
+    "outputPreservedHealthOkCount": 15,
+    "qDotTimingOutputPreservedCount": 7,
+    "qDotOnlyOutputPreservedCount": 0,
+    "timingOnlyOutputPreservedCount": 8,
+    "noLiveSignalOutputPreservedCount": 0,
+    "outputOrTimingCostCount": 0,
+    "qDotEngagementSignalCount": 7,
+    "valveLoadTimingSignalCount": 15,
+    "lvLandSolveFailureCount": 0,
+    "rvLandSolveFailureCount": 0,
+    "outputPreservedFraction": 1,
+    "timingSignalFraction": 1,
+    "qDotSignalFraction": 0.466667,
+    "adoptionSupport": "supported",
+    "currentInterpretation": "Phase 5AP runs the sourced total 2x root/Zc candidate inside the current LV+RV Land default closure over 15 user-knob points. The candidate has 15/15 health-ok comparisons, output-preserved fraction 1, timing-signal fraction 1, qDot-signal fraction 0.466667, and output/timing cost count 0. Default-adoption support is supported; this does not claim qDot clamp removal, official morphology, reflection coefficients, or clinical/scientific validation.",
+    "recommendedNext": [
+      "promote the sourced root/Zc candidate to the runtime default in a separate small implementation step or this phase after review, while preserving rollback and no qDot-clamp-removal claim",
+      "keep valve/load timing acceptance and official morphology as separate morphology gates",
+      "move atrial figure-eight refinement independently; do not bundle it with root/Zc adoption"
+    ],
+    "limitations": [
+      "Phase 5AP is a live LV+RV Land default closure experiment over synthetic user-knob points plus one frozen low-preload edge, not official-case tuning.",
+      "The sourced root/Zc mechanism is the existing off-by-default boundary/root hook; no topology, state layout, default parameter, qDot clamp, valve threshold, valve loss, load/preload, Tref, source-stress, or Land parameter is tuned.",
+      "Timing signals are directional discharge-path morphology evidence, not official morphology acceptance or reflection-coefficient validation.",
+      "qDot clamp removal remains unsupported even if the root/Zc default adoption signal is supported."
+    ]
+  },
+  "boundary": {
+    "noTopologyChange": true,
+    "noStateLayoutChange": true,
+    "noDefaultParamChange": true,
+    "noLegacyActiveStressDeletion": true,
+    "noOfficialCaseWiring": true,
+    "noOfficialCaseReauthoring": true,
+    "noWorkbenchRuntimeWiring": true,
+    "noStateSchemaMigration": true,
+    "noQDotTuning": true,
+    "noQDotClampRemoval": true,
+    "noValveLoadTimingAcceptance": true,
+    "noValveThresholdTuning": true,
+    "noValveLossTuning": true,
+    "noAfterloadTuning": true,
+    "noPreloadTuning": true,
+    "noLandParameterTuning": true,
+    "noTrefFudge": true,
+    "noSourceStressScaling": true,
+    "noDirectAoSAAdoption": true,
+    "noReflectionCoefficientClaim": true,
+    "noOfficialMorphologyAcceptance": true,
+    "noFinalNoAlternansAcceptance": true,
+    "noClinicalScientificValidationClaim": true
+  },
+  "doesNotUnlock": [
+    "topologyChange",
+    "stateLayoutChange",
+    "defaultParamChange",
+    "legacyActiveStressDeletion",
+    "officialCaseWiring",
+    "officialCaseReauthoring",
+    "workbenchRuntimeWiring",
+    "stateSchemaMigration",
+    "qDotTuning",
+    "qDotClampRemoval",
+    "valveLoadTimingAcceptance",
+    "valveThresholdTuning",
+    "valveLossTuning",
+    "afterloadTuning",
+    "preloadTuning",
+    "LandParameterTuning",
+    "TrefFudge",
+    "sourceStressScaling",
+    "directAoSAAdoption",
+    "reflectionCoefficientClaim",
+    "officialMorphologyAcceptance",
+    "finalNoAlternansAcceptance",
+    "clinicalScientificValidationClaim"
+  ],
+  "normalizedSha256": "34042708e96028bb88729076a3af1c178f08bdd65568c2687e5cfaaae18e0183"
+}

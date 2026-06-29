@@ -2,6 +2,8 @@ import phase5QArtifact from "@/data/myocardium/protocols/modelcore-land-calcium-
 import { defaultParams } from "@/engine/core/params";
 import type { ModelCoreExperimentalOptions } from "@/engine/ModelCore";
 import {
+  MODELCORE_RUNTIME_ROOT_ZC_CURRENT_MODE,
+  MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_DEFAULT_MODE,
   resolveModelCoreRuntimeRootZc,
   type ModelCoreRuntimeRootZcMode,
   type ModelCoreRuntimeRootZcResolution,
@@ -142,6 +144,7 @@ export type ResolveModelCoreRuntimeActiveSourceInput = {
   readonly rvInstrumentation?: ModelCoreLand2017LvSourceProviderInstrumentation;
   readonly rootZcMode?: ModelCoreRuntimeRootZcMode;
   readonly rootZcBaseAoVInertanceMmHgSec2PerMl?: number;
+  readonly runtimeParams?: { readonly AoV_L?: number };
 };
 
 let modelCoreRuntimeActiveSourceModeForThisProcess: ModelCoreRuntimeActiveSourceMode =
@@ -196,9 +199,12 @@ export function resolveModelCoreRuntimeActiveSource(
   ) {
     throw new Error("Legacy active-stress rollback cannot be composed with experimental root/Zc options.");
   }
+  const rootZcMode = input.rootZcMode ?? defaultRootZcModeFor(mode);
   const rootZc = resolveModelCoreRuntimeRootZc({
-    mode: input.rootZcMode,
-    baseAoVInertanceMmHgSec2PerMl: input.rootZcBaseAoVInertanceMmHgSec2PerMl,
+    mode: rootZcMode,
+    baseAoVInertanceMmHgSec2PerMl: rootZcMode === undefined || rootZcMode === MODELCORE_RUNTIME_ROOT_ZC_CURRENT_MODE
+      ? undefined
+      : rootZcBaseAoVInertance(input),
   });
   if (mode === MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE) {
     return {
@@ -312,4 +318,18 @@ export function createModelCoreRuntimeExperimentalOptions(
   input: ResolveModelCoreRuntimeActiveSourceInput = {},
 ): ModelCoreExperimentalOptions {
   return resolveModelCoreRuntimeActiveSource(input).experimentalOptions;
+}
+
+function defaultRootZcModeFor(
+  mode: ModelCoreRuntimeActiveSourceMode,
+): ModelCoreRuntimeRootZcMode | undefined {
+  return mode === MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE
+    ? MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_DEFAULT_MODE
+    : undefined;
+}
+
+function rootZcBaseAoVInertance(input: ResolveModelCoreRuntimeActiveSourceInput): number | undefined {
+  return input.rootZcBaseAoVInertanceMmHgSec2PerMl
+    ?? input.runtimeParams?.AoV_L
+    ?? defaultParams().AoV_L;
 }

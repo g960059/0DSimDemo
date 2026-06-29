@@ -16,6 +16,7 @@ import {
   useLvRvLandDefaultForModelCoreRuntimeForThisProcess,
   type ModelCoreRuntimeActiveSourceMode,
 } from "@/engine/myocardium/runtimeActiveSource";
+import { MODELCORE_RUNTIME_ROOT_ZC_CURRENT_MODE } from "@/engine/myocardium/runtimeRootZc";
 import type { ModelCoreLand2017LvSourceProviderInstrumentation } from "@/engine/myocardium/modelCoreLand2017LvSourceProvider";
 import type { CoreRuntimeParams, SimMetrics, SimulationHealthStatus } from "@/engine/protocol";
 import { PREVIEW_SETTLE_POLICY, type SettleStatus } from "@/engine/settling";
@@ -247,7 +248,7 @@ function runSmokePoint(
 ): LvRvLandDefaultFlipPhase5AOSmokeRun {
   const usedProcessDefaultResolution = mode === MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE;
   const resolved = usedProcessDefaultResolution
-    ? resolveModelCoreRuntimeActiveSource()
+    ? resolveModelCoreRuntimeActiveSource({ rootZcMode: MODELCORE_RUNTIME_ROOT_ZC_CURRENT_MODE })
     : resolveModelCoreRuntimeActiveSource({ mode });
   const params: Partial<CoreRuntimeParams> = { ...defaultParams(), ...point.params };
   const core = new ModelCore(params, resolved.experimentalOptions);

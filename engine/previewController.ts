@@ -622,6 +622,7 @@ export class PreviewController {
     if (!(phys.core instanceof RemotePreviewCore)) {
       const core = new ModelCore(inst.params, createModelCoreRuntimeExperimentalOptions({
         mode: runtimeActiveSourceMode,
+        runtimeParams: inst.params,
       }));
       core.unpackState(promotion.state);
       core.restoreExperimentalActiveProviderRuntimeState(promotion.experimentalActiveProviderStates);
@@ -663,6 +664,7 @@ export class PreviewController {
     try {
       const core = new ModelCore(inst.params, createModelCoreRuntimeExperimentalOptions({
         mode: result.runtimeActiveSourceMode ?? this.runtimeActiveSourceMode(),
+        runtimeParams: inst.params,
       }));
       core.unpackState(result.steady.state);
       core.restoreExperimentalActiveProviderRuntimeState(result.experimentalActiveProviderStates);
@@ -931,6 +933,7 @@ export class PreviewController {
     const runtimeActiveSourceMode = this.runtimeActiveSourceMode();
     const core = new ModelCore(inst.params, createModelCoreRuntimeExperimentalOptions({
       mode: runtimeActiveSourceMode,
+      runtimeParams: inst.params,
     }));
     core.initializeVenousPressuresForTargetTBV(inst.targetVolume);
     // Settle to the limit cycle (capped) so the UI starts on steady state, not
@@ -1095,6 +1098,7 @@ export class PreviewController {
     const runtimeActiveSourceMode = this.runtimeActiveSourceMode();
     const core = new ModelCore(inst.params, createModelCoreRuntimeExperimentalOptions({
       mode: runtimeActiveSourceMode,
+      runtimeParams: inst.params,
     }));
     core.initializeVenousPressuresForTargetTBV(inst.targetVolume);
     core.settleToSteady(PREVIEW_SETTLE_POLICY, this.dt, this.sampleHz);
@@ -1193,6 +1197,7 @@ export class PreviewController {
       }
       const core = new ModelCore(inst.params, createModelCoreRuntimeExperimentalOptions({
         mode: runtimeActiveSourceMode,
+        runtimeParams: inst.params,
       }));
       core.initializeVenousPressuresForTargetTBV(inst.targetVolume);
       core.settleToSteady(PREVIEW_SETTLE_POLICY, this.dt, this.sampleHz);

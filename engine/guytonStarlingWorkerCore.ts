@@ -1260,6 +1260,7 @@ export function settleWorkerCore(
   const started = performanceNow();
   const core = new ModelCore(req.params, createModelCoreRuntimeExperimentalOptions({
     mode: req.runtimeActiveSourceMode,
+    runtimeParams: req.params,
   }));
   let source: WorkerSettledCore["source"] = "cold";
   let retarget: RetargetTBVStatus | undefined;
