@@ -640,6 +640,14 @@ production tissue homogenization.
 - boundary: rv-land-default-candidate-evidence-no-runtime-flip; LV+RV runtime default, legacy deletion, all-chamber replacement, root/Zc adoption, atrial figure-eight gate, official case tuning, accepted preload/venous/passive/geometry/source-calcium tuning, Tref fudge, Land-parameter/qDot/valve tuning, qDot clamp removal, official morphology, final no-alternans, and clinical/scientific validation are not claimed.
 - next: decide whether to stage LV+RV as the new default or continue chamber-local candidate evidence, keeping atrial figure-eight and root/Zc adoption separate.
 
+### Phase 5AM — root/Zc off-by-default runtime candidate
+
+- implementation: `engine/myocardium/runtimeRootZc.ts` adds `MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_CANDIDATE_MODE` and `resolveModelCoreRuntimeRootZc()`. `createModelCoreRuntimeExperimentalOptions()` composes this only when `rootZcMode` is passed; the default root/Zc path remains `current-root-zc-no-boundary-root-inertance-v0`.
+- current outcome: no fresh model rerun. The helper readbacks Phase 5AF/5AG/5AH and maps only the sourced total 2x candidate to the existing experimental boundary/root hook with one base `AoV_L` of additional series inertance. The readback preserves Phase 5AF sourced status (`preferred-physiological-calibration-candidate`), Phase 5AG closed-loop signal (18/28 measured-health-ok qDot+timing output-preserved comparisons), and Phase 5AH Land attribution (15/15 Land output-preserved health-ok comparisons, 6 qDot+timing, 9 timing-only, zero Land solve failures).
+- interpretation: this is a reusable off-by-default acceptance-evidence surface, not production/default adoption. Production/default root/Zc remains blocked because Land still lacks matrix-wide qDot-engagement response, normal-floor Land is timing-only, qDot clamp removal remains unsupported, and valve/load timing is not accepted.
+- boundary: off-by-default-sourced-boundary-root-zc-candidate-no-production-adoption; no default parameter, topology, state-layout, production registry, official case, Workbench, qDot clamp, valve threshold/loss, load/preload, Tref, source-stress, Land parameter, direct `Ao_SA`, AoV-boundary carrier, reflection-coefficient, official morphology, final no-alternans, or clinical/scientific validation claim.
+- next: use the explicit `rootZcMode` only for a later live closure acceptance experiment with qDot clamps, valve thresholds, valve loss terms, load/preload, Tref, source-stress scale, and Land parameters fixed.
+
 ### Phase 5C+ — deferred stable-coupling work
 
 - production solver comparison

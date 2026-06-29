@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
+import phase5AFArtifact from "@/data/myocardium/protocols/arterial-root-zc-calibration-phase5af-result-v1.json";
+import phase5AGArtifact from "@/data/myocardium/protocols/arterial-root-boundary-timing-phase5ag-result-v1.json";
+import phase5AHArtifact from "@/data/myocardium/protocols/arterial-root-boundary-attribution-phase5ah-result-v1.json";
 import { DEFAULT_PARAMS } from "@/constants";
 import { ModelCore } from "@/engine/ModelCore";
 import { runScenario } from "@/engine/harness";
@@ -16,6 +19,12 @@ import {
   useLvLandDefaultForModelCoreRuntimeForThisProcess,
   useLvRvLandDefaultCandidateForModelCoreRuntimeForThisProcess,
 } from "@/engine/myocardium/runtimeActiveSource";
+import {
+  MODELCORE_RUNTIME_ROOT_ZC_CURRENT_MODE,
+  MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_CANDIDATE_MODE,
+  MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_MECHANISM_ID,
+  resolveModelCoreRuntimeRootZc,
+} from "@/engine/myocardium/runtimeRootZc";
 
 describe("ModelCore runtime active source default", () => {
   afterEach(() => {
@@ -125,5 +134,83 @@ describe("ModelCore runtime active source default", () => {
     restored.restoreExperimentalActiveProviderRuntimeState(sidecar);
     expect(restored.debugExperimentalActiveSourceProviderStates().LV?.stateVersion).toBe(beforeVersion);
     expect(restored.packState()).toEqual(serialized);
+  });
+
+  it("keeps root/Zc current by default while exposing the sourced candidate only on explicit opt-in", () => {
+    const currentRootZc = resolveModelCoreRuntimeRootZc();
+    const defaultRuntime = resolveModelCoreRuntimeActiveSource({
+      mode: MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE,
+    });
+    const candidateRuntime = resolveModelCoreRuntimeActiveSource({
+      mode: MODELCORE_RUNTIME_LV_LAND_DEFAULT_MODE,
+      rootZcMode: MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_CANDIDATE_MODE,
+      rootZcBaseAoVInertanceMmHgSec2PerMl: DEFAULT_PARAMS.AoV_L,
+    });
+
+    expect(currentRootZc.mode).toBe(MODELCORE_RUNTIME_ROOT_ZC_CURRENT_MODE);
+    expect(currentRootZc.claimBoundary).toBe("current-root-zc-no-boundary-root-adoption");
+    expect(currentRootZc.experimentalOptions.boundaryRootInertance).toBeUndefined();
+    expect(defaultRuntime.experimentalOptions.boundaryRootInertance).toBeUndefined();
+    expect(defaultRuntime.rootZc.mode).toBe(MODELCORE_RUNTIME_ROOT_ZC_CURRENT_MODE);
+    expect(candidateRuntime.experimentalOptions.activeSourceProviders?.LV).toBeDefined();
+    expect(candidateRuntime.experimentalOptions.boundaryRootInertance).toMatchObject({
+      mechanismId: MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_MECHANISM_ID,
+      additionalAorticRootInertanceMmHgSec2PerMl: DEFAULT_PARAMS.AoV_L,
+    });
+    expect(candidateRuntime.rootZc.mode)
+      .toBe(MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_CANDIDATE_MODE);
+  });
+
+  it("maps the Phase 5AF sourced total 2x candidate to the existing boundary/root hook", () => {
+    const rootZc = resolveModelCoreRuntimeRootZc({
+      mode: MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_CANDIDATE_MODE,
+      baseAoVInertanceMmHgSec2PerMl: DEFAULT_PARAMS.AoV_L,
+    });
+    const core = new ModelCore(DEFAULT_PARAMS, rootZc.experimentalOptions);
+    const diagnostics = core.debugExperimentalBoundaryRootInertance();
+
+    expect(rootZc.claimBoundary)
+      .toBe("off-by-default-sourced-boundary-root-zc-candidate-no-production-adoption");
+    expect(rootZc.adoptionStatus).toBe("off-by-default-acceptance-evidence-only");
+    expect(rootZc.mechanismId).toBe(MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_MECHANISM_ID);
+    expect(rootZc.equivalentEffectiveAoVInertanceMultiple).toBe(2);
+    expect(rootZc.additionalAorticRootInertanceMmHgSec2PerMl).toBe(DEFAULT_PARAMS.AoV_L);
+    expect(diagnostics).toMatchObject({
+      mechanismId: MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_MECHANISM_ID,
+      targetValve: "AoV",
+      baseAoVInertanceMmHgSec2PerMl: DEFAULT_PARAMS.AoV_L,
+      additionalAorticRootInertanceMmHgSec2PerMl: DEFAULT_PARAMS.AoV_L,
+      effectiveAoVBoundaryRootInertanceMmHgSec2PerMl: DEFAULT_PARAMS.AoV_L * 2,
+    });
+    expect(core.debugExperimentalActiveSourceProviderIds()).toEqual({});
+  });
+
+  it("readbacks Phase 5AF/5AG/5AH as off-by-default acceptance evidence only", () => {
+    const rootZc = resolveModelCoreRuntimeRootZc({
+      mode: MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_CANDIDATE_MODE,
+    });
+
+    expect(rootZc.evidenceReadback).toMatchObject({
+      upstreamPhase5AFArtifactId: phase5AFArtifact.id,
+      upstreamPhase5AGArtifactId: phase5AGArtifact.id,
+      upstreamPhase5AHArtifactId: phase5AHArtifact.id,
+      sourceCalibrationStatus: phase5AFArtifact.phase5aeBoundaryRootMechanismCalibration.calibrationStatus,
+      equivalentPhase5ACCandidateId:
+        phase5AFArtifact.phase5aeBoundaryRootMechanismCalibration.equivalentPhase5ACCandidateId,
+      equivalentEffectiveAoVInertanceMultiple:
+        phase5AFArtifact.phase5aeBoundaryRootMechanismCalibration.equivalentEffectiveAoVInertanceMultiple,
+      phase5AGHealthOkCandidateComparisonCount: phase5AGArtifact.summary.healthOkCandidateComparisonCount,
+      phase5AGQDotAndTimingOutputPreservedCount: phase5AGArtifact.summary.qDotAndTimingOutputPreservedCount,
+      phase5AHLandHealthOkCandidateComparisonCount: phase5AHArtifact.summary.landHealthOkCandidateComparisonCount,
+      phase5AHLandQDotTimingOutputPreservedCount: phase5AHArtifact.summary.landQDotTimingOutputPreservedCount,
+      phase5AHLandTimingOnlyOutputPreservedCount: phase5AHArtifact.summary.landTimingOnlyOutputPreservedCount,
+      phase5AHLandSolveFailureCount: phase5AHArtifact.summary.landSolveFailureCount,
+      productionDefaultAdoptionSupported: false,
+      qDotClampRemovalSupported: false,
+      valveLoadTimingAcceptanceSupported: false,
+    });
+    expect(phase5AHArtifact.boundary.noBoundaryRootProductionAdoption).toBe(true);
+    expect(phase5AHArtifact.boundary.noQDotClampRemoval).toBe(true);
+    expect(phase5AHArtifact.boundary.noValveLoadTimingAcceptance).toBe(true);
   });
 });
