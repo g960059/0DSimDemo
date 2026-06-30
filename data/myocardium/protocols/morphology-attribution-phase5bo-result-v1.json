@@ -1,0 +1,2459 @@
+{
+  "schemaVersion": 1,
+  "id": "morphology-attribution-phase5bo-result-v1",
+  "phase": "Phase 5BO",
+  "generatedAt": "2026-06-30T04:21:49.192Z",
+  "claimBoundary": "morphology-attribution-diagnostic-no-physiology-or-morphology-acceptance",
+  "protocol": {
+    "profile": "fitFast",
+    "gateSet": "normalBaseline",
+    "morphologyCheckVersion": "morphology-check-v1",
+    "comparedVariants": [
+      "user0-default",
+      "user0-root-current",
+      "user0-avplane-off",
+      "lv-rv-land-root-default",
+      "lv-rv-land-root-current",
+      "lv-land-root-default",
+      "lv-land-root-current",
+      "legacy-frozen-reference"
+    ],
+    "noA1A2GainSweep": true,
+    "noLandAtrialParameterTuning": true,
+    "noRootZcRetuning": true,
+    "noValveThresholdTuning": true,
+    "noRuntimeDefaultChange": true,
+    "noPermanentNpmScriptAdded": true
+  },
+  "variants": [
+    {
+      "id": "user0-default",
+      "label": "User-0 default: LV+RV+LA+RA LandAtrial plus sourced root/Zc",
+      "hypothesis": "Records the current education-visible failure surface.",
+      "runtimeActiveSourceMode": "all-chamber-landatrial-phase5bk-user0-staged-default-v1",
+      "rootZcMode": "sourced-boundary-root-zc-phase5ap-user0-default-v1",
+      "atrialAvPlane": "runtime-default",
+      "activeChambers": [
+        "LV",
+        "RV",
+        "LA",
+        "RA"
+      ],
+      "settled": true,
+      "settleReason": "converged",
+      "actualSeconds": 9.799999999999942,
+      "healthStatus": "ok",
+      "metrics": {
+        "AoPMean": 78.851705,
+        "CO_L": 4.881671,
+        "CO_R": 4.87084,
+        "LAPMean": 8.691782,
+        "RAPMean": 4.290624,
+        "LVEDPApprox": 17.519323,
+        "EF_LApprox": 0.498792,
+        "EF_RApprox": 0.412964
+      },
+      "morphology": {
+        "version": "morphology-check-v1",
+        "morphologyProfileId": "normal_sinus_default",
+        "status": "failed",
+        "checkedBeatSampleCount": 400,
+        "okCount": 3,
+        "warningCount": 0,
+        "failedCount": 5,
+        "badges": {
+          "lvPv": "failed",
+          "rvPv": "failed",
+          "laPv": "ok",
+          "raPv": "ok",
+          "mvf": "failed",
+          "tvf": "ok",
+          "lapWaveform": "failed",
+          "rapWaveform": "failed"
+        },
+        "results": [
+          {
+            "id": "lv-pv-loop",
+            "label": "LV PV loop",
+            "status": "failed",
+            "value": "peaks=2, troughs=0, roughness=3.078106",
+            "threshold": "systolic pressure dome has <=1 prominent peak, 0 prominent troughs, roughness < 2.4",
+            "message": "LV systolic PV-loop dome is not single-peaked; this can produce a double-humped systolic loop.",
+            "metrics": {
+              "ejectionSampleCount": 53,
+              "ejectionPeakCount": 2,
+              "ejectionTroughCount": 0,
+              "ejectionRoughness": 3.078106,
+              "pressureSpan": 34.491105,
+              "volumeSpan": 65.045309
+            }
+          },
+          {
+            "id": "rv-pv-loop",
+            "label": "RV PV loop",
+            "status": "failed",
+            "value": "peaks=1, troughs=1, roughness=3.853262",
+            "threshold": "systolic pressure dome has <=1 prominent peak, 0 prominent troughs, roughness < 2.4",
+            "message": "RV systolic PV-loop dome is not single-peaked; this can produce a double-humped systolic loop.",
+            "metrics": {
+              "ejectionSampleCount": 63,
+              "ejectionPeakCount": 1,
+              "ejectionTroughCount": 1,
+              "ejectionRoughness": 3.853262,
+              "pressureSpan": 14.567452,
+              "volumeSpan": 64.918734
+            }
+          },
+          {
+            "id": "la-pv-loop",
+            "label": "LA PV loop",
+            "status": "ok",
+            "value": "intersections=5, area=317.375996",
+            "threshold": "intersection >= 1, area > 20, mid-volume pressure spread > 1.5",
+            "message": "LA PV loop has a readable reservoir/booster loop.",
+            "metrics": {
+              "selfIntersections": 5,
+              "absArea": 317.375996,
+              "midVolumePressureSpread": 14.046644
+            }
+          },
+          {
+            "id": "ra-pv-loop",
+            "label": "RA PV loop",
+            "status": "ok",
+            "value": "intersections=2, area=240.752897",
+            "threshold": "intersection >= 1, area > 30, mid-volume pressure spread > 2",
+            "message": "RA PV loop has a readable reservoir/booster loop.",
+            "metrics": {
+              "selfIntersections": 2,
+              "absArea": 240.752897,
+              "midVolumePressureSpread": 11.189568
+            }
+          },
+          {
+            "id": "mvf",
+            "label": "MVF",
+            "status": "failed",
+            "value": "peaks=3, extra=1, A/E=0.649184",
+            "threshold": "normal sinus AV inflow has one E wave, one A wave, and no third forward wave",
+            "message": "MV inflow is not cleanly biphasic; extra or missing waves are present.",
+            "metrics": {
+              "diastolicPeakCount": 3,
+              "ePeakTheta": 0.5625,
+              "aPeakTheta": 0.9225,
+              "ePeak": 512.634725,
+              "aPeak": 332.794379,
+              "aOverE": 0.649184,
+              "extraPeakCount": 1,
+              "extraPeakTheta": 0.72,
+              "extraPeakProminenceRatio": 0.437727
+            }
+          },
+          {
+            "id": "tvf",
+            "label": "TVF",
+            "status": "ok",
+            "value": "peaks=2, extra=0, A/E=1.505907",
+            "threshold": "normal sinus AV inflow has one E wave, one A wave, and no third forward wave",
+            "message": "TV inflow is biphasic with E and A waves.",
+            "metrics": {
+              "diastolicPeakCount": 2,
+              "ePeakTheta": 0.6425,
+              "aPeakTheta": 0.945,
+              "ePeak": 281.886151,
+              "aPeak": 424.494303,
+              "aOverE": 1.505907,
+              "extraPeakCount": 0,
+              "extraPeakTheta": null,
+              "extraPeakProminenceRatio": null
+            }
+          },
+          {
+            "id": "lap-waveform",
+            "label": "LA pressure timing",
+            "status": "failed",
+            "value": "active=0.94, peaks=0, troughs=0",
+            "threshold": "atrial active peak in theta 0.80-0.10, readable a/v waves and x/y descents, <=3 prominent peaks/troughs",
+            "message": "LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+            "metrics": {
+              "activePeakTheta": 0.94,
+              "aWaveTheta": null,
+              "vWaveTheta": null,
+              "xDescentTheta": null,
+              "yDescentTheta": null,
+              "pressurePeakCount": 0,
+              "pressureTroughCount": 0,
+              "pressureRange": 14.302299
+            }
+          },
+          {
+            "id": "rap-waveform",
+            "label": "RA pressure timing",
+            "status": "failed",
+            "value": "active=0.9175, peaks=0, troughs=0",
+            "threshold": "atrial active peak in theta 0.80-0.10, readable a/v waves and x/y descents, <=3 prominent peaks/troughs",
+            "message": "RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+            "metrics": {
+              "activePeakTheta": 0.9175,
+              "aWaveTheta": null,
+              "vWaveTheta": null,
+              "xDescentTheta": null,
+              "yDescentTheta": null,
+              "pressurePeakCount": 0,
+              "pressureTroughCount": 0,
+              "pressureRange": 11.220475
+            }
+          }
+        ]
+      },
+      "failureDigest": {
+        "badges": {
+          "lvPv": "failed",
+          "rvPv": "failed",
+          "laPv": "ok",
+          "raPv": "ok",
+          "mvf": "failed",
+          "tvf": "ok",
+          "lapWaveform": "failed",
+          "rapWaveform": "failed"
+        },
+        "failedLabels": [
+          "LV PV loop",
+          "RV PV loop",
+          "MVF",
+          "LA pressure timing",
+          "RA pressure timing"
+        ],
+        "lvDome": {
+          "ejectionSampleCount": 53,
+          "ejectionPeakCount": 2,
+          "ejectionTroughCount": 0,
+          "ejectionRoughness": 3.078106,
+          "pressureSpan": 34.491105,
+          "volumeSpan": 65.045309
+        },
+        "rvDome": {
+          "ejectionSampleCount": 63,
+          "ejectionPeakCount": 1,
+          "ejectionTroughCount": 1,
+          "ejectionRoughness": 3.853262,
+          "pressureSpan": 14.567452,
+          "volumeSpan": 64.918734
+        },
+        "mvf": {
+          "diastolicPeakCount": 3,
+          "ePeakTheta": 0.5625,
+          "aPeakTheta": 0.9225,
+          "ePeak": 512.634725,
+          "aPeak": 332.794379,
+          "aOverE": 0.649184,
+          "extraPeakCount": 1,
+          "extraPeakTheta": 0.72,
+          "extraPeakProminenceRatio": 0.437727
+        },
+        "tvf": {
+          "diastolicPeakCount": 2,
+          "ePeakTheta": 0.6425,
+          "aPeakTheta": 0.945,
+          "ePeak": 281.886151,
+          "aPeak": 424.494303,
+          "aOverE": 1.505907,
+          "extraPeakCount": 0,
+          "extraPeakTheta": null,
+          "extraPeakProminenceRatio": null
+        },
+        "lap": {
+          "activePeakTheta": 0.94,
+          "aWaveTheta": null,
+          "vWaveTheta": null,
+          "xDescentTheta": null,
+          "yDescentTheta": null,
+          "pressurePeakCount": 0,
+          "pressureTroughCount": 0,
+          "pressureRange": 14.302299
+        },
+        "rap": {
+          "activePeakTheta": 0.9175,
+          "aWaveTheta": null,
+          "vWaveTheta": null,
+          "xDescentTheta": null,
+          "yDescentTheta": null,
+          "pressurePeakCount": 0,
+          "pressureTroughCount": 0,
+          "pressureRange": 11.220475
+        }
+      },
+      "timingDigest": {
+        "activeAPeakTheta": {
+          "LA": 0.94,
+          "RA": 0.9175
+        },
+        "pressureAPeakTheta": {
+          "LA": 0.9,
+          "RA": 0.905
+        },
+        "caPulseOnsetTheta": {
+          "LA": 0.885,
+          "RA": 0.8625
+        }
+      },
+      "signalDigest": {
+        "lvPressurePeaks": [],
+        "lvPressureTroughs": [],
+        "lvActivePeaks": [],
+        "lvAorticFlowPeaks": [
+          {
+            "theta": 0.1925,
+            "value": 1246.709979
+          },
+          {
+            "theta": 0.2625,
+            "value": 591.25558
+          }
+        ],
+        "mvFlowPeaks": [
+          {
+            "theta": 0.5625,
+            "value": 512.634725
+          },
+          {
+            "theta": 0.72,
+            "value": 224.393856
+          },
+          {
+            "theta": 0.9225,
+            "value": 332.794379
+          }
+        ],
+        "laPressurePeaks": [],
+        "laPressureTroughs": []
+      }
+    },
+    {
+      "id": "user0-root-current",
+      "label": "User-0 active sources with current/no-boundary root/Zc",
+      "hypothesis": "If LV/RV systolic double dome disappears, sourced root/Zc is implicated.",
+      "runtimeActiveSourceMode": "all-chamber-landatrial-phase5bk-user0-staged-default-v1",
+      "rootZcMode": "current-root-zc-no-boundary-root-inertance-v0",
+      "atrialAvPlane": "runtime-default",
+      "activeChambers": [
+        "LV",
+        "RV",
+        "LA",
+        "RA"
+      ],
+      "settled": true,
+      "settleReason": "converged",
+      "actualSeconds": 9.799999999999942,
+      "healthStatus": "ok",
+      "metrics": {
+        "AoPMean": 77.775681,
+        "CO_L": 4.809597,
+        "CO_R": 4.800899,
+        "LAPMean": 9.339866,
+        "RAPMean": 4.375142,
+        "LVEDPApprox": 18.436606,
+        "EF_LApprox": 0.486831,
+        "EF_RApprox": 0.405844
+      },
+      "morphology": {
+        "version": "morphology-check-v1",
+        "morphologyProfileId": "normal_sinus_default",
+        "status": "failed",
+        "checkedBeatSampleCount": 400,
+        "okCount": 3,
+        "warningCount": 0,
+        "failedCount": 5,
+        "badges": {
+          "lvPv": "failed",
+          "rvPv": "failed",
+          "laPv": "ok",
+          "raPv": "ok",
+          "mvf": "failed",
+          "tvf": "ok",
+          "lapWaveform": "failed",
+          "rapWaveform": "failed"
+        },
+        "results": [
+          {
+            "id": "lv-pv-loop",
+            "label": "LV PV loop",
+            "status": "failed",
+            "value": "peaks=1, troughs=1, roughness=3.06509",
+            "threshold": "systolic pressure dome has <=1 prominent peak, 0 prominent troughs, roughness < 2.4",
+            "message": "LV systolic PV-loop dome is not single-peaked; this can produce a double-humped systolic loop.",
+            "metrics": {
+              "ejectionSampleCount": 49,
+              "ejectionPeakCount": 1,
+              "ejectionTroughCount": 1,
+              "ejectionRoughness": 3.06509,
+              "pressureSpan": 32.283953,
+              "volumeSpan": 64.041304
+            }
+          },
+          {
+            "id": "rv-pv-loop",
+            "label": "RV PV loop",
+            "status": "failed",
+            "value": "peaks=1, troughs=1, roughness=3.710181",
+            "threshold": "systolic pressure dome has <=1 prominent peak, 0 prominent troughs, roughness < 2.4",
+            "message": "RV systolic PV-loop dome is not single-peaked; this can produce a double-humped systolic loop.",
+            "metrics": {
+              "ejectionSampleCount": 63,
+              "ejectionPeakCount": 1,
+              "ejectionTroughCount": 1,
+              "ejectionRoughness": 3.710181,
+              "pressureSpan": 15.053638,
+              "volumeSpan": 63.985285
+            }
+          },
+          {
+            "id": "la-pv-loop",
+            "label": "LA PV loop",
+            "status": "ok",
+            "value": "intersections=5, area=317.33777",
+            "threshold": "intersection >= 1, area > 20, mid-volume pressure spread > 1.5",
+            "message": "LA PV loop has a readable reservoir/booster loop.",
+            "metrics": {
+              "selfIntersections": 5,
+              "absArea": 317.33777,
+              "midVolumePressureSpread": 14.363347
+            }
+          },
+          {
+            "id": "ra-pv-loop",
+            "label": "RA PV loop",
+            "status": "ok",
+            "value": "intersections=2, area=240.91058",
+            "threshold": "intersection >= 1, area > 30, mid-volume pressure spread > 2",
+            "message": "RA PV loop has a readable reservoir/booster loop.",
+            "metrics": {
+              "selfIntersections": 2,
+              "absArea": 240.91058,
+              "midVolumePressureSpread": 11.258892
+            }
+          },
+          {
+            "id": "mvf",
+            "label": "MVF",
+            "status": "failed",
+            "value": "peaks=3, extra=1, A/E=0.647324",
+            "threshold": "normal sinus AV inflow has one E wave, one A wave, and no third forward wave",
+            "message": "MV inflow is not cleanly biphasic; extra or missing waves are present.",
+            "metrics": {
+              "diastolicPeakCount": 3,
+              "ePeakTheta": 0.5575,
+              "aPeakTheta": 0.9225,
+              "ePeak": 510.554501,
+              "aPeak": 330.494025,
+              "aOverE": 0.647324,
+              "extraPeakCount": 1,
+              "extraPeakTheta": 0.71,
+              "extraPeakProminenceRatio": 0.432693
+            }
+          },
+          {
+            "id": "tvf",
+            "label": "TVF",
+            "status": "ok",
+            "value": "peaks=2, extra=0, A/E=1.516705",
+            "threshold": "normal sinus AV inflow has one E wave, one A wave, and no third forward wave",
+            "message": "TV inflow is biphasic with E and A waves.",
+            "metrics": {
+              "diastolicPeakCount": 2,
+              "ePeakTheta": 0.6425,
+              "aPeakTheta": 0.945,
+              "ePeak": 278.31536,
+              "aPeak": 422.122204,
+              "aOverE": 1.516705,
+              "extraPeakCount": 0,
+              "extraPeakTheta": null,
+              "extraPeakProminenceRatio": null
+            }
+          },
+          {
+            "id": "lap-waveform",
+            "label": "LA pressure timing",
+            "status": "failed",
+            "value": "active=0.94, peaks=0, troughs=0",
+            "threshold": "atrial active peak in theta 0.80-0.10, readable a/v waves and x/y descents, <=3 prominent peaks/troughs",
+            "message": "LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+            "metrics": {
+              "activePeakTheta": 0.94,
+              "aWaveTheta": null,
+              "vWaveTheta": null,
+              "xDescentTheta": null,
+              "yDescentTheta": null,
+              "pressurePeakCount": 0,
+              "pressureTroughCount": 0,
+              "pressureRange": 14.381315
+            }
+          },
+          {
+            "id": "rap-waveform",
+            "label": "RA pressure timing",
+            "status": "failed",
+            "value": "active=0.9175, peaks=0, troughs=0",
+            "threshold": "atrial active peak in theta 0.80-0.10, readable a/v waves and x/y descents, <=3 prominent peaks/troughs",
+            "message": "RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+            "metrics": {
+              "activePeakTheta": 0.9175,
+              "aWaveTheta": null,
+              "vWaveTheta": null,
+              "xDescentTheta": null,
+              "yDescentTheta": null,
+              "pressurePeakCount": 0,
+              "pressureTroughCount": 0,
+              "pressureRange": 11.291822
+            }
+          }
+        ]
+      },
+      "failureDigest": {
+        "badges": {
+          "lvPv": "failed",
+          "rvPv": "failed",
+          "laPv": "ok",
+          "raPv": "ok",
+          "mvf": "failed",
+          "tvf": "ok",
+          "lapWaveform": "failed",
+          "rapWaveform": "failed"
+        },
+        "failedLabels": [
+          "LV PV loop",
+          "RV PV loop",
+          "MVF",
+          "LA pressure timing",
+          "RA pressure timing"
+        ],
+        "lvDome": {
+          "ejectionSampleCount": 49,
+          "ejectionPeakCount": 1,
+          "ejectionTroughCount": 1,
+          "ejectionRoughness": 3.06509,
+          "pressureSpan": 32.283953,
+          "volumeSpan": 64.041304
+        },
+        "rvDome": {
+          "ejectionSampleCount": 63,
+          "ejectionPeakCount": 1,
+          "ejectionTroughCount": 1,
+          "ejectionRoughness": 3.710181,
+          "pressureSpan": 15.053638,
+          "volumeSpan": 63.985285
+        },
+        "mvf": {
+          "diastolicPeakCount": 3,
+          "ePeakTheta": 0.5575,
+          "aPeakTheta": 0.9225,
+          "ePeak": 510.554501,
+          "aPeak": 330.494025,
+          "aOverE": 0.647324,
+          "extraPeakCount": 1,
+          "extraPeakTheta": 0.71,
+          "extraPeakProminenceRatio": 0.432693
+        },
+        "tvf": {
+          "diastolicPeakCount": 2,
+          "ePeakTheta": 0.6425,
+          "aPeakTheta": 0.945,
+          "ePeak": 278.31536,
+          "aPeak": 422.122204,
+          "aOverE": 1.516705,
+          "extraPeakCount": 0,
+          "extraPeakTheta": null,
+          "extraPeakProminenceRatio": null
+        },
+        "lap": {
+          "activePeakTheta": 0.94,
+          "aWaveTheta": null,
+          "vWaveTheta": null,
+          "xDescentTheta": null,
+          "yDescentTheta": null,
+          "pressurePeakCount": 0,
+          "pressureTroughCount": 0,
+          "pressureRange": 14.381315
+        },
+        "rap": {
+          "activePeakTheta": 0.9175,
+          "aWaveTheta": null,
+          "vWaveTheta": null,
+          "xDescentTheta": null,
+          "yDescentTheta": null,
+          "pressurePeakCount": 0,
+          "pressureTroughCount": 0,
+          "pressureRange": 11.291822
+        }
+      },
+      "timingDigest": {
+        "activeAPeakTheta": {
+          "LA": 0.94,
+          "RA": 0.9175
+        },
+        "pressureAPeakTheta": {
+          "LA": 0.9,
+          "RA": 0.905
+        },
+        "caPulseOnsetTheta": {
+          "LA": 0.885,
+          "RA": 0.8625
+        }
+      },
+      "signalDigest": {
+        "lvPressurePeaks": [],
+        "lvPressureTroughs": [],
+        "lvActivePeaks": [],
+        "lvAorticFlowPeaks": [
+          {
+            "theta": 0.19,
+            "value": 1309.821583
+          },
+          {
+            "theta": 0.25,
+            "value": 699.655256
+          }
+        ],
+        "mvFlowPeaks": [
+          {
+            "theta": 0.5575,
+            "value": 510.554501
+          },
+          {
+            "theta": 0.71,
+            "value": 220.913245
+          },
+          {
+            "theta": 0.9225,
+            "value": 330.494025
+          }
+        ],
+        "laPressurePeaks": [],
+        "laPressureTroughs": []
+      }
+    },
+    {
+      "id": "user0-avplane-off",
+      "label": "User-0 active sources with LandAtrial AV-plane gain disabled",
+      "hypothesis": "If MVF/LAP failures improve, AV-plane recoil/effective geometry is implicated.",
+      "runtimeActiveSourceMode": "all-chamber-landatrial-phase5bk-user0-staged-default-v1",
+      "rootZcMode": "sourced-boundary-root-zc-phase5ap-user0-default-v1",
+      "atrialAvPlane": "off",
+      "activeChambers": [
+        "LV",
+        "RV",
+        "LA",
+        "RA"
+      ],
+      "settled": true,
+      "settleReason": "converged",
+      "actualSeconds": 9.799999999999942,
+      "healthStatus": "ok",
+      "metrics": {
+        "AoPMean": 78.285982,
+        "CO_L": 4.828302,
+        "CO_R": 4.804718,
+        "LAPMean": 8.77999,
+        "RAPMean": 4.459391,
+        "LVEDPApprox": 16.590162,
+        "EF_LApprox": 0.499421,
+        "EF_RApprox": 0.411707
+      },
+      "morphology": {
+        "version": "morphology-check-v1",
+        "morphologyProfileId": "normal_sinus_default",
+        "status": "failed",
+        "checkedBeatSampleCount": 400,
+        "okCount": 3,
+        "warningCount": 0,
+        "failedCount": 5,
+        "badges": {
+          "lvPv": "failed",
+          "rvPv": "failed",
+          "laPv": "ok",
+          "raPv": "ok",
+          "mvf": "failed",
+          "tvf": "ok",
+          "lapWaveform": "failed",
+          "rapWaveform": "failed"
+        },
+        "results": [
+          {
+            "id": "lv-pv-loop",
+            "label": "LV PV loop",
+            "status": "failed",
+            "value": "peaks=2, troughs=1, roughness=3.112526",
+            "threshold": "systolic pressure dome has <=1 prominent peak, 0 prominent troughs, roughness < 2.4",
+            "message": "LV systolic PV-loop dome is not single-peaked; this can produce a double-humped systolic loop.",
+            "metrics": {
+              "ejectionSampleCount": 53,
+              "ejectionPeakCount": 2,
+              "ejectionTroughCount": 1,
+              "ejectionRoughness": 3.112526,
+              "pressureSpan": 33.937221,
+              "volumeSpan": 64.323203
+            }
+          },
+          {
+            "id": "rv-pv-loop",
+            "label": "RV PV loop",
+            "status": "failed",
+            "value": "peaks=1, troughs=1, roughness=3.619456",
+            "threshold": "systolic pressure dome has <=1 prominent peak, 0 prominent troughs, roughness < 2.4",
+            "message": "RV systolic PV-loop dome is not single-peaked; this can produce a double-humped systolic loop.",
+            "metrics": {
+              "ejectionSampleCount": 60,
+              "ejectionPeakCount": 1,
+              "ejectionTroughCount": 1,
+              "ejectionRoughness": 3.619456,
+              "pressureSpan": 14.73123,
+              "volumeSpan": 64.035589
+            }
+          },
+          {
+            "id": "la-pv-loop",
+            "label": "LA PV loop",
+            "status": "ok",
+            "value": "intersections=2, area=167.345274",
+            "threshold": "intersection >= 1, area > 20, mid-volume pressure spread > 1.5",
+            "message": "LA PV loop has a readable reservoir/booster loop.",
+            "metrics": {
+              "selfIntersections": 2,
+              "absArea": 167.345274,
+              "midVolumePressureSpread": 12.740011
+            }
+          },
+          {
+            "id": "ra-pv-loop",
+            "label": "RA PV loop",
+            "status": "ok",
+            "value": "intersections=2, area=167.352994",
+            "threshold": "intersection >= 1, area > 30, mid-volume pressure spread > 2",
+            "message": "RA PV loop has a readable reservoir/booster loop.",
+            "metrics": {
+              "selfIntersections": 2,
+              "absArea": 167.352994,
+              "midVolumePressureSpread": 9.853521
+            }
+          },
+          {
+            "id": "mvf",
+            "label": "MVF",
+            "status": "failed",
+            "value": "peaks=3, extra=1, A/E=0.857458",
+            "threshold": "normal sinus AV inflow has one E wave, one A wave, and no third forward wave",
+            "message": "MV inflow is not cleanly biphasic; extra or missing waves are present.",
+            "metrics": {
+              "diastolicPeakCount": 3,
+              "ePeakTheta": 0.58,
+              "aPeakTheta": 0.925,
+              "ePeak": 397.013661,
+              "aPeak": 340.422664,
+              "aOverE": 0.857458,
+              "extraPeakCount": 1,
+              "extraPeakTheta": 0.75,
+              "extraPeakProminenceRatio": 0.367251
+            }
+          },
+          {
+            "id": "tvf",
+            "label": "TVF",
+            "status": "ok",
+            "value": "peaks=2, extra=0, A/E=1.780177",
+            "threshold": "normal sinus AV inflow has one E wave, one A wave, and no third forward wave",
+            "message": "TV inflow is biphasic with E and A waves.",
+            "metrics": {
+              "diastolicPeakCount": 2,
+              "ePeakTheta": 0.6475,
+              "aPeakTheta": 0.945,
+              "ePeak": 235.689691,
+              "aPeak": 419.569255,
+              "aOverE": 1.780177,
+              "extraPeakCount": 0,
+              "extraPeakTheta": null,
+              "extraPeakProminenceRatio": null
+            }
+          },
+          {
+            "id": "lap-waveform",
+            "label": "LA pressure timing",
+            "status": "failed",
+            "value": "active=0.9375, peaks=0, troughs=0",
+            "threshold": "atrial active peak in theta 0.80-0.10, readable a/v waves and x/y descents, <=3 prominent peaks/troughs",
+            "message": "LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+            "metrics": {
+              "activePeakTheta": 0.9375,
+              "aWaveTheta": null,
+              "vWaveTheta": null,
+              "xDescentTheta": null,
+              "yDescentTheta": null,
+              "pressurePeakCount": 0,
+              "pressureTroughCount": 0,
+              "pressureRange": 12.79312
+            }
+          },
+          {
+            "id": "rap-waveform",
+            "label": "RA pressure timing",
+            "status": "failed",
+            "value": "active=0.9175, peaks=0, troughs=0",
+            "threshold": "atrial active peak in theta 0.80-0.10, readable a/v waves and x/y descents, <=3 prominent peaks/troughs",
+            "message": "RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+            "metrics": {
+              "activePeakTheta": 0.9175,
+              "aWaveTheta": null,
+              "vWaveTheta": null,
+              "xDescentTheta": null,
+              "yDescentTheta": null,
+              "pressurePeakCount": 0,
+              "pressureTroughCount": 0,
+              "pressureRange": 9.916585
+            }
+          }
+        ]
+      },
+      "failureDigest": {
+        "badges": {
+          "lvPv": "failed",
+          "rvPv": "failed",
+          "laPv": "ok",
+          "raPv": "ok",
+          "mvf": "failed",
+          "tvf": "ok",
+          "lapWaveform": "failed",
+          "rapWaveform": "failed"
+        },
+        "failedLabels": [
+          "LV PV loop",
+          "RV PV loop",
+          "MVF",
+          "LA pressure timing",
+          "RA pressure timing"
+        ],
+        "lvDome": {
+          "ejectionSampleCount": 53,
+          "ejectionPeakCount": 2,
+          "ejectionTroughCount": 1,
+          "ejectionRoughness": 3.112526,
+          "pressureSpan": 33.937221,
+          "volumeSpan": 64.323203
+        },
+        "rvDome": {
+          "ejectionSampleCount": 60,
+          "ejectionPeakCount": 1,
+          "ejectionTroughCount": 1,
+          "ejectionRoughness": 3.619456,
+          "pressureSpan": 14.73123,
+          "volumeSpan": 64.035589
+        },
+        "mvf": {
+          "diastolicPeakCount": 3,
+          "ePeakTheta": 0.58,
+          "aPeakTheta": 0.925,
+          "ePeak": 397.013661,
+          "aPeak": 340.422664,
+          "aOverE": 0.857458,
+          "extraPeakCount": 1,
+          "extraPeakTheta": 0.75,
+          "extraPeakProminenceRatio": 0.367251
+        },
+        "tvf": {
+          "diastolicPeakCount": 2,
+          "ePeakTheta": 0.6475,
+          "aPeakTheta": 0.945,
+          "ePeak": 235.689691,
+          "aPeak": 419.569255,
+          "aOverE": 1.780177,
+          "extraPeakCount": 0,
+          "extraPeakTheta": null,
+          "extraPeakProminenceRatio": null
+        },
+        "lap": {
+          "activePeakTheta": 0.9375,
+          "aWaveTheta": null,
+          "vWaveTheta": null,
+          "xDescentTheta": null,
+          "yDescentTheta": null,
+          "pressurePeakCount": 0,
+          "pressureTroughCount": 0,
+          "pressureRange": 12.79312
+        },
+        "rap": {
+          "activePeakTheta": 0.9175,
+          "aWaveTheta": null,
+          "vWaveTheta": null,
+          "xDescentTheta": null,
+          "yDescentTheta": null,
+          "pressurePeakCount": 0,
+          "pressureTroughCount": 0,
+          "pressureRange": 9.916585
+        }
+      },
+      "timingDigest": {
+        "activeAPeakTheta": {
+          "LA": 0.9375,
+          "RA": 0.9175
+        },
+        "pressureAPeakTheta": {
+          "LA": 0.9,
+          "RA": 0.9075
+        },
+        "caPulseOnsetTheta": {
+          "LA": 0.885,
+          "RA": 0.8625
+        }
+      },
+      "signalDigest": {
+        "lvPressurePeaks": [],
+        "lvPressureTroughs": [],
+        "lvActivePeaks": [],
+        "lvAorticFlowPeaks": [
+          {
+            "theta": 0.1925,
+            "value": 1240.993618
+          },
+          {
+            "theta": 0.2625,
+            "value": 579.551102
+          }
+        ],
+        "mvFlowPeaks": [
+          {
+            "theta": 0.58,
+            "value": 397.013661
+          },
+          {
+            "theta": 0.75,
+            "value": 145.803745
+          },
+          {
+            "theta": 0.925,
+            "value": 340.422664
+          }
+        ],
+        "laPressurePeaks": [],
+        "laPressureTroughs": []
+      }
+    },
+    {
+      "id": "lv-rv-land-root-default",
+      "label": "LV+RV Land plus legacy atria and sourced root/Zc",
+      "hypothesis": "Separates atrial LandAtrial from ventricular/root morphology.",
+      "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+      "rootZcMode": "sourced-boundary-root-zc-phase5ap-user0-default-v1",
+      "atrialAvPlane": "legacy-atria",
+      "activeChambers": [
+        "LV",
+        "RV"
+      ],
+      "settled": true,
+      "settleReason": "converged",
+      "actualSeconds": 10.550000000000193,
+      "healthStatus": "ok",
+      "metrics": {
+        "AoPMean": 77.493958,
+        "CO_L": 4.783658,
+        "CO_R": 4.75349,
+        "LAPMean": 8.884836,
+        "RAPMean": 4.510134,
+        "LVEDPApprox": 15.547624,
+        "EF_LApprox": 0.503212,
+        "EF_RApprox": 0.40934
+      },
+      "morphology": {
+        "version": "morphology-check-v1",
+        "morphologyProfileId": "normal_sinus_default",
+        "status": "failed",
+        "checkedBeatSampleCount": 400,
+        "okCount": 3,
+        "warningCount": 0,
+        "failedCount": 5,
+        "badges": {
+          "lvPv": "failed",
+          "rvPv": "failed",
+          "laPv": "ok",
+          "raPv": "ok",
+          "mvf": "failed",
+          "tvf": "ok",
+          "lapWaveform": "failed",
+          "rapWaveform": "failed"
+        },
+        "results": [
+          {
+            "id": "lv-pv-loop",
+            "label": "LV PV loop",
+            "status": "failed",
+            "value": "peaks=1, troughs=1, roughness=3.196287",
+            "threshold": "systolic pressure dome has <=1 prominent peak, 0 prominent troughs, roughness < 2.4",
+            "message": "LV systolic PV-loop dome is not single-peaked; this can produce a double-humped systolic loop.",
+            "metrics": {
+              "ejectionSampleCount": 53,
+              "ejectionPeakCount": 1,
+              "ejectionTroughCount": 1,
+              "ejectionRoughness": 3.196287,
+              "pressureSpan": 34.796206,
+              "volumeSpan": 63.701982
+            }
+          },
+          {
+            "id": "rv-pv-loop",
+            "label": "RV PV loop",
+            "status": "failed",
+            "value": "peaks=1, troughs=1, roughness=3.589635",
+            "threshold": "systolic pressure dome has <=1 prominent peak, 0 prominent troughs, roughness < 2.4",
+            "message": "RV systolic PV-loop dome is not single-peaked; this can produce a double-humped systolic loop.",
+            "metrics": {
+              "ejectionSampleCount": 60,
+              "ejectionPeakCount": 1,
+              "ejectionTroughCount": 1,
+              "ejectionRoughness": 3.589635,
+              "pressureSpan": 14.819772,
+              "volumeSpan": 63.352202
+            }
+          },
+          {
+            "id": "la-pv-loop",
+            "label": "LA PV loop",
+            "status": "ok",
+            "value": "intersections=5, area=116.878409",
+            "threshold": "intersection >= 1, area > 20, mid-volume pressure spread > 1.5",
+            "message": "LA PV loop has a readable reservoir/booster loop.",
+            "metrics": {
+              "selfIntersections": 5,
+              "absArea": 116.878409,
+              "midVolumePressureSpread": 9.608983
+            }
+          },
+          {
+            "id": "ra-pv-loop",
+            "label": "RA PV loop",
+            "status": "ok",
+            "value": "intersections=3, area=88.055921",
+            "threshold": "intersection >= 1, area > 30, mid-volume pressure spread > 2",
+            "message": "RA PV loop has a readable reservoir/booster loop.",
+            "metrics": {
+              "selfIntersections": 3,
+              "absArea": 88.055921,
+              "midVolumePressureSpread": 5.22586
+            }
+          },
+          {
+            "id": "mvf",
+            "label": "MVF",
+            "status": "failed",
+            "value": "peaks=3, extra=1, A/E=0.561688",
+            "threshold": "normal sinus AV inflow has one E wave, one A wave, and no third forward wave",
+            "message": "MV inflow is not cleanly biphasic; extra or missing waves are present.",
+            "metrics": {
+              "diastolicPeakCount": 3,
+              "ePeakTheta": 0.5675,
+              "aPeakTheta": 0.9325,
+              "ePeak": 447.422439,
+              "aPeak": 251.31186,
+              "aOverE": 0.561688,
+              "extraPeakCount": 1,
+              "extraPeakTheta": 0.73,
+              "extraPeakProminenceRatio": 0.446038
+            }
+          },
+          {
+            "id": "tvf",
+            "label": "TVF",
+            "status": "ok",
+            "value": "peaks=2, extra=0, A/E=1.021337",
+            "threshold": "normal sinus AV inflow has one E wave, one A wave, and no third forward wave",
+            "message": "TV inflow is biphasic with E and A waves.",
+            "metrics": {
+              "diastolicPeakCount": 2,
+              "ePeakTheta": 0.62,
+              "aPeakTheta": 0.96,
+              "ePeak": 272.34829,
+              "aPeak": 278.159432,
+              "aOverE": 1.021337,
+              "extraPeakCount": 0,
+              "extraPeakTheta": null,
+              "extraPeakProminenceRatio": null
+            }
+          },
+          {
+            "id": "lap-waveform",
+            "label": "LA pressure timing",
+            "status": "failed",
+            "value": "active=0.9425, peaks=0, troughs=0",
+            "threshold": "atrial active peak in theta 0.80-0.10, readable a/v waves and x/y descents, <=3 prominent peaks/troughs",
+            "message": "LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+            "metrics": {
+              "activePeakTheta": 0.9425,
+              "aWaveTheta": null,
+              "vWaveTheta": null,
+              "xDescentTheta": null,
+              "yDescentTheta": null,
+              "pressurePeakCount": 0,
+              "pressureTroughCount": 0,
+              "pressureRange": 10.282482
+            }
+          },
+          {
+            "id": "rap-waveform",
+            "label": "RA pressure timing",
+            "status": "failed",
+            "value": "active=0.92, peaks=0, troughs=0",
+            "threshold": "atrial active peak in theta 0.80-0.10, readable a/v waves and x/y descents, <=3 prominent peaks/troughs",
+            "message": "RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+            "metrics": {
+              "activePeakTheta": 0.92,
+              "aWaveTheta": null,
+              "vWaveTheta": null,
+              "xDescentTheta": null,
+              "yDescentTheta": null,
+              "pressurePeakCount": 0,
+              "pressureTroughCount": 0,
+              "pressureRange": 5.22586
+            }
+          }
+        ]
+      },
+      "failureDigest": {
+        "badges": {
+          "lvPv": "failed",
+          "rvPv": "failed",
+          "laPv": "ok",
+          "raPv": "ok",
+          "mvf": "failed",
+          "tvf": "ok",
+          "lapWaveform": "failed",
+          "rapWaveform": "failed"
+        },
+        "failedLabels": [
+          "LV PV loop",
+          "RV PV loop",
+          "MVF",
+          "LA pressure timing",
+          "RA pressure timing"
+        ],
+        "lvDome": {
+          "ejectionSampleCount": 53,
+          "ejectionPeakCount": 1,
+          "ejectionTroughCount": 1,
+          "ejectionRoughness": 3.196287,
+          "pressureSpan": 34.796206,
+          "volumeSpan": 63.701982
+        },
+        "rvDome": {
+          "ejectionSampleCount": 60,
+          "ejectionPeakCount": 1,
+          "ejectionTroughCount": 1,
+          "ejectionRoughness": 3.589635,
+          "pressureSpan": 14.819772,
+          "volumeSpan": 63.352202
+        },
+        "mvf": {
+          "diastolicPeakCount": 3,
+          "ePeakTheta": 0.5675,
+          "aPeakTheta": 0.9325,
+          "ePeak": 447.422439,
+          "aPeak": 251.31186,
+          "aOverE": 0.561688,
+          "extraPeakCount": 1,
+          "extraPeakTheta": 0.73,
+          "extraPeakProminenceRatio": 0.446038
+        },
+        "tvf": {
+          "diastolicPeakCount": 2,
+          "ePeakTheta": 0.62,
+          "aPeakTheta": 0.96,
+          "ePeak": 272.34829,
+          "aPeak": 278.159432,
+          "aOverE": 1.021337,
+          "extraPeakCount": 0,
+          "extraPeakTheta": null,
+          "extraPeakProminenceRatio": null
+        },
+        "lap": {
+          "activePeakTheta": 0.9425,
+          "aWaveTheta": null,
+          "vWaveTheta": null,
+          "xDescentTheta": null,
+          "yDescentTheta": null,
+          "pressurePeakCount": 0,
+          "pressureTroughCount": 0,
+          "pressureRange": 10.282482
+        },
+        "rap": {
+          "activePeakTheta": 0.92,
+          "aWaveTheta": null,
+          "vWaveTheta": null,
+          "xDescentTheta": null,
+          "yDescentTheta": null,
+          "pressurePeakCount": 0,
+          "pressureTroughCount": 0,
+          "pressureRange": 5.22586
+        }
+      },
+      "timingDigest": {
+        "activeAPeakTheta": {
+          "LA": 0.9425,
+          "RA": 0.92
+        },
+        "pressureAPeakTheta": {
+          "LA": 0.92,
+          "RA": 0.91
+        },
+        "caPulseOnsetTheta": {
+          "LA": 0.885,
+          "RA": 0.8625
+        }
+      },
+      "signalDigest": {
+        "lvPressurePeaks": [],
+        "lvPressureTroughs": [],
+        "lvActivePeaks": [],
+        "lvAorticFlowPeaks": [
+          {
+            "theta": 0.195,
+            "value": 1246.829201
+          },
+          {
+            "theta": 0.265,
+            "value": 565.751767
+          }
+        ],
+        "mvFlowPeaks": [
+          {
+            "theta": 0.5675,
+            "value": 447.422439
+          },
+          {
+            "theta": 0.73,
+            "value": 199.56749
+          },
+          {
+            "theta": 0.9325,
+            "value": 251.31186
+          }
+        ],
+        "laPressurePeaks": [],
+        "laPressureTroughs": []
+      }
+    },
+    {
+      "id": "lv-rv-land-root-current",
+      "label": "LV+RV Land plus legacy atria and current/no-boundary root/Zc",
+      "hypothesis": "Clean root/Zc ablation with the atria held on legacy active stress.",
+      "runtimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+      "rootZcMode": "current-root-zc-no-boundary-root-inertance-v0",
+      "atrialAvPlane": "legacy-atria",
+      "activeChambers": [
+        "LV",
+        "RV"
+      ],
+      "settled": true,
+      "settleReason": "converged",
+      "actualSeconds": 9.799999999999942,
+      "healthStatus": "ok",
+      "metrics": {
+        "AoPMean": 76.184994,
+        "CO_L": 4.678954,
+        "CO_R": 4.679078,
+        "LAPMean": 9.600832,
+        "RAPMean": 4.611705,
+        "LVEDPApprox": 16.017438,
+        "EF_LApprox": 0.488293,
+        "EF_RApprox": 0.401722
+      },
+      "morphology": {
+        "version": "morphology-check-v1",
+        "morphologyProfileId": "normal_sinus_default",
+        "status": "failed",
+        "checkedBeatSampleCount": 400,
+        "okCount": 3,
+        "warningCount": 0,
+        "failedCount": 5,
+        "badges": {
+          "lvPv": "failed",
+          "rvPv": "failed",
+          "laPv": "ok",
+          "raPv": "ok",
+          "mvf": "failed",
+          "tvf": "ok",
+          "lapWaveform": "failed",
+          "rapWaveform": "failed"
+        },
+        "results": [
+          {
+            "id": "lv-pv-loop",
+            "label": "LV PV loop",
+            "status": "failed",
+            "value": "peaks=2, troughs=1, roughness=3.101701",
+            "threshold": "systolic pressure dome has <=1 prominent peak, 0 prominent troughs, roughness < 2.4",
+            "message": "LV systolic PV-loop dome is not single-peaked; this can produce a double-humped systolic loop.",
+            "metrics": {
+              "ejectionSampleCount": 48,
+              "ejectionPeakCount": 2,
+              "ejectionTroughCount": 1,
+              "ejectionRoughness": 3.101701,
+              "pressureSpan": 31.407833,
+              "volumeSpan": 62.319045
+            }
+          },
+          {
+            "id": "rv-pv-loop",
+            "label": "RV PV loop",
+            "status": "failed",
+            "value": "peaks=1, troughs=1, roughness=3.631156",
+            "threshold": "systolic pressure dome has <=1 prominent peak, 0 prominent troughs, roughness < 2.4",
+            "message": "RV systolic PV-loop dome is not single-peaked; this can produce a double-humped systolic loop.",
+            "metrics": {
+              "ejectionSampleCount": 60,
+              "ejectionPeakCount": 1,
+              "ejectionTroughCount": 1,
+              "ejectionRoughness": 3.631156,
+              "pressureSpan": 14.816534,
+              "volumeSpan": 62.361693
+            }
+          },
+          {
+            "id": "la-pv-loop",
+            "label": "LA PV loop",
+            "status": "ok",
+            "value": "intersections=5, area=112.295772",
+            "threshold": "intersection >= 1, area > 20, mid-volume pressure spread > 1.5",
+            "message": "LA PV loop has a readable reservoir/booster loop.",
+            "metrics": {
+              "selfIntersections": 5,
+              "absArea": 112.295772,
+              "midVolumePressureSpread": 9.520239
+            }
+          },
+          {
+            "id": "ra-pv-loop",
+            "label": "RA PV loop",
+            "status": "ok",
+            "value": "intersections=4, area=87.970418",
+            "threshold": "intersection >= 1, area > 30, mid-volume pressure spread > 2",
+            "message": "RA PV loop has a readable reservoir/booster loop.",
+            "metrics": {
+              "selfIntersections": 4,
+              "absArea": 87.970418,
+              "midVolumePressureSpread": 5.279122
+            }
+          },
+          {
+            "id": "mvf",
+            "label": "MVF",
+            "status": "failed",
+            "value": "peaks=3, extra=1, A/E=0.525467",
+            "threshold": "normal sinus AV inflow has one E wave, one A wave, and no third forward wave",
+            "message": "MV inflow is not cleanly biphasic; extra or missing waves are present.",
+            "metrics": {
+              "diastolicPeakCount": 3,
+              "ePeakTheta": 0.5625,
+              "aPeakTheta": 0.9325,
+              "ePeak": 450.088133,
+              "aPeak": 236.506602,
+              "aOverE": 0.525467,
+              "extraPeakCount": 1,
+              "extraPeakTheta": 0.7225,
+              "extraPeakProminenceRatio": 0.43582
+            }
+          },
+          {
+            "id": "tvf",
+            "label": "TVF",
+            "status": "ok",
+            "value": "peaks=2, extra=0, A/E=1.01655",
+            "threshold": "normal sinus AV inflow has one E wave, one A wave, and no third forward wave",
+            "message": "TV inflow is biphasic with E and A waves.",
+            "metrics": {
+              "diastolicPeakCount": 2,
+              "ePeakTheta": 0.6225,
+              "aPeakTheta": 0.96,
+              "ePeak": 270.193754,
+              "aPeak": 274.665438,
+              "aOverE": 1.01655,
+              "extraPeakCount": 0,
+              "extraPeakTheta": null,
+              "extraPeakProminenceRatio": null
+            }
+          },
+          {
+            "id": "lap-waveform",
+            "label": "LA pressure timing",
+            "status": "failed",
+            "value": "active=0.945, peaks=0, troughs=0",
+            "threshold": "atrial active peak in theta 0.80-0.10, readable a/v waves and x/y descents, <=3 prominent peaks/troughs",
+            "message": "LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+            "metrics": {
+              "activePeakTheta": 0.945,
+              "aWaveTheta": null,
+              "vWaveTheta": null,
+              "xDescentTheta": null,
+              "yDescentTheta": null,
+              "pressurePeakCount": 0,
+              "pressureTroughCount": 0,
+              "pressureRange": 10.324596
+            }
+          },
+          {
+            "id": "rap-waveform",
+            "label": "RA pressure timing",
+            "status": "failed",
+            "value": "active=0.92, peaks=0, troughs=0",
+            "threshold": "atrial active peak in theta 0.80-0.10, readable a/v waves and x/y descents, <=3 prominent peaks/troughs",
+            "message": "RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+            "metrics": {
+              "activePeakTheta": 0.92,
+              "aWaveTheta": null,
+              "vWaveTheta": null,
+              "xDescentTheta": null,
+              "yDescentTheta": null,
+              "pressurePeakCount": 0,
+              "pressureTroughCount": 0,
+              "pressureRange": 5.279122
+            }
+          }
+        ]
+      },
+      "failureDigest": {
+        "badges": {
+          "lvPv": "failed",
+          "rvPv": "failed",
+          "laPv": "ok",
+          "raPv": "ok",
+          "mvf": "failed",
+          "tvf": "ok",
+          "lapWaveform": "failed",
+          "rapWaveform": "failed"
+        },
+        "failedLabels": [
+          "LV PV loop",
+          "RV PV loop",
+          "MVF",
+          "LA pressure timing",
+          "RA pressure timing"
+        ],
+        "lvDome": {
+          "ejectionSampleCount": 48,
+          "ejectionPeakCount": 2,
+          "ejectionTroughCount": 1,
+          "ejectionRoughness": 3.101701,
+          "pressureSpan": 31.407833,
+          "volumeSpan": 62.319045
+        },
+        "rvDome": {
+          "ejectionSampleCount": 60,
+          "ejectionPeakCount": 1,
+          "ejectionTroughCount": 1,
+          "ejectionRoughness": 3.631156,
+          "pressureSpan": 14.816534,
+          "volumeSpan": 62.361693
+        },
+        "mvf": {
+          "diastolicPeakCount": 3,
+          "ePeakTheta": 0.5625,
+          "aPeakTheta": 0.9325,
+          "ePeak": 450.088133,
+          "aPeak": 236.506602,
+          "aOverE": 0.525467,
+          "extraPeakCount": 1,
+          "extraPeakTheta": 0.7225,
+          "extraPeakProminenceRatio": 0.43582
+        },
+        "tvf": {
+          "diastolicPeakCount": 2,
+          "ePeakTheta": 0.6225,
+          "aPeakTheta": 0.96,
+          "ePeak": 270.193754,
+          "aPeak": 274.665438,
+          "aOverE": 1.01655,
+          "extraPeakCount": 0,
+          "extraPeakTheta": null,
+          "extraPeakProminenceRatio": null
+        },
+        "lap": {
+          "activePeakTheta": 0.945,
+          "aWaveTheta": null,
+          "vWaveTheta": null,
+          "xDescentTheta": null,
+          "yDescentTheta": null,
+          "pressurePeakCount": 0,
+          "pressureTroughCount": 0,
+          "pressureRange": 10.324596
+        },
+        "rap": {
+          "activePeakTheta": 0.92,
+          "aWaveTheta": null,
+          "vWaveTheta": null,
+          "xDescentTheta": null,
+          "yDescentTheta": null,
+          "pressurePeakCount": 0,
+          "pressureTroughCount": 0,
+          "pressureRange": 5.279122
+        }
+      },
+      "timingDigest": {
+        "activeAPeakTheta": {
+          "LA": 0.945,
+          "RA": 0.92
+        },
+        "pressureAPeakTheta": {
+          "LA": 0.92,
+          "RA": 0.91
+        },
+        "caPulseOnsetTheta": {
+          "LA": 0.885,
+          "RA": 0.8625
+        }
+      },
+      "signalDigest": {
+        "lvPressurePeaks": [],
+        "lvPressureTroughs": [],
+        "lvActivePeaks": [],
+        "lvAorticFlowPeaks": [
+          {
+            "theta": 0.19,
+            "value": 1298.134957
+          },
+          {
+            "theta": 0.25,
+            "value": 674.654391
+          }
+        ],
+        "mvFlowPeaks": [
+          {
+            "theta": 0.5625,
+            "value": 450.088133
+          },
+          {
+            "theta": 0.7225,
+            "value": 196.15727
+          },
+          {
+            "theta": 0.9325,
+            "value": 236.506602
+          }
+        ],
+        "laPressurePeaks": [],
+        "laPressureTroughs": []
+      }
+    },
+    {
+      "id": "lv-land-root-default",
+      "label": "LV-only Land plus legacy RV/atria and sourced root/Zc",
+      "hypothesis": "Tests whether LV Land alone is enough to produce the LV dome and MVF failures.",
+      "runtimeActiveSourceMode": "lv-land-phase5q-user0-staged-default-v1",
+      "rootZcMode": "sourced-boundary-root-zc-phase5ap-user0-default-v1",
+      "atrialAvPlane": "legacy-atria",
+      "activeChambers": [
+        "LV"
+      ],
+      "settled": true,
+      "settleReason": "converged",
+      "actualSeconds": 9.799999999999942,
+      "healthStatus": "ok",
+      "metrics": {
+        "AoPMean": 78.29907,
+        "CO_L": 4.868476,
+        "CO_R": 4.883486,
+        "LAPMean": 10.514146,
+        "RAPMean": 4.205026,
+        "LVEDPApprox": 17.003927,
+        "EF_LApprox": 0.497953,
+        "EF_RApprox": 0.439354
+      },
+      "morphology": {
+        "version": "morphology-check-v1",
+        "morphologyProfileId": "normal_sinus_default",
+        "status": "failed",
+        "checkedBeatSampleCount": 400,
+        "okCount": 4,
+        "warningCount": 0,
+        "failedCount": 4,
+        "badges": {
+          "lvPv": "failed",
+          "rvPv": "ok",
+          "laPv": "ok",
+          "raPv": "ok",
+          "mvf": "failed",
+          "tvf": "ok",
+          "lapWaveform": "failed",
+          "rapWaveform": "failed"
+        },
+        "results": [
+          {
+            "id": "lv-pv-loop",
+            "label": "LV PV loop",
+            "status": "failed",
+            "value": "peaks=2, troughs=1, roughness=3.094096",
+            "threshold": "systolic pressure dome has <=1 prominent peak, 0 prominent troughs, roughness < 2.4",
+            "message": "LV systolic PV-loop dome is not single-peaked; this can produce a double-humped systolic loop.",
+            "metrics": {
+              "ejectionSampleCount": 53,
+              "ejectionPeakCount": 2,
+              "ejectionTroughCount": 1,
+              "ejectionRoughness": 3.094096,
+              "pressureSpan": 34.365746,
+              "volumeSpan": 64.901594
+            }
+          },
+          {
+            "id": "rv-pv-loop",
+            "label": "RV PV loop",
+            "status": "ok",
+            "value": "peaks=0, troughs=0, roughness=1.379676",
+            "threshold": "systolic pressure dome has <=1 prominent peak, 0 prominent troughs, roughness < 2.4",
+            "message": "RV systolic PV-loop dome is single-peaked.",
+            "metrics": {
+              "ejectionSampleCount": 54,
+              "ejectionPeakCount": 0,
+              "ejectionTroughCount": 0,
+              "ejectionRoughness": 1.379676,
+              "pressureSpan": 18.082742,
+              "volumeSpan": 65.074276
+            }
+          },
+          {
+            "id": "la-pv-loop",
+            "label": "LA PV loop",
+            "status": "ok",
+            "value": "intersections=5, area=102.558893",
+            "threshold": "intersection >= 1, area > 20, mid-volume pressure spread > 1.5",
+            "message": "LA PV loop has a readable reservoir/booster loop.",
+            "metrics": {
+              "selfIntersections": 5,
+              "absArea": 102.558893,
+              "midVolumePressureSpread": 8.959291
+            }
+          },
+          {
+            "id": "ra-pv-loop",
+            "label": "RA PV loop",
+            "status": "ok",
+            "value": "intersections=1, area=101.076344",
+            "threshold": "intersection >= 1, area > 30, mid-volume pressure spread > 2",
+            "message": "RA PV loop has a readable reservoir/booster loop.",
+            "metrics": {
+              "selfIntersections": 1,
+              "absArea": 101.076344,
+              "midVolumePressureSpread": 5.254695
+            }
+          },
+          {
+            "id": "mvf",
+            "label": "MVF",
+            "status": "failed",
+            "value": "peaks=3, extra=1, A/E=0.45028",
+            "threshold": "normal sinus AV inflow has one E wave, one A wave, and no third forward wave",
+            "message": "MV inflow is not cleanly biphasic; extra or missing waves are present.",
+            "metrics": {
+              "diastolicPeakCount": 3,
+              "ePeakTheta": 0.56,
+              "aPeakTheta": 0.93,
+              "ePeak": 474.176879,
+              "aPeak": 213.512567,
+              "aOverE": 0.45028,
+              "extraPeakCount": 1,
+              "extraPeakTheta": 0.715,
+              "extraPeakProminenceRatio": 0.428183
+            }
+          },
+          {
+            "id": "tvf",
+            "label": "TVF",
+            "status": "ok",
+            "value": "peaks=2, extra=0, A/E=1.130655",
+            "threshold": "normal sinus AV inflow has one E wave, one A wave, and no third forward wave",
+            "message": "TV inflow is biphasic with E and A waves.",
+            "metrics": {
+              "diastolicPeakCount": 2,
+              "ePeakTheta": 0.6625,
+              "aPeakTheta": 0.9675,
+              "ePeak": 262.838266,
+              "aPeak": 297.179288,
+              "aOverE": 1.130655,
+              "extraPeakCount": 0,
+              "extraPeakTheta": null,
+              "extraPeakProminenceRatio": null
+            }
+          },
+          {
+            "id": "lap-waveform",
+            "label": "LA pressure timing",
+            "status": "failed",
+            "value": "active=0.945, peaks=0, troughs=0",
+            "threshold": "atrial active peak in theta 0.80-0.10, readable a/v waves and x/y descents, <=3 prominent peaks/troughs",
+            "message": "LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+            "metrics": {
+              "activePeakTheta": 0.945,
+              "aWaveTheta": null,
+              "vWaveTheta": null,
+              "xDescentTheta": null,
+              "yDescentTheta": null,
+              "pressurePeakCount": 0,
+              "pressureTroughCount": 0,
+              "pressureRange": 10.79307
+            }
+          },
+          {
+            "id": "rap-waveform",
+            "label": "RA pressure timing",
+            "status": "failed",
+            "value": "active=0.92, peaks=0, troughs=0",
+            "threshold": "atrial active peak in theta 0.80-0.10, readable a/v waves and x/y descents, <=3 prominent peaks/troughs",
+            "message": "RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+            "metrics": {
+              "activePeakTheta": 0.92,
+              "aWaveTheta": null,
+              "vWaveTheta": null,
+              "xDescentTheta": null,
+              "yDescentTheta": null,
+              "pressurePeakCount": 0,
+              "pressureTroughCount": 0,
+              "pressureRange": 5.254695
+            }
+          }
+        ]
+      },
+      "failureDigest": {
+        "badges": {
+          "lvPv": "failed",
+          "rvPv": "ok",
+          "laPv": "ok",
+          "raPv": "ok",
+          "mvf": "failed",
+          "tvf": "ok",
+          "lapWaveform": "failed",
+          "rapWaveform": "failed"
+        },
+        "failedLabels": [
+          "LV PV loop",
+          "MVF",
+          "LA pressure timing",
+          "RA pressure timing"
+        ],
+        "lvDome": {
+          "ejectionSampleCount": 53,
+          "ejectionPeakCount": 2,
+          "ejectionTroughCount": 1,
+          "ejectionRoughness": 3.094096,
+          "pressureSpan": 34.365746,
+          "volumeSpan": 64.901594
+        },
+        "rvDome": {
+          "ejectionSampleCount": 54,
+          "ejectionPeakCount": 0,
+          "ejectionTroughCount": 0,
+          "ejectionRoughness": 1.379676,
+          "pressureSpan": 18.082742,
+          "volumeSpan": 65.074276
+        },
+        "mvf": {
+          "diastolicPeakCount": 3,
+          "ePeakTheta": 0.56,
+          "aPeakTheta": 0.93,
+          "ePeak": 474.176879,
+          "aPeak": 213.512567,
+          "aOverE": 0.45028,
+          "extraPeakCount": 1,
+          "extraPeakTheta": 0.715,
+          "extraPeakProminenceRatio": 0.428183
+        },
+        "tvf": {
+          "diastolicPeakCount": 2,
+          "ePeakTheta": 0.6625,
+          "aPeakTheta": 0.9675,
+          "ePeak": 262.838266,
+          "aPeak": 297.179288,
+          "aOverE": 1.130655,
+          "extraPeakCount": 0,
+          "extraPeakTheta": null,
+          "extraPeakProminenceRatio": null
+        },
+        "lap": {
+          "activePeakTheta": 0.945,
+          "aWaveTheta": null,
+          "vWaveTheta": null,
+          "xDescentTheta": null,
+          "yDescentTheta": null,
+          "pressurePeakCount": 0,
+          "pressureTroughCount": 0,
+          "pressureRange": 10.79307
+        },
+        "rap": {
+          "activePeakTheta": 0.92,
+          "aWaveTheta": null,
+          "vWaveTheta": null,
+          "xDescentTheta": null,
+          "yDescentTheta": null,
+          "pressurePeakCount": 0,
+          "pressureTroughCount": 0,
+          "pressureRange": 5.254695
+        }
+      },
+      "timingDigest": {
+        "activeAPeakTheta": {
+          "LA": 0.945,
+          "RA": 0.92
+        },
+        "pressureAPeakTheta": {
+          "LA": 0.92,
+          "RA": 0.91
+        },
+        "caPulseOnsetTheta": {
+          "LA": 0.885,
+          "RA": 0.8625
+        }
+      },
+      "signalDigest": {
+        "lvPressurePeaks": [],
+        "lvPressureTroughs": [],
+        "lvActivePeaks": [],
+        "lvAorticFlowPeaks": [
+          {
+            "theta": 0.1925,
+            "value": 1246.088689
+          },
+          {
+            "theta": 0.2625,
+            "value": 587.645643
+          }
+        ],
+        "mvFlowPeaks": [
+          {
+            "theta": 0.56,
+            "value": 474.176879
+          },
+          {
+            "theta": 0.715,
+            "value": 203.034478
+          },
+          {
+            "theta": 0.93,
+            "value": 213.512567
+          }
+        ],
+        "laPressurePeaks": [],
+        "laPressureTroughs": []
+      }
+    },
+    {
+      "id": "lv-land-root-current",
+      "label": "LV-only Land plus legacy RV/atria and current/no-boundary root/Zc",
+      "hypothesis": "Clean LV-only Land root/Zc ablation.",
+      "runtimeActiveSourceMode": "lv-land-phase5q-user0-staged-default-v1",
+      "rootZcMode": "current-root-zc-no-boundary-root-inertance-v0",
+      "atrialAvPlane": "legacy-atria",
+      "activeChambers": [
+        "LV"
+      ],
+      "settled": true,
+      "settleReason": "converged",
+      "actualSeconds": 8.799999999999608,
+      "healthStatus": "ok",
+      "metrics": {
+        "AoPMean": 76.701509,
+        "CO_L": 4.777983,
+        "CO_R": 4.79517,
+        "LAPMean": 10.943311,
+        "RAPMean": 4.3671,
+        "LVEDPApprox": 17.766404,
+        "EF_LApprox": 0.486507,
+        "EF_RApprox": 0.428601
+      },
+      "morphology": {
+        "version": "morphology-check-v1",
+        "morphologyProfileId": "normal_sinus_default",
+        "status": "failed",
+        "checkedBeatSampleCount": 400,
+        "okCount": 4,
+        "warningCount": 0,
+        "failedCount": 4,
+        "badges": {
+          "lvPv": "failed",
+          "rvPv": "ok",
+          "laPv": "ok",
+          "raPv": "ok",
+          "mvf": "failed",
+          "tvf": "ok",
+          "lapWaveform": "failed",
+          "rapWaveform": "failed"
+        },
+        "results": [
+          {
+            "id": "lv-pv-loop",
+            "label": "LV PV loop",
+            "status": "failed",
+            "value": "peaks=2, troughs=1, roughness=3.08457",
+            "threshold": "systolic pressure dome has <=1 prominent peak, 0 prominent troughs, roughness < 2.4",
+            "message": "LV systolic PV-loop dome is not single-peaked; this can produce a double-humped systolic loop.",
+            "metrics": {
+              "ejectionSampleCount": 49,
+              "ejectionPeakCount": 2,
+              "ejectionTroughCount": 1,
+              "ejectionRoughness": 3.08457,
+              "pressureSpan": 32.063011,
+              "volumeSpan": 63.610984
+            }
+          },
+          {
+            "id": "rv-pv-loop",
+            "label": "RV PV loop",
+            "status": "ok",
+            "value": "peaks=0, troughs=0, roughness=1.361136",
+            "threshold": "systolic pressure dome has <=1 prominent peak, 0 prominent troughs, roughness < 2.4",
+            "message": "RV systolic PV-loop dome is single-peaked.",
+            "metrics": {
+              "ejectionSampleCount": 54,
+              "ejectionPeakCount": 0,
+              "ejectionTroughCount": 0,
+              "ejectionRoughness": 1.361136,
+              "pressureSpan": 17.933621,
+              "volumeSpan": 63.898294
+            }
+          },
+          {
+            "id": "la-pv-loop",
+            "label": "LA PV loop",
+            "status": "ok",
+            "value": "intersections=5, area=100.944399",
+            "threshold": "intersection >= 1, area > 20, mid-volume pressure spread > 1.5",
+            "message": "LA PV loop has a readable reservoir/booster loop.",
+            "metrics": {
+              "selfIntersections": 5,
+              "absArea": 100.944399,
+              "midVolumePressureSpread": 9.024384
+            }
+          },
+          {
+            "id": "ra-pv-loop",
+            "label": "RA PV loop",
+            "status": "ok",
+            "value": "intersections=1, area=99.459838",
+            "threshold": "intersection >= 1, area > 30, mid-volume pressure spread > 2",
+            "message": "RA PV loop has a readable reservoir/booster loop.",
+            "metrics": {
+              "selfIntersections": 1,
+              "absArea": 99.459838,
+              "midVolumePressureSpread": 5.316497
+            }
+          },
+          {
+            "id": "mvf",
+            "label": "MVF",
+            "status": "failed",
+            "value": "peaks=3, extra=1, A/E=0.431998",
+            "threshold": "normal sinus AV inflow has one E wave, one A wave, and no third forward wave",
+            "message": "MV inflow is not cleanly biphasic; extra or missing waves are present.",
+            "metrics": {
+              "diastolicPeakCount": 3,
+              "ePeakTheta": 0.555,
+              "aPeakTheta": 0.93,
+              "ePeak": 474.445324,
+              "aPeak": 204.959384,
+              "aOverE": 0.431998,
+              "extraPeakCount": 1,
+              "extraPeakTheta": 0.71,
+              "extraPeakProminenceRatio": 0.423703
+            }
+          },
+          {
+            "id": "tvf",
+            "label": "TVF",
+            "status": "ok",
+            "value": "peaks=2, extra=0, A/E=1.123195",
+            "threshold": "normal sinus AV inflow has one E wave, one A wave, and no third forward wave",
+            "message": "TV inflow is biphasic with E and A waves.",
+            "metrics": {
+              "diastolicPeakCount": 2,
+              "ePeakTheta": 0.6625,
+              "aPeakTheta": 0.9675,
+              "ePeak": 261.496131,
+              "aPeak": 293.711244,
+              "aOverE": 1.123195,
+              "extraPeakCount": 0,
+              "extraPeakTheta": null,
+              "extraPeakProminenceRatio": null
+            }
+          },
+          {
+            "id": "lap-waveform",
+            "label": "LA pressure timing",
+            "status": "failed",
+            "value": "active=0.945, peaks=0, troughs=0",
+            "threshold": "atrial active peak in theta 0.80-0.10, readable a/v waves and x/y descents, <=3 prominent peaks/troughs",
+            "message": "LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+            "metrics": {
+              "activePeakTheta": 0.945,
+              "aWaveTheta": null,
+              "vWaveTheta": null,
+              "xDescentTheta": null,
+              "yDescentTheta": null,
+              "pressurePeakCount": 0,
+              "pressureTroughCount": 0,
+              "pressureRange": 10.746019
+            }
+          },
+          {
+            "id": "rap-waveform",
+            "label": "RA pressure timing",
+            "status": "failed",
+            "value": "active=0.92, peaks=0, troughs=0",
+            "threshold": "atrial active peak in theta 0.80-0.10, readable a/v waves and x/y descents, <=3 prominent peaks/troughs",
+            "message": "RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+            "metrics": {
+              "activePeakTheta": 0.92,
+              "aWaveTheta": null,
+              "vWaveTheta": null,
+              "xDescentTheta": null,
+              "yDescentTheta": null,
+              "pressurePeakCount": 0,
+              "pressureTroughCount": 0,
+              "pressureRange": 5.316497
+            }
+          }
+        ]
+      },
+      "failureDigest": {
+        "badges": {
+          "lvPv": "failed",
+          "rvPv": "ok",
+          "laPv": "ok",
+          "raPv": "ok",
+          "mvf": "failed",
+          "tvf": "ok",
+          "lapWaveform": "failed",
+          "rapWaveform": "failed"
+        },
+        "failedLabels": [
+          "LV PV loop",
+          "MVF",
+          "LA pressure timing",
+          "RA pressure timing"
+        ],
+        "lvDome": {
+          "ejectionSampleCount": 49,
+          "ejectionPeakCount": 2,
+          "ejectionTroughCount": 1,
+          "ejectionRoughness": 3.08457,
+          "pressureSpan": 32.063011,
+          "volumeSpan": 63.610984
+        },
+        "rvDome": {
+          "ejectionSampleCount": 54,
+          "ejectionPeakCount": 0,
+          "ejectionTroughCount": 0,
+          "ejectionRoughness": 1.361136,
+          "pressureSpan": 17.933621,
+          "volumeSpan": 63.898294
+        },
+        "mvf": {
+          "diastolicPeakCount": 3,
+          "ePeakTheta": 0.555,
+          "aPeakTheta": 0.93,
+          "ePeak": 474.445324,
+          "aPeak": 204.959384,
+          "aOverE": 0.431998,
+          "extraPeakCount": 1,
+          "extraPeakTheta": 0.71,
+          "extraPeakProminenceRatio": 0.423703
+        },
+        "tvf": {
+          "diastolicPeakCount": 2,
+          "ePeakTheta": 0.6625,
+          "aPeakTheta": 0.9675,
+          "ePeak": 261.496131,
+          "aPeak": 293.711244,
+          "aOverE": 1.123195,
+          "extraPeakCount": 0,
+          "extraPeakTheta": null,
+          "extraPeakProminenceRatio": null
+        },
+        "lap": {
+          "activePeakTheta": 0.945,
+          "aWaveTheta": null,
+          "vWaveTheta": null,
+          "xDescentTheta": null,
+          "yDescentTheta": null,
+          "pressurePeakCount": 0,
+          "pressureTroughCount": 0,
+          "pressureRange": 10.746019
+        },
+        "rap": {
+          "activePeakTheta": 0.92,
+          "aWaveTheta": null,
+          "vWaveTheta": null,
+          "xDescentTheta": null,
+          "yDescentTheta": null,
+          "pressurePeakCount": 0,
+          "pressureTroughCount": 0,
+          "pressureRange": 5.316497
+        }
+      },
+      "timingDigest": {
+        "activeAPeakTheta": {
+          "LA": 0.945,
+          "RA": 0.92
+        },
+        "pressureAPeakTheta": {
+          "LA": 0.92,
+          "RA": 0.91
+        },
+        "caPulseOnsetTheta": {
+          "LA": 0.885,
+          "RA": 0.8625
+        }
+      },
+      "signalDigest": {
+        "lvPressurePeaks": [],
+        "lvPressureTroughs": [],
+        "lvActivePeaks": [],
+        "lvAorticFlowPeaks": [
+          {
+            "theta": 0.19,
+            "value": 1310.206942
+          },
+          {
+            "theta": 0.25,
+            "value": 690.744668
+          }
+        ],
+        "mvFlowPeaks": [
+          {
+            "theta": 0.555,
+            "value": 474.445324
+          },
+          {
+            "theta": 0.71,
+            "value": 201.023966
+          },
+          {
+            "theta": 0.93,
+            "value": 204.959384
+          }
+        ],
+        "laPressurePeaks": [],
+        "laPressureTroughs": []
+      }
+    },
+    {
+      "id": "legacy-frozen-reference",
+      "label": "Frozen legacy active-stress rollback/reference",
+      "hypothesis": "Reference path for gross morphology failures under the same fitFast normal baseline.",
+      "runtimeActiveSourceMode": "legacy-active-stress-frozen-reference-rollback-v0",
+      "rootZcMode": null,
+      "atrialAvPlane": "legacy-atria",
+      "activeChambers": [],
+      "settled": true,
+      "settleReason": "converged",
+      "actualSeconds": 11.300000000000443,
+      "healthStatus": "ok",
+      "metrics": {
+        "AoPMean": 86.824027,
+        "CO_L": 5.422892,
+        "CO_R": 5.461089,
+        "LAPMean": 6.814127,
+        "RAPMean": 3.451249,
+        "LVEDPApprox": 11.797409,
+        "EF_LApprox": 0.591742,
+        "EF_RApprox": 0.513361
+      },
+      "morphology": {
+        "version": "morphology-check-v1",
+        "morphologyProfileId": "normal_sinus_default",
+        "status": "failed",
+        "checkedBeatSampleCount": 400,
+        "okCount": 6,
+        "warningCount": 0,
+        "failedCount": 2,
+        "badges": {
+          "lvPv": "ok",
+          "rvPv": "ok",
+          "laPv": "ok",
+          "raPv": "ok",
+          "mvf": "ok",
+          "tvf": "ok",
+          "lapWaveform": "failed",
+          "rapWaveform": "failed"
+        },
+        "results": [
+          {
+            "id": "lv-pv-loop",
+            "label": "LV PV loop",
+            "status": "ok",
+            "value": "peaks=0, troughs=0, roughness=1.709949",
+            "threshold": "systolic pressure dome has <=1 prominent peak, 0 prominent troughs, roughness < 2.4",
+            "message": "LV systolic PV-loop dome is single-peaked.",
+            "metrics": {
+              "ejectionSampleCount": 40,
+              "ejectionPeakCount": 0,
+              "ejectionTroughCount": 0,
+              "ejectionRoughness": 1.709949,
+              "pressureSpan": 35.192325,
+              "volumeSpan": 72.365683
+            }
+          },
+          {
+            "id": "rv-pv-loop",
+            "label": "RV PV loop",
+            "status": "ok",
+            "value": "peaks=0, troughs=0, roughness=1.548226",
+            "threshold": "systolic pressure dome has <=1 prominent peak, 0 prominent troughs, roughness < 2.4",
+            "message": "RV systolic PV-loop dome is single-peaked.",
+            "metrics": {
+              "ejectionSampleCount": 56,
+              "ejectionPeakCount": 0,
+              "ejectionTroughCount": 0,
+              "ejectionRoughness": 1.548226,
+              "pressureSpan": 18.659565,
+              "volumeSpan": 72.772994
+            }
+          },
+          {
+            "id": "la-pv-loop",
+            "label": "LA PV loop",
+            "status": "ok",
+            "value": "intersections=4, area=124.281294",
+            "threshold": "intersection >= 1, area > 20, mid-volume pressure spread > 1.5",
+            "message": "LA PV loop has a readable reservoir/booster loop.",
+            "metrics": {
+              "selfIntersections": 4,
+              "absArea": 124.281294,
+              "midVolumePressureSpread": 7.028776
+            }
+          },
+          {
+            "id": "ra-pv-loop",
+            "label": "RA PV loop",
+            "status": "ok",
+            "value": "intersections=3, area=108.491531",
+            "threshold": "intersection >= 1, area > 30, mid-volume pressure spread > 2",
+            "message": "RA PV loop has a readable reservoir/booster loop.",
+            "metrics": {
+              "selfIntersections": 3,
+              "absArea": 108.491531,
+              "midVolumePressureSpread": 5.049272
+            }
+          },
+          {
+            "id": "mvf",
+            "label": "MVF",
+            "status": "ok",
+            "value": "peaks=2, extra=0, A/E=0.612819",
+            "threshold": "normal sinus AV inflow has one E wave, one A wave, and no third forward wave",
+            "message": "MV inflow is biphasic with E and A waves.",
+            "metrics": {
+              "diastolicPeakCount": 2,
+              "ePeakTheta": 0.615,
+              "aPeakTheta": 0.935,
+              "ePeak": 419.632203,
+              "aPeak": 257.158403,
+              "aOverE": 0.612819,
+              "extraPeakCount": 0,
+              "extraPeakTheta": null,
+              "extraPeakProminenceRatio": null
+            }
+          },
+          {
+            "id": "tvf",
+            "label": "TVF",
+            "status": "ok",
+            "value": "peaks=2, extra=0, A/E=1.078893",
+            "threshold": "normal sinus AV inflow has one E wave, one A wave, and no third forward wave",
+            "message": "TV inflow is biphasic with E and A waves.",
+            "metrics": {
+              "diastolicPeakCount": 2,
+              "ePeakTheta": 0.6625,
+              "aPeakTheta": 0.9725,
+              "ePeak": 286.554392,
+              "aPeak": 309.16154,
+              "aOverE": 1.078893,
+              "extraPeakCount": 0,
+              "extraPeakTheta": null,
+              "extraPeakProminenceRatio": null
+            }
+          },
+          {
+            "id": "lap-waveform",
+            "label": "LA pressure timing",
+            "status": "failed",
+            "value": "active=0.9425, peaks=0, troughs=0",
+            "threshold": "atrial active peak in theta 0.80-0.10, readable a/v waves and x/y descents, <=3 prominent peaks/troughs",
+            "message": "LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+            "metrics": {
+              "activePeakTheta": 0.9425,
+              "aWaveTheta": null,
+              "vWaveTheta": null,
+              "xDescentTheta": null,
+              "yDescentTheta": null,
+              "pressurePeakCount": 0,
+              "pressureTroughCount": 0,
+              "pressureRange": 9.742316
+            }
+          },
+          {
+            "id": "rap-waveform",
+            "label": "RA pressure timing",
+            "status": "failed",
+            "value": "active=0.92, peaks=0, troughs=0",
+            "threshold": "atrial active peak in theta 0.80-0.10, readable a/v waves and x/y descents, <=3 prominent peaks/troughs",
+            "message": "RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+            "metrics": {
+              "activePeakTheta": 0.92,
+              "aWaveTheta": null,
+              "vWaveTheta": null,
+              "xDescentTheta": null,
+              "yDescentTheta": null,
+              "pressurePeakCount": 0,
+              "pressureTroughCount": 0,
+              "pressureRange": 5.049272
+            }
+          }
+        ]
+      },
+      "failureDigest": {
+        "badges": {
+          "lvPv": "ok",
+          "rvPv": "ok",
+          "laPv": "ok",
+          "raPv": "ok",
+          "mvf": "ok",
+          "tvf": "ok",
+          "lapWaveform": "failed",
+          "rapWaveform": "failed"
+        },
+        "failedLabels": [
+          "LA pressure timing",
+          "RA pressure timing"
+        ],
+        "lvDome": {
+          "ejectionSampleCount": 40,
+          "ejectionPeakCount": 0,
+          "ejectionTroughCount": 0,
+          "ejectionRoughness": 1.709949,
+          "pressureSpan": 35.192325,
+          "volumeSpan": 72.365683
+        },
+        "rvDome": {
+          "ejectionSampleCount": 56,
+          "ejectionPeakCount": 0,
+          "ejectionTroughCount": 0,
+          "ejectionRoughness": 1.548226,
+          "pressureSpan": 18.659565,
+          "volumeSpan": 72.772994
+        },
+        "mvf": {
+          "diastolicPeakCount": 2,
+          "ePeakTheta": 0.615,
+          "aPeakTheta": 0.935,
+          "ePeak": 419.632203,
+          "aPeak": 257.158403,
+          "aOverE": 0.612819,
+          "extraPeakCount": 0,
+          "extraPeakTheta": null,
+          "extraPeakProminenceRatio": null
+        },
+        "tvf": {
+          "diastolicPeakCount": 2,
+          "ePeakTheta": 0.6625,
+          "aPeakTheta": 0.9725,
+          "ePeak": 286.554392,
+          "aPeak": 309.16154,
+          "aOverE": 1.078893,
+          "extraPeakCount": 0,
+          "extraPeakTheta": null,
+          "extraPeakProminenceRatio": null
+        },
+        "lap": {
+          "activePeakTheta": 0.9425,
+          "aWaveTheta": null,
+          "vWaveTheta": null,
+          "xDescentTheta": null,
+          "yDescentTheta": null,
+          "pressurePeakCount": 0,
+          "pressureTroughCount": 0,
+          "pressureRange": 9.742316
+        },
+        "rap": {
+          "activePeakTheta": 0.92,
+          "aWaveTheta": null,
+          "vWaveTheta": null,
+          "xDescentTheta": null,
+          "yDescentTheta": null,
+          "pressurePeakCount": 0,
+          "pressureTroughCount": 0,
+          "pressureRange": 5.049272
+        }
+      },
+      "timingDigest": {
+        "activeAPeakTheta": {
+          "LA": 0.9425,
+          "RA": 0.92
+        },
+        "pressureAPeakTheta": {
+          "LA": 0.915,
+          "RA": 0.9125
+        },
+        "caPulseOnsetTheta": {
+          "LA": 0.89,
+          "RA": 0.8625
+        }
+      },
+      "signalDigest": {
+        "lvPressurePeaks": [],
+        "lvPressureTroughs": [],
+        "lvActivePeaks": [],
+        "lvAorticFlowPeaks": [
+          {
+            "theta": 0.2225,
+            "value": 1496.951264
+          }
+        ],
+        "mvFlowPeaks": [
+          {
+            "theta": 0.615,
+            "value": 419.632203
+          },
+          {
+            "theta": 0.935,
+            "value": 257.158403
+          }
+        ],
+        "laPressurePeaks": [],
+        "laPressureTroughs": []
+      }
+    }
+  ],
+  "attribution": {
+    "lvDoubleDome": "lv-land-valve-load-associated",
+    "mvfExtraWave": "lv-land-filling-coupling-associated",
+    "lapTiming": "not-specific-to-landatrial",
+    "notes": [
+      "LV default/root-current/lv-rv-root-default/lv-rv-root-current/lv-root-default/lv-root-current failures=true/true/true/true/true/true.",
+      "MVF user0/avplane-off/lv-rv/lv-only/legacy failures=true/true/true/true/false.",
+      "LAP user0/avplane-off/lv-rv/legacy failures=true/true/true/true."
+    ]
+  },
+  "summary": {
+    "diagnosticStatus": "attribution-recorded",
+    "currentInterpretation": "Current user-0 default failed labels: LV PV loop, RV PV loop, MVF, LA pressure timing, RA pressure timing. LV double-dome attribution: lv-land-valve-load-associated. MVF extra-wave attribution: lv-land-filling-coupling-associated. LAP timing/readability attribution: not-specific-to-landatrial.",
+    "recommendedNext": [
+      "rerun morphology-check-v1 after any model fix; do not continue closed-loop LandAtrial parameter tuning while LV/MVF/LAP badges fail",
+      "treat the LV double dome as an LV Land plus valve/load coupling problem; LV-only Land reproduces it and root-current ablation does not remove it",
+      "treat the MVF third wave as LV Land/filling coupling until disproven; LV-only Land reproduces it while frozen legacy does not",
+      "tighten or split the LAP/RAP pressure timing checker before using it as a LandAtrial tuning signal; frozen legacy also fails the current pressure extrema rule"
+    ],
+    "blockers": [
+      "This is a closure-local attribution matrix, not a morphology fix or physiology acceptance.",
+      "A1/A2 remain frozen diagnostic scaffolds; this runner does not sweep or select them.",
+      "Any follow-up fix must preserve output health and rerun morphology-check-v1 over the same profile."
+    ]
+  },
+  "boundary": {
+    "noOfficialMorphologyAcceptance": true,
+    "noAtrialPhysiologyAcceptance": true,
+    "noValveLoadTimingAcceptance": true,
+    "noQDotClampRemovalClaim": true,
+    "noClinicalScientificValidation": true
+  },
+  "normalizedSha256": "3fff4c1ce268846515b18c057d042df96008192873bba2b14fb4a56897f4c264"
+}
