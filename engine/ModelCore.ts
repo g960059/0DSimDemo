@@ -222,7 +222,7 @@ export type ModelCoreExperimentalVentricularChamberTransactionStepOptions = {
   readonly relaxation?: number;
   readonly providerStateCouplingChambers?: readonly ("LV" | "RV")[];
   readonly includeAdjacentLoadNodes?: boolean;
-  readonly avValveBoundaryMode?: "current-diode" | "bounded-deceleration";
+  readonly avValveBoundaryMode?: "current-diode" | "bounded-deceleration" | "state-coupled-complementarity";
   readonly avValveBoundaryTargetValves?: readonly ("MV" | "TV")[];
   readonly avValveBoundaryTauSec?: number;
 };
@@ -1456,7 +1456,8 @@ export class ModelCore {
     const ventIndex = this.idx.node[ventNode];
     const inletIndex = this.idx.q[inlet];
     const outletIndex = this.idx.q[outlet];
-    const inletQNext = this.dynamicEdgeQNextForCandidate(inlet, candidate, pack, dt, options);
+    const inletFlowState = this.transactionAvValveStateCoupledFlowState(inlet, candidate, pack, dt, options);
+    const inletQNext = this.dynamicEdgeQNextForCandidate(inlet, inletFlowState ?? candidate, pack, dt, options);
     const outletQNext = this.dynamicEdgeQNextForCandidate(outlet, candidate, pack, dt, options);
     if (includeAdjacentLoadNodes) {
       const balances = this.chamberTransactionBalances(candidate, pack, {
@@ -1481,6 +1482,56 @@ export class ModelCore {
     }
     next[inletIndex] = candidate[inletIndex] + relaxation * (inletQNext - candidate[inletIndex]);
     next[outletIndex] = candidate[outletIndex] + relaxation * (outletQNext - candidate[outletIndex]);
+    if (inletFlowState) {
+      const inletXiIndex = this.idx.xi[inlet];
+      next[inletXiIndex] = candidate[inletXiIndex] + relaxation * (inletFlowState[inletXiIndex] - candidate[inletXiIndex]);
+    }
+  }
+
+  private transactionAvValveStateCoupledFlowState(
+    valveName: "MV" | "TV",
+    candidate: Float64Array,
+    pack: PressurePack,
+    dt: number,
+    options: ModelCoreExperimentalVentricularChamberTransactionStepOptions,
+  ): Float64Array | null {
+    if (
+      options.avValveBoundaryMode !== "state-coupled-complementarity"
+      || !(options.avValveBoundaryTargetValves ?? ["MV", "TV"]).includes(valveName)
+    ) {
+      return null;
+    }
+    const flowState = Float64Array.from(candidate);
+    flowState[this.idx.xi[valveName]] = this.transactionValveOpenNext(valveName, candidate, pack, dt);
+    return flowState;
+  }
+
+  private transactionValveOpenNext(
+    valveName: ValveName,
+    x: Float64Array,
+    pack: PressurePack,
+    dt: number,
+  ): number {
+    const e = this.edges[this.edgeIndex(valveName)];
+    const xiIndex = this.idx.xi[valveName];
+    const xi = clamp(x[xiIndex], 0, 1);
+    const dP = pack.P[this.nodeIndex.get(e.up)!] - pack.P[this.nodeIndex.get(e.down)!];
+    const kOpen = (this.p as any)[`${valveName}_kOpen`] ?? e.kOpen ?? 2.0;
+    const tauOpen = (this.p as any)[`${valveName}_tauOpen`] ?? e.tauOpen ?? 0.012;
+    const tauClose = (this.p as any)[`${valveName}_tauClose`] ?? e.tauClose ?? 0.025;
+    const deadband = valveName === "MV" ? MV_PRESSURE_DEADBAND_MMHG : 0;
+    const xiEq = dP > deadband
+      ? sigmoid(kOpen * (dP - deadband - (e.dP0 ?? 0)))
+      : dP < -deadband
+        ? 0
+        : xi;
+    const q = x[this.idx.q[valveName]];
+    const forwardCoast = valveName === "AoV" && dP <= 0 && dP > -3 && q > 1 && this.valveLeakArea(valveName, e) <= 1e-9;
+    const tau = valveName === "MV"
+      ? xiEq > xi ? tauOpen : tauClose
+      : dP > 0 ? tauOpen : forwardCoast ? Math.max(tauClose, 0.012) : tauClose;
+    const alpha = 1 - Math.exp(-Math.max(dt, 1e-6) / Math.max(tau, 1e-5));
+    return clamp(xi + alpha * (xiEq - xi), 0, 1);
   }
 
   private chamberTransactionBalances(
