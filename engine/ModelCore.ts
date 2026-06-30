@@ -226,9 +226,12 @@ export type ModelCoreExperimentalVentricularChamberTransactionStepOptions = {
     | "current-diode"
     | "bounded-deceleration"
     | "state-coupled-complementarity"
-    | "tv-state-coupled-mv-pressure-refit";
+    | "tv-state-coupled-mv-pressure-refit"
+    | "tv-state-coupled-mv-pressure-fixedpoint-refit";
   readonly avValveBoundaryTargetValves?: readonly ("MV" | "TV")[];
   readonly avValveBoundaryTauSec?: number;
+  readonly avValveBoundaryPressureRefitIterations?: number;
+  readonly avValveBoundaryPressureRefitRelaxation?: number;
 };
 
 // Diagnostic-only Phase 5CC hook. This surface measured as not-supported and
@@ -1465,7 +1468,10 @@ export class ModelCore {
     const outletQNext = this.dynamicEdgeQNextForCandidate(outlet, candidate, pack, dt, options);
     if (
       chamber === "LV"
-      && options.avValveBoundaryMode === "tv-state-coupled-mv-pressure-refit"
+      && (
+        options.avValveBoundaryMode === "tv-state-coupled-mv-pressure-refit"
+        || options.avValveBoundaryMode === "tv-state-coupled-mv-pressure-fixedpoint-refit"
+      )
       && (options.avValveBoundaryTargetValves ?? ["MV", "TV"]).includes("MV")
     ) {
       inletQNext = this.refitMvFlowWithProjectedTransactionPressure(
@@ -1519,6 +1525,7 @@ export class ModelCore {
       (
         options.avValveBoundaryMode !== "state-coupled-complementarity"
         && !(options.avValveBoundaryMode === "tv-state-coupled-mv-pressure-refit" && valveName === "TV")
+        && !(options.avValveBoundaryMode === "tv-state-coupled-mv-pressure-fixedpoint-refit" && valveName === "TV")
       )
       || !(options.avValveBoundaryTargetValves ?? ["MV", "TV"]).includes(valveName)
     ) {
@@ -1567,28 +1574,37 @@ export class ModelCore {
     includeAdjacentLoadNodes: boolean,
     options: ModelCoreExperimentalVentricularChamberTransactionStepOptions,
   ): number {
-    const projected = Float64Array.from(candidate);
-    if (includeAdjacentLoadNodes) {
-      const balances = this.chamberTransactionBalances(candidate, pack, {
-        MV: inletQNext,
-        AoV: outletQNext,
-      });
-      for (const nodeName of ["LV", "LA", "Ao"] as const) {
-        const nodeIndex = this.idx.node[nodeName];
-        const node = this.nodes[this.nodeIndex.get(nodeName)!];
-        const balance = node.kind === "venousPressure"
-          ? balances[this.nodeIndex.get(nodeName)!]
-          : clamp(balances[this.nodeIndex.get(nodeName)!], -2500, 2500);
-        projected[nodeIndex] = beforeX[nodeIndex] + dt * balance;
+    const iterations = options.avValveBoundaryMode === "tv-state-coupled-mv-pressure-fixedpoint-refit"
+      ? Math.max(1, Math.floor(options.avValveBoundaryPressureRefitIterations ?? 3))
+      : 1;
+    const relaxation = clamp(options.avValveBoundaryPressureRefitRelaxation ?? 1, 0.05, 1);
+    let qCandidate = inletQNext;
+    for (let iteration = 0; iteration < iterations; iteration++) {
+      const projected = Float64Array.from(candidate);
+      if (includeAdjacentLoadNodes) {
+        const balances = this.chamberTransactionBalances(candidate, pack, {
+          MV: qCandidate,
+          AoV: outletQNext,
+        });
+        for (const nodeName of ["LV", "LA", "Ao"] as const) {
+          const nodeIndex = this.idx.node[nodeName];
+          const node = this.nodes[this.nodeIndex.get(nodeName)!];
+          const balance = node.kind === "venousPressure"
+            ? balances[this.nodeIndex.get(nodeName)!]
+            : clamp(balances[this.nodeIndex.get(nodeName)!], -2500, 2500);
+          projected[nodeIndex] = beforeX[nodeIndex] + dt * balance;
+        }
+      } else {
+        projected[this.idx.node.LV] = beforeX[this.idx.node.LV] + dt * (qCandidate - outletQNext);
       }
-    } else {
-      projected[this.idx.node.LV] = beforeX[this.idx.node.LV] + dt * (inletQNext - outletQNext);
+      projected[this.idx.q.MV] = qCandidate;
+      projected[this.idx.q.AoV] = outletQNext;
+      this.sanitizeState(projected);
+      const projectedPack = this.computePressures(projected);
+      const qRefit = this.dynamicEdgeQNextForCandidate("MV", projected, projectedPack, dt, options);
+      qCandidate += relaxation * (qRefit - qCandidate);
     }
-    projected[this.idx.q.MV] = inletQNext;
-    projected[this.idx.q.AoV] = outletQNext;
-    this.sanitizeState(projected);
-    const projectedPack = this.computePressures(projected);
-    return this.dynamicEdgeQNextForCandidate("MV", projected, projectedPack, dt, options);
+    return qCandidate;
   }
 
   private chamberTransactionBalances(
