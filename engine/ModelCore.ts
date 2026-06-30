@@ -763,17 +763,32 @@ function normalizeExperimentalVentricularChamberTransactionStep(
   const iterations = Math.floor(clamp(options.iterations ?? 4, 1, 8));
   const relaxation = clamp(options.relaxation ?? 0.7, 0.05, 1);
   const providerStateCouplingChambers = options.providerStateCouplingChambers ?? ["LV", "RV"];
+  const avValveBoundaryMode = options.avValveBoundaryMode ?? "current-diode";
+  const pressureRefitEnabled =
+    avValveBoundaryMode === "tv-state-coupled-mv-pressure-refit"
+    || avValveBoundaryMode === "tv-state-coupled-mv-pressure-fixedpoint-refit";
+  const avValveBoundaryPressureRefitIterations =
+    avValveBoundaryMode === "tv-state-coupled-mv-pressure-fixedpoint-refit"
+      ? Math.max(1, Math.floor(clamp(options.avValveBoundaryPressureRefitIterations ?? 3, 1, 8)))
+      : pressureRefitEnabled
+        ? 1
+        : undefined;
+  const avValveBoundaryPressureRefitRelaxation = pressureRefitEnabled
+    ? clamp(options.avValveBoundaryPressureRefitRelaxation ?? 1, 0.05, 1)
+    : undefined;
   return {
     mechanismId: options.mechanismId,
     iterations,
     relaxation,
     providerStateCouplingChambers,
     includeAdjacentLoadNodes: options.includeAdjacentLoadNodes === true,
-    avValveBoundaryMode: options.avValveBoundaryMode ?? "current-diode",
+    avValveBoundaryMode,
     avValveBoundaryTargetValves: options.avValveBoundaryTargetValves
       ? [...new Set(options.avValveBoundaryTargetValves)]
       : ["MV", "TV"],
     avValveBoundaryTauSec: clamp(options.avValveBoundaryTauSec ?? 0.025, 0.002, 0.12),
+    avValveBoundaryPressureRefitIterations,
+    avValveBoundaryPressureRefitRelaxation,
   };
 }
 
@@ -1578,6 +1593,7 @@ export class ModelCore {
       ? Math.max(1, Math.floor(options.avValveBoundaryPressureRefitIterations ?? 3))
       : 1;
     const relaxation = clamp(options.avValveBoundaryPressureRefitRelaxation ?? 1, 0.05, 1);
+    const baseMvQ = beforeX[this.idx.q.MV];
     let qCandidate = inletQNext;
     for (let iteration = 0; iteration < iterations; iteration++) {
       const projected = Float64Array.from(candidate);
@@ -1597,7 +1613,7 @@ export class ModelCore {
       } else {
         projected[this.idx.node.LV] = beforeX[this.idx.node.LV] + dt * (qCandidate - outletQNext);
       }
-      projected[this.idx.q.MV] = qCandidate;
+      projected[this.idx.q.MV] = baseMvQ;
       projected[this.idx.q.AoV] = outletQNext;
       this.sanitizeState(projected);
       const projectedPack = this.computePressures(projected);
@@ -2305,6 +2321,17 @@ export class ModelCore {
       baseAoVInertanceMmHgSec2PerMl: baseAoVL,
       additionalAorticRootInertanceMmHgSec2PerMl: additional,
       effectiveAoVBoundaryRootInertanceMmHgSec2PerMl: baseAoVL + additional,
+    };
+  }
+
+  debugExperimentalVentricularChamberTransactionStep():
+    ModelCoreExperimentalVentricularChamberTransactionStepOptions | null {
+    const options = this.experimentalVentricularChamberTransactionStep;
+    if (!options) return null;
+    return {
+      ...options,
+      providerStateCouplingChambers: [...(options.providerStateCouplingChambers ?? [])],
+      avValveBoundaryTargetValves: [...(options.avValveBoundaryTargetValves ?? [])],
     };
   }
 

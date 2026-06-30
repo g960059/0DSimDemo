@@ -420,6 +420,22 @@ fixed-point MV refit plus TV state coupling forward as component evidence, but
 do not wire it to runtime/default until the all-chamber transfer passes. The
 next experiment should attribute the user-0 transfer residuals without
 reopening A1/A2 or tuning valve/qDot/root/Zc/Tref/source-stress.
+Phase 5CM records `mv-fixed-point-hygiene-phase5cm-result-v1`, fixing two
+Phase 5CL hygiene gaps before any adoption or transfer claim: normalized
+`ventricularChamberTransactionStep` now preserves requested MV pressure-refit
+iterations/relaxation, and MV fixed-point refit evaluates each inner residual
+from the pre-step MV flow state rather than advancing MV flow across multiple
+physical timesteps inside one `ModelCore.step`. The runner records requested
+and effective refit settings for each variant (`fixedpoint1/2/3/3-relax07` plus
+user-0 transfer); configuration integrity is clean (`0/9` mismatches). With
+the same-step hygiene in place, the 5CL 8/8 legacy-atria signal does not
+survive: the best candidate is `tv-state-mv-fixedpoint3-relax07-legacy-atria`
+at gross 3/8 (LV/RV PV 8/8, TVF 8/8, MVF 3/8, output 7/8), while user-0
+transfer remains 0/8. Treat the Phase 5CL full-envelope pass as over-supportive
+diagnostic history, not as component evidence to carry forward. The next model
+surface must be a real chamber-owned AV valve boundary/complementarity and/or
+pressure-adapter contract redesign, not another pointwise MV refit escalation
+or LandAtrial tuning.
 
 ## Lane table
 
@@ -797,17 +813,23 @@ advances the current lane. They are evidence anchors, not current gates.
    low-preload left-sided MV residual while preserving the 5CK PV/TVF/MVF gains,
    or pivot to a broader pressure-adapter contract if that residual cannot be
    solved without fitting one point.
-   Phase 5CL then tests a two-pass MV fixed-point pressure refit. The
-   legacy-atria candidate is the first strong full-envelope pass in this lane:
-   gross 8/8, LV/RV PV 8/8, MVF 8/8, TVF 8/8, settled 8/8, and all 16 AV inflow
-   residuals clean-biphasic. This is not runtime adoption evidence because the
-   all-chamber user-0 transfer remains 6/8, failing low-preload HR75 and
-   contractility-high HR75 AV inflow points. Treat fixed-point MV refit plus TV
-   state coupling as component evidence for the ventricular/filling transaction.
-   The next surface should attribute the user-0 transfer residuals and decide
-   whether they belong to LandAtrial AV-plane/effective-wall release timing,
-   atrial boundary pressure, or a remaining right-sided valve/load boundary,
-   while preserving the 5CL legacy-atria 8/8 path.
+   Phase 5CL then tests a two-pass MV fixed-point pressure refit and initially
+   appears to produce the first 8/8 legacy-atria full-envelope pass. Phase 5CM
+   fixes the hygiene gaps before that evidence is used: normalized transaction
+   options now preserve MV pressure-refit iterations/relaxation, each fixed-point
+   inner residual is evaluated from the pre-step MV flow state rather than
+   advancing MV flow through multiple physical timesteps, and the artifact
+   records requested/effective settings for fixedpoint1/2/3/3-relax07 plus
+   user-0 transfer. Configuration integrity is clean (`0/9` mismatches), but
+   the true same-step fixed-point evidence collapses: best legacy-atria is
+   `tv-state-mv-fixedpoint3-relax07-legacy-atria` at gross 3/8 with LV/RV PV
+   8/8, TVF 8/8, MVF 3/8, output 7/8, and MV valve-diode residuals still
+   dominant; user-0 transfer is 0/8. Treat the 5CL 8/8 signal as
+   over-supportive diagnostic history, not as a path to preserve.
+   The next surface should be a real chamber-owned AV valve boundary /
+   complementarity and/or pressure-adapter contract redesign that solves MV
+   inflow in the accepted chamber state, not another pointwise MV fixed-point
+   refit escalation or a LandAtrial transfer lane.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, local LV/RV transaction
