@@ -199,6 +199,7 @@ export type ModelCoreExperimentalValveDiodeSmoothingOptions = {
   readonly targetValves: readonly ValveName[];
   readonly reverseFlowLimitMlPerSec: number;
   readonly smoothingEpsilonMlPerSec?: number;
+  readonly opennessScaledReverseFlow?: boolean;
 };
 
 export type ModelCoreExperimentalOptions = {
@@ -594,6 +595,11 @@ function localizedAorticFlowClamp(value: number, limit: number, identityFraction
   return threshold + span * shaped;
 }
 
+function smoothstep01(value: number): number {
+  const s = clamp(value, 0, 1);
+  return s * s * (3 - 2 * s);
+}
+
 function normalizeExperimentalBoundaryRootInertance(
   options: ModelCoreExperimentalBoundaryRootInertanceOptions | undefined,
 ): ModelCoreExperimentalBoundaryRootInertanceOptions | null {
@@ -639,6 +645,7 @@ function normalizeExperimentalValveDiodeSmoothing(
     targetValves,
     reverseFlowLimitMlPerSec: reverseFlowLimit,
     smoothingEpsilonMlPerSec: epsilon,
+    opennessScaledReverseFlow: options.opennessScaledReverseFlow ?? false,
   };
 }
 
@@ -2024,7 +2031,11 @@ export class ModelCore {
       const qNextPreDiode = qNext;
       if (valveName) {
         if (this.valveLeakArea(valveName, e) <= 1e-9 && qNext < 0) {
-          qNext = this.applyValveDiodeConstraint(valveName, qNext);
+          qNext = this.applyValveDiodeConstraint(
+            valveName,
+            qNext,
+            clamp(x[this.idx.xi[valveName]], 0, 1),
+          );
         }
       }
       const qNextPostDiode = qNext;
@@ -2680,10 +2691,13 @@ export class ModelCore {
     return Math.max(baseAoVL + additional, 1e-6);
   }
 
-  private applyValveDiodeConstraint(valveName: ValveName, qNext: number): number {
+  private applyValveDiodeConstraint(valveName: ValveName, qNext: number, openness01: number): number {
     const smoothing = this.experimentalValveDiodeSmoothing;
     if (smoothing?.targetValves.includes(valveName)) {
-      const floor = -Math.max(smoothing.reverseFlowLimitMlPerSec, 1e-9);
+      const opennessScale = smoothing.opennessScaledReverseFlow
+        ? smoothstep01(openness01)
+        : 1;
+      const floor = -Math.max(smoothing.reverseFlowLimitMlPerSec, 1e-9) * opennessScale;
       const epsilon = Math.max(smoothing.smoothingEpsilonMlPerSec ?? 0.1, 1e-9);
       const qLimited = smoothMax(qNext, floor, epsilon);
       if (qLimited > qNext + 1e-9) {
