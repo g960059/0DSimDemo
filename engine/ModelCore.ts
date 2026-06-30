@@ -2397,22 +2397,32 @@ export class ModelCore {
     if (chamber === "LA") {
       return {
         LAAvPlaneDescent01: geometry.avPlaneDescent01,
+        LAAvPlaneDescentVelocity01PerSec: geometry.avPlaneDescentVelocity01PerSec,
         LAAvPlaneEffectiveVolumeCorrectionMl: geometry.effectiveVolumeCorrectionMl,
+        LAAvPlaneEffectiveVolumeCorrectionVelocityMlPerSec: geometry.effectiveVolumeCorrectionVelocityMlPerSec,
         LAWallVolumeMl: geometry.wallVolumeMl,
+        LAWallVolumeWithoutAvPlaneMl: geometry.wallVolumeWithoutAvPlaneMl,
         LAWallLambda: geometry.lambda,
         LAWallLambdaWithoutAvPlane: geometry.lambdaWithoutAvPlane,
+        LAWallLambdaAvPlaneDelta: geometry.lambdaAvPlaneDelta,
         LAWallEngineeringStrain: geometry.wallEngineeringStrain,
         LAWallEngineeringStrainWithoutAvPlane: geometry.wallEngineeringStrainWithoutAvPlane,
+        LAWallEngineeringStrainAvPlaneDelta: geometry.wallEngineeringStrainAvPlaneDelta,
       };
     }
     return {
       RAAvPlaneDescent01: geometry.avPlaneDescent01,
+      RAAvPlaneDescentVelocity01PerSec: geometry.avPlaneDescentVelocity01PerSec,
       RAAvPlaneEffectiveVolumeCorrectionMl: geometry.effectiveVolumeCorrectionMl,
+      RAAvPlaneEffectiveVolumeCorrectionVelocityMlPerSec: geometry.effectiveVolumeCorrectionVelocityMlPerSec,
       RAWallVolumeMl: geometry.wallVolumeMl,
+      RAWallVolumeWithoutAvPlaneMl: geometry.wallVolumeWithoutAvPlaneMl,
       RAWallLambda: geometry.lambda,
       RAWallLambdaWithoutAvPlane: geometry.lambdaWithoutAvPlane,
+      RAWallLambdaAvPlaneDelta: geometry.lambdaAvPlaneDelta,
       RAWallEngineeringStrain: geometry.wallEngineeringStrain,
       RAWallEngineeringStrainWithoutAvPlane: geometry.wallEngineeringStrainWithoutAvPlane,
+      RAWallEngineeringStrainAvPlaneDelta: geometry.wallEngineeringStrainAvPlaneDelta,
     };
   }
 

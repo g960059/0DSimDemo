@@ -34,6 +34,60 @@ describe("ModelCore atrial pressure decomposition readbacks", () => {
       ),
     ).toBeLessThan(1e-9);
   });
+
+  it("exposes finite LA/RA AV-plane effective-wall geometry readbacks", () => {
+    const core = new ModelCore(DEFAULT_PARAMS);
+    core.step(0.001);
+    const sample = core.sample();
+
+    for (const key of [
+      "LAAvPlaneDescent01",
+      "LAAvPlaneDescentVelocity01PerSec",
+      "LAAvPlaneEffectiveVolumeCorrectionMl",
+      "LAAvPlaneEffectiveVolumeCorrectionVelocityMlPerSec",
+      "LAWallVolumeMl",
+      "LAWallVolumeWithoutAvPlaneMl",
+      "LAWallLambda",
+      "LAWallLambdaWithoutAvPlane",
+      "LAWallLambdaAvPlaneDelta",
+      "LAWallEngineeringStrain",
+      "LAWallEngineeringStrainWithoutAvPlane",
+      "LAWallEngineeringStrainAvPlaneDelta",
+      "RAAvPlaneDescent01",
+      "RAAvPlaneDescentVelocity01PerSec",
+      "RAAvPlaneEffectiveVolumeCorrectionMl",
+      "RAAvPlaneEffectiveVolumeCorrectionVelocityMlPerSec",
+      "RAWallVolumeMl",
+      "RAWallVolumeWithoutAvPlaneMl",
+      "RAWallLambda",
+      "RAWallLambdaWithoutAvPlane",
+      "RAWallLambdaAvPlaneDelta",
+      "RAWallEngineeringStrain",
+      "RAWallEngineeringStrainWithoutAvPlane",
+      "RAWallEngineeringStrainAvPlaneDelta",
+    ] as const) {
+      expectFinite(sample, key);
+    }
+
+    expect(value(sample, "LAWallVolumeWithoutAvPlaneMl")).toBeGreaterThanOrEqual(value(sample, "LAWallVolumeMl"));
+    expect(value(sample, "RAWallVolumeWithoutAvPlaneMl")).toBeGreaterThanOrEqual(value(sample, "RAWallVolumeMl"));
+    expect(value(sample, "LAAvPlaneEffectiveVolumeCorrectionMl")).toBeCloseTo(
+      Math.max(0, sample.VLA - value(sample, "LAWallVolumeMl")),
+      9,
+    );
+    expect(value(sample, "RAAvPlaneEffectiveVolumeCorrectionMl")).toBeCloseTo(
+      Math.max(0, sample.VRA - value(sample, "RAWallVolumeMl")),
+      9,
+    );
+    expect(value(sample, "LAWallLambdaAvPlaneDelta")).toBeCloseTo(
+      value(sample, "LAWallLambdaWithoutAvPlane") - value(sample, "LAWallLambda"),
+      12,
+    );
+    expect(value(sample, "RAWallLambdaAvPlaneDelta")).toBeCloseTo(
+      value(sample, "RAWallLambdaWithoutAvPlane") - value(sample, "RAWallLambda"),
+      12,
+    );
+  });
 });
 
 function expectFinite(sample: SimSample, key: keyof SimSample): void {
