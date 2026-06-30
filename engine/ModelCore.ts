@@ -216,6 +216,17 @@ export type ModelCoreExperimentalCoupledBackwardEulerStepOptions = {
   readonly providerStateCouplingChambers?: readonly Chamber[];
 };
 
+// Diagnostic-only Phase 5CC hook. This surface measured as not-supported and
+// must not be used as a runtime/default candidate.
+export type ModelCoreExperimentalUnsupportedDiagnosticCoupledNewtonStepOptions = {
+  readonly mechanismId: string;
+  readonly iterations?: number;
+  readonly relaxation?: number;
+  readonly providerStateCouplingChambers?: readonly Chamber[];
+  readonly includeAtrialVolumes?: boolean;
+  readonly includeValveOpenStates?: boolean;
+};
+
 export type ModelCoreExperimentalTemporalSubstepOptions = {
   readonly mechanismId: string;
   readonly subdivisions: number;
@@ -227,6 +238,8 @@ export type ModelCoreExperimentalOptions = {
   readonly valveDiodeSmoothing?: ModelCoreExperimentalValveDiodeSmoothingOptions;
   readonly graphCoupledStep?: ModelCoreExperimentalGraphCoupledStepOptions;
   readonly coupledBackwardEulerStep?: ModelCoreExperimentalCoupledBackwardEulerStepOptions;
+  /** Unsupported diagnostic hook retained only to reproduce Phase 5CC no-go evidence. */
+  readonly unsupportedDiagnosticCoupledNewtonStep?: ModelCoreExperimentalUnsupportedDiagnosticCoupledNewtonStepOptions;
   readonly temporalSubstep?: ModelCoreExperimentalTemporalSubstepOptions;
   readonly runtimeParameterPatch?: ParameterPatch;
 };
@@ -721,6 +734,36 @@ function normalizeExperimentalCoupledBackwardEulerStep(
   };
 }
 
+function normalizeExperimentalUnsupportedDiagnosticCoupledNewtonStep(
+  options: ModelCoreExperimentalUnsupportedDiagnosticCoupledNewtonStepOptions | undefined,
+): ModelCoreExperimentalUnsupportedDiagnosticCoupledNewtonStepOptions | null {
+  if (!options) return null;
+  if (!options.mechanismId.trim()) {
+    throw new Error("Unsupported diagnostic coupled Newton step requires a mechanismId.");
+  }
+  if (!options.mechanismId.includes("unsupported-diagnostic")) {
+    throw new Error("Unsupported diagnostic coupled Newton step must include 'unsupported-diagnostic' in its mechanismId.");
+  }
+  const iterations = Math.floor(clamp(options.iterations ?? 4, 1, 8));
+  const relaxation = clamp(options.relaxation ?? 0.8, 0.1, 1);
+  const providerStateCouplingChambers: readonly Chamber[] = options.providerStateCouplingChambers
+    ? [...new Set(options.providerStateCouplingChambers)]
+    : ["LV", "RV"];
+  for (const chamber of providerStateCouplingChambers) {
+    if (chamber !== "LV" && chamber !== "RV" && chamber !== "LA" && chamber !== "RA") {
+      throw new Error(`Experimental coupled Newton step received unknown chamber '${chamber}'.`);
+    }
+  }
+  return {
+    mechanismId: options.mechanismId,
+    iterations,
+    relaxation,
+    providerStateCouplingChambers,
+    includeAtrialVolumes: options.includeAtrialVolumes ?? true,
+    includeValveOpenStates: options.includeValveOpenStates ?? true,
+  };
+}
+
 function normalizeExperimentalTemporalSubstep(
   options: ModelCoreExperimentalTemporalSubstepOptions | undefined,
 ): ModelCoreExperimentalTemporalSubstepOptions | null {
@@ -751,6 +794,7 @@ export class ModelCore {
   private readonly experimentalValveDiodeSmoothing: ModelCoreExperimentalValveDiodeSmoothingOptions | null;
   private readonly experimentalGraphCoupledStep: ModelCoreExperimentalGraphCoupledStepOptions | null;
   private readonly experimentalCoupledBackwardEulerStep: ModelCoreExperimentalCoupledBackwardEulerStepOptions | null;
+  private readonly experimentalUnsupportedDiagnosticCoupledNewtonStep: ModelCoreExperimentalUnsupportedDiagnosticCoupledNewtonStepOptions | null;
   private readonly experimentalTemporalSubstep: ModelCoreExperimentalTemporalSubstepOptions | null;
   private readonly experimentalRuntimeParameterPatch: ParameterPatch | null;
   private readonly experimentalActiveSourceProviderStates: Partial<Record<Chamber, unknown>> = {};
@@ -831,6 +875,9 @@ export class ModelCore {
     );
     this.experimentalCoupledBackwardEulerStep = normalizeExperimentalCoupledBackwardEulerStep(
       experimentalOptions.coupledBackwardEulerStep,
+    );
+    this.experimentalUnsupportedDiagnosticCoupledNewtonStep = normalizeExperimentalUnsupportedDiagnosticCoupledNewtonStep(
+      experimentalOptions.unsupportedDiagnosticCoupledNewtonStep,
     );
     this.experimentalTemporalSubstep = normalizeExperimentalTemporalSubstep(
       experimentalOptions.temporalSubstep,
@@ -1214,7 +1261,9 @@ export class ModelCore {
       this.expectedTBV = clamp(this.expectedTBV + netFlowMlPerS * dt, 1000, 12000);
     }
 
-    if (this.experimentalCoupledBackwardEulerStep && beforeProviderCommitX) {
+    if (this.experimentalUnsupportedDiagnosticCoupledNewtonStep && beforeProviderCommitX) {
+      this.stepUnsupportedDiagnosticCoupledNewtonProviderState(dt, beforeProviderCommitT, beforeProviderCommitX);
+    } else if (this.experimentalCoupledBackwardEulerStep && beforeProviderCommitX) {
       this.stepCoupledBackwardEulerProviderState(dt, beforeProviderCommitT, beforeProviderCommitX);
     } else if (this.experimentalGraphCoupledStep && beforeProviderCommitX) {
       this.stepGraphCoupledProviderState(dt, beforeProviderCommitT, beforeProviderCommitX);
@@ -1277,6 +1326,147 @@ export class ModelCore {
     this.x.set(candidate);
     this.t += dt;
     this.sanitizeState(this.x);
+  }
+
+  private stepUnsupportedDiagnosticCoupledNewtonProviderState(
+    dt: number,
+    beforeProviderCommitT: number,
+    beforeProviderCommitX: Float64Array,
+  ): void {
+    const options = this.experimentalUnsupportedDiagnosticCoupledNewtonStep;
+    if (!options) throw new Error("Missing coupled Newton step options.");
+    const baseProviderState = this.snapshotExperimentalActiveProviderStates();
+    const k0 = this.rhs(beforeProviderCommitX);
+    let candidate = new Float64Array(beforeProviderCommitX.length);
+    for (let i = 0; i < beforeProviderCommitX.length; i++) {
+      candidate[i] = beforeProviderCommitX[i] + dt * k0[i];
+    }
+    this.sanitizeState(candidate);
+
+    const unknownIndices = this.unsupportedDiagnosticCoupledNewtonUnknownIndices(options);
+    const chamberFilter = new Set<Chamber>(options.providerStateCouplingChambers ?? ["LV", "RV"]);
+    const iterations = options.iterations ?? 4;
+    const relaxation = options.relaxation ?? 0.8;
+    for (let iteration = 0; iteration < iterations; iteration++) {
+      const residual = this.unsupportedDiagnosticCoupledNewtonResidual(
+        candidate,
+        beforeProviderCommitT,
+        beforeProviderCommitX,
+        dt,
+        chamberFilter,
+        baseProviderState,
+        unknownIndices,
+      );
+      const residualNorm = maxAbs(residual);
+      if (residualNorm < 1e-3) break;
+      const jacobian = this.unsupportedDiagnosticCoupledNewtonJacobian(
+        candidate,
+        beforeProviderCommitT,
+        beforeProviderCommitX,
+        dt,
+        chamberFilter,
+        baseProviderState,
+        unknownIndices,
+        residual,
+      );
+      const delta = solveLinearSystem(jacobian, residual.map((value) => -value));
+      if (!delta) break;
+      const next = new Float64Array(candidate);
+      for (let i = 0; i < unknownIndices.length; i++) {
+        next[unknownIndices[i]] += relaxation * clamp(delta[i], -20, 20);
+      }
+      this.sanitizeState(next);
+      candidate = next;
+    }
+
+    this.restoreExperimentalActiveProviderStates(baseProviderState);
+    this.x.set(candidate);
+    this.t += dt;
+    this.sanitizeState(this.x);
+  }
+
+  private unsupportedDiagnosticCoupledNewtonUnknownIndices(
+    options: ModelCoreExperimentalUnsupportedDiagnosticCoupledNewtonStepOptions,
+  ): readonly number[] {
+    const indices = [
+      this.idx.node.LV,
+      this.idx.node.RV,
+      ...(options.includeAtrialVolumes === false ? [] : [this.idx.node.LA, this.idx.node.RA]),
+      this.idx.q.MV,
+      this.idx.q.AoV,
+      this.idx.q.TV,
+      this.idx.q.PV,
+      ...(options.includeValveOpenStates === false
+        ? []
+        : [this.idx.xi.MV, this.idx.xi.AoV, this.idx.xi.TV, this.idx.xi.PV]),
+    ];
+    return [...new Set(indices)];
+  }
+
+  private unsupportedDiagnosticCoupledNewtonResidual(
+    candidate: Float64Array,
+    beforeProviderCommitT: number,
+    beforeProviderCommitX: Float64Array,
+    dt: number,
+    chamberFilter: Set<Chamber>,
+    baseProviderState: Partial<Record<Chamber, { state: unknown; version: number }>>,
+    unknownIndices: readonly number[],
+  ): number[] {
+    this.restoreExperimentalActiveProviderStates(baseProviderState);
+    const provisionalProviderState = this.computeExperimentalActiveProviderStateCommits(
+      dt,
+      beforeProviderCommitT,
+      beforeProviderCommitX,
+      beforeProviderCommitT + dt,
+      candidate,
+      chamberFilter,
+      baseProviderState,
+    );
+    this.restoreExperimentalActiveProviderStates(provisionalProviderState);
+    const dy = this.rhs(candidate);
+    this.restoreExperimentalActiveProviderStates(baseProviderState);
+    return unknownIndices.map((index) => candidate[index] - beforeProviderCommitX[index] - dt * dy[index]);
+  }
+
+  private unsupportedDiagnosticCoupledNewtonJacobian(
+    candidate: Float64Array,
+    beforeProviderCommitT: number,
+    beforeProviderCommitX: Float64Array,
+    dt: number,
+    chamberFilter: Set<Chamber>,
+    baseProviderState: Partial<Record<Chamber, { state: unknown; version: number }>>,
+    unknownIndices: readonly number[],
+    baseResidual: readonly number[],
+  ): number[][] {
+    return unknownIndices.map((index) => {
+      const step = finiteDifferenceStep(candidate[index]);
+      let perturbed = new Float64Array(candidate);
+      perturbed[index] += step;
+      this.sanitizeState(perturbed);
+      let actualStep = perturbed[index] - candidate[index];
+      if (Math.abs(actualStep) < 1e-12) {
+        perturbed = new Float64Array(candidate);
+        perturbed[index] -= step;
+        this.sanitizeState(perturbed);
+        actualStep = perturbed[index] - candidate[index];
+      }
+      if (Math.abs(actualStep) < 1e-12) {
+        return baseResidual.map(() => 0);
+      }
+      const perturbedResidual = this.unsupportedDiagnosticCoupledNewtonResidual(
+        perturbed,
+        beforeProviderCommitT,
+        beforeProviderCommitX,
+        dt,
+        chamberFilter,
+        baseProviderState,
+        unknownIndices,
+      );
+      return perturbedResidual.map((value, row) => (value - baseResidual[row]) / actualStep);
+    }).reduce((rows, column, columnIndex) => {
+      for (let row = 0; row < column.length; row++) rows[row][columnIndex] = column[row];
+      return rows;
+    }, Array.from({ length: unknownIndices.length }, () => Array(unknownIndices.length).fill(0)));
   }
 
   private stepGraphCoupledProviderState(
@@ -3647,6 +3837,9 @@ export class ModelCore {
       ...(this.experimentalCoupledBackwardEulerStep
         ? { coupledBackwardEulerStep: this.experimentalCoupledBackwardEulerStep }
         : {}),
+      ...(this.experimentalUnsupportedDiagnosticCoupledNewtonStep
+        ? { unsupportedDiagnosticCoupledNewtonStep: this.experimentalUnsupportedDiagnosticCoupledNewtonStep }
+        : {}),
       ...(this.experimentalTemporalSubstep
         ? { temporalSubstep: this.experimentalTemporalSubstep }
         : {}),
@@ -4000,4 +4193,39 @@ function activePressureComponentMmHg(terms: ChamberPressureTerms | undefined): n
   const sigmaTotal = terms.sigmaPas + terms.sigmaAct;
   if (Math.abs(sigmaTotal) <= 1e-12) return 0;
   return terms.pressureUnclampedMmHg * terms.sigmaAct / sigmaTotal;
+}
+
+function maxAbs(values: readonly number[]): number {
+  return values.reduce((max, value) => Math.max(max, Math.abs(value)), 0);
+}
+
+function finiteDifferenceStep(value: number): number {
+  return Math.max(1e-4, Math.abs(value) * 1e-5);
+}
+
+function solveLinearSystem(matrix: readonly (readonly number[])[], rhs: readonly number[]): number[] | null {
+  const n = rhs.length;
+  if (matrix.length !== n || matrix.some((row) => row.length !== n)) return null;
+  const a = matrix.map((row, i) => [...row, rhs[i]]);
+  for (let col = 0; col < n; col++) {
+    let pivot = col;
+    for (let row = col + 1; row < n; row++) {
+      if (Math.abs(a[row][col]) > Math.abs(a[pivot][col])) pivot = row;
+    }
+    if (Math.abs(a[pivot][col]) < 1e-10) return null;
+    if (pivot !== col) {
+      const tmp = a[col];
+      a[col] = a[pivot];
+      a[pivot] = tmp;
+    }
+    const denom = a[col][col];
+    for (let j = col; j <= n; j++) a[col][j] /= denom;
+    for (let row = 0; row < n; row++) {
+      if (row === col) continue;
+      const factor = a[row][col];
+      if (Math.abs(factor) < 1e-14) continue;
+      for (let j = col; j <= n; j++) a[row][j] -= factor * a[col][j];
+    }
+  }
+  return a.map((row) => row[n]);
 }
