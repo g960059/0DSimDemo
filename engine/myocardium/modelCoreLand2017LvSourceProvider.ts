@@ -52,6 +52,9 @@ export type ModelCoreLand2017LvCalciumScaledSourceProviderOptions =
   };
 
 export type ModelCoreLand2017LvSourceProviderInstrumentation = {
+  maxTraceSamples: number;
+  traceDroppedCount: number;
+  traceSamples: ModelCoreLand2017LvSourceProviderTraceSample[];
   initialInternal: number;
   initialProviderState: number;
   cloneProviderState: number;
@@ -77,6 +80,52 @@ export type ModelCoreLand2017LvSourceProviderInstrumentation = {
   lastFailureReason: string | null;
   sourcePathAudit: ModelCoreLand2017LvSignalAudit;
   commitPathAudit: ModelCoreLand2017LvSignalAudit;
+};
+
+export type ModelCoreLand2017LvSourceProviderInstrumentationOptions = {
+  readonly maxTraceSamples?: number;
+};
+
+export type ModelCoreLand2017LvSourceProviderTraceSample = {
+  readonly chamber: string;
+  readonly commitIndex: number;
+  readonly providerStateVersion: number;
+  readonly dtSec: number;
+  readonly before: ModelCoreLand2017LvProviderStepTraceSnapshot;
+  readonly after: ModelCoreLand2017LvProviderStepTraceSnapshot;
+  readonly previousFreeCalciumUM: number;
+  readonly freeCalciumUM: number;
+  readonly previousLandState: readonly number[];
+  readonly nextLandState: readonly number[] | null;
+  readonly previousFiberEngineeringStrain: number;
+  readonly stageFiberEngineeringStrain: number;
+  readonly previousRawFiberEngineeringStrain: number;
+  readonly stageRawFiberEngineeringStrain: number;
+  readonly fiberEngineeringStrainRatePerSec: number;
+  readonly rawFiberEngineeringStrainRatePerSec: number;
+  readonly zetaDriveFiberEngineeringStrainRatePerSec: number | null;
+  readonly velocityLengthGate: number | null;
+  readonly velocityLengthRateLimitHit01: number | null;
+  readonly zetaDriveGate: number | null;
+  readonly zetaDriveRateLimitHit01: number | null;
+  readonly solverOk: boolean;
+  readonly solverResidualNorm: number | null;
+  readonly solverIterations: number | null;
+  readonly solverFailureReason: string | null;
+  readonly sourceActiveFiberStressPa: number | null;
+  readonly stabilizationStiffnessPa: number | null;
+  readonly sourceActivePowerDensityWPerM3: number | null;
+  readonly boundFraction: number | null;
+  readonly minimumPopulation: number | null;
+  readonly stateConservationResidual: number | null;
+  readonly finiteHealth: boolean | null;
+};
+
+export type ModelCoreLand2017LvProviderStepTraceSnapshot = {
+  readonly tSec: number;
+  readonly phi: number;
+  readonly rawVolumeMl: number;
+  readonly effectiveVolumeMl: number;
 };
 
 export type ModelCoreLand2017LvProviderState = {
@@ -133,9 +182,18 @@ export type ModelCoreLand2017LvSignalAudit = {
   stateRanges: Record<string, ModelCoreLand2017LvRangeAudit>;
 };
 
-export function createModelCoreLand2017LvSourceProviderInstrumentation():
+export function createModelCoreLand2017LvSourceProviderInstrumentation(
+  options: ModelCoreLand2017LvSourceProviderInstrumentationOptions = {},
+):
 ModelCoreLand2017LvSourceProviderInstrumentation {
+  const maxTraceSamples =
+    Number.isFinite(options.maxTraceSamples) && (options.maxTraceSamples ?? 0) > 0
+      ? Math.floor(options.maxTraceSamples ?? 0)
+      : 0;
   return {
+    maxTraceSamples,
+    traceDroppedCount: 0,
+    traceSamples: [],
     initialInternal: 0,
     initialProviderState: 0,
     cloneProviderState: 0,
@@ -223,8 +281,10 @@ export function land2017LvSourceOnlyProvider(
       return terms;
     },
     commitProviderStateAfterStep: ({
+      chamber,
       activeModel,
       previousProviderState,
+      previousProviderStateVersion,
       stepDtSec,
       beforeStep,
       afterStep,
@@ -304,6 +364,22 @@ export function land2017LvSourceOnlyProvider(
             substeps: 1,
           }, parameterSet)
           : solveLand2017Sdirk2Step(previous.landState, landInput, solveOptions, parameterSet);
+      recordLandCommitTraceSample(instrumentation, {
+        chamber,
+        commitIndex: previous.commitCount + 1,
+        providerStateVersion: previousProviderStateVersion,
+        dtSec: stepDtSec,
+        beforeStep,
+        afterStep,
+        previousFreeCalciumUM,
+        landInput,
+        previousLandState: previous.landState,
+        solved,
+        previousFiberEngineeringStrain,
+        stageRawFiberEngineeringStrain,
+        previousRawFiberEngineeringStrain,
+        stagedKinematics,
+      });
       if (commitScheme === "SDIRK2") {
         recordSdirk2SolveInstrumentation(instrumentation, solved);
       }
@@ -790,6 +866,88 @@ function lerp(a: number, b: number, t: number): number {
 
 function finiteOrZero(value: number): number {
   return Number.isFinite(value) ? value : 0;
+}
+
+function finiteOrNull(value: number | undefined): number | null {
+  return value !== undefined && Number.isFinite(value) ? value : null;
+}
+
+function recordLandCommitTraceSample(
+  instrumentation: ModelCoreLand2017LvSourceProviderInstrumentation,
+  input: {
+    readonly chamber: string;
+    readonly commitIndex: number;
+    readonly providerStateVersion: number;
+    readonly dtSec: number;
+    readonly beforeStep: ModelCoreActiveSourceProviderStepSnapshot;
+    readonly afterStep: ModelCoreActiveSourceProviderStepSnapshot;
+    readonly previousFreeCalciumUM: number;
+    readonly landInput: LandStepInput;
+    readonly previousLandState: Float64Array;
+    readonly solved: Land2017StepSolveResult;
+    readonly previousFiberEngineeringStrain: number;
+    readonly stageRawFiberEngineeringStrain: number;
+    readonly previousRawFiberEngineeringStrain: number;
+    readonly stagedKinematics: LandCallInput;
+  },
+): void {
+  if (instrumentation.maxTraceSamples <= 0) return;
+  if (instrumentation.traceSamples.length >= instrumentation.maxTraceSamples) {
+    instrumentation.traceDroppedCount += 1;
+    return;
+  }
+  const output = input.solved.output;
+  const nextState = input.solved.ok ? Array.from(input.solved.nextState) : null;
+  instrumentation.traceSamples.push({
+    chamber: input.chamber,
+    commitIndex: input.commitIndex,
+    providerStateVersion: input.providerStateVersion,
+    dtSec: input.dtSec,
+    before: traceSnapshot(input.beforeStep),
+    after: traceSnapshot(input.afterStep),
+    previousFreeCalciumUM: input.previousFreeCalciumUM,
+    freeCalciumUM: input.landInput.freeCalciumUM,
+    previousLandState: Array.from(input.previousLandState),
+    nextLandState: nextState,
+    previousFiberEngineeringStrain: input.previousFiberEngineeringStrain,
+    stageFiberEngineeringStrain: input.landInput.stageFiberEngineeringStrain,
+    previousRawFiberEngineeringStrain: input.previousRawFiberEngineeringStrain,
+    stageRawFiberEngineeringStrain: input.stageRawFiberEngineeringStrain,
+    fiberEngineeringStrainRatePerSec:
+      (input.landInput.stageFiberEngineeringStrain - input.landInput.previousFiberEngineeringStrain)
+      / Math.max(input.landInput.dtSec, 1e-9),
+    rawFiberEngineeringStrainRatePerSec:
+      (input.stageRawFiberEngineeringStrain - input.previousRawFiberEngineeringStrain)
+      / Math.max(input.landInput.dtSec, 1e-9),
+    zetaDriveFiberEngineeringStrainRatePerSec:
+      input.stagedKinematics.zetaDriveFiberEngineeringStrainRatePerSec ?? null,
+    velocityLengthGate: input.stagedKinematics.velocityLengthGate ?? null,
+    velocityLengthRateLimitHit01: input.stagedKinematics.velocityLengthRateLimitHit01 ?? null,
+    zetaDriveGate: input.stagedKinematics.zetaDriveGate ?? null,
+    zetaDriveRateLimitHit01: input.stagedKinematics.zetaDriveRateLimitHit01 ?? null,
+    solverOk: input.solved.ok,
+    solverResidualNorm: finiteOrNull(input.solved.residualNorm),
+    solverIterations: Number.isFinite(input.solved.iterations) ? input.solved.iterations : null,
+    solverFailureReason: input.solved.failureReason ?? null,
+    sourceActiveFiberStressPa: output ? finiteOrNull(output.sourceActiveFiberStressPa) : null,
+    stabilizationStiffnessPa: output ? finiteOrNull(output.stabilizationStiffnessPa) : null,
+    sourceActivePowerDensityWPerM3: output ? finiteOrNull(output.sourceActivePowerDensityWPerM3) : null,
+    boundFraction: output ? landBoundFractionFromStateLike(input.solved.nextState) : null,
+    minimumPopulation: output ? finiteOrNull(output.health.minimumPopulation) : null,
+    stateConservationResidual: output ? finiteOrNull(output.health.stateConservationResidual) : null,
+    finiteHealth: output ? output.health.finite : null,
+  });
+}
+
+function traceSnapshot(
+  snapshot: ModelCoreActiveSourceProviderStepSnapshot,
+): ModelCoreLand2017LvProviderStepTraceSnapshot {
+  return {
+    tSec: snapshot.tSec,
+    phi: snapshot.phi,
+    rawVolumeMl: snapshot.rawVolumeMl,
+    effectiveVolumeMl: snapshot.effectiveVolumeMl,
+  };
 }
 
 function recordSdirk2SolveInstrumentation(

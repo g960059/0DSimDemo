@@ -1,0 +1,895 @@
+{
+  "schemaVersion": 1,
+  "id": "ventricular-source-state-coupled-step-phase5bw-result-v1",
+  "phase": "5BW",
+  "bench": {
+    "mode": "live-land-source-state-trace-plus-source-state-series-elastic-replay",
+    "pointSource": "normal-hr75-hr90-preload-afterload-contractility-representative-envelope",
+    "liveClosure": "current-user0-lv-rv-la-ra-landatrial-plus-sourced-root-zc",
+    "components": [
+      "series-elastic-fiber-adapter-v1"
+    ],
+    "claimBoundary": "source-state-diagnostic-only-no-runtime-default-no-closed-loop-morphology-claim"
+  },
+  "points": [
+    {
+      "id": "normal-hr75",
+      "hrBpm": 75,
+      "targetTBVMl": 5600,
+      "runtimeParams": {
+        "HR": 75
+      }
+    },
+    {
+      "id": "normal-hr90",
+      "hrBpm": 90,
+      "targetTBVMl": 5600,
+      "runtimeParams": {
+        "HR": 90
+      }
+    },
+    {
+      "id": "low-preload-hr75",
+      "hrBpm": 75,
+      "targetTBVMl": 4800,
+      "runtimeParams": {
+        "HR": 75
+      }
+    },
+    {
+      "id": "high-preload-hr75",
+      "hrBpm": 75,
+      "targetTBVMl": 6200,
+      "runtimeParams": {
+        "HR": 75
+      }
+    },
+    {
+      "id": "systemic-afterload-high-hr75",
+      "hrBpm": 75,
+      "targetTBVMl": 5600,
+      "runtimeParams": {
+        "HR": 75,
+        "systemicResistance": 1.25
+      }
+    },
+    {
+      "id": "pulmonary-afterload-high-hr75",
+      "hrBpm": 75,
+      "targetTBVMl": 5600,
+      "runtimeParams": {
+        "HR": 75,
+        "pulmonaryResistance": 0.8
+      }
+    },
+    {
+      "id": "contractility-low-hr75",
+      "hrBpm": 75,
+      "targetTBVMl": 5600,
+      "runtimeParams": {
+        "HR": 75,
+        "contractility": 0.8
+      }
+    },
+    {
+      "id": "contractility-high-hr75",
+      "hrBpm": 75,
+      "targetTBVMl": 5600,
+      "runtimeParams": {
+        "HR": 75,
+        "contractility": 1.2
+      }
+    }
+  ],
+  "sides": [
+    "LV",
+    "RV"
+  ],
+  "seriesElastic": {
+    "mechanismId": "series-elastic-fiber-adapter-v1",
+    "seriesStiffnessPa": 600000,
+    "seriesDampingPaSec": 3500,
+    "maxLambdaSeAbs": 0.08
+  },
+  "livePointResults": [
+    {
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "sampleCount": 1201,
+      "finalBeatSampleCount": 400,
+      "metrics": {
+        "AoPMean": 78.851705,
+        "PAPMean": 16.9296,
+        "CO_L": 4.881671,
+        "CO_R": 4.87084,
+        "LAPMean": 8.691782,
+        "RAPMean": 4.290624,
+        "EF_LApprox": 0.498792,
+        "EF_RApprox": 0.412964
+      },
+      "morphologyStatus": "failed",
+      "morphologyBadges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "morphologyMessages": [
+        "LV PV loop: LV systolic PV-loop dome is not single-peaked; this can produce a double-humped systolic loop.",
+        "RV PV loop: RV systolic PV-loop dome is not single-peaked; this can produce a double-humped systolic loop.",
+        "MVF: MV inflow is not cleanly biphasic; extra or missing waves are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "traceDropped": {
+        "LV": 0,
+        "RV": 0
+      },
+      "sideSummaries": [
+        {
+          "side": "LV",
+          "measured": true,
+          "finalBeatTraceSamples": 402,
+          "livePvBadge": "failed",
+          "liveAvFlowBadge": "failed",
+          "livePressureDomeOk": false,
+          "livePressurePeakCount": 2,
+          "livePressureTroughCount": 1,
+          "livePressureRoughness": 3.078106,
+          "sourceStressPeakCount": 2,
+          "sourceStressTroughCount": 1,
+          "sourceStressRoughness": 2.438778,
+          "sourceStressFiniteFraction": 1,
+          "calciumPeakCount": 0,
+          "fiberStrainPeakCount": 0,
+          "fiberStrainTroughCount": 0,
+          "rawFiberStrainPeakCount": 0,
+          "rawFiberStrainTroughCount": 0,
+          "seStressPeakCount": 2,
+          "seStressTroughCount": 0,
+          "seStressRoughness": 4.531595,
+          "seFailureFraction": 0,
+          "seMaxAbsSigmaMismatchPa": 498.222379,
+          "seMaxElasticEnergyJm3": 142.502078,
+          "sourceVsSePeakRatio": 0.783928,
+          "interpretation": "source-state-stress-also-multi-peaked"
+        },
+        {
+          "side": "RV",
+          "measured": true,
+          "finalBeatTraceSamples": 402,
+          "livePvBadge": "failed",
+          "liveAvFlowBadge": "ok",
+          "livePressureDomeOk": false,
+          "livePressurePeakCount": 2,
+          "livePressureTroughCount": 1,
+          "livePressureRoughness": 3.853262,
+          "sourceStressPeakCount": 1,
+          "sourceStressTroughCount": 0,
+          "sourceStressRoughness": 2.514156,
+          "sourceStressFiniteFraction": 1,
+          "calciumPeakCount": 0,
+          "fiberStrainPeakCount": 0,
+          "fiberStrainTroughCount": 0,
+          "rawFiberStrainPeakCount": 0,
+          "rawFiberStrainTroughCount": 0,
+          "seStressPeakCount": 0,
+          "seStressTroughCount": 1,
+          "seStressRoughness": 4.285381,
+          "seFailureFraction": 0,
+          "seMaxAbsSigmaMismatchPa": 499.551765,
+          "seMaxElasticEnergyJm3": 154.892487,
+          "sourceVsSePeakRatio": 0.793611,
+          "interpretation": "source-state-stress-single-peaked-while-pv-fails"
+        }
+      ],
+      "errorMessage": null
+    },
+    {
+      "pointId": "normal-hr90",
+      "settled": false,
+      "settleReason": "cap",
+      "healthStatus": "ok",
+      "sampleCount": 0,
+      "finalBeatSampleCount": 0,
+      "metrics": null,
+      "morphologyStatus": "not-measured",
+      "morphologyBadges": null,
+      "morphologyMessages": [
+        "Morphology check not measured."
+      ],
+      "traceDropped": {
+        "LV": 0,
+        "RV": 0
+      },
+      "sideSummaries": [
+        {
+          "side": "LV",
+          "measured": false,
+          "finalBeatTraceSamples": 0,
+          "livePvBadge": "not-measured",
+          "liveAvFlowBadge": "not-measured",
+          "livePressureDomeOk": false,
+          "livePressurePeakCount": 0,
+          "livePressureTroughCount": 0,
+          "livePressureRoughness": 0,
+          "sourceStressPeakCount": 0,
+          "sourceStressTroughCount": 0,
+          "sourceStressRoughness": 0,
+          "sourceStressFiniteFraction": 0,
+          "calciumPeakCount": 0,
+          "fiberStrainPeakCount": 0,
+          "fiberStrainTroughCount": 0,
+          "rawFiberStrainPeakCount": 0,
+          "rawFiberStrainTroughCount": 0,
+          "seStressPeakCount": 0,
+          "seStressTroughCount": 0,
+          "seStressRoughness": 0,
+          "seFailureFraction": 1,
+          "seMaxAbsSigmaMismatchPa": null,
+          "seMaxElasticEnergyJm3": null,
+          "sourceVsSePeakRatio": null,
+          "interpretation": "not-measured"
+        },
+        {
+          "side": "RV",
+          "measured": false,
+          "finalBeatTraceSamples": 0,
+          "livePvBadge": "not-measured",
+          "liveAvFlowBadge": "not-measured",
+          "livePressureDomeOk": false,
+          "livePressurePeakCount": 0,
+          "livePressureTroughCount": 0,
+          "livePressureRoughness": 0,
+          "sourceStressPeakCount": 0,
+          "sourceStressTroughCount": 0,
+          "sourceStressRoughness": 0,
+          "sourceStressFiniteFraction": 0,
+          "calciumPeakCount": 0,
+          "fiberStrainPeakCount": 0,
+          "fiberStrainTroughCount": 0,
+          "rawFiberStrainPeakCount": 0,
+          "rawFiberStrainTroughCount": 0,
+          "seStressPeakCount": 0,
+          "seStressTroughCount": 0,
+          "seStressRoughness": 0,
+          "seFailureFraction": 1,
+          "seMaxAbsSigmaMismatchPa": null,
+          "seMaxElasticEnergyJm3": null,
+          "sourceVsSePeakRatio": null,
+          "interpretation": "not-measured"
+        }
+      ],
+      "errorMessage": null
+    },
+    {
+      "pointId": "low-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "sampleCount": 1201,
+      "finalBeatSampleCount": 400,
+      "metrics": {
+        "AoPMean": 67.236374,
+        "PAPMean": 9.930592,
+        "CO_L": 4.211114,
+        "CO_R": 4.201859,
+        "LAPMean": 2.82155,
+        "RAPMean": 1.900233,
+        "EF_LApprox": 0.497436,
+        "EF_RApprox": 0.461456
+      },
+      "morphologyStatus": "failed",
+      "morphologyBadges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "morphologyMessages": [
+        "LV PV loop: LV systolic PV-loop dome is not single-peaked; this can produce a double-humped systolic loop.",
+        "MVF: MV inflow is not cleanly biphasic; extra or missing waves are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "traceDropped": {
+        "LV": 0,
+        "RV": 0
+      },
+      "sideSummaries": [
+        {
+          "side": "LV",
+          "measured": true,
+          "finalBeatTraceSamples": 402,
+          "livePvBadge": "failed",
+          "liveAvFlowBadge": "failed",
+          "livePressureDomeOk": false,
+          "livePressurePeakCount": 2,
+          "livePressureTroughCount": 1,
+          "livePressureRoughness": 2.98728,
+          "sourceStressPeakCount": 2,
+          "sourceStressTroughCount": 0,
+          "sourceStressRoughness": 2.374767,
+          "sourceStressFiniteFraction": 1,
+          "calciumPeakCount": 0,
+          "fiberStrainPeakCount": 0,
+          "fiberStrainTroughCount": 0,
+          "rawFiberStrainPeakCount": 0,
+          "rawFiberStrainTroughCount": 0,
+          "seStressPeakCount": 2,
+          "seStressTroughCount": 0,
+          "seStressRoughness": 4.585228,
+          "seFailureFraction": 0,
+          "seMaxAbsSigmaMismatchPa": 499.222972,
+          "seMaxElasticEnergyJm3": 115.31213,
+          "sourceVsSePeakRatio": 0.794007,
+          "interpretation": "source-state-stress-also-multi-peaked"
+        },
+        {
+          "side": "RV",
+          "measured": true,
+          "finalBeatTraceSamples": 402,
+          "livePvBadge": "ok",
+          "liveAvFlowBadge": "ok",
+          "livePressureDomeOk": true,
+          "livePressurePeakCount": 1,
+          "livePressureTroughCount": 0,
+          "livePressureRoughness": 1.783195,
+          "sourceStressPeakCount": 1,
+          "sourceStressTroughCount": 0,
+          "sourceStressRoughness": 2.142177,
+          "sourceStressFiniteFraction": 1,
+          "calciumPeakCount": 0,
+          "fiberStrainPeakCount": 0,
+          "fiberStrainTroughCount": 0,
+          "rawFiberStrainPeakCount": 0,
+          "rawFiberStrainTroughCount": 0,
+          "seStressPeakCount": 1,
+          "seStressTroughCount": 0,
+          "seStressRoughness": 3.65787,
+          "seFailureFraction": 0,
+          "seMaxAbsSigmaMismatchPa": 499.422895,
+          "seMaxElasticEnergyJm3": 89.373958,
+          "sourceVsSePeakRatio": 0.821327,
+          "interpretation": "pv-and-source-state-stress-both-clean"
+        }
+      ],
+      "errorMessage": null
+    },
+    {
+      "pointId": "high-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "sampleCount": 1201,
+      "finalBeatSampleCount": 400,
+      "metrics": {
+        "AoPMean": 83.470923,
+        "PAPMean": 22.136727,
+        "CO_L": 4.969895,
+        "CO_R": 4.986977,
+        "LAPMean": 13.739386,
+        "RAPMean": 7.19509,
+        "EF_LApprox": 0.490141,
+        "EF_RApprox": 0.374206
+      },
+      "morphologyStatus": "failed",
+      "morphologyBadges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "morphologyMessages": [
+        "LV PV loop: LV systolic PV-loop dome is not single-peaked; this can produce a double-humped systolic loop.",
+        "RV PV loop: RV systolic PV-loop dome is not single-peaked; this can produce a double-humped systolic loop.",
+        "MVF: MV inflow is not cleanly biphasic; extra or missing waves are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "traceDropped": {
+        "LV": 0,
+        "RV": 0
+      },
+      "sideSummaries": [
+        {
+          "side": "LV",
+          "measured": true,
+          "finalBeatTraceSamples": 402,
+          "livePvBadge": "failed",
+          "liveAvFlowBadge": "failed",
+          "livePressureDomeOk": false,
+          "livePressurePeakCount": 2,
+          "livePressureTroughCount": 1,
+          "livePressureRoughness": 2.996999,
+          "sourceStressPeakCount": 2,
+          "sourceStressTroughCount": 1,
+          "sourceStressRoughness": 2.516181,
+          "sourceStressFiniteFraction": 1,
+          "calciumPeakCount": 0,
+          "fiberStrainPeakCount": 0,
+          "fiberStrainTroughCount": 0,
+          "rawFiberStrainPeakCount": 0,
+          "rawFiberStrainTroughCount": 0,
+          "seStressPeakCount": 1,
+          "seStressTroughCount": 0,
+          "seStressRoughness": 4.452435,
+          "seFailureFraction": 0,
+          "seMaxAbsSigmaMismatchPa": 499.697971,
+          "seMaxElasticEnergyJm3": 158.639936,
+          "sourceVsSePeakRatio": 0.817157,
+          "interpretation": "source-state-stress-also-multi-peaked"
+        },
+        {
+          "side": "RV",
+          "measured": true,
+          "finalBeatTraceSamples": 402,
+          "livePvBadge": "failed",
+          "liveAvFlowBadge": "ok",
+          "livePressureDomeOk": false,
+          "livePressurePeakCount": 2,
+          "livePressureTroughCount": 1,
+          "livePressureRoughness": 2.478915,
+          "sourceStressPeakCount": 0,
+          "sourceStressTroughCount": 0,
+          "sourceStressRoughness": 2.556566,
+          "sourceStressFiniteFraction": 1,
+          "calciumPeakCount": 0,
+          "fiberStrainPeakCount": 0,
+          "fiberStrainTroughCount": 0,
+          "rawFiberStrainPeakCount": 0,
+          "rawFiberStrainTroughCount": 0,
+          "seStressPeakCount": 0,
+          "seStressTroughCount": 0,
+          "seStressRoughness": 3.915084,
+          "seFailureFraction": 0,
+          "seMaxAbsSigmaMismatchPa": 497.285489,
+          "seMaxElasticEnergyJm3": 254.884899,
+          "sourceVsSePeakRatio": 0.83732,
+          "interpretation": "source-state-stress-single-peaked-while-pv-fails"
+        }
+      ],
+      "errorMessage": null
+    },
+    {
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "sampleCount": 1201,
+      "finalBeatSampleCount": 400,
+      "metrics": {
+        "AoPMean": 86.681795,
+        "PAPMean": 17.90418,
+        "CO_L": 4.620926,
+        "CO_R": 4.645506,
+        "LAPMean": 10.080335,
+        "RAPMean": 4.260683,
+        "EF_LApprox": 0.462284,
+        "EF_RApprox": 0.397582
+      },
+      "morphologyStatus": "failed",
+      "morphologyBadges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "morphologyMessages": [
+        "LV PV loop: LV systolic PV-loop dome is not single-peaked; this can produce a double-humped systolic loop.",
+        "RV PV loop: RV systolic PV-loop dome is not single-peaked; this can produce a double-humped systolic loop.",
+        "MVF: MV inflow is not cleanly biphasic; extra or missing waves are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "traceDropped": {
+        "LV": 0,
+        "RV": 0
+      },
+      "sideSummaries": [
+        {
+          "side": "LV",
+          "measured": true,
+          "finalBeatTraceSamples": 402,
+          "livePvBadge": "failed",
+          "liveAvFlowBadge": "failed",
+          "livePressureDomeOk": false,
+          "livePressurePeakCount": 2,
+          "livePressureTroughCount": 1,
+          "livePressureRoughness": 3.056802,
+          "sourceStressPeakCount": 2,
+          "sourceStressTroughCount": 0,
+          "sourceStressRoughness": 2.454999,
+          "sourceStressFiniteFraction": 1,
+          "calciumPeakCount": 0,
+          "fiberStrainPeakCount": 0,
+          "fiberStrainTroughCount": 0,
+          "rawFiberStrainPeakCount": 0,
+          "rawFiberStrainTroughCount": 0,
+          "seStressPeakCount": 2,
+          "seStressTroughCount": 0,
+          "seStressRoughness": 4.49657,
+          "seFailureFraction": 0,
+          "seMaxAbsSigmaMismatchPa": 498.756035,
+          "seMaxElasticEnergyJm3": 162.227481,
+          "sourceVsSePeakRatio": 0.780171,
+          "interpretation": "source-state-stress-also-multi-peaked"
+        },
+        {
+          "side": "RV",
+          "measured": true,
+          "finalBeatTraceSamples": 402,
+          "livePvBadge": "failed",
+          "liveAvFlowBadge": "ok",
+          "livePressureDomeOk": false,
+          "livePressurePeakCount": 2,
+          "livePressureTroughCount": 1,
+          "livePressureRoughness": 3.545066,
+          "sourceStressPeakCount": 1,
+          "sourceStressTroughCount": 0,
+          "sourceStressRoughness": 2.504438,
+          "sourceStressFiniteFraction": 1,
+          "calciumPeakCount": 0,
+          "fiberStrainPeakCount": 0,
+          "fiberStrainTroughCount": 0,
+          "rawFiberStrainPeakCount": 0,
+          "rawFiberStrainTroughCount": 0,
+          "seStressPeakCount": 1,
+          "seStressTroughCount": 0,
+          "seStressRoughness": 4.249229,
+          "seFailureFraction": 0,
+          "seMaxAbsSigmaMismatchPa": 498.344494,
+          "seMaxElasticEnergyJm3": 156.153403,
+          "sourceVsSePeakRatio": 0.787842,
+          "interpretation": "source-state-stress-single-peaked-while-pv-fails"
+        }
+      ],
+      "errorMessage": null
+    },
+    {
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "sampleCount": 1201,
+      "finalBeatSampleCount": 400,
+      "metrics": {
+        "AoPMean": 78.593281,
+        "PAPMean": 17.210268,
+        "CO_L": 4.857916,
+        "CO_R": 4.841014,
+        "LAPMean": 8.313002,
+        "RAPMean": 4.350593,
+        "EF_LApprox": 0.500013,
+        "EF_RApprox": 0.407769
+      },
+      "morphologyStatus": "failed",
+      "morphologyBadges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "morphologyMessages": [
+        "LV PV loop: LV systolic PV-loop dome is not single-peaked; this can produce a double-humped systolic loop.",
+        "RV PV loop: RV systolic PV-loop dome is not single-peaked; this can produce a double-humped systolic loop.",
+        "MVF: MV inflow is not cleanly biphasic; extra or missing waves are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "traceDropped": {
+        "LV": 0,
+        "RV": 0
+      },
+      "sideSummaries": [
+        {
+          "side": "LV",
+          "measured": true,
+          "finalBeatTraceSamples": 402,
+          "livePvBadge": "failed",
+          "liveAvFlowBadge": "failed",
+          "livePressureDomeOk": false,
+          "livePressurePeakCount": 2,
+          "livePressureTroughCount": 1,
+          "livePressureRoughness": 3.092164,
+          "sourceStressPeakCount": 2,
+          "sourceStressTroughCount": 1,
+          "sourceStressRoughness": 2.434334,
+          "sourceStressFiniteFraction": 1,
+          "calciumPeakCount": 0,
+          "fiberStrainPeakCount": 0,
+          "fiberStrainTroughCount": 0,
+          "rawFiberStrainPeakCount": 0,
+          "rawFiberStrainTroughCount": 0,
+          "seStressPeakCount": 2,
+          "seStressTroughCount": 0,
+          "seStressRoughness": 4.729276,
+          "seFailureFraction": 0,
+          "seMaxAbsSigmaMismatchPa": 498.610339,
+          "seMaxElasticEnergyJm3": 142.358787,
+          "sourceVsSePeakRatio": 0.786465,
+          "interpretation": "source-state-stress-also-multi-peaked"
+        },
+        {
+          "side": "RV",
+          "measured": true,
+          "finalBeatTraceSamples": 402,
+          "livePvBadge": "failed",
+          "liveAvFlowBadge": "ok",
+          "livePressureDomeOk": false,
+          "livePressurePeakCount": 2,
+          "livePressureTroughCount": 1,
+          "livePressureRoughness": 3.700871,
+          "sourceStressPeakCount": 1,
+          "sourceStressTroughCount": 0,
+          "sourceStressRoughness": 2.516751,
+          "sourceStressFiniteFraction": 1,
+          "calciumPeakCount": 0,
+          "fiberStrainPeakCount": 0,
+          "fiberStrainTroughCount": 0,
+          "rawFiberStrainPeakCount": 0,
+          "rawFiberStrainTroughCount": 0,
+          "seStressPeakCount": 0,
+          "seStressTroughCount": 0,
+          "seStressRoughness": 4.303219,
+          "seFailureFraction": 0,
+          "seMaxAbsSigmaMismatchPa": 497.732963,
+          "seMaxElasticEnergyJm3": 158.842867,
+          "sourceVsSePeakRatio": 0.792724,
+          "interpretation": "source-state-stress-single-peaked-while-pv-fails"
+        }
+      ],
+      "errorMessage": null
+    },
+    {
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "sampleCount": 1200,
+      "finalBeatSampleCount": 400,
+      "metrics": {
+        "AoPMean": 55.74738,
+        "PAPMean": 19.169488,
+        "CO_L": 3.076089,
+        "CO_R": 3.06052,
+        "LAPMean": 13.9908,
+        "RAPMean": 7.364466,
+        "EF_LApprox": 0.317858,
+        "EF_RApprox": 0.250732
+      },
+      "morphologyStatus": "failed",
+      "morphologyBadges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "morphologyMessages": [
+        "RA PV loop: RA PV loop is not yet a reliable raw figure-eight loop.",
+        "MVF: MV inflow is not cleanly biphasic; extra or missing waves are present.",
+        "TVF: TV inflow is not cleanly biphasic; extra or missing waves are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "traceDropped": {
+        "LV": 0,
+        "RV": 0
+      },
+      "sideSummaries": [
+        {
+          "side": "LV",
+          "measured": true,
+          "finalBeatTraceSamples": 402,
+          "livePvBadge": "ok",
+          "liveAvFlowBadge": "failed",
+          "livePressureDomeOk": true,
+          "livePressurePeakCount": 1,
+          "livePressureTroughCount": 0,
+          "livePressureRoughness": 1.32874,
+          "sourceStressPeakCount": 1,
+          "sourceStressTroughCount": 0,
+          "sourceStressRoughness": 2.017222,
+          "sourceStressFiniteFraction": 1,
+          "calciumPeakCount": 0,
+          "fiberStrainPeakCount": 0,
+          "fiberStrainTroughCount": 0,
+          "rawFiberStrainPeakCount": 0,
+          "rawFiberStrainTroughCount": 0,
+          "seStressPeakCount": 2,
+          "seStressTroughCount": 0,
+          "seStressRoughness": 4.138942,
+          "seFailureFraction": 0,
+          "seMaxAbsSigmaMismatchPa": 493.808003,
+          "seMaxElasticEnergyJm3": 69.891246,
+          "sourceVsSePeakRatio": 0.850861,
+          "interpretation": "inconclusive"
+        },
+        {
+          "side": "RV",
+          "measured": true,
+          "finalBeatTraceSamples": 402,
+          "livePvBadge": "ok",
+          "liveAvFlowBadge": "failed",
+          "livePressureDomeOk": true,
+          "livePressurePeakCount": 1,
+          "livePressureTroughCount": 0,
+          "livePressureRoughness": 1.963305,
+          "sourceStressPeakCount": 0,
+          "sourceStressTroughCount": 0,
+          "sourceStressRoughness": 2.003196,
+          "sourceStressFiniteFraction": 1,
+          "calciumPeakCount": 0,
+          "fiberStrainPeakCount": 0,
+          "fiberStrainTroughCount": 0,
+          "rawFiberStrainPeakCount": 0,
+          "rawFiberStrainTroughCount": 0,
+          "seStressPeakCount": 0,
+          "seStressTroughCount": 0,
+          "seStressRoughness": 3.790148,
+          "seFailureFraction": 0,
+          "seMaxAbsSigmaMismatchPa": 497.413061,
+          "seMaxElasticEnergyJm3": 136.231896,
+          "sourceVsSePeakRatio": 0.80893,
+          "interpretation": "pv-and-source-state-stress-both-clean"
+        }
+      ],
+      "errorMessage": null
+    },
+    {
+      "pointId": "contractility-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "sampleCount": 1201,
+      "finalBeatSampleCount": 400,
+      "metrics": {
+        "AoPMean": 91.078798,
+        "PAPMean": 16.251693,
+        "CO_L": 5.701452,
+        "CO_R": 5.667112,
+        "LAPMean": 6.651098,
+        "RAPMean": 2.949899,
+        "EF_LApprox": 0.598881,
+        "EF_RApprox": 0.532322
+      },
+      "morphologyStatus": "failed",
+      "morphologyBadges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "morphologyMessages": [
+        "LV PV loop: LV systolic PV-loop dome is not single-peaked; this can produce a double-humped systolic loop.",
+        "RV PV loop: RV systolic PV-loop dome is not single-peaked; this can produce a double-humped systolic loop.",
+        "MVF: MV inflow is not cleanly biphasic; extra or missing waves are present.",
+        "TVF: TV inflow is not cleanly biphasic; extra or missing waves are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "traceDropped": {
+        "LV": 0,
+        "RV": 0
+      },
+      "sideSummaries": [
+        {
+          "side": "LV",
+          "measured": true,
+          "finalBeatTraceSamples": 402,
+          "livePvBadge": "failed",
+          "liveAvFlowBadge": "failed",
+          "livePressureDomeOk": false,
+          "livePressurePeakCount": 3,
+          "livePressureTroughCount": 2,
+          "livePressureRoughness": 3.963122,
+          "sourceStressPeakCount": 2,
+          "sourceStressTroughCount": 1,
+          "sourceStressRoughness": 2.625079,
+          "sourceStressFiniteFraction": 1,
+          "calciumPeakCount": 0,
+          "fiberStrainPeakCount": 0,
+          "fiberStrainTroughCount": 0,
+          "rawFiberStrainPeakCount": 0,
+          "rawFiberStrainTroughCount": 0,
+          "seStressPeakCount": 3,
+          "seStressTroughCount": 1,
+          "seStressRoughness": 4.730473,
+          "seFailureFraction": 0,
+          "seMaxAbsSigmaMismatchPa": 494.510771,
+          "seMaxElasticEnergyJm3": 172.702349,
+          "sourceVsSePeakRatio": 0.784853,
+          "interpretation": "source-state-stress-also-multi-peaked"
+        },
+        {
+          "side": "RV",
+          "measured": true,
+          "finalBeatTraceSamples": 402,
+          "livePvBadge": "failed",
+          "liveAvFlowBadge": "failed",
+          "livePressureDomeOk": false,
+          "livePressurePeakCount": 2,
+          "livePressureTroughCount": 1,
+          "livePressureRoughness": 3.138273,
+          "sourceStressPeakCount": 1,
+          "sourceStressTroughCount": 1,
+          "sourceStressRoughness": 2.772852,
+          "sourceStressFiniteFraction": 1,
+          "calciumPeakCount": 0,
+          "fiberStrainPeakCount": 0,
+          "fiberStrainTroughCount": 0,
+          "rawFiberStrainPeakCount": 0,
+          "rawFiberStrainTroughCount": 0,
+          "seStressPeakCount": 1,
+          "seStressTroughCount": 0,
+          "seStressRoughness": 4.698009,
+          "seFailureFraction": 0,
+          "seMaxAbsSigmaMismatchPa": 499.739415,
+          "seMaxElasticEnergyJm3": 140.017171,
+          "sourceVsSePeakRatio": 0.801854,
+          "interpretation": "source-state-stress-single-peaked-while-pv-fails"
+        }
+      ],
+      "errorMessage": null
+    }
+  ],
+  "classification": {
+    "liveGrossMorphologyPass": "0/7",
+    "sideMeasuredCount": 14,
+    "sideLivePvOkCount": 3,
+    "sideLiveAvFlowOkCount": 5,
+    "sideSourceStressSinglePeakCount": 8,
+    "sideSeStressSinglePeakCount": 8,
+    "sourceStateCoupledStepDecision": "source-state-component-still-suspect",
+    "notes": [
+      "This diagnostic uses live Land source-provider commit traces and source-state-controlled SeriesElasticV1 replay; it does not use Phase 5BV synthetic calcium.",
+      "Ca, filtered fiber strain, and raw fiber strain peak counts are recorded to separate Ca timing from load-driven kinematic feedback.",
+      "If PV dome or AV inflow fails while live/source-state stress stays single-peaked, the next blocker is chamber pressure/volume plus valve-load coupling rather than Land source-state tuning.",
+      "The envelope decision is based on LV/RV plus MVF/TVF morphology badges across representative preload/afterload/contractility points, not on normal-only screenshots."
+    ]
+  },
+  "recommendedNext": [
+    "attribute the remaining source-state stress multi-peak to Ca timing, fiber kinematics, or adapter sign before any closed-loop adoption",
+    "do not reopen A1/A2 and do not tune root/Zc, qDot, Tref, source-stress, or valve thresholds to hide morphology",
+    "repeat the source-state trace on a reduced isolated chamber shell after fixing the source-state component"
+  ],
+  "claimBoundary": {
+    "noRuntimeDefaultAdoption": true,
+    "noClosedLoopMorphologyAcceptance": true,
+    "noLandAtrialTuning": true,
+    "noA1A2Reopen": true,
+    "noValveQdotRootZcTrefSourceStressTuning": true,
+    "noClinicalScientificValidation": true
+  },
+  "normalizedSha256": "d11e02728194565e9902c3c115e2ab11146a39b4b6ffb51ae6919c5492f404fd"
+}
