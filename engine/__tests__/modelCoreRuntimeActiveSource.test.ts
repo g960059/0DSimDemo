@@ -20,6 +20,7 @@ import {
   LANDATRIAL_DEFAULT_FLOOR_SELECTED_CANDIDATE_ID,
   LANDATRIAL_DEFAULT_FLOOR_V1_CONTRACT,
 } from "@/engine/myocardium/landAtrialDefaultFloor";
+import { runLandAtrialIsolatedBench } from "@/engine/myocardium/atrialIsolatedBench";
 import {
   MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE,
   MODELCORE_RUNTIME_ALL_CHAMBER_LAND_DEFAULT_CANDIDATE_MODE,
@@ -135,6 +136,22 @@ describe("ModelCore runtime active source default", () => {
     expect(rvInstrumentation.landSolveFailureCount).toBe(0);
     expect(laInstrumentation.landSolveFailureCount).toBe(0);
     expect(raInstrumentation.landSolveFailureCount).toBe(0);
+  });
+
+  it("runs the isolated LandAtrial floor bench without provider solve failures", () => {
+    const bench = runLandAtrialIsolatedBench();
+
+    expect(bench.summaries).toHaveLength(4);
+    expect(bench.protocol.noClosedLoopValveRootPreloadCoupling).toBe(true);
+    for (const summary of bench.summaries) {
+      expect(summary.sourceCandidateId).toBe(LANDATRIAL_DEFAULT_FLOOR_SELECTED_CANDIDATE_ID);
+      expect(summary.sampleCount).toBeGreaterThan(0);
+      expect(summary.landSolveFailureCount).toBe(0);
+      expect(summary.pressureMmHg.min).not.toBeNull();
+      expect(summary.wallLambda.min).not.toBeNull();
+    }
+    expect(bench.avPlaneSensitivity.LA.maxEffectiveVolumeCorrectionMl).toBeGreaterThan(0);
+    expect(bench.avPlaneSensitivity.RA.maxEffectiveVolumeCorrectionMl).toBeGreaterThan(0);
   });
 
   it("applies the LandAtrial runtime geometry patch while preserving caller node overrides", () => {
