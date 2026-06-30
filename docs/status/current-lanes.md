@@ -407,6 +407,19 @@ the TV-state plus MV pressure-refit ordering as diagnostic component evidence
 and narrow the next experiment to the remaining low-preload left-sided MV
 residual or to a broader pressure-adapter contract if that residual cannot be
 resolved without overfitting.
+Phase 5CL records `mv-fixed-point-refit-transaction-phase5cl-result-v1`,
+testing whether the Phase 5CK one-pass MV pressure-refit residual was a local
+transaction convergence gap. The two-pass fixed-point refit candidate
+(`tv-state-mv-fixedpoint2-legacy-atria`) is the first ventricular/filling
+candidate to pass the full representative morphology envelope under legacy
+atria: gross 8/8, LV/RV PV 8/8, MVF 8/8, TVF 8/8, settled 8/8, and all 16 AV
+inflow residuals clean-biphasic. This remains non-adoption evidence because
+the all-chamber user-0 transfer candidate is still only 6/8 with residual
+low-preload HR75 and contractility-high HR75 AV inflow failures. Carry the
+fixed-point MV refit plus TV state coupling forward as component evidence, but
+do not wire it to runtime/default until the all-chamber transfer passes. The
+next experiment should attribute the user-0 transfer residuals without
+reopening A1/A2 or tuning valve/qDot/root/Zc/Tref/source-stress.
 
 ## Lane table
 
@@ -734,7 +747,7 @@ advances the current lane. They are evidence anchors, not current gates.
 
 ## Current top priorities
 
-1. Phase 5CK is now the active blocker for education-visible gross morphology:
+1. Phase 5CL is now the active blocker for education-visible gross morphology:
    owner visual review confirms the morphology checker is directionally trusted
    and not too strict for failed examples. Current user-0, committed-output
    pressure-source, and fixed-point coupled-BE candidates all remain 0/8 gross
@@ -784,6 +797,17 @@ advances the current lane. They are evidence anchors, not current gates.
    low-preload left-sided MV residual while preserving the 5CK PV/TVF/MVF gains,
    or pivot to a broader pressure-adapter contract if that residual cannot be
    solved without fitting one point.
+   Phase 5CL then tests a two-pass MV fixed-point pressure refit. The
+   legacy-atria candidate is the first strong full-envelope pass in this lane:
+   gross 8/8, LV/RV PV 8/8, MVF 8/8, TVF 8/8, settled 8/8, and all 16 AV inflow
+   residuals clean-biphasic. This is not runtime adoption evidence because the
+   all-chamber user-0 transfer remains 6/8, failing low-preload HR75 and
+   contractility-high HR75 AV inflow points. Treat fixed-point MV refit plus TV
+   state coupling as component evidence for the ventricular/filling transaction.
+   The next surface should attribute the user-0 transfer residuals and decide
+   whether they belong to LandAtrial AV-plane/effective-wall release timing,
+   atrial boundary pressure, or a remaining right-sided valve/load boundary,
+   while preserving the 5CL legacy-atria 8/8 path.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, local LV/RV transaction
