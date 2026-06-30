@@ -5,12 +5,14 @@ import type {
 } from "@/engine/ModelCore";
 
 export type ActiveSourcePressureContractV2Mode =
-  | "reference-geometry-active-pressure-v1";
+  | "reference-geometry-active-pressure-v1"
+  | "bounded-geometry-active-pressure-v1";
 
 export type ActiveSourcePressureContractV2Options = {
   readonly sourceProviderId: string;
   readonly mode: ActiveSourcePressureContractV2Mode;
   readonly referenceVolumeMode?: "active-model-vref";
+  readonly activeGainCeilingRatio?: number;
 };
 
 export function activeSourcePressureContractV2Provider(
@@ -52,7 +54,10 @@ function pressureTerms(
   base: ModelCoreExperimentalActiveSourceProvider,
   options: ActiveSourcePressureContractV2Options,
 ): ChamberPressureTerms {
-  if (options.mode !== "reference-geometry-active-pressure-v1") {
+  if (
+    options.mode !== "reference-geometry-active-pressure-v1"
+    && options.mode !== "bounded-geometry-active-pressure-v1"
+  ) {
     throw new Error(`Unsupported ActiveSourcePressureContractV2 mode: ${options.mode}`);
   }
   const sourceStressPa = finiteNonnegative(base.sourceActiveStressPa!(call));
@@ -76,8 +81,21 @@ function pressureTerms(
     call.chamberCtx,
     0,
   );
-  const gainMmHgPerPa =
-    (referenceUnit.pressureUnclampedMmHg - referencePassive.pressureUnclampedMmHg) / unitStressPa;
+  const currentUnit = call.activeModel.debugPressureTermsFromActiveFiberStress(
+    call.volumeMl,
+    call.internal,
+    call.chamberCtx,
+    unitStressPa,
+  );
+  const referenceGainMmHgPerPa = finiteNonnegative(
+    (referenceUnit.pressureUnclampedMmHg - referencePassive.pressureUnclampedMmHg) / unitStressPa,
+  );
+  const currentGainMmHgPerPa = finiteNonnegative(
+    (currentUnit.pressureUnclampedMmHg - currentPassive.pressureUnclampedMmHg) / unitStressPa,
+  );
+  const gainMmHgPerPa = options.mode === "reference-geometry-active-pressure-v1"
+    ? referenceGainMmHgPerPa
+    : Math.min(currentGainMmHgPerPa, referenceGainMmHgPerPa * boundedGainCeilingRatio(options));
   const pressureUnclampedMmHg = currentPassive.pressureUnclampedMmHg + gainMmHgPerPa * sourceStressPa;
   const pressureFloor = call.activeModel.ap.pressureFloorMmHg ?? -5;
   const pressureMmHg = clamp(pressureUnclampedMmHg, pressureFloor, 260);
@@ -89,6 +107,14 @@ function pressureTerms(
     pressureMmHg,
     pressureFloorHit01: pressureUnclampedMmHg <= pressureFloor ? 1 : 0,
   };
+}
+
+function boundedGainCeilingRatio(options: ActiveSourcePressureContractV2Options): number {
+  const ratio = options.activeGainCeilingRatio ?? 1.15;
+  if (!Number.isFinite(ratio)) {
+    throw new Error("ActiveSourcePressureContractV2 activeGainCeilingRatio must be finite.");
+  }
+  return clamp(ratio, 1, 3);
 }
 
 function passivePressure(call: ModelCoreActiveSourceProviderCall): number {
