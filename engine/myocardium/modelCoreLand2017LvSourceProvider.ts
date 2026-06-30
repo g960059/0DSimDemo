@@ -35,11 +35,18 @@ export type ModelCoreLand2017LvVelocityLengthCouplingMode =
   | "source"
   | "ventricular-valve-load-staged-v1"
   | "ventricular-stateful-zeta-drive-v1";
+export type ModelCoreLand2017LvSourceStressPressureAdapterMode =
+  | "direct"
+  | "tension-state-filter-v1"
+  | "transition-gated-tension-filter-v1";
 
 export type ModelCoreLand2017LvSourceProviderOptions = {
   readonly commitScheme?: ModelCoreLand2017LvCommitScheme;
   readonly kinematicsMode?: ModelCoreLand2017LvKinematicsMode;
   readonly velocityLengthCouplingMode?: ModelCoreLand2017LvVelocityLengthCouplingMode;
+  readonly sourceStressPressureAdapterMode?: ModelCoreLand2017LvSourceStressPressureAdapterMode;
+  readonly sourceStressTensionRiseSec?: number;
+  readonly sourceStressTensionFallSec?: number;
   readonly sourceProviderId?: string;
   readonly parameterSet?: Land2017EquationParameters;
 };
@@ -230,6 +237,7 @@ export function land2017LvSourceOnlyProvider(
   const commitScheme = options.commitScheme ?? "BE";
   const kinematicsMode = options.kinematicsMode ?? "raw-wall-lambda";
   const velocityLengthCouplingMode = options.velocityLengthCouplingMode ?? "source";
+  const sourceStressPressureAdapterMode = options.sourceStressPressureAdapterMode ?? "direct";
   const parameterSet = options.parameterSet ?? LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET;
   return {
     sourceProviderId:
@@ -258,11 +266,33 @@ export function land2017LvSourceOnlyProvider(
       const input = landContinuousInputForCall(call, state, kinematicsMode, velocityLengthCouplingMode);
       const output = evaluateLandOutputForInput(state, input, parameterSet);
       recordLandSignalAuditSample(instrumentation.sourcePathAudit, state.landState, input, output);
-      return output.sourceActiveFiberStressPa;
+      return sourceStressForPressureAdapterCall(call, output.sourceActiveFiberStressPa, sourceStressPressureAdapterMode);
     },
-    internalDerivatives: ({ activeModel, volumeMl, internal, chamberCtx }) => {
+    internalDerivatives: (call) => {
       instrumentation.internalDerivatives += 1;
-      return activeModel.internalDerivatives(volumeMl, internal, chamberCtx);
+      const base = call.activeModel.internalDerivatives(call.volumeMl, call.internal, call.chamberCtx);
+      if (
+        sourceStressPressureAdapterMode === "direct"
+        || (call.chamber !== "LV" && call.chamber !== "RV")
+      ) {
+        return base;
+      }
+      const rawSourceStressPa = evaluateLandOutputForCall(
+        call,
+        asLandProviderState(call.providerState, "internalDerivatives"),
+        kinematicsMode,
+        velocityLengthCouplingMode,
+        parameterSet,
+      ).sourceActiveFiberStressPa;
+      const current = finiteNonnegativeOr(call.internal.tensionPa, rawSourceStressPa);
+      const target = finiteNonnegativeOr(rawSourceStressPa, current);
+      const tau = target > current
+        ? positiveFiniteOr(options.sourceStressTensionRiseSec, 0.024)
+        : positiveFiniteOr(options.sourceStressTensionFallSec, 0.060);
+      return {
+        ...base,
+        tensionPaDot: clampNumber((target - current) / tau, -5000000, 5000000),
+      };
     },
     debugActiveStressTerms: (call) => {
       instrumentation.debugActiveStressTerms += 1;
@@ -273,10 +303,14 @@ export function land2017LvSourceOnlyProvider(
         velocityLengthCouplingMode,
         parameterSet,
       );
-      const terms = landDebugTermsForCall(call, output);
+      const terms = landDebugTermsForCall(call, output, sourceStressPressureAdapterMode);
       instrumentation.maxSourceDebugStressDifferencePa = Math.max(
         instrumentation.maxSourceDebugStressDifferencePa,
-        Math.abs(terms.sigmaAct - output.sourceActiveFiberStressPa),
+        Math.abs(terms.sigmaAct - sourceStressForPressureAdapterCall(
+          call,
+          output.sourceActiveFiberStressPa,
+          sourceStressPressureAdapterMode,
+        )),
       );
       return terms;
     },
@@ -614,6 +648,10 @@ function positiveFiniteOrOne(value: number): number {
   return Number.isFinite(value) && value > 0 ? value : 1;
 }
 
+function positiveFiniteOr(value: number | undefined, fallback: number): number {
+  return value !== undefined && Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
 function mapCalcium(value: number, calciumScale: number): number {
   if (!Number.isFinite(value)) {
     throw new Error("Calcium-scaled Land 2017 LV source provider calcium input must be finite.");
@@ -805,12 +843,18 @@ function fiberEngineeringStrainForStep(
 function landDebugTermsForCall(
   call: ModelCoreActiveSourceProviderCall,
   output: LandSourceOutput,
+  sourceStressPressureAdapterMode: ModelCoreLand2017LvSourceStressPressureAdapterMode = "direct",
 ): ActiveStressDebugTerms {
+  const pressureSourceStressPa = sourceStressForPressureAdapterCall(
+    call,
+    output.sourceActiveFiberStressPa,
+    sourceStressPressureAdapterMode,
+  );
   const pressureTerms = call.activeModel.debugPressureTermsFromActiveFiberStress(
     call.volumeMl,
     call.internal,
     call.chamberCtx,
-    output.sourceActiveFiberStressPa,
+    pressureSourceStressPa,
   );
   const legacyTerms = call.activeModel.debugActiveStressTerms(call.volumeMl, call.internal, call.chamberCtx);
   const landBoundFraction = landBoundFractionFromState(
@@ -822,12 +866,41 @@ function landDebugTermsForCall(
     c: freeCalciumUMFromInternal(call.internal.c),
     a: landBoundFraction,
     sigmaActTargetRaw: output.sourceActiveFiberStressPa,
-    sigmaActTarget: output.sourceActiveFiberStressPa,
-    sigmaAct: output.sourceActiveFiberStressPa,
+    sigmaActTarget: pressureSourceStressPa,
+    sigmaAct: pressureSourceStressPa,
     activeTargetLimiter: 1,
     lowStretchLimiterGate: 0,
     lowStretchLimiterStrength: 0,
   };
+}
+
+function sourceStressForPressureAdapterCall(
+  call: ModelCoreActiveSourceProviderCall,
+  rawSourceStressPa: number,
+  mode: ModelCoreLand2017LvSourceStressPressureAdapterMode,
+): number {
+  if (mode === "direct") return rawSourceStressPa;
+  if (!Number.isFinite(rawSourceStressPa) || rawSourceStressPa < 0) return rawSourceStressPa;
+  const raw = rawSourceStressPa;
+  const filtered = finiteNonnegativeOr(call.internal.tensionPa, raw);
+  if (mode === "tension-state-filter-v1") return filtered;
+  const gate = ventricularTransitionPressureAdapterGate(call);
+  return raw + gate * (filtered - raw);
+}
+
+function ventricularTransitionPressureAdapterGate(call: ModelCoreActiveSourceProviderCall): number {
+  if (call.chamber !== "LV" && call.chamber !== "RV") return 0;
+  const inletOpen = clamp01(call.chamberCtx.inletValveOpen01 ?? 0);
+  const outletOpen = clamp01(call.chamberCtx.outletValveOpen01 ?? 0);
+  const inletHandoff = 4 * inletOpen * (1 - inletOpen);
+  const outletHandoff = 4 * outletOpen * (1 - outletOpen);
+  const ejection = outletOpen * (1 - inletOpen);
+  return clamp01(Math.max(inletHandoff, outletHandoff, 0.35 * ejection));
+}
+
+function finiteNonnegativeOr(value: number | undefined, fallback: number): number {
+  if (value !== undefined && Number.isFinite(value)) return Math.max(0, value);
+  return Number.isFinite(fallback) ? Math.max(0, fallback) : 0;
 }
 
 function asLandProviderState(value: unknown, label: string): ModelCoreLand2017LvProviderState {

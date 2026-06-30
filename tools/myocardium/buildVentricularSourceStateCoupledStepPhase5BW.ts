@@ -95,6 +95,8 @@ type SideSourceStateSummary = {
   readonly side: SideId;
   readonly measured: boolean;
   readonly finalBeatTraceSamples: number;
+  readonly validSourceStateTraceSamples: number;
+  readonly missingSourceStateTraceSamples: number;
   readonly livePvBadge: MorphologyCheckStatus | "not-measured";
   readonly liveAvFlowBadge: MorphologyCheckStatus | "not-measured";
   readonly livePressureDomeOk: boolean;
@@ -369,25 +371,30 @@ function summarizeSideSourceState(
   const liveOutFlow = matched.map((entry) => Math.max(0, numberAt(entry.sample, side.outFlowKey)));
   const ejection = ejectionIndexes(liveOutFlow, side.id === "LV" ? 10 : 5);
   const liveDome = ejectionShape(livePressure, ejection, side.minProminenceMmHg);
-  const sourceStress = matched.map((entry) => Math.max(0, entry.trace.sourceActiveFiberStressPa ?? 0));
+  const validSourceMatched = matched.filter(sourceStateTraceIsUsable);
+  const sourceStress = validSourceMatched.map((entry) => entry.trace.sourceActiveFiberStressPa as number);
   const sourceShape = stressShape(sourceStress);
-  const calciumShape = scalarShape(matched.map((entry) => entry.trace.freeCalciumUM), 0.01, 0.12);
-  const fiberShape = scalarShape(matched.map((entry) => entry.trace.stageFiberEngineeringStrain), 0.001, 0.12);
+  const calciumShape = scalarShape(validSourceMatched.map((entry) => entry.trace.freeCalciumUM), 0.01, 0.12);
+  const fiberShape = scalarShape(validSourceMatched.map((entry) => entry.trace.stageFiberEngineeringStrain), 0.001, 0.12);
   const rawFiberShape = scalarShape(
-    matched.map((entry) => entry.trace.stageRawFiberEngineeringStrain),
+    validSourceMatched.map((entry) => entry.trace.stageRawFiberEngineeringStrain),
     0.001,
     0.12,
   );
-  const seReplay = replaySeriesElasticSourceState(matched);
+  const seReplay = replaySeriesElasticSourceState(validSourceMatched);
   const seStress = seReplay.stressPa;
   const seShape = stressShape(seStress);
   const sourcePeak = maxFinite(sourceStress);
   const sePeak = maxFinite(seStress);
   const sourceVsSePeakRatio = sourcePeak > 1e-9 ? sePeak / sourcePeak : null;
+  const sourceStateFiniteFraction = fraction(matched, (entry) => sourceStateTraceIsUsable(entry));
+  const sourceStateMeasured = validSourceMatched.length >= 8 && sourceStateFiniteFraction >= 0.9;
   const sourceSingle = sourceShape.peakCount <= 1 && sourceShape.troughCount <= 1;
   const seSingle = seShape.peakCount <= 1 && seShape.troughCount <= 1;
   const interpretation =
-    seReplay.failureFraction > 0.1
+    !sourceStateMeasured
+      ? "inconclusive"
+      : seReplay.failureFraction > 0.1
       ? "source-state-se-component-not-bounded"
       : !liveDome.ok && sourceSingle && seSingle
         ? "source-state-stress-single-peaked-while-pv-fails"
@@ -400,6 +407,8 @@ function summarizeSideSourceState(
     side: side.id,
     measured: true,
     finalBeatTraceSamples: matched.length,
+    validSourceStateTraceSamples: validSourceMatched.length,
+    missingSourceStateTraceSamples: matched.length - validSourceMatched.length,
     livePvBadge: badges?.[side.pvBadge] ?? "not-measured",
     liveAvFlowBadge: badges?.[side.avBadge] ?? "not-measured",
     livePressureDomeOk: liveDome.ok,
@@ -409,7 +418,7 @@ function summarizeSideSourceState(
     sourceStressPeakCount: sourceShape.peakCount,
     sourceStressTroughCount: sourceShape.troughCount,
     sourceStressRoughness: round(sourceShape.roughness),
-    sourceStressFiniteFraction: round(fraction(sourceStress, Number.isFinite)),
+    sourceStressFiniteFraction: round(sourceStateFiniteFraction),
     calciumPeakCount: calciumShape.peakCount,
     fiberStrainPeakCount: fiberShape.peakCount,
     fiberStrainTroughCount: fiberShape.troughCount,
@@ -424,6 +433,16 @@ function summarizeSideSourceState(
     sourceVsSePeakRatio: sourceVsSePeakRatio == null ? null : round(sourceVsSePeakRatio),
     interpretation,
   };
+}
+
+function sourceStateTraceIsUsable(entry: MatchedTraceSample): boolean {
+  return entry.trace.solverOk
+    && entry.trace.nextLandState != null
+    && Number.isFinite(entry.trace.sourceActiveFiberStressPa)
+    && Number.isFinite(entry.trace.freeCalciumUM)
+    && Number.isFinite(entry.trace.previousFreeCalciumUM)
+    && Number.isFinite(entry.trace.previousFiberEngineeringStrain)
+    && Number.isFinite(entry.trace.stageFiberEngineeringStrain);
 }
 
 function replaySeriesElasticSourceState(
@@ -693,6 +712,8 @@ function emptySideSummary(side: SideId): SideSourceStateSummary {
     side,
     measured: false,
     finalBeatTraceSamples: 0,
+    validSourceStateTraceSamples: 0,
+    missingSourceStateTraceSamples: 0,
     livePvBadge: "not-measured",
     liveAvFlowBadge: "not-measured",
     livePressureDomeOk: false,

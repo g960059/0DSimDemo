@@ -1,0 +1,1549 @@
+{
+  "schemaVersion": 1,
+  "id": "source-stress-pressure-adapter-phase5bz-result-v1",
+  "phase": "5BZ",
+  "profile": {
+    "verificationProfile": "fitFast",
+    "morphologyProfileId": "normal_sinus_default",
+    "pointSource": "normal-hr75-hr90-preload-afterload-contractility-representative-envelope",
+    "grossGate": "LV/RV PV loop plus MVF/TVF must all be ok; LAP/RAP timing is recorded but not used for this gross ventricular/filling pass count"
+  },
+  "variants": [
+    {
+      "id": "legacy-frozen-reference",
+      "label": "Frozen legacy active-stress rollback/reference",
+      "hypothesis": "Reference for gross raw morphology across the same representative envelope.",
+      "closurePath": "legacy-active-stress",
+      "sourceStressPressureAdapter": null,
+      "graphCoupledStep": null,
+      "temporalSubstep": null
+    },
+    {
+      "id": "current-user0-default",
+      "label": "Current user-0 staged all-chamber LandAtrial default",
+      "hypothesis": "Records the current live raw morphology failure surface.",
+      "closurePath": "current-user0-all-chamber-landatrial",
+      "sourceStressPressureAdapter": null,
+      "graphCoupledStep": null,
+      "temporalSubstep": null
+    },
+    {
+      "id": "source-filter-medium-legacy-atria",
+      "label": "LV/RV Land source-stress tension filter with legacy atria",
+      "hypothesis": "Separates ventricular pressure-adapter filtering from LandAtrial AV-plane/effective-wall timing.",
+      "closurePath": "lv-rv-land-legacy-atria",
+      "sourceStressPressureAdapter": {
+        "mode": "tension-state-filter-v1",
+        "riseSec": 0.03,
+        "fallSec": 0.075
+      },
+      "graphCoupledStep": null,
+      "temporalSubstep": null
+    },
+    {
+      "id": "temporal-substep2-user0",
+      "label": "Current user-0 closure with 2x temporal substep",
+      "hypothesis": "Tests whether valve/load/chamber pressure transition artifacts are primarily solver-step excitation.",
+      "closurePath": "current-user0-all-chamber-landatrial",
+      "sourceStressPressureAdapter": null,
+      "graphCoupledStep": null,
+      "temporalSubstep": {
+        "mechanismId": "temporal-substep-v1:phase5bz-temporal-substep2-user0",
+        "subdivisions": 2
+      }
+    },
+    {
+      "id": "source-filter-medium-legacy-atria-substep2",
+      "label": "LV/RV Land source-stress tension filter with legacy atria plus 2x temporal substep",
+      "hypothesis": "Tests whether legacy-atria residual AV inflow failures are numerical valve/load temporal-resolution artifacts.",
+      "closurePath": "lv-rv-land-legacy-atria",
+      "sourceStressPressureAdapter": {
+        "mode": "tension-state-filter-v1",
+        "riseSec": 0.03,
+        "fallSec": 0.075
+      },
+      "graphCoupledStep": null,
+      "temporalSubstep": {
+        "mechanismId": "temporal-substep-v1:phase5bz-source-filter-medium-legacy-atria-substep2",
+        "subdivisions": 2
+      }
+    }
+  ],
+  "points": [
+    {
+      "id": "normal-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75
+      }
+    },
+    {
+      "id": "normal-hr90",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 90
+      }
+    },
+    {
+      "id": "low-preload-hr75",
+      "targetTBVMl": 4800,
+      "params": {
+        "HR": 75
+      }
+    },
+    {
+      "id": "high-preload-hr75",
+      "targetTBVMl": 6200,
+      "params": {
+        "HR": 75
+      }
+    },
+    {
+      "id": "systemic-afterload-high-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "systemicResistance": 1.25
+      }
+    },
+    {
+      "id": "pulmonary-afterload-high-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "pulmonaryResistance": 0.8
+      }
+    },
+    {
+      "id": "contractility-low-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "contractility": 0.8
+      }
+    },
+    {
+      "id": "contractility-high-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "contractility": 1.2
+      }
+    }
+  ],
+  "results": [
+    {
+      "variantId": "legacy-frozen-reference",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": true,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 86.824027,
+        "PAPMean": 16.022842,
+        "CO_L": 5.422892,
+        "CO_R": 5.461089,
+        "LAPMean": 6.814127,
+        "RAPMean": 3.451249,
+        "EF_LApprox": 0.591742,
+        "EF_RApprox": 0.513361
+      },
+      "landSolveFailures": {
+        "LV": null,
+        "RV": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "legacy-frozen-reference",
+      "pointId": "normal-hr90",
+      "settled": false,
+      "settleReason": "cap",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "not-measured",
+      "failedLabels": [
+        "not-measured"
+      ],
+      "badges": null,
+      "metrics": null,
+      "landSolveFailures": {
+        "LV": null,
+        "RV": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "legacy-frozen-reference",
+      "pointId": "low-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "RA PV loop",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 72.900374,
+        "PAPMean": 9.922564,
+        "CO_L": 4.595286,
+        "CO_R": 4.582365,
+        "LAPMean": 2.162231,
+        "RAPMean": 1.382415,
+        "EF_LApprox": 0.572109,
+        "EF_RApprox": 0.529012
+      },
+      "landSolveFailures": {
+        "LV": null,
+        "RV": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "legacy-frozen-reference",
+      "pointId": "high-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 92.147238,
+        "PAPMean": 19.68741,
+        "CO_L": 5.574004,
+        "CO_R": 5.588342,
+        "LAPMean": 10.265331,
+        "RAPMean": 6.293453,
+        "EF_LApprox": 0.587512,
+        "EF_RApprox": 0.455123
+      },
+      "landSolveFailures": {
+        "LV": null,
+        "RV": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "legacy-frozen-reference",
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 95.299324,
+        "PAPMean": 16.873659,
+        "CO_L": 5.116699,
+        "CO_R": 5.144906,
+        "LAPMean": 8.20456,
+        "RAPMean": 3.490902,
+        "EF_LApprox": 0.543123,
+        "EF_RApprox": 0.483752
+      },
+      "landSolveFailures": {
+        "LV": null,
+        "RV": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "legacy-frozen-reference",
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": true,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 86.066102,
+        "PAPMean": 16.120115,
+        "CO_L": 5.383533,
+        "CO_R": 5.389138,
+        "LAPMean": 6.231534,
+        "RAPMean": 3.590745,
+        "EF_LApprox": 0.593598,
+        "EF_RApprox": 0.500504
+      },
+      "landSolveFailures": {
+        "LV": null,
+        "RV": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "legacy-frozen-reference",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "RA PV loop",
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 48.75138,
+        "PAPMean": 15.248444,
+        "CO_L": 2.568944,
+        "CO_R": 2.542248,
+        "LAPMean": 10.932999,
+        "RAPMean": 8.835684,
+        "EF_LApprox": 0.28816,
+        "EF_RApprox": 0.200365
+      },
+      "landSolveFailures": {
+        "LV": null,
+        "RV": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "legacy-frozen-reference",
+      "pointId": "contractility-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "warning",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 105.461259,
+        "PAPMean": 14.616976,
+        "CO_L": 6.68923,
+        "CO_R": 6.691038,
+        "LAPMean": 3.301792,
+        "RAPMean": 1.683426,
+        "EF_LApprox": 0.834129,
+        "EF_RApprox": 0.846764
+      },
+      "landSolveFailures": {
+        "LV": null,
+        "RV": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-default",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 78.851705,
+        "PAPMean": 16.9296,
+        "CO_L": 4.881671,
+        "CO_R": 4.87084,
+        "LAPMean": 8.691782,
+        "RAPMean": 4.290624,
+        "EF_LApprox": 0.498792,
+        "EF_RApprox": 0.412964
+      },
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-default",
+      "pointId": "normal-hr90",
+      "settled": false,
+      "settleReason": "cap",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "not-measured",
+      "failedLabels": [
+        "not-measured"
+      ],
+      "badges": null,
+      "metrics": null,
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-default",
+      "pointId": "low-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 67.236374,
+        "PAPMean": 9.930592,
+        "CO_L": 4.211114,
+        "CO_R": 4.201859,
+        "LAPMean": 2.82155,
+        "RAPMean": 1.900233,
+        "EF_LApprox": 0.497436,
+        "EF_RApprox": 0.461456
+      },
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-default",
+      "pointId": "high-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 83.470923,
+        "PAPMean": 22.136727,
+        "CO_L": 4.969895,
+        "CO_R": 4.986977,
+        "LAPMean": 13.739386,
+        "RAPMean": 7.19509,
+        "EF_LApprox": 0.490141,
+        "EF_RApprox": 0.374206
+      },
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-default",
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 86.681795,
+        "PAPMean": 17.90418,
+        "CO_L": 4.620926,
+        "CO_R": 4.645506,
+        "LAPMean": 10.080335,
+        "RAPMean": 4.260683,
+        "EF_LApprox": 0.462284,
+        "EF_RApprox": 0.397582
+      },
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-default",
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 78.593281,
+        "PAPMean": 17.210268,
+        "CO_L": 4.857916,
+        "CO_R": 4.841014,
+        "LAPMean": 8.313002,
+        "RAPMean": 4.350593,
+        "EF_LApprox": 0.500013,
+        "EF_RApprox": 0.407769
+      },
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-default",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "RA PV loop",
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 55.74738,
+        "PAPMean": 19.169488,
+        "CO_L": 3.076089,
+        "CO_R": 3.06052,
+        "LAPMean": 13.9908,
+        "RAPMean": 7.364466,
+        "EF_LApprox": 0.317858,
+        "EF_RApprox": 0.250732
+      },
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-default",
+      "pointId": "contractility-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 91.078798,
+        "PAPMean": 16.251693,
+        "CO_L": 5.701452,
+        "CO_R": 5.667112,
+        "LAPMean": 6.651098,
+        "RAPMean": 2.949899,
+        "EF_LApprox": 0.598881,
+        "EF_RApprox": 0.532322
+      },
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "source-filter-medium-legacy-atria",
+      "pointId": "normal-hr75",
+      "settled": false,
+      "settleReason": "exception",
+      "healthStatus": "exception",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "not-measured",
+      "failedLabels": [
+        "source active-fiber stress must be nonnegative"
+      ],
+      "badges": null,
+      "metrics": null,
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": "source active-fiber stress must be nonnegative"
+    },
+    {
+      "variantId": "source-filter-medium-legacy-atria",
+      "pointId": "normal-hr90",
+      "settled": false,
+      "settleReason": "exception",
+      "healthStatus": "exception",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "not-measured",
+      "failedLabels": [
+        "source active-fiber stress must be nonnegative"
+      ],
+      "badges": null,
+      "metrics": null,
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": "source active-fiber stress must be nonnegative"
+    },
+    {
+      "variantId": "source-filter-medium-legacy-atria",
+      "pointId": "low-preload-hr75",
+      "settled": false,
+      "settleReason": "exception",
+      "healthStatus": "exception",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "not-measured",
+      "failedLabels": [
+        "source active-fiber stress must be nonnegative"
+      ],
+      "badges": null,
+      "metrics": null,
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": "source active-fiber stress must be nonnegative"
+    },
+    {
+      "variantId": "source-filter-medium-legacy-atria",
+      "pointId": "high-preload-hr75",
+      "settled": false,
+      "settleReason": "exception",
+      "healthStatus": "exception",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "not-measured",
+      "failedLabels": [
+        "source active-fiber stress must be nonnegative"
+      ],
+      "badges": null,
+      "metrics": null,
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": "source active-fiber stress must be nonnegative"
+    },
+    {
+      "variantId": "source-filter-medium-legacy-atria",
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": false,
+      "settleReason": "exception",
+      "healthStatus": "exception",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "not-measured",
+      "failedLabels": [
+        "source active-fiber stress must be nonnegative"
+      ],
+      "badges": null,
+      "metrics": null,
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": "source active-fiber stress must be nonnegative"
+    },
+    {
+      "variantId": "source-filter-medium-legacy-atria",
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": false,
+      "settleReason": "exception",
+      "healthStatus": "exception",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "not-measured",
+      "failedLabels": [
+        "source active-fiber stress must be nonnegative"
+      ],
+      "badges": null,
+      "metrics": null,
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": "source active-fiber stress must be nonnegative"
+    },
+    {
+      "variantId": "source-filter-medium-legacy-atria",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "RA PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 66.363647,
+        "PAPMean": 18.079546,
+        "CO_L": 3.911033,
+        "CO_R": 3.944549,
+        "LAPMean": 11.442721,
+        "RAPMean": 5.906422,
+        "EF_LApprox": 0.4229,
+        "EF_RApprox": 0.352158
+      },
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "source-filter-medium-legacy-atria",
+      "pointId": "contractility-high-hr75",
+      "settled": false,
+      "settleReason": "exception",
+      "healthStatus": "exception",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "not-measured",
+      "failedLabels": [
+        "source active-fiber stress must be nonnegative"
+      ],
+      "badges": null,
+      "metrics": null,
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": "source active-fiber stress must be nonnegative"
+    },
+    {
+      "variantId": "temporal-substep2-user0",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 78.529334,
+        "PAPMean": 17.1097,
+        "CO_L": 4.859016,
+        "CO_R": 4.850506,
+        "LAPMean": 8.905229,
+        "RAPMean": 4.311341,
+        "EF_LApprox": 0.49516,
+        "EF_RApprox": 0.410497
+      },
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "temporal-substep2-user0",
+      "pointId": "normal-hr90",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 84.945737,
+        "PAPMean": 16.530479,
+        "CO_L": 5.312058,
+        "CO_R": 5.269695,
+        "LAPMean": 7.562259,
+        "RAPMean": 3.572646,
+        "EF_LApprox": 0.460356,
+        "EF_RApprox": 0.419717
+      },
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "temporal-substep2-user0",
+      "pointId": "low-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 67.461469,
+        "PAPMean": 9.862527,
+        "CO_L": 4.191053,
+        "CO_R": 4.184563,
+        "LAPMean": 2.778456,
+        "RAPMean": 1.892358,
+        "EF_LApprox": 0.49589,
+        "EF_RApprox": 0.45808
+      },
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "temporal-substep2-user0",
+      "pointId": "high-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 82.443435,
+        "PAPMean": 22.149668,
+        "CO_L": 4.949109,
+        "CO_R": 4.990509,
+        "LAPMean": 13.763721,
+        "RAPMean": 7.280644,
+        "EF_LApprox": 0.489219,
+        "EF_RApprox": 0.373191
+      },
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "temporal-substep2-user0",
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 86.246599,
+        "PAPMean": 18.093583,
+        "CO_L": 4.58266,
+        "CO_R": 4.620057,
+        "LAPMean": 10.320902,
+        "RAPMean": 4.288897,
+        "EF_LApprox": 0.457564,
+        "EF_RApprox": 0.394944
+      },
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "temporal-substep2-user0",
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 78.278924,
+        "PAPMean": 17.377106,
+        "CO_L": 4.835021,
+        "CO_R": 4.821245,
+        "LAPMean": 8.515258,
+        "RAPMean": 4.37187,
+        "EF_LApprox": 0.496315,
+        "EF_RApprox": 0.405582
+      },
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "temporal-substep2-user0",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "RA PV loop",
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 55.674699,
+        "PAPMean": 19.173148,
+        "CO_L": 3.06775,
+        "CO_R": 3.064187,
+        "LAPMean": 13.997203,
+        "RAPMean": 7.368928,
+        "EF_LApprox": 0.317005,
+        "EF_RApprox": 0.250512
+      },
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "temporal-substep2-user0",
+      "pointId": "contractility-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 90.711038,
+        "PAPMean": 16.381398,
+        "CO_L": 5.674669,
+        "CO_R": 5.64263,
+        "LAPMean": 6.821419,
+        "RAPMean": 2.97728,
+        "EF_LApprox": 0.594167,
+        "EF_RApprox": 0.527167
+      },
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "source-filter-medium-legacy-atria-substep2",
+      "pointId": "normal-hr75",
+      "settled": false,
+      "settleReason": "exception",
+      "healthStatus": "exception",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "not-measured",
+      "failedLabels": [
+        "source active-fiber stress must be nonnegative"
+      ],
+      "badges": null,
+      "metrics": null,
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": "source active-fiber stress must be nonnegative"
+    },
+    {
+      "variantId": "source-filter-medium-legacy-atria-substep2",
+      "pointId": "normal-hr90",
+      "settled": false,
+      "settleReason": "exception",
+      "healthStatus": "exception",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "not-measured",
+      "failedLabels": [
+        "source active-fiber stress must be nonnegative"
+      ],
+      "badges": null,
+      "metrics": null,
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": "source active-fiber stress must be nonnegative"
+    },
+    {
+      "variantId": "source-filter-medium-legacy-atria-substep2",
+      "pointId": "low-preload-hr75",
+      "settled": false,
+      "settleReason": "exception",
+      "healthStatus": "exception",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "not-measured",
+      "failedLabels": [
+        "source active-fiber stress must be nonnegative"
+      ],
+      "badges": null,
+      "metrics": null,
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": "source active-fiber stress must be nonnegative"
+    },
+    {
+      "variantId": "source-filter-medium-legacy-atria-substep2",
+      "pointId": "high-preload-hr75",
+      "settled": false,
+      "settleReason": "exception",
+      "healthStatus": "exception",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "not-measured",
+      "failedLabels": [
+        "source active-fiber stress must be nonnegative"
+      ],
+      "badges": null,
+      "metrics": null,
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": "source active-fiber stress must be nonnegative"
+    },
+    {
+      "variantId": "source-filter-medium-legacy-atria-substep2",
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": false,
+      "settleReason": "exception",
+      "healthStatus": "exception",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "not-measured",
+      "failedLabels": [
+        "source active-fiber stress must be nonnegative"
+      ],
+      "badges": null,
+      "metrics": null,
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": "source active-fiber stress must be nonnegative"
+    },
+    {
+      "variantId": "source-filter-medium-legacy-atria-substep2",
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": false,
+      "settleReason": "exception",
+      "healthStatus": "exception",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "not-measured",
+      "failedLabels": [
+        "source active-fiber stress must be nonnegative"
+      ],
+      "badges": null,
+      "metrics": null,
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": "source active-fiber stress must be nonnegative"
+    },
+    {
+      "variantId": "source-filter-medium-legacy-atria-substep2",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "RA PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 66.391895,
+        "PAPMean": 18.073342,
+        "CO_L": 3.922732,
+        "CO_R": 3.938082,
+        "LAPMean": 11.42869,
+        "RAPMean": 5.916013,
+        "EF_LApprox": 0.424789,
+        "EF_RApprox": 0.35136
+      },
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "source-filter-medium-legacy-atria-substep2",
+      "pointId": "contractility-high-hr75",
+      "settled": false,
+      "settleReason": "exception",
+      "healthStatus": "exception",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "not-measured",
+      "failedLabels": [
+        "source active-fiber stress must be nonnegative"
+      ],
+      "badges": null,
+      "metrics": null,
+      "landSolveFailures": {
+        "LV": 0,
+        "RV": 0
+      },
+      "errorMessage": "source active-fiber stress must be nonnegative"
+    }
+  ],
+  "variantSummaries": [
+    {
+      "variantId": "legacy-frozen-reference",
+      "grossPassCount": 2,
+      "measuredCount": 7,
+      "settledOkCount": 6,
+      "lvPvOkCount": 7,
+      "rvPvOkCount": 7,
+      "mvfOkCount": 3,
+      "tvfOkCount": 4,
+      "firstFailedPoint": "normal-hr90",
+      "failedPointIds": [
+        "normal-hr90",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "systemic-afterload-high-hr75",
+        "contractility-low-hr75",
+        "contractility-high-hr75"
+      ],
+      "outputPreservedCount": 6,
+      "totalLandSolveFailures": 0
+    },
+    {
+      "variantId": "current-user0-default",
+      "grossPassCount": 0,
+      "measuredCount": 7,
+      "settledOkCount": 7,
+      "lvPvOkCount": 1,
+      "rvPvOkCount": 2,
+      "mvfOkCount": 0,
+      "tvfOkCount": 5,
+      "firstFailedPoint": "normal-hr75",
+      "failedPointIds": [
+        "normal-hr75",
+        "normal-hr90",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "systemic-afterload-high-hr75",
+        "pulmonary-afterload-high-hr75",
+        "contractility-low-hr75",
+        "contractility-high-hr75"
+      ],
+      "outputPreservedCount": 6,
+      "totalLandSolveFailures": 0
+    },
+    {
+      "variantId": "source-filter-medium-legacy-atria",
+      "grossPassCount": 0,
+      "measuredCount": 1,
+      "settledOkCount": 1,
+      "lvPvOkCount": 1,
+      "rvPvOkCount": 1,
+      "mvfOkCount": 0,
+      "tvfOkCount": 1,
+      "firstFailedPoint": "normal-hr75",
+      "failedPointIds": [
+        "normal-hr75",
+        "normal-hr90",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "systemic-afterload-high-hr75",
+        "pulmonary-afterload-high-hr75",
+        "contractility-low-hr75",
+        "contractility-high-hr75"
+      ],
+      "outputPreservedCount": 1,
+      "totalLandSolveFailures": 0
+    },
+    {
+      "variantId": "temporal-substep2-user0",
+      "grossPassCount": 0,
+      "measuredCount": 8,
+      "settledOkCount": 8,
+      "lvPvOkCount": 1,
+      "rvPvOkCount": 4,
+      "mvfOkCount": 1,
+      "tvfOkCount": 6,
+      "firstFailedPoint": "normal-hr75",
+      "failedPointIds": [
+        "normal-hr75",
+        "normal-hr90",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "systemic-afterload-high-hr75",
+        "pulmonary-afterload-high-hr75",
+        "contractility-low-hr75",
+        "contractility-high-hr75"
+      ],
+      "outputPreservedCount": 7,
+      "totalLandSolveFailures": 0
+    },
+    {
+      "variantId": "source-filter-medium-legacy-atria-substep2",
+      "grossPassCount": 0,
+      "measuredCount": 1,
+      "settledOkCount": 1,
+      "lvPvOkCount": 1,
+      "rvPvOkCount": 1,
+      "mvfOkCount": 0,
+      "tvfOkCount": 1,
+      "firstFailedPoint": "normal-hr75",
+      "failedPointIds": [
+        "normal-hr75",
+        "normal-hr90",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "systemic-afterload-high-hr75",
+        "pulmonary-afterload-high-hr75",
+        "contractility-low-hr75",
+        "contractility-high-hr75"
+      ],
+      "outputPreservedCount": 1,
+      "totalLandSolveFailures": 0
+    }
+  ],
+  "classification": {
+    "currentUser0GrossPass": "0/8",
+    "bestSourceAdapterVariant": "source-filter-medium-legacy-atria:0/8",
+    "bestTemporalSubstepVariant": "temporal-substep2-user0:0/8",
+    "sourceStressAdapterDecision": "not-supported",
+    "notes": [
+      "Current user-0 normal failed labels: LV PV loop, RV PV loop, MVF, LA pressure timing, RA pressure timing.",
+      "Best source-adapter normal failed labels: source active-fiber stress must be nonnegative.",
+      "Best source-adapter gross pass count: 0/8.",
+      "Best temporal-substep gross pass count: 0/8.",
+      "Source-stress adapter adoption requires full representative morphology envelope pass, not pressure smoothing or temporal substepping alone."
+    ]
+  },
+  "recommendedNext": [
+    "do not adopt the source-stress pressure adapter",
+    "move to a deeper chamber pressure adapter or graph-level implicit valve/load solve rather than more filter/tau sweeps",
+    "keep A1/A2, LandAtrial parameters, qDot/rootZc, valve thresholds, Tref, and source-stress scale frozen while this blocker is active"
+  ],
+  "claimBoundary": {
+    "noRuntimeDefaultAdoptionUnlessFullEnvelopePass": true,
+    "noOfficialMorphologyAcceptance": true,
+    "noLandAtrialPhysiologyAcceptance": true,
+    "noA1A2Reopen": true,
+    "noValveQdotRootZcTrefSourceStressTuning": true,
+    "noClinicalScientificValidation": true
+  },
+  "normalizedSha256": "75a8e0c87619771735e542ab96e569da665e56bd053e4be5f7b6cea529ae341e"
+}

@@ -202,10 +202,24 @@ export type ModelCoreExperimentalValveDiodeSmoothingOptions = {
   readonly opennessScaledReverseFlow?: boolean;
 };
 
+export type ModelCoreExperimentalGraphCoupledStepOptions = {
+  readonly mechanismId: string;
+  readonly iterations?: number;
+  readonly relaxation?: number;
+  readonly providerStateCouplingChambers?: readonly Chamber[];
+};
+
+export type ModelCoreExperimentalTemporalSubstepOptions = {
+  readonly mechanismId: string;
+  readonly subdivisions: number;
+};
+
 export type ModelCoreExperimentalOptions = {
   readonly activeSourceProviders?: Partial<Record<Chamber, ModelCoreExperimentalActiveSourceProvider>>;
   readonly boundaryRootInertance?: ModelCoreExperimentalBoundaryRootInertanceOptions;
   readonly valveDiodeSmoothing?: ModelCoreExperimentalValveDiodeSmoothingOptions;
+  readonly graphCoupledStep?: ModelCoreExperimentalGraphCoupledStepOptions;
+  readonly temporalSubstep?: ModelCoreExperimentalTemporalSubstepOptions;
   readonly runtimeParameterPatch?: ParameterPatch;
 };
 
@@ -649,6 +663,46 @@ function normalizeExperimentalValveDiodeSmoothing(
   };
 }
 
+function normalizeExperimentalGraphCoupledStep(
+  options: ModelCoreExperimentalGraphCoupledStepOptions | undefined,
+): ModelCoreExperimentalGraphCoupledStepOptions | null {
+  if (!options) return null;
+  if (!options.mechanismId.trim()) {
+    throw new Error("Experimental graph-coupled step requires a mechanismId.");
+  }
+  const iterations = Math.floor(clamp(options.iterations ?? 2, 1, 6));
+  const relaxation = clamp(options.relaxation ?? 1, 0.1, 1);
+  const providerStateCouplingChambers: readonly Chamber[] = options.providerStateCouplingChambers
+    ? [...new Set(options.providerStateCouplingChambers)]
+    : ["LV", "RV"];
+  for (const chamber of providerStateCouplingChambers) {
+    if (chamber !== "LV" && chamber !== "RV" && chamber !== "LA" && chamber !== "RA") {
+      throw new Error(`Experimental graph-coupled step received unknown chamber '${chamber}'.`);
+    }
+  }
+  return {
+    mechanismId: options.mechanismId,
+    iterations,
+    relaxation,
+    providerStateCouplingChambers,
+  };
+}
+
+function normalizeExperimentalTemporalSubstep(
+  options: ModelCoreExperimentalTemporalSubstepOptions | undefined,
+): ModelCoreExperimentalTemporalSubstepOptions | null {
+  if (!options) return null;
+  if (!options.mechanismId.trim()) {
+    throw new Error("Experimental temporal substep requires a mechanismId.");
+  }
+  const subdivisions = Math.floor(clamp(options.subdivisions, 1, 8));
+  if (subdivisions <= 1) return null;
+  return {
+    mechanismId: options.mechanismId,
+    subdivisions,
+  };
+}
+
 export class ModelCore {
   private readonly idx = makeIndex();
   private nodes = buildNodes();
@@ -662,6 +716,8 @@ export class ModelCore {
   private readonly experimentalActiveSourceProviders: Partial<Record<Chamber, ModelCoreExperimentalActiveSourceProvider>>;
   private readonly experimentalBoundaryRootInertance: ModelCoreExperimentalBoundaryRootInertanceOptions | null;
   private readonly experimentalValveDiodeSmoothing: ModelCoreExperimentalValveDiodeSmoothingOptions | null;
+  private readonly experimentalGraphCoupledStep: ModelCoreExperimentalGraphCoupledStepOptions | null;
+  private readonly experimentalTemporalSubstep: ModelCoreExperimentalTemporalSubstepOptions | null;
   private readonly experimentalRuntimeParameterPatch: ParameterPatch | null;
   private readonly experimentalActiveSourceProviderStates: Partial<Record<Chamber, unknown>> = {};
   private readonly experimentalActiveSourceProviderStateVersions: Partial<Record<Chamber, number>> = {};
@@ -735,6 +791,12 @@ export class ModelCore {
     );
     this.experimentalValveDiodeSmoothing = normalizeExperimentalValveDiodeSmoothing(
       experimentalOptions.valveDiodeSmoothing,
+    );
+    this.experimentalGraphCoupledStep = normalizeExperimentalGraphCoupledStep(
+      experimentalOptions.graphCoupledStep,
+    );
+    this.experimentalTemporalSubstep = normalizeExperimentalTemporalSubstep(
+      experimentalOptions.temporalSubstep,
     );
     this.experimentalRuntimeParameterPatch = experimentalOptions.runtimeParameterPatch ?? null;
     this.validateExperimentalActiveSourceProviders();
@@ -1088,6 +1150,16 @@ export class ModelCore {
   }
 
   step(dt: number) {
+    const temporalSubdivisions = this.experimentalTemporalSubstep?.subdivisions ?? 1;
+    if (temporalSubdivisions > 1) {
+      const subDt = dt / temporalSubdivisions;
+      for (let i = 0; i < temporalSubdivisions; i++) this.stepSingle(subDt);
+      return;
+    }
+    this.stepSingle(dt);
+  }
+
+  private stepSingle(dt: number) {
     this.rhsDt = Math.max(dt, 1e-6);
     this.sanitizeLastStepAudit = emptyVolumeDeltaAudit();
     this.tbvProjectionLastStepAudit = emptyTBVProjectionAudit();
@@ -1105,18 +1177,68 @@ export class ModelCore {
       this.expectedTBV = clamp(this.expectedTBV + netFlowMlPerS * dt, 1000, 12000);
     }
 
-    const k1 = this.rhs(this.x);
-    const pred = new Float64Array(this.x.length);
-    for (let i = 0; i < this.x.length; i++) pred[i] = this.x[i] + dt * k1[i];
-    this.sanitizeState(pred);
-    const k2 = this.rhs(pred);
-    for (let i = 0; i < this.x.length; i++) this.x[i] += 0.5 * dt * (k1[i] + k2[i]);
-    this.t += dt;
-    this.sanitizeState(this.x);
+    if (this.experimentalGraphCoupledStep && beforeProviderCommitX) {
+      this.stepGraphCoupledProviderState(dt, beforeProviderCommitT, beforeProviderCommitX);
+    } else {
+      const k1 = this.rhs(this.x);
+      const pred = new Float64Array(this.x.length);
+      for (let i = 0; i < this.x.length; i++) pred[i] = this.x[i] + dt * k1[i];
+      this.sanitizeState(pred);
+      const k2 = this.rhs(pred);
+      for (let i = 0; i < this.x.length; i++) this.x[i] += 0.5 * dt * (k1[i] + k2[i]);
+      this.t += dt;
+      this.sanitizeState(this.x);
+    }
     if (this.p.projectTBV && this.tbvCorrectionEnabled) this.correctVenousPressuresToExpectedTBV();
     if (beforeProviderCommitX) {
       this.commitExperimentalActiveProviderStates(dt, beforeProviderCommitT, beforeProviderCommitX);
     }
+  }
+
+  private stepGraphCoupledProviderState(
+    dt: number,
+    beforeProviderCommitT: number,
+    beforeProviderCommitX: Float64Array,
+  ): void {
+    const options = this.experimentalGraphCoupledStep;
+    if (!options) throw new Error("Missing graph-coupled step options.");
+    const baseProviderState = this.snapshotExperimentalActiveProviderStates();
+    const k1 = this.rhs(beforeProviderCommitX);
+    let candidate = new Float64Array(beforeProviderCommitX.length);
+    for (let i = 0; i < beforeProviderCommitX.length; i++) {
+      candidate[i] = beforeProviderCommitX[i] + dt * k1[i];
+    }
+    this.sanitizeState(candidate);
+
+    const iterations = options.iterations ?? 2;
+    const relaxation = options.relaxation ?? 1;
+    for (let iteration = 0; iteration < iterations; iteration++) {
+      this.restoreExperimentalActiveProviderStates(baseProviderState);
+      const provisionalProviderState = this.computeExperimentalActiveProviderStateCommits(
+        dt,
+        beforeProviderCommitT,
+        beforeProviderCommitX,
+        beforeProviderCommitT + dt,
+        candidate,
+        new Set(options.providerStateCouplingChambers ?? ["LV", "RV"]),
+      );
+      this.restoreExperimentalActiveProviderStates(provisionalProviderState);
+      const k2 = this.rhs(candidate);
+      const next = new Float64Array(beforeProviderCommitX.length);
+      for (let i = 0; i < beforeProviderCommitX.length; i++) {
+        next[i] = beforeProviderCommitX[i] + 0.5 * dt * (k1[i] + k2[i]);
+        if (relaxation < 1) {
+          next[i] = candidate[i] + relaxation * (next[i] - candidate[i]);
+        }
+      }
+      this.sanitizeState(next);
+      candidate = next;
+    }
+
+    this.restoreExperimentalActiveProviderStates(baseProviderState);
+    this.x.set(candidate);
+    this.t += dt;
+    this.sanitizeState(this.x);
   }
 
   setTBVCorrectionEnabled(enabled: boolean): void {
@@ -2793,9 +2915,43 @@ export class ModelCore {
     beforeX: Float64Array,
   ): void {
     const providerStateSnapshot = this.snapshotExperimentalActiveProviderStates();
+    const nextSnapshot = this.computeExperimentalActiveProviderStateCommits(
+      stepDtSec,
+      beforeT,
+      beforeX,
+      this.t,
+      this.x,
+      null,
+      providerStateSnapshot,
+    );
+    this.restoreExperimentalActiveProviderStates(nextSnapshot);
+  }
+
+  private computeExperimentalActiveProviderStateCommits(
+    stepDtSec: number,
+    beforeT: number,
+    beforeX: Float64Array,
+    afterT: number,
+    afterX: Float64Array,
+    chamberFilter: Set<Chamber> | null = null,
+    providerStateSnapshot = this.snapshotExperimentalActiveProviderStates(),
+  ): Partial<Record<Chamber, { state: unknown; version: number }>> {
+    const nextSnapshot: Partial<Record<Chamber, { state: unknown; version: number }>> = {};
+    for (const [chamber, entry] of Object.entries(providerStateSnapshot) as Array<[Chamber, { state: unknown; version: number } | undefined]>) {
+      if (!entry) continue;
+      nextSnapshot[chamber] = {
+        state: this.cloneExperimentalActiveProviderState(
+          this.experimentalActiveSourceProviders[chamber]!,
+          entry.state,
+          `${chamber}.computeCommitSnapshotBase`,
+        ),
+        version: entry.version,
+      };
+    }
     const pendingStates: Array<{ chamber: Chamber; state: unknown; version: number }> = [];
     for (const [chamber, provider] of Object.entries(this.experimentalActiveSourceProviders) as Array<[Chamber, ModelCoreExperimentalActiveSourceProvider | undefined]>) {
       if (!provider?.commitProviderStateAfterStep) continue;
+      if (chamberFilter && !chamberFilter.has(chamber)) continue;
       const previousSnapshot = providerStateSnapshot[chamber];
       const previousProviderState = previousSnapshot
         ? this.cloneExperimentalActiveProviderState(provider, previousSnapshot.state, `${chamber}.commitProviderState`)
@@ -2808,7 +2964,7 @@ export class ModelCore {
         previousProviderState,
         previousProviderStateVersion,
         beforeStep: this.activeProviderStepSnapshot(chamber, beforeX, beforeT),
-        afterStep: this.activeProviderStepSnapshot(chamber, this.x, this.t),
+        afterStep: this.activeProviderStepSnapshot(chamber, afterX, afterT),
       });
       pendingStates.push({
         chamber,
@@ -2821,9 +2977,12 @@ export class ModelCore {
       });
     }
     for (const pending of pendingStates) {
-      this.experimentalActiveSourceProviderStates[pending.chamber] = pending.state;
-      this.experimentalActiveSourceProviderStateVersions[pending.chamber] = pending.version;
+      nextSnapshot[pending.chamber] = {
+        state: pending.state,
+        version: pending.version,
+      };
     }
+    return nextSnapshot;
   }
 
   private activeProviderStepSnapshot(
@@ -3397,6 +3556,12 @@ export class ModelCore {
         : {}),
       ...(this.experimentalValveDiodeSmoothing
         ? { valveDiodeSmoothing: this.experimentalValveDiodeSmoothing }
+        : {}),
+      ...(this.experimentalGraphCoupledStep
+        ? { graphCoupledStep: this.experimentalGraphCoupledStep }
+        : {}),
+      ...(this.experimentalTemporalSubstep
+        ? { temporalSubstep: this.experimentalTemporalSubstep }
         : {}),
     });
     clone.pTarget = { ...this.pTarget };

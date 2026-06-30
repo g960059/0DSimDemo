@@ -244,15 +244,31 @@ and records `ventricular-chamber-shell-phase5bx-result-v1`. The shell solves
 chamber pressure/volume plus inlet/outlet valve flow in one local backward
 step while preserving live Land source-state inputs, and compares live source
 stress versus source-state SeriesElasticV1 under current-like and
-DynamicValveTransitionV1 valve modes. It is numerically stable and preserves
-output in the best candidate, but still does not solve morphology: live is
-0/14 measured side gross pass, and the best shell candidate
-`shell-source-state-se-current-valves` reaches only 1/14 gross pass, with PV
-5/14, AV inflow 2/14, output 14/14, and solve fraction 1.0. Do not wire this
-local shell into runtime defaults. Treat the remaining blocker as requiring a
-larger graph-level coupled step, a different chamber pressure adapter, or a
-more structural ventricular mechanics integration before LandAtrial tuning
-resumes.
+DynamicValveTransitionV1 valve modes. Phase 5CA hygiene then removes three
+over-supportive replay assumptions from the 5BX evidence: SeriesElastic replay
+now uses the shell trajectory's accepted previous lambda instead of the live
+trace lambda when shell volume diverges, the first final-beat Land commit is no
+longer skipped, and runtime-shadow support thresholds are based on measured
+side counts instead of fixed 14/7 constants. After rerun, live remains 0/14
+measured side gross pass and the best shell candidate
+`shell-source-state-se-current-valves` is also 0/14, with PV 2/14, AV inflow
+1/14, output preserved 10/14, and solve fraction 1.0. Do not use the older
+"output 14/14" 5BX signal to justify this local shell. Do not wire this local
+shell into runtime defaults. Treat the remaining blocker as requiring either a
+source-state/pressure-adapter contract redesign or a larger coupled mechanics
+step before LandAtrial tuning resumes.
+Phase 5BY tests an opt-in graph-coupled provider-state step in live ModelCore:
+current user-0 remains 0/8 gross pass, the best graph-coupled variant remains
+0/8, and no adoption is supported. Phase 5BZ tests LV/RV source-stress pressure
+adapter filtering plus 2x temporal substepping: current user-0 remains 0/8,
+best candidate remains 0/8, and no source-stress adapter or temporal substep
+adoption is supported. Phase 5CA also writes a reusable visual review bundle
+for owner gate calibration under `~/Downloads/0dsim-morphology-review-phase5ca`;
+legacy itself is only 2/8 under the current gross gate, so threshold hygiene
+and owner visual review are required before escalating to another multi-month
+structural rewrite. This does not relax the development contract: Land-based
+variants still show worse LV/RV PV and MVF robustness than frozen legacy over
+the same preload/afterload/contractility envelope.
 
 ## Lane table
 

@@ -192,6 +192,8 @@ type RunResult = {
 type VariantSummary = {
   readonly variantId: VariantId;
   readonly measuredCount: number;
+  readonly lvMeasuredCount: number;
+  readonly rvMeasuredCount: number;
   readonly grossOkCount: number;
   readonly lvGrossOkCount: number;
   readonly rvGrossOkCount: number;
@@ -521,15 +523,26 @@ function replayShellVariant(
     numberAt(first.sample, side.outFlowKey),
     numberAt(first.sample, side.avOpenKey),
     numberAt(first.sample, side.outOpenKey),
-    sourceStateForTrace(first.trace, numberAt(first.sample, side.volumeKey)),
+    sourceStateForTrace(
+      first.trace,
+      numberAt(first.sample, side.volumeKey),
+      numberAt(first.sample, side.volumeKey),
+      numberAt(first.sample, side.volumeKey),
+    ),
   );
   const out: ReplaySample[] = [];
-  for (let index = 1; index < matched.length; index += 1) {
+  for (let index = 0; index < matched.length; index += 1) {
     const entry = matched[index];
-    const prevEntry = matched[index - 1];
-    const dtSec = Math.max(entry.trace.dtSec, entry.sample.t - prevEntry.sample.t, 1e-6);
+    const prevEntry = matched[Math.max(0, index - 1)];
+    const dtSec = Math.max(
+      entry.trace.dtSec,
+      index > 0 ? entry.sample.t - prevEntry.sample.t : entry.trace.dtSec,
+      1e-6,
+    );
     const liveVolume = numberAt(entry.sample, side.volumeKey);
-    const sourceState = sourceStateForTrace(entry.trace, liveVolume);
+    const previousLiveVolume = numberAt(prevEntry.sample, side.volumeKey);
+    const previousShellVolume = shell.volumeMl;
+    const sourceState = sourceStateForTrace(entry.trace, liveVolume, previousShellVolume, previousLiveVolume);
     const step = stepVentricularChamberShellV1(
       shell,
       {
@@ -553,7 +566,7 @@ function replayShellVariant(
     );
     shell = step.nextState;
     out.push({
-      t: entry.sample.t,
+      t: entry.trace.after.tSec,
       theta: phaseOf(entry.sample),
       volumeMl: step.volumeMl,
       liveVolumeMl: liveVolume,
@@ -585,17 +598,31 @@ function replayShellVariant(
 function sourceStateForTrace(
   trace: ModelCoreLand2017LvSourceProviderTraceSample,
   liveVolumeMl: number,
+  previousShellVolumeMl: number,
+  previousLiveVolumeMl: number,
 ) {
   return {
     previousLandState: trace.previousLandState,
     freeCalciumUM: trace.freeCalciumUM,
     previousFreeCalciumUM: trace.previousFreeCalciumUM,
-    previousFiberEngineeringStrain: trace.previousFiberEngineeringStrain,
+    previousFiberEngineeringStrain: scaledFiberEngineeringStrain(
+      trace.previousFiberEngineeringStrain,
+      previousShellVolumeMl,
+      previousLiveVolumeMl,
+    ),
     stageFiberEngineeringStrainAtVolumeMl: (volumeMl: number) => {
-      const liveLambda = 1 + trace.stageFiberEngineeringStrain;
-      return clamp(liveLambda * Math.cbrt(Math.max(volumeMl, 1) / Math.max(liveVolumeMl, 1)), 0.65, 1.35) - 1;
+      return scaledFiberEngineeringStrain(trace.stageFiberEngineeringStrain, volumeMl, liveVolumeMl);
     },
   };
+}
+
+function scaledFiberEngineeringStrain(
+  referenceFiberEngineeringStrain: number,
+  candidateVolumeMl: number,
+  referenceVolumeMl: number,
+): number {
+  const referenceLambda = 1 + referenceFiberEngineeringStrain;
+  return clamp(referenceLambda * Math.cbrt(Math.max(candidateVolumeMl, 1) / Math.max(referenceVolumeMl, 1)), 0.65, 1.35) - 1;
 }
 
 function finalBeatMatchedTrace(side: SideSpec, liveTrace: LiveTrace): readonly MatchedTrace[] {
@@ -851,6 +878,8 @@ function summarizeVariant(variantId: VariantId, results: readonly RunResult[]): 
   return {
     variantId,
     measuredCount: measured.length,
+    lvMeasuredCount: measured.filter((result) => result.side === "LV").length,
+    rvMeasuredCount: measured.filter((result) => result.side === "RV").length,
     grossOkCount: measured.filter((result) => result.metrics.grossOk).length,
     lvGrossOkCount: measured.filter((result) => result.side === "LV" && result.metrics.grossOk).length,
     rvGrossOkCount: measured.filter((result) => result.side === "RV" && result.metrics.grossOk).length,
@@ -876,16 +905,26 @@ function classify(summaries: readonly VariantSummary[]): Classification {
     if (b.pvOkCount !== a.pvOkCount) return b.pvOkCount - a.pvOkCount;
     return b.outputPreservedCount - a.outputPreservedCount;
   })[0] ?? live;
+  const bestAllMeasured = best.measuredCount > 0
+    && best.lvMeasuredCount > 0
+    && best.rvMeasuredCount > 0
+    && best.grossOkCount === best.measuredCount
+    && best.lvGrossOkCount === best.lvMeasuredCount
+    && best.rvGrossOkCount === best.rvMeasuredCount;
+  const partialThreshold = Math.max(
+    live.grossOkCount + Math.ceil(Math.max(best.measuredCount, 1) * 0.25),
+    Math.ceil(Math.max(best.measuredCount, 1) * 0.4),
+  );
   const decision =
-    best.grossOkCount >= 14 && best.lvGrossOkCount >= 7 && best.rvGrossOkCount >= 7
+    bestAllMeasured
       ? "supported-for-runtime-shadow"
-      : best.grossOkCount >= Math.max(live.grossOkCount + 4, 6)
+      : best.grossOkCount >= partialThreshold
         ? "partial-shell-signal"
         : "not-supported";
   return {
     liveUser0GrossPass: `${live.grossOkCount}/${live.measuredCount}`,
     bestShellVariant:
-      `${best.variantId}:gross=${best.grossOkCount}/${best.measuredCount},lv=${best.lvGrossOkCount}/7,rv=${best.rvGrossOkCount}/7,pv=${best.pvOkCount}/${best.measuredCount},av=${best.avFlowOkCount}/${best.measuredCount},output=${best.outputPreservedCount}/${best.measuredCount},solve=${best.meanSolveOkFraction}`,
+      `${best.variantId}:gross=${best.grossOkCount}/${best.measuredCount},lv=${best.lvGrossOkCount}/${best.lvMeasuredCount},rv=${best.rvGrossOkCount}/${best.rvMeasuredCount},pv=${best.pvOkCount}/${best.measuredCount},av=${best.avFlowOkCount}/${best.measuredCount},output=${best.outputPreservedCount}/${best.measuredCount},solve=${best.meanSolveOkFraction}`,
     chamberShellDecision: decision,
     notes: [
       "This is a local source-state-preserving ChamberShell bench, not a runtime implementation.",
