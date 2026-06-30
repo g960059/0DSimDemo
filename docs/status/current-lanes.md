@@ -95,7 +95,7 @@ Current owner priorities:
 | arterial load | Phase 5Y records real AoV qDot raw/post clamp engagement, and Phase 5Z no longer supports short-window denominator amplification as dominant. Phase 5AA adds the offline prescribed-pressure AoV/root inertance bench; Phase 5AB carries the lower-inertance region into closed loop through the existing `AoV_L` effective root-boundary carrier; Phase 5AC computes direct isolated-bench input impedance spectra; Phase 5AD tests selected off-by-default prototype routes; Phase 5AE adds a separated experimental boundary/root inertance hook without topology, state-layout, default-param, or direct `Ao_SA.L` changes. Phase 5AF calibrates total 2x as the preferred sourced-Zc candidate. Phase 5AG reruns that candidate over the full synthetic matrix, Phase 5AH attributes the split, Phase 5AM exposes the sourced total 2x mechanism as an explicit off-by-default runtime candidate through `rootZcMode` plus closure-local base `AoV_L`, and Phase 5AP runs the same mechanism inside the current LV+RV Land default closure. The Phase 5AP live closure result supports user-0 default adoption: 15/15 health-ok candidate comparisons, output-preserved fraction 1, valve/load timing-signal fraction 1, qDot signal fraction 0.466667, zero output/timing-cost points, and zero LV/RV Land solve failures. The runtime default now composes the sourced root/Zc mechanism with closure-local `AoV_L`; explicit current and off-by-default candidate modes remain available, and frozen legacy rollback remains fenced from experimental root/Zc composition. | reflection coefficient remains unavailable/no-proxy; no valve/load timing acceptance; qDot clamp removal remains unsupported; no official morphology acceptance; no direct Ao_SA adoption | use adopted root/Zc as the discharge-path default while keeping valve/load timing acceptance, qDot clamp retirement, and official morphology as separate gates | qDot clamp removal, valve-threshold tuning, valve/load timing acceptance, official morphology, reflection-coefficient claim, and clinical/scientific validation are unclaimed |
 | studio/product | AI-native physiology studio direction proposed; owner is leading Studio/Workbench mock work outside this lane | MVP scope can grow too large | owner-led Home + Cases + static/mock Workbench | model validation, scientific acceptance |
 
-### Atrial Lane Override After Phase 5BG
+### Atrial Lane Override After Phase 5BH
 
 The atrial table row preserves historical A1/A2 evidence, but the forward lane
 state is now narrower by owner instruction: A1 and A2 are frozen as diagnostic
@@ -107,8 +107,12 @@ first shadow baseline; Phase 5BG attributes its settle boundary without tuning:
 LA-only signed LandAtrial measures all HR75/90 preload points, while RA-only
 and LA+RA signed LandAtrial fail to settle at `high-preload-hr90` with zero
 Land solver failures. Treat this as a RA-dominant LandAtrial settling boundary
-for the next calibration/geometry phase, not as A1/A2 selection, all-chamber
-default support, or atrial physiology acceptance.
+for calibration/geometry, not as A1/A2 selection, all-chamber default support,
+or atrial physiology acceptance. Phase 5BH then promotes the conservative
+desensitized RA LandAtrial shadow pack: the promoted current LA+RA LandAtrial
+shadow pack measures all 6 HR75/90 normal/low/high preload points with output
+preserved and zero Land solve failures. This is the next shadow baseline only;
+atrial target-pack scoring and figure-eight physiology acceptance remain ahead.
 
 ## Historical Evidence Pins
 
@@ -240,6 +244,15 @@ advances the current lane. They are evidence anchors, not current gates.
   all-chamber nonnegative control still runtime-errors at `low-preload-hr90`,
   and Land solver failures remain zero. It does not tune or accept atrial
   physiology, default all chambers, select A1/A2, or change qDot/root/Zc/valves.
+- Phase 5BH remains `ra-landatrial-calibration-scout-phase5bh-result-v1`, the
+  RA LandAtrial calibration scout and shadow-pack promotion. It adds a reusable
+  LandAtrial parameter-set variant helper, compares RA Ca-sensitivity/kinetics
+  and AV-plane-gain candidates without A1/A2, qDot, root/Zc, valve, Tref, or
+  source-stress tuning, and promotes the conservative desensitized RA shadow
+  parameter pack. The promoted current LA+RA LandAtrial shadow pack is supported
+  over 6/6 HR75/90 preload points with health/output preserved and zero Land
+  solve failures. It does not flip all chambers to runtime default, accept
+  atrial physiology, or claim official morphology.
 - Phase 5AV remains
   `atrial-land-ra-source-stress-convention-phase5av-result-v1`, the signed RA
   pressure-adapter candidate evidence showing the nonnegative adapter runtime
@@ -259,14 +272,14 @@ advances the current lane. They are evidence anchors, not current gates.
    owner GO and Phase 5AP. Do not delete
    legacy active-stress yet; keep it as frozen reference, debug fallback, and
    rollback while RA/LA chamber-replacement lanes advance separately.
-2. Phase 5BG keeps the nonnegative all-chamber atrial Land control as the
-   low-preload HR90 runtime-error comparator, but attributes the signed
-   LandAtrial shadow settle boundary to RA-dominant high-preload HR90 behavior:
-   LA-only signed measures 6/6 points, while RA-only and LA+RA signed fail only
-   at `high-preload-hr90` with zero Land solver failures. Do not treat signed
-   adaptation as all-chamber support, and do not solve this by source-stress
-   clamping, Tref/source-calcium tuning, qDot/valve tuning, root/Zc
-   re-litigation, official case tuning, or legacy deletion.
+2. Phase 5BH promotes the conservative desensitized RA LandAtrial shadow pack
+   after Phase 5BG localized the prior boundary to RA-dominant high-preload HR90
+   settling. The promoted current LA+RA shadow pack is health/output preserved
+   over 6/6 HR75/90 preload points with zero Land solve failures. Do not treat
+   this as all-chamber runtime-default support, and do not solve future atrial
+   waveform gaps by source-stress clamping, Tref/source-calcium tuning,
+   qDot/valve tuning, root/Zc re-litigation, official case tuning, or legacy
+   deletion.
 3. Keep Phase 5AP bounded: it supports user-0 root/Zc default adoption, but it
    does not unlock qDot clamp removal, valve/load timing acceptance, official
    morphology, reflection coefficients, or clinical/scientific validation.
@@ -276,11 +289,12 @@ advances the current lane. They are evidence anchors, not current gates.
    selection PRs. The forward physiology direction is LandAtrial with atrial
    parameter packs plus AV-plane/effective-geometry wall-strain readbacks.
    Phase 5BF adds that first LandAtrial shadow path and direct AV-plane wall
-   geometry readbacks; Phase 5BG then localizes the remaining settle boundary
-   to RA-dominant `high-preload-hr90` behavior. Use Phase 5BG as the forward
-   baseline for RA LandAtrial parameter/geometry/AV-plane calibration, not as
-   all-chamber default or atrial physiology acceptance. Treat HR105/120 as edge
-   evidence, not as an LV Land default gate.
+   geometry readbacks; Phase 5BG localizes the remaining settle boundary to
+   RA-dominant `high-preload-hr90` behavior; Phase 5BH promotes the RA shadow
+   parameter pack that settles the HR75/90 preload envelope. Use Phase 5BH as
+   the forward LandAtrial shadow baseline for atrial target-pack scoring and
+   figure-eight calibration, not as all-chamber default or atrial physiology
+   acceptance. Treat HR105/120 as edge evidence, not as an LV Land default gate.
 5. Keep provider-local SDIRK2 solver hardening narrow; Phase 5C-R did not unlock
    alternans-finality claim.
 6. Keep morphology evidence diagnostic-only when feeding myocardium decisions.

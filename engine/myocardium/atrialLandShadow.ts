@@ -44,6 +44,11 @@ export type AtrialLandShadowParameterPack = {
   readonly calibrationNotes: readonly string[];
 };
 
+export type AtrialLandShadowParameterSetOptions = {
+  readonly parameterSetIdSuffix?: string;
+  readonly runtimeValueOverrides?: Partial<Land2017RuntimeParameters>;
+};
+
 export type AtrialLandShadowSourceProviderOptions =
   Omit<ModelCoreLand2017LvCalciumScaledSourceProviderOptions, "parameterSet" | "sourceProviderId"> & {
     readonly sourceProviderId?: string;
@@ -63,6 +68,7 @@ export const LANDATRIAL_SHADOW_PARAMETER_PACK: AtrialLandShadowParameterPack = d
   calibrationNotes: [
     "Shadow pack keeps Land2017 Tref unchanged; it does not use Tref/source-stress scaling to buy atrial output.",
     "Atrial differences are limited to Ca sensitivity and kinetic-rate parameters so LA/RA can be compared before final literature calibration.",
+    "RA values use the Phase 5BH conservative-desensitized shadow candidate that settled the HR75/90 preload envelope without AV-plane gain changes.",
     "Provider pressure assembly is signed for atria so raw Land source stress can be measured without the old nonnegative pressure-adapter blocker.",
   ],
 });
@@ -157,11 +163,24 @@ function signedDebugActiveStressTerms(
 }
 
 function makeAtrialParameterSet(chamber: AtrialLandShadowChamber): Land2017SourceParameterSet {
+  return createAtrialLandShadowParameterSet(chamber);
+}
+
+export function createAtrialLandShadowParameterSet(
+  chamber: AtrialLandShadowChamber,
+  options: AtrialLandShadowParameterSetOptions = {},
+): Land2017SourceParameterSet {
   const base = LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET;
-  const values = atrialRuntimeValues(chamber, base.values);
+  const values = {
+    ...atrialRuntimeValues(chamber, base.values),
+    ...(options.runtimeValueOverrides ?? {}),
+    // Keep source Tref fixed; chamber pressure scaling comes from chamber geometry.
+    Tref: base.values.Tref,
+  };
   const derived = deriveLand2017DerivedParameters(values);
+  const suffix = options.parameterSetIdSuffix ? `:${options.parameterSetIdSuffix}` : "";
   const hashInput: Omit<Land2017SourceParameterSet, "parameterSetStableHash"> = {
-    parameterSetId: `${LANDATRIAL_SHADOW_PARAMETER_PACK_ID}:${chamber}`,
+    parameterSetId: `${LANDATRIAL_SHADOW_PARAMETER_PACK_ID}:${chamber}${suffix}`,
     sourceId: LAND2017_SOURCE_ID,
     doi: LAND2017_SOURCE_DOI,
     values,
@@ -182,14 +201,14 @@ function atrialRuntimeValues(
   const right = chamber === "RA";
   return {
     ...base,
-    kTRPN: right ? 155 : 140,
-    CaT50Ref: right ? 0.70 : 0.72,
-    ku: right ? 1300 : 1200,
-    kuw: right ? 280 : 240,
-    kws: right ? 22 : 18,
-    gammaS: right ? 14 : 12,
-    gammaW: right ? 850 : 760,
-    TRPN50: right ? 0.33 : 0.34,
+    kTRPN: right ? 110 : 140,
+    CaT50Ref: right ? 0.90 : 0.72,
+    ku: right ? 750 : 1200,
+    kuw: right ? 150 : 240,
+    kws: right ? 10 : 18,
+    gammaS: right ? 8 : 12,
+    gammaW: right ? 500 : 760,
+    TRPN50: right ? 0.46 : 0.34,
     // Keep source Tref fixed; chamber pressure scaling comes from chamber geometry.
     Tref: base.Tref,
   };
