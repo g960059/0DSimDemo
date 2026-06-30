@@ -95,7 +95,7 @@ Current owner priorities:
 | arterial load | Phase 5Y records real AoV qDot raw/post clamp engagement, and Phase 5Z no longer supports short-window denominator amplification as dominant. Phase 5AA adds the offline prescribed-pressure AoV/root inertance bench; Phase 5AB carries the lower-inertance region into closed loop through the existing `AoV_L` effective root-boundary carrier; Phase 5AC computes direct isolated-bench input impedance spectra; Phase 5AD tests selected off-by-default prototype routes; Phase 5AE adds a separated experimental boundary/root inertance hook without topology, state-layout, default-param, or direct `Ao_SA.L` changes. Phase 5AF calibrates total 2x as the preferred sourced-Zc candidate. Phase 5AG reruns that candidate over the full synthetic matrix, Phase 5AH attributes the split, Phase 5AM exposes the sourced total 2x mechanism as an explicit off-by-default runtime candidate through `rootZcMode` plus closure-local base `AoV_L`, and Phase 5AP runs the same mechanism inside the current LV+RV Land default closure. The Phase 5AP live closure result supports user-0 default adoption: 15/15 health-ok candidate comparisons, output-preserved fraction 1, valve/load timing-signal fraction 1, qDot signal fraction 0.466667, zero output/timing-cost points, and zero LV/RV Land solve failures. The runtime default now composes the sourced root/Zc mechanism with closure-local `AoV_L`; explicit current and off-by-default candidate modes remain available, and frozen legacy rollback remains fenced from experimental root/Zc composition. | reflection coefficient remains unavailable/no-proxy; no valve/load timing acceptance; qDot clamp removal remains unsupported; no official morphology acceptance; no direct Ao_SA adoption | use adopted root/Zc as the discharge-path default while keeping valve/load timing acceptance, qDot clamp retirement, and official morphology as separate gates | qDot clamp removal, valve-threshold tuning, valve/load timing acceptance, official morphology, reflection-coefficient claim, and clinical/scientific validation are unclaimed |
 | studio/product | AI-native physiology studio direction proposed; owner is leading Studio/Workbench mock work outside this lane | MVP scope can grow too large | owner-led Home + Cases + static/mock Workbench | model validation, scientific acceptance |
 
-### Atrial Lane Override After Phase 5BI
+### Atrial Lane Override After Phase 5BJ
 
 The atrial table row preserves historical A1/A2 evidence, but the forward lane
 state is now narrower by owner instruction: A1 and A2 are frozen as diagnostic
@@ -121,6 +121,17 @@ no-AV-plane ablation. This is target-scoring evidence only; direct
 wall/AV-plane geometry calibration remains ahead, and it does not accept
 atrial physiology, all-chamber runtime default, A1/A2 selection, official
 morphology, valve/load timing, or AF validation.
+Phase 5BJ then scouts LandAtrial AV-plane/effective wall-geometry candidates
+without changing Land source parameters, A1/A2, valves, qDot, root/Zc, or Tref:
+all seven candidates measure 6/6 health-ok and output-preserved points with
+zero Land solve failures. The best combined-distance scout candidate is
+`landatrial-avplane-high-la20-ra24`, which lowers the mean combined
+volume-plus-direct-wall-strain target distance versus current geometry
+(0.468153 vs 0.51093) and gives 6/6 raw readable diagnostic points, but it
+loses one both-atria volume-function broad-pass point. Treat it as the next
+LandAtrial shadow geometry input to rerun/confirm, not as parameter-pack
+promotion, physiology acceptance, all-chamber default support, or official
+morphology.
 
 ## Historical Evidence Pins
 
@@ -274,6 +285,19 @@ advances the current lane. They are evidence anchors, not current gates.
   atrial physiology, all-chamber runtime default, A1/A2 selection, official
   morphology, valve/load timing, root/Zc changes, qDot clamp retirement, or AF
   validation.
+- Phase 5BJ remains `landatrial-geometry-scout-phase5bj-result-v1`, the
+  LandAtrial AV-plane/effective wall-geometry scout. It keeps A1/A2 frozen and
+  compares current LandAtrial geometry with AV-plane gain and wall-reference
+  candidates over HR75/90 normal/low/high preload. All candidates record 6/6
+  health-ok/output-preserved points and zero Land solve failures. The best
+  combined-distance candidate is `landatrial-avplane-high-la20-ra24`
+  (LA `avPlaneGainMl=20`, RA `avPlaneGainMl=24`), improving mean combined
+  target distance from 0.51093 to 0.468153 and raw readable diagnostic points
+  from 5/6 to 6/6, while reducing both-atria volume-function broad-pass count
+  from 2 to 1. It is a next shadow geometry input only; it does not promote a
+  new shadow parameter pack, accept atrial physiology, select A1/A2, flip all
+  chambers to runtime default, accept official morphology, change valve/load
+  timing, retune root/Zc, retire qDot clamps, or validate AF.
 - Phase 5AV remains
   `atrial-land-ra-source-stress-convention-phase5av-result-v1`, the signed RA
   pressure-adapter candidate evidence showing the nonnegative adapter runtime
