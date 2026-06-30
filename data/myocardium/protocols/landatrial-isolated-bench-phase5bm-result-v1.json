@@ -1,0 +1,614 @@
+{
+  "schemaVersion": 1,
+  "id": "landatrial-isolated-bench-phase5bm-result-v1",
+  "phase": "Phase 5BM",
+  "claimBoundary": "landatrial-isolated-bench-diagnostic-no-physiology-acceptance",
+  "floorId": "landatrial-default-floor-v1",
+  "sourceEvidence": [
+    "data/myocardium/protocols/landatrial-default-floor-phase5bl-result-v1.json",
+    "data/myocardium/targets/atrial-waveform-targets-v1.json"
+  ],
+  "protocol": {
+    "candidateId": "landatrial-runtime-candidate-la22-ra26",
+    "hr": 75,
+    "dtSec": 0.001,
+    "warmupBeats": 2,
+    "measureBeats": 3,
+    "variants": [
+      "landatrial-floor-avplane-on",
+      "landatrial-floor-avplane-off"
+    ],
+    "chambers": [
+      "LA",
+      "RA"
+    ],
+    "noClosedLoopValveRootPreloadCoupling": true,
+    "noA1A2BridgeTuning": true,
+    "prescribedVolumeSource": "phase5bk-normal-hr75-la-ra-volume-shape",
+    "noA1A2GainSweep": true,
+    "noRuntimeDefaultChange": true,
+    "noPermanentNpmScriptAdded": true
+  },
+  "targetDigest": {
+    "sourceCount": 7,
+    "leftAtriumStrainRanges": {
+      "reservoir": [
+        0.38,
+        0.41
+      ],
+      "conduit": [
+        0.21,
+        0.25
+      ],
+      "contractile": [
+        0.16,
+        0.19
+      ]
+    },
+    "rightAtriumStrainRanges": {
+      "reservoir": [
+        0.394,
+        0.459
+      ],
+      "conduit": [
+        0.207,
+        0.266
+      ],
+      "contractile": [
+        0.136,
+        0.186
+      ]
+    }
+  },
+  "phase5BLDigest": {
+    "status": "fixed-user0-landatrial-default-floor",
+    "hash": "5b8f65d88e7ac555e1e0b62178679b844001ce50276c4638c06302c0a46e1f12",
+    "selectedCandidateId": "landatrial-runtime-candidate-la22-ra26"
+  },
+  "bench": {
+    "benchId": "landatrial-isolated-prescribed-volume-avplane-bench-v1",
+    "protocol": {
+      "candidateId": "landatrial-runtime-candidate-la22-ra26",
+      "hr": 75,
+      "dtSec": 0.001,
+      "warmupBeats": 2,
+      "measureBeats": 3,
+      "variants": [
+        "landatrial-floor-avplane-on",
+        "landatrial-floor-avplane-off"
+      ],
+      "chambers": [
+        "LA",
+        "RA"
+      ],
+      "noClosedLoopValveRootPreloadCoupling": true,
+      "noA1A2BridgeTuning": true
+    },
+    "summaries": [
+      {
+        "chamber": "LA",
+        "variant": "landatrial-floor-avplane-on",
+        "sourceCandidateId": "landatrial-runtime-candidate-la22-ra26",
+        "sampleCount": 2400,
+        "measuredBeatCount": 3,
+        "providerId": "modelcore-experimental-land2017-la-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:phase5bk-runtime-candidate:signed-atrial-pressure-adapter",
+        "pressureMmHg": {
+          "min": 0.253915,
+          "max": 24.877796
+        },
+        "passivePressureMmHg": {
+          "min": 0.042661,
+          "max": 24.877625
+        },
+        "activePressureMmHg": {
+          "min": 0,
+          "max": 12.60297
+        },
+        "avPlanePressureDeltaMmHg": {
+          "min": -15.080657,
+          "max": 0
+        },
+        "sourceActiveFiberStressPa": {
+          "min": 0.000045,
+          "max": 4494.3873
+        },
+        "freeCalciumUM": {
+          "min": 0.000012,
+          "max": 0.098574
+        },
+        "wallLambda": {
+          "min": 0.834483,
+          "max": 1.119056
+        },
+        "wallLambdaWithoutAvPlane": {
+          "min": 0.834483,
+          "max": 1.122093
+        },
+        "wallLambdaAvPlaneDelta": {
+          "min": 0,
+          "max": 0.16393
+        },
+        "effectiveVolumeCorrectionMl": {
+          "min": 0,
+          "max": 22
+        },
+        "effectiveVolumeCorrectionVelocityMlPerSec": {
+          "min": -164.9945,
+          "max": 171.868783
+        },
+        "reservoirStrain": 0.341017,
+        "conduitStrain": 0.152074,
+        "contractileStrain": 0.188943,
+        "loopSignedAreaMmHgMl": 1083.176196,
+        "loopAbsAreaMmHgMl": 4429.733346,
+        "landSolveFailureCount": 0,
+        "maxSolverResidualNorm": 0
+      },
+      {
+        "chamber": "LA",
+        "variant": "landatrial-floor-avplane-off",
+        "sourceCandidateId": "landatrial-runtime-candidate-la22-ra26",
+        "sampleCount": 2400,
+        "measuredBeatCount": 3,
+        "providerId": "modelcore-experimental-land2017-la-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:phase5bk-runtime-candidate:signed-atrial-pressure-adapter",
+        "pressureMmHg": {
+          "min": 1.353024,
+          "max": 25.514228
+        },
+        "passivePressureMmHg": {
+          "min": 0.042661,
+          "max": 25.514001
+        },
+        "activePressureMmHg": {
+          "min": 0,
+          "max": 12.60297
+        },
+        "avPlanePressureDeltaMmHg": {
+          "min": 0,
+          "max": 0
+        },
+        "sourceActiveFiberStressPa": {
+          "min": 0.000045,
+          "max": 4494.387299
+        },
+        "freeCalciumUM": {
+          "min": 0.000012,
+          "max": 0.098574
+        },
+        "wallLambda": {
+          "min": 0.834483,
+          "max": 1.122093
+        },
+        "wallLambdaWithoutAvPlane": {
+          "min": 0.834483,
+          "max": 1.122093
+        },
+        "wallLambdaAvPlaneDelta": {
+          "min": 0,
+          "max": 0
+        },
+        "effectiveVolumeCorrectionMl": {
+          "min": 0,
+          "max": 0
+        },
+        "effectiveVolumeCorrectionVelocityMlPerSec": {
+          "min": 0,
+          "max": 0
+        },
+        "reservoirStrain": 0.344657,
+        "conduitStrain": 0.155713,
+        "contractileStrain": 0.188943,
+        "loopSignedAreaMmHgMl": 184.262182,
+        "loopAbsAreaMmHgMl": 3485.644357,
+        "landSolveFailureCount": 0,
+        "maxSolverResidualNorm": 0
+      },
+      {
+        "chamber": "RA",
+        "variant": "landatrial-floor-avplane-on",
+        "sourceCandidateId": "landatrial-runtime-candidate-la22-ra26",
+        "sampleCount": 2400,
+        "measuredBeatCount": 3,
+        "providerId": "modelcore-experimental-land2017-ra-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:phase5bk-runtime-candidate:signed-atrial-pressure-adapter",
+        "pressureMmHg": {
+          "min": 0.777584,
+          "max": 6.737671
+        },
+        "passivePressureMmHg": {
+          "min": 0.45875,
+          "max": 6.730913
+        },
+        "activePressureMmHg": {
+          "min": -0.041118,
+          "max": 3.314343
+        },
+        "avPlanePressureDeltaMmHg": {
+          "min": -3.688439,
+          "max": 0
+        },
+        "sourceActiveFiberStressPa": {
+          "min": -22.921411,
+          "max": 1543.151764
+        },
+        "freeCalciumUM": {
+          "min": 0,
+          "max": 0.097512
+        },
+        "wallLambda": {
+          "min": 0.936778,
+          "max": 1.201015
+        },
+        "wallLambdaWithoutAvPlane": {
+          "min": 0.936778,
+          "max": 1.203188
+        },
+        "wallLambdaAvPlaneDelta": {
+          "min": 0,
+          "max": 0.159935
+        },
+        "effectiveVolumeCorrectionMl": {
+          "min": 0,
+          "max": 26
+        },
+        "effectiveVolumeCorrectionVelocityMlPerSec": {
+          "min": -194.9935,
+          "max": 203.117653
+        },
+        "reservoirStrain": 0.28207,
+        "conduitStrain": 0.092739,
+        "contractileStrain": 0.189331,
+        "loopSignedAreaMmHgMl": 303.624591,
+        "loopAbsAreaMmHgMl": 1437.570946,
+        "landSolveFailureCount": 0,
+        "maxSolverResidualNorm": 0
+      },
+      {
+        "chamber": "RA",
+        "variant": "landatrial-floor-avplane-off",
+        "sourceCandidateId": "landatrial-runtime-candidate-la22-ra26",
+        "sampleCount": 2400,
+        "measuredBeatCount": 3,
+        "providerId": "modelcore-experimental-land2017-ra-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:phase5bk-runtime-candidate:signed-atrial-pressure-adapter",
+        "pressureMmHg": {
+          "min": 1.688487,
+          "max": 6.853932
+        },
+        "passivePressureMmHg": {
+          "min": 0.45875,
+          "max": 6.847809
+        },
+        "activePressureMmHg": {
+          "min": -0.041124,
+          "max": 3.31432
+        },
+        "avPlanePressureDeltaMmHg": {
+          "min": 0,
+          "max": 0
+        },
+        "sourceActiveFiberStressPa": {
+          "min": -22.924737,
+          "max": 1543.139715
+        },
+        "freeCalciumUM": {
+          "min": 0,
+          "max": 0.097512
+        },
+        "wallLambda": {
+          "min": 0.936778,
+          "max": 1.203188
+        },
+        "wallLambdaWithoutAvPlane": {
+          "min": 0.936778,
+          "max": 1.203188
+        },
+        "wallLambdaAvPlaneDelta": {
+          "min": 0,
+          "max": 0
+        },
+        "effectiveVolumeCorrectionMl": {
+          "min": 0,
+          "max": 0
+        },
+        "effectiveVolumeCorrectionVelocityMlPerSec": {
+          "min": 0,
+          "max": 0
+        },
+        "reservoirStrain": 0.28439,
+        "conduitStrain": 0.095059,
+        "contractileStrain": 0.189331,
+        "loopSignedAreaMmHgMl": 46.911823,
+        "loopAbsAreaMmHgMl": 1018.481021,
+        "landSolveFailureCount": 0,
+        "maxSolverResidualNorm": 0
+      }
+    ],
+    "avPlaneSensitivity": {
+      "LA": {
+        "deltaReservoirStrainOnMinusOff": -0.00364,
+        "deltaLoopAbsAreaOnMinusOffMmHgMl": 944.088989,
+        "minAvPlanePressureDeltaMmHg": -15.080657,
+        "maxEffectiveVolumeCorrectionMl": 22
+      },
+      "RA": {
+        "deltaReservoirStrainOnMinusOff": -0.00232,
+        "deltaLoopAbsAreaOnMinusOffMmHgMl": 419.089925,
+        "minAvPlanePressureDeltaMmHg": -3.688439,
+        "maxEffectiveVolumeCorrectionMl": 26
+      }
+    }
+  },
+  "chamberComparisons": [
+    {
+      "chamber": "LA",
+      "avPlaneOn": {
+        "chamber": "LA",
+        "variant": "landatrial-floor-avplane-on",
+        "sourceCandidateId": "landatrial-runtime-candidate-la22-ra26",
+        "sampleCount": 2400,
+        "measuredBeatCount": 3,
+        "providerId": "modelcore-experimental-land2017-la-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:phase5bk-runtime-candidate:signed-atrial-pressure-adapter",
+        "pressureMmHg": {
+          "min": 0.253915,
+          "max": 24.877796
+        },
+        "passivePressureMmHg": {
+          "min": 0.042661,
+          "max": 24.877625
+        },
+        "activePressureMmHg": {
+          "min": 0,
+          "max": 12.60297
+        },
+        "avPlanePressureDeltaMmHg": {
+          "min": -15.080657,
+          "max": 0
+        },
+        "sourceActiveFiberStressPa": {
+          "min": 0.000045,
+          "max": 4494.3873
+        },
+        "freeCalciumUM": {
+          "min": 0.000012,
+          "max": 0.098574
+        },
+        "wallLambda": {
+          "min": 0.834483,
+          "max": 1.119056
+        },
+        "wallLambdaWithoutAvPlane": {
+          "min": 0.834483,
+          "max": 1.122093
+        },
+        "wallLambdaAvPlaneDelta": {
+          "min": 0,
+          "max": 0.16393
+        },
+        "effectiveVolumeCorrectionMl": {
+          "min": 0,
+          "max": 22
+        },
+        "effectiveVolumeCorrectionVelocityMlPerSec": {
+          "min": -164.9945,
+          "max": 171.868783
+        },
+        "reservoirStrain": 0.341017,
+        "conduitStrain": 0.152074,
+        "contractileStrain": 0.188943,
+        "loopSignedAreaMmHgMl": 1083.176196,
+        "loopAbsAreaMmHgMl": 4429.733346,
+        "landSolveFailureCount": 0,
+        "maxSolverResidualNorm": 0
+      },
+      "avPlaneOff": {
+        "chamber": "LA",
+        "variant": "landatrial-floor-avplane-off",
+        "sourceCandidateId": "landatrial-runtime-candidate-la22-ra26",
+        "sampleCount": 2400,
+        "measuredBeatCount": 3,
+        "providerId": "modelcore-experimental-land2017-la-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:phase5bk-runtime-candidate:signed-atrial-pressure-adapter",
+        "pressureMmHg": {
+          "min": 1.353024,
+          "max": 25.514228
+        },
+        "passivePressureMmHg": {
+          "min": 0.042661,
+          "max": 25.514001
+        },
+        "activePressureMmHg": {
+          "min": 0,
+          "max": 12.60297
+        },
+        "avPlanePressureDeltaMmHg": {
+          "min": 0,
+          "max": 0
+        },
+        "sourceActiveFiberStressPa": {
+          "min": 0.000045,
+          "max": 4494.387299
+        },
+        "freeCalciumUM": {
+          "min": 0.000012,
+          "max": 0.098574
+        },
+        "wallLambda": {
+          "min": 0.834483,
+          "max": 1.122093
+        },
+        "wallLambdaWithoutAvPlane": {
+          "min": 0.834483,
+          "max": 1.122093
+        },
+        "wallLambdaAvPlaneDelta": {
+          "min": 0,
+          "max": 0
+        },
+        "effectiveVolumeCorrectionMl": {
+          "min": 0,
+          "max": 0
+        },
+        "effectiveVolumeCorrectionVelocityMlPerSec": {
+          "min": 0,
+          "max": 0
+        },
+        "reservoirStrain": 0.344657,
+        "conduitStrain": 0.155713,
+        "contractileStrain": 0.188943,
+        "loopSignedAreaMmHgMl": 184.262182,
+        "loopAbsAreaMmHgMl": 3485.644357,
+        "landSolveFailureCount": 0,
+        "maxSolverResidualNorm": 0
+      },
+      "deltaReservoirStrainOnMinusOff": -0.00364,
+      "deltaLoopAbsAreaOnMinusOffMmHgMl": 944.088989,
+      "deltaPressureMinOnMinusOffMmHg": -1.099109,
+      "maxEffectiveVolumeCorrectionMl": 22
+    },
+    {
+      "chamber": "RA",
+      "avPlaneOn": {
+        "chamber": "RA",
+        "variant": "landatrial-floor-avplane-on",
+        "sourceCandidateId": "landatrial-runtime-candidate-la22-ra26",
+        "sampleCount": 2400,
+        "measuredBeatCount": 3,
+        "providerId": "modelcore-experimental-land2017-ra-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:phase5bk-runtime-candidate:signed-atrial-pressure-adapter",
+        "pressureMmHg": {
+          "min": 0.777584,
+          "max": 6.737671
+        },
+        "passivePressureMmHg": {
+          "min": 0.45875,
+          "max": 6.730913
+        },
+        "activePressureMmHg": {
+          "min": -0.041118,
+          "max": 3.314343
+        },
+        "avPlanePressureDeltaMmHg": {
+          "min": -3.688439,
+          "max": 0
+        },
+        "sourceActiveFiberStressPa": {
+          "min": -22.921411,
+          "max": 1543.151764
+        },
+        "freeCalciumUM": {
+          "min": 0,
+          "max": 0.097512
+        },
+        "wallLambda": {
+          "min": 0.936778,
+          "max": 1.201015
+        },
+        "wallLambdaWithoutAvPlane": {
+          "min": 0.936778,
+          "max": 1.203188
+        },
+        "wallLambdaAvPlaneDelta": {
+          "min": 0,
+          "max": 0.159935
+        },
+        "effectiveVolumeCorrectionMl": {
+          "min": 0,
+          "max": 26
+        },
+        "effectiveVolumeCorrectionVelocityMlPerSec": {
+          "min": -194.9935,
+          "max": 203.117653
+        },
+        "reservoirStrain": 0.28207,
+        "conduitStrain": 0.092739,
+        "contractileStrain": 0.189331,
+        "loopSignedAreaMmHgMl": 303.624591,
+        "loopAbsAreaMmHgMl": 1437.570946,
+        "landSolveFailureCount": 0,
+        "maxSolverResidualNorm": 0
+      },
+      "avPlaneOff": {
+        "chamber": "RA",
+        "variant": "landatrial-floor-avplane-off",
+        "sourceCandidateId": "landatrial-runtime-candidate-la22-ra26",
+        "sampleCount": 2400,
+        "measuredBeatCount": 3,
+        "providerId": "modelcore-experimental-land2017-ra-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:phase5bk-runtime-candidate:signed-atrial-pressure-adapter",
+        "pressureMmHg": {
+          "min": 1.688487,
+          "max": 6.853932
+        },
+        "passivePressureMmHg": {
+          "min": 0.45875,
+          "max": 6.847809
+        },
+        "activePressureMmHg": {
+          "min": -0.041124,
+          "max": 3.31432
+        },
+        "avPlanePressureDeltaMmHg": {
+          "min": 0,
+          "max": 0
+        },
+        "sourceActiveFiberStressPa": {
+          "min": -22.924737,
+          "max": 1543.139715
+        },
+        "freeCalciumUM": {
+          "min": 0,
+          "max": 0.097512
+        },
+        "wallLambda": {
+          "min": 0.936778,
+          "max": 1.203188
+        },
+        "wallLambdaWithoutAvPlane": {
+          "min": 0.936778,
+          "max": 1.203188
+        },
+        "wallLambdaAvPlaneDelta": {
+          "min": 0,
+          "max": 0
+        },
+        "effectiveVolumeCorrectionMl": {
+          "min": 0,
+          "max": 0
+        },
+        "effectiveVolumeCorrectionVelocityMlPerSec": {
+          "min": 0,
+          "max": 0
+        },
+        "reservoirStrain": 0.28439,
+        "conduitStrain": 0.095059,
+        "contractileStrain": 0.189331,
+        "loopSignedAreaMmHgMl": 46.911823,
+        "loopAbsAreaMmHgMl": 1018.481021,
+        "landSolveFailureCount": 0,
+        "maxSolverResidualNorm": 0
+      },
+      "deltaReservoirStrainOnMinusOff": -0.00232,
+      "deltaLoopAbsAreaOnMinusOffMmHgMl": 419.089925,
+      "deltaPressureMinOnMinusOffMmHg": -0.910903,
+      "maxEffectiveVolumeCorrectionMl": 26
+    }
+  ],
+  "summary": {
+    "diagnosticStatus": "isolated-landatrial-bench-recorded",
+    "currentInterpretation": "LA: AV-plane on-off delta reservoir strain=-0.00364, loop abs area=944.088989 mmHg*ml, min pressure delta=-1.099109 mmHg. RA: AV-plane on-off delta reservoir strain=-0.00232, loop abs area=419.089925 mmHg*ml, min pressure delta=-0.910903 mmHg.",
+    "recommendedNext": [
+      "use this isolated bench before closed-loop LandAtrial parameter changes so valve/root/preload effects stay separated",
+      "calibrate AV-plane/effective wall geometry against direct strain and pressure decomposition instead of a single closed-loop combined score",
+      "extend the bench with literature-calibrated LA/RA prescribed-volume and AV-plane displacement profiles before claiming atrial physiology"
+    ],
+    "blockers": [
+      "prescribed-volume input is a normal-HR75 diagnostic waveform, not a clinical validation target",
+      "this does not accept closed-loop atrial morphology, valve/load timing, AF behavior, or official cases"
+    ]
+  },
+  "boundary": {
+    "noAtrialPhysiologyAcceptance": true,
+    "noOfficialMorphologyAcceptance": true,
+    "noRuntimeDefaultChange": true,
+    "noA1A2Selection": true,
+    "noValveLoadTimingAcceptance": true,
+    "noAfValidationClaim": true
+  },
+  "normalizedSha256": "a4664ba9619a000b987a2c4bab5744af8c76a04b26f55378983cddf243a0665a"
+}
