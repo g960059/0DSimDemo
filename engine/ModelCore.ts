@@ -205,7 +205,52 @@ export type ModelCoreExperimentalOptions = {
   readonly activeSourceProviders?: Partial<Record<Chamber, ModelCoreExperimentalActiveSourceProvider>>;
   readonly boundaryRootInertance?: ModelCoreExperimentalBoundaryRootInertanceOptions;
   readonly valveDiodeSmoothing?: ModelCoreExperimentalValveDiodeSmoothingOptions;
+  readonly runtimeParameterPatch?: ParameterPatch;
 };
+
+function mergeExperimentalRuntimeParameterPatch(
+  runtimePatch: ParameterPatch,
+  initial: Partial<CoreRuntimeParams>,
+): ParameterPatch {
+  const merged: ParameterPatch = { ...runtimePatch, ...initial };
+  const nodeOverrides = mergeExperimentalNodeOverrides(runtimePatch.nodeOverrides, initial.nodeOverrides);
+  if (nodeOverrides) {
+    merged.nodeOverrides = nodeOverrides;
+  }
+  return merged;
+}
+
+function mergeExperimentalNodeOverrides(
+  base?: CoreRuntimeParams["nodeOverrides"],
+  override?: CoreRuntimeParams["nodeOverrides"],
+): CoreRuntimeParams["nodeOverrides"] {
+  if (!base && !override) return undefined;
+  const merged: NonNullable<CoreRuntimeParams["nodeOverrides"]> = {};
+  for (const source of [base, override]) {
+    if (!source) continue;
+    for (const [nodeName, fields] of Object.entries(source)) {
+      const existing = merged[nodeName] ?? {};
+      const next: Record<string, number | Record<string, number | string>> = { ...existing };
+      for (const [fieldName, value] of Object.entries(fields)) {
+        if (
+          fieldName === "active"
+          && typeof value === "object"
+          && value != null
+          && !Array.isArray(value)
+        ) {
+          const existingActive = typeof next.active === "object" && next.active != null && !Array.isArray(next.active)
+            ? next.active
+            : {};
+          next.active = { ...existingActive, ...value };
+        } else {
+          next[fieldName] = value;
+        }
+      }
+      merged[nodeName] = next;
+    }
+  }
+  return Object.keys(merged).length > 0 ? merged : undefined;
+}
 
 type BeatWindow = {
   data: SimSample[];
@@ -692,8 +737,18 @@ export class ModelCore {
     valveNames.forEach((n, i) => this.valveIndex.set(n, i));
     this.rebuildActiveModels();
     this.rebuildElastanceModels();
-    if (initial) {
-        this.setImmediateParameters(initial);
+    const initialWithExperimentalPatch = experimentalOptions.runtimeParameterPatch
+      ? mergeExperimentalRuntimeParameterPatch(experimentalOptions.runtimeParameterPatch, initial ?? {})
+      : initial;
+    if (initialWithExperimentalPatch) {
+        this.setImmediateParameters(initialWithExperimentalPatch);
+    }
+    if (experimentalOptions.runtimeParameterPatch?.nodeOverrides) {
+      const nodeOverrides = mergeExperimentalNodeOverrides(
+        experimentalOptions.runtimeParameterPatch.nodeOverrides,
+        this.p.nodeOverrides,
+      );
+      if (nodeOverrides) this.setImmediateParameters({ nodeOverrides });
     }
     this.reset();
   }

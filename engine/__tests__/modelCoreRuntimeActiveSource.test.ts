@@ -11,6 +11,11 @@ import {
   createModelCoreLand2017LvSourceProviderInstrumentation,
 } from "@/engine/myocardium/modelCoreLand2017LvSourceProvider";
 import {
+  LANDATRIAL_RUNTIME_CANDIDATE_SOURCE_PROVIDER_IDS,
+  landAtrialRuntimeCandidateNodeOverrides,
+} from "@/engine/myocardium/landAtrialRuntimeCandidate";
+import {
+  MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE,
   MODELCORE_RUNTIME_ALL_CHAMBER_LAND_DEFAULT_CANDIDATE_MODE,
   MODELCORE_RUNTIME_LA_LAND_SOURCE_PROVIDER_ID,
   MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE,
@@ -21,6 +26,7 @@ import {
   MODELCORE_RUNTIME_RA_LAND_SOURCE_PROVIDER_ID,
   MODELCORE_RUNTIME_RV_LAND_SOURCE_PROVIDER_ID,
   resolveModelCoreRuntimeActiveSource,
+  useAllChamberLandAtrialDefaultForModelCoreRuntimeForThisProcess,
   useAllChamberLandDefaultCandidateForModelCoreRuntimeForThisProcess,
   useLegacyActiveStressForModelCoreRuntimeForThisProcess,
   useLvLandDefaultForModelCoreRuntimeForThisProcess,
@@ -37,23 +43,27 @@ import {
 
 describe("ModelCore runtime active source default", () => {
   afterEach(() => {
-    useLvRvLandDefaultForModelCoreRuntimeForThisProcess();
+    useAllChamberLandAtrialDefaultForModelCoreRuntimeForThisProcess();
   });
 
-  it("resolves LV+RV Land as the user-0 staged runtime default", () => {
+  it("resolves all-chamber LandAtrial as the user-0 staged runtime default", () => {
     const resolved = resolveModelCoreRuntimeActiveSource();
 
-    expect(resolved.mode).toBe(MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE);
-    expect(resolved.claimBoundary).toBe("user0-staged-lv-rv-land-default-no-clinical-validation");
-    expect(resolved.sourceProviderScope).toBe("LV+RV");
+    expect(resolved.mode).toBe(MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE);
+    expect(resolved.claimBoundary).toBe("user0-staged-all-chamber-landatrial-default-no-clinical-validation");
+    expect(resolved.sourceProviderScope).toBe("LV+RV+LA+RA");
     expect(resolved.sourceProviderId).toBeNull();
     expect(resolved.calciumMapping.noTuningInRuntimeDefault).toBe(true);
     expect(resolved.experimentalOptions.activeSourceProviders?.LV?.sourceProviderId)
       .toBe(MODELCORE_RUNTIME_LV_LAND_SOURCE_PROVIDER_ID);
     expect(resolved.experimentalOptions.activeSourceProviders?.RV?.sourceProviderId)
       .toBe(MODELCORE_RUNTIME_RV_LAND_SOURCE_PROVIDER_ID);
-    expect(resolved.experimentalOptions.activeSourceProviders?.LA).toBeUndefined();
-    expect(resolved.experimentalOptions.activeSourceProviders?.RA).toBeUndefined();
+    expect(resolved.experimentalOptions.activeSourceProviders?.LA?.sourceProviderId)
+      .toBe(LANDATRIAL_RUNTIME_CANDIDATE_SOURCE_PROVIDER_IDS.LA);
+    expect(resolved.experimentalOptions.activeSourceProviders?.RA?.sourceProviderId)
+      .toBe(LANDATRIAL_RUNTIME_CANDIDATE_SOURCE_PROVIDER_IDS.RA);
+    expect(resolved.experimentalOptions.runtimeParameterPatch?.nodeOverrides)
+      .toEqual(landAtrialRuntimeCandidateNodeOverrides());
     expect(resolved.rootZc.mode).toBe(MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_DEFAULT_MODE);
     expect(resolved.experimentalOptions.boundaryRootInertance).toMatchObject({
       mechanismId: MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_MECHANISM_ID,
@@ -72,10 +82,17 @@ describe("ModelCore runtime active source default", () => {
     expect(core.debugExperimentalActiveSourceProviderIds()).toEqual({});
   });
 
-  it("runs the default LV+RV Land providers without solver failures", () => {
+  it("runs the default all-chamber LandAtrial providers without solver failures", () => {
     const instrumentation = createModelCoreLand2017LvSourceProviderInstrumentation();
     const rvInstrumentation = createModelCoreLand2017LvSourceProviderInstrumentation();
-    const resolved = resolveModelCoreRuntimeActiveSource({ instrumentation, rvInstrumentation });
+    const laInstrumentation = createModelCoreLand2017LvSourceProviderInstrumentation();
+    const raInstrumentation = createModelCoreLand2017LvSourceProviderInstrumentation();
+    const resolved = resolveModelCoreRuntimeActiveSource({
+      instrumentation,
+      rvInstrumentation,
+      laInstrumentation,
+      raInstrumentation,
+    });
     const core = new ModelCore(DEFAULT_PARAMS, resolved.experimentalOptions);
 
     core.initializeVenousPressuresForTargetTBV(5600);
@@ -83,14 +100,40 @@ describe("ModelCore runtime active source default", () => {
 
     expect(core.debugExperimentalActiveSourceProviderIds().LV).toBe(MODELCORE_RUNTIME_LV_LAND_SOURCE_PROVIDER_ID);
     expect(core.debugExperimentalActiveSourceProviderIds().RV).toBe(MODELCORE_RUNTIME_RV_LAND_SOURCE_PROVIDER_ID);
+    expect(core.debugExperimentalActiveSourceProviderIds().LA)
+      .toBe(LANDATRIAL_RUNTIME_CANDIDATE_SOURCE_PROVIDER_IDS.LA);
+    expect(core.debugExperimentalActiveSourceProviderIds().RA)
+      .toBe(LANDATRIAL_RUNTIME_CANDIDATE_SOURCE_PROVIDER_IDS.RA);
     expect(instrumentation.sourceActiveStressPa).toBeGreaterThan(0);
     expect(rvInstrumentation.sourceActiveStressPa).toBeGreaterThan(0);
+    expect(laInstrumentation.sourceActiveStressPa).toBeGreaterThan(0);
+    expect(raInstrumentation.sourceActiveStressPa).toBeGreaterThan(0);
     expect(instrumentation.commitProviderStateAfterStep).toBeGreaterThan(0);
     expect(rvInstrumentation.commitProviderStateAfterStep).toBeGreaterThan(0);
+    expect(laInstrumentation.commitProviderStateAfterStep).toBeGreaterThan(0);
+    expect(raInstrumentation.commitProviderStateAfterStep).toBeGreaterThan(0);
     expect(instrumentation.landSolveOkCount).toBeGreaterThan(0);
     expect(rvInstrumentation.landSolveOkCount).toBeGreaterThan(0);
+    expect(laInstrumentation.landSolveOkCount).toBeGreaterThan(0);
+    expect(raInstrumentation.landSolveOkCount).toBeGreaterThan(0);
     expect(instrumentation.landSolveFailureCount).toBe(0);
     expect(rvInstrumentation.landSolveFailureCount).toBe(0);
+    expect(laInstrumentation.landSolveFailureCount).toBe(0);
+    expect(raInstrumentation.landSolveFailureCount).toBe(0);
+  });
+
+  it("applies the LandAtrial runtime geometry patch while preserving caller node overrides", () => {
+    const resolved = resolveModelCoreRuntimeActiveSource();
+    const core = new ModelCore({
+      ...DEFAULT_PARAMS,
+      nodeOverrides: {
+        LA: { active: { avPlaneGainMl: 30 } },
+      },
+    }, resolved.experimentalOptions);
+
+    expect((core.p.nodeOverrides?.LA?.active as Record<string, number>)?.avPlaneGainMl).toBe(30);
+    expect((core.p.nodeOverrides?.RA?.active as Record<string, number>)?.avPlaneGainMl)
+      .toBe((landAtrialRuntimeCandidateNodeOverrides().RA.active as Record<string, number>).avPlaneGainMl);
   });
 
   it("keeps LV-only Land reachable as an explicit historical staged default mode", () => {
@@ -139,7 +182,7 @@ describe("ModelCore runtime active source default", () => {
     expect(sidecar.RV?.sourceProviderId).toBe(MODELCORE_RUNTIME_RV_LAND_SOURCE_PROVIDER_ID);
   });
 
-  it("keeps all-chamber Land reachable as an explicit candidate without changing the user-0 default", () => {
+  it("keeps the historical all-chamber Land candidate reachable explicitly", () => {
     useAllChamberLandDefaultCandidateForModelCoreRuntimeForThisProcess();
     const lvInstrumentation = createModelCoreLand2017LvSourceProviderInstrumentation();
     const rvInstrumentation = createModelCoreLand2017LvSourceProviderInstrumentation();
@@ -204,15 +247,21 @@ describe("ModelCore runtime active source default", () => {
     const sidecar = core.packExperimentalActiveProviderRuntimeState();
     const beforeVersion = sidecar.LV?.version ?? 0;
     const beforeRvVersion = sidecar.RV?.version ?? 0;
+    const beforeLaVersion = sidecar.LA?.version ?? 0;
+    const beforeRaVersion = sidecar.RA?.version ?? 0;
 
     const restored = new ModelCore(DEFAULT_PARAMS, resolveModelCoreRuntimeActiveSource().experimentalOptions);
     restored.unpackState(serialized);
     expect(restored.debugExperimentalActiveSourceProviderStates().LV?.stateVersion).toBe(0);
     expect(restored.debugExperimentalActiveSourceProviderStates().RV?.stateVersion).toBe(0);
+    expect(restored.debugExperimentalActiveSourceProviderStates().LA?.stateVersion).toBe(0);
+    expect(restored.debugExperimentalActiveSourceProviderStates().RA?.stateVersion).toBe(0);
 
     restored.restoreExperimentalActiveProviderRuntimeState(sidecar);
     expect(restored.debugExperimentalActiveSourceProviderStates().LV?.stateVersion).toBe(beforeVersion);
     expect(restored.debugExperimentalActiveSourceProviderStates().RV?.stateVersion).toBe(beforeRvVersion);
+    expect(restored.debugExperimentalActiveSourceProviderStates().LA?.stateVersion).toBe(beforeLaVersion);
+    expect(restored.debugExperimentalActiveSourceProviderStates().RA?.stateVersion).toBe(beforeRaVersion);
     expect(restored.packState()).toEqual(serialized);
   });
 
