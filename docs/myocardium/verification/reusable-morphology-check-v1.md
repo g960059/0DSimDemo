@@ -104,3 +104,29 @@ The LAP/RAP pressure-timing rule remains a separate measurement hygiene gap:
 frozen legacy also fails the current pressure-extrema rule, so that badge should
 not be used by itself as evidence that LandAtrial timing is worse until the
 pressure waveform rule is split or tightened.
+
+## Phase 5BP Ventricular Land Valve/Load Diagnostic
+
+Phase 5BP extends the same checker and records
+`ventricular-land-valve-load-morphology-phase5bp-result-v1`. It adds LV/RV
+active fiber stress, fiber lambda, and active pressure readbacks to `SimSample`
+and compares frozen legacy, user-0 default, LV-only Land, RV-only Land,
+LV+RV Land, SDIRK2 commit diagnostics, filtered-lambda diagnostics, and a
+no-zeta-drive diagnostic ablation under the normal baseline.
+
+The result is diagnostic, not a runtime fix:
+
+- frozen legacy keeps LV/RV PV plus MVF/TVF gross morphology OK;
+- LV-only Land reproduces the LV systolic double-dome and MVF third wave;
+- RV-only Land reproduces the RV systolic double-dome seen in the live UI;
+- SDIRK2 does not remove the LV/RV PV or MVF failures and records Land domain
+  solver failures, so it is not a quick runtime fix;
+- replacing raw wall lambda with `lambdaAct` readback is not sufficient;
+- disabling Land zeta velocity-state feedback removes the LV/RV PV double-dome
+  signal, but it is not acceptable because it breaks AV inflow morphology and
+  shifts output.
+
+This keeps LandAtrial work paused for gross-morphology tuning. The next model
+fix should bound or stage ventricular Land velocity/length coupling under valve
+and load transitions. It must not zero sourced zeta drive or tune valves, qDot,
+root/Zc, Tref, source stress, or official cases to hide the artifact.

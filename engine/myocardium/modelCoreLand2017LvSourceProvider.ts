@@ -30,9 +30,11 @@ export const MODELCORE_EXPERIMENTAL_LAND2017_RA_SOURCE_ONLY_PROVIDER_ID =
 const DEFAULT_INITIAL_LAND_STATE = [0.18, 0.22, 0.04, 0.02, 0, 0] as const;
 
 export type ModelCoreLand2017LvCommitScheme = "BE" | "SDIRK2";
+export type ModelCoreLand2017LvKinematicsMode = "raw-wall-lambda" | "filtered-lambda-act";
 
 export type ModelCoreLand2017LvSourceProviderOptions = {
   readonly commitScheme?: ModelCoreLand2017LvCommitScheme;
+  readonly kinematicsMode?: ModelCoreLand2017LvKinematicsMode;
   readonly sourceProviderId?: string;
   readonly parameterSet?: Land2017EquationParameters;
 };
@@ -147,6 +149,7 @@ export function land2017LvSourceOnlyProvider(
   options: ModelCoreLand2017LvSourceProviderOptions = {},
 ): ModelCoreExperimentalActiveSourceProvider {
   const commitScheme = options.commitScheme ?? "BE";
+  const kinematicsMode = options.kinematicsMode ?? "raw-wall-lambda";
   const parameterSet = options.parameterSet ?? LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET;
   return {
     sourceProviderId:
@@ -172,7 +175,7 @@ export function land2017LvSourceOnlyProvider(
     sourceActiveStressPa: (call) => {
       instrumentation.sourceActiveStressPa += 1;
       const state = asLandProviderState(call.providerState, "sourceActiveStressPa");
-      const input = landContinuousInputForCall(call, state);
+      const input = landContinuousInputForCall(call, state, kinematicsMode);
       const output = evaluateLandOutputForInput(state, input, parameterSet);
       recordLandSignalAuditSample(instrumentation.sourcePathAudit, state.landState, input, output);
       return output.sourceActiveFiberStressPa;
@@ -186,6 +189,7 @@ export function land2017LvSourceOnlyProvider(
       const output = evaluateLandOutputForCall(
         call,
         asLandProviderState(call.providerState, "debugActiveStressTerms"),
+        kinematicsMode,
         parameterSet,
       );
       const terms = landDebugTermsForCall(call, output);
@@ -214,10 +218,26 @@ export function land2017LvSourceOnlyProvider(
         afterStep.internal,
         afterStep.chamberCtx,
       );
+      const previousFiberEngineeringStrain = fiberEngineeringStrainForStep(
+        activeModel,
+        beforeStep.effectiveVolumeMl,
+        beforeStep.internal,
+        beforeStep.chamberCtx,
+        kinematicsMode,
+        beforeTerms.lambda - 1,
+      );
+      const stageFiberEngineeringStrain = fiberEngineeringStrainForStep(
+        activeModel,
+        afterStep.effectiveVolumeMl,
+        afterStep.internal,
+        afterStep.chamberCtx,
+        kinematicsMode,
+        afterTerms.lambda - 1,
+      );
       const landInput: LandStepInput = {
         freeCalciumUM: freeCalciumUMFromInternal(afterStep.internal.c),
-        previousFiberEngineeringStrain: beforeTerms.lambda - 1,
-        stageFiberEngineeringStrain: afterTerms.lambda - 1,
+        previousFiberEngineeringStrain,
+        stageFiberEngineeringStrain,
         dtSec: stepDtSec,
         stage: { scheme: "BE", stageIndex: 0 },
       };
@@ -399,9 +419,10 @@ function debugLandProviderState(state: ModelCoreLand2017LvProviderState) {
 function evaluateLandOutputForCall(
   call: ModelCoreActiveSourceProviderCall,
   state: ModelCoreLand2017LvProviderState,
+  kinematicsMode: ModelCoreLand2017LvKinematicsMode,
   parameterSet: Land2017EquationParameters,
 ): LandSourceOutput {
-  const input = landContinuousInputForCall(call, state);
+  const input = landContinuousInputForCall(call, state, kinematicsMode);
   return evaluateLandOutputForInput(state, input, parameterSet);
 }
 
@@ -478,9 +499,15 @@ function evaluateLandOutputForInput(
 function landContinuousInputForCall(
   call: ModelCoreActiveSourceProviderCall,
   state: ModelCoreLand2017LvProviderState,
+  kinematicsMode: ModelCoreLand2017LvKinematicsMode,
 ): LandCallInput {
-  const pressureTerms = call.activeModel.debugPressureTerms(call.volumeMl, call.internal, call.chamberCtx);
-  const fiberEngineeringStrain = pressureTerms.lambda - 1;
+  const fiberEngineeringStrain = fiberEngineeringStrainForStep(
+    call.activeModel,
+    call.volumeMl,
+    call.internal,
+    call.chamberCtx,
+    kinematicsMode,
+  );
   const previousStrain = state.previousFiberEngineeringStrain ?? fiberEngineeringStrain;
   const dtSec = Math.max(state.previousDtSec ?? 0, 1e-6);
   return {
@@ -488,6 +515,20 @@ function landContinuousInputForCall(
     fiberEngineeringStrain,
     fiberEngineeringStrainRatePerSec: (fiberEngineeringStrain - previousStrain) / dtSec,
   };
+}
+
+function fiberEngineeringStrainForStep(
+  activeModel: ModelCoreActiveSourceProviderCall["activeModel"],
+  volumeMl: number,
+  internal: ModelCoreActiveSourceProviderCall["internal"],
+  chamberCtx: ModelCoreActiveSourceProviderCall["chamberCtx"],
+  kinematicsMode: ModelCoreLand2017LvKinematicsMode,
+  rawFallback?: number,
+): number {
+  if (kinematicsMode === "filtered-lambda-act") {
+    return activeModel.debugActiveStressTerms(volumeMl, internal, chamberCtx).lambdaAct - 1;
+  }
+  return rawFallback ?? activeModel.debugPressureTerms(volumeMl, internal, chamberCtx).lambda - 1;
 }
 
 function landDebugTermsForCall(
