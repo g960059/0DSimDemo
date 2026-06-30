@@ -159,6 +159,18 @@ export type ChamberPressureTerms = {
   pressureFloorHit01: number;
 };
 
+export type ChamberGeometryTerms = {
+  readonly rawVolumeMl: number;
+  readonly wallVolumeMl: number;
+  readonly effectiveVolumeCorrectionMl: number;
+  readonly avPlaneGainMl: number;
+  readonly avPlaneDescent01: number;
+  readonly lambda: number;
+  readonly lambdaWithoutAvPlane: number;
+  readonly wallEngineeringStrain: number;
+  readonly wallEngineeringStrainWithoutAvPlane: number;
+};
+
 export type ActiveStressDebugTerms = ChamberPressureTerms & {
   c: number;
   a: number;
@@ -806,6 +818,29 @@ export class ActiveStressChamberModel implements ChamberModel {
   passivePressure(V: number, ctx: ChamberCtx): number {
     const passiveCtx = { ...ctx, contractility: 0, tmaxScale: 0, caReleaseScale: 0 };
     return this.bodyPressure(this.wallVolume(V, passiveCtx), { c: 0, a: 0, r: 0, tensionPa: 0 }, passiveCtx);
+  }
+
+  debugGeometryTerms(V: number, ctx: ChamberCtx): ChamberGeometryTerms {
+    const wallVolumeMl = this.wallVolume(V, ctx);
+    const noAvPlaneCtx = {
+      ...ctx,
+      pairedVentricleShortening01: 0,
+      pairedVentricleShorteningVelocity01PerSec: 0,
+    };
+    const wallVolumeWithoutAvPlaneMl = this.wallVolume(V, noAvPlaneCtx);
+    const geometry = this.geometry(wallVolumeMl);
+    const geometryWithoutAvPlane = this.geometry(wallVolumeWithoutAvPlaneMl);
+    return {
+      rawVolumeMl: V,
+      wallVolumeMl,
+      effectiveVolumeCorrectionMl: Math.max(0, V - wallVolumeMl),
+      avPlaneGainMl: Math.max(this.ap.avPlaneGainMl ?? 0, 0),
+      avPlaneDescent01: this.avPlaneDescent01(ctx),
+      lambda: geometry.lambda,
+      lambdaWithoutAvPlane: geometryWithoutAvPlane.lambda,
+      wallEngineeringStrain: geometry.lambda - 1,
+      wallEngineeringStrainWithoutAvPlane: geometryWithoutAvPlane.lambda - 1,
+    };
   }
 
   pressure(V: number, internal: ChamberInternal, ctx: ChamberCtx): number {

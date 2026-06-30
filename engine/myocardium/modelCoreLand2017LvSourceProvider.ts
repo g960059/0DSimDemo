@@ -6,11 +6,13 @@ import type {
   ModelCoreExperimentalActiveSourceProvider,
 } from "@/engine/ModelCore";
 import {
+  LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET,
   LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET_ID,
   LAND2017_STATE_INDEX,
   evaluateLand2017ContinuousOutput,
   solveLand2017BackwardEulerSubsteps,
   solveLand2017Sdirk2Step,
+  type Land2017EquationParameters,
   type LandSourceOutput,
   type LandStepInput,
   type Land2017StepSolveResult,
@@ -32,6 +34,7 @@ export type ModelCoreLand2017LvCommitScheme = "BE" | "SDIRK2";
 export type ModelCoreLand2017LvSourceProviderOptions = {
   readonly commitScheme?: ModelCoreLand2017LvCommitScheme;
   readonly sourceProviderId?: string;
+  readonly parameterSet?: Land2017EquationParameters;
 };
 
 export type ModelCoreLand2017LvCalciumScaledSourceProviderOptions =
@@ -144,6 +147,7 @@ export function land2017LvSourceOnlyProvider(
   options: ModelCoreLand2017LvSourceProviderOptions = {},
 ): ModelCoreExperimentalActiveSourceProvider {
   const commitScheme = options.commitScheme ?? "BE";
+  const parameterSet = options.parameterSet ?? LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET;
   return {
     sourceProviderId:
       options.sourceProviderId
@@ -169,7 +173,7 @@ export function land2017LvSourceOnlyProvider(
       instrumentation.sourceActiveStressPa += 1;
       const state = asLandProviderState(call.providerState, "sourceActiveStressPa");
       const input = landContinuousInputForCall(call, state);
-      const output = evaluateLandOutputForInput(state, input);
+      const output = evaluateLandOutputForInput(state, input, parameterSet);
       recordLandSignalAuditSample(instrumentation.sourcePathAudit, state.landState, input, output);
       return output.sourceActiveFiberStressPa;
     },
@@ -179,7 +183,11 @@ export function land2017LvSourceOnlyProvider(
     },
     debugActiveStressTerms: (call) => {
       instrumentation.debugActiveStressTerms += 1;
-      const output = evaluateLandOutputForCall(call, asLandProviderState(call.providerState, "debugActiveStressTerms"));
+      const output = evaluateLandOutputForCall(
+        call,
+        asLandProviderState(call.providerState, "debugActiveStressTerms"),
+        parameterSet,
+      );
       const terms = landDebugTermsForCall(call, output);
       instrumentation.maxSourceDebugStressDifferencePa = Math.max(
         instrumentation.maxSourceDebugStressDifferencePa,
@@ -231,8 +239,8 @@ export function land2017LvSourceOnlyProvider(
           ? solveLand2017BackwardEulerSubsteps(previous.landState, landInput, {
             ...solveOptions,
             substeps: 1,
-          })
-          : solveLand2017Sdirk2Step(previous.landState, landInput, solveOptions);
+          }, parameterSet)
+          : solveLand2017Sdirk2Step(previous.landState, landInput, solveOptions, parameterSet);
       if (commitScheme === "SDIRK2") {
         recordSdirk2SolveInstrumentation(instrumentation, solved);
       }
@@ -391,9 +399,10 @@ function debugLandProviderState(state: ModelCoreLand2017LvProviderState) {
 function evaluateLandOutputForCall(
   call: ModelCoreActiveSourceProviderCall,
   state: ModelCoreLand2017LvProviderState,
+  parameterSet: Land2017EquationParameters,
 ): LandSourceOutput {
   const input = landContinuousInputForCall(call, state);
-  return evaluateLandOutputForInput(state, input);
+  return evaluateLandOutputForInput(state, input, parameterSet);
 }
 
 function mapActiveCallCalcium(
@@ -461,8 +470,9 @@ function mapCalcium(value: number, calciumScale: number): number {
 function evaluateLandOutputForInput(
   state: ModelCoreLand2017LvProviderState,
   input: LandCallInput,
+  parameterSet: Land2017EquationParameters,
 ): LandSourceOutput {
-  return evaluateLand2017ContinuousOutput(state.landState, input);
+  return evaluateLand2017ContinuousOutput(state.landState, input, parameterSet);
 }
 
 function landContinuousInputForCall(
