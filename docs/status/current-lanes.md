@@ -392,6 +392,21 @@ the remaining left-sided MV residual with a chamber pressure/valve-load
 complementarity solve or pressure-adapter contract redesign, not a symmetric
 MV+TV state-coupling, tau/filter sweep, LandAtrial tuning, or valve/root/qDot
 retuning.
+Phase 5CK records `mv-pressure-refit-transaction-phase5ck-result-v1`, carrying
+the 5CJ TV state-coupled component forward and adding an off-by-default MV
+pressure-refit diagnostic inside the same transaction. This is a stronger
+partial positive but still not adoption evidence: the best candidate
+(`tv-state-mv-pressure-refit-legacy-atria`) reaches 7/8 gross pass with LV/RV
+PV OK 8/8, TVF OK 8/8, MVF OK 7/8, settled 8/8, and output preserved 7/8. The
+only remaining best-candidate gross failure is `low-preload-hr75`, localized
+to MV valve diode residual evidence with qDot hits still zero; all other AV
+inflow residuals are clean-biphasic. The all-chamber user-0 transfer remains
+insufficient (2/8), so this does not unlock runtime/default wiring,
+LandAtrial tuning, official morphology, or valve/load timing acceptance. Carry
+the TV-state plus MV pressure-refit ordering as diagnostic component evidence
+and narrow the next experiment to the remaining low-preload left-sided MV
+residual or to a broader pressure-adapter contract if that residual cannot be
+resolved without overfitting.
 
 ## Lane table
 
@@ -719,7 +734,7 @@ advances the current lane. They are evidence anchors, not current gates.
 
 ## Current top priorities
 
-1. Phase 5CJ is now the active blocker for education-visible gross morphology:
+1. Phase 5CK is now the active blocker for education-visible gross morphology:
    owner visual review confirms the morphology checker is directionally trusted
    and not too strict for failed examples. Current user-0, committed-output
    pressure-source, and fixed-point coupled-BE candidates all remain 0/8 gross
@@ -759,6 +774,16 @@ advances the current lane. They are evidence anchors, not current gates.
    as diagnostic component evidence. The next surface should narrow to the
    remaining left-sided MV pressure/valve-load complementarity residual while
    preserving the 5CJ PV and TVF gains.
+   Phase 5CK carries that ordering forward with an MV pressure-refit diagnostic.
+   The best legacy-atria candidate reaches 7/8 gross pass with LV/RV PV 8/8,
+   TVF 8/8, MVF 7/8, settled 8/8, output preserved 7/8, and a single remaining
+   `low-preload-hr75` MV valve-diode residual with qDot hits still zero. This is
+   the strongest morphology signal in the transaction sequence, but it still
+   does not transfer cleanly to all-chamber user-0 (2/8) and does not support
+   runtime/default adoption. The next surface should narrow to the remaining
+   low-preload left-sided MV residual while preserving the 5CK PV/TVF/MVF gains,
+   or pivot to a broader pressure-adapter contract if that residual cannot be
+   solved without fitting one point.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, local LV/RV transaction
