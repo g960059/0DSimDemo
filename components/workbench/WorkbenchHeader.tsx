@@ -18,8 +18,9 @@ import {
 } from 'lucide-react';
 import { SimInstance } from '../../types';
 import { SimulationHealth } from '../../engine/protocol';
-import { HealthBadge } from '../HealthIndicators';
+import { HealthBadge, MorphologyBadge } from '../HealthIndicators';
 import { ModelLimitations } from '../ModelLimitations';
+import type { MorphologyCheckSummary } from '../../engine/verification/morphologyCheck';
 import { WorkbenchHeaderMode, WorkbenchSceneMeta, WorkbenchSidePanel, type WorkbenchThemeId } from './WorkbenchSidePanel';
 import type { MetricsSpanMode } from './PanelGrid';
 import { ReadExploreSwitcher } from './ReadExploreSwitcher';
@@ -37,6 +38,7 @@ interface WorkbenchHeaderProps {
   onResetToAuthorState?: () => void;
   instances: SimInstance[];
   instanceHealth: Record<string, SimulationHealth>;
+  instanceMorphology?: Record<string, MorphologyCheckSummary>;
   getLiveHealth: (id: string) => SimulationHealth | undefined;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onImportFile: (file: File) => void;
@@ -81,6 +83,7 @@ export function WorkbenchHeader({
   onResetToAuthorState,
   instances,
   instanceHealth,
+  instanceMorphology = {},
   getLiveHealth,
   fileInputRef,
   onImportFile,
@@ -170,6 +173,7 @@ export function WorkbenchHeader({
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5">
+          <MorphologyBadge items={instances.filter(i => instanceMorphology[i.id]).map(i => ({ id: i.id, name: i.name, color: i.color, morphology: instanceMorphology[i.id] }))} />
           <HealthBadge items={instances.filter(i => instanceHealth[i.id]).map(i => ({ id: i.id, name: i.name, color: i.color, health: instanceHealth[i.id] }))} getLiveHealth={getLiveHealth} />
           {showNoteToggle && (
             <button

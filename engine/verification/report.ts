@@ -1,8 +1,13 @@
 import { defaultParams } from "@/engine/ModelCore";
 import type { SteadyMeasurement } from "@/engine/measure";
+import type { ModelCoreRuntimeActiveSourceMode } from "@/engine/myocardium/runtimeActiveSource";
 import type { CoreRuntimeParams, SimMetrics } from "@/engine/protocol";
 import { runToPeriodicSteadyInternal } from "@/engine/steadyJob";
 import type { SolverStats, SteadyResiduals, SteadyResult, SteadyStatus } from "@/engine/stateContract";
+import {
+  morphologyCheckSummaryFromSamples,
+  type MorphologyCheckSummary,
+} from "@/engine/verification/morphologyCheck";
 import { panelForGate, type VerificationArtifactFile } from "@/engine/verification/panels";
 import type { SettleStatus } from "@/engine/settling";
 import {
@@ -26,12 +31,14 @@ export type VerificationGateSet = "validityOnly" | "normalBaseline";
 export type VerificationReport = {
   profile: VerificationProfile;
   gateSet: VerificationGateSet;
+  runtimeActiveSourceMode: ModelCoreRuntimeActiveSourceMode | null;
   generatedAt: string;
   summary: VerificationSummary;
   steady: VerificationSteadySummary | null;
   settleStatus: SettleStatus | null;
   metrics: SimMetrics | null;
   shape: BaselineShapeSummary | null;
+  morphology: MorphologyCheckSummary | null;
   gates: GateResult[];
   failureLocations: FailureLocation[];
   measurement: SteadyMeasurement | null;
@@ -73,6 +80,7 @@ export type VerificationArtifact = Omit<VerificationReport, "measurement"> & {
 export type VerificationRunOptions = {
   profile?: VerificationMode | VerificationProfile;
   gateSet?: VerificationGateSet;
+  runtimeActiveSourceMode?: ModelCoreRuntimeActiveSourceMode;
   now?: Date;
 };
 
@@ -89,6 +97,7 @@ export function runVerification(
     settlePolicy: profile.settlePolicy,
     measureBeats: profile.measureBeats,
     requireProjectorQuiet: profile.requireProjectorQuiet,
+    ...(options.runtimeActiveSourceMode ? { runtimeActiveSourceMode: options.runtimeActiveSourceMode } : {}),
   };
   const steadyRun = runToPeriodicSteadyInternal(params, measureOptions);
   const steady = summarizeSteady(steadyRun.result);
@@ -100,12 +109,14 @@ export function runVerification(
     return {
       profile,
       gateSet,
+      runtimeActiveSourceMode: options.runtimeActiveSourceMode ?? null,
       generatedAt: (options.now ?? new Date()).toISOString(),
       summary: summarizeGates(gates),
       steady,
       settleStatus: settled,
       metrics: null,
       shape: null,
+      morphology: null,
       gates,
       failureLocations: failureLocations(gates),
       measurement: null,
@@ -123,12 +134,14 @@ export function runVerification(
   return {
     profile,
     gateSet,
+    runtimeActiveSourceMode: options.runtimeActiveSourceMode ?? null,
     generatedAt: (options.now ?? new Date()).toISOString(),
     summary: summarizeGates(gates),
     steady,
     settleStatus: measurement.settleStatus,
     metrics: measurement.metrics,
     shape: gateSet === "normalBaseline" ? baselineShapeSummary(measurement) : null,
+    morphology: gateSet === "normalBaseline" ? morphologyCheckSummaryFromSamples(measurement.samples) : null,
     gates,
     failureLocations: failureLocations(gates),
     measurement,
@@ -160,6 +173,7 @@ export function reportToMarkdown(report: VerificationReport): string {
   lines.push("");
   lines.push(`- Profile: ${report.profile.label} (${report.profile.mode})`);
   lines.push(`- Gate set: ${report.gateSet}`);
+  lines.push(`- Runtime active-source mode: ${report.runtimeActiveSourceMode ?? "legacy-default"}`);
   lines.push(`- Generated: ${report.generatedAt}`);
   lines.push(`- Pass: ${report.summary.pass ? "yes" : "no"}`);
   lines.push(`- Hard failures: ${report.summary.hardFailures}`);
@@ -196,6 +210,19 @@ export function reportToMarkdown(report: VerificationReport): string {
     lines.push(`- PVF S/D: ${nullableRound(report.shape.pvfSOverD, 3)}`);
     lines.push(`- PVF reverse fraction: ${nullableRound(report.shape.pvfReverseFraction, 3)}`);
     lines.push(`- LA/RA loop intersections: ${report.shape.laSelfIntersections}/${report.shape.raSelfIntersections}`);
+  }
+  if (report.morphology) {
+    lines.push("");
+    lines.push("## Morphology Check");
+    lines.push("");
+    lines.push(`- Version: ${report.morphology.version}`);
+    lines.push(`- Profile: ${report.morphology.morphologyProfileId}`);
+    lines.push(`- Overall: ${report.morphology.status}`);
+    lines.push(`- Beat samples: ${report.morphology.checkedBeatSampleCount}`);
+    lines.push(`- Badges: LV PV ${report.morphology.badges.lvPv}, RV PV ${report.morphology.badges.rvPv}, LA PV ${report.morphology.badges.laPv}, RA PV ${report.morphology.badges.raPv}, MVF ${report.morphology.badges.mvf}, TVF ${report.morphology.badges.tvf}, LAP ${report.morphology.badges.lapWaveform}, RAP ${report.morphology.badges.rapWaveform}`);
+    for (const result of report.morphology.results) {
+      lines.push(`- ${result.status.toUpperCase()} ${result.label}: ${result.message} value=${String(result.value)} threshold=${result.threshold}`);
+    }
   }
   if (report.steady) {
     const { residuals, solverStats, state } = report.steady;

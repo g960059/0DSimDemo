@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, X } from 'lucide-react';
+import { Activity, AlertTriangle, CheckCircle2, X } from 'lucide-react';
 import type { SimulationHealth, SimulationHealthStatus } from '../engine/protocol';
+import type { MorphologyCheckStatus, MorphologyCheckSummary } from '../engine/verification/morphologyCheck';
 
 // Low-noise health UX (ROADMAP S1): nothing is shown while healthy.
 // warning = amber, failed/unstable = red. ok renders nothing.
@@ -107,6 +108,119 @@ export const HealthBadge: React.FC<{
                 </div>
               );
             })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+export type MorphologyBadgeItem = { id: string; name: string; color: string; morphology: MorphologyCheckSummary };
+
+const MORPHOLOGY_STATUS_META: Record<MorphologyCheckStatus, { color: string; label: string }> = {
+  ok: { color: '#22c55e', label: 'OK' },
+  warning: { color: '#fbbf24', label: 'WARN' },
+  failed: { color: '#ef4444', label: 'FAIL' },
+  pending: { color: '#94a3b8', label: 'PENDING' },
+};
+
+const MORPHOLOGY_BADGE_LABELS: Record<keyof MorphologyCheckSummary['badges'], string> = {
+  lvPv: 'LV PV',
+  rvPv: 'RV PV',
+  laPv: 'LA PV',
+  raPv: 'RA PV',
+  mvf: 'MVF',
+  tvf: 'TVF',
+  lapWaveform: 'LAP',
+  rapWaveform: 'RAP',
+};
+
+export const MorphologyBadge: React.FC<{ items: MorphologyBadgeItem[] }> = ({ items }) => {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (items.length === 0 && open) setOpen(false);
+  }, [items.length, open]);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
+  if (items.length === 0) return null;
+
+  const overallStatus: MorphologyCheckStatus = items.some((item) => item.morphology.status === 'failed')
+    ? 'failed'
+    : items.some((item) => item.morphology.status === 'warning')
+      ? 'warning'
+      : items.some((item) => item.morphology.status === 'pending')
+        ? 'pending'
+        : 'ok';
+  const meta = MORPHOLOGY_STATUS_META[overallStatus];
+  const Icon = overallStatus === 'ok' ? CheckCircle2 : Activity;
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="px-2 sm:px-3 py-1.5 rounded text-[10px] sm:text-xs font-bold flex items-center gap-1.5 transition-colors"
+        style={{ color: meta.color, backgroundColor: `${meta.color}1a` }}
+        title="Morphology check"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+      >
+        <Icon className="w-3.5 h-3.5" />
+        <span className="hidden sm:inline">Morph {meta.label}</span>
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div
+            role="dialog"
+            aria-label="Morphology check"
+            className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-slate-900 border border-slate-700 rounded-lg shadow-2xl z-50 p-3 text-left custom-scrollbar"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-slate-300">Morphology check</span>
+              <button onClick={() => setOpen(false)} aria-label={t('common.close')} className="text-slate-500 hover:text-slate-300">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            {items.map((item) => (
+              <div key={item.id} className="mb-3 last:mb-0">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                  <span className="text-xs font-semibold text-slate-200">{item.name}</span>
+                  <span className="text-[10px] font-bold uppercase" style={{ color: MORPHOLOGY_STATUS_META[item.morphology.status].color }}>
+                    {MORPHOLOGY_STATUS_META[item.morphology.status].label}
+                  </span>
+                </div>
+                <div className="mt-1 grid grid-cols-4 gap-1 text-[10px]">
+                  {(Object.entries(item.morphology.badges) as [keyof MorphologyCheckSummary['badges'], MorphologyCheckStatus][]).map(([key, status]) => (
+                    <span
+                      key={key}
+                      className="rounded border px-1.5 py-1 font-semibold"
+                      style={{
+                        borderColor: `${MORPHOLOGY_STATUS_META[status].color}66`,
+                        color: MORPHOLOGY_STATUS_META[status].color,
+                        backgroundColor: `${MORPHOLOGY_STATUS_META[status].color}12`,
+                      }}
+                    >
+                      {MORPHOLOGY_BADGE_LABELS[key]} {MORPHOLOGY_STATUS_META[status].label}
+                    </span>
+                  ))}
+                </div>
+                <ul className="mt-2 pl-4 list-disc text-[11px] text-slate-400 space-y-0.5">
+                  {item.morphology.results
+                    .filter((result) => result.status !== 'ok')
+                    .slice(0, 6)
+                    .map((result) => <li key={result.id}>{result.label}: {result.message}</li>)}
+                  {item.morphology.status === 'ok' && <li>LV/RV/LA/RA PV loops and AV inflow checks are OK for the active morphology profile.</li>}
+                </ul>
+              </div>
+            ))}
           </div>
         </>
       )}

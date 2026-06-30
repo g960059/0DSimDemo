@@ -655,6 +655,7 @@ export class ModelCore {
   private readonly experimentalActiveSourceProviders: Partial<Record<Chamber, ModelCoreExperimentalActiveSourceProvider>>;
   private readonly experimentalBoundaryRootInertance: ModelCoreExperimentalBoundaryRootInertanceOptions | null;
   private readonly experimentalValveDiodeSmoothing: ModelCoreExperimentalValveDiodeSmoothingOptions | null;
+  private readonly experimentalRuntimeParameterPatch: ParameterPatch | null;
   private readonly experimentalActiveSourceProviderStates: Partial<Record<Chamber, unknown>> = {};
   private readonly experimentalActiveSourceProviderStateVersions: Partial<Record<Chamber, number>> = {};
   private elastanceModels = new Map<string, ElastanceChamberModel>();
@@ -728,6 +729,7 @@ export class ModelCore {
     this.experimentalValveDiodeSmoothing = normalizeExperimentalValveDiodeSmoothing(
       experimentalOptions.valveDiodeSmoothing,
     );
+    this.experimentalRuntimeParameterPatch = experimentalOptions.runtimeParameterPatch ?? null;
     this.validateExperimentalActiveSourceProviders();
     this.p = { ...defaultParams() };
     this.pTarget = { ...this.p };
@@ -737,15 +739,15 @@ export class ModelCore {
     valveNames.forEach((n, i) => this.valveIndex.set(n, i));
     this.rebuildActiveModels();
     this.rebuildElastanceModels();
-    const initialWithExperimentalPatch = experimentalOptions.runtimeParameterPatch
-      ? mergeExperimentalRuntimeParameterPatch(experimentalOptions.runtimeParameterPatch, initial ?? {})
+    const initialWithExperimentalPatch = this.experimentalRuntimeParameterPatch
+      ? mergeExperimentalRuntimeParameterPatch(this.experimentalRuntimeParameterPatch, initial ?? {})
       : initial;
     if (initialWithExperimentalPatch) {
         this.setImmediateParameters(initialWithExperimentalPatch);
     }
-    if (experimentalOptions.runtimeParameterPatch?.nodeOverrides) {
+    if (this.experimentalRuntimeParameterPatch?.nodeOverrides) {
       const nodeOverrides = mergeExperimentalNodeOverrides(
-        experimentalOptions.runtimeParameterPatch.nodeOverrides,
+        this.experimentalRuntimeParameterPatch.nodeOverrides,
         this.p.nodeOverrides,
       );
       if (nodeOverrides) this.setImmediateParameters({ nodeOverrides });
@@ -935,8 +937,11 @@ export class ModelCore {
   }
 
   setImmediateParameters(patch: ParameterPatch) {
-    this.p = { ...this.p, ...patch };
-    this.pTarget = { ...this.pTarget, ...patch };
+    const effectivePatch = this.experimentalRuntimeParameterPatch
+      ? mergeExperimentalRuntimeParameterPatch(this.experimentalRuntimeParameterPatch, patch)
+      : patch;
+    this.p = { ...this.p, ...effectivePatch };
+    this.pTarget = { ...this.pTarget, ...effectivePatch };
     
     // Apply advanced overrides to nodes and edges by deep merging
     this.nodes = buildNodes().map(n => {

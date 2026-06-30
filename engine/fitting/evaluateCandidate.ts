@@ -52,12 +52,14 @@ export function evaluateCandidate(
     const report: VerificationReport = {
       profile,
       gateSet: options.gateSet ?? "validityOnly",
+      runtimeActiveSourceMode: null,
       generatedAt: new Date().toISOString(),
       summary: summarizeGates([invalid]),
       steady: null,
       settleStatus: null,
       metrics: null,
       shape: null,
+      morphology: null,
       gates: [invalid],
       failureLocations: [{
         gateId: invalid.id,

@@ -7,6 +7,7 @@ import phase5ARArtifact from "@/data/myocardium/protocols/atrial-land-source-str
 import { DEFAULT_PARAMS } from "@/constants";
 import { ModelCore } from "@/engine/ModelCore";
 import { runScenario } from "@/engine/harness";
+import { runVerification } from "@/engine/verification/report";
 import {
   createModelCoreLand2017LvSourceProviderInstrumentation,
 } from "@/engine/myocardium/modelCoreLand2017LvSourceProvider";
@@ -166,6 +167,61 @@ describe("ModelCore runtime active source default", () => {
     expect((core.p.nodeOverrides?.LA?.active as Record<string, number>)?.avPlaneGainMl).toBe(30);
     expect((core.p.nodeOverrides?.RA?.active as Record<string, number>)?.avPlaneGainMl)
       .toBe((landAtrialRuntimeCandidateNodeOverrides().RA.active as Record<string, number>).avPlaneGainMl);
+  });
+
+  it("preserves the LandAtrial runtime geometry patch across live immediate parameter updates", () => {
+    const resolved = resolveModelCoreRuntimeActiveSource();
+    const core = new ModelCore(DEFAULT_PARAMS, resolved.experimentalOptions);
+    const runtimeOverrides = landAtrialRuntimeCandidateNodeOverrides();
+
+    core.setImmediateParameters({ HR: 82 });
+    expect((core.p.nodeOverrides?.LA?.active as Record<string, number>)?.avPlaneGainMl)
+      .toBe((runtimeOverrides.LA.active as Record<string, number>).avPlaneGainMl);
+    expect((core.p.nodeOverrides?.RA?.active as Record<string, number>)?.avPlaneGainMl)
+      .toBe((runtimeOverrides.RA.active as Record<string, number>).avPlaneGainMl);
+
+    core.setImmediateParameters({
+      ...DEFAULT_PARAMS,
+      nodeOverrides: {
+        LA: { active: { avPlaneGainMl: 31 } },
+      },
+    });
+    expect((core.p.nodeOverrides?.LA?.active as Record<string, number>)?.avPlaneGainMl).toBe(31);
+    expect((core.p.nodeOverrides?.RA?.active as Record<string, number>)?.avPlaneGainMl)
+      .toBe((runtimeOverrides.RA.active as Record<string, number>).avPlaneGainMl);
+  });
+
+  it("keeps LandAtrial atrial activation tied to AV lead timing", () => {
+    const shortDelay = runVerification({
+      ...DEFAULT_PARAMS,
+      avDelaySec: 0.08,
+    }, {
+      profile: "fitFast",
+      gateSet: "validityOnly",
+      runtimeActiveSourceMode: MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE,
+    });
+    const longDelay = runVerification({
+      ...DEFAULT_PARAMS,
+      avDelaySec: 0.20,
+    }, {
+      profile: "fitFast",
+      gateSet: "validityOnly",
+      runtimeActiveSourceMode: MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE,
+    });
+
+    expect(shortDelay.measurement).not.toBeNull();
+    expect(longDelay.measurement).not.toBeNull();
+    const laShortMs = shortDelay.measurement!.phaseTiming.msFromVentricularPhaseZero.activeAPeak.LA;
+    const laLongMs = longDelay.measurement!.phaseTiming.msFromVentricularPhaseZero.activeAPeak.LA;
+    const raShortMs = shortDelay.measurement!.phaseTiming.msFromVentricularPhaseZero.activeAPeak.RA;
+    const raLongMs = longDelay.measurement!.phaseTiming.msFromVentricularPhaseZero.activeAPeak.RA;
+
+    expect(laShortMs).not.toBeNull();
+    expect(laLongMs).not.toBeNull();
+    expect(raShortMs).not.toBeNull();
+    expect(raLongMs).not.toBeNull();
+    expect(laShortMs! - laLongMs!).toBeGreaterThan(80);
+    expect(raShortMs! - raLongMs!).toBeGreaterThan(80);
   });
 
   it("keeps LV-only Land reachable as an explicit historical staged default mode", () => {

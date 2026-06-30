@@ -2,6 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { HealthToast } from "@/components/HealthIndicators";
 import type { SimulationHealth } from "@/engine/protocol";
 import { PreviewController, type SteadyUpdateStatusMap } from "@/engine/previewController";
+import {
+  morphologyCheckSummaryFromSamples,
+  type MorphologyCheckSummary,
+} from "@/engine/verification/morphologyCheck";
 import type { SimInstance } from "@/types";
 
 export function useWorkbenchSimulation(
@@ -11,6 +15,7 @@ export function useWorkbenchSimulation(
   const [timeScale, setTimeScale] = useState<number>(1.0);
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
   const [instanceHealth, setInstanceHealth] = useState<Record<string, SimulationHealth>>({});
+  const [instanceMorphology, setInstanceMorphology] = useState<Record<string, MorphologyCheckSummary>>({});
   const [steadyUpdateStatuses, setSteadyUpdateStatuses] = useState<SteadyUpdateStatusMap>({});
   const [healthToasts, setHealthToasts] = useState<HealthToast[]>([]);
   const controllerRef = useRef<PreviewController | null>(null);
@@ -62,6 +67,23 @@ export function useWorkbenchSimulation(
     controller.setPlaying(isPlaying);
   }, [controller, isPlaying]);
 
+  useEffect(() => {
+    const updateMorphology = () => {
+      const next: Record<string, MorphologyCheckSummary> = {};
+      for (const inst of instances) {
+        const phys = controller.refs.get(inst.id);
+        if (!phys || phys.buffer.length === 0) continue;
+        next[inst.id] = morphologyCheckSummaryFromSamples(phys.buffer);
+      }
+      setInstanceMorphology((prev) => (
+        morphologyMapSignature(prev) === morphologyMapSignature(next) ? prev : next
+      ));
+    };
+    updateMorphology();
+    const timer = window.setInterval(updateMorphology, 1000);
+    return () => window.clearInterval(timer);
+  }, [controller, instances]);
+
   const requestSteadyTransition = useCallback((id: string, nextInstances: SimInstance[]) => {
     const target = nextInstances.find((instance) => instance.id === id);
     pendingSteadyTransitionIdsRef.current.add(id);
@@ -86,6 +108,7 @@ export function useWorkbenchSimulation(
     setIsPlaying,
     togglePlay,
     instanceHealth,
+    instanceMorphology,
     steadyUpdateStatuses,
     healthToasts,
     dismissToast,
@@ -96,3 +119,15 @@ export function useWorkbenchSimulation(
 }
 
 export type WorkbenchSimulationState = ReturnType<typeof useWorkbenchSimulation>;
+
+function morphologyMapSignature(map: Record<string, MorphologyCheckSummary>): string {
+  return Object.entries(map)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([id, summary]) => {
+      const results = summary.results
+        .map((result) => `${result.id}:${result.status}:${String(result.value)}`)
+        .join(",");
+      return `${id}:${summary.status}:${summary.checkedBeatSampleCount}:${results}`;
+    })
+    .join("|");
+}
