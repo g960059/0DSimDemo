@@ -1,0 +1,4977 @@
+{
+  "schemaVersion": 1,
+  "id": "active-source-pressure-contract-v2-phase5ce-result-v1",
+  "phase": "5CE",
+  "profile": {
+    "verificationProfile": "fitFast",
+    "morphologyProfileId": "normal_sinus_default",
+    "pointSource": "normal-hr75-hr90-preload-afterload-contractility-representative-envelope",
+    "grossGate": "LV/RV PV loop plus MVF/TVF must all be ok; LAP/RAP timing is recorded but not used for this gross ventricular/filling pass count",
+    "contractReadout": "deterministic source-stress, active-pressure, lambda, pressure-gradient, diode, and qDot attribution over the same last complete beat",
+    "candidateMechanism": "ActiveSourcePressureContractV2 reference-geometry active pressure adapter for LV/RV, off by default"
+  },
+  "ownerVisualGateCalibration": {
+    "sourceArtifactId": "morphology-visual-review-phase5ca-result-v1",
+    "ownerReviewedDownloadsBundle": "~/Downloads/0dsim-morphology-review-phase5ca/index.html",
+    "failedGateExamplesVisuallyUnacceptable": true,
+    "someOkGateExamplesStillVisuallyUnacceptable": true,
+    "conclusion": "do-not-relax-morphology-check-v1-for-failed-gross-pv-or-av-inflow-artifacts"
+  },
+  "variants": [
+    {
+      "id": "legacy-frozen-reference",
+      "label": "Frozen legacy active-stress rollback/reference",
+      "hypothesis": "Positive morphology reference and rollback path.",
+      "closurePath": "legacy-active-stress",
+      "activeSourcePressureContractV2": null
+    },
+    {
+      "id": "current-user0-default",
+      "label": "Current user-0 all-chamber LandAtrial plus sourced root/Zc default",
+      "hypothesis": "Records active-source/pressure-adapter attribution for the live raw morphology blocker.",
+      "closurePath": "current-user0-all-chamber-landatrial",
+      "activeSourcePressureContractV2": null
+    },
+    {
+      "id": "lv-rv-land-legacy-atria",
+      "label": "LV/RV Land plus legacy atria with sourced root/Zc",
+      "hypothesis": "Separates ventricular Land source/adapter coupling from LandAtrial AV-plane/effective-wall timing.",
+      "closurePath": "lv-rv-land-legacy-atria",
+      "activeSourcePressureContractV2": null
+    },
+    {
+      "id": "v2-reference-geometry-user0",
+      "label": "Current user-0 closure with LV/RV ActiveSourcePressureContractV2 reference-geometry adapter",
+      "hypothesis": "Tests whether removing instantaneous LV/RV geometry-gain amplification from source stress to chamber pressure rescues raw PV dome and AV inflow morphology.",
+      "closurePath": "current-user0-all-chamber-landatrial",
+      "activeSourcePressureContractV2": {
+        "mode": "reference-geometry-active-pressure-v1",
+        "chambers": [
+          "LV",
+          "RV"
+        ]
+      }
+    },
+    {
+      "id": "v2-reference-geometry-legacy-atria",
+      "label": "LV/RV Land legacy atria with ActiveSourcePressureContractV2 reference-geometry adapter",
+      "hypothesis": "Separates LV/RV pressure-adapter geometry from LandAtrial AV-plane/effective-wall timing.",
+      "closurePath": "lv-rv-land-legacy-atria",
+      "activeSourcePressureContractV2": {
+        "mode": "reference-geometry-active-pressure-v1",
+        "chambers": [
+          "LV",
+          "RV"
+        ]
+      }
+    }
+  ],
+  "points": [
+    {
+      "id": "normal-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75
+      }
+    },
+    {
+      "id": "normal-hr90",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 90
+      }
+    },
+    {
+      "id": "low-preload-hr75",
+      "targetTBVMl": 4800,
+      "params": {
+        "HR": 75
+      }
+    },
+    {
+      "id": "high-preload-hr75",
+      "targetTBVMl": 6200,
+      "params": {
+        "HR": 75
+      }
+    },
+    {
+      "id": "systemic-afterload-high-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "systemicResistance": 1.25
+      }
+    },
+    {
+      "id": "pulmonary-afterload-high-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "pulmonaryResistance": 0.8
+      }
+    },
+    {
+      "id": "contractility-low-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "contractility": 0.8
+      }
+    },
+    {
+      "id": "contractility-high-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "contractility": 1.2
+      }
+    }
+  ],
+  "results": [
+    {
+      "variantId": "legacy-frozen-reference",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": true,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 86.824027,
+        "PAPMean": 16.022842,
+        "CO_L": 5.422892,
+        "CO_R": 5.461089,
+        "LAPMean": 6.814127,
+        "RAPMean": 3.451249,
+        "EF_LApprox": 0.591742,
+        "EF_RApprox": 0.513361
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 40,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.782532,
+            "activePressureWorkMmHgMl": -7289.574838,
+            "sourceStressLambdaWorkProxyPa": -2465.138695,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "LV systolic dome is contract-clean."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 56,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.944617,
+            "activePressureWorkMmHgMl": -2222.663455,
+            "sourceStressLambdaWorkProxyPa": -2220.546742,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.615,
+            "aPeakTheta": 0.935,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.5325,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "MV inflow is contract-clean biphasic."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.6625,
+            "aPeakTheta": 0.9725,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.46,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": []
+      },
+      "contractFailureClasses": [],
+      "errorMessage": null
+    },
+    {
+      "variantId": "legacy-frozen-reference",
+      "pointId": "normal-hr90",
+      "settled": false,
+      "settleReason": "cap",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "not-measured",
+      "failedLabels": [
+        "not-measured"
+      ],
+      "badges": null,
+      "metrics": null,
+      "contract": null,
+      "contractFailureClasses": [
+        "not-measured"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "legacy-frozen-reference",
+      "pointId": "low-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "RA PV loop",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 72.900374,
+        "PAPMean": 9.922564,
+        "CO_L": 4.595286,
+        "CO_R": 4.582365,
+        "LAPMean": 2.162231,
+        "RAPMean": 1.382415,
+        "EF_LApprox": 0.572109,
+        "EF_RApprox": 0.529012
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 36,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.713974,
+            "activePressureWorkMmHgMl": -5104.317872,
+            "sourceStressLambdaWorkProxyPa": -1712.993018,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "LV systolic dome is contract-clean."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 54,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.979971,
+            "activePressureWorkMmHgMl": -1368.759915,
+            "sourceStressLambdaWorkProxyPa": -1301.360382,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.6925,
+            "aPeakTheta": 0.955,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.5925,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "MV inflow is contract-clean biphasic."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": null,
+            "aPeakTheta": 0.96,
+            "extraPeakTheta": 0.7725,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.53,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "TV inflow artifact overlaps valve diode or qDot events."
+          }
+        },
+        "dominantFailureClasses": [
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "legacy-frozen-reference",
+      "pointId": "high-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 92.147238,
+        "PAPMean": 19.68741,
+        "CO_L": 5.574004,
+        "CO_R": 5.588342,
+        "LAPMean": 10.265331,
+        "RAPMean": 6.293453,
+        "EF_LApprox": 0.587512,
+        "EF_RApprox": 0.455123
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 41,
+            "totalPressurePeakCount": 1,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.768063,
+            "activePressureWorkMmHgMl": -7899.775213,
+            "sourceStressLambdaWorkProxyPa": -2679.842706,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "LV systolic dome is contract-clean."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 56,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.768386,
+            "activePressureWorkMmHgMl": -2574.68759,
+            "sourceStressLambdaWorkProxyPa": -2689.128037,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.5875,
+            "aPeakTheta": 0.935,
+            "extraPeakTheta": 0.76,
+            "extraPeakProminenceRatio": 0.453487,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.535,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.62,
+            "aPeakTheta": 0.9525,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.4525,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": [
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "legacy-frozen-reference",
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 95.299324,
+        "PAPMean": 16.873659,
+        "CO_L": 5.116699,
+        "CO_R": 5.144906,
+        "LAPMean": 8.20456,
+        "RAPMean": 3.490902,
+        "EF_LApprox": 0.543123,
+        "EF_RApprox": 0.483752
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 39,
+            "totalPressurePeakCount": 1,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.677681,
+            "activePressureWorkMmHgMl": -7225.419692,
+            "sourceStressLambdaWorkProxyPa": -2452.585436,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "LV systolic dome is contract-clean."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 55,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.84002,
+            "activePressureWorkMmHgMl": -2110.397878,
+            "sourceStressLambdaWorkProxyPa": -2120.564591,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.615,
+            "aPeakTheta": 0.94,
+            "extraPeakTheta": 0.7975,
+            "extraPeakProminenceRatio": 0.473261,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.53,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.665,
+            "aPeakTheta": 0.9725,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.465,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": [
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "legacy-frozen-reference",
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": true,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 86.066102,
+        "PAPMean": 16.120115,
+        "CO_L": 5.383533,
+        "CO_R": 5.389138,
+        "LAPMean": 6.231534,
+        "RAPMean": 3.590745,
+        "EF_LApprox": 0.593598,
+        "EF_RApprox": 0.500504
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 40,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.782649,
+            "activePressureWorkMmHgMl": -7168.998302,
+            "sourceStressLambdaWorkProxyPa": -2422.696884,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "LV systolic dome is contract-clean."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 56,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.903573,
+            "activePressureWorkMmHgMl": -2226.744251,
+            "sourceStressLambdaWorkProxyPa": -2235.449249,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.6225,
+            "aPeakTheta": 0.935,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.535,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "MV inflow is contract-clean biphasic."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.6575,
+            "aPeakTheta": 0.9725,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.4575,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": []
+      },
+      "contractFailureClasses": [],
+      "errorMessage": null
+    },
+    {
+      "variantId": "legacy-frozen-reference",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "RA PV loop",
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 48.75138,
+        "PAPMean": 15.248444,
+        "CO_L": 2.568944,
+        "CO_R": 2.542248,
+        "LAPMean": 10.932999,
+        "RAPMean": 8.835684,
+        "EF_LApprox": 0.28816,
+        "EF_RApprox": 0.200365
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 31,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.255134,
+            "activePressureWorkMmHgMl": -1663.433609,
+            "sourceStressLambdaWorkProxyPa": -570.349818,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "LV systolic dome is contract-clean."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 49,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.236149,
+            "activePressureWorkMmHgMl": -580.941562,
+            "sourceStressLambdaWorkProxyPa": -644.704001,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.5575,
+            "aPeakTheta": 0.9325,
+            "extraPeakTheta": 0.7125,
+            "extraPeakProminenceRatio": 0.4731,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.525,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.5975,
+            "aPeakTheta": 0.9425,
+            "extraPeakTheta": 0.8325,
+            "extraPeakProminenceRatio": 0.340446,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.4425,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "TV inflow artifact overlaps valve diode or qDot events."
+          }
+        },
+        "dominantFailureClasses": [
+          "valve-diode-or-qdot-contamination",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "valve-diode-or-qdot-contamination",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "legacy-frozen-reference",
+      "pointId": "contractility-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "warning",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 105.461259,
+        "PAPMean": 14.616976,
+        "CO_L": 6.68923,
+        "CO_R": 6.691038,
+        "LAPMean": 3.301792,
+        "RAPMean": 1.683426,
+        "EF_LApprox": 0.834129,
+        "EF_RApprox": 0.846764
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 45,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 3.063538,
+            "activePressureWorkMmHgMl": -12299.968168,
+            "sourceStressLambdaWorkProxyPa": -4205.980904,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "LV systolic dome is contract-clean."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 53,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 4.592632,
+            "activePressureWorkMmHgMl": -2853.01592,
+            "sourceStressLambdaWorkProxyPa": -2583.433889,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.5875,
+            "aPeakTheta": 0.9325,
+            "extraPeakTheta": 0.79,
+            "extraPeakProminenceRatio": 0.979083,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.52,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.74,
+            "aPeakTheta": 0.96,
+            "extraPeakTheta": 0.4175,
+            "extraPeakProminenceRatio": 0.435227,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.285,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "TV inflow artifact overlaps valve diode or qDot events."
+          }
+        },
+        "dominantFailureClasses": [
+          "valve-diode-or-qdot-contamination",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "valve-diode-or-qdot-contamination",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-default",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 78.851705,
+        "PAPMean": 16.9296,
+        "CO_L": 4.881671,
+        "CO_R": 4.87084,
+        "LAPMean": 8.691782,
+        "RAPMean": 4.290624,
+        "EF_LApprox": 0.498792,
+        "EF_RApprox": 0.412964
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 53,
+            "totalPressurePeakCount": 2,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 1,
+            "activePressureTroughCount": 1,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.581662,
+            "activePressureWorkMmHgMl": -5815.941561,
+            "sourceStressLambdaWorkProxyPa": -1984.899366,
+            "likelyFailureClass": "pressure-adapter-geometry-amplification",
+            "message": "LV source stress is not sufficient to explain the dome; chamber pressure adapter or geometry gain is implicated."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 63,
+            "totalPressurePeakCount": 1,
+            "totalPressureTroughCount": 1,
+            "activePressurePeakCount": 1,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.64434,
+            "activePressureWorkMmHgMl": -1977.035848,
+            "sourceStressLambdaWorkProxyPa": -2084.730938,
+            "likelyFailureClass": "valve-load-or-passive-coupling",
+            "message": "RV active pressure is cleaner than total pressure; valve/load/passive coupling is implicated."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.5625,
+            "aPeakTheta": 0.9225,
+            "extraPeakTheta": 0.72,
+            "extraPeakProminenceRatio": 0.437727,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.545,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.6425,
+            "aPeakTheta": 0.945,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.4575,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": [
+          "pressure-adapter-geometry-amplification",
+          "valve-load-or-passive-coupling",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "pressure-adapter-geometry-amplification",
+        "valve-load-or-passive-coupling",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-default",
+      "pointId": "normal-hr90",
+      "settled": false,
+      "settleReason": "cap",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "not-measured",
+      "failedLabels": [
+        "not-measured"
+      ],
+      "badges": null,
+      "metrics": null,
+      "contract": null,
+      "contractFailureClasses": [
+        "not-measured"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-default",
+      "pointId": "low-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 67.236374,
+        "PAPMean": 9.930592,
+        "CO_L": 4.211114,
+        "CO_R": 4.201859,
+        "LAPMean": 2.82155,
+        "RAPMean": 1.900233,
+        "EF_LApprox": 0.497436,
+        "EF_RApprox": 0.461456
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 48,
+            "totalPressurePeakCount": 2,
+            "totalPressureTroughCount": 1,
+            "activePressurePeakCount": 2,
+            "activePressureTroughCount": 1,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.572225,
+            "activePressureWorkMmHgMl": -4450.23052,
+            "sourceStressLambdaWorkProxyPa": -1502.519431,
+            "likelyFailureClass": "pressure-adapter-geometry-amplification",
+            "message": "LV source stress is not sufficient to explain the dome; chamber pressure adapter or geometry gain is implicated."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 44,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.754981,
+            "activePressureWorkMmHgMl": -1332.503885,
+            "sourceStressLambdaWorkProxyPa": -1314.066881,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.61,
+            "aPeakTheta": 0.9425,
+            "extraPeakTheta": 0.8275,
+            "extraPeakProminenceRatio": 0.520769,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.5975,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.65,
+            "aPeakTheta": 0.96,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.5825,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": [
+          "pressure-adapter-geometry-amplification",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "pressure-adapter-geometry-amplification",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-default",
+      "pointId": "high-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 83.470923,
+        "PAPMean": 22.136727,
+        "CO_L": 4.969895,
+        "CO_R": 4.986977,
+        "LAPMean": 13.739386,
+        "RAPMean": 7.19509,
+        "EF_LApprox": 0.490141,
+        "EF_RApprox": 0.374206
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 53,
+            "totalPressurePeakCount": 2,
+            "totalPressureTroughCount": 1,
+            "activePressurePeakCount": 2,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.559566,
+            "activePressureWorkMmHgMl": -6100.513732,
+            "sourceStressLambdaWorkProxyPa": -2089.945571,
+            "likelyFailureClass": "pressure-adapter-geometry-amplification",
+            "message": "LV source stress is not sufficient to explain the dome; chamber pressure adapter or geometry gain is implicated."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 71,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.564587,
+            "activePressureWorkMmHgMl": -2338.677304,
+            "sourceStressLambdaWorkProxyPa": -2560.627922,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.5375,
+            "aPeakTheta": 0.92,
+            "extraPeakTheta": 0.68,
+            "extraPeakProminenceRatio": 0.364236,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.5425,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.6275,
+            "aPeakTheta": 0.9425,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.435,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": [
+          "pressure-adapter-geometry-amplification",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "pressure-adapter-geometry-amplification",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-default",
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 86.681795,
+        "PAPMean": 17.90418,
+        "CO_L": 4.620926,
+        "CO_R": 4.645506,
+        "LAPMean": 10.080335,
+        "RAPMean": 4.260683,
+        "EF_LApprox": 0.462284,
+        "EF_RApprox": 0.397582
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 53,
+            "totalPressurePeakCount": 2,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 2,
+            "activePressureTroughCount": 1,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.520973,
+            "activePressureWorkMmHgMl": -5901.932851,
+            "sourceStressLambdaWorkProxyPa": -2022.814294,
+            "likelyFailureClass": "pressure-adapter-geometry-amplification",
+            "message": "LV source stress is not sufficient to explain the dome; chamber pressure adapter or geometry gain is implicated."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 61,
+            "totalPressurePeakCount": 1,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 1,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.602279,
+            "activePressureWorkMmHgMl": -1940.430941,
+            "sourceStressLambdaWorkProxyPa": -2047.434761,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.56,
+            "aPeakTheta": 0.9225,
+            "extraPeakTheta": 0.7075,
+            "extraPeakProminenceRatio": 0.409566,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.5475,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.6475,
+            "aPeakTheta": 0.945,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.4725,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": [
+          "pressure-adapter-geometry-amplification",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "pressure-adapter-geometry-amplification",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-default",
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 78.593281,
+        "PAPMean": 17.210268,
+        "CO_L": 4.857916,
+        "CO_R": 4.841014,
+        "LAPMean": 8.313002,
+        "RAPMean": 4.350593,
+        "EF_LApprox": 0.500013,
+        "EF_RApprox": 0.407769
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 53,
+            "totalPressurePeakCount": 2,
+            "totalPressureTroughCount": 1,
+            "activePressurePeakCount": 1,
+            "activePressureTroughCount": 1,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.581656,
+            "activePressureWorkMmHgMl": -5778.504142,
+            "sourceStressLambdaWorkProxyPa": -1970.529054,
+            "likelyFailureClass": "pressure-adapter-geometry-amplification",
+            "message": "LV source stress is not sufficient to explain the dome; chamber pressure adapter or geometry gain is implicated."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 65,
+            "totalPressurePeakCount": 1,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.635156,
+            "activePressureWorkMmHgMl": -2007.71808,
+            "sourceStressLambdaWorkProxyPa": -2121.791209,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.565,
+            "aPeakTheta": 0.9225,
+            "extraPeakTheta": 0.7225,
+            "extraPeakProminenceRatio": 0.449679,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.5525,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.6425,
+            "aPeakTheta": 0.945,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.455,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": [
+          "pressure-adapter-geometry-amplification",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "pressure-adapter-geometry-amplification",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-default",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "RA PV loop",
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 55.74738,
+        "PAPMean": 19.169488,
+        "CO_L": 3.076089,
+        "CO_R": 3.06052,
+        "LAPMean": 13.9908,
+        "RAPMean": 7.364466,
+        "EF_LApprox": 0.317858,
+        "EF_RApprox": 0.250732
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 30,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 1,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.295555,
+            "activePressureWorkMmHgMl": -2316.497963,
+            "sourceStressLambdaWorkProxyPa": -799.262969,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "LV systolic dome is contract-clean."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 41,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.313093,
+            "activePressureWorkMmHgMl": -1127.57962,
+            "sourceStressLambdaWorkProxyPa": -1236.8898,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.4625,
+            "aPeakTheta": 0.935,
+            "extraPeakTheta": 0.6025,
+            "extraPeakProminenceRatio": 0.383801,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.485,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.56,
+            "aPeakTheta": 0.955,
+            "extraPeakTheta": 0.8175,
+            "extraPeakProminenceRatio": 0.2137,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.4175,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "TV inflow artifact overlaps valve diode or qDot events."
+          }
+        },
+        "dominantFailureClasses": [
+          "valve-diode-or-qdot-contamination",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "valve-diode-or-qdot-contamination",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-default",
+      "pointId": "contractility-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 91.078798,
+        "PAPMean": 16.251693,
+        "CO_L": 5.701452,
+        "CO_R": 5.667112,
+        "LAPMean": 6.651098,
+        "RAPMean": 2.949899,
+        "EF_LApprox": 0.598881,
+        "EF_RApprox": 0.532322
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 69,
+            "totalPressurePeakCount": 3,
+            "totalPressureTroughCount": 2,
+            "activePressurePeakCount": 2,
+            "activePressureTroughCount": 1,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.817141,
+            "activePressureWorkMmHgMl": -7928.946291,
+            "sourceStressLambdaWorkProxyPa": -2683.460801,
+            "likelyFailureClass": "pressure-adapter-geometry-amplification",
+            "message": "LV source stress is not sufficient to explain the dome; chamber pressure adapter or geometry gain is implicated."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 71,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 1,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 2.01301,
+            "activePressureWorkMmHgMl": -2373.138578,
+            "sourceStressLambdaWorkProxyPa": -2377.637162,
+            "likelyFailureClass": "pressure-adapter-geometry-amplification",
+            "message": "RV source stress is not sufficient to explain the dome; chamber pressure adapter or geometry gain is implicated."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.6175,
+            "aPeakTheta": 0.915,
+            "extraPeakTheta": 0.795,
+            "extraPeakProminenceRatio": 0.494811,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.5875,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.705,
+            "aPeakTheta": 0.94,
+            "extraPeakTheta": 0.03,
+            "extraPeakProminenceRatio": 0.327703,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.5225,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "TV inflow artifact overlaps valve diode or qDot events."
+          }
+        },
+        "dominantFailureClasses": [
+          "pressure-adapter-geometry-amplification",
+          "pressure-adapter-geometry-amplification",
+          "valve-diode-or-qdot-contamination",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "pressure-adapter-geometry-amplification",
+        "pressure-adapter-geometry-amplification",
+        "valve-diode-or-qdot-contamination",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "lv-rv-land-legacy-atria",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 77.493958,
+        "PAPMean": 16.93273,
+        "CO_L": 4.783658,
+        "CO_R": 4.75349,
+        "LAPMean": 8.884836,
+        "RAPMean": 4.510134,
+        "EF_LApprox": 0.503212,
+        "EF_RApprox": 0.40934
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 53,
+            "totalPressurePeakCount": 1,
+            "totalPressureTroughCount": 1,
+            "activePressurePeakCount": 2,
+            "activePressureTroughCount": 1,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.583999,
+            "activePressureWorkMmHgMl": -5642.269454,
+            "sourceStressLambdaWorkProxyPa": -1920.760979,
+            "likelyFailureClass": "pressure-adapter-geometry-amplification",
+            "message": "LV source stress is not sufficient to explain the dome; chamber pressure adapter or geometry gain is implicated."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 60,
+            "totalPressurePeakCount": 1,
+            "totalPressureTroughCount": 1,
+            "activePressurePeakCount": 1,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.635199,
+            "activePressureWorkMmHgMl": -1909.044183,
+            "sourceStressLambdaWorkProxyPa": -2005.40106,
+            "likelyFailureClass": "valve-load-or-passive-coupling",
+            "message": "RV active pressure is cleaner than total pressure; valve/load/passive coupling is implicated."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.5675,
+            "aPeakTheta": 0.9325,
+            "extraPeakTheta": 0.73,
+            "extraPeakProminenceRatio": 0.446038,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.52,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.62,
+            "aPeakTheta": 0.96,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.445,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": [
+          "pressure-adapter-geometry-amplification",
+          "valve-load-or-passive-coupling",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "pressure-adapter-geometry-amplification",
+        "valve-load-or-passive-coupling",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "lv-rv-land-legacy-atria",
+      "pointId": "normal-hr90",
+      "settled": false,
+      "settleReason": "cap",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "not-measured",
+      "failedLabels": [
+        "not-measured"
+      ],
+      "badges": null,
+      "metrics": null,
+      "contract": null,
+      "contractFailureClasses": [
+        "not-measured"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "lv-rv-land-legacy-atria",
+      "pointId": "low-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 68.895621,
+        "PAPMean": 10.011683,
+        "CO_L": 4.312814,
+        "CO_R": 4.292847,
+        "LAPMean": 2.741797,
+        "RAPMean": 1.795435,
+        "EF_LApprox": 0.499191,
+        "EF_RApprox": 0.464419
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 48,
+            "totalPressurePeakCount": 2,
+            "totalPressureTroughCount": 1,
+            "activePressurePeakCount": 2,
+            "activePressureTroughCount": 1,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.578107,
+            "activePressureWorkMmHgMl": -4646.843873,
+            "sourceStressLambdaWorkProxyPa": -1571.123344,
+            "likelyFailureClass": "pressure-adapter-geometry-amplification",
+            "message": "LV source stress is not sufficient to explain the dome; chamber pressure adapter or geometry gain is implicated."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 44,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.762075,
+            "activePressureWorkMmHgMl": -1363.504869,
+            "sourceStressLambdaWorkProxyPa": -1349.117306,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.63,
+            "aPeakTheta": 0.9525,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.5325,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "MV inflow is contract-clean biphasic."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.675,
+            "aPeakTheta": 0.9875,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.475,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": [
+          "pressure-adapter-geometry-amplification"
+        ]
+      },
+      "contractFailureClasses": [
+        "pressure-adapter-geometry-amplification"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "lv-rv-land-legacy-atria",
+      "pointId": "high-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 81.285706,
+        "PAPMean": 21.223523,
+        "CO_L": 4.795,
+        "CO_R": 4.814352,
+        "LAPMean": 13.121184,
+        "RAPMean": 7.616041,
+        "EF_LApprox": 0.493937,
+        "EF_RApprox": 0.376201
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 53,
+            "totalPressurePeakCount": 2,
+            "totalPressureTroughCount": 1,
+            "activePressurePeakCount": 1,
+            "activePressureTroughCount": 1,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.56134,
+            "activePressureWorkMmHgMl": -5809.580131,
+            "sourceStressLambdaWorkProxyPa": -1982.132803,
+            "likelyFailureClass": "pressure-adapter-geometry-amplification",
+            "message": "LV source stress is not sufficient to explain the dome; chamber pressure adapter or geometry gain is implicated."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 68,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.566613,
+            "activePressureWorkMmHgMl": -2161.168942,
+            "sourceStressLambdaWorkProxyPa": -2337.859167,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.545,
+            "aPeakTheta": 0.9325,
+            "extraPeakTheta": 0.695,
+            "extraPeakProminenceRatio": 0.372518,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.52,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.5975,
+            "aPeakTheta": 0.95,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.45,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": [
+          "pressure-adapter-geometry-amplification",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "pressure-adapter-geometry-amplification",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "lv-rv-land-legacy-atria",
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 85.133836,
+        "PAPMean": 17.953173,
+        "CO_L": 4.502059,
+        "CO_R": 4.524903,
+        "LAPMean": 10.334664,
+        "RAPMean": 4.47477,
+        "EF_LApprox": 0.464953,
+        "EF_RApprox": 0.393154
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 51,
+            "totalPressurePeakCount": 2,
+            "totalPressureTroughCount": 1,
+            "activePressurePeakCount": 2,
+            "activePressureTroughCount": 1,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.515841,
+            "activePressureWorkMmHgMl": -5651.652042,
+            "sourceStressLambdaWorkProxyPa": -1930.795372,
+            "likelyFailureClass": "pressure-adapter-geometry-amplification",
+            "message": "LV source stress is not sufficient to explain the dome; chamber pressure adapter or geometry gain is implicated."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 59,
+            "totalPressurePeakCount": 1,
+            "totalPressureTroughCount": 1,
+            "activePressurePeakCount": 1,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.593134,
+            "activePressureWorkMmHgMl": -1875.7841,
+            "sourceStressLambdaWorkProxyPa": -1971.99713,
+            "likelyFailureClass": "valve-load-or-passive-coupling",
+            "message": "RV active pressure is cleaner than total pressure; valve/load/passive coupling is implicated."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.5625,
+            "aPeakTheta": 0.9325,
+            "extraPeakTheta": 0.7175,
+            "extraPeakProminenceRatio": 0.422294,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.5275,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.6275,
+            "aPeakTheta": 0.96,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.45,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": [
+          "pressure-adapter-geometry-amplification",
+          "valve-load-or-passive-coupling",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "pressure-adapter-geometry-amplification",
+        "valve-load-or-passive-coupling",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "lv-rv-land-legacy-atria",
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 77.30294,
+        "PAPMean": 17.145326,
+        "CO_L": 4.756703,
+        "CO_R": 4.734648,
+        "LAPMean": 8.443377,
+        "RAPMean": 4.565194,
+        "EF_LApprox": 0.504007,
+        "EF_RApprox": 0.405376
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 53,
+            "totalPressurePeakCount": 2,
+            "totalPressureTroughCount": 1,
+            "activePressurePeakCount": 2,
+            "activePressureTroughCount": 1,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.58324,
+            "activePressureWorkMmHgMl": -5602.845257,
+            "sourceStressLambdaWorkProxyPa": -1905.925997,
+            "likelyFailureClass": "pressure-adapter-geometry-amplification",
+            "message": "LV source stress is not sufficient to explain the dome; chamber pressure adapter or geometry gain is implicated."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 62,
+            "totalPressurePeakCount": 1,
+            "totalPressureTroughCount": 1,
+            "activePressurePeakCount": 1,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.62899,
+            "activePressureWorkMmHgMl": -1940.660851,
+            "sourceStressLambdaWorkProxyPa": -2042.308657,
+            "likelyFailureClass": "valve-load-or-passive-coupling",
+            "message": "RV active pressure is cleaner than total pressure; valve/load/passive coupling is implicated."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.5725,
+            "aPeakTheta": 0.9325,
+            "extraPeakTheta": 0.735,
+            "extraPeakProminenceRatio": 0.464714,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.525,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.62,
+            "aPeakTheta": 0.96,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.445,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": [
+          "pressure-adapter-geometry-amplification",
+          "valve-load-or-passive-coupling",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "pressure-adapter-geometry-amplification",
+        "valve-load-or-passive-coupling",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "lv-rv-land-legacy-atria",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "RA PV loop",
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 54.31855,
+        "PAPMean": 19.06701,
+        "CO_L": 2.941724,
+        "CO_R": 2.921891,
+        "LAPMean": 14.124526,
+        "RAPMean": 7.639929,
+        "EF_LApprox": 0.311231,
+        "EF_RApprox": 0.244105
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 30,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 1,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.286095,
+            "activePressureWorkMmHgMl": -2169.76757,
+            "sourceStressLambdaWorkProxyPa": -746.803455,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "LV systolic dome is contract-clean."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 40,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.301509,
+            "activePressureWorkMmHgMl": -1055.561921,
+            "sourceStressLambdaWorkProxyPa": -1152.59955,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.4625,
+            "aPeakTheta": 0.93,
+            "extraPeakTheta": 0.605,
+            "extraPeakProminenceRatio": 0.409867,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.4425,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.5475,
+            "aPeakTheta": 0.95,
+            "extraPeakTheta": 0.8,
+            "extraPeakProminenceRatio": 0.23136,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.4,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "TV inflow artifact overlaps valve diode or qDot events."
+          }
+        },
+        "dominantFailureClasses": [
+          "valve-diode-or-qdot-contamination",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "valve-diode-or-qdot-contamination",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "lv-rv-land-legacy-atria",
+      "pointId": "contractility-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 93.607683,
+        "PAPMean": 16.878146,
+        "CO_L": 5.882829,
+        "CO_R": 5.834562,
+        "LAPMean": 6.980363,
+        "RAPMean": 2.636847,
+        "EF_LApprox": 0.593552,
+        "EF_RApprox": 0.532181
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 69,
+            "totalPressurePeakCount": 3,
+            "totalPressureTroughCount": 2,
+            "activePressurePeakCount": 2,
+            "activePressureTroughCount": 2,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.815245,
+            "activePressureWorkMmHgMl": -8370.450048,
+            "sourceStressLambdaWorkProxyPa": -2841.639176,
+            "likelyFailureClass": "pressure-adapter-geometry-amplification",
+            "message": "LV source stress is not sufficient to explain the dome; chamber pressure adapter or geometry gain is implicated."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 75,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 1,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 2.013994,
+            "activePressureWorkMmHgMl": -2500.052134,
+            "sourceStressLambdaWorkProxyPa": -2521.27184,
+            "likelyFailureClass": "pressure-adapter-geometry-amplification",
+            "message": "RV source stress is not sufficient to explain the dome; chamber pressure adapter or geometry gain is implicated."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.6375,
+            "aPeakTheta": 0.935,
+            "extraPeakTheta": 0.83,
+            "extraPeakProminenceRatio": 0.407217,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.5675,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.73,
+            "aPeakTheta": 0.9825,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.5075,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": [
+          "pressure-adapter-geometry-amplification",
+          "pressure-adapter-geometry-amplification",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "pressure-adapter-geometry-amplification",
+        "pressure-adapter-geometry-amplification",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "v2-reference-geometry-user0",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 72.133548,
+        "PAPMean": 17.917594,
+        "CO_L": 4.403451,
+        "CO_R": 4.383724,
+        "LAPMean": 10.498441,
+        "RAPMean": 5.086437,
+        "EF_LApprox": 0.442687,
+        "EF_RApprox": 0.355889
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 50,
+            "totalPressurePeakCount": 1,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 1,
+            "activePressureTroughCount": 1,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.024902,
+            "activePressureWorkMmHgMl": -4693.350489,
+            "sourceStressLambdaWorkProxyPa": -1775.652413,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "LV systolic dome is contract-clean."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 57,
+            "totalPressurePeakCount": 1,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 1,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.057113,
+            "activePressureWorkMmHgMl": -1784.178,
+            "sourceStressLambdaWorkProxyPa": -1963.759221,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.535,
+            "aPeakTheta": 0.9225,
+            "extraPeakTheta": 0.68,
+            "extraPeakProminenceRatio": 0.468339,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.525,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.6375,
+            "aPeakTheta": 0.945,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.4375,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": [
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "v2-reference-geometry-user0",
+      "pointId": "normal-hr90",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 78.930614,
+        "PAPMean": 17.526108,
+        "CO_L": 4.866354,
+        "CO_R": 4.843424,
+        "LAPMean": 9.314494,
+        "RAPMean": 4.225895,
+        "EF_LApprox": 0.410181,
+        "EF_RApprox": 0.358355
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 333,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 48,
+            "totalPressurePeakCount": 2,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 2,
+            "activePressureTroughCount": 1,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.019633,
+            "activePressureWorkMmHgMl": -4630.755857,
+            "sourceStressLambdaWorkProxyPa": -1746.482721,
+            "likelyFailureClass": "pressure-adapter-geometry-amplification",
+            "message": "LV source stress is not sufficient to explain the dome; chamber pressure adapter or geometry gain is implicated."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 52,
+            "totalPressurePeakCount": 1,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 1,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.028506,
+            "activePressureWorkMmHgMl": -1620.757307,
+            "sourceStressLambdaWorkProxyPa": -1857.375286,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.647,
+            "aPeakTheta": 0.899,
+            "extraPeakTheta": 0.821,
+            "extraPeakProminenceRatio": 0.437177,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.600601,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.74,
+            "aPeakTheta": 0.941,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.555556,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": [
+          "pressure-adapter-geometry-amplification",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "pressure-adapter-geometry-amplification",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "v2-reference-geometry-user0",
+      "pointId": "low-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 62.585844,
+        "PAPMean": 10.870284,
+        "CO_L": 3.865545,
+        "CO_R": 3.847691,
+        "LAPMean": 4.351565,
+        "RAPMean": 2.378988,
+        "EF_LApprox": 0.427337,
+        "EF_RApprox": 0.386934
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 399,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 47,
+            "totalPressurePeakCount": 2,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 2,
+            "activePressureTroughCount": 1,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.006153,
+            "activePressureWorkMmHgMl": -3709.00914,
+            "sourceStressLambdaWorkProxyPa": -1484.221194,
+            "likelyFailureClass": "pressure-adapter-geometry-amplification",
+            "message": "LV source stress is not sufficient to explain the dome; chamber pressure adapter or geometry gain is implicated."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 43,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.009781,
+            "activePressureWorkMmHgMl": -1218.849768,
+            "sourceStressLambdaWorkProxyPa": -1507.96202,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.5825,
+            "aPeakTheta": 0.9325,
+            "extraPeakTheta": 0.7625,
+            "extraPeakProminenceRatio": 0.503717,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.616541,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.65,
+            "aPeakTheta": 0.95,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.538847,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": [
+          "pressure-adapter-geometry-amplification",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "pressure-adapter-geometry-amplification",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "v2-reference-geometry-user0",
+      "pointId": "high-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 76.771626,
+        "PAPMean": 23.480648,
+        "CO_L": 4.587089,
+        "CO_R": 4.625884,
+        "LAPMean": 15.718676,
+        "RAPMean": 7.962721,
+        "EF_LApprox": 0.447157,
+        "EF_RApprox": 0.341464
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 52,
+            "totalPressurePeakCount": 1,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 1,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.037739,
+            "activePressureWorkMmHgMl": -5071.120189,
+            "sourceStressLambdaWorkProxyPa": -1877.076883,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "LV systolic dome is contract-clean."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 66,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 1,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.088366,
+            "activePressureWorkMmHgMl": -2241.327587,
+            "sourceStressLambdaWorkProxyPa": -2373.476086,
+            "likelyFailureClass": "valve-load-or-passive-coupling",
+            "message": "RV active pressure is cleaner than total pressure; valve/load/passive coupling is implicated."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.515,
+            "aPeakTheta": 0.92,
+            "extraPeakTheta": 0.6475,
+            "extraPeakProminenceRatio": 0.403525,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.515,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.6225,
+            "aPeakTheta": 0.9425,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.43,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": [
+          "valve-load-or-passive-coupling",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "valve-load-or-passive-coupling",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "v2-reference-geometry-user0",
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 79.726269,
+        "PAPMean": 18.634892,
+        "CO_L": 4.189056,
+        "CO_R": 4.202144,
+        "LAPMean": 11.553121,
+        "RAPMean": 5.012975,
+        "EF_LApprox": 0.414885,
+        "EF_RApprox": 0.345002
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 49,
+            "totalPressurePeakCount": 2,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 2,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.025699,
+            "activePressureWorkMmHgMl": -4808.503482,
+            "sourceStressLambdaWorkProxyPa": -1790.79724,
+            "likelyFailureClass": "pressure-adapter-geometry-amplification",
+            "message": "LV source stress is not sufficient to explain the dome; chamber pressure adapter or geometry gain is implicated."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 55,
+            "totalPressurePeakCount": 2,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 1,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.049484,
+            "activePressureWorkMmHgMl": -1745.101964,
+            "sourceStressLambdaWorkProxyPa": -1921.426658,
+            "likelyFailureClass": "valve-load-or-passive-coupling",
+            "message": "RV active pressure is cleaner than total pressure; valve/load/passive coupling is implicated."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.5375,
+            "aPeakTheta": 0.9225,
+            "extraPeakTheta": 0.68,
+            "extraPeakProminenceRatio": 0.430123,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.5275,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.645,
+            "aPeakTheta": 0.945,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.445,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": [
+          "pressure-adapter-geometry-amplification",
+          "valve-load-or-passive-coupling",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "pressure-adapter-geometry-amplification",
+        "valve-load-or-passive-coupling",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "v2-reference-geometry-user0",
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 72.134529,
+        "PAPMean": 18.246223,
+        "CO_L": 4.379031,
+        "CO_R": 4.360874,
+        "LAPMean": 10.23196,
+        "RAPMean": 5.105068,
+        "EF_LApprox": 0.442144,
+        "EF_RApprox": 0.352992
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 49,
+            "totalPressurePeakCount": 1,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 1,
+            "activePressureTroughCount": 1,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.022604,
+            "activePressureWorkMmHgMl": -4650.928726,
+            "sourceStressLambdaWorkProxyPa": -1761.998045,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "LV systolic dome is contract-clean."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 57,
+            "totalPressurePeakCount": 1,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 1,
+            "activePressureTroughCount": 1,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.052305,
+            "activePressureWorkMmHgMl": -1813.899688,
+            "sourceStressLambdaWorkProxyPa": -1994.950228,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.5375,
+            "aPeakTheta": 0.9225,
+            "extraPeakTheta": 0.685,
+            "extraPeakProminenceRatio": 0.4718,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.5275,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.64,
+            "aPeakTheta": 0.945,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.4375,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": [
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "v2-reference-geometry-user0",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "RA PV loop",
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 54.193222,
+        "PAPMean": 19.742282,
+        "CO_L": 2.956675,
+        "CO_R": 2.962137,
+        "LAPMean": 14.750265,
+        "RAPMean": 7.542524,
+        "EF_LApprox": 0.302806,
+        "EF_RApprox": 0.242214
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 30,
+            "totalPressurePeakCount": 1,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 1,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.027875,
+            "activePressureWorkMmHgMl": -2133.978789,
+            "sourceStressLambdaWorkProxyPa": -766.861851,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "LV systolic dome is contract-clean."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 38,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.054091,
+            "activePressureWorkMmHgMl": -1107.286609,
+            "sourceStressLambdaWorkProxyPa": -1173.894146,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.45,
+            "aPeakTheta": 0.935,
+            "extraPeakTheta": 0.5825,
+            "extraPeakProminenceRatio": 0.416553,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.4975,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.5525,
+            "aPeakTheta": 0.955,
+            "extraPeakTheta": 0.8075,
+            "extraPeakProminenceRatio": 0.217257,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.41,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "TV inflow artifact overlaps valve diode or qDot events."
+          }
+        },
+        "dominantFailureClasses": [
+          "valve-diode-or-qdot-contamination",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "valve-diode-or-qdot-contamination",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "v2-reference-geometry-user0",
+      "pointId": "contractility-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 84.796714,
+        "PAPMean": 18.221629,
+        "CO_L": 5.293288,
+        "CO_R": 5.265208,
+        "LAPMean": 9.292212,
+        "RAPMean": 3.489843,
+        "EF_LApprox": 0.531081,
+        "EF_RApprox": 0.457872
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 399,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 68,
+            "totalPressurePeakCount": 2,
+            "totalPressureTroughCount": 2,
+            "activePressurePeakCount": 2,
+            "activePressureTroughCount": 2,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.019915,
+            "activePressureWorkMmHgMl": -6653.069078,
+            "sourceStressLambdaWorkProxyPa": -2652.26135,
+            "likelyFailureClass": "pressure-adapter-geometry-amplification",
+            "message": "LV source stress is not sufficient to explain the dome; chamber pressure adapter or geometry gain is implicated."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 71,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.035338,
+            "activePressureWorkMmHgMl": -2228.513553,
+            "sourceStressLambdaWorkProxyPa": -2685.634348,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.595,
+            "aPeakTheta": 0.91,
+            "extraPeakTheta": 0.75,
+            "extraPeakProminenceRatio": 0.49099,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.581454,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.7025,
+            "aPeakTheta": 0.9375,
+            "extraPeakTheta": 0.025,
+            "extraPeakProminenceRatio": 0.419939,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.52381,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "TV inflow artifact overlaps valve diode or qDot events."
+          }
+        },
+        "dominantFailureClasses": [
+          "pressure-adapter-geometry-amplification",
+          "valve-diode-or-qdot-contamination",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "pressure-adapter-geometry-amplification",
+        "valve-diode-or-qdot-contamination",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "v2-reference-geometry-legacy-atria",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RA PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 70.043968,
+        "PAPMean": 17.73082,
+        "CO_L": 4.21154,
+        "CO_R": 4.189537,
+        "LAPMean": 10.642698,
+        "RAPMean": 5.436128,
+        "EF_LApprox": 0.438079,
+        "EF_RApprox": 0.347796
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 49,
+            "totalPressurePeakCount": 1,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 2,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.01707,
+            "activePressureWorkMmHgMl": -4382.427534,
+            "sourceStressLambdaWorkProxyPa": -1681.747349,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "LV systolic dome is contract-clean."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 42,
+            "totalPressurePeakCount": 1,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.047007,
+            "activePressureWorkMmHgMl": -1646.326874,
+            "sourceStressLambdaWorkProxyPa": -1823.103994,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.54,
+            "aPeakTheta": 0.9325,
+            "extraPeakTheta": 0.69,
+            "extraPeakProminenceRatio": 0.463593,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.5,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.61,
+            "aPeakTheta": 0.9575,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.445,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": [
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "v2-reference-geometry-legacy-atria",
+      "pointId": "normal-hr90",
+      "settled": false,
+      "settleReason": "cap",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "not-measured",
+      "failedLabels": [
+        "not-measured"
+      ],
+      "badges": null,
+      "metrics": null,
+      "contract": null,
+      "contractFailureClasses": [
+        "not-measured"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "v2-reference-geometry-legacy-atria",
+      "pointId": "low-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 63.116586,
+        "PAPMean": 11.349856,
+        "CO_L": 3.919987,
+        "CO_R": 3.886578,
+        "LAPMean": 4.758686,
+        "RAPMean": 2.315305,
+        "EF_LApprox": 0.429461,
+        "EF_RApprox": 0.385372
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 47,
+            "totalPressurePeakCount": 2,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 2,
+            "activePressureTroughCount": 1,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.007169,
+            "activePressureWorkMmHgMl": -3785.340624,
+            "sourceStressLambdaWorkProxyPa": -1507.10196,
+            "likelyFailureClass": "pressure-adapter-geometry-amplification",
+            "message": "LV source stress is not sufficient to explain the dome; chamber pressure adapter or geometry gain is implicated."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 43,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.011803,
+            "activePressureWorkMmHgMl": -1251.918513,
+            "sourceStressLambdaWorkProxyPa": -1535.838596,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.5875,
+            "aPeakTheta": 0.945,
+            "extraPeakTheta": 0.765,
+            "extraPeakProminenceRatio": 0.522437,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.52,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.6525,
+            "aPeakTheta": 0.9775,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.4725,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": [
+          "pressure-adapter-geometry-amplification",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "pressure-adapter-geometry-amplification",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "v2-reference-geometry-legacy-atria",
+      "pointId": "high-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "RA PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 74.241297,
+        "PAPMean": 22.462168,
+        "CO_L": 4.304493,
+        "CO_R": 4.313789,
+        "LAPMean": 15.200445,
+        "RAPMean": 8.536206,
+        "EF_LApprox": 0.439229,
+        "EF_RApprox": 0.332165
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 50,
+            "totalPressurePeakCount": 2,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 2,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.023878,
+            "activePressureWorkMmHgMl": -4641.471523,
+            "sourceStressLambdaWorkProxyPa": -1752.040642,
+            "likelyFailureClass": "pressure-adapter-geometry-amplification",
+            "message": "LV source stress is not sufficient to explain the dome; chamber pressure adapter or geometry gain is implicated."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 63,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 1,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.075295,
+            "activePressureWorkMmHgMl": -1977.137827,
+            "sourceStressLambdaWorkProxyPa": -2127.154214,
+            "likelyFailureClass": "valve-load-or-passive-coupling",
+            "message": "RV active pressure is cleaner than total pressure; valve/load/passive coupling is implicated."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.52,
+            "aPeakTheta": 0.9325,
+            "extraPeakTheta": 0.66,
+            "extraPeakProminenceRatio": 0.407998,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.49,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.59,
+            "aPeakTheta": 0.95,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.4475,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": [
+          "pressure-adapter-geometry-amplification",
+          "valve-load-or-passive-coupling",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "pressure-adapter-geometry-amplification",
+        "valve-load-or-passive-coupling",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "v2-reference-geometry-legacy-atria",
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RA PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 76.566891,
+        "PAPMean": 18.471644,
+        "CO_L": 4.026569,
+        "CO_R": 4.035776,
+        "LAPMean": 11.669716,
+        "RAPMean": 5.397158,
+        "EF_LApprox": 0.413904,
+        "EF_RApprox": 0.337756
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 48,
+            "totalPressurePeakCount": 1,
+            "totalPressureTroughCount": 1,
+            "activePressurePeakCount": 2,
+            "activePressureTroughCount": 1,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.017525,
+            "activePressureWorkMmHgMl": -4463.026809,
+            "sourceStressLambdaWorkProxyPa": -1691.726492,
+            "likelyFailureClass": "pressure-adapter-geometry-amplification",
+            "message": "LV source stress is not sufficient to explain the dome; chamber pressure adapter or geometry gain is implicated."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 41,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.04493,
+            "activePressureWorkMmHgMl": -1569.738088,
+            "sourceStressLambdaWorkProxyPa": -1725.527047,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.54,
+            "aPeakTheta": 0.9325,
+            "extraPeakTheta": 0.685,
+            "extraPeakProminenceRatio": 0.445994,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.505,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.615,
+            "aPeakTheta": 0.9575,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.45,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": [
+          "pressure-adapter-geometry-amplification",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "pressure-adapter-geometry-amplification",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "v2-reference-geometry-legacy-atria",
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "RA PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 69.892997,
+        "PAPMean": 18.046399,
+        "CO_L": 4.19749,
+        "CO_R": 4.172381,
+        "LAPMean": 10.375528,
+        "RAPMean": 5.467842,
+        "EF_LApprox": 0.438335,
+        "EF_RApprox": 0.345176
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 49,
+            "totalPressurePeakCount": 1,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 2,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.016614,
+            "activePressureWorkMmHgMl": -4361.573276,
+            "sourceStressLambdaWorkProxyPa": -1675.275885,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "LV systolic dome is contract-clean."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 52,
+            "totalPressurePeakCount": 1,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 1,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.047168,
+            "activePressureWorkMmHgMl": -1696.480876,
+            "sourceStressLambdaWorkProxyPa": -1880.410853,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.5425,
+            "aPeakTheta": 0.9325,
+            "extraPeakTheta": 0.695,
+            "extraPeakProminenceRatio": 0.46953,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.5025,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.6125,
+            "aPeakTheta": 0.9575,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.445,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": [
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "v2-reference-geometry-legacy-atria",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LA PV loop",
+        "RA PV loop",
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "failed",
+        "raPv": "failed",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 52.522145,
+        "PAPMean": 19.643106,
+        "CO_L": 2.789842,
+        "CO_R": 2.771367,
+        "LAPMean": 14.95643,
+        "RAPMean": 7.878156,
+        "EF_LApprox": 0.293059,
+        "EF_RApprox": 0.23148
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 400,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 29,
+            "totalPressurePeakCount": 1,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 1,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.021318,
+            "activePressureWorkMmHgMl": -1949.681066,
+            "sourceStressLambdaWorkProxyPa": -706.99132,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "LV systolic dome is contract-clean."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 38,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.046407,
+            "activePressureWorkMmHgMl": -1019.718869,
+            "sourceStressLambdaWorkProxyPa": -1089.471747,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.4475,
+            "aPeakTheta": 0.93,
+            "extraPeakTheta": 0.585,
+            "extraPeakProminenceRatio": 0.443543,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.4575,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.54,
+            "aPeakTheta": 0.95,
+            "extraPeakTheta": 0.7925,
+            "extraPeakProminenceRatio": 0.230921,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.395,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "TV inflow artifact overlaps valve diode or qDot events."
+          }
+        },
+        "dominantFailureClasses": [
+          "valve-diode-or-qdot-contamination",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "valve-diode-or-qdot-contamination",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "v2-reference-geometry-legacy-atria",
+      "pointId": "contractility-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 87.728421,
+        "PAPMean": 18.908798,
+        "CO_L": 5.509393,
+        "CO_R": 5.469706,
+        "LAPMean": 9.617716,
+        "RAPMean": 3.088305,
+        "EF_LApprox": 0.531211,
+        "EF_RApprox": 0.460843
+      },
+      "contract": {
+        "version": "active-source-pressure-contract-v1",
+        "checkedBeatSampleCount": 399,
+        "ventricles": {
+          "LV": {
+            "side": "LV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 72,
+            "totalPressurePeakCount": 2,
+            "totalPressureTroughCount": 2,
+            "activePressurePeakCount": 3,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.030023,
+            "activePressureWorkMmHgMl": -7104.683874,
+            "sourceStressLambdaWorkProxyPa": -2775.893088,
+            "likelyFailureClass": "pressure-adapter-geometry-amplification",
+            "message": "LV source stress is not sufficient to explain the dome; chamber pressure adapter or geometry gain is implicated."
+          },
+          "RV": {
+            "side": "RV",
+            "measured": true,
+            "reason": null,
+            "ejectionSampleCount": 71,
+            "totalPressurePeakCount": 0,
+            "totalPressureTroughCount": 0,
+            "activePressurePeakCount": 0,
+            "activePressureTroughCount": 0,
+            "sourceStressPeakCount": 0,
+            "sourceStressTroughCount": 0,
+            "lambdaPeakCount": 0,
+            "lambdaTroughCount": 0,
+            "lambdaRateSignChanges": 0,
+            "pressureAdapterGainRangeRatio": 1.042069,
+            "activePressureWorkMmHgMl": -2364.508133,
+            "sourceStressLambdaWorkProxyPa": -2801.145974,
+            "likelyFailureClass": "clean-single-dome",
+            "message": "RV systolic dome is contract-clean."
+          }
+        },
+        "avInflows": {
+          "MV": {
+            "valve": "MV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 3,
+            "extraPeakCount": 1,
+            "ePeakTheta": 0.61,
+            "aPeakTheta": 0.935,
+            "extraPeakTheta": 0.77,
+            "extraPeakProminenceRatio": 0.439046,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.561404,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "valve-diode-or-qdot-contamination",
+            "message": "MV inflow artifact overlaps valve diode or qDot events."
+          },
+          "TV": {
+            "valve": "TV",
+            "measured": true,
+            "reason": null,
+            "diastolicPeakCount": 2,
+            "extraPeakCount": 0,
+            "ePeakTheta": 0.7275,
+            "aPeakTheta": 0.9825,
+            "extraPeakTheta": null,
+            "extraPeakProminenceRatio": null,
+            "gradientPeakCount": 0,
+            "gradientTroughCount": 0,
+            "diodeImpulseHitFraction": 0.516291,
+            "qDotClampHitFraction": 0,
+            "likelyFailureClass": "clean-biphasic",
+            "message": "TV inflow is contract-clean biphasic."
+          }
+        },
+        "dominantFailureClasses": [
+          "pressure-adapter-geometry-amplification",
+          "valve-diode-or-qdot-contamination"
+        ]
+      },
+      "contractFailureClasses": [
+        "pressure-adapter-geometry-amplification",
+        "valve-diode-or-qdot-contamination"
+      ],
+      "errorMessage": null
+    }
+  ],
+  "variantSummaries": [
+    {
+      "variantId": "legacy-frozen-reference",
+      "grossPassCount": 2,
+      "measuredCount": 7,
+      "settledOkCount": 6,
+      "lvPvOkCount": 7,
+      "rvPvOkCount": 7,
+      "mvfOkCount": 3,
+      "tvfOkCount": 4,
+      "outputPreservedCount": 6,
+      "contractClassCounts": {
+        "sourceStateMultipeak": 0,
+        "pressureAdapterGeometryAmplification": 0,
+        "valveLoadOrPassiveCoupling": 0,
+        "mixedContractFailure": 0,
+        "cleanVentricularSide": 14,
+        "inletGradientMultipeak": 0,
+        "valveDiodeOrQdotContamination": 7,
+        "extraWaveWithoutClampDominance": 0,
+        "cleanAvInflow": 7
+      },
+      "firstFailedPoint": "normal-hr90",
+      "failedPointIds": [
+        "normal-hr90",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "systemic-afterload-high-hr75",
+        "contractility-low-hr75",
+        "contractility-high-hr75"
+      ]
+    },
+    {
+      "variantId": "current-user0-default",
+      "grossPassCount": 0,
+      "measuredCount": 7,
+      "settledOkCount": 7,
+      "lvPvOkCount": 1,
+      "rvPvOkCount": 2,
+      "mvfOkCount": 0,
+      "tvfOkCount": 5,
+      "outputPreservedCount": 6,
+      "contractClassCounts": {
+        "sourceStateMultipeak": 0,
+        "pressureAdapterGeometryAmplification": 7,
+        "valveLoadOrPassiveCoupling": 1,
+        "mixedContractFailure": 0,
+        "cleanVentricularSide": 6,
+        "inletGradientMultipeak": 0,
+        "valveDiodeOrQdotContamination": 9,
+        "extraWaveWithoutClampDominance": 0,
+        "cleanAvInflow": 5
+      },
+      "firstFailedPoint": "normal-hr75",
+      "failedPointIds": [
+        "normal-hr75",
+        "normal-hr90",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "systemic-afterload-high-hr75",
+        "pulmonary-afterload-high-hr75",
+        "contractility-low-hr75",
+        "contractility-high-hr75"
+      ]
+    },
+    {
+      "variantId": "lv-rv-land-legacy-atria",
+      "grossPassCount": 0,
+      "measuredCount": 7,
+      "settledOkCount": 7,
+      "lvPvOkCount": 1,
+      "rvPvOkCount": 2,
+      "mvfOkCount": 1,
+      "tvfOkCount": 6,
+      "outputPreservedCount": 6,
+      "contractClassCounts": {
+        "sourceStateMultipeak": 0,
+        "pressureAdapterGeometryAmplification": 7,
+        "valveLoadOrPassiveCoupling": 3,
+        "mixedContractFailure": 0,
+        "cleanVentricularSide": 4,
+        "inletGradientMultipeak": 0,
+        "valveDiodeOrQdotContamination": 7,
+        "extraWaveWithoutClampDominance": 0,
+        "cleanAvInflow": 7
+      },
+      "firstFailedPoint": "normal-hr75",
+      "failedPointIds": [
+        "normal-hr75",
+        "normal-hr90",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "systemic-afterload-high-hr75",
+        "pulmonary-afterload-high-hr75",
+        "contractility-low-hr75",
+        "contractility-high-hr75"
+      ]
+    },
+    {
+      "variantId": "v2-reference-geometry-user0",
+      "grossPassCount": 0,
+      "measuredCount": 8,
+      "settledOkCount": 8,
+      "lvPvOkCount": 1,
+      "rvPvOkCount": 3,
+      "mvfOkCount": 0,
+      "tvfOkCount": 6,
+      "outputPreservedCount": 7,
+      "contractClassCounts": {
+        "sourceStateMultipeak": 0,
+        "pressureAdapterGeometryAmplification": 4,
+        "valveLoadOrPassiveCoupling": 2,
+        "mixedContractFailure": 0,
+        "cleanVentricularSide": 10,
+        "inletGradientMultipeak": 0,
+        "valveDiodeOrQdotContamination": 10,
+        "extraWaveWithoutClampDominance": 0,
+        "cleanAvInflow": 6
+      },
+      "firstFailedPoint": "normal-hr75",
+      "failedPointIds": [
+        "normal-hr75",
+        "normal-hr90",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "systemic-afterload-high-hr75",
+        "pulmonary-afterload-high-hr75",
+        "contractility-low-hr75",
+        "contractility-high-hr75"
+      ]
+    },
+    {
+      "variantId": "v2-reference-geometry-legacy-atria",
+      "grossPassCount": 0,
+      "measuredCount": 7,
+      "settledOkCount": 7,
+      "lvPvOkCount": 1,
+      "rvPvOkCount": 4,
+      "mvfOkCount": 0,
+      "tvfOkCount": 6,
+      "outputPreservedCount": 6,
+      "contractClassCounts": {
+        "sourceStateMultipeak": 0,
+        "pressureAdapterGeometryAmplification": 4,
+        "valveLoadOrPassiveCoupling": 1,
+        "mixedContractFailure": 0,
+        "cleanVentricularSide": 9,
+        "inletGradientMultipeak": 0,
+        "valveDiodeOrQdotContamination": 8,
+        "extraWaveWithoutClampDominance": 0,
+        "cleanAvInflow": 6
+      },
+      "firstFailedPoint": "normal-hr75",
+      "failedPointIds": [
+        "normal-hr75",
+        "normal-hr90",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "systemic-afterload-high-hr75",
+        "pulmonary-afterload-high-hr75",
+        "contractility-low-hr75",
+        "contractility-high-hr75"
+      ]
+    }
+  ],
+  "classification": {
+    "legacyGrossPass": "2/8",
+    "currentUser0GrossPass": "0/8",
+    "lvRvLandLegacyAtriaGrossPass": "0/8",
+    "bestV2Variant": "v2-reference-geometry-legacy-atria:0/8",
+    "currentUser0DominantContractClasses": {
+      "sourceStateMultipeak": 0,
+      "pressureAdapterGeometryAmplification": 7,
+      "valveLoadOrPassiveCoupling": 1,
+      "mixedContractFailure": 0,
+      "cleanVentricularSide": 6,
+      "inletGradientMultipeak": 0,
+      "valveDiodeOrQdotContamination": 9,
+      "extraWaveWithoutClampDominance": 0,
+      "cleanAvInflow": 5
+    },
+    "lvRvLandLegacyAtriaDominantContractClasses": {
+      "sourceStateMultipeak": 0,
+      "pressureAdapterGeometryAmplification": 7,
+      "valveLoadOrPassiveCoupling": 3,
+      "mixedContractFailure": 0,
+      "cleanVentricularSide": 4,
+      "inletGradientMultipeak": 0,
+      "valveDiodeOrQdotContamination": 7,
+      "extraWaveWithoutClampDominance": 0,
+      "cleanAvInflow": 7
+    },
+    "decision": "active-source-pressure-contract-redesign-required",
+    "notes": [
+      "Current user-0 normal failed labels: LV PV loop, RV PV loop, MVF, LA pressure timing, RA pressure timing.",
+      "LV/RV Land legacy-atria normal failed labels: LV PV loop, RV PV loop, MVF, LA pressure timing, RA pressure timing.",
+      "Best V2 normal failed labels: LV PV loop, RA PV loop, MVF, LA pressure timing, RA pressure timing.",
+      "Best V2 gross pass count: 0/8.",
+      "Current user-0 contract classes: pressureAdapterGeometryAmplification=7, valveLoadOrPassiveCoupling=1, cleanVentricularSide=6, valveDiodeOrQdotContamination=9, cleanAvInflow=5.",
+      "LV/RV Land legacy-atria contract classes: pressureAdapterGeometryAmplification=7, valveLoadOrPassiveCoupling=3, cleanVentricularSide=4, valveDiodeOrQdotContamination=7, cleanAvInflow=7.",
+      "A robust fix must improve the representative envelope, not only the normal point."
+    ]
+  },
+  "recommendedNext": [
+    "do not adopt the reference-geometry ActiveSourcePressureContractV2 candidate unless it passes the full morphology envelope",
+    "if V2 remains partial, replace the reference-geometry adapter with a chamber-owned contract where chamber pressure, chamber volume/strain, valve-load boundary, and Land provider-state advancement are one transaction",
+    "do not spend more phases on zeta/tau/smoothing/substeps, qDot/root/Zc/valve-threshold retuning, Tref, source-stress scaling, or LandAtrial parameter tuning while this blocker is active"
+  ],
+  "claimBoundary": {
+    "noRuntimeDefaultAdoption": true,
+    "noOfficialMorphologyAcceptance": true,
+    "noLandAtrialTuningUnlock": true,
+    "noA1A2Reopen": true,
+    "noValveQdotRootZcTrefSourceStressTuning": true,
+    "noClinicalScientificValidation": true
+  },
+  "normalizedSha256": "11bebb32c1b8e4393893f33b19064be0d02a0b702236ba46cef16a1cdd253151"
+}
