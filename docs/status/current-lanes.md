@@ -106,6 +106,23 @@ and run a ventricular SeriesElasticV1 prescribed-volume bench before runtime
 adoption. Keep DynamicValveTransitionV1 as the residual-fix surface if series
 elasticity leaves AV inflow transition artifacts, and keep LandAtrial
 AV-plane/effective-wall release timing separate.
+Phase 5BT adds the ventricular SeriesElasticV1 isolated bench using live
+current user-0 `LVFiberLambda`/`RVFiberLambda` traces as prescribed
+positive-control inputs. The current no-SE live stress has double-peak
+transmitted stress in 11/14 measured LV/RV point traces; normal-HR90 live
+traces are unavailable because the current closure does not settle under the
+fitFast extraction. No-zeta and filtered-lambda synthetic replay do not
+reproduce the isolated stress double peak, but this is not source-state
+controlled against the live stress trace and prior closed-loop evidence shows
+those approaches break AV inflow/output. The best SeriesElasticV1 candidate
+(`k=0.6MPa`, no damping) keeps bounded energy and force-balance mismatch but
+only reduces double peaks in 7/14 measured traces, so it is inconclusive rather
+than a standalone runtime adoption candidate.
+Carry the live-user0 prescribed-lambda harness forward as the positive-control
+local bench, keep SeriesElasticV1 as a possible component, and move the next
+structural experiment to a fuller DynamicValveTransitionV1/MV-AoV local
+valve/load bench before reopening LandAtrial AV-plane/effective-wall release
+timing.
 
 ## Owner Release Posture
 
@@ -148,6 +165,30 @@ Current owner priorities:
   discharge path, normal-floor operating point, and atrial loop decisions settle.
 - Studio/Workbench mock work is owner-led; model lanes should focus on
   mathematical model and engine evidence.
+
+### Phase 5BT Gross Morphology Override
+
+Phase 5BT supersedes the lane-table "SeriesElasticV1 next" wording below. It
+records `series-elastic-bench-phase5bt-result-v1`, an isolated live-lambda
+prescribed bench using current user-0 LV/RV fiber-lambda traces as the
+positive-control input. Current no-SE live stress has double-peak transmitted
+stress in 11/14 measured LV/RV traces; normal-HR90 traces are unavailable
+because the current closure does not settle under the fitFast live-trace
+extraction. No-zeta and filtered-lambda synthetic replay do not reproduce the
+isolated stress double peak, but this comparison is not source-state
+controlled against the live stress trace and prior closed-loop evidence shows
+those approaches break AV inflow/output. The best SeriesElasticV1 candidate
+(`k=0.6MPa`, no damping) stays energetically bounded but reduces double peaks in
+only 7/14 traces, so it is inconclusive and must not be connected to runtime as
+the next standalone adoption candidate.
+
+Next gross morphology work should carry the live-user0 prescribed-lambda
+positive-control harness into a local DynamicValveTransitionV1/MV-AoV
+valve/load bench. Keep SeriesElasticV1 as a possible later component, keep
+LandAtrial AV-plane/effective-wall release timing separate until LV/RV PV plus
+MVF/TVF are robust, and do not reopen A1/A2, LandAtrial tuning, qDot/rootZc,
+Tref, source-stress, or valve-threshold tuning to hide the ventricular gross
+morphology blocker.
 
 ## Lane table
 
