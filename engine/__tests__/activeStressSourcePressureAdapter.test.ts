@@ -12,13 +12,19 @@ import {
   ActiveStressChamberModel,
   defaultActiveLA,
   defaultActiveLV,
+  defaultActiveRA,
   type ChamberCtx,
   type ChamberInternal,
 } from "@/engine/chambers";
 import {
+  LANDATRIAL_SHADOW_PARAMETER_PACK,
+  createAtrialLandShadowSourceProvider,
+} from "@/engine/myocardium/atrialLandShadow";
+import {
   calciumScaledLand2017LaSourceOnlyProvider,
   createModelCoreLand2017LvSourceProviderInstrumentation,
 } from "@/engine/myocardium/modelCoreLand2017LvSourceProvider";
+import { LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET } from "@/engine/myocardium/myofilament/land2017";
 
 function lvCtx(phi: number): ChamberCtx {
   return {
@@ -205,6 +211,75 @@ describe("ActiveStressChamberModel source active-fiber pressure adapter", () => 
       .toBeCloseTo(pressureAdapterStrain, 12);
     expect(instrumentation.sourcePathAudit.fiberEngineeringStrain.max)
       .toBeCloseTo(pressureAdapterStrain, 12);
+  });
+
+  it("exposes AV-plane effective wall geometry for atrial chamber readbacks", () => {
+    const model = new ActiveStressChamberModel(defaultActiveLA);
+    const ctx = laCtx(0.24);
+    const geometry = model.debugGeometryTerms(45, ctx);
+    const noDescent = model.debugGeometryTerms(45, {
+      ...ctx,
+      pairedVentricleShortening01: 0,
+      pairedVentricleShorteningVelocity01PerSec: 0,
+    });
+
+    expect(geometry.avPlaneDescent01).toBeGreaterThan(0);
+    expect(geometry.effectiveVolumeCorrectionMl).toBeGreaterThan(0);
+    expect(geometry.wallVolumeMl).toBeLessThan(geometry.rawVolumeMl);
+    expect(geometry.lambda).toBeLessThan(geometry.lambdaWithoutAvPlane);
+    expect(noDescent.effectiveVolumeCorrectionMl).toBeCloseTo(0, 12);
+  });
+
+  it("defines a LandAtrial shadow parameter pack without changing source Tref", () => {
+    const pack = LANDATRIAL_SHADOW_PARAMETER_PACK;
+    expect(pack.sourceTrefUnchanged).toBe(true);
+    expect(pack.chamberParameterSets.LA.values.Tref)
+      .toBe(LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET.values.Tref);
+    expect(pack.chamberParameterSets.RA.values.Tref)
+      .toBe(LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET.values.Tref);
+    expect(pack.chamberParameterSets.LA.values.ku)
+      .not.toBe(LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET.values.ku);
+    expect(pack.chamberParameterSets.RA.values.CaT50Ref)
+      .not.toBe(LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET.values.CaT50Ref);
+  });
+
+  it("creates a signed LandAtrial shadow provider using atrial geometry", () => {
+    const model = new ActiveStressChamberModel(defaultActiveRA);
+    const instrumentation = createModelCoreLand2017LvSourceProviderInstrumentation();
+    const provider = createAtrialLandShadowSourceProvider("RA", instrumentation, {
+      commitScheme: "BE",
+      calciumScale: 1,
+      calciumInputMultiplier: "none",
+    });
+    const internal: ChamberInternal = {
+      c: 0.42,
+      a: 0.34,
+      r: 0,
+      tensionPa: 0,
+      lambdaAct: 1,
+    };
+    const ctx: ChamberCtx = {
+      ...laCtx(0.24),
+      chamber: "RA",
+      side: "right",
+      pairedVentricleVolumeMl: 90,
+      pairedVentricleShortening01: 0.5,
+      pairedVentricleShorteningVelocity01PerSec: 0.8,
+    };
+    const providerState = provider.initialProviderState?.({ chamber: "RA", activeModel: model });
+    const pressure = provider.pressure?.({
+      chamber: "RA",
+      activeModel: model,
+      volumeMl: 45,
+      internal,
+      chamberCtx: ctx,
+      providerState,
+      providerStateVersion: 0,
+    });
+
+    expect(provider.sourceProviderId).toContain("landatrial-fast-lowpressure-shadow-v1");
+    expect(Number.isFinite(pressure)).toBe(true);
+    expect(instrumentation.sourcePathAudit.sampleCount).toBeGreaterThan(0);
   });
 
   it("source pressure adapter factory requires and invokes source-specific debug terms", () => {

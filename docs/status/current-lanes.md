@@ -18,11 +18,11 @@ experiment is not enough when the experiment can reasonably be run in the same
 PR. Measurement comes first; the gate exists to review results, not to defer
 them.
 
-Oracle GPT Pro/extended is not a per-PR review gate by default. Use it roughly
-every 3-5 PRs for a broad, flat direction review in the ChatGPT
-`循環動態シミュレーター` project, asking for the repo's current-state review and
-future direction without over-constraining the prompt. Keep a hard cap of two
-oracle interactions per PR/session if a PR-specific escalation is still needed.
+Oracle GPT Pro/extended direction checks are now disabled by owner instruction
+after Phase 5BF started. Do not run broad oracle direction reviews for forward
+myocardium/atrial phases; use local measured evidence, code review, and owner
+instructions instead. Historical oracle checkpoints remain recorded below only
+as context, not as a future cadence.
 The broad oracle checkpoint after Phase 5AT/PR #250 supported treating LV+RV
 Land plus sourced root/Zc as the user-0 staged default baseline, then moving the
 main model work to RA source-stress convention and AtrialPhysiologyBridgeV2/A2
@@ -94,6 +94,18 @@ Current owner priorities:
 | atrial bridge | Phase 5.5 atrial bridge shootout, Phase 5.5B localization, and Phase 5.5C runtime baseline record measured E0/A0/A1 and stock-runtime boundary evidence. `atrial-bridge-high-hr-runtime-baseline-phase5p5c-result-v1` shows stock active no-provider ModelCore settles at HR75/90 but caps at HR105, matching the measured experimental A0 HR105 cap and making the high-HR boundary `runtime-boundary-likely` rather than atrial-provider-specific. Phase 5.5B made the prior A1 repeatability blocker `not-supported` after full-beat localization, while valve and isolated sampling blockers remained. Phase 5AN adds `atrial-figure-eight-readability-phase5an-result-v1`, a focused HR75/90 normal, preload-low, and preload-high envelope comparing A0, existing A1, and `atrial-refined-reservoir-booster-bridge-v1`. Refined A1 is not supported by this artifact: it settled at HR75 normal/low/high and HR90 high-preload, but no point produced readable LA/RA loops after requiring opposing booster/reservoir signed lobes. Phase 5AS then sweeps RA-local refined A1 variants without selecting a bridge; `ra-soft-sleeve-v1` gives the strongest parameter-space signal, with both-chamber readability only at `high-preload-hr90` and RA opposed-lobe signal at `normal-hr75` plus `high-preload-hr90`. Phase 5AT tests explicit AV-plane structural candidates: single-chamber AV-plane gives the strongest local RA signal at `high-preload-hr75`, but no candidate produces both-chamber readable loops and the two-branch plus body-AV-plane composition is not enough for selection. Phase 5AU defines and measures the AtrialPhysiologyBridgeV2/A2 readout contract in the current LV+RV Land plus sourced root/Zc default closure: 6/6 points are health-ok and expose LA/RA self dV/dt, a/v wave, pressure-swing, E/A-like inflow, and valve/qDot readouts. Phase 5AW then closes the provider input gap: `atrial-a2-inputs-phase5aw-result-v1` records 6/6 health-ok points, finite LA/RA provider-context self `volumeRateMlPerSec` in 6/6, and exact sample flow-balance readback in 6/6. Phase 5AX adds pressure-decomposition debug readbacks: `atrial-pressure-decomposition-phase5ax-result-v1` records 6/6 health-ok points, finite LA/RA passive, active, AV-plane delta, and floor-hit readbacks in 6/6, with passive+active closure exact in 6/6. Phase 5AY implements an off-by-default AtrialPhysiologyBridgeV2/A2 prototype with viscous/conduit, tension-state booster, and AV-plane delta terms and measures it against the A1 refined bridge comparator: all A2 candidates are health-ok in 6/6 HR75/90 preload points with finite contribution readbacks in 6/6, but `atrial-a2-conduit-v1` is only `measured-no-readable-improvement` versus A1 and no candidate produces both-chamber readable loops. Phase 5AZ adds sourced absolute atrial target pack `atrial-waveform-targets-v1` and scores current runtime, A1, and A2 candidates against volume-derived total/passive/active emptying-fraction broad ranges: `atrial-a2-conduit-v1` is the best volume-function candidate and broad-passes both atria at `normal-hr75`, while A1 broad-passes no volume-function point; strain targets are stored but not scored until a wall/AV-plane strain proxy exists. Phase 5BA runs A2 conduit term sensitivity: the `normal-hr75` both-atria volume-function signal is preserved by full A2, no-booster, and no-AV-plane-extra variants, but disappears when the viscous/conduit term is removed; no variant gives envelope-wide both-atria broad-pass or figure-eight acceptance. Phase 5BB factors the A2 reservoir/conduit pressure terms into reusable `atrialReservoirConduitCoupling` infrastructure and confirms A2 conduit still has 6/6 health-ok points with finite, bounded LA/RA contribution readbacks across HR75/90 preload points. Phase 5BC tests valve-diode readability attribution on the same HR75/90 preload envelope and runtime/A1/A2 variant set: `atrial-valve-diode-readability-phase5bc-result-v1` is `supported`, with raw both-chamber readable loops still absent for all variants but hit-only valve-diode pressure interpolation creating both-chamber readability jumps for `a2-conduit-full`, `a2-conduit-no-booster`, and `a2-conduit-no-av-plane-extra`; every variant shows either score-only or readability-jump signal. Phase 5BD converts that post-processed signal into a real off-by-default MV/TV soft-floor candidate and records `atrial-av-valve-smoothing-phase5bd-result-v1`: both soft-floor closures reduce valve diode impulse with health-ok 18/18 and bounded AV regurgitation, but neither creates raw both-chamber readable loops, so the diagnostic status is `not-supported`. Phase 5BE scores stored strain targets through a cuberoot-volume wall-strain proxy: `atrial-strain-proxy-scoring-phase5be-result-v1` ranks current runtime as lowest combined volume+strain distance, gives no both-atria strain-proxy pass for any candidate, and does not select A1/A2. The context input is an explicit latest-resolved flow-balance estimate to avoid an implicit pressure-flow algebraic loop, and Phases 5BC-5BE are diagnostic only, not valve model changes, bridge selection, direct strain validation, or morphology acceptance. LV Land default migration must not wait for atrial figure-eight completion. | owner selection remains pending and oracle selection review remains pending; HR105 runtime/settling boundary can be treated as edge evidence for LV default posture but must be bounded before production atrial bridge selection; existing A1 normalized valve-event contamination and Phase 5.5B isolated sampling-invariance blockers remain selection blockers; refined A1, RA-local soft-sleeve variants, current two-branch-plus-AV-plane candidates, the first A2 prototype, simple MV/TV soft-floor smoothing, and cuberoot-volume strain proxy scoring remain unsupported because envelope-wide opposing-lobe readability, high-preload LA sampling roughness, HR90 normal/low settling, hit-rate contamination, direct AV-plane/wall strain readbacks, target-wide function passes, and accepted valve/load timing evidence are not solved; A1 must not be treated as final physiology by parameter tuning alone | use Phase 5BE scoring as a baseline for LandAtrial shadow/parameter-pack work, not as A1/A2 selection; add direct AV-plane displacement or wall-strain readbacks before claiming physiologic strain; keep valve contamination as a measurement confounder, not a solved mechanism; keep A2 off-by-default and do not tune gains from the `normal-hr75` signal alone; keep HR105/120 as edge evidence | final atrial physiology, AF validation, atrial Land/RDQ validation, production atrial bridge wiring, direct atrial strain validation, valve/load timing acceptance, LV default migration gating, official morphology acceptance |
 | arterial load | Phase 5Y records real AoV qDot raw/post clamp engagement, and Phase 5Z no longer supports short-window denominator amplification as dominant. Phase 5AA adds the offline prescribed-pressure AoV/root inertance bench; Phase 5AB carries the lower-inertance region into closed loop through the existing `AoV_L` effective root-boundary carrier; Phase 5AC computes direct isolated-bench input impedance spectra; Phase 5AD tests selected off-by-default prototype routes; Phase 5AE adds a separated experimental boundary/root inertance hook without topology, state-layout, default-param, or direct `Ao_SA.L` changes. Phase 5AF calibrates total 2x as the preferred sourced-Zc candidate. Phase 5AG reruns that candidate over the full synthetic matrix, Phase 5AH attributes the split, Phase 5AM exposes the sourced total 2x mechanism as an explicit off-by-default runtime candidate through `rootZcMode` plus closure-local base `AoV_L`, and Phase 5AP runs the same mechanism inside the current LV+RV Land default closure. The Phase 5AP live closure result supports user-0 default adoption: 15/15 health-ok candidate comparisons, output-preserved fraction 1, valve/load timing-signal fraction 1, qDot signal fraction 0.466667, zero output/timing-cost points, and zero LV/RV Land solve failures. The runtime default now composes the sourced root/Zc mechanism with closure-local `AoV_L`; explicit current and off-by-default candidate modes remain available, and frozen legacy rollback remains fenced from experimental root/Zc composition. | reflection coefficient remains unavailable/no-proxy; no valve/load timing acceptance; qDot clamp removal remains unsupported; no official morphology acceptance; no direct Ao_SA adoption | use adopted root/Zc as the discharge-path default while keeping valve/load timing acceptance, qDot clamp retirement, and official morphology as separate gates | qDot clamp removal, valve-threshold tuning, valve/load timing acceptance, official morphology, reflection-coefficient claim, and clinical/scientific validation are unclaimed |
 | studio/product | AI-native physiology studio direction proposed; owner is leading Studio/Workbench mock work outside this lane | MVP scope can grow too large | owner-led Home + Cases + static/mock Workbench | model validation, scientific acceptance |
+
+### Atrial Lane Override After Phase 5BF
+
+The atrial table row preserves historical A1/A2 evidence, but the forward lane
+state is now narrower by owner instruction: A1 and A2 are frozen as diagnostic
+scaffolds/comparators, not selection candidates. Do not run further A1/A2 gain
+sweeps or oracle direction checks. The active atrial implementation path is
+LandAtrial shadow with atrial parameter packs, signed atrial pressure-adapter
+semantics, and AV-plane/effective wall-geometry readbacks. Phase 5BF is the
+current baseline: all-chamber LandAtrial shadow has zero runtime errors and
+6/6 health-ok points over HR75/90 normal/low/high preload, but remains
+partial-settle-blocked because `high-preload-hr90` does not settle.
 
 ## Historical Evidence Pins
 
@@ -208,6 +220,14 @@ advances the current lane. They are evidence anchors, not current gates.
   runtime atrial path as the lowest combined volume+strain-distance baseline,
   records no both-atria strain-proxy pass for any runtime/A1/A2 candidate, and
   does not directly validate atrial strain, select A1/A2, or accept morphology.
+- Phase 5BF remains `atrial-land-shadow-phase5bf-result-v1`, the first
+  LandAtrial shadow baseline. It adds a reusable atrial-calibrated Land
+  parameter pack, signed atrial pressure-adapter provider, and direct AV-plane
+  effective wall-geometry readbacks. All-chamber LandAtrial shadow has zero
+  runtime errors and 6/6 health-ok points over HR75/90 normal/low/high preload,
+  but it remains `landatrial-shadow-partial-settle-blocked` because
+  `high-preload-hr90` is settle-failed. It does not select A1/A2, does not
+  accept atrial physiology, and does not flip all-chamber default.
 - Phase 5AV remains
   `atrial-land-ra-source-stress-convention-phase5av-result-v1`, the signed RA
   pressure-adapter candidate evidence showing the nonnegative adapter runtime
@@ -236,26 +256,18 @@ advances the current lane. They are evidence anchors, not current gates.
    does not unlock qDot clamp removal, valve/load timing acceptance, official
    morphology, reflection coefficients, or clinical/scientific validation.
 4. Advance atrial figure-eight work in a separate lane at HR75/90 normal and
-   preload envelopes. Phase 5AS and 5AT show parameter-only RA soft-sleeve
-   tuning and current two-branch-plus-AV-plane composition are insufficient for
-   selection; Phase 5AU records the A2 readout contract, Phase 5AW adds the self
-   `volumeRateMlPerSec` provider input, Phase 5AX adds pressure-decomposition
-   debug output, Phase 5AY implements the first A2 prototype, Phase 5AZ adds
-   sourced absolute atrial waveform/function targets plus volume-derived scoring,
-   Phase 5BA attributes the limited A2 conduit signal to the viscous/conduit
-   term rather than booster or AV-plane-extra terms, and Phase 5BB factors those
-   terms into reusable coupling infrastructure. Phase 5BC supports valve-diode
-   contamination as a current readability measurement confounder by
-   post-processed valve-hit cleanup, but Phase 5BD shows simple off-by-default
-   MV/TV soft-floor smoothing does not convert that signal into raw readable
-   loops. Phase 5BE adds cuberoot-volume wall-strain proxy scoring but does not
-   select A1/A2; use it as the baseline score surface for LandAtrial shadow work.
-   A2 still has no selection claim; use the target pack and reusable coupling
-   from LandAtrial shadow work rather than tuning by visual loop shape alone. A1
-   is a diagnostic bridge, not the final model; the forward physiology direction
-   is reusable AV-plane reservoir coupling plus LandAtrial parameter-pack shadow
-   work, with direct AV-plane displacement or wall-strain readbacks as the next
-   scoring gap. Treat HR105/120 as edge evidence, not as an LV Land default gate.
+   preload envelopes, but freeze A1/A2 as diagnostic scaffolds/comparators.
+   Do not add more A1/A2 gain sweeps, soft-floor rescue attempts, or bridge
+   selection PRs. The forward physiology direction is LandAtrial with atrial
+   parameter packs plus AV-plane/effective-geometry wall-strain readbacks.
+   Phase 5BF adds that first LandAtrial shadow path and direct AV-plane wall
+   geometry readbacks. It records all-chamber LandAtrial shadow runtime-error
+   count 0 and health-ok 6/6 over HR75/90 normal/low/high preload, but remains
+   `landatrial-shadow-partial-settle-blocked` because `high-preload-hr90` is
+   settle-failed. Use Phase 5BF as the forward baseline for LandAtrial
+   calibration/settling attribution, not as all-chamber default or atrial
+   physiology acceptance. Treat HR105/120 as edge evidence, not as an LV Land
+   default gate.
 5. Keep provider-local SDIRK2 solver hardening narrow; Phase 5C-R did not unlock
    alternans-finality claim.
 6. Keep morphology evidence diagnostic-only when feeding myocardium decisions.

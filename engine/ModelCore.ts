@@ -1220,6 +1220,12 @@ export class ModelCore {
         this.chamberCtx("RA", this.x),
       )
       : {};
+    const laGeometryFields = this.p.heartModel === "activeStress"
+      ? this.atrialGeometryFields("LA", pack.Vphys[this.nodeIndex.get("LA")!], this.chamberCtx("LA", this.x))
+      : {};
+    const raGeometryFields = this.p.heartModel === "activeStress"
+      ? this.atrialGeometryFields("RA", pack.Vphys[this.nodeIndex.get("RA")!], this.chamberCtx("RA", this.x))
+      : {};
     const lvElastance = this.ventricularElastanceSignals("LV", pack.VLVeff, pack.PLVfw, this.x);
     const rvElastance = this.ventricularElastanceSignals("RV", pack.VRVeff, pack.PRVfw, this.x);
     const s: SimSample = {
@@ -1339,6 +1345,8 @@ export class ModelCore {
       RVPressureFloorHit01: rvPressureTerms?.pressureFloorHit01 ?? 0,
       ...laPressureDecomposition,
       ...raPressureDecomposition,
+      ...laGeometryFields,
+      ...raGeometryFields,
       ELV_active: lvElastance.active,
       ERV_active: rvElastance.active,
       ELV_timeVarying: lvElastance.timeVarying,
@@ -2322,6 +2330,34 @@ export class ModelCore {
       RAActivePressureMmHg: activePressure,
       RAAvPlanePressureDeltaMmHg: terms.pressureUnclampedMmHg - noAvPlaneTerms.pressureUnclampedMmHg,
       RAPressureFloorHit01: terms.pressureFloorHit01,
+    };
+  }
+
+  private atrialGeometryFields(
+    chamber: "LA" | "RA",
+    volumeMl: number,
+    chamberCtx: ChamberCtx,
+  ): Partial<SimSample> {
+    const geometry = this.activeModel(chamber).debugGeometryTerms(volumeMl, chamberCtx);
+    if (chamber === "LA") {
+      return {
+        LAAvPlaneDescent01: geometry.avPlaneDescent01,
+        LAAvPlaneEffectiveVolumeCorrectionMl: geometry.effectiveVolumeCorrectionMl,
+        LAWallVolumeMl: geometry.wallVolumeMl,
+        LAWallLambda: geometry.lambda,
+        LAWallLambdaWithoutAvPlane: geometry.lambdaWithoutAvPlane,
+        LAWallEngineeringStrain: geometry.wallEngineeringStrain,
+        LAWallEngineeringStrainWithoutAvPlane: geometry.wallEngineeringStrainWithoutAvPlane,
+      };
+    }
+    return {
+      RAAvPlaneDescent01: geometry.avPlaneDescent01,
+      RAAvPlaneEffectiveVolumeCorrectionMl: geometry.effectiveVolumeCorrectionMl,
+      RAWallVolumeMl: geometry.wallVolumeMl,
+      RAWallLambda: geometry.lambda,
+      RAWallLambdaWithoutAvPlane: geometry.lambdaWithoutAvPlane,
+      RAWallEngineeringStrain: geometry.wallEngineeringStrain,
+      RAWallEngineeringStrainWithoutAvPlane: geometry.wallEngineeringStrainWithoutAvPlane,
     };
   }
 

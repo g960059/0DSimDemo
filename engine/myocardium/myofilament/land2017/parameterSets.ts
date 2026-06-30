@@ -61,7 +61,7 @@ export type Land2017DerivedParameterProvenance = {
 };
 
 export type Land2017SourceParameterSet = {
-  readonly parameterSetId: typeof LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET_ID;
+  readonly parameterSetId: string;
   readonly parameterSetStableHash: string;
   readonly sourceId: typeof LAND2017_SOURCE_ID;
   readonly doi: typeof LAND2017_SOURCE_DOI;
