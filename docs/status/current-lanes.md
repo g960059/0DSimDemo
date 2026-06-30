@@ -436,6 +436,19 @@ diagnostic history, not as component evidence to carry forward. The next model
 surface must be a real chamber-owned AV valve boundary/complementarity and/or
 pressure-adapter contract redesign, not another pointwise MV refit escalation
 or LandAtrial tuning.
+Phase 5CN records `av-valve-boundary-transaction-phase5cn-result-v1`, adding
+an off-by-default accepted-state AV valve boundary mode. Unlike 5CL/5CM point
+refits, it computes MV/TV flow once from the pre-step valve flow, accepted
+chamber pressures, and accepted valve state inside the chamber transaction.
+This is a partial positive but not adoption evidence: the best legacy-atria
+candidate (`accepted-av-boundary-legacy-atria`) improves over the 5CM same-step
+refit surface to gross 5/8, with LV/RV PV 8/8, MVF 6/8, TVF 6/8, output 7/8,
+and configuration integrity `0/6` mismatches. Residual failures remain
+valve-diode/qDot-contamination classified, and the all-chamber user-0 transfer
+candidate remains 0/8. Do not wire this mode to runtime/default. Carry it only
+as evidence that accepted-state AV boundary ownership is a better surface than
+pointwise MV refit, while the next phase must broaden the pressure/valve/load
+complementarity or pressure-adapter contract before LandAtrial tuning resumes.
 
 ## Lane table
 
@@ -826,10 +839,16 @@ advances the current lane. They are evidence anchors, not current gates.
    8/8, TVF 8/8, MVF 3/8, output 7/8, and MV valve-diode residuals still
    dominant; user-0 transfer is 0/8. Treat the 5CL 8/8 signal as
    over-supportive diagnostic history, not as a path to preserve.
-   The next surface should be a real chamber-owned AV valve boundary /
-   complementarity and/or pressure-adapter contract redesign that solves MV
-   inflow in the accepted chamber state, not another pointwise MV fixed-point
-   refit escalation or a LandAtrial transfer lane.
+   Phase 5CN then adds an accepted-state AV valve boundary mode that solves
+   MV/TV flow from the pre-step valve flow, accepted chamber pressures, and
+   accepted valve state. This is a real step forward relative to 5CM
+   (`accepted-av-boundary-legacy-atria` reaches gross 5/8 with LV/RV PV 8/8,
+   MVF 6/8, TVF 6/8, output 7/8), but it still leaves MV/TV diode-classified
+   residuals and transfers to all-chamber user-0 at only 0/8. Treat it as
+   partial component evidence, not a runtime/default candidate. The next
+   surface should broaden the chamber-owned pressure/valve/load complementarity
+   or pressure-adapter contract, not another pointwise MV refit escalation or a
+   LandAtrial transfer lane.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, local LV/RV transaction
