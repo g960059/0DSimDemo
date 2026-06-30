@@ -222,7 +222,11 @@ export type ModelCoreExperimentalVentricularChamberTransactionStepOptions = {
   readonly relaxation?: number;
   readonly providerStateCouplingChambers?: readonly ("LV" | "RV")[];
   readonly includeAdjacentLoadNodes?: boolean;
-  readonly avValveBoundaryMode?: "current-diode" | "bounded-deceleration" | "state-coupled-complementarity";
+  readonly avValveBoundaryMode?:
+    | "current-diode"
+    | "bounded-deceleration"
+    | "state-coupled-complementarity"
+    | "tv-state-coupled-mv-pressure-refit";
   readonly avValveBoundaryTargetValves?: readonly ("MV" | "TV")[];
   readonly avValveBoundaryTauSec?: number;
 };
@@ -1457,8 +1461,24 @@ export class ModelCore {
     const inletIndex = this.idx.q[inlet];
     const outletIndex = this.idx.q[outlet];
     const inletFlowState = this.transactionAvValveStateCoupledFlowState(inlet, candidate, pack, dt, options);
-    const inletQNext = this.dynamicEdgeQNextForCandidate(inlet, inletFlowState ?? candidate, pack, dt, options);
+    let inletQNext = this.dynamicEdgeQNextForCandidate(inlet, inletFlowState ?? candidate, pack, dt, options);
     const outletQNext = this.dynamicEdgeQNextForCandidate(outlet, candidate, pack, dt, options);
+    if (
+      chamber === "LV"
+      && options.avValveBoundaryMode === "tv-state-coupled-mv-pressure-refit"
+      && (options.avValveBoundaryTargetValves ?? ["MV", "TV"]).includes("MV")
+    ) {
+      inletQNext = this.refitMvFlowWithProjectedTransactionPressure(
+        beforeX,
+        candidate,
+        pack,
+        inletQNext,
+        outletQNext,
+        dt,
+        includeAdjacentLoadNodes,
+        options,
+      );
+    }
     if (includeAdjacentLoadNodes) {
       const balances = this.chamberTransactionBalances(candidate, pack, {
         [inlet]: inletQNext,
@@ -1496,7 +1516,10 @@ export class ModelCore {
     options: ModelCoreExperimentalVentricularChamberTransactionStepOptions,
   ): Float64Array | null {
     if (
-      options.avValveBoundaryMode !== "state-coupled-complementarity"
+      (
+        options.avValveBoundaryMode !== "state-coupled-complementarity"
+        && !(options.avValveBoundaryMode === "tv-state-coupled-mv-pressure-refit" && valveName === "TV")
+      )
       || !(options.avValveBoundaryTargetValves ?? ["MV", "TV"]).includes(valveName)
     ) {
       return null;
@@ -1532,6 +1555,40 @@ export class ModelCore {
       : dP > 0 ? tauOpen : forwardCoast ? Math.max(tauClose, 0.012) : tauClose;
     const alpha = 1 - Math.exp(-Math.max(dt, 1e-6) / Math.max(tau, 1e-5));
     return clamp(xi + alpha * (xiEq - xi), 0, 1);
+  }
+
+  private refitMvFlowWithProjectedTransactionPressure(
+    beforeX: Float64Array,
+    candidate: Float64Array,
+    pack: PressurePack,
+    inletQNext: number,
+    outletQNext: number,
+    dt: number,
+    includeAdjacentLoadNodes: boolean,
+    options: ModelCoreExperimentalVentricularChamberTransactionStepOptions,
+  ): number {
+    const projected = Float64Array.from(candidate);
+    if (includeAdjacentLoadNodes) {
+      const balances = this.chamberTransactionBalances(candidate, pack, {
+        MV: inletQNext,
+        AoV: outletQNext,
+      });
+      for (const nodeName of ["LV", "LA", "Ao"] as const) {
+        const nodeIndex = this.idx.node[nodeName];
+        const node = this.nodes[this.nodeIndex.get(nodeName)!];
+        const balance = node.kind === "venousPressure"
+          ? balances[this.nodeIndex.get(nodeName)!]
+          : clamp(balances[this.nodeIndex.get(nodeName)!], -2500, 2500);
+        projected[nodeIndex] = beforeX[nodeIndex] + dt * balance;
+      }
+    } else {
+      projected[this.idx.node.LV] = beforeX[this.idx.node.LV] + dt * (inletQNext - outletQNext);
+    }
+    projected[this.idx.q.MV] = inletQNext;
+    projected[this.idx.q.AoV] = outletQNext;
+    this.sanitizeState(projected);
+    const projectedPack = this.computePressures(projected);
+    return this.dynamicEdgeQNextForCandidate("MV", projected, projectedPack, dt, options);
   }
 
   private chamberTransactionBalances(
