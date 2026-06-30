@@ -162,13 +162,18 @@ export type ChamberPressureTerms = {
 export type ChamberGeometryTerms = {
   readonly rawVolumeMl: number;
   readonly wallVolumeMl: number;
+  readonly wallVolumeWithoutAvPlaneMl: number;
   readonly effectiveVolumeCorrectionMl: number;
+  readonly effectiveVolumeCorrectionVelocityMlPerSec: number;
   readonly avPlaneGainMl: number;
   readonly avPlaneDescent01: number;
+  readonly avPlaneDescentVelocity01PerSec: number;
   readonly lambda: number;
   readonly lambdaWithoutAvPlane: number;
+  readonly lambdaAvPlaneDelta: number;
   readonly wallEngineeringStrain: number;
   readonly wallEngineeringStrainWithoutAvPlane: number;
+  readonly wallEngineeringStrainAvPlaneDelta: number;
 };
 
 export type ActiveStressDebugTerms = ChamberPressureTerms & {
@@ -447,6 +452,15 @@ export class ActiveStressChamberModel implements ChamberModel {
     if (this.twoBranchEnabled() || avp <= 0) return V;
     const descent01 = this.avPlaneDescent01(ctx);
     return Math.max(this.ap.V0 + this.ap.Vmin, V - avp * descent01);
+  }
+
+  private avPlaneDescentVelocity01PerSec(ctx: ChamberCtx): number {
+    if (this.twoBranchEnabled() || (this.ap.avPlaneGainMl ?? 0) <= 0) return 0;
+    const shortening = this.pairedShortening01(ctx);
+    if (shortening <= 0 && (ctx.pairedVentricleShorteningVelocity01PerSec ?? 0) <= 0) return 0;
+    const inletOpen = this.inletValveOpen01(ctx);
+    const inletClosed01 = inletOpen == null ? 1 : clamp(1 - inletOpen, 0, 1);
+    return (ctx.pairedVentricleShorteningVelocity01PerSec ?? 0) * inletClosed01;
   }
 
   private pairedShortening01(ctx: ChamberCtx): number {
@@ -833,13 +847,19 @@ export class ActiveStressChamberModel implements ChamberModel {
     return {
       rawVolumeMl: V,
       wallVolumeMl,
+      wallVolumeWithoutAvPlaneMl,
       effectiveVolumeCorrectionMl: Math.max(0, V - wallVolumeMl),
+      effectiveVolumeCorrectionVelocityMlPerSec:
+        Math.max(this.ap.avPlaneGainMl ?? 0, 0) * this.avPlaneDescentVelocity01PerSec(ctx),
       avPlaneGainMl: Math.max(this.ap.avPlaneGainMl ?? 0, 0),
       avPlaneDescent01: this.avPlaneDescent01(ctx),
+      avPlaneDescentVelocity01PerSec: this.avPlaneDescentVelocity01PerSec(ctx),
       lambda: geometry.lambda,
       lambdaWithoutAvPlane: geometryWithoutAvPlane.lambda,
+      lambdaAvPlaneDelta: geometryWithoutAvPlane.lambda - geometry.lambda,
       wallEngineeringStrain: geometry.lambda - 1,
       wallEngineeringStrainWithoutAvPlane: geometryWithoutAvPlane.lambda - 1,
+      wallEngineeringStrainAvPlaneDelta: geometryWithoutAvPlane.lambda - geometry.lambda,
     };
   }
 

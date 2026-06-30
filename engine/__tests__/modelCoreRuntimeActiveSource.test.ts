@@ -11,9 +11,15 @@ import {
   createModelCoreLand2017LvSourceProviderInstrumentation,
 } from "@/engine/myocardium/modelCoreLand2017LvSourceProvider";
 import {
+  LANDATRIAL_RUNTIME_CANDIDATE_ACTIVE_OVERRIDES,
   LANDATRIAL_RUNTIME_CANDIDATE_SOURCE_PROVIDER_IDS,
   landAtrialRuntimeCandidateNodeOverrides,
 } from "@/engine/myocardium/landAtrialRuntimeCandidate";
+import {
+  LANDATRIAL_DEFAULT_FLOOR_NOT_ACCEPTED_CLAIMS,
+  LANDATRIAL_DEFAULT_FLOOR_SELECTED_CANDIDATE_ID,
+  LANDATRIAL_DEFAULT_FLOOR_V1_CONTRACT,
+} from "@/engine/myocardium/landAtrialDefaultFloor";
 import {
   MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE,
   MODELCORE_RUNTIME_ALL_CHAMBER_LAND_DEFAULT_CANDIDATE_MODE,
@@ -50,6 +56,10 @@ describe("ModelCore runtime active source default", () => {
     const resolved = resolveModelCoreRuntimeActiveSource();
 
     expect(resolved.mode).toBe(MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE);
+    expect(LANDATRIAL_DEFAULT_FLOOR_V1_CONTRACT.runtimeActiveSourceMode)
+      .toBe(MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE);
+    expect(LANDATRIAL_DEFAULT_FLOOR_V1_CONTRACT.selectedCandidateId)
+      .toBe(LANDATRIAL_DEFAULT_FLOOR_SELECTED_CANDIDATE_ID);
     expect(resolved.claimBoundary).toBe("user0-staged-all-chamber-landatrial-default-no-clinical-validation");
     expect(resolved.sourceProviderScope).toBe("LV+RV+LA+RA");
     expect(resolved.sourceProviderId).toBeNull();
@@ -64,6 +74,11 @@ describe("ModelCore runtime active source default", () => {
       .toBe(LANDATRIAL_RUNTIME_CANDIDATE_SOURCE_PROVIDER_IDS.RA);
     expect(resolved.experimentalOptions.runtimeParameterPatch?.nodeOverrides)
       .toEqual(landAtrialRuntimeCandidateNodeOverrides());
+    expect(LANDATRIAL_DEFAULT_FLOOR_V1_CONTRACT.sourceProviderIds).toEqual(resolved.sourceProviderIds);
+    expect(LANDATRIAL_DEFAULT_FLOOR_V1_CONTRACT.atrialActiveOverrides)
+      .toEqual(LANDATRIAL_RUNTIME_CANDIDATE_ACTIVE_OVERRIDES);
+    expect(LANDATRIAL_DEFAULT_FLOOR_V1_CONTRACT.notAcceptedClaims)
+      .toEqual(LANDATRIAL_DEFAULT_FLOOR_NOT_ACCEPTED_CLAIMS);
     expect(resolved.rootZc.mode).toBe(MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_DEFAULT_MODE);
     expect(resolved.experimentalOptions.boundaryRootInertance).toMatchObject({
       mechanismId: MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_MECHANISM_ID,
