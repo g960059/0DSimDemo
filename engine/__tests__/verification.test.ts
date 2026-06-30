@@ -5,8 +5,10 @@ import type { ObjectiveEvaluation } from "@/engine/fitting/objective";
 import { makeCandidatePatch } from "@/engine/fitting/parameterSpace";
 import { collectNormalBaselineGates } from "@/engine/verification/gates";
 import { generateVerificationSvgs } from "@/engine/verification/artifacts";
+import { morphologyCheckSummaryFromSamples } from "@/engine/verification/morphologyCheck";
 import { VERIFICATION_PROFILES } from "@/engine/verification/profiles";
 import { reportToMarkdown, runVerification, toVerificationArtifact } from "@/engine/verification/report";
+import { lastCompleteBeat } from "@/engine/verification/shapeMetrics";
 
 describe("fitting/verification mode foundation", () => {
   it("defaults to validity-only gates so pathologic cases opt into their own gates", () => {
@@ -53,6 +55,8 @@ describe("fitting/verification mode foundation", () => {
     expect(report.steady?.state.t).toBeCloseTo(report.measurement!.core.packState().t, 12);
     expect(report.steady?.state.phi).toBeCloseTo(report.measurement!.core.packState().phi, 12);
     expect(report.shape).not.toBeNull();
+    expect(report.morphology).not.toBeNull();
+    expect(report.morphology?.version).toBe("morphology-check-v1");
     expect(report.shape?.pvfSFraction).toBeGreaterThan(0.40);
     expect(report.shape?.laSelfIntersections).toBeGreaterThanOrEqual(1);
     const ids = report.gates.map((gate) => gate.id);
@@ -85,6 +89,7 @@ describe("fitting/verification mode foundation", () => {
     expect(markdown).toContain("State layout hash:");
     expect(markdown).toContain("settle beats");
     expect(markdown).toContain("PVF S fraction");
+    expect(markdown).toContain("Morphology Check");
   });
 
   it("enforces final normal-baseline gates under verify-accurate mode", () => {
@@ -187,6 +192,64 @@ describe("fitting/verification mode foundation", () => {
       .find((gate) => gate.id === "qmv-extra-peaks");
     expect(chatterGate?.status).toBe("fail");
     expect(chatterGate?.value).toBeGreaterThan(0);
+
+    const morphology = morphologyCheckSummaryFromSamples(chatteringMeasurement.samples);
+    const mvf = morphology.results.find((result) => result.id === "mvf");
+    expect(mvf?.status).toBe("failed");
+    expect(mvf?.metrics.extraPeakCount).toBeGreaterThan(0);
+  });
+
+  it("detects double-humped LV systolic PV-loop morphology", () => {
+    const report = runVerification(DEFAULT_PARAMS, {
+      profile: "verifyAccurate",
+      gateSet: "normalBaseline",
+      now: new Date("2026-06-05T00:00:00.000Z"),
+    });
+    expect(report.measurement).not.toBeNull();
+    const measurement = report.measurement!;
+    const beat = lastCompleteBeat(measurement.samples);
+    const ejectionIndices = new Set<number>();
+    const flowMax = Math.max(0, ...beat.map((sample) => sample.QAo));
+    const ejection = beat
+      .map((sample, localIndex) => ({ sample, localIndex }))
+      .filter(({ sample }) => sample.QAo > Math.max(10, 0.08 * flowMax));
+    for (const { localIndex } of ejection) ejectionIndices.add(localIndex);
+    const beatStart = measurement.samples.indexOf(beat[0]);
+    const doubleDomeSamples = measurement.samples.map((sample, index) => {
+      const localIndex = index - beatStart;
+      if (!ejectionIndices.has(localIndex) || ejection.length < 12) return sample;
+      const sequenceIndex = ejection.findIndex((entry) => entry.localIndex === localIndex);
+      const x = sequenceIndex / Math.max(ejection.length - 1, 1);
+      const twoPeaks = 22 * Math.exp(-0.5 * ((x - 0.28) / 0.08) ** 2)
+        + 24 * Math.exp(-0.5 * ((x - 0.72) / 0.08) ** 2)
+        - 18 * Math.exp(-0.5 * ((x - 0.50) / 0.07) ** 2);
+      return { ...sample, LVP: 85 + twoPeaks };
+    });
+
+    const morphology = morphologyCheckSummaryFromSamples(doubleDomeSamples);
+    const lvPv = morphology.results.find((result) => result.id === "lv-pv-loop");
+    expect(lvPv?.status).toBe("failed");
+    expect(lvPv?.metrics.ejectionPeakCount).toBeGreaterThan(1);
+  });
+
+  it("detects early LA active-kick timing", () => {
+    const report = runVerification(DEFAULT_PARAMS, {
+      profile: "verifyAccurate",
+      gateSet: "normalBaseline",
+      now: new Date("2026-06-05T00:00:00.000Z"),
+    });
+    expect(report.measurement).not.toBeNull();
+    const earlyKickSamples = report.measurement!.samples.map((sample) => {
+      const theta = sample.phi - Math.floor(sample.phi);
+      const earlyBoost = 1_000 * Math.exp(-0.5 * ((theta - 0.55) / 0.015) ** 2);
+      return { ...sample, aLA: sample.aLA + earlyBoost };
+    });
+
+    const morphology = morphologyCheckSummaryFromSamples(earlyKickSamples);
+    const lap = morphology.results.find((result) => result.id === "lap-waveform");
+    expect(lap?.status).toBe("failed");
+    expect(lap?.metrics.activePeakTheta).toBeGreaterThan(0.5);
+    expect(lap?.metrics.activePeakTheta).toBeLessThan(0.6);
   });
 
   it("detects the old underdamped left-filling configuration", () => {

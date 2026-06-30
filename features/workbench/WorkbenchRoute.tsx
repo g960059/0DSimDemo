@@ -157,6 +157,7 @@ export function WorkbenchRoute() {
         onResetToAuthorState={scene.resetToAuthorState}
         instances={scene.instances}
         instanceHealth={simulation.instanceHealth}
+        instanceMorphology={simulation.instanceMorphology}
         getLiveHealth={simulation.getLiveHealth}
         fileInputRef={persistence.fileInputRef}
         onImportFile={persistence.handleImportFile}
