@@ -216,6 +216,13 @@ export type ModelCoreExperimentalCoupledBackwardEulerStepOptions = {
   readonly providerStateCouplingChambers?: readonly Chamber[];
 };
 
+export type ModelCoreExperimentalVentricularChamberTransactionStepOptions = {
+  readonly mechanismId: string;
+  readonly iterations?: number;
+  readonly relaxation?: number;
+  readonly providerStateCouplingChambers?: readonly ("LV" | "RV")[];
+};
+
 // Diagnostic-only Phase 5CC hook. This surface measured as not-supported and
 // must not be used as a runtime/default candidate.
 export type ModelCoreExperimentalUnsupportedDiagnosticCoupledNewtonStepOptions = {
@@ -238,6 +245,7 @@ export type ModelCoreExperimentalOptions = {
   readonly valveDiodeSmoothing?: ModelCoreExperimentalValveDiodeSmoothingOptions;
   readonly graphCoupledStep?: ModelCoreExperimentalGraphCoupledStepOptions;
   readonly coupledBackwardEulerStep?: ModelCoreExperimentalCoupledBackwardEulerStepOptions;
+  readonly ventricularChamberTransactionStep?: ModelCoreExperimentalVentricularChamberTransactionStepOptions;
   /** Unsupported diagnostic hook retained only to reproduce Phase 5CC no-go evidence. */
   readonly unsupportedDiagnosticCoupledNewtonStep?: ModelCoreExperimentalUnsupportedDiagnosticCoupledNewtonStepOptions;
   readonly temporalSubstep?: ModelCoreExperimentalTemporalSubstepOptions;
@@ -734,6 +742,24 @@ function normalizeExperimentalCoupledBackwardEulerStep(
   };
 }
 
+function normalizeExperimentalVentricularChamberTransactionStep(
+  options: ModelCoreExperimentalVentricularChamberTransactionStepOptions | undefined,
+): ModelCoreExperimentalVentricularChamberTransactionStepOptions | null {
+  if (!options) return null;
+  if (!options.mechanismId.trim()) {
+    throw new Error("Experimental ventricular chamber transaction step requires a mechanismId.");
+  }
+  const iterations = Math.floor(clamp(options.iterations ?? 4, 1, 8));
+  const relaxation = clamp(options.relaxation ?? 0.7, 0.05, 1);
+  const providerStateCouplingChambers = options.providerStateCouplingChambers ?? ["LV", "RV"];
+  return {
+    mechanismId: options.mechanismId,
+    iterations,
+    relaxation,
+    providerStateCouplingChambers,
+  };
+}
+
 function normalizeExperimentalUnsupportedDiagnosticCoupledNewtonStep(
   options: ModelCoreExperimentalUnsupportedDiagnosticCoupledNewtonStepOptions | undefined,
 ): ModelCoreExperimentalUnsupportedDiagnosticCoupledNewtonStepOptions | null {
@@ -794,6 +820,7 @@ export class ModelCore {
   private readonly experimentalValveDiodeSmoothing: ModelCoreExperimentalValveDiodeSmoothingOptions | null;
   private readonly experimentalGraphCoupledStep: ModelCoreExperimentalGraphCoupledStepOptions | null;
   private readonly experimentalCoupledBackwardEulerStep: ModelCoreExperimentalCoupledBackwardEulerStepOptions | null;
+  private readonly experimentalVentricularChamberTransactionStep: ModelCoreExperimentalVentricularChamberTransactionStepOptions | null;
   private readonly experimentalUnsupportedDiagnosticCoupledNewtonStep: ModelCoreExperimentalUnsupportedDiagnosticCoupledNewtonStepOptions | null;
   private readonly experimentalTemporalSubstep: ModelCoreExperimentalTemporalSubstepOptions | null;
   private readonly experimentalRuntimeParameterPatch: ParameterPatch | null;
@@ -875,6 +902,9 @@ export class ModelCore {
     );
     this.experimentalCoupledBackwardEulerStep = normalizeExperimentalCoupledBackwardEulerStep(
       experimentalOptions.coupledBackwardEulerStep,
+    );
+    this.experimentalVentricularChamberTransactionStep = normalizeExperimentalVentricularChamberTransactionStep(
+      experimentalOptions.ventricularChamberTransactionStep,
     );
     this.experimentalUnsupportedDiagnosticCoupledNewtonStep = normalizeExperimentalUnsupportedDiagnosticCoupledNewtonStep(
       experimentalOptions.unsupportedDiagnosticCoupledNewtonStep,
@@ -1263,6 +1293,8 @@ export class ModelCore {
 
     if (this.experimentalUnsupportedDiagnosticCoupledNewtonStep && beforeProviderCommitX) {
       this.stepUnsupportedDiagnosticCoupledNewtonProviderState(dt, beforeProviderCommitT, beforeProviderCommitX);
+    } else if (this.experimentalVentricularChamberTransactionStep && beforeProviderCommitX) {
+      this.stepVentricularChamberTransactionProviderState(dt, beforeProviderCommitT, beforeProviderCommitX);
     } else if (this.experimentalCoupledBackwardEulerStep && beforeProviderCommitX) {
       this.stepCoupledBackwardEulerProviderState(dt, beforeProviderCommitT, beforeProviderCommitX);
     } else if (this.experimentalGraphCoupledStep && beforeProviderCommitX) {
@@ -1326,6 +1358,123 @@ export class ModelCore {
     this.x.set(candidate);
     this.t += dt;
     this.sanitizeState(this.x);
+  }
+
+  private stepVentricularChamberTransactionProviderState(
+    dt: number,
+    beforeProviderCommitT: number,
+    beforeProviderCommitX: Float64Array,
+  ): void {
+    const options = this.experimentalVentricularChamberTransactionStep;
+    if (!options) throw new Error("Missing ventricular chamber transaction step options.");
+    const baseProviderState = this.snapshotExperimentalActiveProviderStates();
+    const k0 = this.rhs(beforeProviderCommitX);
+    let candidate = new Float64Array(beforeProviderCommitX.length);
+    for (let i = 0; i < beforeProviderCommitX.length; i++) {
+      candidate[i] = beforeProviderCommitX[i] + dt * k0[i];
+    }
+    this.sanitizeState(candidate);
+
+    const chamberFilter = new Set<Chamber>(options.providerStateCouplingChambers);
+    const iterations = options.iterations ?? 4;
+    const relaxation = options.relaxation ?? 0.7;
+    for (let iteration = 0; iteration < iterations; iteration++) {
+      this.restoreExperimentalActiveProviderStates(baseProviderState);
+      const provisionalProviderState = this.computeExperimentalActiveProviderStateCommits(
+        dt,
+        beforeProviderCommitT,
+        beforeProviderCommitX,
+        beforeProviderCommitT + dt,
+        candidate,
+        chamberFilter,
+        baseProviderState,
+      );
+      this.restoreExperimentalActiveProviderStates(provisionalProviderState);
+      const dy = this.rhs(candidate);
+      const next = new Float64Array(beforeProviderCommitX.length);
+      for (let i = 0; i < beforeProviderCommitX.length; i++) {
+        const beValue = beforeProviderCommitX[i] + dt * dy[i];
+        next[i] = candidate[i] + relaxation * (beValue - candidate[i]);
+      }
+      const pack = this.computePressures(candidate);
+      this.applyVentricularChamberTransactionSide(next, beforeProviderCommitX, candidate, pack, dt, "LV", relaxation);
+      this.applyVentricularChamberTransactionSide(next, beforeProviderCommitX, candidate, pack, dt, "RV", relaxation);
+      this.sanitizeState(next);
+      candidate = next;
+    }
+
+    this.restoreExperimentalActiveProviderStates(baseProviderState);
+    this.x.set(candidate);
+    this.t += dt;
+    this.sanitizeState(this.x);
+  }
+
+  private applyVentricularChamberTransactionSide(
+    next: Float64Array,
+    beforeX: Float64Array,
+    candidate: Float64Array,
+    pack: PressurePack,
+    dt: number,
+    chamber: "LV" | "RV",
+    relaxation: number,
+  ): void {
+    const ventNode = chamber === "LV" ? "LV" : "RV";
+    const inlet = chamber === "LV" ? "MV" : "TV";
+    const outlet = chamber === "LV" ? "AoV" : "PV";
+    const ventIndex = this.idx.node[ventNode];
+    const inletIndex = this.idx.q[inlet];
+    const outletIndex = this.idx.q[outlet];
+    const inletQNext = this.dynamicEdgeQNextForCandidate(inlet, candidate, pack, dt);
+    const outletQNext = this.dynamicEdgeQNextForCandidate(outlet, candidate, pack, dt);
+    const volumeNext = beforeX[ventIndex] + dt * (inletQNext - outletQNext);
+    next[ventIndex] = candidate[ventIndex] + relaxation * (volumeNext - candidate[ventIndex]);
+    next[inletIndex] = candidate[inletIndex] + relaxation * (inletQNext - candidate[inletIndex]);
+    next[outletIndex] = candidate[outletIndex] + relaxation * (outletQNext - candidate[outletIndex]);
+  }
+
+  private dynamicEdgeQNextForCandidate(
+    edgeName: DynamicEdgeName,
+    x: Float64Array,
+    pack: PressurePack,
+    dt: number,
+  ): number {
+    const e = this.edges[this.edgeIndex(edgeName)];
+    const qi = this.idx.q[edgeName];
+    const up = this.nodeIndex.get(e.up)!;
+    const down = this.nodeIndex.get(e.down)!;
+    const Pu = pack.P[up];
+    const Pd = pack.P[down];
+    const PdEff = this.downstreamEffective(e, Pd);
+    const q = x[qi];
+    const { R, B, areaRatio } = this.effectiveLosses(e, Pu, Pd, x);
+    let L = e.kind === "valve" ? Math.max((this.p as any)[`${e.name}_L`] ?? e.L ?? 0.001, 1e-6) : Math.max(e.L ?? 0.001, 1e-6);
+    if (e.name === "AoV") L = this.effectiveAorticBoundaryRootInertance(L);
+    if (e.kind !== "valve" && e.useChiResistance) {
+      L = L / Math.max(areaRatio, 1e-6);
+    }
+    const h = Math.max(dt, 1e-6);
+    const valveName = e.kind === "valve" ? e.name as ValveName : null;
+    let qNext = e.name === "AoV"
+      ? this.aorticValveQNext(q, Pu - PdEff, R, B, L, h)
+      : this.currentLossQNext(q, Pu - PdEff, R, B, L, h);
+    if (valveName && this.valveLeakArea(valveName, e) <= 1e-9 && qNext < 0) {
+      qNext = this.applyValveDiodeConstraint(
+        valveName,
+        qNext,
+        clamp(x[this.idx.xi[valveName]], 0, 1),
+      );
+    }
+    if (e.name === "AoV") qNext = this.applyAorticFlowClamp(qNext);
+    const qDotRaw = (qNext - q) / h;
+    const useCustomQDotClamp = this.usesCustomDynamicQDotClamp(e);
+    const qDotPositiveLimit = useCustomQDotClamp
+      ? Math.max(this.aorticFlowDerivativeClampPositiveMlPerS2, 1)
+      : DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
+    const qDotNegativeLimit = useCustomQDotClamp
+      ? Math.max(this.aorticFlowDerivativeClampNegativeMlPerS2, 1)
+      : DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
+    const qDotPost = clamp(qDotRaw, -qDotNegativeLimit, qDotPositiveLimit);
+    return q + h * qDotPost;
   }
 
   private stepUnsupportedDiagnosticCoupledNewtonProviderState(
@@ -3836,6 +3985,9 @@ export class ModelCore {
         : {}),
       ...(this.experimentalCoupledBackwardEulerStep
         ? { coupledBackwardEulerStep: this.experimentalCoupledBackwardEulerStep }
+        : {}),
+      ...(this.experimentalVentricularChamberTransactionStep
+        ? { ventricularChamberTransactionStep: this.experimentalVentricularChamberTransactionStep }
         : {}),
       ...(this.experimentalUnsupportedDiagnosticCoupledNewtonStep
         ? { unsupportedDiagnosticCoupledNewtonStep: this.experimentalUnsupportedDiagnosticCoupledNewtonStep }
