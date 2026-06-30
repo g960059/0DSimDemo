@@ -22,6 +22,7 @@ export type LandContinuousInput = {
   freeCalciumUM: number;
   fiberEngineeringStrain: number;
   fiberEngineeringStrainRatePerSec: number;
+  zetaDriveFiberEngineeringStrainRatePerSec?: number;
 };
 
 export type IntegrationStageDescriptor =
@@ -32,12 +33,14 @@ export type LandStepInput = {
   freeCalciumUM: number;
   previousFiberEngineeringStrain: number;
   stageFiberEngineeringStrain: number;
+  stageZetaDriveFiberEngineeringStrainRatePerSec?: number;
   dtSec: number;
   stage: IntegrationStageDescriptor;
 };
 
 export type LandStepKinematics = {
   stageFiberEngineeringStrainRatePerSec: number;
+  stageZetaDriveFiberEngineeringStrainRatePerSec: number;
 };
 
 export type LandSourceOutput = {
@@ -91,6 +94,13 @@ export function deriveLand2017StepKinematics(input: LandStepInput): LandStepKine
   return {
     stageFiberEngineeringStrainRatePerSec:
       (stageFiberEngineeringStrain - previousFiberEngineeringStrain) / dtSec,
+    stageZetaDriveFiberEngineeringStrainRatePerSec:
+      "stageZetaDriveFiberEngineeringStrainRatePerSec" in input
+        ? requireFiniteNumber(
+          input.stageZetaDriveFiberEngineeringStrainRatePerSec,
+          "LandStepInput.stageZetaDriveFiberEngineeringStrainRatePerSec",
+        )
+        : (stageFiberEngineeringStrain - previousFiberEngineeringStrain) / dtSec,
   };
 }
 
@@ -102,7 +112,7 @@ export function assertLand2017StateVectorLength(state: ArrayLike<number>, label:
 
 function rejectIndependentRateInput(input: LandStepInput): void {
   const record = input as Record<string, unknown>;
-  const forbiddenKeys = ["fiberEngineeringStrainRatePerSec", "stageFiberEngineeringStrainRatePerSec"];
+  const forbiddenKeys = ["fiberEngineeringStrainRatePerSec"];
   for (const key of forbiddenKeys) {
     if (key in record) {
       throw new Error(`LandStepInput must derive strain rate from strain history; remove ${key}`);

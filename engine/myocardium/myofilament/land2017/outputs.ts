@@ -61,6 +61,8 @@ export function evaluateLand2017ContinuousOutput(
       input.freeCalciumUM,
       input.fiberEngineeringStrain,
       input.fiberEngineeringStrainRatePerSec,
+      input.zetaDriveFiberEngineeringStrainRatePerSec
+        ?? input.fiberEngineeringStrainRatePerSec,
       sourceActiveFiberStressPa,
       stabilizationStiffnessPa,
       sourceActivePowerDensityWPerM3,
@@ -94,6 +96,8 @@ export function evaluateLand2017StepOutput(
       freeCalciumUM: input.freeCalciumUM,
       fiberEngineeringStrain: input.stageFiberEngineeringStrain,
       fiberEngineeringStrainRatePerSec: kinematics.stageFiberEngineeringStrainRatePerSec,
+      zetaDriveFiberEngineeringStrainRatePerSec:
+        kinematics.stageZetaDriveFiberEngineeringStrainRatePerSec,
     },
     parameterSet,
   );

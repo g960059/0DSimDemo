@@ -187,6 +187,12 @@ export function solveLand2017BackwardEulerSubsteps(
         input.stageFiberEngineeringStrain,
         endFraction,
       ),
+      ...(input.stageZetaDriveFiberEngineeringStrainRatePerSec !== undefined
+        ? {
+          stageZetaDriveFiberEngineeringStrainRatePerSec:
+            input.stageZetaDriveFiberEngineeringStrainRatePerSec,
+        }
+        : {}),
       dtSec: input.dtSec / substeps,
       stage: input.stage,
     };

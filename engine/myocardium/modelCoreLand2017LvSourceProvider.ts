@@ -33,7 +33,8 @@ export type ModelCoreLand2017LvCommitScheme = "BE" | "SDIRK2";
 export type ModelCoreLand2017LvKinematicsMode = "raw-wall-lambda" | "filtered-lambda-act";
 export type ModelCoreLand2017LvVelocityLengthCouplingMode =
   | "source"
-  | "ventricular-valve-load-staged-v1";
+  | "ventricular-valve-load-staged-v1"
+  | "ventricular-stateful-zeta-drive-v1";
 
 export type ModelCoreLand2017LvSourceProviderOptions = {
   readonly commitScheme?: ModelCoreLand2017LvCommitScheme;
@@ -83,6 +84,7 @@ export type ModelCoreLand2017LvProviderState = {
   readonly previousFreeCalciumUM: number | null;
   readonly previousFiberEngineeringStrain: number | null;
   readonly previousRawFiberEngineeringStrain: number | null;
+  readonly previousZetaDriveFiberEngineeringStrainRatePerSec: number | null;
   readonly previousDtSec: number | null;
   readonly lastOutput: LandSourceOutput | null;
   readonly lastSolverResidualNorm: number | null;
@@ -95,10 +97,13 @@ type LandCallInput = {
   readonly freeCalciumUM: number;
   readonly fiberEngineeringStrain: number;
   readonly fiberEngineeringStrainRatePerSec: number;
+  readonly zetaDriveFiberEngineeringStrainRatePerSec?: number;
   readonly rawFiberEngineeringStrain?: number;
   readonly rawFiberEngineeringStrainRatePerSec?: number;
   readonly velocityLengthGate?: number;
   readonly velocityLengthRateLimitHit01?: number;
+  readonly zetaDriveGate?: number;
+  readonly zetaDriveRateLimitHit01?: number;
 };
 
 export type ModelCoreLand2017LvRangeAudit = {
@@ -111,10 +116,13 @@ export type ModelCoreLand2017LvSignalAudit = {
   freeCalciumUM: ModelCoreLand2017LvRangeAudit;
   fiberEngineeringStrain: ModelCoreLand2017LvRangeAudit;
   fiberEngineeringStrainRatePerSec: ModelCoreLand2017LvRangeAudit;
+  zetaDriveFiberEngineeringStrainRatePerSec?: ModelCoreLand2017LvRangeAudit;
   rawFiberEngineeringStrain?: ModelCoreLand2017LvRangeAudit;
   rawFiberEngineeringStrainRatePerSec?: ModelCoreLand2017LvRangeAudit;
   velocityLengthGate?: ModelCoreLand2017LvRangeAudit;
   velocityLengthRateLimitHit01?: ModelCoreLand2017LvRangeAudit;
+  zetaDriveGate?: ModelCoreLand2017LvRangeAudit;
+  zetaDriveRateLimitHit01?: ModelCoreLand2017LvRangeAudit;
   sourceActiveFiberStressPa: ModelCoreLand2017LvRangeAudit;
   stabilizationStiffnessPa: ModelCoreLand2017LvRangeAudit;
   sourceActivePowerDensityWPerM3: ModelCoreLand2017LvRangeAudit;
@@ -257,6 +265,8 @@ export function land2017LvSourceOnlyProvider(
         previousRawFiberEngineeringStrain:
           previous.previousRawFiberEngineeringStrain ?? previousRawFiberEngineeringStrain,
         previousFiberEngineeringStrain,
+        previousZetaDriveFiberEngineeringStrainRatePerSec:
+          previous.previousZetaDriveFiberEngineeringStrainRatePerSec,
         dtSec: stepDtSec,
         chamberCtx: afterStep.chamberCtx,
         velocityLengthCouplingMode,
@@ -265,6 +275,12 @@ export function land2017LvSourceOnlyProvider(
         freeCalciumUM: freeCalciumUMFromInternal(afterStep.internal.c),
         previousFiberEngineeringStrain,
         stageFiberEngineeringStrain: stagedKinematics.fiberEngineeringStrain,
+        ...(stagedKinematics.zetaDriveFiberEngineeringStrainRatePerSec !== undefined
+          ? {
+            stageZetaDriveFiberEngineeringStrainRatePerSec:
+              stagedKinematics.zetaDriveFiberEngineeringStrainRatePerSec,
+          }
+          : {}),
         dtSec: stepDtSec,
         stage: { scheme: "BE", stageIndex: 0 },
       };
@@ -320,6 +336,9 @@ export function land2017LvSourceOnlyProvider(
         previousFreeCalciumUM: landInput.freeCalciumUM,
         previousFiberEngineeringStrain: landInput.stageFiberEngineeringStrain,
         previousRawFiberEngineeringStrain: stageRawFiberEngineeringStrain,
+        previousZetaDriveFiberEngineeringStrainRatePerSec:
+          stagedKinematics.zetaDriveFiberEngineeringStrainRatePerSec
+          ?? stagedKinematics.fiberEngineeringStrainRatePerSec,
         previousDtSec: stepDtSec,
         lastOutput: solved.output,
         lastSolverResidualNorm: solved.residualNorm,
@@ -406,6 +425,7 @@ function initialLandProviderState(): ModelCoreLand2017LvProviderState {
     previousFreeCalciumUM: null,
     previousFiberEngineeringStrain: null,
     previousRawFiberEngineeringStrain: null,
+    previousZetaDriveFiberEngineeringStrainRatePerSec: null,
     previousDtSec: null,
     lastOutput: null,
     lastSolverResidualNorm: null,
@@ -421,6 +441,8 @@ function cloneLandProviderState(state: ModelCoreLand2017LvProviderState): ModelC
     previousFreeCalciumUM: state.previousFreeCalciumUM,
     previousFiberEngineeringStrain: state.previousFiberEngineeringStrain,
     previousRawFiberEngineeringStrain: state.previousRawFiberEngineeringStrain,
+    previousZetaDriveFiberEngineeringStrainRatePerSec:
+      state.previousZetaDriveFiberEngineeringStrainRatePerSec,
     previousDtSec: state.previousDtSec,
     lastOutput: state.lastOutput,
     lastSolverResidualNorm: state.lastSolverResidualNorm,
@@ -436,6 +458,8 @@ function debugLandProviderState(state: ModelCoreLand2017LvProviderState) {
     previousFreeCalciumUM: state.previousFreeCalciumUM,
     previousFiberEngineeringStrain: state.previousFiberEngineeringStrain,
     previousRawFiberEngineeringStrain: state.previousRawFiberEngineeringStrain,
+    previousZetaDriveFiberEngineeringStrainRatePerSec:
+      state.previousZetaDriveFiberEngineeringStrainRatePerSec,
     previousDtSec: state.previousDtSec,
     lastSourceActiveFiberStressPa: state.lastOutput?.sourceActiveFiberStressPa ?? null,
     lastHealthFinite: state.lastOutput?.health.finite ?? null,
@@ -548,6 +572,8 @@ function landContinuousInputForCall(
     rawFiberEngineeringStrain,
     previousRawFiberEngineeringStrain: state.previousRawFiberEngineeringStrain ?? rawFiberEngineeringStrain,
     previousFiberEngineeringStrain: state.previousFiberEngineeringStrain ?? rawFiberEngineeringStrain,
+    previousZetaDriveFiberEngineeringStrainRatePerSec:
+      state.previousZetaDriveFiberEngineeringStrainRatePerSec,
     dtSec,
     chamberCtx: call.chamberCtx,
     velocityLengthCouplingMode,
@@ -559,6 +585,7 @@ function landKinematicsForRawStrain({
   rawFiberEngineeringStrain,
   previousRawFiberEngineeringStrain,
   previousFiberEngineeringStrain,
+  previousZetaDriveFiberEngineeringStrainRatePerSec,
   dtSec,
   chamberCtx,
   velocityLengthCouplingMode,
@@ -567,6 +594,7 @@ function landKinematicsForRawStrain({
   readonly rawFiberEngineeringStrain: number;
   readonly previousRawFiberEngineeringStrain: number;
   readonly previousFiberEngineeringStrain: number;
+  readonly previousZetaDriveFiberEngineeringStrainRatePerSec: number | null;
   readonly dtSec: number;
   readonly chamberCtx: ModelCoreActiveSourceProviderCall["chamberCtx"];
   readonly velocityLengthCouplingMode: ModelCoreLand2017LvVelocityLengthCouplingMode;
@@ -574,6 +602,31 @@ function landKinematicsForRawStrain({
   const boundedDtSec = Math.max(dtSec, 1e-6);
   const rawFiberEngineeringStrainRatePerSec =
     (rawFiberEngineeringStrain - previousRawFiberEngineeringStrain) / boundedDtSec;
+  if (
+    velocityLengthCouplingMode === "ventricular-stateful-zeta-drive-v1"
+    && (chamberCtx.chamber === "LV" || chamberCtx.chamber === "RV")
+  ) {
+    const zeta = statefulVentricularZetaDriveRate({
+      rawRatePerSec: rawFiberEngineeringStrainRatePerSec,
+      previousRatePerSec: previousZetaDriveFiberEngineeringStrainRatePerSec,
+      dtSec: boundedDtSec,
+      chamberCtx,
+    });
+    return {
+      freeCalciumUM,
+      fiberEngineeringStrain: rawFiberEngineeringStrain,
+      fiberEngineeringStrainRatePerSec:
+        (rawFiberEngineeringStrain - previousRawFiberEngineeringStrain) / boundedDtSec,
+      zetaDriveFiberEngineeringStrainRatePerSec: zeta.ratePerSec,
+      rawFiberEngineeringStrain,
+      rawFiberEngineeringStrainRatePerSec,
+      velocityLengthGate: 0,
+      velocityLengthRateLimitHit01: 0,
+      zetaDriveGate: zeta.gate,
+      zetaDriveRateLimitHit01: zeta.rateLimitHit01,
+    };
+  }
+
   if (
     velocityLengthCouplingMode !== "ventricular-valve-load-staged-v1"
     || (chamberCtx.chamber !== "LV" && chamberCtx.chamber !== "RV")
@@ -585,8 +638,11 @@ function landKinematicsForRawStrain({
         (rawFiberEngineeringStrain - previousFiberEngineeringStrain) / boundedDtSec,
       rawFiberEngineeringStrain,
       rawFiberEngineeringStrainRatePerSec,
+      zetaDriveFiberEngineeringStrainRatePerSec: rawFiberEngineeringStrainRatePerSec,
       velocityLengthGate: 0,
       velocityLengthRateLimitHit01: 0,
+      zetaDriveGate: 0,
+      zetaDriveRateLimitHit01: 0,
     };
   }
 
@@ -610,11 +666,50 @@ function landKinematicsForRawStrain({
     freeCalciumUM,
     fiberEngineeringStrain,
     fiberEngineeringStrainRatePerSec: stagedRatePerSec,
+    zetaDriveFiberEngineeringStrainRatePerSec: stagedRatePerSec,
     rawFiberEngineeringStrain,
     rawFiberEngineeringStrainRatePerSec,
     velocityLengthGate,
     velocityLengthRateLimitHit01,
+    zetaDriveGate: 0,
+    zetaDriveRateLimitHit01: 0,
   };
+}
+
+function statefulVentricularZetaDriveRate({
+  rawRatePerSec,
+  previousRatePerSec,
+  dtSec,
+  chamberCtx,
+}: {
+  readonly rawRatePerSec: number;
+  readonly previousRatePerSec: number | null;
+  readonly dtSec: number;
+  readonly chamberCtx: ModelCoreActiveSourceProviderCall["chamberCtx"];
+}): {
+  readonly ratePerSec: number;
+  readonly gate: number;
+  readonly rateLimitHit01: number;
+} {
+  const inletOpen = clamp01(chamberCtx.inletValveOpen01 ?? 0);
+  const outletOpen = clamp01(chamberCtx.outletValveOpen01 ?? 0);
+  const ejectionGate = outletOpen * (1 - inletOpen);
+  const inletHandoffGate = 4 * inletOpen * (1 - inletOpen);
+  const outletHandoffGate = 4 * outletOpen * (1 - outletOpen);
+  const gate = clamp01(Math.max(ejectionGate, inletHandoffGate, outletHandoffGate));
+  const chamberScale = chamberCtx.chamber === "RV" ? 0.85 : 1;
+  const shorteningCapPerSec = chamberScale * lerp(10, 3.2, gate);
+  const lengtheningCapPerSec = chamberScale * lerp(10, 2.2, gate);
+  const limitedRawRate = clampNumber(rawRatePerSec, -shorteningCapPerSec, lengtheningCapPerSec);
+  const tauSec = lerp(0.006, 0.028, gate);
+  const alpha = clamp01(dtSec / (tauSec + dtSec));
+  const previous =
+    previousRatePerSec != null && Number.isFinite(previousRatePerSec)
+      ? previousRatePerSec
+      : limitedRawRate;
+  const ratePerSec = previous + alpha * (limitedRawRate - previous);
+  const rateLimitHit01 = Math.abs(ratePerSec - rawRatePerSec) > 1e-8 ? 1 : 0;
+  return { ratePerSec, gate, rateLimitHit01 };
 }
 
 function fiberEngineeringStrainForStep(
@@ -741,10 +836,13 @@ function createLandSignalAudit(): ModelCoreLand2017LvSignalAudit {
     freeCalciumUM: emptyRangeAudit(),
     fiberEngineeringStrain: emptyRangeAudit(),
     fiberEngineeringStrainRatePerSec: emptyRangeAudit(),
+    zetaDriveFiberEngineeringStrainRatePerSec: emptyRangeAudit(),
     rawFiberEngineeringStrain: emptyRangeAudit(),
     rawFiberEngineeringStrainRatePerSec: emptyRangeAudit(),
     velocityLengthGate: emptyRangeAudit(),
     velocityLengthRateLimitHit01: emptyRangeAudit(),
+    zetaDriveGate: emptyRangeAudit(),
+    zetaDriveRateLimitHit01: emptyRangeAudit(),
     sourceActiveFiberStressPa: emptyRangeAudit(),
     stabilizationStiffnessPa: emptyRangeAudit(),
     sourceActivePowerDensityWPerM3: emptyRangeAudit(),
@@ -773,6 +871,11 @@ function recordLandSignalAuditSample(
   updateRange(audit.fiberEngineeringStrain, input.fiberEngineeringStrain);
   updateRange(audit.fiberEngineeringStrainRatePerSec, input.fiberEngineeringStrainRatePerSec);
   updateRange(
+    audit.zetaDriveFiberEngineeringStrainRatePerSec
+      ?? (audit.zetaDriveFiberEngineeringStrainRatePerSec = emptyRangeAudit()),
+    input.zetaDriveFiberEngineeringStrainRatePerSec ?? input.fiberEngineeringStrainRatePerSec,
+  );
+  updateRange(
     audit.rawFiberEngineeringStrain ?? (audit.rawFiberEngineeringStrain = emptyRangeAudit()),
     input.rawFiberEngineeringStrain ?? input.fiberEngineeringStrain,
   );
@@ -785,6 +888,11 @@ function recordLandSignalAuditSample(
   updateRange(
     audit.velocityLengthRateLimitHit01 ?? (audit.velocityLengthRateLimitHit01 = emptyRangeAudit()),
     input.velocityLengthRateLimitHit01 ?? 0,
+  );
+  updateRange(audit.zetaDriveGate ?? (audit.zetaDriveGate = emptyRangeAudit()), input.zetaDriveGate ?? 0);
+  updateRange(
+    audit.zetaDriveRateLimitHit01 ?? (audit.zetaDriveRateLimitHit01 = emptyRangeAudit()),
+    input.zetaDriveRateLimitHit01 ?? 0,
   );
   updateRange(audit.sourceActiveFiberStressPa, output.sourceActiveFiberStressPa);
   updateRange(audit.stabilizationStiffnessPa, output.stabilizationStiffnessPa);

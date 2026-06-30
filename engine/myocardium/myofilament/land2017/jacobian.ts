@@ -36,6 +36,8 @@ export function writeLand2017BackwardEulerResidualJacobian(
     freeCalciumUM: input.freeCalciumUM,
     fiberEngineeringStrain: input.stageFiberEngineeringStrain,
     fiberEngineeringStrainRatePerSec: kinematics.stageFiberEngineeringStrainRatePerSec,
+    zetaDriveFiberEngineeringStrainRatePerSec:
+      kinematics.stageZetaDriveFiberEngineeringStrainRatePerSec,
   };
   const p = parameterSet.values;
   const d = parameterSet.derived;
