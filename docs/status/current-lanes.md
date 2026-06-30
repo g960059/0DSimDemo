@@ -464,6 +464,22 @@ mode to runtime/default. Carry the result as evidence that local accepted-state
 AV valve complementarity is insufficient by itself; the next surface should
 change the chamber pressure/valve-load contract rather than tune LandAtrial,
 qDot/root/Zc/valve thresholds, Tref, or source-stress.
+Phase 5CP records `pressure-load-contract-phase5cp-result-v1`, testing an
+off-by-default ActiveSourcePressureContractV2 bounded active pressure geometry
+gain over the same representative morphology envelope, both alone and combined
+with the Phase 5CO accepted-state AV fixed-point complementarity component.
+Configuration integrity remains clean (`0/7` mismatches), but the scalar
+pressure/load contract does not beat the 5CO baseline: the best pressure
+contract candidate
+`bounded-geometry-gain115-accepted-complementarity2-legacy-atria` reaches
+gross 4/8 (LV 7/8, RV 7/8, MVF 7/8, TVF 6/8, output 7/8), below
+`accepted-av-complementarity2-legacy-atria` at gross 5/8; all-chamber user-0
+transfer reaches only gross 2/8 with residuals dominated by valve-diode/qDot
+classification (`10/16`). Do not adopt bounded active-pressure gain, widen the
+gain cap, or combine more scalar caps to buy morphology. Treat Phase 5CP as a
+no-go for local pressure-gain capping and move the next surface to a broader
+chamber pressure/valve/load transaction that owns chamber pressure, valve flow,
+accepted volume, and source-state commit together.
 
 ## Lane table
 
@@ -872,11 +888,18 @@ advances the current lane. They are evidence anchors, not current gates.
    valve-diode/qDot-classified failures. Treat accepted-state local valve
    complementarity as exhausted for now. The next surface should change the
    chamber pressure/valve-load contract itself.
+   Phase 5CP then tests bounded active-pressure geometry gain as that
+   pressure/load contract surface. It is also not enough: best bounded
+   pressure-contract legacy-atria candidate is gross 4/8, below the Phase 5CO
+   accepted-complementarity baseline at 5/8, and the all-chamber user-0 transfer
+   remains only 2/8. Treat scalar active pressure gain capping as exhausted for
+   now; the next surface must be a broader chamber pressure/valve/load
+   transaction, not another local pressure-gain cap.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
-   wrappers, reference-geometry pressure mapping, local LV/RV transaction
-   wiring, or LandAtrial parameter tuning to hide the PV double-dome and AV
-   inflow artifacts.
+   wrappers, reference-geometry pressure mapping, bounded pressure-gain capping,
+   local LV/RV transaction wiring, or LandAtrial parameter tuning to hide the PV
+   double-dome and AV inflow artifacts.
 2. Land plus sourced root/Zc is now the user-0 staged all-chamber runtime
    default after owner GO through Phase 5BK. Do not delete legacy active-stress
    yet; keep it as frozen reference, debug fallback, and rollback while
