@@ -222,6 +222,9 @@ export type ModelCoreExperimentalVentricularChamberTransactionStepOptions = {
   readonly relaxation?: number;
   readonly providerStateCouplingChambers?: readonly ("LV" | "RV")[];
   readonly includeAdjacentLoadNodes?: boolean;
+  readonly avValveBoundaryMode?: "current-diode" | "bounded-deceleration";
+  readonly avValveBoundaryTargetValves?: readonly ("MV" | "TV")[];
+  readonly avValveBoundaryTauSec?: number;
 };
 
 // Diagnostic-only Phase 5CC hook. This surface measured as not-supported and
@@ -759,6 +762,11 @@ function normalizeExperimentalVentricularChamberTransactionStep(
     relaxation,
     providerStateCouplingChambers,
     includeAdjacentLoadNodes: options.includeAdjacentLoadNodes === true,
+    avValveBoundaryMode: options.avValveBoundaryMode ?? "current-diode",
+    avValveBoundaryTargetValves: options.avValveBoundaryTargetValves
+      ? [...new Set(options.avValveBoundaryTargetValves)]
+      : ["MV", "TV"],
+    avValveBoundaryTauSec: clamp(options.avValveBoundaryTauSec ?? 0.025, 0.002, 0.12),
   };
 }
 
@@ -1408,6 +1416,7 @@ export class ModelCore {
         "LV",
         relaxation,
         options.includeAdjacentLoadNodes === true,
+        options,
       );
       this.applyVentricularChamberTransactionSide(
         next,
@@ -1418,6 +1427,7 @@ export class ModelCore {
         "RV",
         relaxation,
         options.includeAdjacentLoadNodes === true,
+        options,
       );
       this.sanitizeState(next);
       candidate = next;
@@ -1438,6 +1448,7 @@ export class ModelCore {
     chamber: "LV" | "RV",
     relaxation: number,
     includeAdjacentLoadNodes: boolean,
+    options: ModelCoreExperimentalVentricularChamberTransactionStepOptions,
   ): void {
     const ventNode = chamber === "LV" ? "LV" : "RV";
     const inlet = chamber === "LV" ? "MV" : "TV";
@@ -1445,8 +1456,8 @@ export class ModelCore {
     const ventIndex = this.idx.node[ventNode];
     const inletIndex = this.idx.q[inlet];
     const outletIndex = this.idx.q[outlet];
-    const inletQNext = this.dynamicEdgeQNextForCandidate(inlet, candidate, pack, dt);
-    const outletQNext = this.dynamicEdgeQNextForCandidate(outlet, candidate, pack, dt);
+    const inletQNext = this.dynamicEdgeQNextForCandidate(inlet, candidate, pack, dt, options);
+    const outletQNext = this.dynamicEdgeQNextForCandidate(outlet, candidate, pack, dt, options);
     if (includeAdjacentLoadNodes) {
       const balances = this.chamberTransactionBalances(candidate, pack, {
         [inlet]: inletQNext,
@@ -1496,6 +1507,7 @@ export class ModelCore {
     x: Float64Array,
     pack: PressurePack,
     dt: number,
+    transactionOptions?: ModelCoreExperimentalVentricularChamberTransactionStepOptions,
   ): number {
     const e = this.edges[this.edgeIndex(edgeName)];
     const qi = this.idx.q[edgeName];
@@ -1517,10 +1529,14 @@ export class ModelCore {
       ? this.aorticValveQNext(q, Pu - PdEff, R, B, L, h)
       : this.currentLossQNext(q, Pu - PdEff, R, B, L, h);
     if (valveName && this.valveLeakArea(valveName, e) <= 1e-9 && qNext < 0) {
-      qNext = this.applyValveDiodeConstraint(
+      qNext = this.applyTransactionAvValveBoundaryConstraint(
+        edgeName,
         valveName,
+        q,
         qNext,
         clamp(x[this.idx.xi[valveName]], 0, 1),
+        h,
+        transactionOptions,
       );
     }
     if (e.name === "AoV") qNext = this.applyAorticFlowClamp(qNext);
@@ -1534,6 +1550,28 @@ export class ModelCore {
       : DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
     const qDotPost = clamp(qDotRaw, -qDotNegativeLimit, qDotPositiveLimit);
     return q + h * qDotPost;
+  }
+
+  private applyTransactionAvValveBoundaryConstraint(
+    edgeName: DynamicEdgeName,
+    valveName: ValveName,
+    qCurrent: number,
+    qNextPreBoundary: number,
+    openness01: number,
+    dt: number,
+    options: ModelCoreExperimentalVentricularChamberTransactionStepOptions | undefined,
+  ): number {
+    if (
+      (edgeName === "MV" || edgeName === "TV")
+      && options?.avValveBoundaryMode === "bounded-deceleration"
+      && (options.avValveBoundaryTargetValves ?? ["MV", "TV"]).includes(edgeName)
+    ) {
+      const tau = Math.max(options.avValveBoundaryTauSec ?? 0.025, dt);
+      const opennessScale = 0.25 + 0.75 * smoothstep01(openness01);
+      const decay = Math.exp(-dt / Math.max(tau * opennessScale, 1e-6));
+      return Math.max(0, Math.max(qNextPreBoundary, qCurrent * decay));
+    }
+    return this.applyValveDiodeConstraint(valveName, qNextPreBoundary, openness01);
   }
 
   private stepUnsupportedDiagnosticCoupledNewtonProviderState(
