@@ -193,7 +193,7 @@ Current owner priorities:
 - Studio/Workbench mock work is owner-led; model lanes should focus on
   mathematical model and engine evidence.
 
-### Phase 5BU-5BW Gross Morphology Override
+### Phase 5BU-5BX Gross Morphology Override
 
 Phase 5BU supersedes the lane-table "DynamicValveTransitionV1 next" wording
 below. It records `dynamic-valve-local-bench-phase5bu-result-v1`, a local
@@ -239,6 +239,20 @@ LandAtrial tuning. The next model surface should be a source-state-preserving
 ventricular `ChamberShell`/coupled-step pressure-volume/valve-load design over
 the same deterministic morphology envelope. Do not tune root/Zc, qDot, valves,
 Tref, source-stress, or LandAtrial parameters to hide these failures.
+Phase 5BX implements that local `VentricularChamberShellV1` residual surface
+and records `ventricular-chamber-shell-phase5bx-result-v1`. The shell solves
+chamber pressure/volume plus inlet/outlet valve flow in one local backward
+step while preserving live Land source-state inputs, and compares live source
+stress versus source-state SeriesElasticV1 under current-like and
+DynamicValveTransitionV1 valve modes. It is numerically stable and preserves
+output in the best candidate, but still does not solve morphology: live is
+0/14 measured side gross pass, and the best shell candidate
+`shell-source-state-se-current-valves` reaches only 1/14 gross pass, with PV
+5/14, AV inflow 2/14, output 14/14, and solve fraction 1.0. Do not wire this
+local shell into runtime defaults. Treat the remaining blocker as requiring a
+larger graph-level coupled step, a different chamber pressure adapter, or a
+more structural ventricular mechanics integration before LandAtrial tuning
+resumes.
 
 ## Lane table
 
