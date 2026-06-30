@@ -879,8 +879,9 @@ function sourceStressForPressureAdapterCall(
   rawSourceStressPa: number,
   mode: ModelCoreLand2017LvSourceStressPressureAdapterMode,
 ): number {
-  if (mode === "direct") return finiteNonnegativeOr(rawSourceStressPa, 0);
-  const raw = finiteNonnegativeOr(rawSourceStressPa, 0);
+  if (mode === "direct") return rawSourceStressPa;
+  if (!Number.isFinite(rawSourceStressPa) || rawSourceStressPa < 0) return rawSourceStressPa;
+  const raw = rawSourceStressPa;
   const filtered = finiteNonnegativeOr(call.internal.tensionPa, raw);
   if (mode === "tension-state-filter-v1") return filtered;
   const gate = ventricularTransitionPressureAdapterGate(call);

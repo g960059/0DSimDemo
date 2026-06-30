@@ -49,13 +49,8 @@ type PointId =
 type VariantId =
   | "legacy-frozen-reference"
   | "current-user0-default"
-  | "source-filter-fast-user0"
-  | "source-filter-medium-user0"
   | "source-filter-medium-legacy-atria"
-  | "source-filter-medium-user0-graph-lvrv"
   | "temporal-substep2-user0"
-  | "temporal-substep4-user0"
-  | "source-filter-medium-user0-substep2"
   | "source-filter-medium-legacy-atria-substep2";
 
 type PointSpec = {
@@ -131,6 +126,7 @@ type VariantSummary = {
 type Classification = {
   readonly currentUser0GrossPass: string;
   readonly bestSourceAdapterVariant: string;
+  readonly bestTemporalSubstepVariant: string;
   readonly sourceStressAdapterDecision:
     | "supported-for-user0-runtime-default"
     | "partial-structural-signal"
@@ -195,7 +191,7 @@ export function buildSourceStressPressureAdapterPhase5BZEvidence(): Evidence {
   ] as const;
   const results = variants.flatMap((variant) => POINTS.map((point) => runPoint(variant, point)));
   const variantSummaries = variants.map((variant) => summarizeVariant(variant, results));
-  const classification = classify(variantSummaries, results);
+  const classification = classify(variants, variantSummaries, results);
   const evidenceWithoutHash = {
     schemaVersion: 1,
     id: SOURCE_STRESS_PRESSURE_ADAPTER_PHASE5BZ_ID,
@@ -265,71 +261,6 @@ function currentUser0Variant(): VariantSpec {
       LV: instrumentationByChamber.LV,
       RV: instrumentationByChamber.RV,
     },
-  };
-}
-
-function sourceFilterUser0Variant(input: {
-  readonly id: VariantId;
-  readonly label: string;
-  readonly hypothesis: string;
-  readonly riseSec: number;
-  readonly fallSec: number;
-  readonly graphCoupled?: boolean;
-  readonly temporalSubdivisions?: number;
-}): VariantSpec {
-  const resolved = resolveModelCoreRuntimeActiveSource({
-    mode: MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE,
-    rootZcMode: MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_DEFAULT_MODE,
-    runtimeParams: DEFAULT_PARAMS,
-  });
-  const { providers, instrumentationByChamber } = filteredVentricularProviders(
-    `phase5bz-${input.id}`,
-    input.riseSec,
-    input.fallSec,
-  );
-  const graphCoupledStep = input.graphCoupled
-    ? {
-      mechanismId: "graph-coupled-active-provider-step-v1:phase5bz-source-filter-lvrv-iter2",
-      iterations: 2,
-      relaxation: 1,
-    }
-    : null;
-  const temporalSubstep = input.temporalSubdivisions
-    ? {
-      mechanismId: `temporal-substep-v1:phase5bz-${input.id}`,
-      subdivisions: input.temporalSubdivisions,
-    }
-    : null;
-  return {
-    id: input.id,
-    label: input.label,
-    hypothesis: input.hypothesis,
-    closurePath: "current-user0-all-chamber-landatrial",
-    sourceStressPressureAdapter: {
-      mode: "tension-state-filter-v1",
-      riseSec: input.riseSec,
-      fallSec: input.fallSec,
-    },
-    graphCoupledStep,
-    temporalSubstep,
-    experimentalOptions: {
-      ...resolved.experimentalOptions,
-      activeSourceProviders: {
-        ...resolved.experimentalOptions.activeSourceProviders,
-        LV: providers.LV,
-        RV: providers.RV,
-      },
-      ...(graphCoupledStep
-        ? {
-          graphCoupledStep: {
-            ...graphCoupledStep,
-            providerStateCouplingChambers: ["LV", "RV"] as const,
-          },
-        }
-        : {}),
-      ...(temporalSubstep ? { temporalSubstep } : {}),
-    },
-    instrumentationByChamber,
   };
 }
 
@@ -579,27 +510,33 @@ function summarizeVariant(variant: VariantSpec, results: readonly PointResult[])
   };
 }
 
-function classify(summaries: readonly VariantSummary[], results: readonly PointResult[]): Classification {
+function classify(
+  variants: readonly VariantSpec[],
+  summaries: readonly VariantSummary[],
+  results: readonly PointResult[],
+): Classification {
   const current = requiredSummary(summaries, "current-user0-default");
-  const candidates = summaries.filter((summary) =>
-    summary.variantId !== "legacy-frozen-reference" && summary.variantId !== "current-user0-default"
+  const variantById = new Map(variants.map((variant) => [variant.id, variant]));
+  const sourceAdapterCandidates = summaries.filter((summary) =>
+    Boolean(variantById.get(summary.variantId)?.sourceStressPressureAdapter)
   );
-  const best = [...candidates].sort((a, b) => {
-    const gross = b.grossPassCount - a.grossPassCount;
-    if (gross !== 0) return gross;
-    const badges =
-      (b.lvPvOkCount + b.rvPvOkCount + b.mvfOkCount + b.tvfOkCount)
-      - (a.lvPvOkCount + a.rvPvOkCount + a.mvfOkCount + a.tvfOkCount);
-    if (badges !== 0) return badges;
-    return b.outputPreservedCount - a.outputPreservedCount;
-  })[0];
+  const temporalSubstepCandidates = summaries.filter((summary) =>
+    Boolean(variantById.get(summary.variantId)?.temporalSubstep)
+  );
+  const bestSourceAdapter = bestSummary(sourceAdapterCandidates);
+  const bestTemporalSubstep = bestSummary(temporalSubstepCandidates);
   const currentNormal = requiredResult(results, "current-user0-default", "normal-hr75");
-  const bestNormal = best ? requiredResult(results, best.variantId, "normal-hr75") : null;
-  const fullPass = best?.grossPassCount === POINTS.length && best.settledOkCount === POINTS.length;
-  const partialSignal = Boolean(best && best.grossPassCount > current.grossPassCount);
+  const bestSourceAdapterNormal = bestSourceAdapter ? requiredResult(results, bestSourceAdapter.variantId, "normal-hr75") : null;
+  const fullPass = bestSourceAdapter?.grossPassCount === POINTS.length && bestSourceAdapter.settledOkCount === POINTS.length;
+  const partialSignal = Boolean(bestSourceAdapter && bestSourceAdapter.grossPassCount > current.grossPassCount);
   return {
     currentUser0GrossPass: `${current.grossPassCount}/${POINTS.length}`,
-    bestSourceAdapterVariant: best ? `${best.variantId}:${best.grossPassCount}/${POINTS.length}` : "none",
+    bestSourceAdapterVariant: bestSourceAdapter
+      ? `${bestSourceAdapter.variantId}:${bestSourceAdapter.grossPassCount}/${POINTS.length}`
+      : "none",
+    bestTemporalSubstepVariant: bestTemporalSubstep
+      ? `${bestTemporalSubstep.variantId}:${bestTemporalSubstep.grossPassCount}/${POINTS.length}`
+      : "none",
     sourceStressAdapterDecision: fullPass
       ? "supported-for-user0-runtime-default"
       : partialSignal
@@ -607,11 +544,24 @@ function classify(summaries: readonly VariantSummary[], results: readonly PointR
         : "not-supported",
     notes: [
       `Current user-0 normal failed labels: ${currentNormal.failedLabels.join(", ") || "none"}.`,
-      `Best source-adapter normal failed labels: ${bestNormal?.failedLabels.join(", ") || "none"}.`,
-      `Best source-adapter gross pass count: ${best?.grossPassCount ?? 0}/${POINTS.length}.`,
-      "Source-stress adapter adoption requires full representative morphology envelope pass, not pressure smoothing alone.",
+      `Best source-adapter normal failed labels: ${bestSourceAdapterNormal?.failedLabels.join(", ") || "none"}.`,
+      `Best source-adapter gross pass count: ${bestSourceAdapter?.grossPassCount ?? 0}/${POINTS.length}.`,
+      `Best temporal-substep gross pass count: ${bestTemporalSubstep?.grossPassCount ?? 0}/${POINTS.length}.`,
+      "Source-stress adapter adoption requires full representative morphology envelope pass, not pressure smoothing or temporal substepping alone.",
     ],
   };
+}
+
+function bestSummary(summaries: readonly VariantSummary[]): VariantSummary | null {
+  return [...summaries].sort((a, b) => {
+    const gross = b.grossPassCount - a.grossPassCount;
+    if (gross !== 0) return gross;
+    const badges =
+      (b.lvPvOkCount + b.rvPvOkCount + b.mvfOkCount + b.tvfOkCount)
+      - (a.lvPvOkCount + a.rvPvOkCount + a.mvfOkCount + a.tvfOkCount);
+    if (badges !== 0) return badges;
+    return b.outputPreservedCount - a.outputPreservedCount;
+  })[0] ?? null;
 }
 
 function recommendedNext(classification: Classification): readonly string[] {

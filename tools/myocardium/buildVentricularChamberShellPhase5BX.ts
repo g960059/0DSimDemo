@@ -566,7 +566,7 @@ function replayShellVariant(
     );
     shell = step.nextState;
     out.push({
-      t: entry.sample.t,
+      t: entry.trace.after.tSec,
       theta: phaseOf(entry.sample),
       volumeMl: step.volumeMl,
       liveVolumeMl: liveVolume,

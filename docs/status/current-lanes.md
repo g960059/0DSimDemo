@@ -252,7 +252,7 @@ longer skipped, and runtime-shadow support thresholds are based on measured
 side counts instead of fixed 14/7 constants. After rerun, live remains 0/14
 measured side gross pass and the best shell candidate
 `shell-source-state-se-current-valves` is also 0/14, with PV 2/14, AV inflow
-1/14, output preserved 0/14, and solve fraction 1.0. Do not use the older
+1/14, output preserved 10/14, and solve fraction 1.0. Do not use the older
 "output 14/14" 5BX signal to justify this local shell. Do not wire this local
 shell into runtime defaults. Treat the remaining blocker as requiring either a
 source-state/pressure-adapter contract redesign or a larger coupled mechanics

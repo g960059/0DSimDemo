@@ -735,52 +735,32 @@
     {
       "variantId": "source-filter-medium-legacy-atria",
       "pointId": "normal-hr75",
-      "settled": true,
-      "settleReason": "converged",
-      "healthStatus": "failed",
+      "settled": false,
+      "settleReason": "exception",
+      "healthStatus": "exception",
       "grossVentricularMorphologyOk": false,
-      "morphologyStatus": "failed",
+      "morphologyStatus": "not-measured",
       "failedLabels": [
-        "TVF",
-        "LA pressure timing",
-        "RA pressure timing"
+        "source active-fiber stress must be nonnegative"
       ],
-      "badges": {
-        "lvPv": "ok",
-        "rvPv": "ok",
-        "laPv": "ok",
-        "raPv": "ok",
-        "mvf": "ok",
-        "tvf": "failed",
-        "lapWaveform": "failed",
-        "rapWaveform": "failed"
-      },
-      "metrics": {
-        "AoPMean": 143.65451,
-        "PAPMean": 19.838719,
-        "CO_L": 5.649727,
-        "CO_R": 1.703063,
-        "LAPMean": 12.988499,
-        "RAPMean": 1.360467,
-        "EF_LApprox": 0.584076,
-        "EF_RApprox": 0.51617
-      },
+      "badges": null,
+      "metrics": null,
       "landSolveFailures": {
         "LV": 0,
         "RV": 0
       },
-      "errorMessage": null
+      "errorMessage": "source active-fiber stress must be nonnegative"
     },
     {
       "variantId": "source-filter-medium-legacy-atria",
       "pointId": "normal-hr90",
       "settled": false,
-      "settleReason": "cap",
-      "healthStatus": "warning",
+      "settleReason": "exception",
+      "healthStatus": "exception",
       "grossVentricularMorphologyOk": false,
       "morphologyStatus": "not-measured",
       "failedLabels": [
-        "not-measured"
+        "source active-fiber stress must be nonnegative"
       ],
       "badges": null,
       "metrics": null,
@@ -788,59 +768,37 @@
         "LV": 0,
         "RV": 0
       },
-      "errorMessage": null
+      "errorMessage": "source active-fiber stress must be nonnegative"
     },
     {
       "variantId": "source-filter-medium-legacy-atria",
       "pointId": "low-preload-hr75",
-      "settled": true,
-      "settleReason": "converged",
-      "healthStatus": "failed",
+      "settled": false,
+      "settleReason": "exception",
+      "healthStatus": "exception",
       "grossVentricularMorphologyOk": false,
-      "morphologyStatus": "failed",
+      "morphologyStatus": "not-measured",
       "failedLabels": [
-        "RV PV loop",
-        "MVF",
-        "TVF",
-        "LA pressure timing",
-        "RA pressure timing"
+        "source active-fiber stress must be nonnegative"
       ],
-      "badges": {
-        "lvPv": "ok",
-        "rvPv": "failed",
-        "laPv": "ok",
-        "raPv": "ok",
-        "mvf": "failed",
-        "tvf": "failed",
-        "lapWaveform": "failed",
-        "rapWaveform": "failed"
-      },
-      "metrics": {
-        "AoPMean": 139.355016,
-        "PAPMean": 9.894992,
-        "CO_L": 12.121886,
-        "CO_R": 0,
-        "LAPMean": 4.231213,
-        "RAPMean": 0.806428,
-        "EF_LApprox": 0.969766,
-        "EF_RApprox": 0.609319
-      },
+      "badges": null,
+      "metrics": null,
       "landSolveFailures": {
         "LV": 0,
         "RV": 0
       },
-      "errorMessage": null
+      "errorMessage": "source active-fiber stress must be nonnegative"
     },
     {
       "variantId": "source-filter-medium-legacy-atria",
       "pointId": "high-preload-hr75",
       "settled": false,
-      "settleReason": "cap",
-      "healthStatus": "failed",
+      "settleReason": "exception",
+      "healthStatus": "exception",
       "grossVentricularMorphologyOk": false,
       "morphologyStatus": "not-measured",
       "failedLabels": [
-        "not-measured"
+        "source active-fiber stress must be nonnegative"
       ],
       "badges": null,
       "metrics": null,
@@ -848,18 +806,18 @@
         "LV": 0,
         "RV": 0
       },
-      "errorMessage": null
+      "errorMessage": "source active-fiber stress must be nonnegative"
     },
     {
       "variantId": "source-filter-medium-legacy-atria",
       "pointId": "systemic-afterload-high-hr75",
       "settled": false,
-      "settleReason": "cap",
-      "healthStatus": "failed",
+      "settleReason": "exception",
+      "healthStatus": "exception",
       "grossVentricularMorphologyOk": false,
       "morphologyStatus": "not-measured",
       "failedLabels": [
-        "not-measured"
+        "source active-fiber stress must be nonnegative"
       ],
       "badges": null,
       "metrics": null,
@@ -867,47 +825,26 @@
         "LV": 0,
         "RV": 0
       },
-      "errorMessage": null
+      "errorMessage": "source active-fiber stress must be nonnegative"
     },
     {
       "variantId": "source-filter-medium-legacy-atria",
       "pointId": "pulmonary-afterload-high-hr75",
-      "settled": true,
-      "settleReason": "converged",
-      "healthStatus": "failed",
+      "settled": false,
+      "settleReason": "exception",
+      "healthStatus": "exception",
       "grossVentricularMorphologyOk": false,
-      "morphologyStatus": "failed",
+      "morphologyStatus": "not-measured",
       "failedLabels": [
-        "RA PV loop",
-        "TVF",
-        "LA pressure timing",
-        "RA pressure timing"
+        "source active-fiber stress must be nonnegative"
       ],
-      "badges": {
-        "lvPv": "ok",
-        "rvPv": "ok",
-        "laPv": "ok",
-        "raPv": "failed",
-        "mvf": "ok",
-        "tvf": "failed",
-        "lapWaveform": "failed",
-        "rapWaveform": "failed"
-      },
-      "metrics": {
-        "AoPMean": 152.695261,
-        "PAPMean": 31.355741,
-        "CO_L": 13.922921,
-        "CO_R": 15.839223,
-        "LAPMean": 9.072131,
-        "RAPMean": 2.015712,
-        "EF_LApprox": 0.976581,
-        "EF_RApprox": 0.974349
-      },
+      "badges": null,
+      "metrics": null,
       "landSolveFailures": {
         "LV": 0,
         "RV": 0
       },
-      "errorMessage": null
+      "errorMessage": "source active-fiber stress must be nonnegative"
     },
     {
       "variantId": "source-filter-medium-legacy-atria",
@@ -953,12 +890,12 @@
       "variantId": "source-filter-medium-legacy-atria",
       "pointId": "contractility-high-hr75",
       "settled": false,
-      "settleReason": "cap",
-      "healthStatus": "failed",
+      "settleReason": "exception",
+      "healthStatus": "exception",
       "grossVentricularMorphologyOk": false,
       "morphologyStatus": "not-measured",
       "failedLabels": [
-        "not-measured"
+        "source active-fiber stress must be nonnegative"
       ],
       "badges": null,
       "metrics": null,
@@ -966,7 +903,7 @@
         "LV": 0,
         "RV": 0
       },
-      "errorMessage": null
+      "errorMessage": "source active-fiber stress must be nonnegative"
     },
     {
       "variantId": "temporal-substep2-user0",
@@ -1033,14 +970,14 @@
         "rapWaveform": "failed"
       },
       "metrics": {
-        "AoPMean": 84.945332,
-        "PAPMean": 16.530115,
-        "CO_L": 5.31203,
-        "CO_R": 5.269677,
-        "LAPMean": 7.561932,
-        "RAPMean": 3.572725,
-        "EF_LApprox": 0.460357,
-        "EF_RApprox": 0.419718
+        "AoPMean": 84.945737,
+        "PAPMean": 16.530479,
+        "CO_L": 5.312058,
+        "CO_R": 5.269695,
+        "LAPMean": 7.562259,
+        "RAPMean": 3.572646,
+        "EF_LApprox": 0.460356,
+        "EF_RApprox": 0.419717
       },
       "landSolveFailures": {
         "LV": 0,
@@ -1296,53 +1233,32 @@
     {
       "variantId": "source-filter-medium-legacy-atria-substep2",
       "pointId": "normal-hr75",
-      "settled": true,
-      "settleReason": "converged",
-      "healthStatus": "failed",
+      "settled": false,
+      "settleReason": "exception",
+      "healthStatus": "exception",
       "grossVentricularMorphologyOk": false,
-      "morphologyStatus": "failed",
+      "morphologyStatus": "not-measured",
       "failedLabels": [
-        "RA PV loop",
-        "TVF",
-        "LA pressure timing",
-        "RA pressure timing"
+        "source active-fiber stress must be nonnegative"
       ],
-      "badges": {
-        "lvPv": "ok",
-        "rvPv": "ok",
-        "laPv": "ok",
-        "raPv": "failed",
-        "mvf": "ok",
-        "tvf": "failed",
-        "lapWaveform": "failed",
-        "rapWaveform": "failed"
-      },
-      "metrics": {
-        "AoPMean": 149.671761,
-        "PAPMean": 31.553041,
-        "CO_L": 13.27682,
-        "CO_R": 16.021486,
-        "LAPMean": 10.366079,
-        "RAPMean": 1.985322,
-        "EF_LApprox": 0.976858,
-        "EF_RApprox": 0.974089
-      },
+      "badges": null,
+      "metrics": null,
       "landSolveFailures": {
         "LV": 0,
         "RV": 0
       },
-      "errorMessage": null
+      "errorMessage": "source active-fiber stress must be nonnegative"
     },
     {
       "variantId": "source-filter-medium-legacy-atria-substep2",
       "pointId": "normal-hr90",
       "settled": false,
-      "settleReason": "cap",
-      "healthStatus": "failed",
+      "settleReason": "exception",
+      "healthStatus": "exception",
       "grossVentricularMorphologyOk": false,
       "morphologyStatus": "not-measured",
       "failedLabels": [
-        "not-measured"
+        "source active-fiber stress must be nonnegative"
       ],
       "badges": null,
       "metrics": null,
@@ -1350,18 +1266,18 @@
         "LV": 0,
         "RV": 0
       },
-      "errorMessage": null
+      "errorMessage": "source active-fiber stress must be nonnegative"
     },
     {
       "variantId": "source-filter-medium-legacy-atria-substep2",
       "pointId": "low-preload-hr75",
       "settled": false,
-      "settleReason": "cap",
-      "healthStatus": "failed",
+      "settleReason": "exception",
+      "healthStatus": "exception",
       "grossVentricularMorphologyOk": false,
       "morphologyStatus": "not-measured",
       "failedLabels": [
-        "not-measured"
+        "source active-fiber stress must be nonnegative"
       ],
       "badges": null,
       "metrics": null,
@@ -1369,18 +1285,18 @@
         "LV": 0,
         "RV": 0
       },
-      "errorMessage": null
+      "errorMessage": "source active-fiber stress must be nonnegative"
     },
     {
       "variantId": "source-filter-medium-legacy-atria-substep2",
       "pointId": "high-preload-hr75",
       "settled": false,
-      "settleReason": "cap",
-      "healthStatus": "warning",
+      "settleReason": "exception",
+      "healthStatus": "exception",
       "grossVentricularMorphologyOk": false,
       "morphologyStatus": "not-measured",
       "failedLabels": [
-        "not-measured"
+        "source active-fiber stress must be nonnegative"
       ],
       "badges": null,
       "metrics": null,
@@ -1388,18 +1304,18 @@
         "LV": 0,
         "RV": 0
       },
-      "errorMessage": null
+      "errorMessage": "source active-fiber stress must be nonnegative"
     },
     {
       "variantId": "source-filter-medium-legacy-atria-substep2",
       "pointId": "systemic-afterload-high-hr75",
       "settled": false,
-      "settleReason": "cap",
-      "healthStatus": "failed",
+      "settleReason": "exception",
+      "healthStatus": "exception",
       "grossVentricularMorphologyOk": false,
       "morphologyStatus": "not-measured",
       "failedLabels": [
-        "not-measured"
+        "source active-fiber stress must be nonnegative"
       ],
       "badges": null,
       "metrics": null,
@@ -1407,47 +1323,26 @@
         "LV": 0,
         "RV": 0
       },
-      "errorMessage": null
+      "errorMessage": "source active-fiber stress must be nonnegative"
     },
     {
       "variantId": "source-filter-medium-legacy-atria-substep2",
       "pointId": "pulmonary-afterload-high-hr75",
-      "settled": true,
-      "settleReason": "converged",
-      "healthStatus": "failed",
+      "settled": false,
+      "settleReason": "exception",
+      "healthStatus": "exception",
       "grossVentricularMorphologyOk": false,
-      "morphologyStatus": "failed",
+      "morphologyStatus": "not-measured",
       "failedLabels": [
-        "RA PV loop",
-        "TVF",
-        "LA pressure timing",
-        "RA pressure timing"
+        "source active-fiber stress must be nonnegative"
       ],
-      "badges": {
-        "lvPv": "ok",
-        "rvPv": "ok",
-        "laPv": "ok",
-        "raPv": "failed",
-        "mvf": "ok",
-        "tvf": "failed",
-        "lapWaveform": "failed",
-        "rapWaveform": "failed"
-      },
-      "metrics": {
-        "AoPMean": 151.477173,
-        "PAPMean": 30.638155,
-        "CO_L": 13.836187,
-        "CO_R": 15.6821,
-        "LAPMean": 8.600036,
-        "RAPMean": 2.01176,
-        "EF_LApprox": 0.976401,
-        "EF_RApprox": 0.974141
-      },
+      "badges": null,
+      "metrics": null,
       "landSolveFailures": {
         "LV": 0,
         "RV": 0
       },
-      "errorMessage": null
+      "errorMessage": "source active-fiber stress must be nonnegative"
     },
     {
       "variantId": "source-filter-medium-legacy-atria-substep2",
@@ -1492,42 +1387,21 @@
     {
       "variantId": "source-filter-medium-legacy-atria-substep2",
       "pointId": "contractility-high-hr75",
-      "settled": true,
-      "settleReason": "converged",
-      "healthStatus": "failed",
+      "settled": false,
+      "settleReason": "exception",
+      "healthStatus": "exception",
       "grossVentricularMorphologyOk": false,
-      "morphologyStatus": "failed",
+      "morphologyStatus": "not-measured",
       "failedLabels": [
-        "RA PV loop",
-        "TVF",
-        "LA pressure timing",
-        "RA pressure timing"
+        "source active-fiber stress must be nonnegative"
       ],
-      "badges": {
-        "lvPv": "ok",
-        "rvPv": "ok",
-        "laPv": "ok",
-        "raPv": "failed",
-        "mvf": "ok",
-        "tvf": "failed",
-        "lapWaveform": "failed",
-        "rapWaveform": "failed"
-      },
-      "metrics": {
-        "AoPMean": 174.442622,
-        "PAPMean": 19.996764,
-        "CO_L": 12.546252,
-        "CO_R": 9.625382,
-        "LAPMean": 5.195556,
-        "RAPMean": 1.563635,
-        "EF_LApprox": 0.971835,
-        "EF_RApprox": 0.960802
-      },
+      "badges": null,
+      "metrics": null,
       "landSolveFailures": {
         "LV": 0,
         "RV": 0
       },
-      "errorMessage": null
+      "errorMessage": "source active-fiber stress must be nonnegative"
     }
   ],
   "variantSummaries": [
@@ -1578,11 +1452,11 @@
     {
       "variantId": "source-filter-medium-legacy-atria",
       "grossPassCount": 0,
-      "measuredCount": 4,
+      "measuredCount": 1,
       "settledOkCount": 1,
-      "lvPvOkCount": 4,
-      "rvPvOkCount": 3,
-      "mvfOkCount": 2,
+      "lvPvOkCount": 1,
+      "rvPvOkCount": 1,
+      "mvfOkCount": 0,
       "tvfOkCount": 1,
       "firstFailedPoint": "normal-hr75",
       "failedPointIds": [
@@ -1624,11 +1498,11 @@
     {
       "variantId": "source-filter-medium-legacy-atria-substep2",
       "grossPassCount": 0,
-      "measuredCount": 4,
+      "measuredCount": 1,
       "settledOkCount": 1,
-      "lvPvOkCount": 4,
-      "rvPvOkCount": 4,
-      "mvfOkCount": 3,
+      "lvPvOkCount": 1,
+      "rvPvOkCount": 1,
+      "mvfOkCount": 0,
       "tvfOkCount": 1,
       "firstFailedPoint": "normal-hr75",
       "failedPointIds": [
@@ -1647,13 +1521,15 @@
   ],
   "classification": {
     "currentUser0GrossPass": "0/8",
-    "bestSourceAdapterVariant": "temporal-substep2-user0:0/8",
+    "bestSourceAdapterVariant": "source-filter-medium-legacy-atria:0/8",
+    "bestTemporalSubstepVariant": "temporal-substep2-user0:0/8",
     "sourceStressAdapterDecision": "not-supported",
     "notes": [
       "Current user-0 normal failed labels: LV PV loop, RV PV loop, MVF, LA pressure timing, RA pressure timing.",
-      "Best source-adapter normal failed labels: LV PV loop, RV PV loop, MVF, LA pressure timing, RA pressure timing.",
+      "Best source-adapter normal failed labels: source active-fiber stress must be nonnegative.",
       "Best source-adapter gross pass count: 0/8.",
-      "Source-stress adapter adoption requires full representative morphology envelope pass, not pressure smoothing alone."
+      "Best temporal-substep gross pass count: 0/8.",
+      "Source-stress adapter adoption requires full representative morphology envelope pass, not pressure smoothing or temporal substepping alone."
     ]
   },
   "recommendedNext": [
@@ -1669,5 +1545,5 @@
     "noValveQdotRootZcTrefSourceStressTuning": true,
     "noClinicalScientificValidation": true
   },
-  "normalizedSha256": "b4f1eb9a0424c80d55f2d8e7605c9964a4cf6c8db257705852760e4785b58417"
+  "normalizedSha256": "75a8e0c87619771735e542ab96e569da665e56bd053e4be5f7b6cea529ae341e"
 }
