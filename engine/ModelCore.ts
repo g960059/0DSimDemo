@@ -227,6 +227,7 @@ export type ModelCoreExperimentalVentricularChamberTransactionStepOptions = {
     | "bounded-deceleration"
     | "state-coupled-complementarity"
     | "accepted-state-av-boundary"
+    | "accepted-state-av-boundary-fixedpoint"
     | "tv-state-coupled-mv-pressure-refit"
     | "tv-state-coupled-mv-pressure-fixedpoint-refit";
   readonly avValveBoundaryTargetValves?: readonly ("MV" | "TV")[];
@@ -767,9 +768,11 @@ function normalizeExperimentalVentricularChamberTransactionStep(
   const avValveBoundaryMode = options.avValveBoundaryMode ?? "current-diode";
   const pressureRefitEnabled =
     avValveBoundaryMode === "tv-state-coupled-mv-pressure-refit"
-    || avValveBoundaryMode === "tv-state-coupled-mv-pressure-fixedpoint-refit";
+    || avValveBoundaryMode === "tv-state-coupled-mv-pressure-fixedpoint-refit"
+    || avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint";
   const avValveBoundaryPressureRefitIterations =
     avValveBoundaryMode === "tv-state-coupled-mv-pressure-fixedpoint-refit"
+      || avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
       ? Math.max(1, Math.floor(clamp(options.avValveBoundaryPressureRefitIterations ?? 3, 1, 8)))
       : pressureRefitEnabled
         ? 1
@@ -1483,7 +1486,10 @@ export class ModelCore {
     let inletQNext = this.dynamicEdgeQNextForCandidate(inlet, inletFlowState ?? candidate, pack, dt, options);
     const outletQNext = this.dynamicEdgeQNextForCandidate(outlet, candidate, pack, dt, options);
     if (
-      options.avValveBoundaryMode === "accepted-state-av-boundary"
+      (
+        options.avValveBoundaryMode === "accepted-state-av-boundary"
+        || options.avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
+      )
       && (options.avValveBoundaryTargetValves ?? ["MV", "TV"]).includes(inlet)
     ) {
       inletQNext = this.acceptedStateAvValveBoundaryFlowNext(
@@ -1497,6 +1503,7 @@ export class ModelCore {
         dt,
         includeAdjacentLoadNodes,
         inletFlowState ?? candidate,
+        options,
       );
     }
     if (
@@ -1558,6 +1565,7 @@ export class ModelCore {
       (
         options.avValveBoundaryMode !== "state-coupled-complementarity"
         && options.avValveBoundaryMode !== "accepted-state-av-boundary"
+        && options.avValveBoundaryMode !== "accepted-state-av-boundary-fixedpoint"
         && !(options.avValveBoundaryMode === "tv-state-coupled-mv-pressure-refit" && valveName === "TV")
         && !(options.avValveBoundaryMode === "tv-state-coupled-mv-pressure-fixedpoint-refit" && valveName === "TV")
       )
@@ -1744,52 +1752,67 @@ export class ModelCore {
     dt: number,
     includeAdjacentLoadNodes: boolean,
     valveStateX: Float64Array,
+    options: ModelCoreExperimentalVentricularChamberTransactionStepOptions,
   ): number {
-    const projected = Float64Array.from(candidate);
     const ventNode = inlet === "MV" ? "LV" : "RV";
     const inletEdge = this.edges[this.edgeIndex(inlet)];
     const outletEdge = this.edges[this.edgeIndex(outlet)];
     const ventIndex = this.idx.node[ventNode];
-    if (includeAdjacentLoadNodes) {
-      const balances = this.chamberTransactionBalances(candidate, pack, {
-        [inlet]: inletQGuess,
-        [outlet]: outletQNext,
-      });
-      const nodeNamesToUpdate = [ventNode, inletEdge.up as NodeName, outletEdge.down as NodeName] as const;
-      for (const nodeName of nodeNamesToUpdate) {
-        const nodeIndex = this.idx.node[nodeName];
-        const node = this.nodes[this.nodeIndex.get(nodeName)!];
-        const balance = node.kind === "venousPressure"
-          ? balances[this.nodeIndex.get(nodeName)!]
-          : clamp(balances[this.nodeIndex.get(nodeName)!], -2500, 2500);
-        projected[nodeIndex] = beforeX[nodeIndex] + dt * balance;
-      }
-    } else {
-      projected[ventIndex] = beforeX[ventIndex] + dt * (inletQGuess - outletQNext);
-    }
-    projected[this.idx.q[inlet]] = inletQGuess;
-    projected[this.idx.q[outlet]] = outletQNext;
-    projected[this.idx.xi[inlet]] = valveStateX[this.idx.xi[inlet]];
-    this.sanitizeState(projected);
-
-    const projectedPack = this.computePressures(projected);
-    const up = this.nodeIndex.get(inletEdge.up)!;
-    const down = this.nodeIndex.get(inletEdge.down)!;
-    const Pu = projectedPack.P[up];
-    const PdEff = this.downstreamEffective(inletEdge, projectedPack.P[down]);
-    const { R, B } = this.effectiveLosses(inletEdge, Pu, projectedPack.P[down], projected);
-    const L = Math.max((this.p as any)[`${inlet}_L`] ?? inletEdge.L ?? 0.001, 1e-6);
     const h = Math.max(dt, 1e-6);
     const qBase = beforeX[this.idx.q[inlet]];
-    let qNext = this.qNextConsistentLossQNext(qBase, Pu - PdEff, R, B, L, h);
-    if (this.valveLeakArea(inlet, inletEdge) <= 1e-9 && qNext < 0) qNext = 0;
-    const qDotRaw = (qNext - qBase) / h;
-    const qDotPost = clamp(
-      qDotRaw,
-      -DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2,
-      DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2,
-    );
-    return qBase + h * qDotPost;
+    const iterations = options.avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
+      ? Math.max(1, Math.floor(options.avValveBoundaryPressureRefitIterations ?? 3))
+      : 1;
+    const relaxation = options.avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
+      ? clamp(options.avValveBoundaryPressureRefitRelaxation ?? 1, 0.05, 1)
+      : 1;
+    let qCandidate = inletQGuess;
+    for (let iteration = 0; iteration < iterations; iteration++) {
+      const projected = Float64Array.from(candidate);
+      if (includeAdjacentLoadNodes) {
+        const balances = this.chamberTransactionBalances(candidate, pack, {
+          [inlet]: qCandidate,
+          [outlet]: outletQNext,
+        });
+        const nodeNamesToUpdate = [ventNode, inletEdge.up as NodeName, outletEdge.down as NodeName] as const;
+        for (const nodeName of nodeNamesToUpdate) {
+          const nodeIndex = this.idx.node[nodeName];
+          const node = this.nodes[this.nodeIndex.get(nodeName)!];
+          const balance = node.kind === "venousPressure"
+            ? balances[this.nodeIndex.get(nodeName)!]
+            : clamp(balances[this.nodeIndex.get(nodeName)!], -2500, 2500);
+          projected[nodeIndex] = beforeX[nodeIndex] + dt * balance;
+        }
+      } else {
+        projected[ventIndex] = beforeX[ventIndex] + dt * (qCandidate - outletQNext);
+      }
+      projected[this.idx.q[inlet]] = qCandidate;
+      projected[this.idx.q[outlet]] = outletQNext;
+      projected[this.idx.xi[inlet]] = valveStateX[this.idx.xi[inlet]];
+      this.sanitizeState(projected);
+
+      const projectedPack = this.computePressures(projected);
+      const up = this.nodeIndex.get(inletEdge.up)!;
+      const down = this.nodeIndex.get(inletEdge.down)!;
+      const Pu = projectedPack.P[up];
+      const PdEff = this.downstreamEffective(inletEdge, projectedPack.P[down]);
+      const { R, B } = this.effectiveLosses(inletEdge, Pu, projectedPack.P[down], projected);
+      const L = Math.max((this.p as any)[`${inlet}_L`] ?? inletEdge.L ?? 0.001, 1e-6);
+      let qNext = this.qNextConsistentLossQNext(qBase, Pu - PdEff, R, B, L, h);
+      if (this.valveLeakArea(inlet, inletEdge) <= 1e-9 && qNext < 0) qNext = 0;
+      const qDotRaw = (qNext - qBase) / h;
+      const useCustomQDotClamp = this.usesCustomDynamicQDotClamp(inletEdge);
+      const qDotPositiveLimit = useCustomQDotClamp
+        ? Math.max(this.aorticFlowDerivativeClampPositiveMlPerS2, 1)
+        : DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
+      const qDotNegativeLimit = useCustomQDotClamp
+        ? Math.max(this.aorticFlowDerivativeClampNegativeMlPerS2, 1)
+        : DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
+      const qDotPost = clamp(qDotRaw, -qDotNegativeLimit, qDotPositiveLimit);
+      const qRefit = qBase + h * qDotPost;
+      qCandidate += relaxation * (qRefit - qCandidate);
+    }
+    return qCandidate;
   }
 
   private stepUnsupportedDiagnosticCoupledNewtonProviderState(

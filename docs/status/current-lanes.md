@@ -449,6 +449,21 @@ candidate remains 0/8. Do not wire this mode to runtime/default. Carry it only
 as evidence that accepted-state AV boundary ownership is a better surface than
 pointwise MV refit, while the next phase must broaden the pressure/valve/load
 complementarity or pressure-adapter contract before LandAtrial tuning resumes.
+Phase 5CO records `av-valve-complementarity-phase5co-result-v1`, adding an
+off-by-default accepted-state AV valve fixed-point complementarity mode. The
+inner loop keeps physical time fixed by solving MV/TV flow from the same
+pre-step valve flow while iterating against accepted chamber pressures and
+accepted valve state; requested/effective iteration settings are audited cleanly
+(`0/8` mismatches). This modestly improves residual cleanliness but not the
+envelope decision: best legacy-atria candidate
+(`accepted-av-complementarity2-legacy-atria`) remains gross 5/8 with LV/RV PV
+8/8, MVF 6/8, TVF 6/8, output 7/8, and residuals `13/16` clean-biphasic plus
+`3/16` valve-diode/qDot-contamination classified. All-chamber user-0 transfer
+remains 0/8. Do not increase accepted-state fixed-point iterations or wire this
+mode to runtime/default. Carry the result as evidence that local accepted-state
+AV valve complementarity is insufficient by itself; the next surface should
+change the chamber pressure/valve-load contract rather than tune LandAtrial,
+qDot/root/Zc/valve thresholds, Tref, or source-stress.
 
 ## Lane table
 
@@ -849,6 +864,14 @@ advances the current lane. They are evidence anchors, not current gates.
    surface should broaden the chamber-owned pressure/valve/load complementarity
    or pressure-adapter contract, not another pointwise MV refit escalation or a
    LandAtrial transfer lane.
+   Phase 5CO then tests accepted-state AV valve fixed-point complementarity
+   with clean requested/effective settings (`0/8` mismatches). It does not
+   materially unlock the envelope: best legacy-atria remains gross 5/8, LV/RV
+   PV 8/8, MVF 6/8, TVF 6/8, output 7/8, and user-0 transfer remains 0/8.
+   Residuals improve only to `13/16` clean-biphasic with three remaining
+   valve-diode/qDot-classified failures. Treat accepted-state local valve
+   complementarity as exhausted for now. The next surface should change the
+   chamber pressure/valve-load contract itself.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, local LV/RV transaction
