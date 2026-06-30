@@ -45,7 +45,9 @@ export function writeLand2017Rhs(
   const S = state[LAND2017_STATE_INDEX.S];
   const zetaW = state[LAND2017_STATE_INDEX.zetaW];
   const zetaS = state[LAND2017_STATE_INDEX.zetaS];
-  const lambdaDot = input.fiberEngineeringStrainRatePerSec;
+  const lambdaDot =
+    input.zetaDriveFiberEngineeringStrainRatePerSec
+    ?? input.fiberEngineeringStrainRatePerSec;
   const terms = evaluateLand2017AlgebraicTerms(state, input, parameterSet);
   const nTmHalf = p.nTm / 2;
 
@@ -173,6 +175,12 @@ export function validateLand2017ContinuousInput(
     input.fiberEngineeringStrainRatePerSec,
     "LandContinuousInput.fiberEngineeringStrainRatePerSec",
   );
+  if (input.zetaDriveFiberEngineeringStrainRatePerSec !== undefined) {
+    requireFiniteNumber(
+      input.zetaDriveFiberEngineeringStrainRatePerSec,
+      "LandContinuousInput.zetaDriveFiberEngineeringStrainRatePerSec",
+    );
+  }
 
   const CaT50 = land2017CaT50(lambda, p);
   if (CaT50 <= 0 || !Number.isFinite(CaT50)) {

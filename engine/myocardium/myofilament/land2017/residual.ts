@@ -24,6 +24,8 @@ export function writeLand2017BackwardEulerResidual(
     freeCalciumUM: input.freeCalciumUM,
     fiberEngineeringStrain: input.stageFiberEngineeringStrain,
     fiberEngineeringStrainRatePerSec: kinematics.stageFiberEngineeringStrainRatePerSec,
+    zetaDriveFiberEngineeringStrainRatePerSec:
+      kinematics.stageZetaDriveFiberEngineeringStrainRatePerSec,
   };
   const rhs = writeLand2017Rhs(next, rhsInput, parameterSet);
 
