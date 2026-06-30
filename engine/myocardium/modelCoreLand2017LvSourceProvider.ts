@@ -31,10 +31,14 @@ const DEFAULT_INITIAL_LAND_STATE = [0.18, 0.22, 0.04, 0.02, 0, 0] as const;
 
 export type ModelCoreLand2017LvCommitScheme = "BE" | "SDIRK2";
 export type ModelCoreLand2017LvKinematicsMode = "raw-wall-lambda" | "filtered-lambda-act";
+export type ModelCoreLand2017LvVelocityLengthCouplingMode =
+  | "source"
+  | "ventricular-valve-load-staged-v1";
 
 export type ModelCoreLand2017LvSourceProviderOptions = {
   readonly commitScheme?: ModelCoreLand2017LvCommitScheme;
   readonly kinematicsMode?: ModelCoreLand2017LvKinematicsMode;
+  readonly velocityLengthCouplingMode?: ModelCoreLand2017LvVelocityLengthCouplingMode;
   readonly sourceProviderId?: string;
   readonly parameterSet?: Land2017EquationParameters;
 };
@@ -78,6 +82,7 @@ export type ModelCoreLand2017LvProviderState = {
   readonly landState: Float64Array;
   readonly previousFreeCalciumUM: number | null;
   readonly previousFiberEngineeringStrain: number | null;
+  readonly previousRawFiberEngineeringStrain: number | null;
   readonly previousDtSec: number | null;
   readonly lastOutput: LandSourceOutput | null;
   readonly lastSolverResidualNorm: number | null;
@@ -90,6 +95,10 @@ type LandCallInput = {
   readonly freeCalciumUM: number;
   readonly fiberEngineeringStrain: number;
   readonly fiberEngineeringStrainRatePerSec: number;
+  readonly rawFiberEngineeringStrain?: number;
+  readonly rawFiberEngineeringStrainRatePerSec?: number;
+  readonly velocityLengthGate?: number;
+  readonly velocityLengthRateLimitHit01?: number;
 };
 
 export type ModelCoreLand2017LvRangeAudit = {
@@ -102,6 +111,10 @@ export type ModelCoreLand2017LvSignalAudit = {
   freeCalciumUM: ModelCoreLand2017LvRangeAudit;
   fiberEngineeringStrain: ModelCoreLand2017LvRangeAudit;
   fiberEngineeringStrainRatePerSec: ModelCoreLand2017LvRangeAudit;
+  rawFiberEngineeringStrain?: ModelCoreLand2017LvRangeAudit;
+  rawFiberEngineeringStrainRatePerSec?: ModelCoreLand2017LvRangeAudit;
+  velocityLengthGate?: ModelCoreLand2017LvRangeAudit;
+  velocityLengthRateLimitHit01?: ModelCoreLand2017LvRangeAudit;
   sourceActiveFiberStressPa: ModelCoreLand2017LvRangeAudit;
   stabilizationStiffnessPa: ModelCoreLand2017LvRangeAudit;
   sourceActivePowerDensityWPerM3: ModelCoreLand2017LvRangeAudit;
@@ -150,6 +163,7 @@ export function land2017LvSourceOnlyProvider(
 ): ModelCoreExperimentalActiveSourceProvider {
   const commitScheme = options.commitScheme ?? "BE";
   const kinematicsMode = options.kinematicsMode ?? "raw-wall-lambda";
+  const velocityLengthCouplingMode = options.velocityLengthCouplingMode ?? "source";
   const parameterSet = options.parameterSet ?? LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET;
   return {
     sourceProviderId:
@@ -175,7 +189,7 @@ export function land2017LvSourceOnlyProvider(
     sourceActiveStressPa: (call) => {
       instrumentation.sourceActiveStressPa += 1;
       const state = asLandProviderState(call.providerState, "sourceActiveStressPa");
-      const input = landContinuousInputForCall(call, state, kinematicsMode);
+      const input = landContinuousInputForCall(call, state, kinematicsMode, velocityLengthCouplingMode);
       const output = evaluateLandOutputForInput(state, input, parameterSet);
       recordLandSignalAuditSample(instrumentation.sourcePathAudit, state.landState, input, output);
       return output.sourceActiveFiberStressPa;
@@ -190,6 +204,7 @@ export function land2017LvSourceOnlyProvider(
         call,
         asLandProviderState(call.providerState, "debugActiveStressTerms"),
         kinematicsMode,
+        velocityLengthCouplingMode,
         parameterSet,
       );
       const terms = landDebugTermsForCall(call, output);
@@ -218,7 +233,7 @@ export function land2017LvSourceOnlyProvider(
         afterStep.internal,
         afterStep.chamberCtx,
       );
-      const previousFiberEngineeringStrain = fiberEngineeringStrainForStep(
+      const previousRawFiberEngineeringStrain = fiberEngineeringStrainForStep(
         activeModel,
         beforeStep.effectiveVolumeMl,
         beforeStep.internal,
@@ -226,7 +241,7 @@ export function land2017LvSourceOnlyProvider(
         kinematicsMode,
         beforeTerms.lambda - 1,
       );
-      const stageFiberEngineeringStrain = fiberEngineeringStrainForStep(
+      const stageRawFiberEngineeringStrain = fiberEngineeringStrainForStep(
         activeModel,
         afterStep.effectiveVolumeMl,
         afterStep.internal,
@@ -234,10 +249,22 @@ export function land2017LvSourceOnlyProvider(
         kinematicsMode,
         afterTerms.lambda - 1,
       );
+      const previousFiberEngineeringStrain =
+        previous.previousFiberEngineeringStrain ?? previousRawFiberEngineeringStrain;
+      const stagedKinematics = landKinematicsForRawStrain({
+        freeCalciumUM: freeCalciumUMFromInternal(afterStep.internal.c),
+        rawFiberEngineeringStrain: stageRawFiberEngineeringStrain,
+        previousRawFiberEngineeringStrain:
+          previous.previousRawFiberEngineeringStrain ?? previousRawFiberEngineeringStrain,
+        previousFiberEngineeringStrain,
+        dtSec: stepDtSec,
+        chamberCtx: afterStep.chamberCtx,
+        velocityLengthCouplingMode,
+      });
       const landInput: LandStepInput = {
         freeCalciumUM: freeCalciumUMFromInternal(afterStep.internal.c),
         previousFiberEngineeringStrain,
-        stageFiberEngineeringStrain,
+        stageFiberEngineeringStrain: stagedKinematics.fiberEngineeringStrain,
         dtSec: stepDtSec,
         stage: { scheme: "BE", stageIndex: 0 },
       };
@@ -281,6 +308,7 @@ export function land2017LvSourceOnlyProvider(
       }
       instrumentation.landSolveOkCount += 1;
       recordLandSignalAuditSample(instrumentation.commitPathAudit, solved.nextState, {
+        ...stagedKinematics,
         freeCalciumUM: landInput.freeCalciumUM,
         fiberEngineeringStrain: landInput.stageFiberEngineeringStrain,
         fiberEngineeringStrainRatePerSec:
@@ -291,6 +319,7 @@ export function land2017LvSourceOnlyProvider(
         landState: solved.nextState,
         previousFreeCalciumUM: landInput.freeCalciumUM,
         previousFiberEngineeringStrain: landInput.stageFiberEngineeringStrain,
+        previousRawFiberEngineeringStrain: stageRawFiberEngineeringStrain,
         previousDtSec: stepDtSec,
         lastOutput: solved.output,
         lastSolverResidualNorm: solved.residualNorm,
@@ -376,6 +405,7 @@ function initialLandProviderState(): ModelCoreLand2017LvProviderState {
     landState: Float64Array.from(DEFAULT_INITIAL_LAND_STATE),
     previousFreeCalciumUM: null,
     previousFiberEngineeringStrain: null,
+    previousRawFiberEngineeringStrain: null,
     previousDtSec: null,
     lastOutput: null,
     lastSolverResidualNorm: null,
@@ -390,6 +420,7 @@ function cloneLandProviderState(state: ModelCoreLand2017LvProviderState): ModelC
     landState: Float64Array.from(state.landState),
     previousFreeCalciumUM: state.previousFreeCalciumUM,
     previousFiberEngineeringStrain: state.previousFiberEngineeringStrain,
+    previousRawFiberEngineeringStrain: state.previousRawFiberEngineeringStrain,
     previousDtSec: state.previousDtSec,
     lastOutput: state.lastOutput,
     lastSolverResidualNorm: state.lastSolverResidualNorm,
@@ -404,6 +435,7 @@ function debugLandProviderState(state: ModelCoreLand2017LvProviderState) {
     landState: Array.from(state.landState),
     previousFreeCalciumUM: state.previousFreeCalciumUM,
     previousFiberEngineeringStrain: state.previousFiberEngineeringStrain,
+    previousRawFiberEngineeringStrain: state.previousRawFiberEngineeringStrain,
     previousDtSec: state.previousDtSec,
     lastSourceActiveFiberStressPa: state.lastOutput?.sourceActiveFiberStressPa ?? null,
     lastHealthFinite: state.lastOutput?.health.finite ?? null,
@@ -420,9 +452,10 @@ function evaluateLandOutputForCall(
   call: ModelCoreActiveSourceProviderCall,
   state: ModelCoreLand2017LvProviderState,
   kinematicsMode: ModelCoreLand2017LvKinematicsMode,
+  velocityLengthCouplingMode: ModelCoreLand2017LvVelocityLengthCouplingMode,
   parameterSet: Land2017EquationParameters,
 ): LandSourceOutput {
-  const input = landContinuousInputForCall(call, state, kinematicsMode);
+  const input = landContinuousInputForCall(call, state, kinematicsMode, velocityLengthCouplingMode);
   return evaluateLandOutputForInput(state, input, parameterSet);
 }
 
@@ -500,20 +533,87 @@ function landContinuousInputForCall(
   call: ModelCoreActiveSourceProviderCall,
   state: ModelCoreLand2017LvProviderState,
   kinematicsMode: ModelCoreLand2017LvKinematicsMode,
+  velocityLengthCouplingMode: ModelCoreLand2017LvVelocityLengthCouplingMode,
 ): LandCallInput {
-  const fiberEngineeringStrain = fiberEngineeringStrainForStep(
+  const rawFiberEngineeringStrain = fiberEngineeringStrainForStep(
     call.activeModel,
     call.volumeMl,
     call.internal,
     call.chamberCtx,
     kinematicsMode,
   );
-  const previousStrain = state.previousFiberEngineeringStrain ?? fiberEngineeringStrain;
   const dtSec = Math.max(state.previousDtSec ?? 0, 1e-6);
-  return {
+  return landKinematicsForRawStrain({
     freeCalciumUM: freeCalciumUMFromInternal(call.internal.c),
+    rawFiberEngineeringStrain,
+    previousRawFiberEngineeringStrain: state.previousRawFiberEngineeringStrain ?? rawFiberEngineeringStrain,
+    previousFiberEngineeringStrain: state.previousFiberEngineeringStrain ?? rawFiberEngineeringStrain,
+    dtSec,
+    chamberCtx: call.chamberCtx,
+    velocityLengthCouplingMode,
+  });
+}
+
+function landKinematicsForRawStrain({
+  freeCalciumUM,
+  rawFiberEngineeringStrain,
+  previousRawFiberEngineeringStrain,
+  previousFiberEngineeringStrain,
+  dtSec,
+  chamberCtx,
+  velocityLengthCouplingMode,
+}: {
+  readonly freeCalciumUM: number;
+  readonly rawFiberEngineeringStrain: number;
+  readonly previousRawFiberEngineeringStrain: number;
+  readonly previousFiberEngineeringStrain: number;
+  readonly dtSec: number;
+  readonly chamberCtx: ModelCoreActiveSourceProviderCall["chamberCtx"];
+  readonly velocityLengthCouplingMode: ModelCoreLand2017LvVelocityLengthCouplingMode;
+}): LandCallInput {
+  const boundedDtSec = Math.max(dtSec, 1e-6);
+  const rawFiberEngineeringStrainRatePerSec =
+    (rawFiberEngineeringStrain - previousRawFiberEngineeringStrain) / boundedDtSec;
+  if (
+    velocityLengthCouplingMode !== "ventricular-valve-load-staged-v1"
+    || (chamberCtx.chamber !== "LV" && chamberCtx.chamber !== "RV")
+  ) {
+    return {
+      freeCalciumUM,
+      fiberEngineeringStrain: rawFiberEngineeringStrain,
+      fiberEngineeringStrainRatePerSec:
+        (rawFiberEngineeringStrain - previousFiberEngineeringStrain) / boundedDtSec,
+      rawFiberEngineeringStrain,
+      rawFiberEngineeringStrainRatePerSec,
+      velocityLengthGate: 0,
+      velocityLengthRateLimitHit01: 0,
+    };
+  }
+
+  const inletOpen = clamp01(chamberCtx.inletValveOpen01 ?? 0);
+  const outletOpen = clamp01(chamberCtx.outletValveOpen01 ?? 0);
+  const ejectionGate = outletOpen * (1 - inletOpen);
+  const inletHandoffGate = 4 * inletOpen * (1 - inletOpen);
+  const outletHandoffGate = 4 * outletOpen * (1 - outletOpen);
+  const velocityLengthGate = clamp01(Math.max(ejectionGate, inletHandoffGate, outletHandoffGate));
+  const shorteningCapPerSec = lerp(8, 2.5, velocityLengthGate);
+  const lengtheningCapPerSec = lerp(8, 1.5, velocityLengthGate);
+  const stagedRatePerSec = clampNumber(
+    (rawFiberEngineeringStrain - previousFiberEngineeringStrain) / boundedDtSec,
+    -shorteningCapPerSec,
+    lengtheningCapPerSec,
+  );
+  const fiberEngineeringStrain = previousFiberEngineeringStrain + stagedRatePerSec * boundedDtSec;
+  const velocityLengthRateLimitHit01 =
+    Math.abs(fiberEngineeringStrain - rawFiberEngineeringStrain) > 1e-10 ? 1 : 0;
+  return {
+    freeCalciumUM,
     fiberEngineeringStrain,
-    fiberEngineeringStrainRatePerSec: (fiberEngineeringStrain - previousStrain) / dtSec,
+    fiberEngineeringStrainRatePerSec: stagedRatePerSec,
+    rawFiberEngineeringStrain,
+    rawFiberEngineeringStrainRatePerSec,
+    velocityLengthGate,
+    velocityLengthRateLimitHit01,
   };
 }
 
@@ -584,6 +684,15 @@ function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
 }
 
+function clampNumber(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min;
+  return Math.min(max, Math.max(min, value));
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * clamp01(t);
+}
+
 function finiteOrZero(value: number): number {
   return Number.isFinite(value) ? value : 0;
 }
@@ -632,6 +741,10 @@ function createLandSignalAudit(): ModelCoreLand2017LvSignalAudit {
     freeCalciumUM: emptyRangeAudit(),
     fiberEngineeringStrain: emptyRangeAudit(),
     fiberEngineeringStrainRatePerSec: emptyRangeAudit(),
+    rawFiberEngineeringStrain: emptyRangeAudit(),
+    rawFiberEngineeringStrainRatePerSec: emptyRangeAudit(),
+    velocityLengthGate: emptyRangeAudit(),
+    velocityLengthRateLimitHit01: emptyRangeAudit(),
     sourceActiveFiberStressPa: emptyRangeAudit(),
     stabilizationStiffnessPa: emptyRangeAudit(),
     sourceActivePowerDensityWPerM3: emptyRangeAudit(),
@@ -659,6 +772,20 @@ function recordLandSignalAuditSample(
   updateRange(audit.freeCalciumUM, input.freeCalciumUM);
   updateRange(audit.fiberEngineeringStrain, input.fiberEngineeringStrain);
   updateRange(audit.fiberEngineeringStrainRatePerSec, input.fiberEngineeringStrainRatePerSec);
+  updateRange(
+    audit.rawFiberEngineeringStrain ?? (audit.rawFiberEngineeringStrain = emptyRangeAudit()),
+    input.rawFiberEngineeringStrain ?? input.fiberEngineeringStrain,
+  );
+  updateRange(
+    audit.rawFiberEngineeringStrainRatePerSec
+      ?? (audit.rawFiberEngineeringStrainRatePerSec = emptyRangeAudit()),
+    input.rawFiberEngineeringStrainRatePerSec ?? input.fiberEngineeringStrainRatePerSec,
+  );
+  updateRange(audit.velocityLengthGate ?? (audit.velocityLengthGate = emptyRangeAudit()), input.velocityLengthGate ?? 0);
+  updateRange(
+    audit.velocityLengthRateLimitHit01 ?? (audit.velocityLengthRateLimitHit01 = emptyRangeAudit()),
+    input.velocityLengthRateLimitHit01 ?? 0,
+  );
   updateRange(audit.sourceActiveFiberStressPa, output.sourceActiveFiberStressPa);
   updateRange(audit.stabilizationStiffnessPa, output.stabilizationStiffnessPa);
   updateRange(audit.sourceActivePowerDensityWPerM3, output.sourceActivePowerDensityWPerM3);
