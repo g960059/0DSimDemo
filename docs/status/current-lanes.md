@@ -193,7 +193,7 @@ Current owner priorities:
 - Studio/Workbench mock work is owner-led; model lanes should focus on
   mathematical model and engine evidence.
 
-### Phase 5BU/5BV Gross Morphology Override
+### Phase 5BU-5BW Gross Morphology Override
 
 Phase 5BU supersedes the lane-table "DynamicValveTransitionV1 next" wording
 below. It records `dynamic-valve-local-bench-phase5bu-result-v1`, a local
@@ -224,6 +224,21 @@ another tau/limiter/smoothing sweep. Either redesign the ventricular chamber
 pressure/source-state adapter so the local subsystem can be source-state
 controlled, or earn a larger coupled-step solver surface before any runtime
 wiring. Keep the morphology envelope as the hard development contract.
+Phase 5BW then adds opt-in live Land provider source-state tracing and records
+`ventricular-source-state-coupled-step-phase5bw-result-v1`, using the live
+source-state trace plus source-state-controlled SeriesElasticV1 replay instead
+of the Phase 5BV synthetic calcium input. The current user-0 closure remains
+gross morphology failed at 0/7 measured representative points (`normal-hr90`
+is not morphology-measured), with LV/RV PV OK only 3/14 measured sides and
+MVF/TVF OK only 5/14 measured sides. Source-state stress and SE stress are
+single-peaked in only 8/14 sides; LV source stress itself remains multi-peaked
+across several preload/afterload/contractility points, while several RV PV
+failures occur despite single-peaked source stress. Treat this as evidence
+against a small source-state SE/local composition fix and against further
+LandAtrial tuning. The next model surface should be a source-state-preserving
+ventricular `ChamberShell`/coupled-step pressure-volume/valve-load design over
+the same deterministic morphology envelope. Do not tune root/Zc, qDot, valves,
+Tref, source-stress, or LandAtrial parameters to hide these failures.
 
 ## Lane table
 
