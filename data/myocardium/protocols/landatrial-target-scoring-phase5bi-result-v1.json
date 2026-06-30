@@ -1,0 +1,4390 @@
+{
+  "schemaVersion": 1,
+  "id": "landatrial-target-scoring-phase5bi-result-v1",
+  "phase": "Phase 5BI",
+  "claimBoundary": "landatrial-shadow-target-scoring-no-default-no-physiology-acceptance",
+  "targetPackId": "atrial-waveform-targets-v1",
+  "sourceEvidence": [
+    "data/myocardium/protocols/ra-landatrial-calibration-scout-phase5bh-result-v1.json",
+    "data/myocardium/protocols/atrial-waveform-target-pack-phase5az-result-v1.json",
+    "data/myocardium/protocols/atrial-strain-proxy-scoring-phase5be-result-v1.json"
+  ],
+  "protocol": {
+    "baseRuntimeActiveSourceMode": "lv-rv-land-phase5ao-user0-staged-default-v1",
+    "pointSource": "hr75-hr90-normal-low-high-preload",
+    "candidateIds": [
+      "runtime-default-atrial-active-reference",
+      "promoted-landatrial-shadow-la-ra",
+      "promoted-landatrial-shadow-no-avplane-ablation"
+    ],
+    "dtSec": 0.001,
+    "sampleHz": 1000,
+    "measureBeats": 3,
+    "scoredTargets": [
+      "volume-derived-emptying-fractions",
+      "direct-wall-lambda-strain",
+      "a-v-pressure-relation-orientation",
+      "raw-figure-eight-readability",
+      "av-plane-on-off-sensitivity"
+    ],
+    "noA1A2GainSweep": true,
+    "noRuntimeDefaultFlip": true,
+    "noAtrialPhysiologyAcceptance": true,
+    "noQDotRootZcValveTuning": true,
+    "noPermanentVerifierOrNpmScriptAdded": true
+  },
+  "targetPackDigest": {
+    "sourceCount": 7,
+    "leftAtriumVolumeBroadRanges": {
+      "total": [
+        0.47,
+        0.71
+      ],
+      "passive": [
+        0.23,
+        0.47
+      ],
+      "active": [
+        0.22,
+        0.5
+      ]
+    },
+    "rightAtriumVolumeBroadRanges": {
+      "total": [
+        0.42,
+        0.7
+      ],
+      "passive": [
+        0.21,
+        0.51
+      ],
+      "active": [
+        0.13,
+        0.47
+      ]
+    },
+    "leftAtriumStrainSourceRanges": {
+      "reservoir": [
+        0.38,
+        0.41
+      ],
+      "conduit": [
+        0.21,
+        0.25
+      ],
+      "contractile": [
+        0.16,
+        0.19
+      ]
+    },
+    "rightAtriumStrainSourceRanges": {
+      "reservoir": [
+        0.394,
+        0.459
+      ],
+      "conduit": [
+        0.207,
+        0.266
+      ],
+      "contractile": [
+        0.136,
+        0.186
+      ]
+    },
+    "strainScoringUpgrade": "uses-direct-wall-lambda-readbacks-not-cuberoot-volume-proxy"
+  },
+  "phase5BHDigest": {
+    "phase5bhStatus": "ra-landatrial-promoted-shadow-pack-supported",
+    "phase5bhHash": "69eb11079c0396e3b9678fd162f2440d9fef0cdbed2094461442873f564bd309",
+    "phase5bhRecommendedCandidateId": "current-la-ra-landatrial-shadow-pack",
+    "promotedParameterPackId": "landatrial-fast-lowpressure-shadow-parameter-pack-v1"
+  },
+  "points": [
+    {
+      "id": "normal-hr75",
+      "targetTBVMl": 5600,
+      "HR": 75
+    },
+    {
+      "id": "low-preload-hr75",
+      "targetTBVMl": 4800,
+      "HR": 75
+    },
+    {
+      "id": "high-preload-hr75",
+      "targetTBVMl": 6200,
+      "HR": 75
+    },
+    {
+      "id": "normal-hr90",
+      "targetTBVMl": 5600,
+      "HR": 90
+    },
+    {
+      "id": "low-preload-hr90",
+      "targetTBVMl": 4800,
+      "HR": 90
+    },
+    {
+      "id": "high-preload-hr90",
+      "targetTBVMl": 6200,
+      "HR": 90
+    }
+  ],
+  "candidateSummaries": [
+    {
+      "candidateId": "runtime-default-atrial-active-reference",
+      "rationale": "Current LV+RV Land plus sourced root/Zc default with the existing atrial active-stress path.",
+      "measuredPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "healthOkPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "settleFailedPointIds": [],
+      "runtimeErrorPointIds": [],
+      "outputPreservedPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "bothAtriaVolumeFunctionPassPointIds": [],
+      "bothAtriaDirectWallStrainPassPointIds": [],
+      "laRawReadablePointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "high-preload-hr90"
+      ],
+      "raRawReadablePointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "high-preload-hr90"
+      ],
+      "bothAtriaRawReadablePointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "high-preload-hr90"
+      ],
+      "laPressureRelationSignalPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "raPressureRelationSignalPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "meanLaVolumeDistance": 0.101327,
+      "meanRaVolumeDistance": 0.104801,
+      "meanLaDirectWallStrainDistance": 0.420647,
+      "meanRaDirectWallStrainDistance": 0.398008,
+      "meanCombinedTargetDistance": 1.024783,
+      "totalLandSolveFailureCount": 0,
+      "selectableByThisArtifact": false
+    },
+    {
+      "candidateId": "promoted-landatrial-shadow-la-ra",
+      "rationale": "Promoted Phase 5BH LA+RA LandAtrial shadow pack with direct wall/AV-plane readbacks.",
+      "measuredPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "healthOkPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "settleFailedPointIds": [],
+      "runtimeErrorPointIds": [],
+      "outputPreservedPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "bothAtriaVolumeFunctionPassPointIds": [
+        "low-preload-hr75",
+        "low-preload-hr90"
+      ],
+      "bothAtriaDirectWallStrainPassPointIds": [],
+      "laRawReadablePointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "high-preload-hr90"
+      ],
+      "raRawReadablePointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "high-preload-hr90"
+      ],
+      "bothAtriaRawReadablePointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "high-preload-hr90"
+      ],
+      "laPressureRelationSignalPointIds": [
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "raPressureRelationSignalPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "meanLaVolumeDistance": 0.013369,
+      "meanRaVolumeDistance": 0.015586,
+      "meanLaDirectWallStrainDistance": 0.223948,
+      "meanRaDirectWallStrainDistance": 0.258027,
+      "meanCombinedTargetDistance": 0.51093,
+      "totalLandSolveFailureCount": 0,
+      "selectableByThisArtifact": false
+    },
+    {
+      "candidateId": "promoted-landatrial-shadow-no-avplane-ablation",
+      "rationale": "Same promoted LandAtrial shadow pack with LA/RA active.avPlaneGainMl set to zero to isolate AV-plane contribution.",
+      "measuredPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "healthOkPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "settleFailedPointIds": [],
+      "runtimeErrorPointIds": [],
+      "outputPreservedPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "bothAtriaVolumeFunctionPassPointIds": [],
+      "bothAtriaDirectWallStrainPassPointIds": [],
+      "laRawReadablePointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "raRawReadablePointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "high-preload-hr90"
+      ],
+      "bothAtriaRawReadablePointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "high-preload-hr90"
+      ],
+      "laPressureRelationSignalPointIds": [
+        "high-preload-hr90"
+      ],
+      "raPressureRelationSignalPointIds": [
+        "normal-hr75",
+        "low-preload-hr75",
+        "high-preload-hr75",
+        "normal-hr90",
+        "low-preload-hr90",
+        "high-preload-hr90"
+      ],
+      "meanLaVolumeDistance": 0.061742,
+      "meanRaVolumeDistance": 0.040411,
+      "meanLaDirectWallStrainDistance": 0.25466,
+      "meanRaDirectWallStrainDistance": 0.293718,
+      "meanCombinedTargetDistance": 0.650531,
+      "totalLandSolveFailureCount": 0,
+      "selectableByThisArtifact": false
+    }
+  ],
+  "avPlaneAblationDelta": {
+    "baseCandidateId": "promoted-landatrial-shadow-la-ra",
+    "ablationCandidateId": "promoted-landatrial-shadow-no-avplane-ablation",
+    "deltaMeanCombinedTargetDistanceBaseMinusAblation": -0.139601,
+    "deltaBothAtriaRawReadableCountBaseMinusAblation": 0,
+    "interpretation": "Direct target distance is lower with AV-plane enabled than with the no-AV-plane ablation."
+  },
+  "runs": [
+    {
+      "candidateId": "runtime-default-atrial-active-reference",
+      "pointId": "normal-hr75",
+      "HR": 75,
+      "targetTBVMl": 5600,
+      "status": "measured",
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 15,
+        "actualSeconds": 13.85,
+        "worstSignal": "lvEdp",
+        "worstDelta": 0.007348,
+        "adjacentDelta": 0.007348,
+        "periodBeats": 1,
+        "periodDelta": 0.007348,
+        "worstDeltaToPrimaryTolerance": 1.469665
+      },
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "metrics": {
+        "CO_L": 4.737722,
+        "CO_R": 4.729419,
+        "SV_L": 63.169621,
+        "SV_R": 63.058922,
+        "AoPMean": 77.322086,
+        "PAPMean": 17.040814,
+        "RAPMean": 4.519939,
+        "LAPMean": 9.044012,
+        "TBV": 5600
+      },
+      "forwardCO_L": 4.736071,
+      "forwardCO_R": 4.729553,
+      "providerIds": {
+        "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+        "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+      },
+      "instrumentation": {
+        "LA": null,
+        "RA": null
+      },
+      "LA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 56.65936,
+          "preAtrialContractionVolumeMl": 42.617884,
+          "minVolumeMl": 29.13002,
+          "totalEmptyingFraction": 0.485875,
+          "passiveEmptyingFraction": 0.247823,
+          "activeEmptyingFraction": 0.316484,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.87131,
+          "lambdaMax": 1.050244,
+          "lambdaPreAtrialContraction": 0.981313,
+          "reservoirStrain": 0.205362,
+          "conduitStrain": 0.079112,
+          "contractileStrain": 0.126249,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": false,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.339277,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.871248,
+            "lambdaWithoutAvPlaneMax": 1.076524,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0.051405,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 7.333246
+            },
+            "avPlaneDescent01": {
+              "min": 0,
+              "max": 0.733325
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 13.919419,
+          "vWaveMaxMmHg": 13.911645,
+          "xDescentMinMmHg": 6.934331,
+          "yDescentMinMmHg": 3.688418,
+          "relationSignal": "la-v-ge-a"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 5,
+          "signedAreaMmHgMl": 114.541134,
+          "absAreaMmHgMl": 114.541134,
+          "midVolumePressureSpreadMmHg": 9.645206,
+          "boosterLoopSignedAreaMmHgMl": 76.635252,
+          "reservoirLoopSignedAreaMmHgMl": 30.127042,
+          "opposingLobes": false,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.364783,
+            "max": 13.624476
+          },
+          "activeMmHg": {
+            "min": 0.041496,
+            "max": 10.894264
+          },
+          "avPlaneDeltaMmHg": {
+            "min": -6.036575,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 80.716786,
+          "preAtrialContractionVolumeMl": 64.614946,
+          "minVolumeMl": 45.210958,
+          "totalEmptyingFraction": 0.439882,
+          "passiveEmptyingFraction": 0.199486,
+          "activeEmptyingFraction": 0.300302,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.010514
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 1.001466,
+          "lambdaMax": 1.196671,
+          "lambdaPreAtrialContraction": 1.117365,
+          "reservoirStrain": 0.194919,
+          "conduitStrain": 0.07919,
+          "contractileStrain": 0.115729,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": false,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.347162,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 1.001317,
+            "lambdaWithoutAvPlaneMax": 1.203356,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0.034835,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 6.51887
+            },
+            "avPlaneDescent01": {
+              "min": 0,
+              "max": 0.543239
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 7.937287,
+          "vWaveMaxMmHg": 6.523532,
+          "xDescentMinMmHg": 2.764421,
+          "yDescentMinMmHg": 2.711165,
+          "relationSignal": "ra-a-ge-v"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 3,
+          "signedAreaMmHgMl": 87.561705,
+          "absAreaMmHgMl": 87.561705,
+          "midVolumePressureSpreadMmHg": 5.217443,
+          "boosterLoopSignedAreaMmHgMl": 64.357933,
+          "reservoirLoopSignedAreaMmHgMl": 28.446421,
+          "opposingLobes": false,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 1.153667,
+            "max": 6.507675
+          },
+          "activeMmHg": {
+            "min": 0.001009,
+            "max": 4.457002
+          },
+          "avPlaneDeltaMmHg": {
+            "min": -1.502044,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "candidateId": "runtime-default-atrial-active-reference",
+      "pointId": "low-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 4800,
+      "status": "measured",
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 26,
+        "actualSeconds": 22.6,
+        "worstSignal": "lvEdp",
+        "worstDelta": 0.00315,
+        "adjacentDelta": 0.00315,
+        "periodBeats": 1,
+        "periodDelta": 0.00315,
+        "worstDeltaToPrimaryTolerance": 0.630031
+      },
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "metrics": {
+        "CO_L": 4.296766,
+        "CO_R": 4.293842,
+        "SV_L": 57.290218,
+        "SV_R": 57.251229,
+        "AoPMean": 68.390478,
+        "PAPMean": 9.904341,
+        "RAPMean": 1.833675,
+        "LAPMean": 2.638286,
+        "TBV": 4800
+      },
+      "forwardCO_L": 4.297055,
+      "forwardCO_R": 4.291247,
+      "providerIds": {
+        "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+        "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+      },
+      "instrumentation": {
+        "LA": null,
+        "RA": null
+      },
+      "LA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 45.958193,
+          "preAtrialContractionVolumeMl": 32.850364,
+          "minVolumeMl": 11.461403,
+          "totalEmptyingFraction": 0.750612,
+          "passiveEmptyingFraction": 0.285212,
+          "activeEmptyingFraction": 0.651103,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.191715
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.645437,
+          "lambdaMax": 0.977522,
+          "lambdaPreAtrialContraction": 0.898698,
+          "reservoirStrain": 0.514512,
+          "conduitStrain": 0.122125,
+          "contractileStrain": 0.392387,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": false,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.394774,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.646322,
+            "lambdaWithoutAvPlaneMax": 1.006784,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0.087965,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0.035775,
+              "max": 8.227439
+            },
+            "avPlaneDescent01": {
+              "min": 0.003577,
+              "max": 0.822744
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 7.233123,
+          "vWaveMaxMmHg": 6.352226,
+          "xDescentMinMmHg": 0.712051,
+          "yDescentMinMmHg": 0.736521,
+          "relationSignal": "la-v-ge-a"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 4,
+          "signedAreaMmHgMl": 138.235818,
+          "absAreaMmHgMl": 138.235818,
+          "midVolumePressureSpreadMmHg": 6.49251,
+          "boosterLoopSignedAreaMmHgMl": 99.934608,
+          "reservoirLoopSignedAreaMmHgMl": 23.095283,
+          "opposingLobes": false,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0,
+            "max": 6.216917
+          },
+          "activeMmHg": {
+            "min": 0.031832,
+            "max": 7.214245
+          },
+          "avPlaneDeltaMmHg": {
+            "min": -4.857598,
+            "max": -0.001789
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 61.721875,
+          "preAtrialContractionVolumeMl": 44.929042,
+          "minVolumeMl": 26.997188,
+          "totalEmptyingFraction": 0.562599,
+          "passiveEmptyingFraction": 0.272073,
+          "activeEmptyingFraction": 0.399115,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.839105,
+          "lambdaMax": 1.098065,
+          "lambdaPreAtrialContraction": 0.972504,
+          "reservoirStrain": 0.308615,
+          "conduitStrain": 0.149637,
+          "contractileStrain": 0.158979,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": true,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.142748,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.852852,
+            "lambdaWithoutAvPlaneMax": 1.104789,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0.080027,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0.023462,
+              "max": 10.228576
+            },
+            "avPlaneDescent01": {
+              "min": 0.001955,
+              "max": 0.852381
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 5.286483,
+          "vWaveMaxMmHg": 2.918035,
+          "xDescentMinMmHg": 0.468543,
+          "yDescentMinMmHg": 0.803464,
+          "relationSignal": "ra-a-ge-v"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 1,
+          "signedAreaMmHgMl": 92.383947,
+          "absAreaMmHgMl": 92.383947,
+          "midVolumePressureSpreadMmHg": 4.81038,
+          "boosterLoopSignedAreaMmHgMl": 75.012217,
+          "reservoirLoopSignedAreaMmHgMl": 19.497566,
+          "opposingLobes": false,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.007686,
+            "max": 2.908868
+          },
+          "activeMmHg": {
+            "min": 0.001078,
+            "max": 3.952466
+          },
+          "avPlaneDeltaMmHg": {
+            "min": -1.233104,
+            "max": 0.000734
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "candidateId": "runtime-default-atrial-active-reference",
+      "pointId": "high-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 6200,
+      "status": "measured",
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 14,
+        "actualSeconds": 12.85,
+        "worstSignal": "aopDia",
+        "worstDelta": 0.005559,
+        "adjacentDelta": 0.005559,
+        "periodBeats": 1,
+        "periodDelta": 0.005559,
+        "worstDeltaToPrimaryTolerance": 1.111836
+      },
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "metrics": {
+        "CO_L": 4.764326,
+        "CO_R": 4.788582,
+        "SV_L": 63.524345,
+        "SV_R": 63.847754,
+        "AoPMean": 80.70243,
+        "PAPMean": 21.289563,
+        "RAPMean": 7.682346,
+        "LAPMean": 13.220613,
+        "TBV": 6200
+      },
+      "forwardCO_L": 4.764312,
+      "forwardCO_R": 4.789268,
+      "providerIds": {
+        "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+        "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+      },
+      "instrumentation": {
+        "LA": null,
+        "RA": null
+      },
+      "LA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 61.478775,
+          "preAtrialContractionVolumeMl": 48.410779,
+          "minVolumeMl": 33.609665,
+          "totalEmptyingFraction": 0.453313,
+          "passiveEmptyingFraction": 0.212561,
+          "activeEmptyingFraction": 0.30574,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.034126
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.911568,
+          "lambdaMax": 1.080709,
+          "lambdaPreAtrialContraction": 1.02356,
+          "reservoirStrain": 0.18555,
+          "conduitStrain": 0.062692,
+          "contractileStrain": 0.122858,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": false,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.3789,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.911253,
+            "lambdaWithoutAvPlaneMax": 1.105041,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0.045774,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 7.040053
+            },
+            "avPlaneDescent01": {
+              "min": 0,
+              "max": 0.704005
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 18.230805,
+          "vWaveMaxMmHg": 18.337078,
+          "xDescentMinMmHg": 10.106886,
+          "yDescentMinMmHg": 6.572885,
+          "relationSignal": "la-v-ge-a"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 3,
+          "signedAreaMmHgMl": 109.313669,
+          "absAreaMmHgMl": 109.313669,
+          "midVolumePressureSpreadMmHg": 10.202431,
+          "boosterLoopSignedAreaMmHgMl": 63.409538,
+          "reservoirLoopSignedAreaMmHgMl": 70.741159,
+          "opposingLobes": false,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 1.81438,
+            "max": 17.957308
+          },
+          "activeMmHg": {
+            "min": 0.043618,
+            "max": 12.120807
+          },
+          "avPlaneDeltaMmHg": {
+            "min": -6.744136,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 91.835598,
+          "preAtrialContractionVolumeMl": 74.649151,
+          "minVolumeMl": 56.867312,
+          "totalEmptyingFraction": 0.380771,
+          "passiveEmptyingFraction": 0.187144,
+          "activeEmptyingFraction": 0.238205,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.062085
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 1.076423,
+          "lambdaMax": 1.248902,
+          "lambdaPreAtrialContraction": 1.173588,
+          "reservoirStrain": 0.160233,
+          "conduitStrain": 0.069967,
+          "contractileStrain": 0.090267,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": false,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.416533,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 1.076283,
+            "lambdaWithoutAvPlaneMax": 1.254254,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0.019972,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 4.222463
+            },
+            "avPlaneDescent01": {
+              "min": 0,
+              "max": 0.351872
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 11.14837,
+          "vWaveMaxMmHg": 9.883977,
+          "xDescentMinMmHg": 5.011448,
+          "yDescentMinMmHg": 5.376728,
+          "relationSignal": "ra-a-ge-v"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 2,
+          "signedAreaMmHgMl": 70.274564,
+          "absAreaMmHgMl": 70.274564,
+          "midVolumePressureSpreadMmHg": 6.115711,
+          "boosterLoopSignedAreaMmHgMl": 39.302699,
+          "reservoirLoopSignedAreaMmHgMl": 79.613525,
+          "opposingLobes": false,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 2.405586,
+            "max": 9.828518
+          },
+          "activeMmHg": {
+            "min": 0.001043,
+            "max": 4.540102
+          },
+          "avPlaneDeltaMmHg": {
+            "min": -1.385022,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "candidateId": "runtime-default-atrial-active-reference",
+      "pointId": "normal-hr90",
+      "HR": 90,
+      "targetTBVMl": 5600,
+      "status": "measured",
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 17,
+        "actualSeconds": 12.834,
+        "worstSignal": "rvEdp",
+        "worstDelta": 0.005587,
+        "adjacentDelta": 0.005587,
+        "periodBeats": 1,
+        "periodDelta": 0.005587,
+        "worstDeltaToPrimaryTolerance": 1.117334
+      },
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "metrics": {
+        "CO_L": 5.279452,
+        "CO_R": 5.288654,
+        "SV_L": 58.660576,
+        "SV_R": 58.762823,
+        "AoPMean": 84.663264,
+        "PAPMean": 18.083636,
+        "RAPMean": 3.457793,
+        "LAPMean": 9.134548,
+        "TBV": 5600
+      },
+      "forwardCO_L": 5.287945,
+      "forwardCO_R": 5.294006,
+      "providerIds": {
+        "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+        "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+      },
+      "instrumentation": {
+        "LA": null,
+        "RA": null
+      },
+      "LA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 56.910732,
+          "preAtrialContractionVolumeMl": 42.200743,
+          "minVolumeMl": 28.187317,
+          "totalEmptyingFraction": 0.50471,
+          "passiveEmptyingFraction": 0.258475,
+          "activeEmptyingFraction": 0.332064,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.862318,
+          "lambdaMax": 1.054169,
+          "lambdaPreAtrialContraction": 0.969911,
+          "reservoirStrain": 0.222483,
+          "conduitStrain": 0.097712,
+          "contractileStrain": 0.124772,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": false,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.305033,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.861726,
+            "lambdaWithoutAvPlaneMax": 1.07794,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0.046865,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 6.693705
+            },
+            "avPlaneDescent01": {
+              "min": 0,
+              "max": 0.66937
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 12.303761,
+          "vWaveMaxMmHg": 14.385111,
+          "xDescentMinMmHg": 7.200909,
+          "yDescentMinMmHg": 4.290521,
+          "relationSignal": "la-v-ge-a"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 3,
+          "signedAreaMmHgMl": 85.861485,
+          "absAreaMmHgMl": 85.861485,
+          "midVolumePressureSpreadMmHg": 7.590893,
+          "boosterLoopSignedAreaMmHgMl": 60.726903,
+          "reservoirLoopSignedAreaMmHgMl": -44.633097,
+          "opposingLobes": true,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.217213,
+            "max": 14.120982
+          },
+          "activeMmHg": {
+            "min": 0.108754,
+            "max": 10.34587
+          },
+          "avPlaneDeltaMmHg": {
+            "min": -5.601845,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 76.474336,
+          "preAtrialContractionVolumeMl": 61.989779,
+          "minVolumeMl": 36.159578,
+          "totalEmptyingFraction": 0.527167,
+          "passiveEmptyingFraction": 0.189404,
+          "activeEmptyingFraction": 0.416684,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.020596
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.934055,
+          "lambdaMax": 1.175881,
+          "lambdaPreAtrialContraction": 1.105419,
+          "reservoirStrain": 0.258899,
+          "conduitStrain": 0.075436,
+          "contractileStrain": 0.183463,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": true,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.266665,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.933308,
+            "lambdaWithoutAvPlaneMax": 1.182825,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0.04382,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 7.719594
+            },
+            "avPlaneDescent01": {
+              "min": 0,
+              "max": 0.6433
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 5.7583,
+          "vWaveMaxMmHg": 5.529453,
+          "xDescentMinMmHg": 1.921966,
+          "yDescentMinMmHg": 3.115121,
+          "relationSignal": "ra-a-ge-v"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 0,
+          "signedAreaMmHgMl": 70.363693,
+          "absAreaMmHgMl": 70.363693,
+          "midVolumePressureSpreadMmHg": 3.693668,
+          "boosterLoopSignedAreaMmHgMl": 43.753753,
+          "reservoirLoopSignedAreaMmHgMl": 29.633193,
+          "opposingLobes": false,
+          "rawReadableByExistingThreshold": false
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.428399,
+            "max": 5.517895
+          },
+          "activeMmHg": {
+            "min": 0.003891,
+            "max": 4.233841
+          },
+          "avPlaneDeltaMmHg": {
+            "min": -1.533974,
+            "max": 0.000038
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "candidateId": "runtime-default-atrial-active-reference",
+      "pointId": "low-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 4800,
+      "status": "measured",
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 23,
+        "actualSeconds": 16.834,
+        "worstSignal": "papDia",
+        "worstDelta": 0.006356,
+        "adjacentDelta": 0.006356,
+        "periodBeats": 1,
+        "periodDelta": 0.006356,
+        "worstDeltaToPrimaryTolerance": 1.271115
+      },
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "metrics": {
+        "CO_L": 4.557237,
+        "CO_R": 4.560984,
+        "SV_L": 50.635963,
+        "SV_R": 50.677599,
+        "AoPMean": 72.384463,
+        "PAPMean": 10.010232,
+        "RAPMean": 1.383355,
+        "LAPMean": 2.285486,
+        "TBV": 4800
+      },
+      "forwardCO_L": 4.56176,
+      "forwardCO_R": 4.559284,
+      "providerIds": {
+        "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+        "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+      },
+      "instrumentation": {
+        "LA": null,
+        "RA": null
+      },
+      "LA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 45.508694,
+          "preAtrialContractionVolumeMl": 34.992122,
+          "minVolumeMl": 9.998783,
+          "totalEmptyingFraction": 0.780288,
+          "passiveEmptyingFraction": 0.231089,
+          "activeEmptyingFraction": 0.714255,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.284543
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.600239,
+          "lambdaMax": 0.974845,
+          "lambdaPreAtrialContraction": 0.91744,
+          "reservoirStrain": 0.624095,
+          "conduitStrain": 0.095637,
+          "contractileStrain": 0.528458,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": false,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.666916,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.6162,
+            "lambdaWithoutAvPlaneMax": 1.003662,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0.090267,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0.084618,
+              "max": 8.212581
+            },
+            "avPlaneDescent01": {
+              "min": 0.008462,
+              "max": 0.821258
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 6.062418,
+          "vWaveMaxMmHg": 6.113781,
+          "xDescentMinMmHg": 0.545649,
+          "yDescentMinMmHg": 0.714815,
+          "relationSignal": "la-v-ge-a"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 0,
+          "signedAreaMmHgMl": 101.884977,
+          "absAreaMmHgMl": 101.884977,
+          "midVolumePressureSpreadMmHg": 5.414661,
+          "boosterLoopSignedAreaMmHgMl": 47.631196,
+          "reservoirLoopSignedAreaMmHgMl": 51.386603,
+          "opposingLobes": false,
+          "rawReadableByExistingThreshold": false
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0,
+            "max": 6.002489
+          },
+          "activeMmHg": {
+            "min": 0.074654,
+            "max": 6.058347
+          },
+          "avPlaneDeltaMmHg": {
+            "min": -4.785978,
+            "max": -0.011196
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 55.093685,
+          "preAtrialContractionVolumeMl": 53.922635,
+          "minVolumeMl": 13.593942,
+          "totalEmptyingFraction": 0.753258,
+          "passiveEmptyingFraction": 0.021256,
+          "activeEmptyingFraction": 0.747899,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.519901
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.647538,
+          "lambdaMax": 1.060119,
+          "lambdaPreAtrialContraction": 1.056084,
+          "reservoirStrain": 0.637154,
+          "conduitStrain": 0.006231,
+          "contractileStrain": 0.630923,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": false,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.823846,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.6899,
+            "lambdaWithoutAvPlaneMax": 1.065755,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0.106295,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0.007051,
+              "max": 10.439181
+            },
+            "avPlaneDescent01": {
+              "min": 0.000588,
+              "max": 0.869932
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 4.99021,
+          "vWaveMaxMmHg": 2.082399,
+          "xDescentMinMmHg": 0.12565,
+          "yDescentMinMmHg": 0.282023,
+          "relationSignal": "ra-a-ge-v"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 0,
+          "signedAreaMmHgMl": 125.153362,
+          "absAreaMmHgMl": 125.153362,
+          "midVolumePressureSpreadMmHg": 4.858509,
+          "boosterLoopSignedAreaMmHgMl": 92.22515,
+          "reservoirLoopSignedAreaMmHgMl": 38.024551,
+          "opposingLobes": false,
+          "rawReadableByExistingThreshold": false
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0,
+            "max": 2.081196
+          },
+          "activeMmHg": {
+            "min": 0.003507,
+            "max": 4.481544
+          },
+          "avPlaneDeltaMmHg": {
+            "min": -0.998665,
+            "max": 0.000549
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "candidateId": "runtime-default-atrial-active-reference",
+      "pointId": "high-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 6200,
+      "status": "measured",
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 24,
+        "actualSeconds": 17.584,
+        "worstSignal": "papDia",
+        "worstDelta": 0.005422,
+        "adjacentDelta": 0.005422,
+        "periodBeats": 1,
+        "periodDelta": 0.005422,
+        "worstDeltaToPrimaryTolerance": 1.084497
+      },
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "metrics": {
+        "CO_L": 5.333668,
+        "CO_R": 5.349897,
+        "SV_L": 59.262976,
+        "SV_R": 59.443297,
+        "AoPMean": 88.660998,
+        "PAPMean": 23.207527,
+        "RAPMean": 6.420773,
+        "LAPMean": 14.170017,
+        "TBV": 6200
+      },
+      "forwardCO_L": 5.330886,
+      "forwardCO_R": 5.351045,
+      "providerIds": {
+        "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+        "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium"
+      },
+      "instrumentation": {
+        "LA": null,
+        "RA": null
+      },
+      "LA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 62.875461,
+          "preAtrialContractionVolumeMl": 50.260998,
+          "minVolumeMl": 37.612391,
+          "totalEmptyingFraction": 0.401795,
+          "passiveEmptyingFraction": 0.200626,
+          "activeEmptyingFraction": 0.251659,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.097579
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.944622,
+          "lambdaMax": 1.091519,
+          "lambdaPreAtrialContraction": 1.035105,
+          "reservoirStrain": 0.155509,
+          "conduitStrain": 0.059721,
+          "contractileStrain": 0.095788,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": false,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.438982,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.944431,
+            "lambdaWithoutAvPlaneMax": 1.113004,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0.039435,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 6.175257
+            },
+            "avPlaneDescent01": {
+              "min": 0,
+              "max": 0.617526
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 17.712931,
+          "vWaveMaxMmHg": 20.095167,
+          "xDescentMinMmHg": 11.502218,
+          "yDescentMinMmHg": 7.853446,
+          "relationSignal": "la-v-ge-a"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 4,
+          "signedAreaMmHgMl": 65.676692,
+          "absAreaMmHgMl": 65.676692,
+          "midVolumePressureSpreadMmHg": 4.689471,
+          "boosterLoopSignedAreaMmHgMl": 31.90214,
+          "reservoirLoopSignedAreaMmHgMl": -31.502888,
+          "opposingLobes": true,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 3.787035,
+            "max": 19.723006
+          },
+          "activeMmHg": {
+            "min": 0.122552,
+            "max": 11.635397
+          },
+          "avPlaneDeltaMmHg": {
+            "min": -6.269387,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 89.276846,
+          "preAtrialContractionVolumeMl": 67.212014,
+          "minVolumeMl": 53.183364,
+          "totalEmptyingFraction": 0.404287,
+          "passiveEmptyingFraction": 0.247151,
+          "activeEmptyingFraction": 0.208722,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.015713
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 1.053905,
+          "lambdaMax": 1.236183,
+          "lambdaPreAtrialContraction": 1.134409,
+          "reservoirStrain": 0.172954,
+          "conduitStrain": 0.096568,
+          "contractileStrain": 0.076386,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": false,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.391092,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 1.053885,
+            "lambdaWithoutAvPlaneMax": 1.242904,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0.02802,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 5.754127
+            },
+            "avPlaneDescent01": {
+              "min": 0,
+              "max": 0.479511
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 9.242927,
+          "vWaveMaxMmHg": 8.928513,
+          "xDescentMinMmHg": 4.233228,
+          "yDescentMinMmHg": 4.629442,
+          "relationSignal": "ra-a-ge-v"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 2,
+          "signedAreaMmHgMl": 50.59747,
+          "absAreaMmHgMl": 50.59747,
+          "midVolumePressureSpreadMmHg": 4.712252,
+          "boosterLoopSignedAreaMmHgMl": 27.879283,
+          "reservoirLoopSignedAreaMmHgMl": -32.098573,
+          "opposingLobes": true,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 1.96383,
+            "max": 8.890337
+          },
+          "activeMmHg": {
+            "min": 0.004917,
+            "max": 4.260455
+          },
+          "avPlaneDeltaMmHg": {
+            "min": -1.717992,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "candidateId": "promoted-landatrial-shadow-la-ra",
+      "pointId": "normal-hr75",
+      "HR": 75,
+      "targetTBVMl": 5600,
+      "status": "measured",
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 15,
+        "actualSeconds": 13.85,
+        "worstSignal": "rvEdp",
+        "worstDelta": 0.005627,
+        "adjacentDelta": 0.005627,
+        "periodBeats": 1,
+        "periodDelta": 0.005627,
+        "worstDeltaToPrimaryTolerance": 1.125481
+      },
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "metrics": {
+        "CO_L": 4.817726,
+        "CO_R": 4.812357,
+        "SV_L": 64.23634,
+        "SV_R": 64.164763,
+        "AoPMean": 78.499148,
+        "PAPMean": 17.043573,
+        "RAPMean": 4.375428,
+        "LAPMean": 8.906639,
+        "TBV": 5600
+      },
+      "forwardCO_L": 4.817896,
+      "forwardCO_R": 4.812413,
+      "providerIds": {
+        "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+        "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium",
+        "LA": "modelcore-experimental-land2017-la-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:signed-atrial-pressure-adapter",
+        "RA": "modelcore-experimental-land2017-ra-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:signed-atrial-pressure-adapter"
+      },
+      "instrumentation": {
+        "LA": {
+          "sourceActiveStressPaCalls": 211157,
+          "commitProviderStateAfterStepCalls": 16800,
+          "landSolveFailureCount": 0,
+          "maxSolverResidualNorm": 0,
+          "sourceActiveFiberStressPa": {
+            "min": 0.000109,
+            "max": 7763.986181
+          },
+          "fiberEngineeringStrain": {
+            "min": -0.168036,
+            "max": 0.144465
+          },
+          "freeCalciumUM": {
+            "min": 0,
+            "max": 0.657495
+          }
+        },
+        "RA": {
+          "sourceActiveStressPaCalls": 211157,
+          "commitProviderStateAfterStepCalls": 16800,
+          "landSolveFailureCount": 0,
+          "maxSolverResidualNorm": 0,
+          "sourceActiveFiberStressPa": {
+            "min": 0.178833,
+            "max": 6088.127468
+          },
+          "fiberEngineeringStrain": {
+            "min": -0.07042,
+            "max": 0.188276
+          },
+          "freeCalciumUM": {
+            "min": 0,
+            "max": 0.649476
+          }
+        }
+      },
+      "LA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 57.08263,
+          "preAtrialContractionVolumeMl": 43.175475,
+          "minVolumeMl": 25.15985,
+          "totalEmptyingFraction": 0.559238,
+          "passiveEmptyingFraction": 0.243632,
+          "activeEmptyingFraction": 0.417265,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.831989,
+          "lambdaMax": 1.053427,
+          "lambdaPreAtrialContraction": 0.985862,
+          "reservoirStrain": 0.266155,
+          "conduitStrain": 0.081208,
+          "contractileStrain": 0.184946,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": true,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.242637,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.831968,
+            "lambdaWithoutAvPlaneMax": 1.079017,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0.047626,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 7.03118
+            },
+            "avPlaneDescent01": {
+              "min": 0,
+              "max": 0.703118
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 17.049348,
+          "vWaveMaxMmHg": 14.02935,
+          "xDescentMinMmHg": 6.12197,
+          "yDescentMinMmHg": 3.966458,
+          "relationSignal": "not-supported"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 5,
+          "signedAreaMmHgMl": 212.727574,
+          "absAreaMmHgMl": 212.727574,
+          "midVolumePressureSpreadMmHg": 13.072832,
+          "boosterLoopSignedAreaMmHgMl": 174.56397,
+          "reservoirLoopSignedAreaMmHgMl": 50.329846,
+          "opposingLobes": false,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.036513,
+            "max": 14.028687
+          },
+          "activeMmHg": {
+            "min": 0,
+            "max": 12.95475
+          },
+          "avPlaneDeltaMmHg": {
+            "min": -5.936932,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 76.775895,
+          "preAtrialContractionVolumeMl": 62.211969,
+          "minVolumeMl": 36.351468,
+          "totalEmptyingFraction": 0.526525,
+          "passiveEmptyingFraction": 0.189694,
+          "activeEmptyingFraction": 0.415684,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.020306
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.935592,
+          "lambdaMax": 1.179143,
+          "lambdaPreAtrialContraction": 1.100716,
+          "reservoirStrain": 0.260318,
+          "conduitStrain": 0.083826,
+          "contractileStrain": 0.176491,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": true,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.256856,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.935545,
+            "lambdaWithoutAvPlaneMax": 1.184223,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0.037559,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 6.434158
+            },
+            "avPlaneDescent01": {
+              "min": 0,
+              "max": 0.53618
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 12.282798,
+          "vWaveMaxMmHg": 5.669225,
+          "xDescentMinMmHg": 1.825191,
+          "yDescentMinMmHg": 2.605642,
+          "relationSignal": "ra-a-ge-v"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 2,
+          "signedAreaMmHgMl": 198.496725,
+          "absAreaMmHgMl": 198.496725,
+          "midVolumePressureSpreadMmHg": 10.448817,
+          "boosterLoopSignedAreaMmHgMl": 160.985822,
+          "reservoirLoopSignedAreaMmHgMl": 27.201622,
+          "opposingLobes": false,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.447887,
+            "max": 5.659133
+          },
+          "activeMmHg": {
+            "min": 0.000277,
+            "max": 9.244456
+          },
+          "avPlaneDeltaMmHg": {
+            "min": -1.301804,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "candidateId": "promoted-landatrial-shadow-la-ra",
+      "pointId": "low-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 4800,
+      "status": "measured",
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 19,
+        "actualSeconds": 16.85,
+        "worstSignal": "lvEdp",
+        "worstDelta": 0.006174,
+        "adjacentDelta": 0.006174,
+        "periodBeats": 1,
+        "periodDelta": 0.006174,
+        "worstDeltaToPrimaryTolerance": 1.234774
+      },
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "metrics": {
+        "CO_L": 4.152612,
+        "CO_R": 4.151155,
+        "SV_L": 55.36816,
+        "SV_R": 55.348739,
+        "AoPMean": 66.587574,
+        "PAPMean": 9.885983,
+        "RAPMean": 2.049879,
+        "LAPMean": 2.863024,
+        "TBV": 4800
+      },
+      "forwardCO_L": 4.151639,
+      "forwardCO_R": 4.149034,
+      "providerIds": {
+        "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+        "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium",
+        "LA": "modelcore-experimental-land2017-la-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:signed-atrial-pressure-adapter",
+        "RA": "modelcore-experimental-land2017-ra-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:signed-atrial-pressure-adapter"
+      },
+      "instrumentation": {
+        "LA": {
+          "sourceActiveStressPaCalls": 251386,
+          "commitProviderStateAfterStepCalls": 20010,
+          "landSolveFailureCount": 0,
+          "maxSolverResidualNorm": 0,
+          "sourceActiveFiberStressPa": {
+            "min": 0.000044,
+            "max": 4871.233006
+          },
+          "fiberEngineeringStrain": {
+            "min": -0.23619,
+            "max": 0.066508
+          },
+          "freeCalciumUM": {
+            "min": 0,
+            "max": 0.657495
+          }
+        },
+        "RA": {
+          "sourceActiveStressPaCalls": 251386,
+          "commitProviderStateAfterStepCalls": 20010,
+          "landSolveFailureCount": 0,
+          "maxSolverResidualNorm": 0,
+          "sourceActiveFiberStressPa": {
+            "min": 0.067745,
+            "max": 3893.687189
+          },
+          "fiberEngineeringStrain": {
+            "min": -0.116777,
+            "max": 0.139103
+          },
+          "freeCalciumUM": {
+            "min": 0,
+            "max": 0.649476
+          }
+        }
+      },
+      "LA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 48.333461,
+          "preAtrialContractionVolumeMl": 34.44443,
+          "minVolumeMl": 19.577793,
+          "totalEmptyingFraction": 0.594943,
+          "passiveEmptyingFraction": 0.287359,
+          "activeEmptyingFraction": 0.431612,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.763916,
+          "lambdaMax": 0.991559,
+          "lambdaPreAtrialContraction": 0.913268,
+          "reservoirStrain": 0.297996,
+          "conduitStrain": 0.102486,
+          "contractileStrain": 0.19551,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": false,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.195028,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.768699,
+            "lambdaWithoutAvPlaneMax": 1.023055,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0.067405,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0.074887,
+              "max": 8.387441
+            },
+            "avPlaneDescent01": {
+              "min": 0.007489,
+              "max": 0.838744
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 8.88553,
+          "vWaveMaxMmHg": 7.392335,
+          "xDescentMinMmHg": 0.804157,
+          "yDescentMinMmHg": 0.955972,
+          "relationSignal": "not-supported"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 3,
+          "signedAreaMmHgMl": 126.238846,
+          "absAreaMmHgMl": 126.238846,
+          "midVolumePressureSpreadMmHg": 8.078549,
+          "boosterLoopSignedAreaMmHgMl": 85.23467,
+          "reservoirLoopSignedAreaMmHgMl": 55.84077,
+          "opposingLobes": false,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.000512,
+            "max": 7.392297
+          },
+          "activeMmHg": {
+            "min": 0,
+            "max": 8.331601
+          },
+          "avPlaneDeltaMmHg": {
+            "min": -5.34317,
+            "max": -0.02797
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 65.001967,
+          "preAtrialContractionVolumeMl": 46.52224,
+          "minVolumeMl": 32.193004,
+          "totalEmptyingFraction": 0.504738,
+          "passiveEmptyingFraction": 0.284295,
+          "activeEmptyingFraction": 0.308008,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.884196,
+          "lambdaMax": 1.115317,
+          "lambdaPreAtrialContraction": 0.972784,
+          "reservoirStrain": 0.261391,
+          "conduitStrain": 0.1612,
+          "contractileStrain": 0.100191,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": false,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.214218,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.900605,
+            "lambdaWithoutAvPlaneMax": 1.123069,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0.074118,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0.02927,
+              "max": 10.456126
+            },
+            "avPlaneDescent01": {
+              "min": 0.002439,
+              "max": 0.871344
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 7.520478,
+          "vWaveMaxMmHg": 3.369934,
+          "xDescentMinMmHg": 0.743627,
+          "yDescentMinMmHg": 0.77411,
+          "relationSignal": "ra-a-ge-v"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 4,
+          "signedAreaMmHgMl": 95.29353,
+          "absAreaMmHgMl": 95.29353,
+          "midVolumePressureSpreadMmHg": 6.775076,
+          "boosterLoopSignedAreaMmHgMl": 77.442843,
+          "reservoirLoopSignedAreaMmHgMl": 13.445906,
+          "opposingLobes": false,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.094687,
+            "max": 3.365184
+          },
+          "activeMmHg": {
+            "min": 0.000137,
+            "max": 5.932189
+          },
+          "avPlaneDeltaMmHg": {
+            "min": -1.405358,
+            "max": -0.001851
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "candidateId": "promoted-landatrial-shadow-la-ra",
+      "pointId": "high-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 6200,
+      "status": "measured",
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 18,
+        "actualSeconds": 16.1,
+        "worstSignal": "lvEdp",
+        "worstDelta": 0.004226,
+        "adjacentDelta": 0.004226,
+        "periodBeats": 1,
+        "periodDelta": 0.004226,
+        "worstDeltaToPrimaryTolerance": 0.845157
+      },
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "metrics": {
+        "CO_L": 4.91887,
+        "CO_R": 4.929247,
+        "SV_L": 65.584929,
+        "SV_R": 65.723292,
+        "AoPMean": 83.051696,
+        "PAPMean": 22.40656,
+        "RAPMean": 7.276948,
+        "LAPMean": 14.086617,
+        "TBV": 6200
+      },
+      "forwardCO_L": 4.919862,
+      "forwardCO_R": 4.932585,
+      "providerIds": {
+        "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+        "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium",
+        "LA": "modelcore-experimental-land2017-la-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:signed-atrial-pressure-adapter",
+        "RA": "modelcore-experimental-land2017-ra-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:signed-atrial-pressure-adapter"
+      },
+      "instrumentation": {
+        "LA": {
+          "sourceActiveStressPaCalls": 241364,
+          "commitProviderStateAfterStepCalls": 19210,
+          "landSolveFailureCount": 0,
+          "maxSolverResidualNorm": 0,
+          "sourceActiveFiberStressPa": {
+            "min": 0.000132,
+            "max": 8235.917118
+          },
+          "fiberEngineeringStrain": {
+            "min": -0.146577,
+            "max": 0.155389
+          },
+          "freeCalciumUM": {
+            "min": 0,
+            "max": 0.657495
+          }
+        },
+        "RA": {
+          "sourceActiveStressPaCalls": 241364,
+          "commitProviderStateAfterStepCalls": 19210,
+          "landSolveFailureCount": 0,
+          "maxSolverResidualNorm": 0,
+          "sourceActiveFiberStressPa": {
+            "min": 0.204277,
+            "max": 7275.560805
+          },
+          "fiberEngineeringStrain": {
+            "min": -0.045404,
+            "max": 0.238083
+          },
+          "freeCalciumUM": {
+            "min": 0,
+            "max": 0.649476
+          }
+        }
+      },
+      "LA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 62.816279,
+          "preAtrialContractionVolumeMl": 50.572599,
+          "minVolumeMl": 28.081926,
+          "totalEmptyingFraction": 0.552951,
+          "passiveEmptyingFraction": 0.194913,
+          "activeEmptyingFraction": 0.444721,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.035087
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.861301,
+          "lambdaMax": 1.090048,
+          "lambdaPreAtrialContraction": 1.037936,
+          "reservoirStrain": 0.265583,
+          "conduitStrain": 0.060503,
+          "contractileStrain": 0.20508,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": false,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.278994,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.861205,
+            "lambdaWithoutAvPlaneMax": 1.112645,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0.040723,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 6.511434
+            },
+            "avPlaneDescent01": {
+              "min": 0,
+              "max": 0.651143
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 23.539386,
+          "vWaveMaxMmHg": 19.516714,
+          "xDescentMinMmHg": 11.118725,
+          "yDescentMinMmHg": 7.832445,
+          "relationSignal": "not-supported"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 6,
+          "signedAreaMmHgMl": 253.350097,
+          "absAreaMmHgMl": 253.350097,
+          "midVolumePressureSpreadMmHg": 15.678761,
+          "boosterLoopSignedAreaMmHgMl": 215.772078,
+          "reservoirLoopSignedAreaMmHgMl": 109.393015,
+          "opposingLobes": false,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.210911,
+            "max": 19.466501
+          },
+          "activeMmHg": {
+            "min": 0,
+            "max": 17.346418
+          },
+          "avPlaneDeltaMmHg": {
+            "min": -6.605685,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 86.509071,
+          "preAtrialContractionVolumeMl": 72.086071,
+          "minVolumeMl": 40.486723,
+          "totalEmptyingFraction": 0.531994,
+          "passiveEmptyingFraction": 0.166722,
+          "activeEmptyingFraction": 0.438356,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.043278
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.967504,
+          "lambdaMax": 1.227272,
+          "lambdaPreAtrialContraction": 1.160581,
+          "reservoirStrain": 0.268493,
+          "conduitStrain": 0.068931,
+          "contractileStrain": 0.199562,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": false,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.277138,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.967458,
+            "lambdaWithoutAvPlaneMax": 1.230353,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0.018131,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 3.445754
+            },
+            "avPlaneDescent01": {
+              "min": 0,
+              "max": 0.287146
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 16.080048,
+          "vWaveMaxMmHg": 8.407332,
+          "xDescentMinMmHg": 3.034068,
+          "yDescentMinMmHg": 5.66424,
+          "relationSignal": "ra-a-ge-v"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 2,
+          "signedAreaMmHgMl": 284.070899,
+          "absAreaMmHgMl": 284.070899,
+          "midVolumePressureSpreadMmHg": 12.983866,
+          "boosterLoopSignedAreaMmHgMl": 181.740095,
+          "reservoirLoopSignedAreaMmHgMl": 108.905853,
+          "opposingLobes": false,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.756597,
+            "max": 8.28665
+          },
+          "activeMmHg": {
+            "min": 0.000332,
+            "max": 10.324882
+          },
+          "avPlaneDeltaMmHg": {
+            "min": -0.964926,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "candidateId": "promoted-landatrial-shadow-la-ra",
+      "pointId": "normal-hr90",
+      "HR": 90,
+      "targetTBVMl": 5600,
+      "status": "measured",
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 27,
+        "actualSeconds": 20.917,
+        "worstSignal": "papDia",
+        "worstDelta": 0.004796,
+        "adjacentDelta": 0.005107,
+        "periodBeats": 2,
+        "periodDelta": 0.004796,
+        "worstDeltaToPrimaryTolerance": 0.95928
+      },
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "metrics": {
+        "CO_L": 5.226821,
+        "CO_R": 5.218422,
+        "SV_L": 58.075791,
+        "SV_R": 57.982467,
+        "AoPMean": 84.578296,
+        "PAPMean": 16.454501,
+        "RAPMean": 3.667579,
+        "LAPMean": 7.608211,
+        "TBV": 5600
+      },
+      "forwardCO_L": 5.231546,
+      "forwardCO_R": 5.223359,
+      "providerIds": {
+        "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+        "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium",
+        "LA": "modelcore-experimental-land2017-la-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:signed-atrial-pressure-adapter",
+        "RA": "modelcore-experimental-land2017-ra-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:signed-atrial-pressure-adapter"
+      },
+      "instrumentation": {
+        "LA": {
+          "sourceActiveStressPaCalls": 292125,
+          "commitProviderStateAfterStepCalls": 23337,
+          "landSolveFailureCount": 0,
+          "maxSolverResidualNorm": 0,
+          "sourceActiveFiberStressPa": {
+            "min": 0.002725,
+            "max": 7819.380264
+          },
+          "fiberEngineeringStrain": {
+            "min": -0.190465,
+            "max": 0.144683
+          },
+          "freeCalciumUM": {
+            "min": 0,
+            "max": 0.673662
+          }
+        },
+        "RA": {
+          "sourceActiveStressPaCalls": 292125,
+          "commitProviderStateAfterStepCalls": 23337,
+          "landSolveFailureCount": 0,
+          "maxSolverResidualNorm": 0,
+          "sourceActiveFiberStressPa": {
+            "min": -6.775919,
+            "max": 4505.198374
+          },
+          "fiberEngineeringStrain": {
+            "min": -0.06631,
+            "max": 0.188468
+          },
+          "freeCalciumUM": {
+            "min": 0,
+            "max": 0.665164
+          }
+        }
+      },
+      "LA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 55.45936,
+          "preAtrialContractionVolumeMl": 39.760538,
+          "minVolumeMl": 23.097448,
+          "totalEmptyingFraction": 0.583525,
+          "passiveEmptyingFraction": 0.283069,
+          "activeEmptyingFraction": 0.419085,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.80987,
+          "lambdaMax": 1.044713,
+          "lambdaPreAtrialContraction": 0.94923,
+          "reservoirStrain": 0.289977,
+          "conduitStrain": 0.1179,
+          "contractileStrain": 0.172077,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": true,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.182123,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.809628,
+            "lambdaWithoutAvPlaneMax": 1.069107,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0.046734,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 6.680067
+            },
+            "avPlaneDescent01": {
+              "min": 0,
+              "max": 0.668007
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 13.533611,
+          "vWaveMaxMmHg": 12.924035,
+          "xDescentMinMmHg": 4.423532,
+          "yDescentMinMmHg": 3.539283,
+          "relationSignal": "la-v-ge-a"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 4,
+          "signedAreaMmHgMl": 167.679482,
+          "absAreaMmHgMl": 167.679482,
+          "midVolumePressureSpreadMmHg": 9.991553,
+          "boosterLoopSignedAreaMmHgMl": 134.873716,
+          "reservoirLoopSignedAreaMmHgMl": -18.754632,
+          "opposingLobes": true,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.009048,
+            "max": 12.923757
+          },
+          "activeMmHg": {
+            "min": 0.000005,
+            "max": 10.725967
+          },
+          "avPlaneDeltaMmHg": {
+            "min": -5.391314,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 76.981256,
+          "preAtrialContractionVolumeMl": 60.934701,
+          "minVolumeMl": 36.763701,
+          "totalEmptyingFraction": 0.522433,
+          "passiveEmptyingFraction": 0.208448,
+          "activeEmptyingFraction": 0.396671,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.001552
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.938876,
+          "lambdaMax": 1.17811,
+          "lambdaPreAtrialContraction": 1.099171,
+          "reservoirStrain": 0.254809,
+          "conduitStrain": 0.084078,
+          "contractileStrain": 0.170731,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": true,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.262113,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.938643,
+            "lambdaWithoutAvPlaneMax": 1.185195,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0.046724,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 8.182468
+            },
+            "avPlaneDescent01": {
+              "min": 0,
+              "max": 0.681872
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 9.168875,
+          "vWaveMaxMmHg": 5.618256,
+          "xDescentMinMmHg": 1.868046,
+          "yDescentMinMmHg": 2.943416,
+          "relationSignal": "ra-a-ge-v"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 1,
+          "signedAreaMmHgMl": 93.252227,
+          "absAreaMmHgMl": 93.252227,
+          "midVolumePressureSpreadMmHg": 7.213167,
+          "boosterLoopSignedAreaMmHgMl": 63.68534,
+          "reservoirLoopSignedAreaMmHgMl": 26.272214,
+          "opposingLobes": false,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.475338,
+            "max": 5.611138
+          },
+          "activeMmHg": {
+            "min": -0.010365,
+            "max": 7.250735
+          },
+          "avPlaneDeltaMmHg": {
+            "min": -1.638416,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "candidateId": "promoted-landatrial-shadow-la-ra",
+      "pointId": "low-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 4800,
+      "status": "measured",
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 24,
+        "actualSeconds": 18.917,
+        "worstSignal": "lapMean",
+        "worstDelta": 0.004997,
+        "adjacentDelta": 0.005124,
+        "periodBeats": 2,
+        "periodDelta": 0.004997,
+        "worstDeltaToPrimaryTolerance": 0.999428
+      },
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "metrics": {
+        "CO_L": 4.298228,
+        "CO_R": 4.292494,
+        "SV_L": 47.758084,
+        "SV_R": 47.694379,
+        "AoPMean": 68.465129,
+        "PAPMean": 9.542746,
+        "RAPMean": 1.869077,
+        "LAPMean": 2.271857,
+        "TBV": 4800
+      },
+      "forwardCO_L": 4.289473,
+      "forwardCO_R": 4.291752,
+      "providerIds": {
+        "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+        "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium",
+        "LA": "modelcore-experimental-land2017-la-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:signed-atrial-pressure-adapter",
+        "RA": "modelcore-experimental-land2017-ra-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:signed-atrial-pressure-adapter"
+      },
+      "instrumentation": {
+        "LA": {
+          "sourceActiveStressPaCalls": 267266,
+          "commitProviderStateAfterStepCalls": 21337,
+          "landSolveFailureCount": 0,
+          "maxSolverResidualNorm": 0,
+          "sourceActiveFiberStressPa": {
+            "min": 0.000699,
+            "max": 4327.440613
+          },
+          "fiberEngineeringStrain": {
+            "min": -0.267436,
+            "max": 0.066092
+          },
+          "freeCalciumUM": {
+            "min": 0,
+            "max": 0.673662
+          }
+        },
+        "RA": {
+          "sourceActiveStressPaCalls": 267266,
+          "commitProviderStateAfterStepCalls": 21337,
+          "landSolveFailureCount": 0,
+          "maxSolverResidualNorm": 0,
+          "sourceActiveFiberStressPa": {
+            "min": -1.157853,
+            "max": 3725.355306
+          },
+          "fiberEngineeringStrain": {
+            "min": -0.104122,
+            "max": 0.138164
+          },
+          "freeCalciumUM": {
+            "min": 0,
+            "max": 0.665164
+          }
+        }
+      },
+      "LA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 47.461626,
+          "preAtrialContractionVolumeMl": 33.234128,
+          "minVolumeMl": 18.108658,
+          "totalEmptyingFraction": 0.618457,
+          "passiveEmptyingFraction": 0.299768,
+          "activeEmptyingFraction": 0.455119,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.73285,
+          "lambdaMax": 0.985384,
+          "lambdaPreAtrialContraction": 0.898854,
+          "reservoirStrain": 0.344591,
+          "conduitStrain": 0.118072,
+          "contractileStrain": 0.226519,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": false,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.163856,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.749608,
+            "lambdaWithoutAvPlaneMax": 1.017149,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0.070669,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0.150483,
+              "max": 8.556013
+            },
+            "avPlaneDescent01": {
+              "min": 0.015048,
+              "max": 0.855601
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 7.167457,
+          "vWaveMaxMmHg": 6.862838,
+          "xDescentMinMmHg": 0.399057,
+          "yDescentMinMmHg": 1.229091,
+          "relationSignal": "la-v-ge-a"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 0,
+          "signedAreaMmHgMl": 98.744823,
+          "absAreaMmHgMl": 98.744823,
+          "midVolumePressureSpreadMmHg": 6.704266,
+          "boosterLoopSignedAreaMmHgMl": 57.312986,
+          "reservoirLoopSignedAreaMmHgMl": 50.126945,
+          "opposingLobes": false,
+          "rawReadableByExistingThreshold": false
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.000072,
+            "max": 6.862813
+          },
+          "activeMmHg": {
+            "min": 0.000002,
+            "max": 6.962647
+          },
+          "avPlaneDeltaMmHg": {
+            "min": -5.298957,
+            "max": -0.061496
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 66.845105,
+          "preAtrialContractionVolumeMl": 52.173856,
+          "minVolumeMl": 35.804734,
+          "totalEmptyingFraction": 0.464363,
+          "passiveEmptyingFraction": 0.219481,
+          "activeEmptyingFraction": 0.313741,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.905929,
+          "lambdaMax": 1.124129,
+          "lambdaPreAtrialContraction": 1.045435,
+          "reservoirStrain": 0.240858,
+          "conduitStrain": 0.086866,
+          "contractileStrain": 0.153991,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": true,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.273276,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.931126,
+            "lambdaWithoutAvPlaneMax": 1.133096,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0.071573,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0.110596,
+              "max": 10.788681
+            },
+            "avPlaneDescent01": {
+              "min": 0.009216,
+              "max": 0.899057
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 3.47132,
+          "vWaveMaxMmHg": 3.62326,
+          "xDescentMinMmHg": 0.996466,
+          "yDescentMinMmHg": 1.821089,
+          "relationSignal": "ra-a-ge-v"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 2,
+          "signedAreaMmHgMl": 32.678851,
+          "absAreaMmHgMl": 32.678851,
+          "midVolumePressureSpreadMmHg": 1.152951,
+          "boosterLoopSignedAreaMmHgMl": 12.823906,
+          "reservoirLoopSignedAreaMmHgMl": 33.163972,
+          "opposingLobes": false,
+          "rawReadableByExistingThreshold": false
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.215561,
+            "max": 3.620727
+          },
+          "activeMmHg": {
+            "min": -0.000353,
+            "max": 2.609316
+          },
+          "avPlaneDeltaMmHg": {
+            "min": -1.542103,
+            "max": -0.015073
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "candidateId": "promoted-landatrial-shadow-la-ra",
+      "pointId": "high-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 6200,
+      "status": "measured",
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 29,
+        "actualSeconds": 20.834,
+        "worstSignal": "lapMean",
+        "worstDelta": 0.004394,
+        "adjacentDelta": 0.004394,
+        "periodBeats": 1,
+        "periodDelta": 0.004394,
+        "worstDeltaToPrimaryTolerance": 0.878896
+      },
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "metrics": {
+        "CO_L": 5.533564,
+        "CO_R": 5.547516,
+        "SV_L": 61.484043,
+        "SV_R": 61.639067,
+        "AoPMean": 91.537799,
+        "PAPMean": 23.93154,
+        "RAPMean": 5.973519,
+        "LAPMean": 14.552161,
+        "TBV": 6200
+      },
+      "forwardCO_L": 5.538756,
+      "forwardCO_R": 5.548314,
+      "providerIds": {
+        "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+        "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium",
+        "LA": "modelcore-experimental-land2017-la-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:signed-atrial-pressure-adapter",
+        "RA": "modelcore-experimental-land2017-ra-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:signed-atrial-pressure-adapter"
+      },
+      "instrumentation": {
+        "LA": {
+          "sourceActiveStressPaCalls": 292230,
+          "commitProviderStateAfterStepCalls": 23334,
+          "landSolveFailureCount": 0,
+          "maxSolverResidualNorm": 0,
+          "sourceActiveFiberStressPa": {
+            "min": 0.00366,
+            "max": 8481.06236
+          },
+          "fiberEngineeringStrain": {
+            "min": -0.144812,
+            "max": 0.156028
+          },
+          "freeCalciumUM": {
+            "min": 0,
+            "max": 0.673662
+          }
+        },
+        "RA": {
+          "sourceActiveStressPaCalls": 292230,
+          "commitProviderStateAfterStepCalls": 23334,
+          "landSolveFailureCount": 0,
+          "maxSolverResidualNorm": 0,
+          "sourceActiveFiberStressPa": {
+            "min": 0.800478,
+            "max": 7198.192763
+          },
+          "fiberEngineeringStrain": {
+            "min": -0.056423,
+            "max": 0.23349
+          },
+          "freeCalciumUM": {
+            "min": 0,
+            "max": 0.665164
+          }
+        }
+      },
+      "LA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 63.444198,
+          "preAtrialContractionVolumeMl": 51.714871,
+          "minVolumeMl": 29.016084,
+          "totalEmptyingFraction": 0.542652,
+          "passiveEmptyingFraction": 0.184876,
+          "activeEmptyingFraction": 0.438922,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.045124
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.870234,
+          "lambdaMax": 1.097127,
+          "lambdaPreAtrialContraction": 1.04537,
+          "reservoirStrain": 0.260726,
+          "conduitStrain": 0.059474,
+          "contractileStrain": 0.201252,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": false,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.281052,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.870176,
+            "lambdaWithoutAvPlaneMax": 1.116262,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0.033986,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 5.456735
+            },
+            "avPlaneDescent01": {
+              "min": 0,
+              "max": 0.545673
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 23.430057,
+          "vWaveMaxMmHg": 20.70633,
+          "xDescentMinMmHg": 10.63665,
+          "yDescentMinMmHg": 9.039232,
+          "relationSignal": "la-v-ge-a"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 2,
+          "signedAreaMmHgMl": 243.948759,
+          "absAreaMmHgMl": 243.948759,
+          "midVolumePressureSpreadMmHg": 14.341434,
+          "boosterLoopSignedAreaMmHgMl": 211.365815,
+          "reservoirLoopSignedAreaMmHgMl": 24.383363,
+          "opposingLobes": false,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.344816,
+            "max": 20.681299
+          },
+          "activeMmHg": {
+            "min": 0.000007,
+            "max": 18.698076
+          },
+          "avPlaneDeltaMmHg": {
+            "min": -5.739486,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 84.414592,
+          "preAtrialContractionVolumeMl": 69.083147,
+          "minVolumeMl": 38.018214,
+          "totalEmptyingFraction": 0.549625,
+          "passiveEmptyingFraction": 0.181621,
+          "activeEmptyingFraction": 0.449674,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.028379
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.948726,
+          "lambdaMax": 1.215994,
+          "lambdaPreAtrialContraction": 1.144632,
+          "reservoirStrain": 0.281713,
+          "conduitStrain": 0.075219,
+          "contractileStrain": 0.206494,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": false,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.264562,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.948517,
+            "lambdaWithoutAvPlaneMax": 1.22067,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0.028504,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 5.342984
+            },
+            "avPlaneDescent01": {
+              "min": 0,
+              "max": 0.445249
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 13.884568,
+          "vWaveMaxMmHg": 7.632599,
+          "xDescentMinMmHg": 2.611308,
+          "yDescentMinMmHg": 4.981136,
+          "relationSignal": "ra-a-ge-v"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 1,
+          "signedAreaMmHgMl": 183.889592,
+          "absAreaMmHgMl": 183.889592,
+          "midVolumePressureSpreadMmHg": 11.269523,
+          "boosterLoopSignedAreaMmHgMl": 114.61256,
+          "reservoirLoopSignedAreaMmHgMl": 13.565471,
+          "opposingLobes": false,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.566432,
+            "max": 7.578441
+          },
+          "activeMmHg": {
+            "min": 0.001159,
+            "max": 10.214614
+          },
+          "avPlaneDeltaMmHg": {
+            "min": -1.374279,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "candidateId": "promoted-landatrial-shadow-no-avplane-ablation",
+      "pointId": "normal-hr75",
+      "HR": 75,
+      "targetTBVMl": 5600,
+      "status": "measured",
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 15,
+        "actualSeconds": 13.85,
+        "worstSignal": "rvEdp",
+        "worstDelta": 0.005817,
+        "adjacentDelta": 0.005817,
+        "periodBeats": 1,
+        "periodDelta": 0.005817,
+        "worstDeltaToPrimaryTolerance": 1.16333
+      },
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "metrics": {
+        "CO_L": 4.799103,
+        "CO_R": 4.789766,
+        "SV_L": 63.988039,
+        "SV_R": 63.863542,
+        "AoPMean": 78.296582,
+        "PAPMean": 16.988577,
+        "RAPMean": 4.448485,
+        "LAPMean": 8.886058,
+        "TBV": 5600
+      },
+      "forwardCO_L": 4.799263,
+      "forwardCO_R": 4.78981,
+      "providerIds": {
+        "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+        "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium",
+        "LA": "modelcore-experimental-land2017-la-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:signed-atrial-pressure-adapter",
+        "RA": "modelcore-experimental-land2017-ra-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:signed-atrial-pressure-adapter"
+      },
+      "instrumentation": {
+        "LA": {
+          "sourceActiveStressPaCalls": 211157,
+          "commitProviderStateAfterStepCalls": 16800,
+          "landSolveFailureCount": 0,
+          "maxSolverResidualNorm": 0,
+          "sourceActiveFiberStressPa": {
+            "min": 0.000108,
+            "max": 7700.614992
+          },
+          "fiberEngineeringStrain": {
+            "min": -0.172315,
+            "max": 0.109554
+          },
+          "freeCalciumUM": {
+            "min": 0,
+            "max": 0.657495
+          }
+        },
+        "RA": {
+          "sourceActiveStressPaCalls": 211157,
+          "commitProviderStateAfterStepCalls": 16800,
+          "landSolveFailureCount": 0,
+          "maxSolverResidualNorm": 0,
+          "sourceActiveFiberStressPa": {
+            "min": 0.174249,
+            "max": 6100.677647
+          },
+          "fiberEngineeringStrain": {
+            "min": -0.07177,
+            "max": 0.173339
+          },
+          "freeCalciumUM": {
+            "min": 0,
+            "max": 0.649476
+          }
+        }
+      },
+      "LA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 50.956634,
+          "preAtrialContractionVolumeMl": 43.375287,
+          "minVolumeMl": 24.759027,
+          "totalEmptyingFraction": 0.514116,
+          "passiveEmptyingFraction": 0.14878,
+          "activeEmptyingFraction": 0.42919,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.08122
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.82779,
+          "lambdaMax": 1.040448,
+          "lambdaPreAtrialContraction": 0.988365,
+          "reservoirStrain": 0.256897,
+          "conduitStrain": 0.062918,
+          "contractileStrain": 0.193979,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": false,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.274164,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.827742,
+            "lambdaWithoutAvPlaneMax": 1.040511,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 0
+            },
+            "avPlaneDescent01": {
+              "min": 0,
+              "max": 0.711709
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 16.870756,
+          "vWaveMaxMmHg": 12.408737,
+          "xDescentMinMmHg": 5.841155,
+          "yDescentMinMmHg": 4.230923,
+          "relationSignal": "not-supported"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 2,
+          "signedAreaMmHgMl": 168.364471,
+          "absAreaMmHgMl": 168.364471,
+          "midVolumePressureSpreadMmHg": 12.59268,
+          "boosterLoopSignedAreaMmHgMl": 171.228676,
+          "reservoirLoopSignedAreaMmHgMl": -14.030804,
+          "opposingLobes": true,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.028085,
+            "max": 12.408386
+          },
+          "activeMmHg": {
+            "min": 0,
+            "max": 12.649444
+          },
+          "avPlaneDeltaMmHg": {
+            "min": 0,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 73.557972,
+          "preAtrialContractionVolumeMl": 60.277444,
+          "minVolumeMl": 36.1433,
+          "totalEmptyingFraction": 0.508642,
+          "passiveEmptyingFraction": 0.180545,
+          "activeEmptyingFraction": 0.400384,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.029455
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.933924,
+          "lambdaMax": 1.168087,
+          "lambdaPreAtrialContraction": 1.096441,
+          "reservoirStrain": 0.250729,
+          "conduitStrain": 0.076715,
+          "contractileStrain": 0.174015,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": true,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.273556,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.933883,
+            "lambdaWithoutAvPlaneMax": 1.168158,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 0
+            },
+            "avPlaneDescent01": {
+              "min": 0,
+              "max": 0.543854
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 12.25184,
+          "vWaveMaxMmHg": 5.190124,
+          "xDescentMinMmHg": 2.31901,
+          "yDescentMinMmHg": 2.678891,
+          "relationSignal": "ra-a-ge-v"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 2,
+          "signedAreaMmHgMl": 168.471213,
+          "absAreaMmHgMl": 168.471213,
+          "midVolumePressureSpreadMmHg": 9.88949,
+          "boosterLoopSignedAreaMmHgMl": 157.431609,
+          "reservoirLoopSignedAreaMmHgMl": -0.776961,
+          "opposingLobes": true,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.433376,
+            "max": 5.179926
+          },
+          "activeMmHg": {
+            "min": 0.000277,
+            "max": 9.322747
+          },
+          "avPlaneDeltaMmHg": {
+            "min": 0,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "candidateId": "promoted-landatrial-shadow-no-avplane-ablation",
+      "pointId": "low-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 4800,
+      "status": "measured",
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 19,
+        "actualSeconds": 16.85,
+        "worstSignal": "lvEdp",
+        "worstDelta": 0.007497,
+        "adjacentDelta": 0.007497,
+        "periodBeats": 1,
+        "periodDelta": 0.007497,
+        "worstDeltaToPrimaryTolerance": 1.499455
+      },
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "metrics": {
+        "CO_L": 4.081199,
+        "CO_R": 4.078881,
+        "SV_L": 54.415991,
+        "SV_R": 54.385081,
+        "AoPMean": 65.640808,
+        "PAPMean": 10.137363,
+        "RAPMean": 2.203773,
+        "LAPMean": 3.236249,
+        "TBV": 4800
+      },
+      "forwardCO_L": 4.080176,
+      "forwardCO_R": 4.07876,
+      "providerIds": {
+        "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+        "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium",
+        "LA": "modelcore-experimental-land2017-la-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:signed-atrial-pressure-adapter",
+        "RA": "modelcore-experimental-land2017-ra-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:signed-atrial-pressure-adapter"
+      },
+      "instrumentation": {
+        "LA": {
+          "sourceActiveStressPaCalls": 251386,
+          "commitProviderStateAfterStepCalls": 20010,
+          "landSolveFailureCount": 0,
+          "maxSolverResidualNorm": 0,
+          "sourceActiveFiberStressPa": {
+            "min": 0.000044,
+            "max": 4513.97315
+          },
+          "fiberEngineeringStrain": {
+            "min": -0.238503,
+            "max": 0.022007
+          },
+          "freeCalciumUM": {
+            "min": 0,
+            "max": 0.657495
+          }
+        },
+        "RA": {
+          "sourceActiveStressPaCalls": 251386,
+          "commitProviderStateAfterStepCalls": 20010,
+          "landSolveFailureCount": 0,
+          "maxSolverResidualNorm": 0,
+          "sourceActiveFiberStressPa": {
+            "min": 0.054458,
+            "max": 3725.355306
+          },
+          "fiberEngineeringStrain": {
+            "min": -0.095329,
+            "max": 0.115945
+          },
+          "freeCalciumUM": {
+            "min": 0,
+            "max": 0.649476
+          }
+        }
+      },
+      "LA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 41.422156,
+          "preAtrialContractionVolumeMl": 33.731942,
+          "minVolumeMl": 19.010757,
+          "totalEmptyingFraction": 0.541049,
+          "passiveEmptyingFraction": 0.185655,
+          "activeEmptyingFraction": 0.436417,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.044345
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.761593,
+          "lambdaMax": 0.973992,
+          "lambdaPreAtrialContraction": 0.912615,
+          "reservoirStrain": 0.278888,
+          "conduitStrain": 0.080591,
+          "contractileStrain": 0.198297,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": false,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.238818,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.761579,
+            "lambdaWithoutAvPlaneMax": 0.973997,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 0
+            },
+            "avPlaneDescent01": {
+              "min": 0.012427,
+              "max": 0.849228
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 8.489703,
+          "vWaveMaxMmHg": 5.931978,
+          "xDescentMinMmHg": 0.807117,
+          "yDescentMinMmHg": 1.451711,
+          "relationSignal": "not-supported"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 72,
+          "signedAreaMmHgMl": 77.273838,
+          "absAreaMmHgMl": 77.273838,
+          "midVolumePressureSpreadMmHg": 7.680051,
+          "boosterLoopSignedAreaMmHgMl": 77.8334,
+          "reservoirLoopSignedAreaMmHgMl": -9.861332,
+          "opposingLobes": true,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.000443,
+            "max": 5.93192
+          },
+          "activeMmHg": {
+            "min": 0,
+            "max": 8.042836
+          },
+          "avPlaneDeltaMmHg": {
+            "min": 0,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 60.763797,
+          "preAtrialContractionVolumeMl": 44.374076,
+          "minVolumeMl": 32.926057,
+          "totalEmptyingFraction": 0.45813,
+          "passiveEmptyingFraction": 0.269728,
+          "activeEmptyingFraction": 0.257989,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.90731,
+          "lambdaMax": 1.099236,
+          "lambdaPreAtrialContraction": 0.995624,
+          "reservoirStrain": 0.211533,
+          "conduitStrain": 0.114197,
+          "contractileStrain": 0.097336,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": false,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.313934,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.907166,
+            "lambdaWithoutAvPlaneMax": 1.099383,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 0
+            },
+            "avPlaneDescent01": {
+              "min": 0.003384,
+              "max": 0.874933
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 6.549467,
+          "vWaveMaxMmHg": 2.944886,
+          "xDescentMinMmHg": 1.372066,
+          "yDescentMinMmHg": 1.080202,
+          "relationSignal": "ra-a-ge-v"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 2,
+          "signedAreaMmHgMl": 48.880531,
+          "absAreaMmHgMl": 48.880531,
+          "midVolumePressureSpreadMmHg": 5.469625,
+          "boosterLoopSignedAreaMmHgMl": 51.103683,
+          "reservoirLoopSignedAreaMmHgMl": -8.43593,
+          "opposingLobes": true,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.22438,
+            "max": 2.939768
+          },
+          "activeMmHg": {
+            "min": 0.000112,
+            "max": 5.129034
+          },
+          "avPlaneDeltaMmHg": {
+            "min": 0,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "candidateId": "promoted-landatrial-shadow-no-avplane-ablation",
+      "pointId": "high-preload-hr75",
+      "HR": 75,
+      "targetTBVMl": 6200,
+      "status": "measured",
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 17,
+        "actualSeconds": 15.35,
+        "worstSignal": "lapMean",
+        "worstDelta": 0.00497,
+        "adjacentDelta": 0.00497,
+        "periodBeats": 1,
+        "periodDelta": 0.00497,
+        "worstDeltaToPrimaryTolerance": 0.994065
+      },
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "metrics": {
+        "CO_L": 4.909463,
+        "CO_R": 4.921897,
+        "SV_L": 65.459508,
+        "SV_R": 65.625298,
+        "AoPMean": 82.891346,
+        "PAPMean": 22.497329,
+        "RAPMean": 7.30987,
+        "LAPMean": 14.191789,
+        "TBV": 6200
+      },
+      "forwardCO_L": 4.911254,
+      "forwardCO_R": 4.926381,
+      "providerIds": {
+        "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+        "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium",
+        "LA": "modelcore-experimental-land2017-la-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:signed-atrial-pressure-adapter",
+        "RA": "modelcore-experimental-land2017-ra-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:signed-atrial-pressure-adapter"
+      },
+      "instrumentation": {
+        "LA": {
+          "sourceActiveStressPaCalls": 231342,
+          "commitProviderStateAfterStepCalls": 18410,
+          "landSolveFailureCount": 0,
+          "maxSolverResidualNorm": 0,
+          "sourceActiveFiberStressPa": {
+            "min": 0.000133,
+            "max": 8203.701523
+          },
+          "fiberEngineeringStrain": {
+            "min": -0.147524,
+            "max": 0.127454
+          },
+          "freeCalciumUM": {
+            "min": 0,
+            "max": 0.657495
+          }
+        },
+        "RA": {
+          "sourceActiveStressPaCalls": 231342,
+          "commitProviderStateAfterStepCalls": 18410,
+          "landSolveFailureCount": 0,
+          "maxSolverResidualNorm": 0,
+          "sourceActiveFiberStressPa": {
+            "min": 0.211174,
+            "max": 7297.463291
+          },
+          "fiberEngineeringStrain": {
+            "min": -0.046318,
+            "max": 0.22886
+          },
+          "freeCalciumUM": {
+            "min": 0,
+            "max": 0.649476
+          }
+        }
+      },
+      "LA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 57.455678,
+          "preAtrialContractionVolumeMl": 49.912468,
+          "minVolumeMl": 27.965756,
+          "totalEmptyingFraction": 0.513264,
+          "passiveEmptyingFraction": 0.131287,
+          "activeEmptyingFraction": 0.439704,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.098713
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.860176,
+          "lambdaMax": 1.081194,
+          "lambdaPreAtrialContraction": 1.03359,
+          "reservoirStrain": 0.256946,
+          "conduitStrain": 0.055343,
+          "contractileStrain": 0.201603,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": false,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.289314,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.860061,
+            "lambdaWithoutAvPlaneMax": 1.081287,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 0
+            },
+            "avPlaneDescent01": {
+              "min": 0,
+              "max": 0.654977
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 23.24999,
+          "vWaveMaxMmHg": 18.046021,
+          "xDescentMinMmHg": 11.415751,
+          "yDescentMinMmHg": 7.851301,
+          "relationSignal": "not-supported"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 4,
+          "signedAreaMmHgMl": 205.112937,
+          "absAreaMmHgMl": 205.112937,
+          "midVolumePressureSpreadMmHg": 15.366617,
+          "boosterLoopSignedAreaMmHgMl": 211.954805,
+          "reservoirLoopSignedAreaMmHgMl": 21.7984,
+          "opposingLobes": false,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.197644,
+            "max": 18.025585
+          },
+          "activeMmHg": {
+            "min": 0,
+            "max": 17.104599
+          },
+          "avPlaneDeltaMmHg": {
+            "min": 0,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 84.635376,
+          "preAtrialContractionVolumeMl": 71.781691,
+          "minVolumeMl": 40.466887,
+          "totalEmptyingFraction": 0.521868,
+          "passiveEmptyingFraction": 0.151871,
+          "activeEmptyingFraction": 0.436251,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.058129
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.967357,
+          "lambdaMax": 1.221675,
+          "lambdaPreAtrialContraction": 1.159017,
+          "reservoirStrain": 0.262901,
+          "conduitStrain": 0.064773,
+          "contractileStrain": 0.198128,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": false,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.285454,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.967255,
+            "lambdaWithoutAvPlaneMax": 1.221732,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 0
+            },
+            "avPlaneDescent01": {
+              "min": 0,
+              "max": 0.285401
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 16.06319,
+          "vWaveMaxMmHg": 7.997809,
+          "xDescentMinMmHg": 3.163663,
+          "yDescentMinMmHg": 5.594432,
+          "relationSignal": "ra-a-ge-v"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 2,
+          "signedAreaMmHgMl": 264.915144,
+          "absAreaMmHgMl": 264.915144,
+          "midVolumePressureSpreadMmHg": 12.791827,
+          "boosterLoopSignedAreaMmHgMl": 184.379707,
+          "reservoirLoopSignedAreaMmHgMl": 84.575938,
+          "opposingLobes": false,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.754448,
+            "max": 7.928434
+          },
+          "activeMmHg": {
+            "min": 0.000337,
+            "max": 10.332389
+          },
+          "avPlaneDeltaMmHg": {
+            "min": 0,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "candidateId": "promoted-landatrial-shadow-no-avplane-ablation",
+      "pointId": "normal-hr90",
+      "HR": 90,
+      "targetTBVMl": 5600,
+      "status": "measured",
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 27,
+        "actualSeconds": 20.917,
+        "worstSignal": "lvEdp",
+        "worstDelta": 0.004695,
+        "adjacentDelta": 0.005283,
+        "periodBeats": 2,
+        "periodDelta": 0.004695,
+        "worstDeltaToPrimaryTolerance": 0.939079
+      },
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "metrics": {
+        "CO_L": 5.213962,
+        "CO_R": 5.206122,
+        "SV_L": 57.932908,
+        "SV_R": 57.845795,
+        "AoPMean": 84.303335,
+        "PAPMean": 16.820087,
+        "RAPMean": 3.706383,
+        "LAPMean": 7.994963,
+        "TBV": 5600
+      },
+      "forwardCO_L": 5.211581,
+      "forwardCO_R": 5.206616,
+      "providerIds": {
+        "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+        "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium",
+        "LA": "modelcore-experimental-land2017-la-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:signed-atrial-pressure-adapter",
+        "RA": "modelcore-experimental-land2017-ra-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:signed-atrial-pressure-adapter"
+      },
+      "instrumentation": {
+        "LA": {
+          "sourceActiveStressPaCalls": 292125,
+          "commitProviderStateAfterStepCalls": 23337,
+          "landSolveFailureCount": 0,
+          "maxSolverResidualNorm": 0,
+          "sourceActiveFiberStressPa": {
+            "min": 0.002514,
+            "max": 7254.522755
+          },
+          "fiberEngineeringStrain": {
+            "min": -0.193435,
+            "max": 0.110001
+          },
+          "freeCalciumUM": {
+            "min": 0,
+            "max": 0.673662
+          }
+        },
+        "RA": {
+          "sourceActiveStressPaCalls": 292125,
+          "commitProviderStateAfterStepCalls": 23337,
+          "landSolveFailureCount": 0,
+          "maxSolverResidualNorm": 0,
+          "sourceActiveFiberStressPa": {
+            "min": 0.403865,
+            "max": 3851.683752
+          },
+          "fiberEngineeringStrain": {
+            "min": -0.070955,
+            "max": 0.168929
+          },
+          "freeCalciumUM": {
+            "min": 0,
+            "max": 0.665164
+          }
+        }
+      },
+      "LA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 50.163703,
+          "preAtrialContractionVolumeMl": 38.072486,
+          "minVolumeMl": 22.826609,
+          "totalEmptyingFraction": 0.544958,
+          "passiveEmptyingFraction": 0.241035,
+          "activeEmptyingFraction": 0.400443,
+          "allBroadPass": true,
+          "broadRangeDistance": 0
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.806865,
+          "lambdaMax": 1.035248,
+          "lambdaPreAtrialContraction": 0.94827,
+          "reservoirStrain": 0.28305,
+          "conduitStrain": 0.107797,
+          "contractileStrain": 0.175253,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": true,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.199153,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.806662,
+            "lambdaWithoutAvPlaneMax": 1.03527,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 0
+            },
+            "avPlaneDescent01": {
+              "min": 0,
+              "max": 0.675583
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 14.218919,
+          "vWaveMaxMmHg": 11.792825,
+          "xDescentMinMmHg": 4.419911,
+          "yDescentMinMmHg": 4.005834,
+          "relationSignal": "not-supported"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 2,
+          "signedAreaMmHgMl": 129.406605,
+          "absAreaMmHgMl": 129.406605,
+          "midVolumePressureSpreadMmHg": 10.20542,
+          "boosterLoopSignedAreaMmHgMl": 133.305152,
+          "reservoirLoopSignedAreaMmHgMl": -47.459419,
+          "opposingLobes": true,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.007512,
+            "max": 11.79261
+          },
+          "activeMmHg": {
+            "min": 0.000005,
+            "max": 11.044257
+          },
+          "avPlaneDeltaMmHg": {
+            "min": 0,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 72.578428,
+          "preAtrialContractionVolumeMl": 60.566097,
+          "minVolumeMl": 35.640584,
+          "totalEmptyingFraction": 0.508937,
+          "passiveEmptyingFraction": 0.165508,
+          "activeEmptyingFraction": 0.411542,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.044492
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.929871,
+          "lambdaMax": 1.163103,
+          "lambdaPreAtrialContraction": 1.098102,
+          "reservoirStrain": 0.250822,
+          "conduitStrain": 0.069904,
+          "contractileStrain": 0.180918,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": true,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.280274,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.929736,
+            "lambdaWithoutAvPlaneMax": 1.163139,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 0
+            },
+            "avPlaneDescent01": {
+              "min": 0,
+              "max": 0.677095
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 7.674142,
+          "vWaveMaxMmHg": 4.982186,
+          "xDescentMinMmHg": 2.289555,
+          "yDescentMinMmHg": 2.916565,
+          "relationSignal": "ra-a-ge-v"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 2,
+          "signedAreaMmHgMl": 54.450018,
+          "absAreaMmHgMl": 54.450018,
+          "midVolumePressureSpreadMmHg": 5.384289,
+          "boosterLoopSignedAreaMmHgMl": 50.972976,
+          "reservoirLoopSignedAreaMmHgMl": 0.65004,
+          "opposingLobes": false,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.39788,
+            "max": 4.975113
+          },
+          "activeMmHg": {
+            "min": 0.000661,
+            "max": 6.077477
+          },
+          "avPlaneDeltaMmHg": {
+            "min": 0,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "candidateId": "promoted-landatrial-shadow-no-avplane-ablation",
+      "pointId": "low-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 4800,
+      "status": "measured",
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 20,
+        "actualSeconds": 14.834,
+        "worstSignal": "lvEdp",
+        "worstDelta": 0.008457,
+        "adjacentDelta": 0.008457,
+        "periodBeats": 1,
+        "periodDelta": 0.008457,
+        "worstDeltaToPrimaryTolerance": 1.691318
+      },
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "metrics": {
+        "CO_L": 4.216134,
+        "CO_R": 4.218778,
+        "SV_L": 46.845938,
+        "SV_R": 46.875315,
+        "AoPMean": 67.779007,
+        "PAPMean": 10.059978,
+        "RAPMean": 1.995009,
+        "LAPMean": 2.926164,
+        "TBV": 4800
+      },
+      "forwardCO_L": 4.209076,
+      "forwardCO_R": 4.209364,
+      "providerIds": {
+        "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+        "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium",
+        "LA": "modelcore-experimental-land2017-la-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:signed-atrial-pressure-adapter",
+        "RA": "modelcore-experimental-land2017-ra-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:signed-atrial-pressure-adapter"
+      },
+      "instrumentation": {
+        "LA": {
+          "sourceActiveStressPaCalls": 217491,
+          "commitProviderStateAfterStepCalls": 17334,
+          "landSolveFailureCount": 0,
+          "maxSolverResidualNorm": 0,
+          "sourceActiveFiberStressPa": {
+            "min": 0.000858,
+            "max": 3973.519403
+          },
+          "fiberEngineeringStrain": {
+            "min": -0.265034,
+            "max": 0.021679
+          },
+          "freeCalciumUM": {
+            "min": 0,
+            "max": 0.673662
+          }
+        },
+        "RA": {
+          "sourceActiveStressPaCalls": 217491,
+          "commitProviderStateAfterStepCalls": 17334,
+          "landSolveFailureCount": 0,
+          "maxSolverResidualNorm": 0,
+          "sourceActiveFiberStressPa": {
+            "min": 0.133156,
+            "max": 3725.355306
+          },
+          "fiberEngineeringStrain": {
+            "min": -0.099214,
+            "max": 0.115149
+          },
+          "freeCalciumUM": {
+            "min": 0,
+            "max": 0.665164
+          }
+        }
+      },
+      "LA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 40.80049,
+          "preAtrialContractionVolumeMl": 33.494943,
+          "minVolumeMl": 17.011048,
+          "totalEmptyingFraction": 0.583068,
+          "passiveEmptyingFraction": 0.179055,
+          "activeEmptyingFraction": 0.492131,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.050945
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.7352,
+          "lambdaMax": 0.969325,
+          "lambdaPreAtrialContraction": 0.910583,
+          "reservoirStrain": 0.318451,
+          "conduitStrain": 0.0799,
+          "contractileStrain": 0.238552,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": false,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.240201,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.735084,
+            "lambdaWithoutAvPlaneMax": 0.969338,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 0
+            },
+            "avPlaneDescent01": {
+              "min": 0.021064,
+              "max": 0.860159
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 7.19601,
+          "vWaveMaxMmHg": 5.56924,
+          "xDescentMinMmHg": 0.599345,
+          "yDescentMinMmHg": 1.788952,
+          "relationSignal": "not-supported"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 2,
+          "signedAreaMmHgMl": 58.79748,
+          "absAreaMmHgMl": 58.79748,
+          "midVolumePressureSpreadMmHg": 6.588296,
+          "boosterLoopSignedAreaMmHgMl": 58.690597,
+          "reservoirLoopSignedAreaMmHgMl": 8.037109,
+          "opposingLobes": false,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.000084,
+            "max": 5.569196
+          },
+          "activeMmHg": {
+            "min": 0.000002,
+            "max": 6.913063
+          },
+          "avPlaneDeltaMmHg": {
+            "min": 0,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 60.52145,
+          "preAtrialContractionVolumeMl": 51.082564,
+          "minVolumeMl": 32.762704,
+          "totalEmptyingFraction": 0.45866,
+          "passiveEmptyingFraction": 0.155959,
+          "activeEmptyingFraction": 0.358632,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.054041
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.905914,
+          "lambdaMax": 1.097845,
+          "lambdaPreAtrialContraction": 1.04061,
+          "reservoirStrain": 0.211865,
+          "conduitStrain": 0.063179,
+          "contractileStrain": 0.148685,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": true,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.325956,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.905811,
+            "lambdaWithoutAvPlaneMax": 1.097976,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 0
+            },
+            "avPlaneDescent01": {
+              "min": 0.014809,
+              "max": 0.901696
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 3.482938,
+          "vWaveMaxMmHg": 2.907797,
+          "xDescentMinMmHg": 1.195586,
+          "yDescentMinMmHg": 1.738256,
+          "relationSignal": "ra-a-ge-v"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 1,
+          "signedAreaMmHgMl": 15.208925,
+          "absAreaMmHgMl": 15.208925,
+          "midVolumePressureSpreadMmHg": 1.705709,
+          "boosterLoopSignedAreaMmHgMl": 14.820485,
+          "reservoirLoopSignedAreaMmHgMl": 6.950176,
+          "opposingLobes": false,
+          "rawReadableByExistingThreshold": false
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.215213,
+            "max": 2.904659
+          },
+          "activeMmHg": {
+            "min": 0.000266,
+            "max": 2.656809
+          },
+          "avPlaneDeltaMmHg": {
+            "min": 0,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "candidateId": "promoted-landatrial-shadow-no-avplane-ablation",
+      "pointId": "high-preload-hr90",
+      "HR": 90,
+      "targetTBVMl": 6200,
+      "status": "measured",
+      "settle": {
+        "settled": true,
+        "reason": "converged",
+        "beats": 27,
+        "actualSeconds": 19.584,
+        "worstSignal": "rvEdp",
+        "worstDelta": 0.005086,
+        "adjacentDelta": 0.005086,
+        "periodBeats": 1,
+        "periodDelta": 0.005086,
+        "worstDeltaToPrimaryTolerance": 1.017259
+      },
+      "health": {
+        "status": "ok",
+        "periodBeats": 1,
+        "messages": []
+      },
+      "metrics": {
+        "CO_L": 5.53584,
+        "CO_R": 5.546848,
+        "SV_L": 61.509337,
+        "SV_R": 61.631642,
+        "AoPMean": 91.451985,
+        "PAPMean": 24.046277,
+        "RAPMean": 5.989351,
+        "LAPMean": 14.667421,
+        "TBV": 6200
+      },
+      "forwardCO_L": 5.535053,
+      "forwardCO_R": 5.547136,
+      "providerIds": {
+        "LV": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5ak-user0-staged-default-be-phase5q-calcium",
+        "RV": "modelcore-experimental-land2017-rv-source-only-provider-v1:phase5al-default-candidate-be-phase5q-calcium",
+        "LA": "modelcore-experimental-land2017-la-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:signed-atrial-pressure-adapter",
+        "RA": "modelcore-experimental-land2017-ra-source-only-provider-v1:landatrial-fast-lowpressure-shadow-v1:signed-atrial-pressure-adapter"
+      },
+      "instrumentation": {
+        "LA": {
+          "sourceActiveStressPaCalls": 275540,
+          "commitProviderStateAfterStepCalls": 22004,
+          "landSolveFailureCount": 0,
+          "maxSolverResidualNorm": 0,
+          "sourceActiveFiberStressPa": {
+            "min": 0.003766,
+            "max": 8327.701778
+          },
+          "fiberEngineeringStrain": {
+            "min": -0.147494,
+            "max": 0.127454
+          },
+          "freeCalciumUM": {
+            "min": 0,
+            "max": 0.673662
+          }
+        },
+        "RA": {
+          "sourceActiveStressPaCalls": 275540,
+          "commitProviderStateAfterStepCalls": 22004,
+          "landSolveFailureCount": 0,
+          "maxSolverResidualNorm": 0,
+          "sourceActiveFiberStressPa": {
+            "min": 0.793859,
+            "max": 6677.035672
+          },
+          "fiberEngineeringStrain": {
+            "min": -0.055788,
+            "max": 0.220263
+          },
+          "freeCalciumUM": {
+            "min": 0,
+            "max": 0.665164
+          }
+        }
+      },
+      "LA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 58.981037,
+          "preAtrialContractionVolumeMl": 51.031959,
+          "minVolumeMl": 28.850115,
+          "totalEmptyingFraction": 0.510858,
+          "passiveEmptyingFraction": 0.134773,
+          "activeEmptyingFraction": 0.434666,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.095227
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.868661,
+          "lambdaMax": 1.090317,
+          "lambdaPreAtrialContraction": 1.040939,
+          "reservoirStrain": 0.25517,
+          "conduitStrain": 0.056844,
+          "contractileStrain": 0.198326,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": false,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.286312,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.868426,
+            "lambdaWithoutAvPlaneMax": 1.090385,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 0
+            },
+            "avPlaneDescent01": {
+              "min": 0,
+              "max": 0.548274
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 22.193268,
+          "vWaveMaxMmHg": 19.521334,
+          "xDescentMinMmHg": 10.548503,
+          "yDescentMinMmHg": 8.916698,
+          "relationSignal": "la-v-ge-a"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 2,
+          "signedAreaMmHgMl": 191.115565,
+          "absAreaMmHgMl": 191.115565,
+          "midVolumePressureSpreadMmHg": 13.24757,
+          "boosterLoopSignedAreaMmHgMl": 200.760142,
+          "reservoirLoopSignedAreaMmHgMl": -27.569495,
+          "opposingLobes": true,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.314162,
+            "max": 19.511248
+          },
+          "activeMmHg": {
+            "min": 0.000007,
+            "max": 18.608959
+          },
+          "avPlaneDeltaMmHg": {
+            "min": 0,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "RA": {
+        "volumeFunction": {
+          "beatCount": 3,
+          "maxVolumeMl": 81.584402,
+          "preAtrialContractionVolumeMl": 69.049011,
+          "minVolumeMl": 38.142815,
+          "totalEmptyingFraction": 0.532474,
+          "passiveEmptyingFraction": 0.153649,
+          "activeEmptyingFraction": 0.447598,
+          "allBroadPass": false,
+          "broadRangeDistance": 0.056351
+        },
+        "directWallStrain": {
+          "source": "direct-wall-lambda-readback-v1",
+          "beatCount": 3,
+          "lambdaMin": 0.949692,
+          "lambdaMax": 1.207393,
+          "lambdaPreAtrialContraction": 1.144776,
+          "reservoirStrain": 0.271352,
+          "conduitStrain": 0.065933,
+          "contractileStrain": 0.205418,
+          "reservoirRangePass": false,
+          "conduitRangePass": false,
+          "contractileRangePass": false,
+          "allRangePass": false,
+          "sourceRangeDistance": 0.283133,
+          "avPlaneSensitivity": {
+            "lambdaWithoutAvPlaneMin": 0.949528,
+            "lambdaWithoutAvPlaneMax": 1.207402,
+            "maxLambdaDeltaWithoutMinusWithAvPlane": 0,
+            "effectiveVolumeCorrectionMl": {
+              "min": 0,
+              "max": 0
+            },
+            "avPlaneDescent01": {
+              "min": 0,
+              "max": 0.445529
+            }
+          }
+        },
+        "pressureWaveTiming": {
+          "aWaveMaxMmHg": 12.755744,
+          "vWaveMaxMmHg": 7.109954,
+          "xDescentMinMmHg": 2.946238,
+          "yDescentMinMmHg": 4.888953,
+          "relationSignal": "ra-a-ge-v"
+        },
+        "rawFigureEightReadability": {
+          "selfIntersections": 1,
+          "signedAreaMmHgMl": 135.837151,
+          "absAreaMmHgMl": 135.837151,
+          "midVolumePressureSpreadMmHg": 9.808949,
+          "boosterLoopSignedAreaMmHgMl": 95.359085,
+          "reservoirLoopSignedAreaMmHgMl": -15.167472,
+          "opposingLobes": true,
+          "rawReadableByExistingThreshold": true
+        },
+        "pressure": {
+          "passiveMmHg": {
+            "min": 0.576059,
+            "max": 7.080086
+          },
+          "activeMmHg": {
+            "min": 0.001146,
+            "max": 9.366814
+          },
+          "avPlaneDeltaMmHg": {
+            "min": 0,
+            "max": 0
+          },
+          "floorHit01": {
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      "errorMessage": null
+    }
+  ],
+  "summary": {
+    "diagnosticStatus": "landatrial-shadow-scored-gaps-recorded",
+    "bestCandidateByCombinedTargetDistanceId": "promoted-landatrial-shadow-la-ra",
+    "currentInterpretation": "Phase 5BI freezes A1/A2 and scores the promoted LandAtrial shadow baseline against sourced atrial volume-function targets plus direct wall-lambda strain targets. Promoted LandAtrial health-ok=6/6, output-preserved=6/6, Land solve failures=0. Best combined-distance candidate by this diagnostic artifact: promoted-landatrial-shadow-la-ra. AV-plane ablation: Direct target distance is lower with AV-plane enabled than with the no-AV-plane ablation. Diagnostic status: landatrial-shadow-scored-gaps-recorded.",
+    "recommendedNext": [
+      "use this direct target score to choose the next LandAtrial atrial parameter-pack and AV-plane/effective-geometry calibration phase",
+      "treat AV-plane readbacks as live calibration signals rather than tuning A1/A2 bridge gains",
+      "keep all-chamber runtime default, official morphology, AF validation, valve/load timing acceptance, and qDot clamp retirement out of this lane until smaller standing gates exist"
+    ],
+    "blockers": [
+      "Phase 5BI scores the LandAtrial shadow path; it does not accept atrial physiology or flip all chambers to runtime default.",
+      "A1/A2 are frozen and not used as forward selection candidates in this artifact.",
+      "Raw figure-eight readability remains diagnostic until target/function and valve/load timing evidence are jointly accepted."
+    ]
+  },
+  "boundary": {
+    "noAllChamberRuntimeDefaultFlip": true,
+    "noAtrialPhysiologyAcceptance": true,
+    "noA1A2Selection": true,
+    "noOfficialMorphologyAcceptance": true,
+    "noAfValidationClaim": true,
+    "noQDotClampRemoval": true,
+    "noRootZcRetuning": true,
+    "noValveLoadTimingAcceptance": true,
+    "noPermanentGate": true
+  },
+  "normalizedSha256": "a6970c1499f6be6442faee9e622fde9f2864e7212a1a93c567c39fdcf740d36d"
+}
