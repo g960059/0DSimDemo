@@ -600,6 +600,16 @@ type ValveFlowStepDiagnostics = {
   qDotClampImpulse: number;
   diodeImpulse: number;
   flowClampImpulse: number;
+  acceptedBoundaryApplied01: number;
+  acceptedBoundaryQNext: number;
+  acceptedBoundaryPressureGradientMmHg: number;
+  acceptedBoundaryQDotRaw: number;
+  acceptedBoundaryQDotPost: number;
+  acceptedBoundaryQDotClampHit01: number;
+  acceptedBoundaryQDotClampImpulse: number;
+  acceptedBoundaryDiodeImpulse: number;
+  acceptedBoundaryComplementarityResidualMlPerSec: number;
+  acceptedBoundaryIterationCount: number;
 };
 
 function emptyValveFlowStepDiagnostics(): ValveFlowStepDiagnostics {
@@ -617,6 +627,16 @@ function emptyValveFlowStepDiagnostics(): ValveFlowStepDiagnostics {
     qDotClampImpulse: 0,
     diodeImpulse: 0,
     flowClampImpulse: 0,
+    acceptedBoundaryApplied01: 0,
+    acceptedBoundaryQNext: 0,
+    acceptedBoundaryPressureGradientMmHg: 0,
+    acceptedBoundaryQDotRaw: 0,
+    acceptedBoundaryQDotPost: 0,
+    acceptedBoundaryQDotClampHit01: 0,
+    acceptedBoundaryQDotClampImpulse: 0,
+    acceptedBoundaryDiodeImpulse: 0,
+    acceptedBoundaryComplementarityResidualMlPerSec: 0,
+    acceptedBoundaryIterationCount: 0,
   };
 }
 
@@ -1767,6 +1787,7 @@ export class ModelCore {
       ? clamp(options.avValveBoundaryPressureRefitRelaxation ?? 1, 0.05, 1)
       : 1;
     let qCandidate = inletQGuess;
+    let acceptedDiagnostics = this.valveFlowStepDiagnostics[inlet];
     for (let iteration = 0; iteration < iterations; iteration++) {
       const projected = Float64Array.from(candidate);
       if (includeAdjacentLoadNodes) {
@@ -1798,9 +1819,11 @@ export class ModelCore {
       const PdEff = this.downstreamEffective(inletEdge, projectedPack.P[down]);
       const { R, B } = this.effectiveLosses(inletEdge, Pu, projectedPack.P[down], projected);
       const L = Math.max((this.p as any)[`${inlet}_L`] ?? inletEdge.L ?? 0.001, 1e-6);
-      let qNext = this.qNextConsistentLossQNext(qBase, Pu - PdEff, R, B, L, h);
-      if (this.valveLeakArea(inlet, inletEdge) <= 1e-9 && qNext < 0) qNext = 0;
-      const qDotRaw = (qNext - qBase) / h;
+      const pressureGradientMmHg = Pu - PdEff;
+      const qNextPreDiode = this.qNextConsistentLossQNext(qBase, pressureGradientMmHg, R, B, L, h);
+      let qNextPostDiode = qNextPreDiode;
+      if (this.valveLeakArea(inlet, inletEdge) <= 1e-9 && qNextPostDiode < 0) qNextPostDiode = 0;
+      const qDotRaw = (qNextPostDiode - qBase) / h;
       const useCustomQDotClamp = this.usesCustomDynamicQDotClamp(inletEdge);
       const qDotPositiveLimit = useCustomQDotClamp
         ? Math.max(this.aorticFlowDerivativeClampPositiveMlPerS2, 1)
@@ -1810,8 +1833,24 @@ export class ModelCore {
         : DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
       const qDotPost = clamp(qDotRaw, -qDotNegativeLimit, qDotPositiveLimit);
       const qRefit = qBase + h * qDotPost;
-      qCandidate += relaxation * (qRefit - qCandidate);
+      const qAccepted = qCandidate + relaxation * (qRefit - qCandidate);
+      acceptedDiagnostics = {
+        ...this.valveFlowStepDiagnostics[inlet],
+        acceptedBoundaryApplied01: 1,
+        acceptedBoundaryQNext: qAccepted,
+        acceptedBoundaryPressureGradientMmHg: pressureGradientMmHg,
+        acceptedBoundaryQDotRaw: qDotRaw,
+        acceptedBoundaryQDotPost: (qAccepted - qBase) / h,
+        acceptedBoundaryQDotClampHit01: Math.abs(qDotPost - qDotRaw) > 1e-9 ? 1 : 0,
+        acceptedBoundaryQDotClampImpulse: qDotPost - qDotRaw,
+        acceptedBoundaryDiodeImpulse: qNextPostDiode - qNextPreDiode,
+        acceptedBoundaryComplementarityResidualMlPerSec:
+          pressureGradientMmHg <= 0 ? Math.max(qAccepted, 0) : Math.max(-qAccepted, 0),
+        acceptedBoundaryIterationCount: iteration + 1,
+      };
+      qCandidate = qAccepted;
     }
+    this.valveFlowStepDiagnostics[inlet] = acceptedDiagnostics;
     return qCandidate;
   }
 
@@ -2250,6 +2289,16 @@ export class ModelCore {
       MV_qDotClampImpulse: mvStep.qDotClampImpulse,
       MV_diodeImpulse: mvStep.diodeImpulse,
       MV_flowClampImpulse: mvStep.flowClampImpulse,
+      MV_acceptedBoundaryApplied01: mvStep.acceptedBoundaryApplied01,
+      MV_acceptedBoundaryQNext: mvStep.acceptedBoundaryQNext,
+      MV_acceptedBoundaryPressureGradientMmHg: mvStep.acceptedBoundaryPressureGradientMmHg,
+      MV_acceptedBoundaryQDotRaw: mvStep.acceptedBoundaryQDotRaw,
+      MV_acceptedBoundaryQDotPost: mvStep.acceptedBoundaryQDotPost,
+      MV_acceptedBoundaryQDotClampHit01: mvStep.acceptedBoundaryQDotClampHit01,
+      MV_acceptedBoundaryQDotClampImpulse: mvStep.acceptedBoundaryQDotClampImpulse,
+      MV_acceptedBoundaryDiodeImpulse: mvStep.acceptedBoundaryDiodeImpulse,
+      MV_acceptedBoundaryComplementarityResidualMlPerSec: mvStep.acceptedBoundaryComplementarityResidualMlPerSec,
+      MV_acceptedBoundaryIterationCount: mvStep.acceptedBoundaryIterationCount,
       AoV_areaRatio: aovLoss.areaRatio,
       AoV_loss_R: aovResistiveDrop,
       AoV_loss_B: aovQuadraticDrop,
@@ -2280,6 +2329,16 @@ export class ModelCore {
       TV_qDotClampImpulse: tvStep.qDotClampImpulse,
       TV_diodeImpulse: tvStep.diodeImpulse,
       TV_flowClampImpulse: tvStep.flowClampImpulse,
+      TV_acceptedBoundaryApplied01: tvStep.acceptedBoundaryApplied01,
+      TV_acceptedBoundaryQNext: tvStep.acceptedBoundaryQNext,
+      TV_acceptedBoundaryPressureGradientMmHg: tvStep.acceptedBoundaryPressureGradientMmHg,
+      TV_acceptedBoundaryQDotRaw: tvStep.acceptedBoundaryQDotRaw,
+      TV_acceptedBoundaryQDotPost: tvStep.acceptedBoundaryQDotPost,
+      TV_acceptedBoundaryQDotClampHit01: tvStep.acceptedBoundaryQDotClampHit01,
+      TV_acceptedBoundaryQDotClampImpulse: tvStep.acceptedBoundaryQDotClampImpulse,
+      TV_acceptedBoundaryDiodeImpulse: tvStep.acceptedBoundaryDiodeImpulse,
+      TV_acceptedBoundaryComplementarityResidualMlPerSec: tvStep.acceptedBoundaryComplementarityResidualMlPerSec,
+      TV_acceptedBoundaryIterationCount: tvStep.acceptedBoundaryIterationCount,
       PV_qNextPreDiode: pvStep.qNextPreDiode,
       PV_qNextPostDiode: pvStep.qNextPostDiode,
       PV_qNextPreFlowClamp: pvStep.qNextPreFlowClamp,
@@ -2954,6 +3013,7 @@ export class ModelCore {
       addDynamicQDotAudit(this.dynamicQDotLastStepAudit, dynamicEdge, qDotRaw, qDotPost);
       addDynamicQDotAudit(this.dynamicQDotCurrentBeatAudit, dynamicEdge, qDotRaw, qDotPost);
       const stepDiagnostics: ValveFlowStepDiagnostics = {
+        ...emptyValveFlowStepDiagnostics(),
         qNextPreDiode,
         qNextPostDiode,
         qNextPreFlowClamp,
