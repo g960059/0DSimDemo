@@ -221,6 +221,7 @@ export type ModelCoreExperimentalVentricularChamberTransactionStepOptions = {
   readonly iterations?: number;
   readonly relaxation?: number;
   readonly providerStateCouplingChambers?: readonly ("LV" | "RV")[];
+  readonly includeAdjacentLoadNodes?: boolean;
 };
 
 // Diagnostic-only Phase 5CC hook. This surface measured as not-supported and
@@ -757,6 +758,7 @@ function normalizeExperimentalVentricularChamberTransactionStep(
     iterations,
     relaxation,
     providerStateCouplingChambers,
+    includeAdjacentLoadNodes: options.includeAdjacentLoadNodes === true,
   };
 }
 
@@ -1397,8 +1399,26 @@ export class ModelCore {
         next[i] = candidate[i] + relaxation * (beValue - candidate[i]);
       }
       const pack = this.computePressures(candidate);
-      this.applyVentricularChamberTransactionSide(next, beforeProviderCommitX, candidate, pack, dt, "LV", relaxation);
-      this.applyVentricularChamberTransactionSide(next, beforeProviderCommitX, candidate, pack, dt, "RV", relaxation);
+      this.applyVentricularChamberTransactionSide(
+        next,
+        beforeProviderCommitX,
+        candidate,
+        pack,
+        dt,
+        "LV",
+        relaxation,
+        options.includeAdjacentLoadNodes === true,
+      );
+      this.applyVentricularChamberTransactionSide(
+        next,
+        beforeProviderCommitX,
+        candidate,
+        pack,
+        dt,
+        "RV",
+        relaxation,
+        options.includeAdjacentLoadNodes === true,
+      );
       this.sanitizeState(next);
       candidate = next;
     }
@@ -1417,6 +1437,7 @@ export class ModelCore {
     dt: number,
     chamber: "LV" | "RV",
     relaxation: number,
+    includeAdjacentLoadNodes: boolean,
   ): void {
     const ventNode = chamber === "LV" ? "LV" : "RV";
     const inlet = chamber === "LV" ? "MV" : "TV";
@@ -1426,10 +1447,48 @@ export class ModelCore {
     const outletIndex = this.idx.q[outlet];
     const inletQNext = this.dynamicEdgeQNextForCandidate(inlet, candidate, pack, dt);
     const outletQNext = this.dynamicEdgeQNextForCandidate(outlet, candidate, pack, dt);
-    const volumeNext = beforeX[ventIndex] + dt * (inletQNext - outletQNext);
-    next[ventIndex] = candidate[ventIndex] + relaxation * (volumeNext - candidate[ventIndex]);
+    if (includeAdjacentLoadNodes) {
+      const balances = this.chamberTransactionBalances(candidate, pack, {
+        [inlet]: inletQNext,
+        [outlet]: outletQNext,
+      });
+      const inletEdge = this.edges[this.edgeIndex(inlet)];
+      const outletEdge = this.edges[this.edgeIndex(outlet)];
+      const nodeNamesToUpdate = [ventNode, inletEdge.up as NodeName, outletEdge.down as NodeName] as const;
+      for (const nodeName of nodeNamesToUpdate) {
+        const nodeIndex = this.idx.node[nodeName];
+        const node = this.nodes[this.nodeIndex.get(nodeName)!];
+        const balance = node.kind === "venousPressure"
+          ? balances[this.nodeIndex.get(nodeName)!]
+          : clamp(balances[this.nodeIndex.get(nodeName)!], -2500, 2500);
+        const nodeNext = beforeX[nodeIndex] + dt * balance;
+        next[nodeIndex] = candidate[nodeIndex] + relaxation * (nodeNext - candidate[nodeIndex]);
+      }
+    } else {
+      const volumeNext = beforeX[ventIndex] + dt * (inletQNext - outletQNext);
+      next[ventIndex] = candidate[ventIndex] + relaxation * (volumeNext - candidate[ventIndex]);
+    }
     next[inletIndex] = candidate[inletIndex] + relaxation * (inletQNext - candidate[inletIndex]);
     next[outletIndex] = candidate[outletIndex] + relaxation * (outletQNext - candidate[outletIndex]);
+  }
+
+  private chamberTransactionBalances(
+    x: Float64Array,
+    pack: PressurePack,
+    overrides: Partial<Record<DynamicEdgeName, number>>,
+  ): Float64Array {
+    const flows = this.computeFlows(x, pack);
+    const balance = new Float64Array(nodeNames.length);
+    for (let ei = 0; ei < this.edges.length; ei++) {
+      const e = this.edges[ei];
+      const override = (e.kind === "dynamic" || e.kind === "valve")
+        ? overrides[e.name as DynamicEdgeName]
+        : undefined;
+      const q = override ?? flows[ei];
+      balance[this.nodeIndex.get(e.up)!] -= q;
+      balance[this.nodeIndex.get(e.down)!] += q;
+    }
+    return balance;
   }
 
   private dynamicEdgeQNextForCandidate(
