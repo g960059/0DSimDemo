@@ -9,6 +9,7 @@ import {
 import {
   MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE,
   MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE,
+  useAllChamberLandAtrialDefaultForModelCoreRuntimeForThisProcess,
   useLegacyActiveStressForModelCoreRuntimeForThisProcess,
   useLvRvLandDefaultForModelCoreRuntimeForThisProcess,
 } from "@/engine/myocardium/runtimeActiveSource";
@@ -183,7 +184,7 @@ describe("PreviewController (headless driver)", () => {
       expect(latestWorkerMessage(previewWorker, "resetInstances").runtimeActiveSourceMode)
         .toBe(MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE);
     } finally {
-      useLvRvLandDefaultForModelCoreRuntimeForThisProcess();
+      useAllChamberLandAtrialDefaultForModelCoreRuntimeForThisProcess();
       vi.useRealTimers();
       workerHarness.restore();
     }
@@ -209,7 +210,7 @@ describe("PreviewController (headless driver)", () => {
       expect(setInstancesMessages[setInstancesMessages.length - 1].runtimeActiveSourceMode)
         .toBe(MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE);
     } finally {
-      useLvRvLandDefaultForModelCoreRuntimeForThisProcess();
+      useAllChamberLandAtrialDefaultForModelCoreRuntimeForThisProcess();
       workerHarness.restore();
     }
   });
@@ -428,6 +429,7 @@ describe("PreviewController (headless driver)", () => {
   it("creates preview transition steady pending jobs without posting to the preview worker", () => {
     const workerHarness = withFakeWorker();
     try {
+      useLvRvLandDefaultForModelCoreRuntimeForThisProcess();
       const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0, dt: 0.002, sampleHz: 240 });
       const previewWorker = workerHarness.byScript("previewWorker");
       const target = inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 5 });
@@ -464,6 +466,7 @@ describe("PreviewController (headless driver)", () => {
       });
       expect(request.options.settlePolicy).toBeDefined();
     } finally {
+      useAllChamberLandAtrialDefaultForModelCoreRuntimeForThisProcess();
       workerHarness.restore();
     }
   });
@@ -517,6 +520,7 @@ describe("PreviewController (headless driver)", () => {
   it("uses the current instance as the transition steady source signature", () => {
     const workerHarness = withFakeWorker();
     try {
+      useLvRvLandDefaultForModelCoreRuntimeForThisProcess();
       const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       const current = inst("1", { ...DEFAULT_PARAMS, HR: DEFAULT_PARAMS.HR + 1 });
       const next = {
@@ -541,6 +545,7 @@ describe("PreviewController (headless driver)", () => {
       expect(pending.request.toSignature).toBe(expectedToSignature);
       expect(pending.request.fromSignature).not.toBe(pending.request.toSignature);
     } finally {
+      useAllChamberLandAtrialDefaultForModelCoreRuntimeForThisProcess();
       workerHarness.restore();
     }
   });
@@ -771,6 +776,7 @@ describe("PreviewController (headless driver)", () => {
   it("phase-aligns completed transition steady results and keeps the old waveform buffer", () => {
     const workerHarness = withFakeWorker();
     try {
+      useLvRvLandDefaultForModelCoreRuntimeForThisProcess();
       const c = new PreviewController({ useWorker: true, transitionSteadyDebounceMs: 0 });
       c.setInstances([inst("1")]);
       const phys = c.refs.get("1")!;
@@ -809,6 +815,7 @@ describe("PreviewController (headless driver)", () => {
       expect(promoteMessage.state.t).not.toBe(steadyState.t);
       expect(phase(promoteMessage.state.phi)).toBeCloseTo(phase(oldSamples.at(-1)!.phi), 5);
     } finally {
+      useAllChamberLandAtrialDefaultForModelCoreRuntimeForThisProcess();
       workerHarness.restore();
     }
   });

@@ -2,6 +2,11 @@ import phase5QArtifact from "@/data/myocardium/protocols/modelcore-land-calcium-
 import { defaultParams } from "@/engine/core/params";
 import type { ModelCoreExperimentalOptions } from "@/engine/ModelCore";
 import {
+  LANDATRIAL_RUNTIME_CANDIDATE_SOURCE_PROVIDER_IDS,
+  createLandAtrialRuntimeCandidateProviders,
+  landAtrialRuntimeCandidateNodeOverrides,
+} from "@/engine/myocardium/landAtrialRuntimeCandidate";
+import {
   MODELCORE_RUNTIME_ROOT_ZC_CURRENT_MODE,
   MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_DEFAULT_MODE,
   resolveModelCoreRuntimeRootZc,
@@ -29,6 +34,8 @@ export const MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_CANDIDATE_MODE =
   "lv-rv-land-phase5al-default-candidate-v1" as const;
 export const MODELCORE_RUNTIME_ALL_CHAMBER_LAND_DEFAULT_CANDIDATE_MODE =
   "all-chamber-land-phase5aq-default-candidate-v1" as const;
+export const MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE =
+  "all-chamber-landatrial-phase5bk-user0-staged-default-v1" as const;
 export const MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE =
   "legacy-active-stress-frozen-reference-rollback-v0" as const;
 
@@ -37,10 +44,11 @@ export type ModelCoreRuntimeActiveSourceMode =
   | typeof MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE
   | typeof MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_CANDIDATE_MODE
   | typeof MODELCORE_RUNTIME_ALL_CHAMBER_LAND_DEFAULT_CANDIDATE_MODE
+  | typeof MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE
   | typeof MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE;
 
 export const MODELCORE_RUNTIME_USER0_STAGED_DEFAULT_MODE =
-  MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE;
+  MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE;
 
 export const MODELCORE_RUNTIME_LV_LAND_SOURCE_PROVIDER_ID =
   `${MODELCORE_EXPERIMENTAL_LAND2017_LV_SOURCE_ONLY_PROVIDER_ID}:phase5ak-user0-staged-default-be-phase5q-calcium`;
@@ -173,6 +181,41 @@ export type ModelCoreRuntimeActiveSourceResolution =
       readonly rootZc: ModelCoreRuntimeRootZcResolution;
     }
   | {
+      readonly mode: typeof MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE;
+      readonly claimBoundary: "user0-staged-all-chamber-landatrial-default-no-clinical-validation";
+      readonly sourceProviderScope: "LV+RV+LA+RA";
+      readonly sourceProviderId: null;
+      readonly sourceProviderIds: {
+        readonly LV: typeof MODELCORE_RUNTIME_LV_LAND_SOURCE_PROVIDER_ID;
+        readonly RV: typeof MODELCORE_RUNTIME_RV_LAND_SOURCE_PROVIDER_ID;
+        readonly LA: typeof LANDATRIAL_RUNTIME_CANDIDATE_SOURCE_PROVIDER_IDS.LA;
+        readonly RA: typeof LANDATRIAL_RUNTIME_CANDIDATE_SOURCE_PROVIDER_IDS.RA;
+      };
+      readonly commitScheme: "BE";
+      readonly calciumMapping: {
+        readonly sourceArtifactId: typeof phase5QArtifact.id;
+        readonly scenarioId: "phase2b-absolute-peak-ca";
+        readonly calciumScale: number;
+        readonly runtimeUserControlMultiplier: "tmax-contractility-user-control";
+        readonly runtimeUserControlReferenceByChamber: {
+          readonly LV: number;
+          readonly RV: number;
+          readonly LA: number;
+          readonly RA: number;
+        };
+        readonly noTuningInRuntimeDefault: true;
+      };
+      readonly experimentalOptions: ModelCoreExperimentalOptions;
+      readonly instrumentation: ModelCoreLand2017LvSourceProviderInstrumentation;
+      readonly instrumentationByChamber: {
+        readonly LV: ModelCoreLand2017LvSourceProviderInstrumentation;
+        readonly RV: ModelCoreLand2017LvSourceProviderInstrumentation;
+        readonly LA: ModelCoreLand2017LvSourceProviderInstrumentation;
+        readonly RA: ModelCoreLand2017LvSourceProviderInstrumentation;
+      };
+      readonly rootZc: ModelCoreRuntimeRootZcResolution;
+    }
+  | {
       readonly mode: typeof MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE;
       readonly claimBoundary: "legacy-active-stress-frozen-reference-rollback";
       readonly sourceProviderScope: "none";
@@ -246,6 +289,13 @@ typeof MODELCORE_RUNTIME_ALL_CHAMBER_LAND_DEFAULT_CANDIDATE_MODE {
   ) as typeof MODELCORE_RUNTIME_ALL_CHAMBER_LAND_DEFAULT_CANDIDATE_MODE;
 }
 
+export function useAllChamberLandAtrialDefaultForModelCoreRuntimeForThisProcess():
+typeof MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE {
+  return setModelCoreRuntimeActiveSourceModeForThisProcess(
+    MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE,
+  ) as typeof MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE;
+}
+
 export function resolveModelCoreRuntimeActiveSource(
   input: ResolveModelCoreRuntimeActiveSourceInput = {},
 ): ModelCoreRuntimeActiveSourceResolution {
@@ -294,6 +344,7 @@ export function resolveModelCoreRuntimeActiveSource(
     mode === MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE
     || mode === MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_CANDIDATE_MODE
     || mode === MODELCORE_RUNTIME_ALL_CHAMBER_LAND_DEFAULT_CANDIDATE_MODE
+    || mode === MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE
   ) {
     const rvInstrumentation = input.rvInstrumentation ?? createModelCoreLand2017LvSourceProviderInstrumentation();
     const laInstrumentation = input.laInstrumentation ?? createModelCoreLand2017LvSourceProviderInstrumentation();
@@ -306,6 +357,10 @@ export function resolveModelCoreRuntimeActiveSource(
       calciumScale,
       calciumInputMultiplier: "tmax-contractility-user-control",
       calciumInputMultiplierReference: rvRuntimeUserControlReference,
+    });
+    const atrialRuntimeCandidateProviders = createLandAtrialRuntimeCandidateProviders({
+      LA: laInstrumentation,
+      RA: raInstrumentation,
     });
     const laProvider = calciumScaledLand2017LaSourceOnlyProvider(laInstrumentation, {
       commitScheme: "BE",
@@ -321,6 +376,9 @@ export function resolveModelCoreRuntimeActiveSource(
       calciumInputMultiplier: "tmax-contractility-user-control",
       calciumInputMultiplierReference: atrialRuntimeUserControlReference,
     });
+    const runtimeAtrialProviders = mode === MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE
+      ? atrialRuntimeCandidateProviders
+      : { LA: laProvider, RA: raProvider };
 
     const shared = {
       sourceProviderId: null as null,
@@ -348,6 +406,45 @@ export function resolveModelCoreRuntimeActiveSource(
       instrumentationByChamber: { LV: lvInstrumentation, RV: rvInstrumentation },
       rootZc,
     } as const;
+    if (mode === MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE) {
+      return {
+        mode,
+        claimBoundary: "user0-staged-all-chamber-landatrial-default-no-clinical-validation",
+        sourceProviderScope: "LV+RV+LA+RA",
+        ...shared,
+        sourceProviderIds: {
+          LV: MODELCORE_RUNTIME_LV_LAND_SOURCE_PROVIDER_ID,
+          RV: MODELCORE_RUNTIME_RV_LAND_SOURCE_PROVIDER_ID,
+          LA: LANDATRIAL_RUNTIME_CANDIDATE_SOURCE_PROVIDER_IDS.LA,
+          RA: LANDATRIAL_RUNTIME_CANDIDATE_SOURCE_PROVIDER_IDS.RA,
+        },
+        calciumMapping: {
+          ...shared.calciumMapping,
+          runtimeUserControlReferenceByChamber: {
+            LV: lvRuntimeUserControlReference,
+            RV: rvRuntimeUserControlReference,
+            LA: atrialRuntimeUserControlReference,
+            RA: atrialRuntimeUserControlReference,
+          },
+        },
+        experimentalOptions: {
+          ...rootZc.experimentalOptions,
+          runtimeParameterPatch: { nodeOverrides: landAtrialRuntimeCandidateNodeOverrides() },
+          activeSourceProviders: {
+            LV: lvProvider,
+            RV: rvProvider,
+            LA: runtimeAtrialProviders.LA,
+            RA: runtimeAtrialProviders.RA,
+          },
+        },
+        instrumentationByChamber: {
+          LV: lvInstrumentation,
+          RV: rvInstrumentation,
+          LA: laInstrumentation,
+          RA: raInstrumentation,
+        },
+      };
+    }
     if (mode === MODELCORE_RUNTIME_ALL_CHAMBER_LAND_DEFAULT_CANDIDATE_MODE) {
       return {
         mode,
@@ -433,6 +530,7 @@ function defaultRootZcModeFor(
 ): ModelCoreRuntimeRootZcMode | undefined {
   return mode === MODELCORE_RUNTIME_LV_RV_LAND_DEFAULT_MODE
     || mode === MODELCORE_RUNTIME_ALL_CHAMBER_LAND_DEFAULT_CANDIDATE_MODE
+    || mode === MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE
     ? MODELCORE_RUNTIME_ROOT_ZC_SOURCED_BOUNDARY_ROOT_DEFAULT_MODE
     : undefined;
 }
