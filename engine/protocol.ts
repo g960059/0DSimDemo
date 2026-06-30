@@ -516,6 +516,12 @@ export type SimSample = {
   PV_flowClampImpulse?: number;
   LVPressureFloorHit01: number;
   RVPressureFloorHit01: number;
+  LVActiveFiberStressPa?: number;
+  RVActiveFiberStressPa?: number;
+  LVFiberLambda?: number;
+  RVFiberLambda?: number;
+  LVActivePressureMmHg?: number;
+  RVActivePressureMmHg?: number;
   ELV_active: number;
   ERV_active: number;
   ELV_timeVarying: number;

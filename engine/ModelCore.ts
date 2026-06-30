@@ -1288,6 +1288,8 @@ export class ModelCore {
       : {};
     const lvElastance = this.ventricularElastanceSignals("LV", pack.VLVeff, pack.PLVfw, this.x);
     const rvElastance = this.ventricularElastanceSignals("RV", pack.VRVeff, pack.PRVfw, this.x);
+    const lvActivePressureComponent = activePressureComponentMmHg(lvPressureTerms);
+    const rvActivePressureComponent = activePressureComponentMmHg(rvPressureTerms);
     const s: SimSample = {
       t: this.t,
       AoP: pack.P[this.nodeIndex.get("Ao")!],
@@ -1403,6 +1405,12 @@ export class ModelCore {
       PV_flowClampImpulse: pvStep.flowClampImpulse,
       LVPressureFloorHit01: lvPressureTerms?.pressureFloorHit01 ?? 0,
       RVPressureFloorHit01: rvPressureTerms?.pressureFloorHit01 ?? 0,
+      LVActiveFiberStressPa: lvPressureTerms?.sigmaAct,
+      RVActiveFiberStressPa: rvPressureTerms?.sigmaAct,
+      LVFiberLambda: lvPressureTerms?.lambda,
+      RVFiberLambda: rvPressureTerms?.lambda,
+      LVActivePressureMmHg: lvActivePressureComponent,
+      RVActivePressureMmHg: rvActivePressureComponent,
       ...laPressureDecomposition,
       ...raPressureDecomposition,
       ...laGeometryFields,
@@ -3719,4 +3727,11 @@ function meanVascularReturnSnapshot(
     sampleCount,
     durationSeconds,
   };
+}
+
+function activePressureComponentMmHg(terms: ChamberPressureTerms | undefined): number | undefined {
+  if (!terms) return undefined;
+  const sigmaTotal = terms.sigmaPas + terms.sigmaAct;
+  if (Math.abs(sigmaTotal) <= 1e-12) return 0;
+  return terms.pressureUnclampedMmHg * terms.sigmaAct / sigmaTotal;
 }
