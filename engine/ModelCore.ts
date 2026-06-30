@@ -209,6 +209,13 @@ export type ModelCoreExperimentalGraphCoupledStepOptions = {
   readonly providerStateCouplingChambers?: readonly Chamber[];
 };
 
+export type ModelCoreExperimentalCoupledBackwardEulerStepOptions = {
+  readonly mechanismId: string;
+  readonly iterations?: number;
+  readonly relaxation?: number;
+  readonly providerStateCouplingChambers?: readonly Chamber[];
+};
+
 export type ModelCoreExperimentalTemporalSubstepOptions = {
   readonly mechanismId: string;
   readonly subdivisions: number;
@@ -219,6 +226,7 @@ export type ModelCoreExperimentalOptions = {
   readonly boundaryRootInertance?: ModelCoreExperimentalBoundaryRootInertanceOptions;
   readonly valveDiodeSmoothing?: ModelCoreExperimentalValveDiodeSmoothingOptions;
   readonly graphCoupledStep?: ModelCoreExperimentalGraphCoupledStepOptions;
+  readonly coupledBackwardEulerStep?: ModelCoreExperimentalCoupledBackwardEulerStepOptions;
   readonly temporalSubstep?: ModelCoreExperimentalTemporalSubstepOptions;
   readonly runtimeParameterPatch?: ParameterPatch;
 };
@@ -688,6 +696,31 @@ function normalizeExperimentalGraphCoupledStep(
   };
 }
 
+function normalizeExperimentalCoupledBackwardEulerStep(
+  options: ModelCoreExperimentalCoupledBackwardEulerStepOptions | undefined,
+): ModelCoreExperimentalCoupledBackwardEulerStepOptions | null {
+  if (!options) return null;
+  if (!options.mechanismId.trim()) {
+    throw new Error("Experimental coupled backward-Euler step requires a mechanismId.");
+  }
+  const iterations = Math.floor(clamp(options.iterations ?? 4, 1, 10));
+  const relaxation = clamp(options.relaxation ?? 0.7, 0.1, 1);
+  const providerStateCouplingChambers: readonly Chamber[] = options.providerStateCouplingChambers
+    ? [...new Set(options.providerStateCouplingChambers)]
+    : ["LV", "RV"];
+  for (const chamber of providerStateCouplingChambers) {
+    if (chamber !== "LV" && chamber !== "RV" && chamber !== "LA" && chamber !== "RA") {
+      throw new Error(`Experimental coupled backward-Euler step received unknown chamber '${chamber}'.`);
+    }
+  }
+  return {
+    mechanismId: options.mechanismId,
+    iterations,
+    relaxation,
+    providerStateCouplingChambers,
+  };
+}
+
 function normalizeExperimentalTemporalSubstep(
   options: ModelCoreExperimentalTemporalSubstepOptions | undefined,
 ): ModelCoreExperimentalTemporalSubstepOptions | null {
@@ -717,6 +750,7 @@ export class ModelCore {
   private readonly experimentalBoundaryRootInertance: ModelCoreExperimentalBoundaryRootInertanceOptions | null;
   private readonly experimentalValveDiodeSmoothing: ModelCoreExperimentalValveDiodeSmoothingOptions | null;
   private readonly experimentalGraphCoupledStep: ModelCoreExperimentalGraphCoupledStepOptions | null;
+  private readonly experimentalCoupledBackwardEulerStep: ModelCoreExperimentalCoupledBackwardEulerStepOptions | null;
   private readonly experimentalTemporalSubstep: ModelCoreExperimentalTemporalSubstepOptions | null;
   private readonly experimentalRuntimeParameterPatch: ParameterPatch | null;
   private readonly experimentalActiveSourceProviderStates: Partial<Record<Chamber, unknown>> = {};
@@ -794,6 +828,9 @@ export class ModelCore {
     );
     this.experimentalGraphCoupledStep = normalizeExperimentalGraphCoupledStep(
       experimentalOptions.graphCoupledStep,
+    );
+    this.experimentalCoupledBackwardEulerStep = normalizeExperimentalCoupledBackwardEulerStep(
+      experimentalOptions.coupledBackwardEulerStep,
     );
     this.experimentalTemporalSubstep = normalizeExperimentalTemporalSubstep(
       experimentalOptions.temporalSubstep,
@@ -1177,7 +1214,9 @@ export class ModelCore {
       this.expectedTBV = clamp(this.expectedTBV + netFlowMlPerS * dt, 1000, 12000);
     }
 
-    if (this.experimentalGraphCoupledStep && beforeProviderCommitX) {
+    if (this.experimentalCoupledBackwardEulerStep && beforeProviderCommitX) {
+      this.stepCoupledBackwardEulerProviderState(dt, beforeProviderCommitT, beforeProviderCommitX);
+    } else if (this.experimentalGraphCoupledStep && beforeProviderCommitX) {
       this.stepGraphCoupledProviderState(dt, beforeProviderCommitT, beforeProviderCommitX);
     } else {
       const k1 = this.rhs(this.x);
@@ -1193,6 +1232,51 @@ export class ModelCore {
     if (beforeProviderCommitX) {
       this.commitExperimentalActiveProviderStates(dt, beforeProviderCommitT, beforeProviderCommitX);
     }
+  }
+
+  private stepCoupledBackwardEulerProviderState(
+    dt: number,
+    beforeProviderCommitT: number,
+    beforeProviderCommitX: Float64Array,
+  ): void {
+    const options = this.experimentalCoupledBackwardEulerStep;
+    if (!options) throw new Error("Missing coupled backward-Euler step options.");
+    const baseProviderState = this.snapshotExperimentalActiveProviderStates();
+    const k0 = this.rhs(beforeProviderCommitX);
+    let candidate = new Float64Array(beforeProviderCommitX.length);
+    for (let i = 0; i < beforeProviderCommitX.length; i++) {
+      candidate[i] = beforeProviderCommitX[i] + dt * k0[i];
+    }
+    this.sanitizeState(candidate);
+
+    const iterations = options.iterations ?? 4;
+    const relaxation = options.relaxation ?? 0.7;
+    const chamberFilter = new Set<Chamber>(options.providerStateCouplingChambers ?? ["LV", "RV"]);
+    for (let iteration = 0; iteration < iterations; iteration++) {
+      this.restoreExperimentalActiveProviderStates(baseProviderState);
+      const provisionalProviderState = this.computeExperimentalActiveProviderStateCommits(
+        dt,
+        beforeProviderCommitT,
+        beforeProviderCommitX,
+        beforeProviderCommitT + dt,
+        candidate,
+        chamberFilter,
+      );
+      this.restoreExperimentalActiveProviderStates(provisionalProviderState);
+      const kCandidate = this.rhs(candidate);
+      const next = new Float64Array(beforeProviderCommitX.length);
+      for (let i = 0; i < beforeProviderCommitX.length; i++) {
+        const beValue = beforeProviderCommitX[i] + dt * kCandidate[i];
+        next[i] = candidate[i] + relaxation * (beValue - candidate[i]);
+      }
+      this.sanitizeState(next);
+      candidate = next;
+    }
+
+    this.restoreExperimentalActiveProviderStates(baseProviderState);
+    this.x.set(candidate);
+    this.t += dt;
+    this.sanitizeState(this.x);
   }
 
   private stepGraphCoupledProviderState(
@@ -3559,6 +3643,9 @@ export class ModelCore {
         : {}),
       ...(this.experimentalGraphCoupledStep
         ? { graphCoupledStep: this.experimentalGraphCoupledStep }
+        : {}),
+      ...(this.experimentalCoupledBackwardEulerStep
+        ? { coupledBackwardEulerStep: this.experimentalCoupledBackwardEulerStep }
         : {}),
       ...(this.experimentalTemporalSubstep
         ? { temporalSubstep: this.experimentalTemporalSubstep }

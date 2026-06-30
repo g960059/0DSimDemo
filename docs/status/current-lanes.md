@@ -264,11 +264,26 @@ adapter filtering plus 2x temporal substepping: current user-0 remains 0/8,
 best candidate remains 0/8, and no source-stress adapter or temporal substep
 adoption is supported. Phase 5CA also writes a reusable visual review bundle
 for owner gate calibration under `~/Downloads/0dsim-morphology-review-phase5ca`;
-legacy itself is only 2/8 under the current gross gate, so threshold hygiene
-and owner visual review are required before escalating to another multi-month
-structural rewrite. This does not relax the development contract: Land-based
-variants still show worse LV/RV PV and MVF robustness than frozen legacy over
-the same preload/afterload/contractility envelope.
+the owner then confirmed that gate-failed examples are visually unacceptable,
+and that some current OK examples are still too permissive. Therefore do not
+relax `morphology-check-v1` to buy progress; treat raw LV/RV PV dome and
+MVF/TVF failures as real blockers for future case/preset fitting. Phase 5CB
+tests the next source-state/pressure contract surfaces: committed-output
+pressure-source semantics and an opt-in fixed-point coupled backward-Euler
+provider-state step. Both remain 0/8 gross pass; no pressure-source contract or
+coupled-BE runtime adoption is supported. The next structural surface is a
+deeper candidate-pressure-after-step Newton/residual block, not more
+filter/tau/smoothing/substep sweeps.
+
+Phase 5CB records `pressure-source-contract-phase5cb-result-v1`. The current
+user-0 closure remains 0/8 gross pass. The best committed-output pressure-source
+candidate (`committed-output-lag-legacy-atria`) remains 0/8. The best fixed-point
+coupled backward-Euler candidate (`coupled-be-legacy-atria`) also remains 0/8,
+despite small badge-level movements (for example RV PV and TVF counts). Do not
+adopt these surfaces. The next gross morphology fix must implement a real
+candidate-pressure-after-step residual/Newton block that solves LV/RV chamber
+volume, AV/semilunar valve flow states, and Land source-state pressure together,
+or else reconsider the active source/chamber adapter contract more deeply.
 
 ## Lane table
 
@@ -596,11 +611,16 @@ advances the current lane. They are evidence anchors, not current gates.
 
 ## Current top priorities
 
-1. Phase 5BP is now the active blocker for education-visible gross morphology:
-   fix or bound ventricular Land velocity/length coupling under valve-load
-   transitions before doing more closed-loop LandAtrial parameter tuning. Do
-   not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref, or
-   source-stress scaling to hide the PV double-dome and AV inflow artifacts.
+1. Phase 5CB is now the active blocker for education-visible gross morphology:
+   owner visual review confirms the morphology checker is directionally trusted
+   and not too strict for failed examples. Current user-0, committed-output
+   pressure-source, and fixed-point coupled-BE candidates all remain 0/8 gross
+   pass. The next implementation surface is a deeper candidate-pressure-after-step
+   Newton/residual block that solves LV/RV chamber volume, AV/semilunar flow
+   states, and Land source-state pressure together. Do not use global
+   zeta-disablement, qDot/root/Zc/valve retuning, Tref, source-stress scaling,
+   pressure-source lag, fixed-point BE, or LandAtrial parameter tuning to hide
+   the PV double-dome and AV inflow artifacts.
 2. Land plus sourced root/Zc is now the user-0 staged all-chamber runtime
    default after owner GO through Phase 5BK. Do not delete legacy active-stress
    yet; keep it as frozen reference, debug fallback, and rollback while
