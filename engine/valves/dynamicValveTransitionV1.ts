@@ -50,7 +50,7 @@ export type DynamicValveTransitionV1StepResult = {
   readonly qDotPostMlPerSec2: number;
   readonly diodeImpulseMlPerSec: number;
   readonly qDotClampImpulseMlPerSec2: number;
-  readonly pressureFlowCausalityViolation: boolean;
+  readonly adversePressureGradientFlow: boolean;
   readonly nextState: DynamicValveTransitionV1State;
 };
 
@@ -95,7 +95,7 @@ export function stepDynamicValveTransitionV1(
     openDirection !== 0
     && previous.previousOpenDirection !== 0
     && openDirection !== previous.previousOpenDirection;
-  const pressureFlowCausalityViolation =
+  const adversePressureGradientFlow =
     (dPMmHg < -0.75 && flowMlPerSec > 10)
     || (dPMmHg > 0.75 && flowMlPerSec < -10);
   const nextState = {
@@ -115,7 +115,7 @@ export function stepDynamicValveTransitionV1(
     qDotPostMlPerSec2: qDotPost,
     diodeImpulseMlPerSec: qNextPostDiode - qNextPreDiode,
     qDotClampImpulseMlPerSec2: qDotPost - qDotRaw,
-    pressureFlowCausalityViolation,
+    adversePressureGradientFlow,
     nextState,
   };
 }

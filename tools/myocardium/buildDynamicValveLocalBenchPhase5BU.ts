@@ -109,7 +109,7 @@ type ReplaySample = {
   readonly qDotPostMlPerSec2: number;
   readonly diodeImpulseMlPerSec: number;
   readonly qDotClampImpulseMlPerSec2: number;
-  readonly pressureFlowCausalityViolation01: number;
+  readonly adversePressureGradientFlow01: number;
 };
 
 type ValveRunMetrics = {
@@ -124,7 +124,7 @@ type ValveRunMetrics = {
   readonly forwardVolumeRatio: number | null;
   readonly liveRegurgitantFraction: number;
   readonly replayRegurgitantFraction: number;
-  readonly pressureFlowCausalityViolationFraction: number;
+  readonly adversePressureGradientFlowFraction: number;
   readonly diodeImpulseDutyFraction: number;
   readonly qDotClampDutyFraction: number;
   readonly openDirectionChangeCount: number;
@@ -133,7 +133,7 @@ type ValveRunMetrics = {
   readonly livePeakFlowMlPerSec: number;
   readonly maxAbsQDotPostMlPerSec2: number;
   readonly preservedForwardVolume: boolean;
-  readonly causalityClean: boolean;
+  readonly adverseGradientClean: boolean;
   readonly chatterClean: boolean;
 };
 
@@ -154,8 +154,12 @@ type VariantSummary = {
   readonly semilunarValveRuns: number;
   readonly avExtraWaveReducedCount: number;
   readonly avExtraWaveAbsentCount: number;
+  readonly mvExtraWaveReducedCount: number;
+  readonly mvValveRuns: number;
+  readonly tvExtraWaveReducedCount: number;
+  readonly tvValveRuns: number;
   readonly preservedForwardVolumeCount: number;
-  readonly causalityCleanCount: number;
+  readonly adverseGradientCleanCount: number;
   readonly chatterCleanCount: number;
   readonly meanNormalizedFlowRmse: number;
   readonly meanReplayAvExtraPeakCount: number;
@@ -581,7 +585,7 @@ function liveFlowReplay(valve: ValveSpec, samples: readonly SimSample[]): readon
     qDotPostMlPerSec2: optionalNumber(sample, valve.qDotPostKey),
     diodeImpulseMlPerSec: optionalNumber(sample, valve.diodeImpulseKey),
     qDotClampImpulseMlPerSec2: 0,
-    pressureFlowCausalityViolation01: pressureFlowCausalityViolation(
+    adversePressureGradientFlow01: adversePressureGradientFlow(
       numberAt(sample, valve.upstreamPressureKey) - numberAt(sample, valve.downstreamPressureKey),
       numberAt(sample, valve.flowKey),
     ) ? 1 : 0,
@@ -605,7 +609,7 @@ function replaySampleFromStep(
     qDotPostMlPerSec2: step.qDotPostMlPerSec2,
     diodeImpulseMlPerSec: step.diodeImpulseMlPerSec,
     qDotClampImpulseMlPerSec2: step.qDotClampImpulseMlPerSec2,
-    pressureFlowCausalityViolation01: step.pressureFlowCausalityViolation ? 1 : 0,
+    adversePressureGradientFlow01: step.adversePressureGradientFlow ? 1 : 0,
   };
 }
 
@@ -656,7 +660,7 @@ function computeValveRunMetrics(
     square(sample.replayFlowMlPerSec - sample.liveFlowMlPerSec),
   ))) / flowScale;
   const openDirectionChangeCount = directionChangeCount(samples.map((sample) => sample.replayOpen01), 1e-4);
-  const pressureFlowCausalityViolationFraction = fraction(samples, (sample) => sample.pressureFlowCausalityViolation01 > 0);
+  const adversePressureGradientFlowFraction = fraction(samples, (sample) => sample.adversePressureGradientFlow01 > 0);
   const diodeImpulseDutyFraction = fraction(samples, (sample) => Math.abs(sample.diodeImpulseMlPerSec) > 1e-6);
   const qDotClampDutyFraction = fraction(samples, (sample) => Math.abs(sample.qDotClampImpulseMlPerSec2) > 1e-6);
   const forwardVolumeRatio = liveForwardVolumeMl > 1e-9 ? replayForwardVolumeMl / liveForwardVolumeMl : null;
@@ -674,7 +678,7 @@ function computeValveRunMetrics(
     forwardVolumeRatio: forwardVolumeRatio == null ? null : round(forwardVolumeRatio),
     liveRegurgitantFraction: round(liveReverseVolumeMl / Math.max(liveForwardVolumeMl, 1e-9)),
     replayRegurgitantFraction: round(replayReverseVolumeMl / Math.max(replayForwardVolumeMl, 1e-9)),
-    pressureFlowCausalityViolationFraction: round(pressureFlowCausalityViolationFraction),
+    adversePressureGradientFlowFraction: round(adversePressureGradientFlowFraction),
     diodeImpulseDutyFraction: round(diodeImpulseDutyFraction),
     qDotClampDutyFraction: round(qDotClampDutyFraction),
     openDirectionChangeCount,
@@ -683,7 +687,7 @@ function computeValveRunMetrics(
     livePeakFlowMlPerSec: round(maxFinite(samples.map((sample) => sample.liveFlowMlPerSec))),
     maxAbsQDotPostMlPerSec2: round(maxAbs(samples.map((sample) => sample.qDotPostMlPerSec2))),
     preservedForwardVolume: forwardVolumeRatio != null && forwardVolumeRatio >= 0.65 && forwardVolumeRatio <= 1.35,
-    causalityClean: pressureFlowCausalityViolationFraction <= 0.03,
+    adverseGradientClean: adversePressureGradientFlowFraction <= 0.03,
     chatterClean: openDirectionChangeCount <= (isAvValve ? 4 : 3),
   };
 }
@@ -728,6 +732,8 @@ function avExtraPeakCount(peaks: readonly Peak[]): number {
 function summarizeVariant(variant: VariantSpec, results: readonly ValveRunResult[]): VariantSummary {
   const own = results.filter((result) => result.variantId === variant.id && result.measured);
   const avRuns = own.filter((result) => isAvValve(result.valveId));
+  const mvRuns = own.filter((result) => result.valveId === "MV");
+  const tvRuns = own.filter((result) => result.valveId === "TV");
   const semilunarRuns = own.filter((result) => isSemilunarValve(result.valveId));
   return {
     variantId: variant.id,
@@ -736,8 +742,12 @@ function summarizeVariant(variant: VariantSpec, results: readonly ValveRunResult
     semilunarValveRuns: semilunarRuns.length,
     avExtraWaveReducedCount: avRuns.filter((result) => result.metrics.extraAvPeakReduced === true).length,
     avExtraWaveAbsentCount: avRuns.filter((result) => (result.metrics.replayExtraAvPeakCount ?? 99) === 0).length,
+    mvExtraWaveReducedCount: mvRuns.filter((result) => result.metrics.extraAvPeakReduced === true).length,
+    mvValveRuns: mvRuns.length,
+    tvExtraWaveReducedCount: tvRuns.filter((result) => result.metrics.extraAvPeakReduced === true).length,
+    tvValveRuns: tvRuns.length,
     preservedForwardVolumeCount: own.filter((result) => result.metrics.preservedForwardVolume).length,
-    causalityCleanCount: own.filter((result) => result.metrics.causalityClean).length,
+    adverseGradientCleanCount: own.filter((result) => result.metrics.adverseGradientClean).length,
     chatterCleanCount: own.filter((result) => result.metrics.chatterClean).length,
     meanNormalizedFlowRmse: round(mean(own.map((result) => result.metrics.normalizedFlowRmse))),
     meanReplayAvExtraPeakCount: round(mean(avRuns.map((result) => result.metrics.replayExtraAvPeakCount ?? 0))),
@@ -751,7 +761,7 @@ function classify(summaries: readonly VariantSummary[]): Classification {
     b.avExtraWaveReducedCount - a.avExtraWaveReducedCount
     || b.avExtraWaveAbsentCount - a.avExtraWaveAbsentCount
     || b.preservedForwardVolumeCount - a.preservedForwardVolumeCount
-    || b.causalityCleanCount - a.causalityCleanCount
+    || b.adverseGradientCleanCount - a.adverseGradientCleanCount
     || a.meanNormalizedFlowRmse - b.meanNormalizedFlowRmse,
   )[0];
   const supported =
@@ -759,18 +769,18 @@ function classify(summaries: readonly VariantSummary[]): Classification {
     && best.avValveRuns > 0
     && best.avExtraWaveReducedCount >= Math.ceil(best.avValveRuns * 0.75)
     && best.preservedForwardVolumeCount >= Math.ceil(best.measuredValveRuns * 0.75)
-    && best.causalityCleanCount === best.measuredValveRuns
+    && best.adverseGradientCleanCount === best.measuredValveRuns
     && best.chatterCleanCount >= Math.ceil(best.measuredValveRuns * 0.75);
   const partial =
     !!best
     && !supported
     && best.avExtraWaveReducedCount > 0
     && best.preservedForwardVolumeCount >= Math.ceil(best.measuredValveRuns * 0.5)
-    && best.causalityCleanCount >= Math.ceil(best.measuredValveRuns * 0.75);
+    && best.adverseGradientCleanCount >= Math.ceil(best.measuredValveRuns * 0.75);
   return {
     liveAvExtraWaveBurden: `${live.avValveRuns - live.avExtraWaveAbsentCount}/${live.avValveRuns}`,
     bestReplayVariant: best
-      ? `${best.variantId}:reduced=${best.avExtraWaveReducedCount}/${best.avValveRuns},absent=${best.avExtraWaveAbsentCount}/${best.avValveRuns},preserved=${best.preservedForwardVolumeCount}/${best.measuredValveRuns},causality=${best.causalityCleanCount}/${best.measuredValveRuns}`
+      ? `${best.variantId}:reduced=${best.avExtraWaveReducedCount}/${best.avValveRuns},mvReduced=${best.mvExtraWaveReducedCount}/${best.mvValveRuns},tvReduced=${best.tvExtraWaveReducedCount}/${best.tvValveRuns},absent=${best.avExtraWaveAbsentCount}/${best.avValveRuns},preserved=${best.preservedForwardVolumeCount}/${best.measuredValveRuns},adverseGradient=${best.adverseGradientCleanCount}/${best.measuredValveRuns}`
       : "none",
     dynamicValveDecision: supported
       ? "supported-for-closed-loop-shadow"
@@ -781,8 +791,9 @@ function classify(summaries: readonly VariantSummary[]): Classification {
       `Live source AV extra-wave burden: ${live.avValveRuns - live.avExtraWaveAbsentCount}/${live.avValveRuns}.`,
       `Best local replay variant: ${best?.variantId ?? "none"}.`,
       `Best local replay AV extra-wave reduction: ${best?.avExtraWaveReducedCount ?? 0}/${best?.avValveRuns ?? 0}.`,
+      `Best local replay MV extra-wave reduction: ${best?.mvExtraWaveReducedCount ?? 0}/${best?.mvValveRuns ?? 0}; TV extra-wave reduction: ${best?.tvExtraWaveReducedCount ?? 0}/${best?.tvValveRuns ?? 0}.`,
       `Best local replay forward-volume preservation: ${best?.preservedForwardVolumeCount ?? 0}/${best?.measuredValveRuns ?? 0}.`,
-      `Best local replay causality-clean count: ${best?.causalityCleanCount ?? 0}/${best?.measuredValveRuns ?? 0}.`,
+      `Best local replay adverse-gradient-clean count: ${best?.adverseGradientCleanCount ?? 0}/${best?.measuredValveRuns ?? 0}.`,
       "This pressure-flow replay is local evidence only; it does not update chamber pressures or prove closed-loop PV dome repair.",
     ],
   };
@@ -823,7 +834,7 @@ function emptyValveRunMetrics(): ValveRunMetrics {
     forwardVolumeRatio: null,
     liveRegurgitantFraction: Number.NaN,
     replayRegurgitantFraction: Number.NaN,
-    pressureFlowCausalityViolationFraction: Number.NaN,
+    adversePressureGradientFlowFraction: Number.NaN,
     diodeImpulseDutyFraction: Number.NaN,
     qDotClampDutyFraction: Number.NaN,
     openDirectionChangeCount: 0,
@@ -832,7 +843,7 @@ function emptyValveRunMetrics(): ValveRunMetrics {
     livePeakFlowMlPerSec: Number.NaN,
     maxAbsQDotPostMlPerSec2: Number.NaN,
     preservedForwardVolume: false,
-    causalityClean: false,
+    adverseGradientClean: false,
     chatterClean: false,
   };
 }
@@ -882,7 +893,7 @@ function valveDigest(valve: ValveSpec): ValveSpecDigest {
   };
 }
 
-function pressureFlowCausalityViolation(dPMmHg: number, flowMlPerSec: number): boolean {
+function adversePressureGradientFlow(dPMmHg: number, flowMlPerSec: number): boolean {
   return (dPMmHg < -0.75 && flowMlPerSec > 10) || (dPMmHg > 0.75 && flowMlPerSec < -10);
 }
 
@@ -905,7 +916,7 @@ function roundReplaySample(sample: ReplaySample): ReplaySample {
     qDotPostMlPerSec2: round(sample.qDotPostMlPerSec2),
     diodeImpulseMlPerSec: round(sample.diodeImpulseMlPerSec),
     qDotClampImpulseMlPerSec2: round(sample.qDotClampImpulseMlPerSec2),
-    pressureFlowCausalityViolation01: sample.pressureFlowCausalityViolation01,
+    adversePressureGradientFlow01: sample.adversePressureGradientFlow01,
   };
 }
 
