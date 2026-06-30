@@ -18,6 +18,7 @@ import {
 } from "@/engine/chambers";
 import {
   LANDATRIAL_SHADOW_PARAMETER_PACK,
+  createAtrialLandShadowParameterSet,
   createAtrialLandShadowSourceProvider,
 } from "@/engine/myocardium/atrialLandShadow";
 import {
@@ -241,6 +242,22 @@ describe("ActiveStressChamberModel source active-fiber pressure adapter", () => 
       .not.toBe(LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET.values.ku);
     expect(pack.chamberParameterSets.RA.values.CaT50Ref)
       .not.toBe(LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET.values.CaT50Ref);
+    expect(pack.chamberParameterSets.RA.values.CaT50Ref).toBe(0.90);
+    expect(pack.chamberParameterSets.RA.values.ku).toBe(750);
+  });
+
+  it("creates deterministic atrial Land shadow parameter-set variants without Tref scaling", () => {
+    const base = LANDATRIAL_SHADOW_PARAMETER_PACK.chamberParameterSets.RA;
+    const variant = createAtrialLandShadowParameterSet("RA", {
+      parameterSetIdSuffix: "test-desensitized",
+      runtimeValueOverrides: { CaT50Ref: 0.95, ku: 700 },
+    });
+
+    expect(variant.parameterSetId).toContain("test-desensitized");
+    expect(variant.values.Tref).toBe(LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET.values.Tref);
+    expect(variant.values.CaT50Ref).toBe(0.95);
+    expect(variant.values.ku).toBe(700);
+    expect(variant.parameterSetStableHash).not.toBe(base.parameterSetStableHash);
   });
 
   it("creates a signed LandAtrial shadow provider using atrial geometry", () => {
