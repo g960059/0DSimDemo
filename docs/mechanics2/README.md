@@ -16,6 +16,7 @@ Canonical references:
 - [Left-heart output-reserve calibration V1](left-heart-output-reserve-calibration-v1.md)
 - [Left-heart dynamic reserve contract V1](left-heart-dynamic-reserve-contract-v1.md)
 - [Reservoir-bridge smoke V1](reservoir-bridge-smoke-v1.md)
+- [Reservoir-solver bridge V1](reservoir-solver-bridge-v1.md)
 - [ADR-MYO-003](../myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 - [Engine sidecar README](../../engine/mechanics2/README.md)
 
