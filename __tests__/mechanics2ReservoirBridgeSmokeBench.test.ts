@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   runReservoirBridgeSmokeBenchV1,
 } from "@/engine/mechanics2/benches/ReservoirBridgeSmokeBench";
+import { expectMechanics2ReportArtifactParity } from "./helpers/mechanics2ReportParity";
 import reservoirBridgeReport from "@/data/mechanics2/reports/reservoir-bridge-smoke-report-v1.json";
 
 describe("MechanicsCore2 reservoir-bridge smoke bench", () => {
@@ -42,12 +43,6 @@ describe("MechanicsCore2 reservoir-bridge smoke bench", () => {
 
   it("keeps the committed reservoir-bridge artifact aligned with the rerun summary", () => {
     const report = runReservoirBridgeSmokeBenchV1();
-    expect(reservoirBridgeReport.reportId).toBe(report.reportId);
-    expect(reservoirBridgeReport.decision).toEqual(report.decision);
-    expect(reservoirBridgeReport.variantResults.map((variant) => variant.summary)).toEqual(
-      report.variantResults.map((variant) => variant.summary),
-    );
-    expect(typeof reservoirBridgeReport.normalizedSha256).toBe("string");
-    expect(reservoirBridgeReport.normalizedSha256).toHaveLength(64);
+    expectMechanics2ReportArtifactParity(reservoirBridgeReport, report);
   });
 });
