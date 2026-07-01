@@ -259,6 +259,12 @@ export type ModelCoreExperimentalVentricularChamberTransactionStepOptions = {
   readonly semilunarValveBoundaryPressureRefitRelaxation?: number;
   readonly semilunarValveBoundaryStatefulClosingLossGain?: number;
   readonly semilunarValveBoundaryStatefulClosingInertanceGain?: number;
+  readonly chamberMechanicalTransactionMode?:
+    | "current"
+    | "accepted-volume-pressure-valve-load-v1";
+  readonly chamberMechanicalTransactionTargetChambers?: readonly ("LV" | "RV")[];
+  readonly chamberMechanicalTransactionIterations?: number;
+  readonly chamberMechanicalTransactionBracketMl?: number;
 };
 
 // Diagnostic-only Phase 5CC hook. This surface measured as not-supported and
@@ -880,6 +886,7 @@ function normalizeExperimentalVentricularChamberTransactionStep(
   const semilunarPressureRefitEnabled =
     semilunarValveBoundaryMode === "accepted-state-valve-pressure-flow"
     || semilunarValveBoundaryMode === "accepted-state-valve-pressure-flow-stateful-v2";
+  const chamberMechanicalTransactionMode = options.chamberMechanicalTransactionMode ?? "current";
   return {
     mechanismId: options.mechanismId,
     iterations,
@@ -939,6 +946,19 @@ function normalizeExperimentalVentricularChamberTransactionStep(
       options.semilunarValveBoundaryStatefulClosingInertanceGain ?? 3,
       0,
       40,
+    ),
+    chamberMechanicalTransactionMode,
+    chamberMechanicalTransactionTargetChambers: options.chamberMechanicalTransactionTargetChambers
+      ? [...new Set(options.chamberMechanicalTransactionTargetChambers)]
+      : ["LV", "RV"],
+    chamberMechanicalTransactionIterations: Math.max(
+      2,
+      Math.floor(clamp(options.chamberMechanicalTransactionIterations ?? 6, 2, 12)),
+    ),
+    chamberMechanicalTransactionBracketMl: clamp(
+      options.chamberMechanicalTransactionBracketMl ?? 45,
+      5,
+      120,
     ),
   };
 }
@@ -1641,6 +1661,7 @@ export class ModelCore {
     const inletFlowState = this.transactionAvValveStateCoupledFlowState(inlet, candidate, pack, dt, options);
     let inletQNext = this.dynamicEdgeQNextForCandidate(inlet, inletFlowState ?? candidate, pack, dt, options);
     let outletQNext = this.dynamicEdgeQNextForCandidate(outlet, candidate, pack, dt, options);
+    let chamberMechanicalVolumeNext: number | null = null;
     if (
       options.avValveBoundaryMode === "accepted-state-av-boundary-pair-fixedpoint"
       && (options.avValveBoundaryTargetValves ?? ["MV", "TV"]).includes(inlet)
@@ -1736,6 +1757,24 @@ export class ModelCore {
       );
     }
     if (
+      options.chamberMechanicalTransactionMode === "accepted-volume-pressure-valve-load-v1"
+      && (options.chamberMechanicalTransactionTargetChambers ?? ["LV", "RV"]).includes(chamber)
+    ) {
+      const mechanical = this.acceptedVolumePressureValveLoadSideNext(
+        chamber,
+        inlet,
+        outlet,
+        beforeX,
+        candidate,
+        dt,
+        includeAdjacentLoadNodes,
+        options,
+      );
+      chamberMechanicalVolumeNext = mechanical.volumeNext;
+      inletQNext = mechanical.inletQNext;
+      outletQNext = mechanical.outletQNext;
+    }
+    if (
       chamber === "LV"
       && (
         options.avValveBoundaryMode === "tv-state-coupled-mv-pressure-refit"
@@ -1768,11 +1807,13 @@ export class ModelCore {
         const balance = node.kind === "venousPressure"
           ? balances[this.nodeIndex.get(nodeName)!]
           : clamp(balances[this.nodeIndex.get(nodeName)!], -2500, 2500);
-        const nodeNext = beforeX[nodeIndex] + dt * balance;
+        const nodeNext = nodeName === ventNode && chamberMechanicalVolumeNext != null
+          ? chamberMechanicalVolumeNext
+          : beforeX[nodeIndex] + dt * balance;
         next[nodeIndex] = candidate[nodeIndex] + relaxation * (nodeNext - candidate[nodeIndex]);
       }
     } else {
-      const volumeNext = beforeX[ventIndex] + dt * (inletQNext - outletQNext);
+      const volumeNext = chamberMechanicalVolumeNext ?? beforeX[ventIndex] + dt * (inletQNext - outletQNext);
       next[ventIndex] = candidate[ventIndex] + relaxation * (volumeNext - candidate[ventIndex]);
     }
     next[inletIndex] = candidate[inletIndex] + relaxation * (inletQNext - candidate[inletIndex]);
@@ -1787,6 +1828,130 @@ export class ModelCore {
       next[inletXiIndex] = candidate[inletXiIndex] + relaxation * (residualContractXi.inletXiNext - candidate[inletXiIndex]);
       next[outletXiIndex] = candidate[outletXiIndex] + relaxation * (residualContractXi.outletXiNext - candidate[outletXiIndex]);
     }
+  }
+
+  private acceptedVolumePressureValveLoadSideNext(
+    chamber: "LV" | "RV",
+    inlet: "MV" | "TV",
+    outlet: "AoV" | "PV",
+    beforeX: Float64Array,
+    candidate: Float64Array,
+    dt: number,
+    includeAdjacentLoadNodes: boolean,
+    options: ModelCoreExperimentalVentricularChamberTransactionStepOptions,
+  ): { volumeNext: number; inletQNext: number; outletQNext: number; residualMl: number } {
+    const ventIndex = this.idx.node[chamber];
+    const beforeVolume = beforeX[ventIndex];
+    const center = candidate[ventIndex];
+    const bracket = options.chamberMechanicalTransactionBracketMl ?? 45;
+    const low = Math.max(1, Math.min(beforeVolume, center) - bracket);
+    const high = Math.max(low + 1e-6, Math.max(beforeVolume, center) + bracket);
+    const iterationCount = options.chamberMechanicalTransactionIterations ?? 6;
+    let best = this.evaluateAcceptedVolumePressureValveLoadCandidate(
+      chamber,
+      inlet,
+      outlet,
+      beforeX,
+      candidate,
+      center,
+      dt,
+      includeAdjacentLoadNodes,
+      options,
+    );
+    const samples = Math.max(2, iterationCount);
+    for (let i = 0; i <= samples; i++) {
+      const volume = low + (i / samples) * (high - low);
+      const evaluated = this.evaluateAcceptedVolumePressureValveLoadCandidate(
+        chamber,
+        inlet,
+        outlet,
+        beforeX,
+        candidate,
+        volume,
+        dt,
+        includeAdjacentLoadNodes,
+        options,
+      );
+      if (Math.abs(evaluated.residualMl) < Math.abs(best.residualMl)) {
+        best = evaluated;
+      }
+    }
+    return best;
+  }
+
+  private evaluateAcceptedVolumePressureValveLoadCandidate(
+    _chamber: "LV" | "RV",
+    inlet: "MV" | "TV",
+    outlet: "AoV" | "PV",
+    beforeX: Float64Array,
+    candidate: Float64Array,
+    volumeMl: number,
+    dt: number,
+    includeAdjacentLoadNodes: boolean,
+    options: ModelCoreExperimentalVentricularChamberTransactionStepOptions,
+  ): { volumeNext: number; inletQNext: number; outletQNext: number; residualMl: number } {
+    const projected = Float64Array.from(candidate);
+    projected[this.idx.node[_chamber]] = volumeMl;
+    this.sanitizeState(projected);
+    const projectedPack = this.computePressures(projected);
+    const inletFlowState = this.transactionAvValveStateCoupledFlowState(inlet, projected, projectedPack, dt, options);
+    let inletQNext = this.dynamicEdgeQNextForCandidate(inlet, inletFlowState ?? projected, projectedPack, dt, options);
+    let outletQNext = this.dynamicEdgeQNextForCandidate(outlet, projected, projectedPack, dt, options);
+    if (
+      (
+        options.avValveBoundaryMode === "accepted-state-av-boundary"
+        || options.avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
+        || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow"
+        || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-stateful-v2"
+        || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-energy-coasting"
+        || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-forward-momentum-projection"
+        || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-passive-diastasis-guard"
+        || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-tv-deadband"
+        || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-tv-deadband-close"
+      )
+      && (options.avValveBoundaryTargetValves ?? ["MV", "TV"]).includes(inlet)
+    ) {
+      inletQNext = this.acceptedStateAvValveBoundaryFlowNext(
+        inlet,
+        outlet,
+        beforeX,
+        projected,
+        projectedPack,
+        inletQNext,
+        outletQNext,
+        dt,
+        includeAdjacentLoadNodes,
+        inletFlowState ?? projected,
+        options,
+      );
+    }
+    if (
+      (
+        options.semilunarValveBoundaryMode === "accepted-state-valve-pressure-flow"
+        || options.semilunarValveBoundaryMode === "accepted-state-valve-pressure-flow-stateful-v2"
+      )
+      && (options.semilunarValveBoundaryTargetValves ?? ["AoV", "PV"]).includes(outlet)
+    ) {
+      outletQNext = this.acceptedStateSemilunarValveBoundaryFlowNext(
+        outlet,
+        inlet,
+        beforeX,
+        projected,
+        projectedPack,
+        inletQNext,
+        outletQNext,
+        dt,
+        includeAdjacentLoadNodes,
+        options,
+      );
+    }
+    const continuityVolumeMl = beforeX[this.idx.node[_chamber]] + dt * (inletQNext - outletQNext);
+    return {
+      volumeNext: volumeMl,
+      inletQNext,
+      outletQNext,
+      residualMl: volumeMl - continuityVolumeMl,
+    };
   }
 
   private transactionAvValveStateCoupledFlowState(
