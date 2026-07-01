@@ -37,9 +37,10 @@ outflow repair, pulmonary-boundary/safety-suction comparisons, and
 output-reserve calibration and dynamic reserve contract comparisons are
 implemented.
 
-Next PR target: MechanicsCore2 right-heart strategic smoke using the sidecar
-contract pattern. Do not start four-chamber work or LandAtrial re-entry from
-left-heart evidence alone.
+Next PR target: MechanicsCore2 right-heart RV dilation / soft-safety ownership
+after the first right-heart strategic smoke localized the residual. Do not
+start four-chamber work or LandAtrial re-entry from left-heart/right-heart
+sidecar evidence alone.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -71,6 +72,8 @@ Included:
   high-pressure/stateful root runoff drive, split LA/LV hard-clamp readbacks,
   hard-floor versus flow-volume decoupling attribution, and the owner-approved
   clean low-contractility low-output phenotype policy.
+- RightHeartSubsystemV2 and RightHeartStrategicSmokeBench V1 for the first
+  RA/RV/TV/PV/PA sidecar smoke.
 
 Excluded:
 
@@ -152,6 +155,13 @@ Next gates:
     whose raw low-output reasons remain reported. This unlocks the next
     right-heart strategic smoke only; it is not runtime adoption,
     four-chamber readiness, AV-plane release work, or LandAtrial unlock.
+15. Right-heart strategic smoke: the first RA/RV/TV/PV/PA sidecar smoke is a
+    useful mixed signal, not acceptance. It records RV PV 7/7, TVF 7/7, output
+    7/7, repeatability 7/7, dt stability 7/7, flow-coupling 7/7, and clamp-free
+    7/7, with overall pass 4/7. The remaining failures are only
+    `safety-pressure-dominant` in preload-high, pulmonary-afterload-high, and
+    contractility-low. Next work should classify RV dilation / soft-safety
+    ownership before paired-heart, four-chamber, AV-plane, or LandAtrial work.
 
 Parallel prep, not blocking the next strategic gate:
 
