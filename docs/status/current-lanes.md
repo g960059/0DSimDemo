@@ -497,6 +497,21 @@ accepted-boundary diode/qDot evidence (6/16) plus complementarity leak evidence
 `acceptedBoundary*` fields as mandatory readbacks for the next broader chamber
 pressure/valve/load transaction, without tuning LandAtrial, valves, qDot,
 root/Zc, Tref, or source stress.
+Phase 5CR records
+`chamber-pressure-valve-load-contract-phase5cr-result-v1`, testing an
+off-by-default side-local AV+semilunar pair fixed-point so inlet AV flow and
+outlet semilunar flow are owned together against the same accepted side volume
+projection. It is a no-go: the Phase 5CO accepted-complementarity baseline
+remains gross 5/8 in legacy atria, while the pair-coupled legacy-atria
+candidate drops to gross 0/8 (LV PV 1/8, RV PV 3/8, MVF 7/8, TVF 6/8,
+output 7/8), and pair-coupled all-chamber user-0 transfer remains gross 0/8.
+The AV residual attribution shape is unchanged in legacy atria (13/16 clean
+and 3/16 accepted-boundary diode/qDot), while user-0 still shows accepted
+complementarity leak in 7/16 AV readbacks. Do not continue fixed-point
+iteration, pair-coupled side-local valve-load ownership, scalar pressure caps,
+or morphology-by-retuning. The next surface must be an explicit chamber
+pressure/source-state/valve-load residual contract rather than another
+post-hoc refit or local flow fixed point.
 
 ## Lane table
 
@@ -919,11 +934,20 @@ advances the current lane. They are evidence anchors, not current gates.
    3/16 accepted legacy-atria AV readbacks and 13/16 accepted user-0 readbacks.
    Future accepted-state AV residual claims must use the accepted-boundary
    qDot/diode/complementarity fields, not standard valve sample fields alone.
+   Phase 5CR then tests whether side-local AV+semilunar pair fixed-point
+   ownership can broaden the contract without moving to a full residual solve.
+   It does not: the pair-coupled legacy-atria candidate drops to gross 0/8
+   versus the Phase 5CO accepted-complementarity baseline at 5/8, and
+   all-chamber user-0 transfer remains 0/8. Treat side-local pair fixed-point
+   valve-load ownership as exhausted too.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, bounded pressure-gain capping,
-   local LV/RV transaction wiring, or LandAtrial parameter tuning to hide the PV
-   double-dome and AV inflow artifacts.
+   local LV/RV transaction wiring, side-local pair fixed-point flow ownership,
+   or LandAtrial parameter tuning to hide the PV double-dome and AV inflow
+   artifacts. The next implementation surface is an explicit chamber
+   pressure/source-state/valve-load residual contract with accepted-state
+   diagnostics, not another post-hoc refit or local fixed-point variant.
 2. Land plus sourced root/Zc is now the user-0 staged all-chamber runtime
    default after owner GO through Phase 5BK. Do not delete legacy active-stress
    yet; keep it as frozen reference, debug fallback, and rollback while
