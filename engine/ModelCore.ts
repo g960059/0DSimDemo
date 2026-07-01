@@ -236,6 +236,7 @@ export type ModelCoreExperimentalVentricularChamberTransactionStepOptions = {
   readonly avValveBoundaryTauSec?: number;
   readonly avValveBoundaryPressureRefitIterations?: number;
   readonly avValveBoundaryPressureRefitRelaxation?: number;
+  readonly avValveBoundaryAdverseGradientForwardScale?: number;
 };
 
 // Diagnostic-only Phase 5CC hook. This surface measured as not-supported and
@@ -806,6 +807,11 @@ function normalizeExperimentalVentricularChamberTransactionStep(
   const avValveBoundaryPressureRefitRelaxation = pressureRefitEnabled
     ? clamp(options.avValveBoundaryPressureRefitRelaxation ?? 1, 0.05, 1)
     : undefined;
+  const avValveBoundaryAdverseGradientForwardScale = clamp(
+    options.avValveBoundaryAdverseGradientForwardScale ?? 1,
+    0,
+    1,
+  );
   return {
     mechanismId: options.mechanismId,
     iterations,
@@ -819,6 +825,7 @@ function normalizeExperimentalVentricularChamberTransactionStep(
     avValveBoundaryTauSec: clamp(options.avValveBoundaryTauSec ?? 0.025, 0.002, 0.12),
     avValveBoundaryPressureRefitIterations,
     avValveBoundaryPressureRefitRelaxation,
+    avValveBoundaryAdverseGradientForwardScale,
   };
 }
 
@@ -1901,7 +1908,11 @@ export class ModelCore {
         ? Math.max(this.aorticFlowDerivativeClampNegativeMlPerS2, 1)
         : DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
       const qDotPost = clamp(qDotRaw, -qDotNegativeLimit, qDotPositiveLimit);
-      const qRefit = qBase + h * qDotPost;
+      const qRefitRaw = qBase + h * qDotPost;
+      const adverseForwardScale = pressureGradientMmHg <= 0 && qRefitRaw > 0
+        ? clamp(options.avValveBoundaryAdverseGradientForwardScale ?? 1, 0, 1)
+        : 1;
+      const qRefit = qRefitRaw * adverseForwardScale;
       const qAccepted = qCandidate + relaxation * (qRefit - qCandidate);
       acceptedDiagnostics = {
         ...this.valveFlowStepDiagnostics[inlet],
