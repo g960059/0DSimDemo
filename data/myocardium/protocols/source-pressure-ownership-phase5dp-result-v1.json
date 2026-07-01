@@ -1,0 +1,464 @@
+{
+  "schemaVersion": 1,
+  "id": "source-pressure-ownership-phase5dp-result-v1",
+  "phase": "5DP",
+  "objective": "screen existing source-state and valve-boundary ownership surfaces under strict morphology V1.1 before adding another engine contract",
+  "points": [
+    {
+      "id": "normal-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75
+      }
+    },
+    {
+      "id": "contractility-low-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "contractility": 0.82
+      }
+    }
+  ],
+  "variants": [
+    {
+      "id": "baseline-pressure-flow",
+      "label": "Phase 5DO baseline inlet-held user0 pressure-flow frontier",
+      "sourcePressureOwnership": "AV pressure-flow only; no source-state residual recomputation"
+    },
+    {
+      "id": "transition-tension-filter-pressure-flow",
+      "label": "Transition-gated tension-state source pressure with AV pressure-flow",
+      "sourcePressureOwnership": "Use the provider tension state only during valve handoff/ejection transition windows"
+    },
+    {
+      "id": "transition-committed-output-pressure-flow",
+      "label": "Transition-gated committed Land output with AV pressure-flow",
+      "sourcePressureOwnership": "Use the last committed Land source output only during valve handoff/ejection transition windows"
+    },
+    {
+      "id": "transition-tension-filter-av-v2-semilunar-v2",
+      "label": "Transition-gated tension-state pressure plus AV/semilunar V2",
+      "sourcePressureOwnership": "Combine the lightweight source-pressure adapter with the 5DM/5DO valve-law component lead"
+    }
+  ],
+  "results": [
+    {
+      "variantId": "baseline-pressure-flow",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LV PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "lvDome": {
+        "sampleCount": 54,
+        "positiveCurvatureFraction": 0.192308,
+        "pressureDropAfterPeakMmHg": 3.674732,
+        "pressureLateRiseMmHg": 0
+      },
+      "rvDome": {
+        "sampleCount": 64,
+        "positiveCurvatureFraction": 0.258065,
+        "pressureDropAfterPeakMmHg": 3.768128,
+        "pressureLateRiseMmHg": 0
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "baseline-pressure-flow",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "lvDome": {
+        "sampleCount": 34,
+        "positiveCurvatureFraction": 0.375,
+        "pressureDropAfterPeakMmHg": 1.355627,
+        "pressureLateRiseMmHg": 0
+      },
+      "rvDome": {
+        "sampleCount": 42,
+        "positiveCurvatureFraction": 0.325,
+        "pressureDropAfterPeakMmHg": 1.998655,
+        "pressureLateRiseMmHg": 0
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "TVF: TV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "transition-tension-filter-pressure-flow",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "lvDome": {
+        "sampleCount": 59,
+        "positiveCurvatureFraction": 0.421053,
+        "pressureDropAfterPeakMmHg": 17.519851,
+        "pressureLateRiseMmHg": 16.970065
+      },
+      "rvDome": {
+        "sampleCount": 69,
+        "positiveCurvatureFraction": 0.432836,
+        "pressureDropAfterPeakMmHg": 7.20854,
+        "pressureLateRiseMmHg": 0
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "MVF: MV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "transition-tension-filter-pressure-flow",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "lvDome": {
+        "sampleCount": 31,
+        "positiveCurvatureFraction": 0.482759,
+        "pressureDropAfterPeakMmHg": 13.280699,
+        "pressureLateRiseMmHg": 6.789363
+      },
+      "rvDome": {
+        "sampleCount": 44,
+        "positiveCurvatureFraction": 0.404762,
+        "pressureDropAfterPeakMmHg": 3.776989,
+        "pressureLateRiseMmHg": 0
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "MVF: MV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+        "TVF: TV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "transition-committed-output-pressure-flow",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LV PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "lvDome": {
+        "sampleCount": 54,
+        "positiveCurvatureFraction": 0.192308,
+        "pressureDropAfterPeakMmHg": 3.674733,
+        "pressureLateRiseMmHg": 0
+      },
+      "rvDome": {
+        "sampleCount": 64,
+        "positiveCurvatureFraction": 0.258065,
+        "pressureDropAfterPeakMmHg": 3.768128,
+        "pressureLateRiseMmHg": 0
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "transition-committed-output-pressure-flow",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "lvDome": {
+        "sampleCount": 34,
+        "positiveCurvatureFraction": 0.375,
+        "pressureDropAfterPeakMmHg": 1.355627,
+        "pressureLateRiseMmHg": 0
+      },
+      "rvDome": {
+        "sampleCount": 42,
+        "positiveCurvatureFraction": 0.325,
+        "pressureDropAfterPeakMmHg": 1.998655,
+        "pressureLateRiseMmHg": 0
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "TVF: TV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "transition-tension-filter-av-v2-semilunar-v2",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing",
+        "LA-LV AV delay",
+        "RA-RV AV delay"
+      ],
+      "lvDome": {
+        "sampleCount": 46,
+        "positiveCurvatureFraction": 0.363636,
+        "pressureDropAfterPeakMmHg": 81.693761,
+        "pressureLateRiseMmHg": 0
+      },
+      "rvDome": {
+        "sampleCount": 53,
+        "positiveCurvatureFraction": 0.313725,
+        "pressureDropAfterPeakMmHg": 18.597416,
+        "pressureLateRiseMmHg": 0
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "MVF: MV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "LA-LV AV delay: LA kick is not correctly timed to the LV pressure upstroke; AV delay is too short, too long, or not measurable.",
+        "RA-RV AV delay: RA kick is not correctly timed to the RV pressure upstroke; AV delay is too short, too long, or not measurable."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "transition-tension-filter-av-v2-semilunar-v2",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "lvDome": {
+        "sampleCount": 34,
+        "positiveCurvatureFraction": 0.4375,
+        "pressureDropAfterPeakMmHg": 39.273047,
+        "pressureLateRiseMmHg": 0
+      },
+      "rvDome": {
+        "sampleCount": 42,
+        "positiveCurvatureFraction": 0.25,
+        "pressureDropAfterPeakMmHg": 10.327423,
+        "pressureLateRiseMmHg": 0
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "TVF: TV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    }
+  ],
+  "variantSummaries": [
+    {
+      "variantId": "baseline-pressure-flow",
+      "measuredCount": 2,
+      "settledOkCount": 2,
+      "grossPassCount": 0,
+      "lvPvOkCount": 0,
+      "rvPvOkCount": 1,
+      "mvfOkCount": 2,
+      "tvfOkCount": 1,
+      "meanLvPositiveCurvatureFraction": 0.283654,
+      "meanRvPositiveCurvatureFraction": 0.291533
+    },
+    {
+      "variantId": "transition-tension-filter-pressure-flow",
+      "measuredCount": 2,
+      "settledOkCount": 2,
+      "grossPassCount": 0,
+      "lvPvOkCount": 0,
+      "rvPvOkCount": 0,
+      "mvfOkCount": 0,
+      "tvfOkCount": 1,
+      "meanLvPositiveCurvatureFraction": 0.451906,
+      "meanRvPositiveCurvatureFraction": 0.418799
+    },
+    {
+      "variantId": "transition-committed-output-pressure-flow",
+      "measuredCount": 2,
+      "settledOkCount": 2,
+      "grossPassCount": 0,
+      "lvPvOkCount": 0,
+      "rvPvOkCount": 1,
+      "mvfOkCount": 2,
+      "tvfOkCount": 1,
+      "meanLvPositiveCurvatureFraction": 0.283654,
+      "meanRvPositiveCurvatureFraction": 0.291533
+    },
+    {
+      "variantId": "transition-tension-filter-av-v2-semilunar-v2",
+      "measuredCount": 2,
+      "settledOkCount": 2,
+      "grossPassCount": 0,
+      "lvPvOkCount": 0,
+      "rvPvOkCount": 0,
+      "mvfOkCount": 1,
+      "tvfOkCount": 1,
+      "meanLvPositiveCurvatureFraction": 0.400568,
+      "meanRvPositiveCurvatureFraction": 0.281863
+    }
+  ],
+  "classification": {
+    "decision": "lightweight-source-pressure-surface-no-go",
+    "notes": [
+      "Baseline gross/LV/RV/MVF/TVF: 0/2,0/2,1/2,2/2,1/2.",
+      "Best candidate transition-committed-output-pressure-flow gross/LV/RV/MVF/TVF: 0/2,0/2,1/2,2/2,1/2.",
+      "This screen intentionally uses a two-point smoke before paying for a broader envelope."
+    ]
+  },
+  "claimBoundary": {
+    "noRuntimeDefaultAdoption": true,
+    "noOfficialMorphologyAcceptance": true,
+    "noLandAtrialParameterTuningUnlock": true,
+    "noA1A2Reopen": true,
+    "noQdotRootZcValveThresholdTrefSourceStressTuning": true,
+    "noPermanentVerifierAdded": true
+  },
+  "normalizedSha256": "29a0f8c5863cca74e5301857bdd95eb3c92b10cb8af7b4b6fdeaf67efd075f58"
+}

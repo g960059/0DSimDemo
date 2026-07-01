@@ -1286,6 +1286,23 @@ advances the current lane. They are evidence anchors, not current gates.
    to a chamber pressure/accepted volume/source-state/outlet-load contract;
    do not continue scalar semilunar loss/inertance sweeps, solver substeps,
    qDot/rootZc/valve-threshold/Tref/source-stress tuning, or LandAtrial tuning.
+   Phase 5DP records `source-pressure-ownership-phase5dp-result-v1`, a
+   deliberately small two-point smoke that screens existing lightweight
+   provider-side source/pressure ownership variants before spending another
+   large engine PR. The existing heavy `source-state-residual-contract` path was
+   not expanded because prior Phase 5CS already failed normal-HR75 and the
+   attempted two-point smoke was too slow for the forward development loop.
+   Lightweight transition-gated tension-state pressure, transition-gated
+   committed-output pressure, and tension-state pressure combined with the
+   Phase 5DM/5DO AV/semilunar V2 lead do not improve the strict V1.1 frontier:
+   baseline remains gross 0/2 with LV PV 0/2, RV PV 1/2, MVF 2/2, TVF 1/2;
+   the best candidate is baseline-equivalent, while tension-state variants
+   worsen LV/RV positive-curvature burden. Classify this as
+   `lightweight-source-pressure-surface-no-go`. Do not spend more phases
+   recombining committed-output lag, tension-state filters, fixed pressure
+   mapping, or source-state residual relaxation; the next implementation must
+   change the chamber mechanical pressure/source-state/outlet-load contract
+   rather than reusing these source-pressure adapters.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, bounded pressure-gain capping,
