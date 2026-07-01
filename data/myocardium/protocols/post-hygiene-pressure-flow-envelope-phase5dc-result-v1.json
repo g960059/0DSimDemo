@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "id": "post-hygiene-pressure-flow-envelope-phase5dc-result-v1",
+  "phase": "5DC",
+  "profile": {
+    "verificationProfile": "fitFast",
+    "morphologyProfileId": "normal_sinus_default",
+    "diagnosticQuestion": "whether Phase 5CY pressure-flow envelope and Phase 5DA targeted TVF residual interpretation survive the Phase 5DB stateful AV-plane state fix"
+  },
+  "upstreamEvidence": {
+    "phase5DBArtifactId": "avplane-state-hygiene-phase5db-result-v1",
+    "phase5DBDecision": "stateful-avplane-state-preserved"
+  },
+  "postHygieneFullEnvelope": {
+    "sourceBuilder": "buildValvePressureFlowContractPhase5CYEvidence",
+    "normalizedSha256": "66928d7481585bae33845e6faa324d61a023534547cd3445b37720e5fb3bff5b",
+    "acceptedLegacyGrossPass": "5/8",
+    "user0BothHeldBaselineGrossPass": "7/8",
+    "valvePressureFlowLegacyGrossPass": "5/8",
+    "valvePressureFlowUser0GrossPass": "7/8",
+    "valvePressureFlowUser0MvfOk": "8/8",
+    "valvePressureFlowUser0TvfOk": "7/8",
+    "decision": "valve-pressure-flow-does-not-rescue-user0-transfer",
+    "residualNotes": [
+      "Both inlet-held baseline residual notes: contractility-low-hr75/TV: cause=accepted-boundary-diode-or-qdot, extra=1, acceptedDiode=0.4375, acceptedLeak=0.0125, acceptedValveStateMean=0.420868, acceptedAreaRatioMean=0.420873, avPlaneAlign=null, atrialPressureAlign=null, releaseHold=1.",
+      "Valve-pressure-flow legacy residual notes: high-preload-hr75/TV: cause=accepted-boundary-diode-or-qdot, extra=1, acceptedDiode=0.455, acceptedLeak=0.0125, acceptedValveStateMean=0.44259, acceptedAreaRatioMean=0.442595, avPlaneAlign=null, atrialPressureAlign=null, releaseHold=0 | contractility-low-hr75/TV: cause=accepted-boundary-diode-or-qdot, extra=1, acceptedDiode=0.42, acceptedLeak=0.015, acceptedValveStateMean=0.430697, acceptedAreaRatioMean=0.430702, avPlaneAlign=null, atrialPressureAlign=null, releaseHold=0 | contractility-high-hr75/MV: cause=accepted-boundary-diode-or-qdot, extra=1, acceptedDiode=0.5625, acceptedLeak=0.0175, acceptedValveStateMean=0.325955, acceptedAreaRatioMean=0.358561, avPlaneAlign=null, atrialPressureAlign=null, releaseHold=0.",
+      "Valve-pressure-flow user0 residual notes: contractility-low-hr75/TV: cause=accepted-boundary-diode-or-qdot, extra=1, acceptedDiode=0.4375, acceptedLeak=0.0125, acceptedValveStateMean=0.418978, acceptedAreaRatioMean=0.418983, avPlaneAlign=null, atrialPressureAlign=null, releaseHold=1."
+    ]
+  },
+  "postHygieneTargetedResidual": {
+    "sourceBuilder": "buildTvfResidualAttributionPhase5DAEvidence",
+    "normalizedSha256": "131fb8f3582b201dfacc9f3baf38bb682319c98345937fb39245f5d4f61ed12d",
+    "decision": "tvf-extra-wave-is-clean-pressure-flow-coasting-window",
+    "notes": [
+      "The remaining TVF failure is a mid-diastolic extra forward wave in the contractility-low HR75 point.",
+      "The extra-wave window has zero accepted diode hits, zero qDot clamp hits, and zero complementarity leak in the user0 pressure-flow candidate.",
+      "The user0 pressure-flow candidate also keeps the RA AV-plane correction range near zero in the extra-wave window, so static AV-plane gain/release retuning is not the first explanation.",
+      "The next structural surface should address mid-diastolic pressure-flow coasting/energy consistency, not LandAtrial or valve-threshold tuning."
+    ],
+    "user0ContractilityLowExtraTheta": 0.7775,
+    "user0ContractilityLowAcceptedDiodeHitFraction": 0,
+    "user0ContractilityLowAcceptedQDotHitFraction": 0,
+    "user0ContractilityLowAcceptedComplementarityLeakFraction": 0,
+    "user0ContractilityLowRaAvPlaneCorrectionRangeMl": 0.32433
+  },
+  "interpretation": {
+    "decision": "pressure-flow-frontier-persists-after-avplane-state-fix",
+    "notes": [
+      "The Phase 5CY user0 pressure-flow frontier remains 7/8 after the Phase 5DB stateful AV-plane state fix.",
+      "The remaining failure is still the contractility-low HR75 TVF mid-diastolic extra wave.",
+      "The targeted Phase 5DA window remains clean of accepted diode hits, qDot clamp hits, and complementarity leak, so the next work should focus on right AV pressure-flow coasting/energy consistency rather than AV-plane state persistence."
+    ]
+  },
+  "recommendedNext": [
+    "Proceed to a right AV pressure-flow coasting/energy-consistency surface; keep the Phase 5CY pressure-flow contract and Phase 5DB AV-plane state fix as prerequisites.",
+    "Do not use simple AV-plane gain-off, LandAtrial parameter tuning, qDot/root/Zc, valve threshold, Tref, or source-stress scaling as the adoption path.",
+    "Keep the representative 8-point morphology envelope as the acceptance gate; this artifact only refreshes the post-hygiene evidence boundary."
+  ],
+  "claimBoundary": {
+    "noRuntimeDefaultAdoption": true,
+    "noOfficialMorphologyAcceptance": true,
+    "noLandAtrialParameterTuningUnlock": true,
+    "noValveQdotRootZcTrefSourceStressTuning": true,
+    "noClinicalScientificValidation": true
+  },
+  "normalizedSha256": "f67802527f728e328cf54800566c4d37cff42bca81a7bc246b073bd9247006f2"
+}
