@@ -37,10 +37,9 @@ outflow repair, pulmonary-boundary/safety-suction comparisons, and
 output-reserve calibration and dynamic reserve contract comparisons are
 implemented.
 
-Next PR target: left-heart Gate B low-output policy/classification after
-stateful root-load retention improved the high-drive point. Do not start
-four-chamber work or LandAtrial re-entry until the remaining low-contractility
-output-reserve question is classified without relaxing morphology gates.
+Next PR target: MechanicsCore2 right-heart strategic smoke using the sidecar
+contract pattern. Do not start four-chamber work or LandAtrial re-entry from
+left-heart evidence alone.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -70,7 +69,8 @@ Included:
   calibration and external active-length blend attribution.
 - LeftHeartDynamicReserveContractBench V1 for MV closure-state drive,
   high-pressure/stateful root runoff drive, split LA/LV hard-clamp readbacks,
-  and hard-floor versus flow-volume decoupling attribution.
+  hard-floor versus flow-volume decoupling attribution, and the owner-approved
+  clean low-contractility low-output phenotype policy.
 
 Excluded:
 
@@ -143,13 +143,15 @@ Next gates:
     External active-length blending is only a limited component signal. Next
     work should move to a dynamic chamber-load reserve contract, not fixed
     scalar calibration or right-heart/LandAtrial expansion.
-14. Gate B dynamic reserve attribution: MV valve-state closure drive plus
-    active-length blending improves LV PV OK to 7/7 and MVF OK to 7/7, and
-    stateful root-load retention improves strict pass 5/7 -> 6/7 with
-    morphology OK 7/7, clamp-free 7/7, and high-drive artifact count 0/7. The
-    only remaining failure is `left-heart-contractility-low` as clean
-    low-output reserve. Continue left-heart Gate B classification; do not
-    broaden to right-heart, four-chamber, AV-plane, or LandAtrial.
+14. Gate B dynamic reserve decision: MV valve-state closure drive plus
+    active-length blending keeps LV PV and MVF 7/7, and stateful root-load
+    retention cleans high-drive artifacts. With the owner-approved policy that
+    `left-heart-contractility-low` clean low-output is a Gate B phenotype, the
+    best stateful-root surface is 7/7 policy pass: morphology 7/7, clamp-free
+    7/7, output OK 6/7, and one phenotype-accepted low-contractility point
+    whose raw low-output reasons remain reported. This unlocks the next
+    right-heart strategic smoke only; it is not runtime adoption,
+    four-chamber readiness, AV-plane release work, or LandAtrial unlock.
 
 Parallel prep, not blocking the next strategic gate:
 

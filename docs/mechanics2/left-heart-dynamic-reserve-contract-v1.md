@@ -1,6 +1,6 @@
 # Left-Heart Dynamic Reserve Contract V1
 
-Status: measured Gate B contract surface, not model acceptance.
+Status: measured left-heart Gate B policy pass, not runtime model acceptance.
 
 Artifacts:
 
@@ -10,9 +10,9 @@ Artifacts:
 ## Purpose
 
 This bench converts the previous static output-reserve signal into a dynamic
-left-heart chamber-load test surface. It keeps the work inside MechanicsCore2
-left-heart Gate B and does not unlock right-heart, four-chamber, AV-plane, or
-LandAtrial work.
+left-heart chamber-load test surface. It keeps the claim inside MechanicsCore2
+left-heart Gate B and does not unlock runtime wiring, four-chamber, AV-plane,
+or LandAtrial work.
 
 The PR adds two contract-level readbacks:
 
@@ -25,9 +25,15 @@ It also splits hard clamp readbacks into LA and LV clamp counts.
 
 ## Result
 
+The owner accepted a clean low-contractility low-output state as the Gate B
+phenotype for this envelope. The acceptance is narrow: only
+`left-heart-contractility-low` may pass this way, and the report keeps
+`outputOk=false` plus the raw low-output failure reasons.
+
 The reference `static-output-reserve-broad5-reference` remains 5/7. Adding
 stateful root runoff retention creates a broad improvement. The best strict
-variant is `active-length-mv-closure-stateful-root08`, now 6/7:
+variant is `active-length-mv-closure-stateful-root08`, now 7/7 with one
+accepted phenotype:
 
 - LV PV OK: 7/7
 - MVF OK: 7/7
@@ -35,11 +41,17 @@ variant is `active-length-mv-closure-stateful-root08`, now 6/7:
 - Morphology OK: 7/7
 - Clamp-free: 7/7
 - Clean low-output classification: 1/7
+- Phenotype-accepted points: 1/7
 - High-drive artifact count: 0/7
 
-The remaining failure is now tightly classified:
+The accepted phenotype is tightly classified:
 
-- `left-heart-contractility-low` is clean morphology but low output.
+- `left-heart-contractility-low` is clean morphology but low output
+  (`strokeVolumeMl` ~11.69, `aovEjectedVolumeMl` ~11.69).
+- It has LV PV OK, MVF OK, repeatability OK, `dt/2` parity OK, no hard clamp,
+  bounded safety pressure, and flow-volume coupling.
+- Its raw failure reasons remain `output-stroke-volume-too-low` and
+  `output-aov-ejected-volume-too-low`.
 
 Three diagnostic surfaces are important:
 
@@ -54,11 +66,12 @@ Three diagnostic surfaces are important:
 
 ## Boundary
 
-This is a useful architecture signal, not adoption evidence. The result says
-MVF kink ownership should stay in valve-state closure dynamics, while high-drive
-clamp cleanup needs stateful root/load retention rather than A-wave,
+This is a useful architecture signal, not runtime adoption evidence. The result
+says MVF kink ownership should stay in valve-state closure dynamics, while
+high-drive clamp cleanup needs stateful root/load retention rather than A-wave,
 LandAtrial, or simple floor tuning.
 
-Next work should stay in left-heart Gate B and decide how to treat
-`contractility-low` clean low-output reserve before any right-heart,
-four-chamber, AV-plane, or LandAtrial expansion.
+The Gate B low-output policy is now decided for the left-heart sidecar:
+`contractility-low` clean low-output is an accepted phenotype. This unlocks the
+next MechanicsCore2 right-heart strategic smoke, but not runtime wiring,
+four-chamber integration, AV-plane release work, or LandAtrial tuning.
