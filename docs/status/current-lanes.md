@@ -256,6 +256,15 @@ Next gates:
     contract / right-heart safety ownership / reservoir feedback compatibility
     problem. Four-chamber, AV-plane, LandAtrial, runtime wiring, and morphology
     acceptance remain blocked.
+24. Right-heart low-output contract attribution: a broader right low-output
+    scan over RV active scale, RV volume policy, and upper safety gain still
+    finds no clean right low-output phenotype. 53/60 candidates can align with
+    the left low-output ejection magnitude, and the best point misses by only
+    ~0.04 mL, but every aligned surface fails cleanliness through safety
+    pressure, clamp, repeatability, or morphology artifacts. This keeps Gate C
+    blocked on right low-output / RV safety ownership itself rather than
+    reservoir tuning. Four-chamber, AV-plane, LandAtrial, runtime wiring, and
+    morphology acceptance remain blocked.
 
 Parallel prep, not blocking the next strategic gate:
 

@@ -20,6 +20,7 @@ Canonical references:
 - [Reservoir-solver attribution V1](reservoir-solver-attribution-v1.md)
 - [Reservoir-state contract V1](reservoir-state-contract-v1.md)
 - [Low-contractility alignment V1](low-contractility-alignment-v1.md)
+- [Right-heart low-output contract V1](right-heart-low-output-contract-v1.md)
 - [ADR-MYO-003](../myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 - [Engine sidecar README](../../engine/mechanics2/README.md)
 
