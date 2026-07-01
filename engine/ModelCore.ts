@@ -628,6 +628,9 @@ type ValveFlowStepDiagnostics = {
   acceptedBoundaryAtrialActive01: number;
   acceptedBoundaryForwardMomentumProjectionApplied01: number;
   acceptedBoundaryForwardMomentumProjectionImpulse: number;
+  acceptedBoundaryForwardMomentumAreaScale: number;
+  acceptedBoundaryForwardMomentumCeiling: number;
+  acceptedBoundaryForwardMomentumExcess: number;
   acceptedBoundaryPassiveDiastasisGuardApplied01: number;
   acceptedBoundaryPassiveDiastasisGuardImpulse: number;
 };
@@ -662,6 +665,9 @@ function emptyValveFlowStepDiagnostics(): ValveFlowStepDiagnostics {
     acceptedBoundaryAtrialActive01: 0,
     acceptedBoundaryForwardMomentumProjectionApplied01: 0,
     acceptedBoundaryForwardMomentumProjectionImpulse: 0,
+    acceptedBoundaryForwardMomentumAreaScale: 1,
+    acceptedBoundaryForwardMomentumCeiling: 0,
+    acceptedBoundaryForwardMomentumExcess: 0,
     acceptedBoundaryPassiveDiastasisGuardApplied01: 0,
     acceptedBoundaryPassiveDiastasisGuardImpulse: 0,
   };
@@ -2080,6 +2086,9 @@ export class ModelCore {
         acceptedBoundaryAtrialActive01: atrialActive01,
         acceptedBoundaryForwardMomentumProjectionApplied01: forwardMomentumProjectionApplied ? 1 : 0,
         acceptedBoundaryForwardMomentumProjectionImpulse: qForwardMomentumProjected - qEnergyConsistent,
+        acceptedBoundaryForwardMomentumAreaScale: forwardMomentumAreaScale,
+        acceptedBoundaryForwardMomentumCeiling: forwardMomentumCeiling,
+        acceptedBoundaryForwardMomentumExcess: Math.max(0, qEnergyConsistent - forwardMomentumCeiling),
         acceptedBoundaryPassiveDiastasisGuardApplied01: passiveDiastasisGuardApplied ? 1 : 0,
         acceptedBoundaryPassiveDiastasisGuardImpulse: qPassiveDiastasisGuarded - qForwardMomentumProjected,
       };
@@ -2880,6 +2889,9 @@ export class ModelCore {
       MV_acceptedBoundaryAtrialActive01: mvStep.acceptedBoundaryAtrialActive01,
       MV_acceptedBoundaryForwardMomentumProjectionApplied01: mvStep.acceptedBoundaryForwardMomentumProjectionApplied01,
       MV_acceptedBoundaryForwardMomentumProjectionImpulse: mvStep.acceptedBoundaryForwardMomentumProjectionImpulse,
+      MV_acceptedBoundaryForwardMomentumAreaScale: mvStep.acceptedBoundaryForwardMomentumAreaScale,
+      MV_acceptedBoundaryForwardMomentumCeiling: mvStep.acceptedBoundaryForwardMomentumCeiling,
+      MV_acceptedBoundaryForwardMomentumExcess: mvStep.acceptedBoundaryForwardMomentumExcess,
       MV_acceptedBoundaryPassiveDiastasisGuardApplied01: mvStep.acceptedBoundaryPassiveDiastasisGuardApplied01,
       MV_acceptedBoundaryPassiveDiastasisGuardImpulse: mvStep.acceptedBoundaryPassiveDiastasisGuardImpulse,
       AoV_areaRatio: aovLoss.areaRatio,
@@ -2927,6 +2939,9 @@ export class ModelCore {
       TV_acceptedBoundaryAtrialActive01: tvStep.acceptedBoundaryAtrialActive01,
       TV_acceptedBoundaryForwardMomentumProjectionApplied01: tvStep.acceptedBoundaryForwardMomentumProjectionApplied01,
       TV_acceptedBoundaryForwardMomentumProjectionImpulse: tvStep.acceptedBoundaryForwardMomentumProjectionImpulse,
+      TV_acceptedBoundaryForwardMomentumAreaScale: tvStep.acceptedBoundaryForwardMomentumAreaScale,
+      TV_acceptedBoundaryForwardMomentumCeiling: tvStep.acceptedBoundaryForwardMomentumCeiling,
+      TV_acceptedBoundaryForwardMomentumExcess: tvStep.acceptedBoundaryForwardMomentumExcess,
       TV_acceptedBoundaryPassiveDiastasisGuardApplied01: tvStep.acceptedBoundaryPassiveDiastasisGuardApplied01,
       TV_acceptedBoundaryPassiveDiastasisGuardImpulse: tvStep.acceptedBoundaryPassiveDiastasisGuardImpulse,
       PV_qNextPreDiode: pvStep.qNextPreDiode,

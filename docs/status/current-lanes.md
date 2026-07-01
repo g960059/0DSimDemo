@@ -1180,6 +1180,19 @@ advances the current lane. They are evidence anchors, not current gates.
    under the simple envelope criterion because the low-contractility point has
    low CO by design, and owner visual trace review plus bounded-duty/energy
    readbacks are still required before any shadow/default claim.
+   Phase 5DI records
+   `av-forward-momentum-contract-review-phase5di-result-v1` and writes an owner
+   visual review bundle to
+   `~/Downloads/0dsim-morphology-review-phase5di/index.html`. It adds explicit
+   accepted-boundary forward-momentum area-scale, ceiling, and excess readbacks
+   so the Phase 5DH lead can be judged for overcorrection rather than by
+   gross-pass count alone. The TV-only projection remains gross 8/8 over the
+   representative normal-sinus envelope (LV/RV PV 8/8, MVF 8/8, TVF 8/8), with
+   max TV projection duty `~0.288` and max mean absolute impulse `~0.72 ml/s`.
+   The classification is `visual-review-required-before-adoption`: this is a
+   strong boundary-contract lead, not runtime/default adoption, and the next
+   step must wait for owner visual acceptance of the raw trace bundle before
+   formalizing a shadow/default contract.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, bounded pressure-gain capping,

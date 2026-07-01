@@ -498,6 +498,9 @@ export type SimSample = {
   MV_acceptedBoundaryAtrialActive01?: number;
   MV_acceptedBoundaryForwardMomentumProjectionApplied01?: number;
   MV_acceptedBoundaryForwardMomentumProjectionImpulse?: number;
+  MV_acceptedBoundaryForwardMomentumAreaScale?: number;
+  MV_acceptedBoundaryForwardMomentumCeiling?: number;
+  MV_acceptedBoundaryForwardMomentumExcess?: number;
   MV_acceptedBoundaryPassiveDiastasisGuardApplied01?: number;
   MV_acceptedBoundaryPassiveDiastasisGuardImpulse?: number;
   AoV_areaRatio: number;
@@ -545,6 +548,9 @@ export type SimSample = {
   TV_acceptedBoundaryAtrialActive01?: number;
   TV_acceptedBoundaryForwardMomentumProjectionApplied01?: number;
   TV_acceptedBoundaryForwardMomentumProjectionImpulse?: number;
+  TV_acceptedBoundaryForwardMomentumAreaScale?: number;
+  TV_acceptedBoundaryForwardMomentumCeiling?: number;
+  TV_acceptedBoundaryForwardMomentumExcess?: number;
   TV_acceptedBoundaryPassiveDiastasisGuardApplied01?: number;
   TV_acceptedBoundaryPassiveDiastasisGuardImpulse?: number;
   PV_qNextPreDiode?: number;
