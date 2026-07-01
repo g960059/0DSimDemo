@@ -32,6 +32,12 @@ Current scope:
   V2 soft-pressure residuals before any right-heart or LandAtrial work.
 - `benches/LeftHeartOutflowRepairBench.ts`: semilunar/root outflow repair
   comparison with beat-to-beat repeatability and `dt/2` sensitivity guards.
+- `benches/LeftHeartPulmonaryBoundaryContractBench.ts`: finite pulmonary
+  venous node and lower-bound safety-suction attribution for the left-heart
+  Gate B residual.
+- `benches/LeftHeartOutputReserveCalibrationBench.ts`: output-reserve
+  calibration comparison, including static semilunar/root/fiber scaling and an
+  external active-length blend probe.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
@@ -47,6 +53,7 @@ Planning docs:
 - [Left-heart residual attribution V1](../../docs/mechanics2/left-heart-residual-attribution-v1.md)
 - [Left-heart outflow repair V1](../../docs/mechanics2/left-heart-outflow-repair-v1.md)
 - [Left-heart pulmonary boundary contract V1](../../docs/mechanics2/left-heart-pulmonary-boundary-contract-v1.md)
+- [Left-heart output-reserve calibration V1](../../docs/mechanics2/left-heart-output-reserve-calibration-v1.md)
 - [ADR-MYO-003](../../docs/myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 
 Claim boundary:

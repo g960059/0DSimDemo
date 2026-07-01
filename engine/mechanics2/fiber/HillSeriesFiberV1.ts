@@ -13,6 +13,7 @@ export type HillSeriesFiberParamsV1 = {
   readonly lSiFollowTauSec: number;
   readonly activeShorteningVelocityNormPerSec: number;
   readonly maxLSiVelocityNormPerSec: number;
+  readonly activeLengthExternalBlend01: number;
   readonly seriesElasticStiffnessPa: number;
   readonly seriesElasticCubicStiffnessPa: number;
   readonly trefPa: number;
@@ -51,6 +52,7 @@ export const DEFAULT_HILL_SERIES_FIBER_PARAMS_V1: HillSeriesFiberParamsV1 = {
   lSiFollowTauSec: 0.055,
   activeShorteningVelocityNormPerSec: 0.02,
   maxLSiVelocityNormPerSec: 2.4,
+  activeLengthExternalBlend01: 0,
   seriesElasticStiffnessPa: 42_000,
   seriesElasticCubicStiffnessPa: 420_000,
   trefPa: 72_000,
@@ -82,7 +84,9 @@ export function stepHillSeriesFiberV1(
   const lSi = clamp(state.lSi + dt * lSiDot, 0.55 * params.lSRef, 1.45 * params.lSRef);
   const lSe = input.lS - lSi;
   const lSePositive = Math.max(lSe, 0);
-  const lengthFactor = clamp(1 + 3.5 * (lSi / Math.max(params.lSRef, 1e-9) - 1), 0.15, 1.85);
+  const activeLength = (1 - clamp(params.activeLengthExternalBlend01, 0, 1)) * lSi
+    + clamp(params.activeLengthExternalBlend01, 0, 1) * input.lS;
+  const lengthFactor = clamp(1 + 3.5 * (activeLength / Math.max(params.lSRef, 1e-9) - 1), 0.15, 1.85);
   const sigmaActivePa = params.trefPa * a * lengthFactor;
   const sigmaPassivePa = params.passiveStiffnessPa * Math.max(0, lSi - params.passiveSlackNorm) ** 2;
   const sigmaSeriesPa = params.seriesElasticStiffnessPa * lSePositive
