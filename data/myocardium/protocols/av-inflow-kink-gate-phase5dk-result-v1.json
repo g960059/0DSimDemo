@@ -1,0 +1,238 @@
+{
+  "schemaVersion": 1,
+  "id": "av-inflow-kink-gate-phase5dk-result-v1",
+  "phase": "5DK",
+  "sourcePhase": "5DI",
+  "objective": "promote owner visual QTV projection kink rejection into deterministic AV inflow C1 morphology gate",
+  "sourceRecheck": {
+    "sourceId": "av-forward-momentum-contract-review-phase5di-result-v1",
+    "downloadsIndexHtml": "~/Downloads/0dsim-morphology-review-phase5di/index.html",
+    "sourceNormalizedSha256": "137870497ac098c3dbb3c6ccb82f200fda2657514eb75c3d66be2d5f9d806330",
+    "variantSummariesAfterGateUpdate": [
+      {
+        "variantId": "pressure-flow-user0-inlet-held-release-baseline",
+        "grossPassCount": 0,
+        "measuredCount": 8,
+        "settledOkCount": 8,
+        "lvPvOkCount": 0,
+        "rvPvOkCount": 0,
+        "mvfOkCount": 6,
+        "tvfOkCount": 4,
+        "outputPreservedCount": 7,
+        "maxTvProjectionDutyFraction": 0,
+        "maxTvProjectionImpulseMeanAbsMlPerSec": 0,
+        "firstFailedPoint": "normal-hr75"
+      },
+      {
+        "variantId": "forward-momentum-projection-tv",
+        "grossPassCount": 0,
+        "measuredCount": 8,
+        "settledOkCount": 8,
+        "lvPvOkCount": 0,
+        "rvPvOkCount": 0,
+        "mvfOkCount": 6,
+        "tvfOkCount": 3,
+        "outputPreservedCount": 7,
+        "maxTvProjectionDutyFraction": 0.288221,
+        "maxTvProjectionImpulseMeanAbsMlPerSec": 0.721509,
+        "firstFailedPoint": "normal-hr75"
+      }
+    ],
+    "projectionFlowFailuresAfterGateUpdate": [
+      {
+        "pointId": "normal-hr75",
+        "failedLabels": [
+          "LV PV loop",
+          "RV PV loop",
+          "TVF",
+          "LA pressure timing",
+          "RA pressure timing"
+        ],
+        "messages": [
+          "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+          "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+          "TVF: TV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+          "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+          "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+        ],
+        "badges": {
+          "lvPv": "failed",
+          "rvPv": "failed",
+          "laPv": "ok",
+          "raPv": "ok",
+          "mvf": "ok",
+          "tvf": "failed",
+          "lapWaveform": "failed",
+          "rapWaveform": "failed"
+        }
+      },
+      {
+        "pointId": "low-preload-hr75",
+        "failedLabels": [
+          "LV PV loop",
+          "RV PV loop",
+          "MVF",
+          "LA pressure timing",
+          "RA pressure timing"
+        ],
+        "messages": [
+          "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+          "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+          "MVF: MV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+          "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+          "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+        ],
+        "badges": {
+          "lvPv": "failed",
+          "rvPv": "failed",
+          "laPv": "ok",
+          "raPv": "ok",
+          "mvf": "failed",
+          "tvf": "ok",
+          "lapWaveform": "failed",
+          "rapWaveform": "failed"
+        }
+      },
+      {
+        "pointId": "high-preload-hr75",
+        "failedLabels": [
+          "LV PV loop",
+          "RV PV loop",
+          "TVF",
+          "LA pressure timing",
+          "RA pressure timing"
+        ],
+        "messages": [
+          "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+          "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+          "TVF: TV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+          "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+          "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+        ],
+        "badges": {
+          "lvPv": "failed",
+          "rvPv": "failed",
+          "laPv": "ok",
+          "raPv": "ok",
+          "mvf": "ok",
+          "tvf": "failed",
+          "lapWaveform": "failed",
+          "rapWaveform": "failed"
+        }
+      },
+      {
+        "pointId": "systemic-afterload-high-hr75",
+        "failedLabels": [
+          "LV PV loop",
+          "RV PV loop",
+          "TVF",
+          "LA pressure timing",
+          "RA pressure timing"
+        ],
+        "messages": [
+          "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+          "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+          "TVF: TV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+          "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+          "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+        ],
+        "badges": {
+          "lvPv": "failed",
+          "rvPv": "failed",
+          "laPv": "ok",
+          "raPv": "ok",
+          "mvf": "ok",
+          "tvf": "failed",
+          "lapWaveform": "failed",
+          "rapWaveform": "failed"
+        }
+      },
+      {
+        "pointId": "pulmonary-afterload-high-hr75",
+        "failedLabels": [
+          "LV PV loop",
+          "RV PV loop",
+          "MVF",
+          "TVF",
+          "LA pressure timing",
+          "RA pressure timing"
+        ],
+        "messages": [
+          "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+          "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+          "MVF: MV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+          "TVF: TV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+          "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+          "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+        ],
+        "badges": {
+          "lvPv": "failed",
+          "rvPv": "failed",
+          "laPv": "ok",
+          "raPv": "ok",
+          "mvf": "failed",
+          "tvf": "failed",
+          "lapWaveform": "failed",
+          "rapWaveform": "failed"
+        }
+      },
+      {
+        "pointId": "contractility-low-hr75",
+        "failedLabels": [
+          "LV PV loop",
+          "RV PV loop",
+          "TVF",
+          "LA pressure timing",
+          "RA pressure timing"
+        ],
+        "messages": [
+          "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+          "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+          "TVF: TV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+          "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+          "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+        ],
+        "badges": {
+          "lvPv": "failed",
+          "rvPv": "failed",
+          "laPv": "ok",
+          "raPv": "ok",
+          "mvf": "ok",
+          "tvf": "failed",
+          "lapWaveform": "failed",
+          "rapWaveform": "failed"
+        }
+      }
+    ]
+  },
+  "ownerVisualReview": {
+    "phase5diOwnerAcceptedQtvProjection": false,
+    "observedFailure": "QTV projection is visibly worse than baseline and has an E-wave kink consistent with a C1 discontinuity",
+    "ownerInterpretation": "old AV inflow morphology gate was too permissive because it counted E/A peaks but did not score wave smoothness"
+  },
+  "classification": {
+    "decision": "owner-visual-flow-kink-now-deterministic-fail",
+    "baselineMvfTvfOk": {
+      "mvfOk": "6/8",
+      "tvfOk": "4/8"
+    },
+    "projectionMvfTvfOk": {
+      "mvfOk": "6/8",
+      "tvfOk": "3/8"
+    },
+    "projectionGrossOk": "0/8",
+    "notes": [
+      "Phase 5DI forward-momentum projection evidence is invalidated as AV inflow morphology evidence when the kink/C1 smoothness gate is applied.",
+      "The new AV inflow gate remains a gross normal-sinus artifact guard, not official flow physiology validation.",
+      "Do not formalize the Phase 5DH/5DI forward-momentum surface while QTV projection is visually and deterministically worse than baseline."
+    ]
+  },
+  "claimBoundary": {
+    "noRuntimeDefaultAdoption": true,
+    "noOfficialMorphologyAcceptance": true,
+    "noAvBoundaryContractAdoption": true,
+    "noLandAtrialParameterTuningUnlock": true,
+    "noCheckerRelaxation": true
+  },
+  "normalizedSha256": "352f924b4746511577794a91afe61af4b69a4bc79603bc2033d424b356e8db5d"
+}

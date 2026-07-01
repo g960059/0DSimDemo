@@ -230,16 +230,18 @@ function atrioventricularFlowCheck(samples: readonly SimSample[], valve: AvValve
   const extraPeak = extraPeaks[0] ?? null;
   const extraPeakRatio = extraPeak && ePeak && ePeak.value > 1e-9 ? extraPeak.value / ePeak.value : null;
   const aOverE = ePeak && aPeak && ePeak.value > 1e-9 ? aPeak.value / ePeak.value : null;
-  const ok = Boolean(ePeak && aPeak) && extraCount === 0;
+  const waveShape = avInflowWaveShape(samples, key, ePeak, aPeak);
+  const ok = Boolean(ePeak && aPeak) && extraCount === 0 && waveShape.maxKinkScore <= waveShape.kinkLimit;
   return {
     id: valve === "MV" ? "mvf" : "tvf",
     label: valve === "MV" ? "MVF" : "TVF",
     status: ok ? "ok" : "failed",
-    value: `peaks=${diastolic.length}, extra=${extraCount}, A/E=${aOverE == null ? "n/a" : round(aOverE)}`,
-    threshold: "normal sinus AV inflow has one E wave, one A wave, and no third forward wave",
+    value:
+      `peaks=${diastolic.length}, extra=${extraCount}, A/E=${aOverE == null ? "n/a" : round(aOverE)}, kink=${round(waveShape.maxKinkScore)}`,
+    threshold: "normal sinus AV inflow has one E wave, one A wave, no third forward wave, and no visible C1 kink",
     message: ok
-      ? `${valve} inflow is biphasic with E and A waves.`
-      : `${valve} inflow is not cleanly biphasic; extra or missing waves are present.`,
+      ? `${valve} inflow is biphasic with smooth E and A waves.`
+      : `${valve} inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.`,
     metrics: {
       diastolicPeakCount: diastolic.length,
       ePeakTheta: ePeak?.theta == null ? null : round(ePeak.theta),
@@ -250,6 +252,12 @@ function atrioventricularFlowCheck(samples: readonly SimSample[], valve: AvValve
       extraPeakCount: extraCount,
       extraPeakTheta: extraPeak?.theta == null ? null : round(extraPeak.theta),
       extraPeakProminenceRatio: extraPeakRatio == null ? null : round(extraPeakRatio),
+      eWaveKinkScore: round(waveShape.eWaveKinkScore),
+      aWaveKinkScore: round(waveShape.aWaveKinkScore),
+      maxWaveKinkScore: round(waveShape.maxKinkScore),
+      waveKinkLimit: round(waveShape.kinkLimit),
+      eWaveSampleCount: waveShape.eWaveSampleCount,
+      aWaveSampleCount: waveShape.aWaveSampleCount,
     },
   };
 }
@@ -346,6 +354,111 @@ type DomeShapeMetrics = {
   readonly positiveCurvatureFraction: number;
   readonly positiveCurvatureLimit: number;
 };
+
+type AvWaveShapeMetrics = {
+  readonly eWaveKinkScore: number;
+  readonly aWaveKinkScore: number;
+  readonly maxKinkScore: number;
+  readonly kinkLimit: number;
+  readonly eWaveSampleCount: number;
+  readonly aWaveSampleCount: number;
+};
+
+function avInflowWaveShape(
+  samples: readonly SimSample[],
+  key: "QMV" | "QTV",
+  ePeak: { readonly theta: number; readonly value: number } | null,
+  aPeak: { readonly theta: number; readonly value: number } | null,
+): AvWaveShapeMetrics {
+  const eWave = valveWaveKinkScore(samples, key, ePeak);
+  const aWave = valveWaveKinkScore(samples, key, aPeak);
+  const kinkLimit = key === "QMV" ? 3.45 : 3.35;
+  const eScore = eWave.score ?? 0;
+  const aScore = aWave.score ?? 0;
+  return {
+    eWaveKinkScore: eScore,
+    aWaveKinkScore: aScore,
+    maxKinkScore: Math.max(eScore, aScore),
+    kinkLimit,
+    eWaveSampleCount: eWave.sampleCount,
+    aWaveSampleCount: aWave.sampleCount,
+  };
+}
+
+function valveWaveKinkScore(
+  samples: readonly SimSample[],
+  key: "QMV" | "QTV",
+  peak: { readonly theta: number; readonly value: number } | null,
+): { readonly score: number | null; readonly sampleCount: number } {
+  if (!peak || peak.value <= 1e-9) return { score: null, sampleCount: 0 };
+  const peakIndex = nearestPhaseIndex(samples, peak.theta);
+  if (peakIndex == null) return { score: null, sampleCount: 0 };
+  const threshold = Math.max(8, peak.value * 0.08);
+  let start = peakIndex;
+  while (start > 0 && samples[start - 1][key] > threshold) start--;
+  let end = peakIndex;
+  while (end < samples.length - 1 && samples[end + 1][key] > threshold) end++;
+  const segment = samples.slice(start, end + 1).map((sample) => sample[key]);
+  if (segment.length < 7) return { score: null, sampleCount: segment.length };
+  const resampled = resampleSeries(segment, 25);
+  const smoothed = smoothNumericSeries(resampled);
+  const normalized = smoothed.map((value) => value / Math.max(peak.value, 1e-9));
+  let maxSlopeJump = 0;
+  let totalSlope = 0;
+  for (let i = 1; i < normalized.length; i++) {
+    totalSlope += Math.abs(normalized[i] - normalized[i - 1]);
+  }
+  for (let i = 1; i < normalized.length - 1; i++) {
+    const leftSlope = normalized[i] - normalized[i - 1];
+    const rightSlope = normalized[i + 1] - normalized[i];
+    maxSlopeJump = Math.max(maxSlopeJump, Math.abs(rightSlope - leftSlope));
+  }
+  const averageSlope = totalSlope / Math.max(normalized.length - 1, 1);
+  const score = maxSlopeJump / Math.max(averageSlope, 0.025);
+  return { score, sampleCount: segment.length };
+}
+
+function nearestPhaseIndex(samples: readonly SimSample[], theta: number): number | null {
+  if (samples.length === 0) return null;
+  let bestIndex = 0;
+  let bestDistance = Infinity;
+  for (let i = 0; i < samples.length; i++) {
+    const distance = circularThetaDistance(phaseOf(samples[i]), theta);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = i;
+    }
+  }
+  return bestIndex;
+}
+
+function circularThetaDistance(a: number, b: number): number {
+  const delta = Math.abs(a - b) % 1;
+  return Math.min(delta, 1 - delta);
+}
+
+function resampleSeries(values: readonly number[], count: number): readonly number[] {
+  if (values.length === 0) return [];
+  if (values.length === 1) return Array.from({ length: count }, () => values[0]);
+  const out: number[] = [];
+  for (let i = 0; i < count; i++) {
+    const position = (i / Math.max(count - 1, 1)) * (values.length - 1);
+    const leftIndex = Math.floor(position);
+    const rightIndex = Math.min(values.length - 1, leftIndex + 1);
+    const w = position - leftIndex;
+    out.push(values[leftIndex] + w * (values[rightIndex] - values[leftIndex]));
+  }
+  return out;
+}
+
+function smoothNumericSeries(values: readonly number[]): readonly number[] {
+  return values.map((value, index) => {
+    const start = Math.max(0, index - 1);
+    const end = Math.min(values.length, index + 2);
+    const window = values.slice(start, end);
+    return window.reduce((sum, entry) => sum + entry, 0) / window.length;
+  });
+}
 
 function systolicDomeShape(
   ejection: readonly SimSample[],

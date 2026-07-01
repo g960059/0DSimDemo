@@ -269,6 +269,31 @@ describe("fitting/verification mode foundation", () => {
     expect(rebound as number).toBeGreaterThan(limit as number);
   });
 
+  it("detects AV inflow C1 kink even when E/A waves are present", () => {
+    const report = runVerification(DEFAULT_PARAMS, {
+      profile: "verifyAccurate",
+      gateSet: "normalBaseline",
+      now: new Date("2026-06-05T00:00:00.000Z"),
+    });
+    expect(report.measurement).not.toBeNull();
+    const kinkedTvfSamples = report.measurement!.samples.map((sample) => {
+      const theta = sample.phi - Math.floor(sample.phi);
+      let eWave = 220 * Math.exp(-0.5 * ((theta - 0.54) / 0.07) ** 2);
+      if (theta > 0.565 && theta < 0.595) eWave -= 120;
+      const aWave = 115 * Math.exp(-0.5 * ((theta - 0.94) / 0.030) ** 2);
+      return { ...sample, QTV: Math.max(0, eWave) + aWave };
+    });
+
+    const morphology = morphologyCheckSummaryFromSamples(kinkedTvfSamples);
+    const tvf = morphology.results.find((result) => result.id === "tvf");
+    expect(tvf?.status).toBe("failed");
+    const kink = tvf?.metrics.maxWaveKinkScore;
+    const limit = tvf?.metrics.waveKinkLimit;
+    expect(typeof kink).toBe("number");
+    expect(typeof limit).toBe("number");
+    expect(kink as number).toBeGreaterThan(limit as number);
+  });
+
   it("detects early LA active-kick timing", () => {
     const report = runVerification(DEFAULT_PARAMS, {
       profile: "verifyAccurate",
