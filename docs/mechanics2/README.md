@@ -27,6 +27,7 @@ Canonical references:
 - [Gate C assembled-system review V1](gate-c-assembled-system-review-v1.md)
 - [Four-chamber assembly contract V1](four-chamber-assembly-contract-v1.md)
 - [Four-chamber assembly smoke V1](four-chamber-assembly-smoke-v1.md)
+- [Four-chamber subsystem smoke V1](four-chamber-subsystem-smoke-v1.md)
 - [ADR-MYO-003](../myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 - [Engine sidecar README](../../engine/mechanics2/README.md)
 
