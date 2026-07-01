@@ -32,14 +32,13 @@ equivalence.
 
 Current sidecar state: `PR-M2-0+1`, `PR-M2-2+3`, `PR-M2-4+5`, the
 left-heart fiber-timing attribution surface, and the first left-heart V2
-transaction architecture comparison, residual attribution, and semilunar/root
-outflow repair and pulmonary-boundary/safety-suction comparisons are
-implemented.
+transaction architecture comparison, residual attribution, semilunar/root
+outflow repair, pulmonary-boundary/safety-suction comparisons, and
+output-reserve calibration comparison are implemented.
 
-Next PR target: left-heart Gate B output-reserve calibration from the
-lower-bound safety suction plus semilunar/load signal. Do not start
-four-chamber work or LandAtrial re-entry until output reserve and high-drive MVF
-remain clean on the broad left-heart envelope.
+Next PR target: left-heart Gate B dynamic chamber-load reserve contract. Do not
+start four-chamber work or LandAtrial re-entry until output reserve and
+high-drive MVF remain clean on the broad left-heart envelope.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -65,6 +64,8 @@ Included:
   repeatability and `dt/2` sensitivity guards.
 - LeftHeartPulmonaryBoundaryContractBench V1 for finite pulmonary venous node
   and lower-bound safety-suction/semilunar-load attribution.
+- LeftHeartOutputReserveCalibrationBench V1 for static output-reserve
+  calibration and external active-length blend attribution.
 
 Excluded:
 
@@ -130,6 +131,13 @@ Next gates:
     lower-bound safety suction and increases semilunar/root load makes
     `left-heart-contractility-high` locally pass. This points next to broad
     output-reserve calibration, not PV-node tuning or LandAtrial re-entry.
+13. Gate B output-reserve calibration signal: static semilunar/root/fiber
+    calibration improves strict pass count 3->5 with output OK 6/7, dt stability
+    7/7, and flow coupling 7/7, but remains blocked by low-contractility
+    low-output/MVF and high-contractility MVF-kink/overpressure/clamp behavior.
+    External active-length blending is only a limited component signal. Next
+    work should move to a dynamic chamber-load reserve contract, not fixed
+    scalar calibration or right-heart/LandAtrial expansion.
 
 Parallel prep, not blocking the next strategic gate:
 
