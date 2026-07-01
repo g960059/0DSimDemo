@@ -1,0 +1,3311 @@
+{
+  "schemaVersion": 1,
+  "id": "chamber-pressure-valve-load-contract-phase5cr-result-v1",
+  "phase": "5CR",
+  "profile": {
+    "verificationProfile": "fitFast",
+    "morphologyProfileId": "normal_sinus_default",
+    "pointSource": "normal-hr75-hr90-preload-afterload-contractility-representative-envelope",
+    "diagnosticQuestion": "whether accepted-state pair fixed-point valve-load transaction broadens AV and semilunar flow ownership inside one chamber side"
+  },
+  "ownerVisualGateCalibration": {
+    "sourceArtifactId": "morphology-visual-review-phase5ca-result-v1",
+    "failedGateExamplesVisuallyUnacceptable": true,
+    "someOkGateExamplesStillVisuallyUnacceptable": true,
+    "conclusion": "do-not-relax-morphology-check-v1-for-failed-gross-pv-or-av-inflow-artifacts"
+  },
+  "variants": [
+    {
+      "id": "current-user0-default",
+      "label": "Current user-0 all-chamber LandAtrial plus sourced root/Zc default",
+      "closurePath": "current-user0-all-chamber-landatrial",
+      "avValveBoundary": null
+    },
+    {
+      "id": "lv-rv-land-legacy-atria",
+      "label": "LV/RV Land plus legacy atria with sourced root/Zc",
+      "closurePath": "lv-rv-land-legacy-atria",
+      "avValveBoundary": null
+    },
+    {
+      "id": "accepted-av-complementarity2-legacy-atria",
+      "label": "LV/RV Land legacy atria with 2x accepted-state AV valve fixed-point complementarity",
+      "closurePath": "lv-rv-land-legacy-atria",
+      "avValveBoundary": {
+        "mode": "accepted-state-av-boundary-fixedpoint",
+        "targetValves": [
+          "MV",
+          "TV"
+        ],
+        "iterations": 2,
+        "relaxation": 1
+      }
+    },
+    {
+      "id": "pair-coupled-av-valve-load-legacy-atria",
+      "label": "LV/RV Land legacy atria with side-coupled AV plus semilunar accepted valve-load fixed point",
+      "closurePath": "lv-rv-land-legacy-atria",
+      "avValveBoundary": {
+        "mode": "accepted-state-av-boundary-pair-fixedpoint",
+        "targetValves": [
+          "MV",
+          "TV"
+        ],
+        "iterations": 2,
+        "relaxation": 1
+      }
+    },
+    {
+      "id": "pair-coupled-av-valve-load-user0",
+      "label": "Current user-0 closure with side-coupled AV plus semilunar accepted valve-load fixed point",
+      "closurePath": "current-user0-all-chamber-landatrial",
+      "avValveBoundary": {
+        "mode": "accepted-state-av-boundary-pair-fixedpoint",
+        "targetValves": [
+          "MV",
+          "TV"
+        ],
+        "iterations": 2,
+        "relaxation": 1
+      }
+    }
+  ],
+  "refitConfigurationAudits": [
+    {
+      "variantId": "current-user0-default",
+      "requestedIterations": null,
+      "effectiveIterations": null,
+      "requestedRelaxation": null,
+      "effectiveRelaxation": null,
+      "matches": true
+    },
+    {
+      "variantId": "lv-rv-land-legacy-atria",
+      "requestedIterations": null,
+      "effectiveIterations": null,
+      "requestedRelaxation": null,
+      "effectiveRelaxation": null,
+      "matches": true
+    },
+    {
+      "variantId": "accepted-av-complementarity2-legacy-atria",
+      "requestedIterations": 2,
+      "effectiveIterations": 2,
+      "requestedRelaxation": 1,
+      "effectiveRelaxation": 1,
+      "matches": true
+    },
+    {
+      "variantId": "pair-coupled-av-valve-load-legacy-atria",
+      "requestedIterations": 2,
+      "effectiveIterations": 2,
+      "requestedRelaxation": 1,
+      "effectiveRelaxation": 1,
+      "matches": true
+    },
+    {
+      "variantId": "pair-coupled-av-valve-load-user0",
+      "requestedIterations": 2,
+      "effectiveIterations": 2,
+      "requestedRelaxation": 1,
+      "effectiveRelaxation": 1,
+      "matches": true
+    }
+  ],
+  "points": [
+    {
+      "id": "normal-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75
+      }
+    },
+    {
+      "id": "normal-hr90",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 90
+      }
+    },
+    {
+      "id": "low-preload-hr75",
+      "targetTBVMl": 4800,
+      "params": {
+        "HR": 75
+      }
+    },
+    {
+      "id": "high-preload-hr75",
+      "targetTBVMl": 6200,
+      "params": {
+        "HR": 75
+      }
+    },
+    {
+      "id": "systemic-afterload-high-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "systemicResistance": 1.25
+      }
+    },
+    {
+      "id": "pulmonary-afterload-high-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "pulmonaryResistance": 0.8
+      }
+    },
+    {
+      "id": "contractility-low-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "contractility": 0.8
+      }
+    },
+    {
+      "id": "contractility-high-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "contractility": 1.2
+      }
+    }
+  ],
+  "results": [
+    {
+      "variantId": "current-user0-default",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 78.851705,
+        "PAPMean": 16.9296,
+        "CO_L": 4.881671,
+        "CO_R": 4.87084,
+        "LAPMean": 8.691782,
+        "RAPMean": 4.290624,
+        "EF_LApprox": 0.498792,
+        "EF_RApprox": 0.412964
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "standard-diode-or-qdot",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.545,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.5625,
+          "aPeakTheta": 0.9225,
+          "extraPeakTheta": 0.72,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.4575,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.6425,
+          "aPeakTheta": 0.945,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-default",
+      "pointId": "normal-hr90",
+      "settled": false,
+      "settleReason": "cap",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "not-measured",
+      "failedLabels": [
+        "not-measured"
+      ],
+      "badges": null,
+      "metrics": null,
+      "avResiduals": null,
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-default",
+      "pointId": "low-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 67.236374,
+        "PAPMean": 9.930592,
+        "CO_L": 4.211114,
+        "CO_R": 4.201859,
+        "LAPMean": 2.82155,
+        "RAPMean": 1.900233,
+        "EF_LApprox": 0.497436,
+        "EF_RApprox": 0.461456
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "standard-diode-or-qdot",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.5975,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.61,
+          "aPeakTheta": 0.9425,
+          "extraPeakTheta": 0.8275,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.5825,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.65,
+          "aPeakTheta": 0.96,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-default",
+      "pointId": "high-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 83.470923,
+        "PAPMean": 22.136727,
+        "CO_L": 4.969895,
+        "CO_R": 4.986977,
+        "LAPMean": 13.739386,
+        "RAPMean": 7.19509,
+        "EF_LApprox": 0.490141,
+        "EF_RApprox": 0.374206
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "standard-diode-or-qdot",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.5425,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.5375,
+          "aPeakTheta": 0.92,
+          "extraPeakTheta": 0.68,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.435,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.6275,
+          "aPeakTheta": 0.9425,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-default",
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 86.681795,
+        "PAPMean": 17.90418,
+        "CO_L": 4.620926,
+        "CO_R": 4.645506,
+        "LAPMean": 10.080335,
+        "RAPMean": 4.260683,
+        "EF_LApprox": 0.462284,
+        "EF_RApprox": 0.397582
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "standard-diode-or-qdot",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.5475,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.56,
+          "aPeakTheta": 0.9225,
+          "extraPeakTheta": 0.7075,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.4725,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.6475,
+          "aPeakTheta": 0.945,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-default",
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 78.593281,
+        "PAPMean": 17.210268,
+        "CO_L": 4.857916,
+        "CO_R": 4.841014,
+        "LAPMean": 8.313002,
+        "RAPMean": 4.350593,
+        "EF_LApprox": 0.500013,
+        "EF_RApprox": 0.407769
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "standard-diode-or-qdot",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.5525,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.565,
+          "aPeakTheta": 0.9225,
+          "extraPeakTheta": 0.7225,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.455,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.6425,
+          "aPeakTheta": 0.945,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-default",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "RA PV loop",
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 55.74738,
+        "PAPMean": 19.169488,
+        "CO_L": 3.076089,
+        "CO_R": 3.06052,
+        "LAPMean": 13.9908,
+        "RAPMean": 7.364466,
+        "EF_LApprox": 0.317858,
+        "EF_RApprox": 0.250732
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "standard-diode-or-qdot",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.485,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.4625,
+          "aPeakTheta": 0.935,
+          "extraPeakTheta": 0.6025,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "standard-diode-or-qdot",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.4175,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.56,
+          "aPeakTheta": 0.955,
+          "extraPeakTheta": 0.8175,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-default",
+      "pointId": "contractility-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 91.078798,
+        "PAPMean": 16.251693,
+        "CO_L": 5.701452,
+        "CO_R": 5.667112,
+        "LAPMean": 6.651098,
+        "RAPMean": 2.949899,
+        "EF_LApprox": 0.598881,
+        "EF_RApprox": 0.532322
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "standard-diode-or-qdot",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.5875,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.6175,
+          "aPeakTheta": 0.915,
+          "extraPeakTheta": 0.795,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "standard-diode-or-qdot",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.5225,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.705,
+          "aPeakTheta": 0.94,
+          "extraPeakTheta": 0.03,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "lv-rv-land-legacy-atria",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 77.493958,
+        "PAPMean": 16.93273,
+        "CO_L": 4.783658,
+        "CO_R": 4.75349,
+        "LAPMean": 8.884836,
+        "RAPMean": 4.510134,
+        "EF_LApprox": 0.503212,
+        "EF_RApprox": 0.40934
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "standard-diode-or-qdot",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.52,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.5675,
+          "aPeakTheta": 0.9325,
+          "extraPeakTheta": 0.73,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.445,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.62,
+          "aPeakTheta": 0.96,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "lv-rv-land-legacy-atria",
+      "pointId": "normal-hr90",
+      "settled": false,
+      "settleReason": "cap",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "not-measured",
+      "failedLabels": [
+        "not-measured"
+      ],
+      "badges": null,
+      "metrics": null,
+      "avResiduals": null,
+      "errorMessage": null
+    },
+    {
+      "variantId": "lv-rv-land-legacy-atria",
+      "pointId": "low-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 68.895621,
+        "PAPMean": 10.011683,
+        "CO_L": 4.312814,
+        "CO_R": 4.292847,
+        "LAPMean": 2.741797,
+        "RAPMean": 1.795435,
+        "EF_LApprox": 0.499191,
+        "EF_RApprox": 0.464419
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.5325,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.63,
+          "aPeakTheta": 0.9525,
+          "extraPeakTheta": null,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.475,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.675,
+          "aPeakTheta": 0.9875,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "lv-rv-land-legacy-atria",
+      "pointId": "high-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 81.285706,
+        "PAPMean": 21.223523,
+        "CO_L": 4.795,
+        "CO_R": 4.814352,
+        "LAPMean": 13.121184,
+        "RAPMean": 7.616041,
+        "EF_LApprox": 0.493937,
+        "EF_RApprox": 0.376201
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "standard-diode-or-qdot",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.52,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.545,
+          "aPeakTheta": 0.9325,
+          "extraPeakTheta": 0.695,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.45,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.5975,
+          "aPeakTheta": 0.95,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "lv-rv-land-legacy-atria",
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 85.133836,
+        "PAPMean": 17.953173,
+        "CO_L": 4.502059,
+        "CO_R": 4.524903,
+        "LAPMean": 10.334664,
+        "RAPMean": 4.47477,
+        "EF_LApprox": 0.464953,
+        "EF_RApprox": 0.393154
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "standard-diode-or-qdot",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.5275,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.5625,
+          "aPeakTheta": 0.9325,
+          "extraPeakTheta": 0.7175,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.45,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.6275,
+          "aPeakTheta": 0.96,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "lv-rv-land-legacy-atria",
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 77.30294,
+        "PAPMean": 17.145326,
+        "CO_L": 4.756703,
+        "CO_R": 4.734648,
+        "LAPMean": 8.443377,
+        "RAPMean": 4.565194,
+        "EF_LApprox": 0.504007,
+        "EF_RApprox": 0.405376
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "standard-diode-or-qdot",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.525,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.5725,
+          "aPeakTheta": 0.9325,
+          "extraPeakTheta": 0.735,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.445,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.62,
+          "aPeakTheta": 0.96,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "lv-rv-land-legacy-atria",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "RA PV loop",
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 54.31855,
+        "PAPMean": 19.06701,
+        "CO_L": 2.941724,
+        "CO_R": 2.921891,
+        "LAPMean": 14.124526,
+        "RAPMean": 7.639929,
+        "EF_LApprox": 0.311231,
+        "EF_RApprox": 0.244105
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "standard-diode-or-qdot",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.4425,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.4625,
+          "aPeakTheta": 0.93,
+          "extraPeakTheta": 0.605,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "standard-diode-or-qdot",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.4,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.5475,
+          "aPeakTheta": 0.95,
+          "extraPeakTheta": 0.8,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "lv-rv-land-legacy-atria",
+      "pointId": "contractility-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 93.607683,
+        "PAPMean": 16.878146,
+        "CO_L": 5.882829,
+        "CO_R": 5.834562,
+        "LAPMean": 6.980363,
+        "RAPMean": 2.636847,
+        "EF_LApprox": 0.593552,
+        "EF_RApprox": 0.532181
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "standard-diode-or-qdot",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.5675,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.6375,
+          "aPeakTheta": 0.935,
+          "extraPeakTheta": 0.83,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 0,
+          "standardDiodeHitFraction": 0.5075,
+          "acceptedDiodeHitFraction": 0,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.73,
+          "aPeakTheta": 0.9825,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "accepted-av-complementarity2-legacy-atria",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": true,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 75.675773,
+        "PAPMean": 17.791506,
+        "CO_L": 4.644379,
+        "CO_R": 4.633396,
+        "LAPMean": 9.96084,
+        "RAPMean": 4.679477,
+        "EF_LApprox": 0.491146,
+        "EF_RApprox": 0.407633
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.505,
+          "acceptedDiodeHitFraction": 0.5025,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0.145,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.5375,
+          "aPeakTheta": 0.93,
+          "extraPeakTheta": null,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.46,
+          "acceptedDiodeHitFraction": 0.4575,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0.0025,
+          "acceptedComplementarityLeakFraction": 0.015,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.5975,
+          "aPeakTheta": 0.9525,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "accepted-av-complementarity2-legacy-atria",
+      "pointId": "normal-hr90",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": true,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "RA PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 82.022494,
+        "PAPMean": 18.667895,
+        "CO_L": 5.178467,
+        "CO_R": 5.165337,
+        "LAPMean": 9.915385,
+        "RAPMean": 3.745454,
+        "EF_LApprox": 0.458599,
+        "EF_RApprox": 0.411696
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.607784,
+          "acceptedDiodeHitFraction": 0.60479,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0.017964,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.636,
+          "aPeakTheta": 0.906,
+          "extraPeakTheta": null,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.541916,
+          "acceptedDiodeHitFraction": 0.538922,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0.002994,
+          "acceptedComplementarityLeakFraction": 0.008982,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.711,
+          "aPeakTheta": 0.939,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "accepted-av-complementarity2-legacy-atria",
+      "pointId": "low-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": true,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LA PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "failed",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 66.472548,
+        "PAPMean": 10.464406,
+        "CO_L": 4.141009,
+        "CO_R": 4.112941,
+        "LAPMean": 3.49463,
+        "RAPMean": 2.050567,
+        "EF_LApprox": 0.483663,
+        "EF_RApprox": 0.437252
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.5325,
+          "acceptedDiodeHitFraction": 0.53,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0.0175,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.58,
+          "aPeakTheta": 0.9425,
+          "extraPeakTheta": null,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.485,
+          "acceptedDiodeHitFraction": 0.48,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0.0025,
+          "acceptedComplementarityLeakFraction": 0.015,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.645,
+          "aPeakTheta": 0.975,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "accepted-av-complementarity2-legacy-atria",
+      "pointId": "high-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 78.702563,
+        "PAPMean": 21.708825,
+        "CO_L": 4.694241,
+        "CO_R": 4.742448,
+        "LAPMean": 13.75607,
+        "RAPMean": 7.879794,
+        "EF_LApprox": 0.489742,
+        "EF_RApprox": 0.376079
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.4875,
+          "acceptedDiodeHitFraction": 0.485,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0.22,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.52,
+          "aPeakTheta": 0.9275,
+          "extraPeakTheta": null,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "accepted-boundary-diode-or-qdot",
+          "diagnosticMismatch": true,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.4575,
+          "acceptedDiodeHitFraction": 0.455,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0.0125,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.5775,
+          "aPeakTheta": 0.9475,
+          "extraPeakTheta": 0.81,
+          "message": "TV accepted-boundary diagnostics change the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "accepted-av-complementarity2-legacy-atria",
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": true,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 82.853998,
+        "PAPMean": 18.779315,
+        "CO_L": 4.388934,
+        "CO_R": 4.436822,
+        "LAPMean": 11.335025,
+        "RAPMean": 4.640947,
+        "EF_LApprox": 0.455746,
+        "EF_RApprox": 0.392822
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.5025,
+          "acceptedDiodeHitFraction": 0.5,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0.23,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.535,
+          "aPeakTheta": 0.9275,
+          "extraPeakTheta": null,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.465,
+          "acceptedDiodeHitFraction": 0.4625,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0.0025,
+          "acceptedComplementarityLeakFraction": 0.015,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.605,
+          "aPeakTheta": 0.9525,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "accepted-av-complementarity2-legacy-atria",
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": true,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 75.515888,
+        "PAPMean": 18.056555,
+        "CO_L": 4.61904,
+        "CO_R": 4.607771,
+        "LAPMean": 9.59723,
+        "RAPMean": 4.724438,
+        "EF_LApprox": 0.491511,
+        "EF_RApprox": 0.403488
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.5075,
+          "acceptedDiodeHitFraction": 0.505,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0.13,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.54,
+          "aPeakTheta": 0.93,
+          "extraPeakTheta": null,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.4625,
+          "acceptedDiodeHitFraction": 0.46,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0.0025,
+          "acceptedComplementarityLeakFraction": 0.015,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.6,
+          "aPeakTheta": 0.9525,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "accepted-av-complementarity2-legacy-atria",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "RA PV loop",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 47.777026,
+        "PAPMean": 18.977381,
+        "CO_L": 2.446221,
+        "CO_R": 2.415038,
+        "LAPMean": 14.878283,
+        "RAPMean": 8.698482,
+        "EF_LApprox": 0.261066,
+        "EF_RApprox": 0.198306
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.4325,
+          "acceptedDiodeHitFraction": 0.4275,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0.205,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.4425,
+          "aPeakTheta": 0.9225,
+          "extraPeakTheta": null,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "accepted-boundary-diode-or-qdot",
+          "diagnosticMismatch": true,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.4175,
+          "acceptedDiodeHitFraction": 0.415,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0.01,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.535,
+          "aPeakTheta": 0.945,
+          "extraPeakTheta": 0.74,
+          "message": "TV accepted-boundary diagnostics change the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "accepted-av-complementarity2-legacy-atria",
+      "pointId": "contractility-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 92.552312,
+        "PAPMean": 17.434428,
+        "CO_L": 5.800236,
+        "CO_R": 5.762373,
+        "LAPMean": 7.673379,
+        "RAPMean": 2.737021,
+        "EF_LApprox": 0.592811,
+        "EF_RApprox": 0.53856
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "accepted-boundary-diode-or-qdot",
+          "diagnosticMismatch": true,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.57,
+          "acceptedDiodeHitFraction": 0.5675,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0.01,
+          "acceptedComplementarityLeakFraction": 0.015,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.6025,
+          "aPeakTheta": 0.93,
+          "extraPeakTheta": 0.695,
+          "message": "MV accepted-boundary diagnostics change the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.535,
+          "acceptedDiodeHitFraction": 0.53,
+          "standardQDotHitFraction": 0.005,
+          "acceptedQDotHitFraction": 0.01,
+          "acceptedComplementarityLeakFraction": 0.02,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.705,
+          "aPeakTheta": 0.975,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "pair-coupled-av-valve-load-legacy-atria",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 75.072351,
+        "PAPMean": 17.312931,
+        "CO_L": 4.583744,
+        "CO_R": 4.572137,
+        "LAPMean": 9.583791,
+        "RAPMean": 4.807245,
+        "EF_LApprox": 0.488494,
+        "EF_RApprox": 0.398761
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.5075,
+          "acceptedDiodeHitFraction": 0.505,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0.1375,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.54,
+          "aPeakTheta": 0.93,
+          "extraPeakTheta": null,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.465,
+          "acceptedDiodeHitFraction": 0.4625,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0.0025,
+          "acceptedComplementarityLeakFraction": 0.015,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.6025,
+          "aPeakTheta": 0.9525,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "pair-coupled-av-valve-load-legacy-atria",
+      "pointId": "normal-hr90",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 81.402607,
+        "PAPMean": 18.299484,
+        "CO_L": 5.13178,
+        "CO_R": 5.09329,
+        "LAPMean": 9.646783,
+        "RAPMean": 3.864884,
+        "EF_LApprox": 0.458224,
+        "EF_RApprox": 0.401599
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.610778,
+          "acceptedDiodeHitFraction": 0.610778,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0.017964,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.639,
+          "aPeakTheta": 0.906,
+          "extraPeakTheta": null,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.550898,
+          "acceptedDiodeHitFraction": 0.547904,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0.002994,
+          "acceptedComplementarityLeakFraction": 0.008982,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.717,
+          "aPeakTheta": 0.936,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "pair-coupled-av-valve-load-legacy-atria",
+      "pointId": "low-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "LA PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "failed",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 66.028376,
+        "PAPMean": 10.255167,
+        "CO_L": 4.106089,
+        "CO_R": 4.0757,
+        "LAPMean": 3.342692,
+        "RAPMean": 2.126078,
+        "EF_LApprox": 0.483515,
+        "EF_RApprox": 0.428076
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.5375,
+          "acceptedDiodeHitFraction": 0.535,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0.0175,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.585,
+          "aPeakTheta": 0.9425,
+          "extraPeakTheta": null,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.49,
+          "acceptedDiodeHitFraction": 0.485,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0.0025,
+          "acceptedComplementarityLeakFraction": 0.015,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.6475,
+          "aPeakTheta": 0.975,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "pair-coupled-av-valve-load-legacy-atria",
+      "pointId": "high-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 78.524055,
+        "PAPMean": 20.861365,
+        "CO_L": 4.64114,
+        "CO_R": 4.658141,
+        "LAPMean": 13.020526,
+        "RAPMean": 8.032466,
+        "EF_LApprox": 0.487994,
+        "EF_RApprox": 0.366792
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.49,
+          "acceptedDiodeHitFraction": 0.4875,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0.175,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.525,
+          "aPeakTheta": 0.9275,
+          "extraPeakTheta": null,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "accepted-boundary-diode-or-qdot",
+          "diagnosticMismatch": true,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.4625,
+          "acceptedDiodeHitFraction": 0.46,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0.0025,
+          "acceptedComplementarityLeakFraction": 0.0125,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.5825,
+          "aPeakTheta": 0.9475,
+          "extraPeakTheta": 0.81,
+          "message": "TV accepted-boundary diagnostics change the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "pair-coupled-av-valve-load-legacy-atria",
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 82.268397,
+        "PAPMean": 18.211707,
+        "CO_L": 4.353972,
+        "CO_R": 4.37785,
+        "LAPMean": 10.846494,
+        "RAPMean": 4.775823,
+        "EF_LApprox": 0.454908,
+        "EF_RApprox": 0.384877
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.5075,
+          "acceptedDiodeHitFraction": 0.505,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0.1425,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.54,
+          "aPeakTheta": 0.9275,
+          "extraPeakTheta": null,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.47,
+          "acceptedDiodeHitFraction": 0.4675,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0.0025,
+          "acceptedComplementarityLeakFraction": 0.015,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.6075,
+          "aPeakTheta": 0.9525,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "pair-coupled-av-valve-load-legacy-atria",
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 74.82875,
+        "PAPMean": 17.451007,
+        "CO_L": 4.559343,
+        "CO_R": 4.54811,
+        "LAPMean": 9.099869,
+        "RAPMean": 4.873707,
+        "EF_LApprox": 0.490318,
+        "EF_RApprox": 0.393979
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.5125,
+          "acceptedDiodeHitFraction": 0.51,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0.13,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.5425,
+          "aPeakTheta": 0.93,
+          "extraPeakTheta": null,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.465,
+          "acceptedDiodeHitFraction": 0.4625,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0.0025,
+          "acceptedComplementarityLeakFraction": 0.015,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.6025,
+          "aPeakTheta": 0.9525,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "pair-coupled-av-valve-load-legacy-atria",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "RA PV loop",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 50.40147,
+        "PAPMean": 18.905194,
+        "CO_L": 2.635937,
+        "CO_R": 2.607003,
+        "LAPMean": 14.484926,
+        "RAPMean": 8.288179,
+        "EF_LApprox": 0.281304,
+        "EF_RApprox": 0.215915
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.4225,
+          "acceptedDiodeHitFraction": 0.4175,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0.215,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.445,
+          "aPeakTheta": 0.9225,
+          "extraPeakTheta": null,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "accepted-boundary-diode-or-qdot",
+          "diagnosticMismatch": true,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.42,
+          "acceptedDiodeHitFraction": 0.4175,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0.015,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.5375,
+          "aPeakTheta": 0.945,
+          "extraPeakTheta": 0.7425,
+          "message": "TV accepted-boundary diagnostics change the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "pair-coupled-av-valve-load-legacy-atria",
+      "pointId": "contractility-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 92.016313,
+        "PAPMean": 17.164719,
+        "CO_L": 5.759334,
+        "CO_R": 5.72675,
+        "LAPMean": 7.466919,
+        "RAPMean": 2.811734,
+        "EF_LApprox": 0.592564,
+        "EF_RApprox": 0.527831
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "accepted-boundary-diode-or-qdot",
+          "diagnosticMismatch": true,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.575,
+          "acceptedDiodeHitFraction": 0.5725,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0.01,
+          "acceptedComplementarityLeakFraction": 0.0175,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.605,
+          "aPeakTheta": 0.93,
+          "extraPeakTheta": 0.6975,
+          "message": "MV accepted-boundary diagnostics change the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.535,
+          "acceptedDiodeHitFraction": 0.53,
+          "standardQDotHitFraction": 0.005,
+          "acceptedQDotHitFraction": 0.01,
+          "acceptedComplementarityLeakFraction": 0.02,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.7075,
+          "aPeakTheta": 0.975,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "pair-coupled-av-valve-load-user0",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 76.843142,
+        "PAPMean": 17.809701,
+        "CO_L": 4.706806,
+        "CO_R": 4.713175,
+        "LAPMean": 9.848126,
+        "RAPMean": 4.471616,
+        "EF_LApprox": 0.486306,
+        "EF_RApprox": 0.396395
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "accepted-boundary-complementarity-leak",
+          "diagnosticMismatch": true,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.54386,
+          "acceptedDiodeHitFraction": 0.533835,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0.010025,
+          "acceptedComplementarityLeakFraction": 0.097744,
+          "extraPeakCount": 2,
+          "ePeakTheta": 0.5275,
+          "aPeakTheta": 0.92,
+          "extraPeakTheta": 0.65,
+          "message": "MV accepted-boundary diagnostics change the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.478697,
+          "acceptedDiodeHitFraction": 0.473684,
+          "standardQDotHitFraction": 0.002506,
+          "acceptedQDotHitFraction": 0.005013,
+          "acceptedComplementarityLeakFraction": 0.025063,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.625,
+          "aPeakTheta": 0.9425,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "pair-coupled-av-valve-load-user0",
+      "pointId": "normal-hr90",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 82.828571,
+        "PAPMean": 17.751249,
+        "CO_L": 5.149128,
+        "CO_R": 5.161451,
+        "LAPMean": 9.012647,
+        "RAPMean": 3.719644,
+        "EF_LApprox": 0.452624,
+        "EF_RApprox": 0.405172
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "accepted-boundary-complementarity-leak",
+          "diagnosticMismatch": true,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.643713,
+          "acceptedDiodeHitFraction": 0.634731,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0.017964,
+          "acceptedComplementarityLeakFraction": 0.077844,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.63,
+          "aPeakTheta": 0.903,
+          "extraPeakTheta": 0.774,
+          "message": "MV accepted-boundary diagnostics change the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.54491,
+          "acceptedDiodeHitFraction": 0.538922,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0.008982,
+          "acceptedComplementarityLeakFraction": 0.023952,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.726,
+          "aPeakTheta": 0.936,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "pair-coupled-av-valve-load-user0",
+      "pointId": "low-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 65.128648,
+        "PAPMean": 9.845153,
+        "CO_L": 4.02525,
+        "CO_R": 4.008436,
+        "LAPMean": 3.067586,
+        "RAPMean": 2.221454,
+        "EF_LApprox": 0.482101,
+        "EF_RApprox": 0.427007
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "accepted-boundary-complementarity-leak",
+          "diagnosticMismatch": true,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.67,
+          "acceptedDiodeHitFraction": 0.6625,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0.0125,
+          "acceptedComplementarityLeakFraction": 0.065,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.5775,
+          "aPeakTheta": 0.9225,
+          "extraPeakTheta": 0.7325,
+          "message": "MV accepted-boundary diagnostics change the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.52,
+          "acceptedDiodeHitFraction": 0.5125,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0.0075,
+          "acceptedComplementarityLeakFraction": 0.0225,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.63,
+          "aPeakTheta": 0.95,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "pair-coupled-av-valve-load-user0",
+      "pointId": "high-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 80.860398,
+        "PAPMean": 22.512878,
+        "CO_L": 4.831131,
+        "CO_R": 4.871685,
+        "LAPMean": 14.334828,
+        "RAPMean": 7.483794,
+        "EF_LApprox": 0.485457,
+        "EF_RApprox": 0.36232
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "accepted-boundary-complementarity-leak",
+          "diagnosticMismatch": true,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.52,
+          "acceptedDiodeHitFraction": 0.515,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0.01,
+          "acceptedComplementarityLeakFraction": 0.0975,
+          "extraPeakCount": 2,
+          "ePeakTheta": 0.5075,
+          "aPeakTheta": 0.9175,
+          "extraPeakTheta": 0.6275,
+          "message": "MV accepted-boundary diagnostics change the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "accepted-boundary-diode-or-qdot",
+          "diagnosticMismatch": true,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.465,
+          "acceptedDiodeHitFraction": 0.4625,
+          "standardQDotHitFraction": 0.0025,
+          "acceptedQDotHitFraction": 0.005,
+          "acceptedComplementarityLeakFraction": 0.02,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.615,
+          "aPeakTheta": 0.9425,
+          "extraPeakTheta": 0.835,
+          "message": "TV accepted-boundary diagnostics change the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "pair-coupled-av-valve-load-user0",
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 84.105202,
+        "PAPMean": 18.613965,
+        "CO_L": 4.434463,
+        "CO_R": 4.511437,
+        "LAPMean": 11.064047,
+        "RAPMean": 4.481926,
+        "EF_LApprox": 0.450963,
+        "EF_RApprox": 0.383451
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "accepted-boundary-complementarity-leak",
+          "diagnosticMismatch": true,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.5275,
+          "acceptedDiodeHitFraction": 0.52,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0.01,
+          "acceptedComplementarityLeakFraction": 0.0975,
+          "extraPeakCount": 2,
+          "ePeakTheta": 0.5275,
+          "aPeakTheta": 0.92,
+          "extraPeakTheta": 0.6425,
+          "message": "MV accepted-boundary diagnostics change the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "accepted-boundary-diode-or-qdot",
+          "diagnosticMismatch": true,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.4775,
+          "acceptedDiodeHitFraction": 0.4725,
+          "standardQDotHitFraction": 0.0025,
+          "acceptedQDotHitFraction": 0.0075,
+          "acceptedComplementarityLeakFraction": 0.025,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.6275,
+          "aPeakTheta": 0.945,
+          "extraPeakTheta": 0.0125,
+          "message": "TV accepted-boundary diagnostics change the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "pair-coupled-av-valve-load-user0",
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 76.428836,
+        "PAPMean": 18.055346,
+        "CO_L": 4.687656,
+        "CO_R": 4.680421,
+        "LAPMean": 9.466176,
+        "RAPMean": 4.553063,
+        "EF_LApprox": 0.488073,
+        "EF_RApprox": 0.390536
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "accepted-boundary-complementarity-leak",
+          "diagnosticMismatch": true,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.55,
+          "acceptedDiodeHitFraction": 0.54,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0.01,
+          "acceptedComplementarityLeakFraction": 0.0975,
+          "extraPeakCount": 2,
+          "ePeakTheta": 0.53,
+          "aPeakTheta": 0.92,
+          "extraPeakTheta": 0.6525,
+          "message": "MV accepted-boundary diagnostics change the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.48,
+          "acceptedDiodeHitFraction": 0.475,
+          "standardQDotHitFraction": 0.0025,
+          "acceptedQDotHitFraction": 0.005,
+          "acceptedComplementarityLeakFraction": 0.0225,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.6275,
+          "aPeakTheta": 0.9425,
+          "extraPeakTheta": null,
+          "message": "TV accepted-boundary diagnostics preserve the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "pair-coupled-av-valve-load-user0",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "RA PV loop",
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 51.56623,
+        "PAPMean": 19.163037,
+        "CO_L": 2.745887,
+        "CO_R": 2.734261,
+        "LAPMean": 14.540676,
+        "RAPMean": 8.036176,
+        "EF_LApprox": 0.287525,
+        "EF_RApprox": 0.22251
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "accepted-boundary-complementarity-leak",
+          "diagnosticMismatch": true,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.455,
+          "acceptedDiodeHitFraction": 0.445,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0.115,
+          "extraPeakCount": 2,
+          "ePeakTheta": 0.44,
+          "aPeakTheta": 0.9325,
+          "extraPeakTheta": 0.545,
+          "message": "MV accepted-boundary diagnostics change the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "accepted-boundary-diode-or-qdot",
+          "diagnosticMismatch": true,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.4375,
+          "acceptedDiodeHitFraction": 0.435,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0.0025,
+          "acceptedComplementarityLeakFraction": 0.015,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.55,
+          "aPeakTheta": 0.9525,
+          "extraPeakTheta": 0.7525,
+          "message": "TV accepted-boundary diagnostics change the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "pair-coupled-av-valve-load-user0",
+      "pointId": "contractility-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossVentricularMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 90.360219,
+        "PAPMean": 16.560249,
+        "CO_L": 5.634837,
+        "CO_R": 5.611096,
+        "LAPMean": 7.079879,
+        "RAPMean": 3.015974,
+        "EF_LApprox": 0.591463,
+        "EF_RApprox": 0.526785
+      },
+      "avResiduals": {
+        "MV": {
+          "valve": "MV",
+          "measured": true,
+          "morphologyOk": true,
+          "standardCause": "clean-biphasic",
+          "acceptedCause": "clean-biphasic",
+          "diagnosticMismatch": false,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.57,
+          "acceptedDiodeHitFraction": 0.57,
+          "standardQDotHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0.26,
+          "extraPeakCount": 0,
+          "ePeakTheta": 0.5825,
+          "aPeakTheta": 0.91,
+          "extraPeakTheta": null,
+          "message": "MV accepted-boundary diagnostics preserve the local residual interpretation."
+        },
+        "TV": {
+          "valve": "TV",
+          "measured": true,
+          "morphologyOk": false,
+          "standardCause": "standard-diode-or-qdot",
+          "acceptedCause": "accepted-boundary-diode-or-qdot",
+          "diagnosticMismatch": true,
+          "acceptedAppliedFraction": 1,
+          "standardDiodeHitFraction": 0.505,
+          "acceptedDiodeHitFraction": 0.5025,
+          "standardQDotHitFraction": 0.005,
+          "acceptedQDotHitFraction": 0.01,
+          "acceptedComplementarityLeakFraction": 0.03,
+          "extraPeakCount": 1,
+          "ePeakTheta": 0.6875,
+          "aPeakTheta": 0.935,
+          "extraPeakTheta": 0.0075,
+          "message": "TV accepted-boundary diagnostics change the local residual interpretation."
+        }
+      },
+      "errorMessage": null
+    }
+  ],
+  "variantSummaries": [
+    {
+      "variantId": "current-user0-default",
+      "grossPassCount": 0,
+      "measuredCount": 7,
+      "settledOkCount": 7,
+      "lvPvOkCount": 1,
+      "rvPvOkCount": 2,
+      "mvfOkCount": 0,
+      "tvfOkCount": 5,
+      "outputPreservedCount": 6,
+      "acceptedDiagnosticsAvailableCount": 0,
+      "diagnosticMismatchCount": 0,
+      "standardCauseCounts": {
+        "not-measured": 0,
+        "clean-biphasic": 5,
+        "standard-diode-or-qdot": 9,
+        "accepted-boundary-diode-or-qdot": 0,
+        "accepted-boundary-complementarity-leak": 0,
+        "extra-wave-unattributed": 0
+      },
+      "acceptedCauseCounts": {
+        "not-measured": 0,
+        "clean-biphasic": 5,
+        "standard-diode-or-qdot": 9,
+        "accepted-boundary-diode-or-qdot": 0,
+        "accepted-boundary-complementarity-leak": 0,
+        "extra-wave-unattributed": 0
+      },
+      "firstFailedPoint": "normal-hr75"
+    },
+    {
+      "variantId": "lv-rv-land-legacy-atria",
+      "grossPassCount": 0,
+      "measuredCount": 7,
+      "settledOkCount": 7,
+      "lvPvOkCount": 1,
+      "rvPvOkCount": 2,
+      "mvfOkCount": 1,
+      "tvfOkCount": 6,
+      "outputPreservedCount": 6,
+      "acceptedDiagnosticsAvailableCount": 0,
+      "diagnosticMismatchCount": 0,
+      "standardCauseCounts": {
+        "not-measured": 0,
+        "clean-biphasic": 7,
+        "standard-diode-or-qdot": 7,
+        "accepted-boundary-diode-or-qdot": 0,
+        "accepted-boundary-complementarity-leak": 0,
+        "extra-wave-unattributed": 0
+      },
+      "acceptedCauseCounts": {
+        "not-measured": 0,
+        "clean-biphasic": 7,
+        "standard-diode-or-qdot": 7,
+        "accepted-boundary-diode-or-qdot": 0,
+        "accepted-boundary-complementarity-leak": 0,
+        "extra-wave-unattributed": 0
+      },
+      "firstFailedPoint": "normal-hr75"
+    },
+    {
+      "variantId": "accepted-av-complementarity2-legacy-atria",
+      "grossPassCount": 5,
+      "measuredCount": 8,
+      "settledOkCount": 8,
+      "lvPvOkCount": 8,
+      "rvPvOkCount": 8,
+      "mvfOkCount": 7,
+      "tvfOkCount": 6,
+      "outputPreservedCount": 7,
+      "acceptedDiagnosticsAvailableCount": 16,
+      "diagnosticMismatchCount": 3,
+      "standardCauseCounts": {
+        "not-measured": 0,
+        "clean-biphasic": 13,
+        "standard-diode-or-qdot": 3,
+        "accepted-boundary-diode-or-qdot": 0,
+        "accepted-boundary-complementarity-leak": 0,
+        "extra-wave-unattributed": 0
+      },
+      "acceptedCauseCounts": {
+        "not-measured": 0,
+        "clean-biphasic": 13,
+        "standard-diode-or-qdot": 0,
+        "accepted-boundary-diode-or-qdot": 3,
+        "accepted-boundary-complementarity-leak": 0,
+        "extra-wave-unattributed": 0
+      },
+      "firstFailedPoint": "high-preload-hr75"
+    },
+    {
+      "variantId": "pair-coupled-av-valve-load-legacy-atria",
+      "grossPassCount": 0,
+      "measuredCount": 8,
+      "settledOkCount": 8,
+      "lvPvOkCount": 1,
+      "rvPvOkCount": 3,
+      "mvfOkCount": 7,
+      "tvfOkCount": 6,
+      "outputPreservedCount": 7,
+      "acceptedDiagnosticsAvailableCount": 16,
+      "diagnosticMismatchCount": 3,
+      "standardCauseCounts": {
+        "not-measured": 0,
+        "clean-biphasic": 13,
+        "standard-diode-or-qdot": 3,
+        "accepted-boundary-diode-or-qdot": 0,
+        "accepted-boundary-complementarity-leak": 0,
+        "extra-wave-unattributed": 0
+      },
+      "acceptedCauseCounts": {
+        "not-measured": 0,
+        "clean-biphasic": 13,
+        "standard-diode-or-qdot": 0,
+        "accepted-boundary-diode-or-qdot": 3,
+        "accepted-boundary-complementarity-leak": 0,
+        "extra-wave-unattributed": 0
+      },
+      "firstFailedPoint": "normal-hr75"
+    },
+    {
+      "variantId": "pair-coupled-av-valve-load-user0",
+      "grossPassCount": 0,
+      "measuredCount": 8,
+      "settledOkCount": 8,
+      "lvPvOkCount": 1,
+      "rvPvOkCount": 6,
+      "mvfOkCount": 1,
+      "tvfOkCount": 4,
+      "outputPreservedCount": 7,
+      "acceptedDiagnosticsAvailableCount": 16,
+      "diagnosticMismatchCount": 11,
+      "standardCauseCounts": {
+        "not-measured": 0,
+        "clean-biphasic": 5,
+        "standard-diode-or-qdot": 11,
+        "accepted-boundary-diode-or-qdot": 0,
+        "accepted-boundary-complementarity-leak": 0,
+        "extra-wave-unattributed": 0
+      },
+      "acceptedCauseCounts": {
+        "not-measured": 0,
+        "clean-biphasic": 5,
+        "standard-diode-or-qdot": 0,
+        "accepted-boundary-diode-or-qdot": 4,
+        "accepted-boundary-complementarity-leak": 7,
+        "extra-wave-unattributed": 0
+      },
+      "firstFailedPoint": "normal-hr75"
+    }
+  ],
+  "classification": {
+    "currentUser0GrossPass": "0/8",
+    "lvRvLandLegacyAtriaGrossPass": "0/8",
+    "acceptedLegacyGrossPass": "5/8",
+    "pairLegacyGrossPass": "0/8",
+    "pairUser0TransferGrossPass": "0/8",
+    "acceptedLegacyDiagnostics": {
+      "acceptedDiagnosticsAvailableCount": 16,
+      "diagnosticMismatchCount": 3,
+      "standardCauseCounts": {
+        "not-measured": 0,
+        "clean-biphasic": 13,
+        "standard-diode-or-qdot": 3,
+        "accepted-boundary-diode-or-qdot": 0,
+        "accepted-boundary-complementarity-leak": 0,
+        "extra-wave-unattributed": 0
+      },
+      "acceptedCauseCounts": {
+        "not-measured": 0,
+        "clean-biphasic": 13,
+        "standard-diode-or-qdot": 0,
+        "accepted-boundary-diode-or-qdot": 3,
+        "accepted-boundary-complementarity-leak": 0,
+        "extra-wave-unattributed": 0
+      }
+    },
+    "decision": "pair-coupled-valve-load-no-go",
+    "notes": [
+      "Pair-coupled legacy residual notes: high-preload-hr75/TV: standard=standard-diode-or-qdot, accepted=accepted-boundary-diode-or-qdot, standardDiode=0.4625, acceptedDiode=0.46, acceptedLeak=0.0125 | contractility-low-hr75/TV: standard=standard-diode-or-qdot, accepted=accepted-boundary-diode-or-qdot, standardDiode=0.42, acceptedDiode=0.4175, acceptedLeak=0.015 | contractility-high-hr75/MV: standard=standard-diode-or-qdot, accepted=accepted-boundary-diode-or-qdot, standardDiode=0.575, acceptedDiode=0.5725, acceptedLeak=0.0175.",
+      "5CO accepted-complementarity legacy gross: 5/8.",
+      "5CR pair-coupled legacy gross: 0/8.",
+      "5CR pair-coupled user0 transfer gross: 0/8.",
+      "Pair-coupled legacy diagnostic mismatches: 3.",
+      "Pair-coupled user0 diagnostic mismatches: 11.",
+      "Pair-coupled legacy accepted-boundary causes: clean-biphasic=13, accepted-boundary-diode-or-qdot=3.",
+      "Pair-coupled user0 accepted-boundary causes: clean-biphasic=5, accepted-boundary-diode-or-qdot=4, accepted-boundary-complementarity-leak=7."
+    ]
+  },
+  "recommendedNext": [
+    "pair-coupled AV plus semilunar valve-load ownership does not beat the 5CO accepted-complementarity baseline",
+    "move the next surface beyond side-local valve-load fixed point, toward a chamber pressure/source-state/valve-load residual contract",
+    "do not spend more phases on fixed-point iterations, scalar pressure caps, zeta/tau/smoothing/substeps, qDot/root/Zc/valve-threshold retuning, Tref, source-stress scaling, or LandAtrial parameter tuning while this blocker is active"
+  ],
+  "claimBoundary": {
+    "noRuntimeDefaultAdoption": true,
+    "noOfficialMorphologyAcceptance": true,
+    "noLandAtrialTuningUnlock": true,
+    "noA1A2Reopen": true,
+    "noValveQdotRootZcTrefSourceStressTuning": true,
+    "noClinicalScientificValidation": true
+  },
+  "normalizedSha256": "e6f148da303e8ddfbd18348383e13cae46a012e4bbd20b488b440ea7e8bbfaca"
+}
