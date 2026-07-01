@@ -416,6 +416,8 @@ export type SimSample = {
   LAAvPlaneStatefulRelease01?: number;
   LAAvPlaneDescentRiseTauSec?: number;
   LAAvPlaneDescentReleaseTauSec?: number;
+  LAAvPlaneDescentReleaseInletOpenHold?: number;
+  LAAvPlaneDescentReleaseInletOpenThreshold?: number;
   LAWallVolumeMl?: number;
   LAWallVolumeWithoutAvPlaneMl?: number;
   LAWallLambda?: number;
@@ -437,6 +439,8 @@ export type SimSample = {
   RAAvPlaneStatefulRelease01?: number;
   RAAvPlaneDescentRiseTauSec?: number;
   RAAvPlaneDescentReleaseTauSec?: number;
+  RAAvPlaneDescentReleaseInletOpenHold?: number;
+  RAAvPlaneDescentReleaseInletOpenThreshold?: number;
   RAWallVolumeMl?: number;
   RAWallVolumeWithoutAvPlaneMl?: number;
   RAWallLambda?: number;

@@ -125,6 +125,12 @@ export type ActiveChamberParams = {
   avPlaneDescentReleaseTauSec?: number;
   avPlaneDescentMaxRiseVelocity01PerSec?: number;
   avPlaneDescentMaxReleaseVelocity01PerSec?: number;
+  // Diagnostic-only release/recoil gate. When positive, AV-plane descent recoil
+  // is suppressed while the paired AV inlet valve is open, so the effective
+  // wall-geometry release can be separated from AV inflow waves. Default 0
+  // preserves the Phase 5CV stateful release behavior.
+  avPlaneDescentReleaseInletOpenHold?: number;
+  avPlaneDescentReleaseInletOpenThreshold?: number;
   reservoirBranchGain?: number;
   reservoirStrokeMl?: number;
   reservoirSleeveVuMl?: number;
@@ -180,6 +186,8 @@ export type ChamberGeometryTerms = {
   readonly avPlaneStatefulRelease01: number;
   readonly avPlaneDescentRiseTauSec: number;
   readonly avPlaneDescentReleaseTauSec: number;
+  readonly avPlaneDescentReleaseInletOpenHold: number;
+  readonly avPlaneDescentReleaseInletOpenThreshold: number;
   readonly lambda: number;
   readonly lambdaWithoutAvPlane: number;
   readonly lambdaAvPlaneDelta: number;
@@ -874,6 +882,8 @@ export class ActiveStressChamberModel implements ChamberModel {
       avPlaneStatefulRelease01: this.avPlaneStatefulReleaseEnabled() ? 1 : 0,
       avPlaneDescentRiseTauSec: this.avPlaneDescentRiseTauSec(),
       avPlaneDescentReleaseTauSec: this.avPlaneDescentReleaseTauSec(),
+      avPlaneDescentReleaseInletOpenHold: this.avPlaneDescentReleaseInletOpenHold(),
+      avPlaneDescentReleaseInletOpenThreshold: this.avPlaneDescentReleaseInletOpenThreshold(),
       lambda: geometry.lambda,
       lambdaWithoutAvPlane: geometryWithoutAvPlane.lambda,
       lambdaAvPlaneDelta: geometryWithoutAvPlane.lambda - geometry.lambda,
@@ -927,6 +937,14 @@ export class ActiveStressChamberModel implements ChamberModel {
     return Math.max(this.ap.avPlaneDescentReleaseTauSec ?? 0, 0);
   }
 
+  private avPlaneDescentReleaseInletOpenHold(): number {
+    return clamp(this.ap.avPlaneDescentReleaseInletOpenHold ?? 0, 0, 1);
+  }
+
+  private avPlaneDescentReleaseInletOpenThreshold(): number {
+    return clamp(this.ap.avPlaneDescentReleaseInletOpenThreshold ?? 0.15, 0, 1);
+  }
+
   private avPlaneDescentStateDot(internal: ChamberInternal, ctx: ChamberCtx): number {
     const current = clamp(internal.r, 0, 1);
     const target = this.avPlaneTargetDescent01(ctx);
@@ -936,7 +954,13 @@ export class ActiveStressChamberModel implements ChamberModel {
     const raw = (target - current) / tau;
     const maxRise = Math.max(this.ap.avPlaneDescentMaxRiseVelocity01PerSec ?? 24, 1);
     const maxRelease = Math.max(this.ap.avPlaneDescentMaxReleaseVelocity01PerSec ?? 12, 1);
-    return clamp(raw, -maxRelease, maxRise);
+    if (raw >= 0) return clamp(raw, -maxRelease, maxRise);
+    const inletOpen = clamp(this.inletValveOpen01(ctx) ?? 0, 0, 1);
+    const threshold = this.avPlaneDescentReleaseInletOpenThreshold();
+    const hold = this.avPlaneDescentReleaseInletOpenHold();
+    const openGate = threshold >= 1 ? 0 : clamp((inletOpen - threshold) / Math.max(1 - threshold, 1e-6), 0, 1);
+    const releaseScale = clamp(1 - hold * openGate, 0, 1);
+    return clamp(raw * releaseScale, -maxRelease, maxRise);
   }
 
   private sleevePressure(VResMl: number, qMl: number): number {
