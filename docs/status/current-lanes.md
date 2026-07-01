@@ -1235,6 +1235,22 @@ advances the current lane. They are evidence anchors, not current gates.
    be a stateful AV valve pressure-flow/area/momentum contract, not more
    projection, deadband, qDot, root/Zc, Tref, source-stress, or LandAtrial
    tuning.
+   Phase 5DM records
+   `av-valve-boundary-contract-v2-phase5dm-result-v1`, an off-by-default
+   stateful AV valve pressure-flow/loss/inertance contract that changes the
+   accepted-boundary flow equation itself rather than post-projecting `q`.
+   It confirms that the forward-momentum/area-memory lead is real but not a
+   morphology acceptance path. Under the strict Phase 5DL morphology V1.1 gate,
+   the baseline inlet-held pressure-flow frontier remains gross 0/8 (LV PV
+   1/8, RV PV 3/8, MVF 6/8, TVF 4/8, output 7/8), while the best V2 candidate
+   (`stateful-v2-tv-loss12-inertance4`) remains gross 0/8 but improves AV
+   inflow to MVF 7/8 and TVF 7/8 with bounded measurable TV V2 duty
+   (`max duty ~0.035`, `max lossScale ~9.14`). This is component evidence for
+   stateful valve pressure-flow ownership, not adoption: the PV dome/rebound
+   blocker still dominates, pressure timing still fails, and LandAtrial tuning
+   remains locked. The next model phase should preserve this AV inflow lead but
+   move to the systolic PV dome side of the same chamber/load contract, rather
+   than adding more AV projection/deadband/scalar guards.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, bounded pressure-gain capping,
