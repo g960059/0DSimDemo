@@ -70,8 +70,11 @@ Next gates:
    left-heart strategic smoke.
 4. Gate B smoke: LeftHeartSubsystemV1 is mixed, not adoption evidence. Normal
    HR75 passes, LV PV shape is 7/7 OK, but the broad 7-point envelope is only
-   1/7 pass with MVF/output failures. This is a good enough signal for targeted
-   left-heart attribution, not broad MechanicsCore2 investment.
+   1/7 pass.
+5. Gate B attribution signal: replacing fixed pulmonary venous inflow with a
+   pressure-flow boundary preserved normal HR75 and LV PV 7/7 while improving
+   MVF OK 1->2 and output OK 2->4. This is still attribution-only evidence,
+   not broad MechanicsCore2 investment.
 
 Parallel prep, not blocking the next strategic gate:
 

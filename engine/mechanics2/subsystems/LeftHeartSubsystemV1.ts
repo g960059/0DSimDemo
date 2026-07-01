@@ -34,7 +34,8 @@ export type LeftHeartSubsystemParamsV1 = {
   readonly laAWaveMmHg: number;
   readonly laReferenceVolumeMl: number;
   readonly laComplianceMlPerMmHg: number;
-  readonly pulmonaryVenousInflowMlPerSec: number;
+  readonly pulmonaryVenousPressureMmHg: number;
+  readonly pulmonaryVenousResistanceMmHgSecPerMl: number;
   readonly rootInitialPressureMmHg: number;
   readonly rootComplianceMlPerMmHg: number;
   readonly rootOutResistanceMmHgSecPerMl: number;
@@ -65,6 +66,7 @@ export type LeftHeartSubsystemSampleV1 = {
   readonly rootPressureMmHg: number;
   readonly qMvMlPerSec: number;
   readonly qAovMlPerSec: number;
+  readonly qPulmonaryVenousMlPerSec: number;
   readonly mvOpen01: number;
   readonly aovOpen01: number;
   readonly lvChamber: OneFiberChamberOutputV1;
@@ -106,7 +108,8 @@ export function defaultLeftHeartSubsystemParamsV1(
     laAWaveMmHg: overrides.laAWaveMmHg ?? 2.2,
     laReferenceVolumeMl: overrides.laReferenceVolumeMl ?? 52,
     laComplianceMlPerMmHg: overrides.laComplianceMlPerMmHg ?? 7.5,
-    pulmonaryVenousInflowMlPerSec: overrides.pulmonaryVenousInflowMlPerSec ?? 65,
+    pulmonaryVenousPressureMmHg: overrides.pulmonaryVenousPressureMmHg ?? 14,
+    pulmonaryVenousResistanceMmHgSecPerMl: overrides.pulmonaryVenousResistanceMmHgSecPerMl ?? 0.085,
     rootInitialPressureMmHg: overrides.rootInitialPressureMmHg ?? 82,
     rootComplianceMlPerMmHg: overrides.rootComplianceMlPerMmHg ?? 2.6,
     rootOutResistanceMmHgSecPerMl: overrides.rootOutResistanceMmHgSecPerMl ?? 0.9,
@@ -119,7 +122,9 @@ export function defaultLeftHeartSubsystemParamsV1(
     mv: {
       ...DEFAULT_FLOW_STATE_VALVE_PARAMS_V1.MV,
       resistanceMmHgSecPerMl: 0.016,
+      inertanceMmHgSec2PerMl: 0.001,
       bernoulliMmHgSec2PerMl2: 1.6e-5,
+      tauCloseSec: 0.035,
       ...(overrides.mv ?? {}),
     },
     aov: {
@@ -174,10 +179,14 @@ export function runLeftHeartSubsystemV1(params: LeftHeartSubsystemParamsV1): Lef
       0,
       (state.rootPressureMmHg - params.rootDownstreamPressureMmHg) / Math.max(params.rootOutResistanceMmHgSecPerMl, 1e-9),
     );
+    const qPulmonaryVenousMlPerSec = Math.max(
+      0,
+      (params.pulmonaryVenousPressureMmHg - lapMmHg) / Math.max(params.pulmonaryVenousResistanceMmHgSecPerMl, 1e-9),
+    );
     const rawNextVolumeMl = state.lvVolumeMl + dtSec * (mv.qMlPerSec - aov.qMlPerSec);
     const nextVolumeMl = clamp(rawNextVolumeMl, params.minLvVolumeMl, params.maxLvVolumeMl);
     const volumeClampHit01 = nextVolumeMl === rawNextVolumeMl ? 0 : 1;
-    const rawNextLaVolumeMl = state.laVolumeMl + dtSec * (params.pulmonaryVenousInflowMlPerSec - mv.qMlPerSec);
+    const rawNextLaVolumeMl = state.laVolumeMl + dtSec * (qPulmonaryVenousMlPerSec - mv.qMlPerSec);
     const nextLaVolumeMl = clamp(rawNextLaVolumeMl, params.minLaVolumeMl, params.maxLaVolumeMl);
     const laVolumeClampHit01 = nextLaVolumeMl === rawNextLaVolumeMl ? 0 : 1;
     const rootPressureMmHg = Math.max(
@@ -186,7 +195,7 @@ export function runLeftHeartSubsystemV1(params: LeftHeartSubsystemParamsV1): Lef
     );
     const massResidualMl =
       (nextVolumeMl - state.lvVolumeMl) - dtSec * (mv.qMlPerSec - aov.qMlPerSec)
-      + (nextLaVolumeMl - state.laVolumeMl) - dtSec * (params.pulmonaryVenousInflowMlPerSec - mv.qMlPerSec);
+      + (nextLaVolumeMl - state.laVolumeMl) - dtSec * (qPulmonaryVenousMlPerSec - mv.qMlPerSec);
     samples.push({
       tSec,
       beat,
@@ -198,6 +207,7 @@ export function runLeftHeartSubsystemV1(params: LeftHeartSubsystemParamsV1): Lef
       rootPressureMmHg: state.rootPressureMmHg,
       qMvMlPerSec: mv.qMlPerSec,
       qAovMlPerSec: aov.qMlPerSec,
+      qPulmonaryVenousMlPerSec,
       mvOpen01: mv.open01,
       aovOpen01: aov.open01,
       lvChamber,
