@@ -580,6 +580,18 @@ to 2/2 in both-stateful, LA-held, and both-held release variants, but TVF stays
 release holding as component evidence for MV-side transfer only; do not adopt it
 as runtime/default, do not unlock LandAtrial parameter tuning, and do not use it
 to claim atrial physiology or official morphology.
+Phase 5CX records
+`tv-boundary-residual-focus-phase5cx-result-v1`, adding an off-by-default
+accepted-boundary adverse-gradient forward-flow scale diagnostic to test whether
+the remaining TVF failure after inlet-held AV-plane release is just coasting
+forward flow under adverse pressure gradient. It is a no-go over the same
+2-point smoke: accepted legacy is gross 2/2, both-held user0 baseline is gross
+1/2 with MVF 2/2 and TVF 1/2, and scale 0.25 plus scale 0 both remain gross
+1/2 with MVF 2/2 and TVF 1/2. Scale 0 removes the complementarity leak in the
+failed TV point but does not remove the accepted-boundary diode/qDot-classified
+extra TV wave. Do not continue scalar adverse-gradient braking; the residual
+needs a physical valve-state/pressure-flow contract rather than another limiter,
+qDot tweak, valve-threshold tune, or LandAtrial parameter change.
 
 ## Lane table
 
@@ -1030,6 +1042,12 @@ advances the current lane. They are evidence anchors, not current gates.
    gross 1/2 and MVF 2/2, but TVF remains 1/2 through accepted-boundary
    diode/qDot residuals. Carry the release-hold hook as component evidence, but
    do not treat it as a runtime/default or atrial-physiology path.
+   Phase 5CX then tests scalar adverse-gradient forward-flow braking inside the
+   accepted-boundary path and records it as exhausted: scale 0 removes the
+   measured complementarity leak in the failed TV point, but TVF still fails
+   1/2 through an accepted-boundary diode/qDot-classified extra wave. Do not
+   continue scalar braking/limiter variants; the next useful surface is a
+   physical valve-state/pressure-flow contract.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, bounded pressure-gain capping,
