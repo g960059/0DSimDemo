@@ -41,6 +41,8 @@ Current scope:
 - `benches/LeftHeartDynamicReserveContractBench.ts`: dynamic left-heart
   output-reserve contract surface with MV closure-state drive, high-pressure
   and stateful root runoff drive, and LA/LV split clamp readbacks.
+- `benches/RightHeartLowOutputContractBench.ts`: Gate C attribution scan for
+  right low-output phenotype, RV volume policy, and safety ownership.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
@@ -58,6 +60,7 @@ Planning docs:
 - [Left-heart pulmonary boundary contract V1](../../docs/mechanics2/left-heart-pulmonary-boundary-contract-v1.md)
 - [Left-heart output-reserve calibration V1](../../docs/mechanics2/left-heart-output-reserve-calibration-v1.md)
 - [Left-heart dynamic reserve contract V1](../../docs/mechanics2/left-heart-dynamic-reserve-contract-v1.md)
+- [Right-heart low-output contract V1](../../docs/mechanics2/right-heart-low-output-contract-v1.md)
 - [ADR-MYO-003](../../docs/myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 
 Claim boundary:
