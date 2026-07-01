@@ -33,11 +33,13 @@ equivalence.
 Current sidecar state: `PR-M2-0+1`, `PR-M2-2+3`, `PR-M2-4+5`, the
 left-heart fiber-timing attribution surface, and the first left-heart V2
 transaction architecture comparison, residual attribution, and semilunar/root
-outflow repair comparison are implemented.
+outflow repair and pulmonary-boundary/safety-suction comparisons are
+implemented.
 
-Next PR target: left-heart Gate B semilunar/root outflow ownership only. Do not
-start four-chamber work or LandAtrial re-entry until output-reserve
-acceptance/recalibration and the high-contractility MVF kink/clamp are resolved.
+Next PR target: left-heart Gate B output-reserve calibration from the
+lower-bound safety suction plus semilunar/load signal. Do not start
+four-chamber work or LandAtrial re-entry until output reserve and high-drive MVF
+remain clean on the broad left-heart envelope.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -61,6 +63,8 @@ Included:
   afterload-high, contractility-low, and contractility-high residuals.
 - LeftHeartOutflowRepairBench V1 for semilunar/root variants with last-two-beat
   repeatability and `dt/2` sensitivity guards.
+- LeftHeartPulmonaryBoundaryContractBench V1 for finite pulmonary venous node
+  and lower-bound safety-suction/semilunar-load attribution.
 
 Excluded:
 
@@ -121,6 +125,11 @@ Next gates:
     remove large AoV beat alternans, but high-contractility still has MVF kink,
     `dt/2` instability, and clamp hits. This is repair-direction evidence only;
     it does not unlock runtime wiring, right-heart, four-chamber, or LandAtrial.
+12. Gate B boundary signal: finite pulmonary venous compliance-node variants
+    are broad no-go surfaces, while a high-drive component probe that suppresses
+    lower-bound safety suction and increases semilunar/root load makes
+    `left-heart-contractility-high` locally pass. This points next to broad
+    output-reserve calibration, not PV-node tuning or LandAtrial re-entry.
 
 Parallel prep, not blocking the next strategic gate:
 

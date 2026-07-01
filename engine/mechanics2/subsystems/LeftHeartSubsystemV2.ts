@@ -29,6 +29,7 @@ function clamp(value: number, min: number, max: number): number {
 
 export type LeftHeartTransactionModeV2 = "explicit-single" | "fixed-point";
 export type LeftHeartVolumeSafetyModeV2 = "hard-clamp" | "soft-pressure";
+export type PulmonaryVenousBoundaryModeV2 = "fixed-pressure" | "compliance-node";
 
 export type LeftHeartSubsystemParamsV2 = LeftHeartSubsystemParamsV1 & {
   readonly transactionMode: LeftHeartTransactionModeV2;
@@ -42,12 +43,20 @@ export type LeftHeartSubsystemParamsV2 = LeftHeartSubsystemParamsV1 & {
   readonly absoluteMaxLaVolumeMl: number;
   readonly lvSoftLimitGainMmHgPerMl: number;
   readonly laSoftLimitGainMmHgPerMl: number;
+  readonly lvLowerSoftLimitGainMmHgPerMl: number;
+  readonly laLowerSoftLimitGainMmHgPerMl: number;
+  readonly pulmonaryVenousBoundaryMode: PulmonaryVenousBoundaryModeV2;
+  readonly pulmonaryVenousInitialPressureMmHg: number;
+  readonly pulmonaryVenousSourcePressureMmHg: number;
+  readonly pulmonaryVenousSourceResistanceMmHgSecPerMl: number;
+  readonly pulmonaryVenousComplianceMlPerMmHg: number;
 };
 
 export type LeftHeartSubsystemStateV2 = {
   readonly laVolumeMl: number;
   readonly lvVolumeMl: number;
   readonly rootPressureMmHg: number;
+  readonly pulmonaryVenousPressureMmHg: number;
   readonly lv: OneFiberChamberStateV1;
   readonly mv: FlowStateValveStateV1;
   readonly aov: FlowStateValveStateV1;
@@ -70,9 +79,12 @@ export type LeftHeartSubsystemSampleV2 = {
   readonly lapSafetyMmHg: number;
   readonly rootPressureMmHg: number;
   readonly acceptedRootPressureMmHg: number;
+  readonly pulmonaryVenousPressureMmHg: number;
+  readonly acceptedPulmonaryVenousPressureMmHg: number;
   readonly qMvMlPerSec: number;
   readonly qAovMlPerSec: number;
   readonly qPulmonaryVenousMlPerSec: number;
+  readonly qPulmonaryVenousSourceMlPerSec: number;
   readonly mvOpen01: number;
   readonly aovOpen01: number;
   readonly lvChamber: OneFiberChamberOutputV1;
@@ -105,6 +117,7 @@ type CandidateV2 = {
   readonly laVolumeMl: number;
   readonly lvVolumeMl: number;
   readonly rootPressureMmHg: number;
+  readonly pulmonaryVenousPressureMmHg: number;
 };
 
 type AcceptedV2 = CandidateV2 & {
@@ -116,6 +129,7 @@ type AcceptedV2 = CandidateV2 & {
   readonly lvpRawMmHg: number;
   readonly lvpSafetyMmHg: number;
   readonly qPulmonaryVenousMlPerSec: number;
+  readonly qPulmonaryVenousSourceMlPerSec: number;
   readonly rootOutflowMlPerSec: number;
   readonly volumeClampHit01: 0 | 1;
 };
@@ -137,6 +151,21 @@ export function defaultLeftHeartSubsystemParamsV2(
     absoluteMaxLaVolumeMl: overrides.absoluteMaxLaVolumeMl ?? 180,
     lvSoftLimitGainMmHgPerMl: overrides.lvSoftLimitGainMmHgPerMl ?? 0.65,
     laSoftLimitGainMmHgPerMl: overrides.laSoftLimitGainMmHgPerMl ?? 0.35,
+    lvLowerSoftLimitGainMmHgPerMl: overrides.lvLowerSoftLimitGainMmHgPerMl
+      ?? overrides.lvSoftLimitGainMmHgPerMl
+      ?? 0.65,
+    laLowerSoftLimitGainMmHgPerMl: overrides.laLowerSoftLimitGainMmHgPerMl
+      ?? overrides.laSoftLimitGainMmHgPerMl
+      ?? 0.35,
+    pulmonaryVenousBoundaryMode: overrides.pulmonaryVenousBoundaryMode ?? "fixed-pressure",
+    pulmonaryVenousInitialPressureMmHg: overrides.pulmonaryVenousInitialPressureMmHg
+      ?? overrides.pulmonaryVenousPressureMmHg
+      ?? base.pulmonaryVenousPressureMmHg,
+    pulmonaryVenousSourcePressureMmHg: overrides.pulmonaryVenousSourcePressureMmHg
+      ?? overrides.pulmonaryVenousPressureMmHg
+      ?? base.pulmonaryVenousPressureMmHg,
+    pulmonaryVenousSourceResistanceMmHgSecPerMl: overrides.pulmonaryVenousSourceResistanceMmHgSecPerMl ?? 0.11,
+    pulmonaryVenousComplianceMlPerMmHg: overrides.pulmonaryVenousComplianceMlPerMmHg ?? 12,
   };
 }
 
@@ -148,6 +177,7 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
     laVolumeMl: params.initialLaVolumeMl,
     lvVolumeMl: params.initialLvVolumeMl,
     rootPressureMmHg: params.rootInitialPressureMmHg,
+    pulmonaryVenousPressureMmHg: params.pulmonaryVenousInitialPressureMmHg,
     lv: initialOneFiberChamberStateV1(params.initialLvVolumeMl, params.lv),
     mv: initialFlowStateValveStateV1(),
     aov: initialFlowStateValveStateV1(),
@@ -159,7 +189,12 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
     const beat = Math.floor(tSec / cycleLengthSec);
     const theta = (tSec - beat * cycleLengthSec) / cycleLengthSec;
     const activationTimeSec = beat * cycleLengthSec + 0.13 * cycleLengthSec;
-    const previousVolumes = { laVolumeMl: state.laVolumeMl, lvVolumeMl: state.lvVolumeMl, rootPressureMmHg: state.rootPressureMmHg };
+    const previousVolumes = {
+      laVolumeMl: state.laVolumeMl,
+      lvVolumeMl: state.lvVolumeMl,
+      rootPressureMmHg: state.rootPressureMmHg,
+      pulmonaryVenousPressureMmHg: state.pulmonaryVenousPressureMmHg,
+    };
     const initialCandidate = previousVolumes;
     const result = runMechanicsFixedPointTransactionV2(
       initialCandidate,
@@ -185,11 +220,17 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
         accepted.laVolumeMl - candidate.laVolumeMl,
         accepted.lvVolumeMl - candidate.lvVolumeMl,
         accepted.rootPressureMmHg - candidate.rootPressureMmHg,
+        accepted.pulmonaryVenousPressureMmHg - candidate.pulmonaryVenousPressureMmHg,
       ]),
       (candidate, accepted, relaxation) => ({
         laVolumeMl: lerpV2(candidate.laVolumeMl, accepted.laVolumeMl, relaxation),
         lvVolumeMl: lerpV2(candidate.lvVolumeMl, accepted.lvVolumeMl, relaxation),
         rootPressureMmHg: lerpV2(candidate.rootPressureMmHg, accepted.rootPressureMmHg, relaxation),
+        pulmonaryVenousPressureMmHg: lerpV2(
+          candidate.pulmonaryVenousPressureMmHg,
+          accepted.pulmonaryVenousPressureMmHg,
+          relaxation,
+        ),
       }),
     );
     const accepted = result.accepted;
@@ -212,9 +253,12 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
       lapSafetyMmHg: accepted.lapSafetyMmHg,
       rootPressureMmHg: state.rootPressureMmHg,
       acceptedRootPressureMmHg: accepted.rootPressureMmHg,
+      pulmonaryVenousPressureMmHg: state.pulmonaryVenousPressureMmHg,
+      acceptedPulmonaryVenousPressureMmHg: accepted.pulmonaryVenousPressureMmHg,
       qMvMlPerSec: accepted.mv.qMlPerSec,
       qAovMlPerSec: accepted.aov.qMlPerSec,
       qPulmonaryVenousMlPerSec: accepted.qPulmonaryVenousMlPerSec,
+      qPulmonaryVenousSourceMlPerSec: accepted.qPulmonaryVenousSourceMlPerSec,
       mvOpen01: accepted.mv.open01,
       aovOpen01: accepted.aov.open01,
       lvChamber: accepted.lvChamber,
@@ -232,6 +276,7 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
       laVolumeMl: accepted.laVolumeMl,
       lvVolumeMl: accepted.lvVolumeMl,
       rootPressureMmHg: accepted.rootPressureMmHg,
+      pulmonaryVenousPressureMmHg: accepted.pulmonaryVenousPressureMmHg,
       lv: accepted.lvChamber.state,
       mv: accepted.mv.state,
       aov: accepted.aov.state,
@@ -270,6 +315,7 @@ function acceptLeftHeartCandidateV2(input: {
     input.params.minLaVolumeMl,
     input.params.maxLaVolumeMl,
     input.params.laSoftLimitGainMmHgPerMl,
+    input.params.laLowerSoftLimitGainMmHgPerMl,
     input.params.volumeSafetyMode,
   );
   const lvpSafetyMmHg = safetyPressureMmHg(
@@ -277,6 +323,7 @@ function acceptLeftHeartCandidateV2(input: {
     input.params.minLvVolumeMl,
     input.params.maxLvVolumeMl,
     input.params.lvSoftLimitGainMmHgPerMl,
+    input.params.lvLowerSoftLimitGainMmHgPerMl,
     input.params.volumeSafetyMode,
   );
   const lapMmHg = lapRawMmHg + lapSafetyMmHg;
@@ -296,11 +343,8 @@ function acceptLeftHeartCandidateV2(input: {
     (input.candidate.rootPressureMmHg - input.params.rootDownstreamPressureMmHg)
       / Math.max(input.params.rootOutResistanceMmHgSecPerMl, 1e-9),
   );
-  const qPulmonaryVenousMlPerSec = Math.max(
-    0,
-    (input.params.pulmonaryVenousPressureMmHg - lapMmHg)
-      / Math.max(input.params.pulmonaryVenousResistanceMmHgSecPerMl, 1e-9),
-  );
+  const pulmonaryBoundary = pulmonaryVenousBoundaryV2(input.previous, input.candidate, lapMmHg, input.dtSec, input.params);
+  const qPulmonaryVenousMlPerSec = pulmonaryBoundary.qPulmonaryVenousMlPerSec;
   const rawNextLvVolumeMl = input.previous.lvVolumeMl + input.dtSec * (mv.qMlPerSec - aov.qMlPerSec);
   const rawNextLaVolumeMl = input.previous.laVolumeMl + input.dtSec * (qPulmonaryVenousMlPerSec - mv.qMlPerSec);
   const rootPressureMmHg = Math.max(
@@ -312,6 +356,7 @@ function acceptLeftHeartCandidateV2(input: {
   return {
     ...bounded,
     rootPressureMmHg,
+    pulmonaryVenousPressureMmHg: pulmonaryBoundary.pulmonaryVenousPressureMmHg,
     lvChamber,
     mv,
     aov,
@@ -320,7 +365,53 @@ function acceptLeftHeartCandidateV2(input: {
     lvpRawMmHg: lvChamber.pressureRawMmHg,
     lvpSafetyMmHg,
     qPulmonaryVenousMlPerSec,
+    qPulmonaryVenousSourceMlPerSec: pulmonaryBoundary.qPulmonaryVenousSourceMlPerSec,
     rootOutflowMlPerSec,
+  };
+}
+
+function pulmonaryVenousBoundaryV2(
+  previous: CandidateV2,
+  candidate: CandidateV2,
+  lapMmHg: number,
+  dtSec: number,
+  params: LeftHeartSubsystemParamsV2,
+): {
+  readonly pulmonaryVenousPressureMmHg: number;
+  readonly qPulmonaryVenousMlPerSec: number;
+  readonly qPulmonaryVenousSourceMlPerSec: number;
+} {
+  if (params.pulmonaryVenousBoundaryMode === "fixed-pressure") {
+    const pressure = params.pulmonaryVenousPressureMmHg;
+    return {
+      pulmonaryVenousPressureMmHg: pressure,
+      qPulmonaryVenousMlPerSec: Math.max(
+        0,
+        (pressure - lapMmHg) / Math.max(params.pulmonaryVenousResistanceMmHgSecPerMl, 1e-9),
+      ),
+      qPulmonaryVenousSourceMlPerSec: 0,
+    };
+  }
+  const candidatePressure = Math.max(0, candidate.pulmonaryVenousPressureMmHg);
+  const qPulmonaryVenousSourceMlPerSec = Math.max(
+    0,
+    (params.pulmonaryVenousSourcePressureMmHg - candidatePressure)
+      / Math.max(params.pulmonaryVenousSourceResistanceMmHgSecPerMl, 1e-9),
+  );
+  const qPulmonaryVenousMlPerSec = Math.max(
+    0,
+    (candidatePressure - lapMmHg) / Math.max(params.pulmonaryVenousResistanceMmHgSecPerMl, 1e-9),
+  );
+  const pulmonaryVenousPressureMmHg = Math.max(
+    0,
+    previous.pulmonaryVenousPressureMmHg
+      + dtSec * (qPulmonaryVenousSourceMlPerSec - qPulmonaryVenousMlPerSec)
+      / Math.max(params.pulmonaryVenousComplianceMlPerMmHg, 1e-9),
+  );
+  return {
+    pulmonaryVenousPressureMmHg,
+    qPulmonaryVenousMlPerSec,
+    qPulmonaryVenousSourceMlPerSec,
   };
 }
 
@@ -346,12 +437,13 @@ function safetyPressureMmHg(
   volumeMl: number,
   minVolumeMl: number,
   maxVolumeMl: number,
-  gainMmHgPerMl: number,
+  upperGainMmHgPerMl: number,
+  lowerGainMmHgPerMl: number,
   mode: LeftHeartVolumeSafetyModeV2,
 ): number {
   if (mode !== "soft-pressure") return 0;
-  if (volumeMl > maxVolumeMl) return gainMmHgPerMl * (volumeMl - maxVolumeMl);
-  if (volumeMl < minVolumeMl) return -gainMmHgPerMl * (minVolumeMl - volumeMl);
+  if (volumeMl > maxVolumeMl) return upperGainMmHgPerMl * (volumeMl - maxVolumeMl);
+  if (volumeMl < minVolumeMl) return -lowerGainMmHgPerMl * (minVolumeMl - volumeMl);
   return 0;
 }
 
