@@ -37,13 +37,13 @@ outflow repair, pulmonary-boundary/safety-suction comparisons,
 output-reserve calibration and dynamic reserve contract comparisons, paired
 left/right smoke, source-pressure bridge smoke, reservoir-ledger bridge smoke,
 same-profile reservoir-solver bridge smoke, and reservoir-solver attribution
-are implemented.
+are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
+four-chamber assembly contract, assembly smoke, and first epoch-level
+four-chamber subsystem smoke are also implemented.
 
-Next PR target: build a stateful reservoir / mass-ledger contract after
-attribution showed that the same-profile scalar solver is diagnostic-only. Do
-not start four-chamber work or LandAtrial re-entry from isolated, paired,
-source-pressure, black-box reservoir, same-profile reservoir-solver, or
-scalar-attribution evidence alone.
+Next PR target: time-domain four-chamber subsystem residual/numerics review.
+Do not start runtime wiring, AV-plane work, or LandAtrial re-entry from the
+subsystem smoke alone.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -89,6 +89,8 @@ Included:
   solves between the passed left/right surfaces.
 - ReservoirSolverAttributionBench V1 for `contractility-low` residual and
   large accepted transfer classification.
+- FourChamberSubsystemV1 and FourChamberSubsystemSmokeBench V1 for the first
+  epoch-level sidecar four-chamber subsystem smoke.
 
 Excluded:
 
@@ -315,6 +317,12 @@ Next gates:
     ~5.1 mL, max accepted transfer ~1.8 mL, and max reservoir volume ~19.5 mL.
     This still does not unlock runtime/default work, AV-plane, LandAtrial, or
     morphology acceptance.
+31. Four-chamber subsystem smoke: the first epoch-level sidecar subsystem runs
+    the selected and center scaffolds through `FourChamberSubsystemV1` and
+    passes 2/2. The selected best-neighborhood scaffold keeps mean forward
+    mismatch ~5.1 mL, max accepted transfer ~1.8 mL, and max reservoir volume
+    ~19.5 mL. This unlocks only subsystem residual/numerics review; runtime,
+    AV-plane, LandAtrial, and morphology acceptance remain blocked.
 
 Parallel prep, not blocking the next strategic gate:
 
