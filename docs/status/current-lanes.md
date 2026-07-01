@@ -1326,6 +1326,19 @@ advances the current lane. They are evidence anchors, not current gates.
    accepted chamber volume, pressure, Land source-state commit, AV and
    semilunar valve state/flow/loss/inertance, and adjacent load response in the
    same physical step.
+   Phase 5DR records `chamber-valve-load-architecture-phase5dr-result-v1`, a
+   first accepted-volume chamber/valve/load architecture smoke. The hook treats
+   ventricular accepted volume as the local unknown and recomputes chamber
+   pressure plus inlet/outlet valve flow at that projected volume, optionally
+   combined with the AV/semilunar V2 valve-law leads. This produces only a
+   partial signal, not adoption evidence: baseline remains gross 0/2
+   (LV/RV/MVF/TVF 0/2,1/2,2/2,1/2), and the best accepted-volume+AV/semilunar
+   V2 candidate remains gross 0/2 with only LV PV improving to 1/2 while mean
+   LV positive curvature worsens (`0.408069` vs baseline `0.293269`). Do not
+   call this a good signal. Per owner instruction, if the next model PR cannot
+   produce a strict-morphology gross frontier improvement or another clearly
+   owner-visible non-gaming signal, pause forward model development rather than
+   continuing more patch-like phases.
 2. Land plus sourced root/Zc is now the user-0 staged all-chamber runtime
    default after owner GO through Phase 5BK. Do not delete legacy active-stress
    yet; keep it as frozen reference, debug fallback, and rollback while
