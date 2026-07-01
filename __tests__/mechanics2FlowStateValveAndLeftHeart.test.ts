@@ -56,12 +56,12 @@ describe("MechanicsCore2 FlowStateValve and left-heart strategic smoke", () => {
     const report = runLeftHeartSubsystemStrategicSmokeV1();
     expect(report.summary).toMatchObject({
       total: 7,
-      pass: 3,
-      fail: 4,
+      pass: 4,
+      fail: 3,
       inconclusive: 0,
       lvPvOkCount: 7,
-      mvfOkCount: 3,
-      outputOkCount: 6,
+      mvfOkCount: 5,
+      outputOkCount: 5,
     });
     expect(report.decision.strategicSignal).toBe("inconclusive");
     expect(report.claimBoundary.runtimeWiring).toBe(false);

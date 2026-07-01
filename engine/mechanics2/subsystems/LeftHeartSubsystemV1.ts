@@ -120,7 +120,14 @@ export function defaultLeftHeartSubsystemParamsV1(
     rootDownstreamPressureMmHg: overrides.rootDownstreamPressureMmHg ?? 75,
     lv: {
       ...lvBase,
-      fiber: { ...lvBase.fiber, passiveStiffnessPa: 360_000, passiveSlackNorm: 0.96 },
+      fiber: {
+        ...lvBase.fiber,
+        passiveStiffnessPa: 360_000,
+        passiveSlackNorm: 0.96,
+        activationFallTauSec: 0.075,
+        lSiFollowTauSec: 0.055,
+        activeShorteningVelocityNormPerSec: 0.055,
+      },
       ...(overrides.lv ?? {}),
     },
     mv: {
