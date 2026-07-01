@@ -17,11 +17,11 @@ FlowStateValveV1 passes the isolated prescribed-gradient MV/TV fixture set:
 
 LeftHeartSubsystemV1 is a mixed strategic smoke:
 
-- 2/7 pass on the representative sidecar envelope
+- 3/7 pass on the representative sidecar envelope
 - 7/7 LV PV shape OK
-- 2/7 MVF OK
+- 3/7 MVF OK
 - 6/7 output OK
-- Normal HR75 and preload-high pass all deterministic smoke checks
+- Normal HR75, preload-high, and afterload-high pass all deterministic smoke checks
 - Broad preload/HR/afterload/contractility envelope remains failed
 
 ## Interpretation

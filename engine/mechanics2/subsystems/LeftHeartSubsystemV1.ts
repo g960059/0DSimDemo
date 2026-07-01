@@ -32,6 +32,8 @@ export type LeftHeartSubsystemParamsV1 = {
   readonly maxLvVolumeMl: number;
   readonly laPressureBaselineMmHg: number;
   readonly laAWaveMmHg: number;
+  readonly laAWaveStartTheta: number;
+  readonly laAWaveEndTheta: number;
   readonly laReferenceVolumeMl: number;
   readonly laComplianceMlPerMmHg: number;
   readonly pulmonaryVenousPressureMmHg: number;
@@ -106,6 +108,8 @@ export function defaultLeftHeartSubsystemParamsV1(
     maxLvVolumeMl: overrides.maxLvVolumeMl ?? 190,
     laPressureBaselineMmHg: overrides.laPressureBaselineMmHg ?? 8,
     laAWaveMmHg: overrides.laAWaveMmHg ?? 2.2,
+    laAWaveStartTheta: overrides.laAWaveStartTheta ?? 0.86,
+    laAWaveEndTheta: overrides.laAWaveEndTheta ?? 0.98,
     laReferenceVolumeMl: overrides.laReferenceVolumeMl ?? 52,
     laComplianceMlPerMmHg: overrides.laComplianceMlPerMmHg ?? 7.5,
     pulmonaryVenousPressureMmHg: overrides.pulmonaryVenousPressureMmHg ?? 14,
@@ -235,7 +239,7 @@ export function runLeftHeartSubsystemV1(params: LeftHeartSubsystemParamsV1): Lef
 function leftAtrialPressure(theta: number, laVolumeMl: number, params: LeftHeartSubsystemParamsV1): number {
   return params.laPressureBaselineMmHg
     + (laVolumeMl - params.laReferenceVolumeMl) / Math.max(params.laComplianceMlPerMmHg, 1e-9)
-    + params.laAWaveMmHg * raisedCosineWindow(theta, 0.82, 0.98);
+    + params.laAWaveMmHg * raisedCosineWindow(theta, params.laAWaveStartTheta, params.laAWaveEndTheta);
 }
 
 function raisedCosineWindow(theta: number, start: number, end: number): number {
