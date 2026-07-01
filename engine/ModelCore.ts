@@ -4618,16 +4618,25 @@ export class ModelCore {
       if (!active) continue;
       x[active.c] = clamp(x[active.c], 0, 5);
       x[active.a] = clamp(x[active.a], 0, 1);
-      x[active.r] = clamp(x[active.r], 0, this.maxReservoirStrokeForInternal(active));
+      x[active.r] = clamp(x[active.r], 0, this.maxActiveInternalRForInternal(active));
       x[active.tensionPa] = clamp(x[active.tensionPa], 0, 500000);
       x[active.lambdaAct] = clamp(x[active.lambdaAct], 0.25, 2.5);
     }
   }
 
-  private maxReservoirStrokeForInternal(active: { c: number; a: number; r: number; tensionPa: number; lambdaAct: number }): number {
+  private maxActiveInternalRForInternal(active: { c: number; a: number; r: number; tensionPa: number; lambdaAct: number }): number {
     for (const [ch, idx] of Object.entries(this.idx.activeInternal) as [Chamber, { c: number; a: number; r: number; tensionPa: number; lambdaAct: number }][]) {
       if (idx?.r !== active.r) continue;
-      return Math.max(this.activeModels[ch]?.ap.reservoirStrokeMl ?? 0, 0);
+      const ap = this.activeModels[ch]?.ap;
+      if (!ap) return 0;
+      const reservoirStroke = Math.max(ap.reservoirStrokeMl ?? 0, 0);
+      const reservoirGain = Math.max(ap.reservoirBranchGain ?? 0, 0);
+      const statefulAvPlaneRelease = Math.max(ap.avPlaneGainMl ?? 0, 0) > 0
+        && reservoirStroke <= 0
+        && reservoirGain <= 0
+        && (Math.max(ap.avPlaneDescentRiseTauSec ?? 0, 0) > 0
+          || Math.max(ap.avPlaneDescentReleaseTauSec ?? 0, 0) > 0);
+      return statefulAvPlaneRelease ? 1 : reservoirStroke;
     }
     return 0;
   }

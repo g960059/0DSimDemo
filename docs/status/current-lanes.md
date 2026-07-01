@@ -1087,6 +1087,22 @@ advances the current lane. They are evidence anchors, not current gates.
    is not an instantaneous diode/qDot event or static RA AV-plane release; it
    is a mid-diastolic pressure-flow coasting/energy-consistency problem in the
    right AV valve/load contract.
+   Phase 5DB fixes the stateful LandAtrial AV-plane release hygiene gap: atrial
+   `internal.r` is shared by reservoir-branch volume state and stateful
+   AV-plane descent fraction, but `sanitizeState()` had clamped it with the
+   reservoir-stroke upper bound even when reservoir-branch mode was disabled.
+   With current LandAtrial reservoir stroke zero, the Phase 5CV/5CW stateful
+   descent coordinate was therefore clamped to zero every step. The fix uses a
+   0..1 upper bound only for non-reservoir stateful AV-plane release, preserves
+   the reservoir-branch bound otherwise, and records
+   `avplane-state-hygiene-phase5db-result-v1`: pressure-flow and
+   accepted-complementarity stateful inlet-held variants both measure 2/2
+   settled/health-ok points with LA/RA stateful flag 2/2, nonzero LA/RA
+   descent/correction 2/2, and requested/effective mismatch 0. Therefore the
+   Phase 5DA zero RA AV-plane correction in the failed TVF extra-wave window is
+   local coasting/timing evidence, not a global state persistence/readback
+   failure. This does not unlock LandAtrial tuning or atrial physiology
+   acceptance.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, bounded pressure-gain capping,
