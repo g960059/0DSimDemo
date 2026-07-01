@@ -159,7 +159,8 @@ function ventricularPvLoopCheck(samples: readonly SimSample[], side: Ventricular
   const ejectionTroughCount = prominentExtremaCount(ejection, pressureKey, "min", prominence);
   const ejectionRoughness = totalVariation(ejection.map((sample) => sample[pressureKey])) / Math.max(pressureSpan, 1e-6);
   const domeShape = systolicDomeShape(ejection, pressureKey, volumeKey, side);
-  const domeOk = ejectionPeakCount <= 1
+  const domeOk = domeShape.evaluable
+    && ejectionPeakCount <= 1
     && ejectionTroughCount === 0
     && ejectionRoughness < 2.4
     && domeShape.lateReboundMmHg <= domeShape.lateReboundLimitMmHg
@@ -186,6 +187,9 @@ function ventricularPvLoopCheck(samples: readonly SimSample[], side: Ventricular
       ejectionPositiveCurvatureFraction: round(domeShape.positiveCurvatureFraction),
       ejectionPositiveCurvatureLimit: round(domeShape.positiveCurvatureLimit),
       ejectionDomeCoreSampleCount: domeShape.coreSampleCount,
+      ejectionDomeEvaluable: domeShape.evaluable ? 1 : 0,
+      ejectionDomePrimaryPeakU: Number.isFinite(domeShape.primaryPeakU) ? round(domeShape.primaryPeakU) : null,
+      ejectionDomePostPeakSampleCount: domeShape.postPeakSampleCount,
       pressureSpan: round(pressureSpan),
       volumeSpan: round(volumeSpan),
     },
@@ -347,7 +351,10 @@ function atrioventricularDelayCheck(samples: readonly SimSample[], side: AtrialS
 }
 
 type DomeShapeMetrics = {
+  readonly evaluable: boolean;
   readonly coreSampleCount: number;
+  readonly primaryPeakU: number;
+  readonly postPeakSampleCount: number;
   readonly lateReboundMmHg: number;
   readonly lateReboundLimitMmHg: number;
   readonly lateReboundFraction: number;
@@ -394,11 +401,7 @@ function valveWaveKinkScore(
   const peakIndex = nearestPhaseIndex(samples, peak.theta);
   if (peakIndex == null) return { score: null, sampleCount: 0 };
   const threshold = Math.max(8, peak.value * 0.08);
-  let start = peakIndex;
-  while (start > 0 && samples[start - 1][key] > threshold) start--;
-  let end = peakIndex;
-  while (end < samples.length - 1 && samples[end + 1][key] > threshold) end++;
-  const segment = samples.slice(start, end + 1).map((sample) => sample[key]);
+  const segment = circularValveWaveSegment(samples, key, peakIndex, threshold);
   if (segment.length < 7) return { score: null, sampleCount: segment.length };
   const resampled = resampleSeries(segment, 25);
   const smoothed = smoothNumericSeries(resampled);
@@ -416,6 +419,33 @@ function valveWaveKinkScore(
   const averageSlope = totalSlope / Math.max(normalized.length - 1, 1);
   const score = maxSlopeJump / Math.max(averageSlope, 0.025);
   return { score, sampleCount: segment.length };
+}
+
+function circularValveWaveSegment(
+  samples: readonly SimSample[],
+  key: "QMV" | "QTV",
+  peakIndex: number,
+  threshold: number,
+): readonly number[] {
+  if (samples.length === 0) return [];
+  let left = 0;
+  while (left < samples.length - 1) {
+    const index = (peakIndex - left - 1 + samples.length) % samples.length;
+    if (samples[index][key] <= threshold) break;
+    left++;
+  }
+  let right = 0;
+  while (left + right < samples.length - 1) {
+    const index = (peakIndex + right + 1) % samples.length;
+    if (samples[index][key] <= threshold) break;
+    right++;
+  }
+  const segment: number[] = [];
+  for (let offset = -left; offset <= right; offset++) {
+    const index = (peakIndex + offset + samples.length) % samples.length;
+    segment.push(samples[index][key]);
+  }
+  return segment;
 }
 
 function nearestPhaseIndex(samples: readonly SimSample[], theta: number): number | null {
@@ -476,7 +506,10 @@ function systolicDomeShape(
 
   if (ejectedVolume < 1e-6 || ejection.length < 10 || pressureSpan < 1e-6) {
     return {
+      evaluable: false,
       coreSampleCount: 0,
+      primaryPeakU: Number.NaN,
+      postPeakSampleCount: 0,
       lateReboundMmHg: 0,
       lateReboundLimitMmHg,
       lateReboundFraction: 0,
@@ -495,7 +528,10 @@ function systolicDomeShape(
 
   if (core.length < 8) {
     return {
+      evaluable: false,
       coreSampleCount: core.length,
+      primaryPeakU: Number.NaN,
+      postPeakSampleCount: 0,
       lateReboundMmHg: 0,
       lateReboundLimitMmHg,
       lateReboundFraction: 0,
@@ -505,10 +541,16 @@ function systolicDomeShape(
   }
 
   const smoothed = smoothPressureByU(core);
+  const primaryPeakIndex = smoothed.reduce(
+    (bestIndex, point, index) => point.p > smoothed[bestIndex].p ? index : bestIndex,
+    0,
+  );
+  const primaryPeakU = smoothed[primaryPeakIndex].u;
+  const postPeakSampleCount = smoothed.slice(primaryPeakIndex + 1).filter((point) => point.u <= 0.92).length;
   let lateReboundMmHg = 0;
-  for (let i = 0; i < smoothed.length - 2; i++) {
+  for (let i = primaryPeakIndex + 1; i < smoothed.length - 2; i++) {
     const point = smoothed[i];
-    if (point.u < 0.28 || point.u > 0.82) continue;
+    if (point.u < primaryPeakU + 0.03 || point.u > 0.86) continue;
     const later = smoothed.slice(i + 1).filter((candidate) => candidate.u >= point.u + 0.08 && candidate.u <= 0.92);
     if (later.length === 0) continue;
     const postMax = Math.max(...later.map((candidate) => candidate.p));
@@ -520,14 +562,18 @@ function systolicDomeShape(
   let totalCurvature = 0;
   const curvatureEpsilon = 0.004 * pressureSpan;
   for (let i = 1; i < resampled.length - 1; i++) {
-    const secondDiff = resampled[i + 1] - 2 * resampled[i] + resampled[i - 1];
+    if (resampled[i].u <= primaryPeakU + 0.03) continue;
+    const secondDiff = resampled[i + 1].p - 2 * resampled[i].p + resampled[i - 1].p;
     totalCurvature += Math.abs(secondDiff);
     positiveCurvature += Math.max(0, secondDiff - curvatureEpsilon);
   }
   const positiveCurvatureFraction = positiveCurvature / Math.max(totalCurvature, pressureSpan, 1e-6);
 
   return {
+    evaluable: postPeakSampleCount >= 4,
     coreSampleCount: core.length,
+    primaryPeakU,
+    postPeakSampleCount,
     lateReboundMmHg: Math.max(0, lateReboundMmHg),
     lateReboundLimitMmHg,
     lateReboundFraction: Math.max(0, lateReboundMmHg) / Math.max(pressureSpan, 1e-6),
@@ -548,12 +594,15 @@ function smoothPressureByU(points: readonly { readonly u: number; readonly p: nu
   });
 }
 
-function resamplePressure(points: readonly { readonly u: number; readonly p: number }[], count: number): readonly number[] {
+function resamplePressure(
+  points: readonly { readonly u: number; readonly p: number }[],
+  count: number,
+): readonly { readonly u: number; readonly p: number }[] {
   if (points.length === 0) return [];
-  const out: number[] = [];
+  const out: { u: number; p: number }[] = [];
   for (let i = 0; i < count; i++) {
     const target = 0.08 + (0.84 * i) / Math.max(count - 1, 1);
-    out.push(interpolatedPressure(points, target));
+    out.push({ u: target, p: interpolatedPressure(points, target) });
   }
   return out;
 }

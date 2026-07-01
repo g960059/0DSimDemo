@@ -294,6 +294,30 @@ describe("fitting/verification mode foundation", () => {
     expect(kink as number).toBeGreaterThan(limit as number);
   });
 
+  it("checks AV inflow wave shape across the beat boundary", () => {
+    const report = runVerification(DEFAULT_PARAMS, {
+      profile: "verifyAccurate",
+      gateSet: "normalBaseline",
+      now: new Date("2026-06-05T00:00:00.000Z"),
+    });
+    expect(report.measurement).not.toBeNull();
+    const wrappedA = report.measurement!.samples.map((sample) => {
+      const theta = sample.phi - Math.floor(sample.phi);
+      const circularDistance = Math.min(Math.abs(theta - 0.98), 1 - Math.abs(theta - 0.98));
+      const eWave = 220 * Math.exp(-0.5 * ((theta - 0.54) / 0.07) ** 2);
+      let aWave = 130 * Math.exp(-0.5 * (circularDistance / 0.035) ** 2);
+      if (theta >= 0.988 || theta < 0.020) aWave -= 125;
+      return { ...sample, QTV: Math.max(0, eWave + aWave) };
+    });
+
+    const morphology = morphologyCheckSummaryFromSamples(wrappedA);
+    const tvf = morphology.results.find((result) => result.id === "tvf");
+    expect(tvf?.status).toBe("failed");
+    expect(tvf?.metrics.aPeakTheta).toBeGreaterThan(0.95);
+    expect(tvf?.metrics.aWaveSampleCount).toBeGreaterThan(40);
+    expect(tvf?.metrics.extraPeakCount).toBeGreaterThan(0);
+  });
+
   it("detects early LA active-kick timing", () => {
     const report = runVerification(DEFAULT_PARAMS, {
       profile: "verifyAccurate",
