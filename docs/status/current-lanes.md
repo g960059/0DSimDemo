@@ -1206,6 +1206,19 @@ advances the current lane. They are evidence anchors, not current gates.
    acceptance. The next model surface must restore a visually acceptable LV/RV
    systolic dome under this stricter raw-trace gate before any forward-momentum
    or AV boundary contract can be considered for shadow/default adoption.
+   Phase 5DK records `av-inflow-kink-gate-phase5dk-result-v1`, promoting the
+   owner visual rejection of the Phase 5DI QTV projection into the standing AV
+   inflow checker. The old AV flow check counted diastolic E/A peaks but did
+   not score visible C1 breaks, so a kinked E-wave or forward-momentum plateau
+   could pass as biphasic. The updated checker adds wave-level kink/slope-jump
+   scoring. Rechecking the same Phase 5DI closure shows that the TV projection
+   is not an AV inflow acceptance path either: baseline is MVF 6/8 and TVF 4/8,
+   while projection is MVF 6/8 and TVF 3/8 with gross still 0/8. This preserves
+   the owner judgment that QTV baseline is visibly better than projection and
+   QMV remains not decided by this visual comparison. Do not formalize the
+   forward-momentum projection while it worsens TVF smoothness relative to the
+   baseline; the next AV boundary work must avoid creating C1-discontinuous
+   inflow waves, not merely remove the third peak.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, bounded pressure-gain capping,
