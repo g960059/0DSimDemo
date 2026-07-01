@@ -25,6 +25,10 @@ import {
   calciumScaledLand2017LaSourceOnlyProvider,
   createModelCoreLand2017LvSourceProviderInstrumentation,
 } from "@/engine/myocardium/modelCoreLand2017LvSourceProvider";
+import {
+  MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE,
+  resolveModelCoreRuntimeActiveSource,
+} from "@/engine/myocardium/runtimeActiveSource";
 import { LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET } from "@/engine/myocardium/myofilament/land2017";
 
 function lvCtx(phi: number): ChamberCtx {
@@ -79,6 +83,10 @@ function modelCoreSourceOnlyProvider(
     debugActiveStressTerms: ({ activeModel, volumeMl, internal, chamberCtx }) =>
       activeModel.debugActiveStressTerms(volumeMl, internal, chamberCtx),
   };
+}
+
+function objectOrEmpty(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
 describe("ActiveStressChamberModel source active-fiber pressure adapter", () => {
@@ -229,6 +237,51 @@ describe("ActiveStressChamberModel source active-fiber pressure adapter", () => 
     expect(geometry.wallVolumeMl).toBeLessThan(geometry.rawVolumeMl);
     expect(geometry.lambda).toBeLessThan(geometry.lambdaWithoutAvPlane);
     expect(noDescent.effectiveVolumeCorrectionMl).toBeCloseTo(0, 12);
+  });
+
+  it("preserves stateful AV-plane release state in ModelCore sanitization", () => {
+    const resolved = resolveModelCoreRuntimeActiveSource({
+      mode: MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE,
+      runtimeParams: DEFAULT_PARAMS,
+    });
+    const basePatch = resolved.experimentalOptions.runtimeParameterPatch ?? {};
+    const baseNodes = basePatch.nodeOverrides ?? {};
+    const activeOverride = {
+      avPlaneDescentRiseTauSec: 0.018,
+      avPlaneDescentReleaseTauSec: 0.140,
+      avPlaneDescentMaxRiseVelocity01PerSec: 24,
+      avPlaneDescentMaxReleaseVelocity01PerSec: 7,
+      avPlaneDescentReleaseInletOpenHold: 1,
+      avPlaneDescentReleaseInletOpenThreshold: 0.08,
+    };
+    const core = new ModelCore(DEFAULT_PARAMS, {
+      ...resolved.experimentalOptions,
+      runtimeParameterPatch: {
+        ...basePatch,
+        nodeOverrides: {
+          ...baseNodes,
+          LA: {
+            ...baseNodes.LA,
+            active: { ...objectOrEmpty(baseNodes.LA?.active), ...activeOverride },
+          },
+          RA: {
+            ...baseNodes.RA,
+            active: { ...objectOrEmpty(baseNodes.RA?.active), ...activeOverride },
+          },
+        },
+      },
+    });
+
+    const samples = core.runFor(1.2, 0.002, 120);
+    const maxFor = (key: "LAAvPlaneDescent01" | "RAAvPlaneDescent01" | "LAAvPlaneEffectiveVolumeCorrectionMl" | "RAAvPlaneEffectiveVolumeCorrectionMl") =>
+      Math.max(...samples.map((sample) => Number(sample[key])).filter(Number.isFinite));
+
+    expect(samples.some((sample) => Number(sample.LAAvPlaneStatefulRelease01) > 0.5)).toBe(true);
+    expect(samples.some((sample) => Number(sample.RAAvPlaneStatefulRelease01) > 0.5)).toBe(true);
+    expect(maxFor("LAAvPlaneDescent01")).toBeGreaterThan(0.02);
+    expect(maxFor("RAAvPlaneDescent01")).toBeGreaterThan(0.02);
+    expect(maxFor("LAAvPlaneEffectiveVolumeCorrectionMl")).toBeGreaterThan(0.05);
+    expect(maxFor("RAAvPlaneEffectiveVolumeCorrectionMl")).toBeGreaterThan(0.05);
   });
 
   it("defines a LandAtrial shadow parameter pack without changing source Tref", () => {
