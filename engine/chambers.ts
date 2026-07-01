@@ -117,6 +117,14 @@ export type ActiveChamberParams = {
   // the x-descent. LA uses LV/MV/AoV; RA uses RV/TV/PV.
   // Vwall = V - avPlaneGainMl * gatedDescent01. Default undefined/0 = no shift.
   avPlaneGainMl?: number;
+  // Diagnostic-only AV-plane release timing hook. When both taus are absent or
+  // non-positive, AV-plane descent remains the legacy algebraic value. When
+  // enabled, atrial internal.r stores the filtered descent fraction so descent
+  // can rise and recoil asymmetrically without adding a hidden blood volume.
+  avPlaneDescentRiseTauSec?: number;
+  avPlaneDescentReleaseTauSec?: number;
+  avPlaneDescentMaxRiseVelocity01PerSec?: number;
+  avPlaneDescentMaxReleaseVelocity01PerSec?: number;
   reservoirBranchGain?: number;
   reservoirStrokeMl?: number;
   reservoirSleeveVuMl?: number;
@@ -167,7 +175,11 @@ export type ChamberGeometryTerms = {
   readonly effectiveVolumeCorrectionVelocityMlPerSec: number;
   readonly avPlaneGainMl: number;
   readonly avPlaneDescent01: number;
+  readonly avPlaneTargetDescent01: number;
   readonly avPlaneDescentVelocity01PerSec: number;
+  readonly avPlaneStatefulRelease01: number;
+  readonly avPlaneDescentRiseTauSec: number;
+  readonly avPlaneDescentReleaseTauSec: number;
   readonly lambda: number;
   readonly lambdaWithoutAvPlane: number;
   readonly lambdaAvPlaneDelta: number;
@@ -447,15 +459,18 @@ export class ActiveStressChamberModel implements ChamberModel {
     return (ap.reservoirBranchGain ?? 0) > 0 && (ap.reservoirStrokeMl ?? 0) > 0;
   }
 
-  private wallVolume(V: number, ctx: ChamberCtx): number {
+  private wallVolume(V: number, ctx: ChamberCtx, internal?: ChamberInternal): number {
     const avp = this.ap.avPlaneGainMl ?? 0;
     if (this.twoBranchEnabled() || avp <= 0) return V;
-    const descent01 = this.avPlaneDescent01(ctx);
+    const descent01 = this.avPlaneDescent01(ctx, internal);
     return Math.max(this.ap.V0 + this.ap.Vmin, V - avp * descent01);
   }
 
-  private avPlaneDescentVelocity01PerSec(ctx: ChamberCtx): number {
+  private avPlaneDescentVelocity01PerSec(ctx: ChamberCtx, internal?: ChamberInternal): number {
     if (this.twoBranchEnabled() || (this.ap.avPlaneGainMl ?? 0) <= 0) return 0;
+    if (this.avPlaneStatefulReleaseEnabled() && internal) {
+      return this.avPlaneDescentStateDot(internal, ctx);
+    }
     const shortening = this.pairedShortening01(ctx);
     if (shortening <= 0 && (ctx.pairedVentricleShorteningVelocity01PerSec ?? 0) <= 0) return 0;
     const inletOpen = this.inletValveOpen01(ctx);
@@ -684,7 +699,7 @@ export class ActiveStressChamberModel implements ChamberModel {
   }
 
   debugPressureTerms(V: number, internal: ChamberInternal, ctx: ChamberCtx): ChamberPressureTerms {
-    return this.bodyPressureTerms(this.wallVolume(V, ctx), internal, ctx);
+    return this.bodyPressureTerms(this.wallVolume(V, ctx, internal), internal, ctx);
   }
 
   pressureFromActiveFiberStress(
@@ -706,7 +721,7 @@ export class ActiveStressChamberModel implements ChamberModel {
       throw new Error("source active-fiber stress pressure adapter does not support two-branch chamber models");
     }
     return this.bodyPressureTerms(
-      this.wallVolume(V, ctx),
+      this.wallVolume(V, ctx, internal),
       internal,
       ctx,
       sourceActiveFiberStressPa,
@@ -732,7 +747,7 @@ export class ActiveStressChamberModel implements ChamberModel {
       throw new Error("signed source active-fiber stress pressure adapter does not support two-branch chamber models");
     }
     return this.bodyPressureTerms(
-      this.wallVolume(V, ctx),
+      this.wallVolume(V, ctx, internal),
       internal,
       ctx,
       sourceActiveFiberStressPa,
@@ -834,14 +849,15 @@ export class ActiveStressChamberModel implements ChamberModel {
     return this.bodyPressure(this.wallVolume(V, passiveCtx), { c: 0, a: 0, r: 0, tensionPa: 0 }, passiveCtx);
   }
 
-  debugGeometryTerms(V: number, ctx: ChamberCtx): ChamberGeometryTerms {
-    const wallVolumeMl = this.wallVolume(V, ctx);
+  debugGeometryTerms(V: number, ctx: ChamberCtx, internal?: ChamberInternal): ChamberGeometryTerms {
+    const wallVolumeMl = this.wallVolume(V, ctx, internal);
     const noAvPlaneCtx = {
       ...ctx,
       pairedVentricleShortening01: 0,
       pairedVentricleShorteningVelocity01PerSec: 0,
     };
-    const wallVolumeWithoutAvPlaneMl = this.wallVolume(V, noAvPlaneCtx);
+    const noAvPlaneInternal = internal ? { ...internal, r: 0 } : undefined;
+    const wallVolumeWithoutAvPlaneMl = this.wallVolume(V, noAvPlaneCtx, noAvPlaneInternal);
     const geometry = this.geometry(wallVolumeMl);
     const geometryWithoutAvPlane = this.geometry(wallVolumeWithoutAvPlaneMl);
     return {
@@ -850,10 +866,14 @@ export class ActiveStressChamberModel implements ChamberModel {
       wallVolumeWithoutAvPlaneMl,
       effectiveVolumeCorrectionMl: Math.max(0, V - wallVolumeMl),
       effectiveVolumeCorrectionVelocityMlPerSec:
-        Math.max(this.ap.avPlaneGainMl ?? 0, 0) * this.avPlaneDescentVelocity01PerSec(ctx),
+        Math.max(this.ap.avPlaneGainMl ?? 0, 0) * this.avPlaneDescentVelocity01PerSec(ctx, internal),
       avPlaneGainMl: Math.max(this.ap.avPlaneGainMl ?? 0, 0),
-      avPlaneDescent01: this.avPlaneDescent01(ctx),
-      avPlaneDescentVelocity01PerSec: this.avPlaneDescentVelocity01PerSec(ctx),
+      avPlaneDescent01: this.avPlaneDescent01(ctx, internal),
+      avPlaneTargetDescent01: this.avPlaneTargetDescent01(ctx),
+      avPlaneDescentVelocity01PerSec: this.avPlaneDescentVelocity01PerSec(ctx, internal),
+      avPlaneStatefulRelease01: this.avPlaneStatefulReleaseEnabled() ? 1 : 0,
+      avPlaneDescentRiseTauSec: this.avPlaneDescentRiseTauSec(),
+      avPlaneDescentReleaseTauSec: this.avPlaneDescentReleaseTauSec(),
       lambda: geometry.lambda,
       lambdaWithoutAvPlane: geometryWithoutAvPlane.lambda,
       lambdaAvPlaneDelta: geometryWithoutAvPlane.lambda - geometry.lambda,
@@ -867,12 +887,19 @@ export class ActiveStressChamberModel implements ChamberModel {
     if (!this.twoBranchEnabled()) {
       // PR5: gated AV-plane descent lowers atrial pressure during paired
       // ventricular ejection and releases by IVR/inlet-valve opening.
-      return this.bodyPressure(this.wallVolume(V, ctx), internal, ctx);
+      return this.bodyPressure(this.wallVolume(V, ctx, internal), internal, ctx);
     }
     return this.reservoirBranchState(V, internal, ctx).pressureMmHg;
   }
 
-  private avPlaneDescent01(ctx: ChamberCtx): number {
+  private avPlaneDescent01(ctx: ChamberCtx, internal?: ChamberInternal): number {
+    if (this.avPlaneStatefulReleaseEnabled() && internal) {
+      return clamp(internal.r, 0, 1);
+    }
+    return this.avPlaneTargetDescent01(ctx);
+  }
+
+  private avPlaneTargetDescent01(ctx: ChamberCtx): number {
     const shortening = this.pairedShortening01(ctx);
     if (shortening <= 0) return 0;
 
@@ -884,6 +911,32 @@ export class ActiveStressChamberModel implements ChamberModel {
 
     const theta = frac(ctx.phi);
     return shortening * (ctx.systolicGate ?? systolicReservoirGate(theta, 0.58));
+  }
+
+  private avPlaneStatefulReleaseEnabled(): boolean {
+    return !this.twoBranchEnabled()
+      && (this.ap.avPlaneGainMl ?? 0) > 0
+      && (this.avPlaneDescentRiseTauSec() > 0 || this.avPlaneDescentReleaseTauSec() > 0);
+  }
+
+  private avPlaneDescentRiseTauSec(): number {
+    return Math.max(this.ap.avPlaneDescentRiseTauSec ?? 0, 0);
+  }
+
+  private avPlaneDescentReleaseTauSec(): number {
+    return Math.max(this.ap.avPlaneDescentReleaseTauSec ?? 0, 0);
+  }
+
+  private avPlaneDescentStateDot(internal: ChamberInternal, ctx: ChamberCtx): number {
+    const current = clamp(internal.r, 0, 1);
+    const target = this.avPlaneTargetDescent01(ctx);
+    const tau = target > current
+      ? Math.max(this.avPlaneDescentRiseTauSec() || 0.025, 1e-3)
+      : Math.max(this.avPlaneDescentReleaseTauSec() || 0.080, 1e-3);
+    const raw = (target - current) / tau;
+    const maxRise = Math.max(this.ap.avPlaneDescentMaxRiseVelocity01PerSec ?? 24, 1);
+    const maxRelease = Math.max(this.ap.avPlaneDescentMaxReleaseVelocity01PerSec ?? 12, 1);
+    return clamp(raw, -maxRelease, maxRise);
   }
 
   private sleevePressure(VResMl: number, qMl: number): number {
@@ -974,7 +1027,7 @@ export class ActiveStressChamberModel implements ChamberModel {
     const ap = this.ap;
     const c = Math.max(internal.c, 0);
     const a = clamp(internal.a, 0, 1);
-    const { lambda } = this.geometry(this.wallVolume(V, ctx));
+    const { lambda } = this.geometry(this.wallVolume(V, ctx, internal));
     const tauLambdaAct = Math.max(ap.tauLambdaActSec ?? 0, 0);
     const lambdaAct = this.lambdaForActivation(lambda, internal);
     const lambdaForKd = this.lambdaForTerm(lambda, internal, "kd");
@@ -1011,7 +1064,9 @@ export class ActiveStressChamberModel implements ChamberModel {
     const aInf = this.effectiveAInf(aInfRaw, lambda).aInf;
     const tauA = 1 / Math.max(ap.kOn * cn + ap.kOff, 0.5);
     const aDot = clamp((aInf - a) / tauA, -20, 20);
-    const rDot = reservoirQDot(ap, internal, ctx, theta);
+    const rDot = this.avPlaneStatefulReleaseEnabled()
+      ? this.avPlaneDescentStateDot(internal, ctx)
+      : reservoirQDot(ap, internal, ctx, theta);
     let tensionPaDot = 0;
     if (this.usesTensionFilter(ctx)) {
       const target = this.activeStressTargetPa(a, lambda, lambdaForFIso, ctx);

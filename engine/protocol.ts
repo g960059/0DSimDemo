@@ -409,9 +409,13 @@ export type SimSample = {
   LAActivePressureMmHg?: number;
   LAAvPlanePressureDeltaMmHg?: number;
   LAAvPlaneDescent01?: number;
+  LAAvPlaneTargetDescent01?: number;
   LAAvPlaneDescentVelocity01PerSec?: number;
   LAAvPlaneEffectiveVolumeCorrectionMl?: number;
   LAAvPlaneEffectiveVolumeCorrectionVelocityMlPerSec?: number;
+  LAAvPlaneStatefulRelease01?: number;
+  LAAvPlaneDescentRiseTauSec?: number;
+  LAAvPlaneDescentReleaseTauSec?: number;
   LAWallVolumeMl?: number;
   LAWallVolumeWithoutAvPlaneMl?: number;
   LAWallLambda?: number;
@@ -426,9 +430,13 @@ export type SimSample = {
   RAActivePressureMmHg?: number;
   RAAvPlanePressureDeltaMmHg?: number;
   RAAvPlaneDescent01?: number;
+  RAAvPlaneTargetDescent01?: number;
   RAAvPlaneDescentVelocity01PerSec?: number;
   RAAvPlaneEffectiveVolumeCorrectionMl?: number;
   RAAvPlaneEffectiveVolumeCorrectionVelocityMlPerSec?: number;
+  RAAvPlaneStatefulRelease01?: number;
+  RAAvPlaneDescentRiseTauSec?: number;
+  RAAvPlaneDescentReleaseTauSec?: number;
   RAWallVolumeMl?: number;
   RAWallVolumeWithoutAvPlaneMl?: number;
   RAWallLambda?: number;

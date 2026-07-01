@@ -2601,10 +2601,20 @@ export class ModelCore {
       )
       : {};
     const laGeometryFields = this.p.heartModel === "activeStress"
-      ? this.atrialGeometryFields("LA", pack.Vphys[this.nodeIndex.get("LA")!], this.chamberCtx("LA", this.x))
+      ? this.atrialGeometryFields(
+        "LA",
+        pack.Vphys[this.nodeIndex.get("LA")!],
+        this.activeInternalFromState("LA", this.x),
+        this.chamberCtx("LA", this.x),
+      )
       : {};
     const raGeometryFields = this.p.heartModel === "activeStress"
-      ? this.atrialGeometryFields("RA", pack.Vphys[this.nodeIndex.get("RA")!], this.chamberCtx("RA", this.x))
+      ? this.atrialGeometryFields(
+        "RA",
+        pack.Vphys[this.nodeIndex.get("RA")!],
+        this.activeInternalFromState("RA", this.x),
+        this.chamberCtx("RA", this.x),
+      )
       : {};
     const lvElastance = this.ventricularElastanceSignals("LV", pack.VLVeff, pack.PLVfw, this.x);
     const rvElastance = this.ventricularElastanceSignals("RV", pack.VRVeff, pack.PRVfw, this.x);
@@ -3736,6 +3746,17 @@ export class ModelCore {
       pairedVentricleShortening01: 0,
       pairedVentricleShorteningVelocity01PerSec: 0,
     });
+    const noAvPlaneStatefulTerms = this.activeDebugPressureTerms(
+      chamber,
+      volumeMl,
+      { ...internal, r: 0 },
+      {
+        ...chamberCtx,
+        pairedVentricleShortening01: 0,
+        pairedVentricleShorteningVelocity01PerSec: 0,
+      },
+    );
+    const noAvPlaneReference = noAvPlaneStatefulTerms ?? noAvPlaneTerms;
     const sigmaTotal = terms.sigmaPas + terms.sigmaAct;
     const passivePressure = Math.abs(sigmaTotal) > 1e-12
       ? terms.pressureUnclampedMmHg * terms.sigmaPas / sigmaTotal
@@ -3748,7 +3769,7 @@ export class ModelCore {
         LAPressureUnclampedMmHg: terms.pressureUnclampedMmHg,
         LAPassivePressureMmHg: passivePressure,
         LAActivePressureMmHg: activePressure,
-        LAAvPlanePressureDeltaMmHg: terms.pressureUnclampedMmHg - noAvPlaneTerms.pressureUnclampedMmHg,
+        LAAvPlanePressureDeltaMmHg: terms.pressureUnclampedMmHg - noAvPlaneReference.pressureUnclampedMmHg,
         LAPressureFloorHit01: terms.pressureFloorHit01,
       };
     }
@@ -3756,7 +3777,7 @@ export class ModelCore {
       RAPressureUnclampedMmHg: terms.pressureUnclampedMmHg,
       RAPassivePressureMmHg: passivePressure,
       RAActivePressureMmHg: activePressure,
-      RAAvPlanePressureDeltaMmHg: terms.pressureUnclampedMmHg - noAvPlaneTerms.pressureUnclampedMmHg,
+      RAAvPlanePressureDeltaMmHg: terms.pressureUnclampedMmHg - noAvPlaneReference.pressureUnclampedMmHg,
       RAPressureFloorHit01: terms.pressureFloorHit01,
     };
   }
@@ -3764,15 +3785,20 @@ export class ModelCore {
   private atrialGeometryFields(
     chamber: "LA" | "RA",
     volumeMl: number,
+    internal: ChamberInternal,
     chamberCtx: ChamberCtx,
   ): Partial<SimSample> {
-    const geometry = this.activeModel(chamber).debugGeometryTerms(volumeMl, chamberCtx);
+    const geometry = this.activeModel(chamber).debugGeometryTerms(volumeMl, chamberCtx, internal);
     if (chamber === "LA") {
       return {
         LAAvPlaneDescent01: geometry.avPlaneDescent01,
+        LAAvPlaneTargetDescent01: geometry.avPlaneTargetDescent01,
         LAAvPlaneDescentVelocity01PerSec: geometry.avPlaneDescentVelocity01PerSec,
         LAAvPlaneEffectiveVolumeCorrectionMl: geometry.effectiveVolumeCorrectionMl,
         LAAvPlaneEffectiveVolumeCorrectionVelocityMlPerSec: geometry.effectiveVolumeCorrectionVelocityMlPerSec,
+        LAAvPlaneStatefulRelease01: geometry.avPlaneStatefulRelease01,
+        LAAvPlaneDescentRiseTauSec: geometry.avPlaneDescentRiseTauSec,
+        LAAvPlaneDescentReleaseTauSec: geometry.avPlaneDescentReleaseTauSec,
         LAWallVolumeMl: geometry.wallVolumeMl,
         LAWallVolumeWithoutAvPlaneMl: geometry.wallVolumeWithoutAvPlaneMl,
         LAWallLambda: geometry.lambda,
@@ -3785,9 +3811,13 @@ export class ModelCore {
     }
     return {
       RAAvPlaneDescent01: geometry.avPlaneDescent01,
+      RAAvPlaneTargetDescent01: geometry.avPlaneTargetDescent01,
       RAAvPlaneDescentVelocity01PerSec: geometry.avPlaneDescentVelocity01PerSec,
       RAAvPlaneEffectiveVolumeCorrectionMl: geometry.effectiveVolumeCorrectionMl,
       RAAvPlaneEffectiveVolumeCorrectionVelocityMlPerSec: geometry.effectiveVolumeCorrectionVelocityMlPerSec,
+      RAAvPlaneStatefulRelease01: geometry.avPlaneStatefulRelease01,
+      RAAvPlaneDescentRiseTauSec: geometry.avPlaneDescentRiseTauSec,
+      RAAvPlaneDescentReleaseTauSec: geometry.avPlaneDescentReleaseTauSec,
       RAWallVolumeMl: geometry.wallVolumeMl,
       RAWallVolumeWithoutAvPlaneMl: geometry.wallVolumeWithoutAvPlaneMl,
       RAWallLambda: geometry.lambda,

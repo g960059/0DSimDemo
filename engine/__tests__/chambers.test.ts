@@ -291,4 +291,45 @@ describe("ChamberModel behavior parity (S2a refactor guards)", () => {
     });
     expect(legacyLeftOnly).toBeCloseTo(noDescent, 9);
   });
+
+  it("stateful atrial AV-plane release uses internal descent without changing default algebraic mode", () => {
+    const algebraic = new ActiveStressChamberModel(defaultActiveLA);
+    const stateful = new ActiveStressChamberModel({
+      ...defaultActiveLA,
+      avPlaneDescentRiseTauSec: 0.02,
+      avPlaneDescentReleaseTauSec: 0.14,
+      avPlaneDescentMaxRiseVelocity01PerSec: 20,
+      avPlaneDescentMaxReleaseVelocity01PerSec: 6,
+    });
+    const baseCtx = {
+      HR: 75,
+      contractility: 1,
+      relaxation: 1,
+      phi: 0.4,
+      tmaxScale: 1,
+      geomScale: 1,
+      caReleaseScale: 1,
+      side: "left" as const,
+      pairedVentricleShortening01: 0.8,
+      pairedVentricleShorteningVelocity01PerSec: 2,
+      inletValveOpen01: 0,
+      outletValveOpen01: 1,
+    };
+    const risingInternal = { c: 0, a: 0, r: 0.2 };
+    const algebraicGeometry = algebraic.debugGeometryTerms(50, baseCtx, risingInternal);
+    const statefulGeometry = stateful.debugGeometryTerms(50, baseCtx, risingInternal);
+    expect(algebraicGeometry.avPlaneStatefulRelease01).toBe(0);
+    expect(algebraicGeometry.avPlaneDescent01).toBeCloseTo(0.8, 9);
+    expect(statefulGeometry.avPlaneStatefulRelease01).toBe(1);
+    expect(statefulGeometry.avPlaneTargetDescent01).toBeCloseTo(0.8, 9);
+    expect(statefulGeometry.avPlaneDescent01).toBeCloseTo(0.2, 9);
+    expect(stateful.internalDerivatives(50, risingInternal, baseCtx).rDot).toBeGreaterThan(0);
+
+    const releaseCtx = { ...baseCtx, inletValveOpen01: 1, pairedVentricleShorteningVelocity01PerSec: -1 };
+    const releaseInternal = { c: 0, a: 0, r: 0.8 };
+    const releaseGeometry = stateful.debugGeometryTerms(50, releaseCtx, releaseInternal);
+    expect(releaseGeometry.avPlaneTargetDescent01).toBe(0);
+    expect(releaseGeometry.avPlaneDescent01).toBeCloseTo(0.8, 9);
+    expect(stateful.internalDerivatives(50, releaseInternal, releaseCtx).rDot).toBeLessThan(0);
+  });
 });
