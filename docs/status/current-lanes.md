@@ -36,13 +36,14 @@ transaction architecture comparison, residual attribution, semilunar/root
 outflow repair, pulmonary-boundary/safety-suction comparisons,
 output-reserve calibration and dynamic reserve contract comparisons, paired
 left/right smoke, source-pressure bridge smoke, reservoir-ledger bridge smoke,
-and same-profile reservoir-solver bridge smoke are implemented.
+same-profile reservoir-solver bridge smoke, and reservoir-solver attribution
+are implemented.
 
-Next PR target: classify the `contractility-low` residual and large accepted
-reservoir transfer after the same-profile reservoir solver produced a stronger
-mixed signal but not a four-chamber unlock. Do not start four-chamber work or
-LandAtrial re-entry from isolated, paired, source-pressure, black-box reservoir,
-or same-profile reservoir-solver evidence alone.
+Next PR target: build a stateful reservoir / mass-ledger contract after
+attribution showed that the same-profile scalar solver is diagnostic-only. Do
+not start four-chamber work or LandAtrial re-entry from isolated, paired,
+source-pressure, black-box reservoir, same-profile reservoir-solver, or
+scalar-attribution evidence alone.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -86,6 +87,8 @@ Included:
   ledger feedback between the passed left/right surfaces.
 - ReservoirSolverBridgeBench V1 for same-profile scalar reservoir transfer
   solves between the passed left/right surfaces.
+- ReservoirSolverAttributionBench V1 for `contractility-low` residual and
+  large accepted transfer classification.
 
 Excluded:
 
@@ -219,6 +222,15 @@ Next gates:
     reservoir transfer in some profiles (max ~54 mL), so the next step is
     residual/transfer classification before four-chamber, AV-plane, LandAtrial,
     runtime wiring, or morphology acceptance.
+21. Reservoir solver attribution: `contractility-low` is classified as
+    `profile-severity-mismatch`, not a scalar-transfer tuning problem. Accepted
+    bound and wider diagnostic scans preserve morphology but find no
+    flow-balanced `contractility-low` transfer. The best scalar solver also
+    relies on large accepted reservoir transfers in 5/7 profiles (max ~54 mL,
+    max transfer/forward-flow ratio ~1.33). This blocks scalar-solver promotion
+    and points next to a stateful reservoir/mass-ledger contract with explicit
+    reservoir volume state. Four-chamber, AV-plane, LandAtrial, runtime wiring,
+    and morphology acceptance remain blocked.
 
 Parallel prep, not blocking the next strategic gate:
 

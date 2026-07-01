@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   runReservoirSolverBridgeBenchV1,
 } from "@/engine/mechanics2/benches/ReservoirSolverBridgeBench";
+import { expectMechanics2ReportArtifactParity } from "./helpers/mechanics2ReportParity";
 import reservoirSolverReport from "@/data/mechanics2/reports/reservoir-solver-bridge-report-v1.json";
 
 describe("MechanicsCore2 reservoir-solver bridge bench", () => {
@@ -41,12 +42,6 @@ describe("MechanicsCore2 reservoir-solver bridge bench", () => {
     expect(report.claimBoundary.AVPlaneUnlock).toBe(false);
     expect(report.claimBoundary.LandAtrialUnlock).toBe(false);
 
-    expect(reservoirSolverReport.reportId).toBe(report.reportId);
-    expect(reservoirSolverReport.decision).toEqual(report.decision);
-    expect(reservoirSolverReport.variantResults.map((variant) => variant.summary)).toEqual(
-      report.variantResults.map((variant) => variant.summary),
-    );
-    expect(typeof reservoirSolverReport.normalizedSha256).toBe("string");
-    expect(reservoirSolverReport.normalizedSha256).toHaveLength(64);
+    expectMechanics2ReportArtifactParity(reservoirSolverReport, report);
   });
 });
