@@ -1313,6 +1313,19 @@ advances the current lane. They are evidence anchors, not current gates.
    readbacks while focusing on AV inflow residuals and all-chamber user-0
    transfer, not another post-hoc refit, local fixed-point variant, or PV
    dome-only decomposition.
+   Phase 5DQ records
+   `chamber-mechanical-pressure-contract-phase5dq-result-v1`, a fast two-point
+   smoke of work-conjugate chamber mechanical pressure mappings before a larger
+   architecture PR. It closes the remaining stateless source-stress-to-pressure
+   adapter route: baseline remains gross 0/2 (LV/RV/MVF/TVF 0/2,1/2,2/2,1/2),
+   the best work-conjugate+AV/semilunar V2 candidate remains gross 0/2 and
+   worsens TVF to 0/2, and mean LV positive curvature rises (`0.40162` vs
+   baseline `0.283654`). Do not expand work-conjugate pressure-adapter sweeps.
+   The next PR should be an architecture PR informed by CircAdapt-like
+   chamber/valve/load ownership: a stateful chamber-load transaction that owns
+   accepted chamber volume, pressure, Land source-state commit, AV and
+   semilunar valve state/flow/loss/inertance, and adjacent load response in the
+   same physical step.
 2. Land plus sourced root/Zc is now the user-0 staged all-chamber runtime
    default after owner GO through Phase 5BK. Do not delete legacy active-stress
    yet; keep it as frozen reference, debug fallback, and rollback while
