@@ -512,6 +512,18 @@ iteration, pair-coupled side-local valve-load ownership, scalar pressure caps,
 or morphology-by-retuning. The next surface must be an explicit chamber
 pressure/source-state/valve-load residual contract rather than another
 post-hoc refit or local flow fixed point.
+Phase 5CS records `chamber-pressure-valve-load-contract-phase5cs-result-v1`,
+testing a heavier off-by-default source-state-recomputed residual contract at
+the normal-HR75 smoke point before paying for a full envelope. The smoke is a
+no-go: Phase 5CO accepted-complementarity legacy atria remains gross 1/1,
+while the 5CS residual-contract legacy-atria and all-chamber user-0 transfer
+candidates are both gross 0/1. Runtime cost is also materially higher than the
+prior diagnostics, so the full envelope was intentionally not run after the
+normal smoke failed. Carry this as evidence that recomputing source state inside
+a side-local residual relaxation still is not sufficient; do not keep expanding
+local residual/refit variants. The next useful surface likely needs a clearer
+chamber mechanical contract or a different pressure adapter abstraction rather
+than another hidden iteration around the same valve/load states.
 
 ## Lane table
 
@@ -940,14 +952,20 @@ advances the current lane. They are evidence anchors, not current gates.
    versus the Phase 5CO accepted-complementarity baseline at 5/8, and
    all-chamber user-0 transfer remains 0/8. Treat side-local pair fixed-point
    valve-load ownership as exhausted too.
+   Phase 5CS then recomputes source-state pressure inside a side-local
+   residual relaxation contract and fails even the normal-HR75 smoke
+   (`accepted-complementarity legacy 1/1`, residual-contract legacy 0/1,
+   residual-contract user-0 0/1), with enough runtime cost that a full envelope
+   is not worth running for this surface.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, bounded pressure-gain capping,
    local LV/RV transaction wiring, side-local pair fixed-point flow ownership,
-   or LandAtrial parameter tuning to hide the PV double-dome and AV inflow
-   artifacts. The next implementation surface is an explicit chamber
-   pressure/source-state/valve-load residual contract with accepted-state
-   diagnostics, not another post-hoc refit or local fixed-point variant.
+   side-local source-state residual relaxation, or LandAtrial parameter tuning
+   to hide the PV double-dome and AV inflow artifacts. The next implementation
+   surface should change the chamber mechanical pressure adapter/contract
+   abstraction itself, not add another post-hoc refit or local fixed-point
+   variant.
 2. Land plus sourced root/Zc is now the user-0 staged all-chamber runtime
    default after owner GO through Phase 5BK. Do not delete legacy active-stress
    yet; keep it as frozen reference, debug fallback, and rollback while
