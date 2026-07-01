@@ -1,0 +1,524 @@
+{
+  "reportId": "four-chamber-assembly-contract-report-v1",
+  "gateId": "fourChamberAssemblyContractV1",
+  "contract": {
+    "contractId": "four-chamber-assembly-contract-v1",
+    "chambers": [
+      "LA",
+      "LV",
+      "RA",
+      "RV"
+    ],
+    "valves": [
+      "MV",
+      "AoV",
+      "TV",
+      "PV"
+    ],
+    "reservoirs": [
+      "pulmonaryVenous",
+      "systemicVenous"
+    ],
+    "requiredLedgers": [
+      "left-forward-ejection",
+      "right-forward-ejection",
+      "forward-ejection-mismatch",
+      "pulmonary-venous-reservoir-volume",
+      "systemic-venous-reservoir-volume",
+      "reservoir-volume-residual",
+      "reservoir-pressure-adjustments",
+      "accepted-transfer",
+      "accepted-phenotypes"
+    ],
+    "blockedClaims": [
+      "runtime-wiring",
+      "true-four-chamber-dynamics",
+      "morphology-acceptance",
+      "AV-plane-unlock",
+      "LandAtrial-unlock"
+    ]
+  },
+  "scaffoldResults": [
+    {
+      "scaffold": {
+        "scaffoldId": "center-pressure045-gain012-cap4",
+        "label": "center",
+        "rightUpperPressureContribution01": 0.45,
+        "reservoirTransferGain01": 0.12,
+        "reservoirTransferCapMl": 4
+      },
+      "reservoirStatus": "stateful-reservoir-pass",
+      "reservoirBestVariantId": "center-pressure045-gain012-cap4-reservoir",
+      "pointResults": [
+        {
+          "profileId": "normal-hr75",
+          "status": "pass",
+          "ledger": {
+            "profileId": "normal-hr75",
+            "chamberSetComplete": true,
+            "valveSetComplete": true,
+            "reservoirSetComplete": true,
+            "leftAovEjectedVolumeMl": 56.195727,
+            "rightPvEjectedVolumeMl": 52.163917,
+            "signedForwardMismatchMl": 4.03181,
+            "absForwardMismatchMl": 4.03181,
+            "relativeForwardMismatch": 0.074415,
+            "pulmonaryVenousReservoirVolumeMl": -6.595521,
+            "systemicVenousReservoirVolumeMl": 6.595521,
+            "totalReservoirVolumeResidualMl": 0,
+            "pulmonaryVenousPressureAdjustmentMmHg": -0.082444,
+            "systemicPressureAdjustmentMmHg": 0.041222,
+            "maxAbsAcceptedTransferMl": 0.528658,
+            "maxAbsReservoirVolumeMl": 6.595521,
+            "transferLimiterHitCount": 0,
+            "leftStatus": "pass",
+            "rightStatus": "pass",
+            "leftAcceptedPhenotypeReasons": [],
+            "rightAcceptedPhenotypeReasons": []
+          },
+          "failureReasons": []
+        },
+        {
+          "profileId": "normal-hr90",
+          "status": "pass",
+          "ledger": {
+            "profileId": "normal-hr90",
+            "chamberSetComplete": true,
+            "valveSetComplete": true,
+            "reservoirSetComplete": true,
+            "leftAovEjectedVolumeMl": 42.875088,
+            "rightPvEjectedVolumeMl": 38.063931,
+            "signedForwardMismatchMl": 4.811157,
+            "absForwardMismatchMl": 4.811157,
+            "relativeForwardMismatch": 0.118884,
+            "pulmonaryVenousReservoirVolumeMl": -7.745637,
+            "systemicVenousReservoirVolumeMl": 7.745637,
+            "totalReservoirVolumeResidualMl": 0,
+            "pulmonaryVenousPressureAdjustmentMmHg": -0.09682,
+            "systemicPressureAdjustmentMmHg": 0.04841,
+            "maxAbsAcceptedTransferMl": 0.616408,
+            "maxAbsReservoirVolumeMl": 7.745637,
+            "transferLimiterHitCount": 0,
+            "leftStatus": "pass",
+            "rightStatus": "pass",
+            "leftAcceptedPhenotypeReasons": [],
+            "rightAcceptedPhenotypeReasons": []
+          },
+          "failureReasons": []
+        },
+        {
+          "profileId": "preload-low",
+          "status": "pass",
+          "ledger": {
+            "profileId": "preload-low",
+            "chamberSetComplete": true,
+            "valveSetComplete": true,
+            "reservoirSetComplete": true,
+            "leftAovEjectedVolumeMl": 55.850981,
+            "rightPvEjectedVolumeMl": 47.872084,
+            "signedForwardMismatchMl": 7.978897,
+            "absForwardMismatchMl": 7.978897,
+            "relativeForwardMismatch": 0.15385,
+            "pulmonaryVenousReservoirVolumeMl": -17.472153,
+            "systemicVenousReservoirVolumeMl": 17.472153,
+            "totalReservoirVolumeResidualMl": 0,
+            "pulmonaryVenousPressureAdjustmentMmHg": -0.218402,
+            "systemicPressureAdjustmentMmHg": 0.109201,
+            "maxAbsAcceptedTransferMl": 1.518822,
+            "maxAbsReservoirVolumeMl": 17.472153,
+            "transferLimiterHitCount": 0,
+            "leftStatus": "pass",
+            "rightStatus": "pass",
+            "leftAcceptedPhenotypeReasons": [],
+            "rightAcceptedPhenotypeReasons": []
+          },
+          "failureReasons": []
+        },
+        {
+          "profileId": "preload-high",
+          "status": "pass",
+          "ledger": {
+            "profileId": "preload-high",
+            "chamberSetComplete": true,
+            "valveSetComplete": true,
+            "reservoirSetComplete": true,
+            "leftAovEjectedVolumeMl": 58.589925,
+            "rightPvEjectedVolumeMl": 51.655711,
+            "signedForwardMismatchMl": 6.934214,
+            "absForwardMismatchMl": 6.934214,
+            "relativeForwardMismatch": 0.125796,
+            "pulmonaryVenousReservoirVolumeMl": -10.628171,
+            "systemicVenousReservoirVolumeMl": 10.628171,
+            "totalReservoirVolumeResidualMl": 0,
+            "pulmonaryVenousPressureAdjustmentMmHg": -0.132852,
+            "systemicPressureAdjustmentMmHg": 0.066426,
+            "maxAbsAcceptedTransferMl": 0.832106,
+            "maxAbsReservoirVolumeMl": 10.628171,
+            "transferLimiterHitCount": 0,
+            "leftStatus": "pass",
+            "rightStatus": "pass",
+            "leftAcceptedPhenotypeReasons": [],
+            "rightAcceptedPhenotypeReasons": []
+          },
+          "failureReasons": []
+        },
+        {
+          "profileId": "afterload-high",
+          "status": "pass",
+          "ledger": {
+            "profileId": "afterload-high",
+            "chamberSetComplete": true,
+            "valveSetComplete": true,
+            "reservoirSetComplete": true,
+            "leftAovEjectedVolumeMl": 35.182884,
+            "rightPvEjectedVolumeMl": 31.695198,
+            "signedForwardMismatchMl": 3.487686,
+            "absForwardMismatchMl": 3.487686,
+            "relativeForwardMismatch": 0.1043,
+            "pulmonaryVenousReservoirVolumeMl": -5.36422,
+            "systemicVenousReservoirVolumeMl": 5.36422,
+            "totalReservoirVolumeResidualMl": 0,
+            "pulmonaryVenousPressureAdjustmentMmHg": -0.067053,
+            "systemicPressureAdjustmentMmHg": 0.033526,
+            "maxAbsAcceptedTransferMl": 0.418522,
+            "maxAbsReservoirVolumeMl": 5.36422,
+            "transferLimiterHitCount": 0,
+            "leftStatus": "pass",
+            "rightStatus": "pass",
+            "leftAcceptedPhenotypeReasons": [],
+            "rightAcceptedPhenotypeReasons": []
+          },
+          "failureReasons": []
+        },
+        {
+          "profileId": "contractility-low",
+          "status": "pass",
+          "ledger": {
+            "profileId": "contractility-low",
+            "chamberSetComplete": true,
+            "valveSetComplete": true,
+            "reservoirSetComplete": true,
+            "leftAovEjectedVolumeMl": 11.647162,
+            "rightPvEjectedVolumeMl": 9.817076,
+            "signedForwardMismatchMl": 1.830086,
+            "absForwardMismatchMl": 1.830086,
+            "relativeForwardMismatch": 0.170524,
+            "pulmonaryVenousReservoirVolumeMl": -2.91851,
+            "systemicVenousReservoirVolumeMl": 2.91851,
+            "totalReservoirVolumeResidualMl": 0,
+            "pulmonaryVenousPressureAdjustmentMmHg": -0.036481,
+            "systemicPressureAdjustmentMmHg": 0.018241,
+            "maxAbsAcceptedTransferMl": 0.227316,
+            "maxAbsReservoirVolumeMl": 2.91851,
+            "transferLimiterHitCount": 0,
+            "leftStatus": "pass",
+            "rightStatus": "pass",
+            "leftAcceptedPhenotypeReasons": [
+              "clean-low-contractility-low-output-phenotype"
+            ],
+            "rightAcceptedPhenotypeReasons": [
+              "clean-low-contractility-low-output-phenotype"
+            ]
+          },
+          "failureReasons": []
+        },
+        {
+          "profileId": "contractility-high",
+          "status": "pass",
+          "ledger": {
+            "profileId": "contractility-high",
+            "chamberSetComplete": true,
+            "valveSetComplete": true,
+            "reservoirSetComplete": true,
+            "leftAovEjectedVolumeMl": 65.722919,
+            "rightPvEjectedVolumeMl": 58.679427,
+            "signedForwardMismatchMl": 7.043492,
+            "absForwardMismatchMl": 7.043492,
+            "relativeForwardMismatch": 0.113237,
+            "pulmonaryVenousReservoirVolumeMl": -11.254031,
+            "systemicVenousReservoirVolumeMl": 11.254031,
+            "totalReservoirVolumeResidualMl": 0,
+            "pulmonaryVenousPressureAdjustmentMmHg": -0.140675,
+            "systemicPressureAdjustmentMmHg": 0.070338,
+            "maxAbsAcceptedTransferMl": 0.887889,
+            "maxAbsReservoirVolumeMl": 11.254031,
+            "transferLimiterHitCount": 0,
+            "leftStatus": "pass",
+            "rightStatus": "pass",
+            "leftAcceptedPhenotypeReasons": [],
+            "rightAcceptedPhenotypeReasons": []
+          },
+          "failureReasons": []
+        }
+      ],
+      "summary": {
+        "total": 7,
+        "pass": 7,
+        "fail": 0,
+        "maxAbsForwardMismatchMl": 7.978897,
+        "maxAbsAcceptedTransferMl": 1.518822,
+        "maxAbsReservoirVolumeMl": 17.472153,
+        "maxPulmonaryVenousPressureAdjustmentMmHg": 0.218402,
+        "maxSystemicPressureAdjustmentMmHg": 0.109201
+      },
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "scaffold": {
+        "scaffoldId": "best-neighborhood-pressure047-gain014-cap35",
+        "label": "best-neighborhood",
+        "rightUpperPressureContribution01": 0.47,
+        "reservoirTransferGain01": 0.14,
+        "reservoirTransferCapMl": 3.5
+      },
+      "reservoirStatus": "stateful-reservoir-pass",
+      "reservoirBestVariantId": "best-neighborhood-pressure047-gain014-cap35-reservoir",
+      "pointResults": [
+        {
+          "profileId": "normal-hr75",
+          "status": "pass",
+          "ledger": {
+            "profileId": "normal-hr75",
+            "chamberSetComplete": true,
+            "valveSetComplete": true,
+            "reservoirSetComplete": true,
+            "leftAovEjectedVolumeMl": 56.181907,
+            "rightPvEjectedVolumeMl": 52.203568,
+            "signedForwardMismatchMl": 3.978339,
+            "absForwardMismatchMl": 3.978339,
+            "relativeForwardMismatch": 0.073411,
+            "pulmonaryVenousReservoirVolumeMl": -7.643325,
+            "systemicVenousReservoirVolumeMl": 7.643325,
+            "totalReservoirVolumeResidualMl": 0,
+            "pulmonaryVenousPressureAdjustmentMmHg": -0.095542,
+            "systemicPressureAdjustmentMmHg": 0.047771,
+            "maxAbsAcceptedTransferMl": 0.616768,
+            "maxAbsReservoirVolumeMl": 7.643325,
+            "transferLimiterHitCount": 0,
+            "leftStatus": "pass",
+            "rightStatus": "pass",
+            "leftAcceptedPhenotypeReasons": [],
+            "rightAcceptedPhenotypeReasons": []
+          },
+          "failureReasons": []
+        },
+        {
+          "profileId": "normal-hr90",
+          "status": "pass",
+          "ledger": {
+            "profileId": "normal-hr90",
+            "chamberSetComplete": true,
+            "valveSetComplete": true,
+            "reservoirSetComplete": true,
+            "leftAovEjectedVolumeMl": 42.862458,
+            "rightPvEjectedVolumeMl": 38.096798,
+            "signedForwardMismatchMl": 4.76566,
+            "absForwardMismatchMl": 4.76566,
+            "relativeForwardMismatch": 0.11773,
+            "pulmonaryVenousReservoirVolumeMl": -8.997337,
+            "systemicVenousReservoirVolumeMl": 8.997337,
+            "totalReservoirVolumeResidualMl": 0,
+            "pulmonaryVenousPressureAdjustmentMmHg": -0.112467,
+            "systemicPressureAdjustmentMmHg": 0.056233,
+            "maxAbsAcceptedTransferMl": 0.719142,
+            "maxAbsReservoirVolumeMl": 8.997337,
+            "transferLimiterHitCount": 0,
+            "leftStatus": "pass",
+            "rightStatus": "pass",
+            "leftAcceptedPhenotypeReasons": [],
+            "rightAcceptedPhenotypeReasons": []
+          },
+          "failureReasons": []
+        },
+        {
+          "profileId": "preload-low",
+          "status": "pass",
+          "ledger": {
+            "profileId": "preload-low",
+            "chamberSetComplete": true,
+            "valveSetComplete": true,
+            "reservoirSetComplete": true,
+            "leftAovEjectedVolumeMl": 55.823344,
+            "rightPvEjectedVolumeMl": 47.836758,
+            "signedForwardMismatchMl": 7.986586,
+            "absForwardMismatchMl": 7.986586,
+            "relativeForwardMismatch": 0.154092,
+            "pulmonaryVenousReservoirVolumeMl": -19.44746,
+            "systemicVenousReservoirVolumeMl": 19.44746,
+            "totalReservoirVolumeResidualMl": 0,
+            "pulmonaryVenousPressureAdjustmentMmHg": -0.243093,
+            "systemicPressureAdjustmentMmHg": 0.121547,
+            "maxAbsAcceptedTransferMl": 1.771959,
+            "maxAbsReservoirVolumeMl": 19.44746,
+            "transferLimiterHitCount": 0,
+            "leftStatus": "pass",
+            "rightStatus": "pass",
+            "leftAcceptedPhenotypeReasons": [],
+            "rightAcceptedPhenotypeReasons": []
+          },
+          "failureReasons": []
+        },
+        {
+          "profileId": "preload-high",
+          "status": "pass",
+          "ledger": {
+            "profileId": "preload-high",
+            "chamberSetComplete": true,
+            "valveSetComplete": true,
+            "reservoirSetComplete": true,
+            "leftAovEjectedVolumeMl": 58.55861,
+            "rightPvEjectedVolumeMl": 51.587792,
+            "signedForwardMismatchMl": 6.970818,
+            "absForwardMismatchMl": 6.970818,
+            "relativeForwardMismatch": 0.126574,
+            "pulmonaryVenousReservoirVolumeMl": -12.430472,
+            "systemicVenousReservoirVolumeMl": 12.430472,
+            "totalReservoirVolumeResidualMl": 0,
+            "pulmonaryVenousPressureAdjustmentMmHg": -0.155381,
+            "systemicPressureAdjustmentMmHg": 0.07769,
+            "maxAbsAcceptedTransferMl": 0.975915,
+            "maxAbsReservoirVolumeMl": 12.430472,
+            "transferLimiterHitCount": 0,
+            "leftStatus": "pass",
+            "rightStatus": "pass",
+            "leftAcceptedPhenotypeReasons": [],
+            "rightAcceptedPhenotypeReasons": []
+          },
+          "failureReasons": []
+        },
+        {
+          "profileId": "afterload-high",
+          "status": "pass",
+          "ledger": {
+            "profileId": "afterload-high",
+            "chamberSetComplete": true,
+            "valveSetComplete": true,
+            "reservoirSetComplete": true,
+            "leftAovEjectedVolumeMl": 35.176136,
+            "rightPvEjectedVolumeMl": 31.673591,
+            "signedForwardMismatchMl": 3.502545,
+            "absForwardMismatchMl": 3.502545,
+            "relativeForwardMismatch": 0.104789,
+            "pulmonaryVenousReservoirVolumeMl": -6.271018,
+            "systemicVenousReservoirVolumeMl": 6.271018,
+            "totalReservoirVolumeResidualMl": 0,
+            "pulmonaryVenousPressureAdjustmentMmHg": -0.078388,
+            "systemicPressureAdjustmentMmHg": 0.039194,
+            "maxAbsAcceptedTransferMl": 0.490356,
+            "maxAbsReservoirVolumeMl": 6.271018,
+            "transferLimiterHitCount": 0,
+            "leftStatus": "pass",
+            "rightStatus": "pass",
+            "leftAcceptedPhenotypeReasons": [],
+            "rightAcceptedPhenotypeReasons": []
+          },
+          "failureReasons": []
+        },
+        {
+          "profileId": "contractility-low",
+          "status": "pass",
+          "ledger": {
+            "profileId": "contractility-low",
+            "chamberSetComplete": true,
+            "valveSetComplete": true,
+            "reservoirSetComplete": true,
+            "leftAovEjectedVolumeMl": 11.646705,
+            "rightPvEjectedVolumeMl": 10.050275,
+            "signedForwardMismatchMl": 1.59643,
+            "absForwardMismatchMl": 1.59643,
+            "relativeForwardMismatch": 0.147157,
+            "pulmonaryVenousReservoirVolumeMl": -2.97967,
+            "systemicVenousReservoirVolumeMl": 2.97967,
+            "totalReservoirVolumeResidualMl": 0,
+            "pulmonaryVenousPressureAdjustmentMmHg": -0.037246,
+            "systemicPressureAdjustmentMmHg": 0.018623,
+            "maxAbsAcceptedTransferMl": 0.232534,
+            "maxAbsReservoirVolumeMl": 2.97967,
+            "transferLimiterHitCount": 0,
+            "leftStatus": "pass",
+            "rightStatus": "pass",
+            "leftAcceptedPhenotypeReasons": [
+              "clean-low-contractility-low-output-phenotype"
+            ],
+            "rightAcceptedPhenotypeReasons": [
+              "clean-low-contractility-low-output-phenotype"
+            ]
+          },
+          "failureReasons": []
+        },
+        {
+          "profileId": "contractility-high",
+          "status": "pass",
+          "ledger": {
+            "profileId": "contractility-high",
+            "chamberSetComplete": true,
+            "valveSetComplete": true,
+            "reservoirSetComplete": true,
+            "leftAovEjectedVolumeMl": 65.776438,
+            "rightPvEjectedVolumeMl": 58.690733,
+            "signedForwardMismatchMl": 7.085705,
+            "absForwardMismatchMl": 7.085705,
+            "relativeForwardMismatch": 0.113857,
+            "pulmonaryVenousReservoirVolumeMl": -13.095637,
+            "systemicVenousReservoirVolumeMl": 13.095637,
+            "totalReservoirVolumeResidualMl": 0,
+            "pulmonaryVenousPressureAdjustmentMmHg": -0.163695,
+            "systemicPressureAdjustmentMmHg": 0.081848,
+            "maxAbsAcceptedTransferMl": 1.035871,
+            "maxAbsReservoirVolumeMl": 13.095637,
+            "transferLimiterHitCount": 0,
+            "leftStatus": "pass",
+            "rightStatus": "pass",
+            "leftAcceptedPhenotypeReasons": [],
+            "rightAcceptedPhenotypeReasons": []
+          },
+          "failureReasons": []
+        }
+      ],
+      "summary": {
+        "total": 7,
+        "pass": 7,
+        "fail": 0,
+        "maxAbsForwardMismatchMl": 7.986586,
+        "maxAbsAcceptedTransferMl": 1.771959,
+        "maxAbsReservoirVolumeMl": 19.44746,
+        "maxPulmonaryVenousPressureAdjustmentMmHg": 0.243093,
+        "maxSystemicPressureAdjustmentMmHg": 0.121547
+      },
+      "status": "pass",
+      "failureReasons": []
+    }
+  ],
+  "summary": {
+    "reviewedScaffoldCount": 2,
+    "passCount": 2,
+    "passedScaffoldIds": [
+      "center-pressure045-gain012-cap4",
+      "best-neighborhood-pressure047-gain014-cap35"
+    ],
+    "failedScaffoldIds": [],
+    "maxPassingAbsForwardMismatchMl": 7.986586,
+    "maxPassingAcceptedTransferMl": 1.771959,
+    "maxPassingReservoirVolumeMl": 19.44746
+  },
+  "decision": {
+    "assemblyContractStatus": "four-chamber-assembly-contract-pass",
+    "nextAction": "Proceed to a sidecar four-chamber assembly smoke that implements this contract. Do not wire runtime, AV-plane, or LandAtrial yet.",
+    "blockedClaims": [
+      "runtime-wiring",
+      "true-four-chamber-dynamics",
+      "morphology-acceptance",
+      "AV-plane-unlock",
+      "LandAtrial-unlock"
+    ]
+  },
+  "claimBoundary": {
+    "runtimeWiring": false,
+    "trueFourChamberDynamics": false,
+    "morphologyAcceptance": false,
+    "AVPlaneUnlock": false,
+    "LandAtrialUnlock": false
+  },
+  "normalizedSha256": "f6360bb3b191fdacf6083c3b7fbd61b010c702046998337629836e70316087d8"
+}

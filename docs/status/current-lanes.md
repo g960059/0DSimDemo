@@ -301,6 +301,13 @@ Next gates:
     an explicit four-chamber assembly contract next. It still does not unlock
     four-chamber implementation by accident, AV-plane, LandAtrial, runtime
     wiring, or morphology acceptance.
+29. Four-chamber assembly contract: the sidecar contract now defines the
+    required chamber, valve, reservoir, and ledger surfaces for the next smoke.
+    Mapping the center and best-neighborhood Gate C scaffolds into this
+    contract passes 2/2 with max forward mismatch ~8.0 mL, max accepted transfer
+    ~1.8 mL, and max reservoir volume ~19.5 mL. This unlocks only a sidecar
+    four-chamber assembly smoke that implements the contract. Runtime/default
+    work, AV-plane, LandAtrial, and morphology acceptance remain blocked.
 
 Parallel prep, not blocking the next strategic gate:
 
