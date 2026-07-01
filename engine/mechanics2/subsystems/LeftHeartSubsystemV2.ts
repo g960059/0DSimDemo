@@ -53,6 +53,11 @@ export type LeftHeartSubsystemParamsV2 = LeftHeartSubsystemParamsV1 & {
   readonly rootOutflowHighPressureDriveStartMmHg: number;
   readonly rootOutflowHighPressureDriveEndMmHg: number;
   readonly rootOutflowHighPressureResistanceGain: number;
+  readonly rootOutflowStatefulDriveStartMmHg: number;
+  readonly rootOutflowStatefulDriveEndMmHg: number;
+  readonly rootOutflowStatefulResistanceGain: number;
+  readonly rootOutflowStatefulRiseTauSec: number;
+  readonly rootOutflowStatefulFallTauSec: number;
   readonly mvSystolicClosureDriveGain01: number;
   readonly mvSystolicClosureDriveStartTheta: number;
   readonly mvSystolicClosureDriveEndTheta: number;
@@ -66,6 +71,7 @@ export type LeftHeartSubsystemStateV2 = {
   readonly lv: OneFiberChamberStateV1;
   readonly mv: FlowStateValveStateV1;
   readonly aov: FlowStateValveStateV1;
+  readonly rootOutflowStatefulDrive01: number;
   readonly clampCount: number;
 };
 
@@ -93,6 +99,7 @@ export type LeftHeartSubsystemSampleV2 = {
   readonly qPulmonaryVenousSourceMlPerSec: number;
   readonly rootOutResistanceEffectiveMmHgSecPerMl: number;
   readonly rootOutflowHighPressureDrive01: number;
+  readonly rootOutflowStatefulDrive01: number;
   readonly mvOpen01: number;
   readonly aovOpen01: number;
   readonly lvChamber: OneFiberChamberOutputV1;
@@ -142,6 +149,7 @@ type AcceptedV2 = CandidateV2 & {
   readonly qPulmonaryVenousSourceMlPerSec: number;
   readonly rootOutResistanceEffectiveMmHgSecPerMl: number;
   readonly rootOutflowHighPressureDrive01: number;
+  readonly rootOutflowStatefulDrive01: number;
   readonly rootOutflowMlPerSec: number;
   readonly volumeClampHit01: 0 | 1;
   readonly laVolumeClampHit01: 0 | 1;
@@ -183,6 +191,11 @@ export function defaultLeftHeartSubsystemParamsV2(
     rootOutflowHighPressureDriveStartMmHg: overrides.rootOutflowHighPressureDriveStartMmHg ?? 0,
     rootOutflowHighPressureDriveEndMmHg: overrides.rootOutflowHighPressureDriveEndMmHg ?? 0,
     rootOutflowHighPressureResistanceGain: overrides.rootOutflowHighPressureResistanceGain ?? 0,
+    rootOutflowStatefulDriveStartMmHg: overrides.rootOutflowStatefulDriveStartMmHg ?? 0,
+    rootOutflowStatefulDriveEndMmHg: overrides.rootOutflowStatefulDriveEndMmHg ?? 0,
+    rootOutflowStatefulResistanceGain: overrides.rootOutflowStatefulResistanceGain ?? 0,
+    rootOutflowStatefulRiseTauSec: overrides.rootOutflowStatefulRiseTauSec ?? 0.035,
+    rootOutflowStatefulFallTauSec: overrides.rootOutflowStatefulFallTauSec ?? 0.35,
     mvSystolicClosureDriveGain01: overrides.mvSystolicClosureDriveGain01 ?? 0,
     mvSystolicClosureDriveStartTheta: overrides.mvSystolicClosureDriveStartTheta ?? 0.02,
     mvSystolicClosureDriveEndTheta: overrides.mvSystolicClosureDriveEndTheta ?? 0.18,
@@ -201,6 +214,7 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
     lv: initialOneFiberChamberStateV1(params.initialLvVolumeMl, params.lv),
     mv: initialFlowStateValveStateV1(),
     aov: initialFlowStateValveStateV1(),
+    rootOutflowStatefulDrive01: 0,
     clampCount: 0,
   };
   const samples: LeftHeartSubsystemSampleV2[] = [];
@@ -229,6 +243,7 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
         previousLvState: state.lv,
         previousMvState: state.mv,
         previousAovState: state.aov,
+        previousRootOutflowStatefulDrive01: state.rootOutflowStatefulDrive01,
         tSec,
         dtSec,
         cycleLengthSec,
@@ -281,6 +296,7 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
       qPulmonaryVenousSourceMlPerSec: accepted.qPulmonaryVenousSourceMlPerSec,
       rootOutResistanceEffectiveMmHgSecPerMl: accepted.rootOutResistanceEffectiveMmHgSecPerMl,
       rootOutflowHighPressureDrive01: accepted.rootOutflowHighPressureDrive01,
+      rootOutflowStatefulDrive01: accepted.rootOutflowStatefulDrive01,
       mvOpen01: accepted.mv.open01,
       aovOpen01: accepted.aov.open01,
       lvChamber: accepted.lvChamber,
@@ -304,6 +320,7 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
       lv: accepted.lvChamber.state,
       mv: accepted.mv.state,
       aov: accepted.aov.state,
+      rootOutflowStatefulDrive01: accepted.rootOutflowStatefulDrive01,
       clampCount: state.clampCount + accepted.volumeClampHit01,
     };
   }
@@ -318,6 +335,7 @@ function acceptLeftHeartCandidateV2(input: {
   readonly previousLvState: OneFiberChamberStateV1;
   readonly previousMvState: FlowStateValveStateV1;
   readonly previousAovState: FlowStateValveStateV1;
+  readonly previousRootOutflowStatefulDrive01: number;
   readonly tSec: number;
   readonly dtSec: number;
   readonly cycleLengthSec: number;
@@ -364,9 +382,17 @@ function acceptLeftHeartCandidateV2(input: {
     downstreamPressureMmHg: input.candidate.rootPressureMmHg,
   }, input.params.aov);
   const rootOutflowHighPressureDrive01 = rootOutflowHighPressureDrive(input.params, lvpMmHg);
+  const rootOutflowStatefulTargetDrive01 = rootOutflowStatefulTargetDrive(input.params, lvpMmHg);
+  const rootOutflowStatefulDrive01 = nextRootOutflowStatefulDrive(
+    input.previousRootOutflowStatefulDrive01,
+    rootOutflowStatefulTargetDrive01,
+    input.dtSec,
+    input.params,
+  );
   const rootOutResistanceEffectiveMmHgSecPerMl =
     input.params.rootOutResistanceMmHgSecPerMl
-    * (1 + input.params.rootOutflowHighPressureResistanceGain * rootOutflowHighPressureDrive01);
+    * (1 + input.params.rootOutflowHighPressureResistanceGain * rootOutflowHighPressureDrive01)
+    * (1 + input.params.rootOutflowStatefulResistanceGain * rootOutflowStatefulDrive01);
   const rootOutflowMlPerSec = Math.max(
     0,
     (input.candidate.rootPressureMmHg - input.params.rootDownstreamPressureMmHg)
@@ -397,6 +423,7 @@ function acceptLeftHeartCandidateV2(input: {
     qPulmonaryVenousSourceMlPerSec: pulmonaryBoundary.qPulmonaryVenousSourceMlPerSec,
     rootOutResistanceEffectiveMmHgSecPerMl,
     rootOutflowHighPressureDrive01,
+    rootOutflowStatefulDrive01,
     rootOutflowMlPerSec,
   };
 }
@@ -417,6 +444,28 @@ function rootOutflowHighPressureDrive(params: LeftHeartSubsystemParamsV2, lvpMmH
   const end = params.rootOutflowHighPressureDriveEndMmHg;
   if (end <= start) return 0;
   return smoothstep01((lvpMmHg - start) / Math.max(end - start, 1e-9));
+}
+
+function rootOutflowStatefulTargetDrive(params: LeftHeartSubsystemParamsV2, lvpMmHg: number): number {
+  if (params.rootOutflowStatefulResistanceGain <= 0) return 0;
+  const start = params.rootOutflowStatefulDriveStartMmHg;
+  const end = params.rootOutflowStatefulDriveEndMmHg;
+  if (end <= start) return 0;
+  return smoothstep01((lvpMmHg - start) / Math.max(end - start, 1e-9));
+}
+
+function nextRootOutflowStatefulDrive(
+  previousDrive01: number,
+  targetDrive01: number,
+  dtSec: number,
+  params: LeftHeartSubsystemParamsV2,
+): number {
+  if (params.rootOutflowStatefulResistanceGain <= 0) return 0;
+  const tau = targetDrive01 > previousDrive01
+    ? params.rootOutflowStatefulRiseTauSec
+    : params.rootOutflowStatefulFallTauSec;
+  const step = (targetDrive01 - previousDrive01) * dtSec / Math.max(tau, 1e-6);
+  return clamp(previousDrive01 + step, 0, 1);
 }
 
 function smoothstep01(value: number): number {

@@ -40,7 +40,7 @@ Current scope:
   external active-length blend probe.
 - `benches/LeftHeartDynamicReserveContractBench.ts`: dynamic left-heart
   output-reserve contract surface with MV closure-state drive, high-pressure
-  root runoff drive, and LA/LV split clamp readbacks.
+  and stateful root runoff drive, and LA/LV split clamp readbacks.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
