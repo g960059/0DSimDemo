@@ -1,0 +1,1500 @@
+{
+  "schemaVersion": 1,
+  "id": "atrioventricular-timing-gate-phase5cz-result-v1",
+  "phase": "5CZ",
+  "profile": {
+    "verificationProfile": "fitFast",
+    "morphologyProfileId": "normal_sinus_default",
+    "pointSource": "representative-normal-sinus-envelope",
+    "diagnosticQuestion": "whether normal-sinus morphology includes a direct atrial-kick-to-ventricular-upstroke timing gate beyond the existing LAP/RAP waveform check"
+  },
+  "gateContract": {
+    "directGateAddedTo": "engine/verification/morphologyCheck.ts",
+    "leftGateId": "left-av-delay",
+    "rightGateId": "right-av-delay",
+    "activeLeadThresholdMs": "45-240",
+    "pressureLeadThresholdMs": "10-260 when measurable",
+    "lapRapBadgesIncludeDirectDelay": true
+  },
+  "variants": [
+    {
+      "id": "legacy-active-stress-rollback",
+      "label": "Frozen legacy active-stress rollback/reference",
+      "closurePath": "frozen-legacy-active-stress"
+    },
+    {
+      "id": "current-user0-all-chamber-landatrial",
+      "label": "Current user0 all-chamber LandAtrial staged default",
+      "closurePath": "current-user0-all-chamber-landatrial"
+    },
+    {
+      "id": "valve-pressure-flow-user0-inlet-held-release",
+      "label": "Phase 5CY user0 valve-pressure-flow candidate with inlet-held AV-plane release",
+      "closurePath": "phase5cy-user0-valve-pressure-flow"
+    }
+  ],
+  "points": [
+    {
+      "id": "normal-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75
+      }
+    },
+    {
+      "id": "low-preload-hr75",
+      "targetTBVMl": 4800,
+      "params": {
+        "HR": 75
+      }
+    },
+    {
+      "id": "high-preload-hr75",
+      "targetTBVMl": 6200,
+      "params": {
+        "HR": 75
+      }
+    },
+    {
+      "id": "normal-hr90",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 90
+      }
+    },
+    {
+      "id": "systemic-afterload-high-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "systemicResistance": 1.25
+      }
+    },
+    {
+      "id": "pulmonary-afterload-high-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "pulmonaryResistance": 1.35
+      }
+    },
+    {
+      "id": "contractility-low-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "contractility": 0.82
+      }
+    },
+    {
+      "id": "contractility-high-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "contractility": 1.18
+      }
+    }
+  ],
+  "results": [
+    {
+      "variantId": "legacy-active-stress-rollback",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "morphologyStatus": "failed",
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "leftAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 160,
+        "pressureLeadMs": 182,
+        "activePeakTheta": 0.9425,
+        "ventricularUpstrokeTheta": 0.1425,
+        "pressureAPeakTheta": 0.915
+      },
+      "rightAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 178,
+        "pressureLeadMs": 182,
+        "activePeakTheta": 0.92,
+        "ventricularUpstrokeTheta": 0.1425,
+        "pressureAPeakTheta": 0.915
+      },
+      "lapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.9425,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.92,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "legacy-active-stress-rollback",
+      "pointId": "low-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "morphologyStatus": "failed",
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "RA PV loop",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "leftAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 162,
+        "pressureLeadMs": 170,
+        "activePeakTheta": 0.94,
+        "ventricularUpstrokeTheta": 0.1425,
+        "pressureAPeakTheta": 0.93
+      },
+      "rightAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 182,
+        "pressureLeadMs": 184,
+        "activePeakTheta": 0.9175,
+        "ventricularUpstrokeTheta": 0.145,
+        "pressureAPeakTheta": 0.915
+      },
+      "lapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.94,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.9175,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "legacy-active-stress-rollback",
+      "pointId": "high-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "morphologyStatus": "failed",
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "leftAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 160,
+        "pressureLeadMs": 180,
+        "activePeakTheta": 0.9425,
+        "ventricularUpstrokeTheta": 0.1425,
+        "pressureAPeakTheta": 0.9175
+      },
+      "rightAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 176,
+        "pressureLeadMs": 186,
+        "activePeakTheta": 0.92,
+        "ventricularUpstrokeTheta": 0.14,
+        "pressureAPeakTheta": 0.9075
+      },
+      "lapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.9425,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.92,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "legacy-active-stress-rollback",
+      "pointId": "normal-hr90",
+      "settled": false,
+      "settleReason": "cap",
+      "healthStatus": "ok",
+      "morphologyStatus": "not-measured",
+      "badges": null,
+      "failedLabels": [
+        "not-measured"
+      ],
+      "leftAvDelay": {
+        "status": "not-measured",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": null,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rightAvDelay": {
+        "status": "not-measured",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": null,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "lapWaveform": {
+        "status": "not-measured",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": null,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rapWaveform": {
+        "status": "not-measured",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": null,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "legacy-active-stress-rollback",
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "morphologyStatus": "failed",
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "leftAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 158,
+        "pressureLeadMs": 176,
+        "activePeakTheta": 0.945,
+        "ventricularUpstrokeTheta": 0.1425,
+        "pressureAPeakTheta": 0.9225
+      },
+      "rightAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 178,
+        "pressureLeadMs": 184,
+        "activePeakTheta": 0.92,
+        "ventricularUpstrokeTheta": 0.1425,
+        "pressureAPeakTheta": 0.9125
+      },
+      "lapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.945,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.92,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "legacy-active-stress-rollback",
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "morphologyStatus": "failed",
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "leftAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 160,
+        "pressureLeadMs": 176,
+        "activePeakTheta": 0.9425,
+        "ventricularUpstrokeTheta": 0.1425,
+        "pressureAPeakTheta": 0.9225
+      },
+      "rightAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 178,
+        "pressureLeadMs": 184,
+        "activePeakTheta": 0.92,
+        "ventricularUpstrokeTheta": 0.1425,
+        "pressureAPeakTheta": 0.9125
+      },
+      "lapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.9425,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.92,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "legacy-active-stress-rollback",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "morphologyStatus": "failed",
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "RA PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "leftAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 156,
+        "pressureLeadMs": 188,
+        "activePeakTheta": 0.95,
+        "ventricularUpstrokeTheta": 0.145,
+        "pressureAPeakTheta": 0.91
+      },
+      "rightAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 178,
+        "pressureLeadMs": 190,
+        "activePeakTheta": 0.92,
+        "ventricularUpstrokeTheta": 0.1425,
+        "pressureAPeakTheta": 0.905
+      },
+      "lapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.95,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.92,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "legacy-active-stress-rollback",
+      "pointId": "contractility-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "morphologyStatus": "failed",
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "leftAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 170,
+        "pressureLeadMs": 180,
+        "activePeakTheta": 0.93,
+        "ventricularUpstrokeTheta": 0.1425,
+        "pressureAPeakTheta": 0.9175
+      },
+      "rightAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 182,
+        "pressureLeadMs": 184,
+        "activePeakTheta": 0.915,
+        "ventricularUpstrokeTheta": 0.1425,
+        "pressureAPeakTheta": 0.9125
+      },
+      "lapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.93,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.915,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-all-chamber-landatrial",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "morphologyStatus": "failed",
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "leftAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 164,
+        "pressureLeadMs": 196,
+        "activePeakTheta": 0.94,
+        "ventricularUpstrokeTheta": 0.145,
+        "pressureAPeakTheta": 0.9
+      },
+      "rightAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 176,
+        "pressureLeadMs": 186,
+        "activePeakTheta": 0.9175,
+        "ventricularUpstrokeTheta": 0.1375,
+        "pressureAPeakTheta": 0.905
+      },
+      "lapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.94,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.9175,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-all-chamber-landatrial",
+      "pointId": "low-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "morphologyStatus": "failed",
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "leftAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 162,
+        "pressureLeadMs": 184,
+        "activePeakTheta": 0.945,
+        "ventricularUpstrokeTheta": 0.1475,
+        "pressureAPeakTheta": 0.9175
+      },
+      "rightAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 178,
+        "pressureLeadMs": 186,
+        "activePeakTheta": 0.9225,
+        "ventricularUpstrokeTheta": 0.145,
+        "pressureAPeakTheta": 0.9125
+      },
+      "lapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.945,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.9225,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-all-chamber-landatrial",
+      "pointId": "high-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "morphologyStatus": "failed",
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "leftAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 162,
+        "pressureLeadMs": 196,
+        "activePeakTheta": 0.94,
+        "ventricularUpstrokeTheta": 0.1425,
+        "pressureAPeakTheta": 0.8975
+      },
+      "rightAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 174,
+        "pressureLeadMs": 188,
+        "activePeakTheta": 0.9175,
+        "ventricularUpstrokeTheta": 0.135,
+        "pressureAPeakTheta": 0.9
+      },
+      "lapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.94,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.9175,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-all-chamber-landatrial",
+      "pointId": "normal-hr90",
+      "settled": false,
+      "settleReason": "cap",
+      "healthStatus": "ok",
+      "morphologyStatus": "not-measured",
+      "badges": null,
+      "failedLabels": [
+        "not-measured"
+      ],
+      "leftAvDelay": {
+        "status": "not-measured",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": null,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rightAvDelay": {
+        "status": "not-measured",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": null,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "lapWaveform": {
+        "status": "not-measured",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": null,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rapWaveform": {
+        "status": "not-measured",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": null,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-all-chamber-landatrial",
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "morphologyStatus": "failed",
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "leftAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 162,
+        "pressureLeadMs": 196,
+        "activePeakTheta": 0.94,
+        "ventricularUpstrokeTheta": 0.1425,
+        "pressureAPeakTheta": 0.8975
+      },
+      "rightAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 176,
+        "pressureLeadMs": 186,
+        "activePeakTheta": 0.9175,
+        "ventricularUpstrokeTheta": 0.1375,
+        "pressureAPeakTheta": 0.905
+      },
+      "lapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.94,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.9175,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-all-chamber-landatrial",
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "morphologyStatus": "failed",
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "leftAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 166,
+        "pressureLeadMs": 196,
+        "activePeakTheta": 0.9375,
+        "ventricularUpstrokeTheta": 0.145,
+        "pressureAPeakTheta": 0.9
+      },
+      "rightAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 176,
+        "pressureLeadMs": 186,
+        "activePeakTheta": 0.9175,
+        "ventricularUpstrokeTheta": 0.1375,
+        "pressureAPeakTheta": 0.905
+      },
+      "lapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.9375,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.9175,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-all-chamber-landatrial",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "morphologyStatus": "failed",
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "RA PV loop",
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "leftAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 168,
+        "pressureLeadMs": 196,
+        "activePeakTheta": 0.9475,
+        "ventricularUpstrokeTheta": 0.1575,
+        "pressureAPeakTheta": 0.9125
+      },
+      "rightAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 184,
+        "pressureLeadMs": 190,
+        "activePeakTheta": 0.92,
+        "ventricularUpstrokeTheta": 0.15,
+        "pressureAPeakTheta": 0.9125
+      },
+      "lapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.9475,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.92,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "current-user0-all-chamber-landatrial",
+      "pointId": "contractility-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "morphologyStatus": "failed",
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "leftAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 158,
+        "pressureLeadMs": 196,
+        "activePeakTheta": 0.9375,
+        "ventricularUpstrokeTheta": 0.135,
+        "pressureAPeakTheta": 0.89
+      },
+      "rightAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 170,
+        "pressureLeadMs": 188,
+        "activePeakTheta": 0.9175,
+        "ventricularUpstrokeTheta": 0.13,
+        "pressureAPeakTheta": 0.895
+      },
+      "lapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.9375,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.9175,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "valve-pressure-flow-user0-inlet-held-release",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "morphologyStatus": "failed",
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "leftAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 164,
+        "pressureLeadMs": 194,
+        "activePeakTheta": 0.9375,
+        "ventricularUpstrokeTheta": 0.1425,
+        "pressureAPeakTheta": 0.9
+      },
+      "rightAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 174,
+        "pressureLeadMs": 180,
+        "activePeakTheta": 0.915,
+        "ventricularUpstrokeTheta": 0.1325,
+        "pressureAPeakTheta": 0.9075
+      },
+      "lapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.9375,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.915,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "valve-pressure-flow-user0-inlet-held-release",
+      "pointId": "low-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "morphologyStatus": "failed",
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "leftAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 168,
+        "pressureLeadMs": 190,
+        "activePeakTheta": 0.9375,
+        "ventricularUpstrokeTheta": 0.1475,
+        "pressureAPeakTheta": 0.91
+      },
+      "rightAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 178,
+        "pressureLeadMs": 180,
+        "activePeakTheta": 0.9175,
+        "ventricularUpstrokeTheta": 0.14,
+        "pressureAPeakTheta": 0.915
+      },
+      "lapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.9375,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.9175,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "valve-pressure-flow-user0-inlet-held-release",
+      "pointId": "high-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "morphologyStatus": "failed",
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "leftAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 160,
+        "pressureLeadMs": 196,
+        "activePeakTheta": 0.94,
+        "ventricularUpstrokeTheta": 0.14,
+        "pressureAPeakTheta": 0.895
+      },
+      "rightAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 172,
+        "pressureLeadMs": 184,
+        "activePeakTheta": 0.915,
+        "ventricularUpstrokeTheta": 0.13,
+        "pressureAPeakTheta": 0.9
+      },
+      "lapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.94,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.915,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "valve-pressure-flow-user0-inlet-held-release",
+      "pointId": "normal-hr90",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "morphologyStatus": "failed",
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "leftAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 168.666667,
+        "pressureLeadMs": 194.666667,
+        "activePeakTheta": 0.915,
+        "ventricularUpstrokeTheta": 0.168,
+        "pressureAPeakTheta": 0.876
+      },
+      "rightAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 178.666667,
+        "pressureLeadMs": 180.666667,
+        "activePeakTheta": 0.894,
+        "ventricularUpstrokeTheta": 0.162,
+        "pressureAPeakTheta": 0.891
+      },
+      "lapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.915,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.894,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "valve-pressure-flow-user0-inlet-held-release",
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "morphologyStatus": "failed",
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "leftAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 164,
+        "pressureLeadMs": 196,
+        "activePeakTheta": 0.9375,
+        "ventricularUpstrokeTheta": 0.1425,
+        "pressureAPeakTheta": 0.8975
+      },
+      "rightAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 176,
+        "pressureLeadMs": 182,
+        "activePeakTheta": 0.915,
+        "ventricularUpstrokeTheta": 0.135,
+        "pressureAPeakTheta": 0.9075
+      },
+      "lapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.9375,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.915,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "valve-pressure-flow-user0-inlet-held-release",
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "morphologyStatus": "failed",
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "leftAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 164,
+        "pressureLeadMs": 194,
+        "activePeakTheta": 0.9375,
+        "ventricularUpstrokeTheta": 0.1425,
+        "pressureAPeakTheta": 0.9
+      },
+      "rightAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 176,
+        "pressureLeadMs": 182,
+        "activePeakTheta": 0.915,
+        "ventricularUpstrokeTheta": 0.135,
+        "pressureAPeakTheta": 0.9075
+      },
+      "lapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.9375,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.915,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "valve-pressure-flow-user0-inlet-held-release",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "morphologyStatus": "failed",
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "leftAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 166,
+        "pressureLeadMs": 192,
+        "activePeakTheta": 0.945,
+        "ventricularUpstrokeTheta": 0.1525,
+        "pressureAPeakTheta": 0.9125
+      },
+      "rightAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 182,
+        "pressureLeadMs": 188,
+        "activePeakTheta": 0.9175,
+        "ventricularUpstrokeTheta": 0.145,
+        "pressureAPeakTheta": 0.91
+      },
+      "lapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.945,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.9175,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "valve-pressure-flow-user0-inlet-held-release",
+      "pointId": "contractility-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "morphologyStatus": "failed",
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "leftAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 158,
+        "pressureLeadMs": 196,
+        "activePeakTheta": 0.935,
+        "ventricularUpstrokeTheta": 0.1325,
+        "pressureAPeakTheta": 0.8875
+      },
+      "rightAvDelay": {
+        "status": "ok",
+        "activeLeadMs": 170,
+        "pressureLeadMs": 180,
+        "activePeakTheta": 0.915,
+        "ventricularUpstrokeTheta": 0.1275,
+        "pressureAPeakTheta": 0.9025
+      },
+      "lapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.935,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "rapWaveform": {
+        "status": "failed",
+        "activeLeadMs": null,
+        "pressureLeadMs": null,
+        "activePeakTheta": 0.915,
+        "ventricularUpstrokeTheta": null,
+        "pressureAPeakTheta": null
+      },
+      "errorMessage": null
+    }
+  ],
+  "variantSummaries": [
+    {
+      "variantId": "legacy-active-stress-rollback",
+      "measuredCount": 7,
+      "settledOkCount": 7,
+      "healthOkCount": 8,
+      "leftAvDelayOkCount": 7,
+      "rightAvDelayOkCount": 7,
+      "bothDirectAvDelayOkCount": 7,
+      "lapWaveformOkCount": 0,
+      "rapWaveformOkCount": 0,
+      "bothPressureWaveformOkCount": 0,
+      "firstDirectAvDelayFailurePoint": null,
+      "firstPressureWaveformFailurePoint": "normal-hr75"
+    },
+    {
+      "variantId": "current-user0-all-chamber-landatrial",
+      "measuredCount": 7,
+      "settledOkCount": 7,
+      "healthOkCount": 8,
+      "leftAvDelayOkCount": 7,
+      "rightAvDelayOkCount": 7,
+      "bothDirectAvDelayOkCount": 7,
+      "lapWaveformOkCount": 0,
+      "rapWaveformOkCount": 0,
+      "bothPressureWaveformOkCount": 0,
+      "firstDirectAvDelayFailurePoint": null,
+      "firstPressureWaveformFailurePoint": "normal-hr75"
+    },
+    {
+      "variantId": "valve-pressure-flow-user0-inlet-held-release",
+      "measuredCount": 8,
+      "settledOkCount": 8,
+      "healthOkCount": 8,
+      "leftAvDelayOkCount": 8,
+      "rightAvDelayOkCount": 8,
+      "bothDirectAvDelayOkCount": 8,
+      "lapWaveformOkCount": 0,
+      "rapWaveformOkCount": 0,
+      "bothPressureWaveformOkCount": 0,
+      "firstDirectAvDelayFailurePoint": null,
+      "firstPressureWaveformFailurePoint": "normal-hr75"
+    }
+  ],
+  "classification": {
+    "legacyDirectAvDelay": "7/7",
+    "currentUser0DirectAvDelay": "7/7",
+    "valvePressureFlowUser0DirectAvDelay": "8/8",
+    "currentUser0PressureWaveform": "0/7",
+    "valvePressureFlowUser0PressureWaveform": "0/8",
+    "decision": "direct-av-delay-gate-added-pressure-waveform-still-blocked",
+    "notes": [
+      "The morphology checker now contains direct left/right atrial-kick-to-ventricular-pressure-upstroke timing checks.",
+      "This phase answers the owner screenshot concern directly but does not unlock LandAtrial tuning because LAP/RAP waveform timing remains part of the same badge.",
+      "Pressure waveform acceptance remains separate from LV/RV PV plus MVF/TVF gross repair."
+    ]
+  },
+  "recommendedNext": [
+    "Keep the direct AV timing check as a permanent normal-sinus morphology guard.",
+    "Use the new left/right AV delay metrics in future case/lesson profile gates, with profile-specific expectations for AF and conduction-delay cases.",
+    "Do not resume LandAtrial parameter tuning until the chamber/valve/load contract also clears LV/RV PV plus MVF/TVF and LAP/RAP timing over the representative envelope."
+  ],
+  "claimBoundary": {
+    "noRuntimeDefaultAdoption": true,
+    "noOfficialMorphologyAcceptance": true,
+    "noLandAtrialParameterTuningUnlock": true,
+    "noA1A2Reopen": true,
+    "noValveQdotRootZcTrefSourceStressTuning": true,
+    "noClinicalScientificValidation": true
+  },
+  "normalizedSha256": "44aded3f579c6f7be425a962093817b95c2daf1ade7c8c68e95d0600f54506d3"
+}

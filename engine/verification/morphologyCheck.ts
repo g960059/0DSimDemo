@@ -32,7 +32,9 @@ export type MorphologyCheckId =
   | "mvf"
   | "tvf"
   | "lap-waveform"
-  | "rap-waveform";
+  | "rap-waveform"
+  | "left-av-delay"
+  | "right-av-delay";
 
 export type MorphologyCheckResult = {
   readonly id: MorphologyCheckId;
@@ -103,6 +105,8 @@ export function morphologyCheckSummaryFromSamples(
     atrioventricularFlowCheck(beat, "TV"),
     atrialPressureTimingCheck(beat, "LA"),
     atrialPressureTimingCheck(beat, "RA"),
+    atrioventricularDelayCheck(beat, "LA"),
+    atrioventricularDelayCheck(beat, "RA"),
   ];
   const failedCount = results.filter((result) => result.status === "failed").length;
   const warningCount = results.filter((result) => result.status === "warning").length;
@@ -279,6 +283,49 @@ function atrialPressureTimingCheck(samples: readonly SimSample[], side: AtrialSi
   };
 }
 
+function atrioventricularDelayCheck(samples: readonly SimSample[], side: AtrialSide): MorphologyCheckResult {
+  const isLeft = side === "LA";
+  const id = isLeft ? "left-av-delay" : "right-av-delay";
+  const activeKey = isLeft ? "aLA" : "aRA";
+  const atrialPressureKey = isLeft ? "LAP" : "RAP";
+  const ventricularPressureKey = isLeft ? "LVP" : "RVP";
+  const ventricularLabel = isLeft ? "LV" : "RV";
+  const beatSeconds = beatDurationSeconds(samples);
+  const activePeak = samples.reduce((best, sample) => sample[activeKey] > best[activeKey] ? sample : best, samples[0]);
+  const ventricularUpstroke = maxDpDtSample(samples, ventricularPressureKey);
+  const atrialPressurePeak = atrialPressureAPeakSample(samples, atrialPressureKey);
+  const activeLeadMs = ventricularUpstroke
+    ? circularLeadMs(phaseOf(activePeak), phaseOf(ventricularUpstroke), beatSeconds)
+    : null;
+  const pressureLeadMs = atrialPressurePeak && ventricularUpstroke
+    ? circularLeadMs(phaseOf(atrialPressurePeak), phaseOf(ventricularUpstroke), beatSeconds)
+    : null;
+  const activeLeadOk = activeLeadMs != null && activeLeadMs >= 45 && activeLeadMs <= 240;
+  const pressureLeadOk = pressureLeadMs == null || (pressureLeadMs >= 10 && pressureLeadMs <= 260);
+  const ok = activeLeadOk && pressureLeadOk;
+  return {
+    id,
+    label: `${side}-${ventricularLabel} AV delay`,
+    status: ok ? "ok" : "failed",
+    value: `activeLeadMs=${activeLeadMs == null ? "n/a" : round(activeLeadMs)}, pressureLeadMs=${
+      pressureLeadMs == null ? "n/a" : round(pressureLeadMs)
+    }`,
+    threshold:
+      "normal sinus atrial active peak leads ventricular pressure upstroke by 45-240 ms; pressure a-wave lead, if measurable, is 10-260 ms",
+    message: ok
+      ? `${side} kick is coupled to the ${ventricularLabel} pressure upstroke with plausible AV timing.`
+      : `${side} kick is not correctly timed to the ${ventricularLabel} pressure upstroke; AV delay is too short, too long, or not measurable.`,
+    metrics: {
+      activePeakTheta: round(phaseOf(activePeak)),
+      ventricularUpstrokeTheta: ventricularUpstroke ? round(phaseOf(ventricularUpstroke)) : null,
+      atrialPressureAPeakTheta: atrialPressurePeak ? round(phaseOf(atrialPressurePeak)) : null,
+      activeToVentricularUpstrokeLeadMs: activeLeadMs == null ? null : round(activeLeadMs),
+      pressureAToVentricularUpstrokeLeadMs: pressureLeadMs == null ? null : round(pressureLeadMs),
+      beatDurationMs: round(beatSeconds * 1000),
+    },
+  };
+}
+
 function prominentExtremaCount(
   samples: readonly SimSample[],
   key: keyof SimSample,
@@ -312,6 +359,45 @@ function totalVariation(values: readonly number[]): number {
   return out;
 }
 
+function beatDurationSeconds(samples: readonly SimSample[]): number {
+  const ratios: number[] = [];
+  for (let i = 1; i < samples.length; i++) {
+    const dt = samples[i].t - samples[i - 1].t;
+    const dPhi = samples[i].phi - samples[i - 1].phi;
+    if (dt > 0 && dPhi > 1e-9) ratios.push(dt / dPhi);
+  }
+  if (ratios.length === 0) return 60 / 75;
+  ratios.sort((a, b) => a - b);
+  return ratios[Math.floor(ratios.length / 2)];
+}
+
+function maxDpDtSample(samples: readonly SimSample[], key: "LVP" | "RVP"): SimSample | null {
+  if (samples.length < 2) return null;
+  let bestSample: SimSample | null = null;
+  let best = -Infinity;
+  for (let i = 1; i < samples.length; i++) {
+    const dt = samples[i].t - samples[i - 1].t;
+    if (dt <= 0) continue;
+    const dpdt = (samples[i][key] - samples[i - 1][key]) / dt;
+    if (dpdt > best) {
+      best = dpdt;
+      bestSample = samples[i];
+    }
+  }
+  return bestSample;
+}
+
+function atrialPressureAPeakSample(samples: readonly SimSample[], key: "LAP" | "RAP"): SimSample | null {
+  const candidates = samples.filter((sample) => phaseInWindow(phaseOf(sample), 0.65, 0.15));
+  if (candidates.length === 0) return null;
+  return candidates.reduce((best, sample) => sample[key] > best[key] ? sample : best, candidates[0]);
+}
+
+function circularLeadMs(fromTheta: number, toTheta: number, beatSeconds: number): number {
+  const delta = (toTheta - fromTheta + 1) % 1;
+  return delta * beatSeconds * 1000;
+}
+
 function round(value: number): number {
   return Number.isFinite(value) ? Number(value.toFixed(6)) : value;
 }
@@ -319,6 +405,13 @@ function round(value: number): number {
 function badgesFromResults(results: readonly MorphologyCheckResult[]): MorphologyBadgeSummary {
   const defaultStatus: MorphologyCheckStatus = "pending";
   const byId = new Map(results.map((result) => [result.id, result.status]));
+  const combinedStatus = (ids: readonly MorphologyCheckId[]): MorphologyCheckStatus => {
+    const statuses = ids.map((id) => byId.get(id) ?? defaultStatus);
+    if (statuses.includes("failed")) return "failed";
+    if (statuses.includes("warning")) return "warning";
+    if (statuses.includes("pending")) return "pending";
+    return "ok";
+  };
   return {
     lvPv: byId.get("lv-pv-loop") ?? defaultStatus,
     rvPv: byId.get("rv-pv-loop") ?? defaultStatus,
@@ -326,7 +419,7 @@ function badgesFromResults(results: readonly MorphologyCheckResult[]): Morpholog
     raPv: byId.get("ra-pv-loop") ?? defaultStatus,
     mvf: byId.get("mvf") ?? defaultStatus,
     tvf: byId.get("tvf") ?? defaultStatus,
-    lapWaveform: byId.get("lap-waveform") ?? defaultStatus,
-    rapWaveform: byId.get("rap-waveform") ?? defaultStatus,
+    lapWaveform: combinedStatus(["lap-waveform", "left-av-delay"]),
+    rapWaveform: combinedStatus(["rap-waveform", "right-av-delay"]),
   };
 }
