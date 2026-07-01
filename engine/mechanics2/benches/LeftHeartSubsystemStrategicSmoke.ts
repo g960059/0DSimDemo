@@ -113,7 +113,7 @@ function buildEnvelope(): readonly LeftHeartSubsystemParamsV1[] {
       laAWaveMmHg: 1.7,
       initialLaVolumeMl: 50,
       initialLvVolumeMl: 112,
-      pulmonaryVenousInflowMlPerSec: 74,
+      pulmonaryVenousPressureMmHg: 12,
     }),
     defaultLeftHeartSubsystemParamsV1({
       fixtureId: "left-heart-preload-high",
@@ -121,7 +121,7 @@ function buildEnvelope(): readonly LeftHeartSubsystemParamsV1[] {
       laAWaveMmHg: 2.6,
       initialLaVolumeMl: 66,
       initialLvVolumeMl: 138,
-      pulmonaryVenousInflowMlPerSec: 104,
+      pulmonaryVenousPressureMmHg: 17,
     }),
     defaultLeftHeartSubsystemParamsV1({
       fixtureId: "left-heart-afterload-high",
