@@ -110,7 +110,7 @@ export function validateFiberReplayFixtureV1(fixture: FiberReplayFixtureV1): rea
   if (fixture.timeSec.length < 16) errors.push("too few samples");
   if (!Number.isFinite(fixture.sampleRateHz) || fixture.sampleRateHz <= 0) errors.push("invalid sampleRateHz");
   if (!Number.isFinite(fixture.cycleLengthSec) || fixture.cycleLengthSec <= 0) errors.push("invalid cycleLengthSec");
-  if (fixture.lSUnits !== "normalized" && fixture.lSUnits !== "um") errors.push("invalid lSUnits");
+  if (fixture.lSUnits !== "normalized") errors.push("lSUnits must be normalized for MechanicsCore2 V1 replay");
   if (!fixture.provenance || fixture.provenance.derivedCode !== false) errors.push("missing no-derived-code provenance");
   for (let i = 1; i < fixture.timeSec.length; i++) {
     if (!(fixture.timeSec[i]! > fixture.timeSec[i - 1]!)) {

@@ -97,17 +97,19 @@ export function runHillSeriesFiberReplayBenchV1(
   gate: HillSeriesFiberReplayGateV1 = PRE_REGISTERED_HILL_SERIES_FIBER_REPLAY_GATE_V1,
 ): HillSeriesFiberReplayReportV1 {
   const requiredIds = new Set(REQUIRED_FIBER_REPLAY_FIXTURE_IDS_V1);
-  const fixtureIds = new Set(fixtures.map((fixture) => fixture.fixtureId));
+  const fixtureIdList = fixtures.map((fixture) => fixture.fixtureId);
+  const fixtureIds = new Set(fixtureIdList);
+  const duplicateIds = [...fixtureIds].filter((id) => fixtureIdList.filter((fixtureId) => fixtureId === id).length > 1);
   const missing = [...requiredIds].filter((id) => !fixtureIds.has(id));
   const fixtureResults = fixtures.map((fixture) => evaluateFixture(fixture, gate));
   const pass = fixtureResults.filter((result) => result.status === "pass").length;
-  const fail = fixtureResults.filter((result) => result.status === "fail").length + missing.length;
+  const fail = fixtureResults.filter((result) => result.status === "fail").length + missing.length + duplicateIds.length;
   const inconclusive = fixtureResults.filter((result) => result.status === "inconclusive").length;
   const total = fixtureResults.length + missing.length;
   const passRate = total > 0 ? pass / total : 0;
   const failRate = total > 0 ? fail / total : 1;
-  const overallStatus = missing.length > 0
-    ? "inconclusive"
+  const overallStatus = missing.length > 0 || duplicateIds.length > 0 || inconclusive > 0
+    ? "no-go"
     : passRate >= gate.robustness.minFixturePassRate && failRate <= gate.robustness.maxParameterCoverageFailRate
       ? "go"
       : "no-go";
@@ -119,8 +121,12 @@ export function runHillSeriesFiberReplayBenchV1(
     parameterSweepSummary: { total, pass, fail, inconclusive },
     decision: {
       mayProceedToOneFiberChamber: overallStatus === "go",
-      reason: missing.length > 0
+      reason: duplicateIds.length > 0
+        ? `Duplicate fixtures: ${duplicateIds.join(", ")}`
+        : missing.length > 0
         ? `Missing required fixtures: ${missing.join(", ")}`
+        : inconclusive > 0
+          ? "At least one required replay fixture was inconclusive."
         : overallStatus === "go"
           ? "HillSeriesFiberV1 replay gate passed the pre-registered fixture set."
           : "HillSeriesFiberV1 replay gate failed or produced insufficient pass coverage.",

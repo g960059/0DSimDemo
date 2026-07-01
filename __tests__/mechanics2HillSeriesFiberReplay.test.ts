@@ -38,4 +38,18 @@ describe("MechanicsCore2 HillSeriesFiberV1 replay gate", () => {
     expect(["go", "no-go"]).toContain(report.overallStatus);
     expect(typeof report.decision.mayProceedToOneFiberChamber).toBe("boolean");
   });
+
+  it("fails closed on duplicate or non-normalized replay fixtures", () => {
+    const fixtures = buildMechanics2InitialReplayFixturesV1();
+    const duplicateReport = runHillSeriesFiberReplayBenchV1([...fixtures, fixtures[0]!]);
+    expect(duplicateReport.overallStatus).toBe("no-go");
+    expect(duplicateReport.decision.mayProceedToOneFiberChamber).toBe(false);
+    expect(duplicateReport.decision.reason).toContain("Duplicate fixtures");
+
+    const umFixture = { ...fixtures[0]!, lSUnits: "um" as const };
+    expect(validateFiberReplayFixtureV1(umFixture)).toContain("lSUnits must be normalized for MechanicsCore2 V1 replay");
+    const unitReport = runHillSeriesFiberReplayBenchV1([umFixture, ...fixtures.slice(1)]);
+    expect(unitReport.overallStatus).toBe("no-go");
+    expect(unitReport.decision.mayProceedToOneFiberChamber).toBe(false);
+  });
 });
