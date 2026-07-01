@@ -17,11 +17,12 @@ FlowStateValveV1 passes the isolated prescribed-gradient MV/TV fixture set:
 
 LeftHeartSubsystemV1 is a mixed strategic smoke:
 
-- 3/7 pass on the representative sidecar envelope
+- 4/7 pass on the representative sidecar envelope
 - 7/7 LV PV shape OK
-- 3/7 MVF OK
-- 6/7 output OK
-- Normal HR75, preload-high, and afterload-high pass all deterministic smoke checks
+- 5/7 MVF OK
+- 5/7 output OK
+- Normal HR75, HR90, preload-low, and preload-high pass all deterministic smoke checks
+- Afterload-high now fails only on low stroke volume; contractility-low remains low-output/clamp limited; contractility-high remains MVF-kink limited
 - Broad preload/HR/afterload/contractility envelope remains failed
 
 ## Interpretation
@@ -31,7 +32,9 @@ not enough for broad investment, runtime wiring, or morphology acceptance. The
 closed-loop smoke needs better upstream/downstream chamber-load ownership before
 any four-chamber or LandAtrial work resumes. Fixed pulmonary venous inflow was
 replaced with a pressure-flow boundary to avoid making the LA an infinite source;
-this improved output/MVF coverage but did not produce an adoption surface.
+this improved output/MVF coverage but did not produce an adoption surface. The
+current LV fiber timing defaults reduce MVF failures at HR90 and low preload,
+while exposing the next frontier as afterload output and contractility robustness.
 
 ## Claim Boundary
 

@@ -27,8 +27,8 @@ lane to a sidecar mechanics architecture inspired by CircAdapt-like
 chamber/valve/load ownership without copying CircAdapt source or claiming
 equivalence.
 
-Current sidecar state: `PR-M2-0+1`, `PR-M2-2+3`, and `PR-M2-4+5` evidence
-surfaces are implemented.
+Current sidecar state: `PR-M2-0+1`, `PR-M2-2+3`, `PR-M2-4+5`, and the
+left-heart fiber-timing attribution surface are implemented.
 
 Next PR target: left-heart attribution only. Do not start four-chamber work or
 LandAtrial re-entry until the mixed Gate B signal is explained or improved.
@@ -81,9 +81,14 @@ Next gates:
    evidence, not broad MechanicsCore2 investment.
 7. Gate B A-wave timing signal: parameterizing and delaying the LA A-wave window
    to theta 0.86-0.98 improves LeftHeartSubsystemV1 to 3/7 pass and MVF OK 3/7,
-   adding afterload-high to the passing set. HR90, low-preload, and
-   contractility perturbations remain failed. This is still attribution-only
+   adding afterload-high to the passing set. This is still attribution-only
    evidence.
+8. Gate B LV fiber-timing signal: slowing LV activation fall and accepted
+   fiber-length following improves LeftHeartSubsystemV1 to 4/7 pass and MVF OK
+   5/7 while keeping LV PV 7/7. HR90 and low-preload now pass. Remaining
+   failures are afterload-high low stroke volume, contractility-low low-output
+   clamp/mass residual, and contractility-high MVF kink. This remains
+   attribution-only evidence, not broad investment or LandAtrial unlock.
 
 Parallel prep, not blocking the next strategic gate:
 
