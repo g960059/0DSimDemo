@@ -24,7 +24,9 @@ export type LeftHeartArchitecturePointResultV1 = {
   readonly lvEdvMl: number | null;
   readonly lvEsvMl: number | null;
   readonly strokeVolumeMl: number | null;
+  readonly aovEjectedVolumeMl: number | null;
   readonly qMvPeakMlPerSec: number | null;
+  readonly qAovPeakMlPerSec: number | null;
   readonly mvForwardPeakCount: number;
   readonly maxAbsMassResidualMl: number | null;
   readonly clampCount: number;
@@ -130,7 +132,7 @@ function runVariant(
   description: string,
   overrides: Pick<LeftHeartSubsystemParamsV2, "transactionMode" | "transactionIterations" | "transactionRelaxation" | "volumeSafetyMode">,
 ): LeftHeartArchitectureVariantResultV1 {
-  const pointResults = buildEnvelope(overrides).map(runPoint);
+  const pointResults = buildLeftHeartArchitectureEnvelopeV1(overrides).map(runPoint);
   const pass = pointResults.filter((point) => point.status === "pass").length;
   const fail = pointResults.filter((point) => point.status === "fail").length;
   const inconclusive = pointResults.filter((point) => point.status === "inconclusive").length;
@@ -156,7 +158,7 @@ function runVariant(
   };
 }
 
-function buildEnvelope(
+export function buildLeftHeartArchitectureEnvelopeV1(
   overrides: Pick<LeftHeartSubsystemParamsV2, "transactionMode" | "transactionIterations" | "transactionRelaxation" | "volumeSafetyMode">,
 ): readonly LeftHeartSubsystemParamsV2[] {
   const base = defaultLeftHeartSubsystemParamsV1();
@@ -216,6 +218,7 @@ function runPoint(params: LeftHeartSubsystemParamsV2): LeftHeartArchitecturePoin
   const edv = finiteMaxOrNull(volumes);
   const esv = finiteMinOrNull(volumes);
   const strokeVolumeMl = edv != null && esv != null ? round(edv - esv) : null;
+  const aovEjectedVolumeMl = flowIntegral(beat, (sample) => sample.qAovMlPerSec);
   const result = {
     pointId: params.fixtureId,
     status: "pass" as const,
@@ -227,7 +230,9 @@ function runPoint(params: LeftHeartSubsystemParamsV2): LeftHeartArchitecturePoin
     lvEdvMl: edv,
     lvEsvMl: esv,
     strokeVolumeMl,
+    aovEjectedVolumeMl,
     qMvPeakMlPerSec: finiteMaxOrNull(qMv),
+    qAovPeakMlPerSec: finiteMaxOrNull(beat.map((sample) => sample.qAovMlPerSec)),
     mvForwardPeakCount,
     maxAbsMassResidualMl: finiteMaxOrNull(beat.map((sample) => Math.abs(sample.massResidualMl))),
     clampCount,
@@ -258,6 +263,7 @@ function failureReasonsFor(
   if ((result.lvpPeakMmHg ?? 0) < 70) failures.push("output-lvp-too-low");
   if ((result.lvpPeakMmHg ?? 999) > 190) failures.push("output-lvp-too-high");
   if ((result.strokeVolumeMl ?? 0) < 35) failures.push("output-stroke-volume-too-low");
+  if ((result.aovEjectedVolumeMl ?? 0) < 35) failures.push("output-aov-ejected-volume-too-low");
   if ((result.strokeVolumeMl ?? 999) > 110) failures.push("output-stroke-volume-too-high");
   if (result.lvpShape.dominantPeakCount > 1) failures.push("lvp-multipeak");
   if ((result.lvpShape.fwhmFractionOfWindow ?? 0) < 0.08) failures.push("lvp-too-narrow");
@@ -308,7 +314,9 @@ function emptyPoint(
     lvEdvMl: null,
     lvEsvMl: null,
     strokeVolumeMl: null,
+    aovEjectedVolumeMl: null,
     qMvPeakMlPerSec: null,
+    qAovPeakMlPerSec: null,
     mvForwardPeakCount: 0,
     maxAbsMassResidualMl: null,
     clampCount: 0,
@@ -334,6 +342,16 @@ function finiteMinOrNull(values: readonly number[]): number | null {
 function finiteMeanOrNull(values: readonly number[]): number | null {
   const finite = values.filter(Number.isFinite);
   return finite.length > 0 ? round(finite.reduce((sum, value) => sum + value, 0) / finite.length) : null;
+}
+
+function flowIntegral(samples: readonly LeftHeartSubsystemSampleV2[], accessor: (sample: LeftHeartSubsystemSampleV2) => number): number | null {
+  if (samples.length < 2) return null;
+  let total = 0;
+  for (let i = 1; i < samples.length; i++) {
+    const dt = samples[i]!.tSec - samples[i - 1]!.tSec;
+    total += Math.max(0, accessor(samples[i]!)) * Math.max(0, dt);
+  }
+  return round(total);
 }
 
 function round(value: number): number {

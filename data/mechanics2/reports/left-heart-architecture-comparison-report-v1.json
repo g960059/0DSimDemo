@@ -32,7 +32,9 @@
           "lvEdvMl": 173.529528,
           "lvEsvMl": 132.301547,
           "strokeVolumeMl": 41.227981,
+          "aovEjectedVolumeMl": 35.685684,
           "qMvPeakMlPerSec": 205.463462,
+          "qAovPeakMlPerSec": 841.781585,
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
@@ -82,7 +84,9 @@
           "lvEdvMl": 172.151382,
           "lvEsvMl": 136.638975,
           "strokeVolumeMl": 35.512407,
+          "aovEjectedVolumeMl": 35.515984,
           "qMvPeakMlPerSec": 198.310235,
+          "qAovPeakMlPerSec": 869.121111,
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
@@ -123,16 +127,18 @@
         },
         {
           "pointId": "left-heart-preload-low",
-          "status": "pass",
+          "status": "fail",
           "sampleCount": 191,
           "lvPvStatus": "ok",
           "mvfStatus": "ok",
-          "outputStatus": "ok",
+          "outputStatus": "fail",
           "lvpPeakMmHg": 134.809842,
           "lvEdvMl": 162.756585,
           "lvEsvMl": 127.713636,
           "strokeVolumeMl": 35.042949,
+          "aovEjectedVolumeMl": 23.900129,
           "qMvPeakMlPerSec": 175.220031,
+          "qAovPeakMlPerSec": 591.779399,
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
@@ -169,7 +175,9 @@
             "positiveCurvatureFraction": 0.391534,
             "positiveCurvatureBurden": 0.173829
           },
-          "failureReasons": []
+          "failureReasons": [
+            "output-aov-ejected-volume-too-low"
+          ]
         },
         {
           "pointId": "left-heart-preload-high",
@@ -182,7 +190,9 @@
           "lvEdvMl": 187.680107,
           "lvEsvMl": 136.928166,
           "strokeVolumeMl": 50.751941,
+          "aovEjectedVolumeMl": 50.755486,
           "qMvPeakMlPerSec": 253.968097,
+          "qAovPeakMlPerSec": 1079.484295,
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
@@ -232,7 +242,9 @@
           "lvEdvMl": 183.955279,
           "lvEsvMl": 152.16092,
           "strokeVolumeMl": 31.794359,
+          "aovEjectedVolumeMl": 31.79767,
           "qMvPeakMlPerSec": 159.995459,
+          "qAovPeakMlPerSec": 757.370867,
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
@@ -270,7 +282,8 @@
             "positiveCurvatureBurden": 0.133258
           },
           "failureReasons": [
-            "output-stroke-volume-too-low"
+            "output-stroke-volume-too-low",
+            "output-aov-ejected-volume-too-low"
           ]
         },
         {
@@ -284,7 +297,9 @@
           "lvEdvMl": 190,
           "lvEsvMl": 182.665737,
           "strokeVolumeMl": 7.334263,
+          "aovEjectedVolumeMl": 7.258723,
           "qMvPeakMlPerSec": 124.359092,
+          "qAovPeakMlPerSec": 222.545131,
           "mvForwardPeakCount": 3,
           "maxAbsMassResidualMl": 0.518162,
           "clampCount": 69,
@@ -323,6 +338,7 @@
           },
           "failureReasons": [
             "output-stroke-volume-too-low",
+            "output-aov-ejected-volume-too-low",
             "mvf-not-biphasic",
             "mvf-c1-kink",
             "output-mass-residual",
@@ -335,12 +351,14 @@
           "sampleCount": 191,
           "lvPvStatus": "ok",
           "mvfStatus": "fail",
-          "outputStatus": "ok",
+          "outputStatus": "fail",
           "lvpPeakMmHg": 174.681573,
           "lvEdvMl": 165.036641,
           "lvEsvMl": 115.228083,
           "strokeVolumeMl": 49.808558,
+          "aovEjectedVolumeMl": 0.008944,
           "qMvPeakMlPerSec": 198.253812,
+          "qAovPeakMlPerSec": 0.226534,
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
@@ -378,18 +396,19 @@
             "positiveCurvatureBurden": 0.285698
           },
           "failureReasons": [
+            "output-aov-ejected-volume-too-low",
             "mvf-c1-kink"
           ]
         }
       ],
       "summary": {
         "total": 7,
-        "pass": 4,
-        "fail": 3,
+        "pass": 3,
+        "fail": 4,
         "inconclusive": 0,
         "lvPvOkCount": 7,
         "mvfOkCount": 5,
-        "outputOkCount": 5,
+        "outputOkCount": 3,
         "maxTransactionResidualNormMl": 2.764629,
         "maxSafetyPressureMmHg": 0
       }
@@ -406,16 +425,18 @@
       "pointResults": [
         {
           "pointId": "left-heart-normal-hr75",
-          "status": "pass",
+          "status": "fail",
           "sampleCount": 191,
           "lvPvStatus": "ok",
           "mvfStatus": "ok",
-          "outputStatus": "ok",
+          "outputStatus": "fail",
           "lvpPeakMmHg": 138.995064,
           "lvEdvMl": 173.764077,
           "lvEsvMl": 134.07735,
           "strokeVolumeMl": 39.686727,
+          "aovEjectedVolumeMl": 32.530979,
           "qMvPeakMlPerSec": 197.012591,
+          "qAovPeakMlPerSec": 776.090101,
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
@@ -452,7 +473,9 @@
             "positiveCurvatureFraction": 0.386243,
             "positiveCurvatureBurden": 0.130306
           },
-          "failureReasons": []
+          "failureReasons": [
+            "output-aov-ejected-volume-too-low"
+          ]
         },
         {
           "pointId": "left-heart-normal-hr90",
@@ -465,7 +488,9 @@
           "lvEdvMl": 171.938014,
           "lvEsvMl": 136.454062,
           "strokeVolumeMl": 35.483952,
+          "aovEjectedVolumeMl": 35.487514,
           "qMvPeakMlPerSec": 196.510393,
+          "qAovPeakMlPerSec": 869.921942,
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
@@ -515,7 +540,9 @@
           "lvEdvMl": 164.787152,
           "lvEsvMl": 137.182846,
           "strokeVolumeMl": 27.604306,
+          "aovEjectedVolumeMl": 9.021839,
           "qMvPeakMlPerSec": 140.445673,
+          "qAovPeakMlPerSec": 285.251587,
           "mvForwardPeakCount": 3,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
@@ -554,6 +581,7 @@
           },
           "failureReasons": [
             "output-stroke-volume-too-low",
+            "output-aov-ejected-volume-too-low",
             "mvf-not-biphasic",
             "mvf-c1-kink"
           ]
@@ -569,7 +597,9 @@
           "lvEdvMl": 187.30898,
           "lvEsvMl": 136.769008,
           "strokeVolumeMl": 50.539972,
+          "aovEjectedVolumeMl": 50.543504,
           "qMvPeakMlPerSec": 251.230514,
+          "qAovPeakMlPerSec": 1078.439754,
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
@@ -619,7 +649,9 @@
           "lvEdvMl": 183.695354,
           "lvEsvMl": 152.172038,
           "strokeVolumeMl": 31.523316,
+          "aovEjectedVolumeMl": 31.526617,
           "qMvPeakMlPerSec": 157.562045,
+          "qAovPeakMlPerSec": 754.510752,
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
@@ -657,7 +689,8 @@
             "positiveCurvatureBurden": 0.134937
           },
           "failureReasons": [
-            "output-stroke-volume-too-low"
+            "output-stroke-volume-too-low",
+            "output-aov-ejected-volume-too-low"
           ]
         },
         {
@@ -671,7 +704,9 @@
           "lvEdvMl": 190,
           "lvEsvMl": 182.704016,
           "strokeVolumeMl": 7.295984,
+          "aovEjectedVolumeMl": 7.220018,
           "qMvPeakMlPerSec": 123.847887,
+          "qAovPeakMlPerSec": 222.291941,
           "mvForwardPeakCount": 3,
           "maxAbsMassResidualMl": 0.516032,
           "clampCount": 69,
@@ -710,6 +745,7 @@
           },
           "failureReasons": [
             "output-stroke-volume-too-low",
+            "output-aov-ejected-volume-too-low",
             "mvf-not-biphasic",
             "mvf-c1-kink",
             "output-mass-residual",
@@ -722,12 +758,14 @@
           "sampleCount": 191,
           "lvPvStatus": "ok",
           "mvfStatus": "fail",
-          "outputStatus": "ok",
+          "outputStatus": "fail",
           "lvpPeakMmHg": 174.677416,
           "lvEdvMl": 164.723942,
           "lvEsvMl": 114.981636,
           "strokeVolumeMl": 49.742306,
+          "aovEjectedVolumeMl": 0.009894,
           "qMvPeakMlPerSec": 198.728006,
+          "qAovPeakMlPerSec": 0.24879,
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
@@ -765,18 +803,19 @@
             "positiveCurvatureBurden": 0.283556
           },
           "failureReasons": [
+            "output-aov-ejected-volume-too-low",
             "mvf-c1-kink"
           ]
         }
       ],
       "summary": {
         "total": 7,
-        "pass": 3,
-        "fail": 4,
+        "pass": 2,
+        "fail": 5,
         "inconclusive": 0,
         "lvPvOkCount": 7,
         "mvfOkCount": 4,
-        "outputOkCount": 4,
+        "outputOkCount": 2,
         "maxTransactionResidualNormMl": 1.385712,
         "maxSafetyPressureMmHg": 0
       }
@@ -802,7 +841,9 @@
           "lvEdvMl": 170.932996,
           "lvEsvMl": 123.872615,
           "strokeVolumeMl": 47.060381,
+          "aovEjectedVolumeMl": 45.962353,
           "qMvPeakMlPerSec": 227.53675,
+          "qAovPeakMlPerSec": 1002.277108,
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
@@ -852,7 +893,9 @@
           "lvEdvMl": 172.549329,
           "lvEsvMl": 135.253368,
           "strokeVolumeMl": 37.295961,
+          "aovEjectedVolumeMl": 37.299525,
           "qMvPeakMlPerSec": 198.529905,
+          "qAovPeakMlPerSec": 908.159091,
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
@@ -893,16 +936,18 @@
         },
         {
           "pointId": "left-heart-preload-low",
-          "status": "pass",
+          "status": "fail",
           "sampleCount": 191,
           "lvPvStatus": "ok",
           "mvfStatus": "ok",
-          "outputStatus": "ok",
+          "outputStatus": "fail",
           "lvpPeakMmHg": 135.924184,
           "lvEdvMl": 161.844545,
           "lvEsvMl": 124.768218,
           "strokeVolumeMl": 37.076327,
+          "aovEjectedVolumeMl": 27.708792,
           "qMvPeakMlPerSec": 182.083561,
+          "qAovPeakMlPerSec": 681.310309,
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
@@ -939,7 +984,9 @@
             "positiveCurvatureFraction": 0.402116,
             "positiveCurvatureBurden": 0.172069
           },
-          "failureReasons": []
+          "failureReasons": [
+            "output-aov-ejected-volume-too-low"
+          ]
         },
         {
           "pointId": "left-heart-preload-high",
@@ -952,7 +999,9 @@
           "lvEdvMl": 187.754371,
           "lvEsvMl": 135.215404,
           "strokeVolumeMl": 52.538967,
+          "aovEjectedVolumeMl": 52.542496,
           "qMvPeakMlPerSec": 256.388869,
+          "qAovPeakMlPerSec": 1114.234158,
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
@@ -1002,7 +1051,9 @@
           "lvEdvMl": 183.750451,
           "lvEsvMl": 151.925237,
           "strokeVolumeMl": 31.825214,
+          "aovEjectedVolumeMl": 31.828517,
           "qMvPeakMlPerSec": 158.572179,
+          "qAovPeakMlPerSec": 760.13803,
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
@@ -1040,7 +1091,8 @@
             "positiveCurvatureBurden": 0.134984
           },
           "failureReasons": [
-            "output-stroke-volume-too-low"
+            "output-stroke-volume-too-low",
+            "output-aov-ejected-volume-too-low"
           ]
         },
         {
@@ -1054,7 +1106,9 @@
           "lvEdvMl": 194.980582,
           "lvEsvMl": 186.057643,
           "strokeVolumeMl": 8.922939,
+          "aovEjectedVolumeMl": 8.92232,
           "qMvPeakMlPerSec": 90.600202,
+          "qAovPeakMlPerSec": 263.798136,
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
@@ -1092,7 +1146,8 @@
             "positiveCurvatureBurden": 0.271475
           },
           "failureReasons": [
-            "output-stroke-volume-too-low"
+            "output-stroke-volume-too-low",
+            "output-aov-ejected-volume-too-low"
           ]
         },
         {
@@ -1101,12 +1156,14 @@
           "sampleCount": 191,
           "lvPvStatus": "ok",
           "mvfStatus": "fail",
-          "outputStatus": "ok",
+          "outputStatus": "fail",
           "lvpPeakMmHg": 172.854044,
           "lvEdvMl": 162.578514,
           "lvEsvMl": 107.473616,
           "strokeVolumeMl": 55.104898,
+          "aovEjectedVolumeMl": 0.006223,
           "qMvPeakMlPerSec": 190.527537,
+          "qAovPeakMlPerSec": 0.160689,
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
@@ -1144,18 +1201,19 @@
             "positiveCurvatureBurden": 0.300037
           },
           "failureReasons": [
+            "output-aov-ejected-volume-too-low",
             "mvf-c1-kink"
           ]
         }
       ],
       "summary": {
         "total": 7,
-        "pass": 4,
-        "fail": 3,
+        "pass": 3,
+        "fail": 4,
         "inconclusive": 0,
         "lvPvOkCount": 7,
         "mvfOkCount": 6,
-        "outputOkCount": 5,
+        "outputOkCount": 3,
         "maxTransactionResidualNormMl": 1.431959,
         "maxSafetyPressureMmHg": 3.235732
       }
@@ -1173,5 +1231,5 @@
     "CircAdaptEquivalence": false,
     "LandAtrialUnlock": false
   },
-  "normalizedSha256": "3db81bf668cb1334cf174b30f4e86ae15892e259a1fe775876290736c1824aca"
+  "normalizedSha256": "3a708ba0a390f939fd975e150104a9a3282e5d63a7793241f13780347ca3bc6a"
 }

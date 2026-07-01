@@ -34,10 +34,9 @@ Current sidecar state: `PR-M2-0+1`, `PR-M2-2+3`, `PR-M2-4+5`, the
 left-heart fiber-timing attribution surface, and the first left-heart V2
 transaction architecture comparison are implemented.
 
-Next PR target: left-heart attribution only, now focused on output-reserve
-classification and the high-contractility MVF kink. Do not start four-chamber
-work or LandAtrial re-entry until the mixed Gate B signal is explained or
-improved.
+Next PR target: left-heart Gate B repair only. Do not start four-chamber work
+or LandAtrial re-entry until output-reserve acceptance/recalibration and the
+high-contractility MVF kink are resolved.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -57,6 +56,8 @@ Included:
 - MechanicsTransactionV2 and LeftHeartSubsystemV2 sidecar architecture scaffold
   with explicit/fixed-point accepted-state modes and hard-clamp/soft-pressure
   safety surfaces.
+- LeftHeartResidualAttributionBench V1 for the remaining `v2-fixed2-soft`
+  afterload-high, contractility-low, and contractility-high residuals.
 
 Excluded:
 
@@ -105,6 +106,13 @@ Next gates:
    low-output + MVF + mass + clamp failure into low-output only with bounded
    soft safety pressure. This is architecture-scaffold evidence, not adoption,
    broad investment, or LandAtrial unlock.
+10. Gate B residual attribution: `v2-fixed2-soft` leaves three classified
+    residuals after output is judged by AoV forward ejection as well as LV
+    volume range. Afterload-high and contractility-low are output-reserve
+    residuals with clean MVF/no hard clamp; contractility-high is a
+    flow-decoupled + MVF kink artifact. This narrows the next phase to
+    output-reserve acceptance/recalibration and MVF kink/root-flow causality,
+    not right-heart or LandAtrial expansion.
 
 Parallel prep, not blocking the next strategic gate:
 
