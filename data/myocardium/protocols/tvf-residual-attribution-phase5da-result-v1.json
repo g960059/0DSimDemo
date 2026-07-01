@@ -1,0 +1,375 @@
+{
+  "schemaVersion": 1,
+  "id": "tvf-residual-attribution-phase5da-result-v1",
+  "phase": "5DA",
+  "profile": {
+    "verificationProfile": "fitFast",
+    "morphologyProfileId": "normal_sinus_default",
+    "diagnosticQuestion": "whether the remaining contractility-low TVF extra wave is aligned with accepted-boundary valve/qDot diagnostics, RA pressure, or AV-plane release"
+  },
+  "upstreamEvidence": {
+    "phase5CYArtifactId": "valve-pressure-flow-contract-phase5cy-result-v1",
+    "phase5CZArtifactId": "atrioventricular-timing-gate-phase5cz-result-v1"
+  },
+  "variants": [
+    {
+      "id": "valve-pressure-flow-user0-inlet-held-release",
+      "label": "Phase 5CY user0 valve-pressure-flow candidate with inlet-held AV-plane release",
+      "closurePath": "current-user0-all-chamber-landatrial",
+      "avValveBoundaryMode": "accepted-state-valve-pressure-flow"
+    },
+    {
+      "id": "accepted-complementarity-user0-inlet-held-release",
+      "label": "Phase 5CY user0 accepted-complementarity comparator with inlet-held AV-plane release",
+      "closurePath": "current-user0-all-chamber-landatrial",
+      "avValveBoundaryMode": "accepted-state-av-boundary-fixedpoint"
+    },
+    {
+      "id": "valve-pressure-flow-legacy-atria",
+      "label": "LV/RV Land with legacy atria and valve-pressure-flow contract",
+      "closurePath": "lv-rv-land-legacy-atria",
+      "avValveBoundaryMode": "accepted-state-valve-pressure-flow"
+    }
+  ],
+  "points": [
+    {
+      "id": "normal-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75
+      }
+    },
+    {
+      "id": "contractility-low-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "contractility": 0.82
+      }
+    }
+  ],
+  "results": [
+    {
+      "variantId": "valve-pressure-flow-user0-inlet-held-release",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "tvf": {
+        "diastolicPeakCount": 2,
+        "ePeakTheta": 0.635,
+        "aPeakTheta": 0.945,
+        "extraPeakTheta": null,
+        "extraPeakValue": null,
+        "extraPeakWindow": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "valve-pressure-flow-user0-inlet-held-release",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "tvf": {
+        "diastolicPeakCount": 3,
+        "ePeakTheta": 0.56,
+        "aPeakTheta": 0.9525,
+        "extraPeakTheta": 0.7725,
+        "extraPeakValue": 36.289182,
+        "extraPeakWindow": {
+          "sampleCount": 97,
+          "thetaLo": 0.7325,
+          "thetaHi": 0.8125,
+          "qtvPeak": 36.289182,
+          "rapMean": 8.195688,
+          "rvpMean": 7.88323,
+          "pressureGradientMean": 0.312458,
+          "pressureGradientPeak": 0.400536,
+          "acceptedPressureGradientMean": 0.312467,
+          "acceptedPressureGradientPeak": 0.400549,
+          "xiTvMean": 0.655382,
+          "acceptedValveStateMean": 0.654789,
+          "acceptedAreaRatioMean": 0.654789,
+          "acceptedDiodeHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "raActivePressureMean": 0.000317,
+          "raAvPlaneCorrectionRangeMl": 0,
+          "vraRangeMl": 0.223598
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "accepted-complementarity-user0-inlet-held-release",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "tvf": {
+        "diastolicPeakCount": 3,
+        "ePeakTheta": 0.635,
+        "aPeakTheta": 0.945,
+        "extraPeakTheta": 0.015,
+        "extraPeakValue": 70.823517,
+        "extraPeakWindow": {
+          "sampleCount": 97,
+          "thetaLo": 0.0125,
+          "thetaHi": 0.0125,
+          "qtvPeak": 160.586413,
+          "rapMean": 5.894816,
+          "rvpMean": 5.634637,
+          "pressureGradientMean": 0.260179,
+          "pressureGradientPeak": 0.873842,
+          "acceptedPressureGradientMean": 0.258788,
+          "acceptedPressureGradientPeak": 0.857255,
+          "xiTvMean": 0.455549,
+          "acceptedValveStateMean": 0.447229,
+          "acceptedAreaRatioMean": 0.447229,
+          "acceptedDiodeHitFraction": 0.164948,
+          "acceptedQDotHitFraction": 0.051546,
+          "acceptedComplementarityLeakFraction": 0.206186,
+          "raActivePressureMean": 4.898073,
+          "raAvPlaneCorrectionRangeMl": 0,
+          "vraRangeMl": 1.182895
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "accepted-complementarity-user0-inlet-held-release",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "tvf": {
+        "diastolicPeakCount": 3,
+        "ePeakTheta": 0.56,
+        "aPeakTheta": 0.9525,
+        "extraPeakTheta": 0.775,
+        "extraPeakValue": 41.962254,
+        "extraPeakWindow": {
+          "sampleCount": 97,
+          "thetaLo": 0.735,
+          "thetaHi": 0.815,
+          "qtvPeak": 41.962254,
+          "rapMean": 8.210903,
+          "rvpMean": 7.855223,
+          "pressureGradientMean": 0.355681,
+          "pressureGradientPeak": 0.49164,
+          "acceptedPressureGradientMean": 0.35569,
+          "acceptedPressureGradientPeak": 0.491652,
+          "xiTvMean": 0.677368,
+          "acceptedValveStateMean": 0.677105,
+          "acceptedAreaRatioMean": 0.677105,
+          "acceptedDiodeHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "raActivePressureMean": 0.000301,
+          "raAvPlaneCorrectionRangeMl": 0,
+          "vraRangeMl": 0.376003
+        }
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "valve-pressure-flow-legacy-atria",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "tvf": {
+        "diastolicPeakCount": 2,
+        "ePeakTheta": 0.5975,
+        "aPeakTheta": 0.9525,
+        "extraPeakTheta": null,
+        "extraPeakValue": null,
+        "extraPeakWindow": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "valve-pressure-flow-legacy-atria",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "RA PV loop",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "tvf": {
+        "diastolicPeakCount": 3,
+        "ePeakTheta": 0.54,
+        "aPeakTheta": 0.945,
+        "extraPeakTheta": 0.7475,
+        "extraPeakValue": 39.933158,
+        "extraPeakWindow": {
+          "sampleCount": 97,
+          "thetaLo": 0.7075,
+          "thetaHi": 0.7875,
+          "qtvPeak": 39.933158,
+          "rapMean": 8.257356,
+          "rvpMean": 7.923111,
+          "pressureGradientMean": 0.334244,
+          "pressureGradientPeak": 0.426598,
+          "acceptedPressureGradientMean": 0.334244,
+          "acceptedPressureGradientPeak": 0.426595,
+          "xiTvMean": 0.665597,
+          "acceptedValveStateMean": 0.664936,
+          "acceptedAreaRatioMean": 0.664936,
+          "acceptedDiodeHitFraction": 0,
+          "acceptedQDotHitFraction": 0,
+          "acceptedComplementarityLeakFraction": 0,
+          "raActivePressureMean": 0.0012,
+          "raAvPlaneCorrectionRangeMl": 0,
+          "vraRangeMl": 0.167359
+        }
+      },
+      "errorMessage": null
+    }
+  ],
+  "variantSummaries": [
+    {
+      "variantId": "valve-pressure-flow-user0-inlet-held-release",
+      "measuredCount": 2,
+      "tvfOkCount": 1,
+      "extraWaveCount": 1,
+      "contractilityLowExtraTheta": 0.7725,
+      "contractilityLowAcceptedDiodeHitFraction": 0,
+      "contractilityLowAcceptedQDotHitFraction": 0,
+      "contractilityLowAcceptedComplementarityLeakFraction": 0,
+      "contractilityLowRaAvPlaneCorrectionRangeMl": 0
+    },
+    {
+      "variantId": "accepted-complementarity-user0-inlet-held-release",
+      "measuredCount": 2,
+      "tvfOkCount": 0,
+      "extraWaveCount": 2,
+      "contractilityLowExtraTheta": 0.775,
+      "contractilityLowAcceptedDiodeHitFraction": 0,
+      "contractilityLowAcceptedQDotHitFraction": 0,
+      "contractilityLowAcceptedComplementarityLeakFraction": 0,
+      "contractilityLowRaAvPlaneCorrectionRangeMl": 0
+    },
+    {
+      "variantId": "valve-pressure-flow-legacy-atria",
+      "measuredCount": 2,
+      "tvfOkCount": 1,
+      "extraWaveCount": 1,
+      "contractilityLowExtraTheta": 0.7475,
+      "contractilityLowAcceptedDiodeHitFraction": 0,
+      "contractilityLowAcceptedQDotHitFraction": 0,
+      "contractilityLowAcceptedComplementarityLeakFraction": 0,
+      "contractilityLowRaAvPlaneCorrectionRangeMl": 0
+    }
+  ],
+  "interpretation": {
+    "decision": "tvf-extra-wave-is-clean-pressure-flow-coasting-window",
+    "notes": [
+      "The remaining TVF failure is a mid-diastolic extra forward wave in the contractility-low HR75 point.",
+      "The extra-wave window has zero accepted diode hits, zero qDot clamp hits, and zero complementarity leak in the user0 pressure-flow candidate.",
+      "The user0 pressure-flow candidate also keeps the RA AV-plane correction range near zero in the extra-wave window, so static AV-plane gain/release retuning is not the first explanation.",
+      "The next structural surface should address mid-diastolic pressure-flow coasting/energy consistency, not LandAtrial or valve-threshold tuning."
+    ]
+  },
+  "recommendedNext": [
+    "Do not tune RA/LandAtrial parameters for this TVF residual; the extra wave persists with zero/minimal AV-plane correction in the user0 pressure-flow candidate.",
+    "Next structural surface should make the AV valve pressure-flow relation energy/diode-consistent through the full diastolic coasting window, not just at the accepted qNext endpoint.",
+    "Keep the representative morphology envelope as the adoption gate; this targeted artifact only classifies the remaining failed point."
+  ],
+  "claimBoundary": {
+    "noRuntimeDefaultAdoption": true,
+    "noOfficialMorphologyAcceptance": true,
+    "noLandAtrialParameterTuningUnlock": true,
+    "noValveQdotRootZcTrefSourceStressTuning": true,
+    "noClinicalScientificValidation": true
+  },
+  "normalizedSha256": "6e269927fdf80cde31bc9a31576f65c1878c36ae2c8d1e24f8bff6de3f5f4b14"
+}

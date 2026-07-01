@@ -1078,6 +1078,15 @@ advances the current lane. They are evidence anchors, not current gates.
    `0/8`). Therefore old screenshots showing excessive LA-to-LV separation
    would now be caught directly, but current atrial pressure morphology is
    still not accepted and LandAtrial calibration stays locked.
+   Phase 5DA then localizes the remaining Phase 5CY `contractility-low-hr75`
+   TVF residual with a narrow extra-wave window. The failed TVF point has a
+   mid-diastolic extra forward wave (`theta≈0.7725`) but the local window has
+   zero accepted diode hits, zero qDot clamp hits, zero complementarity leak,
+   and zero RA AV-plane correction range in the user0 pressure-flow candidate.
+   This revises the coarse Phase 5CY residual label: the remaining TVF blocker
+   is not an instantaneous diode/qDot event or static RA AV-plane release; it
+   is a mid-diastolic pressure-flow coasting/energy-consistency problem in the
+   right AV valve/load contract.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, bounded pressure-gain capping,
