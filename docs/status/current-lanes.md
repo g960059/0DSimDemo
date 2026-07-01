@@ -1166,6 +1166,20 @@ advances the current lane. They are evidence anchors, not current gates.
    that can be solved by scalar gradient/active-state gating. Continue toward a
    broader AV valve/load/complementarity boundary contract rather than another
    scalar deadband/coasting/passive-guard variant.
+   Phase 5DH records `av-forward-momentum-projection-phase5dh-result-v1`,
+   testing an off-by-default valve-area forward-momentum projection inside the
+   accepted-boundary pressure-flow step. Unlike the scalar Phase 5DD/5DE/5DG
+   variants, the TV-only projection improves the current user0 all-chamber
+   frontier to gross 8/8 over the representative normal-sinus envelope with
+   LV/RV PV 8/8, MVF 8/8, and TVF 8/8. The targeted
+   `contractility-low-hr75` TVF failure becomes OK; the projection duty in that
+   TV window is measurable (`~0.195`, impulse integral `~0.63 ml/s`). This is
+   strong component evidence that the remaining residual is an AV valve
+   forward-momentum/area ownership problem. It is not runtime/default adoption:
+   the candidate is a local projection surface, output-preserved remains 7/8
+   under the simple envelope criterion because the low-contractility point has
+   low CO by design, and owner visual trace review plus bounded-duty/energy
+   readbacks are still required before any shadow/default claim.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, bounded pressure-gain capping,
