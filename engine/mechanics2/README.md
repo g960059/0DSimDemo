@@ -14,6 +14,11 @@ The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
 reference traces.
 
+Planning docs:
+
+- [MechanicsCore2 / CircAdapt-lite execution plan v3](../../docs/mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md)
+- [ADR-MYO-003](../../docs/myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
+
 Claim boundary:
 
 - Not CircAdapt source code or a CircAdapt-compatible implementation.

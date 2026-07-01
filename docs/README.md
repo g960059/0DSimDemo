@@ -13,6 +13,7 @@ available through git history, for example at baseline commit
 | Area | Entry point | Status |
 |---|---|---|
 | Myocardial contraction rebuild | [myocardium/README.md](myocardium/README.md) | Proposed Phase 0 |
+| MechanicsCore2 sidecar | [mechanics2/README.md](mechanics2/README.md) | Active user-0 architecture lane |
 
 ## Recovery policy for removed docs
 

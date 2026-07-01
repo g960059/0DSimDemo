@@ -29,6 +29,8 @@ equivalence.
 
 Current PR target: `PR-M2-0+1`.
 
+Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
+
 Included:
 
 - `engine/mechanics2` sidecar skeleton.
