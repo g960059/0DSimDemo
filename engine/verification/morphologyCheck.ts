@@ -158,22 +158,34 @@ function ventricularPvLoopCheck(samples: readonly SimSample[], side: Ventricular
   const ejectionPeakCount = prominentExtremaCount(ejection, pressureKey, "max", prominence);
   const ejectionTroughCount = prominentExtremaCount(ejection, pressureKey, "min", prominence);
   const ejectionRoughness = totalVariation(ejection.map((sample) => sample[pressureKey])) / Math.max(pressureSpan, 1e-6);
-  const domeOk = ejectionPeakCount <= 1 && ejectionTroughCount === 0 && ejectionRoughness < 2.4;
+  const domeShape = systolicDomeShape(ejection, pressureKey, volumeKey, side);
+  const domeOk = ejectionPeakCount <= 1
+    && ejectionTroughCount === 0
+    && ejectionRoughness < 2.4
+    && domeShape.lateReboundMmHg <= domeShape.lateReboundLimitMmHg
+    && domeShape.positiveCurvatureFraction <= domeShape.positiveCurvatureLimit;
   const status: MorphologyCheckStatus = domeOk ? "ok" : "failed";
   return {
     id,
     label: `${side} PV loop`,
     status,
-    value: `peaks=${ejectionPeakCount}, troughs=${ejectionTroughCount}, roughness=${round(ejectionRoughness)}`,
-    threshold: "systolic pressure dome has <=1 prominent peak, 0 prominent troughs, roughness < 2.4",
+    value: `peaks=${ejectionPeakCount}, troughs=${ejectionTroughCount}, roughness=${round(ejectionRoughness)}, rebound=${round(domeShape.lateReboundMmHg)}mmHg`,
+    threshold:
+      "systolic pressure dome has <=1 prominent peak, 0 prominent troughs, roughness < 2.4, and no broad mid-ejection valley/rebound",
     message: domeOk
-      ? `${side} systolic PV-loop dome is single-peaked.`
-      : `${side} systolic PV-loop dome is not single-peaked; this can produce a double-humped systolic loop.`,
+      ? `${side} systolic PV-loop dome is single-peaked without broad rebound.`
+      : `${side} systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.`,
     metrics: {
       ejectionSampleCount: ejection.length,
       ejectionPeakCount,
       ejectionTroughCount,
       ejectionRoughness: round(ejectionRoughness),
+      ejectionLateReboundMmHg: round(domeShape.lateReboundMmHg),
+      ejectionLateReboundLimitMmHg: round(domeShape.lateReboundLimitMmHg),
+      ejectionLateReboundFraction: round(domeShape.lateReboundFraction),
+      ejectionPositiveCurvatureFraction: round(domeShape.positiveCurvatureFraction),
+      ejectionPositiveCurvatureLimit: round(domeShape.positiveCurvatureLimit),
+      ejectionDomeCoreSampleCount: domeShape.coreSampleCount,
       pressureSpan: round(pressureSpan),
       volumeSpan: round(volumeSpan),
     },
@@ -324,6 +336,126 @@ function atrioventricularDelayCheck(samples: readonly SimSample[], side: AtrialS
       beatDurationMs: round(beatSeconds * 1000),
     },
   };
+}
+
+type DomeShapeMetrics = {
+  readonly coreSampleCount: number;
+  readonly lateReboundMmHg: number;
+  readonly lateReboundLimitMmHg: number;
+  readonly lateReboundFraction: number;
+  readonly positiveCurvatureFraction: number;
+  readonly positiveCurvatureLimit: number;
+};
+
+function systolicDomeShape(
+  ejection: readonly SimSample[],
+  pressureKey: "LVP" | "RVP",
+  volumeKey: "VLV" | "VRV",
+  side: VentricularSide,
+): DomeShapeMetrics {
+  const firstVolume = ejection[0]?.[volumeKey] ?? 0;
+  const lastVolume = ejection[ejection.length - 1]?.[volumeKey] ?? firstVolume;
+  const ejectedVolume = Math.abs(firstVolume - lastVolume);
+  const pressureValues = ejection.map((sample) => sample[pressureKey]).filter(Number.isFinite);
+  const pressureSpan = valueRange(pressureValues);
+  const lateReboundLimitMmHg = Math.max(side === "LV" ? 2.5 : 0.9, 0.035 * pressureSpan);
+  const positiveCurvatureLimit = side === "LV" ? 0.16 : 0.20;
+
+  if (ejectedVolume < 1e-6 || ejection.length < 10 || pressureSpan < 1e-6) {
+    return {
+      coreSampleCount: 0,
+      lateReboundMmHg: 0,
+      lateReboundLimitMmHg,
+      lateReboundFraction: 0,
+      positiveCurvatureFraction: 0,
+      positiveCurvatureLimit,
+    };
+  }
+
+  const core = ejection
+    .map((sample) => {
+      const u = Math.abs(firstVolume - sample[volumeKey]) / ejectedVolume;
+      return { u, p: sample[pressureKey] };
+    })
+    .filter((point) => Number.isFinite(point.u) && Number.isFinite(point.p) && point.u >= 0.08 && point.u <= 0.92)
+    .sort((a, b) => a.u - b.u);
+
+  if (core.length < 8) {
+    return {
+      coreSampleCount: core.length,
+      lateReboundMmHg: 0,
+      lateReboundLimitMmHg,
+      lateReboundFraction: 0,
+      positiveCurvatureFraction: 0,
+      positiveCurvatureLimit,
+    };
+  }
+
+  const smoothed = smoothPressureByU(core);
+  let lateReboundMmHg = 0;
+  for (let i = 0; i < smoothed.length - 2; i++) {
+    const point = smoothed[i];
+    if (point.u < 0.28 || point.u > 0.82) continue;
+    const later = smoothed.slice(i + 1).filter((candidate) => candidate.u >= point.u + 0.08 && candidate.u <= 0.92);
+    if (later.length === 0) continue;
+    const postMax = Math.max(...later.map((candidate) => candidate.p));
+    lateReboundMmHg = Math.max(lateReboundMmHg, postMax - point.p);
+  }
+
+  const resampled = resamplePressure(smoothed, 25);
+  let positiveCurvature = 0;
+  let totalCurvature = 0;
+  const curvatureEpsilon = 0.004 * pressureSpan;
+  for (let i = 1; i < resampled.length - 1; i++) {
+    const secondDiff = resampled[i + 1] - 2 * resampled[i] + resampled[i - 1];
+    totalCurvature += Math.abs(secondDiff);
+    positiveCurvature += Math.max(0, secondDiff - curvatureEpsilon);
+  }
+  const positiveCurvatureFraction = positiveCurvature / Math.max(totalCurvature, pressureSpan, 1e-6);
+
+  return {
+    coreSampleCount: core.length,
+    lateReboundMmHg: Math.max(0, lateReboundMmHg),
+    lateReboundLimitMmHg,
+    lateReboundFraction: Math.max(0, lateReboundMmHg) / Math.max(pressureSpan, 1e-6),
+    positiveCurvatureFraction,
+    positiveCurvatureLimit,
+  };
+}
+
+function smoothPressureByU(points: readonly { readonly u: number; readonly p: number }[]): readonly { readonly u: number; readonly p: number }[] {
+  return points.map((point, index) => {
+    const start = Math.max(0, index - 2);
+    const end = Math.min(points.length, index + 3);
+    const window = points.slice(start, end);
+    return {
+      u: point.u,
+      p: window.reduce((sum, entry) => sum + entry.p, 0) / window.length,
+    };
+  });
+}
+
+function resamplePressure(points: readonly { readonly u: number; readonly p: number }[], count: number): readonly number[] {
+  if (points.length === 0) return [];
+  const out: number[] = [];
+  for (let i = 0; i < count; i++) {
+    const target = 0.08 + (0.84 * i) / Math.max(count - 1, 1);
+    out.push(interpolatedPressure(points, target));
+  }
+  return out;
+}
+
+function interpolatedPressure(points: readonly { readonly u: number; readonly p: number }[], targetU: number): number {
+  if (targetU <= points[0].u) return points[0].p;
+  for (let i = 1; i < points.length; i++) {
+    const left = points[i - 1];
+    const right = points[i];
+    if (targetU > right.u) continue;
+    const denom = Math.max(right.u - left.u, 1e-9);
+    const w = (targetU - left.u) / denom;
+    return left.p + w * (right.p - left.p);
+  }
+  return points[points.length - 1].p;
 }
 
 function prominentExtremaCount(

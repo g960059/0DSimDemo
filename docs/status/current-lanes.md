@@ -1193,6 +1193,19 @@ advances the current lane. They are evidence anchors, not current gates.
    strong boundary-contract lead, not runtime/default adoption, and the next
    step must wait for owner visual acceptance of the raw trace bundle before
    formalizing a shadow/default contract.
+   Phase 5DJ records `pv-dome-concavity-gate-phase5dj-result-v1`, promoting
+   the owner visual rejection of the Phase 5DI raw PV traces into the standing
+   morphology checker. The old ventricular PV check counted only prominent
+   peaks/troughs and roughness, so broad systolic mid-ejection valleys with late
+   rebound could pass as "single-peaked." The updated checker evaluates the
+   ejection core by normalized ejected volume and fails broad rebound/positive
+   curvature. Rechecking the same Phase 5DI closure now invalidates the old
+   gross-pass interpretation: the TV forward-momentum projection is LV PV 0/8,
+   RV PV 0/8, and gross 0/8, while MVF remains 8/8 and TVF remains 8/8. Treat
+   Phase 5DH/5DI as an AV inflow residual lead only, not PV-loop morphology
+   acceptance. The next model surface must restore a visually acceptable LV/RV
+   systolic dome under this stricter raw-trace gate before any forward-momentum
+   or AV boundary contract can be considered for shadow/default adoption.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, bounded pressure-gain capping,
