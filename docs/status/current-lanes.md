@@ -34,11 +34,13 @@ Current sidecar state: `PR-M2-0+1`, `PR-M2-2+3`, `PR-M2-4+5`, the
 left-heart fiber-timing attribution surface, and the first left-heart V2
 transaction architecture comparison, residual attribution, semilunar/root
 outflow repair, pulmonary-boundary/safety-suction comparisons, and
-output-reserve calibration comparison are implemented.
+output-reserve calibration and dynamic reserve contract comparisons are
+implemented.
 
-Next PR target: left-heart Gate B dynamic chamber-load reserve contract. Do not
-start four-chamber work or LandAtrial re-entry until output reserve and
-high-drive MVF remain clean on the broad left-heart envelope.
+Next PR target: left-heart Gate B high-drive pump/load coupling after dynamic
+reserve attribution. Do not start four-chamber work or LandAtrial re-entry
+until output reserve, high-drive MVF, and clamp/flow-volume coupling remain
+clean on the broad left-heart envelope.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -66,6 +68,9 @@ Included:
   and lower-bound safety-suction/semilunar-load attribution.
 - LeftHeartOutputReserveCalibrationBench V1 for static output-reserve
   calibration and external active-length blend attribution.
+- LeftHeartDynamicReserveContractBench V1 for MV closure-state drive,
+  high-pressure root runoff drive, split LA/LV hard-clamp readbacks, and
+  hard-floor versus flow-volume decoupling attribution.
 
 Excluded:
 
@@ -138,6 +143,14 @@ Next gates:
     External active-length blending is only a limited component signal. Next
     work should move to a dynamic chamber-load reserve contract, not fixed
     scalar calibration or right-heart/LandAtrial expansion.
+14. Gate B dynamic reserve attribution: MV valve-state closure drive plus
+    active-length blending improves LV PV OK to 7/7 and MVF OK to 7/7 on the
+    broad left-heart envelope, but strict pass remains 5/7. The high-drive
+    residual narrows to LV lower hard-clamp duty; removing the lower hard floor
+    exposes flow-volume decoupling, and fixed root-load retention can clean
+    high-drive only by damaging the broader envelope. Continue left-heart Gate B
+    pump/load coupling; do not broaden to right-heart, four-chamber, AV-plane,
+    or LandAtrial.
 
 Parallel prep, not blocking the next strategic gate:
 

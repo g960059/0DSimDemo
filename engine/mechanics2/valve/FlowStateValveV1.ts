@@ -31,12 +31,14 @@ export type FlowStateValveInputV1 = {
   readonly dtSec: number;
   readonly upstreamPressureMmHg: number;
   readonly downstreamPressureMmHg: number;
+  readonly closureDrive01?: number;
 };
 
 export type FlowStateValveOutputV1 = {
   readonly state: FlowStateValveStateV1;
   readonly valveId: FlowStateValveParamsV1["valveId"];
   readonly pressureGradientMmHg: number;
+  readonly closureDrive01: number;
   readonly qMlPerSec: number;
   readonly qDotMlPerSec2: number;
   readonly open01: number;
@@ -126,7 +128,8 @@ export function stepFlowStateValveV1(
 ): FlowStateValveOutputV1 {
   const dtSec = Math.max(input.dtSec, 1e-6);
   const pressureGradientMmHg = input.upstreamPressureMmHg - input.downstreamPressureMmHg;
-  const open01 = nextOpen01(previous.open01, pressureGradientMmHg, dtSec, params);
+  const closureDrive01 = clamp01(input.closureDrive01 ?? 0);
+  const open01 = nextOpen01(previous.open01, pressureGradientMmHg, closureDrive01, dtSec, params);
   const effectiveOpen01 = Math.max(params.minEffectiveOpen01, open01);
   const lossScale = 1 / Math.max(effectiveOpen01 * effectiveOpen01, 1e-6);
   const resistance = params.resistanceMmHgSecPerMl * lossScale;
@@ -151,6 +154,7 @@ export function stepFlowStateValveV1(
     state: { qMlPerSec, open01 },
     valveId: params.valveId,
     pressureGradientMmHg,
+    closureDrive01,
     qMlPerSec,
     qDotMlPerSec2,
     open01,
@@ -170,15 +174,18 @@ export function stepFlowStateValveV1(
 function nextOpen01(
   previousOpen01: number,
   pressureGradientMmHg: number,
+  closureDrive01: number,
   dtSec: number,
   params: FlowStateValveParamsV1,
 ): number {
   const target = pressureGradientMmHg >= params.openThresholdMmHg
-    ? sigmoid(params.openGainPerMmHg * (pressureGradientMmHg - params.openThresholdMmHg))
+    ? (1 - closureDrive01) * sigmoid(params.openGainPerMmHg * (pressureGradientMmHg - params.openThresholdMmHg))
     : pressureGradientMmHg <= params.closeThresholdMmHg
       ? 0
-      : previousOpen01;
-  const tau = target > previousOpen01 ? params.tauOpenSec : params.tauCloseSec;
+      : (1 - closureDrive01) * previousOpen01;
+  const tau = target > previousOpen01
+    ? params.tauOpenSec
+    : params.tauCloseSec / (1 + 3 * closureDrive01);
   const rawStep = (target - previousOpen01) * dtSec / Math.max(tau, 1e-6);
   const boundedStep = clamp(rawStep, -params.maxOpenStepPerStep, params.maxOpenStepPerStep);
   return clamp01(previousOpen01 + boundedStep);

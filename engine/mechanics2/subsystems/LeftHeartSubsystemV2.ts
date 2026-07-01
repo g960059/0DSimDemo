@@ -50,6 +50,12 @@ export type LeftHeartSubsystemParamsV2 = LeftHeartSubsystemParamsV1 & {
   readonly pulmonaryVenousSourcePressureMmHg: number;
   readonly pulmonaryVenousSourceResistanceMmHgSecPerMl: number;
   readonly pulmonaryVenousComplianceMlPerMmHg: number;
+  readonly rootOutflowHighPressureDriveStartMmHg: number;
+  readonly rootOutflowHighPressureDriveEndMmHg: number;
+  readonly rootOutflowHighPressureResistanceGain: number;
+  readonly mvSystolicClosureDriveGain01: number;
+  readonly mvSystolicClosureDriveStartTheta: number;
+  readonly mvSystolicClosureDriveEndTheta: number;
 };
 
 export type LeftHeartSubsystemStateV2 = {
@@ -85,6 +91,8 @@ export type LeftHeartSubsystemSampleV2 = {
   readonly qAovMlPerSec: number;
   readonly qPulmonaryVenousMlPerSec: number;
   readonly qPulmonaryVenousSourceMlPerSec: number;
+  readonly rootOutResistanceEffectiveMmHgSecPerMl: number;
+  readonly rootOutflowHighPressureDrive01: number;
   readonly mvOpen01: number;
   readonly aovOpen01: number;
   readonly lvChamber: OneFiberChamberOutputV1;
@@ -96,6 +104,8 @@ export type LeftHeartSubsystemSampleV2 = {
   readonly transactionConverged01: 0 | 1;
   readonly transactionIterationsUsed: number;
   readonly volumeClampHit01: 0 | 1;
+  readonly laVolumeClampHit01: 0 | 1;
+  readonly lvVolumeClampHit01: 0 | 1;
   readonly iterationLog: readonly MechanicsFixedPointIterationV2[];
 };
 
@@ -130,8 +140,12 @@ type AcceptedV2 = CandidateV2 & {
   readonly lvpSafetyMmHg: number;
   readonly qPulmonaryVenousMlPerSec: number;
   readonly qPulmonaryVenousSourceMlPerSec: number;
+  readonly rootOutResistanceEffectiveMmHgSecPerMl: number;
+  readonly rootOutflowHighPressureDrive01: number;
   readonly rootOutflowMlPerSec: number;
   readonly volumeClampHit01: 0 | 1;
+  readonly laVolumeClampHit01: 0 | 1;
+  readonly lvVolumeClampHit01: 0 | 1;
 };
 
 export function defaultLeftHeartSubsystemParamsV2(
@@ -166,6 +180,12 @@ export function defaultLeftHeartSubsystemParamsV2(
       ?? base.pulmonaryVenousPressureMmHg,
     pulmonaryVenousSourceResistanceMmHgSecPerMl: overrides.pulmonaryVenousSourceResistanceMmHgSecPerMl ?? 0.11,
     pulmonaryVenousComplianceMlPerMmHg: overrides.pulmonaryVenousComplianceMlPerMmHg ?? 12,
+    rootOutflowHighPressureDriveStartMmHg: overrides.rootOutflowHighPressureDriveStartMmHg ?? 0,
+    rootOutflowHighPressureDriveEndMmHg: overrides.rootOutflowHighPressureDriveEndMmHg ?? 0,
+    rootOutflowHighPressureResistanceGain: overrides.rootOutflowHighPressureResistanceGain ?? 0,
+    mvSystolicClosureDriveGain01: overrides.mvSystolicClosureDriveGain01 ?? 0,
+    mvSystolicClosureDriveStartTheta: overrides.mvSystolicClosureDriveStartTheta ?? 0.02,
+    mvSystolicClosureDriveEndTheta: overrides.mvSystolicClosureDriveEndTheta ?? 0.18,
   };
 }
 
@@ -259,6 +279,8 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
       qAovMlPerSec: accepted.aov.qMlPerSec,
       qPulmonaryVenousMlPerSec: accepted.qPulmonaryVenousMlPerSec,
       qPulmonaryVenousSourceMlPerSec: accepted.qPulmonaryVenousSourceMlPerSec,
+      rootOutResistanceEffectiveMmHgSecPerMl: accepted.rootOutResistanceEffectiveMmHgSecPerMl,
+      rootOutflowHighPressureDrive01: accepted.rootOutflowHighPressureDrive01,
       mvOpen01: accepted.mv.open01,
       aovOpen01: accepted.aov.open01,
       lvChamber: accepted.lvChamber,
@@ -270,6 +292,8 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
       transactionConverged01: result.converged ? 1 : 0,
       transactionIterationsUsed: result.iterationsUsed,
       volumeClampHit01: accepted.volumeClampHit01,
+      laVolumeClampHit01: accepted.laVolumeClampHit01,
+      lvVolumeClampHit01: accepted.lvVolumeClampHit01,
       iterationLog: result.iterationLog,
     });
     state = {
@@ -332,16 +356,21 @@ function acceptLeftHeartCandidateV2(input: {
     dtSec: input.dtSec,
     upstreamPressureMmHg: lapMmHg,
     downstreamPressureMmHg: lvpMmHg,
+    closureDrive01: mvSystolicClosureDrive01(input.theta, input.params),
   }, input.params.mv);
   const aov = stepFlowStateValveV1(input.previousAovState, {
     dtSec: input.dtSec,
     upstreamPressureMmHg: lvpMmHg,
     downstreamPressureMmHg: input.candidate.rootPressureMmHg,
   }, input.params.aov);
+  const rootOutflowHighPressureDrive01 = rootOutflowHighPressureDrive(input.params, lvpMmHg);
+  const rootOutResistanceEffectiveMmHgSecPerMl =
+    input.params.rootOutResistanceMmHgSecPerMl
+    * (1 + input.params.rootOutflowHighPressureResistanceGain * rootOutflowHighPressureDrive01);
   const rootOutflowMlPerSec = Math.max(
     0,
     (input.candidate.rootPressureMmHg - input.params.rootDownstreamPressureMmHg)
-      / Math.max(input.params.rootOutResistanceMmHgSecPerMl, 1e-9),
+      / Math.max(rootOutResistanceEffectiveMmHgSecPerMl, 1e-9),
   );
   const pulmonaryBoundary = pulmonaryVenousBoundaryV2(input.previous, input.candidate, lapMmHg, input.dtSec, input.params);
   const qPulmonaryVenousMlPerSec = pulmonaryBoundary.qPulmonaryVenousMlPerSec;
@@ -366,8 +395,33 @@ function acceptLeftHeartCandidateV2(input: {
     lvpSafetyMmHg,
     qPulmonaryVenousMlPerSec,
     qPulmonaryVenousSourceMlPerSec: pulmonaryBoundary.qPulmonaryVenousSourceMlPerSec,
+    rootOutResistanceEffectiveMmHgSecPerMl,
+    rootOutflowHighPressureDrive01,
     rootOutflowMlPerSec,
   };
+}
+
+function mvSystolicClosureDrive01(theta: number, params: LeftHeartSubsystemParamsV2): number {
+  if (params.mvSystolicClosureDriveGain01 <= 0) return 0;
+  return clamp(
+    params.mvSystolicClosureDriveGain01
+      * raisedCosineWindow(theta, params.mvSystolicClosureDriveStartTheta, params.mvSystolicClosureDriveEndTheta),
+    0,
+    1,
+  );
+}
+
+function rootOutflowHighPressureDrive(params: LeftHeartSubsystemParamsV2, lvpMmHg: number): number {
+  if (params.rootOutflowHighPressureResistanceGain <= 0) return 0;
+  const start = params.rootOutflowHighPressureDriveStartMmHg;
+  const end = params.rootOutflowHighPressureDriveEndMmHg;
+  if (end <= start) return 0;
+  return smoothstep01((lvpMmHg - start) / Math.max(end - start, 1e-9));
+}
+
+function smoothstep01(value: number): number {
+  const x = clamp(value, 0, 1);
+  return x * x * (3 - 2 * x);
 }
 
 function pulmonaryVenousBoundaryV2(
@@ -419,17 +473,27 @@ function boundVolumesV2(
   laVolumeMl: number,
   lvVolumeMl: number,
   params: LeftHeartSubsystemParamsV2,
-): { readonly laVolumeMl: number; readonly lvVolumeMl: number; readonly volumeClampHit01: 0 | 1 } {
+): {
+  readonly laVolumeMl: number;
+  readonly lvVolumeMl: number;
+  readonly volumeClampHit01: 0 | 1;
+  readonly laVolumeClampHit01: 0 | 1;
+  readonly lvVolumeClampHit01: 0 | 1;
+} {
   const laMin = params.volumeSafetyMode === "hard-clamp" ? params.minLaVolumeMl : params.absoluteMinLaVolumeMl;
   const laMax = params.volumeSafetyMode === "hard-clamp" ? params.maxLaVolumeMl : params.absoluteMaxLaVolumeMl;
   const lvMin = params.volumeSafetyMode === "hard-clamp" ? params.minLvVolumeMl : params.absoluteMinLvVolumeMl;
   const lvMax = params.volumeSafetyMode === "hard-clamp" ? params.maxLvVolumeMl : params.absoluteMaxLvVolumeMl;
   const boundedLa = clamp(laVolumeMl, laMin, laMax);
   const boundedLv = clamp(lvVolumeMl, lvMin, lvMax);
+  const laVolumeClampHit01 = boundedLa === laVolumeMl ? 0 : 1;
+  const lvVolumeClampHit01 = boundedLv === lvVolumeMl ? 0 : 1;
   return {
     laVolumeMl: boundedLa,
     lvVolumeMl: boundedLv,
-    volumeClampHit01: boundedLa === laVolumeMl && boundedLv === lvVolumeMl ? 0 : 1,
+    volumeClampHit01: laVolumeClampHit01 || lvVolumeClampHit01 ? 1 : 0,
+    laVolumeClampHit01,
+    lvVolumeClampHit01,
   };
 }
 

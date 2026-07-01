@@ -12,6 +12,9 @@ Canonical references:
 - [Left-heart architecture V2](left-heart-architecture-v2.md)
 - [Left-heart residual attribution V1](left-heart-residual-attribution-v1.md)
 - [Left-heart outflow repair V1](left-heart-outflow-repair-v1.md)
+- [Left-heart pulmonary boundary contract V1](left-heart-pulmonary-boundary-contract-v1.md)
+- [Left-heart output-reserve calibration V1](left-heart-output-reserve-calibration-v1.md)
+- [Left-heart dynamic reserve contract V1](left-heart-dynamic-reserve-contract-v1.md)
 - [ADR-MYO-003](../myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 - [Engine sidecar README](../../engine/mechanics2/README.md)
 
