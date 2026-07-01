@@ -47,6 +47,8 @@ Current scope:
   pressure-contribution candidate with right/paired/reservoir re-entry checks.
 - `benches/VolumeReserveReservoirGateCScanBench.ts`: Gate C reservoir scan for
   the RV volume-reserve scaffold candidate.
+- `benches/GateCScaffoldRobustnessBench.ts`: local Gate C neighborhood scan
+  around the volume-reserve reservoir scaffold.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
@@ -67,6 +69,7 @@ Planning docs:
 - [Right-heart low-output contract V1](../../docs/mechanics2/right-heart-low-output-contract-v1.md)
 - [Right-heart volume-reserve contract V1](../../docs/mechanics2/right-heart-volume-reserve-contract-v1.md)
 - [Volume-reserve reservoir Gate C scan V1](../../docs/mechanics2/volume-reserve-reservoir-gate-c-scan-v1.md)
+- [Gate C scaffold robustness V1](../../docs/mechanics2/gate-c-scaffold-robustness-v1.md)
 - [ADR-MYO-003](../../docs/myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 
 Claim boundary:
