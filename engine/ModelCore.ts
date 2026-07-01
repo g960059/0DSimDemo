@@ -250,6 +250,15 @@ export type ModelCoreExperimentalVentricularChamberTransactionStepOptions = {
   readonly avValveBoundaryStatefulClosingInertanceGain?: number;
   readonly avValveBoundaryPassiveAtrialActiveThreshold01?: number;
   readonly avValveBoundaryPassivePressureGradientThresholdMmHg?: number;
+  readonly semilunarValveBoundaryMode?:
+    | "current"
+    | "accepted-state-valve-pressure-flow"
+    | "accepted-state-valve-pressure-flow-stateful-v2";
+  readonly semilunarValveBoundaryTargetValves?: readonly ("AoV" | "PV")[];
+  readonly semilunarValveBoundaryPressureRefitIterations?: number;
+  readonly semilunarValveBoundaryPressureRefitRelaxation?: number;
+  readonly semilunarValveBoundaryStatefulClosingLossGain?: number;
+  readonly semilunarValveBoundaryStatefulClosingInertanceGain?: number;
 };
 
 // Diagnostic-only Phase 5CC hook. This surface measured as not-supported and
@@ -867,6 +876,10 @@ function normalizeExperimentalVentricularChamberTransactionStep(
     0,
     1,
   );
+  const semilunarValveBoundaryMode = options.semilunarValveBoundaryMode ?? "current";
+  const semilunarPressureRefitEnabled =
+    semilunarValveBoundaryMode === "accepted-state-valve-pressure-flow"
+    || semilunarValveBoundaryMode === "accepted-state-valve-pressure-flow-stateful-v2";
   return {
     mechanismId: options.mechanismId,
     iterations,
@@ -906,6 +919,26 @@ function normalizeExperimentalVentricularChamberTransactionStep(
       options.avValveBoundaryPassivePressureGradientThresholdMmHg ?? 0.5,
       0,
       2,
+    ),
+    semilunarValveBoundaryMode,
+    semilunarValveBoundaryTargetValves: options.semilunarValveBoundaryTargetValves
+      ? [...new Set(options.semilunarValveBoundaryTargetValves)]
+      : ["AoV", "PV"],
+    semilunarValveBoundaryPressureRefitIterations: semilunarPressureRefitEnabled
+      ? Math.max(1, Math.floor(clamp(options.semilunarValveBoundaryPressureRefitIterations ?? 2, 1, 6)))
+      : undefined,
+    semilunarValveBoundaryPressureRefitRelaxation: semilunarPressureRefitEnabled
+      ? clamp(options.semilunarValveBoundaryPressureRefitRelaxation ?? 0.8, 0.05, 1)
+      : undefined,
+    semilunarValveBoundaryStatefulClosingLossGain: clamp(
+      options.semilunarValveBoundaryStatefulClosingLossGain ?? 8,
+      0,
+      80,
+    ),
+    semilunarValveBoundaryStatefulClosingInertanceGain: clamp(
+      options.semilunarValveBoundaryStatefulClosingInertanceGain ?? 3,
+      0,
+      40,
     ),
   };
 }
@@ -1683,6 +1716,26 @@ export class ModelCore {
       );
     }
     if (
+      (
+        options.semilunarValveBoundaryMode === "accepted-state-valve-pressure-flow"
+        || options.semilunarValveBoundaryMode === "accepted-state-valve-pressure-flow-stateful-v2"
+      )
+      && (options.semilunarValveBoundaryTargetValves ?? ["AoV", "PV"]).includes(outlet)
+    ) {
+      outletQNext = this.acceptedStateSemilunarValveBoundaryFlowNext(
+        outlet,
+        inlet,
+        beforeX,
+        candidate,
+        pack,
+        inletQNext,
+        outletQNext,
+        dt,
+        includeAdjacentLoadNodes,
+        options,
+      );
+    }
+    if (
       chamber === "LV"
       && (
         options.avValveBoundaryMode === "tv-state-coupled-mv-pressure-refit"
@@ -2161,6 +2214,139 @@ export class ModelCore {
       qCandidate = qAccepted;
     }
     this.valveFlowStepDiagnostics[inlet] = acceptedDiagnostics;
+    return qCandidate;
+  }
+
+  private acceptedStateSemilunarValveBoundaryFlowNext(
+    outlet: "AoV" | "PV",
+    inlet: "MV" | "TV",
+    beforeX: Float64Array,
+    candidate: Float64Array,
+    pack: PressurePack,
+    inletQNext: number,
+    outletQGuess: number,
+    dt: number,
+    includeAdjacentLoadNodes: boolean,
+    options: ModelCoreExperimentalVentricularChamberTransactionStepOptions,
+  ): number {
+    const ventNode = outlet === "AoV" ? "LV" : "RV";
+    const outletEdge = this.edges[this.edgeIndex(outlet)];
+    const inletEdge = this.edges[this.edgeIndex(inlet)];
+    const ventIndex = this.idx.node[ventNode];
+    const h = Math.max(dt, 1e-6);
+    const qBase = beforeX[this.idx.q[outlet]];
+    const iterations = Math.max(1, Math.floor(options.semilunarValveBoundaryPressureRefitIterations ?? 2));
+    const relaxation = clamp(options.semilunarValveBoundaryPressureRefitRelaxation ?? 0.8, 0.05, 1);
+    let qCandidate = outletQGuess;
+    let acceptedDiagnostics = this.valveFlowStepDiagnostics[outlet];
+    for (let iteration = 0; iteration < iterations; iteration++) {
+      const projected = Float64Array.from(candidate);
+      if (includeAdjacentLoadNodes) {
+        const balances = this.chamberTransactionBalances(candidate, pack, {
+          [inlet]: inletQNext,
+          [outlet]: qCandidate,
+        });
+        const nodeNamesToUpdate = [ventNode, inletEdge.up as NodeName, outletEdge.down as NodeName] as const;
+        for (const nodeName of nodeNamesToUpdate) {
+          const nodeIndex = this.idx.node[nodeName];
+          const node = this.nodes[this.nodeIndex.get(nodeName)!];
+          const balance = node.kind === "venousPressure"
+            ? balances[this.nodeIndex.get(nodeName)!]
+            : clamp(balances[this.nodeIndex.get(nodeName)!], -2500, 2500);
+          projected[nodeIndex] = beforeX[nodeIndex] + dt * balance;
+        }
+      } else {
+        projected[ventIndex] = beforeX[ventIndex] + dt * (inletQNext - qCandidate);
+      }
+      projected[this.idx.q[inlet]] = inletQNext;
+      projected[this.idx.q[outlet]] = qCandidate;
+      let projectedPack = this.computePressures(projected);
+      const acceptedValveState01 = this.transactionValveOpenNext(outlet, projected, projectedPack, dt);
+      projected[this.idx.xi[outlet]] = acceptedValveState01;
+      projectedPack = this.computePressures(projected);
+
+      const up = this.nodeIndex.get(outletEdge.up)!;
+      const down = this.nodeIndex.get(outletEdge.down)!;
+      const Pu = projectedPack.P[up];
+      const PdEff = this.downstreamEffective(outletEdge, projectedPack.P[down]);
+      const { R, B, areaRatio } = this.effectiveLosses(outletEdge, Pu, projectedPack.P[down], projected);
+      const baseL = Math.max((this.p as any)[`${outlet}_L`] ?? outletEdge.L ?? 0.001, 1e-6);
+      const L = outlet === "AoV" ? this.effectiveAorticBoundaryRootInertance(baseL) : baseL;
+      const pressureGradientMmHg = Pu - PdEff;
+      const baseValveState01 = clamp(beforeX[this.idx.xi[outlet]], 0, 1);
+      let statefulV2Applied01 = 0;
+      let statefulV2Closing01 = 0;
+      let statefulV2LossScale = 1;
+      let statefulV2InertanceScale = 1;
+      let contractR = R;
+      let contractB = B;
+      let contractL = L;
+      if (options.semilunarValveBoundaryMode === "accepted-state-valve-pressure-flow-stateful-v2") {
+        statefulV2Closing01 = clamp(
+          (baseValveState01 - acceptedValveState01) / Math.max(baseValveState01, 0.05),
+          0,
+          1,
+        );
+        const forwardMemory01 = smoothstep01(qBase / 40);
+        const closingDuty01 = smoothstep01(statefulV2Closing01);
+        const lowArea01 = clamp(1 - areaRatio, 0, 1);
+        statefulV2Applied01 = forwardMemory01 * closingDuty01;
+        statefulV2LossScale = 1
+          + (options.semilunarValveBoundaryStatefulClosingLossGain ?? 8)
+            * statefulV2Applied01
+            * (0.35 + 0.65 * lowArea01);
+        statefulV2InertanceScale = 1
+          + (options.semilunarValveBoundaryStatefulClosingInertanceGain ?? 3) * statefulV2Applied01;
+        contractR = R * statefulV2LossScale;
+        contractB = B * statefulV2LossScale;
+        contractL = L * statefulV2InertanceScale;
+      }
+      const qNextPreDiode = this.qNextConsistentLossQNext(
+        qBase,
+        pressureGradientMmHg,
+        contractR,
+        contractB,
+        contractL,
+        h,
+      );
+      let qNextPostDiode = qNextPreDiode;
+      if (this.valveLeakArea(outlet, outletEdge) <= 1e-9 && qNextPostDiode < 0) qNextPostDiode = 0;
+      const qNextPreFlowClamp = qNextPostDiode;
+      const qNextPostFlowClamp = outlet === "AoV" ? this.applyAorticFlowClamp(qNextPreFlowClamp) : qNextPreFlowClamp;
+      const qDotRaw = (qNextPostFlowClamp - qBase) / h;
+      const useCustomQDotClamp = this.usesCustomDynamicQDotClamp(outletEdge);
+      const qDotPositiveLimit = useCustomQDotClamp
+        ? Math.max(this.aorticFlowDerivativeClampPositiveMlPerS2, 1)
+        : DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
+      const qDotNegativeLimit = useCustomQDotClamp
+        ? Math.max(this.aorticFlowDerivativeClampNegativeMlPerS2, 1)
+        : DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
+      const qDotPost = clamp(qDotRaw, -qDotNegativeLimit, qDotPositiveLimit);
+      const qRefit = qBase + h * qDotPost;
+      const qAccepted = qCandidate + relaxation * (qRefit - qCandidate);
+      acceptedDiagnostics = {
+        ...this.valveFlowStepDiagnostics[outlet],
+        acceptedBoundaryApplied01: 1,
+        acceptedBoundaryQNext: qAccepted,
+        acceptedBoundaryPressureGradientMmHg: pressureGradientMmHg,
+        acceptedBoundaryQDotRaw: qDotRaw,
+        acceptedBoundaryQDotPost: (qAccepted - qBase) / h,
+        acceptedBoundaryQDotClampHit01: Math.abs(qDotPost - qDotRaw) > 1e-9 ? 1 : 0,
+        acceptedBoundaryQDotClampImpulse: qDotPost - qDotRaw,
+        acceptedBoundaryDiodeImpulse: qNextPostDiode - qNextPreDiode,
+        acceptedBoundaryComplementarityResidualMlPerSec:
+          pressureGradientMmHg <= 0 ? Math.max(qAccepted, 0) : Math.max(-qAccepted, 0),
+        acceptedBoundaryIterationCount: iteration + 1,
+        acceptedBoundaryValveState01: acceptedValveState01,
+        acceptedBoundaryAreaRatio: areaRatio,
+        acceptedBoundaryStatefulV2Applied01: statefulV2Applied01,
+        acceptedBoundaryStatefulV2Closing01: statefulV2Closing01,
+        acceptedBoundaryStatefulV2LossScale: statefulV2LossScale,
+        acceptedBoundaryStatefulV2InertanceScale: statefulV2InertanceScale,
+      };
+      qCandidate = qAccepted;
+    }
+    this.valveFlowStepDiagnostics[outlet] = acceptedDiagnostics;
     return qCandidate;
   }
 
@@ -2981,6 +3167,22 @@ export class ModelCore {
       AoV_qDotClampImpulse: aovStep.qDotClampImpulse,
       AoV_diodeImpulse: aovStep.diodeImpulse,
       AoV_flowClampImpulse: aovStep.flowClampImpulse,
+      AoV_acceptedBoundaryApplied01: aovStep.acceptedBoundaryApplied01,
+      AoV_acceptedBoundaryQNext: aovStep.acceptedBoundaryQNext,
+      AoV_acceptedBoundaryPressureGradientMmHg: aovStep.acceptedBoundaryPressureGradientMmHg,
+      AoV_acceptedBoundaryQDotRaw: aovStep.acceptedBoundaryQDotRaw,
+      AoV_acceptedBoundaryQDotPost: aovStep.acceptedBoundaryQDotPost,
+      AoV_acceptedBoundaryQDotClampHit01: aovStep.acceptedBoundaryQDotClampHit01,
+      AoV_acceptedBoundaryQDotClampImpulse: aovStep.acceptedBoundaryQDotClampImpulse,
+      AoV_acceptedBoundaryDiodeImpulse: aovStep.acceptedBoundaryDiodeImpulse,
+      AoV_acceptedBoundaryComplementarityResidualMlPerSec: aovStep.acceptedBoundaryComplementarityResidualMlPerSec,
+      AoV_acceptedBoundaryIterationCount: aovStep.acceptedBoundaryIterationCount,
+      AoV_acceptedBoundaryValveState01: aovStep.acceptedBoundaryValveState01,
+      AoV_acceptedBoundaryAreaRatio: aovStep.acceptedBoundaryAreaRatio,
+      AoV_acceptedBoundaryStatefulV2Applied01: aovStep.acceptedBoundaryStatefulV2Applied01,
+      AoV_acceptedBoundaryStatefulV2Closing01: aovStep.acceptedBoundaryStatefulV2Closing01,
+      AoV_acceptedBoundaryStatefulV2LossScale: aovStep.acceptedBoundaryStatefulV2LossScale,
+      AoV_acceptedBoundaryStatefulV2InertanceScale: aovStep.acceptedBoundaryStatefulV2InertanceScale,
       TV_qNextPreDiode: tvStep.qNextPreDiode,
       TV_qNextPostDiode: tvStep.qNextPostDiode,
       TV_qNextPreFlowClamp: tvStep.qNextPreFlowClamp,
@@ -3031,6 +3233,22 @@ export class ModelCore {
       PV_qDotClampImpulse: pvStep.qDotClampImpulse,
       PV_diodeImpulse: pvStep.diodeImpulse,
       PV_flowClampImpulse: pvStep.flowClampImpulse,
+      PV_acceptedBoundaryApplied01: pvStep.acceptedBoundaryApplied01,
+      PV_acceptedBoundaryQNext: pvStep.acceptedBoundaryQNext,
+      PV_acceptedBoundaryPressureGradientMmHg: pvStep.acceptedBoundaryPressureGradientMmHg,
+      PV_acceptedBoundaryQDotRaw: pvStep.acceptedBoundaryQDotRaw,
+      PV_acceptedBoundaryQDotPost: pvStep.acceptedBoundaryQDotPost,
+      PV_acceptedBoundaryQDotClampHit01: pvStep.acceptedBoundaryQDotClampHit01,
+      PV_acceptedBoundaryQDotClampImpulse: pvStep.acceptedBoundaryQDotClampImpulse,
+      PV_acceptedBoundaryDiodeImpulse: pvStep.acceptedBoundaryDiodeImpulse,
+      PV_acceptedBoundaryComplementarityResidualMlPerSec: pvStep.acceptedBoundaryComplementarityResidualMlPerSec,
+      PV_acceptedBoundaryIterationCount: pvStep.acceptedBoundaryIterationCount,
+      PV_acceptedBoundaryValveState01: pvStep.acceptedBoundaryValveState01,
+      PV_acceptedBoundaryAreaRatio: pvStep.acceptedBoundaryAreaRatio,
+      PV_acceptedBoundaryStatefulV2Applied01: pvStep.acceptedBoundaryStatefulV2Applied01,
+      PV_acceptedBoundaryStatefulV2Closing01: pvStep.acceptedBoundaryStatefulV2Closing01,
+      PV_acceptedBoundaryStatefulV2LossScale: pvStep.acceptedBoundaryStatefulV2LossScale,
+      PV_acceptedBoundaryStatefulV2InertanceScale: pvStep.acceptedBoundaryStatefulV2InertanceScale,
       LVPressureUnclampedMmHg: lvPressureTerms?.pressureUnclampedMmHg,
       LVPassivePressureMmHg: passivePressureComponentMmHg(lvPressureTerms),
       LVPressureFloorHit01: lvPressureTerms?.pressureFloorHit01 ?? 0,
