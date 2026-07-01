@@ -232,6 +232,43 @@ describe("fitting/verification mode foundation", () => {
     expect(lvPv?.metrics.ejectionPeakCount).toBeGreaterThan(1);
   });
 
+  it("detects broad LV ejection valley rebound even when prominent extrema are limited", () => {
+    const report = runVerification(DEFAULT_PARAMS, {
+      profile: "verifyAccurate",
+      gateSet: "normalBaseline",
+      now: new Date("2026-06-05T00:00:00.000Z"),
+    });
+    expect(report.measurement).not.toBeNull();
+    const measurement = report.measurement!;
+    const beat = lastCompleteBeat(measurement.samples);
+    const ejectionIndices = new Set<number>();
+    const flowMax = Math.max(0, ...beat.map((sample) => sample.QAo));
+    const ejection = beat
+      .map((sample, localIndex) => ({ sample, localIndex }))
+      .filter(({ sample }) => sample.QAo > Math.max(10, 0.08 * flowMax));
+    for (const { localIndex } of ejection) ejectionIndices.add(localIndex);
+    const beatStart = measurement.samples.indexOf(beat[0]);
+    const valleyReboundSamples = measurement.samples.map((sample, index) => {
+      const localIndex = index - beatStart;
+      if (!ejectionIndices.has(localIndex) || ejection.length < 12) return sample;
+      const sequenceIndex = ejection.findIndex((entry) => entry.localIndex === localIndex);
+      const x = sequenceIndex / Math.max(ejection.length - 1, 1);
+      const smoothDome = 112 - 8 * x - 5 * x * x;
+      const broadValley = -6.5 * Math.exp(-0.5 * ((x - 0.62) / 0.13) ** 2);
+      const lateRebound = 4.5 * Math.exp(-0.5 * ((x - 0.84) / 0.10) ** 2);
+      return { ...sample, LVP: smoothDome + broadValley + lateRebound };
+    });
+
+    const morphology = morphologyCheckSummaryFromSamples(valleyReboundSamples);
+    const lvPv = morphology.results.find((result) => result.id === "lv-pv-loop");
+    expect(lvPv?.status).toBe("failed");
+    const rebound = lvPv?.metrics.ejectionLateReboundMmHg;
+    const limit = lvPv?.metrics.ejectionLateReboundLimitMmHg;
+    expect(typeof rebound).toBe("number");
+    expect(typeof limit).toBe("number");
+    expect(rebound as number).toBeGreaterThan(limit as number);
+  });
+
   it("detects early LA active-kick timing", () => {
     const report = runVerification(DEFAULT_PARAMS, {
       profile: "verifyAccurate",
