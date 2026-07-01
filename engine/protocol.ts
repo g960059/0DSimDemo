@@ -534,7 +534,11 @@ export type SimSample = {
   PV_qDotClampImpulse?: number;
   PV_diodeImpulse?: number;
   PV_flowClampImpulse?: number;
+  LVPressureUnclampedMmHg?: number;
+  LVPassivePressureMmHg?: number;
   LVPressureFloorHit01: number;
+  RVPressureUnclampedMmHg?: number;
+  RVPassivePressureMmHg?: number;
   RVPressureFloorHit01: number;
   LVActiveFiberStressPa?: number;
   RVActiveFiberStressPa?: number;
