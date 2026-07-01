@@ -503,6 +503,10 @@ export type SimSample = {
   MV_acceptedBoundaryForwardMomentumExcess?: number;
   MV_acceptedBoundaryPassiveDiastasisGuardApplied01?: number;
   MV_acceptedBoundaryPassiveDiastasisGuardImpulse?: number;
+  MV_acceptedBoundaryStatefulV2Applied01?: number;
+  MV_acceptedBoundaryStatefulV2Closing01?: number;
+  MV_acceptedBoundaryStatefulV2LossScale?: number;
+  MV_acceptedBoundaryStatefulV2InertanceScale?: number;
   AoV_areaRatio: number;
   AoV_loss_R: number;
   AoV_loss_B: number;
@@ -553,6 +557,10 @@ export type SimSample = {
   TV_acceptedBoundaryForwardMomentumExcess?: number;
   TV_acceptedBoundaryPassiveDiastasisGuardApplied01?: number;
   TV_acceptedBoundaryPassiveDiastasisGuardImpulse?: number;
+  TV_acceptedBoundaryStatefulV2Applied01?: number;
+  TV_acceptedBoundaryStatefulV2Closing01?: number;
+  TV_acceptedBoundaryStatefulV2LossScale?: number;
+  TV_acceptedBoundaryStatefulV2InertanceScale?: number;
   PV_qNextPreDiode?: number;
   PV_qNextPostDiode?: number;
   PV_qNextPreFlowClamp?: number;

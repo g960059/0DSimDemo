@@ -1,0 +1,2235 @@
+{
+  "schemaVersion": 1,
+  "id": "av-valve-boundary-contract-v2-phase5dm-result-v1",
+  "phase": "5DM",
+  "objective": "test stateful AV valve pressure-flow/loss/inertance contract V2 against the strict morphology V1.1 envelope without post-hoc projection adoption",
+  "profile": {
+    "verificationProfile": "fitFast",
+    "morphologyProfileId": "normal_sinus_default",
+    "pointSource": "representative-normal-sinus-envelope"
+  },
+  "variants": [
+    {
+      "id": "pressure-flow-user0-inlet-held-release-baseline",
+      "label": "Current user0 pressure-flow frontier with inlet-held LA/RA AV-plane release",
+      "avValveBoundaryMode": "accepted-state-valve-pressure-flow",
+      "avValveBoundaryTargetValves": [
+        "MV",
+        "TV"
+      ],
+      "forwardMomentumMinAreaRatio": null,
+      "statefulClosingLossGain": null,
+      "statefulClosingInertanceGain": null
+    },
+    {
+      "id": "forward-momentum-projection-tv-reference",
+      "label": "Rejected TV-only forward-momentum projection reference",
+      "avValveBoundaryMode": "accepted-state-valve-pressure-flow-forward-momentum-projection",
+      "avValveBoundaryTargetValves": [
+        "TV"
+      ],
+      "forwardMomentumMinAreaRatio": 0.05,
+      "statefulClosingLossGain": null,
+      "statefulClosingInertanceGain": null
+    },
+    {
+      "id": "stateful-v2-tv-loss12-inertance4",
+      "label": "TV-only stateful V2 loss/inertance contract",
+      "avValveBoundaryMode": "accepted-state-valve-pressure-flow-stateful-v2",
+      "avValveBoundaryTargetValves": [
+        "TV"
+      ],
+      "forwardMomentumMinAreaRatio": null,
+      "statefulClosingLossGain": 12,
+      "statefulClosingInertanceGain": 4
+    },
+    {
+      "id": "stateful-v2-both-loss12-inertance4",
+      "label": "MV+TV stateful V2 loss/inertance contract",
+      "avValveBoundaryMode": "accepted-state-valve-pressure-flow-stateful-v2",
+      "avValveBoundaryTargetValves": [
+        "MV",
+        "TV"
+      ],
+      "forwardMomentumMinAreaRatio": null,
+      "statefulClosingLossGain": 12,
+      "statefulClosingInertanceGain": 4
+    }
+  ],
+  "points": [
+    {
+      "id": "normal-hr75",
+      "label": "Normal HR75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75
+      }
+    },
+    {
+      "id": "low-preload-hr75",
+      "label": "Low preload HR75",
+      "targetTBVMl": 4800,
+      "params": {
+        "HR": 75
+      }
+    },
+    {
+      "id": "high-preload-hr75",
+      "label": "High preload HR75",
+      "targetTBVMl": 6200,
+      "params": {
+        "HR": 75
+      }
+    },
+    {
+      "id": "normal-hr90",
+      "label": "Normal HR90",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 90
+      }
+    },
+    {
+      "id": "systemic-afterload-high-hr75",
+      "label": "Systemic afterload high HR75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "systemicResistance": 1.25
+      }
+    },
+    {
+      "id": "pulmonary-afterload-high-hr75",
+      "label": "Pulmonary afterload high HR75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "pulmonaryResistance": 1.35
+      }
+    },
+    {
+      "id": "contractility-low-hr75",
+      "label": "Contractility low HR75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "contractility": 0.82
+      }
+    },
+    {
+      "id": "contractility-high-hr75",
+      "label": "Contractility high HR75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "contractility": 1.18
+      }
+    }
+  ],
+  "results": [
+    {
+      "variantId": "pressure-flow-user0-inlet-held-release-baseline",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 76.631588,
+        "PAPMean": 17.763435,
+        "CO_L": 4.753204,
+        "CO_R": 4.753023,
+        "LAPMean": 9.733143,
+        "RAPMean": 4.439606,
+        "EF_LApprox": 0.491983,
+        "EF_RApprox": 0.411039
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        },
+        "TV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "pressure-flow-user0-inlet-held-release-baseline",
+      "pointId": "low-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 64.266138,
+        "PAPMean": 10.133784,
+        "CO_L": 3.973064,
+        "CO_R": 3.962132,
+        "LAPMean": 3.422966,
+        "RAPMean": 2.224271,
+        "EF_LApprox": 0.481349,
+        "EF_RApprox": 0.430724
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        },
+        "TV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "MVF: MV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+        "TVF: TV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "pressure-flow-user0-inlet-held-release-baseline",
+      "pointId": "high-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 81.223199,
+        "PAPMean": 22.602573,
+        "CO_L": 4.869651,
+        "CO_R": 4.905428,
+        "LAPMean": 14.361769,
+        "RAPMean": 7.394784,
+        "EF_LApprox": 0.487344,
+        "EF_RApprox": 0.374848
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        },
+        "TV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "pressure-flow-user0-inlet-held-release-baseline",
+      "pointId": "normal-hr90",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 81.985264,
+        "PAPMean": 17.75304,
+        "CO_L": 5.155864,
+        "CO_R": 5.127597,
+        "LAPMean": 9.030468,
+        "RAPMean": 3.752272,
+        "EF_LApprox": 0.456956,
+        "EF_RApprox": 0.415174
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        },
+        "TV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "pressure-flow-user0-inlet-held-release-baseline",
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 84.257214,
+        "PAPMean": 18.645025,
+        "CO_L": 4.483859,
+        "CO_R": 4.514983,
+        "LAPMean": 11.048834,
+        "RAPMean": 4.426626,
+        "EF_LApprox": 0.454424,
+        "EF_RApprox": 0.395683
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        },
+        "TV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "TVF: TV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "pressure-flow-user0-inlet-held-release-baseline",
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 75.915048,
+        "PAPMean": 19.318871,
+        "CO_L": 4.658145,
+        "CO_R": 4.639569,
+        "LAPMean": 8.661028,
+        "RAPMean": 4.608105,
+        "EF_LApprox": 0.49333,
+        "EF_RApprox": 0.393324
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        },
+        "TV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "MVF: MV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+        "TVF: TV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "pressure-flow-user0-inlet-held-release-baseline",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 52.837162,
+        "PAPMean": 18.750846,
+        "CO_L": 2.809098,
+        "CO_R": 2.793619,
+        "LAPMean": 14.022127,
+        "RAPMean": 7.887847,
+        "EF_LApprox": 0.29385,
+        "EF_RApprox": 0.228041
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        },
+        "TV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "TVF: TV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "pressure-flow-user0-inlet-held-release-baseline",
+      "pointId": "contractility-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "RV PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 89.870478,
+        "PAPMean": 17.49073,
+        "CO_L": 5.647429,
+        "CO_R": 5.612029,
+        "LAPMean": 7.988061,
+        "RAPMean": 2.871114,
+        "EF_LApprox": 0.587172,
+        "EF_RApprox": 0.525329
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        },
+        "TV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        }
+      },
+      "messages": [
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "forward-momentum-projection-tv-reference",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 76.920956,
+        "PAPMean": 17.179923,
+        "CO_L": 4.738338,
+        "CO_R": 4.732063,
+        "LAPMean": 9.18046,
+        "RAPMean": 4.479907,
+        "EF_LApprox": 0.489062,
+        "EF_RApprox": 0.416451
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        },
+        "TV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "TVF: TV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "forward-momentum-projection-tv-reference",
+      "pointId": "low-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 63.85424,
+        "PAPMean": 9.622137,
+        "CO_L": 3.925832,
+        "CO_R": 3.918895,
+        "LAPMean": 2.987465,
+        "RAPMean": 2.344899,
+        "EF_LApprox": 0.479226,
+        "EF_RApprox": 0.432029
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        },
+        "TV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "MVF: MV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+        "TVF: TV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "forward-momentum-projection-tv-reference",
+      "pointId": "high-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 81.367538,
+        "PAPMean": 22.249429,
+        "CO_L": 4.872579,
+        "CO_R": 4.911211,
+        "LAPMean": 13.998103,
+        "RAPMean": 7.407913,
+        "EF_LApprox": 0.485994,
+        "EF_RApprox": 0.377949
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        },
+        "TV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "TVF: TV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "forward-momentum-projection-tv-reference",
+      "pointId": "normal-hr90",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 82.459855,
+        "PAPMean": 17.562142,
+        "CO_L": 5.197511,
+        "CO_R": 5.165361,
+        "LAPMean": 8.777106,
+        "RAPMean": 3.715061,
+        "EF_LApprox": 0.456124,
+        "EF_RApprox": 0.418045
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        },
+        "TV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "forward-momentum-projection-tv-reference",
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 84.33703,
+        "PAPMean": 18.124312,
+        "CO_L": 4.486499,
+        "CO_R": 4.520565,
+        "LAPMean": 10.519461,
+        "RAPMean": 4.461409,
+        "EF_LApprox": 0.453366,
+        "EF_RApprox": 0.401363
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        },
+        "TV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "TVF: TV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "forward-momentum-projection-tv-reference",
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "MVF",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 75.891672,
+        "PAPMean": 18.842676,
+        "CO_L": 4.649162,
+        "CO_R": 4.634745,
+        "LAPMean": 8.200257,
+        "RAPMean": 4.654501,
+        "EF_LApprox": 0.492225,
+        "EF_RApprox": 0.397293
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        },
+        "TV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "MVF: MV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+        "TVF: TV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "forward-momentum-projection-tv-reference",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 52.59024,
+        "PAPMean": 18.569936,
+        "CO_L": 2.82023,
+        "CO_R": 2.810463,
+        "LAPMean": 13.816609,
+        "RAPMean": 7.92246,
+        "EF_LApprox": 0.29512,
+        "EF_RApprox": 0.229505
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        },
+        "TV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "TVF: TV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "forward-momentum-projection-tv-reference",
+      "pointId": "contractility-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "RV PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 89.621398,
+        "PAPMean": 17.071615,
+        "CO_L": 5.622239,
+        "CO_R": 5.583468,
+        "LAPMean": 7.615103,
+        "RAPMean": 2.953234,
+        "EF_LApprox": 0.586056,
+        "EF_RApprox": 0.527137
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        },
+        "TV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        }
+      },
+      "messages": [
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "stateful-v2-tv-loss12-inertance4",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 76.90157,
+        "PAPMean": 17.557239,
+        "CO_L": 4.773726,
+        "CO_R": 4.766124,
+        "LAPMean": 9.499202,
+        "RAPMean": 4.424056,
+        "EF_LApprox": 0.491009,
+        "EF_RApprox": 0.413688
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        },
+        "TV": {
+          "dutyFraction": 0.025,
+          "closingMean": 0.017513,
+          "closingMax": 0.643071,
+          "lossScaleMean": 1.101108,
+          "lossScaleMax": 8.979884,
+          "inertanceScaleMean": 1.03826,
+          "inertanceScaleMax": 3.835
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "stateful-v2-tv-loss12-inertance4",
+      "pointId": "low-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "LA PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "failed",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 64.479334,
+        "PAPMean": 9.962837,
+        "CO_L": 3.984723,
+        "CO_R": 3.979173,
+        "LAPMean": 3.227071,
+        "RAPMean": 2.208661,
+        "EF_LApprox": 0.481105,
+        "EF_RApprox": 0.432803
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        },
+        "TV": {
+          "dutyFraction": 0.030075,
+          "closingMean": 0.016258,
+          "closingMax": 0.643071,
+          "lossScaleMean": 1.078193,
+          "lossScaleMax": 9.046133,
+          "inertanceScaleMean": 1.029543,
+          "inertanceScaleMax": 3.835
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "LA PV loop: LA PV loop is not yet a reliable raw figure-eight loop.",
+        "MVF: MV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "stateful-v2-tv-loss12-inertance4",
+      "pointId": "high-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 81.481214,
+        "PAPMean": 22.529367,
+        "CO_L": 4.885866,
+        "CO_R": 4.922865,
+        "LAPMean": 14.257508,
+        "RAPMean": 7.363743,
+        "EF_LApprox": 0.486506,
+        "EF_RApprox": 0.376226
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        },
+        "TV": {
+          "dutyFraction": 0.0325,
+          "closingMean": 0.019098,
+          "closingMax": 0.643071,
+          "lossScaleMean": 1.118861,
+          "lossScaleMax": 8.968732,
+          "inertanceScaleMean": 1.045603,
+          "inertanceScaleMax": 3.835
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "stateful-v2-tv-loss12-inertance4",
+      "pointId": "normal-hr90",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 82.312361,
+        "PAPMean": 17.460688,
+        "CO_L": 5.184446,
+        "CO_R": 5.139261,
+        "LAPMean": 8.709125,
+        "RAPMean": 3.743807,
+        "EF_LApprox": 0.456391,
+        "EF_RApprox": 0.417451
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        },
+        "TV": {
+          "dutyFraction": 0.032934,
+          "closingMean": 0.018513,
+          "closingMax": 0.643071,
+          "lossScaleMean": 1.094422,
+          "lossScaleMax": 9.004323,
+          "inertanceScaleMean": 1.03605,
+          "inertanceScaleMax": 3.835
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "stateful-v2-tv-loss12-inertance4",
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "RA PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 84.556284,
+        "PAPMean": 18.483229,
+        "CO_L": 4.505674,
+        "CO_R": 4.54562,
+        "LAPMean": 10.841352,
+        "RAPMean": 4.394585,
+        "EF_LApprox": 0.453926,
+        "EF_RApprox": 0.398572
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        },
+        "TV": {
+          "dutyFraction": 0.025,
+          "closingMean": 0.017062,
+          "closingMax": 0.643071,
+          "lossScaleMean": 1.101913,
+          "lossScaleMax": 8.862001,
+          "inertanceScaleMean": 1.039108,
+          "inertanceScaleMax": 3.835
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RA PV loop: RA PV loop is not yet a reliable raw figure-eight loop.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "stateful-v2-tv-loss12-inertance4",
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RA PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 76.15679,
+        "PAPMean": 19.147545,
+        "CO_L": 4.674915,
+        "CO_R": 4.662918,
+        "LAPMean": 8.443324,
+        "RAPMean": 4.583731,
+        "EF_LApprox": 0.493131,
+        "EF_RApprox": 0.395788
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        },
+        "TV": {
+          "dutyFraction": 0.0275,
+          "closingMean": 0.018353,
+          "closingMax": 0.643071,
+          "lossScaleMean": 1.093482,
+          "lossScaleMax": 9.095026,
+          "inertanceScaleMean": 1.035981,
+          "inertanceScaleMax": 3.835
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RA PV loop: RA PV loop is not yet a reliable raw figure-eight loop.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "stateful-v2-tv-loss12-inertance4",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 52.9491,
+        "PAPMean": 18.708957,
+        "CO_L": 2.817273,
+        "CO_R": 2.804768,
+        "LAPMean": 13.964111,
+        "RAPMean": 7.872858,
+        "EF_LApprox": 0.294202,
+        "EF_RApprox": 0.22897
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        },
+        "TV": {
+          "dutyFraction": 0.0225,
+          "closingMean": 0.013794,
+          "closingMax": 0.643071,
+          "lossScaleMean": 1.091329,
+          "lossScaleMax": 9.137652,
+          "inertanceScaleMean": 1.034766,
+          "inertanceScaleMax": 3.835
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "TVF: TV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "stateful-v2-tv-loss12-inertance4",
+      "pointId": "contractility-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "RV PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 89.933521,
+        "PAPMean": 17.324182,
+        "CO_L": 5.649811,
+        "CO_R": 5.611775,
+        "LAPMean": 7.8211,
+        "RAPMean": 2.879793,
+        "EF_LApprox": 0.58677,
+        "EF_RApprox": 0.526443
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0,
+          "closingMean": 0,
+          "closingMax": 0,
+          "lossScaleMean": 1,
+          "lossScaleMax": 1,
+          "inertanceScaleMean": 1,
+          "inertanceScaleMax": 1
+        },
+        "TV": {
+          "dutyFraction": 0.035,
+          "closingMean": 0.015287,
+          "closingMax": 0.643071,
+          "lossScaleMean": 1.049112,
+          "lossScaleMax": 6.798795,
+          "inertanceScaleMean": 1.020226,
+          "inertanceScaleMax": 3.372794
+        }
+      },
+      "messages": [
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "stateful-v2-both-loss12-inertance4",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 76.635554,
+        "PAPMean": 17.724919,
+        "CO_L": 4.752546,
+        "CO_R": 4.749616,
+        "LAPMean": 9.699678,
+        "RAPMean": 4.445018,
+        "EF_LApprox": 0.491732,
+        "EF_RApprox": 0.411305
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0.03,
+          "closingMean": 0.013458,
+          "closingMax": 0.47325,
+          "lossScaleMean": 1.046101,
+          "lossScaleMax": 5.763952,
+          "inertanceScaleMean": 1.019549,
+          "inertanceScaleMax": 2.839653
+        },
+        "TV": {
+          "dutyFraction": 0.025,
+          "closingMean": 0.017529,
+          "closingMax": 0.643071,
+          "lossScaleMean": 1.101182,
+          "lossScaleMax": 8.979594,
+          "inertanceScaleMean": 1.038291,
+          "inertanceScaleMax": 3.835
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "stateful-v2-both-loss12-inertance4",
+      "pointId": "low-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "LA PV loop",
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "failed",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 64.222239,
+        "PAPMean": 10.213538,
+        "CO_L": 3.970152,
+        "CO_R": 3.964871,
+        "LAPMean": 3.502316,
+        "RAPMean": 2.21576,
+        "EF_LApprox": 0.481369,
+        "EF_RApprox": 0.43039
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0.015038,
+          "closingMean": 0.012713,
+          "closingMax": 0.47325,
+          "lossScaleMean": 1.059348,
+          "lossScaleMax": 6.255182,
+          "inertanceScaleMean": 1.023722,
+          "inertanceScaleMax": 2.839653
+        },
+        "TV": {
+          "dutyFraction": 0.027569,
+          "closingMean": 0.015849,
+          "closingMax": 0.643071,
+          "lossScaleMean": 1.078894,
+          "lossScaleMax": 9.047197,
+          "inertanceScaleMean": 1.029775,
+          "inertanceScaleMax": 3.835
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "LA PV loop: LA PV loop is not yet a reliable raw figure-eight loop.",
+        "MVF: MV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "stateful-v2-both-loss12-inertance4",
+      "pointId": "high-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "RA PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 81.418842,
+        "PAPMean": 22.661425,
+        "CO_L": 4.862613,
+        "CO_R": 4.895479,
+        "LAPMean": 14.435715,
+        "RAPMean": 7.381913,
+        "EF_LApprox": 0.486402,
+        "EF_RApprox": 0.374088
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0.03,
+          "closingMean": 0.013088,
+          "closingMax": 0.47325,
+          "lossScaleMean": 1.05394,
+          "lossScaleMax": 4.827058,
+          "inertanceScaleMean": 1.022736,
+          "inertanceScaleMax": 2.39649
+        },
+        "TV": {
+          "dutyFraction": 0.035,
+          "closingMean": 0.019544,
+          "closingMax": 0.643071,
+          "lossScaleMean": 1.122468,
+          "lossScaleMax": 8.96892,
+          "inertanceScaleMean": 1.047161,
+          "inertanceScaleMax": 3.835
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RA PV loop: RA PV loop is not yet a reliable raw figure-eight loop.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "stateful-v2-both-loss12-inertance4",
+      "pointId": "normal-hr90",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 82.000964,
+        "PAPMean": 17.718531,
+        "CO_L": 5.165418,
+        "CO_R": 5.12066,
+        "LAPMean": 9.002369,
+        "RAPMean": 3.760086,
+        "EF_LApprox": 0.456958,
+        "EF_RApprox": 0.415157
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0.038922,
+          "closingMean": 0.016316,
+          "closingMax": 0.47325,
+          "lossScaleMean": 1.05073,
+          "lossScaleMax": 5.778116,
+          "inertanceScaleMean": 1.02196,
+          "inertanceScaleMax": 2.839653
+        },
+        "TV": {
+          "dutyFraction": 0.02994,
+          "closingMean": 0.016311,
+          "closingMax": 0.643071,
+          "lossScaleMean": 1.096554,
+          "lossScaleMax": 9.011745,
+          "inertanceScaleMean": 1.036646,
+          "inertanceScaleMax": 3.835
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "stateful-v2-both-loss12-inertance4",
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "RA PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 84.301213,
+        "PAPMean": 18.624344,
+        "CO_L": 4.492294,
+        "CO_R": 4.531968,
+        "LAPMean": 11.005611,
+        "RAPMean": 4.41372,
+        "EF_LApprox": 0.454575,
+        "EF_RApprox": 0.396513
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0.04,
+          "closingMean": 0.013897,
+          "closingMax": 0.47325,
+          "lossScaleMean": 1.055502,
+          "lossScaleMax": 4.893385,
+          "inertanceScaleMean": 1.023181,
+          "inertanceScaleMax": 2.39649
+        },
+        "TV": {
+          "dutyFraction": 0.025,
+          "closingMean": 0.017077,
+          "closingMax": 0.643071,
+          "lossScaleMean": 1.102023,
+          "lossScaleMax": 8.861052,
+          "inertanceScaleMean": 1.039152,
+          "inertanceScaleMax": 3.835
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RA PV loop: RA PV loop is not yet a reliable raw figure-eight loop.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "stateful-v2-both-loss12-inertance4",
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RA PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 75.831179,
+        "PAPMean": 19.346612,
+        "CO_L": 4.651649,
+        "CO_R": 4.642045,
+        "LAPMean": 8.693115,
+        "RAPMean": 4.609213,
+        "EF_LApprox": 0.49345,
+        "EF_RApprox": 0.393157
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0.015,
+          "closingMean": 0.013594,
+          "closingMax": 0.47325,
+          "lossScaleMean": 1.053783,
+          "lossScaleMax": 6.038813,
+          "inertanceScaleMean": 1.022296,
+          "inertanceScaleMax": 2.839653
+        },
+        "TV": {
+          "dutyFraction": 0.0275,
+          "closingMean": 0.01837,
+          "closingMax": 0.643071,
+          "lossScaleMean": 1.093531,
+          "lossScaleMax": 9.0946,
+          "inertanceScaleMean": 1.036003,
+          "inertanceScaleMax": 3.835
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RA PV loop: RA PV loop is not yet a reliable raw figure-eight loop.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "stateful-v2-both-loss12-inertance4",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "LV PV loop",
+        "RV PV loop",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "failed",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 52.760428,
+        "PAPMean": 18.766663,
+        "CO_L": 2.800288,
+        "CO_R": 2.787742,
+        "LAPMean": 14.050961,
+        "RAPMean": 7.898618,
+        "EF_LApprox": 0.293247,
+        "EF_RApprox": 0.227577
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0.0275,
+          "closingMean": 0.012357,
+          "closingMax": 0.47325,
+          "lossScaleMean": 1.060234,
+          "lossScaleMax": 6.234015,
+          "inertanceScaleMean": 1.024504,
+          "inertanceScaleMax": 2.839653
+        },
+        "TV": {
+          "dutyFraction": 0.0225,
+          "closingMean": 0.014186,
+          "closingMax": 0.643071,
+          "lossScaleMean": 1.096223,
+          "lossScaleMax": 9.133747,
+          "inertanceScaleMean": 1.036413,
+          "inertanceScaleMax": 3.835
+        }
+      },
+      "messages": [
+        "LV PV loop: LV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "TVF: TV inflow is not cleanly biphasic; extra/missing waves or visible C1 kinks are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    },
+    {
+      "variantId": "stateful-v2-both-loss12-inertance4",
+      "pointId": "contractility-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "morphologyStatus": "failed",
+      "failedLabels": [
+        "RV PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "failed",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "metrics": {
+        "AoPMean": 89.802188,
+        "PAPMean": 17.456968,
+        "CO_L": 5.641001,
+        "CO_R": 5.607157,
+        "LAPMean": 7.963854,
+        "RAPMean": 2.883578,
+        "EF_LApprox": 0.587112,
+        "EF_RApprox": 0.525335
+      },
+      "statefulV2Readbacks": {
+        "MV": {
+          "dutyFraction": 0.0275,
+          "closingMean": 0.013779,
+          "closingMax": 0.47325,
+          "lossScaleMean": 1.043643,
+          "lossScaleMax": 4.791375,
+          "inertanceScaleMean": 1.018572,
+          "inertanceScaleMax": 2.39649
+        },
+        "TV": {
+          "dutyFraction": 0.03,
+          "closingMean": 0.014138,
+          "closingMax": 0.643071,
+          "lossScaleMean": 1.047421,
+          "lossScaleMax": 6.800244,
+          "inertanceScaleMean": 1.019255,
+          "inertanceScaleMax": 3.372905
+        }
+      },
+      "messages": [
+        "RV PV loop: RV systolic PV-loop dome is not a smooth dome; prominent peaks, broad valley/rebound, or positive-curvature segments are present.",
+        "LA pressure timing: LA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off.",
+        "RA pressure timing: RA pressure timing is not physiologic enough: atrial kick timing or a/v/x/y morphology is off."
+      ],
+      "errorMessage": null
+    }
+  ],
+  "variantSummaries": [
+    {
+      "variantId": "pressure-flow-user0-inlet-held-release-baseline",
+      "grossPassCount": 0,
+      "measuredCount": 8,
+      "settledOkCount": 8,
+      "lvPvOkCount": 1,
+      "rvPvOkCount": 3,
+      "mvfOkCount": 6,
+      "tvfOkCount": 4,
+      "outputPreservedCount": 7,
+      "maxTvStatefulDutyFraction": 0,
+      "maxTvStatefulLossScale": 1,
+      "firstFailedPoint": "normal-hr75"
+    },
+    {
+      "variantId": "forward-momentum-projection-tv-reference",
+      "grossPassCount": 0,
+      "measuredCount": 8,
+      "settledOkCount": 8,
+      "lvPvOkCount": 1,
+      "rvPvOkCount": 2,
+      "mvfOkCount": 6,
+      "tvfOkCount": 2,
+      "outputPreservedCount": 7,
+      "maxTvStatefulDutyFraction": 0,
+      "maxTvStatefulLossScale": 1,
+      "firstFailedPoint": "normal-hr75"
+    },
+    {
+      "variantId": "stateful-v2-tv-loss12-inertance4",
+      "grossPassCount": 0,
+      "measuredCount": 8,
+      "settledOkCount": 8,
+      "lvPvOkCount": 1,
+      "rvPvOkCount": 3,
+      "mvfOkCount": 7,
+      "tvfOkCount": 7,
+      "outputPreservedCount": 7,
+      "maxTvStatefulDutyFraction": 0.035,
+      "maxTvStatefulLossScale": 9.137652,
+      "firstFailedPoint": "normal-hr75"
+    },
+    {
+      "variantId": "stateful-v2-both-loss12-inertance4",
+      "grossPassCount": 0,
+      "measuredCount": 8,
+      "settledOkCount": 8,
+      "lvPvOkCount": 1,
+      "rvPvOkCount": 3,
+      "mvfOkCount": 7,
+      "tvfOkCount": 7,
+      "outputPreservedCount": 7,
+      "maxTvStatefulDutyFraction": 0.035,
+      "maxTvStatefulLossScale": 9.133747,
+      "firstFailedPoint": "normal-hr75"
+    }
+  ],
+  "classification": {
+    "decision": "stateful-v2-partial-positive",
+    "baselineCounts": {
+      "grossOk": "0/8",
+      "lvPvOk": "1/8",
+      "rvPvOk": "3/8",
+      "mvfOk": "6/8",
+      "tvfOk": "4/8",
+      "outputPreserved": "7/8"
+    },
+    "projectionReferenceCounts": {
+      "grossOk": "0/8",
+      "lvPvOk": "1/8",
+      "rvPvOk": "2/8",
+      "mvfOk": "6/8",
+      "tvfOk": "2/8",
+      "outputPreserved": "7/8"
+    },
+    "bestStatefulV2VariantId": "stateful-v2-tv-loss12-inertance4",
+    "bestStatefulV2Counts": {
+      "grossOk": "0/8",
+      "lvPvOk": "1/8",
+      "rvPvOk": "3/8",
+      "mvfOk": "7/8",
+      "tvfOk": "7/8",
+      "outputPreserved": "7/8"
+    },
+    "notes": [
+      "V2 changes the pressure-flow equation by scaling accepted-state valve loss/inertance during closure; it does not post-project q after solving.",
+      "The rejected forward-momentum projection remains included only as a reference because owner visual review and Phase 5DL rejected its PV/QTV shape.",
+      "Any stateful V2 result below the strict V1.1 morphology frontier is a no-go for adoption."
+    ]
+  },
+  "claimBoundary": {
+    "noRuntimeDefaultAdoption": true,
+    "noOfficialMorphologyAcceptance": true,
+    "noLandAtrialParameterTuningUnlock": true,
+    "noA1A2Reopen": true,
+    "noValveThresholdQdotRootZcTrefSourceStressTuning": true,
+    "noClinicalScientificValidation": true
+  },
+  "normalizedSha256": "6fcaf7b8ce3026391f46dcbf6fee88531e484551968723352722f800b60f7914"
+}

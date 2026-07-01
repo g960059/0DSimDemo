@@ -229,6 +229,7 @@ export type ModelCoreExperimentalVentricularChamberTransactionStepOptions = {
     | "accepted-state-av-boundary"
     | "accepted-state-av-boundary-fixedpoint"
     | "accepted-state-valve-pressure-flow"
+    | "accepted-state-valve-pressure-flow-stateful-v2"
     | "accepted-state-valve-pressure-flow-energy-coasting"
     | "accepted-state-valve-pressure-flow-forward-momentum-projection"
     | "accepted-state-valve-pressure-flow-passive-diastasis-guard"
@@ -245,6 +246,8 @@ export type ModelCoreExperimentalVentricularChamberTransactionStepOptions = {
   readonly avValveBoundaryAdverseGradientForwardScale?: number;
   readonly avValveBoundaryPressureDeadbandMmHg?: number;
   readonly avValveBoundaryForwardMomentumMinAreaRatio?: number;
+  readonly avValveBoundaryStatefulClosingLossGain?: number;
+  readonly avValveBoundaryStatefulClosingInertanceGain?: number;
   readonly avValveBoundaryPassiveAtrialActiveThreshold01?: number;
   readonly avValveBoundaryPassivePressureGradientThresholdMmHg?: number;
 };
@@ -633,6 +636,10 @@ type ValveFlowStepDiagnostics = {
   acceptedBoundaryForwardMomentumExcess: number;
   acceptedBoundaryPassiveDiastasisGuardApplied01: number;
   acceptedBoundaryPassiveDiastasisGuardImpulse: number;
+  acceptedBoundaryStatefulV2Applied01: number;
+  acceptedBoundaryStatefulV2Closing01: number;
+  acceptedBoundaryStatefulV2LossScale: number;
+  acceptedBoundaryStatefulV2InertanceScale: number;
 };
 
 function emptyValveFlowStepDiagnostics(): ValveFlowStepDiagnostics {
@@ -670,6 +677,10 @@ function emptyValveFlowStepDiagnostics(): ValveFlowStepDiagnostics {
     acceptedBoundaryForwardMomentumExcess: 0,
     acceptedBoundaryPassiveDiastasisGuardApplied01: 0,
     acceptedBoundaryPassiveDiastasisGuardImpulse: 0,
+    acceptedBoundaryStatefulV2Applied01: 0,
+    acceptedBoundaryStatefulV2Closing01: 0,
+    acceptedBoundaryStatefulV2LossScale: 1,
+    acceptedBoundaryStatefulV2InertanceScale: 1,
   };
 }
 
@@ -824,6 +835,7 @@ function normalizeExperimentalVentricularChamberTransactionStep(
     || avValveBoundaryMode === "tv-state-coupled-mv-pressure-fixedpoint-refit"
     || avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
     || avValveBoundaryMode === "accepted-state-valve-pressure-flow"
+    || avValveBoundaryMode === "accepted-state-valve-pressure-flow-stateful-v2"
     || avValveBoundaryMode === "accepted-state-valve-pressure-flow-energy-coasting"
     || avValveBoundaryMode === "accepted-state-valve-pressure-flow-forward-momentum-projection"
     || avValveBoundaryMode === "accepted-state-valve-pressure-flow-passive-diastasis-guard"
@@ -835,6 +847,7 @@ function normalizeExperimentalVentricularChamberTransactionStep(
     avValveBoundaryMode === "tv-state-coupled-mv-pressure-fixedpoint-refit"
       || avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
       || avValveBoundaryMode === "accepted-state-valve-pressure-flow"
+      || avValveBoundaryMode === "accepted-state-valve-pressure-flow-stateful-v2"
       || avValveBoundaryMode === "accepted-state-valve-pressure-flow-energy-coasting"
       || avValveBoundaryMode === "accepted-state-valve-pressure-flow-forward-momentum-projection"
       || avValveBoundaryMode === "accepted-state-valve-pressure-flow-passive-diastasis-guard"
@@ -873,6 +886,16 @@ function normalizeExperimentalVentricularChamberTransactionStep(
       options.avValveBoundaryForwardMomentumMinAreaRatio ?? 0.05,
       0.001,
       1,
+    ),
+    avValveBoundaryStatefulClosingLossGain: clamp(
+      options.avValveBoundaryStatefulClosingLossGain ?? 12,
+      0,
+      80,
+    ),
+    avValveBoundaryStatefulClosingInertanceGain: clamp(
+      options.avValveBoundaryStatefulClosingInertanceGain ?? 4,
+      0,
+      40,
     ),
     avValveBoundaryPassiveAtrialActiveThreshold01: clamp(
       options.avValveBoundaryPassiveAtrialActiveThreshold01 ?? 0.02,
@@ -1636,6 +1659,7 @@ export class ModelCore {
         options.avValveBoundaryMode === "accepted-state-av-boundary"
         || options.avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
         || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow"
+        || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-stateful-v2"
         || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-energy-coasting"
         || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-forward-momentum-projection"
         || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-passive-diastasis-guard"
@@ -1725,6 +1749,7 @@ export class ModelCore {
         && options.avValveBoundaryMode !== "accepted-state-av-boundary"
         && options.avValveBoundaryMode !== "accepted-state-av-boundary-fixedpoint"
         && options.avValveBoundaryMode !== "accepted-state-valve-pressure-flow"
+        && options.avValveBoundaryMode !== "accepted-state-valve-pressure-flow-stateful-v2"
         && options.avValveBoundaryMode !== "accepted-state-valve-pressure-flow-energy-coasting"
         && options.avValveBoundaryMode !== "accepted-state-valve-pressure-flow-forward-momentum-projection"
         && options.avValveBoundaryMode !== "accepted-state-valve-pressure-flow-passive-diastasis-guard"
@@ -1931,6 +1956,7 @@ export class ModelCore {
     const iterations = (
       options.avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
       || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow"
+      || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-stateful-v2"
       || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-energy-coasting"
       || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-forward-momentum-projection"
       || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-passive-diastasis-guard"
@@ -1942,6 +1968,7 @@ export class ModelCore {
     const relaxation = (
       options.avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
       || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow"
+      || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-stateful-v2"
       || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-energy-coasting"
       || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-forward-momentum-projection"
       || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-passive-diastasis-guard"
@@ -1952,6 +1979,7 @@ export class ModelCore {
       : 1;
     const useProjectedValveState =
       options.avValveBoundaryMode === "accepted-state-valve-pressure-flow"
+      || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-stateful-v2"
       || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-energy-coasting"
       || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-forward-momentum-projection"
       || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-passive-diastasis-guard"
@@ -2013,7 +2041,42 @@ export class ModelCore {
       const { R, B, areaRatio } = this.effectiveLosses(inletEdge, Pu, projectedPack.P[down], projected);
       const L = Math.max((this.p as any)[`${inlet}_L`] ?? inletEdge.L ?? 0.001, 1e-6);
       const pressureGradientMmHg = Pu - PdEff;
-      const qNextPreDiode = this.qNextConsistentLossQNext(qBase, pressureGradientMmHg, R, B, L, h);
+      const baseValveState01 = clamp(beforeX[this.idx.xi[inlet]], 0, 1);
+      let statefulV2Applied01 = 0;
+      let statefulV2Closing01 = 0;
+      let statefulV2LossScale = 1;
+      let statefulV2InertanceScale = 1;
+      let contractR = R;
+      let contractB = B;
+      let contractL = L;
+      if (options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-stateful-v2") {
+        statefulV2Closing01 = clamp(
+          (baseValveState01 - acceptedValveState01) / Math.max(baseValveState01, 0.05),
+          0,
+          1,
+        );
+        const forwardMemory01 = smoothstep01(qBase / 25);
+        const closingDuty01 = smoothstep01(statefulV2Closing01);
+        const lowArea01 = clamp(1 - areaRatio, 0, 1);
+        statefulV2Applied01 = forwardMemory01 * closingDuty01;
+        statefulV2LossScale = 1
+          + (options.avValveBoundaryStatefulClosingLossGain ?? 12)
+            * statefulV2Applied01
+            * (0.35 + 0.65 * lowArea01);
+        statefulV2InertanceScale = 1
+          + (options.avValveBoundaryStatefulClosingInertanceGain ?? 4) * statefulV2Applied01;
+        contractR = R * statefulV2LossScale;
+        contractB = B * statefulV2LossScale;
+        contractL = L * statefulV2InertanceScale;
+      }
+      const qNextPreDiode = this.qNextConsistentLossQNext(
+        qBase,
+        pressureGradientMmHg,
+        contractR,
+        contractB,
+        contractL,
+        h,
+      );
       let qNextPostDiode = qNextPreDiode;
       if (this.valveLeakArea(inlet, inletEdge) <= 1e-9 && qNextPostDiode < 0) qNextPostDiode = 0;
       const qDotRaw = (qNextPostDiode - qBase) / h;
@@ -2033,7 +2096,6 @@ export class ModelCore {
         && pressureGradientMmHg <= currentFlowLossMmHg
         ? qBase
         : qRefitRaw;
-      const baseValveState01 = clamp(beforeX[this.idx.xi[inlet]], 0, 1);
       const forwardMomentumAreaScale = baseValveState01 > 1e-6
         ? clamp(
           acceptedValveState01 / Math.max(baseValveState01, options.avValveBoundaryForwardMomentumMinAreaRatio ?? 0.05),
@@ -2091,6 +2153,10 @@ export class ModelCore {
         acceptedBoundaryForwardMomentumExcess: Math.max(0, qEnergyConsistent - forwardMomentumCeiling),
         acceptedBoundaryPassiveDiastasisGuardApplied01: passiveDiastasisGuardApplied ? 1 : 0,
         acceptedBoundaryPassiveDiastasisGuardImpulse: qPassiveDiastasisGuarded - qForwardMomentumProjected,
+        acceptedBoundaryStatefulV2Applied01: statefulV2Applied01,
+        acceptedBoundaryStatefulV2Closing01: statefulV2Closing01,
+        acceptedBoundaryStatefulV2LossScale: statefulV2LossScale,
+        acceptedBoundaryStatefulV2InertanceScale: statefulV2InertanceScale,
       };
       qCandidate = qAccepted;
     }
@@ -2894,6 +2960,10 @@ export class ModelCore {
       MV_acceptedBoundaryForwardMomentumExcess: mvStep.acceptedBoundaryForwardMomentumExcess,
       MV_acceptedBoundaryPassiveDiastasisGuardApplied01: mvStep.acceptedBoundaryPassiveDiastasisGuardApplied01,
       MV_acceptedBoundaryPassiveDiastasisGuardImpulse: mvStep.acceptedBoundaryPassiveDiastasisGuardImpulse,
+      MV_acceptedBoundaryStatefulV2Applied01: mvStep.acceptedBoundaryStatefulV2Applied01,
+      MV_acceptedBoundaryStatefulV2Closing01: mvStep.acceptedBoundaryStatefulV2Closing01,
+      MV_acceptedBoundaryStatefulV2LossScale: mvStep.acceptedBoundaryStatefulV2LossScale,
+      MV_acceptedBoundaryStatefulV2InertanceScale: mvStep.acceptedBoundaryStatefulV2InertanceScale,
       AoV_areaRatio: aovLoss.areaRatio,
       AoV_loss_R: aovResistiveDrop,
       AoV_loss_B: aovQuadraticDrop,
@@ -2944,6 +3014,10 @@ export class ModelCore {
       TV_acceptedBoundaryForwardMomentumExcess: tvStep.acceptedBoundaryForwardMomentumExcess,
       TV_acceptedBoundaryPassiveDiastasisGuardApplied01: tvStep.acceptedBoundaryPassiveDiastasisGuardApplied01,
       TV_acceptedBoundaryPassiveDiastasisGuardImpulse: tvStep.acceptedBoundaryPassiveDiastasisGuardImpulse,
+      TV_acceptedBoundaryStatefulV2Applied01: tvStep.acceptedBoundaryStatefulV2Applied01,
+      TV_acceptedBoundaryStatefulV2Closing01: tvStep.acceptedBoundaryStatefulV2Closing01,
+      TV_acceptedBoundaryStatefulV2LossScale: tvStep.acceptedBoundaryStatefulV2LossScale,
+      TV_acceptedBoundaryStatefulV2InertanceScale: tvStep.acceptedBoundaryStatefulV2InertanceScale,
       PV_qNextPreDiode: pvStep.qNextPreDiode,
       PV_qNextPostDiode: pvStep.qNextPostDiode,
       PV_qNextPreFlowClamp: pvStep.qNextPreFlowClamp,
