@@ -46,6 +46,7 @@ Planning docs:
 - [Left-heart architecture V2](../../docs/mechanics2/left-heart-architecture-v2.md)
 - [Left-heart residual attribution V1](../../docs/mechanics2/left-heart-residual-attribution-v1.md)
 - [Left-heart outflow repair V1](../../docs/mechanics2/left-heart-outflow-repair-v1.md)
+- [Left-heart pulmonary boundary contract V1](../../docs/mechanics2/left-heart-pulmonary-boundary-contract-v1.md)
 - [ADR-MYO-003](../../docs/myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 
 Claim boundary:
