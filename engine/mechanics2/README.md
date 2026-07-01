@@ -45,6 +45,8 @@ Current scope:
   right low-output phenotype, RV volume policy, and safety ownership.
 - `benches/RightHeartVolumeReserveContractBench.ts`: RV volume-reserve
   pressure-contribution candidate with right/paired/reservoir re-entry checks.
+- `benches/VolumeReserveReservoirGateCScanBench.ts`: Gate C reservoir scan for
+  the RV volume-reserve scaffold candidate.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
@@ -64,6 +66,7 @@ Planning docs:
 - [Left-heart dynamic reserve contract V1](../../docs/mechanics2/left-heart-dynamic-reserve-contract-v1.md)
 - [Right-heart low-output contract V1](../../docs/mechanics2/right-heart-low-output-contract-v1.md)
 - [Right-heart volume-reserve contract V1](../../docs/mechanics2/right-heart-volume-reserve-contract-v1.md)
+- [Volume-reserve reservoir Gate C scan V1](../../docs/mechanics2/volume-reserve-reservoir-gate-c-scan-v1.md)
 - [ADR-MYO-003](../../docs/myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 
 Claim boundary:

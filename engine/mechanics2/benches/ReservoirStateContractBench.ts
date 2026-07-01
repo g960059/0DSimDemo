@@ -24,13 +24,7 @@ type ProfileIdV1 =
   | "contractility-low"
   | "contractility-high";
 
-type ReservoirStateVariantIdV1 =
-  | "open-reservoir-reference"
-  | "stateful-high-compliance-cap6-gain018"
-  | "stateful-high-compliance-cap6-gain018-epochs18"
-  | "stateful-high-compliance-cap10-gain025"
-  | "stateful-balanced-compliance-cap14-gain030"
-  | "stateful-wide-compliance-cap20-gain025";
+type ReservoirStateVariantIdV1 = string;
 
 type PairedProfileV1 = {
   readonly profileId: ProfileIdV1;
@@ -38,7 +32,7 @@ type PairedProfileV1 = {
   readonly rightPointId: string;
 };
 
-type ReservoirStateVariantSpecV1 = {
+export type ReservoirStateVariantSpecV1 = {
   readonly variantId: ReservoirStateVariantIdV1;
   readonly description: string;
   readonly epochs: number;
@@ -297,10 +291,18 @@ export function runReservoirStateContractBenchWithRightParamsV1(
   rightParams: readonly RightHeartSubsystemParamsV2[],
   rightReportId: string,
 ): ReservoirStateContractReportV1 {
+  return runReservoirStateContractBenchWithRightParamsAndVariantsV1(rightParams, rightReportId, VARIANTS);
+}
+
+export function runReservoirStateContractBenchWithRightParamsAndVariantsV1(
+  rightParams: readonly RightHeartSubsystemParamsV2[],
+  rightReportId: string,
+  variants: readonly ReservoirStateVariantSpecV1[],
+): ReservoirStateContractReportV1 {
   const leftParams = buildLeftHeartDynamicReserveVariantEnvelopeV1(LEFT_VARIANT_ID);
-  const variants = VARIANTS.map((variant) => runVariant(variant, leftParams, rightParams));
-  const reference = requiredVariant(variants, "open-reservoir-reference");
-  const best = [...variants].filter((variant) => variant.variantId !== "open-reservoir-reference")
+  const variantResults = variants.map((variant) => runVariant(variant, leftParams, rightParams));
+  const reference = requiredVariant(variantResults, "open-reservoir-reference");
+  const best = [...variantResults].filter((variant) => variant.variantId !== "open-reservoir-reference")
     .sort((a, b) =>
       b.summary.pass - a.summary.pass
       || b.summary.morphologyPreservedCount - a.summary.morphologyPreservedCount
@@ -325,7 +327,7 @@ export function runReservoirStateContractBenchWithRightParamsV1(
       leftVariantId: LEFT_VARIANT_ID,
       rightReportId,
     },
-    variantResults: variants,
+    variantResults,
     decision: {
       reservoirStateStatus,
       bestVariantId: best.variantId,

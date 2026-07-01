@@ -274,6 +274,16 @@ Next gates:
     signal for RV volume-reserve ownership, not four-chamber readiness.
     Four-chamber, AV-plane, LandAtrial, runtime wiring, and morphology
     acceptance remain blocked.
+26. Volume-reserve reservoir Gate C signal: scanning stateful reservoir
+    variants around the RV volume-reserve candidate finds a 7/7 Gate C scaffold
+    signal with `right-volume-reserve-rv-dilated520-tref-26000-safety-0.25-pressure-0.45`
+    plus `vr-soft-cap4-gain012-comp80`. The surface preserves morphology,
+    flow balance, reservoir ledger cleanliness, bounded per-epoch transfer,
+    bounded persistent reservoir state, and repeatability across 7/7. Max
+    accepted transfer is ~1.5 mL and max reservoir volume is ~17.5 mL. This
+    unlocks a broader assembled-system review of the MechanicsCore2 Gate C
+    scaffold only; four-chamber, AV-plane, LandAtrial, runtime wiring, and
+    morphology acceptance remain blocked.
 
 Parallel prep, not blocking the next strategic gate:
 
