@@ -21,8 +21,9 @@ describe("MechanicsCore2 left-heart architecture comparison", () => {
 
     const explicit = report.variantResults.find((variant) => variant.variantId === "v2-explicit-hard")!;
     const soft = report.variantResults.find((variant) => variant.variantId === "v2-fixed2-soft")!;
-    expect(explicit.summary.pass).toBe(4);
+    expect(explicit.summary.pass).toBe(3);
     expect(explicit.summary.lvPvOkCount).toBe(7);
+    expect(explicit.summary.outputOkCount).toBe(3);
     expect(soft.summary.mvfOkCount).toBeGreaterThanOrEqual(explicit.summary.mvfOkCount);
     expect(soft.summary.maxSafetyPressureMmHg).toBeGreaterThan(0);
 

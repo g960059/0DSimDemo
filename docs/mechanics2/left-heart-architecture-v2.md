@@ -36,16 +36,18 @@ Focused runner:
 | Surface | Pass | LV PV OK | MVF OK | Output OK | Key residual |
 | --- | ---: | ---: | ---: | ---: | --- |
 | V1 baseline | 4/7 | 7/7 | 5/7 | 5/7 | afterload/low-contractility low SV, high-contractility MVF kink |
-| V2 explicit hard | 4/7 | 7/7 | 5/7 | 5/7 | same residual family as V1 |
-| V2 fixed2 hard | 3/7 | 7/7 | 4/7 | 4/7 | fixed point worsens preload-low |
-| V2 fixed2 soft | 4/7 | 7/7 | 6/7 | 5/7 | low-contractility becomes low-SV only; high-contractility MVF kink remains |
+| V2 explicit hard | 3/7 | 7/7 | 5/7 | 3/7 | stricter AoV-ejection output gate exposes additional low-output points |
+| V2 fixed2 hard | 2/7 | 7/7 | 4/7 | 2/7 | fixed point worsens preload-low |
+| V2 fixed2 soft | 3/7 | 7/7 | 6/7 | 3/7 | low-contractility becomes morphology-clean low-output; high-contractility is flow-decoupled with MVF kink |
 
 The useful signal is not a higher total pass count. The useful signal is that
 `v2-fixed2-soft` keeps LV PV 7/7 and converts the low-contractility point from
-`low SV + MVF failure + mass residual + clamp` into `low SV` only, with bounded
-soft pressure (`maxSafetyPressureMmHg` ~3.24). This isolates the next left-heart
-question: whether low contractility should be accepted as a phenotype in a
-profile-specific gate or requires pressure/force reserve recalibration.
+`low SV + MVF failure + mass residual + clamp` into morphology-clean low output,
+with bounded soft pressure (`maxSafetyPressureMmHg` ~3.24). The stricter output
+gate also records AoV forward ejection, which exposes that high-contractility
+has large LV volume range but nearly absent AoV ejection. This isolates the next
+left-heart question: output-reserve acceptance/recalibration and the
+high-contractility MVF/root-flow causality problem.
 
 ## Interpretation
 

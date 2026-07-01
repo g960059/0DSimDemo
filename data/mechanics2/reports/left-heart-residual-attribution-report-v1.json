@@ -1,0 +1,249 @@
+{
+  "reportId": "left-heart-residual-attribution-report-v1",
+  "gateId": "leftHeartResidualAttributionGateV1",
+  "sourceComparison": {
+    "reportId": "left-heart-architecture-comparison-report-v1",
+    "targetSurface": "v2-fixed2-soft",
+    "summary": {
+      "pass": 3,
+      "total": 7,
+      "lvPvOkCount": 7,
+      "mvfOkCount": 6,
+      "outputOkCount": 3
+    }
+  },
+  "pointAttributions": [
+    {
+      "pointId": "left-heart-afterload-high",
+      "status": "output-reserve-residual",
+      "classification": "afterload-output-reserve",
+      "strokeVolumeMl": 31.825214,
+      "lvpPeakMmHg": 141.790899,
+      "lvActivePressurePeakMmHg": 130.312296,
+      "lvSeriesPressurePeakMmHg": 0.741497,
+      "lvPassivePressurePeakMmHg": 11.692892,
+      "qMvPeakMlPerSec": 158.572179,
+      "qAovPeakMlPerSec": 760.13803,
+      "mvForwardPeakCount": 2,
+      "mvPeakTheta": [
+        0.776042,
+        0.921875
+      ],
+      "aovEjectedVolumeMl": 31.828517,
+      "rootPressurePeakMmHg": 138.031462,
+      "mvPressureGradientRangeMmHg": [
+        -130.175273,
+        3.789204
+      ],
+      "mvOpenRange01": [
+        0,
+        0.99783
+      ],
+      "mvQDotPeakAbsMlPerSec2": 3021.382879,
+      "mvC1ContinuityScore": 0.199393,
+      "maxAbsMassResidualMl": 0,
+      "clampCount": 0,
+      "maxSafetyPressureMmHg": 0,
+      "maxTransactionResidualNormMl": 0.977356,
+      "lvpShape": {
+        "sampleCount": 191,
+        "min": 8.224885892302769,
+        "max": 141.79089909721367,
+        "range": 133.5660132049109,
+        "dominantPeakCount": 1,
+        "secondaryPeakProminenceRatio": 0,
+        "fwhmFractionOfWindow": 0.17801047120418848,
+        "peakWidthAtHalfMaxFraction": 0.17801047120418848,
+        "peakAreaRatio": 0.27650649194717475,
+        "c1ContinuityScore": 0.109428,
+        "dYdtSpikeRatio": 4.45015,
+        "positiveCurvatureFraction": 0.640212,
+        "positiveCurvatureBurden": 0.096215
+      },
+      "qMvShape": {
+        "sampleCount": 191,
+        "min": -1.3501856836746278,
+        "max": 158.57217895605058,
+        "range": 159.9223646397252,
+        "dominantPeakCount": 1,
+        "secondaryPeakProminenceRatio": 0,
+        "fwhmFractionOfWindow": 0.2774869109947644,
+        "peakWidthAtHalfMaxFraction": 0.2774869109947644,
+        "peakAreaRatio": 0.3178675616427566,
+        "c1ContinuityScore": 0.199393,
+        "dYdtSpikeRatio": 2.792733,
+        "positiveCurvatureFraction": 0.365079,
+        "positiveCurvatureBurden": 0.134984
+      },
+      "attributionFlags": {
+        "lowStrokeVolume": true,
+        "lowAovEjection": true,
+        "mvfKink": false,
+        "mvfNotBiphasic": false,
+        "massResidual": false,
+        "clampHit": false,
+        "softSafetyActive": false
+      }
+    },
+    {
+      "pointId": "left-heart-contractility-low",
+      "status": "output-reserve-residual",
+      "classification": "contractility-low-output-reserve",
+      "strokeVolumeMl": 8.922939,
+      "lvpPeakMmHg": 89.849299,
+      "lvActivePressurePeakMmHg": 77.201365,
+      "lvSeriesPressurePeakMmHg": 0.234351,
+      "lvPassivePressurePeakMmHg": 10.79857,
+      "qMvPeakMlPerSec": 90.600202,
+      "qAovPeakMlPerSec": 263.798136,
+      "mvForwardPeakCount": 2,
+      "mvPeakTheta": [
+        0.739583,
+        0.9375
+      ],
+      "aovEjectedVolumeMl": 8.92232,
+      "rootPressurePeakMmHg": 86.699781,
+      "mvPressureGradientRangeMmHg": [
+        -76.642318,
+        2.373008
+      ],
+      "mvOpenRange01": [
+        0,
+        0.982796
+      ],
+      "mvQDotPeakAbsMlPerSec2": 2381.8278,
+      "mvC1ContinuityScore": 0.371516,
+      "maxAbsMassResidualMl": 0,
+      "clampCount": 0,
+      "maxSafetyPressureMmHg": 3.235732,
+      "maxTransactionResidualNormMl": 0.335095,
+      "lvpShape": {
+        "sampleCount": 191,
+        "min": 10.759752742684043,
+        "max": 89.8492993921349,
+        "range": 79.08954664945085,
+        "dominantPeakCount": 1,
+        "secondaryPeakProminenceRatio": 0,
+        "fwhmFractionOfWindow": 0.17801047120418848,
+        "peakWidthAtHalfMaxFraction": 0.17801047120418848,
+        "peakAreaRatio": 0.25601889696158714,
+        "c1ContinuityScore": 0.135709,
+        "dYdtSpikeRatio": 6.269048,
+        "positiveCurvatureFraction": 0.703704,
+        "positiveCurvatureBurden": 0.097927
+      },
+      "qMvShape": {
+        "sampleCount": 191,
+        "min": -2.367550336998412,
+        "max": 90.60020160041212,
+        "range": 92.96775193741053,
+        "dominantPeakCount": 1,
+        "secondaryPeakProminenceRatio": 0,
+        "fwhmFractionOfWindow": 0.11518324607329843,
+        "peakWidthAtHalfMaxFraction": 0.11518324607329843,
+        "peakAreaRatio": 0.24310907239095267,
+        "c1ContinuityScore": 0.371516,
+        "dYdtSpikeRatio": 2.53913,
+        "positiveCurvatureFraction": 0.354497,
+        "positiveCurvatureBurden": 0.271475
+      },
+      "attributionFlags": {
+        "lowStrokeVolume": true,
+        "lowAovEjection": true,
+        "mvfKink": false,
+        "mvfNotBiphasic": false,
+        "massResidual": false,
+        "clampHit": false,
+        "softSafetyActive": true
+      }
+    },
+    {
+      "pointId": "left-heart-contractility-high",
+      "status": "artifact-residual",
+      "classification": "contractility-high-flow-decoupled-mvf-kink",
+      "strokeVolumeMl": 55.104899,
+      "lvpPeakMmHg": 172.854044,
+      "lvActivePressurePeakMmHg": 170.359428,
+      "lvSeriesPressurePeakMmHg": 2.412242,
+      "lvPassivePressurePeakMmHg": 7.610441,
+      "qMvPeakMlPerSec": 190.527537,
+      "qAovPeakMlPerSec": 0.160689,
+      "mvForwardPeakCount": 2,
+      "mvPeakTheta": [
+        0.796875,
+        0.921875
+      ],
+      "aovEjectedVolumeMl": 0.006223,
+      "rootPressurePeakMmHg": 189.715899,
+      "mvPressureGradientRangeMmHg": [
+        -166.387286,
+        4.18979
+      ],
+      "mvOpenRange01": [
+        0.00001,
+        0.999225
+      ],
+      "mvQDotPeakAbsMlPerSec2": 9652.018728,
+      "mvC1ContinuityScore": 0.802854,
+      "maxAbsMassResidualMl": 0,
+      "clampCount": 0,
+      "maxSafetyPressureMmHg": 0.013506,
+      "maxTransactionResidualNormMl": 0.24931,
+      "lvpShape": {
+        "sampleCount": 191,
+        "min": 2.2017414211501993,
+        "max": 172.85404405535786,
+        "range": 170.65230263420767,
+        "dominantPeakCount": 1,
+        "secondaryPeakProminenceRatio": 0,
+        "fwhmFractionOfWindow": 0.17801047120418848,
+        "peakWidthAtHalfMaxFraction": 0.17801047120418848,
+        "peakAreaRatio": 0.26222854799196815,
+        "c1ContinuityScore": 0.119175,
+        "dYdtSpikeRatio": 4.547873,
+        "positiveCurvatureFraction": 0.793651,
+        "positiveCurvatureBurden": 0.091953
+      },
+      "qMvShape": {
+        "sampleCount": 191,
+        "min": -4.2225378471661275,
+        "max": 190.52753732031158,
+        "range": 194.75007516747772,
+        "dominantPeakCount": 1,
+        "secondaryPeakProminenceRatio": 0,
+        "fwhmFractionOfWindow": 0.418848167539267,
+        "peakWidthAtHalfMaxFraction": 0.418848167539267,
+        "peakAreaRatio": 0.3412867677240059,
+        "c1ContinuityScore": 0.802854,
+        "dYdtSpikeRatio": 5.062303,
+        "positiveCurvatureFraction": 0.333333,
+        "positiveCurvatureBurden": 0.300037
+      },
+      "attributionFlags": {
+        "lowStrokeVolume": false,
+        "lowAovEjection": true,
+        "mvfKink": true,
+        "mvfNotBiphasic": false,
+        "massResidual": false,
+        "clampHit": false,
+        "softSafetyActive": false
+      }
+    }
+  ],
+  "decision": {
+    "leftHeartGateBStatus": "mixed-attributed",
+    "lowContractilityArtifactSeparated": true,
+    "highContractilityFlowDecoupledMvfKinkRemains": true,
+    "afterloadOutputReserveRemains": true,
+    "nextAction": "Keep the next MechanicsCore2 phase in left-heart Gate B: classify output reserve and root-cause the high-contractility MVF kink before right-heart, four-chamber, or LandAtrial work."
+  },
+  "claimBoundary": {
+    "runtimeWiring": false,
+    "morphologyAcceptance": false,
+    "outputReserveAcceptance": false,
+    "rightHeartUnlock": false,
+    "fourChamberUnlock": false,
+    "LandAtrialUnlock": false
+  },
+  "normalizedSha256": "5b52631cbef3338a6d84077acad4e2099bbe9bcfa6bcd5d4e269dcc5b820af6a"
+}
