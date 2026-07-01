@@ -331,5 +331,26 @@ describe("ChamberModel behavior parity (S2a refactor guards)", () => {
     expect(releaseGeometry.avPlaneTargetDescent01).toBe(0);
     expect(releaseGeometry.avPlaneDescent01).toBeCloseTo(0.8, 9);
     expect(stateful.internalDerivatives(50, releaseInternal, releaseCtx).rDot).toBeLessThan(0);
+
+    const inletHeld = new ActiveStressChamberModel({
+      ...defaultActiveLA,
+      avPlaneDescentRiseTauSec: 0.02,
+      avPlaneDescentReleaseTauSec: 0.14,
+      avPlaneDescentMaxRiseVelocity01PerSec: 20,
+      avPlaneDescentMaxReleaseVelocity01PerSec: 6,
+      avPlaneDescentReleaseInletOpenHold: 1,
+      avPlaneDescentReleaseInletOpenThreshold: 0,
+    });
+    const heldOpenDerivatives = inletHeld.internalDerivatives(50, releaseInternal, releaseCtx);
+    const heldClosedDerivatives = inletHeld.internalDerivatives(50, releaseInternal, {
+      ...releaseCtx,
+      inletValveOpen01: 0,
+      pairedVentricleShortening01: 0,
+    });
+    const heldOpenGeometry = inletHeld.debugGeometryTerms(50, releaseCtx, releaseInternal);
+    expect(heldOpenGeometry.avPlaneDescentReleaseInletOpenHold).toBe(1);
+    expect(heldOpenGeometry.avPlaneDescentReleaseInletOpenThreshold).toBe(0);
+    expect(Math.abs(heldOpenDerivatives.rDot)).toBeLessThan(1e-9);
+    expect(heldClosedDerivatives.rDot).toBeLessThan(0);
   });
 });
