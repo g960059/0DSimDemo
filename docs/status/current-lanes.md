@@ -244,6 +244,18 @@ Next gates:
     AV-plane, LandAtrial, runtime wiring, and morphology acceptance remain
     blocked. Next work should address Gate C low-contractility profile severity
     / reservoir feedback ownership rather than adding four-chamber structure.
+23. Low-contractility alignment attribution: the Gate C residual is not solved
+    by simple right-heart severity alignment. Left low-contractility remains a
+    clean low-output phenotype with AoV ejection ~11.7 mL, while baseline right
+    low-contractility is clean but ejects ~31.4 mL. Lowering right RV `trefPa`
+    can make forward ejection numerically close (best severity-only mismatch
+    ~1.5 mL), and combining lower `trefPa` with softer right safety gains can
+    reduce mismatch further (~0.29 mL), but no candidate is a clean aligned
+    low-output point: failures shift to safety-pressure, volume clamp, or
+    repeatability artifacts. This keeps Gate C focused on a deeper low-output
+    contract / right-heart safety ownership / reservoir feedback compatibility
+    problem. Four-chamber, AV-plane, LandAtrial, runtime wiring, and morphology
+    acceptance remain blocked.
 
 Parallel prep, not blocking the next strategic gate:
 
