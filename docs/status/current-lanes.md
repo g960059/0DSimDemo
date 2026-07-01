@@ -37,9 +37,9 @@ outflow repair, pulmonary-boundary/safety-suction comparisons, and
 output-reserve calibration and dynamic reserve contract comparisons are
 implemented.
 
-Next PR target: paired left/right MechanicsCore2 smoke using the passed
-single-side Gate B surfaces. Do not start four-chamber work or LandAtrial
-re-entry from isolated left/right sidecar evidence alone.
+Next PR target: coupled circulation-bridge smoke after paired left/right
+MechanicsCore2 surfaces passed side-by-side. Do not start four-chamber work or
+LandAtrial re-entry from isolated or merely paired sidecar evidence alone.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -75,6 +75,8 @@ Included:
   RA/RV/TV/PV/PA sidecar smoke.
 - RightHeartReserveCalibrationBench V1 for RV pressure mapping reserve and
   lower-bound soft-suction separation.
+- PairedHeartStrategicSmokeBench V1 for side-by-side left/right Gate B surface
+  compatibility without circulation coupling.
 
 Excluded:
 
@@ -171,6 +173,13 @@ Next gates:
     residuals but creates a low-preload repeatability failure; separating lower
     suction removes that oscillation. This unlocks paired left/right smoke only,
     not runtime wiring, four-chamber readiness, AV-plane release, or LandAtrial.
+17. Paired left/right smoke: the passed left `active-length-mv-closure-stateful-root08`
+    surface and passed right-heart strategic smoke run side-by-side over the
+    7-point profile envelope with paired pass 7/7. The only accepted phenotype
+    is the owner-approved left clean low-contractility low-output point. This
+    unlocks a coupled circulation-bridge smoke only; it is not circulation
+    coupling, runtime wiring, four-chamber readiness, AV-plane release, or
+    LandAtrial.
 
 Parallel prep, not blocking the next strategic gate:
 

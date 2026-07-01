@@ -1,0 +1,113 @@
+{
+  "reportId": "paired-heart-strategic-smoke-report-v1",
+  "gateId": "pairedHeartStrategicSmokeGateV1",
+  "sourceSurfaces": {
+    "leftReportId": "left-heart-dynamic-reserve-contract-report-v1",
+    "leftVariantId": "active-length-mv-closure-stateful-root08",
+    "rightReportId": "right-heart-strategic-smoke-report-v1"
+  },
+  "pointResults": [
+    {
+      "profileId": "normal-hr75",
+      "leftPointId": "left-heart-normal-hr75",
+      "rightPointId": "right-heart-normal-hr75",
+      "status": "pass",
+      "leftStatus": "pass",
+      "rightStatus": "pass",
+      "leftAcceptedPhenotypeReasons": [],
+      "rightAcceptedPhenotypeReasons": [],
+      "failureReasons": []
+    },
+    {
+      "profileId": "normal-hr90",
+      "leftPointId": "left-heart-normal-hr90",
+      "rightPointId": "right-heart-normal-hr90",
+      "status": "pass",
+      "leftStatus": "pass",
+      "rightStatus": "pass",
+      "leftAcceptedPhenotypeReasons": [],
+      "rightAcceptedPhenotypeReasons": [],
+      "failureReasons": []
+    },
+    {
+      "profileId": "preload-low",
+      "leftPointId": "left-heart-preload-low",
+      "rightPointId": "right-heart-preload-low",
+      "status": "pass",
+      "leftStatus": "pass",
+      "rightStatus": "pass",
+      "leftAcceptedPhenotypeReasons": [],
+      "rightAcceptedPhenotypeReasons": [],
+      "failureReasons": []
+    },
+    {
+      "profileId": "preload-high",
+      "leftPointId": "left-heart-preload-high",
+      "rightPointId": "right-heart-preload-high",
+      "status": "pass",
+      "leftStatus": "pass",
+      "rightStatus": "pass",
+      "leftAcceptedPhenotypeReasons": [],
+      "rightAcceptedPhenotypeReasons": [],
+      "failureReasons": []
+    },
+    {
+      "profileId": "afterload-high",
+      "leftPointId": "left-heart-afterload-high",
+      "rightPointId": "right-heart-pulmonary-afterload-high",
+      "status": "pass",
+      "leftStatus": "pass",
+      "rightStatus": "pass",
+      "leftAcceptedPhenotypeReasons": [],
+      "rightAcceptedPhenotypeReasons": [],
+      "failureReasons": []
+    },
+    {
+      "profileId": "contractility-low",
+      "leftPointId": "left-heart-contractility-low",
+      "rightPointId": "right-heart-contractility-low",
+      "status": "pass",
+      "leftStatus": "pass",
+      "rightStatus": "pass",
+      "leftAcceptedPhenotypeReasons": [
+        "clean-low-contractility-low-output-phenotype"
+      ],
+      "rightAcceptedPhenotypeReasons": [],
+      "failureReasons": []
+    },
+    {
+      "profileId": "contractility-high",
+      "leftPointId": "left-heart-contractility-high",
+      "rightPointId": "right-heart-contractility-high",
+      "status": "pass",
+      "leftStatus": "pass",
+      "rightStatus": "pass",
+      "leftAcceptedPhenotypeReasons": [],
+      "rightAcceptedPhenotypeReasons": [],
+      "failureReasons": []
+    }
+  ],
+  "summary": {
+    "total": 7,
+    "pass": 7,
+    "fail": 0,
+    "inconclusive": 0,
+    "leftPassCount": 7,
+    "rightPassCount": 7,
+    "pairedAcceptedPhenotypeCount": 1
+  },
+  "decision": {
+    "pairedHeartGateStatus": "paired-heart-smoke-pass",
+    "nextAction": "Proceed to a coupled circulation-bridge smoke before any four-chamber, AV-plane, or LandAtrial work.",
+    "remainingBlockers": []
+  },
+  "claimBoundary": {
+    "runtimeWiring": false,
+    "circulationCoupling": false,
+    "morphologyAcceptance": false,
+    "fourChamberUnlock": false,
+    "AVPlaneUnlock": false,
+    "LandAtrialUnlock": false
+  },
+  "normalizedSha256": "c83b729a618c2461f352497d15f74a4b43d527c40abf1f41bb70fada49a15933"
+}
