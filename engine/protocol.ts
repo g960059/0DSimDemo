@@ -496,6 +496,8 @@ export type SimSample = {
   MV_acceptedBoundaryValveState01?: number;
   MV_acceptedBoundaryAreaRatio?: number;
   MV_acceptedBoundaryAtrialActive01?: number;
+  MV_acceptedBoundaryForwardMomentumProjectionApplied01?: number;
+  MV_acceptedBoundaryForwardMomentumProjectionImpulse?: number;
   MV_acceptedBoundaryPassiveDiastasisGuardApplied01?: number;
   MV_acceptedBoundaryPassiveDiastasisGuardImpulse?: number;
   AoV_areaRatio: number;
@@ -541,6 +543,8 @@ export type SimSample = {
   TV_acceptedBoundaryValveState01?: number;
   TV_acceptedBoundaryAreaRatio?: number;
   TV_acceptedBoundaryAtrialActive01?: number;
+  TV_acceptedBoundaryForwardMomentumProjectionApplied01?: number;
+  TV_acceptedBoundaryForwardMomentumProjectionImpulse?: number;
   TV_acceptedBoundaryPassiveDiastasisGuardApplied01?: number;
   TV_acceptedBoundaryPassiveDiastasisGuardImpulse?: number;
   PV_qNextPreDiode?: number;
