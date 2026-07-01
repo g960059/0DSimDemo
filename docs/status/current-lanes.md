@@ -32,11 +32,12 @@ equivalence.
 
 Current sidecar state: `PR-M2-0+1`, `PR-M2-2+3`, `PR-M2-4+5`, the
 left-heart fiber-timing attribution surface, and the first left-heart V2
-transaction architecture comparison are implemented.
+transaction architecture comparison, residual attribution, and semilunar/root
+outflow repair comparison are implemented.
 
-Next PR target: left-heart Gate B repair only. Do not start four-chamber work
-or LandAtrial re-entry until output-reserve acceptance/recalibration and the
-high-contractility MVF kink are resolved.
+Next PR target: left-heart Gate B semilunar/root outflow ownership only. Do not
+start four-chamber work or LandAtrial re-entry until output-reserve
+acceptance/recalibration and the high-contractility MVF kink/clamp are resolved.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -58,6 +59,8 @@ Included:
   safety surfaces.
 - LeftHeartResidualAttributionBench V1 for the remaining `v2-fixed2-soft`
   afterload-high, contractility-low, and contractility-high residuals.
+- LeftHeartOutflowRepairBench V1 for semilunar/root variants with last-two-beat
+  repeatability and `dt/2` sensitivity guards.
 
 Excluded:
 
@@ -113,6 +116,11 @@ Next gates:
     flow-decoupled + MVF kink artifact. This narrows the next phase to
     output-reserve acceptance/recalibration and MVF kink/root-flow causality,
     not right-heart or LandAtrial expansion.
+11. Gate B outflow repair signal: semilunar/root variants show that faster root
+    runoff plus semilunar loss can improve pass 3->4, output OK 3->6, and
+    remove large AoV beat alternans, but high-contractility still has MVF kink,
+    `dt/2` instability, and clamp hits. This is repair-direction evidence only;
+    it does not unlock runtime wiring, right-heart, four-chamber, or LandAtrial.
 
 Parallel prep, not blocking the next strategic gate:
 
