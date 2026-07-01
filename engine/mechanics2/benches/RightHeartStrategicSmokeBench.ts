@@ -106,8 +106,14 @@ export type RightHeartStrategicSmokeReportV1 = {
 };
 
 export function runRightHeartStrategicSmokeBenchV1(): RightHeartStrategicSmokeReportV1 {
-  const pointResults = buildRightHeartStrategicEnvelopeV1().map(runPoint);
-  const summary = summarize(pointResults);
+  return buildRightHeartStrategicSmokeReportV1(buildRightHeartStrategicEnvelopeV1());
+}
+
+export function buildRightHeartStrategicSmokeReportV1(
+  pointParams: readonly RightHeartSubsystemParamsV2[],
+): RightHeartStrategicSmokeReportV1 {
+  const pointResults = pointParams.map(runRightHeartStrategicPointV1);
+  const summary = summarizeRightHeartStrategicPointsV1(pointResults);
   const rightHeartGateBStatus = summary.pass === summary.total
     ? "right-heart-strategic-smoke-pass"
     : summary.pass >= 4 && summary.rvPvOkCount >= 5 && summary.tvfOkCount >= 4
@@ -167,7 +173,7 @@ export function buildRightHeartStrategicEnvelopeV1(): readonly RightHeartSubsyst
     }),
     defaultRightHeartSubsystemParamsV2({
       fixtureId: "right-heart-contractility-low",
-      rv: { pressureScale: 0.40, fiber: { ...base.rv.fiber, trefPa: 42_000 } },
+      rv: { fiber: { ...base.rv.fiber, trefPa: 42_000 } },
     }),
     defaultRightHeartSubsystemParamsV2({
       fixtureId: "right-heart-contractility-high",
@@ -176,7 +182,9 @@ export function buildRightHeartStrategicEnvelopeV1(): readonly RightHeartSubsyst
   ];
 }
 
-function runPoint(params: RightHeartSubsystemParamsV2): RightHeartStrategicSmokePointResultV1 {
+export function runRightHeartStrategicPointV1(
+  params: RightHeartSubsystemParamsV2,
+): RightHeartStrategicSmokePointResultV1 {
   const run = runRightHeartSubsystemV2(params);
   const dtHalfRun = runRightHeartSubsystemV2({ ...params, sampleRateHz: params.sampleRateHz * 2 });
   const finalBeatIndex = params.beats - 2;
@@ -340,7 +348,7 @@ function acceptedPhenotypeReasonsFor(
     : [];
 }
 
-function summarize(
+export function summarizeRightHeartStrategicPointsV1(
   pointResults: readonly RightHeartStrategicSmokePointResultV1[],
 ): RightHeartStrategicSmokeReportV1["summary"] {
   return {

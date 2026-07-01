@@ -26,9 +26,10 @@ kinks through C1 continuity and keeps raw morphology readbacks in the report.
 
 ## Result
 
-The 7-point right-heart envelope is mixed but useful:
+After reserve calibration, the 7-point right-heart envelope passes this
+strategic smoke:
 
-- Pass: 4/7
+- Pass: 7/7
 - RV PV OK: 7/7
 - TVF OK: 7/7
 - Output OK: 7/7
@@ -36,20 +37,13 @@ The 7-point right-heart envelope is mixed but useful:
 - `dt/2` stable: 7/7
 - Flow-coupled: 7/7
 - Clamp-free: 7/7
-- Safety-work bounded: 4/7
-
-The passing points are normal HR75, normal HR90, preload-low, and
-contractility-high. The remaining points fail only by `safety-pressure-dominant`:
-
-- `right-heart-preload-high`
-- `right-heart-pulmonary-afterload-high`
-- `right-heart-contractility-low`
+- Safety-work bounded: 7/7
 
 This is a good architecture signal compared with the prior ModelCore patch
-lane: RV PV shape, TVF shape, output, repeatability, and flow-volume coupling
-are not the current blockers. The current right-heart blocker is RV dilation /
-soft safety-pressure ownership under high preload, pulmonary afterload, and low
-contractility.
+lane: RV PV shape, TVF shape, output, repeatability, flow-volume coupling, and
+bounded soft safety are no longer the current right-heart strategic-smoke
+blockers. The reserve comparison is recorded separately in
+`right-heart-reserve-calibration-report-v1.json`.
 
 ## Boundary
 
@@ -57,6 +51,6 @@ This PR does not claim right-heart physiology acceptance. It does not unlock
 runtime wiring, four-chamber integration, AV-plane release work, or LandAtrial
 tuning.
 
-Next work should stay in MechanicsCore2 right-heart smoke and decide whether
-the RV dilation/safety-pressure residual is a fixture-envelope issue, a missing
-right-heart compliance/afterload contract, or a required phenotype policy.
+This result can unlock a paired left/right MechanicsCore2 smoke. It still does
+not unlock runtime wiring, four-chamber integration, AV-plane release work, or
+LandAtrial tuning.
