@@ -592,6 +592,21 @@ failed TV point but does not remove the accepted-boundary diode/qDot-classified
 extra TV wave. Do not continue scalar adverse-gradient braking; the residual
 needs a physical valve-state/pressure-flow contract rather than another limiter,
 qDot tweak, valve-threshold tune, or LandAtrial parameter change.
+Phase 5CY records
+`valve-pressure-flow-contract-phase5cy-result-v1`, adding an off-by-default
+accepted projected valve-state pressure-flow coupling diagnostic. It moves the
+same accepted-boundary residual surface from a scalar brake to a physical
+valve-state/area pressure-flow relation and reruns the representative 8-point
+normal-sinus envelope. The signal is the strongest user-0 transfer component
+evidence so far: current inlet-held user0 is gross 4/8 with MVF 8/8 and TVF 4/8,
+while projected valve-state pressure-flow user0 reaches gross 7/8 with MVF 8/8
+and TVF 7/8. The remaining gross failure is `contractility-low-hr75` TVF with
+accepted-boundary diode/qDot classification. However, LA and RA pressure timing
+still fail all 8/8 user0 points, so this does not accept atrial physiology,
+does not unlock LandAtrial tuning, and does not support runtime/default
+adoption. The next useful split is the remaining contractility-low TVF residual
+plus a direct atrial-kick-to-ventricular-upstroke timing gate; do not interpret
+the current pressure-timing badge as solved.
 
 ## Lane table
 
@@ -1048,6 +1063,15 @@ advances the current lane. They are evidence anchors, not current gates.
    1/2 through an accepted-boundary diode/qDot-classified extra wave. Do not
    continue scalar braking/limiter variants; the next useful surface is a
    physical valve-state/pressure-flow contract.
+   Phase 5CY adds that projected valve-state pressure-flow contract and shows a
+   strong representative-envelope signal: user0 improves from gross 4/8
+   (MVF 8/8, TVF 4/8) to gross 7/8 (MVF 8/8, TVF 7/8). The remaining gross
+   failure is the `contractility-low-hr75` TVF residual, still
+   accepted-boundary diode/qDot-classified. This is component evidence only:
+   LA/RAP pressure timing still fails all 8/8 user0 points, and the checker has
+   only a phase-window atrial-kick timing rule, not a direct LA/RA active peak
+   to LV/RV pressure-upstroke delay gate. Add that direct timing gate before
+   claiming atrial physiology or reopening LandAtrial calibration.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, bounded pressure-gain capping,

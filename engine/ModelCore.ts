@@ -228,6 +228,7 @@ export type ModelCoreExperimentalVentricularChamberTransactionStepOptions = {
     | "state-coupled-complementarity"
     | "accepted-state-av-boundary"
     | "accepted-state-av-boundary-fixedpoint"
+    | "accepted-state-valve-pressure-flow"
     | "accepted-state-av-boundary-pair-fixedpoint"
     | "source-state-residual-contract"
     | "tv-state-coupled-mv-pressure-refit"
@@ -613,6 +614,8 @@ type ValveFlowStepDiagnostics = {
   acceptedBoundaryDiodeImpulse: number;
   acceptedBoundaryComplementarityResidualMlPerSec: number;
   acceptedBoundaryIterationCount: number;
+  acceptedBoundaryValveState01: number;
+  acceptedBoundaryAreaRatio: number;
 };
 
 function emptyValveFlowStepDiagnostics(): ValveFlowStepDiagnostics {
@@ -640,6 +643,8 @@ function emptyValveFlowStepDiagnostics(): ValveFlowStepDiagnostics {
     acceptedBoundaryDiodeImpulse: 0,
     acceptedBoundaryComplementarityResidualMlPerSec: 0,
     acceptedBoundaryIterationCount: 0,
+    acceptedBoundaryValveState01: 0,
+    acceptedBoundaryAreaRatio: 0,
   };
 }
 
@@ -793,11 +798,13 @@ function normalizeExperimentalVentricularChamberTransactionStep(
     avValveBoundaryMode === "tv-state-coupled-mv-pressure-refit"
     || avValveBoundaryMode === "tv-state-coupled-mv-pressure-fixedpoint-refit"
     || avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
+    || avValveBoundaryMode === "accepted-state-valve-pressure-flow"
     || avValveBoundaryMode === "accepted-state-av-boundary-pair-fixedpoint"
     || avValveBoundaryMode === "source-state-residual-contract";
   const avValveBoundaryPressureRefitIterations =
     avValveBoundaryMode === "tv-state-coupled-mv-pressure-fixedpoint-refit"
       || avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
+      || avValveBoundaryMode === "accepted-state-valve-pressure-flow"
       || avValveBoundaryMode === "accepted-state-av-boundary-pair-fixedpoint"
       || avValveBoundaryMode === "source-state-residual-contract"
       ? Math.max(1, Math.floor(clamp(options.avValveBoundaryPressureRefitIterations ?? 3, 1, 8)))
@@ -1577,6 +1584,7 @@ export class ModelCore {
       (
         options.avValveBoundaryMode === "accepted-state-av-boundary"
         || options.avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
+        || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow"
       )
       && (options.avValveBoundaryTargetValves ?? ["MV", "TV"]).includes(inlet)
     ) {
@@ -1660,6 +1668,7 @@ export class ModelCore {
         options.avValveBoundaryMode !== "state-coupled-complementarity"
         && options.avValveBoundaryMode !== "accepted-state-av-boundary"
         && options.avValveBoundaryMode !== "accepted-state-av-boundary-fixedpoint"
+        && options.avValveBoundaryMode !== "accepted-state-valve-pressure-flow"
         && options.avValveBoundaryMode !== "accepted-state-av-boundary-pair-fixedpoint"
         && options.avValveBoundaryMode !== "source-state-residual-contract"
         && !(options.avValveBoundaryMode === "tv-state-coupled-mv-pressure-refit" && valveName === "TV")
@@ -1856,12 +1865,19 @@ export class ModelCore {
     const ventIndex = this.idx.node[ventNode];
     const h = Math.max(dt, 1e-6);
     const qBase = beforeX[this.idx.q[inlet]];
-    const iterations = options.avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
+    const iterations = (
+      options.avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
+      || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow"
+    )
       ? Math.max(1, Math.floor(options.avValveBoundaryPressureRefitIterations ?? 3))
       : 1;
-    const relaxation = options.avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
+    const relaxation = (
+      options.avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
+      || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow"
+    )
       ? clamp(options.avValveBoundaryPressureRefitRelaxation ?? 1, 0.05, 1)
       : 1;
+    const useProjectedValveState = options.avValveBoundaryMode === "accepted-state-valve-pressure-flow";
     let qCandidate = inletQGuess;
     let acceptedDiagnostics = this.valveFlowStepDiagnostics[inlet];
     for (let iteration = 0; iteration < iterations; iteration++) {
@@ -1888,12 +1904,18 @@ export class ModelCore {
       projected[this.idx.xi[inlet]] = valveStateX[this.idx.xi[inlet]];
       this.sanitizeState(projected);
 
-      const projectedPack = this.computePressures(projected);
+      let projectedPack = this.computePressures(projected);
+      let acceptedValveState01 = clamp(projected[this.idx.xi[inlet]], 0, 1);
+      if (useProjectedValveState) {
+        acceptedValveState01 = this.transactionValveOpenNext(inlet, projected, projectedPack, dt);
+        projected[this.idx.xi[inlet]] = acceptedValveState01;
+        projectedPack = this.computePressures(projected);
+      }
       const up = this.nodeIndex.get(inletEdge.up)!;
       const down = this.nodeIndex.get(inletEdge.down)!;
       const Pu = projectedPack.P[up];
       const PdEff = this.downstreamEffective(inletEdge, projectedPack.P[down]);
-      const { R, B } = this.effectiveLosses(inletEdge, Pu, projectedPack.P[down], projected);
+      const { R, B, areaRatio } = this.effectiveLosses(inletEdge, Pu, projectedPack.P[down], projected);
       const L = Math.max((this.p as any)[`${inlet}_L`] ?? inletEdge.L ?? 0.001, 1e-6);
       const pressureGradientMmHg = Pu - PdEff;
       const qNextPreDiode = this.qNextConsistentLossQNext(qBase, pressureGradientMmHg, R, B, L, h);
@@ -1927,6 +1949,8 @@ export class ModelCore {
         acceptedBoundaryComplementarityResidualMlPerSec:
           pressureGradientMmHg <= 0 ? Math.max(qAccepted, 0) : Math.max(-qAccepted, 0),
         acceptedBoundaryIterationCount: iteration + 1,
+        acceptedBoundaryValveState01: acceptedValveState01,
+        acceptedBoundaryAreaRatio: areaRatio,
       };
       qCandidate = qAccepted;
     }
@@ -2002,6 +2026,8 @@ export class ModelCore {
         acceptedBoundaryComplementarityResidualMlPerSec:
           inletAccepted.pressureGradientMmHg <= 0 ? Math.max(nextInletQ, 0) : Math.max(-nextInletQ, 0),
         acceptedBoundaryIterationCount: iteration + 1,
+        acceptedBoundaryValveState01: inletAccepted.valveState01,
+        acceptedBoundaryAreaRatio: inletAccepted.areaRatio,
       };
       inletQ = nextInletQ;
       outletQ = nextOutletQ;
@@ -2093,6 +2119,8 @@ export class ModelCore {
       acceptedBoundaryComplementarityResidualMlPerSec:
         evaluation.inletAccepted.pressureGradientMmHg <= 0 ? Math.max(inletQ, 0) : Math.max(-inletQ, 0),
       acceptedBoundaryIterationCount: completedIterations,
+      acceptedBoundaryValveState01: evaluation.inletAccepted.valveState01,
+      acceptedBoundaryAreaRatio: evaluation.inletAccepted.areaRatio,
     };
     return {
       inletQNext: inletQ,
@@ -2205,6 +2233,8 @@ export class ModelCore {
     qDotClampHit01: number;
     qDotClampImpulse: number;
     diodeImpulse: number;
+    valveState01: number;
+    areaRatio: number;
   } {
     const edge = this.edges[this.edgeIndex(edgeName)];
     const up = this.nodeIndex.get(edge.up)!;
@@ -2227,6 +2257,7 @@ export class ModelCore {
       : this.currentLossQNext(qBase, pressureGradientMmHg, R, B, L, h);
     let qNextPostDiode = qNextPreDiode;
     const valveName = edge.kind === "valve" ? edge.name as ValveName : null;
+    const valveState01 = valveName ? clamp(x[this.idx.xi[valveName]], 0, 1) : 1;
     if (valveName && this.valveLeakArea(valveName, edge) <= 1e-9 && qNextPostDiode < 0) {
       qNextPostDiode = this.applyValveDiodeConstraint(
         valveName,
@@ -2253,6 +2284,8 @@ export class ModelCore {
       qDotClampHit01: Math.abs(qDotPost - qDotRaw) > 1e-9 ? 1 : 0,
       qDotClampImpulse: qDotPost - qDotRaw,
       diodeImpulse: qNextPostDiode - qNextPreDiode,
+      valveState01,
+      areaRatio,
     };
   }
 
@@ -2711,6 +2744,8 @@ export class ModelCore {
       MV_acceptedBoundaryDiodeImpulse: mvStep.acceptedBoundaryDiodeImpulse,
       MV_acceptedBoundaryComplementarityResidualMlPerSec: mvStep.acceptedBoundaryComplementarityResidualMlPerSec,
       MV_acceptedBoundaryIterationCount: mvStep.acceptedBoundaryIterationCount,
+      MV_acceptedBoundaryValveState01: mvStep.acceptedBoundaryValveState01,
+      MV_acceptedBoundaryAreaRatio: mvStep.acceptedBoundaryAreaRatio,
       AoV_areaRatio: aovLoss.areaRatio,
       AoV_loss_R: aovResistiveDrop,
       AoV_loss_B: aovQuadraticDrop,
@@ -2751,6 +2786,8 @@ export class ModelCore {
       TV_acceptedBoundaryDiodeImpulse: tvStep.acceptedBoundaryDiodeImpulse,
       TV_acceptedBoundaryComplementarityResidualMlPerSec: tvStep.acceptedBoundaryComplementarityResidualMlPerSec,
       TV_acceptedBoundaryIterationCount: tvStep.acceptedBoundaryIterationCount,
+      TV_acceptedBoundaryValveState01: tvStep.acceptedBoundaryValveState01,
+      TV_acceptedBoundaryAreaRatio: tvStep.acceptedBoundaryAreaRatio,
       PV_qNextPreDiode: pvStep.qNextPreDiode,
       PV_qNextPostDiode: pvStep.qNextPostDiode,
       PV_qNextPreFlowClamp: pvStep.qNextPreFlowClamp,
