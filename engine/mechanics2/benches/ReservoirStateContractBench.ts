@@ -164,7 +164,7 @@ export type ReservoirStateContractReportV1 = {
   readonly gateId: "reservoirStateContractGateV1";
   readonly sourceSurfaces: {
     readonly leftVariantId: LeftHeartDynamicReserveVariantIdV1;
-    readonly rightReportId: "right-heart-strategic-smoke-report-v1";
+    readonly rightReportId: string;
   };
   readonly variantResults: readonly ReservoirStateContractVariantResultV1[];
   readonly decision: {
@@ -287,8 +287,17 @@ const VARIANTS: readonly ReservoirStateVariantSpecV1[] = [
 ];
 
 export function runReservoirStateContractBenchV1(): ReservoirStateContractReportV1 {
+  return runReservoirStateContractBenchWithRightParamsV1(
+    buildRightHeartStrategicEnvelopeV1(),
+    "right-heart-strategic-smoke-report-v1",
+  );
+}
+
+export function runReservoirStateContractBenchWithRightParamsV1(
+  rightParams: readonly RightHeartSubsystemParamsV2[],
+  rightReportId: string,
+): ReservoirStateContractReportV1 {
   const leftParams = buildLeftHeartDynamicReserveVariantEnvelopeV1(LEFT_VARIANT_ID);
-  const rightParams = buildRightHeartStrategicEnvelopeV1();
   const variants = VARIANTS.map((variant) => runVariant(variant, leftParams, rightParams));
   const reference = requiredVariant(variants, "open-reservoir-reference");
   const best = [...variants].filter((variant) => variant.variantId !== "open-reservoir-reference")
@@ -314,7 +323,7 @@ export function runReservoirStateContractBenchV1(): ReservoirStateContractReport
     gateId: "reservoirStateContractGateV1",
     sourceSurfaces: {
       leftVariantId: LEFT_VARIANT_ID,
-      rightReportId: "right-heart-strategic-smoke-report-v1",
+      rightReportId,
     },
     variantResults: variants,
     decision: {

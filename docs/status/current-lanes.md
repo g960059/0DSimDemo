@@ -265,6 +265,15 @@ Next gates:
     blocked on right low-output / RV safety ownership itself rather than
     reservoir tuning. Four-chamber, AV-plane, LandAtrial, runtime wiring, and
     morphology acceptance remain blocked.
+25. Right-heart volume-reserve contract signal: separating RV upper
+    volume-reserve from its pressure contribution finds one clean aligned right
+    low-output candidate. The candidate preserves right-heart 7/7 and paired
+    7/7 re-entry, but stateful reservoir Gate C remains no-go with best 5/7:
+    `preload-low` reservoir state is non-repeatable and `contractility-low`
+    loses the right surface under reservoir feedback. This is an architecture
+    signal for RV volume-reserve ownership, not four-chamber readiness.
+    Four-chamber, AV-plane, LandAtrial, runtime wiring, and morphology
+    acceptance remain blocked.
 
 Parallel prep, not blocking the next strategic gate:
 

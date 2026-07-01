@@ -52,6 +52,10 @@ export type RightHeartSubsystemParamsV2 = {
   readonly rvSoftLimitGainMmHgPerMl: number;
   readonly raLowerSoftLimitGainMmHgPerMl: number;
   readonly rvLowerSoftLimitGainMmHgPerMl: number;
+  readonly raUpperSoftLimitPressureContribution01: number;
+  readonly rvUpperSoftLimitPressureContribution01: number;
+  readonly raLowerSoftLimitPressureContribution01: number;
+  readonly rvLowerSoftLimitPressureContribution01: number;
   readonly raPressureBaselineMmHg: number;
   readonly raAWaveMmHg: number;
   readonly raAWaveStartTheta: number;
@@ -190,6 +194,10 @@ export function defaultRightHeartSubsystemParamsV2(
     rvSoftLimitGainMmHgPerMl: overrides.rvSoftLimitGainMmHgPerMl ?? 0.22,
     raLowerSoftLimitGainMmHgPerMl: overrides.raLowerSoftLimitGainMmHgPerMl ?? 0.18,
     rvLowerSoftLimitGainMmHgPerMl: overrides.rvLowerSoftLimitGainMmHgPerMl ?? 0.08,
+    raUpperSoftLimitPressureContribution01: overrides.raUpperSoftLimitPressureContribution01 ?? 1,
+    rvUpperSoftLimitPressureContribution01: overrides.rvUpperSoftLimitPressureContribution01 ?? 1,
+    raLowerSoftLimitPressureContribution01: overrides.raLowerSoftLimitPressureContribution01 ?? 1,
+    rvLowerSoftLimitPressureContribution01: overrides.rvLowerSoftLimitPressureContribution01 ?? 1,
     raPressureBaselineMmHg: overrides.raPressureBaselineMmHg ?? 3.8,
     raAWaveMmHg: overrides.raAWaveMmHg ?? 3.0,
     raAWaveStartTheta: overrides.raAWaveStartTheta ?? 0.86,
@@ -381,7 +389,7 @@ function acceptRightHeartCandidateV2(input: {
     previousCavityVolumeMl: input.previous.rvVolumeMl,
   }, input.params.rv);
   const rapRawMmHg = rightAtrialPressureRaw(input.theta, input.candidate.raVolumeMl, input.params);
-  const rapSafetyMmHg = safetyPressureMmHg(
+  const rapSafetyRawMmHg = safetyPressureMmHg(
     input.candidate.raVolumeMl,
     input.params.minRaVolumeMl,
     input.params.maxRaVolumeMl,
@@ -389,13 +397,23 @@ function acceptRightHeartCandidateV2(input: {
     input.params.raLowerSoftLimitGainMmHgPerMl,
     input.params.volumeSafetyMode,
   );
-  const rvpSafetyMmHg = safetyPressureMmHg(
+  const rvpSafetyRawMmHg = safetyPressureMmHg(
     input.candidate.rvVolumeMl,
     input.params.minRvVolumeMl,
     input.params.maxRvVolumeMl,
     input.params.rvSoftLimitGainMmHgPerMl,
     input.params.rvLowerSoftLimitGainMmHgPerMl,
     input.params.volumeSafetyMode,
+  );
+  const rapSafetyMmHg = coupledSafetyPressureMmHg(
+    rapSafetyRawMmHg,
+    input.params.raUpperSoftLimitPressureContribution01,
+    input.params.raLowerSoftLimitPressureContribution01,
+  );
+  const rvpSafetyMmHg = coupledSafetyPressureMmHg(
+    rvpSafetyRawMmHg,
+    input.params.rvUpperSoftLimitPressureContribution01,
+    input.params.rvLowerSoftLimitPressureContribution01,
   );
   const rapMmHg = rapRawMmHg + rapSafetyMmHg;
   const rvpMmHg = rvChamber.pressureRawMmHg + rvpSafetyMmHg;
@@ -527,6 +545,16 @@ function safetyPressureMmHg(
   if (mode !== "soft-pressure") return 0;
   if (volumeMl > maxVolumeMl) return upperGainMmHgPerMl * (volumeMl - maxVolumeMl);
   if (volumeMl < minVolumeMl) return -lowerGainMmHgPerMl * (minVolumeMl - volumeMl);
+  return 0;
+}
+
+function coupledSafetyPressureMmHg(
+  rawSafetyPressureMmHg: number,
+  upperContribution01: number,
+  lowerContribution01: number,
+): number {
+  if (rawSafetyPressureMmHg > 0) return rawSafetyPressureMmHg * clamp(upperContribution01, 0, 1);
+  if (rawSafetyPressureMmHg < 0) return rawSafetyPressureMmHg * clamp(lowerContribution01, 0, 1);
   return 0;
 }
 
