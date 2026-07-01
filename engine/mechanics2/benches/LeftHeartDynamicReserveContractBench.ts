@@ -18,7 +18,10 @@ type LeftHeartDynamicReserveVariantIdV1 =
   | "active-length-blend-plus-mv-closure-no-hard-floor"
   | "active-length-blend-plus-mv-closure-load3"
   | "active-length-blend-plus-mv-closure-root09"
-  | "active-length-mv-closure-dynamic-root50";
+  | "active-length-mv-closure-dynamic-root50"
+  | "active-length-mv-closure-stateful-root05"
+  | "active-length-mv-closure-stateful-root08"
+  | "active-length-mv-closure-stateful-root04-slow";
 
 type BeatSummaryV1 = {
   readonly beat: number;
@@ -40,6 +43,7 @@ type BeatSummaryV1 = {
   readonly maxMvClosureDrive01: number | null;
   readonly mvClosureDriveDutyFraction: number;
   readonly maxRootOutflowHighPressureDrive01: number | null;
+  readonly maxRootOutflowStatefulDrive01: number | null;
   readonly maxRootOutResistanceEffectiveMmHgSecPerMl: number | null;
 };
 
@@ -100,6 +104,11 @@ export type LeftHeartDynamicReserveVariantResultV1 = {
     readonly rootOutflowHighPressureDriveStartMmHg: number;
     readonly rootOutflowHighPressureDriveEndMmHg: number;
     readonly rootOutflowHighPressureResistanceGain: number;
+    readonly rootOutflowStatefulDriveStartMmHg: number;
+    readonly rootOutflowStatefulDriveEndMmHg: number;
+    readonly rootOutflowStatefulResistanceGain: number;
+    readonly rootOutflowStatefulRiseTauSec: number;
+    readonly rootOutflowStatefulFallTauSec: number;
   };
   readonly pointResults: readonly LeftHeartDynamicReservePointResultV1[];
   readonly summary: {
@@ -122,6 +131,7 @@ export type LeftHeartDynamicReserveVariantResultV1 = {
     readonly highDriveArtifactCount: number;
     readonly maxMvClosureDrive01: number | null;
     readonly maxRootOutflowHighPressureDrive01: number | null;
+    readonly maxRootOutflowStatefulDrive01: number | null;
   };
 };
 
@@ -183,6 +193,11 @@ const STATIC_OUTPUT_RESERVE = {
   rootOutflowHighPressureDriveStartMmHg: 0,
   rootOutflowHighPressureDriveEndMmHg: 0,
   rootOutflowHighPressureResistanceGain: 0,
+  rootOutflowStatefulDriveStartMmHg: 0,
+  rootOutflowStatefulDriveEndMmHg: 0,
+  rootOutflowStatefulResistanceGain: 0,
+  rootOutflowStatefulRiseTauSec: 0.035,
+  rootOutflowStatefulFallTauSec: 0.35,
 } as const;
 
 const VARIANTS: readonly VariantSpecV1[] = [
@@ -275,6 +290,63 @@ const VARIANTS: readonly VariantSpecV1[] = [
     rootOutflowHighPressureDriveEndMmHg: 190,
     rootOutflowHighPressureResistanceGain: 0.5,
   },
+  {
+    variantId: "active-length-mv-closure-stateful-root05",
+    description: "Stateful root runoff retention driven by high LVP, intended to raise high-drive load without broad fixed root scaling.",
+    ...STATIC_OUTPUT_RESERVE,
+    lvPressureScaleMultiplier: 1,
+    lvTrefMultiplier: 1.05,
+    activeLengthExternalBlend01: 0.15,
+    aovResistanceMultiplier: 1,
+    aovInertanceMultiplier: 3,
+    aovBernoulliMultiplier: 4,
+    mvSystolicClosureDriveGain01: 0.85,
+    mvSystolicClosureDriveStartTheta: 0.00,
+    mvSystolicClosureDriveEndTheta: 0.28,
+    rootOutflowStatefulDriveStartMmHg: 150,
+    rootOutflowStatefulDriveEndMmHg: 175,
+    rootOutflowStatefulResistanceGain: 0.5,
+    rootOutflowStatefulRiseTauSec: 0.025,
+    rootOutflowStatefulFallTauSec: 0.35,
+  },
+  {
+    variantId: "active-length-mv-closure-stateful-root08",
+    description: "Higher-gain stateful root runoff retention for high-drive load attribution.",
+    ...STATIC_OUTPUT_RESERVE,
+    lvPressureScaleMultiplier: 1,
+    lvTrefMultiplier: 1.05,
+    activeLengthExternalBlend01: 0.15,
+    aovResistanceMultiplier: 1,
+    aovInertanceMultiplier: 3,
+    aovBernoulliMultiplier: 4,
+    mvSystolicClosureDriveGain01: 0.85,
+    mvSystolicClosureDriveStartTheta: 0.00,
+    mvSystolicClosureDriveEndTheta: 0.28,
+    rootOutflowStatefulDriveStartMmHg: 150,
+    rootOutflowStatefulDriveEndMmHg: 175,
+    rootOutflowStatefulResistanceGain: 0.8,
+    rootOutflowStatefulRiseTauSec: 0.025,
+    rootOutflowStatefulFallTauSec: 0.50,
+  },
+  {
+    variantId: "active-length-mv-closure-stateful-root04-slow",
+    description: "Lower-gain slower-release stateful root runoff retention for high-drive load attribution.",
+    ...STATIC_OUTPUT_RESERVE,
+    lvPressureScaleMultiplier: 1,
+    lvTrefMultiplier: 1.05,
+    activeLengthExternalBlend01: 0.15,
+    aovResistanceMultiplier: 1,
+    aovInertanceMultiplier: 3,
+    aovBernoulliMultiplier: 4,
+    mvSystolicClosureDriveGain01: 0.85,
+    mvSystolicClosureDriveStartTheta: 0.00,
+    mvSystolicClosureDriveEndTheta: 0.28,
+    rootOutflowStatefulDriveStartMmHg: 145,
+    rootOutflowStatefulDriveEndMmHg: 170,
+    rootOutflowStatefulResistanceGain: 0.4,
+    rootOutflowStatefulRiseTauSec: 0.035,
+    rootOutflowStatefulFallTauSec: 0.70,
+  },
 ];
 
 export function runLeftHeartDynamicReserveContractBenchV1(): LeftHeartDynamicReserveContractReportV1 {
@@ -358,6 +430,11 @@ function runVariant(spec: VariantSpecV1): LeftHeartDynamicReserveVariantResultV1
       rootOutflowHighPressureDriveStartMmHg: spec.rootOutflowHighPressureDriveStartMmHg,
       rootOutflowHighPressureDriveEndMmHg: spec.rootOutflowHighPressureDriveEndMmHg,
       rootOutflowHighPressureResistanceGain: spec.rootOutflowHighPressureResistanceGain,
+      rootOutflowStatefulDriveStartMmHg: spec.rootOutflowStatefulDriveStartMmHg,
+      rootOutflowStatefulDriveEndMmHg: spec.rootOutflowStatefulDriveEndMmHg,
+      rootOutflowStatefulResistanceGain: spec.rootOutflowStatefulResistanceGain,
+      rootOutflowStatefulRiseTauSec: spec.rootOutflowStatefulRiseTauSec,
+      rootOutflowStatefulFallTauSec: spec.rootOutflowStatefulFallTauSec,
     },
     pointResults,
     summary: summarizeVariant(pointResults),
@@ -380,6 +457,11 @@ function applyVariant(params: LeftHeartSubsystemParamsV2, spec: VariantSpecV1): 
     rootOutflowHighPressureDriveStartMmHg: spec.rootOutflowHighPressureDriveStartMmHg,
     rootOutflowHighPressureDriveEndMmHg: spec.rootOutflowHighPressureDriveEndMmHg,
     rootOutflowHighPressureResistanceGain: spec.rootOutflowHighPressureResistanceGain,
+    rootOutflowStatefulDriveStartMmHg: spec.rootOutflowStatefulDriveStartMmHg,
+    rootOutflowStatefulDriveEndMmHg: spec.rootOutflowStatefulDriveEndMmHg,
+    rootOutflowStatefulResistanceGain: spec.rootOutflowStatefulResistanceGain,
+    rootOutflowStatefulRiseTauSec: spec.rootOutflowStatefulRiseTauSec,
+    rootOutflowStatefulFallTauSec: spec.rootOutflowStatefulFallTauSec,
     lv: {
       ...params.lv,
       pressureScale: params.lv.pressureScale * spec.lvPressureScaleMultiplier,
@@ -468,6 +550,7 @@ function summarizeVariant(
     highDriveArtifactCount: pointResults.filter((point) => point.classifications.highDriveArtifact).length,
     maxMvClosureDrive01: finiteMaxOrNull(pointResults.map((point) => point.finalBeat?.maxMvClosureDrive01 ?? Number.NaN)),
     maxRootOutflowHighPressureDrive01: finiteMaxOrNull(pointResults.map((point) => point.finalBeat?.maxRootOutflowHighPressureDrive01 ?? Number.NaN)),
+    maxRootOutflowStatefulDrive01: finiteMaxOrNull(pointResults.map((point) => point.finalBeat?.maxRootOutflowStatefulDrive01 ?? Number.NaN)),
   };
 }
 
@@ -544,6 +627,7 @@ function summarizeBeat(beat: number, samples: readonly LeftHeartSubsystemSampleV
       samples.filter((sample) => sample.mv.closureDrive01 > 0.05).length / Math.max(samples.length, 1),
     ),
     maxRootOutflowHighPressureDrive01: finiteMaxOrNull(samples.map((sample) => sample.rootOutflowHighPressureDrive01)),
+    maxRootOutflowStatefulDrive01: finiteMaxOrNull(samples.map((sample) => sample.rootOutflowStatefulDrive01)),
     maxRootOutResistanceEffectiveMmHgSecPerMl: finiteMaxOrNull(samples.map((sample) => sample.rootOutResistanceEffectiveMmHgSecPerMl)),
   };
 }

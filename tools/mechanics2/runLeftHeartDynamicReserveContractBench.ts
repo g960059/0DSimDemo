@@ -55,6 +55,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
             maxMvClosureDrive01: point.finalBeat.maxMvClosureDrive01,
             mvClosureDriveDutyFraction: point.finalBeat.mvClosureDriveDutyFraction,
             maxRootOutflowHighPressureDrive01: point.finalBeat.maxRootOutflowHighPressureDrive01,
+            maxRootOutflowStatefulDrive01: point.finalBeat.maxRootOutflowStatefulDrive01,
             maxRootOutResistanceEffectiveMmHgSecPerMl: point.finalBeat.maxRootOutResistanceEffectiveMmHgSecPerMl,
           },
           repeatability: point.repeatability,

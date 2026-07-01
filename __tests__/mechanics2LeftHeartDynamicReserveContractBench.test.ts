@@ -20,17 +20,22 @@ describe("MechanicsCore2 left-heart dynamic reserve contract bench", () => {
     expect(report.claimBoundary.rightHeartUnlock).toBe(false);
     expect(report.claimBoundary.fourChamberUnlock).toBe(false);
     expect(report.claimBoundary.LandAtrialUnlock).toBe(false);
-    expect(report.decision.leftHeartGateBStatus).toBe("no-broad-improvement");
-    expect(best.summary.pass).toBe(reference.summary.pass);
+    expect(report.decision.leftHeartGateBStatus).toBe("improved-but-blocked");
+    expect(best.variantId).toBe("active-length-mv-closure-stateful-root08");
+    expect(best.summary.pass).toBeGreaterThan(reference.summary.pass);
     expect(best.summary.lvPvOkCount).toBe(7);
     expect(best.summary.mvfOkCount).toBe(7);
+    expect(best.summary.morphologyOkCount).toBe(7);
+    expect(best.summary.clampFreeCount).toBe(7);
     expect(best.summary.cleanLowOutputReserveCount).toBeGreaterThanOrEqual(1);
-    expect(best.summary.highDriveArtifactCount).toBe(1);
+    expect(best.summary.highDriveArtifactCount).toBe(0);
 
     expect(lowPoint.classifications.cleanLowOutputReserve).toBe(true);
-    expect(highPoint.failureReasons).toContain("volume-clamp-hit");
-    expect(highPoint.finalBeat?.lvClampCount).toBeGreaterThan(0);
+    expect(highPoint.status).toBe("pass");
+    expect(highPoint.failureReasons).toEqual([]);
+    expect(highPoint.finalBeat?.lvClampCount).toBe(0);
     expect(highPoint.finalBeat?.laClampCount).toBe(0);
+    expect(highPoint.finalBeat?.maxRootOutflowStatefulDrive01).toBeGreaterThan(0);
   });
 
   it("keeps the committed dynamic reserve artifact aligned with the rerun summary", () => {

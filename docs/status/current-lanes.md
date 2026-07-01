@@ -37,10 +37,10 @@ outflow repair, pulmonary-boundary/safety-suction comparisons, and
 output-reserve calibration and dynamic reserve contract comparisons are
 implemented.
 
-Next PR target: left-heart Gate B high-drive pump/load coupling after dynamic
-reserve attribution. Do not start four-chamber work or LandAtrial re-entry
-until output reserve, high-drive MVF, and clamp/flow-volume coupling remain
-clean on the broad left-heart envelope.
+Next PR target: left-heart Gate B low-output policy/classification after
+stateful root-load retention improved the high-drive point. Do not start
+four-chamber work or LandAtrial re-entry until the remaining low-contractility
+output-reserve question is classified without relaxing morphology gates.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -69,8 +69,8 @@ Included:
 - LeftHeartOutputReserveCalibrationBench V1 for static output-reserve
   calibration and external active-length blend attribution.
 - LeftHeartDynamicReserveContractBench V1 for MV closure-state drive,
-  high-pressure root runoff drive, split LA/LV hard-clamp readbacks, and
-  hard-floor versus flow-volume decoupling attribution.
+  high-pressure/stateful root runoff drive, split LA/LV hard-clamp readbacks,
+  and hard-floor versus flow-volume decoupling attribution.
 
 Excluded:
 
@@ -144,13 +144,12 @@ Next gates:
     work should move to a dynamic chamber-load reserve contract, not fixed
     scalar calibration or right-heart/LandAtrial expansion.
 14. Gate B dynamic reserve attribution: MV valve-state closure drive plus
-    active-length blending improves LV PV OK to 7/7 and MVF OK to 7/7 on the
-    broad left-heart envelope, but strict pass remains 5/7. The high-drive
-    residual narrows to LV lower hard-clamp duty; removing the lower hard floor
-    exposes flow-volume decoupling, and fixed root-load retention can clean
-    high-drive only by damaging the broader envelope. Continue left-heart Gate B
-    pump/load coupling; do not broaden to right-heart, four-chamber, AV-plane,
-    or LandAtrial.
+    active-length blending improves LV PV OK to 7/7 and MVF OK to 7/7, and
+    stateful root-load retention improves strict pass 5/7 -> 6/7 with
+    morphology OK 7/7, clamp-free 7/7, and high-drive artifact count 0/7. The
+    only remaining failure is `left-heart-contractility-low` as clean
+    low-output reserve. Continue left-heart Gate B classification; do not
+    broaden to right-heart, four-chamber, AV-plane, or LandAtrial.
 
 Parallel prep, not blocking the next strategic gate:
 
