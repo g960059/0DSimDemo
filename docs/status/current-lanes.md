@@ -284,6 +284,15 @@ Next gates:
     unlocks a broader assembled-system review of the MechanicsCore2 Gate C
     scaffold only; four-chamber, AV-plane, LandAtrial, runtime wiring, and
     morphology acceptance remain blocked.
+27. Gate C scaffold robustness: a local neighborhood scan around the
+    volume-reserve reservoir scaffold records 18/27 Gate C passes, including
+    the center scaffold. Passing points span RV upper pressure contribution
+    0.43-0.47 and reservoir gains 0.12/0.14 with transfer caps 3.5-4.5 mL;
+    max passing transfer is ~1.8 mL and max passing reservoir volume is
+    ~19.5 mL. This supports Gate C as a neighborhood-level scaffold signal,
+    not a single point artifact, but it still unlocks only assembled-system
+    review. Four-chamber, AV-plane, LandAtrial, runtime wiring, and morphology
+    acceptance remain blocked.
 
 Parallel prep, not blocking the next strategic gate:
 
