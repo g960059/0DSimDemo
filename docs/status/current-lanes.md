@@ -308,6 +308,13 @@ Next gates:
     ~1.8 mL, and max reservoir volume ~19.5 mL. This unlocks only a sidecar
     four-chamber assembly smoke that implements the contract. Runtime/default
     work, AV-plane, LandAtrial, and morphology acceptance remain blocked.
+30. Four-chamber assembly smoke: executing the assembly contract over the center
+    and best-neighborhood Gate C scaffolds passes 2/2 and selects
+    `best-neighborhood-pressure047-gain014-cap35` for the first time-domain
+    sidecar four-chamber subsystem smoke. Selected mean forward mismatch is
+    ~5.1 mL, max accepted transfer ~1.8 mL, and max reservoir volume ~19.5 mL.
+    This still does not unlock runtime/default work, AV-plane, LandAtrial, or
+    morphology acceptance.
 
 Parallel prep, not blocking the next strategic gate:
 
