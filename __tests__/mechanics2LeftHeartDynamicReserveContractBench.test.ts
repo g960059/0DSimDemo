@@ -17,20 +17,36 @@ describe("MechanicsCore2 left-heart dynamic reserve contract bench", () => {
     const lowPoint = best.pointResults.find((point) => point.pointId === "left-heart-contractility-low")!;
 
     expect(report.claimBoundary.runtimeWiring).toBe(false);
-    expect(report.claimBoundary.rightHeartUnlock).toBe(false);
+    expect(report.claimBoundary.outputReserveAcceptance).toBe(true);
+    expect(report.claimBoundary.outputReserveAcceptanceScope).toBe("left-heart-gate-b-clean-low-contractility-phenotype-only");
+    expect(report.claimBoundary.rightHeartStrategicSmokeUnlock).toBe(true);
+    expect(report.claimBoundary.rightHeartRuntimeUnlock).toBe(false);
     expect(report.claimBoundary.fourChamberUnlock).toBe(false);
     expect(report.claimBoundary.LandAtrialUnlock).toBe(false);
-    expect(report.decision.leftHeartGateBStatus).toBe("improved-but-blocked");
+    expect(report.decision.leftHeartGateBStatus).toBe("gate-b-pass-with-clean-low-output-phenotype");
     expect(best.variantId).toBe("active-length-mv-closure-stateful-root08");
     expect(best.summary.pass).toBeGreaterThan(reference.summary.pass);
+    expect(best.summary.pass).toBe(7);
     expect(best.summary.lvPvOkCount).toBe(7);
     expect(best.summary.mvfOkCount).toBe(7);
     expect(best.summary.morphologyOkCount).toBe(7);
     expect(best.summary.clampFreeCount).toBe(7);
-    expect(best.summary.cleanLowOutputReserveCount).toBeGreaterThanOrEqual(1);
+    expect(best.summary.cleanLowOutputReserveCount).toBe(1);
+    expect(best.summary.phenotypeAcceptedCount).toBe(1);
     expect(best.summary.highDriveArtifactCount).toBe(0);
+    expect(report.decision.remainingBlockers).toEqual([]);
 
     expect(lowPoint.classifications.cleanLowOutputReserve).toBe(true);
+    expect(lowPoint.classifications.outputOk).toBe(false);
+    expect(lowPoint.status).toBe("pass");
+    expect(lowPoint.failureReasons).toEqual([]);
+    expect(lowPoint.rawFailureReasons).toEqual([
+      "output-stroke-volume-too-low",
+      "output-aov-ejected-volume-too-low",
+    ]);
+    expect(lowPoint.acceptedPhenotypeReasons).toEqual([
+      "clean-low-contractility-low-output-phenotype",
+    ]);
     expect(highPoint.status).toBe("pass");
     expect(highPoint.failureReasons).toEqual([]);
     expect(highPoint.finalBeat?.lvClampCount).toBe(0);

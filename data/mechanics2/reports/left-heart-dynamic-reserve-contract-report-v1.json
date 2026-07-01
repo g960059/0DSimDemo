@@ -214,6 +214,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -397,6 +399,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -580,6 +584,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -763,6 +769,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -946,6 +954,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -1129,6 +1139,12 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [
+            "mvf-shape",
+            "output-stroke-volume-too-low",
+            "output-aov-ejected-volume-too-low"
+          ],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": [
             "mvf-shape",
             "output-stroke-volume-too-low",
@@ -1316,6 +1332,12 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": true
           },
+          "rawFailureReasons": [
+            "lv-pv-shape-or-pressure",
+            "mvf-shape",
+            "volume-clamp-hit"
+          ],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": [
             "lv-pv-shape-or-pressure",
             "mvf-shape",
@@ -1340,6 +1362,7 @@
         "safetyWorkBoundedCount": 7,
         "morphologyOkCount": 5,
         "cleanLowOutputReserveCount": 0,
+        "phenotypeAcceptedCount": 0,
         "highDriveArtifactCount": 1,
         "maxMvClosureDrive01": 0,
         "maxRootOutflowHighPressureDrive01": 0,
@@ -1557,6 +1580,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -1740,6 +1765,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -1923,6 +1950,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -2106,6 +2135,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -2289,6 +2320,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -2472,6 +2505,12 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [
+            "mvf-shape",
+            "output-stroke-volume-too-low",
+            "output-aov-ejected-volume-too-low"
+          ],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": [
             "mvf-shape",
             "output-stroke-volume-too-low",
@@ -2659,6 +2698,11 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": true
           },
+          "rawFailureReasons": [
+            "lv-pv-shape-or-pressure",
+            "volume-clamp-hit"
+          ],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": [
             "lv-pv-shape-or-pressure",
             "volume-clamp-hit"
@@ -2682,6 +2726,7 @@
         "safetyWorkBoundedCount": 7,
         "morphologyOkCount": 5,
         "cleanLowOutputReserveCount": 0,
+        "phenotypeAcceptedCount": 0,
         "highDriveArtifactCount": 1,
         "maxMvClosureDrive01": 0.849958,
         "maxRootOutflowHighPressureDrive01": 0,
@@ -2899,6 +2944,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -3082,6 +3129,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -3265,6 +3314,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -3448,6 +3499,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -3631,11 +3684,13 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
           "pointId": "left-heart-contractility-low",
-          "status": "fail",
+          "status": "pass",
           "finalBeat": {
             "beat": 7,
             "strokeVolumeMl": 11.688605,
@@ -3814,10 +3869,14 @@
             "cleanLowOutputReserve": true,
             "highDriveArtifact": false
           },
-          "failureReasons": [
+          "rawFailureReasons": [
             "output-stroke-volume-too-low",
             "output-aov-ejected-volume-too-low"
-          ]
+          ],
+          "acceptedPhenotypeReasons": [
+            "clean-low-contractility-low-output-phenotype"
+          ],
+          "failureReasons": []
         },
         {
           "pointId": "left-heart-contractility-high",
@@ -4000,6 +4059,10 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": true
           },
+          "rawFailureReasons": [
+            "volume-clamp-hit"
+          ],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": [
             "volume-clamp-hit"
           ]
@@ -4007,8 +4070,8 @@
       ],
       "summary": {
         "total": 7,
-        "pass": 5,
-        "fail": 2,
+        "pass": 6,
+        "fail": 1,
         "inconclusive": 0,
         "lvPvOkCount": 7,
         "mvfOkCount": 7,
@@ -4022,6 +4085,7 @@
         "safetyWorkBoundedCount": 7,
         "morphologyOkCount": 6,
         "cleanLowOutputReserveCount": 1,
+        "phenotypeAcceptedCount": 1,
         "highDriveArtifactCount": 1,
         "maxMvClosureDrive01": 0.849958,
         "maxRootOutflowHighPressureDrive01": 0,
@@ -4239,6 +4303,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -4422,6 +4488,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -4605,6 +4673,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -4788,6 +4858,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -4971,11 +5043,13 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
           "pointId": "left-heart-contractility-low",
-          "status": "fail",
+          "status": "pass",
           "finalBeat": {
             "beat": 7,
             "strokeVolumeMl": 11.688605,
@@ -5154,10 +5228,14 @@
             "cleanLowOutputReserve": true,
             "highDriveArtifact": false
           },
-          "failureReasons": [
+          "rawFailureReasons": [
             "output-stroke-volume-too-low",
             "output-aov-ejected-volume-too-low"
-          ]
+          ],
+          "acceptedPhenotypeReasons": [
+            "clean-low-contractility-low-output-phenotype"
+          ],
+          "failureReasons": []
         },
         {
           "pointId": "left-heart-contractility-high",
@@ -5340,6 +5418,12 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": true
           },
+          "rawFailureReasons": [
+            "output-aov-ejected-volume-too-low",
+            "beat-repeatability-failed",
+            "volume-stroke-aov-flow-decoupled"
+          ],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": [
             "output-aov-ejected-volume-too-low",
             "beat-repeatability-failed",
@@ -5349,8 +5433,8 @@
       ],
       "summary": {
         "total": 7,
-        "pass": 5,
-        "fail": 2,
+        "pass": 6,
+        "fail": 1,
         "inconclusive": 0,
         "lvPvOkCount": 7,
         "mvfOkCount": 7,
@@ -5364,6 +5448,7 @@
         "safetyWorkBoundedCount": 7,
         "morphologyOkCount": 6,
         "cleanLowOutputReserveCount": 1,
+        "phenotypeAcceptedCount": 1,
         "highDriveArtifactCount": 1,
         "maxMvClosureDrive01": 0.849958,
         "maxRootOutflowHighPressureDrive01": 0,
@@ -5581,6 +5666,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -5764,6 +5851,11 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [
+            "output-stroke-volume-too-low",
+            "output-aov-ejected-volume-too-low"
+          ],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": [
             "output-stroke-volume-too-low",
             "output-aov-ejected-volume-too-low"
@@ -5950,6 +6042,10 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [
+            "mvf-shape"
+          ],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": [
             "mvf-shape"
           ]
@@ -6135,6 +6231,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -6315,9 +6413,14 @@
             "clampFree": true,
             "safetyWorkBounded": true,
             "morphologyOk": true,
-            "cleanLowOutputReserve": true,
+            "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [
+            "output-stroke-volume-too-low",
+            "output-aov-ejected-volume-too-low"
+          ],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": [
             "output-stroke-volume-too-low",
             "output-aov-ejected-volume-too-low"
@@ -6504,6 +6607,12 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [
+            "mvf-shape",
+            "output-stroke-volume-too-low",
+            "output-aov-ejected-volume-too-low"
+          ],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": [
             "mvf-shape",
             "output-stroke-volume-too-low",
@@ -6691,6 +6800,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         }
       ],
@@ -6710,7 +6821,8 @@
         "laClampFreeCount": 7,
         "safetyWorkBoundedCount": 7,
         "morphologyOkCount": 5,
-        "cleanLowOutputReserveCount": 1,
+        "cleanLowOutputReserveCount": 0,
+        "phenotypeAcceptedCount": 0,
         "highDriveArtifactCount": 0,
         "maxMvClosureDrive01": 0.849958,
         "maxRootOutflowHighPressureDrive01": 0,
@@ -6928,6 +7040,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -7111,6 +7225,11 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [
+            "output-stroke-volume-too-low",
+            "output-aov-ejected-volume-too-low"
+          ],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": [
             "output-stroke-volume-too-low",
             "output-aov-ejected-volume-too-low"
@@ -7297,6 +7416,10 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [
+            "mvf-shape"
+          ],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": [
             "mvf-shape"
           ]
@@ -7482,6 +7605,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -7662,9 +7787,14 @@
             "clampFree": true,
             "safetyWorkBounded": true,
             "morphologyOk": true,
-            "cleanLowOutputReserve": true,
+            "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [
+            "output-stroke-volume-too-low",
+            "output-aov-ejected-volume-too-low"
+          ],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": [
             "output-stroke-volume-too-low",
             "output-aov-ejected-volume-too-low"
@@ -7672,7 +7802,7 @@
         },
         {
           "pointId": "left-heart-contractility-low",
-          "status": "fail",
+          "status": "pass",
           "finalBeat": {
             "beat": 7,
             "strokeVolumeMl": 9.878431,
@@ -7851,10 +7981,14 @@
             "cleanLowOutputReserve": true,
             "highDriveArtifact": false
           },
-          "failureReasons": [
+          "rawFailureReasons": [
             "output-stroke-volume-too-low",
             "output-aov-ejected-volume-too-low"
-          ]
+          ],
+          "acceptedPhenotypeReasons": [
+            "clean-low-contractility-low-output-phenotype"
+          ],
+          "failureReasons": []
         },
         {
           "pointId": "left-heart-contractility-high",
@@ -8037,13 +8171,15 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         }
       ],
       "summary": {
         "total": 7,
-        "pass": 3,
-        "fail": 4,
+        "pass": 4,
+        "fail": 3,
         "inconclusive": 0,
         "lvPvOkCount": 7,
         "mvfOkCount": 6,
@@ -8056,7 +8192,8 @@
         "laClampFreeCount": 7,
         "safetyWorkBoundedCount": 7,
         "morphologyOkCount": 6,
-        "cleanLowOutputReserveCount": 2,
+        "cleanLowOutputReserveCount": 1,
+        "phenotypeAcceptedCount": 1,
         "highDriveArtifactCount": 0,
         "maxMvClosureDrive01": 0.849958,
         "maxRootOutflowHighPressureDrive01": 0,
@@ -8274,6 +8411,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -8457,6 +8596,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -8640,6 +8781,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -8823,6 +8966,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -9006,11 +9151,13 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
           "pointId": "left-heart-contractility-low",
-          "status": "fail",
+          "status": "pass",
           "finalBeat": {
             "beat": 7,
             "strokeVolumeMl": 11.688605,
@@ -9189,10 +9336,14 @@
             "cleanLowOutputReserve": true,
             "highDriveArtifact": false
           },
-          "failureReasons": [
+          "rawFailureReasons": [
             "output-stroke-volume-too-low",
             "output-aov-ejected-volume-too-low"
-          ]
+          ],
+          "acceptedPhenotypeReasons": [
+            "clean-low-contractility-low-output-phenotype"
+          ],
+          "failureReasons": []
         },
         {
           "pointId": "left-heart-contractility-high",
@@ -9375,6 +9526,10 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": true
           },
+          "rawFailureReasons": [
+            "volume-clamp-hit"
+          ],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": [
             "volume-clamp-hit"
           ]
@@ -9382,8 +9537,8 @@
       ],
       "summary": {
         "total": 7,
-        "pass": 5,
-        "fail": 2,
+        "pass": 6,
+        "fail": 1,
         "inconclusive": 0,
         "lvPvOkCount": 7,
         "mvfOkCount": 7,
@@ -9397,6 +9552,7 @@
         "safetyWorkBoundedCount": 7,
         "morphologyOkCount": 6,
         "cleanLowOutputReserveCount": 1,
+        "phenotypeAcceptedCount": 1,
         "highDriveArtifactCount": 1,
         "maxMvClosureDrive01": 0.849958,
         "maxRootOutflowHighPressureDrive01": 0.646931,
@@ -9614,6 +9770,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -9797,6 +9955,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -9980,6 +10140,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -10163,6 +10325,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -10346,11 +10510,13 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
           "pointId": "left-heart-contractility-low",
-          "status": "fail",
+          "status": "pass",
           "finalBeat": {
             "beat": 7,
             "strokeVolumeMl": 11.688605,
@@ -10529,10 +10695,14 @@
             "cleanLowOutputReserve": true,
             "highDriveArtifact": false
           },
-          "failureReasons": [
+          "rawFailureReasons": [
             "output-stroke-volume-too-low",
             "output-aov-ejected-volume-too-low"
-          ]
+          ],
+          "acceptedPhenotypeReasons": [
+            "clean-low-contractility-low-output-phenotype"
+          ],
+          "failureReasons": []
         },
         {
           "pointId": "left-heart-contractility-high",
@@ -10715,6 +10885,10 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [
+            "beat-repeatability-failed"
+          ],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": [
             "beat-repeatability-failed"
           ]
@@ -10722,8 +10896,8 @@
       ],
       "summary": {
         "total": 7,
-        "pass": 5,
-        "fail": 2,
+        "pass": 6,
+        "fail": 1,
         "inconclusive": 0,
         "lvPvOkCount": 7,
         "mvfOkCount": 7,
@@ -10737,6 +10911,7 @@
         "safetyWorkBoundedCount": 7,
         "morphologyOkCount": 7,
         "cleanLowOutputReserveCount": 1,
+        "phenotypeAcceptedCount": 1,
         "highDriveArtifactCount": 0,
         "maxMvClosureDrive01": 0.849958,
         "maxRootOutflowHighPressureDrive01": 0,
@@ -10954,6 +11129,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -11137,6 +11314,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -11320,6 +11499,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -11503,6 +11684,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -11686,11 +11869,13 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
           "pointId": "left-heart-contractility-low",
-          "status": "fail",
+          "status": "pass",
           "finalBeat": {
             "beat": 7,
             "strokeVolumeMl": 11.688605,
@@ -11869,10 +12054,14 @@
             "cleanLowOutputReserve": true,
             "highDriveArtifact": false
           },
-          "failureReasons": [
+          "rawFailureReasons": [
             "output-stroke-volume-too-low",
             "output-aov-ejected-volume-too-low"
-          ]
+          ],
+          "acceptedPhenotypeReasons": [
+            "clean-low-contractility-low-output-phenotype"
+          ],
+          "failureReasons": []
         },
         {
           "pointId": "left-heart-contractility-high",
@@ -12055,13 +12244,15 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         }
       ],
       "summary": {
         "total": 7,
-        "pass": 6,
-        "fail": 1,
+        "pass": 7,
+        "fail": 0,
         "inconclusive": 0,
         "lvPvOkCount": 7,
         "mvfOkCount": 7,
@@ -12075,6 +12266,7 @@
         "safetyWorkBoundedCount": 7,
         "morphologyOkCount": 7,
         "cleanLowOutputReserveCount": 1,
+        "phenotypeAcceptedCount": 1,
         "highDriveArtifactCount": 0,
         "maxMvClosureDrive01": 0.849958,
         "maxRootOutflowHighPressureDrive01": 0,
@@ -12292,6 +12484,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -12475,6 +12669,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -12658,6 +12854,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -12841,6 +13039,8 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
@@ -13024,11 +13224,13 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         },
         {
           "pointId": "left-heart-contractility-low",
-          "status": "fail",
+          "status": "pass",
           "finalBeat": {
             "beat": 7,
             "strokeVolumeMl": 11.688605,
@@ -13207,10 +13409,14 @@
             "cleanLowOutputReserve": true,
             "highDriveArtifact": false
           },
-          "failureReasons": [
+          "rawFailureReasons": [
             "output-stroke-volume-too-low",
             "output-aov-ejected-volume-too-low"
-          ]
+          ],
+          "acceptedPhenotypeReasons": [
+            "clean-low-contractility-low-output-phenotype"
+          ],
+          "failureReasons": []
         },
         {
           "pointId": "left-heart-contractility-high",
@@ -13393,13 +13599,15 @@
             "cleanLowOutputReserve": false,
             "highDriveArtifact": false
           },
+          "rawFailureReasons": [],
+          "acceptedPhenotypeReasons": [],
           "failureReasons": []
         }
       ],
       "summary": {
         "total": 7,
-        "pass": 6,
-        "fail": 1,
+        "pass": 7,
+        "fail": 0,
         "inconclusive": 0,
         "lvPvOkCount": 7,
         "mvfOkCount": 7,
@@ -13413,6 +13621,7 @@
         "safetyWorkBoundedCount": 7,
         "morphologyOkCount": 7,
         "cleanLowOutputReserveCount": 1,
+        "phenotypeAcceptedCount": 1,
         "highDriveArtifactCount": 0,
         "maxMvClosureDrive01": 0.849958,
         "maxRootOutflowHighPressureDrive01": 0,
@@ -13421,26 +13630,26 @@
     }
   ],
   "decision": {
-    "leftHeartGateBStatus": "improved-but-blocked",
+    "leftHeartGateBStatus": "gate-b-pass-with-clean-low-output-phenotype",
     "bestStrictVariantId": "active-length-mv-closure-stateful-root08",
-    "bestStrictPassCount": 6,
+    "bestStrictPassCount": 7,
     "referencePassCount": 5,
     "bestHighDriveVariantId": "active-length-mv-closure-stateful-root05",
     "bestHighDriveStatus": "cleaned",
-    "bestLowOutputClassificationCount": 2,
-    "remainingBlockers": [
-      "high-contractility must be clean output with no MVF kink, clamp, overpressure, or flow-volume decoupling",
-      "contractility-low may only be classified as low-output if morphology, mass, clamp, safety, and dt parity remain clean"
-    ],
-    "nextAction": "Keep MechanicsCore2 in left-heart Gate B. Do not expand to right-heart, four-chamber, AV-plane, or LandAtrial until the dynamic chamber-load contract clears high-drive artifacts and classifies low-output reserve cleanly."
+    "bestLowOutputClassificationCount": 1,
+    "bestAcceptedPhenotypeCount": 1,
+    "remainingBlockers": [],
+    "nextAction": "Left-heart Gate B passes with one accepted clean low-contractility low-output phenotype. Proceed to MechanicsCore2 right-heart strategic smoke; keep runtime wiring, four-chamber, AV-plane, and LandAtrial locked."
   },
   "claimBoundary": {
     "runtimeWiring": false,
     "morphologyAcceptance": false,
-    "outputReserveAcceptance": false,
-    "rightHeartUnlock": false,
+    "outputReserveAcceptance": true,
+    "outputReserveAcceptanceScope": "left-heart-gate-b-clean-low-contractility-phenotype-only",
+    "rightHeartStrategicSmokeUnlock": true,
+    "rightHeartRuntimeUnlock": false,
     "fourChamberUnlock": false,
     "LandAtrialUnlock": false
   },
-  "normalizedSha256": "38683201376b14c67ac08273110c3672fe80f15a325322dddd0a483afc3633f2"
+  "normalizedSha256": "8cd3ed2cd1d6ddb75faf9a639dda5657b76bd57d1cec04bc5539ad0a5635f3e9"
 }

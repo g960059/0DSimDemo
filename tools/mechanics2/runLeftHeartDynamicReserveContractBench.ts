@@ -34,6 +34,25 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
       variantId: variant.variantId,
       intervention: variant.intervention,
       summary: variant.summary,
+      acceptedPhenotypePoints: variant.pointResults
+        .filter((point) => point.acceptedPhenotypeReasons.length > 0)
+        .map((point) => ({
+          pointId: point.pointId,
+          acceptedPhenotypeReasons: point.acceptedPhenotypeReasons,
+          rawFailureReasons: point.rawFailureReasons,
+          classifications: point.classifications,
+          finalBeat: point.finalBeat == null ? null : {
+            strokeVolumeMl: point.finalBeat.strokeVolumeMl,
+            aovEjectedVolumeMl: point.finalBeat.aovEjectedVolumeMl,
+            mvForwardVolumeMl: point.finalBeat.mvForwardVolumeMl,
+            lvpPeakMmHg: point.finalBeat.lvpPeakMmHg,
+            lvpPositiveCurvatureBurden: point.finalBeat.lvpPositiveCurvatureBurden,
+            mvForwardPeakCount: point.finalBeat.mvForwardPeakCount,
+            mvC1ContinuityScore: point.finalBeat.mvC1ContinuityScore,
+            clampCount: point.finalBeat.clampCount,
+            maxSafetyPressureMmHg: point.finalBeat.maxSafetyPressureMmHg,
+          },
+        })),
       failingPoints: variant.pointResults
         .filter((point) => point.status !== "pass")
         .map((point) => ({

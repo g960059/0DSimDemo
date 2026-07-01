@@ -78,6 +78,8 @@ export type LeftHeartDynamicReservePointResultV1 = {
     readonly cleanLowOutputReserve: boolean;
     readonly highDriveArtifact: boolean;
   };
+  readonly rawFailureReasons: readonly string[];
+  readonly acceptedPhenotypeReasons: readonly string[];
   readonly failureReasons: readonly string[];
 };
 
@@ -128,6 +130,7 @@ export type LeftHeartDynamicReserveVariantResultV1 = {
     readonly safetyWorkBoundedCount: number;
     readonly morphologyOkCount: number;
     readonly cleanLowOutputReserveCount: number;
+    readonly phenotypeAcceptedCount: number;
     readonly highDriveArtifactCount: number;
     readonly maxMvClosureDrive01: number | null;
     readonly maxRootOutflowHighPressureDrive01: number | null;
@@ -141,21 +144,27 @@ export type LeftHeartDynamicReserveContractReportV1 = {
   readonly sourceSurface: "static-output-reserve-broad5";
   readonly variantResults: readonly LeftHeartDynamicReserveVariantResultV1[];
   readonly decision: {
-    readonly leftHeartGateBStatus: "improved-but-blocked" | "no-broad-improvement";
+    readonly leftHeartGateBStatus:
+      | "gate-b-pass-with-clean-low-output-phenotype"
+      | "improved-but-blocked"
+      | "no-broad-improvement";
     readonly bestStrictVariantId: LeftHeartDynamicReserveVariantIdV1;
     readonly bestStrictPassCount: number;
     readonly referencePassCount: number;
     readonly bestHighDriveVariantId: LeftHeartDynamicReserveVariantIdV1;
     readonly bestHighDriveStatus: "cleaned" | "still-artifact";
     readonly bestLowOutputClassificationCount: number;
+    readonly bestAcceptedPhenotypeCount: number;
     readonly remainingBlockers: readonly string[];
     readonly nextAction: string;
   };
   readonly claimBoundary: {
     readonly runtimeWiring: false;
     readonly morphologyAcceptance: false;
-    readonly outputReserveAcceptance: false;
-    readonly rightHeartUnlock: false;
+    readonly outputReserveAcceptance: true;
+    readonly outputReserveAcceptanceScope: "left-heart-gate-b-clean-low-contractility-phenotype-only";
+    readonly rightHeartStrategicSmokeUnlock: boolean;
+    readonly rightHeartRuntimeUnlock: false;
     readonly fourChamberUnlock: false;
     readonly LandAtrialUnlock: false;
   };
@@ -368,15 +377,19 @@ export function runLeftHeartDynamicReserveContractBenchV1(): LeftHeartDynamicRes
   const bestLowOutputClassificationCount = Math.max(
     ...variantResults.map((variant) => variant.summary.cleanLowOutputReserveCount),
   );
+  const bestAcceptedPhenotypeCount = bestStrict.summary.phenotypeAcceptedCount;
+  const leftHeartGateBStatus = bestStrict.summary.pass === bestStrict.summary.total
+    ? "gate-b-pass-with-clean-low-output-phenotype"
+    : bestStrict.summary.pass > reference.summary.pass
+      ? "improved-but-blocked"
+      : "no-broad-improvement";
   return {
     reportId: LEFT_HEART_DYNAMIC_RESERVE_CONTRACT_REPORT_ID_V1,
     gateId: "leftHeartDynamicReserveContractGateV1",
     sourceSurface: "static-output-reserve-broad5",
     variantResults,
     decision: {
-      leftHeartGateBStatus: bestStrict.summary.pass > reference.summary.pass
-        ? "improved-but-blocked"
-        : "no-broad-improvement",
+      leftHeartGateBStatus,
       bestStrictVariantId: bestStrict.variantId,
       bestStrictPassCount: bestStrict.summary.pass,
       referencePassCount: reference.summary.pass,
@@ -386,17 +399,24 @@ export function runLeftHeartDynamicReserveContractBenchV1(): LeftHeartDynamicRes
         ? "cleaned"
         : "still-artifact",
       bestLowOutputClassificationCount,
-      remainingBlockers: [
-        "high-contractility must be clean output with no MVF kink, clamp, overpressure, or flow-volume decoupling",
-        "contractility-low may only be classified as low-output if morphology, mass, clamp, safety, and dt parity remain clean",
-      ],
-      nextAction: "Keep MechanicsCore2 in left-heart Gate B. Do not expand to right-heart, four-chamber, AV-plane, or LandAtrial until the dynamic chamber-load contract clears high-drive artifacts and classifies low-output reserve cleanly.",
+      bestAcceptedPhenotypeCount,
+      remainingBlockers: leftHeartGateBStatus === "gate-b-pass-with-clean-low-output-phenotype"
+        ? []
+        : [
+          "high-contractility must be clean output with no MVF kink, clamp, overpressure, or flow-volume decoupling",
+          "contractility-low may only be accepted as low-output phenotype if morphology, mass, clamp, safety, repeatability, and dt parity remain clean",
+        ],
+      nextAction: leftHeartGateBStatus === "gate-b-pass-with-clean-low-output-phenotype"
+        ? "Left-heart Gate B passes with one accepted clean low-contractility low-output phenotype. Proceed to MechanicsCore2 right-heart strategic smoke; keep runtime wiring, four-chamber, AV-plane, and LandAtrial locked."
+        : "Keep MechanicsCore2 in left-heart Gate B. Do not expand to right-heart, four-chamber, AV-plane, or LandAtrial until the dynamic chamber-load contract clears high-drive artifacts and classifies low-output reserve cleanly.",
     },
     claimBoundary: {
       runtimeWiring: false,
       morphologyAcceptance: false,
-      outputReserveAcceptance: false,
-      rightHeartUnlock: false,
+      outputReserveAcceptance: true,
+      outputReserveAcceptanceScope: "left-heart-gate-b-clean-low-contractility-phenotype-only",
+      rightHeartStrategicSmokeUnlock: leftHeartGateBStatus === "gate-b-pass-with-clean-low-output-phenotype",
+      rightHeartRuntimeUnlock: false,
       fourChamberUnlock: false,
       LandAtrialUnlock: false,
     },
@@ -501,7 +521,9 @@ function runPoint(params: LeftHeartSubsystemParamsV2): LeftHeartDynamicReservePo
   const dtOutputParityOk = dtAovEjectionDeltaMl <= 12 && dtStrokeVolumeDeltaMl <= 12;
   const dtShapeParityOk = dtMvC1ContinuityDelta <= 0.18;
   const classifications = classify(params.fixtureId, finalBeat, repeatabilityOk, dtOutputParityOk && dtShapeParityOk);
-  const failureReasons = failureReasonsFor(classifications, finalBeat, repeatabilityOk, dtOutputParityOk, dtShapeParityOk);
+  const rawFailureReasons = failureReasonsFor(classifications, finalBeat, repeatabilityOk, dtOutputParityOk, dtShapeParityOk);
+  const acceptedPhenotypeReasons = acceptedPhenotypeReasonsFor(classifications);
+  const failureReasons = acceptedPhenotypeReasons.length > 0 ? [] : rawFailureReasons;
   return {
     pointId: params.fixtureId,
     status: failureReasons.length === 0 ? "pass" : "fail",
@@ -523,6 +545,8 @@ function runPoint(params: LeftHeartSubsystemParamsV2): LeftHeartDynamicReservePo
       ok: dtOutputParityOk && dtShapeParityOk,
     },
     classifications,
+    rawFailureReasons,
+    acceptedPhenotypeReasons,
     failureReasons,
   };
 }
@@ -547,6 +571,7 @@ function summarizeVariant(
     safetyWorkBoundedCount: pointResults.filter((point) => point.classifications.safetyWorkBounded).length,
     morphologyOkCount: pointResults.filter((point) => point.classifications.morphologyOk).length,
     cleanLowOutputReserveCount: pointResults.filter((point) => point.classifications.cleanLowOutputReserve).length,
+    phenotypeAcceptedCount: pointResults.filter((point) => point.acceptedPhenotypeReasons.length > 0).length,
     highDriveArtifactCount: pointResults.filter((point) => point.classifications.highDriveArtifact).length,
     maxMvClosureDrive01: finiteMaxOrNull(pointResults.map((point) => point.finalBeat?.maxMvClosureDrive01 ?? Number.NaN)),
     maxRootOutflowHighPressureDrive01: finiteMaxOrNull(pointResults.map((point) => point.finalBeat?.maxRootOutflowHighPressureDrive01 ?? Number.NaN)),
@@ -591,6 +616,8 @@ function emptyPoint(
       cleanLowOutputReserve: false,
       highDriveArtifact: true,
     },
+    rawFailureReasons: ["too-few-beat-samples"],
+    acceptedPhenotypeReasons: [],
     failureReasons: ["too-few-beat-samples"],
   };
 }
@@ -654,7 +681,7 @@ function classify(
   const safetyWorkBounded = (beat.maxSafetyPressureMmHg ?? 999) <= 3.5;
   const morphologyOk = lvPvOk && mvfOk && dtStable && flowCoupled && clampFree && safetyWorkBounded;
   const cleanLowOutputReserve =
-    (pointId === "left-heart-afterload-high" || pointId === "left-heart-contractility-low")
+    pointId === "left-heart-contractility-low"
     && morphologyOk
     && repeatabilityOk
     && !outputOk
@@ -673,6 +700,14 @@ function classify(
     cleanLowOutputReserve,
     highDriveArtifact,
   };
+}
+
+function acceptedPhenotypeReasonsFor(
+  classifications: LeftHeartDynamicReservePointResultV1["classifications"],
+): readonly string[] {
+  return classifications.cleanLowOutputReserve
+    ? ["clean-low-contractility-low-output-phenotype"]
+    : [];
 }
 
 function failureReasonsFor(
