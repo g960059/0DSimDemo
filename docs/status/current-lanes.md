@@ -73,8 +73,12 @@ Next gates:
    1/7 pass.
 5. Gate B attribution signal: replacing fixed pulmonary venous inflow with a
    pressure-flow boundary preserved normal HR75 and LV PV 7/7 while improving
-   MVF OK 1->2 and output OK 2->4. This is still attribution-only evidence,
-   not broad MechanicsCore2 investment.
+   MVF OK 1->2 and output OK 2->4.
+6. Gate B envelope-scaling signal: raising the exploratory LV safety bound and
+   lowering pulmonary venous resistance improves LeftHeartSubsystemV1 to 2/7
+   pass and output OK 6/7. HR90, low-preload, low-contractility, and
+   high-contractility MVF remain failed. This is still attribution-only
+   evidence, not broad MechanicsCore2 investment.
 
 Parallel prep, not blocking the next strategic gate:
 
