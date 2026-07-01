@@ -38,7 +38,7 @@
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
-          "maxTransactionResidualNormMl": 2.15453,
+          "maxTransactionResidualNormMl": 1.865878,
           "meanTransactionIterationsUsed": 1,
           "maxSafetyPressureMmHg": 0,
           "lvpShape": {
@@ -90,7 +90,7 @@
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
-          "maxTransactionResidualNormMl": 2.22653,
+          "maxTransactionResidualNormMl": 1.928232,
           "meanTransactionIterationsUsed": 1,
           "maxSafetyPressureMmHg": 0,
           "lvpShape": {
@@ -142,7 +142,7 @@
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
-          "maxTransactionResidualNormMl": 1.514078,
+          "maxTransactionResidualNormMl": 1.31123,
           "meanTransactionIterationsUsed": 1,
           "maxSafetyPressureMmHg": 0,
           "lvpShape": {
@@ -196,7 +196,7 @@
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
-          "maxTransactionResidualNormMl": 2.764629,
+          "maxTransactionResidualNormMl": 2.394239,
           "meanTransactionIterationsUsed": 1,
           "maxSafetyPressureMmHg": 0,
           "lvpShape": {
@@ -248,7 +248,7 @@
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
-          "maxTransactionResidualNormMl": 1.941816,
+          "maxTransactionResidualNormMl": 1.681662,
           "meanTransactionIterationsUsed": 1,
           "maxSafetyPressureMmHg": 0,
           "lvpShape": {
@@ -303,7 +303,7 @@
           "mvForwardPeakCount": 3,
           "maxAbsMassResidualMl": 0.518162,
           "clampCount": 69,
-          "maxTransactionResidualNormMl": 0.576712,
+          "maxTransactionResidualNormMl": 0.499447,
           "meanTransactionIterationsUsed": 1,
           "maxSafetyPressureMmHg": 0,
           "lvpShape": {
@@ -362,7 +362,7 @@
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
-          "maxTransactionResidualNormMl": 0.523739,
+          "maxTransactionResidualNormMl": 0.453571,
           "meanTransactionIterationsUsed": 1,
           "maxSafetyPressureMmHg": 0,
           "lvpShape": {
@@ -409,7 +409,7 @@
         "lvPvOkCount": 7,
         "mvfOkCount": 5,
         "outputOkCount": 3,
-        "maxTransactionResidualNormMl": 2.764629,
+        "maxTransactionResidualNormMl": 2.394239,
         "maxSafetyPressureMmHg": 0
       }
     },
@@ -440,7 +440,7 @@
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
-          "maxTransactionResidualNormMl": 0.996563,
+          "maxTransactionResidualNormMl": 0.863049,
           "meanTransactionIterationsUsed": 2,
           "maxSafetyPressureMmHg": 0,
           "lvpShape": {
@@ -494,7 +494,7 @@
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
-          "maxTransactionResidualNormMl": 1.117571,
+          "maxTransactionResidualNormMl": 0.967845,
           "meanTransactionIterationsUsed": 2,
           "maxSafetyPressureMmHg": 0,
           "lvpShape": {
@@ -546,7 +546,7 @@
           "mvForwardPeakCount": 3,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
-          "maxTransactionResidualNormMl": 0.371067,
+          "maxTransactionResidualNormMl": 0.321354,
           "meanTransactionIterationsUsed": 2,
           "maxSafetyPressureMmHg": 0,
           "lvpShape": {
@@ -603,7 +603,7 @@
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
-          "maxTransactionResidualNormMl": 1.385712,
+          "maxTransactionResidualNormMl": 1.200062,
           "meanTransactionIterationsUsed": 2,
           "maxSafetyPressureMmHg": 0,
           "lvpShape": {
@@ -655,7 +655,7 @@
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
-          "maxTransactionResidualNormMl": 0.97009,
+          "maxTransactionResidualNormMl": 0.840123,
           "meanTransactionIterationsUsed": 2,
           "maxSafetyPressureMmHg": 0,
           "lvpShape": {
@@ -710,19 +710,19 @@
           "mvForwardPeakCount": 3,
           "maxAbsMassResidualMl": 0.516032,
           "clampCount": 69,
-          "maxTransactionResidualNormMl": 0.287649,
+          "maxTransactionResidualNormMl": 0.249112,
           "meanTransactionIterationsUsed": 1.984293,
           "maxSafetyPressureMmHg": 0,
           "lvpShape": {
             "sampleCount": 191,
-            "min": 10.056980802735675,
+            "min": 10.056980802735703,
             "max": 86.90610289648899,
-            "range": 76.84912209375331,
+            "range": 76.84912209375328,
             "dominantPeakCount": 1,
             "secondaryPeakProminenceRatio": 0,
             "fwhmFractionOfWindow": 0.17277486910994763,
             "peakWidthAtHalfMaxFraction": 0.17277486910994763,
-            "peakAreaRatio": 0.2784652489683155,
+            "peakAreaRatio": 0.2784652489683151,
             "c1ContinuityScore": 0.112456,
             "dYdtSpikeRatio": 4.456482,
             "positiveCurvatureFraction": 0.719577,
@@ -730,14 +730,14 @@
           },
           "qMvShape": {
             "sampleCount": 191,
-            "min": -3.205298319734029,
-            "max": 123.84788660809798,
-            "range": 127.053184927832,
+            "min": -3.2052983197398977,
+            "max": 123.84788660809986,
+            "range": 127.05318492783975,
             "dominantPeakCount": 1,
             "secondaryPeakProminenceRatio": 0,
             "fwhmFractionOfWindow": 0.28272251308900526,
             "peakWidthAtHalfMaxFraction": 0.28272251308900526,
-            "peakAreaRatio": 0.26929172778172394,
+            "peakAreaRatio": 0.2692917277817247,
             "c1ContinuityScore": 1.000394,
             "dYdtSpikeRatio": 3.571957,
             "positiveCurvatureFraction": 0.380952,
@@ -769,7 +769,7 @@
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
-          "maxTransactionResidualNormMl": 0.261865,
+          "maxTransactionResidualNormMl": 0.226782,
           "meanTransactionIterationsUsed": 2,
           "maxSafetyPressureMmHg": 0,
           "lvpShape": {
@@ -816,7 +816,7 @@
         "lvPvOkCount": 7,
         "mvfOkCount": 4,
         "outputOkCount": 2,
-        "maxTransactionResidualNormMl": 1.385712,
+        "maxTransactionResidualNormMl": 1.200062,
         "maxSafetyPressureMmHg": 0
       }
     },
@@ -847,7 +847,7 @@
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
-          "maxTransactionResidualNormMl": 1.288405,
+          "maxTransactionResidualNormMl": 1.115791,
           "meanTransactionIterationsUsed": 2,
           "maxSafetyPressureMmHg": 0,
           "lvpShape": {
@@ -899,7 +899,7 @@
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
-          "maxTransactionResidualNormMl": 1.166858,
+          "maxTransactionResidualNormMl": 1.010529,
           "meanTransactionIterationsUsed": 2,
           "maxSafetyPressureMmHg": 0,
           "lvpShape": {
@@ -951,7 +951,7 @@
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
-          "maxTransactionResidualNormMl": 0.875144,
+          "maxTransactionResidualNormMl": 0.757897,
           "meanTransactionIterationsUsed": 2,
           "maxSafetyPressureMmHg": 0,
           "lvpShape": {
@@ -1005,7 +1005,7 @@
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
-          "maxTransactionResidualNormMl": 1.431959,
+          "maxTransactionResidualNormMl": 1.240113,
           "meanTransactionIterationsUsed": 2,
           "maxSafetyPressureMmHg": 0,
           "lvpShape": {
@@ -1057,7 +1057,7 @@
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
-          "maxTransactionResidualNormMl": 0.977356,
+          "maxTransactionResidualNormMl": 0.846415,
           "meanTransactionIterationsUsed": 2,
           "maxSafetyPressureMmHg": 0,
           "lvpShape": {
@@ -1102,48 +1102,48 @@
           "lvPvStatus": "ok",
           "mvfStatus": "ok",
           "outputStatus": "fail",
-          "lvpPeakMmHg": 89.849299,
-          "lvEdvMl": 194.980582,
-          "lvEsvMl": 186.057643,
-          "strokeVolumeMl": 8.922939,
-          "aovEjectedVolumeMl": 8.92232,
-          "qMvPeakMlPerSec": 90.600202,
-          "qAovPeakMlPerSec": 263.798136,
+          "lvpPeakMmHg": 89.849456,
+          "lvEdvMl": 194.980835,
+          "lvEsvMl": 186.05691,
+          "strokeVolumeMl": 8.923925,
+          "aovEjectedVolumeMl": 8.923334,
+          "qMvPeakMlPerSec": 90.612935,
+          "qAovPeakMlPerSec": 263.818963,
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
-          "maxTransactionResidualNormMl": 0.335095,
-          "meanTransactionIterationsUsed": 1.937173,
-          "maxSafetyPressureMmHg": 3.235732,
+          "maxTransactionResidualNormMl": 0.290225,
+          "meanTransactionIterationsUsed": 1.816754,
+          "maxSafetyPressureMmHg": 3.235901,
           "lvpShape": {
             "sampleCount": 191,
-            "min": 10.759752742684043,
-            "max": 89.8492993921349,
-            "range": 79.08954664945085,
+            "min": 10.759740390474013,
+            "max": 89.84945585462363,
+            "range": 79.08971546414962,
             "dominantPeakCount": 1,
             "secondaryPeakProminenceRatio": 0,
             "fwhmFractionOfWindow": 0.17801047120418848,
             "peakWidthAtHalfMaxFraction": 0.17801047120418848,
-            "peakAreaRatio": 0.25601889696158714,
-            "c1ContinuityScore": 0.135709,
-            "dYdtSpikeRatio": 6.269048,
+            "peakAreaRatio": 0.25601744573151836,
+            "c1ContinuityScore": 0.135708,
+            "dYdtSpikeRatio": 6.268976,
             "positiveCurvatureFraction": 0.703704,
-            "positiveCurvatureBurden": 0.097927
+            "positiveCurvatureBurden": 0.097926
           },
           "qMvShape": {
             "sampleCount": 191,
-            "min": -2.367550336998412,
-            "max": 90.60020160041212,
-            "range": 92.96775193741053,
+            "min": -2.3686078470803666,
+            "max": 90.61293521557586,
+            "range": 92.98154306265623,
             "dominantPeakCount": 1,
             "secondaryPeakProminenceRatio": 0,
             "fwhmFractionOfWindow": 0.11518324607329843,
             "peakWidthAtHalfMaxFraction": 0.11518324607329843,
-            "peakAreaRatio": 0.24310907239095267,
-            "c1ContinuityScore": 0.371516,
-            "dYdtSpikeRatio": 2.53913,
+            "peakAreaRatio": 0.24310610405209362,
+            "c1ContinuityScore": 0.371407,
+            "dYdtSpikeRatio": 2.539287,
             "positiveCurvatureFraction": 0.354497,
-            "positiveCurvatureBurden": 0.271475
+            "positiveCurvatureBurden": 0.271433
           },
           "failureReasons": [
             "output-stroke-volume-too-low",
@@ -1167,7 +1167,7 @@
           "mvForwardPeakCount": 2,
           "maxAbsMassResidualMl": 0,
           "clampCount": 0,
-          "maxTransactionResidualNormMl": 0.24931,
+          "maxTransactionResidualNormMl": 0.215909,
           "meanTransactionIterationsUsed": 2,
           "maxSafetyPressureMmHg": 0.013506,
           "lvpShape": {
@@ -1214,8 +1214,8 @@
         "lvPvOkCount": 7,
         "mvfOkCount": 6,
         "outputOkCount": 3,
-        "maxTransactionResidualNormMl": 1.431959,
-        "maxSafetyPressureMmHg": 3.235732
+        "maxTransactionResidualNormMl": 1.240113,
+        "maxSafetyPressureMmHg": 3.235901
       }
     }
   ],
@@ -1231,5 +1231,5 @@
     "CircAdaptEquivalence": false,
     "LandAtrialUnlock": false
   },
-  "normalizedSha256": "3a708ba0a390f939fd975e150104a9a3282e5d63a7793241f13780347ca3bc6a"
+  "normalizedSha256": "c81f720c06795249cf000329b7b6c1f45e895b6cf99933b95e86c952f4e44d04"
 }

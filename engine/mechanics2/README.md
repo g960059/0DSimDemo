@@ -38,6 +38,9 @@ Current scope:
 - `benches/LeftHeartOutputReserveCalibrationBench.ts`: output-reserve
   calibration comparison, including static semilunar/root/fiber scaling and an
   external active-length blend probe.
+- `benches/LeftHeartDynamicReserveContractBench.ts`: dynamic left-heart
+  output-reserve contract surface with MV closure-state drive, high-pressure
+  root runoff drive, and LA/LV split clamp readbacks.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
@@ -54,6 +57,7 @@ Planning docs:
 - [Left-heart outflow repair V1](../../docs/mechanics2/left-heart-outflow-repair-v1.md)
 - [Left-heart pulmonary boundary contract V1](../../docs/mechanics2/left-heart-pulmonary-boundary-contract-v1.md)
 - [Left-heart output-reserve calibration V1](../../docs/mechanics2/left-heart-output-reserve-calibration-v1.md)
+- [Left-heart dynamic reserve contract V1](../../docs/mechanics2/left-heart-dynamic-reserve-contract-v1.md)
 - [ADR-MYO-003](../../docs/myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 
 Claim boundary:
