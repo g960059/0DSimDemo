@@ -13,11 +13,11 @@ describe("MechanicsCore2 right-heart strategic smoke bench", () => {
     expect(report.claimBoundary.fourChamberUnlock).toBe(false);
     expect(report.claimBoundary.AVPlaneUnlock).toBe(false);
     expect(report.claimBoundary.LandAtrialUnlock).toBe(false);
-    expect(report.decision.rightHeartGateBStatus).toBe("mixed-signal");
+    expect(report.decision.rightHeartGateBStatus).toBe("right-heart-strategic-smoke-pass");
     expect(report.summary).toMatchObject({
       total: 7,
-      pass: 4,
-      fail: 3,
+      pass: 7,
+      fail: 0,
       inconclusive: 0,
       rvPvOkCount: 7,
       tvfOkCount: 7,
@@ -26,24 +26,25 @@ describe("MechanicsCore2 right-heart strategic smoke bench", () => {
       dtStableCount: 7,
       flowCoupledCount: 7,
       clampFreeCount: 7,
-      safetyWorkBoundedCount: 4,
-      morphologyOkCount: 4,
+      safetyWorkBoundedCount: 7,
+      morphologyOkCount: 7,
       highDriveArtifactCount: 0,
     });
 
     const normal = report.pointResults.find((point) => point.pointId === "right-heart-normal-hr75")!;
-    const preloadHigh = report.pointResults.find((point) => point.pointId === "right-heart-preload-high")!;
-    const pulmonaryAfterloadHigh = report.pointResults.find((point) =>
-      point.pointId === "right-heart-pulmonary-afterload-high"
-    )!;
-    const contractilityLow = report.pointResults.find((point) => point.pointId === "right-heart-contractility-low")!;
 
     expect(normal.status).toBe("pass");
     expect(normal.classifications.rvPvOk).toBe(true);
     expect(normal.classifications.tvfOk).toBe(true);
-    expect(preloadHigh.failureReasons).toEqual(["safety-pressure-dominant"]);
-    expect(pulmonaryAfterloadHigh.failureReasons).toEqual(["safety-pressure-dominant"]);
-    expect(contractilityLow.failureReasons).toEqual(["safety-pressure-dominant"]);
+    expect(report.pointResults.map((point) => point.failureReasons)).toEqual([
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+    ]);
   });
 
   it("keeps the committed right-heart smoke artifact aligned with the rerun summary", () => {

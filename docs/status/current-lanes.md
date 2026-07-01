@@ -37,10 +37,9 @@ outflow repair, pulmonary-boundary/safety-suction comparisons, and
 output-reserve calibration and dynamic reserve contract comparisons are
 implemented.
 
-Next PR target: MechanicsCore2 right-heart RV dilation / soft-safety ownership
-after the first right-heart strategic smoke localized the residual. Do not
-start four-chamber work or LandAtrial re-entry from left-heart/right-heart
-sidecar evidence alone.
+Next PR target: paired left/right MechanicsCore2 smoke using the passed
+single-side Gate B surfaces. Do not start four-chamber work or LandAtrial
+re-entry from isolated left/right sidecar evidence alone.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -74,6 +73,8 @@ Included:
   clean low-contractility low-output phenotype policy.
 - RightHeartSubsystemV2 and RightHeartStrategicSmokeBench V1 for the first
   RA/RV/TV/PV/PA sidecar smoke.
+- RightHeartReserveCalibrationBench V1 for RV pressure mapping reserve and
+  lower-bound soft-suction separation.
 
 Excluded:
 
@@ -162,6 +163,14 @@ Next gates:
     `safety-pressure-dominant` in preload-high, pulmonary-afterload-high, and
     contractility-low. Next work should classify RV dilation / soft-safety
     ownership before paired-heart, four-chamber, AV-plane, or LandAtrial work.
+16. Right-heart reserve calibration: RV pressureScale 0.52 plus lower-bound
+    RV soft-suction gain 0.08 converts the right-heart strategic smoke to 7/7
+    while preserving RV PV 7/7, TVF 7/7, output 7/7, repeatability 7/7,
+    dt stability 7/7, flow-coupling 7/7, clamp-free 7/7, and bounded safety
+    7/7. The comparison shows pressureScale alone removes high-volume safety
+    residuals but creates a low-preload repeatability failure; separating lower
+    suction removes that oscillation. This unlocks paired left/right smoke only,
+    not runtime wiring, four-chamber readiness, AV-plane release, or LandAtrial.
 
 Parallel prep, not blocking the next strategic gate:
 

@@ -189,7 +189,7 @@ export function defaultRightHeartSubsystemParamsV2(
     raSoftLimitGainMmHgPerMl: overrides.raSoftLimitGainMmHgPerMl ?? 0.18,
     rvSoftLimitGainMmHgPerMl: overrides.rvSoftLimitGainMmHgPerMl ?? 0.22,
     raLowerSoftLimitGainMmHgPerMl: overrides.raLowerSoftLimitGainMmHgPerMl ?? 0.18,
-    rvLowerSoftLimitGainMmHgPerMl: overrides.rvLowerSoftLimitGainMmHgPerMl ?? 0.22,
+    rvLowerSoftLimitGainMmHgPerMl: overrides.rvLowerSoftLimitGainMmHgPerMl ?? 0.08,
     raPressureBaselineMmHg: overrides.raPressureBaselineMmHg ?? 3.8,
     raAWaveMmHg: overrides.raAWaveMmHg ?? 3.0,
     raAWaveStartTheta: overrides.raAWaveStartTheta ?? 0.86,
@@ -212,7 +212,7 @@ export function defaultRightHeartSubsystemParamsV2(
     tvSystolicClosureDriveEndTheta: overrides.tvSystolicClosureDriveEndTheta ?? 0.28,
     rv: {
       ...rvBase,
-      pressureScale: 0.46,
+      pressureScale: 0.52,
       fiber: {
         ...rvBase.fiber,
         trefPa: 56_000,
