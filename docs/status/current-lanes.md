@@ -1251,6 +1251,23 @@ advances the current lane. They are evidence anchors, not current gates.
    remains locked. The next model phase should preserve this AV inflow lead but
    move to the systolic PV dome side of the same chamber/load contract, rather
    than adding more AV projection/deadband/scalar guards.
+   Phase 5DN records `pv-dome-attribution-phase5dn-result-v1`, a disposable
+   attribution run testing whether a simple 2x temporal substep explains the
+   strict PV dome blocker before adding another model surface. It does not
+   support solver-substep adoption. On the 4-point focused attribution surface,
+   baseline pressure-flow remains LV/RV PV 1/4 and 1/4 with MVF 3/4 and TVF
+   2/4; adding the 2x substep improves RV PV to 3/4 but leaves LV PV at 1/4
+   and worsens TVF to 1/4. The Phase 5DM stateful V2 TV lead improves TVF to
+   3/4 without improving LV/RV PV (1/4 and 1/4), while V2 plus substep again
+   improves only RV PV (3/4) and trades TVF down to 2/4. The substep also does
+   not reduce the LV positive-curvature burden (`meanLvPositiveCurvature` rises
+   from `~0.113` to `~0.142` in baseline pressure-flow). Classify this as
+   `temporal-substep-rv-only-partial-lv-blocked`: useful evidence that some RV
+   dome failure is time-discretization sensitive, but the dominant LV systolic
+   dome/curvature failure requires a systolic pressure/outlet-load/source-state
+   ownership contract. Keep the V2 AV inflow lead, but do not unlock
+   LandAtrial tuning, runtime/default adoption, solver substepping, qDot/rootZc,
+   valve-threshold, Tref, or source-stress tuning from this evidence.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, bounded pressure-gain capping,
