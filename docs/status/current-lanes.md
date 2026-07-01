@@ -27,7 +27,12 @@ lane to a sidecar mechanics architecture inspired by CircAdapt-like
 chamber/valve/load ownership without copying CircAdapt source or claiming
 equivalence.
 
-Current PR target: `PR-M2-0+1`.
+Current sidecar state: `PR-M2-0+1` and `PR-M2-2+3` evidence surfaces are
+implemented.
+
+Next PR target: `PR-M2-4+5`, gated. Run FlowStateValve prescribed-gradient
+bench first; proceed to left-heart strategic smoke only if valve state/loss
+semantics show a usable signal.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -38,6 +43,9 @@ Included:
 - `HillSeriesFiberV1` with mechanical activation state `a` (not calcium).
 - Pre-registered `hill-series-fiber-replay-gate-v1.yaml`.
 - Isolated replay bench and tiny deterministic smoke test.
+- Sharpness metrics V1 for sidecar broadness/kink QA.
+- Existing valve audit V1.
+- OneFiberChamber prescribed-volume pressure mapping bench.
 
 Excluded:
 
@@ -50,15 +58,17 @@ Excluded:
 
 Next gates:
 
-1. Gate A: prescribed `lS(t)` Hill-series replay. If no-go, do not proceed to a
-   full sidecar just because the roadmap exists.
-2. Gate B: left-heart subsystem strategic gate with owner visual review before
+1. Gate A: prescribed `lS(t)` Hill-series replay passed on the procedural
+   fixture set. This is necessary-only evidence.
+2. Gate A2: prescribed `V(t)` OneFiberChamber bench passed on the initial
+   procedural LV/RV normal and wiggle fixtures: 4/4 pass, LV peak ~127 mmHg,
+   RV peak ~35 mmHg, single-dome pressure shape. This unlocks valve/left-heart
+   strategic smoke, not runtime adoption.
+3. Gate B: left-heart subsystem strategic gate with owner visual review before
    broad MechanicsCore2 investment.
 
-Parallel prep, not blocking this PR:
+Parallel prep, not blocking the next strategic gate:
 
-- Existing valve audit for q-state/area/loss/closure semantics.
-- Sharpness calibration pack for peak-width and C1 metrics.
 - Numerics ownership for stepper, residuals, mass/energy, and dt convergence.
 
 ## Stopped Lane
