@@ -2743,7 +2743,11 @@ export class ModelCore {
       PV_qDotClampImpulse: pvStep.qDotClampImpulse,
       PV_diodeImpulse: pvStep.diodeImpulse,
       PV_flowClampImpulse: pvStep.flowClampImpulse,
+      LVPressureUnclampedMmHg: lvPressureTerms?.pressureUnclampedMmHg,
+      LVPassivePressureMmHg: passivePressureComponentMmHg(lvPressureTerms),
       LVPressureFloorHit01: lvPressureTerms?.pressureFloorHit01 ?? 0,
+      RVPressureUnclampedMmHg: rvPressureTerms?.pressureUnclampedMmHg,
+      RVPassivePressureMmHg: passivePressureComponentMmHg(rvPressureTerms),
       RVPressureFloorHit01: rvPressureTerms?.pressureFloorHit01 ?? 0,
       LVActiveFiberStressPa: lvPressureTerms?.sigmaAct,
       RVActiveFiberStressPa: rvPressureTerms?.sigmaAct,
@@ -5145,6 +5149,13 @@ function activePressureComponentMmHg(terms: ChamberPressureTerms | undefined): n
   const sigmaTotal = terms.sigmaPas + terms.sigmaAct;
   if (Math.abs(sigmaTotal) <= 1e-12) return 0;
   return terms.pressureUnclampedMmHg * terms.sigmaAct / sigmaTotal;
+}
+
+function passivePressureComponentMmHg(terms: ChamberPressureTerms | undefined): number | undefined {
+  if (!terms) return undefined;
+  const sigmaTotal = terms.sigmaPas + terms.sigmaAct;
+  if (Math.abs(sigmaTotal) <= 1e-12) return 0;
+  return terms.pressureUnclampedMmHg * terms.sigmaPas / sigmaTotal;
 }
 
 function maxAbs(values: readonly number[]): number {

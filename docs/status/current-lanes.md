@@ -524,6 +524,20 @@ a side-local residual relaxation still is not sufficient; do not keep expanding
 local residual/refit variants. The next useful surface likely needs a clearer
 chamber mechanical contract or a different pressure adapter abstraction rather
 than another hidden iteration around the same valve/load states.
+Phase 5CT records
+`ventricular-pressure-decomposition-phase5ct-result-v1`, adding LV/RV
+unclamped/passive/active pressure readbacks and replaying the representative
+envelope across current user-0, LV/RV Land legacy-atria, and the Phase 5CO
+accepted-complementarity surface. It does not unlock adoption: current user-0
+and LV/RV Land legacy-atria remain gross 0/8, while accepted-complementarity
+legacy atria remains gross 5/8 and accepted-complementarity user-0 transfer
+remains gross 0/8. The useful signal is attribution: pre-accepted PV failures
+show active-source/mixed pressure residuals, but accepted-complementarity
+clears LV/RV PV sides to 8/8, so the remaining blocker on that surface is
+MVF/TVF and all-chamber user-0 transfer rather than more systolic PV pressure
+decomposition. Keep these readbacks for future adapter diagnostics, but do not
+spend another phase on LV/RV dome-only pressure decomposition while the accepted
+surface already has LV/RV PV 8/8.
 
 ## Lane table
 
@@ -957,15 +971,21 @@ advances the current lane. They are evidence anchors, not current gates.
    (`accepted-complementarity legacy 1/1`, residual-contract legacy 0/1,
    residual-contract user-0 0/1), with enough runtime cost that a full envelope
    is not worth running for this surface.
+   Phase 5CT then adds LV/RV pressure decomposition readbacks. It confirms that
+   raw user-0 and LV/RV Land legacy-atria PV failures carry active/mixed
+   pressure residuals, but the accepted-complementarity surface already clears
+   LV/RV PV sides to 8/8; the remaining accepted-surface blocker is AV inflow
+   and all-chamber user-0 transfer.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, bounded pressure-gain capping,
    local LV/RV transaction wiring, side-local pair fixed-point flow ownership,
    side-local source-state residual relaxation, or LandAtrial parameter tuning
    to hide the PV double-dome and AV inflow artifacts. The next implementation
-   surface should change the chamber mechanical pressure adapter/contract
-   abstraction itself, not add another post-hoc refit or local fixed-point
-   variant.
+   surface should preserve accepted-boundary and LV/RV pressure-decomposition
+   readbacks while focusing on AV inflow residuals and all-chamber user-0
+   transfer, not another post-hoc refit, local fixed-point variant, or PV
+   dome-only decomposition.
 2. Land plus sourced root/Zc is now the user-0 staged all-chamber runtime
    default after owner GO through Phase 5BK. Do not delete legacy active-stress
    yet; keep it as frozen reference, debug fallback, and rollback while
