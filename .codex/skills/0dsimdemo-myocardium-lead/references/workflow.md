@@ -59,6 +59,40 @@ procedure, not the lane list.
 - One lane per worktree/branch. Keep lanes file-disjoint where possible; never
   reuse a worktree across lanes.
 
+## Status File Size Guard
+
+Status and lane documents such as `docs/status/current-lanes.md`, mini-engine
+lane notes, frontend implementation plans, and release checklists are active
+routing surfaces, not phase archives or review transcripts. Keep them compact
+enough that a fresh agent can find the current frontier, blocked claims,
+owner-visible risk, and next action quickly.
+
+- Add or change a status file only when the PR changes routing, ownership,
+  default posture, blocked claims, acceptance criteria, or the next experiment.
+  If the PR only adds historical evidence with no routing impact, keep the
+  detail in the PR body, artifact JSON, screenshots, or design notes instead.
+- For each lane or feature, prefer a short capsule: current frontier, owner or
+  owned files, blocked/no-go claims, next action, and claim boundary. Avoid
+  appending full per-phase narratives, raw reviewer text, or repeated "do not"
+  lists.
+- When several consecutive phases explore the same mechanism family or frontend
+  feature area, compress older entries into one historical sentence and keep
+  only the latest artifact/design link plus the decision that still affects
+  routing.
+- Store detailed counts, variant tables, hashes, warnings, screenshots, visual
+  reviews, and accessibility/design notes in artifacts, PR descriptions, or
+  dedicated design docs. The active status file should link or name those
+  sources, not duplicate their contents.
+- Do not paste external AI reviews into active status files. Convert only the
+  owner-approved policy, acceptance criterion, no-go decision, or next action
+  into a compact update.
+- Keep new lane rows as capsules with ownership, dependencies, merge ordering,
+  next action, and claim boundary. Do not edit unrelated lane rows while adding
+  a new lane.
+- If work closes a route as no-go, record the mechanism or feature family once
+  in a compact no-retry list; do not add a new paragraph for every scalar
+  variant, CSS tweak, component experiment, or visual polish attempt.
+
 ## Delegation And Review Gates
 
 - Read `docs/status/current-lanes.md` for the current reviewer model names,
