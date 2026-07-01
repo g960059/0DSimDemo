@@ -1268,6 +1268,24 @@ advances the current lane. They are evidence anchors, not current gates.
    ownership contract. Keep the V2 AV inflow lead, but do not unlock
    LandAtrial tuning, runtime/default adoption, solver substepping, qDot/rootZc,
    valve-threshold, Tref, or source-stress tuning from this evidence.
+   Phase 5DO records `systolic-outflow-contract-phase5do-result-v1`, adding
+   off-by-default semilunar accepted-state pressure-flow/loss/inertance
+   ownership plus AoV/PV accepted-boundary readbacks and testing selected
+   candidates over a 6-point systolic-focused morphology envelope. This is a
+   larger structural test, not a compatibility/default path. The candidate
+   surface does not improve the strict morphology frontier: baseline remains
+   gross 0/6 (LV PV 1/6, RV PV 2/6, MVF 4/6, TVF 2/6), semilunar pressure-flow
+   remains gross 0/6 with the same LV/RV PV counts and only TVF 3/6, semilunar
+   stateful V2 remains gross 0/6 and regresses RV PV to 1/6 while improving MVF
+   to 5/6, and AV V2 plus semilunar V2 remains gross 0/6 with TVF 5/6 but RV PV
+   1/6. Semilunar stateful duty is bounded and measurable, but the strict PV
+   dome positive-curvature burden does not fall (`meanLvPositiveCurvature`
+   baseline `~0.118`, semilunar pressure-flow `~0.164`, semilunar V2 `~0.154`).
+   Treat this as a no-go for semilunar valve-law-only repair. Preserve the
+   readbacks and AV V2 component lead, but the next model surface must move up
+   to a chamber pressure/accepted volume/source-state/outlet-load contract;
+   do not continue scalar semilunar loss/inertance sweeps, solver substeps,
+   qDot/rootZc/valve-threshold/Tref/source-stress tuning, or LandAtrial tuning.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, bounded pressure-gain capping,
