@@ -495,6 +495,9 @@ export type SimSample = {
   MV_acceptedBoundaryIterationCount?: number;
   MV_acceptedBoundaryValveState01?: number;
   MV_acceptedBoundaryAreaRatio?: number;
+  MV_acceptedBoundaryAtrialActive01?: number;
+  MV_acceptedBoundaryPassiveDiastasisGuardApplied01?: number;
+  MV_acceptedBoundaryPassiveDiastasisGuardImpulse?: number;
   AoV_areaRatio: number;
   AoV_loss_R: number;
   AoV_loss_B: number;
@@ -537,6 +540,9 @@ export type SimSample = {
   TV_acceptedBoundaryIterationCount?: number;
   TV_acceptedBoundaryValveState01?: number;
   TV_acceptedBoundaryAreaRatio?: number;
+  TV_acceptedBoundaryAtrialActive01?: number;
+  TV_acceptedBoundaryPassiveDiastasisGuardApplied01?: number;
+  TV_acceptedBoundaryPassiveDiastasisGuardImpulse?: number;
   PV_qNextPreDiode?: number;
   PV_qNextPostDiode?: number;
   PV_qNextPreFlowClamp?: number;

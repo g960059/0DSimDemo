@@ -1154,6 +1154,18 @@ advances the current lane. They are evidence anchors, not current gates.
    or treat this as an early A wave. The remaining right-sided blocker is a
    pressure-flow/valve-load/atrial-pressure boundary problem during diastasis;
    the broader AV boundary contract remains the next model surface.
+   Phase 5DG records `right-av-passive-diastasis-guard-phase5dg-result-v1`,
+   testing an off-by-default accepted-boundary passive-diastasis guard that
+   refuses small-gradient forward-flow reacceleration when atrial active state
+   is low. This does not improve the frontier: baseline user0 pressure-flow
+   plus inlet-held AV-plane release remains gross 7/8 (MVF 8/8, TVF 7/8), and
+   the best TV-only guard at 0.50mmHg is also gross 7/8 with the same
+   `contractility-low-hr75` TVF residual. The guard applies in the failed
+   window (`~0.0875` duty for the best variant) but does not remove the extra
+   wave; therefore the residual is not a simple passive reacceleration problem
+   that can be solved by scalar gradient/active-state gating. Continue toward a
+   broader AV valve/load/complementarity boundary contract rather than another
+   scalar deadband/coasting/passive-guard variant.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, bounded pressure-gain capping,
