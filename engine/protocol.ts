@@ -493,6 +493,8 @@ export type SimSample = {
   MV_acceptedBoundaryDiodeImpulse?: number;
   MV_acceptedBoundaryComplementarityResidualMlPerSec?: number;
   MV_acceptedBoundaryIterationCount?: number;
+  MV_acceptedBoundaryValveState01?: number;
+  MV_acceptedBoundaryAreaRatio?: number;
   AoV_areaRatio: number;
   AoV_loss_R: number;
   AoV_loss_B: number;
@@ -533,6 +535,8 @@ export type SimSample = {
   TV_acceptedBoundaryDiodeImpulse?: number;
   TV_acceptedBoundaryComplementarityResidualMlPerSec?: number;
   TV_acceptedBoundaryIterationCount?: number;
+  TV_acceptedBoundaryValveState01?: number;
+  TV_acceptedBoundaryAreaRatio?: number;
   PV_qNextPreDiode?: number;
   PV_qNextPostDiode?: number;
   PV_qNextPreFlowClamp?: number;
