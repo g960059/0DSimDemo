@@ -1143,6 +1143,17 @@ advances the current lane. They are evidence anchors, not current gates.
    continue scalar TV pressure-deadband/threshold variants; the remaining
    right-AV residual needs a broader AV valve boundary contract or profile/
    physiology classification, not a one-parameter valve-state patch.
+   Phase 5DF records `tvf-phase-attribution-phase5df-result-v1`, targeting
+   normal-HR75 and the remaining `contractility-low-hr75` failure under the
+   current user0 pressure-flow plus inlet-held AV-plane release closure. It
+   classifies the TVF residual as a true mid-diastolic extra wave, not an
+   atrial-kick phase-window artifact: the failed point has QTV E at
+   `theta≈0.5625`, an extra wave at `theta≈0.7775` while RA active state is
+   near zero, and a separate A wave at `theta≈0.9525`; the direct right AV
+   delay remains plausible (`~182ms`). Therefore do not loosen the TVF window
+   or treat this as an early A wave. The remaining right-sided blocker is a
+   pressure-flow/valve-load/atrial-pressure boundary problem during diastasis;
+   the broader AV boundary contract remains the next model surface.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, bounded pressure-gain capping,
