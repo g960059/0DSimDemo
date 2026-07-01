@@ -538,6 +538,18 @@ MVF/TVF and all-chamber user-0 transfer rather than more systolic PV pressure
 decomposition. Keep these readbacks for future adapter diagnostics, but do not
 spend another phase on LV/RV dome-only pressure decomposition while the accepted
 surface already has LV/RV PV 8/8.
+Phase 5CU records
+`user0-av-inflow-transfer-attribution-phase5cu-result-v1`, holding the Phase
+5CO accepted-complementarity surface fixed while ablating LandAtrial AV-plane
+geometry in the all-chamber user-0 transfer. It shows AV-plane release timing
+is a real contributor but not a sufficient standalone rescue: current user-0
+accepted-complementarity transfer remains gross 0/8 (MVF 1/8, TVF 2/8), LA
+AV-plane off reaches gross 2/8 with MVF 8/8 but TVF still 2/8, RA AV-plane off
+reaches gross 1/8, and both LA/RA AV-plane off reaches gross 5/8 (MVF 7/8,
+TVF 5/8). The residual cause mix remains accepted-boundary diode/qDot and
+complementarity leak, so do not adopt AV-plane-off or tune gains; the next
+useful surface is stateful/asymmetric AV-plane release timing while preserving
+accepted-boundary readbacks and the morphology envelope.
 
 ## Lane table
 
@@ -976,6 +988,11 @@ advances the current lane. They are evidence anchors, not current gates.
    pressure residuals, but the accepted-complementarity surface already clears
    LV/RV PV sides to 8/8; the remaining accepted-surface blocker is AV inflow
    and all-chamber user-0 transfer.
+   Phase 5CU then localizes that user-0 transfer residual: simple AV-plane
+   off is not an adoption path, but LA AV-plane off repairs MVF to 8/8 and
+   both LA/RA off improves gross to 5/8, so AV-plane release timing is a real
+   contributor that must be redesigned statefully/asymmetrically rather than
+   retuned as a static gain.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, bounded pressure-gain capping,
