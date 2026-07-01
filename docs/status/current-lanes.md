@@ -33,14 +33,16 @@ equivalence.
 Current sidecar state: `PR-M2-0+1`, `PR-M2-2+3`, `PR-M2-4+5`, the
 left-heart fiber-timing attribution surface, and the first left-heart V2
 transaction architecture comparison, residual attribution, semilunar/root
-outflow repair, pulmonary-boundary/safety-suction comparisons, and
-output-reserve calibration and dynamic reserve contract comparisons are
-implemented.
+outflow repair, pulmonary-boundary/safety-suction comparisons,
+output-reserve calibration and dynamic reserve contract comparisons, paired
+left/right smoke, source-pressure bridge smoke, and reservoir-ledger bridge
+smoke are implemented.
 
-Next PR target: explicit reservoir / mass-ledger bridge after the first
-source-pressure circulation bridge was measured as no-go. Do not start
-four-chamber work or LandAtrial re-entry from isolated, paired, or
-source-pressure bridge evidence alone.
+Next PR target: true same-step reservoir / mass-ledger coupling after the
+black-box reservoir bridge produced a promising mixed signal but not a
+four-chamber unlock. Do not start four-chamber work or LandAtrial re-entry from
+isolated, paired, source-pressure, or black-box reservoir bridge evidence
+alone.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -80,6 +82,8 @@ Included:
   compatibility without circulation coupling.
 - CirculationBridgeSmokeBench V1 for source-pressure bridge feedback between
   the passed left/right surfaces.
+- ReservoirBridgeSmokeBench V1 for black-box pulmonary/systemic reservoir
+  ledger feedback between the passed left/right surfaces.
 
 Excluded:
 
@@ -192,6 +196,16 @@ Next gates:
     work and points next to an explicit reservoir/mass-ledger bridge. RV
     pressureScale remains a provisional magnitude calibration knob, not
     geometry-derived PH/RV-failure readiness.
+19. Reservoir bridge smoke: explicit black-box pulmonary/systemic reservoir
+    ledger feedback improves the bridge from source-pressure no-go to a
+    promising mixed signal. The best `ledger-high-compliance-gain025` surface
+    records pass 6/7, flow-balanced 6/7, pressure adjustment bounded 7/7,
+    reservoir ledger clean 7/7, and mean absolute mismatch ~8.1 mL versus the
+    open-reservoir reference ~8.5 mL. The remaining blocker is
+    `contractility-low`, where the bridge loses the left surface and still
+    leaves left/right forward-ejection mismatch. This supports true same-step
+    reservoir/mass-ledger coupling next; it does not unlock four-chamber,
+    AV-plane, LandAtrial, runtime wiring, or morphology acceptance.
 
 Parallel prep, not blocking the next strategic gate:
 
