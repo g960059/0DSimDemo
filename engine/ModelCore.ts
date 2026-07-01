@@ -229,6 +229,7 @@ export type ModelCoreExperimentalVentricularChamberTransactionStepOptions = {
     | "accepted-state-av-boundary"
     | "accepted-state-av-boundary-fixedpoint"
     | "accepted-state-valve-pressure-flow"
+    | "accepted-state-valve-pressure-flow-energy-coasting"
     | "accepted-state-av-boundary-pair-fixedpoint"
     | "source-state-residual-contract"
     | "tv-state-coupled-mv-pressure-refit"
@@ -799,12 +800,14 @@ function normalizeExperimentalVentricularChamberTransactionStep(
     || avValveBoundaryMode === "tv-state-coupled-mv-pressure-fixedpoint-refit"
     || avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
     || avValveBoundaryMode === "accepted-state-valve-pressure-flow"
+    || avValveBoundaryMode === "accepted-state-valve-pressure-flow-energy-coasting"
     || avValveBoundaryMode === "accepted-state-av-boundary-pair-fixedpoint"
     || avValveBoundaryMode === "source-state-residual-contract";
   const avValveBoundaryPressureRefitIterations =
     avValveBoundaryMode === "tv-state-coupled-mv-pressure-fixedpoint-refit"
       || avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
       || avValveBoundaryMode === "accepted-state-valve-pressure-flow"
+      || avValveBoundaryMode === "accepted-state-valve-pressure-flow-energy-coasting"
       || avValveBoundaryMode === "accepted-state-av-boundary-pair-fixedpoint"
       || avValveBoundaryMode === "source-state-residual-contract"
       ? Math.max(1, Math.floor(clamp(options.avValveBoundaryPressureRefitIterations ?? 3, 1, 8)))
@@ -1585,6 +1588,7 @@ export class ModelCore {
         options.avValveBoundaryMode === "accepted-state-av-boundary"
         || options.avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
         || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow"
+        || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-energy-coasting"
       )
       && (options.avValveBoundaryTargetValves ?? ["MV", "TV"]).includes(inlet)
     ) {
@@ -1669,6 +1673,7 @@ export class ModelCore {
         && options.avValveBoundaryMode !== "accepted-state-av-boundary"
         && options.avValveBoundaryMode !== "accepted-state-av-boundary-fixedpoint"
         && options.avValveBoundaryMode !== "accepted-state-valve-pressure-flow"
+        && options.avValveBoundaryMode !== "accepted-state-valve-pressure-flow-energy-coasting"
         && options.avValveBoundaryMode !== "accepted-state-av-boundary-pair-fixedpoint"
         && options.avValveBoundaryMode !== "source-state-residual-contract"
         && !(options.avValveBoundaryMode === "tv-state-coupled-mv-pressure-refit" && valveName === "TV")
@@ -1868,16 +1873,20 @@ export class ModelCore {
     const iterations = (
       options.avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
       || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow"
+      || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-energy-coasting"
     )
       ? Math.max(1, Math.floor(options.avValveBoundaryPressureRefitIterations ?? 3))
       : 1;
     const relaxation = (
       options.avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
       || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow"
+      || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-energy-coasting"
     )
       ? clamp(options.avValveBoundaryPressureRefitRelaxation ?? 1, 0.05, 1)
       : 1;
-    const useProjectedValveState = options.avValveBoundaryMode === "accepted-state-valve-pressure-flow";
+    const useProjectedValveState =
+      options.avValveBoundaryMode === "accepted-state-valve-pressure-flow"
+      || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-energy-coasting";
     let qCandidate = inletQGuess;
     let acceptedDiagnostics = this.valveFlowStepDiagnostics[inlet];
     for (let iteration = 0; iteration < iterations; iteration++) {
@@ -1931,10 +1940,17 @@ export class ModelCore {
         : DEFAULT_AORTIC_Q_DOT_CLAMP_ML_PER_S2;
       const qDotPost = clamp(qDotRaw, -qDotNegativeLimit, qDotPositiveLimit);
       const qRefitRaw = qBase + h * qDotPost;
-      const adverseForwardScale = pressureGradientMmHg <= 0 && qRefitRaw > 0
+      const currentFlowLossMmHg = qBase > 0 ? R * qBase + B * qBase * Math.abs(qBase) : 0;
+      const qEnergyConsistent = options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-energy-coasting"
+        && qBase > 0
+        && qRefitRaw > qBase
+        && pressureGradientMmHg <= currentFlowLossMmHg
+        ? qBase
+        : qRefitRaw;
+      const adverseForwardScale = pressureGradientMmHg <= 0 && qEnergyConsistent > 0
         ? clamp(options.avValveBoundaryAdverseGradientForwardScale ?? 1, 0, 1)
         : 1;
-      const qRefit = qRefitRaw * adverseForwardScale;
+      const qRefit = qEnergyConsistent * adverseForwardScale;
       const qAccepted = qCandidate + relaxation * (qRefit - qCandidate);
       acceptedDiagnostics = {
         ...this.valveFlowStepDiagnostics[inlet],

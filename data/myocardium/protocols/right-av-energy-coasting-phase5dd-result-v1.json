@@ -1,0 +1,1183 @@
+{
+  "schemaVersion": 1,
+  "id": "right-av-energy-coasting-phase5dd-result-v1",
+  "phase": "5DD",
+  "profile": {
+    "verificationProfile": "fitFast",
+    "morphologyProfileId": "normal_sinus_default",
+    "diagnosticQuestion": "whether an off-by-default AV pressure-flow energy-coasting cap removes the remaining right AV TVF extra wave without breaking the representative envelope"
+  },
+  "upstreamEvidence": {
+    "phase5DBArtifactId": "avplane-state-hygiene-phase5db-result-v1",
+    "phase5DCArtifactId": "post-hygiene-pressure-flow-envelope-phase5dc-result-v1"
+  },
+  "variants": [
+    {
+      "id": "pressure-flow-user0-inlet-held-release",
+      "label": "Phase 5DC user0 pressure-flow frontier with inlet-held AV-plane release",
+      "closurePath": "current-user0-all-chamber-landatrial",
+      "avValveBoundaryMode": "accepted-state-valve-pressure-flow"
+    },
+    {
+      "id": "energy-coasting-user0-inlet-held-release",
+      "label": "User0 pressure-flow frontier plus energy-coasting cap",
+      "closurePath": "current-user0-all-chamber-landatrial",
+      "avValveBoundaryMode": "accepted-state-valve-pressure-flow-energy-coasting"
+    },
+    {
+      "id": "energy-coasting-legacy-atria",
+      "label": "LV/RV Land legacy atria plus energy-coasting cap",
+      "closurePath": "lv-rv-land-legacy-atria",
+      "avValveBoundaryMode": "accepted-state-valve-pressure-flow-energy-coasting"
+    }
+  ],
+  "points": [
+    {
+      "id": "normal-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75
+      }
+    },
+    {
+      "id": "normal-hr90",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 90
+      }
+    },
+    {
+      "id": "low-preload-hr75",
+      "targetTBVMl": 4800,
+      "params": {
+        "HR": 75
+      }
+    },
+    {
+      "id": "high-preload-hr75",
+      "targetTBVMl": 6200,
+      "params": {
+        "HR": 75
+      }
+    },
+    {
+      "id": "systemic-afterload-high-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "systemicResistance": 1.25
+      }
+    },
+    {
+      "id": "pulmonary-afterload-high-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "pulmonaryResistance": 1.35
+      }
+    },
+    {
+      "id": "contractility-low-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "contractility": 0.82
+      }
+    },
+    {
+      "id": "contractility-high-hr75",
+      "targetTBVMl": 5600,
+      "params": {
+        "HR": 75,
+        "contractility": 1.18
+      }
+    }
+  ],
+  "results": [
+    {
+      "variantId": "pressure-flow-user0-inlet-held-release",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": true,
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "metrics": {
+        "AoPMean": 76.631588,
+        "PAPMean": 17.763435,
+        "CO_L": 4.753204,
+        "CO_R": 4.753023,
+        "LAPMean": 9.733143,
+        "RAPMean": 4.439606
+      },
+      "tvf": {
+        "peakCount": 2,
+        "extraPeakTheta": null,
+        "extraPeakValue": null,
+        "acceptedDiodeHitFraction": null,
+        "acceptedQDotHitFraction": null,
+        "acceptedComplementarityLeakFraction": null,
+        "acceptedGradientMeanMmHg": null,
+        "acceptedValveStateMean": null,
+        "acceptedAreaRatioMean": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "pressure-flow-user0-inlet-held-release",
+      "pointId": "normal-hr90",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": true,
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "metrics": {
+        "AoPMean": 81.985264,
+        "PAPMean": 17.75304,
+        "CO_L": 5.155864,
+        "CO_R": 5.127597,
+        "LAPMean": 9.030468,
+        "RAPMean": 3.752272
+      },
+      "tvf": {
+        "peakCount": 2,
+        "extraPeakTheta": null,
+        "extraPeakValue": null,
+        "acceptedDiodeHitFraction": null,
+        "acceptedQDotHitFraction": null,
+        "acceptedComplementarityLeakFraction": null,
+        "acceptedGradientMeanMmHg": null,
+        "acceptedValveStateMean": null,
+        "acceptedAreaRatioMean": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "pressure-flow-user0-inlet-held-release",
+      "pointId": "low-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": true,
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "metrics": {
+        "AoPMean": 64.266138,
+        "PAPMean": 10.133784,
+        "CO_L": 3.973064,
+        "CO_R": 3.962132,
+        "LAPMean": 3.422966,
+        "RAPMean": 2.224271
+      },
+      "tvf": {
+        "peakCount": 2,
+        "extraPeakTheta": null,
+        "extraPeakValue": null,
+        "acceptedDiodeHitFraction": null,
+        "acceptedQDotHitFraction": null,
+        "acceptedComplementarityLeakFraction": null,
+        "acceptedGradientMeanMmHg": null,
+        "acceptedValveStateMean": null,
+        "acceptedAreaRatioMean": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "pressure-flow-user0-inlet-held-release",
+      "pointId": "high-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": true,
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "metrics": {
+        "AoPMean": 81.223199,
+        "PAPMean": 22.602573,
+        "CO_L": 4.869651,
+        "CO_R": 4.905428,
+        "LAPMean": 14.361769,
+        "RAPMean": 7.394784
+      },
+      "tvf": {
+        "peakCount": 2,
+        "extraPeakTheta": null,
+        "extraPeakValue": null,
+        "acceptedDiodeHitFraction": null,
+        "acceptedQDotHitFraction": null,
+        "acceptedComplementarityLeakFraction": null,
+        "acceptedGradientMeanMmHg": null,
+        "acceptedValveStateMean": null,
+        "acceptedAreaRatioMean": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "pressure-flow-user0-inlet-held-release",
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": true,
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "metrics": {
+        "AoPMean": 84.257214,
+        "PAPMean": 18.645025,
+        "CO_L": 4.483859,
+        "CO_R": 4.514983,
+        "LAPMean": 11.048834,
+        "RAPMean": 4.426626
+      },
+      "tvf": {
+        "peakCount": 2,
+        "extraPeakTheta": null,
+        "extraPeakValue": null,
+        "acceptedDiodeHitFraction": null,
+        "acceptedQDotHitFraction": null,
+        "acceptedComplementarityLeakFraction": null,
+        "acceptedGradientMeanMmHg": null,
+        "acceptedValveStateMean": null,
+        "acceptedAreaRatioMean": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "pressure-flow-user0-inlet-held-release",
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": true,
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "metrics": {
+        "AoPMean": 75.915048,
+        "PAPMean": 19.318871,
+        "CO_L": 4.658145,
+        "CO_R": 4.639569,
+        "LAPMean": 8.661028,
+        "RAPMean": 4.608105
+      },
+      "tvf": {
+        "peakCount": 2,
+        "extraPeakTheta": null,
+        "extraPeakValue": null,
+        "acceptedDiodeHitFraction": null,
+        "acceptedQDotHitFraction": null,
+        "acceptedComplementarityLeakFraction": null,
+        "acceptedGradientMeanMmHg": null,
+        "acceptedValveStateMean": null,
+        "acceptedAreaRatioMean": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "pressure-flow-user0-inlet-held-release",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "metrics": {
+        "AoPMean": 52.837162,
+        "PAPMean": 18.750846,
+        "CO_L": 2.809098,
+        "CO_R": 2.793619,
+        "LAPMean": 14.022127,
+        "RAPMean": 7.887847
+      },
+      "tvf": {
+        "peakCount": 3,
+        "extraPeakTheta": 0.7775,
+        "extraPeakValue": 32.384602,
+        "acceptedDiodeHitFraction": 0,
+        "acceptedQDotHitFraction": 0,
+        "acceptedComplementarityLeakFraction": 0,
+        "acceptedGradientMeanMmHg": 0.288601,
+        "acceptedValveStateMean": 0.642232,
+        "acceptedAreaRatioMean": 0.642232
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "pressure-flow-user0-inlet-held-release",
+      "pointId": "contractility-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": true,
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "metrics": {
+        "AoPMean": 89.870478,
+        "PAPMean": 17.49073,
+        "CO_L": 5.647429,
+        "CO_R": 5.612029,
+        "LAPMean": 7.988061,
+        "RAPMean": 2.871114
+      },
+      "tvf": {
+        "peakCount": 2,
+        "extraPeakTheta": null,
+        "extraPeakValue": null,
+        "acceptedDiodeHitFraction": null,
+        "acceptedQDotHitFraction": null,
+        "acceptedComplementarityLeakFraction": null,
+        "acceptedGradientMeanMmHg": null,
+        "acceptedValveStateMean": null,
+        "acceptedAreaRatioMean": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "energy-coasting-user0-inlet-held-release",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": true,
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "metrics": {
+        "AoPMean": 76.631588,
+        "PAPMean": 17.763435,
+        "CO_L": 4.753204,
+        "CO_R": 4.753023,
+        "LAPMean": 9.733143,
+        "RAPMean": 4.439606
+      },
+      "tvf": {
+        "peakCount": 2,
+        "extraPeakTheta": null,
+        "extraPeakValue": null,
+        "acceptedDiodeHitFraction": null,
+        "acceptedQDotHitFraction": null,
+        "acceptedComplementarityLeakFraction": null,
+        "acceptedGradientMeanMmHg": null,
+        "acceptedValveStateMean": null,
+        "acceptedAreaRatioMean": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "energy-coasting-user0-inlet-held-release",
+      "pointId": "normal-hr90",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": true,
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "metrics": {
+        "AoPMean": 81.985264,
+        "PAPMean": 17.75304,
+        "CO_L": 5.155864,
+        "CO_R": 5.127597,
+        "LAPMean": 9.030468,
+        "RAPMean": 3.752272
+      },
+      "tvf": {
+        "peakCount": 2,
+        "extraPeakTheta": null,
+        "extraPeakValue": null,
+        "acceptedDiodeHitFraction": null,
+        "acceptedQDotHitFraction": null,
+        "acceptedComplementarityLeakFraction": null,
+        "acceptedGradientMeanMmHg": null,
+        "acceptedValveStateMean": null,
+        "acceptedAreaRatioMean": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "energy-coasting-user0-inlet-held-release",
+      "pointId": "low-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": true,
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "metrics": {
+        "AoPMean": 64.266138,
+        "PAPMean": 10.133784,
+        "CO_L": 3.973064,
+        "CO_R": 3.962132,
+        "LAPMean": 3.422966,
+        "RAPMean": 2.224271
+      },
+      "tvf": {
+        "peakCount": 2,
+        "extraPeakTheta": null,
+        "extraPeakValue": null,
+        "acceptedDiodeHitFraction": null,
+        "acceptedQDotHitFraction": null,
+        "acceptedComplementarityLeakFraction": null,
+        "acceptedGradientMeanMmHg": null,
+        "acceptedValveStateMean": null,
+        "acceptedAreaRatioMean": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "energy-coasting-user0-inlet-held-release",
+      "pointId": "high-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": true,
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "metrics": {
+        "AoPMean": 81.223199,
+        "PAPMean": 22.602573,
+        "CO_L": 4.869651,
+        "CO_R": 4.905428,
+        "LAPMean": 14.361769,
+        "RAPMean": 7.394784
+      },
+      "tvf": {
+        "peakCount": 2,
+        "extraPeakTheta": null,
+        "extraPeakValue": null,
+        "acceptedDiodeHitFraction": null,
+        "acceptedQDotHitFraction": null,
+        "acceptedComplementarityLeakFraction": null,
+        "acceptedGradientMeanMmHg": null,
+        "acceptedValveStateMean": null,
+        "acceptedAreaRatioMean": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "energy-coasting-user0-inlet-held-release",
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": true,
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "metrics": {
+        "AoPMean": 84.257214,
+        "PAPMean": 18.645025,
+        "CO_L": 4.483859,
+        "CO_R": 4.514983,
+        "LAPMean": 11.048834,
+        "RAPMean": 4.426626
+      },
+      "tvf": {
+        "peakCount": 2,
+        "extraPeakTheta": null,
+        "extraPeakValue": null,
+        "acceptedDiodeHitFraction": null,
+        "acceptedQDotHitFraction": null,
+        "acceptedComplementarityLeakFraction": null,
+        "acceptedGradientMeanMmHg": null,
+        "acceptedValveStateMean": null,
+        "acceptedAreaRatioMean": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "energy-coasting-user0-inlet-held-release",
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": true,
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "metrics": {
+        "AoPMean": 75.915048,
+        "PAPMean": 19.318871,
+        "CO_L": 4.658145,
+        "CO_R": 4.639569,
+        "LAPMean": 8.661028,
+        "RAPMean": 4.608105
+      },
+      "tvf": {
+        "peakCount": 2,
+        "extraPeakTheta": null,
+        "extraPeakValue": null,
+        "acceptedDiodeHitFraction": null,
+        "acceptedQDotHitFraction": null,
+        "acceptedComplementarityLeakFraction": null,
+        "acceptedGradientMeanMmHg": null,
+        "acceptedValveStateMean": null,
+        "acceptedAreaRatioMean": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "energy-coasting-user0-inlet-held-release",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "metrics": {
+        "AoPMean": 52.837162,
+        "PAPMean": 18.750846,
+        "CO_L": 2.809098,
+        "CO_R": 2.793619,
+        "LAPMean": 14.022127,
+        "RAPMean": 7.887847
+      },
+      "tvf": {
+        "peakCount": 3,
+        "extraPeakTheta": 0.7775,
+        "extraPeakValue": 32.384602,
+        "acceptedDiodeHitFraction": 0,
+        "acceptedQDotHitFraction": 0,
+        "acceptedComplementarityLeakFraction": 0,
+        "acceptedGradientMeanMmHg": 0.288601,
+        "acceptedValveStateMean": 0.642232,
+        "acceptedAreaRatioMean": 0.642232
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "energy-coasting-user0-inlet-held-release",
+      "pointId": "contractility-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": true,
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "metrics": {
+        "AoPMean": 89.870478,
+        "PAPMean": 17.49073,
+        "CO_L": 5.647429,
+        "CO_R": 5.612029,
+        "LAPMean": 7.988061,
+        "RAPMean": 2.871114
+      },
+      "tvf": {
+        "peakCount": 2,
+        "extraPeakTheta": null,
+        "extraPeakValue": null,
+        "acceptedDiodeHitFraction": null,
+        "acceptedQDotHitFraction": null,
+        "acceptedComplementarityLeakFraction": null,
+        "acceptedGradientMeanMmHg": null,
+        "acceptedValveStateMean": null,
+        "acceptedAreaRatioMean": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "energy-coasting-legacy-atria",
+      "pointId": "normal-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": true,
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "metrics": {
+        "AoPMean": 75.638411,
+        "PAPMean": 17.786889,
+        "CO_L": 4.641489,
+        "CO_R": 4.629112,
+        "LAPMean": 9.962148,
+        "RAPMean": 4.686289
+      },
+      "tvf": {
+        "peakCount": 2,
+        "extraPeakTheta": null,
+        "extraPeakValue": null,
+        "acceptedDiodeHitFraction": null,
+        "acceptedQDotHitFraction": null,
+        "acceptedComplementarityLeakFraction": null,
+        "acceptedGradientMeanMmHg": null,
+        "acceptedValveStateMean": null,
+        "acceptedAreaRatioMean": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "energy-coasting-legacy-atria",
+      "pointId": "normal-hr90",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": true,
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "RA PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "metrics": {
+        "AoPMean": 82.316067,
+        "PAPMean": 18.65059,
+        "CO_L": 5.147858,
+        "CO_R": 5.150715,
+        "LAPMean": 9.936195,
+        "RAPMean": 3.720918
+      },
+      "tvf": {
+        "peakCount": 2,
+        "extraPeakTheta": null,
+        "extraPeakValue": null,
+        "acceptedDiodeHitFraction": null,
+        "acceptedQDotHitFraction": null,
+        "acceptedComplementarityLeakFraction": null,
+        "acceptedGradientMeanMmHg": null,
+        "acceptedValveStateMean": null,
+        "acceptedAreaRatioMean": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "energy-coasting-legacy-atria",
+      "pointId": "low-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": true,
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "failed",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA PV loop",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "metrics": {
+        "AoPMean": 66.425792,
+        "PAPMean": 10.467967,
+        "CO_L": 4.136513,
+        "CO_R": 4.108892,
+        "LAPMean": 3.504543,
+        "RAPMean": 2.056054
+      },
+      "tvf": {
+        "peakCount": 2,
+        "extraPeakTheta": null,
+        "extraPeakValue": null,
+        "acceptedDiodeHitFraction": null,
+        "acceptedQDotHitFraction": null,
+        "acceptedComplementarityLeakFraction": null,
+        "acceptedGradientMeanMmHg": null,
+        "acceptedValveStateMean": null,
+        "acceptedAreaRatioMean": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "energy-coasting-legacy-atria",
+      "pointId": "high-preload-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "metrics": {
+        "AoPMean": 78.672491,
+        "PAPMean": 21.718547,
+        "CO_L": 4.692225,
+        "CO_R": 4.731699,
+        "LAPMean": 13.776666,
+        "RAPMean": 7.888077
+      },
+      "tvf": {
+        "peakCount": 3,
+        "extraPeakTheta": 0.8075,
+        "extraPeakValue": 69.141511,
+        "acceptedDiodeHitFraction": 0,
+        "acceptedQDotHitFraction": 0,
+        "acceptedComplementarityLeakFraction": 0,
+        "acceptedGradientMeanMmHg": 0.530737,
+        "acceptedValveStateMean": 0.742923,
+        "acceptedAreaRatioMean": 0.742923
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "energy-coasting-legacy-atria",
+      "pointId": "systemic-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": true,
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "metrics": {
+        "AoPMean": 82.799332,
+        "PAPMean": 18.773363,
+        "CO_L": 4.380546,
+        "CO_R": 4.434404,
+        "LAPMean": 11.338916,
+        "RAPMean": 4.647161
+      },
+      "tvf": {
+        "peakCount": 2,
+        "extraPeakTheta": null,
+        "extraPeakValue": null,
+        "acceptedDiodeHitFraction": null,
+        "acceptedQDotHitFraction": null,
+        "acceptedComplementarityLeakFraction": null,
+        "acceptedGradientMeanMmHg": null,
+        "acceptedValveStateMean": null,
+        "acceptedAreaRatioMean": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "energy-coasting-legacy-atria",
+      "pointId": "pulmonary-afterload-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": true,
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "ok",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "metrics": {
+        "AoPMean": 74.70803,
+        "PAPMean": 19.143854,
+        "CO_L": 4.548271,
+        "CO_R": 4.530952,
+        "LAPMean": 8.742736,
+        "RAPMean": 4.872615
+      },
+      "tvf": {
+        "peakCount": 2,
+        "extraPeakTheta": null,
+        "extraPeakValue": null,
+        "acceptedDiodeHitFraction": null,
+        "acceptedQDotHitFraction": null,
+        "acceptedComplementarityLeakFraction": null,
+        "acceptedGradientMeanMmHg": null,
+        "acceptedValveStateMean": null,
+        "acceptedAreaRatioMean": null
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "energy-coasting-legacy-atria",
+      "pointId": "contractility-low-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "failed",
+        "mvf": "ok",
+        "tvf": "failed",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "RA PV loop",
+        "TVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "metrics": {
+        "AoPMean": 51.384066,
+        "PAPMean": 18.756555,
+        "CO_L": 2.708168,
+        "CO_R": 2.684556,
+        "LAPMean": 14.205545,
+        "RAPMean": 8.149237
+      },
+      "tvf": {
+        "peakCount": 3,
+        "extraPeakTheta": 0.7475,
+        "extraPeakValue": 39.933158,
+        "acceptedDiodeHitFraction": 0,
+        "acceptedQDotHitFraction": 0,
+        "acceptedComplementarityLeakFraction": 0,
+        "acceptedGradientMeanMmHg": 0.334244,
+        "acceptedValveStateMean": 0.664936,
+        "acceptedAreaRatioMean": 0.664936
+      },
+      "errorMessage": null
+    },
+    {
+      "variantId": "energy-coasting-legacy-atria",
+      "pointId": "contractility-high-hr75",
+      "settled": true,
+      "settleReason": "converged",
+      "healthStatus": "ok",
+      "grossMorphologyOk": false,
+      "badges": {
+        "lvPv": "ok",
+        "rvPv": "ok",
+        "laPv": "ok",
+        "raPv": "ok",
+        "mvf": "failed",
+        "tvf": "ok",
+        "lapWaveform": "failed",
+        "rapWaveform": "failed"
+      },
+      "failedLabels": [
+        "MVF",
+        "LA pressure timing",
+        "RA pressure timing"
+      ],
+      "metrics": {
+        "AoPMean": 91.689126,
+        "PAPMean": 17.605021,
+        "CO_L": 5.743347,
+        "CO_R": 5.7033,
+        "LAPMean": 7.942855,
+        "RAPMean": 2.810619
+      },
+      "tvf": {
+        "peakCount": 2,
+        "extraPeakTheta": null,
+        "extraPeakValue": null,
+        "acceptedDiodeHitFraction": null,
+        "acceptedQDotHitFraction": null,
+        "acceptedComplementarityLeakFraction": null,
+        "acceptedGradientMeanMmHg": null,
+        "acceptedValveStateMean": null,
+        "acceptedAreaRatioMean": null
+      },
+      "errorMessage": null
+    }
+  ],
+  "variantSummaries": [
+    {
+      "variantId": "pressure-flow-user0-inlet-held-release",
+      "measuredCount": 8,
+      "settledOkCount": 8,
+      "grossPassCount": 7,
+      "lvPvOkCount": 8,
+      "rvPvOkCount": 8,
+      "mvfOkCount": 8,
+      "tvfOkCount": 7,
+      "tvfExtraWaveCount": 1,
+      "outputPreservedCount": 7,
+      "failedPoints": [
+        "contractility-low-hr75:TVF|LA pressure timing|RA pressure timing"
+      ]
+    },
+    {
+      "variantId": "energy-coasting-user0-inlet-held-release",
+      "measuredCount": 8,
+      "settledOkCount": 8,
+      "grossPassCount": 7,
+      "lvPvOkCount": 8,
+      "rvPvOkCount": 8,
+      "mvfOkCount": 8,
+      "tvfOkCount": 7,
+      "tvfExtraWaveCount": 1,
+      "outputPreservedCount": 7,
+      "failedPoints": [
+        "contractility-low-hr75:TVF|LA pressure timing|RA pressure timing"
+      ]
+    },
+    {
+      "variantId": "energy-coasting-legacy-atria",
+      "measuredCount": 8,
+      "settledOkCount": 8,
+      "grossPassCount": 5,
+      "lvPvOkCount": 8,
+      "rvPvOkCount": 8,
+      "mvfOkCount": 7,
+      "tvfOkCount": 6,
+      "tvfExtraWaveCount": 2,
+      "outputPreservedCount": 7,
+      "failedPoints": [
+        "high-preload-hr75:TVF|LA pressure timing|RA pressure timing",
+        "contractility-low-hr75:RA PV loop|TVF|LA pressure timing|RA pressure timing",
+        "contractility-high-hr75:MVF|LA pressure timing|RA pressure timing"
+      ]
+    }
+  ],
+  "interpretation": {
+    "decision": "energy-coasting-does-not-improve-frontier",
+    "notes": [
+      "Baseline user0 pressure-flow gross=7/8, TVF=7/8.",
+      "Energy-coasting user0 gross=7/8, TVF=7/8.",
+      "Energy-coasting failed points: contractility-low-hr75:TVF|LA pressure timing|RA pressure timing."
+    ]
+  },
+  "recommendedNext": [
+    "Do not adopt the energy-coasting cap as a runtime/default fix.",
+    "Next right-AV work should inspect whether the remaining TVF artifact is physiological L-wave-like filling versus checker/profile issue, using owner visual review only if the deterministic gate and trace disagree."
+  ],
+  "claimBoundary": {
+    "noRuntimeDefaultAdoption": true,
+    "noOfficialMorphologyAcceptance": true,
+    "noLandAtrialParameterTuningUnlock": true,
+    "noValveQdotRootZcTrefSourceStressTuning": true,
+    "noClinicalScientificValidation": true
+  },
+  "normalizedSha256": "67f4c16755ecde4c30357defb05f895bec793667e4f84a47a4bb654f5440d928"
+}

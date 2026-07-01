@@ -1116,6 +1116,22 @@ advances the current lane. They are evidence anchors, not current gates.
    as right AV pressure-flow coasting/energy consistency, not AV-plane state
    persistence, LandAtrial parameter tuning, valve-threshold tuning, qDot, or
    root/Zc work.
+   Phase 5DD records
+   `right-av-energy-coasting-phase5dd-result-v1`, adding an off-by-default
+   accepted-state valve-pressure-flow `energy-coasting` cap that refuses
+   same-step forward-flow acceleration when the current pressure gradient does
+   not exceed the current-flow R/B loss. It does not improve the frontier:
+   baseline user0 pressure-flow plus inlet-held AV-plane release remains
+   gross 7/8 (LV/RV PV 8/8, MVF 8/8, TVF 7/8), and energy-coasting user0 is
+   identical at gross 7/8. The remaining failed point is still
+   `contractility-low-hr75` with TVF plus LA/RA pressure timing failure; the
+   extra TVF wave remains at `theta≈0.7775` with zero accepted diode hits,
+   zero qDot clamp hits, zero complementarity leak, and positive accepted
+   pressure gradient/area readbacks. Therefore the residual is not solved by a
+   scalar pressure-loss coasting cap. Treat the next surface as right AV valve
+   openness/state decay or a broader AV valve boundary contract, not as
+   energy-loss retuning, LandAtrial parameter tuning, valve-threshold tuning,
+   qDot, root/Zc, Tref, or source-stress work.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, bounded pressure-gain capping,
