@@ -293,6 +293,14 @@ Next gates:
     not a single point artifact, but it still unlocks only assembled-system
     review. Four-chamber, AV-plane, LandAtrial, runtime wiring, and morphology
     acceptance remain blocked.
+28. Gate C assembled-system review: the center and best-neighborhood Gate C
+    scaffolds both pass detailed review. Both keep 7/7 clean Gate C points,
+    no transfer-limiter reliance, bounded reservoir transfer/volume/pressure
+    adjustments, and only the clean low-contractility low-output phenotype on
+    both sides at `contractility-low`. This supports drafting and implementing
+    an explicit four-chamber assembly contract next. It still does not unlock
+    four-chamber implementation by accident, AV-plane, LandAtrial, runtime
+    wiring, or morphology acceptance.
 
 Parallel prep, not blocking the next strategic gate:
 

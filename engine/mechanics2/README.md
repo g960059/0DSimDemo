@@ -49,6 +49,8 @@ Current scope:
   the RV volume-reserve scaffold candidate.
 - `benches/GateCScaffoldRobustnessBench.ts`: local Gate C neighborhood scan
   around the volume-reserve reservoir scaffold.
+- `benches/GateCAssembledSystemReviewBench.ts`: detailed review of the center
+  and best-neighborhood Gate C scaffolds before four-chamber contract design.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
@@ -70,6 +72,7 @@ Planning docs:
 - [Right-heart volume-reserve contract V1](../../docs/mechanics2/right-heart-volume-reserve-contract-v1.md)
 - [Volume-reserve reservoir Gate C scan V1](../../docs/mechanics2/volume-reserve-reservoir-gate-c-scan-v1.md)
 - [Gate C scaffold robustness V1](../../docs/mechanics2/gate-c-scaffold-robustness-v1.md)
+- [Gate C assembled-system review V1](../../docs/mechanics2/gate-c-assembled-system-review-v1.md)
 - [ADR-MYO-003](../../docs/myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 
 Claim boundary:

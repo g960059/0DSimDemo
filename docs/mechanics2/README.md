@@ -24,6 +24,7 @@ Canonical references:
 - [Right-heart volume-reserve contract V1](right-heart-volume-reserve-contract-v1.md)
 - [Volume-reserve reservoir Gate C scan V1](volume-reserve-reservoir-gate-c-scan-v1.md)
 - [Gate C scaffold robustness V1](gate-c-scaffold-robustness-v1.md)
+- [Gate C assembled-system review V1](gate-c-assembled-system-review-v1.md)
 - [ADR-MYO-003](../myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 - [Engine sidecar README](../../engine/mechanics2/README.md)
 
