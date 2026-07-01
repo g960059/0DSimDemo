@@ -1219,6 +1219,22 @@ advances the current lane. They are evidence anchors, not current gates.
    forward-momentum projection while it worsens TVF smoothness relative to the
    baseline; the next AV boundary work must avoid creating C1-discontinuous
    inflow waves, not merely remove the third peak.
+   Phase 5DL records `morphology-check-v11-phase5dl-result-v1`, closing the
+   checker-hygiene caveats before the next model surface. The PV dome rebound
+   and curvature guard now evaluates only the post-primary-peak ejection core
+   and treats sparse dome cores as unevaluable failures rather than silent
+   passes. The AV inflow kink guard now takes circular wave segments, so A waves
+   crossing the beat boundary are checked instead of clipped. Rechecking the
+   Phase 5DI bundle under this V1.1 hygiene preserves the owner visual
+   rejection and is stricter than the earlier 5DK counts: baseline is gross
+   0/8 with LV PV 1/8, RV PV 3/8, MVF 6/8, TVF 4/8; the TV forward-momentum
+   projection is gross 0/8 with LV PV 1/8, RV PV 2/8, MVF 6/8, TVF 2/8.
+   Treat the pressure-flow/inlet-held frontier and forward-momentum projection
+   as rejected morphology candidates under the standing raw-trace checker.
+   Forward momentum remains a subsystem lead only; the next model work should
+   be a stateful AV valve pressure-flow/area/momentum contract, not more
+   projection, deadband, qDot, root/Zc, Tref, source-stress, or LandAtrial
+   tuning.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, bounded pressure-gain capping,
