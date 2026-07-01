@@ -14,6 +14,14 @@ Current scope:
 - `benches/OneFiberChamberPrescribedVolumeBench.ts`: provisional chamber
   pressure mapping bench.
 - `audits/ExistingValveAuditV1.ts`: current valve parameter and semantics audit.
+- `valve/FlowStateValveV1.ts`: stateful pressure-flow/loss/inertance valve
+  sidecar component.
+- `benches/FlowStateValvePrescribedGradientBench.ts`: prescribed-gradient
+  MV/TV E/A-like flow smoke.
+- `subsystems/LeftHeartSubsystemV1.ts`: minimal LA/LV/root sidecar smoke with
+  LA compliance and FlowStateValve boundaries.
+- `benches/LeftHeartSubsystemStrategicSmoke.ts`: representative left-heart
+  strategic smoke gate.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
@@ -24,6 +32,7 @@ Planning docs:
 - [MechanicsCore2 / CircAdapt-lite execution plan v3](../../docs/mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md)
 - [Sharpness metrics V1](../../docs/mechanics2/sharpness-metrics-v1.md)
 - [Existing valve audit V1](../../docs/mechanics2/valve-audit-v1.md)
+- [FlowStateValve and LeftHeart smoke V1](../../docs/mechanics2/flow-state-valve-left-heart-v1.md)
 - [ADR-MYO-003](../../docs/myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 
 Claim boundary:

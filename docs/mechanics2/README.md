@@ -8,6 +8,7 @@ Canonical references:
 - [MechanicsCore2 / CircAdapt-lite execution plan v3](MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md)
 - [Sharpness metrics V1](sharpness-metrics-v1.md)
 - [Existing valve audit V1](valve-audit-v1.md)
+- [FlowStateValve and LeftHeart smoke V1](flow-state-valve-left-heart-v1.md)
 - [ADR-MYO-003](../myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 - [Engine sidecar README](../../engine/mechanics2/README.md)
 
