@@ -230,6 +230,8 @@ export type ModelCoreExperimentalVentricularChamberTransactionStepOptions = {
     | "accepted-state-av-boundary-fixedpoint"
     | "accepted-state-valve-pressure-flow"
     | "accepted-state-valve-pressure-flow-energy-coasting"
+    | "accepted-state-valve-pressure-flow-tv-deadband"
+    | "accepted-state-valve-pressure-flow-tv-deadband-close"
     | "accepted-state-av-boundary-pair-fixedpoint"
     | "source-state-residual-contract"
     | "tv-state-coupled-mv-pressure-refit"
@@ -239,6 +241,7 @@ export type ModelCoreExperimentalVentricularChamberTransactionStepOptions = {
   readonly avValveBoundaryPressureRefitIterations?: number;
   readonly avValveBoundaryPressureRefitRelaxation?: number;
   readonly avValveBoundaryAdverseGradientForwardScale?: number;
+  readonly avValveBoundaryPressureDeadbandMmHg?: number;
 };
 
 // Diagnostic-only Phase 5CC hook. This surface measured as not-supported and
@@ -801,6 +804,8 @@ function normalizeExperimentalVentricularChamberTransactionStep(
     || avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
     || avValveBoundaryMode === "accepted-state-valve-pressure-flow"
     || avValveBoundaryMode === "accepted-state-valve-pressure-flow-energy-coasting"
+    || avValveBoundaryMode === "accepted-state-valve-pressure-flow-tv-deadband"
+    || avValveBoundaryMode === "accepted-state-valve-pressure-flow-tv-deadband-close"
     || avValveBoundaryMode === "accepted-state-av-boundary-pair-fixedpoint"
     || avValveBoundaryMode === "source-state-residual-contract";
   const avValveBoundaryPressureRefitIterations =
@@ -808,6 +813,8 @@ function normalizeExperimentalVentricularChamberTransactionStep(
       || avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
       || avValveBoundaryMode === "accepted-state-valve-pressure-flow"
       || avValveBoundaryMode === "accepted-state-valve-pressure-flow-energy-coasting"
+      || avValveBoundaryMode === "accepted-state-valve-pressure-flow-tv-deadband"
+      || avValveBoundaryMode === "accepted-state-valve-pressure-flow-tv-deadband-close"
       || avValveBoundaryMode === "accepted-state-av-boundary-pair-fixedpoint"
       || avValveBoundaryMode === "source-state-residual-contract"
       ? Math.max(1, Math.floor(clamp(options.avValveBoundaryPressureRefitIterations ?? 3, 1, 8)))
@@ -836,6 +843,7 @@ function normalizeExperimentalVentricularChamberTransactionStep(
     avValveBoundaryPressureRefitIterations,
     avValveBoundaryPressureRefitRelaxation,
     avValveBoundaryAdverseGradientForwardScale,
+    avValveBoundaryPressureDeadbandMmHg: clamp(options.avValveBoundaryPressureDeadbandMmHg ?? 0, 0, 2),
   };
 }
 
@@ -1589,6 +1597,8 @@ export class ModelCore {
         || options.avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
         || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow"
         || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-energy-coasting"
+        || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-tv-deadband"
+        || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-tv-deadband-close"
       )
       && (options.avValveBoundaryTargetValves ?? ["MV", "TV"]).includes(inlet)
     ) {
@@ -1674,6 +1684,8 @@ export class ModelCore {
         && options.avValveBoundaryMode !== "accepted-state-av-boundary-fixedpoint"
         && options.avValveBoundaryMode !== "accepted-state-valve-pressure-flow"
         && options.avValveBoundaryMode !== "accepted-state-valve-pressure-flow-energy-coasting"
+        && options.avValveBoundaryMode !== "accepted-state-valve-pressure-flow-tv-deadband"
+        && options.avValveBoundaryMode !== "accepted-state-valve-pressure-flow-tv-deadband-close"
         && options.avValveBoundaryMode !== "accepted-state-av-boundary-pair-fixedpoint"
         && options.avValveBoundaryMode !== "source-state-residual-contract"
         && !(options.avValveBoundaryMode === "tv-state-coupled-mv-pressure-refit" && valveName === "TV")
@@ -1693,6 +1705,8 @@ export class ModelCore {
     x: Float64Array,
     pack: PressurePack,
     dt: number,
+    pressureDeadbandOverrideMmHg?: number,
+    closeWithinPressureDeadband = false,
   ): number {
     const e = this.edges[this.edgeIndex(valveName)];
     const xiIndex = this.idx.xi[valveName];
@@ -1701,10 +1715,10 @@ export class ModelCore {
     const kOpen = (this.p as any)[`${valveName}_kOpen`] ?? e.kOpen ?? 2.0;
     const tauOpen = (this.p as any)[`${valveName}_tauOpen`] ?? e.tauOpen ?? 0.012;
     const tauClose = (this.p as any)[`${valveName}_tauClose`] ?? e.tauClose ?? 0.025;
-    const deadband = valveName === "MV" ? MV_PRESSURE_DEADBAND_MMHG : 0;
+    const deadband = pressureDeadbandOverrideMmHg ?? (valveName === "MV" ? MV_PRESSURE_DEADBAND_MMHG : 0);
     const xiEq = dP > deadband
       ? sigmoid(kOpen * (dP - deadband - (e.dP0 ?? 0)))
-      : dP < -deadband
+      : dP < -deadband || closeWithinPressureDeadband
         ? 0
         : xi;
     const q = x[this.idx.q[valveName]];
@@ -1874,6 +1888,8 @@ export class ModelCore {
       options.avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
       || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow"
       || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-energy-coasting"
+      || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-tv-deadband"
+      || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-tv-deadband-close"
     )
       ? Math.max(1, Math.floor(options.avValveBoundaryPressureRefitIterations ?? 3))
       : 1;
@@ -1881,12 +1897,16 @@ export class ModelCore {
       options.avValveBoundaryMode === "accepted-state-av-boundary-fixedpoint"
       || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow"
       || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-energy-coasting"
+      || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-tv-deadband"
+      || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-tv-deadband-close"
     )
       ? clamp(options.avValveBoundaryPressureRefitRelaxation ?? 1, 0.05, 1)
       : 1;
     const useProjectedValveState =
       options.avValveBoundaryMode === "accepted-state-valve-pressure-flow"
-      || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-energy-coasting";
+      || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-energy-coasting"
+      || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-tv-deadband"
+      || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-tv-deadband-close";
     let qCandidate = inletQGuess;
     let acceptedDiagnostics = this.valveFlowStepDiagnostics[inlet];
     for (let iteration = 0; iteration < iterations; iteration++) {
@@ -1916,7 +1936,23 @@ export class ModelCore {
       let projectedPack = this.computePressures(projected);
       let acceptedValveState01 = clamp(projected[this.idx.xi[inlet]], 0, 1);
       if (useProjectedValveState) {
-        acceptedValveState01 = this.transactionValveOpenNext(inlet, projected, projectedPack, dt);
+        const pressureDeadbandOverrideMmHg =
+          (
+            options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-tv-deadband"
+            || options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-tv-deadband-close"
+          ) && inlet === "TV"
+            ? options.avValveBoundaryPressureDeadbandMmHg
+            : undefined;
+        const closeWithinPressureDeadband =
+          options.avValveBoundaryMode === "accepted-state-valve-pressure-flow-tv-deadband-close" && inlet === "TV";
+        acceptedValveState01 = this.transactionValveOpenNext(
+          inlet,
+          projected,
+          projectedPack,
+          dt,
+          pressureDeadbandOverrideMmHg,
+          closeWithinPressureDeadband,
+        );
         projected[this.idx.xi[inlet]] = acceptedValveState01;
         projectedPack = this.computePressures(projected);
       }
