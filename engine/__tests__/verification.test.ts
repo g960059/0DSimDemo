@@ -252,6 +252,26 @@ describe("fitting/verification mode foundation", () => {
     expect(lap?.metrics.activePeakTheta).toBeLessThan(0.6);
   });
 
+  it("detects excessive LA-to-LV upstroke delay even when the LA active phase is late-diastolic", () => {
+    const report = runVerification(DEFAULT_PARAMS, {
+      profile: "verifyAccurate",
+      gateSet: "normalBaseline",
+      now: new Date("2026-06-05T00:00:00.000Z"),
+    });
+    expect(report.measurement).not.toBeNull();
+    const delayedUpstrokeSamples = report.measurement!.samples.map((sample) => {
+      const theta = sample.phi - Math.floor(sample.phi);
+      const delayedStep = theta >= 0.35 && theta < 0.37 ? 500 * (theta - 0.35) / 0.02 : 0;
+      return { ...sample, LVP: sample.LVP + delayedStep };
+    });
+
+    const morphology = morphologyCheckSummaryFromSamples(delayedUpstrokeSamples);
+    const leftDelay = morphology.results.find((result) => result.id === "left-av-delay");
+    expect(leftDelay?.status).toBe("failed");
+    expect(leftDelay?.metrics.activeToVentricularUpstrokeLeadMs).toBeGreaterThan(240);
+    expect(morphology.badges.lapWaveform).toBe("failed");
+  });
+
   it("detects the old underdamped left-filling configuration", () => {
     const report = runVerification({
       ...DEFAULT_PARAMS,

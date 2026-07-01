@@ -1068,10 +1068,16 @@ advances the current lane. They are evidence anchors, not current gates.
    (MVF 8/8, TVF 4/8) to gross 7/8 (MVF 8/8, TVF 7/8). The remaining gross
    failure is the `contractility-low-hr75` TVF residual, still
    accepted-boundary diode/qDot-classified. This is component evidence only:
-   LA/RAP pressure timing still fails all 8/8 user0 points, and the checker has
-   only a phase-window atrial-kick timing rule, not a direct LA/RA active peak
-   to LV/RV pressure-upstroke delay gate. Add that direct timing gate before
-   claiming atrial physiology or reopening LandAtrial calibration.
+   LAP/RAP pressure timing still fails all 8/8 user0 points.
+   Phase 5CZ adds the direct normal-sinus AV timing guard requested by owner
+   visual review: `left-av-delay` and `right-av-delay` compare LA/RA active
+   peak timing against the LV/RV pressure upstroke and are folded into the
+   LAP/RAP badges. The direct delay gate is not the current blocker
+   (`current user0 7/7 measured`, 1 unsettled point; `valve-pressure-flow
+   user0 8/8`), but pressure-waveform timing remains blocked (`0/7` and
+   `0/8`). Therefore old screenshots showing excessive LA-to-LV separation
+   would now be caught directly, but current atrial pressure morphology is
+   still not accepted and LandAtrial calibration stays locked.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, bounded pressure-gain capping,
