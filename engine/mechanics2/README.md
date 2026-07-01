@@ -22,6 +22,12 @@ Current scope:
   LA compliance and FlowStateValve boundaries.
 - `benches/LeftHeartSubsystemStrategicSmoke.ts`: representative left-heart
   strategic smoke gate.
+- `core/MechanicsTransactionV2.ts`: generic same-step transaction helper for
+  accepted-state sidecar experiments.
+- `subsystems/LeftHeartSubsystemV2.ts`: left-heart transaction scaffold with
+  explicit/fixed-point modes and hard-clamp vs soft-pressure safety surfaces.
+- `benches/LeftHeartArchitectureComparisonBench.ts`: V1/V2 left-heart
+  architecture comparison artifact for Gate B attribution.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
@@ -33,6 +39,7 @@ Planning docs:
 - [Sharpness metrics V1](../../docs/mechanics2/sharpness-metrics-v1.md)
 - [Existing valve audit V1](../../docs/mechanics2/valve-audit-v1.md)
 - [FlowStateValve and LeftHeart smoke V1](../../docs/mechanics2/flow-state-valve-left-heart-v1.md)
+- [Left-heart architecture V2](../../docs/mechanics2/left-heart-architecture-v2.md)
 - [ADR-MYO-003](../../docs/myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 
 Claim boundary:

@@ -3,7 +3,9 @@
   "gateId": "oneFiberChamberPrescribedVolumeGateV1",
   "upstreamReplayGate": {
     "requiredGateId": "hillSeriesFiberReplayGateV1",
-    "mayProceedRequired": true
+    "mayProceedRequired": true,
+    "observedStatus": "go",
+    "mayProceedObserved": true
   },
   "fixtureResults": [
     {
@@ -19,6 +21,7 @@
       "maxSeriesPressureMmHg": 2.869121,
       "maxWallTensionNPerM": 458.626926,
       "maxSeriesEnergyProxy": 0.002368,
+      "maxAbsDPDVmmHgPerMl": 1540.029974,
       "pressureShape": {
         "sampleCount": 192,
         "min": 0.055804743403189326,
@@ -65,6 +68,7 @@
       "maxSeriesPressureMmHg": 1.186702,
       "maxWallTensionNPerM": 183.711428,
       "maxSeriesEnergyProxy": 0.001402,
+      "maxAbsDPDVmmHgPerMl": 390.192762,
       "pressureShape": {
         "sampleCount": 192,
         "min": 0.01525751310483015,
@@ -111,6 +115,7 @@
       "maxSeriesPressureMmHg": 2.870112,
       "maxWallTensionNPerM": 455.889733,
       "maxSeriesEnergyProxy": 0.002369,
+      "maxAbsDPDVmmHgPerMl": 149.030009,
       "pressureShape": {
         "sampleCount": 192,
         "min": 0.055804743403189326,
@@ -157,6 +162,7 @@
       "maxSeriesPressureMmHg": 1.187074,
       "maxWallTensionNPerM": 183.271231,
       "maxSeriesEnergyProxy": 0.001402,
+      "maxAbsDPDVmmHgPerMl": 41.484145,
       "pressureShape": {
         "sampleCount": 192,
         "min": 0.01525751310483015,
@@ -210,5 +216,5 @@
     "circAdaptEquivalence": false,
     "patientScalePressureCalibration": false
   },
-  "normalizedSha256": "fc694c7d198d1dabc3bde0f5c4dd9b7ec374660a9ff2eb19104decac3d8a11d1"
+  "normalizedSha256": "0876b838a6271f52a8a9ba3193b58a5d4922c78e5782af575badcf60df51fff4"
 }

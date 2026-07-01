@@ -32,7 +32,12 @@ describe("MechanicsCore2 OneFiberChamber prescribed-volume bench", () => {
       fail: 0,
       inconclusive: 0,
     });
+    expect(report.upstreamReplayGate).toMatchObject({
+      observedStatus: "go",
+      mayProceedObserved: true,
+    });
     expect(report.decision.mayProceedToLeftHeartStrategicGate).toBe(true);
+    expect(report.decision.mayProceedToValveBench).toBe(true);
     expect(report.claimBoundary.runtimeWiring).toBe(false);
     expect(report.claimBoundary.closedLoopMorphologyAcceptance).toBe(false);
 
@@ -46,7 +51,16 @@ describe("MechanicsCore2 OneFiberChamber prescribed-volume bench", () => {
       expect(result.status).toBe("pass");
       expect(result.pressureShape.dominantPeakCount).toBe(1);
       expect(result.pressureShape.c1ContinuityScore).toBeLessThan(0.24);
+      expect(result.maxAbsDPDVmmHgPerMl).toBeGreaterThan(0);
     }
+  });
+
+  it("fails closed when prescribed-volume fixture IDs are duplicated", () => {
+    const fixtures = buildPrescribedVolumeFixturesV1();
+    const report = runOneFiberChamberPrescribedVolumeBenchV1([...fixtures, fixtures[0]!]);
+    expect(report.decision.mayProceedToLeftHeartStrategicGate).toBe(false);
+    expect(report.decision.mayProceedToValveBench).toBe(false);
+    expect(report.decision.reason).toContain("Duplicate prescribed-volume fixtures");
   });
 
   it("keeps the committed result artifact aligned with the rerun summary", () => {

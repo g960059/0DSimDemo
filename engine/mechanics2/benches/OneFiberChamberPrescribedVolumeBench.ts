@@ -14,6 +14,7 @@ import {
   computeShapeQualityMetricsV1,
   type ShapeQualityMetricsV1,
 } from "@/engine/mechanics2/metrics/ShapeQualityMetricsV1";
+import { runHillSeriesFiberReplayBenchV1 } from "@/engine/mechanics2/benches/HillSeriesFiberReplayBench";
 
 export const ONE_FIBER_CHAMBER_PRESCRIBED_VOLUME_REPORT_ID_V1 =
   "one-fiber-chamber-prescribed-volume-report-v1" as const;
@@ -31,6 +32,7 @@ export type OneFiberChamberFixtureResultV1 = {
   readonly maxSeriesPressureMmHg: number | null;
   readonly maxWallTensionNPerM: number | null;
   readonly maxSeriesEnergyProxy: number | null;
+  readonly maxAbsDPDVmmHgPerMl: number | null;
   readonly pressureShape: ShapeQualityMetricsV1;
   readonly lSShape: ShapeQualityMetricsV1;
   readonly allFinite: boolean;
@@ -43,6 +45,8 @@ export type OneFiberChamberPrescribedVolumeReportV1 = {
   readonly upstreamReplayGate: {
     readonly requiredGateId: "hillSeriesFiberReplayGateV1";
     readonly mayProceedRequired: true;
+    readonly observedStatus: ReturnType<typeof runHillSeriesFiberReplayBenchV1>["overallStatus"];
+    readonly mayProceedObserved: boolean;
   };
   readonly fixtureResults: readonly OneFiberChamberFixtureResultV1[];
   readonly summary: {
@@ -69,12 +73,15 @@ export type OneFiberChamberPrescribedVolumeReportV1 = {
 export function runOneFiberChamberPrescribedVolumeBenchV1(
   fixtures: readonly PrescribedVolumeFixtureV1[] = buildPrescribedVolumeFixturesV1(),
 ): OneFiberChamberPrescribedVolumeReportV1 {
+  const upstreamReplayGate = runHillSeriesFiberReplayBenchV1();
   const requiredIds = new Set(REQUIRED_ONE_FIBER_CHAMBER_FIXTURE_IDS_V1);
-  const fixtureIds = new Set(fixtures.map((fixture) => fixture.fixtureId));
+  const fixtureIdList = fixtures.map((fixture) => fixture.fixtureId);
+  const fixtureIds = new Set(fixtureIdList);
+  const duplicateIds = [...fixtureIds].filter((id) => fixtureIdList.filter((fixtureId) => fixtureId === id).length > 1);
   const missing = [...requiredIds].filter((id) => !fixtureIds.has(id));
   const fixtureResults = fixtures.map(evaluateFixture);
   const pass = fixtureResults.filter((result) => result.status === "pass").length;
-  const fail = fixtureResults.filter((result) => result.status === "fail").length + missing.length;
+  const fail = fixtureResults.filter((result) => result.status === "fail").length + missing.length + duplicateIds.length;
   const inconclusive = fixtureResults.filter((result) => result.status === "inconclusive").length;
   const total = fixtureResults.length + missing.length;
   const normalFixtures = fixtureResults.filter((result) => !result.fixtureId.includes("wiggle"));
@@ -86,7 +93,9 @@ export function runOneFiberChamberPrescribedVolumeBenchV1(
     && result.pressureShape.c1ContinuityScore <= 0.28
   ).length;
   const mayProceedToLeftHeartStrategicGate =
-    missing.length === 0
+    upstreamReplayGate.decision.mayProceedToOneFiberChamber
+    && missing.length === 0
+    && duplicateIds.length === 0
     && inconclusive === 0
     && cleanNormalFixtureCount === normalFixtures.length
     && smoothedRejectedFixtureCount === rejectedFixtures.length;
@@ -96,6 +105,8 @@ export function runOneFiberChamberPrescribedVolumeBenchV1(
     upstreamReplayGate: {
       requiredGateId: "hillSeriesFiberReplayGateV1",
       mayProceedRequired: true,
+      observedStatus: upstreamReplayGate.overallStatus,
+      mayProceedObserved: upstreamReplayGate.decision.mayProceedToOneFiberChamber,
     },
     fixtureResults,
     summary: {
@@ -108,8 +119,12 @@ export function runOneFiberChamberPrescribedVolumeBenchV1(
     },
     decision: {
       mayProceedToLeftHeartStrategicGate,
-      mayProceedToValveBench: true,
-      reason: mayProceedToLeftHeartStrategicGate
+      mayProceedToValveBench: mayProceedToLeftHeartStrategicGate,
+      reason: !upstreamReplayGate.decision.mayProceedToOneFiberChamber
+        ? "Upstream HillSeriesFiber replay gate did not permit chamber progression."
+        : duplicateIds.length > 0
+          ? `Duplicate prescribed-volume fixtures: ${duplicateIds.join(", ")}`
+          : mayProceedToLeftHeartStrategicGate
         ? "Prescribed-volume one-fiber chamber pressure mapping stayed finite, broad, and single-dome on the initial normal and wiggle fixtures."
         : "Prescribed-volume one-fiber chamber pressure mapping did not pass the initial sidecar fixture set.",
     },
@@ -127,6 +142,7 @@ function evaluateFixture(fixture: PrescribedVolumeFixtureV1): OneFiberChamberFix
   if (fixtureErrors.length > 0) return emptyResult(fixture, "inconclusive", fixtureErrors);
   const outputs = replayFixture(fixture);
   const pressure = outputs.map((output) => output.pressureRawMmHg);
+  const volume = outputs.map((output) => output.cavityVolumeMl);
   const lS = outputs.map((output) => output.lS);
   const pressureShape = computeShapeQualityMetricsV1(pressure);
   const lSShape = computeShapeQualityMetricsV1(lS);
@@ -146,6 +162,7 @@ function evaluateFixture(fixture: PrescribedVolumeFixtureV1): OneFiberChamberFix
     maxSeriesPressureMmHg: finiteMaxOrNull(outputs.map((output) => output.seriesPressureMmHg)),
     maxWallTensionNPerM: finiteMaxOrNull(outputs.map((output) => output.wallTensionNPerM)),
     maxSeriesEnergyProxy: finiteMaxOrNull(outputs.map((output) => output.energyProxy)),
+    maxAbsDPDVmmHgPerMl: finiteMaxOrNull(absDerivative(pressure, volume)),
     pressureShape,
     lSShape,
     allFinite,
@@ -220,6 +237,7 @@ function emptyResult(
     maxSeriesPressureMmHg: null,
     maxWallTensionNPerM: null,
     maxSeriesEnergyProxy: null,
+    maxAbsDPDVmmHgPerMl: null,
     pressureShape: emptyShape,
     lSShape: emptyShape,
     allFinite: false,
@@ -240,6 +258,15 @@ function finiteMinOrNull(values: readonly number[]): number | null {
 function finiteRangeOrNull(values: readonly number[]): number | null {
   const finite = values.filter(Number.isFinite);
   return finite.length > 0 ? round(Math.max(...finite) - Math.min(...finite)) : null;
+}
+
+function absDerivative(y: readonly number[], x: readonly number[]): readonly number[] {
+  const out: number[] = [];
+  for (let i = 1; i < Math.min(y.length, x.length); i++) {
+    const dx = x[i]! - x[i - 1]!;
+    if (Math.abs(dx) > 1e-9) out.push(Math.abs((y[i]! - y[i - 1]!) / dx));
+  }
+  return out;
 }
 
 function round(value: number): number {

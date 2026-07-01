@@ -13,6 +13,9 @@ Scope: coordination only; evidence lives in PRs, artifacts, and git history.
   here. Store detailed counts in PR bodies and JSON artifacts.
 - New diagnostics are disposable by default. Promote only forward invariants to
   standing gates.
+- The earlier one-PR stop condition is removed by owner instruction. Continue
+  MechanicsCore2 architecture work through measured gates and evidence
+  boundaries; do not pause solely because one phase is mixed.
 - Strict raw morphology remains authoritative for user-visible model quality:
   LV/RV PV dome/rebound/curvature, MVF/TVF E/A and kink checks, LA/RA PV, and
   pressure timing. Owner visual rejection overrides any old gross-pass number
@@ -27,11 +30,14 @@ lane to a sidecar mechanics architecture inspired by CircAdapt-like
 chamber/valve/load ownership without copying CircAdapt source or claiming
 equivalence.
 
-Current sidecar state: `PR-M2-0+1`, `PR-M2-2+3`, `PR-M2-4+5`, and the
-left-heart fiber-timing attribution surface are implemented.
+Current sidecar state: `PR-M2-0+1`, `PR-M2-2+3`, `PR-M2-4+5`, the
+left-heart fiber-timing attribution surface, and the first left-heart V2
+transaction architecture comparison are implemented.
 
-Next PR target: left-heart attribution only. Do not start four-chamber work or
-LandAtrial re-entry until the mixed Gate B signal is explained or improved.
+Next PR target: left-heart attribution only, now focused on output-reserve
+classification and the high-contractility MVF kink. Do not start four-chamber
+work or LandAtrial re-entry until the mixed Gate B signal is explained or
+improved.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -48,6 +54,9 @@ Included:
 - FlowStateValve prescribed-gradient bench.
 - Minimal LeftHeartSubsystem strategic smoke with LA compliance, LV
   one-fiber chamber, FlowStateValve MV/AoV, and root load.
+- MechanicsTransactionV2 and LeftHeartSubsystemV2 sidecar architecture scaffold
+  with explicit/fixed-point accepted-state modes and hard-clamp/soft-pressure
+  safety surfaces.
 
 Excluded:
 
@@ -83,12 +92,19 @@ Next gates:
    to theta 0.86-0.98 improves LeftHeartSubsystemV1 to 3/7 pass and MVF OK 3/7,
    adding afterload-high to the passing set. This is still attribution-only
    evidence.
-8. Gate B LV fiber-timing signal: slowing LV activation fall and accepted
-   fiber-length following improves LeftHeartSubsystemV1 to 4/7 pass and MVF OK
-   5/7 while keeping LV PV 7/7. HR90 and low-preload now pass. Remaining
-   failures are afterload-high low stroke volume, contractility-low low-output
-   clamp/mass residual, and contractility-high MVF kink. This remains
-   attribution-only evidence, not broad investment or LandAtrial unlock.
+8. Gate B LV fiber-timing perturbation signal: the latest V1 timing surface
+   improves LeftHeartSubsystemV1 to 4/7 pass and MVF OK 5/7 while keeping LV PV
+   7/7. Treat the mechanism label as unresolved; do not call it proven slower
+   activation/following. HR90 and low-preload now pass. Remaining failures are
+   afterload-high low stroke volume, contractility-low low-output
+   clamp/mass residual, and contractility-high MVF kink.
+9. Gate B architecture signal: LeftHeartSubsystemV2 records same-step
+   accepted-state transaction readbacks. The fixed-point hard variant worsens
+   the envelope, but the fixed-point soft-pressure variant keeps LV PV 7/7,
+   improves MVF OK 5->6, and converts the contractility-low point from
+   low-output + MVF + mass + clamp failure into low-output only with bounded
+   soft safety pressure. This is architecture-scaffold evidence, not adoption,
+   broad investment, or LandAtrial unlock.
 
 Parallel prep, not blocking the next strategic gate:
 
