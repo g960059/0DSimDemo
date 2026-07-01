@@ -1,0 +1,13 @@
+# MechanicsCore2 Docs
+
+MechanicsCore2 is the current architecture lane for a CircAdapt-lite mechanics
+sidecar. These docs are coordination artifacts, not physiology acceptance.
+
+Canonical references:
+
+- [MechanicsCore2 / CircAdapt-lite execution plan v3](MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md)
+- [ADR-MYO-003](../myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
+- [Engine sidecar README](../../engine/mechanics2/README.md)
+
+Keep active status in [current-lanes](../status/current-lanes.md) compact. PRs
+and git history remain the source of detailed phase evidence.

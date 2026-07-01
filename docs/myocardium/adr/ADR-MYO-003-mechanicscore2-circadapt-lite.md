@@ -28,6 +28,9 @@ The initial replay fixture pack is procedural. It is used to lock schema,
 hidden-clamp metrics, and gate behavior before importing runtime-extracted or
 external qualitative traces.
 
+The detailed execution plan is tracked separately at
+[MechanicsCore2 / CircAdapt-lite execution plan v3](../../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
+
 ## Non-Goals
 
 - Runtime/default adoption.
