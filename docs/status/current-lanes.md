@@ -41,9 +41,10 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: time-domain four-chamber subsystem residual/numerics review.
-Do not start runtime wiring, AV-plane work, or LandAtrial re-entry from the
-subsystem smoke alone.
+Next PR target: fix the `preload-low` reservoir/numerics residual and dt-half
+surface-preservation failures found by the four-chamber subsystem residual
+review. Do not start runtime wiring, AV-plane work, or LandAtrial re-entry from
+the subsystem smoke alone.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -91,6 +92,8 @@ Included:
   large accepted transfer classification.
 - FourChamberSubsystemV1 and FourChamberSubsystemSmokeBench V1 for the first
   epoch-level sidecar four-chamber subsystem smoke.
+- FourChamberSubsystemResidualReviewBench V1 for nominal, `dt-half`, and
+  long-epoch residual/numerics review of the selected scaffold.
 
 Excluded:
 
@@ -323,6 +326,14 @@ Next gates:
     mismatch ~5.1 mL, max accepted transfer ~1.8 mL, and max reservoir volume
     ~19.5 mL. This unlocks only subsystem residual/numerics review; runtime,
     AV-plane, LandAtrial, and morphology acceptance remain blocked.
+32. Four-chamber subsystem residual review: nominal selected scaffold remains
+    7/7, but the review is mixed. `dt-half` is 4/7 with `preload-low`
+    left/right surface loss, `afterload-high` left surface loss, and
+    `contractility-low` right/phenotype-scope loss. `long-epochs` is 6/7 with
+    `preload-low` persistent reservoir shuttle (~28.5 mL max reservoir volume).
+    This blocks further expansion and points next to preload-low reservoir /
+    numerics ownership before runtime, AV-plane, LandAtrial, or morphology
+    acceptance.
 
 Parallel prep, not blocking the next strategic gate:
 

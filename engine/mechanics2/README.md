@@ -63,6 +63,9 @@ Current scope:
   subsystem state machine with pulmonary/systemic reservoir pressure feedback.
 - `benches/FourChamberSubsystemSmokeBench.ts`: smoke runner for the selected
   and center four-chamber subsystem scaffolds.
+- `benches/FourChamberSubsystemResidualReviewBench.ts`: residual/numerics
+  review for the selected four-chamber subsystem scaffold under nominal,
+  `dt-half`, and longer-epoch probes.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
@@ -88,6 +91,7 @@ Planning docs:
 - [Four-chamber assembly contract V1](../../docs/mechanics2/four-chamber-assembly-contract-v1.md)
 - [Four-chamber assembly smoke V1](../../docs/mechanics2/four-chamber-assembly-smoke-v1.md)
 - [Four-chamber subsystem smoke V1](../../docs/mechanics2/four-chamber-subsystem-smoke-v1.md)
+- [Four-chamber subsystem residual review V1](../../docs/mechanics2/four-chamber-subsystem-residual-review-v1.md)
 - [ADR-MYO-003](../../docs/myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 
 Claim boundary:
