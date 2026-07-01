@@ -27,12 +27,11 @@ lane to a sidecar mechanics architecture inspired by CircAdapt-like
 chamber/valve/load ownership without copying CircAdapt source or claiming
 equivalence.
 
-Current sidecar state: `PR-M2-0+1` and `PR-M2-2+3` evidence surfaces are
-implemented.
+Current sidecar state: `PR-M2-0+1`, `PR-M2-2+3`, and `PR-M2-4+5` evidence
+surfaces are implemented.
 
-Next PR target: `PR-M2-4+5`, gated. Run FlowStateValve prescribed-gradient
-bench first; proceed to left-heart strategic smoke only if valve state/loss
-semantics show a usable signal.
+Next PR target: left-heart attribution only. Do not start four-chamber work or
+LandAtrial re-entry until the mixed Gate B signal is explained or improved.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -46,6 +45,9 @@ Included:
 - Sharpness metrics V1 for sidecar broadness/kink QA.
 - Existing valve audit V1.
 - OneFiberChamber prescribed-volume pressure mapping bench.
+- FlowStateValve prescribed-gradient bench.
+- Minimal LeftHeartSubsystem strategic smoke with LA compliance, LV
+  one-fiber chamber, FlowStateValve MV/AoV, and root load.
 
 Excluded:
 
@@ -64,12 +66,17 @@ Next gates:
    procedural LV/RV normal and wiggle fixtures: 4/4 pass, LV peak ~127 mmHg,
    RV peak ~35 mmHg, single-dome pressure shape. This unlocks valve/left-heart
    strategic smoke, not runtime adoption.
-3. Gate B: left-heart subsystem strategic gate with owner visual review before
-   broad MechanicsCore2 investment.
+3. Gate B: FlowStateValve prescribed-gradient bench passed 4/4 and unlocked
+   left-heart strategic smoke.
+4. Gate B smoke: LeftHeartSubsystemV1 is mixed, not adoption evidence. Normal
+   HR75 passes, LV PV shape is 7/7 OK, but the broad 7-point envelope is only
+   1/7 pass with MVF/output failures. This is a good enough signal for targeted
+   left-heart attribution, not broad MechanicsCore2 investment.
 
 Parallel prep, not blocking the next strategic gate:
 
 - Numerics ownership for stepper, residuals, mass/energy, and dt convergence.
+- Official cases remain out of scope while sidecar model closure is unstable.
 
 ## Stopped Lane
 
