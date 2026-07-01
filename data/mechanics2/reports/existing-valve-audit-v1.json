@@ -1,0 +1,86 @@
+{
+  "reportId": "existing-valve-audit-v1",
+  "scope": "existing-runtime-valve-semantics-audit",
+  "valveParameters": [
+    {
+      "valveId": "MV",
+      "aRefCm2": 5,
+      "aMaxCm2": 5.5,
+      "aLeakCm2": 0,
+      "kOpen": 2,
+      "tauOpenSec": 0.024,
+      "tauCloseSec": 0.016,
+      "resistanceMmHgSecPerMl": 0.0027,
+      "inertanceMmHgSec2PerMl": 0.0005,
+      "bernoulliMmHgSec2PerMl2": 0.000008
+    },
+    {
+      "valveId": "AoV",
+      "aRefCm2": 3.5,
+      "aMaxCm2": 3.5,
+      "aLeakCm2": 0,
+      "kOpen": 3,
+      "tauOpenSec": 0.006,
+      "tauCloseSec": 0.008,
+      "resistanceMmHgSecPerMl": 0.0015,
+      "inertanceMmHgSec2PerMl": 0.00025,
+      "bernoulliMmHgSec2PerMl2": 0.000001
+    },
+    {
+      "valveId": "TV",
+      "aRefCm2": 8,
+      "aMaxCm2": 8,
+      "aLeakCm2": 0,
+      "kOpen": 2,
+      "tauOpenSec": 0.018,
+      "tauCloseSec": 0.01,
+      "resistanceMmHgSecPerMl": 0.0035,
+      "inertanceMmHgSec2PerMl": 0.0008,
+      "bernoulliMmHgSec2PerMl2": 0.00001
+    },
+    {
+      "valveId": "PV",
+      "aRefCm2": 4,
+      "aMaxCm2": 4,
+      "aLeakCm2": 0,
+      "kOpen": 2,
+      "tauOpenSec": 0.01,
+      "tauCloseSec": 0.006,
+      "resistanceMmHgSecPerMl": 0.005,
+      "inertanceMmHgSec2PerMl": 0.001,
+      "bernoulliMmHgSec2PerMl2": 0.000002
+    }
+  ],
+  "reusableSemantics": [
+    "all four valves already expose Aref/Amax/Aleak area parameters",
+    "all four valves already expose kOpen and tauOpen/tauClose state timing",
+    "all four valves already expose R/L/B pressure-flow loss and inertia parameters",
+    "ModelCore already records qDot and diode/clamp diagnostics for accepted-boundary experiments",
+    "DynamicValveTransitionV1 already implements source/hysteretic/prescribed opening and current/consistent loss modes"
+  ],
+  "semanticsToChangeBeforeMechanicsCore2Closure": [
+    "own valve q-state, area/opening state, chamber pressure, and chamber volume in the same MechanicsCore2 transaction",
+    "avoid post-hoc projection as a morphology repair path",
+    "report passivity/energy and C1 kink metrics from the accepted flow state",
+    "separate profile-allowed disease morphology from universal valve artifact guards"
+  ],
+  "requiredReadbacks": [
+    "acceptedFlowMlPerSec",
+    "acceptedOpen01",
+    "acceptedAeffCm2",
+    "acceptedPressureGradientMmHg",
+    "lossPressureMmHg",
+    "inertancePressureMmHg",
+    "bernoulliPressureMmHg",
+    "diodeImpulseMlPerSec",
+    "qDotClampImpulseMlPerSec2",
+    "c1KinkSeverity",
+    "energyOrPassivityResidual"
+  ],
+  "claimBoundary": {
+    "noRuntimeChange": true,
+    "noValveTuning": true,
+    "noMorphologyAcceptance": true
+  },
+  "normalizedSha256": "6652c2fb677575dac9a776ce613e6ac884b917bd612f19105008f5686fc10e93"
+}
