@@ -1103,6 +1103,19 @@ advances the current lane. They are evidence anchors, not current gates.
    local coasting/timing evidence, not a global state persistence/readback
    failure. This does not unlock LandAtrial tuning or atrial physiology
    acceptance.
+   Phase 5DC records
+   `post-hygiene-pressure-flow-envelope-phase5dc-result-v1`, rebuilding the
+   Phase 5CY full representative envelope and Phase 5DA targeted residual after
+   the Phase 5DB stateful AV-plane state fix. The user0 pressure-flow frontier
+   persists at gross 7/8 with MVF 8/8 and TVF 7/8, and the remaining failed
+   point remains `contractility-low-hr75` TVF. The targeted window keeps the
+   same qualitative interpretation: extra wave at `theta≈0.7775`, zero
+   accepted diode hits, zero qDot clamp hits, and zero complementarity leak.
+   RA AV-plane correction is now globally/statefully nonzero after 5DB, but
+   this does not rescue the local TVF extra-wave window. Treat the next surface
+   as right AV pressure-flow coasting/energy consistency, not AV-plane state
+   persistence, LandAtrial parameter tuning, valve-threshold tuning, qDot, or
+   root/Zc work.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, bounded pressure-gain capping,
