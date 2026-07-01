@@ -79,6 +79,11 @@ Next gates:
    pass and output OK 6/7. HR90, low-preload, low-contractility, and
    high-contractility MVF remain failed. This is still attribution-only
    evidence, not broad MechanicsCore2 investment.
+7. Gate B A-wave timing signal: parameterizing and delaying the LA A-wave window
+   to theta 0.86-0.98 improves LeftHeartSubsystemV1 to 3/7 pass and MVF OK 3/7,
+   adding afterload-high to the passing set. HR90, low-preload, and
+   contractility perturbations remain failed. This is still attribution-only
+   evidence.
 
 Parallel prep, not blocking the next strategic gate:
 
