@@ -231,6 +231,19 @@ Next gates:
     and points next to a stateful reservoir/mass-ledger contract with explicit
     reservoir volume state. Four-chamber, AV-plane, LandAtrial, runtime wiring,
     and morphology acceptance remain blocked.
+22. Reservoir-state contract: explicit pulmonary/systemic reservoir volume
+    state removes the scalar solver's large static-transfer signal but does not
+    pass Gate C. The best `stateful-high-compliance-cap6-gain018` surface is
+    no-go with pass 5/7, morphology preserved 6/7, flow-balanced 6/7,
+    pressure-bounded 7/7, ledger-clean 7/7, max accepted transfer ~4.1 mL, and
+    max reservoir volume ~33.5 mL. Remaining blockers are `preload-low`
+    non-repeatable reservoir state and `contractility-low` where reservoir
+    pressure feedback breaks the left surface and leaves forward-ejection
+    mismatch. A longer conservative run grows a persistent low-contractility
+    reservoir shuttle >60 mL, so this is not just slow convergence. Four-chamber,
+    AV-plane, LandAtrial, runtime wiring, and morphology acceptance remain
+    blocked. Next work should address Gate C low-contractility profile severity
+    / reservoir feedback ownership rather than adding four-chamber structure.
 
 Parallel prep, not blocking the next strategic gate:
 
