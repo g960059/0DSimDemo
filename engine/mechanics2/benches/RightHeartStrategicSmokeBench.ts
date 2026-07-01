@@ -173,11 +173,11 @@ export function buildRightHeartStrategicEnvelopeV1(): readonly RightHeartSubsyst
     }),
     defaultRightHeartSubsystemParamsV2({
       fixtureId: "right-heart-contractility-low",
-      rv: { fiber: { ...base.rv.fiber, trefPa: 42_000 } },
+      rv: { pressureScale: 0.52, fiber: { ...base.rv.fiber, trefPa: 42_000 } },
     }),
     defaultRightHeartSubsystemParamsV2({
       fixtureId: "right-heart-contractility-high",
-      rv: { pressureScale: 0.48, fiber: { ...base.rv.fiber, trefPa: 60_000 } },
+      rv: { pressureScale: 0.52, fiber: { ...base.rv.fiber, trefPa: 60_000 } },
     }),
   ];
 }

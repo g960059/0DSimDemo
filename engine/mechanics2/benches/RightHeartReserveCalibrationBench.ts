@@ -75,13 +75,21 @@ function buildRightHeartReserveVariantsV1(): readonly ReserveVariantV1[] {
   return [
     {
       variantId: "baseline-rv-pressure-scale046",
-      intervention: "Historical first right-heart smoke baseline: RV pressureScale 0.46.",
-      mutate: (params) => ({ ...params, rv: { ...params.rv, pressureScale: 0.46 } }),
+      intervention: "Historical first right-heart smoke baseline: RV pressureScale 0.46 and pre-calibration lower suction 0.22.",
+      mutate: (params) => ({
+        ...params,
+        rvLowerSoftLimitGainMmHgPerMl: 0.22,
+        rv: { ...params.rv, pressureScale: 0.46 },
+      }),
     },
     {
       variantId: "rv-pressure-scale050",
-      intervention: "Increase only RV one-fiber stress-to-pressure scale to 0.50.",
-      mutate: (params) => ({ ...params, rv: { ...params.rv, pressureScale: 0.50 } }),
+      intervention: "Increase only RV one-fiber stress-to-pressure scale to 0.50 while preserving pre-calibration lower suction.",
+      mutate: (params) => ({
+        ...params,
+        rvLowerSoftLimitGainMmHgPerMl: 0.22,
+        rv: { ...params.rv, pressureScale: 0.50 },
+      }),
     },
     {
       variantId: "rv-pressure-scale052",

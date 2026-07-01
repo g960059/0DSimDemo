@@ -37,9 +37,10 @@ outflow repair, pulmonary-boundary/safety-suction comparisons, and
 output-reserve calibration and dynamic reserve contract comparisons are
 implemented.
 
-Next PR target: coupled circulation-bridge smoke after paired left/right
-MechanicsCore2 surfaces passed side-by-side. Do not start four-chamber work or
-LandAtrial re-entry from isolated or merely paired sidecar evidence alone.
+Next PR target: explicit reservoir / mass-ledger bridge after the first
+source-pressure circulation bridge was measured as no-go. Do not start
+four-chamber work or LandAtrial re-entry from isolated, paired, or
+source-pressure bridge evidence alone.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -77,6 +78,8 @@ Included:
   lower-bound soft-suction separation.
 - PairedHeartStrategicSmokeBench V1 for side-by-side left/right Gate B surface
   compatibility without circulation coupling.
+- CirculationBridgeSmokeBench V1 for source-pressure bridge feedback between
+  the passed left/right surfaces.
 
 Excluded:
 
@@ -180,6 +183,15 @@ Next gates:
     unlocks a coupled circulation-bridge smoke only; it is not circulation
     coupling, runtime wiring, four-chamber readiness, AV-plane release, or
     LandAtrial.
+18. Circulation bridge smoke: right-heart fixture hygiene was tightened by
+    making historical lower-suction and low/high-contractility severity
+    explicit; right-heart and paired 7/7 were preserved. The first
+    source-pressure bridge is no-go: open boundaries preserve morphology 7/7
+    but leave flow mismatch, while feedback reduces mismatch but breaks
+    morphology (best 4/7). This blocks four-chamber, AV-plane, and LandAtrial
+    work and points next to an explicit reservoir/mass-ledger bridge. RV
+    pressureScale remains a provisional magnitude calibration knob, not
+    geometry-derived PH/RV-failure readiness.
 
 Parallel prep, not blocking the next strategic gate:
 

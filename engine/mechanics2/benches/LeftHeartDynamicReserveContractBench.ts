@@ -11,7 +11,7 @@ import {
 export const LEFT_HEART_DYNAMIC_RESERVE_CONTRACT_REPORT_ID_V1 =
   "left-heart-dynamic-reserve-contract-report-v1" as const;
 
-type LeftHeartDynamicReserveVariantIdV1 =
+export type LeftHeartDynamicReserveVariantIdV1 =
   | "static-output-reserve-broad5-reference"
   | "mv-state-closure-drive-wide"
   | "active-length-blend-plus-mv-closure"
@@ -459,6 +459,25 @@ function runVariant(spec: VariantSpecV1): LeftHeartDynamicReserveVariantResultV1
     pointResults,
     summary: summarizeVariant(pointResults),
   };
+}
+
+export function buildLeftHeartDynamicReserveVariantEnvelopeV1(
+  variantId: LeftHeartDynamicReserveVariantIdV1,
+): readonly LeftHeartSubsystemParamsV2[] {
+  const spec = requiredSpec(variantId);
+  return buildLeftHeartArchitectureEnvelopeV1(BASE_TRANSACTION).map((params) => applyVariant(params, spec));
+}
+
+export function runLeftHeartDynamicReservePointV1(
+  params: LeftHeartSubsystemParamsV2,
+): LeftHeartDynamicReservePointResultV1 {
+  return runPoint(params);
+}
+
+function requiredSpec(variantId: LeftHeartDynamicReserveVariantIdV1): VariantSpecV1 {
+  const spec = VARIANTS.find((candidate) => candidate.variantId === variantId);
+  if (spec == null) throw new Error(`Missing left-heart dynamic reserve variant: ${variantId}`);
+  return spec;
 }
 
 function applyVariant(params: LeftHeartSubsystemParamsV2, spec: VariantSpecV1): LeftHeartSubsystemParamsV2 {
