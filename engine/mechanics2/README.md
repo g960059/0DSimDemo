@@ -51,6 +51,11 @@ Current scope:
   around the volume-reserve reservoir scaffold.
 - `benches/GateCAssembledSystemReviewBench.ts`: detailed review of the center
   and best-neighborhood Gate C scaffolds before four-chamber contract design.
+- `core/FourChamberAssemblyContractV1.ts`: typed four-chamber assembly ledger
+  contract for the next sidecar smoke.
+- `benches/FourChamberAssemblyContractBench.ts`: contract smoke that maps Gate C
+  scaffold results into the four-chamber ledger before true four-chamber
+  dynamics are implemented.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
@@ -73,6 +78,7 @@ Planning docs:
 - [Volume-reserve reservoir Gate C scan V1](../../docs/mechanics2/volume-reserve-reservoir-gate-c-scan-v1.md)
 - [Gate C scaffold robustness V1](../../docs/mechanics2/gate-c-scaffold-robustness-v1.md)
 - [Gate C assembled-system review V1](../../docs/mechanics2/gate-c-assembled-system-review-v1.md)
+- [Four-chamber assembly contract V1](../../docs/mechanics2/four-chamber-assembly-contract-v1.md)
 - [ADR-MYO-003](../../docs/myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 
 Claim boundary:
