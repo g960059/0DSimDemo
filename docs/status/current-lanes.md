@@ -35,14 +35,14 @@ left-heart fiber-timing attribution surface, and the first left-heart V2
 transaction architecture comparison, residual attribution, semilunar/root
 outflow repair, pulmonary-boundary/safety-suction comparisons,
 output-reserve calibration and dynamic reserve contract comparisons, paired
-left/right smoke, source-pressure bridge smoke, and reservoir-ledger bridge
-smoke are implemented.
+left/right smoke, source-pressure bridge smoke, reservoir-ledger bridge smoke,
+and same-profile reservoir-solver bridge smoke are implemented.
 
-Next PR target: true same-step reservoir / mass-ledger coupling after the
-black-box reservoir bridge produced a promising mixed signal but not a
-four-chamber unlock. Do not start four-chamber work or LandAtrial re-entry from
-isolated, paired, source-pressure, or black-box reservoir bridge evidence
-alone.
+Next PR target: classify the `contractility-low` residual and large accepted
+reservoir transfer after the same-profile reservoir solver produced a stronger
+mixed signal but not a four-chamber unlock. Do not start four-chamber work or
+LandAtrial re-entry from isolated, paired, source-pressure, black-box reservoir,
+or same-profile reservoir-solver evidence alone.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -84,6 +84,8 @@ Included:
   the passed left/right surfaces.
 - ReservoirBridgeSmokeBench V1 for black-box pulmonary/systemic reservoir
   ledger feedback between the passed left/right surfaces.
+- ReservoirSolverBridgeBench V1 for same-profile scalar reservoir transfer
+  solves between the passed left/right surfaces.
 
 Excluded:
 
@@ -206,6 +208,17 @@ Next gates:
     leaves left/right forward-ejection mismatch. This supports true same-step
     reservoir/mass-ledger coupling next; it does not unlock four-chamber,
     AV-plane, LandAtrial, runtime wiring, or morphology acceptance.
+20. Reservoir solver bridge: a same-profile scalar pulmonary/systemic reservoir
+    transfer solve strengthens the bridge signal. The best
+    `same-step-high-compliance-bound2` surface records pass 6/7, morphology
+    preserved 7/7, flow-balanced 6/7, pressure adjustment bounded 7/7,
+    reservoir ledger clean 7/7, and mean absolute mismatch ~4.0 mL versus the
+    open-reservoir reference ~8.5 mL. The remaining blocker is
+    `contractility-low`, where morphology is preserved but left/right forward
+    ejection remains mismatched. The best surface also uses large accepted
+    reservoir transfer in some profiles (max ~54 mL), so the next step is
+    residual/transfer classification before four-chamber, AV-plane, LandAtrial,
+    runtime wiring, or morphology acceptance.
 
 Parallel prep, not blocking the next strategic gate:
 
