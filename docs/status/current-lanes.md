@@ -1132,6 +1132,17 @@ advances the current lane. They are evidence anchors, not current gates.
    openness/state decay or a broader AV valve boundary contract, not as
    energy-loss retuning, LandAtrial parameter tuning, valve-threshold tuning,
    qDot, root/Zc, Tref, or source-stress work.
+   Phase 5DE records `tv-pressure-deadband-phase5de-result-v1`, testing
+   off-by-default TV accepted-boundary pressure deadband and deadband-close
+   variants at 0.35/0.60mmHg over the same representative envelope. This also
+   does not improve the frontier: baseline, deadband, and deadband-close user0
+   variants all remain gross 7/8 with LV/RV PV 8/8, MVF 8/8, TVF 7/8, and the
+   same `contractility-low-hr75` TVF plus LA/RA pressure-timing failure. The
+   close variants lower the extra-wave window's TV accepted valve state only
+   modestly (`~0.64` to `~0.59`) and still leave a three-peak TVF trace. Do not
+   continue scalar TV pressure-deadband/threshold variants; the remaining
+   right-AV residual needs a broader AV valve boundary contract or profile/
+   physiology classification, not a one-parameter valve-state patch.
    Do not use global zeta-disablement, qDot/root/Zc/valve retuning, Tref,
    source-stress scaling, pressure-source lag, fixed-point BE, coupled Newton
    wrappers, reference-geometry pressure mapping, bounded pressure-gain capping,
