@@ -118,6 +118,12 @@ Current scope:
 - `benches/PreloadLowDtHalfReservoirParityAttributionBench.ts`: focused
   attribution showing the localized `preload-low` `dt-half` reservoir parity
   residual is source-surface input driven, not reservoir feedback driven.
+- `benches/PreloadLowSourceDtInputNormalizationBench.ts`: focused diagnostic
+  separating source status evaluation from source-ledger forward-ejection input
+  on the localized `preload-low` `dt-half` residual.
+- `benches/FourChamberSourceDtInputNormalizedAssembledReviewBench.ts`:
+  assembled review applying source-ledger input normalization to the selected
+  smooth reservoir scaffold while keeping raw status-rate failures visible.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt

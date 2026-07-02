@@ -33,6 +33,7 @@ export type FourChamberSubsystemReservoirParamsV1 = {
   readonly reservoirVolumeOwnershipBoundMl?: number;
   readonly reservoirVolumeFeedbackGain01?: number;
   readonly reservoirVolumeFeedbackKneeMl?: number;
+  readonly sourceLedgerSampleRateDivisor?: number;
 };
 
 export type FourChamberSubsystemParamsV1 = {
@@ -69,6 +70,11 @@ export type FourChamberSubsystemEpochV1 = FourChamberSubsystemForwardMismatchV1 
   readonly reservoirVolumeOwnershipRejectedTransferMl?: number | null;
   readonly leftStatus: LeftHeartDynamicReservePointResultV1["status"];
   readonly rightStatus: RightHeartStrategicSmokePointResultV1["status"];
+  readonly sourceLedgerSampleRateDivisor?: number;
+  readonly statusLeftAovEjectedVolumeMl?: number | null;
+  readonly statusRightPvEjectedVolumeMl?: number | null;
+  readonly sourceLedgerLeftStatus?: LeftHeartDynamicReservePointResultV1["status"];
+  readonly sourceLedgerRightStatus?: RightHeartStrategicSmokePointResultV1["status"];
   readonly leftAcceptedPhenotypeReasons: readonly string[];
   readonly rightAcceptedPhenotypeReasons: readonly string[];
 };
@@ -139,7 +145,20 @@ export function runFourChamberSubsystemV1(
         / Math.max(params.reservoir.systemicVenousComplianceMlPerMmHg, 1e-9);
     finalLeft = runLeftHeartDynamicReservePointV1(withLeftPulmonaryPressure(params.left, pulmonaryPressure));
     finalRight = runRightHeartStrategicPointV1(withRightSystemicVenousPressure(params.right, systemicPressure));
-    const mismatch = summarizeMismatch(finalLeft, finalRight);
+    const sourceLedgerSampleRateDivisor = Math.max(params.reservoir.sourceLedgerSampleRateDivisor ?? 1, 1);
+    const ledgerLeft = sourceLedgerSampleRateDivisor === 1
+      ? finalLeft
+      : runLeftHeartDynamicReservePointV1(withLeftPulmonaryPressure({
+        ...params.left,
+        sampleRateHz: params.left.sampleRateHz / sourceLedgerSampleRateDivisor,
+      }, pulmonaryPressure));
+    const ledgerRight = sourceLedgerSampleRateDivisor === 1
+      ? finalRight
+      : runRightHeartStrategicPointV1(withRightSystemicVenousPressure({
+        ...params.right,
+        sampleRateHz: params.right.sampleRateHz / sourceLedgerSampleRateDivisor,
+      }, systemicPressure));
+    const mismatch = summarizeMismatch(ledgerLeft, ledgerRight);
     const proposedTransfer = mismatch.signedMismatchMl == null
       ? null
       : mismatch.signedMismatchMl * params.reservoir.transferGain01;
@@ -197,6 +216,17 @@ export function runFourChamberSubsystemV1(
         : roundOrNull(volumeOwnedTransfer.rejectedTransferMl),
       leftStatus: finalLeft.status,
       rightStatus: finalRight.status,
+      sourceLedgerSampleRateDivisor: sourceLedgerSampleRateDivisor === 1
+        ? undefined
+        : sourceLedgerSampleRateDivisor,
+      statusLeftAovEjectedVolumeMl: sourceLedgerSampleRateDivisor === 1
+        ? undefined
+        : roundOrNull(finalLeft.finalBeat?.aovEjectedVolumeMl ?? null),
+      statusRightPvEjectedVolumeMl: sourceLedgerSampleRateDivisor === 1
+        ? undefined
+        : roundOrNull(finalRight.finalBeat?.pvEjectedVolumeMl ?? null),
+      sourceLedgerLeftStatus: sourceLedgerSampleRateDivisor === 1 ? undefined : ledgerLeft.status,
+      sourceLedgerRightStatus: sourceLedgerSampleRateDivisor === 1 ? undefined : ledgerRight.status,
       leftAcceptedPhenotypeReasons: finalLeft.acceptedPhenotypeReasons,
       rightAcceptedPhenotypeReasons: finalRight.acceptedPhenotypeReasons,
     });

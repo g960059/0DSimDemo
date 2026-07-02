@@ -123,10 +123,22 @@ PreloadLowDtHalfReservoirParityAttributionReportV1["attribution"] {
       ],
     };
   }
-  if (input.nominalFeedbackDutyFraction > 0 || input.dtHalfFeedbackDutyFraction > 0) {
+  if (
+    input.nominalFeedbackDutyFraction > 0
+    || input.dtHalfFeedbackDutyFraction > 0
+    || input.nominalHardLimiterDutyFraction > 0
+    || input.dtHalfHardLimiterDutyFraction > 0
+  ) {
+    const reasons = [];
+    if (input.nominalFeedbackDutyFraction > 0 || input.dtHalfFeedbackDutyFraction > 0) {
+      reasons.push("reservoir-feedback-active-on-compared-points");
+    }
+    if (input.nominalHardLimiterDutyFraction > 0 || input.dtHalfHardLimiterDutyFraction > 0) {
+      reasons.push("reservoir-hard-limiter-active-on-compared-points");
+    }
     return {
       owner: "reservoir-feedback-or-limiter",
-      reasons: ["reservoir-feedback-active-on-compared-points"],
+      reasons,
     };
   }
   return {
