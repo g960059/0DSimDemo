@@ -115,6 +115,9 @@ Current scope:
 - `benches/FourChamberSmoothReservoirAssembledNumericsReviewBench.ts`:
   assembled source/reservoir numerics review that localizes the remaining
   `preload-low` `dt-half` reservoir magnitude parity residual.
+- `benches/PreloadLowDtHalfReservoirParityAttributionBench.ts`: focused
+  attribution showing the localized `preload-low` `dt-half` reservoir parity
+  residual is source-surface input driven, not reservoir feedback driven.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt

@@ -47,6 +47,7 @@ Canonical references:
 - [Four-chamber smooth reservoir ownership V1](four-chamber-smooth-reservoir-ownership-v1.md)
 - [Four-chamber smooth reservoir dynamics review V1](four-chamber-smooth-reservoir-dynamics-review-v1.md)
 - [Four-chamber smooth reservoir assembled numerics review V1](four-chamber-smooth-reservoir-assembled-numerics-review-v1.md)
+- [Preload-low dt-half reservoir parity attribution V1](preload-low-dthalf-reservoir-parity-attribution-v1.md)
 - [ADR-MYO-003](../myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 - [Engine sidecar README](../../engine/mechanics2/README.md)
 

@@ -41,10 +41,9 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: resolve or classify the localized `preload-low` `dt-half`
-reservoir magnitude parity residual on the selected
-`smooth-knee20-gain035-bound24` scaffold. Runtime wiring, reservoir broad
-retuning, AV-plane work, and LandAtrial re-entry remain blocked.
+Next PR target: target `preload-low` source-surface dt input parity /
+normalization. Runtime wiring, reservoir broad retuning, AV-plane work, and
+LandAtrial re-entry remain blocked.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -136,6 +135,8 @@ Included:
   scaffold's limiter, passivity, knee, and extended stress repeatability review.
 - FourChamberSmoothReservoirAssembledNumericsReviewBench V1 for assembled
   source/reservoir numerics review and `dt-half` reservoir magnitude parity.
+- PreloadLowDtHalfReservoirParityAttributionBench V1 for classifying the
+  localized `preload-low` `dt-half` reservoir magnitude parity residual.
 
 Excluded:
 
@@ -531,6 +532,13 @@ Next gates:
     `preload-low` residual: nominal max reservoir volume ~19.45 mL versus
     `dt-half` ~4.06 mL. Next work should resolve or classify that residual
     before runtime, AV-plane, or LandAtrial unlock.
+51. Preload-low `dt-half` reservoir parity attribution: the localized residual
+    is classified as `source-surface-dt-input-not-reservoir-feedback`.
+    Nominal and `dt-half` feedback duty are both 0, hard-limiter duty is 0,
+    and the `dt-half` raw residual is source-owned effective-pass. Next work
+    should target preload-low source-surface dt input parity / normalization,
+    not reservoir feedback retuning, before runtime, AV-plane, or LandAtrial
+    unlock.
 
 Parallel prep, not blocking the next strategic gate:
 
