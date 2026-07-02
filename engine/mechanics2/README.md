@@ -112,6 +112,9 @@ Current scope:
   source-aware four-chamber smoke.
 - `benches/FourChamberSmoothReservoirDynamicsReviewBench.ts`: focused
   dynamics/numerics review of the selected smooth reservoir ownership surface.
+- `benches/FourChamberSmoothReservoirAssembledNumericsReviewBench.ts`:
+  assembled source/reservoir numerics review that localizes the remaining
+  `preload-low` `dt-half` reservoir magnitude parity residual.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt

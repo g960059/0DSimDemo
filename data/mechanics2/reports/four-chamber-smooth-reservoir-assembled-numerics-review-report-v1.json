@@ -1,0 +1,142 @@
+{
+  "reportId": "four-chamber-smooth-reservoir-assembled-numerics-review-report-v1",
+  "gateId": "fourChamberSmoothReservoirAssembledNumericsReviewV1",
+  "inputs": {
+    "dynamicsReviewReportId": "four-chamber-smooth-reservoir-dynamics-review-report-v1",
+    "dtHalfReservoirParityToleranceMl": 8
+  },
+  "profileParity": [
+    {
+      "profileId": "normal-hr75",
+      "nominalEffectiveStatus": "pass",
+      "dtHalfEffectiveStatus": "pass",
+      "longEpochEffectiveStatus": "pass",
+      "nominalMaxAbsReservoirVolumeMl": 7.643325,
+      "dtHalfMaxAbsReservoirVolumeMl": 7.019937,
+      "longEpochMaxAbsReservoirVolumeMl": 11.989663,
+      "dtHalfMaxReservoirDeltaMl": 0.623388,
+      "longEpochMaxReservoirDeltaMl": 4.346338,
+      "dtHalfFinalStepDeltaMl": 0.045182,
+      "dtHalfReservoirParityOk": true,
+      "sourceOwnedRawResidual": false
+    },
+    {
+      "profileId": "normal-hr90",
+      "nominalEffectiveStatus": "pass",
+      "dtHalfEffectiveStatus": "pass",
+      "longEpochEffectiveStatus": "pass",
+      "nominalMaxAbsReservoirVolumeMl": 8.997337,
+      "dtHalfMaxAbsReservoirVolumeMl": 4.788252,
+      "longEpochMaxAbsReservoirVolumeMl": 14.244133,
+      "dtHalfMaxReservoirDeltaMl": 4.209085,
+      "longEpochMaxReservoirDeltaMl": 5.246796,
+      "dtHalfFinalStepDeltaMl": 0.313576,
+      "dtHalfReservoirParityOk": true,
+      "sourceOwnedRawResidual": false
+    },
+    {
+      "profileId": "preload-low",
+      "nominalEffectiveStatus": "pass",
+      "dtHalfEffectiveStatus": "pass",
+      "longEpochEffectiveStatus": "pass",
+      "nominalMaxAbsReservoirVolumeMl": 19.44746,
+      "dtHalfMaxAbsReservoirVolumeMl": 4.061485,
+      "longEpochMaxAbsReservoirVolumeMl": 23.055511,
+      "dtHalfMaxReservoirDeltaMl": 15.385975,
+      "longEpochMaxReservoirDeltaMl": 3.608051,
+      "dtHalfFinalStepDeltaMl": 0.935313,
+      "dtHalfReservoirParityOk": false,
+      "sourceOwnedRawResidual": true
+    },
+    {
+      "profileId": "preload-high",
+      "nominalEffectiveStatus": "pass",
+      "dtHalfEffectiveStatus": "pass",
+      "longEpochEffectiveStatus": "pass",
+      "nominalMaxAbsReservoirVolumeMl": 12.430472,
+      "dtHalfMaxAbsReservoirVolumeMl": 12.263257,
+      "longEpochMaxAbsReservoirVolumeMl": 20.207177,
+      "dtHalfMaxReservoirDeltaMl": 0.167215,
+      "longEpochMaxReservoirDeltaMl": 7.776705,
+      "dtHalfFinalStepDeltaMl": 0.012951,
+      "dtHalfReservoirParityOk": true,
+      "sourceOwnedRawResidual": false
+    },
+    {
+      "profileId": "afterload-high",
+      "nominalEffectiveStatus": "pass",
+      "dtHalfEffectiveStatus": "pass",
+      "longEpochEffectiveStatus": "pass",
+      "nominalMaxAbsReservoirVolumeMl": 6.271018,
+      "dtHalfMaxAbsReservoirVolumeMl": 5.522402,
+      "longEpochMaxAbsReservoirVolumeMl": 10.229298,
+      "dtHalfMaxReservoirDeltaMl": 0.748616,
+      "longEpochMaxReservoirDeltaMl": 3.95828,
+      "dtHalfFinalStepDeltaMl": 0.059487,
+      "dtHalfReservoirParityOk": true,
+      "sourceOwnedRawResidual": true
+    },
+    {
+      "profileId": "contractility-low",
+      "nominalEffectiveStatus": "pass",
+      "dtHalfEffectiveStatus": "pass",
+      "longEpochEffectiveStatus": "pass",
+      "nominalMaxAbsReservoirVolumeMl": 2.97967,
+      "dtHalfMaxAbsReservoirVolumeMl": 2.495472,
+      "longEpochMaxAbsReservoirVolumeMl": 4.780599,
+      "dtHalfMaxReservoirDeltaMl": 0.484198,
+      "longEpochMaxReservoirDeltaMl": 1.800929,
+      "dtHalfFinalStepDeltaMl": 0.034457,
+      "dtHalfReservoirParityOk": true,
+      "sourceOwnedRawResidual": true
+    },
+    {
+      "profileId": "contractility-high",
+      "nominalEffectiveStatus": "pass",
+      "dtHalfEffectiveStatus": "pass",
+      "longEpochEffectiveStatus": "pass",
+      "nominalMaxAbsReservoirVolumeMl": 13.095637,
+      "dtHalfMaxAbsReservoirVolumeMl": 12.81765,
+      "longEpochMaxAbsReservoirVolumeMl": 21.151857,
+      "dtHalfMaxReservoirDeltaMl": 0.277987,
+      "longEpochMaxReservoirDeltaMl": 8.05622,
+      "dtHalfFinalStepDeltaMl": 0.146852,
+      "dtHalfReservoirParityOk": true,
+      "sourceOwnedRawResidual": false
+    }
+  ],
+  "summary": {
+    "dynamicsReviewPass": true,
+    "effectiveEnvelopePass": true,
+    "hardLimiterFree": true,
+    "feedbackDissipative": true,
+    "dtHalfReservoirParityPassCount": 6,
+    "dtHalfReservoirParityTotal": 7,
+    "dtHalfReservoirParityFailedProfiles": [
+      "preload-low"
+    ],
+    "sourceOwnedRawResidualProfiles": [
+      "preload-low",
+      "afterload-high",
+      "contractility-low"
+    ]
+  },
+  "decision": {
+    "assembledNumericsStatus": "assembled-source-reservoir-numerics-mixed",
+    "nextAction": "Keep the smooth reservoir scaffold, but resolve the localized preload-low dt-half reservoir magnitude parity residual before runtime, AV-plane, or LandAtrial unlock.",
+    "blockedClaims": [
+      "runtime-wiring",
+      "true-four-chamber-dynamics",
+      "morphology-acceptance",
+      "AV-plane-unlock",
+      "LandAtrial-unlock"
+    ]
+  },
+  "claimBoundary": {
+    "runtimeWiring": false,
+    "trueFourChamberDynamics": false,
+    "morphologyAcceptance": false,
+    "AVPlaneUnlock": false,
+    "LandAtrialUnlock": false
+  }
+}
