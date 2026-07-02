@@ -1,0 +1,210 @@
+{
+  "reportId": "four-chamber-source-aware-residual-review-report-v1",
+  "gateId": "fourChamberSourceAwareResidualReviewV1",
+  "inputs": {
+    "rawResidualReviewReportId": "four-chamber-subsystem-residual-review-report-v1",
+    "sourceContractReportId": "source-surface-contract-report-v1",
+    "rightOutflowOwnershipReportId": "right-preload-outflow-ownership-report-v1",
+    "leftSourceCandidateId": "left-afterload-active-reserve103",
+    "rightOutflowLeadId": "pv-resistance150"
+  },
+  "residualClassifications": [
+    {
+      "scenarioId": "dt-half",
+      "profileId": "preload-low",
+      "rawStatus": "fail",
+      "rawFailureReasons": [
+        "left-surface-not-preserved",
+        "right-surface-not-preserved"
+      ],
+      "rawLeftStatus": "fail",
+      "rawRightStatus": "fail",
+      "leftSource": {
+        "pointId": "left-heart-preload-low",
+        "sourceStatus": "pass",
+        "sourceFailureReasons": [],
+        "acceptedPhenotypeReasons": [],
+        "phaseAlignedShapeParityOk": true,
+        "outputOk": true,
+        "repeatabilityOk": true,
+        "dtOutputParityOk": true,
+        "morphologyOk": true,
+        "forwardEjectionMl": 51.866403
+      },
+      "rightSource": {
+        "pointId": "right-heart-preload-low",
+        "sourceStatus": "fail",
+        "sourceFailureReasons": [
+          "beat-repeatability-failed",
+          "dt-half-output-parity-failed"
+        ],
+        "acceptedPhenotypeReasons": [],
+        "phaseAlignedShapeParityOk": true,
+        "outputOk": true,
+        "repeatabilityOk": false,
+        "dtOutputParityOk": false,
+        "morphologyOk": false,
+        "forwardEjectionMl": 33.641749
+      },
+      "owners": [
+        "left-source-phase-aligned-sampling-parity",
+        "right-source-pv-outflow-lead-not-directly-transferable"
+      ],
+      "sourceAwareDisposition": "source-lead-exists-but-direct-transfer-blocked",
+      "recommendedNextContract": "Integrate right preload-low PV outflow ownership through a source-aware contract; do not directly transfer the standalone PV valve parameters."
+    },
+    {
+      "scenarioId": "dt-half",
+      "profileId": "afterload-high",
+      "rawStatus": "fail",
+      "rawFailureReasons": [
+        "left-surface-not-preserved"
+      ],
+      "rawLeftStatus": "fail",
+      "rawRightStatus": "pass",
+      "leftSource": {
+        "pointId": "left-heart-afterload-high",
+        "sourceStatus": "pass",
+        "sourceFailureReasons": [],
+        "acceptedPhenotypeReasons": [],
+        "phaseAlignedShapeParityOk": true,
+        "outputOk": true,
+        "repeatabilityOk": true,
+        "dtOutputParityOk": true,
+        "morphologyOk": true,
+        "forwardEjectionMl": 37.360258
+      },
+      "rightSource": {
+        "pointId": "right-heart-pulmonary-afterload-high",
+        "sourceStatus": "pass",
+        "sourceFailureReasons": [],
+        "acceptedPhenotypeReasons": [],
+        "phaseAlignedShapeParityOk": true,
+        "outputOk": true,
+        "repeatabilityOk": true,
+        "dtOutputParityOk": true,
+        "morphologyOk": true,
+        "forwardEjectionMl": 31.728069
+      },
+      "owners": [
+        "left-source-load-conditioned-output-reserve"
+      ],
+      "sourceAwareDisposition": "raw-left-failure-reclassified",
+      "recommendedNextContract": "Apply phase-aligned source parity and load-conditioned left output reserve in a source-aware four-chamber contract."
+    },
+    {
+      "scenarioId": "dt-half",
+      "profileId": "contractility-low",
+      "rawStatus": "fail",
+      "rawFailureReasons": [
+        "right-surface-not-preserved",
+        "unexpected-accepted-phenotype"
+      ],
+      "rawLeftStatus": "pass",
+      "rawRightStatus": "fail",
+      "leftSource": {
+        "pointId": "left-heart-contractility-low",
+        "sourceStatus": "pass",
+        "sourceFailureReasons": [],
+        "acceptedPhenotypeReasons": [
+          "clean-low-contractility-low-output-phenotype"
+        ],
+        "phaseAlignedShapeParityOk": true,
+        "outputOk": false,
+        "repeatabilityOk": true,
+        "dtOutputParityOk": true,
+        "morphologyOk": true,
+        "forwardEjectionMl": 11.286805
+      },
+      "rightSource": {
+        "pointId": "right-heart-contractility-low",
+        "sourceStatus": "pass",
+        "sourceFailureReasons": [],
+        "acceptedPhenotypeReasons": [
+          "clean-low-contractility-low-output-phenotype"
+        ],
+        "phaseAlignedShapeParityOk": true,
+        "outputOk": false,
+        "repeatabilityOk": true,
+        "dtOutputParityOk": true,
+        "morphologyOk": true,
+        "forwardEjectionMl": 10.734206
+      },
+      "owners": [
+        "right-low-output-phenotype-scope-under-coupling"
+      ],
+      "sourceAwareDisposition": "coupled-reservoir-or-phenotype-blocker",
+      "recommendedNextContract": "Classify coupled reservoir repeatability and low-output phenotype scope after source-aware status replacement."
+    },
+    {
+      "scenarioId": "long-epochs",
+      "profileId": "preload-low",
+      "rawStatus": "fail",
+      "rawFailureReasons": [
+        "persistent-large-reservoir-shuttle"
+      ],
+      "rawLeftStatus": "pass",
+      "rawRightStatus": "pass",
+      "leftSource": {
+        "pointId": "left-heart-preload-low",
+        "sourceStatus": "pass",
+        "sourceFailureReasons": [],
+        "acceptedPhenotypeReasons": [],
+        "phaseAlignedShapeParityOk": true,
+        "outputOk": true,
+        "repeatabilityOk": true,
+        "dtOutputParityOk": true,
+        "morphologyOk": true,
+        "forwardEjectionMl": 51.866403
+      },
+      "rightSource": {
+        "pointId": "right-heart-preload-low",
+        "sourceStatus": "fail",
+        "sourceFailureReasons": [
+          "beat-repeatability-failed",
+          "dt-half-output-parity-failed"
+        ],
+        "acceptedPhenotypeReasons": [],
+        "phaseAlignedShapeParityOk": true,
+        "outputOk": true,
+        "repeatabilityOk": false,
+        "dtOutputParityOk": false,
+        "morphologyOk": false,
+        "forwardEjectionMl": 33.641749
+      },
+      "owners": [
+        "reservoir-repeatability"
+      ],
+      "sourceAwareDisposition": "coupled-reservoir-or-phenotype-blocker",
+      "recommendedNextContract": "Classify coupled reservoir repeatability and low-output phenotype scope after source-aware status replacement."
+    }
+  ],
+  "summary": {
+    "rawFailedProfileCount": 4,
+    "rawLeftFailureReclassifiedCount": 1,
+    "sourceLeadExistsButDirectTransferBlockedCount": 1,
+    "coupledReservoirOrPhenotypeBlockerCount": 2,
+    "sourceAwareUnblockedCount": 2
+  },
+  "decision": {
+    "sourceAwareReviewStatus": "source-aware-four-chamber-review-actionable",
+    "nextAction": "Implement a source-aware four-chamber contract that applies phase-aligned source parity and load-conditioned magnitude ownership before changing reservoir, AV-plane, or LandAtrial surfaces.",
+    "blockedClaims": [
+      "runtime-wiring",
+      "true-four-chamber-dynamics",
+      "morphology-acceptance",
+      "reservoir-tuning-reopened",
+      "AV-plane-unlock",
+      "LandAtrial-unlock"
+    ]
+  },
+  "claimBoundary": {
+    "runtimeWiring": false,
+    "trueFourChamberDynamics": false,
+    "morphologyAcceptance": false,
+    "reservoirTuningReopened": false,
+    "AVPlaneUnlock": false,
+    "LandAtrialUnlock": false
+  },
+  "normalizedSha256": "a6dfc1fdcd361f225408c65e272fcf08edaf23c99ece5b6a02ca3dd58171fa4a"
+}

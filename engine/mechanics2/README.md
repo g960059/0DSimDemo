@@ -90,6 +90,9 @@ Current scope:
 - `benches/FourChamberPvOutflowTransferReviewBench.ts`: direct-transfer review
   for the standalone right-preload PV outflow lead against the selected
   four-chamber scaffold.
+- `benches/FourChamberSourceAwareResidualReviewBench.ts`: source-aware
+  residual review that reclassifies selected four-chamber failures against the
+  source-surface contract and right-preload PV outflow ownership evidence.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
@@ -124,6 +127,7 @@ Planning docs:
 - [Source-surface sampling parity V1](../../docs/mechanics2/source-surface-sampling-parity-v1.md)
 - [Source-surface contract V1](../../docs/mechanics2/source-surface-contract-v1.md)
 - [Four-chamber PV outflow transfer review V1](../../docs/mechanics2/four-chamber-pv-outflow-transfer-review-v1.md)
+- [Four-chamber source-aware residual review V1](../../docs/mechanics2/four-chamber-source-aware-residual-review-v1.md)
 - [ADR-MYO-003](../../docs/myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 
 Claim boundary:
