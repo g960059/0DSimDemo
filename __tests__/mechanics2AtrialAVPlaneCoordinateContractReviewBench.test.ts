@@ -44,9 +44,15 @@ describe("AtrialAVPlaneCoordinateContractReviewBench V1", () => {
       bestForceBalanceTopologyPass: 5,
       bestForceBalanceSourcePreservingTopologyPass: 2,
       bestForceBalanceMvfCleanCount: 3,
+      bestWallWorkVariantId: "wall-work-cap32-drive6-hyd004-stiff2-damp06-fast",
+      bestWallWorkSourceSurfacePass: 2,
+      bestWallWorkTopologyPass: 6,
+      bestWallWorkSourcePreservingTopologyPass: 2,
+      bestWallWorkMvfCleanCount: 3,
       coordinateVariantsImprovingRawSourceAndKeepingTopology: 0,
       coordinateVariantsWithZeroTractionPressure: 6,
       forceBalanceVariantCount: 13,
+      wallWorkVariantCount: 5,
       reviewStatus: "coordinate-contract-mixed",
     });
     expect(report.bestCoordinateVariant.maxTractionPressureMmHg).toBe(0);
@@ -71,10 +77,28 @@ describe("AtrialAVPlaneCoordinateContractReviewBench V1", () => {
     expect(report.bestForceBalanceVariant.sourceSurfacePass).toBeLessThan(report.rawReference.sourceSurfacePass);
   });
 
-  it("keeps hidden-volume cleanliness while routing to a force-balance coordinate", () => {
+  it("keeps target-spring wall-work residual as partial topology evidence only", () => {
+    expect(report.bestWallWorkVariant).toMatchObject({
+      variantId: "wall-work-cap32-drive6-hyd004-stiff2-damp06-fast",
+      sourceSurfacePass: 2,
+      topologyPass: 6,
+      sourcePreservingTopologyPass: 2,
+      mvfCleanCount: 3,
+      hiddenVolumeCleanCount: 7,
+      opposedLobeCount: 7,
+    });
+    expect(report.bestWallWorkVariant.maxHydraulicForceN).toBeGreaterThan(0);
+    expect(report.bestWallWorkVariant.maxNetForceN).toBeGreaterThan(0);
+    expect(report.bestWallWorkVariant.topologyPass).toBeGreaterThan(report.bestForceBalanceVariant.topologyPass);
+    expect(report.bestWallWorkVariant.topologyPass).toBeLessThan(report.rawReference.topologyPass);
+    expect(report.bestWallWorkVariant.sourceSurfacePass).toBeLessThan(report.rawReference.sourceSurfacePass);
+  });
+
+  it("keeps hidden-volume cleanliness while keeping AV-plane promotion blocked", () => {
     expect(report.bestCoordinateVariant.hiddenVolumeCleanCount).toBe(7);
     expect(report.bestForceBalanceVariant.hiddenVolumeCleanCount).toBe(7);
-    expect(report.decision.nextAction).toContain("implicit wall-work / LA-MV residual contract");
+    expect(report.bestWallWorkVariant.hiddenVolumeCleanCount).toBe(7);
+    expect(report.decision.nextAction).toContain("accepted MV/venous-flow residual owner");
     expect(report.decision.blockedClaims).toEqual(expect.arrayContaining([
       "runtime-wiring",
       "morphology-acceptance",

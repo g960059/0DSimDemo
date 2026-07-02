@@ -118,6 +118,18 @@ not a promotion path. Do not continue scalar force/hydraulic/capacity sweeps;
 next atrial AV-plane work should move to an implicit wall-work / LA-MV residual
 contract that owns atrial wall pressure, AV-plane work, MV opening, and venous
 reservoir flow in one residual.
+A target-spring wall-work / LA-MV residual review then moves the coordinate
+drive from a zero-spring force balance toward a ventricular-descent target and
+iterates LA wall pressure, AV-plane work-coordinate pressure, and same-step MV
+opening inside each accepted source step. The best wall-work residual
+`wall-work-cap32-drive6-hyd004-stiff2-damp06-fast` improves topology over the
+simple force-balance surface (6/7 vs 5/7; opposed signed lobes 7/7; hidden
+volume clean 7/7), but it still does not preserve the raw source/MVF surface
+(source 2/7, source+topology 2/7, MVF 3/7 vs raw source 4/7, topology 7/7,
+MVF 4/7). This is a useful mechanical-direction signal, not an enablement path.
+Do not continue scalar wall-work target/force sweeps; the next contract needs
+accepted MV and pulmonary venous reservoir flow ownership in the residual, not
+only coordinate pressure ownership.
 Warm-replay lobe attribution, separated-state smokes, dual-lobe geometry,
 flow-oriented LA filling-rate drive, hidden-volume-free AV-plane ejection-rate
 reservoir oracles, AV-plane reservoir capacity/stretch + booster/wall-work,

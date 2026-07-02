@@ -53,7 +53,8 @@ export type LeftAtrialEffectiveGeometryModeV2 =
   | "av-plane-reservoir-capacity-transaction-v1"
   | "av-plane-reservoir-stretch-transaction-v1"
   | "av-plane-force-position-reservoir-transaction-v1"
-  | "av-plane-force-balance-coordinate-transaction-v1";
+  | "av-plane-force-balance-coordinate-transaction-v1"
+  | "av-plane-wall-work-lamv-residual-transaction-v1";
 export type LeftAtrialLobeGeneratorModeV2 =
   | "none"
   | "reservoir-suction-state-shadow"
@@ -71,7 +72,8 @@ export type LeftAtrialLobeGeneratorModeV2 =
   | "av-plane-capacity-work-coordinate-transaction-v1"
   | "av-plane-stateful-traction-reservoir-transaction-v1"
   | "av-plane-force-position-reservoir-transaction-v1"
-  | "av-plane-force-balance-coordinate-transaction-v1";
+  | "av-plane-force-balance-coordinate-transaction-v1"
+  | "av-plane-wall-work-lamv-residual-transaction-v1";
 export type LeftAtrialPressureSourceModeV2 =
   | "empirical-a-wave"
   | "fiber-active-a-window-gated-shadow"
@@ -753,6 +755,7 @@ function acceptLeftHeartCandidateV2(input: {
     || input.params.laEffectiveGeometryMode === "av-plane-reservoir-stretch-transaction-v1"
     || input.params.laEffectiveGeometryMode === "av-plane-force-position-reservoir-transaction-v1"
     || input.params.laEffectiveGeometryMode === "av-plane-force-balance-coordinate-transaction-v1"
+    || input.params.laEffectiveGeometryMode === "av-plane-wall-work-lamv-residual-transaction-v1"
     ? avPlaneGeometryReadback.atrialGeometryDeltaMl
     : 0;
   let laBoosterGeometryDeltaMl =
@@ -843,6 +846,79 @@ function acceptLeftHeartCandidateV2(input: {
       laFiberChamber.pressureRawMmHg,
       laFiberChamber.activePressureMmHg,
     ) + laReservoirSuctionPressureMmHg + laReservoirRecoilPressureMmHg + laBoosterPressureMmHg;
+  }
+  if (input.params.laLobeGeneratorMode === "av-plane-wall-work-lamv-residual-transaction-v1") {
+    let mvOpenEstimate01 = input.previousMvState.open01;
+    let lapEstimateMmHg = lapRawWithoutTractionMmHg + lapSafetyMmHg;
+    for (let residualIteration = 0; residualIteration < 4; residualIteration++) {
+      laAVPlaneWorkCoordinate = nextLeftAtrialAVPlaneWorkCoordinateV1({
+        previousZNorm: input.previousLaAVPlaneWorkCoordinateZNorm,
+        previousZDotNormPerSec: input.previousLaAVPlaneWorkCoordinateZDotNormPerSec,
+        reservoirDrive01: laReservoirSuctionDrive01,
+        previousMvOpen01: input.previousMvState.open01,
+        mvOpen01: mvOpenEstimate01,
+        lapMmHg: lapEstimateMmHg,
+        lvpMmHg,
+        dtSec: input.dtSec,
+        params: input.params,
+      });
+      avPlaneGeometryReadback = leftAtrialEffectiveGeometryReadback(input, {
+        reservoirDrive01: laReservoirSuctionDrive01,
+        boosterDrive01: laBoosterPressureDrive01,
+        previousReservoirDrive01: input.previousLaReservoirSuctionDrive01,
+        previousBoosterDrive01: input.previousLaBoosterPressureDrive01,
+        workCoordinateZNorm: laAVPlaneWorkCoordinate.zNorm,
+        previousWorkCoordinateZNorm: input.previousLaAVPlaneWorkCoordinateZNorm,
+      });
+      effectiveLaVolumeMl = leftAtrialEffectiveFiberVolumeMl(
+        input.candidate.laVolumeMl,
+        avPlaneGeometryReadback.atrialGeometryDeltaMl,
+        input.params,
+      );
+      laFiberChamber = stepAtrialFiberChamberV1(input.previousLaFiberState, {
+        tSec: input.tSec,
+        dtSec: input.dtSec,
+        cycleLengthSec: input.cycleLengthSec,
+        activationTimeSec: input.tSec - input.theta * input.cycleLengthSec
+          + positiveModulo(input.params.laAWaveStartTheta - 0.10, 1) * input.cycleLengthSec,
+        cavityVolumeMl: effectiveLaVolumeMl,
+        previousCavityVolumeMl: previousEffectiveLaVolumeMl,
+        referenceCavityVolumeShiftMl: laReservoirReferenceVolumeShiftMl,
+        previousReferenceCavityVolumeShiftMl: previousLaReservoirReferenceVolumeShiftMl,
+      }, DEFAULT_ATRIAL_FIBER_CHAMBER_PARAMS_V1.LA);
+      lapFiberActivePulse01 = clamp(
+        laFiberChamber.activePressureMmHg / Math.max(input.params.laFiberActivePressureReferenceMmHg, 1e-9),
+        0,
+        1.6,
+      ) * raisedCosineWindow(input.theta, input.params.laAWaveStartTheta, input.params.laAWaveEndTheta);
+      laAVPlaneReservoirTractionPressureTargetMmHg = leftAtrialAVPlaneReservoirTractionPressureTargetMmHg(
+        avPlaneGeometryReadback.zAvDotNormPerSec,
+        laReservoirSuctionDrive01,
+        mvOpenEstimate01,
+        input.params,
+      );
+      laReservoirGeometryDeltaMl = avPlaneGeometryReadback.atrialGeometryDeltaMl;
+      laBoosterGeometryDeltaMl = 0;
+      lapRawWithoutTractionMmHg = leftAtrialPressureRaw(
+        input.theta,
+        input.candidate.laVolumeMl,
+        input.params,
+        lapFiberActivePulse01,
+        laFiberChamber.pressureRawMmHg,
+        laFiberChamber.activePressureMmHg,
+      ) + laReservoirSuctionPressureMmHg + laReservoirRecoilPressureMmHg + laBoosterPressureMmHg;
+      const lapWithCoordinateMmHg =
+        Math.max(0, lapRawWithoutTractionMmHg + laAVPlaneWorkCoordinate.tractionPressureMmHg)
+        + lapSafetyMmHg;
+      const mvEstimate = stepFlowStateValveV1(input.previousMvState, {
+        dtSec: input.dtSec,
+        upstreamPressureMmHg: lapWithCoordinateMmHg,
+        downstreamPressureMmHg: lvpMmHg,
+        closureDrive01: mvSystolicClosureDrive01(input.theta, input.params),
+      }, input.params.mv);
+      mvOpenEstimate01 = 0.4 * mvOpenEstimate01 + 0.6 * mvEstimate.open01;
+      lapEstimateMmHg = 0.35 * lapEstimateMmHg + 0.65 * lapWithCoordinateMmHg;
+    }
   }
   const laMvTransaction = resolveLaMvOpenTractionTransactionV1({
     previousMvState: input.previousMvState,
@@ -969,6 +1045,7 @@ function resolveLaMvOpenTractionTransactionV1(input: {
   if (
     input.params.laLobeGeneratorMode === "av-plane-force-position-reservoir-transaction-v1"
     || input.params.laLobeGeneratorMode === "av-plane-force-balance-coordinate-transaction-v1"
+    || input.params.laLobeGeneratorMode === "av-plane-wall-work-lamv-residual-transaction-v1"
   ) {
     const lapRawMmHg = Math.max(0, input.lapRawWithoutTractionMmHg + input.workCoordinateTractionPressureMmHg);
     return {
@@ -1075,8 +1152,10 @@ function leftAtrialEffectiveGeometryReadback(input: {
       || input.params.laEffectiveGeometryMode === "av-plane-reservoir-stretch-transaction-v1"
       || input.params.laEffectiveGeometryMode === "av-plane-force-position-reservoir-transaction-v1"
       || input.params.laEffectiveGeometryMode === "av-plane-force-balance-coordinate-transaction-v1"
+      || input.params.laEffectiveGeometryMode === "av-plane-wall-work-lamv-residual-transaction-v1"
       ? input.params.laEffectiveGeometryMode === "av-plane-force-position-reservoir-transaction-v1"
         || input.params.laEffectiveGeometryMode === "av-plane-force-balance-coordinate-transaction-v1"
+        || input.params.laEffectiveGeometryMode === "av-plane-wall-work-lamv-residual-transaction-v1"
         ? clamp(lobeState.workCoordinateZNorm ?? 0, 0, 1)
         : clamp((lobeGeometryDeltaMl + input.params.laBoosterGeometryGainMl) / lobeGeometryScaleMl, 0, 1)
       : clamp((input.params.maxLvVolumeMl - input.candidate.lvVolumeMl) / lvRange, 0, 1);
@@ -1088,8 +1167,10 @@ function leftAtrialEffectiveGeometryReadback(input: {
       || input.params.laEffectiveGeometryMode === "av-plane-reservoir-stretch-transaction-v1"
       || input.params.laEffectiveGeometryMode === "av-plane-force-position-reservoir-transaction-v1"
       || input.params.laEffectiveGeometryMode === "av-plane-force-balance-coordinate-transaction-v1"
+      || input.params.laEffectiveGeometryMode === "av-plane-wall-work-lamv-residual-transaction-v1"
       ? input.params.laEffectiveGeometryMode === "av-plane-force-position-reservoir-transaction-v1"
         || input.params.laEffectiveGeometryMode === "av-plane-force-balance-coordinate-transaction-v1"
+        || input.params.laEffectiveGeometryMode === "av-plane-wall-work-lamv-residual-transaction-v1"
         ? clamp(lobeState.previousWorkCoordinateZNorm ?? 0, 0, 1)
         : clamp((previousLobeGeometryDeltaMl + input.params.laBoosterGeometryGainMl) / lobeGeometryScaleMl, 0, 1)
       : clamp((input.params.maxLvVolumeMl - input.previous.lvVolumeMl) / lvRange, 0, 1);
@@ -1099,8 +1180,10 @@ function leftAtrialEffectiveGeometryReadback(input: {
     || input.params.laEffectiveGeometryMode === "av-plane-reservoir-stretch-transaction-v1"
     || input.params.laEffectiveGeometryMode === "av-plane-force-position-reservoir-transaction-v1"
     || input.params.laEffectiveGeometryMode === "av-plane-force-balance-coordinate-transaction-v1"
+    || input.params.laEffectiveGeometryMode === "av-plane-wall-work-lamv-residual-transaction-v1"
     ? input.params.laEffectiveGeometryMode === "av-plane-force-position-reservoir-transaction-v1"
       || input.params.laEffectiveGeometryMode === "av-plane-force-balance-coordinate-transaction-v1"
+      || input.params.laEffectiveGeometryMode === "av-plane-wall-work-lamv-residual-transaction-v1"
       ? input.params.laReservoirGeometryGainMl * zAvNorm
       : lobeGeometryDeltaMl
     : input.params.laEffectiveGeometryGainMl * zAvNorm;
@@ -1139,6 +1222,9 @@ function leftAtrialEffectiveFiberVolumeMl(
     return Math.max(1e-6, bloodVolumeMl - atrialGeometryDeltaMl);
   }
   if (params.laEffectiveGeometryMode === "av-plane-force-balance-coordinate-transaction-v1") {
+    return Math.max(1e-6, bloodVolumeMl - atrialGeometryDeltaMl);
+  }
+  if (params.laEffectiveGeometryMode === "av-plane-wall-work-lamv-residual-transaction-v1") {
     return Math.max(1e-6, bloodVolumeMl - atrialGeometryDeltaMl);
   }
   if (params.laEffectiveGeometryMode === "av-plane-reservoir-stretch-transaction-v1") {
@@ -1213,6 +1299,7 @@ function nextLaReservoirSuctionDrive01(
     && params.laLobeGeneratorMode !== "av-plane-stateful-traction-reservoir-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-force-position-reservoir-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-force-balance-coordinate-transaction-v1"
+    && params.laLobeGeneratorMode !== "av-plane-wall-work-lamv-residual-transaction-v1"
   ) return 0;
   const phaseDrive01 = raisedCosineWindow(
     theta,
@@ -1242,6 +1329,7 @@ function nextLaReservoirSuctionDrive01(
       || params.laLobeGeneratorMode === "av-plane-stateful-traction-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-force-position-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-force-balance-coordinate-transaction-v1"
+      || params.laLobeGeneratorMode === "av-plane-wall-work-lamv-residual-transaction-v1"
       ? phaseDrive01 * smoothstep01(
         (Math.max(0, lvEjectionVolumeDeltaMl / Math.max(dtSec, 1e-9))
           - params.laAVPlaneEjectionRateStartMlPerSec)
@@ -1263,6 +1351,7 @@ function nextLaReservoirSuctionDrive01(
     || params.laLobeGeneratorMode === "av-plane-stateful-traction-reservoir-transaction-v1"
     || params.laLobeGeneratorMode === "av-plane-force-position-reservoir-transaction-v1"
     || params.laLobeGeneratorMode === "av-plane-force-balance-coordinate-transaction-v1"
+    || params.laLobeGeneratorMode === "av-plane-wall-work-lamv-residual-transaction-v1"
     ? smoothstep01(
       previousMvOpen01
         / Math.max(params.laAVPlaneReservoirCapacityMvOpenReleaseThreshold01, 1e-9),
@@ -1282,6 +1371,7 @@ function nextLaReservoirSuctionDrive01(
       || params.laLobeGeneratorMode === "av-plane-stateful-traction-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-force-position-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-force-balance-coordinate-transaction-v1"
+      || params.laLobeGeneratorMode === "av-plane-wall-work-lamv-residual-transaction-v1"
       ? params.laAVPlaneReservoirCapacityRiseTauSec
       : params.laReservoirSuctionRiseTauSec
     : (params.laLobeGeneratorMode === "av-plane-reservoir-capacity-transaction-v1"
@@ -1295,7 +1385,8 @@ function nextLaReservoirSuctionDrive01(
       || params.laLobeGeneratorMode === "av-plane-capacity-work-coordinate-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-stateful-traction-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-force-position-reservoir-transaction-v1"
-      || params.laLobeGeneratorMode === "av-plane-force-balance-coordinate-transaction-v1") && mvOpenRelease01 > 0.5
+      || params.laLobeGeneratorMode === "av-plane-force-balance-coordinate-transaction-v1"
+      || params.laLobeGeneratorMode === "av-plane-wall-work-lamv-residual-transaction-v1") && mvOpenRelease01 > 0.5
       ? params.laAVPlaneReservoirCapacityReleaseTauSec
       : params.laLobeGeneratorMode === "av-plane-reservoir-capacity-transaction-v1"
         || params.laLobeGeneratorMode === "av-plane-venous-reservoir-transaction-v1"
@@ -1309,6 +1400,7 @@ function nextLaReservoirSuctionDrive01(
         || params.laLobeGeneratorMode === "av-plane-stateful-traction-reservoir-transaction-v1"
         || params.laLobeGeneratorMode === "av-plane-force-position-reservoir-transaction-v1"
         || params.laLobeGeneratorMode === "av-plane-force-balance-coordinate-transaction-v1"
+        || params.laLobeGeneratorMode === "av-plane-wall-work-lamv-residual-transaction-v1"
         ? params.laAVPlaneReservoirCapacityFallTauSec
         : params.laReservoirSuctionFallTauSec;
   const step = (acceptedTargetDrive01 - previousDrive01) * dtSec / Math.max(tau, 1e-6);
@@ -1434,6 +1526,7 @@ function avPlaneReservoirKinematicFlowMlPerSec(
     && params.laLobeGeneratorMode !== "av-plane-stateful-traction-reservoir-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-force-position-reservoir-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-force-balance-coordinate-transaction-v1"
+    && params.laLobeGeneratorMode !== "av-plane-wall-work-lamv-residual-transaction-v1"
   ) return 0;
   if (params.laAVPlaneVenousReservoirCouplingGain <= 0) return 0;
   if (params.laAVPlaneVenousReservoirMaxFlowMlPerSec <= 0) return 0;
@@ -1522,6 +1615,7 @@ function nextLeftAtrialAVPlaneWorkCoordinateV1(input: {
   readonly previousZDotNormPerSec: number;
   readonly reservoirDrive01: number;
   readonly previousMvOpen01: number;
+  readonly mvOpen01?: number;
   readonly lapMmHg?: number;
   readonly lvpMmHg?: number;
   readonly dtSec: number;
@@ -1538,6 +1632,7 @@ function nextLeftAtrialAVPlaneWorkCoordinateV1(input: {
     input.params.laLobeGeneratorMode !== "av-plane-force-position-reservoir-transaction-v1"
     && input.params.laLobeGeneratorMode !== "av-plane-capacity-work-coordinate-transaction-v1"
     && input.params.laLobeGeneratorMode !== "av-plane-force-balance-coordinate-transaction-v1"
+    && input.params.laLobeGeneratorMode !== "av-plane-wall-work-lamv-residual-transaction-v1"
   ) {
     return {
       zNorm: 0,
@@ -1549,13 +1644,25 @@ function nextLeftAtrialAVPlaneWorkCoordinateV1(input: {
     };
   }
   const mvClosedGate01 = 1 - smoothstep01(
-    input.previousMvOpen01 / Math.max(input.params.laAVPlaneReservoirCapacityMvOpenReleaseThreshold01, 1e-9),
+    (input.mvOpen01 ?? input.previousMvOpen01)
+      / Math.max(input.params.laAVPlaneReservoirCapacityMvOpenReleaseThreshold01, 1e-9),
   );
-  const driveForceN = Math.max(0,
-    input.params.laAVPlaneWorkCoordinateDriveForceN * input.reservoirDrive01 * mvClosedGate01,
-  );
+  const driveForceN =
+    input.params.laLobeGeneratorMode === "av-plane-wall-work-lamv-residual-transaction-v1"
+      ? Math.max(
+        0,
+        input.params.laAVPlaneWorkCoordinateDriveForceN
+          * (input.reservoirDrive01 - input.previousZNorm)
+          * mvClosedGate01,
+      )
+      : Math.max(
+        0,
+        input.params.laAVPlaneWorkCoordinateDriveForceN * input.reservoirDrive01 * mvClosedGate01,
+      );
   const areaM2 = Math.max(input.params.laAVPlaneWorkCoordinateAnnularAreaCm2, 1e-9) * 1e-4;
-  const hydraulicForceN = input.params.laLobeGeneratorMode === "av-plane-force-balance-coordinate-transaction-v1"
+  const hydraulicForceN =
+    input.params.laLobeGeneratorMode === "av-plane-force-balance-coordinate-transaction-v1"
+    || input.params.laLobeGeneratorMode === "av-plane-wall-work-lamv-residual-transaction-v1"
     ? Math.max(
       0,
       ((input.lvpMmHg ?? 0) - (input.lapMmHg ?? 0)) * 133.322368 * areaM2
@@ -1582,13 +1689,16 @@ function nextLeftAtrialAVPlaneWorkCoordinateV1(input: {
   }
   const coordinateVelocityTractionForceN =
     input.params.laLobeGeneratorMode === "av-plane-force-balance-coordinate-transaction-v1"
+      || input.params.laLobeGeneratorMode === "av-plane-wall-work-lamv-residual-transaction-v1"
       ? Math.max(0, input.params.laAVPlaneReservoirTractionGainMmHgPerNormPerSec)
         * Math.max(0, zDotNormPerSec)
         * areaM2
         * 133.322368
         * mvClosedGate01
       : 0;
-  const pressureForceN = input.params.laLobeGeneratorMode === "av-plane-force-balance-coordinate-transaction-v1"
+  const pressureForceN =
+    input.params.laLobeGeneratorMode === "av-plane-force-balance-coordinate-transaction-v1"
+    || input.params.laLobeGeneratorMode === "av-plane-wall-work-lamv-residual-transaction-v1"
     ? Math.max(0, netForceN) + Math.max(0, dampingForceN) + coordinateVelocityTractionForceN
     : driveForceN;
   const tractionPressureMmHg = pressureForceN / areaM2 / 133.322368;
