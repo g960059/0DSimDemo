@@ -1,0 +1,1995 @@
+{
+  "reportId": "atrial-av-plane-coordinate-contract-review-report-v1",
+  "gateId": "atrialAVPlaneCoordinateContractReviewV1",
+  "mode": "left-heart-av-plane-coordinate-contract-review-no-runtime",
+  "variants": [
+    {
+      "variantId": "raw-traction-reference",
+      "mode": "raw-reference",
+      "capacityGainMl": 20,
+      "driveForceN": 0,
+      "stiffnessNPerNorm": 0,
+      "dampingNsecPerNorm": 0,
+      "massKg": 0.035,
+      "maxVelocityNormPerSec": 1.8,
+      "reservoirStartTheta": 0.06,
+      "reservoirEndTheta": 0.58,
+      "riseTauSec": 0.055,
+      "fallTauSec": 0.3,
+      "releaseTauSec": 0.085,
+      "mvReleaseThreshold01": 0.2
+    },
+    {
+      "variantId": "capacity-coordinate-drive2-stiff2-damp06",
+      "mode": "capacity-work-coordinate",
+      "capacityGainMl": 20,
+      "driveForceN": 2,
+      "stiffnessNPerNorm": 2,
+      "dampingNsecPerNorm": 0.6,
+      "massKg": 0.035,
+      "maxVelocityNormPerSec": 1.8,
+      "reservoirStartTheta": 0.06,
+      "reservoirEndTheta": 0.58,
+      "riseTauSec": 0.055,
+      "fallTauSec": 0.3,
+      "releaseTauSec": 0.085,
+      "mvReleaseThreshold01": 0.2
+    },
+    {
+      "variantId": "capacity-coordinate-drive4-stiff2-damp06",
+      "mode": "capacity-work-coordinate",
+      "capacityGainMl": 20,
+      "driveForceN": 4,
+      "stiffnessNPerNorm": 2,
+      "dampingNsecPerNorm": 0.6,
+      "massKg": 0.035,
+      "maxVelocityNormPerSec": 1.8,
+      "reservoirStartTheta": 0.06,
+      "reservoirEndTheta": 0.58,
+      "riseTauSec": 0.055,
+      "fallTauSec": 0.3,
+      "releaseTauSec": 0.085,
+      "mvReleaseThreshold01": 0.2
+    },
+    {
+      "variantId": "capacity-coordinate-drive6-stiff3-damp10",
+      "mode": "capacity-work-coordinate",
+      "capacityGainMl": 20,
+      "driveForceN": 6,
+      "stiffnessNPerNorm": 3,
+      "dampingNsecPerNorm": 1,
+      "massKg": 0.035,
+      "maxVelocityNormPerSec": 1.8,
+      "reservoirStartTheta": 0.06,
+      "reservoirEndTheta": 0.58,
+      "riseTauSec": 0.055,
+      "fallTauSec": 0.3,
+      "releaseTauSec": 0.085,
+      "mvReleaseThreshold01": 0.2
+    },
+    {
+      "variantId": "capacity-coordinate-drive8-stiff4-damp12",
+      "mode": "capacity-work-coordinate",
+      "capacityGainMl": 20,
+      "driveForceN": 8,
+      "stiffnessNPerNorm": 4,
+      "dampingNsecPerNorm": 1.2,
+      "massKg": 0.035,
+      "maxVelocityNormPerSec": 1.8,
+      "reservoirStartTheta": 0.06,
+      "reservoirEndTheta": 0.58,
+      "riseTauSec": 0.055,
+      "fallTauSec": 0.3,
+      "releaseTauSec": 0.085,
+      "mvReleaseThreshold01": 0.2
+    },
+    {
+      "variantId": "capacity-coordinate-drive4-stiff1-damp04-fast",
+      "mode": "capacity-work-coordinate",
+      "capacityGainMl": 20,
+      "driveForceN": 4,
+      "stiffnessNPerNorm": 1,
+      "dampingNsecPerNorm": 0.4,
+      "massKg": 0.03,
+      "maxVelocityNormPerSec": 2.4,
+      "reservoirStartTheta": 0.06,
+      "reservoirEndTheta": 0.52,
+      "riseTauSec": 0.04,
+      "fallTauSec": 0.22,
+      "releaseTauSec": 0.055,
+      "mvReleaseThreshold01": 0.12
+    },
+    {
+      "variantId": "capacity-coordinate-drive6-stiff2-damp06-slow",
+      "mode": "capacity-work-coordinate",
+      "capacityGainMl": 20,
+      "driveForceN": 6,
+      "stiffnessNPerNorm": 2,
+      "dampingNsecPerNorm": 0.6,
+      "massKg": 0.045,
+      "maxVelocityNormPerSec": 1.2,
+      "reservoirStartTheta": 0.06,
+      "reservoirEndTheta": 0.62,
+      "riseTauSec": 0.075,
+      "fallTauSec": 0.34,
+      "releaseTauSec": 0.12,
+      "mvReleaseThreshold01": 0.25
+    }
+  ],
+  "rows": [
+    {
+      "profileId": "normal-hr75",
+      "variantId": "raw-traction-reference",
+      "sourceSurfaceStatus": "pass",
+      "topologyStatus": "pass",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.277682,
+      "mvForwardVolumeRatio": 1,
+      "aovForwardVolumeRatio": 1,
+      "maxZNorm": 0,
+      "maxZDotNormPerSec": 0,
+      "maxDriveForceN": 0,
+      "maxWorkCoordinatePressureMmHg": 0,
+      "maxTractionPressureMmHg": 18.671178,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 5,
+      "baselineClampCount": 5,
+      "lobeQuality": {
+        "pass": true,
+        "selfIntersections": 2,
+        "opposedSignedLobes": true,
+        "aLoopArea": 76.43705,
+        "vLoopArea": 11.770696,
+        "volumeSeparationMl": 6.2947,
+        "failureReasons": []
+      },
+      "failureReasons": []
+    },
+    {
+      "profileId": "normal-hr75",
+      "variantId": "capacity-coordinate-drive2-stiff2-damp06",
+      "sourceSurfaceStatus": "pass",
+      "topologyStatus": "fail",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.289398,
+      "mvForwardVolumeRatio": 1.007798,
+      "aovForwardVolumeRatio": 1.006742,
+      "maxZNorm": 0.363862,
+      "maxZDotNormPerSec": 1.668984,
+      "maxDriveForceN": 1.57237,
+      "maxWorkCoordinatePressureMmHg": 7.076245,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 5,
+      "baselineClampCount": 5,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 82.01453,
+        "vLoopArea": 75.878383,
+        "volumeSeparationMl": 5.900502,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr75",
+      "variantId": "capacity-coordinate-drive4-stiff2-damp06",
+      "sourceSurfaceStatus": "pass",
+      "topologyStatus": "fail",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.269735,
+      "mvForwardVolumeRatio": 1.008683,
+      "aovForwardVolumeRatio": 1.00841,
+      "maxZNorm": 0.544457,
+      "maxZDotNormPerSec": 1.8,
+      "maxDriveForceN": 3.145283,
+      "maxWorkCoordinatePressureMmHg": 14.154937,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 5,
+      "baselineClampCount": 5,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 86.067596,
+        "vLoopArea": 78.489917,
+        "volumeSeparationMl": 5.7909,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr75",
+      "variantId": "capacity-coordinate-drive6-stiff3-damp10",
+      "sourceSurfaceStatus": "pass",
+      "topologyStatus": "fail",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.269968,
+      "mvForwardVolumeRatio": 1.008357,
+      "aovForwardVolumeRatio": 1.008166,
+      "maxZNorm": 0.556082,
+      "maxZDotNormPerSec": 1.8,
+      "maxDriveForceN": 4.717808,
+      "maxWorkCoordinatePressureMmHg": 21.231881,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 5,
+      "baselineClampCount": 5,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 85.533309,
+        "vLoopArea": 78.357869,
+        "volumeSeparationMl": 5.801422,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr75",
+      "variantId": "capacity-coordinate-drive8-stiff4-damp12",
+      "sourceSurfaceStatus": "pass",
+      "topologyStatus": "fail",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.270077,
+      "mvForwardVolumeRatio": 1.007342,
+      "aovForwardVolumeRatio": 1.007135,
+      "maxZNorm": 0.549934,
+      "maxZDotNormPerSec": 1.8,
+      "maxDriveForceN": 6.289764,
+      "maxWorkCoordinatePressureMmHg": 28.306265,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 5,
+      "baselineClampCount": 5,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 84.453857,
+        "vLoopArea": 77.498451,
+        "volumeSeparationMl": 5.8708,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr75",
+      "variantId": "capacity-coordinate-drive4-stiff1-damp04-fast",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "fail",
+      "mvfClean": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.268679,
+      "mvForwardVolumeRatio": 1.020346,
+      "aovForwardVolumeRatio": 1.018345,
+      "maxZNorm": 0.878843,
+      "maxZDotNormPerSec": 2.4,
+      "maxDriveForceN": 3.207966,
+      "maxWorkCoordinatePressureMmHg": 14.437035,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 5,
+      "baselineClampCount": 5,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 98.120669,
+        "vLoopArea": 87.816657,
+        "volumeSeparationMl": 5.015303,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr75",
+      "variantId": "capacity-coordinate-drive6-stiff2-damp06-slow",
+      "sourceSurfaceStatus": "pass",
+      "topologyStatus": "fail",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.270174,
+      "mvForwardVolumeRatio": 1.007016,
+      "aovForwardVolumeRatio": 1.006668,
+      "maxZNorm": 0.409533,
+      "maxZDotNormPerSec": 1.2,
+      "maxDriveForceN": 4.119661,
+      "maxWorkCoordinatePressureMmHg": 18.54,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 5,
+      "baselineClampCount": 5,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 84.068273,
+        "vLoopArea": 77.100183,
+        "volumeSeparationMl": 5.894157,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "variantId": "raw-traction-reference",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "pass",
+      "mvfClean": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.28327,
+      "mvForwardVolumeRatio": 1,
+      "aovForwardVolumeRatio": 1,
+      "maxZNorm": 0,
+      "maxZDotNormPerSec": 0,
+      "maxDriveForceN": 0,
+      "maxWorkCoordinatePressureMmHg": 0,
+      "maxTractionPressureMmHg": 18.639252,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "lobeQuality": {
+        "pass": true,
+        "selfIntersections": 2,
+        "opposedSignedLobes": true,
+        "aLoopArea": 59.766593,
+        "vLoopArea": 21.533678,
+        "volumeSeparationMl": 4.909654,
+        "failureReasons": []
+      },
+      "failureReasons": [
+        "mv-forward-peak-count"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "variantId": "capacity-coordinate-drive2-stiff2-damp06",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "fail",
+      "mvfClean": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.284518,
+      "mvForwardVolumeRatio": 0.997895,
+      "aovForwardVolumeRatio": 1.001208,
+      "maxZNorm": 0.334679,
+      "maxZDotNormPerSec": 1.433523,
+      "maxDriveForceN": 1.4552,
+      "maxWorkCoordinatePressureMmHg": 6.54894,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 63.302247,
+        "vLoopArea": 57.265405,
+        "volumeSeparationMl": 4.176621,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "variantId": "capacity-coordinate-drive4-stiff2-damp06",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "fail",
+      "mvfClean": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.289795,
+      "mvForwardVolumeRatio": 1.001435,
+      "aovForwardVolumeRatio": 1.004788,
+      "maxZNorm": 0.547452,
+      "maxZDotNormPerSec": 1.8,
+      "maxDriveForceN": 2.911231,
+      "maxWorkCoordinatePressureMmHg": 13.101618,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 66.134548,
+        "vLoopArea": 60.02081,
+        "volumeSeparationMl": 3.990588,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "variantId": "capacity-coordinate-drive6-stiff3-damp10",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "fail",
+      "mvfClean": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.29131,
+      "mvForwardVolumeRatio": 1.00195,
+      "aovForwardVolumeRatio": 1.016935,
+      "maxZNorm": 0.557424,
+      "maxZDotNormPerSec": 1.8,
+      "maxDriveForceN": 4.377519,
+      "maxWorkCoordinatePressureMmHg": 19.700457,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 65.644634,
+        "vLoopArea": 59.384708,
+        "volumeSeparationMl": 4.073921,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "variantId": "capacity-coordinate-drive8-stiff4-damp12",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "fail",
+      "mvfClean": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.290302,
+      "mvForwardVolumeRatio": 1.001192,
+      "aovForwardVolumeRatio": 1.016124,
+      "maxZNorm": 0.549163,
+      "maxZDotNormPerSec": 1.8,
+      "maxDriveForceN": 5.836245,
+      "maxWorkCoordinatePressureMmHg": 26.265263,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 65.149059,
+        "vLoopArea": 58.768136,
+        "volumeSeparationMl": 4.117607,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "variantId": "capacity-coordinate-drive4-stiff1-damp04-fast",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "fail",
+      "mvfClean": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.305285,
+      "mvForwardVolumeRatio": 1.009903,
+      "aovForwardVolumeRatio": 1.020839,
+      "maxZNorm": 0.92,
+      "maxZDotNormPerSec": 2.4,
+      "maxDriveForceN": 2.987269,
+      "maxWorkCoordinatePressureMmHg": 13.443816,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 73.289033,
+        "vLoopArea": 67.211121,
+        "volumeSeparationMl": 3.468472,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "variantId": "capacity-coordinate-drive6-stiff2-damp06-slow",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "fail",
+      "mvfClean": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.290094,
+      "mvForwardVolumeRatio": 1.001413,
+      "aovForwardVolumeRatio": 1.016167,
+      "maxZNorm": 0.441093,
+      "maxZDotNormPerSec": 1.2,
+      "maxDriveForceN": 3.828996,
+      "maxWorkCoordinatePressureMmHg": 17.231898,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 65.070845,
+        "vLoopArea": 58.875774,
+        "volumeSeparationMl": 4.107732,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "variantId": "raw-traction-reference",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "pass",
+      "mvfClean": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.140804,
+      "mvForwardVolumeRatio": 1,
+      "aovForwardVolumeRatio": 1,
+      "maxZNorm": 0,
+      "maxZDotNormPerSec": 0,
+      "maxDriveForceN": 0,
+      "maxWorkCoordinatePressureMmHg": 0,
+      "maxTractionPressureMmHg": 18.595919,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 6,
+      "baselineClampCount": 6,
+      "lobeQuality": {
+        "pass": true,
+        "selfIntersections": 2,
+        "opposedSignedLobes": true,
+        "aLoopArea": 80.673006,
+        "vLoopArea": 10.612109,
+        "volumeSeparationMl": 2.009604,
+        "failureReasons": []
+      },
+      "failureReasons": [
+        "mv-forward-peak-count"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "variantId": "capacity-coordinate-drive2-stiff2-damp06",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "fail",
+      "mvfClean": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.224888,
+      "mvForwardVolumeRatio": 1.011628,
+      "aovForwardVolumeRatio": 1.01011,
+      "maxZNorm": 0.366464,
+      "maxZDotNormPerSec": 1.641149,
+      "maxDriveForceN": 1.553954,
+      "maxWorkCoordinatePressureMmHg": 6.99337,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 6,
+      "baselineClampCount": 6,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 86.627335,
+        "vLoopArea": 77.970916,
+        "volumeSeparationMl": 1.370637,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "variantId": "capacity-coordinate-drive4-stiff2-damp06",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "fail",
+      "mvfClean": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.193142,
+      "mvForwardVolumeRatio": 1.019906,
+      "aovForwardVolumeRatio": 1.016402,
+      "maxZNorm": 0.564103,
+      "maxZDotNormPerSec": 1.8,
+      "maxDriveForceN": 3.111674,
+      "maxWorkCoordinatePressureMmHg": 14.003687,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 6,
+      "baselineClampCount": 6,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 91.333528,
+        "vLoopArea": 81.08637,
+        "volumeSeparationMl": 0.921063,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed",
+          "v-loop-not-higher-volume-than-a-loop"
+        ]
+      },
+      "failureReasons": [
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "variantId": "capacity-coordinate-drive6-stiff3-damp10",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "fail",
+      "mvfClean": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.194055,
+      "mvForwardVolumeRatio": 1.019245,
+      "aovForwardVolumeRatio": 1.015886,
+      "maxZNorm": 0.571922,
+      "maxZDotNormPerSec": 1.8,
+      "maxDriveForceN": 4.667111,
+      "maxWorkCoordinatePressureMmHg": 21.003727,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 6,
+      "baselineClampCount": 6,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 90.6878,
+        "vLoopArea": 80.893668,
+        "volumeSeparationMl": 0.952292,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed",
+          "v-loop-not-higher-volume-than-a-loop"
+        ]
+      },
+      "failureReasons": [
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "variantId": "capacity-coordinate-drive8-stiff4-damp12",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "fail",
+      "mvfClean": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.192297,
+      "mvForwardVolumeRatio": 1.017115,
+      "aovForwardVolumeRatio": 1.01415,
+      "maxZNorm": 0.566654,
+      "maxZDotNormPerSec": 1.8,
+      "maxDriveForceN": 6.220836,
+      "maxWorkCoordinatePressureMmHg": 27.996065,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 6,
+      "baselineClampCount": 6,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 89.581442,
+        "vLoopArea": 80.055193,
+        "volumeSeparationMl": 1.089408,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed",
+          "v-loop-not-higher-volume-than-a-loop"
+        ]
+      },
+      "failureReasons": [
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "variantId": "capacity-coordinate-drive4-stiff1-damp04-fast",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "fail",
+      "mvfClean": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.205019,
+      "mvForwardVolumeRatio": 1.043473,
+      "aovForwardVolumeRatio": 1.035023,
+      "maxZNorm": 0.920696,
+      "maxZDotNormPerSec": 2.4,
+      "maxDriveForceN": 3.192335,
+      "maxWorkCoordinatePressureMmHg": 14.36669,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 6,
+      "baselineClampCount": 6,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 105.206589,
+        "vLoopArea": 91.089713,
+        "volumeSeparationMl": -0.643461,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed",
+          "v-loop-not-higher-volume-than-a-loop"
+        ]
+      },
+      "failureReasons": [
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "variantId": "capacity-coordinate-drive6-stiff2-damp06-slow",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "fail",
+      "mvfClean": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.190965,
+      "mvForwardVolumeRatio": 1.016416,
+      "aovForwardVolumeRatio": 1.013262,
+      "maxZNorm": 0.427198,
+      "maxZDotNormPerSec": 1.2,
+      "maxDriveForceN": 4.070388,
+      "maxWorkCoordinatePressureMmHg": 18.318254,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 6,
+      "baselineClampCount": 6,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 89.2352,
+        "vLoopArea": 79.632772,
+        "volumeSeparationMl": 1.141208,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed",
+          "v-loop-not-higher-volume-than-a-loop"
+        ]
+      },
+      "failureReasons": [
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-high",
+      "variantId": "raw-traction-reference",
+      "sourceSurfaceStatus": "pass",
+      "topologyStatus": "pass",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.147327,
+      "mvForwardVolumeRatio": 1,
+      "aovForwardVolumeRatio": 1,
+      "maxZNorm": 0,
+      "maxZDotNormPerSec": 0,
+      "maxDriveForceN": 0,
+      "maxWorkCoordinatePressureMmHg": 0,
+      "maxTractionPressureMmHg": 18.325946,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 5,
+      "baselineClampCount": 5,
+      "lobeQuality": {
+        "pass": true,
+        "selfIntersections": 2,
+        "opposedSignedLobes": true,
+        "aLoopArea": 66.98701,
+        "vLoopArea": 60.993875,
+        "volumeSeparationMl": 15.305228,
+        "failureReasons": []
+      },
+      "failureReasons": []
+    },
+    {
+      "profileId": "preload-high",
+      "variantId": "capacity-coordinate-drive2-stiff2-damp06",
+      "sourceSurfaceStatus": "pass",
+      "topologyStatus": "fail",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.142226,
+      "mvForwardVolumeRatio": 1.002595,
+      "aovForwardVolumeRatio": 1.001136,
+      "maxZNorm": 0.352213,
+      "maxZDotNormPerSec": 1.709707,
+      "maxDriveForceN": 1.580287,
+      "maxWorkCoordinatePressureMmHg": 7.111875,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 5,
+      "baselineClampCount": 5,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 2,
+        "opposedSignedLobes": false,
+        "aLoopArea": 70.511957,
+        "vLoopArea": 25.658325,
+        "volumeSeparationMl": 14.34523,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-high",
+      "variantId": "capacity-coordinate-drive4-stiff2-damp06",
+      "sourceSurfaceStatus": "pass",
+      "topologyStatus": "fail",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.142461,
+      "mvForwardVolumeRatio": 1.004057,
+      "aovForwardVolumeRatio": 1.002503,
+      "maxZNorm": 0.501379,
+      "maxZDotNormPerSec": 1.8,
+      "maxDriveForceN": 3.160872,
+      "maxWorkCoordinatePressureMmHg": 14.225096,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 5,
+      "baselineClampCount": 5,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 2,
+        "opposedSignedLobes": false,
+        "aLoopArea": 72.54366,
+        "vLoopArea": 26.953641,
+        "volumeSeparationMl": 14.332734,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-high",
+      "variantId": "capacity-coordinate-drive6-stiff3-damp10",
+      "sourceSurfaceStatus": "pass",
+      "topologyStatus": "fail",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.138721,
+      "mvForwardVolumeRatio": 1.001235,
+      "aovForwardVolumeRatio": 1.002431,
+      "maxZNorm": 0.517471,
+      "maxZDotNormPerSec": 1.8,
+      "maxDriveForceN": 4.741285,
+      "maxWorkCoordinatePressureMmHg": 21.337539,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 5,
+      "baselineClampCount": 5,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 2,
+        "opposedSignedLobes": false,
+        "aLoopArea": 72.460048,
+        "vLoopArea": 26.944014,
+        "volumeSeparationMl": 14.319791,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-high",
+      "variantId": "capacity-coordinate-drive8-stiff4-damp12",
+      "sourceSurfaceStatus": "pass",
+      "topologyStatus": "fail",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.138553,
+      "mvForwardVolumeRatio": 1.000624,
+      "aovForwardVolumeRatio": 1.001966,
+      "maxZNorm": 0.50914,
+      "maxZDotNormPerSec": 1.8,
+      "maxDriveForceN": 6.32151,
+      "maxWorkCoordinatePressureMmHg": 28.449133,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 5,
+      "baselineClampCount": 5,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 2,
+        "opposedSignedLobes": false,
+        "aLoopArea": 71.806252,
+        "vLoopArea": 26.486965,
+        "volumeSeparationMl": 14.331049,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-high",
+      "variantId": "capacity-coordinate-drive4-stiff1-damp04-fast",
+      "sourceSurfaceStatus": "pass",
+      "topologyStatus": "fail",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.139768,
+      "mvForwardVolumeRatio": 1.00736,
+      "aovForwardVolumeRatio": 1.006701,
+      "maxZNorm": 0.804071,
+      "maxZDotNormPerSec": 2.4,
+      "maxDriveForceN": 3.21869,
+      "maxWorkCoordinatePressureMmHg": 14.485297,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 5,
+      "baselineClampCount": 5,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 2,
+        "opposedSignedLobes": false,
+        "aLoopArea": 79.657652,
+        "vLoopArea": 31.411538,
+        "volumeSeparationMl": 14.212118,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-high",
+      "variantId": "capacity-coordinate-drive6-stiff2-damp06-slow",
+      "sourceSurfaceStatus": "pass",
+      "topologyStatus": "fail",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.142308,
+      "mvForwardVolumeRatio": 1.003222,
+      "aovForwardVolumeRatio": 1.00174,
+      "maxZNorm": 0.369485,
+      "maxZDotNormPerSec": 1.2,
+      "maxDriveForceN": 4.172247,
+      "maxWorkCoordinatePressureMmHg": 18.776655,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 5,
+      "baselineClampCount": 5,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 2,
+        "opposedSignedLobes": false,
+        "aLoopArea": 71.300335,
+        "vLoopArea": 26.217907,
+        "volumeSeparationMl": 14.32884,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "variantId": "raw-traction-reference",
+      "sourceSurfaceStatus": "pass",
+      "topologyStatus": "pass",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.415159,
+      "mvForwardVolumeRatio": 1,
+      "aovForwardVolumeRatio": 1,
+      "maxZNorm": 0,
+      "maxZDotNormPerSec": 0,
+      "maxDriveForceN": 0,
+      "maxWorkCoordinatePressureMmHg": 0,
+      "maxTractionPressureMmHg": 19.187197,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "lobeQuality": {
+        "pass": true,
+        "selfIntersections": 2,
+        "opposedSignedLobes": true,
+        "aLoopArea": 63.18426,
+        "vLoopArea": 71.598793,
+        "volumeSeparationMl": 11.552831,
+        "failureReasons": []
+      },
+      "failureReasons": []
+    },
+    {
+      "profileId": "afterload-high",
+      "variantId": "capacity-coordinate-drive2-stiff2-damp06",
+      "sourceSurfaceStatus": "pass",
+      "topologyStatus": "fail",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.394947,
+      "mvForwardVolumeRatio": 0.993214,
+      "aovForwardVolumeRatio": 0.99686,
+      "maxZNorm": 0.336883,
+      "maxZDotNormPerSec": 1.563212,
+      "maxDriveForceN": 1.490391,
+      "maxWorkCoordinatePressureMmHg": 6.707313,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 2,
+        "opposedSignedLobes": false,
+        "aLoopArea": 68.213404,
+        "vLoopArea": 7.1414,
+        "volumeSeparationMl": 10.493789,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "variantId": "capacity-coordinate-drive4-stiff2-damp06",
+      "sourceSurfaceStatus": "pass",
+      "topologyStatus": "fail",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.382248,
+      "mvForwardVolumeRatio": 0.994069,
+      "aovForwardVolumeRatio": 0.998108,
+      "maxZNorm": 0.527064,
+      "maxZDotNormPerSec": 1.8,
+      "maxDriveForceN": 2.981053,
+      "maxWorkCoordinatePressureMmHg": 13.41584,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 2,
+        "opposedSignedLobes": false,
+        "aLoopArea": 71.273456,
+        "vLoopArea": 7.474932,
+        "volumeSeparationMl": 10.467507,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "variantId": "capacity-coordinate-drive6-stiff3-damp10",
+      "sourceSurfaceStatus": "pass",
+      "topologyStatus": "fail",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.381299,
+      "mvForwardVolumeRatio": 0.993995,
+      "aovForwardVolumeRatio": 0.99795,
+      "maxZNorm": 0.534504,
+      "maxZDotNormPerSec": 1.8,
+      "maxDriveForceN": 4.471528,
+      "maxWorkCoordinatePressureMmHg": 20.123531,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 2,
+        "opposedSignedLobes": false,
+        "aLoopArea": 70.887587,
+        "vLoopArea": 7.466384,
+        "volumeSeparationMl": 10.470222,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "variantId": "capacity-coordinate-drive8-stiff4-damp12",
+      "sourceSurfaceStatus": "pass",
+      "topologyStatus": "fail",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.385843,
+      "mvForwardVolumeRatio": 0.993817,
+      "aovForwardVolumeRatio": 0.99766,
+      "maxZNorm": 0.529445,
+      "maxZDotNormPerSec": 1.8,
+      "maxDriveForceN": 5.961912,
+      "maxWorkCoordinatePressureMmHg": 26.830811,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 2,
+        "opposedSignedLobes": false,
+        "aLoopArea": 70.183065,
+        "vLoopArea": 7.363212,
+        "volumeSeparationMl": 10.486663,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "variantId": "capacity-coordinate-drive4-stiff1-damp04-fast",
+      "sourceSurfaceStatus": "pass",
+      "topologyStatus": "fail",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.343392,
+      "mvForwardVolumeRatio": 0.994013,
+      "aovForwardVolumeRatio": 1.003328,
+      "maxZNorm": 0.846556,
+      "maxZDotNormPerSec": 2.4,
+      "maxDriveForceN": 3.136045,
+      "maxWorkCoordinatePressureMmHg": 14.113363,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 2,
+        "opposedSignedLobes": false,
+        "aLoopArea": 79.256604,
+        "vLoopArea": 8.503761,
+        "volumeSeparationMl": 10.265576,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "variantId": "capacity-coordinate-drive6-stiff2-damp06-slow",
+      "sourceSurfaceStatus": "pass",
+      "topologyStatus": "fail",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.385205,
+      "mvForwardVolumeRatio": 0.993868,
+      "aovForwardVolumeRatio": 0.997645,
+      "maxZNorm": 0.408667,
+      "maxZDotNormPerSec": 1.2,
+      "maxDriveForceN": 3.799,
+      "maxWorkCoordinatePressureMmHg": 17.096904,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 2,
+        "opposedSignedLobes": false,
+        "aLoopArea": 70.132268,
+        "vLoopArea": 7.386622,
+        "volumeSeparationMl": 10.490743,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "variantId": "raw-traction-reference",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "pass",
+      "mvfClean": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.601749,
+      "mvForwardVolumeRatio": 1,
+      "aovForwardVolumeRatio": 1,
+      "maxZNorm": 0,
+      "maxZDotNormPerSec": 0,
+      "maxDriveForceN": 0,
+      "maxWorkCoordinatePressureMmHg": 0,
+      "maxTractionPressureMmHg": 18.93977,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "lobeQuality": {
+        "pass": true,
+        "selfIntersections": 1,
+        "opposedSignedLobes": true,
+        "aLoopArea": 27.273345,
+        "vLoopArea": 63.012425,
+        "volumeSeparationMl": 5.140991,
+        "failureReasons": []
+      },
+      "failureReasons": [
+        "mv-forward-peak-count",
+        "mv-c1-kink"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "variantId": "capacity-coordinate-drive2-stiff2-damp06",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "fail",
+      "mvfClean": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.451048,
+      "mvForwardVolumeRatio": 1.008443,
+      "aovForwardVolumeRatio": 1.017793,
+      "maxZNorm": 0.303175,
+      "maxZDotNormPerSec": 1.317312,
+      "maxDriveForceN": 1.324699,
+      "maxWorkCoordinatePressureMmHg": 5.961638,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 36.030698,
+        "vLoopArea": 5.622532,
+        "volumeSeparationMl": 3.949839,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "mv-forward-peak-count",
+        "mv-c1-kink",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "variantId": "capacity-coordinate-drive4-stiff2-damp06",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "fail",
+      "mvfClean": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.583089,
+      "mvForwardVolumeRatio": 1.026308,
+      "aovForwardVolumeRatio": 1.02403,
+      "maxZNorm": 0.534787,
+      "maxZDotNormPerSec": 1.8,
+      "maxDriveForceN": 2.652339,
+      "maxWorkCoordinatePressureMmHg": 11.936509,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 38.304593,
+        "vLoopArea": 5.833777,
+        "volumeSeparationMl": 3.978958,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "mv-forward-peak-count",
+        "mv-c1-kink",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "variantId": "capacity-coordinate-drive6-stiff3-damp10",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "fail",
+      "mvfClean": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.582944,
+      "mvForwardVolumeRatio": 1.025507,
+      "aovForwardVolumeRatio": 1.023114,
+      "maxZNorm": 0.526727,
+      "maxZDotNormPerSec": 1.8,
+      "maxDriveForceN": 3.977915,
+      "maxWorkCoordinatePressureMmHg": 17.902088,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 38.028464,
+        "vLoopArea": 5.833618,
+        "volumeSeparationMl": 3.982011,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "mv-forward-peak-count",
+        "mv-c1-kink",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "variantId": "capacity-coordinate-drive8-stiff4-damp12",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "fail",
+      "mvfClean": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.447045,
+      "mvForwardVolumeRatio": 1.01194,
+      "aovForwardVolumeRatio": 1.022192,
+      "maxZNorm": 0.525261,
+      "maxZDotNormPerSec": 1.8,
+      "maxDriveForceN": 5.303086,
+      "maxWorkCoordinatePressureMmHg": 23.865852,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 37.051492,
+        "vLoopArea": 5.811594,
+        "volumeSeparationMl": 3.933106,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "mv-forward-peak-count",
+        "mv-c1-kink",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "variantId": "capacity-coordinate-drive4-stiff1-damp04-fast",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "fail",
+      "mvfClean": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.63336,
+      "mvForwardVolumeRatio": 1.039539,
+      "aovForwardVolumeRatio": 1.036835,
+      "maxZNorm": 0.886381,
+      "maxZDotNormPerSec": 2.4,
+      "maxDriveForceN": 2.987136,
+      "maxWorkCoordinatePressureMmHg": 13.443217,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 42.08499,
+        "vLoopArea": 6.274813,
+        "volumeSeparationMl": 3.94497,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "mv-forward-peak-count",
+        "mv-c1-kink",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "variantId": "capacity-coordinate-drive6-stiff2-damp06-slow",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "fail",
+      "mvfClean": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.587236,
+      "mvForwardVolumeRatio": 1.026483,
+      "aovForwardVolumeRatio": 1.02464,
+      "maxZNorm": 0.482168,
+      "maxZDotNormPerSec": 1.2,
+      "maxDriveForceN": 3.255458,
+      "maxWorkCoordinatePressureMmHg": 14.650764,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 38.322679,
+        "vLoopArea": 5.867824,
+        "volumeSeparationMl": 3.980685,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "mv-forward-peak-count",
+        "mv-c1-kink",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "variantId": "raw-traction-reference",
+      "sourceSurfaceStatus": "pass",
+      "topologyStatus": "pass",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.169575,
+      "mvForwardVolumeRatio": 1,
+      "aovForwardVolumeRatio": 1,
+      "maxZNorm": 0,
+      "maxZDotNormPerSec": 0,
+      "maxDriveForceN": 0,
+      "maxWorkCoordinatePressureMmHg": 0,
+      "maxTractionPressureMmHg": 19.283221,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 38,
+      "baselineClampCount": 38,
+      "lobeQuality": {
+        "pass": true,
+        "selfIntersections": 2,
+        "opposedSignedLobes": true,
+        "aLoopArea": 71.327581,
+        "vLoopArea": 47.757699,
+        "volumeSeparationMl": 9.704254,
+        "failureReasons": []
+      },
+      "failureReasons": []
+    },
+    {
+      "profileId": "contractility-high",
+      "variantId": "capacity-coordinate-drive2-stiff2-damp06",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "fail",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.169797,
+      "mvForwardVolumeRatio": 0.992811,
+      "aovForwardVolumeRatio": 1.00954,
+      "maxZNorm": 0.316318,
+      "maxZDotNormPerSec": 1.600902,
+      "maxDriveForceN": 1.493536,
+      "maxWorkCoordinatePressureMmHg": 6.721466,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 39,
+      "baselineClampCount": 38,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 2,
+        "opposedSignedLobes": false,
+        "aLoopArea": 74.400159,
+        "vLoopArea": 32.521982,
+        "volumeSeparationMl": 8.915187,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "new-clamp-hit",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "variantId": "capacity-coordinate-drive4-stiff2-damp06",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "fail",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.170228,
+      "mvForwardVolumeRatio": 0.996449,
+      "aovForwardVolumeRatio": 1.008673,
+      "maxZNorm": 0.47021,
+      "maxZDotNormPerSec": 1.8,
+      "maxDriveForceN": 2.986719,
+      "maxWorkCoordinatePressureMmHg": 13.44134,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 39,
+      "baselineClampCount": 38,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 2,
+        "opposedSignedLobes": false,
+        "aLoopArea": 76.468962,
+        "vLoopArea": 34.083657,
+        "volumeSeparationMl": 8.851264,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "new-clamp-hit",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "variantId": "capacity-coordinate-drive6-stiff3-damp10",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "fail",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.169981,
+      "mvForwardVolumeRatio": 0.99672,
+      "aovForwardVolumeRatio": 1.013726,
+      "maxZNorm": 0.477631,
+      "maxZDotNormPerSec": 1.8,
+      "maxDriveForceN": 4.481434,
+      "maxWorkCoordinatePressureMmHg": 20.168113,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 39,
+      "baselineClampCount": 38,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 2,
+        "opposedSignedLobes": false,
+        "aLoopArea": 76.19026,
+        "vLoopArea": 34.040653,
+        "volumeSeparationMl": 8.82427,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "new-clamp-hit",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "variantId": "capacity-coordinate-drive8-stiff4-damp12",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "fail",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.169969,
+      "mvForwardVolumeRatio": 0.995361,
+      "aovForwardVolumeRatio": 1.009812,
+      "maxZNorm": 0.471465,
+      "maxZDotNormPerSec": 1.8,
+      "maxDriveForceN": 5.973963,
+      "maxWorkCoordinatePressureMmHg": 26.885045,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 39,
+      "baselineClampCount": 38,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 2,
+        "opposedSignedLobes": false,
+        "aLoopArea": 75.564617,
+        "vLoopArea": 33.526619,
+        "volumeSeparationMl": 8.861435,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "new-clamp-hit",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "variantId": "capacity-coordinate-drive4-stiff1-damp04-fast",
+      "sourceSurfaceStatus": "pass",
+      "topologyStatus": "fail",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.171058,
+      "mvForwardVolumeRatio": 1.009071,
+      "aovForwardVolumeRatio": 1.004845,
+      "maxZNorm": 0.756774,
+      "maxZDotNormPerSec": 2.4,
+      "maxDriveForceN": 3.141105,
+      "maxWorkCoordinatePressureMmHg": 14.136133,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 38,
+      "baselineClampCount": 38,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 2,
+        "opposedSignedLobes": false,
+        "aLoopArea": 83.167097,
+        "vLoopArea": 39.185047,
+        "volumeSeparationMl": 8.639218,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "variantId": "capacity-coordinate-drive6-stiff2-damp06-slow",
+      "sourceSurfaceStatus": "fail",
+      "topologyStatus": "fail",
+      "mvfClean": true,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.169909,
+      "mvForwardVolumeRatio": 0.99448,
+      "aovForwardVolumeRatio": 1.009018,
+      "maxZNorm": 0.33773,
+      "maxZDotNormPerSec": 1.2,
+      "maxDriveForceN": 3.797697,
+      "maxWorkCoordinatePressureMmHg": 17.09104,
+      "maxTractionPressureMmHg": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "maxMassResidualAbsMl": 0,
+      "clampCount": 39,
+      "baselineClampCount": 38,
+      "lobeQuality": {
+        "pass": false,
+        "selfIntersections": 2,
+        "opposedSignedLobes": false,
+        "aLoopArea": 75.23337,
+        "vLoopArea": 33.252966,
+        "volumeSeparationMl": 8.874662,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "failureReasons": [
+        "new-clamp-hit",
+        "la-pv-lobe-quality-fail"
+      ]
+    }
+  ],
+  "variantSummaries": [
+    {
+      "variantId": "raw-traction-reference",
+      "sourceSurfacePass": 4,
+      "topologyPass": 7,
+      "sourcePreservingTopologyPass": 4,
+      "mvfCleanCount": 4,
+      "hiddenVolumeCleanCount": 7,
+      "opposedLobeCount": 7,
+      "maxZNorm": 0,
+      "maxZDotNormPerSec": 0,
+      "maxDriveForceN": 0,
+      "maxWorkCoordinatePressureMmHg": 0,
+      "maxTractionPressureMmHg": 19.283221,
+      "maxVLoopArea": 71.598793
+    },
+    {
+      "variantId": "capacity-coordinate-drive2-stiff2-damp06",
+      "sourceSurfacePass": 3,
+      "topologyPass": 0,
+      "sourcePreservingTopologyPass": 0,
+      "mvfCleanCount": 4,
+      "hiddenVolumeCleanCount": 7,
+      "opposedLobeCount": 0,
+      "maxZNorm": 0.366464,
+      "maxZDotNormPerSec": 1.709707,
+      "maxDriveForceN": 1.580287,
+      "maxWorkCoordinatePressureMmHg": 7.111875,
+      "maxTractionPressureMmHg": 0,
+      "maxVLoopArea": 77.970916
+    },
+    {
+      "variantId": "capacity-coordinate-drive4-stiff2-damp06",
+      "sourceSurfacePass": 3,
+      "topologyPass": 0,
+      "sourcePreservingTopologyPass": 0,
+      "mvfCleanCount": 4,
+      "hiddenVolumeCleanCount": 7,
+      "opposedLobeCount": 0,
+      "maxZNorm": 0.564103,
+      "maxZDotNormPerSec": 1.8,
+      "maxDriveForceN": 3.160872,
+      "maxWorkCoordinatePressureMmHg": 14.225096,
+      "maxTractionPressureMmHg": 0,
+      "maxVLoopArea": 81.08637
+    },
+    {
+      "variantId": "capacity-coordinate-drive6-stiff3-damp10",
+      "sourceSurfacePass": 3,
+      "topologyPass": 0,
+      "sourcePreservingTopologyPass": 0,
+      "mvfCleanCount": 4,
+      "hiddenVolumeCleanCount": 7,
+      "opposedLobeCount": 0,
+      "maxZNorm": 0.571922,
+      "maxZDotNormPerSec": 1.8,
+      "maxDriveForceN": 4.741285,
+      "maxWorkCoordinatePressureMmHg": 21.337539,
+      "maxTractionPressureMmHg": 0,
+      "maxVLoopArea": 80.893668
+    },
+    {
+      "variantId": "capacity-coordinate-drive8-stiff4-damp12",
+      "sourceSurfacePass": 3,
+      "topologyPass": 0,
+      "sourcePreservingTopologyPass": 0,
+      "mvfCleanCount": 4,
+      "hiddenVolumeCleanCount": 7,
+      "opposedLobeCount": 0,
+      "maxZNorm": 0.566654,
+      "maxZDotNormPerSec": 1.8,
+      "maxDriveForceN": 6.32151,
+      "maxWorkCoordinatePressureMmHg": 28.449133,
+      "maxTractionPressureMmHg": 0,
+      "maxVLoopArea": 80.055193
+    },
+    {
+      "variantId": "capacity-coordinate-drive4-stiff1-damp04-fast",
+      "sourceSurfacePass": 3,
+      "topologyPass": 0,
+      "sourcePreservingTopologyPass": 0,
+      "mvfCleanCount": 3,
+      "hiddenVolumeCleanCount": 7,
+      "opposedLobeCount": 0,
+      "maxZNorm": 0.920696,
+      "maxZDotNormPerSec": 2.4,
+      "maxDriveForceN": 3.21869,
+      "maxWorkCoordinatePressureMmHg": 14.485297,
+      "maxTractionPressureMmHg": 0,
+      "maxVLoopArea": 91.089713
+    },
+    {
+      "variantId": "capacity-coordinate-drive6-stiff2-damp06-slow",
+      "sourceSurfacePass": 3,
+      "topologyPass": 0,
+      "sourcePreservingTopologyPass": 0,
+      "mvfCleanCount": 4,
+      "hiddenVolumeCleanCount": 7,
+      "opposedLobeCount": 0,
+      "maxZNorm": 0.482168,
+      "maxZDotNormPerSec": 1.2,
+      "maxDriveForceN": 4.172247,
+      "maxWorkCoordinatePressureMmHg": 18.776655,
+      "maxTractionPressureMmHg": 0,
+      "maxVLoopArea": 79.632772
+    }
+  ],
+  "rawReference": {
+    "variantId": "raw-traction-reference",
+    "sourceSurfacePass": 4,
+    "topologyPass": 7,
+    "sourcePreservingTopologyPass": 4,
+    "mvfCleanCount": 4,
+    "hiddenVolumeCleanCount": 7,
+    "opposedLobeCount": 7,
+    "maxZNorm": 0,
+    "maxZDotNormPerSec": 0,
+    "maxDriveForceN": 0,
+    "maxWorkCoordinatePressureMmHg": 0,
+    "maxTractionPressureMmHg": 19.283221,
+    "maxVLoopArea": 71.598793
+  },
+  "bestCoordinateVariant": {
+    "variantId": "capacity-coordinate-drive4-stiff2-damp06",
+    "sourceSurfacePass": 3,
+    "topologyPass": 0,
+    "sourcePreservingTopologyPass": 0,
+    "mvfCleanCount": 4,
+    "hiddenVolumeCleanCount": 7,
+    "opposedLobeCount": 0,
+    "maxZNorm": 0.564103,
+    "maxZDotNormPerSec": 1.8,
+    "maxDriveForceN": 3.160872,
+    "maxWorkCoordinatePressureMmHg": 14.225096,
+    "maxTractionPressureMmHg": 0,
+    "maxVLoopArea": 81.08637
+  },
+  "summary": {
+    "totalProfiles": 7,
+    "rawSourceSurfacePass": 4,
+    "rawTopologyPass": 7,
+    "rawMvfCleanCount": 4,
+    "bestCoordinateVariantId": "capacity-coordinate-drive4-stiff2-damp06",
+    "bestCoordinateSourceSurfacePass": 3,
+    "bestCoordinateTopologyPass": 0,
+    "bestCoordinateMvfCleanCount": 4,
+    "coordinateVariantsImprovingRawSourceAndKeepingTopology": 0,
+    "coordinateVariantsWithZeroTractionPressure": 6,
+    "reviewStatus": "coordinate-contract-mixed"
+  },
+  "decision": {
+    "nextAction": "Capacity-only AV-plane coordinate is not sufficient. Next AV-plane contract needs a force-balance coordinate that couples capacity, pressure, valve flow, and work without hidden blood volume.",
+    "blockedClaims": [
+      "runtime-wiring",
+      "morphology-acceptance",
+      "AV-plane-enable",
+      "hidden-blood-volume-source",
+      "atrial-pressure-substitution",
+      "LandAtrial-unlock"
+    ]
+  },
+  "claimBoundary": {
+    "runtimeWiring": false,
+    "morphologyAcceptance": false,
+    "AVPlaneEnablement": false,
+    "hiddenBloodVolumeSource": false,
+    "pressureSubstitution": false,
+    "LandAtrialUnlock": false
+  },
+  "normalizedSha256": "c89febaaf020c831baebebc3ba057cf1e03bf15b1faf19c8446d984bfa185f3f"
+}

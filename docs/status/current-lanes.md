@@ -98,6 +98,13 @@ MVF remains 4/7, and qDot/reverse projection burden rises. Do not continue
 release-only or MV-opening variants; the next AV-plane traction PR should move
 capacity/pressure/work ownership into an explicit AV-plane coordinate contract
 with blood volume still owned only by venous and valve flows.
+A capacity/work-coordinate-only AV-plane review removes direct traction pressure
+and keeps blood volume hidden-source clean 7/7, but best source surface is 3/7,
+opposed-lobe topology is 0/7, and no coordinate-only variant improves the raw
+traction source/topology pair. Capacity shift without a force-balance pressure
+ownership residual is insufficient; next work should model the AV-plane
+coordinate as a hydraulic/traction force-balance coupled to chamber pressure,
+valve flow, capacity, and work readbacks.
 Warm-replay lobe attribution, separated-state smokes, dual-lobe geometry,
 flow-oriented LA filling-rate drive, hidden-volume-free AV-plane ejection-rate
 reservoir oracles, AV-plane reservoir capacity/stretch + booster/wall-work,
