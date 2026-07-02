@@ -41,11 +41,12 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: classify the `dt-half/preload-low` left/right source-surface
-loss. A focused reservoir gain/compliance scan bounded long-epoch shuttle but
-did not fix the dt-half surface preservation failure. Do not start runtime
-wiring, AV-plane work, or LandAtrial re-entry from subsystem smoke or reservoir
-scan evidence alone.
+Next PR target: repair or classify standalone left/right `dt-half`
+source-surface numerics and output/parity ownership. The dt-half attribution
+shows the selected four-chamber subsystem failures already fail in standalone
+source-surface reruns, so reservoir pressure tuning is not the next fix. Do not
+start runtime wiring, AV-plane work, or LandAtrial re-entry from subsystem smoke
+or reservoir scan evidence alone.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -344,6 +345,16 @@ Next gates:
     `dt-half/preload-low` through left/right surface preservation. This closes
     simple reservoir gain/compliance tuning as the fix and points next to
     dt-half source-surface or subsystem numerics ownership.
+34. Four-chamber dt-half source attribution: the selected scaffold's dt-half
+    subsystem failures are classified as standalone source-surface failures,
+    not reservoir pressure perturbation or subsystem-only coupling. The 3-point
+    attribution set records 4 subsystem-failed sides and all 4 already fail in
+    standalone dt-half reruns: preload-low left shape parity, preload-low right
+    repeatability/output parity, afterload-high left AoV ejected volume, and
+    contractility-low right output/PV ejected volume plus shape parity. This
+    closes reservoir pressure tuning as the next fix and points directly to
+    standalone left/right source-surface dt-half numerics and output/parity
+    ownership before further four-chamber, runtime, AV-plane, or LandAtrial work.
 
 Parallel prep, not blocking the next strategic gate:
 

@@ -1,0 +1,133 @@
+{
+  "reportId": "four-chamber-dthalf-source-attribution-report-v1",
+  "gateId": "fourChamberDtHalfSourceAttributionV1",
+  "sourceSurfaces": {
+    "leftVariantId": "active-length-mv-closure-stateful-root08",
+    "selectedScaffoldId": "selected-best-neighborhood-pressure047-gain014-cap35",
+    "sampleRateMultiplier": 2
+  },
+  "profileResults": [
+    {
+      "profileId": "preload-low",
+      "subsystemFailureReasons": [
+        "left-surface-not-preserved",
+        "right-surface-not-preserved"
+      ],
+      "finalPulmonaryVenousPressureMmHg": 11.95587,
+      "finalSystemicVenousPressureMmHg": 6.222065,
+      "left": {
+        "subsystemFailed": true,
+        "baseStatus": "fail",
+        "adjustedStatus": "fail",
+        "baseFailureReasons": [
+          "dt-half-shape-parity-failed"
+        ],
+        "adjustedFailureReasons": [
+          "dt-half-shape-parity-failed"
+        ],
+        "attribution": "standalone-dt-half-source-fails"
+      },
+      "right": {
+        "subsystemFailed": true,
+        "baseStatus": "fail",
+        "adjustedStatus": "fail",
+        "baseFailureReasons": [
+          "beat-repeatability-failed",
+          "dt-half-output-parity-failed"
+        ],
+        "adjustedFailureReasons": [
+          "beat-repeatability-failed",
+          "dt-half-output-parity-failed"
+        ],
+        "attribution": "standalone-dt-half-source-fails"
+      }
+    },
+    {
+      "profileId": "afterload-high",
+      "subsystemFailureReasons": [
+        "left-surface-not-preserved"
+      ],
+      "finalPulmonaryVenousPressureMmHg": 13.93097,
+      "finalSystemicVenousPressureMmHg": 7.534515,
+      "left": {
+        "subsystemFailed": true,
+        "baseStatus": "fail",
+        "adjustedStatus": "fail",
+        "baseFailureReasons": [
+          "output-aov-ejected-volume-too-low"
+        ],
+        "adjustedFailureReasons": [
+          "output-aov-ejected-volume-too-low"
+        ],
+        "attribution": "standalone-dt-half-source-fails"
+      },
+      "right": {
+        "subsystemFailed": false,
+        "baseStatus": "pass",
+        "adjustedStatus": "pass",
+        "baseFailureReasons": [],
+        "adjustedFailureReasons": [],
+        "attribution": "not-subsystem-failed"
+      }
+    },
+    {
+      "profileId": "contractility-low",
+      "subsystemFailureReasons": [
+        "right-surface-not-preserved",
+        "unexpected-accepted-phenotype"
+      ],
+      "finalPulmonaryVenousPressureMmHg": 13.968807,
+      "finalSystemicVenousPressureMmHg": 7.515597,
+      "left": {
+        "subsystemFailed": false,
+        "baseStatus": "pass",
+        "adjustedStatus": "pass",
+        "baseFailureReasons": [],
+        "adjustedFailureReasons": [],
+        "attribution": "not-subsystem-failed"
+      },
+      "right": {
+        "subsystemFailed": true,
+        "baseStatus": "fail",
+        "adjustedStatus": "fail",
+        "baseFailureReasons": [
+          "output-stroke-volume-too-low",
+          "output-pv-ejected-volume-too-low",
+          "dt-half-shape-parity-failed"
+        ],
+        "adjustedFailureReasons": [
+          "output-stroke-volume-too-low",
+          "output-pv-ejected-volume-too-low",
+          "dt-half-shape-parity-failed"
+        ],
+        "attribution": "standalone-dt-half-source-fails"
+      }
+    }
+  ],
+  "summary": {
+    "profileCount": 3,
+    "subsystemFailedSideCount": 4,
+    "standaloneDtHalfSourceFailureCount": 4,
+    "reservoirPressurePerturbationFailureCount": 0,
+    "subsystemCouplingOnlyCount": 0
+  },
+  "decision": {
+    "attributionStatus": "dt-half-source-attribution-standalone-source",
+    "nextAction": "Focus next on standalone dt-half source-surface numerics before changing reservoir coupling.",
+    "blockedClaims": [
+      "runtime-wiring",
+      "true-four-chamber-dynamics",
+      "morphology-acceptance",
+      "AV-plane-unlock",
+      "LandAtrial-unlock"
+    ]
+  },
+  "claimBoundary": {
+    "runtimeWiring": false,
+    "trueFourChamberDynamics": false,
+    "morphologyAcceptance": false,
+    "AVPlaneUnlock": false,
+    "LandAtrialUnlock": false
+  },
+  "normalizedSha256": "b07a8a526f1f0b0d64057c57f2eb8a6e85cc23e3f952bf21b49cd516c113e694"
+}
