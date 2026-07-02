@@ -130,6 +130,16 @@ MVF 4/7). This is a useful mechanical-direction signal, not an enablement path.
 Do not continue scalar wall-work target/force sweeps; the next contract needs
 accepted MV and pulmonary venous reservoir flow ownership in the residual, not
 only coordinate pressure ownership.
+A stricter owner-visual PV phase-orientation audit now anchors the atrial loop
+at MV closure and MV opening: after MV opening the conduit limb must descend in
+pressure, move leftward in volume, and sit below the closure-to-opening
+reservoir chord. This reclassifies the old opposed-signed-lobe counts as
+over-permissive: raw traction keeps opposed signed lobes 7/7 but only passes
+phase-oriented topology 2/7; best force-balance is 5/7 topology but source 2/7;
+best wall-work is 3/7 topology and source 2/7. Treat any earlier "topology 7/7"
+as legacy signed-lobe evidence, not acceptable figure-eight morphology. Next
+work should optimize against this MV-opening phase-orientation gate and keep
+visual SVG markers for MV opening, MV closure, and the reservoir chord.
 Warm-replay lobe attribution, separated-state smokes, dual-lobe geometry,
 flow-oriented LA filling-rate drive, hidden-volume-free AV-plane ejection-rate
 reservoir oracles, AV-plane reservoir capacity/stretch + booster/wall-work,

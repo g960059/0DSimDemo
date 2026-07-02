@@ -459,7 +459,7 @@
       "profileId": "normal-hr75",
       "variantId": "raw-traction-reference",
       "sourceSurfaceStatus": "pass",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": true,
       "mvForwardPeakCount": 2,
       "mvC1ContinuityScore": 0.277682,
@@ -477,15 +477,28 @@
       "clampCount": 5,
       "baselineClampCount": 5,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 2,
         "opposedSignedLobes": true,
         "aLoopArea": 76.43705,
         "vLoopArea": 11.770696,
         "volumeSeparationMl": 6.2947,
-        "failureReasons": []
+        "mvOpeningIndex": 119,
+        "mvClosureIndex": 6,
+        "mvOpeningPressureMmHg": 6.692095,
+        "mvClosurePressureMmHg": 2.013725,
+        "postOpeningPressureDropMmHg": 1.665973,
+        "postOpeningVolumeDropMl": 4.836557,
+        "conduitBelowReservoirChordFraction": 0.521739,
+        "meanConduitBelowReservoirChordMmHg": 0.341544,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "conduit-not-below-reservoir-chord"
+        ]
       },
-      "failureReasons": []
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
     },
     {
       "profileId": "normal-hr75",
@@ -515,9 +528,19 @@
         "aLoopArea": 82.01453,
         "vLoopArea": 75.878383,
         "volumeSeparationMl": 5.900502,
+        "mvOpeningIndex": 119,
+        "mvClosureIndex": 7,
+        "mvOpeningPressureMmHg": 6.529342,
+        "mvClosurePressureMmHg": 1.939654,
+        "postOpeningPressureDropMmHg": 1.506024,
+        "postOpeningVolumeDropMl": 4.477258,
+        "conduitBelowReservoirChordFraction": 0.478261,
+        "meanConduitBelowReservoirChordMmHg": 0.288293,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "missing-pv-self-intersection",
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "conduit-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -552,9 +575,19 @@
         "aLoopArea": 86.067596,
         "vLoopArea": 78.489917,
         "volumeSeparationMl": 5.7909,
+        "mvOpeningIndex": 120,
+        "mvClosureIndex": 6,
+        "mvOpeningPressureMmHg": 6.488487,
+        "mvClosurePressureMmHg": 2.07552,
+        "postOpeningPressureDropMmHg": 1.474935,
+        "postOpeningVolumeDropMl": 4.403075,
+        "conduitBelowReservoirChordFraction": 0.5,
+        "meanConduitBelowReservoirChordMmHg": 0.307617,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "missing-pv-self-intersection",
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "conduit-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -589,9 +622,19 @@
         "aLoopArea": 85.533309,
         "vLoopArea": 78.357869,
         "volumeSeparationMl": 5.801422,
+        "mvOpeningIndex": 120,
+        "mvClosureIndex": 6,
+        "mvOpeningPressureMmHg": 6.497807,
+        "mvClosurePressureMmHg": 2.077782,
+        "postOpeningPressureDropMmHg": 1.483736,
+        "postOpeningVolumeDropMl": 4.420679,
+        "conduitBelowReservoirChordFraction": 0.5,
+        "meanConduitBelowReservoirChordMmHg": 0.311549,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "missing-pv-self-intersection",
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "conduit-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -626,9 +669,19 @@
         "aLoopArea": 84.453857,
         "vLoopArea": 77.498451,
         "volumeSeparationMl": 5.8708,
+        "mvOpeningIndex": 120,
+        "mvClosureIndex": 6,
+        "mvOpeningPressureMmHg": 6.520405,
+        "mvClosurePressureMmHg": 2.068329,
+        "postOpeningPressureDropMmHg": 1.502081,
+        "postOpeningVolumeDropMl": 4.474498,
+        "conduitBelowReservoirChordFraction": 0.5,
+        "meanConduitBelowReservoirChordMmHg": 0.315891,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "missing-pv-self-intersection",
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "conduit-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -663,9 +716,20 @@
         "aLoopArea": 98.120669,
         "vLoopArea": 87.816657,
         "volumeSeparationMl": 5.015303,
+        "mvOpeningIndex": 120,
+        "mvClosureIndex": 6,
+        "mvOpeningPressureMmHg": 6.247116,
+        "mvClosurePressureMmHg": 2.170804,
+        "postOpeningPressureDropMmHg": 1.26569,
+        "postOpeningVolumeDropMl": 3.814321,
+        "conduitBelowReservoirChordFraction": 0.454545,
+        "meanConduitBelowReservoirChordMmHg": 0.239127,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "missing-pv-self-intersection",
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -701,9 +765,19 @@
         "aLoopArea": 84.068273,
         "vLoopArea": 77.100183,
         "volumeSeparationMl": 5.894157,
+        "mvOpeningIndex": 119,
+        "mvClosureIndex": 6,
+        "mvOpeningPressureMmHg": 6.503132,
+        "mvClosurePressureMmHg": 2.063935,
+        "postOpeningPressureDropMmHg": 1.483453,
+        "postOpeningVolumeDropMl": 4.422448,
+        "conduitBelowReservoirChordFraction": 0.478261,
+        "meanConduitBelowReservoirChordMmHg": 0.286958,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "missing-pv-self-intersection",
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "conduit-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -738,9 +812,19 @@
         "aLoopArea": 96.354952,
         "vLoopArea": 10.215057,
         "volumeSeparationMl": -0.12597,
+        "mvOpeningIndex": 116,
+        "mvClosureIndex": 12,
+        "mvOpeningPressureMmHg": 6.513998,
+        "mvClosurePressureMmHg": 1.858167,
+        "postOpeningPressureDropMmHg": 2.692076,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 2.050804,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "a-v-lobes-not-opposed",
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-volume-leftward"
         ]
       },
       "failureReasons": [
@@ -776,9 +860,22 @@
         "aLoopArea": 93.426545,
         "vLoopArea": 3.600846,
         "volumeSeparationMl": 0.591657,
+        "mvOpeningIndex": 127,
+        "mvClosureIndex": 12,
+        "mvOpeningPressureMmHg": 4.253598,
+        "mvClosurePressureMmHg": 1.703089,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.33548,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "a-v-lobes-not-opposed",
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -814,9 +911,22 @@
         "aLoopArea": 93.595926,
         "vLoopArea": 1.67439,
         "volumeSeparationMl": 1.2746,
+        "mvOpeningIndex": 126,
+        "mvClosureIndex": 10,
+        "mvOpeningPressureMmHg": 4.508982,
+        "mvClosurePressureMmHg": 1.888437,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.259801,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "v-loop-area-too-small",
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -852,8 +962,21 @@
         "aLoopArea": 92.24247,
         "vLoopArea": 12.185391,
         "volumeSeparationMl": 1.114973,
+        "mvOpeningIndex": 127,
+        "mvClosureIndex": 11,
+        "mvOpeningPressureMmHg": 4.337422,
+        "mvClosurePressureMmHg": 1.806639,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.343389,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -889,8 +1012,21 @@
         "aLoopArea": 108.324659,
         "vLoopArea": 36.187145,
         "volumeSeparationMl": -1.651388,
+        "mvOpeningIndex": 130,
+        "mvClosureIndex": 12,
+        "mvOpeningPressureMmHg": 3.975921,
+        "mvClosurePressureMmHg": 1.935407,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.327048,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -926,8 +1062,18 @@
         "aLoopArea": 109.56772,
         "vLoopArea": 28.866798,
         "volumeSeparationMl": -0.07455,
+        "mvOpeningIndex": 116,
+        "mvClosureIndex": 8,
+        "mvOpeningPressureMmHg": 6.981609,
+        "mvClosurePressureMmHg": 2.357225,
+        "postOpeningPressureDropMmHg": 2.632688,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 2.110637,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-volume-leftward"
         ]
       },
       "failureReasons": [
@@ -963,8 +1109,21 @@
         "aLoopArea": 109.731939,
         "vLoopArea": 70.847402,
         "volumeSeparationMl": -0.435359,
+        "mvOpeningIndex": 127,
+        "mvClosureIndex": 9,
+        "mvOpeningPressureMmHg": 4.475453,
+        "mvClosurePressureMmHg": 2.222565,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.238427,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -1000,8 +1159,21 @@
         "aLoopArea": 110.412015,
         "vLoopArea": 88.570772,
         "volumeSeparationMl": -0.068089,
+        "mvOpeningIndex": 126,
+        "mvClosureIndex": 9,
+        "mvOpeningPressureMmHg": 4.732193,
+        "mvClosurePressureMmHg": 2.219896,
+        "postOpeningPressureDropMmHg": 0.05336,
+        "postOpeningVolumeDropMl": 0.325967,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.160609,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -1037,8 +1209,21 @@
         "aLoopArea": 104.30686,
         "vLoopArea": 114.926949,
         "volumeSeparationMl": 0.322774,
+        "mvOpeningIndex": 126,
+        "mvClosureIndex": 9,
+        "mvOpeningPressureMmHg": 4.64123,
+        "mvClosurePressureMmHg": 2.141335,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0.114296,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.225463,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -1074,8 +1259,19 @@
         "aLoopArea": 106.8129,
         "vLoopArea": 43.757788,
         "volumeSeparationMl": -0.027103,
+        "mvOpeningIndex": 121,
+        "mvClosureIndex": 8,
+        "mvOpeningPressureMmHg": 5.168469,
+        "mvClosurePressureMmHg": 2.335478,
+        "postOpeningPressureDropMmHg": 0.709944,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0.952381,
+        "meanConduitBelowReservoirChordMmHg": 0.505459,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward"
         ]
       },
       "failureReasons": [
@@ -1111,8 +1307,20 @@
         "aLoopArea": 105.756265,
         "vLoopArea": 55.207004,
         "volumeSeparationMl": -0.064206,
+        "mvOpeningIndex": 122,
+        "mvClosureIndex": 9,
+        "mvOpeningPressureMmHg": 4.947328,
+        "mvClosurePressureMmHg": 2.214278,
+        "postOpeningPressureDropMmHg": 0.403125,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0.6,
+        "meanConduitBelowReservoirChordMmHg": 0.246101,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -1148,8 +1356,21 @@
         "aLoopArea": 105.172663,
         "vLoopArea": 60.377989,
         "volumeSeparationMl": -0.014129,
+        "mvOpeningIndex": 123,
+        "mvClosureIndex": 9,
+        "mvOpeningPressureMmHg": 4.757636,
+        "mvClosurePressureMmHg": 2.20743,
+        "postOpeningPressureDropMmHg": 0.232265,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0.052632,
+        "meanConduitBelowReservoirChordMmHg": 0.032812,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -1185,8 +1406,18 @@
         "aLoopArea": 106.644393,
         "vLoopArea": 35.456066,
         "volumeSeparationMl": 0.355253,
+        "mvOpeningIndex": 119,
+        "mvClosureIndex": 8,
+        "mvOpeningPressureMmHg": 5.881261,
+        "mvClosurePressureMmHg": 2.376226,
+        "postOpeningPressureDropMmHg": 1.351041,
+        "postOpeningVolumeDropMl": 0.119664,
+        "conduitBelowReservoirChordFraction": 0.956522,
+        "meanConduitBelowReservoirChordMmHg": 0.923633,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-volume-leftward"
         ]
       },
       "failureReasons": [
@@ -1222,8 +1453,20 @@
         "aLoopArea": 93.451235,
         "vLoopArea": 2.651589,
         "volumeSeparationMl": 2.217884,
+        "mvOpeningIndex": 123,
+        "mvClosureIndex": 8,
+        "mvOpeningPressureMmHg": 5.464756,
+        "mvClosurePressureMmHg": 2.118051,
+        "postOpeningPressureDropMmHg": 0.592049,
+        "postOpeningVolumeDropMl": 1.797123,
+        "conduitBelowReservoirChordFraction": 0.210526,
+        "meanConduitBelowReservoirChordMmHg": 0.029715,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -1235,7 +1478,7 @@
       "profileId": "normal-hr75",
       "variantId": "wall-work-cap32-drive6-hyd004-stiff2-damp06-fast",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 1,
       "mvC1ContinuityScore": 0.313861,
@@ -1253,23 +1496,37 @@
       "clampCount": 5,
       "baselineClampCount": 5,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 2,
         "opposedSignedLobes": true,
         "aLoopArea": 92.518164,
         "vLoopArea": 50.53796,
         "volumeSeparationMl": 2.225891,
-        "failureReasons": []
+        "mvOpeningIndex": 124,
+        "mvClosureIndex": 8,
+        "mvOpeningPressureMmHg": 5.387113,
+        "mvClosurePressureMmHg": 2.119794,
+        "postOpeningPressureDropMmHg": 0.354133,
+        "postOpeningVolumeDropMl": 1.786644,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.028968,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
       },
       "failureReasons": [
-        "mv-forward-peak-count"
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
       "profileId": "normal-hr75",
       "variantId": "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 1,
       "mvC1ContinuityScore": 0.295775,
@@ -1287,23 +1544,37 @@
       "clampCount": 5,
       "baselineClampCount": 5,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 2,
         "opposedSignedLobes": true,
         "aLoopArea": 93.228565,
         "vLoopArea": 63.727968,
         "volumeSeparationMl": 2.786057,
-        "failureReasons": []
+        "mvOpeningIndex": 123,
+        "mvClosureIndex": 7,
+        "mvOpeningPressureMmHg": 5.598411,
+        "mvClosurePressureMmHg": 2.24198,
+        "postOpeningPressureDropMmHg": 0.524129,
+        "postOpeningVolumeDropMl": 2.350914,
+        "conduitBelowReservoirChordFraction": 0.105263,
+        "meanConduitBelowReservoirChordMmHg": 0.019641,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
       },
       "failureReasons": [
-        "mv-forward-peak-count"
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
       "profileId": "normal-hr75",
       "variantId": "wall-work-cap32-drive4-hyd002-stiff1-damp04-vel08",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 1,
       "mvC1ContinuityScore": 0.290364,
@@ -1321,23 +1592,37 @@
       "clampCount": 5,
       "baselineClampCount": 5,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 2,
         "opposedSignedLobes": true,
         "aLoopArea": 95.494232,
         "vLoopArea": 8.081365,
         "volumeSeparationMl": 2.414926,
-        "failureReasons": []
+        "mvOpeningIndex": 123,
+        "mvClosureIndex": 7,
+        "mvOpeningPressureMmHg": 5.550078,
+        "mvClosurePressureMmHg": 2.242719,
+        "postOpeningPressureDropMmHg": 0.681475,
+        "postOpeningVolumeDropMl": 2.051189,
+        "conduitBelowReservoirChordFraction": 0.263158,
+        "meanConduitBelowReservoirChordMmHg": 0.074044,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
       },
       "failureReasons": [
-        "mv-forward-peak-count"
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
       "profileId": "normal-hr75",
       "variantId": "wall-work-cap40-drive6-hyd002-stiff2-damp06-vel06",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 1,
       "mvC1ContinuityScore": 0.284955,
@@ -1355,23 +1640,37 @@
       "clampCount": 5,
       "baselineClampCount": 5,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 2,
         "opposedSignedLobes": true,
         "aLoopArea": 93.956606,
         "vLoopArea": 70.242196,
         "volumeSeparationMl": 3.255003,
-        "failureReasons": []
+        "mvOpeningIndex": 122,
+        "mvClosureIndex": 6,
+        "mvOpeningPressureMmHg": 5.74416,
+        "mvClosurePressureMmHg": 2.371453,
+        "postOpeningPressureDropMmHg": 0.631153,
+        "postOpeningVolumeDropMl": 2.732795,
+        "conduitBelowReservoirChordFraction": 0.15,
+        "meanConduitBelowReservoirChordMmHg": 0.036188,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
       },
       "failureReasons": [
-        "mv-forward-peak-count"
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
       "profileId": "normal-hr90",
       "variantId": "raw-traction-reference",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 1,
       "mvC1ContinuityScore": 0.28327,
@@ -1389,16 +1688,30 @@
       "clampCount": 0,
       "baselineClampCount": 0,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 2,
         "opposedSignedLobes": true,
         "aLoopArea": 59.766593,
         "vLoopArea": 21.533678,
         "volumeSeparationMl": 4.909654,
-        "failureReasons": []
+        "mvOpeningIndex": 107,
+        "mvClosureIndex": 5,
+        "mvOpeningPressureMmHg": 7.663332,
+        "mvClosurePressureMmHg": 2.414836,
+        "postOpeningPressureDropMmHg": 0.619836,
+        "postOpeningVolumeDropMl": 1.88789,
+        "conduitBelowReservoirChordFraction": 0.166667,
+        "meanConduitBelowReservoirChordMmHg": 0.082859,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
       },
       "failureReasons": [
-        "mv-forward-peak-count"
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
@@ -1429,9 +1742,21 @@
         "aLoopArea": 63.302247,
         "vLoopArea": 57.265405,
         "volumeSeparationMl": 4.176621,
+        "mvOpeningIndex": 107,
+        "mvClosureIndex": 5,
+        "mvOpeningPressureMmHg": 7.409054,
+        "mvClosurePressureMmHg": 2.465182,
+        "postOpeningPressureDropMmHg": 0.454941,
+        "postOpeningVolumeDropMl": 1.444999,
+        "conduitBelowReservoirChordFraction": 0.083333,
+        "meanConduitBelowReservoirChordMmHg": 0.047131,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "missing-pv-self-intersection",
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -1467,9 +1792,21 @@
         "aLoopArea": 66.134548,
         "vLoopArea": 60.02081,
         "volumeSeparationMl": 3.990588,
+        "mvOpeningIndex": 107,
+        "mvClosureIndex": 5,
+        "mvOpeningPressureMmHg": 7.342364,
+        "mvClosurePressureMmHg": 2.504503,
+        "postOpeningPressureDropMmHg": 0.416131,
+        "postOpeningVolumeDropMl": 1.355568,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": 0.035353,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "missing-pv-self-intersection",
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -1505,9 +1842,21 @@
         "aLoopArea": 65.644634,
         "vLoopArea": 59.384708,
         "volumeSeparationMl": 4.073921,
+        "mvOpeningIndex": 107,
+        "mvClosureIndex": 5,
+        "mvOpeningPressureMmHg": 7.359689,
+        "mvClosurePressureMmHg": 2.500643,
+        "postOpeningPressureDropMmHg": 0.428801,
+        "postOpeningVolumeDropMl": 1.383375,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": 0.038824,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "missing-pv-self-intersection",
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -1543,9 +1892,21 @@
         "aLoopArea": 65.149059,
         "vLoopArea": 58.768136,
         "volumeSeparationMl": 4.117607,
+        "mvOpeningIndex": 107,
+        "mvClosureIndex": 5,
+        "mvOpeningPressureMmHg": 7.372064,
+        "mvClosurePressureMmHg": 2.489463,
+        "postOpeningPressureDropMmHg": 0.434874,
+        "postOpeningVolumeDropMl": 1.402546,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": 0.039031,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "missing-pv-self-intersection",
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -1581,9 +1942,21 @@
         "aLoopArea": 73.289033,
         "vLoopArea": 67.211121,
         "volumeSeparationMl": 3.468472,
+        "mvOpeningIndex": 108,
+        "mvClosureIndex": 5,
+        "mvOpeningPressureMmHg": 7.218379,
+        "mvClosurePressureMmHg": 2.626273,
+        "postOpeningPressureDropMmHg": 0.350053,
+        "postOpeningVolumeDropMl": 1.150578,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": 0.034204,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "missing-pv-self-intersection",
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -1619,9 +1992,21 @@
         "aLoopArea": 65.070845,
         "vLoopArea": 58.875774,
         "volumeSeparationMl": 4.107732,
+        "mvOpeningIndex": 107,
+        "mvClosureIndex": 5,
+        "mvOpeningPressureMmHg": 7.370892,
+        "mvClosurePressureMmHg": 2.49207,
+        "postOpeningPressureDropMmHg": 0.434078,
+        "postOpeningVolumeDropMl": 1.396556,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": 0.041779,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "missing-pv-self-intersection",
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -1657,9 +2042,19 @@
         "aLoopArea": 67.551451,
         "vLoopArea": 7.276502,
         "volumeSeparationMl": 0.286769,
+        "mvOpeningIndex": 102,
+        "mvClosureIndex": 10,
+        "mvOpeningPressureMmHg": 8.657162,
+        "mvClosurePressureMmHg": 2.301247,
+        "postOpeningPressureDropMmHg": 3.469151,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 2.647206,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "a-v-lobes-not-opposed",
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-volume-leftward"
         ]
       },
       "failureReasons": [
@@ -1695,9 +2090,19 @@
         "aLoopArea": 70.273468,
         "vLoopArea": 3.165811,
         "volumeSeparationMl": 0.10007,
+        "mvOpeningIndex": 100,
+        "mvClosureIndex": 104,
+        "mvOpeningPressureMmHg": 8.903328,
+        "mvClosurePressureMmHg": 6.53144,
+        "postOpeningPressureDropMmHg": 3.753729,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0.947368,
+        "meanConduitBelowReservoirChordMmHg": 0.853779,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "a-v-lobes-not-opposed",
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-volume-leftward"
         ]
       },
       "failureReasons": [
@@ -1733,8 +2138,21 @@
         "aLoopArea": 71.23997,
         "vLoopArea": 3.292449,
         "volumeSeparationMl": 0.003309,
+        "mvOpeningIndex": 112,
+        "mvClosureIndex": 10,
+        "mvOpeningPressureMmHg": 5.504483,
+        "mvClosurePressureMmHg": 2.144112,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.202665,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -1770,8 +2188,21 @@
         "aLoopArea": 74.07563,
         "vLoopArea": 23.537298,
         "volumeSeparationMl": -0.120888,
+        "mvOpeningIndex": 113,
+        "mvClosureIndex": 9,
+        "mvOpeningPressureMmHg": 5.395441,
+        "mvClosurePressureMmHg": 2.289316,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.184723,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -1807,8 +2238,21 @@
         "aLoopArea": 73.117464,
         "vLoopArea": 29.243313,
         "volumeSeparationMl": -0.521687,
+        "mvOpeningIndex": 112,
+        "mvClosureIndex": 9,
+        "mvOpeningPressureMmHg": 5.618809,
+        "mvClosurePressureMmHg": 2.537095,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.178161,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -1844,6 +2288,15 @@
         "aLoopArea": 74.918439,
         "vLoopArea": 21.889454,
         "volumeSeparationMl": 1.672398,
+        "mvOpeningIndex": 101,
+        "mvClosureIndex": 7,
+        "mvOpeningPressureMmHg": 9.655598,
+        "mvClosurePressureMmHg": 2.657659,
+        "postOpeningPressureDropMmHg": 3.815204,
+        "postOpeningVolumeDropMl": 1.260633,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 2.504082,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -1878,8 +2331,18 @@
         "aLoopArea": 72.52996,
         "vLoopArea": 58.993518,
         "volumeSeparationMl": 0.722394,
+        "mvOpeningIndex": 98,
+        "mvClosureIndex": 7,
+        "mvOpeningPressureMmHg": 10.547155,
+        "mvClosurePressureMmHg": 2.792779,
+        "postOpeningPressureDropMmHg": 4.450015,
+        "postOpeningVolumeDropMl": 0.061953,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 3.704576,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-volume-leftward"
         ]
       },
       "failureReasons": [
@@ -1891,7 +2354,7 @@
       "profileId": "normal-hr90",
       "variantId": "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 1,
       "mvC1ContinuityScore": 0.306473,
@@ -1909,16 +2372,28 @@
       "clampCount": 0,
       "baselineClampCount": 0,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 2,
         "opposedSignedLobes": true,
         "aLoopArea": 72.111148,
         "vLoopArea": 74.979785,
         "volumeSeparationMl": 1.473767,
-        "failureReasons": []
+        "mvOpeningIndex": 97,
+        "mvClosureIndex": 7,
+        "mvOpeningPressureMmHg": 11.232503,
+        "mvClosurePressureMmHg": 2.780454,
+        "postOpeningPressureDropMmHg": 4.708757,
+        "postOpeningVolumeDropMl": 0.175038,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 3.935756,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "mv-opening-conduit-not-volume-leftward"
+        ]
       },
       "failureReasons": [
-        "mv-forward-peak-count"
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
@@ -1949,8 +2424,21 @@
         "aLoopArea": 75.997516,
         "vLoopArea": 97.233628,
         "volumeSeparationMl": 0.867392,
+        "mvOpeningIndex": 110,
+        "mvClosureIndex": 7,
+        "mvOpeningPressureMmHg": 6.42314,
+        "mvClosurePressureMmHg": 2.714043,
+        "postOpeningPressureDropMmHg": 0.016704,
+        "postOpeningVolumeDropMl": 0.172097,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.064752,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -1962,7 +2450,7 @@
       "profileId": "normal-hr90",
       "variantId": "force-balance-vel06-drive4-hyd002-cap28",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 1,
       "mvC1ContinuityScore": 0.309623,
@@ -1980,23 +2468,35 @@
       "clampCount": 0,
       "baselineClampCount": 0,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 1,
         "opposedSignedLobes": true,
         "aLoopArea": 74.096449,
         "vLoopArea": 35.887226,
         "volumeSeparationMl": 1.408548,
-        "failureReasons": []
+        "mvOpeningIndex": 102,
+        "mvClosureIndex": 7,
+        "mvOpeningPressureMmHg": 8.549323,
+        "mvClosurePressureMmHg": 2.649948,
+        "postOpeningPressureDropMmHg": 2.536364,
+        "postOpeningVolumeDropMl": 0.298594,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 1.836067,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "mv-opening-conduit-not-volume-leftward"
+        ]
       },
       "failureReasons": [
-        "mv-forward-peak-count"
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
       "profileId": "normal-hr90",
       "variantId": "force-balance-vel10-drive4-hyd002-cap28",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 1,
       "mvC1ContinuityScore": 0.308219,
@@ -2014,23 +2514,35 @@
       "clampCount": 0,
       "baselineClampCount": 0,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 1,
         "opposedSignedLobes": true,
         "aLoopArea": 73.251764,
         "vLoopArea": 45.075323,
         "volumeSeparationMl": 1.367088,
-        "failureReasons": []
+        "mvOpeningIndex": 103,
+        "mvClosureIndex": 7,
+        "mvOpeningPressureMmHg": 8.03985,
+        "mvClosurePressureMmHg": 2.642666,
+        "postOpeningPressureDropMmHg": 1.894914,
+        "postOpeningVolumeDropMl": 0.149556,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 1.39901,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "mv-opening-conduit-not-volume-leftward"
+        ]
       },
       "failureReasons": [
-        "mv-forward-peak-count"
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
       "profileId": "normal-hr90",
       "variantId": "force-balance-vel12-drive4-hyd002-cap28",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 1,
       "mvC1ContinuityScore": 0.30766,
@@ -2048,16 +2560,28 @@
       "clampCount": 0,
       "baselineClampCount": 0,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 2,
         "opposedSignedLobes": true,
         "aLoopArea": 73.106193,
         "vLoopArea": 48.534012,
         "volumeSeparationMl": 1.298304,
-        "failureReasons": []
+        "mvOpeningIndex": 105,
+        "mvClosureIndex": 7,
+        "mvOpeningPressureMmHg": 7.415216,
+        "mvClosurePressureMmHg": 2.639715,
+        "postOpeningPressureDropMmHg": 1.228423,
+        "postOpeningVolumeDropMl": 0.086315,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 0.930599,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "mv-opening-conduit-not-volume-leftward"
+        ]
       },
       "failureReasons": [
-        "mv-forward-peak-count"
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
@@ -2088,6 +2612,15 @@
         "aLoopArea": 73.082832,
         "vLoopArea": 29.341902,
         "volumeSeparationMl": 2.250136,
+        "mvOpeningIndex": 102,
+        "mvClosureIndex": 6,
+        "mvOpeningPressureMmHg": 8.765485,
+        "mvClosurePressureMmHg": 2.753734,
+        "postOpeningPressureDropMmHg": 2.466108,
+        "postOpeningVolumeDropMl": 1.460424,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 1.540289,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -2122,8 +2655,21 @@
         "aLoopArea": 67.057443,
         "vLoopArea": 6.887137,
         "volumeSeparationMl": 1.963565,
+        "mvOpeningIndex": 109,
+        "mvClosureIndex": 7,
+        "mvOpeningPressureMmHg": 6.742864,
+        "mvClosurePressureMmHg": 2.471227,
+        "postOpeningPressureDropMmHg": 0.129167,
+        "postOpeningVolumeDropMl": 0.476923,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.03202,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -2135,7 +2681,7 @@
       "profileId": "normal-hr90",
       "variantId": "wall-work-cap32-drive6-hyd004-stiff2-damp06-fast",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 1,
       "mvC1ContinuityScore": 0.304053,
@@ -2153,23 +2699,38 @@
       "clampCount": 0,
       "baselineClampCount": 0,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 2,
         "opposedSignedLobes": true,
         "aLoopArea": 69.638387,
         "vLoopArea": 43.79634,
         "volumeSeparationMl": 2.122285,
-        "failureReasons": []
+        "mvOpeningIndex": 109,
+        "mvClosureIndex": 7,
+        "mvOpeningPressureMmHg": 6.90707,
+        "mvClosurePressureMmHg": 2.558204,
+        "postOpeningPressureDropMmHg": 0.227662,
+        "postOpeningVolumeDropMl": 0.761084,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": 0.006651,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
       },
       "failureReasons": [
-        "mv-forward-peak-count"
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
       "profileId": "normal-hr90",
       "variantId": "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 1,
       "mvC1ContinuityScore": 0.289584,
@@ -2187,23 +2748,37 @@
       "clampCount": 0,
       "baselineClampCount": 0,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 2,
         "opposedSignedLobes": true,
         "aLoopArea": 69.832822,
         "vLoopArea": 54.644357,
         "volumeSeparationMl": 2.715822,
-        "failureReasons": []
+        "mvOpeningIndex": 108,
+        "mvClosureIndex": 6,
+        "mvOpeningPressureMmHg": 7.217239,
+        "mvClosurePressureMmHg": 2.701728,
+        "postOpeningPressureDropMmHg": 0.366356,
+        "postOpeningVolumeDropMl": 1.166104,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": 0.039972,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
       },
       "failureReasons": [
-        "mv-forward-peak-count"
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
       "profileId": "normal-hr90",
       "variantId": "wall-work-cap32-drive4-hyd002-stiff1-damp04-vel08",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 1,
       "mvC1ContinuityScore": 0.303423,
@@ -2221,23 +2796,37 @@
       "clampCount": 0,
       "baselineClampCount": 0,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 2,
         "opposedSignedLobes": true,
         "aLoopArea": 67.510042,
         "vLoopArea": 2.654934,
         "volumeSeparationMl": 2.299326,
-        "failureReasons": []
+        "mvOpeningIndex": 109,
+        "mvClosureIndex": 7,
+        "mvOpeningPressureMmHg": 6.953257,
+        "mvClosurePressureMmHg": 2.482862,
+        "postOpeningPressureDropMmHg": 0.248056,
+        "postOpeningVolumeDropMl": 0.813928,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": 0.01248,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
       },
       "failureReasons": [
-        "mv-forward-peak-count"
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
       "profileId": "normal-hr90",
       "variantId": "wall-work-cap40-drive6-hyd002-stiff2-damp06-vel06",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 1,
       "mvC1ContinuityScore": 0.282387,
@@ -2255,23 +2844,37 @@
       "clampCount": 0,
       "baselineClampCount": 0,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 2,
         "opposedSignedLobes": true,
         "aLoopArea": 70.2342,
         "vLoopArea": 61.28624,
         "volumeSeparationMl": 3.259634,
-        "failureReasons": []
+        "mvOpeningIndex": 107,
+        "mvClosureIndex": 5,
+        "mvOpeningPressureMmHg": 7.437634,
+        "mvClosurePressureMmHg": 2.855283,
+        "postOpeningPressureDropMmHg": 0.488791,
+        "postOpeningVolumeDropMl": 1.52382,
+        "conduitBelowReservoirChordFraction": 0.166667,
+        "meanConduitBelowReservoirChordMmHg": 0.066717,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
       },
       "failureReasons": [
-        "mv-forward-peak-count"
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
       "profileId": "preload-low",
       "variantId": "raw-traction-reference",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 1,
       "mvC1ContinuityScore": 0.140804,
@@ -2289,16 +2892,29 @@
       "clampCount": 6,
       "baselineClampCount": 6,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 2,
         "opposedSignedLobes": true,
         "aLoopArea": 80.673006,
         "vLoopArea": 10.612109,
         "volumeSeparationMl": 2.009604,
-        "failureReasons": []
+        "mvOpeningIndex": 123,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 5.162445,
+        "mvClosurePressureMmHg": 1.406602,
+        "postOpeningPressureDropMmHg": 0.827373,
+        "postOpeningVolumeDropMl": 2.412705,
+        "conduitBelowReservoirChordFraction": 0.368421,
+        "meanConduitBelowReservoirChordMmHg": 0.152939,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
       },
       "failureReasons": [
-        "mv-forward-peak-count"
+        "mv-forward-peak-count",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
@@ -2329,9 +2945,21 @@
         "aLoopArea": 86.627335,
         "vLoopArea": 77.970916,
         "volumeSeparationMl": 1.370637,
+        "mvOpeningIndex": 124,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 5.000406,
+        "mvClosurePressureMmHg": 1.428837,
+        "postOpeningPressureDropMmHg": 0.678392,
+        "postOpeningVolumeDropMl": 2.049208,
+        "conduitBelowReservoirChordFraction": 0.333333,
+        "meanConduitBelowReservoirChordMmHg": 0.119531,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "missing-pv-self-intersection",
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -2367,10 +2995,22 @@
         "aLoopArea": 91.333528,
         "vLoopArea": 81.08637,
         "volumeSeparationMl": 0.921063,
+        "mvOpeningIndex": 124,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 4.870267,
+        "mvClosurePressureMmHg": 1.443991,
+        "postOpeningPressureDropMmHg": 0.578108,
+        "postOpeningVolumeDropMl": 1.787252,
+        "conduitBelowReservoirChordFraction": 0.222222,
+        "meanConduitBelowReservoirChordMmHg": 0.078846,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "missing-pv-self-intersection",
           "a-v-lobes-not-opposed",
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -2406,10 +3046,22 @@
         "aLoopArea": 90.6878,
         "vLoopArea": 80.893668,
         "volumeSeparationMl": 0.952292,
+        "mvOpeningIndex": 124,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 4.884898,
+        "mvClosurePressureMmHg": 1.445774,
+        "postOpeningPressureDropMmHg": 0.593444,
+        "postOpeningVolumeDropMl": 1.8199,
+        "conduitBelowReservoirChordFraction": 0.277778,
+        "meanConduitBelowReservoirChordMmHg": 0.082847,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "missing-pv-self-intersection",
           "a-v-lobes-not-opposed",
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -2445,10 +3097,22 @@
         "aLoopArea": 89.581442,
         "vLoopArea": 80.055193,
         "volumeSeparationMl": 1.089408,
+        "mvOpeningIndex": 124,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 4.919961,
+        "mvClosurePressureMmHg": 1.439989,
+        "postOpeningPressureDropMmHg": 0.619992,
+        "postOpeningVolumeDropMl": 1.89718,
+        "conduitBelowReservoirChordFraction": 0.277778,
+        "meanConduitBelowReservoirChordMmHg": 0.091293,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "missing-pv-self-intersection",
           "a-v-lobes-not-opposed",
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -2484,10 +3148,22 @@
         "aLoopArea": 105.206589,
         "vLoopArea": 91.089713,
         "volumeSeparationMl": -0.643461,
+        "mvOpeningIndex": 126,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 4.533589,
+        "mvClosurePressureMmHg": 1.506356,
+        "postOpeningPressureDropMmHg": 0.333006,
+        "postOpeningVolumeDropMl": 1.0837,
+        "conduitBelowReservoirChordFraction": 0.0625,
+        "meanConduitBelowReservoirChordMmHg": 0.010364,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "missing-pv-self-intersection",
           "a-v-lobes-not-opposed",
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -2523,10 +3199,22 @@
         "aLoopArea": 89.2352,
         "vLoopArea": 79.632772,
         "volumeSeparationMl": 1.141208,
+        "mvOpeningIndex": 124,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 4.931532,
+        "mvClosurePressureMmHg": 1.437104,
+        "postOpeningPressureDropMmHg": 0.623639,
+        "postOpeningVolumeDropMl": 1.909306,
+        "conduitBelowReservoirChordFraction": 0.277778,
+        "meanConduitBelowReservoirChordMmHg": 0.098673,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "missing-pv-self-intersection",
           "a-v-lobes-not-opposed",
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -2562,10 +3250,23 @@
         "aLoopArea": 101.908721,
         "vLoopArea": 0.999787,
         "volumeSeparationMl": -3.213918,
+        "mvOpeningIndex": 133,
+        "mvClosureIndex": 14,
+        "mvOpeningPressureMmHg": 3.024689,
+        "mvClosurePressureMmHg": 1.730561,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.312611,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "v-loop-area-too-small",
           "a-v-lobes-not-opposed",
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -2601,8 +3302,21 @@
         "aLoopArea": 99.851816,
         "vLoopArea": 2.625767,
         "volumeSeparationMl": -2.227669,
+        "mvOpeningIndex": 132,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 3.09195,
+        "mvClosurePressureMmHg": 1.656412,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.333977,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -2638,8 +3352,21 @@
         "aLoopArea": 102.102866,
         "vLoopArea": 8.826442,
         "volumeSeparationMl": -2.301467,
+        "mvOpeningIndex": 132,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 3.206312,
+        "mvClosurePressureMmHg": 1.660958,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.300291,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -2675,8 +3402,21 @@
         "aLoopArea": 105.951038,
         "vLoopArea": 31.743283,
         "volumeSeparationMl": -2.436298,
+        "mvOpeningIndex": 133,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 3.067873,
+        "mvClosurePressureMmHg": 1.685094,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.304994,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -2712,8 +3452,21 @@
         "aLoopArea": 114.360604,
         "vLoopArea": 49.73963,
         "volumeSeparationMl": -4.940068,
+        "mvOpeningIndex": 136,
+        "mvClosureIndex": 14,
+        "mvOpeningPressureMmHg": 2.945253,
+        "mvClosurePressureMmHg": 1.824936,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.228815,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -2749,8 +3502,18 @@
         "aLoopArea": 117.703972,
         "vLoopArea": 38.965289,
         "volumeSeparationMl": -5.166016,
+        "mvOpeningIndex": 121,
+        "mvClosureIndex": 15,
+        "mvOpeningPressureMmHg": 4.613396,
+        "mvClosurePressureMmHg": 1.758392,
+        "postOpeningPressureDropMmHg": 1.75226,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 1.246117,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-volume-leftward"
         ]
       },
       "failureReasons": [
@@ -2786,8 +3549,21 @@
         "aLoopArea": 119.389037,
         "vLoopArea": 83.741372,
         "volumeSeparationMl": -5.102756,
+        "mvOpeningIndex": 134,
+        "mvClosureIndex": 15,
+        "mvOpeningPressureMmHg": 3.079688,
+        "mvClosurePressureMmHg": 1.754439,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.257027,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -2823,8 +3599,21 @@
         "aLoopArea": 120.801606,
         "vLoopArea": 100.831012,
         "volumeSeparationMl": -5.382382,
+        "mvOpeningIndex": 134,
+        "mvClosureIndex": 15,
+        "mvOpeningPressureMmHg": 3.222644,
+        "mvClosurePressureMmHg": 1.745193,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.22147,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -2860,8 +3649,21 @@
         "aLoopArea": 118.990969,
         "vLoopArea": 129.361004,
         "volumeSeparationMl": -4.728689,
+        "mvOpeningIndex": 133,
+        "mvClosureIndex": 14,
+        "mvOpeningPressureMmHg": 3.109523,
+        "mvClosurePressureMmHg": 1.745773,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.276153,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -2897,8 +3699,21 @@
         "aLoopArea": 115.799038,
         "vLoopArea": 54.953771,
         "volumeSeparationMl": -4.900329,
+        "mvOpeningIndex": 132,
+        "mvClosureIndex": 15,
+        "mvOpeningPressureMmHg": 3.058246,
+        "mvClosurePressureMmHg": 1.741135,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.316854,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -2934,8 +3749,21 @@
         "aLoopArea": 114.936229,
         "vLoopArea": 65.025323,
         "volumeSeparationMl": -4.749577,
+        "mvOpeningIndex": 133,
+        "mvClosureIndex": 15,
+        "mvOpeningPressureMmHg": 3.132111,
+        "mvClosurePressureMmHg": 1.727194,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.275763,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -2971,8 +3799,21 @@
         "aLoopArea": 114.212198,
         "vLoopArea": 70.740134,
         "volumeSeparationMl": -4.637008,
+        "mvOpeningIndex": 133,
+        "mvClosureIndex": 14,
+        "mvOpeningPressureMmHg": 3.17188,
+        "mvClosurePressureMmHg": 1.79835,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.266476,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -3008,8 +3849,21 @@
         "aLoopArea": 115.962603,
         "vLoopArea": 45.729155,
         "volumeSeparationMl": -5.113834,
+        "mvOpeningIndex": 129,
+        "mvClosureIndex": 15,
+        "mvOpeningPressureMmHg": 3.203721,
+        "mvClosurePressureMmHg": 1.790092,
+        "postOpeningPressureDropMmHg": 0.079405,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.229207,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -3045,8 +3899,21 @@
         "aLoopArea": 98.600663,
         "vLoopArea": 3.130998,
         "volumeSeparationMl": -2.35092,
+        "mvOpeningIndex": 128,
+        "mvClosureIndex": 14,
+        "mvOpeningPressureMmHg": 3.983503,
+        "mvClosurePressureMmHg": 1.598088,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.141651,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -3082,8 +3949,21 @@
         "aLoopArea": 97.736286,
         "vLoopArea": 55.078318,
         "volumeSeparationMl": -2.473181,
+        "mvOpeningIndex": 129,
+        "mvClosureIndex": 14,
+        "mvOpeningPressureMmHg": 3.84414,
+        "mvClosurePressureMmHg": 1.591632,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.262772,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -3119,8 +3999,21 @@
         "aLoopArea": 98.743215,
         "vLoopArea": 66.784987,
         "volumeSeparationMl": -2.463025,
+        "mvOpeningIndex": 129,
+        "mvClosureIndex": 14,
+        "mvOpeningPressureMmHg": 3.954431,
+        "mvClosurePressureMmHg": 1.601615,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0.150282,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.242418,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -3156,8 +4049,21 @@
         "aLoopArea": 100.70811,
         "vLoopArea": 13.461769,
         "volumeSeparationMl": -2.575117,
+        "mvOpeningIndex": 129,
+        "mvClosureIndex": 14,
+        "mvOpeningPressureMmHg": 4.028124,
+        "mvClosurePressureMmHg": 1.607639,
+        "postOpeningPressureDropMmHg": 0.000268,
+        "postOpeningVolumeDropMl": 0.077858,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.105296,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -3193,8 +4099,21 @@
         "aLoopArea": 99.912955,
         "vLoopArea": 72.392784,
         "volumeSeparationMl": -2.485436,
+        "mvOpeningIndex": 129,
+        "mvClosureIndex": 14,
+        "mvOpeningPressureMmHg": 4.017663,
+        "mvClosurePressureMmHg": 1.610855,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0.311028,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.238553,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "v-loop-not-higher-volume-than-a-loop"
+          "v-loop-not-higher-volume-than-a-loop",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -3230,6 +4149,15 @@
         "aLoopArea": 66.98701,
         "vLoopArea": 60.993875,
         "volumeSeparationMl": 15.305228,
+        "mvOpeningIndex": 112,
+        "mvClosureIndex": 189,
+        "mvOpeningPressureMmHg": 10.04504,
+        "mvClosurePressureMmHg": 3.097386,
+        "postOpeningPressureDropMmHg": 4.125828,
+        "postOpeningVolumeDropMl": 11.909508,
+        "conduitBelowReservoirChordFraction": 0.7,
+        "meanConduitBelowReservoirChordMmHg": 0.707162,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": []
@@ -3262,6 +4190,15 @@
         "aLoopArea": 70.511957,
         "vLoopArea": 25.658325,
         "volumeSeparationMl": 14.34523,
+        "mvOpeningIndex": 112,
+        "mvClosureIndex": 190,
+        "mvOpeningPressureMmHg": 9.577598,
+        "mvClosurePressureMmHg": 2.987157,
+        "postOpeningPressureDropMmHg": 3.665093,
+        "postOpeningVolumeDropMl": 10.690014,
+        "conduitBelowReservoirChordFraction": 0.666667,
+        "meanConduitBelowReservoirChordMmHg": 0.604244,
+        "phaseOrientationPass": true,
         "failureReasons": [
           "a-v-lobes-not-opposed"
         ]
@@ -3298,6 +4235,15 @@
         "aLoopArea": 72.54366,
         "vLoopArea": 26.953641,
         "volumeSeparationMl": 14.332734,
+        "mvOpeningIndex": 113,
+        "mvClosureIndex": 190,
+        "mvOpeningPressureMmHg": 9.568593,
+        "mvClosurePressureMmHg": 3.016234,
+        "postOpeningPressureDropMmHg": 3.64439,
+        "postOpeningVolumeDropMl": 10.622713,
+        "conduitBelowReservoirChordFraction": 0.689655,
+        "meanConduitBelowReservoirChordMmHg": 0.632037,
+        "phaseOrientationPass": true,
         "failureReasons": [
           "a-v-lobes-not-opposed"
         ]
@@ -3334,6 +4280,15 @@
         "aLoopArea": 72.460048,
         "vLoopArea": 26.944014,
         "volumeSeparationMl": 14.319791,
+        "mvOpeningIndex": 113,
+        "mvClosureIndex": 190,
+        "mvOpeningPressureMmHg": 9.569508,
+        "mvClosurePressureMmHg": 3.016401,
+        "postOpeningPressureDropMmHg": 3.643821,
+        "postOpeningVolumeDropMl": 10.627051,
+        "conduitBelowReservoirChordFraction": 0.689655,
+        "meanConduitBelowReservoirChordMmHg": 0.62785,
+        "phaseOrientationPass": true,
         "failureReasons": [
           "a-v-lobes-not-opposed"
         ]
@@ -3370,6 +4325,15 @@
         "aLoopArea": 71.806252,
         "vLoopArea": 26.486965,
         "volumeSeparationMl": 14.331049,
+        "mvOpeningIndex": 113,
+        "mvClosureIndex": 190,
+        "mvOpeningPressureMmHg": 9.579136,
+        "mvClosurePressureMmHg": 3.003699,
+        "postOpeningPressureDropMmHg": 3.651172,
+        "postOpeningVolumeDropMl": 10.649641,
+        "conduitBelowReservoirChordFraction": 0.689655,
+        "meanConduitBelowReservoirChordMmHg": 0.625004,
+        "phaseOrientationPass": true,
         "failureReasons": [
           "a-v-lobes-not-opposed"
         ]
@@ -3406,6 +4370,15 @@
         "aLoopArea": 79.657652,
         "vLoopArea": 31.411538,
         "volumeSeparationMl": 14.212118,
+        "mvOpeningIndex": 113,
+        "mvClosureIndex": 190,
+        "mvOpeningPressureMmHg": 9.473722,
+        "mvClosurePressureMmHg": 3.131315,
+        "postOpeningPressureDropMmHg": 3.567869,
+        "postOpeningVolumeDropMl": 10.395803,
+        "conduitBelowReservoirChordFraction": 0.689655,
+        "meanConduitBelowReservoirChordMmHg": 0.652714,
+        "phaseOrientationPass": true,
         "failureReasons": [
           "a-v-lobes-not-opposed"
         ]
@@ -3442,6 +4415,15 @@
         "aLoopArea": 71.300335,
         "vLoopArea": 26.217907,
         "volumeSeparationMl": 14.32884,
+        "mvOpeningIndex": 112,
+        "mvClosureIndex": 190,
+        "mvOpeningPressureMmHg": 9.564616,
+        "mvClosurePressureMmHg": 2.998645,
+        "postOpeningPressureDropMmHg": 3.654493,
+        "postOpeningVolumeDropMl": 10.660014,
+        "conduitBelowReservoirChordFraction": 0.666667,
+        "meanConduitBelowReservoirChordMmHg": 0.605795,
+        "phaseOrientationPass": true,
         "failureReasons": [
           "a-v-lobes-not-opposed"
         ]
@@ -3478,6 +4460,15 @@
         "aLoopArea": 78.598349,
         "vLoopArea": 14.45753,
         "volumeSeparationMl": 11.756193,
+        "mvOpeningIndex": 108,
+        "mvClosureIndex": 0,
+        "mvOpeningPressureMmHg": 11.255548,
+        "mvClosurePressureMmHg": 3.013595,
+        "postOpeningPressureDropMmHg": 5.622525,
+        "postOpeningVolumeDropMl": 6.530725,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 3.144119,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": []
@@ -3510,6 +4501,15 @@
         "aLoopArea": 77.00405,
         "vLoopArea": 20.489005,
         "volumeSeparationMl": 11.580989,
+        "mvOpeningIndex": 106,
+        "mvClosureIndex": 0,
+        "mvOpeningPressureMmHg": 12.109704,
+        "mvClosurePressureMmHg": 2.868621,
+        "postOpeningPressureDropMmHg": 6.403343,
+        "postOpeningVolumeDropMl": 5.472668,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 4.093659,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": []
@@ -3518,7 +4518,7 @@
       "profileId": "preload-high",
       "variantId": "force-balance-drive6-hyd008-stiff3-damp10",
       "sourceSurfaceStatus": "pass",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": true,
       "mvForwardPeakCount": 2,
       "mvC1ContinuityScore": 0.333496,
@@ -3536,15 +4536,29 @@
       "clampCount": 5,
       "baselineClampCount": 5,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 4,
         "opposedSignedLobes": true,
         "aLoopArea": 72.235022,
         "vLoopArea": 24.533927,
         "volumeSeparationMl": 12.850554,
-        "failureReasons": []
+        "mvOpeningIndex": 112,
+        "mvClosureIndex": 0,
+        "mvOpeningPressureMmHg": 8.261136,
+        "mvClosurePressureMmHg": 2.865833,
+        "postOpeningPressureDropMmHg": 2.228413,
+        "postOpeningVolumeDropMl": 7.363816,
+        "conduitBelowReservoirChordFraction": 0.466667,
+        "meanConduitBelowReservoirChordMmHg": 0.237023,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
       },
-      "failureReasons": []
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
     },
     {
       "profileId": "preload-high",
@@ -3574,6 +4588,15 @@
         "aLoopArea": 70.606575,
         "vLoopArea": 38.378067,
         "volumeSeparationMl": 12.771772,
+        "mvOpeningIndex": 115,
+        "mvClosureIndex": 0,
+        "mvOpeningPressureMmHg": 8.446533,
+        "mvClosurePressureMmHg": 2.875383,
+        "postOpeningPressureDropMmHg": 2.336779,
+        "postOpeningVolumeDropMl": 7.924738,
+        "conduitBelowReservoirChordFraction": 0.555556,
+        "meanConduitBelowReservoirChordMmHg": 0.293173,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": []
@@ -3606,6 +4629,15 @@
         "aLoopArea": 78.337703,
         "vLoopArea": 62.449653,
         "volumeSeparationMl": 11.334078,
+        "mvOpeningIndex": 111,
+        "mvClosureIndex": 190,
+        "mvOpeningPressureMmHg": 8.684578,
+        "mvClosurePressureMmHg": 3.415162,
+        "postOpeningPressureDropMmHg": 2.742599,
+        "postOpeningVolumeDropMl": 6.616553,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 0.865767,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": []
@@ -3638,6 +4670,15 @@
         "aLoopArea": 81.222141,
         "vLoopArea": 72.648523,
         "volumeSeparationMl": 13.304425,
+        "mvOpeningIndex": 106,
+        "mvClosureIndex": 190,
+        "mvOpeningPressureMmHg": 12.622424,
+        "mvClosurePressureMmHg": 3.436938,
+        "postOpeningPressureDropMmHg": 7.016589,
+        "postOpeningVolumeDropMl": 11.624535,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 2.990198,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": []
@@ -3670,6 +4711,15 @@
         "aLoopArea": 77.877465,
         "vLoopArea": 117.186721,
         "volumeSeparationMl": 13.86596,
+        "mvOpeningIndex": 107,
+        "mvClosureIndex": 190,
+        "mvOpeningPressureMmHg": 11.317711,
+        "mvClosurePressureMmHg": 3.397337,
+        "postOpeningPressureDropMmHg": 5.38518,
+        "postOpeningVolumeDropMl": 10.975648,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 2.179254,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": []
@@ -3702,6 +4752,15 @@
         "aLoopArea": 77.867365,
         "vLoopArea": 141.758786,
         "volumeSeparationMl": 14.546245,
+        "mvOpeningIndex": 106,
+        "mvClosureIndex": 189,
+        "mvOpeningPressureMmHg": 12.399067,
+        "mvClosurePressureMmHg": 3.572674,
+        "postOpeningPressureDropMmHg": 6.494898,
+        "postOpeningVolumeDropMl": 13.002845,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 2.617187,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": []
@@ -3734,6 +4793,15 @@
         "aLoopArea": 72.314167,
         "vLoopArea": 146.834933,
         "volumeSeparationMl": 13.484909,
+        "mvOpeningIndex": 112,
+        "mvClosureIndex": 189,
+        "mvOpeningPressureMmHg": 9.508127,
+        "mvClosurePressureMmHg": 3.527679,
+        "postOpeningPressureDropMmHg": 3.304222,
+        "postOpeningVolumeDropMl": 11.058455,
+        "conduitBelowReservoirChordFraction": 0.7,
+        "meanConduitBelowReservoirChordMmHg": 0.596202,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": []
@@ -3766,6 +4834,15 @@
         "aLoopArea": 80.798642,
         "vLoopArea": 86.675964,
         "volumeSeparationMl": 13.323841,
+        "mvOpeningIndex": 107,
+        "mvClosureIndex": 190,
+        "mvOpeningPressureMmHg": 11.87843,
+        "mvClosurePressureMmHg": 3.426872,
+        "postOpeningPressureDropMmHg": 6.224084,
+        "postOpeningVolumeDropMl": 11.173704,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 2.5447,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": []
@@ -3798,6 +4875,15 @@
         "aLoopArea": 80.503629,
         "vLoopArea": 95.241546,
         "volumeSeparationMl": 13.33855,
+        "mvOpeningIndex": 108,
+        "mvClosureIndex": 190,
+        "mvOpeningPressureMmHg": 11.388757,
+        "mvClosurePressureMmHg": 3.420038,
+        "postOpeningPressureDropMmHg": 5.703832,
+        "postOpeningVolumeDropMl": 10.963113,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 2.227132,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": []
@@ -3830,6 +4916,15 @@
         "aLoopArea": 80.413384,
         "vLoopArea": 98.666078,
         "volumeSeparationMl": 13.323609,
+        "mvOpeningIndex": 108,
+        "mvClosureIndex": 190,
+        "mvOpeningPressureMmHg": 11.279111,
+        "mvClosurePressureMmHg": 3.416315,
+        "postOpeningPressureDropMmHg": 5.590825,
+        "postOpeningVolumeDropMl": 10.866068,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 2.163009,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": []
@@ -3862,6 +4957,15 @@
         "aLoopArea": 80.322357,
         "vLoopArea": 81.577822,
         "volumeSeparationMl": 13.627747,
+        "mvOpeningIndex": 106,
+        "mvClosureIndex": 189,
+        "mvOpeningPressureMmHg": 12.824343,
+        "mvClosurePressureMmHg": 3.644366,
+        "postOpeningPressureDropMmHg": 7.234188,
+        "postOpeningVolumeDropMl": 13.117575,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 2.801395,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": []
@@ -3894,6 +4998,15 @@
         "aLoopArea": 76.893637,
         "vLoopArea": 44.295439,
         "volumeSeparationMl": 13.61353,
+        "mvOpeningIndex": 111,
+        "mvClosureIndex": 190,
+        "mvOpeningPressureMmHg": 9.827951,
+        "mvClosurePressureMmHg": 3.308885,
+        "postOpeningPressureDropMmHg": 3.984647,
+        "postOpeningVolumeDropMl": 10.657194,
+        "conduitBelowReservoirChordFraction": 0.967742,
+        "meanConduitBelowReservoirChordMmHg": 0.950479,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": []
@@ -3926,6 +5039,15 @@
         "aLoopArea": 74.770107,
         "vLoopArea": 109.867537,
         "volumeSeparationMl": 14.54493,
+        "mvOpeningIndex": 111,
+        "mvClosureIndex": 189,
+        "mvOpeningPressureMmHg": 10.055368,
+        "mvClosurePressureMmHg": 3.501306,
+        "postOpeningPressureDropMmHg": 3.998718,
+        "postOpeningVolumeDropMl": 12.268755,
+        "conduitBelowReservoirChordFraction": 0.709677,
+        "meanConduitBelowReservoirChordMmHg": 0.778927,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": []
@@ -3958,6 +5080,15 @@
         "aLoopArea": 74.437097,
         "vLoopArea": 128.975221,
         "volumeSeparationMl": 15.36649,
+        "mvOpeningIndex": 111,
+        "mvClosureIndex": 189,
+        "mvOpeningPressureMmHg": 10.616476,
+        "mvClosurePressureMmHg": 3.500311,
+        "postOpeningPressureDropMmHg": 4.535839,
+        "postOpeningVolumeDropMl": 13.871183,
+        "conduitBelowReservoirChordFraction": 0.774194,
+        "meanConduitBelowReservoirChordMmHg": 0.883211,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": []
@@ -3990,6 +5121,15 @@
         "aLoopArea": 77.615188,
         "vLoopArea": 62.031419,
         "volumeSeparationMl": 14.12986,
+        "mvOpeningIndex": 110,
+        "mvClosureIndex": 189,
+        "mvOpeningPressureMmHg": 10.485867,
+        "mvClosurePressureMmHg": 3.501596,
+        "postOpeningPressureDropMmHg": 4.664626,
+        "postOpeningVolumeDropMl": 12.161634,
+        "conduitBelowReservoirChordFraction": 0.96875,
+        "meanConduitBelowReservoirChordMmHg": 1.194467,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": []
@@ -4022,6 +5162,15 @@
         "aLoopArea": 74.72159,
         "vLoopArea": 138.021255,
         "volumeSeparationMl": 15.714168,
+        "mvOpeningIndex": 110,
+        "mvClosureIndex": 188,
+        "mvOpeningPressureMmHg": 10.911212,
+        "mvClosurePressureMmHg": 3.704928,
+        "postOpeningPressureDropMmHg": 4.831218,
+        "postOpeningVolumeDropMl": 14.794317,
+        "conduitBelowReservoirChordFraction": 0.78125,
+        "meanConduitBelowReservoirChordMmHg": 0.951421,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": []
@@ -4054,6 +5203,15 @@
         "aLoopArea": 63.18426,
         "vLoopArea": 71.598793,
         "volumeSeparationMl": 11.552831,
+        "mvOpeningIndex": 117,
+        "mvClosureIndex": 182,
+        "mvOpeningPressureMmHg": 9.553972,
+        "mvClosurePressureMmHg": 4.453992,
+        "postOpeningPressureDropMmHg": 2.508884,
+        "postOpeningVolumeDropMl": 7.286354,
+        "conduitBelowReservoirChordFraction": 0.6,
+        "meanConduitBelowReservoirChordMmHg": 0.409929,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": []
@@ -4086,6 +5244,15 @@
         "aLoopArea": 68.213404,
         "vLoopArea": 7.1414,
         "volumeSeparationMl": 10.493789,
+        "mvOpeningIndex": 119,
+        "mvClosureIndex": 182,
+        "mvOpeningPressureMmHg": 9.056021,
+        "mvClosurePressureMmHg": 4.487379,
+        "postOpeningPressureDropMmHg": 2.043451,
+        "postOpeningVolumeDropMl": 6.024323,
+        "conduitBelowReservoirChordFraction": 0.565217,
+        "meanConduitBelowReservoirChordMmHg": 0.352363,
+        "phaseOrientationPass": true,
         "failureReasons": [
           "a-v-lobes-not-opposed"
         ]
@@ -4122,6 +5289,15 @@
         "aLoopArea": 71.273456,
         "vLoopArea": 7.474932,
         "volumeSeparationMl": 10.467507,
+        "mvOpeningIndex": 119,
+        "mvClosureIndex": 182,
+        "mvOpeningPressureMmHg": 9.04142,
+        "mvClosurePressureMmHg": 4.550122,
+        "postOpeningPressureDropMmHg": 1.992785,
+        "postOpeningVolumeDropMl": 5.874467,
+        "conduitBelowReservoirChordFraction": 0.565217,
+        "meanConduitBelowReservoirChordMmHg": 0.348182,
+        "phaseOrientationPass": true,
         "failureReasons": [
           "a-v-lobes-not-opposed"
         ]
@@ -4158,6 +5334,15 @@
         "aLoopArea": 70.887587,
         "vLoopArea": 7.466384,
         "volumeSeparationMl": 10.470222,
+        "mvOpeningIndex": 119,
+        "mvClosureIndex": 182,
+        "mvOpeningPressureMmHg": 9.043023,
+        "mvClosurePressureMmHg": 4.547844,
+        "postOpeningPressureDropMmHg": 1.995411,
+        "postOpeningVolumeDropMl": 5.887484,
+        "conduitBelowReservoirChordFraction": 0.565217,
+        "meanConduitBelowReservoirChordMmHg": 0.347869,
+        "phaseOrientationPass": true,
         "failureReasons": [
           "a-v-lobes-not-opposed"
         ]
@@ -4194,6 +5379,15 @@
         "aLoopArea": 70.183065,
         "vLoopArea": 7.363212,
         "volumeSeparationMl": 10.486663,
+        "mvOpeningIndex": 119,
+        "mvClosureIndex": 182,
+        "mvOpeningPressureMmHg": 9.047969,
+        "mvClosurePressureMmHg": 4.529266,
+        "postOpeningPressureDropMmHg": 2.00525,
+        "postOpeningVolumeDropMl": 5.916435,
+        "conduitBelowReservoirChordFraction": 0.565217,
+        "meanConduitBelowReservoirChordMmHg": 0.34768,
+        "phaseOrientationPass": true,
         "failureReasons": [
           "a-v-lobes-not-opposed"
         ]
@@ -4230,6 +5424,15 @@
         "aLoopArea": 79.256604,
         "vLoopArea": 8.503761,
         "volumeSeparationMl": 10.265576,
+        "mvOpeningIndex": 119,
+        "mvClosureIndex": 182,
+        "mvOpeningPressureMmHg": 8.982944,
+        "mvClosurePressureMmHg": 4.741499,
+        "postOpeningPressureDropMmHg": 1.866409,
+        "postOpeningVolumeDropMl": 5.505262,
+        "conduitBelowReservoirChordFraction": 0.565217,
+        "meanConduitBelowReservoirChordMmHg": 0.342211,
+        "phaseOrientationPass": true,
         "failureReasons": [
           "a-v-lobes-not-opposed"
         ]
@@ -4266,6 +5469,15 @@
         "aLoopArea": 70.132268,
         "vLoopArea": 7.386622,
         "volumeSeparationMl": 10.490743,
+        "mvOpeningIndex": 119,
+        "mvClosureIndex": 182,
+        "mvOpeningPressureMmHg": 9.050328,
+        "mvClosurePressureMmHg": 4.528873,
+        "postOpeningPressureDropMmHg": 2.009744,
+        "postOpeningVolumeDropMl": 5.925559,
+        "conduitBelowReservoirChordFraction": 0.565217,
+        "meanConduitBelowReservoirChordMmHg": 0.348128,
+        "phaseOrientationPass": true,
         "failureReasons": [
           "a-v-lobes-not-opposed"
         ]
@@ -4302,6 +5514,15 @@
         "aLoopArea": 76.337252,
         "vLoopArea": 38.611085,
         "volumeSeparationMl": 9.384134,
+        "mvOpeningIndex": 110,
+        "mvClosureIndex": 183,
+        "mvOpeningPressureMmHg": 12.564631,
+        "mvClosurePressureMmHg": 4.638673,
+        "postOpeningPressureDropMmHg": 5.81261,
+        "postOpeningVolumeDropMl": 5.525454,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 3.447992,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -4336,6 +5557,15 @@
         "aLoopArea": 75.273383,
         "vLoopArea": 46.591199,
         "volumeSeparationMl": 9.692092,
+        "mvOpeningIndex": 108,
+        "mvClosureIndex": 183,
+        "mvOpeningPressureMmHg": 12.700308,
+        "mvClosurePressureMmHg": 4.48527,
+        "postOpeningPressureDropMmHg": 5.870095,
+        "postOpeningVolumeDropMl": 4.634708,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 3.86179,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -4370,6 +5600,15 @@
         "aLoopArea": 71.570547,
         "vLoopArea": 49.053291,
         "volumeSeparationMl": 10.352418,
+        "mvOpeningIndex": 119,
+        "mvClosureIndex": 183,
+        "mvOpeningPressureMmHg": 8.849091,
+        "mvClosurePressureMmHg": 4.479511,
+        "postOpeningPressureDropMmHg": 1.689388,
+        "postOpeningVolumeDropMl": 5.686346,
+        "conduitBelowReservoirChordFraction": 0.565217,
+        "meanConduitBelowReservoirChordMmHg": 0.281154,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -4380,7 +5619,7 @@
       "profileId": "afterload-high",
       "variantId": "force-balance-drive8-hyd010-stiff4-damp12",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 2,
       "mvC1ContinuityScore": 0.464728,
@@ -4398,16 +5637,29 @@
       "clampCount": 0,
       "baselineClampCount": 0,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 4,
         "opposedSignedLobes": true,
         "aLoopArea": 70.391751,
         "vLoopArea": 67.694129,
         "volumeSeparationMl": 10.491153,
-        "failureReasons": []
+        "mvOpeningIndex": 118,
+        "mvClosureIndex": 183,
+        "mvOpeningPressureMmHg": 8.805737,
+        "mvClosurePressureMmHg": 4.491881,
+        "postOpeningPressureDropMmHg": 1.607116,
+        "postOpeningVolumeDropMl": 5.796846,
+        "conduitBelowReservoirChordFraction": 0.541667,
+        "meanConduitBelowReservoirChordMmHg": 0.210445,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
       },
       "failureReasons": [
-        "mv-c1-kink"
+        "mv-c1-kink",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
@@ -4438,6 +5690,15 @@
         "aLoopArea": 77.795495,
         "vLoopArea": 95.700912,
         "volumeSeparationMl": 10.034042,
+        "mvOpeningIndex": 107,
+        "mvClosureIndex": 182,
+        "mvOpeningPressureMmHg": 14.027116,
+        "mvClosurePressureMmHg": 4.966301,
+        "postOpeningPressureDropMmHg": 6.971088,
+        "postOpeningVolumeDropMl": 6.456994,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 4.341662,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": []
@@ -4470,6 +5731,15 @@
         "aLoopArea": 74.075957,
         "vLoopArea": 87.152749,
         "volumeSeparationMl": 9.992096,
+        "mvOpeningIndex": 108,
+        "mvClosureIndex": 183,
+        "mvOpeningPressureMmHg": 14.2473,
+        "mvClosurePressureMmHg": 4.908681,
+        "postOpeningPressureDropMmHg": 7.147028,
+        "postOpeningVolumeDropMl": 10.261536,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 3.039589,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": []
@@ -4502,6 +5772,15 @@
         "aLoopArea": 73.770595,
         "vLoopArea": 135.361405,
         "volumeSeparationMl": 10.806072,
+        "mvOpeningIndex": 106,
+        "mvClosureIndex": 182,
+        "mvOpeningPressureMmHg": 14.550221,
+        "mvClosurePressureMmHg": 4.932973,
+        "postOpeningPressureDropMmHg": 7.212632,
+        "postOpeningVolumeDropMl": 9.372128,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 3.76178,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -4536,6 +5815,15 @@
         "aLoopArea": 71.878098,
         "vLoopArea": 154.498935,
         "volumeSeparationMl": 11.120885,
+        "mvOpeningIndex": 107,
+        "mvClosureIndex": 182,
+        "mvOpeningPressureMmHg": 13.850523,
+        "mvClosurePressureMmHg": 5.059056,
+        "postOpeningPressureDropMmHg": 6.341988,
+        "postOpeningVolumeDropMl": 10.602114,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 2.79459,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": []
@@ -4568,6 +5856,15 @@
         "aLoopArea": 66.460672,
         "vLoopArea": 171.262882,
         "volumeSeparationMl": 11.743618,
+        "mvOpeningIndex": 116,
+        "mvClosureIndex": 181,
+        "mvOpeningPressureMmHg": 10.574395,
+        "mvClosurePressureMmHg": 5.145792,
+        "postOpeningPressureDropMmHg": 2.87775,
+        "postOpeningVolumeDropMl": 9.813668,
+        "conduitBelowReservoirChordFraction": 0.692308,
+        "meanConduitBelowReservoirChordMmHg": 0.472455,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -4602,6 +5899,15 @@
         "aLoopArea": 73.603269,
         "vLoopArea": 103.586157,
         "volumeSeparationMl": 10.171114,
+        "mvOpeningIndex": 109,
+        "mvClosureIndex": 183,
+        "mvOpeningPressureMmHg": 13.145487,
+        "mvClosurePressureMmHg": 4.798452,
+        "postOpeningPressureDropMmHg": 6.022384,
+        "postOpeningVolumeDropMl": 9.77145,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 2.442098,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": []
@@ -4634,6 +5940,15 @@
         "aLoopArea": 73.425336,
         "vLoopArea": 113.258147,
         "volumeSeparationMl": 10.263432,
+        "mvOpeningIndex": 110,
+        "mvClosureIndex": 183,
+        "mvOpeningPressureMmHg": 12.573764,
+        "mvClosurePressureMmHg": 4.749749,
+        "postOpeningPressureDropMmHg": 5.442488,
+        "postOpeningVolumeDropMl": 9.583077,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 2.102934,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -4668,6 +5983,15 @@
         "aLoopArea": 73.298479,
         "vLoopArea": 117.554186,
         "volumeSeparationMl": 10.298399,
+        "mvOpeningIndex": 111,
+        "mvClosureIndex": 183,
+        "mvOpeningPressureMmHg": 12.18716,
+        "mvClosurePressureMmHg": 4.730954,
+        "postOpeningPressureDropMmHg": 5.050146,
+        "postOpeningVolumeDropMl": 9.483382,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 1.865667,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -4702,6 +6026,15 @@
         "aLoopArea": 72.053857,
         "vLoopArea": 96.2339,
         "volumeSeparationMl": 10.169241,
+        "mvOpeningIndex": 109,
+        "mvClosureIndex": 183,
+        "mvOpeningPressureMmHg": 13.614944,
+        "mvClosurePressureMmHg": 5.073713,
+        "postOpeningPressureDropMmHg": 6.364885,
+        "postOpeningVolumeDropMl": 11.152331,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 2.319119,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -4736,6 +6069,15 @@
         "aLoopArea": 71.360426,
         "vLoopArea": 62.075401,
         "volumeSeparationMl": 10.640327,
+        "mvOpeningIndex": 117,
+        "mvClosureIndex": 182,
+        "mvOpeningPressureMmHg": 9.995853,
+        "mvClosurePressureMmHg": 4.782333,
+        "postOpeningPressureDropMmHg": 2.793302,
+        "postOpeningVolumeDropMl": 8.145249,
+        "conduitBelowReservoirChordFraction": 0.68,
+        "meanConduitBelowReservoirChordMmHg": 0.512384,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -4770,6 +6112,15 @@
         "aLoopArea": 67.140479,
         "vLoopArea": 120.478078,
         "volumeSeparationMl": 11.560537,
+        "mvOpeningIndex": 116,
+        "mvClosureIndex": 181,
+        "mvOpeningPressureMmHg": 10.659386,
+        "mvClosurePressureMmHg": 5.116568,
+        "postOpeningPressureDropMmHg": 3.094725,
+        "postOpeningVolumeDropMl": 9.70704,
+        "conduitBelowReservoirChordFraction": 0.692308,
+        "meanConduitBelowReservoirChordMmHg": 0.551182,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": []
@@ -4802,6 +6153,15 @@
         "aLoopArea": 66.309432,
         "vLoopArea": 139.454975,
         "volumeSeparationMl": 11.792082,
+        "mvOpeningIndex": 115,
+        "mvClosureIndex": 181,
+        "mvOpeningPressureMmHg": 11.175618,
+        "mvClosurePressureMmHg": 5.306762,
+        "postOpeningPressureDropMmHg": 3.494727,
+        "postOpeningVolumeDropMl": 10.849529,
+        "conduitBelowReservoirChordFraction": 0.703704,
+        "meanConduitBelowReservoirChordMmHg": 0.603542,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -4836,6 +6196,15 @@
         "aLoopArea": 70.642804,
         "vLoopArea": 76.576548,
         "volumeSeparationMl": 10.854189,
+        "mvOpeningIndex": 116,
+        "mvClosureIndex": 182,
+        "mvOpeningPressureMmHg": 10.546986,
+        "mvClosurePressureMmHg": 4.870658,
+        "postOpeningPressureDropMmHg": 3.225261,
+        "postOpeningVolumeDropMl": 9.383722,
+        "conduitBelowReservoirChordFraction": 0.692308,
+        "meanConduitBelowReservoirChordMmHg": 0.560366,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -4870,6 +6239,15 @@
         "aLoopArea": 65.787764,
         "vLoopArea": 145.707042,
         "volumeSeparationMl": 11.990922,
+        "mvOpeningIndex": 114,
+        "mvClosureIndex": 181,
+        "mvOpeningPressureMmHg": 11.465345,
+        "mvClosurePressureMmHg": 5.422712,
+        "postOpeningPressureDropMmHg": 3.696589,
+        "postOpeningVolumeDropMl": 11.519227,
+        "conduitBelowReservoirChordFraction": 0.714286,
+        "meanConduitBelowReservoirChordMmHg": 0.608572,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -4880,7 +6258,7 @@
       "profileId": "contractility-low",
       "variantId": "raw-traction-reference",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 1,
       "mvC1ContinuityScore": 0.601749,
@@ -4898,17 +6276,29 @@
       "clampCount": 0,
       "baselineClampCount": 0,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 1,
         "opposedSignedLobes": true,
         "aLoopArea": 27.273345,
         "vLoopArea": 63.012425,
         "volumeSeparationMl": 5.140991,
-        "failureReasons": []
+        "mvOpeningIndex": 125,
+        "mvClosureIndex": 175,
+        "mvOpeningPressureMmHg": 12.559277,
+        "mvClosurePressureMmHg": 13.528622,
+        "postOpeningPressureDropMmHg": 0.749115,
+        "postOpeningVolumeDropMl": 2.249799,
+        "conduitBelowReservoirChordFraction": 0.647059,
+        "meanConduitBelowReservoirChordMmHg": 0.372355,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "mv-opening-conduit-not-pressure-downward"
+        ]
       },
       "failureReasons": [
         "mv-forward-peak-count",
-        "mv-c1-kink"
+        "mv-c1-kink",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
@@ -4939,9 +6329,21 @@
         "aLoopArea": 36.030698,
         "vLoopArea": 5.622532,
         "volumeSeparationMl": 3.949839,
+        "mvOpeningIndex": 130,
+        "mvClosureIndex": 175,
+        "mvOpeningPressureMmHg": 11.938837,
+        "mvClosurePressureMmHg": 13.163904,
+        "postOpeningPressureDropMmHg": 0.276154,
+        "postOpeningVolumeDropMl": 0.836592,
+        "conduitBelowReservoirChordFraction": 0.333333,
+        "meanConduitBelowReservoirChordMmHg": 0.138172,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "missing-pv-self-intersection",
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -4978,9 +6380,21 @@
         "aLoopArea": 38.304593,
         "vLoopArea": 5.833777,
         "volumeSeparationMl": 3.978958,
+        "mvOpeningIndex": 130,
+        "mvClosureIndex": 176,
+        "mvOpeningPressureMmHg": 11.921599,
+        "mvClosurePressureMmHg": 12.874687,
+        "postOpeningPressureDropMmHg": 0.260711,
+        "postOpeningVolumeDropMl": 0.801059,
+        "conduitBelowReservoirChordFraction": 0.25,
+        "meanConduitBelowReservoirChordMmHg": 0.121528,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "missing-pv-self-intersection",
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -5017,9 +6431,21 @@
         "aLoopArea": 38.028464,
         "vLoopArea": 5.833618,
         "volumeSeparationMl": 3.982011,
+        "mvOpeningIndex": 130,
+        "mvClosureIndex": 176,
+        "mvOpeningPressureMmHg": 11.923885,
+        "mvClosurePressureMmHg": 12.870604,
+        "postOpeningPressureDropMmHg": 0.261231,
+        "postOpeningVolumeDropMl": 0.808622,
+        "conduitBelowReservoirChordFraction": 0.25,
+        "meanConduitBelowReservoirChordMmHg": 0.121139,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "missing-pv-self-intersection",
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -5056,9 +6482,21 @@
         "aLoopArea": 37.051492,
         "vLoopArea": 5.811594,
         "volumeSeparationMl": 3.933106,
+        "mvOpeningIndex": 130,
+        "mvClosureIndex": 175,
+        "mvOpeningPressureMmHg": 11.925563,
+        "mvClosurePressureMmHg": 13.2079,
+        "postOpeningPressureDropMmHg": 0.261036,
+        "postOpeningVolumeDropMl": 0.815136,
+        "conduitBelowReservoirChordFraction": 0.25,
+        "meanConduitBelowReservoirChordMmHg": 0.129825,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "missing-pv-self-intersection",
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -5095,9 +6533,22 @@
         "aLoopArea": 42.08499,
         "vLoopArea": 6.274813,
         "volumeSeparationMl": 3.94497,
+        "mvOpeningIndex": 130,
+        "mvClosureIndex": 176,
+        "mvOpeningPressureMmHg": 11.892685,
+        "mvClosurePressureMmHg": 13.014064,
+        "postOpeningPressureDropMmHg": 0.229771,
+        "postOpeningVolumeDropMl": 0.710958,
+        "conduitBelowReservoirChordFraction": 0.166667,
+        "meanConduitBelowReservoirChordMmHg": 0.1039,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "missing-pv-self-intersection",
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -5134,9 +6585,21 @@
         "aLoopArea": 38.322679,
         "vLoopArea": 5.867824,
         "volumeSeparationMl": 3.980685,
+        "mvOpeningIndex": 130,
+        "mvClosureIndex": 176,
+        "mvOpeningPressureMmHg": 11.923464,
+        "mvClosurePressureMmHg": 12.879182,
+        "postOpeningPressureDropMmHg": 0.262352,
+        "postOpeningVolumeDropMl": 0.803841,
+        "conduitBelowReservoirChordFraction": 0.25,
+        "meanConduitBelowReservoirChordMmHg": 0.122547,
+        "phaseOrientationPass": false,
         "failureReasons": [
           "missing-pv-self-intersection",
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "mv-opening-conduit-not-pressure-downward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -5149,7 +6612,7 @@
       "profileId": "contractility-low",
       "variantId": "force-balance-drive4-hyd004-stiff2-damp06",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 1,
       "mvC1ContinuityScore": 0.50279,
@@ -5167,24 +6630,37 @@
       "clampCount": 0,
       "baselineClampCount": 0,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 1,
         "opposedSignedLobes": true,
         "aLoopArea": 31.733052,
         "vLoopArea": 33.80368,
         "volumeSeparationMl": 3.931792,
-        "failureReasons": []
+        "mvOpeningIndex": 108,
+        "mvClosureIndex": 118,
+        "mvOpeningPressureMmHg": 16.065831,
+        "mvClosurePressureMmHg": 12.626525,
+        "postOpeningPressureDropMmHg": 4.304531,
+        "postOpeningVolumeDropMl": 2.40273,
+        "conduitBelowReservoirChordFraction": 0.382353,
+        "meanConduitBelowReservoirChordMmHg": 0.139901,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
       },
       "failureReasons": [
         "mv-forward-peak-count",
-        "mv-c1-kink"
+        "mv-c1-kink",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
       "profileId": "contractility-low",
       "variantId": "force-balance-drive5-hyd006-stiff2-damp08",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 1,
       "mvC1ContinuityScore": 0.56558,
@@ -5202,24 +6678,36 @@
       "clampCount": 0,
       "baselineClampCount": 0,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 1,
         "opposedSignedLobes": true,
         "aLoopArea": 32.30808,
         "vLoopArea": 40.933842,
         "volumeSeparationMl": 4.0959,
-        "failureReasons": []
+        "mvOpeningIndex": 126,
+        "mvClosureIndex": 175,
+        "mvOpeningPressureMmHg": 12.446759,
+        "mvClosurePressureMmHg": 13.703004,
+        "postOpeningPressureDropMmHg": 0.670175,
+        "postOpeningVolumeDropMl": 1.945685,
+        "conduitBelowReservoirChordFraction": 0.625,
+        "meanConduitBelowReservoirChordMmHg": 0.361006,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "mv-opening-conduit-not-pressure-downward"
+        ]
       },
       "failureReasons": [
         "mv-forward-peak-count",
-        "mv-c1-kink"
+        "mv-c1-kink",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
       "profileId": "contractility-low",
       "variantId": "force-balance-drive6-hyd008-stiff3-damp10",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 1,
       "mvC1ContinuityScore": 0.614822,
@@ -5237,24 +6725,36 @@
       "clampCount": 0,
       "baselineClampCount": 0,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 4,
         "opposedSignedLobes": true,
         "aLoopArea": 31.330451,
         "vLoopArea": 48.577142,
         "volumeSeparationMl": 4.337828,
-        "failureReasons": []
+        "mvOpeningIndex": 125,
+        "mvClosureIndex": 175,
+        "mvOpeningPressureMmHg": 12.471405,
+        "mvClosurePressureMmHg": 13.676415,
+        "postOpeningPressureDropMmHg": 0.591852,
+        "postOpeningVolumeDropMl": 2.073316,
+        "conduitBelowReservoirChordFraction": 0.647059,
+        "meanConduitBelowReservoirChordMmHg": 0.350968,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "mv-opening-conduit-not-pressure-downward"
+        ]
       },
       "failureReasons": [
         "mv-forward-peak-count",
-        "mv-c1-kink"
+        "mv-c1-kink",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
       "profileId": "contractility-low",
       "variantId": "force-balance-drive8-hyd010-stiff4-damp12",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 1,
       "mvC1ContinuityScore": 0.651857,
@@ -5272,17 +6772,29 @@
       "clampCount": 0,
       "baselineClampCount": 0,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 3,
         "opposedSignedLobes": true,
         "aLoopArea": 31.254548,
         "vLoopArea": 64.675849,
         "volumeSeparationMl": 4.594725,
-        "failureReasons": []
+        "mvOpeningIndex": 125,
+        "mvClosureIndex": 175,
+        "mvOpeningPressureMmHg": 12.473139,
+        "mvClosurePressureMmHg": 13.662229,
+        "postOpeningPressureDropMmHg": 0.542541,
+        "postOpeningVolumeDropMl": 2.090773,
+        "conduitBelowReservoirChordFraction": 0.647059,
+        "meanConduitBelowReservoirChordMmHg": 0.340346,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "mv-opening-conduit-not-pressure-downward"
+        ]
       },
       "failureReasons": [
         "mv-forward-peak-count",
-        "mv-c1-kink"
+        "mv-c1-kink",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
@@ -5313,6 +6825,15 @@
         "aLoopArea": 24.686181,
         "vLoopArea": 88.181714,
         "volumeSeparationMl": 4.297684,
+        "mvOpeningIndex": 120,
+        "mvClosureIndex": 177,
+        "mvOpeningPressureMmHg": 13.478976,
+        "mvClosurePressureMmHg": 14.052469,
+        "postOpeningPressureDropMmHg": 1.361313,
+        "postOpeningVolumeDropMl": 4.464382,
+        "conduitBelowReservoirChordFraction": 0.727273,
+        "meanConduitBelowReservoirChordMmHg": 0.65888,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -5347,6 +6868,15 @@
         "aLoopArea": 33.516652,
         "vLoopArea": 79.780908,
         "volumeSeparationMl": 2.65342,
+        "mvOpeningIndex": 104,
+        "mvClosureIndex": 142,
+        "mvOpeningPressureMmHg": 18.449728,
+        "mvClosurePressureMmHg": 12.325798,
+        "postOpeningPressureDropMmHg": 6.12393,
+        "postOpeningVolumeDropMl": 7.168839,
+        "conduitBelowReservoirChordFraction": 0.868421,
+        "meanConduitBelowReservoirChordMmHg": 1.247761,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -5357,7 +6887,7 @@
       "profileId": "contractility-low",
       "variantId": "force-balance-cap28-drive6-hyd004-stiff2-damp06-fast",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 2,
       "mvC1ContinuityScore": 0.604783,
@@ -5375,23 +6905,36 @@
       "clampCount": 0,
       "baselineClampCount": 0,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 1,
         "opposedSignedLobes": true,
         "aLoopArea": 28.073389,
         "vLoopArea": 125.309088,
         "volumeSeparationMl": 3.492664,
-        "failureReasons": []
+        "mvOpeningIndex": 113,
+        "mvClosureIndex": 147,
+        "mvOpeningPressureMmHg": 14.830978,
+        "mvClosurePressureMmHg": 12.317239,
+        "postOpeningPressureDropMmHg": 2.422963,
+        "postOpeningVolumeDropMl": 7.453739,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": 0.073384,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
       },
       "failureReasons": [
-        "mv-c1-kink"
+        "mv-c1-kink",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
       "profileId": "contractility-low",
       "variantId": "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 2,
       "mvC1ContinuityScore": 0.617514,
@@ -5409,23 +6952,36 @@
       "clampCount": 0,
       "baselineClampCount": 0,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 1,
         "opposedSignedLobes": true,
         "aLoopArea": 28.59358,
         "vLoopArea": 142.730861,
         "volumeSeparationMl": 3.23893,
-        "failureReasons": []
+        "mvOpeningIndex": 111,
+        "mvClosureIndex": 144,
+        "mvOpeningPressureMmHg": 15.422483,
+        "mvClosurePressureMmHg": 12.732212,
+        "postOpeningPressureDropMmHg": 2.667765,
+        "postOpeningVolumeDropMl": 8.179525,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": 0.046107,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
       },
       "failureReasons": [
-        "mv-c1-kink"
+        "mv-c1-kink",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
       "profileId": "contractility-low",
       "variantId": "force-balance-cap28-drive8-hyd006-stiff3-damp08",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 2,
       "mvC1ContinuityScore": 0.487374,
@@ -5443,16 +6999,29 @@
       "clampCount": 0,
       "baselineClampCount": 0,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 1,
         "opposedSignedLobes": true,
         "aLoopArea": 24.733055,
         "vLoopArea": 159.101148,
         "volumeSeparationMl": 3.989812,
-        "failureReasons": []
+        "mvOpeningIndex": 114,
+        "mvClosureIndex": 147,
+        "mvOpeningPressureMmHg": 14.863558,
+        "mvClosurePressureMmHg": 12.390943,
+        "postOpeningPressureDropMmHg": 2.262454,
+        "postOpeningVolumeDropMl": 7.766915,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": 0.018961,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
       },
       "failureReasons": [
-        "mv-c1-kink"
+        "mv-c1-kink",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
@@ -5483,6 +7052,15 @@
         "aLoopArea": 30.689699,
         "vLoopArea": 94.789058,
         "volumeSeparationMl": 3.064712,
+        "mvOpeningIndex": 107,
+        "mvClosureIndex": 145,
+        "mvOpeningPressureMmHg": 16.736446,
+        "mvClosurePressureMmHg": 12.076673,
+        "postOpeningPressureDropMmHg": 4.566988,
+        "postOpeningVolumeDropMl": 7.344288,
+        "conduitBelowReservoirChordFraction": 0.885714,
+        "meanConduitBelowReservoirChordMmHg": 0.923382,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -5517,6 +7095,15 @@
         "aLoopArea": 29.924915,
         "vLoopArea": 102.391989,
         "volumeSeparationMl": 3.214857,
+        "mvOpeningIndex": 109,
+        "mvClosureIndex": 146,
+        "mvOpeningPressureMmHg": 16.027938,
+        "mvClosurePressureMmHg": 11.996571,
+        "postOpeningPressureDropMmHg": 3.8965,
+        "postOpeningVolumeDropMl": 7.272683,
+        "conduitBelowReservoirChordFraction": 0.848485,
+        "meanConduitBelowReservoirChordMmHg": 0.675605,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -5551,6 +7138,15 @@
         "aLoopArea": 29.980807,
         "vLoopArea": 106.099654,
         "volumeSeparationMl": 3.234432,
+        "mvOpeningIndex": 109,
+        "mvClosureIndex": 146,
+        "mvOpeningPressureMmHg": 16.028828,
+        "mvClosurePressureMmHg": 11.983468,
+        "postOpeningPressureDropMmHg": 3.908795,
+        "postOpeningVolumeDropMl": 7.225739,
+        "conduitBelowReservoirChordFraction": 0.848485,
+        "meanConduitBelowReservoirChordMmHg": 0.689576,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -5585,6 +7181,15 @@
         "aLoopArea": 31.156841,
         "vLoopArea": 85.534211,
         "volumeSeparationMl": 2.590495,
+        "mvOpeningIndex": 106,
+        "mvClosureIndex": 142,
+        "mvOpeningPressureMmHg": 17.340843,
+        "mvClosurePressureMmHg": 12.494742,
+        "postOpeningPressureDropMmHg": 4.846101,
+        "postOpeningVolumeDropMl": 7.735,
+        "conduitBelowReservoirChordFraction": 0.777778,
+        "meanConduitBelowReservoirChordMmHg": 0.774788,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -5595,7 +7200,7 @@
       "profileId": "contractility-low",
       "variantId": "wall-work-cap28-drive4-hyd002-stiff1-damp04-fast",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 2,
       "mvC1ContinuityScore": 0.635016,
@@ -5613,23 +7218,36 @@
       "clampCount": 0,
       "baselineClampCount": 0,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 1,
         "opposedSignedLobes": true,
         "aLoopArea": 27.579172,
         "vLoopArea": 59.622652,
         "volumeSeparationMl": 3.680678,
-        "failureReasons": []
+        "mvOpeningIndex": 117,
+        "mvClosureIndex": 149,
+        "mvOpeningPressureMmHg": 14.278643,
+        "mvClosurePressureMmHg": 11.921743,
+        "postOpeningPressureDropMmHg": 2.189668,
+        "postOpeningVolumeDropMl": 6.3212,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": 0.057345,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
       },
       "failureReasons": [
-        "mv-c1-kink"
+        "mv-c1-kink",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
       "profileId": "contractility-low",
       "variantId": "wall-work-cap32-drive6-hyd004-stiff2-damp06-fast",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 2,
       "mvC1ContinuityScore": 0.512887,
@@ -5647,23 +7265,36 @@
       "clampCount": 0,
       "baselineClampCount": 0,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 1,
         "opposedSignedLobes": true,
         "aLoopArea": 25.93171,
         "vLoopArea": 121.255261,
         "volumeSeparationMl": 3.710341,
-        "failureReasons": []
+        "mvOpeningIndex": 114,
+        "mvClosureIndex": 146,
+        "mvOpeningPressureMmHg": 15.11039,
+        "mvClosurePressureMmHg": 12.402027,
+        "postOpeningPressureDropMmHg": 2.56368,
+        "postOpeningVolumeDropMl": 7.968513,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": 0.020176,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
       },
       "failureReasons": [
-        "mv-c1-kink"
+        "mv-c1-kink",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
       "profileId": "contractility-low",
       "variantId": "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 2,
       "mvC1ContinuityScore": 0.512447,
@@ -5681,23 +7312,36 @@
       "clampCount": 0,
       "baselineClampCount": 0,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 1,
         "opposedSignedLobes": true,
         "aLoopArea": 27.122214,
         "vLoopArea": 133.724698,
         "volumeSeparationMl": 3.339575,
-        "failureReasons": []
+        "mvOpeningIndex": 112,
+        "mvClosureIndex": 143,
+        "mvOpeningPressureMmHg": 15.669881,
+        "mvClosurePressureMmHg": 12.874926,
+        "postOpeningPressureDropMmHg": 2.774591,
+        "postOpeningVolumeDropMl": 8.542088,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": 0.019538,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
       },
       "failureReasons": [
-        "mv-c1-kink"
+        "mv-c1-kink",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
       "profileId": "contractility-low",
       "variantId": "wall-work-cap32-drive4-hyd002-stiff1-damp04-vel08",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 2,
       "mvC1ContinuityScore": 0.585275,
@@ -5715,23 +7359,36 @@
       "clampCount": 0,
       "baselineClampCount": 0,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 1,
         "opposedSignedLobes": true,
         "aLoopArea": 28.096531,
         "vLoopArea": 73.746936,
         "volumeSeparationMl": 3.378088,
-        "failureReasons": []
+        "mvOpeningIndex": 114,
+        "mvClosureIndex": 146,
+        "mvOpeningPressureMmHg": 14.912229,
+        "mvClosurePressureMmHg": 12.100928,
+        "postOpeningPressureDropMmHg": 2.63217,
+        "postOpeningVolumeDropMl": 7.546769,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.031404,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
       },
       "failureReasons": [
-        "mv-c1-kink"
+        "mv-c1-kink",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
       "profileId": "contractility-low",
       "variantId": "wall-work-cap40-drive6-hyd002-stiff2-damp06-vel06",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": false,
       "mvForwardPeakCount": 2,
       "mvC1ContinuityScore": 0.519122,
@@ -5749,23 +7406,36 @@
       "clampCount": 0,
       "baselineClampCount": 0,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 1,
         "opposedSignedLobes": true,
         "aLoopArea": 27.191057,
         "vLoopArea": 138.439656,
         "volumeSeparationMl": 3.194613,
-        "failureReasons": []
+        "mvOpeningIndex": 111,
+        "mvClosureIndex": 142,
+        "mvOpeningPressureMmHg": 16.005197,
+        "mvClosurePressureMmHg": 13.144892,
+        "postOpeningPressureDropMmHg": 2.860305,
+        "postOpeningVolumeDropMl": 8.841258,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": 0.020803,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
       },
       "failureReasons": [
-        "mv-c1-kink"
+        "mv-c1-kink",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
       "profileId": "contractility-high",
       "variantId": "raw-traction-reference",
       "sourceSurfaceStatus": "pass",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": true,
       "mvForwardPeakCount": 2,
       "mvC1ContinuityScore": 0.169575,
@@ -5783,15 +7453,28 @@
       "clampCount": 38,
       "baselineClampCount": 38,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 2,
         "opposedSignedLobes": true,
         "aLoopArea": 71.327581,
         "vLoopArea": 47.757699,
         "volumeSeparationMl": 9.704254,
-        "failureReasons": []
+        "mvOpeningIndex": 111,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 8.04397,
+        "mvClosurePressureMmHg": 1.346533,
+        "postOpeningPressureDropMmHg": 2.691445,
+        "postOpeningVolumeDropMl": 7.705876,
+        "conduitBelowReservoirChordFraction": 0.548387,
+        "meanConduitBelowReservoirChordMmHg": 0.254039,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "conduit-not-below-reservoir-chord"
+        ]
       },
-      "failureReasons": []
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
     },
     {
       "profileId": "contractility-high",
@@ -5821,8 +7504,19 @@
         "aLoopArea": 74.400159,
         "vLoopArea": 32.521982,
         "volumeSeparationMl": 8.915187,
+        "mvOpeningIndex": 112,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 7.657186,
+        "mvClosurePressureMmHg": 1.360965,
+        "postOpeningPressureDropMmHg": 2.362293,
+        "postOpeningVolumeDropMl": 6.845587,
+        "conduitBelowReservoirChordFraction": 0.5,
+        "meanConduitBelowReservoirChordMmHg": 0.2346,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -5858,8 +7552,19 @@
         "aLoopArea": 76.468962,
         "vLoopArea": 34.083657,
         "volumeSeparationMl": 8.851264,
+        "mvOpeningIndex": 112,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 7.617861,
+        "mvClosurePressureMmHg": 1.37081,
+        "postOpeningPressureDropMmHg": 2.326336,
+        "postOpeningVolumeDropMl": 6.750239,
+        "conduitBelowReservoirChordFraction": 0.5,
+        "meanConduitBelowReservoirChordMmHg": 0.240242,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -5895,8 +7600,19 @@
         "aLoopArea": 76.19026,
         "vLoopArea": 34.040653,
         "volumeSeparationMl": 8.82427,
+        "mvOpeningIndex": 112,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 7.613589,
+        "mvClosurePressureMmHg": 1.37063,
+        "postOpeningPressureDropMmHg": 2.330439,
+        "postOpeningVolumeDropMl": 6.764103,
+        "conduitBelowReservoirChordFraction": 0.5,
+        "meanConduitBelowReservoirChordMmHg": 0.244621,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -5932,8 +7648,19 @@
         "aLoopArea": 75.564617,
         "vLoopArea": 33.526619,
         "volumeSeparationMl": 8.861435,
+        "mvOpeningIndex": 112,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 7.627537,
+        "mvClosurePressureMmHg": 1.367231,
+        "postOpeningPressureDropMmHg": 2.337882,
+        "postOpeningVolumeDropMl": 6.787657,
+        "conduitBelowReservoirChordFraction": 0.5,
+        "meanConduitBelowReservoirChordMmHg": 0.239633,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -5969,8 +7696,18 @@
         "aLoopArea": 83.167097,
         "vLoopArea": 39.185047,
         "volumeSeparationMl": 8.639218,
+        "mvOpeningIndex": 112,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 7.48586,
+        "mvClosurePressureMmHg": 1.40642,
+        "postOpeningPressureDropMmHg": 2.223904,
+        "postOpeningVolumeDropMl": 6.455868,
+        "conduitBelowReservoirChordFraction": 0.533333,
+        "meanConduitBelowReservoirChordMmHg": 0.264406,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "conduit-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -6005,8 +7742,19 @@
         "aLoopArea": 75.23337,
         "vLoopArea": 33.252966,
         "volumeSeparationMl": 8.874662,
+        "mvOpeningIndex": 112,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 7.635617,
+        "mvClosurePressureMmHg": 1.365863,
+        "postOpeningPressureDropMmHg": 2.34531,
+        "postOpeningVolumeDropMl": 6.800959,
+        "conduitBelowReservoirChordFraction": 0.5,
+        "meanConduitBelowReservoirChordMmHg": 0.237993,
+        "phaseOrientationPass": false,
         "failureReasons": [
-          "a-v-lobes-not-opposed"
+          "a-v-lobes-not-opposed",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
         ]
       },
       "failureReasons": [
@@ -6042,6 +7790,15 @@
         "aLoopArea": 81.075178,
         "vLoopArea": 1.37632,
         "volumeSeparationMl": 8.03391,
+        "mvOpeningIndex": 108,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 10.518061,
+        "mvClosurePressureMmHg": 1.593781,
+        "postOpeningPressureDropMmHg": 5.268757,
+        "postOpeningVolumeDropMl": 3.95569,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 3.347676,
+        "phaseOrientationPass": true,
         "failureReasons": [
           "v-loop-area-too-small"
         ]
@@ -6080,6 +7837,15 @@
         "aLoopArea": 77.368803,
         "vLoopArea": 11.438945,
         "volumeSeparationMl": 8.660307,
+        "mvOpeningIndex": 106,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 10.44683,
+        "mvClosurePressureMmHg": 1.488977,
+        "postOpeningPressureDropMmHg": 5.035834,
+        "postOpeningVolumeDropMl": 3.874168,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 3.293114,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -6091,7 +7857,7 @@
       "profileId": "contractility-high",
       "variantId": "force-balance-drive6-hyd008-stiff3-damp10",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": true,
       "mvForwardPeakCount": 2,
       "mvC1ContinuityScore": 0.229422,
@@ -6109,24 +7875,37 @@
       "clampCount": 41,
       "baselineClampCount": 38,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 2,
         "opposedSignedLobes": true,
         "aLoopArea": 73.880508,
         "vLoopArea": 12.503928,
         "volumeSeparationMl": 8.964889,
-        "failureReasons": []
+        "mvOpeningIndex": 116,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 7.046711,
+        "mvClosurePressureMmHg": 1.479997,
+        "postOpeningPressureDropMmHg": 1.431674,
+        "postOpeningVolumeDropMl": 4.938292,
+        "conduitBelowReservoirChordFraction": 0.115385,
+        "meanConduitBelowReservoirChordMmHg": 0.079653,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
       },
       "failureReasons": [
         "aov-output-ratio-wide",
-        "new-clamp-hit"
+        "new-clamp-hit",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
       "profileId": "contractility-high",
       "variantId": "force-balance-drive8-hyd010-stiff4-damp12",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": true,
       "mvForwardPeakCount": 2,
       "mvC1ContinuityScore": 0.299221,
@@ -6144,17 +7923,30 @@
       "clampCount": 42,
       "baselineClampCount": 38,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 4,
         "opposedSignedLobes": true,
         "aLoopArea": 72.726191,
         "vLoopArea": 28.688737,
         "volumeSeparationMl": 9.081589,
-        "failureReasons": []
+        "mvOpeningIndex": 116,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 7.068599,
+        "mvClosurePressureMmHg": 1.480776,
+        "postOpeningPressureDropMmHg": 1.424441,
+        "postOpeningVolumeDropMl": 5.192708,
+        "conduitBelowReservoirChordFraction": 0.038462,
+        "meanConduitBelowReservoirChordMmHg": 0.029299,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
       },
       "failureReasons": [
         "aov-output-ratio-wide",
-        "new-clamp-hit"
+        "new-clamp-hit",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
@@ -6185,6 +7977,15 @@
         "aLoopArea": 83.577249,
         "vLoopArea": 52.450354,
         "volumeSeparationMl": 8.324902,
+        "mvOpeningIndex": 106,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 11.565095,
+        "mvClosurePressureMmHg": 1.635109,
+        "postOpeningPressureDropMmHg": 6.106074,
+        "postOpeningVolumeDropMl": 3.979925,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 4.269962,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -6220,6 +8021,15 @@
         "aLoopArea": 87.072291,
         "vLoopArea": 39.613672,
         "volumeSeparationMl": 7.850491,
+        "mvOpeningIndex": 108,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 11.110861,
+        "mvClosurePressureMmHg": 1.701654,
+        "postOpeningPressureDropMmHg": 5.855714,
+        "postOpeningVolumeDropMl": 6.482277,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 2.989673,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -6255,6 +8065,15 @@
         "aLoopArea": 85.407617,
         "vLoopArea": 84.166262,
         "volumeSeparationMl": 9.023962,
+        "mvOpeningIndex": 105,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 12.520552,
+        "mvClosurePressureMmHg": 1.639694,
+        "postOpeningPressureDropMmHg": 6.959768,
+        "postOpeningVolumeDropMl": 6.421123,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 4.304977,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -6290,6 +8109,15 @@
         "aLoopArea": 85.822748,
         "vLoopArea": 100.343596,
         "volumeSeparationMl": 9.344643,
+        "mvOpeningIndex": 105,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 12.303764,
+        "mvClosurePressureMmHg": 1.63549,
+        "postOpeningPressureDropMmHg": 6.700989,
+        "postOpeningVolumeDropMl": 7.507692,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 3.824037,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -6301,7 +8129,7 @@
       "profileId": "contractility-high",
       "variantId": "force-balance-cap28-drive8-hyd006-stiff3-damp08",
       "sourceSurfaceStatus": "fail",
-      "topologyStatus": "pass",
+      "topologyStatus": "fail",
       "mvfClean": true,
       "mvForwardPeakCount": 2,
       "mvC1ContinuityScore": 0.209772,
@@ -6319,17 +8147,30 @@
       "clampCount": 41,
       "baselineClampCount": 38,
       "lobeQuality": {
-        "pass": true,
+        "pass": false,
         "selfIntersections": 2,
         "opposedSignedLobes": true,
         "aLoopArea": 76.809255,
         "vLoopArea": 112.107145,
         "volumeSeparationMl": 9.824515,
-        "failureReasons": []
+        "mvOpeningIndex": 116,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 7.876703,
+        "mvClosurePressureMmHg": 1.588268,
+        "postOpeningPressureDropMmHg": 1.979594,
+        "postOpeningVolumeDropMl": 7.225093,
+        "conduitBelowReservoirChordFraction": 0.384615,
+        "meanConduitBelowReservoirChordMmHg": 0.164565,
+        "phaseOrientationPass": false,
+        "failureReasons": [
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
       },
       "failureReasons": [
         "aov-output-ratio-wide",
-        "new-clamp-hit"
+        "new-clamp-hit",
+        "la-pv-lobe-quality-fail"
       ]
     },
     {
@@ -6360,6 +8201,15 @@
         "aLoopArea": 85.696845,
         "vLoopArea": 56.226598,
         "volumeSeparationMl": 8.069651,
+        "mvOpeningIndex": 109,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 10.145072,
+        "mvClosurePressureMmHg": 1.682317,
+        "postOpeningPressureDropMmHg": 4.826823,
+        "postOpeningVolumeDropMl": 6.214508,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 2.35537,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -6395,6 +8245,15 @@
         "aLoopArea": 84.991157,
         "vLoopArea": 65.386775,
         "volumeSeparationMl": 8.124167,
+        "mvOpeningIndex": 110,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 9.563128,
+        "mvClosurePressureMmHg": 1.676178,
+        "postOpeningPressureDropMmHg": 4.21073,
+        "postOpeningVolumeDropMl": 6.086131,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 1.952882,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -6430,6 +8289,15 @@
         "aLoopArea": 84.66165,
         "vLoopArea": 69.961199,
         "volumeSeparationMl": 8.230375,
+        "mvOpeningIndex": 110,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 9.483489,
+        "mvClosurePressureMmHg": 1.668093,
+        "postOpeningPressureDropMmHg": 4.111629,
+        "postOpeningVolumeDropMl": 6.079438,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 1.875738,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -6465,6 +8333,15 @@
         "aLoopArea": 86.414267,
         "vLoopArea": 48.788886,
         "volumeSeparationMl": 8.004334,
+        "mvOpeningIndex": 109,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 10.175689,
+        "mvClosurePressureMmHg": 1.748475,
+        "postOpeningPressureDropMmHg": 4.869702,
+        "postOpeningVolumeDropMl": 7.178758,
+        "conduitBelowReservoirChordFraction": 1,
+        "meanConduitBelowReservoirChordMmHg": 2.151804,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -6500,6 +8377,15 @@
         "aLoopArea": 80.824342,
         "vLoopArea": 26.770051,
         "volumeSeparationMl": 8.055858,
+        "mvOpeningIndex": 114,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 7.513265,
+        "mvClosurePressureMmHg": 1.598772,
+        "postOpeningPressureDropMmHg": 2.154593,
+        "postOpeningVolumeDropMl": 6.141772,
+        "conduitBelowReservoirChordFraction": 0.571429,
+        "meanConduitBelowReservoirChordMmHg": 0.324955,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -6534,6 +8420,15 @@
         "aLoopArea": 78.456952,
         "vLoopArea": 72.105424,
         "volumeSeparationMl": 9.335486,
+        "mvOpeningIndex": 115,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 7.929732,
+        "mvClosurePressureMmHg": 1.589258,
+        "postOpeningPressureDropMmHg": 2.219653,
+        "postOpeningVolumeDropMl": 7.137022,
+        "conduitBelowReservoirChordFraction": 0.592593,
+        "meanConduitBelowReservoirChordMmHg": 0.289068,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -6569,6 +8464,15 @@
         "aLoopArea": 79.564034,
         "vLoopArea": 90.640463,
         "volumeSeparationMl": 9.207507,
+        "mvOpeningIndex": 115,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 8.05481,
+        "mvClosurePressureMmHg": 1.59548,
+        "postOpeningPressureDropMmHg": 2.348684,
+        "postOpeningVolumeDropMl": 7.472846,
+        "conduitBelowReservoirChordFraction": 0.592593,
+        "meanConduitBelowReservoirChordMmHg": 0.32881,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -6604,6 +8508,15 @@
         "aLoopArea": 82.31198,
         "vLoopArea": 38.884582,
         "volumeSeparationMl": 8.291953,
+        "mvOpeningIndex": 113,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 7.916634,
+        "mvClosurePressureMmHg": 1.606654,
+        "postOpeningPressureDropMmHg": 2.536754,
+        "postOpeningVolumeDropMl": 6.877328,
+        "conduitBelowReservoirChordFraction": 0.793103,
+        "meanConduitBelowReservoirChordMmHg": 0.481105,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -6638,6 +8551,15 @@
         "aLoopArea": 80.223363,
         "vLoopArea": 94.757193,
         "volumeSeparationMl": 9.379887,
+        "mvOpeningIndex": 115,
+        "mvClosureIndex": 13,
+        "mvOpeningPressureMmHg": 8.16565,
+        "mvClosurePressureMmHg": 1.600208,
+        "postOpeningPressureDropMmHg": 2.45124,
+        "postOpeningVolumeDropMl": 7.851279,
+        "conduitBelowReservoirChordFraction": 0.62963,
+        "meanConduitBelowReservoirChordMmHg": 0.350744,
+        "phaseOrientationPass": true,
         "failureReasons": []
       },
       "failureReasons": [
@@ -6650,11 +8572,14 @@
     {
       "variantId": "raw-traction-reference",
       "sourceSurfacePass": 4,
-      "topologyPass": 7,
-      "sourcePreservingTopologyPass": 4,
+      "topologyPass": 2,
+      "sourcePreservingTopologyPass": 2,
       "mvfCleanCount": 4,
       "hiddenVolumeCleanCount": 7,
       "opposedLobeCount": 7,
+      "phaseOrientationPassCount": 2,
+      "mvOpeningDownwardCount": 5,
+      "conduitBelowReservoirChordCount": 3,
       "maxZNorm": 0,
       "maxZDotNormPerSec": 0,
       "maxDriveForceN": 0,
@@ -6662,7 +8587,9 @@
       "maxNetForceN": 0,
       "maxWorkCoordinatePressureMmHg": 0,
       "maxTractionPressureMmHg": 19.283221,
-      "maxVLoopArea": 71.598793
+      "maxVLoopArea": 71.598793,
+      "maxPostOpeningPressureDropMmHg": 4.125828,
+      "maxConduitBelowReservoirChordFraction": 0.7
     },
     {
       "variantId": "capacity-coordinate-drive2-stiff2-damp06",
@@ -6672,6 +8599,9 @@
       "mvfCleanCount": 4,
       "hiddenVolumeCleanCount": 7,
       "opposedLobeCount": 0,
+      "phaseOrientationPassCount": 2,
+      "mvOpeningDownwardCount": 4,
+      "conduitBelowReservoirChordCount": 2,
       "maxZNorm": 0.366464,
       "maxZDotNormPerSec": 1.709707,
       "maxDriveForceN": 1.580287,
@@ -6679,7 +8609,9 @@
       "maxNetForceN": 1.181074,
       "maxWorkCoordinatePressureMmHg": 7.111875,
       "maxTractionPressureMmHg": 0,
-      "maxVLoopArea": 77.970916
+      "maxVLoopArea": 77.970916,
+      "maxPostOpeningPressureDropMmHg": 3.665093,
+      "maxConduitBelowReservoirChordFraction": 0.666667
     },
     {
       "variantId": "capacity-coordinate-drive4-stiff2-damp06",
@@ -6689,6 +8621,9 @@
       "mvfCleanCount": 4,
       "hiddenVolumeCleanCount": 7,
       "opposedLobeCount": 0,
+      "phaseOrientationPassCount": 2,
+      "mvOpeningDownwardCount": 4,
+      "conduitBelowReservoirChordCount": 2,
       "maxZNorm": 0.564103,
       "maxZDotNormPerSec": 1.8,
       "maxDriveForceN": 3.160872,
@@ -6696,7 +8631,9 @@
       "maxNetForceN": 1.890417,
       "maxWorkCoordinatePressureMmHg": 14.225096,
       "maxTractionPressureMmHg": 0,
-      "maxVLoopArea": 81.08637
+      "maxVLoopArea": 81.08637,
+      "maxPostOpeningPressureDropMmHg": 3.64439,
+      "maxConduitBelowReservoirChordFraction": 0.689655
     },
     {
       "variantId": "capacity-coordinate-drive6-stiff3-damp10",
@@ -6706,6 +8643,9 @@
       "mvfCleanCount": 4,
       "hiddenVolumeCleanCount": 7,
       "opposedLobeCount": 0,
+      "phaseOrientationPassCount": 2,
+      "mvOpeningDownwardCount": 4,
+      "conduitBelowReservoirChordCount": 2,
       "maxZNorm": 0.571922,
       "maxZDotNormPerSec": 1.8,
       "maxDriveForceN": 4.741285,
@@ -6713,7 +8653,9 @@
       "maxNetForceN": 2.789479,
       "maxWorkCoordinatePressureMmHg": 21.337539,
       "maxTractionPressureMmHg": 0,
-      "maxVLoopArea": 80.893668
+      "maxVLoopArea": 80.893668,
+      "maxPostOpeningPressureDropMmHg": 3.643821,
+      "maxConduitBelowReservoirChordFraction": 0.689655
     },
     {
       "variantId": "capacity-coordinate-drive8-stiff4-damp12",
@@ -6723,6 +8665,9 @@
       "mvfCleanCount": 4,
       "hiddenVolumeCleanCount": 7,
       "opposedLobeCount": 0,
+      "phaseOrientationPassCount": 2,
+      "mvOpeningDownwardCount": 4,
+      "conduitBelowReservoirChordCount": 2,
       "maxZNorm": 0.566654,
       "maxZDotNormPerSec": 1.8,
       "maxDriveForceN": 6.32151,
@@ -6730,7 +8675,9 @@
       "maxNetForceN": 3.533282,
       "maxWorkCoordinatePressureMmHg": 28.449133,
       "maxTractionPressureMmHg": 0,
-      "maxVLoopArea": 80.055193
+      "maxVLoopArea": 80.055193,
+      "maxPostOpeningPressureDropMmHg": 3.651172,
+      "maxConduitBelowReservoirChordFraction": 0.689655
     },
     {
       "variantId": "capacity-coordinate-drive4-stiff1-damp04-fast",
@@ -6740,6 +8687,9 @@
       "mvfCleanCount": 3,
       "hiddenVolumeCleanCount": 7,
       "opposedLobeCount": 0,
+      "phaseOrientationPassCount": 2,
+      "mvOpeningDownwardCount": 4,
+      "conduitBelowReservoirChordCount": 2,
       "maxZNorm": 0.920696,
       "maxZDotNormPerSec": 2.4,
       "maxDriveForceN": 3.21869,
@@ -6747,7 +8697,9 @@
       "maxNetForceN": 2.02776,
       "maxWorkCoordinatePressureMmHg": 14.485297,
       "maxTractionPressureMmHg": 0,
-      "maxVLoopArea": 91.089713
+      "maxVLoopArea": 91.089713,
+      "maxPostOpeningPressureDropMmHg": 3.567869,
+      "maxConduitBelowReservoirChordFraction": 0.689655
     },
     {
       "variantId": "capacity-coordinate-drive6-stiff2-damp06-slow",
@@ -6757,6 +8709,9 @@
       "mvfCleanCount": 4,
       "hiddenVolumeCleanCount": 7,
       "opposedLobeCount": 0,
+      "phaseOrientationPassCount": 2,
+      "mvOpeningDownwardCount": 4,
+      "conduitBelowReservoirChordCount": 2,
       "maxZNorm": 0.482168,
       "maxZDotNormPerSec": 1.2,
       "maxDriveForceN": 4.172247,
@@ -6764,16 +8719,21 @@
       "maxNetForceN": 3.163367,
       "maxWorkCoordinatePressureMmHg": 18.776655,
       "maxTractionPressureMmHg": 0,
-      "maxVLoopArea": 79.632772
+      "maxVLoopArea": 79.632772,
+      "maxPostOpeningPressureDropMmHg": 3.654493,
+      "maxConduitBelowReservoirChordFraction": 0.666667
     },
     {
       "variantId": "force-balance-drive4-hyd004-stiff2-damp06",
       "sourceSurfacePass": 1,
-      "topologyPass": 3,
+      "topologyPass": 2,
       "sourcePreservingTopologyPass": 1,
       "mvfCleanCount": 2,
       "hiddenVolumeCleanCount": 7,
       "opposedLobeCount": 4,
+      "phaseOrientationPassCount": 3,
+      "mvOpeningDownwardCount": 4,
+      "conduitBelowReservoirChordCount": 5,
       "maxZNorm": 0.406783,
       "maxZDotNormPerSec": 1.8,
       "maxDriveForceN": 3.160174,
@@ -6781,16 +8741,21 @@
       "maxNetForceN": 1.730924,
       "maxWorkCoordinatePressureMmHg": 10.152127,
       "maxTractionPressureMmHg": 10.152127,
-      "maxVLoopArea": 38.611085
+      "maxVLoopArea": 38.611085,
+      "maxPostOpeningPressureDropMmHg": 5.81261,
+      "maxConduitBelowReservoirChordFraction": 1
     },
     {
       "variantId": "force-balance-drive5-hyd006-stiff2-damp08",
       "sourceSurfacePass": 1,
-      "topologyPass": 4,
+      "topologyPass": 3,
       "sourcePreservingTopologyPass": 1,
       "mvfCleanCount": 2,
       "hiddenVolumeCleanCount": 7,
       "opposedLobeCount": 5,
+      "phaseOrientationPassCount": 3,
+      "mvOpeningDownwardCount": 3,
+      "conduitBelowReservoirChordCount": 5,
       "maxZNorm": 0.395506,
       "maxZDotNormPerSec": 1.8,
       "maxDriveForceN": 3.948398,
@@ -6798,16 +8763,21 @@
       "maxNetForceN": 2.056089,
       "maxWorkCoordinatePressureMmHg": 12.249241,
       "maxTractionPressureMmHg": 12.249241,
-      "maxVLoopArea": 46.591199
+      "maxVLoopArea": 46.591199,
+      "maxPostOpeningPressureDropMmHg": 6.403343,
+      "maxConduitBelowReservoirChordFraction": 1
     },
     {
       "variantId": "force-balance-drive6-hyd008-stiff3-damp10",
       "sourceSurfacePass": 1,
-      "topologyPass": 4,
-      "sourcePreservingTopologyPass": 1,
+      "topologyPass": 1,
+      "sourcePreservingTopologyPass": 0,
       "mvfCleanCount": 2,
       "hiddenVolumeCleanCount": 7,
       "opposedLobeCount": 6,
+      "phaseOrientationPassCount": 1,
+      "mvOpeningDownwardCount": 3,
+      "conduitBelowReservoirChordCount": 2,
       "maxZNorm": 0.350234,
       "maxZDotNormPerSec": 1.8,
       "maxDriveForceN": 4.738983,
@@ -6815,16 +8785,21 @@
       "maxNetForceN": 2.606203,
       "maxWorkCoordinatePressureMmHg": 13.826017,
       "maxTractionPressureMmHg": 13.826017,
-      "maxVLoopArea": 49.053291
+      "maxVLoopArea": 49.053291,
+      "maxPostOpeningPressureDropMmHg": 2.228413,
+      "maxConduitBelowReservoirChordFraction": 0.647059
     },
     {
       "variantId": "force-balance-drive8-hyd010-stiff4-damp12",
       "sourceSurfacePass": 1,
-      "topologyPass": 4,
+      "topologyPass": 1,
       "sourcePreservingTopologyPass": 1,
       "mvfCleanCount": 2,
       "hiddenVolumeCleanCount": 7,
       "opposedLobeCount": 7,
+      "phaseOrientationPassCount": 1,
+      "mvOpeningDownwardCount": 3,
+      "conduitBelowReservoirChordCount": 2,
       "maxZNorm": 0.360808,
       "maxZDotNormPerSec": 1.8,
       "maxDriveForceN": 6.319137,
@@ -6832,7 +8807,9 @@
       "maxNetForceN": 3.043099,
       "maxWorkCoordinatePressureMmHg": 18.61028,
       "maxTractionPressureMmHg": 18.61028,
-      "maxVLoopArea": 67.694129
+      "maxVLoopArea": 67.694129,
+      "maxPostOpeningPressureDropMmHg": 2.336779,
+      "maxConduitBelowReservoirChordFraction": 0.647059
     },
     {
       "variantId": "force-balance-drive6-hyd004-stiff2-damp06-fast",
@@ -6842,6 +8819,9 @@
       "mvfCleanCount": 3,
       "hiddenVolumeCleanCount": 7,
       "opposedLobeCount": 7,
+      "phaseOrientationPassCount": 4,
+      "mvOpeningDownwardCount": 4,
+      "conduitBelowReservoirChordCount": 4,
       "maxZNorm": 0.621936,
       "maxZDotNormPerSec": 2.4,
       "maxDriveForceN": 4.814227,
@@ -6849,7 +8829,9 @@
       "maxNetForceN": 2.445984,
       "maxWorkCoordinatePressureMmHg": 16.833597,
       "maxTractionPressureMmHg": 16.833597,
-      "maxVLoopArea": 95.700912
+      "maxVLoopArea": 95.700912,
+      "maxPostOpeningPressureDropMmHg": 6.971088,
+      "maxConduitBelowReservoirChordFraction": 1
     },
     {
       "variantId": "force-balance-cap28-drive4-hyd002-stiff1-damp04-fast",
@@ -6859,6 +8841,9 @@
       "mvfCleanCount": 3,
       "hiddenVolumeCleanCount": 7,
       "opposedLobeCount": 7,
+      "phaseOrientationPassCount": 5,
+      "mvOpeningDownwardCount": 5,
+      "conduitBelowReservoirChordCount": 7,
       "maxZNorm": 0.783703,
       "maxZDotNormPerSec": 2.4,
       "maxDriveForceN": 3.219969,
@@ -6866,16 +8851,21 @@
       "maxNetForceN": 1.910117,
       "maxWorkCoordinatePressureMmHg": 11.552291,
       "maxTractionPressureMmHg": 11.552291,
-      "maxVLoopArea": 87.152749
+      "maxVLoopArea": 87.152749,
+      "maxPostOpeningPressureDropMmHg": 7.147028,
+      "maxConduitBelowReservoirChordFraction": 1
     },
     {
       "variantId": "force-balance-cap28-drive6-hyd004-stiff2-damp06-fast",
       "sourceSurfacePass": 1,
-      "topologyPass": 4,
+      "topologyPass": 3,
       "sourcePreservingTopologyPass": 1,
       "mvfCleanCount": 2,
       "hiddenVolumeCleanCount": 7,
       "opposedLobeCount": 7,
+      "phaseOrientationPassCount": 3,
+      "mvOpeningDownwardCount": 4,
+      "conduitBelowReservoirChordCount": 4,
       "maxZNorm": 0.614011,
       "maxZDotNormPerSec": 2.4,
       "maxDriveForceN": 4.829518,
@@ -6883,16 +8873,21 @@
       "maxNetForceN": 2.455298,
       "maxWorkCoordinatePressureMmHg": 16.95821,
       "maxTractionPressureMmHg": 16.95821,
-      "maxVLoopArea": 135.361405
+      "maxVLoopArea": 135.361405,
+      "maxPostOpeningPressureDropMmHg": 7.212632,
+      "maxConduitBelowReservoirChordFraction": 1
     },
     {
       "variantId": "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast",
       "sourceSurfacePass": 2,
-      "topologyPass": 5,
+      "topologyPass": 3,
       "sourcePreservingTopologyPass": 2,
       "mvfCleanCount": 3,
       "hiddenVolumeCleanCount": 7,
       "opposedLobeCount": 7,
+      "phaseOrientationPassCount": 3,
+      "mvOpeningDownwardCount": 4,
+      "conduitBelowReservoirChordCount": 4,
       "maxZNorm": 0.603988,
       "maxZDotNormPerSec": 2.4,
       "maxDriveForceN": 4.830329,
@@ -6900,16 +8895,21 @@
       "maxNetForceN": 2.444132,
       "maxWorkCoordinatePressureMmHg": 17.043545,
       "maxTractionPressureMmHg": 17.043545,
-      "maxVLoopArea": 154.498935
+      "maxVLoopArea": 154.498935,
+      "maxPostOpeningPressureDropMmHg": 6.700989,
+      "maxConduitBelowReservoirChordFraction": 1
     },
     {
       "variantId": "force-balance-cap28-drive8-hyd006-stiff3-damp08",
       "sourceSurfacePass": 1,
-      "topologyPass": 4,
+      "topologyPass": 2,
       "sourcePreservingTopologyPass": 1,
       "mvfCleanCount": 2,
       "hiddenVolumeCleanCount": 7,
       "opposedLobeCount": 7,
+      "phaseOrientationPassCount": 2,
+      "mvOpeningDownwardCount": 4,
+      "conduitBelowReservoirChordCount": 2,
       "maxZNorm": 0.530603,
       "maxZDotNormPerSec": 2.4,
       "maxDriveForceN": 6.42335,
@@ -6917,16 +8917,21 @@
       "maxNetForceN": 3.23776,
       "maxWorkCoordinatePressureMmHg": 21.929751,
       "maxTractionPressureMmHg": 21.929751,
-      "maxVLoopArea": 171.262882
+      "maxVLoopArea": 171.262882,
+      "maxPostOpeningPressureDropMmHg": 3.304222,
+      "maxConduitBelowReservoirChordFraction": 0.7
     },
     {
       "variantId": "force-balance-vel06-drive4-hyd002-cap28",
       "sourceSurfacePass": 2,
-      "topologyPass": 5,
+      "topologyPass": 4,
       "sourcePreservingTopologyPass": 2,
       "mvfCleanCount": 3,
       "hiddenVolumeCleanCount": 7,
       "opposedLobeCount": 7,
+      "phaseOrientationPassCount": 4,
+      "mvOpeningDownwardCount": 4,
+      "conduitBelowReservoirChordCount": 6,
       "maxZNorm": 0.76383,
       "maxZDotNormPerSec": 2.4,
       "maxDriveForceN": 3.219674,
@@ -6934,16 +8939,21 @@
       "maxNetForceN": 1.90651,
       "maxWorkCoordinatePressureMmHg": 13.023458,
       "maxTractionPressureMmHg": 13.023458,
-      "maxVLoopArea": 103.586157
+      "maxVLoopArea": 103.586157,
+      "maxPostOpeningPressureDropMmHg": 6.224084,
+      "maxConduitBelowReservoirChordFraction": 1
     },
     {
       "variantId": "force-balance-vel10-drive4-hyd002-cap28",
       "sourceSurfacePass": 1,
-      "topologyPass": 5,
+      "topologyPass": 4,
       "sourcePreservingTopologyPass": 1,
       "mvfCleanCount": 2,
       "hiddenVolumeCleanCount": 7,
       "opposedLobeCount": 7,
+      "phaseOrientationPassCount": 4,
+      "mvOpeningDownwardCount": 4,
+      "conduitBelowReservoirChordCount": 5,
       "maxZNorm": 0.746843,
       "maxZDotNormPerSec": 2.4,
       "maxDriveForceN": 3.219546,
@@ -6951,16 +8961,21 @@
       "maxNetForceN": 1.904735,
       "maxWorkCoordinatePressureMmHg": 13.99635,
       "maxTractionPressureMmHg": 13.99635,
-      "maxVLoopArea": 113.258147
+      "maxVLoopArea": 113.258147,
+      "maxPostOpeningPressureDropMmHg": 5.703832,
+      "maxConduitBelowReservoirChordFraction": 1
     },
     {
       "variantId": "force-balance-vel12-drive4-hyd002-cap28",
       "sourceSurfacePass": 1,
-      "topologyPass": 5,
+      "topologyPass": 4,
       "sourcePreservingTopologyPass": 1,
       "mvfCleanCount": 2,
       "hiddenVolumeCleanCount": 7,
       "opposedLobeCount": 7,
+      "phaseOrientationPassCount": 4,
+      "mvOpeningDownwardCount": 4,
+      "conduitBelowReservoirChordCount": 5,
       "maxZNorm": 0.737449,
       "maxZDotNormPerSec": 2.4,
       "maxDriveForceN": 3.219421,
@@ -6968,7 +8983,9 @@
       "maxNetForceN": 1.903881,
       "maxWorkCoordinatePressureMmHg": 14.473607,
       "maxTractionPressureMmHg": 14.473607,
-      "maxVLoopArea": 117.554186
+      "maxVLoopArea": 117.554186,
+      "maxPostOpeningPressureDropMmHg": 5.590825,
+      "maxConduitBelowReservoirChordFraction": 1
     },
     {
       "variantId": "force-balance-vel08-drive3-hyd001-cap32",
@@ -6978,6 +8995,9 @@
       "mvfCleanCount": 2,
       "hiddenVolumeCleanCount": 7,
       "opposedLobeCount": 7,
+      "phaseOrientationPassCount": 5,
+      "mvOpeningDownwardCount": 5,
+      "conduitBelowReservoirChordCount": 6,
       "maxZNorm": 0.708748,
       "maxZDotNormPerSec": 2.4,
       "maxDriveForceN": 2.415564,
@@ -6985,16 +9005,21 @@
       "maxNetForceN": 1.516954,
       "maxWorkCoordinatePressureMmHg": 10.964544,
       "maxTractionPressureMmHg": 10.964544,
-      "maxVLoopArea": 96.2339
+      "maxVLoopArea": 96.2339,
+      "maxPostOpeningPressureDropMmHg": 7.234188,
+      "maxConduitBelowReservoirChordFraction": 1
     },
     {
       "variantId": "wall-work-cap28-drive4-hyd002-stiff1-damp04-fast",
       "sourceSurfacePass": 1,
-      "topologyPass": 4,
+      "topologyPass": 3,
       "sourcePreservingTopologyPass": 1,
       "mvfCleanCount": 2,
       "hiddenVolumeCleanCount": 7,
       "opposedLobeCount": 5,
+      "phaseOrientationPassCount": 3,
+      "mvOpeningDownwardCount": 4,
+      "conduitBelowReservoirChordCount": 3,
       "maxZNorm": 0.452769,
       "maxZDotNormPerSec": 2.4,
       "maxDriveForceN": 2.764314,
@@ -7002,16 +9027,21 @@
       "maxNetForceN": 1.764349,
       "maxWorkCoordinatePressureMmHg": 11.417527,
       "maxTractionPressureMmHg": 11.417527,
-      "maxVLoopArea": 62.075401
+      "maxVLoopArea": 62.075401,
+      "maxPostOpeningPressureDropMmHg": 3.984647,
+      "maxConduitBelowReservoirChordFraction": 0.967742
     },
     {
       "variantId": "wall-work-cap32-drive6-hyd004-stiff2-damp06-fast",
       "sourceSurfacePass": 2,
-      "topologyPass": 6,
+      "topologyPass": 3,
       "sourcePreservingTopologyPass": 2,
       "mvfCleanCount": 3,
       "hiddenVolumeCleanCount": 7,
       "opposedLobeCount": 7,
+      "phaseOrientationPassCount": 3,
+      "mvOpeningDownwardCount": 4,
+      "conduitBelowReservoirChordCount": 3,
       "maxZNorm": 0.395611,
       "maxZDotNormPerSec": 2.4,
       "maxDriveForceN": 4.414758,
@@ -7019,16 +9049,21 @@
       "maxNetForceN": 2.326449,
       "maxWorkCoordinatePressureMmHg": 17.948869,
       "maxTractionPressureMmHg": 17.948869,
-      "maxVLoopArea": 121.255261
+      "maxVLoopArea": 121.255261,
+      "maxPostOpeningPressureDropMmHg": 3.998718,
+      "maxConduitBelowReservoirChordFraction": 0.709677
     },
     {
       "variantId": "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast",
       "sourceSurfacePass": 1,
-      "topologyPass": 6,
+      "topologyPass": 3,
       "sourcePreservingTopologyPass": 1,
       "mvfCleanCount": 2,
       "hiddenVolumeCleanCount": 7,
       "opposedLobeCount": 7,
+      "phaseOrientationPassCount": 3,
+      "mvOpeningDownwardCount": 4,
+      "conduitBelowReservoirChordCount": 3,
       "maxZNorm": 0.405629,
       "maxZDotNormPerSec": 2.4,
       "maxDriveForceN": 4.284884,
@@ -7036,16 +9071,21 @@
       "maxNetForceN": 2.420121,
       "maxWorkCoordinatePressureMmHg": 17.983087,
       "maxTractionPressureMmHg": 17.983087,
-      "maxVLoopArea": 139.454975
+      "maxVLoopArea": 139.454975,
+      "maxPostOpeningPressureDropMmHg": 4.535839,
+      "maxConduitBelowReservoirChordFraction": 0.774194
     },
     {
       "variantId": "wall-work-cap32-drive4-hyd002-stiff1-damp04-vel08",
       "sourceSurfacePass": 1,
-      "topologyPass": 6,
+      "topologyPass": 3,
       "sourcePreservingTopologyPass": 1,
       "mvfCleanCount": 2,
       "hiddenVolumeCleanCount": 7,
       "opposedLobeCount": 7,
+      "phaseOrientationPassCount": 3,
+      "mvOpeningDownwardCount": 4,
+      "conduitBelowReservoirChordCount": 3,
       "maxZNorm": 0.453376,
       "maxZDotNormPerSec": 2.4,
       "maxDriveForceN": 2.764719,
@@ -7053,16 +9093,21 @@
       "maxNetForceN": 1.765535,
       "maxWorkCoordinatePressureMmHg": 11.812945,
       "maxTractionPressureMmHg": 11.812945,
-      "maxVLoopArea": 76.576548
+      "maxVLoopArea": 76.576548,
+      "maxPostOpeningPressureDropMmHg": 4.664626,
+      "maxConduitBelowReservoirChordFraction": 0.96875
     },
     {
       "variantId": "wall-work-cap40-drive6-hyd002-stiff2-damp06-vel06",
       "sourceSurfacePass": 1,
-      "topologyPass": 6,
+      "topologyPass": 3,
       "sourcePreservingTopologyPass": 1,
       "mvfCleanCount": 2,
       "hiddenVolumeCleanCount": 7,
       "opposedLobeCount": 7,
+      "phaseOrientationPassCount": 3,
+      "mvOpeningDownwardCount": 4,
+      "conduitBelowReservoirChordCount": 3,
       "maxZNorm": 0.415754,
       "maxZDotNormPerSec": 2.4,
       "maxDriveForceN": 4.160807,
@@ -7070,17 +9115,22 @@
       "maxNetForceN": 2.368205,
       "maxWorkCoordinatePressureMmHg": 17.691911,
       "maxTractionPressureMmHg": 17.691911,
-      "maxVLoopArea": 145.707042
+      "maxVLoopArea": 145.707042,
+      "maxPostOpeningPressureDropMmHg": 4.831218,
+      "maxConduitBelowReservoirChordFraction": 0.78125
     }
   ],
   "rawReference": {
     "variantId": "raw-traction-reference",
     "sourceSurfacePass": 4,
-    "topologyPass": 7,
-    "sourcePreservingTopologyPass": 4,
+    "topologyPass": 2,
+    "sourcePreservingTopologyPass": 2,
     "mvfCleanCount": 4,
     "hiddenVolumeCleanCount": 7,
     "opposedLobeCount": 7,
+    "phaseOrientationPassCount": 2,
+    "mvOpeningDownwardCount": 5,
+    "conduitBelowReservoirChordCount": 3,
     "maxZNorm": 0,
     "maxZDotNormPerSec": 0,
     "maxDriveForceN": 0,
@@ -7088,7 +9138,9 @@
     "maxNetForceN": 0,
     "maxWorkCoordinatePressureMmHg": 0,
     "maxTractionPressureMmHg": 19.283221,
-    "maxVLoopArea": 71.598793
+    "maxVLoopArea": 71.598793,
+    "maxPostOpeningPressureDropMmHg": 4.125828,
+    "maxConduitBelowReservoirChordFraction": 0.7
   },
   "bestCoordinateVariant": {
     "variantId": "capacity-coordinate-drive4-stiff2-damp06",
@@ -7098,6 +9150,9 @@
     "mvfCleanCount": 4,
     "hiddenVolumeCleanCount": 7,
     "opposedLobeCount": 0,
+    "phaseOrientationPassCount": 2,
+    "mvOpeningDownwardCount": 4,
+    "conduitBelowReservoirChordCount": 2,
     "maxZNorm": 0.564103,
     "maxZDotNormPerSec": 1.8,
     "maxDriveForceN": 3.160872,
@@ -7105,33 +9160,43 @@
     "maxNetForceN": 1.890417,
     "maxWorkCoordinatePressureMmHg": 14.225096,
     "maxTractionPressureMmHg": 0,
-    "maxVLoopArea": 81.08637
+    "maxVLoopArea": 81.08637,
+    "maxPostOpeningPressureDropMmHg": 3.64439,
+    "maxConduitBelowReservoirChordFraction": 0.689655
   },
   "bestForceBalanceVariant": {
-    "variantId": "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast",
+    "variantId": "force-balance-cap28-drive4-hyd002-stiff1-damp04-fast",
     "sourceSurfacePass": 2,
     "topologyPass": 5,
     "sourcePreservingTopologyPass": 2,
     "mvfCleanCount": 3,
     "hiddenVolumeCleanCount": 7,
     "opposedLobeCount": 7,
-    "maxZNorm": 0.603988,
+    "phaseOrientationPassCount": 5,
+    "mvOpeningDownwardCount": 5,
+    "conduitBelowReservoirChordCount": 7,
+    "maxZNorm": 0.783703,
     "maxZDotNormPerSec": 2.4,
-    "maxDriveForceN": 4.830329,
-    "maxHydraulicForceN": 1.346397,
-    "maxNetForceN": 2.444132,
-    "maxWorkCoordinatePressureMmHg": 17.043545,
-    "maxTractionPressureMmHg": 17.043545,
-    "maxVLoopArea": 154.498935
+    "maxDriveForceN": 3.219969,
+    "maxHydraulicForceN": 0.674486,
+    "maxNetForceN": 1.910117,
+    "maxWorkCoordinatePressureMmHg": 11.552291,
+    "maxTractionPressureMmHg": 11.552291,
+    "maxVLoopArea": 87.152749,
+    "maxPostOpeningPressureDropMmHg": 7.147028,
+    "maxConduitBelowReservoirChordFraction": 1
   },
   "bestWallWorkVariant": {
     "variantId": "wall-work-cap32-drive6-hyd004-stiff2-damp06-fast",
     "sourceSurfacePass": 2,
-    "topologyPass": 6,
+    "topologyPass": 3,
     "sourcePreservingTopologyPass": 2,
     "mvfCleanCount": 3,
     "hiddenVolumeCleanCount": 7,
     "opposedLobeCount": 7,
+    "phaseOrientationPassCount": 3,
+    "mvOpeningDownwardCount": 4,
+    "conduitBelowReservoirChordCount": 3,
     "maxZNorm": 0.395611,
     "maxZDotNormPerSec": 2.4,
     "maxDriveForceN": 4.414758,
@@ -7139,25 +9204,27 @@
     "maxNetForceN": 2.326449,
     "maxWorkCoordinatePressureMmHg": 17.948869,
     "maxTractionPressureMmHg": 17.948869,
-    "maxVLoopArea": 121.255261
+    "maxVLoopArea": 121.255261,
+    "maxPostOpeningPressureDropMmHg": 3.998718,
+    "maxConduitBelowReservoirChordFraction": 0.709677
   },
   "summary": {
     "totalProfiles": 7,
     "rawSourceSurfacePass": 4,
-    "rawTopologyPass": 7,
+    "rawTopologyPass": 2,
     "rawMvfCleanCount": 4,
     "bestCoordinateVariantId": "capacity-coordinate-drive4-stiff2-damp06",
     "bestCoordinateSourceSurfacePass": 3,
     "bestCoordinateTopologyPass": 0,
     "bestCoordinateMvfCleanCount": 4,
-    "bestForceBalanceVariantId": "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast",
+    "bestForceBalanceVariantId": "force-balance-cap28-drive4-hyd002-stiff1-damp04-fast",
     "bestForceBalanceSourceSurfacePass": 2,
     "bestForceBalanceTopologyPass": 5,
     "bestForceBalanceSourcePreservingTopologyPass": 2,
     "bestForceBalanceMvfCleanCount": 3,
     "bestWallWorkVariantId": "wall-work-cap32-drive6-hyd004-stiff2-damp06-fast",
     "bestWallWorkSourceSurfacePass": 2,
-    "bestWallWorkTopologyPass": 6,
+    "bestWallWorkTopologyPass": 3,
     "bestWallWorkSourcePreservingTopologyPass": 2,
     "bestWallWorkMvfCleanCount": 3,
     "coordinateVariantsImprovingRawSourceAndKeepingTopology": 0,
@@ -7167,7 +9234,7 @@
     "reviewStatus": "coordinate-contract-mixed"
   },
   "decision": {
-    "nextAction": "Target-spring wall-work / LA-MV residual improves opposed-lobe topology over simple force-balance but still does not preserve the raw source/MVF surface. Keep runtime AV-plane enablement blocked and move next to an accepted MV/venous-flow residual owner rather than scalar wall-work tuning.",
+    "nextAction": "MV-opening phase-orientation gate shows simple force-balance is the strongest current topology signal, but it still does not preserve the source/MVF surface. Keep runtime AV-plane enablement blocked and move next to a source-preserving phase-oriented AV-plane/MV/venous-flow residual owner rather than scalar coordinate sweeps.",
     "blockedClaims": [
       "runtime-wiring",
       "morphology-acceptance",
@@ -7185,5 +9252,5 @@
     "pressureSubstitution": false,
     "LandAtrialUnlock": false
   },
-  "normalizedSha256": "83f0f5774a326bc1c8cccd8dfcd6b3f4b31beb638f90ccb657fdcde4f10540fb"
+  "normalizedSha256": "0d0ddf6bec44e6a64678e0fcab3365e79a512fbb4912fa6257772c05e2d6512e"
 }
