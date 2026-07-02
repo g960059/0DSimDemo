@@ -1,0 +1,1328 @@
+{
+  "reportId": "atrial-reservoir-traction-forcing-report-v1",
+  "gateId": "atrialReservoirTractionForcingV1",
+  "mode": "isolated-prescribed-flow-avplane-rate-gated-traction-no-runtime",
+  "variants": [
+    {
+      "variantId": "no-traction",
+      "tractionGainMmHgPerNormPerSec": 0
+    },
+    {
+      "variantId": "descent-traction-gain04",
+      "tractionGainMmHgPerNormPerSec": 0.4
+    },
+    {
+      "variantId": "descent-traction-gain08",
+      "tractionGainMmHgPerNormPerSec": 0.8
+    },
+    {
+      "variantId": "descent-traction-gain12",
+      "tractionGainMmHgPerNormPerSec": 1.2
+    },
+    {
+      "variantId": "descent-traction-gain16",
+      "tractionGainMmHgPerNormPerSec": 1.6
+    },
+    {
+      "variantId": "descent-traction-negative-gain08",
+      "tractionGainMmHgPerNormPerSec": -0.8
+    }
+  ],
+  "profiles": [
+    {
+      "profileId": "normal-hr75",
+      "hrBpm": 75,
+      "venousScale": 1,
+      "avPlaneScale": 1,
+      "boosterScale": 1,
+      "passiveStiffnessScale": 1
+    },
+    {
+      "profileId": "normal-hr90",
+      "hrBpm": 90,
+      "venousScale": 1,
+      "avPlaneScale": 1,
+      "boosterScale": 1,
+      "passiveStiffnessScale": 1
+    },
+    {
+      "profileId": "venous-low",
+      "hrBpm": 75,
+      "venousScale": 0.72,
+      "avPlaneScale": 1,
+      "boosterScale": 1,
+      "passiveStiffnessScale": 1
+    },
+    {
+      "profileId": "venous-high",
+      "hrBpm": 75,
+      "venousScale": 1.28,
+      "avPlaneScale": 1,
+      "boosterScale": 1,
+      "passiveStiffnessScale": 1
+    },
+    {
+      "profileId": "avplane-low",
+      "hrBpm": 75,
+      "venousScale": 1,
+      "avPlaneScale": 0.65,
+      "boosterScale": 1,
+      "passiveStiffnessScale": 1
+    },
+    {
+      "profileId": "booster-high",
+      "hrBpm": 75,
+      "venousScale": 1,
+      "avPlaneScale": 1,
+      "boosterScale": 1.35,
+      "passiveStiffnessScale": 1
+    },
+    {
+      "profileId": "stiff-atrial-wall",
+      "hrBpm": 75,
+      "venousScale": 1,
+      "avPlaneScale": 1,
+      "boosterScale": 1,
+      "passiveStiffnessScale": 1.45
+    }
+  ],
+  "rows": [
+    {
+      "profileId": "normal-hr75",
+      "variantId": "no-traction",
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 4,
+        "aLoopArea": 20.143063,
+        "vLoopArea": 1.207592,
+        "signedALoopArea": 20.143063,
+        "signedVLoopArea": -1.207592,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": [
+          "v-loop-area-too-small"
+        ]
+      },
+      "maxTractionPressureAbsMmHg": 0,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.015722,
+      "pressureMaxMmHg": 10.715477,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "fail",
+      "failureReasons": [
+        "lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr75",
+      "variantId": "descent-traction-gain04",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 4,
+        "aLoopArea": 20.143063,
+        "vLoopArea": 18.583468,
+        "signedALoopArea": 20.143063,
+        "signedVLoopArea": -18.583468,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 2.499769,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.015722,
+      "pressureMaxMmHg": 10.715477,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "normal-hr75",
+      "variantId": "descent-traction-gain08",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 4,
+        "aLoopArea": 20.143063,
+        "vLoopArea": 35.959343,
+        "signedALoopArea": 20.143063,
+        "signedVLoopArea": -35.959343,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 4.999537,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.015722,
+      "pressureMaxMmHg": 10.715477,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "normal-hr75",
+      "variantId": "descent-traction-gain12",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 4,
+        "aLoopArea": 20.143063,
+        "vLoopArea": 53.335219,
+        "signedALoopArea": 20.143063,
+        "signedVLoopArea": -53.335219,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 7.499306,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.015722,
+      "pressureMaxMmHg": 10.715477,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "normal-hr75",
+      "variantId": "descent-traction-gain16",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 4,
+        "aLoopArea": 20.143063,
+        "vLoopArea": 70.711095,
+        "signedALoopArea": 20.143063,
+        "signedVLoopArea": -70.711095,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 9.999074,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.015722,
+      "pressureMaxMmHg": 10.715477,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "normal-hr75",
+      "variantId": "descent-traction-negative-gain08",
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 6,
+        "aLoopArea": 20.143063,
+        "vLoopArea": 0.352935,
+        "signedALoopArea": 20.143063,
+        "signedVLoopArea": 0.352935,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "maxTractionPressureAbsMmHg": 4.999537,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0,
+      "pressureMaxMmHg": 10.715477,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "fail",
+      "failureReasons": [
+        "lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "variantId": "no-traction",
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 4,
+        "aLoopArea": 14.798927,
+        "vLoopArea": 1.0049,
+        "signedALoopArea": 14.798927,
+        "signedVLoopArea": -1.0049,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 2.840074,
+        "failureReasons": [
+          "v-loop-area-too-small"
+        ]
+      },
+      "maxTractionPressureAbsMmHg": 0,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 10.236093,
+      "venousInflowVolumeMl": 23.254943,
+      "mvOutflowVolumeMl": 23.254943,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.015978,
+      "pressureMaxMmHg": 10.076086,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "fail",
+      "failureReasons": [
+        "lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "variantId": "descent-traction-gain04",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 4,
+        "aLoopArea": 14.798927,
+        "vLoopArea": 18.395731,
+        "signedALoopArea": 14.798927,
+        "signedVLoopArea": -18.395731,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 2.840074,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 3.00268,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 10.236093,
+      "venousInflowVolumeMl": 23.254943,
+      "mvOutflowVolumeMl": 23.254943,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.015978,
+      "pressureMaxMmHg": 10.076086,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "normal-hr90",
+      "variantId": "descent-traction-gain08",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 4,
+        "aLoopArea": 14.798927,
+        "vLoopArea": 35.786562,
+        "signedALoopArea": 14.798927,
+        "signedVLoopArea": -35.786562,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 2.840074,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 6.00536,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 10.236093,
+      "venousInflowVolumeMl": 23.254943,
+      "mvOutflowVolumeMl": 23.254943,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.015978,
+      "pressureMaxMmHg": 10.076086,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "normal-hr90",
+      "variantId": "descent-traction-gain12",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 4,
+        "aLoopArea": 14.798927,
+        "vLoopArea": 53.177392,
+        "signedALoopArea": 14.798927,
+        "signedVLoopArea": -53.177392,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 2.840074,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 9.00804,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 10.236093,
+      "venousInflowVolumeMl": 23.254943,
+      "mvOutflowVolumeMl": 23.254943,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.015978,
+      "pressureMaxMmHg": 10.076086,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "normal-hr90",
+      "variantId": "descent-traction-gain16",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 4,
+        "aLoopArea": 14.798927,
+        "vLoopArea": 70.568223,
+        "signedALoopArea": 14.798927,
+        "signedVLoopArea": -70.568223,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 2.840074,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 12.010721,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 10.236093,
+      "venousInflowVolumeMl": 23.254943,
+      "mvOutflowVolumeMl": 23.254943,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.015978,
+      "pressureMaxMmHg": 12.161778,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "normal-hr90",
+      "variantId": "descent-traction-negative-gain08",
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 6,
+        "aLoopArea": 14.798927,
+        "vLoopArea": 0.258555,
+        "signedALoopArea": 14.798927,
+        "signedVLoopArea": 0.258555,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 2.840074,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "maxTractionPressureAbsMmHg": 6.00536,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 10.236093,
+      "venousInflowVolumeMl": 23.254943,
+      "mvOutflowVolumeMl": 23.254943,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0,
+      "pressureMaxMmHg": 10.076086,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "fail",
+      "failureReasons": [
+        "lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "venous-low",
+      "variantId": "no-traction",
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 4,
+        "aLoopArea": 20.143063,
+        "vLoopArea": 1.207592,
+        "signedALoopArea": 20.143063,
+        "signedVLoopArea": -1.207592,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": [
+          "v-loop-area-too-small"
+        ]
+      },
+      "maxTractionPressureAbsMmHg": 0,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.015722,
+      "pressureMaxMmHg": 10.715477,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "fail",
+      "failureReasons": [
+        "lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "venous-low",
+      "variantId": "descent-traction-gain04",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 4,
+        "aLoopArea": 20.143063,
+        "vLoopArea": 18.583468,
+        "signedALoopArea": 20.143063,
+        "signedVLoopArea": -18.583468,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 2.499769,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.015722,
+      "pressureMaxMmHg": 10.715477,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "venous-low",
+      "variantId": "descent-traction-gain08",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 4,
+        "aLoopArea": 20.143063,
+        "vLoopArea": 35.959343,
+        "signedALoopArea": 20.143063,
+        "signedVLoopArea": -35.959343,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 4.999537,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.015722,
+      "pressureMaxMmHg": 10.715477,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "venous-low",
+      "variantId": "descent-traction-gain12",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 4,
+        "aLoopArea": 20.143063,
+        "vLoopArea": 53.335219,
+        "signedALoopArea": 20.143063,
+        "signedVLoopArea": -53.335219,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 7.499306,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.015722,
+      "pressureMaxMmHg": 10.715477,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "venous-low",
+      "variantId": "descent-traction-gain16",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 4,
+        "aLoopArea": 20.143063,
+        "vLoopArea": 70.711095,
+        "signedALoopArea": 20.143063,
+        "signedVLoopArea": -70.711095,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 9.999074,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.015722,
+      "pressureMaxMmHg": 10.715477,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "venous-low",
+      "variantId": "descent-traction-negative-gain08",
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 6,
+        "aLoopArea": 20.143063,
+        "vLoopArea": 0.352935,
+        "signedALoopArea": 20.143063,
+        "signedVLoopArea": 0.352935,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "maxTractionPressureAbsMmHg": 4.999537,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0,
+      "pressureMaxMmHg": 10.715477,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "fail",
+      "failureReasons": [
+        "lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "venous-high",
+      "variantId": "no-traction",
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 4,
+        "aLoopArea": 20.143063,
+        "vLoopArea": 1.207592,
+        "signedALoopArea": 20.143063,
+        "signedVLoopArea": -1.207592,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": [
+          "v-loop-area-too-small"
+        ]
+      },
+      "maxTractionPressureAbsMmHg": 0,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.015722,
+      "pressureMaxMmHg": 10.715477,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "fail",
+      "failureReasons": [
+        "lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "venous-high",
+      "variantId": "descent-traction-gain04",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 4,
+        "aLoopArea": 20.143063,
+        "vLoopArea": 18.583468,
+        "signedALoopArea": 20.143063,
+        "signedVLoopArea": -18.583468,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 2.499769,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.015722,
+      "pressureMaxMmHg": 10.715477,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "venous-high",
+      "variantId": "descent-traction-gain08",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 4,
+        "aLoopArea": 20.143063,
+        "vLoopArea": 35.959343,
+        "signedALoopArea": 20.143063,
+        "signedVLoopArea": -35.959343,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 4.999537,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.015722,
+      "pressureMaxMmHg": 10.715477,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "venous-high",
+      "variantId": "descent-traction-gain12",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 4,
+        "aLoopArea": 20.143063,
+        "vLoopArea": 53.335219,
+        "signedALoopArea": 20.143063,
+        "signedVLoopArea": -53.335219,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 7.499306,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.015722,
+      "pressureMaxMmHg": 10.715477,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "venous-high",
+      "variantId": "descent-traction-gain16",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 4,
+        "aLoopArea": 20.143063,
+        "vLoopArea": 70.711095,
+        "signedALoopArea": 20.143063,
+        "signedVLoopArea": -70.711095,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 9.999074,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.015722,
+      "pressureMaxMmHg": 10.715477,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "venous-high",
+      "variantId": "descent-traction-negative-gain08",
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 6,
+        "aLoopArea": 20.143063,
+        "vLoopArea": 0.352935,
+        "signedALoopArea": 20.143063,
+        "signedVLoopArea": 0.352935,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "maxTractionPressureAbsMmHg": 4.999537,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0,
+      "pressureMaxMmHg": 10.715477,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "fail",
+      "failureReasons": [
+        "lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "avplane-low",
+      "variantId": "no-traction",
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 4,
+        "aLoopArea": 20.143063,
+        "vLoopArea": 1.207592,
+        "signedALoopArea": 20.143063,
+        "signedVLoopArea": -1.207592,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": [
+          "v-loop-area-too-small"
+        ]
+      },
+      "maxTractionPressureAbsMmHg": 0,
+      "maxZAvNorm": 0.65,
+      "maxZAvDotNormPerSec": 5.538819,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.015722,
+      "pressureMaxMmHg": 10.715477,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "fail",
+      "failureReasons": [
+        "lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "avplane-low",
+      "variantId": "descent-traction-gain04",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 4,
+        "aLoopArea": 20.143063,
+        "vLoopArea": 12.501911,
+        "signedALoopArea": 20.143063,
+        "signedVLoopArea": -12.501911,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 1.62485,
+      "maxZAvNorm": 0.65,
+      "maxZAvDotNormPerSec": 5.538819,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.015722,
+      "pressureMaxMmHg": 10.715477,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "avplane-low",
+      "variantId": "descent-traction-gain08",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 4,
+        "aLoopArea": 20.143063,
+        "vLoopArea": 23.79623,
+        "signedALoopArea": 20.143063,
+        "signedVLoopArea": -23.79623,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 3.249699,
+      "maxZAvNorm": 0.65,
+      "maxZAvDotNormPerSec": 5.538819,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.015722,
+      "pressureMaxMmHg": 10.715477,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "avplane-low",
+      "variantId": "descent-traction-gain12",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 4,
+        "aLoopArea": 20.143063,
+        "vLoopArea": 35.09055,
+        "signedALoopArea": 20.143063,
+        "signedVLoopArea": -35.09055,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 4.874549,
+      "maxZAvNorm": 0.65,
+      "maxZAvDotNormPerSec": 5.538819,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.015722,
+      "pressureMaxMmHg": 10.715477,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "avplane-low",
+      "variantId": "descent-traction-gain16",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 4,
+        "aLoopArea": 20.143063,
+        "vLoopArea": 46.384869,
+        "signedALoopArea": 20.143063,
+        "signedVLoopArea": -46.384869,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 6.499398,
+      "maxZAvNorm": 0.65,
+      "maxZAvDotNormPerSec": 5.538819,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.015722,
+      "pressureMaxMmHg": 10.715477,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "avplane-low",
+      "variantId": "descent-traction-negative-gain08",
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 6,
+        "aLoopArea": 20.143063,
+        "vLoopArea": 0.347814,
+        "signedALoopArea": 20.143063,
+        "signedVLoopArea": 0.347814,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "maxTractionPressureAbsMmHg": 3.249699,
+      "maxZAvNorm": 0.65,
+      "maxZAvDotNormPerSec": 5.538819,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0,
+      "pressureMaxMmHg": 10.715477,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "fail",
+      "failureReasons": [
+        "lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "booster-high",
+      "variantId": "no-traction",
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 39.010272,
+        "vLoopArea": 1.418249,
+        "signedALoopArea": 39.010272,
+        "signedVLoopArea": -1.418249,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.041043,
+        "failureReasons": [
+          "v-loop-area-too-small"
+        ]
+      },
+      "maxTractionPressureAbsMmHg": 0,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 30.523714,
+      "mvOutflowVolumeMl": 30.523714,
+      "cycleVolumeDriftMl": -0.032443,
+      "pressureMinMmHg": 0.016421,
+      "pressureMaxMmHg": 14.664438,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "fail",
+      "failureReasons": [
+        "lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "booster-high",
+      "variantId": "descent-traction-gain04",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 2,
+        "aLoopArea": 39.010272,
+        "vLoopArea": 20.432395,
+        "signedALoopArea": 39.010272,
+        "signedVLoopArea": -20.432395,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.041043,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 2.499769,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 30.523714,
+      "mvOutflowVolumeMl": 30.523714,
+      "cycleVolumeDriftMl": -0.032443,
+      "pressureMinMmHg": 0.016421,
+      "pressureMaxMmHg": 14.664438,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "booster-high",
+      "variantId": "descent-traction-gain08",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 2,
+        "aLoopArea": 39.010272,
+        "vLoopArea": 39.446542,
+        "signedALoopArea": 39.010272,
+        "signedVLoopArea": -39.446542,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.041043,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 4.999537,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 30.523714,
+      "mvOutflowVolumeMl": 30.523714,
+      "cycleVolumeDriftMl": -0.032443,
+      "pressureMinMmHg": 0.016421,
+      "pressureMaxMmHg": 14.664438,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "booster-high",
+      "variantId": "descent-traction-gain12",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 2,
+        "aLoopArea": 39.010272,
+        "vLoopArea": 58.460688,
+        "signedALoopArea": 39.010272,
+        "signedVLoopArea": -58.460688,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.041043,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 7.499306,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 30.523714,
+      "mvOutflowVolumeMl": 30.523714,
+      "cycleVolumeDriftMl": -0.032443,
+      "pressureMinMmHg": 0.016421,
+      "pressureMaxMmHg": 14.664438,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "booster-high",
+      "variantId": "descent-traction-gain16",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 2,
+        "aLoopArea": 39.010272,
+        "vLoopArea": 77.474835,
+        "signedALoopArea": 39.010272,
+        "signedVLoopArea": -77.474835,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.041043,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 9.999074,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 30.523714,
+      "mvOutflowVolumeMl": 30.523714,
+      "cycleVolumeDriftMl": -0.032443,
+      "pressureMinMmHg": 0.016421,
+      "pressureMaxMmHg": 14.664438,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "booster-high",
+      "variantId": "descent-traction-negative-gain08",
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 39.010272,
+        "vLoopArea": 0.416196,
+        "signedALoopArea": 39.010272,
+        "signedVLoopArea": 0.416196,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 3.041043,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "maxTractionPressureAbsMmHg": 4.999537,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 30.523714,
+      "mvOutflowVolumeMl": 30.523714,
+      "cycleVolumeDriftMl": -0.032443,
+      "pressureMinMmHg": 0,
+      "pressureMaxMmHg": 14.664438,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "fail",
+      "failureReasons": [
+        "lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "stiff-atrial-wall",
+      "variantId": "no-traction",
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 4,
+        "aLoopArea": 20.148507,
+        "vLoopArea": 1.126202,
+        "signedALoopArea": 20.148507,
+        "signedVLoopArea": -1.126202,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": [
+          "v-loop-area-too-small"
+        ]
+      },
+      "maxTractionPressureAbsMmHg": 0,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.022732,
+      "pressureMaxMmHg": 10.724031,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "fail",
+      "failureReasons": [
+        "lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "stiff-atrial-wall",
+      "variantId": "descent-traction-gain04",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 4,
+        "aLoopArea": 20.148507,
+        "vLoopArea": 18.502078,
+        "signedALoopArea": 20.148507,
+        "signedVLoopArea": -18.502078,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 2.499769,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.022732,
+      "pressureMaxMmHg": 10.724031,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "stiff-atrial-wall",
+      "variantId": "descent-traction-gain08",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 4,
+        "aLoopArea": 20.148507,
+        "vLoopArea": 35.877954,
+        "signedALoopArea": 20.148507,
+        "signedVLoopArea": -35.877954,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 4.999537,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.022732,
+      "pressureMaxMmHg": 10.724031,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "stiff-atrial-wall",
+      "variantId": "descent-traction-gain12",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 4,
+        "aLoopArea": 20.148507,
+        "vLoopArea": 53.25383,
+        "signedALoopArea": 20.148507,
+        "signedVLoopArea": -53.25383,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 7.499306,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.022732,
+      "pressureMaxMmHg": 10.724031,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "stiff-atrial-wall",
+      "variantId": "descent-traction-gain16",
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 4,
+        "aLoopArea": 20.148507,
+        "vLoopArea": 70.629705,
+        "signedALoopArea": 20.148507,
+        "signedVLoopArea": -70.629705,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": []
+      },
+      "maxTractionPressureAbsMmHg": 9.999074,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0.022732,
+      "pressureMaxMmHg": 10.724031,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "stiff-atrial-wall",
+      "variantId": "descent-traction-negative-gain08",
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 6,
+        "aLoopArea": 20.148507,
+        "vLoopArea": 0.554428,
+        "signedALoopArea": 20.148507,
+        "signedVLoopArea": 0.554428,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 3.423345,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "maxTractionPressureAbsMmHg": 4.999537,
+      "maxZAvNorm": 1,
+      "maxZAvDotNormPerSec": 8.52126,
+      "venousInflowVolumeMl": 27.933865,
+      "mvOutflowVolumeMl": 27.933865,
+      "cycleVolumeDriftMl": -0.034916,
+      "pressureMinMmHg": 0,
+      "pressureMaxMmHg": 10.724031,
+      "hiddenBloodVolumeSourceMl": 0,
+      "status": "fail",
+      "failureReasons": [
+        "lobe-quality-fail"
+      ]
+    }
+  ],
+  "variantSummaries": [
+    {
+      "variantId": "no-traction",
+      "passCount": 0,
+      "opposedLobeCount": 7,
+      "maxTractionPressureAbsMmHg": 0,
+      "maxZAvDotNormPerSec": 10.236093
+    },
+    {
+      "variantId": "descent-traction-gain04",
+      "passCount": 7,
+      "opposedLobeCount": 7,
+      "maxTractionPressureAbsMmHg": 3.00268,
+      "maxZAvDotNormPerSec": 10.236093
+    },
+    {
+      "variantId": "descent-traction-gain08",
+      "passCount": 7,
+      "opposedLobeCount": 7,
+      "maxTractionPressureAbsMmHg": 6.00536,
+      "maxZAvDotNormPerSec": 10.236093
+    },
+    {
+      "variantId": "descent-traction-gain12",
+      "passCount": 7,
+      "opposedLobeCount": 7,
+      "maxTractionPressureAbsMmHg": 9.00804,
+      "maxZAvDotNormPerSec": 10.236093
+    },
+    {
+      "variantId": "descent-traction-gain16",
+      "passCount": 7,
+      "opposedLobeCount": 7,
+      "maxTractionPressureAbsMmHg": 12.010721,
+      "maxZAvDotNormPerSec": 10.236093
+    },
+    {
+      "variantId": "descent-traction-negative-gain08",
+      "passCount": 0,
+      "opposedLobeCount": 0,
+      "maxTractionPressureAbsMmHg": 6.00536,
+      "maxZAvDotNormPerSec": 10.236093
+    }
+  ],
+  "bestVariant": {
+    "variantId": "descent-traction-gain04",
+    "passCount": 7,
+    "opposedLobeCount": 7,
+    "maxTractionPressureAbsMmHg": 3.00268,
+    "maxZAvDotNormPerSec": 10.236093
+  },
+  "summary": {
+    "totalProfiles": 7,
+    "bestVariantId": "descent-traction-gain04",
+    "bestPassCount": 7,
+    "bestOpposedLobeCount": 7,
+    "baselinePassCount": 0,
+    "passImprovementOverBaseline": 7
+  },
+  "decision": {
+    "atrialReservoirTractionForcingStatus": "rate-gated-traction-topology-signal",
+    "nextAction": "Promote rate-gated AV-plane traction to the next closed-loop same-step atrial chamber experiment; keep runtime and morphology claims blocked.",
+    "blockedClaims": [
+      "runtime-wiring",
+      "closed-loop-success",
+      "morphology-acceptance",
+      "atrial-pressure-substitution",
+      "hidden-blood-volume-source",
+      "AV-plane-enable",
+      "LandAtrial-unlock"
+    ]
+  },
+  "claimBoundary": {
+    "runtimeWiring": false,
+    "closedLoopClaim": false,
+    "morphologyAcceptance": false,
+    "pressureSubstitution": false,
+    "hiddenBloodVolumeSource": false,
+    "AVPlaneEnablement": false,
+    "LandAtrialUnlock": false
+  },
+  "normalizedSha256": "a2be754803a690b453cc8955f8280236168fbcc500f1011723674dc3d2626041"
+}
