@@ -179,6 +179,9 @@ Current scope:
 - `benches/AtrialChamberValveTransactionReadinessBench.ts`: synthesis bench
   combining the current atrial figure-eight, stateful LA chamber, AV valve
   cyclic replay, and disabled AV-plane evidence.
+- `benches/LaMvSameStepTransactionReplayBench.ts`: local LA/MV same-step
+  transaction replay using AtrialFiber total pressure, baseline LVP, and
+  pulmonary venous inflow with AV-plane disabled.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt

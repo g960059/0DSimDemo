@@ -59,11 +59,12 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: carry the cyclic accepted valve-state replay and stateful LA
-chamber mixed signals into a same-step source/valve/chamber transaction with
-explicit phase-local pressure-flow causality/energy ownership. Direct atrial
-pressure substitution, direct AV-gradient injection, more fixed source-state
-variant sweeps, runtime wiring, reservoir broad retuning, AV-plane work, and
+Next PR target: carry the cyclic accepted valve-state replay, stateful LA
+chamber mixed signal, and local LA/MV no-go into a same-step
+pulmonary-reservoir/LA-chamber/MV-valve/LV-filling transaction with explicit
+phase-local pressure-flow causality/energy ownership. Direct atrial pressure
+substitution, direct AV-gradient injection, more fixed source-state variant
+sweeps, runtime wiring, reservoir broad retuning, AV-plane work, and
 LandAtrial re-entry remain blocked. For atrial work, pressure parity or MVF
 cleanup alone is insufficient: normal-sinus acceptance must preserve atrial PV
 figure-eight lobe quality and eventually expose AV-plane velocity/a-prime
@@ -216,6 +217,9 @@ Included:
 - AVPlaneGeometryStateV1 disabled readback scaffold and
   AtrialChamberValveTransactionReadinessBench V1 for synthesizing atrial PV,
   stateful chamber, AV valve energy, and AV-plane velocity readiness evidence.
+- LaMvSameStepTransactionReplayBench V1 for a local LA/MV same-step replay
+  using AtrialFiber total pressure while LVP and pulmonary venous inflow remain
+  baseline-forced.
 
 Excluded:
 
@@ -762,6 +766,16 @@ Next gates:
     atrial chamber/AV valve transaction that owns those residuals. Runtime,
     AV-plane enablement, a-prime claims, LandAtrial, and morphology acceptance
     remain blocked.
+69. Local LA/MV same-step transaction replay: replaying LA/MV with AtrialFiber
+    total pressure, baseline LVP, and baseline pulmonary venous inflow is a
+    no-go, not a promotion path. Best pass is 0/7, MVF clean 3/7, forward-volume
+    parity 0/7, LA PV lobe-quality 0/7, and local LA volume-ledger cleanliness
+    0/7, with mean MV forward-volume ratio ~0.11 and max LA volume drift
+    ~471 mL. This shows a forced local LA/MV replay is ill-closed; the next
+    transaction must own pulmonary reservoir/inflow, LA chamber pressure, MV
+    valve pressure-flow, and LV filling together rather than forcing LVP/PV
+    inflow from the baseline. Runtime, AV-plane enablement, a-prime claims,
+    LandAtrial, and morphology acceptance remain blocked.
 
 Parallel prep, not blocking the next strategic gate:
 
