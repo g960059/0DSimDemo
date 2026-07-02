@@ -140,6 +140,25 @@ best wall-work is 3/7 topology and source 2/7. Treat any earlier "topology 7/7"
 as legacy signed-lobe evidence, not acceptable figure-eight morphology. Next
 work should optimize against this MV-opening phase-orientation gate and keep
 visual SVG markers for MV opening, MV closure, and the reservoir chord.
+A follow-up PV tangent/prime waveform audit confirms the owner-visible kink
+concern: adding MV-opening/lower-v-loop C1 tangent checks drops raw traction
+topology from 2/7 to 0/7 despite signed lobes 7/7, while the best simple
+force-balance reaches only 4/7 topology and 2/7 source. The same artifact now
+plots s'/e'/a' proxy traces; wall-work can make the proxy waveform smoother
+7/7, but only with source 1/7 and MVF 2/7. This separates three owners that
+must be solved together in the next architecture step: phase-oriented LA PV,
+smooth AV-plane velocity/prime readbacks, and source/MVF cleanliness.
+An explicit AV-plane reference-volume coordinate variant then removed additive
+traction pressure entirely and let the AV-plane state affect only LA effective
+fiber volume while blood volume stayed ledger-owned by pulmonary venous and MV
+flows. That did not solve the owner-visible problem: the best reference-volume
+candidate is source 2/7, topology 0/7, source+topology 0/7, MVF 2/7, hidden
+volume clean 7/7, and prime waveform 4/7. This is useful negative evidence:
+separating blood volume from AV-plane geometry is necessary for hygiene but not
+sufficient for the missing v-loop or C1 continuity; the next architecture step
+must co-solve the continuous AV-plane coordinate with LA wall pressure, MV
+opening/loss, and venous reservoir inflow rather than add another scalar
+coordinate or pressure hook.
 Warm-replay lobe attribution, separated-state smokes, dual-lobe geometry,
 flow-oriented LA filling-rate drive, hidden-volume-free AV-plane ejection-rate
 reservoir oracles, AV-plane reservoir capacity/stretch + booster/wall-work,
