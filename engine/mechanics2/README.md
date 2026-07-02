@@ -188,6 +188,12 @@ Current scope:
 - `benches/LaMvAssembledTransactionSurfaceBench.ts`: left-heart same-step
   pulmonary-reservoir/LA-chamber/MV-valve/LV-filling surface comparison with
   AV-plane still disabled.
+- `benches/LaMvAssembledResidualAttributionBench.ts`: residual attribution for
+  the assembled LA/MV surface, separating transaction residuals from atrial PV
+  lobe-quality failures.
+- `benches/AtrialGeometryLobeShadowBench.ts`: readback-only effective atrial
+  geometry shadow with no hidden blood-volume source and no runtime AV-plane
+  enablement.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt

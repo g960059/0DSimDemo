@@ -59,16 +59,18 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: classify why the same-step pulmonary-reservoir/LA-chamber/
-MV-valve/LV-filling surface remains mixed: pulmonary venous compliance and
-extra fixed-point iterations reduce transaction residuals but do not recover
-LA PV lobe quality or MVF morphology. Direct atrial pressure substitution,
-additive atrial active-pressure source substitution, direct AV-gradient
-injection, more fixed source-state variant sweeps, runtime wiring, reservoir
-broad retuning, AV-plane work, and LandAtrial re-entry remain blocked. For
-atrial work, pressure parity or MVF cleanup alone is insufficient:
-normal-sinus acceptance must preserve atrial PV figure-eight lobe quality and
-eventually expose AV-plane velocity/a-prime readbacks.
+Next PR target: implement a stateful atrial geometry transaction, not a
+post-hoc/readback-only geometry overlay. The assembled LA/MV surface now shows
+that transaction residual reduction alone does not recover LA PV lobe quality,
+and the readback-only effective-geometry shadow also does not recover lobe
+quality despite hidden-volume-clean a-prime readbacks. Direct atrial pressure
+substitution, additive atrial active-pressure source substitution, direct
+AV-gradient injection, more fixed source-state variant sweeps, readback-only
+geometry overlays, runtime wiring, reservoir broad retuning, AV-plane
+enablement, and LandAtrial re-entry remain blocked. For atrial work, pressure
+parity or MVF cleanup alone is insufficient: normal-sinus acceptance must
+preserve atrial PV figure-eight lobe quality and eventually expose AV-plane
+velocity/a-prime readbacks.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -226,6 +228,11 @@ Included:
 - LaMvAssembledTransactionSurfaceBench V1 for comparing same-step pulmonary
   reservoir, LA chamber, MV valve, and LV filling ownership surfaces while
   AV-plane remains disabled.
+- LaMvAssembledResidualAttributionBench V1 for classifying whether the
+  assembled surface residual is still transaction-owned or atrial lobe-quality
+  owned.
+- AtrialGeometryLobeShadowBench V1 for readback-only effective geometry and
+  a-prime shadow evidence with no hidden blood-volume source.
 
 Excluded:
 
@@ -803,6 +810,20 @@ Next gates:
     next work should classify the remaining LA PV lobe and MVF residuals before
     enabling AV-plane geometry or LandAtrial. Runtime, morphology acceptance,
     a-prime claims, and LandAtrial remain blocked.
+72. LA/MV assembled residual attribution: the assembled residual is now
+    classified as atrial-geometry/lobe-quality before AV-plane enablement.
+    Across 28 rows, LA PV lobe fails 27/28; 14 rows have clean flow-volume and
+    mass but still fail lobe quality, and 14 rows have bounded transaction
+    residuals but still fail lobe quality. Pulmonary compliance reduces
+    residuals without lobe gain. This keeps AV-plane runtime enablement blocked
+    but moves the next structural owner to stateful atrial geometry/lobe quality.
+73. Atrial geometry lobe shadow: a readback-only effective geometry overlay is
+    not enough. Geometry gains 0/6/12/18 mL all keep lobe-quality pass at 0/7,
+    while hidden-volume source remains zero, hidden-volume-clean is 7/7, and
+    a-prime shadow readbacks are present 7/7. This closes post-hoc geometry
+    overlays as a shortcut; the next
+    model surface needs geometry state to co-evolve inside the atrial chamber/
+    valve transaction before any AV-plane physiology or runtime claim.
 
 Parallel prep, not blocking the next strategic gate:
 
