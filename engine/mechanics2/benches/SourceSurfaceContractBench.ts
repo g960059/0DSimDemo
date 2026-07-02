@@ -8,7 +8,7 @@ import {
   runRightHeartStrategicPointV1,
   type RightHeartStrategicSmokePointResultV1,
 } from "@/engine/mechanics2/benches/RightHeartStrategicSmokeBench";
-import { computeShapeQualityMetricsV1 } from "@/engine/mechanics2/metrics/ShapeQualityMetricsV1";
+import { computePhaseAlignedFlowParityV1 } from "@/engine/mechanics2/metrics/PhaseAlignedFlowParityV1";
 import {
   runLeftHeartSubsystemV2,
   type LeftHeartSubsystemParamsV2,
@@ -50,7 +50,12 @@ type SourceSurfaceContractPointV1 = {
   readonly rawDtHalfDelta: number | null;
   readonly alignedDtHalfC1: number | null;
   readonly alignedDtHalfDelta: number | null;
-  readonly alignedDtHalfPeakCount: number | null;
+  readonly rawBaseDominantPeakCount: number | null;
+  readonly rawDtHalfDominantPeakCount: number | null;
+  readonly alignedDtHalfDominantPeakCount: number | null;
+  readonly rawBaseFlowPeakCount: number | null;
+  readonly rawDtHalfFlowPeakCount: number | null;
+  readonly alignedDtHalfFlowPeakCount: number | null;
 };
 
 type LeftSurfaceCandidateIdV1 =
@@ -477,7 +482,12 @@ function buildContractPoint(input: {
     rawDtHalfDelta: roundOrNull(input.aligned.rawDtHalfDelta),
     alignedDtHalfC1: roundOrNull(input.aligned.alignedDtHalfC1),
     alignedDtHalfDelta: roundOrNull(input.aligned.alignedDtHalfDelta),
-    alignedDtHalfPeakCount: input.aligned.alignedDtHalfPeakCount,
+    rawBaseDominantPeakCount: input.aligned.rawBaseDominantPeakCount,
+    rawDtHalfDominantPeakCount: input.aligned.rawDtHalfDominantPeakCount,
+    alignedDtHalfDominantPeakCount: input.aligned.alignedDtHalfDominantPeakCount,
+    rawBaseFlowPeakCount: input.aligned.rawBaseFlowPeakCount,
+    rawDtHalfFlowPeakCount: input.aligned.rawDtHalfFlowPeakCount,
+    alignedDtHalfFlowPeakCount: input.aligned.alignedDtHalfFlowPeakCount,
   };
 }
 
@@ -488,11 +498,16 @@ type AlignedShapeParityV1 = {
   readonly rawShapeParityOk: boolean;
   readonly alignedDtHalfC1: number | null;
   readonly alignedDtHalfDelta: number | null;
-  readonly alignedDtHalfPeakCount: number | null;
+  readonly rawBaseDominantPeakCount: number | null;
+  readonly rawDtHalfDominantPeakCount: number | null;
+  readonly alignedDtHalfDominantPeakCount: number | null;
+  readonly rawBaseFlowPeakCount: number | null;
+  readonly rawDtHalfFlowPeakCount: number | null;
+  readonly alignedDtHalfFlowPeakCount: number | null;
   readonly phaseAlignedShapeParityOk: boolean;
 };
 
-function alignedShapeParity<TSample>({
+function alignedShapeParity<TSample extends { readonly theta: number }>({
   side,
   baseSamples,
   dtHalfSamples,
@@ -504,7 +519,13 @@ function alignedShapeParity<TSample>({
   readonly dtHalfSamples: readonly TSample[];
   readonly flowSelector: (sample: TSample) => number;
 }): AlignedShapeParityV1 {
-  if (baseSamples.length < 4 || dtHalfSamples.length < 4) {
+  const parity = computePhaseAlignedFlowParityV1({
+    side,
+    baseSamples,
+    dtHalfSamples,
+    flowSelector,
+  });
+  if (parity == null) {
     return {
       rawBaseC1: null,
       rawDtHalfC1: null,
@@ -512,31 +533,29 @@ function alignedShapeParity<TSample>({
       rawShapeParityOk: false,
       alignedDtHalfC1: null,
       alignedDtHalfDelta: null,
-      alignedDtHalfPeakCount: null,
+      rawBaseDominantPeakCount: null,
+      rawDtHalfDominantPeakCount: null,
+      alignedDtHalfDominantPeakCount: null,
+      rawBaseFlowPeakCount: null,
+      rawDtHalfFlowPeakCount: null,
+      alignedDtHalfFlowPeakCount: null,
       phaseAlignedShapeParityOk: false,
     };
   }
-  const baseFlow = baseSamples.map(flowSelector);
-  const dtHalfFlow = dtHalfSamples.map(flowSelector);
-  const baseShape = computeShapeQualityMetricsV1(baseFlow);
-  const dtHalfShape = computeShapeQualityMetricsV1(dtHalfFlow);
-  const alignedShape = computeShapeQualityMetricsV1(linearResample(dtHalfFlow, baseFlow.length));
-  const rawDtHalfDelta = Math.abs(baseShape.c1ContinuityScore - dtHalfShape.c1ContinuityScore);
-  const alignedDtHalfDelta = Math.abs(baseShape.c1ContinuityScore - alignedShape.c1ContinuityScore);
-  const rawShapeParityOk = rawDtHalfDelta <= (side === "left" ? 0.18 : 0.20);
-  const phaseAlignedShapeParityOk =
-    alignedDtHalfDelta <= (side === "left" ? 0.18 : 0.20)
-    && alignedShape.dominantPeakCount <= 2
-    && alignedShape.c1ContinuityScore <= (side === "left" ? 0.38 : 0.48);
   return {
-    rawBaseC1: baseShape.c1ContinuityScore,
-    rawDtHalfC1: dtHalfShape.c1ContinuityScore,
-    rawDtHalfDelta,
-    rawShapeParityOk,
-    alignedDtHalfC1: alignedShape.c1ContinuityScore,
-    alignedDtHalfDelta,
-    alignedDtHalfPeakCount: alignedShape.dominantPeakCount,
-    phaseAlignedShapeParityOk,
+    rawBaseC1: parity.rawBaseC1,
+    rawDtHalfC1: parity.rawDtHalfC1,
+    rawDtHalfDelta: parity.rawDtHalfDelta,
+    rawShapeParityOk: parity.rawShapeParityOk,
+    alignedDtHalfC1: parity.alignedDtHalfC1,
+    alignedDtHalfDelta: parity.alignedDtHalfDelta,
+    rawBaseDominantPeakCount: parity.rawBaseDominantPeakCount,
+    rawDtHalfDominantPeakCount: parity.rawDtHalfDominantPeakCount,
+    alignedDtHalfDominantPeakCount: parity.alignedDtHalfDominantPeakCount,
+    rawBaseFlowPeakCount: parity.rawBaseFlowPeakCount,
+    rawDtHalfFlowPeakCount: parity.rawDtHalfFlowPeakCount,
+    alignedDtHalfFlowPeakCount: parity.alignedDtHalfFlowPeakCount,
+    phaseAlignedShapeParityOk: parity.phaseAlignedShapeParityOk,
   };
 }
 
@@ -594,20 +613,6 @@ function rightLowOutputProbe(
       },
     },
   };
-}
-
-function linearResample(values: readonly number[], targetCount: number): readonly number[] {
-  if (targetCount <= 0 || values.length === 0) return [];
-  if (targetCount === 1) return [values[0]!];
-  const out: number[] = [];
-  for (let i = 0; i < targetCount; i++) {
-    const x = i * (values.length - 1) / Math.max(targetCount - 1, 1);
-    const low = Math.floor(x);
-    const high = Math.min(values.length - 1, low + 1);
-    const fraction = x - low;
-    out.push(values[low]! * (1 - fraction) + values[high]! * fraction);
-  }
-  return out;
 }
 
 function roundOrNull(value: number | null): number | null {

@@ -15,8 +15,10 @@ into sampling-grid shape parity, left afterload output reserve, and right
 preload settling/repeatability. This bench turns that split into a compact
 source-side contract probe:
 
-- use phase-aligned shape parity instead of raw sample-count-sensitive shape
-  parity for source-surface `dt-half` checks;
+- use theta-based phase-aligned shape parity instead of raw
+  sample-count-sensitive shape parity for source-surface `dt-half` checks;
+- record dominant shape peak counts separately from flow-specific forward peak
+  counts;
 - test whether left afterload-high output reserve can be recovered without
   changing the normal/preload/contractility points;
 - test whether right preload-low is merely short warmup or a persistent
