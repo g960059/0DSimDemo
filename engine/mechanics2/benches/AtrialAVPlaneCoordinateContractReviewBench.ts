@@ -36,11 +36,20 @@ type VariantIdV1 =
   | "force-balance-vel06-drive4-hyd002-cap28"
   | "force-balance-vel10-drive4-hyd002-cap28"
   | "force-balance-vel12-drive4-hyd002-cap28"
-  | "force-balance-vel08-drive3-hyd001-cap32";
+  | "force-balance-vel08-drive3-hyd001-cap32"
+  | "wall-work-cap28-drive4-hyd002-stiff1-damp04-fast"
+  | "wall-work-cap32-drive6-hyd004-stiff2-damp06-fast"
+  | "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast"
+  | "wall-work-cap32-drive4-hyd002-stiff1-damp04-vel08"
+  | "wall-work-cap40-drive6-hyd002-stiff2-damp06-vel06";
 
 type VariantV1 = {
   readonly variantId: VariantIdV1;
-  readonly mode: "raw-reference" | "capacity-work-coordinate" | "force-balance-coordinate";
+  readonly mode:
+    | "raw-reference"
+    | "capacity-work-coordinate"
+    | "force-balance-coordinate"
+    | "wall-work-lamv-residual";
   readonly capacityGainMl: number;
   readonly driveForceN: number;
   readonly hydraulicGain: number;
@@ -120,6 +129,7 @@ export type AtrialAVPlaneCoordinateContractReviewReportV1 = {
   readonly rawReference: VariantSummaryV1;
   readonly bestCoordinateVariant: VariantSummaryV1;
   readonly bestForceBalanceVariant: VariantSummaryV1;
+  readonly bestWallWorkVariant: VariantSummaryV1;
   readonly summary: {
     readonly totalProfiles: 7;
     readonly rawSourceSurfacePass: number;
@@ -134,9 +144,15 @@ export type AtrialAVPlaneCoordinateContractReviewReportV1 = {
     readonly bestForceBalanceTopologyPass: number;
     readonly bestForceBalanceSourcePreservingTopologyPass: number;
     readonly bestForceBalanceMvfCleanCount: number;
+    readonly bestWallWorkVariantId: VariantIdV1;
+    readonly bestWallWorkSourceSurfacePass: number;
+    readonly bestWallWorkTopologyPass: number;
+    readonly bestWallWorkSourcePreservingTopologyPass: number;
+    readonly bestWallWorkMvfCleanCount: number;
     readonly coordinateVariantsImprovingRawSourceAndKeepingTopology: number;
     readonly coordinateVariantsWithZeroTractionPressure: number;
     readonly forceBalanceVariantCount: number;
+    readonly wallWorkVariantCount: number;
     readonly reviewStatus:
       | "coordinate-contract-transfer-signal"
       | "coordinate-contract-mixed"
@@ -191,6 +207,11 @@ export const ATRIAL_AV_PLANE_COORDINATE_CONTRACT_VARIANTS_V1: readonly VariantV1
   variant("force-balance-vel10-drive4-hyd002-cap28", "force-balance-coordinate", 28, 4, 1, 0.4, 0.030, 2.4, 0.06, 0.52, 0.040, 0.22, 0.055, 0.12, 0.02, 1.0),
   variant("force-balance-vel12-drive4-hyd002-cap28", "force-balance-coordinate", 28, 4, 1, 0.4, 0.030, 2.4, 0.06, 0.52, 0.040, 0.22, 0.055, 0.12, 0.02, 1.2),
   variant("force-balance-vel08-drive3-hyd001-cap32", "force-balance-coordinate", 32, 3, 1, 0.35, 0.030, 2.4, 0.06, 0.52, 0.040, 0.22, 0.055, 0.12, 0.01, 0.8),
+  variant("wall-work-cap28-drive4-hyd002-stiff1-damp04-fast", "wall-work-lamv-residual", 28, 4, 1, 0.4, 0.030, 2.4, 0.06, 0.52, 0.040, 0.22, 0.055, 0.12, 0.02, 0.6),
+  variant("wall-work-cap32-drive6-hyd004-stiff2-damp06-fast", "wall-work-lamv-residual", 32, 6, 2, 0.6, 0.030, 2.4, 0.06, 0.52, 0.040, 0.22, 0.055, 0.12, 0.04, 0.8),
+  variant("wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", "wall-work-lamv-residual", 36, 6, 2, 0.6, 0.030, 2.4, 0.06, 0.52, 0.040, 0.22, 0.055, 0.12, 0.03, 0.7),
+  variant("wall-work-cap32-drive4-hyd002-stiff1-damp04-vel08", "wall-work-lamv-residual", 32, 4, 1, 0.4, 0.030, 2.4, 0.06, 0.52, 0.040, 0.22, 0.055, 0.12, 0.02, 0.8),
+  variant("wall-work-cap40-drive6-hyd002-stiff2-damp06-vel06", "wall-work-lamv-residual", 40, 6, 2, 0.6, 0.030, 2.4, 0.06, 0.52, 0.040, 0.22, 0.055, 0.12, 0.02, 0.6),
 ];
 
 export function runAtrialAVPlaneCoordinateContractReviewBenchV1():
@@ -229,6 +250,18 @@ AtrialAVPlaneCoordinateContractReviewReportV1 {
     || b.mvfCleanCount - a.mvfCleanCount
     || b.maxVLoopArea - a.maxVLoopArea
   )[0]!;
+  const wallWorkSummaries = variantSummaries.filter((summary) =>
+    ATRIAL_AV_PLANE_COORDINATE_CONTRACT_VARIANTS_V1.find((variantConfig) =>
+      variantConfig.variantId === summary.variantId
+    )?.mode === "wall-work-lamv-residual"
+  );
+  const bestWallWorkVariant = [...wallWorkSummaries].sort((a, b) =>
+    b.sourcePreservingTopologyPass - a.sourcePreservingTopologyPass
+    || b.topologyPass - a.topologyPass
+    || b.sourceSurfacePass - a.sourceSurfacePass
+    || b.mvfCleanCount - a.mvfCleanCount
+    || b.maxVLoopArea - a.maxVLoopArea
+  )[0]!;
   const coordinateVariantsImprovingRawSourceAndKeepingTopology = coordinateSummaries.filter((summary) =>
     summary.sourceSurfacePass > rawReference.sourceSurfacePass
     && summary.topologyPass >= rawReference.topologyPass
@@ -239,6 +272,10 @@ AtrialAVPlaneCoordinateContractReviewReportV1 {
   const forceBalanceVariantCount =
     ATRIAL_AV_PLANE_COORDINATE_CONTRACT_VARIANTS_V1.filter((variantConfig) =>
       variantConfig.mode === "force-balance-coordinate"
+    ).length;
+  const wallWorkVariantCount =
+    ATRIAL_AV_PLANE_COORDINATE_CONTRACT_VARIANTS_V1.filter((variantConfig) =>
+      variantConfig.mode === "wall-work-lamv-residual"
     ).length;
   const reviewStatus =
     coordinateVariantsImprovingRawSourceAndKeepingTopology > 0
@@ -256,6 +293,7 @@ AtrialAVPlaneCoordinateContractReviewReportV1 {
     rawReference,
     bestCoordinateVariant,
     bestForceBalanceVariant,
+    bestWallWorkVariant,
     summary: {
       totalProfiles: 7,
       rawSourceSurfacePass: rawReference.sourceSurfacePass,
@@ -270,14 +308,24 @@ AtrialAVPlaneCoordinateContractReviewReportV1 {
       bestForceBalanceTopologyPass: bestForceBalanceVariant.topologyPass,
       bestForceBalanceSourcePreservingTopologyPass: bestForceBalanceVariant.sourcePreservingTopologyPass,
       bestForceBalanceMvfCleanCount: bestForceBalanceVariant.mvfCleanCount,
+      bestWallWorkVariantId: bestWallWorkVariant.variantId,
+      bestWallWorkSourceSurfacePass: bestWallWorkVariant.sourceSurfacePass,
+      bestWallWorkTopologyPass: bestWallWorkVariant.topologyPass,
+      bestWallWorkSourcePreservingTopologyPass: bestWallWorkVariant.sourcePreservingTopologyPass,
+      bestWallWorkMvfCleanCount: bestWallWorkVariant.mvfCleanCount,
       coordinateVariantsImprovingRawSourceAndKeepingTopology,
       coordinateVariantsWithZeroTractionPressure,
       forceBalanceVariantCount,
+      wallWorkVariantCount,
       reviewStatus,
     },
     decision: {
       nextAction: reviewStatus === "coordinate-contract-transfer-signal"
         ? "Use the capacity/work coordinate signal as the next AV-plane traction contract candidate while keeping runtime AV-plane enablement blocked."
+        : bestWallWorkVariant.sourcePreservingTopologyPass > bestForceBalanceVariant.sourcePreservingTopologyPass
+          ? "Implicit wall-work / LA-MV residual improves the source-preserving topology signal. Promote it to the next focused source-surface cleanup bench while keeping runtime AV-plane enablement blocked."
+        : bestWallWorkVariant.topologyPass > bestForceBalanceVariant.topologyPass
+          ? "Target-spring wall-work / LA-MV residual improves opposed-lobe topology over simple force-balance but still does not preserve the raw source/MVF surface. Keep runtime AV-plane enablement blocked and move next to an accepted MV/venous-flow residual owner rather than scalar wall-work tuning."
         : bestForceBalanceVariant.topologyPass > bestCoordinateVariant.topologyPass
           ? "Simple force-balance coordinate partially restores opposed lobes but does not preserve the raw source/MVF surface. Keep raw traction as the topology reference and move next to an implicit wall-work / LA-MV residual contract rather than more scalar coordinate sweeps."
           : "Capacity-only AV-plane coordinate is not sufficient. Next AV-plane contract needs a force-balance coordinate that couples capacity, pressure, valve flow, and work without hidden blood volume.",
@@ -316,23 +364,32 @@ export function applyCoordinateContractVariant(
       laEffectiveGeometryMode: "av-plane-force-balance-coordinate-transaction-v1" as const,
       laAVPlaneWorkCoordinateHydraulicGain: variantConfig.hydraulicGain,
     }
-    : {
+    : variantConfig.mode === "wall-work-lamv-residual"
+      ? {
+        laLobeGeneratorMode: "av-plane-wall-work-lamv-residual-transaction-v1" as const,
+        laEffectiveGeometryMode: "av-plane-wall-work-lamv-residual-transaction-v1" as const,
+        laAVPlaneWorkCoordinateHydraulicGain: variantConfig.hydraulicGain,
+      }
+      : {
       laLobeGeneratorMode: "av-plane-capacity-work-coordinate-transaction-v1" as const,
       laEffectiveGeometryMode: "av-plane-force-position-reservoir-transaction-v1" as const,
       laAVPlaneWorkCoordinateHydraulicGain: 0,
     };
+  const retainsVenousReservoirFlow =
+    variantConfig.mode === "force-balance-coordinate"
+    || variantConfig.mode === "wall-work-lamv-residual";
   return {
     ...base,
     ...forceBalanceOverrides,
     laReservoirGeometryGainMl: variantConfig.capacityGainMl,
     laAVPlaneReservoirTractionGainMmHgPerNormPerSec:
-      variantConfig.mode === "force-balance-coordinate"
+      retainsVenousReservoirFlow
         ? variantConfig.velocityTractionGainMmHgPerNormPerSec
         : 0,
     laAVPlaneVenousReservoirCouplingGain:
-      variantConfig.mode === "force-balance-coordinate" ? base.laAVPlaneVenousReservoirCouplingGain : 0,
+      retainsVenousReservoirFlow ? base.laAVPlaneVenousReservoirCouplingGain : 0,
     laAVPlaneVenousReservoirMaxFlowMlPerSec:
-      variantConfig.mode === "force-balance-coordinate" ? base.laAVPlaneVenousReservoirMaxFlowMlPerSec : 0,
+      retainsVenousReservoirFlow ? base.laAVPlaneVenousReservoirMaxFlowMlPerSec : 0,
     laAVPlaneWorkCoordinateDriveForceN: variantConfig.driveForceN,
     laAVPlaneWorkCoordinateHydraulicGain: variantConfig.hydraulicGain,
     laAVPlaneWorkCoordinateStiffnessNPerNorm: variantConfig.stiffnessNPerNorm,
