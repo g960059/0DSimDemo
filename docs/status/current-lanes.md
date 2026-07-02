@@ -213,6 +213,9 @@ Included:
   substitution or AV-plane enablement.
 - StatefulLaChamberContractSmokeBench V1 for testing stateful LA chamber total
   pressure as a left-heart LA pressure source while AV-plane remains disabled.
+- AVPlaneGeometryStateV1 disabled readback scaffold and
+  AtrialChamberValveTransactionReadinessBench V1 for synthesizing atrial PV,
+  stateful chamber, AV valve energy, and AV-plane velocity readiness evidence.
 
 Excluded:
 
@@ -746,6 +749,19 @@ Next gates:
     same-step transaction, with AV-plane position/velocity readbacks designed
     but not enabled. Runtime, AV-plane enablement, a-prime claims, LandAtrial,
     and morphology acceptance remain blocked.
+68. Atrial chamber/valve transaction readiness contract: the sidecar now has a
+    disabled AV-plane geometry/readback scaffold with zero hidden blood-volume
+    source and a synthesis report that names the four required owners:
+    atrial PV figure-eight lobe quality, stateful atrial chamber pressure-volume
+    contract, same-step AV valve pressure-flow/energy contract, and AV-plane
+    position/velocity readbacks. The readiness report is blocked with
+    current-pressure lobe-quality 0/14, AtrialFiber lobe-quality 5/14,
+    stateful LA source-surface pass 1/7, stateful LA contract pass 0/7,
+    AV-valve fixed replay 4/14, oracle replay 14/14, AV-plane enabled 0/2, and
+    a-prime readback 0/2. Next work should implement the measured same-step
+    atrial chamber/AV valve transaction that owns those residuals. Runtime,
+    AV-plane enablement, a-prime claims, LandAtrial, and morphology acceptance
+    remain blocked.
 
 Parallel prep, not blocking the next strategic gate:
 
