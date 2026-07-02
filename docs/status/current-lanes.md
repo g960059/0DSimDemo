@@ -59,10 +59,11 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: classify the fixed `source-open-memory` AV valve/source-state
-residual and design a deeper same-step source/valve/chamber transaction. Direct
-atrial pressure substitution, direct AV-gradient injection, runtime wiring,
-reservoir broad retuning, AV-plane work, and LandAtrial re-entry remain blocked.
+Next PR target: build a deeper same-step source/valve/chamber transaction that
+owns MV adverse-gradient flow and TV pressure-flow/area underfill together.
+Direct atrial pressure substitution, direct AV-gradient injection, more fixed
+source-state variant sweeps, runtime wiring, reservoir broad retuning, AV-plane
+work, and LandAtrial re-entry remain blocked.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -199,6 +200,8 @@ Included:
 - AvValveSourceStateContractShadowBench V1 for fixed-variant shadow replay
   where atrial active source state modifies AV valve open/closure/loss state
   without source pressure or gradient commit.
+- AvValveSourceStateResidualAttributionBench V1 for classifying the fixed
+  `source-open-memory` residual before any further source-state contract work.
 
 Excluded:
 
@@ -686,6 +689,13 @@ Next gates:
     adverse-gradient forward flow and TV C1/forward-volume failures, so the
     next step is residual attribution plus a true same-step source/valve/chamber
     transaction, not runtime, AV-plane, LandAtrial, or reservoir retuning.
+63. AV valve/source state residual attribution: `source-open-memory` rescues
+    only `preload-low` MV. The remaining 13/14 failures are already present in
+    current-pressure valve replay, with 4 MV adverse-gradient forward-flow
+    rows, 2 MV volume/peak rows, and 7 TV C1/forward-volume-underfill rows.
+    Stop fixed source-state variant sweeps; next work should implement a true
+    same-step source/valve/chamber transaction, not pressure/gradient commit,
+    runtime, AV-plane, LandAtrial, or reservoir retuning.
 
 Parallel prep, not blocking the next strategic gate:
 

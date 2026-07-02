@@ -1,0 +1,344 @@
+{
+  "reportId": "av-valve-source-state-residual-attribution-report-v1",
+  "gateId": "avValveSourceStateResidualAttributionV1",
+  "upstreamSourceStateShadow": {
+    "requiredStatus": "av-valve-source-state-contract-shadow-mixed",
+    "observedStatus": "av-valve-source-state-contract-shadow-mixed",
+    "bestFixedVariantId": "source-open-memory",
+    "bestFixedPass": 1,
+    "bestFixedCleanShapeCount": 6
+  },
+  "rows": [
+    {
+      "profileId": "normal-hr75",
+      "valveSide": "MV",
+      "controlStatus": "fail",
+      "bestStatus": "fail",
+      "controlFailureReasons": [
+        "shadow-adverse-gradient-during-forward-flow"
+      ],
+      "bestFailureReasons": [
+        "shadow-adverse-gradient-during-forward-flow"
+      ],
+      "controlForwardVolumeRatio": 0.999159,
+      "bestForwardVolumeRatio": 1.014238,
+      "forwardVolumeRatioDelta": 0.015079,
+      "controlC1ContinuityScore": 0.16311,
+      "bestC1ContinuityScore": 0.143372,
+      "c1ContinuityDelta": -0.019738,
+      "residualOwner": "baseline-valve-replay-residual",
+      "residualClass": "mv-adverse-gradient-forward-flow"
+    },
+    {
+      "profileId": "normal-hr75",
+      "valveSide": "TV",
+      "controlStatus": "fail",
+      "bestStatus": "fail",
+      "controlFailureReasons": [
+        "shadow-av-flow-c1-kink",
+        "shadow-av-forward-volume-ratio-wide"
+      ],
+      "bestFailureReasons": [
+        "shadow-av-flow-c1-kink",
+        "shadow-av-forward-volume-ratio-wide"
+      ],
+      "controlForwardVolumeRatio": 0.668065,
+      "bestForwardVolumeRatio": 0.673722,
+      "forwardVolumeRatioDelta": 0.005657,
+      "controlC1ContinuityScore": 0.602336,
+      "bestC1ContinuityScore": 0.602336,
+      "c1ContinuityDelta": 0,
+      "residualOwner": "baseline-valve-replay-residual",
+      "residualClass": "tv-c1-forward-volume-underfill"
+    },
+    {
+      "profileId": "normal-hr90",
+      "valveSide": "MV",
+      "controlStatus": "fail",
+      "bestStatus": "fail",
+      "controlFailureReasons": [
+        "shadow-av-forward-volume-ratio-wide"
+      ],
+      "bestFailureReasons": [
+        "shadow-av-forward-volume-ratio-wide"
+      ],
+      "controlForwardVolumeRatio": 0.929196,
+      "bestForwardVolumeRatio": 0.945741,
+      "forwardVolumeRatioDelta": 0.016545,
+      "controlC1ContinuityScore": 0.138944,
+      "bestC1ContinuityScore": 0.170656,
+      "c1ContinuityDelta": 0.031712,
+      "residualOwner": "baseline-valve-replay-residual",
+      "residualClass": "mv-forward-volume-or-peak-residual"
+    },
+    {
+      "profileId": "normal-hr90",
+      "valveSide": "TV",
+      "controlStatus": "fail",
+      "bestStatus": "fail",
+      "controlFailureReasons": [
+        "shadow-av-flow-c1-kink",
+        "shadow-av-forward-volume-ratio-wide",
+        "shadow-adverse-gradient-during-forward-flow"
+      ],
+      "bestFailureReasons": [
+        "shadow-av-flow-c1-kink",
+        "shadow-av-forward-volume-ratio-wide",
+        "shadow-adverse-gradient-during-forward-flow"
+      ],
+      "controlForwardVolumeRatio": 0.603117,
+      "bestForwardVolumeRatio": 0.608583,
+      "forwardVolumeRatioDelta": 0.005466,
+      "controlC1ContinuityScore": 0.698165,
+      "bestC1ContinuityScore": 0.698165,
+      "c1ContinuityDelta": 0,
+      "residualOwner": "baseline-valve-replay-residual",
+      "residualClass": "tv-c1-forward-volume-underfill"
+    },
+    {
+      "profileId": "preload-low",
+      "valveSide": "MV",
+      "controlStatus": "fail",
+      "bestStatus": "pass",
+      "controlFailureReasons": [
+        "shadow-av-forward-volume-ratio-wide"
+      ],
+      "bestFailureReasons": [],
+      "controlForwardVolumeRatio": 0.956097,
+      "bestForwardVolumeRatio": 0.971459,
+      "forwardVolumeRatioDelta": 0.015362,
+      "controlC1ContinuityScore": 0.149934,
+      "bestC1ContinuityScore": 0.149934,
+      "c1ContinuityDelta": 0,
+      "residualOwner": "source-state-rescued",
+      "residualClass": "source-state-rescued"
+    },
+    {
+      "profileId": "preload-low",
+      "valveSide": "TV",
+      "controlStatus": "fail",
+      "bestStatus": "fail",
+      "controlFailureReasons": [
+        "shadow-av-flow-c1-kink",
+        "shadow-av-forward-volume-ratio-wide"
+      ],
+      "bestFailureReasons": [
+        "shadow-av-flow-c1-kink",
+        "shadow-av-forward-volume-ratio-wide"
+      ],
+      "controlForwardVolumeRatio": 0.705376,
+      "bestForwardVolumeRatio": 0.709405,
+      "forwardVolumeRatioDelta": 0.004029,
+      "controlC1ContinuityScore": 0.747281,
+      "bestC1ContinuityScore": 0.747281,
+      "c1ContinuityDelta": 0,
+      "residualOwner": "baseline-valve-replay-residual",
+      "residualClass": "tv-c1-forward-volume-underfill"
+    },
+    {
+      "profileId": "preload-high",
+      "valveSide": "MV",
+      "controlStatus": "fail",
+      "bestStatus": "fail",
+      "controlFailureReasons": [
+        "shadow-adverse-gradient-during-forward-flow"
+      ],
+      "bestFailureReasons": [
+        "shadow-adverse-gradient-during-forward-flow"
+      ],
+      "controlForwardVolumeRatio": 1.000251,
+      "bestForwardVolumeRatio": 1.012195,
+      "forwardVolumeRatioDelta": 0.011944,
+      "controlC1ContinuityScore": 0.195773,
+      "bestC1ContinuityScore": 0.162435,
+      "c1ContinuityDelta": -0.033338,
+      "residualOwner": "baseline-valve-replay-residual",
+      "residualClass": "mv-adverse-gradient-forward-flow"
+    },
+    {
+      "profileId": "preload-high",
+      "valveSide": "TV",
+      "controlStatus": "fail",
+      "bestStatus": "fail",
+      "controlFailureReasons": [
+        "shadow-av-flow-c1-kink",
+        "shadow-av-forward-volume-ratio-wide",
+        "shadow-adverse-gradient-during-forward-flow"
+      ],
+      "bestFailureReasons": [
+        "shadow-av-flow-c1-kink",
+        "shadow-av-forward-volume-ratio-wide",
+        "shadow-adverse-gradient-during-forward-flow"
+      ],
+      "controlForwardVolumeRatio": 0.665086,
+      "bestForwardVolumeRatio": 0.670459,
+      "forwardVolumeRatioDelta": 0.005373,
+      "controlC1ContinuityScore": 0.546116,
+      "bestC1ContinuityScore": 0.546116,
+      "c1ContinuityDelta": 0,
+      "residualOwner": "baseline-valve-replay-residual",
+      "residualClass": "tv-c1-forward-volume-underfill"
+    },
+    {
+      "profileId": "afterload-high",
+      "valveSide": "MV",
+      "controlStatus": "fail",
+      "bestStatus": "fail",
+      "controlFailureReasons": [
+        "shadow-adverse-gradient-during-forward-flow"
+      ],
+      "bestFailureReasons": [
+        "shadow-adverse-gradient-during-forward-flow"
+      ],
+      "controlForwardVolumeRatio": 1.00041,
+      "bestForwardVolumeRatio": 1.01862,
+      "forwardVolumeRatioDelta": 0.01821,
+      "controlC1ContinuityScore": 0.196686,
+      "bestC1ContinuityScore": 0.172121,
+      "c1ContinuityDelta": -0.024565,
+      "residualOwner": "baseline-valve-replay-residual",
+      "residualClass": "mv-adverse-gradient-forward-flow"
+    },
+    {
+      "profileId": "afterload-high",
+      "valveSide": "TV",
+      "controlStatus": "fail",
+      "bestStatus": "fail",
+      "controlFailureReasons": [
+        "shadow-av-flow-c1-kink",
+        "shadow-av-forward-volume-ratio-wide"
+      ],
+      "bestFailureReasons": [
+        "shadow-av-flow-c1-kink",
+        "shadow-av-forward-volume-ratio-wide"
+      ],
+      "controlForwardVolumeRatio": 0.633354,
+      "bestForwardVolumeRatio": 0.639863,
+      "forwardVolumeRatioDelta": 0.006509,
+      "controlC1ContinuityScore": 0.500032,
+      "bestC1ContinuityScore": 0.500032,
+      "c1ContinuityDelta": 0,
+      "residualOwner": "baseline-valve-replay-residual",
+      "residualClass": "tv-c1-forward-volume-underfill"
+    },
+    {
+      "profileId": "contractility-low",
+      "valveSide": "MV",
+      "controlStatus": "fail",
+      "bestStatus": "fail",
+      "controlFailureReasons": [
+        "shadow-adverse-gradient-during-forward-flow"
+      ],
+      "bestFailureReasons": [
+        "shadow-adverse-gradient-during-forward-flow"
+      ],
+      "controlForwardVolumeRatio": 1.000986,
+      "bestForwardVolumeRatio": 1.006441,
+      "forwardVolumeRatioDelta": 0.005455,
+      "controlC1ContinuityScore": 0.267295,
+      "bestC1ContinuityScore": 0.30818,
+      "c1ContinuityDelta": 0.040885,
+      "residualOwner": "baseline-valve-replay-residual",
+      "residualClass": "mv-adverse-gradient-forward-flow"
+    },
+    {
+      "profileId": "contractility-low",
+      "valveSide": "TV",
+      "controlStatus": "fail",
+      "bestStatus": "fail",
+      "controlFailureReasons": [
+        "shadow-av-flow-c1-kink",
+        "shadow-av-forward-volume-ratio-wide"
+      ],
+      "bestFailureReasons": [
+        "shadow-av-flow-c1-kink",
+        "shadow-av-forward-volume-ratio-wide"
+      ],
+      "controlForwardVolumeRatio": 0.669631,
+      "bestForwardVolumeRatio": 0.676045,
+      "forwardVolumeRatioDelta": 0.006414,
+      "controlC1ContinuityScore": 0.457328,
+      "bestC1ContinuityScore": 0.457328,
+      "c1ContinuityDelta": 0,
+      "residualOwner": "baseline-valve-replay-residual",
+      "residualClass": "tv-c1-forward-volume-underfill"
+    },
+    {
+      "profileId": "contractility-high",
+      "valveSide": "MV",
+      "controlStatus": "fail",
+      "bestStatus": "fail",
+      "controlFailureReasons": [
+        "shadow-av-flow-not-biphasic",
+        "shadow-av-forward-volume-ratio-wide"
+      ],
+      "bestFailureReasons": [
+        "shadow-av-flow-not-biphasic",
+        "shadow-av-forward-volume-ratio-wide"
+      ],
+      "controlForwardVolumeRatio": 0.886405,
+      "bestForwardVolumeRatio": 0.902847,
+      "forwardVolumeRatioDelta": 0.016442,
+      "controlC1ContinuityScore": 0.258889,
+      "bestC1ContinuityScore": 0.258889,
+      "c1ContinuityDelta": 0,
+      "residualOwner": "baseline-valve-replay-residual",
+      "residualClass": "mv-forward-volume-or-peak-residual"
+    },
+    {
+      "profileId": "contractility-high",
+      "valveSide": "TV",
+      "controlStatus": "fail",
+      "bestStatus": "fail",
+      "controlFailureReasons": [
+        "shadow-av-flow-c1-kink",
+        "shadow-av-forward-volume-ratio-wide"
+      ],
+      "bestFailureReasons": [
+        "shadow-av-flow-c1-kink",
+        "shadow-av-forward-volume-ratio-wide"
+      ],
+      "controlForwardVolumeRatio": 0.685961,
+      "bestForwardVolumeRatio": 0.691107,
+      "forwardVolumeRatioDelta": 0.005146,
+      "controlC1ContinuityScore": 0.743121,
+      "bestC1ContinuityScore": 0.743121,
+      "c1ContinuityDelta": 0,
+      "residualOwner": "baseline-valve-replay-residual",
+      "residualClass": "tv-c1-forward-volume-underfill"
+    }
+  ],
+  "summary": {
+    "total": 14,
+    "sourceStateRescuedCount": 1,
+    "baselineValveReplayResidualCount": 13,
+    "sourceStateNewRegressionCount": 0,
+    "sourceStatePartialImprovementCount": 0,
+    "mvAdverseGradientForwardFlowCount": 4,
+    "mvForwardVolumeOrPeakResidualCount": 2,
+    "tvC1ForwardVolumeUnderfillCount": 7
+  },
+  "decision": {
+    "avValveSourceStateResidualAttributionStatus": "av-valve-source-state-residual-attribution-complete",
+    "nextAction": "Stop fixed source-state variant sweeps. The best source-state replay rescues only one MV volume-parity row while 13/14 residuals are already present in current-pressure valve replay. Next build a true same-step source/valve/chamber transaction that owns MV adverse-gradient flow and TV pressure-flow/area underfill together.",
+    "blockedClaims": [
+      "more-fixed-source-state-variant-sweep",
+      "source-pressure-commit",
+      "source-gradient-commit",
+      "runtime-wiring",
+      "morphology-acceptance",
+      "AV-plane-geometry",
+      "LandAtrial-unlock"
+    ]
+  },
+  "claimBoundary": {
+    "moreFixedSourceStateVariantSweep": false,
+    "sourcePressureCommit": false,
+    "sourceGradientCommit": false,
+    "runtimeWiring": false,
+    "morphologyAcceptance": false,
+    "AVPlaneGeometry": false,
+    "LandAtrialUnlock": false
+  },
+  "normalizedSha256": "e68c4ed63dc35c4eaf55188a31360743fbf731d5f618f39c65dbf5f95d81b824"
+}

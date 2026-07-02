@@ -160,6 +160,8 @@ Current scope:
 - `benches/AvValveSourceStateContractShadowBench.ts`: shadow MV/TV replay where
   atrial active source state owns valve open/closure/loss state without source
   pressure or gradient commit.
+- `benches/AvValveSourceStateResidualAttributionBench.ts`: attribution of the
+  fixed source-state replay residuals against current-pressure valve replay.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
