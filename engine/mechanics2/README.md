@@ -110,6 +110,8 @@ Current scope:
 - `benches/FourChamberSmoothReservoirOwnershipBench.ts`: smooth compatibility
   feedback candidates that reduce hard-bound fallback duty while preserving the
   source-aware four-chamber smoke.
+- `benches/FourChamberSmoothReservoirDynamicsReviewBench.ts`: focused
+  dynamics/numerics review of the selected smooth reservoir ownership surface.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt

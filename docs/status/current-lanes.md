@@ -41,8 +41,8 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: run a focused dynamics/numerics review of the selected
-`smooth-knee20-gain035-bound24` reservoir ownership surface. Runtime wiring,
+Next PR target: run an assembled-system source/reservoir numerics review of
+the selected `smooth-knee20-gain035-bound24` scaffold. Runtime wiring,
 reservoir broad retuning, AV-plane work, and LandAtrial re-entry remain
 blocked.
 
@@ -132,6 +132,8 @@ Included:
 - FourChamberSmoothReservoirOwnershipBench V1 for smooth compatibility
   feedback candidates that preserve the source-aware smoke while reducing
   hard-bound fallback duty.
+- FourChamberSmoothReservoirDynamicsReviewBench V1 for the selected smooth
+  scaffold's limiter, passivity, knee, and extended stress repeatability review.
 
 Excluded:
 
@@ -512,6 +514,13 @@ Next gates:
     0/350 full-envelope epochs and 0/56 stress epochs. This is a positive
     scaffold signal, not runtime or physiology acceptance. Next work should
     review the selected surface's dynamics/numerics before runtime, AV-plane,
+    or LandAtrial unlock.
+49. Four-chamber smooth reservoir dynamics review: the selected smooth-knee
+    scaffold passes the focused review. The full source-aware envelope and
+    preload-low 56/84/112-epoch stress probes pass, hard-bound fallback duty is
+    zero, feedback is dissipative against reservoir imbalance, and the 20 mL
+    knee stays clean. This is still sidecar scaffold evidence; next work should
+    review assembled-system source/reservoir numerics before runtime, AV-plane,
     or LandAtrial unlock.
 
 Parallel prep, not blocking the next strategic gate:
