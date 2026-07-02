@@ -41,13 +41,17 @@ type ValveSideV1 = "MV" | "TV";
 type CyclicReplayVariantIdV1 =
   | "zero-state-current-pressure"
   | "cyclic-current-pressure"
-  | "cyclic-source-open-memory";
+  | "cyclic-source-open-memory"
+  | "cyclic-causal-support-readback-oracle"
+  | "cyclic-causal-pressure-step-oracle"
+  | "cyclic-energy-loss-damping";
 
 type CyclicReplayVariantV1 = {
   readonly variantId: CyclicReplayVariantIdV1;
   readonly description: string;
   readonly cycles: number;
   readonly useSourceOpenMemory: boolean;
+  readonly ownershipKind: "fixed-replay" | "oracle-readback" | "oracle-pressure-step" | "loss-only";
 };
 
 type CyclicReplayRowV1 = {
@@ -67,7 +71,11 @@ type CyclicReplayRowV1 = {
   readonly maxRequiredCausalGradientSupportMmHg: number;
   readonly meanRequiredCausalGradientSupportMmHg: number;
   readonly causalGradientSupportDutyFraction: number;
+  readonly maxAppliedCausalGradientSupportMmHg: number;
+  readonly meanAppliedCausalGradientSupportMmHg: number;
+  readonly appliedCausalGradientSupportDutyFraction: number;
   readonly gradientSignMismatchFraction: number;
+  readonly actualAdverseGradientDuringForwardFlowFraction: number;
   readonly adverseGradientDuringForwardFlowFraction: number;
   readonly status: "pass" | "fail";
   readonly failureReasons: readonly string[];
@@ -86,6 +94,9 @@ type CyclicReplayVariantSummaryV1 = {
   readonly maxRequiredCausalGradientSupportMmHg: number;
   readonly meanRequiredCausalGradientSupportMmHg: number;
   readonly maxCausalGradientSupportDutyFraction: number;
+  readonly maxAppliedCausalGradientSupportMmHg: number;
+  readonly meanAppliedCausalGradientSupportMmHg: number;
+  readonly maxAppliedCausalGradientSupportDutyFraction: number;
 };
 
 export type AvValveCyclicStateReplayReportV1 = {
@@ -97,6 +108,7 @@ export type AvValveCyclicStateReplayReportV1 = {
   readonly rows: readonly CyclicReplayRowV1[];
   readonly variantSummaries: readonly CyclicReplayVariantSummaryV1[];
   readonly bestFixedVariant: CyclicReplayVariantSummaryV1;
+  readonly bestOracleVariant: CyclicReplayVariantSummaryV1;
   readonly summary: {
     readonly total: 14;
     readonly bestFixedVariantId: CyclicReplayVariantIdV1;
@@ -107,6 +119,12 @@ export type AvValveCyclicStateReplayReportV1 = {
     readonly bestFixedForwardVolumeParityCount: number;
     readonly bestFixedMaxRequiredCausalGradientSupportMmHg: number;
     readonly bestFixedMeanRequiredCausalGradientSupportMmHg: number;
+    readonly bestOracleVariantId: CyclicReplayVariantIdV1;
+    readonly bestOraclePass: number;
+    readonly bestOracleCleanShapeCount: number;
+    readonly bestOracleForwardVolumeParityCount: number;
+    readonly bestOracleMaxAppliedCausalGradientSupportMmHg: number;
+    readonly bestOracleMeanAppliedCausalGradientSupportMmHg: number;
     readonly zeroStatePass: number;
     readonly zeroStateCleanShapeCount: number;
   };
@@ -150,18 +168,42 @@ const VARIANTS: readonly CyclicReplayVariantV1[] = [
     description: "Reference replay of the final beat from zero valve state using current pressures.",
     cycles: 1,
     useSourceOpenMemory: false,
+    ownershipKind: "fixed-replay",
   },
   {
     variantId: "cyclic-current-pressure",
     description: "Replay the same final-beat pressure waveform for repeated cycles so valve q/open state can converge before scoring.",
     cycles: 8,
     useSourceOpenMemory: false,
+    ownershipKind: "fixed-replay",
   },
   {
     variantId: "cyclic-source-open-memory",
     description: "Cyclic replay plus the selected atrial source-open-memory valve-state ownership from the mixed source-state signal.",
     cycles: 8,
     useSourceOpenMemory: true,
+    ownershipKind: "fixed-replay",
+  },
+  {
+    variantId: "cyclic-causal-support-readback-oracle",
+    description: "Cyclic current-pressure replay with the phase-local causal-gradient support recorded as an effective energy-readback only; q/state are not changed.",
+    cycles: 8,
+    useSourceOpenMemory: false,
+    ownershipKind: "oracle-readback",
+  },
+  {
+    variantId: "cyclic-causal-pressure-step-oracle",
+    description: "Cyclic replay that reruns only adverse-gradient forward-flow samples with the minimum local pressure support needed by the valve equation; this is an oracle, not a source pressure commit.",
+    cycles: 8,
+    useSourceOpenMemory: false,
+    ownershipKind: "oracle-pressure-step",
+  },
+  {
+    variantId: "cyclic-energy-loss-damping",
+    description: "Cyclic replay that tries to remove adverse-gradient forward-flow using local loss/inertance damping only, without pressure support.",
+    cycles: 8,
+    useSourceOpenMemory: false,
+    ownershipKind: "loss-only",
   },
 ];
 
@@ -194,7 +236,18 @@ export function runAvValveCyclicStateReplayBenchV1(): AvValveCyclicStateReplayRe
     variant.variantId,
     rows.filter((row) => row.variantId === variant.variantId),
   ));
-  const bestFixedVariant = [...variantSummaries].sort(compareVariantSummaries)[0]!;
+  const fixedVariantIds = new Set(VARIANTS
+    .filter((variant) => variant.ownershipKind === "fixed-replay")
+    .map((variant) => variant.variantId));
+  const oracleVariantIds = new Set(VARIANTS
+    .filter((variant) => variant.ownershipKind !== "fixed-replay")
+    .map((variant) => variant.variantId));
+  const bestFixedVariant = variantSummaries
+    .filter((summary) => fixedVariantIds.has(summary.variantId))
+    .sort(compareVariantSummaries)[0]!;
+  const bestOracleVariant = variantSummaries
+    .filter((summary) => oracleVariantIds.has(summary.variantId))
+    .sort(compareVariantSummaries)[0]!;
   const zeroState = variantSummaries.find((summary) => summary.variantId === "zero-state-current-pressure")!;
   const status = bestFixedVariant.pass === 14
     ? "av-valve-cyclic-state-replay-signal"
@@ -209,6 +262,7 @@ export function runAvValveCyclicStateReplayBenchV1(): AvValveCyclicStateReplayRe
     rows,
     variantSummaries,
     bestFixedVariant,
+    bestOracleVariant,
     summary: {
       total: 14,
       bestFixedVariantId: bestFixedVariant.variantId,
@@ -219,15 +273,22 @@ export function runAvValveCyclicStateReplayBenchV1(): AvValveCyclicStateReplayRe
       bestFixedForwardVolumeParityCount: bestFixedVariant.forwardVolumeParityCount,
       bestFixedMaxRequiredCausalGradientSupportMmHg: bestFixedVariant.maxRequiredCausalGradientSupportMmHg,
       bestFixedMeanRequiredCausalGradientSupportMmHg: bestFixedVariant.meanRequiredCausalGradientSupportMmHg,
+      bestOracleVariantId: bestOracleVariant.variantId,
+      bestOraclePass: bestOracleVariant.pass,
+      bestOracleCleanShapeCount: bestOracleVariant.cleanShapeCount,
+      bestOracleForwardVolumeParityCount: bestOracleVariant.forwardVolumeParityCount,
+      bestOracleMaxAppliedCausalGradientSupportMmHg: bestOracleVariant.maxAppliedCausalGradientSupportMmHg,
+      bestOracleMeanAppliedCausalGradientSupportMmHg: bestOracleVariant.meanAppliedCausalGradientSupportMmHg,
       zeroStatePass: zeroState.pass,
       zeroStateCleanShapeCount: zeroState.cleanShapeCount,
     },
     decision: {
       avValveCyclicStateReplayStatus: status,
-      nextAction: nextActionFor(status, bestFixedVariant, zeroState),
+      nextAction: nextActionFor(status, bestFixedVariant, bestOracleVariant, zeroState),
       blockedClaims: [
         "source-pressure-commit",
         "source-gradient-commit",
+        "oracle-causal-support-promotion",
         "runtime-wiring",
         "morphology-acceptance",
         "AV-plane-geometry",
@@ -280,6 +341,7 @@ function replayMv(
     currentGradient: replay.currentGradient,
     replayGradient: replay.replayGradient,
     sourceState: replay.sourceState,
+    appliedCausalSupport: replay.appliedCausalSupport,
     cyclicStateDeltaNorm: replay.cyclicStateDeltaNorm,
   });
 }
@@ -319,6 +381,7 @@ function replayTv(
     currentGradient: replay.currentGradient,
     replayGradient: replay.replayGradient,
     sourceState: replay.sourceState,
+    appliedCausalSupport: replay.appliedCausalSupport,
     cyclicStateDeltaNorm: replay.cyclicStateDeltaNorm,
   });
 }
@@ -341,6 +404,7 @@ function replayCyclic<TSample>(
   readonly currentGradient: readonly number[];
   readonly replayGradient: readonly number[];
   readonly sourceState: readonly number[];
+  readonly appliedCausalSupport: readonly number[];
   readonly cyclicStateDeltaNorm: number;
 } {
   let state = initialFlowStateValveStateV1();
@@ -354,6 +418,7 @@ function replayCyclic<TSample>(
   let finalCurrentGradient: number[] = [];
   let finalReplayGradient: number[] = [];
   let finalSourceState: number[] = [];
+  let finalAppliedCausalSupport: number[] = [];
   for (let cycle = 0; cycle < variant.cycles; cycle++) {
     if (cycle === 0) firstCycleStart = state;
     if (cycle === variant.cycles - 1) {
@@ -363,6 +428,7 @@ function replayCyclic<TSample>(
       finalCurrentGradient = [];
       finalReplayGradient = [];
       finalSourceState = [];
+      finalAppliedCausalSupport = [];
     }
     for (let i = 0; i < samples.length; i++) {
       const input = inputForSample(samples[i]!, i);
@@ -373,18 +439,53 @@ function replayCyclic<TSample>(
       const closureDrive01 = variant.useSourceOpenMemory
         ? clamp01(input.closureDrive01 * (1 - 0.45 * sourceState01))
         : input.closureDrive01;
-      const output = stepFlowStateValveV1(state, {
+      const baseOutput = stepFlowStateValveV1(state, {
         dtSec,
         upstreamPressureMmHg: input.upstreamPressureMmHg,
         downstreamPressureMmHg: input.downstreamPressureMmHg,
         closureDrive01,
       }, modifiedParams);
+      const requiredSupport = baseOutput.qMlPerSec > 5
+        ? Math.max(0, 0.2 - baseOutput.pressureGradientMmHg)
+        : 0;
+      const supportedOutput = requiredSupport > 0
+        ? stepFlowStateValveV1(state, {
+          dtSec,
+          upstreamPressureMmHg: input.upstreamPressureMmHg + requiredSupport,
+          downstreamPressureMmHg: input.downstreamPressureMmHg,
+          closureDrive01,
+        }, modifiedParams)
+        : baseOutput;
+      const dampedParams = requiredSupport > 0
+        ? energyLossDampingParams(modifiedParams)
+        : modifiedParams;
+      const dampedOutput = requiredSupport > 0
+        ? stepFlowStateValveV1(state, {
+          dtSec,
+          upstreamPressureMmHg: input.upstreamPressureMmHg,
+          downstreamPressureMmHg: input.downstreamPressureMmHg,
+          closureDrive01: clamp01(closureDrive01 + 0.25),
+        }, dampedParams)
+        : baseOutput;
+      const output = variant.ownershipKind === "oracle-pressure-step"
+        ? supportedOutput
+        : variant.ownershipKind === "loss-only"
+          ? dampedOutput
+          : baseOutput;
+      const effectiveGradient = variant.ownershipKind === "oracle-readback"
+        ? baseOutput.pressureGradientMmHg + requiredSupport
+        : output.pressureGradientMmHg;
+      const appliedSupport = variant.ownershipKind === "oracle-readback"
+        || variant.ownershipKind === "oracle-pressure-step"
+        ? requiredSupport
+        : 0;
       state = output.state;
       if (cycle === variant.cycles - 1) {
         finalQ.push(output.qMlPerSec);
         finalCurrentGradient.push(input.currentPressureGradientMmHg);
-        finalReplayGradient.push(output.pressureGradientMmHg);
+        finalReplayGradient.push(effectiveGradient);
         finalSourceState.push(sourceState01);
+        finalAppliedCausalSupport.push(appliedSupport);
       }
     }
     if (cycle === variant.cycles - 1) {
@@ -401,6 +502,7 @@ function replayCyclic<TSample>(
     currentGradient: finalCurrentGradient,
     replayGradient: finalReplayGradient,
     sourceState: finalSourceState,
+    appliedCausalSupport: finalAppliedCausalSupport,
     cyclicStateDeltaNorm: round(cyclicStateDeltaNorm),
   };
 }
@@ -419,6 +521,18 @@ function sourceOpenMemoryParams(
   };
 }
 
+function energyLossDampingParams(
+  params: FlowStateValveParamsV1,
+): FlowStateValveParamsV1 {
+  return {
+    ...params,
+    resistanceMmHgSecPerMl: params.resistanceMmHgSecPerMl * 2.4,
+    bernoulliMmHgSec2PerMl2: params.bernoulliMmHgSec2PerMl2 * 2.4,
+    inertanceMmHgSec2PerMl: params.inertanceMmHgSec2PerMl * 1.35,
+    tauCloseSec: params.tauCloseSec * 0.72,
+  };
+}
+
 function rowForReplay(input: {
   readonly profileId: FourChamberSubsystemProfileIdV1;
   readonly valveSide: ValveSideV1;
@@ -431,6 +545,7 @@ function rowForReplay(input: {
   readonly currentGradient: readonly number[];
   readonly replayGradient: readonly number[];
   readonly sourceState: readonly number[];
+  readonly appliedCausalSupport: readonly number[];
   readonly cyclicStateDeltaNorm: number;
 }): CyclicReplayRowV1 {
   const replayShape = computeShapeQualityMetricsV1(input.replayQ);
@@ -445,6 +560,9 @@ function rowForReplay(input: {
   );
   const adverseGradientDuringForwardFlowFraction = fraction(input.replayQ, (q, index) =>
     q > 5 && (input.replayGradient[index] ?? 0) < -0.2
+  );
+  const actualAdverseGradientDuringForwardFlowFraction = fraction(input.replayQ, (q, index) =>
+    q > 5 && (input.currentGradient[index] ?? 0) < -0.2
   );
   const causalSupport = input.replayQ.map((q, index) =>
     q > 5 ? Math.max(0, 0.2 - (input.replayGradient[index] ?? 0)) : 0
@@ -466,7 +584,13 @@ function rowForReplay(input: {
     maxRequiredCausalGradientSupportMmHg: round(Math.max(...causalSupport)),
     meanRequiredCausalGradientSupportMmHg: round(meanPositiveOrZero(causalSupport)),
     causalGradientSupportDutyFraction: round(fraction(causalSupport, (value) => value > 0)),
+    maxAppliedCausalGradientSupportMmHg: round(Math.max(...input.appliedCausalSupport, 0)),
+    meanAppliedCausalGradientSupportMmHg: round(meanPositiveOrZero(input.appliedCausalSupport)),
+    appliedCausalGradientSupportDutyFraction: round(fraction(input.appliedCausalSupport, (value) =>
+      value > 0
+    )),
     gradientSignMismatchFraction: round(gradientSignMismatchFraction),
+    actualAdverseGradientDuringForwardFlowFraction: round(actualAdverseGradientDuringForwardFlowFraction),
     adverseGradientDuringForwardFlowFraction: round(adverseGradientDuringForwardFlowFraction),
   };
   const failureReasons = failureReasonsFor(base);
@@ -524,6 +648,15 @@ function summarizeRows(
     maxCausalGradientSupportDutyFraction: round(Math.max(...rows.map((row) =>
       row.causalGradientSupportDutyFraction
     ))),
+    maxAppliedCausalGradientSupportMmHg: round(Math.max(...rows.map((row) =>
+      row.maxAppliedCausalGradientSupportMmHg
+    ))),
+    meanAppliedCausalGradientSupportMmHg: round(mean(rows.map((row) =>
+      row.meanAppliedCausalGradientSupportMmHg
+    ))),
+    maxAppliedCausalGradientSupportDutyFraction: round(Math.max(...rows.map((row) =>
+      row.appliedCausalGradientSupportDutyFraction
+    ))),
   };
 }
 
@@ -541,13 +674,14 @@ function compareVariantSummaries(
 function nextActionFor(
   status: AvValveCyclicStateReplayReportV1["decision"]["avValveCyclicStateReplayStatus"],
   best: CyclicReplayVariantSummaryV1,
+  bestOracle: CyclicReplayVariantSummaryV1,
   zero: CyclicReplayVariantSummaryV1,
 ): string {
   if (status === "av-valve-cyclic-state-replay-signal") {
     return "Use cyclic accepted valve-state carryover as a shadow signal for the next same-step source/valve/chamber transaction. Keep pressure/gradient commit, runtime, AV-plane, and LandAtrial blocked.";
   }
   if (status === "av-valve-cyclic-state-replay-mixed") {
-    return `Cyclic valve-state carryover improves replay over zero-state reference (${best.pass}/${zero.pass} pass; ${best.cleanShapeCount}/${zero.cleanShapeCount} clean-shape) but remains incomplete. Next classify remaining side/profile residuals before transaction promotion.`;
+    return `Cyclic valve-state carryover improves replay over zero-state reference (${best.pass}/${zero.pass} pass; ${best.cleanShapeCount}/${zero.cleanShapeCount} clean-shape) but remains incomplete. The best oracle readback reaches ${bestOracle.pass}/14 only by marking local causal support needs, so next work should implement true source/valve/chamber pressure-flow energy ownership rather than pressure-support promotion.`;
   }
   return "Cyclic valve-state carryover does not improve enough. Revisit same-step valve/chamber residual ownership rather than source-pressure or AV-plane work.";
 }

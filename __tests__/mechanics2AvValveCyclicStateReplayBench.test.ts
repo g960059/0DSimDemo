@@ -25,6 +25,10 @@ describe("AvValveCyclicStateReplayBench V1", () => {
       bestFixedTvPass: 1,
       bestFixedCleanShapeCount: 7,
       bestFixedForwardVolumeParityCount: 14,
+      bestOracleVariantId: "cyclic-causal-support-readback-oracle",
+      bestOraclePass: 14,
+      bestOracleCleanShapeCount: 7,
+      bestOracleForwardVolumeParityCount: 14,
       zeroStatePass: 0,
       zeroStateCleanShapeCount: 6,
     });
@@ -34,6 +38,10 @@ describe("AvValveCyclicStateReplayBench V1", () => {
     expect(report.summary.bestFixedMaxRequiredCausalGradientSupportMmHg).toBeLessThan(7);
     expect(report.summary.bestFixedMeanRequiredCausalGradientSupportMmHg).toBeGreaterThan(1.4);
     expect(report.summary.bestFixedMeanRequiredCausalGradientSupportMmHg).toBeLessThan(1.7);
+    expect(report.summary.bestOracleMaxAppliedCausalGradientSupportMmHg).toBeGreaterThan(6);
+    expect(report.summary.bestOracleMaxAppliedCausalGradientSupportMmHg).toBeLessThan(7);
+    expect(report.summary.bestOracleMeanAppliedCausalGradientSupportMmHg).toBeGreaterThan(1.4);
+    expect(report.summary.bestOracleMeanAppliedCausalGradientSupportMmHg).toBeLessThan(1.7);
   });
 
   it("keeps source-open-memory behind cyclic current-pressure replay", () => {
@@ -71,9 +79,43 @@ describe("AvValveCyclicStateReplayBench V1", () => {
     expect(failed.every((row) => row.causalGradientSupportDutyFraction < 0.08)).toBe(true);
   });
 
+  it("separates causal support readback from pressure-step and loss-only promotion paths", () => {
+    const supportReadback = report.variantSummaries.find((row) =>
+      row.variantId === "cyclic-causal-support-readback-oracle"
+    );
+    const pressureStep = report.variantSummaries.find((row) =>
+      row.variantId === "cyclic-causal-pressure-step-oracle"
+    );
+    const lossOnly = report.variantSummaries.find((row) =>
+      row.variantId === "cyclic-energy-loss-damping"
+    );
+    expect(supportReadback).toMatchObject({
+      pass: 14,
+      forwardVolumeParityCount: 14,
+      meanQRmsDeltaMlPerSec: report.bestFixedVariant.meanQRmsDeltaMlPerSec,
+    });
+    expect(supportReadback?.maxAppliedCausalGradientSupportDutyFraction).toBeLessThan(0.08);
+
+    expect(pressureStep?.pass).toBeLessThan(report.bestFixedVariant.pass);
+    expect(pressureStep?.forwardVolumeParityCount).toBeLessThan(report.bestFixedVariant.forwardVolumeParityCount);
+    expect(pressureStep?.meanQRmsDeltaMlPerSec).toBeGreaterThan(8);
+    expect(pressureStep?.maxAppliedCausalGradientSupportMmHg).toBeGreaterThan(20);
+
+    expect(lossOnly?.pass).toBeLessThan(report.bestFixedVariant.pass);
+    expect(lossOnly?.cleanShapeCount).toBeLessThan(report.bestFixedVariant.cleanShapeCount);
+    expect(lossOnly?.meanQRmsDeltaMlPerSec).toBeGreaterThan(report.bestFixedVariant.meanQRmsDeltaMlPerSec);
+
+    const supportRows = report.rows.filter((row) =>
+      row.variantId === "cyclic-causal-support-readback-oracle"
+    );
+    expect(supportRows.some((row) => row.actualAdverseGradientDuringForwardFlowFraction > 0)).toBe(true);
+    expect(supportRows.every((row) => row.adverseGradientDuringForwardFlowFraction <= 0.02)).toBe(true);
+  });
+
   it("keeps pressure/gradient commit, runtime, morphology, AV-plane, and LandAtrial locked", () => {
     expect(report.decision.blockedClaims).toContain("source-pressure-commit");
     expect(report.decision.blockedClaims).toContain("source-gradient-commit");
+    expect(report.decision.blockedClaims).toContain("oracle-causal-support-promotion");
     expect(report.claimBoundary.sourcePressureCommit).toBe(false);
     expect(report.claimBoundary.sourceGradientCommit).toBe(false);
     expect(report.claimBoundary.runtimeWiring).toBe(false);
