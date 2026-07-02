@@ -1,4 +1,11 @@
 import {
+  DEFAULT_ATRIAL_FIBER_CHAMBER_PARAMS_V1,
+  initialAtrialFiberChamberStateV1,
+  stepAtrialFiberChamberV1,
+  type AtrialFiberChamberOutputV1,
+  type AtrialFiberChamberStateV1,
+} from "@/engine/mechanics2/atrial/AtrialFiberPackV1";
+import {
   initialOneFiberChamberStateV1,
   stepOneFiberChamberV1,
   type OneFiberChamberOutputV1,
@@ -30,6 +37,9 @@ function clamp(value: number, min: number, max: number): number {
 export type LeftHeartTransactionModeV2 = "explicit-single" | "fixed-point";
 export type LeftHeartVolumeSafetyModeV2 = "hard-clamp" | "soft-pressure";
 export type PulmonaryVenousBoundaryModeV2 = "fixed-pressure" | "compliance-node";
+export type LeftAtrialPressureSourceModeV2 =
+  | "empirical-a-wave"
+  | "fiber-active-a-window-gated-shadow";
 
 export type LeftHeartSubsystemParamsV2 = LeftHeartSubsystemParamsV1 & {
   readonly transactionMode: LeftHeartTransactionModeV2;
@@ -61,6 +71,8 @@ export type LeftHeartSubsystemParamsV2 = LeftHeartSubsystemParamsV1 & {
   readonly mvSystolicClosureDriveGain01: number;
   readonly mvSystolicClosureDriveStartTheta: number;
   readonly mvSystolicClosureDriveEndTheta: number;
+  readonly laPressureSourceMode: LeftAtrialPressureSourceModeV2;
+  readonly laFiberActivePressureReferenceMmHg: number;
 };
 
 export type LeftHeartSubsystemStateV2 = {
@@ -69,6 +81,7 @@ export type LeftHeartSubsystemStateV2 = {
   readonly rootPressureMmHg: number;
   readonly pulmonaryVenousPressureMmHg: number;
   readonly lv: OneFiberChamberStateV1;
+  readonly laFiber: AtrialFiberChamberStateV1;
   readonly mv: FlowStateValveStateV1;
   readonly aov: FlowStateValveStateV1;
   readonly rootOutflowStatefulDrive01: number;
@@ -89,6 +102,10 @@ export type LeftHeartSubsystemSampleV2 = {
   readonly lapMmHg: number;
   readonly lapRawMmHg: number;
   readonly lapSafetyMmHg: number;
+  readonly lapEmpiricalAWaveMmHg: number;
+  readonly lapFiberActivePressureMmHg: number;
+  readonly lapFiberActivePulse01: number;
+  readonly lapPressureSourceMode: LeftAtrialPressureSourceModeV2;
   readonly rootPressureMmHg: number;
   readonly acceptedRootPressureMmHg: number;
   readonly pulmonaryVenousPressureMmHg: number;
@@ -103,6 +120,7 @@ export type LeftHeartSubsystemSampleV2 = {
   readonly mvOpen01: number;
   readonly aovOpen01: number;
   readonly lvChamber: OneFiberChamberOutputV1;
+  readonly laFiberChamber: AtrialFiberChamberOutputV1;
   readonly mv: FlowStateValveOutputV1;
   readonly aov: FlowStateValveOutputV1;
   readonly rootOutflowMlPerSec: number;
@@ -139,6 +157,7 @@ type CandidateV2 = {
 
 type AcceptedV2 = CandidateV2 & {
   readonly lvChamber: OneFiberChamberOutputV1;
+  readonly laFiberChamber: AtrialFiberChamberOutputV1;
   readonly mv: FlowStateValveOutputV1;
   readonly aov: FlowStateValveOutputV1;
   readonly lapRawMmHg: number;
@@ -151,6 +170,9 @@ type AcceptedV2 = CandidateV2 & {
   readonly rootOutflowHighPressureDrive01: number;
   readonly rootOutflowStatefulDrive01: number;
   readonly rootOutflowMlPerSec: number;
+  readonly lapEmpiricalAWaveMmHg: number;
+  readonly lapFiberActivePressureMmHg: number;
+  readonly lapFiberActivePulse01: number;
   readonly volumeClampHit01: 0 | 1;
   readonly laVolumeClampHit01: 0 | 1;
   readonly lvVolumeClampHit01: 0 | 1;
@@ -199,6 +221,8 @@ export function defaultLeftHeartSubsystemParamsV2(
     mvSystolicClosureDriveGain01: overrides.mvSystolicClosureDriveGain01 ?? 0,
     mvSystolicClosureDriveStartTheta: overrides.mvSystolicClosureDriveStartTheta ?? 0.02,
     mvSystolicClosureDriveEndTheta: overrides.mvSystolicClosureDriveEndTheta ?? 0.18,
+    laPressureSourceMode: overrides.laPressureSourceMode ?? "empirical-a-wave",
+    laFiberActivePressureReferenceMmHg: overrides.laFiberActivePressureReferenceMmHg ?? 11,
   };
 }
 
@@ -212,6 +236,10 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
     rootPressureMmHg: params.rootInitialPressureMmHg,
     pulmonaryVenousPressureMmHg: params.pulmonaryVenousInitialPressureMmHg,
     lv: initialOneFiberChamberStateV1(params.initialLvVolumeMl, params.lv),
+    laFiber: initialAtrialFiberChamberStateV1(
+      params.initialLaVolumeMl,
+      DEFAULT_ATRIAL_FIBER_CHAMBER_PARAMS_V1.LA,
+    ),
     mv: initialFlowStateValveStateV1(),
     aov: initialFlowStateValveStateV1(),
     rootOutflowStatefulDrive01: 0,
@@ -241,6 +269,7 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
         candidate,
         previous: previousVolumes,
         previousLvState: state.lv,
+        previousLaFiberState: state.laFiber,
         previousMvState: state.mv,
         previousAovState: state.aov,
         previousRootOutflowStatefulDrive01: state.rootOutflowStatefulDrive01,
@@ -286,6 +315,10 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
       lapMmHg: accepted.lapRawMmHg + accepted.lapSafetyMmHg,
       lapRawMmHg: accepted.lapRawMmHg,
       lapSafetyMmHg: accepted.lapSafetyMmHg,
+      lapEmpiricalAWaveMmHg: accepted.lapEmpiricalAWaveMmHg,
+      lapFiberActivePressureMmHg: accepted.lapFiberActivePressureMmHg,
+      lapFiberActivePulse01: accepted.lapFiberActivePulse01,
+      lapPressureSourceMode: params.laPressureSourceMode,
       rootPressureMmHg: state.rootPressureMmHg,
       acceptedRootPressureMmHg: accepted.rootPressureMmHg,
       pulmonaryVenousPressureMmHg: state.pulmonaryVenousPressureMmHg,
@@ -300,6 +333,7 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
       mvOpen01: accepted.mv.open01,
       aovOpen01: accepted.aov.open01,
       lvChamber: accepted.lvChamber,
+      laFiberChamber: accepted.laFiberChamber,
       mv: accepted.mv,
       aov: accepted.aov,
       rootOutflowMlPerSec: accepted.rootOutflowMlPerSec,
@@ -318,6 +352,7 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
       rootPressureMmHg: accepted.rootPressureMmHg,
       pulmonaryVenousPressureMmHg: accepted.pulmonaryVenousPressureMmHg,
       lv: accepted.lvChamber.state,
+      laFiber: accepted.laFiberChamber.state,
       mv: accepted.mv.state,
       aov: accepted.aov.state,
       rootOutflowStatefulDrive01: accepted.rootOutflowStatefulDrive01,
@@ -333,6 +368,7 @@ function acceptLeftHeartCandidateV2(input: {
   readonly candidate: CandidateV2;
   readonly previous: CandidateV2;
   readonly previousLvState: OneFiberChamberStateV1;
+  readonly previousLaFiberState: AtrialFiberChamberStateV1;
   readonly previousMvState: FlowStateValveStateV1;
   readonly previousAovState: FlowStateValveStateV1;
   readonly previousRootOutflowStatefulDrive01: number;
@@ -351,7 +387,29 @@ function acceptLeftHeartCandidateV2(input: {
     cavityVolumeMl: input.candidate.lvVolumeMl,
     previousCavityVolumeMl: input.previous.lvVolumeMl,
   }, input.params.lv);
-  const lapRawMmHg = leftAtrialPressureRaw(input.theta, input.candidate.laVolumeMl, input.params);
+  const laFiberChamber = stepAtrialFiberChamberV1(input.previousLaFiberState, {
+    tSec: input.tSec,
+    dtSec: input.dtSec,
+    cycleLengthSec: input.cycleLengthSec,
+    activationTimeSec: input.tSec - input.theta * input.cycleLengthSec
+      + positiveModulo(input.params.laAWaveStartTheta - 0.10, 1) * input.cycleLengthSec,
+    cavityVolumeMl: input.candidate.laVolumeMl,
+    previousCavityVolumeMl: input.previous.laVolumeMl,
+  }, DEFAULT_ATRIAL_FIBER_CHAMBER_PARAMS_V1.LA);
+  const lapEmpiricalAWaveMmHg =
+    input.params.laAWaveMmHg
+    * raisedCosineWindow(input.theta, input.params.laAWaveStartTheta, input.params.laAWaveEndTheta);
+  const lapFiberActivePulse01 = clamp(
+    laFiberChamber.activePressureMmHg / Math.max(input.params.laFiberActivePressureReferenceMmHg, 1e-9),
+    0,
+    1.6,
+  ) * raisedCosineWindow(input.theta, input.params.laAWaveStartTheta, input.params.laAWaveEndTheta);
+  const lapRawMmHg = leftAtrialPressureRaw(
+    input.theta,
+    input.candidate.laVolumeMl,
+    input.params,
+    lapFiberActivePulse01,
+  );
   const lapSafetyMmHg = safetyPressureMmHg(
     input.candidate.laVolumeMl,
     input.params.minLaVolumeMl,
@@ -413,6 +471,7 @@ function acceptLeftHeartCandidateV2(input: {
     rootPressureMmHg,
     pulmonaryVenousPressureMmHg: pulmonaryBoundary.pulmonaryVenousPressureMmHg,
     lvChamber,
+    laFiberChamber,
     mv,
     aov,
     lapRawMmHg,
@@ -425,6 +484,9 @@ function acceptLeftHeartCandidateV2(input: {
     rootOutflowHighPressureDrive01,
     rootOutflowStatefulDrive01,
     rootOutflowMlPerSec,
+    lapEmpiricalAWaveMmHg,
+    lapFiberActivePressureMmHg: laFiberChamber.activePressureMmHg,
+    lapFiberActivePulse01,
   };
 }
 
@@ -560,14 +622,26 @@ function safetyPressureMmHg(
   return 0;
 }
 
-function leftAtrialPressureRaw(theta: number, laVolumeMl: number, params: LeftHeartSubsystemParamsV1): number {
+function leftAtrialPressureRaw(
+  theta: number,
+  laVolumeMl: number,
+  params: LeftHeartSubsystemParamsV2,
+  fiberActivePulse01: number,
+): number {
+  const activePulse01 = params.laPressureSourceMode === "fiber-active-a-window-gated-shadow"
+    ? fiberActivePulse01
+    : raisedCosineWindow(theta, params.laAWaveStartTheta, params.laAWaveEndTheta);
   return params.laPressureBaselineMmHg
     + (laVolumeMl - params.laReferenceVolumeMl) / Math.max(params.laComplianceMlPerMmHg, 1e-9)
-    + params.laAWaveMmHg * raisedCosineWindow(theta, params.laAWaveStartTheta, params.laAWaveEndTheta);
+    + params.laAWaveMmHg * activePulse01;
 }
 
 function raisedCosineWindow(theta: number, start: number, end: number): number {
   if (theta < start || theta > end) return 0;
   const x = (theta - start) / Math.max(end - start, 1e-9);
   return 0.5 - 0.5 * Math.cos(2 * Math.PI * x);
+}
+
+function positiveModulo(value: number, period: number): number {
+  return ((value % period) + period) % period;
 }

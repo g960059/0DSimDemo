@@ -144,6 +144,10 @@ Current scope:
   the decomposed LA pressure contract without source-surface or runtime commit.
 - `benches/LaActivePulseMvReplayRefinementBench.ts`: shadow active-pulse
   shaping shootout for preserving MV replay before any source substitution.
+- `benches/LaPressureSourceSubstitutionCandidateBench.ts`: closed-loop
+  left-heart shadow candidate that substitutes the selected fiber-active
+  A-window pulse into the LA pressure source surface while keeping runtime,
+  AV-plane, and LandAtrial locked.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
