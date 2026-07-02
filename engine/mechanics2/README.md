@@ -124,6 +124,10 @@ Current scope:
 - `benches/FourChamberSourceDtInputNormalizedAssembledReviewBench.ts`:
   assembled review applying source-ledger input normalization to the selected
   smooth reservoir scaffold while keeping raw status-rate failures visible.
+- `benches/FourChamberSourceReservoirContractReviewBench.ts`:
+  source/reservoir closure review that combines smooth reservoir dynamics with
+  source-ledger input normalization and preserves raw status-rate failures
+  before any atrial or AV-plane work.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
@@ -165,6 +169,7 @@ Planning docs:
 - [Bounded reservoir volume ownership V1](../../docs/mechanics2/bounded-reservoir-volume-ownership-v1.md)
 - [Four-chamber bounded reservoir contract smoke V1](../../docs/mechanics2/four-chamber-bounded-reservoir-contract-smoke-v1.md)
 - [Four-chamber bounded reservoir dynamics review V1](../../docs/mechanics2/four-chamber-bounded-reservoir-dynamics-review-v1.md)
+- [Four-chamber source/reservoir contract review V1](../../docs/mechanics2/four-chamber-source-reservoir-contract-review-v1.md)
 - [ADR-MYO-003](../../docs/myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 
 Claim boundary:

@@ -50,6 +50,7 @@ Canonical references:
 - [Preload-low dt-half reservoir parity attribution V1](preload-low-dthalf-reservoir-parity-attribution-v1.md)
 - [Preload-low source dt input normalization V1](preload-low-source-dt-input-normalization-v1.md)
 - [Four-chamber source dt input normalized assembled review V1](four-chamber-source-dt-input-normalized-assembled-review-v1.md)
+- [Four-chamber source/reservoir contract review V1](four-chamber-source-reservoir-contract-review-v1.md)
 - [ADR-MYO-003](../myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 - [Engine sidecar README](../../engine/mechanics2/README.md)
 
