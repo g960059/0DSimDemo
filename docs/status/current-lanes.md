@@ -76,7 +76,10 @@ positive work 0.026 J. A first explicit force/position state
 (`force4-stiff2-damp06-mass035`) lowers max positive power to 0.076 W and keeps
 hidden-volume/work closure clean 7/7, but falls to source 2/7, topology 5/7,
 and MVF clean 3/7; faster higher-force variants reach topology 6/7 only by
-dropping source/MVF further. This is still not morphology acceptance: source
+dropping source/MVF further. A velocity-target stateful traction timing review
+keeps opposed-lobe topology 7/7 and lowers the traction pressure step from
+15.21 to 5.00 mmHg, but falls from source/MVF 4/7 to 3/7 and has zero variants
+that preserve raw topology and source together. This is still not morphology acceptance: source
 surface and MVF cleanliness remain incomplete, visual review still shows
 traction/transition artifacts, and runtime wiring, runtime AV-plane enablement,
 pressure substitution, broad reservoir retuning, and LandAtrial re-entry remain
