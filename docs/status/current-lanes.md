@@ -59,10 +59,10 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: keep AtrialFiber as shadow/readback only and avoid direct
-atrial pressure or AV gradient injection until a true valve/source co-owned
-state contract is designed. Runtime wiring, reservoir broad retuning, AV-plane
-work, and LandAtrial re-entry remain blocked.
+Next PR target: classify the fixed `source-open-memory` AV valve/source-state
+residual and design a deeper same-step source/valve/chamber transaction. Direct
+atrial pressure substitution, direct AV-gradient injection, runtime wiring,
+reservoir broad retuning, AV-plane work, and LandAtrial re-entry remain blocked.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -196,6 +196,9 @@ Included:
 - AvValveAtrialGradientShadowBench V1 for confirming that simple atrial active
   gradient injection into shadow MV/TV replay is blocked even though the
   AtrialFiber source/reservoir shadow readbacks are finite and bounded.
+- AvValveSourceStateContractShadowBench V1 for fixed-variant shadow replay
+  where atrial active source state modifies AV valve open/closure/loss state
+  without source pressure or gradient commit.
 
 Excluded:
 
@@ -675,6 +678,14 @@ Next gates:
     shadow decomposed-LAP substitution candidate using that selected pulse
     shape; runtime, AV-plane, LandAtrial, morphology acceptance, and reservoir
     retuning remain blocked.
+62. AV valve/source state contract shadow: direct source pressure and direct
+    AV-gradient commit remain blocked. A fixed source-state valve replay
+    surface gives a mixed signal (`source-open-memory` best fixed variant:
+    1/14 pass, clean shape 6/14, forward-volume parity 5/14) versus the prior
+    direct-gradient 0/14 pass and clean shape 1/14. Residuals split into MV
+    adverse-gradient forward flow and TV C1/forward-volume failures, so the
+    next step is residual attribution plus a true same-step source/valve/chamber
+    transaction, not runtime, AV-plane, LandAtrial, or reservoir retuning.
 
 Parallel prep, not blocking the next strategic gate:
 
