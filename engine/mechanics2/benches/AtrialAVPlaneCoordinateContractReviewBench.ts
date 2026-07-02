@@ -23,13 +23,28 @@ type VariantIdV1 =
   | "capacity-coordinate-drive6-stiff3-damp10"
   | "capacity-coordinate-drive8-stiff4-damp12"
   | "capacity-coordinate-drive4-stiff1-damp04-fast"
-  | "capacity-coordinate-drive6-stiff2-damp06-slow";
+  | "capacity-coordinate-drive6-stiff2-damp06-slow"
+  | "force-balance-drive4-hyd004-stiff2-damp06"
+  | "force-balance-drive5-hyd006-stiff2-damp08"
+  | "force-balance-drive6-hyd008-stiff3-damp10"
+  | "force-balance-drive8-hyd010-stiff4-damp12"
+  | "force-balance-drive6-hyd004-stiff2-damp06-fast"
+  | "force-balance-cap28-drive4-hyd002-stiff1-damp04-fast"
+  | "force-balance-cap28-drive6-hyd004-stiff2-damp06-fast"
+  | "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast"
+  | "force-balance-cap28-drive8-hyd006-stiff3-damp08"
+  | "force-balance-vel06-drive4-hyd002-cap28"
+  | "force-balance-vel10-drive4-hyd002-cap28"
+  | "force-balance-vel12-drive4-hyd002-cap28"
+  | "force-balance-vel08-drive3-hyd001-cap32";
 
 type VariantV1 = {
   readonly variantId: VariantIdV1;
-  readonly mode: "raw-reference" | "capacity-work-coordinate";
+  readonly mode: "raw-reference" | "capacity-work-coordinate" | "force-balance-coordinate";
   readonly capacityGainMl: number;
   readonly driveForceN: number;
+  readonly hydraulicGain: number;
+  readonly velocityTractionGainMmHgPerNormPerSec: number;
   readonly stiffnessNPerNorm: number;
   readonly dampingNsecPerNorm: number;
   readonly massKg: number;
@@ -65,6 +80,8 @@ type RowV1 = {
   readonly maxZNorm: number;
   readonly maxZDotNormPerSec: number;
   readonly maxDriveForceN: number;
+  readonly maxHydraulicForceN: number;
+  readonly maxNetForceN: number;
   readonly maxWorkCoordinatePressureMmHg: number;
   readonly maxTractionPressureMmHg: number;
   readonly maxHiddenBloodVolumeSourceMl: number;
@@ -86,6 +103,8 @@ type VariantSummaryV1 = {
   readonly maxZNorm: number;
   readonly maxZDotNormPerSec: number;
   readonly maxDriveForceN: number;
+  readonly maxHydraulicForceN: number;
+  readonly maxNetForceN: number;
   readonly maxWorkCoordinatePressureMmHg: number;
   readonly maxTractionPressureMmHg: number;
   readonly maxVLoopArea: number;
@@ -100,6 +119,7 @@ export type AtrialAVPlaneCoordinateContractReviewReportV1 = {
   readonly variantSummaries: readonly VariantSummaryV1[];
   readonly rawReference: VariantSummaryV1;
   readonly bestCoordinateVariant: VariantSummaryV1;
+  readonly bestForceBalanceVariant: VariantSummaryV1;
   readonly summary: {
     readonly totalProfiles: 7;
     readonly rawSourceSurfacePass: number;
@@ -109,8 +129,14 @@ export type AtrialAVPlaneCoordinateContractReviewReportV1 = {
     readonly bestCoordinateSourceSurfacePass: number;
     readonly bestCoordinateTopologyPass: number;
     readonly bestCoordinateMvfCleanCount: number;
+    readonly bestForceBalanceVariantId: VariantIdV1;
+    readonly bestForceBalanceSourceSurfacePass: number;
+    readonly bestForceBalanceTopologyPass: number;
+    readonly bestForceBalanceSourcePreservingTopologyPass: number;
+    readonly bestForceBalanceMvfCleanCount: number;
     readonly coordinateVariantsImprovingRawSourceAndKeepingTopology: number;
     readonly coordinateVariantsWithZeroTractionPressure: number;
+    readonly forceBalanceVariantCount: number;
     readonly reviewStatus:
       | "coordinate-contract-transfer-signal"
       | "coordinate-contract-mixed"
@@ -152,6 +178,19 @@ export const ATRIAL_AV_PLANE_COORDINATE_CONTRACT_VARIANTS_V1: readonly VariantV1
   variant("capacity-coordinate-drive8-stiff4-damp12", "capacity-work-coordinate", 20, 8, 4, 1.2, 0.035, 1.8, 0.06, 0.58, 0.055, 0.30, 0.085, 0.20),
   variant("capacity-coordinate-drive4-stiff1-damp04-fast", "capacity-work-coordinate", 20, 4, 1, 0.4, 0.030, 2.4, 0.06, 0.52, 0.040, 0.22, 0.055, 0.12),
   variant("capacity-coordinate-drive6-stiff2-damp06-slow", "capacity-work-coordinate", 20, 6, 2, 0.6, 0.045, 1.2, 0.06, 0.62, 0.075, 0.34, 0.12, 0.25),
+  variant("force-balance-drive4-hyd004-stiff2-damp06", "force-balance-coordinate", 20, 4, 2, 0.6, 0.035, 1.8, 0.06, 0.58, 0.055, 0.30, 0.085, 0.20, 0.04),
+  variant("force-balance-drive5-hyd006-stiff2-damp08", "force-balance-coordinate", 20, 5, 2, 0.8, 0.035, 1.8, 0.06, 0.58, 0.055, 0.30, 0.085, 0.20, 0.06),
+  variant("force-balance-drive6-hyd008-stiff3-damp10", "force-balance-coordinate", 20, 6, 3, 1.0, 0.035, 1.8, 0.06, 0.58, 0.055, 0.30, 0.085, 0.20, 0.08),
+  variant("force-balance-drive8-hyd010-stiff4-damp12", "force-balance-coordinate", 20, 8, 4, 1.2, 0.035, 1.8, 0.06, 0.58, 0.055, 0.30, 0.085, 0.20, 0.10),
+  variant("force-balance-drive6-hyd004-stiff2-damp06-fast", "force-balance-coordinate", 20, 6, 2, 0.6, 0.030, 2.4, 0.06, 0.52, 0.040, 0.22, 0.055, 0.12, 0.04),
+  variant("force-balance-cap28-drive4-hyd002-stiff1-damp04-fast", "force-balance-coordinate", 28, 4, 1, 0.4, 0.030, 2.4, 0.06, 0.52, 0.040, 0.22, 0.055, 0.12, 0.02),
+  variant("force-balance-cap28-drive6-hyd004-stiff2-damp06-fast", "force-balance-coordinate", 28, 6, 2, 0.6, 0.030, 2.4, 0.06, 0.52, 0.040, 0.22, 0.055, 0.12, 0.04),
+  variant("force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", "force-balance-coordinate", 32, 6, 2, 0.6, 0.030, 2.4, 0.06, 0.52, 0.040, 0.22, 0.055, 0.12, 0.04),
+  variant("force-balance-cap28-drive8-hyd006-stiff3-damp08", "force-balance-coordinate", 28, 8, 3, 0.8, 0.030, 2.4, 0.06, 0.52, 0.040, 0.22, 0.055, 0.12, 0.06),
+  variant("force-balance-vel06-drive4-hyd002-cap28", "force-balance-coordinate", 28, 4, 1, 0.4, 0.030, 2.4, 0.06, 0.52, 0.040, 0.22, 0.055, 0.12, 0.02, 0.6),
+  variant("force-balance-vel10-drive4-hyd002-cap28", "force-balance-coordinate", 28, 4, 1, 0.4, 0.030, 2.4, 0.06, 0.52, 0.040, 0.22, 0.055, 0.12, 0.02, 1.0),
+  variant("force-balance-vel12-drive4-hyd002-cap28", "force-balance-coordinate", 28, 4, 1, 0.4, 0.030, 2.4, 0.06, 0.52, 0.040, 0.22, 0.055, 0.12, 0.02, 1.2),
+  variant("force-balance-vel08-drive3-hyd001-cap32", "force-balance-coordinate", 32, 3, 1, 0.35, 0.030, 2.4, 0.06, 0.52, 0.040, 0.22, 0.055, 0.12, 0.01, 0.8),
 ];
 
 export function runAtrialAVPlaneCoordinateContractReviewBenchV1():
@@ -178,6 +217,18 @@ AtrialAVPlaneCoordinateContractReviewReportV1 {
     || b.mvfCleanCount - a.mvfCleanCount
     || b.maxVLoopArea - a.maxVLoopArea
   )[0]!;
+  const forceBalanceSummaries = variantSummaries.filter((summary) =>
+    ATRIAL_AV_PLANE_COORDINATE_CONTRACT_VARIANTS_V1.find((variantConfig) =>
+      variantConfig.variantId === summary.variantId
+    )?.mode === "force-balance-coordinate"
+  );
+  const bestForceBalanceVariant = [...forceBalanceSummaries].sort((a, b) =>
+    b.sourcePreservingTopologyPass - a.sourcePreservingTopologyPass
+    || b.topologyPass - a.topologyPass
+    || b.sourceSurfacePass - a.sourceSurfacePass
+    || b.mvfCleanCount - a.mvfCleanCount
+    || b.maxVLoopArea - a.maxVLoopArea
+  )[0]!;
   const coordinateVariantsImprovingRawSourceAndKeepingTopology = coordinateSummaries.filter((summary) =>
     summary.sourceSurfacePass > rawReference.sourceSurfacePass
     && summary.topologyPass >= rawReference.topologyPass
@@ -185,6 +236,10 @@ AtrialAVPlaneCoordinateContractReviewReportV1 {
   const coordinateVariantsWithZeroTractionPressure = coordinateSummaries.filter((summary) =>
     summary.maxTractionPressureMmHg === 0
   ).length;
+  const forceBalanceVariantCount =
+    ATRIAL_AV_PLANE_COORDINATE_CONTRACT_VARIANTS_V1.filter((variantConfig) =>
+      variantConfig.mode === "force-balance-coordinate"
+    ).length;
   const reviewStatus =
     coordinateVariantsImprovingRawSourceAndKeepingTopology > 0
       ? "coordinate-contract-transfer-signal"
@@ -200,6 +255,7 @@ AtrialAVPlaneCoordinateContractReviewReportV1 {
     variantSummaries,
     rawReference,
     bestCoordinateVariant,
+    bestForceBalanceVariant,
     summary: {
       totalProfiles: 7,
       rawSourceSurfacePass: rawReference.sourceSurfacePass,
@@ -209,14 +265,22 @@ AtrialAVPlaneCoordinateContractReviewReportV1 {
       bestCoordinateSourceSurfacePass: bestCoordinateVariant.sourceSurfacePass,
       bestCoordinateTopologyPass: bestCoordinateVariant.topologyPass,
       bestCoordinateMvfCleanCount: bestCoordinateVariant.mvfCleanCount,
+      bestForceBalanceVariantId: bestForceBalanceVariant.variantId,
+      bestForceBalanceSourceSurfacePass: bestForceBalanceVariant.sourceSurfacePass,
+      bestForceBalanceTopologyPass: bestForceBalanceVariant.topologyPass,
+      bestForceBalanceSourcePreservingTopologyPass: bestForceBalanceVariant.sourcePreservingTopologyPass,
+      bestForceBalanceMvfCleanCount: bestForceBalanceVariant.mvfCleanCount,
       coordinateVariantsImprovingRawSourceAndKeepingTopology,
       coordinateVariantsWithZeroTractionPressure,
+      forceBalanceVariantCount,
       reviewStatus,
     },
     decision: {
       nextAction: reviewStatus === "coordinate-contract-transfer-signal"
         ? "Use the capacity/work coordinate signal as the next AV-plane traction contract candidate while keeping runtime AV-plane enablement blocked."
-        : "Capacity-only AV-plane coordinate is not sufficient. Next AV-plane contract needs a force-balance coordinate that couples capacity, pressure, valve flow, and work without hidden blood volume.",
+        : bestForceBalanceVariant.topologyPass > bestCoordinateVariant.topologyPass
+          ? "Simple force-balance coordinate partially restores opposed lobes but does not preserve the raw source/MVF surface. Keep raw traction as the topology reference and move next to an implicit wall-work / LA-MV residual contract rather than more scalar coordinate sweeps."
+          : "Capacity-only AV-plane coordinate is not sufficient. Next AV-plane contract needs a force-balance coordinate that couples capacity, pressure, valve flow, and work without hidden blood volume.",
       blockedClaims: [
         "runtime-wiring",
         "morphology-acceptance",
@@ -246,15 +310,31 @@ export function applyCoordinateContractVariant(
   )!;
   const base = applyVelocityStatefulTractionVariantV1(params, rawTractionVariant);
   if (variantConfig.mode === "raw-reference") return base;
+  const forceBalanceOverrides = variantConfig.mode === "force-balance-coordinate"
+    ? {
+      laLobeGeneratorMode: "av-plane-force-balance-coordinate-transaction-v1" as const,
+      laEffectiveGeometryMode: "av-plane-force-balance-coordinate-transaction-v1" as const,
+      laAVPlaneWorkCoordinateHydraulicGain: variantConfig.hydraulicGain,
+    }
+    : {
+      laLobeGeneratorMode: "av-plane-capacity-work-coordinate-transaction-v1" as const,
+      laEffectiveGeometryMode: "av-plane-force-position-reservoir-transaction-v1" as const,
+      laAVPlaneWorkCoordinateHydraulicGain: 0,
+    };
   return {
     ...base,
-    laLobeGeneratorMode: "av-plane-capacity-work-coordinate-transaction-v1",
-    laEffectiveGeometryMode: "av-plane-force-position-reservoir-transaction-v1",
+    ...forceBalanceOverrides,
     laReservoirGeometryGainMl: variantConfig.capacityGainMl,
-    laAVPlaneReservoirTractionGainMmHgPerNormPerSec: 0,
-    laAVPlaneVenousReservoirCouplingGain: 0,
-    laAVPlaneVenousReservoirMaxFlowMlPerSec: 0,
+    laAVPlaneReservoirTractionGainMmHgPerNormPerSec:
+      variantConfig.mode === "force-balance-coordinate"
+        ? variantConfig.velocityTractionGainMmHgPerNormPerSec
+        : 0,
+    laAVPlaneVenousReservoirCouplingGain:
+      variantConfig.mode === "force-balance-coordinate" ? base.laAVPlaneVenousReservoirCouplingGain : 0,
+    laAVPlaneVenousReservoirMaxFlowMlPerSec:
+      variantConfig.mode === "force-balance-coordinate" ? base.laAVPlaneVenousReservoirMaxFlowMlPerSec : 0,
     laAVPlaneWorkCoordinateDriveForceN: variantConfig.driveForceN,
+    laAVPlaneWorkCoordinateHydraulicGain: variantConfig.hydraulicGain,
     laAVPlaneWorkCoordinateStiffnessNPerNorm: variantConfig.stiffnessNPerNorm,
     laAVPlaneWorkCoordinateDampingNsecPerNorm: variantConfig.dampingNsecPerNorm,
     laAVPlaneWorkCoordinateMassKg: variantConfig.massKg,
@@ -319,6 +399,9 @@ function rowForRun(
     maxZNorm: round(Math.max(0, ...beat.map((sample) => sample.laAVPlaneWorkCoordinateZNorm))),
     maxZDotNormPerSec: round(maxAbs(beat.map((sample) => sample.laAVPlaneWorkCoordinateZDotNormPerSec))),
     maxDriveForceN: round(Math.max(0, ...beat.map((sample) => sample.laAVPlaneWorkCoordinateDriveForceN))),
+    maxHydraulicForceN:
+      round(Math.max(0, ...beat.map((sample) => sample.laAVPlaneWorkCoordinateHydraulicForceN))),
+    maxNetForceN: round(maxAbs(beat.map((sample) => sample.laAVPlaneWorkCoordinateNetForceN))),
     maxWorkCoordinatePressureMmHg:
       round(Math.max(0, ...beat.map((sample) => sample.laAVPlaneWorkCoordinatePressureMmHg))),
     maxTractionPressureMmHg:
@@ -372,6 +455,8 @@ function summarizeVariant(variantId: VariantIdV1, rows: readonly RowV1[]): Varia
     maxZNorm: round(Math.max(0, ...rows.map((row) => row.maxZNorm))),
     maxZDotNormPerSec: round(Math.max(0, ...rows.map((row) => row.maxZDotNormPerSec))),
     maxDriveForceN: round(Math.max(0, ...rows.map((row) => row.maxDriveForceN))),
+    maxHydraulicForceN: round(Math.max(0, ...rows.map((row) => row.maxHydraulicForceN))),
+    maxNetForceN: round(Math.max(0, ...rows.map((row) => row.maxNetForceN))),
     maxWorkCoordinatePressureMmHg: round(Math.max(0, ...rows.map((row) => row.maxWorkCoordinatePressureMmHg))),
     maxTractionPressureMmHg: round(Math.max(0, ...rows.map((row) => row.maxTractionPressureMmHg))),
     maxVLoopArea: round(Math.max(0, ...rows.map((row) => row.lobeQuality.vLoopArea))),
@@ -425,12 +510,16 @@ function variant(
   fallTauSec: number,
   releaseTauSec: number,
   mvReleaseThreshold01: number,
+  hydraulicGain: number = 0,
+  velocityTractionGainMmHgPerNormPerSec: number = 0,
 ): VariantV1 {
   return {
     variantId,
     mode,
     capacityGainMl,
     driveForceN,
+    hydraulicGain,
+    velocityTractionGainMmHgPerNormPerSec,
     stiffnessNPerNorm,
     dampingNsecPerNorm,
     massKg,

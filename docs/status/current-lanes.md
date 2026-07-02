@@ -105,6 +105,19 @@ traction source/topology pair. Capacity shift without a force-balance pressure
 ownership residual is insufficient; next work should model the AV-plane
 coordinate as a hydraulic/traction force-balance coupled to chamber pressure,
 valve flow, capacity, and work readbacks.
+A first explicit hydraulic/traction force-balance coordinate review adds active
+drive force, hydraulic pressure-load force, spring/damping, coordinate
+pressure/work readbacks, and keeps blood volume ledger-owned by venous/MV/AoV
+flows. It partially restores the raw traction topology signal when the accepted
+pulmonary venous reservoir flow is retained: best force-balance
+`force-balance-cap32-drive6-hyd004-stiff2-damp06-fast` reaches topology 5/7,
+opposed signed lobes 7/7, hidden-volume clean 7/7, MVF 3/7, source surface 2/7,
+and source+topology 2/7, but still underperforms the raw traction reference
+(source 4/7, topology 7/7, MVF 4/7). Treat this as partial coordinate evidence,
+not a promotion path. Do not continue scalar force/hydraulic/capacity sweeps;
+next atrial AV-plane work should move to an implicit wall-work / LA-MV residual
+contract that owns atrial wall pressure, AV-plane work, MV opening, and venous
+reservoir flow in one residual.
 Warm-replay lobe attribution, separated-state smokes, dual-lobe geometry,
 flow-oriented LA filling-rate drive, hidden-volume-free AV-plane ejection-rate
 reservoir oracles, AV-plane reservoir capacity/stretch + booster/wall-work,
