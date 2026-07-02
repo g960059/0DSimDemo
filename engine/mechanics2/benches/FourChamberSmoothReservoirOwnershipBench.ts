@@ -47,6 +47,10 @@ type CandidateSpecV1 = {
   readonly reservoirVolumeFeedbackKneeMl?: number;
 };
 
+export type FourChamberSmoothReservoirCandidateIdV1 = CandidateSpecV1["candidateId"];
+
+export type FourChamberSmoothReservoirProfileSpecV1 = ScenarioSpecV1 & ProfileMapV1;
+
 type CandidatePointResultV1 = {
   readonly candidateId: CandidateSpecV1["candidateId"];
   readonly scenarioId: ScenarioIdV1;
@@ -165,6 +169,9 @@ const CANDIDATES: readonly CandidateSpecV1[] = [
   },
 ];
 
+export const SELECTED_SMOOTH_RESERVOIR_CANDIDATE_ID_V1 =
+  "smooth-knee20-gain035-bound24" as const satisfies FourChamberSmoothReservoirCandidateIdV1;
+
 const SCENARIOS: readonly ScenarioSpecV1[] = [
   { scenarioId: "nominal", sampleRateMultiplier: 1, epochs: 14 },
   { scenarioId: "dt-half", sampleRateMultiplier: 2, epochs: 14 },
@@ -237,6 +244,12 @@ FourChamberSmoothReservoirOwnershipReportV1 {
       LandAtrialUnlock: false,
     },
   };
+}
+
+export function runSelectedSmoothReservoirProfileV1(
+  spec: FourChamberSmoothReservoirProfileSpecV1,
+): FourChamberSubsystemRunV1 {
+  return runCandidateProfile(requiredCandidate(SELECTED_SMOOTH_RESERVOIR_CANDIDATE_ID_V1), spec, spec);
 }
 
 function runCandidatePoint(
@@ -351,6 +364,12 @@ function hardBaseline(summaries: readonly CandidateSummaryV1[]): CandidateSummar
   const hard = summaries.find((summary) => summary.candidateId === "hard-bound24");
   if (hard == null) throw new Error("Missing hard-bound24 summary");
   return hard;
+}
+
+function requiredCandidate(candidateId: CandidateSpecV1["candidateId"]): CandidateSpecV1 {
+  const candidate = CANDIDATES.find((entry) => entry.candidateId === candidateId);
+  if (candidate == null) throw new Error(`Missing smooth reservoir candidate ${candidateId}`);
+  return candidate;
 }
 
 function runCandidateProfile(
