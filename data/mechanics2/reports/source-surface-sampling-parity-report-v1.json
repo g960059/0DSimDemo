@@ -1,0 +1,97 @@
+{
+  "reportId": "source-surface-sampling-parity-report-v1",
+  "gateId": "sourceSurfaceSamplingParityV1",
+  "points": [
+    {
+      "pointId": "left-heart-preload-low",
+      "side": "left",
+      "residualOwnerBeforeSamplingCheck": "shape-dt-parity",
+      "rawBaseC1": 0.105442,
+      "rawDtHalfC1": 0.310388,
+      "rawDtHalfDelta": 0.204946,
+      "alignedDtHalfC1": 0.081549,
+      "alignedDtHalfDelta": 0.023893,
+      "rawBasePeakCount": 1,
+      "rawDtHalfPeakCount": 1,
+      "alignedDtHalfPeakCount": 1,
+      "absoluteDtHalfC1Ok": true,
+      "alignedShapeParityOk": true,
+      "forwardEjectionBaseMl": 51.866403,
+      "forwardEjectionDtHalfMl": 52.925471,
+      "forwardEjectionDeltaMl": 1.059067,
+      "previousForwardEjectionBaseMl": 54.469534,
+      "repeatabilityDeltaMl": 2.60313,
+      "samplingAttribution": "sampling-grid-explains-shape-residual"
+    },
+    {
+      "pointId": "left-heart-afterload-high",
+      "side": "left",
+      "residualOwnerBeforeSamplingCheck": "output-reserve",
+      "rawBaseC1": 0.09789,
+      "rawDtHalfC1": 0.240033,
+      "rawDtHalfDelta": 0.142143,
+      "alignedDtHalfC1": 0.188115,
+      "alignedDtHalfDelta": 0.090225,
+      "rawBasePeakCount": 1,
+      "rawDtHalfPeakCount": 1,
+      "alignedDtHalfPeakCount": 1,
+      "absoluteDtHalfC1Ok": true,
+      "alignedShapeParityOk": true,
+      "forwardEjectionBaseMl": 34.726848,
+      "forwardEjectionDtHalfMl": 34.673497,
+      "forwardEjectionDeltaMl": 0.053351,
+      "previousForwardEjectionBaseMl": 34.802875,
+      "repeatabilityDeltaMl": 0.076027,
+      "samplingAttribution": "sampling-grid-not-owner"
+    },
+    {
+      "pointId": "right-heart-preload-low",
+      "side": "right",
+      "residualOwnerBeforeSamplingCheck": "repeatability-before-dt-output",
+      "rawBaseC1": 0.353441,
+      "rawDtHalfC1": 0.377863,
+      "rawDtHalfDelta": 0.024422,
+      "alignedDtHalfC1": 0.378177,
+      "alignedDtHalfDelta": 0.024736,
+      "rawBasePeakCount": 1,
+      "rawDtHalfPeakCount": 1,
+      "alignedDtHalfPeakCount": 1,
+      "absoluteDtHalfC1Ok": true,
+      "alignedShapeParityOk": true,
+      "forwardEjectionBaseMl": 33.641749,
+      "forwardEjectionDtHalfMl": 19.652697,
+      "forwardEjectionDeltaMl": 13.989052,
+      "previousForwardEjectionBaseMl": 49.713359,
+      "repeatabilityDeltaMl": 16.07161,
+      "samplingAttribution": "sampling-grid-not-owner"
+    }
+  ],
+  "summary": {
+    "pointCount": 3,
+    "samplingGridExplainsShapeResidualCount": 1,
+    "samplingGridNotOwnerCount": 2,
+    "remainingOutputReserveCount": 1,
+    "remainingRepeatabilityCount": 1
+  },
+  "decision": {
+    "samplingParityStatus": "sampling-parity-shape-owner-found",
+    "nextAction": "Use phase-aligned shape parity for source-surface dt checks, then address output reserve and right-source repeatability as separate contracts.",
+    "blockedClaims": [
+      "runtime-wiring",
+      "true-four-chamber-dynamics",
+      "morphology-acceptance",
+      "reservoir-tuning-reopened",
+      "AV-plane-unlock",
+      "LandAtrial-unlock"
+    ]
+  },
+  "claimBoundary": {
+    "runtimeWiring": false,
+    "trueFourChamberDynamics": false,
+    "morphologyAcceptance": false,
+    "reservoirTuningReopened": false,
+    "AVPlaneUnlock": false,
+    "LandAtrialUnlock": false
+  },
+  "normalizedSha256": "fba51447d0f5319d6eb3a889e18e5eddc0e17e006f299782928b58fca2a227c0"
+}
