@@ -58,7 +58,8 @@ export type LeftAtrialLobeGeneratorModeV2 =
   | "reservoir-booster-state-shadow"
   | "flow-reservoir-booster-state-shadow"
   | "av-plane-reservoir-booster-state-shadow"
-  | "av-plane-reservoir-capacity-transaction-v1";
+  | "av-plane-reservoir-capacity-transaction-v1"
+  | "av-plane-venous-reservoir-transaction-v1";
 export type LeftAtrialPressureSourceModeV2 =
   | "empirical-a-wave"
   | "fiber-active-a-window-gated-shadow"
@@ -117,6 +118,9 @@ export type LeftHeartSubsystemParamsV2 = LeftHeartSubsystemParamsV1 & {
   readonly laAVPlaneReservoirCapacityFallTauSec: number;
   readonly laAVPlaneReservoirCapacityReleaseTauSec: number;
   readonly laAVPlaneReservoirCapacityMvOpenReleaseThreshold01: number;
+  readonly laAVPlaneVenousReservoirCouplingGain: number;
+  readonly laAVPlaneVenousReservoirMaxFlowMlPerSec: number;
+  readonly laAVPlaneVenousReservoirMvOpenReleaseThreshold01: number;
   readonly laBoosterPressureGainMmHg: number;
   readonly laBoosterPressureRiseTauSec: number;
   readonly laBoosterPressureFallTauSec: number;
@@ -176,6 +180,7 @@ export type LeftHeartSubsystemSampleV2 = {
   readonly qAovMlPerSec: number;
   readonly qPulmonaryVenousMlPerSec: number;
   readonly qPulmonaryVenousSourceMlPerSec: number;
+  readonly qAVPlaneReservoirKinematicMlPerSec: number;
   readonly rootOutResistanceEffectiveMmHgSecPerMl: number;
   readonly rootOutflowHighPressureDrive01: number;
   readonly rootOutflowStatefulDrive01: number;
@@ -229,6 +234,7 @@ type AcceptedV2 = CandidateV2 & {
   readonly lvpSafetyMmHg: number;
   readonly qPulmonaryVenousMlPerSec: number;
   readonly qPulmonaryVenousSourceMlPerSec: number;
+  readonly qAVPlaneReservoirKinematicMlPerSec: number;
   readonly rootOutResistanceEffectiveMmHgSecPerMl: number;
   readonly rootOutflowHighPressureDrive01: number;
   readonly rootOutflowStatefulDrive01: number;
@@ -314,6 +320,10 @@ export function defaultLeftHeartSubsystemParamsV2(
     laAVPlaneReservoirCapacityReleaseTauSec: overrides.laAVPlaneReservoirCapacityReleaseTauSec ?? 0.085,
     laAVPlaneReservoirCapacityMvOpenReleaseThreshold01:
       overrides.laAVPlaneReservoirCapacityMvOpenReleaseThreshold01 ?? 0.20,
+    laAVPlaneVenousReservoirCouplingGain: overrides.laAVPlaneVenousReservoirCouplingGain ?? 0,
+    laAVPlaneVenousReservoirMaxFlowMlPerSec: overrides.laAVPlaneVenousReservoirMaxFlowMlPerSec ?? 0,
+    laAVPlaneVenousReservoirMvOpenReleaseThreshold01:
+      overrides.laAVPlaneVenousReservoirMvOpenReleaseThreshold01 ?? 0.18,
     laBoosterPressureGainMmHg: overrides.laBoosterPressureGainMmHg ?? 0,
     laBoosterPressureRiseTauSec: overrides.laBoosterPressureRiseTauSec ?? 0.045,
     laBoosterPressureFallTauSec: overrides.laBoosterPressureFallTauSec ?? 0.12,
@@ -438,6 +448,7 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
       qAovMlPerSec: accepted.aov.qMlPerSec,
       qPulmonaryVenousMlPerSec: accepted.qPulmonaryVenousMlPerSec,
       qPulmonaryVenousSourceMlPerSec: accepted.qPulmonaryVenousSourceMlPerSec,
+      qAVPlaneReservoirKinematicMlPerSec: accepted.qAVPlaneReservoirKinematicMlPerSec,
       rootOutResistanceEffectiveMmHgSecPerMl: accepted.rootOutResistanceEffectiveMmHgSecPerMl,
       rootOutflowHighPressureDrive01: accepted.rootOutflowHighPressureDrive01,
       rootOutflowStatefulDrive01: accepted.rootOutflowStatefulDrive01,
@@ -632,7 +643,21 @@ function acceptLeftHeartCandidateV2(input: {
     (input.candidate.rootPressureMmHg - input.params.rootDownstreamPressureMmHg)
       / Math.max(rootOutResistanceEffectiveMmHgSecPerMl, 1e-9),
   );
-  const pulmonaryBoundary = pulmonaryVenousBoundaryV2(input.previous, input.candidate, lapMmHg, input.dtSec, input.params);
+  const qAVPlaneReservoirKinematicMlPerSec = avPlaneReservoirKinematicFlowMlPerSec(
+    previousAvPlaneGeometryReadback.atrialGeometryDeltaMl,
+    avPlaneGeometryReadback.atrialGeometryDeltaMl,
+    input.previousMvState.open01,
+    input.dtSec,
+    input.params,
+  );
+  const pulmonaryBoundary = pulmonaryVenousBoundaryV2(
+    input.previous,
+    input.candidate,
+    lapMmHg,
+    input.dtSec,
+    input.params,
+    qAVPlaneReservoirKinematicMlPerSec,
+  );
   const qPulmonaryVenousMlPerSec = pulmonaryBoundary.qPulmonaryVenousMlPerSec;
   const rawNextLvVolumeMl = input.previous.lvVolumeMl + input.dtSec * (mv.qMlPerSec - aov.qMlPerSec);
   const rawNextLaVolumeMl = input.previous.laVolumeMl + input.dtSec * (qPulmonaryVenousMlPerSec - mv.qMlPerSec);
@@ -656,6 +681,7 @@ function acceptLeftHeartCandidateV2(input: {
     lvpSafetyMmHg,
     qPulmonaryVenousMlPerSec,
     qPulmonaryVenousSourceMlPerSec: pulmonaryBoundary.qPulmonaryVenousSourceMlPerSec,
+    qAVPlaneReservoirKinematicMlPerSec,
     rootOutResistanceEffectiveMmHgSecPerMl,
     rootOutflowHighPressureDrive01,
     rootOutflowStatefulDrive01,
@@ -820,6 +846,7 @@ function nextLaReservoirSuctionDrive01(
     && params.laLobeGeneratorMode !== "flow-reservoir-booster-state-shadow"
     && params.laLobeGeneratorMode !== "av-plane-reservoir-booster-state-shadow"
     && params.laLobeGeneratorMode !== "av-plane-reservoir-capacity-transaction-v1"
+    && params.laLobeGeneratorMode !== "av-plane-venous-reservoir-transaction-v1"
   ) return 0;
   const phaseDrive01 = raisedCosineWindow(
     theta,
@@ -838,6 +865,7 @@ function nextLaReservoirSuctionDrive01(
     ? phaseDrive01 * fillingDrive01
     : params.laLobeGeneratorMode === "av-plane-reservoir-booster-state-shadow"
       || params.laLobeGeneratorMode === "av-plane-reservoir-capacity-transaction-v1"
+      || params.laLobeGeneratorMode === "av-plane-venous-reservoir-transaction-v1"
       ? phaseDrive01 * smoothstep01(
         (Math.max(0, lvEjectionVolumeDeltaMl / Math.max(dtSec, 1e-9))
           - params.laAVPlaneEjectionRateStartMlPerSec)
@@ -848,6 +876,7 @@ function nextLaReservoirSuctionDrive01(
       )
     : phaseDrive01;
   const mvOpenRelease01 = params.laLobeGeneratorMode === "av-plane-reservoir-capacity-transaction-v1"
+    || params.laLobeGeneratorMode === "av-plane-venous-reservoir-transaction-v1"
     ? smoothstep01(
       previousMvOpen01
         / Math.max(params.laAVPlaneReservoirCapacityMvOpenReleaseThreshold01, 1e-9),
@@ -856,11 +885,14 @@ function nextLaReservoirSuctionDrive01(
   const acceptedTargetDrive01 = targetDrive01 * (1 - mvOpenRelease01);
   const tau = acceptedTargetDrive01 > previousDrive01
     ? params.laLobeGeneratorMode === "av-plane-reservoir-capacity-transaction-v1"
+      || params.laLobeGeneratorMode === "av-plane-venous-reservoir-transaction-v1"
       ? params.laAVPlaneReservoirCapacityRiseTauSec
       : params.laReservoirSuctionRiseTauSec
-    : params.laLobeGeneratorMode === "av-plane-reservoir-capacity-transaction-v1" && mvOpenRelease01 > 0.5
+    : (params.laLobeGeneratorMode === "av-plane-reservoir-capacity-transaction-v1"
+      || params.laLobeGeneratorMode === "av-plane-venous-reservoir-transaction-v1") && mvOpenRelease01 > 0.5
       ? params.laAVPlaneReservoirCapacityReleaseTauSec
       : params.laLobeGeneratorMode === "av-plane-reservoir-capacity-transaction-v1"
+        || params.laLobeGeneratorMode === "av-plane-venous-reservoir-transaction-v1"
         ? params.laAVPlaneReservoirCapacityFallTauSec
         : params.laReservoirSuctionFallTauSec;
   const step = (acceptedTargetDrive01 - previousDrive01) * dtSec / Math.max(tau, 1e-6);
@@ -878,6 +910,7 @@ function nextLaBoosterPressureDrive01(
     && params.laLobeGeneratorMode !== "flow-reservoir-booster-state-shadow"
     && params.laLobeGeneratorMode !== "av-plane-reservoir-booster-state-shadow"
     && params.laLobeGeneratorMode !== "av-plane-reservoir-capacity-transaction-v1"
+    && params.laLobeGeneratorMode !== "av-plane-venous-reservoir-transaction-v1"
   ) return 0;
   const targetDrive01 = raisedCosineWindow(
     theta,
@@ -902,6 +935,7 @@ function pulmonaryVenousBoundaryV2(
   lapMmHg: number,
   dtSec: number,
   params: LeftHeartSubsystemParamsV2,
+  qAVPlaneReservoirKinematicMlPerSec: number = 0,
 ): {
   readonly pulmonaryVenousPressureMmHg: number;
   readonly qPulmonaryVenousMlPerSec: number;
@@ -914,7 +948,7 @@ function pulmonaryVenousBoundaryV2(
       qPulmonaryVenousMlPerSec: Math.max(
         0,
         (pressure - lapMmHg) / Math.max(params.pulmonaryVenousResistanceMmHgSecPerMl, 1e-9),
-      ),
+      ) + qAVPlaneReservoirKinematicMlPerSec,
       qPulmonaryVenousSourceMlPerSec: 0,
     };
   }
@@ -927,7 +961,7 @@ function pulmonaryVenousBoundaryV2(
   const qPulmonaryVenousMlPerSec = Math.max(
     0,
     (candidatePressure - lapMmHg) / Math.max(params.pulmonaryVenousResistanceMmHgSecPerMl, 1e-9),
-  );
+  ) + qAVPlaneReservoirKinematicMlPerSec;
   const pulmonaryVenousPressureMmHg = Math.max(
     0,
     previous.pulmonaryVenousPressureMmHg
@@ -939,6 +973,30 @@ function pulmonaryVenousBoundaryV2(
     qPulmonaryVenousMlPerSec,
     qPulmonaryVenousSourceMlPerSec,
   };
+}
+
+function avPlaneReservoirKinematicFlowMlPerSec(
+  previousAtrialGeometryDeltaMl: number,
+  atrialGeometryDeltaMl: number,
+  previousMvOpen01: number,
+  dtSec: number,
+  params: LeftHeartSubsystemParamsV2,
+): number {
+  if (params.laLobeGeneratorMode !== "av-plane-venous-reservoir-transaction-v1") return 0;
+  if (params.laAVPlaneVenousReservoirCouplingGain <= 0) return 0;
+  if (params.laAVPlaneVenousReservoirMaxFlowMlPerSec <= 0) return 0;
+  const geometryExpansionRateMlPerSec = Math.max(
+    0,
+    (atrialGeometryDeltaMl - previousAtrialGeometryDeltaMl) / Math.max(dtSec, 1e-9),
+  );
+  const mvClosedGate01 = 1 - smoothstep01(
+    previousMvOpen01 / Math.max(params.laAVPlaneVenousReservoirMvOpenReleaseThreshold01, 1e-9),
+  );
+  return clamp(
+    params.laAVPlaneVenousReservoirCouplingGain * geometryExpansionRateMlPerSec * mvClosedGate01,
+    0,
+    params.laAVPlaneVenousReservoirMaxFlowMlPerSec,
+  );
 }
 
 function boundVolumesV2(
