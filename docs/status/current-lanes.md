@@ -59,8 +59,8 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: replace the pressure-hook traction lead with an explicit
-force/position state. The first closed-loop traction transaction produces
+Next PR target: change the AV-plane mechanism timing/ownership, not scalar
+reservoir tuning. The first closed-loop traction transaction produces
 blood-volume LA PV opposed lobes 7/7 and `dt-half` opposed lobes 7/7 with
 hidden-volume cleanliness preserved, while flow-only, traction-only, and
 wrong-sign traction controls are 0/7. Finite pressure-drive smoothing reduces
@@ -72,9 +72,13 @@ lead at 7/7, source surface at 4/7, MVF clean at 4/7, expose finite s/e/a-prime
 readbacks 7/7, and close coordinate volume/work consistency to zero error; the
 same artifact reports max observed displacement 9.48 mm, max velocity
 19.28 cm/s, max traction force 4.28 N, max positive power 0.83 W, and max
-positive work 0.026 J. This is still not morphology acceptance: source surface
-and MVF cleanliness remain incomplete, visual review still shows a
-traction-driven power spike, and runtime wiring, runtime AV-plane enablement,
+positive work 0.026 J. A first explicit force/position state
+(`force4-stiff2-damp06-mass035`) lowers max positive power to 0.076 W and keeps
+hidden-volume/work closure clean 7/7, but falls to source 2/7, topology 5/7,
+and MVF clean 3/7; faster higher-force variants reach topology 6/7 only by
+dropping source/MVF further. This is still not morphology acceptance: source
+surface and MVF cleanliness remain incomplete, visual review still shows
+traction/transition artifacts, and runtime wiring, runtime AV-plane enablement,
 pressure substitution, broad reservoir retuning, and LandAtrial re-entry remain
 blocked.
 Warm-replay lobe attribution, separated-state smokes, dual-lobe geometry,
