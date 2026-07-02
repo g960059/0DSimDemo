@@ -59,9 +59,10 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: shadow source-surface substitution smoke with the decomposed LA
-pressure contract. Runtime wiring, reservoir broad retuning, AV-plane work,
-and LandAtrial re-entry remain blocked.
+Next PR target: classify/refine the decomposed LA active-pulse and MV replay
+residual after the shadow substitution smoke showed clean pressure-gradient
+support but blocked source substitution. Runtime wiring, reservoir broad
+retuning, AV-plane work, and LandAtrial re-entry remain blocked.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -177,6 +178,8 @@ Included:
 - LaLatePeakResidualAttributionBench V1 for classifying the decomposed LA
   pressure contract's non-focused late-peak residuals before shadow
   substitution.
+- LaPressureShadowSubstitutionBench V1 for shadow MV valve replay using the
+  decomposed LA pressure contract without source-surface or runtime commit.
 
 Excluded:
 
@@ -642,6 +645,13 @@ Next gates:
     dominant while remaining pressure-parity clean. This permits only a shadow
     source-surface substitution smoke; runtime wiring, morphology acceptance,
     AV-plane geometry, piston-volume mode, and LandAtrial remain blocked.
+60. LA pressure shadow substitution smoke: replaying MV with decomposed LAP is
+    blocked as substitution evidence. Pressure-gradient support is clean 7/7,
+    but pass is only 2/7 because four profiles collapse E/A into a single
+    shadow MVF peak and low-contractility amplifies shadow forward volume. Next
+    work should classify/refine the decomposed active pulse and MV replay
+    response; do not move to runtime, AV-plane, LandAtrial, or reservoir
+    retuning from this signal.
 
 Parallel prep, not blocking the next strategic gate:
 
