@@ -59,14 +59,15 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: implement a stateful atrial geometry transaction, not a
-post-hoc/readback-only geometry overlay. The assembled LA/MV surface now shows
-that transaction residual reduction alone does not recover LA PV lobe quality,
-and the readback-only effective-geometry shadow also does not recover lobe
-quality despite hidden-volume-clean a-prime readbacks. Direct atrial pressure
-substitution, additive atrial active-pressure source substitution, direct
-AV-gradient injection, more fixed source-state variant sweeps, readback-only
-geometry overlays, runtime wiring, reservoir broad retuning, AV-plane
+Next PR target: classify the remaining atrial lobe generator beyond simple
+LV-shortening geometry. The stateful effective-geometry transaction gives
+hidden-volume-clean a-prime readbacks, but neither stretch-volume nor capacity-
+volume LV-shortening coupling nor phase-reservoir capacity coupling recovers
+LA PV lobe quality or MVF morphology.
+Direct atrial pressure substitution, additive atrial active-pressure source
+substitution, direct AV-gradient injection, more fixed source-state variant
+sweeps, readback-only geometry overlays, simple LV-shortening effective-
+geometry transactions, runtime wiring, reservoir broad retuning, AV-plane
 enablement, and LandAtrial re-entry remain blocked. For atrial work, pressure
 parity or MVF cleanup alone is insufficient: normal-sinus acceptance must
 preserve atrial PV figure-eight lobe quality and eventually expose AV-plane
@@ -233,6 +234,9 @@ Included:
   owned.
 - AtrialGeometryLobeShadowBench V1 for readback-only effective geometry and
   a-prime shadow evidence with no hidden blood-volume source.
+- StatefulAtrialGeometryTransactionBench V1 for a left-heart candidate where
+  LA effective geometry co-evolves inside the LA chamber/MV valve/LV filling
+  step, still without runtime AV-plane enablement.
 
 Excluded:
 
@@ -824,6 +828,18 @@ Next gates:
     overlays as a shortcut; the next
     model surface needs geometry state to co-evolve inside the atrial chamber/
     valve transaction before any AV-plane physiology or runtime claim.
+74. Stateful atrial geometry transaction: moving simple LV-shortening geometry
+    into the LA chamber/MV valve/LV filling transaction is also not a promotion
+    path. Best remains no-geometry fixed-pressure with source-surface pass 0/7,
+    contract pass 0/7, LA PV lobe-quality 1/7, and MVF clean 3/7. Stretch-
+    volume, capacity-volume, and phase-reservoir capacity geometry variants
+    keep hidden-volume-clean 7/7 and expose a-prime readbacks, but none improves
+    lobe quality or MVF morphology; the lobe decomposition shows self-
+    intersections are usually present while opposed a/v lobes remain 1/7. The
+    compliance-node variant lowers residuals while lobe quality falls to 0/7.
+    Simple effective-geometry displacement is therefore blocked; next work
+    should classify a different atrial lobe generator before any AV-plane
+    physiology or runtime claim.
 
 Parallel prep, not blocking the next strategic gate:
 
