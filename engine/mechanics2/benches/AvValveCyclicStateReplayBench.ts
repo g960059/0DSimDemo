@@ -64,6 +64,9 @@ type CyclicReplayRowV1 = {
   readonly activePressurePeakMmHg: number;
   readonly sourceStatePeak01: number;
   readonly cyclicStateDeltaNorm: number;
+  readonly maxRequiredCausalGradientSupportMmHg: number;
+  readonly meanRequiredCausalGradientSupportMmHg: number;
+  readonly causalGradientSupportDutyFraction: number;
   readonly gradientSignMismatchFraction: number;
   readonly adverseGradientDuringForwardFlowFraction: number;
   readonly status: "pass" | "fail";
@@ -80,6 +83,9 @@ type CyclicReplayVariantSummaryV1 = {
   readonly forwardVolumeParityCount: number;
   readonly meanQRmsDeltaMlPerSec: number;
   readonly maxCyclicStateDeltaNorm: number;
+  readonly maxRequiredCausalGradientSupportMmHg: number;
+  readonly meanRequiredCausalGradientSupportMmHg: number;
+  readonly maxCausalGradientSupportDutyFraction: number;
 };
 
 export type AvValveCyclicStateReplayReportV1 = {
@@ -99,6 +105,8 @@ export type AvValveCyclicStateReplayReportV1 = {
     readonly bestFixedTvPass: number;
     readonly bestFixedCleanShapeCount: number;
     readonly bestFixedForwardVolumeParityCount: number;
+    readonly bestFixedMaxRequiredCausalGradientSupportMmHg: number;
+    readonly bestFixedMeanRequiredCausalGradientSupportMmHg: number;
     readonly zeroStatePass: number;
     readonly zeroStateCleanShapeCount: number;
   };
@@ -209,6 +217,8 @@ export function runAvValveCyclicStateReplayBenchV1(): AvValveCyclicStateReplayRe
       bestFixedTvPass: bestFixedVariant.tvPass,
       bestFixedCleanShapeCount: bestFixedVariant.cleanShapeCount,
       bestFixedForwardVolumeParityCount: bestFixedVariant.forwardVolumeParityCount,
+      bestFixedMaxRequiredCausalGradientSupportMmHg: bestFixedVariant.maxRequiredCausalGradientSupportMmHg,
+      bestFixedMeanRequiredCausalGradientSupportMmHg: bestFixedVariant.meanRequiredCausalGradientSupportMmHg,
       zeroStatePass: zeroState.pass,
       zeroStateCleanShapeCount: zeroState.cleanShapeCount,
     },
@@ -436,6 +446,9 @@ function rowForReplay(input: {
   const adverseGradientDuringForwardFlowFraction = fraction(input.replayQ, (q, index) =>
     q > 5 && (input.replayGradient[index] ?? 0) < -0.2
   );
+  const causalSupport = input.replayQ.map((q, index) =>
+    q > 5 ? Math.max(0, 0.2 - (input.replayGradient[index] ?? 0)) : 0
+  );
   const base = {
     profileId: input.profileId,
     valveSide: input.valveSide,
@@ -450,6 +463,9 @@ function rowForReplay(input: {
     activePressurePeakMmHg: round(input.activePressurePeakMmHg),
     sourceStatePeak01: round(Math.max(...input.sourceState, 0)),
     cyclicStateDeltaNorm: input.cyclicStateDeltaNorm,
+    maxRequiredCausalGradientSupportMmHg: round(Math.max(...causalSupport)),
+    meanRequiredCausalGradientSupportMmHg: round(meanPositiveOrZero(causalSupport)),
+    causalGradientSupportDutyFraction: round(fraction(causalSupport, (value) => value > 0)),
     gradientSignMismatchFraction: round(gradientSignMismatchFraction),
     adverseGradientDuringForwardFlowFraction: round(adverseGradientDuringForwardFlowFraction),
   };
@@ -499,6 +515,15 @@ function summarizeRows(
     ).length,
     meanQRmsDeltaMlPerSec: round(mean(rows.map((row) => row.qRmsDeltaMlPerSec))),
     maxCyclicStateDeltaNorm: round(Math.max(...rows.map((row) => row.cyclicStateDeltaNorm))),
+    maxRequiredCausalGradientSupportMmHg: round(Math.max(...rows.map((row) =>
+      row.maxRequiredCausalGradientSupportMmHg
+    ))),
+    meanRequiredCausalGradientSupportMmHg: round(mean(rows.map((row) =>
+      row.meanRequiredCausalGradientSupportMmHg
+    ))),
+    maxCausalGradientSupportDutyFraction: round(Math.max(...rows.map((row) =>
+      row.causalGradientSupportDutyFraction
+    ))),
   };
 }
 
@@ -634,6 +659,12 @@ function fraction<T>(
 function mean(values: readonly number[]): number {
   if (values.length === 0) return Number.NaN;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function meanPositiveOrZero(values: readonly number[]): number {
+  const positive = values.filter((value) => value > 0);
+  if (positive.length === 0) return 0;
+  return mean(positive);
 }
 
 function clamp01(value: number): number {
