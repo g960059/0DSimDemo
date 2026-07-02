@@ -39,6 +39,7 @@ Canonical references:
 - [Four-chamber PV outflow transfer review V1](four-chamber-pv-outflow-transfer-review-v1.md)
 - [Four-chamber source-aware residual review V1](four-chamber-source-aware-residual-review-v1.md)
 - [Four-chamber source-aware contract V1](four-chamber-source-aware-contract-v1.md)
+- [Four-chamber source-aware contract smoke V1](four-chamber-source-aware-contract-smoke-v1.md)
 - [ADR-MYO-003](../myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 - [Engine sidecar README](../../engine/mechanics2/README.md)
 

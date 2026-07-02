@@ -41,10 +41,10 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: promote the source-aware status ownership signal into a bounded
-four-chamber contract smoke, then address the remaining long-epoch
-`preload-low` reservoir repeatability blocker. Runtime wiring, reservoir
-retuning, AV-plane work, and LandAtrial re-entry remain blocked.
+Next PR target: address the remaining long-epoch `preload-low` reservoir
+repeatability blocker inside the source-aware four-chamber contract smoke.
+Runtime wiring, reservoir broad retuning, AV-plane work, and LandAtrial re-entry
+remain blocked.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -119,6 +119,8 @@ Included:
   PV outflow ownership evidence.
 - FourChamberSourceAwareContractBench V1 for applying source-aware status
   ownership as a contract layer over the selected four-chamber residual review.
+- FourChamberSourceAwareContractSmokeBench V1 for the bounded source-aware
+  four-chamber contract smoke and its remaining reservoir-repeatability blocker.
 
 Excluded:
 
@@ -454,6 +456,13 @@ Next gates:
     bounded source-aware four-chamber contract smoke only, not true
     four-chamber dynamics, runtime wiring, reservoir retuning, AV-plane, or
     LandAtrial work.
+43. Four-chamber source-aware contract smoke: the bounded smoke preserves
+    nominal 7/7 and `dt-half` 7/7 under the source-aware policy, with total
+    20/21. The sole remaining blocker is `long-epochs/preload-low` persistent
+    reservoir shuttle: max reservoir volume ~28.5 mL, final reservoir step
+    ~1.16 mL, and forward mismatch ~8.28 mL. Next work should target this
+    repeatability blocker only; broad reservoir tuning, runtime wiring,
+    AV-plane, and LandAtrial remain blocked.
 
 Parallel prep, not blocking the next strategic gate:
 
