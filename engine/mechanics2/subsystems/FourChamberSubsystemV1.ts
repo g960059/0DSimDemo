@@ -29,7 +29,10 @@ export type FourChamberSubsystemReservoirParamsV1 = {
   readonly persistentReservoirVolumeBoundMl: number;
   readonly repeatabilityMismatchDeltaMl: number;
   readonly repeatabilityReservoirStepMl: number;
+  readonly reservoirVolumeOwnershipMode?: "hard-bound" | "smooth-feedback-bound" | "smooth-knee-feedback-bound";
   readonly reservoirVolumeOwnershipBoundMl?: number;
+  readonly reservoirVolumeFeedbackGain01?: number;
+  readonly reservoirVolumeFeedbackKneeMl?: number;
 };
 
 export type FourChamberSubsystemParamsV1 = {
@@ -59,6 +62,9 @@ export type FourChamberSubsystemEpochV1 = FourChamberSubsystemForwardMismatchV1 
   readonly proposedTransferMl: number | null;
   readonly acceptedTransferMl: number | null;
   readonly transferLimiterActive: boolean;
+  readonly reservoirVolumeOwnershipMode?: FourChamberSubsystemReservoirParamsV1["reservoirVolumeOwnershipMode"];
+  readonly reservoirVolumeOwnershipFeedbackMl?: number | null;
+  readonly reservoirVolumeOwnershipTransferAfterFeedbackMl?: number | null;
   readonly reservoirVolumeOwnershipLimiterActive?: boolean;
   readonly reservoirVolumeOwnershipRejectedTransferMl?: number | null;
   readonly leftStatus: LeftHeartDynamicReservePointResultV1["status"];
@@ -141,12 +147,22 @@ export function runFourChamberSubsystemV1(
       ? null
       : clamp(proposedTransfer, -params.reservoir.maxTransferPerEpochMl, params.reservoir.maxTransferPerEpochMl);
     const volumeOwnedTransfer = transferLimited == null
-      ? { acceptedTransferMl: null, rejectedTransferMl: null, limiterActive: false }
+      ? {
+          acceptedTransferMl: null,
+          feedbackTransferMl: null,
+          transferAfterFeedbackMl: null,
+          rejectedTransferMl: null,
+          limiterActive: false,
+          mode: params.reservoir.reservoirVolumeOwnershipMode ?? "hard-bound",
+        }
       : applyReservoirVolumeOwnership({
         transferLimitedMl: transferLimited,
         pulmonaryVenousReservoirVolumeMl,
         systemicVenousReservoirVolumeMl,
         reservoirVolumeOwnershipBoundMl: params.reservoir.reservoirVolumeOwnershipBoundMl,
+        reservoirVolumeOwnershipMode: params.reservoir.reservoirVolumeOwnershipMode,
+        reservoirVolumeFeedbackGain01: params.reservoir.reservoirVolumeFeedbackGain01,
+        reservoirVolumeFeedbackKneeMl: params.reservoir.reservoirVolumeFeedbackKneeMl,
       });
     const acceptedTransfer = volumeOwnedTransfer.acceptedTransferMl;
     epochHistory.push({
@@ -164,6 +180,15 @@ export function runFourChamberSubsystemV1(
       transferLimiterActive: proposedTransfer != null
         && transferLimited != null
         && Math.abs(proposedTransfer - transferLimited) > 1e-9,
+      reservoirVolumeOwnershipMode: params.reservoir.reservoirVolumeOwnershipBoundMl == null
+        ? undefined
+        : volumeOwnedTransfer.mode,
+      reservoirVolumeOwnershipFeedbackMl: params.reservoir.reservoirVolumeOwnershipBoundMl == null
+        ? undefined
+        : roundOrNull(volumeOwnedTransfer.feedbackTransferMl),
+      reservoirVolumeOwnershipTransferAfterFeedbackMl: params.reservoir.reservoirVolumeOwnershipBoundMl == null
+        ? undefined
+        : roundOrNull(volumeOwnedTransfer.transferAfterFeedbackMl),
       reservoirVolumeOwnershipLimiterActive: params.reservoir.reservoirVolumeOwnershipBoundMl == null
         ? undefined
         : volumeOwnedTransfer.limiterActive,
@@ -475,19 +500,31 @@ function applyReservoirVolumeOwnership(input: {
   readonly transferLimitedMl: number;
   readonly pulmonaryVenousReservoirVolumeMl: number;
   readonly systemicVenousReservoirVolumeMl: number;
+  readonly reservoirVolumeOwnershipMode: FourChamberSubsystemReservoirParamsV1["reservoirVolumeOwnershipMode"];
   readonly reservoirVolumeOwnershipBoundMl: number | undefined;
+  readonly reservoirVolumeFeedbackGain01: number | undefined;
+  readonly reservoirVolumeFeedbackKneeMl: number | undefined;
 }): {
   readonly acceptedTransferMl: number;
+  readonly feedbackTransferMl: number;
+  readonly transferAfterFeedbackMl: number;
   readonly rejectedTransferMl: number;
   readonly limiterActive: boolean;
+  readonly mode: Exclude<FourChamberSubsystemReservoirParamsV1["reservoirVolumeOwnershipMode"], undefined>;
 } {
+  const mode = input.reservoirVolumeOwnershipMode ?? "hard-bound";
   if (input.reservoirVolumeOwnershipBoundMl == null) {
     return {
       acceptedTransferMl: input.transferLimitedMl,
+      feedbackTransferMl: 0,
+      transferAfterFeedbackMl: input.transferLimitedMl,
       rejectedTransferMl: 0,
       limiterActive: false,
+      mode,
     };
   }
+  const feedbackTransferMl = reservoirVolumeFeedbackTransferMl(input, mode);
+  const transferAfterFeedbackMl = input.transferLimitedMl + feedbackTransferMl;
   const bound = Math.max(input.reservoirVolumeOwnershipBoundMl, 0);
   const lower = Math.max(
     -bound - input.systemicVenousReservoirVolumeMl,
@@ -497,10 +534,38 @@ function applyReservoirVolumeOwnership(input: {
     bound - input.systemicVenousReservoirVolumeMl,
     bound + input.pulmonaryVenousReservoirVolumeMl,
   );
-  const acceptedTransferMl = clamp(input.transferLimitedMl, lower, upper);
+  const acceptedTransferMl = clamp(transferAfterFeedbackMl, lower, upper);
   return {
     acceptedTransferMl,
-    rejectedTransferMl: input.transferLimitedMl - acceptedTransferMl,
-    limiterActive: Math.abs(input.transferLimitedMl - acceptedTransferMl) > 1e-9,
+    feedbackTransferMl,
+    transferAfterFeedbackMl,
+    rejectedTransferMl: transferAfterFeedbackMl - acceptedTransferMl,
+    limiterActive: Math.abs(transferAfterFeedbackMl - acceptedTransferMl) > 1e-9,
+    mode,
   };
+}
+
+function reservoirVolumeImbalanceMl(input: {
+  readonly pulmonaryVenousReservoirVolumeMl: number;
+  readonly systemicVenousReservoirVolumeMl: number;
+}): number {
+  return (input.systemicVenousReservoirVolumeMl - input.pulmonaryVenousReservoirVolumeMl) / 2;
+}
+
+function reservoirVolumeFeedbackTransferMl(
+  input: {
+    readonly pulmonaryVenousReservoirVolumeMl: number;
+    readonly systemicVenousReservoirVolumeMl: number;
+    readonly reservoirVolumeFeedbackGain01: number | undefined;
+    readonly reservoirVolumeFeedbackKneeMl: number | undefined;
+  },
+  mode: Exclude<FourChamberSubsystemReservoirParamsV1["reservoirVolumeOwnershipMode"], undefined>,
+): number {
+  if (mode === "hard-bound") return 0;
+  const gain = Math.max(input.reservoirVolumeFeedbackGain01 ?? 0, 0);
+  const imbalance = reservoirVolumeImbalanceMl(input);
+  if (mode === "smooth-feedback-bound") return -imbalance * gain;
+  const knee = Math.max(input.reservoirVolumeFeedbackKneeMl ?? 0, 0);
+  const beyondKnee = Math.max(Math.abs(imbalance) - knee, 0);
+  return -Math.sign(imbalance) * beyondKnee * gain;
 }

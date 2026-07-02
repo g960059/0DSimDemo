@@ -44,6 +44,7 @@ Canonical references:
 - [Bounded reservoir volume ownership V1](bounded-reservoir-volume-ownership-v1.md)
 - [Four-chamber bounded reservoir contract smoke V1](four-chamber-bounded-reservoir-contract-smoke-v1.md)
 - [Four-chamber bounded reservoir dynamics review V1](four-chamber-bounded-reservoir-dynamics-review-v1.md)
+- [Four-chamber smooth reservoir ownership V1](four-chamber-smooth-reservoir-ownership-v1.md)
 - [ADR-MYO-003](../myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 - [Engine sidecar README](../../engine/mechanics2/README.md)
 

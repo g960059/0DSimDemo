@@ -41,10 +41,10 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: replace the diagnostic hard reservoir-volume bound with a
-smoother compatibility / energy ownership law and rerun the bounded
-source-aware smoke plus limiter-duty review. Runtime wiring, reservoir broad
-retuning, AV-plane work, and LandAtrial re-entry remain blocked.
+Next PR target: run a focused dynamics/numerics review of the selected
+`smooth-knee20-gain035-bound24` reservoir ownership surface. Runtime wiring,
+reservoir broad retuning, AV-plane work, and LandAtrial re-entry remain
+blocked.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -129,6 +129,9 @@ Included:
   reservoir-volume ownership to the full source-aware smoke envelope.
 - FourChamberBoundedReservoirDynamicsReviewBench V1 for limiter-duty review of
   the bounded reservoir-volume scaffold.
+- FourChamberSmoothReservoirOwnershipBench V1 for smooth compatibility
+  feedback candidates that preserve the source-aware smoke while reducing
+  hard-bound fallback duty.
 
 Excluded:
 
@@ -502,6 +505,14 @@ Next gates:
     This keeps bounded reservoir-volume ownership as the current scaffold but
     points next to a smoother compatibility / energy ownership law before any
     runtime, AV-plane, or LandAtrial unlock.
+48. Four-chamber smooth reservoir ownership: a near-bound smooth compatibility
+    feedback surface, `smooth-knee20-gain035-bound24`, preserves the
+    source-aware full smoke at effective 21/21 and keeps the preload-low
+    56-epoch stress probe pass while reducing hard-bound fallback duty to
+    0/350 full-envelope epochs and 0/56 stress epochs. This is a positive
+    scaffold signal, not runtime or physiology acceptance. Next work should
+    review the selected surface's dynamics/numerics before runtime, AV-plane,
+    or LandAtrial unlock.
 
 Parallel prep, not blocking the next strategic gate:
 
