@@ -59,13 +59,14 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: use the two-state AV-plane reservoir chamber contract result as
-an area-only mixed signal, then move the next atrial V-loop attempt to
-topology/orientation ownership rather than another scalar pressure or lobe
-sweep. The two-state surface separates early capacity/suction blood-volume
-acquisition from late reservoir pressure/recoil and can enlarge the reservoir
-loop while preserving source/MVF in bounded candidates, but opposed a/v lobe
-orientation remains 0/7 and is still visually unacceptable.
+Next PR target: move the atrial V-loop attempt from scalar pressure/recoil
+surfaces to explicit cavity/blood-volume reservoir coevolution. Topology
+attribution shows blood-volume PV opposed lobes remain 0/105, but the same
+two-state AV-plane surface has opposed orientation in an effective
+wall-stretch coordinate for 45/105 rows and 25/105 source-preserving rows.
+That is a geometry-axis signal, not an acceptance path: do not relax the
+blood-volume LA PV gate or promote AV-plane until the accepted cavity/blood
+volume state itself forms opposed a/v lobes.
 Warm-replay lobe attribution, separated-state smokes,
 dual-lobe geometry, flow-oriented LA filling-rate drive, hidden-volume-free
 AV-plane ejection-rate reservoir oracles, AV-plane reservoir capacity/stretch
@@ -293,6 +294,14 @@ Included:
   `maxSourcePreservingVLoopArea` 107.93 mL*mmHg), but LA PV lobe quality and
   opposed-lobe orientation remain 0/7. This is mixed topology evidence, not
   AV-plane promotion or morphology acceptance.
+- AtrialReservoirTopologyOrientationAttributionBench V1 for comparing
+  blood-volume, cavity-plus-capacity, and effective wall-stretch PV axes on the
+  two-state surface. Blood-volume and cavity-plus-capacity axes show opposed
+  lobes 0/105; effective wall-stretch shows 45/105 opposed rows and 25/105
+  source-preserving opposed rows. This closes scalar pressure/recoil as the
+  next fix and routes the next design toward explicit accepted atrial
+  cavity/blood-volume reservoir coevolution while keeping the blood-volume
+  figure-eight gate strict.
 
 Excluded:
 
