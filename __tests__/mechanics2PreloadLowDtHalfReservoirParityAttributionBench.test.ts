@@ -3,6 +3,8 @@ import {
   runPreloadLowDtHalfReservoirParityAttributionBenchV1,
   type PreloadLowDtHalfReservoirParityAttributionReportV1,
 } from "@/engine/mechanics2/benches/PreloadLowDtHalfReservoirParityAttributionBench";
+import preloadLowDtHalfReservoirParityReport
+  from "@/data/mechanics2/reports/preload-low-dthalf-reservoir-parity-attribution-report-v1.json";
 
 describe("PreloadLowDtHalfReservoirParityAttributionBench V1", () => {
   let report: PreloadLowDtHalfReservoirParityAttributionReportV1;
@@ -29,5 +31,13 @@ describe("PreloadLowDtHalfReservoirParityAttributionBench V1", () => {
     expect(report.claimBoundary.reservoirRetuning).toBe(false);
     expect(report.claimBoundary.AVPlaneUnlock).toBe(false);
     expect(report.claimBoundary.LandAtrialUnlock).toBe(false);
+  });
+
+  it("keeps the committed attribution artifact aligned with the rerun report", () => {
+    report ??= runPreloadLowDtHalfReservoirParityAttributionBenchV1();
+    expect(preloadLowDtHalfReservoirParityReport.reportId).toBe(report.reportId);
+    expect(preloadLowDtHalfReservoirParityReport.preloadLowParity).toEqual(report.preloadLowParity);
+    expect(preloadLowDtHalfReservoirParityReport.attribution).toEqual(report.attribution);
+    expect(preloadLowDtHalfReservoirParityReport.decision).toEqual(report.decision);
   });
 });

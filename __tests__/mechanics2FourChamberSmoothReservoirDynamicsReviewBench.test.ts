@@ -3,6 +3,8 @@ import {
   runFourChamberSmoothReservoirDynamicsReviewBenchV1,
   type FourChamberSmoothReservoirDynamicsReviewReportV1,
 } from "@/engine/mechanics2/benches/FourChamberSmoothReservoirDynamicsReviewBench";
+import smoothReservoirDynamicsReport
+  from "@/data/mechanics2/reports/four-chamber-smooth-reservoir-dynamics-review-report-v1.json";
 
 describe("FourChamberSmoothReservoirDynamicsReviewBench V1", () => {
   let report: FourChamberSmoothReservoirDynamicsReviewReportV1;
@@ -34,8 +36,17 @@ describe("FourChamberSmoothReservoirDynamicsReviewBench V1", () => {
       String(point.scenarioId).startsWith("stress"));
     expect(stressPoints.map((point) => point.scenarioId)).toEqual(["stress-56", "stress-84", "stress-112"]);
     expect(stressPoints.every((point) => point.effectiveStatus === "pass")).toBe(true);
+    expect(stressPoints.every((point) => point.failureReasons.length === 0)).toBe(true);
+    expect(stressPoints.every((point) => point.effectiveFailureReasons.length === 0)).toBe(true);
     expect(stressPoints.every((point) => point.finalReservoirStepMl === 0)).toBe(true);
     expect(stressPoints.every((point) => point.hardLimiterDutyFraction === 0)).toBe(true);
     expect(report.summary.stressRepeatable).toBe(true);
+  });
+
+  it("keeps the committed smooth dynamics artifact aligned with the rerun summary", () => {
+    report ??= runFourChamberSmoothReservoirDynamicsReviewBenchV1();
+    expect(smoothReservoirDynamicsReport.reportId).toBe(report.reportId);
+    expect(smoothReservoirDynamicsReport.summary).toEqual(report.summary);
+    expect(smoothReservoirDynamicsReport.decision).toEqual(report.decision);
   });
 });

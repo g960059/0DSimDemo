@@ -41,9 +41,9 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: target `preload-low` source-surface dt input parity /
-normalization. Runtime wiring, reservoir broad retuning, AV-plane work, and
-LandAtrial re-entry remain blocked.
+Next PR target: promote source-ledger input normalization into the next
+source/reservoir contract review. Runtime wiring, reservoir broad retuning,
+AV-plane work, and LandAtrial re-entry remain blocked.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -137,6 +137,12 @@ Included:
   source/reservoir numerics review and `dt-half` reservoir magnitude parity.
 - PreloadLowDtHalfReservoirParityAttributionBench V1 for classifying the
   localized `preload-low` `dt-half` reservoir magnitude parity residual.
+- PreloadLowSourceDtInputNormalizationBench V1 for separating status-rate
+  source evaluation from source-ledger forward-ejection input on the localized
+  residual.
+- FourChamberSourceDtInputNormalizedAssembledReviewBench V1 for applying
+  source-ledger input normalization to the full selected smooth-reservoir
+  assembled envelope.
 
 Excluded:
 
@@ -539,6 +545,21 @@ Next gates:
     should target preload-low source-surface dt input parity / normalization,
     not reservoir feedback retuning, before runtime, AV-plane, or LandAtrial
     unlock.
+52. Preload-low source `dt` input normalization: separating source status
+    evaluation from the source-ledger forward-ejection input gives a focused
+    normalization signal. Raw `dt-half` reservoir delta versus nominal is
+    ~15.39 mL, while canonical-ledger `dt-half` delta is 0 mL. Feedback and
+    hard-limiter duty are 0 on the compared preload-low points, canonical
+    ledger source statuses are clean, and status-rate source failures remain
+    reported.
+53. Source `dt` input normalized assembled review: applying source-ledger input
+    normalization to the selected smooth scaffold gives effective envelope
+    21/21 and `dt-half` reservoir parity 7/7 with no failed parity profiles.
+    Raw `dt-half` source failures remain visible at `preload-low`,
+    `afterload-high`, and `contractility-low`, normalized ledger statuses are
+    clean 7/7, and the hard limiter is free. This is a source/reservoir
+    contract signal only; runtime, AV-plane, LandAtrial, direct PV outflow
+    transfer, and morphology acceptance remain blocked.
 
 Parallel prep, not blocking the next strategic gate:
 

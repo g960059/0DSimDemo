@@ -1,0 +1,110 @@
+{
+  "reportId": "preload-low-source-dt-input-normalization-report-v1",
+  "gateId": "preloadLowSourceDtInputNormalizationV1",
+  "inputs": {
+    "selectedSmoothReservoirCandidateId": "smooth-knee20-gain035-bound24",
+    "profileId": "preload-low",
+    "leftPointId": "left-heart-preload-low",
+    "rightPointId": "right-heart-preload-low"
+  },
+  "variants": [
+    {
+      "variantId": "nominal-status-rate-ledger",
+      "scenarioId": "nominal",
+      "sourceLedgerSampleRateDivisor": null,
+      "rawStatus": "pass",
+      "rawFailureReasons": [],
+      "leftStatus": "pass",
+      "rightStatus": "pass",
+      "sourceLedgerLeftStatus": null,
+      "sourceLedgerRightStatus": null,
+      "statusLeftAovEjectedVolumeMl": null,
+      "statusRightPvEjectedVolumeMl": null,
+      "ledgerLeftAovEjectedVolumeMl": 55.823344,
+      "ledgerRightPvEjectedVolumeMl": 47.836758,
+      "maxAbsReservoirVolumeMl": 19.44746,
+      "finalReservoirStepMl": 1.112128,
+      "maxAbsAcceptedTransferMl": 1.771959,
+      "feedbackDutyFraction": 0,
+      "hardLimiterDutyFraction": 0
+    },
+    {
+      "variantId": "dt-half-status-rate-ledger",
+      "scenarioId": "dt-half",
+      "sourceLedgerSampleRateDivisor": null,
+      "rawStatus": "fail",
+      "rawFailureReasons": [
+        "left-surface-not-preserved",
+        "right-surface-not-preserved"
+      ],
+      "leftStatus": "fail",
+      "rightStatus": "fail",
+      "sourceLedgerLeftStatus": null,
+      "sourceLedgerRightStatus": null,
+      "statusLeftAovEjectedVolumeMl": null,
+      "statusRightPvEjectedVolumeMl": null,
+      "ledgerLeftAovEjectedVolumeMl": 51.804018,
+      "ledgerRightPvEjectedVolumeMl": 53.065292,
+      "maxAbsReservoirVolumeMl": 4.061485,
+      "finalReservoirStepMl": 0.176815,
+      "maxAbsAcceptedTransferMl": 2.551205,
+      "feedbackDutyFraction": 0,
+      "hardLimiterDutyFraction": 0
+    },
+    {
+      "variantId": "dt-half-canonical-ledger-input",
+      "scenarioId": "dt-half",
+      "sourceLedgerSampleRateDivisor": 2,
+      "rawStatus": "fail",
+      "rawFailureReasons": [
+        "left-surface-not-preserved",
+        "right-surface-not-preserved"
+      ],
+      "leftStatus": "fail",
+      "rightStatus": "fail",
+      "sourceLedgerLeftStatus": "pass",
+      "sourceLedgerRightStatus": "pass",
+      "statusLeftAovEjectedVolumeMl": 52.569654,
+      "statusRightPvEjectedVolumeMl": 48.334022,
+      "ledgerLeftAovEjectedVolumeMl": 55.823344,
+      "ledgerRightPvEjectedVolumeMl": 47.836758,
+      "maxAbsReservoirVolumeMl": 19.44746,
+      "finalReservoirStepMl": 1.112128,
+      "maxAbsAcceptedTransferMl": 1.771959,
+      "feedbackDutyFraction": 0,
+      "hardLimiterDutyFraction": 0
+    }
+  ],
+  "summary": {
+    "rawDtHalfDeltaMl": 15.385975,
+    "normalizedDtHalfDeltaMl": 0,
+    "rawDtHalfFeedbackDutyFraction": 0,
+    "normalizedDtHalfFeedbackDutyFraction": 0,
+    "rawDtHalfHardLimiterDutyFraction": 0,
+    "normalizedDtHalfHardLimiterDutyFraction": 0,
+    "normalizedLedgerStatusesClean": true,
+    "statusRateFailuresPreserved": true
+  },
+  "decision": {
+    "sourceDtInputNormalizationStatus": "source-dt-input-normalization-signal",
+    "nextAction": "Promote source-ledger input normalization to an assembled numerics review candidate. Keep status-rate source failures visible and do not retune reservoir feedback or directly transfer the standalone PV outflow lead.",
+    "blockedClaims": [
+      "runtime-wiring",
+      "true-four-chamber-dynamics",
+      "morphology-acceptance",
+      "reservoir-retuning",
+      "direct-pv-outflow-transfer",
+      "AV-plane-unlock",
+      "LandAtrial-unlock"
+    ]
+  },
+  "claimBoundary": {
+    "runtimeWiring": false,
+    "trueFourChamberDynamics": false,
+    "morphologyAcceptance": false,
+    "reservoirRetuning": false,
+    "directPvOutflowTransfer": false,
+    "AVPlaneUnlock": false,
+    "LandAtrialUnlock": false
+  }
+}

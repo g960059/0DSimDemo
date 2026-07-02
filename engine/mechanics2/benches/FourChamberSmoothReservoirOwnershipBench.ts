@@ -26,6 +26,7 @@ type ScenarioSpecV1 = {
   readonly scenarioId: ScenarioIdV1;
   readonly sampleRateMultiplier: number;
   readonly epochs: number;
+  readonly sourceLedgerSampleRateDivisor?: number;
 };
 
 type ProfileMapV1 = {
@@ -401,6 +402,7 @@ function runCandidateProfile(
       reservoirVolumeOwnershipBoundMl: candidate.reservoirVolumeOwnershipBoundMl,
       reservoirVolumeFeedbackGain01: candidate.reservoirVolumeFeedbackGain01,
       reservoirVolumeFeedbackKneeMl: candidate.reservoirVolumeFeedbackKneeMl,
+      sourceLedgerSampleRateDivisor: scenario.sourceLedgerSampleRateDivisor,
     },
   });
 }

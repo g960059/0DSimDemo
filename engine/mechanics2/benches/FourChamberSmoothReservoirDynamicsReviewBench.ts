@@ -104,16 +104,17 @@ FourChamberSmoothReservoirDynamicsReviewReportV1 {
       effectiveFailureReasonsFor(ownership, spec.scenarioId, spec.profileId),
     )
   );
-  const stressDynamics = ([56, 84, 112] as const).map((epochs) =>
-    dynamicsPoint(`stress-${epochs}`, runSelectedSmoothReservoirProfileV1({
+  const stressDynamics = ([56, 84, 112] as const).map((epochs) => {
+    const run = runSelectedSmoothReservoirProfileV1({
       scenarioId: "long-epochs",
       sampleRateMultiplier: 1,
       epochs,
       profileId: "preload-low",
       leftPointId: "left-heart-preload-low",
       rightPointId: "right-heart-preload-low",
-    }), [])
-  );
+    });
+    return dynamicsPoint(`stress-${epochs}`, run, stressEffectiveFailureReasonsFor(run));
+  });
   const dynamicsPoints = [...fullEnvelopeDynamics, ...stressDynamics];
   const selected = ownership.selectedCandidate;
   const hardLimiterFree = dynamicsPoints.every((point) => point.hardLimiterHitCount === 0);
@@ -251,6 +252,16 @@ function effectiveFailureReasonsFor(
   );
   if (point == null) throw new Error(`Missing selected ownership point ${scenarioId}/${profileId}`);
   return point.effectiveFailureReasons;
+}
+
+function stressEffectiveFailureReasonsFor(run: FourChamberSubsystemRunV1): readonly string[] {
+  const reasons = [...run.failureReasons];
+  if (run.status !== "pass" && reasons.length === 0) reasons.push("stress-run-failed");
+  const finalStep = run.finalState.finalReservoirStepMl;
+  if (finalStep == null || finalStep > 0.05) {
+    reasons.push("stress-final-reservoir-step-not-repeatable");
+  }
+  return [...new Set(reasons)];
 }
 
 function reservoirImbalanceMl(epoch: FourChamberSubsystemEpochV1): number {
