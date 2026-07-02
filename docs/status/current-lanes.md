@@ -159,6 +159,17 @@ sufficient for the missing v-loop or C1 continuity; the next architecture step
 must co-solve the continuous AV-plane coordinate with LA wall pressure, MV
 opening/loss, and venous reservoir inflow rather than add another scalar
 coordinate or pressure hook.
+A first isolated LA-AV-plane-MV-PV residual then co-solves LA blood volume,
+pulmonary venous reservoir pressure/flow, MV q-state flow, LA wall pressure,
+and an explicit AV-plane coordinate against prescribed LV pressure. It is a
+mixed/negative decision experiment, not an enablement path: best residual
+`residual-drive8-cap36-hyd004` reaches phase-oriented blood-volume LA PV 0/7,
+source-preserving figure-eight 0/7, MVF clean 3/7, prime waveform 0/7, and
+hidden-volume clean 6/7. The generated SVG marks MV opening/closure and the
+reservoir chord for visual review. This confirms the current isolated residual
+is still too weak; next work should strengthen the implicit LA-MV-PV-AVP
+residual or test a normal-form reservoir/booster split, not continue scalar
+pressure, coordinate, or passive-reservoir sweeps.
 Warm-replay lobe attribution, separated-state smokes, dual-lobe geometry,
 flow-oriented LA filling-rate drive, hidden-volume-free AV-plane ejection-rate
 reservoir oracles, AV-plane reservoir capacity/stretch + booster/wall-work,
