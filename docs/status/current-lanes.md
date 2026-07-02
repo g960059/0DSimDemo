@@ -162,14 +162,19 @@ coordinate or pressure hook.
 A first isolated LA-AV-plane-MV-PV residual then co-solves LA blood volume,
 pulmonary venous reservoir pressure/flow, MV q-state flow, LA wall pressure,
 and an explicit AV-plane coordinate against prescribed LV pressure. It is a
-mixed/negative decision experiment, not an enablement path: best residual
+mixed/negative decision experiment, not an enablement path. Best residual
 `residual-drive8-cap36-hyd004` reaches phase-oriented blood-volume LA PV 0/7,
 source-preserving figure-eight 0/7, MVF clean 3/7, prime waveform 0/7, and
-hidden-volume clean 6/7. The generated SVG marks MV opening/closure and the
-reservoir chord for visual review. This confirms the current isolated residual
-is still too weak; next work should strengthen the implicit LA-MV-PV-AVP
-residual or test a normal-form reservoir/booster split, not continue scalar
-pressure, coordinate, or passive-reservoir sweeps.
+hidden-volume clean 6/7. A minimal normal-form reservoir/booster pressure-state
+extension improves source-boundary cleanliness on the best variant but still
+leaves phase-oriented blood-volume LA PV 0/7 and source-preserving figure-eight
+0/7, so the missing v-loop is not solved by a passive pressure-state split. The
+generated SVG marks MV opening/closure and the reservoir chord and overlays the
+best normal-form variant for visual review. This confirms the isolated
+LA-AVP-MV-PV residual class is still too weak; next work should move beyond
+isolated prescribed-LV surfaces toward a stronger implicit full left-heart
+residual that owns LA wall pressure, MV opening/loss, pulmonary venous inflow,
+and AV-plane work together.
 Warm-replay lobe attribution, separated-state smokes, dual-lobe geometry,
 flow-oriented LA filling-rate drive, hidden-volume-free AV-plane ejection-rate
 reservoir oracles, AV-plane reservoir capacity/stretch + booster/wall-work,

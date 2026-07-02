@@ -35,6 +35,21 @@ describe("IsolatedLaAvpMvPvResidualBench V1", () => {
       mvfClean: 3,
       primePass: 0,
     });
+    const bestNormalForm = report.variantSummaries
+      .filter((summary) => summary.variantId.startsWith("normal-form-"))
+      .sort((a, b) =>
+        b.sourceBoundaryClean - a.sourceBoundaryClean
+        || b.mvfClean - a.mvfClean
+        || b.maxVLoopArea - a.maxVLoopArea
+      )[0]!;
+    expect(bestNormalForm).toMatchObject({
+      variantId: "normal-form-r10-b2-release045-cap40",
+      figureEightPass: 0,
+      sourcePreservingFigureEight: 0,
+      sourceBoundaryClean: 7,
+      hiddenVolumeClean: 6,
+      mvfClean: 3,
+    });
   });
 
   it("classifies the remaining blocker as phase-oriented blood-volume PV plus source/MVF hygiene", () => {
