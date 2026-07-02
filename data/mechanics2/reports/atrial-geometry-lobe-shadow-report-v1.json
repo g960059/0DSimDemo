@@ -1,0 +1,894 @@
+{
+  "reportId": "atrial-geometry-lobe-shadow-report-v1",
+  "gateId": "atrialGeometryLobeShadowV1",
+  "shadowMode": "readback-only-effective-geometry-no-hidden-blood-volume-no-runtime",
+  "variants": [
+    {
+      "variantId": "geometry-gain00",
+      "atrialGeometryGainMl": 0,
+      "description": "No effective AV-plane geometry delta; AtrialFiber pressure is replayed against blood volume only."
+    },
+    {
+      "variantId": "geometry-gain06",
+      "atrialGeometryGainMl": 6,
+      "description": "Small readback-only atrial effective geometry delta from LV shortening."
+    },
+    {
+      "variantId": "geometry-gain12",
+      "atrialGeometryGainMl": 12,
+      "description": "Moderate readback-only atrial effective geometry delta from LV shortening."
+    },
+    {
+      "variantId": "geometry-gain18",
+      "atrialGeometryGainMl": 18,
+      "description": "Large readback-only atrial effective geometry delta from LV shortening."
+    }
+  ],
+  "rows": [
+    {
+      "profileId": "normal-hr75",
+      "sourcePointId": "left-heart-normal-hr75",
+      "variantId": "geometry-gain00",
+      "atrialGeometryGainMl": 0,
+      "lobeQuality": {
+        "selfIntersections": 31,
+        "aLoopAreaProxyMmHgMl": 52.502586,
+        "vLoopAreaProxyMmHgMl": 0.742387,
+        "signedALoopAreaMmHgMl": 52.502586,
+        "signedVLoopAreaMmHgMl": -0.742387,
+        "opposedSignedLobes": true,
+        "vMeanVolumeMinusAMeanVolumeMl": 17.28422,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 6.292795,
+      "meanPressureDeltaFromSourceMmHg": 7.596903,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr75",
+      "sourcePointId": "left-heart-normal-hr75",
+      "variantId": "geometry-gain06",
+      "atrialGeometryGainMl": 6,
+      "lobeQuality": {
+        "selfIntersections": 3,
+        "aLoopAreaProxyMmHgMl": 51.912837,
+        "vLoopAreaProxyMmHgMl": 0.488639,
+        "signedALoopAreaMmHgMl": 51.912837,
+        "signedVLoopAreaMmHgMl": -0.488639,
+        "opposedSignedLobes": true,
+        "vMeanVolumeMinusAMeanVolumeMl": 17.28422,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 6,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 6.292795,
+      "meanPressureDeltaFromSourceMmHg": 7.575421,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr75",
+      "sourcePointId": "left-heart-normal-hr75",
+      "variantId": "geometry-gain12",
+      "atrialGeometryGainMl": 12,
+      "lobeQuality": {
+        "selfIntersections": 3,
+        "aLoopAreaProxyMmHgMl": 51.343411,
+        "vLoopAreaProxyMmHgMl": 0.08198,
+        "signedALoopAreaMmHgMl": 51.343411,
+        "signedVLoopAreaMmHgMl": -0.08198,
+        "opposedSignedLobes": true,
+        "vMeanVolumeMinusAMeanVolumeMl": 17.28422,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 12,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 6.292795,
+      "meanPressureDeltaFromSourceMmHg": 7.553854,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr75",
+      "sourcePointId": "left-heart-normal-hr75",
+      "variantId": "geometry-gain18",
+      "atrialGeometryGainMl": 18,
+      "lobeQuality": {
+        "selfIntersections": 3,
+        "aLoopAreaProxyMmHgMl": 50.619097,
+        "vLoopAreaProxyMmHgMl": 0.636571,
+        "signedALoopAreaMmHgMl": 50.619097,
+        "signedVLoopAreaMmHgMl": 0.636571,
+        "opposedSignedLobes": false,
+        "vMeanVolumeMinusAMeanVolumeMl": 17.28422,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 18,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 6.292795,
+      "meanPressureDeltaFromSourceMmHg": 7.532316,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "sourcePointId": "left-heart-normal-hr90",
+      "variantId": "geometry-gain00",
+      "atrialGeometryGainMl": 0,
+      "lobeQuality": {
+        "selfIntersections": 31,
+        "aLoopAreaProxyMmHgMl": 57.396134,
+        "vLoopAreaProxyMmHgMl": 0.7924,
+        "signedALoopAreaMmHgMl": 57.396134,
+        "signedVLoopAreaMmHgMl": -0.7924,
+        "opposedSignedLobes": true,
+        "vMeanVolumeMinusAMeanVolumeMl": 10.790013,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 9.432909,
+      "meanPressureDeltaFromSourceMmHg": 8.101705,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "sourcePointId": "left-heart-normal-hr90",
+      "variantId": "geometry-gain06",
+      "atrialGeometryGainMl": 6,
+      "lobeQuality": {
+        "selfIntersections": 3,
+        "aLoopAreaProxyMmHgMl": 55.84677,
+        "vLoopAreaProxyMmHgMl": 0.218176,
+        "signedALoopAreaMmHgMl": 55.84677,
+        "signedVLoopAreaMmHgMl": -0.218176,
+        "opposedSignedLobes": true,
+        "vMeanVolumeMinusAMeanVolumeMl": 10.790013,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 6,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 9.432909,
+      "meanPressureDeltaFromSourceMmHg": 8.077549,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "sourcePointId": "left-heart-normal-hr90",
+      "variantId": "geometry-gain12",
+      "atrialGeometryGainMl": 12,
+      "lobeQuality": {
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 54.488368,
+        "vLoopAreaProxyMmHgMl": 0.294823,
+        "signedALoopAreaMmHgMl": 54.488368,
+        "signedVLoopAreaMmHgMl": 0.294823,
+        "opposedSignedLobes": false,
+        "vMeanVolumeMinusAMeanVolumeMl": 10.790013,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 12,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 9.432909,
+      "meanPressureDeltaFromSourceMmHg": 8.053096,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "sourcePointId": "left-heart-normal-hr90",
+      "variantId": "geometry-gain18",
+      "atrialGeometryGainMl": 18,
+      "lobeQuality": {
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 53.262901,
+        "vLoopAreaProxyMmHgMl": 0.772123,
+        "signedALoopAreaMmHgMl": 53.262901,
+        "signedVLoopAreaMmHgMl": 0.772123,
+        "opposedSignedLobes": false,
+        "vMeanVolumeMinusAMeanVolumeMl": 10.790013,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 18,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 9.432909,
+      "meanPressureDeltaFromSourceMmHg": 8.029131,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "sourcePointId": "left-heart-preload-low",
+      "variantId": "geometry-gain00",
+      "atrialGeometryGainMl": 0,
+      "lobeQuality": {
+        "selfIntersections": 14,
+        "aLoopAreaProxyMmHgMl": 80.399982,
+        "vLoopAreaProxyMmHgMl": 1.320927,
+        "signedALoopAreaMmHgMl": 80.399982,
+        "signedVLoopAreaMmHgMl": -1.320927,
+        "opposedSignedLobes": true,
+        "vMeanVolumeMinusAMeanVolumeMl": 15.063768,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 6.850903,
+      "meanPressureDeltaFromSourceMmHg": 5.61295,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "sourcePointId": "left-heart-preload-low",
+      "variantId": "geometry-gain06",
+      "atrialGeometryGainMl": 6,
+      "lobeQuality": {
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 79.202393,
+        "vLoopAreaProxyMmHgMl": 1.306327,
+        "signedALoopAreaMmHgMl": 79.202393,
+        "signedVLoopAreaMmHgMl": -1.306327,
+        "opposedSignedLobes": true,
+        "vMeanVolumeMinusAMeanVolumeMl": 15.063768,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 6,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 6.850903,
+      "meanPressureDeltaFromSourceMmHg": 5.597363,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "sourcePointId": "left-heart-preload-low",
+      "variantId": "geometry-gain12",
+      "atrialGeometryGainMl": 12,
+      "lobeQuality": {
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 78.071955,
+        "vLoopAreaProxyMmHgMl": 1.205504,
+        "signedALoopAreaMmHgMl": 78.071955,
+        "signedVLoopAreaMmHgMl": -1.205504,
+        "opposedSignedLobes": true,
+        "vMeanVolumeMinusAMeanVolumeMl": 15.063768,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 12,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 6.850903,
+      "meanPressureDeltaFromSourceMmHg": 5.578529,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "sourcePointId": "left-heart-preload-low",
+      "variantId": "geometry-gain18",
+      "atrialGeometryGainMl": 18,
+      "lobeQuality": {
+        "selfIntersections": 3,
+        "aLoopAreaProxyMmHgMl": 76.750385,
+        "vLoopAreaProxyMmHgMl": 0.643821,
+        "signedALoopAreaMmHgMl": 76.750385,
+        "signedVLoopAreaMmHgMl": -0.643821,
+        "opposedSignedLobes": true,
+        "vMeanVolumeMinusAMeanVolumeMl": 15.063768,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 18,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 6.850903,
+      "meanPressureDeltaFromSourceMmHg": 5.558868,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-high",
+      "sourcePointId": "left-heart-preload-high",
+      "variantId": "geometry-gain00",
+      "atrialGeometryGainMl": 0,
+      "lobeQuality": {
+        "selfIntersections": 47,
+        "aLoopAreaProxyMmHgMl": 36.76553,
+        "vLoopAreaProxyMmHgMl": 0.432731,
+        "signedALoopAreaMmHgMl": 36.76553,
+        "signedVLoopAreaMmHgMl": -0.432731,
+        "opposedSignedLobes": true,
+        "vMeanVolumeMinusAMeanVolumeMl": 17.603197,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 5.504537,
+      "meanPressureDeltaFromSourceMmHg": 10.465637,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-high",
+      "sourcePointId": "left-heart-preload-high",
+      "variantId": "geometry-gain06",
+      "atrialGeometryGainMl": 6,
+      "lobeQuality": {
+        "selfIntersections": 3,
+        "aLoopAreaProxyMmHgMl": 36.424504,
+        "vLoopAreaProxyMmHgMl": 0.214701,
+        "signedALoopAreaMmHgMl": 36.424504,
+        "signedVLoopAreaMmHgMl": 0.214701,
+        "opposedSignedLobes": false,
+        "vMeanVolumeMinusAMeanVolumeMl": 17.603197,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 6,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 5.504537,
+      "meanPressureDeltaFromSourceMmHg": 10.443151,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-high",
+      "sourcePointId": "left-heart-preload-high",
+      "variantId": "geometry-gain12",
+      "atrialGeometryGainMl": 12,
+      "lobeQuality": {
+        "selfIntersections": 3,
+        "aLoopAreaProxyMmHgMl": 35.922779,
+        "vLoopAreaProxyMmHgMl": 1.03799,
+        "signedALoopAreaMmHgMl": 35.922779,
+        "signedVLoopAreaMmHgMl": 1.03799,
+        "opposedSignedLobes": false,
+        "vMeanVolumeMinusAMeanVolumeMl": 17.603197,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 12,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 5.504537,
+      "meanPressureDeltaFromSourceMmHg": 10.420577,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-high",
+      "sourcePointId": "left-heart-preload-high",
+      "variantId": "geometry-gain18",
+      "atrialGeometryGainMl": 18,
+      "lobeQuality": {
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 35.464834,
+        "vLoopAreaProxyMmHgMl": 1.822935,
+        "signedALoopAreaMmHgMl": 35.464834,
+        "signedVLoopAreaMmHgMl": 1.822935,
+        "opposedSignedLobes": false,
+        "vMeanVolumeMinusAMeanVolumeMl": 17.603197,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 18,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 5.504537,
+      "meanPressureDeltaFromSourceMmHg": 10.397834,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "sourcePointId": "left-heart-afterload-high",
+      "variantId": "geometry-gain00",
+      "atrialGeometryGainMl": 0,
+      "lobeQuality": {
+        "selfIntersections": 45,
+        "aLoopAreaProxyMmHgMl": 47.226153,
+        "vLoopAreaProxyMmHgMl": 0.331883,
+        "signedALoopAreaMmHgMl": 47.226153,
+        "signedVLoopAreaMmHgMl": -0.331883,
+        "opposedSignedLobes": true,
+        "vMeanVolumeMinusAMeanVolumeMl": 11.889523,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 7.802158,
+      "meanPressureDeltaFromSourceMmHg": 9.469188,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "sourcePointId": "left-heart-afterload-high",
+      "variantId": "geometry-gain06",
+      "atrialGeometryGainMl": 6,
+      "lobeQuality": {
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 46.400816,
+        "vLoopAreaProxyMmHgMl": 0.184787,
+        "signedALoopAreaMmHgMl": 46.400816,
+        "signedVLoopAreaMmHgMl": 0.184787,
+        "opposedSignedLobes": false,
+        "vMeanVolumeMinusAMeanVolumeMl": 11.889523,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 6,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 7.802158,
+      "meanPressureDeltaFromSourceMmHg": 9.442857,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "sourcePointId": "left-heart-afterload-high",
+      "variantId": "geometry-gain12",
+      "atrialGeometryGainMl": 12,
+      "lobeQuality": {
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 45.665438,
+        "vLoopAreaProxyMmHgMl": 0.67171,
+        "signedALoopAreaMmHgMl": 45.665438,
+        "signedVLoopAreaMmHgMl": 0.67171,
+        "opposedSignedLobes": false,
+        "vMeanVolumeMinusAMeanVolumeMl": 11.889523,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 12,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 7.802158,
+      "meanPressureDeltaFromSourceMmHg": 9.416883,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "sourcePointId": "left-heart-afterload-high",
+      "variantId": "geometry-gain18",
+      "atrialGeometryGainMl": 18,
+      "lobeQuality": {
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 44.993594,
+        "vLoopAreaProxyMmHgMl": 1.133828,
+        "signedALoopAreaMmHgMl": 44.993594,
+        "signedVLoopAreaMmHgMl": 1.133828,
+        "opposedSignedLobes": false,
+        "vMeanVolumeMinusAMeanVolumeMl": 11.889523,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 18,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 7.802158,
+      "meanPressureDeltaFromSourceMmHg": 9.391645,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "sourcePointId": "left-heart-contractility-low",
+      "variantId": "geometry-gain00",
+      "atrialGeometryGainMl": 0,
+      "lobeQuality": {
+        "selfIntersections": 49,
+        "aLoopAreaProxyMmHgMl": 19.556326,
+        "vLoopAreaProxyMmHgMl": 0.004024,
+        "signedALoopAreaMmHgMl": 19.556326,
+        "signedVLoopAreaMmHgMl": -0.004024,
+        "opposedSignedLobes": true,
+        "vMeanVolumeMinusAMeanVolumeMl": 4.910395,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 9.228101,
+      "meanPressureDeltaFromSourceMmHg": 11.713557,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "sourcePointId": "left-heart-contractility-low",
+      "variantId": "geometry-gain06",
+      "atrialGeometryGainMl": 6,
+      "lobeQuality": {
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 19.383016,
+        "vLoopAreaProxyMmHgMl": 0.158887,
+        "signedALoopAreaMmHgMl": 19.383016,
+        "signedVLoopAreaMmHgMl": 0.158887,
+        "opposedSignedLobes": false,
+        "vMeanVolumeMinusAMeanVolumeMl": 4.910395,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 6,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 9.228101,
+      "meanPressureDeltaFromSourceMmHg": 11.68316,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "sourcePointId": "left-heart-contractility-low",
+      "variantId": "geometry-gain12",
+      "atrialGeometryGainMl": 12,
+      "lobeQuality": {
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 19.214528,
+        "vLoopAreaProxyMmHgMl": 0.315189,
+        "signedALoopAreaMmHgMl": 19.214528,
+        "signedVLoopAreaMmHgMl": 0.315189,
+        "opposedSignedLobes": false,
+        "vMeanVolumeMinusAMeanVolumeMl": 4.910395,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 12,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 9.228101,
+      "meanPressureDeltaFromSourceMmHg": 11.654434,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "sourcePointId": "left-heart-contractility-low",
+      "variantId": "geometry-gain18",
+      "atrialGeometryGainMl": 18,
+      "lobeQuality": {
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 19.050259,
+        "vLoopAreaProxyMmHgMl": 0.465695,
+        "signedALoopAreaMmHgMl": 19.050259,
+        "signedVLoopAreaMmHgMl": 0.465695,
+        "opposedSignedLobes": false,
+        "vMeanVolumeMinusAMeanVolumeMl": 4.910395,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 18,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 9.228101,
+      "meanPressureDeltaFromSourceMmHg": 11.62694,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "sourcePointId": "left-heart-contractility-high",
+      "variantId": "geometry-gain00",
+      "atrialGeometryGainMl": 0,
+      "lobeQuality": {
+        "selfIntersections": 28,
+        "aLoopAreaProxyMmHgMl": 82.88653,
+        "vLoopAreaProxyMmHgMl": 1.089368,
+        "signedALoopAreaMmHgMl": 82.88653,
+        "signedVLoopAreaMmHgMl": -1.089368,
+        "opposedSignedLobes": true,
+        "vMeanVolumeMinusAMeanVolumeMl": 14.768199,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 0,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 6.649951,
+      "meanPressureDeltaFromSourceMmHg": 6.880472,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "sourcePointId": "left-heart-contractility-high",
+      "variantId": "geometry-gain06",
+      "atrialGeometryGainMl": 6,
+      "lobeQuality": {
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 81.623049,
+        "vLoopAreaProxyMmHgMl": 0.962948,
+        "signedALoopAreaMmHgMl": 81.623049,
+        "signedVLoopAreaMmHgMl": -0.962948,
+        "opposedSignedLobes": true,
+        "vMeanVolumeMinusAMeanVolumeMl": 14.768199,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 6,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 6.649951,
+      "meanPressureDeltaFromSourceMmHg": 6.861984,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "sourcePointId": "left-heart-contractility-high",
+      "variantId": "geometry-gain12",
+      "atrialGeometryGainMl": 12,
+      "lobeQuality": {
+        "selfIntersections": 3,
+        "aLoopAreaProxyMmHgMl": 80.233637,
+        "vLoopAreaProxyMmHgMl": 0.49385,
+        "signedALoopAreaMmHgMl": 80.233637,
+        "signedVLoopAreaMmHgMl": -0.49385,
+        "opposedSignedLobes": true,
+        "vMeanVolumeMinusAMeanVolumeMl": 14.768199,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 12,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 6.649951,
+      "meanPressureDeltaFromSourceMmHg": 6.84208,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "sourcePointId": "left-heart-contractility-high",
+      "variantId": "geometry-gain18",
+      "atrialGeometryGainMl": 18,
+      "lobeQuality": {
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 78.518318,
+        "vLoopAreaProxyMmHgMl": 0.272128,
+        "signedALoopAreaMmHgMl": 78.518318,
+        "signedVLoopAreaMmHgMl": 0.272128,
+        "opposedSignedLobes": false,
+        "vMeanVolumeMinusAMeanVolumeMl": 14.768199,
+        "lobeQualityPass": false,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "maxAtrialGeometryDeltaMl": 18,
+      "maxHiddenBloodVolumeSourceMl": 0,
+      "aPrimeReadbackPresent": true,
+      "aPrimePeakAbsCmPerSec": 6.649951,
+      "meanPressureDeltaFromSourceMmHg": 6.821227,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    }
+  ],
+  "variantSummaries": [
+    {
+      "variantId": "geometry-gain00",
+      "lobeQualityPass": 0,
+      "aPrimeReadbackPresentCount": 7,
+      "hiddenVolumeCleanCount": 7,
+      "meanMaxAtrialGeometryDeltaMl": 0,
+      "maxAPrimePeakAbsCmPerSec": 9.432909
+    },
+    {
+      "variantId": "geometry-gain06",
+      "lobeQualityPass": 0,
+      "aPrimeReadbackPresentCount": 7,
+      "hiddenVolumeCleanCount": 7,
+      "meanMaxAtrialGeometryDeltaMl": 6,
+      "maxAPrimePeakAbsCmPerSec": 9.432909
+    },
+    {
+      "variantId": "geometry-gain12",
+      "lobeQualityPass": 0,
+      "aPrimeReadbackPresentCount": 7,
+      "hiddenVolumeCleanCount": 7,
+      "meanMaxAtrialGeometryDeltaMl": 12,
+      "maxAPrimePeakAbsCmPerSec": 9.432909
+    },
+    {
+      "variantId": "geometry-gain18",
+      "lobeQualityPass": 0,
+      "aPrimeReadbackPresentCount": 7,
+      "hiddenVolumeCleanCount": 7,
+      "meanMaxAtrialGeometryDeltaMl": 18,
+      "maxAPrimePeakAbsCmPerSec": 9.432909
+    }
+  ],
+  "bestVariant": {
+    "variantId": "geometry-gain00",
+    "lobeQualityPass": 0,
+    "aPrimeReadbackPresentCount": 7,
+    "hiddenVolumeCleanCount": 7,
+    "meanMaxAtrialGeometryDeltaMl": 0,
+    "maxAPrimePeakAbsCmPerSec": 9.432909
+  },
+  "summary": {
+    "totalProfiles": 7,
+    "bestVariantId": "geometry-gain00",
+    "bestLobeQualityPass": 0,
+    "bestAPrimeReadbackPresentCount": 7,
+    "bestHiddenVolumeCleanCount": 7,
+    "baselineLobeQualityPass": 0
+  },
+  "decision": {
+    "atrialGeometryLobeShadowStatus": "atrial-geometry-lobe-shadow-blocked",
+    "nextAction": "Keep AV-plane enablement blocked; readback-only geometry did not improve atrial lobe quality enough.",
+    "blockedClaims": [
+      "runtime-wiring",
+      "morphology-acceptance",
+      "AV-plane-enable",
+      "a-prime-physiology",
+      "LandAtrial-unlock"
+    ]
+  },
+  "claimBoundary": {
+    "runtimeWiring": false,
+    "morphologyAcceptance": false,
+    "AVPlaneEnablement": false,
+    "aPrimePhysiologyClaim": false,
+    "LandAtrialUnlock": false
+  },
+  "normalizedSha256": "db5f3447331482e5af6b36d51108ea43c105ec0c6332c20ce61bc75c6b54a5f6"
+}
