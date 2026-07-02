@@ -33,6 +33,9 @@ and carry work through PR, CI, merge, and cleanup.
   pays for itself. Skip lightweight gates for small coordination edits.
 - Delegate coding when it pays off, but take over quickly if the task is bounded
   or a delegate stalls.
+- Treat PR auto-review comments as optional signal, not a required workflow
+  gate. Check them only when the user asks, CI/review state indicates risk, or
+  the phase has high scientific/runtime risk.
 - Use the current review/oracle policy from `docs/status/current-lanes.md` for
   high-risk plan/code and major direction checkpoints.
 - When 2-3 lanes run in parallel worktrees/branches, follow the Parallel Lane

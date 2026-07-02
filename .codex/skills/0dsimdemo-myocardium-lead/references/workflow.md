@@ -67,6 +67,12 @@ routing surfaces, not phase archives or review transcripts. Keep them compact
 enough that a fresh agent can find the current frontier, blocked claims,
 owner-visible risk, and next action quickly.
 
+For hard model-design phases where the owner prioritizes development speed and
+compaction-safe continuity, do not over-optimize `current-lanes.md` for brevity.
+It may carry more intermediate evidence, no-go routing, and next-experiment
+context than usual when that reduces reconstruction cost. Still avoid raw
+external review dumps and keep claim boundaries explicit.
+
 - Add or change a status file only when the PR changes routing, ownership,
   default posture, blocked claims, acceptance criteria, or the next experiment.
   If the PR only adds historical evidence with no routing impact, keep the
@@ -101,6 +107,10 @@ owner-visible risk, and next action quickly.
   the lead decides which feedback to adopt.
 - Skip plan review for small, mechanical, or already-chartered changes.
 - Skip code review for low-risk docs/coordination edits after local verification.
+- Do not make PR auto-review comments a mandatory stop. Inspect and address them
+  only when the user explicitly asks, a human/blocking review appears, CI points
+  at a review-relevant failure, or the PR is a major scientific/runtime
+  checkpoint where the extra signal is likely worth the delay.
 - Set an informal delegate TTL. If a delegate stalls on a bounded task, continue
   locally rather than waiting indefinitely.
 
@@ -183,8 +193,9 @@ Do not claim more than the artifact earns:
 3. Push and create a PR with summary, verification, and claim boundary.
 4. Watch CI. If CI is heavy, rely on required checks and do not add unnecessary
    local full-suite reruns.
-5. Address real review findings. Keep oracle PR review optional unless the PR is
-   a major checkpoint.
+5. Address human/blocking review findings. Treat PR auto-review as optional
+   signal per the review-gate policy above; keep oracle PR review optional
+   unless the PR is a major checkpoint.
 6. Merge when checks and gates are satisfied.
 7. Fast-forward the main worktree to `origin/main`.
 8. Remove the phase worktree and local/remote branch when safe.
