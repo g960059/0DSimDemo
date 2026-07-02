@@ -138,6 +138,8 @@ Current scope:
   attribution for the closed-loop replay residual before pressure substitution.
 - `benches/DecomposedLaPressureContractBench.ts`: shadow decomposed LA
   pressure contract signal separating filling baseline from fiber active pulse.
+- `benches/LaLatePeakResidualAttributionBench.ts`: attribution of the
+  decomposed LA pressure contract's non-focused late-peak residuals.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
@@ -184,6 +186,7 @@ Planning docs:
 - [AtrialFiberPack closed-loop replay V1](../../docs/mechanics2/atrial-fiber-pack-closed-loop-replay-v1.md)
 - [Atrial pressure parity attribution V1](../../docs/mechanics2/atrial-pressure-parity-attribution-v1.md)
 - [Decomposed LA pressure contract V1](../../docs/mechanics2/decomposed-la-pressure-contract-v1.md)
+- [LA late-peak residual attribution V1](../../docs/mechanics2/la-late-peak-residual-attribution-v1.md)
 - [ADR-MYO-003](../../docs/myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 
 Claim boundary:
