@@ -39,7 +39,8 @@ export type LeftHeartVolumeSafetyModeV2 = "hard-clamp" | "soft-pressure";
 export type PulmonaryVenousBoundaryModeV2 = "fixed-pressure" | "compliance-node";
 export type LeftAtrialPressureSourceModeV2 =
   | "empirical-a-wave"
-  | "fiber-active-a-window-gated-shadow";
+  | "fiber-active-a-window-gated-shadow"
+  | "fiber-chamber-total-pressure-shadow";
 
 export type LeftHeartSubsystemParamsV2 = LeftHeartSubsystemParamsV1 & {
   readonly transactionMode: LeftHeartTransactionModeV2;
@@ -409,6 +410,7 @@ function acceptLeftHeartCandidateV2(input: {
     input.candidate.laVolumeMl,
     input.params,
     lapFiberActivePulse01,
+    laFiberChamber.pressureRawMmHg,
   );
   const lapSafetyMmHg = safetyPressureMmHg(
     input.candidate.laVolumeMl,
@@ -627,7 +629,11 @@ function leftAtrialPressureRaw(
   laVolumeMl: number,
   params: LeftHeartSubsystemParamsV2,
   fiberActivePulse01: number,
+  fiberChamberPressureMmHg: number,
 ): number {
+  if (params.laPressureSourceMode === "fiber-chamber-total-pressure-shadow") {
+    return fiberChamberPressureMmHg;
+  }
   const activePulse01 = params.laPressureSourceMode === "fiber-active-a-window-gated-shadow"
     ? fiberActivePulse01
     : raisedCosineWindow(theta, params.laAWaveStartTheta, params.laAWaveEndTheta);
