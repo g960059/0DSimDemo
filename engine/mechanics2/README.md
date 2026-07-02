@@ -66,6 +66,9 @@ Current scope:
 - `benches/FourChamberSubsystemResidualReviewBench.ts`: residual/numerics
   review for the selected four-chamber subsystem scaffold under nominal,
   `dt-half`, and longer-epoch probes.
+- `benches/PreloadLowReservoirNumericsScanBench.ts`: focused preload-low
+  reservoir gain/compliance scan after the four-chamber subsystem residual
+  review.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
@@ -92,6 +95,7 @@ Planning docs:
 - [Four-chamber assembly smoke V1](../../docs/mechanics2/four-chamber-assembly-smoke-v1.md)
 - [Four-chamber subsystem smoke V1](../../docs/mechanics2/four-chamber-subsystem-smoke-v1.md)
 - [Four-chamber subsystem residual review V1](../../docs/mechanics2/four-chamber-subsystem-residual-review-v1.md)
+- [Preload-low reservoir numerics scan V1](../../docs/mechanics2/preload-low-reservoir-numerics-scan-v1.md)
 - [ADR-MYO-003](../../docs/myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 
 Claim boundary:

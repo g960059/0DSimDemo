@@ -41,10 +41,11 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: fix the `preload-low` reservoir/numerics residual and dt-half
-surface-preservation failures found by the four-chamber subsystem residual
-review. Do not start runtime wiring, AV-plane work, or LandAtrial re-entry from
-the subsystem smoke alone.
+Next PR target: classify the `dt-half/preload-low` left/right source-surface
+loss. A focused reservoir gain/compliance scan bounded long-epoch shuttle but
+did not fix the dt-half surface preservation failure. Do not start runtime
+wiring, AV-plane work, or LandAtrial re-entry from subsystem smoke or reservoir
+scan evidence alone.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -94,6 +95,8 @@ Included:
   epoch-level sidecar four-chamber subsystem smoke.
 - FourChamberSubsystemResidualReviewBench V1 for nominal, `dt-half`, and
   long-epoch residual/numerics review of the selected scaffold.
+- PreloadLowReservoirNumericsScanBench V1 for the focused `preload-low`
+  reservoir gain/compliance scan.
 
 Excluded:
 
@@ -334,6 +337,13 @@ Next gates:
     This blocks further expansion and points next to preload-low reservoir /
     numerics ownership before runtime, AV-plane, LandAtrial, or morphology
     acceptance.
+33. Preload-low reservoir numerics scan: scanning 18 reservoir gain/compliance
+    candidates finds no preload-low all-scenario pass. The best validated
+    candidate (`gain06-compliance50`) reaches 18/21 full-envelope points and
+    bounds max reservoir volume to ~12.6 mL, but still fails
+    `dt-half/preload-low` through left/right surface preservation. This closes
+    simple reservoir gain/compliance tuning as the fix and points next to
+    dt-half source-surface or subsystem numerics ownership.
 
 Parallel prep, not blocking the next strategic gate:
 
