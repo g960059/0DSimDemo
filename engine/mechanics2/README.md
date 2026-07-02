@@ -142,6 +142,8 @@ Current scope:
   decomposed LA pressure contract's non-focused late-peak residuals.
 - `benches/LaPressureShadowSubstitutionBench.ts`: shadow MV valve replay using
   the decomposed LA pressure contract without source-surface or runtime commit.
+- `benches/LaActivePulseMvReplayRefinementBench.ts`: shadow active-pulse
+  shaping shootout for preserving MV replay before any source substitution.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
@@ -190,6 +192,7 @@ Planning docs:
 - [Decomposed LA pressure contract V1](../../docs/mechanics2/decomposed-la-pressure-contract-v1.md)
 - [LA late-peak residual attribution V1](../../docs/mechanics2/la-late-peak-residual-attribution-v1.md)
 - [LA pressure shadow substitution V1](../../docs/mechanics2/la-pressure-shadow-substitution-v1.md)
+- [LA active-pulse MV replay refinement V1](../../docs/mechanics2/la-active-pulse-mv-replay-refinement-v1.md)
 - [ADR-MYO-003](../../docs/myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 
 Claim boundary:

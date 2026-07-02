@@ -59,9 +59,8 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: classify/refine the decomposed LA active-pulse and MV replay
-residual after the shadow substitution smoke showed clean pressure-gradient
-support but blocked source substitution. Runtime wiring, reservoir broad
+Next PR target: shadow decomposed-LAP substitution candidate using the selected
+`fiber-active-a-window-gated` pulse shape. Runtime wiring, reservoir broad
 retuning, AV-plane work, and LandAtrial re-entry remain blocked.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
@@ -180,6 +179,8 @@ Included:
   substitution.
 - LaPressureShadowSubstitutionBench V1 for shadow MV valve replay using the
   decomposed LA pressure contract without source-surface or runtime commit.
+- LaActivePulseMvReplayRefinementBench V1 for classifying active-pulse shaping
+  variants before any LAP source-surface substitution.
 
 Excluded:
 
@@ -652,6 +653,13 @@ Next gates:
     work should classify/refine the decomposed active pulse and MV replay
     response; do not move to runtime, AV-plane, LandAtrial, or reservoir
     retuning from this signal.
+61. LA active-pulse MV replay refinement: the raw fiber active pulse remains
+    blocked, but `fiber-active-a-window-gated` passes the shadow MV replay 7/7
+    with MVF clean 7/7, no E/A single-peak collapse, mean QMV RMS delta
+    ~1.58 mL/s, and mean forward-volume ratio ~0.997. This permits only a
+    shadow decomposed-LAP substitution candidate using that selected pulse
+    shape; runtime, AV-plane, LandAtrial, morphology acceptance, and reservoir
+    retuning remain blocked.
 
 Parallel prep, not blocking the next strategic gate:
 
