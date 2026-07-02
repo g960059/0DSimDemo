@@ -15,6 +15,9 @@ Result:
 - Pressure outputs are finite and bounded in low-pressure atrial ranges.
 - LA peak pressure is ~10-11 mmHg; RA peak pressure is ~3 mmHg.
 - Active pressure peaks remain late-diastolic in all fixtures.
+- Fixtures use two warm-up cycles and score the final cycle.
+- Intrinsic-length velocity cap touch count is 0/4, with finite headroom on all
+  fixtures.
 
 Interpretation:
 

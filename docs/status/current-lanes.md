@@ -59,8 +59,8 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: LA pressure-parity attribution before any AV-plane-off atrial
-pressure-substitution smoke. Runtime wiring, reservoir broad retuning,
+Next PR target: decomposed LA pressure contract smoke before any atrial
+pressure-substitution path. Runtime wiring, reservoir broad retuning,
 AV-plane work, and LandAtrial re-entry remain blocked.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
@@ -169,6 +169,8 @@ Included:
   geometry or piston-volume coupling.
 - AtrialFiberPackClosedLoopReplayBench V1 for AV-plane-off closed-loop LA/RA
   volume replay without atrial pressure substitution.
+- AtrialPressureParityAttributionBench V1 for classifying the focused LA
+  pressure-parity residual before any pressure-substitution path.
 
 Excluded:
 
@@ -599,9 +601,11 @@ Next gates:
     LandAtrial, direct PV outflow transfer, or morphology acceptance.
 55. AtrialFiberPack prescribed-volume readiness: LA/RA one-fiber chamber walls
     pass 4/4 prescribed-volume fixtures on top of the source/reservoir contract
-    signal. LA peak pressure is ~10-11 mmHg, RA peak pressure is ~3 mmHg, all
-    outputs are finite and bounded, and active pressure peaks remain
-    late-diastolic at theta ~0.79-0.81. This is enough to attempt an
+    signal. The fixtures now use two warm-up cycles and score the final cycle.
+    LA peak pressure is ~10-11 mmHg, RA peak pressure is ~3 mmHg, all outputs
+    are finite and bounded, active pressure peaks remain late-diastolic at
+    theta ~0.79-0.81, and intrinsic-length velocity cap touch count is 0/4.
+    This is enough to attempt an
     AV-plane-off closed-loop atrial-fiber smoke, not enough for runtime wiring,
     AV-plane geometry, piston-volume mode, LandAtrial unlock, or morphology
     acceptance.
@@ -614,6 +618,12 @@ Next gates:
     substitution, runtime wiring, AV-plane geometry, piston-volume mode,
     LandAtrial, or morphology acceptance. Future real trace artifacts should
     include the shadow audit readbacks requested by the physiology audit lane.
+57. LA pressure-parity attribution: the three focused LA residual rows classify
+    as baseline-offset dominant, wall-pulse-scale mismatch, wall pressure
+    decoupled from the current waveform, and late A-wave phase aligned. One row
+    also has a current v-wave/reservoir component. Raw atrial fiber pressure
+    remains unsuitable for substitution; the next model surface should separate
+    filling-pressure baseline/reservoir state from atrial wall pulse scaling.
 
 Parallel prep, not blocking the next strategic gate:
 
