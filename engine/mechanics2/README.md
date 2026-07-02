@@ -208,6 +208,10 @@ Current scope:
   reservoir-suction lobe-generator signal bench that keeps runtime, AV-plane
   physiology, and LandAtrial locked while comparing LA PV lobe quality against
   source-surface and MVF preservation.
+- `benches/SeparatedAtrialLobeStateGeneratorBench.ts`: left-heart separated
+  reservoir/booster state surface for testing whether distinct lobe pressure
+  states can improve source-surface and LA PV lobe quality without runtime,
+  pressure-substitution, or AV-plane promotion.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt

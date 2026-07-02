@@ -59,11 +59,11 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: design a broader atrial chamber/valve lobe generator with
-separate reservoir and booster state ownership. Warm-replay lobe attribution
-shows pressure parity and scalar reservoir-suction are insufficient: only one
-LA AtrialFiber row passes lobe quality, current-pressure rows mostly miss the
-closed-loop intersection, and fiber rows mostly produce same-signed lobes.
+Next PR target: design a broader atrial chamber/valve lobe generator where
+reservoir and booster lobe state co-evolves with LA volume, MV valve flow, and
+LV filling rather than entering as scalar pressure states. Warm-replay lobe
+attribution and separated-state smokes show pressure parity, scalar reservoir
+suction, and simple reservoir/booster pressure states are insufficient.
 Direct atrial pressure substitution, additive atrial active-pressure source
 substitution, direct AV-gradient injection, more fixed source-state variant
 sweeps, readback-only geometry overlays, simple LV-shortening effective-
@@ -246,6 +246,9 @@ Included:
 - StateOwnedAtrialLobeGeneratorBench V1 for a left-heart state-owned
   reservoir-suction drive inside the LA source surface, with source-surface,
   MVF, LA PV lobe-quality, hidden-volume, and a-prime readbacks.
+- SeparatedAtrialLobeStateGeneratorBench V1 for a left-heart separated
+  reservoir/booster state surface with source-surface, MVF, LA PV lobe-quality,
+  hidden-volume, and a-prime readbacks.
 
 Excluded:
 
@@ -878,6 +881,15 @@ Next gates:
     separation. This routes the next model surface to separated reservoir and
     booster state ownership, with AV-plane/annular velocity slots designed but
     not promoted.
+78. Separated atrial lobe state generator: distinct reservoir and booster
+    pressure states provide only mixed evidence. The best contract variant
+    reaches source-surface pass 4/7, contract pass 2/7, LA PV lobe-quality 2/7,
+    and MVF clean 4/7; stronger variants improve source-surface/MVF to 5/7 but
+    leave lobe-quality at 1/7. Hidden-volume cleanliness and output parity stay
+    7/7, and the geometry side variant exposes a-prime readbacks without lobe
+    promotion. This closes scalar reservoir/booster pressure-state tuning as a
+    promotion path; next work needs lobe state to co-evolve with LA volume, MV
+    pressure-flow/energy, pulmonary inflow, and LV filling.
 
 Parallel prep, not blocking the next strategic gate:
 
