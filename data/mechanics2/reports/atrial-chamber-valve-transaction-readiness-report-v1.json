@@ -5,7 +5,7 @@
   "evidence": {
     "atrialFigureEight": {
       "currentPressureLobeQualityPass": 0,
-      "atrialFiberLobeQualityPass": 5,
+      "atrialFiberLobeQualityPass": 1,
       "totalRows": 14
     },
     "statefulChamberPressure": {
@@ -68,7 +68,7 @@
   "summary": {
     "requiredOwnerCount": 4,
     "currentPressureLobeQualityPass": 0,
-    "atrialFiberLobeQualityPass": 5,
+    "atrialFiberLobeQualityPass": 1,
     "statefulLaSourceSurfacePass": 1,
     "statefulLaContractPass": 0,
     "avValveBestFixedPass": 4,
@@ -95,5 +95,5 @@
     "aPrimeReadback": false,
     "LandAtrialUnlock": false
   },
-  "normalizedSha256": "4646b6864e266b4dd12acdbc12e585319a897fa44d784b916a9f9909155e520d"
+  "normalizedSha256": "8cf530e4f79ab972d9e34555baf996caac55b95a9099d4cc1d1e5c86a9111b02"
 }

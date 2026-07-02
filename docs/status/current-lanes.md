@@ -59,10 +59,11 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: design a broader atrial chamber/valve lobe generator beyond
-scalar reservoir-suction pressure. A state-owned reservoir-suction drive gives a
-useful source-surface/MVF signal, but it still does not promote LA PV lobe
-quality beyond the small 1-2/7 range.
+Next PR target: design a broader atrial chamber/valve lobe generator with
+separate reservoir and booster state ownership. Warm-replay lobe attribution
+shows pressure parity and scalar reservoir-suction are insufficient: only one
+LA AtrialFiber row passes lobe quality, current-pressure rows mostly miss the
+closed-loop intersection, and fiber rows mostly produce same-signed lobes.
 Direct atrial pressure substitution, additive atrial active-pressure source
 substitution, direct AV-gradient injection, more fixed source-state variant
 sweeps, readback-only geometry overlays, simple LV-shortening effective-
@@ -214,6 +215,9 @@ Included:
 - AtrialFigureEightQualityAuditBench V1 for source/reservoir-conditioned LA/RA
   PV lobe-quality and a-prime-readback readiness auditing without pressure
   substitution or AV-plane enablement.
+- AtrialLobeFailureAttributionBench V1 for warm-replay, closed-loop phase-lobe
+  attribution of missing intersections, same-signed a/v lobes, and volume-order
+  failures before the next lobe-generator design.
 - StatefulLaChamberContractSmokeBench V1 for testing stateful LA chamber total
   pressure as a left-heart LA pressure source while AV-plane remains disabled.
 - AVPlaneGeometryStateV1 disabled readback scaffold and
@@ -756,10 +760,11 @@ Next gates:
     also worse (3/14). Treat this as a same-step transaction requirement, not
     a pressure-support promotion. Pressure/gradient commit, runtime,
     AV-plane, LandAtrial, and morphology acceptance remain blocked.
-66. Atrial figure-eight quality audit: source/reservoir-conditioned current
-    pressure has basic figure-eight 1/14 and lobe-quality 0/14, while
-    AtrialFiber pressure has basic figure-eight 14/14 but lobe-quality only
-    5/14 (LA 5/7, RA 0/7). AV-plane velocity/a-prime readbacks are absent by
+66. Atrial figure-eight quality audit: after full-run AtrialFiber warm replay
+    and closed-loop intersection scoring, source/reservoir-conditioned current
+    pressure still has basic figure-eight 1/14 and lobe-quality 0/14, while
+    AtrialFiber pressure has basic figure-eight 13/14 but lobe-quality only
+    1/14 (LA 1/7, RA 0/7). AV-plane velocity/a-prime readbacks are absent by
     design. This keeps pressure-parity/MVF-only optimization blocked and
     points atrial work toward stateful atrial chamber P-V co-evolution with
     explicit future AV-plane position/velocity readbacks. Pressure
@@ -781,7 +786,7 @@ Next gates:
     atrial PV figure-eight lobe quality, stateful atrial chamber pressure-volume
     contract, same-step AV valve pressure-flow/energy contract, and AV-plane
     position/velocity readbacks. The readiness report is blocked with
-    current-pressure lobe-quality 0/14, AtrialFiber lobe-quality 5/14,
+    current-pressure lobe-quality 0/14, AtrialFiber lobe-quality 1/14,
     stateful LA source-surface pass 1/7, stateful LA contract pass 0/7,
     AV-valve fixed replay 4/14, oracle replay 14/14, AV-plane enabled 0/2, and
     a-prime readback 0/2. Next work should implement the measured same-step
@@ -864,6 +869,15 @@ Next gates:
     the atrial chamber/valve lobe generator rather than tune scalar suction,
     and runtime, AV-plane physiology, a-prime clinical claims, LandAtrial, and
     morphology acceptance remain blocked.
+77. Atrial lobe failure attribution: warm-replay, closed-loop phase-lobe
+    scoring classifies the residual as structural, not a pressure-parity
+    problem. Across current and AtrialFiber pressure sources, lobe-quality pass
+    is 1/28 and basic figure-eight is 14/28. Current-pressure rows are dominated
+    by missing self-intersections, while AtrialFiber rows mostly have
+    same-signed a/v lobes; RA AtrialFiber also has negative v-minus-a volume
+    separation. This routes the next model surface to separated reservoir and
+    booster state ownership, with AV-plane/annular velocity slots designed but
+    not promoted.
 
 Parallel prep, not blocking the next strategic gate:
 

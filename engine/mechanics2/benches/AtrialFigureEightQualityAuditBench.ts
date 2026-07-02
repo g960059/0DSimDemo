@@ -41,6 +41,14 @@ type AtrialPvQualityV1 = {
   readonly signedVLoopAreaMmHgMl: number;
   readonly opposedSignedLobes: boolean;
   readonly vMeanVolumeMinusAMeanVolumeMl: number;
+  readonly aMeanVolumeMl: number;
+  readonly vMeanVolumeMl: number;
+  readonly aMeanPressureMmHg: number;
+  readonly vMeanPressureMmHg: number;
+  readonly aVolumeRangeMl: number;
+  readonly vVolumeRangeMl: number;
+  readonly aPressureRangeMmHg: number;
+  readonly vPressureRangeMmHg: number;
   readonly pressurePulseMmHg: number;
   readonly basicFigureEightPass: boolean;
   readonly lobeQualityPass: boolean;
@@ -134,9 +142,11 @@ AtrialFigureEightQualityAuditReportV1 {
       rightParams[index]!,
       sourceRun.finalState.systemicVenousPressureMmHg,
     ));
+    const scoredLeftBeat = leftParams[index]!.beats - 2;
+    const scoredRightBeat = rightParams[index]!.beats - 2;
     return [
-      auditLeft(profile.profileId, leftParams[index]!, leftRun.finalBeatSamples),
-      auditRight(profile.profileId, rightParams[index]!, rightRun.finalBeatSamples),
+      auditLeft(profile.profileId, leftParams[index]!, leftRun.samples, scoredLeftBeat),
+      auditRight(profile.profileId, rightParams[index]!, rightRun.samples, scoredRightBeat),
     ];
   });
   const currentLobeQualityPass = rows.filter((row) => row.currentPv.lobeQualityPass).length;
@@ -192,6 +202,7 @@ function auditLeft(
   profileId: FourChamberSubsystemProfileIdV1,
   params: LeftHeartSubsystemParamsV2,
   samples: readonly LeftHeartSubsystemSampleV2[],
+  scoredBeat: number,
 ): AtrialFigureEightAuditRowV1 {
   return auditAtrial({
     profileId,
@@ -205,7 +216,9 @@ function auditLeft(
       theta: sample.theta,
       volumeMl: sample.acceptedLaVolumeMl,
       currentPressureMmHg: sample.lapMmHg,
+      beat: sample.beat,
     })),
+    scoredBeat,
   });
 }
 
@@ -213,6 +226,7 @@ function auditRight(
   profileId: FourChamberSubsystemProfileIdV1,
   params: RightHeartSubsystemParamsV2,
   samples: readonly RightHeartSubsystemSampleV2[],
+  scoredBeat: number,
 ): AtrialFigureEightAuditRowV1 {
   return auditAtrial({
     profileId,
@@ -226,7 +240,9 @@ function auditRight(
       theta: sample.theta,
       volumeMl: sample.acceptedRaVolumeMl,
       currentPressureMmHg: sample.rapMmHg,
+      beat: sample.beat,
     })),
+    scoredBeat,
   });
 }
 
@@ -242,7 +258,9 @@ function auditAtrial(input: {
     readonly theta: number;
     readonly volumeMl: number;
     readonly currentPressureMmHg: number;
+    readonly beat: number;
   }[];
+  readonly scoredBeat: number;
 }): AtrialFigureEightAuditRowV1 {
   const params = DEFAULT_ATRIAL_FIBER_CHAMBER_PARAMS_V1[input.chamberId];
   let state = initialAtrialFiberChamberStateV1(input.samples[0]?.volumeMl ?? params.referenceCavityVolumeMl, params);
@@ -263,6 +281,7 @@ function auditAtrial(input: {
     }, params);
     state = output.state;
     previousVolume = sample.volumeMl;
+    if (sample.beat !== input.scoredBeat) continue;
     volumes.push(sample.volumeMl);
     currentPressure.push(sample.currentPressureMmHg);
     fiberPressure.push(output.pressureRawMmHg);
@@ -311,7 +330,11 @@ function qualityFor(
   const signedVLoop = signedPolygonArea(vLoop.x, vLoop.y);
   const aLoopArea = Math.abs(signedALoop);
   const vLoopArea = Math.abs(signedVLoop);
-  const volumeSeparation = mean(vLoop.x) - mean(aLoop.x);
+  const aMeanVolume = mean(aLoop.x);
+  const vMeanVolume = mean(vLoop.x);
+  const aMeanPressure = mean(aLoop.y);
+  const vMeanPressure = mean(vLoop.y);
+  const volumeSeparation = vMeanVolume - aMeanVolume;
   const pressurePulse = Math.max(...pressures) - Math.min(...pressures);
   const minLobeArea = chamberId === "LA" ? 1.8 : 0.45;
   const minVolumeSeparation = chamberId === "LA" ? 1.2 : 0.6;
@@ -333,6 +356,14 @@ function qualityFor(
     signedVLoopAreaMmHgMl: round(signedVLoop),
     opposedSignedLobes,
     vMeanVolumeMinusAMeanVolumeMl: round(volumeSeparation),
+    aMeanVolumeMl: round(aMeanVolume),
+    vMeanVolumeMl: round(vMeanVolume),
+    aMeanPressureMmHg: round(aMeanPressure),
+    vMeanPressureMmHg: round(vMeanPressure),
+    aVolumeRangeMl: round(range(aLoop.x)),
+    vVolumeRangeMl: round(range(vLoop.x)),
+    aPressureRangeMmHg: round(range(aLoop.y)),
+    vPressureRangeMmHg: round(range(vLoop.y)),
     pressurePulseMmHg: round(pressurePulse),
     basicFigureEightPass,
     lobeQualityPass,
@@ -389,17 +420,53 @@ function withRightSystemicVenousPressure(
 }
 
 function countSelfIntersections(x: readonly number[], y: readonly number[]): number {
+  const segments = closedSegments(x, y);
   let count = 0;
-  for (let i = 0; i < x.length - 1; i++) {
-    for (let j = i + 2; j < x.length - 1; j++) {
-      if (i === 0 && j === x.length - 2) continue;
+  for (let i = 0; i < segments.length; i++) {
+    for (let j = i + 1; j < segments.length; j++) {
+      if (segmentsAreAdjacent(i, j, segments.length)) continue;
+      const first = segments[i]!;
+      const second = segments[j]!;
       if (segmentsIntersect(
-        x[i]!, y[i]!, x[i + 1]!, y[i + 1]!,
-        x[j]!, y[j]!, x[j + 1]!, y[j + 1]!,
+        first.ax, first.ay, first.bx, first.by,
+        second.ax, second.ay, second.bx, second.by,
       )) count++;
     }
   }
   return count;
+}
+
+function closedSegments(
+  x: readonly number[],
+  y: readonly number[],
+): readonly {
+  readonly ax: number;
+  readonly ay: number;
+  readonly bx: number;
+  readonly by: number;
+}[] {
+  const segments: {
+    readonly ax: number;
+    readonly ay: number;
+    readonly bx: number;
+    readonly by: number;
+  }[] = [];
+  if (x.length < 2 || y.length < 2) return segments;
+  for (let i = 0; i < x.length; i++) {
+    const next = (i + 1) % x.length;
+    segments.push({
+      ax: x[i]!,
+      ay: y[i]!,
+      bx: x[next]!,
+      by: y[next]!,
+    });
+  }
+  return segments;
+}
+
+function segmentsAreAdjacent(first: number, second: number, total: number): boolean {
+  if (Math.abs(first - second) <= 1) return true;
+  return first === 0 && second === total - 1;
 }
 
 function segmentsIntersect(
@@ -469,6 +536,11 @@ function positiveModulo(value: number, period: number): number {
 function mean(values: readonly number[]): number {
   if (values.length === 0) return Number.NaN;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function range(values: readonly number[]): number {
+  if (values.length === 0) return Number.NaN;
+  return Math.max(...values) - Math.min(...values);
 }
 
 function round(value: number): number {
