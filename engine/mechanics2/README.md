@@ -171,6 +171,14 @@ Current scope:
 - `benches/StatefulLaChamberContractSmokeBench.ts`: left-heart smoke that uses
   stateful LA chamber total pressure as the LA pressure source with AV-plane
   disabled, separating source-surface preservation from LA PV lobe quality.
+- `core/AVPlaneGeometryStateV1.ts`: disabled AV-plane geometry/readback state
+  with no hidden blood-volume source and no a-prime/e-prime/s-prime claim.
+- `core/AtrialChamberValveTransactionContractV1.ts`: readiness contract for
+  atrial PV lobe quality, stateful chamber pressure-volume ownership, AV valve
+  energy ownership, and AV-plane velocity readbacks.
+- `benches/AtrialChamberValveTransactionReadinessBench.ts`: synthesis bench
+  combining the current atrial figure-eight, stateful LA chamber, AV valve
+  cyclic replay, and disabled AV-plane evidence.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
