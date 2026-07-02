@@ -1,0 +1,118 @@
+{
+  "reportId": "preload-low-reservoir-repeatability-attribution-report-v1",
+  "gateId": "preloadLowReservoirRepeatabilityAttributionV1",
+  "inputs": {
+    "profileId": "preload-low",
+    "leftPointId": "left-heart-preload-low",
+    "rightPointId": "right-heart-preload-low",
+    "reservoirScaffoldId": "selected-best-neighborhood-pressure047-gain014-cap35",
+    "epochCounts": [
+      14,
+      22,
+      40,
+      56
+    ]
+  },
+  "epochProbes": [
+    {
+      "epochs": 14,
+      "status": "pass",
+      "failureReasons": [],
+      "leftStatus": "pass",
+      "rightStatus": "pass",
+      "finalAbsForwardMismatchMl": 7.986586,
+      "maxAbsReservoirVolumeMl": 19.44746,
+      "finalAbsReservoirVolumeMl": 19.44746,
+      "finalReservoirStepMl": 1.112128,
+      "maxAbsAcceptedTransferMl": 1.771959,
+      "finalAcceptedTransferMl": 1.118122,
+      "transferLimiterHitCount": 0,
+      "lastEightReservoirStepMeanMl": 1.354679,
+      "lastEightReservoirVolumeSlopeMlPerEpoch": 1.354679
+    },
+    {
+      "epochs": 22,
+      "status": "fail",
+      "failureReasons": [
+        "persistent-large-reservoir-shuttle"
+      ],
+      "leftStatus": "pass",
+      "rightStatus": "pass",
+      "finalAbsForwardMismatchMl": 8.279053,
+      "maxAbsReservoirVolumeMl": 28.509668,
+      "finalAbsReservoirVolumeMl": 28.509668,
+      "finalReservoirStepMl": 1.15894,
+      "maxAbsAcceptedTransferMl": 1.771959,
+      "finalAcceptedTransferMl": 1.159067,
+      "transferLimiterHitCount": 0,
+      "lastEightReservoirStepMeanMl": 1.134869,
+      "lastEightReservoirVolumeSlopeMlPerEpoch": 1.134869
+    },
+    {
+      "epochs": 40,
+      "status": "fail",
+      "failureReasons": [
+        "persistent-large-reservoir-shuttle"
+      ],
+      "leftStatus": "pass",
+      "rightStatus": "pass",
+      "finalAbsForwardMismatchMl": 7.026014,
+      "maxAbsReservoirVolumeMl": 46.159782,
+      "finalAbsReservoirVolumeMl": 46.159782,
+      "finalReservoirStepMl": 0.985328,
+      "maxAbsAcceptedTransferMl": 1.771959,
+      "finalAcceptedTransferMl": 0.983642,
+      "transferLimiterHitCount": 0,
+      "lastEightReservoirStepMeanMl": 0.939192,
+      "lastEightReservoirVolumeSlopeMlPerEpoch": 0.939192
+    },
+    {
+      "epochs": 56,
+      "status": "fail",
+      "failureReasons": [
+        "right-surface-not-preserved",
+        "persistent-large-reservoir-shuttle"
+      ],
+      "leftStatus": "pass",
+      "rightStatus": "fail",
+      "finalAbsForwardMismatchMl": 1.895323,
+      "maxAbsReservoirVolumeMl": 48.935821,
+      "finalAbsReservoirVolumeMl": 48.76745,
+      "finalReservoirStepMl": 0.354857,
+      "maxAbsAcceptedTransferMl": 1.771959,
+      "finalAcceptedTransferMl": -0.265345,
+      "transferLimiterHitCount": 0,
+      "lastEightReservoirStepMeanMl": 0.305227,
+      "lastEightReservoirVolumeSlopeMlPerEpoch": 0.000863
+    }
+  ],
+  "summary": {
+    "longestEpochs": 56,
+    "longestStatus": "fail",
+    "longestMaxAbsReservoirVolumeMl": 48.935821,
+    "longestFinalReservoirStepMl": 0.354857,
+    "maxReservoirVolumeGrowthFrom22ToLongestMl": 20.426153,
+    "allSourceSurfacesPreserved": false
+  },
+  "decision": {
+    "repeatabilityStatus": "reservoir-load-breaks-right-surface-after-volume-accumulation",
+    "nextAction": "Treat preload-low as a reservoir load-accumulation / right-surface compatibility blocker and design a bounded reservoir-volume ownership contract; do not broaden reservoir tuning or move to AV-plane/LandAtrial.",
+    "blockedClaims": [
+      "runtime-wiring",
+      "true-four-chamber-dynamics",
+      "morphology-acceptance",
+      "reservoir-broad-retuning",
+      "AV-plane-unlock",
+      "LandAtrial-unlock"
+    ]
+  },
+  "claimBoundary": {
+    "runtimeWiring": false,
+    "trueFourChamberDynamics": false,
+    "morphologyAcceptance": false,
+    "reservoirBroadRetuning": false,
+    "AVPlaneUnlock": false,
+    "LandAtrialUnlock": false
+  },
+  "normalizedSha256": "5e7325276fab59823310bdbda323586046ed5f63ff5bc42e3d74733fbbc90927"
+}

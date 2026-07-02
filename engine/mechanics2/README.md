@@ -98,6 +98,9 @@ Current scope:
 - `benches/FourChamberSourceAwareContractSmokeBench.ts`: bounded smoke for the
   source-aware status contract and its remaining reservoir-repeatability
   blocker.
+- `benches/PreloadLowReservoirRepeatabilityAttributionBench.ts`: focused
+  epoch-history attribution for the source-aware contract smoke's remaining
+  preload-low reservoir-repeatability blocker.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
@@ -135,6 +138,7 @@ Planning docs:
 - [Four-chamber source-aware residual review V1](../../docs/mechanics2/four-chamber-source-aware-residual-review-v1.md)
 - [Four-chamber source-aware contract V1](../../docs/mechanics2/four-chamber-source-aware-contract-v1.md)
 - [Four-chamber source-aware contract smoke V1](../../docs/mechanics2/four-chamber-source-aware-contract-smoke-v1.md)
+- [Preload-low reservoir repeatability attribution V1](../../docs/mechanics2/preload-low-reservoir-repeatability-attribution-v1.md)
 - [ADR-MYO-003](../../docs/myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 
 Claim boundary:
