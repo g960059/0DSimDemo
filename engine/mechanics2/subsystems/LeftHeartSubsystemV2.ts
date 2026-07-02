@@ -26,6 +26,12 @@ import {
   type MechanicsFixedPointIterationV2,
 } from "@/engine/mechanics2/core/MechanicsTransactionV2";
 import {
+  disabledAVPlaneGeometryReadbackV1,
+  enabledAVPlaneGeometryShadowReadbackV1,
+  initialDisabledAVPlaneGeometryStateV1,
+  type AVPlaneGeometryReadbackV1,
+} from "@/engine/mechanics2/core/AVPlaneGeometryStateV1";
+import {
   defaultLeftHeartSubsystemParamsV1,
   type LeftHeartSubsystemParamsV1,
 } from "@/engine/mechanics2/subsystems/LeftHeartSubsystemV1";
@@ -37,6 +43,11 @@ function clamp(value: number, min: number, max: number): number {
 export type LeftHeartTransactionModeV2 = "explicit-single" | "fixed-point";
 export type LeftHeartVolumeSafetyModeV2 = "hard-clamp" | "soft-pressure";
 export type PulmonaryVenousBoundaryModeV2 = "fixed-pressure" | "compliance-node";
+export type LeftAtrialEffectiveGeometryModeV2 =
+  | "none"
+  | "lv-shortening-stretch-volume-shadow"
+  | "lv-shortening-capacity-volume-shadow"
+  | "phase-reservoir-capacity-volume-shadow";
 export type LeftAtrialPressureSourceModeV2 =
   | "empirical-a-wave"
   | "fiber-active-a-window-gated-shadow"
@@ -76,6 +87,9 @@ export type LeftHeartSubsystemParamsV2 = LeftHeartSubsystemParamsV1 & {
   readonly laPressureSourceMode: LeftAtrialPressureSourceModeV2;
   readonly laFiberActivePressureReferenceMmHg: number;
   readonly laFiberActivePressureGain: number;
+  readonly laEffectiveGeometryMode: LeftAtrialEffectiveGeometryModeV2;
+  readonly laEffectiveGeometryGainMl: number;
+  readonly laEffectiveGeometryVelocityScaleCmPerSec: number;
 };
 
 export type LeftHeartSubsystemStateV2 = {
@@ -109,6 +123,10 @@ export type LeftHeartSubsystemSampleV2 = {
   readonly lapFiberActivePressureMmHg: number;
   readonly lapFiberActivePulse01: number;
   readonly lapPressureSourceMode: LeftAtrialPressureSourceModeV2;
+  readonly laEffectiveGeometryMode: LeftAtrialEffectiveGeometryModeV2;
+  readonly laEffectiveGeometryDeltaMl: number;
+  readonly laEffectiveGeometryHiddenBloodVolumeSourceMl: number;
+  readonly laAPrimeProxyCmPerSec: number | null;
   readonly rootPressureMmHg: number;
   readonly acceptedRootPressureMmHg: number;
   readonly pulmonaryVenousPressureMmHg: number;
@@ -126,6 +144,7 @@ export type LeftHeartSubsystemSampleV2 = {
   readonly laFiberChamber: AtrialFiberChamberOutputV1;
   readonly mv: FlowStateValveOutputV1;
   readonly aov: FlowStateValveOutputV1;
+  readonly avPlaneGeometryReadback: AVPlaneGeometryReadbackV1;
   readonly rootOutflowMlPerSec: number;
   readonly massResidualMl: number;
   readonly transactionResidualNormMl: number;
@@ -176,6 +195,7 @@ type AcceptedV2 = CandidateV2 & {
   readonly lapEmpiricalAWaveMmHg: number;
   readonly lapFiberActivePressureMmHg: number;
   readonly lapFiberActivePulse01: number;
+  readonly avPlaneGeometryReadback: AVPlaneGeometryReadbackV1;
   readonly volumeClampHit01: 0 | 1;
   readonly laVolumeClampHit01: 0 | 1;
   readonly lvVolumeClampHit01: 0 | 1;
@@ -227,6 +247,9 @@ export function defaultLeftHeartSubsystemParamsV2(
     laPressureSourceMode: overrides.laPressureSourceMode ?? "empirical-a-wave",
     laFiberActivePressureReferenceMmHg: overrides.laFiberActivePressureReferenceMmHg ?? 11,
     laFiberActivePressureGain: overrides.laFiberActivePressureGain ?? 1,
+    laEffectiveGeometryMode: overrides.laEffectiveGeometryMode ?? "none",
+    laEffectiveGeometryGainMl: overrides.laEffectiveGeometryGainMl ?? 0,
+    laEffectiveGeometryVelocityScaleCmPerSec: overrides.laEffectiveGeometryVelocityScaleCmPerSec ?? 1.5,
   };
 }
 
@@ -323,6 +346,10 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
       lapFiberActivePressureMmHg: accepted.lapFiberActivePressureMmHg,
       lapFiberActivePulse01: accepted.lapFiberActivePulse01,
       lapPressureSourceMode: params.laPressureSourceMode,
+      laEffectiveGeometryMode: params.laEffectiveGeometryMode,
+      laEffectiveGeometryDeltaMl: accepted.avPlaneGeometryReadback.atrialGeometryDeltaMl,
+      laEffectiveGeometryHiddenBloodVolumeSourceMl: accepted.avPlaneGeometryReadback.hiddenBloodVolumeSourceMl,
+      laAPrimeProxyCmPerSec: accepted.avPlaneGeometryReadback.aPrimeProxyCmPerSec,
       rootPressureMmHg: state.rootPressureMmHg,
       acceptedRootPressureMmHg: accepted.rootPressureMmHg,
       pulmonaryVenousPressureMmHg: state.pulmonaryVenousPressureMmHg,
@@ -340,6 +367,7 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
       laFiberChamber: accepted.laFiberChamber,
       mv: accepted.mv,
       aov: accepted.aov,
+      avPlaneGeometryReadback: accepted.avPlaneGeometryReadback,
       rootOutflowMlPerSec: accepted.rootOutflowMlPerSec,
       massResidualMl,
       transactionResidualNormMl: result.residualNorm,
@@ -391,14 +419,29 @@ function acceptLeftHeartCandidateV2(input: {
     cavityVolumeMl: input.candidate.lvVolumeMl,
     previousCavityVolumeMl: input.previous.lvVolumeMl,
   }, input.params.lv);
+  const avPlaneGeometryReadback = leftAtrialEffectiveGeometryReadback(input);
+  const previousAvPlaneGeometryReadback = leftAtrialEffectiveGeometryReadback({
+    ...input,
+    candidate: input.previous,
+  });
+  const effectiveLaVolumeMl = leftAtrialEffectiveFiberVolumeMl(
+    input.candidate.laVolumeMl,
+    avPlaneGeometryReadback.atrialGeometryDeltaMl,
+    input.params,
+  );
+  const previousEffectiveLaVolumeMl = leftAtrialEffectiveFiberVolumeMl(
+    input.previous.laVolumeMl,
+    previousAvPlaneGeometryReadback.atrialGeometryDeltaMl,
+    input.params,
+  );
   const laFiberChamber = stepAtrialFiberChamberV1(input.previousLaFiberState, {
     tSec: input.tSec,
     dtSec: input.dtSec,
     cycleLengthSec: input.cycleLengthSec,
     activationTimeSec: input.tSec - input.theta * input.cycleLengthSec
       + positiveModulo(input.params.laAWaveStartTheta - 0.10, 1) * input.cycleLengthSec,
-    cavityVolumeMl: input.candidate.laVolumeMl,
-    previousCavityVolumeMl: input.previous.laVolumeMl,
+    cavityVolumeMl: effectiveLaVolumeMl,
+    previousCavityVolumeMl: previousEffectiveLaVolumeMl,
   }, DEFAULT_ATRIAL_FIBER_CHAMBER_PARAMS_V1.LA);
   const lapEmpiricalAWaveMmHg =
     input.params.laAWaveMmHg
@@ -493,7 +536,52 @@ function acceptLeftHeartCandidateV2(input: {
     lapEmpiricalAWaveMmHg,
     lapFiberActivePressureMmHg: laFiberChamber.activePressureMmHg,
     lapFiberActivePulse01,
+    avPlaneGeometryReadback,
   };
+}
+
+function leftAtrialEffectiveGeometryReadback(input: {
+  readonly candidate: CandidateV2;
+  readonly previous: CandidateV2;
+  readonly theta: number;
+  readonly dtSec: number;
+  readonly cycleLengthSec: number;
+  readonly params: LeftHeartSubsystemParamsV2;
+}): AVPlaneGeometryReadbackV1 {
+  if (input.params.laEffectiveGeometryMode === "none") {
+    return disabledAVPlaneGeometryReadbackV1(initialDisabledAVPlaneGeometryStateV1("left"));
+  }
+  const lvRange = Math.max(input.params.maxLvVolumeMl - input.params.minLvVolumeMl, 1e-9);
+  const previousTheta = positiveModulo(input.theta - input.dtSec / Math.max(input.cycleLengthSec, 1e-9), 1);
+  const zAvNorm = input.params.laEffectiveGeometryMode === "phase-reservoir-capacity-volume-shadow"
+    ? raisedCosineWindow(input.theta, 0.06, 0.82)
+    : clamp((input.params.maxLvVolumeMl - input.candidate.lvVolumeMl) / lvRange, 0, 1);
+  const previousZAvNorm = input.params.laEffectiveGeometryMode === "phase-reservoir-capacity-volume-shadow"
+    ? raisedCosineWindow(previousTheta, 0.06, 0.82)
+    : clamp((input.params.maxLvVolumeMl - input.previous.lvVolumeMl) / lvRange, 0, 1);
+  return enabledAVPlaneGeometryShadowReadbackV1({
+    side: "left",
+    theta: input.theta,
+    zAvNorm,
+    zAvDotNormPerSec: (zAvNorm - previousZAvNorm) / Math.max(input.dtSec, 1e-9),
+    atrialGeometryDeltaMl: input.params.laEffectiveGeometryGainMl * zAvNorm,
+    velocityScaleCmPerSec: input.params.laEffectiveGeometryVelocityScaleCmPerSec,
+    atrialKickVelocityWindow: [input.params.laAWaveStartTheta, input.params.laAWaveEndTheta],
+  });
+}
+
+function leftAtrialEffectiveFiberVolumeMl(
+  bloodVolumeMl: number,
+  atrialGeometryDeltaMl: number,
+  params: LeftHeartSubsystemParamsV2,
+): number {
+  if (params.laEffectiveGeometryMode === "lv-shortening-capacity-volume-shadow") {
+    return Math.max(1e-6, bloodVolumeMl - atrialGeometryDeltaMl);
+  }
+  if (params.laEffectiveGeometryMode === "phase-reservoir-capacity-volume-shadow") {
+    return Math.max(1e-6, bloodVolumeMl - atrialGeometryDeltaMl);
+  }
+  return Math.max(1e-6, bloodVolumeMl + atrialGeometryDeltaMl);
 }
 
 function mvSystolicClosureDrive01(theta: number, params: LeftHeartSubsystemParamsV2): number {
