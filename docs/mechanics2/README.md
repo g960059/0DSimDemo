@@ -31,6 +31,7 @@ Canonical references:
 - [Four-chamber subsystem residual review V1](four-chamber-subsystem-residual-review-v1.md)
 - [Preload-low reservoir numerics scan V1](preload-low-reservoir-numerics-scan-v1.md)
 - [Four-chamber dt-half source attribution V1](four-chamber-dthalf-source-attribution-v1.md)
+- [Source-surface dt-half stability scan V1](source-surface-dthalf-stability-scan-v1.md)
 - [ADR-MYO-003](../myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 - [Engine sidecar README](../../engine/mechanics2/README.md)
 

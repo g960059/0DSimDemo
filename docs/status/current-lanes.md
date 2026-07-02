@@ -41,12 +41,12 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: repair or classify standalone left/right `dt-half`
-source-surface numerics and output/parity ownership. The dt-half attribution
-shows the selected four-chamber subsystem failures already fail in standalone
-source-surface reruns, so reservoir pressure tuning is not the next fix. Do not
-start runtime wiring, AV-plane work, or LandAtrial re-entry from subsystem smoke
-or reservoir scan evidence alone.
+Next PR target: address source-surface time integration and output/parity
+ownership directly. The source-surface `dt-half` scan finds a right-side
+partial signal but no left or right full-pass candidate, so simple
+source-surface parameter perturbations are not enough. Do not restart reservoir
+gain/compliance tuning, runtime wiring, AV-plane work, or LandAtrial re-entry
+from this evidence alone.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -98,6 +98,9 @@ Included:
   long-epoch residual/numerics review of the selected scaffold.
 - PreloadLowReservoirNumericsScanBench V1 for the focused `preload-low`
   reservoir gain/compliance scan.
+- SourceSurfaceDtHalfStabilityScanBench V1 for small standalone left/right
+  source-surface `dt-half` candidate perturbations after reservoir pressure
+  tuning is closed as the next fix.
 
 Excluded:
 
@@ -355,6 +358,15 @@ Next gates:
     closes reservoir pressure tuning as the next fix and points directly to
     standalone left/right source-surface dt-half numerics and output/parity
     ownership before further four-chamber, runtime, AV-plane, or LandAtrial work.
+35. Source-surface dt-half stability scan: scanning 20 small left/right
+    source-surface candidates finds no full-pass candidate. The best left
+    candidate is `left-mv-closure075` with 5/7 pass, still failing
+    `preload-low` dt-half shape parity and `afterload-high` AoV output. The
+    best right candidate is `right-lowt30000-safety018` with 6/7 pass and one
+    clean accepted low-output phenotype, still failing `preload-low`
+    repeatability and dt-half output parity. This is a partial signal only;
+    next work should move to source-surface time integration / output-parity
+    ownership rather than more reservoir or small parameter scans.
 
 Parallel prep, not blocking the next strategic gate:
 
