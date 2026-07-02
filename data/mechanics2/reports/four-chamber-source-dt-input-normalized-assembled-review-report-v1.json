@@ -13,6 +13,7 @@
       "rawStatus": "pass",
       "effectiveStatus": "pass",
       "rawFailureReasons": [],
+      "removedFailureReasons": [],
       "effectiveFailureReasons": [],
       "leftStatus": "pass",
       "rightStatus": "pass",
@@ -30,6 +31,7 @@
       "rawStatus": "pass",
       "effectiveStatus": "pass",
       "rawFailureReasons": [],
+      "removedFailureReasons": [],
       "effectiveFailureReasons": [],
       "leftStatus": "pass",
       "rightStatus": "pass",
@@ -47,6 +49,7 @@
       "rawStatus": "pass",
       "effectiveStatus": "pass",
       "rawFailureReasons": [],
+      "removedFailureReasons": [],
       "effectiveFailureReasons": [],
       "leftStatus": "pass",
       "rightStatus": "pass",
@@ -64,6 +67,7 @@
       "rawStatus": "pass",
       "effectiveStatus": "pass",
       "rawFailureReasons": [],
+      "removedFailureReasons": [],
       "effectiveFailureReasons": [],
       "leftStatus": "pass",
       "rightStatus": "pass",
@@ -81,6 +85,7 @@
       "rawStatus": "pass",
       "effectiveStatus": "pass",
       "rawFailureReasons": [],
+      "removedFailureReasons": [],
       "effectiveFailureReasons": [],
       "leftStatus": "pass",
       "rightStatus": "pass",
@@ -98,6 +103,7 @@
       "rawStatus": "pass",
       "effectiveStatus": "pass",
       "rawFailureReasons": [],
+      "removedFailureReasons": [],
       "effectiveFailureReasons": [],
       "leftStatus": "pass",
       "rightStatus": "pass",
@@ -115,6 +121,7 @@
       "rawStatus": "pass",
       "effectiveStatus": "pass",
       "rawFailureReasons": [],
+      "removedFailureReasons": [],
       "effectiveFailureReasons": [],
       "leftStatus": "pass",
       "rightStatus": "pass",
@@ -132,6 +139,7 @@
       "rawStatus": "pass",
       "effectiveStatus": "pass",
       "rawFailureReasons": [],
+      "removedFailureReasons": [],
       "effectiveFailureReasons": [],
       "leftStatus": "pass",
       "rightStatus": "pass",
@@ -149,6 +157,7 @@
       "rawStatus": "pass",
       "effectiveStatus": "pass",
       "rawFailureReasons": [],
+      "removedFailureReasons": [],
       "effectiveFailureReasons": [],
       "leftStatus": "pass",
       "rightStatus": "pass",
@@ -169,6 +178,10 @@
         "left-surface-not-preserved",
         "right-surface-not-preserved"
       ],
+      "removedFailureReasons": [
+        "left-surface-not-preserved",
+        "right-surface-not-preserved"
+      ],
       "effectiveFailureReasons": [],
       "leftStatus": "fail",
       "rightStatus": "fail",
@@ -186,6 +199,7 @@
       "rawStatus": "pass",
       "effectiveStatus": "pass",
       "rawFailureReasons": [],
+      "removedFailureReasons": [],
       "effectiveFailureReasons": [],
       "leftStatus": "pass",
       "rightStatus": "pass",
@@ -203,6 +217,9 @@
       "rawStatus": "fail",
       "effectiveStatus": "pass",
       "rawFailureReasons": [
+        "left-surface-not-preserved"
+      ],
+      "removedFailureReasons": [
         "left-surface-not-preserved"
       ],
       "effectiveFailureReasons": [],
@@ -225,6 +242,10 @@
         "right-surface-not-preserved",
         "unexpected-accepted-phenotype"
       ],
+      "removedFailureReasons": [
+        "right-surface-not-preserved",
+        "unexpected-accepted-phenotype"
+      ],
       "effectiveFailureReasons": [],
       "leftStatus": "pass",
       "rightStatus": "fail",
@@ -242,6 +263,7 @@
       "rawStatus": "pass",
       "effectiveStatus": "pass",
       "rawFailureReasons": [],
+      "removedFailureReasons": [],
       "effectiveFailureReasons": [],
       "leftStatus": "pass",
       "rightStatus": "pass",
@@ -259,6 +281,7 @@
       "rawStatus": "pass",
       "effectiveStatus": "pass",
       "rawFailureReasons": [],
+      "removedFailureReasons": [],
       "effectiveFailureReasons": [],
       "leftStatus": "pass",
       "rightStatus": "pass",
@@ -276,6 +299,7 @@
       "rawStatus": "pass",
       "effectiveStatus": "pass",
       "rawFailureReasons": [],
+      "removedFailureReasons": [],
       "effectiveFailureReasons": [],
       "leftStatus": "pass",
       "rightStatus": "pass",
@@ -293,6 +317,7 @@
       "rawStatus": "pass",
       "effectiveStatus": "pass",
       "rawFailureReasons": [],
+      "removedFailureReasons": [],
       "effectiveFailureReasons": [],
       "leftStatus": "pass",
       "rightStatus": "pass",
@@ -310,6 +335,7 @@
       "rawStatus": "pass",
       "effectiveStatus": "pass",
       "rawFailureReasons": [],
+      "removedFailureReasons": [],
       "effectiveFailureReasons": [],
       "leftStatus": "pass",
       "rightStatus": "pass",
@@ -327,6 +353,7 @@
       "rawStatus": "pass",
       "effectiveStatus": "pass",
       "rawFailureReasons": [],
+      "removedFailureReasons": [],
       "effectiveFailureReasons": [],
       "leftStatus": "pass",
       "rightStatus": "pass",
@@ -344,6 +371,7 @@
       "rawStatus": "pass",
       "effectiveStatus": "pass",
       "rawFailureReasons": [],
+      "removedFailureReasons": [],
       "effectiveFailureReasons": [],
       "leftStatus": "pass",
       "rightStatus": "pass",
@@ -361,6 +389,7 @@
       "rawStatus": "pass",
       "effectiveStatus": "pass",
       "rawFailureReasons": [],
+      "removedFailureReasons": [],
       "effectiveFailureReasons": [],
       "leftStatus": "pass",
       "rightStatus": "pass",
@@ -384,6 +413,8 @@
       "dtHalfRawStatus": "pass",
       "dtHalfEffectiveStatus": "pass",
       "dtHalfRawFailureReasons": [],
+      "dtHalfRemovedFailureReasons": [],
+      "dtHalfEffectiveFailureReasons": [],
       "dtHalfLedgerStatusesClean": true
     },
     {
@@ -396,6 +427,8 @@
       "dtHalfRawStatus": "pass",
       "dtHalfEffectiveStatus": "pass",
       "dtHalfRawFailureReasons": [],
+      "dtHalfRemovedFailureReasons": [],
+      "dtHalfEffectiveFailureReasons": [],
       "dtHalfLedgerStatusesClean": true
     },
     {
@@ -411,6 +444,11 @@
         "left-surface-not-preserved",
         "right-surface-not-preserved"
       ],
+      "dtHalfRemovedFailureReasons": [
+        "left-surface-not-preserved",
+        "right-surface-not-preserved"
+      ],
+      "dtHalfEffectiveFailureReasons": [],
       "dtHalfLedgerStatusesClean": true
     },
     {
@@ -423,6 +461,8 @@
       "dtHalfRawStatus": "pass",
       "dtHalfEffectiveStatus": "pass",
       "dtHalfRawFailureReasons": [],
+      "dtHalfRemovedFailureReasons": [],
+      "dtHalfEffectiveFailureReasons": [],
       "dtHalfLedgerStatusesClean": true
     },
     {
@@ -437,6 +477,10 @@
       "dtHalfRawFailureReasons": [
         "left-surface-not-preserved"
       ],
+      "dtHalfRemovedFailureReasons": [
+        "left-surface-not-preserved"
+      ],
+      "dtHalfEffectiveFailureReasons": [],
       "dtHalfLedgerStatusesClean": true
     },
     {
@@ -452,6 +496,11 @@
         "right-surface-not-preserved",
         "unexpected-accepted-phenotype"
       ],
+      "dtHalfRemovedFailureReasons": [
+        "right-surface-not-preserved",
+        "unexpected-accepted-phenotype"
+      ],
+      "dtHalfEffectiveFailureReasons": [],
       "dtHalfLedgerStatusesClean": true
     },
     {
@@ -464,6 +513,8 @@
       "dtHalfRawStatus": "pass",
       "dtHalfEffectiveStatus": "pass",
       "dtHalfRawFailureReasons": [],
+      "dtHalfRemovedFailureReasons": [],
+      "dtHalfEffectiveFailureReasons": [],
       "dtHalfLedgerStatusesClean": true
     }
   ],
@@ -478,6 +529,7 @@
       "afterload-high",
       "contractility-low"
     ],
+    "effectiveDtHalfFailureProfiles": [],
     "normalizedLedgerStatusesCleanCount": 7,
     "feedbackDutyFree": false,
     "hardLimiterFree": true

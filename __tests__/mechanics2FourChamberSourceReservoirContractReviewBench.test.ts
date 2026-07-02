@@ -26,6 +26,7 @@ describe("FourChamberSourceReservoirContractReviewBench V1", () => {
       effectiveEnvelopePassCount: 21,
       dtHalfReservoirParityPassCount: 7,
       normalizedLedgerStatusesCleanCount: 7,
+      effectiveDtHalfFailureProfiles: [],
       rawStatusFailuresPreserved: true,
       assembledHardLimiterFree: true,
       sourceReservoirContractPass: true,
@@ -44,6 +45,12 @@ describe("FourChamberSourceReservoirContractReviewBench V1", () => {
       "contractility-low",
     ]);
     expect(report.preservedRawResiduals.every((residual) => residual.normalizedLedgerClean)).toBe(true);
+    expect(report.preservedRawResiduals.every((residual) =>
+      residual.effectiveDtHalfFailureReasons.length === 0
+    )).toBe(true);
+    expect(report.preservedRawResiduals.every((residual) =>
+      residual.removedDtHalfFailureReasons.length > 0
+    )).toBe(true);
   });
 
   it("does not unlock runtime, AV-plane, LandAtrial, or atrial-fiber implementation", () => {

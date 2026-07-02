@@ -21,8 +21,22 @@ describe("FourChamberSourceDtInputNormalizedAssembledReviewBench V1", () => {
       "afterload-high",
       "contractility-low",
     ]);
+    expect(report.summary.effectiveDtHalfFailureProfiles).toEqual([]);
     expect(report.summary.normalizedLedgerStatusesCleanCount).toBe(7);
     expect(report.summary.hardLimiterFree).toBe(true);
+  });
+
+  it("computes effective status from the normalized run instead of reusing the old point", () => {
+    report ??= runFourChamberSourceDtInputNormalizedAssembledReviewBenchV1();
+    const dtHalfFailures = report.profileParity.filter((profile) => profile.dtHalfRawStatus !== "pass");
+    expect(dtHalfFailures.map((profile) => profile.profileId)).toEqual([
+      "preload-low",
+      "afterload-high",
+      "contractility-low",
+    ]);
+    expect(dtHalfFailures.every((profile) => profile.dtHalfEffectiveStatus === "pass")).toBe(true);
+    expect(dtHalfFailures.every((profile) => profile.dtHalfEffectiveFailureReasons.length === 0)).toBe(true);
+    expect(dtHalfFailures.every((profile) => profile.dtHalfRemovedFailureReasons.length > 0)).toBe(true);
   });
 
   it("keeps the committed assembled artifact aligned with the rerun summary", () => {

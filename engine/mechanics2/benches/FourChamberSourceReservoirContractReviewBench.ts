@@ -14,6 +14,8 @@ export const FOUR_CHAMBER_SOURCE_RESERVOIR_CONTRACT_REVIEW_REPORT_ID_V1 =
 type ContractResidualV1 = {
   readonly profileId: FourChamberSubsystemProfileIdV1;
   readonly rawDtHalfFailureReasons: readonly string[];
+  readonly removedDtHalfFailureReasons: readonly string[];
+  readonly effectiveDtHalfFailureReasons: readonly string[];
   readonly normalizedLedgerClean: boolean;
   readonly owner: "status-rate-source-surface-preserved-raw-failure";
 };
@@ -41,6 +43,7 @@ export type FourChamberSourceReservoirContractReviewReportV1 = {
     readonly dtHalfReservoirParityTotal: 7;
     readonly normalizedLedgerStatusesCleanCount: number;
     readonly rawDtHalfFailureProfiles: readonly FourChamberSubsystemProfileIdV1[];
+    readonly effectiveDtHalfFailureProfiles: readonly FourChamberSubsystemProfileIdV1[];
     readonly rawStatusFailuresPreserved: boolean;
     readonly assembledHardLimiterFree: boolean;
     readonly sourceReservoirContractPass: boolean;
@@ -82,6 +85,8 @@ FourChamberSourceReservoirContractReviewReportV1 {
     .map((profile): ContractResidualV1 => ({
       profileId: profile.profileId,
       rawDtHalfFailureReasons: profile.dtHalfRawFailureReasons,
+      removedDtHalfFailureReasons: profile.dtHalfRemovedFailureReasons,
+      effectiveDtHalfFailureReasons: profile.dtHalfEffectiveFailureReasons,
       normalizedLedgerClean: profile.dtHalfLedgerStatusesClean,
       owner: "status-rate-source-surface-preserved-raw-failure",
     }));
@@ -100,6 +105,7 @@ FourChamberSourceReservoirContractReviewReportV1 {
     && normalized.summary.effectiveEnvelopePassCount === 21
     && normalized.summary.dtHalfReservoirParityPassCount === 7
     && normalized.summary.dtHalfReservoirParityFailedProfiles.length === 0
+    && normalized.summary.effectiveDtHalfFailureProfiles.length === 0
     && normalized.summary.normalizedLedgerStatusesCleanCount === 7
     && normalized.summary.hardLimiterFree
     && rawStatusFailuresPreserved
@@ -127,6 +133,7 @@ FourChamberSourceReservoirContractReviewReportV1 {
       dtHalfReservoirParityTotal: 7,
       normalizedLedgerStatusesCleanCount: normalized.summary.normalizedLedgerStatusesCleanCount,
       rawDtHalfFailureProfiles: rawFailureProfiles,
+      effectiveDtHalfFailureProfiles: normalized.summary.effectiveDtHalfFailureProfiles,
       rawStatusFailuresPreserved,
       assembledHardLimiterFree: normalized.summary.hardLimiterFree,
       sourceReservoirContractPass,

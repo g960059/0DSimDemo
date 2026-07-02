@@ -15,6 +15,8 @@ Result:
 - `dt-half` reservoir parity failed profiles: none.
 - Raw `dt-half` source failures remain visible:
   `preload-low`, `afterload-high`, and `contractility-low`.
+- Effective `dt-half` source failures after applying source-aware owners to
+  the normalized run itself: none.
 - Normalized ledger source statuses are clean: 7/7.
 - Hard limiter is free.
 - Smooth reservoir feedback is still active in the expected long-epoch scaffold,
@@ -25,6 +27,8 @@ Interpretation:
 - Source-ledger input normalization removes the assembled `dt-half` reservoir
   magnitude parity residual without reservoir retuning or direct PV outflow
   transfer.
+- Effective status is computed from the normalized run's own failure reasons;
+  raw status-rate failures are stored separately and remain visible.
 - This is a source/reservoir contract signal, not runtime or physiology
   acceptance.
 

@@ -559,17 +559,19 @@ Next gates:
     normalization to the selected smooth scaffold gives effective envelope
     21/21 and `dt-half` reservoir parity 7/7 with no failed parity profiles.
     Raw `dt-half` source failures remain visible at `preload-low`,
-    `afterload-high`, and `contractility-low`, normalized ledger statuses are
-    clean 7/7, and the hard limiter is free. This is a source/reservoir
-    contract signal only; runtime, AV-plane, LandAtrial, direct PV outflow
-    transfer, and morphology acceptance remain blocked.
+    `afterload-high`, and `contractility-low`; effective `dt-half` failures
+    are recomputed from the normalized run itself and are empty. Normalized
+    ledger statuses are clean 7/7, and the hard limiter is free. This is a
+    source/reservoir contract signal only; runtime, AV-plane, LandAtrial,
+    direct PV outflow transfer, and morphology acceptance remain blocked.
 54. Source/reservoir contract review: smooth reservoir dynamics plus
     source-ledger input normalization now pass the source/reservoir contract
     review. The smooth dynamics review passes, preload-low stress probes are
     3/3 repeatable, `dt-half` reservoir parity is 7/7, normalized ledger
     statuses are clean 7/7, raw status-rate source failures remain preserved
-    at `preload-low`, `afterload-high`, and `contractility-low`, and hard
-    limiter duty remains free. This is enough to review AtrialFiberPack without
+    at `preload-low`, `afterload-high`, and `contractility-low`, normalized-run
+    effective `dt-half` failures are empty, and hard limiter duty remains free.
+    This is enough to review AtrialFiberPack without
     AV-plane as a next sidecar scope, not enough for runtime wiring, AV-plane,
     LandAtrial, direct PV outflow transfer, or morphology acceptance.
 
