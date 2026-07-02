@@ -216,6 +216,9 @@ Current scope:
   chamber/valve surface that lets reservoir capacity and booster compression
   co-evolve with LA fiber pressure, MV pressure-flow, and LV filling while
   keeping blood-volume ledger mutation and runtime AV-plane promotion blocked.
+- `benches/FlowOrientedAtrialLobeGeneratorBench.ts`: focused left-heart lobe
+  generator check that drives reservoir state from LA filling-rate readbacks
+  and records a visual PV-loop review bundle before any AV-plane promotion.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
