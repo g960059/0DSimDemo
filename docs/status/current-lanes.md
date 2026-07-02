@@ -41,10 +41,10 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: run an assembled-system source/reservoir numerics review of
-the selected `smooth-knee20-gain035-bound24` scaffold. Runtime wiring,
-reservoir broad retuning, AV-plane work, and LandAtrial re-entry remain
-blocked.
+Next PR target: resolve or classify the localized `preload-low` `dt-half`
+reservoir magnitude parity residual on the selected
+`smooth-knee20-gain035-bound24` scaffold. Runtime wiring, reservoir broad
+retuning, AV-plane work, and LandAtrial re-entry remain blocked.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -134,6 +134,8 @@ Included:
   hard-bound fallback duty.
 - FourChamberSmoothReservoirDynamicsReviewBench V1 for the selected smooth
   scaffold's limiter, passivity, knee, and extended stress repeatability review.
+- FourChamberSmoothReservoirAssembledNumericsReviewBench V1 for assembled
+  source/reservoir numerics review and `dt-half` reservoir magnitude parity.
 
 Excluded:
 
@@ -522,6 +524,13 @@ Next gates:
     knee stays clean. This is still sidecar scaffold evidence; next work should
     review assembled-system source/reservoir numerics before runtime, AV-plane,
     or LandAtrial unlock.
+50. Four-chamber smooth reservoir assembled numerics review: the smooth
+    scaffold remains useful but assembled numerics are mixed. Dynamics review,
+    effective envelope, hard-limiter, and feedback passivity are clean, but
+    `dt-half` reservoir magnitude parity is 6/7 with a localized
+    `preload-low` residual: nominal max reservoir volume ~19.45 mL versus
+    `dt-half` ~4.06 mL. Next work should resolve or classify that residual
+    before runtime, AV-plane, or LandAtrial unlock.
 
 Parallel prep, not blocking the next strategic gate:
 
