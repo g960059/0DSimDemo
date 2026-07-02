@@ -41,9 +41,9 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: promote source-ledger input normalization into the next
-source/reservoir contract review. Runtime wiring, reservoir broad retuning,
-AV-plane work, and LandAtrial re-entry remain blocked.
+Next PR target: AtrialFiberPack-without-AV-plane readiness review on top of
+the source/reservoir contract signal. Runtime wiring, reservoir broad
+retuning, AV-plane work, and LandAtrial re-entry remain blocked.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -143,6 +143,9 @@ Included:
 - FourChamberSourceDtInputNormalizedAssembledReviewBench V1 for applying
   source-ledger input normalization to the full selected smooth-reservoir
   assembled envelope.
+- FourChamberSourceReservoirContractReviewBench V1 for promoting smooth
+  reservoir dynamics plus source-ledger input normalization into a
+  source/reservoir contract signal while preserving raw status-rate failures.
 
 Excluded:
 
@@ -560,6 +563,15 @@ Next gates:
     clean 7/7, and the hard limiter is free. This is a source/reservoir
     contract signal only; runtime, AV-plane, LandAtrial, direct PV outflow
     transfer, and morphology acceptance remain blocked.
+54. Source/reservoir contract review: smooth reservoir dynamics plus
+    source-ledger input normalization now pass the source/reservoir contract
+    review. The smooth dynamics review passes, preload-low stress probes are
+    3/3 repeatable, `dt-half` reservoir parity is 7/7, normalized ledger
+    statuses are clean 7/7, raw status-rate source failures remain preserved
+    at `preload-low`, `afterload-high`, and `contractility-low`, and hard
+    limiter duty remains free. This is enough to review AtrialFiberPack without
+    AV-plane as a next sidecar scope, not enough for runtime wiring, AV-plane,
+    LandAtrial, direct PV outflow transfer, or morphology acceptance.
 
 Parallel prep, not blocking the next strategic gate:
 
