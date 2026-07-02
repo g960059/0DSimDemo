@@ -29,6 +29,8 @@ export type AtrialFiberChamberInputV1 = {
   readonly activationTimeSec: number;
   readonly cavityVolumeMl: number;
   readonly previousCavityVolumeMl: number;
+  readonly referenceCavityVolumeShiftMl?: number;
+  readonly previousReferenceCavityVolumeShiftMl?: number;
 };
 
 export type AtrialFiberChamberOutputV1 = {
@@ -51,6 +53,9 @@ export type AtrialFiberChamberOutputV1 = {
   readonly seriesPressureMmHg: number;
   readonly pressureRawMmHg: number;
   readonly dVdtMlPerSec: number;
+  readonly referenceCavityVolumeMl: number;
+  readonly referenceCavityVolumeShiftMl: number;
+  readonly previousReferenceCavityVolumeShiftMl: number;
 };
 
 const ATRIAL_BASE_FIBER_PARAMS_V1: HillSeriesFiberParamsV1 = {
@@ -105,8 +110,10 @@ export function stepAtrialFiberChamberV1(
   params: AtrialFiberChamberParamsV1,
 ): AtrialFiberChamberOutputV1 {
   const dtSec = Math.max(input.dtSec, 1e-6);
-  const lS = lengthFromVolume(input.cavityVolumeMl, params);
-  const lSPrev = lengthFromVolume(input.previousCavityVolumeMl, params);
+  const referenceCavityVolumeShiftMl = input.referenceCavityVolumeShiftMl ?? 0;
+  const previousReferenceCavityVolumeShiftMl = input.previousReferenceCavityVolumeShiftMl ?? 0;
+  const lS = lengthFromVolume(input.cavityVolumeMl, params, referenceCavityVolumeShiftMl);
+  const lSPrev = lengthFromVolume(input.previousCavityVolumeMl, params, previousReferenceCavityVolumeShiftMl);
   const fiber = stepHillSeriesFiberV1(previous.fiber, {
     tSec: input.tSec,
     dtSec,
@@ -140,12 +147,20 @@ export function stepAtrialFiberChamberV1(
     seriesPressureMmHg,
     pressureRawMmHg,
     dVdtMlPerSec: (input.cavityVolumeMl - input.previousCavityVolumeMl) / dtSec,
+    referenceCavityVolumeMl: params.referenceCavityVolumeMl + referenceCavityVolumeShiftMl,
+    referenceCavityVolumeShiftMl,
+    previousReferenceCavityVolumeShiftMl,
   };
 }
 
-function lengthFromVolume(cavityVolumeMl: number, params: AtrialFiberChamberParamsV1): number {
+function lengthFromVolume(
+  cavityVolumeMl: number,
+  params: AtrialFiberChamberParamsV1,
+  referenceCavityVolumeShiftMl = 0,
+): number {
   const amid = midwallAreaM2(cavityVolumeMl, params.wallVolumeMl);
-  const amidRef = midwallAreaM2(params.referenceCavityVolumeMl, params.wallVolumeMl);
+  const referenceCavityVolumeMl = Math.max(1e-6, params.referenceCavityVolumeMl + referenceCavityVolumeShiftMl);
+  const amidRef = midwallAreaM2(referenceCavityVolumeMl, params.wallVolumeMl);
   return params.lSRef * Math.sqrt(amid / Math.max(amidRef, 1e-12));
 }
 
