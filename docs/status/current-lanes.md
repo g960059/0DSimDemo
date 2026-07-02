@@ -41,10 +41,10 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: promote bounded reservoir-volume ownership into the full
-source-aware four-chamber contract smoke and rerun nominal, `dt-half`, and
-long-epoch envelope checks. Runtime wiring, reservoir broad retuning, AV-plane
-work, and LandAtrial re-entry remain blocked.
+Next PR target: replace the diagnostic hard reservoir-volume bound with a
+smoother compatibility / energy ownership law and rerun the bounded
+source-aware smoke plus limiter-duty review. Runtime wiring, reservoir broad
+retuning, AV-plane work, and LandAtrial re-entry remain blocked.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -125,6 +125,10 @@ Included:
   attribution of the remaining preload-low reservoir blocker.
 - BoundedReservoirVolumeOwnershipBench V1 for the targeted bounded
   reservoir-volume ownership signal on the preload-low long-epoch blocker.
+- FourChamberBoundedReservoirContractSmokeBench V1 for applying bounded
+  reservoir-volume ownership to the full source-aware smoke envelope.
+- FourChamberBoundedReservoirDynamicsReviewBench V1 for limiter-duty review of
+  the bounded reservoir-volume scaffold.
 
 Excluded:
 
@@ -482,6 +486,22 @@ Next gates:
     24 mL. This is not adoption evidence because the limiter rejects transfer
     over many epochs. Next work should apply the ownership law inside the full
     source-aware four-chamber contract smoke and rerun the complete envelope.
+46. Four-chamber bounded reservoir contract smoke: applying bounded
+    reservoir-volume ownership to the source-aware smoke gives raw 18/21 and
+    effective 21/21. Nominal and `dt-half` are effective 7/7 without ownership
+    limiter hits; long-epochs is effective 7/7 with max reservoir volume 24 mL.
+    A 56-epoch preload-low stress probe also passes with left/right source
+    surfaces preserved, max reservoir volume 24 mL, and final reservoir step
+    0 mL. This is still contract-smoke evidence because the limiter rejects
+    transfer explicitly; next work should review dynamics/numerics and limiter
+    duty before runtime, AV-plane, or LandAtrial unlock.
+47. Four-chamber bounded reservoir dynamics review: the bounded scaffold passes
+    the source-aware smoke, but the hard bound is not a final law. Full envelope
+    limiter duty is sparse at 5/350 epochs (~1.4%), while the preload-low
+    56-epoch stress probe is limiter-dominant at 39/56 epochs (~69.6%).
+    This keeps bounded reservoir-volume ownership as the current scaffold but
+    points next to a smoother compatibility / energy ownership law before any
+    runtime, AV-plane, or LandAtrial unlock.
 
 Parallel prep, not blocking the next strategic gate:
 

@@ -1,0 +1,75 @@
+{
+  "reportId": "four-chamber-bounded-reservoir-dynamics-review-report-v1",
+  "gateId": "fourChamberBoundedReservoirDynamicsReviewV1",
+  "inputs": {
+    "contractSmokeReportId": "four-chamber-bounded-reservoir-contract-smoke-report-v1",
+    "reservoirVolumeOwnershipBoundMl": 24
+  },
+  "limiterDuty": {
+    "fullEnvelope": {
+      "limiterHitCount": 5,
+      "epochCount": 350,
+      "dutyFraction": 0.014286
+    },
+    "preloadLowStressProbe": {
+      "limiterHitCount": 39,
+      "epochCount": 56,
+      "dutyFraction": 0.696429
+    },
+    "combined": {
+      "limiterHitCount": 44,
+      "epochCount": 406,
+      "dutyFraction": 0.108374
+    }
+  },
+  "activeLimiterPoints": [
+    {
+      "scenarioId": "long-epochs",
+      "profileId": "preload-low",
+      "limiterHitCount": 5,
+      "epochCount": 22,
+      "dutyFraction": 0.227273,
+      "maxAbsRejectedTransferMl": 1.114586,
+      "maxAbsReservoirVolumeMl": 24,
+      "finalReservoirStepMl": 0
+    },
+    {
+      "scenarioId": "stress",
+      "profileId": "preload-low",
+      "limiterHitCount": 39,
+      "epochCount": 56,
+      "dutyFraction": 0.696429,
+      "maxAbsRejectedTransferMl": null,
+      "maxAbsReservoirVolumeMl": 24,
+      "finalReservoirStepMl": 0
+    }
+  ],
+  "summary": {
+    "contractSmokePass": true,
+    "fullEnvelopeLimiterSparse": true,
+    "stressProbeLimiterDominant": true,
+    "maxAbsRejectedTransferMl": 1.114586,
+    "maxAbsReservoirVolumeMl": 24
+  },
+  "decision": {
+    "dynamicsReviewStatus": "bounded-reservoir-smoke-pass-stress-limiter-dominant",
+    "nextAction": "Keep bounded reservoir-volume ownership as the current scaffold, but replace the diagnostic hard bound with a smoother compatibility/energy ownership law before runtime, AV-plane, or LandAtrial work.",
+    "blockedClaims": [
+      "runtime-wiring",
+      "true-four-chamber-dynamics",
+      "morphology-acceptance",
+      "hard-bound-final-law",
+      "AV-plane-unlock",
+      "LandAtrial-unlock"
+    ]
+  },
+  "claimBoundary": {
+    "runtimeWiring": false,
+    "trueFourChamberDynamics": false,
+    "morphologyAcceptance": false,
+    "hardBoundFinalLaw": false,
+    "AVPlaneUnlock": false,
+    "LandAtrialUnlock": false
+  },
+  "normalizedSha256": "074aa66a0b484efb48e4841d1901a366aef43c3ddbfd9a30274d51aaa6e9408f"
+}
