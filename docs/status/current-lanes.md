@@ -59,10 +59,13 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: close the pressure-only AV-capacity experiment as a no-go if
-its measured artifact remains blocked, then move the next atrial V-loop attempt
-to a two-state AV-plane reservoir chamber contract that separates early
-capacity/suction blood-volume acquisition from late reservoir pressure/recoil.
+Next PR target: use the two-state AV-plane reservoir chamber contract result as
+an area-only mixed signal, then move the next atrial V-loop attempt to
+topology/orientation ownership rather than another scalar pressure or lobe
+sweep. The two-state surface separates early capacity/suction blood-volume
+acquisition from late reservoir pressure/recoil and can enlarge the reservoir
+loop while preserving source/MVF in bounded candidates, but opposed a/v lobe
+orientation remains 0/7 and is still visually unacceptable.
 Warm-replay lobe attribution, separated-state smokes,
 dual-lobe geometry, flow-oriented LA filling-rate drive, hidden-volume-free
 AV-plane ejection-rate reservoir oracles, AV-plane reservoir capacity/stretch
@@ -282,6 +285,14 @@ Included:
   MV pressure-flow are live, so runtime wiring, morphology acceptance,
   AV-plane enablement, a-prime physiology, and LandAtrial unlock remain
   blocked.
+- AtrialTwoStateReservoirTransactionBench V1 for a closed-loop two-state
+  AV-plane reservoir chamber contract that separates early capacity/suction
+  acquisition from late reservoir recoil pressure. It preserves hidden-volume
+  discipline and produces an area-only v-loop signal
+  (`baselineMaxVLoopArea` 72.78 mL*mmHg,
+  `maxSourcePreservingVLoopArea` 107.93 mL*mmHg), but LA PV lobe quality and
+  opposed-lobe orientation remain 0/7. This is mixed topology evidence, not
+  AV-plane promotion or morphology acceptance.
 
 Excluded:
 
