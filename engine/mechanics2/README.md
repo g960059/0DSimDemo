@@ -132,6 +132,8 @@ Current scope:
   wall surface without AV-plane geometry or piston-volume coupling.
 - `benches/AtrialFiberPackPrescribedVolumeBench.ts`: prescribed-volume
   LA/RA atrial fiber readiness gate on top of the source/reservoir contract.
+- `benches/AtrialFiberPackClosedLoopReplayBench.ts`: AV-plane-off closed-loop
+  LA/RA volume replay through AtrialFiberPack without pressure substitution.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
@@ -175,6 +177,7 @@ Planning docs:
 - [Four-chamber bounded reservoir dynamics review V1](../../docs/mechanics2/four-chamber-bounded-reservoir-dynamics-review-v1.md)
 - [Four-chamber source/reservoir contract review V1](../../docs/mechanics2/four-chamber-source-reservoir-contract-review-v1.md)
 - [AtrialFiberPack prescribed-volume V1](../../docs/mechanics2/atrial-fiber-pack-prescribed-volume-v1.md)
+- [AtrialFiberPack closed-loop replay V1](../../docs/mechanics2/atrial-fiber-pack-closed-loop-replay-v1.md)
 - [ADR-MYO-003](../../docs/myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 
 Claim boundary:
