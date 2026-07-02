@@ -41,10 +41,11 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: rerun source/four-chamber residual review using the
-right-preload PV outflow ownership lead before runtime wiring, reservoir
-retuning, AV-plane work, or LandAtrial re-entry. Do not restart reservoir
-gain/compliance tuning or broad small-parameter scans from this evidence alone.
+Next PR target: build a source-aware four-chamber residual review that separates
+phase-aligned source failures and magnitude calibration before runtime wiring,
+reservoir retuning, AV-plane work, or LandAtrial re-entry. Do not directly
+transfer standalone source-surface leads into the selected four-chamber
+scaffold.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -111,6 +112,9 @@ Included:
 - RightPreloadOutflowOwnershipBench V1 for the focused PV outflow
   pressure-flow/loss ownership signal on right preload-low source
   repeatability.
+- FourChamberPvOutflowTransferReviewBench V1 for checking whether the
+  standalone right-preload PV outflow lead can transfer directly into the
+  selected four-chamber scaffold.
 
 Excluded:
 
@@ -419,6 +423,15 @@ Next gates:
     lead, not final magnitude calibration or PH/RV-failure readiness. Next work
     should rerun source/four-chamber residual review with this lead before any
     runtime, reservoir retuning, AV-plane, or LandAtrial work.
+40. Four-chamber PV outflow transfer review: direct transfer of the standalone
+    right-preload PV outflow lead is no-go. The selected reference remains the
+    best surface across nominal, `dt-half`, and long-epoch review; no direct
+    transfer candidate passes all scenarios. PV variants can improve the
+    `dt-half/preload-low` right surface, but they worsen nominal or long-epoch
+    four-chamber behavior through right-surface, forward-mismatch, or reservoir
+    shuttle failures. Next work should build a source-aware four-chamber review
+    rather than reopening reservoir tuning, AV-plane, LandAtrial, or runtime
+    wiring.
 
 Parallel prep, not blocking the next strategic gate:
 
