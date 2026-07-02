@@ -41,10 +41,9 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: address the remaining long-epoch `preload-low` reservoir
-repeatability blocker inside the source-aware four-chamber contract smoke.
-Runtime wiring, reservoir broad retuning, AV-plane work, and LandAtrial re-entry
-remain blocked.
+Next PR target: design a bounded preload-low reservoir-volume ownership
+contract for the source-aware four-chamber scaffold. Runtime wiring, reservoir
+broad retuning, AV-plane work, and LandAtrial re-entry remain blocked.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -121,6 +120,8 @@ Included:
   ownership as a contract layer over the selected four-chamber residual review.
 - FourChamberSourceAwareContractSmokeBench V1 for the bounded source-aware
   four-chamber contract smoke and its remaining reservoir-repeatability blocker.
+- PreloadLowReservoirRepeatabilityAttributionBench V1 for focused epoch-history
+  attribution of the remaining preload-low reservoir blocker.
 
 Excluded:
 
@@ -463,6 +464,13 @@ Next gates:
     ~1.16 mL, and forward mismatch ~8.28 mL. Next work should target this
     repeatability blocker only; broad reservoir tuning, runtime wiring,
     AV-plane, and LandAtrial remain blocked.
+44. Preload-low reservoir repeatability attribution: the remaining blocker is
+    not just slow convergence. At 22 and 40 epochs, both source surfaces remain
+    preserved while reservoir volume grows from ~28.5 mL to ~46.2 mL. At
+    56 epochs, final reservoir step falls to ~0.35 mL, but accumulated reservoir
+    load reaches ~48.9 mL and the right surface fails. This points next to a
+    bounded reservoir-volume ownership contract, not broad reservoir
+    gain/compliance retuning, runtime wiring, AV-plane, or LandAtrial work.
 
 Parallel prep, not blocking the next strategic gate:
 
