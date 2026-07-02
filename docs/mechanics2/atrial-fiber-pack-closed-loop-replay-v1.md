@@ -25,13 +25,15 @@ Residual:
   `afterload-high`, and `contractility-low`.
 - This is not a morphology failure for the replay gate, but it blocks direct
   atrial pressure substitution.
+- The follow-up attribution report is
+  `data/mechanics2/reports/atrial-pressure-parity-attribution-report-v1.json`.
 
 Interpretation:
 
 - LA/RA one-fiber wall mechanics can follow the selected closed-loop volume
   trajectories without AV-plane geometry and without hidden volume changes.
-- The next step is LA pressure-parity attribution before any atrial
-  pressure-substitution smoke.
+- The follow-up attribution shows the raw atrial wall pressure needs a
+  decomposed pressure contract before any pressure-substitution smoke.
 
 Claim boundary:
 

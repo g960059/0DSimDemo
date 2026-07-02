@@ -16,6 +16,11 @@ import {
 export const ATRIAL_FIBER_PACK_PRESCRIBED_VOLUME_REPORT_ID_V1 =
   "atrial-fiber-pack-prescribed-volume-report-v1" as const;
 
+const FIXTURE_VERSION_V1 = "atrial-prescribed-volume-fixtures-v1.1" as const;
+const PRESSURE_MAPPING_VERSION_V1 = "atrial-one-fiber-pressure-map-v1.1" as const;
+const WARMUP_CYCLES_V1 = 2;
+const SCORED_CYCLE_INDEX_V1 = WARMUP_CYCLES_V1;
+
 type FixtureIdV1 =
   | "la-normal-sinus-volume-v1"
   | "ra-normal-sinus-volume-v1"
@@ -35,6 +40,10 @@ type AtrialVolumeFixtureV1 = {
 type AtrialFixtureResultV1 = {
   readonly fixtureId: FixtureIdV1;
   readonly chamberId: AtrialFiberChamberIdV1;
+  readonly fixtureVersion: typeof FIXTURE_VERSION_V1;
+  readonly pressureMappingVersion: typeof PRESSURE_MAPPING_VERSION_V1;
+  readonly warmupCycles: typeof WARMUP_CYCLES_V1;
+  readonly scoredCycleIndex: typeof SCORED_CYCLE_INDEX_V1;
   readonly status: "pass" | "fail";
   readonly pressurePeakMmHg: number;
   readonly pressureMinMmHg: number;
@@ -44,6 +53,10 @@ type AtrialFixtureResultV1 = {
   readonly seriesPressurePeakMmHg: number;
   readonly activePeakTheta: number;
   readonly maxAbsLSiVelocityNormPerSec: number;
+  readonly velocityCapNormPerSec: number;
+  readonly velocityHeadroomNormPerSec: number;
+  readonly velocityCapTouchCount: number;
+  readonly velocityCapTouchFraction: number;
   readonly pressureShape: ShapeQualityMetricsV1;
   readonly allFinite: boolean;
   readonly failureReasons: readonly string[];
@@ -91,7 +104,12 @@ export function runAtrialFiberPackPrescribedVolumeBenchV1(): AtrialFiberPackPres
   const pass = fixtureResults.filter((result) => result.status === "pass").length;
   const finiteCount = fixtureResults.filter((result) => result.allFinite).length;
   const boundedPressureCount = fixtureResults.filter((result) =>
-    result.failureReasons.every((reason) => !reason.includes("pressure"))).length;
+    result.allFinite
+    && result.failureReasons.every((reason) =>
+      reason !== "pressure-peak-too-low"
+      && reason !== "pressure-peak-too-high"
+      && reason !== "pressure-pulse-too-low"
+    )).length;
   const lateActivePeakCount = fixtureResults.filter((result) =>
     result.activePeakTheta >= 0.66 && result.activePeakTheta <= 0.9).length;
   const upstreamOk =
@@ -189,6 +207,10 @@ function evaluateFixture(fixture: AtrialVolumeFixtureV1): AtrialFixtureResultV1 
   const result = {
     fixtureId: fixture.fixtureId,
     chamberId: fixture.chamberId,
+    fixtureVersion: FIXTURE_VERSION_V1,
+    pressureMappingVersion: PRESSURE_MAPPING_VERSION_V1,
+    warmupCycles: WARMUP_CYCLES_V1 as typeof WARMUP_CYCLES_V1,
+    scoredCycleIndex: SCORED_CYCLE_INDEX_V1 as typeof SCORED_CYCLE_INDEX_V1,
     status: "pass" as const,
     pressurePeakMmHg: round(Math.max(...pressure)),
     pressureMinMmHg: round(Math.min(...pressure)),
@@ -198,6 +220,19 @@ function evaluateFixture(fixture: AtrialVolumeFixtureV1): AtrialFixtureResultV1 
     seriesPressurePeakMmHg: round(Math.max(...seriesPressure)),
     activePeakTheta: round(activePeakIndex / Math.max(outputs.length, 1)),
     maxAbsLSiVelocityNormPerSec: round(Math.max(...outputs.map((output) => Math.abs(output.fiber.lSiDot)))),
+    velocityCapNormPerSec: round(DEFAULT_ATRIAL_FIBER_CHAMBER_PARAMS_V1[fixture.chamberId].fiber.maxLSiVelocityNormPerSec),
+    velocityHeadroomNormPerSec: round(
+      DEFAULT_ATRIAL_FIBER_CHAMBER_PARAMS_V1[fixture.chamberId].fiber.maxLSiVelocityNormPerSec
+      - Math.max(...outputs.map((output) => Math.abs(output.fiber.lSiDot)))
+    ),
+    velocityCapTouchCount: outputs.filter((output) =>
+      Math.abs(output.fiber.lSiDot)
+      >= DEFAULT_ATRIAL_FIBER_CHAMBER_PARAMS_V1[fixture.chamberId].fiber.maxLSiVelocityNormPerSec - 1e-9
+    ).length,
+    velocityCapTouchFraction: round(outputs.filter((output) =>
+      Math.abs(output.fiber.lSiDot)
+      >= DEFAULT_ATRIAL_FIBER_CHAMBER_PARAMS_V1[fixture.chamberId].fiber.maxLSiVelocityNormPerSec - 1e-9
+    ).length / Math.max(outputs.length, 1)),
     pressureShape,
     allFinite: outputs.every((output) => Object.values(output).every((value) =>
       typeof value !== "number" || Number.isFinite(value)
@@ -212,11 +247,15 @@ function replayFixture(fixture: AtrialVolumeFixtureV1): readonly AtrialFiberCham
   const params = DEFAULT_ATRIAL_FIBER_CHAMBER_PARAMS_V1[fixture.chamberId];
   let state = initialAtrialFiberChamberStateV1(fixture.volumeMl[0]!, params);
   const outputs: AtrialFiberChamberOutputV1[] = [];
-  for (let i = 0; i < fixture.volumeMl.length; i++) {
+  const cycleSampleCount = fixture.volumeMl.length;
+  const totalSampleCount = (WARMUP_CYCLES_V1 + 1) * cycleSampleCount;
+  for (let i = 0; i < totalSampleCount; i++) {
+    const cycleIndex = i % cycleSampleCount;
+    const previousCycleIndex = positiveModuloIndex(i - 1, cycleSampleCount);
     const tSec = i / fixture.sampleRateHz;
     const dtSec = 1 / fixture.sampleRateHz;
-    const cavityVolumeMl = fixture.volumeMl[i]!;
-    const previousCavityVolumeMl = fixture.volumeMl[Math.max(0, i - 1)] ?? cavityVolumeMl;
+    const cavityVolumeMl = fixture.volumeMl[cycleIndex]!;
+    const previousCavityVolumeMl = fixture.volumeMl[previousCycleIndex] ?? cavityVolumeMl;
     const output = stepAtrialFiberChamberV1(state, {
       tSec,
       dtSec,
@@ -225,7 +264,7 @@ function replayFixture(fixture: AtrialVolumeFixtureV1): readonly AtrialFiberCham
       cavityVolumeMl,
       previousCavityVolumeMl,
     }, params);
-    outputs.push(output);
+    if (i >= WARMUP_CYCLES_V1 * cycleSampleCount) outputs.push(output);
     state = output.state;
   }
   return outputs;
@@ -246,6 +285,7 @@ function failureReasonsFor(
   if (result.pressureShape.c1ContinuityScore > 0.34) failures.push("pressure-c1-rough");
   if (result.pressureShape.dYdtSpikeRatio > 20) failures.push("pressure-derivative-spiky");
   if (result.maxAbsLSiVelocityNormPerSec > 1.6) failures.push("intrinsic-length-velocity-too-high");
+  if (result.velocityCapTouchCount > 0) failures.push("intrinsic-length-velocity-cap-touched");
   return failures;
 }
 
@@ -275,6 +315,10 @@ function maxIndex(values: readonly number[]): number {
     }
   }
   return bestIndex;
+}
+
+function positiveModuloIndex(index: number, period: number): number {
+  return ((index % period) + period) % period;
 }
 
 function round(value: number): number {
