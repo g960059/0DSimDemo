@@ -168,6 +168,10 @@ Current scope:
 - `benches/AtrialFigureEightQualityAuditBench.ts`: source/reservoir-conditioned
   LA/RA PV quality audit comparing current source pressure with AtrialFiber
   pressure and reporting missing AV-plane velocity/a-prime readbacks.
+- `benches/AtrialLobeFailureAttributionBench.ts`: warm-replay, closed-loop
+  phase-lobe failure attribution for separating missing intersections,
+  same-signed a/v lobes, and volume-order failures before the next lobe
+  generator design.
 - `benches/StatefulLaChamberContractSmokeBench.ts`: left-heart smoke that uses
   stateful LA chamber total pressure as the LA pressure source with AV-plane
   disabled, separating source-surface preservation from LA PV lobe quality.

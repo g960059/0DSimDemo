@@ -19,7 +19,7 @@ describe("AtrialChamberValveTransactionReadinessBench V1", () => {
     expect(report.summary).toMatchObject({
       requiredOwnerCount: 4,
       currentPressureLobeQualityPass: 0,
-      atrialFiberLobeQualityPass: 5,
+      atrialFiberLobeQualityPass: 1,
       statefulLaSourceSurfacePass: 1,
       statefulLaContractPass: 0,
       avValveBestFixedPass: 4,

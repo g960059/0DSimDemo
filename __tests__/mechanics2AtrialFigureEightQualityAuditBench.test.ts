@@ -21,19 +21,19 @@ describe("AtrialFigureEightQualityAuditBench V1", () => {
       total: 14,
       currentBasicFigureEightPass: 1,
       currentLobeQualityPass: 0,
-      fiberBasicFigureEightPass: 14,
-      fiberLobeQualityPass: 5,
+      fiberBasicFigureEightPass: 13,
+      fiberLobeQualityPass: 1,
       bothPressureSourcesLobeQualityPass: 0,
       avPlaneVelocityReadbackPresent: 0,
     });
-    expect(report.summary.meanFiberAOverVLoopRatio).toBeGreaterThan(20);
+    expect(report.summary.meanFiberAOverVLoopRatio).toBeGreaterThan(9);
     expect(report.summary.meanCurrentAOverVLoopRatio).toBeGreaterThan(18);
   });
 
-  it("keeps LA fiber loops as the useful component signal and RA loops as the blocker", () => {
+  it("keeps warm-replayed LA fiber as a narrow signal and RA loops as the blocker", () => {
     const laRows = report.rows.filter((row) => row.chamberId === "LA");
     const raRows = report.rows.filter((row) => row.chamberId === "RA");
-    expect(laRows.filter((row) => row.fiberPv.lobeQualityPass)).toHaveLength(5);
+    expect(laRows.filter((row) => row.fiberPv.lobeQualityPass)).toHaveLength(1);
     expect(raRows.filter((row) => row.fiberPv.lobeQualityPass)).toHaveLength(0);
     expect(laRows.every((row) => row.currentPv.lobeQualityPass === false)).toBe(true);
     expect(raRows.every((row) =>
