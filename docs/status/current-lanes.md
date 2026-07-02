@@ -59,9 +59,9 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: decomposed LA pressure contract smoke before any atrial
-pressure-substitution path. Runtime wiring, reservoir broad retuning,
-AV-plane work, and LandAtrial re-entry remain blocked.
+Next PR target: classify non-focused decomposed LA late-peak residuals before
+any atrial pressure-substitution path. Runtime wiring, reservoir broad
+retuning, AV-plane work, and LandAtrial re-entry remain blocked.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -171,6 +171,9 @@ Included:
   volume replay without atrial pressure substitution.
 - AtrialPressureParityAttributionBench V1 for classifying the focused LA
   pressure-parity residual before any pressure-substitution path.
+- DecomposedLaPressureContractBench V1 for a shadow decomposed LA pressure
+  signal that keeps source/reservoir filling baseline separate from atrial
+  fiber active pulse.
 
 Excluded:
 
@@ -624,6 +627,13 @@ Next gates:
     also has a current v-wave/reservoir component. Raw atrial fiber pressure
     remains unsuitable for substitution; the next model surface should separate
     filling-pressure baseline/reservoir state from atrial wall pulse scaling.
+58. Decomposed LA pressure contract smoke: a shadow contract that preserves the
+    selected source/reservoir filling baseline and replaces only the empirical
+    A-wave pulse with normalized atrial-fiber active pressure improves mean
+    delta from ~8.16 mmHg raw-fiber to ~0.25 mmHg decomposed. The three focused
+    residual rows pass, but total pass is 4/7 because `normal-hr75`,
+    `normal-hr90`, and `contractility-high` retain non-focused late-peak
+    residuals. This is not a source-surface substitution unlock.
 
 Parallel prep, not blocking the next strategic gate:
 
