@@ -41,12 +41,11 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: implement a source-surface contract using phase-aligned shape
-parity, then address the two remaining true source residuals separately:
-left-afterload-high output reserve and right-preload-low settling/repeatability
-before dt-output parity. Do not restart reservoir gain/compliance tuning, broad
-small-parameter scans, runtime wiring, AV-plane work, or LandAtrial re-entry
-from this evidence alone.
+Next PR target: address the remaining right-preload-low source-surface
+settling/repeatability residual before returning to four-chamber residual
+review. Do not restart reservoir gain/compliance tuning, broad small-parameter
+scans, runtime wiring, AV-plane work, or LandAtrial re-entry from this evidence
+alone.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -107,6 +106,9 @@ Included:
 - SourceSurfaceSamplingParityBench V1 for checking source-surface shape
   dt-parity on a phase-aligned sampling grid before treating it as a model
   residual.
+- SourceSurfaceContractBench V1 for applying phase-aligned source shape parity,
+  checking left load-conditioned output reserve, and classifying right
+  preload-low source settling/repeatability.
 
 Excluded:
 
@@ -392,6 +394,16 @@ Next gates:
     `right-heart-preload-low` repeatability/output residuals. Next work should
     use phase-aligned source shape parity and focus on output reserve plus
     right-source settling/repeatability.
+38. Source-surface contract: phase-aligned shape parity plus load-conditioned
+    left output reserve yields a left source-contract 7/7 signal. The reference
+    left surface is 6/7 with only afterload-high output low, while
+    `left-afterload-active-reserve103` and `left-afterload-pressure-reserve102`
+    both pass 7/7. Right remains 6/7: `right-heart-preload-low` keeps
+    beat-repeatability and `dt-half` output parity failures even though shape
+    parity is clean, and longer epochs worsen into persistent large alternation.
+    This blocks source-contract promotion and points next to right-source
+    preload-low settling / volume-output ownership before four-chamber,
+    runtime, AV-plane, or LandAtrial work.
 
 Parallel prep, not blocking the next strategic gate:
 
