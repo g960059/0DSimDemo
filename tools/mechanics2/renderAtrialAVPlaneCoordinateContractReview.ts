@@ -38,7 +38,7 @@ const rawVariant = ATRIAL_AV_PLANE_COORDINATE_CONTRACT_VARIANTS_V1.find((variant
   variantConfig.variantId === "raw-traction-reference"
 )!;
 const bestVariant = ATRIAL_AV_PLANE_COORDINATE_CONTRACT_VARIANTS_V1.find((variantConfig) =>
-  variantConfig.variantId === report.summary.bestCoordinateVariantId
+  variantConfig.variantId === report.summary.bestForceBalanceVariantId
 )!;
 const baseParams = buildLeftHeartDynamicReserveVariantEnvelopeV1("active-length-mv-closure-stateful-root08");
 const panels = profileIds.map((profileId, index) => {
@@ -60,11 +60,11 @@ svg.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${hei
 svg.push(`<rect width="${width}" height="${height}" fill="#070b13"/>`);
 svg.push(`<text x="34" y="34" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="22" font-weight="700">Atrial AV-plane coordinate contract review</text>`);
 svg.push(`<text x="34" y="58" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="13">Capacity/work coordinate variants remove direct traction pressure and keep blood volume owned by venous and valve flows.</text>`);
-svg.push(`<text x="34" y="82" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best coordinate variant: ${report.summary.bestCoordinateVariantId}, source ${report.summary.bestCoordinateSourceSurfacePass}/7, topology ${report.summary.bestCoordinateTopologyPass}/7, MVF ${report.summary.bestCoordinateMvfCleanCount}/7</text>`);
+svg.push(`<text x="34" y="82" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best force-balance variant: ${report.summary.bestForceBalanceVariantId}, source ${report.summary.bestForceBalanceSourceSurfacePass}/7, topology ${report.summary.bestForceBalanceTopologyPass}/7, source+topology ${report.summary.bestForceBalanceSourcePreservingTopologyPass}/7, MVF ${report.summary.bestForceBalanceMvfCleanCount}/7</text>`);
 svg.push(`<line x1="908" y1="58" x2="950" y2="58" stroke="#22c55e" stroke-width="3"/>`);
 svg.push(`<text x="958" y="62" fill="#22c55e" font-family="Inter,Arial,sans-serif" font-size="13">raw traction pressure reference</text>`);
 svg.push(`<line x1="908" y1="80" x2="950" y2="80" stroke="#f97316" stroke-width="3"/>`);
-svg.push(`<text x="958" y="84" fill="#f97316" font-family="Inter,Arial,sans-serif" font-size="13">best capacity/work coordinate</text>`);
+svg.push(`<text x="958" y="84" fill="#f97316" font-family="Inter,Arial,sans-serif" font-size="13">best force-balance coordinate</text>`);
 
 for (let i = 0; i < panels.length; i++) {
   const col = i % 2;
