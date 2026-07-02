@@ -59,17 +59,18 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: use the new AV-plane traction plus accepted pulmonary venous
-reservoir-flow signal as the atrial v-loop mechanism lead, then repair the
-remaining source/MVF residuals without returning to passive reservoir scalar
-sweeps. The first closed-loop traction transaction produces blood-volume LA PV
-opposed lobes 7/7 and `dt-half` opposed lobes 7/7 with hidden-volume cleanliness
-preserved, while flow-only, traction-only, and wrong-sign traction controls are
-0/7. This is a topology mechanism signal, not morphology acceptance: source
-surface and MVF cleanliness remain 4/7, visual review still shows sharp
-traction-driven pressure geometry, and runtime wiring, runtime AV-plane
-enablement, pressure substitution, broad reservoir retuning, and LandAtrial
-re-entry remain blocked.
+Next PR target: replace pressure-drive smoothing with an explicit AV-plane
+position/velocity/force coordinate and work/energy readbacks. The first
+closed-loop traction transaction produces blood-volume LA PV opposed lobes 7/7
+and `dt-half` opposed lobes 7/7 with hidden-volume cleanliness preserved, while
+flow-only, traction-only, and wrong-sign traction controls are 0/7. Finite
+pressure-drive smoothing reduces the raw traction pressure step to 31% of the
+velocity-traction reference, but source-surface pass falls from 4/7 to 2/7 and
+no finite-drive variant preserves both raw topology and source status. This is
+not morphology acceptance: source surface and MVF cleanliness remain incomplete,
+visual review still shows sharp traction-driven pressure geometry, and runtime
+wiring, runtime AV-plane enablement, pressure substitution, broad reservoir
+retuning, and LandAtrial re-entry remain blocked.
 Warm-replay lobe attribution, separated-state smokes, dual-lobe geometry,
 flow-oriented LA filling-rate drive, hidden-volume-free AV-plane ejection-rate
 reservoir oracles, AV-plane reservoir capacity/stretch + booster/wall-work,
@@ -311,6 +312,13 @@ Included:
   controls are 0/7. This routes the next atrial work to traction/source/MVF
   cleanup and owner visual review, not passive reservoir sweeps or AV-plane
   promotion.
+- AtrialAVPlaneWorkConjugateReviewBench V1 for checking whether finite
+  pressure-drive smoothing can remove the traction spike without losing the
+  topology lead. It is no-go: the best finite-drive variant reduces max
+  traction pressure step from 15.21 to 4.73 mmHg, but source-surface pass drops
+  from 4/7 to 2/7 and MVF clean from 4/7 to 3/7. This closes pressure-drive
+  smoothing as the next fix and routes the next design to an explicit AV-plane
+  position/velocity/force coordinate with work-conjugate energy readbacks.
 
 Excluded:
 

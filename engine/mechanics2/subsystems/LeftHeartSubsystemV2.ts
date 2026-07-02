@@ -63,7 +63,8 @@ export type LeftAtrialLobeGeneratorModeV2 =
   | "av-plane-reservoir-strain-reference-transaction-v1"
   | "av-plane-pressure-capacity-reservoir-transaction-v1"
   | "av-plane-two-state-reservoir-transaction-v1"
-  | "av-plane-traction-reservoir-transaction-v1";
+  | "av-plane-traction-reservoir-transaction-v1"
+  | "av-plane-stateful-traction-reservoir-transaction-v1";
 export type LeftAtrialPressureSourceModeV2 =
   | "empirical-a-wave"
   | "fiber-active-a-window-gated-shadow"
@@ -127,6 +128,10 @@ export type LeftHeartSubsystemParamsV2 = LeftHeartSubsystemParamsV1 & {
   readonly laAVPlaneVenousReservoirMvOpenReleaseThreshold01: number;
   readonly laAVPlaneReservoirReferenceGainMl: number;
   readonly laAVPlaneReservoirTractionGainMmHgPerNormPerSec: number;
+  readonly laAVPlaneReservoirTractionPressureRiseTauSec: number;
+  readonly laAVPlaneReservoirTractionPressureFallTauSec: number;
+  readonly laAVPlaneReservoirTractionPressureReleaseTauSec: number;
+  readonly laAVPlaneReservoirTractionPressureMaxRateMmHgPerSec: number;
   readonly laAVPlaneReservoirRecoilPressureGainMmHg: number;
   readonly laAVPlaneReservoirRecoilRiseTauSec: number;
   readonly laAVPlaneReservoirRecoilFallTauSec: number;
@@ -151,6 +156,7 @@ export type LeftHeartSubsystemStateV2 = {
   readonly rootOutflowStatefulDrive01: number;
   readonly laReservoirSuctionDrive01: number;
   readonly laReservoirRecoilDrive01: number;
+  readonly laAVPlaneReservoirTractionPressureStateMmHg: number;
   readonly laBoosterPressureDrive01: number;
   readonly clampCount: number;
 };
@@ -178,6 +184,8 @@ export type LeftHeartSubsystemSampleV2 = {
   readonly laReservoirGeometryDeltaMl: number;
   readonly laReservoirReferenceVolumeShiftMl: number;
   readonly laAVPlaneReservoirTractionPressureMmHg: number;
+  readonly laAVPlaneReservoirTractionPressureTargetMmHg: number;
+  readonly laAVPlaneReservoirTractionPressureStateMmHg: number;
   readonly laBoosterGeometryDeltaMl: number;
   readonly laEffectiveGeometryHiddenBloodVolumeSourceMl: number;
   readonly laAPrimeProxyCmPerSec: number | null;
@@ -266,6 +274,8 @@ type AcceptedV2 = CandidateV2 & {
   readonly laReservoirGeometryDeltaMl: number;
   readonly laReservoirReferenceVolumeShiftMl: number;
   readonly laAVPlaneReservoirTractionPressureMmHg: number;
+  readonly laAVPlaneReservoirTractionPressureTargetMmHg: number;
+  readonly laAVPlaneReservoirTractionPressureStateMmHg: number;
   readonly laBoosterPressureDrive01: number;
   readonly laBoosterPressureMmHg: number;
   readonly laBoosterGeometryDeltaMl: number;
@@ -347,6 +357,14 @@ export function defaultLeftHeartSubsystemParamsV2(
     laAVPlaneReservoirReferenceGainMl: overrides.laAVPlaneReservoirReferenceGainMl ?? 0,
     laAVPlaneReservoirTractionGainMmHgPerNormPerSec:
       overrides.laAVPlaneReservoirTractionGainMmHgPerNormPerSec ?? 0,
+    laAVPlaneReservoirTractionPressureRiseTauSec:
+      overrides.laAVPlaneReservoirTractionPressureRiseTauSec ?? 0.050,
+    laAVPlaneReservoirTractionPressureFallTauSec:
+      overrides.laAVPlaneReservoirTractionPressureFallTauSec ?? 0.18,
+    laAVPlaneReservoirTractionPressureReleaseTauSec:
+      overrides.laAVPlaneReservoirTractionPressureReleaseTauSec ?? 0.045,
+    laAVPlaneReservoirTractionPressureMaxRateMmHgPerSec:
+      overrides.laAVPlaneReservoirTractionPressureMaxRateMmHgPerSec ?? 180,
     laAVPlaneReservoirRecoilPressureGainMmHg:
       overrides.laAVPlaneReservoirRecoilPressureGainMmHg ?? 0,
     laAVPlaneReservoirRecoilRiseTauSec:
@@ -384,6 +402,7 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
     rootOutflowStatefulDrive01: 0,
     laReservoirSuctionDrive01: 0,
     laReservoirRecoilDrive01: 0,
+    laAVPlaneReservoirTractionPressureStateMmHg: 0,
     laBoosterPressureDrive01: 0,
     clampCount: 0,
   };
@@ -417,6 +436,7 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
         previousRootOutflowStatefulDrive01: state.rootOutflowStatefulDrive01,
         previousLaReservoirSuctionDrive01: state.laReservoirSuctionDrive01,
         previousLaReservoirRecoilDrive01: state.laReservoirRecoilDrive01,
+        previousLaAVPlaneReservoirTractionPressureStateMmHg: state.laAVPlaneReservoirTractionPressureStateMmHg,
         previousLaBoosterPressureDrive01: state.laBoosterPressureDrive01,
         tSec,
         dtSec,
@@ -470,6 +490,8 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
       laBoosterGeometryDeltaMl: accepted.laBoosterGeometryDeltaMl,
       laEffectiveGeometryHiddenBloodVolumeSourceMl: accepted.avPlaneGeometryReadback.hiddenBloodVolumeSourceMl,
       laAVPlaneReservoirTractionPressureMmHg: accepted.laAVPlaneReservoirTractionPressureMmHg,
+      laAVPlaneReservoirTractionPressureTargetMmHg: accepted.laAVPlaneReservoirTractionPressureTargetMmHg,
+      laAVPlaneReservoirTractionPressureStateMmHg: accepted.laAVPlaneReservoirTractionPressureStateMmHg,
       laAPrimeProxyCmPerSec: accepted.avPlaneGeometryReadback.aPrimeProxyCmPerSec,
       laLobeGeneratorMode: params.laLobeGeneratorMode,
       laReservoirSuctionDrive01: accepted.laReservoirSuctionDrive01,
@@ -520,6 +542,7 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
       rootOutflowStatefulDrive01: accepted.rootOutflowStatefulDrive01,
       laReservoirSuctionDrive01: accepted.laReservoirSuctionDrive01,
       laReservoirRecoilDrive01: accepted.laReservoirRecoilDrive01,
+      laAVPlaneReservoirTractionPressureStateMmHg: accepted.laAVPlaneReservoirTractionPressureStateMmHg,
       laBoosterPressureDrive01: accepted.laBoosterPressureDrive01,
       clampCount: state.clampCount + accepted.volumeClampHit01,
     };
@@ -539,6 +562,7 @@ function acceptLeftHeartCandidateV2(input: {
   readonly previousRootOutflowStatefulDrive01: number;
   readonly previousLaReservoirSuctionDrive01: number;
   readonly previousLaReservoirRecoilDrive01: number;
+  readonly previousLaAVPlaneReservoirTractionPressureStateMmHg: number;
   readonly previousLaBoosterPressureDrive01: number;
   readonly tSec: number;
   readonly dtSec: number;
@@ -632,9 +656,17 @@ function acceptLeftHeartCandidateV2(input: {
   ) * raisedCosineWindow(input.theta, input.params.laAWaveStartTheta, input.params.laAWaveEndTheta);
   const laReservoirSuctionPressureMmHg =
     -input.params.laReservoirSuctionPressureGainMmHg * laReservoirSuctionDrive01;
-  const laAVPlaneReservoirTractionPressureMmHg = leftAtrialAVPlaneReservoirTractionPressureMmHg(
+  const laAVPlaneReservoirTractionPressureTargetMmHg = leftAtrialAVPlaneReservoirTractionPressureTargetMmHg(
     avPlaneGeometryReadback.zAvDotNormPerSec,
+    laReservoirSuctionDrive01,
     input.previousMvState.open01,
+    input.params,
+  );
+  const laAVPlaneReservoirTractionPressureMmHg = nextLeftAtrialAVPlaneReservoirTractionPressureMmHg(
+    input.previousLaAVPlaneReservoirTractionPressureStateMmHg,
+    laAVPlaneReservoirTractionPressureTargetMmHg,
+    input.previousMvState.open01,
+    input.dtSec,
     input.params,
   );
   const laReservoirRecoilPressureMmHg =
@@ -762,6 +794,8 @@ function acceptLeftHeartCandidateV2(input: {
     laReservoirRecoilDrive01,
     laReservoirRecoilPressureMmHg,
     laAVPlaneReservoirTractionPressureMmHg,
+    laAVPlaneReservoirTractionPressureTargetMmHg,
+    laAVPlaneReservoirTractionPressureStateMmHg: laAVPlaneReservoirTractionPressureMmHg,
     laReservoirGeometryDeltaMl,
     laReservoirReferenceVolumeShiftMl,
     laBoosterPressureDrive01,
@@ -922,6 +956,7 @@ function nextLaReservoirSuctionDrive01(
     && params.laLobeGeneratorMode !== "av-plane-pressure-capacity-reservoir-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-two-state-reservoir-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-traction-reservoir-transaction-v1"
+    && params.laLobeGeneratorMode !== "av-plane-stateful-traction-reservoir-transaction-v1"
   ) return 0;
   const phaseDrive01 = raisedCosineWindow(
     theta,
@@ -945,6 +980,7 @@ function nextLaReservoirSuctionDrive01(
       || params.laLobeGeneratorMode === "av-plane-pressure-capacity-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-two-state-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-traction-reservoir-transaction-v1"
+      || params.laLobeGeneratorMode === "av-plane-stateful-traction-reservoir-transaction-v1"
       ? phaseDrive01 * smoothstep01(
         (Math.max(0, lvEjectionVolumeDeltaMl / Math.max(dtSec, 1e-9))
           - params.laAVPlaneEjectionRateStartMlPerSec)
@@ -960,6 +996,7 @@ function nextLaReservoirSuctionDrive01(
     || params.laLobeGeneratorMode === "av-plane-pressure-capacity-reservoir-transaction-v1"
     || params.laLobeGeneratorMode === "av-plane-two-state-reservoir-transaction-v1"
     || params.laLobeGeneratorMode === "av-plane-traction-reservoir-transaction-v1"
+    || params.laLobeGeneratorMode === "av-plane-stateful-traction-reservoir-transaction-v1"
     ? smoothstep01(
       previousMvOpen01
         / Math.max(params.laAVPlaneReservoirCapacityMvOpenReleaseThreshold01, 1e-9),
@@ -973,6 +1010,7 @@ function nextLaReservoirSuctionDrive01(
       || params.laLobeGeneratorMode === "av-plane-pressure-capacity-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-two-state-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-traction-reservoir-transaction-v1"
+      || params.laLobeGeneratorMode === "av-plane-stateful-traction-reservoir-transaction-v1"
       ? params.laAVPlaneReservoirCapacityRiseTauSec
       : params.laReservoirSuctionRiseTauSec
     : (params.laLobeGeneratorMode === "av-plane-reservoir-capacity-transaction-v1"
@@ -980,7 +1018,8 @@ function nextLaReservoirSuctionDrive01(
       || params.laLobeGeneratorMode === "av-plane-reservoir-strain-reference-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-pressure-capacity-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-two-state-reservoir-transaction-v1"
-      || params.laLobeGeneratorMode === "av-plane-traction-reservoir-transaction-v1") && mvOpenRelease01 > 0.5
+      || params.laLobeGeneratorMode === "av-plane-traction-reservoir-transaction-v1"
+      || params.laLobeGeneratorMode === "av-plane-stateful-traction-reservoir-transaction-v1") && mvOpenRelease01 > 0.5
       ? params.laAVPlaneReservoirCapacityReleaseTauSec
       : params.laLobeGeneratorMode === "av-plane-reservoir-capacity-transaction-v1"
         || params.laLobeGeneratorMode === "av-plane-venous-reservoir-transaction-v1"
@@ -988,6 +1027,7 @@ function nextLaReservoirSuctionDrive01(
         || params.laLobeGeneratorMode === "av-plane-pressure-capacity-reservoir-transaction-v1"
         || params.laLobeGeneratorMode === "av-plane-two-state-reservoir-transaction-v1"
         || params.laLobeGeneratorMode === "av-plane-traction-reservoir-transaction-v1"
+        || params.laLobeGeneratorMode === "av-plane-stateful-traction-reservoir-transaction-v1"
         ? params.laAVPlaneReservoirCapacityFallTauSec
         : params.laReservoirSuctionFallTauSec;
   const step = (acceptedTargetDrive01 - previousDrive01) * dtSec / Math.max(tau, 1e-6);
@@ -1108,6 +1148,7 @@ function avPlaneReservoirKinematicFlowMlPerSec(
     params.laLobeGeneratorMode !== "av-plane-venous-reservoir-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-reservoir-strain-reference-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-traction-reservoir-transaction-v1"
+    && params.laLobeGeneratorMode !== "av-plane-stateful-traction-reservoir-transaction-v1"
   ) return 0;
   if (params.laAVPlaneVenousReservoirCouplingGain <= 0) return 0;
   if (params.laAVPlaneVenousReservoirMaxFlowMlPerSec <= 0) return 0;
@@ -1133,22 +1174,56 @@ function leftAtrialReferenceVolumeShiftMl(
   return Math.max(0, params.laAVPlaneReservoirReferenceGainMl * reservoirDrive01);
 }
 
-function leftAtrialAVPlaneReservoirTractionPressureMmHg(
+function leftAtrialAVPlaneReservoirTractionPressureTargetMmHg(
   zAvDotNormPerSec: number,
+  reservoirDrive01: number,
   previousMvOpen01: number,
   params: LeftHeartSubsystemParamsV2,
 ): number {
   if (
     params.laLobeGeneratorMode !== "av-plane-pressure-capacity-reservoir-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-traction-reservoir-transaction-v1"
+    && params.laLobeGeneratorMode !== "av-plane-stateful-traction-reservoir-transaction-v1"
   ) return 0;
   if (params.laAVPlaneReservoirTractionGainMmHgPerNormPerSec === 0) return 0;
   const mvClosedGate01 = 1 - smoothstep01(
     previousMvOpen01 / Math.max(params.laAVPlaneReservoirCapacityMvOpenReleaseThreshold01, 1e-9),
   );
+  if (params.laLobeGeneratorMode === "av-plane-stateful-traction-reservoir-transaction-v1") {
+    return params.laAVPlaneReservoirTractionGainMmHgPerNormPerSec
+      * reservoirDrive01
+      * mvClosedGate01;
+  }
   return params.laAVPlaneReservoirTractionGainMmHgPerNormPerSec
     * Math.max(0, zAvDotNormPerSec)
     * mvClosedGate01;
+}
+
+function nextLeftAtrialAVPlaneReservoirTractionPressureMmHg(
+  previousPressureMmHg: number,
+  targetPressureMmHg: number,
+  previousMvOpen01: number,
+  dtSec: number,
+  params: LeftHeartSubsystemParamsV2,
+): number {
+  if (params.laLobeGeneratorMode !== "av-plane-stateful-traction-reservoir-transaction-v1") {
+    return targetPressureMmHg;
+  }
+  const mvOpenRelease01 = smoothstep01(
+    previousMvOpen01 / Math.max(params.laAVPlaneReservoirCapacityMvOpenReleaseThreshold01, 1e-9),
+  );
+  const acceptedTargetMmHg = targetPressureMmHg * (1 - mvOpenRelease01);
+  const tau = acceptedTargetMmHg > previousPressureMmHg
+    ? params.laAVPlaneReservoirTractionPressureRiseTauSec
+    : mvOpenRelease01 > 0.35
+      ? params.laAVPlaneReservoirTractionPressureReleaseTauSec
+      : params.laAVPlaneReservoirTractionPressureFallTauSec;
+  const unconstrainedStepMmHg =
+    (acceptedTargetMmHg - previousPressureMmHg) * dtSec / Math.max(tau, 1e-6);
+  const maxStepMmHg =
+    Math.max(0, params.laAVPlaneReservoirTractionPressureMaxRateMmHgPerSec) * dtSec;
+  const stepMmHg = clamp(unconstrainedStepMmHg, -maxStepMmHg, maxStepMmHg);
+  return Math.max(0, previousPressureMmHg + stepMmHg);
 }
 
 function boundVolumesV2(
