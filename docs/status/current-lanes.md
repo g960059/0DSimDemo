@@ -249,6 +249,10 @@ Included:
 - SeparatedAtrialLobeStateGeneratorBench V1 for a left-heart separated
   reservoir/booster state surface with source-surface, MVF, LA PV lobe-quality,
   hidden-volume, and a-prime readbacks.
+- DualLobeChamberValveGeneratorBench V1 for a left-heart reservoir-capacity
+  and booster-compression geometry state surface coupled to LA fiber pressure,
+  MV pressure-flow, and LV filling while runtime AV-plane promotion remains
+  blocked.
 
 Excluded:
 
@@ -890,6 +894,15 @@ Next gates:
     promotion. This closes scalar reservoir/booster pressure-state tuning as a
     promotion path; next work needs lobe state to co-evolve with LA volume, MV
     pressure-flow/energy, pulmonary inflow, and LV filling.
+79. Dual-lobe chamber/valve generator: reservoir-capacity and booster-
+    compression geometry states now co-evolve inside the left-heart LA fiber,
+    MV valve, and LV filling surface. The best hybrid surface improves
+    source-surface/MVF to 5/7, keeps MV/AoV volume parity, hidden-volume
+    cleanliness, and a-prime readbacks at 7/7, but LA PV lobe-quality remains
+    2/7. This is useful architecture evidence, not promotion: lobe direction is
+    still structurally blocked, and next work should target the pressure-volume
+    orientation owner rather than pressure parity, scalar suction, or AV-plane
+    gain tuning.
 
 Parallel prep, not blocking the next strategic gate:
 

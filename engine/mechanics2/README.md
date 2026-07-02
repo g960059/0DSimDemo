@@ -212,6 +212,10 @@ Current scope:
   reservoir/booster state surface for testing whether distinct lobe pressure
   states can improve source-surface and LA PV lobe quality without runtime,
   pressure-substitution, or AV-plane promotion.
+- `benches/DualLobeChamberValveGeneratorBench.ts`: left-heart dual-lobe
+  chamber/valve surface that lets reservoir capacity and booster compression
+  co-evolve with LA fiber pressure, MV pressure-flow, and LV filling while
+  keeping blood-volume ledger mutation and runtime AV-plane promotion blocked.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
