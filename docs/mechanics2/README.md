@@ -29,6 +29,7 @@ Canonical references:
 - [Four-chamber assembly smoke V1](four-chamber-assembly-smoke-v1.md)
 - [Four-chamber subsystem smoke V1](four-chamber-subsystem-smoke-v1.md)
 - [Four-chamber subsystem residual review V1](four-chamber-subsystem-residual-review-v1.md)
+- [Preload-low reservoir numerics scan V1](preload-low-reservoir-numerics-scan-v1.md)
 - [ADR-MYO-003](../myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 - [Engine sidecar README](../../engine/mechanics2/README.md)
 
