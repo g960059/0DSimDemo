@@ -157,6 +157,9 @@ Current scope:
 - `benches/AvValveAtrialGradientShadowBench.ts`: shadow MV/TV valve-gradient
   replay that confirms direct atrial active-gradient injection is not a
   preservation path and keeps pressure commit/runtime/AV-plane locked.
+- `benches/AvValveSourceStateContractShadowBench.ts`: shadow MV/TV replay where
+  atrial active source state owns valve open/closure/loss state without source
+  pressure or gradient commit.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
