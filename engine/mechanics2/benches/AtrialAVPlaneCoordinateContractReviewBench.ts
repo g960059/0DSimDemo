@@ -73,6 +73,15 @@ type LobeQualityV1 = {
   readonly aLoopArea: number;
   readonly vLoopArea: number;
   readonly volumeSeparationMl: number;
+  readonly mvOpeningIndex: number | null;
+  readonly mvClosureIndex: number | null;
+  readonly mvOpeningPressureMmHg: number | null;
+  readonly mvClosurePressureMmHg: number | null;
+  readonly postOpeningPressureDropMmHg: number;
+  readonly postOpeningVolumeDropMl: number;
+  readonly conduitBelowReservoirChordFraction: number;
+  readonly meanConduitBelowReservoirChordMmHg: number;
+  readonly phaseOrientationPass: boolean;
   readonly failureReasons: readonly string[];
 };
 
@@ -109,6 +118,9 @@ type VariantSummaryV1 = {
   readonly mvfCleanCount: number;
   readonly hiddenVolumeCleanCount: number;
   readonly opposedLobeCount: number;
+  readonly phaseOrientationPassCount: number;
+  readonly mvOpeningDownwardCount: number;
+  readonly conduitBelowReservoirChordCount: number;
   readonly maxZNorm: number;
   readonly maxZDotNormPerSec: number;
   readonly maxDriveForceN: number;
@@ -117,6 +129,8 @@ type VariantSummaryV1 = {
   readonly maxWorkCoordinatePressureMmHg: number;
   readonly maxTractionPressureMmHg: number;
   readonly maxVLoopArea: number;
+  readonly maxPostOpeningPressureDropMmHg: number;
+  readonly maxConduitBelowReservoirChordFraction: number;
 };
 
 export type AtrialAVPlaneCoordinateContractReviewReportV1 = {
@@ -327,7 +341,7 @@ AtrialAVPlaneCoordinateContractReviewReportV1 {
         : bestWallWorkVariant.topologyPass > bestForceBalanceVariant.topologyPass
           ? "Target-spring wall-work / LA-MV residual improves opposed-lobe topology over simple force-balance but still does not preserve the raw source/MVF surface. Keep runtime AV-plane enablement blocked and move next to an accepted MV/venous-flow residual owner rather than scalar wall-work tuning."
         : bestForceBalanceVariant.topologyPass > bestCoordinateVariant.topologyPass
-          ? "Simple force-balance coordinate partially restores opposed lobes but does not preserve the raw source/MVF surface. Keep raw traction as the topology reference and move next to an implicit wall-work / LA-MV residual contract rather than more scalar coordinate sweeps."
+          ? "MV-opening phase-orientation gate shows simple force-balance is the strongest current topology signal, but it still does not preserve the source/MVF surface. Keep runtime AV-plane enablement blocked and move next to a source-preserving phase-oriented AV-plane/MV/venous-flow residual owner rather than scalar coordinate sweeps."
           : "Capacity-only AV-plane coordinate is not sufficient. Next AV-plane contract needs a force-balance coordinate that couples capacity, pressure, valve flow, and work without hidden blood volume.",
       blockedClaims: [
         "runtime-wiring",
@@ -509,6 +523,15 @@ function summarizeVariant(variantId: VariantIdV1, rows: readonly RowV1[]): Varia
     mvfCleanCount: rows.filter((row) => row.mvfClean).length,
     hiddenVolumeCleanCount: rows.filter((row) => row.maxHiddenBloodVolumeSourceMl === 0).length,
     opposedLobeCount: rows.filter((row) => row.lobeQuality.opposedSignedLobes).length,
+    phaseOrientationPassCount: rows.filter((row) => row.lobeQuality.phaseOrientationPass).length,
+    mvOpeningDownwardCount: rows.filter((row) =>
+      row.lobeQuality.postOpeningPressureDropMmHg >= 0.8
+      && row.lobeQuality.postOpeningVolumeDropMl >= 0.8
+    ).length,
+    conduitBelowReservoirChordCount: rows.filter((row) =>
+      row.lobeQuality.conduitBelowReservoirChordFraction >= 0.55
+      && row.lobeQuality.meanConduitBelowReservoirChordMmHg >= 0.25
+    ).length,
     maxZNorm: round(Math.max(0, ...rows.map((row) => row.maxZNorm))),
     maxZDotNormPerSec: round(Math.max(0, ...rows.map((row) => row.maxZDotNormPerSec))),
     maxDriveForceN: round(Math.max(0, ...rows.map((row) => row.maxDriveForceN))),
@@ -517,6 +540,10 @@ function summarizeVariant(variantId: VariantIdV1, rows: readonly RowV1[]): Varia
     maxWorkCoordinatePressureMmHg: round(Math.max(0, ...rows.map((row) => row.maxWorkCoordinatePressureMmHg))),
     maxTractionPressureMmHg: round(Math.max(0, ...rows.map((row) => row.maxTractionPressureMmHg))),
     maxVLoopArea: round(Math.max(0, ...rows.map((row) => row.lobeQuality.vLoopArea))),
+    maxPostOpeningPressureDropMmHg:
+      round(Math.max(0, ...rows.map((row) => row.lobeQuality.postOpeningPressureDropMmHg))),
+    maxConduitBelowReservoirChordFraction:
+      round(Math.max(0, ...rows.map((row) => row.lobeQuality.conduitBelowReservoirChordFraction))),
   };
 }
 
@@ -524,6 +551,7 @@ function lobeQualityFor(samples: readonly LeftHeartSubsystemSampleV2[]): LobeQua
   const volumes = samples.map((sample) => sample.acceptedLaVolumeMl);
   const pressures = samples.map((sample) => sample.lapMmHg);
   const theta = samples.map((sample) => sample.theta);
+  const mvOpen = samples.map((sample) => sample.mvOpen01);
   const selfIntersections = countSelfIntersections(volumes, pressures);
   const aIndices = theta.map((value, index) => value >= PRE_A_THETA ? index : -1).filter((index) => index >= 0);
   const vIndices = theta.map((value, index) => value < PRE_A_THETA ? index : -1).filter((index) => index >= 0);
@@ -535,12 +563,14 @@ function lobeQualityFor(samples: readonly LeftHeartSubsystemSampleV2[]): LobeQua
   const vLoopArea = Math.abs(signedVLoop);
   const opposedSignedLobes = signedALoop * signedVLoop < 0;
   const volumeSeparation = mean(vLoop.x) - mean(aLoop.x);
+  const phaseOrientation = phaseOrientationFor(volumes, pressures, theta, mvOpen);
   const failures: string[] = [];
   if (selfIntersections < 1) failures.push("missing-pv-self-intersection");
   if (aLoopArea < 1.8) failures.push("a-loop-area-too-small");
   if (vLoopArea < 1.8) failures.push("v-loop-area-too-small");
   if (!opposedSignedLobes) failures.push("a-v-lobes-not-opposed");
   if (volumeSeparation < 1.2) failures.push("v-loop-not-higher-volume-than-a-loop");
+  failures.push(...phaseOrientation.failureReasons);
   return {
     pass: failures.length === 0,
     selfIntersections,
@@ -548,8 +578,167 @@ function lobeQualityFor(samples: readonly LeftHeartSubsystemSampleV2[]): LobeQua
     aLoopArea: round(aLoopArea),
     vLoopArea: round(vLoopArea),
     volumeSeparationMl: round(volumeSeparation),
+    mvOpeningIndex: phaseOrientation.mvOpeningIndex,
+    mvClosureIndex: phaseOrientation.mvClosureIndex,
+    mvOpeningPressureMmHg: phaseOrientation.mvOpeningPressureMmHg == null
+      ? null
+      : round(phaseOrientation.mvOpeningPressureMmHg),
+    mvClosurePressureMmHg: phaseOrientation.mvClosurePressureMmHg == null
+      ? null
+      : round(phaseOrientation.mvClosurePressureMmHg),
+    postOpeningPressureDropMmHg: round(phaseOrientation.postOpeningPressureDropMmHg),
+    postOpeningVolumeDropMl: round(phaseOrientation.postOpeningVolumeDropMl),
+    conduitBelowReservoirChordFraction: round(phaseOrientation.conduitBelowReservoirChordFraction),
+    meanConduitBelowReservoirChordMmHg: round(phaseOrientation.meanConduitBelowReservoirChordMmHg),
+    phaseOrientationPass: phaseOrientation.failureReasons.length === 0,
     failureReasons: failures,
   };
+}
+
+function phaseOrientationFor(
+  volumes: readonly number[],
+  pressures: readonly number[],
+  theta: readonly number[],
+  mvOpen: readonly number[],
+): {
+  readonly mvOpeningIndex: number | null;
+  readonly mvClosureIndex: number | null;
+  readonly mvOpeningPressureMmHg: number | null;
+  readonly mvClosurePressureMmHg: number | null;
+  readonly postOpeningPressureDropMmHg: number;
+  readonly postOpeningVolumeDropMl: number;
+  readonly conduitBelowReservoirChordFraction: number;
+  readonly meanConduitBelowReservoirChordMmHg: number;
+  readonly failureReasons: readonly string[];
+} {
+  const failures: string[] = [];
+  const mvOpeningIndex = findMvOpeningIndex(mvOpen);
+  const mvClosureIndex = mvOpeningIndex == null ? null : findMvClosureIndexAfter(mvOpen, mvOpeningIndex);
+  if (mvOpeningIndex == null) failures.push("missing-mv-opening-point");
+  if (mvClosureIndex == null) failures.push("missing-mv-closure-point");
+  if (mvOpeningIndex == null || mvClosureIndex == null) {
+    return {
+      mvOpeningIndex,
+      mvClosureIndex,
+      mvOpeningPressureMmHg: mvOpeningIndex == null ? null : pressures[mvOpeningIndex]!,
+      mvClosurePressureMmHg: mvClosureIndex == null ? null : pressures[mvClosureIndex]!,
+      postOpeningPressureDropMmHg: 0,
+      postOpeningVolumeDropMl: 0,
+      conduitBelowReservoirChordFraction: 0,
+      meanConduitBelowReservoirChordMmHg: 0,
+      failureReasons: failures,
+    };
+  }
+
+  const conduitIndices = conduitIndicesAfterOpening(theta, mvOpeningIndex);
+  const openingPressure = pressures[mvOpeningIndex]!;
+  const openingVolume = volumes[mvOpeningIndex]!;
+  const conduitPressures = conduitIndices.map((index) => pressures[index]!);
+  const conduitVolumes = conduitIndices.map((index) => volumes[index]!);
+  const postOpeningPressureDrop = openingPressure - Math.min(openingPressure, ...conduitPressures);
+  const postOpeningVolumeDrop = openingVolume - Math.min(openingVolume, ...conduitVolumes);
+  const belowChordMargins = conduitIndices
+    .filter((index) => index !== mvOpeningIndex)
+    .map((index) => reservoirChordPressureAtVolume(
+      volumes[index]!,
+      volumes[mvClosureIndex]!,
+      pressures[mvClosureIndex]!,
+      openingVolume,
+      openingPressure,
+    ) - pressures[index]!);
+  const belowChordCount = belowChordMargins.filter((margin) => margin >= 0.2).length;
+  const conduitBelowReservoirChordFraction =
+    belowChordMargins.length === 0 ? 0 : belowChordCount / belowChordMargins.length;
+  const meanConduitBelowReservoirChord = mean(belowChordMargins);
+
+  if (conduitIndices.length < 6) failures.push("conduit-window-too-short");
+  if (postOpeningPressureDrop < 0.8) failures.push("mv-opening-conduit-not-pressure-downward");
+  if (postOpeningVolumeDrop < 0.8) failures.push("mv-opening-conduit-not-volume-leftward");
+  if (conduitBelowReservoirChordFraction < 0.55) failures.push("conduit-not-below-reservoir-chord");
+  if (meanConduitBelowReservoirChord < 0.25) failures.push("conduit-mean-not-below-reservoir-chord");
+
+  return {
+    mvOpeningIndex,
+    mvClosureIndex,
+    mvOpeningPressureMmHg: openingPressure,
+    mvClosurePressureMmHg: pressures[mvClosureIndex]!,
+    postOpeningPressureDropMmHg: postOpeningPressureDrop,
+    postOpeningVolumeDropMl: postOpeningVolumeDrop,
+    conduitBelowReservoirChordFraction,
+    meanConduitBelowReservoirChordMmHg: meanConduitBelowReservoirChord,
+    failureReasons: failures,
+  };
+}
+
+function findMvOpeningIndex(mvOpen: readonly number[]): number | null {
+  const threshold = 0.45;
+  const candidates: number[] = [];
+  for (let i = 0; i < mvOpen.length; i++) {
+    const previous = mvOpen[(i + mvOpen.length - 1) % mvOpen.length]!;
+    const current = mvOpen[i]!;
+    if (previous < threshold && current >= threshold) candidates.push(i);
+  }
+  if (candidates.length > 0) return candidates[0]!;
+  let maxDelta = 0;
+  let maxIndex: number | null = null;
+  for (let i = 1; i < mvOpen.length; i++) {
+    const delta = mvOpen[i]! - mvOpen[i - 1]!;
+    if (delta > maxDelta) {
+      maxDelta = delta;
+      maxIndex = i;
+    }
+  }
+  return maxDelta > 0.08 ? maxIndex : null;
+}
+
+function findMvClosureIndexAfter(mvOpen: readonly number[], openingIndex: number): number | null {
+  const threshold = 0.45;
+  for (let step = 1; step <= mvOpen.length; step++) {
+    const index = (openingIndex + step) % mvOpen.length;
+    const previous = mvOpen[(index + mvOpen.length - 1) % mvOpen.length]!;
+    const current = mvOpen[index]!;
+    if (previous >= threshold && current < threshold) return index;
+  }
+  let minDelta = 0;
+  let minIndex: number | null = null;
+  for (let step = 1; step < mvOpen.length; step++) {
+    const index = (openingIndex + step) % mvOpen.length;
+    const previous = mvOpen[(index + mvOpen.length - 1) % mvOpen.length]!;
+    const delta = currentDelta(previous, mvOpen[index]!);
+    if (delta < minDelta) {
+      minDelta = delta;
+      minIndex = index;
+    }
+  }
+  return minDelta < -0.08 ? minIndex : null;
+}
+
+function currentDelta(previous: number, current: number): number {
+  return current - previous;
+}
+
+function conduitIndicesAfterOpening(theta: readonly number[], openingIndex: number): readonly number[] {
+  const indices: number[] = [];
+  for (let step = 0; step < theta.length; step++) {
+    const index = (openingIndex + step) % theta.length;
+    indices.push(index);
+    if (step > 0 && theta[index]! >= PRE_A_THETA) break;
+  }
+  return indices;
+}
+
+function reservoirChordPressureAtVolume(
+  volume: number,
+  closureVolume: number,
+  closurePressure: number,
+  openingVolume: number,
+  openingPressure: number,
+): number {
+  const denom = openingVolume - closureVolume;
+  if (Math.abs(denom) < 1e-9) return Math.max(closurePressure, openingPressure);
+  const unclampedT = (volume - closureVolume) / denom;
+  const t = Math.max(0, Math.min(1, unclampedT));
+  return closurePressure + t * (openingPressure - closurePressure);
 }
 
 function variant(
