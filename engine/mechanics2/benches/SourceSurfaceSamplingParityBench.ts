@@ -4,7 +4,7 @@ import {
 import {
   buildRightHeartStrategicEnvelopeV1,
 } from "@/engine/mechanics2/benches/RightHeartStrategicSmokeBench";
-import { computeShapeQualityMetricsV1 } from "@/engine/mechanics2/metrics/ShapeQualityMetricsV1";
+import { computePhaseAlignedFlowParityV1 } from "@/engine/mechanics2/metrics/PhaseAlignedFlowParityV1";
 import {
   runLeftHeartSubsystemV2,
   type LeftHeartSubsystemParamsV2,
@@ -34,6 +34,9 @@ type PointResultV1 = {
   readonly rawBasePeakCount: number;
   readonly rawDtHalfPeakCount: number;
   readonly alignedDtHalfPeakCount: number;
+  readonly rawBaseFlowPeakCount: number;
+  readonly rawDtHalfFlowPeakCount: number;
+  readonly alignedDtHalfFlowPeakCount: number;
   readonly absoluteDtHalfC1Ok: boolean;
   readonly alignedShapeParityOk: boolean;
   readonly forwardEjectionBaseMl: number;
@@ -167,7 +170,7 @@ function rightPoint(
   });
 }
 
-function summarizePoint<TSample extends { readonly tSec: number }>({
+function summarizePoint<TSample extends { readonly tSec: number; readonly theta: number }>({
   pointId,
   side,
   owner,
@@ -186,19 +189,18 @@ function summarizePoint<TSample extends { readonly tSec: number }>({
   readonly flowSelector: (sample: TSample) => number;
   readonly forwardSelector: (sample: TSample) => number;
 }): PointResultV1 {
-  const baseFlow = baseSamples.map(flowSelector);
-  const dtHalfFlow = dtHalfSamples.map(flowSelector);
-  const alignedDtHalfFlow = linearResample(dtHalfFlow, baseFlow.length);
-  const baseShape = computeShapeQualityMetricsV1(baseFlow);
-  const dtHalfShape = computeShapeQualityMetricsV1(dtHalfFlow);
-  const alignedDtHalfShape = computeShapeQualityMetricsV1(alignedDtHalfFlow);
+  const parity = computePhaseAlignedFlowParityV1({
+    side,
+    baseSamples,
+    dtHalfSamples,
+    flowSelector,
+  });
+  if (parity == null) throw new Error(`Too few samples for ${pointId} sampling parity`);
   const forwardEjectionBaseMl = flowIntegral(baseSamples, forwardSelector);
   const forwardEjectionDtHalfMl = flowIntegral(dtHalfSamples, forwardSelector);
   const previousForwardEjectionBaseMl = flowIntegral(previousBaseSamples, forwardSelector);
-  const rawDtHalfDelta = Math.abs(baseShape.c1ContinuityScore - dtHalfShape.c1ContinuityScore);
-  const alignedDtHalfDelta = Math.abs(baseShape.c1ContinuityScore - alignedDtHalfShape.c1ContinuityScore);
-  const absoluteDtHalfC1Ok = dtHalfShape.c1ContinuityScore <= (side === "left" ? 0.38 : 0.48);
-  const alignedShapeParityOk = alignedDtHalfDelta <= (side === "left" ? 0.18 : 0.20);
+  const absoluteDtHalfC1Ok = parity.rawDtHalfC1 <= (side === "left" ? 0.38 : 0.48);
+  const alignedShapeParityOk = parity.phaseAlignedShapeParityOk;
   const samplingAttribution = owner === "shape-dt-parity" && absoluteDtHalfC1Ok && alignedShapeParityOk
     ? "sampling-grid-explains-shape-residual"
     : "sampling-grid-not-owner";
@@ -206,14 +208,17 @@ function summarizePoint<TSample extends { readonly tSec: number }>({
     pointId,
     side,
     residualOwnerBeforeSamplingCheck: owner,
-    rawBaseC1: round(baseShape.c1ContinuityScore),
-    rawDtHalfC1: round(dtHalfShape.c1ContinuityScore),
-    rawDtHalfDelta: round(rawDtHalfDelta),
-    alignedDtHalfC1: round(alignedDtHalfShape.c1ContinuityScore),
-    alignedDtHalfDelta: round(alignedDtHalfDelta),
-    rawBasePeakCount: baseShape.dominantPeakCount,
-    rawDtHalfPeakCount: dtHalfShape.dominantPeakCount,
-    alignedDtHalfPeakCount: alignedDtHalfShape.dominantPeakCount,
+    rawBaseC1: round(parity.rawBaseC1),
+    rawDtHalfC1: round(parity.rawDtHalfC1),
+    rawDtHalfDelta: round(parity.rawDtHalfDelta),
+    alignedDtHalfC1: round(parity.alignedDtHalfC1),
+    alignedDtHalfDelta: round(parity.alignedDtHalfDelta),
+    rawBasePeakCount: parity.rawBaseDominantPeakCount,
+    rawDtHalfPeakCount: parity.rawDtHalfDominantPeakCount,
+    alignedDtHalfPeakCount: parity.alignedDtHalfDominantPeakCount,
+    rawBaseFlowPeakCount: parity.rawBaseFlowPeakCount,
+    rawDtHalfFlowPeakCount: parity.rawDtHalfFlowPeakCount,
+    alignedDtHalfFlowPeakCount: parity.alignedDtHalfFlowPeakCount,
     absoluteDtHalfC1Ok,
     alignedShapeParityOk,
     forwardEjectionBaseMl: round(forwardEjectionBaseMl),
@@ -223,20 +228,6 @@ function summarizePoint<TSample extends { readonly tSec: number }>({
     repeatabilityDeltaMl: round(Math.abs(forwardEjectionBaseMl - previousForwardEjectionBaseMl)),
     samplingAttribution,
   };
-}
-
-function linearResample(values: readonly number[], targetCount: number): readonly number[] {
-  if (targetCount <= 0 || values.length === 0) return [];
-  if (targetCount === 1) return [values[0]!];
-  const out: number[] = [];
-  for (let i = 0; i < targetCount; i++) {
-    const x = i * (values.length - 1) / Math.max(targetCount - 1, 1);
-    const low = Math.floor(x);
-    const high = Math.min(values.length - 1, low + 1);
-    const fraction = x - low;
-    out.push(values[low]! * (1 - fraction) + values[high]! * fraction);
-  }
-  return out;
 }
 
 function flowIntegral<TSample extends { readonly tSec: number }>(

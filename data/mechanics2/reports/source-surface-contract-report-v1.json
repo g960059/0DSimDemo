@@ -42,9 +42,14 @@
           "rawBaseC1": 0.110214,
           "rawDtHalfC1": 0.217276,
           "rawDtHalfDelta": 0.107062,
-          "alignedDtHalfC1": 0.102158,
-          "alignedDtHalfDelta": 0.008056,
-          "alignedDtHalfPeakCount": 1
+          "alignedDtHalfC1": 0.099159,
+          "alignedDtHalfDelta": 0.011055,
+          "rawBaseDominantPeakCount": 1,
+          "rawDtHalfDominantPeakCount": 1,
+          "alignedDtHalfDominantPeakCount": 1,
+          "rawBaseFlowPeakCount": 2,
+          "rawDtHalfFlowPeakCount": 2,
+          "alignedDtHalfFlowPeakCount": 2
         },
         {
           "pointId": "left-heart-normal-hr90",
@@ -69,9 +74,14 @@
           "rawBaseC1": 0.18171,
           "rawDtHalfC1": 0.250557,
           "rawDtHalfDelta": 0.068847,
-          "alignedDtHalfC1": 0.192791,
-          "alignedDtHalfDelta": 0.011081,
-          "alignedDtHalfPeakCount": 1
+          "alignedDtHalfC1": 0.192454,
+          "alignedDtHalfDelta": 0.010744,
+          "rawBaseDominantPeakCount": 1,
+          "rawDtHalfDominantPeakCount": 1,
+          "alignedDtHalfDominantPeakCount": 1,
+          "rawBaseFlowPeakCount": 2,
+          "rawDtHalfFlowPeakCount": 2,
+          "alignedDtHalfFlowPeakCount": 2
         },
         {
           "pointId": "left-heart-preload-low",
@@ -98,9 +108,14 @@
           "rawBaseC1": 0.105442,
           "rawDtHalfC1": 0.310388,
           "rawDtHalfDelta": 0.204946,
-          "alignedDtHalfC1": 0.081549,
-          "alignedDtHalfDelta": 0.023893,
-          "alignedDtHalfPeakCount": 1
+          "alignedDtHalfC1": 0.106665,
+          "alignedDtHalfDelta": 0.001223,
+          "rawBaseDominantPeakCount": 1,
+          "rawDtHalfDominantPeakCount": 1,
+          "alignedDtHalfDominantPeakCount": 1,
+          "rawBaseFlowPeakCount": 2,
+          "rawDtHalfFlowPeakCount": 2,
+          "alignedDtHalfFlowPeakCount": 2
         },
         {
           "pointId": "left-heart-preload-high",
@@ -125,9 +140,14 @@
           "rawBaseC1": 0.096432,
           "rawDtHalfC1": 0.204051,
           "rawDtHalfDelta": 0.107619,
-          "alignedDtHalfC1": 0.208231,
-          "alignedDtHalfDelta": 0.111799,
-          "alignedDtHalfPeakCount": 1
+          "alignedDtHalfC1": 0.13238,
+          "alignedDtHalfDelta": 0.035948,
+          "rawBaseDominantPeakCount": 1,
+          "rawDtHalfDominantPeakCount": 1,
+          "alignedDtHalfDominantPeakCount": 1,
+          "rawBaseFlowPeakCount": 2,
+          "rawDtHalfFlowPeakCount": 2,
+          "alignedDtHalfFlowPeakCount": 2
         },
         {
           "pointId": "left-heart-afterload-high",
@@ -152,9 +172,14 @@
           "rawBaseC1": 0.172303,
           "rawDtHalfC1": 0.238454,
           "rawDtHalfDelta": 0.066151,
-          "alignedDtHalfC1": 0.20642,
-          "alignedDtHalfDelta": 0.034117,
-          "alignedDtHalfPeakCount": 1
+          "alignedDtHalfC1": 0.182158,
+          "alignedDtHalfDelta": 0.009855,
+          "rawBaseDominantPeakCount": 1,
+          "rawDtHalfDominantPeakCount": 1,
+          "alignedDtHalfDominantPeakCount": 1,
+          "rawBaseFlowPeakCount": 2,
+          "rawDtHalfFlowPeakCount": 2,
+          "alignedDtHalfFlowPeakCount": 2
         },
         {
           "pointId": "left-heart-contractility-low",
@@ -181,9 +206,14 @@
           "rawBaseC1": 0.208364,
           "rawDtHalfC1": 0.276826,
           "rawDtHalfDelta": 0.068462,
-          "alignedDtHalfC1": 0.214188,
-          "alignedDtHalfDelta": 0.005824,
-          "alignedDtHalfPeakCount": 1
+          "alignedDtHalfC1": 0.243354,
+          "alignedDtHalfDelta": 0.03499,
+          "rawBaseDominantPeakCount": 1,
+          "rawDtHalfDominantPeakCount": 1,
+          "alignedDtHalfDominantPeakCount": 1,
+          "rawBaseFlowPeakCount": 2,
+          "rawDtHalfFlowPeakCount": 1,
+          "alignedDtHalfFlowPeakCount": 1
         },
         {
           "pointId": "left-heart-contractility-high",
@@ -208,9 +238,14 @@
           "rawBaseC1": 0.343655,
           "rawDtHalfC1": 0.361624,
           "rawDtHalfDelta": 0.017969,
-          "alignedDtHalfC1": 0.435224,
-          "alignedDtHalfDelta": 0.091569,
-          "alignedDtHalfPeakCount": 1
+          "alignedDtHalfC1": 0.514872,
+          "alignedDtHalfDelta": 0.171217,
+          "rawBaseDominantPeakCount": 1,
+          "rawDtHalfDominantPeakCount": 1,
+          "alignedDtHalfDominantPeakCount": 1,
+          "rawBaseFlowPeakCount": 2,
+          "rawDtHalfFlowPeakCount": 2,
+          "alignedDtHalfFlowPeakCount": 2
         }
       ],
       "summary": {
@@ -260,9 +295,14 @@
           "rawBaseC1": 0.110214,
           "rawDtHalfC1": 0.217276,
           "rawDtHalfDelta": 0.107062,
-          "alignedDtHalfC1": 0.102158,
-          "alignedDtHalfDelta": 0.008056,
-          "alignedDtHalfPeakCount": 1
+          "alignedDtHalfC1": 0.099159,
+          "alignedDtHalfDelta": 0.011055,
+          "rawBaseDominantPeakCount": 1,
+          "rawDtHalfDominantPeakCount": 1,
+          "alignedDtHalfDominantPeakCount": 1,
+          "rawBaseFlowPeakCount": 2,
+          "rawDtHalfFlowPeakCount": 2,
+          "alignedDtHalfFlowPeakCount": 2
         },
         {
           "pointId": "left-heart-normal-hr90",
@@ -287,9 +327,14 @@
           "rawBaseC1": 0.18171,
           "rawDtHalfC1": 0.250557,
           "rawDtHalfDelta": 0.068847,
-          "alignedDtHalfC1": 0.192791,
-          "alignedDtHalfDelta": 0.011081,
-          "alignedDtHalfPeakCount": 1
+          "alignedDtHalfC1": 0.192454,
+          "alignedDtHalfDelta": 0.010744,
+          "rawBaseDominantPeakCount": 1,
+          "rawDtHalfDominantPeakCount": 1,
+          "alignedDtHalfDominantPeakCount": 1,
+          "rawBaseFlowPeakCount": 2,
+          "rawDtHalfFlowPeakCount": 2,
+          "alignedDtHalfFlowPeakCount": 2
         },
         {
           "pointId": "left-heart-preload-low",
@@ -316,9 +361,14 @@
           "rawBaseC1": 0.105442,
           "rawDtHalfC1": 0.310388,
           "rawDtHalfDelta": 0.204946,
-          "alignedDtHalfC1": 0.081549,
-          "alignedDtHalfDelta": 0.023893,
-          "alignedDtHalfPeakCount": 1
+          "alignedDtHalfC1": 0.106665,
+          "alignedDtHalfDelta": 0.001223,
+          "rawBaseDominantPeakCount": 1,
+          "rawDtHalfDominantPeakCount": 1,
+          "alignedDtHalfDominantPeakCount": 1,
+          "rawBaseFlowPeakCount": 2,
+          "rawDtHalfFlowPeakCount": 2,
+          "alignedDtHalfFlowPeakCount": 2
         },
         {
           "pointId": "left-heart-preload-high",
@@ -343,9 +393,14 @@
           "rawBaseC1": 0.096432,
           "rawDtHalfC1": 0.204051,
           "rawDtHalfDelta": 0.107619,
-          "alignedDtHalfC1": 0.208231,
-          "alignedDtHalfDelta": 0.111799,
-          "alignedDtHalfPeakCount": 1
+          "alignedDtHalfC1": 0.13238,
+          "alignedDtHalfDelta": 0.035948,
+          "rawBaseDominantPeakCount": 1,
+          "rawDtHalfDominantPeakCount": 1,
+          "alignedDtHalfDominantPeakCount": 1,
+          "rawBaseFlowPeakCount": 2,
+          "rawDtHalfFlowPeakCount": 2,
+          "alignedDtHalfFlowPeakCount": 2
         },
         {
           "pointId": "left-heart-afterload-high",
@@ -370,9 +425,14 @@
           "rawBaseC1": 0.09791,
           "rawDtHalfC1": 0.238963,
           "rawDtHalfDelta": 0.141053,
-          "alignedDtHalfC1": 0.177174,
-          "alignedDtHalfDelta": 0.079264,
-          "alignedDtHalfPeakCount": 1
+          "alignedDtHalfC1": 0.09776,
+          "alignedDtHalfDelta": 0.00015,
+          "rawBaseDominantPeakCount": 1,
+          "rawDtHalfDominantPeakCount": 1,
+          "alignedDtHalfDominantPeakCount": 1,
+          "rawBaseFlowPeakCount": 2,
+          "rawDtHalfFlowPeakCount": 2,
+          "alignedDtHalfFlowPeakCount": 2
         },
         {
           "pointId": "left-heart-contractility-low",
@@ -399,9 +459,14 @@
           "rawBaseC1": 0.208364,
           "rawDtHalfC1": 0.276826,
           "rawDtHalfDelta": 0.068462,
-          "alignedDtHalfC1": 0.214188,
-          "alignedDtHalfDelta": 0.005824,
-          "alignedDtHalfPeakCount": 1
+          "alignedDtHalfC1": 0.243354,
+          "alignedDtHalfDelta": 0.03499,
+          "rawBaseDominantPeakCount": 1,
+          "rawDtHalfDominantPeakCount": 1,
+          "alignedDtHalfDominantPeakCount": 1,
+          "rawBaseFlowPeakCount": 2,
+          "rawDtHalfFlowPeakCount": 1,
+          "alignedDtHalfFlowPeakCount": 1
         },
         {
           "pointId": "left-heart-contractility-high",
@@ -426,9 +491,14 @@
           "rawBaseC1": 0.343655,
           "rawDtHalfC1": 0.361624,
           "rawDtHalfDelta": 0.017969,
-          "alignedDtHalfC1": 0.435224,
-          "alignedDtHalfDelta": 0.091569,
-          "alignedDtHalfPeakCount": 1
+          "alignedDtHalfC1": 0.514872,
+          "alignedDtHalfDelta": 0.171217,
+          "rawBaseDominantPeakCount": 1,
+          "rawDtHalfDominantPeakCount": 1,
+          "alignedDtHalfDominantPeakCount": 1,
+          "rawBaseFlowPeakCount": 2,
+          "rawDtHalfFlowPeakCount": 2,
+          "alignedDtHalfFlowPeakCount": 2
         }
       ],
       "summary": {
@@ -478,9 +548,14 @@
           "rawBaseC1": 0.110214,
           "rawDtHalfC1": 0.217276,
           "rawDtHalfDelta": 0.107062,
-          "alignedDtHalfC1": 0.102158,
-          "alignedDtHalfDelta": 0.008056,
-          "alignedDtHalfPeakCount": 1
+          "alignedDtHalfC1": 0.099159,
+          "alignedDtHalfDelta": 0.011055,
+          "rawBaseDominantPeakCount": 1,
+          "rawDtHalfDominantPeakCount": 1,
+          "alignedDtHalfDominantPeakCount": 1,
+          "rawBaseFlowPeakCount": 2,
+          "rawDtHalfFlowPeakCount": 2,
+          "alignedDtHalfFlowPeakCount": 2
         },
         {
           "pointId": "left-heart-normal-hr90",
@@ -505,9 +580,14 @@
           "rawBaseC1": 0.18171,
           "rawDtHalfC1": 0.250557,
           "rawDtHalfDelta": 0.068847,
-          "alignedDtHalfC1": 0.192791,
-          "alignedDtHalfDelta": 0.011081,
-          "alignedDtHalfPeakCount": 1
+          "alignedDtHalfC1": 0.192454,
+          "alignedDtHalfDelta": 0.010744,
+          "rawBaseDominantPeakCount": 1,
+          "rawDtHalfDominantPeakCount": 1,
+          "alignedDtHalfDominantPeakCount": 1,
+          "rawBaseFlowPeakCount": 2,
+          "rawDtHalfFlowPeakCount": 2,
+          "alignedDtHalfFlowPeakCount": 2
         },
         {
           "pointId": "left-heart-preload-low",
@@ -534,9 +614,14 @@
           "rawBaseC1": 0.105442,
           "rawDtHalfC1": 0.310388,
           "rawDtHalfDelta": 0.204946,
-          "alignedDtHalfC1": 0.081549,
-          "alignedDtHalfDelta": 0.023893,
-          "alignedDtHalfPeakCount": 1
+          "alignedDtHalfC1": 0.106665,
+          "alignedDtHalfDelta": 0.001223,
+          "rawBaseDominantPeakCount": 1,
+          "rawDtHalfDominantPeakCount": 1,
+          "alignedDtHalfDominantPeakCount": 1,
+          "rawBaseFlowPeakCount": 2,
+          "rawDtHalfFlowPeakCount": 2,
+          "alignedDtHalfFlowPeakCount": 2
         },
         {
           "pointId": "left-heart-preload-high",
@@ -561,9 +646,14 @@
           "rawBaseC1": 0.096432,
           "rawDtHalfC1": 0.204051,
           "rawDtHalfDelta": 0.107619,
-          "alignedDtHalfC1": 0.208231,
-          "alignedDtHalfDelta": 0.111799,
-          "alignedDtHalfPeakCount": 1
+          "alignedDtHalfC1": 0.13238,
+          "alignedDtHalfDelta": 0.035948,
+          "rawBaseDominantPeakCount": 1,
+          "rawDtHalfDominantPeakCount": 1,
+          "alignedDtHalfDominantPeakCount": 1,
+          "rawBaseFlowPeakCount": 2,
+          "rawDtHalfFlowPeakCount": 2,
+          "alignedDtHalfFlowPeakCount": 2
         },
         {
           "pointId": "left-heart-afterload-high",
@@ -592,9 +682,14 @@
           "rawBaseC1": 0.09789,
           "rawDtHalfC1": 0.240033,
           "rawDtHalfDelta": 0.142143,
-          "alignedDtHalfC1": 0.188115,
-          "alignedDtHalfDelta": 0.090225,
-          "alignedDtHalfPeakCount": 1
+          "alignedDtHalfC1": 0.100136,
+          "alignedDtHalfDelta": 0.002246,
+          "rawBaseDominantPeakCount": 1,
+          "rawDtHalfDominantPeakCount": 1,
+          "alignedDtHalfDominantPeakCount": 1,
+          "rawBaseFlowPeakCount": 2,
+          "rawDtHalfFlowPeakCount": 2,
+          "alignedDtHalfFlowPeakCount": 2
         },
         {
           "pointId": "left-heart-contractility-low",
@@ -621,9 +716,14 @@
           "rawBaseC1": 0.208364,
           "rawDtHalfC1": 0.276826,
           "rawDtHalfDelta": 0.068462,
-          "alignedDtHalfC1": 0.214188,
-          "alignedDtHalfDelta": 0.005824,
-          "alignedDtHalfPeakCount": 1
+          "alignedDtHalfC1": 0.243354,
+          "alignedDtHalfDelta": 0.03499,
+          "rawBaseDominantPeakCount": 1,
+          "rawDtHalfDominantPeakCount": 1,
+          "alignedDtHalfDominantPeakCount": 1,
+          "rawBaseFlowPeakCount": 2,
+          "rawDtHalfFlowPeakCount": 1,
+          "alignedDtHalfFlowPeakCount": 1
         },
         {
           "pointId": "left-heart-contractility-high",
@@ -648,9 +748,14 @@
           "rawBaseC1": 0.343655,
           "rawDtHalfC1": 0.361624,
           "rawDtHalfDelta": 0.017969,
-          "alignedDtHalfC1": 0.435224,
-          "alignedDtHalfDelta": 0.091569,
-          "alignedDtHalfPeakCount": 1
+          "alignedDtHalfC1": 0.514872,
+          "alignedDtHalfDelta": 0.171217,
+          "rawBaseDominantPeakCount": 1,
+          "rawDtHalfDominantPeakCount": 1,
+          "alignedDtHalfDominantPeakCount": 1,
+          "rawBaseFlowPeakCount": 2,
+          "rawDtHalfFlowPeakCount": 2,
+          "alignedDtHalfFlowPeakCount": 2
         }
       ],
       "summary": {
@@ -699,9 +804,14 @@
         "rawBaseC1": 0.261142,
         "rawDtHalfC1": 0.220276,
         "rawDtHalfDelta": 0.040866,
-        "alignedDtHalfC1": 0.271058,
-        "alignedDtHalfDelta": 0.009916,
-        "alignedDtHalfPeakCount": 1
+        "alignedDtHalfC1": 0.33715,
+        "alignedDtHalfDelta": 0.076008,
+        "rawBaseDominantPeakCount": 1,
+        "rawDtHalfDominantPeakCount": 1,
+        "alignedDtHalfDominantPeakCount": 1,
+        "rawBaseFlowPeakCount": 1,
+        "rawDtHalfFlowPeakCount": 1,
+        "alignedDtHalfFlowPeakCount": 1
       },
       {
         "pointId": "right-heart-normal-hr90",
@@ -726,9 +836,14 @@
         "rawBaseC1": 0.390414,
         "rawDtHalfC1": 0.281949,
         "rawDtHalfDelta": 0.108465,
-        "alignedDtHalfC1": 0.397954,
-        "alignedDtHalfDelta": 0.00754,
-        "alignedDtHalfPeakCount": 1
+        "alignedDtHalfC1": 0.39432,
+        "alignedDtHalfDelta": 0.003906,
+        "rawBaseDominantPeakCount": 1,
+        "rawDtHalfDominantPeakCount": 1,
+        "alignedDtHalfDominantPeakCount": 1,
+        "rawBaseFlowPeakCount": 1,
+        "rawDtHalfFlowPeakCount": 1,
+        "alignedDtHalfFlowPeakCount": 1
       },
       {
         "pointId": "right-heart-preload-low",
@@ -759,9 +874,14 @@
         "rawBaseC1": 0.353441,
         "rawDtHalfC1": 0.377863,
         "rawDtHalfDelta": 0.024422,
-        "alignedDtHalfC1": 0.378177,
-        "alignedDtHalfDelta": 0.024736,
-        "alignedDtHalfPeakCount": 1
+        "alignedDtHalfC1": 0.449484,
+        "alignedDtHalfDelta": 0.096043,
+        "rawBaseDominantPeakCount": 1,
+        "rawDtHalfDominantPeakCount": 1,
+        "alignedDtHalfDominantPeakCount": 1,
+        "rawBaseFlowPeakCount": 1,
+        "rawDtHalfFlowPeakCount": 1,
+        "alignedDtHalfFlowPeakCount": 1
       },
       {
         "pointId": "right-heart-preload-high",
@@ -786,9 +906,14 @@
         "rawBaseC1": 0.271494,
         "rawDtHalfC1": 0.217296,
         "rawDtHalfDelta": 0.054198,
-        "alignedDtHalfC1": 0.289577,
-        "alignedDtHalfDelta": 0.018083,
-        "alignedDtHalfPeakCount": 1
+        "alignedDtHalfC1": 0.359056,
+        "alignedDtHalfDelta": 0.087562,
+        "rawBaseDominantPeakCount": 1,
+        "rawDtHalfDominantPeakCount": 1,
+        "alignedDtHalfDominantPeakCount": 1,
+        "rawBaseFlowPeakCount": 1,
+        "rawDtHalfFlowPeakCount": 1,
+        "alignedDtHalfFlowPeakCount": 1
       },
       {
         "pointId": "right-heart-pulmonary-afterload-high",
@@ -813,9 +938,14 @@
         "rawBaseC1": 0.352226,
         "rawDtHalfC1": 0.304207,
         "rawDtHalfDelta": 0.048019,
-        "alignedDtHalfC1": 0.335845,
-        "alignedDtHalfDelta": 0.016381,
-        "alignedDtHalfPeakCount": 1
+        "alignedDtHalfC1": 0.290309,
+        "alignedDtHalfDelta": 0.061917,
+        "rawBaseDominantPeakCount": 1,
+        "rawDtHalfDominantPeakCount": 1,
+        "alignedDtHalfDominantPeakCount": 1,
+        "rawBaseFlowPeakCount": 1,
+        "rawDtHalfFlowPeakCount": 1,
+        "alignedDtHalfFlowPeakCount": 1
       },
       {
         "pointId": "right-heart-contractility-low",
@@ -842,9 +972,14 @@
         "rawBaseC1": 0.278757,
         "rawDtHalfC1": 0.427575,
         "rawDtHalfDelta": 0.148818,
-        "alignedDtHalfC1": 0.307839,
-        "alignedDtHalfDelta": 0.029082,
-        "alignedDtHalfPeakCount": 1
+        "alignedDtHalfC1": 0.334675,
+        "alignedDtHalfDelta": 0.055918,
+        "rawBaseDominantPeakCount": 1,
+        "rawDtHalfDominantPeakCount": 1,
+        "alignedDtHalfDominantPeakCount": 1,
+        "rawBaseFlowPeakCount": 1,
+        "rawDtHalfFlowPeakCount": 1,
+        "alignedDtHalfFlowPeakCount": 1
       },
       {
         "pointId": "right-heart-contractility-high",
@@ -869,9 +1004,14 @@
         "rawBaseC1": 0.290508,
         "rawDtHalfC1": 0.351114,
         "rawDtHalfDelta": 0.060606,
-        "alignedDtHalfC1": 0.358152,
-        "alignedDtHalfDelta": 0.067644,
-        "alignedDtHalfPeakCount": 1
+        "alignedDtHalfC1": 0.422398,
+        "alignedDtHalfDelta": 0.13189,
+        "rawBaseDominantPeakCount": 1,
+        "rawDtHalfDominantPeakCount": 1,
+        "alignedDtHalfDominantPeakCount": 1,
+        "rawBaseFlowPeakCount": 1,
+        "rawDtHalfFlowPeakCount": 1,
+        "alignedDtHalfFlowPeakCount": 1
       }
     ],
     "summary": {
@@ -993,5 +1133,5 @@
     "AVPlaneUnlock": false,
     "LandAtrialUnlock": false
   },
-  "normalizedSha256": "60e301821b80b292aa7b4d2ddc7d6e5d0df89636c6143b73d1da13bec750ca03"
+  "normalizedSha256": "eba9f76fd1527668eabfd63b586d29a45be37591c8bba1fc41a2ccdf0cf565a4"
 }

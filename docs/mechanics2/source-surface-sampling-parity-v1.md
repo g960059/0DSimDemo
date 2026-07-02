@@ -15,6 +15,11 @@ dt-parity, output reserve, and repeatability owners. This bench checks whether
 the shape dt-parity residual remains when the `dt-half` waveform is compared on
 the same phase grid as the base waveform.
 
+The phase alignment is theta-based, not endpoint index mapping. The report also
+records dominant shape peak counts separately from flow-specific forward peak
+counts so that E/A-like inflow is not collapsed into a single generic shape
+peak.
+
 ## Boundary
 
 This is diagnostic sidecar evidence only. It is not runtime wiring, true
@@ -35,9 +40,11 @@ Decision: `sampling-parity-shape-owner-found`.
 Classified points:
 
 - `left-heart-preload-low`: raw MV inflow C1 changes from 0.105442 to 0.310388
-  at `dt-half`, but phase-aligned `dt-half` C1 is 0.081549 and aligned delta is
-  0.023893. Both raw and aligned waveforms remain single-peaked. This supports
-  phase-aligned shape parity for source-surface dt checks.
+  at `dt-half`, but phase-aligned `dt-half` C1 is 0.106665 and aligned delta is
+  0.001223. Dominant shape peak count remains 1, while the flow-specific
+  forward peak count is 2 for raw base, raw `dt-half`, and aligned `dt-half`.
+  This supports phase-aligned shape parity for source-surface dt checks without
+  losing E/A-like flow peak readback.
 - `left-heart-afterload-high`: sampling grid is not the owner; the point remains
   output-reserve limited.
 - `right-heart-preload-low`: sampling grid is not the owner; output and

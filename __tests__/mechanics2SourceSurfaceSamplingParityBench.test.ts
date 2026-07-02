@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
+import { expectMechanics2ReportArtifactParity } from "@/__tests__/helpers/mechanics2ReportParity";
 import {
   runSourceSurfaceSamplingParityBenchV1,
   type SourceSurfaceSamplingParityReportV1,
@@ -28,9 +29,13 @@ describe("MechanicsCore2 source-surface sampling parity bench", () => {
     expect(leftPreloadLow.alignedDtHalfDelta).toBeLessThan(0.03);
     expect(leftPreloadLow.rawDtHalfPeakCount).toBe(1);
     expect(leftPreloadLow.alignedDtHalfPeakCount).toBe(1);
+    expect(leftPreloadLow.rawBaseFlowPeakCount).toBe(2);
+    expect(leftPreloadLow.rawDtHalfFlowPeakCount).toBe(2);
+    expect(leftPreloadLow.alignedDtHalfFlowPeakCount).toBe(2);
 
     const rightPreloadLow = report.points.find((point) => point.pointId === "right-heart-preload-low")!;
     expect(rightPreloadLow.samplingAttribution).toBe("sampling-grid-not-owner");
+    expect(rightPreloadLow.alignedDtHalfFlowPeakCount).toBe(1);
     expect(rightPreloadLow.forwardEjectionDeltaMl).toBeGreaterThan(10);
     expect(rightPreloadLow.repeatabilityDeltaMl).toBeGreaterThan(16);
 
@@ -39,14 +44,7 @@ describe("MechanicsCore2 source-surface sampling parity bench", () => {
     expect(report.claimBoundary.LandAtrialUnlock).toBe(false);
   });
 
-  it("keeps the committed sampling parity artifact aligned with the rerun summary", () => {
-    expect(samplingParityReport.reportId).toBe(report.reportId);
-    expect(samplingParityReport.summary).toEqual(report.summary);
-    expect(samplingParityReport.decision).toEqual(report.decision);
-    expect(samplingParityReport.points.map((point) => point.samplingAttribution)).toEqual(
-      report.points.map((point) => point.samplingAttribution),
-    );
-    expect(typeof samplingParityReport.normalizedSha256).toBe("string");
-    expect(samplingParityReport.normalizedSha256).toHaveLength(64);
+  it("keeps the committed sampling parity artifact fully aligned with the rerun report", () => {
+    expectMechanics2ReportArtifactParity(samplingParityReport, report);
   });
 });

@@ -84,6 +84,9 @@ Current scope:
 - `benches/SourceSurfaceContractBench.ts`: source-surface contract probe using
   phase-aligned shape parity, left load-conditioned output reserve, and right
   preload-low settling/repeatability classification.
+- `benches/RightPreloadOutflowOwnershipBench.ts`: focused PV outflow
+  pressure-flow/loss ownership probe for the right preload-low source-surface
+  repeatability residual.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
@@ -103,6 +106,7 @@ Planning docs:
 - [Left-heart dynamic reserve contract V1](../../docs/mechanics2/left-heart-dynamic-reserve-contract-v1.md)
 - [Right-heart low-output contract V1](../../docs/mechanics2/right-heart-low-output-contract-v1.md)
 - [Right-heart volume-reserve contract V1](../../docs/mechanics2/right-heart-volume-reserve-contract-v1.md)
+- [Right preload outflow ownership V1](../../docs/mechanics2/right-preload-outflow-ownership-v1.md)
 - [Volume-reserve reservoir Gate C scan V1](../../docs/mechanics2/volume-reserve-reservoir-gate-c-scan-v1.md)
 - [Gate C scaffold robustness V1](../../docs/mechanics2/gate-c-scaffold-robustness-v1.md)
 - [Gate C assembled-system review V1](../../docs/mechanics2/gate-c-assembled-system-review-v1.md)

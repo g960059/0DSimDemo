@@ -41,11 +41,10 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: address the remaining right-preload-low source-surface
-settling/repeatability residual before returning to four-chamber residual
-review. Do not restart reservoir gain/compliance tuning, broad small-parameter
-scans, runtime wiring, AV-plane work, or LandAtrial re-entry from this evidence
-alone.
+Next PR target: rerun source/four-chamber residual review using the
+right-preload PV outflow ownership lead before runtime wiring, reservoir
+retuning, AV-plane work, or LandAtrial re-entry. Do not restart reservoir
+gain/compliance tuning or broad small-parameter scans from this evidence alone.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -109,6 +108,9 @@ Included:
 - SourceSurfaceContractBench V1 for applying phase-aligned source shape parity,
   checking left load-conditioned output reserve, and classifying right
   preload-low source settling/repeatability.
+- RightPreloadOutflowOwnershipBench V1 for the focused PV outflow
+  pressure-flow/loss ownership signal on right preload-low source
+  repeatability.
 
 Excluded:
 
@@ -387,10 +389,13 @@ Next gates:
     contract, not reservoir tuning, AV-plane, LandAtrial, or runtime wiring.
 37. Source-surface sampling parity: the `left-heart-preload-low` shape
     residual is classified as sampling-grid parity rather than a model
-    morphology residual. Raw MV inflow C1 changes from 0.105442 to 0.310388 at
-    `dt-half`, but phase-aligned `dt-half` C1 is 0.081549 with aligned delta
-    0.023893, and both raw/aligned waves remain single-peaked. Sampling is not
-    the owner for `left-heart-afterload-high` output reserve or
+    morphology residual. The checker now uses theta-based phase alignment and
+    separates dominant shape peak count from flow-specific forward peak count.
+    Raw MV inflow C1 changes from 0.105442 to 0.310388 at `dt-half`, but
+    phase-aligned `dt-half` C1 is 0.106665 with aligned delta 0.001223; the
+    flow-specific forward peak count remains 2 across raw base, raw `dt-half`,
+    and aligned `dt-half`. Sampling is not the owner for
+    `left-heart-afterload-high` output reserve or
     `right-heart-preload-low` repeatability/output residuals. Next work should
     use phase-aligned source shape parity and focus on output reserve plus
     right-source settling/repeatability.
@@ -404,6 +409,16 @@ Next gates:
     This blocks source-contract promotion and points next to right-source
     preload-low settling / volume-output ownership before four-chamber,
     runtime, AV-plane, or LandAtrial work.
+39. Right preload outflow ownership: PV pressure-flow/loss ownership resolves
+    the remaining right source-surface repeatability residual as a focused
+    source-side signal. The best `pv-resistance150` surface passes the 7-point
+    right source envelope, and right preload-low remains stable through the
+    56-beat probe with near-zero repeatability delta and small `dt-half` output
+    delta. Negative controls show over-damped PV loss and broad PA runoff
+    feedback can still break the envelope, so this is a PV outflow ownership
+    lead, not final magnitude calibration or PH/RV-failure readiness. Next work
+    should rerun source/four-chamber residual review with this lead before any
+    runtime, reservoir retuning, AV-plane, or LandAtrial work.
 
 Parallel prep, not blocking the next strategic gate:
 
