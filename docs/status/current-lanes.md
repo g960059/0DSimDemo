@@ -59,21 +59,22 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: classify pressure-volume orientation and MV/AV-plane phase
-co-evolution for the missing atrial v-loop. Warm-replay lobe attribution,
-separated-state smokes, dual-lobe geometry, flow-oriented LA filling-rate
-drive, and hidden-volume-free AV-plane ejection-rate reservoir oracles show
-pressure parity, scalar reservoir suction, simple reservoir/booster pressure
-states, AV-plane-free lobe generators, and simple ejection-rate AV-plane
-reservoir drive are insufficient. Direct atrial pressure substitution,
-additive atrial active-pressure source substitution, direct AV-gradient
-injection, more fixed source-state variant sweeps, readback-only geometry
-overlays, simple LV-shortening effective-geometry transactions, display-only
-piston volume, phase-pressure oracles, runtime wiring, reservoir broad
-retuning, runtime AV-plane enablement, and LandAtrial re-entry remain blocked.
-For atrial work, pressure parity, MVF cleanup, or self-crossing PV loops alone
-are insufficient: normal-sinus acceptance must preserve atrial PV figure-eight
-lobe quality and eventually expose AV-plane velocity/a-prime readbacks.
+Next PR target: move from AV-plane geometry/readback oracles to true
+moving-boundary venous-reservoir / AV-plane reservoir co-evolution for the
+missing atrial v-loop. Warm-replay lobe attribution, separated-state smokes,
+dual-lobe geometry, flow-oriented LA filling-rate drive, hidden-volume-free
+AV-plane ejection-rate reservoir oracles, and the AV-plane reservoir
+capacity/stretch + booster/wall-work transaction show that source/MVF can
+improve, but opposed v-loop quality remains failed. Direct atrial pressure
+substitution, additive atrial active-pressure source substitution, direct
+AV-gradient injection, more fixed source-state variant sweeps,
+readback-only geometry overlays, simple LV-shortening effective-geometry
+transactions, display-only piston volume, phase-pressure oracles, runtime
+wiring, reservoir broad retuning, runtime AV-plane enablement, and
+LandAtrial re-entry remain blocked. For atrial work, pressure parity, MVF
+cleanup, or self-crossing PV loops alone are insufficient: normal-sinus
+acceptance must preserve atrial PV figure-eight lobe quality and eventually
+expose AV-plane velocity/a-prime readbacks.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -262,6 +263,11 @@ Included:
   ejection-rate reservoir oracle with lobe-orientation counts, showing
   a-prime/s-prime readbacks can be finite while same-signed lobes still
   dominate and the v-loop remains collapsed.
+- AVPlaneReservoirCapacityTransactionBench V1 for a hidden-volume-free
+  AV-plane reservoir capacity/stretch, booster compression, and wall-work
+  transaction comparison. Best mixed signal improves left source-surface pass
+  3/7->4/7 and MVF clean 3/7->4/7 with finite a-prime readbacks, but LA PV
+  lobe quality remains 1/7 and same-signed v-loops dominate.
 
 Excluded:
 
