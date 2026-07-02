@@ -148,6 +148,9 @@ Current scope:
   left-heart shadow candidate that substitutes the selected fiber-active
   A-window pulse into the LA pressure source surface while keeping runtime,
   AV-plane, and LandAtrial locked.
+- `benches/LaPressureSourceResidualAttributionBench.ts`: attribution of the
+  closed-loop source-substitution residual, separating MVF E/A collapse from
+  output loss, new clamp hits, pulse gross timing drift, and late-gradient loss.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt

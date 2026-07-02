@@ -1,0 +1,516 @@
+{
+  "reportId": "la-pressure-source-residual-attribution-report-v1",
+  "gateId": "laPressureSourceResidualAttributionV1",
+  "upstreamSourceCandidate": {
+    "requiredStatus": "la-pressure-source-substitution-candidate-blocked",
+    "observedStatus": "la-pressure-source-substitution-candidate-blocked",
+    "pass": 2,
+    "mvfCleanCount": 2,
+    "outputParityCount": 7,
+    "clampRegressionFreeCount": 7
+  },
+  "rows": [
+    {
+      "profileId": "normal-hr75",
+      "sourcePointId": "left-heart-normal-hr75",
+      "baselineMvPeaks": {
+        "count": 2,
+        "theta": [
+          0.744792,
+          0.916667
+        ],
+        "value": [
+          255.169935,
+          157.191514
+        ]
+      },
+      "candidateMvPeaks": {
+        "count": 1,
+        "theta": [
+          0.744792
+        ],
+        "value": [
+          256.468329
+        ]
+      },
+      "baselineGradientPeaks": {
+        "count": 2,
+        "theta": [
+          0.677083,
+          0.911458
+        ],
+        "value": [
+          6.151735,
+          2.972158
+        ]
+      },
+      "candidateGradientPeaks": {
+        "count": 2,
+        "theta": [
+          0.671875,
+          0.90625
+        ],
+        "value": [
+          6.185403,
+          2.785794
+        ]
+      },
+      "baselineLateForwardFraction": 0.499794,
+      "candidateLateForwardFraction": 0.494138,
+      "lateForwardFractionDelta": -0.005656,
+      "baselineLateGradientFraction": 0.313234,
+      "candidateLateGradientFraction": 0.300282,
+      "lateGradientFractionDelta": -0.012952,
+      "empiricalPulsePeakTheta": 0.921875,
+      "fiberPulsePeakTheta": 0.911458,
+      "activePulsePeakThetaDelta": 0.010417,
+      "empiricalPulseFwhmFraction": 0.062827,
+      "fiberPulseFwhmFraction": 0.057592,
+      "fiberVsEmpiricalPulseRms": 0.051224,
+      "mvForwardVolumeRatio": 0.996661,
+      "aovForwardVolumeRatio": 0.997743,
+      "baselineClampCount": 5,
+      "candidateClampCount": 5,
+      "candidateMaxMassResidualAbsMl": 0,
+      "classes": [
+        "closed-loop-ea-collapse-with-preserved-volume"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "sourcePointId": "left-heart-normal-hr90",
+      "baselineMvPeaks": {
+        "count": 2,
+        "theta": [
+          0.83125,
+          0.925
+        ],
+        "value": [
+          221.73607,
+          217.516882
+        ]
+      },
+      "candidateMvPeaks": {
+        "count": 2,
+        "theta": [
+          0.83125,
+          0.9125
+        ],
+        "value": [
+          222.376851,
+          214.54877
+        ]
+      },
+      "baselineGradientPeaks": {
+        "count": 2,
+        "theta": [
+          0.75,
+          0.9125
+        ],
+        "value": [
+          5.361249,
+          4.569556
+        ]
+      },
+      "candidateGradientPeaks": {
+        "count": 2,
+        "theta": [
+          0.75,
+          0.90625
+        ],
+        "value": [
+          5.379113,
+          4.379293
+        ]
+      },
+      "baselineLateForwardFraction": 0.682284,
+      "candidateLateForwardFraction": 0.675062,
+      "lateForwardFractionDelta": -0.007222,
+      "baselineLateGradientFraction": 0.552881,
+      "candidateLateGradientFraction": 0.543042,
+      "lateGradientFractionDelta": -0.009839,
+      "empiricalPulsePeakTheta": 0.91875,
+      "fiberPulsePeakTheta": 0.9125,
+      "activePulsePeakThetaDelta": 0.00625,
+      "empiricalPulseFwhmFraction": 0.0625,
+      "fiberPulseFwhmFraction": 0.0625,
+      "fiberVsEmpiricalPulseRms": 0.045878,
+      "mvForwardVolumeRatio": 0.999799,
+      "aovForwardVolumeRatio": 0.999286,
+      "baselineClampCount": 0,
+      "candidateClampCount": 0,
+      "candidateMaxMassResidualAbsMl": 0,
+      "classes": []
+    },
+    {
+      "profileId": "preload-low",
+      "sourcePointId": "left-heart-preload-low",
+      "baselineMvPeaks": {
+        "count": 2,
+        "theta": [
+          0.770833,
+          0.911458
+        ],
+        "value": [
+          226.309847,
+          179.428203
+        ]
+      },
+      "candidateMvPeaks": {
+        "count": 1,
+        "theta": [
+          0.770833
+        ],
+        "value": [
+          227.175985
+        ]
+      },
+      "baselineGradientPeaks": {
+        "count": 2,
+        "theta": [
+          0.692708,
+          0.911458
+        ],
+        "value": [
+          5.200679,
+          3.415473
+        ]
+      },
+      "candidateGradientPeaks": {
+        "count": 3,
+        "theta": [
+          0.130208,
+          0.692708,
+          0.901042
+        ],
+        "value": [
+          0.660031,
+          5.220512,
+          3.330143
+        ]
+      },
+      "baselineLateForwardFraction": 0.559092,
+      "candidateLateForwardFraction": 0.558471,
+      "lateForwardFractionDelta": -0.000621,
+      "baselineLateGradientFraction": 0.406905,
+      "candidateLateGradientFraction": 0.39357,
+      "lateGradientFractionDelta": -0.013334,
+      "empiricalPulsePeakTheta": 0.921875,
+      "fiberPulsePeakTheta": 0.911458,
+      "activePulsePeakThetaDelta": 0.010417,
+      "empiricalPulseFwhmFraction": 0.062827,
+      "fiberPulseFwhmFraction": 0.057592,
+      "fiberVsEmpiricalPulseRms": 0.049027,
+      "mvForwardVolumeRatio": 0.994252,
+      "aovForwardVolumeRatio": 0.995516,
+      "baselineClampCount": 5,
+      "candidateClampCount": 5,
+      "candidateMaxMassResidualAbsMl": 0,
+      "classes": [
+        "closed-loop-ea-collapse-with-preserved-volume"
+      ]
+    },
+    {
+      "profileId": "preload-high",
+      "sourcePointId": "left-heart-preload-high",
+      "baselineMvPeaks": {
+        "count": 2,
+        "theta": [
+          0.723958,
+          0.921875
+        ],
+        "value": [
+          281.624047,
+          132.677517
+        ]
+      },
+      "candidateMvPeaks": {
+        "count": 1,
+        "theta": [
+          0.723958
+        ],
+        "value": [
+          283.759236
+        ]
+      },
+      "baselineGradientPeaks": {
+        "count": 2,
+        "theta": [
+          0.661458,
+          0.911458
+        ],
+        "value": [
+          7.019329,
+          2.601045
+        ]
+      },
+      "candidateGradientPeaks": {
+        "count": 2,
+        "theta": [
+          0.661458,
+          0.90625
+        ],
+        "value": [
+          7.080458,
+          2.313888
+        ]
+      },
+      "baselineLateForwardFraction": 0.428756,
+      "candidateLateForwardFraction": 0.418472,
+      "lateForwardFractionDelta": -0.010284,
+      "baselineLateGradientFraction": 0.240776,
+      "candidateLateGradientFraction": 0.226339,
+      "lateGradientFractionDelta": -0.014438,
+      "empiricalPulsePeakTheta": 0.921875,
+      "fiberPulsePeakTheta": 0.911458,
+      "activePulsePeakThetaDelta": 0.010417,
+      "empiricalPulseFwhmFraction": 0.062827,
+      "fiberPulseFwhmFraction": 0.057592,
+      "fiberVsEmpiricalPulseRms": 0.052862,
+      "mvForwardVolumeRatio": 0.993657,
+      "aovForwardVolumeRatio": 0.991878,
+      "baselineClampCount": 3,
+      "candidateClampCount": 3,
+      "candidateMaxMassResidualAbsMl": 0,
+      "classes": [
+        "closed-loop-ea-collapse-with-preserved-volume"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "sourcePointId": "left-heart-afterload-high",
+      "baselineMvPeaks": {
+        "count": 2,
+        "theta": [
+          0.765625,
+          0.921875
+        ],
+        "value": [
+          182.164224,
+          109.060883
+        ]
+      },
+      "candidateMvPeaks": {
+        "count": 1,
+        "theta": [
+          0.765625
+        ],
+        "value": [
+          185.435746
+        ]
+      },
+      "baselineGradientPeaks": {
+        "count": 2,
+        "theta": [
+          0.703125,
+          0.911458
+        ],
+        "value": [
+          4.380997,
+          2.218147
+        ]
+      },
+      "candidateGradientPeaks": {
+        "count": 2,
+        "theta": [
+          0.697917,
+          0.90625
+        ],
+        "value": [
+          4.471173,
+          1.948181
+        ]
+      },
+      "baselineLateForwardFraction": 0.557082,
+      "candidateLateForwardFraction": 0.540673,
+      "lateForwardFractionDelta": -0.016409,
+      "baselineLateGradientFraction": 0.340058,
+      "candidateLateGradientFraction": 0.316636,
+      "lateGradientFractionDelta": -0.023422,
+      "empiricalPulsePeakTheta": 0.921875,
+      "fiberPulsePeakTheta": 0.911458,
+      "activePulsePeakThetaDelta": 0.010417,
+      "empiricalPulseFwhmFraction": 0.062827,
+      "fiberPulseFwhmFraction": 0.057592,
+      "fiberVsEmpiricalPulseRms": 0.053554,
+      "mvForwardVolumeRatio": 0.996527,
+      "aovForwardVolumeRatio": 0.997067,
+      "baselineClampCount": 0,
+      "candidateClampCount": 0,
+      "candidateMaxMassResidualAbsMl": 0,
+      "classes": [
+        "closed-loop-ea-collapse-with-preserved-volume"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "sourcePointId": "left-heart-contractility-low",
+      "baselineMvPeaks": {
+        "count": 2,
+        "theta": [
+          0.765625,
+          0.9375
+        ],
+        "value": [
+          109.457607,
+          15.038542
+        ]
+      },
+      "candidateMvPeaks": {
+        "count": 1,
+        "theta": [
+          0.760417
+        ],
+        "value": [
+          108.95236
+        ]
+      },
+      "baselineGradientPeaks": {
+        "count": 2,
+        "theta": [
+          0.713542,
+          0.916667
+        ],
+        "value": [
+          2.578018,
+          1.129167
+        ]
+      },
+      "candidateGradientPeaks": {
+        "count": 2,
+        "theta": [
+          0.713542,
+          0.911458
+        ],
+        "value": [
+          2.568176,
+          0.596159
+        ]
+      },
+      "baselineLateForwardFraction": 0.266128,
+      "candidateLateForwardFraction": 0.231512,
+      "lateForwardFractionDelta": -0.034615,
+      "baselineLateGradientFraction": 0.128408,
+      "candidateLateGradientFraction": 0.06531,
+      "lateGradientFractionDelta": -0.063098,
+      "empiricalPulsePeakTheta": 0.921875,
+      "fiberPulsePeakTheta": 0.911458,
+      "activePulsePeakThetaDelta": 0.010417,
+      "empiricalPulseFwhmFraction": 0.062827,
+      "fiberPulseFwhmFraction": 0.057592,
+      "fiberVsEmpiricalPulseRms": 0.062765,
+      "mvForwardVolumeRatio": 0.963885,
+      "aovForwardVolumeRatio": 0.965582,
+      "baselineClampCount": 0,
+      "candidateClampCount": 0,
+      "candidateMaxMassResidualAbsMl": 0,
+      "classes": [
+        "closed-loop-ea-collapse-with-preserved-volume"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "sourcePointId": "left-heart-contractility-high",
+      "baselineMvPeaks": {
+        "count": 2,
+        "theta": [
+          0.770833,
+          0.9375
+        ],
+        "value": [
+          214.361258,
+          241.642764
+        ]
+      },
+      "candidateMvPeaks": {
+        "count": 2,
+        "theta": [
+          0.770833,
+          0.932292
+        ],
+        "value": [
+          214.214703,
+          234.22125
+        ]
+      },
+      "baselineGradientPeaks": {
+        "count": 3,
+        "theta": [
+          0.135417,
+          0.671875,
+          0.916667
+        ],
+        "value": [
+          3.938069,
+          5.065953,
+          5.611325
+        ]
+      },
+      "candidateGradientPeaks": {
+        "count": 3,
+        "theta": [
+          0.135417,
+          0.671875,
+          0.911458
+        ],
+        "value": [
+          4.053928,
+          5.07381,
+          5.356751
+        ]
+      },
+      "baselineLateForwardFraction": 0.514291,
+      "candidateLateForwardFraction": 0.50929,
+      "lateForwardFractionDelta": -0.005,
+      "baselineLateGradientFraction": 0.402742,
+      "candidateLateGradientFraction": 0.39348,
+      "lateGradientFractionDelta": -0.009262,
+      "empiricalPulsePeakTheta": 0.921875,
+      "fiberPulsePeakTheta": 0.911458,
+      "activePulsePeakThetaDelta": 0.010417,
+      "empiricalPulseFwhmFraction": 0.062827,
+      "fiberPulseFwhmFraction": 0.057592,
+      "fiberVsEmpiricalPulseRms": 0.047623,
+      "mvForwardVolumeRatio": 0.996508,
+      "aovForwardVolumeRatio": 0.997695,
+      "baselineClampCount": 13,
+      "candidateClampCount": 13,
+      "candidateMaxMassResidualAbsMl": 0,
+      "classes": []
+    }
+  ],
+  "summary": {
+    "total": 7,
+    "eaCollapsePreservedVolumeCount": 5,
+    "fiberPulseShapeDiffCount": 0,
+    "lateGradientErodedCount": 0,
+    "lateFlowErodedCount": 0,
+    "outputParityLossCount": 0,
+    "candidateNewClampCount": 0,
+    "meanFiberVsEmpiricalPulseRms": 0.051848,
+    "meanLateGradientFractionDelta": -0.020906,
+    "meanLateForwardFractionDelta": -0.011401
+  },
+  "decision": {
+    "laPressureSourceResidualAttributionStatus": "la-pressure-source-residual-attribution-complete",
+    "residualOwner": "closed-loop LA active-pressure source shape collapses MVF E/A separation while preserving forward volume/output",
+    "nextAction": "Keep LA pressure source substitution blocked. Continue atrial-fiber work as shadow/readback until a valve/source co-owned pressure-gradient contract is designed; do not tune AV-plane or LandAtrial against this residual.",
+    "blockedClaims": [
+      "source-surface-substitution",
+      "runtime-wiring",
+      "morphology-acceptance",
+      "AV-plane-geometry",
+      "AV-plane-piston-volume-mode",
+      "LandAtrial-unlock"
+    ]
+  },
+  "claimBoundary": {
+    "sourceSurfaceSubstitution": false,
+    "runtimeWiring": false,
+    "morphologyAcceptance": false,
+    "AVPlaneGeometry": false,
+    "pistonVolumeMode": false,
+    "LandAtrialUnlock": false
+  },
+  "normalizedSha256": "47c339fb074b5d0f8e58db0787a72f4f5c6d548681dd45c465d8ff0aa5414466"
+}

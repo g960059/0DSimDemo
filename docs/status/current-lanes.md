@@ -59,11 +59,10 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: classify the closed-loop LA pressure-source substitution
-residual after the selected `fiber-active-a-window-gated` pulse preserved
-shadow MV replay but failed as a left-heart source-surface substitution.
-Runtime wiring, reservoir broad retuning, AV-plane work, and LandAtrial
-re-entry remain blocked.
+Next PR target: keep LA active pressure as atrial-fiber shadow/readback only
+and avoid direct LA pressure-source substitution until a valve/source co-owned
+pressure-gradient contract is designed. Runtime wiring, reservoir broad
+retuning, AV-plane work, and LandAtrial re-entry remain blocked.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -187,6 +186,10 @@ Included:
   `fiber-active-a-window-gated` pulse as a closed-loop left-heart LA pressure
   source substitution candidate and keeping that path blocked when MVF E/A
   collapse remains visible.
+- LaPressureSourceResidualAttributionBench V1 for classifying that source
+  substitution residual as closed-loop MVF E/A collapse with preserved forward
+  volume/output, no new clamp, no pulse gross-timing drift, and no late-gradient
+  erosion.
 
 Excluded:
 
