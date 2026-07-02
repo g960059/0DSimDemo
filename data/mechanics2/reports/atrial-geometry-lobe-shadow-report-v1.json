@@ -31,27 +31,23 @@
       "variantId": "geometry-gain00",
       "atrialGeometryGainMl": 0,
       "lobeQuality": {
-        "selfIntersections": 31,
-        "aLoopAreaProxyMmHgMl": 52.502586,
-        "vLoopAreaProxyMmHgMl": 0.742387,
-        "signedALoopAreaMmHgMl": 52.502586,
-        "signedVLoopAreaMmHgMl": -0.742387,
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 52.501464,
+        "vLoopAreaProxyMmHgMl": 2.657194,
+        "signedALoopAreaMmHgMl": 52.501464,
+        "signedVLoopAreaMmHgMl": -2.657194,
         "opposedSignedLobes": true,
         "vMeanVolumeMinusAMeanVolumeMl": 17.28422,
-        "lobeQualityPass": false,
-        "failureReasons": [
-          "v-loop-area-too-small"
-        ]
+        "lobeQualityPass": true,
+        "failureReasons": []
       },
       "maxAtrialGeometryDeltaMl": 0,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 6.292795,
-      "meanPressureDeltaFromSourceMmHg": 7.596903,
-      "status": "fail",
-      "failureReasons": [
-        "la-pv-lobe-quality-fail"
-      ]
+      "aPrimePeakAbsCmPerSec": 2.578318,
+      "meanPressureDeltaFromSourceMmHg": 7.418138,
+      "status": "pass",
+      "failureReasons": []
     },
     {
       "profileId": "normal-hr75",
@@ -59,27 +55,23 @@
       "variantId": "geometry-gain06",
       "atrialGeometryGainMl": 6,
       "lobeQuality": {
-        "selfIntersections": 3,
-        "aLoopAreaProxyMmHgMl": 51.912837,
-        "vLoopAreaProxyMmHgMl": 0.488639,
-        "signedALoopAreaMmHgMl": 51.912837,
-        "signedVLoopAreaMmHgMl": -0.488639,
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 52.245615,
+        "vLoopAreaProxyMmHgMl": 2.576623,
+        "signedALoopAreaMmHgMl": 52.245615,
+        "signedVLoopAreaMmHgMl": -2.576623,
         "opposedSignedLobes": true,
         "vMeanVolumeMinusAMeanVolumeMl": 17.28422,
-        "lobeQualityPass": false,
-        "failureReasons": [
-          "v-loop-area-too-small"
-        ]
+        "lobeQualityPass": true,
+        "failureReasons": []
       },
-      "maxAtrialGeometryDeltaMl": 6,
+      "maxAtrialGeometryDeltaMl": 2.494438,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 6.292795,
-      "meanPressureDeltaFromSourceMmHg": 7.575421,
-      "status": "fail",
-      "failureReasons": [
-        "la-pv-lobe-quality-fail"
-      ]
+      "aPrimePeakAbsCmPerSec": 2.578318,
+      "meanPressureDeltaFromSourceMmHg": 7.409667,
+      "status": "pass",
+      "failureReasons": []
     },
     {
       "profileId": "normal-hr75",
@@ -87,27 +79,23 @@
       "variantId": "geometry-gain12",
       "atrialGeometryGainMl": 12,
       "lobeQuality": {
-        "selfIntersections": 3,
-        "aLoopAreaProxyMmHgMl": 51.343411,
-        "vLoopAreaProxyMmHgMl": 0.08198,
-        "signedALoopAreaMmHgMl": 51.343411,
-        "signedVLoopAreaMmHgMl": -0.08198,
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 51.992408,
+        "vLoopAreaProxyMmHgMl": 2.460503,
+        "signedALoopAreaMmHgMl": 51.992408,
+        "signedVLoopAreaMmHgMl": -2.460503,
         "opposedSignedLobes": true,
         "vMeanVolumeMinusAMeanVolumeMl": 17.28422,
-        "lobeQualityPass": false,
-        "failureReasons": [
-          "v-loop-area-too-small"
-        ]
+        "lobeQualityPass": true,
+        "failureReasons": []
       },
-      "maxAtrialGeometryDeltaMl": 12,
+      "maxAtrialGeometryDeltaMl": 4.988877,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 6.292795,
-      "meanPressureDeltaFromSourceMmHg": 7.553854,
-      "status": "fail",
-      "failureReasons": [
-        "la-pv-lobe-quality-fail"
-      ]
+      "aPrimePeakAbsCmPerSec": 2.578318,
+      "meanPressureDeltaFromSourceMmHg": 7.401134,
+      "status": "pass",
+      "failureReasons": []
     },
     {
       "profileId": "normal-hr75",
@@ -115,28 +103,23 @@
       "variantId": "geometry-gain18",
       "atrialGeometryGainMl": 18,
       "lobeQuality": {
-        "selfIntersections": 3,
-        "aLoopAreaProxyMmHgMl": 50.619097,
-        "vLoopAreaProxyMmHgMl": 0.636571,
-        "signedALoopAreaMmHgMl": 50.619097,
-        "signedVLoopAreaMmHgMl": 0.636571,
-        "opposedSignedLobes": false,
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 51.743518,
+        "vLoopAreaProxyMmHgMl": 2.314482,
+        "signedALoopAreaMmHgMl": 51.743518,
+        "signedVLoopAreaMmHgMl": -2.314482,
+        "opposedSignedLobes": true,
         "vMeanVolumeMinusAMeanVolumeMl": 17.28422,
-        "lobeQualityPass": false,
-        "failureReasons": [
-          "v-loop-area-too-small",
-          "a-v-lobes-not-opposed"
-        ]
+        "lobeQualityPass": true,
+        "failureReasons": []
       },
-      "maxAtrialGeometryDeltaMl": 18,
+      "maxAtrialGeometryDeltaMl": 7.483315,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 6.292795,
-      "meanPressureDeltaFromSourceMmHg": 7.532316,
-      "status": "fail",
-      "failureReasons": [
-        "la-pv-lobe-quality-fail"
-      ]
+      "aPrimePeakAbsCmPerSec": 2.578318,
+      "meanPressureDeltaFromSourceMmHg": 7.392572,
+      "status": "pass",
+      "failureReasons": []
     },
     {
       "profileId": "normal-hr90",
@@ -144,23 +127,23 @@
       "variantId": "geometry-gain00",
       "atrialGeometryGainMl": 0,
       "lobeQuality": {
-        "selfIntersections": 31,
-        "aLoopAreaProxyMmHgMl": 57.396134,
-        "vLoopAreaProxyMmHgMl": 0.7924,
-        "signedALoopAreaMmHgMl": 57.396134,
-        "signedVLoopAreaMmHgMl": -0.7924,
-        "opposedSignedLobes": true,
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 57.387412,
+        "vLoopAreaProxyMmHgMl": 9.789277,
+        "signedALoopAreaMmHgMl": 57.387412,
+        "signedVLoopAreaMmHgMl": 9.789277,
+        "opposedSignedLobes": false,
         "vMeanVolumeMinusAMeanVolumeMl": 10.790013,
         "lobeQualityPass": false,
         "failureReasons": [
-          "v-loop-area-too-small"
+          "a-v-lobes-not-opposed"
         ]
       },
       "maxAtrialGeometryDeltaMl": 0,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 9.432909,
-      "meanPressureDeltaFromSourceMmHg": 8.101705,
+      "aPrimePeakAbsCmPerSec": 3.240902,
+      "meanPressureDeltaFromSourceMmHg": 7.84272,
       "status": "fail",
       "failureReasons": [
         "la-pv-lobe-quality-fail"
@@ -172,23 +155,23 @@
       "variantId": "geometry-gain06",
       "atrialGeometryGainMl": 6,
       "lobeQuality": {
-        "selfIntersections": 3,
-        "aLoopAreaProxyMmHgMl": 55.84677,
-        "vLoopAreaProxyMmHgMl": 0.218176,
-        "signedALoopAreaMmHgMl": 55.84677,
-        "signedVLoopAreaMmHgMl": -0.218176,
-        "opposedSignedLobes": true,
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 56.82732,
+        "vLoopAreaProxyMmHgMl": 10.012595,
+        "signedALoopAreaMmHgMl": 56.82732,
+        "signedVLoopAreaMmHgMl": 10.012595,
+        "opposedSignedLobes": false,
         "vMeanVolumeMinusAMeanVolumeMl": 10.790013,
         "lobeQualityPass": false,
         "failureReasons": [
-          "v-loop-area-too-small"
+          "a-v-lobes-not-opposed"
         ]
       },
-      "maxAtrialGeometryDeltaMl": 6,
+      "maxAtrialGeometryDeltaMl": 2.062555,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 9.432909,
-      "meanPressureDeltaFromSourceMmHg": 8.077549,
+      "aPrimePeakAbsCmPerSec": 3.240902,
+      "meanPressureDeltaFromSourceMmHg": 7.83513,
       "status": "fail",
       "failureReasons": [
         "la-pv-lobe-quality-fail"
@@ -201,23 +184,22 @@
       "atrialGeometryGainMl": 12,
       "lobeQuality": {
         "selfIntersections": 1,
-        "aLoopAreaProxyMmHgMl": 54.488368,
-        "vLoopAreaProxyMmHgMl": 0.294823,
-        "signedALoopAreaMmHgMl": 54.488368,
-        "signedVLoopAreaMmHgMl": 0.294823,
+        "aLoopAreaProxyMmHgMl": 56.297665,
+        "vLoopAreaProxyMmHgMl": 10.220568,
+        "signedALoopAreaMmHgMl": 56.297665,
+        "signedVLoopAreaMmHgMl": 10.220568,
         "opposedSignedLobes": false,
         "vMeanVolumeMinusAMeanVolumeMl": 10.790013,
         "lobeQualityPass": false,
         "failureReasons": [
-          "v-loop-area-too-small",
           "a-v-lobes-not-opposed"
         ]
       },
-      "maxAtrialGeometryDeltaMl": 12,
+      "maxAtrialGeometryDeltaMl": 4.125109,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 9.432909,
-      "meanPressureDeltaFromSourceMmHg": 8.053096,
+      "aPrimePeakAbsCmPerSec": 3.240902,
+      "meanPressureDeltaFromSourceMmHg": 7.827278,
       "status": "fail",
       "failureReasons": [
         "la-pv-lobe-quality-fail"
@@ -230,23 +212,22 @@
       "atrialGeometryGainMl": 18,
       "lobeQuality": {
         "selfIntersections": 1,
-        "aLoopAreaProxyMmHgMl": 53.262901,
-        "vLoopAreaProxyMmHgMl": 0.772123,
-        "signedALoopAreaMmHgMl": 53.262901,
-        "signedVLoopAreaMmHgMl": 0.772123,
+        "aLoopAreaProxyMmHgMl": 55.792932,
+        "vLoopAreaProxyMmHgMl": 10.418879,
+        "signedALoopAreaMmHgMl": 55.792932,
+        "signedVLoopAreaMmHgMl": 10.418879,
         "opposedSignedLobes": false,
         "vMeanVolumeMinusAMeanVolumeMl": 10.790013,
         "lobeQualityPass": false,
         "failureReasons": [
-          "v-loop-area-too-small",
           "a-v-lobes-not-opposed"
         ]
       },
-      "maxAtrialGeometryDeltaMl": 18,
+      "maxAtrialGeometryDeltaMl": 6.187664,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 9.432909,
-      "meanPressureDeltaFromSourceMmHg": 8.029131,
+      "aPrimePeakAbsCmPerSec": 3.240902,
+      "meanPressureDeltaFromSourceMmHg": 7.819343,
       "status": "fail",
       "failureReasons": [
         "la-pv-lobe-quality-fail"
@@ -258,23 +239,23 @@
       "variantId": "geometry-gain00",
       "atrialGeometryGainMl": 0,
       "lobeQuality": {
-        "selfIntersections": 14,
-        "aLoopAreaProxyMmHgMl": 80.399982,
-        "vLoopAreaProxyMmHgMl": 1.320927,
-        "signedALoopAreaMmHgMl": 80.399982,
-        "signedVLoopAreaMmHgMl": -1.320927,
-        "opposedSignedLobes": true,
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 80.397648,
+        "vLoopAreaProxyMmHgMl": 4.750817,
+        "signedALoopAreaMmHgMl": 80.397648,
+        "signedVLoopAreaMmHgMl": 4.750817,
+        "opposedSignedLobes": false,
         "vMeanVolumeMinusAMeanVolumeMl": 15.063768,
         "lobeQualityPass": false,
         "failureReasons": [
-          "v-loop-area-too-small"
+          "a-v-lobes-not-opposed"
         ]
       },
       "maxAtrialGeometryDeltaMl": 0,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 6.850903,
-      "meanPressureDeltaFromSourceMmHg": 5.61295,
+      "aPrimePeakAbsCmPerSec": 2.968721,
+      "meanPressureDeltaFromSourceMmHg": 5.424213,
       "status": "fail",
       "failureReasons": [
         "la-pv-lobe-quality-fail"
@@ -287,22 +268,22 @@
       "atrialGeometryGainMl": 6,
       "lobeQuality": {
         "selfIntersections": 1,
-        "aLoopAreaProxyMmHgMl": 79.202393,
-        "vLoopAreaProxyMmHgMl": 1.306327,
-        "signedALoopAreaMmHgMl": 79.202393,
-        "signedVLoopAreaMmHgMl": -1.306327,
-        "opposedSignedLobes": true,
+        "aLoopAreaProxyMmHgMl": 79.804624,
+        "vLoopAreaProxyMmHgMl": 4.778128,
+        "signedALoopAreaMmHgMl": 79.804624,
+        "signedVLoopAreaMmHgMl": 4.778128,
+        "opposedSignedLobes": false,
         "vMeanVolumeMinusAMeanVolumeMl": 15.063768,
         "lobeQualityPass": false,
         "failureReasons": [
-          "v-loop-area-too-small"
+          "a-v-lobes-not-opposed"
         ]
       },
-      "maxAtrialGeometryDeltaMl": 6,
+      "maxAtrialGeometryDeltaMl": 2.723789,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 6.850903,
-      "meanPressureDeltaFromSourceMmHg": 5.597363,
+      "aPrimePeakAbsCmPerSec": 2.968721,
+      "meanPressureDeltaFromSourceMmHg": 5.418624,
       "status": "fail",
       "failureReasons": [
         "la-pv-lobe-quality-fail"
@@ -315,22 +296,22 @@
       "atrialGeometryGainMl": 12,
       "lobeQuality": {
         "selfIntersections": 1,
-        "aLoopAreaProxyMmHgMl": 78.071955,
-        "vLoopAreaProxyMmHgMl": 1.205504,
-        "signedALoopAreaMmHgMl": 78.071955,
-        "signedVLoopAreaMmHgMl": -1.205504,
-        "opposedSignedLobes": true,
+        "aLoopAreaProxyMmHgMl": 79.226121,
+        "vLoopAreaProxyMmHgMl": 4.812115,
+        "signedALoopAreaMmHgMl": 79.226121,
+        "signedVLoopAreaMmHgMl": 4.812115,
+        "opposedSignedLobes": false,
         "vMeanVolumeMinusAMeanVolumeMl": 15.063768,
         "lobeQualityPass": false,
         "failureReasons": [
-          "v-loop-area-too-small"
+          "a-v-lobes-not-opposed"
         ]
       },
-      "maxAtrialGeometryDeltaMl": 12,
+      "maxAtrialGeometryDeltaMl": 5.447578,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 6.850903,
-      "meanPressureDeltaFromSourceMmHg": 5.578529,
+      "aPrimePeakAbsCmPerSec": 2.968721,
+      "meanPressureDeltaFromSourceMmHg": 5.412312,
       "status": "fail",
       "failureReasons": [
         "la-pv-lobe-quality-fail"
@@ -342,23 +323,23 @@
       "variantId": "geometry-gain18",
       "atrialGeometryGainMl": 18,
       "lobeQuality": {
-        "selfIntersections": 3,
-        "aLoopAreaProxyMmHgMl": 76.750385,
-        "vLoopAreaProxyMmHgMl": 0.643821,
-        "signedALoopAreaMmHgMl": 76.750385,
-        "signedVLoopAreaMmHgMl": -0.643821,
-        "opposedSignedLobes": true,
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 78.662746,
+        "vLoopAreaProxyMmHgMl": 4.865003,
+        "signedALoopAreaMmHgMl": 78.662746,
+        "signedVLoopAreaMmHgMl": 4.865003,
+        "opposedSignedLobes": false,
         "vMeanVolumeMinusAMeanVolumeMl": 15.063768,
         "lobeQualityPass": false,
         "failureReasons": [
-          "v-loop-area-too-small"
+          "a-v-lobes-not-opposed"
         ]
       },
-      "maxAtrialGeometryDeltaMl": 18,
+      "maxAtrialGeometryDeltaMl": 8.171367,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 6.850903,
-      "meanPressureDeltaFromSourceMmHg": 5.558868,
+      "aPrimePeakAbsCmPerSec": 2.968721,
+      "meanPressureDeltaFromSourceMmHg": 5.405019,
       "status": "fail",
       "failureReasons": [
         "la-pv-lobe-quality-fail"
@@ -370,27 +351,23 @@
       "variantId": "geometry-gain00",
       "atrialGeometryGainMl": 0,
       "lobeQuality": {
-        "selfIntersections": 47,
-        "aLoopAreaProxyMmHgMl": 36.76553,
-        "vLoopAreaProxyMmHgMl": 0.432731,
-        "signedALoopAreaMmHgMl": 36.76553,
-        "signedVLoopAreaMmHgMl": -0.432731,
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 36.764904,
+        "vLoopAreaProxyMmHgMl": 6.120287,
+        "signedALoopAreaMmHgMl": 36.764904,
+        "signedVLoopAreaMmHgMl": -6.120287,
         "opposedSignedLobes": true,
         "vMeanVolumeMinusAMeanVolumeMl": 17.603197,
-        "lobeQualityPass": false,
-        "failureReasons": [
-          "v-loop-area-too-small"
-        ]
+        "lobeQualityPass": true,
+        "failureReasons": []
       },
       "maxAtrialGeometryDeltaMl": 0,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 5.504537,
-      "meanPressureDeltaFromSourceMmHg": 10.465637,
-      "status": "fail",
-      "failureReasons": [
-        "la-pv-lobe-quality-fail"
-      ]
+      "aPrimePeakAbsCmPerSec": 2.044166,
+      "meanPressureDeltaFromSourceMmHg": 10.297127,
+      "status": "pass",
+      "failureReasons": []
     },
     {
       "profileId": "preload-high",
@@ -398,28 +375,23 @@
       "variantId": "geometry-gain06",
       "atrialGeometryGainMl": 6,
       "lobeQuality": {
-        "selfIntersections": 3,
-        "aLoopAreaProxyMmHgMl": 36.424504,
-        "vLoopAreaProxyMmHgMl": 0.214701,
-        "signedALoopAreaMmHgMl": 36.424504,
-        "signedVLoopAreaMmHgMl": 0.214701,
-        "opposedSignedLobes": false,
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 36.63699,
+        "vLoopAreaProxyMmHgMl": 5.898295,
+        "signedALoopAreaMmHgMl": 36.63699,
+        "signedVLoopAreaMmHgMl": -5.898295,
+        "opposedSignedLobes": true,
         "vMeanVolumeMinusAMeanVolumeMl": 17.603197,
-        "lobeQualityPass": false,
-        "failureReasons": [
-          "v-loop-area-too-small",
-          "a-v-lobes-not-opposed"
-        ]
+        "lobeQualityPass": true,
+        "failureReasons": []
       },
-      "maxAtrialGeometryDeltaMl": 6,
+      "maxAtrialGeometryDeltaMl": 2.229031,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 5.504537,
-      "meanPressureDeltaFromSourceMmHg": 10.443151,
-      "status": "fail",
-      "failureReasons": [
-        "la-pv-lobe-quality-fail"
-      ]
+      "aPrimePeakAbsCmPerSec": 2.044166,
+      "meanPressureDeltaFromSourceMmHg": 10.288944,
+      "status": "pass",
+      "failureReasons": []
     },
     {
       "profileId": "preload-high",
@@ -427,28 +399,23 @@
       "variantId": "geometry-gain12",
       "atrialGeometryGainMl": 12,
       "lobeQuality": {
-        "selfIntersections": 3,
-        "aLoopAreaProxyMmHgMl": 35.922779,
-        "vLoopAreaProxyMmHgMl": 1.03799,
-        "signedALoopAreaMmHgMl": 35.922779,
-        "signedVLoopAreaMmHgMl": 1.03799,
-        "opposedSignedLobes": false,
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 36.510791,
+        "vLoopAreaProxyMmHgMl": 5.662736,
+        "signedALoopAreaMmHgMl": 36.510791,
+        "signedVLoopAreaMmHgMl": -5.662736,
+        "opposedSignedLobes": true,
         "vMeanVolumeMinusAMeanVolumeMl": 17.603197,
-        "lobeQualityPass": false,
-        "failureReasons": [
-          "v-loop-area-too-small",
-          "a-v-lobes-not-opposed"
-        ]
+        "lobeQualityPass": true,
+        "failureReasons": []
       },
-      "maxAtrialGeometryDeltaMl": 12,
+      "maxAtrialGeometryDeltaMl": 4.458062,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 5.504537,
-      "meanPressureDeltaFromSourceMmHg": 10.420577,
-      "status": "fail",
-      "failureReasons": [
-        "la-pv-lobe-quality-fail"
-      ]
+      "aPrimePeakAbsCmPerSec": 2.044166,
+      "meanPressureDeltaFromSourceMmHg": 10.280759,
+      "status": "pass",
+      "failureReasons": []
     },
     {
       "profileId": "preload-high",
@@ -457,26 +424,22 @@
       "atrialGeometryGainMl": 18,
       "lobeQuality": {
         "selfIntersections": 1,
-        "aLoopAreaProxyMmHgMl": 35.464834,
-        "vLoopAreaProxyMmHgMl": 1.822935,
-        "signedALoopAreaMmHgMl": 35.464834,
-        "signedVLoopAreaMmHgMl": 1.822935,
-        "opposedSignedLobes": false,
+        "aLoopAreaProxyMmHgMl": 36.36207,
+        "vLoopAreaProxyMmHgMl": 5.365221,
+        "signedALoopAreaMmHgMl": 36.36207,
+        "signedVLoopAreaMmHgMl": -5.365221,
+        "opposedSignedLobes": true,
         "vMeanVolumeMinusAMeanVolumeMl": 17.603197,
-        "lobeQualityPass": false,
-        "failureReasons": [
-          "a-v-lobes-not-opposed"
-        ]
+        "lobeQualityPass": true,
+        "failureReasons": []
       },
-      "maxAtrialGeometryDeltaMl": 18,
+      "maxAtrialGeometryDeltaMl": 6.687093,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 5.504537,
-      "meanPressureDeltaFromSourceMmHg": 10.397834,
-      "status": "fail",
-      "failureReasons": [
-        "la-pv-lobe-quality-fail"
-      ]
+      "aPrimePeakAbsCmPerSec": 2.044166,
+      "meanPressureDeltaFromSourceMmHg": 10.272565,
+      "status": "pass",
+      "failureReasons": []
     },
     {
       "profileId": "afterload-high",
@@ -484,23 +447,23 @@
       "variantId": "geometry-gain00",
       "atrialGeometryGainMl": 0,
       "lobeQuality": {
-        "selfIntersections": 45,
-        "aLoopAreaProxyMmHgMl": 47.226153,
-        "vLoopAreaProxyMmHgMl": 0.331883,
-        "signedALoopAreaMmHgMl": 47.226153,
-        "signedVLoopAreaMmHgMl": -0.331883,
-        "opposedSignedLobes": true,
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 47.225046,
+        "vLoopAreaProxyMmHgMl": 2.094627,
+        "signedALoopAreaMmHgMl": 47.225046,
+        "signedVLoopAreaMmHgMl": 2.094627,
+        "opposedSignedLobes": false,
         "vMeanVolumeMinusAMeanVolumeMl": 11.889523,
         "lobeQualityPass": false,
         "failureReasons": [
-          "v-loop-area-too-small"
+          "a-v-lobes-not-opposed"
         ]
       },
       "maxAtrialGeometryDeltaMl": 0,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 7.802158,
-      "meanPressureDeltaFromSourceMmHg": 9.469188,
+      "aPrimePeakAbsCmPerSec": 2.144634,
+      "meanPressureDeltaFromSourceMmHg": 9.298613,
       "status": "fail",
       "failureReasons": [
         "la-pv-lobe-quality-fail"
@@ -513,23 +476,22 @@
       "atrialGeometryGainMl": 6,
       "lobeQuality": {
         "selfIntersections": 1,
-        "aLoopAreaProxyMmHgMl": 46.400816,
-        "vLoopAreaProxyMmHgMl": 0.184787,
-        "signedALoopAreaMmHgMl": 46.400816,
-        "signedVLoopAreaMmHgMl": 0.184787,
+        "aLoopAreaProxyMmHgMl": 46.978209,
+        "vLoopAreaProxyMmHgMl": 2.238539,
+        "signedALoopAreaMmHgMl": 46.978209,
+        "signedVLoopAreaMmHgMl": 2.238539,
         "opposedSignedLobes": false,
         "vMeanVolumeMinusAMeanVolumeMl": 11.889523,
         "lobeQualityPass": false,
         "failureReasons": [
-          "v-loop-area-too-small",
           "a-v-lobes-not-opposed"
         ]
       },
-      "maxAtrialGeometryDeltaMl": 6,
+      "maxAtrialGeometryDeltaMl": 1.667518,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 7.802158,
-      "meanPressureDeltaFromSourceMmHg": 9.442857,
+      "aPrimePeakAbsCmPerSec": 2.144634,
+      "meanPressureDeltaFromSourceMmHg": 9.291501,
       "status": "fail",
       "failureReasons": [
         "la-pv-lobe-quality-fail"
@@ -542,23 +504,22 @@
       "atrialGeometryGainMl": 12,
       "lobeQuality": {
         "selfIntersections": 1,
-        "aLoopAreaProxyMmHgMl": 45.665438,
-        "vLoopAreaProxyMmHgMl": 0.67171,
-        "signedALoopAreaMmHgMl": 45.665438,
-        "signedVLoopAreaMmHgMl": 0.67171,
+        "aLoopAreaProxyMmHgMl": 46.743374,
+        "vLoopAreaProxyMmHgMl": 2.379946,
+        "signedALoopAreaMmHgMl": 46.743374,
+        "signedVLoopAreaMmHgMl": 2.379946,
         "opposedSignedLobes": false,
         "vMeanVolumeMinusAMeanVolumeMl": 11.889523,
         "lobeQualityPass": false,
         "failureReasons": [
-          "v-loop-area-too-small",
           "a-v-lobes-not-opposed"
         ]
       },
-      "maxAtrialGeometryDeltaMl": 12,
+      "maxAtrialGeometryDeltaMl": 3.335036,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 7.802158,
-      "meanPressureDeltaFromSourceMmHg": 9.416883,
+      "aPrimePeakAbsCmPerSec": 2.144634,
+      "meanPressureDeltaFromSourceMmHg": 9.284375,
       "status": "fail",
       "failureReasons": [
         "la-pv-lobe-quality-fail"
@@ -571,23 +532,22 @@
       "atrialGeometryGainMl": 18,
       "lobeQuality": {
         "selfIntersections": 1,
-        "aLoopAreaProxyMmHgMl": 44.993594,
-        "vLoopAreaProxyMmHgMl": 1.133828,
-        "signedALoopAreaMmHgMl": 44.993594,
-        "signedVLoopAreaMmHgMl": 1.133828,
+        "aLoopAreaProxyMmHgMl": 46.517657,
+        "vLoopAreaProxyMmHgMl": 2.518991,
+        "signedALoopAreaMmHgMl": 46.517657,
+        "signedVLoopAreaMmHgMl": 2.518991,
         "opposedSignedLobes": false,
         "vMeanVolumeMinusAMeanVolumeMl": 11.889523,
         "lobeQualityPass": false,
         "failureReasons": [
-          "v-loop-area-too-small",
           "a-v-lobes-not-opposed"
         ]
       },
-      "maxAtrialGeometryDeltaMl": 18,
+      "maxAtrialGeometryDeltaMl": 5.002554,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 7.802158,
-      "meanPressureDeltaFromSourceMmHg": 9.391645,
+      "aPrimePeakAbsCmPerSec": 2.144634,
+      "meanPressureDeltaFromSourceMmHg": 9.277241,
       "status": "fail",
       "failureReasons": [
         "la-pv-lobe-quality-fail"
@@ -599,23 +559,23 @@
       "variantId": "geometry-gain00",
       "atrialGeometryGainMl": 0,
       "lobeQuality": {
-        "selfIntersections": 49,
-        "aLoopAreaProxyMmHgMl": 19.556326,
-        "vLoopAreaProxyMmHgMl": 0.004024,
-        "signedALoopAreaMmHgMl": 19.556326,
-        "signedVLoopAreaMmHgMl": -0.004024,
-        "opposedSignedLobes": true,
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 19.555825,
+        "vLoopAreaProxyMmHgMl": 1.82651,
+        "signedALoopAreaMmHgMl": 19.555825,
+        "signedVLoopAreaMmHgMl": 1.82651,
+        "opposedSignedLobes": false,
         "vMeanVolumeMinusAMeanVolumeMl": 4.910395,
         "lobeQualityPass": false,
         "failureReasons": [
-          "v-loop-area-too-small"
+          "a-v-lobes-not-opposed"
         ]
       },
       "maxAtrialGeometryDeltaMl": 0,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 9.228101,
-      "meanPressureDeltaFromSourceMmHg": 11.713557,
+      "aPrimePeakAbsCmPerSec": 1.700348,
+      "meanPressureDeltaFromSourceMmHg": 11.55394,
       "status": "fail",
       "failureReasons": [
         "la-pv-lobe-quality-fail"
@@ -628,23 +588,22 @@
       "atrialGeometryGainMl": 6,
       "lobeQuality": {
         "selfIntersections": 1,
-        "aLoopAreaProxyMmHgMl": 19.383016,
-        "vLoopAreaProxyMmHgMl": 0.158887,
-        "signedALoopAreaMmHgMl": 19.383016,
-        "signedVLoopAreaMmHgMl": 0.158887,
+        "aLoopAreaProxyMmHgMl": 19.523405,
+        "vLoopAreaProxyMmHgMl": 1.857248,
+        "signedALoopAreaMmHgMl": 19.523405,
+        "signedVLoopAreaMmHgMl": 1.857248,
         "opposedSignedLobes": false,
         "vMeanVolumeMinusAMeanVolumeMl": 4.910395,
         "lobeQualityPass": false,
         "failureReasons": [
-          "v-loop-area-too-small",
           "a-v-lobes-not-opposed"
         ]
       },
-      "maxAtrialGeometryDeltaMl": 6,
+      "maxAtrialGeometryDeltaMl": 1.106386,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 9.228101,
-      "meanPressureDeltaFromSourceMmHg": 11.68316,
+      "aPrimePeakAbsCmPerSec": 1.700348,
+      "meanPressureDeltaFromSourceMmHg": 11.548216,
       "status": "fail",
       "failureReasons": [
         "la-pv-lobe-quality-fail"
@@ -657,23 +616,22 @@
       "atrialGeometryGainMl": 12,
       "lobeQuality": {
         "selfIntersections": 1,
-        "aLoopAreaProxyMmHgMl": 19.214528,
-        "vLoopAreaProxyMmHgMl": 0.315189,
-        "signedALoopAreaMmHgMl": 19.214528,
-        "signedVLoopAreaMmHgMl": 0.315189,
+        "aLoopAreaProxyMmHgMl": 19.491169,
+        "vLoopAreaProxyMmHgMl": 1.887735,
+        "signedALoopAreaMmHgMl": 19.491169,
+        "signedVLoopAreaMmHgMl": 1.887735,
         "opposedSignedLobes": false,
         "vMeanVolumeMinusAMeanVolumeMl": 4.910395,
         "lobeQualityPass": false,
         "failureReasons": [
-          "v-loop-area-too-small",
           "a-v-lobes-not-opposed"
         ]
       },
-      "maxAtrialGeometryDeltaMl": 12,
+      "maxAtrialGeometryDeltaMl": 2.212771,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 9.228101,
-      "meanPressureDeltaFromSourceMmHg": 11.654434,
+      "aPrimePeakAbsCmPerSec": 1.700348,
+      "meanPressureDeltaFromSourceMmHg": 11.542564,
       "status": "fail",
       "failureReasons": [
         "la-pv-lobe-quality-fail"
@@ -686,23 +644,22 @@
       "atrialGeometryGainMl": 18,
       "lobeQuality": {
         "selfIntersections": 1,
-        "aLoopAreaProxyMmHgMl": 19.050259,
-        "vLoopAreaProxyMmHgMl": 0.465695,
-        "signedALoopAreaMmHgMl": 19.050259,
-        "signedVLoopAreaMmHgMl": 0.465695,
+        "aLoopAreaProxyMmHgMl": 19.459113,
+        "vLoopAreaProxyMmHgMl": 1.917977,
+        "signedALoopAreaMmHgMl": 19.459113,
+        "signedVLoopAreaMmHgMl": 1.917977,
         "opposedSignedLobes": false,
         "vMeanVolumeMinusAMeanVolumeMl": 4.910395,
         "lobeQualityPass": false,
         "failureReasons": [
-          "v-loop-area-too-small",
           "a-v-lobes-not-opposed"
         ]
       },
-      "maxAtrialGeometryDeltaMl": 18,
+      "maxAtrialGeometryDeltaMl": 3.319157,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 9.228101,
-      "meanPressureDeltaFromSourceMmHg": 11.62694,
+      "aPrimePeakAbsCmPerSec": 1.700348,
+      "meanPressureDeltaFromSourceMmHg": 11.536978,
       "status": "fail",
       "failureReasons": [
         "la-pv-lobe-quality-fail"
@@ -714,23 +671,23 @@
       "variantId": "geometry-gain00",
       "atrialGeometryGainMl": 0,
       "lobeQuality": {
-        "selfIntersections": 28,
-        "aLoopAreaProxyMmHgMl": 82.88653,
-        "vLoopAreaProxyMmHgMl": 1.089368,
-        "signedALoopAreaMmHgMl": 82.88653,
-        "signedVLoopAreaMmHgMl": -1.089368,
-        "opposedSignedLobes": true,
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 82.883974,
+        "vLoopAreaProxyMmHgMl": 5.659176,
+        "signedALoopAreaMmHgMl": 82.883974,
+        "signedVLoopAreaMmHgMl": 5.659176,
+        "opposedSignedLobes": false,
         "vMeanVolumeMinusAMeanVolumeMl": 14.768199,
         "lobeQualityPass": false,
         "failureReasons": [
-          "v-loop-area-too-small"
+          "a-v-lobes-not-opposed"
         ]
       },
       "maxAtrialGeometryDeltaMl": 0,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 6.649951,
-      "meanPressureDeltaFromSourceMmHg": 6.880472,
+      "aPrimePeakAbsCmPerSec": 3.942059,
+      "meanPressureDeltaFromSourceMmHg": 6.697303,
       "status": "fail",
       "failureReasons": [
         "la-pv-lobe-quality-fail"
@@ -743,22 +700,22 @@
       "atrialGeometryGainMl": 6,
       "lobeQuality": {
         "selfIntersections": 1,
-        "aLoopAreaProxyMmHgMl": 81.623049,
-        "vLoopAreaProxyMmHgMl": 0.962948,
-        "signedALoopAreaMmHgMl": 81.623049,
-        "signedVLoopAreaMmHgMl": -0.962948,
-        "opposedSignedLobes": true,
+        "aLoopAreaProxyMmHgMl": 81.442608,
+        "vLoopAreaProxyMmHgMl": 5.661183,
+        "signedALoopAreaMmHgMl": 81.442608,
+        "signedVLoopAreaMmHgMl": 5.661183,
+        "opposedSignedLobes": false,
         "vMeanVolumeMinusAMeanVolumeMl": 14.768199,
         "lobeQualityPass": false,
         "failureReasons": [
-          "v-loop-area-too-small"
+          "a-v-lobes-not-opposed"
         ]
       },
-      "maxAtrialGeometryDeltaMl": 6,
+      "maxAtrialGeometryDeltaMl": 4.868647,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 6.649951,
-      "meanPressureDeltaFromSourceMmHg": 6.861984,
+      "aPrimePeakAbsCmPerSec": 3.942059,
+      "meanPressureDeltaFromSourceMmHg": 6.690767,
       "status": "fail",
       "failureReasons": [
         "la-pv-lobe-quality-fail"
@@ -770,23 +727,23 @@
       "variantId": "geometry-gain12",
       "atrialGeometryGainMl": 12,
       "lobeQuality": {
-        "selfIntersections": 3,
-        "aLoopAreaProxyMmHgMl": 80.233637,
-        "vLoopAreaProxyMmHgMl": 0.49385,
-        "signedALoopAreaMmHgMl": 80.233637,
-        "signedVLoopAreaMmHgMl": -0.49385,
-        "opposedSignedLobes": true,
+        "selfIntersections": 1,
+        "aLoopAreaProxyMmHgMl": 79.978529,
+        "vLoopAreaProxyMmHgMl": 5.885699,
+        "signedALoopAreaMmHgMl": 79.978529,
+        "signedVLoopAreaMmHgMl": 5.885699,
+        "opposedSignedLobes": false,
         "vMeanVolumeMinusAMeanVolumeMl": 14.768199,
         "lobeQualityPass": false,
         "failureReasons": [
-          "v-loop-area-too-small"
+          "a-v-lobes-not-opposed"
         ]
       },
-      "maxAtrialGeometryDeltaMl": 12,
+      "maxAtrialGeometryDeltaMl": 9.737295,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 6.649951,
-      "meanPressureDeltaFromSourceMmHg": 6.84208,
+      "aPrimePeakAbsCmPerSec": 3.942059,
+      "meanPressureDeltaFromSourceMmHg": 6.682014,
       "status": "fail",
       "failureReasons": [
         "la-pv-lobe-quality-fail"
@@ -799,23 +756,22 @@
       "atrialGeometryGainMl": 18,
       "lobeQuality": {
         "selfIntersections": 1,
-        "aLoopAreaProxyMmHgMl": 78.518318,
-        "vLoopAreaProxyMmHgMl": 0.272128,
-        "signedALoopAreaMmHgMl": 78.518318,
-        "signedVLoopAreaMmHgMl": 0.272128,
+        "aLoopAreaProxyMmHgMl": 78.145383,
+        "vLoopAreaProxyMmHgMl": 6.450988,
+        "signedALoopAreaMmHgMl": 78.145383,
+        "signedVLoopAreaMmHgMl": 6.450988,
         "opposedSignedLobes": false,
         "vMeanVolumeMinusAMeanVolumeMl": 14.768199,
         "lobeQualityPass": false,
         "failureReasons": [
-          "v-loop-area-too-small",
           "a-v-lobes-not-opposed"
         ]
       },
-      "maxAtrialGeometryDeltaMl": 18,
+      "maxAtrialGeometryDeltaMl": 14.605942,
       "maxHiddenBloodVolumeSourceMl": 0,
       "aPrimeReadbackPresent": true,
-      "aPrimePeakAbsCmPerSec": 6.649951,
-      "meanPressureDeltaFromSourceMmHg": 6.821227,
+      "aPrimePeakAbsCmPerSec": 3.942059,
+      "meanPressureDeltaFromSourceMmHg": 6.671315,
       "status": "fail",
       "failureReasons": [
         "la-pv-lobe-quality-fail"
@@ -825,52 +781,52 @@
   "variantSummaries": [
     {
       "variantId": "geometry-gain00",
-      "lobeQualityPass": 0,
+      "lobeQualityPass": 2,
       "aPrimeReadbackPresentCount": 7,
       "hiddenVolumeCleanCount": 7,
       "meanMaxAtrialGeometryDeltaMl": 0,
-      "maxAPrimePeakAbsCmPerSec": 9.432909
+      "maxAPrimePeakAbsCmPerSec": 3.942059
     },
     {
       "variantId": "geometry-gain06",
-      "lobeQualityPass": 0,
+      "lobeQualityPass": 2,
       "aPrimeReadbackPresentCount": 7,
       "hiddenVolumeCleanCount": 7,
-      "meanMaxAtrialGeometryDeltaMl": 6,
-      "maxAPrimePeakAbsCmPerSec": 9.432909
+      "meanMaxAtrialGeometryDeltaMl": 2.450338,
+      "maxAPrimePeakAbsCmPerSec": 3.942059
     },
     {
       "variantId": "geometry-gain12",
-      "lobeQualityPass": 0,
+      "lobeQualityPass": 2,
       "aPrimeReadbackPresentCount": 7,
       "hiddenVolumeCleanCount": 7,
-      "meanMaxAtrialGeometryDeltaMl": 12,
-      "maxAPrimePeakAbsCmPerSec": 9.432909
+      "meanMaxAtrialGeometryDeltaMl": 4.900675,
+      "maxAPrimePeakAbsCmPerSec": 3.942059
     },
     {
       "variantId": "geometry-gain18",
-      "lobeQualityPass": 0,
+      "lobeQualityPass": 2,
       "aPrimeReadbackPresentCount": 7,
       "hiddenVolumeCleanCount": 7,
-      "meanMaxAtrialGeometryDeltaMl": 18,
-      "maxAPrimePeakAbsCmPerSec": 9.432909
+      "meanMaxAtrialGeometryDeltaMl": 7.351013,
+      "maxAPrimePeakAbsCmPerSec": 3.942059
     }
   ],
   "bestVariant": {
     "variantId": "geometry-gain00",
-    "lobeQualityPass": 0,
+    "lobeQualityPass": 2,
     "aPrimeReadbackPresentCount": 7,
     "hiddenVolumeCleanCount": 7,
     "meanMaxAtrialGeometryDeltaMl": 0,
-    "maxAPrimePeakAbsCmPerSec": 9.432909
+    "maxAPrimePeakAbsCmPerSec": 3.942059
   },
   "summary": {
     "totalProfiles": 7,
     "bestVariantId": "geometry-gain00",
-    "bestLobeQualityPass": 0,
+    "bestLobeQualityPass": 2,
     "bestAPrimeReadbackPresentCount": 7,
     "bestHiddenVolumeCleanCount": 7,
-    "baselineLobeQualityPass": 0
+    "baselineLobeQualityPass": 2
   },
   "decision": {
     "atrialGeometryLobeShadowStatus": "atrial-geometry-lobe-shadow-blocked",
@@ -890,5 +846,5 @@
     "aPrimePhysiologyClaim": false,
     "LandAtrialUnlock": false
   },
-  "normalizedSha256": "db5f3447331482e5af6b36d51108ea43c105ec0c6332c20ce61bc75c6b54a5f6"
+  "normalizedSha256": "fcdf0759b98541674cf1a4595313d6e278f1842ad1644e5736bb76e9f5049686"
 }

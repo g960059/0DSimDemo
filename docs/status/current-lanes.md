@@ -59,11 +59,10 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: design a state-owned atrial chamber/valve lobe generator beyond
-simple display-piston or phase-pressure oracles. A bounded AtrialFiber pressure
-surface gives only a small 2/7 lobe-quality signal, while simple display-piston
-volume, a-wave kick pressure, and reservoir-suction pressure oracles do not
-increase lobe-quality pass count.
+Next PR target: design a broader atrial chamber/valve lobe generator beyond
+scalar reservoir-suction pressure. A state-owned reservoir-suction drive gives a
+useful source-surface/MVF signal, but it still does not promote LA PV lobe
+quality beyond the small 1-2/7 range.
 Direct atrial pressure substitution, additive atrial active-pressure source
 substitution, direct AV-gradient injection, more fixed source-state variant
 sweeps, readback-only geometry overlays, simple LV-shortening effective-
@@ -240,6 +239,9 @@ Included:
 - AtrialLobeGeneratorContractBench V1 for display-piston, AtrialFiber-pressure,
   a-wave kick-pressure, and reservoir-suction pressure lobe-generator oracles
   without runtime wiring or blood-ledger mutation.
+- StateOwnedAtrialLobeGeneratorBench V1 for a left-heart state-owned
+  reservoir-suction drive inside the LA source surface, with source-surface,
+  MVF, LA PV lobe-quality, hidden-volume, and a-prime readbacks.
 
 Excluded:
 
@@ -825,11 +827,12 @@ Next gates:
     residuals without lobe gain. This keeps AV-plane runtime enablement blocked
     but moves the next structural owner to stateful atrial geometry/lobe quality.
 73. Atrial geometry lobe shadow: a readback-only effective geometry overlay is
-    not enough. Geometry gains 0/6/12/18 mL all keep lobe-quality pass at 0/7,
-    while hidden-volume source remains zero, hidden-volume-clean is 7/7, and
-    a-prime shadow readbacks are present 7/7. This closes post-hoc geometry
-    overlays as a shortcut; the next
-    model surface needs geometry state to co-evolve inside the atrial chamber/
+    not enough. Warm replay removes the final-beat cold-start ambiguity and
+    shows the baseline/no-gain lobe-quality count is 2/7, but geometry gains
+    0/6/12/18 mL still do not improve beyond 2/7. Hidden-volume source remains
+    zero, hidden-volume-clean is 7/7, and a-prime shadow readbacks are present
+    7/7. This closes post-hoc geometry overlays as a shortcut; the next model
+    surface needs geometry/lobe state to co-evolve inside the atrial chamber/
     valve transaction before any AV-plane physiology or runtime claim.
 74. Stateful atrial geometry transaction: moving simple LV-shortening geometry
     into the LA chamber/MV valve/LV filling transaction is also not a promotion
@@ -851,6 +854,16 @@ Next gates:
     This keeps runtime, blood-ledger mutation, AV-plane enablement, a-prime
     physiology, and LandAtrial blocked while routing the next work to a real
     state-owned atrial chamber/valve lobe generator.
+76. State-owned atrial lobe generator: a reservoir-suction state inside the
+    left-heart LA source surface gives a useful but insufficient signal. The
+    best contract variant has source-surface pass 3/7, contract pass 2/7, LA PV
+    lobe-quality 2/7, and MVF clean 3/7; stronger suction improves source-
+    surface and MVF to 5/7 but leaves LA PV lobe-quality at 1/7. Hidden-volume
+    cleanliness and output parity remain 7/7. This is mixed evidence for a
+    state-owned lobe coordinate, not a promotion path; next work should broaden
+    the atrial chamber/valve lobe generator rather than tune scalar suction,
+    and runtime, AV-plane physiology, a-prime clinical claims, LandAtrial, and
+    morphology acceptance remain blocked.
 
 Parallel prep, not blocking the next strategic gate:
 

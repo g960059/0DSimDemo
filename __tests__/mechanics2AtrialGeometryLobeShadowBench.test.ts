@@ -20,10 +20,10 @@ describe("AtrialGeometryLobeShadowBench V1", () => {
     expect(report.summary).toMatchObject({
       totalProfiles: 7,
       bestVariantId: "geometry-gain00",
-      bestLobeQualityPass: 0,
+      bestLobeQualityPass: 2,
       bestAPrimeReadbackPresentCount: 7,
       bestHiddenVolumeCleanCount: 7,
-      baselineLobeQualityPass: 0,
+      baselineLobeQualityPass: 2,
     });
   });
 
@@ -32,11 +32,11 @@ describe("AtrialGeometryLobeShadowBench V1", () => {
       variant.variantId === "geometry-gain18"
     );
     expect(highGain).toMatchObject({
-      lobeQualityPass: 0,
+      lobeQualityPass: 2,
       aPrimeReadbackPresentCount: 7,
       hiddenVolumeCleanCount: 7,
-      meanMaxAtrialGeometryDeltaMl: 18,
-      maxAPrimePeakAbsCmPerSec: 9.432909,
+      meanMaxAtrialGeometryDeltaMl: 7.351013,
+      maxAPrimePeakAbsCmPerSec: 3.942059,
     });
   });
 

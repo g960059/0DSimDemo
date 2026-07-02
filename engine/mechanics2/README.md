@@ -200,6 +200,10 @@ Current scope:
 - `benches/AtrialLobeGeneratorContractBench.ts`: structural oracle for LA PV
   lobe generation across blood-volume, display-piston, AtrialFiber-pressure,
   and phase-pressure candidates without runtime or blood-ledger mutation claims.
+- `benches/StateOwnedAtrialLobeGeneratorBench.ts`: left-heart state-owned
+  reservoir-suction lobe-generator signal bench that keeps runtime, AV-plane
+  physiology, and LandAtrial locked while comparing LA PV lobe quality against
+  source-surface and MVF preservation.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
