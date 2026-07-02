@@ -197,6 +197,9 @@ Current scope:
 - `benches/StatefulAtrialGeometryTransactionBench.ts`: left-heart transaction
   candidate where LA effective geometry co-evolves inside the LA chamber/MV
   valve/LV filling step, still with no runtime AV-plane enablement.
+- `benches/AtrialLobeGeneratorContractBench.ts`: structural oracle for LA PV
+  lobe generation across blood-volume, display-piston, AtrialFiber-pressure,
+  and phase-pressure candidates without runtime or blood-ledger mutation claims.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt

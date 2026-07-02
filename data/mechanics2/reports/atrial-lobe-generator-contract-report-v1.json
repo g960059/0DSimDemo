@@ -1,0 +1,3558 @@
+{
+  "reportId": "atrial-lobe-generator-contract-report-v1",
+  "gateId": "atrialLobeGeneratorContractV1",
+  "contractMode": "left-atrial-lobe-generator-oracle-no-runtime-no-blood-ledger-mutation",
+  "variants": [
+    {
+      "variantId": "blood-volume-current-pressure",
+      "volumeMode": "blood",
+      "pressureMode": "current",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 0
+    },
+    {
+      "variantId": "blood-volume-fiber-pressure",
+      "volumeMode": "blood",
+      "pressureMode": "fiber",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 0
+    },
+    {
+      "variantId": "piston-display-volume-current-pressure-gain06",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "current",
+      "pistonGainMl": 6,
+      "pressureKickGainMmHg": 0
+    },
+    {
+      "variantId": "piston-display-volume-current-pressure-gain12",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "current",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 0
+    },
+    {
+      "variantId": "piston-display-volume-current-pressure-gain18",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "current",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 0
+    },
+    {
+      "variantId": "piston-display-volume-fiber-pressure-gain06",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber",
+      "pistonGainMl": 6,
+      "pressureKickGainMmHg": 0
+    },
+    {
+      "variantId": "piston-display-volume-fiber-pressure-gain12",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 0
+    },
+    {
+      "variantId": "piston-display-volume-fiber-pressure-gain18",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 0
+    },
+    {
+      "variantId": "piston-display-volume-fiber-plus-kick-pressure-gain12-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-plus-kick",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 2
+    },
+    {
+      "variantId": "piston-display-volume-fiber-plus-kick-pressure-gain18-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-plus-kick",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 2
+    },
+    {
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p1",
+      "volumeMode": "blood",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 1
+    },
+    {
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p2",
+      "volumeMode": "blood",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 2
+    },
+    {
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p3",
+      "volumeMode": "blood",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 3
+    },
+    {
+      "variantId": "piston-display-volume-fiber-minus-reservoir-pressure-g12-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 2
+    },
+    {
+      "variantId": "piston-display-volume-fiber-minus-reservoir-pressure-g18-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 2
+    }
+  ],
+  "rows": [
+    {
+      "profileId": "normal-hr75",
+      "sourcePointId": "left-heart-normal-hr75",
+      "variantId": "blood-volume-current-pressure",
+      "volumeMode": "blood",
+      "pressureMode": "current",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 54.469862,
+        "vLoopArea": 0.592482,
+        "aOverVLoopRatio": 91.935107,
+        "signedALoopArea": 54.469862,
+        "signedVLoopArea": 0.592482,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 17.28422,
+        "pressurePulseMmHg": 8.278666,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr75",
+      "sourcePointId": "left-heart-normal-hr75",
+      "variantId": "blood-volume-fiber-pressure",
+      "volumeMode": "blood",
+      "pressureMode": "fiber",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 2,
+        "aLoopArea": 52.314693,
+        "vLoopArea": 2.627608,
+        "aOverVLoopRatio": 19.909627,
+        "signedALoopArea": 52.314693,
+        "signedVLoopArea": -2.627608,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 17.28422,
+        "pressurePulseMmHg": 7.180354,
+        "failureReasons": []
+      },
+      "displayVolumeBounded": true,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "normal-hr75",
+      "sourcePointId": "left-heart-normal-hr75",
+      "variantId": "piston-display-volume-current-pressure-gain06",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "current",
+      "pistonGainMl": 6,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 5.999359,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 54.933752,
+        "vLoopArea": 8.039841,
+        "aOverVLoopRatio": 6.832691,
+        "signedALoopArea": 54.933752,
+        "signedVLoopArea": 8.039841,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 20.284005,
+        "pressurePulseMmHg": 8.278666,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr75",
+      "sourcePointId": "left-heart-normal-hr75",
+      "variantId": "piston-display-volume-current-pressure-gain12",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "current",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 55.397642,
+        "vLoopArea": 15.487201,
+        "aOverVLoopRatio": 3.576995,
+        "signedALoopArea": 55.397642,
+        "signedVLoopArea": 15.487201,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 23.28379,
+        "pressurePulseMmHg": 8.278666,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr75",
+      "sourcePointId": "left-heart-normal-hr75",
+      "variantId": "piston-display-volume-current-pressure-gain18",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "current",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 55.861533,
+        "vLoopArea": 22.934561,
+        "aOverVLoopRatio": 2.435692,
+        "signedALoopArea": 55.861533,
+        "signedVLoopArea": 22.934561,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 26.283575,
+        "pressurePulseMmHg": 8.278666,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr75",
+      "sourcePointId": "left-heart-normal-hr75",
+      "variantId": "piston-display-volume-fiber-pressure-gain06",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber",
+      "pistonGainMl": 6,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 5.999359,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 2,
+        "aLoopArea": 51.812476,
+        "vLoopArea": 2.858368,
+        "aOverVLoopRatio": 18.126594,
+        "signedALoopArea": 51.812476,
+        "signedVLoopArea": -2.858368,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 20.284005,
+        "pressurePulseMmHg": 7.180354,
+        "failureReasons": []
+      },
+      "displayVolumeBounded": true,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "normal-hr75",
+      "sourcePointId": "left-heart-normal-hr75",
+      "variantId": "piston-display-volume-fiber-pressure-gain12",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 2,
+        "aLoopArea": 51.310258,
+        "vLoopArea": 3.089128,
+        "aOverVLoopRatio": 16.60995,
+        "signedALoopArea": 51.310258,
+        "signedVLoopArea": -3.089128,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 23.28379,
+        "pressurePulseMmHg": 7.180354,
+        "failureReasons": []
+      },
+      "displayVolumeBounded": true,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "normal-hr75",
+      "sourcePointId": "left-heart-normal-hr75",
+      "variantId": "piston-display-volume-fiber-pressure-gain18",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 2,
+        "aLoopArea": 50.808041,
+        "vLoopArea": 3.319888,
+        "aOverVLoopRatio": 15.304144,
+        "signedALoopArea": 50.808041,
+        "signedVLoopArea": -3.319888,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 26.283575,
+        "pressurePulseMmHg": 7.180354,
+        "failureReasons": []
+      },
+      "displayVolumeBounded": true,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "normal-hr75",
+      "sourcePointId": "left-heart-normal-hr75",
+      "variantId": "piston-display-volume-fiber-plus-kick-pressure-gain12-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-plus-kick",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 2,
+        "aLoopArea": 75.853481,
+        "vLoopArea": 3.089128,
+        "aOverVLoopRatio": 24.554982,
+        "signedALoopArea": 75.853481,
+        "signedVLoopArea": -3.089128,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 23.28379,
+        "pressurePulseMmHg": 9.096757,
+        "failureReasons": []
+      },
+      "displayVolumeBounded": true,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "normal-hr75",
+      "sourcePointId": "left-heart-normal-hr75",
+      "variantId": "piston-display-volume-fiber-plus-kick-pressure-gain18-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-plus-kick",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 2,
+        "aLoopArea": 75.554272,
+        "vLoopArea": 3.319888,
+        "aOverVLoopRatio": 22.75808,
+        "signedALoopArea": 75.554272,
+        "signedVLoopArea": -3.319888,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 26.283575,
+        "pressurePulseMmHg": 9.096757,
+        "failureReasons": []
+      },
+      "displayVolumeBounded": true,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "normal-hr75",
+      "sourcePointId": "left-heart-normal-hr75",
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p1",
+      "volumeMode": "blood",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 1,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 2,
+        "aLoopArea": 52.755712,
+        "vLoopArea": 2.040852,
+        "aOverVLoopRatio": 25.84985,
+        "signedALoopArea": 52.755712,
+        "signedVLoopArea": -2.040852,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 17.28422,
+        "pressurePulseMmHg": 7.55834,
+        "failureReasons": []
+      },
+      "displayVolumeBounded": true,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "normal-hr75",
+      "sourcePointId": "left-heart-normal-hr75",
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p2",
+      "volumeMode": "blood",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 1,
+        "aLoopArea": 53.19673,
+        "vLoopArea": 2.316595,
+        "aOverVLoopRatio": 22.963325,
+        "signedALoopArea": 53.19673,
+        "signedVLoopArea": -2.316595,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 17.28422,
+        "pressurePulseMmHg": 7.55834,
+        "failureReasons": []
+      },
+      "displayVolumeBounded": true,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "normal-hr75",
+      "sourcePointId": "left-heart-normal-hr75",
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p3",
+      "volumeMode": "blood",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 3,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 1,
+        "aLoopArea": 53.637748,
+        "vLoopArea": 2.387928,
+        "aOverVLoopRatio": 22.462043,
+        "signedALoopArea": 53.637748,
+        "signedVLoopArea": -2.387928,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 17.28422,
+        "pressurePulseMmHg": 7.55834,
+        "failureReasons": []
+      },
+      "displayVolumeBounded": true,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "normal-hr75",
+      "sourcePointId": "left-heart-normal-hr75",
+      "variantId": "piston-display-volume-fiber-minus-reservoir-pressure-g12-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 1,
+        "aLoopArea": 52.192294,
+        "vLoopArea": 2.329167,
+        "aOverVLoopRatio": 22.40814,
+        "signedALoopArea": 52.192294,
+        "signedVLoopArea": -2.329167,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 23.28379,
+        "pressurePulseMmHg": 7.55834,
+        "failureReasons": []
+      },
+      "displayVolumeBounded": true,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "normal-hr75",
+      "sourcePointId": "left-heart-normal-hr75",
+      "variantId": "piston-display-volume-fiber-minus-reservoir-pressure-g18-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 1,
+        "aLoopArea": 51.690077,
+        "vLoopArea": 2.335453,
+        "aOverVLoopRatio": 22.132788,
+        "signedALoopArea": 51.690077,
+        "signedVLoopArea": -2.335453,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 26.283575,
+        "pressurePulseMmHg": 7.55834,
+        "failureReasons": []
+      },
+      "displayVolumeBounded": true,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "normal-hr90",
+      "sourcePointId": "left-heart-normal-hr90",
+      "variantId": "blood-volume-current-pressure",
+      "volumeMode": "blood",
+      "pressureMode": "current",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 59.88603,
+        "vLoopArea": 12.165285,
+        "aOverVLoopRatio": 4.922699,
+        "signedALoopArea": 59.88603,
+        "signedVLoopArea": 12.165285,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 10.790013,
+        "pressurePulseMmHg": 7.55927,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "sourcePointId": "left-heart-normal-hr90",
+      "variantId": "blood-volume-fiber-pressure",
+      "volumeMode": "blood",
+      "pressureMode": "fiber",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 1,
+        "aLoopArea": 57.056389,
+        "vLoopArea": 9.90639,
+        "aOverVLoopRatio": 5.759554,
+        "signedALoopArea": 57.056389,
+        "signedVLoopArea": 9.90639,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 10.790013,
+        "pressurePulseMmHg": 6.549545,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "sourcePointId": "left-heart-normal-hr90",
+      "variantId": "piston-display-volume-current-pressure-gain06",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "current",
+      "pistonGainMl": 6,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 5.999359,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 60.953602,
+        "vLoopArea": 29.308471,
+        "aOverVLoopRatio": 2.079726,
+        "signedALoopArea": 60.953602,
+        "signedVLoopArea": 29.308471,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 13.767928,
+        "pressurePulseMmHg": 7.55927,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "sourcePointId": "left-heart-normal-hr90",
+      "variantId": "piston-display-volume-current-pressure-gain12",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "current",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 62.021173,
+        "vLoopArea": 46.451657,
+        "aOverVLoopRatio": 1.335177,
+        "signedALoopArea": 62.021173,
+        "signedVLoopArea": 46.451657,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 16.745843,
+        "pressurePulseMmHg": 7.55927,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "sourcePointId": "left-heart-normal-hr90",
+      "variantId": "piston-display-volume-current-pressure-gain18",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "current",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 63.088744,
+        "vLoopArea": 63.594844,
+        "aOverVLoopRatio": 0.992042,
+        "signedALoopArea": 63.088744,
+        "signedVLoopArea": 63.594844,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 19.723757,
+        "pressurePulseMmHg": 7.55927,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "sourcePointId": "left-heart-normal-hr90",
+      "variantId": "piston-display-volume-fiber-pressure-gain06",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber",
+      "pistonGainMl": 6,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 5.999359,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 56.415474,
+        "vLoopArea": 9.35633,
+        "aOverVLoopRatio": 6.029658,
+        "signedALoopArea": 56.415474,
+        "signedVLoopArea": 9.35633,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 13.767928,
+        "pressurePulseMmHg": 6.549545,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "sourcePointId": "left-heart-normal-hr90",
+      "variantId": "piston-display-volume-fiber-pressure-gain12",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 55.774558,
+        "vLoopArea": 8.80627,
+        "aOverVLoopRatio": 6.333506,
+        "signedALoopArea": 55.774558,
+        "signedVLoopArea": 8.80627,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 16.745843,
+        "pressurePulseMmHg": 6.549545,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "sourcePointId": "left-heart-normal-hr90",
+      "variantId": "piston-display-volume-fiber-pressure-gain18",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 55.133642,
+        "vLoopArea": 8.256209,
+        "aOverVLoopRatio": 6.67784,
+        "signedALoopArea": 55.133642,
+        "signedVLoopArea": 8.256209,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 19.723757,
+        "pressurePulseMmHg": 6.549545,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "sourcePointId": "left-heart-normal-hr90",
+      "variantId": "piston-display-volume-fiber-plus-kick-pressure-gain12-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-plus-kick",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 85.688198,
+        "vLoopArea": 8.80627,
+        "aOverVLoopRatio": 9.730363,
+        "signedALoopArea": 85.688198,
+        "signedVLoopArea": 8.80627,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 16.745843,
+        "pressurePulseMmHg": 8.429445,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "sourcePointId": "left-heart-normal-hr90",
+      "variantId": "piston-display-volume-fiber-plus-kick-pressure-gain18-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-plus-kick",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 85.251766,
+        "vLoopArea": 8.256209,
+        "aOverVLoopRatio": 10.325776,
+        "signedALoopArea": 85.251766,
+        "signedVLoopArea": 8.256209,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 19.723757,
+        "pressurePulseMmHg": 8.429445,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "sourcePointId": "left-heart-normal-hr90",
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p1",
+      "volumeMode": "blood",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 1,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 57.844704,
+        "vLoopArea": 14.657274,
+        "aOverVLoopRatio": 3.946484,
+        "signedALoopArea": 57.844704,
+        "signedVLoopArea": 14.657274,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 10.790013,
+        "pressurePulseMmHg": 6.933255,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "sourcePointId": "left-heart-normal-hr90",
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p2",
+      "volumeMode": "blood",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 58.633018,
+        "vLoopArea": 14.150172,
+        "aOverVLoopRatio": 4.143626,
+        "signedALoopArea": 58.633018,
+        "signedVLoopArea": 14.150172,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 10.790013,
+        "pressurePulseMmHg": 6.933255,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "sourcePointId": "left-heart-normal-hr90",
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p3",
+      "volumeMode": "blood",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 3,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 59.421333,
+        "vLoopArea": 13.551576,
+        "aOverVLoopRatio": 4.384828,
+        "signedALoopArea": 59.421333,
+        "signedVLoopArea": 13.551576,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 10.790013,
+        "pressurePulseMmHg": 6.933255,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "sourcePointId": "left-heart-normal-hr90",
+      "variantId": "piston-display-volume-fiber-minus-reservoir-pressure-g12-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 57.351187,
+        "vLoopArea": 13.837762,
+        "aOverVLoopRatio": 4.144542,
+        "signedALoopArea": 57.351187,
+        "signedVLoopArea": 13.837762,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 16.745843,
+        "pressurePulseMmHg": 6.933255,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "sourcePointId": "left-heart-normal-hr90",
+      "variantId": "piston-display-volume-fiber-minus-reservoir-pressure-g18-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 56.710271,
+        "vLoopArea": 13.681558,
+        "aOverVLoopRatio": 4.145016,
+        "signedALoopArea": 56.710271,
+        "signedVLoopArea": 13.681558,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 19.723757,
+        "pressurePulseMmHg": 6.933255,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "sourcePointId": "left-heart-preload-low",
+      "variantId": "blood-volume-current-pressure",
+      "volumeMode": "blood",
+      "pressureMode": "current",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 66.805062,
+        "vLoopArea": 22.994066,
+        "aOverVLoopRatio": 2.905317,
+        "signedALoopArea": 66.805062,
+        "signedVLoopArea": 22.994066,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 15.063768,
+        "pressurePulseMmHg": 8.847861,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "sourcePointId": "left-heart-preload-low",
+      "variantId": "blood-volume-fiber-pressure",
+      "volumeMode": "blood",
+      "pressureMode": "fiber",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 80.062802,
+        "vLoopArea": 4.814587,
+        "aOverVLoopRatio": 16.629215,
+        "signedALoopArea": 80.062802,
+        "signedVLoopArea": 4.814587,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 15.063768,
+        "pressurePulseMmHg": 7.382868,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "sourcePointId": "left-heart-preload-low",
+      "variantId": "piston-display-volume-current-pressure-gain06",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "current",
+      "pistonGainMl": 6,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 5.999359,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 67.499632,
+        "vLoopArea": 37.836107,
+        "aOverVLoopRatio": 1.784,
+        "signedALoopArea": 67.499632,
+        "signedVLoopArea": 37.836107,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 18.063553,
+        "pressurePulseMmHg": 8.847861,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "sourcePointId": "left-heart-preload-low",
+      "variantId": "piston-display-volume-current-pressure-gain12",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "current",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 68.194202,
+        "vLoopArea": 52.678148,
+        "aOverVLoopRatio": 1.294544,
+        "signedALoopArea": 68.194202,
+        "signedVLoopArea": 52.678148,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 21.063338,
+        "pressurePulseMmHg": 8.847861,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "sourcePointId": "left-heart-preload-low",
+      "variantId": "piston-display-volume-current-pressure-gain18",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "current",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 68.888772,
+        "vLoopArea": 67.52019,
+        "aOverVLoopRatio": 1.020269,
+        "signedALoopArea": 68.888772,
+        "signedVLoopArea": 67.52019,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 24.063123,
+        "pressurePulseMmHg": 8.847861,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "sourcePointId": "left-heart-preload-low",
+      "variantId": "piston-display-volume-fiber-pressure-gain06",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber",
+      "pistonGainMl": 6,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 5.999359,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 79.522917,
+        "vLoopArea": 4.377195,
+        "aOverVLoopRatio": 18.16755,
+        "signedALoopArea": 79.522917,
+        "signedVLoopArea": 4.377195,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 18.063553,
+        "pressurePulseMmHg": 7.382868,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "sourcePointId": "left-heart-preload-low",
+      "variantId": "piston-display-volume-fiber-pressure-gain12",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 1,
+        "aLoopArea": 78.983033,
+        "vLoopArea": 3.939804,
+        "aOverVLoopRatio": 20.047453,
+        "signedALoopArea": 78.983033,
+        "signedVLoopArea": 3.939804,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 21.063338,
+        "pressurePulseMmHg": 7.382868,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "sourcePointId": "left-heart-preload-low",
+      "variantId": "piston-display-volume-fiber-pressure-gain18",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 1,
+        "aLoopArea": 78.443148,
+        "vLoopArea": 3.502412,
+        "aOverVLoopRatio": 22.396892,
+        "signedALoopArea": 78.443148,
+        "signedVLoopArea": 3.502412,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 24.063123,
+        "pressurePulseMmHg": 7.382868,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "sourcePointId": "left-heart-preload-low",
+      "variantId": "piston-display-volume-fiber-plus-kick-pressure-gain12-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-plus-kick",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 1,
+        "aLoopArea": 109.831381,
+        "vLoopArea": 3.939804,
+        "aOverVLoopRatio": 27.877373,
+        "signedALoopArea": 109.831381,
+        "signedVLoopArea": 3.939804,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 21.063338,
+        "pressurePulseMmHg": 9.291905,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "sourcePointId": "left-heart-preload-low",
+      "variantId": "piston-display-volume-fiber-plus-kick-pressure-gain18-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-plus-kick",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 1,
+        "aLoopArea": 109.494506,
+        "vLoopArea": 3.502412,
+        "aOverVLoopRatio": 31.262598,
+        "signedALoopArea": 109.494506,
+        "signedVLoopArea": 3.502412,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 24.063123,
+        "pressurePulseMmHg": 9.291905,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "sourcePointId": "left-heart-preload-low",
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p1",
+      "volumeMode": "blood",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 1,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 80.877434,
+        "vLoopArea": 7.657346,
+        "aOverVLoopRatio": 10.562071,
+        "signedALoopArea": 80.877434,
+        "signedVLoopArea": 7.657346,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 15.063768,
+        "pressurePulseMmHg": 7.757015,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "sourcePointId": "left-heart-preload-low",
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p2",
+      "volumeMode": "blood",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 81.692065,
+        "vLoopArea": 7.291038,
+        "aOverVLoopRatio": 11.20445,
+        "signedALoopArea": 81.692065,
+        "signedVLoopArea": 7.291038,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 15.063768,
+        "pressurePulseMmHg": 7.757015,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "sourcePointId": "left-heart-preload-low",
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p3",
+      "volumeMode": "blood",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 3,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 82.506697,
+        "vLoopArea": 6.905183,
+        "aOverVLoopRatio": 11.948517,
+        "signedALoopArea": 82.506697,
+        "signedVLoopArea": 6.905183,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 15.063768,
+        "pressurePulseMmHg": 7.757015,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "sourcePointId": "left-heart-preload-low",
+      "variantId": "piston-display-volume-fiber-minus-reservoir-pressure-g12-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 80.612296,
+        "vLoopArea": 7.293907,
+        "aOverVLoopRatio": 11.052004,
+        "signedALoopArea": 80.612296,
+        "signedVLoopArea": 7.293907,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 21.063338,
+        "pressurePulseMmHg": 7.757015,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "sourcePointId": "left-heart-preload-low",
+      "variantId": "piston-display-volume-fiber-minus-reservoir-pressure-g18-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 80.072411,
+        "vLoopArea": 7.295342,
+        "aOverVLoopRatio": 10.975826,
+        "signedALoopArea": 80.072411,
+        "signedVLoopArea": 7.295342,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 24.063123,
+        "pressurePulseMmHg": 7.757015,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-high",
+      "sourcePointId": "left-heart-preload-high",
+      "variantId": "blood-volume-current-pressure",
+      "volumeMode": "blood",
+      "pressureMode": "current",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 2,
+        "aLoopArea": 38.178936,
+        "vLoopArea": 2.466826,
+        "aOverVLoopRatio": 15.47695,
+        "signedALoopArea": 38.178936,
+        "signedVLoopArea": -2.466826,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 17.603197,
+        "pressurePulseMmHg": 7.979919,
+        "failureReasons": []
+      },
+      "displayVolumeBounded": true,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "preload-high",
+      "sourcePointId": "left-heart-preload-high",
+      "variantId": "blood-volume-fiber-pressure",
+      "volumeMode": "blood",
+      "pressureMode": "fiber",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 2,
+        "aLoopArea": 36.652773,
+        "vLoopArea": 6.04433,
+        "aOverVLoopRatio": 6.063992,
+        "signedALoopArea": 36.652773,
+        "signedVLoopArea": -6.04433,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 17.603197,
+        "pressurePulseMmHg": 6.808674,
+        "failureReasons": []
+      },
+      "displayVolumeBounded": true,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "preload-high",
+      "sourcePointId": "left-heart-preload-high",
+      "variantId": "piston-display-volume-current-pressure-gain06",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "current",
+      "pistonGainMl": 6,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 5.999359,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 38.307727,
+        "vLoopArea": 0.721468,
+        "aOverVLoopRatio": 53.096895,
+        "signedALoopArea": 38.307727,
+        "signedVLoopArea": 0.721468,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 20.602982,
+        "pressurePulseMmHg": 7.979919,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-high",
+      "sourcePointId": "left-heart-preload-high",
+      "variantId": "piston-display-volume-current-pressure-gain12",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "current",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 38.436518,
+        "vLoopArea": 3.909762,
+        "aOverVLoopRatio": 9.830909,
+        "signedALoopArea": 38.436518,
+        "signedVLoopArea": 3.909762,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 23.602767,
+        "pressurePulseMmHg": 7.979919,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-high",
+      "sourcePointId": "left-heart-preload-high",
+      "variantId": "piston-display-volume-current-pressure-gain18",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "current",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 38.565309,
+        "vLoopArea": 7.098056,
+        "aOverVLoopRatio": 5.433221,
+        "signedALoopArea": 38.565309,
+        "signedVLoopArea": 7.098056,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 26.602552,
+        "pressurePulseMmHg": 7.979919,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-high",
+      "sourcePointId": "left-heart-preload-high",
+      "variantId": "piston-display-volume-fiber-pressure-gain06",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber",
+      "pistonGainMl": 6,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 5.999359,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 2,
+        "aLoopArea": 36.180964,
+        "vLoopArea": 6.235601,
+        "aOverVLoopRatio": 5.802321,
+        "signedALoopArea": 36.180964,
+        "signedVLoopArea": -6.235601,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 20.602982,
+        "pressurePulseMmHg": 6.808674,
+        "failureReasons": []
+      },
+      "displayVolumeBounded": true,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "preload-high",
+      "sourcePointId": "left-heart-preload-high",
+      "variantId": "piston-display-volume-fiber-pressure-gain12",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 2,
+        "aLoopArea": 35.709154,
+        "vLoopArea": 6.426872,
+        "aOverVLoopRatio": 5.556226,
+        "signedALoopArea": 35.709154,
+        "signedVLoopArea": -6.426872,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 23.602767,
+        "pressurePulseMmHg": 6.808674,
+        "failureReasons": []
+      },
+      "displayVolumeBounded": true,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "preload-high",
+      "sourcePointId": "left-heart-preload-high",
+      "variantId": "piston-display-volume-fiber-pressure-gain18",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 2,
+        "aLoopArea": 35.237345,
+        "vLoopArea": 6.618144,
+        "aOverVLoopRatio": 5.324355,
+        "signedALoopArea": 35.237345,
+        "signedVLoopArea": -6.618144,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 26.602552,
+        "pressurePulseMmHg": 6.808674,
+        "failureReasons": []
+      },
+      "displayVolumeBounded": true,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "preload-high",
+      "sourcePointId": "left-heart-preload-high",
+      "variantId": "piston-display-volume-fiber-plus-kick-pressure-gain12-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-plus-kick",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 2,
+        "aLoopArea": 54.699493,
+        "vLoopArea": 6.426872,
+        "aOverVLoopRatio": 8.511059,
+        "signedALoopArea": 54.699493,
+        "signedVLoopArea": -6.426872,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 23.602767,
+        "pressurePulseMmHg": 8.732554,
+        "failureReasons": []
+      },
+      "displayVolumeBounded": true,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "preload-high",
+      "sourcePointId": "left-heart-preload-high",
+      "variantId": "piston-display-volume-fiber-plus-kick-pressure-gain18-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-plus-kick",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 2,
+        "aLoopArea": 54.430693,
+        "vLoopArea": 6.618144,
+        "aOverVLoopRatio": 8.224465,
+        "signedALoopArea": 54.430693,
+        "signedVLoopArea": -6.618144,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 26.602552,
+        "pressurePulseMmHg": 8.732554,
+        "failureReasons": []
+      },
+      "displayVolumeBounded": true,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "preload-high",
+      "sourcePointId": "left-heart-preload-high",
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p1",
+      "volumeMode": "blood",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 1,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 2,
+        "aLoopArea": 36.922814,
+        "vLoopArea": 6.68848,
+        "aOverVLoopRatio": 5.52036,
+        "signedALoopArea": 36.922814,
+        "signedVLoopArea": -6.68848,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 17.603197,
+        "pressurePulseMmHg": 7.190825,
+        "failureReasons": []
+      },
+      "displayVolumeBounded": true,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "preload-high",
+      "sourcePointId": "left-heart-preload-high",
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p2",
+      "volumeMode": "blood",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 1,
+        "aLoopArea": 37.192856,
+        "vLoopArea": 7.273963,
+        "aOverVLoopRatio": 5.113149,
+        "signedALoopArea": 37.192856,
+        "signedVLoopArea": -7.273963,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 17.603197,
+        "pressurePulseMmHg": 7.190825,
+        "failureReasons": []
+      },
+      "displayVolumeBounded": true,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "preload-high",
+      "sourcePointId": "left-heart-preload-high",
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p3",
+      "volumeMode": "blood",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 3,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 1,
+        "aLoopArea": 37.462897,
+        "vLoopArea": 7.112227,
+        "aOverVLoopRatio": 5.267393,
+        "signedALoopArea": 37.462897,
+        "signedVLoopArea": -7.112227,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 17.603197,
+        "pressurePulseMmHg": 7.190825,
+        "failureReasons": []
+      },
+      "displayVolumeBounded": true,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "preload-high",
+      "sourcePointId": "left-heart-preload-high",
+      "variantId": "piston-display-volume-fiber-minus-reservoir-pressure-g12-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 1,
+        "aLoopArea": 36.249237,
+        "vLoopArea": 7.336363,
+        "aOverVLoopRatio": 4.941036,
+        "signedALoopArea": 36.249237,
+        "signedVLoopArea": -7.336363,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 23.602767,
+        "pressurePulseMmHg": 7.190825,
+        "failureReasons": []
+      },
+      "displayVolumeBounded": true,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "preload-high",
+      "sourcePointId": "left-heart-preload-high",
+      "variantId": "piston-display-volume-fiber-minus-reservoir-pressure-g18-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": true,
+        "selfIntersections": 1,
+        "aLoopArea": 35.777427,
+        "vLoopArea": 7.367563,
+        "aOverVLoopRatio": 4.856074,
+        "signedALoopArea": 35.777427,
+        "signedVLoopArea": -7.367563,
+        "opposedSignedLobes": true,
+        "volumeSeparationMl": 26.602552,
+        "pressurePulseMmHg": 7.190825,
+        "failureReasons": []
+      },
+      "displayVolumeBounded": true,
+      "status": "pass",
+      "failureReasons": []
+    },
+    {
+      "profileId": "afterload-high",
+      "sourcePointId": "left-heart-afterload-high",
+      "variantId": "blood-volume-current-pressure",
+      "volumeMode": "blood",
+      "pressureMode": "current",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 48.733617,
+        "vLoopArea": 3.678231,
+        "aOverVLoopRatio": 13.249201,
+        "signedALoopArea": 48.733617,
+        "signedVLoopArea": 3.678231,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 11.889523,
+        "pressurePulseMmHg": 5.739158,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "sourcePointId": "left-heart-afterload-high",
+      "variantId": "blood-volume-fiber-pressure",
+      "volumeMode": "blood",
+      "pressureMode": "fiber",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 47.064495,
+        "vLoopArea": 2.139147,
+        "aOverVLoopRatio": 22.001522,
+        "signedALoopArea": 47.064495,
+        "signedVLoopArea": 2.139147,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 11.889523,
+        "pressurePulseMmHg": 6.763558,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "sourcePointId": "left-heart-afterload-high",
+      "variantId": "piston-display-volume-current-pressure-gain06",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "current",
+      "pistonGainMl": 6,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 5.999359,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 49.237404,
+        "vLoopArea": 13.379988,
+        "aOverVLoopRatio": 3.679929,
+        "signedALoopArea": 49.237404,
+        "signedVLoopArea": 13.379988,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 14.889308,
+        "pressurePulseMmHg": 5.739158,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "sourcePointId": "left-heart-afterload-high",
+      "variantId": "piston-display-volume-current-pressure-gain12",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "current",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 49.741191,
+        "vLoopArea": 23.081745,
+        "aOverVLoopRatio": 2.155001,
+        "signedALoopArea": 49.741191,
+        "signedVLoopArea": 23.081745,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 17.889093,
+        "pressurePulseMmHg": 5.739158,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "sourcePointId": "left-heart-afterload-high",
+      "variantId": "piston-display-volume-current-pressure-gain18",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "current",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 50.244978,
+        "vLoopArea": 32.783502,
+        "aOverVLoopRatio": 1.53263,
+        "signedALoopArea": 50.244978,
+        "signedVLoopArea": 32.783502,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 20.888878,
+        "pressurePulseMmHg": 5.739158,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "sourcePointId": "left-heart-afterload-high",
+      "variantId": "piston-display-volume-fiber-pressure-gain06",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber",
+      "pistonGainMl": 6,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 5.999359,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 46.589788,
+        "vLoopArea": 2.078759,
+        "aOverVLoopRatio": 22.412309,
+        "signedALoopArea": 46.589788,
+        "signedVLoopArea": 2.078759,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 14.889308,
+        "pressurePulseMmHg": 6.763558,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "sourcePointId": "left-heart-afterload-high",
+      "variantId": "piston-display-volume-fiber-pressure-gain12",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 46.115081,
+        "vLoopArea": 2.018371,
+        "aOverVLoopRatio": 22.847676,
+        "signedALoopArea": 46.115081,
+        "signedVLoopArea": 2.018371,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 17.889093,
+        "pressurePulseMmHg": 6.763558,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "sourcePointId": "left-heart-afterload-high",
+      "variantId": "piston-display-volume-fiber-pressure-gain18",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 45.640374,
+        "vLoopArea": 1.957982,
+        "aOverVLoopRatio": 23.309899,
+        "signedALoopArea": 45.640374,
+        "signedVLoopArea": 1.957982,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 20.888878,
+        "pressurePulseMmHg": 6.763558,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "sourcePointId": "left-heart-afterload-high",
+      "variantId": "piston-display-volume-fiber-plus-kick-pressure-gain12-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-plus-kick",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 69.358824,
+        "vLoopArea": 2.018371,
+        "aOverVLoopRatio": 34.363768,
+        "signedALoopArea": 69.358824,
+        "signedVLoopArea": 2.018371,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 17.889093,
+        "pressurePulseMmHg": 8.671499,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "sourcePointId": "left-heart-afterload-high",
+      "variantId": "piston-display-volume-fiber-plus-kick-pressure-gain18-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-plus-kick",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 69.087126,
+        "vLoopArea": 1.957982,
+        "aOverVLoopRatio": 35.284854,
+        "signedALoopArea": 69.087126,
+        "signedVLoopArea": 1.957982,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 20.888878,
+        "pressurePulseMmHg": 8.671499,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "sourcePointId": "left-heart-afterload-high",
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p1",
+      "volumeMode": "blood",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 1,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 47.515334,
+        "vLoopArea": 4.281413,
+        "aOverVLoopRatio": 11.098051,
+        "signedALoopArea": 47.515334,
+        "signedVLoopArea": 4.281413,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 11.889523,
+        "pressurePulseMmHg": 7.144858,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "sourcePointId": "left-heart-afterload-high",
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p2",
+      "volumeMode": "blood",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 47.966172,
+        "vLoopArea": 3.488811,
+        "aOverVLoopRatio": 13.748572,
+        "signedALoopArea": 47.966172,
+        "signedVLoopArea": 3.488811,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 11.889523,
+        "pressurePulseMmHg": 7.144858,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "sourcePointId": "left-heart-afterload-high",
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p3",
+      "volumeMode": "blood",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 3,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 48.417011,
+        "vLoopArea": 3.12421,
+        "aOverVLoopRatio": 15.497363,
+        "signedALoopArea": 48.417011,
+        "signedVLoopArea": 3.12421,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 11.889523,
+        "pressurePulseMmHg": 7.144858,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "sourcePointId": "left-heart-afterload-high",
+      "variantId": "piston-display-volume-fiber-minus-reservoir-pressure-g12-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 47.016758,
+        "vLoopArea": 3.522099,
+        "aOverVLoopRatio": 13.349072,
+        "signedALoopArea": 47.016758,
+        "signedVLoopArea": 3.522099,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 17.889093,
+        "pressurePulseMmHg": 7.144858,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "sourcePointId": "left-heart-afterload-high",
+      "variantId": "piston-display-volume-fiber-minus-reservoir-pressure-g18-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 46.542052,
+        "vLoopArea": 3.538743,
+        "aOverVLoopRatio": 13.152141,
+        "signedALoopArea": 46.542052,
+        "signedVLoopArea": 3.538743,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 20.888878,
+        "pressurePulseMmHg": 7.144858,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "sourcePointId": "left-heart-contractility-low",
+      "variantId": "blood-volume-current-pressure",
+      "volumeMode": "blood",
+      "pressureMode": "current",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 19.786783,
+        "vLoopArea": 2.198195,
+        "aOverVLoopRatio": 9.001378,
+        "signedALoopArea": 19.786783,
+        "signedVLoopArea": 2.198195,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 4.910395,
+        "pressurePulseMmHg": 5.315266,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "sourcePointId": "left-heart-contractility-low",
+      "variantId": "blood-volume-fiber-pressure",
+      "volumeMode": "blood",
+      "pressureMode": "fiber",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 19.539454,
+        "vLoopArea": 1.839925,
+        "aOverVLoopRatio": 10.619702,
+        "signedALoopArea": 19.539454,
+        "signedVLoopArea": 1.839925,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 4.910395,
+        "pressurePulseMmHg": 6.211239,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "sourcePointId": "left-heart-contractility-low",
+      "variantId": "piston-display-volume-current-pressure-gain06",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "current",
+      "pistonGainMl": 6,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 5.999359,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 19.815308,
+        "vLoopArea": 7.598354,
+        "aOverVLoopRatio": 2.607842,
+        "signedALoopArea": 19.815308,
+        "signedVLoopArea": 7.598354,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 7.91018,
+        "pressurePulseMmHg": 5.315266,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "sourcePointId": "left-heart-contractility-low",
+      "variantId": "piston-display-volume-current-pressure-gain12",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "current",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 19.843833,
+        "vLoopArea": 12.998513,
+        "aOverVLoopRatio": 1.526623,
+        "signedALoopArea": 19.843833,
+        "signedVLoopArea": 12.998513,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 10.909965,
+        "pressurePulseMmHg": 5.315266,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "sourcePointId": "left-heart-contractility-low",
+      "variantId": "piston-display-volume-current-pressure-gain18",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "current",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 19.872358,
+        "vLoopArea": 18.398672,
+        "aOverVLoopRatio": 1.080097,
+        "signedALoopArea": 19.872358,
+        "signedVLoopArea": 18.398672,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 13.90975,
+        "pressurePulseMmHg": 5.315266,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "sourcePointId": "left-heart-contractility-low",
+      "variantId": "piston-display-volume-fiber-pressure-gain06",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber",
+      "pistonGainMl": 6,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 5.999359,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 19.120947,
+        "vLoopArea": 1.693543,
+        "aOverVLoopRatio": 11.2905,
+        "signedALoopArea": 19.120947,
+        "signedVLoopArea": 1.693543,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 7.91018,
+        "pressurePulseMmHg": 6.211239,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "sourcePointId": "left-heart-contractility-low",
+      "variantId": "piston-display-volume-fiber-pressure-gain12",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 18.702439,
+        "vLoopArea": 1.547161,
+        "aOverVLoopRatio": 12.088231,
+        "signedALoopArea": 18.702439,
+        "signedVLoopArea": 1.547161,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 10.909965,
+        "pressurePulseMmHg": 6.211239,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "sourcePointId": "left-heart-contractility-low",
+      "variantId": "piston-display-volume-fiber-pressure-gain18",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 1,
+        "aLoopArea": 18.283932,
+        "vLoopArea": 1.400779,
+        "aOverVLoopRatio": 13.052689,
+        "signedALoopArea": 18.283932,
+        "signedVLoopArea": 1.400779,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 13.90975,
+        "pressurePulseMmHg": 6.211239,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "sourcePointId": "left-heart-contractility-low",
+      "variantId": "piston-display-volume-fiber-plus-kick-pressure-gain12-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-plus-kick",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 28.992855,
+        "vLoopArea": 1.547161,
+        "aOverVLoopRatio": 18.739392,
+        "signedALoopArea": 28.992855,
+        "signedVLoopArea": 1.547161,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 10.909965,
+        "pressurePulseMmHg": 8.140597,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "sourcePointId": "left-heart-contractility-low",
+      "variantId": "piston-display-volume-fiber-plus-kick-pressure-gain18-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-plus-kick",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 1,
+        "aLoopArea": 28.777357,
+        "vLoopArea": 1.400779,
+        "aOverVLoopRatio": 20.543824,
+        "signedALoopArea": 28.777357,
+        "signedVLoopArea": 1.400779,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 13.90975,
+        "pressurePulseMmHg": 8.140597,
+        "failureReasons": [
+          "v-loop-area-too-small",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "sourcePointId": "left-heart-contractility-low",
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p1",
+      "volumeMode": "blood",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 1,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 19.747243,
+        "vLoopArea": 3.369231,
+        "aOverVLoopRatio": 5.861054,
+        "signedALoopArea": 19.747243,
+        "signedVLoopArea": 3.369231,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 4.910395,
+        "pressurePulseMmHg": 6.678531,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "sourcePointId": "left-heart-contractility-low",
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p2",
+      "volumeMode": "blood",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 19.955032,
+        "vLoopArea": 3.001332,
+        "aOverVLoopRatio": 6.648724,
+        "signedALoopArea": 19.955032,
+        "signedVLoopArea": 3.001332,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 4.910395,
+        "pressurePulseMmHg": 6.678531,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "sourcePointId": "left-heart-contractility-low",
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p3",
+      "volumeMode": "blood",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 3,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 20.162821,
+        "vLoopArea": 2.733061,
+        "aOverVLoopRatio": 7.377376,
+        "signedALoopArea": 20.162821,
+        "signedVLoopArea": 2.733061,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 4.910395,
+        "pressurePulseMmHg": 6.678531,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "sourcePointId": "left-heart-contractility-low",
+      "variantId": "piston-display-volume-fiber-minus-reservoir-pressure-g12-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 19.118017,
+        "vLoopArea": 3.044802,
+        "aOverVLoopRatio": 6.278903,
+        "signedALoopArea": 19.118017,
+        "signedVLoopArea": 3.044802,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 10.909965,
+        "pressurePulseMmHg": 6.678531,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "sourcePointId": "left-heart-contractility-low",
+      "variantId": "piston-display-volume-fiber-minus-reservoir-pressure-g18-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 18.699509,
+        "vLoopArea": 3.066537,
+        "aOverVLoopRatio": 6.097924,
+        "signedALoopArea": 18.699509,
+        "signedVLoopArea": 3.066537,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 13.90975,
+        "pressurePulseMmHg": 6.678531,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "sourcePointId": "left-heart-contractility-high",
+      "variantId": "blood-volume-current-pressure",
+      "volumeMode": "blood",
+      "pressureMode": "current",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 77.766816,
+        "vLoopArea": 8.805448,
+        "aOverVLoopRatio": 8.83167,
+        "signedALoopArea": 77.766816,
+        "signedVLoopArea": 8.805448,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 14.768199,
+        "pressurePulseMmHg": 9.489955,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "sourcePointId": "left-heart-contractility-high",
+      "variantId": "blood-volume-fiber-pressure",
+      "volumeMode": "blood",
+      "pressureMode": "fiber",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 82.585179,
+        "vLoopArea": 5.721701,
+        "aOverVLoopRatio": 14.433677,
+        "signedALoopArea": 82.585179,
+        "signedVLoopArea": 5.721701,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 14.768199,
+        "pressurePulseMmHg": 7.162425,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "sourcePointId": "left-heart-contractility-high",
+      "variantId": "piston-display-volume-current-pressure-gain06",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "current",
+      "pistonGainMl": 6,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 5.999359,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 78.927456,
+        "vLoopArea": 23.640894,
+        "aOverVLoopRatio": 3.338599,
+        "signedALoopArea": 78.927456,
+        "signedVLoopArea": 23.640894,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 17.767984,
+        "pressurePulseMmHg": 9.489955,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "sourcePointId": "left-heart-contractility-high",
+      "variantId": "piston-display-volume-current-pressure-gain12",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "current",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 80.088096,
+        "vLoopArea": 38.47634,
+        "aOverVLoopRatio": 2.081489,
+        "signedALoopArea": 80.088096,
+        "signedVLoopArea": 38.47634,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 20.767769,
+        "pressurePulseMmHg": 9.489955,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "sourcePointId": "left-heart-contractility-high",
+      "variantId": "piston-display-volume-current-pressure-gain18",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "current",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 81.248736,
+        "vLoopArea": 53.311786,
+        "aOverVLoopRatio": 1.52403,
+        "signedALoopArea": 81.248736,
+        "signedVLoopArea": 53.311786,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 23.767554,
+        "pressurePulseMmHg": 9.489955,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "sourcePointId": "left-heart-contractility-high",
+      "variantId": "piston-display-volume-fiber-pressure-gain06",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber",
+      "pistonGainMl": 6,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 5.999359,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 82.055634,
+        "vLoopArea": 5.443867,
+        "aOverVLoopRatio": 15.07304,
+        "signedALoopArea": 82.055634,
+        "signedVLoopArea": 5.443867,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 17.767984,
+        "pressurePulseMmHg": 7.162425,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "sourcePointId": "left-heart-contractility-high",
+      "variantId": "piston-display-volume-fiber-pressure-gain12",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 81.526088,
+        "vLoopArea": 5.166034,
+        "aOverVLoopRatio": 15.781174,
+        "signedALoopArea": 81.526088,
+        "signedVLoopArea": 5.166034,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 20.767769,
+        "pressurePulseMmHg": 7.162425,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "sourcePointId": "left-heart-contractility-high",
+      "variantId": "piston-display-volume-fiber-pressure-gain18",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 0,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 80.996543,
+        "vLoopArea": 4.888201,
+        "aOverVLoopRatio": 16.569806,
+        "signedALoopArea": 80.996543,
+        "signedVLoopArea": 4.888201,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 23.767554,
+        "pressurePulseMmHg": 7.162425,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "sourcePointId": "left-heart-contractility-high",
+      "variantId": "piston-display-volume-fiber-plus-kick-pressure-gain12-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-plus-kick",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 112.770808,
+        "vLoopArea": 5.166034,
+        "aOverVLoopRatio": 21.82928,
+        "signedALoopArea": 112.770808,
+        "signedVLoopArea": 5.166034,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 20.767769,
+        "pressurePulseMmHg": 9.071939,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "sourcePointId": "left-heart-contractility-high",
+      "variantId": "piston-display-volume-fiber-plus-kick-pressure-gain18-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-plus-kick",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 2,
+        "aLoopArea": 112.444272,
+        "vLoopArea": 4.888201,
+        "aOverVLoopRatio": 23.003201,
+        "signedALoopArea": 112.444272,
+        "signedVLoopArea": 4.888201,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 23.767554,
+        "pressurePulseMmHg": 9.071939,
+        "failureReasons": [
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "sourcePointId": "left-heart-contractility-high",
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p1",
+      "volumeMode": "blood",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 1,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 83.470765,
+        "vLoopArea": 8.724031,
+        "aOverVLoopRatio": 9.567913,
+        "signedALoopArea": 83.470765,
+        "signedVLoopArea": 8.724031,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 14.768199,
+        "pressurePulseMmHg": 7.541122,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "sourcePointId": "left-heart-contractility-high",
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p2",
+      "volumeMode": "blood",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 84.35635,
+        "vLoopArea": 8.797264,
+        "aOverVLoopRatio": 9.588931,
+        "signedALoopArea": 84.35635,
+        "signedVLoopArea": 8.797264,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 14.768199,
+        "pressurePulseMmHg": 7.541122,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "sourcePointId": "left-heart-contractility-high",
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p3",
+      "volumeMode": "blood",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 0,
+      "pressureKickGainMmHg": 3,
+      "maxDisplayVolumeDeltaMl": 0,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 85.241936,
+        "vLoopArea": 8.652239,
+        "aOverVLoopRatio": 9.852009,
+        "signedALoopArea": 85.241936,
+        "signedVLoopArea": 8.652239,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 14.768199,
+        "pressurePulseMmHg": 7.541122,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "sourcePointId": "left-heart-contractility-high",
+      "variantId": "piston-display-volume-fiber-minus-reservoir-pressure-g12-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 12,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 11.998719,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 83.29726,
+        "vLoopArea": 8.792182,
+        "aOverVLoopRatio": 9.474015,
+        "signedALoopArea": 83.29726,
+        "signedVLoopArea": 8.792182,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 20.767769,
+        "pressurePulseMmHg": 7.541122,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "sourcePointId": "left-heart-contractility-high",
+      "variantId": "piston-display-volume-fiber-minus-reservoir-pressure-g18-p2",
+      "volumeMode": "phase-piston-display",
+      "pressureMode": "fiber-minus-reservoir",
+      "pistonGainMl": 18,
+      "pressureKickGainMmHg": 2,
+      "maxDisplayVolumeDeltaMl": 17.998078,
+      "hiddenBloodVolumeSourceMl": 0,
+      "lobeQuality": {
+        "lobeQualityPass": false,
+        "selfIntersections": 0,
+        "aLoopArea": 82.767715,
+        "vLoopArea": 8.789641,
+        "aOverVLoopRatio": 9.416507,
+        "signedALoopArea": 82.767715,
+        "signedVLoopArea": 8.789641,
+        "opposedSignedLobes": false,
+        "volumeSeparationMl": 23.767554,
+        "pressurePulseMmHg": 7.541122,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed"
+        ]
+      },
+      "displayVolumeBounded": true,
+      "status": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    }
+  ],
+  "variantSummaries": [
+    {
+      "variantId": "blood-volume-current-pressure",
+      "pass": 1,
+      "lobeQualityPass": 1,
+      "selfIntersectionCount": 6,
+      "opposedLobeCount": 1,
+      "displayVolumeBoundedCount": 7,
+      "hiddenBloodVolumeCleanCount": 7,
+      "meanMaxDisplayVolumeDeltaMl": 0,
+      "maxALoopArea": 77.766816,
+      "maxVLoopArea": 22.994066,
+      "maxVolumeSeparationMl": 17.603197
+    },
+    {
+      "variantId": "blood-volume-fiber-pressure",
+      "pass": 2,
+      "lobeQualityPass": 2,
+      "selfIntersectionCount": 7,
+      "opposedLobeCount": 2,
+      "displayVolumeBoundedCount": 7,
+      "hiddenBloodVolumeCleanCount": 7,
+      "meanMaxDisplayVolumeDeltaMl": 0,
+      "maxALoopArea": 82.585179,
+      "maxVLoopArea": 9.90639,
+      "maxVolumeSeparationMl": 17.603197
+    },
+    {
+      "variantId": "piston-display-volume-current-pressure-gain06",
+      "pass": 0,
+      "lobeQualityPass": 0,
+      "selfIntersectionCount": 2,
+      "opposedLobeCount": 0,
+      "displayVolumeBoundedCount": 7,
+      "hiddenBloodVolumeCleanCount": 7,
+      "meanMaxDisplayVolumeDeltaMl": 5.999359,
+      "maxALoopArea": 78.927456,
+      "maxVLoopArea": 37.836107,
+      "maxVolumeSeparationMl": 20.602982
+    },
+    {
+      "variantId": "piston-display-volume-current-pressure-gain12",
+      "pass": 0,
+      "lobeQualityPass": 0,
+      "selfIntersectionCount": 2,
+      "opposedLobeCount": 0,
+      "displayVolumeBoundedCount": 7,
+      "hiddenBloodVolumeCleanCount": 7,
+      "meanMaxDisplayVolumeDeltaMl": 11.998719,
+      "maxALoopArea": 80.088096,
+      "maxVLoopArea": 52.678148,
+      "maxVolumeSeparationMl": 23.602767
+    },
+    {
+      "variantId": "piston-display-volume-current-pressure-gain18",
+      "pass": 0,
+      "lobeQualityPass": 0,
+      "selfIntersectionCount": 2,
+      "opposedLobeCount": 0,
+      "displayVolumeBoundedCount": 7,
+      "hiddenBloodVolumeCleanCount": 7,
+      "meanMaxDisplayVolumeDeltaMl": 17.998078,
+      "maxALoopArea": 81.248736,
+      "maxVLoopArea": 67.52019,
+      "maxVolumeSeparationMl": 26.602552
+    },
+    {
+      "variantId": "piston-display-volume-fiber-pressure-gain06",
+      "pass": 2,
+      "lobeQualityPass": 2,
+      "selfIntersectionCount": 7,
+      "opposedLobeCount": 2,
+      "displayVolumeBoundedCount": 7,
+      "hiddenBloodVolumeCleanCount": 7,
+      "meanMaxDisplayVolumeDeltaMl": 5.999359,
+      "maxALoopArea": 82.055634,
+      "maxVLoopArea": 9.35633,
+      "maxVolumeSeparationMl": 20.602982
+    },
+    {
+      "variantId": "piston-display-volume-fiber-pressure-gain12",
+      "pass": 2,
+      "lobeQualityPass": 2,
+      "selfIntersectionCount": 7,
+      "opposedLobeCount": 2,
+      "displayVolumeBoundedCount": 7,
+      "hiddenBloodVolumeCleanCount": 7,
+      "meanMaxDisplayVolumeDeltaMl": 11.998719,
+      "maxALoopArea": 81.526088,
+      "maxVLoopArea": 8.80627,
+      "maxVolumeSeparationMl": 23.602767
+    },
+    {
+      "variantId": "piston-display-volume-fiber-pressure-gain18",
+      "pass": 2,
+      "lobeQualityPass": 2,
+      "selfIntersectionCount": 7,
+      "opposedLobeCount": 2,
+      "displayVolumeBoundedCount": 7,
+      "hiddenBloodVolumeCleanCount": 7,
+      "meanMaxDisplayVolumeDeltaMl": 17.998078,
+      "maxALoopArea": 80.996543,
+      "maxVLoopArea": 8.256209,
+      "maxVolumeSeparationMl": 26.602552
+    },
+    {
+      "variantId": "piston-display-volume-fiber-plus-kick-pressure-gain12-p2",
+      "pass": 2,
+      "lobeQualityPass": 2,
+      "selfIntersectionCount": 7,
+      "opposedLobeCount": 2,
+      "displayVolumeBoundedCount": 7,
+      "hiddenBloodVolumeCleanCount": 7,
+      "meanMaxDisplayVolumeDeltaMl": 11.998719,
+      "maxALoopArea": 112.770808,
+      "maxVLoopArea": 8.80627,
+      "maxVolumeSeparationMl": 23.602767
+    },
+    {
+      "variantId": "piston-display-volume-fiber-plus-kick-pressure-gain18-p2",
+      "pass": 2,
+      "lobeQualityPass": 2,
+      "selfIntersectionCount": 7,
+      "opposedLobeCount": 2,
+      "displayVolumeBoundedCount": 7,
+      "hiddenBloodVolumeCleanCount": 7,
+      "meanMaxDisplayVolumeDeltaMl": 17.998078,
+      "maxALoopArea": 112.444272,
+      "maxVLoopArea": 8.256209,
+      "maxVolumeSeparationMl": 26.602552
+    },
+    {
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p1",
+      "pass": 2,
+      "lobeQualityPass": 2,
+      "selfIntersectionCount": 3,
+      "opposedLobeCount": 2,
+      "displayVolumeBoundedCount": 7,
+      "hiddenBloodVolumeCleanCount": 7,
+      "meanMaxDisplayVolumeDeltaMl": 0,
+      "maxALoopArea": 83.470765,
+      "maxVLoopArea": 14.657274,
+      "maxVolumeSeparationMl": 17.603197
+    },
+    {
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p2",
+      "pass": 2,
+      "lobeQualityPass": 2,
+      "selfIntersectionCount": 2,
+      "opposedLobeCount": 2,
+      "displayVolumeBoundedCount": 7,
+      "hiddenBloodVolumeCleanCount": 7,
+      "meanMaxDisplayVolumeDeltaMl": 0,
+      "maxALoopArea": 84.35635,
+      "maxVLoopArea": 14.150172,
+      "maxVolumeSeparationMl": 17.603197
+    },
+    {
+      "variantId": "blood-volume-fiber-minus-reservoir-pressure-p3",
+      "pass": 2,
+      "lobeQualityPass": 2,
+      "selfIntersectionCount": 2,
+      "opposedLobeCount": 2,
+      "displayVolumeBoundedCount": 7,
+      "hiddenBloodVolumeCleanCount": 7,
+      "meanMaxDisplayVolumeDeltaMl": 0,
+      "maxALoopArea": 85.241936,
+      "maxVLoopArea": 13.551576,
+      "maxVolumeSeparationMl": 17.603197
+    },
+    {
+      "variantId": "piston-display-volume-fiber-minus-reservoir-pressure-g12-p2",
+      "pass": 2,
+      "lobeQualityPass": 2,
+      "selfIntersectionCount": 4,
+      "opposedLobeCount": 2,
+      "displayVolumeBoundedCount": 7,
+      "hiddenBloodVolumeCleanCount": 7,
+      "meanMaxDisplayVolumeDeltaMl": 11.998719,
+      "maxALoopArea": 83.29726,
+      "maxVLoopArea": 13.837762,
+      "maxVolumeSeparationMl": 23.602767
+    },
+    {
+      "variantId": "piston-display-volume-fiber-minus-reservoir-pressure-g18-p2",
+      "pass": 2,
+      "lobeQualityPass": 2,
+      "selfIntersectionCount": 5,
+      "opposedLobeCount": 2,
+      "displayVolumeBoundedCount": 7,
+      "hiddenBloodVolumeCleanCount": 7,
+      "meanMaxDisplayVolumeDeltaMl": 17.998078,
+      "maxALoopArea": 82.767715,
+      "maxVLoopArea": 13.681558,
+      "maxVolumeSeparationMl": 26.602552
+    }
+  ],
+  "bestVariant": {
+    "variantId": "blood-volume-fiber-pressure",
+    "pass": 2,
+    "lobeQualityPass": 2,
+    "selfIntersectionCount": 7,
+    "opposedLobeCount": 2,
+    "displayVolumeBoundedCount": 7,
+    "hiddenBloodVolumeCleanCount": 7,
+    "meanMaxDisplayVolumeDeltaMl": 0,
+    "maxALoopArea": 82.585179,
+    "maxVLoopArea": 9.90639,
+    "maxVolumeSeparationMl": 17.603197
+  },
+  "summary": {
+    "totalProfiles": 7,
+    "bestVariantId": "blood-volume-fiber-pressure",
+    "bestPass": 2,
+    "bestLobeQualityPass": 2,
+    "bestOpposedLobeCount": 2,
+    "bestHiddenBloodVolumeCleanCount": 7
+  },
+  "decision": {
+    "atrialLobeGeneratorStatus": "atrial-lobe-generator-contract-mixed",
+    "nextAction": "Use this bounded AtrialFiber pressure signal to design the next state-owned atrial chamber/valve lobe generator; simple display-piston and phase-pressure oracles are not enough.",
+    "blockedClaims": [
+      "runtime-wiring",
+      "morphology-acceptance",
+      "AV-plane-enable",
+      "a-prime-physiology",
+      "blood-ledger-mutation",
+      "LandAtrial-unlock"
+    ]
+  },
+  "claimBoundary": {
+    "runtimeWiring": false,
+    "morphologyAcceptance": false,
+    "AVPlaneEnablement": false,
+    "aPrimePhysiologyClaim": false,
+    "bloodLedgerMutation": false,
+    "LandAtrialUnlock": false
+  },
+  "normalizedSha256": "ceb8a2249f9f47c7a84b233aed3e97b64ca9f40d0c3a3f4f55e7bcdab627d75e"
+}

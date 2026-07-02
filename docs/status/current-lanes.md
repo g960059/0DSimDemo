@@ -59,19 +59,19 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: classify the remaining atrial lobe generator beyond simple
-LV-shortening geometry. The stateful effective-geometry transaction gives
-hidden-volume-clean a-prime readbacks, but neither stretch-volume nor capacity-
-volume LV-shortening coupling nor phase-reservoir capacity coupling recovers
-LA PV lobe quality or MVF morphology.
+Next PR target: design a state-owned atrial chamber/valve lobe generator beyond
+simple display-piston or phase-pressure oracles. A bounded AtrialFiber pressure
+surface gives only a small 2/7 lobe-quality signal, while simple display-piston
+volume, a-wave kick pressure, and reservoir-suction pressure oracles do not
+increase lobe-quality pass count.
 Direct atrial pressure substitution, additive atrial active-pressure source
 substitution, direct AV-gradient injection, more fixed source-state variant
 sweeps, readback-only geometry overlays, simple LV-shortening effective-
-geometry transactions, runtime wiring, reservoir broad retuning, AV-plane
-enablement, and LandAtrial re-entry remain blocked. For atrial work, pressure
-parity or MVF cleanup alone is insufficient: normal-sinus acceptance must
-preserve atrial PV figure-eight lobe quality and eventually expose AV-plane
-velocity/a-prime readbacks.
+geometry transactions, display-only piston volume, phase-pressure oracles,
+runtime wiring, reservoir broad retuning, AV-plane enablement, and LandAtrial
+re-entry remain blocked. For atrial work, pressure parity or MVF cleanup alone
+is insufficient: normal-sinus acceptance must preserve atrial PV figure-eight
+lobe quality and eventually expose AV-plane velocity/a-prime readbacks.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -237,6 +237,9 @@ Included:
 - StatefulAtrialGeometryTransactionBench V1 for a left-heart candidate where
   LA effective geometry co-evolves inside the LA chamber/MV valve/LV filling
   step, still without runtime AV-plane enablement.
+- AtrialLobeGeneratorContractBench V1 for display-piston, AtrialFiber-pressure,
+  a-wave kick-pressure, and reservoir-suction pressure lobe-generator oracles
+  without runtime wiring or blood-ledger mutation.
 
 Excluded:
 
@@ -840,6 +843,14 @@ Next gates:
     Simple effective-geometry displacement is therefore blocked; next work
     should classify a different atrial lobe generator before any AV-plane
     physiology or runtime claim.
+75. Atrial lobe-generator oracle: direct display-piston volume and simple
+    phase-pressure oracles are insufficient. Best is blood-volume plus
+    AtrialFiber pressure with lobe-quality 2/7 and opposed-lobe count 2/7;
+    piston display volume increases volume separation but does not increase
+    pass count, and reservoir-suction/kick pressure variants also remain 2/7.
+    This keeps runtime, blood-ledger mutation, AV-plane enablement, a-prime
+    physiology, and LandAtrial blocked while routing the next work to a real
+    state-owned atrial chamber/valve lobe generator.
 
 Parallel prep, not blocking the next strategic gate:
 
