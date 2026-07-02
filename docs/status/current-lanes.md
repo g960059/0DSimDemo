@@ -91,6 +91,13 @@ variant improves raw source status while preserving topology, and qDot/reverse
 projection burden rises. Treat this as a partial MVF signal only; next work
 should own LA pressure, AV-plane traction, and MV opening in the same
 transaction rather than continuing MV parameter variants.
+A first same-step LA/MV transaction that releases AV-plane traction against
+accepted MV opening keeps opposed-lobe topology 7/7 and lowers the max traction
+pressure step from 15.21 to 10.83 mmHg, but best source surface falls to 3/7,
+MVF remains 4/7, and qDot/reverse projection burden rises. Do not continue
+release-only or MV-opening variants; the next AV-plane traction PR should move
+capacity/pressure/work ownership into an explicit AV-plane coordinate contract
+with blood volume still owned only by venous and valve flows.
 Warm-replay lobe attribution, separated-state smokes, dual-lobe geometry,
 flow-oriented LA filling-rate drive, hidden-volume-free AV-plane ejection-rate
 reservoir oracles, AV-plane reservoir capacity/stretch + booster/wall-work,
