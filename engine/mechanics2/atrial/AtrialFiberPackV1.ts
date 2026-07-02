@@ -74,7 +74,7 @@ Record<AtrialFiberChamberIdV1, AtrialFiberChamberParamsV1> = {
     chamberId: "LA",
     wallVolumeMl: 22,
     referenceCavityVolumeMl: 44,
-    pressureScale: 0.42,
+    pressureScale: 0.72,
     lSRef: 1,
     fiber: ATRIAL_BASE_FIBER_PARAMS_V1,
   },

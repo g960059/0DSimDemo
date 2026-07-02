@@ -13,6 +13,7 @@ Result:
 - Upstream source/reservoir contract signal is present.
 - LA/RA prescribed-volume fixtures pass: 4/4.
 - Pressure outputs are finite and bounded in low-pressure atrial ranges.
+- LA peak pressure is ~10-11 mmHg; RA peak pressure is ~3 mmHg.
 - Active pressure peaks remain late-diastolic in all fixtures.
 
 Interpretation:

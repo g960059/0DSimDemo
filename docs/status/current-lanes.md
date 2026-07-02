@@ -59,10 +59,9 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: AV-plane-off closed-loop atrial-fiber smoke on top of the
-source/reservoir contract and prescribed-volume AtrialFiberPack signal.
-Runtime wiring, reservoir broad retuning, AV-plane work, and LandAtrial
-re-entry remain blocked.
+Next PR target: LA pressure-parity attribution before any AV-plane-off atrial
+pressure-substitution smoke. Runtime wiring, reservoir broad retuning,
+AV-plane work, and LandAtrial re-entry remain blocked.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -168,6 +167,8 @@ Included:
 - AtrialFiberPackV1 and AtrialFiberPackPrescribedVolumeBench V1 for the first
   CircAdapt-lite style LA/RA one-fiber wall readiness signal without AV-plane
   geometry or piston-volume coupling.
+- AtrialFiberPackClosedLoopReplayBench V1 for AV-plane-off closed-loop LA/RA
+  volume replay without atrial pressure substitution.
 
 Excluded:
 
@@ -598,12 +599,21 @@ Next gates:
     LandAtrial, direct PV outflow transfer, or morphology acceptance.
 55. AtrialFiberPack prescribed-volume readiness: LA/RA one-fiber chamber walls
     pass 4/4 prescribed-volume fixtures on top of the source/reservoir contract
-    signal. LA peak pressure is ~6 mmHg, RA peak pressure is ~3 mmHg, all
+    signal. LA peak pressure is ~10-11 mmHg, RA peak pressure is ~3 mmHg, all
     outputs are finite and bounded, and active pressure peaks remain
     late-diastolic at theta ~0.79-0.81. This is enough to attempt an
     AV-plane-off closed-loop atrial-fiber smoke, not enough for runtime wiring,
     AV-plane geometry, piston-volume mode, LandAtrial unlock, or morphology
     acceptance.
+56. AtrialFiberPack closed-loop replay: replaying selected closed-loop LA/RA
+    volume trajectories through the AV-plane-off atrial fiber pack passes 14/14
+    wall replay rows: LA 7/7, RA 7/7, finite 14/14, and late-active 14/14.
+    Current compliance-pressure parity remains advisory-wide in LA
+    `preload-high`, `afterload-high`, and `contractility-low` (11/14 parity).
+    This is a replay signal only. It does not unlock atrial pressure
+    substitution, runtime wiring, AV-plane geometry, piston-volume mode,
+    LandAtrial, or morphology acceptance. Future real trace artifacts should
+    include the shadow audit readbacks requested by the physiology audit lane.
 
 Parallel prep, not blocking the next strategic gate:
 
