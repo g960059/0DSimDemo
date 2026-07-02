@@ -32,9 +32,16 @@ export type IsolatedLaAvpMvPvResidualVariantIdV1 =
   | "residual-drive6-cap32-hyd003"
   | "residual-drive8-cap36-hyd004"
   | "residual-drive8-cap40-hyd006-slow"
-  | "residual-lowstiff-drive6-cap36-hyd004";
+  | "residual-lowstiff-drive6-cap36-hyd004"
+  | "normal-form-r4-b1-release08-cap32"
+  | "normal-form-r7-b1-release06-cap36"
+  | "normal-form-r10-b2-release045-cap40";
 
-type VariantModeV1 = "no-avp" | "explicit-reference-volume" | "la-avp-mv-pv-residual";
+type VariantModeV1 =
+  | "no-avp"
+  | "explicit-reference-volume"
+  | "la-avp-mv-pv-residual"
+  | "normal-form-reservoir-booster";
 
 export type IsolatedLaAvpMvPvResidualVariantV1 = {
   readonly variantId: IsolatedLaAvpMvPvResidualVariantIdV1;
@@ -50,6 +57,10 @@ export type IsolatedLaAvpMvPvResidualVariantV1 = {
   readonly pvComplianceMlPerMmHg: number;
   readonly residualIterations: number;
   readonly residualRelaxation: number;
+  readonly reservoirPressureGainMmHg: number;
+  readonly reservoirReleaseTauSec: number;
+  readonly boosterPressureGainMmHg: number;
+  readonly boosterTauSec: number;
 };
 
 export type IsolatedLaAvpMvPvResidualSampleV1 = {
@@ -68,6 +79,9 @@ export type IsolatedLaAvpMvPvResidualSampleV1 = {
   readonly driveForceN: number;
   readonly hydraulicForceN: number;
   readonly netForceN: number;
+  readonly reservoirState01: number;
+  readonly boosterState01: number;
+  readonly normalFormPressureMmHg: number;
   readonly sPrimeProxyCmPerSec: number | null;
   readonly ePrimeProxyCmPerSec: number | null;
   readonly aPrimeProxyCmPerSec: number | null;
@@ -208,6 +222,9 @@ export const ISOLATED_LA_AVP_MV_PV_RESIDUAL_VARIANTS_V1: readonly VariantV1[] = 
   variant("residual-drive8-cap36-hyd004", "la-avp-mv-pv-residual", 36, 8, 0.004, 2.0, 0.70, 0.8, 0.050, 0.12, 20, 6, 0.50),
   variant("residual-drive8-cap40-hyd006-slow", "la-avp-mv-pv-residual", 40, 8, 0.006, 2.4, 0.95, 0.6, 0.050, 0.12, 22, 6, 0.45),
   variant("residual-lowstiff-drive6-cap36-hyd004", "la-avp-mv-pv-residual", 36, 6, 0.004, 0.7, 0.35, 0.8, 0.055, 0.13, 20, 6, 0.50),
+  variant("normal-form-r4-b1-release08-cap32", "normal-form-reservoir-booster", 32, 6, 0.003, 1.5, 0.50, 0.8, 0.050, 0.12, 20, 6, 0.50, 4, 0.08, 1, 0.05),
+  variant("normal-form-r7-b1-release06-cap36", "normal-form-reservoir-booster", 36, 7, 0.004, 1.8, 0.60, 0.8, 0.050, 0.12, 20, 6, 0.50, 7, 0.06, 1, 0.045),
+  variant("normal-form-r10-b2-release045-cap40", "normal-form-reservoir-booster", 40, 8, 0.005, 2.2, 0.70, 0.75, 0.050, 0.12, 22, 6, 0.48, 10, 0.045, 2, 0.04),
 ];
 
 export function runIsolatedLaAvpMvPvResidualBenchV1(): IsolatedLaAvpMvPvResidualReportV1 {
@@ -232,7 +249,9 @@ export function runIsolatedLaAvpMvPvResidualBenchV1(): IsolatedLaAvpMvPvResidual
   const variantSummaries = ISOLATED_LA_AVP_MV_PV_RESIDUAL_VARIANTS_V1.map((variantConfig) =>
     summarizeVariant(variantConfig.variantId, rows.filter((row) => row.variantId === variantConfig.variantId))
   );
-  const residualSummaries = variantSummaries.filter((summary) => summary.variantId.startsWith("residual-"));
+  const residualSummaries = variantSummaries.filter((summary) =>
+    summary.variantId.startsWith("residual-") || summary.variantId.startsWith("normal-form-")
+  );
   const bestResidualVariant = [...residualSummaries].sort((a, b) =>
     b.sourcePreservingFigureEight - a.sourcePreservingFigureEight
     || b.figureEightPass - a.figureEightPass
@@ -359,6 +378,8 @@ function initialState(boundary: readonly LeftHeartSubsystemSampleV2[], variantCo
     laFiber: initialAtrialFiberChamberStateV1(laVolumeMl, DEFAULT_ATRIAL_FIBER_CHAMBER_PARAMS_V1.LA),
     zAvNorm: variantConfig.mode === "no-avp" ? 0 : 0.12,
     zAvDotNormPerSec: 0,
+    reservoirState01: 0,
+    boosterState01: 0,
   };
 }
 
@@ -369,6 +390,8 @@ type ResidualStateV1 = {
   readonly laFiber: AtrialFiberChamberStateV1;
   readonly zAvNorm: number;
   readonly zAvDotNormPerSec: number;
+  readonly reservoirState01: number;
+  readonly boosterState01: number;
 };
 
 function stepResidualState(
@@ -413,6 +436,8 @@ function stepResidualState(
     laFiber: accepted.laFiber.state,
     zAvNorm: accepted.nextZNorm,
     zAvDotNormPerSec: accepted.nextZDotNormPerSec,
+    reservoirState01: accepted.nextReservoirState01,
+    boosterState01: accepted.nextBoosterState01,
   };
   const sample: SampleV1 = {
     tSec: input.tSec,
@@ -430,6 +455,9 @@ function stepResidualState(
     driveForceN: accepted.driveForceN,
     hydraulicForceN: accepted.hydraulicForceN,
     netForceN: accepted.netForceN,
+    reservoirState01: accepted.nextReservoirState01,
+    boosterState01: accepted.nextBoosterState01,
+    normalFormPressureMmHg: accepted.normalFormPressureMmHg,
     sPrimeProxyCmPerSec: primeProxy(input.theta, accepted.nextZDotNormPerSec, "s"),
     ePrimeProxyCmPerSec: primeProxy(input.theta, accepted.nextZDotNormPerSec, "e"),
     aPrimeProxyCmPerSec: primeProxy(input.theta, accepted.nextZDotNormPerSec, "a"),
@@ -468,8 +496,12 @@ function evaluateAccepted(
   readonly driveForceN: number;
   readonly hydraulicForceN: number;
   readonly netForceN: number;
+  readonly nextReservoirState01: number;
+  readonly nextBoosterState01: number;
+  readonly normalFormPressureMmHg: number;
 } {
   const avp = nextAvPlaneCoordinate(previous, input, guessZNorm, guessZDotNormPerSec, 0);
+  const normalForm = nextNormalFormStates(previous, input, avp.zNorm);
   const geometryDeltaMl = input.variantConfig.mode === "no-avp" ? 0 : input.variantConfig.capacityGainMl * avp.zNorm;
   const effectiveVolumeMl = Math.max(1e-6, guessVolumeMl - geometryDeltaMl);
   const previousEffectiveVolumeMl =
@@ -482,10 +514,12 @@ function evaluateAccepted(
     cavityVolumeMl: effectiveVolumeMl,
     previousCavityVolumeMl: previousEffectiveVolumeMl,
   }, DEFAULT_ATRIAL_FIBER_CHAMBER_PARAMS_V1.LA);
-  const lapMmHg = Math.max(0, laFiber.pressureRawMmHg);
+  const lapMmHg = Math.max(0, laFiber.pressureRawMmHg + normalForm.pressureMmHg);
   const avpWithPressure = input.variantConfig.mode === "la-avp-mv-pv-residual"
+    || input.variantConfig.mode === "normal-form-reservoir-booster"
     ? nextAvPlaneCoordinate(previous, input, guessZNorm, guessZDotNormPerSec, lapMmHg)
     : avp;
+  const acceptedNormalForm = nextNormalFormStates(previous, input, avpWithPressure.zNorm);
   const acceptedGeometryDeltaMl =
     input.variantConfig.mode === "no-avp" ? 0 : input.variantConfig.capacityGainMl * avpWithPressure.zNorm;
   const acceptedEffectiveVolumeMl = Math.max(1e-6, guessVolumeMl - acceptedGeometryDeltaMl);
@@ -499,7 +533,7 @@ function evaluateAccepted(
       cavityVolumeMl: acceptedEffectiveVolumeMl,
       previousCavityVolumeMl: previousEffectiveVolumeMl,
     }, DEFAULT_ATRIAL_FIBER_CHAMBER_PARAMS_V1.LA);
-  const acceptedLapMmHg = Math.max(0, acceptedLaFiber.pressureRawMmHg);
+  const acceptedLapMmHg = Math.max(0, acceptedLaFiber.pressureRawMmHg + acceptedNormalForm.pressureMmHg);
   const qPvSourceMlPerSec = Math.max(
     0,
     (13 - guessPvPressureMmHg) / Math.max(input.variantConfig.pvSourceResistanceMmHgSecPerMl, 1e-9),
@@ -541,7 +575,41 @@ function evaluateAccepted(
     driveForceN: avpWithPressure.driveForceN,
     hydraulicForceN: avpWithPressure.hydraulicForceN,
     netForceN: avpWithPressure.netForceN,
+    nextReservoirState01: acceptedNormalForm.reservoirState01,
+    nextBoosterState01: acceptedNormalForm.boosterState01,
+    normalFormPressureMmHg: acceptedNormalForm.pressureMmHg,
   };
+}
+
+function nextNormalFormStates(
+  previous: ResidualStateV1,
+  input: {
+    readonly theta: number;
+    readonly dtSec: number;
+    readonly variantConfig: VariantV1;
+  },
+  zNorm: number,
+): {
+  readonly reservoirState01: number;
+  readonly boosterState01: number;
+  readonly pressureMmHg: number;
+} {
+  if (input.variantConfig.mode !== "normal-form-reservoir-booster") {
+    return { reservoirState01: 0, boosterState01: 0, pressureMmHg: 0 };
+  }
+  const mvOpenRelease01 = previous.mv.open01 > 0.20 ? 1 : raisedCosineWindow(input.theta, 0.54, 0.76);
+  const systolicReservoirTarget = clamp(zNorm * raisedCosineWindow(input.theta, 0.04, 0.56) * 1.18, 0, 1);
+  const reservoirTarget = mvOpenRelease01 > 0 ? 0 : systolicReservoirTarget;
+  const reservoirTau = reservoirTarget < previous.reservoirState01
+    ? input.variantConfig.reservoirReleaseTauSec
+    : 0.12;
+  const reservoirState01 = relaxToward(previous.reservoirState01, reservoirTarget, input.dtSec, reservoirTau);
+  const boosterTarget = raisedCosineWindow(input.theta, 0.82, 0.99);
+  const boosterState01 = relaxToward(previous.boosterState01, boosterTarget, input.dtSec, input.variantConfig.boosterTauSec);
+  const pressureMmHg =
+    input.variantConfig.reservoirPressureGainMmHg * reservoirState01
+    + input.variantConfig.boosterPressureGainMmHg * boosterState01;
+  return { reservoirState01, boosterState01, pressureMmHg };
 }
 
 function nextAvPlaneCoordinate(
@@ -812,6 +880,10 @@ function variant(
   pvComplianceMlPerMmHg: number,
   residualIterations: number,
   residualRelaxation: number,
+  reservoirPressureGainMmHg = 0,
+  reservoirReleaseTauSec = 0.08,
+  boosterPressureGainMmHg = 0,
+  boosterTauSec = 0.05,
 ): VariantV1 {
   return {
     variantId,
@@ -827,6 +899,10 @@ function variant(
     pvComplianceMlPerMmHg,
     residualIterations,
     residualRelaxation,
+    reservoirPressureGainMmHg,
+    reservoirReleaseTauSec,
+    boosterPressureGainMmHg,
+    boosterTauSec,
   };
 }
 
@@ -852,6 +928,10 @@ function smoothstep01(value: number): number {
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * clamp(t, 0, 1);
+}
+
+function relaxToward(previous: number, target: number, dtSec: number, tauSec: number): number {
+  return previous + (target - previous) * clamp(dtSec / Math.max(tauSec, 1e-9), 0, 1);
 }
 
 function clamp(value: number, min: number, max: number): number {

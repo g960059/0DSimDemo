@@ -16,7 +16,11 @@
       "pvSourceResistanceMmHgSecPerMl": 0.14,
       "pvComplianceMlPerMmHg": 16,
       "residualIterations": 1,
-      "residualRelaxation": 1
+      "residualRelaxation": 1,
+      "reservoirPressureGainMmHg": 0,
+      "reservoirReleaseTauSec": 0.08,
+      "boosterPressureGainMmHg": 0,
+      "boosterTauSec": 0.05
     },
     {
       "variantId": "explicit-reference-volume-drive4-cap28",
@@ -31,7 +35,11 @@
       "pvSourceResistanceMmHgSecPerMl": 0.14,
       "pvComplianceMlPerMmHg": 16,
       "residualIterations": 1,
-      "residualRelaxation": 1
+      "residualRelaxation": 1,
+      "reservoirPressureGainMmHg": 0,
+      "reservoirReleaseTauSec": 0.08,
+      "boosterPressureGainMmHg": 0,
+      "boosterTauSec": 0.05
     },
     {
       "variantId": "residual-drive4-cap28-hyd002",
@@ -46,7 +54,11 @@
       "pvSourceResistanceMmHgSecPerMl": 0.14,
       "pvComplianceMlPerMmHg": 16,
       "residualIterations": 5,
-      "residualRelaxation": 0.55
+      "residualRelaxation": 0.55,
+      "reservoirPressureGainMmHg": 0,
+      "reservoirReleaseTauSec": 0.08,
+      "boosterPressureGainMmHg": 0,
+      "boosterTauSec": 0.05
     },
     {
       "variantId": "residual-drive6-cap32-hyd003",
@@ -61,7 +73,11 @@
       "pvSourceResistanceMmHgSecPerMl": 0.13,
       "pvComplianceMlPerMmHg": 18,
       "residualIterations": 5,
-      "residualRelaxation": 0.55
+      "residualRelaxation": 0.55,
+      "reservoirPressureGainMmHg": 0,
+      "reservoirReleaseTauSec": 0.08,
+      "boosterPressureGainMmHg": 0,
+      "boosterTauSec": 0.05
     },
     {
       "variantId": "residual-drive8-cap36-hyd004",
@@ -76,7 +92,11 @@
       "pvSourceResistanceMmHgSecPerMl": 0.12,
       "pvComplianceMlPerMmHg": 20,
       "residualIterations": 6,
-      "residualRelaxation": 0.5
+      "residualRelaxation": 0.5,
+      "reservoirPressureGainMmHg": 0,
+      "reservoirReleaseTauSec": 0.08,
+      "boosterPressureGainMmHg": 0,
+      "boosterTauSec": 0.05
     },
     {
       "variantId": "residual-drive8-cap40-hyd006-slow",
@@ -91,7 +111,11 @@
       "pvSourceResistanceMmHgSecPerMl": 0.12,
       "pvComplianceMlPerMmHg": 22,
       "residualIterations": 6,
-      "residualRelaxation": 0.45
+      "residualRelaxation": 0.45,
+      "reservoirPressureGainMmHg": 0,
+      "reservoirReleaseTauSec": 0.08,
+      "boosterPressureGainMmHg": 0,
+      "boosterTauSec": 0.05
     },
     {
       "variantId": "residual-lowstiff-drive6-cap36-hyd004",
@@ -106,7 +130,68 @@
       "pvSourceResistanceMmHgSecPerMl": 0.13,
       "pvComplianceMlPerMmHg": 20,
       "residualIterations": 6,
-      "residualRelaxation": 0.5
+      "residualRelaxation": 0.5,
+      "reservoirPressureGainMmHg": 0,
+      "reservoirReleaseTauSec": 0.08,
+      "boosterPressureGainMmHg": 0,
+      "boosterTauSec": 0.05
+    },
+    {
+      "variantId": "normal-form-r4-b1-release08-cap32",
+      "mode": "normal-form-reservoir-booster",
+      "capacityGainMl": 32,
+      "driveForceN": 6,
+      "hydraulicGain": 0.003,
+      "stiffnessNPerNorm": 1.5,
+      "dampingNsecPerNorm": 0.5,
+      "maxVelocityNormPerSec": 0.8,
+      "pvResistanceMmHgSecPerMl": 0.05,
+      "pvSourceResistanceMmHgSecPerMl": 0.12,
+      "pvComplianceMlPerMmHg": 20,
+      "residualIterations": 6,
+      "residualRelaxation": 0.5,
+      "reservoirPressureGainMmHg": 4,
+      "reservoirReleaseTauSec": 0.08,
+      "boosterPressureGainMmHg": 1,
+      "boosterTauSec": 0.05
+    },
+    {
+      "variantId": "normal-form-r7-b1-release06-cap36",
+      "mode": "normal-form-reservoir-booster",
+      "capacityGainMl": 36,
+      "driveForceN": 7,
+      "hydraulicGain": 0.004,
+      "stiffnessNPerNorm": 1.8,
+      "dampingNsecPerNorm": 0.6,
+      "maxVelocityNormPerSec": 0.8,
+      "pvResistanceMmHgSecPerMl": 0.05,
+      "pvSourceResistanceMmHgSecPerMl": 0.12,
+      "pvComplianceMlPerMmHg": 20,
+      "residualIterations": 6,
+      "residualRelaxation": 0.5,
+      "reservoirPressureGainMmHg": 7,
+      "reservoirReleaseTauSec": 0.06,
+      "boosterPressureGainMmHg": 1,
+      "boosterTauSec": 0.045
+    },
+    {
+      "variantId": "normal-form-r10-b2-release045-cap40",
+      "mode": "normal-form-reservoir-booster",
+      "capacityGainMl": 40,
+      "driveForceN": 8,
+      "hydraulicGain": 0.005,
+      "stiffnessNPerNorm": 2.2,
+      "dampingNsecPerNorm": 0.7,
+      "maxVelocityNormPerSec": 0.75,
+      "pvResistanceMmHgSecPerMl": 0.05,
+      "pvSourceResistanceMmHgSecPerMl": 0.12,
+      "pvComplianceMlPerMmHg": 22,
+      "residualIterations": 6,
+      "residualRelaxation": 0.48,
+      "reservoirPressureGainMmHg": 10,
+      "reservoirReleaseTauSec": 0.045,
+      "boosterPressureGainMmHg": 2,
+      "boosterTauSec": 0.04
     }
   ],
   "rows": [
@@ -535,6 +620,189 @@
       ]
     },
     {
+      "profileId": "normal-hr75",
+      "variantId": "normal-form-r4-b1-release08-cap32",
+      "figureEightPass": false,
+      "mvfClean": false,
+      "primePass": false,
+      "hiddenVolumeClean": true,
+      "sourceBoundaryClean": true,
+      "sourcePreservingFigureEight": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.54846,
+      "mvForwardVolumeMl": 5.477394,
+      "baselineMvForwardVolumeMl": 1.508294,
+      "maxMassResidualAbsMl": 0,
+      "maxResidualNorm": 0,
+      "maxZNorm": 0.219674,
+      "maxZDotNormPerSec": 0.8,
+      "maxHydraulicForceN": 0,
+      "maxNetForceN": 3.546156,
+      "maxPvPressureMmHg": 6.647007,
+      "figureEight": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 6.759646,
+        "vLoopArea": 8.281966,
+        "volumeSeparationMl": -16.366057,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0.015472,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.170562,
+        "maxPvTangentAngleJumpDeg": 25.731294,
+        "mvOpeningTangentAngleJumpDeg": 1.115451,
+        "lowerVLoopTangentAngleJumpDeg": 1.115451,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed",
+          "v-loop-not-higher-volume-than-a-loop",
+          "conduit-window-too-short",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
+      },
+      "prime": {
+        "pass": false,
+        "sPrimePeakAbsCmPerSec": 1.92,
+        "ePrimePeakAbsCmPerSec": 1.92,
+        "aPrimePeakAbsCmPerSec": 1.043751,
+        "maxC1ContinuityScore": 1.211356,
+        "failureReasons": [
+          "prime-c1-kink"
+        ]
+      },
+      "failureReasons": [
+        "phase-oriented-figure-eight-fail",
+        "mvf-not-clean",
+        "prime-waveform-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr75",
+      "variantId": "normal-form-r7-b1-release06-cap36",
+      "figureEightPass": false,
+      "mvfClean": false,
+      "primePass": false,
+      "hiddenVolumeClean": true,
+      "sourceBoundaryClean": true,
+      "sourcePreservingFigureEight": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.498467,
+      "mvForwardVolumeMl": 5.08585,
+      "baselineMvForwardVolumeMl": 1.508294,
+      "maxMassResidualAbsMl": 0,
+      "maxResidualNorm": 0,
+      "maxZNorm": 0.218334,
+      "maxZDotNormPerSec": 0.8,
+      "maxHydraulicForceN": 0,
+      "maxNetForceN": 4.115794,
+      "maxPvPressureMmHg": 6.665809,
+      "figureEight": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 5.999908,
+        "vLoopArea": 4.790664,
+        "volumeSeparationMl": -16.516552,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0.032049,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.155086,
+        "maxPvTangentAngleJumpDeg": 28.454271,
+        "mvOpeningTangentAngleJumpDeg": 1.31895,
+        "lowerVLoopTangentAngleJumpDeg": 1.31895,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed",
+          "v-loop-not-higher-volume-than-a-loop",
+          "conduit-window-too-short",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
+      },
+      "prime": {
+        "pass": false,
+        "sPrimePeakAbsCmPerSec": 1.92,
+        "ePrimePeakAbsCmPerSec": 1.92,
+        "aPrimePeakAbsCmPerSec": 1.1535,
+        "maxC1ContinuityScore": 1.18179,
+        "failureReasons": [
+          "prime-c1-kink"
+        ]
+      },
+      "failureReasons": [
+        "phase-oriented-figure-eight-fail",
+        "mvf-not-clean",
+        "prime-waveform-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr75",
+      "variantId": "normal-form-r10-b2-release045-cap40",
+      "figureEightPass": false,
+      "mvfClean": false,
+      "primePass": false,
+      "hiddenVolumeClean": true,
+      "sourceBoundaryClean": true,
+      "sourcePreservingFigureEight": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.466113,
+      "mvForwardVolumeMl": 6.404582,
+      "baselineMvForwardVolumeMl": 1.508294,
+      "maxMassResidualAbsMl": 0,
+      "maxResidualNorm": 0,
+      "maxZNorm": 0.208038,
+      "maxZDotNormPerSec": 0.75,
+      "maxHydraulicForceN": 0,
+      "maxNetForceN": 4.741946,
+      "maxPvPressureMmHg": 6.66351,
+      "figureEight": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 11.557429,
+        "vLoopArea": 6.533823,
+        "volumeSeparationMl": -16.492016,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0.038876,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.144269,
+        "maxPvTangentAngleJumpDeg": 23.518207,
+        "mvOpeningTangentAngleJumpDeg": 1.537071,
+        "lowerVLoopTangentAngleJumpDeg": 1.537071,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed",
+          "v-loop-not-higher-volume-than-a-loop",
+          "conduit-window-too-short",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
+      },
+      "prime": {
+        "pass": false,
+        "sPrimePeakAbsCmPerSec": 1.8,
+        "ePrimePeakAbsCmPerSec": 1.8,
+        "aPrimePeakAbsCmPerSec": 1.237541,
+        "maxC1ContinuityScore": 1.137372,
+        "failureReasons": [
+          "prime-c1-kink"
+        ]
+      },
+      "failureReasons": [
+        "phase-oriented-figure-eight-fail",
+        "mvf-not-clean",
+        "prime-waveform-fail"
+      ]
+    },
+    {
       "profileId": "normal-hr90",
       "variantId": "no-avp-reference",
       "figureEightPass": false,
@@ -940,6 +1208,191 @@
         "ePrimePeakAbsCmPerSec": 1.92,
         "aPrimePeakAbsCmPerSec": 1.186418,
         "maxC1ContinuityScore": 1.10777,
+        "failureReasons": [
+          "prime-c1-kink"
+        ]
+      },
+      "failureReasons": [
+        "phase-oriented-figure-eight-fail",
+        "mvf-not-clean",
+        "prime-waveform-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "variantId": "normal-form-r4-b1-release08-cap32",
+      "figureEightPass": false,
+      "mvfClean": false,
+      "primePass": false,
+      "hiddenVolumeClean": true,
+      "sourceBoundaryClean": true,
+      "sourcePreservingFigureEight": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.836623,
+      "mvForwardVolumeMl": 0.850019,
+      "baselineMvForwardVolumeMl": 0.104471,
+      "maxMassResidualAbsMl": 0,
+      "maxResidualNorm": 0,
+      "maxZNorm": 0.195876,
+      "maxZDotNormPerSec": 0.8,
+      "maxHydraulicForceN": 0,
+      "maxNetForceN": 3.659155,
+      "maxPvPressureMmHg": 6.420386,
+      "figureEight": {
+        "pass": false,
+        "selfIntersections": 1,
+        "opposedSignedLobes": true,
+        "aLoopArea": 1.062032,
+        "vLoopArea": 9.277235,
+        "volumeSeparationMl": -16.163608,
+        "postOpeningPressureDropMmHg": 0.001094,
+        "postOpeningVolumeDropMl": 0.03784,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.053373,
+        "maxPvTangentAngleJumpDeg": 95.765647,
+        "mvOpeningTangentAngleJumpDeg": 95.765647,
+        "lowerVLoopTangentAngleJumpDeg": 95.765647,
+        "failureReasons": [
+          "a-loop-area-too-small",
+          "v-loop-not-higher-volume-than-a-loop",
+          "conduit-window-too-short",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord",
+          "mv-opening-pv-c1-kink",
+          "lower-v-loop-pv-c1-kink"
+        ]
+      },
+      "prime": {
+        "pass": false,
+        "sPrimePeakAbsCmPerSec": 1.92,
+        "ePrimePeakAbsCmPerSec": 1.92,
+        "aPrimePeakAbsCmPerSec": 1.066844,
+        "maxC1ContinuityScore": 1.129707,
+        "failureReasons": [
+          "prime-c1-kink"
+        ]
+      },
+      "failureReasons": [
+        "phase-oriented-figure-eight-fail",
+        "mvf-not-clean",
+        "prime-waveform-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "variantId": "normal-form-r7-b1-release06-cap36",
+      "figureEightPass": false,
+      "mvfClean": false,
+      "primePass": false,
+      "hiddenVolumeClean": true,
+      "sourceBoundaryClean": true,
+      "sourcePreservingFigureEight": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.804778,
+      "mvForwardVolumeMl": 0.805733,
+      "baselineMvForwardVolumeMl": 0.104471,
+      "maxMassResidualAbsMl": 0,
+      "maxResidualNorm": 0,
+      "maxZNorm": 0.195362,
+      "maxZDotNormPerSec": 0.8,
+      "maxHydraulicForceN": 0,
+      "maxNetForceN": 4.238624,
+      "maxPvPressureMmHg": 6.441894,
+      "figureEight": {
+        "pass": false,
+        "selfIntersections": 1,
+        "opposedSignedLobes": true,
+        "aLoopArea": 1.306518,
+        "vLoopArea": 6.612845,
+        "volumeSeparationMl": -16.126421,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0.031108,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.055637,
+        "maxPvTangentAngleJumpDeg": 120.868479,
+        "mvOpeningTangentAngleJumpDeg": 120.868479,
+        "lowerVLoopTangentAngleJumpDeg": 120.868479,
+        "failureReasons": [
+          "a-loop-area-too-small",
+          "v-loop-not-higher-volume-than-a-loop",
+          "conduit-window-too-short",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord",
+          "mv-opening-pv-c1-kink",
+          "lower-v-loop-pv-c1-kink"
+        ]
+      },
+      "prime": {
+        "pass": false,
+        "sPrimePeakAbsCmPerSec": 1.92,
+        "ePrimePeakAbsCmPerSec": 1.92,
+        "aPrimePeakAbsCmPerSec": 1.154633,
+        "maxC1ContinuityScore": 1.140087,
+        "failureReasons": [
+          "prime-c1-kink"
+        ]
+      },
+      "failureReasons": [
+        "phase-oriented-figure-eight-fail",
+        "mvf-not-clean",
+        "prime-waveform-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "variantId": "normal-form-r10-b2-release045-cap40",
+      "figureEightPass": false,
+      "mvfClean": false,
+      "primePass": false,
+      "hiddenVolumeClean": true,
+      "sourceBoundaryClean": true,
+      "sourcePreservingFigureEight": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.600625,
+      "mvForwardVolumeMl": 1.669379,
+      "baselineMvForwardVolumeMl": 0.104471,
+      "maxMassResidualAbsMl": 0,
+      "maxResidualNorm": 0,
+      "maxZNorm": 0.18693,
+      "maxZDotNormPerSec": 0.75,
+      "maxHydraulicForceN": 0,
+      "maxNetForceN": 4.870787,
+      "maxPvPressureMmHg": 6.486027,
+      "figureEight": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 1.844765,
+        "vLoopArea": 8.340499,
+        "volumeSeparationMl": -15.893519,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0.044984,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.074388,
+        "maxPvTangentAngleJumpDeg": 65.166312,
+        "mvOpeningTangentAngleJumpDeg": 2.014751,
+        "lowerVLoopTangentAngleJumpDeg": 2.014751,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed",
+          "v-loop-not-higher-volume-than-a-loop",
+          "conduit-window-too-short",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
+      },
+      "prime": {
+        "pass": false,
+        "sPrimePeakAbsCmPerSec": 1.8,
+        "ePrimePeakAbsCmPerSec": 1.8,
+        "aPrimePeakAbsCmPerSec": 1.235315,
+        "maxC1ContinuityScore": 1.132925,
         "failureReasons": [
           "prime-c1-kink"
         ]
@@ -1390,6 +1843,191 @@
       ]
     },
     {
+      "profileId": "preload-low",
+      "variantId": "normal-form-r4-b1-release08-cap32",
+      "figureEightPass": false,
+      "mvfClean": false,
+      "primePass": false,
+      "hiddenVolumeClean": true,
+      "sourceBoundaryClean": false,
+      "sourcePreservingFigureEight": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.367702,
+      "mvForwardVolumeMl": 18.197796,
+      "baselineMvForwardVolumeMl": 88.272192,
+      "maxMassResidualAbsMl": 0,
+      "maxResidualNorm": 0,
+      "maxZNorm": 0.217975,
+      "maxZDotNormPerSec": 0.8,
+      "maxHydraulicForceN": 0,
+      "maxNetForceN": 3.554331,
+      "maxPvPressureMmHg": 5.59575,
+      "figureEight": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 38.958731,
+        "vLoopArea": 16.606175,
+        "volumeSeparationMl": -17.017557,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0.040274,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.27107,
+        "maxPvTangentAngleJumpDeg": 25.017779,
+        "mvOpeningTangentAngleJumpDeg": 1.299889,
+        "lowerVLoopTangentAngleJumpDeg": 1.299889,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed",
+          "v-loop-not-higher-volume-than-a-loop",
+          "conduit-window-too-short",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
+      },
+      "prime": {
+        "pass": false,
+        "sPrimePeakAbsCmPerSec": 1.92,
+        "ePrimePeakAbsCmPerSec": 1.92,
+        "aPrimePeakAbsCmPerSec": 1.046757,
+        "maxC1ContinuityScore": 1.227163,
+        "failureReasons": [
+          "prime-c1-kink"
+        ]
+      },
+      "failureReasons": [
+        "phase-oriented-figure-eight-fail",
+        "mvf-not-clean",
+        "prime-waveform-fail",
+        "source-boundary-not-clean"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "variantId": "normal-form-r7-b1-release06-cap36",
+      "figureEightPass": false,
+      "mvfClean": false,
+      "primePass": false,
+      "hiddenVolumeClean": true,
+      "sourceBoundaryClean": false,
+      "sourcePreservingFigureEight": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.351282,
+      "mvForwardVolumeMl": 17.519356,
+      "baselineMvForwardVolumeMl": 88.272192,
+      "maxMassResidualAbsMl": 0,
+      "maxResidualNorm": 0,
+      "maxZNorm": 0.21672,
+      "maxZDotNormPerSec": 0.8,
+      "maxHydraulicForceN": 0,
+      "maxNetForceN": 4.124606,
+      "maxPvPressureMmHg": 5.538655,
+      "figureEight": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 40.841812,
+        "vLoopArea": 13.450949,
+        "volumeSeparationMl": -17.645644,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0.085869,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.27323,
+        "maxPvTangentAngleJumpDeg": 24.797162,
+        "mvOpeningTangentAngleJumpDeg": 1.578972,
+        "lowerVLoopTangentAngleJumpDeg": 1.578972,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed",
+          "v-loop-not-higher-volume-than-a-loop",
+          "conduit-window-too-short",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
+      },
+      "prime": {
+        "pass": false,
+        "sPrimePeakAbsCmPerSec": 1.92,
+        "ePrimePeakAbsCmPerSec": 1.92,
+        "aPrimePeakAbsCmPerSec": 1.15674,
+        "maxC1ContinuityScore": 1.189511,
+        "failureReasons": [
+          "prime-c1-kink"
+        ]
+      },
+      "failureReasons": [
+        "phase-oriented-figure-eight-fail",
+        "mvf-not-clean",
+        "prime-waveform-fail",
+        "source-boundary-not-clean"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "variantId": "normal-form-r10-b2-release045-cap40",
+      "figureEightPass": false,
+      "mvfClean": false,
+      "primePass": false,
+      "hiddenVolumeClean": true,
+      "sourceBoundaryClean": true,
+      "sourcePreservingFigureEight": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.272985,
+      "mvForwardVolumeMl": 55.761753,
+      "baselineMvForwardVolumeMl": 88.272192,
+      "maxMassResidualAbsMl": 0,
+      "maxResidualNorm": 0,
+      "maxZNorm": 0.206343,
+      "maxZDotNormPerSec": 0.75,
+      "maxHydraulicForceN": 0,
+      "maxNetForceN": 4.752861,
+      "maxPvPressureMmHg": 5.359657,
+      "figureEight": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 274.619219,
+        "vLoopArea": 56.134296,
+        "volumeSeparationMl": -11.368049,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0.243129,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.620598,
+        "maxPvTangentAngleJumpDeg": 24.944291,
+        "mvOpeningTangentAngleJumpDeg": 1.732624,
+        "lowerVLoopTangentAngleJumpDeg": 1.732624,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed",
+          "v-loop-not-higher-volume-than-a-loop",
+          "conduit-window-too-short",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
+      },
+      "prime": {
+        "pass": false,
+        "sPrimePeakAbsCmPerSec": 1.8,
+        "ePrimePeakAbsCmPerSec": 1.8,
+        "aPrimePeakAbsCmPerSec": 1.240148,
+        "maxC1ContinuityScore": 1.140776,
+        "failureReasons": [
+          "prime-c1-kink"
+        ]
+      },
+      "failureReasons": [
+        "phase-oriented-figure-eight-fail",
+        "mvf-not-clean",
+        "prime-waveform-fail"
+      ]
+    },
+    {
       "profileId": "preload-high",
       "variantId": "no-avp-reference",
       "figureEightPass": false,
@@ -1781,6 +2419,175 @@
         "ePrimePeakAbsCmPerSec": 1.92,
         "aPrimePeakAbsCmPerSec": 1.065591,
         "maxC1ContinuityScore": 1.146111,
+        "failureReasons": [
+          "prime-c1-kink"
+        ]
+      },
+      "failureReasons": [
+        "phase-oriented-figure-eight-fail",
+        "prime-waveform-fail"
+      ]
+    },
+    {
+      "profileId": "preload-high",
+      "variantId": "normal-form-r4-b1-release08-cap32",
+      "figureEightPass": false,
+      "mvfClean": true,
+      "primePass": false,
+      "hiddenVolumeClean": true,
+      "sourceBoundaryClean": true,
+      "sourcePreservingFigureEight": false,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.245775,
+      "mvForwardVolumeMl": 0.142181,
+      "baselineMvForwardVolumeMl": 0.131128,
+      "maxMassResidualAbsMl": 0,
+      "maxResidualNorm": 0,
+      "maxZNorm": 0.222445,
+      "maxZDotNormPerSec": 0.8,
+      "maxHydraulicForceN": 0,
+      "maxNetForceN": 3.533777,
+      "maxPvPressureMmHg": 7.136836,
+      "figureEight": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": true,
+        "aLoopArea": 2.508429,
+        "vLoopArea": 6.623828,
+        "volumeSeparationMl": -17.112989,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": 0,
+        "maxPvTangentAngleJumpDeg": 106.495281,
+        "mvOpeningTangentAngleJumpDeg": 0,
+        "lowerVLoopTangentAngleJumpDeg": 0,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "v-loop-not-higher-volume-than-a-loop",
+          "missing-mv-opening-point",
+          "missing-mv-closure-point"
+        ]
+      },
+      "prime": {
+        "pass": false,
+        "sPrimePeakAbsCmPerSec": 1.92,
+        "ePrimePeakAbsCmPerSec": 1.92,
+        "aPrimePeakAbsCmPerSec": 1.039825,
+        "maxC1ContinuityScore": 1.188368,
+        "failureReasons": [
+          "prime-c1-kink"
+        ]
+      },
+      "failureReasons": [
+        "phase-oriented-figure-eight-fail",
+        "prime-waveform-fail"
+      ]
+    },
+    {
+      "profileId": "preload-high",
+      "variantId": "normal-form-r7-b1-release06-cap36",
+      "figureEightPass": false,
+      "mvfClean": true,
+      "primePass": false,
+      "hiddenVolumeClean": true,
+      "sourceBoundaryClean": true,
+      "sourcePreservingFigureEight": false,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.246181,
+      "mvForwardVolumeMl": 0.141683,
+      "baselineMvForwardVolumeMl": 0.131128,
+      "maxMassResidualAbsMl": 0,
+      "maxResidualNorm": 0,
+      "maxZNorm": 0.221307,
+      "maxZDotNormPerSec": 0.8,
+      "maxHydraulicForceN": 0,
+      "maxNetForceN": 4.099546,
+      "maxPvPressureMmHg": 7.160342,
+      "figureEight": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": true,
+        "aLoopArea": 2.773272,
+        "vLoopArea": 3.464103,
+        "volumeSeparationMl": -17.055667,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": 0,
+        "maxPvTangentAngleJumpDeg": 120.80458,
+        "mvOpeningTangentAngleJumpDeg": 0,
+        "lowerVLoopTangentAngleJumpDeg": 0,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "v-loop-not-higher-volume-than-a-loop",
+          "missing-mv-opening-point",
+          "missing-mv-closure-point"
+        ]
+      },
+      "prime": {
+        "pass": false,
+        "sPrimePeakAbsCmPerSec": 1.92,
+        "ePrimePeakAbsCmPerSec": 1.92,
+        "aPrimePeakAbsCmPerSec": 1.148696,
+        "maxC1ContinuityScore": 1.168794,
+        "failureReasons": [
+          "prime-c1-kink"
+        ]
+      },
+      "failureReasons": [
+        "phase-oriented-figure-eight-fail",
+        "prime-waveform-fail"
+      ]
+    },
+    {
+      "profileId": "preload-high",
+      "variantId": "normal-form-r10-b2-release045-cap40",
+      "figureEightPass": false,
+      "mvfClean": true,
+      "primePass": false,
+      "hiddenVolumeClean": true,
+      "sourceBoundaryClean": true,
+      "sourcePreservingFigureEight": false,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.246222,
+      "mvForwardVolumeMl": 0.143491,
+      "baselineMvForwardVolumeMl": 0.131128,
+      "maxMassResidualAbsMl": 0,
+      "maxResidualNorm": 0,
+      "maxZNorm": 0.210845,
+      "maxZDotNormPerSec": 0.75,
+      "maxHydraulicForceN": 0,
+      "maxNetForceN": 4.723663,
+      "maxPvPressureMmHg": 7.236215,
+      "figureEight": {
+        "pass": false,
+        "selfIntersections": 1,
+        "opposedSignedLobes": true,
+        "aLoopArea": 1.388138,
+        "vLoopArea": 4.842392,
+        "volumeSeparationMl": -16.94914,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": 0,
+        "maxPvTangentAngleJumpDeg": 174.732356,
+        "mvOpeningTangentAngleJumpDeg": 0,
+        "lowerVLoopTangentAngleJumpDeg": 0,
+        "failureReasons": [
+          "a-loop-area-too-small",
+          "v-loop-not-higher-volume-than-a-loop",
+          "missing-mv-opening-point",
+          "missing-mv-closure-point",
+          "pv-global-c1-kink"
+        ]
+      },
+      "prime": {
+        "pass": false,
+        "sPrimePeakAbsCmPerSec": 1.8,
+        "ePrimePeakAbsCmPerSec": 1.8,
+        "aPrimePeakAbsCmPerSec": 1.233482,
+        "maxC1ContinuityScore": 1.131502,
         "failureReasons": [
           "prime-c1-kink"
         ]
@@ -2192,6 +2999,176 @@
       ]
     },
     {
+      "profileId": "afterload-high",
+      "variantId": "normal-form-r4-b1-release08-cap32",
+      "figureEightPass": false,
+      "mvfClean": true,
+      "primePass": false,
+      "hiddenVolumeClean": true,
+      "sourceBoundaryClean": true,
+      "sourcePreservingFigureEight": false,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.245553,
+      "mvForwardVolumeMl": 0.132608,
+      "baselineMvForwardVolumeMl": 0.122313,
+      "maxMassResidualAbsMl": 0,
+      "maxResidualNorm": 0,
+      "maxZNorm": 0.223047,
+      "maxZDotNormPerSec": 0.8,
+      "maxHydraulicForceN": 0,
+      "maxNetForceN": 3.535659,
+      "maxPvPressureMmHg": 7.19013,
+      "figureEight": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": true,
+        "aLoopArea": 2.455416,
+        "vLoopArea": 6.490938,
+        "volumeSeparationMl": -16.954245,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": 0,
+        "maxPvTangentAngleJumpDeg": 93.532144,
+        "mvOpeningTangentAngleJumpDeg": 0,
+        "lowerVLoopTangentAngleJumpDeg": 0,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "v-loop-not-higher-volume-than-a-loop",
+          "missing-mv-opening-point",
+          "missing-mv-closure-point"
+        ]
+      },
+      "prime": {
+        "pass": false,
+        "sPrimePeakAbsCmPerSec": 1.92,
+        "ePrimePeakAbsCmPerSec": 1.92,
+        "aPrimePeakAbsCmPerSec": 1.038503,
+        "maxC1ContinuityScore": 1.179556,
+        "failureReasons": [
+          "prime-c1-kink"
+        ]
+      },
+      "failureReasons": [
+        "phase-oriented-figure-eight-fail",
+        "prime-waveform-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "variantId": "normal-form-r7-b1-release06-cap36",
+      "figureEightPass": false,
+      "mvfClean": true,
+      "primePass": false,
+      "hiddenVolumeClean": true,
+      "sourceBoundaryClean": true,
+      "sourcePreservingFigureEight": false,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.245956,
+      "mvForwardVolumeMl": 0.132118,
+      "baselineMvForwardVolumeMl": 0.122313,
+      "maxMassResidualAbsMl": 0,
+      "maxResidualNorm": 0,
+      "maxZNorm": 0.221776,
+      "maxZDotNormPerSec": 0.8,
+      "maxHydraulicForceN": 0,
+      "maxNetForceN": 4.102234,
+      "maxPvPressureMmHg": 7.213671,
+      "figureEight": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": true,
+        "aLoopArea": 2.717146,
+        "vLoopArea": 3.371027,
+        "volumeSeparationMl": -16.895977,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": 0,
+        "maxPvTangentAngleJumpDeg": 124.271567,
+        "mvOpeningTangentAngleJumpDeg": 0,
+        "lowerVLoopTangentAngleJumpDeg": 0,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "v-loop-not-higher-volume-than-a-loop",
+          "missing-mv-opening-point",
+          "missing-mv-closure-point",
+          "pv-global-c1-kink"
+        ]
+      },
+      "prime": {
+        "pass": false,
+        "sPrimePeakAbsCmPerSec": 1.92,
+        "ePrimePeakAbsCmPerSec": 1.92,
+        "aPrimePeakAbsCmPerSec": 1.146985,
+        "maxC1ContinuityScore": 1.163669,
+        "failureReasons": [
+          "prime-c1-kink"
+        ]
+      },
+      "failureReasons": [
+        "phase-oriented-figure-eight-fail",
+        "prime-waveform-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "variantId": "normal-form-r10-b2-release045-cap40",
+      "figureEightPass": false,
+      "mvfClean": true,
+      "primePass": false,
+      "hiddenVolumeClean": true,
+      "sourceBoundaryClean": true,
+      "sourcePreservingFigureEight": false,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.245999,
+      "mvForwardVolumeMl": 0.133929,
+      "baselineMvForwardVolumeMl": 0.122313,
+      "maxMassResidualAbsMl": 0,
+      "maxResidualNorm": 0,
+      "maxZNorm": 0.211444,
+      "maxZDotNormPerSec": 0.75,
+      "maxHydraulicForceN": 0,
+      "maxNetForceN": 4.726064,
+      "maxPvPressureMmHg": 7.286112,
+      "figureEight": {
+        "pass": false,
+        "selfIntersections": 1,
+        "opposedSignedLobes": true,
+        "aLoopArea": 1.342096,
+        "vLoopArea": 4.748548,
+        "volumeSeparationMl": -16.800662,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": 0,
+        "maxPvTangentAngleJumpDeg": 176.363088,
+        "mvOpeningTangentAngleJumpDeg": 0,
+        "lowerVLoopTangentAngleJumpDeg": 0,
+        "failureReasons": [
+          "a-loop-area-too-small",
+          "v-loop-not-higher-volume-than-a-loop",
+          "missing-mv-opening-point",
+          "missing-mv-closure-point",
+          "pv-global-c1-kink"
+        ]
+      },
+      "prime": {
+        "pass": false,
+        "sPrimePeakAbsCmPerSec": 1.8,
+        "ePrimePeakAbsCmPerSec": 1.8,
+        "aPrimePeakAbsCmPerSec": 1.231953,
+        "maxC1ContinuityScore": 1.128965,
+        "failureReasons": [
+          "prime-c1-kink"
+        ]
+      },
+      "failureReasons": [
+        "phase-oriented-figure-eight-fail",
+        "prime-waveform-fail"
+      ]
+    },
+    {
       "profileId": "contractility-low",
       "variantId": "no-avp-reference",
       "figureEightPass": false,
@@ -2583,6 +3560,176 @@
         "ePrimePeakAbsCmPerSec": 1.92,
         "aPrimePeakAbsCmPerSec": 1.076503,
         "maxC1ContinuityScore": 1.462936,
+        "failureReasons": [
+          "prime-c1-kink"
+        ]
+      },
+      "failureReasons": [
+        "phase-oriented-figure-eight-fail",
+        "prime-waveform-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "variantId": "normal-form-r4-b1-release08-cap32",
+      "figureEightPass": false,
+      "mvfClean": true,
+      "primePass": false,
+      "hiddenVolumeClean": true,
+      "sourceBoundaryClean": true,
+      "sourcePreservingFigureEight": false,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.322998,
+      "mvForwardVolumeMl": 0.0994,
+      "baselineMvForwardVolumeMl": 0.090652,
+      "maxMassResidualAbsMl": 0,
+      "maxResidualNorm": 0,
+      "maxZNorm": 0.206707,
+      "maxZDotNormPerSec": 0.8,
+      "maxHydraulicForceN": 0,
+      "maxNetForceN": 3.572005,
+      "maxPvPressureMmHg": 7.63078,
+      "figureEight": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": true,
+        "aLoopArea": 2.06098,
+        "vLoopArea": 5.543836,
+        "volumeSeparationMl": -15.619801,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": 0,
+        "maxPvTangentAngleJumpDeg": 130.915205,
+        "mvOpeningTangentAngleJumpDeg": 0,
+        "lowerVLoopTangentAngleJumpDeg": 0,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "v-loop-not-higher-volume-than-a-loop",
+          "missing-mv-opening-point",
+          "missing-mv-closure-point",
+          "pv-global-c1-kink"
+        ]
+      },
+      "prime": {
+        "pass": false,
+        "sPrimePeakAbsCmPerSec": 1.92,
+        "ePrimePeakAbsCmPerSec": 1.92,
+        "aPrimePeakAbsCmPerSec": 1.080236,
+        "maxC1ContinuityScore": 1.443803,
+        "failureReasons": [
+          "prime-c1-kink"
+        ]
+      },
+      "failureReasons": [
+        "phase-oriented-figure-eight-fail",
+        "prime-waveform-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "variantId": "normal-form-r7-b1-release06-cap36",
+      "figureEightPass": false,
+      "mvfClean": true,
+      "primePass": false,
+      "hiddenVolumeClean": true,
+      "sourceBoundaryClean": true,
+      "sourcePreservingFigureEight": false,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.322596,
+      "mvForwardVolumeMl": 0.0991,
+      "baselineMvForwardVolumeMl": 0.090652,
+      "maxMassResidualAbsMl": 0,
+      "maxResidualNorm": 0,
+      "maxZNorm": 0.205333,
+      "maxZDotNormPerSec": 0.8,
+      "maxHydraulicForceN": 0,
+      "maxNetForceN": 4.144717,
+      "maxPvPressureMmHg": 7.653268,
+      "figureEight": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": true,
+        "aLoopArea": 2.288396,
+        "vLoopArea": 2.811244,
+        "volumeSeparationMl": -15.563885,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": 0,
+        "maxPvTangentAngleJumpDeg": 97.459843,
+        "mvOpeningTangentAngleJumpDeg": 0,
+        "lowerVLoopTangentAngleJumpDeg": 0,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "v-loop-not-higher-volume-than-a-loop",
+          "missing-mv-opening-point",
+          "missing-mv-closure-point"
+        ]
+      },
+      "prime": {
+        "pass": false,
+        "sPrimePeakAbsCmPerSec": 1.92,
+        "ePrimePeakAbsCmPerSec": 1.92,
+        "aPrimePeakAbsCmPerSec": 1.189356,
+        "maxC1ContinuityScore": 1.259599,
+        "failureReasons": [
+          "prime-c1-kink"
+        ]
+      },
+      "failureReasons": [
+        "phase-oriented-figure-eight-fail",
+        "prime-waveform-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "variantId": "normal-form-r10-b2-release045-cap40",
+      "figureEightPass": false,
+      "mvfClean": true,
+      "primePass": false,
+      "hiddenVolumeClean": true,
+      "sourceBoundaryClean": true,
+      "sourcePreservingFigureEight": false,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.32147,
+      "mvForwardVolumeMl": 0.100858,
+      "baselineMvForwardVolumeMl": 0.090652,
+      "maxMassResidualAbsMl": 0,
+      "maxResidualNorm": 0,
+      "maxZNorm": 0.195889,
+      "maxZDotNormPerSec": 0.75,
+      "maxHydraulicForceN": 0,
+      "maxNetForceN": 4.770898,
+      "maxPvPressureMmHg": 7.749738,
+      "figureEight": {
+        "pass": false,
+        "selfIntersections": 1,
+        "opposedSignedLobes": true,
+        "aLoopArea": 0.976838,
+        "vLoopArea": 4.151316,
+        "volumeSeparationMl": -15.416449,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": 0,
+        "maxPvTangentAngleJumpDeg": 177.03922,
+        "mvOpeningTangentAngleJumpDeg": 0,
+        "lowerVLoopTangentAngleJumpDeg": 0,
+        "failureReasons": [
+          "a-loop-area-too-small",
+          "v-loop-not-higher-volume-than-a-loop",
+          "missing-mv-opening-point",
+          "missing-mv-closure-point",
+          "pv-global-c1-kink"
+        ]
+      },
+      "prime": {
+        "pass": false,
+        "sPrimePeakAbsCmPerSec": 1.8,
+        "ePrimePeakAbsCmPerSec": 1.8,
+        "aPrimePeakAbsCmPerSec": 1.263526,
+        "maxC1ContinuityScore": 1.16238,
         "failureReasons": [
           "prime-c1-kink"
         ]
@@ -3028,6 +4175,194 @@
         "prime-waveform-fail",
         "mass-ledger-residual"
       ]
+    },
+    {
+      "profileId": "contractility-high",
+      "variantId": "normal-form-r4-b1-release08-cap32",
+      "figureEightPass": false,
+      "mvfClean": false,
+      "primePass": false,
+      "hiddenVolumeClean": false,
+      "sourceBoundaryClean": true,
+      "sourcePreservingFigureEight": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.221969,
+      "mvForwardVolumeMl": 104.696693,
+      "baselineMvForwardVolumeMl": 91.464231,
+      "maxMassResidualAbsMl": 3.397409,
+      "maxResidualNorm": 0,
+      "maxZNorm": 0.223956,
+      "maxZDotNormPerSec": 0.8,
+      "maxHydraulicForceN": 0,
+      "maxNetForceN": 3.540958,
+      "maxPvPressureMmHg": 5.560238,
+      "figureEight": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 398.323035,
+        "vLoopArea": 83.899847,
+        "volumeSeparationMl": -8.519409,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0.223558,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.793774,
+        "maxPvTangentAngleJumpDeg": 142.790484,
+        "mvOpeningTangentAngleJumpDeg": 2.757392,
+        "lowerVLoopTangentAngleJumpDeg": 2.757392,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed",
+          "v-loop-not-higher-volume-than-a-loop",
+          "conduit-window-too-short",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord",
+          "pv-global-c1-kink"
+        ]
+      },
+      "prime": {
+        "pass": false,
+        "sPrimePeakAbsCmPerSec": 1.92,
+        "ePrimePeakAbsCmPerSec": 1.92,
+        "aPrimePeakAbsCmPerSec": 1.037282,
+        "maxC1ContinuityScore": 1.170724,
+        "failureReasons": [
+          "prime-c1-kink"
+        ]
+      },
+      "failureReasons": [
+        "phase-oriented-figure-eight-fail",
+        "mvf-not-clean",
+        "prime-waveform-fail",
+        "mass-ledger-residual"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "variantId": "normal-form-r7-b1-release06-cap36",
+      "figureEightPass": false,
+      "mvfClean": false,
+      "primePass": false,
+      "hiddenVolumeClean": false,
+      "sourceBoundaryClean": true,
+      "sourcePreservingFigureEight": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.223718,
+      "mvForwardVolumeMl": 104.133403,
+      "baselineMvForwardVolumeMl": 91.464231,
+      "maxMassResidualAbsMl": 3.360503,
+      "maxResidualNorm": 0,
+      "maxZNorm": 0.22267,
+      "maxZDotNormPerSec": 0.8,
+      "maxHydraulicForceN": 0,
+      "maxNetForceN": 4.109416,
+      "maxPvPressureMmHg": 5.617275,
+      "figureEight": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 397.582694,
+        "vLoopArea": 72.977504,
+        "volumeSeparationMl": -8.370889,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0.220562,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.791488,
+        "maxPvTangentAngleJumpDeg": 121.991691,
+        "mvOpeningTangentAngleJumpDeg": 2.686071,
+        "lowerVLoopTangentAngleJumpDeg": 2.686071,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed",
+          "v-loop-not-higher-volume-than-a-loop",
+          "conduit-window-too-short",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord"
+        ]
+      },
+      "prime": {
+        "pass": false,
+        "sPrimePeakAbsCmPerSec": 1.92,
+        "ePrimePeakAbsCmPerSec": 1.92,
+        "aPrimePeakAbsCmPerSec": 1.145324,
+        "maxC1ContinuityScore": 1.157655,
+        "failureReasons": [
+          "prime-c1-kink"
+        ]
+      },
+      "failureReasons": [
+        "phase-oriented-figure-eight-fail",
+        "mvf-not-clean",
+        "prime-waveform-fail",
+        "mass-ledger-residual"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "variantId": "normal-form-r10-b2-release045-cap40",
+      "figureEightPass": false,
+      "mvfClean": false,
+      "primePass": false,
+      "hiddenVolumeClean": false,
+      "sourceBoundaryClean": true,
+      "sourcePreservingFigureEight": false,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.222395,
+      "mvForwardVolumeMl": 107.950529,
+      "baselineMvForwardVolumeMl": 91.464231,
+      "maxMassResidualAbsMl": 3.539191,
+      "maxResidualNorm": 0,
+      "maxZNorm": 0.212159,
+      "maxZDotNormPerSec": 0.75,
+      "maxHydraulicForceN": 0,
+      "maxNetForceN": 4.734992,
+      "maxPvPressureMmHg": 5.646227,
+      "figureEight": {
+        "pass": false,
+        "selfIntersections": 0,
+        "opposedSignedLobes": false,
+        "aLoopArea": 421.679236,
+        "vLoopArea": 69.500277,
+        "volumeSeparationMl": -8.247647,
+        "postOpeningPressureDropMmHg": 0,
+        "postOpeningVolumeDropMl": 0.21825,
+        "conduitBelowReservoirChordFraction": 0,
+        "meanConduitBelowReservoirChordMmHg": -0.788402,
+        "maxPvTangentAngleJumpDeg": 139.265078,
+        "mvOpeningTangentAngleJumpDeg": 3.020738,
+        "lowerVLoopTangentAngleJumpDeg": 3.020738,
+        "failureReasons": [
+          "missing-pv-self-intersection",
+          "a-v-lobes-not-opposed",
+          "v-loop-not-higher-volume-than-a-loop",
+          "conduit-window-too-short",
+          "mv-opening-conduit-not-pressure-downward",
+          "mv-opening-conduit-not-volume-leftward",
+          "conduit-not-below-reservoir-chord",
+          "conduit-mean-not-below-reservoir-chord",
+          "pv-global-c1-kink"
+        ]
+      },
+      "prime": {
+        "pass": false,
+        "sPrimePeakAbsCmPerSec": 1.8,
+        "ePrimePeakAbsCmPerSec": 1.8,
+        "aPrimePeakAbsCmPerSec": 1.230509,
+        "maxC1ContinuityScore": 1.126415,
+        "failureReasons": [
+          "prime-c1-kink"
+        ]
+      },
+      "failureReasons": [
+        "phase-oriented-figure-eight-fail",
+        "mvf-not-clean",
+        "prime-waveform-fail",
+        "mass-ledger-residual"
+      ]
     }
   ],
   "variantSummaries": [
@@ -3135,6 +4470,51 @@
       "maxPrimeC1ContinuityScore": 1.462936,
       "maxResidualNorm": 0.050503,
       "maxZNorm": 0.239902
+    },
+    {
+      "variantId": "normal-form-r4-b1-release08-cap32",
+      "figureEightPass": 0,
+      "mvfClean": 3,
+      "primePass": 0,
+      "sourceBoundaryClean": 6,
+      "sourcePreservingFigureEight": 0,
+      "hiddenVolumeClean": 6,
+      "maxVLoopArea": 83.899847,
+      "maxPostOpeningPressureDropMmHg": 0.001094,
+      "maxPvTangentAngleJumpDeg": 142.790484,
+      "maxPrimeC1ContinuityScore": 1.443803,
+      "maxResidualNorm": 0,
+      "maxZNorm": 0.223956
+    },
+    {
+      "variantId": "normal-form-r7-b1-release06-cap36",
+      "figureEightPass": 0,
+      "mvfClean": 3,
+      "primePass": 0,
+      "sourceBoundaryClean": 6,
+      "sourcePreservingFigureEight": 0,
+      "hiddenVolumeClean": 6,
+      "maxVLoopArea": 72.977504,
+      "maxPostOpeningPressureDropMmHg": 0,
+      "maxPvTangentAngleJumpDeg": 124.271567,
+      "maxPrimeC1ContinuityScore": 1.259599,
+      "maxResidualNorm": 0,
+      "maxZNorm": 0.22267
+    },
+    {
+      "variantId": "normal-form-r10-b2-release045-cap40",
+      "figureEightPass": 0,
+      "mvfClean": 3,
+      "primePass": 0,
+      "sourceBoundaryClean": 7,
+      "sourcePreservingFigureEight": 0,
+      "hiddenVolumeClean": 6,
+      "maxVLoopArea": 69.500277,
+      "maxPostOpeningPressureDropMmHg": 0,
+      "maxPvTangentAngleJumpDeg": 177.03922,
+      "maxPrimeC1ContinuityScore": 1.16238,
+      "maxResidualNorm": 0,
+      "maxZNorm": 0.212159
     }
   ],
   "bestResidualVariant": {
@@ -3180,5 +4560,5 @@
     "pressureSubstitution": false,
     "LandAtrialUnlock": false
   },
-  "normalizedSha256": "6464be8dbf8e077d5b453980e94bfd533e776fea7cf37c7858fd9877bcb3c4ef"
+  "normalizedSha256": "e6331fa8553b76afca63d0a3f89c3b809f962f8b219c2c65c6e475cc5e5f51b3"
 }

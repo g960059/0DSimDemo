@@ -17,6 +17,21 @@ const outPath = resolve(
 
 const report = runIsolatedLaAvpMvPvResidualBenchV1();
 const panels = runIsolatedLaAvpMvPvResidualTrajectoryPanelsV1(report.summary.bestResidualVariantId);
+const bestNormalForm = [...report.variantSummaries]
+  .filter((summary) => summary.variantId.startsWith("normal-form-"))
+  .sort((a, b) =>
+    b.sourcePreservingFigureEight - a.sourcePreservingFigureEight
+    || b.figureEightPass - a.figureEightPass
+    || b.sourceBoundaryClean - a.sourceBoundaryClean
+    || b.mvfClean - a.mvfClean
+    || b.maxVLoopArea - a.maxVLoopArea
+  )[0];
+const normalFormPanels = bestNormalForm == null
+  ? null
+  : runIsolatedLaAvpMvPvResidualTrajectoryPanelsV1(bestNormalForm.variantId);
+
+type PanelWithNormalForm = ReturnType<typeof runIsolatedLaAvpMvPvResidualTrajectoryPanelsV1>[number]
+  & { readonly normalForm: readonly IsolatedLaAvpMvPvResidualSampleV1[] | null };
 
 const width = 1440;
 const panelWidth = 650;
@@ -36,6 +51,7 @@ svg.push(`<text x="34" y="82" fill="#9ca3af" font-family="Inter,Arial,sans-serif
 legend(svg, 940, 38, "#22c55e", "no AV-plane reference");
 legend(svg, 940, 62, "#38bdf8", "explicit reference-volume coordinate");
 legend(svg, 940, 86, "#f97316", "best LA-AVP-MV-PV residual");
+if (bestNormalForm != null) legend(svg, 940, 110, "#a855f7", `best normal-form ${bestNormalForm.variantId}`);
 svg.push(`<circle cx="1238" cy="42" r="4.5" fill="#111827" stroke="#f8fafc" stroke-width="2"/>`);
 svg.push(`<text x="1250" y="47" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">best MV closure</text>`);
 svg.push(`<circle cx="1238" cy="66" r="4.5" fill="#f8fafc" stroke="#111827" stroke-width="1.5"/>`);
@@ -46,7 +62,10 @@ for (let i = 0; i < panels.length; i++) {
   const row = Math.floor(i / 2);
   const x = marginX + col * (panelWidth + gapX);
   const y = marginY + row * (panelHeight + gapY);
-  renderPanel(svg, x, y, panelWidth, panelHeight, panels[i]!);
+  renderPanel(svg, x, y, panelWidth, panelHeight, {
+    ...panels[i]!,
+    normalForm: normalFormPanels?.[i]?.bestResidual ?? null,
+  });
 }
 
 svg.push(`</svg>`);
@@ -60,7 +79,7 @@ function renderPanel(
   y: number,
   w: number,
   h: number,
-  panel: ReturnType<typeof runIsolatedLaAvpMvPvResidualTrajectoryPanelsV1>[number],
+  panel: PanelWithNormalForm,
 ): void {
   const padX = 26;
   const padTop = 46;
@@ -80,9 +99,9 @@ function renderPv(
   y: number,
   w: number,
   h: number,
-  panel: ReturnType<typeof runIsolatedLaAvpMvPvResidualTrajectoryPanelsV1>[number],
+  panel: PanelWithNormalForm,
 ): void {
-  const all = [...panel.baseline, ...panel.explicitReference, ...panel.bestResidual];
+  const all = [...panel.baseline, ...panel.explicitReference, ...panel.bestResidual, ...(panel.normalForm ?? [])];
   const xs = all.map((sample) => sample.laBloodVolumeMl);
   const ps = all.map((sample) => sample.lapMmHg);
   const minX = Math.min(...xs);
@@ -95,6 +114,9 @@ function renderPv(
   out.push(`<path d="${pvPath(panel.baseline, sx, sy)}" fill="none" stroke="#22c55e" stroke-width="2.2" opacity="0.9"/>`);
   out.push(`<path d="${pvPath(panel.explicitReference, sx, sy)}" fill="none" stroke="#38bdf8" stroke-width="2.2" opacity="0.9"/>`);
   out.push(`<path d="${pvPath(panel.bestResidual, sx, sy)}" fill="none" stroke="#f97316" stroke-width="2.6" opacity="0.95"/>`);
+  if (panel.normalForm != null) {
+    out.push(`<path d="${pvPath(panel.normalForm, sx, sy)}" fill="none" stroke="#a855f7" stroke-width="2.4" opacity="0.85"/>`);
+  }
   const opening = findOpening(panel.bestResidual);
   const closure = opening == null ? null : findClosure(panel.bestResidual, opening);
   if (opening != null) {
@@ -118,9 +140,9 @@ function renderFlow(
   y: number,
   w: number,
   h: number,
-  panel: ReturnType<typeof runIsolatedLaAvpMvPvResidualTrajectoryPanelsV1>[number],
+  panel: PanelWithNormalForm,
 ): void {
-  const all = [...panel.baseline, ...panel.explicitReference, ...panel.bestResidual];
+  const all = [...panel.baseline, ...panel.explicitReference, ...panel.bestResidual, ...(panel.normalForm ?? [])];
   const values = all.flatMap((sample) => [sample.qMvMlPerSec, sample.qPvMlPerSec]);
   const minV = Math.min(0, ...values);
   const maxV = Math.max(1, ...values);
@@ -131,6 +153,7 @@ function renderFlow(
   renderFlowPair(out, panel.baseline, sx, sy, "#22c55e");
   renderFlowPair(out, panel.explicitReference, sx, sy, "#38bdf8");
   renderFlowPair(out, panel.bestResidual, sx, sy, "#f97316");
+  if (panel.normalForm != null) renderFlowPair(out, panel.normalForm, sx, sy, "#a855f7");
 }
 
 function renderPressures(
@@ -139,9 +162,9 @@ function renderPressures(
   y: number,
   w: number,
   h: number,
-  panel: ReturnType<typeof runIsolatedLaAvpMvPvResidualTrajectoryPanelsV1>[number],
+  panel: PanelWithNormalForm,
 ): void {
-  const all = [...panel.baseline, ...panel.explicitReference, ...panel.bestResidual];
+  const all = [...panel.baseline, ...panel.explicitReference, ...panel.bestResidual, ...(panel.normalForm ?? [])];
   const values = all.flatMap((sample) => [sample.lapMmHg, sample.lvpMmHg, sample.pvPressureMmHg]);
   const minV = Math.min(0, ...values);
   const maxV = Math.max(1, ...values);
@@ -149,6 +172,9 @@ function renderPressures(
   const sy = (value: number) => y + h - (value - minV) / Math.max(maxV - minV, 1e-9) * h;
   axis(out, x, y, w, h, "LAP / PV / LVP");
   out.push(`<path d="${tracePath(panel.bestResidual, sx, sy, (s) => s.lapMmHg)}" fill="none" stroke="#f97316" stroke-width="2.4"/>`);
+  if (panel.normalForm != null) {
+    out.push(`<path d="${tracePath(panel.normalForm, sx, sy, (s) => s.lapMmHg)}" fill="none" stroke="#a855f7" stroke-width="2.0" opacity="0.85"/>`);
+  }
   out.push(`<path d="${tracePath(panel.bestResidual, sx, sy, (s) => s.pvPressureMmHg)}" fill="none" stroke="#38bdf8" stroke-width="1.6" stroke-dasharray="4 3"/>`);
   out.push(`<path d="${tracePath(panel.bestResidual, sx, sy, (s) => s.lvpMmHg)}" fill="none" stroke="#94a3b8" stroke-width="1.6" opacity="0.85"/>`);
 }
@@ -159,9 +185,9 @@ function renderPrime(
   y: number,
   w: number,
   h: number,
-  panel: ReturnType<typeof runIsolatedLaAvpMvPvResidualTrajectoryPanelsV1>[number],
+  panel: PanelWithNormalForm,
 ): void {
-  const all = [...panel.baseline, ...panel.explicitReference, ...panel.bestResidual];
+  const all = [...panel.baseline, ...panel.explicitReference, ...panel.bestResidual, ...(panel.normalForm ?? [])];
   const values = all.map((sample) => sample.zAvDotNormPerSec * 2.4);
   const minV = Math.min(-1, ...values);
   const maxV = Math.max(1, ...values);
@@ -175,6 +201,9 @@ function renderPrime(
   out.push(`<path d="${tracePath(panel.baseline, sx, sy, (s) => s.zAvDotNormPerSec * 2.4)}" fill="none" stroke="#22c55e" stroke-width="2.0" opacity="0.9"/>`);
   out.push(`<path d="${tracePath(panel.explicitReference, sx, sy, (s) => s.zAvDotNormPerSec * 2.4)}" fill="none" stroke="#38bdf8" stroke-width="2.0" opacity="0.9"/>`);
   out.push(`<path d="${tracePath(panel.bestResidual, sx, sy, (s) => s.zAvDotNormPerSec * 2.4)}" fill="none" stroke="#f97316" stroke-width="2.5" opacity="0.95"/>`);
+  if (panel.normalForm != null) {
+    out.push(`<path d="${tracePath(panel.normalForm, sx, sy, (s) => s.zAvDotNormPerSec * 2.4)}" fill="none" stroke="#a855f7" stroke-width="2.2" opacity="0.85"/>`);
+  }
 }
 
 function renderFlowPair(
