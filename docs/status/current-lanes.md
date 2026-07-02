@@ -84,6 +84,13 @@ surface and MVF cleanliness remain incomplete, visual review still shows
 traction/transition artifacts, and runtime wiring, runtime AV-plane enablement,
 pressure substitution, broad reservoir retuning, and LandAtrial re-entry remain
 blocked.
+A first MV valve ownership review with raw AV-plane traction held fixed improves
+MVF cleanliness from 4/7 to 5/7 on the best lower-inertance/loss variant while
+keeping opposed-lobe topology 7/7, but source-surface pass remains 4/7, no MV
+variant improves raw source status while preserving topology, and qDot/reverse
+projection burden rises. Treat this as a partial MVF signal only; next work
+should own LA pressure, AV-plane traction, and MV opening in the same
+transaction rather than continuing MV parameter variants.
 Warm-replay lobe attribution, separated-state smokes, dual-lobe geometry,
 flow-oriented LA filling-rate drive, hidden-volume-free AV-plane ejection-rate
 reservoir oracles, AV-plane reservoir capacity/stretch + booster/wall-work,
