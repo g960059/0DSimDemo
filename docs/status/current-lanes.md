@@ -175,6 +175,20 @@ LA-AVP-MV-PV residual class is still too weak; next work should move beyond
 isolated prescribed-LV surfaces toward a stronger implicit full left-heart
 residual that owns LA wall pressure, MV opening/loss, pulmonary venous inflow,
 and AV-plane work together.
+A full-left residual routing bench then compared the old raw traction,
+LA/MV-open release, force-balance, wall-work, reference-volume, and
+fixed-point full-left residual wrappers under the stricter MV-opening
+phase-orientation and PV tangent/prime gates. This produced the first
+source-preserving phase-oriented blood-volume signal after the stricter gate:
+`full-residual-forcebalance-fixed6-pv36-mvsoft` reaches source+phase 3/7,
+phase-oriented LA PV 4/7, source surface 4/7, MVF clean 5/7, hidden-volume clean
+7/7, and reduces transaction residual below the earlier explicit wrappers.
+This is a real routing signal, not morphology acceptance: prime waveform
+remains 0/7, preload-low and contractility-low still fail MVF/source hygiene,
+contractility-high still fails output/phase, and the SVG still marks visible PV
+C1 kink locations. Next work should promote the full-left residual family into
+the actual LA wall/AV-plane/MV/PV accepted-state equations rather than add more
+scalar reservoir or isolated prescribed-LV variants.
 Warm-replay lobe attribution, separated-state smokes, dual-lobe geometry,
 flow-oriented LA filling-rate drive, hidden-volume-free AV-plane ejection-rate
 reservoir oracles, AV-plane reservoir capacity/stretch + booster/wall-work,
