@@ -72,6 +72,9 @@ Current scope:
 - `benches/FourChamberDtHalfSourceAttributionBench.ts`: focused attribution of
   `dt-half` surface losses against standalone source surfaces, reservoir
   pressure perturbation, and subsystem coupling.
+- `benches/SourceSurfaceDtHalfStabilityScanBench.ts`: small source-surface
+  candidate scan after `dt-half` attribution closes reservoir pressure tuning
+  as the next fix.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
@@ -100,6 +103,7 @@ Planning docs:
 - [Four-chamber subsystem residual review V1](../../docs/mechanics2/four-chamber-subsystem-residual-review-v1.md)
 - [Preload-low reservoir numerics scan V1](../../docs/mechanics2/preload-low-reservoir-numerics-scan-v1.md)
 - [Four-chamber dt-half source attribution V1](../../docs/mechanics2/four-chamber-dthalf-source-attribution-v1.md)
+- [Source-surface dt-half stability scan V1](../../docs/mechanics2/source-surface-dthalf-stability-scan-v1.md)
 - [ADR-MYO-003](../../docs/myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 
 Claim boundary:
