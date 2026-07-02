@@ -29,6 +29,7 @@ export type FourChamberSubsystemReservoirParamsV1 = {
   readonly persistentReservoirVolumeBoundMl: number;
   readonly repeatabilityMismatchDeltaMl: number;
   readonly repeatabilityReservoirStepMl: number;
+  readonly reservoirVolumeOwnershipBoundMl?: number;
 };
 
 export type FourChamberSubsystemParamsV1 = {
@@ -58,6 +59,8 @@ export type FourChamberSubsystemEpochV1 = FourChamberSubsystemForwardMismatchV1 
   readonly proposedTransferMl: number | null;
   readonly acceptedTransferMl: number | null;
   readonly transferLimiterActive: boolean;
+  readonly reservoirVolumeOwnershipLimiterActive?: boolean;
+  readonly reservoirVolumeOwnershipRejectedTransferMl?: number | null;
   readonly leftStatus: LeftHeartDynamicReservePointResultV1["status"];
   readonly rightStatus: RightHeartStrategicSmokePointResultV1["status"];
   readonly leftAcceptedPhenotypeReasons: readonly string[];
@@ -134,9 +137,18 @@ export function runFourChamberSubsystemV1(
     const proposedTransfer = mismatch.signedMismatchMl == null
       ? null
       : mismatch.signedMismatchMl * params.reservoir.transferGain01;
-    const acceptedTransfer = proposedTransfer == null
+    const transferLimited = proposedTransfer == null
       ? null
       : clamp(proposedTransfer, -params.reservoir.maxTransferPerEpochMl, params.reservoir.maxTransferPerEpochMl);
+    const volumeOwnedTransfer = transferLimited == null
+      ? { acceptedTransferMl: null, rejectedTransferMl: null, limiterActive: false }
+      : applyReservoirVolumeOwnership({
+        transferLimitedMl: transferLimited,
+        pulmonaryVenousReservoirVolumeMl,
+        systemicVenousReservoirVolumeMl,
+        reservoirVolumeOwnershipBoundMl: params.reservoir.reservoirVolumeOwnershipBoundMl,
+      });
+    const acceptedTransfer = volumeOwnedTransfer.acceptedTransferMl;
     epochHistory.push({
       epoch,
       pulmonaryVenousReservoirVolumeMl: round(pulmonaryVenousReservoirVolumeMl),
@@ -150,8 +162,14 @@ export function runFourChamberSubsystemV1(
       proposedTransferMl: roundOrNull(proposedTransfer),
       acceptedTransferMl: roundOrNull(acceptedTransfer),
       transferLimiterActive: proposedTransfer != null
-        && acceptedTransfer != null
-        && Math.abs(proposedTransfer - acceptedTransfer) > 1e-9,
+        && transferLimited != null
+        && Math.abs(proposedTransfer - transferLimited) > 1e-9,
+      reservoirVolumeOwnershipLimiterActive: params.reservoir.reservoirVolumeOwnershipBoundMl == null
+        ? undefined
+        : volumeOwnedTransfer.limiterActive,
+      reservoirVolumeOwnershipRejectedTransferMl: params.reservoir.reservoirVolumeOwnershipBoundMl == null
+        ? undefined
+        : roundOrNull(volumeOwnedTransfer.rejectedTransferMl),
       leftStatus: finalLeft.status,
       rightStatus: finalRight.status,
       leftAcceptedPhenotypeReasons: finalLeft.acceptedPhenotypeReasons,
@@ -451,4 +469,38 @@ function round(value: number): number {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function applyReservoirVolumeOwnership(input: {
+  readonly transferLimitedMl: number;
+  readonly pulmonaryVenousReservoirVolumeMl: number;
+  readonly systemicVenousReservoirVolumeMl: number;
+  readonly reservoirVolumeOwnershipBoundMl: number | undefined;
+}): {
+  readonly acceptedTransferMl: number;
+  readonly rejectedTransferMl: number;
+  readonly limiterActive: boolean;
+} {
+  if (input.reservoirVolumeOwnershipBoundMl == null) {
+    return {
+      acceptedTransferMl: input.transferLimitedMl,
+      rejectedTransferMl: 0,
+      limiterActive: false,
+    };
+  }
+  const bound = Math.max(input.reservoirVolumeOwnershipBoundMl, 0);
+  const lower = Math.max(
+    -bound - input.systemicVenousReservoirVolumeMl,
+    input.pulmonaryVenousReservoirVolumeMl - bound,
+  );
+  const upper = Math.min(
+    bound - input.systemicVenousReservoirVolumeMl,
+    bound + input.pulmonaryVenousReservoirVolumeMl,
+  );
+  const acceptedTransferMl = clamp(input.transferLimitedMl, lower, upper);
+  return {
+    acceptedTransferMl,
+    rejectedTransferMl: input.transferLimitedMl - acceptedTransferMl,
+    limiterActive: Math.abs(input.transferLimitedMl - acceptedTransferMl) > 1e-9,
+  };
 }
