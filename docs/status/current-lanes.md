@@ -64,7 +64,9 @@ same-step source/valve/chamber transaction with explicit phase-local
 pressure-flow causality/energy ownership. Direct atrial pressure substitution,
 direct AV-gradient injection, more fixed source-state variant sweeps, runtime
 wiring, reservoir broad retuning, AV-plane work, and LandAtrial re-entry remain
-blocked.
+blocked. For atrial work, pressure parity or MVF cleanup alone is insufficient:
+normal-sinus acceptance must preserve atrial PV figure-eight lobe quality and
+eventually expose AV-plane velocity/a-prime readbacks.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -205,6 +207,9 @@ Included:
   `source-open-memory` residual before any further source-state contract work.
 - AvValveCyclicStateReplayBench V1 for checking whether accepted valve state
   carryover, rather than more atrial source-state tuning, preserves AV replay.
+- AtrialFigureEightQualityAuditBench V1 for source/reservoir-conditioned LA/RA
+  PV lobe-quality and a-prime-readback readiness auditing without pressure
+  substitution or AV-plane enablement.
 
 Excluded:
 
@@ -719,6 +724,15 @@ Next gates:
     also worse (3/14). Treat this as a same-step transaction requirement, not
     a pressure-support promotion. Pressure/gradient commit, runtime,
     AV-plane, LandAtrial, and morphology acceptance remain blocked.
+66. Atrial figure-eight quality audit: source/reservoir-conditioned current
+    pressure has basic figure-eight 1/14 and lobe-quality 0/14, while
+    AtrialFiber pressure has basic figure-eight 14/14 but lobe-quality only
+    5/14 (LA 5/7, RA 0/7). AV-plane velocity/a-prime readbacks are absent by
+    design. This keeps pressure-parity/MVF-only optimization blocked and
+    points atrial work toward stateful atrial chamber P-V co-evolution with
+    explicit future AV-plane position/velocity readbacks. Pressure
+    substitution, runtime, AV-plane enablement, LandAtrial, and morphology
+    acceptance remain blocked.
 
 Parallel prep, not blocking the next strategic gate:
 
@@ -768,5 +782,7 @@ Keep as reusable QA/reference:
 - Future MechanicsCore2 atria should enter as one-fiber atrial chamber/fiber
   packs after source/four-chamber closure. Explicit AV-plane displacement is a
   0DSimDemo geometry extension, not a copied CircAdapt baseline, and remains
-  locked until the source-aware four-chamber contract is stable.
+  locked until the source-aware four-chamber contract is stable. Normal-sinus
+  atrial acceptance needs readable figure-eight lobe quality plus AV-plane
+  velocity/a-prime proxy readiness; pressure parity alone is not sufficient.
 - Official cases are smoke/teaching-surface checks until closures stabilize.
