@@ -41,11 +41,11 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: build a source-aware four-chamber residual review that separates
-phase-aligned source failures and magnitude calibration before runtime wiring,
-reservoir retuning, AV-plane work, or LandAtrial re-entry. Do not directly
-transfer standalone source-surface leads into the selected four-chamber
-scaffold.
+Next PR target: implement a source-aware four-chamber contract that applies
+phase-aligned source parity and load-conditioned magnitude ownership before
+runtime wiring, reservoir retuning, AV-plane work, or LandAtrial re-entry. Do
+not directly transfer standalone source-surface leads into the selected
+four-chamber scaffold.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -115,6 +115,9 @@ Included:
 - FourChamberPvOutflowTransferReviewBench V1 for checking whether the
   standalone right-preload PV outflow lead can transfer directly into the
   selected four-chamber scaffold.
+- FourChamberSourceAwareResidualReviewBench V1 for reclassifying selected
+  four-chamber residuals against the source-surface contract and right-preload
+  PV outflow ownership evidence.
 
 Excluded:
 
@@ -432,6 +435,15 @@ Next gates:
     shuttle failures. Next work should build a source-aware four-chamber review
     rather than reopening reservoir tuning, AV-plane, LandAtrial, or runtime
     wiring.
+41. Four-chamber source-aware residual review: the selected scaffold's four raw
+    failed profiles split into actionable owners. `dt-half/preload-low` combines
+    left source sampling parity with a right PV outflow lead that still must not
+    be directly transferred. `dt-half/afterload-high` is reclassified as a left
+    load-conditioned output-reserve contract issue. `dt-half/contractility-low`
+    remains a coupled low-output phenotype-scope blocker, and
+    `long-epochs/preload-low` remains a reservoir-repeatability blocker. This
+    points next to a source-aware four-chamber contract, not reservoir retuning,
+    runtime wiring, AV-plane, or LandAtrial work.
 
 Parallel prep, not blocking the next strategic gate:
 
@@ -478,4 +490,8 @@ Keep as reusable QA/reference:
 - A1/A2 remain frozen diagnostic scaffolds/comparators.
 - LandAtrial remains the final atrial active-mechanics target, but tuning stays
   locked while LV/RV PV and MVF/TVF raw morphology are failing.
+- Future MechanicsCore2 atria should enter as one-fiber atrial chamber/fiber
+  packs after source/four-chamber closure. Explicit AV-plane displacement is a
+  0DSimDemo geometry extension, not a copied CircAdapt baseline, and remains
+  locked until the source-aware four-chamber contract is stable.
 - Official cases are smoke/teaching-surface checks until closures stabilize.

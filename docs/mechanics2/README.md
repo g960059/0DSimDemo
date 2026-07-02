@@ -37,6 +37,7 @@ Canonical references:
 - [Source-surface contract V1](source-surface-contract-v1.md)
 - [Right preload outflow ownership V1](right-preload-outflow-ownership-v1.md)
 - [Four-chamber PV outflow transfer review V1](four-chamber-pv-outflow-transfer-review-v1.md)
+- [Four-chamber source-aware residual review V1](four-chamber-source-aware-residual-review-v1.md)
 - [ADR-MYO-003](../myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 - [Engine sidecar README](../../engine/mechanics2/README.md)
 
