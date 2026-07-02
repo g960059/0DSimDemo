@@ -59,22 +59,23 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: move from AV-plane geometry/readback oracles to true
-moving-boundary venous-reservoir / AV-plane reservoir co-evolution for the
-missing atrial v-loop. Warm-replay lobe attribution, separated-state smokes,
+Next PR target: move beyond explicit AV-plane venous-reservoir co-evolution
+toward a stateful atrial reservoir strain/reference-state transaction for the
+missing v-loop. Warm-replay lobe attribution, separated-state smokes,
 dual-lobe geometry, flow-oriented LA filling-rate drive, hidden-volume-free
-AV-plane ejection-rate reservoir oracles, and the AV-plane reservoir
-capacity/stretch + booster/wall-work transaction show that source/MVF can
-improve, but opposed v-loop quality remains failed. Direct atrial pressure
-substitution, additive atrial active-pressure source substitution, direct
-AV-gradient injection, more fixed source-state variant sweeps,
-readback-only geometry overlays, simple LV-shortening effective-geometry
-transactions, display-only piston volume, phase-pressure oracles, runtime
-wiring, reservoir broad retuning, runtime AV-plane enablement, and
-LandAtrial re-entry remain blocked. For atrial work, pressure parity, MVF
-cleanup, or self-crossing PV loops alone are insufficient: normal-sinus
-acceptance must preserve atrial PV figure-eight lobe quality and eventually
-expose AV-plane velocity/a-prime readbacks.
+AV-plane ejection-rate reservoir oracles, the AV-plane reservoir
+capacity/stretch + booster/wall-work transaction, and explicit pulmonary
+venous reservoir inflow all show source/MVF or v-loop area signals, but
+opposed v-loop quality remains failed. Direct atrial pressure substitution,
+additive atrial active-pressure source substitution, direct AV-gradient
+injection, more fixed source-state variant sweeps, readback-only geometry
+overlays, simple LV-shortening effective-geometry transactions, display-only
+piston volume, phase-pressure oracles, runtime wiring, reservoir broad
+retuning, runtime AV-plane enablement, and LandAtrial re-entry remain blocked.
+For atrial work, pressure parity, MVF cleanup, larger v-loop area, or
+self-crossing PV loops alone are insufficient: normal-sinus acceptance must
+preserve atrial PV figure-eight opposed-lobe quality and eventually expose
+AV-plane velocity/a-prime readbacks.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
