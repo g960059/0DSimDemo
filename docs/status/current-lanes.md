@@ -23,6 +23,24 @@ Scope: coordination only; evidence lives in PRs, artifacts, and git history.
 
 ## Current Frontier
 
+### Physiology Audit Gate Team
+
+Objective: develop report-only physiology-aware morphology audit gates in
+parallel with the MechanicsCore2 model team. This lane owns
+`engine/diagnostics/morphology`, `tools/diagnostics`, and physiology-audit
+artifacts/docs. It must not modify MechanicsCore2 source/reservoir contracts,
+runtime wiring, AV-plane, LandAtrial, or existing strict morphology acceptance.
+
+Current state: `MorphologyGatePhysiologyAuditV1` is being introduced as a
+shadow/report-only layer that separates universal artifact guards, AV inflow
+pattern classification, and profile-specific expectations. Profile-aware
+relaxation cannot affect current gates until strict normal baseline morphology
+is earned and owner visual review accepts the baseline pack.
+
+Next action: connect the shadow audit to future visual-review packs and real
+trace artifacts without changing strict gate outcomes. Keep all disease
+profiles report-only.
+
 ### MechanicsCore2 / CircAdapt-lite Sidecar
 
 Objective: pivot from the exhausted `ModelCore + Land boundary-contract patch`
