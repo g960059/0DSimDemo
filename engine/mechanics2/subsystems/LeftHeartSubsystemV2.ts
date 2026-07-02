@@ -40,7 +40,8 @@ export type PulmonaryVenousBoundaryModeV2 = "fixed-pressure" | "compliance-node"
 export type LeftAtrialPressureSourceModeV2 =
   | "empirical-a-wave"
   | "fiber-active-a-window-gated-shadow"
-  | "fiber-chamber-total-pressure-shadow";
+  | "fiber-chamber-total-pressure-shadow"
+  | "fiber-active-pressure-additive-shadow";
 
 export type LeftHeartSubsystemParamsV2 = LeftHeartSubsystemParamsV1 & {
   readonly transactionMode: LeftHeartTransactionModeV2;
@@ -74,6 +75,7 @@ export type LeftHeartSubsystemParamsV2 = LeftHeartSubsystemParamsV1 & {
   readonly mvSystolicClosureDriveEndTheta: number;
   readonly laPressureSourceMode: LeftAtrialPressureSourceModeV2;
   readonly laFiberActivePressureReferenceMmHg: number;
+  readonly laFiberActivePressureGain: number;
 };
 
 export type LeftHeartSubsystemStateV2 = {
@@ -224,6 +226,7 @@ export function defaultLeftHeartSubsystemParamsV2(
     mvSystolicClosureDriveEndTheta: overrides.mvSystolicClosureDriveEndTheta ?? 0.18,
     laPressureSourceMode: overrides.laPressureSourceMode ?? "empirical-a-wave",
     laFiberActivePressureReferenceMmHg: overrides.laFiberActivePressureReferenceMmHg ?? 11,
+    laFiberActivePressureGain: overrides.laFiberActivePressureGain ?? 1,
   };
 }
 
@@ -411,6 +414,7 @@ function acceptLeftHeartCandidateV2(input: {
     input.params,
     lapFiberActivePulse01,
     laFiberChamber.pressureRawMmHg,
+    laFiberChamber.activePressureMmHg,
   );
   const lapSafetyMmHg = safetyPressureMmHg(
     input.candidate.laVolumeMl,
@@ -630,16 +634,21 @@ function leftAtrialPressureRaw(
   params: LeftHeartSubsystemParamsV2,
   fiberActivePulse01: number,
   fiberChamberPressureMmHg: number,
+  fiberActivePressureMmHg: number,
 ): number {
   if (params.laPressureSourceMode === "fiber-chamber-total-pressure-shadow") {
     return fiberChamberPressureMmHg;
   }
+  const complianceBaseline =
+    params.laPressureBaselineMmHg
+    + (laVolumeMl - params.laReferenceVolumeMl) / Math.max(params.laComplianceMlPerMmHg, 1e-9);
+  if (params.laPressureSourceMode === "fiber-active-pressure-additive-shadow") {
+    return complianceBaseline + params.laFiberActivePressureGain * fiberActivePressureMmHg;
+  }
   const activePulse01 = params.laPressureSourceMode === "fiber-active-a-window-gated-shadow"
     ? fiberActivePulse01
     : raisedCosineWindow(theta, params.laAWaveStartTheta, params.laAWaveEndTheta);
-  return params.laPressureBaselineMmHg
-    + (laVolumeMl - params.laReferenceVolumeMl) / Math.max(params.laComplianceMlPerMmHg, 1e-9)
-    + params.laAWaveMmHg * activePulse01;
+  return complianceBaseline + params.laAWaveMmHg * activePulse01;
 }
 
 function raisedCosineWindow(theta: number, start: number, end: number): number {
