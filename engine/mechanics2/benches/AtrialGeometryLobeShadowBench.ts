@@ -145,7 +145,8 @@ AtrialGeometryLobeShadowReportV1 {
   const rows = PROFILE_IDS.flatMap((profileId, index) => {
     const params = sourceParams(paramsByProfile[index]!);
     const run = runLeftHeartSubsystemV2(params);
-    return VARIANTS.map((variant) => rowForVariant(profileId, params.fixtureId, variant, params, run.finalBeatSamples));
+    const scoredBeat = params.beats - 2;
+    return VARIANTS.map((variant) => rowForVariant(profileId, params.fixtureId, variant, params, run.samples, scoredBeat));
   });
   const variantSummaries = VARIANTS.map((variant) => summarizeVariant(
     variant.variantId,
@@ -216,15 +217,22 @@ function rowForVariant(
   variant: VariantV1,
   params: LeftHeartSubsystemParamsV2,
   samples: readonly LeftHeartSubsystemSampleV2[],
+  scoredBeat: number,
 ): RowV1 {
   const replay = replayGeometryShadow(params, samples, variant.atrialGeometryGainMl);
+  const scored = samples
+    .map((sample, index) => ({ sample, index }))
+    .filter((entry) => entry.sample.beat === scoredBeat);
+  const scoredSamples = scored.map((entry) => entry.sample);
+  const scoredPressures = scored.map((entry) => replay.geometryAdjustedPressureMmHg[entry.index]!);
+  const scoredReadbacks = scored.map((entry) => replay.readbacks[entry.index]!);
   const lobeQuality = lobeQualityFor(
-    samples.map((sample) => sample.acceptedLaVolumeMl),
-    replay.geometryAdjustedPressureMmHg,
-    samples.map((sample) => sample.theta),
+    scoredSamples.map((sample) => sample.acceptedLaVolumeMl),
+    scoredPressures,
+    scoredSamples.map((sample) => sample.theta),
   );
-  const maxHiddenBloodVolumeSourceMl = maxAbs(replay.readbacks.map((readback) => readback.hiddenBloodVolumeSourceMl));
-  const aPrimeValues = replay.readbacks
+  const maxHiddenBloodVolumeSourceMl = maxAbs(scoredReadbacks.map((readback) => readback.hiddenBloodVolumeSourceMl));
+  const aPrimeValues = scoredReadbacks
     .map((readback) => readback.aPrimeProxyCmPerSec)
     .filter((value): value is number => value != null);
   const failureReasons = [
@@ -238,12 +246,12 @@ function rowForVariant(
     variantId: variant.variantId,
     atrialGeometryGainMl: variant.atrialGeometryGainMl,
     lobeQuality,
-    maxAtrialGeometryDeltaMl: round(Math.max(0, ...replay.readbacks.map((readback) => readback.atrialGeometryDeltaMl))),
+    maxAtrialGeometryDeltaMl: round(Math.max(0, ...scoredReadbacks.map((readback) => readback.atrialGeometryDeltaMl))),
     maxHiddenBloodVolumeSourceMl: round(maxHiddenBloodVolumeSourceMl),
     aPrimeReadbackPresent: aPrimeValues.length > 0,
     aPrimePeakAbsCmPerSec: round(maxAbs(aPrimeValues)),
-    meanPressureDeltaFromSourceMmHg: round(meanAbs(replay.geometryAdjustedPressureMmHg.map((value, index) =>
-      value - samples[index]!.lapMmHg
+    meanPressureDeltaFromSourceMmHg: round(meanAbs(scoredPressures.map((value, index) =>
+      value - scoredSamples[index]!.lapMmHg
     ))),
     status: failureReasons.length === 0 ? "pass" : "fail",
     failureReasons,

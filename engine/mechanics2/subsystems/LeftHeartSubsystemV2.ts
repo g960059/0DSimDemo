@@ -48,6 +48,9 @@ export type LeftAtrialEffectiveGeometryModeV2 =
   | "lv-shortening-stretch-volume-shadow"
   | "lv-shortening-capacity-volume-shadow"
   | "phase-reservoir-capacity-volume-shadow";
+export type LeftAtrialLobeGeneratorModeV2 =
+  | "none"
+  | "reservoir-suction-state-shadow";
 export type LeftAtrialPressureSourceModeV2 =
   | "empirical-a-wave"
   | "fiber-active-a-window-gated-shadow"
@@ -90,6 +93,12 @@ export type LeftHeartSubsystemParamsV2 = LeftHeartSubsystemParamsV1 & {
   readonly laEffectiveGeometryMode: LeftAtrialEffectiveGeometryModeV2;
   readonly laEffectiveGeometryGainMl: number;
   readonly laEffectiveGeometryVelocityScaleCmPerSec: number;
+  readonly laLobeGeneratorMode: LeftAtrialLobeGeneratorModeV2;
+  readonly laReservoirSuctionPressureGainMmHg: number;
+  readonly laReservoirSuctionRiseTauSec: number;
+  readonly laReservoirSuctionFallTauSec: number;
+  readonly laReservoirSuctionStartTheta: number;
+  readonly laReservoirSuctionEndTheta: number;
 };
 
 export type LeftHeartSubsystemStateV2 = {
@@ -102,6 +111,7 @@ export type LeftHeartSubsystemStateV2 = {
   readonly mv: FlowStateValveStateV1;
   readonly aov: FlowStateValveStateV1;
   readonly rootOutflowStatefulDrive01: number;
+  readonly laReservoirSuctionDrive01: number;
   readonly clampCount: number;
 };
 
@@ -127,6 +137,9 @@ export type LeftHeartSubsystemSampleV2 = {
   readonly laEffectiveGeometryDeltaMl: number;
   readonly laEffectiveGeometryHiddenBloodVolumeSourceMl: number;
   readonly laAPrimeProxyCmPerSec: number | null;
+  readonly laLobeGeneratorMode: LeftAtrialLobeGeneratorModeV2;
+  readonly laReservoirSuctionDrive01: number;
+  readonly laReservoirSuctionPressureMmHg: number;
   readonly rootPressureMmHg: number;
   readonly acceptedRootPressureMmHg: number;
   readonly pulmonaryVenousPressureMmHg: number;
@@ -196,6 +209,8 @@ type AcceptedV2 = CandidateV2 & {
   readonly lapFiberActivePressureMmHg: number;
   readonly lapFiberActivePulse01: number;
   readonly avPlaneGeometryReadback: AVPlaneGeometryReadbackV1;
+  readonly laReservoirSuctionDrive01: number;
+  readonly laReservoirSuctionPressureMmHg: number;
   readonly volumeClampHit01: 0 | 1;
   readonly laVolumeClampHit01: 0 | 1;
   readonly lvVolumeClampHit01: 0 | 1;
@@ -250,6 +265,12 @@ export function defaultLeftHeartSubsystemParamsV2(
     laEffectiveGeometryMode: overrides.laEffectiveGeometryMode ?? "none",
     laEffectiveGeometryGainMl: overrides.laEffectiveGeometryGainMl ?? 0,
     laEffectiveGeometryVelocityScaleCmPerSec: overrides.laEffectiveGeometryVelocityScaleCmPerSec ?? 1.5,
+    laLobeGeneratorMode: overrides.laLobeGeneratorMode ?? "none",
+    laReservoirSuctionPressureGainMmHg: overrides.laReservoirSuctionPressureGainMmHg ?? 0,
+    laReservoirSuctionRiseTauSec: overrides.laReservoirSuctionRiseTauSec ?? 0.08,
+    laReservoirSuctionFallTauSec: overrides.laReservoirSuctionFallTauSec ?? 0.16,
+    laReservoirSuctionStartTheta: overrides.laReservoirSuctionStartTheta ?? 0.08,
+    laReservoirSuctionEndTheta: overrides.laReservoirSuctionEndTheta ?? 0.70,
   };
 }
 
@@ -270,6 +291,7 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
     mv: initialFlowStateValveStateV1(),
     aov: initialFlowStateValveStateV1(),
     rootOutflowStatefulDrive01: 0,
+    laReservoirSuctionDrive01: 0,
     clampCount: 0,
   };
   const samples: LeftHeartSubsystemSampleV2[] = [];
@@ -300,6 +322,7 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
         previousMvState: state.mv,
         previousAovState: state.aov,
         previousRootOutflowStatefulDrive01: state.rootOutflowStatefulDrive01,
+        previousLaReservoirSuctionDrive01: state.laReservoirSuctionDrive01,
         tSec,
         dtSec,
         cycleLengthSec,
@@ -350,6 +373,9 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
       laEffectiveGeometryDeltaMl: accepted.avPlaneGeometryReadback.atrialGeometryDeltaMl,
       laEffectiveGeometryHiddenBloodVolumeSourceMl: accepted.avPlaneGeometryReadback.hiddenBloodVolumeSourceMl,
       laAPrimeProxyCmPerSec: accepted.avPlaneGeometryReadback.aPrimeProxyCmPerSec,
+      laLobeGeneratorMode: params.laLobeGeneratorMode,
+      laReservoirSuctionDrive01: accepted.laReservoirSuctionDrive01,
+      laReservoirSuctionPressureMmHg: accepted.laReservoirSuctionPressureMmHg,
       rootPressureMmHg: state.rootPressureMmHg,
       acceptedRootPressureMmHg: accepted.rootPressureMmHg,
       pulmonaryVenousPressureMmHg: state.pulmonaryVenousPressureMmHg,
@@ -388,6 +414,7 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
       mv: accepted.mv.state,
       aov: accepted.aov.state,
       rootOutflowStatefulDrive01: accepted.rootOutflowStatefulDrive01,
+      laReservoirSuctionDrive01: accepted.laReservoirSuctionDrive01,
       clampCount: state.clampCount + accepted.volumeClampHit01,
     };
   }
@@ -404,6 +431,7 @@ function acceptLeftHeartCandidateV2(input: {
   readonly previousMvState: FlowStateValveStateV1;
   readonly previousAovState: FlowStateValveStateV1;
   readonly previousRootOutflowStatefulDrive01: number;
+  readonly previousLaReservoirSuctionDrive01: number;
   readonly tSec: number;
   readonly dtSec: number;
   readonly cycleLengthSec: number;
@@ -451,14 +479,22 @@ function acceptLeftHeartCandidateV2(input: {
     0,
     1.6,
   ) * raisedCosineWindow(input.theta, input.params.laAWaveStartTheta, input.params.laAWaveEndTheta);
-  const lapRawMmHg = leftAtrialPressureRaw(
+  const laReservoirSuctionDrive01 = nextLaReservoirSuctionDrive01(
+    input.previousLaReservoirSuctionDrive01,
+    input.theta,
+    input.dtSec,
+    input.params,
+  );
+  const laReservoirSuctionPressureMmHg =
+    -input.params.laReservoirSuctionPressureGainMmHg * laReservoirSuctionDrive01;
+  const lapRawMmHg = Math.max(0, leftAtrialPressureRaw(
     input.theta,
     input.candidate.laVolumeMl,
     input.params,
     lapFiberActivePulse01,
     laFiberChamber.pressureRawMmHg,
     laFiberChamber.activePressureMmHg,
-  );
+  ) + laReservoirSuctionPressureMmHg);
   const lapSafetyMmHg = safetyPressureMmHg(
     input.candidate.laVolumeMl,
     input.params.minLaVolumeMl,
@@ -537,6 +573,8 @@ function acceptLeftHeartCandidateV2(input: {
     lapFiberActivePressureMmHg: laFiberChamber.activePressureMmHg,
     lapFiberActivePulse01,
     avPlaneGeometryReadback,
+    laReservoirSuctionDrive01,
+    laReservoirSuctionPressureMmHg,
   };
 }
 
@@ -620,6 +658,25 @@ function nextRootOutflowStatefulDrive(
   const tau = targetDrive01 > previousDrive01
     ? params.rootOutflowStatefulRiseTauSec
     : params.rootOutflowStatefulFallTauSec;
+  const step = (targetDrive01 - previousDrive01) * dtSec / Math.max(tau, 1e-6);
+  return clamp(previousDrive01 + step, 0, 1);
+}
+
+function nextLaReservoirSuctionDrive01(
+  previousDrive01: number,
+  theta: number,
+  dtSec: number,
+  params: LeftHeartSubsystemParamsV2,
+): number {
+  if (params.laLobeGeneratorMode !== "reservoir-suction-state-shadow") return 0;
+  const targetDrive01 = raisedCosineWindow(
+    theta,
+    params.laReservoirSuctionStartTheta,
+    params.laReservoirSuctionEndTheta,
+  );
+  const tau = targetDrive01 > previousDrive01
+    ? params.laReservoirSuctionRiseTauSec
+    : params.laReservoirSuctionFallTauSec;
   const step = (targetDrive01 - previousDrive01) * dtSec / Math.max(tau, 1e-6);
   return clamp(previousDrive01 + step, 0, 1);
 }
