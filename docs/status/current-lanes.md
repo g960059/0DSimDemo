@@ -709,6 +709,16 @@ Next gates:
     accepted valve state plus pressure-flow causality/energy, not more
     source-state tuning. Pressure/gradient commit, runtime, AV-plane,
     LandAtrial, and morphology acceptance remain blocked.
+65. AV valve causal-energy ownership shadow: extending the cyclic replay with
+    causal-support readbacks shows that effective pressure-flow causality can
+    explain the remaining rows (`cyclic-causal-support-readback-oracle` 14/14,
+    max applied support ~6.85 mmHg, mean ~1.53 mmHg, max duty ~0.079) without
+    changing q/state. But applying pressure support inside the step is worse
+    (`cyclic-causal-pressure-step-oracle` 3/14, forward-volume parity 9/14,
+    mean Q RMS ~8.52 mL/s, max support ~26.9 mmHg), and loss-only damping is
+    also worse (3/14). Treat this as a same-step transaction requirement, not
+    a pressure-support promotion. Pressure/gradient commit, runtime,
+    AV-plane, LandAtrial, and morphology acceptance remain blocked.
 
 Parallel prep, not blocking the next strategic gate:
 

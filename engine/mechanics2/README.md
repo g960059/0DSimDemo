@@ -163,7 +163,8 @@ Current scope:
 - `benches/AvValveSourceStateResidualAttributionBench.ts`: attribution of the
   fixed source-state replay residuals against current-pressure valve replay.
 - `benches/AvValveCyclicStateReplayBench.ts`: shadow MV/TV cyclic accepted
-  valve-state replay for separating state carryover from source-pressure work.
+  valve-state replay for separating state carryover, causal-support readbacks,
+  pressure-step oracles, and loss-only damping from source-pressure work.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
