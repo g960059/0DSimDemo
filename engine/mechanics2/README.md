@@ -151,6 +151,9 @@ Current scope:
 - `benches/LaPressureSourceResidualAttributionBench.ts`: attribution of the
   closed-loop source-substitution residual, separating MVF E/A collapse from
   output loss, new clamp hits, pulse gross timing drift, and late-gradient loss.
+- `benches/AtrialFiberSourceReservoirShadowReplayBench.ts`:
+  source/reservoir-conditioned LA/RA AtrialFiber shadow replay that keeps
+  pressure substitution, runtime, AV-plane, and LandAtrial locked.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
