@@ -59,9 +59,9 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: classify non-focused decomposed LA late-peak residuals before
-any atrial pressure-substitution path. Runtime wiring, reservoir broad
-retuning, AV-plane work, and LandAtrial re-entry remain blocked.
+Next PR target: shadow source-surface substitution smoke with the decomposed LA
+pressure contract. Runtime wiring, reservoir broad retuning, AV-plane work,
+and LandAtrial re-entry remain blocked.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -174,6 +174,9 @@ Included:
 - DecomposedLaPressureContractBench V1 for a shadow decomposed LA pressure
   signal that keeps source/reservoir filling baseline separate from atrial
   fiber active pulse.
+- LaLatePeakResidualAttributionBench V1 for classifying the decomposed LA
+  pressure contract's non-focused late-peak residuals before shadow
+  substitution.
 
 Excluded:
 
@@ -634,6 +637,11 @@ Next gates:
     residual rows pass, but total pass is 4/7 because `normal-hr75`,
     `normal-hr90`, and `contractility-high` retain non-focused late-peak
     residuals. This is not a source-surface substitution unlock.
+59. LA late-peak residual attribution: the three non-focused decomposed
+    late-peak residual rows classify as current late-window boundary-tail
+    dominant while remaining pressure-parity clean. This permits only a shadow
+    source-surface substitution smoke; runtime wiring, morphology acceptance,
+    AV-plane geometry, piston-volume mode, and LandAtrial remain blocked.
 
 Parallel prep, not blocking the next strategic gate:
 
