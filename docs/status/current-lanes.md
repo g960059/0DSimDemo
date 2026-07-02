@@ -59,18 +59,19 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: design a broader atrial chamber/valve lobe generator where
-reservoir and booster lobe state co-evolves with LA volume, MV valve flow, and
-LV filling rather than entering as scalar pressure states. Warm-replay lobe
-attribution and separated-state smokes show pressure parity, scalar reservoir
-suction, and simple reservoir/booster pressure states are insufficient.
-Direct atrial pressure substitution, additive atrial active-pressure source
-substitution, direct AV-gradient injection, more fixed source-state variant
-sweeps, readback-only geometry overlays, simple LV-shortening effective-
-geometry transactions, display-only piston volume, phase-pressure oracles,
-runtime wiring, reservoir broad retuning, AV-plane enablement, and LandAtrial
-re-entry remain blocked. For atrial work, pressure parity or MVF cleanup alone
-is insufficient: normal-sinus acceptance must preserve atrial PV figure-eight
+Next PR target: test stateful AV-plane descent as the reservoir-filling driver
+inside the atrial chamber/valve transaction, with hidden-volume and a-prime
+readbacks. Warm-replay lobe attribution, separated-state smokes, dual-lobe
+geometry, and flow-oriented LA filling-rate drive show pressure parity, scalar
+reservoir suction, simple reservoir/booster pressure states, and AV-plane-free
+lobe generators are insufficient. Direct atrial pressure substitution,
+additive atrial active-pressure source substitution, direct AV-gradient
+injection, more fixed source-state variant sweeps, readback-only geometry
+overlays, simple LV-shortening effective-geometry transactions, display-only
+piston volume, phase-pressure oracles, runtime wiring, reservoir broad
+retuning, runtime AV-plane enablement, and LandAtrial re-entry remain blocked.
+For atrial work, pressure parity, MVF cleanup, or self-crossing PV loops alone
+are insufficient: normal-sinus acceptance must preserve atrial PV figure-eight
 lobe quality and eventually expose AV-plane velocity/a-prime readbacks.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
@@ -253,6 +254,9 @@ Included:
   and booster-compression geometry state surface coupled to LA fiber pressure,
   MV pressure-flow, and LV filling while runtime AV-plane promotion remains
   blocked.
+- FlowOrientedAtrialLobeGeneratorBench V1 for a left-heart filling-rate-driven
+  reservoir lobe check plus visual PV-loop review bundle, showing flow gating
+  preserves source/MVF surfaces but does not repair opposed a/v lobe quality.
 
 Excluded:
 
