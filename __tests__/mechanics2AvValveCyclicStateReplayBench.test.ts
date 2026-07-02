@@ -30,6 +30,10 @@ describe("AvValveCyclicStateReplayBench V1", () => {
     });
     expect(report.bestFixedVariant.meanQRmsDeltaMlPerSec).toBeLessThan(0.5);
     expect(report.bestFixedVariant.maxCyclicStateDeltaNorm).toBe(0);
+    expect(report.summary.bestFixedMaxRequiredCausalGradientSupportMmHg).toBeGreaterThan(6);
+    expect(report.summary.bestFixedMaxRequiredCausalGradientSupportMmHg).toBeLessThan(7);
+    expect(report.summary.bestFixedMeanRequiredCausalGradientSupportMmHg).toBeGreaterThan(1.4);
+    expect(report.summary.bestFixedMeanRequiredCausalGradientSupportMmHg).toBeLessThan(1.7);
   });
 
   it("keeps source-open-memory behind cyclic current-pressure replay", () => {
@@ -39,6 +43,8 @@ describe("AvValveCyclicStateReplayBench V1", () => {
     expect(sourceOpen).toBeDefined();
     expect(sourceOpen?.pass).toBeLessThan(report.bestFixedVariant.pass);
     expect(sourceOpen?.meanQRmsDeltaMlPerSec).toBeGreaterThan(report.bestFixedVariant.meanQRmsDeltaMlPerSec);
+    expect(sourceOpen?.maxRequiredCausalGradientSupportMmHg)
+      .toBeGreaterThan(report.bestFixedVariant.maxRequiredCausalGradientSupportMmHg);
   });
 
   it("localizes the remaining cyclic replay failures to adverse-gradient forward flow", () => {
@@ -61,6 +67,8 @@ describe("AvValveCyclicStateReplayBench V1", () => {
       row.replayToCurrentForwardVolumeRatio >= 0.99
       && row.replayToCurrentForwardVolumeRatio <= 1.01
     )).toBe(true);
+    expect(failed.every((row) => row.maxRequiredCausalGradientSupportMmHg > 0)).toBe(true);
+    expect(failed.every((row) => row.causalGradientSupportDutyFraction < 0.08)).toBe(true);
   });
 
   it("keeps pressure/gradient commit, runtime, morphology, AV-plane, and LandAtrial locked", () => {
