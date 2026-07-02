@@ -185,6 +185,9 @@ Current scope:
 - `benches/LaActivePressureAdditiveSourceBench.ts`: left-heart source-surface
   comparison that adds AtrialFiber active pressure to the empirical LA pressure
   baseline without AV-plane enablement.
+- `benches/LaMvAssembledTransactionSurfaceBench.ts`: left-heart same-step
+  pulmonary-reservoir/LA-chamber/MV-valve/LV-filling surface comparison with
+  AV-plane still disabled.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
