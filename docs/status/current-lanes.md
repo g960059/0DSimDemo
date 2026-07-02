@@ -41,11 +41,10 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: implement a source-aware four-chamber contract that applies
-phase-aligned source parity and load-conditioned magnitude ownership before
-runtime wiring, reservoir retuning, AV-plane work, or LandAtrial re-entry. Do
-not directly transfer standalone source-surface leads into the selected
-four-chamber scaffold.
+Next PR target: promote the source-aware status ownership signal into a bounded
+four-chamber contract smoke, then address the remaining long-epoch
+`preload-low` reservoir repeatability blocker. Runtime wiring, reservoir
+retuning, AV-plane work, and LandAtrial re-entry remain blocked.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -118,6 +117,8 @@ Included:
 - FourChamberSourceAwareResidualReviewBench V1 for reclassifying selected
   four-chamber residuals against the source-surface contract and right-preload
   PV outflow ownership evidence.
+- FourChamberSourceAwareContractBench V1 for applying source-aware status
+  ownership as a contract layer over the selected four-chamber residual review.
 
 Excluded:
 
@@ -444,6 +445,15 @@ Next gates:
     `long-epochs/preload-low` remains a reservoir-repeatability blocker. This
     points next to a source-aware four-chamber contract, not reservoir retuning,
     runtime wiring, AV-plane, or LandAtrial work.
+42. Four-chamber source-aware contract: applying source-aware status ownership
+    over the selected residual review gives a 20/21 contract signal. Raw
+    reference is 17/21; left source-aware status reaches 18/21; left plus
+    right-preload status reaches 19/21; adding explicit clean low-output
+    phenotype scope reaches 20/21. The only remaining key is
+    `long-epochs/preload-low` with persistent reservoir shuttle. This unlocks a
+    bounded source-aware four-chamber contract smoke only, not true
+    four-chamber dynamics, runtime wiring, reservoir retuning, AV-plane, or
+    LandAtrial work.
 
 Parallel prep, not blocking the next strategic gate:
 
