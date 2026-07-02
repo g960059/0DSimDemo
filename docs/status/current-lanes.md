@@ -59,16 +59,19 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: promote the isolated rate-gated AV-plane traction topology
-signal into a closed-loop pressure-only AV-capacity + venous pressure-flow
-reservoir experiment. Warm-replay lobe attribution, separated-state smokes,
+Next PR target: close the pressure-only AV-capacity experiment as a no-go if
+its measured artifact remains blocked, then move the next atrial V-loop attempt
+to a two-state AV-plane reservoir chamber contract that separates early
+capacity/suction blood-volume acquisition from late reservoir pressure/recoil.
+Warm-replay lobe attribution, separated-state smokes,
 dual-lobe geometry, flow-oriented LA filling-rate drive, hidden-volume-free
 AV-plane ejection-rate reservoir oracles, AV-plane reservoir capacity/stretch
 + booster/wall-work, explicit pulmonary venous reservoir inflow, and atrial
 wall reference-volume shift all show source/MVF or v-loop area signals, but
 opposed v-loop quality remains failed in closed-loop source surfaces. The
 isolated prescribed-flow rate-gated traction bench shows a 7/7 topology signal
-only as a falsification scaffold, not closed-loop success. Direct atrial
+only as a falsification scaffold, and the first closed-loop pressure-only
+AV-capacity transfer did not beat the compliance-node baseline. Direct atrial
 pressure substitution, additive atrial
 active-pressure source substitution, direct AV-gradient injection, more fixed
 source-state variant sweeps, readback-only geometry overlays, simple
@@ -273,6 +276,12 @@ Included:
   transaction comparison. Best mixed signal improves left source-surface pass
   3/7->4/7 and MVF clean 3/7->4/7 with finite a-prime readbacks, but LA PV
   lobe quality remains 1/7 and same-signed v-loops dominate.
+- AtrialPressureCapacityReservoirTransactionBench V1 for a closed-loop
+  pressure-only AV-capacity plus rate-gated traction transfer check. The
+  isolated traction topology signal does not transfer when venous inflow and
+  MV pressure-flow are live, so runtime wiring, morphology acceptance,
+  AV-plane enablement, a-prime physiology, and LandAtrial unlock remain
+  blocked.
 
 Excluded:
 
