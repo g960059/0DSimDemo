@@ -67,6 +67,7 @@ export type LeftAtrialLobeGeneratorModeV2 =
   | "av-plane-traction-reservoir-transaction-v1"
   | "av-plane-velocity-stateful-traction-reservoir-transaction-v1"
   | "av-plane-lamv-open-traction-transaction-v1"
+  | "av-plane-capacity-work-coordinate-transaction-v1"
   | "av-plane-stateful-traction-reservoir-transaction-v1"
   | "av-plane-force-position-reservoir-transaction-v1";
 export type LeftAtrialPressureSourceModeV2 =
@@ -1119,6 +1120,7 @@ function nextLaReservoirSuctionDrive01(
     && params.laLobeGeneratorMode !== "av-plane-traction-reservoir-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-velocity-stateful-traction-reservoir-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-lamv-open-traction-transaction-v1"
+    && params.laLobeGeneratorMode !== "av-plane-capacity-work-coordinate-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-stateful-traction-reservoir-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-force-position-reservoir-transaction-v1"
   ) return 0;
@@ -1146,6 +1148,7 @@ function nextLaReservoirSuctionDrive01(
       || params.laLobeGeneratorMode === "av-plane-traction-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-velocity-stateful-traction-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-lamv-open-traction-transaction-v1"
+      || params.laLobeGeneratorMode === "av-plane-capacity-work-coordinate-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-stateful-traction-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-force-position-reservoir-transaction-v1"
       ? phaseDrive01 * smoothstep01(
@@ -1165,6 +1168,7 @@ function nextLaReservoirSuctionDrive01(
     || params.laLobeGeneratorMode === "av-plane-traction-reservoir-transaction-v1"
     || params.laLobeGeneratorMode === "av-plane-velocity-stateful-traction-reservoir-transaction-v1"
     || params.laLobeGeneratorMode === "av-plane-lamv-open-traction-transaction-v1"
+    || params.laLobeGeneratorMode === "av-plane-capacity-work-coordinate-transaction-v1"
     || params.laLobeGeneratorMode === "av-plane-stateful-traction-reservoir-transaction-v1"
     || params.laLobeGeneratorMode === "av-plane-force-position-reservoir-transaction-v1"
     ? smoothstep01(
@@ -1182,6 +1186,7 @@ function nextLaReservoirSuctionDrive01(
       || params.laLobeGeneratorMode === "av-plane-traction-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-velocity-stateful-traction-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-lamv-open-traction-transaction-v1"
+      || params.laLobeGeneratorMode === "av-plane-capacity-work-coordinate-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-stateful-traction-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-force-position-reservoir-transaction-v1"
       ? params.laAVPlaneReservoirCapacityRiseTauSec
@@ -1194,6 +1199,7 @@ function nextLaReservoirSuctionDrive01(
       || params.laLobeGeneratorMode === "av-plane-traction-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-velocity-stateful-traction-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-lamv-open-traction-transaction-v1"
+      || params.laLobeGeneratorMode === "av-plane-capacity-work-coordinate-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-stateful-traction-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-force-position-reservoir-transaction-v1") && mvOpenRelease01 > 0.5
       ? params.laAVPlaneReservoirCapacityReleaseTauSec
@@ -1205,6 +1211,7 @@ function nextLaReservoirSuctionDrive01(
         || params.laLobeGeneratorMode === "av-plane-traction-reservoir-transaction-v1"
         || params.laLobeGeneratorMode === "av-plane-velocity-stateful-traction-reservoir-transaction-v1"
         || params.laLobeGeneratorMode === "av-plane-lamv-open-traction-transaction-v1"
+        || params.laLobeGeneratorMode === "av-plane-capacity-work-coordinate-transaction-v1"
         || params.laLobeGeneratorMode === "av-plane-stateful-traction-reservoir-transaction-v1"
         || params.laLobeGeneratorMode === "av-plane-force-position-reservoir-transaction-v1"
         ? params.laAVPlaneReservoirCapacityFallTauSec
@@ -1427,7 +1434,10 @@ function nextLeftAtrialAVPlaneWorkCoordinateV1(input: {
   readonly driveForceN: number;
   readonly tractionPressureMmHg: number;
 } {
-  if (input.params.laLobeGeneratorMode !== "av-plane-force-position-reservoir-transaction-v1") {
+  if (
+    input.params.laLobeGeneratorMode !== "av-plane-force-position-reservoir-transaction-v1"
+    && input.params.laLobeGeneratorMode !== "av-plane-capacity-work-coordinate-transaction-v1"
+  ) {
     return {
       zNorm: 0,
       zDotNormPerSec: 0,
