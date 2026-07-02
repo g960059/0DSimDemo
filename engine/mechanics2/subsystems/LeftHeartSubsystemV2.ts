@@ -65,6 +65,7 @@ export type LeftAtrialLobeGeneratorModeV2 =
   | "av-plane-pressure-capacity-reservoir-transaction-v1"
   | "av-plane-two-state-reservoir-transaction-v1"
   | "av-plane-traction-reservoir-transaction-v1"
+  | "av-plane-velocity-stateful-traction-reservoir-transaction-v1"
   | "av-plane-stateful-traction-reservoir-transaction-v1"
   | "av-plane-force-position-reservoir-transaction-v1";
 export type LeftAtrialPressureSourceModeV2 =
@@ -1036,6 +1037,7 @@ function nextLaReservoirSuctionDrive01(
     && params.laLobeGeneratorMode !== "av-plane-pressure-capacity-reservoir-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-two-state-reservoir-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-traction-reservoir-transaction-v1"
+    && params.laLobeGeneratorMode !== "av-plane-velocity-stateful-traction-reservoir-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-stateful-traction-reservoir-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-force-position-reservoir-transaction-v1"
   ) return 0;
@@ -1061,6 +1063,7 @@ function nextLaReservoirSuctionDrive01(
       || params.laLobeGeneratorMode === "av-plane-pressure-capacity-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-two-state-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-traction-reservoir-transaction-v1"
+      || params.laLobeGeneratorMode === "av-plane-velocity-stateful-traction-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-stateful-traction-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-force-position-reservoir-transaction-v1"
       ? phaseDrive01 * smoothstep01(
@@ -1078,6 +1081,7 @@ function nextLaReservoirSuctionDrive01(
     || params.laLobeGeneratorMode === "av-plane-pressure-capacity-reservoir-transaction-v1"
     || params.laLobeGeneratorMode === "av-plane-two-state-reservoir-transaction-v1"
     || params.laLobeGeneratorMode === "av-plane-traction-reservoir-transaction-v1"
+    || params.laLobeGeneratorMode === "av-plane-velocity-stateful-traction-reservoir-transaction-v1"
     || params.laLobeGeneratorMode === "av-plane-stateful-traction-reservoir-transaction-v1"
     || params.laLobeGeneratorMode === "av-plane-force-position-reservoir-transaction-v1"
     ? smoothstep01(
@@ -1093,6 +1097,7 @@ function nextLaReservoirSuctionDrive01(
       || params.laLobeGeneratorMode === "av-plane-pressure-capacity-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-two-state-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-traction-reservoir-transaction-v1"
+      || params.laLobeGeneratorMode === "av-plane-velocity-stateful-traction-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-stateful-traction-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-force-position-reservoir-transaction-v1"
       ? params.laAVPlaneReservoirCapacityRiseTauSec
@@ -1103,6 +1108,7 @@ function nextLaReservoirSuctionDrive01(
       || params.laLobeGeneratorMode === "av-plane-pressure-capacity-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-two-state-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-traction-reservoir-transaction-v1"
+      || params.laLobeGeneratorMode === "av-plane-velocity-stateful-traction-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-stateful-traction-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-force-position-reservoir-transaction-v1") && mvOpenRelease01 > 0.5
       ? params.laAVPlaneReservoirCapacityReleaseTauSec
@@ -1112,6 +1118,7 @@ function nextLaReservoirSuctionDrive01(
         || params.laLobeGeneratorMode === "av-plane-pressure-capacity-reservoir-transaction-v1"
         || params.laLobeGeneratorMode === "av-plane-two-state-reservoir-transaction-v1"
         || params.laLobeGeneratorMode === "av-plane-traction-reservoir-transaction-v1"
+        || params.laLobeGeneratorMode === "av-plane-velocity-stateful-traction-reservoir-transaction-v1"
         || params.laLobeGeneratorMode === "av-plane-stateful-traction-reservoir-transaction-v1"
         || params.laLobeGeneratorMode === "av-plane-force-position-reservoir-transaction-v1"
         ? params.laAVPlaneReservoirCapacityFallTauSec
@@ -1234,6 +1241,7 @@ function avPlaneReservoirKinematicFlowMlPerSec(
     params.laLobeGeneratorMode !== "av-plane-venous-reservoir-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-reservoir-strain-reference-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-traction-reservoir-transaction-v1"
+    && params.laLobeGeneratorMode !== "av-plane-velocity-stateful-traction-reservoir-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-stateful-traction-reservoir-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-force-position-reservoir-transaction-v1"
   ) return 0;
@@ -1270,6 +1278,7 @@ function leftAtrialAVPlaneReservoirTractionPressureTargetMmHg(
   if (
     params.laLobeGeneratorMode !== "av-plane-pressure-capacity-reservoir-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-traction-reservoir-transaction-v1"
+    && params.laLobeGeneratorMode !== "av-plane-velocity-stateful-traction-reservoir-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-stateful-traction-reservoir-transaction-v1"
   ) return 0;
   if (params.laAVPlaneReservoirTractionGainMmHgPerNormPerSec === 0) return 0;
@@ -1293,7 +1302,10 @@ function nextLeftAtrialAVPlaneReservoirTractionPressureMmHg(
   dtSec: number,
   params: LeftHeartSubsystemParamsV2,
 ): number {
-  if (params.laLobeGeneratorMode !== "av-plane-stateful-traction-reservoir-transaction-v1") {
+  if (
+    params.laLobeGeneratorMode !== "av-plane-stateful-traction-reservoir-transaction-v1"
+    && params.laLobeGeneratorMode !== "av-plane-velocity-stateful-traction-reservoir-transaction-v1"
+  ) {
     return targetPressureMmHg;
   }
   const mvOpenRelease01 = smoothstep01(
